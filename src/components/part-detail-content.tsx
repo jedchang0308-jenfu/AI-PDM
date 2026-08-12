@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, CheckCircle2, DollarSign, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, Search, Workflow, XCircle } from "lucide-react";
+import { Box, CheckCircle2, FileText, Link2, PackageSearch, Palette, RotateCcw, Save, Search } from "lucide-react";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import { HumanStatusFilterSelect } from "@/components/human-status-filter";
@@ -12,12 +12,14 @@ import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { SearchHighlight } from "@/components/search-highlight";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
+import { NumberSortHeader } from "@/components/number-sort-header";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
 import { formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
 import { isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
+import { DEFAULT_NUMBER_SORT_DIRECTION, parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type NumberingRecordStatus =
@@ -39,14 +41,6 @@ type PartVariant = {
   surfaceTreatment: string | null;
   variantNote: string | null;
 };
-type PartStandardCost = {
-  profileName: string;
-  costType: string;
-  currency: string;
-  uom: string;
-  basisQty: number;
-  unitCost: number | null;
-};
 type PartListRecord = {
   id: string;
   partRootId: string;
@@ -60,8 +54,6 @@ type PartListRecord = {
   variant: PartVariant | null;
   primaryDrawingNumber: string | null;
   drawingCount: number;
-  standardCost: PartStandardCost | null;
-  pendingCostRequestCount: number;
   humanStatus: HumanStatusProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
@@ -69,27 +61,6 @@ type PartListRecord = {
 export type PartDetail = PartListRecord & {
   linkedDrawings: Array<{ id: string; drawingNumber: string; linkType: string }>;
   sameDrawingVariants: Array<{ id: string; drawingNumber: string; fieldName: string; fieldValue: string }>;
-  costProfiles: Array<{
-    id: string;
-    costType: string;
-    profileName: string;
-    currency: string;
-    uom: string;
-    supplierName: string | null;
-    processName: string | null;
-    status: string;
-    tiers: Array<{ id: string; minQty: number; maxQty: number | null; unitCost: number; setupCost: number; leadTimeDays: number | null }>;
-  }>;
-  costChangeRequests: Array<{
-    id: string;
-    proposedCostProfileId: string | null;
-    requestType: string;
-    reviewStatus: string;
-    changeReason: string;
-    requestedAt: string;
-    reviewedAt: string | null;
-    reviewComment: string | null;
-  }>;
 };
 type SharedModelVersion = {
   id: string;
@@ -130,7 +101,6 @@ type ManufacturingBaselineDraftState = {
   baselineRevision: string;
   status: string;
 };
-export type PartDetailFocusSection = "cost" | null;
 type ProductionSliceClientStatus = {
   configured: boolean;
   active: boolean;
@@ -141,7 +111,7 @@ type ProductionSliceClientStatus = {
 const statuses = ["", ...partRecordStatusFilterValues] as const;
 const itemKinds = ["", "purchased", "manufactured", "outsourced", "shared", "custom"] as const;
 const PART_DRAWER_WIDTH_STORAGE_KEY = "pdm-part-detail-drawer-width";
-const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
+const defaultProductionSliceUnopenedMessage = "此功能未納入本次編號建立 production slice。";
 
 const mutedStyle = { color: "var(--muted)" };
 
@@ -176,7 +146,6 @@ export function PartModule() {
     <PartDetailPanel
       detail={detail as PartDetail}
       busy={busy}
-      focusSection={null}
       productionSliceEnforced={productionSliceEnforced}
       productionSliceUnopenedMessage={productionSliceUnopenedMessage}
       showIdentityHeader={false}
@@ -195,15 +164,14 @@ export function LegacyPartsPage() {
   const [itemKind, setItemKind] = useState("");
   const [recordStatus, setRecordStatus] = useState("");
   const [humanStatus, setHumanStatus] = useState<HumanStatusFilter>("all");
+  const [sortDirection, setSortDirection] = useState<NumberSortDirection>(DEFAULT_NUMBER_SORT_DIRECTION);
   const [parts, setParts] = useState<PartListRecord[]>([]);
   const [selectedPartNumber, setSelectedPartNumber] = useState<string | null>(null);
   const selectedPartNumberRef = useRef<string | null>(null);
   const initialDetailPartNumberRef = useRef<string | null>(null);
-  const initialDetailFocusRef = useRef<PartDetailFocusSection>(null);
   const partListRef = useRef<HTMLDivElement | null>(null);
   const [detail, setDetail] = useState<PartDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [detailFocus, setDetailFocus] = useState<PartDetailFocusSection>(null);
   const { drawerWidth, startDrawerResize: startDetailDrawerResize } = useRememberedDrawerWidth({
     storageKey: PART_DRAWER_WIDTH_STORAGE_KEY
   });
@@ -219,12 +187,12 @@ export function LegacyPartsPage() {
     setActiveTab(tab === "drafts" || tab === "reserved" ? "reserved" : "official");
     const initialQuery = params.get("query")?.trim();
     const initialHumanStatus = params.get("humanStatus") as HumanStatusFilter | null;
+    const initialSortDirection = parseNumberSortDirection(params.get("sortDirection"));
     const detailPartNumber = params.get("detail")?.trim();
-    const focusSection = params.get("focus")?.trim();
     if (initialQuery) setQuery(initialQuery);
     if (isHumanStatusFilter(initialHumanStatus)) setHumanStatus(initialHumanStatus);
+    setSortDirection(initialSortDirection);
     if (detailPartNumber) initialDetailPartNumberRef.current = detailPartNumber;
-    if (focusSection === "cost") initialDetailFocusRef.current = "cost";
   }, []);
 
   useEffect(() => {
@@ -251,6 +219,7 @@ export function LegacyPartsPage() {
     if (seriesCode) params.set("seriesCode", seriesCode);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (humanStatus !== "all") params.set("humanStatus", humanStatus);
+    params.set("sortDirection", sortDirection);
     const response = await fetch(`/api/parts?${params.toString()}`);
     if (response.status === 401 || response.status === 403) {
       setState("unauthorized");
@@ -274,7 +243,7 @@ export function LegacyPartsPage() {
       setIsDetailOpen(false);
     }
     setState("ready");
-  }, [activeTab, humanStatus, query, recordStatus, seriesCode]);
+  }, [activeTab, humanStatus, query, recordStatus, seriesCode, sortDirection]);
 
   const loadDetail = useCallback(async (partNumber: string | null) => {
     if (!partNumber) {
@@ -335,7 +304,6 @@ export function LegacyPartsPage() {
       focusPartList();
       if (isDetailOpen) {
         if (previousPartNumber !== part.partNumber) setDetail(null);
-        setDetailFocus(null);
         void loadDetail(part.partNumber);
       }
     },
@@ -365,12 +333,11 @@ export function LegacyPartsPage() {
   }
 
   const openPartDetail = useCallback(
-    (partNumber: string, focusSection: PartDetailFocusSection = null) => {
+    (partNumber: string) => {
       selectedPartNumberRef.current = partNumber;
       setSelectedPartNumber(partNumber);
       setDetail((currentDetail) => (currentDetail?.partNumber === partNumber ? currentDetail : null));
       setIsDetailOpen(true);
-      setDetailFocus(focusSection);
       void loadDetail(partNumber);
       focusPartList();
     },
@@ -383,9 +350,7 @@ export function LegacyPartsPage() {
     if (!detailPartNumber) return;
     if (!visibleParts.some((part) => part.partNumber === detailPartNumber)) return;
     initialDetailPartNumberRef.current = null;
-    const focusSection = initialDetailFocusRef.current;
-    initialDetailFocusRef.current = null;
-    openPartDetail(detailPartNumber, focusSection);
+    openPartDetail(detailPartNumber);
   }, [openPartDetail, state, visibleParts]);
 
   const openSelectedPartDetail = useCallback(() => {
@@ -486,7 +451,7 @@ export function LegacyPartsPage() {
       <div className="topbar">
         <div>
           <h1>料號模組</h1>
-          <p>以主根號自動串聯圖號與料號，材質、顏色與成本都以料號為主體管理。</p>
+          <p>以主根號自動串聯圖號與料號，材質與顏色都以料號為主體管理。</p>
         </div>
         <div className="number-state-owner-actions">
           <button className="secondary-button" type="button" onClick={refreshSelected}>
@@ -536,14 +501,13 @@ export function LegacyPartsPage() {
           </section>
 
           <div className="pdm-drawing-list-layout">
-            <PartList parts={visibleParts} query={query} selectedPartNumber={selectedPartNumber} listRef={partListRef} onSelect={openPartDetail} />
+            <PartList parts={visibleParts} query={query} selectedPartNumber={selectedPartNumber} listRef={partListRef} sortDirection={sortDirection} onSortDirectionChange={setSortDirection} onSelect={openPartDetail} />
           </div>
           <PartDetailDrawer
             detail={detail}
             busy={busy}
             open={isDetailOpen && selectedPartIsVisible}
             width={drawerWidth}
-            focusSection={detailFocus}
             productionSliceEnforced={productionSliceEnforced}
             productionSliceUnopenedMessage={productionSliceUnopenedMessage}
             setBusy={setBusy}
@@ -551,7 +515,6 @@ export function LegacyPartsPage() {
             onStartResize={startDetailDrawerResize}
             onClose={() => {
               setIsDetailOpen(false);
-              setDetailFocus(null);
             }}
           />
         </div>
@@ -565,12 +528,16 @@ function PartList({
   query,
   selectedPartNumber,
   listRef,
+  sortDirection,
+  onSortDirectionChange,
   onSelect
 }: {
   parts: PartListRecord[];
   query: string;
   selectedPartNumber: string | null;
   listRef: RefObject<HTMLDivElement | null>;
+  sortDirection: NumberSortDirection;
+  onSortDirectionChange: (value: NumberSortDirection | ((current: NumberSortDirection) => NumberSortDirection)) => void;
   onSelect: (partNumber: string) => void;
 }) {
   if (parts.length === 0) {
@@ -579,18 +546,21 @@ function PartList({
         <NextStepState
           eyebrow="查無結果"
           title="目前沒有符合條件的料號"
-          body="現在請先清除或放寬篩選條件。若料號尚未建立，請改到保留號建立來源資料。"
+          body="現在請先清除或放寬篩選條件。若料號尚未建立，請改到編號申請建立來源資料。"
           actions={[
             { href: "/parts", label: "重新查詢", variant: "primary" },
-            { href: "/parts?tab=drafts", label: "建立保留號" }
+            { href: "/parts?tab=drafts", label: "建立料號" }
           ]}
         />
       </section>
     );
   }
   return (
-    <section className="panel pdm-master-table-panel">
-      <div
+      <section className="panel pdm-master-table-panel">
+        <div className="number-sort-mobile-control">
+          <NumberSortHeader label="料號" direction={sortDirection} onToggle={() => onSortDirectionChange((current) => current === "asc" ? "desc" : "asc")} />
+        </div>
+        <div
         ref={listRef}
         className="table-wrap pdm-identity-scroll"
         role="region"
@@ -608,7 +578,9 @@ function PartList({
           </colgroup>
           <thead>
             <tr>
-              <th>料號</th>
+              <th aria-sort={sortDirection === "asc" ? "ascending" : "descending"}>
+                <NumberSortHeader label="料號" direction={sortDirection} onToggle={() => onSortDirectionChange((current) => current === "asc" ? "desc" : "asc")} />
+              </th>
               <th>品名</th>
               <th>圖號</th>
               <th className="pdm-identity-layout-spacer" aria-hidden="true" />
@@ -651,8 +623,6 @@ function PartList({
                 <td data-label="資料狀態 / 提醒">
                   <div className="pdm-meta-strip">
                     <HumanStatusBadge status={part.humanStatus} viewerStatus={part.viewerStatus} availabilityScope={part.availabilityScope} />
-                    {part.standardCost ? <span className="pdm-meta-text">{standardCostChipLabel(part.standardCost)}</span> : null}
-                    {part.pendingCostRequestCount > 0 ? <span className="pdm-meta-text">成本審核中 {part.pendingCostRequestCount}</span> : null}
                   </div>
                 </td>
               </tr>
@@ -669,7 +639,6 @@ function PartDetailDrawer({
   busy,
   open,
   width,
-  focusSection,
   productionSliceEnforced,
   productionSliceUnopenedMessage,
   setBusy,
@@ -681,7 +650,6 @@ function PartDetailDrawer({
   busy: boolean;
   open: boolean;
   width: number;
-  focusSection: PartDetailFocusSection;
   productionSliceEnforced: boolean;
   productionSliceUnopenedMessage: string;
   setBusy: (value: boolean) => void;
@@ -712,7 +680,6 @@ function PartDetailDrawer({
           <PartDetailPanel
             detail={detail}
             busy={busy}
-            focusSection={focusSection}
             productionSliceEnforced={productionSliceEnforced}
             productionSliceUnopenedMessage={productionSliceUnopenedMessage}
             showIdentityHeader={false}
@@ -732,7 +699,6 @@ function PartDetailDrawer({
 export function PartDetailPanel({
   detail,
   busy,
-  focusSection,
   productionSliceEnforced,
   productionSliceUnopenedMessage,
   showIdentityHeader = true,
@@ -741,47 +707,27 @@ export function PartDetailPanel({
 }: {
   detail: PartDetail;
   busy: boolean;
-  focusSection: PartDetailFocusSection;
   productionSliceEnforced: boolean;
   productionSliceUnopenedMessage: string;
   showIdentityHeader?: boolean;
   setBusy: (value: boolean) => void;
   onUpdated: () => Promise<void>;
 }) {
-  const costSectionRef = useRef<HTMLElement | null>(null);
-  const shared3dSectionRef = useRef<HTMLDivElement | null>(null);
   const [variantForm, setVariantForm] = useState(() => ({
-    materialLabel: detail.variant?.materialLabel ?? "",
+    materialLabel: detail.variant?.materialLabel?.trim() || detail.variant?.materialCode?.trim() || "",
     colorLabel: detail.variant?.colorLabel ?? "",
     surfaceTreatment: detail.variant?.surfaceTreatment ?? "",
     variantNote: detail.variant?.variantNote ?? ""
   }));
-  const [costForm, setCostForm] = useState(() => ({
-    profileName: "",
-    costType: "outsourced",
-    supplierName: "",
-    processName: "",
-    unitCost: "",
-    minQty: "1",
-    setupCost: "0"
-  }));
 
   useEffect(() => {
     setVariantForm({
-      materialLabel: detail.variant?.materialLabel ?? "",
+      materialLabel: detail.variant?.materialLabel?.trim() || detail.variant?.materialCode?.trim() || "",
       colorLabel: detail.variant?.colorLabel ?? "",
       surfaceTreatment: detail.variant?.surfaceTreatment ?? "",
       variantNote: detail.variant?.variantNote ?? ""
     });
   }, [detail.id, detail.variant]);
-
-  useEffect(() => {
-    if (focusSection !== "cost") return;
-    requestAnimationFrame(() => {
-      costSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" });
-      costSectionRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
-    });
-  }, [detail.partNumber, focusSection]);
 
   async function saveVariant() {
     if (productionSliceEnforced) return;
@@ -795,52 +741,19 @@ export function PartDetailPanel({
     await onUpdated();
   }
 
-  async function createCostProfile() {
-    if (productionSliceEnforced) return;
-    setBusy(true);
-    await fetch(`/api/parts/${encodeURIComponent(detail.partNumber)}/cost-profiles`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        ...costForm,
-        tiers: [{ minQty: Number(costForm.minQty), unitCost: Number(costForm.unitCost), setupCost: Number(costForm.setupCost) }]
-      })
-    });
-    setBusy(false);
-    setCostForm({ profileName: "", costType: "outsourced", supplierName: "", processName: "", unitCost: "", minQty: "1", setupCost: "0" });
-    await onUpdated();
-  }
-
-  async function decideCostRequest(requestId: string, decision: "approve" | "reject") {
-    if (productionSliceEnforced) return;
-    setBusy(true);
-    await fetch(`/api/parts/${encodeURIComponent(detail.partNumber)}/cost-change-requests/${encodeURIComponent(requestId)}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        decision,
-        basisQty: 1,
-        reviewComment: decision === "approve" ? "主管核准成本設定並設為標準成本。" : "主管退回成本設定。"
-      })
-    });
-    setBusy(false);
-    await onUpdated();
-  }
 
   return (
     <div className="pdm-master-detail-panel pdm-master-detail-stack">
-      <PartDetailHero
-        detail={detail}
-        productionSliceEnforced={productionSliceEnforced}
-        productionSliceUnopenedMessage={productionSliceUnopenedMessage}
-        showIdentityHeader={showIdentityHeader}
-        onOpenCost={() => costSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" })}
-        onOpenShared3d={() => shared3dSectionRef.current?.scrollIntoView({ block: "start", inline: "nearest" })}
-      />
+      {showIdentityHeader ? (
+        <PartDetailHero
+          detail={detail}
+          productionSliceEnforced={productionSliceEnforced}
+          productionSliceUnopenedMessage={productionSliceUnopenedMessage}
+          showIdentityHeader={showIdentityHeader}
+        />
+      ) : null}
 
       <MasterAttachmentPanel entityType="part_number" entityCode={detail.partNumber} productionSliceEnforced={productionSliceEnforced} productionSliceUnopenedMessage={productionSliceUnopenedMessage} />
-
-      <PartReadinessPanel detail={detail} />
 
       <PartLinkedDrawingsPanel detail={detail} />
 
@@ -862,160 +775,10 @@ export function PartDetailPanel({
           </button>
         </div>
         <div style={formGridStyle}>
-          <TextField label="材質" value={variantForm.materialLabel} onChange={(value) => setVariantForm((form) => ({ ...form, materialLabel: value }))} disabled={productionSliceEnforced} />
+          <TextField label="材質" value={variantForm.materialLabel} onChange={(value) => setVariantForm((form) => ({ ...form, materialLabel: value }))} disabled={productionSliceEnforced} missing={!variantForm.materialLabel.trim()} />
           <TextField label="顏色" value={variantForm.colorLabel} onChange={(value) => setVariantForm((form) => ({ ...form, colorLabel: value }))} disabled={productionSliceEnforced} />
-          <TextField label="表面處理" value={variantForm.surfaceTreatment} onChange={(value) => setVariantForm((form) => ({ ...form, surfaceTreatment: value }))} disabled={productionSliceEnforced} />
+          <TextField label="表面處理" value={variantForm.surfaceTreatment} onChange={(value) => setVariantForm((form) => ({ ...form, surfaceTreatment: value }))} disabled={productionSliceEnforced} missing={!variantForm.surfaceTreatment.trim()} />
           <TextField label="差異說明" value={variantForm.variantNote} onChange={(value) => setVariantForm((form) => ({ ...form, variantNote: value }))} disabled={productionSliceEnforced} />
-        </div>
-      </section>
-
-      <div ref={shared3dSectionRef}>
-        <Shared3dBaselinePanel partNumber={detail.partNumber} rootCode={detail.rootCode} productionSliceEnforced={productionSliceEnforced} productionSliceUnopenedMessage={productionSliceUnopenedMessage} />
-      </div>
-
-      <section className="panel" ref={costSectionRef} style={focusSection === "cost" ? focusPanelStyle : undefined}>
-        <div className="panel-header">
-          <div>
-            <h2>成本設定檔</h2>
-            {focusSection === "cost" ? <p style={mutedStyle}>填成本名稱與單價後，按新增送審。</p> : null}
-          </div>
-          <button
-            className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
-            type="button"
-            disabled={busy || productionSliceEnforced || !costForm.profileName || !costForm.unitCost}
-            onClick={createCostProfile}
-            title={productionSliceEnforced ? productionSliceUnavailableTitle("新增送審", productionSliceUnopenedMessage) : "新增成本送審"}
-            aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("新增送審", productionSliceUnopenedMessage) : "新增成本送審"}
-            data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
-          >
-            <DollarSign size={16} />
-            新增送審
-            {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
-          </button>
-        </div>
-        <div style={formGridStyle}>
-          <TextField label="成本名稱" value={costForm.profileName} onChange={(value) => setCostForm((form) => ({ ...form, profileName: value }))} disabled={productionSliceEnforced} />
-          <label style={fieldStyle}>
-            <span>成本類型</span>
-            <select className="dropdown-select" value={costForm.costType} disabled={productionSliceEnforced} onChange={(event) => setCostForm((form) => ({ ...form, costType: event.target.value }))}>
-              <option value="outsourced">委外加工</option>
-              <option value="in_house">自行製作</option>
-              <option value="purchase">採購</option>
-              <option value="trial">試作</option>
-              <option value="other">其他</option>
-            </select>
-          </label>
-          <TextField label="供應商" value={costForm.supplierName} onChange={(value) => setCostForm((form) => ({ ...form, supplierName: value }))} disabled={productionSliceEnforced} />
-          <TextField label="製程" value={costForm.processName} onChange={(value) => setCostForm((form) => ({ ...form, processName: value }))} disabled={productionSliceEnforced} />
-          <TextField label="最小數量" value={costForm.minQty} onChange={(value) => setCostForm((form) => ({ ...form, minQty: value }))} disabled={productionSliceEnforced} />
-          <TextField label="單價" value={costForm.unitCost} onChange={(value) => setCostForm((form) => ({ ...form, unitCost: value }))} disabled={productionSliceEnforced} />
-          <TextField label="設定費" value={costForm.setupCost} onChange={(value) => setCostForm((form) => ({ ...form, setupCost: value }))} disabled={productionSliceEnforced} />
-        </div>
-        <div className="table-wrap">
-          <table style={{ minWidth: 720 }}>
-            <thead>
-              <tr>
-                <th>名稱</th>
-                <th>類型</th>
-                <th>
-                  <StatusColumnHeader context="cost" />
-                </th>
-                <th>級距</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.costProfiles.map((profile) => (
-                <tr key={profile.id}>
-                  <td>{profile.profileName}</td>
-                  <td>{costTypeLabel(profile.costType)}</td>
-                  <td>
-                    <StatusBadge status={profile.status} context="cost" />
-                  </td>
-                  <td>{profile.tiers.map((tier) => `${tier.minQty}${tier.maxQty ? `-${tier.maxQty}` : "+"}: ${profile.currency} ${formatNumber(tier.unitCost)}`).join("、")}</td>
-                </tr>
-              ))}
-              {detail.costProfiles.length === 0 ? (
-                <tr>
-                  <td colSpan={4} style={mutedStyle}>尚未建立成本設定檔。</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h2>成本審核</h2>
-            <p style={mutedStyle}>採購送審後，主管核准才會成為標準成本。</p>
-          </div>
-        </div>
-        <div className="table-wrap">
-          <table style={{ minWidth: 720 }}>
-            <thead>
-              <tr>
-                <th>類型</th>
-                <th>
-                  <StatusColumnHeader context="cost" />
-                </th>
-                <th>原因</th>
-                <th>送審時間</th>
-                <th>動作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.costChangeRequests.map((request) => (
-                <tr key={request.id}>
-                  <td>{costRequestTypeLabel(request.requestType)}</td>
-                  <td>
-                    <StatusBadge status={request.reviewStatus} context="cost" />
-                  </td>
-                  <td>{request.changeReason}</td>
-                  <td>{formatDateTime(request.requestedAt)}</td>
-                  <td>
-                    {request.reviewStatus === "pending" ? (
-                      <div style={inlineButtonRowStyle}>
-                        <button
-                          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
-                          type="button"
-                          disabled={busy || productionSliceEnforced}
-                          onClick={() => decideCostRequest(request.id, "approve")}
-                          title={productionSliceEnforced ? productionSliceUnavailableTitle("核准", productionSliceUnopenedMessage) : "核准成本設定"}
-                          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("核准", productionSliceUnopenedMessage) : "核准成本設定"}
-                          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
-                        >
-                          <CheckCircle2 size={16} />
-                          核准
-                          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
-                        </button>
-                        <button
-                          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
-                          type="button"
-                          disabled={busy || productionSliceEnforced}
-                          onClick={() => decideCostRequest(request.id, "reject")}
-                          title={productionSliceEnforced ? productionSliceUnavailableTitle("退回", productionSliceUnopenedMessage) : "退回成本設定"}
-                          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("退回", productionSliceUnopenedMessage) : "退回成本設定"}
-                          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
-                        >
-                          <XCircle size={16} />
-                          退回
-                          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
-                        </button>
-                      </div>
-                    ) : (
-                      request.reviewComment ?? "-"
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {detail.costChangeRequests.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={mutedStyle}>目前沒有成本審核紀錄。</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
         </div>
       </section>
 
@@ -1077,16 +840,12 @@ function PartDetailHero({
   detail,
   productionSliceEnforced,
   productionSliceUnopenedMessage,
-  showIdentityHeader,
-  onOpenCost,
-  onOpenShared3d
+  showIdentityHeader
 }: {
   detail: PartDetail;
   productionSliceEnforced: boolean;
   productionSliceUnopenedMessage: string;
   showIdentityHeader: boolean;
-  onOpenCost: () => void;
-  onOpenShared3d: () => void;
 }) {
   const primaryDrawingNumber = detail.primaryDrawingNumber ?? detail.linkedDrawings.find((link) => link.linkType === "primary_manufacturing")?.drawingNumber ?? "";
   return (
@@ -1125,71 +884,11 @@ function PartDetailHero({
           <Search size={16} />
           追溯
         </a>
-        <button
-          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
-          type="button"
-          disabled={productionSliceEnforced}
-          onClick={onOpenShared3d}
-          title={productionSliceEnforced ? productionSliceUnavailableTitle("3D 基準", productionSliceUnopenedMessage) : "開啟 3D 基準"}
-          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("3D 基準", productionSliceUnopenedMessage) : "開啟 3D 基準"}
-          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
-        >
-          <Workflow size={16} />
-          3D 基準
-          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
-        </button>
-        <button
-          className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
-          type="button"
-          disabled={productionSliceEnforced}
-          onClick={onOpenCost}
-          title={productionSliceEnforced ? productionSliceUnavailableTitle("成本", productionSliceUnopenedMessage) : "開啟成本設定檔"}
-          aria-label={productionSliceEnforced ? productionSliceUnavailableTitle("成本", productionSliceUnopenedMessage) : "開啟成本設定檔"}
-          data-production-slice-unopened={productionSliceEnforced ? "true" : undefined}
-        >
-          <DollarSign size={16} />
-          成本
-          {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
-        </button>
       </div>
       <div style={detailGridStyle}>
         <InfoBlock icon={<Link2 size={16} />} title="圖號關聯" value={detail.linkedDrawings.length ? detail.linkedDrawings.map((link) => `${link.drawingNumber}（${linkTypeLabel(link.linkType)}）`).join("、") : "尚未關聯圖號"} />
         <InfoBlock icon={<Palette size={16} />} title="變體差異" value={variantLabel(detail.variant)} />
-        <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={standardCostLabel(detail.standardCost)} />
         <InfoBlock icon={<FileText size={16} />} title="同圖差異欄位" value={detail.sameDrawingVariants.length ? detail.sameDrawingVariants.map((item) => `${item.fieldName}=${item.fieldValue}`).join("、") : "無"} />
-      </div>
-    </section>
-  );
-}
-
-function PartReadinessPanel({ detail }: { detail: PartDetail }) {
-  const hasManufacturingDrawing = detail.linkedDrawings.some((link) => link.linkType === "primary_manufacturing");
-  const hasVariantBasics = Boolean((detail.variant?.materialLabel || detail.variant?.materialCode)?.trim()) && Boolean(detail.variant?.surfaceTreatment?.trim());
-  const hasStandardCost = Boolean(detail.standardCost);
-  const pendingCostCount = detail.pendingCostRequestCount || detail.costChangeRequests.filter((request) => request.reviewStatus === "pending").length;
-  const nextStep = !hasManufacturingDrawing
-    ? "先建立製造圖關聯，再進行送審或製造基準確認。"
-    : !hasVariantBasics
-      ? "先補齊材質與表面處理，避免同圖多料號差異不清。"
-      : !hasStandardCost
-        ? "先補標準成本，讓採購與主管能完成成本審核。"
-        : pendingCostCount > 0
-          ? "等待成本審核完成；其餘主資料可先確認附件與 3D 基準。"
-          : "主資料狀態可用，接著確認附件、3D 基準與後續送審。";
-
-  return (
-    <section className="panel" data-part-detail-section="readiness">
-      <div className="panel-header">
-        <div>
-          <h2>料號完整度檢查</h2>
-          <p style={mutedStyle}>{nextStep}</p>
-        </div>
-      </div>
-      <div style={detailGridStyle}>
-        <InfoBlock icon={<Link2 size={16} />} title="製造圖關聯" value={hasManufacturingDrawing ? "已建立製造基準關聯" : "尚未建立製造基準關聯"} />
-        <InfoBlock icon={<Palette size={16} />} title="料號屬性" value={hasVariantBasics ? variantLabel(detail.variant) : "材質或表面處理待補"} />
-        <InfoBlock icon={<DollarSign size={16} />} title="標準成本" value={standardCostLabel(detail.standardCost)} />
-        <InfoBlock icon={<FileText size={16} />} title="成本審核" value={pendingCostCount > 0 ? `${pendingCostCount} 筆待審` : "目前無待審成本"} />
       </div>
     </section>
   );
@@ -1730,17 +1429,19 @@ function TextField({
   label,
   value,
   onChange,
-  disabled = false
+  disabled = false,
+  missing = false
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  missing?: boolean;
 }) {
   return (
     <label style={fieldStyle}>
       <span>{label}</span>
-      <input className="text-input" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
+      <input className={`text-input${missing ? " pdm-missing-field" : ""}`} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} data-field-missing={missing ? "true" : undefined} />
     </label>
   );
 }
@@ -1751,36 +1452,12 @@ function variantLabel(variant: PartVariant | null) {
   return tokens.length ? tokens.join(" / ") : "未設定";
 }
 
-function costTypeLabel(value: string) {
-  return ({ outsourced: "委外加工", in_house: "自行製作", purchase: "採購", trial: "試作", other: "其他" } as Record<string, string>)[value] ?? value;
-}
-
-function costRequestTypeLabel(value: string) {
-  return ({ set_standard: "指定標準成本", update_profile: "更新成本", retire_profile: "停用成本" } as Record<string, string>)[value] ?? value;
-}
-
 function partKindLabel(value: string) {
   return ({ purchased: "外購", manufactured: "自製", outsourced: "發包", shared: "共用", custom: "客製" } as Record<string, string>)[value] ?? value;
 }
 
 function linkTypeLabel(value: string) {
   return ({ primary_manufacturing: "製造基準關聯", reference: "參考圖" } as Record<string, string>)[value] ?? value;
-}
-
-function standardCostChipLabel(value: PartStandardCost) {
-  if (value.unitCost === null) return "標準成本已設定";
-  return `${value.currency} ${formatNumber(value.unitCost)}`;
-}
-
-function standardCostLabel(value: PartStandardCost | null) {
-  if (!value) return "尚未設定標準成本";
-  if (value.unitCost === null) return `${value.profileName}: 標準成本已設定`;
-  return `${value.profileName}: ${value.currency} ${formatNumber(value.unitCost)} / ${value.uom}`;
-}
-
-function formatNumber(value: number | null) {
-  if (value === null || Number.isNaN(value)) return "-";
-  return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 4 }).format(value);
 }
 
 function formatDateTime(value: string | null) {
@@ -1795,11 +1472,6 @@ const detailGridStyle: CSSProperties = {
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   gap: 10,
   padding: 12
-};
-
-const focusPanelStyle: CSSProperties = {
-  borderColor: "rgba(13, 148, 136, 0.45)",
-  boxShadow: "inset 3px 0 0 var(--accent-3)"
 };
 
 const formGridStyle: CSSProperties = {

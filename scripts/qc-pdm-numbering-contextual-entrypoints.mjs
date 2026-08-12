@@ -46,6 +46,14 @@ record(
   "src/components/numbering-contextual-entrypoints.tsx"
 );
 record(
+  "Part creation selectors only expose self-made and purchased items",
+  includesAll(component, ['<option value="manufactured">自製件</option>', '<option value="purchased">採購件</option>']) &&
+    !["outsourced", "shared", "custom"].some((value) => component.includes(`<option value="${value}">`)) &&
+    includesAll(numberStateWorkspace, ['const createItemKindOptions = itemKindOptions.filter((option) => option.value === "manufactured" || option.value === "purchased");']) &&
+    !numberStateWorkspace.includes("自製/發包/客製建議"),
+  "src/components/numbering-contextual-entrypoints.tsx and src/components/number-state-workspace.tsx"
+);
+record(
   "Contextual component posts append and obsolete APIs",
   includesAll(component, ["/append-policy", "/drawings", "/parts", "/obsolete-impact", "/api/lifecycle/obsolete-requests", "entityType: \"part_root\""]),
   "src/components/numbering-contextual-entrypoints.tsx"
@@ -105,15 +113,13 @@ record(
 const partPanelStart = partsPage.indexOf("function PartDetailPanel");
 const partHeroStart = partsPage.indexOf('data-part-detail-section="hero"', partPanelStart);
 const partHeroEnd = partsPage.indexOf("</section>", partHeroStart);
-const partCostReviewIndex = partsPage.indexOf("<h2>成本審核</h2>", partPanelStart);
 const partContextualEntrypointIndex = partsPage.indexOf("<NumberingContextualEntrypoints", partPanelStart);
 record(
   "Part module places contextual append/obsolete actions at drawer bottom",
   partPanelStart !== -1 &&
     partHeroStart !== -1 &&
     partHeroEnd !== -1 &&
-    partCostReviewIndex !== -1 &&
-    partContextualEntrypointIndex > partCostReviewIndex &&
+    partContextualEntrypointIndex > partHeroEnd &&
     !partsPage.slice(partHeroStart, partHeroEnd).includes("NumberingContextualEntrypoints"),
   "src/app/parts/page.tsx"
 );

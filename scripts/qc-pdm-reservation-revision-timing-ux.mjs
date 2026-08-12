@@ -35,13 +35,13 @@ record(
 
 record(
   "system_record_version_label_missing",
-  workspace.includes("系統紀錄版本 {workspace.rowVersion}"),
-  "內部 rowVersion 若保留可見，必須明確標示為系統紀錄版本。"
+  !workspace.includes("v{workspace.rowVersion}"),
+  "內部 rowVersion 不得以業務版次文字出現在編號申請介面。"
 );
 
 record(
   "revision_preparation_copy_missing",
-  ["圖面版次準備", "建議研發版次", "尚未建立版次", "建立首版圖面"].every((text) => workspace.includes(text)),
+  ["首版圖面／版次檔案", "建議研發版次", "尚未建立版次", "建立首版圖面"].every((text) => workspace.includes(text)),
   "drawer 必須回答建議版次、是否已建立與下一步。"
 );
 
@@ -61,9 +61,9 @@ record(
     workspace.includes('reservation.state === "promoted"') &&
     workspace.includes('actionPermissions?.["numbering.draft.update"] === true') &&
     workspace.includes("!formalActionsUnopened") &&
-    workspace.includes("圖面進版尚未納入本次正式領號 / 保留號開放範圍") &&
+    workspace.includes("圖面進版尚未納入本次編號建立開放範圍") &&
     workspace.includes("canOpenRevisionWorkbench") &&
-    workspace.includes("先完成保留號審核與正式發布"),
+    workspace.includes("先完成編號申請審核與發布，再進入圖面進版工作台。"),
   "candidate 尚未成為 drawing_numbers authority 或使用者無建立權限時，CTA 必須 fail closed 並說明下一步。"
 );
 
@@ -123,9 +123,9 @@ const workspaceContract = between(workspace, "type NumberingDraftWorkspace =", "
 const workspaceEditForm = between(workspace, "function WorkspaceEditForm", "function ConfirmDialog");
 record(
   "reservation_revision_authority_introduced",
-  !/(?:selectedRevision|suggestedRevision|drawingRevision|revision)\s*:/.test(workspaceContract) &&
-    !/(?:selectedRevision|suggestedRevision|drawingRevision|revision)\s*:/.test(workspaceEditForm),
-  "保留號 workspace contract 與 edit form 不得新增 drawing revision persistence 欄位。"
+  !/(?:selectedRevision|suggestedRevision|drawingRevision)\s*:/.test(workspaceContract) &&
+    !/(?:selectedRevision|suggestedRevision|drawingRevision)\s*:/.test(workspaceEditForm),
+  "編號申請 contract 與 edit form 不得新增可寫入的 drawing revision persistence 欄位。"
 );
 
 const productSources = [workspace, revisionsPage, resolveRoute, revisionWorkbench, submissionWorkbenchRoute].join("\n");

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { isUnifiedPartRelationWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
+import { isPartWorkbenchPreviewGalleryV1Enabled, isUnifiedPartRelationWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
-import { canViewPartCostAmounts } from "@/lib/part-cost-visibility";
 import { PartWorkbenchService, partWorkbenchErrorResponse, type PartWorkbenchActor } from "@/lib/part-workbench";
 import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
@@ -34,12 +33,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ rowK
       publish: publish.allowed,
       managePermissions: managePermissions.allowed
     },
-    viewerCapabilities,
-    canViewCostAmounts: canViewPartCostAmounts(auth)
+    viewerCapabilities
   };
   try {
     const { rowKey } = await params;
-    const result = await new PartWorkbenchService().detail(decodeURIComponent(rowKey), actor);
+    const result = await new PartWorkbenchService().detail(decodeURIComponent(rowKey), actor, { previewEnabled: isPartWorkbenchPreviewGalleryV1Enabled() });
     if (!result) return NextResponse.json({ error: { code: "part_workbench_row_not_found", message: "這筆料號工作不存在或目前無法查看。", retryable: false } }, { status: 404 });
     return NextResponse.json(result, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {

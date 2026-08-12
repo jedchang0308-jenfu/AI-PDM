@@ -31,10 +31,6 @@ const changeControlFacade = readRequired("src/lib/pdm-change-control.ts");
 const numberingAsyncRepository = readRequired("src/lib/repositories/numbering-async-repository.ts");
 const numberingRepository = readRequired("src/lib/repositories/numbering-repository.ts");
 const numberingAsyncFacade = readRequired("src/lib/numbering-async.ts");
-const importBatchListRoute = readRequired("src/app/api/numbering/import-batches/route.ts");
-const importBatchDeleteRoute = readRequired("src/app/api/numbering/import-batches/[batchId]/delete/route.ts");
-const importBatchRestoreRoute = readRequired("src/app/api/numbering/import-batches/[batchId]/restore/route.ts");
-const importBatchPage = readRequired("src/app/numbering/imports/page.tsx");
 const bomWorkbenchRepository = readRequired("src/lib/repositories/bom-workbench-async-repository.ts");
 const bomWorkbenchFacade = readRequired("src/lib/bom-workbench-async.ts");
 const bomWorkbenchRoute = readRequired("src/app/api/bom/workbench/route.ts");
@@ -62,7 +58,6 @@ const responsiveCss = readRequired("src/app/styles/responsive.css");
 const packageJson = readProjectJson(root, "package.json");
 const uiQcScriptPath = "scripts/qc-pdm-lifecycle-actions-ui.mjs";
 const draftUiQcScriptPath = "scripts/qc-pdm-lifecycle-draft-ui.mjs";
-const importUiQcScriptPath = "scripts/qc-pdm-lifecycle-import-ui.mjs";
 const bomDraftUiQcScriptPath = "scripts/qc-pdm-lifecycle-bom-draft-ui.mjs";
 const obsoleteQcScriptPath = "scripts/qc-pdm-lifecycle-obsolete.mjs";
 const bomObsoleteQcScriptPath = "scripts/qc-pdm-lifecycle-bom-obsolete.mjs";
@@ -101,9 +96,6 @@ for (const code of [
   "LIFE_DRAFT_CONTROLLED_BOUNDARY",
   "LIFE_DRAFT_ALREADY_RECYCLED",
   "LIFE_DRAFT_NUMBER_REUSED",
-  "LIFE_IMPORT_ALREADY_DELETED",
-  "LIFE_IMPORT_NOT_DELETED",
-  "LIFE_IMPORT_CONFIRMED",
   "LIFE_BOM_DRAFT_ALREADY_DELETED",
   "LIFE_BOM_DRAFT_NOT_DELETED",
   "LIFE_BOM_DRAFT_NOT_DELETABLE",
@@ -131,8 +123,6 @@ for (const code of [
 
 assert(policy.includes('"part_number_draft"'), "Lifecycle policy supports part-number draft entity type");
 assert(policy.includes("buildPartNumberDraftLifecyclePolicy"), "Lifecycle policy exposes part-number draft policy builder");
-assert(policy.includes('"numbering_import_batch"'), "Lifecycle policy supports numbering import batch entity type");
-assert(policy.includes("buildNumberingImportBatchLifecyclePolicy"), "Lifecycle policy exposes numbering import batch policy builder");
 assert(policy.includes('"bom_workbench_draft"'), "Lifecycle policy supports BOM workbench draft entity type");
 assert(policy.includes("buildBomWorkbenchDraftLifecyclePolicy"), "Lifecycle policy exposes BOM workbench draft policy builder");
 assert(policy.includes('"submission"'), "Lifecycle policy supports submission entity type");
@@ -192,23 +182,6 @@ assert(partDraftListRoute.includes('draft.status !== "voided"'), "Part-number dr
 assert(partDraftRestoreRoute.includes("numbering.draft.obsolete"), "Part-number draft restore route enforces draft lifecycle permission");
 assert(partDraftRestoreRoute.includes("restorePartNumberDraft"), "Part-number draft restore route calls restore service");
 assert(partDraftRestoreRoute.includes("getPartNumberDraftLifecyclePolicy"), "Part-number draft restore route returns lifecycle policy");
-
-assert(numberingAsyncRepository.includes("deleteNumberingImportBatch"), "Numbering repository exposes import batch delete");
-assert(numberingAsyncRepository.includes("restoreNumberingImportBatch"), "Numbering repository exposes import batch restore");
-assert(numberingAsyncRepository.includes("UPDATE_ASYNC_IMPORT_BATCH_REJECTED_SQL"), "Numbering repository can move staged import batch to deleted state");
-assert(numberingAsyncRepository.includes("UPDATE_ASYNC_IMPORT_BATCH_RESTORED_SQL"), "Numbering repository can restore deleted import batch to staged");
-assert(numberingAsyncRepository.includes("numbering.import_batch.delete"), "Import batch delete writes audit event");
-assert(numberingAsyncRepository.includes("numbering.import_batch.restore"), "Import batch restore writes audit event");
-assert(numberingAsyncFacade.includes("deleteNumberingImportBatchAsync"), "Numbering async facade exports import batch delete");
-assert(numberingAsyncFacade.includes("restoreNumberingImportBatchAsync"), "Numbering async facade exports import batch restore");
-assert(importBatchListRoute.includes('surface === "deleted_data"'), "Import batch list route exposes deleted-data surface");
-assert(importBatchListRoute.includes('status: "rejected"'), "Import batch deleted-data route queries rejected batches directly");
-assert(importBatchListRoute.includes('batch.status !== "rejected"'), "Import batch work list hides deleted batches by default");
-assert(importBatchListRoute.includes("buildNumberingImportBatchLifecyclePolicy"), "Import batch list route returns lifecycle policy for deleted entries");
-assert(importBatchDeleteRoute.includes("numbering.import.stage"), "Import batch delete route enforces staging permission");
-assert(importBatchDeleteRoute.includes("deleteNumberingImportBatchAsync"), "Import batch delete route calls lifecycle delete service");
-assert(importBatchRestoreRoute.includes("numbering.import.stage"), "Import batch restore route enforces staging permission");
-assert(importBatchRestoreRoute.includes("restoreNumberingImportBatchAsync"), "Import batch restore route calls lifecycle restore service");
 
 assert(bomWorkbenchRepository.includes("SELECT_ASYNC_DELETED_BOM_WORKBENCH_DRAFTS_SQL"), "BOM workbench repository can list deleted drafts");
 assert(bomWorkbenchRepository.includes("status <> 'Archived'"), "BOM workbench work list hides archived drafts");
@@ -305,17 +278,6 @@ assert(numberStateWorkspace.includes('action === "cancel"'), "Owner workspace ro
 assert(numberStateWorkspace.includes("歷史保留號碼 ${candidateCode}（已釋出）"), "Owner workspace displays released candidate history");
 assert(!numberStateWorkspace.includes("surface=deleted_data"), "Owner workspace does not revive the legacy deleted-data workbench");
 assert(!numberStateWorkspace.includes("作廢草稿"), "Owner workspace does not use formal obsolete wording for candidate cancellation");
-assert(importBatchPage.includes("DeletedImportBatch"), "Import page models deleted batches separately");
-assert(importBatchPage.includes("loadDeletedBatches"), "Import page can load deleted-data surface");
-assert(importBatchPage.includes("surface=deleted_data"), "Import page loads deleted-data API surface");
-assert(importBatchPage.includes("deleteBatch"), "Import page exposes delete action handler");
-assert(importBatchPage.includes("restoreBatch"), "Import page exposes restore action handler");
-assert(importBatchPage.includes("/delete"), "Import page calls delete subresource route");
-assert(importBatchPage.includes("/restore"), "Import page calls restore subresource route");
-assert(importBatchPage.includes("已刪除資料"), "Import page labels deleted-data surface in user vocabulary");
-assert(importBatchPage.includes("刪除"), "Import page uses delete label for staged import batches");
-assert(importBatchPage.includes("還原"), "Import page uses restore label for deleted import batches");
-assert(!importBatchPage.includes("作廢匯入"), "Import page does not expose obsolete wording for temp import delete");
 assert(bomWorkbenchPage.includes("DeletedBomWorkbenchDraft"), "BOM workbench page models deleted drafts separately");
 assert(bomWorkbenchPage.includes("loadDeletedDrafts"), "BOM workbench page can load deleted-data surface");
 assert(bomWorkbenchPage.includes("surface=deleted_data"), "BOM workbench page loads deleted-data API surface");
@@ -373,8 +335,6 @@ assert(existsRequired(uiQcScriptPath), "Lifecycle UI fixture QC script exists");
 assert(packageJson.scripts["qc:pdm-lifecycle-actions-ui"] === "node scripts/qc-pdm-lifecycle-actions-ui.mjs", "package script qc:pdm-lifecycle-actions-ui is registered");
 assert(existsRequired(draftUiQcScriptPath), "Lifecycle draft UI fixture QC script exists");
 assert(packageJson.scripts["qc:pdm-lifecycle-draft-ui"] === "node scripts/qc-pdm-lifecycle-draft-ui.mjs", "package script qc:pdm-lifecycle-draft-ui is registered");
-assert(existsRequired(importUiQcScriptPath), "Lifecycle import UI fixture QC script exists");
-assert(packageJson.scripts["qc:pdm-lifecycle-import-ui"] === "node scripts/qc-pdm-lifecycle-import-ui.mjs", "package script qc:pdm-lifecycle-import-ui is registered");
 assert(existsRequired(bomDraftUiQcScriptPath), "Lifecycle BOM draft UI fixture QC script exists");
 assert(packageJson.scripts["qc:pdm-lifecycle-bom-draft-ui"] === "node scripts/qc-pdm-lifecycle-bom-draft-ui.mjs", "package script qc:pdm-lifecycle-bom-draft-ui is registered");
 assert(existsRequired(obsoleteQcScriptPath), "Lifecycle obsolete approval QC script exists");

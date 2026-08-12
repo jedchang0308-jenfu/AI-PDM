@@ -10,7 +10,7 @@ export type DrawingWorkbenchStatusViewModel = {
   terminal: DrawingWorkbenchRow["terminal"];
 };
 
-type DrawingWorkbenchStatusSource = Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope">;
+type DrawingWorkbenchStatusSource = Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope" | "preview"> & { preview?: DrawingWorkbenchRow["preview"] };
 
 export function projectDrawingHumanStatus(row: DrawingWorkbenchStatusSource): HumanStatusProjection {
   if (row.stage === "history_only") {

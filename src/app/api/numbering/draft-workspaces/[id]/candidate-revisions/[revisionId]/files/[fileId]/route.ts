@@ -1,6 +1,6 @@
 import { drawingPreviewMimeType, resolveDrawingPreviewAsync, type DrawingPreviewSource } from "@/lib/drawing-preview-asset";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
-import { contentDispositionFilename } from "@/lib/file-response";
+import { contentDispositionHeader } from "@/lib/file-response";
 import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { enqueuePreviewJobForSourceAsync } from "@/lib/preview-derivatives";
 import {
@@ -49,7 +49,7 @@ export async function GET(
     `,
     { fileId, candidateRevisionId, workspaceId, companyId: access.company.companyId }
   );
-  if (!source) return numberStateFlowJson({ error: { code: "candidate_file_not_found", message: "找不到候選圖面的檔案。", retryable: false } }, { status: 404 });
+  if (!source) return numberStateFlowJson({ error: { code: "candidate_file_not_found", message: "找不到圖面的檔案。", retryable: false } }, { status: 404 });
 
   const url = new URL(request.url);
   const wantsPreview = url.searchParams.get("preview") === "1";
@@ -58,7 +58,7 @@ export async function GET(
       ? await resolveDrawingPreviewAsync(client, source, { allowFake: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" })
       : {
           record: source,
-          fileName: source.file_name || "候選圖面附件",
+          fileName: source.file_name || "圖面附件",
           mimeType: source.mime_type || drawingPreviewMimeType(source.file_ext)
         };
     if (!resolved) {
@@ -89,7 +89,7 @@ export async function GET(
       headers: {
         "content-type": resolved.mimeType || "application/octet-stream",
         "content-length": String(bytes.byteLength),
-        "content-disposition": `${wantsPreview ? "inline" : "attachment"}; filename="${contentDispositionFilename(resolved.fileName)}"`,
+        "content-disposition": contentDispositionHeader(wantsPreview ? "inline" : "attachment", resolved.fileName),
         "x-content-type-options": "nosniff",
         "cache-control": "private, no-store"
       }

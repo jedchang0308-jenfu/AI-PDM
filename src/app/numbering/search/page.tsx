@@ -2,13 +2,14 @@
 
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, ClipboardCheck, DollarSign, FileSearch, FileText, Grid2X2, Link2, ListTree, Palette, RotateCcw, Search, ShieldAlert, Workflow } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, ClipboardCheck, FileSearch, FileText, Grid2X2, Link2, ListTree, Palette, RotateCcw, Search, ShieldAlert, Workflow } from "lucide-react";
 import { RiskHint } from "@/components/compact-hints";
 import { ObjectLifecycleStatusPanel } from "@/components/lifecycle-ux";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { NextStepState } from "@/components/next-step-state";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
+import { NumberSortHeader } from "@/components/number-sort-header";
 import { SearchHighlight } from "@/components/search-highlight";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
@@ -20,6 +21,7 @@ import { PartDetailPanel, type PartDetail } from "@/components/part-detail-conte
 import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
 import type { DrawingWorkbenchRow } from "@/lib/drawing-workbench";
 import { shouldActivateLinkFromKeyboard } from "@/lib/keyboard-link-activation";
+import { DEFAULT_NUMBER_SORT_DIRECTION, parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
 import { StatusBadge } from "@/components/status-help-popover";
 import { isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
@@ -115,15 +117,6 @@ type PartVariant = {
   variantNote: string | null;
 };
 
-type PartStandardCost = {
-  profileName: string;
-  costType: string;
-  currency: string;
-  uom: string;
-  basisQty: number;
-  unitCost: number | null;
-};
-
 type PartEntityDetail = {
   id: string;
   rootCode: string;
@@ -135,12 +128,8 @@ type PartEntityDetail = {
   variant: PartVariant | null;
   primaryDrawingNumber: string | null;
   drawingCount: number;
-  standardCost: PartStandardCost | null;
-  pendingCostRequestCount: number;
   linkedDrawings: Array<{ id: string; drawingNumber: string; linkType: NumberingLink["linkType"] | string }>;
   sameDrawingVariants: Array<{ id: string; drawingNumber: string; fieldName: string; fieldValue: string }>;
-  costProfiles: Array<{ id: string; profileName: string; costType: string; status: string }>;
-  costChangeRequests: Array<{ id: string; requestType: string; reviewStatus: string }>;
 };
 
 type DrawingEntityLinkedPart = {
@@ -155,9 +144,6 @@ type DrawingEntityLinkedPart = {
   surfaceTreatment: string | null;
   variantNote: string | null;
   primaryDrawingNumber: string | null;
-  standardCostStatus: "active" | "missing";
-  standardCostProfileName: string | null;
-  standardCostType: string | null;
 };
 
 type DrawingPendingApprovalSummary = {
@@ -424,6 +410,7 @@ function LegacyNumberingSearchPage() {
   const [entityType, setEntityType] = useState<EntityType>("all");
   const [recordStatus, setRecordStatus] = useState("");
   const [humanStatus, setHumanStatus] = useState<HumanStatusFilter>("all");
+  const [sortDirection, setSortDirection] = useState<NumberSortDirection>(DEFAULT_NUMBER_SORT_DIRECTION);
   const [viewMode, setViewMode] = useState<RelationViewMode>("tree");
   const [relationRoots, setRelationRoots] = useState<DrawingPartRelationRoot[]>([]);
   const [expandedRootCodes, setExpandedRootCodes] = useState<Set<string>>(new Set());
@@ -447,11 +434,13 @@ function LegacyNumberingSearchPage() {
     const initialQuery = params.get("query")?.trim();
     const initialEntityType = params.get("entityType") as EntityType | null;
     const initialHumanStatus = params.get("humanStatus") as HumanStatusFilter | null;
+    const initialSortDirection = parseNumberSortDirection(params.get("sortDirection"));
     const initialReturnTo = params.get("returnTo")?.trim() ?? "";
     const detailRootCode = params.get("detail")?.trim();
     if (initialQuery) setQuery(initialQuery);
     if (initialEntityType && ["all", "part_root", "part_number", "drawing_number"].includes(initialEntityType)) setEntityType(initialEntityType);
     if (isHumanStatusFilter(initialHumanStatus)) setHumanStatus(initialHumanStatus);
+    setSortDirection(initialSortDirection);
     if (initialReturnTo.startsWith("/") && !initialReturnTo.startsWith("//")) setReturnTo(initialReturnTo);
     if (detailRootCode) initialDetailRootCodeRef.current = detailRootCode;
   }, []);
@@ -507,7 +496,7 @@ function LegacyNumberingSearchPage() {
     if (activeTab !== "official") return;
     setBusy("search");
     setError("");
-    const params = new URLSearchParams({ limit: "60" });
+    const params = new URLSearchParams({ limit: "60", sortDirection });
     if (query.trim()) params.set("query", query.trim());
     if (seriesCode) params.set("seriesCode", seriesCode);
     if (entityType !== "all") params.set("entityType", entityType);
@@ -554,7 +543,7 @@ function LegacyNumberingSearchPage() {
       setImpact(null);
       setIsDetailOpen(false);
     }
-  }, [activeTab, entityType, humanStatus, query, recordStatus, seriesCode]);
+  }, [activeTab, entityType, humanStatus, query, recordStatus, seriesCode, sortDirection]);
 
   useEffect(() => {
     void loadResults();
@@ -846,7 +835,9 @@ function LegacyNumberingSearchPage() {
               selectedRootCode={selectedRootCode}
               expandedRootCodes={expandedRootCodes}
               listRef={searchListRef}
+              sortDirection={sortDirection}
               onOpenDetailTarget={openDetailTarget}
+              onToggleSort={() => setSortDirection((current) => current === "asc" ? "desc" : "asc")}
               onToggleRoot={(rootCode) =>
                 setExpandedRootCodes((current) => {
                   const next = new Set(current);
@@ -887,8 +878,10 @@ function RelationResultsPanel({
   selectedRootCode,
   expandedRootCodes,
   listRef,
+  sortDirection,
   onOpenDetailTarget,
-  onToggleRoot
+  onToggleRoot,
+  onToggleSort
 }: {
   roots: DrawingPartRelationRoot[];
   query: string;
@@ -896,8 +889,10 @@ function RelationResultsPanel({
   selectedRootCode: string | null;
   expandedRootCodes: Set<string>;
   listRef: RefObject<HTMLDivElement | null>;
+  sortDirection: NumberSortDirection;
   onOpenDetailTarget: (target: DetailTarget) => void;
   onToggleRoot: (rootCode: string) => void;
+  onToggleSort: () => void;
 }) {
   if (roots.length === 0) {
     return (
@@ -905,10 +900,10 @@ function RelationResultsPanel({
         <NextStepState
           eyebrow="查無結果"
           title="目前沒有符合條件的圖料關係"
-          body="查不到符合條件的圖料關係，請清除篩選或改用主根號、圖號、料號搜尋。若這是新圖號或新料號，請改到保留號建立來源資料。"
+          body="查不到符合條件的圖料關係，請清除篩選或改用主根號、圖號、料號搜尋。若這是新圖號或新料號，請改到編號申請建立來源資料。"
           actions={[
             { href: "/numbering/search", label: "重新查詢", variant: "primary" },
-            { href: "/numbering/search?tab=reserved", label: "建立保留號" }
+            { href: "/numbering/search?tab=reserved", label: "建立編號" }
           ]}
         />
       </section>
@@ -917,6 +912,11 @@ function RelationResultsPanel({
 
   return (
     <section className="panel pdm-master-table-panel">
+      <div className="pdm-relation-list-header" role="row">
+        <div role="columnheader"><NumberSortHeader label="編號" direction={sortDirection} onToggle={onToggleSort} /></div>
+        <span>品名</span>
+        <span>工作狀態</span>
+      </div>
       <div
         ref={listRef}
         className="pdm-relation-scroll"
@@ -1038,8 +1038,20 @@ function RelationRootHeader({
       </div>
       <div className="pdm-relation-root-meta">
         <span className="pdm-relation-root-summary">{root.drawings.length} 圖號・{root.parts.length} 料號</span>
-        <span className={`pdm-relation-health ${relationHealthTone(root.relationshipHealth)}`}>{root.relationshipLabel}</span>
-        {root.availabilityScope.label ? <span className="pdm-relation-availability">目前{root.availabilityScope.label}</span> : null}
+        <span className="pdm-relation-status-context">
+          <span className="pdm-relation-status-label">主根號工作</span>
+          <HumanStatusBadge status={root.humanStatus} viewerStatus={root.viewerStatus} availabilityScope={root.availabilityScope} />
+        </span>
+        <span className="pdm-relation-status-context">
+          <span className="pdm-relation-status-label">圖料關聯</span>
+          <span className={`pdm-relation-health ${relationHealthTone(root.relationshipHealth)}`}>{root.relationshipHealth === "complete" ? "完整" : root.relationshipLabel}</span>
+        </span>
+        {root.availabilityScope.label ? (
+          <span className="pdm-relation-status-context">
+            <span className="pdm-relation-status-label">圖號用途</span>
+            <span className="pdm-relation-availability">{root.availabilityScope.label}</span>
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -1755,7 +1767,7 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
           { label: "製造圖", value: manufacturingLinks.map((link) => link.drawingNumber).join("、") || "-" }
         ]}
         blockers={[
-          needsManufacturingDrawing ? "此料號尚未指定製造圖，技術移轉與正式發布會阻擋。" : "製造圖關聯可在下方關係維護區確認。",
+          needsManufacturingDrawing ? "此料號尚未指定製造圖，技術移轉與發布會阻擋。" : "製造圖關聯可在下方關係維護區確認。",
           warnings.length > 0 ? `此料號有 ${warnings.length} 則提醒未收斂。` : "目前沒有未確認提醒。",
           partNumber.recordStatus === "MainDrawingInvalid" ? "主圖失效，需重新送審並指定有效製造圖。" : "狀態可用時可接續送審或補關聯。"
         ]}
@@ -2110,7 +2122,6 @@ function TargetDrawingCoreSections({
   const linkedParts = detail.partNumbers.filter((part) => links.some((link) => link.partNumberId === part.id));
   const ownerParts = ownerDrawing?.sameRootParts ?? [];
   const incompleteParts = ownerParts.filter((part) => !(part.materialLabel || part.materialCode) || !part.surfaceTreatment);
-  const missingCostParts = ownerParts.filter((part) => part.standardCostStatus === "missing");
   const readinessMasterData = ownerDrawing
     ? incompleteParts.length > 0
       ? `${incompleteParts.length} 筆待補`
@@ -2118,8 +2129,6 @@ function TargetDrawingCoreSections({
     : links.length > 0
       ? `已關聯 ${links.length} 筆料號`
       : "尚未關聯料號";
-  const readinessCost = ownerDrawing ? (missingCostParts.length > 0 ? `${missingCostParts.length} 筆未設定（選填）` : "已設定") : "由料號 owner detail 同步";
-
   return (
     <>
       <MasterAttachmentPanel
@@ -2135,7 +2144,6 @@ function TargetDrawingCoreSections({
         <div style={targetInfoGridStyle}>
           <TargetInfoBlock icon={<FileText size={16} />} title="圖面附件" value="下方圖號附件庫使用圖號主檔 API" />
           <TargetInfoBlock icon={<Link2 size={16} />} title="主資料" value={readinessMasterData} tone={incompleteParts.length > 0 || links.length === 0 ? "danger" : "success"} />
-          <TargetInfoBlock icon={<DollarSign size={16} />} title="標準成本" value={readinessCost} tone={missingCostParts.length > 0 ? "default" : "success"} />
           {ownerDrawing?.pendingApproval ? (
             <TargetInfoBlock
               icon={<ClipboardCheck size={16} />}
@@ -2187,7 +2195,6 @@ function TargetPartCoreSections({
       <PartDetailPanel
         detail={ownerPart}
         busy={panelBusy}
-        focusSection={null}
         productionSliceEnforced={false}
         productionSliceUnopenedMessage=""
         showIdentityHeader={false}
@@ -2201,8 +2208,6 @@ function TargetPartCoreSections({
   const linkedDrawings = ownerPart?.linkedDrawings ?? links.map((link) => ({ id: link.id, drawingNumber: link.drawingNumber, linkType: link.linkType }));
   const variants = ownerPart?.sameDrawingVariants ?? detail.variants.filter((variant) => variant.partNumberId === part.id);
   const variant = ownerPart?.variant ?? null;
-  const standardCost = ownerPart?.standardCost ?? null;
-  const pendingCostRequests = ownerPart?.pendingCostRequestCount ?? ownerPart?.costChangeRequests.filter((request) => request.reviewStatus === "pending").length ?? 0;
   const hasManufacturingDrawing = linkedDrawings.some((link) => link.linkType === "primary_manufacturing");
   const hasVariantBasics = Boolean((variant?.materialLabel || variant?.materialCode)?.trim()) && Boolean(variant?.surfaceTreatment?.trim());
 
@@ -2216,8 +2221,6 @@ function TargetPartCoreSections({
         <div style={targetInfoGridStyle}>
           <TargetInfoBlock icon={<Link2 size={16} />} title="製造圖關聯" value={hasManufacturingDrawing ? "已建立製造基準關聯" : "尚未建立製造基準關聯"} tone={hasManufacturingDrawing ? "success" : "danger"} />
           <TargetInfoBlock icon={<Palette size={16} />} title="料號屬性" value={hasVariantBasics ? "材質與表面處理已填" : "材質或表面處理待補"} tone={hasVariantBasics ? "success" : "danger"} />
-          <TargetInfoBlock icon={<DollarSign size={16} />} title="標準成本" value={formatPartStandardCost(standardCost)} tone={standardCost ? "success" : "danger"} />
-          <TargetInfoBlock icon={<FileText size={16} />} title="成本審核" value={pendingCostRequests > 0 ? `${pendingCostRequests} 筆待審` : "目前無待審成本"} tone={pendingCostRequests > 0 ? "danger" : "success"} />
         </div>
       </section>
 
@@ -2247,39 +2250,6 @@ function TargetPartCoreSections({
         </div>
       </section>
 
-      <section style={sectionStyle} data-entity-core-section="part-3d-baseline">
-        <h3 style={sectionHeadingStyle}>3D 基準</h3>
-        <div style={targetInfoGridStyle}>
-          <TargetInfoBlock icon={<Workflow size={16} />} title="共用 3D / MA 製造基準" value="在料號模組維護，並放在成本作業前確認。" />
-          <TargetInfoBlock icon={<Link2 size={16} />} title="料號模組" value="開啟後可建立共用 3D 與製造基準包" />
-        </div>
-        <div style={actionGroupStyle}>
-          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}`} onKeyDown={activateSearchLinkFromKeyboard}>
-            <Workflow size={16} />
-            開啟 3D 基準
-          </a>
-        </div>
-      </section>
-
-      <section style={sectionStyle} data-entity-core-section="part-cost">
-        <h3 style={sectionHeadingStyle}>成本狀態</h3>
-        <div style={targetInfoGridStyle}>
-          <TargetInfoBlock icon={<DollarSign size={16} />} title="標準成本" value={formatPartStandardCost(standardCost)} tone={standardCost ? "success" : "danger"} />
-          <TargetInfoBlock icon={<FileText size={16} />} title="成本設定檔" value={ownerPart ? `${ownerPart.costProfiles.length} 筆` : "owner detail 載入後同步"} />
-          <TargetInfoBlock icon={<ShieldAlert size={16} />} title="待審成本" value={pendingCostRequests > 0 ? `${pendingCostRequests} 筆待審` : "無"} tone={pendingCostRequests > 0 ? "danger" : "success"} />
-          <TargetInfoBlock icon={<Link2 size={16} />} title="料號模組" value="同一 owner detail API" />
-        </div>
-        <div style={actionGroupStyle}>
-          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}&focus=cost`} onKeyDown={activateSearchLinkFromKeyboard}>
-            <DollarSign size={16} />
-            補標準成本
-          </a>
-          <a className="secondary-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}`} onKeyDown={activateSearchLinkFromKeyboard}>
-            <FileText size={16} />
-            補主資料
-          </a>
-        </div>
-      </section>
     </>
   );
 }
@@ -2314,7 +2284,6 @@ function DrawingOwnerPartSummaryCard({ part }: { part: DrawingEntityLinkedPart }
         <TargetInfoBlock icon={<FileText size={16} />} title="材質" value={part.materialLabel || part.materialCode || "未填"} tone={missingMasterData ? "danger" : "default"} />
         <TargetInfoBlock icon={<Palette size={16} />} title="顏色" value={part.colorLabel || part.colorCode || "未填"} />
         <TargetInfoBlock icon={<Workflow size={16} />} title="變體" value={[part.surfaceTreatment, part.variantNote].filter(Boolean).join(" / ") || "未填"} tone={missingMasterData ? "danger" : "default"} />
-        <TargetInfoBlock icon={<DollarSign size={16} />} title="成本" value={part.standardCostProfileName ? `active / ${part.standardCostProfileName}` : part.standardCostStatus === "active" ? "active" : "未設定"} tone={part.standardCostStatus === "missing" ? "danger" : "success"} />
       </div>
     </article>
   );
@@ -2335,17 +2304,6 @@ function DrawingFallbackPartSummaryCard({ part, links }: { part: PartNumber; lin
       </div>
     </article>
   );
-}
-
-function formatPartStandardCost(value: PartStandardCost | null) {
-  if (!value) return "尚未設定標準成本";
-  if (value.unitCost === null) return `${value.profileName}: 標準成本已設定`;
-  return `${value.profileName}: ${value.currency} ${formatNumber(value.unitCost)} / ${value.uom}`;
-}
-
-function formatNumber(value: number | null) {
-  if (value === null || Number.isNaN(value)) return "-";
-  return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 4 }).format(value);
 }
 
 function RelationMaintenancePanel({

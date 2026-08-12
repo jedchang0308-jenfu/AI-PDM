@@ -94,11 +94,6 @@ const legacyDecisionRoutes = [
     forbidden: ["decideNumberingApprovalBatchAsync"]
   },
   {
-    route: "src/app/api/parts/[partNumber]/cost-change-requests/[requestId]/route.ts",
-    required: "decideApprovalPlatformLegacyPartCostAsync",
-    forbidden: ["decidePartCostChangeRequestAsync"]
-  },
-  {
     route: "src/app/api/numbering/drawing-revision-packages/supplements/[supplementId]/decision/route.ts",
     required: "decideApprovalPlatformLegacyDrawingPackageSupplementAsync",
     forbidden: ["decideDrawingRevisionPackageSupplementAsync"]
@@ -147,7 +142,6 @@ assertIncludes(repositorySource, "decodeLegacyApprovalId", "Legacy approval IDs 
 assertIncludes(repositorySource, "listLegacyNumberingInbox", "Numbering adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacySubmissionInbox", "Submission adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacyBomInbox", "BOM adapter participates in unified inbox");
-assertIncludes(repositorySource, "listLegacyPartCostInbox", "Part cost adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacyDrawingPackageInbox", "Drawing package adapter participates in unified inbox");
 assertIncludes(repositorySource, "legacy_drawing_revision_review", "Drawing revision review adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacyDrawingRevisionReviewInbox", "Drawing revision review inbox adapter is present");

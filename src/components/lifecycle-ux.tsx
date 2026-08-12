@@ -68,7 +68,7 @@ type ObjectLifecycleAction = {
 const lifecycleStages: LifecycleStage[] = [
   {
     id: "numbering",
-    title: "需求與保留號",
+    title: "需求與編號",
     qualityStage: "研發階段",
     owner: "RD",
     state: "草稿 / 可作業",
@@ -76,7 +76,7 @@ const lifecycleStages: LifecycleStage[] = [
     risk: "重複料號、缺主要製造圖、品名或分類不清會讓後續 BOM 與交接失準。",
     doneSignal: "料號、圖號與基本屬性已建立，下一步可送設計資料。",
     href: "/numbering/search?tab=reserved",
-    cta: "建立保留號",
+    cta: "建立編號",
     icon: PackagePlus
   },
   {
@@ -124,7 +124,7 @@ const lifecycleStages: LifecycleStage[] = [
     qualityStage: "技術移轉",
     owner: "RD / Manager / Admin",
     state: "可處理 / 例外核准 / 阻擋",
-    intent: "集中確認候選圖料、BOM 與必要證據是否足以移交下游使用。",
+    intent: "集中確認圖料、BOM 與必要證據是否足以移交下游使用。",
     risk: "缺製造圖、缺審核、資料不完整或例外未核准時不可完成移轉。",
     doneSignal: "移轉判定更新圖料與 BOM 使用限制，必要時產生審核批次。",
     href: "/technical-transfer",

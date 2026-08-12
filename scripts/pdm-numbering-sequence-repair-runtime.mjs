@@ -78,8 +78,6 @@ function getCounts(db) {
     "approval_decisions",
     "approval_batches",
     "approval_batch_items",
-    "import_batches",
-    "import_staging_rows",
     "numbering_export_jobs",
     "monthly_audit_reports"
   ];
@@ -202,8 +200,6 @@ function applyRepair(db, plan, backupPath) {
     db.prepare("DELETE FROM approval_decisions").run();
     db.prepare("DELETE FROM approval_batches").run();
     db.prepare("DELETE FROM approval_requests").run();
-    db.prepare("DELETE FROM import_staging_rows").run();
-    db.prepare("DELETE FROM import_batches").run();
     db.prepare("DELETE FROM duplicate_check_events").run();
     db.prepare("DELETE FROM warning_events").run();
     db.prepare("DELETE FROM numbering_task_items").run();

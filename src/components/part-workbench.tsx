@@ -2,20 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, PackageSearch, RefreshCcw, Search, X } from "lucide-react";
+import { PackageSearch, RefreshCcw, Search, X } from "lucide-react";
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import { HumanStatusFilterSelect } from "@/components/human-status-filter";
 import { NumberStateOwnerCreateAction, WorkspaceDrawer, ConfirmDialog, type NumberingDraftWorkspace, type WorkspaceAction } from "@/components/number-state-workspace";
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
+import { PdmWorkbenchLayoutSwitch, type PdmWorkbenchLayout } from "@/components/pdm-workbench-layout-switch";
+import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
+import { PdmWorkbenchPreviewGallery } from "@/components/pdm-workbench-preview-gallery";
 import { SearchHighlight } from "@/components/search-highlight";
+import { NumberSortHeader } from "@/components/number-sort-header";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 import { usePdmWorkbenchController, type PdmWorkbenchLocationState } from "@/components/use-pdm-workbench-controller";
 import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
 import type { HumanStatusFilter } from "@/lib/human-status-projection";
 import type { PartWorkbenchDetailResponse, PartWorkbenchListResponse, PartWorkbenchRow, PartWorkbenchStage, PartWorkbenchView } from "@/lib/part-workbench";
 import type { NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
+import { DEFAULT_NUMBER_SORT_DIRECTION, type NumberSortDirection } from "@/lib/number-sort";
 
 type PartWorkbenchQueryState = {
   view: PartWorkbenchView;
@@ -26,6 +31,7 @@ type PartWorkbenchQueryState = {
   recordStatus: "" | NumberingRecordStatus;
   humanStatus: HumanStatusFilter;
   includeHistory: boolean;
+  sortDirection: NumberSortDirection;
 };
 
 export type PartFormalDetailRendererProps = {
@@ -37,7 +43,7 @@ export type PartFormalDetailRendererProps = {
   onUpdated: () => Promise<void>;
 };
 
-type FeatureStatus = { lifecycleV2?: { enabled?: boolean }; partRelationWorkbench?: { enabled?: boolean } };
+type FeatureStatus = { lifecycleV2?: { enabled?: boolean }; partRelationWorkbench?: { enabled?: boolean }; previewGallery?: { partEnabled?: boolean } };
 type ProductionSliceStatus = { configured?: boolean; unopenedMessage?: string };
 type ApiBody = { error?: string | { code?: string; message?: string }; message?: string };
 
@@ -49,9 +55,19 @@ const initialQuery: PartWorkbenchQueryState = {
   itemKind: "",
   recordStatus: "",
   humanStatus: "all",
-  includeHistory: false
+  includeHistory: false,
+  sortDirection: DEFAULT_NUMBER_SORT_DIRECTION
 };
-const defaultUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
+const defaultUnopenedMessage = "此功能未納入本次編號建立 production slice。";
+const PART_LAYOUT_STORAGE_KEY = "pdm:part-workbench:layout:v1";
+function validPartLayout(value: string | null): value is PdmWorkbenchLayout { return value === "list" || value === "preview"; }
+function readPartLayout(enabled: boolean): PdmWorkbenchLayout {
+  if (!enabled) return "list";
+  const urlValue = new URLSearchParams(window.location.search).get("layout");
+  if (validPartLayout(urlValue)) return urlValue;
+  const stored = window.localStorage.getItem(PART_LAYOUT_STORAGE_KEY);
+  return validPartLayout(stored) ? stored : "list";
+}
 
 function readLocation(canonicalize = false): PdmWorkbenchLocationState<PartWorkbenchQueryState> {
   const params = new URLSearchParams(window.location.search);
@@ -77,7 +93,8 @@ function readLocation(canonicalize = false): PdmWorkbenchLocationState<PartWorkb
       itemKind: params.get("itemKind")?.trim() ?? "",
       recordStatus: (params.get("recordStatus")?.trim() ?? "") as "" | NumberingRecordStatus,
       humanStatus: (params.get("humanStatus")?.trim() ?? "all") as HumanStatusFilter,
-      includeHistory: params.get("history") === "include"
+      includeHistory: params.get("history") === "include",
+      sortDirection: params.get("sortDirection") === "desc" ? "desc" : DEFAULT_NUMBER_SORT_DIRECTION
     },
     detailKey,
     legacyDetail: rawDetail && !rawDetail.includes(":") ? rawDetail : null
@@ -95,13 +112,14 @@ function writeLocation(state: PdmWorkbenchLocationState<PartWorkbenchQueryState>
   setOptional("itemKind", state.query.itemKind);
   setOptional("recordStatus", state.query.recordStatus);
   setOptional("humanStatus", state.query.humanStatus === "all" ? "" : state.query.humanStatus);
+  setOptional("sortDirection", state.query.sortDirection === DEFAULT_NUMBER_SORT_DIRECTION ? "" : state.query.sortDirection);
   state.query.includeHistory ? params.set("history", "include") : params.delete("history");
   setOptional("detail", state.detailKey ?? "");
   window.history[mode === "push" ? "pushState" : "replaceState"](null, "", `${window.location.pathname}?${params.toString()}`);
 }
 
 function buildListUrl(query: PartWorkbenchQueryState, cursor: string | null) {
-  const params = new URLSearchParams({ view: query.view, limit: "50", history: query.includeHistory ? "include" : "exclude" });
+  const params = new URLSearchParams({ view: query.view, limit: "50", history: query.includeHistory ? "include" : "exclude", sortDirection: query.sortDirection });
   if (query.query.trim()) params.set("query", query.query.trim());
   if (query.stage) params.set("stage", query.stage);
   if (query.seriesCode) params.set("seriesCode", query.seriesCode);
@@ -161,6 +179,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
     closeDetail: closeControllerDetail
   } = controller;
   const [feature, setFeature] = useState<FeatureStatus | null>(null);
+  const [layout, setLayout] = useState<PdmWorkbenchLayout>("list");
   const [productionSlice, setProductionSlice] = useState<ProductionSliceStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -175,6 +194,31 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
     void fetch("/api/numbering/state-flow/status", { cache: "no-store" }).then((response) => response.json()).then((body) => setFeature(body as FeatureStatus)).catch(() => setFeature({}));
     void fetch("/api/production-slice/status", { cache: "no-store" }).then((response) => response.json()).then((body) => setProductionSlice(body as ProductionSliceStatus)).catch(() => setProductionSlice({}));
   }, []);
+
+  const previewEnabled = feature?.previewGallery?.partEnabled === true;
+  useEffect(() => {
+    if (!previewEnabled) {
+      setLayout("list");
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("layout") === "preview") {
+        params.delete("layout");
+        window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+      }
+      return;
+    }
+    const apply = () => setLayout(readPartLayout(true));
+    apply();
+    window.addEventListener("popstate", apply);
+    return () => window.removeEventListener("popstate", apply);
+  }, [previewEnabled]);
+  const changeLayout = useCallback((next: PdmWorkbenchLayout) => {
+    if (!previewEnabled) return;
+    setLayout(next);
+    window.localStorage.setItem(PART_LAYOUT_STORAGE_KEY, next);
+    const params = new URLSearchParams(window.location.search);
+    params.set("layout", next);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, [previewEnabled]);
 
   const closeDetail = useCallback(() => {
     setEditing(false);
@@ -302,8 +346,8 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
 
   return (
     <>
-      <div className="topbar">
-        <div><h1>料號工作台</h1><p>候選與正式料號集中在同一清單，直接完成目前下一步。</p></div>
+      <div className="topbar pdm-workbench-topbar">
+        <div><h1>料號工作台</h1><p>料號與流程狀態集中在同一清單，直接完成目前下一步。</p></div>
         <div className="number-state-owner-actions">
           <button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading}><RefreshCcw size={16} />重新整理</button>
           <NumberStateOwnerCreateAction surface="parts" seriesCodeOptions={seriesCodeOptions} />
@@ -313,7 +357,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
       {notice ? <div className="number-state-message is-success" role="status"><span>{notice}</span><button className="icon-button" type="button" onClick={() => setNotice("")} aria-label="關閉通知"><X size={16} /></button></div> : null}
       {error ? <div className="number-state-message is-error" role="alert"><span>{error}</span><button className="secondary-button" type="button" onClick={() => void refresh()}>重新載入</button><button className="icon-button" type="button" onClick={() => setError("")} aria-label="關閉錯誤"><X size={16} /></button></div> : null}
 
-      <section className="panel drawing-workbench-toolbar">
+      <section className="panel pdm-workbench-toolbar">
         <div className="drawing-workbench-filter-grid">
           <label className="drawing-workbench-search"><span>搜尋</span><div><Search size={16} /><input value={query.query} onChange={(event) => updateQuery({ query: event.target.value })} placeholder="料號、主根號、名稱、材質、顏色" /></div></label>
           <label><span>範圍</span><select value={query.view} onChange={(event) => updateQuery({ view: event.target.value as PartWorkbenchView })}><option value="all">全部</option><option value="mine">我的待處理</option><option value="work">工作中</option></select></label>
@@ -322,11 +366,33 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
           <label><span>類型</span><select value={query.itemKind} onChange={(event) => updateQuery({ itemKind: event.target.value })}><option value="">全部類型</option>{itemKindOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
           <label><span>資料狀態</span><select value={query.recordStatus} onChange={(event) => updateQuery({ recordStatus: event.target.value as "" | NumberingRecordStatus })}><option value="">全部狀態</option>{recordStatusOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
         </div>
-        <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={query.includeHistory} onChange={(event) => updateQuery({ includeHistory: event.target.checked })} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
+        <div className="pdm-workbench-toolbar-footer">
+          <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={query.includeHistory} onChange={(event) => updateQuery({ includeHistory: event.target.checked })} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
+          <div className="pdm-workbench-toolbar-view-actions">
+            {previewEnabled ? <PdmWorkbenchLayoutSwitch value={layout} onChange={changeLayout} /> : null}
+          </div>
+        </div>
       </section>
 
       <section className="panel pdm-master-table-panel drawing-workbench-list-panel">
-        <PdmWorkbenchList
+        <div className="number-sort-mobile-control">
+          <NumberSortHeader
+            label="料號"
+            direction={query.sortDirection}
+            onToggle={() => updateQuery({ sortDirection: query.sortDirection === "asc" ? "desc" : "asc" })}
+          />
+        </div>
+        {layout === "preview" && previewEnabled ? <PdmWorkbenchPreviewGallery
+          rows={rows}
+          selectedKey={selectedKey}
+          ariaLabel="料號 3D 預覽圖"
+          loading={loading}
+          emptyState={<div className="empty"><PackageSearch size={24} /><strong>目前沒有符合條件的料號工作</strong><p>請調整搜尋或篩選條件，或建立新的料號工作。</p></div>}
+          onSelect={(row) => setSelectedKey(row.rowKey)}
+          onOpen={(row) => void openDetail(row.rowKey)}
+          onCloseDetail={closeDetail}
+          getSourceLabel={(row) => `代表圖 ${row.preview?.sourceDrawingNumber ?? "未指定"}`}
+        /> : <PdmWorkbenchList
           rows={rows}
           getRowKey={getRowKey}
           selectedKey={selectedKey}
@@ -340,14 +406,14 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
           emptyState={<div className="empty"><PackageSearch size={24} /><strong>目前沒有符合條件的料號工作</strong><p>請調整搜尋或篩選條件，或建立新的料號工作。</p></div>}
           onOpenRow={(row) => void openDetail(row.rowKey)}
           columns={[
-            { key: "code", header: "料號", dataLabel: "料號", className: "pdm-identity-col-code", render: (row) => <button className="link-button pdm-identity-code" type="button" onClick={(event) => { event.stopPropagation(); void openDetail(row.rowKey); }}><SearchHighlight value={row.displayCode} query={query.query} />{row.additionalPartCount > 0 ? ` +${row.additionalPartCount}` : ""}</button> },
+            { key: "code", header: <NumberSortHeader label="料號" direction={query.sortDirection} onToggle={() => updateQuery({ sortDirection: query.sortDirection === "asc" ? "desc" : "asc" })} />, ariaSort: query.sortDirection === "asc" ? "ascending" : "descending", dataLabel: "料號", className: "pdm-identity-col-code", render: (row) => <button className="link-button pdm-identity-code" type="button" onClick={(event) => { event.stopPropagation(); void openDetail(row.rowKey); }}><SearchHighlight value={row.displayCode} query={query.query} />{row.additionalPartCount > 0 ? ` +${row.additionalPartCount}` : ""}</button> },
             { key: "name", header: "品名", dataLabel: "品名", className: "pdm-identity-col-name", render: (row) => <div className="pdm-identity-name"><SearchHighlight value={row.displayName} query={query.query} /></div> },
             { key: "drawing", header: "圖號", dataLabel: "圖號", className: "pdm-identity-col-part", render: (row) => <div><span className="pdm-identity-code">{row.primaryDrawingNumber ?? "未關聯圖號"}</span>{row.drawingCount > 1 ? <small className="pdm-identity-subline">共 {row.drawingCount} 張圖號</small> : null}</div> },
             { key: "spacer", header: null, className: "pdm-identity-layout-spacer", cellClassName: "pdm-identity-layout-spacer", ariaHidden: true },
             { key: "status", header: "工作狀態", dataLabel: "工作狀態", className: "pdm-identity-col-meta", render: (row) => <div className="pdm-meta-strip"><HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} /></div> }
           ]}
-        />
-        {(pageIndex > 0 || nextCursor) ? <div className="number-state-pagination"><button className="secondary-button" type="button" onClick={goPrevious} disabled={pageIndex === 0 || loading}><ChevronLeft size={16} />上一頁</button><span>第 {pageIndex + 1} 頁</span><button className="secondary-button" type="button" onClick={goNext} disabled={!nextCursor || loading}>下一頁<ChevronRight size={16} /></button></div> : null}
+        />}
+        <PdmWorkbenchPagination pageIndex={pageIndex} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
       </section>
 
       {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
@@ -374,11 +440,11 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
         onStartResize={startDrawerResize}
         keepOpenSelector="[data-part-workbench-row='true']"
         presentation={{
-          entityLabel: "候選料號",
+          entityLabel: "料號",
           title: detail.row.displayCode,
           sourceContext: "part_workbench",
           cancelLabel: "取消料號申請",
-          cancelTitle: "取消申請並釋出候選料號"
+          cancelTitle: "取消料號申請"
         }}
         onClose={closeDetail}
       /> : null}

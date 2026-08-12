@@ -29,9 +29,6 @@ const numberingTaskDetailRouteSource = read("src/app/api/numbering/tasks/[taskId
 const numberingNotificationsRouteSource = read("src/app/api/numbering/notifications/route.ts");
 const numberingNotificationReadRouteSource = read("src/app/api/numbering/notifications/[notificationId]/read/route.ts");
 const numberingNotificationHandledRouteSource = read("src/app/api/numbering/notifications/[notificationId]/handled/route.ts");
-const importBatchRouteSource = read("src/app/api/numbering/import-batches/route.ts");
-const importBatchDetailRouteSource = read("src/app/api/numbering/import-batches/[batchId]/route.ts");
-const importBatchConfirmRouteSource = read("src/app/api/numbering/import-batches/[batchId]/confirm/route.ts");
 const exportJobRouteSource = read("src/app/api/numbering/export-jobs/route.ts");
 const exportJobDetailRouteSource = read("src/app/api/numbering/export-jobs/[jobId]/route.ts");
 const monthlyAuditReportRouteSource = read("src/app/api/numbering/monthly-audit-reports/route.ts");
@@ -48,7 +45,6 @@ const approvalLegacyRedirectSource = read("src/lib/approval-workbench-legacy-red
 const numberingSearchPageSource = read("src/app/numbering/search/page.tsx");
 const numberingDrawingsPageSource = read("src/app/numbering/drawings/page.tsx");
 const numberingImpactPageSource = read("src/app/numbering/impact/page.tsx");
-const numberingImportPageSource = read("src/app/numbering/imports/page.tsx");
 const numberingTaskCenterPageSource = read("src/app/numbering/tasks/page.tsx");
 const numberingReportCenterPageSource = read("src/app/numbering/reports/page.tsx");
 const sidebarNavSource = read("src/components/sidebar-nav.tsx");
@@ -110,8 +106,6 @@ for (const table of [
   "user_role_assignments",
   "role_priority_versions",
   "approval_delegations",
-  "import_batches",
-  "import_staging_rows",
   "file_assets",
   "numbering_export_jobs",
   "monthly_audit_reports"
@@ -259,12 +253,6 @@ db.prepare(
   "INSERT INTO numbering_notifications (id, notification_type, entity_type, entity_id, title, message, severity, recipient_role, detail_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 ).run("notification-1", "approval_request_pending", "part_number", "part-1", "Review", "Pending review", "warning", "pdm_admin", "{}", now, now);
 db.prepare(
-  "INSERT INTO import_batches (id, source_filename, source_hash, status, summary_json, imported_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-).run("import-batch-1", "legacy.xlsx", "hash-1", "staged", "{\"total\":1,\"valid\":1}", "engineer-1", now, now);
-db.prepare(
-  "INSERT INTO import_staging_rows (id, import_batch_id, row_no, raw_json, check_status, issue_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-).run("import-row-1", "import-batch-1", 1, "{\"rootCode\":\"9001\"}", "valid", "[]", now);
-db.prepare(
   "INSERT INTO numbering_export_jobs (id, export_mode, status, result_json, generated_by, generated_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
 ).run("export-job-1", "last_change_summary", "completed", "{\"rows\":[]}", "manager-1", now, now);
 db.prepare(
@@ -318,16 +306,6 @@ record(
   "NUM-SCHEMA numbering notification saved unread/unhandled",
   Boolean(db.prepare("SELECT id FROM numbering_notifications WHERE id = ? AND read_at IS NULL AND handled_at IS NULL").get("notification-1")),
   "numbering_notifications"
-);
-record(
-  "NUM-SCHEMA import batch saved",
-  Boolean(db.prepare("SELECT id FROM import_batches WHERE id = ? AND status = 'staged'").get("import-batch-1")),
-  "import_batches"
-);
-record(
-  "NUM-SCHEMA import staging row saved",
-  Boolean(db.prepare("SELECT id FROM import_staging_rows WHERE import_batch_id = ? AND check_status = 'valid'").get("import-batch-1")),
-  "import_staging_rows"
 );
 record(
   "NUM-SCHEMA numbering export job saved",
@@ -450,10 +428,6 @@ record("NUM-REPO lists numbering tasks", repositorySource.includes("export funct
 record("NUM-REPO updates numbering task status", repositorySource.includes("export function updateNumberingTaskStatus"), "numbering-repository.ts");
 record("NUM-REPO lists numbering notifications", repositorySource.includes("export function listNumberingNotifications"), "numbering-repository.ts");
 record("NUM-REPO updates numbering notification read/handled state", repositorySource.includes("export function updateNumberingNotificationState"), "numbering-repository.ts");
-record("NUM-REPO creates numbering import batches", repositorySource.includes("export function createNumberingImportBatch"), "numbering-repository.ts");
-record("NUM-REPO lists numbering import batches", repositorySource.includes("export function listNumberingImportBatches"), "numbering-repository.ts");
-record("NUM-REPO confirms numbering import batches", repositorySource.includes("export function confirmNumberingImportBatch"), "numbering-repository.ts");
-record("NUM-REPO import detects conflicts before confirm", repositorySource.includes("DUPLICATE_PART_IN_FILE") && repositorySource.includes("ROOT_EXISTS"), "numbering-repository.ts");
 record("NUM-REPO creates numbering export jobs", repositorySource.includes("export function createNumberingExportJob"), "numbering-repository.ts");
 record("NUM-REPO lists numbering export jobs", repositorySource.includes("export function listNumberingExportJobs"), "numbering-repository.ts");
 record("NUM-REPO supports no/last/full audit export modes", repositorySource.includes("last_change_summary") && repositorySource.includes("full_change_summary"), "numbering-repository.ts");
@@ -530,11 +504,6 @@ record(
   "src/lib/db.ts"
 );
 record("NUM-REPO db.ts re-exports task and notification workflow", dbExports.includes("listNumberingTasks") && dbExports.includes("updateNumberingNotificationState"), "src/lib/db.ts");
-record(
-  "NUM-REPO db.ts re-exports import batch workflow",
-  dbExports.includes("createNumberingImportBatch") && dbExports.includes("listNumberingImportBatches") && dbExports.includes("confirmNumberingImportBatch"),
-  "src/lib/db.ts"
-);
 record(
   "NUM-REPO db.ts re-exports export/report workflow",
   dbExports.includes("createNumberingExportJob") &&
@@ -706,24 +675,6 @@ record(
   "notifications/[notificationId]/handled/route.ts"
 );
 record(
-  "NUM-API import batch route creates and lists staging batches through guards",
-  importBatchRouteSource.includes("createNumberingImportBatch") &&
-    importBatchRouteSource.includes("listNumberingImportBatches") &&
-    importBatchRouteSource.includes("numbering.imports") &&
-    importBatchRouteSource.includes("numbering.import.stage"),
-  "import-batches/route.ts"
-);
-record(
-  "NUM-API import batch detail route reads staging report through page guard",
-  importBatchDetailRouteSource.includes("getNumberingImportBatch") && importBatchDetailRouteSource.includes("numbering.imports"),
-  "import-batches/[batchId]/route.ts"
-);
-record(
-  "NUM-API import batch confirm route uses role matrix action guard",
-  importBatchConfirmRouteSource.includes("confirmNumberingImportBatch") && importBatchConfirmRouteSource.includes("numbering.import.confirm"),
-  "import-batches/[batchId]/confirm/route.ts"
-);
-record(
   "NUM-API export job route creates and lists exports through guards",
   exportJobRouteSource.includes("createNumberingExportJob") &&
     exportJobRouteSource.includes("listNumberingExportJobs") &&
@@ -786,7 +737,6 @@ record(
     permissionCodesSource.includes("numbering.draft.admin_confirm") &&
     permissionCodesSource.includes("numbering.drawings.view") &&
     permissionCodesSource.includes("/numbering/drawings") &&
-    permissionCodesSource.includes("numbering.import.confirm") &&
     permissionCodesSource.includes("NUMBERING_NAV_PERMISSION_BY_PATH"),
   "numbering-permission-codes.ts"
 );
@@ -872,20 +822,6 @@ record(
   "approvals/page.tsx"
 );
 record(
-  "NUM-UI numbering import center renders staging workflow",
-  numberingImportPageSource.includes("總表匯入") &&
-    numberingImportPageSource.includes("產生檢查報告") &&
-    numberingImportPageSource.includes("管理員確認"),
-  "numbering/imports/page.tsx"
-);
-record(
-  "NUM-UI numbering import center shows conflicts and report download",
-  numberingImportPageSource.includes("Staging 檢查報告") &&
-    numberingImportPageSource.includes("下載檢查報告") &&
-    numberingImportPageSource.includes("conflict"),
-  "numbering/imports/page.tsx"
-);
-record(
   "NUM-UI numbering search page renders query and detail workflow",
   numberingSearchPageSource.includes("圖料模組") &&
     (numberingSearchPageSource.includes("/api/numbering/search") ||
@@ -959,7 +895,6 @@ record(
 record("NUM-UI sidebar links numbering search page", sidebarNavSource.includes("/numbering/search") && sidebarNavSource.includes("圖料模組"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links drawing management page", sidebarNavSource.includes("/numbering/drawings") && sidebarNavSource.includes("圖號模組"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering impact page", sidebarNavSource.includes("/numbering/impact") && sidebarNavSource.includes("製造圖影響"), "sidebar-nav.tsx");
-record("NUM-UI sidebar links numbering import center", sidebarNavSource.includes("/numbering/imports") && sidebarNavSource.includes("總表匯入"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering report center", sidebarNavSource.includes("/numbering/reports") && sidebarNavSource.includes("圖號報表"), "sidebar-nav.tsx");
 record(
   "NUM-UI sidebar applies numbering page permission guard",
@@ -1031,11 +966,6 @@ record(
 record(
   "NUM-QC package exposes qc:pdm-numbering-report-center-ui",
   packageJson.scripts?.["qc:pdm-numbering-report-center-ui"] === "node scripts/qc-pdm-numbering-report-center-ui.mjs",
-  "package.json"
-);
-record(
-  "NUM-QC package exposes qc:pdm-numbering-import-center-ui",
-  packageJson.scripts?.["qc:pdm-numbering-import-center-ui"] === "node scripts/qc-pdm-numbering-import-center-ui.mjs",
   "package.json"
 );
 record(

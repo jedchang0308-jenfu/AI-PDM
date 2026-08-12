@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { getPartModuleDetailAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
-import { canViewPartCostAmounts, redactPartDetailCosts } from "@/lib/part-cost-visibility";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectRoleViewerHumanStatus } from "@/lib/human-status-projection";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
@@ -21,14 +20,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
   if (!part) {
     return NextResponse.json({ error: "Part number not found" }, { status: 404 });
   }
-  const redactedPart = redactPartDetailCosts(part, canViewPartCostAmounts(auth));
-  const humanStatus = projectPartHumanStatus(redactedPart);
+  const humanStatus = projectPartHumanStatus(part);
   const viewerCapabilities = await resolveHumanStatusRoleCapabilitiesAsync(auth.user);
   return NextResponse.json({ part: {
-    ...redactedPart,
+    ...part,
     humanStatus,
     viewerStatus: projectRoleViewerHumanStatus(humanStatus, viewerCapabilities),
-    availabilityScope: projectPartAvailability(redactedPart)
+    availabilityScope: projectPartAvailability(part)
   } }, {
     headers: { "cache-control": "private, no-store" }
   });

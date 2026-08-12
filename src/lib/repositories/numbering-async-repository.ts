@@ -25,14 +25,9 @@ import {
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
 import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
-import {
-  canonicalImportedRootName,
-  importedDrawingSequence,
-  importedPartSequence
-} from "@/lib/numbering-import-normalization";
 import { evaluateHardApprovalRules as evaluateHardApprovalRulesShared } from "@/lib/numbering-hard-approval-rules";
-import { normalizePartCostTiers, normalizePositiveInteger } from "@/lib/numbering-part-cost";
 import { lowestAvailableSequence } from "@/lib/numbering-sequence-utils";
+import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 import type {
   ApprovalHardRule,
   ApprovalRuleEvaluation,
@@ -49,21 +44,15 @@ import type {
   DuplicateCheckResult,
   EvaluateApprovalRuleInput,
   EvaluateNumberingGateInput,
-  ConfirmNumberingImportBatchInput,
   CreateNumberingApprovalBatchInput,
-  CreateNumberingImportBatchInput,
   DeleteDraftNumberingRecordInput,
   DeleteDraftNumberingRecordResult,
-  DeleteNumberingImportBatchInput,
   CreateNumberingRecordInput,
-  CreatePartCostProfileInput,
   CreateNumberingExportJobInput,
   DecideNumberingApprovalBatchInput,
   DecideNumberingApprovalInput,
-  DecidePartCostChangeRequestInput,
   GenerateMonthlyNumberingAuditReportInput,
   ListNumberingApprovalBatchesInput,
-  ListNumberingImportBatchesInput,
   ListMonthlyNumberingAuditReportsInput,
   ListNumberingNotificationsInput,
   ListNumberingExportJobsInput,
@@ -102,9 +91,6 @@ import type {
   NumberingAdminUserRecord,
   NumberingApprovalDelegationRecord,
   NumberingApprovalHardRuleCatalogItem,
-  NumberingImportBatchRecord,
-  NumberingImportRowInput,
-  NumberingImportStagingRowRecord,
   NumberingObsoleteApprovalResult,
   LinkPartNumberToDrawingInput,
   MaintainDrawingPartRelationInput,
@@ -133,17 +119,9 @@ import type {
   NumberingVariantRecord,
   NumberingWarningRecord,
   PartNumberRecord,
-  PartCostChangeRequestRecord,
-  PartCostChangeRequestStatus,
-  PartCostProfileRecord,
-  PartCostProfileStatus,
-  PartCostResolutionRecord,
-  PartCostTierRecord,
-  PartCostType,
   PartModuleDetailRecord,
   PartModuleListInput,
   PartModuleListRecord,
-  PartStandardCostRecord,
   PartVariantAttributesRecord,
   RevokeNumberingApprovalDelegationInput,
   RevokeNumberingUserRoleAssignmentInput,
@@ -157,8 +135,6 @@ import type {
   RootObsoleteImpactTarget,
   RequestSameDrawingVariantApprovalInput,
   ResubmitRejectedNumberingApprovalBatchItemsInput,
-  RestoreNumberingImportBatchInput,
-  ResolvePartCostInput,
   SaveNumberingRolePriorityInput,
   ObsoleteDraftNumberingRecordInput,
   PartRootRecord,
@@ -203,6 +179,24 @@ type PartNumberRow = {
   updated_at?: string;
 };
 
+type PartNumberMasterDataRow = PartNumberRow & {
+  material_code: string | null;
+  material_label: string | null;
+  surface_treatment: string | null;
+};
+
+type NumberingRootDetailWithPartMasterDataGaps = NumberingRootDetailRecord & {
+  partMasterDataGaps?: Record<string, boolean>;
+};
+
+function partMasterDataGapForRow(row: PartNumberMasterDataRow) {
+  return !(row.material_label?.trim() || row.material_code?.trim()) || !row.surface_treatment?.trim();
+}
+
+function buildPartMasterDataGaps(rows: PartNumberMasterDataRow[]) {
+  return Object.fromEntries(rows.map((row) => [row.id, partMasterDataGapForRow(row)]));
+}
+
 type DrawingNumberRow = {
   id: string;
   company_id: string;
@@ -243,9 +237,6 @@ type DrawingModuleLinkedPartRow = {
   surface_treatment: string | null;
   variant_note: string | null;
   primary_drawing_number: string | null;
-  standard_cost_id: string | null;
-  standard_profile_name: string | null;
-  standard_cost_type: PartCostType | null;
 };
 
 type DrawingModuleReleaseStatusMismatchRow = {
@@ -260,59 +251,6 @@ type DrawingModulePendingApprovalRow = {
   assessment_id: string;
   revision: string;
   assessed_at: string;
-};
-
-type PartStandardCostRow = {
-  id: string;
-  part_number_id: string;
-  cost_profile_id: string;
-  basis_qty: number;
-  standard_reason: string | null;
-  effective_from: string;
-  effective_to: string | null;
-  profile_name: string;
-  cost_type: PartCostType;
-  currency: string;
-  uom: string;
-  unit_cost: number | string | null;
-};
-
-type PartCostTierRow = {
-  id: string;
-  cost_profile_id: string;
-  min_qty: number;
-  max_qty: number | null;
-  unit_cost: number | string;
-  setup_cost: number | string;
-  lead_time_days: number | null;
-  note: string | null;
-};
-
-type PartCostProfileRow = {
-  id: string;
-  part_number_id: string;
-  cost_type: PartCostType;
-  profile_name: string;
-  currency: string;
-  uom: string;
-  supplier_name: string | null;
-  process_name: string | null;
-  cost_basis: string | null;
-  status: PartCostProfileRecord["status"];
-  effective_from: string | null;
-  effective_to: string | null;
-};
-
-type PartCostChangeRequestRow = {
-  id: string;
-  part_number_id: string;
-  proposed_cost_profile_id: string | null;
-  request_type: PartCostChangeRequestRecord["requestType"];
-  change_reason: string;
-  review_status: PartCostChangeRequestRecord["reviewStatus"];
-  requested_at: string;
-  reviewed_at: string | null;
-  review_comment: string | null;
 };
 
 type PartVariantAttributesRow = {
@@ -455,7 +393,6 @@ type PartModuleListRow = PartNumberRow & {
   primary_drawing_number: string | null;
   primary_drawing_record_status: NumberingRecordStatus | null;
   drawing_count: number | string | null;
-  pending_cost_request_count: number | string | null;
   variant_id: string | null;
   material_code: string | null;
   material_label: string | null;
@@ -464,17 +401,6 @@ type PartModuleListRow = PartNumberRow & {
   surface_treatment: string | null;
   variant_note: string | null;
   variant_updated_at: string | null;
-  standard_cost_id: string | null;
-  standard_cost_profile_id: string | null;
-  standard_basis_qty: number | null;
-  standard_reason: string | null;
-  standard_effective_from: string | null;
-  standard_effective_to: string | null;
-  standard_profile_name: string | null;
-  standard_cost_type: PartCostType | null;
-  standard_currency: string | null;
-  standard_uom: string | null;
-  standard_unit_cost: number | string | null;
 };
 
 type WarningEventInput = {
@@ -573,31 +499,6 @@ type ApprovalBatchItemRow = {
 type ApprovalReviewBatchPreload = {
   itemRowsByBatchId: Map<string, ApprovalBatchItemRow[]>;
   requestRowsById: Map<string, ApprovalRequestRow>;
-};
-
-type ImportBatchPreload = {
-  stagingRowsByBatchId: Map<string, ImportStagingRow[]>;
-};
-
-type ImportBatchRow = {
-  id: string;
-  company_id: string;
-  source_filename: string;
-  source_hash: string | null;
-  status: NumberingImportBatchRecord["status"];
-  summary_json: string;
-  imported_by: string;
-  confirmed_by: string | null;
-  confirmed_at: string | null;
-};
-
-type ImportStagingRow = {
-  id: string;
-  import_batch_id: string;
-  row_no: number;
-  raw_json: string;
-  check_status: NumberingImportStagingRowRecord["checkStatus"];
-  issue_json: string;
 };
 
 type NumberingExportJobRow = {
@@ -1726,97 +1627,6 @@ export const SELECT_ASYNC_APPROVAL_USER_SUMMARY_SQL = `
   WHERE id = :userId
 `;
 
-export const SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL = `
-  SELECT id, company_id, source_filename, source_hash, status, summary_json, imported_by, confirmed_by, confirmed_at
-  FROM import_batches
-  WHERE id = :batchId
-`;
-
-export const SELECT_ASYNC_IMPORT_BATCHES_SQL = `
-  SELECT id, company_id, source_filename, source_hash, status, summary_json, imported_by, confirmed_by, confirmed_at
-  FROM import_batches
-  WHERE company_id = :companyId
-    AND (:status = 'all' OR status = :status)
-  ORDER BY updated_at DESC, created_at DESC, id DESC
-  LIMIT :limit
-`;
-
-export const SELECT_ASYNC_IMPORT_STAGING_ROWS_BY_BATCH_SQL = `
-  SELECT id, import_batch_id, row_no, raw_json, check_status, issue_json
-  FROM import_staging_rows
-  WHERE import_batch_id = :batchId
-  ORDER BY row_no ASC
-`;
-
-export function selectAsyncImportStagingRowsByBatchesSql(batchListSql: string) {
-  return `
-    SELECT id, import_batch_id, row_no, raw_json, check_status, issue_json
-    FROM import_staging_rows
-    WHERE import_batch_id IN (${batchListSql})
-    ORDER BY import_batch_id ASC, row_no ASC
-  `;
-}
-
-export const SELECT_ASYNC_VALID_IMPORT_STAGING_ROWS_BY_BATCH_SQL = `
-  SELECT id, import_batch_id, row_no, raw_json, check_status, issue_json
-  FROM import_staging_rows
-  WHERE import_batch_id = :batchId
-    AND check_status = 'valid'
-  ORDER BY row_no ASC
-`;
-
-export const INSERT_ASYNC_IMPORT_BATCH_SQL = `
-  INSERT INTO import_batches (
-    id, company_id, source_filename, source_hash, status, summary_json, imported_by, created_at, updated_at
-  ) VALUES (
-    :id, :companyId, :sourceFilename, :sourceHash, 'staged', :summaryJson, :importedBy, :createdAt, :updatedAt
-  )
-`;
-
-export const INSERT_ASYNC_IMPORT_STAGING_ROW_SQL = `
-  INSERT INTO import_staging_rows (
-    id, import_batch_id, row_no, raw_json, check_status, issue_json, created_at
-  ) VALUES (
-    :id, :importBatchId, :rowNo, :rawJson, :checkStatus, :issueJson, :createdAt
-  )
-`;
-
-export const UPDATE_ASYNC_IMPORT_STAGING_ROW_LEGACY_KEEP_SQL = `
-  UPDATE import_staging_rows
-  SET check_status = 'legacy_keep'
-  WHERE id = :rowId
-`;
-
-export const UPDATE_ASYNC_IMPORT_BATCH_CONFIRMED_SQL = `
-  UPDATE import_batches
-  SET status = 'confirmed',
-      summary_json = :summaryJson,
-      confirmed_by = :confirmedBy,
-      confirmed_at = :confirmedAt,
-      updated_at = :updatedAt
-  WHERE id = :batchId
-`;
-
-export const UPDATE_ASYNC_IMPORT_BATCH_REJECTED_SQL = `
-  UPDATE import_batches
-  SET status = 'rejected',
-      updated_at = :updatedAt
-  WHERE id = :batchId
-    AND company_id = :companyId
-    AND status = 'staged'
-`;
-
-export const UPDATE_ASYNC_IMPORT_BATCH_RESTORED_SQL = `
-  UPDATE import_batches
-  SET status = 'staged',
-      confirmed_by = NULL,
-      confirmed_at = NULL,
-      updated_at = :updatedAt
-  WHERE id = :batchId
-    AND company_id = :companyId
-    AND status = 'rejected'
-`;
-
 export const SELECT_ASYNC_APPROVAL_PART_ROOT_SUMMARY_SQL = `
   SELECT root_code, core_name, item_kind, record_status
   FROM part_roots
@@ -2321,6 +2131,14 @@ export const SELECT_ASYNC_ROOT_PART_NUMBERS_SQL = `
   ORDER BY sequence_no ASC, part_number ASC
 `;
 
+export const SELECT_ASYNC_ROOT_PART_NUMBERS_WITH_MASTER_DATA_SQL = `
+  SELECT p.*, va.material_code, va.material_label, va.surface_treatment
+  FROM part_numbers p
+  LEFT JOIN part_variant_attributes va ON va.part_number_id = p.id
+  WHERE p.part_root_id = :rootId
+  ORDER BY p.sequence_no ASC, p.part_number ASC
+`;
+
 export const SELECT_ASYNC_ROOT_DRAWING_NUMBERS_SQL = `
   SELECT *
   FROM drawing_numbers
@@ -2514,26 +2332,6 @@ export const DELETE_ASYNC_DRAFT_DRAWING_PART_LINKS_SQL = `
 
 export const DELETE_ASYNC_DRAFT_PART_VARIANT_ATTRIBUTES_SQL = `
   DELETE FROM part_variant_attributes
-  WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
-`;
-
-export const DELETE_ASYNC_DRAFT_PART_STANDARD_COSTS_SQL = `
-  DELETE FROM part_standard_costs
-  WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
-`;
-
-export const DELETE_ASYNC_DRAFT_PART_COST_CHANGE_REQUESTS_SQL = `
-  DELETE FROM part_cost_change_requests
-  WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
-`;
-
-export const DELETE_ASYNC_DRAFT_PART_COST_TIERS_SQL = `
-  DELETE FROM part_cost_tiers
-  WHERE cost_profile_id IN (SELECT id FROM part_cost_profiles WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId))
-`;
-
-export const DELETE_ASYNC_DRAFT_PART_COST_PROFILES_SQL = `
-  DELETE FROM part_cost_profiles
   WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
 `;
 
@@ -2744,14 +2542,9 @@ export const SELECT_ASYNC_DRAWING_MODULE_LINKED_PARTS_BY_ROOT_SQL = `
       WHERE l.part_number_id = p.id AND l.link_type = 'primary_manufacturing'
       ORDER BY d.drawing_number ASC
       LIMIT 1
-    ) AS primary_drawing_number,
-    sc.id AS standard_cost_id,
-    cp.profile_name AS standard_profile_name,
-    cp.cost_type AS standard_cost_type
+    ) AS primary_drawing_number
   FROM part_numbers p
   LEFT JOIN part_variant_attributes va ON va.part_number_id = p.id
-  LEFT JOIN part_standard_costs sc ON sc.part_number_id = p.id AND sc.effective_to IS NULL
-  LEFT JOIN part_cost_profiles cp ON cp.id = sc.cost_profile_id
 `;
 
 export const SELECT_ASYNC_DRAWING_MODULE_RELEASE_STATUS_MISMATCHES_SQL = `
@@ -2806,36 +2599,10 @@ export const SELECT_ASYNC_PART_MODULE_RECORDS_BASE_SQL = `
       SELECT COUNT(*)
       FROM drawing_part_links l
       WHERE l.part_number_id = p.id
-    ) AS drawing_count,
-    (
-      SELECT COUNT(*)
-      FROM part_cost_change_requests cr
-      WHERE cr.part_number_id = p.id AND cr.review_status = 'pending'
-    ) AS pending_cost_request_count,
-    sc.id AS standard_cost_id,
-    sc.cost_profile_id AS standard_cost_profile_id,
-    sc.basis_qty AS standard_basis_qty,
-    sc.standard_reason,
-    sc.effective_from AS standard_effective_from,
-    sc.effective_to AS standard_effective_to,
-    cp.profile_name AS standard_profile_name,
-    cp.cost_type AS standard_cost_type,
-    cp.currency AS standard_currency,
-    cp.uom AS standard_uom,
-    (
-      SELECT t.unit_cost
-      FROM part_cost_tiers t
-      WHERE t.cost_profile_id = sc.cost_profile_id
-        AND t.min_qty <= sc.basis_qty
-        AND (t.max_qty IS NULL OR t.max_qty >= sc.basis_qty)
-      ORDER BY t.min_qty DESC
-      LIMIT 1
-    ) AS standard_unit_cost
+    ) AS drawing_count
   FROM part_numbers p
   JOIN part_roots r ON r.id = p.part_root_id
   LEFT JOIN part_variant_attributes va ON va.part_number_id = p.id
-  LEFT JOIN part_standard_costs sc ON sc.part_number_id = p.id AND sc.effective_to IS NULL
-  LEFT JOIN part_cost_profiles cp ON cp.id = sc.cost_profile_id
 `;
 
 export const SELECT_ASYNC_PART_DETAIL_LINKED_DRAWINGS_SQL = `
@@ -2871,37 +2638,6 @@ export const SELECT_ASYNC_PART_DETAIL_SAME_DRAWING_VARIANTS_SQL = `
   ORDER BY d.drawing_number ASC, v.field_name ASC
 `;
 
-export const SELECT_ASYNC_PART_DETAIL_COST_PROFILES_SQL = `
-  SELECT *
-  FROM part_cost_profiles
-  WHERE part_number_id = :partNumberId
-  ORDER BY
-    CASE status
-      WHEN 'approved' THEN 0
-      WHEN 'pending_review' THEN 1
-      WHEN 'draft' THEN 2
-      WHEN 'rejected' THEN 3
-      ELSE 4
-    END,
-    updated_at DESC,
-    profile_name ASC
-`;
-
-export const SELECT_ASYNC_PART_DETAIL_COST_TIERS_BASE_SQL = `
-  SELECT *
-  FROM part_cost_tiers
-  WHERE cost_profile_id IN (__PROFILE_ID_FILTER__)
-  ORDER BY cost_profile_id ASC, min_qty ASC
-`;
-
-export const SELECT_ASYNC_PART_DETAIL_COST_CHANGE_REQUESTS_SQL = `
-  SELECT *
-  FROM part_cost_change_requests
-  WHERE part_number_id = :partNumberId
-  ORDER BY requested_at DESC
-  LIMIT 50
-`;
-
 export const SELECT_ASYNC_PART_VARIANT_ATTRIBUTES_BY_PART_ID_SQL = `
   SELECT *
   FROM part_variant_attributes
@@ -2926,109 +2662,6 @@ export const INSERT_ASYNC_PART_VARIANT_ATTRIBUTES_SQL = `
     id, part_number_id, material_code, material_label, color_code, color_label, surface_treatment, variant_note, updated_by, created_at, updated_at
   ) VALUES (
     :id, :partNumberId, :materialCode, :materialLabel, :colorCode, :colorLabel, :surfaceTreatment, :variantNote, :updatedBy, :createdAt, :updatedAt
-  )
-`;
-
-export const INSERT_ASYNC_PART_COST_PROFILE_SQL = `
-  INSERT INTO part_cost_profiles (
-    id, part_number_id, cost_type, profile_name, currency, uom, supplier_name, process_name, cost_basis, status, effective_from, effective_to, created_by, created_at, updated_at
-  ) VALUES (
-    :id, :partNumberId, :costType, :profileName, :currency, :uom, :supplierName, :processName, :costBasis, :status, :effectiveFrom, :effectiveTo, :createdBy, :createdAt, :updatedAt
-  )
-`;
-
-export const INSERT_ASYNC_PART_COST_TIER_SQL = `
-  INSERT INTO part_cost_tiers (
-    id, cost_profile_id, min_qty, max_qty, unit_cost, setup_cost, lead_time_days, note, created_at, updated_at
-  ) VALUES (
-    :id, :costProfileId, :minQty, :maxQty, :unitCost, :setupCost, :leadTimeDays, :note, :createdAt, :updatedAt
-  )
-`;
-
-export const INSERT_ASYNC_PART_COST_CHANGE_REQUEST_SQL = `
-  INSERT INTO part_cost_change_requests (
-    id, part_number_id, proposed_cost_profile_id, request_type, change_reason, review_status, requested_by, requested_at
-  ) VALUES (
-    :id, :partNumberId, :proposedCostProfileId, 'set_standard', :changeReason, 'pending', :requestedBy, :requestedAt
-  )
-`;
-
-export const SELECT_ASYNC_PART_COST_CHANGE_REQUEST_BY_ID_SQL = `
-  SELECT *
-  FROM part_cost_change_requests
-  WHERE id = :requestId
-`;
-
-export const SELECT_ASYNC_PART_COST_PROFILE_BY_ID_SQL = `
-  SELECT *
-  FROM part_cost_profiles
-  WHERE id = :profileId
-`;
-
-export const SELECT_ASYNC_APPROVED_PART_COST_PROFILE_BY_TYPE_SQL = `
-  SELECT *
-  FROM part_cost_profiles
-  WHERE part_number_id = :partNumberId
-    AND cost_type = :costType
-    AND status = 'approved'
-    AND (effective_from IS NULL OR effective_from <= :asOf)
-    AND (effective_to IS NULL OR effective_to >= :asOf)
-  ORDER BY updated_at DESC, created_at DESC
-  LIMIT 1
-`;
-
-export const SELECT_ASYNC_APPROVED_STANDARD_PART_COST_PROFILE_SQL = `
-  SELECT cp.*
-  FROM part_standard_costs sc
-  JOIN part_cost_profiles cp ON cp.id = sc.cost_profile_id
-  WHERE sc.part_number_id = :partNumberId
-    AND sc.effective_to IS NULL
-    AND cp.status = 'approved'
-    AND (sc.effective_from IS NULL OR sc.effective_from <= :asOf)
-    AND (cp.effective_from IS NULL OR cp.effective_from <= :asOf)
-    AND (cp.effective_to IS NULL OR cp.effective_to >= :asOf)
-  ORDER BY sc.effective_from DESC, sc.created_at DESC
-  LIMIT 1
-`;
-
-export const UPDATE_ASYNC_PART_COST_CHANGE_REQUEST_DECISION_SQL = `
-  UPDATE part_cost_change_requests
-  SET review_status = :reviewStatus,
-      reviewed_by = :reviewedBy,
-      reviewed_at = :reviewedAt,
-      review_comment = :reviewComment
-  WHERE id = :requestId
-`;
-
-export const UPDATE_ASYNC_PART_COST_PROFILE_REJECTED_SQL = `
-  UPDATE part_cost_profiles
-  SET status = 'rejected',
-      updated_at = :updatedAt
-  WHERE id = :profileId
-    AND status = 'pending_review'
-`;
-
-export const UPDATE_ASYNC_PART_COST_PROFILE_APPROVED_SQL = `
-  UPDATE part_cost_profiles
-  SET status = 'approved',
-      approved_by = :approvedBy,
-      updated_at = :updatedAt
-  WHERE id = :profileId
-`;
-
-export const UPDATE_ASYNC_ACTIVE_PART_STANDARD_COST_END_SQL = `
-  UPDATE part_standard_costs
-  SET effective_to = :effectiveTo,
-      updated_at = :updatedAt
-  WHERE part_number_id = :partNumberId
-    AND effective_to IS NULL
-`;
-
-export const INSERT_ASYNC_PART_STANDARD_COST_SQL = `
-  INSERT INTO part_standard_costs (
-    id, part_number_id, cost_profile_id, basis_qty, standard_reason, selected_by, approved_by, effective_from, created_at, updated_at
-  ) VALUES (
-    :id, :partNumberId, :costProfileId, :basisQty, :standardReason, :selectedBy, :approvedBy, :effectiveFrom, :createdAt, :updatedAt
   )
 `;
 
@@ -3184,19 +2817,6 @@ function assertDraftMutableStatus(status: NumberingRecordStatus, label: string) 
   if (status !== "Draft" && status !== "NeedInfo") {
     throw new Error(`NUMBERING_${label}_NOT_DRAFT: ${status}`);
   }
-}
-
-function normalizeCostType(value: PartCostType) {
-  const allowed = new Set<PartCostType>(["outsourced", "in_house", "purchase", "trial", "other"]);
-  if (!allowed.has(value)) throw new Error(`INVALID_PART_COST_TYPE: ${value}`);
-  return value;
-}
-
-function normalizeCostProfileStatus(value: PartCostProfileStatus | undefined) {
-  const status = value ?? "pending_review";
-  const allowed = new Set<PartCostProfileStatus>(["draft", "pending_review", "approved", "rejected", "retired"]);
-  if (!allowed.has(status)) throw new Error(`INVALID_PART_COST_PROFILE_STATUS: ${status}`);
-  return status;
 }
 
 function parseJsonDetail(value: string) {
@@ -3616,10 +3236,7 @@ function mapDrawingModuleLinkedPartRow(row: DrawingModuleLinkedPartRow): Drawing
     colorLabel: row.color_label,
     surfaceTreatment: row.surface_treatment,
     variantNote: row.variant_note,
-    primaryDrawingNumber: row.primary_drawing_number,
-    standardCostStatus: row.standard_cost_id ? "active" : "missing",
-    standardCostProfileName: row.standard_profile_name,
-    standardCostType: row.standard_cost_type
+    primaryDrawingNumber: row.primary_drawing_number
   };
 }
 
@@ -3685,94 +3302,6 @@ function mapPartVariantAttributes(row: PartVariantAttributesRow | null | undefin
   };
 }
 
-function mapPartCostTier(row: PartCostTierRow): PartCostTierRecord {
-  return {
-    id: row.id,
-    costProfileId: row.cost_profile_id,
-    minQty: row.min_qty,
-    maxQty: row.max_qty,
-    unitCost: Number(row.unit_cost),
-    setupCost: Number(row.setup_cost),
-    leadTimeDays: row.lead_time_days,
-    note: row.note
-  };
-}
-
-function selectCostTierForQuantity(tiers: PartCostTierRecord[], quantity: number) {
-  return tiers.find((tier) => tier.minQty <= quantity && (tier.maxQty === null || tier.maxQty >= quantity)) ?? null;
-}
-
-function assertCostProfileEffective(profile: PartCostProfileRow, asOf: string) {
-  if (profile.effective_from && profile.effective_from > asOf) throw new Error("PART_COST_PROFILE_NOT_EFFECTIVE_YET");
-  if (profile.effective_to && profile.effective_to < asOf) throw new Error("PART_COST_PROFILE_EXPIRED");
-}
-
-function buildPartCostResolution(profile: PartCostProfileRow, tier: PartCostTierRecord, quantity: number): PartCostResolutionRecord {
-  return {
-    profileId: profile.id,
-    partNumberId: profile.part_number_id,
-    costType: profile.cost_type,
-    profileName: profile.profile_name,
-    currency: profile.currency,
-    uom: profile.uom,
-    quantity,
-    unitCost: tier.unitCost,
-    setupCost: tier.setupCost,
-    extendedCost: tier.unitCost * quantity + tier.setupCost,
-    tier
-  };
-}
-
-function mapPartCostProfile(row: PartCostProfileRow, tiers: PartCostTierRecord[] = []): PartCostProfileRecord {
-  return {
-    id: row.id,
-    partNumberId: row.part_number_id,
-    costType: row.cost_type,
-    profileName: row.profile_name,
-    currency: row.currency,
-    uom: row.uom,
-    supplierName: row.supplier_name,
-    processName: row.process_name,
-    costBasis: row.cost_basis,
-    status: row.status,
-    effectiveFrom: row.effective_from,
-    effectiveTo: row.effective_to,
-    tiers
-  };
-}
-
-function mapPartStandardCost(row: PartStandardCostRow | null | undefined): PartStandardCostRecord | null {
-  if (!row?.id || !row.cost_profile_id) return null;
-  return {
-    id: row.id,
-    partNumberId: row.part_number_id,
-    costProfileId: row.cost_profile_id,
-    basisQty: row.basis_qty,
-    standardReason: row.standard_reason,
-    effectiveFrom: row.effective_from,
-    effectiveTo: row.effective_to,
-    profileName: row.profile_name,
-    costType: row.cost_type,
-    currency: row.currency,
-    uom: row.uom,
-    unitCost: row.unit_cost === null ? null : Number(row.unit_cost)
-  };
-}
-
-function mapPartCostChangeRequest(row: PartCostChangeRequestRow): PartCostChangeRequestRecord {
-  return {
-    id: row.id,
-    partNumberId: row.part_number_id,
-    proposedCostProfileId: row.proposed_cost_profile_id,
-    requestType: row.request_type,
-    changeReason: row.change_reason,
-    reviewStatus: row.review_status,
-    requestedAt: row.requested_at,
-    reviewedAt: row.reviewed_at,
-    reviewComment: row.review_comment
-  };
-}
-
 function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
   return {
     ...mapPartNumber(row),
@@ -3782,7 +3311,6 @@ function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
     primaryDrawingNumber: row.primary_drawing_number,
     primaryDrawingRecordStatus: row.primary_drawing_record_status ?? null,
     drawingCount: Number(row.drawing_count ?? 0),
-    pendingCostRequestCount: Number(row.pending_cost_request_count ?? 0),
     variant: mapPartVariantAttributes({
       id: row.variant_id ?? "",
       part_number_id: row.id,
@@ -3793,20 +3321,6 @@ function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
       surface_treatment: row.surface_treatment,
       variant_note: row.variant_note,
       updated_at: row.variant_updated_at ?? ""
-    }),
-    standardCost: mapPartStandardCost({
-      id: row.standard_cost_id ?? "",
-      part_number_id: row.id,
-      cost_profile_id: row.standard_cost_profile_id ?? "",
-      basis_qty: row.standard_basis_qty ?? 1,
-      standard_reason: row.standard_reason,
-      effective_from: row.standard_effective_from ?? "",
-      effective_to: row.standard_effective_to,
-      profile_name: row.standard_profile_name ?? "",
-      cost_type: row.standard_cost_type ?? "other",
-      currency: row.standard_currency ?? "TWD",
-      uom: row.standard_uom ?? "pcs",
-      unit_cost: row.standard_unit_cost
     })
   };
 }
@@ -4050,31 +3564,6 @@ function mapApprovalBatchItem(row: ApprovalBatchItemRow): NumberingApprovalBatch
   };
 }
 
-function mapImportStagingRow(row: ImportStagingRow): NumberingImportStagingRowRecord {
-  return {
-    id: row.id,
-    importBatchId: row.import_batch_id,
-    rowNo: row.row_no,
-    raw: parseJsonDetail(row.raw_json),
-    checkStatus: row.check_status,
-    issues: JSON.parse(row.issue_json || "[]") as Array<{ code: string; message: string }>
-  };
-}
-
-function mapImportBatch(row: ImportBatchRow, rows: ImportStagingRow[]): NumberingImportBatchRecord {
-  return {
-    id: row.id,
-    sourceFilename: row.source_filename,
-    sourceHash: row.source_hash,
-    status: row.status,
-    summary: parseJsonDetail(row.summary_json),
-    importedBy: row.imported_by,
-    confirmedBy: row.confirmed_by,
-    confirmedAt: row.confirmed_at,
-    rows: rows.map(mapImportStagingRow)
-  };
-}
-
 function emptyApprovalBatchItemCounts() {
   return {
     pending: 0,
@@ -4111,24 +3600,6 @@ function approvalRecipientRole(actionCode: NumberingApprovalActionCode) {
     return "rd_manager";
   }
   return "pdm_admin";
-}
-
-function importString(row: NumberingImportRowInput, ...keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
-  }
-  return "";
-}
-
-function inferImportedRuleVersionId(rootCode: string, partNumber?: string, drawingNumber?: string) {
-  if (isV3RootCode(rootCode) || (partNumber && isV3PartNumber(partNumber)) || (drawingNumber && isV3DrawingNumber(drawingNumber))) {
-    return NUMBERING_RULE_V3_ID;
-  }
-  if (isV2RootCode(rootCode) || (partNumber && isV2PartNumber(partNumber)) || (drawingNumber && isV2DrawingNumber(drawingNumber))) {
-    return NUMBERING_RULE_V2_ID;
-  }
-  return NUMBERING_RULE_V1_ID;
 }
 
 function normalizeVariantFields(fields: LinkPartNumberToDrawingInput["variants"]) {
@@ -4871,6 +4342,10 @@ export class AsyncNumberingRepository {
             input.drawingPurposeDescription.trim() || normalizePurposeDescription(drawingRow.purpose_code, drawingRow.purpose_description),
           updatedAt: now
         });
+        await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+          drawingNumberId: drawingRow.id,
+          companyId
+        });
       }
 
       const after = await this.getNumberingRootBundleInClient(client, input.rootCode, companyId);
@@ -4914,6 +4389,12 @@ export class AsyncNumberingRepository {
         action: "numbering.draft.obsolete",
         detail: { rootCode: input.rootCode, reason, before, after }
       });
+      for (const drawing of drawingRows) {
+        await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+          drawingNumberId: drawing.id,
+          companyId
+        });
+      }
       return after;
     };
     if (this.client.kind === "postgres") return this.client.transaction(run);
@@ -4978,10 +4459,33 @@ export class AsyncNumberingRepository {
       await client.execute(DELETE_ASYNC_DRAFT_SAME_DRAWING_VARIANTS_SQL, { rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_DRAWING_PART_LINKS_SQL, { rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_PART_VARIANT_ATTRIBUTES_SQL, { rootId: rootRow.id });
-      await client.execute(DELETE_ASYNC_DRAFT_PART_STANDARD_COSTS_SQL, { rootId: rootRow.id });
-      await client.execute(DELETE_ASYNC_DRAFT_PART_COST_CHANGE_REQUESTS_SQL, { rootId: rootRow.id });
-      await client.execute(DELETE_ASYNC_DRAFT_PART_COST_TIERS_SQL, { rootId: rootRow.id });
-      await client.execute(DELETE_ASYNC_DRAFT_PART_COST_PROFILES_SQL, { rootId: rootRow.id });
+      for (const drawing of drawingRows) {
+        await client.execute(
+          `DELETE FROM drawing_revision_files
+           WHERE drawing_revision_id IN (
+             SELECT revision.id FROM drawing_revisions revision
+             JOIN drawings canonical ON canonical.id = revision.drawing_id
+             WHERE canonical.formal_drawing_number_id = :drawingNumberId
+               AND canonical.company_id = :companyId
+               AND revision.lifecycle_state IN ('preparing', 'cancelled')
+           )`,
+          { drawingNumberId: drawing.id, companyId }
+        );
+        await client.execute(
+          `DELETE FROM drawing_revisions
+           WHERE drawing_id IN (
+             SELECT id FROM drawings
+             WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
+           ) AND lifecycle_state IN ('preparing', 'cancelled')`,
+          { drawingNumberId: drawing.id, companyId }
+        );
+        await client.execute(
+          `DELETE FROM drawings
+           WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
+             AND lifecycle_state IN ('building', 'drawing_preparation', 'cancelled')`,
+          { drawingNumberId: drawing.id, companyId }
+        );
+      }
       await client.execute(DELETE_ASYNC_DRAFT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_PART_NUMBERS_SQL, { rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_PART_ROOT_SQL, { rootId: rootRow.id });
@@ -5340,262 +4844,6 @@ export class AsyncNumberingRepository {
     return run(this.client);
   }
 
-  async createNumberingImportBatch(input: CreateNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
-    const sourceFilename = input.sourceFilename.trim();
-    if (!sourceFilename) throw new Error("IMPORT_SOURCE_FILENAME_REQUIRED");
-    if (!Array.isArray(input.rows) || input.rows.length === 0) throw new Error("IMPORT_ROWS_REQUIRED");
-
-    const run = async (client: AsyncDatabaseClient) => {
-      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-      const id = this.idFactory();
-      const now = this.clock();
-      const seen = { roots: new Set<string>(), parts: new Set<string>(), drawings: new Set<string>() };
-      const analyzed = [];
-      for (let index = 0; index < input.rows.length; index += 1) {
-        analyzed.push({ row: input.rows[index], rowNo: index + 1, ...(await this.analyzeNumberingImportRow(client, input.rows[index], seen, companyId)) });
-      }
-      const summary = {
-        total: analyzed.length,
-        valid: analyzed.filter((row) => row.checkStatus === "valid").length,
-        needInfo: analyzed.filter((row) => row.checkStatus === "need_info").length,
-        conflict: analyzed.filter((row) => row.checkStatus === "conflict").length
-      };
-
-      await client.execute(INSERT_ASYNC_IMPORT_BATCH_SQL, {
-        id,
-        companyId,
-        sourceFilename,
-        sourceHash: input.sourceHash?.trim() || null,
-        summaryJson: JSON.stringify(summary),
-        importedBy: input.importedBy,
-        createdAt: now,
-        updatedAt: now
-      });
-      for (const item of analyzed) {
-        await client.execute(INSERT_ASYNC_IMPORT_STAGING_ROW_SQL, {
-          id: this.idFactory(),
-          importBatchId: id,
-          rowNo: item.rowNo,
-          rawJson: JSON.stringify(item.row),
-          checkStatus: item.checkStatus,
-          issueJson: JSON.stringify(item.issues),
-          createdAt: now
-        });
-      }
-      await this.insertAudit(client, {
-        actorId: input.importedBy,
-        action: "numbering.import_batch.stage",
-        detail: { importBatchId: id, sourceFilename, summary }
-      });
-      const row = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: id });
-      if (!row) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${id}`);
-      return this.mapImportBatchInClient(client, row);
-    };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
-  }
-
-  async getNumberingImportBatch(batchId: string, companyId: string = DEFAULT_COMPANY_ID): Promise<NumberingImportBatchRecord | null> {
-    const row = await this.client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId });
-    if (row && row.company_id !== companyId) return null;
-    return row ? this.mapImportBatchInClient(this.client, row) : null;
-  }
-
-  async listNumberingImportBatches(input: ListNumberingImportBatchesInput = {}): Promise<NumberingImportBatchRecord[]> {
-    const limit = clampNumberingListLimit(input.limit, 20);
-    const rows = await this.client.query<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCHES_SQL, {
-      companyId: input.companyId ?? DEFAULT_COMPANY_ID,
-      status: input.status ?? "all",
-      limit
-    });
-    const preload = await this.preloadImportBatchRows(this.client, rows);
-    const batches: NumberingImportBatchRecord[] = [];
-    for (const row of rows) batches.push(await this.mapImportBatchInClient(this.client, row, preload));
-    return batches;
-  }
-
-  async confirmNumberingImportBatch(input: ConfirmNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
-    const run = async (client: AsyncDatabaseClient) => {
-      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-      const batch = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
-      if (!batch) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
-      if (batch.company_id !== companyId) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
-      if (batch.status !== "staged") throw new Error(`IMPORT_BATCH_ALREADY_${batch.status.toUpperCase()}`);
-
-      const rows = await client.query<ImportStagingRow>(SELECT_ASYNC_VALID_IMPORT_STAGING_ROWS_BY_BATCH_SQL, { batchId: input.batchId });
-      if (rows.length === 0) throw new Error("IMPORT_BATCH_HAS_NO_VALID_ROWS");
-
-      const now = this.clock();
-      let createdRoots = 0;
-      let createdParts = 0;
-      let createdDrawings = 0;
-      for (const stagingRow of rows) {
-        const raw = parseJsonDetail(stagingRow.raw_json);
-        const rootCode = importString(raw, "rootCode", "root_code", "主根號");
-        const coreName = canonicalImportedRootName(
-          importString(raw, "coreName", "core_name", "品名", "名稱"),
-          importString(raw, "partName", "part_name", "料號品名")
-        );
-        const itemKind = (importString(raw, "itemKind", "item_kind", "料件類型") || "manufactured") as NumberingItemKind;
-        const partNumber = importString(raw, "partNumber", "part_number", "料號");
-        const partName = coreName;
-        const drawingNumber = importString(raw, "drawingNumber", "drawing_number", "圖號");
-        const purposeCode = (importString(raw, "purposeCode", "purpose_code", "圖面用途") || "MA") as DrawingPurposeCode;
-        const ruleVersionId = inferImportedRuleVersionId(rootCode, partNumber, drawingNumber);
-
-        let root = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
-        if (!root) {
-          await client.execute(INSERT_ASYNC_PART_ROOT_SQL, {
-            id: this.idFactory(),
-            companyId,
-            rootCode,
-            coreName,
-            itemKind,
-            recordStatus: "Active",
-            ruleVersionId,
-            createdBy: input.confirmedBy,
-            createdAt: now,
-            updatedAt: now
-          });
-          createdRoots += 1;
-          root = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
-        }
-        if (!root) throw new Error(`IMPORT_ROOT_CREATE_FAILED: ${rootCode}`);
-
-        let partRow = partNumber ? await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber, companyId }) : null;
-        if (partNumber && !partRow) {
-          const sequenceNo = importedPartSequence(partNumber);
-          await client.execute(INSERT_ASYNC_PART_NUMBER_SQL, {
-            id: this.idFactory(),
-            companyId,
-            partRootId: root.id,
-            partNumber,
-            sequenceNo,
-            sequenceCode: formatPartSequence(sequenceNo, ruleVersionId),
-            partName,
-            itemKind,
-            isUniversal: 0,
-            customSpecification: null,
-            seriesCode: null,
-            recordStatus: "Active",
-            universalReason: null,
-            ruleVersionId,
-            createdBy: input.confirmedBy,
-            createdAt: now,
-            updatedAt: now
-          });
-          createdParts += 1;
-          partRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber, companyId });
-        }
-
-        let drawingRow = drawingNumber ? await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber, companyId }) : null;
-        if (drawingNumber && !drawingRow) {
-          await client.execute(INSERT_ASYNC_DRAWING_NUMBER_SQL, {
-            id: this.idFactory(),
-            companyId,
-            partRootId: root.id,
-            drawingNumber,
-            purposeCode,
-            purposeDescription: normalizePurposeDescription(purposeCode, importString(raw, "purposeDescription", "purpose_description", "圖面用途")),
-            sequenceNo: importedDrawingSequence(drawingNumber),
-            isPrimaryManufacturing: isManufacturingDrawingPurpose(purposeCode) ? 1 : 0,
-            recordStatus: "Active",
-            ruleVersionId,
-            createdBy: input.confirmedBy,
-            createdAt: now,
-            updatedAt: now
-          });
-          createdDrawings += 1;
-          drawingRow = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber, companyId });
-        }
-
-        if (partRow && drawingRow && partRow.part_root_id === drawingRow.part_root_id) {
-          const linkType = isManufacturingDrawingPurpose(drawingRow.purpose_code) ? "primary_manufacturing" : "reference";
-          const existingLink = await client.queryOne<{ id: string }>(SELECT_ASYNC_DRAWING_PART_LINK_BY_TYPE_SQL, {
-            drawingNumberId: drawingRow.id,
-            partNumberId: partRow.id,
-            linkType
-          });
-          if (!existingLink) {
-            await client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
-              id: this.idFactory(),
-              drawingNumberId: drawingRow.id,
-              partNumberId: partRow.id,
-              linkType,
-              createdBy: input.confirmedBy,
-              createdAt: now
-            });
-          }
-        }
-
-        await client.execute(UPDATE_ASYNC_IMPORT_STAGING_ROW_LEGACY_KEEP_SQL, { rowId: stagingRow.id });
-      }
-
-      const summary = { ...parseJsonDetail(batch.summary_json), createdRoots, createdParts, createdDrawings };
-      await client.execute(UPDATE_ASYNC_IMPORT_BATCH_CONFIRMED_SQL, {
-        batchId: input.batchId,
-        summaryJson: JSON.stringify(summary),
-        confirmedBy: input.confirmedBy,
-        confirmedAt: now,
-        updatedAt: now
-      });
-      await this.insertAudit(client, {
-        actorId: input.confirmedBy,
-        action: "numbering.import_batch.confirm",
-        detail: { importBatchId: input.batchId, summary }
-      });
-
-      const updated = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
-      if (!updated) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
-      return this.mapImportBatchInClient(client, updated);
-    };
-    return this.client.transaction(run);
-  }
-
-  async deleteNumberingImportBatch(input: DeleteNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
-    const run = async (client: AsyncDatabaseClient) => {
-      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-      const batch = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
-      if (!batch || batch.company_id !== companyId) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
-      if (batch.status !== "staged") throw new Error(`IMPORT_BATCH_ALREADY_${batch.status.toUpperCase()}`);
-
-      const now = this.clock();
-      await client.execute(UPDATE_ASYNC_IMPORT_BATCH_REJECTED_SQL, { batchId: input.batchId, companyId, updatedAt: now });
-      await this.insertAudit(client, {
-        actorId: input.deletedBy,
-        action: "numbering.import_batch.delete",
-        detail: { importBatchId: input.batchId, sourceFilename: batch.source_filename, lifecycleAction: "delete" }
-      });
-      const updated = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
-      if (!updated) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
-      return this.mapImportBatchInClient(client, updated);
-    };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
-  }
-
-  async restoreNumberingImportBatch(input: RestoreNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
-    const run = async (client: AsyncDatabaseClient) => {
-      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-      const batch = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
-      if (!batch || batch.company_id !== companyId) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
-      if (batch.status !== "rejected") throw new Error(`IMPORT_BATCH_NOT_DELETED: ${input.batchId}`);
-      if (batch.confirmed_at || batch.confirmed_by) throw new Error(`IMPORT_BATCH_ALREADY_CONFIRMED: ${input.batchId}`);
-
-      const now = this.clock();
-      await client.execute(UPDATE_ASYNC_IMPORT_BATCH_RESTORED_SQL, { batchId: input.batchId, companyId, updatedAt: now });
-      await this.insertAudit(client, {
-        actorId: input.restoredBy,
-        action: "numbering.import_batch.restore",
-        detail: { importBatchId: input.batchId, sourceFilename: batch.source_filename, lifecycleAction: "restore" }
-      });
-      const updated = await client.queryOne<ImportBatchRow>(SELECT_ASYNC_IMPORT_BATCH_BY_ID_SQL, { batchId: input.batchId });
-      if (!updated) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
-      return this.mapImportBatchInClient(client, updated);
-    };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
-  }
 
   async listNumberingAdminMatrix(): Promise<NumberingAdminMatrixRecord> {
     await this.ensureDefaultApprovalRulesForCurrentRuleVersion();
@@ -6132,6 +5380,10 @@ export class AsyncNumberingRepository {
       if (input.applyInvalidation) {
         const now = this.clock();
         await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingNumber.id, updatedAt: now });
+        await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+          drawingNumberId: drawingNumber.id,
+          companyId
+        });
         for (const partNumber of impactedPartNumbers) {
           await client.execute(UPDATE_ASYNC_PART_MAIN_DRAWING_INVALID_SQL, { partNumberId: partNumber.id, updatedAt: now });
           await client.execute(UPDATE_ASYNC_ROOT_MAIN_DRAWING_INVALID_SQL, { rootId: partNumber.partRootId, updatedAt: now });
@@ -6537,12 +5789,12 @@ export class AsyncNumberingRepository {
     return run(this.client);
   }
 
-  async getNumberingRootDetail(rootCode: string, companyId = DEFAULT_COMPANY_ID): Promise<NumberingRootDetailRecord | null> {
+  async getNumberingRootDetail(rootCode: string, companyId = DEFAULT_COMPANY_ID, options: { includePartMasterDataGaps?: boolean } = {}): Promise<NumberingRootDetailWithPartMasterDataGaps | null> {
     const rootRow = await this.client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode: rootCode.trim(), companyId });
     if (!rootRow) return null;
 
     const [partRows, drawingRows] = await Promise.all([
-      this.client.query<PartNumberRow>(SELECT_ASYNC_ROOT_PART_NUMBERS_SQL, { rootId: rootRow.id }),
+      this.client.query<PartNumberMasterDataRow>(SELECT_ASYNC_ROOT_PART_NUMBERS_WITH_MASTER_DATA_SQL, { rootId: rootRow.id }),
       this.client.query<DrawingNumberRow>(SELECT_ASYNC_ROOT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id })
     ]);
     const root = mapPartRoot(rootRow);
@@ -6580,7 +5832,8 @@ export class AsyncNumberingRepository {
         warningCount: warnings.filter((warning) => !warning.acknowledgedAt).length,
         hasMainDrawingInvalid:
           root.recordStatus === "MainDrawingInvalid" || partNumbers.some((partNumber) => partNumber.recordStatus === "MainDrawingInvalid")
-      }
+      },
+      ...(options.includePartMasterDataGaps ? { partMasterDataGaps: buildPartMasterDataGaps(partRows) } : {})
     };
   }
 
@@ -6808,220 +6061,6 @@ export class AsyncNumberingRepository {
     return run(this.client);
   }
 
-  async createPartCostProfile(input: CreatePartCostProfileInput): Promise<PartModuleDetailRecord> {
-    const run = async (client: AsyncDatabaseClient) => {
-      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-      const partRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, {
-        partNumber: input.partNumber.trim(),
-        companyId
-      });
-      if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
-      const tiers = normalizePartCostTiers(input.tiers);
-      const now = this.clock();
-      const profileId = this.idFactory();
-      const status = normalizeCostProfileStatus(input.status);
-
-      await client.execute(INSERT_ASYNC_PART_COST_PROFILE_SQL, {
-        id: profileId,
-        partNumberId: partRow.id,
-        costType: normalizeCostType(input.costType),
-        profileName: input.profileName.trim(),
-        currency: input.currency?.trim() || "TWD",
-        uom: input.uom?.trim() || "pcs",
-        supplierName: normalizeNullableText(input.supplierName),
-        processName: normalizeNullableText(input.processName),
-        costBasis: normalizeNullableText(input.costBasis),
-        status,
-        effectiveFrom: normalizeNullableText(input.effectiveFrom),
-        effectiveTo: normalizeNullableText(input.effectiveTo),
-        createdBy: input.createdBy ?? null,
-        createdAt: now,
-        updatedAt: now
-      });
-
-      for (const tier of tiers) {
-        await client.execute(INSERT_ASYNC_PART_COST_TIER_SQL, {
-          id: this.idFactory(),
-          costProfileId: profileId,
-          minQty: tier.minQty,
-          maxQty: tier.maxQty,
-          unitCost: tier.unitCost,
-          setupCost: tier.setupCost,
-          leadTimeDays: tier.leadTimeDays,
-          note: normalizeNullableText(tier.note),
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-
-      await client.execute(INSERT_ASYNC_PART_COST_CHANGE_REQUEST_SQL, {
-        id: this.idFactory(),
-        partNumberId: partRow.id,
-        proposedCostProfileId: profileId,
-        changeReason: "Part cost profile created for standard cost review",
-        requestedBy: input.createdBy ?? null,
-        requestedAt: now
-      });
-
-      await client.execute(INSERT_ASYNC_NUMBERING_AUDIT_SQL, {
-        id: this.idFactory(),
-        actorId: input.createdBy ?? null,
-        action: "numbering.part_cost_profile.create",
-        detailJson: JSON.stringify(normalizeAuditDetail({ partNumber: partRow.part_number, costProfileId: profileId, status, tierCount: tiers.length })),
-        createdAt: now
-      });
-
-      const part = await this.getPartModuleDetailWithClient(client, partRow.part_number, companyId);
-      if (!part) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
-      return part;
-    };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
-  }
-
-  async decidePartCostChangeRequest(input: DecidePartCostChangeRequestInput): Promise<PartModuleDetailRecord> {
-    const run = async (client: AsyncDatabaseClient) => {
-      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-      const partRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, {
-        partNumber: input.partNumber.trim(),
-        companyId
-      });
-      if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
-
-      const request = await client.queryOne<PartCostChangeRequestRow>(SELECT_ASYNC_PART_COST_CHANGE_REQUEST_BY_ID_SQL, {
-        requestId: input.requestId
-      });
-      if (!request || request.part_number_id !== partRow.id) throw new Error(`PART_COST_CHANGE_REQUEST_NOT_FOUND: ${input.requestId}`);
-      if (request.review_status !== "pending") throw new Error(`PART_COST_CHANGE_REQUEST_ALREADY_DECIDED: ${request.review_status}`);
-
-      const now = this.clock();
-      const reviewComment = normalizeNullableText(input.reviewComment);
-      const decisionStatus: PartCostChangeRequestStatus = input.decision === "approve" ? "approved" : "rejected";
-      await client.execute(UPDATE_ASYNC_PART_COST_CHANGE_REQUEST_DECISION_SQL, {
-        reviewStatus: decisionStatus,
-        reviewedBy: input.reviewedBy ?? null,
-        reviewedAt: now,
-        reviewComment,
-        requestId: request.id
-      });
-
-      const profile = request.proposed_cost_profile_id
-        ? await client.queryOne<PartCostProfileRow>(SELECT_ASYNC_PART_COST_PROFILE_BY_ID_SQL, { profileId: request.proposed_cost_profile_id })
-        : undefined;
-      if (profile && profile.part_number_id !== partRow.id) throw new Error("PART_COST_PROFILE_PART_MISMATCH");
-
-      if (input.decision === "reject") {
-        if (profile) {
-          await client.execute(UPDATE_ASYNC_PART_COST_PROFILE_REJECTED_SQL, {
-            profileId: profile.id,
-            updatedAt: now
-          });
-        }
-        await client.execute(INSERT_ASYNC_NUMBERING_AUDIT_SQL, {
-          id: this.idFactory(),
-          actorId: input.reviewedBy ?? null,
-          action: "numbering.part_cost_change.reject",
-          detailJson: JSON.stringify(
-            normalizeAuditDetail({
-              partNumber: partRow.part_number,
-              requestId: request.id,
-              costProfileId: profile?.id ?? null,
-              reviewComment
-            })
-          ),
-          createdAt: now
-        });
-        const part = await this.getPartModuleDetailWithClient(client, partRow.part_number, companyId);
-        if (!part) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
-        return part;
-      }
-
-      if (!profile) throw new Error("PART_COST_CHANGE_REQUEST_PROFILE_REQUIRED");
-      await client.execute(UPDATE_ASYNC_PART_COST_PROFILE_APPROVED_SQL, {
-        profileId: profile.id,
-        approvedBy: input.reviewedBy ?? null,
-        updatedAt: now
-      });
-
-      if (request.request_type === "set_standard") {
-        const basisQty = normalizePositiveInteger(input.basisQty, 1, "INVALID_PART_STANDARD_COST_BASIS_QTY");
-        const tiers = await this.listPartCostTiers(profile.id, client);
-        if (!selectCostTierForQuantity(tiers, basisQty)) throw new Error("NO_PART_COST_TIER_FOR_STANDARD_BASIS_QTY");
-        await client.execute(UPDATE_ASYNC_ACTIVE_PART_STANDARD_COST_END_SQL, {
-          effectiveTo: now,
-          updatedAt: now,
-          partNumberId: partRow.id
-        });
-        await client.execute(INSERT_ASYNC_PART_STANDARD_COST_SQL, {
-          id: this.idFactory(),
-          partNumberId: partRow.id,
-          costProfileId: profile.id,
-          basisQty,
-          standardReason: reviewComment ?? request.change_reason,
-          selectedBy: input.reviewedBy ?? null,
-          approvedBy: input.reviewedBy ?? null,
-          effectiveFrom: now,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-
-      await client.execute(INSERT_ASYNC_NUMBERING_AUDIT_SQL, {
-        id: this.idFactory(),
-        actorId: input.reviewedBy ?? null,
-        action: "numbering.part_cost_change.approve",
-        detailJson: JSON.stringify(
-          normalizeAuditDetail({
-            partNumber: partRow.part_number,
-            requestId: request.id,
-            costProfileId: profile.id,
-            requestType: request.request_type
-          })
-        ),
-        createdAt: now
-      });
-
-      const part = await this.getPartModuleDetailWithClient(client, partRow.part_number, companyId);
-      if (!part) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
-      return part;
-    };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
-  }
-
-  async resolvePartCost(input: ResolvePartCostInput): Promise<PartCostResolutionRecord> {
-    const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-    const partRow = await this.client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, {
-      partNumber: input.partNumber.trim(),
-      companyId
-    });
-    if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
-
-    const quantity = normalizePositiveInteger(input.quantity, 1, "INVALID_PART_COST_QUANTITY");
-    const asOf = normalizeNullableText(input.asOf) ?? this.clock();
-    let profile: PartCostProfileRow | null;
-    if (input.costType) {
-      profile = await this.client.queryOne<PartCostProfileRow>(SELECT_ASYNC_APPROVED_PART_COST_PROFILE_BY_TYPE_SQL, {
-        partNumberId: partRow.id,
-        costType: normalizeCostType(input.costType),
-        asOf
-      });
-      if (!profile) throw new Error("NO_APPROVED_PART_COST_PROFILE");
-    } else {
-      profile = await this.client.queryOne<PartCostProfileRow>(SELECT_ASYNC_APPROVED_STANDARD_PART_COST_PROFILE_SQL, {
-        partNumberId: partRow.id,
-        asOf
-      });
-      if (!profile) throw new Error("NO_APPROVED_STANDARD_COST");
-    }
-
-    assertCostProfileEffective(profile, asOf);
-    const tiers = await this.listPartCostTiers(profile.id);
-    const tier = selectCostTierForQuantity(tiers, quantity);
-    if (!tier) throw new Error("NO_PART_COST_TIER_FOR_QUANTITY");
-    return buildPartCostResolution(profile, tier, quantity);
-  }
-
   private async getPartModuleDetailWithClient(client: AsyncDatabaseClient, partNumber: string, companyId: string): Promise<PartModuleDetailRecord | null> {
     const row = await client.queryOne<PartModuleListRow>(
       `
@@ -7034,19 +6073,15 @@ export class AsyncNumberingRepository {
     );
     if (!row) return null;
 
-    const [linkedDrawingRows, sameDrawingVariantRows, costProfiles, costChangeRequestRows] = await Promise.all([
+    const [linkedDrawingRows, sameDrawingVariantRows] = await Promise.all([
       client.query<NumberingLinkRow>(SELECT_ASYNC_PART_DETAIL_LINKED_DRAWINGS_SQL, { partNumberId: row.id }),
-      client.query<NumberingVariantRow>(SELECT_ASYNC_PART_DETAIL_SAME_DRAWING_VARIANTS_SQL, { partNumberId: row.id }),
-      this.listPartCostProfiles(row.id, client),
-      client.query<PartCostChangeRequestRow>(SELECT_ASYNC_PART_DETAIL_COST_CHANGE_REQUESTS_SQL, { partNumberId: row.id })
+      client.query<NumberingVariantRow>(SELECT_ASYNC_PART_DETAIL_SAME_DRAWING_VARIANTS_SQL, { partNumberId: row.id })
     ]);
 
     return {
       ...mapPartModuleListRow(row),
       linkedDrawings: linkedDrawingRows.map(mapNumberingLink),
-      sameDrawingVariants: sameDrawingVariantRows.map(mapNumberingVariant),
-      costProfiles,
-      costChangeRequests: costChangeRequestRows.map(mapPartCostChangeRequest)
+      sameDrawingVariants: sameDrawingVariantRows.map(mapNumberingVariant)
     };
   }
 
@@ -7056,38 +6091,6 @@ export class AsyncNumberingRepository {
       now: this.clock()
     });
     return uniqueStrings([...numberingRoleCodes(user), ...rows.map((row) => row.role_code)]);
-  }
-
-  private async listPartCostProfiles(partNumberId: string, client: AsyncDatabaseClient = this.client): Promise<PartCostProfileRecord[]> {
-    const profileRows = await client.query<PartCostProfileRow>(SELECT_ASYNC_PART_DETAIL_COST_PROFILES_SQL, { partNumberId });
-    if (profileRows.length === 0) return [];
-
-    const params: Record<string, string> = {};
-    const placeholders = profileRows.map((profile, index) => {
-      const name = `profileId${index}`;
-      params[name] = profile.id;
-      return `:${name}`;
-    });
-    const tierRows = await client.query<PartCostTierRow>(
-      SELECT_ASYNC_PART_DETAIL_COST_TIERS_BASE_SQL.replace("__PROFILE_ID_FILTER__", placeholders.join(", ")),
-      params
-    );
-    const tiersByProfile = new Map<string, PartCostTierRecord[]>();
-    for (const tier of tierRows.map(mapPartCostTier)) {
-      const list = tiersByProfile.get(tier.costProfileId) ?? [];
-      list.push(tier);
-      tiersByProfile.set(tier.costProfileId, list);
-    }
-
-    return profileRows.map((profile) => mapPartCostProfile(profile, tiersByProfile.get(profile.id) ?? []));
-  }
-
-  private async listPartCostTiers(profileId: string, client: AsyncDatabaseClient = this.client): Promise<PartCostTierRecord[]> {
-    const rows = await client.query<PartCostTierRow>(
-      SELECT_ASYNC_PART_DETAIL_COST_TIERS_BASE_SQL.replace("__PROFILE_ID_FILTER__", ":profileId"),
-      { profileId }
-    );
-    return rows.map(mapPartCostTier);
   }
 
   private async searchRootRecords(input: Required<Pick<NumberingSearchInput, "query" | "limit">> & NumberingSearchInput) {
@@ -7319,8 +6322,8 @@ export class AsyncNumberingRepository {
   async getNumberingRootDetailsByIds(
     rootIds: string[],
     companyId = DEFAULT_COMPANY_ID,
-    options: { includeAncillary?: boolean } = {}
-  ): Promise<NumberingRootDetailRecord[]> {
+    options: { includeAncillary?: boolean; includePartMasterDataGaps?: boolean } = {}
+  ): Promise<NumberingRootDetailWithPartMasterDataGaps[]> {
     const orderedIds = [...new Set(rootIds.filter(Boolean))];
     if (orderedIds.length === 0) return [];
     const chunks = Array.from({ length: Math.ceil(orderedIds.length / 400) }, (_, index) => orderedIds.slice(index * 400, (index + 1) * 400));
@@ -7339,7 +6342,13 @@ export class AsyncNumberingRepository {
     const includeAncillary = options.includeAncillary !== false;
     const [rootRows, partRows, drawingRows, linkRows, variantRows] = await Promise.all([
       queryChunks<PartRootRow>((ids) => `SELECT * FROM part_roots WHERE company_id = :companyId AND id IN (${ids})`),
-      queryChunks<PartNumberRow>((ids) => `SELECT * FROM part_numbers WHERE company_id = :companyId AND part_root_id IN (${ids}) ORDER BY part_root_id, sequence_no, part_number`),
+      queryChunks<PartNumberMasterDataRow>((ids) => options.includePartMasterDataGaps
+        ? `SELECT p.*, va.material_code, va.material_label, va.surface_treatment
+           FROM part_numbers p
+           LEFT JOIN part_variant_attributes va ON va.part_number_id = p.id
+           WHERE p.company_id = :companyId AND p.part_root_id IN (${ids})
+           ORDER BY p.part_root_id, p.sequence_no, p.part_number`
+        : `SELECT * FROM part_numbers WHERE company_id = :companyId AND part_root_id IN (${ids}) ORDER BY part_root_id, sequence_no, part_number`),
       queryChunks<DrawingNumberRow>((ids) => `SELECT * FROM drawing_numbers WHERE company_id = :companyId AND part_root_id IN (${ids}) ORDER BY part_root_id, purpose_code, sequence_no, drawing_number`),
       queryChunks<NumberingLinkRow>((ids) => `SELECT l.id, l.drawing_number_id, l.part_number_id, d.drawing_number, p.part_number, l.link_type, l.created_at
         FROM drawing_part_links l
@@ -7420,16 +6429,17 @@ export class AsyncNumberingRepository {
           primaryManufacturingCount: drawingNumbers.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode) && drawing.isPrimaryManufacturing).length,
           warningCount: warnings.filter((warning) => !warning.acknowledgedAt).length,
           hasMainDrawingInvalid: root.recordStatus === "MainDrawingInvalid" || partNumbers.some((part) => part.recordStatus === "MainDrawingInvalid")
-        }
-      } satisfies NumberingRootDetailRecord];
+        },
+        ...(options.includePartMasterDataGaps ? { partMasterDataGaps: buildPartMasterDataGaps(partRows.filter((part) => part.part_root_id === rootId)) } : {})
+      } satisfies NumberingRootDetailWithPartMasterDataGaps];
     });
   }
 
   async getNumberingRootDetailsByCodes(
     rootCodes: string[],
     companyId = DEFAULT_COMPANY_ID,
-    options: { includeAncillary?: boolean } = {}
-  ): Promise<NumberingRootDetailRecord[]> {
+    options: { includeAncillary?: boolean; includePartMasterDataGaps?: boolean } = {}
+  ): Promise<NumberingRootDetailWithPartMasterDataGaps[]> {
     const orderedCodes = [...new Set(rootCodes.map((code) => code.trim()).filter(Boolean))];
     if (orderedCodes.length === 0) return [];
     const bindings: Record<string, string> = { companyId };
@@ -8209,6 +7219,10 @@ export class AsyncNumberingRepository {
           )
         : [];
       await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingRow.id, updatedAt: now });
+      await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+        drawingNumberId: drawingRow.id,
+        companyId
+      });
       for (const partRow of impactedPartRows) {
         await client.execute(UPDATE_ASYNC_PART_MAIN_DRAWING_INVALID_SQL, { partNumberId: partRow.id, updatedAt: now });
         await client.execute(UPDATE_ASYNC_ROOT_MAIN_DRAWING_INVALID_SQL, { rootId: partRow.part_root_id, updatedAt: now });
@@ -8268,6 +7282,10 @@ export class AsyncNumberingRepository {
           if (!drawingRow || drawingRow.company_id !== companyId || drawingRow.part_root_id !== rootRow.id) throw new Error("ROOT_OBSOLETE_TARGET_MISMATCH");
           if (isFormalRecordStatus(drawingRow.record_status)) {
             await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingRow.id, updatedAt: now });
+            await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+              drawingNumberId: drawingRow.id,
+              companyId
+            });
             obsoletedDrawings.push(drawingRow.drawing_number);
           }
         }
@@ -8475,8 +7493,18 @@ export class AsyncNumberingRepository {
   ): Promise<void> {
     const openCount = await client.queryOne<CountRow>(SELECT_ASYNC_OPEN_PART_COUNT_FOR_ROOT_SQL, { rootId });
     if (Number(openCount?.count ?? 0) === 0) {
+      const drawings = await client.query<{ id: string; company_id: string }>(
+        "SELECT id, company_id FROM drawing_numbers WHERE part_root_id = :rootId",
+        { rootId }
+      );
       await client.execute(UPDATE_ASYNC_ROOT_CLOSED_SQL, { rootId, recordStatus: status, updatedAt: now });
       await client.execute(UPDATE_ASYNC_ROOT_DRAWINGS_CLOSED_SQL, { rootId, recordStatus: status, updatedAt: now });
+      for (const drawing of drawings) {
+        await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+          drawingNumberId: drawing.id,
+          companyId: drawing.company_id
+        });
+      }
       return;
     }
     await client.execute(UPDATE_ASYNC_ROOT_TOUCH_SQL, { rootId, updatedAt: now });
@@ -8696,75 +7724,6 @@ export class AsyncNumberingRepository {
     return replacement;
   }
 
-  private async preloadImportBatchRows(client: AsyncDatabaseClient, rows: ImportBatchRow[]): Promise<ImportBatchPreload> {
-    const batchIds = [...new Set(rows.map((row) => row.id))];
-    if (batchIds.length === 0) return { stagingRowsByBatchId: new Map() };
-    const batchList = createNamedList("importBatchId", batchIds);
-    const stagingRows = await client.query<ImportStagingRow>(selectAsyncImportStagingRowsByBatchesSql(batchList.sql), batchList.params);
-    const stagingRowsByBatchId = new Map<string, ImportStagingRow[]>();
-    for (const batchId of batchIds) stagingRowsByBatchId.set(batchId, []);
-    for (const stagingRow of stagingRows) {
-      const rowsForBatch = stagingRowsByBatchId.get(stagingRow.import_batch_id) ?? [];
-      rowsForBatch.push(stagingRow);
-      stagingRowsByBatchId.set(stagingRow.import_batch_id, rowsForBatch);
-    }
-    return { stagingRowsByBatchId };
-  }
-
-  private async mapImportBatchInClient(
-    client: AsyncDatabaseClient,
-    row: ImportBatchRow,
-    preload?: ImportBatchPreload
-  ): Promise<NumberingImportBatchRecord> {
-    const rows = preload?.stagingRowsByBatchId.get(row.id) ??
-      (await client.query<ImportStagingRow>(SELECT_ASYNC_IMPORT_STAGING_ROWS_BY_BATCH_SQL, { batchId: row.id }));
-    return mapImportBatch(row, rows);
-  }
-
-  private async analyzeNumberingImportRow(
-    client: AsyncDatabaseClient,
-    row: NumberingImportRowInput,
-    seen: { roots: Set<string>; parts: Set<string>; drawings: Set<string> },
-    companyId: string
-  ): Promise<Pick<NumberingImportStagingRowRecord, "checkStatus" | "issues">> {
-    const rootCode = importString(row, "rootCode", "root_code", "主根號");
-    const partNumber = importString(row, "partNumber", "part_number", "料號");
-    const drawingNumber = importString(row, "drawingNumber", "drawing_number", "圖號");
-    const importedCoreName = importString(row, "coreName", "core_name", "品名", "名稱");
-    const importedPartName = importString(row, "partName", "part_name", "料號品名");
-    const coreName = canonicalImportedRootName(importedCoreName, importedPartName);
-    const partName = coreName;
-    const issues: Array<{ code: string; message: string }> = [];
-
-    if (!rootCode) issues.push({ code: "ROOT_CODE_REQUIRED", message: "rootCode is required." });
-    if (!coreName && !partName) issues.push({ code: "NAME_REQUIRED", message: "coreName or partName is required." });
-    if (!partNumber && !drawingNumber) issues.push({ code: "NUMBER_REQUIRED", message: "partNumber or drawingNumber is required." });
-    if (rootCode && (await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId }))) {
-      issues.push({ code: "ROOT_EXISTS", message: `Root ${rootCode} already exists.` });
-    }
-    if (partNumber && (await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber, companyId }))) {
-      issues.push({ code: "PART_EXISTS", message: `Part ${partNumber} already exists.` });
-    }
-    if (drawingNumber && (await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber, companyId }))) {
-      issues.push({ code: "DRAWING_EXISTS", message: `Drawing ${drawingNumber} already exists.` });
-    }
-    if (rootCode && seen.roots.has(rootCode) && partNumber && seen.parts.has(partNumber)) {
-      issues.push({ code: "DUPLICATE_ROW", message: "This root/part combination appears more than once in the import file." });
-    }
-    if (partNumber && seen.parts.has(partNumber)) issues.push({ code: "DUPLICATE_PART_IN_FILE", message: `Part ${partNumber} appears more than once.` });
-    if (drawingNumber && seen.drawings.has(drawingNumber)) {
-      issues.push({ code: "DUPLICATE_DRAWING_IN_FILE", message: `Drawing ${drawingNumber} appears more than once.` });
-    }
-
-    if (rootCode) seen.roots.add(rootCode);
-    if (partNumber) seen.parts.add(partNumber);
-    if (drawingNumber) seen.drawings.add(drawingNumber);
-
-    const checkStatus: NumberingImportStagingRowRecord["checkStatus"] =
-      issues.length === 0 ? "valid" : issues.some((issue) => issue.code.includes("EXISTS") || issue.code.includes("DUPLICATE")) ? "conflict" : "need_info";
-    return { checkStatus, issues };
-  }
-
   private async insertWarningEvent(client: AsyncDatabaseClient, input: WarningEventInput): Promise<string> {
     const id = this.idFactory();
     await client.execute(INSERT_ASYNC_NUMBERING_WARNING_EVENT_SQL, {
@@ -8930,7 +7889,7 @@ export class AsyncNumberingRepository {
     const draftChildren = [...parts, ...drawings].filter((record) => record.recordStatus === "Draft" || record.recordStatus === "NeedInfo").length;
     const warnings = [
       draftChildren > 0 ? `尚有 ${draftChildren} 筆草稿/待補資料；正式作廢只會建立正式資料審核範圍。` : "",
-      formalTargets.length === 0 ? "此主根目前沒有可申請作廢的正式料號或圖號。" : "",
+      formalTargets.length === 0 ? "此主根目前沒有可申請作廢的料號或圖號。" : "",
       pending ? "此主根已有作廢審核中申請。" : ""
     ].filter(Boolean);
     const links: RootObsoleteImpactLink[] = linkRows.map((link) => ({
@@ -9066,6 +8025,10 @@ export class AsyncNumberingRepository {
     });
     const row = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber, companyId: root.companyId });
     if (!row) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${drawingNumber}`);
+    await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+      drawingNumberId: row.id,
+      companyId: root.companyId
+    });
     return mapDrawingNumber(row);
   }
 

@@ -3,6 +3,7 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { searchNumberingRecordsAsync } from "@/lib/numbering-async";
 import type { NumberingRecordStatus, NumberingSearchEntityType } from "@/lib/repositories/numbering-repository";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { parseNumberSortDirection } from "@/lib/number-sort";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
     query: url.searchParams.get("query") ?? "",
     entityType,
     recordStatus,
+    sortDirection: parseNumberSortDirection(url.searchParams.get("sortDirection")),
     limit: Number(url.searchParams.get("limit") ?? 50)
   });
 

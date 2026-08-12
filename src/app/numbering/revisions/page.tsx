@@ -723,7 +723,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
         <div className="panel-header">
           <div>
             <h2>圖號定位</h2>
-            <p style={mutedTextStyle}>可輸入正式圖號或料號，例如 A0001-M01。內部 ID 僅顯示於解析結果，不需要人工填寫。</p>
+            <p style={mutedTextStyle}>可輸入圖號或料號，例如 A0001-M01。內部 ID 僅顯示於解析結果，不需要人工填寫。</p>
           </div>
           <button
             className="primary-button"
@@ -744,7 +744,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
         ) : null}
         <div style={lookupGridStyle}>
           <label style={fieldStyle}>
-            <span style={fieldLabelStyle}>正式圖號 / 料號</span>
+            <span style={fieldLabelStyle}>圖號 / 料號</span>
             <input
               className="text-input"
               placeholder="例如 A0001-M01 / A0001-P01"
@@ -803,7 +803,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
         {!resolved?.drawing ? (
           <p style={hintTextStyle}>
             <Info size={16} />
-            請先定位正式圖號。
+            請先定位圖號。
           </p>
         ) : (
           <>
@@ -1137,7 +1137,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
         {!resolved?.drawing ? (
           <p style={hintTextStyle}>
             <Info size={16} />
-            送出前需先解析正式圖號。
+            送出前需先解析圖號。
           </p>
         ) : null}
         {resolved?.drawing && !canCreateRevisionSubmission && visibleSubmissionBlockers.length === 0 && changeDescriptionIssues.length === 0 && !message ? (
@@ -1182,7 +1182,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
         {createdSubmissionId && !lifecycleNext ? (
           <div style={nextActionBoxStyle} aria-live="polite">
             <strong>送審已建立，下一步是進到審核頁處理。</strong>
-            <span>版次 {revision.trim() || "-"} 目前是審核中，不是正式發布；附件庫只保留這次送審用檔案供比對。</span>
+            <span>版次 {revision.trim() || "-"} 目前是審核中，尚未發布；附件庫只保留這次送審用檔案供比對。</span>
             <div className="next-step-inline-actions">
               <a className="primary-button" href={`/submissions/${encodeURIComponent(createdSubmissionId)}`}>
                 前往圖面送審審核
@@ -1308,7 +1308,7 @@ function resolveStatusMessage(result: ResolveResult) {
   if (result.status === "ambiguous_query") return "查到多筆圖號，請選擇正確圖號後再送出。";
   if (result.status === "resolved_with_missing_part") return "圖號已找到，但沒有主製造料號連結；確認影響時需先補齊料號連結。";
   if (result.status === "multiple_primary_parts") return "此圖號服務多個料號；請選擇本次送審要判定與同步的料號。";
-  return "請輸入正式圖號或料號。";
+  return "請輸入圖號或料號。";
 }
 
 function outcomeLabel(value: string) {
@@ -1328,7 +1328,7 @@ function humanError(code: string, details?: unknown, fallbackMessage?: string) {
     case "DRAWING_SUBMISSION_VALIDATION_FAILED":
       return "送審資料尚未完整，不能建立送審。";
     case "drawing_number_not_found":
-      return "找不到圖號。請輸入正式圖號，例如 A0001-M01，不需要填內部 ID。";
+      return "找不到圖號。請輸入圖號，例如 A0001-M01，不需要填內部 ID。";
     case "drawing_number_ambiguous":
       return "查到多筆可能圖號，請先在圖號定位區選定一筆。";
     case "primary_part_ambiguous":
@@ -1346,7 +1346,7 @@ function humanError(code: string, details?: unknown, fallbackMessage?: string) {
     case "drawing_part_number_mismatch":
       return "新版圖面料號與替代料號不一致，請先修正後再送出。";
     case "reserved_number_already_formal_part":
-      return "替代料號已是正式料號，不能再建立草稿。";
+      return "替代料號已發布，不能再建立編輯中內容。";
     case "reserved_number_already_active_draft":
       return "替代料號已有使用中的草稿，請改用既有草稿或更換料號。";
     case "DRAWING_SUBMISSION_ATTACHMENT_REQUIRED":
@@ -1416,7 +1416,7 @@ function buildSubmissionErrorGuidance(codeValue: unknown, details: unknown, fall
 function nextStepForSubmissionError(code: string) {
   switch (code) {
     case "drawing_number_not_found":
-      return "請回圖號定位區確認正式圖號，再重新送審。";
+      return "請回圖號定位區確認圖號，再重新送審。";
     case "DRAWING_SUBMISSION_ATTACHMENT_REQUIRED":
     case "missing_attachment":
       return "請先在「新版圖面」上傳並勾選本次版次的圖面附件。";

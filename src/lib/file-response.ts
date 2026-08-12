@@ -42,7 +42,7 @@ export function buildFileResponse(input: { file: SubmissionFile; bytes: Buffer; 
     headers: {
       "content-type": contentTypeFor(input.file),
       "content-length": String(input.bytes.byteLength),
-      "content-disposition": `${input.disposition}; filename="${contentDispositionFilename(filename)}"`,
+      "content-disposition": contentDispositionHeader(input.disposition, filename),
       "x-content-type-options": "nosniff",
       "cache-control": "private, no-store"
     }
@@ -61,5 +61,16 @@ function contentTypeFor(file: SubmissionFile) {
 }
 
 export function contentDispositionFilename(filename: string) {
-  return filename.replace(/["\r\n\\]/g, "_");
+  const safeFilename = sanitizeContentDispositionFilename(filename);
+  return safeFilename.replace(/[^\x20-\x7E]/gu, "_") || "download";
+}
+
+export function contentDispositionHeader(disposition: "inline" | "attachment", filename: string) {
+  const safeFilename = sanitizeContentDispositionFilename(filename);
+  const encodedFilename = encodeURIComponent(safeFilename).replace(/[!'()*]/gu, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `${disposition}; filename="${contentDispositionFilename(safeFilename)}"; filename*=UTF-8''${encodedFilename}`;
+}
+
+function sanitizeContentDispositionFilename(filename: string) {
+  return filename.replace(/[\u0000-\u001F\u007F"\\]/gu, "_").trim() || "download";
 }

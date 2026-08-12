@@ -4,15 +4,36 @@ import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-rep
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import type { DrawingModuleListRecord } from "@/lib/repositories/numbering-repository";
 import type { DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
+import type { NumberSortDirection } from "@/lib/number-sort";
+import {
+  UnifiedDrawingAsyncRepository,
+  type UnifiedDrawingRecord
+} from "@/lib/repositories/unified-drawing-async-repository";
 
 const MIN_IDENTITY_PAGE_SIZE = 50;
 const MAX_IDENTITY_PAGE_SIZE = 200;
 
 type IdentityRow = {
-  row_kind: "candidate_bundle" | "drawing_master";
+  row_kind: "drawing";
+  source_kind: "candidate" | "formal";
   id: string;
+  workspace_id: string | null;
+  formal_drawing_number_id: string | null;
+  drawing_draft_id: string | null;
   updated_at: string;
+  sort_value: string;
   row_key: string;
+};
+
+export type DrawingWorkbenchIdentityRecord = {
+  id: string;
+  rowKey: string;
+  sourceKind: "candidate" | "formal";
+  workspaceId: string | null;
+  formalDrawingNumberId: string | null;
+  drawingDraftId: string | null;
+  updatedAt: string;
+  sortValue: string;
 };
 
 type LifecycleOverlayRow = {
@@ -30,10 +51,7 @@ type LifecycleOverlayRow = {
 type LifecycleReviewerRow = { workflow_id: string; reviewer_id: string };
 type LifecycleDecisionCountRow = { request_id: string; value: number | string };
 
-export type DrawingWorkbenchIdentityCursor = {
-  updatedAt: string;
-  rowKey: string;
-};
+export type DrawingWorkbenchIdentityCursor = { sortValue: string; rowKey: string };
 
 export type DrawingWorkbenchReadPage<T> = {
   rows: T[];
@@ -46,6 +64,7 @@ export type DrawingWorkbenchRepositoryQuery = {
   seriesCode: string;
   purposeCode: DrawingPurposeCode | "";
   recordStatus: NumberingRecordStatus | "";
+  sortDirection: NumberSortDirection;
   includeCandidates: boolean;
   cursor: DrawingWorkbenchIdentityCursor | null;
   limit: number;
@@ -76,98 +95,83 @@ export class DrawingWorkbenchAsyncRepository {
   ) {
     const queryFilter = input.query
       ? `AND (
-          LOWER(w.id) LIKE :queryPattern
-          OR EXISTS (
-            SELECT 1 FROM number_candidate_reservations reservation
-            WHERE reservation.workspace_id = w.id
-              AND reservation.company_id = w.company_id
-              AND LOWER(reservation.candidate_code) LIKE :queryPattern
-          )
-          OR LOWER(COALESCE(draft_root.core_name, source_root.core_name, '')) LIKE :queryPattern
+          LOWER(canonical.id) LIKE :queryPattern
+          OR LOWER(COALESCE(canonical.drawing_number, '')) LIKE :queryPattern
+          OR LOWER(COALESCE(workspace.id, '')) LIKE :queryPattern
+          OR LOWER(COALESCE(draft_root.core_name, source_root.core_name, formal_root.core_name, '')) LIKE :queryPattern
           OR EXISTS (
             SELECT 1 FROM numbering_draft_parts draft_part
-            WHERE draft_part.workspace_id = w.id
-              AND draft_part.company_id = w.company_id
-              AND LOWER(draft_part.part_name) LIKE :queryPattern
+            WHERE draft_part.workspace_id = canonical.workspace_id
+              AND draft_part.company_id = canonical.company_id
+              AND (LOWER(draft_part.part_name) LIKE :queryPattern OR LOWER(COALESCE(draft_part.series_code, '')) LIKE :queryPattern)
           )
-        )`
-      : "";
-    const candidateSeriesFilter = input.seriesCode
-      ? `AND EXISTS (
-          SELECT 1 FROM numbering_draft_parts series_part
-          WHERE series_part.workspace_id = w.id
-            AND series_part.company_id = w.company_id
-            AND series_part.series_code = :seriesCode
-        )`
-      : "";
-    const drawingQueryFilter = input.query
-      ? `AND (
-          LOWER(d.id) LIKE :queryPattern
-          OR LOWER(d.drawing_number) LIKE :queryPattern
-          OR LOWER(r.root_code) LIKE :queryPattern
-          OR LOWER(r.core_name) LIKE :queryPattern
           OR EXISTS (
             SELECT 1
             FROM drawing_part_links link
             JOIN part_numbers part ON part.id = link.part_number_id
-            WHERE link.drawing_number_id = d.id
+            WHERE link.drawing_number_id = canonical.formal_drawing_number_id
               AND LOWER(part.part_number) LIKE :queryPattern
           )
+        )`
+      : "";
+    const seriesFilter = input.seriesCode
+      ? `AND (
+          EXISTS (
+            SELECT 1 FROM numbering_draft_parts series_part
+            WHERE series_part.workspace_id = canonical.workspace_id
+              AND series_part.company_id = canonical.company_id
+              AND series_part.series_code = :seriesCode
+          )
           OR EXISTS (
-            SELECT 1 FROM number_candidate_reservations reservation
-            WHERE reservation.promoted_master_id = d.id
-              AND LOWER(reservation.workspace_id) LIKE :queryPattern
+            SELECT 1 FROM part_numbers series_part
+            WHERE series_part.company_id = canonical.company_id
+              AND series_part.part_root_id = canonical.part_root_id
+              AND series_part.series_code = :seriesCode
           )
         )`
       : "";
-    const drawingSeriesFilter = input.seriesCode
-      ? `AND EXISTS (
-          SELECT 1 FROM part_numbers series_part
-          WHERE series_part.company_id = d.company_id
-            AND series_part.part_root_id = d.part_root_id
-            AND series_part.series_code = :seriesCode
-        )`
-      : "";
-    const drawingPurposeFilter = input.purposeCode ? "AND d.purpose_code = :purposeCode" : "";
-    const drawingRecordStatusFilter = input.recordStatus ? "AND d.record_status = :recordStatus" : "";
+    const purposeFilter = input.purposeCode ? "AND canonical.purpose_code = :purposeCode" : "";
+    const recordStatusFilter = input.recordStatus ? "AND formal.record_status = :recordStatus" : "";
+    const orderDirection = input.sortDirection === "desc" ? "DESC" : "ASC";
+    const cursorClause = input.sortDirection === "desc"
+      ? `(:cursorSortValue IS NULL OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
+      : `(:cursorSortValue IS NULL OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
     return client.query<IdentityRow>(
-      `SELECT row_kind, id, updated_at, row_key
+      `SELECT row_kind, source_kind, id, workspace_id, formal_drawing_number_id,
+              drawing_draft_id, updated_at, sort_value, row_key
        FROM (
-         SELECT DISTINCT
-           'candidate_bundle' AS row_kind,
-           w.id AS id,
-           w.updated_at AS updated_at,
-           'candidate:' || w.id AS row_key
-         FROM numbering_draft_workspaces w
-         LEFT JOIN numbering_draft_roots draft_root
-           ON draft_root.workspace_id = w.id AND draft_root.company_id = w.company_id
-         LEFT JOIN part_roots source_root
-           ON source_root.id = w.source_root_id AND source_root.company_id = w.company_id
-         WHERE :includeCandidates = 1
-           AND w.company_id = :companyId
-           AND w.lifecycle_status <> 'published'
-           ${queryFilter}
-           ${candidateSeriesFilter}
-         UNION ALL
          SELECT
-           'drawing_master' AS row_kind,
-           d.id AS id,
-           d.updated_at AS updated_at,
-           'drawing:' || d.id AS row_key
-         FROM drawing_numbers d
-         JOIN part_roots r ON r.id = d.part_root_id AND r.company_id = d.company_id
-         WHERE d.company_id = :companyId
-            ${drawingQueryFilter}
-            ${drawingSeriesFilter}
-            ${drawingPurposeFilter}
-            ${drawingRecordStatusFilter}
+           'drawing' AS row_kind,
+           CASE WHEN canonical.formal_drawing_number_id IS NULL THEN 'candidate' ELSE 'formal' END AS source_kind,
+           canonical.id,
+           canonical.workspace_id,
+           canonical.formal_drawing_number_id,
+           canonical.drawing_draft_id,
+           canonical.updated_at,
+           COALESCE(canonical.drawing_number, '尚未產生圖號') AS sort_value,
+           'drawing:' || canonical.id AS row_key
+         FROM drawings canonical
+         LEFT JOIN numbering_draft_workspaces workspace
+           ON workspace.id = canonical.workspace_id AND workspace.company_id = canonical.company_id
+         LEFT JOIN numbering_draft_drawings draft_drawing
+           ON draft_drawing.id = canonical.drawing_draft_id AND draft_drawing.company_id = canonical.company_id
+         LEFT JOIN numbering_draft_roots draft_root
+           ON draft_root.workspace_id = canonical.workspace_id AND draft_root.company_id = canonical.company_id
+         LEFT JOIN part_roots source_root
+           ON source_root.id = workspace.source_root_id AND source_root.company_id = canonical.company_id
+         LEFT JOIN drawing_numbers formal
+           ON formal.id = canonical.formal_drawing_number_id AND formal.company_id = canonical.company_id
+         LEFT JOIN part_roots formal_root
+           ON formal_root.id = canonical.part_root_id AND formal_root.company_id = canonical.company_id
+         WHERE canonical.company_id = :companyId
+           AND (:includeCandidates = 1 OR canonical.formal_drawing_number_id IS NOT NULL)
+           ${queryFilter}
+           ${seriesFilter}
+           ${purposeFilter}
+           ${recordStatusFilter}
        ) identity_page
-       WHERE (
-         :cursorUpdatedAt IS NULL
-         OR updated_at < :cursorUpdatedAt
-         OR (updated_at = :cursorUpdatedAt AND row_key > :cursorRowKey)
-       )
-       ORDER BY updated_at DESC, row_key ASC
+       WHERE ${cursorClause}
+       ORDER BY sort_value ${orderDirection}, row_key ASC
        LIMIT :scanLimit`,
       {
         companyId: input.companyId,
@@ -176,7 +180,7 @@ export class DrawingWorkbenchAsyncRepository {
         seriesCode: input.seriesCode,
         purposeCode: input.purposeCode,
         recordStatus: input.recordStatus,
-        cursorUpdatedAt: cursor?.updatedAt ?? null,
+        cursorSortValue: cursor?.sortValue ?? null,
         cursorRowKey: cursor?.rowKey ?? "",
         scanLimit
       }
@@ -185,25 +189,42 @@ export class DrawingWorkbenchAsyncRepository {
 
   async readListPage<T extends { rowKey: string; updatedAt: string }>(
     input: DrawingWorkbenchRepositoryQuery,
-    project: (candidates: NumberingDraftWorkspaceRecord[], drawings: DrawingModuleListRecord[]) => T[]
+    project: (
+      identities: DrawingWorkbenchIdentityRecord[],
+      candidates: NumberingDraftWorkspaceRecord[],
+      drawings: DrawingModuleListRecord[],
+      canonicalDrawings: UnifiedDrawingRecord[]
+    ) => T[]
   ): Promise<DrawingWorkbenchReadPage<T>> {
     return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
       const stateRepository = new AsyncNumberStateFlowRepository(client);
       const numberingRepository = new AsyncNumberingRepository(client);
+      const unifiedDrawingRepository = new UnifiedDrawingAsyncRepository(client);
       const scanLimit = Math.min(MAX_IDENTITY_PAGE_SIZE, Math.max(MIN_IDENTITY_PAGE_SIZE, input.limit * 4));
       const rows: T[] = [];
       let scanCursor = input.cursor;
       while (rows.length <= input.limit) {
         const identities = await this.identityPage(client, input, scanCursor, scanLimit);
         if (identities.length === 0) break;
-        const candidateIds = identities.filter((row) => row.row_kind === "candidate_bundle").map((row) => row.id);
-        const drawingIds = identities.filter((row) => row.row_kind === "drawing_master").map((row) => row.id);
-        const [candidates, drawings] = await Promise.all([
+        const identityRecords = identities.map((row): DrawingWorkbenchIdentityRecord => ({
+          id: row.id,
+          rowKey: row.row_key,
+          sourceKind: row.source_kind,
+          workspaceId: row.workspace_id,
+          formalDrawingNumberId: row.formal_drawing_number_id,
+          drawingDraftId: row.drawing_draft_id,
+          updatedAt: row.updated_at,
+          sortValue: row.sort_value
+        }));
+        const candidateIds = [...new Set(identityRecords.filter((row) => row.sourceKind === "candidate").map((row) => row.workspaceId).filter((id): id is string => Boolean(id)))];
+        const drawingIds = identityRecords.filter((row) => row.sourceKind === "formal").map((row) => row.formalDrawingNumberId).filter((id): id is string => Boolean(id));
+        const [candidates, drawings, canonicalDrawings] = await Promise.all([
           stateRepository.getWorkspacesByIds(candidateIds, input.companyId),
-          numberingRepository.listDrawingModuleRecordsByIds(drawingIds, input.companyId)
+          numberingRepository.listDrawingModuleRecordsByIds(drawingIds, input.companyId),
+          unifiedDrawingRepository.getByIds(identityRecords.map((row) => row.id), input.companyId)
         ]);
         const drawingsWithLifecycle = await this.overlayLifecycle(client, drawings, input.companyId);
-        const projected = new Map(project(candidates, drawingsWithLifecycle).map((row) => [row.rowKey, row]));
+        const projected = new Map(project(identityRecords, candidates, drawingsWithLifecycle, canonicalDrawings).map((row) => [row.rowKey, row]));
         for (const identity of identities) {
           const row = projected.get(identity.row_key);
           if (row) rows.push(row);
@@ -211,7 +232,7 @@ export class DrawingWorkbenchAsyncRepository {
         }
         const lastIdentity = identities.at(-1);
         if (rows.length > input.limit || identities.length < scanLimit || !lastIdentity) break;
-        scanCursor = { updatedAt: lastIdentity.updated_at, rowKey: lastIdentity.row_key };
+        scanCursor = { sortValue: lastIdentity.sort_value, rowKey: lastIdentity.row_key };
       }
       const seriesCodeOptions = await numberingRepository.listSeriesCodeOptions(input.companyId);
       return { rows: rows.slice(0, input.limit + 1), seriesCodeOptions };
@@ -228,6 +249,53 @@ export class DrawingWorkbenchAsyncRepository {
         });
       if (!workspace || workspace.lifecycleStatus === "published") return null;
       return workspace;
+    });
+  }
+
+  async readUnifiedDetail(input: {
+    drawingIdOrFormalId: string;
+    companyId: string;
+    includeSourceWorkspace: boolean;
+  }) {
+    return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
+      const unifiedRepository = new UnifiedDrawingAsyncRepository(client);
+      const canonical = await unifiedRepository.findByIdOrFormalId({
+        drawingId: input.drawingIdOrFormalId,
+        companyId: input.companyId
+      });
+      if (!canonical) return null;
+      if (!canonical.formalDrawingNumberId) {
+        if (!canonical.workspaceId) return null;
+        const candidate = await new AsyncNumberStateFlowRepository(client)
+          .getWorkspace(canonical.workspaceId, input.companyId)
+          .catch((error) => {
+            if (error instanceof Error && error.message === "WORKSPACE_NOT_FOUND") return null;
+            throw error;
+          });
+        if (!candidate) return null;
+        return { canonical, candidate, drawing: null, sourceWorkspace: null };
+      }
+
+      const drawing = (await new AsyncNumberingRepository(client)
+        .listDrawingModuleRecordsByIds([canonical.formalDrawingNumberId], input.companyId))[0] ?? null;
+      if (!drawing) return null;
+      const drawingWithLifecycle = (await this.overlayLifecycle(client, [drawing], input.companyId))[0] ?? drawing;
+      let sourceWorkspace: NumberingDraftWorkspaceRecord | null = null;
+      if (input.includeSourceWorkspace && canonical.workspaceId) {
+        sourceWorkspace = await new AsyncNumberStateFlowRepository(client)
+          .getWorkspace(canonical.workspaceId, input.companyId)
+          .catch((error) => {
+            if (error instanceof Error && error.message === "WORKSPACE_NOT_FOUND") return null;
+            throw error;
+          });
+      }
+      return { canonical, candidate: null, drawing: drawingWithLifecycle, sourceWorkspace };
+    });
+  }
+
+  async resolveLegacyCandidateDrawing(input: { workspaceId: string; companyId: string }) {
+    return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
+      return new UnifiedDrawingAsyncRepository(client).findFirstByWorkspace(input);
     });
   }
 

@@ -17,6 +17,7 @@ import {
   type NumberingPublicationResult
 } from "@/lib/repositories/number-state-flow-async-repository";
 import type { NumberingCandidateRevisionFileRecord } from "@/lib/number-lifecycle-simplification";
+import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 
 type WorkspaceRow = {
   id: string;
@@ -294,6 +295,10 @@ export class AsyncNumberLifecycleSimplificationRepository {
     return new AsyncNumberStateFlowRepository(client, this.clock, this.idFactory);
   }
 
+  private async synchronizeUnifiedDrawings(workspaceId: string, companyId: string) {
+    await new UnifiedDrawingAsyncRepository(this.client).synchronizeWorkspace({ workspaceId, companyId });
+  }
+
   private async workspaceRow(workspaceId: string, companyId: string, lock = false) {
     return this.client.queryOne<WorkspaceRow>(
       `SELECT id, company_id, lifecycle_status, owner_id, row_version
@@ -446,6 +451,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       revision: suggestion.suggestedRevision,
       legacyBaselineRequestId
     });
+    await this.synchronizeUnifiedDrawings(input.workspaceId, input.companyId);
     return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
   }
 
@@ -500,6 +506,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       revision,
       override: Boolean(policySnapshot.override_reason)
     });
+    await this.synchronizeUnifiedDrawings(input.workspaceId, input.companyId);
     return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
   }
 
@@ -668,6 +675,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       isPrimary: input.storage.isPrimary,
       evidenceFinalized: Boolean(publicationEvidenceId)
     });
+    await this.synchronizeUnifiedDrawings(input.workspaceId, input.companyId);
     return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
   }
 
@@ -744,6 +752,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
     );
     if (!file) throw new Error("CANDIDATE_FILE_NOT_FOUND");
     if (file.publication_evidence_id) {
+      await this.synchronizeUnifiedDrawings(input.workspaceId, input.companyId);
       return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
     }
     if (file.asset_id !== input.expectedAssetId || file.content_hash !== input.expectedContentHash) {
@@ -797,6 +806,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       contentHash: input.expectedContentHash,
       evidenceId: input.evidence.id
     });
+    await this.synchronizeUnifiedDrawings(input.workspaceId, input.companyId);
     return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
   }
 
@@ -842,6 +852,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       candidateFileId: input.fileId,
       reason: input.reason
     });
+    await this.synchronizeUnifiedDrawings(input.workspaceId, input.companyId);
     return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
   }
 
@@ -989,7 +1000,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       {
         id: requestId,
         companyId: input.companyId,
-        title: `候選圖料號與首版整包審核：${workspace.root?.coreName ?? workspace.sourceRootId ?? workspace.id}`,
+        title: `圖料號與首版整包審核：${workspace.root?.coreName ?? workspace.sourceRootId ?? workspace.id}`,
         reason: input.reason ?? "",
         requestedBy: input.actorId,
         requestedAt: now,
@@ -1084,6 +1095,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       snapshotHash,
       mode: snapshot.mode
     });
+    await this.synchronizeUnifiedDrawings(input.workspaceId, input.companyId);
     return { workspace: await this.stateRepository().getWorkspace(input.workspaceId, input.companyId), requestId, snapshotHash };
   }
 
@@ -1149,6 +1161,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       requestId: request.id,
       reason: input.reason
     });
+    await this.synchronizeUnifiedDrawings(input.workspaceId, input.companyId);
     return { workspace: await this.stateRepository().getWorkspace(input.workspaceId, input.companyId), requestId: request.id };
   }
 
@@ -1407,6 +1420,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
       );
     }
     this.faultInjector?.("after_revision_packages");
+    await this.synchronizeUnifiedDrawings(workspaceId, companyId);
     return publication;
   }
 
@@ -1470,6 +1484,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
         decision: input.decision,
         applyStatus: "applied"
       });
+      await this.synchronizeUnifiedDrawings(request.workspace_id, input.companyId);
       return {
         workspace: await this.stateRepository().getWorkspace(request.workspace_id, input.companyId),
         requestId: input.requestId,
@@ -1537,6 +1552,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
         snapshotHash,
         faultPoint
       });
+      await this.synchronizeUnifiedDrawings(request.workspace_id, input.companyId);
       return {
         workspace: await this.stateRepository().getWorkspace(request.workspace_id, input.companyId),
         requestId: input.requestId,
@@ -1585,6 +1601,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
         originalApproverId: decision.approver_id
       });
       await this.client.execute(`RELEASE SAVEPOINT ${savepoint}`);
+      await this.synchronizeUnifiedDrawings(request.workspace_id, input.companyId);
       return { workspace: await this.stateRepository().getWorkspace(request.workspace_id, input.companyId), requestId: input.requestId, publication };
     } catch (error) {
       await this.client.execute(`ROLLBACK TO SAVEPOINT ${savepoint}`);

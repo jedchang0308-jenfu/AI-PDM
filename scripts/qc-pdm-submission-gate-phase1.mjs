@@ -41,8 +41,6 @@ record("GATE-004 technical transfer requires package context", gate.includes("te
 record("GATE-005 direct technical transfer submit is fail-closed before mutation", appearsBefore(drawingSubmissionRoute, 'submissionMode === "technical_transfer"', "const result = await createDrawingSourceSubmission"));
 record("GATE-006 direct technical transfer response carries recovery href and blocker payload", drawingSubmissionRoute.includes("recoveryHref") && drawingSubmissionRoute.includes("readiness.blockers") && drawingSubmissionRoute.includes("status: 409"));
 record("GATE-007 blocker payload includes field/owner/code/route", ["field:", "ownerRole:", "blockerCode:", "remediationRoute:"].every((token) => gate.includes(token)));
-record("GATE-008 research standard cost is warning with exception review route", gate.includes("standard_cost_warning_for_research") && gate.includes("research_exception_review"));
-record("GATE-009 technical transfer standard cost is hard blocker", gate.includes("standard_cost_missing_for_transfer") && gate.includes("技術移轉送審缺少標準成本"));
 record("GATE-010 active rule API uses the shared rule resolver", activeRulesRoute.includes("getActiveSubmissionRuleSet") && activeRulesRoute.includes("requireAuthAsync"));
 record("GATE-011 readiness API uses the shared readiness resolver", readinessRoute.includes("resolveSubmissionReadiness") && readinessRoute.includes("requireAuthAsync"));
 record("GATE-012 workbench exposes mode selector and package CTA", uploadPage.includes('data-submission-mode-selector="true"') && uploadPage.includes("setSubmissionMode(\"technical_transfer\")") && uploadPage.includes("buildTransferPackageHref") && uploadPage.includes("transferPackageHref"));

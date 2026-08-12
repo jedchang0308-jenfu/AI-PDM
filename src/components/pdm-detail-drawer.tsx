@@ -37,8 +37,11 @@ type PdmDetailDrawerProps = {
 };
 
 function clampDrawerWidth(width: number, viewportWidth: number, minWidth: number, maxWidthRatio: number) {
-  const maxWidth = Math.max(minWidth, Math.floor(viewportWidth * maxWidthRatio));
-  return Math.min(Math.max(width, minWidth), maxWidth);
+  const ratioMaxWidth = Math.floor(viewportWidth * maxWidthRatio);
+  const viewportSafeMaxWidth = Math.max(0, viewportWidth - 32);
+  const maxWidth = ratioMaxWidth < minWidth ? viewportSafeMaxWidth : ratioMaxWidth;
+  const effectiveMinWidth = Math.min(minWidth, maxWidth);
+  return Math.min(Math.max(width, effectiveMinWidth), maxWidth);
 }
 
 export function useRememberedDrawerWidth({
@@ -55,7 +58,6 @@ export function useRememberedDrawerWidth({
     if (!Number.isFinite(parsedWidth)) return;
     const nextWidth = clampDrawerWidth(parsedWidth, window.innerWidth, minWidth, maxWidthRatio);
     setDrawerWidth(nextWidth);
-    window.localStorage.setItem(storageKey, String(nextWidth));
   }, [defaultWidth, maxWidthRatio, minWidth, storageKey]);
 
   const resizeDrawer = useCallback(
@@ -69,16 +71,15 @@ export function useRememberedDrawerWidth({
 
   useEffect(() => {
     function handleWindowResize() {
-      setDrawerWidth((currentWidth) => {
-        const nextWidth = clampDrawerWidth(currentWidth, window.innerWidth, minWidth, maxWidthRatio);
-        window.localStorage.setItem(storageKey, String(nextWidth));
-        return nextWidth;
-      });
+      const storedWidth = window.localStorage.getItem(storageKey);
+      const parsedWidth = storedWidth ? Number.parseInt(storedWidth, 10) : Number.NaN;
+      const preferredWidth = Number.isFinite(parsedWidth) ? parsedWidth : defaultWidth;
+      setDrawerWidth(clampDrawerWidth(preferredWidth, window.innerWidth, minWidth, maxWidthRatio));
     }
 
     window.addEventListener("resize", handleWindowResize);
     return () => window.removeEventListener("resize", handleWindowResize);
-  }, [maxWidthRatio, minWidth, storageKey]);
+  }, [defaultWidth, maxWidthRatio, minWidth, storageKey]);
 
   const startDrawerResize = useCallback(
     (clientX: number) => {

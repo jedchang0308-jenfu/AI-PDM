@@ -4,6 +4,7 @@ import { listObsoleteBomWorkbenchHistoryAsync } from "@/lib/bom-workbench-async"
 import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from "@/lib/company-context";
 import { listNumberingApprovalBatchesAsync } from "@/lib/numbering-async";
 import { scopedSubmittedBy } from "@/lib/permissions";
+import { rewriteNumberingHumanText } from "@/lib/numbering-vocabulary";
 import type { BomWorkbenchObsoleteHistoryRecord } from "@/lib/repositories/bom-workbench-async-repository";
 import type { NumberingApprovalReviewRequestRecord } from "@/lib/repositories/numbering-repository";
 import { getSubmissionAsync, listSubmissionsAsync } from "@/lib/submissions-async";
@@ -92,7 +93,7 @@ function buildSubmissionControlledHistoryEntry(
     stage_label: "歷史",
     result_label: "已作廢",
     traceability_class: "controlled_history",
-    history_reason: approvedRequest?.reason ?? "此正式 submission 已作廢或已被正式生命週期取代。",
+    history_reason: rewriteNumberingHumanText(approvedRequest?.reason ?? "此 submission 已作廢或已被生命週期取代。"),
     requested_by_name: approvedRequest?.requested_by_name ?? null,
     reviewed_by_name: approvedRequest?.decided_by_name ?? null,
     requested_at: approvedRequest?.requested_at ?? null,
@@ -112,7 +113,7 @@ function buildSubmissionControlledHistoryEntry(
 function buildNumberingControlledHistoryEntry(request: NumberingApprovalReviewRequestRecord): ControlledHistoryEntry {
   const approvedDecision = request.decisions.find((decision) => decision.decision === "approved");
   const entityType = request.actionCode === "obsolete_part_number" ? "numbering_part_number" : "numbering_drawing_number";
-  const entityLabel = entityType === "numbering_part_number" ? "正式料號" : "正式圖號";
+  const entityLabel = entityType === "numbering_part_number" ? "料號" : "圖號";
   const secondaryCode =
     entityType === "numbering_part_number"
       ? request.entitySummary.rootCode
@@ -128,13 +129,13 @@ function buildNumberingControlledHistoryEntry(request: NumberingApprovalReviewRe
     stage_label: "歷史",
     result_label: "已作廢",
     traceability_class: "controlled_history",
-    history_reason: request.reason || `此${entityLabel}已完成正式作廢審核。`,
+    history_reason: rewriteNumberingHumanText(request.reason || `此${entityLabel}已完成作廢審核。`),
     requested_by_name: request.requestedByName ?? null,
     reviewed_by_name: approvedDecision?.approverName ?? null,
     requested_at: request.requestedAt,
     decided_at: approvedDecision?.decidedAt ?? null,
     history_at: approvedDecision?.decidedAt ?? request.requestedAt,
-    decision_reason: approvedDecision?.comment ?? null,
+    decision_reason: approvedDecision?.comment ? rewriteNumberingHumanText(approvedDecision.comment) : null,
     source_status: request.entitySummary.recordStatus ?? "Obsolete",
     release_package_available: false,
     actions: {

@@ -1,4 +1,4 @@
-import { contentDispositionFilename } from "@/lib/file-response";
+import { contentDispositionHeader } from "@/lib/file-response";
 import type { MasterAttachmentRecord } from "@/lib/db";
 
 export function buildMasterAttachmentFileResponse(input: {
@@ -10,7 +10,7 @@ export function buildMasterAttachmentFileResponse(input: {
     headers: {
       "content-type": input.attachment.mimeType || "application/octet-stream",
       "content-length": String(input.bytes.byteLength),
-      "content-disposition": `${input.disposition ?? "attachment"}; filename="${contentDispositionFilename(input.attachment.fileName)}"`,
+      "content-disposition": contentDispositionHeader(input.disposition ?? "attachment", input.attachment.fileName),
       "x-content-type-options": "nosniff",
       "cache-control": "private, no-store"
     }

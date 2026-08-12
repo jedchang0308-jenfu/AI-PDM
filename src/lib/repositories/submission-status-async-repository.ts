@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { compareRevisionCodes } from "@/lib/revision-policy";
 import type { SandboxBranch } from "@/lib/types";
+import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 
 export const REJECT_ASYNC_SUBMISSION_SQL = `
   UPDATE submissions
@@ -547,6 +548,19 @@ export class AsyncSubmissionStatusRepository {
         }),
         createdAt: now
       });
+      const revisionPackage = await client.queryOne<{ drawing_number_id: string; company_id: string }>(
+        `SELECT drawing_number_id, company_id
+         FROM drawing_revision_packages
+         WHERE source_submission_id = :submissionId
+         LIMIT 1`,
+        { submissionId: submission.id }
+      );
+      if (revisionPackage) {
+        await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+          drawingNumberId: revisionPackage.drawing_number_id,
+          companyId: revisionPackage.company_id
+        });
+      }
     };
 
     await this.client.transaction(applyLifecycle);

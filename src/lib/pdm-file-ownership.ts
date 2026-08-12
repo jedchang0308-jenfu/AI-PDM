@@ -11,6 +11,44 @@ const drawingIntermediateExtensions = new Set(["step", "stp", "iges", "igs", "ig
 
 export type RequiredDrawingFileRole = "drawing_2d" | "cad_3d";
 export type DrawingUploadFileRole = RequiredDrawingFileRole | "intermediate" | "pdf" | "dwg";
+export type CandidateRevisionFileRole = "cad_3d" | "drawing_2d" | "intermediate" | "pdf" | "dwg_dxf" | "other";
+export type CandidateRevisionFileRoleSource = "extension" | "system";
+
+const candidateCad3dExtensions = new Set(["sldprt", "sldasm"]);
+const candidateDrawing2dExtensions = new Set(["slddrw"]);
+const candidateIntermediateExtensions = new Set(["step", "stp", "iges", "igs", "igf", "x_t", "x_b", "sat", "stl", "jt"]);
+const candidateDwgDxfExtensions = new Set(["dwg", "dxf"]);
+
+export function detectCandidateRevisionFileRole(input: {
+  fileName: string;
+  mimeType?: string | null;
+  bytes?: Uint8Array | null;
+}): { role: CandidateRevisionFileRole; source: CandidateRevisionFileRoleSource } {
+  const extension = extensionOfFileName(input.fileName);
+  if (candidateCad3dExtensions.has(extension)) return { role: "cad_3d", source: "extension" };
+  if (candidateDrawing2dExtensions.has(extension)) return { role: "drawing_2d", source: "extension" };
+  if (candidateIntermediateExtensions.has(extension)) return { role: "intermediate", source: "extension" };
+  if (extension === "pdf") return { role: "pdf", source: "extension" };
+  if (candidateDwgDxfExtensions.has(extension)) return { role: "dwg_dxf", source: "extension" };
+
+  const mimeType = String(input.mimeType ?? "").trim().toLowerCase();
+  if (hasPdfSignature(input.bytes)) return { role: "pdf", source: "system" };
+  if (mimeType === "application/pdf") return { role: "pdf", source: "system" };
+  if (mimeType === "application/acad" || mimeType === "application/dxf" || mimeType === "image/vnd.dxf") {
+    return { role: "dwg_dxf", source: "system" };
+  }
+  if (mimeType === "application/step" || mimeType === "model/step" || mimeType === "application/iges") {
+    return { role: "intermediate", source: "system" };
+  }
+  if (mimeType.startsWith("image/")) return { role: "drawing_2d", source: "system" };
+  return { role: "other", source: "system" };
+}
+
+function hasPdfSignature(bytes?: Uint8Array | null) {
+  if (!bytes || bytes.byteLength < 5) return false;
+  const sample = new TextDecoder().decode(bytes.slice(0, Math.min(bytes.byteLength, 1024)));
+  return /^\uFEFF?\s*%PDF-/u.test(sample);
+}
 
 export type RequiredDrawingFileInput = {
   id?: string;

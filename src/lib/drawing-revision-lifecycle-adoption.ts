@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 
 export const DRAWING_REVISION_LIFECYCLE_ACTION = "numbering.drawing_revision_lifecycle_review";
 
@@ -588,7 +589,13 @@ export async function applyDrawingRevisionLifecycleAdoption(
     const expected = initial.candidates.map((candidate) => candidate.fingerprint).sort().join(":");
     const locked = lockedPlan.candidates.map((candidate) => candidate.fingerprint).sort().join(":");
     if (expected !== locked) throw new Error("DRAWING_LIFECYCLE_ADOPTION_STATE_CHANGED");
-    for (const candidate of lockedPlan.candidates) await applyCandidate(transactionClient, candidate);
+    for (const candidate of lockedPlan.candidates) {
+      await applyCandidate(transactionClient, candidate);
+      await new UnifiedDrawingAsyncRepository(transactionClient).synchronizeFormalDrawing({
+        drawingNumberId: candidate.drawingNumberId,
+        companyId: candidate.companyId
+      });
+    }
     return { adoptedCount: lockedPlan.candidateCount, fingerprints: lockedPlan.candidates.map((candidate) => candidate.fingerprint) };
   });
 }

@@ -3,7 +3,7 @@ import { requireRoleAsync } from "@/lib/auth-async";
 import { getApprovalPlatformRequestDetailForCompanyAsync } from "@/lib/approval-platform";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
-import { contentDispositionFilename } from "@/lib/file-response";
+import { contentDispositionHeader } from "@/lib/file-response";
 import { enqueuePreviewJobForSourceAsync } from "@/lib/preview-derivatives";
 import { drawingPreviewMimeType, resolveDrawingPreviewAsync } from "@/lib/drawing-preview-asset";
 
@@ -103,7 +103,7 @@ export async function GET(
       headers: {
         "content-type": contentType,
         "content-length": String(bytes.byteLength),
-        "content-disposition": `${disposition}; filename="${contentDispositionFilename(resolved.fileName)}"`,
+        "content-disposition": contentDispositionHeader(disposition, resolved.fileName),
         "x-content-type-options": "nosniff",
         "cache-control": "private, no-store"
       }

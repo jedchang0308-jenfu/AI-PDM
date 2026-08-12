@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { listPartModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
-import { canViewPartCostAmounts, redactPartListCosts } from "@/lib/part-cost-visibility";
 import { normalizeHumanStatusFilter, projectRoleViewerHumanStatus, viewerStatusMatchesFilter } from "@/lib/human-status-projection";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectPartAvailability } from "@/lib/availability-scope";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
 import type { NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
+import { parseNumberSortDirection } from "@/lib/number-sort";
 
 export const runtime = "nodejs";
 
@@ -45,6 +45,7 @@ export async function GET(request: Request) {
       productSeries,
       seriesCode,
       recordStatus,
+      sortDirection: parseNumberSortDirection(url.searchParams.get("sortDirection")),
       limit: humanStatus === "all" ? requestedLimit : 100
     }),
     listProductSeriesOptionsAsync(companyResult.company.companyId),
@@ -52,8 +53,7 @@ export async function GET(request: Request) {
     resolveHumanStatusRoleCapabilitiesAsync(auth.user)
   ]);
 
-  const redactedParts = redactPartListCosts(parts, canViewPartCostAmounts(auth));
-  const projectedParts = redactedParts
+  const projectedParts = parts
     .map((part) => {
       const objectiveStatus = projectPartHumanStatus(part);
       return {

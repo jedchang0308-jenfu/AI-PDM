@@ -292,7 +292,7 @@ function AddDrawingDialog({
     if (drawingWorkbenchEnabled) {
       if (!rootId) {
         setBusy(false);
-        setError("目前找不到主根識別，請重新整理後再試；系統不會直接建立正式圖號。");
+        setError("目前找不到主根識別，請重新整理後再試；系統不會直接建立圖號。");
         return;
       }
       if (purposeCode === "M" && (!linkPart || !part?.id)) {
@@ -458,7 +458,7 @@ function AddPartDialog({
     if (drawingWorkbenchEnabled) {
       if (!rootId || !drawing?.id) {
         setBusy(false);
-        setError("目前找不到來源圖號識別，請重新整理後再試；系統不會直接建立正式料號。");
+        setError("目前找不到來源圖號識別，請重新整理後再試；系統不會直接建立料號。");
         return;
       }
       const sourceLinkType = !isManufacturingDrawingPurpose(drawing.purposeCode) || linkRelationType === "reference"
@@ -529,10 +529,7 @@ function AddPartDialog({
         <span>料號類型</span>
         <select value={itemKind} onChange={(event) => setItemKind(event.target.value)}>
           <option value="manufactured">自製件</option>
-          <option value="outsourced">委外件</option>
           <option value="purchased">採購件</option>
-          <option value="shared">共用件</option>
-          <option value="custom">客製件</option>
         </select>
       </label>
       {itemKind === "manufactured" ? <TextInput label="系列代號（選填）" value={seriesCode} onChange={setSeriesCode} maxLength={80} /> : null}
@@ -761,7 +758,7 @@ function RootObsoleteDialog({
       <TextAreaInput label="作廢原因" value={reason} onChange={setReason} />
       <label className="pdm-contextual-check">
         <input type="checkbox" checked={ack} onChange={(event) => setAck(event.target.checked)} />
-        <span>已確認主根底下正式料號、圖號與圖料關係會一起形成審核範圍；核准前不直接作廢。</span>
+        <span>已確認主根底下料號、圖號與圖料關係會一起形成審核範圍；核准前不直接作廢。</span>
       </label>
       <div className="pdm-contextual-dialog-actions">
         <button className="danger-button" type="button" disabled={busy || !impact || impact.pendingRequestId !== null || impact.formalTargets.length === 0 || !reason.trim() || !ack} onClick={submit}>建立作廢申請</button>

@@ -365,7 +365,7 @@ function buildWorkbench(record: TransferPackageRecord): TransferPackageWorkbench
       id: "approval",
       label: "審核",
       status: record.status === "Published" ? "ready" : record.status === "Draft" ? "not_started" : "ready",
-      message: record.status === "Published" ? "技轉包已完成審核與正式發布。" : record.status === "Draft" ? "readiness 完成後可送交整包審核。" : `目前狀態：${record.status}。`,
+      message: record.status === "Published" ? "技轉包已完成審核與發布。" : record.status === "Draft" ? "readiness 完成後可送交整包審核。" : `目前狀態：${record.status}。`,
       ownerModule: "審核工作台",
       actionLabel: record.reviewRequestId ? "查看審核" : null,
       actionHref: record.reviewRequestId ? `/approvals?requestId=${encodeURIComponent(record.reviewRequestId)}` : null

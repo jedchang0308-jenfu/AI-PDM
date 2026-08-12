@@ -52,7 +52,6 @@ const AXIS_RULES = [
   { axis: "帳號狀態", pattern: /accountStatus|identityStatus|account|帳號狀態|身分狀態/iu },
   { axis: "邀請狀態", pattern: /invitationStatus|invitation|invite|邀請狀態/iu },
   { axis: "還原狀態", pattern: /restorePolicy|restoreStatus|restore|還原狀態/iu },
-  { axis: "成本狀態", pattern: /costStatus|context\s*=\s*["'`]cost["'`]|cost|成本/iu },
   { axis: "提醒", pattern: /warning|notice|reminder|提醒|警示/iu }
 ];
 

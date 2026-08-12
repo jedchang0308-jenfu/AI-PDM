@@ -36,7 +36,7 @@ export type DrawingRevisionLifecycleResult = {
   drawingNumberId: string;
   revision: string;
   lifecycleState: DrawingRevisionLifecycleProjection["lifecycleState"];
-  displayStatus: "準備中" | "送審中" | "退回修改" | "研發受控" | "正式發布";
+  displayStatus: "準備中" | "送審中" | "退回修改" | "研發受控" | "已發布";
   primaryAction: DrawingRevisionLifecycleSemanticAction;
   secondaryActions: DrawingRevisionLifecycleSemanticAction[];
   canonicalHref: string;
@@ -415,7 +415,7 @@ function lifecycleResult(
     preparing: { displayStatus: "準備中", primaryAction: "continue_preparation" },
     correction_required: { displayStatus: "退回修改", primaryAction: "correct_and_resubmit" },
     rd_controlled: { displayStatus: "研發受控", primaryAction: "create_revision" },
-    released: { displayStatus: "正式發布", primaryAction: "create_revision" }
+    released: { displayStatus: "已發布", primaryAction: "create_revision" }
   } as const;
   const state = stateMap[projection.lifecycleState];
   return {

@@ -91,7 +91,6 @@ const requiredHeaderFiles = [
   "src/app/numbering/tasks/page.tsx",
   "src/app/numbering/impact/page.tsx",
   "src/app/numbering/reports/page.tsx",
-  "src/app/numbering/imports/page.tsx",
   "src/app/bom/workbench/page.tsx",
   "src/app/settings/page.tsx"
 ];
@@ -103,13 +102,6 @@ for (const relativePath of requiredHeaderFiles) {
 const taskCenter = read("src/app/numbering/tasks/page.tsx");
 record("Task center uses task-specific status help", taskCenter.includes('StatusColumnHeader context="task"'));
 record("Task center notification read/handled column is not generic workflow help", !taskCenter.includes('StatusColumnHeader context="notification"'));
-
-const importsPage = read("src/app/numbering/imports/page.tsx");
-record("Import rows use importRow context", importsPage.includes('context="importRow"'));
-record("Import batches use importBatch context", importsPage.includes('context="importBatch"'));
-record("Import deleted batches use restorePolicy context", importsPage.includes('context="restorePolicy"'));
-record("Import page does not use fileSync status help for row checks", !importsPage.includes('context="fileSync"'));
-record("Import page does not use workflow status help for import batches", !importsPage.includes('context="workflow"'));
 
 const reportsPage = read("src/app/numbering/reports/page.tsx");
 record("Report jobs use jobStatus context", reportsPage.includes('context="jobStatus"'));

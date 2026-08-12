@@ -542,8 +542,6 @@ const adaptiveTaskFeedQcSource = read("scripts/qc-adaptive-task-feed.mjs");
 const bomWorkbenchMigrationPathQcSource = read("scripts/qc-bom-workbench-migration-path.mjs");
 const fileDropzoneUxQcSource = read("scripts/qc-file-dropzone-ux.mjs");
 const masterAttachmentsQcSource = read("scripts/qc-master-attachments.mjs");
-const partNumberModuleQcSource = read("scripts/qc-part-number-module.mjs");
-const partCostReviewE2eQcSource = read("scripts/qc-part-cost-review-e2e.mjs");
 const pdmNumberingCoreQcSource = read("scripts/qc-pdm-numbering-core-test.mjs");
 const docPathsQcSource = read("scripts/qc-doc-paths-test.mjs");
 const policyAlignmentQcSource = read("scripts/qc-policy-alignment-test.mjs");
@@ -598,7 +596,6 @@ const documentManagerProbeRedactionQcSource = read("scripts/qc-document-manager-
 const documentManagerProbePathGateQcSource = read("scripts/qc-document-manager-probe-path-gate.mjs");
 const productionReadinessIndustrializationGateSource = read("scripts/qc-production-readiness-industrialization-gate.mjs");
 const systemSettingsAsyncQcSource = read("scripts/qc-system-settings-async-repository.mjs");
-const accessControlAsyncRepositoryQcSource = read("scripts/qc-access-control-async-repository.mjs");
 const dashboardCustomFinderQcSource = read("scripts/qc-dashboard-custom-finder-test.mjs");
 const dashboardComponentSplitQcSource = read("scripts/qc-dashboard-component-split-test.mjs");
 const dashboardRowMemoQcSource = read("scripts/qc-dashboard-row-memo-test.mjs");
@@ -1104,16 +1101,6 @@ record(
   "SOURCE-BOUNDARY master attachments QC uses project file utils",
   qcUsesProjectFileUtils(masterAttachmentsQcSource, ["projectFileExists", "readProjectFile", "readProjectJson"]),
   "scripts/qc-master-attachments.mjs"
-);
-record(
-  "SOURCE-BOUNDARY part number module QC uses project file utils",
-  qcUsesProjectFileUtils(partNumberModuleQcSource, ["projectFileExists", "readProjectFile", "readProjectJson"]),
-  "scripts/qc-part-number-module.mjs"
-);
-record(
-  "SOURCE-BOUNDARY part cost review E2E QC uses project file utils",
-  qcUsesProjectFileUtils(partCostReviewE2eQcSource, ["readProjectFile"]),
-  "scripts/qc-part-cost-review-e2e.mjs"
 );
 record(
   "SOURCE-BOUNDARY PDM numbering core QC uses project file utils",
@@ -1892,19 +1879,6 @@ record(
   "SOURCE-BOUNDARY system settings async QC uses project file utils",
   qcUsesProjectFileUtils(systemSettingsAsyncQcSource, ["readProjectFile"]),
   "scripts/qc-system-settings-async-repository.mjs"
-);
-record(
-  "SOURCE-BOUNDARY access control async repository QC uses project file utils",
-  qcUsesProjectFileUtils(accessControlAsyncRepositoryQcSource, ["readProjectFile"]),
-  "scripts/qc-access-control-async-repository.mjs"
-);
-record(
-  "SOURCE-BOUNDARY access control async repository QC avoids local text read wrapper",
-  accessControlAsyncRepositoryQcSource.includes("function readProjectPath(filePath)") &&
-    accessControlAsyncRepositoryQcSource.includes('readProjectFile(root, path.relative(root, filePath).replaceAll(path.sep, "/"))') &&
-    !accessControlAsyncRepositoryQcSource.includes("function readText(filePath)") &&
-    !accessControlAsyncRepositoryQcSource.includes("readText("),
-  "scripts/qc-access-control-async-repository.mjs"
 );
 record(
   "SOURCE-BOUNDARY dashboard custom finder QC uses project file utils",

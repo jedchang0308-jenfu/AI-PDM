@@ -24,6 +24,7 @@ import type {
   NumberingSearchEntityType,
   PartNumberRecord
 } from "@/lib/repositories/numbering-repository";
+import { compareNumberCodes, parseNumberSortDirection } from "@/lib/number-sort";
 
 export const runtime = "nodejs";
 
@@ -135,6 +136,7 @@ export async function GET(request: Request) {
   const limit = Number(url.searchParams.get("limit") ?? 60);
   const humanStatus = normalizeHumanStatusFilter(url.searchParams.get("humanStatus"));
   const requestedLimit = normalizeLimit(limit, 60);
+  const sortDirection = parseNumberSortDirection(url.searchParams.get("sortDirection"));
 
   const [matches, productSeriesOptions, seriesCodeOptions, viewerCapabilities, createRevisionPermission, workspaceViewPermission] = await Promise.all([
     searchNumberingRecordsAsync({
@@ -144,6 +146,7 @@ export async function GET(request: Request) {
       seriesCode,
       entityType,
       recordStatus,
+      sortDirection,
       limit: humanStatus === "all" ? requestedLimit : 100
     }),
     listProductSeriesOptionsAsync(companyResult.company.companyId),
@@ -180,6 +183,7 @@ export async function GET(request: Request) {
   const roots = details
     .map((detail) => mapRelationRoot(detail, viewerCapabilities, canonicalDrawingRows, pendingCandidateWorkspaces))
     .filter((root) => viewerStatusMatchesFilter(root.viewerStatus, root.humanStatus, humanStatus, root.availabilityScope))
+    .sort((left, right) => compareNumberCodes(left.rootCode, right.rootCode, sortDirection) || left.rootId.localeCompare(right.rootId))
     .slice(0, requestedLimit);
   const summary = {
     rootCount: roots.length,
@@ -438,7 +442,7 @@ function relationCandidateChangeReview(workspace: NumberingDraftWorkspaceRecord)
     const isReferenceOnly = !isManufacturingDrawingPurpose(drawing.purposeCode);
     return {
       id: drawing.id,
-      drawingNumber: drawing.candidateCode ?? "候選圖號",
+      drawingNumber: drawing.candidateCode ?? "圖號",
       purposeLabel: isReferenceOnly ? "參考圖" as const : "製造圖" as const,
       isReferenceOnly,
       reviewAvailabilityLabel: review === "needs_info"
@@ -453,7 +457,7 @@ function relationCandidateChangeReview(workspace: NumberingDraftWorkspaceRecord)
   const parts = workspace.parts.map((part) => {
     const relations = workspace.relations.filter((relation) => relation.partDraftId === part.id);
     const roleByDrawing = Object.fromEntries(relations.map((relation) => [
-      drawingById.get(relation.drawingDraftId)?.candidateCode ?? "候選圖號",
+      drawingById.get(relation.drawingDraftId)?.candidateCode ?? "圖號",
       relationReviewRole(relation.linkType, Boolean(drawingById.get(relation.drawingDraftId) && isManufacturingDrawingPurpose(drawingById.get(relation.drawingDraftId)?.purposeCode)))
     ]));
     const hasManufacturingDrawing = relations.some((relation) => {
@@ -462,7 +466,7 @@ function relationCandidateChangeReview(workspace: NumberingDraftWorkspaceRecord)
     });
     return {
       id: part.id,
-      partNumber: part.candidateCode ?? "候選料號",
+      partNumber: part.candidateCode ?? "料號",
       partName: part.partName,
       role: hasManufacturingDrawing ? "製造依據" : relations.some((relation) => {
         const drawing = drawingById.get(relation.drawingDraftId);
@@ -474,13 +478,13 @@ function relationCandidateChangeReview(workspace: NumberingDraftWorkspaceRecord)
   });
   const drawingNumbers = drawings.map((drawing) => drawing.drawingNumber);
   const partNumbers = parts.map((part) => part.partNumber);
-  const drawingSummary = drawingNumbers.length > 0 ? `圖號 ${drawingNumbers.join("、")}` : "尚未產生候選圖號";
-  const partSummary = partNumbers.length > 0 ? `料號 ${partNumbers.join("、")}` : "尚未產生候選料號";
+  const drawingSummary = drawingNumbers.length > 0 ? `圖號 ${drawingNumbers.join("、")}` : "尚未產生圖號";
+  const partSummary = partNumbers.length > 0 ? `料號 ${partNumbers.join("、")}` : "尚未產生料號";
   return [{
     id: `candidate-review:${workspace.id}`,
-    title: `${modeLabel}候選`,
+    title: `${modeLabel}申請`,
     statusLabel,
-    summary: `${drawingSummary}、${partSummary} 尚未發布；目前主關係仍沿用現行正式資料。`,
+    summary: `${drawingSummary}、${partSummary} 尚未發布；目前主關係仍沿用現行資料。`,
     drawings,
     parts
   }];

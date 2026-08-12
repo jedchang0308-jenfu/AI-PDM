@@ -13,6 +13,7 @@ import {
   type RevisionPackageFileRole
 } from "@/lib/revision-package";
 import { mapReadQueryBatches } from "@/lib/repositories/read-query-batch";
+import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 
 type SubmissionPackageSeedRow = {
   id: string;
@@ -313,6 +314,10 @@ export class AsyncDrawingRevisionPackageRepository {
         detail: { packageId, status: packageStatus, fileCount: fileRows.filter((file) => file.source_file_asset_id).length },
         createdAt: now
       });
+      await new UnifiedDrawingAsyncRepository(tx).synchronizeFormalDrawing({
+        drawingNumberId,
+        companyId: seed.company_id
+      });
     });
 
     const created = await this.getPackageBySubmissionId(input.submissionId);
@@ -354,6 +359,10 @@ export class AsyncDrawingRevisionPackageRepository {
         detail: { packageId: existing.id },
         createdAt: now
       });
+      await new UnifiedDrawingAsyncRepository(tx).synchronizeFormalDrawing({
+        drawingNumberId: existing.drawing_number_id,
+        companyId: existing.company_id
+      });
     });
   }
 
@@ -380,6 +389,10 @@ export class AsyncDrawingRevisionPackageRepository {
         action: "drawing_revision_package.cancelled",
         detail: { packageId: existing.id, reason: input.reason },
         createdAt: now
+      });
+      await new UnifiedDrawingAsyncRepository(tx).synchronizeFormalDrawing({
+        drawingNumberId: existing.drawing_number_id,
+        companyId: existing.company_id
       });
     });
     return true;

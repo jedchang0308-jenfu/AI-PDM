@@ -11,17 +11,17 @@ import {
   type HumanStatusRoleCapabilities
 } from "@/lib/human-status-projection";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
-import { redactPartDetailCosts, redactPartListCosts } from "@/lib/part-cost-visibility";
 import {
   decodePdmWorkbenchCursor,
   encodePdmWorkbenchCursor,
   pdmWorkbenchFilterHash,
   PdmWorkbenchCursorError
 } from "@/lib/pdm-workbench-cursor";
-import type { PdmWorkbenchAction, PdmWorkbenchListResponse, PdmWorkbenchRowBase } from "@/lib/pdm-workbench-contract";
+import type { PdmWorkbenchAction, PdmWorkbenchListResponse, PdmWorkbenchPreviewSummary, PdmWorkbenchRowBase } from "@/lib/pdm-workbench-contract";
 import { PartWorkbenchAsyncRepository } from "@/lib/repositories/part-workbench-async-repository";
 import type { NumberingDraftWorkspaceRecord } from "@/lib/repositories/number-state-flow-async-repository";
 import type { NumberingRecordStatus, PartModuleDetailRecord, PartModuleListRecord } from "@/lib/repositories/numbering-repository";
+import { parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
 
 export const PART_WORKBENCH_STAGES = [
   "building",
@@ -59,11 +59,11 @@ export type PartWorkbenchRow = PdmWorkbenchRowBase<"candidate_bundle" | "part_ma
   recordStatus: NumberingRecordStatus | null;
   primaryDrawingNumber: string | null;
   drawingCount: number;
-  standardCost: PartModuleListRecord["standardCost"] | null;
-  pendingCostRequestCount: number;
   stage: PartWorkbenchStage;
   stageLabel: string;
   warning: { code: string; message: string } | null;
+  partRootId: string | null;
+  preview: PdmWorkbenchPreviewSummary | null;
 };
 
 export type PartWorkbenchPermissions = {
@@ -80,7 +80,6 @@ export type PartWorkbenchActor = {
   companyId: string;
   permissions: PartWorkbenchPermissions;
   viewerCapabilities: HumanStatusRoleCapabilities;
-  canViewCostAmounts: boolean;
 };
 
 export type PartWorkbenchListResponse = PdmWorkbenchListResponse<PartWorkbenchRow, {
@@ -94,7 +93,6 @@ export type PartWorkbenchDetailResponse = {
   candidate: NumberingDraftWorkspaceRecord | null;
   part: (PartModuleDetailRecord & Pick<PartWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope">) | null;
   capabilities: {
-    canViewCostAmounts: boolean;
     canManagePermissions: boolean;
   };
 };
@@ -117,6 +115,7 @@ type NormalizedPartWorkbenchQuery = {
   includeHistory: boolean;
   cursor: string;
   limit: number;
+  sortDirection: NumberSortDirection;
 };
 
 const itemKinds = ["purchased", "manufactured", "outsourced", "shared", "custom"] as const;
@@ -155,6 +154,7 @@ export function normalizePartWorkbenchQuery(url: URL): NormalizedPartWorkbenchQu
   const rawLimit = normalizedText(url.searchParams.get("limit"), 10) || "50";
   const limit = Number(rawLimit);
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new PartWorkbenchError("workbench_invalid_limit", "每頁筆數必須介於 1 到 100。", 400);
+  const sortDirection = parseNumberSortDirection(url.searchParams.get("sortDirection"));
   return {
     query: normalizedText(url.searchParams.get("query"), 200),
     view,
@@ -165,7 +165,8 @@ export function normalizePartWorkbenchQuery(url: URL): NormalizedPartWorkbenchQu
     humanStatus,
     includeHistory: history === "include",
     cursor: normalizedText(url.searchParams.get("cursor"), 2_000),
-    limit
+    limit,
+    sortDirection
   };
 }
 
@@ -241,7 +242,7 @@ function candidateRow(workspace: NumberingDraftWorkspaceRecord, actor: PartWorkb
     responsibility: responsible,
     basis: stage === "auto_finalizing" ? "system" : stage === "in_review" ? "role_capability" : "assignee",
     canAct: responsible === "current_user" && Boolean(primaryAction?.enabled),
-    actorLabel: responsible === "system" ? "系統正在建立正式資料" : responsible === "current_user" ? "這筆工作需要你處理" : "等待負責人處理",
+    actorLabel: responsible === "system" ? "系統正在建立已發布資料" : responsible === "current_user" ? "這筆工作需要你處理" : "等待負責人處理",
     nextStep: primaryAction?.label ?? null
   });
   return {
@@ -260,8 +261,6 @@ function candidateRow(workspace: NumberingDraftWorkspaceRecord, actor: PartWorkb
     recordStatus: null,
     primaryDrawingNumber: workspace.drawings.find((drawing) => drawing.isPrimaryManufacturing)?.candidateCode ?? workspace.drawings[0]?.candidateCode ?? null,
     drawingCount: workspace.drawings.length,
-    standardCost: null,
-    pendingCostRequestCount: 0,
     stage,
     stageLabel: stageLabels[stage],
     humanStatus,
@@ -269,8 +268,10 @@ function candidateRow(workspace: NumberingDraftWorkspaceRecord, actor: PartWorkb
     availabilityScope: projectDrawingAvailability({ stage, usage: stage === "official_controlled" ? "rd_controlled" : stage === "history_only" ? "historical_only" : "not_for_formal_use", terminal: stage === "history_only" }),
     primaryAction,
     warning: stage === "recovery_required" ? { code: "candidate_recovery_required", message: "這筆工作需要處理後才能繼續。" } : null,
-    terminal: stage === "history_only" ? { kind: "cancelled", reasonLabel: "此候選工作已取消。", nextStepLabel: "如仍需要料號，請建立新的料號工作。" } : null,
-    updatedAt: workspace.updatedAt
+    terminal: stage === "history_only" ? { kind: "cancelled", reasonLabel: "此工作已取消。", nextStepLabel: "如仍需要料號，請建立新的料號工作。" } : null,
+    updatedAt: workspace.updatedAt,
+    partRootId: workspace.sourceRootId,
+    preview: null
   };
 }
 
@@ -301,8 +302,6 @@ function formalRow(part: PartModuleListRecord, actor: PartWorkbenchActor): PartW
     recordStatus: part.recordStatus,
     primaryDrawingNumber: part.primaryDrawingNumber,
     drawingCount: part.drawingCount,
-    standardCost: part.standardCost,
-    pendingCostRequestCount: part.pendingCostRequestCount,
     stage,
     stageLabel: stageLabels[stage],
     humanStatus,
@@ -311,7 +310,9 @@ function formalRow(part: PartModuleListRecord, actor: PartWorkbenchActor): PartW
     primaryAction: { kind: stage === "history_only" ? "view_history" : "view_part", label: stage === "history_only" ? "查看歷史" : "查看料號", enabled: true, disabledReason: null, href: detailHref },
     warning: part.recordStatus === "MainDrawingInvalid" ? { code: "main_drawing_invalid", message: "主要製造圖目前失效，請先確認圖料關係。" } : null,
     terminal: stage === "history_only" ? { kind: part.recordStatus === "Merged" ? "merged" : "obsolete", reasonLabel: part.recordStatus === "Merged" ? "此料號已合併。" : "此料號已作廢。", nextStepLabel: "請改用有效料號；需要追溯時再查看歷史。" } : null,
-    updatedAt: part.updatedAt
+    updatedAt: part.updatedAt,
+    partRootId: part.partRootId,
+    preview: null
   };
 }
 
@@ -327,26 +328,29 @@ function rowInView(row: PartWorkbenchRow, source: NumberingDraftWorkspaceRecord 
 
 export class PartWorkbenchService {
   private readonly repository: PartWorkbenchAsyncRepository;
+  private readonly client: AsyncDatabaseClient;
 
   constructor(client: AsyncDatabaseClient = getAsyncDatabaseClient()) {
+    this.client = client;
     this.repository = new PartWorkbenchAsyncRepository(client);
   }
 
-  async list(query: NormalizedPartWorkbenchQuery, actor: PartWorkbenchActor): Promise<PartWorkbenchListResponse> {
+  async list(query: NormalizedPartWorkbenchQuery, actor: PartWorkbenchActor, options: { previewEnabled?: boolean } = {}): Promise<PartWorkbenchListResponse> {
     const currentFilterHash = filterHash(query, actor);
     const cursor = query.cursor ? decodePdmWorkbenchCursor(query.cursor, currentFilterHash) : null;
-    const page = await this.repository.readListPage({
+    const page = await this.repository.readListPage<PartWorkbenchRow>({
       companyId: actor.companyId,
       query: query.query,
       seriesCode: query.seriesCode,
       itemKind: query.itemKind,
       recordStatus: query.recordStatus,
+      sortDirection: query.sortDirection,
       includeCandidates: actor.permissions.workspaceView && !query.recordStatus,
-      cursor: cursor ? { updatedAt: cursor.updatedAt, rowKey: cursor.rowKey } : null,
+      cursor: cursor ? { sortValue: cursor.sortValue ?? cursor.updatedAt, rowKey: cursor.rowKey } : null,
       limit: query.limit
     }, (candidateRecords, partRecords) => {
       const candidates = candidateRecords.map((source) => ({ source, row: candidateRow(source, actor) }));
-      const formal = redactPartListCosts(partRecords, actor.canViewCostAmounts).map((source) => ({ source, row: formalRow(source, actor) }));
+      const formal = partRecords.map((source) => ({ source, row: formalRow(source, actor) }));
       return [...candidates, ...formal]
         .filter(({ row }) => query.includeHistory || row.stage !== "history_only")
         .filter(({ row, source }) => rowInView(row, source, actor, query.view))
@@ -356,33 +360,46 @@ export class PartWorkbenchService {
     });
     const hasNext = page.rows.length > query.limit;
     const rows = page.rows.slice(0, query.limit);
+    if (options.previewEnabled) {
+      const { resolvePartWorkbenchPreviewReferences } = await import("@/lib/pdm-workbench-preview-gallery");
+      const previews = await resolvePartWorkbenchPreviewReferences(this.client, rows, actor.companyId);
+      for (const row of rows) row.preview = previews.get(row.rowKey)?.summary ?? null;
+    }
     const last = rows.at(-1);
     return {
       rows,
-      nextCursor: hasNext && last ? encodePdmWorkbenchCursor({ version: 1, filterHash: currentFilterHash, updatedAt: last.updatedAt, rowKey: last.rowKey }) : null,
+      nextCursor: hasNext && last ? encodePdmWorkbenchCursor({ version: 1, filterHash: currentFilterHash, updatedAt: last.updatedAt, sortValue: last.displayCode, rowKey: last.rowKey }) : null,
       generatedAt: new Date().toISOString(),
       filters: { seriesCodeOptions: page.seriesCodeOptions, itemKindOptions: [...itemKinds], recordStatusOptions: [...recordStatuses] }
     };
   }
 
-  async detail(rowKey: string, actor: PartWorkbenchActor): Promise<PartWorkbenchDetailResponse | null> {
+  async detail(rowKey: string, actor: PartWorkbenchActor, options: { previewEnabled?: boolean } = {}): Promise<PartWorkbenchDetailResponse | null> {
     if (rowKey.startsWith("candidate:")) {
       if (!actor.permissions.workspaceView) return null;
       const candidate = await this.repository.readCandidateDetail(rowKey.slice("candidate:".length), actor.companyId);
       if (!candidate) return null;
-      return { row: candidateRow(candidate, actor), candidate, part: null, capabilities: { canViewCostAmounts: actor.canViewCostAmounts, canManagePermissions: actor.permissions.managePermissions } };
+      const row = candidateRow(candidate, actor);
+      if (options.previewEnabled) {
+        const { resolvePartWorkbenchPreviewReferences } = await import("@/lib/pdm-workbench-preview-gallery");
+        row.preview = (await resolvePartWorkbenchPreviewReferences(this.client, [row], actor.companyId)).get(row.rowKey)?.summary ?? null;
+      }
+      return { row, candidate, part: null, capabilities: { canManagePermissions: actor.permissions.managePermissions } };
     }
     const source = rowKey.startsWith("part:")
       ? await this.repository.readPartDetailById(rowKey.slice("part:".length), actor.companyId)
       : await this.repository.readPartDetailByCode(rowKey, actor.companyId);
     if (!source) return null;
-    const redacted = redactPartDetailCosts(source, actor.canViewCostAmounts);
-    const row = formalRow(redacted, actor);
+    const row = formalRow(source, actor);
+    if (options.previewEnabled) {
+      const { resolvePartWorkbenchPreviewReferences } = await import("@/lib/pdm-workbench-preview-gallery");
+      row.preview = (await resolvePartWorkbenchPreviewReferences(this.client, [row], actor.companyId)).get(row.rowKey)?.summary ?? null;
+    }
     return {
       row,
       candidate: null,
-      part: { ...redacted, humanStatus: row.humanStatus, viewerStatus: row.viewerStatus, availabilityScope: row.availabilityScope },
-      capabilities: { canViewCostAmounts: actor.canViewCostAmounts, canManagePermissions: actor.permissions.managePermissions }
+      part: { ...source, humanStatus: row.humanStatus, viewerStatus: row.viewerStatus, availabilityScope: row.availabilityScope },
+      capabilities: { canManagePermissions: actor.permissions.managePermissions }
     };
   }
 }

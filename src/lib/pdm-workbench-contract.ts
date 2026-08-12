@@ -3,6 +3,17 @@ import type { HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/h
 
 export type PdmWorkbenchSourceKind = "candidate" | "formal";
 
+export type PdmWorkbenchPreviewState = "ready" | "pending" | "delayed" | "missing" | "failed" | "unavailable";
+
+export type PdmWorkbenchPreviewSummary = {
+  state: PdmWorkbenchPreviewState;
+  href: string | null;
+  sourceKind: "drawing_latest_3d" | "root_representative_latest_3d";
+  sourceDrawingNumber: string | null;
+  sourceRevision: string | null;
+  alt: string;
+};
+
 export type PdmWorkbenchAction<ActionKind extends string = string> = {
   kind: ActionKind;
   label: string;
@@ -55,6 +66,7 @@ export type PdmWorkbenchCursorPayload = {
   version: 1;
   filterHash: string;
   updatedAt: string;
+  sortValue?: string;
   rowKey: string;
 };
 

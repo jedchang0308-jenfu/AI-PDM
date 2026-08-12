@@ -26,15 +26,11 @@ import {
   type DrawingPurposeCode
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
+import { rewriteNumberingHumanTextDeep } from "@/lib/numbering-vocabulary";
 import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
-import {
-  canonicalImportedRootName,
-  importedDrawingSequence,
-  importedPartSequence
-} from "@/lib/numbering-import-normalization";
 import { evaluateHardApprovalRules as evaluateHardApprovalRulesShared } from "@/lib/numbering-hard-approval-rules";
-import { normalizePartCostTiers, normalizePositiveInteger } from "@/lib/numbering-part-cost";
 import { lowestAvailableSequence } from "@/lib/numbering-sequence-utils";
+import { compareNumberCodes, DEFAULT_NUMBER_SORT_DIRECTION, type NumberSortDirection } from "@/lib/number-sort";
 
 export type NumberingItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
 export type NumberingRecordStatus =
@@ -102,9 +98,6 @@ export type DrawingModuleLinkedPartRecord = {
   surfaceTreatment: string | null;
   variantNote: string | null;
   primaryDrawingNumber: string | null;
-  standardCostStatus: "active" | "missing";
-  standardCostProfileName: string | null;
-  standardCostType: PartCostType | null;
 };
 
 export type DrawingModuleReleaseStatusMismatch = {
@@ -151,6 +144,7 @@ export type DrawingModuleListInput = {
   seriesCode?: string;
   recordStatus?: NumberingRecordStatus;
   purposeCode?: DrawingPurposeCode;
+  sortDirection?: NumberSortDirection;
   limit?: number;
 };
 
@@ -163,6 +157,7 @@ export type NumberingSearchInput = {
   seriesCode?: string;
   entityType?: NumberingSearchEntityType;
   recordStatus?: NumberingRecordStatus;
+  sortDirection?: NumberSortDirection;
   limit?: number;
 };
 
@@ -248,10 +243,6 @@ export type NumberingRootDetailRecord = {
   };
 };
 
-export type PartCostType = "outsourced" | "in_house" | "purchase" | "trial" | "other";
-export type PartCostProfileStatus = "draft" | "pending_review" | "approved" | "rejected" | "retired";
-export type PartCostChangeRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
-
 export type PartVariantAttributesRecord = {
   id: string;
   partNumberId: string;
@@ -264,74 +255,6 @@ export type PartVariantAttributesRecord = {
   updatedAt: string;
 };
 
-export type PartCostTierRecord = {
-  id: string;
-  costProfileId: string;
-  minQty: number;
-  maxQty: number | null;
-  unitCost: number;
-  setupCost: number;
-  leadTimeDays: number | null;
-  note: string | null;
-};
-
-export type PartCostProfileRecord = {
-  id: string;
-  partNumberId: string;
-  costType: PartCostType;
-  profileName: string;
-  currency: string;
-  uom: string;
-  supplierName: string | null;
-  processName: string | null;
-  costBasis: string | null;
-  status: PartCostProfileStatus;
-  effectiveFrom: string | null;
-  effectiveTo: string | null;
-  tiers: PartCostTierRecord[];
-};
-
-export type PartStandardCostRecord = {
-  id: string;
-  partNumberId: string;
-  costProfileId: string;
-  basisQty: number;
-  standardReason: string | null;
-  effectiveFrom: string;
-  effectiveTo: string | null;
-  profileName: string;
-  costType: PartCostType;
-  currency: string;
-  uom: string;
-  unitCost: number | null;
-};
-
-export type PartCostChangeRequestRecord = {
-  id: string;
-  partNumberId: string;
-  proposedCostProfileId: string | null;
-  requestType: "set_standard" | "update_profile" | "retire_profile";
-  changeReason: string;
-  reviewStatus: PartCostChangeRequestStatus;
-  requestedAt: string;
-  reviewedAt: string | null;
-  reviewComment: string | null;
-};
-
-export type PartCostResolutionRecord = {
-  profileId: string;
-  partNumberId: string;
-  costType: PartCostType;
-  profileName: string;
-  currency: string;
-  uom: string;
-  quantity: number;
-  unitCost: number;
-  setupCost: number;
-  extendedCost: number;
-  tier: PartCostTierRecord;
-};
-
 export type PartModuleListRecord = PartNumberRecord & {
   updatedAt: string;
   rootCode: string;
@@ -340,8 +263,6 @@ export type PartModuleListRecord = PartNumberRecord & {
   primaryDrawingNumber: string | null;
   primaryDrawingRecordStatus?: NumberingRecordStatus | null;
   drawingCount: number;
-  standardCost: PartStandardCostRecord | null;
-  pendingCostRequestCount: number;
 };
 
 export type PartModuleListInput = {
@@ -350,14 +271,13 @@ export type PartModuleListInput = {
   productSeries?: string;
   seriesCode?: string;
   recordStatus?: NumberingRecordStatus;
+  sortDirection?: NumberSortDirection;
   limit?: number;
 };
 
 export type PartModuleDetailRecord = PartModuleListRecord & {
   linkedDrawings: NumberingLinkRecord[];
   sameDrawingVariants: NumberingVariantRecord[];
-  costProfiles: PartCostProfileRecord[];
-  costChangeRequests: PartCostChangeRequestRecord[];
 };
 
 export type UpsertPartVariantAttributesInput = {
@@ -370,48 +290,6 @@ export type UpsertPartVariantAttributesInput = {
   surfaceTreatment?: string | null;
   variantNote?: string | null;
   updatedBy?: string | null;
-};
-
-export type CreatePartCostProfileInput = {
-  companyId?: string;
-  partNumber: string;
-  costType: PartCostType;
-  profileName: string;
-  currency?: string;
-  uom?: string;
-  supplierName?: string | null;
-  processName?: string | null;
-  costBasis?: string | null;
-  status?: PartCostProfileStatus;
-  effectiveFrom?: string | null;
-  effectiveTo?: string | null;
-  createdBy?: string | null;
-  tiers: Array<{
-    minQty?: number;
-    maxQty?: number | null;
-    unitCost: number;
-    setupCost?: number;
-    leadTimeDays?: number | null;
-    note?: string | null;
-  }>;
-};
-
-export type DecidePartCostChangeRequestInput = {
-  companyId?: string;
-  partNumber: string;
-  requestId: string;
-  decision: "approve" | "reject";
-  reviewedBy?: string | null;
-  reviewComment?: string | null;
-  basisQty?: number;
-};
-
-export type ResolvePartCostInput = {
-  companyId?: string;
-  partNumber: string;
-  quantity?: number;
-  costType?: PartCostType;
-  asOf?: string | null;
 };
 
 export type CreateNumberingRecordInput = {
@@ -1264,61 +1142,6 @@ export type UpdateNumberingNotificationStateInput = {
   markHandled?: boolean;
 };
 
-export type NumberingImportRowInput = Record<string, unknown>;
-
-export type NumberingImportBatchRecord = {
-  id: string;
-  sourceFilename: string;
-  sourceHash: string | null;
-  status: "staged" | "confirmed" | "rejected";
-  summary: Record<string, unknown>;
-  importedBy: string;
-  confirmedBy: string | null;
-  confirmedAt: string | null;
-  rows: NumberingImportStagingRowRecord[];
-};
-
-export type NumberingImportStagingRowRecord = {
-  id: string;
-  importBatchId: string;
-  rowNo: number;
-  raw: Record<string, unknown>;
-  checkStatus: "pending" | "valid" | "need_info" | "admin_confirm" | "conflict" | "legacy_keep";
-  issues: Array<{ code: string; message: string }>;
-};
-
-export type CreateNumberingImportBatchInput = {
-  companyId?: string;
-  sourceFilename: string;
-  sourceHash?: string | null;
-  rows: NumberingImportRowInput[];
-  importedBy: string;
-};
-
-export type ListNumberingImportBatchesInput = {
-  companyId?: string;
-  status?: "all" | NumberingImportBatchRecord["status"];
-  limit?: number;
-};
-
-export type ConfirmNumberingImportBatchInput = {
-  companyId?: string;
-  batchId: string;
-  confirmedBy: string;
-};
-
-export type DeleteNumberingImportBatchInput = {
-  companyId?: string;
-  batchId: string;
-  deletedBy: string;
-};
-
-export type RestoreNumberingImportBatchInput = {
-  companyId?: string;
-  batchId: string;
-  restoredBy: string;
-};
-
 export type NumberingExportMode = "no_audit" | "last_change_summary" | "full_change_summary";
 
 export type NumberingExportJobRecord = {
@@ -1449,9 +1272,6 @@ type DrawingModuleLinkedPartRow = {
   surface_treatment: string | null;
   variant_note: string | null;
   primary_drawing_number: string | null;
-  standard_cost_id: string | null;
-  standard_profile_name: string | null;
-  standard_cost_type: PartCostType | null;
 };
 
 type NumberingLinkRow = {
@@ -1487,66 +1307,12 @@ type PartVariantAttributesRow = {
   updated_at: string;
 };
 
-type PartCostTierRow = {
-  id: string;
-  cost_profile_id: string;
-  min_qty: number;
-  max_qty: number | null;
-  unit_cost: number;
-  setup_cost: number;
-  lead_time_days: number | null;
-  note: string | null;
-};
-
-type PartCostProfileRow = {
-  id: string;
-  part_number_id: string;
-  cost_type: PartCostType;
-  profile_name: string;
-  currency: string;
-  uom: string;
-  supplier_name: string | null;
-  process_name: string | null;
-  cost_basis: string | null;
-  status: PartCostProfileStatus;
-  effective_from: string | null;
-  effective_to: string | null;
-};
-
-type PartStandardCostRow = {
-  id: string;
-  part_number_id: string;
-  cost_profile_id: string;
-  basis_qty: number;
-  standard_reason: string | null;
-  effective_from: string;
-  effective_to: string | null;
-  profile_name: string;
-  cost_type: PartCostType;
-  currency: string;
-  uom: string;
-  unit_cost: number | null;
-};
-
-type PartCostChangeRequestRow = {
-  id: string;
-  part_number_id: string;
-  proposed_cost_profile_id: string | null;
-  request_type: "set_standard" | "update_profile" | "retire_profile";
-  change_reason: string;
-  review_status: PartCostChangeRequestStatus;
-  requested_at: string;
-  reviewed_at: string | null;
-  review_comment: string | null;
-};
-
 type PartModuleListRow = PartNumberRow & {
   root_code: string;
   core_name: string;
   primary_drawing_number: string | null;
   primary_drawing_record_status?: NumberingRecordStatus | null;
   drawing_count: number | null;
-  pending_cost_request_count: number | null;
   variant_id: string | null;
   material_code: string | null;
   material_label: string | null;
@@ -1555,17 +1321,6 @@ type PartModuleListRow = PartNumberRow & {
   surface_treatment: string | null;
   variant_note: string | null;
   variant_updated_at: string | null;
-  standard_cost_id: string | null;
-  standard_cost_profile_id: string | null;
-  standard_basis_qty: number | null;
-  standard_reason: string | null;
-  standard_effective_from: string | null;
-  standard_effective_to: string | null;
-  standard_profile_name: string | null;
-  standard_cost_type: PartCostType | null;
-  standard_currency: string | null;
-  standard_uom: string | null;
-  standard_unit_cost: number | null;
 };
 
 type NumberingWarningRow = {
@@ -1789,26 +1544,6 @@ type NumberingNotificationRow = {
   detail_json: string;
   created_by: string | null;
   created_at: string;
-};
-
-type ImportBatchRow = {
-  id: string;
-  source_filename: string;
-  source_hash: string | null;
-  status: "staged" | "confirmed" | "rejected";
-  summary_json: string;
-  imported_by: string;
-  confirmed_by: string | null;
-  confirmed_at: string | null;
-};
-
-type ImportStagingRow = {
-  id: string;
-  import_batch_id: string;
-  row_no: number;
-  raw_json: string;
-  check_status: NumberingImportStagingRowRecord["checkStatus"];
-  issue_json: string;
 };
 
 type NumberingExportJobRow = {
@@ -2107,10 +1842,7 @@ function mapDrawingModuleLinkedPartRow(row: DrawingModuleLinkedPartRow): Drawing
     colorLabel: row.color_label,
     surfaceTreatment: row.surface_treatment,
     variantNote: row.variant_note,
-    primaryDrawingNumber: row.primary_drawing_number,
-    standardCostStatus: row.standard_cost_id ? "active" : "missing",
-    standardCostProfileName: row.standard_profile_name,
-    standardCostType: row.standard_cost_type
+    primaryDrawingNumber: row.primary_drawing_number
   };
 }
 
@@ -2211,69 +1943,6 @@ function mapPartVariantAttributes(row: PartVariantAttributesRow | null | undefin
   };
 }
 
-function mapPartCostTier(row: PartCostTierRow): PartCostTierRecord {
-  return {
-    id: row.id,
-    costProfileId: row.cost_profile_id,
-    minQty: row.min_qty,
-    maxQty: row.max_qty,
-    unitCost: Number(row.unit_cost),
-    setupCost: Number(row.setup_cost),
-    leadTimeDays: row.lead_time_days,
-    note: row.note
-  };
-}
-
-function mapPartCostProfile(row: PartCostProfileRow, tiers: PartCostTierRecord[] = []): PartCostProfileRecord {
-  return {
-    id: row.id,
-    partNumberId: row.part_number_id,
-    costType: row.cost_type,
-    profileName: row.profile_name,
-    currency: row.currency,
-    uom: row.uom,
-    supplierName: row.supplier_name,
-    processName: row.process_name,
-    costBasis: row.cost_basis,
-    status: row.status,
-    effectiveFrom: row.effective_from,
-    effectiveTo: row.effective_to,
-    tiers
-  };
-}
-
-function mapPartStandardCost(row: PartStandardCostRow | null | undefined): PartStandardCostRecord | null {
-  if (!row?.id || !row.cost_profile_id) return null;
-  return {
-    id: row.id,
-    partNumberId: row.part_number_id,
-    costProfileId: row.cost_profile_id,
-    basisQty: row.basis_qty,
-    standardReason: row.standard_reason,
-    effectiveFrom: row.effective_from,
-    effectiveTo: row.effective_to,
-    profileName: row.profile_name,
-    costType: row.cost_type,
-    currency: row.currency,
-    uom: row.uom,
-    unitCost: row.unit_cost === null ? null : Number(row.unit_cost)
-  };
-}
-
-function mapPartCostChangeRequest(row: PartCostChangeRequestRow): PartCostChangeRequestRecord {
-  return {
-    id: row.id,
-    partNumberId: row.part_number_id,
-    proposedCostProfileId: row.proposed_cost_profile_id,
-    requestType: row.request_type,
-    changeReason: row.change_reason,
-    reviewStatus: row.review_status,
-    requestedAt: row.requested_at,
-    reviewedAt: row.reviewed_at,
-    reviewComment: row.review_comment
-  };
-}
-
 function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
   return {
     ...mapPartNumber(row),
@@ -2283,7 +1952,6 @@ function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
     primaryDrawingNumber: row.primary_drawing_number,
     primaryDrawingRecordStatus: row.primary_drawing_record_status ?? null,
     drawingCount: row.drawing_count ?? 0,
-    pendingCostRequestCount: row.pending_cost_request_count ?? 0,
     variant: mapPartVariantAttributes({
       id: row.variant_id ?? "",
       part_number_id: row.id,
@@ -2294,20 +1962,6 @@ function mapPartModuleListRow(row: PartModuleListRow): PartModuleListRecord {
       surface_treatment: row.surface_treatment,
       variant_note: row.variant_note,
       updated_at: row.variant_updated_at ?? ""
-    }),
-    standardCost: mapPartStandardCost({
-      id: row.standard_cost_id ?? "",
-      part_number_id: row.id,
-      cost_profile_id: row.standard_cost_profile_id ?? "",
-      basis_qty: row.standard_basis_qty ?? 1,
-      standard_reason: row.standard_reason,
-      effective_from: row.standard_effective_from ?? "",
-      effective_to: row.standard_effective_to,
-      profile_name: row.standard_profile_name ?? "",
-      cost_type: row.standard_cost_type ?? "other",
-      currency: row.standard_currency ?? "TWD",
-      uom: row.standard_uom ?? "pcs",
-      unit_cost: row.standard_unit_cost
     })
   };
 }
@@ -2880,7 +2534,8 @@ function mapApprovalReviewBatch(database: SqliteDatabase, row: ApprovalBatchRow)
 
 function parseJsonDetail(value: string) {
   try {
-    return JSON.parse(value || "{}") as Record<string, unknown>;
+    const parsed = JSON.parse(value || "{}") as unknown;
+    return rewriteNumberingHumanTextDeep(parsed) as Record<string, unknown>;
   } catch {
     return {};
   }
@@ -2947,34 +2602,6 @@ function mapNumberingNotification(row: NumberingNotificationRow): NumberingNotif
       proxyReason: proxySubmissionReason(payloadFromDetail(detail), "")
     }),
     createdAt: row.created_at
-  };
-}
-
-function mapImportStagingRow(row: ImportStagingRow): NumberingImportStagingRowRecord {
-  return {
-    id: row.id,
-    importBatchId: row.import_batch_id,
-    rowNo: row.row_no,
-    raw: parseJsonDetail(row.raw_json),
-    checkStatus: row.check_status,
-    issues: JSON.parse(row.issue_json || "[]") as Array<{ code: string; message: string }>
-  };
-}
-
-function mapImportBatch(database: SqliteDatabase, row: ImportBatchRow): NumberingImportBatchRecord {
-  const rows = database
-    .prepare("SELECT id, import_batch_id, row_no, raw_json, check_status, issue_json FROM import_staging_rows WHERE import_batch_id = ? ORDER BY row_no ASC")
-    .all(row.id) as ImportStagingRow[];
-  return {
-    id: row.id,
-    sourceFilename: row.source_filename,
-    sourceHash: row.source_hash,
-    status: row.status,
-    summary: parseJsonDetail(row.summary_json),
-    importedBy: row.imported_by,
-    confirmedBy: row.confirmed_by,
-    confirmedAt: row.confirmed_at,
-    rows: rows.map(mapImportStagingRow)
   };
 }
 
@@ -4656,262 +4283,6 @@ export function updateNumberingNotificationState(input: UpdateNumberingNotificat
   return mapNumberingNotification(updated);
 }
 
-function importString(row: NumberingImportRowInput, ...keys: string[]) {
-  for (const key of keys) {
-    const value = row[key];
-    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
-  }
-  return "";
-}
-
-function inferImportedRuleVersionId(rootCode: string, partNumber?: string, drawingNumber?: string) {
-  if (isV3RootCode(rootCode) || (partNumber && isV3PartNumber(partNumber)) || (drawingNumber && isV3DrawingNumber(drawingNumber))) {
-    return NUMBERING_RULE_V3_ID;
-  }
-  if (isV2RootCode(rootCode) || (partNumber && isV2PartNumber(partNumber)) || (drawingNumber && isV2DrawingNumber(drawingNumber))) {
-    return NUMBERING_RULE_V2_ID;
-  }
-  return NUMBERING_RULE_V1_ID;
-}
-
-function analyzeNumberingImportRow(
-  database: SqliteDatabase,
-  row: NumberingImportRowInput,
-  seen: { roots: Set<string>; parts: Set<string>; drawings: Set<string> }
-) {
-  const rootCode = importString(row, "rootCode", "root_code", "主根號");
-  const partNumber = importString(row, "partNumber", "part_number", "料號");
-  const drawingNumber = importString(row, "drawingNumber", "drawing_number", "圖號");
-  const importedCoreName = importString(row, "coreName", "core_name", "品名", "名稱");
-  const importedPartName = importString(row, "partName", "part_name", "料號品名");
-  const coreName = canonicalImportedRootName(importedCoreName, importedPartName);
-  const partName = coreName;
-  const issues: Array<{ code: string; message: string }> = [];
-
-  if (!rootCode) issues.push({ code: "ROOT_CODE_REQUIRED", message: "rootCode is required." });
-  if (!coreName && !partName) issues.push({ code: "NAME_REQUIRED", message: "coreName or partName is required." });
-  if (!partNumber && !drawingNumber) issues.push({ code: "NUMBER_REQUIRED", message: "partNumber or drawingNumber is required." });
-  if (rootCode && selectPartRootByCode(database, rootCode)) issues.push({ code: "ROOT_EXISTS", message: `Root ${rootCode} already exists.` });
-  if (partNumber && selectPartNumberByNumber(database, partNumber)) issues.push({ code: "PART_EXISTS", message: `Part ${partNumber} already exists.` });
-  if (drawingNumber && selectDrawingNumberByNumber(database, drawingNumber)) {
-    issues.push({ code: "DRAWING_EXISTS", message: `Drawing ${drawingNumber} already exists.` });
-  }
-  if (rootCode && seen.roots.has(rootCode) && partNumber && seen.parts.has(partNumber)) {
-    issues.push({ code: "DUPLICATE_ROW", message: "This root/part combination appears more than once in the import file." });
-  }
-  if (partNumber && seen.parts.has(partNumber)) issues.push({ code: "DUPLICATE_PART_IN_FILE", message: `Part ${partNumber} appears more than once.` });
-  if (drawingNumber && seen.drawings.has(drawingNumber)) {
-    issues.push({ code: "DUPLICATE_DRAWING_IN_FILE", message: `Drawing ${drawingNumber} appears more than once.` });
-  }
-
-  if (rootCode) seen.roots.add(rootCode);
-  if (partNumber) seen.parts.add(partNumber);
-  if (drawingNumber) seen.drawings.add(drawingNumber);
-
-  const checkStatus: NumberingImportStagingRowRecord["checkStatus"] = issues.length === 0 ? "valid" : issues.some((issue) => issue.code.includes("EXISTS") || issue.code.includes("DUPLICATE")) ? "conflict" : "need_info";
-  return { checkStatus, issues };
-}
-
-export function createNumberingImportBatch(input: CreateNumberingImportBatchInput) {
-  const sourceFilename = input.sourceFilename.trim();
-  if (!sourceFilename) throw new Error("IMPORT_SOURCE_FILENAME_REQUIRED");
-  if (!Array.isArray(input.rows) || input.rows.length === 0) throw new Error("IMPORT_ROWS_REQUIRED");
-
-  const database = getDb();
-  return database.transaction(() => {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-    const seen = { roots: new Set<string>(), parts: new Set<string>(), drawings: new Set<string>() };
-    const analyzed = input.rows.map((row, index) => ({ row, rowNo: index + 1, ...analyzeNumberingImportRow(database, row, seen) }));
-    const summary = {
-      total: analyzed.length,
-      valid: analyzed.filter((row) => row.checkStatus === "valid").length,
-      needInfo: analyzed.filter((row) => row.checkStatus === "need_info").length,
-      conflict: analyzed.filter((row) => row.checkStatus === "conflict").length
-    };
-
-    database
-      .prepare(
-        `
-        INSERT INTO import_batches (
-          id, source_filename, source_hash, status, summary_json, imported_by, created_at, updated_at
-        ) VALUES (?, ?, ?, 'staged', ?, ?, ?, ?)
-      `
-      )
-      .run(id, sourceFilename, input.sourceHash?.trim() || null, JSON.stringify(summary), input.importedBy, now, now);
-
-    for (const item of analyzed) {
-      database
-        .prepare(
-          `
-          INSERT INTO import_staging_rows (
-            id, import_batch_id, row_no, raw_json, check_status, issue_json, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        `
-        )
-        .run(crypto.randomUUID(), id, item.rowNo, JSON.stringify(item.row), item.checkStatus, JSON.stringify(item.issues), now);
-    }
-
-    insertAudit(database, {
-      actorId: input.importedBy,
-      action: "numbering.import_batch.stage",
-      detail: { importBatchId: id, sourceFilename, summary }
-    });
-
-    return mapImportBatch(database, database.prepare("SELECT * FROM import_batches WHERE id = ?").get(id) as ImportBatchRow);
-  })();
-}
-
-export function getNumberingImportBatch(batchId: string) {
-  const database = getDb();
-  const row = database.prepare("SELECT * FROM import_batches WHERE id = ?").get(batchId) as ImportBatchRow | undefined;
-  return row ? mapImportBatch(database, row) : null;
-}
-
-export function listNumberingImportBatches(input: ListNumberingImportBatchesInput = {}) {
-  const database = getDb();
-  const limit = clampListLimit(input.limit);
-  return (database
-    .prepare("SELECT * FROM import_batches ORDER BY updated_at DESC, created_at DESC, id DESC LIMIT ?")
-    .all(limit) as ImportBatchRow[]).map((row) => mapImportBatch(database, row));
-}
-
-export function confirmNumberingImportBatch(input: ConfirmNumberingImportBatchInput) {
-  const database = getDb();
-  return database.transaction(() => {
-    const batch = database.prepare("SELECT * FROM import_batches WHERE id = ?").get(input.batchId) as ImportBatchRow | undefined;
-    if (!batch) throw new Error(`IMPORT_BATCH_NOT_FOUND: ${input.batchId}`);
-    if (batch.status !== "staged") throw new Error(`IMPORT_BATCH_ALREADY_${batch.status.toUpperCase()}`);
-
-    const rows = database
-      .prepare("SELECT id, import_batch_id, row_no, raw_json, check_status, issue_json FROM import_staging_rows WHERE import_batch_id = ? AND check_status = 'valid' ORDER BY row_no ASC")
-      .all(input.batchId) as ImportStagingRow[];
-    if (rows.length === 0) throw new Error("IMPORT_BATCH_HAS_NO_VALID_ROWS");
-
-    const now = new Date().toISOString();
-    let createdRoots = 0;
-    let createdParts = 0;
-    let createdDrawings = 0;
-    for (const stagingRow of rows) {
-      const raw = parseJsonDetail(stagingRow.raw_json);
-      const rootCode = importString(raw, "rootCode", "root_code", "主根號");
-      const coreName = canonicalImportedRootName(
-        importString(raw, "coreName", "core_name", "品名", "名稱"),
-        importString(raw, "partName", "part_name", "料號品名")
-      );
-      const itemKind = (importString(raw, "itemKind", "item_kind", "料件類型") || "manufactured") as NumberingItemKind;
-      const partNumber = importString(raw, "partNumber", "part_number", "料號");
-      const partName = coreName;
-      const drawingNumber = importString(raw, "drawingNumber", "drawing_number", "圖號");
-      const purposeCode = (importString(raw, "purposeCode", "purpose_code", "圖別") || "MA") as DrawingPurposeCode;
-      const ruleVersionId = inferImportedRuleVersionId(rootCode, partNumber, drawingNumber);
-
-      let root = selectPartRootByCode(database, rootCode);
-      if (!root) {
-        database
-          .prepare(
-            `
-            INSERT INTO part_roots (
-              id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, 'Active', ?, ?, ?, ?)
-          `
-          )
-          .run(crypto.randomUUID(), rootCode, coreName, itemKind, ruleVersionId, input.confirmedBy, now, now);
-        createdRoots += 1;
-        root = selectPartRootByCode(database, rootCode);
-      }
-      if (!root) throw new Error(`IMPORT_ROOT_CREATE_FAILED: ${rootCode}`);
-
-      let partRow = partNumber ? selectPartNumberByNumber(database, partNumber) : undefined;
-      if (partNumber && !partRow) {
-        const sequenceNo = importedPartSequence(partNumber);
-        database
-          .prepare(
-            `
-            INSERT INTO part_numbers (
-              id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-              is_universal, record_status, rule_version_id, created_by, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'Active', ?, ?, ?, ?)
-          `
-          )
-          .run(
-            crypto.randomUUID(),
-            root.id,
-            partNumber,
-            sequenceNo,
-            formatPartSequence(sequenceNo, ruleVersionId),
-            partName,
-            itemKind,
-            ruleVersionId,
-            input.confirmedBy,
-            now,
-            now
-          );
-        createdParts += 1;
-        partRow = selectPartNumberByNumber(database, partNumber);
-      }
-
-      let drawingRow = drawingNumber ? selectDrawingNumberByNumber(database, drawingNumber) : undefined;
-      if (drawingNumber && !drawingRow) {
-        database
-          .prepare(
-            `
-            INSERT INTO drawing_numbers (
-              id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
-              is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', ?, ?, ?, ?)
-          `
-          )
-          .run(
-            crypto.randomUUID(),
-            root.id,
-            drawingNumber,
-            purposeCode,
-            normalizePurposeDescription(purposeCode, importString(raw, "purposeDescription", "purpose_description", "圖面用途")),
-            importedDrawingSequence(drawingNumber),
-            isManufacturingDrawingPurpose(purposeCode) ? 1 : 0,
-            ruleVersionId,
-            input.confirmedBy,
-            now,
-            now
-          );
-        createdDrawings += 1;
-        drawingRow = selectDrawingNumberByNumber(database, drawingNumber);
-      }
-
-      if (partRow && drawingRow && partRow.part_root_id === drawingRow.part_root_id) {
-        const linkType = isManufacturingDrawingPurpose(drawingRow.purpose_code) ? "primary_manufacturing" : "reference";
-        const existingLink = database
-          .prepare("SELECT id FROM drawing_part_links WHERE drawing_number_id = ? AND part_number_id = ? AND link_type = ? LIMIT 1")
-          .get(drawingRow.id, partRow.id, linkType);
-        if (!existingLink) {
-          database
-            .prepare(
-              `
-              INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_by, created_at)
-              VALUES (?, ?, ?, ?, ?, ?)
-            `
-            )
-            .run(crypto.randomUUID(), drawingRow.id, partRow.id, linkType, input.confirmedBy, now);
-        }
-      }
-
-      database.prepare("UPDATE import_staging_rows SET check_status = 'legacy_keep' WHERE id = ?").run(stagingRow.id);
-    }
-
-    const summary = { ...parseJsonDetail(batch.summary_json), createdRoots, createdParts, createdDrawings };
-    database
-      .prepare("UPDATE import_batches SET status = 'confirmed', summary_json = ?, confirmed_by = ?, confirmed_at = ?, updated_at = ? WHERE id = ?")
-      .run(JSON.stringify(summary), input.confirmedBy, now, now, input.batchId);
-    insertAudit(database, {
-      actorId: input.confirmedBy,
-      action: "numbering.import_batch.confirm",
-      detail: { importBatchId: input.batchId, summary }
-    });
-
-    return mapImportBatch(database, database.prepare("SELECT * FROM import_batches WHERE id = ?").get(input.batchId) as ImportBatchRow);
-  })();
-}
 
 function buildNumberingExportPayload(database: SqliteDatabase, exportMode: NumberingExportMode) {
   const roots = database.prepare("SELECT root_code, core_name, item_kind, record_status, updated_at FROM part_roots ORDER BY root_code").all();
@@ -6460,6 +5831,8 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
     params.push(input.recordStatus);
   }
   const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+  const sortDirection = input.sortDirection ?? DEFAULT_NUMBER_SORT_DIRECTION;
+  const orderDirection = sortDirection === "desc" ? "DESC" : "ASC";
   return database
     .prepare(
       `
@@ -6492,7 +5865,7 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
         ) AS warning_count
       FROM part_roots r
       ${where}
-      ORDER BY r.updated_at DESC, r.root_code ASC
+      ORDER BY r.root_code ${orderDirection}, r.id ASC
       LIMIT ?
     `
     )
@@ -6514,6 +5887,8 @@ function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<
     params.push(input.recordStatus);
   }
   const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+  const sortDirection = input.sortDirection ?? DEFAULT_NUMBER_SORT_DIRECTION;
+  const orderDirection = sortDirection === "desc" ? "DESC" : "ASC";
   return database
     .prepare(
       `
@@ -6552,7 +5927,7 @@ function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<
       FROM part_numbers p
       JOIN part_roots r ON r.id = p.part_root_id
       ${where}
-      ORDER BY p.updated_at DESC, p.part_number ASC
+      ORDER BY p.part_number ${orderDirection}, p.id ASC
       LIMIT ?
     `
     )
@@ -6574,6 +5949,8 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
     params.push(input.recordStatus);
   }
   const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+  const sortDirection = input.sortDirection ?? DEFAULT_NUMBER_SORT_DIRECTION;
+  const orderDirection = sortDirection === "desc" ? "DESC" : "ASC";
   return database
     .prepare(
       `
@@ -6605,7 +5982,7 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
       FROM drawing_numbers d
       JOIN part_roots r ON r.id = d.part_root_id
       ${where}
-      ORDER BY d.updated_at DESC, d.drawing_number ASC
+      ORDER BY d.drawing_number ${orderDirection}, d.id ASC
       LIMIT ?
     `
     )
@@ -6617,6 +5994,7 @@ export function searchNumberingRecords(input: NumberingSearchInput = {}) {
   const normalizedInput = {
     ...input,
     query: input.query?.trim() ?? "",
+    sortDirection: input.sortDirection ?? DEFAULT_NUMBER_SORT_DIRECTION,
     limit: clampListLimit(input.limit, 50)
   };
   const entityType = normalizedInput.entityType ?? "all";
@@ -6626,7 +6004,7 @@ export function searchNumberingRecords(input: NumberingSearchInput = {}) {
   if (entityType === "all" || entityType === "drawing_number") rows.push(...searchDrawingNumberRecords(database, normalizedInput));
   return rows
     .map(mapNumberingSearchRow)
-    .sort((a, b) => b.warningCount - a.warningCount || a.rootCode.localeCompare(b.rootCode) || a.displayCode.localeCompare(b.displayCode))
+    .sort((a, b) => compareNumberCodes(a.displayCode, b.displayCode, normalizedInput.sortDirection) || a.entityType.localeCompare(b.entityType) || a.entityId.localeCompare(b.entityId))
     .slice(0, normalizedInput.limit);
 }
 
@@ -6655,6 +6033,8 @@ export function listSeriesCodeOptions(companyId: string = "company-jenfu") {
 
 export function listDrawingModuleRecords(input: DrawingModuleListInput = {}) {
   const database = getDb();
+  const sortDirection = input.sortDirection ?? DEFAULT_NUMBER_SORT_DIRECTION;
+  const orderDirection = sortDirection === "desc" ? "DESC" : "ASC";
   const query = input.query?.trim() ?? "";
   const filters: string[] = [];
   const params: unknown[] = [];
@@ -6717,7 +6097,7 @@ export function listDrawingModuleRecords(input: DrawingModuleListInput = {}) {
       FROM drawing_numbers d
       JOIN part_roots r ON r.id = d.part_root_id
       ${where}
-      ORDER BY d.updated_at DESC, d.drawing_number ASC
+      ORDER BY d.drawing_number ${orderDirection}, d.id ASC
       LIMIT ?
     `
     )
@@ -6756,14 +6136,9 @@ function selectDrawingModuleLinkedPartsByRoot(database: SqliteDatabase, rootIds:
           WHERE l.part_number_id = p.id AND l.link_type = 'primary_manufacturing'
           ORDER BY d.drawing_number ASC
           LIMIT 1
-        ) AS primary_drawing_number,
-        sc.id AS standard_cost_id,
-        cp.profile_name AS standard_profile_name,
-        cp.cost_type AS standard_cost_type
+        ) AS primary_drawing_number
       FROM part_numbers p
       LEFT JOIN part_variant_attributes va ON va.part_number_id = p.id
-      LEFT JOIN part_standard_costs sc ON sc.part_number_id = p.id AND sc.effective_to IS NULL
-      LEFT JOIN part_cost_profiles cp ON cp.id = sc.cost_profile_id
       WHERE p.part_root_id IN (${placeholders})
       ORDER BY p.part_root_id ASC, p.sequence_no ASC, p.part_number ASC
     `
@@ -6913,23 +6288,6 @@ function normalizeNullableText(value: string | null | undefined) {
   return text ? text : null;
 }
 
-function normalizeCostType(value: PartCostType) {
-  const allowed = new Set<PartCostType>(["outsourced", "in_house", "purchase", "trial", "other"]);
-  if (!allowed.has(value)) throw new Error(`INVALID_PART_COST_TYPE: ${value}`);
-  return value;
-}
-
-function normalizeCostProfileStatus(value: PartCostProfileStatus | undefined) {
-  const status = value ?? "pending_review";
-  const allowed = new Set<PartCostProfileStatus>(["draft", "pending_review", "approved", "rejected", "retired"]);
-  if (!allowed.has(status)) throw new Error(`INVALID_PART_COST_PROFILE_STATUS: ${status}`);
-  return status;
-}
-
-function selectCostTierForQuantity(tiers: PartCostTierRecord[], quantity: number) {
-  return tiers.find((tier) => tier.minQty <= quantity && (tier.maxQty === null || tier.maxQty >= quantity)) ?? null;
-}
-
 function partHasVariantDescriptor(database: SqliteDatabase, partNumberId: string) {
   const row = database
     .prepare(
@@ -6987,6 +6345,7 @@ function selectPartModuleRows(database: SqliteDatabase, input: PartModuleListInp
     limit: clampListLimit(input.limit, 50)
   };
   const where = buildPartModuleWhere(normalizedInput);
+  const orderDirection = normalizedInput.sortDirection === "desc" ? "DESC" : "ASC";
   return database
     .prepare(
       `
@@ -7015,37 +6374,11 @@ function selectPartModuleRows(database: SqliteDatabase, input: PartModuleListInp
           FROM drawing_part_links l
           WHERE l.part_number_id = p.id
         ) AS drawing_count,
-        (
-          SELECT COUNT(*)
-          FROM part_cost_change_requests cr
-          WHERE cr.part_number_id = p.id AND cr.review_status = 'pending'
-        ) AS pending_cost_request_count,
-        sc.id AS standard_cost_id,
-        sc.cost_profile_id AS standard_cost_profile_id,
-        sc.basis_qty AS standard_basis_qty,
-        sc.standard_reason,
-        sc.effective_from AS standard_effective_from,
-        sc.effective_to AS standard_effective_to,
-        cp.profile_name AS standard_profile_name,
-        cp.cost_type AS standard_cost_type,
-        cp.currency AS standard_currency,
-        cp.uom AS standard_uom,
-        (
-          SELECT t.unit_cost
-          FROM part_cost_tiers t
-          WHERE t.cost_profile_id = sc.cost_profile_id
-            AND t.min_qty <= sc.basis_qty
-            AND (t.max_qty IS NULL OR t.max_qty >= sc.basis_qty)
-          ORDER BY t.min_qty DESC
-          LIMIT 1
-        ) AS standard_unit_cost
       FROM part_numbers p
       JOIN part_roots r ON r.id = p.part_root_id
       LEFT JOIN part_variant_attributes va ON va.part_number_id = p.id
-      LEFT JOIN part_standard_costs sc ON sc.part_number_id = p.id AND sc.effective_to IS NULL
-      LEFT JOIN part_cost_profiles cp ON cp.id = sc.cost_profile_id
       ${where.sql}
-      ORDER BY r.root_code ASC, p.sequence_no ASC, p.part_number ASC
+      ORDER BY p.part_number ${orderDirection}, p.id ASC
       LIMIT ?
     `
     )
@@ -7102,61 +6435,6 @@ function selectSameDrawingVariantsForPart(database: SqliteDatabase, partNumberId
     .all(partNumberId) as NumberingVariantRow[];
 }
 
-function selectCostProfilesForPart(database: SqliteDatabase, partNumberId: string) {
-  const profileRows = database
-    .prepare(
-      `
-      SELECT *
-      FROM part_cost_profiles
-      WHERE part_number_id = ?
-      ORDER BY
-        CASE status
-          WHEN 'approved' THEN 0
-          WHEN 'pending_review' THEN 1
-          WHEN 'draft' THEN 2
-          WHEN 'rejected' THEN 3
-          ELSE 4
-        END,
-        updated_at DESC,
-        profile_name ASC
-    `
-    )
-    .all(partNumberId) as PartCostProfileRow[];
-  if (profileRows.length === 0) return [];
-  const placeholders = profileRows.map(() => "?").join(", ");
-  const tierRows = database
-    .prepare(
-      `
-      SELECT *
-      FROM part_cost_tiers
-      WHERE cost_profile_id IN (${placeholders})
-      ORDER BY cost_profile_id ASC, min_qty ASC
-    `
-    )
-    .all(...profileRows.map((profile) => profile.id)) as PartCostTierRow[];
-  const tiersByProfile = new Map<string, PartCostTierRecord[]>();
-  for (const tier of tierRows.map(mapPartCostTier)) {
-    const list = tiersByProfile.get(tier.costProfileId) ?? [];
-    list.push(tier);
-    tiersByProfile.set(tier.costProfileId, list);
-  }
-  return profileRows.map((profile) => mapPartCostProfile(profile, tiersByProfile.get(profile.id) ?? []));
-}
-
-function selectCostChangeRequestsForPart(database: SqliteDatabase, partNumberId: string) {
-  return database
-    .prepare(
-      `
-      SELECT *
-      FROM part_cost_change_requests
-      WHERE part_number_id = ?
-      ORDER BY requested_at DESC
-      LIMIT 50
-    `
-    )
-    .all(partNumberId) as PartCostChangeRequestRow[];
-}
-
 export function getPartModuleDetail(partNumber: string): PartModuleDetailRecord | null {
   const database = getDb();
   const row = selectPartModuleRows(database, { query: partNumber, limit: 100 }).find((item) => item.part_number === partNumber.trim());
@@ -7164,9 +6442,7 @@ export function getPartModuleDetail(partNumber: string): PartModuleDetailRecord 
   return {
     ...mapPartModuleListRow(row),
     linkedDrawings: selectLinkedDrawingsForPart(database, row.id).map(mapNumberingLink),
-    sameDrawingVariants: selectSameDrawingVariantsForPart(database, row.id).map(mapNumberingVariant),
-    costProfiles: selectCostProfilesForPart(database, row.id),
-    costChangeRequests: selectCostChangeRequestsForPart(database, row.id).map(mapPartCostChangeRequest)
+    sameDrawingVariants: selectSameDrawingVariantsForPart(database, row.id).map(mapNumberingVariant)
   };
 }
 
@@ -7234,250 +6510,6 @@ export function upsertPartVariantAttributes(input: UpsertPartVariantAttributesIn
       actorId: input.updatedBy,
       action: "numbering.part_variant.upsert",
       detail: { partNumber: partRow.part_number, ...values }
-    });
-    return getPartModuleDetail(partRow.part_number);
-  })();
-}
-
-export function createPartCostProfile(input: CreatePartCostProfileInput) {
-  const database = getDb();
-  return database.transaction(() => {
-    const partRow = selectPartNumberByNumber(database, input.partNumber.trim());
-    if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
-    const tiers = normalizePartCostTiers(input.tiers);
-    const now = new Date().toISOString();
-    const profileId = crypto.randomUUID();
-    const status = normalizeCostProfileStatus(input.status);
-    database
-      .prepare(
-        `
-        INSERT INTO part_cost_profiles (
-          id, part_number_id, cost_type, profile_name, currency, uom, supplier_name, process_name, cost_basis, status, effective_from, effective_to, created_by, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `
-      )
-      .run(
-        profileId,
-        partRow.id,
-        normalizeCostType(input.costType),
-        input.profileName.trim(),
-        input.currency?.trim() || "TWD",
-        input.uom?.trim() || "pcs",
-        normalizeNullableText(input.supplierName),
-        normalizeNullableText(input.processName),
-        normalizeNullableText(input.costBasis),
-        status,
-        normalizeNullableText(input.effectiveFrom),
-        normalizeNullableText(input.effectiveTo),
-        input.createdBy ?? null,
-        now,
-        now
-      );
-    tiers.forEach((tier) => {
-      database
-        .prepare(
-          `
-          INSERT INTO part_cost_tiers (id, cost_profile_id, min_qty, max_qty, unit_cost, setup_cost, lead_time_days, note, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `
-        )
-        .run(
-          crypto.randomUUID(),
-          profileId,
-          tier.minQty,
-          tier.maxQty,
-          tier.unitCost,
-          tier.setupCost,
-          tier.leadTimeDays,
-          normalizeNullableText(tier.note),
-          now,
-          now
-        );
-    });
-    database
-      .prepare(
-        `
-        INSERT INTO part_cost_change_requests (
-          id, part_number_id, proposed_cost_profile_id, request_type, change_reason, review_status, requested_by, requested_at
-        ) VALUES (?, ?, ?, 'set_standard', ?, 'pending', ?, ?)
-      `
-      )
-      .run(crypto.randomUUID(), partRow.id, profileId, "新增成本設定檔，待主管確認是否列為標準成本。", input.createdBy ?? null, now);
-    insertAudit(database, {
-      actorId: input.createdBy,
-      action: "numbering.part_cost_profile.create",
-      detail: { partNumber: partRow.part_number, costProfileId: profileId, status, tierCount: tiers.length }
-    });
-    return getPartModuleDetail(partRow.part_number);
-  })();
-}
-
-function selectPartCostChangeRequestById(database: SqliteDatabase, requestId: string) {
-  return database.prepare("SELECT * FROM part_cost_change_requests WHERE id = ?").get(requestId) as PartCostChangeRequestRow | undefined;
-}
-
-function selectPartCostProfileById(database: SqliteDatabase, profileId: string) {
-  return database.prepare("SELECT * FROM part_cost_profiles WHERE id = ?").get(profileId) as PartCostProfileRow | undefined;
-}
-
-function selectPartCostTiersByProfileId(database: SqliteDatabase, profileId: string) {
-  return database
-    .prepare(
-      `
-      SELECT *
-      FROM part_cost_tiers
-      WHERE cost_profile_id = ?
-      ORDER BY min_qty ASC
-    `
-    )
-    .all(profileId)
-    .map((row) => mapPartCostTier(row as PartCostTierRow));
-}
-
-function assertCostProfileEffective(profile: PartCostProfileRow, asOf: string) {
-  if (profile.effective_from && profile.effective_from > asOf) throw new Error("PART_COST_PROFILE_NOT_EFFECTIVE_YET");
-  if (profile.effective_to && profile.effective_to < asOf) throw new Error("PART_COST_PROFILE_EXPIRED");
-}
-
-function buildPartCostResolution(profile: PartCostProfileRow, tier: PartCostTierRecord, quantity: number): PartCostResolutionRecord {
-  return {
-    profileId: profile.id,
-    partNumberId: profile.part_number_id,
-    costType: profile.cost_type,
-    profileName: profile.profile_name,
-    currency: profile.currency,
-    uom: profile.uom,
-    quantity,
-    unitCost: tier.unitCost,
-    setupCost: tier.setupCost,
-    extendedCost: tier.unitCost * quantity + tier.setupCost,
-    tier
-  };
-}
-
-export function resolvePartCost(input: ResolvePartCostInput): PartCostResolutionRecord {
-  const database = getDb();
-  const partRow = selectPartNumberByNumber(database, input.partNumber.trim());
-  if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
-  const quantity = normalizePositiveInteger(input.quantity, 1, "INVALID_PART_COST_QUANTITY");
-  const asOf = normalizeNullableText(input.asOf) ?? new Date().toISOString();
-
-  let profile: PartCostProfileRow | undefined;
-  if (input.costType) {
-    const costType = normalizeCostType(input.costType);
-    profile = database
-      .prepare(
-        `
-        SELECT *
-        FROM part_cost_profiles
-        WHERE part_number_id = ?
-          AND cost_type = ?
-          AND status = 'approved'
-          AND (effective_from IS NULL OR effective_from <= ?)
-          AND (effective_to IS NULL OR effective_to >= ?)
-        ORDER BY updated_at DESC, created_at DESC
-        LIMIT 1
-      `
-      )
-      .get(partRow.id, costType, asOf, asOf) as PartCostProfileRow | undefined;
-    if (!profile) throw new Error("NO_APPROVED_PART_COST_PROFILE");
-  } else {
-    const standard = database
-      .prepare(
-        `
-        SELECT cp.*
-        FROM part_standard_costs sc
-        JOIN part_cost_profiles cp ON cp.id = sc.cost_profile_id
-        WHERE sc.part_number_id = ?
-          AND sc.effective_to IS NULL
-          AND cp.status = 'approved'
-          AND (sc.effective_from IS NULL OR sc.effective_from <= ?)
-          AND (cp.effective_from IS NULL OR cp.effective_from <= ?)
-          AND (cp.effective_to IS NULL OR cp.effective_to >= ?)
-        ORDER BY sc.effective_from DESC, sc.created_at DESC
-        LIMIT 1
-      `
-      )
-      .get(partRow.id, asOf, asOf, asOf) as PartCostProfileRow | undefined;
-    profile = standard;
-    if (!profile) throw new Error("NO_APPROVED_STANDARD_COST");
-  }
-
-  assertCostProfileEffective(profile, asOf);
-  const tiers = selectPartCostTiersByProfileId(database, profile.id);
-  const tier = selectCostTierForQuantity(tiers, quantity);
-  if (!tier) throw new Error("NO_PART_COST_TIER_FOR_QUANTITY");
-  return buildPartCostResolution(profile, tier, quantity);
-}
-
-export function decidePartCostChangeRequest(input: DecidePartCostChangeRequestInput) {
-  const database = getDb();
-  return database.transaction(() => {
-    const partRow = selectPartNumberByNumber(database, input.partNumber.trim());
-    if (!partRow) throw new Error(`PART_NUMBER_NOT_FOUND: ${input.partNumber}`);
-    const request = selectPartCostChangeRequestById(database, input.requestId);
-    if (!request || request.part_number_id !== partRow.id) throw new Error(`PART_COST_CHANGE_REQUEST_NOT_FOUND: ${input.requestId}`);
-    if (request.review_status !== "pending") throw new Error(`PART_COST_CHANGE_REQUEST_ALREADY_DECIDED: ${request.review_status}`);
-    const now = new Date().toISOString();
-    const decisionStatus: PartCostChangeRequestStatus = input.decision === "approve" ? "approved" : "rejected";
-    database
-      .prepare(
-        `
-        UPDATE part_cost_change_requests
-        SET review_status = ?, reviewed_by = ?, reviewed_at = ?, review_comment = ?
-        WHERE id = ?
-      `
-      )
-      .run(decisionStatus, input.reviewedBy ?? null, now, normalizeNullableText(input.reviewComment), request.id);
-
-    const profile = request.proposed_cost_profile_id ? selectPartCostProfileById(database, request.proposed_cost_profile_id) : undefined;
-    if (profile && profile.part_number_id !== partRow.id) throw new Error("PART_COST_PROFILE_PART_MISMATCH");
-
-    if (input.decision === "reject") {
-      if (profile) {
-        database.prepare("UPDATE part_cost_profiles SET status = 'rejected', updated_at = ? WHERE id = ? AND status = 'pending_review'").run(now, profile.id);
-      }
-      insertAudit(database, {
-        actorId: input.reviewedBy,
-        action: "numbering.part_cost_change.reject",
-        detail: { partNumber: partRow.part_number, requestId: request.id, costProfileId: profile?.id ?? null, reviewComment: normalizeNullableText(input.reviewComment) }
-      });
-      return getPartModuleDetail(partRow.part_number);
-    }
-
-    if (!profile) throw new Error("PART_COST_CHANGE_REQUEST_PROFILE_REQUIRED");
-    database.prepare("UPDATE part_cost_profiles SET status = 'approved', approved_by = ?, updated_at = ? WHERE id = ?").run(input.reviewedBy ?? null, now, profile.id);
-    if (request.request_type === "set_standard") {
-      const basisQty = normalizePositiveInteger(input.basisQty, 1, "INVALID_PART_STANDARD_COST_BASIS_QTY");
-      const tiers = selectPartCostTiersByProfileId(database, profile.id);
-      if (!selectCostTierForQuantity(tiers, basisQty)) throw new Error("NO_PART_COST_TIER_FOR_STANDARD_BASIS_QTY");
-      database.prepare("UPDATE part_standard_costs SET effective_to = ?, updated_at = ? WHERE part_number_id = ? AND effective_to IS NULL").run(now, now, partRow.id);
-      database
-        .prepare(
-          `
-          INSERT INTO part_standard_costs (
-            id, part_number_id, cost_profile_id, basis_qty, standard_reason, selected_by, approved_by, effective_from, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `
-        )
-        .run(
-          crypto.randomUUID(),
-          partRow.id,
-          profile.id,
-          basisQty,
-          normalizeNullableText(input.reviewComment) ?? request.change_reason,
-          input.reviewedBy ?? null,
-          input.reviewedBy ?? null,
-          now,
-          now,
-          now
-        );
-    }
-
-    insertAudit(database, {
-      actorId: input.reviewedBy,
-      action: "numbering.part_cost_change.approve",
-      detail: { partNumber: partRow.part_number, requestId: request.id, costProfileId: profile.id, requestType: request.request_type }
     });
     return getPartModuleDetail(partRow.part_number);
   })();
@@ -7805,10 +6837,6 @@ export function deleteDraftNumberingRecord(input: DeleteDraftNumberingRecordInpu
     database.prepare("DELETE FROM same_drawing_variants WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId) OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
     database.prepare("DELETE FROM drawing_part_links WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId) OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
     database.prepare("DELETE FROM part_variant_attributes WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
-    database.prepare("DELETE FROM part_standard_costs WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
-    database.prepare("DELETE FROM part_cost_change_requests WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
-    database.prepare("DELETE FROM part_cost_tiers WHERE cost_profile_id IN (SELECT id FROM part_cost_profiles WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId))").run(params);
-    database.prepare("DELETE FROM part_cost_profiles WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
     database.prepare("DELETE FROM drawing_numbers WHERE part_root_id = @rootId").run(params);
     database.prepare("DELETE FROM part_numbers WHERE part_root_id = @rootId").run(params);
     database.prepare("DELETE FROM part_roots WHERE id = @rootId").run(params);

@@ -63,7 +63,7 @@ for (const context of [
 }
 
 for (const label of [
-  "號碼效力",
+  "編號處理",
   "資料狀態",
   "申請狀態",
   "審核狀態",
@@ -89,7 +89,6 @@ const requiredScopes = {
   bomWorkbench: "src/app/bom/workbench/page.tsx",
   handoffWorkbench: "src/app/handoff/page.tsx",
   transferPackageWorkbench: "src/components/transfer-package-workbench.tsx",
-  importCenter: "src/app/numbering/imports/page.tsx",
   reportCenter: "src/app/numbering/reports/page.tsx",
   taskCenter: "src/app/numbering/tasks/page.tsx",
   impactWorkbench: "src/app/numbering/impact/page.tsx",
@@ -163,7 +162,7 @@ const rawStatusHeaders = tsxFiles().filter((file) => {
 });
 record("No plain status table header remains", rawStatusHeaders.length === 0, rawStatusHeaders.map((file) => path.relative(root, file)).join(", "));
 
-const partsPage = read("src/app/parts/page.tsx");
+const partsPage = read("src/components/part-detail-content.tsx");
 const drawingsPage = read("src/app/numbering/drawings/page.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
 record("Parts mixed column names PDM axes", partsPage.includes('label="資料狀態 / 提醒"') && partsPage.includes('data-label="資料狀態 / 提醒"'));
@@ -179,8 +178,8 @@ record(
 );
 
 const numberState = read("src/components/number-state-workspace.tsx");
-record("Number state tabs use 保留號 instead of first-level 草稿 label", numberState.includes("料號總表") && numberState.includes("保留號"));
-record("Number state lifecycle uses application vocabulary", numberState.includes('draft: "編輯中"') && numberState.includes('published: "已轉正式資料"'));
+record("Number state tabs use 編號申請 instead of retired number-effectiveness label", numberState.includes("料號總表") && numberState.includes("編號申請") && !numberState.includes("保留號"));
+record("Number state lifecycle uses application vocabulary", numberState.includes('draft: "編輯中"') && numberState.includes('published: "已發布"'));
 
 const settingsPage = read("src/app/settings/page.tsx");
 record(
@@ -190,7 +189,8 @@ record(
 );
 record(
   "Unavailable secret management stays visible but disabled",
-  settingsPage.includes('status={secretManagementAvailable ? settingWorkQueueLabel(solidWorksStatus.workQueueState) : "未開放"}') &&
+  settingsPage.includes('status={secretManagementAvailable ? settingSolidWorksStatusLabel(solidWorksStatus) : "未開放"}') &&
+    settingsPage.includes("disabled={!available}") &&
     settingsPage.includes("disabled={busy || !available || !secretValue.trim()}") &&
     settingsPage.includes("title={unavailableTitle}")
 );

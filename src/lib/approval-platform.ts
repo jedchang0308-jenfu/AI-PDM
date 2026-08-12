@@ -10,8 +10,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { decideDrawingRevisionPackageSupplementAsync } from "@/lib/drawing-revision-packages-async";
 import {
   decideNumberingApprovalBatchAsync,
-  decideNumberingApprovalAsync,
-  decidePartCostChangeRequestAsync
+  decideNumberingApprovalAsync
 } from "@/lib/numbering-async";
 import { applyDrawingRevisionReviewAction, type DrawingRevisionReviewAction } from "@/lib/pdm-change-control";
 import { approveSubmissionObsoleteReviewAsync, rejectSubmissionObsoleteReviewAsync } from "@/lib/submission-lifecycle-async";
@@ -45,8 +44,6 @@ export type DecideApprovalPlatformInput = {
   comment?: string | null;
   actor: ApprovalPlatformActor;
   companyId?: string;
-  partNumber?: string;
-  basisQty?: number;
 };
 
 type ApprovalHandler = {
@@ -242,25 +239,6 @@ async function decideLegacyApprovalWithResult(
     const detail = await repository().getRequestDetail(input.requestId);
     if (!detail) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
     return { detail, legacyResult };
-  }
-
-  if (source === "legacy_part_cost") {
-    const detail = await repository().getRequestDetail(input.requestId);
-    if (!detail) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
-    const partNumber = input.partNumber?.trim() || detail.targetSummary.split("/")[0]?.trim();
-    if (!partNumber) throw new Error("APPROVAL_PART_COST_TARGET_NOT_FOUND");
-    const legacyResult = await decidePartCostChangeRequestAsync({
-      companyId: input.companyId,
-      partNumber,
-      requestId: legacyId,
-      decision: input.decision === "approved" ? "approve" : "reject",
-      reviewedBy: input.actor.id,
-      reviewComment: input.comment ?? null,
-      basisQty: input.basisQty
-    });
-    const updated = await repository().getRequestDetail(input.requestId);
-    if (!updated) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
-    return { detail: updated, legacyResult };
   }
 
   if (source === "legacy_drawing_package") {
@@ -495,32 +473,6 @@ export async function decideApprovalPlatformLegacyBomAsync(input: {
       input.reviewId
     )
   ).legacyResult;
-}
-
-export async function decideApprovalPlatformLegacyPartCostAsync(input: {
-  requestId: string;
-  decision: Exclude<ApprovalPlatformDecision, "needs_info">;
-  comment?: string | null;
-  actor: ApprovalPlatformActor;
-  companyId?: string;
-  partNumber?: string;
-  basisQty?: number;
-}) {
-  return (
-    await decideLegacyApprovalWithResult(
-      {
-        requestId: encodeLegacyApprovalId("legacy_part_cost", input.requestId),
-        decision: input.decision,
-        comment: input.comment,
-        actor: input.actor,
-        companyId: input.companyId,
-        partNumber: input.partNumber,
-        basisQty: input.basisQty
-      },
-      "legacy_part_cost",
-      input.requestId
-    )
-  ).legacyResult as Awaited<ReturnType<typeof decidePartCostChangeRequestAsync>>;
 }
 
 export async function decideApprovalPlatformLegacyDrawingPackageSupplementAsync(input: {

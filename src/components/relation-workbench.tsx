@@ -2,13 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Grid2X2, ListTree, RefreshCcw, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Grid2X2, ListTree, RefreshCcw, Search, X } from "lucide-react";
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import { HumanStatusFilterSelect } from "@/components/human-status-filter";
 import { ConfirmDialog, NumberStateOwnerCreateAction, WorkspaceDrawer, type NumberingDraftWorkspace, type WorkspaceAction } from "@/components/number-state-workspace";
 import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { SearchHighlight } from "@/components/search-highlight";
+import { NumberSortHeader } from "@/components/number-sort-header";
+import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 import { usePdmWorkbenchController, type PdmWorkbenchLocationState } from "@/components/use-pdm-workbench-controller";
 import type { HumanStatusFilter, HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
@@ -23,6 +25,7 @@ import type {
   RelationWorkbenchView
 } from "@/lib/relation-workbench";
 import type { NumberingRecordStatus, NumberingSearchEntityType } from "@/lib/repositories/numbering-repository";
+import { DEFAULT_NUMBER_SORT_DIRECTION, type NumberSortDirection } from "@/lib/number-sort";
 
 type RelationQueryState = {
   view: RelationWorkbenchView;
@@ -32,6 +35,7 @@ type RelationQueryState = {
   recordStatus: "" | NumberingRecordStatus;
   humanStatus: HumanStatusFilter;
   includeHistory: boolean;
+  sortDirection: NumberSortDirection;
 };
 type RelationViewMode = "tree" | "matrix";
 type ImpactAnalysis = {
@@ -71,8 +75,8 @@ type FeatureStatus = { lifecycleV2?: { enabled?: boolean } };
 type ProductionSliceStatus = { configured?: boolean; unopenedMessage?: string };
 type ApiBody = { error?: string | { code?: string; message?: string }; message?: string };
 
-const initialQuery: RelationQueryState = { view: "all", query: "", seriesCode: "", entityType: "all", recordStatus: "", humanStatus: "all", includeHistory: false };
-const defaultUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
+const initialQuery: RelationQueryState = { view: "all", query: "", seriesCode: "", entityType: "all", recordStatus: "", humanStatus: "all", includeHistory: false, sortDirection: DEFAULT_NUMBER_SORT_DIRECTION };
+const defaultUnopenedMessage = "此功能未納入本次編號建立 production slice。";
 
 function readLocation(canonicalize = false): PdmWorkbenchLocationState<RelationQueryState> {
   const params = new URLSearchParams(window.location.search);
@@ -95,7 +99,8 @@ function readLocation(canonicalize = false): PdmWorkbenchLocationState<RelationQ
       entityType: (params.get("entityType")?.trim() ?? "all") as NumberingSearchEntityType,
       recordStatus: (params.get("recordStatus")?.trim() ?? "") as "" | NumberingRecordStatus,
       humanStatus: (params.get("humanStatus")?.trim() ?? "all") as HumanStatusFilter,
-      includeHistory: params.get("history") === "include"
+      includeHistory: params.get("history") === "include",
+      sortDirection: params.get("sortDirection") === "desc" ? "desc" : DEFAULT_NUMBER_SORT_DIRECTION
     },
     detailKey,
     legacyDetail: rawDetail && !rawDetail.includes(":") ? rawDetail : null
@@ -112,6 +117,7 @@ function writeLocation(state: PdmWorkbenchLocationState<RelationQueryState>, mod
   optional("entityType", state.query.entityType === "all" ? "" : state.query.entityType);
   optional("recordStatus", state.query.recordStatus);
   optional("humanStatus", state.query.humanStatus === "all" ? "" : state.query.humanStatus);
+  optional("sortDirection", state.query.sortDirection === DEFAULT_NUMBER_SORT_DIRECTION ? "" : state.query.sortDirection);
   state.query.includeHistory ? params.set("history", "include") : params.delete("history");
   optional("detail", state.detailKey ?? "");
   window.history[mode === "push" ? "pushState" : "replaceState"](null, "", `${window.location.pathname}?${params.toString()}`);
@@ -119,6 +125,7 @@ function writeLocation(state: PdmWorkbenchLocationState<RelationQueryState>, mod
 
 function listUrl(query: RelationQueryState, cursor: string | null) {
   const params = new URLSearchParams({ projection: "workbench_v1", view: query.view, limit: "60", history: query.includeHistory ? "include" : "exclude", entityType: query.entityType });
+  params.set("sortDirection", query.sortDirection);
   if (query.query.trim()) params.set("query", query.query.trim());
   if (query.seriesCode) params.set("seriesCode", query.seriesCode);
   if (query.recordStatus) params.set("recordStatus", query.recordStatus);
@@ -291,11 +298,11 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
 
   return (
     <>
-      <div className="topbar"><div><h1>圖料工作台</h1><p>正式關係與進行中的變更集中在同一個主根視圖。</p></div><div className="number-state-owner-actions"><button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading}><RefreshCcw size={16} />重新整理</button><NumberStateOwnerCreateAction surface="search" seriesCodeOptions={seriesOptions} /></div></div>
+      <div className="topbar pdm-workbench-topbar"><div><h1>圖料工作台</h1><p>正式關係與進行中的變更集中在同一個主根視圖。</p></div><div className="number-state-owner-actions"><button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading}><RefreshCcw size={16} />重新整理</button><NumberStateOwnerCreateAction surface="search" seriesCodeOptions={seriesOptions} /></div></div>
       <div className="sr-only" aria-live="polite">{notice || error}</div>
       {notice ? <div className="number-state-message is-success" role="status"><span>{notice}</span><button className="icon-button" type="button" onClick={() => setNotice("")} aria-label="關閉通知"><X size={16} /></button></div> : null}
       {error ? <div className="number-state-message is-error" role="alert"><span>{error}</span><button className="secondary-button" type="button" onClick={() => void refresh()}>重新載入</button><button className="icon-button" type="button" onClick={() => setError("")} aria-label="關閉錯誤"><X size={16} /></button></div> : null}
-      <section className="panel drawing-workbench-toolbar">
+      <section className="panel pdm-workbench-toolbar">
         <div className="drawing-workbench-filter-grid">
           <label className="drawing-workbench-search"><span>搜尋</span><div><Search size={16} /><input value={query.query} onChange={(event) => updateQuery({ query: event.target.value })} placeholder="主根號、料號、圖號、名稱" /></div></label>
           <label><span>範圍</span><select value={query.view} onChange={(event) => updateQuery({ view: event.target.value as RelationWorkbenchView })}><option value="all">全部</option><option value="mine">我的待處理</option><option value="work">工作中</option></select></label>
@@ -304,19 +311,30 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
           <label><span>類型</span><select value={query.entityType} onChange={(event) => updateQuery({ entityType: event.target.value as NumberingSearchEntityType })}><option value="all">全部</option><option value="part_root">料件主根</option><option value="part_number">料號</option><option value="drawing_number">圖號</option></select></label>
           <label><span>資料狀態</span><select value={query.recordStatus} onChange={(event) => updateQuery({ recordStatus: event.target.value as "" | NumberingRecordStatus })}><option value="">全部狀態</option>{recordOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
         </div>
-        <div className="pdm-relation-view-switch" role="tablist" aria-label="圖料關係顯示模式"><button className={viewMode === "tree" ? "active" : undefined} type="button" role="tab" aria-selected={viewMode === "tree"} onClick={() => setViewMode("tree")}><ListTree size={16} />關係樹</button><button className={viewMode === "matrix" ? "active" : undefined} type="button" role="tab" aria-selected={viewMode === "matrix"} onClick={() => setViewMode("matrix")}><Grid2X2 size={16} />矩陣</button></div>
-        <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={query.includeHistory} onChange={(event) => updateQuery({ includeHistory: event.target.checked })} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
+        <div className="pdm-workbench-toolbar-footer">
+          <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={query.includeHistory} onChange={(event) => updateQuery({ includeHistory: event.target.checked })} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
+          <div className="pdm-workbench-toolbar-view-actions">
+            <div className="pdm-relation-view-switch" role="tablist" aria-label="圖料關係顯示模式"><button className={viewMode === "tree" ? "active" : undefined} type="button" role="tab" aria-selected={viewMode === "tree"} onClick={() => setViewMode("tree")}><ListTree size={16} aria-hidden="true" />關係樹</button><button className={viewMode === "matrix" ? "active" : undefined} type="button" role="tab" aria-selected={viewMode === "matrix"} onClick={() => setViewMode("matrix")}><Grid2X2 size={16} aria-hidden="true" />矩陣</button></div>
+          </div>
+        </div>
       </section>
       <section className="panel pdm-master-table-panel">
         {loading && rows.length === 0 ? <div className="empty">正在載入圖料工作...</div> : rows.length === 0 ? <div className="empty"><strong>目前沒有符合條件的圖料工作</strong><p>請調整搜尋或篩選條件，或建立新的圖料工作。</p></div> : (
-          <div ref={listRef} className="pdm-relation-scroll" role="region" aria-label="圖料工作清單" tabIndex={0} onKeyDown={keyboard.handleKeyDown} aria-keyshortcuts={keyboard.shortcuts}>
-            <div className="pdm-relation-list">{rows.map((row) => <RelationRowCard row={row} query={query.query} selected={row.rowKey === selectedKey} expanded={expanded.has(row.rowKey)} viewMode={viewMode} onToggle={() => toggleExpanded(row.rowKey)} onOpen={() => void openDetail(row.rowKey)} onOpenTarget={(target) => openRootTarget(row, target)} key={row.rowKey} />)}</div>
-          </div>
+          <>
+            <div className="pdm-relation-list-header" role="row">
+              <div role="columnheader"><NumberSortHeader label="編號" direction={query.sortDirection} onToggle={() => updateQuery({ sortDirection: query.sortDirection === "asc" ? "desc" : "asc" })} /></div>
+              <span>品名</span>
+              <span>工作狀態</span>
+            </div>
+            <div ref={listRef} className="pdm-relation-scroll" role="region" aria-label="圖料工作清單" tabIndex={0} onKeyDown={keyboard.handleKeyDown} aria-keyshortcuts={keyboard.shortcuts}>
+              <div className="pdm-relation-list">{rows.map((row) => <RelationRowCard row={row} query={query.query} selected={row.rowKey === selectedKey} expanded={expanded.has(row.rowKey)} viewMode={viewMode} onToggle={() => toggleExpanded(row.rowKey)} onOpen={() => void openDetail(row.rowKey)} onOpenTarget={(target) => openRootTarget(row, target)} key={row.rowKey} />)}</div>
+            </div>
+          </>
         )}
-        {(pageIndex > 0 || nextCursor) ? <div className="number-state-pagination"><button className="secondary-button" type="button" disabled={pageIndex === 0 || loading} onClick={goPrevious}><ChevronLeft size={16} />上一頁</button><span>第 {pageIndex + 1} 頁</span><button className="secondary-button" type="button" disabled={!nextCursor || loading} onClick={goNext}>下一頁<ChevronRight size={16} /></button></div> : null}
+        <PdmWorkbenchPagination pageIndex={pageIndex} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
       </section>
       {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
-      {detail?.candidate ? <WorkspaceDrawer workspace={detail.candidate as NumberingDraftWorkspace} busy={workspaceBusy} editing={editing} onEdit={() => setEditing(true)} onCancelEdit={() => setEditing(false)} onUpdate={(payload) => void updateWorkspace(payload)} onSubmit={() => setConfirmAction("submit")} onWithdraw={() => setConfirmAction("withdraw")} onPublish={() => setConfirmAction("publish")} onCancel={() => setConfirmAction("cancel")} formalActionsUnopened={productionSliceEnforced} unopenedMessage={unopenedMessage} canCreateDrawingRevision={false} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onV2WorkspaceChange={acceptWorkspace} onV2Error={setError} onV2Notice={setNotice} seriesCodeOptions={seriesOptions} width={drawerWidth} onStartResize={startDrawerResize} keepOpenSelector="[data-relation-workbench-row='true']" presentation={{ entityLabel: "圖料變更", title: detail.row.displayCode, sourceContext: "relation_workbench", cancelLabel: "取消圖料變更", cancelTitle: "取消申請並釋出本次候選圖料號" }} onClose={closeDetail} /> : null}
+      {detail?.candidate ? <WorkspaceDrawer workspace={detail.candidate as NumberingDraftWorkspace} busy={workspaceBusy} editing={editing} onEdit={() => setEditing(true)} onCancelEdit={() => setEditing(false)} onUpdate={(payload) => void updateWorkspace(payload)} onSubmit={() => setConfirmAction("submit")} onWithdraw={() => setConfirmAction("withdraw")} onPublish={() => setConfirmAction("publish")} onCancel={() => setConfirmAction("cancel")} formalActionsUnopened={productionSliceEnforced} unopenedMessage={unopenedMessage} canCreateDrawingRevision={false} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onV2WorkspaceChange={acceptWorkspace} onV2Error={setError} onV2Notice={setNotice} seriesCodeOptions={seriesOptions} width={drawerWidth} onStartResize={startDrawerResize} keepOpenSelector="[data-relation-workbench-row='true']" presentation={{ entityLabel: "圖料變更", title: detail.row.displayCode, sourceContext: "relation_workbench", cancelLabel: "取消圖料變更", cancelTitle: "取消圖料申請" }} onClose={closeDetail} /> : null}
       {detail?.candidate && confirmAction ? <ConfirmDialog action={confirmAction} workspace={detail.candidate as NumberingDraftWorkspace} busy={workspaceBusy} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onClose={() => setConfirmAction(null)} onConfirm={() => void runWorkspaceAction(confirmAction)} /> : null}
       {detail?.rootDetail && detailTarget ? renderRootDetail({ detail: detail.rootDetail, detailTarget, activeChanges: detail.row.activeChanges, onOpenChange: (change) => void openDetail(change.rowKey), impact, busy: operationBusy, width: drawerWidth, onAnalyzeImpact: (drawingNumber) => void analyzeImpact(drawingNumber), onRelationChange: maintainRelation, onChanged: refresh, onCanonicalOwnerProjection: () => undefined, onStartResize: startDrawerResize, onClose: closeDetail, returnTo: window.location.pathname + window.location.search }) : null}
     </>
@@ -327,6 +345,7 @@ function RelationRowCard({ row, query, selected, expanded, viewMode, onToggle, o
   row: RelationWorkbenchRow; query: string; selected: boolean; expanded: boolean; viewMode: RelationViewMode;
   onToggle: () => void; onOpen: () => void; onOpenTarget: (target: NumberingSearchDetailTarget) => void;
 }) {
+  const visibleBlockers = row.blockers.filter((blocker) => blocker.code !== "drawing_without_part");
   return (
     <article className={`pdm-relation-root${selected ? " selected" : ""}`} data-relation-workbench-row="true" data-search-row="true">
       <header className="pdm-relation-root-header pdm-relation-workbench-root-header">
@@ -340,45 +359,66 @@ function RelationRowCard({ row, query, selected, expanded, viewMode, onToggle, o
           <span className={`pdm-relation-health ${row.relationshipHealth === "complete" ? "ok" : row.relationshipHealth === "blocked" ? "blocked" : row.relationshipHealth === "draft" ? "info" : "warning"}`}>{row.relationshipLabel}</span>
         </div>
       </header>
-      {expanded ? <div className="pdm-relation-root-body">{viewMode === "tree" ? <RelationTree row={row} query={query} onOpenTarget={onOpenTarget} /> : <RelationMatrix row={row} query={query} onOpenTarget={onOpenTarget} />}{row.blockers.length > 0 ? <div className="pdm-relation-blocker-list">{row.blockers.map((blocker) => <span key={`${blocker.code}:${blocker.targetId ?? "root"}`}>{blocker.message}</span>)}</div> : null}</div> : null}
+      {expanded ? <div className="pdm-relation-root-body">{viewMode === "tree" ? <RelationTree row={row} query={query} onOpenTarget={onOpenTarget} /> : <RelationMatrix row={row} query={query} onOpenTarget={onOpenTarget} />}{visibleBlockers.length > 0 ? <div className="pdm-relation-blocker-list">{visibleBlockers.map((blocker) => <span key={`${blocker.code}:${blocker.targetId ?? "root"}`}>{blocker.message}</span>)}</div> : null}</div> : null}
     </article>
   );
 }
 
 function RelationTree({ row, query, onOpenTarget }: { row: RelationWorkbenchRow; query: string; onOpenTarget: (target: NumberingSearchDetailTarget) => void }) {
-  if (row.rowKind === "candidate_root") return <div className="pdm-relation-empty-line">候選關係尚不可作為正式製造依據；請開啟變更工作完成下一步。</div>;
+  if (row.rowKind === "candidate_root") return <div className="pdm-relation-empty-line">目前關係尚不可作為製造依據；請開啟變更工作完成下一步。</div>;
+  const linkedPartNumbers = new Set(row.drawings.flatMap((drawing) => drawing.linkedPartNumbers));
+  const orphanParts = row.parts.filter((part) => !linkedPartNumbers.has(part.partNumber));
   return (
     <div className="pdm-relation-tree">
-      <section className="pdm-relation-tree-section">
-        <strong className="pdm-relation-tree-label">圖號</strong>
+      <section className="pdm-relation-tree-section pdm-relation-tree-section-unlabeled">
         <div className="pdm-relation-drawing-list">
-          {row.drawings.map((drawing) => (
-            <button
-              className={`pdm-relation-drawing-card ${drawing.isReferenceOnly ? "reference" : "manufacturing"}`}
-              type="button"
-              onClick={() => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: row.displayCode, drawingNumber: drawing.drawingNumber }))}
-              key={drawing.id}
-            >
-              <span><SearchHighlight value={drawing.drawingNumber} query={query} /></span>
-            </button>
-          ))}
+          {row.drawings.map((drawing) => {
+            const linkedParts = row.parts.filter((part) => drawing.linkedPartNumbers.includes(part.partNumber));
+            return (
+              <div className={`pdm-relation-drawing-group ${drawing.isReferenceOnly ? "reference" : "manufacturing"}`} key={drawing.id}>
+                <button
+                  className={`pdm-relation-drawing-card ${drawing.isReferenceOnly ? "reference" : "manufacturing"}`}
+                  type="button"
+                  onClick={() => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: row.displayCode, drawingNumber: drawing.drawingNumber }))}
+                >
+                  <span><SearchHighlight value={drawing.drawingNumber} query={query} /></span>
+                </button>
+                {linkedParts.length > 0 ? (
+                  <div className="pdm-relation-drawing-children" aria-label={`${drawing.drawingNumber} 關聯料號`}>
+                    {linkedParts.map((part) => (
+                      <button
+                        className={`pdm-relation-part-chip${part.hasManufacturingDrawing ? "" : " missing"}${part.hasMasterDataGap ? " pdm-missing-field" : ""}`}
+                        type="button"
+                        onClick={() => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: row.displayCode, partNumber: part.partNumber }))}
+                        key={part.id}
+                      >
+                        <span><SearchHighlight value={part.partNumber} query={query} /></span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </section>
-      <section className="pdm-relation-tree-section">
-        <strong className="pdm-relation-tree-label">料號</strong>
-        <div className="pdm-relation-part-list">
-          {row.parts.map((part) => (
-            <button
-              className={`pdm-relation-part-chip${part.hasManufacturingDrawing ? "" : " missing"}`}
-              type="button"
-              onClick={() => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: row.displayCode, partNumber: part.partNumber }))}
-              key={part.id}
-            >
-              <span><SearchHighlight value={part.partNumber} query={query} /></span>
-            </button>
-          ))}
-        </div>
-      </section>
+      {orphanParts.length > 0 ? (
+        <section className="pdm-relation-tree-section pdm-relation-orphan-section">
+          <strong className="pdm-relation-tree-label">料號</strong>
+          <div className="pdm-relation-part-list">
+            {orphanParts.map((part) => (
+              <button
+                className={`pdm-relation-part-chip${part.hasManufacturingDrawing ? "" : " missing"}${part.hasMasterDataGap ? " pdm-missing-field" : ""}`}
+                type="button"
+                onClick={() => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: row.displayCode, partNumber: part.partNumber }))}
+                key={part.id}
+              >
+                <span><SearchHighlight value={part.partNumber} query={query} /></span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

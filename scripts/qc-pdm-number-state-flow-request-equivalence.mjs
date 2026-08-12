@@ -15,7 +15,7 @@ function includesAll(source, needles) {
 
 const workspace = readProjectFile(root, "src/components/number-state-workspace.tsx");
 const runtimeDb = readProjectFile(root, "src/lib/db.ts");
-const partsPage = readProjectFile(root, "src/app/parts/page.tsx");
+const partsPage = readProjectFile(root, "src/components/part-detail-content.tsx");
 const drawingsPage = readProjectFile(root, "src/app/numbering/drawings/page.tsx");
 const searchPage = readProjectFile(root, "src/app/numbering/search/page.tsx");
 const domain = readProjectFile(root, "src/lib/number-state-flow.ts");
@@ -115,8 +115,8 @@ record(
   "NSF-REQ-EQ-007 create CTA uses centralized reservation wording",
   includesAll(workspace, [
     "getNumberStateCreateCta",
-    "建立保留號",
-    "建立後直接保留號碼，不會占用正式號碼"
+    "建立編號",
+    "建立後會產生編號申請，關閉視窗不會寫入資料"
   ]) &&
     partsPage.includes('surface="parts"') &&
     drawingsPage.includes('surface="drawings"') &&
@@ -142,9 +142,8 @@ record(
     "半形底線 _ 串接",
     "品名不需唯一，唯一性由圖號 / 料號負責",
     "系列代號（選填）",
-    "data-qc=\"root-series-code\"",
-    "非共用件會納入建議品名",
-    "勾選跨專案共用時不納入品名",
+    "dataQc=\"root-series-code\"",
+    "跨專案共用",
     "manufacturedPartMustIncludeDrawing",
     "effectiveIncludeDrawing",
     "showDrawingDraftSection",
@@ -154,9 +153,9 @@ record(
     "number-state-draft-summary",
     "number-state-section-toggle",
     "manufactured-fixed-drawing-draft",
-    "包含圖號保留號",
+    "包含圖號",
     "本次不建立",
-    "未建立圖號保留號",
+    "未建立圖號",
     "製造圖 M",
     "參考圖 R",
     "參考用途",
@@ -167,11 +166,11 @@ record(
     "data-qc=\"part-number-preview\"",
     "data-qc=\"drawing-number-preview\"",
     "data-qc=\"number-preview-note\"",
-    "預覽不占號；建立申請後才會保留號碼。",
+    "預覽不建立編號；送出申請後才會建立。",
     "autoAcquireCandidates: true",
-    "建立並保留號碼",
-    "申請已建立並保留號碼",
-    "建立申請時會直接保留號碼",
+    "建立編號申請",
+    "申請已建立並取得編號",
+    "建立申請時會建立編號",
     "showPartKindSelector",
     "showPartCustomSpecification",
     "form.mode !== \"new_bundle\"",
@@ -228,8 +227,8 @@ record(
     "const series = form.sharedName ? \"\" : normalizeNameSegment(form.seriesCode)",
     "[core, brand, specification]",
     "[core, series, feature || specification, serial]",
-    "外購件建議：[核心名詞]_[品牌]_[規格/型號]",
-    "自製/發包/客製建議：[核心名詞]_[系列代號]_[特性]_[流水識別]"
+    "採購件建議：[核心名詞]_[品牌]_[規格/型號]",
+    "自製件建議：[核心名詞]_[系列代號]_[特性]_[流水識別]"
   ]) &&
     !workspace.includes('form.sharedName ? "共用"') &&
     !workspace.includes("sharedScope") &&

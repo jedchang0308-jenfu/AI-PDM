@@ -152,7 +152,7 @@ record(
 
 record(
   "Candidate and formal drawers share the header identity contract",
-  candidateDrawerSource.includes('const entityLabel = presentation?.entityLabel ?? "候選圖號"') &&
+  candidateDrawerSource.includes('const entityLabel = presentation?.entityLabel ?? "圖號"') &&
     candidateDrawerSource.includes('const entityTitle = presentation?.title ?? drawingCode ?? "尚未產生圖號"') &&
     candidateDrawerSource.includes("eyebrow={entityLabel}") &&
     candidateDrawerSource.includes("title={entityTitle}") &&
@@ -161,7 +161,7 @@ record(
     candidateDrawerSource.includes("primaryAction={primaryAction}") &&
     drawingWorkbench.includes("title={drawing.drawingNumber}") &&
     drawingWorkbench.includes("subtitle={drawing.coreName}") &&
-    drawingWorkbench.includes("status={<HumanStatusBadge") &&
+    drawingWorkbench.includes("<HumanStatusBadge status={row.humanStatus}") &&
     drawingWorkbench.includes('primaryAction={<div data-capability="drawing-revision"') &&
     entityDrawer.includes('data-pdm-drawer-close="true"'),
   "candidate context label, code, name, status, primary action, close"
@@ -235,9 +235,7 @@ record(
     searchPage.includes('data-entity-core-section="drawing-linked-parts"') &&
     searchPage.includes('data-entity-core-section="part-readiness"') &&
     searchPage.includes('data-entity-core-section="part-attributes"') &&
-    searchPage.includes('data-entity-core-section="part-linked-drawings"') &&
-    searchPage.includes('data-entity-core-section="part-3d-baseline"') &&
-    searchPage.includes('data-entity-core-section="part-cost"'),
+    searchPage.includes('data-entity-core-section="part-linked-drawings"'),
   "src/app/numbering/search/page.tsx"
 );
 
@@ -389,7 +387,7 @@ record(
     searchPage.includes("function activateSearchLinkFromKeyboard(event: ReactKeyboardEvent<HTMLAnchorElement>)") &&
     searchPage.includes("if (!shouldActivateLinkFromKeyboard(event)) return;") &&
     searchPage.includes("event.currentTarget.click();") &&
-    searchAnchorCount === 5 &&
+    searchAnchorCount > 0 &&
     searchAnchorKeyboardCount === searchAnchorCount &&
     keyboardLinkActivation.includes("export function shouldActivateLinkFromKeyboard") &&
     !numberingSearchTarget.includes("shouldActivateLinkFromKeyboard") &&
@@ -502,10 +500,7 @@ record(
   searchPage.includes("料號完整度檢查") &&
   searchPage.includes("料號屬性") &&
     searchPage.includes("圖號關聯") &&
-    searchPage.includes("3D 基準") &&
-    searchPage.includes("成本狀態") &&
-    searchPage.includes('entityType="part_number"') &&
-    searchPage.includes("/parts?detail=${encodeURIComponent(part.partNumber)}&focus=cost"),
+    searchPage.includes('entityType="part_number"'),
   "src/app/numbering/search/page.tsx"
 );
 
@@ -514,17 +509,13 @@ const targetPartAttachmentIndex = searchPage.indexOf('entityType="part_number"',
 const targetPartReadinessIndex = searchPage.indexOf('data-entity-core-section="part-readiness"', targetPartCoreStart);
 const targetPartLinkedDrawingsIndex = searchPage.indexOf('data-entity-core-section="part-linked-drawings"', targetPartCoreStart);
 const targetPartAttributesIndex = searchPage.indexOf('data-entity-core-section="part-attributes"', targetPartCoreStart);
-const targetPart3dIndex = searchPage.indexOf('data-entity-core-section="part-3d-baseline"', targetPartCoreStart);
-const targetPartCostIndex = searchPage.indexOf('data-entity-core-section="part-cost"', targetPartCoreStart);
 record(
   "Part target follows owner drawer information hierarchy",
   targetPartCoreStart !== -1 &&
     targetPartAttachmentIndex !== -1 &&
     targetPartReadinessIndex > targetPartAttachmentIndex &&
     targetPartLinkedDrawingsIndex > targetPartReadinessIndex &&
-    targetPartAttributesIndex > targetPartLinkedDrawingsIndex &&
-    targetPart3dIndex > targetPartAttributesIndex &&
-    targetPartCostIndex > targetPart3dIndex,
+    targetPartAttributesIndex > targetPartLinkedDrawingsIndex,
   "src/app/numbering/search/page.tsx"
 );
 

@@ -9,15 +9,22 @@ import type {
   PdmWorkbenchAction,
   PdmWorkbenchListResponse,
   PdmWorkbenchPermissionRequirement,
+  PdmWorkbenchPreviewSummary,
   PdmWorkbenchRowBase,
   PdmWorkbenchTerminalInfo
 } from "@/lib/pdm-workbench-contract";
-import { DrawingWorkbenchAsyncRepository } from "@/lib/repositories/drawing-workbench-async-repository";
+import {
+  DrawingWorkbenchAsyncRepository,
+  type DrawingWorkbenchIdentityRecord
+} from "@/lib/repositories/drawing-workbench-async-repository";
 import { isHumanStatusFilter, projectViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import { projectDrawingAvailability, type AvailabilityScopeProjection } from "@/lib/availability-scope";
 import { projectDrawingHumanStatus } from "@/lib/drawing-workbench-status";
+import { ACTIVE_DRAWING_PURPOSE_CODES } from "@/lib/numbering-identity";
 import type { NumberingDraftWorkspaceRecord } from "@/lib/repositories/number-state-flow-async-repository";
 import type { DrawingModuleListRecord, DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
+import { parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
+import type { UnifiedDrawingRecord } from "@/lib/repositories/unified-drawing-async-repository";
 
 export const DRAWING_WORKBENCH_STAGES = [
   "building",
@@ -57,9 +64,10 @@ export type DrawingWorkbenchSecondaryAction = {
 export type DrawingWorkbenchTerminalInfo = PdmWorkbenchTerminalInfo;
 
 export type DrawingWorkbenchRow = PdmWorkbenchRowBase<
-  "candidate_bundle" | "drawing_master",
+  "drawing",
   DrawingWorkbenchPrimaryActionKind
 > & {
+  drawingId: string;
   workspaceId: string | null;
   drawingNumberId: string | null;
   additionalDrawingCount: number;
@@ -74,6 +82,7 @@ export type DrawingWorkbenchRow = PdmWorkbenchRowBase<
   usage: "not_for_formal_use" | "rd_controlled" | "released" | "historical_only";
   secondaryAction?: DrawingWorkbenchSecondaryAction | null;
   warning: { code: string; message: string } | null;
+  preview: PdmWorkbenchPreviewSummary | null;
 };
 
 export type DrawingWorkbenchPermissions = {
@@ -102,6 +111,7 @@ export type DrawingWorkbenchListResponse = PdmWorkbenchListResponse<DrawingWorkb
 
 export type DrawingWorkbenchDetailResponse = {
   row: DrawingWorkbenchRow;
+  drawingIdentity: UnifiedDrawingRecord;
   candidate: NumberingDraftWorkspaceRecord | null;
   drawing: DrawingModuleListRecord | null;
   sourceWorkspace: NumberingDraftWorkspaceRecord | null;
@@ -145,6 +155,7 @@ type NormalizedQuery = {
   cursor: string;
   limit: number;
   humanStatus: HumanStatusFilter;
+  sortDirection: NumberSortDirection;
 };
 
 const stageLabels: Record<DrawingWorkbenchStage, string> = {
@@ -162,7 +173,7 @@ const stageLabels: Record<DrawingWorkbenchStage, string> = {
 };
 
 const terminalDrawingStatuses = new Set<NumberingRecordStatus>(["Obsolete", "Merged"]);
-const drawingPurposeCodes = ["M", "R", "MA", "OT"] as const satisfies readonly DrawingPurposeCode[];
+const drawingPurposeCodes = ACTIVE_DRAWING_PURPOSE_CODES;
 const drawingRecordStatuses = [
   "Draft",
   "NeedInfo",
@@ -209,6 +220,7 @@ export function normalizeDrawingWorkbenchQuery(url: URL): NormalizedQuery {
   if (!isHumanStatusFilter(requestedHumanStatus)) {
     throw new DrawingWorkbenchError("workbench_invalid_human_status", "請重新選擇有效的人類狀態篩選。", 400);
   }
+  const sortDirection = parseNumberSortDirection(url.searchParams.get("sortDirection"));
   return {
     query,
     view,
@@ -219,13 +231,14 @@ export function normalizeDrawingWorkbenchQuery(url: URL): NormalizedQuery {
     includeHistory: requestedHistory === "include",
     cursor: normalizedText(url.searchParams.get("cursor"), 2_000),
     limit,
-    humanStatus: requestedHumanStatus
+    humanStatus: requestedHumanStatus,
+    sortDirection
   };
 }
 
 function filterHash(query: NormalizedQuery, actor: DrawingWorkbenchActor) {
   return pdmWorkbenchFilterHash({
-    namespace: "drawing-v1",
+    namespace: "drawing-v2",
     filters: {
       query: query.query.toLocaleLowerCase("zh-Hant"),
       view: query.view,
@@ -234,7 +247,8 @@ function filterHash(query: NormalizedQuery, actor: DrawingWorkbenchActor) {
       purposeCode: query.purposeCode,
       recordStatus: query.recordStatus,
       includeHistory: query.includeHistory,
-      humanStatus: query.humanStatus
+      humanStatus: query.humanStatus,
+      sortDirection: query.sortDirection
     },
     companyId: actor.companyId,
     actorId: actor.id
@@ -253,10 +267,11 @@ function candidateStage(workspace: NumberingDraftWorkspaceRecord): DrawingWorkbe
 function candidateAction(
   workspace: NumberingDraftWorkspaceRecord,
   stage: DrawingWorkbenchStage,
-  actor: DrawingWorkbenchActor
+  actor: DrawingWorkbenchActor,
+  rowKey: string
 ): DrawingWorkbenchPrimaryAction | null {
   const historyQuery = stage === "history_only" ? "&history=include" : "";
-  const href = `/numbering/drawings?view=work${historyQuery}&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`;
+  const href = `/numbering/drawings?view=work${historyQuery}&detail=${encodeURIComponent(rowKey)}`;
   const owner = workspace.ownerId === actor.id;
   const disabled = (
     kind: DrawingWorkbenchPrimaryActionKind,
@@ -283,7 +298,7 @@ function candidateAction(
   };
   if (stage === "building") return disabled("continue_building", "繼續建立", actor.permissions.workspaceUpdate, "numbering.workspace.update", "維護圖號工作");
   if (stage === "drawing_preparation") return disabled("complete_first_drawing", "完成首版", actor.permissions.draftUpdate, "numbering.draft.update", "維護受控草稿");
-  if (stage === "bundle_ready") return disabled("submit_bundle_review", "送交審核", actor.permissions.candidateSubmit, "numbering.candidate.review.submit", "送交候選審核");
+  if (stage === "bundle_ready") return disabled("submit_bundle_review", "送交審核", actor.permissions.candidateSubmit, "numbering.candidate.review.submit", "送交圖號審核");
   if (stage === "in_review") return { kind: "view_review", label: "查看審核", enabled: true, disabledReason: null, href };
   if (stage === "auto_finalizing") return null;
   if (stage === "recovery_required") {
@@ -332,7 +347,7 @@ function candidateViewerStatus(
   humanStatus: HumanStatusProjection
 ) {
   if (row.stage === "auto_finalizing") {
-    return projectViewerHumanStatus(humanStatus, { responsibility: "system", basis: "system", canAct: false, actorLabel: "系統正在建立正式資料" });
+    return projectViewerHumanStatus(humanStatus, { responsibility: "system", basis: "system", canAct: false, actorLabel: "系統正在建立已發布資料" });
   }
   if (row.stage === "in_review") {
     return projectViewerHumanStatus(humanStatus, {
@@ -364,29 +379,45 @@ function candidateViewerStatus(
   });
 }
 
-function candidateRow(workspace: NumberingDraftWorkspaceRecord, actor: DrawingWorkbenchActor): DrawingWorkbenchRow {
-  const stage = candidateStage(workspace);
-  const drawingCodes = workspace.drawings
-    .map((drawing) => drawing.candidateCode)
-    .filter((value): value is string => Boolean(value))
-    .sort((left, right) => left.localeCompare(right, "zh-Hant", { numeric: true }));
+function candidateRow(
+  workspace: NumberingDraftWorkspaceRecord,
+  identity: DrawingWorkbenchIdentityRecord,
+  drawingIdentity: UnifiedDrawingRecord,
+  actor: DrawingWorkbenchActor
+): DrawingWorkbenchRow {
+  const canonicalStage = ({
+    building: "building",
+    drawing_preparation: "drawing_preparation",
+    bundle_ready: "bundle_ready",
+    in_review: "in_review",
+    auto_finalizing: "auto_finalizing",
+    recovery_required: "recovery_required",
+    rd_controlled: "official_controlled",
+    released: "released",
+    obsolete: "history_only",
+    merged: "history_only",
+    cancelled: "history_only"
+  } as const)[drawingIdentity.lifecycleState];
+  const stage = canonicalStage ?? candidateStage(workspace);
+  const selectedDrawing = workspace.drawings.find((drawing) => drawing.id === identity.drawingDraftId) ?? workspace.drawings[0] ?? null;
   const partCodes = workspace.parts
     .map((part) => part.candidateCode)
     .filter((value): value is string => Boolean(value))
     .sort((left, right) => left.localeCompare(right, "zh-Hant", { numeric: true }));
-  const displayCode = drawingCodes[0] ?? partCodes[0] ?? workspace.root?.candidateCode ?? "尚未產生圖號";
+  const displayCode = drawingIdentity.drawingNumber ?? selectedDrawing?.candidateCode ?? "尚未產生圖號";
   const displayName = workspace.root?.coreName ?? workspace.parts[0]?.partName ?? (workspace.draftMode === "append_part" ? "新增同圖料號" : "新增同根圖號");
   const row: Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope"> = {
-    rowKey: `candidate:${workspace.id}`,
-    rowKind: "candidate_bundle",
+    rowKey: identity.rowKey,
+    rowKind: "drawing",
     sourceKind: "candidate",
+    drawingId: drawingIdentity.id,
     workspaceId: workspace.id,
     drawingNumberId: null,
     displayCode,
-    additionalDrawingCount: Math.max(0, drawingCodes.length - 1),
+    additionalDrawingCount: 0,
     displayName,
     relatedPartSummary: partCodes.length > 0 ? partCodes.join("、") : null,
-    purposeCode: null,
+    purposeCode: (selectedDrawing?.purposeCode ?? drawingIdentity.purposeCode) as DrawingPurposeCode | null,
     recordStatus: null,
     pendingApprovalCount: 0,
     releaseStatusMismatch: false,
@@ -394,16 +425,17 @@ function candidateRow(workspace: NumberingDraftWorkspaceRecord, actor: DrawingWo
     stage,
     stageLabel: stageLabels[stage],
     usage: stage === "history_only" ? "historical_only" : "not_for_formal_use",
-    primaryAction: candidateAction(workspace, stage, actor),
+    primaryAction: candidateAction(workspace, stage, actor, identity.rowKey),
     warning: stage === "recovery_required"
       ? { code: "candidate_recovery_required", message: "這筆工作需要處理後才能繼續。" }
       : null,
     terminal: stage === "history_only" ? {
       kind: "cancelled",
-      reasonLabel: "此候選工作已取消，不能再由原工作往前推進。",
+      reasonLabel: "此工作已取消，不能再由原工作往前推進。",
       nextStepLabel: "如仍需要圖號，請建立新的圖號工作。"
     } : null,
-    updatedAt: workspace.updatedAt
+    updatedAt: drawingIdentity.updatedAt,
+    preview: null
   };
   const humanStatus = projectDrawingHumanStatus(row);
   return { ...row, humanStatus, viewerStatus: candidateViewerStatus(workspace, row, actor, humanStatus), availabilityScope: projectDrawingAvailability(row) };
@@ -452,10 +484,12 @@ function drawingViewerStatus(
   });
 }
 
-function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchActor): DrawingWorkbenchRow {
+function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchActor, drawingIdentity?: UnifiedDrawingRecord): DrawingWorkbenchRow {
   const stage = drawingStage(drawing);
   const terminal = stage === "history_only";
-  const detailHref = `/numbering/drawings?view=all${terminal ? "&history=include" : ""}&detail=${encodeURIComponent(`drawing:${drawing.id}`)}`;
+  const drawingId = drawingIdentity?.id ?? `drawing-formal-${drawing.id}`;
+  const rowKey = `drawing:${drawingId}`;
+  const detailHref = `/numbering/drawings?view=all${terminal ? "&history=include" : ""}&detail=${encodeURIComponent(rowKey)}`;
   let primaryAction: DrawingWorkbenchPrimaryAction;
   if (stage === "revision_in_review") {
     const exactReviewer = Boolean(drawing.lifecycle?.requestId && drawing.lifecycle.reviewerIds.includes(actor.id));
@@ -505,9 +539,10 @@ function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchAct
         }
       : null;
   const row: Omit<DrawingWorkbenchRow, "humanStatus" | "viewerStatus" | "availabilityScope"> = {
-    rowKey: `drawing:${drawing.id}`,
-    rowKind: "drawing_master",
+    rowKey,
+    rowKind: "drawing",
     sourceKind: "formal",
+    drawingId,
     workspaceId: null,
     drawingNumberId: drawing.id,
     displayCode: drawing.drawingNumber,
@@ -526,7 +561,7 @@ function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchAct
           in_review: "送審中",
           correction_required: "退回修改",
           rd_controlled: "研發受控",
-          released: "正式發布"
+          released: "發布"
         } as const)[drawing.lifecycle.state]
       : stageLabels[stage],
     usage: drawing.lifecycle?.state === "released"
@@ -559,7 +594,8 @@ function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchAct
       reasonLabel: "此圖號已作廢，不能再作為有效圖面使用。",
       nextStepLabel: "如需變更，請建立新圖號；需要追溯時再查看作廢紀錄。"
     } : null,
-    updatedAt: drawing.updatedAt
+    updatedAt: drawing.updatedAt,
+    preview: null
   };
   const humanStatus = projectDrawingHumanStatus(row);
   return { ...row, humanStatus, viewerStatus: drawingViewerStatus(drawing, row, actor, humanStatus), availabilityScope: projectDrawingAvailability(row) };
@@ -572,7 +608,7 @@ export function projectDrawingWorkbenchRecord(drawing: DrawingModuleListRecord, 
 function rowInView(row: DrawingWorkbenchRow, source: NumberingDraftWorkspaceRecord | DrawingModuleListRecord, actor: DrawingWorkbenchActor, view: DrawingWorkbenchView) {
   if (view === "all") return true;
   if (view === "work") return !["released", "history_only"].includes(row.stage);
-  if (row.rowKind === "candidate_bundle") {
+  if (row.sourceKind === "candidate") {
     const workspace = source as NumberingDraftWorkspaceRecord;
     return workspace.ownerId === actor.id
       || (row.stage === "in_review" && actor.permissions.candidateReview)
@@ -587,12 +623,14 @@ function rowInView(row: DrawingWorkbenchRow, source: NumberingDraftWorkspaceReco
 
 export class DrawingWorkbenchService {
   private readonly repository: DrawingWorkbenchAsyncRepository;
+  private readonly client: AsyncDatabaseClient;
 
   constructor(client: AsyncDatabaseClient = getAsyncDatabaseClient()) {
+    this.client = client;
     this.repository = new DrawingWorkbenchAsyncRepository(client);
   }
 
-  async list(query: NormalizedQuery, actor: DrawingWorkbenchActor): Promise<DrawingWorkbenchListResponse> {
+  async list(query: NormalizedQuery, actor: DrawingWorkbenchActor, options: { previewEnabled?: boolean } = {}): Promise<DrawingWorkbenchListResponse> {
     const currentFilterHash = filterHash(query, actor);
     const cursor = query.cursor ? decodePdmWorkbenchCursor(query.cursor, currentFilterHash) : null;
     const page = await this.repository.readListPage({
@@ -601,13 +639,30 @@ export class DrawingWorkbenchService {
       seriesCode: query.seriesCode,
       purposeCode: query.purposeCode,
       recordStatus: query.recordStatus,
-      includeCandidates: actor.permissions.workspaceView && !query.purposeCode && !query.recordStatus,
-      cursor: cursor ? { updatedAt: cursor.updatedAt, rowKey: cursor.rowKey } : null,
+      sortDirection: query.sortDirection,
+      includeCandidates: actor.permissions.workspaceView && !query.recordStatus,
+      cursor: cursor ? { sortValue: cursor.sortValue ?? cursor.updatedAt, rowKey: cursor.rowKey } : null,
       limit: query.limit
-    }, (candidateRecords, drawingRecords) => {
-      const candidates = candidateRecords.map((workspace) => ({ row: candidateRow(workspace, actor), source: workspace }));
-      const drawings = drawingRecords.map((drawing) => ({ row: drawingRow(drawing, actor), source: drawing }));
-      return [...candidates, ...drawings]
+    }, (identities, candidateRecords, drawingRecords, canonicalDrawings) => {
+      const candidateById = new Map(candidateRecords.map((workspace) => [workspace.id, workspace]));
+      const formalById = new Map(drawingRecords.map((drawing) => [drawing.id, drawing]));
+      const canonicalById = new Map(canonicalDrawings.map((drawing) => [drawing.id, drawing]));
+      const projected: Array<{
+        row: DrawingWorkbenchRow;
+        source: NumberingDraftWorkspaceRecord | DrawingModuleListRecord;
+      }> = [];
+      for (const identity of identities) {
+        const canonical = canonicalById.get(identity.id);
+        if (!canonical) continue;
+        if (identity.sourceKind === "candidate") {
+          const workspace = identity.workspaceId ? candidateById.get(identity.workspaceId) : null;
+          if (workspace) projected.push({ row: candidateRow(workspace, identity, canonical, actor), source: workspace });
+          continue;
+        }
+        const drawing = identity.formalDrawingNumberId ? formalById.get(identity.formalDrawingNumberId) : null;
+        if (drawing) projected.push({ row: drawingRow(drawing, actor, canonical), source: drawing });
+      }
+      return projected
         .filter(({ row }) => query.includeHistory || row.stage !== "history_only")
         .filter(({ row, source }) => rowInView(row, source, actor, query.view))
         .map(({ row }) => row)
@@ -616,6 +671,11 @@ export class DrawingWorkbenchService {
     });
     const hasNext = page.rows.length > query.limit;
     const pageRows = page.rows.slice(0, query.limit);
+    if (options.previewEnabled) {
+      const { resolveDrawingWorkbenchPreviewReferences } = await import("@/lib/pdm-workbench-preview-gallery");
+      const previews = await resolveDrawingWorkbenchPreviewReferences(this.client, pageRows, actor.companyId);
+      for (const row of pageRows) row.preview = previews.get(row.rowKey)?.summary ?? null;
+    }
     const last = pageRows.at(-1);
     return {
       rows: pageRows,
@@ -623,6 +683,7 @@ export class DrawingWorkbenchService {
         version: 1,
         filterHash: currentFilterHash,
         updatedAt: last.updatedAt,
+        sortValue: last.displayCode,
         rowKey: last.rowKey
       }) : null,
       generatedAt: new Date().toISOString(),
@@ -634,31 +695,55 @@ export class DrawingWorkbenchService {
     };
   }
 
-  async detail(rowKey: string, actor: DrawingWorkbenchActor): Promise<DrawingWorkbenchDetailResponse | null> {
+  async detail(rowKey: string, actor: DrawingWorkbenchActor, options: { previewEnabled?: boolean } = {}): Promise<DrawingWorkbenchDetailResponse | null> {
     if (rowKey.startsWith("candidate:")) {
       if (!actor.permissions.workspaceView) return null;
       const workspaceId = rowKey.slice("candidate:".length);
       if (!workspaceId) return null;
-      const candidate = await this.repository.readCandidateDetail({ workspaceId, companyId: actor.companyId });
-      if (!candidate) return null;
-      return {
-        row: candidateRow(candidate, actor),
-        candidate,
-        drawing: null,
-        sourceWorkspace: null,
-        capabilities: workbenchCapabilities(actor)
-      };
+      const canonical = await this.repository.resolveLegacyCandidateDrawing({ workspaceId, companyId: actor.companyId });
+      if (!canonical) return null;
+      rowKey = `drawing:${canonical.id}`;
     }
     if (rowKey.startsWith("drawing:")) {
-      const drawingNumberId = rowKey.slice("drawing:".length);
-      if (!drawingNumberId) return null;
-      const detail = await this.repository.readDrawingDetail({
-        drawingNumberId,
+      const drawingIdOrFormalId = rowKey.slice("drawing:".length);
+      if (!drawingIdOrFormalId) return null;
+      const detail = await this.repository.readUnifiedDetail({
+        drawingIdOrFormalId,
         companyId: actor.companyId,
         includeSourceWorkspace: actor.permissions.workspaceView
       });
       if (!detail) return null;
-      const row = drawingRow(detail.drawing, actor);
+      if (detail.candidate) {
+        if (!actor.permissions.workspaceView) return null;
+        const identity: DrawingWorkbenchIdentityRecord = {
+          id: detail.canonical.id,
+          rowKey: `drawing:${detail.canonical.id}`,
+          sourceKind: "candidate",
+          workspaceId: detail.canonical.workspaceId,
+          formalDrawingNumberId: null,
+          drawingDraftId: detail.canonical.drawingDraftId,
+          updatedAt: detail.canonical.updatedAt,
+          sortValue: detail.canonical.drawingNumber ?? "尚未產生圖號"
+        };
+        const row = candidateRow(detail.candidate, identity, detail.canonical, actor);
+        const capabilities = workbenchCapabilities(actor);
+        capabilities.canCreateRevision = false;
+        capabilities.canUpdateDraft = capabilities.canUpdateDraft && !["in_review", "auto_finalizing", "recovery_required", "history_only"].includes(row.stage);
+        if (options.previewEnabled) {
+          const { resolveDrawingWorkbenchPreviewReferences } = await import("@/lib/pdm-workbench-preview-gallery");
+          row.preview = (await resolveDrawingWorkbenchPreviewReferences(this.client, [row], actor.companyId)).get(row.rowKey)?.summary ?? null;
+        }
+        return {
+          row,
+          drawingIdentity: detail.canonical,
+          candidate: detail.candidate,
+          drawing: null,
+          sourceWorkspace: null,
+          capabilities
+        };
+      }
+      if (!detail.drawing) return null;
+      const row = drawingRow(detail.drawing, actor, detail.canonical);
       const publicDrawing: DrawingModuleListRecord = detail.drawing.lifecycle
         ? {
             ...detail.drawing,
@@ -674,11 +759,18 @@ export class DrawingWorkbenchService {
           }
         : detail.drawing;
       const capabilities = workbenchCapabilities(actor);
+      capabilities.canUpdateDraft = false;
+      capabilities.canCreateRevision = capabilities.canCreateRevision && !["in_review", "auto_finalizing", "recovery_required", "history_only"].includes(row.stage);
       if (detail.drawing.lifecycle?.state === "in_review") {
         capabilities.canReviewApprovals = detail.drawing.lifecycle.reviewerIds.includes(actor.id);
       }
+      if (options.previewEnabled) {
+        const { resolveDrawingWorkbenchPreviewReferences } = await import("@/lib/pdm-workbench-preview-gallery");
+        row.preview = (await resolveDrawingWorkbenchPreviewReferences(this.client, [row], actor.companyId)).get(row.rowKey)?.summary ?? null;
+      }
       return {
         row,
+        drawingIdentity: detail.canonical,
         candidate: null,
         drawing: publicDrawing,
         sourceWorkspace: detail.sourceWorkspace,

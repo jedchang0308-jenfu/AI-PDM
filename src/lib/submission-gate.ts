@@ -9,7 +9,6 @@ export type SubmissionGateFieldCode =
   | "package_context"
   | "source_identity"
   | "reviewable_attachment"
-  | "standard_cost"
   | "material"
   | "procurement_signoff"
   | "prototype_notes";
@@ -89,7 +88,6 @@ const fieldLabels: Record<SubmissionGateFieldCode, string> = {
   package_context: "技術移轉包",
   source_identity: "來源物件",
   reviewable_attachment: "可審附件",
-  standard_cost: "標準成本",
   material: "材質",
   procurement_signoff: "採購確認",
   prototype_notes: "研發備註"
@@ -148,14 +146,6 @@ export function getActiveSubmissionRuleSet(input: {
         remediationRoute: "drawing_attachment_library"
       },
       {
-        field: "standard_cost",
-        label: fieldLabels.standard_cost,
-        state: mode === "technical_transfer" ? "required" : "warning",
-        ownerRole: mode === "technical_transfer" ? "Manufacturing" : "RD Manager",
-        blockerCode: mode === "technical_transfer" ? "standard_cost_missing_for_transfer" : "standard_cost_warning_for_research",
-        remediationRoute: mode === "technical_transfer" ? "part_cost_review" : "research_exception_review"
-      },
-      {
         field: "material",
         label: fieldLabels.material,
         state: mode === "technical_transfer" ? "required" : "optional",
@@ -195,7 +185,6 @@ export function resolveSubmissionReadiness(input: SubmissionReadinessResolveInpu
     evaluateSourceIdentity(sourceId),
     evaluatePackageContext({ mode, sourceType, sourceId, directItemSource }),
     evaluateReviewableAttachment(facts),
-    evaluateStandardCost(mode, facts),
     evaluateMaterial(mode, facts),
     evaluateProcurementSignoff(mode, facts),
     evaluatePrototypeNotes(facts)
@@ -294,23 +283,6 @@ function evaluateReviewableAttachment(facts: Record<string, unknown>): Submissio
     remediationRoute: "drawing_attachment_library",
     okMessage: "已存在可審附件。",
     missingMessage: "缺少可審附件，請先回圖號附件庫補齊。"
-  });
-}
-
-function evaluateStandardCost(mode: SubmissionMode, facts: Record<string, unknown>): SubmissionGateFieldResult {
-  const hasStandardCost = factBoolean(facts, "hasStandardCost");
-  return fieldResult({
-    field: "standard_cost",
-    state: mode === "technical_transfer" ? "required" : "warning",
-    ownerRole: mode === "technical_transfer" ? "Manufacturing" : "RD Manager",
-    satisfied: hasStandardCost,
-    blockerCode: mode === "technical_transfer" ? "standard_cost_missing_for_transfer" : "standard_cost_warning_for_research",
-    remediationRoute: mode === "technical_transfer" ? "part_cost_review" : "research_exception_review",
-    okMessage: "標準成本已可供審查。",
-    missingMessage:
-      mode === "technical_transfer"
-        ? "技術移轉送審缺少標準成本，不能以例外放行。"
-        : "研發送審缺少標準成本時只列警示，後續需主管審查例外理由。"
   });
 }
 

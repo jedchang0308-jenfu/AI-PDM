@@ -100,7 +100,6 @@ try {
     sourcesDoNotMatch(
       [
         "src/components/number-state-workspace.tsx",
-        "src/app/numbering/imports/page.tsx",
         "src/app/numbering/search/page.tsx",
         "src/app/settings/page.tsx"
       ],
@@ -113,9 +112,8 @@ try {
       sourceDoesNotMatch("src/components/number-state-workspace.tsx", /00001-M01 \/ 00001-R01/)
   );
   record(
-    "Import, impact and revision UI examples use v3 identities",
-    fileIncludes("src/app/numbering/imports/page.tsx", ["A0001,測試支架,A0001-P01,A0001-M01"]) &&
-      fileIncludes("src/app/numbering/impact/page.tsx", ['placeholder="A0001-M01"']) &&
+    "Impact and revision UI examples use v3 identities",
+    fileIncludes("src/app/numbering/impact/page.tsx", ['placeholder="A0001-M01"']) &&
       fileIncludes("src/app/numbering/revisions/page.tsx", ["A0001-M01", "A0001-P01"])
   );
   record(

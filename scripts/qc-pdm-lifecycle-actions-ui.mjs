@@ -113,8 +113,6 @@ async function runFixture(baseUrl, cookie) {
     variant: null,
     primaryDrawingNumber: null,
     drawingCount: 0,
-    standardCost: null,
-    pendingCostRequestCount: 0
   };
   const restorable = attachmentFixture("deleted-restorable", "恢復測試附件", "restore-ok.pdf", "允許還原 fixture");
   const blocked = attachmentFixture("deleted-blocked", "封鎖測試附件", "restore-blocked.pdf", "衝突封鎖 fixture");
@@ -147,8 +145,6 @@ async function runFixture(baseUrl, cookie) {
             ...partRecord,
             linkedDrawings: [],
             sameDrawingVariants: [],
-            costProfiles: [],
-            costChangeRequests: []
           }
         });
       }

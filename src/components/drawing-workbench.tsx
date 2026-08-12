@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardCheck, DollarSign, Link2, RefreshCcw, Search, X } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Link2, RefreshCcw, Search, X } from "lucide-react";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import {
   DrawingDetailContent as SharedDrawingDetailContent,
@@ -13,12 +13,17 @@ import {
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import { HumanStatusFilterSelect } from "@/components/human-status-filter";
 import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
+import { PdmWorkbenchLayoutSwitch, type PdmWorkbenchLayout } from "@/components/pdm-workbench-layout-switch";
+import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
+import { PdmWorkbenchPreviewGallery } from "@/components/pdm-workbench-preview-gallery";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 import { usePdmWorkbenchController, type PdmWorkbenchLocationState } from "@/components/use-pdm-workbench-controller";
 import { SearchHighlight } from "@/components/search-highlight";
+import { NumberSortHeader } from "@/components/number-sort-header";
 import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
 import {
   NumberStateOwnerCreateAction,
+  WorkspaceDrawer,
   type NumberingDraftWorkspace,
   type WorkspaceAction
 } from "@/components/number-state-workspace";
@@ -42,6 +47,7 @@ import type {
   DrawingWorkbenchView
 } from "@/lib/drawing-workbench";
 import type { HumanStatusFilter } from "@/lib/human-status-projection";
+import { DEFAULT_NUMBER_SORT_DIRECTION, type NumberSortDirection } from "@/lib/number-sort";
 
 export type DrawingDetail = NonNullable<DrawingWorkbenchDetailResponse["drawing"]>;
 export type DrawingWorkbenchCapabilities = DrawingWorkbenchDetailResponse["capabilities"];
@@ -56,15 +62,26 @@ type DrawingWorkbenchQueryState = {
   recordStatus: "" | DrawingRecordStatusFilter;
   humanStatus: HumanStatusFilter;
   includeHistory: boolean;
+  sortDirection: NumberSortDirection;
 };
 export type ProductionSliceClientStatus = {
   configured: boolean;
   openPagePaths: string[];
   unopenedMessage: string;
 };
+type DrawingFeatureStatus = { previewGallery?: { drawingEnabled?: boolean } };
+const DRAWING_LAYOUT_STORAGE_KEY = "pdm:drawing-workbench:layout:v1";
 
-const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
-const candidateDrawerRetiredMessage = "候選圖號明細抽屜已暫停開發；目前僅保留正式圖號明細。";
+function validLayout(value: string | null): value is PdmWorkbenchLayout { return value === "list" || value === "preview"; }
+function readDrawingLayout(enabled: boolean): PdmWorkbenchLayout {
+  if (!enabled) return "list";
+  const urlValue = new URLSearchParams(window.location.search).get("layout");
+  if (validLayout(urlValue)) return urlValue;
+  const stored = window.localStorage.getItem(DRAWING_LAYOUT_STORAGE_KEY);
+  return validLayout(stored) ? stored : "list";
+}
+
+const defaultProductionSliceUnopenedMessage = "此功能未納入本次編號建立 production slice。";
 
 type ApiMessageBody = {
   error?: string | { code?: string; message?: string };
@@ -78,7 +95,7 @@ function readBody<T>(response: Response) {
 function apiMessage(body: ApiMessageBody, fallback: string) {
   const errorCode = typeof body.error === "object" ? body.error?.code : body.error;
   const errorMessage = typeof body.error === "object" ? body.error?.message : body.error;
-  if (errorCode === "candidate_review_service_unavailable") return "送審服務目前不可用。表單已保留，請稍後重試。";
+  if (errorCode === "candidate_review_service_unavailable") return "送審服務目前不可用。表單內容已保留，請稍後重試。";
   return body.message?.trim() || errorMessage?.trim() || fallback;
 }
 
@@ -94,7 +111,8 @@ const initialDrawingWorkbenchQuery: DrawingWorkbenchQueryState = {
   purposeCode: "",
   recordStatus: "",
   humanStatus: "all",
-  includeHistory: false
+  includeHistory: false,
+  sortDirection: DEFAULT_NUMBER_SORT_DIRECTION
 };
 
 function readDrawingWorkbenchLocation(canonicalize = false): PdmWorkbenchLocationState<DrawingWorkbenchQueryState> {
@@ -122,7 +140,8 @@ function readDrawingWorkbenchLocation(canonicalize = false): PdmWorkbenchLocatio
       purposeCode: (params.get("purposeCode")?.trim() || "") as "" | DrawingPurposeFilter,
       recordStatus: (params.get("recordStatus")?.trim() || "") as "" | DrawingRecordStatusFilter,
       humanStatus: (params.get("humanStatus")?.trim() || "all") as HumanStatusFilter,
-      includeHistory
+      includeHistory,
+      sortDirection: params.get("sortDirection") === "desc" ? "desc" : DEFAULT_NUMBER_SORT_DIRECTION
     },
     detailKey: detail || null,
     legacyDetail: legacyDrawingCode || null
@@ -143,6 +162,7 @@ function writeDrawingWorkbenchLocation(
   state.query.purposeCode ? params.set("purposeCode", state.query.purposeCode) : params.delete("purposeCode");
   state.query.recordStatus ? params.set("recordStatus", state.query.recordStatus) : params.delete("recordStatus");
   state.query.humanStatus !== "all" ? params.set("humanStatus", state.query.humanStatus) : params.delete("humanStatus");
+  state.query.sortDirection === DEFAULT_NUMBER_SORT_DIRECTION ? params.delete("sortDirection") : params.set("sortDirection", state.query.sortDirection);
   state.detailKey ? params.set("detail", state.detailKey) : params.delete("detail");
   window.history[mode === "push" ? "pushState" : "replaceState"](null, "", `${window.location.pathname}?${params.toString()}`);
 }
@@ -151,7 +171,8 @@ function drawingWorkbenchListUrl(query: DrawingWorkbenchQueryState, cursor: stri
   const params = new URLSearchParams({
     view: query.view,
     limit: "50",
-    history: query.includeHistory ? "include" : "exclude"
+    history: query.includeHistory ? "include" : "exclude",
+    sortDirection: query.sortDirection
   });
   if (query.query.trim()) params.set("query", query.query.trim());
   if (query.stage) params.set("stage", query.stage);
@@ -201,9 +222,10 @@ export function DrawingWorkbench() {
     router.push(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
   }, [router]);
   const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
+  const [featureStatus, setFeatureStatus] = useState<DrawingFeatureStatus | null>(null);
+  const [layout, setLayout] = useState<PdmWorkbenchLayout>("list");
   const [actionBusy, setActionBusy] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<WorkspaceAction | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const autoOpenedQueryRef = useRef("");
   const idempotencyKeys = useRef(new Map<string, string>());
@@ -273,35 +295,52 @@ export function DrawingWorkbench() {
     return () => { cancelled = true; };
   }, []);
 
+  const previewEnabled = featureStatus?.previewGallery?.drawingEnabled === true;
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/numbering/state-flow/status", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<DrawingFeatureStatus> : null)
+      .then((status) => { if (!cancelled) setFeatureStatus(status); })
+      .catch(() => { if (!cancelled) setFeatureStatus({}); });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    if (!previewEnabled) {
+      setLayout("list");
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("layout") === "preview") {
+        params.delete("layout");
+        window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+      }
+      return;
+    }
+    const apply = () => setLayout(readDrawingLayout(true));
+    apply();
+    window.addEventListener("popstate", apply);
+    return () => window.removeEventListener("popstate", apply);
+  }, [previewEnabled]);
+  const changeLayout = useCallback((next: PdmWorkbenchLayout) => {
+    if (!previewEnabled) return;
+    setLayout(next);
+    window.localStorage.setItem(DRAWING_LAYOUT_STORAGE_KEY, next);
+    const params = new URLSearchParams(window.location.search);
+    params.set("layout", next);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, [previewEnabled]);
+
   const closeDetail = useCallback(() => {
     setEditing(false);
-    setConfirmAction(null);
     closeControllerDetail("replace");
   }, [closeControllerDetail]);
 
   const openDetail = useCallback(async (rowKey: string) => {
-    const listedRow = rows.find((row) => row.rowKey === rowKey);
-    if (listedRow?.rowKind === "candidate_bundle") {
-      setEditing(false);
-      setConfirmAction(null);
-      setNotice(candidateDrawerRetiredMessage);
-      closeControllerDetail("replace");
-      return;
-    }
     const body = await openControllerDetail(rowKey, "replace");
     if (!body) return;
-    if (body.row.rowKind === "candidate_bundle") {
-      setEditing(false);
-      setConfirmAction(null);
-      setNotice(candidateDrawerRetiredMessage);
-      closeControllerDetail("replace");
-      return;
-    }
     if (body.row.stage === "history_only" && !includeHistory) {
       setWorkbenchQuery((current) => ({ ...current, includeHistory: true }));
       setNotice("此筆為歷史紀錄，已自動開啟「包含歷史」。");
     }
-  }, [closeControllerDetail, includeHistory, openControllerDetail, rows, setNotice, setWorkbenchQuery]);
+  }, [includeHistory, openControllerDetail, setNotice, setWorkbenchQuery]);
 
   useEffect(() => {
     if (!initialized || selectedKey || !query.trim()) return;
@@ -348,8 +387,8 @@ export function DrawingWorkbench() {
     setWorkbenchQuery((current) => ({ ...current, ...patch }));
   }, [setWorkbenchQuery]);
 
-  async function refreshDetailAndRows(workspaceId?: string) {
-    const rowKey = workspaceId ? `candidate:${workspaceId}` : selectedKey;
+  async function refreshDetailAndRows(_workspaceId?: string) {
+    const rowKey = selectedKey;
     await Promise.all([rowKey ? openDetail(rowKey) : Promise.resolve(), loadRows()]);
   }
 
@@ -357,7 +396,7 @@ export function DrawingWorkbench() {
     // Mutation routes return the complete workspace record; the editor exposes only the fields it consumes.
     const authoritativeWorkspace = workspace as unknown as NonNullable<DrawingWorkbenchDetailResponse["candidate"]>;
     setDetail((current) => current?.candidate ? { ...current, candidate: authoritativeWorkspace } : current);
-    void refreshDetailAndRows(workspace.id);
+    void refreshDetailAndRows();
   }
 
   async function updateWorkspace(payload: Record<string, unknown>) {
@@ -410,12 +449,11 @@ export function DrawingWorkbench() {
       });
     } catch {
       setActionBusy(false);
-      setConfirmAction(null);
       const unknownResultMessage = ({
         cancel: "取消結果尚未確認；請重新整理狀態後再決定下一步。",
         submit: "送審結果尚未確認；請重新整理狀態後再決定下一步。",
         withdraw: "撤回結果尚未確認；請重新整理狀態後再決定下一步。",
-        publish: "正式發布結果尚未確認；請重新整理狀態後再決定下一步。"
+        publish: "發布結果尚未確認；請重新整理狀態後再決定下一步。"
       } as const)[action];
       try { await refreshDetailAndRows(workspace.id); } catch {}
       setError(unknownResultMessage);
@@ -423,7 +461,6 @@ export function DrawingWorkbench() {
     }
     const body = await readBody<{ workspace?: NumberingDraftWorkspace }>(response);
     setActionBusy(false);
-    setConfirmAction(null);
     if (!response.ok || !body.workspace) {
       setError(apiMessage(body, "操作未完成，請重新整理後再試。"));
       if (response.status !== 503) idempotencyKeys.current.delete(mapKey);
@@ -437,7 +474,7 @@ export function DrawingWorkbench() {
 
   return (
     <>
-      <div className="topbar drawing-workbench-topbar">
+      <div className="topbar pdm-workbench-topbar drawing-workbench-topbar">
         <div>
           <h1>圖號工作台</h1>
           <p>搜尋圖號工作、確認目前工作狀態，並執行唯一下一步。</p>
@@ -456,7 +493,7 @@ export function DrawingWorkbench() {
       {notice ? <div className="number-state-message is-success" role="status"><span>{notice}</span><button className="icon-button" type="button" onClick={() => setNotice("")} aria-label="關閉通知"><X size={16} /></button></div> : null}
       {error ? <div className="number-state-message is-error" role="alert"><span>{error}</span><button className="secondary-button" type="button" onClick={() => void loadRows()}>重新載入</button><button className="icon-button" type="button" onClick={() => setError("")} aria-label="關閉錯誤"><X size={16} /></button></div> : null}
 
-      <section className="panel drawing-workbench-toolbar">
+      <section className="panel pdm-workbench-toolbar">
         <div className="drawing-workbench-filter-grid">
           <label className="drawing-workbench-search">
             <span>搜尋</span>
@@ -468,11 +505,33 @@ export function DrawingWorkbench() {
           <label><span>圖面用途</span><select value={purposeCode} onChange={(event) => updateWorkbenchQuery({ purposeCode: event.target.value as "" | DrawingPurposeFilter })}><option value="">全部用途</option>{purposeCodeOptions.map((option) => <option value={option} key={option}>{option} {displayDrawingPurposeLabel(option)}</option>)}</select></label>
           <label><span>資料狀態</span><select value={recordStatus} onChange={(event) => updateWorkbenchQuery({ recordStatus: event.target.value as "" | DrawingRecordStatusFilter })}><option value="">全部狀態</option>{recordStatusOptions.map((option) => <option value={option} key={option}>{formatStatusForUser(option, "masterRecord")}</option>)}</select></label>
         </div>
-        <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={includeHistory} onChange={(event) => updateWorkbenchQuery({ includeHistory: event.target.checked })} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
+        <div className="pdm-workbench-toolbar-footer">
+          <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={includeHistory} onChange={(event) => updateWorkbenchQuery({ includeHistory: event.target.checked })} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
+          <div className="pdm-workbench-toolbar-view-actions">
+            {previewEnabled ? <PdmWorkbenchLayoutSwitch value={layout} onChange={changeLayout} /> : null}
+          </div>
+        </div>
       </section>
 
       <section className="panel pdm-master-table-panel drawing-workbench-list-panel">
-        <PdmWorkbenchList
+        <div className="number-sort-mobile-control">
+          <NumberSortHeader
+            label="圖號"
+            direction={workbenchQuery.sortDirection}
+            onToggle={() => updateWorkbenchQuery({ sortDirection: workbenchQuery.sortDirection === "asc" ? "desc" : "asc" })}
+          />
+        </div>
+        {layout === "preview" && previewEnabled ? <PdmWorkbenchPreviewGallery
+          rows={rows}
+          selectedKey={selectedKey}
+          ariaLabel="圖號 3D 預覽圖"
+          loading={loading}
+          emptyState={!error ? <div className="empty"><strong>目前沒有符合條件的圖號工作</strong><p>請調整搜尋或篩選條件。</p></div> : null}
+          onSelect={(row) => setSelectedKey(row.rowKey)}
+          onOpen={(row) => void openDetail(row.rowKey)}
+          onCloseDetail={closeDetail}
+          getSourceLabel={(row) => row.preview?.sourceRevision ? `版次 ${row.preview.sourceRevision}` : null}
+        /> : <PdmWorkbenchList
           rows={rows}
           getRowKey={drawingWorkbenchRowKey}
           selectedKey={selectedKey}
@@ -490,7 +549,8 @@ export function DrawingWorkbench() {
           columns={[
             {
               key: "code",
-              header: "圖號",
+              header: <NumberSortHeader label="圖號" direction={workbenchQuery.sortDirection} onToggle={() => updateWorkbenchQuery({ sortDirection: workbenchQuery.sortDirection === "asc" ? "desc" : "asc" })} />,
+              ariaSort: workbenchQuery.sortDirection === "asc" ? "ascending" : "descending",
               dataLabel: "圖號",
               className: "drawing-workbench-col-code",
               render: (row) => (
@@ -504,11 +564,56 @@ export function DrawingWorkbench() {
             { key: "spacer", header: null, className: "drawing-workbench-layout-spacer pdm-identity-layout-spacer", cellClassName: "drawing-workbench-layout-spacer pdm-identity-layout-spacer", ariaHidden: true },
             { key: "status", header: "工作狀態", dataLabel: "工作狀態", className: "drawing-workbench-col-stage", render: (row) => <WorkbenchStatusCell row={row} /> }
           ]}
-        />
-        {(pageIndex > 0 || nextCursor) ? <div className="number-state-pagination"><button className="secondary-button" type="button" disabled={pageIndex === 0 || loading} onClick={goPrevious}><ChevronLeft size={16} />上一頁</button><span>第 {pageIndex + 1} 頁</span><button className="secondary-button" type="button" disabled={!nextCursor || loading} onClick={goNext}>下一頁<ChevronRight size={16} /></button></div> : null}
+        />}
+        <PdmWorkbenchPagination pageIndex={pageIndex} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
       </section>
 
       {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
+      {detail?.candidate ? (
+        <WorkspaceDrawer
+          workspace={detail.candidate as NumberingDraftWorkspace}
+          busy={actionBusy}
+          editing={editing}
+          onEdit={() => setEditing(true)}
+          onCancelEdit={() => setEditing(false)}
+          onUpdate={(payload) => void updateWorkspace(payload)}
+          onSubmit={() => void runWorkspaceAction("submit")}
+          onWithdraw={() => void runWorkspaceAction("withdraw")}
+          onPublish={() => void runWorkspaceAction("publish")}
+          onCancel={() => {
+            if (window.confirm("確定要取消這筆圖號工作嗎？取消後不能從原工作繼續。")) void runWorkspaceAction("cancel");
+          }}
+          formalActionsUnopened={Boolean(productionSlice?.configured && !productionSlice.openPagePaths.includes("/numbering/drawings"))}
+          unopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage}
+          canCreateDrawingRevision={detail.capabilities.canUpdateDraft}
+          lifecycleV2Enabled={Boolean(detail.candidate.lifecycleV2)}
+          onV2WorkspaceChange={acceptCandidateWorkspace}
+          onV2Error={setError}
+          onV2Notice={setNotice}
+          seriesCodeOptions={seriesCodeOptions}
+          width={drawerWidth}
+          onStartResize={startDrawerResize}
+          keepOpenSelector="[data-drawing-workbench-row='true']"
+          presentation={{
+            entityLabel: "圖號",
+            title: detail.row.displayCode,
+            sourceContext: "numbering_drawings",
+            cancelLabel: "取消圖號工作",
+            cancelTitle: "取消後不能從原工作繼續"
+          }}
+          overview={(
+            <DrawingDetailSummary
+              facts={[
+                { label: "目前階段", value: detail.row.stageLabel },
+                { label: "圖面用途", value: detail.row.purposeCode ? `${detail.row.purposeCode} ${displayDrawingPurposeLabel(detail.row.purposeCode)}` : "首版準備中" },
+                { label: "關聯料號", value: detail.row.relatedPartSummary || "尚未關聯" }
+              ]}
+              dataMode="lifecycle"
+            />
+          )}
+          onClose={closeDetail}
+        />
+      ) : null}
       {detail?.drawing ? <DrawingMasterDrawer drawing={detail.drawing} row={detail.row} capabilities={detail.capabilities} productionSlice={productionSlice} width={drawerWidth} onStartResize={startDrawerResize} onDataChanged={async () => { await refreshDetailAndRows(); }} onOpenDetail={openDetail} onClose={closeDetail} /> : null}
     </>
   );
@@ -689,7 +794,12 @@ function DrawingMasterDrawer({ drawing, row, capabilities, productionSlice, widt
       ariaLabel="圖號明細"
       title={drawing.drawingNumber}
       subtitle={drawing.coreName}
-      status={<HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />}
+      status={(
+        <span className="drawing-workbench-status-context">
+          <span className="drawing-workbench-status-label">圖號用途</span>
+          <HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />
+        </span>
+      )}
       primaryAction={<div data-capability="drawing-revision"><PrimaryAction action={row.primaryAction} rowKey={row.rowKey} onOpenDetail={onOpenDetail} productionSlice={productionSlice} /></div>}
       secondaryActions={row.secondaryAction ? <DrawingLifecycleSecondaryAction action={row.secondaryAction} onDone={onDataChanged} /> : null}
       entityType="drawing_number"
@@ -777,20 +887,22 @@ function ReleaseStatusMismatchPanel({ drawing, productionSlice }: { drawing: Dra
 
 function DrawingSubmissionPrerequisitePanel({ drawing, canReviewApprovals }: { drawing: DrawingDetail; canReviewApprovals: boolean }) {
   const incompleteParts = getIncompleteSameRootParts(drawing);
-  const missingCostParts = drawing.sameRootParts.filter((part) => part.standardCostStatus === "missing");
   const pendingApproval = drawing.pendingApproval ?? null;
-  const hasOutstandingItems = incompleteParts.length > 0 || Boolean(pendingApproval);
+  const hasBlockingItems = incompleteParts.length > 0 || Boolean(pendingApproval);
   const outstandingCount = incompleteParts.length + (pendingApproval?.count ?? 0);
-  if (!hasOutstandingItems) return null;
+  if (!hasBlockingItems) return null;
   return (
-    <section className={`panel drawing-prerequisite-panel ${hasOutstandingItems ? "is-blocked" : "is-ready"}`} data-capability="submission-readiness">
-      <div className="drawing-prerequisite-summary"><span>送審檢查</span><strong>{hasOutstandingItems ? `${outstandingCount} 項待補` : "資料已備妥"}</strong></div>
-      <div className="drawing-workbench-readiness-list">
-        {incompleteParts.length > 0 ? <ReadinessChip icon={<Link2 size={15} />} title="主資料" state={`${incompleteParts.length} 筆`} tone="danger" action={<a href="#drawing-same-root-parts">前往補資料</a>} /> : null}
-        {missingCostParts.length > 0 ? <ReadinessChip icon={<DollarSign size={15} />} title="標準成本" state={`${missingCostParts.length} 筆未設定・選填`} action={<Link href={`/parts?detail=${encodeURIComponent(missingCostParts[0].partNumber)}&focus=cost`}>前往補成本</Link>} /> : null}
-        {pendingApproval ? <ReadinessChip icon={<ClipboardCheck size={15} />} title="進版審核" state={canReviewApprovals ? `${pendingApproval.count} 筆` : "等待主管"} tone="warning" action={canReviewApprovals ? <a href={pendingApproval.workbenchHref}>前往審核</a> : undefined} /> : null}
-      </div>
-    </section>
+    <>
+      {hasBlockingItems ? (
+        <section className="panel drawing-prerequisite-panel is-blocked" data-capability="submission-readiness">
+          <div className="drawing-prerequisite-summary"><span>送審檢查</span><strong>{`${outstandingCount} 項待補`}</strong></div>
+          <div className="drawing-workbench-readiness-list">
+            {incompleteParts.length > 0 ? <ReadinessChip icon={<Link2 size={15} />} title="主資料" state={`${incompleteParts.length} 筆`} tone="danger" action={<a href="#drawing-same-root-parts">前往補資料</a>} /> : null}
+            {pendingApproval ? <ReadinessChip icon={<ClipboardCheck size={15} />} title="進版審核" state={canReviewApprovals ? `${pendingApproval.count} 筆` : "等待主管"} tone="warning" action={canReviewApprovals ? <a href={pendingApproval.workbenchHref}>前往審核</a> : undefined} /> : null}
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }
 
@@ -819,17 +931,18 @@ function SameRootPartPanel({ drawing }: { drawing: DrawingDetail }) {
 }
 
 function PartMasterDataCard({ part, currentDrawingNumber }: { part: SameRootPart; currentDrawingNumber: string }) {
+  const material = part.materialLabel?.trim() || part.materialCode?.trim() || "";
+  const surfaceTreatment = part.surfaceTreatment?.trim() || "";
   return (
     <article className="drawing-workbench-part-card">
       <div className="drawing-workbench-part-card-header">
-        <div><strong>{part.partNumber}</strong><p>{part.partName}</p></div>
+        <div><Link className="link-button" href={`/parts?detail=${encodeURIComponent(part.partNumber)}`} aria-label={`開啟 ${part.partNumber} 的料號工作台`}>{part.partNumber}</Link><p>{part.partName}</p></div>
       </div>
       <div className="drawing-workbench-part-summary">
-        {part.materialLabel || part.materialCode ? <span>材質 {part.materialLabel || part.materialCode}</span> : <span className="is-missing">材質待補</span>}
-        {part.surfaceTreatment ? <span>表面處理 {part.surfaceTreatment}</span> : <span className="is-missing">表面處理待補</span>}
+        {material ? <span>材質 {material}</span> : <span className="is-missing pdm-missing-field">材質待補</span>}
+        {surfaceTreatment ? <span>表面處理 {surfaceTreatment}</span> : <span className="is-missing pdm-missing-field">表面處理待補</span>}
         {part.colorLabel || part.colorCode ? <span>顏色 {part.colorLabel || part.colorCode}</span> : null}
         {part.variantNote ? <span>變體 {part.variantNote}</span> : null}
-        {part.standardCostStatus === "missing" ? <span>標準成本未設定（選填）</span> : <span className="is-complete">標準成本完成</span>}
         {part.primaryDrawingNumber && part.primaryDrawingNumber !== currentDrawingNumber ? <span>主要製造圖 {part.primaryDrawingNumber}</span> : null}
       </div>
     </article>

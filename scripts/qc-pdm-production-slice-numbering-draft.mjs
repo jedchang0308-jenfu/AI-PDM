@@ -48,14 +48,14 @@ const allowedSection = helper.split("const sliceAllowedApiMutationMatchers")[1]?
 
 record("SLICE-001 helper defines official numbering/draft mode", helper.includes('OFFICIAL_NUMBERING_DRAFT_SLICE = "official-numbering-draft"'));
 record("SLICE-002 helper uses stable unopened machine code", helper.includes("feature_not_open_in_production_slice"));
-record("SLICE-003 helper documents Chinese unopened message", helper.includes("此功能未納入本次正式領號 / 保留號 production slice。"));
+record("SLICE-003 helper documents Chinese unopened message", helper.includes("此功能未納入本次編號建立 production slice。"));
 record("SLICE-004 allowed mutation list opens official create", /method:\s*"POST"[\s\S]*\/records/.test(allowedSection));
 record("SLICE-004A allowed mutation list opens duplicate-check guard", /method:\s*"POST"[\s\S]*duplicate-check/.test(allowedSection));
 record("SLICE-005 allowed mutation list opens existing-root append", /roots\\\/\[\^\/\]\+\\\/drawings/.test(allowedSection) && /roots\\\/\[\^\/\]\+\\\/parts/.test(allowedSection) && /drawing-part/.test(allowedSection));
 record("SLICE-006 allowed mutation list opens provisional draft create/edit/void/recycle", /part-number-drafts/.test(allowedSection) && /void/.test(allowedSection) && /recycle/.test(allowedSection) && /method:\s*"PATCH"/.test(allowedSection));
 record(
   "SLICE-007 allowed mutation list does not open formal workflows",
-  !/(approval|submissions|obsolete|drawing-revisions|import-batches|release|submit-review|reconfirm|restore|bom)/.test(allowedSection),
+  !/(approval|submissions|obsolete|drawing-revisions|release|submit-review|reconfirm|restore|bom)/.test(allowedSection),
   allowedSection
 );
 record("SLICE-008 middleware blocks unopened API mutations", middleware.includes("NextResponse.json") && middleware.includes("isProductionSliceAllowedApiMutation"));
@@ -67,7 +67,7 @@ record("SLICE-013 sidebar sends unopened route clicks to blocked state", sidebar
 record("SLICE-014 owner draft workspace reads production-slice status", numberStateWorkspace.includes("/api/production-slice/status") && numberStateWorkspace.includes("formalActionsUnopened"));
 record("SLICE-015 owner draft workspace submit-review UI is inert in slice mode", numberStateWorkspace.includes('<UnopenedAction label="送交審核"') && numberStateWorkspace.includes('action !== "cancel"'));
 record("SLICE-016 owner draft workspace withdraw UI is inert in slice mode", numberStateWorkspace.includes('<UnopenedAction label="撤回審核"'));
-record("SLICE-017 owner draft workspace publish UI is inert in slice mode", numberStateWorkspace.includes('<UnopenedAction label="正式發布"'));
+record("SLICE-017 owner draft workspace publish UI is inert in slice mode", numberStateWorkspace.includes('<UnopenedAction label="發布"'));
 record("SLICE-018 unopened UI remains focusable with aria-disabled instead of native disabled only", numberStateWorkspace.includes('aria-disabled="true"') && numberStateWorkspace.includes('data-production-slice-unopened="true"'));
 record(
   "SLICE-018A parts detail reads and propagates production-slice status",
@@ -102,7 +102,7 @@ record("SLICE-025 official numbering delete is not allowlisted", !/DELETE/.test(
 record("SLICE-026 env example documents slice mode without public prefix", envExample.includes("PDM_PRODUCTION_SLICE_MODE=") && !envExample.includes("NEXT_PUBLIC_PDM_PRODUCTION_SLICE_MODE"));
 record("SLICE-026A local full-function validation is explicit and development-only", helper.includes('env.NODE_ENV') && helper.includes('PDM_LOCAL_FULL_FUNCTION_VALIDATION') && envExample.includes("PDM_LOCAL_FULL_FUNCTION_VALIDATION=false"));
 record("SLICE-027 CSS styles unopened nav and detail controls", globalCss.includes(".nav-unopened-badge") && globalCss.includes(".icon-button.production-slice-unopened"));
-record("SLICE-028 number-state duplicate-check shows production-slice denial reason", numberStateWorkspace.includes("feature_not_open_in_production_slice") && numberStateWorkspace.includes("查重功能被正式領號 / 保留號 production slice 邊界封鎖"));
+record("SLICE-028 number-state duplicate-check shows production-slice denial reason", numberStateWorkspace.includes("feature_not_open_in_production_slice") && numberStateWorkspace.includes("查重功能尚未開放"));
 
 const failed = results.filter((result) => !result.passed);
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));

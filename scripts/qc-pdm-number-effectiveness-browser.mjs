@@ -65,6 +65,9 @@ function startApp(port) {
       PDM_RELEASE_MODE: "local_stub",
       PDM_PUBLICATION_EVIDENCE_MODE: "local_fake",
       PDM_NUMBER_STATE_FLOW_V1: "true",
+      PDM_NUMBER_LIFECYCLE_V2: "false",
+      PDM_UNIFIED_DRAWING_WORKBENCH_V1: "false",
+      PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "false",
       PDM_PRODUCTION_SLICE_MODE: "",
       GOOGLE_SERVICE_ACCOUNT_KEY_PATH: "",
       GOOGLE_DRIVE_MOCK_ACCESS_TOKEN: "",
@@ -236,20 +239,25 @@ try {
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push({ type: "console", message: message.text() }); });
   page.on("response", (response) => { if (response.status() >= 500) browserErrors.push({ type: "network", status: response.status(), url: response.url() }); });
   await page.goto(`${baseUrl}/parts?tab=drafts`, { waitUntil: "networkidle" });
-  await page.getByRole("region", { name: "保留號清單" }).waitFor({ state: "visible" });
-  await page.getByText("尚未產生號碼", { exact: true }).first().waitFor({ state: "visible" });
-  await page.locator(".number-state-badge.qualification-candidate").first().waitFor({ state: "visible" });
+  const numberingRegion = page.getByRole("region", { name: "編號申請清單" });
+  try {
+    await numberingRegion.waitFor({ state: "visible" });
+  } catch (error) {
+    const bodyText = await page.locator("body").innerText().catch(() => "");
+    const statusBody = await page.evaluate(async () => fetch("/api/numbering/state-flow/status", { cache: "no-store" }).then((response) => response.text()).catch(() => ""));
+    throw new Error(`${error instanceof Error ? error.message : String(error)}\nBODY=${bodyText.slice(0, 4000)}\nSTATUS=${statusBody}`);
+  }
+  await page.getByText("尚未產生料號", { exact: true }).first().waitFor({ state: "visible" });
 
-  const retiredTerms = ["候選號", "未領號", "號碼資格", "舊制保留", "已回收"];
+  const retiredTerms = ["候選", "未領號", "號碼資格", "號碼效力", "舊制保留", "保留號"];
   const bodyText = await page.locator("body").innerText();
   const closedDesktopMetrics = await pageMetrics(page);
   record(
     "NE-BROWSER-001 desktop list uses simplified effectiveness terms",
     retiredTerms.every((term) => !bodyText.includes(term)) &&
-      bodyText.includes("號碼效力") &&
-      bodyText.includes("尚未產生號碼") &&
-      bodyText.includes("已保留") &&
-      !bodyText.includes("保留號碼與正式資料分開保存") &&
+      bodyText.includes("申請狀態") &&
+      bodyText.includes("尚未產生料號") &&
+      bodyText.includes("編輯中") &&
       closedDesktopMetrics.visibleHelpButtonCount === 1 &&
       !closedDesktopMetrics.popoverVisible,
     {
@@ -262,7 +270,7 @@ try {
 
   const expectedByRoute = {
     "/parts?tab=drafts": {
-      headers: ["料號", "申請名稱", "內容", "申請狀態 / 號碼效力"],
+      headers: ["料號", "申請名稱", "內容", "申請狀態"],
       reservedCode: "A0001-P01",
       emptyCode: "尚未產生料號",
       forbiddenCode: "A0001-M01",
@@ -271,7 +279,7 @@ try {
       contents: ["1 料號"]
     },
     "/numbering/drawings?tab=reserved": {
-      headers: ["圖號", "申請名稱", "內容", "申請狀態 / 號碼效力"],
+      headers: ["圖號", "申請名稱", "內容", "申請狀態"],
       reservedCode: "A0001-M01",
       emptyCode: "尚未產生圖號",
       forbiddenCode: "A0001-P01",
@@ -280,7 +288,7 @@ try {
       contents: ["1 圖號"]
     },
     "/numbering/search?tab=reserved": {
-      headers: ["圖號 / 料號", "申請名稱", "內容", "申請狀態 / 號碼效力"],
+      headers: ["圖號 / 料號", "申請名稱", "內容", "申請狀態"],
       reservedCode: "A0001-P01、A0001-M01",
       emptyCode: "尚未產生圖料號",
       forbiddenCode: "A0001、",
@@ -293,7 +301,7 @@ try {
   for (const moduleRoute of Object.keys(expectedByRoute)) {
     if (new URL(page.url()).pathname + new URL(page.url()).search !== moduleRoute) {
       await page.goto(`${baseUrl}${moduleRoute}`, { waitUntil: "networkidle" });
-      await page.getByRole("region", { name: "保留號清單" }).waitFor({ state: "visible" });
+      await page.getByRole("region", { name: "編號申請清單" }).waitFor({ state: "visible" });
     }
     moduleLayouts.push({ moduleRoute, ...(await reservedLayoutMetrics(page)) });
   }
@@ -318,16 +326,16 @@ try {
     { expectedByRoute, moduleLayouts }
   );
   await page.goto(`${baseUrl}/parts?tab=drafts`, { waitUntil: "networkidle" });
-  await page.getByRole("region", { name: "保留號清單" }).waitFor({ state: "visible" });
+  await page.getByRole("region", { name: "編號申請清單" }).waitFor({ state: "visible" });
 
-  await page.getByRole("button", { name: "查看保留號分頁說明" }).click();
-  const help = page.getByRole("dialog", { name: "保留號分頁說明" });
+  await page.getByRole("button", { name: "查看編號申請分頁說明" }).click();
+  const help = page.getByRole("dialog", { name: "編號申請分頁說明" });
   await help.waitFor({ state: "visible" });
   const helpText = await help.innerText();
   const desktopMetrics = await pageMetrics(page);
   record(
     "NE-BROWSER-002 help explains the 3+1 vocabulary",
-    ["預覽", "已保留", "正式", "已釋出"].every((term) => helpText.includes(term)) && desktopMetrics.visibleHelpButtonCount === 1 && desktopMetrics.popoverInsideViewport &&
+    ["編輯中", "申請中", "已發布", "已取消"].every((term) => helpText.includes(term)) && desktopMetrics.visibleHelpButtonCount === 1 && desktopMetrics.popoverInsideViewport &&
       !desktopMetrics.popoverContentOverflow && !desktopMetrics.popoverItemOverlap,
     { helpText, desktopMetrics }
   );
@@ -336,7 +344,7 @@ try {
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: path.join(outputDir, "number-effectiveness-mobile-clean-390.png") });
-  await page.getByRole("button", { name: "查看保留號分頁說明" }).click();
+  await page.getByRole("button", { name: "查看編號申請分頁說明" }).click();
   await help.waitFor({ state: "visible" });
   const mobileMetrics = await pageMetrics(page);
   record(

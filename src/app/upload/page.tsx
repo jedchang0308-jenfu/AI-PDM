@@ -463,10 +463,10 @@ function GenericUploadPage() {
       <WorkflowStrip
         title="送審流程"
         description="先確認圖料號，再補檔案與 PDM 屬性，送出後進入待辦與審核。"
-        steps={["保留號", "上傳送審", "審核", "發行", "交接"]}
+        steps={["編號申請", "上傳送審", "審核", "發布", "交接"]}
         currentStep="上傳送審"
         actions={[
-          { href: "/numbering/search?tab=reserved", label: "先建立保留號" },
+          { href: "/numbering/search?tab=reserved", label: "先建立編號" },
           { href: "/numbering/tasks", label: "看待辦", variant: "primary" }
         ]}
       />
@@ -611,7 +611,7 @@ function GenericUploadPage() {
 
             {detection?.candidates?.length ? (
               <div className="ocr-candidate-list">
-                <span className="section-label">AI/OCR 候選欄位（送審前需人工確認）</span>
+                <span className="section-label">AI/OCR 待確認欄位（送審前需人工確認）</span>
                 {detection.candidates.slice(0, 12).map((candidate, index) => (
                   <button
                     className="ocr-candidate"
@@ -725,7 +725,7 @@ function buildUploadWarnings(detection: PdmMetadataDetection | null) {
   for (const candidate of detection.candidates ?? []) {
     const currentValue = detection.metadata[candidate.field]?.trim();
     if (!currentValue || candidate.value.trim().toUpperCase() === currentValue.toUpperCase()) continue;
-    warnings.add(`偵測到不同的${fieldLabels[candidate.field]}候選值：目前使用「${currentValue}」，另有「${candidate.value}」。送出前請人工確認。`);
+    warnings.add(`偵測到不同的${fieldLabels[candidate.field]}待確認值：目前使用「${currentValue}」，另有「${candidate.value}」。送出前請人工確認。`);
   }
 
   return Array.from(warnings);

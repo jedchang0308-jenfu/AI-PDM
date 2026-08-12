@@ -22,6 +22,7 @@ try {
   await runNpmCommandStep("audit", ["audit", "--audit-level=moderate"]);
   await runNpmStep("build", "build");
   await runNpmStep("source boundary", "qc:source-boundary");
+  await runNpmStep("part-cost retirement", "qc:pdm-part-cost-retirement");
   await runNpmStep("policy alignment", "qc:policy-alignment");
   await runNpmStep("P0/P1 defects zero", "qc:defects-zero");
   await runNpmStep("solidworks add-in source", "qc:sw-addin-source");

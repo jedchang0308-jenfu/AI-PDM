@@ -46,8 +46,8 @@ record("DEV053-HTTP-006 new-flag missing IDs fail closed without direct-master f
     "目前找不到來源圖號識別",
     "目前找不到主根識別",
     "製造圖必須先選定來源料號",
-    "系統不會直接建立正式料號",
-    "系統不會直接建立正式圖號",
+    "系統不會直接建立料號",
+    "系統不會直接建立圖號",
     "window.location.assign(`/numbering/drawings?view=work&detail="
   ]) && (contextual.match(/if \(drawingWorkbenchEnabled\)/gu)?.length ?? 0) >= 2);
 record("DEV053-HTTP-007 production mutation allowlist remains closed",
@@ -79,22 +79,23 @@ record("DEV053-HTTP-008 query contract normalizes valid input and rejects invali
   record("DEV053-HTTP-009 pagination is a bounded repository keyset before hydration",
     has(repository, [
       "async readListPage",
-      "ORDER BY updated_at DESC, row_key ASC",
+      "ORDER BY sort_value ${orderDirection}, row_key ASC",
       "LIMIT :scanLimit",
-      "updated_at < :cursorUpdatedAt",
+      "sort_value < :cursorSortValue",
       "getWorkspacesByIds(candidateIds",
-      "listDrawingModuleRecordsByIds(drawingIds"
+      "listDrawingModuleRecordsByIds(drawingIds",
+      "unifiedDrawingRepository.getByIds"
     ]) && !service.includes("findIndex((row)") && !repository.includes("MAX_SNAPSHOT_IDENTITIES"));
   record("DEV053-HTTP-010 formal purpose and status filters execute inside the bounded identity query",
     has(repository, [
-      "d.purpose_code = :purposeCode",
-      "d.record_status = :recordStatus",
+      "canonical.purpose_code = :purposeCode",
+      "formal.record_status = :recordStatus",
       "purposeCode: input.purposeCode",
       "recordStatus: input.recordStatus"
     ]) && has(service, [
       "purposeCode: query.purposeCode",
       "recordStatus: query.recordStatus",
-      "includeCandidates: actor.permissions.workspaceView && !query.purposeCode && !query.recordStatus"
+      "includeCandidates: actor.permissions.workspaceView && !query.recordStatus"
     ]));
   const defaultQuery = normalizeDrawingWorkbenchQuery(new URL("http://local.test/"));
   const historyQuery = normalizeDrawingWorkbenchQuery(new URL("http://local.test/?history=include"));

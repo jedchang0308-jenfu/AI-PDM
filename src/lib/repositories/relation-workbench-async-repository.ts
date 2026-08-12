@@ -3,21 +3,24 @@ import { AsyncNumberStateFlowRepository, type NumberingDraftWorkspaceRecord } fr
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import type { NumberingRecordStatus, NumberingRootDetailRecord, NumberingSearchEntityType } from "@/lib/repositories/numbering-repository";
+import type { NumberSortDirection } from "@/lib/number-sort";
 
 type IdentityRow = {
   row_kind: "candidate_root" | "formal_root";
   id: string;
   updated_at: string;
+  sort_value: string;
   row_key: string;
 };
 
-export type RelationWorkbenchIdentityCursor = { updatedAt: string; rowKey: string };
+export type RelationWorkbenchIdentityCursor = { sortValue: string; rowKey: string };
 export type RelationWorkbenchRepositoryQuery = {
   companyId: string;
   query: string;
   seriesCode: string;
   entityType: NumberingSearchEntityType;
   recordStatus: NumberingRecordStatus | "";
+  sortDirection: NumberSortDirection;
   includeCandidates: boolean;
   cursor: RelationWorkbenchIdentityCursor | null;
   limit: number;
@@ -37,6 +40,10 @@ export type RelationWorkbenchChangeSource = {
 
 function searchPattern(value: string) {
   return `%${value.toLocaleLowerCase("zh-Hant")}%`;
+}
+
+function buildPartMasterDataGapMap(root: NumberingRootDetailRecord & { partMasterDataGaps?: Record<string, boolean> }) {
+  return new Map(Object.entries(root.partMasterDataGaps ?? {}));
 }
 
 export class RelationWorkbenchAsyncRepository {
@@ -62,8 +69,26 @@ export class RelationWorkbenchAsyncRepository {
     const candidateEntityFilter = input.entityType === "part_number" ? "AND EXISTS (SELECT 1 FROM numbering_draft_parts p WHERE p.workspace_id = w.id AND p.company_id = w.company_id)"
       : input.entityType === "drawing_number" ? "AND EXISTS (SELECT 1 FROM numbering_draft_drawings d WHERE d.workspace_id = w.id AND d.company_id = w.company_id)"
       : "";
+    const orderDirection = input.sortDirection === "desc" ? "DESC" : "ASC";
+    const candidateSortValue = `COALESCE(
+      (SELECT reservation.candidate_code
+       FROM number_candidate_reservations reservation
+       WHERE reservation.id = draft_root.candidate_reservation_id),
+      (SELECT MIN(reservation.candidate_code)
+       FROM numbering_draft_drawings draft_drawing
+       JOIN number_candidate_reservations reservation ON reservation.id = draft_drawing.candidate_reservation_id
+       WHERE draft_drawing.workspace_id = w.id AND draft_drawing.company_id = w.company_id),
+      (SELECT MIN(reservation.candidate_code)
+       FROM numbering_draft_parts draft_part
+       JOIN number_candidate_reservations reservation ON reservation.id = draft_part.candidate_reservation_id
+       WHERE draft_part.workspace_id = w.id AND draft_part.company_id = w.company_id),
+      '尚未產生編號'
+    )`;
+    const cursorClause = input.sortDirection === "desc"
+      ? `(:cursorSortValue IS NULL OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
+      : `(:cursorSortValue IS NULL OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
     return client.query<IdentityRow>(
-      `SELECT row_kind, id, updated_at, row_key
+      `SELECT row_kind, id, updated_at, sort_value, row_key
        FROM (
          SELECT
            'formal_root' AS row_kind,
@@ -71,6 +96,7 @@ export class RelationWorkbenchAsyncRepository {
            CASE WHEN COALESCE((SELECT MAX(w.updated_at) FROM numbering_draft_workspaces w WHERE w.source_root_id = r.id AND w.company_id = r.company_id AND w.lifecycle_status <> 'published'), '') > COALESCE(r.updated_at, '')
              THEN (SELECT MAX(w.updated_at) FROM numbering_draft_workspaces w WHERE w.source_root_id = r.id AND w.company_id = r.company_id AND w.lifecycle_status <> 'published')
              ELSE COALESCE(r.updated_at, '') END AS updated_at,
+           r.root_code AS sort_value,
            'root:' || r.id AS row_key
          FROM part_roots r
          WHERE r.company_id = :companyId
@@ -83,6 +109,7 @@ export class RelationWorkbenchAsyncRepository {
            'candidate_root' AS row_kind,
            w.id AS id,
            w.updated_at AS updated_at,
+           ${candidateSortValue} AS sort_value,
            'candidate:' || w.id AS row_key
          FROM numbering_draft_workspaces w
          LEFT JOIN numbering_draft_roots draft_root ON draft_root.workspace_id = w.id AND draft_root.company_id = w.company_id
@@ -98,8 +125,8 @@ export class RelationWorkbenchAsyncRepository {
            )` : ""}
            ${input.seriesCode ? "AND EXISTS (SELECT 1 FROM numbering_draft_parts p WHERE p.workspace_id = w.id AND p.company_id = w.company_id AND p.series_code = :seriesCode)" : ""}
        ) identity_page
-       WHERE (:cursorUpdatedAt IS NULL OR updated_at < :cursorUpdatedAt OR (updated_at = :cursorUpdatedAt AND row_key > :cursorRowKey))
-       ORDER BY updated_at DESC, row_key ASC
+       WHERE ${cursorClause}
+       ORDER BY sort_value ${orderDirection}, row_key ASC
        LIMIT :scanLimit`,
       {
         companyId: input.companyId,
@@ -107,7 +134,7 @@ export class RelationWorkbenchAsyncRepository {
         queryPattern: searchPattern(input.query),
         seriesCode: input.seriesCode,
         recordStatus: input.recordStatus,
-        cursorUpdatedAt: input.cursor?.updatedAt ?? null,
+        cursorSortValue: input.cursor?.sortValue ?? null,
         cursorRowKey: input.cursor?.rowKey ?? "",
         scanLimit: Math.min(240, Math.max(60, input.limit * 4))
       }
@@ -116,14 +143,14 @@ export class RelationWorkbenchAsyncRepository {
 
   async readListPage<T extends { rowKey: string; updatedAt: string }>(
     input: RelationWorkbenchRepositoryQuery,
-    project: (workspaces: NumberingDraftWorkspaceRecord[], roots: NumberingRootDetailRecord[]) => T[]
+    project: (workspaces: NumberingDraftWorkspaceRecord[], roots: NumberingRootDetailRecord[], partMasterDataGaps: ReadonlyMap<string, boolean>) => T[]
   ): Promise<RelationWorkbenchReadPage<T>> {
     return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
       const identities = await this.identityPage(client, input);
       const rootIds = identities.filter((row) => row.row_kind === "formal_root").map((row) => row.id);
       const sourceLessWorkspaceIds = identities.filter((row) => row.row_kind === "candidate_root").map((row) => row.id);
       const numberingRepository = new AsyncNumberingRepository(client);
-      const rootsPromise = numberingRepository.getNumberingRootDetailsByIds(rootIds, input.companyId, { includeAncillary: false });
+      const rootsPromise = numberingRepository.getNumberingRootDetailsByIds(rootIds, input.companyId, { includeAncillary: false, includePartMasterDataGaps: true });
       const sourceWorkspaceRowsPromise = rootIds.length > 0 && input.includeCandidates
         ? client.query<{ id: string }>(
             `SELECT id FROM numbering_draft_workspaces
@@ -133,11 +160,12 @@ export class RelationWorkbenchAsyncRepository {
           )
         : Promise.resolve([] as Array<{ id: string }>);
       const [roots, sourceWorkspaceRows] = await Promise.all([rootsPromise, sourceWorkspaceRowsPromise]);
+      const partMasterDataGaps = new Map(roots.flatMap((root) => [...buildPartMasterDataGapMap(root).entries()]));
       const workspaceIds = [...new Set([...sourceLessWorkspaceIds, ...sourceWorkspaceRows.map((row) => row.id)])];
       const workspaces = input.includeCandidates
         ? await new AsyncNumberStateFlowRepository(client).getWorkspacesByIds(workspaceIds, input.companyId)
         : [];
-      const projectedByKey = new Map(project(workspaces, roots).map((row) => [row.rowKey, row]));
+      const projectedByKey = new Map(project(workspaces, roots, partMasterDataGaps).map((row) => [row.rowKey, row]));
       const rows = identities.flatMap((identity) => {
         const row = projectedByKey.get(identity.row_key);
         return row ? [{ ...row, updatedAt: identity.updated_at }] : [];
@@ -151,8 +179,10 @@ export class RelationWorkbenchAsyncRepository {
 
   async readRootDetail(rootId: string, companyId: string) {
     return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
-      const root = (await new AsyncNumberingRepository(client).getNumberingRootDetailsByIds([rootId], companyId))[0] ?? null;
+      const numberingRepository = new AsyncNumberingRepository(client);
+      const root = (await numberingRepository.getNumberingRootDetailsByIds([rootId], companyId, { includePartMasterDataGaps: true }))[0] ?? null;
       if (!root) return null;
+      const partMasterDataGaps = buildPartMasterDataGapMap(root);
       type ChangeWorkspaceRow = { id: string; owner_id: string; source_root_id: string; lifecycle_status: "active" | "cancelled"; updated_at: string; root_core_name: string | null; root_candidate_code: string | null };
       type ChangePartRow = { workspace_id: string; part_name: string; candidate_code: string | null };
       type ChangeDrawingRow = { workspace_id: string; candidate_code: string | null };
@@ -167,7 +197,7 @@ export class RelationWorkbenchAsyncRepository {
          ORDER BY w.updated_at DESC, w.id ASC`,
         { companyId, rootId }
       );
-      if (workspaceRows.length === 0) return { root, workspaces: [] as RelationWorkbenchChangeSource[] };
+      if (workspaceRows.length === 0) return { root, workspaces: [] as RelationWorkbenchChangeSource[], partMasterDataGaps };
       const bindings = { companyId, ...Object.fromEntries(workspaceRows.map((row, index) => [`workspaceId${index}`, row.id])) };
       const placeholders = workspaceRows.map((_, index) => `:workspaceId${index}`).join(", ");
       const [partRows, drawingRows, approvalRows] = await Promise.all([
@@ -217,7 +247,7 @@ export class RelationWorkbenchAsyncRepository {
           projectedStage
         };
       });
-      return { root, workspaces };
+      return { root, workspaces, partMasterDataGaps };
     });
   }
 
@@ -230,14 +260,16 @@ export class RelationWorkbenchAsyncRepository {
 
   async resolveRootByCode(rootCode: string, companyId: string) {
     return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
-      const root = await new AsyncNumberingRepository(client).getNumberingRootDetail(rootCode, companyId);
+      const numberingRepository = new AsyncNumberingRepository(client);
+      const root = await numberingRepository.getNumberingRootDetail(rootCode, companyId, { includePartMasterDataGaps: true });
       if (!root) return null;
+      const partMasterDataGaps = buildPartMasterDataGapMap(root);
       const workspaceRows = await client.query<{ id: string }>(
         `SELECT id FROM numbering_draft_workspaces WHERE company_id = :companyId AND source_root_id = :rootId AND lifecycle_status <> 'published' ORDER BY updated_at DESC, id ASC`,
         { companyId, rootId: root.root.id }
       );
       const workspaces = await new AsyncNumberStateFlowRepository(client).getWorkspacesByIds(workspaceRows.map((row) => row.id), companyId);
-      return { root, workspaces };
+      return { root, workspaces, partMasterDataGaps };
     });
   }
 }

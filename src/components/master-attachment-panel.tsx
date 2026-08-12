@@ -140,7 +140,7 @@ type ProductionSliceClientStatus = {
   unopenedMessage?: string;
 };
 
-const defaultProductionSliceUnopenedMessage = "此功能未納入本次正式領號 / 保留號 production slice。";
+const defaultProductionSliceUnopenedMessage = "此功能未納入本次編號建立 production slice。";
 
 const drawingCategories = [
   { value: "cad_3d", label: "3D CAD" },
@@ -444,7 +444,14 @@ export function MasterAttachmentPanel({
       for (const selectedFile of files) {
         const form = new FormData();
         form.append("file", selectedFile);
-        form.append("document_category", authorityMode === "reference_manager" ? inferReferenceAttachmentCategory(selectedFile.name) : category);
+        form.append(
+          "document_category",
+          entityType === "part_number"
+            ? "other"
+            : authorityMode === "reference_manager"
+              ? inferReferenceAttachmentCategory(selectedFile.name)
+              : category
+        );
         form.append("revision", revision.trim());
         form.append("display_name", files.length === 1 ? displayName.trim() : "");
         form.append("description", description.trim());
@@ -869,7 +876,7 @@ export function MasterAttachmentPanel({
 
   const uploadForm = (
     <form className="master-attachment-form" onSubmit={uploadAttachment}>
-      {authorityMode !== "reference_manager" ? (
+      {entityType === "drawing_number" && authorityMode !== "reference_manager" ? (
         <>
           <label>
             類別
@@ -1070,7 +1077,7 @@ export function MasterAttachmentPanel({
         <div>
           <h2>{authorityMode === "controlled_summary" ? "受控版次檔案" : authorityMode === "reference_manager" ? "參考附件" : effectiveReadOnly && entityType === "drawing_number" ? "受控檔案摘要" : entityType === "drawing_number" ? "圖號附件庫" : "料號附件庫"}</h2>
           {compact && authorityMode === "controlled_summary" && attachmentSections.current.length > 0 ? <span className="master-attachment-header-meta">正式版次 {attachmentSections.currentRevision ?? "-"}</span> : null}
-          {!compact ? <p>{authorityMode === "controlled_summary" ? "此區只顯示候選首版或正式版次流程建立的受控檔案；變更內容請建立新版次。" : authorityMode === "reference_manager" ? "此區僅管理作業參考附件，不會取代受控版次檔案，也不會直接改變正式版次。" : effectiveReadOnly ? "檔案變更請由候選首版或正式版次工作台進行。" : "本主檔可掛多個檔案，並同步到 Google Drive 主檔附件庫。"}</p> : null}
+          {!compact ? <p>{authorityMode === "controlled_summary" ? "此區只顯示首版準備或版次流程建立的受控檔案；變更內容請建立新版次。" : authorityMode === "reference_manager" ? "此區僅管理作業參考附件，不會取代受控版次檔案，也不會直接改變已發布版次。" : effectiveReadOnly ? "檔案變更請由首版準備或版次工作台進行。" : "本主檔可掛多個檔案，並同步到 Google Drive 主檔附件庫。"}</p> : null}
         </div>
       </div> : null}
 
@@ -1656,7 +1663,7 @@ function attachmentSubmissionState(attachment: MasterAttachment, options?: { for
       return {
         label: "送審中",
         tone: "pending",
-        note: submissionId ? `已納入送審 ${submissionId}（${revisionText}），目前審核中，尚未正式發布。` : "已納入送審，目前審核中，尚未正式發布。"
+        note: submissionId ? `已納入送審 ${submissionId}（${revisionText}），目前審核中，尚未發布。` : "已納入送審，目前審核中，尚未發布。"
       };
     case "Releasing":
       return {
@@ -1668,7 +1675,7 @@ function attachmentSubmissionState(attachment: MasterAttachment, options?: { for
       return {
         label: "正式附件",
         tone: "released",
-        note: submissionId ? `已由送審 ${submissionId}（${revisionText}）正式發布。` : "此附件已正式發布。"
+        note: submissionId ? `已由送審 ${submissionId}（${revisionText}）發布。` : "此附件已發布。"
       };
     case "ReleaseFailed":
       return {
@@ -1680,13 +1687,13 @@ function attachmentSubmissionState(attachment: MasterAttachment, options?: { for
       return {
         label: "已退回",
         tone: "blocked",
-        note: submissionId ? `送審 ${submissionId} 已退回，這不是正式發布附件。` : "送審已退回，這不是正式發布附件。"
+        note: submissionId ? `送審 ${submissionId} 已退回，這不是已發布附件。` : "送審已退回，這不是已發布附件。"
       };
     case "Cancelled":
       return {
         label: "已取消",
         tone: "blocked",
-        note: submissionId ? `送審 ${submissionId} 已取消，這不是正式發布附件。` : "送審已取消，這不是正式發布附件。"
+        note: submissionId ? `送審 ${submissionId} 已取消，這不是已發布附件。` : "送審已取消，這不是已發布附件。"
       };
     case "Obsolete":
       return {
@@ -1698,7 +1705,7 @@ function attachmentSubmissionState(attachment: MasterAttachment, options?: { for
       return {
         label: "未送審",
         tone: "working",
-        note: "這是附件庫工作檔，尚未納入送審，不是正式發布紀錄。"
+        note: "這是附件庫工作檔，尚未納入送審，不是已發布紀錄。"
       };
   }
 }

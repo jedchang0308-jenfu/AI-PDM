@@ -234,10 +234,10 @@ export function SubmissionTable({
             <NextStepState
               eyebrow="找不到資料"
               title="目前沒有符合條件的圖面資料"
-              body="可放寬篩選條件、建立新送審，或先建立保留號後再補圖面檔案。"
+              body="可放寬篩選條件、建立新送審，或先建立料號後再補圖面檔案。"
               actions={[
                 { href: "/upload", label: "上傳送審", variant: "primary" },
-                { href: "/numbering/search?tab=reserved", label: "保留號" }
+                { href: "/numbering/search?tab=reserved", label: "編號申請" }
               ]}
             />
           </div>

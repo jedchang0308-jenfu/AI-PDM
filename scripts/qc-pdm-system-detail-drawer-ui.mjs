@@ -90,15 +90,6 @@ includesAll("src/app/approvals/page.tsx", [
   "allowedDecisionsForDetail"
 ]);
 
-includesAll("src/app/numbering/imports/page.tsx", [
-  "PdmDetailDrawer",
-  "useRememberedDrawerWidth",
-  "useListKeyboardShortcuts",
-  "pdm-import-detail-drawer-width",
-  "data-import-batch-row",
-  "pdm-detail-drawer"
-]);
-
 includesAll("src/app/numbering/reports/page.tsx", [
   "PdmDetailDrawer",
   "useRememberedDrawerWidth",

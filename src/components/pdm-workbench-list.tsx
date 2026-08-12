@@ -8,6 +8,7 @@ export type PdmWorkbenchListColumn<Row> = {
   dataLabel?: string;
   className?: string;
   cellClassName?: string;
+  ariaSort?: "ascending" | "descending" | "none";
   ariaHidden?: boolean;
   render?: (row: Row, index: number) => ReactNode;
 };
@@ -70,7 +71,7 @@ export function PdmWorkbenchList<Row,>({
         <thead>
           <tr>
             {columns.map((column) => (
-              <th className={column.cellClassName} aria-hidden={column.ariaHidden || undefined} key={column.key}>
+              <th className={column.cellClassName} aria-sort={column.ariaSort} aria-hidden={column.ariaHidden || undefined} key={column.key}>
                 {column.header}
               </th>
             ))}

@@ -252,7 +252,7 @@ function getPlatformWorkbenchSections({
     currentUser.role === "Engineer"
       ? [
           { href: "/upload", label: "上傳送審", detail: "建立新的圖料送審", icon: UploadCloud },
-          { href: "/numbering/search?tab=reserved", label: "保留號", detail: "先保留料號 / 圖號", icon: ClipboardList },
+          { href: "/numbering/search?tab=reserved", label: "編號申請", detail: "先建立料號 / 圖號", icon: ClipboardList },
           { href: "/bom/workbench", label: "BOM 工作台", detail: "建立或整理 BOM 草稿", icon: ListTree }
         ]
       : [
@@ -285,8 +285,7 @@ function getPlatformWorkbenchSections({
       icon: UploadCloud,
       links: [
         { href: "/upload", label: "上傳送審", detail: "圖面 / 文件 / CAD 檔", icon: UploadCloud },
-        { href: "/numbering/search?tab=reserved", label: "保留號", detail: "料號、圖號、用途", icon: ClipboardList },
-        { href: "/numbering/imports", label: "圖號總表匯入", detail: "既有主檔暫存", icon: FileText }
+        { href: "/numbering/search?tab=reserved", label: "編號申請", detail: "料號、圖號、用途", icon: ClipboardList },
       ]
     },
     {
@@ -459,8 +458,8 @@ function ControlledHistoryPanel({
 }) {
   const entityLabels: Record<ControlledHistoryEntry["entity_type"], string> = {
     submission: "正式圖面",
-    numbering_part_number: "正式料號",
-    numbering_drawing_number: "正式圖號",
+    numbering_part_number: "料號",
+    numbering_drawing_number: "圖號",
     bom_release: "正式 BOM"
   };
 
@@ -3249,11 +3248,11 @@ export function Dashboard() {
                   ) : null}
                   <div className="reuse-panel">
                     <div>
-                      <span className="section-label">設計沿用候選</span>
-                      <strong>{reuseCandidates.length > 0 ? `${reuseCandidates.length} 筆中繼資料相符` : "沒有沿用候選"}</strong>
+                      <span className="section-label">設計沿用比對</span>
+                      <strong>{reuseCandidates.length > 0 ? `${reuseCandidates.length} 筆中繼資料相符` : "沒有相符項目"}</strong>
                     </div>
                     {reuseCandidates.length === 0 ? (
-                      <small>{detailResourcesLoaded.insights ? "目前可見範圍內沒有相似中繼資料候選。" : "展開後載入沿用候選。"}</small>
+                      <small>{detailResourcesLoaded.insights ? "目前可見範圍內沒有相似中繼資料比對結果。" : "展開後載入沿用比對。"}</small>
                     ) : (
                       <div className="reuse-list">
                         {reuseCandidates.map((candidate) => (

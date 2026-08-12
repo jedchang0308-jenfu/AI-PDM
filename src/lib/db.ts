@@ -112,12 +112,8 @@ export {
   applyNumberingRuleTemplate,
   checkNumberingDuplicates,
   checkNumberingPermission,
-  confirmNumberingImportBatch,
   createNumberingApprovalBatch,
   createNumberingExportJob,
-  createNumberingImportBatch,
-  createPartCostProfile,
-  decidePartCostChangeRequest,
   createNumberingRecord,
   decideNumberingApprovalBatch,
   decideNumberingApproval,
@@ -126,7 +122,6 @@ export {
   getNumberingRootDetail,
   getNumberingApprovalBatch,
   getNumberingExportJob,
-  getNumberingImportBatch,
   getNumberingRootBundle,
   generateMonthlyNumberingAuditReport,
   getMonthlyNumberingAuditReport,
@@ -134,7 +129,6 @@ export {
   listMonthlyNumberingAuditReports,
   listNumberingAdminMatrix,
   listNumberingExportJobs,
-  listNumberingImportBatches,
   listNumberingNotifications,
   listNumberingTasks,
   listDrawingModuleRecords,
@@ -146,7 +140,6 @@ export {
   requestMainDrawingRestoreApproval,
   requestNumberingApproval,
   requestSameDrawingVariantApproval,
-  resolvePartCost,
   revokeNumberingApprovalDelegation,
   revokeNumberingUserRoleAssignment,
   saveNumberingRolePriority,
@@ -174,9 +167,6 @@ export {
   type ApprovalRuleEvaluation,
   type CreateNumberingApprovalBatchInput,
   type CreateNumberingExportJobInput,
-  type CreateNumberingImportBatchInput,
-  type CreatePartCostProfileInput,
-  type DecidePartCostChangeRequestInput,
   type EvaluateApprovalRuleInput,
   type DecideNumberingApprovalBatchInput,
   type DuplicateCheckInput,
@@ -185,17 +175,13 @@ export {
   type ListMonthlyNumberingAuditReportsInput,
   type ListNumberingApprovalBatchesInput,
   type ListNumberingExportJobsInput,
-  type ListNumberingImportBatchesInput,
   type MarkOverdueDraftNumberingInput,
   type MarkOverdueDraftNumberingResult,
   type MainDrawingImpactInput,
-  type PartCostType,
-  type PartCostResolutionRecord,
   type PartModuleDetailRecord,
   type PartModuleListInput,
   type PartModuleListRecord,
   type UpsertPartVariantAttributesInput,
-  type ResolvePartCostInput,
   type NumberingAuditTrailRecord,
   type NumberingAttentionMarkerRecord,
   type NumberingApprovalRecord,
@@ -207,7 +193,6 @@ export {
   type NumberingApprovalDecisionRecord,
   type NumberingApprovalEntitySummaryRecord,
   type NumberingNotificationRecord,
-  type NumberingImportBatchRecord,
   type NumberingItemKind,
   type NumberingExportJobRecord,
   type NumberingLinkRecord,
@@ -242,7 +227,6 @@ export {
   type RequestMainDrawingRestoreApprovalInput,
   type RequestNumberingApprovalInput,
   type ResubmitRejectedNumberingApprovalBatchItemsInput,
-  type ConfirmNumberingImportBatchInput,
   type CheckNumberingPermissionInput,
   type GenerateMonthlyNumberingAuditReportInput,
   type SaveNumberingRolePriorityInput,
@@ -347,7 +331,264 @@ function initDatabase(database: SqliteDatabase) {
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
+  ensureUnifiedDrawingAggregateBackfill(database);
   seedConfiguredUsers(database);
+}
+
+function ensureUnifiedDrawingAggregateBackfill(database: SqliteDatabase) {
+  const migrationVersion = "dev-064-unified-drawing-aggregate-v1";
+  const applied = database
+    .prepare("SELECT version FROM pdm_local_data_migrations WHERE version = ?")
+    .get(migrationVersion) as { version: string } | undefined;
+  if (applied) return;
+
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    database.exec(`
+      INSERT OR IGNORE INTO drawings (
+        id, company_id, drawing_number, lifecycle_state, workspace_id, drawing_draft_id,
+        candidate_reservation_id, formal_drawing_number_id, part_root_id, purpose_code,
+        purpose_description, sequence_no, is_primary_manufacturing, owner_id,
+        rule_version_id, row_version, created_by, created_at, updated_at
+      )
+      SELECT
+        'drawing-' || draft.id,
+        draft.company_id,
+        reservation.candidate_code,
+        'building',
+        draft.workspace_id,
+        draft.id,
+        reservation.id,
+        COALESCE(candidate.formal_drawing_number_id,
+          CASE WHEN reservation.promoted_master_type = 'drawing_number' THEN reservation.promoted_master_id END),
+        formal.part_root_id,
+        draft.purpose_code,
+        draft.purpose_description,
+        reservation.sequence_no,
+        draft.is_primary_manufacturing,
+        workspace.owner_id,
+        formal.rule_version_id,
+        1,
+        workspace.created_by,
+        workspace.created_at,
+        CASE
+          WHEN reservation.updated_at IS NOT NULL AND reservation.updated_at > draft.updated_at THEN reservation.updated_at
+          WHEN workspace.updated_at > draft.updated_at THEN workspace.updated_at
+          ELSE draft.updated_at
+        END
+      FROM numbering_draft_drawings draft
+      JOIN numbering_draft_workspaces workspace
+        ON workspace.id = draft.workspace_id AND workspace.company_id = draft.company_id
+      LEFT JOIN number_candidate_reservations reservation
+        ON reservation.id = draft.candidate_reservation_id AND reservation.company_id = draft.company_id
+      LEFT JOIN numbering_candidate_revision_drafts candidate
+        ON candidate.drawing_draft_id = draft.id AND candidate.company_id = draft.company_id
+      LEFT JOIN drawing_numbers formal
+        ON formal.id = COALESCE(candidate.formal_drawing_number_id,
+          CASE WHEN reservation.promoted_master_type = 'drawing_number' THEN reservation.promoted_master_id END);
+
+      INSERT INTO drawings (
+        id, company_id, drawing_number, lifecycle_state, formal_drawing_number_id,
+        part_root_id, purpose_code, purpose_description, sequence_no,
+        is_primary_manufacturing, rule_version_id, row_version, created_by, created_at, updated_at
+      )
+      SELECT
+        COALESCE('drawing-' || reservation.draft_item_id, 'drawing-formal-' || formal.id),
+        formal.company_id,
+        formal.drawing_number,
+        'building',
+        formal.id,
+        formal.part_root_id,
+        formal.purpose_code,
+        formal.purpose_description,
+        formal.sequence_no,
+        formal.is_primary_manufacturing,
+        formal.rule_version_id,
+        1,
+        formal.created_by,
+        formal.created_at,
+        formal.updated_at
+      FROM drawing_numbers formal
+      LEFT JOIN number_candidate_reservations reservation
+        ON reservation.company_id = formal.company_id
+       AND reservation.promoted_master_type = 'drawing_number'
+       AND reservation.promoted_master_id = formal.id
+      ON CONFLICT(company_id, drawing_number) DO UPDATE SET
+        formal_drawing_number_id = excluded.formal_drawing_number_id,
+        part_root_id = excluded.part_root_id,
+        purpose_code = excluded.purpose_code,
+        purpose_description = excluded.purpose_description,
+        sequence_no = excluded.sequence_no,
+        is_primary_manufacturing = excluded.is_primary_manufacturing,
+        rule_version_id = excluded.rule_version_id,
+        updated_at = CASE WHEN excluded.updated_at > drawings.updated_at THEN excluded.updated_at ELSE drawings.updated_at END;
+
+      INSERT OR IGNORE INTO drawing_revisions (
+        id, company_id, drawing_id, revision, lifecycle_state, policy_snapshot_json,
+        override_reason, row_version, approval_request_id, review_snapshot_hash,
+        source_candidate_revision_id, source_revision_package_id, created_by,
+        created_at, updated_by, updated_at, submitted_at, controlled_at, released_at, cancelled_at
+      )
+      SELECT
+        'drawing-revision-' || candidate.id,
+        candidate.company_id,
+        drawing.id,
+        candidate.revision,
+        'preparing',
+        candidate.policy_snapshot_json,
+        candidate.override_reason,
+        candidate.row_version,
+        candidate.approval_request_id,
+        candidate.review_snapshot_hash,
+        candidate.id,
+        candidate.formal_revision_package_id,
+        candidate.created_by,
+        candidate.created_at,
+        candidate.updated_by,
+        candidate.updated_at,
+        CASE WHEN candidate.lifecycle_status = 'review_locked' THEN candidate.updated_at END,
+        candidate.promoted_at,
+        package.released_at,
+        candidate.cancelled_at
+      FROM numbering_candidate_revision_drafts candidate
+      JOIN drawings drawing
+        ON drawing.company_id = candidate.company_id AND drawing.drawing_draft_id = candidate.drawing_draft_id
+      LEFT JOIN drawing_revision_packages package ON package.id = candidate.formal_revision_package_id;
+
+      INSERT INTO drawing_revisions (
+        id, company_id, drawing_id, revision, lifecycle_state, policy_snapshot_json,
+        row_version, source_revision_package_id, created_by, created_at, updated_by,
+        updated_at, submitted_at, controlled_at, released_at, cancelled_at
+      )
+      SELECT
+        COALESCE('drawing-revision-' || candidate.id, 'drawing-revision-package-' || package.id),
+        package.company_id,
+        drawing.id,
+        package.revision,
+        'preparing',
+        COALESCE(package.snapshot_json, '{}'),
+        1,
+        package.id,
+        package.created_by,
+        package.created_at,
+        package.created_by,
+        package.updated_at,
+        package.submitted_at,
+        CASE WHEN package.lifecycle_state = 'rd_controlled' THEN package.updated_at END,
+        package.released_at,
+        package.cancelled_at
+      FROM drawing_revision_packages package
+      JOIN drawings drawing
+        ON drawing.company_id = package.company_id AND drawing.formal_drawing_number_id = package.drawing_number_id
+      LEFT JOIN numbering_candidate_revision_drafts candidate
+        ON candidate.formal_revision_package_id = package.id AND candidate.company_id = package.company_id
+      ON CONFLICT(id) DO UPDATE SET
+        source_revision_package_id = excluded.source_revision_package_id,
+        updated_at = CASE
+          WHEN excluded.updated_at > drawing_revisions.updated_at THEN excluded.updated_at
+          ELSE drawing_revisions.updated_at
+        END;
+
+      INSERT OR IGNORE INTO drawing_revision_files (
+        id, company_id, drawing_revision_id, source_file_asset_id, source_candidate_file_id,
+        role, role_source, display_name, description, sort_order, is_primary,
+        removed_at, removed_by, created_by, created_at, updated_at
+      )
+      SELECT
+        'drawing-revision-file-' || file.id,
+        file.company_id,
+        revision.id,
+        file.source_file_asset_id,
+        file.id,
+        file.role,
+        file.role_source,
+        file.display_name,
+        file.description,
+        file.sort_order,
+        file.is_primary,
+        file.removed_at,
+        file.removed_by,
+        file.created_by,
+        file.created_at,
+        file.updated_at
+      FROM numbering_candidate_revision_files file
+      JOIN drawing_revisions revision ON revision.source_candidate_revision_id = file.candidate_revision_id;
+
+      INSERT INTO drawing_revision_files (
+        id, company_id, drawing_revision_id, source_file_asset_id, source_package_file_id,
+        role, role_source, display_name, description, sort_order, is_primary,
+        created_by, created_at, updated_at
+      )
+      SELECT
+        'drawing-revision-package-file-' || file.id,
+        revision.company_id,
+        revision.id,
+        file.source_file_asset_id,
+        file.id,
+        file.role,
+        file.role_source,
+        file.display_name,
+        file.description,
+        file.sort_order,
+        file.is_primary,
+        file.created_by,
+        file.created_at,
+        file.created_at
+      FROM drawing_revision_package_files file
+      JOIN drawing_revisions revision ON revision.source_revision_package_id = file.package_id
+      ON CONFLICT(drawing_revision_id, source_file_asset_id) DO UPDATE SET
+        source_package_file_id = excluded.source_package_file_id
+      WHERE drawing_revision_files.source_package_file_id IS NULL;
+
+      UPDATE drawing_revisions
+      SET lifecycle_state = CASE
+        WHEN COALESCE((SELECT candidate.lifecycle_status FROM numbering_candidate_revision_drafts candidate WHERE candidate.id = drawing_revisions.source_candidate_revision_id), '') = 'review_locked' THEN 'in_review'
+        WHEN COALESCE((SELECT candidate.lifecycle_status FROM numbering_candidate_revision_drafts candidate WHERE candidate.id = drawing_revisions.source_candidate_revision_id), '') = 'cancelled' THEN 'cancelled'
+        WHEN COALESCE((SELECT package.lifecycle_state FROM drawing_revision_packages package WHERE package.id = drawing_revisions.source_revision_package_id), '') = 'released'
+          OR COALESCE((SELECT package.status FROM drawing_revision_packages package WHERE package.id = drawing_revisions.source_revision_package_id), '') = 'Released' THEN 'released'
+        WHEN COALESCE((SELECT package.lifecycle_state FROM drawing_revision_packages package WHERE package.id = drawing_revisions.source_revision_package_id), '') = 'rd_controlled'
+          OR COALESCE((SELECT candidate.lifecycle_status FROM numbering_candidate_revision_drafts candidate WHERE candidate.id = drawing_revisions.source_candidate_revision_id), '') = 'promoted' THEN 'rd_controlled'
+        WHEN COALESCE((SELECT package.lifecycle_state FROM drawing_revision_packages package WHERE package.id = drawing_revisions.source_revision_package_id), '') = 'correction_required'
+          OR COALESCE((SELECT package.status FROM drawing_revision_packages package WHERE package.id = drawing_revisions.source_revision_package_id), '') = 'Rejected' THEN 'correction_required'
+        WHEN COALESCE((SELECT package.lifecycle_state FROM drawing_revision_packages package WHERE package.id = drawing_revisions.source_revision_package_id), '') = 'in_review'
+          OR COALESCE((SELECT package.status FROM drawing_revision_packages package WHERE package.id = drawing_revisions.source_revision_package_id), '') = 'Pending' THEN 'in_review'
+        WHEN COALESCE((SELECT package.status FROM drawing_revision_packages package WHERE package.id = drawing_revisions.source_revision_package_id), '') = 'Cancelled' THEN 'cancelled'
+        ELSE 'preparing'
+      END;
+
+      UPDATE drawings
+      SET lifecycle_state = CASE
+        WHEN COALESCE((SELECT formal.record_status FROM drawing_numbers formal WHERE formal.id = drawings.formal_drawing_number_id), '') = 'Obsolete' THEN 'obsolete'
+        WHEN COALESCE((SELECT formal.record_status FROM drawing_numbers formal WHERE formal.id = drawings.formal_drawing_number_id), '') = 'Merged' THEN 'merged'
+        WHEN COALESCE((SELECT formal.record_status FROM drawing_numbers formal WHERE formal.id = drawings.formal_drawing_number_id), '') = 'Released'
+          OR COALESCE((SELECT revision.lifecycle_state FROM drawing_revisions revision WHERE revision.drawing_id = drawings.id ORDER BY revision.updated_at DESC, revision.id DESC LIMIT 1), '') = 'released' THEN 'released'
+        WHEN COALESCE((SELECT revision.lifecycle_state FROM drawing_revisions revision WHERE revision.drawing_id = drawings.id ORDER BY revision.updated_at DESC, revision.id DESC LIMIT 1), '') = 'rd_controlled'
+          OR drawings.formal_drawing_number_id IS NOT NULL THEN 'rd_controlled'
+        WHEN COALESCE((SELECT workspace.lifecycle_status FROM numbering_draft_workspaces workspace WHERE workspace.id = drawings.workspace_id), '') = 'cancelled' THEN 'cancelled'
+        WHEN COALESCE((SELECT revision.lifecycle_state FROM drawing_revisions revision WHERE revision.drawing_id = drawings.id ORDER BY revision.updated_at DESC, revision.id DESC LIMIT 1), '') = 'in_review' THEN 'in_review'
+        WHEN EXISTS (SELECT 1 FROM drawing_revisions revision WHERE revision.drawing_id = drawings.id)
+          OR drawings.candidate_reservation_id IS NOT NULL THEN 'drawing_preparation'
+        ELSE 'building'
+      END,
+      controlled_at = COALESCE(controlled_at, (
+        SELECT revision.controlled_at FROM drawing_revisions revision
+        WHERE revision.drawing_id = drawings.id AND revision.controlled_at IS NOT NULL
+        ORDER BY revision.controlled_at DESC LIMIT 1
+      )),
+      released_at = COALESCE(released_at, (
+        SELECT revision.released_at FROM drawing_revisions revision
+        WHERE revision.drawing_id = drawings.id AND revision.released_at IS NOT NULL
+        ORDER BY revision.released_at DESC LIMIT 1
+      ));
+    `);
+    database.prepare(
+      "INSERT INTO pdm_local_data_migrations (version, detail_json) VALUES (?, ?)"
+    ).run(migrationVersion, JSON.stringify({ source: "DEV-064 startup compatibility backfill" }));
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 function ensureTransferPackagePhase1DSchema(database: SqliteDatabase) {
@@ -1469,7 +1710,6 @@ function ensureNumberingWorkflowCompanyScopeSchema(database: SqliteDatabase) {
   for (const tableName of [
     "approval_requests",
     "approval_batches",
-    "import_batches",
     "numbering_export_jobs",
     "monthly_audit_reports",
     "numbering_task_items",

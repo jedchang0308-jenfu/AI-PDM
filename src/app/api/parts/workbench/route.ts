@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { isUnifiedPartRelationWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
+import { isPartWorkbenchPreviewGalleryV1Enabled, isUnifiedPartRelationWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
-import { canViewPartCostAmounts } from "@/lib/part-cost-visibility";
 import { normalizePartWorkbenchQuery, PartWorkbenchService, partWorkbenchErrorResponse, type PartWorkbenchActor } from "@/lib/part-workbench";
 import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
@@ -34,8 +33,7 @@ async function resolveActor(request: Request) {
       publish: publish.allowed,
       managePermissions: managePermissions.allowed
     },
-    viewerCapabilities,
-    canViewCostAmounts: canViewPartCostAmounts(auth)
+    viewerCapabilities
   };
   return { response: null, actor, company: companyResult.company };
 }
@@ -44,7 +42,7 @@ export async function GET(request: Request) {
   const access = await resolveActor(request);
   if (access.response || !access.actor) return access.response;
   try {
-    const result = await new PartWorkbenchService().list(normalizePartWorkbenchQuery(new URL(request.url)), access.actor);
+    const result = await new PartWorkbenchService().list(normalizePartWorkbenchQuery(new URL(request.url)), access.actor, { previewEnabled: isPartWorkbenchPreviewGalleryV1Enabled() });
     return NextResponse.json({ ...result, pdmCompany: access.company }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     return partWorkbenchErrorResponse(error);

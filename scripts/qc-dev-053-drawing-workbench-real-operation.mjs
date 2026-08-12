@@ -62,6 +62,7 @@ const sourceFiles = [
   "src/lib/number-lifecycle-simplification.ts",
   "src/lib/publication-evidence.ts",
   "src/lib/repositories/drawing-workbench-async-repository.ts",
+  "src/lib/repositories/unified-drawing-async-repository.ts",
   "src/lib/repositories/number-lifecycle-simplification-async-repository.ts",
   "src/lib/repositories/master-attachment-async-repository.ts",
   "src/lib/repositories/master-attachment-repository.ts",
@@ -94,7 +95,8 @@ function businessHash() {
     "approval_platform_requests", "approval_platform_targets", "approval_platform_impact_snapshots",
     "approval_platform_decisions", "approval_platform_events", "part_roots", "part_numbers", "drawing_numbers",
     "drawing_part_links", "drawing_revision_packages", "drawing_revision_package_files",
-    "drawing_revision_package_review_approvals", "audit_logs", "platform_command_receipts", "platform_outbox_events"
+    "drawing_revision_package_review_approvals", "drawings", "drawing_revisions", "drawing_revision_files",
+    "audit_logs", "platform_command_receipts", "platform_outbox_events"
   ];
   return Object.fromEntries(tables.map((table) => {
     const rows = database.prepare(`SELECT * FROM ${table}`).all()
@@ -164,6 +166,21 @@ function seedFixture() {
         id, drawing_number_id, part_number_id, link_type, created_by, created_at
       ) VALUES ('dev053-real-master-link', 'dev053-real-master-drawing', 'dev053-real-master-part',
         'primary_manufacturing', ?, ?)` ).run(user.id, now);
+    database.prepare(`INSERT INTO drawings (
+        id, company_id, drawing_number, lifecycle_state, workspace_id, drawing_draft_id,
+        candidate_reservation_id, purpose_code, purpose_description, sequence_no,
+        is_primary_manufacturing, owner_id, rule_version_id, created_by, created_at, updated_at
+      ) VALUES (?, 'company-jenfu', ?, 'drawing_preparation', ?, ?, 'dev053-real-res-drawing',
+        'M', '', 1, 1, ?, 'numbering-rule-v3-alpha-root', ?, ?, ?)`)
+      .run(`drawing-${fixture.drawingId}`, fixture.drawingCode, fixture.workspaceId, fixture.drawingId,
+        user.id, user.id, now, now);
+    database.prepare(`INSERT INTO drawings (
+        id, company_id, drawing_number, lifecycle_state, formal_drawing_number_id, part_root_id,
+        purpose_code, purpose_description, sequence_no, is_primary_manufacturing,
+        rule_version_id, created_by, created_at, updated_at, controlled_at
+      ) VALUES ('drawing-formal-dev053-real-master-drawing', 'company-jenfu', 'Z4053-M01',
+        'rd_controlled', 'dev053-real-master-drawing', 'dev053-real-master-root', 'M', '', 1, 1,
+        'numbering-rule-v3-alpha-root', ?, ?, ?, ?)` ).run(user.id, now, now, now);
   })();
 }
 
@@ -234,7 +251,8 @@ async function collectVisibleErrors(page, actor) {
     nodes.filter((node) => {
       const style = window.getComputedStyle(node);
       const rect = node.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      const visuallyHidden = node.classList.contains("sr-only") || style.clip !== "auto" || style.clipPath !== "none";
+      return !visuallyHidden && style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
     }).map((node) => node.textContent?.trim() ?? "").filter(Boolean)
   ).catch(() => []);
   for (const value of texts) visibleErrors.push({ actor, url: page.url(), text: value.slice(0, 1000) });
@@ -399,15 +417,17 @@ async function run() {
     { candidateRowText });
   const beforeCandidateHandoff = businessHash();
   await candidateRow.getByRole("button", { name: "Z3053-M01", exact: true }).click();
-  const retiredCandidateNotice = page.getByRole("status").filter({ hasText: "候選圖號明細抽屜已暫停開發" });
-  await retiredCandidateNotice.waitFor({ state: "visible" });
+  await candidateDrawer.waitFor({ state: "visible" });
+  const candidateDrawerText = await candidateDrawer.innerText();
   const afterCandidateHandoff = businessHash();
-  record("DEV053-REAL-004 retired drawing candidate drawer fails closed and explains the owner-route handoff",
-    await candidateDrawer.count() === 0 &&
-    (await retiredCandidateNotice.innerText()).includes("目前僅保留正式圖號明細") &&
+  record("DEV053-REAL-004 candidate and formal states share the drawing detail entry without read-side writes",
+    candidateDrawerText.includes(fixture.drawingCode) &&
+    candidateDrawerText.includes("首版") &&
     JSON.stringify(beforeCandidateHandoff) === JSON.stringify(afterCandidateHandoff),
-    { notice: await retiredCandidateNotice.innerText(), beforeCandidateHandoff, afterCandidateHandoff });
-  await capture(page, "candidate-owner-route-handoff-1440x900.png");
+    { candidateDrawerText, beforeCandidateHandoff, afterCandidateHandoff });
+  await capture(page, "candidate-shared-drawing-detail-1440x900.png");
+  await candidateDrawer.getByRole("button", { name: "關閉圖號明細", exact: true }).click();
+  await candidateDrawer.waitFor({ state: "hidden" });
 
   await searchWorkbench(page, search, "Z4053-M01");
   await page.getByRole("button", { name: "Z4053-M01", exact: true }).waitFor({ state: "visible" });
@@ -424,7 +444,6 @@ async function run() {
     formalMasterDrawerText.includes("同根料號") && formalMasterDrawerText.includes("Z4053-P01") &&
     formalMasterDrawerText.includes("post_release_change") && formalMasterDrawerText.includes("研發主管或 PDM Admin") &&
     await disabledRevisionButtons.count() === 1 && await disabledRevisionButtons.evaluateAll((buttons) => buttons.every((button) => button.hasAttribute("disabled"))) &&
-    formalMasterDrawerText.includes("標準成本未設定（選填）") &&
     formalMasterDrawerText.includes("資料維護") &&
     await formalMasterDrawer.getByRole("button", { name: "新增同根圖號", exact: true }).count() === 1 &&
     await formalMasterDrawer.getByRole("button", { name: "新增同圖料號", exact: true }).count() === 1 &&
@@ -447,10 +466,10 @@ async function run() {
   record("DEV053-REAL-006 search, drawers, responsive checks, refresh and reload are zero-write",
     JSON.stringify(beforeRead) === JSON.stringify(afterRead), { beforeRead, afterRead });
 
-  const createOpener = page.locator("button.primary-button").filter({ hasText: "建立圖號" }).first();
+  const createOpener = page.getByRole("button", { name: "建立編號", exact: true }).first();
   await createOpener.focus();
   await createOpener.click();
-  const createDialog = page.getByRole("dialog", { name: "建立保留號" });
+  const createDialog = page.getByRole("dialog", { name: "建立編號" });
   await createDialog.waitFor({ state: "visible" });
   const initialFocusIsHeading = await page.evaluate(() => document.activeElement?.id === "number-state-create-title");
   await page.keyboard.press("Escape");
@@ -471,7 +490,7 @@ async function run() {
   const globalCreateBefore = workspaceCounts();
   await createOpener.click();
   await createDialog.getByLabel("確定品名").fill("DEV053 全域建立測試");
-  const globalCreateButton = createDialog.getByRole("button", { name: "建立並保留號碼", exact: true });
+  const globalCreateButton = createDialog.getByRole("button", { name: "建立編號申請", exact: true });
   await globalCreateButton.waitFor({ state: "visible" });
   await globalCreateButton.waitFor({ state: "attached" });
   await page.waitForTimeout(700);
@@ -603,7 +622,7 @@ async function run() {
   const confirmation = page.getByRole("alertdialog");
   await confirmation.waitFor({ state: "visible" });
   record("DEV053-REAL-013 submit confirmation explains automatic atomic formalization",
-    (await confirmation.innerText()).includes("核准後由系統原子建立正式圖料號與受控研發首版"));
+    (await confirmation.innerText()).includes("核准後由系統建立圖料號與受控研發首版"));
   await confirmation.getByRole("button", { name: "確認整包送審", exact: true }).click();
   await candidateDrawer.getByRole("link", { name: "查看審核", exact: true }).waitFor({ state: "visible", timeout: 20000 });
   let request = requestForWorkspace();
@@ -700,6 +719,36 @@ async function run() {
       controlledLabelVisible,
       misleadingPendingTextVisible
     });
+  const formalDrawerGeometry = await formalMasterDrawer.evaluate((element) => {
+    const drawerRect = element.getBoundingClientRect();
+    const overflowingDescendants = Array.from(element.querySelectorAll("*")).reduce((items, child) => {
+      const rect = child.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return items;
+      if (rect.left < drawerRect.left - 1 || rect.right > drawerRect.right + 1) {
+        items.push({
+          tagName: child.tagName,
+          className: child.className,
+          left: rect.left,
+          right: rect.right
+        });
+      }
+      return items;
+    }, []);
+    return {
+      left: drawerRect.left,
+      right: drawerRect.right,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      viewportWidth: window.innerWidth,
+      overflowingDescendants: overflowingDescendants.slice(0, 8)
+    };
+  });
+  record("DEV053-REAL-019A formal drawer remains viewport-safe after viewport round-trip",
+    formalDrawerGeometry.left >= -1 &&
+    formalDrawerGeometry.right <= formalDrawerGeometry.viewportWidth + 1 &&
+    formalDrawerGeometry.scrollWidth <= formalDrawerGeometry.clientWidth + 2 &&
+    formalDrawerGeometry.overflowingDescendants.length === 0,
+    formalDrawerGeometry);
   await capture(page, "formal-canonical-row-and-read-only-drawer-1440x900.png");
   await page.getByRole("button", { name: "關閉圖號明細", exact: true }).click();
   await formalMasterDrawer.waitFor({ state: "hidden" });
@@ -721,14 +770,15 @@ async function run() {
   record("DEV053-REAL-020 drawing, part, source workspace and title aliases resolve to one canonical row",
     aliasResults.every((result) => result.rowCount === 1 && result.canonicalVisible), { aliasResults });
 
-  const deepLink = `drawing:${finalized.candidate.formal_drawing_number_id}`;
-  await page.goto(`${baseUrl}/numbering/drawings?view=all&detail=${encodeURIComponent(deepLink)}`, { waitUntil: "networkidle" });
+  const legacyFormalDeepLink = `drawing:${finalized.candidate.formal_drawing_number_id}`;
+  const canonicalDeepLink = `drawing:drawing-${fixture.drawingId}`;
+  await page.goto(`${baseUrl}/numbering/drawings?view=all&detail=${encodeURIComponent(legacyFormalDeepLink)}`, { waitUntil: "networkidle" });
   const deepLinkDrawer = page.locator('[data-entity-type="drawing_number"]');
   await deepLinkDrawer.waitFor({ state: "visible", timeout: 20000 });
-  record("DEV053-REAL-021 canonical deep link reopens the formal detail safely",
-    new URL(page.url()).searchParams.get("detail") === deepLink &&
+  record("DEV053-REAL-021 legacy formal deep link resolves and normalizes to the canonical Drawing identity",
+    new URL(page.url()).searchParams.get("detail") === canonicalDeepLink &&
     await deepLinkDrawer.getByRole("heading", { name: fixture.drawingCode, exact: true }).count() === 1,
-    { url: page.url(), deepLink });
+    { url: page.url(), legacyFormalDeepLink, canonicalDeepLink });
   await deepLinkDrawer.getByRole("button", { name: "關閉圖號明細", exact: true }).click();
   await deepLinkDrawer.waitFor({ state: "hidden" });
 

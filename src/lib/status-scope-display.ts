@@ -13,7 +13,6 @@ export type StatusAxisId =
   | "invitationStatus"
   | "settingsStatus"
   | "restoreStatus"
-  | "costStatus"
   | "reminderStatus";
 
 export type StatusScopeId =
@@ -30,7 +29,6 @@ export type StatusScopeId =
   | "bomWorkbench"
   | "handoffWorkbench"
   | "transferPackageWorkbench"
-  | "importCenter"
   | "reportCenter"
   | "taskCenter"
   | "impactWorkbench"
@@ -70,9 +68,9 @@ const INVENTORY_EVIDENCE = "output/dev-049-status-scope-inventory/status-scope-i
 export const STATUS_AXIS_DEFINITIONS: Record<StatusAxisId, StatusAxisDefinition> = {
   numberEffectiveness: {
     id: "numberEffectiveness",
-    label: "號碼效力",
-    question: "這個號碼現在能否被其他申請取得，以及能否正式使用？",
-    description: "預覽、已保留、正式；已釋出只在取消或歷史資料顯示。"
+    label: "編號處理",
+    question: "這筆編號目前走到哪一個處理階段？",
+    description: "只在相容資料投影中保留，不作為一般使用者需要判讀的獨立狀態。"
   },
   dataStatus: {
     id: "dataStatus",
@@ -83,7 +81,7 @@ export const STATUS_AXIS_DEFINITIONS: Record<StatusAxisId, StatusAxisDefinition>
   applicationStatus: {
     id: "applicationStatus",
     label: "申請狀態",
-    question: "保留號申請本身走到哪裡？",
+    question: "編號申請本身走到哪裡？",
     description: "編輯中的申請與已送出的申請分開顯示，不把兩者都稱為草稿。"
   },
   approvalStatus: {
@@ -96,7 +94,7 @@ export const STATUS_AXIS_DEFINITIONS: Record<StatusAxisId, StatusAxisDefinition>
     id: "publicationStatus",
     label: "發布狀態",
     question: "已核准資料是否已成功成為正式資料？",
-    description: "核准與正式發布是不同步驟；發布失敗時會保留可處理的提醒。"
+    description: "核准與發布是不同步驟；發布失敗時會保留可處理的提醒。"
   },
   readinessStatus: {
     id: "readinessStatus",
@@ -140,12 +138,6 @@ export const STATUS_AXIS_DEFINITIONS: Record<StatusAxisId, StatusAxisDefinition>
     question: "這筆資料目前能否安全還原？",
     description: "說明可以還原、不可還原或需要受控確認的原因。"
   },
-  costStatus: {
-    id: "costStatus",
-    label: "成本狀態",
-    question: "成本設定是否已建立並通過審核？",
-    description: "成本設定與主資料狀態分開顯示，避免把成本審核誤認為資料發布。"
-  },
   reminderStatus: {
     id: "reminderStatus",
     label: "提醒",
@@ -170,9 +162,9 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     route: "/parts",
     section: "料號總表",
     title: "料號資料範圍",
-    description: "料號總表的主資料、成本與提醒分開判讀。",
-    axes: ["dataStatus", "costStatus", "reminderStatus"],
-    contexts: ["masterRecord", "cost", "reminderStatus"],
+    description: "料號總表的主資料與提醒分開判讀。",
+    axes: ["dataStatus", "reminderStatus"],
+    contexts: ["masterRecord", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   drawingList: {
@@ -190,39 +182,39 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     route: "/numbering/search",
     section: "圖料查詢",
     title: "圖料查詢資料範圍",
-    description: "查詢結果分開呈現資料狀態、關聯與成本提醒。",
-    axes: ["dataStatus", "approvalStatus", "publicationStatus", "costStatus", "reminderStatus"],
-    contexts: ["masterRecord", "approvalStatus", "publicationStatus", "cost", "reminderStatus"],
+    description: "查詢結果分開呈現資料狀態、關聯與提醒。",
+    axes: ["dataStatus", "approvalStatus", "publicationStatus", "reminderStatus"],
+    contexts: ["masterRecord", "approvalStatus", "publicationStatus", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   numberingRequest: {
     id: "numberingRequest",
     route: "/numbering/search?tab=reserved",
-    section: "保留號",
-    title: "保留號資料範圍",
-    description: "申請內容、號碼效力與後續審核/發布狀態分層說明。",
-    axes: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus", "readinessStatus"],
-    contexts: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus", "readinessStatus"],
+    section: "編號申請",
+    title: "編號申請資料範圍",
+    description: "申請內容、審核、發布與下一步分層說明。",
+    axes: ["applicationStatus", "approvalStatus", "publicationStatus", "readinessStatus"],
+    contexts: ["applicationStatus", "approvalStatus", "publicationStatus", "readinessStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   numberingDraftList: {
     id: "numberingDraftList",
     route: "/numbering/part-drafts",
-    section: "保留號清單",
-    title: "保留號資料範圍",
-    description: "這裡顯示可編輯的保留號申請，不把它與主資料未發布混為一談。",
-    axes: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus", "restoreStatus"],
-    contexts: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus", "restorePolicy"],
+    section: "編號申請清單",
+    title: "編號申請資料範圍",
+    description: "這裡顯示可編輯的編號申請，主資料發布狀態另行呈現。",
+    axes: ["applicationStatus", "approvalStatus", "publicationStatus", "restoreStatus"],
+    contexts: ["applicationStatus", "approvalStatus", "publicationStatus", "restorePolicy"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   numberStateWorkspace: {
     id: "numberStateWorkspace",
     route: "/parts?tab=drafts",
-    section: "保留號",
-    title: "保留號分頁說明",
-    description: "保留號僅代表號碼已被預留，不等同正式資料；保留號碼與正式資料分開保存。",
-    axes: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus"],
-    contexts: ["applicationStatus", "numberEffectiveness", "approvalStatus", "publicationStatus"],
+    section: "編號申請",
+    title: "編號申請分頁說明",
+    description: "這裡處理編號申請；審核與發布結果分開呈現。",
+    axes: ["applicationStatus", "approvalStatus", "publicationStatus"],
+    contexts: ["applicationStatus", "approvalStatus", "publicationStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   approvalInbox: {
@@ -250,7 +242,7 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     route: "/submissions/:id",
     section: "送審明細",
     title: "送審明細資料範圍",
-    description: "送審紀錄、附件檔案與正式發布結果各自有清楚的狀態軸。",
+    description: "送審紀錄、附件檔案與發布結果各自有清楚的狀態軸。",
     axes: ["approvalStatus", "publicationStatus", "fileStatus", "readinessStatus"],
     contexts: ["submission", "approvalStatus", "publicationStatus", "fileStatus", "readinessStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
@@ -283,16 +275,6 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     description: "技轉案件的資料、準備、審核、發布與還原狀態分開顯示。",
     axes: ["dataStatus", "readinessStatus", "approvalStatus", "publicationStatus", "restoreStatus"],
     contexts: ["bomDraft", "readinessStatus", "approvalStatus", "publicationStatus", "restorePolicy"],
-    ownerEvidence: INVENTORY_EVIDENCE
-  },
-  importCenter: {
-    id: "importCenter",
-    route: "/numbering/imports",
-    section: "匯入清單",
-    title: "匯入資料範圍",
-    description: "匯入列、批次、檔案處理與還原狀態各自說明。",
-    axes: ["fileStatus", "readinessStatus", "applicationStatus", "restoreStatus", "reminderStatus"],
-    contexts: ["importRow", "importBatch", "fileStatus", "readinessStatus", "restorePolicy", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   reportCenter: {
@@ -389,7 +371,6 @@ const CONTEXT_AXIS_MAP: Partial<Record<StatusDisplayContext, readonly StatusAxis
   jobStatus: ["taskStatus"],
   restorePolicy: ["restoreStatus"],
   fileSync: ["fileStatus"],
-  cost: ["costStatus"],
   notification: ["taskStatus"]
 };
 

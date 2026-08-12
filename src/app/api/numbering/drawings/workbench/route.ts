@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { DRAWING_WORKBENCH_NO_STORE_HEADERS, DrawingWorkbenchService, drawingWorkbenchErrorResponse, normalizeDrawingWorkbenchQuery } from "@/lib/drawing-workbench";
-import { isUnifiedDrawingWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
+import { isDrawingWorkbenchPreviewGalleryV1Enabled, isUnifiedDrawingWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
         manageReferenceAttachments: manageReferenceAttachments.allowed,
         managePermissions: managePermissions.allowed
       }
-    });
+    }, { previewEnabled: isDrawingWorkbenchPreviewGalleryV1Enabled() });
     return NextResponse.json({ ...result, pdmCompany: companyResult.company }, {
       headers: DRAWING_WORKBENCH_NO_STORE_HEADERS
     });

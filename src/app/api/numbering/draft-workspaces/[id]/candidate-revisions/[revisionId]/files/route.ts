@@ -27,8 +27,6 @@ export async function POST(
     return numberStateFlowJson({ error: { code: "candidate_file_required", message: "A candidate revision file is required.", retryable: false } }, { status: 400 });
   }
   const body: Record<string, unknown> = {
-    role: String(form.get("role") ?? ""),
-    isPrimary: String(form.get("isPrimary") ?? form.get("is_primary") ?? ""),
     expectedRowVersion: String(form.get("expectedRowVersion") ?? form.get("expected_row_version") ?? ""),
     displayName: String(form.get("displayName") ?? form.get("display_name") ?? ""),
     description: String(form.get("description") ?? "")
@@ -43,8 +41,6 @@ export async function POST(
       candidateRevisionId: revisionId,
       expectedRowVersion: body.expectedRowVersion,
       file,
-      role: body.role,
-      isPrimary: body.isPrimary,
       displayName: body.displayName,
       description: body.description
     });

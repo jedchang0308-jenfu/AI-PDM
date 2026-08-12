@@ -680,23 +680,6 @@ CREATE TABLE IF NOT EXISTS approval_delegations (
   FOREIGN KEY (revoked_by) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS import_batches (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  source_filename TEXT NOT NULL,
-  source_hash TEXT,
-  status TEXT NOT NULL DEFAULT 'staged' CHECK (status IN ('staged', 'confirmed', 'rejected')),
-  summary_json TEXT NOT NULL DEFAULT '{}',
-  imported_by TEXT NOT NULL,
-  confirmed_by TEXT,
-  confirmed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (imported_by) REFERENCES users(id),
-  FOREIGN KEY (confirmed_by) REFERENCES users(id)
-);
-
 CREATE TABLE IF NOT EXISTS preview_jobs (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -1254,18 +1237,6 @@ CREATE TABLE IF NOT EXISTS approval_platform_requests (
   FOREIGN KEY (applied_by) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS import_staging_rows (
-  id TEXT PRIMARY KEY,
-  import_batch_id TEXT NOT NULL,
-  row_no INTEGER NOT NULL CHECK (row_no > 0),
-  raw_json TEXT NOT NULL,
-  check_status TEXT NOT NULL DEFAULT 'pending' CHECK (check_status IN ('pending', 'valid', 'need_info', 'admin_confirm', 'conflict', 'legacy_keep')),
-  issue_json TEXT NOT NULL DEFAULT '{}',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (import_batch_id) REFERENCES import_batches(id) ON DELETE CASCADE,
-  UNIQUE (import_batch_id, row_no)
-);
-
 CREATE TABLE IF NOT EXISTS file_derivatives (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -1802,28 +1773,6 @@ CREATE TABLE IF NOT EXISTS part_variant_attributes (
   FOREIGN KEY (updated_by) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS part_cost_profiles (
-  id TEXT PRIMARY KEY,
-  part_number_id TEXT NOT NULL,
-  cost_type TEXT NOT NULL CHECK (cost_type IN ('outsourced', 'in_house', 'purchase', 'trial', 'other')),
-  profile_name TEXT NOT NULL,
-  currency TEXT NOT NULL DEFAULT 'TWD',
-  uom TEXT NOT NULL DEFAULT 'pcs',
-  supplier_name TEXT,
-  process_name TEXT,
-  cost_basis TEXT,
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'approved', 'rejected', 'retired')),
-  effective_from TEXT,
-  effective_to TEXT,
-  created_by TEXT,
-  approved_by TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (approved_by) REFERENCES users(id)
-);
-
 CREATE TABLE IF NOT EXISTS drawing_revision_packages (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -2115,57 +2064,6 @@ CREATE TABLE IF NOT EXISTS number_candidate_reservations (
     OR (reservation_state <> 'recycled'
       AND recycled_at IS NULL AND recycled_by IS NULL AND recycle_reason IS NULL)
   )
-);
-
-CREATE TABLE IF NOT EXISTS part_cost_tiers (
-  id TEXT PRIMARY KEY,
-  cost_profile_id TEXT NOT NULL,
-  min_qty INTEGER NOT NULL DEFAULT 1 CHECK (min_qty > 0),
-  max_qty INTEGER CHECK (max_qty IS NULL OR max_qty >= min_qty),
-  unit_cost DOUBLE PRECISION NOT NULL CHECK (unit_cost >= 0),
-  setup_cost DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (setup_cost >= 0),
-  lead_time_days INTEGER CHECK (lead_time_days IS NULL OR lead_time_days >= 0),
-  note TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE CASCADE,
-  UNIQUE (cost_profile_id, min_qty)
-);
-
-CREATE TABLE IF NOT EXISTS part_standard_costs (
-  id TEXT PRIMARY KEY,
-  part_number_id TEXT NOT NULL,
-  cost_profile_id TEXT NOT NULL,
-  basis_qty INTEGER NOT NULL DEFAULT 1 CHECK (basis_qty > 0),
-  standard_reason TEXT,
-  selected_by TEXT,
-  approved_by TEXT,
-  effective_from TEXT NOT NULL DEFAULT now(),
-  effective_to TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
-  FOREIGN KEY (cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE RESTRICT,
-  FOREIGN KEY (selected_by) REFERENCES users(id),
-  FOREIGN KEY (approved_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS part_cost_change_requests (
-  id TEXT PRIMARY KEY,
-  part_number_id TEXT NOT NULL,
-  proposed_cost_profile_id TEXT,
-  request_type TEXT NOT NULL CHECK (request_type IN ('set_standard', 'update_profile', 'retire_profile')),
-  change_reason TEXT NOT NULL,
-  review_status TEXT NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending', 'approved', 'rejected', 'cancelled')),
-  requested_by TEXT,
-  reviewed_by TEXT,
-  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  reviewed_at TIMESTAMPTZ,
-  review_comment TEXT,
-  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
-  FOREIGN KEY (proposed_cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE SET NULL,
-  FOREIGN KEY (requested_by) REFERENCES users(id),
-  FOREIGN KEY (reviewed_by) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS drawing_revision_package_files (
@@ -2688,9 +2586,6 @@ CREATE INDEX IF NOT EXISTS idx_numbering_draft_relations_workspace
 ON numbering_draft_relations(company_id, workspace_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_number_candidate_events_workspace
 ON number_candidate_events(company_id, workspace_id, occurred_at);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_part_standard_costs_active
-ON part_standard_costs(part_number_id)
-WHERE effective_to IS NULL;
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_part_scopes_part
 ON drawing_revision_package_part_scopes(company_id, part_number_id, package_id);
 CREATE INDEX IF NOT EXISTS idx_drawing_revision_package_part_scopes_package
@@ -2801,9 +2696,6 @@ CREATE INDEX IF NOT EXISTS idx_drawing_numbers_root_id ON drawing_numbers(part_r
 CREATE INDEX IF NOT EXISTS idx_drawing_numbers_status ON drawing_numbers(record_status);
 CREATE INDEX IF NOT EXISTS idx_drawing_part_links_drawing_id ON drawing_part_links(drawing_number_id);
 CREATE INDEX IF NOT EXISTS idx_same_drawing_variants_part_id ON same_drawing_variants(part_number_id);
-CREATE INDEX IF NOT EXISTS idx_part_cost_profiles_part_status ON part_cost_profiles(part_number_id, status);
-CREATE INDEX IF NOT EXISTS idx_part_cost_tiers_profile_qty ON part_cost_tiers(cost_profile_id, min_qty);
-CREATE INDEX IF NOT EXISTS idx_part_cost_change_requests_part_status ON part_cost_change_requests(part_number_id, review_status, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_duplicate_check_events_created_at ON duplicate_check_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_warning_events_entity ON warning_events(entity_type, entity_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_warning_events_code ON warning_events(warning_code, severity, created_at DESC);
@@ -2847,7 +2739,6 @@ CREATE INDEX IF NOT EXISTS idx_account_session_records_user
 CREATE INDEX IF NOT EXISTS idx_account_session_records_company
   ON account_session_records(company_id, auth_provider, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_delegations_from_to ON approval_delegations(delegated_from, delegated_to, starts_at, ends_at);
-CREATE INDEX IF NOT EXISTS idx_import_staging_rows_batch_status ON import_staging_rows(import_batch_id, check_status);
 CREATE INDEX IF NOT EXISTS idx_file_assets_linked_entity ON file_assets(linked_entity_type, linked_entity_id);
 CREATE INDEX IF NOT EXISTS idx_preview_jobs_source_status
   ON preview_jobs(source_file_asset_id, source_content_hash, requested_kind, status, updated_at DESC);
@@ -3010,11 +2901,6 @@ CREATE TRIGGER trg_role_scope_rules_updated_at
 BEFORE UPDATE ON role_scope_rules
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-DROP TRIGGER IF EXISTS trg_import_batches_updated_at ON import_batches;
-CREATE TRIGGER trg_import_batches_updated_at
-BEFORE UPDATE ON import_batches
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
 DROP TRIGGER IF EXISTS trg_preview_jobs_updated_at ON preview_jobs;
 CREATE TRIGGER trg_preview_jobs_updated_at
 BEFORE UPDATE ON preview_jobs
@@ -3165,11 +3051,6 @@ CREATE TRIGGER trg_part_variant_attributes_updated_at
 BEFORE UPDATE ON part_variant_attributes
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-DROP TRIGGER IF EXISTS trg_part_cost_profiles_updated_at ON part_cost_profiles;
-CREATE TRIGGER trg_part_cost_profiles_updated_at
-BEFORE UPDATE ON part_cost_profiles
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
 DROP TRIGGER IF EXISTS trg_drawing_revision_packages_updated_at ON drawing_revision_packages;
 CREATE TRIGGER trg_drawing_revision_packages_updated_at
 BEFORE UPDATE ON drawing_revision_packages
@@ -3183,16 +3064,6 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 DROP TRIGGER IF EXISTS trg_number_candidate_reservations_updated_at ON number_candidate_reservations;
 CREATE TRIGGER trg_number_candidate_reservations_updated_at
 BEFORE UPDATE ON number_candidate_reservations
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_part_cost_tiers_updated_at ON part_cost_tiers;
-CREATE TRIGGER trg_part_cost_tiers_updated_at
-BEFORE UPDATE ON part_cost_tiers
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-DROP TRIGGER IF EXISTS trg_part_standard_costs_updated_at ON part_standard_costs;
-CREATE TRIGGER trg_part_standard_costs_updated_at
-BEFORE UPDATE ON part_standard_costs
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_drawing_revision_package_supplements_updated_at ON drawing_revision_package_supplements;

@@ -1,4 +1,5 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { rewriteNumberingHumanTextDeep } from "@/lib/numbering-vocabulary";
 import {
   evaluateRevisionPackageCompleteness,
   normalizeRevisionPackageFileRole,
@@ -980,7 +981,8 @@ function parseSnapshotJson(value: string | null | undefined): Record<string, unk
   if (!value) return null;
   try {
     const parsed = JSON.parse(value) as unknown;
-    return isRecord(parsed) ? parsed : null;
+    const rewritten = rewriteNumberingHumanTextDeep(parsed);
+    return isRecord(rewritten) ? rewritten : null;
   } catch {
     return null;
   }

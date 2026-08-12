@@ -36,7 +36,7 @@ export function projectDrawingAvailability(source: {
   if (source.terminal || source.stage === "history_only") return scope("none", "none", "這筆圖面已結束，不能再作為現行使用依據。");
   if (source.releaseStatusMismatch) return scope("unknown", "conflict", "發布資料尚未完成確認，暫不能判定生產使用資格。");
   if (source.stage === "released" && source.usage === "released") {
-    return scope("production", "release_evidence", "正式發布圖面，可供生產使用。");
+    return scope("production", "release_evidence", "圖面已發布，可供生產使用。");
   }
   if (source.stage === "released" || source.usage === "released") {
     return scope("unknown", "conflict", "圖面發布證據不一致，暫不能判定生產使用資格。");
@@ -48,7 +48,7 @@ export function projectDrawingAvailability(source: {
 }
 
 export function projectDrawingRecordAvailability(source: Pick<{ recordStatus: NumberingRecordStatus }, "recordStatus">): AvailabilityScopeProjection {
-  if (source.recordStatus === "Released") return scope("production", "release_evidence", "正式發布圖面，可供生產使用。");
+  if (source.recordStatus === "Released") return scope("production", "release_evidence", "圖面已發布，可供生產使用。");
   if (source.recordStatus === "Active") return scope("rd", "record", "目前為研發受控圖面，可供研發查閱與驗證。");
   if (["Obsolete", "Merged"].includes(source.recordStatus)) return scope("none", "none", "這筆圖面已結束，不能再作為現行使用依據。");
   return scope("none", "none", "目前尚未取得研發或生產使用資格。");
@@ -67,9 +67,9 @@ export function projectPartAvailability(source: Pick<PartModuleListRecord, "reco
   if (source.recordStatus === "Active") return scope("rd", "record", "料號可供研發查閱與驗證，但尚未取得生產使用資格。");
   if (source.recordStatus === "Released") {
     if (requiresManufacturingDrawing && source.primaryDrawingRecordStatus !== "Released") {
-      return scope("unknown", "dependency", "料號已發布，但製造圖版次尚未確認為正式發布。");
+      return scope("unknown", "dependency", "料號已發布，但製造圖版次尚未完成發布。");
     }
-    return scope("production", "release_evidence", "正式發布料號，可供生產使用。");
+      return scope("production", "release_evidence", "料號已發布，可供生產使用。");
   }
   return scope("none", "none", "目前尚未取得研發或生產使用資格。");
 }
@@ -84,9 +84,9 @@ export function projectRelationRootAvailability(source: {
     return scope("none", "dependency", "圖料關係尚未完整，不能判定生產使用資格。");
   }
   if (source.recordStatus === "Released" && source.dependencyReleaseReady === false) {
-    return scope("unknown", "dependency", "關聯料號或製造圖尚未全部正式發布，暫不能判定生產使用資格。");
+      return scope("unknown", "dependency", "關聯料號或製造圖尚未全部發布，暫不能判定生產使用資格。");
   }
-  if (source.recordStatus === "Released") return scope("production", "release_evidence", "正式發布且圖料關係完整，可供生產使用。");
+  if (source.recordStatus === "Released") return scope("production", "release_evidence", "已發布且圖料關係完整，可供生產使用。");
   if (source.recordStatus === "Active") return scope("rd", "record", "圖料關係完整，可供研發查閱與驗證。");
   return scope("none", "none", "目前尚未取得研發或生產使用資格。");
 }

@@ -4,6 +4,8 @@ export const NUMBERING_RULE_V3_ID = "numbering-rule-v3-alpha-root";
 
 export type DrawingPurposeCode = "MA" | "OT" | "M" | "R";
 export type V2DrawingPurposeCode = "M" | "R";
+export const ACTIVE_DRAWING_PURPOSE_CODES = ["M", "R"] as const satisfies readonly V2DrawingPurposeCode[];
+export type ActiveDrawingPurposeCode = typeof ACTIVE_DRAWING_PURPOSE_CODES[number];
 export type NumberingIdentityKind = "root" | "part" | "drawing" | "unknown";
 
 const V3_ROOT_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

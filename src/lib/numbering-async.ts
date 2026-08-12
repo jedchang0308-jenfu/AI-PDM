@@ -16,25 +16,19 @@ import type {
   AddDrawingNumberToRootResult,
   AddPartNumberInput,
   AddPartNumberToRootResult,
-  ConfirmNumberingImportBatchInput,
   ApplyNumberingRuleTemplateInput,
   CreateNumberingApprovalBatchInput,
-  CreateNumberingImportBatchInput,
   DeleteDraftNumberingRecordInput,
   DeleteDraftNumberingRecordResult,
-  DeleteNumberingImportBatchInput,
   CreateNumberingRecordInput,
-  CreatePartCostProfileInput,
   CreateNumberingExportJobInput,
   DecideNumberingApprovalBatchInput,
   DecideNumberingApprovalInput,
-  DecidePartCostChangeRequestInput,
   DrawingModuleListInput,
   DrawingModuleListRecord,
   GenerateMonthlyNumberingAuditReportInput,
   ListNumberingApprovalBatchesInput,
   ListNumberingExportJobsInput,
-  ListNumberingImportBatchesInput,
   ListMonthlyNumberingAuditReportsInput,
   ListNumberingNotificationsInput,
   ListNumberingTasksInput,
@@ -53,7 +47,6 @@ import type {
   NumberingAdminRoleScopeRecord,
   NumberingApprovalDelegationRecord,
   NumberingExportJobRecord,
-  NumberingImportBatchRecord,
   NumberingNotificationRecord,
   NumberingGateEvaluation,
   NumberingRolePriorityVersionRecord,
@@ -70,11 +63,9 @@ import type {
   MaintainDrawingPartRelationInput,
   MaintainDrawingPartRelationResult,
   ObsoleteDraftNumberingRecordInput,
-  PartCostResolutionRecord,
   PartModuleDetailRecord,
   PartModuleListInput,
   PartModuleListRecord,
-  ResolvePartCostInput,
   RevokeNumberingApprovalDelegationInput,
   RevokeNumberingUserRoleAssignmentInput,
   SaveNumberingRolePriorityInput,
@@ -95,7 +86,6 @@ import type {
   RequestSameDrawingVariantApprovalInput,
   NumberingObsoleteApprovalResult,
   ResubmitRejectedNumberingApprovalBatchItemsInput,
-  RestoreNumberingImportBatchInput,
   UpsertPartVariantAttributesInput,
   UpdateDraftNumberingRecordInput,
   UpdateNumberingNotificationStateInput,
@@ -374,44 +364,6 @@ export async function resubmitRejectedNumberingApprovalBatchItemsAsync(
   return repository.resubmitRejectedNumberingApprovalBatchItems(input);
 }
 
-export async function createNumberingImportBatchAsync(input: CreateNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.createNumberingImportBatch(input);
-}
-
-export async function getNumberingImportBatchAsync(batchId: string, companyId?: string): Promise<NumberingImportBatchRecord | null> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.getNumberingImportBatch(batchId, companyId);
-}
-
-export async function listNumberingImportBatchesAsync(
-  input: ListNumberingImportBatchesInput = {}
-): Promise<NumberingImportBatchRecord[]> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.listNumberingImportBatches(input);
-}
-
-export async function confirmNumberingImportBatchAsync(input: ConfirmNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.confirmNumberingImportBatch(input);
-}
-
-export async function deleteNumberingImportBatchAsync(input: DeleteNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.deleteNumberingImportBatch(input);
-}
-
-export async function restoreNumberingImportBatchAsync(input: RestoreNumberingImportBatchInput): Promise<NumberingImportBatchRecord> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.restoreNumberingImportBatch(input);
-}
-
 export async function listNumberingAdminMatrixAsync(): Promise<NumberingAdminMatrixRecord> {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);
@@ -642,22 +594,4 @@ export async function upsertPartVariantAttributesAsync(input: UpsertPartVariantA
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);
   return repository.upsertPartVariantAttributes(input);
-}
-
-export async function createPartCostProfileAsync(input: CreatePartCostProfileInput): Promise<PartModuleDetailRecord> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.createPartCostProfile(input);
-}
-
-export async function decidePartCostChangeRequestAsync(input: DecidePartCostChangeRequestInput): Promise<PartModuleDetailRecord> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.decidePartCostChangeRequest(input);
-}
-
-export async function resolvePartCostAsync(input: ResolvePartCostInput): Promise<PartCostResolutionRecord> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.resolvePartCost(input);
 }

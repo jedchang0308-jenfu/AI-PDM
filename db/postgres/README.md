@@ -2,12 +2,15 @@
 
 This directory is the authoritative PostgreSQL migration source for AI_PDM. The approved production database is Google Cloud SQL for PostgreSQL; Supabase is retired and is not a staging, migration, rollback, or release target.
 
-Use the current GCP migration lane:
+Use the current production Cloud SQL migration lane:
 
 ```powershell
-npm.cmd run dev-046:cloudsql-migration-package
+npm.cmd run dev-032:cloudsql-migration-package
+$env:PDM_MIGRATION_PACKAGE_TARGET = "production"
 npm.cmd run dev-046:cloudsql-migration-runner:dry-run
 ```
+
+The former DEV-046 staging package depends on a retired staging preflight manifest and is not a current migration entrypoint. Do not use it for production or shadow migration.
 
 Safety rules:
 

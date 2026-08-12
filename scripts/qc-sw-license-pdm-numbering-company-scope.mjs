@@ -27,7 +27,6 @@ try {
   for (const tableName of [
     "approval_requests",
     "approval_batches",
-    "import_batches",
     "numbering_export_jobs",
     "monthly_audit_reports",
     "numbering_task_items",
@@ -83,9 +82,6 @@ try {
     "src/app/api/numbering/approval-decisions/route.ts",
     "src/app/api/numbering/approval-batches/route.ts",
     "src/app/api/numbering/approval-batches/[batchId]/route.ts",
-    "src/app/api/numbering/import-batches/route.ts",
-    "src/app/api/numbering/import-batches/[batchId]/route.ts",
-    "src/app/api/numbering/import-batches/[batchId]/confirm/route.ts",
     "src/app/api/numbering/impact-analysis/route.ts",
     "src/app/api/numbering/export-jobs/route.ts",
     "src/app/api/numbering/export-jobs/[jobId]/route.ts",
@@ -98,9 +94,7 @@ try {
     "src/app/api/numbering/notifications/[notificationId]/handled/route.ts",
     "src/app/api/parts/[partNumber]/route.ts",
     "src/app/api/parts/[partNumber]/variant/route.ts",
-    "src/app/api/parts/[partNumber]/cost-profiles/route.ts",
-    "src/app/api/parts/[partNumber]/cost-change-requests/[requestId]/route.ts",
-    "src/app/api/parts/[partNumber]/cost-resolution/route.ts"
+    "src/app/api/parts/[partNumber]/attachments/route.ts"
   ]) {
     const source = read(route);
     assert.match(source, /resolveNumberingCompanyContextAsync/, `${route} must resolve numbering company context`);

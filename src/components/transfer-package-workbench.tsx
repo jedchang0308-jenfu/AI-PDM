@@ -343,7 +343,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
       if (response.status === 409) await load();
       return;
     }
-    setMessage(action === "submit-review" ? "技轉包已送審。" : action === "withdraw-review" ? "技轉包已撤回。" : "技轉包已正式發布。");
+    setMessage(action === "submit-review" ? "技轉包已送審。" : action === "withdraw-review" ? "技轉包已撤回。" : "技轉包已發布。");
     await load();
   }
 
@@ -603,8 +603,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
             </button>
           ) : null}
           {workbench.status === "ApprovedPendingPublish" || (workbench.status === "ReleaseFailed" && !readiness?.stale) ? (
-            <button className="primary-button" type="button" title={canPublish ? "正式發布整包" : "目前帳號沒有正式發布權限"} disabled={!canPublish || !readiness?.ready || readiness.stale || Boolean(busy)} onClick={() => void lifecycleAction("publish")}>
-              {busy === "publish" ? <Loader2 className="spin" size={16} /> : <UploadCloud size={16} />}{workbench.status === "ReleaseFailed" ? "重試整包發布" : "正式發布整包"}
+            <button className="primary-button" type="button" title={canPublish ? "發布整包" : "目前帳號沒有發布權限"} disabled={!canPublish || !readiness?.ready || readiness.stale || Boolean(busy)} onClick={() => void lifecycleAction("publish")}>
+              {busy === "publish" ? <Loader2 className="spin" size={16} /> : <UploadCloud size={16} />}{workbench.status === "ReleaseFailed" ? "重試整包發布" : "發布整包"}
             </button>
           ) : null}
           {workbench.status === "Published" ? <Link className="primary-button" href="/technical-transfer?tab=published">查看正式交接</Link> : null}
@@ -686,12 +686,12 @@ function SourceSummary({ item, fallbackLabel }: { item: ResolvedTransferPackageE
 
 function NowWhat({ workbench, readiness }: { workbench: TransferPackageWorkbench; readiness: Phase1DReadiness | null }) {
   if (workbench.status === "Cancelled") return <div className="transfer-now-what neutral"><Ban size={20} /><div><strong>此技轉包已取消，不會再進入送審。</strong><p>資料與異動紀錄已保留；需要繼續時請建立新技轉包。</p></div><Link className="secondary-button" href="/transfer-packages/new">建立新技轉包</Link></div>;
-  if (workbench.status === "Published") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已正式發布，可供製造與採購交接使用。</strong><p>交接資料只包含正式號碼與受控發布內容。</p></div><Link className="primary-button" href="/technical-transfer?tab=published">查看正式交接</Link></div>;
-  if (workbench.status === "InReview") return <div className="transfer-now-what"><ClipboardList size={20} /><div><strong>技轉包審核中，案件範圍與保留號碼已鎖定。</strong><p>審核決定請在審核工作台完成；核准不會自動發布。</p></div><Link className="primary-button" href={`/approvals?requestId=${encodeURIComponent(workbench.reviewRequestId ?? "")}`}>查看審核</Link></div>;
-  if (workbench.status === "ApprovedPendingPublish") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>整包已核准，仍需明確執行正式發布。</strong><p>發布前會重新驗證快照、檔案證據與所有保留號碼。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>執行發布</Link></div>;
-  if (!workbench.items.length && !workbench.draftItems.length) return <div className="transfer-now-what warning"><AlertTriangle size={20} /><div><strong>下一步：加入正式圖料或草稿工作區。</strong><p>沒有案件範圍時，後續資料無法歸屬。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=scope`}>加入案件範圍</Link></div>;
+  if (workbench.status === "Published") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已發布，可供製造與採購交接使用。</strong><p>交接資料只包含已發布編號與受控內容。</p></div><Link className="primary-button" href="/technical-transfer?tab=published">查看交接</Link></div>;
+  if (workbench.status === "InReview") return <div className="transfer-now-what"><ClipboardList size={20} /><div><strong>技轉包審核中，案件範圍與編號已鎖定。</strong><p>審核決定請在審核工作台完成；核准不會自動發布。</p></div><Link className="primary-button" href={`/approvals?requestId=${encodeURIComponent(workbench.reviewRequestId ?? "")}`}>查看審核</Link></div>;
+  if (workbench.status === "ApprovedPendingPublish") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>整包已核准，仍需明確執行發布。</strong><p>發布前會重新驗證快照、檔案證據與所有編號。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>執行發布</Link></div>;
+  if (!workbench.items.length && !workbench.draftItems.length) return <div className="transfer-now-what warning"><AlertTriangle size={20} /><div><strong>下一步：加入圖料或草稿工作區。</strong><p>沒有案件範圍時，後續資料無法歸屬。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=scope`}>加入案件範圍</Link></div>;
   if (readiness?.firstBlocker) return <div className="transfer-now-what warning"><AlertTriangle size={20} /><div><strong>{readiness.firstBlocker.message}</strong><p>{readiness.firstBlocker.ownerRole} · {readiness.firstBlocker.ownerModule}</p></div><Link className="primary-button" href={readiness.firstBlocker.actionHref}>{readiness.firstBlocker.actionLabel}</Link></div>;
-  return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已準備完成，可送交整包審核。</strong><p>核准後仍需另行正式發布。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>前往送審</Link></div>;
+  return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已準備完成，可送交整包審核。</strong><p>核准後仍需另行發布。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>前往送審</Link></div>;
 }
 
 function InlineMessage({ kind, message }: { kind: "error" | "success"; message: string }) {
@@ -744,11 +744,11 @@ function packageStatusLabel(value: TransferPackageWorkbench["status"]) {
 function eventLabel(value: string) {
   const labels: Record<string, string> = {
     DraftCreated: "建立技轉包", HeaderUpdated: "更新案件資料",
-    ScopeItemAdded: "加入正式範圍", ScopeItemRemoved: "移除正式範圍",
+    ScopeItemAdded: "加入發布範圍", ScopeItemRemoved: "移除發布範圍",
     DraftWorkspaceAdded: "加入草稿工作區", DraftWorkspaceRemoved: "移除草稿工作區",
     ReviewSubmitted: "送交整包審核", ReviewWithdrawn: "撤回整包審核",
     ReviewDecided: "完成整包審核", SnapshotInvalidated: "審核快照失效",
-    PackagePublished: "正式發布技轉包", ReleaseFailed: "整包發布失敗",
+    PackagePublished: "發布技轉包", ReleaseFailed: "整包發布失敗",
     PackageCancelled: "取消技轉包"
   };
   return labels[value] ?? value;

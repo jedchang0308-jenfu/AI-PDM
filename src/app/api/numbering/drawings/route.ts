@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { listDrawingModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
+import { ACTIVE_DRAWING_PURPOSE_CODES } from "@/lib/numbering-identity";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import type { DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
+import { parseNumberSortDirection } from "@/lib/number-sort";
 
 export const runtime = "nodejs";
 
@@ -18,7 +20,7 @@ const recordStatuses = new Set([
   "PendingAdminConfirm",
   "MainDrawingInvalid"
 ]);
-const purposeCodes = new Set(["MA", "OT", "M", "R"]);
+const purposeCodes = new Set<string>(ACTIVE_DRAWING_PURPOSE_CODES);
 
 export async function GET(request: Request) {
   const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
@@ -41,6 +43,7 @@ export async function GET(request: Request) {
       seriesCode,
       recordStatus,
       purposeCode,
+      sortDirection: parseNumberSortDirection(url.searchParams.get("sortDirection")),
       limit: Number(url.searchParams.get("limit") ?? 50)
     }),
     listProductSeriesOptionsAsync(companyResult.company.companyId),

@@ -146,51 +146,6 @@ export function buildPartNumberDraftLifecyclePolicy(input: {
   };
 }
 
-export function buildNumberingImportBatchLifecyclePolicy(input: {
-  batchId: string;
-  status: "staged" | "confirmed" | "rejected";
-  canDelete?: boolean;
-  canRestore?: boolean;
-}): LifecycleActionPolicy {
-  if (input.status === "rejected") {
-    const restoreBlock = getDeletedImportBatchRestoreBlock(input);
-    const restorable = !restoreBlock;
-    return {
-      entityType: "numbering_import_batch",
-      entityId: input.batchId,
-      visibleStage: "history",
-      stageLabel: "歷史",
-      uiSurface: "deleted_data",
-      traceabilityClass: "uncontrolled_deleted",
-      detailTags: [restorable ? "可還原" : "不可還原"],
-      actions: {
-        delete: blocked("LIFE_IMPORT_ALREADY_DELETED", "此匯入批次已在已刪除資料中。"),
-        restore: restoreBlock ?? { allowed: true },
-        obsolete: { ...blocked("LIFE_UNSUPPORTED_ENTITY", "暫存匯入不使用申請作廢流程。"), requiresApproval: false }
-      }
-    };
-  }
-
-  const formal = input.status === "confirmed";
-  return {
-    entityType: "numbering_import_batch",
-    entityId: input.batchId,
-    visibleStage: formal ? "formal" : "draft",
-    stageLabel: formal ? "正式" : "草稿",
-    uiSurface: "work_list",
-    traceabilityClass: "working",
-    detailTags: formal ? ["已發行"] : [],
-    actions: {
-      delete:
-        input.status === "staged" && input.canDelete !== false
-          ? { allowed: true }
-          : blocked(formal ? "LIFE_IMPORT_CONFIRMED" : "LIFE_IMPORT_NOT_DELETABLE", "此匯入批次目前不能直接刪除。"),
-      restore: blocked("LIFE_IMPORT_NOT_DELETED", "此匯入批次尚未刪除，不需要還原。"),
-      obsolete: { ...blocked("LIFE_UNSUPPORTED_ENTITY", "暫存匯入不使用申請作廢流程。"), requiresApproval: false }
-    }
-  };
-}
-
 export function buildBomWorkbenchDraftLifecyclePolicy(input: {
   draftId: string;
   status: BomWorkbenchDraftStatus;
@@ -455,16 +410,6 @@ function getDeletedPartNumberDraftRestoreBlock(input: {
   if (input.controlled) return blocked("LIFE_DRAFT_CONTROLLED_BOUNDARY", "此草稿已跨受控邊界，不能從已刪除資料還原。");
   if (input.recycled) return blocked("LIFE_DRAFT_ALREADY_RECYCLED", "此草稿號已被回收重用，不能還原。");
   if (input.numberReused) return blocked("LIFE_DRAFT_NUMBER_REUSED", "此草稿號已被重新使用，不能還原。");
-  return null;
-}
-
-function getDeletedImportBatchRestoreBlock(input: {
-  status: "staged" | "confirmed" | "rejected";
-  canRestore?: boolean;
-}): LifecycleActionState | null {
-  if (input.canRestore === false) return blocked("LIFE_PERMISSION_DENIED", "沒有還原此匯入批次的權限。");
-  if (input.status === "confirmed") return blocked("LIFE_IMPORT_CONFIRMED", "此匯入批次已確認轉正式資料，不能還原。");
-  if (input.status !== "rejected") return blocked("LIFE_IMPORT_NOT_DELETED", "此匯入批次尚未刪除，不需要還原。");
   return null;
 }
 

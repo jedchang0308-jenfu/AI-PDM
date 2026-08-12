@@ -22,44 +22,44 @@ const transferWorkbench = read("src/components/transfer-package-workbench.tsx");
 const visibleSources = [workspace, approvals, handoff, transferWorkbench].join("\n");
 
 record(
-  "NE-001 centralized number-effectiveness vocabulary",
+  "NE-001 centralized numbering vocabulary",
   includesAll(statusDisplay, [
     '| "numberEffectiveness"',
     "const numberEffectivenessStatuses",
     'keys: ["preview"]',
-    'label: "預覽"',
+    'label: "編號申請"',
     'keys: ["candidate", "active", "review_locked", "approved_locked"]',
-    'label: "已保留"',
+    'label: "申請中"',
     'keys: ["official", "promoted", "legacy_official_reservation"]',
-    'label: "正式"',
+    'label: "已發布"',
     'keys: ["recycled", "released"]',
-    'label: "已釋出"',
+    'label: "已取消"',
     "numberEffectiveness: numberEffectivenessStatuses"
   ]),
-  "status-display must own the 3+1 user vocabulary"
+  "status-display must own the compatibility projection without old number-effectiveness labels"
 );
 
 record(
   "NE-002 list and detail use the simplified projection",
   includesAll(workspace, [
-    'type NumberEffectivenessFilter = "all" | "not_generated" | "reserved" | "official"',
-    "matchesNumberEffectiveness",
-    'value === "official" || value === "legacy_official_reservation"',
+    'type NumberQualification = "unnumbered" | "candidate" | "official" | "legacy_official_reservation"',
     'const helpScope: StatusScopeId = active === "reserved" ? "numberStateWorkspace" : config.officialHelpScope;',
     'buttonLabel={`查看${activeLabel}分頁說明`}',
     'className="number-state-tab-help"',
-    'formatStatusForUser(qualification, "numberEffectiveness")',
-    "尚未產生號碼",
-    "歷史保留號碼 ${candidateCode}（已釋出）",
-    "已保留，尚不可正式使用"
+    "尚未產生編號",
+    "申請名稱、編號或 ID",
+    "編號申請清單",
+    "申請狀態"
   ]) &&
+    !workspace.includes("numberEffectiveness") &&
+    !workspace.includes("qualification-") &&
     !workspace.includes("function qualificationLabel") &&
     !workspace.includes('<StatusHelpPopover context="numberEffectiveness"') &&
     !workspace.includes('已保留號碼與正式資料分開保存。</p>'),
-  "normal UI must show effectiveness categories and consolidate help into the active-tab trigger"
+  "normal UI must use process status and consolidate help into the active-tab trigger"
 );
 
-const forbiddenVisibleTerms = ["候選號", "未領號", "號碼資格", "舊制保留", "已回收"];
+const forbiddenVisibleTerms = ["候選號", "候選圖號", "候選料號", "未領號", "號碼資格", "號碼效力", "舊制保留", "已回收", "保留號"];
 record(
   "NE-003 retired terms are absent from affected user surfaces",
   forbiddenVisibleTerms.every((term) => !visibleSources.includes(term)),
@@ -74,11 +74,11 @@ record(
 );
 
 record(
-  "NE-005 related workflow copy uses reserved/released wording",
-  includesAll(workspace, ["保留號碼", "已釋出"]) &&
-    includesAll(approvals, ["保留號碼"]) &&
-    includesAll(handoff, ["已保留但尚未正式生效的號碼"]) &&
-    includesAll(transferWorkbench, ["保留號碼"]),
+  "NE-005 related workflow copy uses stable numbering nouns",
+  includesAll(workspace, ["編號服務", "編號申請"]) &&
+    includesAll(approvals, ["編號申請案件", "首版準備"]) &&
+    includesAll(handoff, ["尚未發布的編號"]) &&
+    includesAll(transferWorkbench, ["案件範圍與編號已鎖定"]),
   "adjacent surfaces must use the same user vocabulary"
 );
 

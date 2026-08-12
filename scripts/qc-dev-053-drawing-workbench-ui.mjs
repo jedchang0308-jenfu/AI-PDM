@@ -34,7 +34,8 @@ record("DEV053-UI-001 enabled experience is one workbench without visible tabs",
   !component.includes("NumberStateModuleTabs") && !component.includes('role="tab"') &&
   page.includes("if (workbenchEnabled) return <DrawingWorkbench />;"));
 record("DEV053-UI-002 table exposes four scan columns with part number separated from name",
-  has(component, ['key: "code"', 'header: "圖號"', 'key: "name"', 'header: "品名"', 'key: "part"', 'header: "料號"', 'key: "status"', 'header: "工作狀態"']) &&
+  has(component, ['key: "code"', 'key: "name"', 'header: "品名"', 'key: "part"', 'header: "料號"', 'key: "status"', 'header: "工作狀態"']) &&
+  (component.includes('header: "圖號"') || component.includes('header: <NumberSortHeader label="圖號"')) &&
   component.includes('className: "drawing-workbench-layout-spacer pdm-identity-layout-spacer"') &&
   component.includes('<SearchHighlight value={row.displayName} query={query} />') &&
   component.includes('<SearchHighlight value={row.relatedPartSummary} query={query} />') &&
@@ -118,19 +119,6 @@ record("DEV053-UI-013 release mismatch, title-block risk and submission readines
     "Title block 變體風險",
     "送審檢查"
   ]));
-record("DEV053-UI-013A missing standard cost is optional and excluded from blocking readiness",
-  has(component, [
-    "const hasOutstandingItems = incompleteParts.length > 0 || Boolean(pendingApproval)",
-    "const outstandingCount = incompleteParts.length + (pendingApproval?.count ?? 0)",
-    "筆未設定・選填",
-    "標準成本未設定（選填）"
-  ]) &&
-  !component.includes("incompleteParts.length + missingCostParts.length") &&
-  !component.includes('title="標準成本" state={`${missingCostParts.length} 筆`} tone="danger"') &&
-  has(searchPage, [
-    "筆未設定（選填）",
-    'tone={missingCostParts.length > 0 ? "default" : "success"}'
-  ]));
 record("DEV053-UI-014 same-root part identity stays visible without duplicate inline mutation authority",
   has(component, [
     'data-capability="same-root-part-management"',
@@ -181,13 +169,25 @@ record("DEV053-UI-019 candidate revision upload is multi-file, sequential and ac
     "PendingCandidateFile",
     "queuedFiles.map",
     "idempotencyKey",
+    "safeIdempotencyHeader",
     "上傳並完成驗證",
     "主要 2D 圖面與 3D 模型已完成，可送審",
     "recommendedFileWarnings",
     "requiredPrimaryRoles",
     "hasRequiredPrimaryEvidence",
-    'name={`candidate-primary-${candidate.id}-${item.role}`}'
+    "系統會自動辨識檔案",
+    "uploadCandidateFile",
+    "uploadProgress",
+    "candidate-revision-upload-progress",
+    "正在處理第",
+    "傳輸中",
+    "伺服器驗證中...",
+    "上傳逾時"
   ]) &&
+  !candidateEditor.includes("檔案類別") &&
+  !candidateEditor.includes("candidate-primary-") &&
+  !candidateEditor.includes('form.set("role"') &&
+  !candidateEditor.includes('form.set("isPrimary"') &&
   has(numberStateWorkspace, [
     "shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)",
     '!["drawing_preparation", "drawing_addendum_required", "bundle_ready"].includes(stage)',
@@ -248,7 +248,7 @@ record("DEV053-UI-023 candidate, formal and approval drawers use one content ren
   has(component, ["content={{", "bodyTitle: \"圖面與附件\""]) &&
   has(numberStateWorkspace, ["content={{", "bodyTitle: \"圖面與附件\""]) &&
   has(approvalPage, ["content={{", "bodyTitle: \"圖面與附件\""]) &&
-  has(sharedPreview, ["PreviewMedia", "預覽載入中", "預覽尚未就緒"]));
+  has(sharedPreview, ["PreviewMedia", "預覽正在準備", "預覽等待逾時", "重新整理預覽"]));
 
 const failed = results.filter((result) => !result.passed);
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));

@@ -28,7 +28,7 @@ export default function PrivacyNoticePage() {
 
       <main className="privacy-notice-body">
         <p className="privacy-notice-intro">
-          本告知適用於 AI PDM 內部 Pilot 的正式領號與草稿作業。請閱讀下列資料處理方式；「我已閱讀並了解」是閱讀確認，不代表對所有處理活動作概括同意。
+          本告知適用於 AI PDM 內部 Pilot 的編號建立與草稿作業。請閱讀下列資料處理方式；「我已閱讀並了解」是閱讀確認，不代表對所有處理活動作概括同意。
         </p>
         <ol className="privacy-notice-list">
           {PRIVACY_NOTICE_SECTIONS.map((section) => (

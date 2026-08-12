@@ -191,7 +191,9 @@ record(
 const workspace = read("src/components/number-state-workspace.tsx");
 const candidateRevisionEditor = read("src/components/numbering-candidate-revision-editor.tsx");
 const drawingWorkspaceDrawer = read("src/components/drawing-workspace-drawer.tsx");
-const partsPage = read("src/app/parts/page.tsx");
+const drawingDetailContent = read("src/components/drawing-detail-content.tsx");
+const drawingDetailPreview = read("src/components/drawing-detail-preview.tsx");
+const partsPage = read("src/components/part-detail-content.tsx");
 const drawingsPage = read("src/app/numbering/drawings/page.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
 const css = read("src/app/globals.css");
@@ -204,7 +206,7 @@ record(
   partsPage.includes("NumberStateOwnerCreateAction") &&
     drawingsPage.includes("NumberStateOwnerCreateAction") &&
     searchPage.includes("NumberStateOwnerCreateAction") &&
-    workspace.includes("建立保留號"),
+    workspace.includes("建立編號"),
   "parts, drawings, and search owner surfaces must expose the shared create action"
 );
 record(
@@ -216,9 +218,9 @@ record(
     workspace.includes("/parts?tab=drafts") &&
     workspace.includes("/numbering/search?tab=reserved") &&
     workspace.includes("/numbering/drawings?tab=reserved") &&
-    workspace.includes("保留號") &&
+    workspace.includes("編號申請") &&
     workspace.includes("PAGE_SIZE = 20") &&
-    workspace.includes("numberEffectiveness") &&
+    !workspace.includes("numberEffectiveness") &&
     workspace.includes("ownerScope") &&
     workspace.includes("workspaceMatchesModule(workspace, module)") &&
     workspace.includes("candidateCodesForModule(workspace, module)") &&
@@ -231,7 +233,7 @@ record(
   "NSF-UI-003-auto-reserve-four-modes",
   ["new_bundle", "append_drawing", "append_part", "append_drawing_part"].every((mode) => workspace.includes(`value: \"${mode}\"`)) &&
     workspace.includes("autoAcquireCandidates: true") &&
-    workspace.includes("建立並保留號碼") &&
+    workspace.includes("建立編號申請") &&
     workspace.includes("關閉視窗不會寫入資料") &&
     workspace.includes("Idempotency-Key"),
   "all four create modes must create the application and reserve numbers in one idempotent action"
@@ -245,8 +247,8 @@ record(
     workspace.includes("NowWhatPanel") &&
     workspace.includes("LifecycleV2PendingPanel") &&
     workspace.includes("shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)") &&
-    workspace.includes('!["drawing_preparation", "drawing_addendum_required", "bundle_ready"].includes(stage)') &&
-    drawingWorkspaceDrawer.includes('data-drawing-detail-section="drawing-pending"') &&
+    workspace.includes('!["official_controlled", "history_only"].includes(workspace.lifecycleV2.stage)') &&
+    drawingDetailContent.includes('dataSection="drawing-pending"') &&
     workspace.includes("useNumberStateActionPermissions") &&
     workspace.includes('actionPermissions?.["numbering.workspace.create"] === true') &&
     workspace.includes("canAcquireCandidates: boolean") &&
@@ -256,25 +258,25 @@ record(
 record(
   "ui",
   "NSF-UI-005-candidate-safety",
-    workspace.includes("候選圖號尚不可正式使用。") &&
-    candidateRevisionEditor.includes(': "建立首版"}</button>') &&
+    workspace.includes("編號仍在申請流程，發布前不能使用") &&
+    candidateRevisionEditor.includes('busyKey === `create:${drawing.id}` ? "建立中..." : "建立首版"') &&
     !workspace.includes("準備首版圖面") &&
     !candidateRevisionEditor.includes("準備首版圖面") &&
     !workspace.includes("完成首版圖面") &&
     !candidateRevisionEditor.includes("完成首版圖面") &&
     workspace.includes('workspace.projection.numberQualification === "candidate"') &&
     workspace.includes("<DrawingWorkspaceDrawer") &&
-    drawingWorkspaceDrawer.includes('detailFamily="drawing_number"') &&
+    drawingWorkspaceDrawer.includes('detailFamily = "drawing_number"') &&
     drawingWorkspaceDrawer.includes("drawingDetailSkeleton") &&
     workspace.includes("<NumberingCandidateRevisionEditor") &&
     !workspace.includes('href="#candidate-revision-files"') &&
-    workspace.includes("尚無可預覽圖面") &&
+    workspace.includes("尚未建立版次") &&
     !workspace.includes("先在上方加入") &&
-    candidateRevisionEditor.includes("下一步：加入至少一個主要受控檔；系統驗證完成後即可送審。") &&
+    candidateRevisionEditor.includes("尚未建立首版") &&
     !workspace.includes("number-state-candidate-watermark") &&
-    workspace.includes("確認取消保留號") &&
-    workspace.includes("確認正式發布") &&
-    workspace.includes("正式發布"),
+    workspace.includes("確認取消編號申請") &&
+    workspace.includes("確認發布") &&
+    workspace.includes("發布"),
   "candidate availability must be a concise overview hint while destructive or publishing actions retain explicit confirmation"
 );
 record(
@@ -283,7 +285,7 @@ record(
   ["401", "403", "404", "409", "503"].every((status) => workspace.includes(`response.status === ${status}`)) &&
     workspace.includes("returnTo") &&
     workspace.includes("workspace_version_conflict") &&
-    workspace.includes("表單已保留") &&
+    workspace.includes("表單內容已保留") &&
     workspace.includes("recoveryHref"),
   "auth, scope, stale-write, outage, retry, and blocked-recovery states must be explicit"
 );
@@ -299,18 +301,19 @@ record(
     workspace.includes('data-label={moduleConfig.reservedCodeLabel}') &&
     workspace.includes('data-label="申請名稱"') &&
     workspace.includes('data-label="內容"') &&
-    /data-label=\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態 \/ 號碼效力"\}/u.test(workspace) &&
-    /<th>\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態 \/ 號碼效力"\}<\/th>/u.test(workspace) &&
+    /data-label=\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態"\}/u.test(workspace) &&
+    /<th>\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態"\}<\/th>/u.test(workspace) &&
     !workspace.includes("number-state-next-label") &&
     !workspace.includes('<div className="pdm-identity-meta">{draftModeLabel(workspace.draftMode)}</div>') &&
     !workspace.includes('data-label="操作"') &&
     workspace.includes("DrawingWorkspaceDrawer") &&
-    drawingWorkspaceDrawer.includes('data-component="drawing-workspace-drawer"') &&
+    drawingWorkspaceDrawer.includes("DrawingDetailContent") &&
     workspace.includes('className="number-state-workspace-drawer"') &&
-    workspace.includes('eyebrow="候選圖號"') &&
-    workspace.includes('title={drawingCode ?? "尚未產生圖號"}') &&
-    ["drawing-overview", "drawing-pending", "drawing-more"].every((key) => drawingWorkspaceDrawer.includes(`data-drawing-detail-section="${key}"`)) &&
-    ["drawing-revision-files", "drawing-preview"].every((key) => workspace.includes(`data-drawing-detail-section="${key}"`)) &&
+    workspace.includes("const entityLabel = presentation?.entityLabel ?? \"圖號\";") &&
+    workspace.includes('entityTitle = presentation?.title ?? drawingCode ?? "尚未產生圖號"') &&
+    ["drawing-overview", "drawing-pending", "drawing-more"].every((key) => drawingDetailContent.includes(`dataSection="${key}"`) || drawingDetailContent.includes(`data-drawing-detail-section="${key}"`)) &&
+    ["drawing-revision-files"].every((key) => workspace.includes(`data-drawing-detail-section="${key}"`)) &&
+    drawingDetailPreview.includes('data-drawing-detail-section={dataSection}') &&
     !workspace.slice(workspace.indexOf("export function WorkspaceDrawer"), workspace.indexOf("function WorkspaceHeaderStatus")).includes("aria-modal=\"true\"") &&
     workspace.includes("useOverlayLifecycle") &&
     workspace.includes("aria-modal=\"true\"") &&
@@ -322,9 +325,9 @@ record(
   "ui",
   "NSF-UI-008-resizable-detail-drawer",
   workspace.includes("useRememberedDrawerWidth") &&
-    workspace.includes('NUMBER_STATE_DRAWER_WIDTH_STORAGE_KEY = "pdm-number-state-detail-drawer-width"') &&
-    workspace.includes("defaultWidth: NUMBER_STATE_DRAWER_DEFAULT_WIDTH") &&
-    workspace.includes('resizeLabel="調整候選圖號明細寬度"') &&
+    workspace.includes("DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY") &&
+    workspace.includes("defaultWidth: DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH") &&
+    workspace.includes("resizeLabel={`調整${entityLabel}明細寬度`}") &&
     entityDetailDrawer.includes("resizeLabel={resizeLabel}") &&
     detailDrawer.includes('className="pdm-detail-drawer-resize-handle"') &&
     detailDrawer.includes("onStartResize(event.clientX)") &&

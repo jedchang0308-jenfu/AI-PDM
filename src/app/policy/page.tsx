@@ -188,7 +188,7 @@ export default function PolicyPage() {
           <div className="panel-header">
             <div>
               <h2>{editing ? "編輯管理辦法" : "管理辦法內容"}</h2>
-              <p>{editing ? "儲存後會更新所有使用者看到的管理辦法。" : "小版次用於研發或設計變更作業，大版次才是正式發布資料。"}</p>
+              <p>{editing ? "儲存後會更新所有使用者看到的管理辦法。" : "小版次用於研發或設計變更作業，大版次才是已發布資料。"}</p>
             </div>
             {policy?.userRole ? <span className="metadata-badge">目前角色 {policy.userRole}</span> : null}
           </div>

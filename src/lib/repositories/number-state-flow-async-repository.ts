@@ -23,6 +23,7 @@ import {
   type NumberingCandidateRevisionFileRecord,
   type NumberingCandidateRevisionRecord
 } from "@/lib/number-lifecycle-simplification";
+import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 
 export const MAX_CANDIDATE_ALLOCATION_ATTEMPTS = 3;
 
@@ -1157,6 +1158,10 @@ export class AsyncNumberStateFlowRepository {
         appendReason: input.appendReason ?? null
       }
     });
+    await new UnifiedDrawingAsyncRepository(this.client).synchronizeWorkspace({
+      workspaceId: input.id,
+      companyId: input.companyId
+    });
     return this.getWorkspace(input.id, input.companyId);
   }
 
@@ -1512,6 +1517,10 @@ export class AsyncNumberStateFlowRepository {
         action: "pdm.numbering.update_draft_workspace",
         detail: { companyId: input.companyId, workspaceId: input.workspaceId, fromVersion: input.expectedRowVersion }
       });
+      await new UnifiedDrawingAsyncRepository(client).synchronizeWorkspace({
+        workspaceId: input.workspaceId,
+        companyId: input.companyId
+      });
       return repository.getWorkspace(input.workspaceId, input.companyId);
     });
   }
@@ -1724,6 +1733,10 @@ export class AsyncNumberStateFlowRepository {
       action: "pdm.numbering.acquire_candidate_numbers",
       detail: { companyId: input.companyId, workspaceId: input.workspaceId, reservations: acquired }
     });
+    await new UnifiedDrawingAsyncRepository(this.client).synchronizeWorkspace({
+      workspaceId: input.workspaceId,
+      companyId: input.companyId
+    });
     return this.getWorkspace(input.workspaceId, input.companyId);
   }
 
@@ -1792,6 +1805,10 @@ export class AsyncNumberStateFlowRepository {
         recycledReservations: reservations.map((reservation) => ({ id: reservation.id, candidateCode: reservation.candidate_code }))
       }
     });
+    await new UnifiedDrawingAsyncRepository(this.client).synchronizeWorkspace({
+      workspaceId: input.workspaceId,
+      companyId: input.companyId
+    });
     return this.getWorkspace(input.workspaceId, input.companyId);
   }
 
@@ -1832,7 +1849,7 @@ export class AsyncNumberStateFlowRepository {
       {
         id: requestId,
         companyId: input.companyId,
-        title: `候選圖料號發布審核：${before.root?.coreName ?? before.sourceRootId ?? before.id}`,
+        title: `圖料號發布審核：${before.root?.coreName ?? before.sourceRootId ?? before.id}`,
         reason: input.reason,
         requestedBy: input.actorId,
         requestedAt: now,
@@ -2597,6 +2614,10 @@ export class AsyncNumberStateFlowRepository {
         },
         masters: { rootId, partIds, drawingIds, relationIds }
       }
+    });
+    await new UnifiedDrawingAsyncRepository(this.client).synchronizeWorkspace({
+      workspaceId: input.workspaceId,
+      companyId: input.companyId
     });
     return {
       workspace: await this.getWorkspace(input.workspaceId, input.companyId),

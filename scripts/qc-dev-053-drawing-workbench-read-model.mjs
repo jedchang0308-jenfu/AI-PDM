@@ -23,10 +23,11 @@ Object.assign(process.env, {
 
 let database;
 try {
-  const [{ getDb }, provider, workbench] = await Promise.all([
+  const [{ getDb }, provider, workbench, unifiedDrawingModule] = await Promise.all([
     import("@/lib/db"),
     import("@/lib/db-async-provider"),
-    import("@/lib/drawing-workbench")
+    import("@/lib/drawing-workbench"),
+    import("@/lib/repositories/unified-drawing-async-repository")
   ]);
   database = getDb();
   const now = "2026-08-04T08:00:00.000Z";
@@ -84,6 +85,11 @@ try {
       'Obsolete', 'dev053-reader', ?, ?)` ).run(now, now);
 
   const client = provider.createAsyncDatabaseClient({ kind: "sqlite", database });
+  const unifiedDrawingRepository = new unifiedDrawingModule.UnifiedDrawingAsyncRepository(client);
+  await unifiedDrawingRepository.synchronizeWorkspace({ workspaceId: "dev053-candidate", companyId: "company-jenfu" });
+  for (const drawingNumberId of ["dev053-master-drawing", "dev053-rejected-drawing", "dev053-obsolete-drawing"]) {
+    await unifiedDrawingRepository.synchronizeFormalDrawing({ drawingNumberId, companyId: "company-jenfu" });
+  }
   const service = new workbench.DrawingWorkbenchService(client);
   const actor = {
     id: "dev053-reader",
@@ -100,20 +106,24 @@ try {
       managePermissions: true
     }
   };
+  const candidateRowKey = "drawing:drawing-dev053-draft-drawing";
+  const masterRowKey = "drawing:drawing-formal-dev053-master-drawing";
+  const rejectedRowKey = "drawing:drawing-formal-dev053-rejected-drawing";
+  const obsoleteRowKey = "drawing:drawing-formal-dev053-obsolete-drawing";
   const all = await service.list(workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/?view=all&limit=50")), actor);
-  record("DEV053-READ-001 candidate and formal master use stable disjoint identities",
-    all.rows.some((row) => row.rowKey === "candidate:dev053-candidate") &&
-    all.rows.some((row) => row.rowKey === "drawing:dev053-master-drawing") &&
+  record("DEV053-READ-001 every lifecycle source projects one canonical drawing identity",
+    all.rows.some((row) => row.rowKey === candidateRowKey) &&
+    all.rows.some((row) => row.rowKey === masterRowKey) &&
     new Set(all.rows.map((row) => row.rowKey)).size === all.rows.length,
     JSON.stringify(all.rows.map((row) => ({ key: row.rowKey, stage: row.stage }))));
   record("DEV053-READ-002 server derives stage, usage and one primary action",
     all.rows.every((row) => row.stage && row.usage && (!row.primaryAction || row.primaryAction.label)) &&
-    all.rows.find((row) => row.rowKey === "candidate:dev053-candidate")?.primaryAction?.kind === "complete_first_drawing" &&
-    all.rows.find((row) => row.rowKey === "drawing:dev053-master-drawing")?.primaryAction?.kind === "create_revision" &&
-    all.rows.find((row) => row.rowKey === "drawing:dev053-master-drawing")?.primaryAction?.label === "建立新版次");
+    all.rows.find((row) => row.rowKey === candidateRowKey)?.primaryAction?.kind === "complete_first_drawing" &&
+    all.rows.find((row) => row.rowKey === masterRowKey)?.primaryAction?.kind === "create_revision" &&
+    all.rows.find((row) => row.rowKey === masterRowKey)?.primaryAction?.label === "建立新版次");
 
   const filtered = await service.list(workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/?view=all&query=Z1053-P01&seriesCode=JF")), actor);
-  record("DEV053-READ-003 search and series filter include linked part identity", filtered.rows.length === 1 && filtered.rows[0].rowKey === "drawing:dev053-master-drawing");
+  record("DEV053-READ-003 search and series filter include linked part identity", filtered.rows.length === 1 && filtered.rows[0].rowKey === masterRowKey);
 
   const firstPage = await service.list(workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/?view=all&limit=1")), actor);
   const cursor = firstPage.nextCursor;
@@ -145,11 +155,12 @@ try {
   const noCandidateActor = { ...actor, permissions: { ...actor.permissions, workspaceView: false } };
   const mastersOnly = await service.list(workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/?view=all")), noCandidateActor);
   record("DEV053-READ-006 candidate visibility fails closed without workspace permission",
-    mastersOnly.rows.every((row) => row.rowKind === "drawing_master") && await service.detail("candidate:dev053-candidate", noCandidateActor) === null);
+    mastersOnly.rows.every((row) => row.rowKind === "drawing" && row.sourceKind === "formal") &&
+    await service.detail("candidate:dev053-candidate", noCandidateActor) === null);
 
   const formalFiltered = await service.list(workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/?view=all&purposeCode=M&recordStatus=Active")), actor);
   record("DEV053-READ-007 purpose and record-status filters apply to formal drawings without leaking candidates",
-    formalFiltered.rows.length === 1 && formalFiltered.rows[0].rowKey === "drawing:dev053-master-drawing" &&
+    formalFiltered.rows.length === 1 && formalFiltered.rows[0].rowKey === masterRowKey &&
     formalFiltered.rows[0].purposeCode === "M" && formalFiltered.rows[0].recordStatus === "Active" &&
     formalFiltered.rows[0].relatedPartSummary === "Z1053-P01");
 
@@ -163,11 +174,11 @@ try {
   const defaultQuery = workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/"));
   const historyExcluded = await service.list(defaultQuery, actor);
   const historyIncluded = await service.list(workbench.normalizeDrawingWorkbenchQuery(new URL("http://local.test/?history=include")), actor);
-  const correctionRow = historyExcluded.rows.find((row) => row.rowKey === "drawing:dev053-rejected-drawing");
-  const obsoleteRow = historyIncluded.rows.find((row) => row.rowKey === "drawing:dev053-obsolete-drawing");
+  const correctionRow = historyExcluded.rows.find((row) => row.rowKey === rejectedRowKey);
+  const obsoleteRow = historyIncluded.rows.find((row) => row.rowKey === obsoleteRowKey);
   record("DEV053-READ-009 default view is all active work while history remains explicit",
     defaultQuery.view === "all" && defaultQuery.includeHistory === false &&
-    !historyExcluded.rows.some((row) => row.rowKey === "drawing:dev053-obsolete-drawing") &&
+    !historyExcluded.rows.some((row) => row.rowKey === obsoleteRowKey) &&
     correctionRow?.stage === "correction_required" && correctionRow.primaryAction?.label === "繼續修正並重送" &&
     obsoleteRow?.stage === "history_only" && obsoleteRow.terminal?.kind === "obsolete" && obsoleteRow.primaryAction?.label === "查看作廢紀錄");
 

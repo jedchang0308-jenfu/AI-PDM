@@ -20,7 +20,6 @@ export type StatusDisplayContext =
   | "jobStatus"
   | "restorePolicy"
   | "fileSync"
-  | "cost"
   | "notification"
   | "generic";
 
@@ -163,10 +162,10 @@ const workflowHelpStatuses: StatusDefinition[] = [
 ];
 
 const applicationStatusStatuses: StatusDefinition[] = [
-  { keys: ["Draft", "draft", "editing", "editable"], label: "編輯中", description: "保留號申請仍可調整，完成內容後再送出申請。", tone: "warning", actionable: true },
+  { keys: ["Draft", "draft", "editing", "editable"], label: "編輯中", description: "編號申請仍可調整，完成內容後再送出申請。", tone: "warning", actionable: true },
   { keys: ["Pending", "pending", "pending_review", "submitted", "active"], label: "申請中", description: "申請已送出，請等待審核或查看目前處理進度。", tone: "warning", actionable: true },
-  { keys: ["Cancelled", "cancelled"], label: "已取消", description: "這筆保留號申請已取消，不會再繼續處理。", tone: "neutral", terminal: true },
-  { keys: ["Published", "published", "promoted", "official"], label: "已轉正式資料", description: "申請結果已轉為正式資料，後續請從主資料清單查看。", tone: "success", terminal: true },
+  { keys: ["Cancelled", "cancelled"], label: "已取消", description: "這筆編號申請已取消，不會再繼續處理。", tone: "neutral", terminal: true },
+  { keys: ["Published", "published", "promoted", "official"], label: "已發布", description: "申請結果已發布，後續請從主資料清單查看。", tone: "success", terminal: true },
   { keys: ["Obsolete", "obsolete", "retired", "voided"], label: "已失效", description: "這筆申請已失效，不能再作為目前申請來源。", tone: "neutral", terminal: true }
 ];
 
@@ -181,11 +180,11 @@ const approvalStatusStatuses: StatusDefinition[] = [
 ];
 
 const publicationStatusStatuses: StatusDefinition[] = [
-  { keys: ["NotReady", "not_ready", "not_published", "unreleased", "blocked"], label: "尚未可發布", description: "目前仍有必要條件未完成，不能正式發布。", tone: "warning", actionable: true },
-  { keys: ["Ready", "ready", "can_publish", "approved"], label: "可發布", description: "必要條件已具備，可以由具權限角色進行正式發布。", tone: "success", actionable: true },
-  { keys: ["Releasing", "releasing", "running", "publishing"], label: "發布中", description: "系統正在建立正式資料，請等待結果後再操作。", tone: "warning" },
+  { keys: ["NotReady", "not_ready", "not_published", "unreleased", "blocked"], label: "尚未可發布", description: "目前仍有必要條件未完成，不能發布。", tone: "warning", actionable: true },
+  { keys: ["Ready", "ready", "can_publish", "approved"], label: "可發布", description: "必要條件已具備，可以由具權限角色進行發布。", tone: "success", actionable: true },
+  { keys: ["Releasing", "releasing", "running", "publishing"], label: "發布中", description: "系統正在建立已發布資料，請等待結果後再操作。", tone: "warning" },
   { keys: ["Released", "released", "published", "official"], label: "已發布", description: "資料已成為正式紀錄，可以依權限使用。", tone: "success", terminal: true },
-  { keys: ["ReleaseFailed", "release_failed", "failed"], label: "發布失敗", description: "正式發布未完成，請查看錯誤明細並重試或請管理員協助。", tone: "critical", abnormal: true, actionable: true },
+  { keys: ["ReleaseFailed", "release_failed", "failed"], label: "發布失敗", description: "發布未完成，請查看錯誤明細並重試或請管理員協助。", tone: "critical", abnormal: true, actionable: true },
   { keys: ["Applied", "applied", "confirmed"], label: "已套用", description: "核准結果已套用到目標資料。", tone: "success", terminal: true },
   { keys: ["ApplyFailed", "apply_failed"], label: "套用失敗", description: "核准結果尚未套用，請重試或請管理員檢查。", tone: "critical", abnormal: true, actionable: true }
 ];
@@ -286,28 +285,28 @@ const restorePolicyStatuses: StatusDefinition[] = [
 const numberEffectivenessStatuses: StatusDefinition[] = [
   {
     keys: ["preview"],
-    label: "預覽",
-    description: "號碼尚未占用；調整申請內容後可能改變。",
+    label: "編號申請",
+    description: "編號仍隨申請內容處理，完成申請後再進入後續流程。",
     tone: "info"
   },
   {
     keys: ["candidate", "active", "review_locked", "approved_locked"],
-    label: "已保留",
-    description: "號碼已由這筆申請保留，但正式發布前不可正式使用。",
+    label: "申請中",
+    description: "編號已由這筆申請建立，仍須依流程完成審核與發布。",
     tone: "warning",
     actionable: true
   },
   {
     keys: ["official", "promoted", "legacy_official_reservation"],
-    label: "正式",
-    description: "號碼已正式生效，可以依資料狀態與權限使用。",
+    label: "已發布",
+    description: "編號已發布，可以依資料狀態與權限使用。",
     tone: "success",
     terminal: true
   },
   {
     keys: ["recycled", "released"],
-    label: "已釋出",
-    description: "原保留已取消，這個號碼不再屬於該申請。",
+    label: "已取消",
+    description: "原編號申請已取消，這個編號不再屬於該申請。",
     tone: "neutral",
     terminal: true
   }
@@ -324,17 +323,6 @@ const fileSyncStatuses: StatusDefinition[] = [
   { keys: ["uploaded", "moved", "migrated", "imported", "confirmed", "completed", "created"], label: "已完成", description: "系統已完成指定處理。", tone: "success", terminal: true },
   { keys: ["failed", "missing", "hash_mismatch", "conflict", "blocker", "critical", "blocked"], label: "異常", description: "系統偵測到阻礙流程的問題，需要處理後才能繼續。", tone: "critical", abnormal: true, actionable: true },
   { keys: ["warning", "info"], label: "提醒", description: "有提示資訊，但不一定阻擋流程。", tone: "info" }
-];
-
-const costStatuses: StatusDefinition[] = [
-  { keys: ["active"], label: "使用中", description: "目前作為有效設定使用。", tone: "success" },
-  { keys: ["missing"], label: "未設定", description: "尚未建立必要設定。", tone: "warning", actionable: true },
-  { keys: ["draft"], label: "草稿", description: "尚未送審，可以繼續編輯。", tone: "warning" },
-  { keys: ["pending", "pending_review"], label: "審核中", description: "已送出，等待審核結果。", tone: "warning" },
-  { keys: ["approved"], label: "已核准", description: "審核已通過。", tone: "success" },
-  { keys: ["rejected"], label: "已退回", description: "審核未通過，需要修正。", tone: "critical" },
-  { keys: ["cancelled"], label: "已取消", description: "流程已取消。", tone: "neutral", terminal: true },
-  { keys: ["retired"], label: "已停用", description: "此設定已不再使用。", tone: "neutral", terminal: true }
 ];
 
 const notificationStatuses: StatusDefinition[] = [
@@ -365,7 +353,6 @@ const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
   jobStatus: jobStatuses,
   restorePolicy: restorePolicyStatuses,
   fileSync: fileSyncStatuses,
-  cost: costStatuses,
   notification: notificationStatuses,
   generic: [
     ...masterRecordStatuses,
@@ -386,8 +373,7 @@ const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
     ...settingsLifecycleStatuses,
     ...jobStatuses,
     ...restorePolicyStatuses,
-    ...fileSyncStatuses,
-    ...costStatuses
+    ...fileSyncStatuses
   ]
 };
 
@@ -468,7 +454,7 @@ export function formatStatusErrorForUser(value: unknown, context: StatusDisplayC
   if (text.includes("submission_not_pending")) return "只有審核中的送審可以核准。請重新整理清單，確認這筆送審目前是否已發布、已駁回或已取消。";
   if (text.includes("reviewer_already_decided")) return "你已經判定過這筆送審。現在請重新整理查看最新審核狀態。";
   if (text.includes("active_sandbox_branch")) return "此送審仍有進行中的設計分支。請先完成或關閉分支後再核准。";
-  if (text.includes("release_failed")) return "核准已送出，但正式發布未完成。請開完整送審頁查看發布錯誤，修正後再重新發布或請 Admin 協助。";
+  if (text.includes("release_failed")) return "核准已送出，但發布未完成。請開完整送審頁查看發布錯誤，修正後再重新發布或請 Admin 協助。";
   if (text.includes("duplicate_active_submission")) return "這版已有送審在處理。請先查看既有送審；若不送審了，請取消審核中送審後再重新建立。";
   if (text.includes("UNIQUE constraint failed: submission_files")) return "送審附件重複，請保留一份正確附件後再送出。";
   if (text.includes("drawing_number_not_found")) return "找不到此圖號。請回圖號模組確認編號是否存在，再重新開啟這個流程。";

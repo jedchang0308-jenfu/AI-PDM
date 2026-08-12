@@ -266,10 +266,10 @@ export async function buildTransferPackageReadiness(
     if (item.requiredness === "required" && reservations.length !== requiredCandidateCount(workspace)) {
       blockers.push(blocker({
         code: "candidate_required_before_review",
-        message: "必要草稿尚未完整取得候選號。",
+        message: "必要草稿尚未完整取得編號。",
         ownerRole: "草稿負責人",
         ownerModule: "圖料草稿",
-        actionLabel: "取得候選號",
+        actionLabel: "取得編號",
         actionHref: `/parts?tab=drafts&workspace=${encodeURIComponent(workspace.id)}`,
         workspaceId: workspace.id
       }));

@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ClipboardCheck, DollarSign, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, FileText, GitBranch, Link2, RotateCcw, Search, ShieldAlert, Workflow } from "lucide-react";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
 import { DrawingWorkbench } from "@/components/drawing-workbench";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
@@ -11,10 +11,12 @@ import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { SearchHighlight } from "@/components/search-highlight";
 import { NumberingContextualEntrypoints } from "@/components/numbering-contextual-entrypoints";
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
+import { NumberSortHeader } from "@/components/number-sort-header";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
-import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
+import { ACTIVE_DRAWING_PURPOSE_CODES, displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { drawingRecordStatusFilterValues, formatStatusForUser } from "@/lib/status-display";
+import { DEFAULT_NUMBER_SORT_DIRECTION, parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type NumberingRecordStatus =
@@ -42,9 +44,6 @@ type DrawingLinkedPartRecord = {
   surfaceTreatment: string | null;
   variantNote: string | null;
   primaryDrawingNumber: string | null;
-  standardCostStatus: "active" | "missing";
-  standardCostProfileName: string | null;
-  standardCostType: string | null;
 };
 
 type DrawingPendingApprovalSummary = {
@@ -83,7 +82,7 @@ type DrawingListRecord = {
 };
 
 const statuses = ["", ...drawingRecordStatusFilterValues] as const;
-const purposeCodes = ["", "M", "R", "MA", "OT"] as const;
+const purposeCodes = ["", ...ACTIVE_DRAWING_PURPOSE_CODES] as const;
 const DRAWING_DRAWER_WIDTH_STORAGE_KEY = "pdm-drawing-detail-drawer-width";
 
 const mutedStyle = { color: "var(--muted)" };
@@ -118,6 +117,7 @@ export default function DrawingNumbersPage() {
   const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [recordStatus, setRecordStatus] = useState("");
   const [purposeCode, setPurposeCode] = useState("");
+  const [sortDirection, setSortDirection] = useState<NumberSortDirection>(DEFAULT_NUMBER_SORT_DIRECTION);
   const [drawings, setDrawings] = useState<DrawingListRecord[]>([]);
   const [canReviewApprovals, setCanReviewApprovals] = useState(false);
   const [selectedDrawingNumber, setSelectedDrawingNumber] = useState<string | null>(null);
@@ -138,7 +138,9 @@ export default function DrawingNumbersPage() {
     setActiveTab(params.get("tab") === "reserved" ? "reserved" : "official");
     const initialQuery = params.get("query")?.trim();
     const detailDrawingNumber = params.get("detail")?.trim();
+    const initialSortDirection = parseNumberSortDirection(params.get("sortDirection"));
     if (initialQuery) setQuery(initialQuery);
+    setSortDirection(initialSortDirection);
     if (detailDrawingNumber) initialDetailDrawingNumberRef.current = detailDrawingNumber;
   }, []);
 
@@ -154,7 +156,7 @@ export default function DrawingNumbersPage() {
     if (workbenchEnabled !== false || activeTab !== "official") return;
     setBusy(true);
     setError("");
-    const params = new URLSearchParams({ limit: "80" });
+    const params = new URLSearchParams({ limit: "80", sortDirection });
     if (query.trim()) params.set("query", query.trim());
     if (seriesCode) params.set("seriesCode", seriesCode);
     if (recordStatus) params.set("recordStatus", recordStatus);
@@ -181,7 +183,7 @@ export default function DrawingNumbersPage() {
     setSelectedDrawingNumber(nextSelection);
     setIsDetailOpen((current) => current && Boolean(nextSelection));
     setState("ready");
-  }, [activeTab, purposeCode, query, recordStatus, seriesCode, workbenchEnabled]);
+  }, [activeTab, purposeCode, query, recordStatus, seriesCode, sortDirection, workbenchEnabled]);
 
   useEffect(() => {
     void loadDrawings();
@@ -390,10 +392,10 @@ export default function DrawingNumbersPage() {
               <section className="panel pdm-master-table-panel pdm-drawing-table-panel">
                 <div className="empty">
                   <h2>尚無符合條件的圖號</h2>
-                  <p>可先到保留號建立圖號，或用圖料模組確認是否已存在相近主根號。</p>
+                  <p>可先到編號申請建立圖號，或用圖料模組確認是否已存在相近主根號。</p>
                   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0.5rem" }}>
                     <Link className="primary-button" href="/numbering/drawings?tab=reserved">
-                      保留號
+                      編號申請
                     </Link>
                     <Link className="secondary-button" href="/numbering/search">
                       圖料模組
@@ -402,7 +404,10 @@ export default function DrawingNumbersPage() {
                 </div>
               </section>
             ) : (
-              <section className="panel pdm-master-table-panel pdm-drawing-table-panel">
+            <section className="panel pdm-master-table-panel pdm-drawing-table-panel">
+                <div className="number-sort-mobile-control">
+                  <NumberSortHeader label="圖號" direction={sortDirection} onToggle={() => setSortDirection((current) => current === "asc" ? "desc" : "asc")} />
+                </div>
                 <div
                   ref={drawingListRef}
                   className="table-wrap pdm-identity-scroll"
@@ -420,7 +425,9 @@ export default function DrawingNumbersPage() {
                     </colgroup>
                     <thead>
                       <tr>
-                        <th>圖號</th>
+                        <th aria-sort={sortDirection === "asc" ? "ascending" : "descending"}>
+                          <NumberSortHeader label="圖號" direction={sortDirection} onToggle={() => setSortDirection((current) => current === "asc" ? "desc" : "asc")} />
+                        </th>
                         <th>名稱</th>
                         <th>關聯摘要</th>
                         <th>
@@ -719,9 +726,8 @@ function TitleBlockVariantWarning() {
 
 function DrawingSubmissionPrerequisitePanel({ drawing, canReviewApprovals }: { drawing: DrawingListRecord; canReviewApprovals: boolean }) {
   const incompleteParts = getIncompleteSameRootParts(drawing);
-  const missingCostParts = getRelatedParts(drawing).filter((part) => part.standardCostStatus === "missing");
   const pendingApproval = drawing.pendingApproval ?? null;
-  const hasOutstandingItems = incompleteParts.length > 0 || missingCostParts.length > 0 || Boolean(pendingApproval);
+  const hasOutstandingItems = incompleteParts.length > 0 || Boolean(pendingApproval);
   return (
     <section className="panel drawing-prerequisite-panel">
       <div className="panel-header">
@@ -739,12 +745,6 @@ function DrawingSubmissionPrerequisitePanel({ drawing, canReviewApprovals }: { d
           title="主資料"
           state={incompleteParts.length > 0 ? `${incompleteParts.length} 筆待補` : "完成"}
           tone={incompleteParts.length > 0 ? "danger" : "success"}
-        />
-        <ReadinessChip
-          icon={<Workflow size={16} />}
-          title="標準成本"
-          state={missingCostParts.length > 0 ? `${missingCostParts.length} 筆待補` : "完成"}
-          tone={missingCostParts.length > 0 ? "danger" : "success"}
         />
         {pendingApproval ? (
           <ReadinessChip
@@ -823,9 +823,6 @@ function PartMasterDataCard({ part }: { part: DrawingLinkedPartRecord }) {
       </div>
       <div className="pdm-meta-strip">
         <StatusBadge status={part.recordStatus} context="masterRecord" />
-        <span style={{ ...badgeStyle, color: part.standardCostStatus === "active" ? "var(--success)" : "var(--danger)" }}>
-          {standardCostLabel(part)}
-        </span>
         {missingRequired ? <span style={{ ...badgeStyle, color: "var(--danger)", borderColor: "rgba(220, 38, 38, 0.35)" }}>送審資料未完成</span> : null}
       </div>
 
@@ -842,11 +839,6 @@ function PartMasterDataCard({ part }: { part: DrawingLinkedPartRecord }) {
 function variantDescriptor(part: DrawingLinkedPartRecord) {
   const values = [part.surfaceTreatment, part.variantNote].filter(Boolean);
   return values.length ? values.join(" / ") : "未填";
-}
-
-function standardCostLabel(part: DrawingLinkedPartRecord) {
-  if (part.standardCostStatus === "missing") return "標準成本未設定";
-  return part.standardCostProfileName ? `標準成本 active / ${part.standardCostProfileName}` : "標準成本 active";
 }
 
 function InfoBlock({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {

@@ -3,6 +3,7 @@ import { AsyncNumberStateFlowRepository, type NumberingDraftWorkspaceRecord } fr
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import type { NumberingRecordStatus, PartModuleDetailRecord, PartModuleListRecord } from "@/lib/repositories/numbering-repository";
+import type { NumberSortDirection } from "@/lib/number-sort";
 
 const MIN_IDENTITY_PAGE_SIZE = 50;
 const MAX_IDENTITY_PAGE_SIZE = 200;
@@ -11,10 +12,11 @@ type IdentityRow = {
   row_kind: "candidate_bundle" | "part_master";
   id: string;
   updated_at: string;
+  sort_value: string;
   row_key: string;
 };
 
-export type PartWorkbenchIdentityCursor = { updatedAt: string; rowKey: string };
+export type PartWorkbenchIdentityCursor = { sortValue: string; rowKey: string };
 
 export type PartWorkbenchRepositoryQuery = {
   companyId: string;
@@ -22,6 +24,7 @@ export type PartWorkbenchRepositoryQuery = {
   seriesCode: string;
   itemKind: string;
   recordStatus: NumberingRecordStatus | "";
+  sortDirection: NumberSortDirection;
   includeCandidates: boolean;
   cursor: PartWorkbenchIdentityCursor | null;
   limit: number;
@@ -76,13 +79,28 @@ export class PartWorkbenchAsyncRepository {
       OR LOWER(COALESCE(v.material_label, '')) LIKE :queryPattern
       OR LOWER(COALESCE(v.color_label, '')) LIKE :queryPattern
     )` : "";
+    const orderDirection = input.sortDirection === "desc" ? "DESC" : "ASC";
+    const candidateSortValue = `COALESCE(
+      (SELECT MIN(reservation.candidate_code)
+       FROM numbering_draft_parts candidate_part
+       JOIN number_candidate_reservations reservation ON reservation.id = candidate_part.candidate_reservation_id
+       WHERE candidate_part.workspace_id = w.id AND candidate_part.company_id = w.company_id),
+      (SELECT reservation.candidate_code
+       FROM number_candidate_reservations reservation
+       WHERE reservation.id = draft_root.candidate_reservation_id),
+      '尚未產生料號'
+    )`;
+    const cursorClause = input.sortDirection === "desc"
+      ? `(:cursorSortValue IS NULL OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
+      : `(:cursorSortValue IS NULL OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
     return client.query<IdentityRow>(
-      `SELECT row_kind, id, updated_at, row_key
+      `SELECT row_kind, id, updated_at, sort_value, row_key
        FROM (
          SELECT DISTINCT
            'candidate_bundle' AS row_kind,
            w.id AS id,
            w.updated_at AS updated_at,
+           ${candidateSortValue} AS sort_value,
            'candidate:' || w.id AS row_key
          FROM numbering_draft_workspaces w
          LEFT JOIN numbering_draft_roots draft_root ON draft_root.workspace_id = w.id AND draft_root.company_id = w.company_id
@@ -99,6 +117,7 @@ export class PartWorkbenchAsyncRepository {
            'part_master' AS row_kind,
            p.id AS id,
            p.updated_at AS updated_at,
+           p.part_number AS sort_value,
            'part:' || p.id AS row_key
          FROM part_numbers p
          JOIN part_roots r ON r.id = p.part_root_id AND r.company_id = p.company_id
@@ -109,12 +128,8 @@ export class PartWorkbenchAsyncRepository {
            ${input.itemKind ? "AND p.item_kind = :itemKind" : ""}
            ${input.recordStatus ? "AND p.record_status = :recordStatus" : ""}
        ) identity_page
-       WHERE (
-         :cursorUpdatedAt IS NULL
-         OR updated_at < :cursorUpdatedAt
-         OR (updated_at = :cursorUpdatedAt AND row_key > :cursorRowKey)
-       )
-       ORDER BY updated_at DESC, row_key ASC
+       WHERE ${cursorClause}
+       ORDER BY sort_value ${orderDirection}, row_key ASC
        LIMIT :scanLimit`,
       {
         companyId: input.companyId,
@@ -123,7 +138,7 @@ export class PartWorkbenchAsyncRepository {
         seriesCode: input.seriesCode,
         itemKind: input.itemKind,
         recordStatus: input.recordStatus,
-        cursorUpdatedAt: cursor?.updatedAt ?? null,
+        cursorSortValue: cursor?.sortValue ?? null,
         cursorRowKey: cursor?.rowKey ?? "",
         scanLimit
       }
@@ -157,7 +172,7 @@ export class PartWorkbenchAsyncRepository {
         }
         const lastIdentity = identities.at(-1);
         if (projectedRows.length > input.limit || identities.length < scanLimit || !lastIdentity) break;
-        scanCursor = { updatedAt: lastIdentity.updated_at, rowKey: lastIdentity.row_key };
+        scanCursor = { sortValue: lastIdentity.sort_value, rowKey: lastIdentity.row_key };
       }
       return {
         rows: projectedRows.slice(0, input.limit + 1),

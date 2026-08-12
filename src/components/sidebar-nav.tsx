@@ -12,7 +12,6 @@ import {
   ClipboardCheck,
   Factory,
   FileText,
-  FileUp,
   GitPullRequestArrow,
   KeyRound,
   ListTree,
@@ -68,7 +67,6 @@ const navSections: NavSection[] = [
       { href: "/numbering/search", label: "圖料模組", icon: Search },
       { href: "/numbering/drawings", label: "圖號模組", icon: FileText },
       { href: "/parts", label: "料號模組", icon: PackageSearch },
-      { href: "/numbering/imports", label: "圖號總表匯入", icon: FileUp }
     ]
   },
   {

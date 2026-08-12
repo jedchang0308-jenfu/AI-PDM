@@ -27,6 +27,7 @@ import type {
   NumberingSearchEntityType,
   PartNumberRecord
 } from "@/lib/repositories/numbering-repository";
+import { parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
 
 export type RelationWorkbenchView = "mine" | "work" | "all";
 export type RelationWorkbenchStage = "building" | "drawing_preparation" | "bundle_ready" | "in_review" | "auto_finalizing" | "recovery_required" | "correction_required" | "official_controlled" | "released" | "history_only";
@@ -62,6 +63,7 @@ export type RelationPart = {
   availabilityScope: ReturnType<typeof projectPartAvailability>;
   linkedDrawingNumbers: string[];
   hasManufacturingDrawing: boolean;
+  hasMasterDataGap: boolean;
 };
 export type RelationActiveChange = {
   workspaceId: string;
@@ -94,12 +96,12 @@ export type RelationWorkbenchRow = PdmWorkbenchRowBase<"formal_root" | "candidat
   warning: { code: string; message: string } | null;
 };
 
-export type ProjectedRelationRootDetail = NumberingRootDetailRecord & {
+export type ProjectedRelationRootDetail = Omit<NumberingRootDetailRecord, "drawingNumbers" | "partNumbers"> & {
   humanStatus: HumanStatusProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: ReturnType<typeof projectRelationRootAvailability>;
   drawingNumbers: Array<DrawingNumberRecord & Pick<RelationDrawing, "humanStatus" | "viewerStatus" | "availabilityScope">>;
-  partNumbers: Array<PartNumberRecord & Pick<RelationPart, "humanStatus" | "viewerStatus" | "availabilityScope">>;
+  partNumbers: Array<PartNumberRecord & Pick<RelationPart, "humanStatus" | "viewerStatus" | "availabilityScope" | "hasMasterDataGap">>;
 };
 
 export type RelationWorkbenchDetailResponse = {
@@ -148,6 +150,7 @@ type NormalizedRelationQuery = {
   includeHistory: boolean;
   cursor: string;
   limit: number;
+  sortDirection: NumberSortDirection;
 };
 
 const entityTypes = ["all", "part_root", "part_number", "drawing_number"] as const satisfies readonly NumberingSearchEntityType[];
@@ -174,17 +177,18 @@ export function normalizeRelationWorkbenchQuery(url: URL): NormalizedRelationQue
   const rawLimit = text(url.searchParams.get("limit"), 10) || "60";
   const limit = Number(rawLimit);
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RelationWorkbenchError("workbench_invalid_limit", "每頁筆數必須介於 1 到 100。", 400);
+  const sortDirection = parseNumberSortDirection(url.searchParams.get("sortDirection"));
   return {
     query: text(url.searchParams.get("query"), 200), view, seriesCode: text(url.searchParams.get("seriesCode"), 80),
     entityType: entityType as NumberingSearchEntityType, recordStatus: recordStatus as NumberingRecordStatus | "",
-    humanStatus, includeHistory: history === "include", cursor: text(url.searchParams.get("cursor"), 2_000), limit
+    humanStatus, includeHistory: history === "include", cursor: text(url.searchParams.get("cursor"), 2_000), limit, sortDirection
   };
 }
 
 function relationFilterHash(query: NormalizedRelationQuery, actor: RelationWorkbenchActor) {
   return pdmWorkbenchFilterHash({ namespace: "relation-v1", filters: {
     query: query.query.toLocaleLowerCase("zh-Hant"), view: query.view, seriesCode: query.seriesCode,
-    entityType: query.entityType, recordStatus: query.recordStatus, humanStatus: query.humanStatus, includeHistory: query.includeHistory
+    entityType: query.entityType, recordStatus: query.recordStatus, humanStatus: query.humanStatus, includeHistory: query.includeHistory, sortDirection: query.sortDirection
   }, companyId: actor.companyId, actorId: actor.id });
 }
 
@@ -240,7 +244,7 @@ function activeChange(workspace: RelationChangeSource, actor: RelationWorkbenchA
   return {
     workspaceId: workspace.id,
     rowKey: `candidate:${workspace.id}`,
-    displayCode: workspace.root?.candidateCode ?? drawingCodes[0] ?? partCodes[0] ?? "尚未產生候選號",
+    displayCode: workspace.root?.candidateCode ?? drawingCodes[0] ?? partCodes[0] ?? "尚未產生編號",
     displayName: workspace.root?.coreName ?? workspace.parts[0]?.partName ?? "圖料變更工作",
     stage,
     stageLabel: stageLabels[stage],
@@ -319,7 +323,7 @@ function mapDrawing(drawing: DrawingNumberRecord, links: NumberingLinkRecord[], 
   };
 }
 
-function mapPart(part: PartNumberRecord, links: NumberingLinkRecord[], drawingById: Map<string, DrawingNumberRecord>, actor: RelationWorkbenchActor): RelationPart {
+function mapPart(part: PartNumberRecord, links: NumberingLinkRecord[], drawingById: Map<string, DrawingNumberRecord>, actor: RelationWorkbenchActor, partMasterDataGaps: ReadonlyMap<string, boolean> = new Map()): RelationPart {
   const primary = links.find((link) => link.linkType === "primary_manufacturing" && Boolean(drawingById.get(link.drawingNumberId) && isManufacturingDrawingPurpose(drawingById.get(link.drawingNumberId)!.purposeCode)));
   const primaryDrawing = primary ? drawingById.get(primary.drawingNumberId) : null;
   const humanStatus = projectPartHumanStatus({ recordStatus: part.recordStatus, itemKind: part.itemKind, primaryDrawingNumber: primaryDrawing?.drawingNumber ?? null, hasManufacturingDrawing: Boolean(primary) });
@@ -327,11 +331,13 @@ function mapPart(part: PartNumberRecord, links: NumberingLinkRecord[], drawingBy
     id: part.id, partNumber: part.partNumber, partName: part.partName, itemKind: part.itemKind, recordStatus: part.recordStatus,
     humanStatus, viewerStatus: projectRoleViewerHumanStatus(humanStatus, actor.viewerCapabilities),
     availabilityScope: projectPartAvailability({ recordStatus: part.recordStatus, itemKind: part.itemKind, primaryDrawingNumber: primaryDrawing?.drawingNumber ?? null, primaryDrawingRecordStatus: primaryDrawing?.recordStatus ?? null, hasManufacturingDrawing: Boolean(primary) }),
-    linkedDrawingNumbers: links.map((link) => link.drawingNumber), hasManufacturingDrawing: Boolean(primary)
+    linkedDrawingNumbers: links.map((link) => link.drawingNumber), hasManufacturingDrawing: Boolean(primary), hasMasterDataGap: partMasterDataGaps.get(part.id) ?? false
   };
 }
 
-function projectRootDetail(detail: NumberingRootDetailRecord, actor: RelationWorkbenchActor): ProjectedRelationRootDetail {
+function projectRootDetail(detail: NumberingRootDetailRecord, actor: RelationWorkbenchActor, partMasterDataGaps: ReadonlyMap<string, boolean> = new Map()): ProjectedRelationRootDetail {
+  const detailForProjection = { ...detail } as NumberingRootDetailRecord & { partMasterDataGaps?: Record<string, boolean> };
+  delete detailForProjection.partMasterDataGaps;
   const status = projectNumberingRootStatus(detail);
   const drawingById = new Map(detail.drawingNumbers.map((drawing) => [drawing.id, drawing]));
   const linksByDrawing = groupLinks(detail.links, "drawingNumberId");
@@ -341,7 +347,7 @@ function projectRootDetail(detail: NumberingRootDetailRecord, actor: RelationWor
   const dependencyReleaseReady = manufacturing.length > 0 && manufacturing.every((drawing) => drawing.recordStatus === "Released") && detail.partNumbers.every((part) => part.recordStatus === "Released");
   const availabilityScope = projectRelationRootAvailability({ recordStatus: projectEffectiveRelationRecordStatus(detail, status.relationshipHealth, blockers.length), relationshipHealth: status.relationshipHealth, blockerCount: blockers.length, dependencyReleaseReady });
   return {
-    ...detail,
+    ...detailForProjection,
     humanStatus: status.humanStatus,
     viewerStatus: projectRoleViewerHumanStatus(status.humanStatus, actor.viewerCapabilities),
     availabilityScope,
@@ -350,13 +356,13 @@ function projectRootDetail(detail: NumberingRootDetailRecord, actor: RelationWor
       return { ...drawing, humanStatus: projection.humanStatus, viewerStatus: projection.viewerStatus, availabilityScope: projection.availabilityScope };
     }),
     partNumbers: detail.partNumbers.map((part) => {
-      const projection = mapPart(part, linksByPart.get(part.id) ?? [], drawingById, actor);
-      return { ...part, humanStatus: projection.humanStatus, viewerStatus: projection.viewerStatus, availabilityScope: projection.availabilityScope };
+      const projection = mapPart(part, linksByPart.get(part.id) ?? [], drawingById, actor, partMasterDataGaps);
+      return { ...part, humanStatus: projection.humanStatus, viewerStatus: projection.viewerStatus, availabilityScope: projection.availabilityScope, hasMasterDataGap: projection.hasMasterDataGap };
     })
   };
 }
 
-function formalRootRow(detail: NumberingRootDetailRecord, sourceChanges: RelationChangeSource[], actor: RelationWorkbenchActor): RelationWorkbenchRow {
+function formalRootRow(detail: NumberingRootDetailRecord, sourceChanges: RelationChangeSource[], actor: RelationWorkbenchActor, partMasterDataGaps: ReadonlyMap<string, boolean> = new Map()): RelationWorkbenchRow {
   const drawingById = new Map(detail.drawingNumbers.map((drawing) => [drawing.id, drawing]));
   const linksByDrawing = groupLinks(detail.links, "drawingNumberId");
   const linksByPart = groupLinks(detail.links, "partNumberId");
@@ -374,7 +380,7 @@ function formalRootRow(detail: NumberingRootDetailRecord, sourceChanges: Relatio
     displayCode: detail.root.rootCode, displayName: detail.root.coreName, recordStatus: detail.root.recordStatus,
     relationshipHealth: health, relationshipLabel: relationshipHealthLabel(health), nextStep: nextStep(health, blockers),
     drawings: detail.drawingNumbers.map((drawing) => mapDrawing(drawing, linksByDrawing.get(drawing.id) ?? [], actor)),
-    parts: detail.partNumbers.map((part) => mapPart(part, linksByPart.get(part.id) ?? [], drawingById, actor)),
+    parts: detail.partNumbers.map((part) => mapPart(part, linksByPart.get(part.id) ?? [], drawingById, actor, partMasterDataGaps)),
     matrix: matrixFor(detail.partNumbers, detail.drawingNumbers, detail.links), blockers, activeChanges: changes,
     stage, stageLabel: stageLabels[stage], humanStatus: rootStatus.humanStatus,
     viewerStatus: projectRoleViewerHumanStatus(rootStatus.humanStatus, actor.viewerCapabilities),
@@ -393,13 +399,13 @@ function candidateRootRow(workspace: NumberingDraftWorkspaceRecord, actor: Relat
   return {
     rowKey: change.rowKey, rowKind: "candidate_root", sourceKind: "candidate", rootId: null, workspaceId: workspace.id,
     displayCode: change.displayCode, displayName: change.displayName, recordStatus: null,
-    relationshipHealth: "draft", relationshipLabel: "候選關係", nextStep: { label: change.stageLabel, severity: change.stage === "recovery_required" ? "blocked" : "info" },
+    relationshipHealth: "draft", relationshipLabel: "關係待處理", nextStep: { label: change.stageLabel, severity: change.stage === "recovery_required" ? "blocked" : "info" },
     drawings: [], parts: [], matrix: [], blockers: [], activeChanges: [change], stage: change.stage, stageLabel: change.stageLabel,
     humanStatus,
-    viewerStatus: projectViewerHumanStatus(humanStatus, { responsibility: change.stage === "auto_finalizing" ? "system" : currentUser ? "current_user" : "other_user", basis: change.stage === "in_review" ? "role_capability" : change.stage === "auto_finalizing" ? "system" : "assignee", canAct: currentUser && Boolean(change.primaryAction?.enabled), actorLabel: change.stage === "auto_finalizing" ? "系統正在建立正式資料" : currentUser ? "這筆工作需要你處理" : "等待負責人處理", nextStep: change.primaryAction?.label ?? null }),
+    viewerStatus: projectViewerHumanStatus(humanStatus, { responsibility: change.stage === "auto_finalizing" ? "system" : currentUser ? "current_user" : "other_user", basis: change.stage === "in_review" ? "role_capability" : change.stage === "auto_finalizing" ? "system" : "assignee", canAct: currentUser && Boolean(change.primaryAction?.enabled), actorLabel: change.stage === "auto_finalizing" ? "系統正在建立已發布資料" : currentUser ? "這筆工作需要你處理" : "等待負責人處理", nextStep: change.primaryAction?.label ?? null }),
     availabilityScope: projectDrawingAvailability({ stage: change.stage, usage: "not_for_formal_use", terminal: change.stage === "history_only" }),
     primaryAction: change.primaryAction, warning: change.stage === "recovery_required" ? { code: "candidate_recovery_required", message: "這筆工作需要處理後才能繼續。" } : null,
-    terminal: change.stage === "history_only" ? { kind: "cancelled", reasonLabel: "此候選工作已取消。", nextStepLabel: "如仍需要圖料關係，請建立新的工作。" } : null,
+    terminal: change.stage === "history_only" ? { kind: "cancelled", reasonLabel: "此工作已取消。", nextStepLabel: "如仍需要圖料關係，請建立新的工作。" } : null,
     updatedAt: workspace.updatedAt
   };
 }
@@ -418,15 +424,15 @@ export class RelationWorkbenchService {
   async list(query: NormalizedRelationQuery, actor: RelationWorkbenchActor): Promise<RelationWorkbenchListResponse> {
     const currentFilterHash = relationFilterHash(query, actor);
     const cursor = query.cursor ? decodePdmWorkbenchCursor(query.cursor, currentFilterHash) : null;
-    const page = await this.repository.readListPage({
+    const page = await this.repository.readListPage<RelationWorkbenchRow>({
       companyId: actor.companyId, query: query.query, seriesCode: query.seriesCode, entityType: query.entityType,
-      recordStatus: query.recordStatus, includeCandidates: actor.permissions.workspaceView && !query.recordStatus,
-      cursor: cursor ? { updatedAt: cursor.updatedAt, rowKey: cursor.rowKey } : null, limit: query.limit
-    }, (workspaces, roots) => {
+      recordStatus: query.recordStatus, sortDirection: query.sortDirection, includeCandidates: actor.permissions.workspaceView && !query.recordStatus,
+      cursor: cursor ? { sortValue: cursor.sortValue ?? cursor.updatedAt, rowKey: cursor.rowKey } : null, limit: query.limit
+    }, (workspaces, roots, partMasterDataGaps) => {
       const sourceChanges = new Map<string, NumberingDraftWorkspaceRecord[]>();
       for (const workspace of workspaces) if (workspace.sourceRootId) sourceChanges.set(workspace.sourceRootId, [...(sourceChanges.get(workspace.sourceRootId) ?? []), workspace]);
       return [
-        ...roots.map((root) => formalRootRow(root, sourceChanges.get(root.root.id) ?? [], actor)),
+        ...roots.map((root) => formalRootRow(root, sourceChanges.get(root.root.id) ?? [], actor, partMasterDataGaps)),
         ...workspaces.filter((workspace) => !workspace.sourceRootId).map((workspace) => candidateRootRow(workspace, actor))
       ].filter((row) => query.includeHistory || row.stage !== "history_only")
         .filter((row) => rowInView(row, actor, query.view))
@@ -437,7 +443,7 @@ export class RelationWorkbenchService {
     const last = rows.at(-1);
     return {
       rows,
-      nextCursor: hasNext && last ? encodePdmWorkbenchCursor({ version: 1, filterHash: currentFilterHash, updatedAt: last.updatedAt, rowKey: last.rowKey }) : null,
+      nextCursor: hasNext && last ? encodePdmWorkbenchCursor({ version: 1, filterHash: currentFilterHash, updatedAt: last.updatedAt, sortValue: last.displayCode, rowKey: last.rowKey }) : null,
       generatedAt: new Date().toISOString(),
       filters: { seriesCodeOptions: page.seriesCodeOptions, entityTypeOptions: [...entityTypes], recordStatusOptions: [...recordStatuses] }
     };
@@ -454,8 +460,8 @@ export class RelationWorkbenchService {
       ? await this.repository.readRootDetail(rowKey.slice("root:".length), actor.companyId)
       : await this.repository.resolveRootByCode(rowKey, actor.companyId);
     if (!result) return null;
-    const row = formalRootRow(result.root, actor.permissions.workspaceView ? result.workspaces : [], actor);
-    return { row, rootDetail: projectRootDetail(result.root, actor), candidate: null, focusedChange: null, capabilities: { canManageRelations: actor.permissions.manageRelations, canManagePermissions: actor.permissions.managePermissions } };
+    const row = formalRootRow(result.root, actor.permissions.workspaceView ? result.workspaces : [], actor, result.partMasterDataGaps);
+    return { row, rootDetail: projectRootDetail(result.root, actor, result.partMasterDataGaps), candidate: null, focusedChange: null, capabilities: { canManageRelations: actor.permissions.manageRelations, canManagePermissions: actor.permissions.managePermissions } };
   }
 }
 

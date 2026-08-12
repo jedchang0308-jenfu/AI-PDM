@@ -199,46 +199,6 @@ function collectSourceRecords(db) {
     ),
     ...allOrEmpty(
       db,
-      "part_cost_change_requests",
-      `
-      SELECT
-        cr.id,
-        cr.request_type,
-        cr.review_status,
-        cr.requested_by,
-        cr.reviewed_by,
-        cr.requested_at,
-        cr.reviewed_at,
-        cr.change_reason,
-        pn.company_id,
-        pn.part_number,
-        pn.part_name
-      FROM part_cost_change_requests cr
-      JOIN part_numbers pn ON pn.id = cr.part_number_id
-      ORDER BY cr.requested_at, cr.id
-    `
-    ).map((row) =>
-      sourceRecord(
-        "part_cost_change_requests",
-        row.id,
-        "part_cost.change_review",
-        row.review_status,
-        row.requested_at,
-        `${row.part_number} / ${row.part_name}`,
-        {
-          requestType: row.request_type
-        },
-        {
-          companyId: row.company_id,
-          requestedBy: row.requested_by,
-          resolvedBy: row.reviewed_by,
-          resolvedAt: row.reviewed_at,
-          reason: row.change_reason
-        }
-      )
-    ),
-    ...allOrEmpty(
-      db,
       "drawing_revision_package_supplements",
       `
       SELECT
@@ -311,7 +271,6 @@ function buildReport(db, options = {}) {
       approval_requests: countByStatus(db, "approval_requests", "request_status"),
       submission_lifecycle_requests: countByStatus(db, "submission_lifecycle_requests", "request_status"),
       bom_review_requests: countByStatus(db, "bom_review_requests", "status"),
-      part_cost_change_requests: countByStatus(db, "part_cost_change_requests", "review_status"),
       drawing_revision_package_supplements: countByStatus(db, "drawing_revision_package_supplements", "status")
     },
     byTable: Object.fromEntries(byTable),

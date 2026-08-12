@@ -1708,83 +1708,6 @@ CREATE TABLE IF NOT EXISTS part_variant_attributes (
   FOREIGN KEY (updated_by) REFERENCES users(id)
 );
 
-CREATE TABLE IF NOT EXISTS part_cost_profiles (
-  id TEXT PRIMARY KEY,
-  part_number_id TEXT NOT NULL,
-  cost_type TEXT NOT NULL CHECK (cost_type IN ('outsourced', 'in_house', 'purchase', 'trial', 'other')),
-  profile_name TEXT NOT NULL,
-  currency TEXT NOT NULL DEFAULT 'TWD',
-  uom TEXT NOT NULL DEFAULT 'pcs',
-  supplier_name TEXT,
-  process_name TEXT,
-  cost_basis TEXT,
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'approved', 'rejected', 'retired')),
-  effective_from TEXT,
-  effective_to TEXT,
-  created_by TEXT,
-  approved_by TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id),
-  FOREIGN KEY (approved_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS part_cost_tiers (
-  id TEXT PRIMARY KEY,
-  cost_profile_id TEXT NOT NULL,
-  min_qty INTEGER NOT NULL DEFAULT 1 CHECK (min_qty > 0),
-  max_qty INTEGER CHECK (max_qty IS NULL OR max_qty >= min_qty),
-  unit_cost REAL NOT NULL CHECK (unit_cost >= 0),
-  setup_cost REAL NOT NULL DEFAULT 0 CHECK (setup_cost >= 0),
-  lead_time_days INTEGER CHECK (lead_time_days IS NULL OR lead_time_days >= 0),
-  note TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE CASCADE,
-  UNIQUE (cost_profile_id, min_qty)
-);
-
-CREATE TABLE IF NOT EXISTS part_standard_costs (
-  id TEXT PRIMARY KEY,
-  part_number_id TEXT NOT NULL,
-  cost_profile_id TEXT NOT NULL,
-  basis_qty INTEGER NOT NULL DEFAULT 1 CHECK (basis_qty > 0),
-  standard_reason TEXT,
-  selected_by TEXT,
-  approved_by TEXT,
-  effective_from TEXT NOT NULL DEFAULT (datetime('now')),
-  effective_to TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
-  FOREIGN KEY (cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE RESTRICT,
-  FOREIGN KEY (selected_by) REFERENCES users(id),
-  FOREIGN KEY (approved_by) REFERENCES users(id)
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_part_standard_costs_active
-ON part_standard_costs(part_number_id)
-WHERE effective_to IS NULL;
-
-CREATE TABLE IF NOT EXISTS part_cost_change_requests (
-  id TEXT PRIMARY KEY,
-  part_number_id TEXT NOT NULL,
-  proposed_cost_profile_id TEXT,
-  request_type TEXT NOT NULL CHECK (request_type IN ('set_standard', 'update_profile', 'retire_profile')),
-  change_reason TEXT NOT NULL,
-  review_status TEXT NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending', 'approved', 'rejected', 'cancelled')),
-  requested_by TEXT,
-  reviewed_by TEXT,
-  requested_at TEXT NOT NULL DEFAULT (datetime('now')),
-  reviewed_at TEXT,
-  review_comment TEXT,
-  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
-  FOREIGN KEY (proposed_cost_profile_id) REFERENCES part_cost_profiles(id) ON DELETE SET NULL,
-  FOREIGN KEY (requested_by) REFERENCES users(id),
-  FOREIGN KEY (reviewed_by) REFERENCES users(id)
-);
-
 CREATE TABLE IF NOT EXISTS duplicate_check_events (
   id TEXT PRIMARY KEY,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('part_root', 'part_number', 'drawing_number', 'mixed')),
@@ -2041,7 +1964,6 @@ VALUES
   ('submission.obsolete', 'submission', '送審單作廢審核', 'Submission lifecycle obsolete compatibility action.', 'submission.compat', 'high', 0, 1, '{}'),
   ('bom.release_review', 'bom', 'BOM 發行審核', 'BOM release review compatibility action.', 'bom.compat', 'high', 0, 1, '{}'),
   ('bom.obsolete_review', 'bom', 'BOM 作廢審核', 'BOM obsolete review compatibility action.', 'bom.compat', 'high', 0, 1, '{}'),
-  ('part_cost.change_review', 'part_cost', '料號成本異動審核', 'Part cost change review compatibility action.', 'part_cost.compat', 'normal', 0, 1, '{}'),
   ('drawing_package.supplement_review', 'drawing_package', '圖面補件審核', 'Drawing revision package supplement compatibility action.', 'drawing_package.compat', 'normal', 0, 1, '{}');
 
 CREATE TABLE IF NOT EXISTS approval_platform_packages (
@@ -2265,7 +2187,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'page', 'numbering.approvals', 1),
     ('system_admin', 'page', 'numbering.impact', 1),
     ('system_admin', 'page', 'numbering.tasks', 1),
-    ('system_admin', 'page', 'numbering.imports', 1),
     ('system_admin', 'page', 'numbering.reports', 1),
     ('system_admin', 'page', 'settings.admin_matrix', 1),
     ('system_admin', 'action', 'numbering.create', 1),
@@ -2277,8 +2198,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'action', 'numbering.approval.batch.resubmit', 1),
     ('system_admin', 'action', 'numbering.impact.analyze', 1),
     ('system_admin', 'action', 'numbering.impact.apply', 1),
-    ('system_admin', 'action', 'numbering.import.stage', 1),
-    ('system_admin', 'action', 'numbering.import.confirm', 1),
     ('system_admin', 'action', 'numbering.export.create', 1),
     ('system_admin', 'action', 'numbering.audit_report.generate', 1),
     ('system_admin', 'action', 'numbering.task.update', 1),
@@ -2308,7 +2227,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'page', 'numbering.approvals', 1),
     ('pdm_admin', 'page', 'numbering.impact', 1),
     ('pdm_admin', 'page', 'numbering.tasks', 1),
-    ('pdm_admin', 'page', 'numbering.imports', 1),
     ('pdm_admin', 'page', 'numbering.reports', 1),
     ('pdm_admin', 'page', 'settings.admin_matrix', 1),
     ('pdm_admin', 'action', 'numbering.create', 1),
@@ -2320,8 +2238,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'action', 'numbering.approval.batch.resubmit', 1),
     ('pdm_admin', 'action', 'numbering.impact.analyze', 1),
     ('pdm_admin', 'action', 'numbering.impact.apply', 1),
-    ('pdm_admin', 'action', 'numbering.import.stage', 1),
-    ('pdm_admin', 'action', 'numbering.import.confirm', 1),
     ('pdm_admin', 'action', 'numbering.export.create', 1),
     ('pdm_admin', 'action', 'numbering.audit_report.generate', 1),
     ('pdm_admin', 'action', 'numbering.task.update', 1),
@@ -2378,7 +2294,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd', 'page', 'numbering.drawings.view', 1),
     ('rd', 'page', 'numbering.impact', 1),
     ('rd', 'page', 'numbering.tasks', 1),
-    ('rd', 'page', 'numbering.imports', 1),
     ('rd', 'action', 'numbering.create', 1),
     ('rd', 'action', 'numbering.duplicate_check', 1),
     ('rd', 'action', 'numbering.link_variant', 1),
@@ -2388,7 +2303,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd', 'action', 'numbering.approval.batch.create', 1),
     ('rd', 'action', 'numbering.approval.batch.resubmit', 1),
     ('rd', 'action', 'numbering.impact.analyze', 1),
-    ('rd', 'action', 'numbering.import.stage', 1),
     ('rd', 'action', 'numbering.task.update', 1),
     ('rd', 'action', 'numbering.notification.update', 1),
     ('rd', 'action', 'numbering.attachments.manage', 1),
@@ -2583,35 +2497,6 @@ CREATE TABLE IF NOT EXISTS approval_delegations (
   FOREIGN KEY (delegated_to) REFERENCES users(id),
   FOREIGN KEY (created_by) REFERENCES users(id),
   FOREIGN KEY (revoked_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS import_batches (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  source_filename TEXT NOT NULL,
-  source_hash TEXT,
-  status TEXT NOT NULL DEFAULT 'staged' CHECK (status IN ('staged', 'confirmed', 'rejected')),
-  summary_json TEXT NOT NULL DEFAULT '{}',
-  imported_by TEXT NOT NULL,
-  confirmed_by TEXT,
-  confirmed_at TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (imported_by) REFERENCES users(id),
-  FOREIGN KEY (confirmed_by) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS import_staging_rows (
-  id TEXT PRIMARY KEY,
-  import_batch_id TEXT NOT NULL,
-  row_no INTEGER NOT NULL CHECK (row_no > 0),
-  raw_json TEXT NOT NULL,
-  check_status TEXT NOT NULL DEFAULT 'pending' CHECK (check_status IN ('pending', 'valid', 'need_info', 'admin_confirm', 'conflict', 'legacy_keep')),
-  issue_json TEXT NOT NULL DEFAULT '{}',
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (import_batch_id) REFERENCES import_batches(id) ON DELETE CASCADE,
-  UNIQUE (import_batch_id, row_no)
 );
 
 CREATE TABLE IF NOT EXISTS file_assets (
@@ -2934,6 +2819,220 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_numbering_candidate_revision_files_active_
 ON numbering_candidate_revision_files(candidate_revision_id, role)
 WHERE is_primary = 1 AND removed_at IS NULL;
 
+-- DEV-064 canonical Drawing aggregate. The existing candidate/formal tables
+-- remain compatibility projections while all lifecycle identities converge on
+-- these three tables.
+CREATE TABLE IF NOT EXISTS pdm_local_data_migrations (
+  version TEXT PRIMARY KEY,
+  applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+  detail_json TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS drawings (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  drawing_number TEXT,
+  lifecycle_state TEXT NOT NULL DEFAULT 'building'
+    CHECK (lifecycle_state IN (
+      'building', 'drawing_preparation', 'bundle_ready', 'in_review',
+      'auto_finalizing', 'recovery_required', 'rd_controlled', 'released',
+      'obsolete', 'merged', 'cancelled'
+    )),
+  workspace_id TEXT,
+  drawing_draft_id TEXT UNIQUE,
+  candidate_reservation_id TEXT UNIQUE,
+  formal_drawing_number_id TEXT UNIQUE,
+  part_root_id TEXT,
+  purpose_code TEXT CHECK (purpose_code IS NULL OR purpose_code IN ('MA', 'OT', 'M', 'R')),
+  purpose_description TEXT NOT NULL DEFAULT '',
+  sequence_no INTEGER CHECK (sequence_no IS NULL OR sequence_no > 0),
+  is_primary_manufacturing INTEGER NOT NULL DEFAULT 0 CHECK (is_primary_manufacturing IN (0, 1)),
+  owner_id TEXT,
+  rule_version_id TEXT,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  controlled_at TEXT,
+  released_at TEXT,
+  terminal_at TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (workspace_id) REFERENCES numbering_draft_workspaces(id) ON DELETE RESTRICT,
+  FOREIGN KEY (drawing_draft_id) REFERENCES numbering_draft_drawings(id) ON DELETE RESTRICT,
+  FOREIGN KEY (candidate_reservation_id) REFERENCES number_candidate_reservations(id) ON DELETE RESTRICT,
+  FOREIGN KEY (formal_drawing_number_id) REFERENCES drawing_numbers(id) ON DELETE RESTRICT,
+  FOREIGN KEY (part_root_id) REFERENCES part_roots(id) ON DELETE RESTRICT,
+  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE RESTRICT,
+  FOREIGN KEY (rule_version_id) REFERENCES numbering_rule_versions(id) ON DELETE RESTRICT,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+  UNIQUE (company_id, drawing_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_drawings_company_lifecycle
+ON drawings(company_id, lifecycle_state, drawing_number, id);
+
+CREATE INDEX IF NOT EXISTS idx_drawings_company_root_sequence
+ON drawings(company_id, part_root_id, sequence_no, drawing_number, id);
+
+CREATE INDEX IF NOT EXISTS idx_drawings_workspace
+ON drawings(company_id, workspace_id, drawing_draft_id);
+
+CREATE TABLE IF NOT EXISTS drawing_revisions (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  drawing_id TEXT NOT NULL,
+  revision TEXT NOT NULL CHECK (length(trim(revision)) > 0),
+  lifecycle_state TEXT NOT NULL DEFAULT 'preparing'
+    CHECK (lifecycle_state IN (
+      'preparing', 'in_review', 'correction_required', 'rd_controlled',
+      'released', 'superseded', 'cancelled'
+    )),
+  policy_snapshot_json TEXT NOT NULL DEFAULT '{}',
+  override_reason TEXT,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  approval_request_id TEXT,
+  review_snapshot_hash TEXT,
+  source_candidate_revision_id TEXT UNIQUE,
+  source_revision_package_id TEXT UNIQUE,
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_by TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  submitted_at TEXT,
+  controlled_at TEXT,
+  released_at TEXT,
+  superseded_at TEXT,
+  cancelled_at TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE RESTRICT,
+  FOREIGN KEY (approval_request_id) REFERENCES approval_platform_requests(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_candidate_revision_id) REFERENCES numbering_candidate_revision_drafts(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_revision_package_id) REFERENCES drawing_revision_packages(id) ON DELETE RESTRICT,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_drawing_revisions_current
+ON drawing_revisions(company_id, drawing_id, lifecycle_state, updated_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_files (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  drawing_revision_id TEXT NOT NULL,
+  source_file_asset_id TEXT NOT NULL,
+  source_candidate_file_id TEXT UNIQUE,
+  source_package_file_id TEXT UNIQUE,
+  role TEXT NOT NULL CHECK (role IN ('cad_3d', 'drawing_2d', 'intermediate', 'pdf', 'dwg_dxf', 'other')),
+  role_source TEXT NOT NULL CHECK (role_source IN ('extension', 'user', 'migration', 'system')),
+  display_name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_primary INTEGER NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1)),
+  removed_at TEXT,
+  removed_by TEXT,
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (drawing_revision_id) REFERENCES drawing_revisions(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_candidate_file_id) REFERENCES numbering_candidate_revision_files(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_package_file_id) REFERENCES drawing_revision_package_files(id) ON DELETE RESTRICT,
+  FOREIGN KEY (removed_by) REFERENCES users(id) ON DELETE RESTRICT,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+  UNIQUE (drawing_revision_id, source_file_asset_id),
+  CHECK (
+    (removed_at IS NULL AND removed_by IS NULL)
+    OR (removed_at IS NOT NULL AND removed_by IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_drawing_revision_files_revision
+ON drawing_revision_files(company_id, drawing_revision_id, removed_at, sort_order, id);
+
+CREATE TRIGGER IF NOT EXISTS trg_drawings_terminal_state_guard
+BEFORE UPDATE OF lifecycle_state ON drawings
+WHEN OLD.lifecycle_state IN ('obsolete', 'merged', 'cancelled') AND NEW.lifecycle_state <> OLD.lifecycle_state
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_TERMINAL_STATE_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawings_number_immutable_guard
+BEFORE UPDATE OF drawing_number ON drawings
+WHEN OLD.drawing_number IS NOT NULL AND NEW.drawing_number IS NOT OLD.drawing_number
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_NUMBER_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revisions_controlled_content_guard
+BEFORE UPDATE OF revision, policy_snapshot_json, override_reason, drawing_id ON drawing_revisions
+WHEN OLD.lifecycle_state IN ('rd_controlled', 'released', 'superseded')
+  AND (
+    NEW.revision IS NOT OLD.revision
+    OR NEW.policy_snapshot_json IS NOT OLD.policy_snapshot_json
+    OR NEW.override_reason IS NOT OLD.override_reason
+    OR NEW.drawing_id IS NOT OLD.drawing_id
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_CONTROLLED_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revisions_controlled_delete_guard
+BEFORE DELETE ON drawing_revisions
+WHEN OLD.lifecycle_state IN ('rd_controlled', 'released', 'superseded')
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_CONTROLLED_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revisions_state_transition_guard
+BEFORE UPDATE OF lifecycle_state ON drawing_revisions
+WHEN NEW.lifecycle_state <> OLD.lifecycle_state
+  AND NOT (
+    (OLD.lifecycle_state = 'preparing' AND NEW.lifecycle_state IN ('in_review', 'correction_required', 'rd_controlled', 'released', 'cancelled'))
+    OR (OLD.lifecycle_state = 'in_review' AND NEW.lifecycle_state IN ('preparing', 'correction_required', 'rd_controlled', 'released', 'cancelled'))
+    OR (OLD.lifecycle_state = 'correction_required' AND NEW.lifecycle_state IN ('preparing', 'in_review', 'rd_controlled', 'cancelled'))
+    OR (OLD.lifecycle_state = 'rd_controlled' AND NEW.lifecycle_state IN ('released', 'superseded'))
+    OR (OLD.lifecycle_state = 'released' AND NEW.lifecycle_state = 'superseded')
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_STATE_TRANSITION_DENIED');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_files_controlled_insert_guard
+BEFORE INSERT ON drawing_revision_files
+WHEN EXISTS (
+  SELECT 1 FROM drawing_revisions revision
+  WHERE revision.id = NEW.drawing_revision_id
+    AND revision.lifecycle_state IN ('rd_controlled', 'released', 'superseded')
+)
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_FILES_CONTROLLED_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_files_controlled_update_guard
+BEFORE UPDATE OF drawing_revision_id, source_file_asset_id, role, role_source,
+  display_name, description, sort_order, is_primary, removed_at, removed_by
+ON drawing_revision_files
+WHEN EXISTS (
+  SELECT 1 FROM drawing_revisions revision
+  WHERE revision.id IN (OLD.drawing_revision_id, NEW.drawing_revision_id)
+    AND revision.lifecycle_state IN ('rd_controlled', 'released', 'superseded')
+)
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_FILES_CONTROLLED_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_files_controlled_delete_guard
+BEFORE DELETE ON drawing_revision_files
+WHEN EXISTS (
+  SELECT 1 FROM drawing_revisions revision
+  WHERE revision.id = OLD.drawing_revision_id
+    AND revision.lifecycle_state IN ('rd_controlled', 'released', 'superseded')
+)
+BEGIN
+  SELECT RAISE(ABORT, 'DRAWING_REVISION_FILES_CONTROLLED_IMMUTABLE');
+END;
+
 CREATE TABLE IF NOT EXISTS drawing_revision_package_review_approvals (
   package_id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL,
@@ -3238,9 +3337,6 @@ CREATE INDEX IF NOT EXISTS idx_drawing_numbers_root_id ON drawing_numbers(part_r
 CREATE INDEX IF NOT EXISTS idx_drawing_numbers_status ON drawing_numbers(record_status);
 CREATE INDEX IF NOT EXISTS idx_drawing_part_links_drawing_id ON drawing_part_links(drawing_number_id);
 CREATE INDEX IF NOT EXISTS idx_same_drawing_variants_part_id ON same_drawing_variants(part_number_id);
-CREATE INDEX IF NOT EXISTS idx_part_cost_profiles_part_status ON part_cost_profiles(part_number_id, status);
-CREATE INDEX IF NOT EXISTS idx_part_cost_tiers_profile_qty ON part_cost_tiers(cost_profile_id, min_qty);
-CREATE INDEX IF NOT EXISTS idx_part_cost_change_requests_part_status ON part_cost_change_requests(part_number_id, review_status, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_duplicate_check_events_created_at ON duplicate_check_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_warning_events_entity ON warning_events(entity_type, entity_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_warning_events_code ON warning_events(warning_code, severity, created_at DESC);
@@ -3284,7 +3380,6 @@ CREATE INDEX IF NOT EXISTS idx_account_session_records_user
 CREATE INDEX IF NOT EXISTS idx_account_session_records_company
   ON account_session_records(company_id, auth_provider, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_approval_delegations_from_to ON approval_delegations(delegated_from, delegated_to, starts_at, ends_at);
-CREATE INDEX IF NOT EXISTS idx_import_staging_rows_batch_status ON import_staging_rows(import_batch_id, check_status);
 CREATE INDEX IF NOT EXISTS idx_file_assets_linked_entity ON file_assets(linked_entity_type, linked_entity_id);
 CREATE INDEX IF NOT EXISTS idx_preview_jobs_source_status
   ON preview_jobs(source_file_asset_id, source_content_hash, requested_kind, status, updated_at DESC);

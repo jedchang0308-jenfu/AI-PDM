@@ -36,6 +36,9 @@ type DrawingDetailPreviewProps = {
   showFileName?: boolean;
 };
 
+const previewRetryIntervalMs = 2_000;
+const previewRetryLimit = 30;
+
 const defaultCards: DrawingDetailPreviewCard[] = [
   {
     kind: "three-d",
@@ -69,32 +72,54 @@ function normalizeCards(cards: DrawingDetailPreviewCard[] | undefined) {
 
 function PreviewMedia({ media, kind }: { media: DrawingDetailPreviewMedia; kind: DrawingDetailPreviewKind }) {
   const [objectUrl, setObjectUrl] = useState("");
-  const [loadState, setLoadState] = useState<"loading" | "ready" | "failed">("loading");
+  const [loadState, setLoadState] = useState<"loading" | "waiting" | "ready" | "failed">("loading");
+  const [retryLimitReached, setRetryLimitReached] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     let nextObjectUrl = "";
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryCount = 0;
     setLoadState("loading");
+    setRetryLimitReached(false);
     setObjectUrl("");
-    void fetch(media.href, { credentials: "same-origin" })
-      .then((response) => {
+
+    const loadPreview = async () => {
+      try {
+        const response = await fetch(media.href, { credentials: "same-origin" });
+        if (response.status === 409 && retryCount < previewRetryLimit) {
+          retryCount += 1;
+          if (!cancelled) {
+            setLoadState("waiting");
+            retryTimer = setTimeout(() => {
+              retryTimer = null;
+              void loadPreview();
+            }, previewRetryIntervalMs);
+          }
+          return;
+        }
         if (!response.ok) throw new Error(`preview-${response.status}`);
-        return response.blob();
-      })
-      .then((blob) => {
+        const blob = await response.blob();
         if (cancelled) return;
         nextObjectUrl = URL.createObjectURL(blob);
         setObjectUrl(nextObjectUrl);
         setLoadState("ready");
-      })
-      .catch(() => {
-        if (!cancelled) setLoadState("failed");
-      });
+      } catch {
+        if (!cancelled) {
+          setRetryLimitReached(retryCount >= previewRetryLimit);
+          setLoadState("failed");
+        }
+      }
+    };
+
+    void loadPreview();
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
       if (nextObjectUrl) URL.revokeObjectURL(nextObjectUrl);
     };
-  }, [media.href]);
+  }, [media.href, retryToken]);
 
   if (loadState === "ready" && objectUrl) {
     const renderedMedia = media.mode === "image"
@@ -112,12 +137,18 @@ function PreviewMedia({ media, kind }: { media: DrawingDetailPreviewMedia; kind:
       </a>
     );
   }
+  const waiting = loadState === "loading" || loadState === "waiting";
   const failed = loadState === "failed";
   return (
-    <div className={`drawing-preview-placeholder ${failed ? "unavailable" : "pending"}`} data-preview-state={failed ? "unavailable" : "pending"}>
-      {previewStateIcon(failed ? "unavailable" : "pending", kind)}
-      <strong>{failed ? "預覽尚未就緒" : "預覽載入中"}</strong>
-      <span>{failed ? "檔案已保留，可先下載原檔；預覽產生後會顯示在這裡。" : "正在讀取檔案預覽。"}</span>
+    <div className={`drawing-preview-placeholder ${waiting ? "pending" : "unavailable"}`} data-preview-state={waiting ? "pending" : "unavailable"}>
+      {previewStateIcon(waiting ? "pending" : "unavailable", kind)}
+      <strong>{waiting ? "預覽正在準備" : retryLimitReached ? "預覽等待逾時" : "預覽尚未就緒"}</strong>
+      <span>{waiting ? "3D 預覽轉檔完成後會自動顯示，請稍候。" : "檔案已保留，可先下載原檔；預覽產生後會顯示在這裡。"}</span>
+      {failed ? (
+        <button className="secondary-button preview-generate-button" type="button" onClick={() => setRetryToken((token) => token + 1)}>
+          重新整理預覽
+        </button>
+      ) : null}
     </div>
   );
 }

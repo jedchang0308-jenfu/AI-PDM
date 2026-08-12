@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { rewriteNumberingHumanTextDeep } from "@/lib/numbering-vocabulary";
 
 export type ApprovalPlatformStatus =
   | "pending"
@@ -16,7 +17,6 @@ export type ApprovalPlatformSource =
   | "legacy_numbering"
   | "legacy_submission"
   | "legacy_bom"
-  | "legacy_part_cost"
   | "legacy_drawing_package"
   | "legacy_drawing_revision_review";
 
@@ -245,7 +245,6 @@ export function decodeLegacyApprovalId(id: string): { source: Exclude<ApprovalPl
     source !== "legacy_numbering" &&
     source !== "legacy_submission" &&
     source !== "legacy_bom" &&
-    source !== "legacy_part_cost" &&
     source !== "legacy_drawing_package" &&
     source !== "legacy_drawing_revision_review"
   ) {
@@ -258,7 +257,8 @@ function parseJsonObject(value: string | null | undefined): Record<string, unkno
   if (!value) return {};
   try {
     const parsed = JSON.parse(value) as unknown;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+    const rewritten = rewriteNumberingHumanTextDeep(parsed);
+    return rewritten && typeof rewritten === "object" && !Array.isArray(rewritten) ? (rewritten as Record<string, unknown>) : {};
   } catch {
     return {};
   }
@@ -545,16 +545,15 @@ export class AsyncApprovalPlatformRepository {
   async listInbox(input: ApprovalPlatformInboxFilter = {}) {
     const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
     const limit = Math.max(1, Math.min(input.limit ?? 100, 500));
-    const [nativeItems, numbering, submission, bom, partCost, supplement, drawingRevisionReviews] = await Promise.all([
+    const [nativeItems, numbering, submission, bom, supplement, drawingRevisionReviews] = await Promise.all([
       this.listNativeInbox({ companyId, actorId: input.actorId, status: input.status, limit }),
       this.listLegacyNumberingInbox({ companyId, status: input.status, limit }),
       this.listLegacySubmissionInbox({ status: input.status, limit }),
       this.listLegacyBomInbox({ status: input.status, limit }),
-      this.listLegacyPartCostInbox({ companyId, status: input.status, limit }),
       this.listLegacyDrawingPackageInbox({ companyId, status: input.status, limit }),
       this.listLegacyDrawingRevisionReviewInbox({ companyId, status: input.status, limit })
     ]);
-    return [...nativeItems, ...numbering, ...submission, ...bom, ...partCost, ...supplement, ...drawingRevisionReviews]
+    return [...nativeItems, ...numbering, ...submission, ...bom, ...supplement, ...drawingRevisionReviews]
       .filter((item) => matchesInboxFilter(item, input))
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
       .slice(0, limit);
@@ -1118,60 +1117,6 @@ export class AsyncApprovalPlatformRepository {
     }));
   }
 
-  private async listLegacyPartCostInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; limit: number }) {
-    const status = this.legacyStatusPredicate("cr.review_status", input.status);
-    const rows = await this.client.query<{
-      id: string;
-      part_number_id: string;
-      request_type: string;
-      change_reason: string;
-      review_status: string;
-      requested_by: string | null;
-      requested_by_name: string | null;
-      requested_at: string;
-      part_number: string;
-      part_name: string;
-      company_id: string;
-    }>(
-      `
-      SELECT
-        cr.*,
-        requester.display_name AS requested_by_name,
-        pn.part_number,
-        pn.part_name,
-        pn.company_id
-      FROM part_cost_change_requests cr
-      JOIN part_numbers pn ON pn.id = cr.part_number_id
-      LEFT JOIN users requester ON requester.id = cr.requested_by
-      WHERE pn.company_id = :companyId
-        ${status.sql}
-      ORDER BY cr.requested_at DESC, cr.id DESC
-      LIMIT :limit
-    `,
-      { companyId: input.companyId, limit: input.limit, ...status.params }
-    );
-    return rows.map((row): ApprovalPlatformInboxItem => ({
-      id: encodeLegacyApprovalId("legacy_part_cost", row.id),
-      source: "legacy_part_cost",
-      companyId: row.company_id,
-      actionCode: "part_cost.change_review",
-      actionTitle: "料號成本異動審核",
-      domainCode: "part_cost",
-      title: `成本異動 - ${row.part_number}`,
-      status: normalizeStatus(row.review_status),
-      reason: row.change_reason,
-      requestedBy: row.requested_by,
-      requestedByName: row.requested_by_name,
-      requestedAt: row.requested_at,
-      packageId: null,
-      packageCode: null,
-      packageStatus: null,
-      targetSummary: `${row.part_number} / ${row.part_name}`,
-      impactSummary: row.request_type,
-      legacy: { table: "part_cost_change_requests", id: row.id }
-    }));
-  }
-
   private async listLegacyDrawingPackageInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; limit: number }) {
     const status = this.legacyStatusPredicate("s.status", input.status);
     const rows = await this.client.query<{
@@ -1328,7 +1273,6 @@ export class AsyncApprovalPlatformRepository {
       legacy_numbering: () => this.listLegacyNumberingInbox({ companyId: DEFAULT_COMPANY_ID, status: "all", limit: 500 }),
       legacy_submission: () => this.listLegacySubmissionInbox({ status: "all", limit: 500 }),
       legacy_bom: () => this.listLegacyBomInbox({ status: "all", limit: 500 }),
-      legacy_part_cost: () => this.listLegacyPartCostInbox({ companyId: DEFAULT_COMPANY_ID, status: "all", limit: 500 }),
       legacy_drawing_package: () => this.listLegacyDrawingPackageInbox({ companyId: DEFAULT_COMPANY_ID, status: "all", limit: 500 }),
       legacy_drawing_revision_review: () =>
         this.listLegacyDrawingRevisionReviewInbox({ companyId: DEFAULT_COMPANY_ID, status: "all", limit: 500 })

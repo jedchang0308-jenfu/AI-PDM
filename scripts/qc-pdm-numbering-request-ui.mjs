@@ -43,7 +43,7 @@ async function verifyViewport(browser, viewport) {
   await loginAsManager(context);
   const returnTo = "/parts?tab=drafts";
   await page.goto(`${apiBaseUrl}/numbering/request?foo=bar&returnTo=${encodeURIComponent(returnTo)}`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "建立保留號" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "建立編號" }).waitFor({ timeout: 10_000 });
 
   const current = new URL(page.url());
   record(`Retired request URL redirects to owner surface at ${viewport.width}px`, current.pathname === "/numbering/search", current.pathname);
@@ -59,8 +59,8 @@ async function verifyViewport(browser, viewport) {
   record(`Manufactured series code is visible at ${viewport.width}px`, await page.getByLabel("系列代號（選填）").isVisible());
   record(`M/R drawing choices are present at ${viewport.width}px`, (await page.getByText("製造圖 M", { exact: true }).count()) === 1 && (await page.getByText("參考圖 R", { exact: true }).count()) === 1);
 
-  await page.getByRole("button", { name: "關閉建立保留號" }).click();
-  await page.getByRole("heading", { name: "建立保留號" }).waitFor({ state: "hidden" });
+  await page.getByRole("button", { name: "關閉建立編號" }).click();
+  await page.getByRole("heading", { name: "建立編號" }).waitFor({ state: "hidden" });
   record(`Closing create modal performs no write at ${viewport.width}px`, draftWrites.length === 0, draftWrites.join("\n"));
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record(`Owner create surface avoids horizontal overflow at ${viewport.width}px`, overflow <= 2, `${overflow}px`);

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
-import { NUMBERING_RULE_V3_ID } from "@/lib/numbering-identity";
+import { ACTIVE_DRAWING_PURPOSE_CODES, NUMBERING_RULE_V3_ID } from "@/lib/numbering-identity";
 import { createPdmCommand, type PdmCommandMetadata, type PlatformActorContext } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
@@ -20,7 +20,7 @@ export type { NumberStateActor };
 
 const draftModes = new Set<NumberingDraftMode>(["new_bundle", "append_drawing", "append_part", "append_drawing_part"]);
 const itemKinds = new Set<NumberingDraftItemKind>(["purchased", "manufactured", "outsourced", "shared", "custom"]);
-const purposeCodes = new Set<NumberingDraftPurposeCode>(["MA", "OT", "M", "R"]);
+const purposeCodes = new Set<NumberingDraftPurposeCode>(ACTIVE_DRAWING_PURPOSE_CODES);
 const lifecycleStatuses = new Set<NumberingDraftLifecycle>(["active", "cancelled", "published"]);
 const privilegedRoles = new Set(["Admin", "R&D Manager", "system_admin", "pdm_admin", "rd_manager"]);
 const safeIdempotencyKey = /^[A-Za-z0-9._:/-]{1,200}$/u;

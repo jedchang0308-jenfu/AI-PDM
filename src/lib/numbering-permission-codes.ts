@@ -5,7 +5,6 @@ export const NUMBERING_PAGE_PERMISSION_CODES = [
   "numbering.approvals",
   "numbering.impact",
   "numbering.tasks",
-  "numbering.imports",
   "numbering.reports",
   "settings.admin_matrix"
 ] as const;
@@ -41,8 +40,6 @@ export const NUMBERING_ACTION_PERMISSION_CODES = [
   "numbering.approval.batch.resubmit",
   "numbering.impact.analyze",
   "numbering.impact.apply",
-  "numbering.import.stage",
-  "numbering.import.confirm",
   "numbering.export.create",
   "numbering.audit_report.generate",
   "numbering.task.update",
@@ -76,7 +73,6 @@ export const NUMBERING_NAV_PERMISSION_BY_PATH: Record<string, string> = {
   "/numbering/change-reviews": "numbering.approvals",
   "/numbering/impact": "numbering.impact",
   "/numbering/tasks": "numbering.tasks",
-  "/numbering/imports": "numbering.imports",
   "/numbering/reports": "numbering.reports",
   "/settings/accounts": "settings.admin_matrix",
   "/settings/account-invitations": "settings.admin_matrix",

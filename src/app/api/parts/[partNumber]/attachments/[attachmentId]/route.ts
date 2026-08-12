@@ -7,7 +7,7 @@ import {
   syncMasterAttachmentToDriveAsync
 } from "@/lib/master-attachments-async";
 import { buildMasterAttachmentFileResponse, masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
-import { contentDispositionFilename } from "@/lib/file-response";
+import { contentDispositionHeader } from "@/lib/file-response";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
@@ -32,7 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
         headers: {
           "content-type": derivative.mimeType,
           "content-length": String(derivative.bytes.byteLength),
-          "content-disposition": `inline; filename="${contentDispositionFilename(derivative.fileName)}"`,
+          "content-disposition": contentDispositionHeader("inline", derivative.fileName),
           "x-content-type-options": "nosniff",
           "cache-control": "private, no-store"
         }

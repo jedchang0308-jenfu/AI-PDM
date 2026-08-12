@@ -209,14 +209,6 @@ export function projectNumberLifecycleV2(input: NumberLifecycleProjectionInput):
 }
 
 const safeIdempotencyKey = /^[A-Za-z0-9._:/-]{1,200}$/u;
-const candidateFileRoles = new Set<NumberingCandidateRevisionFileRecord["role"]>([
-  "cad_3d",
-  "drawing_2d",
-  "intermediate",
-  "pdf",
-  "dwg_dxf",
-  "other"
-]);
 
 function lifecycleText(value: unknown, maximum: number) {
   return String(value ?? "").trim().slice(0, maximum);
@@ -417,22 +409,12 @@ export async function updateNumberingCandidateRevision(input: {
   }
 }
 
-function candidateFileRole(value: unknown): NumberingCandidateRevisionFileRecord["role"] {
-  const normalized = lifecycleText(value, 40) as NumberingCandidateRevisionFileRecord["role"];
-  if (!candidateFileRoles.has(normalized)) {
-    throw new NumberStateFlowError("candidate_revision_invalid", "A valid candidate file role is required.", 400);
-  }
-  return normalized;
-}
-
 export async function addNumberingCandidateRevisionFile(input: {
   metadata: PdmCommandMetadata;
   workspaceId: string;
   candidateRevisionId: string;
   expectedRowVersion: unknown;
   file: File;
-  role: unknown;
-  isPrimary: unknown;
   displayName?: unknown;
   description?: unknown;
 }) {
@@ -448,23 +430,17 @@ export async function addNumberingCandidateRevisionFile(input: {
   const workspaceId = lifecycleRequiredText(input.workspaceId, "workspaceId", 200);
   const candidateRevisionId = lifecycleRequiredText(input.candidateRevisionId, "candidateRevisionId", 200);
   const expectedRowVersion = lifecycleInteger(input.expectedRowVersion, "candidate_revision_version_stale");
-  const role = candidateFileRole(input.role);
-  const isPrimary = input.isPrimary === true || input.isPrimary === "true" || input.isPrimary === "1" || input.isPrimary === 1;
   const fileName = input.file.name.trim().slice(0, 255) || "candidate-file";
   const displayName = lifecycleText(input.displayName, 300) || fileName;
   const description = lifecycleText(input.description, 2000);
   const fileExt = fileName.includes(".") ? fileName.split(".").pop()!.toLowerCase().slice(0, 30) : "";
-  const extensionRole = requiredDrawingRoleForExtension(fileName, fileExt);
-  if (extensionRole && role !== extensionRole) {
-    throw new NumberStateFlowError(
-      "candidate_revision_invalid",
-      `「${fileName}」的副檔名要求類別為 ${extensionRole === "drawing_2d" ? "2D 原始檔" : "3D CAD"}，不能改用其他類別。`,
-      400
-    );
-  }
   const bytes = Buffer.from(await input.file.arrayBuffer());
   const contentHash = crypto.createHash("sha256").update(bytes).digest("hex");
   const mimeType = input.file.type || "application/octet-stream";
+  // Classification and primary selection are server-owned; clients only submit the file and metadata.
+  const detectedRole = detectCandidateRevisionFileRole({ fileName, mimeType, bytes });
+  const role = detectedRole.role;
+  const isPrimary = role === "drawing_2d" || role === "cad_3d";
   const command = createPdmCommand({
     commandName,
     idempotencyKey,
@@ -476,6 +452,7 @@ export async function addNumberingCandidateRevisionFile(input: {
       fileName,
       contentHash,
       role,
+      roleSource: detectedRole.source,
       isPrimary,
       displayName,
       description
@@ -549,7 +526,7 @@ export async function addNumberingCandidateRevisionFile(input: {
           fileSize: stored.bytes,
           contentHash: stored.sha256,
           role,
-          roleSource: "user",
+          roleSource: detectedRole.source,
           displayName,
           description,
           isPrimary,
@@ -578,7 +555,7 @@ export async function addNumberingCandidateRevisionFile(input: {
         aggregateType: "numbering_candidate_revision",
         aggregateId: candidateRevisionId,
         eventType: "pdm.numbering.candidate_revision.file_added.v1",
-        payload: { workspaceId, candidateRevisionId, fileId, role, isPrimary, companyId: workspace.companyId }
+        payload: { workspaceId, candidateRevisionId, fileId, role, roleSource: detectedRole.source, isPrimary, companyId: workspace.companyId }
       })
     });
     return {
@@ -1009,4 +986,4 @@ import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-comman
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { isLocalDevelopmentPublicationEvidenceEnabled } from "@/lib/publication-evidence";
 import type { CandidateFileStorageInput } from "@/lib/repositories/number-lifecycle-simplification-async-repository";
-import { findOwnerPartRootForCandidate, findReusableCadAsset, requiredDrawingRoleForExtension } from "@/lib/pdm-file-ownership";
+import { detectCandidateRevisionFileRole, findOwnerPartRootForCandidate, findReusableCadAsset } from "@/lib/pdm-file-ownership";

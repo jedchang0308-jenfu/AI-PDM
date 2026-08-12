@@ -65,8 +65,7 @@ try {
     id: "dev062-owner",
     companyId: "company-jenfu",
     permissions: { workspaceView: true, workspaceUpdate: true, candidateSubmit: true, candidateReview: true, publish: true, managePermissions: true },
-    viewerCapabilities: { canEdit: true, canManageRelations: true, canReview: true, canPublish: true, canRestoreMainDrawing: true, canSubmit: true },
-    canViewCostAmounts: false
+    viewerCapabilities: { canEdit: true, canManageRelations: true, canReview: true, canPublish: true, canRestoreMainDrawing: true, canSubmit: true }
   };
   const rawClient = provider.createAsyncDatabaseClient({ kind: "sqlite", database });
   let queryCount = 0;

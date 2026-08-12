@@ -10,7 +10,6 @@ const unique = Date.now().toString().slice(-8);
 const results = [];
 const created = {
   rootCodes: [],
-  importBatchIds: [],
   reportIds: []
 };
 
@@ -56,12 +55,6 @@ function cleanup() {
         db.prepare(`DELETE FROM part_numbers WHERE part_root_id IN (${rootPlaceholders})`).run(...rootIds);
         db.prepare(`DELETE FROM part_roots WHERE id IN (${rootPlaceholders})`).run(...rootIds);
       }
-    }
-
-    if (created.importBatchIds.length > 0) {
-      const placeholders = created.importBatchIds.map(() => "?").join(",");
-      db.prepare(`DELETE FROM import_staging_rows WHERE import_batch_id IN (${placeholders})`).run(...created.importBatchIds);
-      db.prepare(`DELETE FROM import_batches WHERE id IN (${placeholders})`).run(...created.importBatchIds);
     }
 
     if (created.reportIds.length > 0) {
@@ -248,37 +241,6 @@ try {
     impact.applied === true && Array.isArray(impact.impactedPartNumbers) && impact.impactedPartNumbers.length >= 2,
     JSON.stringify({ applied: impact.applied, impacted: impact.impactedPartNumbers?.map((part) => part.partNumber) })
   );
-
-  const importRootCode = `7${unique.slice(-4)}`;
-  const importPartNumber = `${importRootCode}-P01`;
-  const importDrawingNumber = `${importRootCode}-M01`;
-  const importBatch = await request(
-    "POST",
-    "/api/numbering/import-batches",
-    adminCookie,
-    {
-      sourceFilename: `qc-api-regression-${unique}.csv`,
-      sourceHash: `sha256-qc-api-${unique}`,
-      rows: [
-        {
-          rootCode: importRootCode,
-          coreName: `QC API imported root ${unique}`,
-          partNumber: importPartNumber,
-          partName: `QC API imported part ${unique}`,
-          itemKind: "manufactured",
-          drawingNumber: importDrawingNumber,
-          purposeCode: "M"
-        }
-      ]
-    },
-    201
-  );
-  created.importBatchIds.push(importBatch.id);
-  created.rootCodes.push(importRootCode);
-  record("Import staging API stores valid row", importBatch.status === "staged" && importBatch.rows?.[0]?.checkStatus === "valid", JSON.stringify(importBatch.summary));
-
-  const confirmedImport = await request("POST", `/api/numbering/import-batches/${importBatch.id}/confirm`, adminCookie, {}, 200);
-  record("Import confirm API promotes staged row", confirmedImport.status === "confirmed" && confirmedImport.summary?.createdRoots >= 1, JSON.stringify(confirmedImport.summary));
 
   const matrix = await request("GET", "/api/numbering/admin/matrix", adminCookie);
   record(

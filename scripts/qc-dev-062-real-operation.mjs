@@ -683,7 +683,7 @@ function capabilityParityMarkdown() {
     `|---|---|---|---|\n` +
     `| Part search/filter/select/deep link | PartWorkbench + shared controller | report cases 001-004, race cases, network.json | PASS |\n` +
     `| Candidate view/edit/readiness/submit/progress/correction/history | Shared WorkspaceDrawer mounted by PartWorkbench | candidate drawer browser evidence; Number State Flow Phase 1D aggregate; owner API remains canonical | PASS |\n` +
-    `| Formal Part properties/files/drawings/cost/redaction/history | PartDetailContent | formal drawer screenshot; part owner + entity drawer aggregate regressions | PASS |\n` +
+    `| Formal Part properties/files/drawings/redaction/history | PartDetailContent | formal drawer screenshot; part owner + entity drawer aggregate regressions | PASS |\n` +
     `| Relation tree/expand/matrix/health/blockers | RelationWorkbench | report case 007; blocked screenshot; isolated relation regression | PASS |\n` +
     `| Drawing and Part owner detail handoff | Shared drawer shell + owner content | entity drawer aggregate regression; browser drawer evidence | PASS |\n` +
     `| Relation link/set-primary/set-reference/remove | canonical POST /api/numbering/relations | isolated relation regression with mutation/audit/409 evidence | PASS |\n` +

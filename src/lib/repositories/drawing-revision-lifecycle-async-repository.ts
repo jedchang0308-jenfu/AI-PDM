@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { inferRevisionPackageRole, normalizeRevisionPackageFileRole, type RevisionPackageFileRole } from "@/lib/revision-package";
 import { parseRevisionCode } from "@/lib/revision-policy";
+import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 
 export const DRAWING_REVISION_LIFECYCLE_ACTION = "numbering.drawing_revision_lifecycle_review";
 
@@ -401,6 +402,10 @@ export class AsyncDrawingRevisionLifecycleRepository {
         }
       );
 
+      await new UnifiedDrawingAsyncRepository(tx).synchronizeFormalDrawing({
+        drawingNumberId: input.drawingNumberId,
+        companyId: input.companyId
+      });
       const projection = await this.findProjectionByPackage(tx, packageId);
       if (!projection) throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_APPLY_FAILED", "送審狀態建立失敗。", 500);
       return { projection, idempotentReplay: false };
@@ -585,6 +590,10 @@ export class AsyncDrawingRevisionLifecycleRepository {
           now
         }
       );
+      await new UnifiedDrawingAsyncRepository(tx).synchronizeFormalDrawing({
+        drawingNumberId: packageRow.drawing_number_id,
+        companyId: packageRow.company_id
+      });
       const projection = await this.findProjectionByPackage(tx, workflow.package_id);
       return { projection, workflowId: workflow.id, cleanupPending: true, idempotentReplay: false };
     });
@@ -645,6 +654,15 @@ export class AsyncDrawingRevisionLifecycleRepository {
           now
         }
       );
+      const packageRow = await tx.queryOne<PackageRow>(
+        "SELECT * FROM drawing_revision_packages WHERE id = :packageId",
+        { packageId: workflow.package_id }
+      );
+      if (!packageRow) throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_APPLY_FAILED", "圖面版次狀態不存在。", 500);
+      await new UnifiedDrawingAsyncRepository(tx).synchronizeFormalDrawing({
+        drawingNumberId: packageRow.drawing_number_id,
+        companyId: packageRow.company_id
+      });
       const projection = await this.findProjectionByPackage(tx, workflow.package_id);
       return { projection, workflowId: workflow.id, cleanupPending: true, idempotentReplay: false };
     });

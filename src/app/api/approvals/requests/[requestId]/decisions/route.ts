@@ -181,8 +181,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
       decision,
       comment: nullableText(body.comment ?? body.decisionReason ?? body.decision_reason),
       actor: auth.user,
-      companyId: String(body.companyId ?? body.company_id ?? "").trim() || undefined,
-      basisQty: numberOrUndefined(body.basisQty ?? body.basis_qty)
+      companyId: String(body.companyId ?? body.company_id ?? "").trim() || undefined
     });
     return NextResponse.json({ request: result });
   } catch (error) {
@@ -201,10 +200,4 @@ function safeDecode(value: string) {
 function nullableText(value: unknown) {
   const text = String(value ?? "").trim();
   return text || null;
-}
-
-function numberOrUndefined(value: unknown) {
-  if (value === null || value === undefined || value === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
 }

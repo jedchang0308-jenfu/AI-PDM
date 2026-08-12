@@ -263,6 +263,28 @@ export async function getPreviewDerivativeBytesForAttachmentAsync(
   };
 }
 
+export async function getPreviewDerivativeBytesForSourceAssetAsync(
+  client: AsyncDatabaseClient,
+  input: { sourceFileAssetId: string; sourceContentHash: string; derivativeId: string }
+): Promise<PreviewDerivativeFile | null> {
+  const row = await client.queryOne<FileDerivativeRow>(
+    `
+      SELECT *
+      FROM file_derivatives
+      WHERE id = :derivativeId
+        AND source_file_asset_id = :sourceFileAssetId
+        AND status = 'ready'
+    `,
+    input
+  );
+  if (!row || row.source_content_hash !== input.sourceContentHash) return null;
+  if (row.generator_profile === fakePreviewGeneratorProfile || !isDisplayablePreviewDerivativeRow(row)) return null;
+  const storagePointer = storagePointerFromRecord(row);
+  const bytes = await createFileStorageServiceForPointer(storagePointer).readObject(storagePointer.key);
+  if (sha256(bytes) !== row.content_hash) return null;
+  return { fileName: row.file_name, mimeType: row.mime_type, bytes, contentHash: row.content_hash };
+}
+
 export async function claimPreviewJobAsync(
   client: AsyncDatabaseClient,
   input: { workerId: string; supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] }
