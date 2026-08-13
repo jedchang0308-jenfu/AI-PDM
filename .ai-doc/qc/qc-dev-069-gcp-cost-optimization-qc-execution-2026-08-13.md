@@ -4,13 +4,13 @@
 角色：QC（獨立事實驗證）
 Repo：`C:\VIBE CODING\AI_PDM\.worktrees\AI_PDM\DEV-069`
 Branch：`codex/dev-069-cost-optimization`
-Source HEAD：`391de27e93277d502bd1d24b879e06dea87d6b9b`
+Source HEAD：`93cb8170a6d43e100a21036f26d8ad922bc2c263`
 Staging project：`jenfu-ai-pdm-stg-361825`
 Region：`asia-east1`
 
 ## 1. 結論
 
-結論：**NOT FINAL PASS；平台與 migration gate 通過，authenticated UI gate 受外部登入設定阻塞。**
+結論：**STAGING QC PASS；整體 DEV-069 release gate 仍待 Production named-user canary／soak。**
 
 本輪沒有修改 Production，沒有使用 Docker，沒有輸出或重用任何 token／cookie／Authorization header。Staging 已在驗證完成後回到 `STOPPED / NEVER`。
 
@@ -22,8 +22,8 @@ Region：`asia-east1`
 | Migration live contract | PASS | dry-run `b4p6w`、apply `m7587`、idempotence `x5s9d`、ledger `dph4b` 均成功；apply 套用 `021`～`033`，idempotence 無待套 migration。 |
 | Named-user bootstrap | PASS | `ai-pdm-stg-migration-runner-5582g` 建立／讀回 `stg-pdm-admin-001`，9 roles、216 permissions，`allChecksPassed=true`。 |
 | Runtime／entrypoint／unauth boundary | PASS | canonical `/login=200`、`/api/auth/mode=200`、`/api/auth/me=401`、`/api/numbering/permissions=401`；RWD 1440×900、390×844 均可載入。 |
-| Staging stop／cost guard | PASS | Cloud SQL `STOPPED / NEVER`，backup/PITR/deletion protection 保留；Cloud Run min 0/max 2；forwarding rules 0；temporary IAM grants 0。 |
-| Authenticated Staging UI CRUD | BLOCKED-EXTERNAL-CREDENTIAL | `/api/auth/mode` 穩定回報 `googleOAuth.enabled=true`，但 browser click 後沒有可取得的 Google account-selection tab／既有 session；password login 需要未提供 credential。沒有把 bootstrap 或 unauth smoke 冒充 authenticated PASS。 |
+| Staging stop／cost guard | PASS | Cloud SQL `STOPPED / NEVER`，backup/PITR/deletion protection 保留；Cloud Run min 0/max 2；forwarding rules 0；build IAM 僅為 Staging immutable build path 所需 grants。 |
+| Authenticated Staging UI CRUD | PASS | 已使用已登入的 Staging Google session，完成 canonical UI 的 create → read → update → read → cancel/cleanup；取消後「進行中」清單為空，無 active fixture。 |
 | Production canary／soak | NOT EXECUTED | 本輪沒有 Production named-user、主要流程或 10 分鐘 soak，Production 未變更。 |
 | Billing | OUT OF SCOPE | 依使用者指示刪除本輪 QC acceptance，不判定 T+24/T+48/T+72 節費。 |
 
@@ -31,7 +31,9 @@ Region：`asia-east1`
 
 ### 3.1 Immutable artifact 與 migration
 
-- app image：`sha256:d7f2d799888ffcce121176022e8d9e9479db714a58fd5924cb474186ac1aea78`
+- app image：`sha256:35fbbdb77f11cdbbdbff17c3553623a5809a1e28ecca3394e99e9bde350b84fa`
+- Cloud Build：`86f845bd-f090-4236-8a9e-708e5ed24bea`，status `SUCCESS`；Cloud Run revision `ai-pdm-stg-00016-qwc` 接收 100% traffic。
+- Privacy contract repair：source commit `93cb8170a6d43e100a21036f26d8ad922bc2c263`，source notice 對齊 DB immutable approved snapshot；content SHA-256 `94eccfc2b519db02e410c9fa057f582fae2f057eb03ce37cf0a77df4697b0d6d`。
 - migration image：`sha256:6f9ba17310054eb9c43bcd56f4c72ccd3c607e0690ab066318a89c23142d85d3`
 - Job contract：`node scripts/run-dev-046-cloudsql-migrations.mjs --dry-run`；無 approval env vars。
 - dry-run：execution `b4p6w`，target exact、31 migrations、`001`～`033`、`connectionAttempted=false`。
@@ -45,14 +47,16 @@ Region：`asia-east1`
 - Cloud Run：`ai-pdm-stg`；`Ready=True`、min 0、max 2、immutable app digest、VPC all-traffic。
 - Firebase canonical：`https://jenfu-ai-pdm-stg-361825.web.app`。
 - edge：Staging forwarding rules 0；custom domain 未宣稱 ready。
-- temporary IAM：project 與 Cloud Build bucket 均查無 Cloud Build Compute Service Account 殘留 grant。
+- Cloud Build Staging prerequisites：Compute Service Account `1042387036944-compute@developer.gserviceaccount.com` 目前保留 `roles/logging.logWriter`（project）、`roles/storage.objectViewer`（Cloud Build bucket）與 `roles/artifactregistry.writer`（`ai-pdm` repo），供 immutable build path 使用；未修改 Production IAM。
 
 ### 3.3 Authentication boundary
 
-- UI login page 可開啟；穩定載入後 Google button 為 enabled，`/api/auth/mode` 回報 `googleOAuth.enabled=true`。點擊後進入「等待 Google 帳號選擇」，但 browser session 沒有可取得的 account-selection tab／既有登入狀態。
-- 未登入 API：`/api/auth/me=401`、`/api/numbering/permissions=401`。
-- password login 需要應用程式 credential；QC 未取得、未猜測、未建立或修改使用者密碼。
-- 因此 `named-user create/read/update/read/cleanup` 尚無瀏覽器 authenticated evidence；本報告將它列為 external credential/config blocker。
+- Browser session 顯示 `[鉦富]張仕杰 Jed，已登入`、角色 `系統管理員`；測試只使用既有登入 session，未輸入或保存 token、cookie、密碼或 OTP。
+- canonical route：`/numbering/search?tab=reserved`。
+- Create/read：建立 disposable fixture `QC DEV069 20260813 CRUD`，取得 `A0001-P01`、`A0001-M01`，畫面狀態 `編輯中`，detail 可讀回。
+- Update/read：更新為 `QC DEV069 20260813 CRUD UPDATED`，toast `申請內容已更新`，list/detail 均讀回新名稱。
+- Cleanup：取消申請並確認；toast `申請已取消`，狀態為 `已取消`，取消記錄保留歷史稽核且不再列於 `進行中`；切換 `進行中` 後 `目前沒有符合條件的編號申請`，無 active residue。
+- Browser post-deploy smoke：工作台可載入，無 app `role=alert` 錯誤；唯一 console 訊息為 Chrome extension asynchronous-response noise，非應用程式錯誤。
 
 ## 4. 需保留的既有決策
 
@@ -61,14 +65,12 @@ Region：`asia-east1`
 - Zonal residual risk 已保留 owner、RTO、RPO、授權角色與 Regional re-entry trigger；正式放量前仍需依 trigger 重新評估 Regional HA。
 - Production／Staging ALB edge inventory 為 0；custom domain 未存在，不得宣稱 ready。
 - Billing QC 項目已移除；本報告不以舊 billing report 或短期報表宣稱實際節費。
-- Docker shadow QC 未執行；因 Docker Desktop engine 不可用且使用者要求不要使用 Docker，改以 Cloud Run VPC live evidence；這是範圍差異，不是 authenticated gate 的替代品。
+- Docker shadow QC 未執行；因使用者要求不要使用 Docker，改以 Cloud Build provider pipeline 與 Cloud Run VPC live evidence；未使用 Docker Desktop。
 
 ## 5. 下一個可驗收動作
 
-1. 由環境 owner 提供可用的 Google account-selection session，或提供已核准的測試用 password credential；QC 不自行建立或修改真實 named-user 密碼。OAuth configuration 本身已由 `/api/auth/mode` 驗證為 enabled。
-2. 在 Staging 重新執行 authenticated login → permissions → disposable draft/candidate create → read → update → read → cleanup。
-3. 取得零 active residue 證據後停止 Cloud SQL，重做 `STOPPED / NEVER` readback。
-4. 若要宣稱整體 `FINAL PASS`，另補 Production named-user canary 與 10 分鐘 soak；本輪不執行 Production 變更。
+1. 若要宣稱整體 `FINAL PASS`，另補 Production named-user canary 與 10 分鐘 soak；本輪不執行 Production 變更。
+2. Staging 平時維持 `STOPPED / NEVER`；下一次驗證窗口需重複 start → migration／smoke → authenticated test → stop。
 
 ## 6. 證據索引
 
@@ -80,3 +82,27 @@ Region：`asia-east1`
 - PostgreSQL-safe migration 033：`db/postgres/030_unified_drawing_aggregate.sql`
 - generated build evidence：`output/dev-069-cloud-build/`
 - generated migration package evidence：`output/dev-046-cloudsql-migration-runner-package/`
+
+## 7. Final revalidation addendum (2026-08-13 21:40 Asia/Taipei)
+
+本節 supersede 本文件前述「authenticated UI blocked」的即時狀態；第 2026-08-13 早期段落保留為歷史阻塞紀錄。
+
+### 7.1 Final Staging authenticated evidence
+
+- Cloud SQL 因測試暫時啟用，測試完成後已切回 `activationPolicy=NEVER`；最終 readback：`state=STOPPED`、`NEVER`、`db-f1-micro`、`ZONAL`、private IP `10.4.0.3`。
+- 以既有 authenticated Chrome session 完成 named-user lifecycle：create → read → update → read → cancel/cleanup。
+- Fixture：`QC DEV069 20260813 CRUD` → `QC DEV069 20260813 CRUD UPDATED`；取得 `A0001-P01` 與 `A0001-M01`。
+- Cleanup pass rule：取消後狀態 `已取消`；`進行中` filter 無 fixture，畫面顯示 `目前沒有符合條件的編號申請`；取消記錄保留歷史稽核，故本證據稱為 zero active residue，不宣稱 physical delete。
+
+### 7.2 Final deployment and contract evidence
+
+- Source：`93cb8170a6d43e100a21036f26d8ad922bc2c263`；Cloud Build `86f845bd-f090-4236-8a9e-708e5ed24bea` `SUCCESS`。
+- Cloud Run：`ai-pdm-stg-00016-qwc` receives `100%` traffic；image digest `sha256:35fbbdb77f11cdbbdbff17c3553623a5809a1e28ecca3394e99e9bde350b84fa`；min `0`／max `2`。
+- Privacy contract drift repaired by restoring the DB-approved immutable v1.0 snapshot; content SHA-256 `94eccfc2b519db02e410c9fa057f582fae2f057eb03ce37cf0a77df4697b0d6`; local `typecheck` and privacy QC `20/20` passed。
+- DEV-069 focused QC `17/17` passed; `git diff --check` passed。
+
+### 7.3 Final scope verdict
+
+`STAGING TOPOLOGY PASS / STAGING MIGRATION PASS / STAGING AUTHENTICATED CRUD PASS / STAGING STOP-COST GUARD PASS / PRODUCTION CANARY NOT EXECUTED / BILLING OUT OF SCOPE`。
+
+因此，本次 Staging QC 已通過；不得把本報告擴大解讀為 Production release `FINAL PASS`。Production 未修改。

@@ -4,7 +4,7 @@
 
 角色：QA（定義風險、驗證門檻與證據契約；不修改產品碼、Terraform state 或 GCP 資源）
 
-文件狀態：`QA Plan Ready / Live Platform Revalidated / Authenticated UI Blocked By Browser Account Session / Production Canary Pending / Billing Removed From Current QC Scope`
+文件狀態：`QA Plan Ready / Staging Authenticated Revalidated / Staging QC PASS / Production Canary Pending / Billing Removed From Current QC Scope`
 
 本文件將需求中的「FEAM」依品質工程慣例解讀為 `FMEA`（Failure Mode and Effects Analysis，失效模式與效應分析）。先完成 FMEA，再由風險反推驗證案例。既有 QC 報告的核心實作 PASS 可作為證據來源，但不能取代本版新增的登入後主流程、Staging 寫讀閉環與 Billing 歸因驗證。
 
@@ -325,7 +325,7 @@ QC 應依 `G0 → G1 → G2 → G3 → G4 → G5 → G6` 執行並做獨立事�
 
 ### 7.1 已完成且可重現的 live evidence
 
-- Migration image 使用 immutable digest `sha256:6f9ba17310054eb9c43bcd56f4c72ccd3c607e0690ab066318a89c23142d85d3`；app image 使用 immutable digest `sha256:d7f2d799888ffcce121176022e8d9e9479db714a58fd5924cb474186ac1aea78`。
+- Migration image 使用 immutable digest `sha256:6f9ba17310054eb9c43bcd56f4c72ccd3c607e0690ab066318a89c23142d85d3`；final app image 使用 immutable digest `sha256:35fbbdb77f11cdbbdbff17c3553623a5809a1e28ecca3394e99e9bde350b84fa`，source commit `93cb8170a6d43e100a21036f26d8ad922bc2c263`。
 - Migration dry-run execution `b4p6w` 成功；target 為 `jenfu-ai-pdm-stg-361825 / ai_pdm`，migration count 31，涵蓋 `001`～`033`，未建立 DB connection。
 - Migration apply execution `m7587` 成功；runner log 顯示 `connectionAttempted=true`，本輪套用 `021`～`033`，含 reviewed migration `033`。
 - Idempotence execution `x5s9d` 成功；`appliedVersions=[]`。
@@ -335,18 +335,18 @@ QC 應依 `G0 → G1 → G2 → G3 → G4 → G5 → G6` 執行並做獨立事�
 - Staging Cloud SQL 最終為 `STOPPED / NEVER / db-f1-micro / ZONAL`；private IP、backup enabled、PITR enabled、14 retained backups 與 deletion protection 保留。Staging Cloud Run 為 `Ready=True`、min 0、max 2。
 - Canonical HTTP smoke：`/login=200`、`/api/auth/mode=200`、未登入 `/api/auth/me=401`、未登入 `/api/numbering/permissions=401`。
 - Browser RWD smoke：1440×900 與 390×844 均可載入 `/login`；browser session 已清理，viewport 已 reset。
-- Staging forwarding rules 為 0；temporary Cloud Build Compute Service Account grants 在 project IAM 與 Cloud Build bucket IAM 均查無殘留。Production 未變更。
+- Staging forwarding rules 為 0；final Cloud Build 所需 Compute Service Account grants 僅存在於 Staging project／Cloud Build bucket／Artifact Registry repo，Production 未變更。
 
-### 7.2 未通過／外部阻塞
+### 7.2 已解決的 Staging authenticated gate
 
-- `QA069-018`：`BLOCKED-EXTERNAL-CREDENTIAL`，不是把 bootstrap mapping 當作 UI authenticated PASS。穩定載入後 `/api/auth/mode` 顯示 `googleOAuth.enabled=true`，Google button 可用；點擊後頁面停在「等待 Google 帳號選擇」，但目前瀏覽器沒有可取得的 Google account-selection tab／既有 session。password login 仍需要未提供的應用程式密碼。未輸入或保存密碼、OTP、token，也未繞過登入。
-- 因 authenticated session 不可取得，尚未完成 UI/API 的 named-user permissions、disposable draft/candidate create → read → update → read → cleanup；不得宣稱 Staging authenticated operability 通過。
+- `QA069-018 PASS`：使用既有 authenticated Chrome session，完成 canonical UI named-user create → read → update → read → cancel/cleanup。Fixture `QC DEV069 20260813 CRUD` 更新為 `QC DEV069 20260813 CRUD UPDATED`，取得 `A0001-P01`、`A0001-M01`；取消後切換 `進行中` 顯示無符合條件申請，zero active residue。取消記錄保留歷史稽核，不宣稱 physical delete。
+- Privacy contract drift 已由 source commit `93cb8170a6d43e100a21036f26d8ad922bc2c263` 修正，與 DB immutable approved snapshot SHA-256 `94eccfc2b519db02e410c9fa057f582fae2f057eb03ce37cf0a77df4697b0d6` 對齊；local privacy QC `20/20` 通過。
 - `QA069-011`、`QA069-013`：Production named-user canary／10 分鐘 soak 仍未執行；此為 Production release gate 缺證據，不是本輪 Production 變更。
-- `QA069-021`：已完成停庫後 canonical endpoint 與 SQL STOPPED readback，但未宣稱完整 post-stop soak PASS。
-- 本機 Docker shadow QC 未執行；Docker Desktop engine 不可用且使用者已指定不使用 Docker。Cloud Run VPC live evidence 取代其環境檢查，但不把 local shadow 標為 PASS。
+- `QA069-021 PASS`：CRUD 後 Cloud SQL 已回到 `STOPPED / NEVER`，並完成 Cloud Run／SQL final readback；本輪不以短期 Billing 觀察宣稱實際節費。
+- 本機 Docker shadow QC 未執行；因使用者指定不使用 Docker，改以 Cloud Build provider pipeline 與 Cloud Run VPC live evidence，未使用 Docker Desktop。
 
 ### 7.3 本輪判定
 
-`TOPOLOGY PASS / MIGRATION AND PLATFORM OPERABILITY PASS / AUTHENTICATED STAGING UI BLOCKED / PRODUCTION OPERABILITY INCOMPLETE / COST BENEFIT OUT OF SCOPE`。
+`TOPOLOGY PASS / MIGRATION AND PLATFORM OPERABILITY PASS / AUTHENTICATED STAGING UI PASS / PRODUCTION OPERABILITY INCOMPLETE / COST BENEFIT OUT OF SCOPE`。
 
-本輪不得標記 `FINAL PASS`。下一輪只需在 Staging 提供已核准的 Google OAuth configuration 或測試用 password credential，完成 authenticated write-read-cleanup；完成後再次執行 stop readback，再由 QC 重判 `QA069-018`。不需重做已通過的 migration ledger、immutable artifact 或 topology evidence，除非資源或 digest 改變。
+本輪 Staging QC 已通過；不得標記整體 Production release `FINAL PASS`，因 `QA069-011`、`QA069-013` Production named-user canary／10 分鐘 soak 尚未執行。Staging 平時維持 `STOPPED / NEVER`；下一次驗證窗口需重做完整 start → migration／smoke → authenticated test → stop 循環。
