@@ -36,7 +36,7 @@ export const PRIVACY_NOTICE_SECTIONS = [
   },
   {
     title: "利用方式",
-    body: "透過帳號登入、權限檢查、系統交易、稽核紀錄、備份、異常調查及必要人工查核處理。所有商業邏輯只經可移植 HTTP/BFF；Firebase 的資料庫、檔案儲存、雲端函式、可呼叫函式與資料庫觸發流程不作正式資料權威。"
+    body: "透過帳號登入、權限檢查、系統交易、稽核紀錄、備份、異常調查及必要人工查核處理。所有商業邏輯只經可移植 HTTP/BFF；Firestore、Firebase Storage、Firebase Functions、Callable 與 Firestore trigger 不作正式資料權威。"
   },
   {
     title: "當事人權利",
