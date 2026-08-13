@@ -4,7 +4,7 @@ export const PRIVACY_NOTICE_COMPANY = "鉦富機械有限公司";
 export const PRIVACY_NOTICE_APPROVED_AT = "2026-07-13";
 
 export const PRIVACY_NOTICE_SUMMARY = [
-  "AI PDM 會處理帳號、權限、登入安全與編號建立／草稿操作所需資料。",
+  "AI PDM 會處理帳號、權限、登入安全與正式領號／草稿操作所需資料。",
   "正式業務資料預定存放於 Google Cloud 台灣 asia-east1。",
   "Firebase Authentication 身分資料可能由 Google 在美國或其服務地區處理。"
 ] as const;
@@ -16,7 +16,7 @@ export const PRIVACY_NOTICE_SECTIONS = [
   },
   {
     title: "蒐集目的",
-    body: "建立與驗證 AI PDM 帳號、執行權限控管與多因素驗證、提供編號建立及草稿作業、維護資安與系統穩定、追查異常操作、履行內部管理及法令義務。"
+    body: "建立與驗證 AI PDM 帳號、執行權限控管與多因素驗證、提供正式領號及草稿作業、維護資安與系統穩定、追查異常操作、履行內部管理及法令義務。"
   },
   {
     title: "個人資料類別",
@@ -24,7 +24,7 @@ export const PRIVACY_NOTICE_SECTIONS = [
   },
   {
     title: "利用期間",
-    body: "離職時立即停用帳號，Firebase identity 原則上於離職後 30 日刪除；邀請、復原及 session 安全事件保存 180 日；應用程式安全 log 保存 365 日；Google _Required 系統 log 依供應商固定政策保存 400 日。圖號與防止重複使用所需的最小台帳永久保存；已關閉或取消的草稿保存 3 年；操作稽核保存 3 年並以穩定 PDM User ID 識別；已退役工號／登入別名保存 3 年後移除原始別名。具名、具理由及到期日的法律或資安保全要求得暫緩刪除。"
+    body: "離職時立即停用帳號，Firebase identity 原則上於離職後 30 日刪除；邀請、復原及 session 安全事件保存 180 日；應用程式安全 log 保存 365 日；Google _Required 系統 log 依供應商固定政策保存 400 日。正式圖號與防止重複使用所需的最小台帳永久保存；已關閉或取消的草稿保存 3 年；操作稽核保存 3 年並以穩定 PDM User ID 識別；已退役工號／登入別名保存 3 年後移除原始別名。具名、具理由及到期日的法律或資安保全要求得暫緩刪除。"
   },
   {
     title: "利用地區",
