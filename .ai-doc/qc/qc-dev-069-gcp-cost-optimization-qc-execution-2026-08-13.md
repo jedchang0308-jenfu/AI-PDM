@@ -158,3 +158,9 @@ Production browser OAuth account chooser 在本輪未完成可追溯 session 回
 ### 9.3 QC verdict
 
 `QA069-011 FAIL / REOPEN`、`QA069-013 FAIL / REOPEN`。本次不能宣稱 Production operability 或 overall `FINAL PASS`；Production 尚未因本輪而變更。必須先依既有 GitHub production workflow 完成 exact-main release candidate、candidate smoke、canonical named-user canary 與 10 分鐘 soak，並證明該 endpoint HTTP 5xx=0，才能重新執行 QC。Billing 仍依使用者指示 OUT OF SCOPE。
+
+### 9.4 Main branch synchronization
+
+- 已在乾淨地端 `main` worktree 以 `git merge --ff-only 25a28b9d7c3200e60a48dfcd53b632e79e2f7ab2` fast-forward。
+- 已以一般 `git push origin main` 同步遠端；local／remote `main` 均為 `25a28b9d`。
+- QC 判定不變：此同步未部署 Production；candidate smoke、authenticated named-user canary／10 分鐘 soak、traffic promotion 與 canonical smoke 仍未通過。
