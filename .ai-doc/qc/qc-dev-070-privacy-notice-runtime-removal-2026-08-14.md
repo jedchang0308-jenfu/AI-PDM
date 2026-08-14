@@ -1,6 +1,6 @@
 # DEV-070 隱私告知執行期功能退役 QC 報告
 
-Status: Local PASS / Production Release Pending
+Status: Production Deployed / Authenticated QC Pending
 Date: 2026-08-14
 Lane: Release Lane 2（authentication/session/authorization）
 Decision: `ADR-PDM-PRIVACY-NOTICE-002-retire-runtime-acknowledgement.md`
@@ -9,7 +9,7 @@ Decision: `ADR-PDM-PRIVACY-NOTICE-002-retire-runtime-acknowledgement.md`
 
 本機 RD、靜態回歸、正式建置與真實瀏覽器驗證均通過。登入、帳號啟用、session 與角色授權契約保留；執行期告知 UI、API、cookie、repository、全域 gate、Admin evidence 與舊 route 已退役。正式 Cloud SQL 歷史 schema、migration 與既有資料未刪除或改寫。
 
-本報告尚不得宣稱 Production FINAL PASS；必須再完成 exact-commit GitHub release、正式 named-user 登入、read-only route smoke 與 10 分鐘 soak。
+Production exact-commit release 與未登入／retired-route smoke 已通過。本報告尚不得宣稱 Production FINAL PASS；正式 named-user 登入、read-only authenticated route smoke 與 10 分鐘 soak 仍待公司帳號完成 Google 選擇。
 
 ## 自動驗證結果
 
@@ -56,8 +56,15 @@ Phase 2B 若不設定 Production workflow 的 `PDM_QC_PHASE2B_SKIP_STAGING_PREFL
 
 ## Production 待補證據
 
-- release commit、GitHub Actions run、Cloud Run revision、image digest 與 100% traffic。
 - 正式 Google named-user 登入直接返回原 `returnTo`。
 - authenticated permissions、numbering search、approvals inbox 無 428／503／500。
 - 10 分鐘 read-only soak 與 Cloud Run error log。
-- 正式 `/privacy*` 與 `/api/privacy*` 404、登入頁無舊紅字。
+
+## Production 已取得證據
+
+- Exact source commit：`c736836b148791b0f35c7558af0a841658eaf37f`；local／remote `main` 一致。
+- GitHub Actions Production run `31812034743`（run 13）成功；verify job `94804722365`、deploy／candidate smoke／promotion job `94805315658` 成功。
+- Release artifact `9223661701`：`production-release-c736836b148791b0f35c7558af0a841658eaf37f-31812034743`，digest `sha256:4e8a25b17ca4445198b2536763cd96d854aa05d9d0307d1e3f88dc62ea961423`。
+- 正式 `/privacy`、`/privacy/acknowledgement`、任意 `/privacy/*` 均為 404、`cache-control: no-store`、`x-ai-pdm-retired-route: privacy`；兩個 `/api/privacy/*` 為 404。
+- 未登入 `/api/auth/me`、`/api/numbering/permissions`、`/api/approvals/inbox` 均為 401，auth guard 未被誤移除。
+- 正式登入頁無舊告知文字、連結或紅色版本不一致訊息，console error=0；Google popup 目前等待 `jedchang0308@jenfu.com.tw` 完成帳號選擇。

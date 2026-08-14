@@ -59,10 +59,10 @@ Owner：Dev PM
   - 結果：Production SQL=`db-f1-micro/ZONAL/RUNNABLE`；Staging SQL=`db-f1-micro/ZONAL/STOPPED`；兩環境 ALB chain=0；Restore target absent；Cloud Run max/pool=`2/2`。
   - 帳務：預估月費由約 NT$4,300 降至約 NT$550，每月約省 NT$3,749、年化約 NT$44,988；實際帳單須待 Google Billing 24～72 小時入帳後確認，不以估算冒充 invoice evidence。
 
-- P0 Production 登入解除阻擋：`◐ DEV-070` 退役隱私告知與確認 runtime。
-  - 狀態：使用者已明確決定完整刪除執行期功能；RD 實作、本機 regression/build 與 3 viewport UI QC 已通過，Production exact-commit release／authenticated QC 待執行。
+- P0 Production 登入解除阻擋：`◇ DEV-070` 退役隱私告知與確認 runtime。
+  - 狀態：使用者已明確決定完整刪除執行期功能；RD、本機 QC 與 Production exact-commit release 已完成，authenticated QC 待公司帳號完成 Google 選擇。
   - 邊界：移除 UI、API、session／受保護 API gate、Admin evidence 與 release contract；保留歷史 schema／migration，不刪正式資料。
-  - 下一步：併入 `DEV-032` Production release gate 執行 exact-commit candidate、named-user canary、read-only route smoke 與 10 分鐘 soak。
+  - 下一步：完成 named-user canary、read-only route smoke 與 10 分鐘 soak；通過前維持「未充分驗證」。
 
 - 下一個產品候選：`DEV-041` Phase 3A-1 Pack-and-Go Intake。
   - 恢復條件：使用者明確提出產品實作指令；不得自動跨到 mapping/BOM/baseline 或 release。
@@ -1144,13 +1144,13 @@ Owner：Dev PM
   - 2026-08-14 main sync：已在乾淨地端 `main` worktree 以 `git merge --ff-only 25a28b9d7c3200e60a48dfcd53b632e79e2f7ab2` fast-forward，並以一般 `git push origin main` 同步遠端；local／remote `main` 現均為 `25a28b9d`。此動作未部署 Production；candidate smoke、authenticated canary／soak 與 traffic promotion 仍是未完成的 release gate。
   - 2026-08-14 exact-main local revalidation：`a07246b9` 上 `typecheck` PASS、Production build PASS、DEV-069 focused QC `17/17` PASS；Terraform 1.14.5 local executor 的 Production／Staging static validation 均 0 error／0 warning，且未執行 plan／apply。Production candidate／authenticated canary／10 分鐘 soak 仍待外部認證與既有 workflow。
 
-- ◐ DEV-070 [開發點] [RD Implemented / Local QC Passed / Production Release Gated] [P0] 退役隱私告知與確認 runtime
+- ◇ DEV-070 [開發點] [Production Deployed / Authenticated QC Pending] [P0] 退役隱私告知與確認 runtime
   - 摘要：依使用者 2026-08-14 明確指令，完整移除會阻擋 Production 登入的告知 UI、API、session gate、protected API gate、Admin evidence 與 release contract；既有 immutable history schema／migration 保留，不執行正式資料刪除。
   - 來源 ID：`DEV-PDM-PRIVACY-NOTICE-RUNTIME-REMOVAL-001`
   - 父任務：`DEV-032`、`DEV-046`
-  - 下一步：執行 exact-commit GitHub release、named-user login／read-only route smoke 與 10 分鐘 soak。
+  - 下一步：以 `jedchang0308@jenfu.com.tw` 完成 Google 帳號選擇，再執行 named-user login／read-only route smoke 與 10 分鐘 soak。
   - 阻塞 / 恢復條件：任一登入循環、auth／role guard 退化、428／503／500、舊 privacy route 仍存在、歷史資料 mutation 或正式 artifact 不符即停止並回送 RD；rollback 為 `5a52c189`。
-  - 證據：`.ai-doc/decisions/ADR-PDM-PRIVACY-NOTICE-002-retire-runtime-acknowledgement.md`、`.ai-doc/qa/qa-dev-070-privacy-notice-runtime-removal-validation-plan-2026-08-14.md`、`.ai-doc/qc/qc-dev-070-privacy-notice-runtime-removal-2026-08-14.md`；focused 14/14、managed auth 21/21、persistent session 8/8、邀請 36/36、Phase 2A 20/20、Phase 2B 12/12、release pipeline 17/17、typecheck／lint／build／3 viewport UI PASS。
+  - 證據：`.ai-doc/decisions/ADR-PDM-PRIVACY-NOTICE-002-retire-runtime-acknowledgement.md`、`.ai-doc/qa/qa-dev-070-privacy-notice-runtime-removal-validation-plan-2026-08-14.md`、`.ai-doc/qc/qc-dev-070-privacy-notice-runtime-removal-2026-08-14.md`；focused 14/14、managed auth 21/21、persistent session 8/8、邀請 36/36、Phase 2A 20/20、Phase 2B 12/12、release pipeline 17/17、typecheck／lint／build／3 viewport UI PASS；Production run `31812034743` success，source `c736836b`，artifact `9223661701`；retired route／API 正式探測均為 404。
   - 批次發版：只由 `DEV-032` 進入 Production；不得直接操作 Cloud SQL 歷史資料。
   - 計入交付：否（解除 `DEV-032` Production 登入 blocker）。
 

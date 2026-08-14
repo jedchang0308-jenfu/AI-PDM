@@ -1,6 +1,6 @@
 # DEV-070 隱私告知執行期功能退役驗證計畫
 
-Status: Local QC Passed / Production QC Pending
+Status: Production Deployed / Authenticated QC Pending
 Date: 2026-08-14
 Risk lane: Medium / Release Lane 2（登入、session、API authorization path）
 Authoritative decision: `ADR-PDM-PRIVACY-NOTICE-002-retire-runtime-acknowledgement.md`

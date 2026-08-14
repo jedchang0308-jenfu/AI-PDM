@@ -1,6 +1,6 @@
 # ADR-PDM-PRIVACY-NOTICE-002：退役 AI PDM 執行期告知與確認功能
 
-Status: Accepted / Local Implementation Complete / Production Release Pending
+Status: Accepted / Production Deployed / Authenticated QC Pending
 Decision date: 2026-08-14
 Owner: `jedchang0308@jenfu.com.tw`
 Source: 使用者明確指令「直接刪掉」
@@ -41,3 +41,13 @@ Production 登入會在建立可用 session 前比對程式內告知內容與 Cl
 - 無 schema migration、無正式資料寫入、無正式資料刪除。
 - 舊 privacy pending cookie 最長只有 10 分鐘；新 runtime 不讀取，無須資料修復。
 - 發布前 rollback reference：Production source commit `5a52c189a75c28187823b43d70dcb69395662a8d`。
+
+## Production deployment evidence
+
+- Exact source commit：`c736836b148791b0f35c7558af0a841658eaf37f`。
+- GitHub Actions Production run：`31812034743`（run 13），conclusion `success`。
+- Verify job `94804722365`、deploy／candidate smoke／promotion job `94805315658` 均成功。
+- Release artifact：`9223661701`，`production-release-c736836b148791b0f35c7558af0a841658eaf37f-31812034743`，digest `sha256:4e8a25b17ca4445198b2536763cd96d854aa05d9d0307d1e3f88dc62ea961423`。
+- Production `/privacy`、`/privacy/acknowledgement`、任意 `/privacy/*` 均為 404、`cache-control: no-store`、`x-ai-pdm-retired-route: privacy`；兩個 `/api/privacy/*` 為 404。
+- 未登入 `/api/auth/me`、`/api/numbering/permissions`、`/api/approvals/inbox` 均維持 401。
+- named-user authenticated smoke 與 10 分鐘 soak 尚未完成，因此本 ADR 尚不宣稱 QC FINAL PASS。
