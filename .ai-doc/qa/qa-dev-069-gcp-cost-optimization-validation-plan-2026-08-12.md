@@ -350,3 +350,33 @@ QC 應依 `G0 → G1 → G2 → G3 → G4 → G5 → G6` 執行並做獨立事�
 `TOPOLOGY PASS / MIGRATION AND PLATFORM OPERABILITY PASS / AUTHENTICATED STAGING UI PASS / PRODUCTION OPERABILITY INCOMPLETE / COST BENEFIT OUT OF SCOPE`。
 
 本輪 Staging QC 已通過；不得標記整體 Production release `FINAL PASS`，因 `QA069-011`、`QA069-013` Production named-user canary／10 分鐘 soak 尚未執行。Staging 平時維持 `STOPPED / NEVER`；下一次驗證窗口需重做完整 start → migration／smoke → authenticated test → stop 循環。
+
+## 8. QC continuation addendum (2026-08-14 Asia/Taipei)
+
+### 8.1 No-Docker IaC revalidation
+
+- `DEV069_TERRAFORM_EXECUTABLE` 使用本機 Terraform 1.14.5；未使用 Docker Desktop。
+- `npm.cmd run dev-069:iac-terraform-validate`：Production／Staging 均 `valid=true`、`error_count=0`、`warning_count=0`，結果為 `terraform_static_validate_passed_no_plan_no_apply`。
+- `npm.cmd run qc:dev-069-gcp-cost-optimization`：`17/17 PASS`。
+- `npm.cmd run typecheck` 與 `git diff --check`：PASS。
+- 驗證器明確記錄 `productionActionPerformed=false`、`planExecuted=false`、`applyExecuted=false`、`destroyExecuted=false`。
+
+### 8.2 Credentialled remote-state read-only revalidation
+
+- 以 active account `jedchang0308@jenfu.com.tw` 讀取 Production `gs://jenfu-ai-pdm-prod-tfstate/ai-pdm/production` 與 Staging `gs://jenfu-ai-pdm-stg-361825-tfstate/ai-pdm/staging`；兩者 backend init／state list 成功。
+- Production／Staging `terraform plan -refresh-only -lock=false` 均 exit 0，沒有資源新增／修改／刪除；JSON 的非 no-op 資源 action 為 0。
+- refresh-only 的 `resource_drift` 僅為 computed/provider metadata：Artifact Registry `update_time`、Cloud Run execution metadata、IAM etag、OIDC `null/[]` normalization、Cloud SQL computed settings；未涉及 tier、Zonal、activation policy、backup/PITR、private IP 或 edge resource。
+- 兩套 state 的 output drift 只代表歷史審核摘要與目前變數 defaults 不同，不能當作可直接 apply 的 infrastructure diff；不得用 refresh-only output drift 宣稱 `No changes`。
+
+### 8.3 Current live readback
+
+- Production Cloud SQL：`RUNNABLE / db-f1-micro / ZONAL / ALWAYS / PER_USE`、private IP `10.42.0.2`、public IPv4 disabled、backup／PITR／deletion protection enabled。
+- Staging Cloud SQL：`STOPPED / db-f1-micro / ZONAL / NEVER / PER_USE`、private IP `10.4.0.3`、public IPv4 disabled、backup／PITR／deletion protection enabled。
+- Production／Staging Cloud Run：min `0`、max `2`；兩環境 forwarding rules、backend services、URL maps inventory 均為 0。
+- exact Restore target `ai-pdm-prod-restore-20260716a`：Cloud SQL `404 instance does not exist`；同一驗證窗口主庫 positive readback 成功。
+
+### 8.4 Gate status after continuation
+
+`TOPOLOGY PASS / STAGING AUTHENTICATED CRUD PASS / PRODUCTION TOPOLOGY PASS / PRODUCTION AUTHENTICATED CANARY PENDING / BILLING OUT OF SCOPE`。
+
+Production `/login`、`/api/auth/mode`、unauthenticated boundary 已有 HTTP smoke；但 Google account chooser 未完成可追溯的 browser session 回跳，因此 `QA069-013` 與 `QA069-011` 仍不得標 PASS。整體 `FINAL PASS` 的唯一 in-scope 缺口仍是 Production named-user canary／10 分鐘 soak；本輪沒有 Production mutation。

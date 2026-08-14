@@ -106,3 +106,36 @@ Region：`asia-east1`
 `STAGING TOPOLOGY PASS / STAGING MIGRATION PASS / STAGING AUTHENTICATED CRUD PASS / STAGING STOP-COST GUARD PASS / PRODUCTION CANARY NOT EXECUTED / BILLING OUT OF SCOPE`。
 
 因此，本次 Staging QC 已通過；不得把本報告擴大解讀為 Production release `FINAL PASS`。Production 未修改。
+
+## 8. QC continuation addendum (2026-08-14 Asia/Taipei)
+
+### 8.1 Local／no-Docker evidence
+
+本次 IaC QC 使用本機 Terraform 1.14.5，不使用 Docker Desktop：
+
+- `dev-069:iac-terraform-validate`：Production／Staging `valid=true`、`error_count=0`、`warning_count=0`。
+- `qc:dev-069-gcp-cost-optimization`：`17/17 PASS`。
+- `typecheck`、`git diff --check`：PASS。
+- machine report：`terraform_static_validate_passed_no_plan_no_apply`、`productionActionPerformed=false`、`planExecuted=false`、`applyExecuted=false`、`destroyExecuted=false`。
+
+### 8.2 Remote-state read-only evidence
+
+以 `jedchang0308@jenfu.com.tw` 讀取兩套 GCS backend，state list 成功。Production／Staging refresh-only plan 均 exit 0；JSON 判定的 non-no-op resource action 為 0。remaining `resource_drift` 屬 computed/provider metadata（Artifact Registry time、Cloud Run execution metadata、IAM etag、OIDC normalization、Cloud SQL computed settings），不涉及成本目標的 tier、Zonal、activation policy、backup/PITR、private IP 或 edge resources。
+
+注意：refresh-only output drift 仍存在歷史 gate summary／review target 與目前 variables defaults 的差異；這不是資源 drift，也不能改寫成正常 plan `No changes`。本輪未 apply refresh-only plan，避免將 output state 更新寫回 remote backend。
+
+### 8.3 Live resource fact check
+
+| Target | Readback |
+|---|---|
+| Production Cloud SQL | `RUNNABLE / db-f1-micro / ZONAL / ALWAYS`；private `10.42.0.2`；public IPv4 disabled；backup/PITR/deletion protection enabled |
+| Staging Cloud SQL | `STOPPED / db-f1-micro / ZONAL / NEVER`；private `10.4.0.3`；public IPv4 disabled；backup/PITR/deletion protection enabled |
+| Cloud Run | Production／Staging min `0`、max `2` |
+| Edge inventory | Production／Staging forwarding rules、backend services、URL maps 均為 `0` |
+| Restore | `ai-pdm-prod-restore-20260716a` exact target 回傳 Cloud SQL `404 instance does not exist`；主庫同窗口 healthy |
+
+### 8.4 QC conclusion
+
+`TOPOLOGY PASS / STAGING MIGRATION PASS / STAGING AUTHENTICATED CRUD PASS / PRODUCTION TOPOLOGY PASS / PRODUCTION AUTHENTICATED CANARY PENDING / BILLING OUT OF SCOPE`。
+
+Production browser OAuth account chooser 在本輪未完成可追溯 session 回跳；因此 `QA069-011`（10 分鐘 named-user soak）與 `QA069-013`（named-user canary）維持 `NOT EXECUTED/PENDING`，不得以 `/login=200`、`/api/auth/mode=200` 或 unauth `401` 代替。Production 未修改。

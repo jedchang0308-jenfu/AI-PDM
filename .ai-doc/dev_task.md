@@ -1125,7 +1125,7 @@ Owner：Dev PM
   - 批次發版：見 `DEV-032`；無 Google 帳號邀請/首次密碼設定已由 `DEV-042` 完成，Google 身分/provider-neutral identity 已由 `DEV-043` 完成本地切片；完整帳號生命週期、完整路由權限盤點、live provider 與 Supabase migration 仍未進入 release 執行邊界。
   - 計入交付：是
 
-- ✓ DEV-069 [交付點] [Live Implementation Complete / Billing Measurement Pending 24-72h] [P0] AI-PDM 預上線 GCP 降本與低成本 Staging
+- ◇ DEV-069 [交付點] [Live Implementation Complete / Staging QC Passed / Production Authenticated Gate Pending / Billing Measurement Pending 24-72h] [P0] AI-PDM 預上線 GCP 降本與低成本 Staging
   - 摘要：Production Cloud SQL 已由 Regional custom 降為 `db-f1-micro`／`ZONAL`；Staging 已改為 Micro／Zonal／按需啟停，且完成啟動、migration dry-run、Hosting smoke、停止的發布驗證閉環。Production／Staging 未使用 external ALB 完整鏈均已移除；`ai-pdm-prod-restore-20260716a` 已刪除。
   - 來源 ID：`DEV-PDM-GCP-PRELAUNCH-COST-OPTIMIZATION-001`；父任務：`DEV-032`、`DEV-046`。
   - 安全控制：兩個主資料庫仍為 private-IP-only、backup／PITR／deletion protection enabled；Production on-demand backup `1786527874220` 成功後才變更；正式 SQL readback 為 `max_connections=25`、migration count=19、last migration=`032`。
@@ -1134,6 +1134,7 @@ Owner：Dev PM
   - 證據：`.ai-doc/specs/SPEC-PDM-GCP-COST-OPTIMIZATION-001-prelaunch-runtime-topology.md`、`.ai-doc/decisions/ADR-PDM-GCP-COST-OPTIMIZATION-001-prelaunch-firebase-hosting-zonal-micro.md`、`.ai-doc/qa/qa-dev-069-gcp-cost-optimization-validation-plan-2026-08-12.md`、`.ai-doc/qc/qc-dev-069-gcp-cost-optimization-report-2026-08-12.md`、`config/platform/dev-069-gcp-cost-optimization.json`。
   - 後續量測：24～72 小時後檢查 Billing SKU 是否停止新增 ALB、Restore 與 Regional CPU/RAM 費用；偏差超過 20% 時另立改善 DEV，不回滾已驗證的低成本 topology。
   - 計入交付：核心開發與 live release 已完成；帳務 observation 是 provider-latency follow-up，不得提前宣稱實際發票已降至預估值。
+  - 2026-08-14 QC continuation：本機 Terraform 1.14.5（不使用 Docker）Production／Staging validate 0 error／0 warning，DEV-069 focused QC 17/17；兩套 remote state refresh-only plan exit 0 且 resource action 0。Live readback 維持 Production `RUNNABLE/db-f1-micro/ZONAL/ALWAYS`、Staging `STOPPED/db-f1-micro/ZONAL/NEVER`、edge inventory 0、Restore exact target absent。Production authenticated named-user canary／10 分鐘 soak 尚未取得可追溯證據，故本 DEV 不宣稱 overall FINAL PASS。
 
 - ✓ DEV-042 [交付點] [本地完成] [P0] 內部帳號邀請與首次密碼設定
   - 摘要：在不引入 Google OAuth 或完整 IAM 的前提下，讓 Admin 建立一次性邀請連結，受邀者自行設定密碼並登入。
