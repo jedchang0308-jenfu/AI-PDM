@@ -164,3 +164,11 @@ Production browser OAuth account chooser 在本輪未完成可追溯 session 回
 - 已在乾淨地端 `main` worktree 以 `git merge --ff-only 25a28b9d7c3200e60a48dfcd53b632e79e2f7ab2` fast-forward。
 - 已以一般 `git push origin main` 同步遠端；local／remote `main` 均為 `25a28b9d`。
 - QC 判定不變：此同步未部署 Production；candidate smoke、authenticated named-user canary／10 分鐘 soak、traffic promotion 與 canonical smoke 仍未通過。
+
+### 9.5 Exact-main local revalidation (2026-08-14)
+
+- `main` exact commit `a07246b9edbc142aa336bac61f33f49dbd04f41a`：`npm.cmd run typecheck` PASS。
+- `npm.cmd run clean:next` 後重建 Terraform static-validation report；使用本機 Terraform `1.14.5`，Production／Staging 均 valid、0 error、0 warning，`backendDisabled=true`、`planExecuted=false`、`applyExecuted=false`。
+- `npm.cmd run qc:dev-069-gcp-cost-optimization` PASS `17/17`。
+- `npm.cmd run build` PASS；Next.js `16.2.6` production build 完成，僅有既有 middleware convention deprecation warning。
+- 本次未使用 Docker，未執行 GCP plan／apply／migration／Production deploy；Production authenticated canary／10 分鐘 soak 仍為 pending。
