@@ -1,6 +1,6 @@
 # ADR-PDM-PRIVACY-NOTICE-002：退役 AI PDM 執行期告知與確認功能
 
-Status: Accepted / Production Deployed / Authenticated QC Pending
+Status: Accepted / Production Deployed / QC Passed
 Decision date: 2026-08-14
 Owner: `jedchang0308@jenfu.com.tw`
 Source: 使用者明確指令「直接刪掉」
@@ -50,4 +50,4 @@ Production 登入會在建立可用 session 前比對程式內告知內容與 Cl
 - Release artifact：`9223661701`，`production-release-c736836b148791b0f35c7558af0a841658eaf37f-31812034743`，digest `sha256:4e8a25b17ca4445198b2536763cd96d854aa05d9d0307d1e3f88dc62ea961423`。
 - Production `/privacy`、`/privacy/acknowledgement`、任意 `/privacy/*` 均為 404、`cache-control: no-store`、`x-ai-pdm-retired-route: privacy`；兩個 `/api/privacy/*` 為 404。
 - 未登入 `/api/auth/me`、`/api/numbering/permissions`、`/api/approvals/inbox` 均維持 401。
-- named-user authenticated smoke 與 10 分鐘 soak 尚未完成，因此本 ADR 尚不宣稱 QC FINAL PASS。
+- named-user authenticated smoke 與 10 分鐘 read-only soak 已完成並通過；本 ADR 的 Production QC 可宣稱 FINAL PASS。
