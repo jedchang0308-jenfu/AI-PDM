@@ -219,6 +219,15 @@ export class PrivacyNoticeAsyncRepository {
       notice.title !== this.contract.title ||
       notice.content_sha256 !== this.contract.contentSha256
     ) {
+      console.error("privacy_notice_contract_mismatch", {
+        companyId,
+        contractVersion: this.contract.version,
+        contractContentSha256: this.contract.contentSha256,
+        storedVersion: notice.version,
+        storedStatus: notice.status,
+        storedTitleMatches: notice.title === this.contract.title,
+        storedContentSha256: notice.content_sha256
+      });
       throw new PrivacyNoticeError("privacy_notice_content_drift", "隱私告知版本與系統內容不一致，帳號暫時無法啟用。", 503);
     }
 
@@ -229,6 +238,14 @@ export class PrivacyNoticeAsyncRepository {
 
     const current = await client.queryOne<NoticeRow>(SELECT_CURRENT_PUBLISHED_NOTICE_SQL, { companyId });
     if (!current || current.version !== this.contract.version || current.content_sha256 !== this.contract.contentSha256) {
+      console.error("privacy_notice_runtime_version_mismatch", {
+        companyId,
+        contractVersion: this.contract.version,
+        contractContentSha256: this.contract.contentSha256,
+        currentVersion: current?.version ?? null,
+        currentStatus: current?.status ?? null,
+        currentContentSha256: current?.content_sha256 ?? null
+      });
       throw new PrivacyNoticeError("privacy_notice_runtime_version_stale", "系統尚未載入最新隱私告知版本，請聯絡系統管理員。", 503);
     }
     return notice;
