@@ -9,6 +9,12 @@ import {
 import { resolveNumberStateLegacyRedirect } from "@/lib/number-state-flow-legacy-route";
 import { isUnifiedPartRelationWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
 
+const RETIRED_PRIVACY_PATH_PREFIX = "/privacy";
+
+function isRetiredPrivacyPath(pathname: string) {
+  return pathname === RETIRED_PRIVACY_PATH_PREFIX || pathname.startsWith(`${RETIRED_PRIVACY_PATH_PREFIX}/`);
+}
+
 function numberStateLegacyRedirect(request: NextRequest) {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const resolved = resolveNumberStateLegacyRedirect(
@@ -26,6 +32,17 @@ function numberStateLegacyRedirect(request: NextRequest) {
 export function middleware(request: NextRequest) {
   const legacyRedirect = numberStateLegacyRedirect(request);
   if (legacyRedirect) return legacyRedirect;
+
+  if ((request.method === "GET" || request.method === "HEAD") && isRetiredPrivacyPath(request.nextUrl.pathname)) {
+    return new NextResponse(request.method === "HEAD" ? null : "Not Found", {
+      status: 404,
+      headers: {
+        "cache-control": "no-store",
+        "content-type": "text/plain; charset=utf-8",
+        "x-ai-pdm-retired-route": "privacy"
+      }
+    });
+  }
 
   const slice = getProductionSliceState();
   if (!slice.configured) return NextResponse.next();

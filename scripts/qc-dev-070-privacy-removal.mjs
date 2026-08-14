@@ -27,6 +27,7 @@ const accountRecoveryPage = read("src/app/account-recovery/request/page.tsx");
 const accountSecurityPage = read("src/app/account/security/page.tsx");
 const globalStyles = read("src/app/globals.css");
 const statusScopeBrowserQc = read("scripts/qc-pdm-status-scope-browser.mjs");
+const middleware = read("src/middleware.ts");
 
 const retiredRuntimeFiles = [
   "src/components/privacy-access-gate.tsx",
@@ -93,6 +94,14 @@ record(
     accountSecurityPage.includes("session-status-revoked") &&
     !/login-privacy-footer|privacy-status-/u.test(`${accountRecoveryPage}\n${accountSecurityPage}\n${globalStyles}`) &&
     !/privacy-gate-state|waitForPrivacyGateToSettle/u.test(statusScopeBrowserQc)
+);
+record(
+  "DEV070-PRIV-014 retired page paths return a no-store 404 before the production-slice rewrite",
+  middleware.includes('const RETIRED_PRIVACY_PATH_PREFIX = "/privacy"') &&
+    middleware.includes("isRetiredPrivacyPath(request.nextUrl.pathname)") &&
+    middleware.includes("status: 404") &&
+    middleware.includes('"x-ai-pdm-retired-route": "privacy"') &&
+    middleware.indexOf("isRetiredPrivacyPath(request.nextUrl.pathname)") < middleware.indexOf("shouldBlockProductionSlicePagePath(pathname)")
 );
 
 for (const result of results) {

@@ -15,7 +15,7 @@ Decision: `ADR-PDM-PRIVACY-NOTICE-002-retire-runtime-acknowledgement.md`
 
 | 驗證 | 結果 |
 |---|---|
-| `qc:dev-070-privacy-removal` | PASS 13/13 |
+| `qc:dev-070-privacy-removal` | PASS 14/14 |
 | `qc:managed-auth` | PASS 21/21 |
 | `qc:pdm-auth-persistent-session` | PASS 8/8 |
 | `qc:pdm-account-invitations` | PASS 36/36 |
@@ -42,6 +42,8 @@ Phase 2B 若不設定 Production workflow 的 `PDM_QC_PHASE2B_SKIP_STAGING_PREFL
 | `/privacy/acknowledgement` | HTTP | 404 |
 | `/api/privacy/notice` | HTTP | 404 |
 | `/api/privacy/acknowledgements/current` | HTTP | 404 |
+
+首次 Production QC 發現 product route 已刪除，但既有 production-slice middleware 將未知頁面改寫成 `/production-slice-blocked` 並回 200。DEV-070 hotfix 改為在該 rewrite 前對 `/privacy` 與其子路徑直接回 `404`、`cache-control: no-store` 及 `x-ai-pdm-retired-route: privacy`；此 tombstone 不提供 UI、API 或資料存取能力。
 
 本機畫面證據：`.tmp/dev-070-ui-qc/login-390x844-final.png`、`.tmp/dev-070-ui-qc/login-1024x768-final.png`、`.tmp/dev-070-ui-qc/login-1440x900-final.png`、`.tmp/dev-070-ui-qc/invitation-390x844-final.png`。
 

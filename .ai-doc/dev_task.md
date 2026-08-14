@@ -1150,7 +1150,7 @@ Owner：Dev PM
   - 父任務：`DEV-032`、`DEV-046`
   - 下一步：執行 exact-commit GitHub release、named-user login／read-only route smoke 與 10 分鐘 soak。
   - 阻塞 / 恢復條件：任一登入循環、auth／role guard 退化、428／503／500、舊 privacy route 仍存在、歷史資料 mutation 或正式 artifact 不符即停止並回送 RD；rollback 為 `5a52c189`。
-  - 證據：`.ai-doc/decisions/ADR-PDM-PRIVACY-NOTICE-002-retire-runtime-acknowledgement.md`、`.ai-doc/qa/qa-dev-070-privacy-notice-runtime-removal-validation-plan-2026-08-14.md`、`.ai-doc/qc/qc-dev-070-privacy-notice-runtime-removal-2026-08-14.md`；focused 13/13、managed auth 21/21、persistent session 8/8、邀請 36/36、Phase 2A 20/20、Phase 2B 12/12、release pipeline 17/17、typecheck／lint／build／3 viewport UI PASS。
+  - 證據：`.ai-doc/decisions/ADR-PDM-PRIVACY-NOTICE-002-retire-runtime-acknowledgement.md`、`.ai-doc/qa/qa-dev-070-privacy-notice-runtime-removal-validation-plan-2026-08-14.md`、`.ai-doc/qc/qc-dev-070-privacy-notice-runtime-removal-2026-08-14.md`；focused 14/14、managed auth 21/21、persistent session 8/8、邀請 36/36、Phase 2A 20/20、Phase 2B 12/12、release pipeline 17/17、typecheck／lint／build／3 viewport UI PASS。
   - 批次發版：只由 `DEV-032` 進入 Production；不得直接操作 Cloud SQL 歷史資料。
   - 計入交付：否（解除 `DEV-032` Production 登入 blocker）。
 

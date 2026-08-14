@@ -29,6 +29,7 @@ Authoritative decision: `ADR-PDM-PRIVACY-NOTICE-002-retire-runtime-acknowledgeme
 | 歷史表或 immutable evidence 被刪 | 將「刪功能」誤做成資料清除 | 稽核資料不可恢復 | schema／migration diff、無 DB action 證據 | P0 | QC-008 |
 | CI 仍要求舊 route | preflight／artifact script 漏改 | main build/deploy 被阻擋 | Phase 2A、workflow QC | P1 | QC-011 |
 | Production 仍載入舊 bundle/cache | artifact provenance 或 hosting promotion 異常 | 使用者仍見紅字 | exact commit、Level 4 hard reload、route 404 | P0 | QC-012 |
+| 已退役頁面被 production-slice 改寫成 200 | 未知頁面攔截早於 Next 404 | 舊書籤被誤認為「尚未開放」 | 正式 HTTP status/header | P1 | QC-012 |
 
 ## QC 測試案例
 
