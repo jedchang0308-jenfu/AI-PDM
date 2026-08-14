@@ -111,10 +111,6 @@ export async function exchangeFirebaseBffSession(
   auth: Auth,
   input: {
     loginIntentToken?: string;
-    privacyAcknowledged?: boolean;
-    privacyNoticeVersion?: string;
-    privacyRequestId?: string;
-    returnTo?: string;
   } = {}
 ) {
   try {
@@ -128,11 +124,7 @@ export async function exchangeFirebaseBffSession(
     const body = (await response.json().catch(() => ({}))) as {
       error?: string;
       code?: string;
-      acknowledgementUrl?: string;
     };
-    if (body.code === "privacy_ack_required" && body.acknowledgementUrl) {
-      return { kind: "privacy_ack_required", acknowledgementUrl: body.acknowledgementUrl } as const;
-    }
     if (!response.ok) {
       throw new FirebaseBffExchangeError(body.error ?? "登入交換失敗", body.code ?? "firebase_exchange_failed", response.status);
     }

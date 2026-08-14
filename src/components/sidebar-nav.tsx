@@ -22,7 +22,6 @@ import {
   Search,
   Settings,
   ShieldAlert,
-  ShieldCheck,
   UserCog,
   X,
 } from "lucide-react";
@@ -96,7 +95,6 @@ const navSections: NavSection[] = [
     label: "管理",
     items: [
       { href: "/policy", label: "管理辦法", icon: FileText },
-      { href: "/privacy", label: "隱私與資料使用", icon: ShieldCheck, exact: true },
       { href: "/account/security", label: "我的帳號安全", icon: KeyRound },
       { href: "/settings/accounts", label: "帳號與權限", icon: UserCog },
       { href: "/settings", label: "系統設定", icon: Settings },
@@ -122,7 +120,7 @@ function isOpenInProductionSlice(item: NavItem, productionSlice: ProductionSlice
 
 export function SidebarNav() {
   const pathname = usePathname() || "/";
-  const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/") || pathname.startsWith("/privacy");
+  const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/");
   const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);

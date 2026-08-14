@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { revokeAccountSessionBySessionIdAsync } from "@/lib/account-session-registry";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import {
-  clearPrivacyPendingCookie,
   createFirebaseHostingLogoutCookie,
   createLogoutCookie,
   getLegacySessionPayload,
@@ -46,6 +45,5 @@ export async function POST(request: Request) {
   const response = NextResponse.json({ ok: true });
   response.headers.append("set-cookie", createFirebaseHostingLogoutCookie());
   response.headers.append("set-cookie", createLogoutCookie());
-  response.headers.append("set-cookie", clearPrivacyPendingCookie());
   return response;
 }

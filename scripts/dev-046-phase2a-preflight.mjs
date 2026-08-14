@@ -78,16 +78,17 @@ export function buildPhase2APreflight() {
     read("src/app/api/auth/firebase/session/route.ts").includes("consumeEmployeeLoginIntentAsync") &&
     read("src/app/login/page.tsx").includes("公司電子郵件或工號") &&
     read("src/app/settings/accounts/page.tsx").includes("工號／登入別名");
-  const privacyNoticeReady =
-    packageJson.scripts["qc:dev-046-privacy-ack"] !== undefined &&
+  const privacyRuntimeRetired =
+    packageJson.scripts["qc:dev-070-privacy-removal"] !== undefined &&
     read("db/schema.sql").includes("privacy_notice_acknowledgements") &&
     fs.existsSync(path.join(root, "db/postgres/015_employee_privacy_notice_acknowledgements.sql")) &&
-    fs.existsSync(path.join(root, "src/lib/repositories/privacy-notice-async-repository.ts")) &&
-    fs.existsSync(path.join(root, "src/app/api/privacy/acknowledgements/current/route.ts")) &&
-    fs.existsSync(path.join(root, "src/app/privacy/page.tsx")) &&
-    fs.existsSync(path.join(root, "src/app/privacy/acknowledgement/page.tsx")) &&
-    read("src/app/api/auth/firebase/session/route.ts").includes("finalizePrivacyAccessAsync") &&
-    read("src/app/settings/accounts/page.tsx").includes("個人資料告知確認");
+    !fs.existsSync(path.join(root, "src/lib/repositories/privacy-notice-async-repository.ts")) &&
+    !fs.existsSync(path.join(root, "src/app/api/privacy/acknowledgements/current/route.ts")) &&
+    !fs.existsSync(path.join(root, "src/app/privacy/page.tsx")) &&
+    !fs.existsSync(path.join(root, "src/app/privacy/acknowledgement/page.tsx")) &&
+    !read("src/app/api/auth/firebase/session/route.ts").includes("Privacy") &&
+    !read("src/lib/auth-async.ts").includes("privacy") &&
+    !read("src/app/settings/accounts/page.tsx").includes("個人資料告知確認");
   const costForecastStopTriggered =
     costBudget.currentForecast?.stopTriggered === true ||
     Number(costBudget.currentForecast?.estimatedMonthlyUsd) > Number(costBudget.planReviewStopAtUsd);
@@ -114,13 +115,12 @@ export function buildPhase2APreflight() {
     check("P2A-IAC-016", !/(?:terraform\s+(?:apply|destroy|import)|gcloud\s+(?:run|sql|compute|projects|billing)\s+)/iu.test(tf), "Terraform source contains no imperative cloud command"),
     check("P2A-APP-001", firebaseApplicationReady, "Firebase BFF application adapter and auth mode are implemented locally"),
     check("P2A-APP-002", employeeLoginAliasReady, "employee login alias schema, intent exchange, Admin UI and focused QC are implemented locally"),
-    check("P2A-APP-003", privacyNoticeReady, "privacy notice version, acknowledgement gate, permanent access, Admin evidence and focused QC are implemented locally")
+    check("P2A-APP-003", privacyRuntimeRetired, "privacy notice runtime gate and UI are retired while immutable historical schema is preserved")
   ];
 
   const blockers = [];
   if (!manifest.approvals.projectAndBillingApproved) blockers.push("PROJECT_AND_BILLING_APPROVAL_MISSING");
   if (!manifest.approvals.paymentActivationApproved) blockers.push("PAYMENT_ACTIVATION_NOT_AUTHORIZED");
-  if (!manifest.approvals.privacyNoticeApproved) blockers.push("EMPLOYEE_PRIVACY_NOTICE_APPROVAL_MISSING");
   if (!manifest.approvals.monthlyBudgetApproved) blockers.push("MONTHLY_BUDGET_APPROVAL_MISSING");
   if (placeholder(manifest.target.organizationId)) blockers.push("GOOGLE_ORGANIZATION_ID_MISSING");
   if (placeholder(manifest.target.billingAccountId)) blockers.push("GOOGLE_BILLING_ACCOUNT_ID_MISSING");
@@ -149,7 +149,7 @@ export function buildPhase2APreflight() {
     blockers.push("PDM_AUTH_MODE_DOES_NOT_YET_ACCEPT_FIREBASE_BFF");
   }
   if (!employeeLoginAliasReady) blockers.push("EMPLOYEE_LOGIN_ALIAS_MAPPING_NOT_IMPLEMENTED");
-  if (!privacyNoticeReady) blockers.push("PRIVACY_NOTICE_UI_AND_ACKNOWLEDGEMENT_NOT_IMPLEMENTED");
+  if (!privacyRuntimeRetired) blockers.push("PRIVACY_NOTICE_RUNTIME_RETIREMENT_INCOMPLETE");
   blockers.push(...manifest.knownApplicationBlockers);
   if (manifest.phase2Bootstrap?.defaultLogSinkImported !== true) blockers.push("DEFAULT_LOG_SINK_IMPORT_EVIDENCE_MISSING");
   if (manifest.phase2Bootstrap?.credentialledFullPlan?.stopConditionPassed !== true) blockers.push("CREDENTIALLED_TERRAFORM_PLAN_NOT_REQUESTED");

@@ -172,10 +172,9 @@ export default function LoginPage() {
     loginIntentToken = ""
   ) {
     const exchange = await exchangeFirebaseBffSession(user, auth, {
-      loginIntentToken: loginIntentToken || undefined,
-      returnTo: loginReturnTo()
+      loginIntentToken: loginIntentToken || undefined
     });
-    window.location.href = exchange.kind === "privacy_ack_required" ? exchange.acknowledgementUrl : loginReturnTo();
+    if (exchange.kind === "authenticated") window.location.href = loginReturnTo();
   }
 
   async function submitTotp(event: React.FormEvent<HTMLFormElement>) {
@@ -373,9 +372,8 @@ export default function LoginPage() {
             </button>
           ) : null}
         </form>
-        <div className="login-privacy-footer">
+        <div className="login-help-footer">
           <Link href="/account-recovery/request">忘記密碼</Link>
-          <Link href="/privacy">隱私與資料使用</Link>
         </div>
       </section>
     </div>

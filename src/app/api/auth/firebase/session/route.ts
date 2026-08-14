@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { registerFirebaseAccountSessionAsync } from "@/lib/account-session-registry";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import {
-  clearPrivacyPendingResponseCookie,
-  setFirebaseBffSessionResponseCookie,
-  setPrivacyPendingResponseCookie
+  setFirebaseBffSessionResponseCookie
 } from "@/lib/auth-response-cookies";
 import { getUserByIdAsync } from "@/lib/auth-async";
 import { getAuthMode } from "@/lib/auth-config";
@@ -16,8 +14,6 @@ import { FirebasePlatformPrincipalRepository } from "@/lib/firebase-platform-pri
 import { exchangeFirebaseIdTokenForPlatformSession } from "@/lib/platform-identity-contract";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { verifyPlatformSessionV2 } from "@/lib/platform-session-v2";
-import { finalizePrivacyAccessAsync, getPrivacyNoticeContract } from "@/lib/privacy-notice";
-import { PrivacyNoticeError } from "@/lib/repositories/privacy-notice-async-repository";
 
 export const runtime = "nodejs";
 
@@ -31,15 +27,6 @@ function sameOrigin(request: Request) {
 
 function exchangeFailure(error: unknown) {
   const code = error instanceof Error ? error.message : "FIREBASE_SESSION_EXCHANGE_FAILED";
-  if (error instanceof PrivacyNoticeError) {
-    return NextResponse.json({ error: error.message, code: error.code }, { status: error.httpStatus });
-  }
-  if (/privacy_notice|privacy acknowledgement/iu.test(code)) {
-    return NextResponse.json(
-      { error: "個人資料告知確認服務暫時無法使用。", code: "privacy_notice_unavailable" },
-      { status: 503 }
-    );
-  }
   if (error instanceof EmployeeLoginAliasError && error.code === "employee_login_intent_invalid") {
     return NextResponse.json({ error: "登入要求無效或已失效。", code: "login_intent_invalid" }, { status: 403 });
   }
@@ -61,12 +48,6 @@ function exchangeFailure(error: unknown) {
   return NextResponse.json({ error: "登入憑證無效或已失效。", code: "firebase_token_invalid" }, { status: 401 });
 }
 
-function safeReturnPath(value: unknown) {
-  const candidate = String(value ?? "/").trim();
-  if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.includes("\\") || candidate.length > 512) return "/";
-  return candidate;
-}
-
 export async function POST(request: Request) {
   if (getAuthMode() !== "firebase_bff") {
     return NextResponse.json({ error: "Firebase BFF is disabled" }, { status: 404 });
@@ -85,10 +66,6 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const idToken = String(body.idToken ?? "").trim();
   const loginIntentToken = String(body.loginIntentToken ?? "").trim();
-  const privacyAcknowledged = body.privacyAcknowledged === true;
-  const privacyNoticeVersion = String(body.privacyNoticeVersion ?? "").trim();
-  const privacyRequestId = String(body.privacyRequestId ?? "").trim();
-  const returnTo = safeReturnPath(body.returnTo);
   if (!idToken || idToken.length > 16384) {
     return NextResponse.json({ error: "Firebase ID token required" }, { status: 400 });
   }
@@ -116,37 +93,6 @@ export async function POST(request: Request) {
       });
     }
 
-    const notice = getPrivacyNoticeContract();
-    if (privacyAcknowledged && privacyNoticeVersion !== notice.version) {
-      return NextResponse.json(
-        { error: "告知事項版本已更新，請重新閱讀後確認。", code: "privacy_notice_version_stale" },
-        { status: 409, headers: { "cache-control": "no-store" } }
-      );
-    }
-    const privacy = await finalizePrivacyAccessAsync({
-      userId: claims.pdmUserId,
-      companyId: claims.companyId,
-      firebaseUid: claims.subject,
-      acknowledged: privacyAcknowledged,
-      source: loginIntentToken ? "employee_alias_login" : "firebase_bff_session",
-      requestId: privacyAcknowledged ? privacyRequestId : undefined
-    });
-    if (privacy.status !== "acknowledged") {
-      const acknowledgementUrl = `/privacy/acknowledgement?returnTo=${encodeURIComponent(returnTo)}`;
-      const response = NextResponse.json(
-        {
-          error: "請先閱讀並確認員工個人資料告知事項。",
-          code: "privacy_ack_required",
-          acknowledgementUrl,
-          noticeVersion: privacy.requiredVersion
-        },
-        { status: 200, headers: { "cache-control": "no-store" } }
-      );
-      setFirebaseBffSessionResponseCookie(response, sessionToken);
-      setPrivacyPendingResponseCookie(response, sessionToken);
-      return response;
-    }
-
     await createAuditLogAsync({
       actorId: user.id,
       action: "Login",
@@ -162,7 +108,6 @@ export async function POST(request: Request) {
       }
     );
     setFirebaseBffSessionResponseCookie(response, sessionToken);
-    clearPrivacyPendingResponseCookie(response);
     return response;
   } catch (error) {
     return exchangeFailure(error);

@@ -65,6 +65,7 @@ jobs:
         run: |
           $env:PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT = "true"
           npm run qc:dev-046-phase2b
+          npm run qc:dev-070-privacy-removal
           npm run qc:pdm-account-invitations
           npm run qc:dev-032-production-iac-package
           npm run qc:production-deployment-pipeline

@@ -6115,270 +6115,21 @@ tr.selected-row td:first-child {
   gap: 9px;
 }
 
-.login-privacy-footer {
+.login-help-footer {
   display: flex;
   justify-content: center;
   padding-top: 2px;
   font-size: 12px;
 }
 
-.login-privacy-footer a,
-.privacy-activation-summary a,
-.privacy-contact-section a {
+.login-help-footer a {
   color: var(--primary);
   text-underline-offset: 3px;
 }
 
-.privacy-page {
-  width: min(920px, 100%);
-  min-width: 0;
-  margin: 0 auto;
-  padding: 12px 0 40px;
-}
-
-.privacy-page-header {
-  display: grid;
-  gap: 16px;
-  padding: 12px 0 20px;
-  border-bottom: 1px solid var(--line);
-}
-
-.privacy-title-row,
-.privacy-ack-heading,
 .account-section-heading {
   display: flex;
-  align-items: flex-start;
   gap: 10px;
-}
-
-.privacy-title-row > svg,
-.privacy-ack-heading > svg {
-  flex: 0 0 auto;
-  color: #087f5b;
-  margin-top: 2px;
-}
-
-.privacy-title-row > div,
-.privacy-ack-heading > div {
-  min-width: 0;
-}
-
-.privacy-title-row p,
-.privacy-title-row h1,
-.privacy-ack-heading h1,
-.privacy-ack-heading p {
-  margin: 0;
-}
-
-.privacy-title-row p {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.privacy-title-row h1,
-.privacy-ack-heading h1 {
-  margin-top: 3px;
-  font-size: 24px;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.privacy-version-facts,
-.privacy-evidence-facts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0;
-}
-
-.privacy-version-facts div {
-  display: grid;
-  gap: 3px;
-}
-
-.privacy-version-facts dt {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.privacy-version-facts dd {
-  margin: 0;
-  font-weight: 700;
-}
-
-.privacy-notice-body {
-  padding-top: 20px;
-}
-
-.privacy-notice-intro {
-  max-width: 780px;
-  color: #344054;
-  line-height: 1.7;
-}
-
-.privacy-notice-list {
-  margin: 22px 0 0;
-  padding-left: 28px;
-}
-
-.privacy-notice-list li {
-  padding: 14px 0 16px 8px;
-  border-top: 1px solid var(--line);
-}
-
-.privacy-notice-list h2,
-.privacy-contact-section h2 {
-  margin: 0 0 6px;
-  font-size: 16px;
-}
-
-.privacy-notice-list p,
-.privacy-contact-section p {
-  margin: 0;
-  color: #344054;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
-
-.privacy-contact-section {
-  display: grid;
-  gap: 5px;
-  padding: 18px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.privacy-back-link {
-  width: max-content;
-  margin-top: 18px;
-  text-decoration: none;
-}
-
-.privacy-ack-page {
-  width: 100%;
-  min-width: 0;
-  min-height: calc(100dvh - 24px);
-  display: grid;
-  place-items: center;
-  padding: 16px 0;
-}
-
-.privacy-ack-panel {
-  width: 100%;
-  max-width: 680px;
-  min-width: 0;
-  display: grid;
-  gap: 18px;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-}
-
-.privacy-ack-heading p {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.privacy-ack-form,
-.privacy-ack-state {
-  min-width: 0;
-  display: grid;
-  gap: 14px;
-}
-
-.privacy-activation-summary {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-  padding: 10px 12px;
-  border-left: 3px solid #087f5b;
-  background: #f2fbf7;
-}
-
-.privacy-activation-summary p {
-  margin: 0;
-  color: #344054;
-  font-size: 13px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.privacy-activation-summary a {
-  width: max-content;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 2px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.privacy-version-label,
-.privacy-ack-help {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.privacy-acknowledgement-control {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  align-items: flex-start;
-  gap: 9px;
-  cursor: pointer;
-  font-weight: 700;
-  line-height: 1.5;
-}
-
-.privacy-acknowledgement-control input {
-  width: 18px;
-  height: 18px;
-  margin: 2px 0 0;
-  accent-color: #087f5b;
-}
-
-.privacy-acknowledgement-control span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.privacy-ack-form > .primary-button,
-.privacy-ack-state > .primary-button {
-  width: max-content;
-  min-width: 150px;
-  text-decoration: none;
-}
-
-.privacy-ack-state p {
-  margin: 0;
-}
-
-.privacy-gate-state {
-  min-height: 100dvh;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 8px;
-  padding: 20px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.privacy-gate-state.is-error > svg {
-  color: #b42318;
-}
-
-.privacy-gate-state.is-error strong {
-  color: var(--text);
-}
-
-.privacy-gate-state.is-error span {
-  max-width: 420px;
-}
-
-.account-section-heading {
   justify-content: space-between;
   align-items: center;
 }
@@ -6387,29 +6138,12 @@ tr.selected-row td:first-child {
   margin: 0;
 }
 
-.privacy-evidence-facts {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.privacy-evidence-hash {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  overflow-wrap: anywhere;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-
-.privacy-status-acknowledged {
+.session-status-current {
   color: #067647;
   background: #ecfdf3;
 }
 
-.privacy-status-reacknowledgement_required {
-  color: #b54708;
-  background: #fffaeb;
-}
-
-.privacy-status-not_acknowledged {
+.session-status-revoked {
   color: #b42318;
   background: #fef3f2;
 }

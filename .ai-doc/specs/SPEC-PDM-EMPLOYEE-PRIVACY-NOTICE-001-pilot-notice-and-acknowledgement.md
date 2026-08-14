@@ -1,9 +1,11 @@
 # SPEC-PDM-EMPLOYEE-PRIVACY-NOTICE-001
 
-Status: Pilot v1.0 Company Approved / Local UI and Acknowledgement Implemented / Effective Timestamp Pending Staging
+Status: Superseded on 2026-08-14 by DEV-070 / Historical Evidence Only / Runtime Removed
 Version: 1.0
 Owner: `jedchang0308@jenfu.com.tw`
 Scope: AI PDM internal pilot, official numbering and draft creation only
+
+> Supersession notice: the user explicitly directed removal of the privacy notice and acknowledgement feature on 2026-08-14. `DEV-070` and `ADR-PDM-PRIVACY-NOTICE-002` replace the runtime, UI, API and acceptance contracts below. The remainder of this document is retained only to explain immutable historical database records and prior implementation evidence; it must not be used as an active release requirement.
 
 ## 1. Purpose and authority boundary
 

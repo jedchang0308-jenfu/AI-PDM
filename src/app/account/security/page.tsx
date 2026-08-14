@@ -164,8 +164,8 @@ export default function AccountSecurityPage() {
                 <div className="account-session-main">
                   <div className="account-session-title">
                     <strong>{session.deviceLabel}</strong>
-                    {session.current ? <span className="status-badge privacy-status-acknowledged">目前使用中</span> : null}
-                    {session.revokedAt ? <span className="status-badge privacy-status-not_acknowledged">已撤銷</span> : null}
+                    {session.current ? <span className="status-badge session-status-current">目前使用中</span> : null}
+                    {session.revokedAt ? <span className="status-badge session-status-revoked">已撤銷</span> : null}
                   </div>
                   <p>{session.userAgentHint} / {providerLabel(session.authProvider)} / {assuranceLabel(session.assuranceLevel)}</p>
                   <dl>

@@ -924,48 +924,6 @@
   }
 }
 
-@media (max-width: 640px) {
-  .privacy-page {
-    padding-top: 4px;
-  }
-
-  .privacy-title-row h1,
-  .privacy-ack-heading h1 {
-    font-size: 20px;
-  }
-
-  .privacy-version-facts,
-  .privacy-evidence-facts {
-    grid-template-columns: 1fr;
-  }
-
-  .privacy-notice-list {
-    padding-left: 22px;
-  }
-
-  .privacy-notice-list li {
-    padding-left: 4px;
-  }
-
-  .privacy-ack-page {
-    align-items: start;
-    justify-items: stretch;
-    padding: 4px 0 18px;
-  }
-
-  .privacy-ack-panel {
-    max-width: none;
-    padding: 14px;
-  }
-
-  .privacy-ack-form > .primary-button,
-  .privacy-ack-state > .primary-button,
-  .privacy-back-link {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
 @media print {
   body {
     background: #ffffff;

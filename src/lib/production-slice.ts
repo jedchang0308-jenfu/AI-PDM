@@ -28,8 +28,6 @@ const openPagePaths = [
   "/account/security",
   "/account-recovery",
   "/account-recovery/request",
-  "/privacy",
-  "/privacy/acknowledgement",
   "/production-slice-blocked"
 ];
 
@@ -38,7 +36,6 @@ const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp 
   { method: "POST", pattern: /^\/api\/auth\/logout$/ },
   { method: "POST", pattern: /^\/api\/auth\/employee-login-intents$/ },
   { method: "POST", pattern: /^\/api\/auth\/firebase\/session$/ },
-  { method: "POST", pattern: /^\/api\/privacy\/acknowledgements\/current$/ },
   { method: "POST", pattern: /^\/api\/account-invitations\/accept$/ },
   { method: "POST", pattern: /^\/api\/account-recovery\/lookup$/ },
   { method: "POST", pattern: /^\/api\/account-recovery\/complete$/ },

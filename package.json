@@ -180,7 +180,7 @@
     "qc:dev-046-cloudsql-migration-runner-executor": "node scripts/qc-dev-046-cloudsql-migration-runner-executor.mjs",
     "qc:dev-046-migration-runner-plan": "node scripts/qc-dev-046-migration-runner-plan.mjs",
     "qc:dev-046-login-alias": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-046-employee-login-alias.mjs",
-    "qc:dev-046-privacy-ack": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-046-privacy-acknowledgement.mjs",
+    "qc:dev-070-privacy-removal": "node scripts/qc-dev-070-privacy-removal.mjs",
     "qc:dev-047-local-inventory": "node scripts/qc-dev-047-local-inventory.mjs",
     "qc:dev-032-release-gate-package": "node scripts/qc-dev-032-release-gate-package.mjs",
     "qc:dev-032-production-activation-checklist": "node scripts/qc-dev-032-production-activation-checklist.mjs",

@@ -33,23 +33,23 @@ record(
 );
 record(
   "AUTH-PERSIST-003 login route issues centralized persistent session cookie",
-  includesAll(loginRoute, ["createSessionCookie", '"set-cookie": createSessionCookie'])
+  includesAll(loginRoute, ["issueRegisteredLegacySessionCookieAsync", '"set-cookie": await issueRegisteredLegacySessionCookieAsync'])
 );
 record(
   "AUTH-PERSIST-004 auth/me refreshes only existing browser cookie sessions",
-  includesAll(meRoute, ["createSessionCookie", "hasSessionCookie(request)", '"set-cookie": createSessionCookie(user.id)', "SESSION_COOKIE_NAME"])
+  includesAll(meRoute, ["refreshRegisteredLegacySessionCookieAsync", "hasSessionCookie(request)", '"set-cookie": await refreshRegisteredLegacySessionCookieAsync', "SESSION_COOKIE_NAME"])
 );
 record(
   "AUTH-PERSIST-005 auth/me does not refresh bearer-only auth",
-  includesAll(meRoute, ["headers = hasSessionCookie(request) ?"])
+  includesAll(meRoute, ["headers = hasSessionCookie(request)", 'getAuthMode() !== "firebase_bff"'])
 );
 record(
-  "AUTH-PERSIST-006 async auth reads centralized cookie name",
-  includesAll(authAsyncSource, ["SESSION_COOKIE_NAME", ".get(SESSION_COOKIE_NAME)"])
+  "AUTH-PERSIST-006 async auth uses the centralized session token reader",
+  includesAll(authAsyncSource, ["getSessionToken", "const token = getSessionToken(request)"])
 );
 record(
   "AUTH-PERSIST-007 logout still clears browser session cookie",
-  includesAll(logoutRoute, ["createLogoutCookie", '"set-cookie": createLogoutCookie()']) &&
+  includesAll(logoutRoute, ["createLogoutCookie", 'response.headers.append("set-cookie", createLogoutCookie())']) &&
     includesAll(authSource, ["Max-Age=0"])
 );
 record(

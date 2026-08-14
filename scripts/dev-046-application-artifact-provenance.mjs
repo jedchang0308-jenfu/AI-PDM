@@ -13,8 +13,6 @@ export const DEV046_DEPLOYED_IMAGE =
 export const DEV046_ACCEPTED_ROUTES = [
   ["/api/auth/employee-login-intents", "src/app/api/auth/employee-login-intents/route.ts"],
   ["/api/auth/firebase/session", "src/app/api/auth/firebase/session/route.ts"],
-  ["/api/privacy/notice", "src/app/api/privacy/notice/route.ts"],
-  ["/api/privacy/acknowledgements/current", "src/app/api/privacy/acknowledgements/current/route.ts"],
   ["/api/account/sessions", "src/app/api/account/sessions/route.ts"],
   ["/api/admin/accounts/[userId]/login-aliases", "src/app/api/admin/accounts/[userId]/login-aliases/route.ts"],
   ["/api/admin/accounts/[userId]/login-aliases/[aliasId]", "src/app/api/admin/accounts/[userId]/login-aliases/[aliasId]/route.ts"]

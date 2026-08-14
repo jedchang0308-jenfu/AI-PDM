@@ -2,8 +2,6 @@ import type { NextResponse } from "next/server";
 import {
   FIREBASE_BFF_SESSION_COOKIE_MAX_AGE_SECONDS,
   FIREBASE_HOSTING_SESSION_COOKIE_NAME,
-  PRIVACY_PENDING_COOKIE_MAX_AGE_SECONDS,
-  PRIVACY_PENDING_COOKIE_NAME,
   SESSION_COOKIE_NAME,
   isSecureCookieEnabled
 } from "@/lib/auth";
@@ -37,21 +35,6 @@ export function clearFirebaseBffSessionResponseCookies(response: NextResponse) {
     maxAge: 0
   });
   response.cookies.set(SESSION_COOKIE_NAME, "", {
-    ...HTTP_ONLY_COOKIE_OPTIONS,
-    maxAge: 0
-  });
-}
-
-export function setPrivacyPendingResponseCookie(response: NextResponse, token: string) {
-  assertPlatformCookieToken(token, "PRIVACY_PENDING_COOKIE_TOKEN_INVALID");
-  response.cookies.set(PRIVACY_PENDING_COOKIE_NAME, token, {
-    ...HTTP_ONLY_COOKIE_OPTIONS,
-    maxAge: PRIVACY_PENDING_COOKIE_MAX_AGE_SECONDS
-  });
-}
-
-export function clearPrivacyPendingResponseCookie(response: NextResponse) {
-  response.cookies.set(PRIVACY_PENDING_COOKIE_NAME, "", {
     ...HTTP_ONLY_COOKIE_OPTIONS,
     maxAge: 0
   });
