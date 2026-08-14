@@ -139,3 +139,22 @@ Region：`asia-east1`
 `TOPOLOGY PASS / STAGING MIGRATION PASS / STAGING AUTHENTICATED CRUD PASS / PRODUCTION TOPOLOGY PASS / PRODUCTION AUTHENTICATED CANARY PENDING / BILLING OUT OF SCOPE`。
 
 Production browser OAuth account chooser 在本輪未完成可追溯 session 回跳；因此 `QA069-011`（10 分鐘 named-user soak）與 `QA069-013`（named-user canary）維持 `NOT EXECUTED/PENDING`，不得以 `/login=200`、`/api/auth/mode=200` 或 unauth `401` 代替。Production 未修改。
+
+## 9. QC failure re-open: live Production 500 (2026-08-14 01:27 UTC)
+
+本節是後續 QC 的獨立失敗紀錄，不覆寫既有 Staging／topology PASS。
+
+### 9.1 Fact evidence
+
+- Production authenticated browser read-only soak：10 次 route reload，登入 session 未掉出、頁面可見錯誤為 0。
+- Cloud Run request log：26 筆 HTTP 500，集中於 `GET /api/approvals/inbox?limit=100&status=pending`，revision `ai-pdm-prod-00017-bhw`。
+- stderr：PostgreSQL SQLSTATE `42P01`，`relation "part_cost_change_requests" does not exist`。
+- Live revision provenance：source `f70c89821b717e6e98e3a6ef855af47e4b4a69dc`，image `sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91`。
+
+### 9.2 RD disposition
+
+根因是 schema migration 032 已移除退役成本表，但 Production 仍執行包含 legacy part-cost inbox adapter 的舊 application image。DEV-069 分支 `323b1167422dd48dbd5310af7e0183ddce23020b` 已包含完整 runtime removal，並已推送至 `origin/codex/dev-069-cost-optimization`；沒有修改 Cloud SQL、IAM 或新增付費資源。
+
+### 9.3 QC verdict
+
+`QA069-011 FAIL / REOPEN`、`QA069-013 FAIL / REOPEN`。本次不能宣稱 Production operability 或 overall `FINAL PASS`；Production 尚未因本輪而變更。必須先依既有 GitHub production workflow 完成 exact-main release candidate、candidate smoke、canonical named-user canary 與 10 分鐘 soak，並證明該 endpoint HTTP 5xx=0，才能重新執行 QC。Billing 仍依使用者指示 OUT OF SCOPE。

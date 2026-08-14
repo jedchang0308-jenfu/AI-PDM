@@ -380,3 +380,16 @@ QC 應依 `G0 → G1 → G2 → G3 → G4 → G5 → G6` 執行並做獨立事�
 `TOPOLOGY PASS / STAGING AUTHENTICATED CRUD PASS / PRODUCTION TOPOLOGY PASS / PRODUCTION AUTHENTICATED CANARY PENDING / BILLING OUT OF SCOPE`。
 
 Production `/login`、`/api/auth/mode`、unauthenticated boundary 已有 HTTP smoke；但 Google account chooser 未完成可追溯的 browser session 回跳，因此 `QA069-013` 與 `QA069-011` 仍不得標 PASS。整體 `FINAL PASS` 的唯一 in-scope 缺口仍是 Production named-user canary／10 分鐘 soak；本輪沒有 Production mutation。
+
+## 9. Production soak failure and RD re-open (2026-08-14 01:27 UTC)
+
+本節補記 10 分鐘 Production authenticated read-only soak 的失敗結果；不得以本節覆寫前述 Staging PASS 或 topology PASS。
+
+- Browser route `https://jenfu-ai-pdm-prod.web.app/numbering/search?tab=reserved` 取樣 10 次；每次均保留登入 session、route ready、無可見 UI error。
+- 但 Cloud Run request logs 在同一窗口發現 26 筆 HTTP 500，全部集中於 `GET /api/approvals/inbox?limit=100&status=pending`，revision `ai-pdm-prod-00017-bhw`。
+- Cloud Run stderr root cause：PostgreSQL `42P01`，`relation "part_cost_change_requests" does not exist`。
+- Live app source/image 仍是 `f70c89821b717e6e98e3a6ef855af47e4b4a69dc` / `sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91`；該版本仍呼叫已由 migration 032 移除的 legacy part-cost adapter。
+- RD resolution candidate 為 DEV-069 commit `323b1167422dd48dbd5310af7e0183ddce23020b`，已移除 approval inbox／legacy decision flow 對退役成本表的 runtime 依賴；分支已推送至 `origin/codex/dev-069-cost-optimization`。
+- 因 Production workflow 要求 exact commit 在 `main` 且目前環境沒有 `gh` CLI，尚未完成 PR／merge／candidate deployment；Production 仍未修復。
+
+QA 判定：`QA069-011 FAIL / REOPEN`、`QA069-013 FAIL / REOPEN`、`PRODUCTION RELEASE BLOCKED`。修正後必須以 current image 完成 candidate smoke、canonical named-user canary、10 分鐘 soak，且 Cloud Run 5xx=0，才可重判 PASS。Billing 維持 OUT OF SCOPE。

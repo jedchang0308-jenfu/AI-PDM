@@ -1135,6 +1135,7 @@ Owner：Dev PM
   - 後續量測：24～72 小時後檢查 Billing SKU 是否停止新增 ALB、Restore 與 Regional CPU/RAM 費用；偏差超過 20% 時另立改善 DEV，不回滾已驗證的低成本 topology。
   - 計入交付：核心開發與 live release 已完成；帳務 observation 是 provider-latency follow-up，不得提前宣稱實際發票已降至預估值。
   - 2026-08-14 QC continuation：本機 Terraform 1.14.5（不使用 Docker）Production／Staging validate 0 error／0 warning，DEV-069 focused QC 17/17；兩套 remote state refresh-only plan exit 0 且 resource action 0。Live readback 維持 Production `RUNNABLE/db-f1-micro/ZONAL/ALWAYS`、Staging `STOPPED/db-f1-micro/ZONAL/NEVER`、edge inventory 0、Restore exact target absent。Production authenticated named-user canary／10 分鐘 soak 尚未取得可追溯證據，故本 DEV 不宣稱 overall FINAL PASS。
+  - 2026-08-14 Production soak re-open：10 次 authenticated read-only route reload 雖無可見 UI error，但 Cloud Run request log 發現 26 筆 `/api/approvals/inbox?limit=100&status=pending` HTTP 500；stderr 根因為 PostgreSQL `42P01 relation "part_cost_change_requests" does not exist`。Production revision 仍為 source `f70c898…` 舊 image；DEV-069 commit `323b116…` 已含退役成本 runtime removal 並推送至 `origin/codex/dev-069-cost-optimization`，但尚未合併 `main`／完成 candidate release，因此原「error=0」僅能視為較早窗口的歷史讀值，當前 Production operability 改判 `FAIL / REOPEN`。
 
 - ✓ DEV-042 [交付點] [本地完成] [P0] 內部帳號邀請與首次密碼設定
   - 摘要：在不引入 Google OAuth 或完整 IAM 的前提下，讓 Admin 建立一次性邀請連結，受邀者自行設定密碼並登入。
