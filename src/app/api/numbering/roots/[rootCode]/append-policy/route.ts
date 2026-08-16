@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
+import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { previewAppendNumbersAsync } from "@/lib/number-candidate-preview";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { getNumberingRootDetailAsync } from "@/lib/numbering-async";
-import {
-  formatDrawingNumberForRule,
-  formatDrawingSequenceForRule,
-  formatPartNumberForRule,
-  formatPartSequenceForRule
-} from "@/lib/numbering-identity";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
@@ -22,10 +18,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
   const detail = await getNumberingRootDetailAsync(decodeURIComponent(rootCode), companyResult.company.companyId);
   if (!detail) return NextResponse.json({ error: "PART_ROOT_NOT_FOUND" }, { status: 404 });
 
-  const ruleVersionId = detail.root.ruleVersionId;
-  const nextPartSequence = nextSequence(detail.partNumbers.map((part) => part.sequenceNo));
-  const nextMSequence = nextSequence(detail.drawingNumbers.filter((drawing) => drawing.purposeCode === "M").map((drawing) => drawing.sequenceNo));
-  const nextRSequence = nextSequence(detail.drawingNumbers.filter((drawing) => drawing.purposeCode === "R").map((drawing) => drawing.sequenceNo));
+  const client = getAsyncDatabaseClient();
+  const [manufacturingPreview, referencePreview] = await Promise.all([
+    previewAppendNumbersAsync(client, companyResult.company.companyId, detail.root.rootCode, "M"),
+    previewAppendNumbersAsync(client, companyResult.company.companyId, detail.root.rootCode, "R")
+  ]);
   const reasonRequired = [detail.root.recordStatus, ...detail.partNumbers.map((part) => part.recordStatus), ...detail.drawingNumbers.map((drawing) => drawing.recordStatus)].some(
     (status) => status === "Active" || status === "Released" || status === "MainDrawingInvalid"
   );
@@ -37,14 +34,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
     locked,
     reasonRequired,
     nextNumbers: {
-      part: formatPartNumberForRule(detail.root.rootCode, formatPartSequenceForRule(nextPartSequence, ruleVersionId), ruleVersionId),
-      drawingM: formatDrawingNumberForRule(detail.root.rootCode, "M", formatDrawingSequenceForRule(nextMSequence, ruleVersionId), ruleVersionId),
-      drawingR: formatDrawingNumberForRule(detail.root.rootCode, "R", formatDrawingSequenceForRule(nextRSequence, ruleVersionId), ruleVersionId)
+      part: manufacturingPreview.part,
+      drawingM: manufacturingPreview.drawing,
+      drawingR: referencePreview.drawing
     },
+    drawings: detail.drawingNumbers.map((drawing) => ({
+      id: drawing.id,
+      drawingNumber: drawing.drawingNumber,
+      purposeCode: drawing.purposeCode,
+      recordStatus: drawing.recordStatus
+    })),
     pdmCompany: companyResult.company
   });
-}
-
-function nextSequence(values: number[]) {
-  return values.length === 0 ? 1 : Math.max(...values) + 1;
 }

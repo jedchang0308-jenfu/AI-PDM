@@ -7,6 +7,8 @@ Related DEV: `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
 Authority: `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`（DEV-067 RD Implementation Contract）
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
 
+> 2026-08-14 follow-up：DEV-067 的 composer、projection、review lock、preview parity 與 safe-return PASS 保持有效；action visibility／locked reason／stable-order 的新產品規則由獨立 DEV-072 與 `.ai-doc/qa/qa-dev-072-pdm-action-discoverability-ai-real-operation-validation-plan-2026-08-14.md` 管理，不回寫或偽造本歷史 run 的驗證結果。
+
 ## 1. Objective and quality boundary
 
 This plan verifies that Drawing, Part and Relation use one visible detail composer and the same domain projections across candidate/formal/history/review contexts, while preserving domain data/command authority. It also verifies that an assigned reviewer receives a server-scoped full aggregate over the same locked owner data and returns to the original approval inbox state.

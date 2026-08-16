@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-032",
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "runtimeService": "ai-pdm-prod",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "database": "ai_pdm",
+    "canonicalBaseUrl": "https://jenfu-ai-pdm-prod.web.app"
+  },
+  "artifact": {
+    "applicationSourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+    "applicationImageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+    "runtimeLinuxAmd64Digest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+    "migrationSourceRevision": "b22955c16fbbb4e4a8547f748e01afbdc8ca0274",
+    "migrationImageDigest": "sha256:9dda48d5192f16b3a6573eaf32e77249d0fc363c63554e35bf7e23de4e7ad194"
+  },
+  "hotfix": {
+    "id": "hotfix-1936e93d",
+    "reason": "Cast numbering audit JSONB before LIKE on Cloud SQL Postgres.",
+    "baseActivationSourceRevision": "68b89f088b46a2e66b6949c177549f9e51054f7d",
+    "cloudBuildId": "297a7aa4-6257-4834-b1ae-fd8d964ad054",
+    "imageTag": "prod-hotfix-1936e93d",
+    "previousTrafficRevision": "ai-pdm-prod-00006-lx5",
+    "currentTrafficRevision": "ai-pdm-prod-00010-quc",
+    "taggedSmokePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-tag-smoke.json",
+    "postTrafficSmokePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-post-traffic-smoke.json",
+    "level4EvidencePath": "output/dev-032-production-slice-activation/hotfix-1936e93d-level4-ui.json"
+  },
+  "currentRelease": {
+    "deploymentKind": "github-actions-keyless",
+    "repository": "jedchang0308-jenfu/AI-PDM",
+    "workflowRunId": 29636150040,
+    "workflowArtifactId": 8427222934,
+    "workflowArtifactDigest": "sha256:c00f93f561d23ce9b16378e97840be5f748976fb9474faf59826aa4e952749d3",
+    "workflowArtifactExpiresAt": "2026-08-17T08:00:06Z",
+    "sourceRevision": "f70c89821b717e6e98e3a6ef855af47e4b4a69dc",
+    "revision": "ai-pdm-prod-gh-f70c8982-29636150040",
+    "imageDigest": "sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91",
+    "previousTrafficRevision": "ai-pdm-prod-gh-053a672e-29581231622",
+    "evidencePath": "output/dev-032-production-slice-activation/github-f70c8982-release-evidence.json",
+    "historicalInfrastructureClosurePath": "output/dev-032-production-activation-readiness/historical-activation-closure-hotfix-1936e93d.json",
+    "authenticatedLevel4Status": "pending_current_release"
+  },
+  "executions": {
+    "principalBootstrap": "ai-pdm-prod-migration-runner-95bn8",
+    "preCanaryReconciliation": "ai-pdm-prod-migration-runner-2szd5",
+    "restoreReconciliation": "ai-pdm-prod-migration-runner-9ss25"
+  },
+  "recovery": {
+    "backupId": "1784162806569",
+    "restoreTarget": "ai-pdm-prod-restore-20260716a",
+    "numberingSnapshotSha256": "81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57"
+  },
+  "initialPrincipal": {
+    "pdmUserId": "prod-pdm-admin-001",
+    "email": "jedchang0308@jenfu.com.tw",
+    "firebaseUid": "U57t2eIOzLdhAmNDUbFyOz3fdMm2",
+    "expectedRoleCount": 9,
+    "expectedPermissionCount": 237
+  },
+  "wave0": {
+    "minimumNamedUsers": 3,
+    "maximumNamedUsers": 5,
+    "namedUsers": [
+      "jedchang0308@jenfu.com.tw"
+    ],
+    "allowlistMode": "named-google-workspace-users-only",
+    "failClosed": true,
+    "authenticatedLevel4Status": "pending_current_release",
+    "productOwnerDecision": "pending"
+  },
+  "decisions": {
+    "customDnsDeferred": true,
+    "fixedFiveBusinessDayObservationCancelled": true,
+    "phase3aFileAuthorityEnabled": false
+  }
+}

@@ -1,0 +1,66 @@
+[
+  {
+    "label": "locked-desktop",
+    "actions": [
+      {
+        "id": "detail:drawing:edit",
+        "label": "圖面維護",
+        "group": "object",
+        "order": 100,
+        "enabled": true,
+        "primary": true
+      },
+      {
+        "id": "detail:drawing:submit_review",
+        "label": "送交審核",
+        "group": "workflow",
+        "order": 200,
+        "enabled": false,
+        "primary": false
+      },
+      {
+        "id": "detail:navigation:return",
+        "label": "返回",
+        "group": "utility",
+        "order": 910,
+        "enabled": true,
+        "primary": false
+      }
+    ],
+    "primary": [
+      "detail:drawing:edit"
+    ]
+  },
+  {
+    "label": "first-candidate-upload",
+    "actions": [
+      {
+        "id": "detail:drawing:edit",
+        "label": "圖面維護",
+        "group": "object",
+        "order": 100,
+        "enabled": true,
+        "primary": true
+      },
+      {
+        "id": "detail:drawing:submit_review",
+        "label": "送交審核",
+        "group": "workflow",
+        "order": 200,
+        "enabled": true,
+        "primary": false
+      },
+      {
+        "id": "detail:navigation:return",
+        "label": "返回",
+        "group": "utility",
+        "order": 910,
+        "enabled": true,
+        "primary": false
+      }
+    ],
+    "primary": [
+      "detail:drawing:edit"
+    ]
+  }
+]

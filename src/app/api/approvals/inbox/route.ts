@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireRoleAsync } from "@/lib/auth-async";
 import { listApprovalPlatformInboxAsync } from "@/lib/approval-platform";
-import type { ApprovalPlatformStatus } from "@/lib/repositories/approval-platform-async-repository";
+import type { ApprovalPlatformInboxCursor, ApprovalPlatformStatus } from "@/lib/repositories/approval-platform-async-repository";
 import { isPdmEntityDetailV1Enabled } from "@/lib/number-state-flow-feature";
 import { isSafePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
+import { buildPdmApprovalOwnerHref } from "@/lib/pdm-approval-owner-route";
+import { decodePdmWorkbenchCursor, encodePdmWorkbenchCursor, pdmWorkbenchFilterHash, PdmWorkbenchCursorError } from "@/lib/pdm-workbench-cursor";
 
 export const runtime = "nodejs";
 const reviewerRoles = ["R&D Manager", "Admin"] as const;
@@ -35,47 +37,70 @@ export async function GET(request: Request) {
   const companyId = auth.user.company_id || undefined;
   const domainCode = url.searchParams.get("domain")?.trim() || undefined;
   const actionCode = url.searchParams.get("action")?.trim() || undefined;
-  const items = await listApprovalPlatformInboxAsync({ companyId, actorId: auth.user.id, status, limit, domainCode, actionCode });
+  const query = normalizeApprovalQuery(url.searchParams.get("query"));
+  const filterHash = pdmWorkbenchFilterHash({
+    namespace: "approval-inbox-v1",
+    filters: { status, domain: domainCode ?? "all", action: actionCode ?? "all", query, limit },
+    companyId: companyId ?? "",
+    actorId: auth.user.id
+  });
+  const cursorValue = url.searchParams.get("cursor")?.trim() || null;
+  let cursor: ApprovalPlatformInboxCursor | null = null;
+  let cursorPageIndex: number | null = null;
+  if (cursorValue) {
+    try {
+      const decoded = decodePdmWorkbenchCursor(cursorValue, filterHash);
+      cursor = { sortValue: decoded.sortValue ?? decoded.updatedAt, rowKey: decoded.rowKey, direction: decoded.direction };
+      cursorPageIndex = decoded.pageIndex ?? null;
+    } catch (error) {
+      const message = error instanceof PdmWorkbenchCursorError ? error.message : "這個清單位置已失效，請從第一頁重新查詢。";
+      return NextResponse.json({ error: { code: "workbench_invalid_cursor", message, retryable: true } }, { status: 400 });
+    }
+  }
+  const page = await listApprovalPlatformInboxAsync({ companyId, actorId: auth.user.id, status, limit, domainCode, actionCode, query, cursor });
   const requestedReturnTo = url.searchParams.get("returnTo") ?? "";
-  const returnTo = isSafePdmApprovalReturnTo(requestedReturnTo) ? requestedReturnTo : `/approvals${url.search ? `?${url.searchParams.toString()}` : ""}`;
-  const ownerItems = isPdmEntityDetailV1Enabled() ? items.map((item) => ({ ...item, ownerHref: approvalOwnerHref(item, returnTo) ?? undefined })) : items;
+  const returnTo = isSafePdmApprovalReturnTo(requestedReturnTo) ? requestedReturnTo : buildApprovalReturnTo(url);
+  const ownerItems = isPdmEntityDetailV1Enabled() ? page.items.map((item) => ({ ...item, ownerHref: buildPdmApprovalOwnerHref(item, returnTo) ?? undefined })) : page.items;
+  const pageIndex = cursorPageIndex ?? normalizePageIndex(url.searchParams.get("page"));
 
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
-    summary: {
-      total: ownerItems.length,
-      pending: ownerItems.filter((item) => item.status === "pending").length,
-      needsInfo: ownerItems.filter((item) => item.status === "needs_info").length,
-      applyFailed: ownerItems.filter((item) => item.status === "apply_failed").length
-    },
-    items: ownerItems
+    summary: page.summary,
+    rows: ownerItems,
+    items: ownerItems,
+    nextCursor: page.nextCursor ? encodeApprovalCursor(page.nextCursor, filterHash, pageIndex + 1) : null,
+    previousCursor: page.previousCursor ? encodeApprovalCursor(page.previousCursor, filterHash, Math.max(0, pageIndex - 1)) : null,
+    pageIndex,
+    filters: { status, domain: domainCode ?? "all", action: actionCode ?? "all", query }
   });
 }
 
-function approvalOwnerHref(item: { source: string; actionCode: string; id: string; primaryTarget?: { type: string; targetId: string } }, returnTo: string) {
-  // Legacy records do not have the native request/target scope receipt yet.
-  // Keep them on the existing drawer rather than emitting an unverifiable URL.
-  if (item.source !== "platform") return null;
-  const target = item.primaryTarget;
-  if (!target) return null;
-  const covered = new Set([
-    "numbering.candidate_bundle_review",
-    "numbering.candidate_publication_review",
-    "numbering.drawing_revision_lifecycle_review",
-    "numbering.drawing_revision_impact_review",
-    "numbering.same_drawing_variant_after_release",
-    "numbering.main_drawing_restore",
-    "numbering.obsolete_part_number",
-    "numbering.obsolete_ma_drawing",
-    "numbering.obsolete_part_root",
-    "numbering.release",
-    "numbering.release_missing_ma_confirm"
-  ]);
-  if (!covered.has(item.actionCode)) return null;
-  const targetType = target.type.toLowerCase();
-  const surface = targetType.includes("workspace") || targetType.includes("root") ? "relation" : targetType.includes("drawing") ? "drawing" : "part";
-  const prefix = surface === "drawing" ? "drawing" : surface === "part" ? "part" : targetType.includes("workspace") ? "candidate" : "root";
-  const path = surface === "drawing" ? "/numbering/drawings" : surface === "part" ? "/parts" : "/numbering/search";
-  const params = new URLSearchParams({ detail: `${prefix}:${target.targetId}`, reviewRequestId: item.id, returnTo });
-  return `${path}?${params.toString()}`;
+function encodeApprovalCursor(cursor: { sortValue: string; rowKey: string; direction?: "after" | "before" }, filterHash: string, pageIndex: number) {
+  return encodePdmWorkbenchCursor({
+    version: 1,
+    filterHash,
+    updatedAt: cursor.sortValue,
+    sortValue: cursor.sortValue,
+    rowKey: cursor.rowKey,
+    direction: cursor.direction,
+    pageIndex
+  });
+}
+
+function normalizePageIndex(value: string | null) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
+}
+
+function normalizeApprovalQuery(value: string | null) {
+  return (value ?? "").trim().replace(/\s+/gu, " ").slice(0, 160);
+}
+
+function buildApprovalReturnTo(url: URL) {
+  const params = new URLSearchParams(url.searchParams);
+  params.delete("cursor");
+  params.delete("page");
+  params.delete("returnTo");
+  const query = params.toString();
+  return `/approvals${query ? `?${query}` : ""}`;
 }

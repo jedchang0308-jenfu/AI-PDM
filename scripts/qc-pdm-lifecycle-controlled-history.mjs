@@ -21,6 +21,12 @@ const submissionsRoute = readRequired("src/app/api/submissions/route.ts");
 const searchRoute = readRequired("src/app/api/search/route.ts");
 const submissionListRepository = readRequired("src/lib/repositories/submission-list-async-repository.ts");
 const dashboard = readRequired("src/components/dashboard.tsx");
+const submissionDetailPage = readRequired("src/app/submissions/[id]/page.tsx");
+const submissionApproveRoute = readRequired("src/app/api/submissions/[id]/approve/route.ts");
+const submissionCheckoutRoute = readRequired("src/app/api/submissions/[id]/checkout/route.ts");
+const submissionSandboxRoute = readRequired("src/app/api/submissions/[id]/sandbox/route.ts");
+const submissionStatusRepository = readRequired("src/lib/repositories/submission-status-async-repository.ts");
+const submissionReleaseWorkflow = readRequired("src/lib/submission-release-workflow.ts");
 const types = readRequired("src/lib/types.ts");
 const globalCss = readRequired("src/app/globals.css");
 const responsiveCss = readRequired("src/app/styles/responsive.css");
@@ -33,6 +39,7 @@ assert(types.includes("export type ControlledHistoryEntry"), "Controlled-history
 assert(types.includes('"numbering_part_number"') && types.includes('"numbering_drawing_number"') && types.includes('"bom_release"'), "Controlled-history type supports cross-entity history");
 assert(types.includes('traceability_class: "controlled_history"'), "Controlled-history entry is traceability-classed");
 assert(types.includes("delete: false") && types.includes("restore: false") && types.includes("obsolete: false"), "Controlled-history actions are immutable in the type contract");
+assert(types.includes("SubmissionReleaseActionability") && types.includes("release_actionability?"), "Submission detail exposes terminal-master release actionability");
 
 assert(controlledHistoryRoute.includes("requireAuthAsync"), "Controlled-history route requires authentication");
 assert(controlledHistoryRoute.includes("resolvePdmCompanyContextAsync"), "Controlled-history route enforces company context");
@@ -50,7 +57,11 @@ assert(controlledHistoryRoute.includes('result_label: "已作廢"'), "Controlled
 assert(controlledHistoryRoute.includes("delete: false") && controlledHistoryRoute.includes("restore: false"), "Controlled-history route disables delete and restore actions");
 assert(bomWorkbenchAsync.includes("listObsoleteBomWorkbenchHistoryAsync"), "BOM async facade exposes obsolete history helper");
 assert(bomWorkbenchRepository.includes("SELECT_ASYNC_BOM_WORKBENCH_OBSOLETE_HISTORY_SQL"), "BOM repository has controlled-history SQL");
-assert(bomWorkbenchRepository.includes("s.company_id = :companyId"), "BOM controlled-history SQL is company scoped through parent submission");
+assert(
+  bomWorkbenchRepository.includes("COALESCE(d.company_id, s.company_id) = :companyId") ||
+    bomWorkbenchRepository.includes("s.company_id = :companyId"),
+  "BOM controlled-history SQL is company scoped through canonical draft ownership with legacy submission fallback"
+);
 assert(bomWorkbenchRepository.includes("COALESCE(rr.lifecycle_action, 'release') = 'obsolete'"), "BOM controlled-history SQL only uses obsolete lifecycle reviews");
 
 assert(submissionListRepository.includes("includeHistory?: boolean"), "Submission list/search supports explicit history inclusion");
@@ -71,14 +82,57 @@ assert(dashboard.includes("data-controlled-history-row"), "Controlled-history ro
 assert(dashboard.includes("data-controlled-history-actions"), "Controlled-history immutable actions have stable QC selector");
 assert(dashboard.includes("受控歷史"), "Dashboard exposes 受控歷史 entry");
 assert(dashboard.includes("查看追溯"), "Controlled-history UI exposes traceability CTA");
-assert(dashboard.includes("正式料號") && dashboard.includes("正式圖號") && dashboard.includes("正式 BOM"), "Controlled-history UI labels cross-entity history with simple PDM nouns");
+assert(
+  dashboard.includes('submission: "正式圖面"') &&
+    dashboard.includes('numbering_part_number: "料號"') &&
+    dashboard.includes('numbering_drawing_number: "圖號"') &&
+    dashboard.includes('bom_release: "正式 BOM"'),
+  "Controlled-history UI labels cross-entity history with current simple PDM nouns"
+);
 assert(dashboard.includes('entry.entity_type === "submission"'), "Controlled-history UI only opens submission detail when detail route exists");
 assert(dashboard.includes("責任鏈已列出"), "Controlled-history UI keeps non-submission history self-contained");
 assert(dashboard.includes("loadControlledHistory"), "Dashboard loads controlled-history data independently");
 assert(dashboard.includes("/api/lifecycle/controlled-history?limit=50"), "Dashboard calls controlled-history API");
 assert(dashboard.includes("openControlledHistoryEntry"), "Dashboard can open controlled-history detail traceability");
 assert(dashboard.includes("controlledHistoryEntries.some"), "Dashboard keeps selected history detail open even outside daily list");
-assert(dashboard.includes("isSubmissionStatusOrAll") && !dashboard.match(/function isSubmissionStatusOrAll[\s\S]*?}\n/)?.[0].includes("Obsolete"), "Legacy saved status filters cannot force Obsolete into daily tabs");
+assert(
+  dashboard.includes('submissionTerminalReadOnly') &&
+    dashboard.includes('SUBMISSION_RELEASE_TERMINAL_MASTER') &&
+    dashboard.includes("正式圖料已結束，這筆送審只供追溯") &&
+    dashboard.includes("返回圖料歷史"),
+  "Dashboard projects terminal-master submissions as traceability-only"
+);
+assert(
+  submissionDetailPage.includes("terminalMasterReadOnly") &&
+    submissionDetailPage.includes("!terminalMasterReadOnly && canManageRelease") &&
+    submissionDetailPage.includes("返回圖料歷史"),
+  "Full submission detail removes approval and cancellation from terminal-master history"
+);
+assert(
+  submissionStatusRepository.includes("getSubmissionReleaseActionability") &&
+    submissionStatusRepository.includes('code: "SUBMISSION_RELEASE_TERMINAL_MASTER"') &&
+    submissionStatusRepository.includes("terminal_entities"),
+  "Release repository resolves root, drawing and part terminal states"
+);
+assert(
+  submissionApproveRoute.indexOf("const releaseActionability = await getSubmissionReleaseActionabilityAsync") >= 0 &&
+    submissionApproveRoute.indexOf("const releaseActionability = await getSubmissionReleaseActionabilityAsync") < submissionApproveRoute.indexOf("await addApprovalAsync"),
+  "Approval route blocks terminal-master submissions before writing a decision"
+);
+assert(
+  submissionReleaseWorkflow.indexOf("const releaseActionability = await getSubmissionReleaseActionabilityAsync") >= 0 &&
+    submissionReleaseWorkflow.indexOf("const releaseActionability = await getSubmissionReleaseActionabilityAsync") < submissionReleaseWorkflow.indexOf("await markSubmissionReleasingAsync"),
+  "Release workflow blocks terminal-master submissions before Releasing mutation"
+);
+assert(
+  submissionCheckoutRoute.includes("release_actionability") && submissionSandboxRoute.includes("release_actionability"),
+  "Checkout and sandbox creation reject terminal-master submissions server-side"
+);
+const submissionStatusGuardMatch = dashboard.match(/function isSubmissionStatusOrAll[\s\S]*?\r?\n}/);
+assert(
+  Boolean(submissionStatusGuardMatch) && !submissionStatusGuardMatch?.[0].includes('value === "Obsolete"'),
+  "Legacy saved status filters cannot force Obsolete into daily tabs"
+);
 
 assert(globalCss.includes(".controlled-history-panel"), "Controlled-history panel styles exist");
 assert(globalCss.includes(".controlled-history-table"), "Controlled-history table styles exist");

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
-import { canReadBomDraftRecordAsync } from "@/lib/bom-create-context";
+import { canManageBomDraftRecordAsync } from "@/lib/bom-create-context";
 import { getBomWorkbenchDraftByIdAsync, setBomWorkbenchActiveDraftAsync } from "@/lib/bom-workbench-async";
 
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
   }
 
-  if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
+  if (!(await canManageBomDraftRecordAsync(auth.user, draft))) return forbidden();
 
   try {
     return NextResponse.json({

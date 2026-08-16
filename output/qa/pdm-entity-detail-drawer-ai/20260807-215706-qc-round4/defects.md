@@ -1,6 +1,6 @@
 # Defects
 
-## QC-DRAWER-R4-001 — P0 — 圖料模組料號鍵盤操作沒有切換精確目標
+## QC-DRAWER-R4-001 — P0 — 圖料工作台料號鍵盤操作沒有切換精確目標
 
 - Route: `/numbering/search`
 - Viewport: `1440x900`

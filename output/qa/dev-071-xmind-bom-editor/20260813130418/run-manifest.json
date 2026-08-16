@@ -1,0 +1,326 @@
+{
+  "runId": "20260813130418",
+  "checkedAt": "2026-08-13T13:05:34.098Z",
+  "baseRoute": "/bom/workbench/bf24bcfc-2791-48c9-9296-d8d624ad6087",
+  "viewports": [
+    "1440x900",
+    "1024x768",
+    "768x1024",
+    "390x844"
+  ],
+  "productionConnected": false,
+  "productionWrites": false,
+  "openP0": 0,
+  "openP1": 0,
+  "cleanupStatus": "removed",
+  "screenshots": [
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\14-impacted-topic-picker.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\15-impacted-insert-menu.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\16-impacted-more-menu.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\17-impacted-draft-delete-dialog.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\01-1440-toolbar-map-initial.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\02-1440-floating-stage.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\03-1440-unresolved-review-blocker.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\04-1440-outliner-shared-state.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\05-1440-branch-focus-recovery.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\06-1440-delete-confirm.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\07-1440-drop-before-preview.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\08-1440-drop-child-preview.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\09-1440-drop-after-preview.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\10-1440-version-conflict-recovery.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\11-1024-map.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\12-768-map.png",
+    "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813130418\\13-390-outliner.png"
+  ],
+  "consoleErrors": [],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [
+    {
+      "url": "http://127.0.0.1:53624/api/bom/drafts/bf24bcfc-2791-48c9-9296-d8d624ad6087",
+      "status": 409,
+      "method": "PATCH"
+    }
+  ],
+  "results": [
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"ab85ff8c-07a4-4307-bc20-f507b66cbb76\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-26258845\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-26258845\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T13:04:44.358Z\",\"updated_at\":\"2026-08-13T13:04:44.358Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"ab85ff8c-07a4-4307-bc20-f507b66cbb76\",\"ownerPartNumberId\":\"dev071-browser-parent-part-26258845\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"1a790e73-1334-43d4-b280-cd5de0cd4876\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/ab85ff8c-07a4-4307-bc20-f507b66cbb76\"}"
+    },
+    {
+      "name": "CR-001 toolbar Topic opens canonical picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-001 canonical item inserted as Topic",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-002 toolbar Subtopic opens picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-002 keyboard Enter inserts first result",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-003 hover plus opens picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-003 hover plus inserts child",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "TB-005 Insert menu exposes Parent/Floating/Group",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "TB-005 Parent/Floating/Group actions complete",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "KB-008 leaf Delete is direct and reversible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "KB-008 Ctrl+Z restores leaf",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-004..007 More menu exposes lifecycle actions",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-006 clone action is enabled on saved Draft",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-006 clone creates and selects a new Draft",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-005 inactive Draft can be set active",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-007 delete shows high-risk impact confirmation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-007 confirmed delete completes",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"bf24bcfc-2791-48c9-9296-d8d624ad6087\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-26258845\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-26258845\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T13:05:15.669Z\",\"updated_at\":\"2026-08-13T13:05:15.669Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"bf24bcfc-2791-48c9-9296-d8d624ad6087\",\"ownerPartNumberId\":\"dev071-browser-parent-part-26258845\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"e1352685-ff33-4658-bf4c-ee7d4c233914\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/bf24bcfc-2791-48c9-9296-d8d624ad6087\"}"
+    },
+    {
+      "name": "toolbar has exact 10 XMind slots",
+      "passed": true,
+      "detail": "10"
+    },
+    {
+      "name": "toolbar slot order is monotonic",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    },
+    {
+      "name": "toolbar slots are 52px",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    },
+    {
+      "name": "KB-002 Map Tab opens subtopic picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "KB-001 Map Enter opens topic picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Enter Tab Ctrl+Enter create expected topics",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "double-click blank creates Floating Topic",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "unresolved Floating Topic has visible review blocker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "review button disabled while floating exists",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Ctrl+S saves both editor graphs",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Outliner renders formal and floating graphs",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "branch focus exposes full-content recovery",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Delete opens reversible branch confirmation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag before preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag child preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag after preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "concurrent winner saves before stale tab",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "stale UI gets visible 409 recovery",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "right inspector renders on desktop",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "bottom-right zoom controls render",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "1440x900 no horizontal overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "name": "login for 1024x768",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "1024x768 renders Map",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "1024x768 editor stays inside viewport",
+      "passed": true,
+      "detail": "{\"x\":252,\"y\":12,\"width\":760,\"height\":736}"
+    },
+    {
+      "name": "1024x768 no horizontal overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "name": "login for 768x1024",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "768x1024 renders Map",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "768x1024 editor stays inside viewport",
+      "passed": true,
+      "detail": "{\"x\":252,\"y\":12,\"width\":504,\"height\":992}"
+    },
+    {
+      "name": "768x1024 no horizontal overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "name": "login for 390x844",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "390x844 defaults to Outliner",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "390x844 editor stays inside viewport",
+      "passed": true,
+      "detail": "{\"x\":16,\"y\":98,\"width\":358,\"height\":730}"
+    },
+    {
+      "name": "390x844 no horizontal overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "name": "no unexpected console errors",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "no unexpected HTTP 4xx/5xx",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "expected 409 was observed",
+      "passed": true,
+      "detail": "[{\"url\":\"http://127.0.0.1:53624/api/bom/drafts/bf24bcfc-2791-48c9-9296-d8d624ad6087\",\"status\":409,\"method\":\"PATCH\"}]"
+    }
+  ]
+}

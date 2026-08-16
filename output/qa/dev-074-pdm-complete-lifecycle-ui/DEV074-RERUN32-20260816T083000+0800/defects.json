@@ -1,0 +1,20 @@
+[
+  {
+    "id": "DEV074-R32-P1-028",
+    "severity": "P1",
+    "path": "G01",
+    "title": "圖料根號作廢審核未顯示申請理由與鎖定的正式子目標",
+    "observed": "主管的統一審核抽屜只顯示圖料根號與 1 個抽象目標；申請理由及申請時鎖定的 10 個正式料號／圖號目標均不可見。",
+    "expected": "核准整個圖料根號作廢前，主管必須看見申請理由，以及申請時固定的所有正式作廢目標。",
+    "status": "fixed_targeted_ui_retest_passed",
+    "fix": [
+      "src/lib/repositories/approval-platform-async-repository.ts",
+      "src/lib/pdm-entity-detail-contract.ts",
+      "src/lib/pdm-entity-detail.ts",
+      "src/components/review-context-projection.tsx",
+      "scripts/qc-dev-074-root-obsolete-review-snapshot-visibility.mjs",
+      "package.json"
+    ],
+    "targeted_ui_evidence": "screenshots/G01/root-review-before-approve.png"
+  }
+]

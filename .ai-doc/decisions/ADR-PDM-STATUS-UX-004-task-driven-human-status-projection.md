@@ -41,7 +41,7 @@ AI PDM 已有中央狀態字典與狀態軸，但清單仍把 domain model 的�
 - 完成語言必須有證據；不得由 `Draft`、`NeedInfo` 或「沒有 blocker」推論成「已確認」。
 - human status 是 read projection，不寫回 domain status。
 - projector 在 server/domain read path 執行；API additive 回傳 projection，client 只 render，不得自行由 raw status 推導。
-- drawing／part owner module與圖料模組共用同一 projection及 detail component；drawer外殼統一使用既有 `PdmDetailDrawer`。
+- drawing／part owner module與圖料工作台共用同一 projection及 detail component；drawer外殼統一使用既有 `PdmDetailDrawer`。
 - `HumanStatusProjection` 保留客觀業務結論；`ViewerHumanStatusProjection` 只回答「對目前登入者而言誰要動作」。兩者不得互相覆寫。
 - 個人 assignee/reviewer 是第一責任證據；沒有個人指派模型時才使用 role capability。此為 deterministic rule engine，不使用生成式 AI 猜測。
 - 所有 viewer-specific read API 使用 `private, no-store`；server filter 依 viewer category 執行。

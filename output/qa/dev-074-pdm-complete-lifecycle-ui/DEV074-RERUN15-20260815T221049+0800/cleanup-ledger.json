@@ -1,0 +1,4 @@
+{
+  "policy":"UI-only lifecycle cleanup; immutable/history data retained by design",
+  "records":[]
+}

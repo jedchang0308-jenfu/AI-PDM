@@ -1,13 +1,16 @@
 # ADR-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001：既有保留號加法式導入與核准後自動正式化
 
-Status: `Accepted / RD Implementation Ready / Not Implemented / Production Release Gated`
+Status: `Accepted / Local Implemented / Independent QC Passed / Production Release Gated`
 Date: 2026-08-03
 Readiness reviewed: 2026-08-04
+Decision amended: 2026-08-15
 Owner: Dev PM
 Related DEV: `DEV-052`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`
 
 > Amendment 2026-08-04：`DEV-053` 已達RD Implementation Ready，採`.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`補充server-side一致性read projection與workspace nullable source drawing/part/link context。它不取代本ADR的single bundle review、outer transaction/savepoint、idempotency或recovery authority；既有workspace不backfill。
+
+> Amendment 2026-08-15：使用者要求舊保留號全量整併進「首版準備」生命週期，正式環境比照辦理且零遺漏。所有尚未正式化且非終結的舊保留號只保留一個使用者可見站「首版準備」；原始 reservation／approval／recovery 狀態不改寫，但全部降為 server/admin-only 證據。本 ADR 同時保留 reservation-ID 級全量 manifest、唯一 adoption bucket、上線前後 reconciliation 與 fail-closed cutover；任何遺漏、重複、改號或 cutover freeze 期間的來源 hash 變更都阻擋 activation。
 
 ## 1. Context
 
@@ -25,9 +28,10 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-effici
 2. 候選階段新增獨立、additive 的 candidate revision aggregate；不把 revision 欄位塞進 reservation row。
 3. 新建案件以圖料關係、候選首版與 finalized file evidence 組成單一 bundle review。
 4. bundle approve apply 同一 outer transaction 內，以 savepoint 原子建立 formal masters、promote reservations、建立 physical `Pending` revision package與 immutable review-approval companion，再寫 audit／receipt／outbox；新版由兩者投影 effective `ReviewApproved`。
-5. 舊 number-only approval 不擴大解讀：pending request 繼續原審核；approved request 只當號碼基線，圖面須經 addendum review 才能自動正式化。
+5. 舊 number-only approval 不擴大解讀：pending／approved request 與 addendum baseline 仍作後台審核證據；一般使用者不看見其接管流程，所有未正式化且非終結的舊案件只由「首版準備」繼續。
 6. 小數版 `ReviewApproved` 是受控研發結果，不是 production-effective `Released`。
 7. rollout 採 feature flag + additive schema + production-like snapshot rehearsal；production migration／activation 另走 release gate。
+8. production activation 前後，以 `number_candidate_reservations.id` 為最小單位全量對帳。內部 adoption manifest 仍可使用完整 lifecycle／recovery buckets；一般使用者投影則把所有未正式化且非終結的 legacy／inconsistent buckets收斂為 `drawing_preparation`。`unmapped`、重複映射與改號皆須為零，migration／backfill／flag-off readback／read-only canary 的 cutover freeze 期間來源 row hash 變更也必須為零。正式開放操作後的合法 state／row-version 前進不算資料遺失。
 
 ## 3. Why This Decision
 
@@ -37,7 +41,7 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-effici
 
 ### 3.2 Data protection
 
-read-time projection 讓既有案件出現在同一 UI 與生命週期中，但不需要對 production rows 寫入 workflow version、重分類或重播 approval。真正新增資料只發生在使用者明確開始候選圖面工作之後。
+read-time projection 讓既有案件出現在同一 UI 與生命週期中，但不需要對 production rows 寫入 workflow version、重分類或重播 approval。使用者只看見「首版準備」結果，不看見 adoption／legacy review／addendum／recovery 作業；真正新增資料只發生在使用者明確開始候選圖面工作之後。
 
 ### 3.3 Audit correctness
 
@@ -65,9 +69,11 @@ immutable decision 在 savepoint 前寫入。外部通知、搜尋投影或 webh
 - Existing database rows remain source facts; projection is derived, not persisted back into them.
 - `numbering.candidate_publication_review` retains its current number-only snapshot/apply contract for already-created requests.
 - New requests use versioned `numbering.candidate_bundle_review` snapshots.
-- Existing manual publish command remains available only for untouched legacy/recovery paths during rollout; new bundle UI must not expose it as a normal second step.
+- Existing manual publish/recovery command若在 rollout 期間仍需保留，只能由後台管理面使用；圖號工作台不得把它顯示為 legacy 使用者路徑或正常第二步。
 - New effective `ReviewApproved` facts may only be created after new-code activation。既有 `drawing_revision_packages.status` 不擴張；舊版 reader 只會保守看見 physical `Pending`。schema deployment 必須 backward compatible，production activation 前仍需證明 rollback/read compatibility。
 - A feature-flag rollback hides new write paths but never deletes candidate revisions, approval snapshots or formalization evidence already created.
+- 工作台可以把同一 workspace 的多筆 root／part／drawing reservation 聚合顯示，但 release evidence 必須保留每一筆 source reservation ID；UI row count 不能取代資料筆數對帳。
+- drawing reservation 必須對應一個 canonical Drawing 或具名 `recovery_required`；root／part reservation 留在同一 workspace／bundle 關係，不得被 Drawing-only migration 排除。
 
 ## 6. Consequences
 
@@ -81,7 +87,7 @@ Positive:
 Costs and constraints:
 
 - 需要 additive candidate revision schema、versioned approval action與跨模組 transaction orchestration。
-- 舊 pending/approved number-only request 需要兼容過渡節點，無法假裝已審過圖面。
+- 舊 pending/approved number-only request 仍需後台兼容與稽核基線，但不得形成使用者可見的過渡節點，也不得假裝已審過圖面。
 - 新版 revision readers 要 additive join companion 才看見 effective `ReviewApproved`；既有 readers、released filters、reports與 exports 不需接受新 physical enum，但必須驗證不會把 `Pending` 當 manufacturing-effective。
 - production drawing flow 仍受 finalized GCS evidence authority 阻擋；文件完成不等於可上線。
 
@@ -121,7 +127,9 @@ Costs and constraints:
 2. Staging：用 production-like sanitized snapshot rehearsal，驗證 migration 前後資料 hash/count 與舊版 read compatibility。
 3. Production schema gate：只部署 additive DDL，feature flag 維持 off，確認 migration zero-DML 與 runtime read。
 4. Activation gate：direct GCS finalized evidence、named approver、recovery owner與 rollback evidence 齊備後才開啟新 writes。
-5. Rollback：關閉新 write paths；保留已建立的 candidate/review/formalization facts。舊版 app 不需解析新 physical package enum；若無法忽略 additive tables/response fields，停止 code rollback並改走 tested roll-forward recovery。
+5. Zero-loss gate：在 flag off 狀態逐 company、全分頁產出 source/adoption manifest，證明 source count、distinct mapped count與各 bucket distinct ID 合計相等，且 `unmapped=0`、`duplicate_mapping=0`、`renumbered=0`、`source_row_hash_changed=0`；任何不一致立即停止 activation。
+6. Canary/readback：以原 reservation ID、candidate code 與舊 deep link 驗證「首版準備」、審核、正式、歷史與復原入口；既有異常只能進具名 recovery 清冊，不得被 filter 靜默隱藏。
+7. Rollback：關閉新 write paths；保留來源 rows、canonical rows及已建立的 candidate/review/formalization facts。舊版 app 不需解析新 physical package enum；若無法忽略 additive tables/response fields，停止 code rollback並改走 tested roll-forward recovery。
 
 ## 9. Superseded Rules
 
@@ -138,6 +146,7 @@ Costs and constraints:
 - production file authority 改變；
 - effective `ReviewApproved` companion projection 無法與既有 report/export/current-pointer 相容；
 - 法規或品質制度要求 approver 與 publisher 必須是不同自然人。
+- production manifest 無法證明每一筆舊 reservation 都恰好被納管一次，或 rollback 需要刪除任何來源／新事實。
 
 ## 11. Implementation Binding
 

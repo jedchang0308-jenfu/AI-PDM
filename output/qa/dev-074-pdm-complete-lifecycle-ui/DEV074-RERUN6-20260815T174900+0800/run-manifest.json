@@ -1,0 +1,20 @@
+{
+  "run_id":"DEV074-RERUN6-20260815T174900+0800",
+  "objective":"DEV074-R5-P1-001 修復後由 W0 歸零，重新執行全部 58 條 rendered UI journey",
+  "status":"failed",
+  "started_at":"2026-08-15T17:49:00+08:00",
+  "ended_at":"2026-08-15T18:42:00+08:00",
+  "failed_at":"C02",
+  "failure_id":"DEV074-R6-P1-002",
+  "environment":{"target":"http://127.0.0.1:3000","scope":"local_isolated_only","production_mutation_allowed":false,"business_mutation_mode":"rendered_ui_only","direct_api_mutation_count":0,"direct_db_mutation_count":0},
+  "source":{"branch":"持續優化1","head":"cc393e048b251fb1ea3356204de56bc4c9eacc45","dirty_diff_sha256":"6358AAC95A4BB641AC3D4A1C2D1990B2951FF59731A3D4DC1ECD3B0B51D26E6B","worktree":"dirty_user_owned_changes_preserved"},
+  "predecessor_attempts":[
+    {"run_id":"DEV074-RERUN-20260815T162652+0800","result":"failed_at_w0"},
+    {"run_id":"DEV074-RERUN2-20260815T163010+0800","result":"failed_at_w0"},
+    {"run_id":"DEV074-RERUN3-20260815T164054+0800","result":"failed_at_B01"},
+    {"run_id":"DEV074-RERUN4-20260815T170341+0800","result":"failed_at_B01"},
+    {"run_id":"DEV074-RERUN5-20260815T172729+0800","result":"failed_at_B02","reason":"root detail omitted canonical controlled revision and files"}
+  ],
+  "scope":{"in_scope_count":58,"out_of_scope":["B09","D15","E02","F08","true_engineering_content_change","legacy_reserved_numbers"]},
+  "viewports":["1440x900","1024x768","768x1024","390x844"]
+}

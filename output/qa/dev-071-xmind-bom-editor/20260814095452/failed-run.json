@@ -1,0 +1,1080 @@
+{
+  "checkedAt": "2026-08-14T09:55:49.290Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260814095452",
+  "total": 2,
+  "passed": 2,
+  "failed": 1,
+  "consoleErrors": [
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./tsconfig.json\nError: An issue occurred while parsing a tsconfig.json file.\ntsconfig not found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:10:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-feature'\n   8 | } from \"@/lib/production-slice\";\n   9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n> 10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  11 |\n  12 | function numberStateLegacyRedirect(request: NextRequest) {\n  13 |   if (request.method !== \"GET\" && request.method !== \"HEAD\") return null;\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:9:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-legacy-route'\n   7 |   shouldBlockProductionSlicePagePath\n   8 | } from \"@/lib/production-slice\";\n>  9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n  11 |\n  12 | function numberStateLegacyRedirect(request: NextRequest) {\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:2:1\nError: Module not found: Can't resolve '@/lib/production-slice'\n   1 | import { NextResponse, type NextRequest } from \"next/server\";\n>  2 | import {\n     | ^^^^^^^\n>  3 |   getProductionSliceState,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  4 |   isProductionSliceAllowedApiMutation,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  5 |   isWriteMethod,\n     | ^^^^^^^^^^^^^^^^\n>  6 |   productionSliceDeniedPayload,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  7 |   shouldBlockProductionSlicePagePath\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  8 | } from \"@/lib/production-slice\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n  10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n  11 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/layout.tsx:3:1\nError: Module not found: Can't resolve '@/components/privacy-access-gate'\n  1 | import type { Metadata, Viewport } from \"next\";\n  2 | import { SidebarNav } from \"@/components/sidebar-nav\";\n> 3 | import { PrivacyAccessGate } from \"@/components/privacy-access-gate\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import \"./styles/tokens.css\";\n  5 | import \"./globals.css\";\n  6 | import \"./styles/responsive.css\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/layout.tsx:2:1\nError: Module not found: Can't resolve '@/components/sidebar-nav'\n  1 | import type { Metadata, Viewport } from \"next\";\n> 2 | import { SidebarNav } from \"@/components/sidebar-nav\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { PrivacyAccessGate } from \"@/components/privacy-access-gate\";\n  4 | import \"./styles/tokens.css\";\n  5 | import \"./globals.css\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/login/page.tsx:7:1\nError: Module not found: Can't resolve '@/lib/firebase-client-auth'\n   5 | import { KeyRound, LockKeyhole, LogIn, ShieldCheck, X } from \"lucide-react\";\n   6 | import type { AuthMode, FirebaseWebConfig } from \"@/lib/auth-config\";\n>  7 | import {\n     | ^^^^^^^\n>  8 |   completeFirebaseTotp,\n     | ^^^^^^^^^^^^^^^^^^^^^^^\n>  9 |   exchangeFirebaseBffSession,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   firebaseLoginErrorMessage,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 |   signInFirebaseGoogle,\n     | ^^^^^^^^^^^^^^^^^^^^^^^\n> 12 |   signInFirebasePassword,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 13 |   type FirebaseSignInResult,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 14 |   type FirebaseTotpChallenge\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 15 | } from \"@/lib/firebase-client-auth\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  16 |\n  17 | type FirebaseAuthenticatedResult = Extract<FirebaseSignInResult, { kind: \"authenticated\" }>;\n  18 |\n\nImport traces:\n  Client Component Browser:\n    ./src/app/login/page.tsx [Client Component Browser]\n    ./src/app/login/page.tsx [Server Component]\n\n  Client Component SSR:\n    ./src/app/login/page.tsx [Client Component SSR]\n    ./src/app/login/page.tsx [Server Component]\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n  3 | import { getAuthMode } from \"@/lib/auth-config\";\n> 4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 | import { verifyPassword } from \"@/lib/password\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/audit-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { getAuthMode } from \"@/lib/auth-config\";\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  3 | ...} from \"@/lib/auth-config\";\n  4 | ...redLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n> 5 | ...erAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdentityLoginAsync } fro...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | ...hUserAsync } from \"@/lib/company-context\";\n  7 | ...rd } from \"@/lib/password\";\n  8 | ...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-config'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n> 3 | import { getAuthMode } from \"@/lib/auth-config\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n> 6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 | import { verifyPassword } from \"@/lib/password\";\n  8 |\n  9 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/password'\n   5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdent...\n   6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n>  7 | import { verifyPassword } from \"@/lib/password\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 |\n   9 | export const runtime = \"nodejs\";\n  10 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/page.tsx:1:1\nError: Module not found: Can't resolve '@/components/dashboard'\n> 1 | import { Dashboard } from \"@/components/dashboard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  2 |\n  3 | export default function HomePage() {\n  4 |   return <Dashboard />;\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import crypto from \"node:crypto\";\n  2 | import { NextResponse } from \"next/server\";\n> 3 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { canCreateBomDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAs...\n  5 | import {\n  6 |   BomCreateIdempotencyConflictError,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/bom-create-context'\n  2 | ...e } from \"next/server\";\n  3 | ...Async } from \"@/lib/auth-async\";\n> 4 | ...mDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAsync } from \"@/lib...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...\n  6 | ...cyConflictError,\n  7 | ...tError,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/bom-workbench-async'\n   3 | import { requireAuthAsync } from \"@/lib/auth-async\";\n   4 | import { canCreateBomDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextA...\n>  5 | import {\n     | ^^^^^^^\n>  6 |   BomCreateIdempotencyConflictError,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  7 |   BomRevisionConflictError,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  8 |   createCanonicalBomDraftAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  9 |   getBomWorkbenchDraftByIdAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   listBomWorkbenchRecordsAsync\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 | } from \"@/lib/bom-workbench-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n  14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:12:1\nError: Module not found: Can't resolve '@/lib/db-async-provider'\n  10 |   listBomWorkbenchRecordsAsync\n  11 | } from \"@/lib/bom-workbench-async\";\n> 12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n  14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n  15 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:13:1\nError: Module not found: Can't resolve '@/lib/numbering-company-context'\n  11 | ...kbench-async\";\n  12 | ...baseClient } from \"@/lib/db-async-provider\";\n> 13 | ...beringCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from \"@/lib/numberi...\n     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  14 | ...sionCode } from \"@/lib/revision-policy\";\n  15 | ...\n  16 | ...= \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:14:1\nError: Module not found: Can't resolve '@/lib/revision-policy'\n  12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n> 14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  15 |\n  16 | export const runtime = \"nodejs\";\n  17 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/production-slice/status/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/production-slice'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { productionSliceClientStatus } from \"@/lib/production-slice\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 |\n  4 | export const runtime = \"nodejs\";\n  5 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n  4 | import {\n  5 |   getPrivacyPendingToken,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/audit-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n> 3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import {\n  5 |   getPrivacyPendingToken,\n  6 |   getSessionToken\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/auth'\n   2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n   3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n>  4 | import {\n     | ^^^^^^^\n>  5 |   getPrivacyPendingToken,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n>  6 |   getSessionToken\n     | ^^^^^^^^^^^^^^^^^\n>  7 | } from \"@/lib/auth\";\n     | ^^^^^^^^^^^^^^^^^^^^\n   8 | import {\n   9 |   clearPrivacyPendingResponseCookie,\n  10 |   setFirebaseBffSessionResponseCookie\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:12:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  10 |   setFirebaseBffSessionResponseCookie\n  11 | } from \"@/lib/auth-response-cookies\";\n> 12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:8:1\nError: Module not found: Can't resolve '@/lib/auth-response-cookies'\n   6 |   getSessionToken\n   7 | } from \"@/lib/auth\";\n>  8 | import {\n     | ^^^^^^^\n>  9 |   clearPrivacyPendingResponseCookie,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   setFirebaseBffSessionResponseCookie\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 | } from \"@/lib/auth-response-cookies\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:13:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  11 | } from \"@/lib/auth-response-cookies\";\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n> 13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n  16 | import {\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:14:1\nError: Module not found: Can't resolve '@/lib/platform-session-key-ring'\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n> 14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n  16 | import {\n  17 |   finalizePrivacyAccessAsync,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:15:1\nError: Module not found: Can't resolve '@/lib/platform-session-v2'\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n> 15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  16 | import {\n  17 |   finalizePrivacyAccessAsync,\n  18 |   getPrivacyAcknowledgementStatusAsync,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:16:1\nError: Module not found: Can't resolve '@/lib/privacy-notice'\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n> 16 | import {\n     | ^^^^^^^\n> 17 |   finalizePrivacyAccessAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 18 |   getPrivacyAcknowledgementStatusAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 19 |   getPrivacyNoticeContract,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 20 |   getPublicPrivacyNotice,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 21 |   isPrivacyNoticeEnforced\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 22 | } from \"@/lib/privacy-notice\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  23 | import { PrivacyNoticeError } from \"@/lib/repositories/privacy-notice-async-repository\";\n  24 |\n  25 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:23:1\nError: Module not found: Can't resolve '@/lib/repositories/privacy-notice-async-repository'\n  21 |   isPrivacyNoticeEnforced\n  22 | } from \"@/lib/privacy-notice\";\n> 23 | import { PrivacyNoticeError } from \"@/lib/repositories/privacy-notice-async-repository\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  24 |\n  25 | export const runtime = \"nodejs\";\n  26 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n> 3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n> 4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/auth-config'\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 5 | import { getAuthMode } from \"@/lib/auth-config\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 |\n  8 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n> 6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 |\n  8 | export const runtime = \"nodejs\";\n  9 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:1:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n> 1 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n  4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-api'\n  2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n> 4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 |\n  6 | export const runtime = \"nodejs\";\n  7 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-async'\n  1 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n  4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n  5 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-codes'\n  1 | ...eAuthAsync } from \"@/lib/auth-async\";\n  2 | ...umberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n> 3 | ...ING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/numbering-per...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | ...StateFlowJson } from \"@/lib/number-state-flow-api\";\n  5 | ...\n  6 | ...ntime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import crypto from \"node:crypto\";\n> 3 | import { requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n  6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  2 | ...ypto from \"node:crypto\";\n  3 | ...requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n> 4 | ...requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/company-...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n  6 | ...removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n  7 | ...scopedSubmittedBy } from \"@/lib/permissions\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/dashboard-metrics-async'\n  3 | import { requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n> 5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n  7 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n  8 | import { triggerBackgroundUpload } from \"@/lib/submission-background-upload\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/permissions'\n   5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n   6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n>  7 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 | import { triggerBackgroundUpload } from \"@/lib/submission-background-upload\";\n   9 | import { createSubmissionRecordAsync, listSubmissionsAsync, submissionRevisionExistsAsync ...\n  10 | import { getSystemSettingAsync } from \"@/lib/system-settings-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:9:1\nError: Module not found: Can't resolve '@/lib/submissions-async'\n   7 | ...mittedBy } from \"@/lib/permissions\";\n   8 | ...ckgroundUpload } from \"@/lib/submission-background-upload\";\n>  9 | ...missionRecordAsync, listSubmissionsAsync, submissionRevisionExistsAsync } from \"@/lib/s...\n     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  10 | ...SettingAsync } from \"@/lib/system-settings-async\";\n  11 | ...ableStorageUploadDecisions, getAlternateLargeFileIntakePackage, getStorageUploadPolicy ...\n  12 | ...ageUploadDecision } from \"@/lib/storage-upload-policy\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n  4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n  5 | import type { NotificationItem } from \"@/lib/types\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/notifications-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n  5 | import type { NotificationItem } from \"@/lib/types\";\n  6 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/storage-evidence-dashboard'\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n> 4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import type { NotificationItem } from \"@/lib/types\";\n  6 |\n  7 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/number-sort'\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n  5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n> 6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 |\n  8 | export const runtime = \"nodejs\";\n  9 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/numbering-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } fr...\n> 3 | import { searchNumberingRecordsAsync } from \"@/lib/numbering-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n  5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n  6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/numbering-company-context'\n  1 | ...e } from \"next/server\";\n> 2 | ...mberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from \"@/lib/numberi...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | ...ringRecordsAsync } from \"@/lib/numbering-async\";\n  4 | ...ingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/numbering-reposito...\n  5 | ...eringPageAsync } from \"@/lib/numbering-permission-guard\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-guard'\n  3 | import { searchNumberingRecordsAsync } from \"@/lib/numbering-async\";\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n> 5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n  7 |\n  8 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/bom-workbench-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n  6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  2 | ...requireAuthAsync } from \"@/lib/auth-async\";\n  3 | ...listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n> 4 | ...requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/company-...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n  6 | ...scopedSubmittedBy } from \"@/lib/permissions\";\n  7 | ...rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/numbering-async'\n  3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n> 5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n  8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-as...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/numbering-vocabulary'\n   5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n   6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n>  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-a...\n   9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-re...\n  10 | import { getSubmissionAsync, listSubmissionsAsync } from \"@/lib/submissions-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/permissions'\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n> 6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n  8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-as...\n  9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-rep...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:10:1\nError: Module not found: Can't resolve '@/lib/submissions-async'\n   8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-a...\n   9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-re...\n> 10 | import { getSubmissionAsync, listSubmissionsAsync } from \"@/lib/submissions-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  11 | import type { ControlledHistoryEntry, SubmissionLifecycleRequest, SubmissionSummary } from...\n  12 |\n  13 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:50:1\nError: Module not found: Can't resolve '@/components/bom-editor/bom-xmind-editor'\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n> 50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n  53 |\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:45:1\nError: Module not found: Can't resolve '@/components/next-step-state'\n  43 | import \"@xyflow/react/dist/style.css\";\n  44 | import { FileDropzone } from \"@/components/file-dropzone\";\n> 45 | import { NextStepState } from \"@/components/next-step-state\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:48:1\nError: Module not found: Can't resolve '@/components/pdm-detail-drawer'\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n> 48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:46:1\nError: Module not found: Can't resolve '@/components/pdm-workbench-list'\n  44 | import { FileDropzone } from \"@/components/file-dropzone\";\n  45 | import { NextStepState } from \"@/components/next-step-state\";\n> 46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:47:1\nError: Module not found: Can't resolve '@/components/search-highlight'\n  45 | import { NextStepState } from \"@/components/next-step-state\";\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n> 47 | import { SearchHighlight } from \"@/components/search-highlight\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:49:1\nError: Module not found: Can't resolve '@/components/status-help-popover'\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n> 49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:51:1\nError: Module not found: Can't resolve '@/lib/status-display'\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n> 51 | import { formatStatusForUser } from \"@/lib/status-display\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n  53 |\n  54 | type SubmissionSummary = {\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./tsconfig.json\nError: An issue occurred while parsing a tsconfig.json file.\ntsconfig not found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:10:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-feature'\n   8 | } from \"@/lib/production-slice\";\n   9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n> 10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  11 |\n  12 | function numberStateLegacyRedirect(request: NextRequest) {\n  13 |   if (request.method !== \"GET\" && request.method !== \"HEAD\") return null;\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:9:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-legacy-route'\n   7 |   shouldBlockProductionSlicePagePath\n   8 | } from \"@/lib/production-slice\";\n>  9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n  11 |\n  12 | function numberStateLegacyRedirect(request: NextRequest) {\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:2:1\nError: Module not found: Can't resolve '@/lib/production-slice'\n   1 | import { NextResponse, type NextRequest } from \"next/server\";\n>  2 | import {\n     | ^^^^^^^\n>  3 |   getProductionSliceState,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  4 |   isProductionSliceAllowedApiMutation,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  5 |   isWriteMethod,\n     | ^^^^^^^^^^^^^^^^\n>  6 |   productionSliceDeniedPayload,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  7 |   shouldBlockProductionSlicePagePath\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  8 | } from \"@/lib/production-slice\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n  10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n  11 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/layout.tsx:3:1\nError: Module not found: Can't resolve '@/components/privacy-access-gate'\n  1 | import type { Metadata, Viewport } from \"next\";\n  2 | import { SidebarNav } from \"@/components/sidebar-nav\";\n> 3 | import { PrivacyAccessGate } from \"@/components/privacy-access-gate\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import \"./styles/tokens.css\";\n  5 | import \"./globals.css\";\n  6 | import \"./styles/responsive.css\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/layout.tsx:2:1\nError: Module not found: Can't resolve '@/components/sidebar-nav'\n  1 | import type { Metadata, Viewport } from \"next\";\n> 2 | import { SidebarNav } from \"@/components/sidebar-nav\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { PrivacyAccessGate } from \"@/components/privacy-access-gate\";\n  4 | import \"./styles/tokens.css\";\n  5 | import \"./globals.css\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/login/page.tsx:7:1\nError: Module not found: Can't resolve '@/lib/firebase-client-auth'\n   5 | import { KeyRound, LockKeyhole, LogIn, ShieldCheck, X } from \"lucide-react\";\n   6 | import type { AuthMode, FirebaseWebConfig } from \"@/lib/auth-config\";\n>  7 | import {\n     | ^^^^^^^\n>  8 |   completeFirebaseTotp,\n     | ^^^^^^^^^^^^^^^^^^^^^^^\n>  9 |   exchangeFirebaseBffSession,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   firebaseLoginErrorMessage,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 |   signInFirebaseGoogle,\n     | ^^^^^^^^^^^^^^^^^^^^^^^\n> 12 |   signInFirebasePassword,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 13 |   type FirebaseSignInResult,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 14 |   type FirebaseTotpChallenge\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 15 | } from \"@/lib/firebase-client-auth\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  16 |\n  17 | type FirebaseAuthenticatedResult = Extract<FirebaseSignInResult, { kind: \"authenticated\" }>;\n  18 |\n\nImport traces:\n  Client Component Browser:\n    ./src/app/login/page.tsx [Client Component Browser]\n    ./src/app/login/page.tsx [Server Component]\n\n  Client Component SSR:\n    ./src/app/login/page.tsx [Client Component SSR]\n    ./src/app/login/page.tsx [Server Component]\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n  3 | import { getAuthMode } from \"@/lib/auth-config\";\n> 4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 | import { verifyPassword } from \"@/lib/password\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/audit-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { getAuthMode } from \"@/lib/auth-config\";\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  3 | ...} from \"@/lib/auth-config\";\n  4 | ...redLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n> 5 | ...erAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdentityLoginAsync } fro...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | ...hUserAsync } from \"@/lib/company-context\";\n  7 | ...rd } from \"@/lib/password\";\n  8 | ...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-config'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n> 3 | import { getAuthMode } from \"@/lib/auth-config\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n> 6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 | import { verifyPassword } from \"@/lib/password\";\n  8 |\n  9 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/password'\n   5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdent...\n   6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n>  7 | import { verifyPassword } from \"@/lib/password\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 |\n   9 | export const runtime = \"nodejs\";\n  10 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/page.tsx:1:1\nError: Module not found: Can't resolve '@/components/dashboard'\n> 1 | import { Dashboard } from \"@/components/dashboard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  2 |\n  3 | export default function HomePage() {\n  4 |   return <Dashboard />;\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import crypto from \"node:crypto\";\n  2 | import { NextResponse } from \"next/server\";\n> 3 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { canCreateBomDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAs...\n  5 | import {\n  6 |   BomCreateIdempotencyConflictError,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/bom-create-context'\n  2 | ...e } from \"next/server\";\n  3 | ...Async } from \"@/lib/auth-async\";\n> 4 | ...mDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAsync } from \"@/lib...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...\n  6 | ...cyConflictError,\n  7 | ...tError,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/bom-workbench-async'\n   3 | import { requireAuthAsync } from \"@/lib/auth-async\";\n   4 | import { canCreateBomDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextA...\n>  5 | import {\n     | ^^^^^^^\n>  6 |   BomCreateIdempotencyConflictError,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  7 |   BomRevisionConflictError,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  8 |   createCanonicalBomDraftAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  9 |   getBomWorkbenchDraftByIdAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   listBomWorkbenchRecordsAsync\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 | } from \"@/lib/bom-workbench-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n  14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:12:1\nError: Module not found: Can't resolve '@/lib/db-async-provider'\n  10 |   listBomWorkbenchRecordsAsync\n  11 | } from \"@/lib/bom-workbench-async\";\n> 12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n  14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n  15 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:13:1\nError: Module not found: Can't resolve '@/lib/numbering-company-context'\n  11 | ...kbench-async\";\n  12 | ...baseClient } from \"@/lib/db-async-provider\";\n> 13 | ...beringCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from \"@/lib/numberi...\n     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  14 | ...sionCode } from \"@/lib/revision-policy\";\n  15 | ...\n  16 | ...= \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:14:1\nError: Module not found: Can't resolve '@/lib/revision-policy'\n  12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n> 14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  15 |\n  16 | export const runtime = \"nodejs\";\n  17 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/production-slice/status/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/production-slice'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { productionSliceClientStatus } from \"@/lib/production-slice\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 |\n  4 | export const runtime = \"nodejs\";\n  5 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n  4 | import {\n  5 |   getPrivacyPendingToken,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/audit-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n> 3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import {\n  5 |   getPrivacyPendingToken,\n  6 |   getSessionToken\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/auth'\n   2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n   3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n>  4 | import {\n     | ^^^^^^^\n>  5 |   getPrivacyPendingToken,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n>  6 |   getSessionToken\n     | ^^^^^^^^^^^^^^^^^\n>  7 | } from \"@/lib/auth\";\n     | ^^^^^^^^^^^^^^^^^^^^\n   8 | import {\n   9 |   clearPrivacyPendingResponseCookie,\n  10 |   setFirebaseBffSessionResponseCookie\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:12:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  10 |   setFirebaseBffSessionResponseCookie\n  11 | } from \"@/lib/auth-response-cookies\";\n> 12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:8:1\nError: Module not found: Can't resolve '@/lib/auth-response-cookies'\n   6 |   getSessionToken\n   7 | } from \"@/lib/auth\";\n>  8 | import {\n     | ^^^^^^^\n>  9 |   clearPrivacyPendingResponseCookie,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   setFirebaseBffSessionResponseCookie\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 | } from \"@/lib/auth-response-cookies\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:13:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  11 | } from \"@/lib/auth-response-cookies\";\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n> 13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n  16 | import {\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:14:1\nError: Module not found: Can't resolve '@/lib/platform-session-key-ring'\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n> 14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n  16 | import {\n  17 |   finalizePrivacyAccessAsync,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:15:1\nError: Module not found: Can't resolve '@/lib/platform-session-v2'\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n> 15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  16 | import {\n  17 |   finalizePrivacyAccessAsync,\n  18 |   getPrivacyAcknowledgementStatusAsync,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:16:1\nError: Module not found: Can't resolve '@/lib/privacy-notice'\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n> 16 | import {\n     | ^^^^^^^\n> 17 |   finalizePrivacyAccessAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 18 |   getPrivacyAcknowledgementStatusAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 19 |   getPrivacyNoticeContract,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 20 |   getPublicPrivacyNotice,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 21 |   isPrivacyNoticeEnforced\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 22 | } from \"@/lib/privacy-notice\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  23 | import { PrivacyNoticeError } from \"@/lib/repositories/privacy-notice-async-repository\";\n  24 |\n  25 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:23:1\nError: Module not found: Can't resolve '@/lib/repositories/privacy-notice-async-repository'\n  21 |   isPrivacyNoticeEnforced\n  22 | } from \"@/lib/privacy-notice\";\n> 23 | import { PrivacyNoticeError } from \"@/lib/repositories/privacy-notice-async-repository\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  24 |\n  25 | export const runtime = \"nodejs\";\n  26 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n> 3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n> 4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/auth-config'\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 5 | import { getAuthMode } from \"@/lib/auth-config\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 |\n  8 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n> 6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 |\n  8 | export const runtime = \"nodejs\";\n  9 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:1:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n> 1 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n  4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-api'\n  2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n> 4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 |\n  6 | export const runtime = \"nodejs\";\n  7 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-async'\n  1 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n  4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n  5 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-codes'\n  1 | ...eAuthAsync } from \"@/lib/auth-async\";\n  2 | ...umberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n> 3 | ...ING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/numbering-per...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | ...StateFlowJson } from \"@/lib/number-state-flow-api\";\n  5 | ...\n  6 | ...ntime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import crypto from \"node:crypto\";\n> 3 | import { requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n  6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  2 | ...ypto from \"node:crypto\";\n  3 | ...requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n> 4 | ...requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/company-...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n  6 | ...removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n  7 | ...scopedSubmittedBy } from \"@/lib/permissions\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/dashboard-metrics-async'\n  3 | import { requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n> 5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n  7 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n  8 | import { triggerBackgroundUpload } from \"@/lib/submission-background-upload\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/permissions'\n   5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n   6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n>  7 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 | import { triggerBackgroundUpload } from \"@/lib/submission-background-upload\";\n   9 | import { createSubmissionRecordAsync, listSubmissionsAsync, submissionRevisionExistsAsync ...\n  10 | import { getSystemSettingAsync } from \"@/lib/system-settings-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:9:1\nError: Module not found: Can't resolve '@/lib/submissions-async'\n   7 | ...mittedBy } from \"@/lib/permissions\";\n   8 | ...ckgroundUpload } from \"@/lib/submission-background-upload\";\n>  9 | ...missionRecordAsync, listSubmissionsAsync, submissionRevisionExistsAsync } from \"@/lib/s...\n     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  10 | ...SettingAsync } from \"@/lib/system-settings-async\";\n  11 | ...ableStorageUploadDecisions, getAlternateLargeFileIntakePackage, getStorageUploadPolicy ...\n  12 | ...ageUploadDecision } from \"@/lib/storage-upload-policy\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n  4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n  5 | import type { NotificationItem } from \"@/lib/types\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/notifications-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n  5 | import type { NotificationItem } from \"@/lib/types\";\n  6 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/storage-evidence-dashboard'\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n> 4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import type { NotificationItem } from \"@/lib/types\";\n  6 |\n  7 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/number-sort'\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n  5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n> 6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 |\n  8 | export const runtime = \"nodejs\";\n  9 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/numbering-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } fr...\n> 3 | import { searchNumberingRecordsAsync } from \"@/lib/numbering-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n  5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n  6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/numbering-company-context'\n  1 | ...e } from \"next/server\";\n> 2 | ...mberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from \"@/lib/numberi...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | ...ringRecordsAsync } from \"@/lib/numbering-async\";\n  4 | ...ingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/numbering-reposito...\n  5 | ...eringPageAsync } from \"@/lib/numbering-permission-guard\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-guard'\n  3 | import { searchNumberingRecordsAsync } from \"@/lib/numbering-async\";\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n> 5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n  7 |\n  8 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/bom-workbench-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n  6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  2 | ...requireAuthAsync } from \"@/lib/auth-async\";\n  3 | ...listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n> 4 | ...requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/company-...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n  6 | ...scopedSubmittedBy } from \"@/lib/permissions\";\n  7 | ...rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/numbering-async'\n  3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n> 5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n  8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-as...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/numbering-vocabulary'\n   5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n   6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n>  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-a...\n   9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-re...\n  10 | import { getSubmissionAsync, listSubmissionsAsync } from \"@/lib/submissions-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/permissions'\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n> 6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n  8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-as...\n  9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-rep...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:10:1\nError: Module not found: Can't resolve '@/lib/submissions-async'\n   8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-a...\n   9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-re...\n> 10 | import { getSubmissionAsync, listSubmissionsAsync } from \"@/lib/submissions-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  11 | import type { ControlledHistoryEntry, SubmissionLifecycleRequest, SubmissionSummary } from...\n  12 |\n  13 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:50:1\nError: Module not found: Can't resolve '@/components/bom-editor/bom-xmind-editor'\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n> 50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n  53 |\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:45:1\nError: Module not found: Can't resolve '@/components/next-step-state'\n  43 | import \"@xyflow/react/dist/style.css\";\n  44 | import { FileDropzone } from \"@/components/file-dropzone\";\n> 45 | import { NextStepState } from \"@/components/next-step-state\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:48:1\nError: Module not found: Can't resolve '@/components/pdm-detail-drawer'\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n> 48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:46:1\nError: Module not found: Can't resolve '@/components/pdm-workbench-list'\n  44 | import { FileDropzone } from \"@/components/file-dropzone\";\n  45 | import { NextStepState } from \"@/components/next-step-state\";\n> 46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:47:1\nError: Module not found: Can't resolve '@/components/search-highlight'\n  45 | import { NextStepState } from \"@/components/next-step-state\";\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n> 47 | import { SearchHighlight } from \"@/components/search-highlight\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:49:1\nError: Module not found: Can't resolve '@/components/status-help-popover'\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n> 49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:51:1\nError: Module not found: Can't resolve '@/lib/status-display'\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n> 51 | import { formatStatusForUser } from \"@/lib/status-display\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n  53 |\n  54 | type SubmissionSummary = {\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./tsconfig.json\nError: An issue occurred while parsing a tsconfig.json file.\ntsconfig not found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:10:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-feature'\n   8 | } from \"@/lib/production-slice\";\n   9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n> 10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  11 |\n  12 | function numberStateLegacyRedirect(request: NextRequest) {\n  13 |   if (request.method !== \"GET\" && request.method !== \"HEAD\") return null;\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:9:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-legacy-route'\n   7 |   shouldBlockProductionSlicePagePath\n   8 | } from \"@/lib/production-slice\";\n>  9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n  11 |\n  12 | function numberStateLegacyRedirect(request: NextRequest) {\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:2:1\nError: Module not found: Can't resolve '@/lib/production-slice'\n   1 | import { NextResponse, type NextRequest } from \"next/server\";\n>  2 | import {\n     | ^^^^^^^\n>  3 |   getProductionSliceState,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  4 |   isProductionSliceAllowedApiMutation,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  5 |   isWriteMethod,\n     | ^^^^^^^^^^^^^^^^\n>  6 |   productionSliceDeniedPayload,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  7 |   shouldBlockProductionSlicePagePath\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  8 | } from \"@/lib/production-slice\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n  10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n  11 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/layout.tsx:3:1\nError: Module not found: Can't resolve '@/components/privacy-access-gate'\n  1 | import type { Metadata, Viewport } from \"next\";\n  2 | import { SidebarNav } from \"@/components/sidebar-nav\";\n> 3 | import { PrivacyAccessGate } from \"@/components/privacy-access-gate\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import \"./styles/tokens.css\";\n  5 | import \"./globals.css\";\n  6 | import \"./styles/responsive.css\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/layout.tsx:2:1\nError: Module not found: Can't resolve '@/components/sidebar-nav'\n  1 | import type { Metadata, Viewport } from \"next\";\n> 2 | import { SidebarNav } from \"@/components/sidebar-nav\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { PrivacyAccessGate } from \"@/components/privacy-access-gate\";\n  4 | import \"./styles/tokens.css\";\n  5 | import \"./globals.css\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/login/page.tsx:7:1\nError: Module not found: Can't resolve '@/lib/firebase-client-auth'\n   5 | import { KeyRound, LockKeyhole, LogIn, ShieldCheck, X } from \"lucide-react\";\n   6 | import type { AuthMode, FirebaseWebConfig } from \"@/lib/auth-config\";\n>  7 | import {\n     | ^^^^^^^\n>  8 |   completeFirebaseTotp,\n     | ^^^^^^^^^^^^^^^^^^^^^^^\n>  9 |   exchangeFirebaseBffSession,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   firebaseLoginErrorMessage,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 |   signInFirebaseGoogle,\n     | ^^^^^^^^^^^^^^^^^^^^^^^\n> 12 |   signInFirebasePassword,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 13 |   type FirebaseSignInResult,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 14 |   type FirebaseTotpChallenge\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 15 | } from \"@/lib/firebase-client-auth\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  16 |\n  17 | type FirebaseAuthenticatedResult = Extract<FirebaseSignInResult, { kind: \"authenticated\" }>;\n  18 |\n\nImport traces:\n  Client Component Browser:\n    ./src/app/login/page.tsx [Client Component Browser]\n    ./src/app/login/page.tsx [Server Component]\n\n  Client Component SSR:\n    ./src/app/login/page.tsx [Client Component SSR]\n    ./src/app/login/page.tsx [Server Component]\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n  3 | import { getAuthMode } from \"@/lib/auth-config\";\n> 4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 | import { verifyPassword } from \"@/lib/password\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/audit-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { getAuthMode } from \"@/lib/auth-config\";\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  3 | ...} from \"@/lib/auth-config\";\n  4 | ...redLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n> 5 | ...erAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdentityLoginAsync } fro...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | ...hUserAsync } from \"@/lib/company-context\";\n  7 | ...rd } from \"@/lib/password\";\n  8 | ...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-config'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n> 3 | import { getAuthMode } from \"@/lib/auth-config\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n> 6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 | import { verifyPassword } from \"@/lib/password\";\n  8 |\n  9 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/password'\n   5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdent...\n   6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n>  7 | import { verifyPassword } from \"@/lib/password\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 |\n   9 | export const runtime = \"nodejs\";\n  10 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/page.tsx:1:1\nError: Module not found: Can't resolve '@/components/dashboard'\n> 1 | import { Dashboard } from \"@/components/dashboard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  2 |\n  3 | export default function HomePage() {\n  4 |   return <Dashboard />;\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import crypto from \"node:crypto\";\n  2 | import { NextResponse } from \"next/server\";\n> 3 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { canCreateBomDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAs...\n  5 | import {\n  6 |   BomCreateIdempotencyConflictError,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/bom-create-context'\n  2 | ...e } from \"next/server\";\n  3 | ...Async } from \"@/lib/auth-async\";\n> 4 | ...mDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAsync } from \"@/lib...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...\n  6 | ...cyConflictError,\n  7 | ...tError,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/bom-workbench-async'\n   3 | import { requireAuthAsync } from \"@/lib/auth-async\";\n   4 | import { canCreateBomDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextA...\n>  5 | import {\n     | ^^^^^^^\n>  6 |   BomCreateIdempotencyConflictError,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  7 |   BomRevisionConflictError,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  8 |   createCanonicalBomDraftAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  9 |   getBomWorkbenchDraftByIdAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   listBomWorkbenchRecordsAsync\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 | } from \"@/lib/bom-workbench-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n  14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:12:1\nError: Module not found: Can't resolve '@/lib/db-async-provider'\n  10 |   listBomWorkbenchRecordsAsync\n  11 | } from \"@/lib/bom-workbench-async\";\n> 12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n  14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n  15 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:13:1\nError: Module not found: Can't resolve '@/lib/numbering-company-context'\n  11 | ...kbench-async\";\n  12 | ...baseClient } from \"@/lib/db-async-provider\";\n> 13 | ...beringCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from \"@/lib/numberi...\n     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  14 | ...sionCode } from \"@/lib/revision-policy\";\n  15 | ...\n  16 | ...= \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:14:1\nError: Module not found: Can't resolve '@/lib/revision-policy'\n  12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n> 14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  15 |\n  16 | export const runtime = \"nodejs\";\n  17 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/production-slice/status/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/production-slice'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { productionSliceClientStatus } from \"@/lib/production-slice\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 |\n  4 | export const runtime = \"nodejs\";\n  5 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n  4 | import {\n  5 |   getPrivacyPendingToken,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/audit-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n> 3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import {\n  5 |   getPrivacyPendingToken,\n  6 |   getSessionToken\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/auth'\n   2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n   3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n>  4 | import {\n     | ^^^^^^^\n>  5 |   getPrivacyPendingToken,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n>  6 |   getSessionToken\n     | ^^^^^^^^^^^^^^^^^\n>  7 | } from \"@/lib/auth\";\n     | ^^^^^^^^^^^^^^^^^^^^\n   8 | import {\n   9 |   clearPrivacyPendingResponseCookie,\n  10 |   setFirebaseBffSessionResponseCookie\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:12:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  10 |   setFirebaseBffSessionResponseCookie\n  11 | } from \"@/lib/auth-response-cookies\";\n> 12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:8:1\nError: Module not found: Can't resolve '@/lib/auth-response-cookies'\n   6 |   getSessionToken\n   7 | } from \"@/lib/auth\";\n>  8 | import {\n     | ^^^^^^^\n>  9 |   clearPrivacyPendingResponseCookie,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   setFirebaseBffSessionResponseCookie\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 | } from \"@/lib/auth-response-cookies\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:13:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  11 | } from \"@/lib/auth-response-cookies\";\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n> 13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n  16 | import {\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:14:1\nError: Module not found: Can't resolve '@/lib/platform-session-key-ring'\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n> 14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n  16 | import {\n  17 |   finalizePrivacyAccessAsync,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:15:1\nError: Module not found: Can't resolve '@/lib/platform-session-v2'\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n> 15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  16 | import {\n  17 |   finalizePrivacyAccessAsync,\n  18 |   getPrivacyAcknowledgementStatusAsync,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:16:1\nError: Module not found: Can't resolve '@/lib/privacy-notice'\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n> 16 | import {\n     | ^^^^^^^\n> 17 |   finalizePrivacyAccessAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 18 |   getPrivacyAcknowledgementStatusAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 19 |   getPrivacyNoticeContract,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 20 |   getPublicPrivacyNotice,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 21 |   isPrivacyNoticeEnforced\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 22 | } from \"@/lib/privacy-notice\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  23 | import { PrivacyNoticeError } from \"@/lib/repositories/privacy-notice-async-repository\";\n  24 |\n  25 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:23:1\nError: Module not found: Can't resolve '@/lib/repositories/privacy-notice-async-repository'\n  21 |   isPrivacyNoticeEnforced\n  22 | } from \"@/lib/privacy-notice\";\n> 23 | import { PrivacyNoticeError } from \"@/lib/repositories/privacy-notice-async-repository\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  24 |\n  25 | export const runtime = \"nodejs\";\n  26 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n> 3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n> 4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/auth-config'\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 5 | import { getAuthMode } from \"@/lib/auth-config\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 |\n  8 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n> 6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 |\n  8 | export const runtime = \"nodejs\";\n  9 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:1:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n> 1 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n  4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-api'\n  2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n> 4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 |\n  6 | export const runtime = \"nodejs\";\n  7 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-async'\n  1 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n  4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n  5 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-codes'\n  1 | ...eAuthAsync } from \"@/lib/auth-async\";\n  2 | ...umberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n> 3 | ...ING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/numbering-per...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | ...StateFlowJson } from \"@/lib/number-state-flow-api\";\n  5 | ...\n  6 | ...ntime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import crypto from \"node:crypto\";\n> 3 | import { requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n  6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  2 | ...ypto from \"node:crypto\";\n  3 | ...requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n> 4 | ...requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/company-...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n  6 | ...removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n  7 | ...scopedSubmittedBy } from \"@/lib/permissions\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/dashboard-metrics-async'\n  3 | import { requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n> 5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n  7 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n  8 | import { triggerBackgroundUpload } from \"@/lib/submission-background-upload\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/permissions'\n   5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n   6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n>  7 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 | import { triggerBackgroundUpload } from \"@/lib/submission-background-upload\";\n   9 | import { createSubmissionRecordAsync, listSubmissionsAsync, submissionRevisionExistsAsync ...\n  10 | import { getSystemSettingAsync } from \"@/lib/system-settings-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:9:1\nError: Module not found: Can't resolve '@/lib/submissions-async'\n   7 | ...mittedBy } from \"@/lib/permissions\";\n   8 | ...ckgroundUpload } from \"@/lib/submission-background-upload\";\n>  9 | ...missionRecordAsync, listSubmissionsAsync, submissionRevisionExistsAsync } from \"@/lib/s...\n     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  10 | ...SettingAsync } from \"@/lib/system-settings-async\";\n  11 | ...ableStorageUploadDecisions, getAlternateLargeFileIntakePackage, getStorageUploadPolicy ...\n  12 | ...ageUploadDecision } from \"@/lib/storage-upload-policy\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n  4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n  5 | import type { NotificationItem } from \"@/lib/types\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/notifications-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n  5 | import type { NotificationItem } from \"@/lib/types\";\n  6 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/storage-evidence-dashboard'\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n> 4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import type { NotificationItem } from \"@/lib/types\";\n  6 |\n  7 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/number-sort'\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n  5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n> 6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 |\n  8 | export const runtime = \"nodejs\";\n  9 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/numbering-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } fr...\n> 3 | import { searchNumberingRecordsAsync } from \"@/lib/numbering-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n  5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n  6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/numbering-company-context'\n  1 | ...e } from \"next/server\";\n> 2 | ...mberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from \"@/lib/numberi...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | ...ringRecordsAsync } from \"@/lib/numbering-async\";\n  4 | ...ingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/numbering-reposito...\n  5 | ...eringPageAsync } from \"@/lib/numbering-permission-guard\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-guard'\n  3 | import { searchNumberingRecordsAsync } from \"@/lib/numbering-async\";\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n> 5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n  7 |\n  8 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/bom-workbench-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n  6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  2 | ...requireAuthAsync } from \"@/lib/auth-async\";\n  3 | ...listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n> 4 | ...requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/company-...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n  6 | ...scopedSubmittedBy } from \"@/lib/permissions\";\n  7 | ...rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/numbering-async'\n  3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n> 5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n  8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-as...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/numbering-vocabulary'\n   5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n   6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n>  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-a...\n   9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-re...\n  10 | import { getSubmissionAsync, listSubmissionsAsync } from \"@/lib/submissions-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/permissions'\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n> 6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n  8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-as...\n  9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-rep...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:10:1\nError: Module not found: Can't resolve '@/lib/submissions-async'\n   8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-a...\n   9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-re...\n> 10 | import { getSubmissionAsync, listSubmissionsAsync } from \"@/lib/submissions-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  11 | import type { ControlledHistoryEntry, SubmissionLifecycleRequest, SubmissionSummary } from...\n  12 |\n  13 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:50:1\nError: Module not found: Can't resolve '@/components/bom-editor/bom-xmind-editor'\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n> 50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n  53 |\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:45:1\nError: Module not found: Can't resolve '@/components/next-step-state'\n  43 | import \"@xyflow/react/dist/style.css\";\n  44 | import { FileDropzone } from \"@/components/file-dropzone\";\n> 45 | import { NextStepState } from \"@/components/next-step-state\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:48:1\nError: Module not found: Can't resolve '@/components/pdm-detail-drawer'\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n> 48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:46:1\nError: Module not found: Can't resolve '@/components/pdm-workbench-list'\n  44 | import { FileDropzone } from \"@/components/file-dropzone\";\n  45 | import { NextStepState } from \"@/components/next-step-state\";\n> 46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:47:1\nError: Module not found: Can't resolve '@/components/search-highlight'\n  45 | import { NextStepState } from \"@/components/next-step-state\";\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n> 47 | import { SearchHighlight } from \"@/components/search-highlight\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:49:1\nError: Module not found: Can't resolve '@/components/status-help-popover'\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n> 49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:51:1\nError: Module not found: Can't resolve '@/lib/status-display'\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n> 51 | import { formatStatusForUser } from \"@/lib/status-display\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n  53 |\n  54 | type SubmissionSummary = {\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./tsconfig.json\nError: An issue occurred while parsing a tsconfig.json file.\ntsconfig not found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:10:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-feature'\n   8 | } from \"@/lib/production-slice\";\n   9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n> 10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  11 |\n  12 | function numberStateLegacyRedirect(request: NextRequest) {\n  13 |   if (request.method !== \"GET\" && request.method !== \"HEAD\") return null;\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:9:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-legacy-route'\n   7 |   shouldBlockProductionSlicePagePath\n   8 | } from \"@/lib/production-slice\";\n>  9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n  11 |\n  12 | function numberStateLegacyRedirect(request: NextRequest) {\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/middleware.ts:2:1\nError: Module not found: Can't resolve '@/lib/production-slice'\n   1 | import { NextResponse, type NextRequest } from \"next/server\";\n>  2 | import {\n     | ^^^^^^^\n>  3 |   getProductionSliceState,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  4 |   isProductionSliceAllowedApiMutation,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  5 |   isWriteMethod,\n     | ^^^^^^^^^^^^^^^^\n>  6 |   productionSliceDeniedPayload,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  7 |   shouldBlockProductionSlicePagePath\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  8 | } from \"@/lib/production-slice\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   9 | import { resolveNumberStateLegacyRedirect } from \"@/lib/number-state-flow-legacy-route\";\n  10 | import { isUnifiedPartRelationWorkbenchV1Enabled } from \"@/lib/number-state-flow-feature\";\n  11 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/layout.tsx:3:1\nError: Module not found: Can't resolve '@/components/privacy-access-gate'\n  1 | import type { Metadata, Viewport } from \"next\";\n  2 | import { SidebarNav } from \"@/components/sidebar-nav\";\n> 3 | import { PrivacyAccessGate } from \"@/components/privacy-access-gate\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import \"./styles/tokens.css\";\n  5 | import \"./globals.css\";\n  6 | import \"./styles/responsive.css\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/layout.tsx:2:1\nError: Module not found: Can't resolve '@/components/sidebar-nav'\n  1 | import type { Metadata, Viewport } from \"next\";\n> 2 | import { SidebarNav } from \"@/components/sidebar-nav\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { PrivacyAccessGate } from \"@/components/privacy-access-gate\";\n  4 | import \"./styles/tokens.css\";\n  5 | import \"./globals.css\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/login/page.tsx:7:1\nError: Module not found: Can't resolve '@/lib/firebase-client-auth'\n   5 | import { KeyRound, LockKeyhole, LogIn, ShieldCheck, X } from \"lucide-react\";\n   6 | import type { AuthMode, FirebaseWebConfig } from \"@/lib/auth-config\";\n>  7 | import {\n     | ^^^^^^^\n>  8 |   completeFirebaseTotp,\n     | ^^^^^^^^^^^^^^^^^^^^^^^\n>  9 |   exchangeFirebaseBffSession,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   firebaseLoginErrorMessage,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 |   signInFirebaseGoogle,\n     | ^^^^^^^^^^^^^^^^^^^^^^^\n> 12 |   signInFirebasePassword,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 13 |   type FirebaseSignInResult,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 14 |   type FirebaseTotpChallenge\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 15 | } from \"@/lib/firebase-client-auth\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  16 |\n  17 | type FirebaseAuthenticatedResult = Extract<FirebaseSignInResult, { kind: \"authenticated\" }>;\n  18 |\n\nImport traces:\n  Client Component Browser:\n    ./src/app/login/page.tsx [Client Component Browser]\n    ./src/app/login/page.tsx [Server Component]\n\n  Client Component SSR:\n    ./src/app/login/page.tsx [Client Component SSR]\n    ./src/app/login/page.tsx [Server Component]\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n  3 | import { getAuthMode } from \"@/lib/auth-config\";\n> 4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 | import { verifyPassword } from \"@/lib/password\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/audit-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { getAuthMode } from \"@/lib/auth-config\";\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  3 | ...} from \"@/lib/auth-config\";\n  4 | ...redLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n> 5 | ...erAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdentityLoginAsync } fro...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | ...hUserAsync } from \"@/lib/company-context\";\n  7 | ...rd } from \"@/lib/password\";\n  8 | ...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-config'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n> 3 | import { getAuthMode } from \"@/lib/auth-config\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  4 | import { issueRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdenti...\n> 6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 | import { verifyPassword } from \"@/lib/password\";\n  8 |\n  9 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/login/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/password'\n   5 | import { ensureDemoUserAsync, getLocalPasswordIdentityAsync, getUserByIdAsync, recordIdent...\n   6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n>  7 | import { verifyPassword } from \"@/lib/password\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 |\n   9 | export const runtime = \"nodejs\";\n  10 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/page.tsx:1:1\nError: Module not found: Can't resolve '@/components/dashboard'\n> 1 | import { Dashboard } from \"@/components/dashboard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  2 |\n  3 | export default function HomePage() {\n  4 |   return <Dashboard />;\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import crypto from \"node:crypto\";\n  2 | import { NextResponse } from \"next/server\";\n> 3 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { canCreateBomDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAs...\n  5 | import {\n  6 |   BomCreateIdempotencyConflictError,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/bom-create-context'\n  2 | ...e } from \"next/server\";\n  3 | ...Async } from \"@/lib/auth-async\";\n> 4 | ...mDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAsync } from \"@/lib...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...\n  6 | ...cyConflictError,\n  7 | ...tError,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/bom-workbench-async'\n   3 | import { requireAuthAsync } from \"@/lib/auth-async\";\n   4 | import { canCreateBomDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextA...\n>  5 | import {\n     | ^^^^^^^\n>  6 |   BomCreateIdempotencyConflictError,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  7 |   BomRevisionConflictError,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  8 |   createCanonicalBomDraftAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  9 |   getBomWorkbenchDraftByIdAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   listBomWorkbenchRecordsAsync\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 | } from \"@/lib/bom-workbench-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n  14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:12:1\nError: Module not found: Can't resolve '@/lib/db-async-provider'\n  10 |   listBomWorkbenchRecordsAsync\n  11 | } from \"@/lib/bom-workbench-async\";\n> 12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n  14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n  15 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:13:1\nError: Module not found: Can't resolve '@/lib/numbering-company-context'\n  11 | ...kbench-async\";\n  12 | ...baseClient } from \"@/lib/db-async-provider\";\n> 13 | ...beringCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from \"@/lib/numberi...\n     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  14 | ...sionCode } from \"@/lib/revision-policy\";\n  15 | ...\n  16 | ...= \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/bom/drafts/route.ts:14:1\nError: Module not found: Can't resolve '@/lib/revision-policy'\n  12 | import { getAsyncDatabaseClient } from \"@/lib/db-async-provider\";\n  13 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } f...\n> 14 | import { validateRevisionCode } from \"@/lib/revision-policy\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  15 |\n  16 | export const runtime = \"nodejs\";\n  17 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/production-slice/status/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/production-slice'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { productionSliceClientStatus } from \"@/lib/production-slice\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 |\n  4 | export const runtime = \"nodejs\";\n  5 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n  4 | import {\n  5 |   getPrivacyPendingToken,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/audit-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n> 3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import {\n  5 |   getPrivacyPendingToken,\n  6 |   getSessionToken\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/auth'\n   2 | import { registerFirebaseAccountSessionAsync } from \"@/lib/account-session-registry\";\n   3 | import { createAuditLogAsync } from \"@/lib/audit-async\";\n>  4 | import {\n     | ^^^^^^^\n>  5 |   getPrivacyPendingToken,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n>  6 |   getSessionToken\n     | ^^^^^^^^^^^^^^^^^\n>  7 | } from \"@/lib/auth\";\n     | ^^^^^^^^^^^^^^^^^^^^\n   8 | import {\n   9 |   clearPrivacyPendingResponseCookie,\n  10 |   setFirebaseBffSessionResponseCookie\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:12:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  10 |   setFirebaseBffSessionResponseCookie\n  11 | } from \"@/lib/auth-response-cookies\";\n> 12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:8:1\nError: Module not found: Can't resolve '@/lib/auth-response-cookies'\n   6 |   getSessionToken\n   7 | } from \"@/lib/auth\";\n>  8 | import {\n     | ^^^^^^^\n>  9 |   clearPrivacyPendingResponseCookie,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 10 |   setFirebaseBffSessionResponseCookie\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 11 | } from \"@/lib/auth-response-cookies\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:13:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  11 | } from \"@/lib/auth-response-cookies\";\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n> 13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n  16 | import {\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:14:1\nError: Module not found: Can't resolve '@/lib/platform-session-key-ring'\n  12 | import { getSessionUserAsync, getUserByIdAsync } from \"@/lib/auth-async\";\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n> 14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n  16 | import {\n  17 |   finalizePrivacyAccessAsync,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:15:1\nError: Module not found: Can't resolve '@/lib/platform-session-v2'\n  13 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n> 15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  16 | import {\n  17 |   finalizePrivacyAccessAsync,\n  18 |   getPrivacyAcknowledgementStatusAsync,\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:16:1\nError: Module not found: Can't resolve '@/lib/privacy-notice'\n  14 | import { getPlatformSessionKeyRing } from \"@/lib/platform-session-key-ring\";\n  15 | import { verifyPlatformSessionV2 } from \"@/lib/platform-session-v2\";\n> 16 | import {\n     | ^^^^^^^\n> 17 |   finalizePrivacyAccessAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 18 |   getPrivacyAcknowledgementStatusAsync,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 19 |   getPrivacyNoticeContract,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 20 |   getPublicPrivacyNotice,\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 21 |   isPrivacyNoticeEnforced\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 22 | } from \"@/lib/privacy-notice\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  23 | import { PrivacyNoticeError } from \"@/lib/repositories/privacy-notice-async-repository\";\n  24 |\n  25 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/privacy/acknowledgements/current/route.ts:23:1\nError: Module not found: Can't resolve '@/lib/repositories/privacy-notice-async-repository'\n  21 |   isPrivacyNoticeEnforced\n  22 | } from \"@/lib/privacy-notice\";\n> 23 | import { PrivacyNoticeError } from \"@/lib/repositories/privacy-notice-async-repository\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  24 |\n  25 | export const runtime = \"nodejs\";\n  26 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/account-session-registry'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n> 3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  2 | import { SESSION_COOKIE_NAME } from \"@/lib/auth\";\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n> 4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/auth-config'\n  3 | import { refreshRegisteredLegacySessionCookieAsync } from \"@/lib/account-session-registry\";\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 5 | import { getAuthMode } from \"@/lib/auth-config\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n  7 |\n  8 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/auth/me/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  4 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  5 | import { getAuthMode } from \"@/lib/auth-config\";\n> 6 | import { serializeAuthUserAsync } from \"@/lib/company-context\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 |\n  8 | export const runtime = \"nodejs\";\n  9 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:1:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n> 1 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n  4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/number-state-flow-api'\n  2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n> 4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 |\n  6 | export const runtime = \"nodejs\";\n  7 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-async'\n  1 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 2 | import { checkNumberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/n...\n  4 | import { numberStateFlowJson } from \"@/lib/number-state-flow-api\";\n  5 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/permissions/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-codes'\n  1 | ...eAuthAsync } from \"@/lib/auth-async\";\n  2 | ...umberingPermissionAsync } from \"@/lib/numbering-permission-async\";\n> 3 | ...ING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from \"@/lib/numbering-per...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | ...StateFlowJson } from \"@/lib/number-state-flow-api\";\n  5 | ...\n  6 | ...ntime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import crypto from \"node:crypto\";\n> 3 | import { requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n  6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  2 | ...ypto from \"node:crypto\";\n  3 | ...requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n> 4 | ...requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/company-...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n  6 | ...removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n  7 | ...scopedSubmittedBy } from \"@/lib/permissions\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/dashboard-metrics-async'\n  3 | import { requireAuthAsync, requireRoleAsync } from \"@/lib/auth-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n> 5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n  7 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n  8 | import { triggerBackgroundUpload } from \"@/lib/submission-background-upload\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/permissions'\n   5 | import { getDashboardMetricsAsync } from \"@/lib/dashboard-metrics-async\";\n   6 | import { removeSubmissionUploadFolder, saveUploadedFiles } from \"@/lib/file-store\";\n>  7 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 | import { triggerBackgroundUpload } from \"@/lib/submission-background-upload\";\n   9 | import { createSubmissionRecordAsync, listSubmissionsAsync, submissionRevisionExistsAsync ...\n  10 | import { getSystemSettingAsync } from \"@/lib/system-settings-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/submissions/route.ts:9:1\nError: Module not found: Can't resolve '@/lib/submissions-async'\n   7 | ...mittedBy } from \"@/lib/permissions\";\n   8 | ...ckgroundUpload } from \"@/lib/submission-background-upload\";\n>  9 | ...missionRecordAsync, listSubmissionsAsync, submissionRevisionExistsAsync } from \"@/lib/s...\n     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  10 | ...SettingAsync } from \"@/lib/system-settings-async\";\n  11 | ...ableStorageUploadDecisions, getAlternateLargeFileIntakePackage, getStorageUploadPolicy ...\n  12 | ...ageUploadDecision } from \"@/lib/storage-upload-policy\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n  4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n  5 | import type { NotificationItem } from \"@/lib/types\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/notifications-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n  5 | import type { NotificationItem } from \"@/lib/types\";\n  6 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/notifications/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/storage-evidence-dashboard'\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n  3 | import { listNotificationsAsync, summarizeNotifications } from \"@/lib/notifications-async\";\n> 4 | import { getStorageEvidenceDashboard } from \"@/lib/storage-evidence-dashboard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | import type { NotificationItem } from \"@/lib/types\";\n  6 |\n  7 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/number-sort'\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n  5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n> 6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 |\n  8 | export const runtime = \"nodejs\";\n  9 |\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/numbering-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } fr...\n> 3 | import { searchNumberingRecordsAsync } from \"@/lib/numbering-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n  5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n  6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/numbering-company-context'\n  1 | ...e } from \"next/server\";\n> 2 | ...mberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from \"@/lib/numberi...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | ...ringRecordsAsync } from \"@/lib/numbering-async\";\n  4 | ...ingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/numbering-reposito...\n  5 | ...eringPageAsync } from \"@/lib/numbering-permission-guard\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/numbering/search/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/numbering-permission-guard'\n  3 | import { searchNumberingRecordsAsync } from \"@/lib/numbering-async\";\n  4 | import type { NumberingRecordStatus, NumberingSearchEntityType } from \"@/lib/repositories/n...\n> 5 | import { requireNumberingPageAsync } from \"@/lib/numbering-permission-guard\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { parseNumberSortDirection } from \"@/lib/number-sort\";\n  7 |\n  8 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:2:1\nError: Module not found: Can't resolve '@/lib/auth-async'\n  1 | import { NextResponse } from \"next/server\";\n> 2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:3:1\nError: Module not found: Can't resolve '@/lib/bom-workbench-async'\n  1 | import { NextResponse } from \"next/server\";\n  2 | import { requireAuthAsync } from \"@/lib/auth-async\";\n> 3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n  6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:4:1\nError: Module not found: Can't resolve '@/lib/company-context'\n  2 | ...requireAuthAsync } from \"@/lib/auth-async\";\n  3 | ...listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n> 4 | ...requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/company-...\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  5 | ...listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n  6 | ...scopedSubmittedBy } from \"@/lib/permissions\";\n  7 | ...rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:5:1\nError: Module not found: Can't resolve '@/lib/numbering-async'\n  3 | import { listObsoleteBomWorkbenchHistoryAsync } from \"@/lib/bom-workbench-async\";\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n> 5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n  8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-as...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:7:1\nError: Module not found: Can't resolve '@/lib/numbering-vocabulary'\n   5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n   6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n>  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-a...\n   9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-re...\n  10 | import { getSubmissionAsync, listSubmissionsAsync } from \"@/lib/submissions-async\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:6:1\nError: Module not found: Can't resolve '@/lib/permissions'\n  4 | import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from \"@/lib/co...\n  5 | import { listNumberingApprovalBatchesAsync } from \"@/lib/numbering-async\";\n> 6 | import { scopedSubmittedBy } from \"@/lib/permissions\";\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  7 | import { rewriteNumberingHumanText } from \"@/lib/numbering-vocabulary\";\n  8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-as...\n  9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-rep...\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/api/lifecycle/controlled-history/route.ts:10:1\nError: Module not found: Can't resolve '@/lib/submissions-async'\n   8 | import type { BomWorkbenchObsoleteHistoryRecord } from \"@/lib/repositories/bom-workbench-a...\n   9 | import type { NumberingApprovalReviewRequestRecord } from \"@/lib/repositories/numbering-re...\n> 10 | import { getSubmissionAsync, listSubmissionsAsync } from \"@/lib/submissions-async\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  11 | import type { ControlledHistoryEntry, SubmissionLifecycleRequest, SubmissionSummary } from...\n  12 |\n  13 | export const runtime = \"nodejs\";\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:50:1\nError: Module not found: Can't resolve '@/components/bom-editor/bom-xmind-editor'\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n> 50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n  53 |\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:45:1\nError: Module not found: Can't resolve '@/components/next-step-state'\n  43 | import \"@xyflow/react/dist/style.css\";\n  44 | import { FileDropzone } from \"@/components/file-dropzone\";\n> 45 | import { NextStepState } from \"@/components/next-step-state\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:48:1\nError: Module not found: Can't resolve '@/components/pdm-detail-drawer'\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n> 48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:46:1\nError: Module not found: Can't resolve '@/components/pdm-workbench-list'\n  44 | import { FileDropzone } from \"@/components/file-dropzone\";\n  45 | import { NextStepState } from \"@/components/next-step-state\";\n> 46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:47:1\nError: Module not found: Can't resolve '@/components/search-highlight'\n  45 | import { NextStepState } from \"@/components/next-step-state\";\n  46 | import { PdmWorkbenchList } from \"@/components/pdm-workbench-list\";\n> 47 | import { SearchHighlight } from \"@/components/search-highlight\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:49:1\nError: Module not found: Can't resolve '@/components/status-help-popover'\n  47 | import { SearchHighlight } from \"@/components/search-highlight\";\n  48 | import { PdmDetailDrawer, useRememberedDrawerWidth } from \"@/components/pdm-detail-drawer\";\n> 49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n  51 | import { formatStatusForUser } from \"@/lib/status-display\";\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    },
+    {
+      "url": "http://127.0.0.1:61913/",
+      "text": "./src/app/bom/workbench/page.tsx:51:1\nError: Module not found: Can't resolve '@/lib/status-display'\n  49 | import { StatusBadge, StatusScopeHelp } from \"@/components/status-help-popover\";\n  50 | import { BomXmindEditor } from \"@/components/bom-editor/bom-xmind-editor\";\n> 51 | import { formatStatusForUser } from \"@/lib/status-display\";\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  52 | import type { BomWorkbenchListRecord } from \"@/lib/types\";\n  53 |\n  54 | type SubmissionSummary = {\n\nImport trace:\n  Server Component:\n    ./src/app/bom/workbench/page.tsx\n    ./src/app/bom/workbench/[draftId]/page.tsx\n\nhttps://nextjs.org/docs/messages/module-not-found"
+    }
+  ],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [],
+  "results": [
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"6fc6a9d7-86b1-4cfa-a56d-57b4eb774d7d\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-01292061\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-01292061\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-14T09:55:19.091Z\",\"updated_at\":\"2026-08-14T09:55:19.091Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"6fc6a9d7-86b1-4cfa-a56d-57b4eb774d7d\",\"ownerPartNumberId\":\"dev071-browser-parent-part-01292061\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"7c8d460d-b972-448c-b2c8-9445c2ae541e\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/6fc6a9d7-86b1-4cfa-a56d-57b4eb774d7d\"}"
+    }
+  ],
+  "error": "page.goto: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:61913/bom/workbench/6fc6a9d7-86b1-4cfa-a56d-57b4eb774d7d\", waiting until \"domcontentloaded\"\u001b[22m\n"
+}

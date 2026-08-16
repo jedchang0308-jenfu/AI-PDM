@@ -1,11 +1,11 @@
 # QA Plan - PDM Approval Platform Validation
 
-Status: Phase 1A-1B focused local QC executed; Phase 1C-A reviewer entrypoint consolidation implemented and locally verified; Phase 1C-B legacy redirect implemented and locally verified; Phase 1C-C drawing object pending-review projection implemented and locally verified; release/live migration not authorized
+Status: Phase 1A-1B focused local QC executed; Phase 1C-A reviewer entrypoint consolidation implemented and locally verified; Phase 1C-B legacy redirect implemented and locally verified; Phase 1C-C drawing object pending-review projection implemented and locally verified; DEV-070 workbench reuse is `Local RD Implemented / Focused Contract + Query + Browser QC Passed / Full APW Matrix Pending`; release/live migration not authorized
 Date: 2026-07-08
 Owner: QA / Dev PM
 Related Spec: `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-platform.md`
-Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`
-Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`
+Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`; `.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`
+Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`; `DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`
 
 ## Current Local Evidence - 2026-07-08
 
@@ -229,6 +229,93 @@ Phase 1C-C execution result on 2026-07-09:
 - Object projection remains read-only: `record_status` and release state are not used to represent pending approval.
 - Browser smoke passed for desktop 1440x960 and mobile 390x844 without horizontal overflow or clipped visible pending badges.
 
+## DEV-070 Approval Workbench Contract Validation
+
+Status: `Local RD Implemented / Focused Contract + Query + Browser QC Passed / Full APW Matrix Pending / Production Release Gated`.
+
+This section is the focused QA contract for DEV-070. It supplements historical `AP-001..037`; historical results remain evidence for their original implementation date, while DEV-067/DEV-070 supersede the old assumption that covered Drawing/Part/Relation review details are composed inside `/approvals`.
+
+Required fixtures:
+
+- Authorized reviewer and non-reviewer in the same company; authorized reviewer in another company.
+- 0, 1, 20, 60 and at least 101 eligible inbox rows.
+- Rows from all six sources: native, numbering, submission, BOM, drawing package and drawing revision review.
+- At least six rows sharing the same `requestedAt`, with distinct globally stable `rowKey` values.
+- Covered Drawing, Part and Relation owner targets; one legacy domain without a canonical owner surface; one stale/deleted owner target.
+
+| ID | Area | Procedure | Expected evidence |
+|---|---|---|---|
+| APW-001 | Architecture | Inspect approval page and shared workbench imports/render path | Approval uses shared shell/controller/list/pagination mechanics; no second page-local equivalent remains on the enabled path |
+| APW-002 | Domain boundary | Inspect approval UI controls and core branches | `/approvals` has no relation tree/matrix switch; shared core contains no approval status/action/domain conditional |
+| APW-003 | Row projection | Render native and all legacy-source rows | Target code/name, review type, requester, time and compact status are readable; no raw identifier is shown when a human label exists |
+| APW-004 | Search | Search target code/label/title, request title, requester and package code | Server returns all authorized matches across sources before page slicing; whitespace/case normalization is deterministic |
+| APW-005 | Filters | Change status/domain/action/query from a non-first page with a selected row | URL is canonical; cursor resets; an out-of-result selection clears; no stale row remains |
+| APW-006 | Global order | Load equal-time six-source fixture | Order is exactly `requestedAt DESC, rowKey ASC` on repeated reads |
+| APW-007 | Next cursor | Traverse a 101+ fixture to the final page | Every authorized row is reachable; first-100 truncation does not occur |
+| APW-008 | Previous cursor | Navigate forward twice and then backward | Previous page is exact and URL-backed; reload on that page preserves it |
+| APW-009 | Cursor integrity | Record all row keys while paging next/previous | No duplicate or missing row occurs, including equal timestamps |
+| APW-010 | Cursor tamper | Alter cursor bytes/signature | API returns 400 without data; UI clears cursor, returns to page one and shows concise recovery notice |
+| APW-011 | Cursor context | Reuse a cursor after changing query/filter | API rejects mismatch; no rows from the old context appear |
+| APW-012 | Isolation | Reuse cursor/request ID across actor and company contexts | 403/400 reveals no row, count, target or owner URL; assignment/company scope remains authoritative |
+| APW-013 | Count | Compare sidebar/workbench summary against full authorized fixture while changing search/filter/page | Global reviewer/company-scoped status counts are exact and independent of current filter/page length; list says `本頁 N 筆` |
+| APW-014 | Query budget | Capture DB/read counters for 1, 20 and 60-row pages across six sources | List read path stays `<=16` reads and does not grow with returned row count |
+| APW-015 | Race guard | Delay an old request, then rapidly change query/filter/page | Old request is aborted or ignored; only the latest rows, selection and URL render |
+| APW-016 | Reload/share | Open a URL containing filters/query/cursor/requestId in a fresh tab | Same page and selected row restore without first selecting another row |
+| APW-017 | Browser history | Change filters/pages/selection, then use Back and Forward | Each historical list state and selection restores exactly |
+| APW-018 | Selection | Select a row, reload and copy the URL | `requestId` is canonical and shareable; inaccessible IDs do not disclose or auto-select data |
+| APW-019 | Owner link authority | Inspect covered PDM row links | Server emits normalized owner href with exact signed/validated `returnTo`; client does not reconstruct route ownership |
+| APW-020 | Unified detail | Open Drawing, Part and Relation covered rows | Canonical owner module opens exactly one `UnifiedPdmEntityDetailDrawer`; `/approvals` does not mount duplicate PDM detail |
+| APW-021 | Close return | Close each owner drawer | Returns to exact filter/query/cursor/request selection and focus returns to the originating row |
+| APW-022 | Decision return | Complete an allowed decision in owner drawer | Returns to exact list context; only affected row and exact pending count refresh; unrelated rows do not jump |
+| APW-023 | Legacy fallback | Open a domain without canonical owner surface | Existing authorized fallback remains reachable without changing the shared inbox shell or fabricating a PDM drawer |
+| APW-024 | Keyboard | Exercise ArrowUp/Down, Home/End, PageUp/Down, Enter, Escape and copy-current-identifier | Behavior matches PDM workbench; selection/focus/pagination remain visible and deterministic |
+| APW-025 | Native input | Repeat shortcuts while focus is in input, textarea and select | Native editing/select behavior is not intercepted; focus indicators remain visible |
+| APW-026 | States/failure | Exercise loading, 0-row empty, 401, 403, invalid cursor, required-source failure and retry | Shared states are concise/actionable; required-source failure is fail-closed and never presented as a complete partial inbox |
+| APW-027 | Responsive | Execute primary flow at 1440x900, 1024x768, 768x1024 and 390x844 | No horizontal overflow, overlap, clipping or ambiguous nested scroll owner; target/type/requester/time/status remain usable |
+| APW-028 | Runtime sweep | Run full flow with browser console and network capture | Visible errors, console errors and unexpected 4xx/5xx are zero; expected 400/401/403 cases are asserted and recoverable |
+
+Required evidence package after implementation:
+
+- Focused API/contract test output for search, all-source order, signed next/previous cursor, tamper, filter hash and actor/company isolation.
+- Query-count report for 1/20/60 rows and the 101+ collision fixture manifest.
+- Static architecture report proving shared mechanics reuse, no approval branch in core and no duplicate covered-PDM detail body.
+- Four-viewport screenshots plus browser trace covering reload, Back/Forward, close/decision return, keyboard/focus, state recovery and console/network sweep.
+- Implementation report mapping every changed product file and every `APW` case; no PASS claim without retained evidence.
+
+### DEV-070 executable QA map
+
+| Phase | Planned verifier | APW ownership | Required regression |
+|---|---|---|---|
+| 1A server contract | expanded `scripts/qc-approval-inbox-query-budget.mjs` plus new `scripts/qc-dev-070-postgres.mjs` | APW-004～014, APW-026 source-failure branch and provider timestamp parity | Existing approval policy/detail/decision behavior remains unchanged |
+| 1B shared client | new `scripts/qc-dev-070-approval-workbench.mjs` | APW-001～003, 005, 015～018, 024～027 static/contract | `npm run qc:dev-062:core` |
+| 1C owner return | same contract verifier plus owner-navigation fixture | APW-019～023 | `npm run qc:dev-067:navigation` |
+| 1D browser/QC | new `scripts/qc-dev-070-browser.mjs` | APW-001～028 real interaction as applicable | approval platform regression, app typecheck and isolated build |
+
+Required command sequence:
+
+```text
+npm run qc:dev-070:contract
+npm run qc:dev-070:query
+npm run qc:dev-070:postgres
+npm run qc:dev-062:core
+npm run qc:dev-067:navigation
+npm run qc:pdm-approval-platform
+npm run typecheck:app
+npm run build:isolated
+npm run qc:dev-070:browser
+```
+
+`package.json` adds `qc:dev-070:contract`, `qc:dev-070:query`, `qc:dev-070:postgres`, `qc:dev-070:browser` and aggregate `qc:dev-070` without a new dependency. The query verifier retains the existing native target-batching assertion while adding six-source fixtures. The PostgreSQL verifier uses a disposable isolated target and proves TIMESTAMPTZ/SQLite ordering parity; absence of that target is reported as an evidence blocker, not PASS. The browser verifier uses disposable local SQLite and fixed localhost entrypoint, never staging/production data.
+
+Evidence roots:
+
+- `output/qa/dev-070-approval-workbench/<run-id>/`: manifest, source fixtures, row-key traversal, query counts, expected/actual summaries and static contract report.
+- `output/playwright/dev-070-approval-workbench/<run-id>/`: four-viewport screenshots, interaction manifest, focus/history trace and console/network summary.
+
+QA does not mark DEV-070 PASS from visual similarity, one page of rows, `items.length`, a client-side merge, unretained manual inspection or historical AP results. Any APW P0/P1 failure returns the same DEV to RD; no partial-source result is accepted as degraded success.
+
+DEV-070 focused execution evidence (2026-08-12): `qc:dev-070:contract` PASS; `qc:dev-070:query` PASS; `qc:dev-070:postgres` static guard PASS with runtime parity pending because no external PostgreSQL target is configured; `qc:dev-070:navigation` PASS; `qc:dev-062:core` PASS (6/6); `qc:pdm-approval-platform` PASS (123/123); `typecheck:app` PASS; `build:isolated` PASS; `qc:dev-070:browser` PASS for shared list/filter/pagination envelope, no auto-open, owner navigation and console/network smoke. Screenshot: `output/playwright/dev-070-approval-workbench/approval-workbench.png`. These results are focused implementation evidence, not a claim that the full APW-001..028 matrix is closed.
+
 ## Browser / UI Validation
 
 Required browser checks once UI implementation is authorized:
@@ -237,9 +324,9 @@ Required browser checks once UI implementation is authorized:
 - Mobile unified inbox remains readable and decision buttons do not overlap.
 - Desktop and mobile sidebar show a single primary approval workbench entry with a readable pending badge.
 - Hidden legacy reviewer entries are still reachable through workbench filter/deep-link paths where feature parity is incomplete.
-- Approval detail shows impact preview before decision actions.
+- Covered PDM review opens the canonical Drawing/Part/Relation owner drawer, where the same submitter-visible projection plus authorized review context shows impact before decision actions.
 - Domain detail pages deep-link into the platform approval detail.
-- Drawing object detail pages show pending approval context only as compact object/revision cues and keep the full decision workflow in `/approvals`.
+- Drawing object/list surfaces keep compact pending cues; covered PDM decision detail stays in the canonical owner-module drawer reached from `/approvals`, not in a duplicated approval-only detail body.
 - Root obsolete impact wizard preserves whole-root intent and child target list.
 - Empty inbox, unauthorized access and apply-failed states give actionable next steps.
 

@@ -1,0 +1,8 @@
+{
+  "CTX-A":{"session":"dev074-r15-owner","account":"engineer@example.com","role":"RD / Engineer"},
+  "CTX-B":{"session":"dev074-r15-reviewer","account":"manager@example.com","role":"R&D Manager / Reviewer"},
+  "CTX-C":{"session":"dev074-r15-admin","account":"admin@example.com","role":"PDM Admin / Publisher"},
+  "CTX-D1":{"session":"dev074-r15-manufacturing","account":"manufacturing@example.com","role":"Manufacturing read-only"},
+  "CTX-D2":{"session":"dev074-r15-procurement","account":"procurement@example.com","role":"Procurement read-only"},
+  "CTX-E":{"session":"dev074-r15-restricted","account":null,"role":"Unauthenticated / restricted"}
+}

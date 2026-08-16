@@ -4,9 +4,9 @@
 
 | Surface | Object / identity | Visible status / responsibility | Natural next step | Close / continue | Risk | Result |
 |---|---|---|---|---|---|---|
-| Root | `A0007` / 馬達_JF_2HP_A in 圖料模組 | `待你處理`; tooltip says `檢查主圖` and `下一步：維護圖料關係` | One primary `檢查新版送審`; `待辦` is secondary | One inline X; list stays visible and clickable | `申請主根作廢` is red outline and not primary | Pass |
+| Root | `A0007` / 馬達_JF_2HP_A in 圖料工作台 | `待你處理`; tooltip says `檢查主圖` and `下一步：維護圖料關係` | One primary `檢查新版送審`; `待辦` is secondary | One inline X; list stays visible and clickable | `申請主根作廢` is red outline and not primary | Pass |
 | Drawing | `A0007-M01` / 馬達_JF_2HP_A in 圖號工作台 | `等他人處理`; progress is delegated to another reviewer | One primary `查看進度` | One inline X; list remains selectable | No destructive action competes in first screen | Pass |
-| Part | `A0001-P01` / 滑鼠_JF_A in 料號模組 | `待你處理`; shared status matches search | One primary `送審製造圖`; secondary tools are visually lower | One inline X; list remains selectable | No destructive action competes in first screen | Pass |
+| Part | `A0001-P01` / 滑鼠_JF_A in 料號工作台 | `待你處理`; shared status matches search | One primary `送審製造圖`; secondary tools are visually lower | One inline X; list remains selectable | No destructive action competes in first screen | Pass |
 | Candidate modal | candidate name and cancel consequence are visible | Modal states cancel will stop editing and whether a number will be released | `返回檢查` or `確認取消保留號` | Escape returns to the candidate drawer | destructive choice is isolated in `alertdialog` | Pass |
 
 ## Operation cost
@@ -29,4 +29,3 @@
 | 資訊負荷 | 2 | raw terms 0, reminder deduped to 1, part body identity duplicate 0, primary CTA count 1 |
 
 **Total: 12/12.** No dimension is 0. Status, next step and risk/recovery are all 2.
-

@@ -10,7 +10,7 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-de
 
 Drawing、Part、Relation 工作台目前共用部分 drawer shell，但 candidate、formal、relation target、reviewer 的 body、preview、section order 與 actions 仍由不同 composition 組裝。只把這些分支搬進一個 React component，會形成難以測試的巨型條件元件；維持三套 drawer 則會持續產生使用者肌肉記憶與審核內容漂移。
 
-最新產品決策要求：三工作台共用同一抽屜架構；圖號不看料號細節，料號不看圖面檔案，圖料模組看完整關係，assigned reviewer 在受審範圍內看完整 Drawing／Part／Relation。送審期間所有可見 object facts 仍來自同一份受鎖 owner data。
+最新產品決策要求：三工作台共用同一抽屜架構；圖號不看料號細節，料號不看圖面檔案，圖料工作台看完整關係，assigned reviewer 在受審範圍內看完整 Drawing／Part／Relation。送審期間所有可見 object facts 仍來自同一份受鎖 owner data。
 
 ## Options considered
 

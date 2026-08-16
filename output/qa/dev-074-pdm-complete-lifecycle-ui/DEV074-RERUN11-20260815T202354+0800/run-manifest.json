@@ -1,0 +1,20 @@
+{
+  "run_id": "DEV074-RERUN11-20260815T202354+0800",
+  "predecessor": "DEV074-RERUN10-20260815T192310+0800",
+  "started_at": "2026-08-15T20:23:54+08:00",
+  "status": "failed",
+  "ended_at": "2026-08-15T20:51:06+08:00",
+  "stop_reason": "DEV074-R11-P1-007 detected at B05; remaining paths deliberately not run under stop-on-first-failure policy",
+  "environment": "local-isolated",
+  "base_url": "http://127.0.0.1:3000",
+  "business_mutation_policy": "rendered_ui_only",
+  "direct_api_or_db_mutation_count": 0,
+  "scope_count": 58,
+  "out_of_scope": ["B09", "D15", "E02", "F08", "true_engineering_content_change", "legacy_reserved_numbers"],
+  "git": {
+    "branch": "持續優化1",
+    "head": "cc393e048b251fb1ea3356204de56bc4c9eacc45",
+    "dirty_paths_at_start": 311,
+    "dirty_worktree_policy": "preserved_user_owned_changes"
+  }
+}

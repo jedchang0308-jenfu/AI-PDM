@@ -155,8 +155,8 @@ function idempotencyKey(action: string) {
   return `dev062:part:${action}:${crypto.randomUUID()}`;
 }
 
-function shouldSkipUnifiedReviewDetail(unifiedEnabled: boolean) {
-  return unifiedEnabled && Boolean(new URLSearchParams(window.location.search).get("reviewRequestId"));
+function shouldSkipUnifiedReviewDetail() {
+  return Boolean(new URLSearchParams(window.location.search).get("reviewRequestId"));
 }
 
 function reviewReturnTo() {
@@ -171,10 +171,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
   }, [router]);
   const [feature, setFeature] = useState<FeatureStatus | null>(null);
   const unifiedEntityDetailEnabled = feature?.entityDetail?.enabled === true;
-  const skipUnifiedReviewDetail = useCallback(
-    () => shouldSkipUnifiedReviewDetail(unifiedEntityDetailEnabled),
-    [unifiedEntityDetailEnabled]
-  );
+  const skipUnifiedReviewDetail = useCallback(() => shouldSkipUnifiedReviewDetail(), []);
   const controller = usePdmWorkbenchController<PartWorkbenchRow, PartWorkbenchDetailResponse, PartWorkbenchQueryState, PartWorkbenchListResponse["filters"]>({
     initialQuery,
     initialLocation,
@@ -377,7 +374,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
 
       <section className="panel pdm-workbench-toolbar">
         <div className="drawing-workbench-filter-grid">
-          <label className="drawing-workbench-search"><span>搜尋</span><div><Search size={16} /><input value={query.query} onChange={(event) => updateQuery({ query: event.target.value })} placeholder="料號、主根號、名稱、材質、顏色" /></div></label>
+          <label className="drawing-workbench-search"><span>搜尋</span><div><Search size={16} /><input value={query.query} onChange={(event) => updateQuery({ query: event.target.value })} placeholder="料號、圖料根號、名稱、材質、顏色" /></div></label>
           <label><span>範圍</span><select value={query.view} onChange={(event) => updateQuery({ view: event.target.value as PartWorkbenchView })}><option value="all">全部</option><option value="mine">我的待處理</option><option value="work">工作中</option></select></label>
           <label><span>工作狀態</span><HumanStatusFilterSelect value={query.humanStatus} onChange={(humanStatus) => updateQuery({ humanStatus })} /></label>
           <label><span>系列代號</span><select value={query.seriesCode} onChange={(event) => updateQuery({ seriesCode: event.target.value })}><option value="">全部系列</option>{seriesCodeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
@@ -435,7 +432,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
       </section>
 
       {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
-      {detail?.candidate && !unifiedEntityDetailEnabled ? <WorkspaceDrawer
+      {detail?.candidate ? <WorkspaceDrawer
         workspace={detail.candidate as NumberingDraftWorkspace}
         busy={busy}
         editing={editing}
@@ -483,7 +480,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
         onStartResize={startDrawerResize}
         keepOpenSelector="[data-part-workbench-row='true']"
       ><div className="pdm-entity-drawer-body">{renderFormalDetail({ detail: detail.part, busy, productionSliceEnforced, productionSliceUnopenedMessage: unopenedMessage, setBusy, onUpdated: refresh })}</div></PdmEntityDetailDrawer> : null}
-      {unifiedEntityDetailEnabled && selectedKey ? <UnifiedPdmEntityDetailDrawer open entityKey={selectedKey} surface="part" reviewRequestId={reviewRequestId} width={drawerWidth} returnTo={reviewRequestId ? reviewReturnTo() : window.location.pathname + window.location.search} onStartResize={startDrawerResize} onClose={reviewRequestId ? () => router.push(reviewReturnTo()) : closeDetail} /> : null}
+      {unifiedEntityDetailEnabled && selectedKey && !detail?.candidate ? <UnifiedPdmEntityDetailDrawer open entityKey={selectedKey} surface="part" reviewRequestId={reviewRequestId} width={drawerWidth} returnTo={reviewRequestId ? reviewReturnTo() : window.location.pathname + window.location.search} onStartResize={startDrawerResize} onClose={reviewRequestId ? () => router.push(reviewReturnTo()) : closeDetail} /> : null}
     </>
   );
 }

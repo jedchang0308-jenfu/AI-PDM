@@ -1,10 +1,11 @@
 # SPEC-PDM-GCP-COST-OPTIMIZATION-001：AI-PDM 預上線低成本 Runtime Topology
 
 日期：2026-08-12  
-狀態：`RD Implementation Ready / Human Confirmed / Local IaC Preparation Ready / Live GCP Release Gated`  
+狀態：`RD/QC Local Passed / Human Confirmed / Blocked: Google OAuth + ADC Refresh / Live GCP Release Gated`
 DEV：`DEV-069` / `DEV-PDM-GCP-PRELAUNCH-COST-OPTIMIZATION-001`  
 Authority：`.ai-doc/decisions/ADR-PDM-GCP-COST-OPTIMIZATION-001-prelaunch-firebase-hosting-zonal-micro.md`  
 Amends：`DEV-032`、`DEV-046`、`SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`
+Release source：`codex/dev-069-cost-optimization@1065d4a7`（local clean commit，尚未 push）
 
 ## 1. Goal
 
@@ -67,6 +68,15 @@ Amends：`DEV-032`、`DEV-046`、`SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-pla
 核心批准範圍完成後，預估約 NT$550／月；相較目前約 NT$4,300／月，再省約 NT$3,750／月、NT$45,000／年。
 
 Micro 與 Zonal 的效益互相重疊：不能把「Micro 約 NT$3,050」與「Zonal 約 NT$1,705」再次相加。
+
+### 4.1 2026-08-12 live preflight readback
+
+- Production SQL `ai-pdm-prod-postgres` 為 `RUNNABLE`、`db-custom-1-3840`、Regional HA、private IP only；automated backup／PITR enabled，最新 automatic backup 已於 2026-08-12 03:35 (UTC+8) 完成。
+- Staging SQL `ai-pdm-stg-postgres` 已停止，仍是 `db-custom-1-3840`／Zonal；Cloud Run max instances 與 `PDM_CLOUD_SQL_POOL_MAX` 目前均為 5。
+- Restore `ai-pdm-prod-restore-20260716a` 已停止，Delete target 精確可辨識；2026-07-16 restore reconciliation、operation ID 與 source／restore numbering SHA-256 相等證據仍可讀。
+- Production／Staging 各仍有 HTTP redirect 與 HTTPS external ALB；`pdm.jenfu.com.tw`、`pdm-stg.jenfu.com.tw` 均無 A／CNAME record。
+- Production／Staging Firebase Hosting `web.app` 均可渲染未登入頁面，正式 ALB 拆除前仍須完成 Staging authenticated Level 3 與 Production Level 4 post-change smoke。
+- 本機 `gcloud` refresh token 已過期；在 `gcloud auth login --update-adc` 完成前，不得以 Console-only 操作繞過 remote-state saved plan。
 
 ## 5. Current Architecture Impact
 

@@ -8,13 +8,20 @@ import {
   AsyncSubmissionWriteRepository,
   type CreateSubmissionAsyncInput
 } from "@/lib/repositories/submission-write-async-repository";
+import { AsyncSubmissionStatusRepository } from "@/lib/repositories/submission-status-async-repository";
 
 export async function listSubmissionsAsync(input: ListSubmissionsAsyncInput = {}) {
   return new AsyncSubmissionListRepository(getAsyncDatabaseClient()).listSubmissions(input);
 }
 
 export async function getSubmissionAsync(id: string) {
-  return new AsyncSubmissionListRepository(getAsyncDatabaseClient()).getSubmission(id);
+  const client = getAsyncDatabaseClient();
+  const submission = await new AsyncSubmissionListRepository(client).getSubmission(id);
+  if (!submission) return null;
+  return {
+    ...submission,
+    release_actionability: await new AsyncSubmissionStatusRepository(client).getSubmissionReleaseActionability({ id })
+  };
 }
 
 export async function searchSubmissionsAsync(input: SearchSubmissionsAsyncInput = {}) {

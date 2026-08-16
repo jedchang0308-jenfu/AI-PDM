@@ -32,7 +32,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ rowK
       canUserUseNumberingActionAsync(auth.user, "numbering.attachments.manage"),
       canUserUseNumberingActionAsync(auth.user, "settings.admin_matrix")
     ]);
-    const { rowKey } = await params;
+    const { rowKey: encodedRowKey } = await params;
+    // The client encodes the composite key (`drawing:<id>`) when building the
+    // dynamic route URL. Normalize it at the route boundary, just like the
+    // corresponding part/relation workbench routes do, before resolving the
+    // key in the service layer.
+    const rowKey = decodeURIComponent(encodedRowKey);
     const detail = await new DrawingWorkbenchService().detail(rowKey, {
       id: auth.user.id,
       companyId: companyResult.company.companyId,

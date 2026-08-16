@@ -1,0 +1,12 @@
+{
+  "dev": "DEV-068",
+  "result": "PASS",
+  "categoryCount": 6,
+  "explicitNotApplicableRequiresExplicitVocabulary": true,
+  "missingValueCannotBecomeRemoval": true,
+  "externalAdapterBoundaryValidated": true,
+  "filenameOnlyFixtureMatchBlocked": true,
+  "governedOpenFieldStorage": true,
+  "shellExecutionDisabled": true,
+  "completedAt": "2026-08-14T05:30:56.263Z"
+}

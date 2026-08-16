@@ -1,0 +1,437 @@
+{
+  "runId": "DEV072-20260814T015732Z-fe86aec1",
+  "generatedAt": "2026-08-14T01:59:25.065Z",
+  "tool": "Playwright Chromium driven by Codex QC",
+  "productionConnection": false,
+  "productionWrite": false,
+  "database": "disposable isolated SQLite copies",
+  "fixture": {
+    "buildingKey": "candidate:draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+    "terminalKey": "part:part-qc-submit-ui-001",
+    "partKey": "part:part-qc-submit-ui-001",
+    "relationKey": "root:014f8d95-84df-4d9d-833a-7f22b10ffa59",
+    "pendingRequestIds": [
+      "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+      "APR-0b2f219a-6e28-4c9a-b63a-fa9822c23385"
+    ]
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "laptop",
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "touch": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "ACT-016-018-desktop",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "mode": "hover",
+        "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:manage_files",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-029-laptop",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "laptop",
+          "width": 1024,
+          "height": 768
+        },
+        "mode": "hover",
+        "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:manage_files",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-029-tablet",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "tablet",
+          "width": 768,
+          "height": 1024
+        },
+        "mode": "focus",
+        "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:manage_files",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-019-mobile",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "mobile",
+          "width": 390,
+          "height": 844,
+          "touch": true
+        },
+        "mode": "touch",
+        "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:manage_files",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-025",
+      "passed": true,
+      "detail": {
+        "ids": [
+          "detail:part:edit",
+          "detail:part:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-026",
+      "passed": true,
+      "detail": {
+        "ids": [
+          "detail:relation:manage_relation",
+          "detail:relation:view_history",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-030",
+      "passed": true,
+      "detail": {
+        "ids": [
+          "detail:part:view_history",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-013",
+      "passed": true,
+      "detail": {
+        "before": {
+          "id": "detail:drawing:submit_review",
+          "label": "送交審核",
+          "group": "workflow",
+          "order": 200,
+          "enabled": false,
+          "ariaDisabled": "true",
+          "ariaBusy": null,
+          "describedBy": "pdm-action-reason-_r_t_",
+          "tag": "BUTTON",
+          "primary": false,
+          "box": {
+            "x": 1121,
+            "y": 839,
+            "width": 140,
+            "height": 38
+          }
+        },
+        "after": {
+          "id": "detail:drawing:submit_review",
+          "label": "送交審核",
+          "group": "workflow",
+          "order": 200,
+          "enabled": true,
+          "ariaDisabled": null,
+          "ariaBusy": null,
+          "describedBy": null,
+          "tag": "BUTTON",
+          "primary": true,
+          "box": {
+            "x": 1121,
+            "y": 839,
+            "width": 140,
+            "height": 38
+          }
+        }
+      }
+    },
+    {
+      "id": "ACT-021",
+      "passed": true,
+      "detail": {
+        "dialogCount": 2,
+        "mutationCount": 1,
+        "request": [
+          {
+            "id": "APR-2fc8f93c-062a-4a0f-a58f-8fc63e7fe2ab",
+            "status": "pending",
+            "actionCode": "numbering.candidate_bundle_review"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ACT-022",
+      "passed": true,
+      "detail": {
+        "locked": [
+          {
+            "id": "detail:drawing:edit",
+            "label": "編輯圖面資料",
+            "group": "object",
+            "order": 100,
+            "enabled": false,
+            "ariaDisabled": "true",
+            "ariaBusy": null,
+            "describedBy": "pdm-action-reason-_r_r_",
+            "tag": "BUTTON",
+            "primary": false,
+            "box": {
+              "x": 821,
+              "y": 791,
+              "width": 140,
+              "height": 38
+            }
+          },
+          {
+            "id": "detail:drawing:manage_files",
+            "label": "管理圖面檔案",
+            "group": "object",
+            "order": 110,
+            "enabled": false,
+            "ariaDisabled": "true",
+            "ariaBusy": null,
+            "describedBy": "pdm-action-reason-_r_s_",
+            "tag": "BUTTON",
+            "primary": false,
+            "box": {
+              "x": 971,
+              "y": 791,
+              "width": 140,
+              "height": 38
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ACT-023",
+      "passed": true,
+      "detail": {
+        "withdrawDialogs": 2,
+        "mutationCount": 1,
+        "state": {
+          "workspace": {
+            "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+            "lifecycleStatus": "active",
+            "rowVersion": 3,
+            "ownerId": "user-admin-demo"
+          },
+          "reservations": [
+            {
+              "state": "active",
+              "count": 3
+            }
+          ],
+          "requests": [],
+          "candidates": [
+            {
+              "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+              "lifecycleStatus": "draft",
+              "requestId": null,
+              "rowVersion": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ACT-020",
+      "passed": true,
+      "detail": {
+        "beforeSubmit": {
+          "id": "detail:drawing:submit_review",
+          "label": "送交審核",
+          "group": "workflow",
+          "order": 200,
+          "enabled": false,
+          "ariaDisabled": "true",
+          "ariaBusy": null,
+          "describedBy": "pdm-action-reason-_r_t_",
+          "tag": "BUTTON",
+          "primary": false,
+          "box": {
+            "x": 1121,
+            "y": 839,
+            "width": 140,
+            "height": 38
+          }
+        },
+        "readySubmit": {
+          "id": "detail:drawing:submit_review",
+          "label": "送交審核",
+          "group": "workflow",
+          "order": 200,
+          "enabled": true,
+          "ariaDisabled": null,
+          "ariaBusy": null,
+          "describedBy": null,
+          "tag": "BUTTON",
+          "primary": true,
+          "box": {
+            "x": 1121,
+            "y": 839,
+            "width": 140,
+            "height": 38
+          }
+        },
+        "activeFiles": 2
+      }
+    },
+    {
+      "id": "ACT-024",
+      "passed": false,
+      "detail": {
+        "error": "owner without permission sees locked edit\n\ntrue !== false\n"
+      }
+    },
+    {
+      "id": "ACT-028-return_for_correction",
+      "passed": true,
+      "detail": {
+        "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+        "actionId": "detail:approval:return_for_correction",
+        "dialogs": 2,
+        "before": {
+          "status": "pending",
+          "applyStatus": "pending"
+        },
+        "after": {
+          "status": "needs_info",
+          "applyStatus": "applied"
+        },
+        "returnTo": "http://127.0.0.1:54704/approvals?status=active&limit=100&domain=numbering"
+      }
+    },
+    {
+      "id": "ACT-028-reject",
+      "passed": true,
+      "detail": {
+        "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+        "actionId": "detail:approval:reject",
+        "dialogs": 2,
+        "before": {
+          "status": "pending",
+          "applyStatus": "pending"
+        },
+        "after": {
+          "status": "rejected",
+          "applyStatus": "applied"
+        },
+        "returnTo": "http://127.0.0.1:49909/approvals?status=active&limit=100&domain=numbering"
+      }
+    },
+    {
+      "id": "ACT-028-approve",
+      "passed": true,
+      "detail": {
+        "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+        "actionId": "detail:approval:approve",
+        "dialogs": 0,
+        "before": {
+          "status": "pending",
+          "applyStatus": "pending"
+        },
+        "after": {
+          "status": "approved",
+          "applyStatus": "applied"
+        },
+        "returnTo": "http://127.0.0.1:62926/approvals?status=active&limit=100&domain=numbering"
+      }
+    },
+    {
+      "id": "ACT-027",
+      "passed": true,
+      "detail": {
+        "canonicalOwnerRouteUsed": true,
+        "unifiedDrawerCount": 1
+      }
+    },
+    {
+      "id": "ACT-011",
+      "passed": true,
+      "detail": {
+        "disabledMutationCount": 0
+      }
+    },
+    {
+      "id": "ACT-014",
+      "passed": true,
+      "detail": {
+        "exactlyOnceSubmit": true
+      }
+    },
+    {
+      "id": "RUN-FATAL",
+      "passed": false,
+      "detail": {
+        "error": "failed cases: [{\"id\":\"ACT-024\",\"passed\":false,\"detail\":{\"error\":\"owner without permission sees locked edit\\n\\ntrue !== false\\n\"}}]\n\n1 !== 0\n"
+      }
+    }
+  ],
+  "P0": 0,
+  "P1": 0,
+  "cleanup": {
+    "attempted": true,
+    "removedCount": 8,
+    "tempRootRemoved": true
+  },
+  "source": {
+    "commit": "ref: refs/heads/持續優化1",
+    "dirtyWorktree": true
+  },
+  "files": [
+    "action-contract.json",
+    "dom-metrics.json",
+    "interaction-log.json",
+    "console-network.json",
+    "data-before-after.json",
+    "visible-error-sweep.json",
+    "defects.md"
+  ]
+}

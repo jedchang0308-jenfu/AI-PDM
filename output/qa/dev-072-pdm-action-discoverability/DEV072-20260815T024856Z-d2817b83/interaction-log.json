@@ -1,0 +1,96 @@
+[
+  {
+    "label": "locked-desktop",
+    "type": "hover",
+    "actionId": "detail:drawing:submit_review",
+    "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+      "left": 1057.96875,
+      "right": 1324.03125,
+      "top": 794.90625,
+      "bottom": 831,
+      "viewportWidth": 1440,
+      "viewportHeight": 900
+    }
+  },
+  {
+    "label": "locked-desktop",
+    "type": "drawer-anchor-navigation",
+    "actionId": "detail:drawing:edit",
+    "anchor": "drawing-data-maintenance",
+    "url": "http://127.0.0.1:57521/numbering/drawings?detail=drawing%3Adrawing-draft-drawing-f398667d-6a2a-49de-97d5-933c6442b9b5#drawing-data-maintenance"
+  },
+  {
+    "label": "locked-laptop",
+    "type": "hover",
+    "actionId": "detail:drawing:submit_review",
+    "tooltip": "尚缺必要資料或檔案：2D 圖面。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "尚缺必要資料或檔案：2D 圖面。",
+      "left": 673.15625,
+      "right": 876.828125,
+      "top": 662.90625,
+      "bottom": 699,
+      "viewportWidth": 1024,
+      "viewportHeight": 768
+    }
+  },
+  {
+    "label": "locked-tablet",
+    "type": "focus",
+    "actionId": "detail:drawing:submit_review",
+    "tooltip": "尚缺必要資料或檔案：2D 圖面。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "尚缺必要資料或檔案：2D 圖面。",
+      "left": 417.15625,
+      "right": 620.828125,
+      "top": 918.90625,
+      "bottom": 955,
+      "viewportWidth": 768,
+      "viewportHeight": 1024
+    }
+  },
+  {
+    "label": "locked-mobile",
+    "type": "touch",
+    "actionId": "detail:drawing:submit_review",
+    "tooltip": "尚缺必要資料或檔案：2D 圖面。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "尚缺必要資料或檔案：2D 圖面。",
+      "left": 92.65625,
+      "right": 296.328125,
+      "top": 690.90625,
+      "bottom": 727,
+      "viewportWidth": 390,
+      "viewportHeight": 844
+    }
+  },
+  {
+    "label": "first-candidate-upload",
+    "type": "drawer-anchor-navigation",
+    "actionId": "detail:drawing:edit",
+    "anchor": "drawing-data-maintenance",
+    "url": "http://127.0.0.1:57521/numbering/drawings?detail=drawing%3Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd#drawing-data-maintenance"
+  },
+  {
+    "label": "no-permission",
+    "type": "hover",
+    "actionId": "detail:drawing:edit",
+    "tooltip": "目前帳號沒有此操作權限；請聯絡工作負責人或研發主管。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "目前帳號沒有此操作權限；請聯絡工作負責人或研發主管。",
+      "left": 881,
+      "right": 1201,
+      "top": 776.8125,
+      "bottom": 831,
+      "viewportWidth": 1440,
+      "viewportHeight": 900
+    }
+  }
+]

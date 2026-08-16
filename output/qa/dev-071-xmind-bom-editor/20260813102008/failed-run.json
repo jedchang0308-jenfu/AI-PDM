@@ -1,0 +1,93 @@
+{
+  "checkedAt": "2026-08-13T10:21:15.273Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813102008",
+  "total": 16,
+  "passed": 16,
+  "failed": 1,
+  "consoleErrors": [],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [],
+  "results": [
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"3c9779ed-c3f1-4b18-b683-d4ae74d8fe39\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-16408525\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-16408525\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T10:20:37.828Z\",\"updated_at\":\"2026-08-13T10:20:37.828Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"3c9779ed-c3f1-4b18-b683-d4ae74d8fe39\",\"ownerPartNumberId\":\"dev071-browser-parent-part-16408525\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"9bdc1506-d1ce-4cc0-bb1b-2a71a529fa84\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/3c9779ed-c3f1-4b18-b683-d4ae74d8fe39\"}"
+    },
+    {
+      "name": "toolbar has exact 10 XMind slots",
+      "passed": true,
+      "detail": "10"
+    },
+    {
+      "name": "toolbar slot order is monotonic",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    },
+    {
+      "name": "toolbar slots are 52px",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    },
+    {
+      "name": "Enter Tab Ctrl+Enter create expected topics",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "double-click blank creates Floating Topic",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "unresolved Floating Topic has visible review blocker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "review button disabled while floating exists",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Ctrl+S saves both editor graphs",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Outliner renders formal and floating graphs",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "branch focus exposes full-content recovery",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Delete opens reversible branch confirmation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag before preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag child preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag after preview is visible",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "error": "INLINE_INPUT_NOT_VISIBLE {\"activeElement\":{\"tag\":\"BODY\",\"className\":\"\",\"text\":\"AI PDM工作台工作台我的待辦圖料管理圖料工作台圖號工作台料號工作台BOM建立 BOMBOM 工作台變更 / 審核圖面進版製造圖影響分析發行 / 交接技術移轉\"},\"nodes\":[{\"id\":\"__bom_editor_root__\",\"selected\":\"false\",\"text\":\"P-DEV071-UI-PARENT-16408525 · BOM Rev 1正式 BOM 根節點3 個正式節點\",\"rect\":{\"x\":320,\"y\":595.0855102539062,\"width\":188.58432006835938,\"height\":61.68646240234375}},{\"id\":\"670c6d2f-bf7b-4352-9f6b-fa905fdd45cc\",\"selected\":\"true\",\"text\":\"父群組群組\",\"rect\":{\"x\":579.0831298828125,\"y\":415.31353759765625,\"width\":188.5843505859375,\"height\":61.68646240234375}},{\"id\":\"7022c46e-d03b-4d7b-994e-75a19097a5e5\",\"selected\":\"false\",\"text\":\"主群組群組\",\"rect\":{\"x\":817.0166015625,\"y\":499.912109375,\"width\":188.5843505859375,\"height\":61.68646240234375}},{\"id\":\"a53f572b-6c97-43ae-9076-678eed56119a\",\"selected\":\"false\",\"text\":\"同層群組群組\",\"rect\":{\"x\":817.0166015625,\"y\":584.5106811523438,\"width\":188.5843505859375,\"height\":61.68646240234375}},{\"id\":\"335cc616-1645-4306-8217-13d4aad00835\",\"selected\":\"false\",\"text\":\"暫存群組群組\",\"rect\":{\"x\":873.4156494140625,\"y\":297.22802734375,\"width\":188.5843505859375,\"height\":61.68646240234375}}],\"inputs\":[]} locator.waitFor: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.xmind-bom-node-inline-input').last() to be visible\u001b[22m\n"
+}

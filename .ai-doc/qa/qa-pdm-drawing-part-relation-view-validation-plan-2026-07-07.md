@@ -7,7 +7,7 @@ Status: Executed / local verification passed for Phase 1-3
 
 ## Validation Objective
 
-Verify that 圖料模組 no longer presents root, drawing and part as unrelated flat rows. The UI must show the actual relationship:
+Verify that 圖料工作台 no longer presents root, drawing and part as unrelated flat rows. The UI must show the actual relationship:
 
 ```text
 主根號 -> 圖號 -> 料號
@@ -25,7 +25,7 @@ and must support:
 
 Implemented validation scope:
 
-- Read-only root-grouped relationship tree in 圖料模組.
+- Read-only root-grouped relationship tree in 圖料工作台.
 - Server/API relation aggregation or equivalent client-safe aggregation.
 - Relationship health and next-step labels.
 - Root/drawing/part drawer selection behavior.
@@ -74,7 +74,7 @@ Fixture rules:
 
 | ID | Priority | Scenario | Expected |
 |---|---|---|---|
-| RELTREE-001 | P0 | Open 圖料模組 default view | User sees root-grouped relation view, not equal-weight root/drawing/part flat rows |
+| RELTREE-001 | P0 | Open 圖料工作台 default view | User sees root-grouped relation view, not equal-weight root/drawing/part flat rows |
 | RELTREE-002 | P0 | Root has multiple drawings | Root appears once; all drawings appear underneath |
 | RELTREE-003 | P0 | One drawing links to multiple parts | Drawing node shows all linked parts without duplicating the root row |
 | RELTREE-004 | P0 | One part links to multiple drawings | Part is visible under each valid drawing relationship and drawer shows all linked drawings |

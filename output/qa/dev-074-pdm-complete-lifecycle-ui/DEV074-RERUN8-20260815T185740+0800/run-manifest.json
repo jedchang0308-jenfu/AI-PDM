@@ -1,0 +1,22 @@
+{
+  "run_id":"DEV074-RERUN8-20260815T185740+0800",
+  "objective":"DEV074-R7-P1-003 修復後由 W0 歸零，重新執行全部 58 條 rendered UI journey",
+  "status":"failed",
+  "started_at":"2026-08-15T18:57:40+08:00",
+  "ended_at":"2026-08-15T19:08:01+08:00",
+  "failed_at":"B01",
+  "failure_id":"DEV074-R8-P1-004",
+  "environment":{"target":"http://127.0.0.1:3000","scope":"local_isolated_only","production_mutation_allowed":false,"business_mutation_mode":"rendered_ui_only","direct_api_mutation_count":0,"direct_db_mutation_count":0},
+  "source":{"branch":"持續優化1","head":"cc393e048b251fb1ea3356204de56bc4c9eacc45","dirty_diff_sha256":"16eab2a09212f0c56300e1b3b9882238b2b54ae3","worktree":"dirty_user_owned_changes_preserved"},
+  "predecessor_attempts":[
+    {"run_id":"DEV074-RERUN-20260815T162652+0800","result":"failed_at_w0"},
+    {"run_id":"DEV074-RERUN2-20260815T163010+0800","result":"failed_at_w0"},
+    {"run_id":"DEV074-RERUN3-20260815T164054+0800","result":"failed_at_B01"},
+    {"run_id":"DEV074-RERUN4-20260815T170341+0800","result":"failed_at_B01"},
+    {"run_id":"DEV074-RERUN5-20260815T172729+0800","result":"failed_at_B02"},
+    {"run_id":"DEV074-RERUN6-20260815T174900+0800","result":"failed_at_C02"},
+    {"run_id":"DEV074-RERUN7-20260815T184328+0800","result":"failed_at_A04","repair":"DEV074-R7-P1-003 closed and locally verified"}
+  ],
+  "scope":{"in_scope_count":58,"out_of_scope":["B09","D15","E02","F08","true_engineering_content_change","legacy_reserved_numbers"]},
+  "viewports":["1440x900","1024x768","768x1024","390x844"]
+}

@@ -2,6 +2,8 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncBomWorkbenchRepository } from "@/lib/repositories/bom-workbench-async-repository";
 export {
   BomCreateIdempotencyConflictError,
+  BomDraftEditorVersionConflictError,
+  BomFloatingTopicsUnresolvedError,
   BomReleaseGateError,
   BomRevisionConflictError,
   BomXlsImportError
@@ -44,6 +46,7 @@ export async function saveBomWorkbenchDraftTreeAsync(input: {
   draftId: string;
   actorId: string | null;
   reason?: string;
+  expectedEditorVersion: number;
   lines: Array<{
     id?: string;
     parentLineId?: string | null;
@@ -53,6 +56,18 @@ export async function saveBomWorkbenchDraftTreeAsync(input: {
     groupName?: string | null;
     quantity?: number | null;
     sequenceNo?: number | null;
+  }>;
+  floatingTopics: Array<{
+    id?: string;
+    parentFloatingTopicId?: string | null;
+    nodeType: "item" | "group";
+    partNumber?: string | null;
+    revision?: string | null;
+    groupName?: string | null;
+    quantity?: number | null;
+    sequenceNo?: number | null;
+    rootPositionX?: number | null;
+    rootPositionY?: number | null;
   }>;
 }) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).saveDraftTree(input);
@@ -89,6 +104,7 @@ export async function createCanonicalBomDraftAsync(input: {
   bomRevision: string;
   source: "manual" | "cad_reference";
   sourceSubmissionId?: string | null;
+  sourceRevisionPackageId?: string | null;
   actorId: string;
   idempotencyKey: string;
   requestFingerprint: string;

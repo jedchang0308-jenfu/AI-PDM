@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 const root = process.cwd();
 const failures = [];
@@ -28,6 +29,11 @@ const packageJson = JSON.parse(read("package.json"));
 const scripts = packageJson.scripts ?? {};
 const launcher = read("scripts/start-localhost-3000.ps1");
 const cleanNext = read("scripts/clean-next.mjs");
+const nextConfig = read("next.config.mjs");
+const workspaceTsconfig = JSON.parse(read("tsconfig.json"));
+const appTsconfig = JSON.parse(read("tsconfig.app.json"));
+const nextTsconfig = JSON.parse(read("tsconfig.next.json"));
+const parsedWorkspaceTsconfig = ts.getParsedCommandLineOfConfigFile(path.join(root, "tsconfig.json"), {}, ts.sys);
 
 if (scripts["dev:server"] !== "next dev --hostname 127.0.0.1 --port 3000") {
   failures.push("package.json scripts.dev:server must keep the raw Next server command");
@@ -45,6 +51,39 @@ if (!String(scripts["dev:local:restart"] ?? "").includes("-CleanNext")) {
   failures.push("package.json scripts.dev:local:restart must clean .next during stale-server recovery");
 }
 
+assertIncludes("Next config watch scope", nextConfig, [
+  'distDir === ".next" ? "tsconfig.next.json"',
+  'path.resolve(projectRoot, ".tmp")',
+  'path.join(temporaryRoot, "next-tsconfig")',
+  "PDM_NEXT_TSCONFIG_PATH",
+  "Custom PDM_NEXT_DIST_DIR must stay under .tmp"
+]);
+
+for (const [label, config] of [
+  ["workspace tsconfig", workspaceTsconfig],
+  ["app tsconfig", appTsconfig],
+  ["Next tsconfig", nextTsconfig]
+]) {
+  const includes = Array.isArray(config.include) ? config.include : [];
+  if (includes.some((entry) => String(entry).includes(".tmp/") || String(entry).includes(".tmp\\"))) {
+    failures.push(`${label} must not include generated .tmp types`);
+  }
+}
+
+if ((workspaceTsconfig.include ?? []).some((entry) => String(entry).startsWith("**/"))) {
+  failures.push("workspace tsconfig must use a bounded src include instead of a repository-wide wildcard");
+}
+if (!parsedWorkspaceTsconfig) {
+  failures.push("workspace tsconfig must be parseable");
+} else if (parsedWorkspaceTsconfig.fileNames.length > 700) {
+  failures.push(`workspace tsconfig scope is too broad: ${parsedWorkspaceTsconfig.fileNames.length} files (limit 700)`);
+}
+assertIncludes("Next tsconfig", JSON.stringify(nextTsconfig), [
+  '"extends":"./tsconfig.app.json"',
+  '".next/types/**/*.ts"',
+  '".next/dev/types/**/*.ts"'
+]);
+
 assertIncludes("managed launcher", launcher, [
   "Test-LocalHttpHealth",
   "$HealthChecks = @(",
@@ -59,6 +98,10 @@ assertIncludes("managed launcher", launcher, [
   "$PortOwnerPidFile",
   "$StatusFile",
   "Write-RuntimeStatus",
+  "Get-RecognitionWorkerProcessInfo",
+  "Website and 3D worker are healthy, but the recognition worker is not running.",
+  "Recognition worker is running.",
+  "-RecognitionWorkerProcessId $recognitionWorker.ProcessId",
   "Get-CurrentPortOwner",
   "launcherProcessId",
   "portOwnerProcessId",

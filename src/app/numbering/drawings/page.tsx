@@ -340,17 +340,17 @@ export default function DrawingNumbersPage() {
     openDrawingDetail(detailDrawingNumber);
   }, [drawings, openDrawingDetail, state]);
 
-  if (workbenchEnabled === null) return <section className="panel"><div className="empty">正在開啟圖號模組...</div></section>;
+  if (workbenchEnabled === null) return <section className="panel"><div className="empty">正在開啟圖號工作台...</div></section>;
   if (workbenchEnabled) return <DrawingWorkbench />;
-  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟圖號模組...</div></section>;
+  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟圖號工作台...</div></section>;
   if (activeTab === "reserved") return <NumberStateWorkspaceWorkbench module="drawings" />;
 
   return (
     <>
       <div className="topbar">
         <div>
-          <h1>圖號模組</h1>
-          <p>管理圖面技術文件、版次用途、發行狀態與關聯料號；圖料模組維持跨物件追溯入口。</p>
+          <h1>圖號工作台</h1>
+          <p>管理圖面技術文件、版次用途、發行狀態與關聯料號；圖料工作台維持跨物件追溯入口。</p>
         </div>
         <div className="number-state-owner-actions">
           <button className="secondary-button" type="button" onClick={loadDrawings} disabled={busy}>
@@ -392,13 +392,13 @@ export default function DrawingNumbersPage() {
               <section className="panel pdm-master-table-panel pdm-drawing-table-panel">
                 <div className="empty">
                   <h2>尚無符合條件的圖號</h2>
-                  <p>可先到編號申請建立圖號，或用圖料模組確認是否已存在相近主根號。</p>
+                  <p>可先到編號申請建立圖號，或用圖料工作台確認是否已存在相近圖料根號。</p>
                   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0.5rem" }}>
                     <Link className="primary-button" href="/numbering/drawings?tab=reserved">
                       編號申請
                     </Link>
                     <Link className="secondary-button" href="/numbering/search">
-                      圖料模組
+                      圖料工作台
                     </Link>
                   </div>
                 </div>
@@ -905,7 +905,7 @@ function AccessPanel() {
     <section className="panel">
       <div className="empty">
         <ShieldAlert size={28} />
-        <h2>沒有圖號模組權限</h2>
+        <h2>沒有圖號工作台權限</h2>
         <p>請由管理員在權限矩陣開啟 numbering.drawings.view 頁面權限。</p>
       </div>
     </section>

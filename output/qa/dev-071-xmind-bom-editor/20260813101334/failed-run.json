@@ -1,0 +1,93 @@
+{
+  "checkedAt": "2026-08-13T10:14:41.069Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813101334",
+  "total": 16,
+  "passed": 16,
+  "failed": 1,
+  "consoleErrors": [],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [],
+  "results": [
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"8cc6f8a0-adc4-4547-9846-f69f53ed15b0\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-16014713\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-16014713\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T10:14:03.663Z\",\"updated_at\":\"2026-08-13T10:14:03.663Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"8cc6f8a0-adc4-4547-9846-f69f53ed15b0\",\"ownerPartNumberId\":\"dev071-browser-parent-part-16014713\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"17914eea-0743-48ff-8f4a-8d6733aa3be4\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/8cc6f8a0-adc4-4547-9846-f69f53ed15b0\"}"
+    },
+    {
+      "name": "toolbar has exact 10 XMind slots",
+      "passed": true,
+      "detail": "10"
+    },
+    {
+      "name": "toolbar slot order is monotonic",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    },
+    {
+      "name": "toolbar slots are 52px",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    },
+    {
+      "name": "Enter Tab Ctrl+Enter create expected topics",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "double-click blank creates Floating Topic",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "unresolved Floating Topic has visible review blocker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "review button disabled while floating exists",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Ctrl+S saves both editor graphs",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Outliner renders formal and floating graphs",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "branch focus exposes full-content recovery",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Delete opens reversible branch confirmation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag before preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag child preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag after preview is visible",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "error": "locator.waitFor: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.xmind-bom-node-inline-input').last() to be visible\u001b[22m\n"
+}

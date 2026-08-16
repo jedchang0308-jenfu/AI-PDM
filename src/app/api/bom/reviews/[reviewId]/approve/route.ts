@@ -4,6 +4,7 @@ import { forbidden, requireRoleAsync } from "@/lib/auth-async";
 import { canReadBomDraftRecordAsync } from "@/lib/bom-create-context";
 import {
   BomReleaseGateError,
+  BomFloatingTopicsUnresolvedError,
   getBomWorkbenchDraftByIdAsync,
   getBomWorkbenchReviewByIdAsync
 } from "@/lib/bom-workbench-async";
@@ -38,6 +39,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ rev
   } catch (error) {
     if (error instanceof BomReleaseGateError) {
       return NextResponse.json({ error: error.message, issues: error.issues }, { status: 409 });
+    }
+    if (error instanceof BomFloatingTopicsUnresolvedError) {
+      return NextResponse.json(
+        { error: error.message, floatingTopicCount: error.floatingTopicCount },
+        { status: 409 }
+      );
     }
     return NextResponse.json({ error: error instanceof Error ? error.message : "BOM_REVIEW_APPROVE_FAILED" }, { status: 400 });
   }

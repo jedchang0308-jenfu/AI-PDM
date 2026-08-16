@@ -1,0 +1,64 @@
+{
+  "runId": "20260814101014",
+  "checkedAt": "2026-08-14T10:10:54.010Z",
+  "outputDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-bom-straight-qc-copy-20260814180603\\output\\qa\\dev-071-flag-off-browser\\20260814101014",
+  "results": [
+    {
+      "name": "flag-off engineer login",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "flag=true draft created",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "flag=true floating fixture saved",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-003 flag=false reports disabled capability",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-004 legacy PATCH fails closed",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-004 floating graph remains unchanged",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-003 hard reload shows blocked handoff",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-002 flag=false zero-floating draft created",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-002 legacy surface has no v2 leakage",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-002 legacy surface can still save",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "screenshots": [
+    "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-bom-straight-qc-copy-20260814180603\\output\\qa\\dev-071-flag-off-browser\\20260814101014\\FF-003-blocked-handoff.png",
+    "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-bom-straight-qc-copy-20260814180603\\output\\qa\\dev-071-flag-off-browser\\20260814101014\\FF-002-legacy-surface.png"
+  ],
+  "productionConnected": false,
+  "productionWrites": false,
+  "cleanupStatus": "pending"
+}

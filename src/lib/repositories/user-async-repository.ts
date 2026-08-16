@@ -68,6 +68,28 @@ export const UPDATE_ASYNC_USER_PASSWORD_SQL = `
   WHERE id = :userId
 `;
 
+export const RESTORE_ASYNC_DEMO_USER_SQL = `
+  UPDATE users
+  SET account_status = 'active',
+      system_role_enabled = 1,
+      session_invalid_before = NULL,
+      account_lifecycle_version = account_lifecycle_version + 1,
+      account_status_changed_at = :now,
+      account_status_changed_by = id,
+      account_status_reason = 'Local demo validation account restored',
+      updated_at = :now
+  WHERE id = :userId
+    AND (account_status <> 'active' OR system_role_enabled = 0 OR session_invalid_before IS NOT NULL)
+`;
+
+export const RESTORE_ASYNC_DEMO_IDENTITY_SQL = `
+  UPDATE auth_identities
+  SET status = 'active',
+      updated_at = :now
+  WHERE user_id = :userId
+    AND provider = 'local_password'
+`;
+
 export const SELECT_ASYNC_COMPANY_ID_BY_CODE_SQL = `
   SELECT id
   FROM companies
@@ -197,6 +219,11 @@ export class AsyncUserRepository {
     await this.client.execute(UPDATE_ASYNC_USER_PASSWORD_SQL, { userId, passwordHash, now });
     const user = await this.getUserById(userId);
     if (user?.email) await this.upsertLocalPasswordIdentity(user.id, user.email, now);
+  }
+
+  async restoreDemoUserForLocalValidation(userId: string, now = new Date().toISOString()): Promise<void> {
+    await this.client.execute(RESTORE_ASYNC_DEMO_USER_SQL, { userId, now });
+    await this.client.execute(RESTORE_ASYNC_DEMO_IDENTITY_SQL, { userId, now });
   }
 
   async listUserCompanyAccess(userId: string): Promise<UserCompanyAccess[]> {

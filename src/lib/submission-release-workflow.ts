@@ -3,8 +3,12 @@ import { ensureDrawingRevisionPackageForSubmissionAsync } from "@/lib/drawing-re
 import { releaseSubmissionViaCloudFunctionAsync } from "@/lib/release-async";
 import { createReleasePackageAsync } from "@/lib/release-package-async";
 import { assertSubmissionReleasePolicyAsync } from "@/lib/revision-policy-release-gate";
-import { assertDrawingPackageModelBasisForReleaseAsync } from "@/lib/shared-3d-baseline";
 import {
+  assertDrawingPackageModelBasisForReleaseAsync,
+  ensureApprovedDrawingPackageSharedModelBasisAsync
+} from "@/lib/shared-3d-baseline";
+import {
+  getSubmissionReleaseActionabilityAsync,
   markSubmissionReleaseFailedAsync,
   markSubmissionReleasedAndObsoletePreviousAsync,
   markSubmissionReleasingAsync
@@ -40,6 +44,23 @@ export async function executeSubmissionReleaseWorkflowAsync(input: {
   auditAction?: string;
 }): Promise<SubmissionReleaseWorkflowResult> {
   let releaseStarted = false;
+  const releaseActionability = await getSubmissionReleaseActionabilityAsync(input.submissionId);
+  if (!releaseActionability.allowed) {
+    return {
+      ok: false,
+      submissionId: input.submissionId,
+      status: "Blocked",
+      code: releaseActionability.code,
+      error: releaseActionability.message,
+      policy: {
+        error: releaseActionability.code,
+        code: releaseActionability.code,
+        message: releaseActionability.message,
+        recoveryHref: releaseActionability.recovery_href,
+        terminalEntities: releaseActionability.terminal_entities
+      }
+    };
+  }
   const policyGate = await assertSubmissionReleasePolicyAsync({ submissionId: input.submissionId, actorId: input.actorId });
   if (!policyGate.ok) {
     return {
@@ -57,6 +78,10 @@ export async function executeSubmissionReleaseWorkflowAsync(input: {
     const latest = await getSubmissionAsync(input.submissionId);
     if (!latest) throw new Error("送審資料在發行前已不存在。");
     const revisionPackage = await ensureDrawingRevisionPackageForSubmissionAsync({ submissionId: input.submissionId, actorId: input.actorId });
+    await ensureApprovedDrawingPackageSharedModelBasisAsync({
+      packageId: revisionPackage.id,
+      actorId: input.actorId
+    });
     await assertDrawingPackageModelBasisForReleaseAsync(revisionPackage.id);
     const result = await releaseSubmissionViaCloudFunctionAsync(latest, input.actorId);
     const releasePackage = await createReleasePackageAsync(latest, input.actorId, result);

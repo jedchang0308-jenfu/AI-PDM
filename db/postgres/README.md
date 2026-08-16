@@ -38,3 +38,8 @@ Implementation notes:
 - PostgreSQL timestamps use `TIMESTAMPTZ` and JSON payloads use `JSONB`.
 - Migrations with `updated_at` columns install the controlled update trigger where required.
 - Application database access remains server-side through the repository and BFF boundaries.
+- DEV-068 additive recognition schema is migration `033_drawing_recognition.sql`. It is local/shadow implementation evidence only until a separately authorized production migration package includes it.
+- DEV-063 human-label rename is migration `034_root_vocabulary_human_label.sql`; it updates only the approval action title and leaves root identifiers/contracts unchanged.
+- DEV-071 XMind-style BOM draft editing is migration `035_bom_draft_floating_topics.sql`; it adds optimistic editor versioning and draft-only Floating Topic storage. Unresolved floating topics remain blocked from review and release by the server repository.
+- Human-controlled PDM approval decisions are migration `036_human_approval_decisions.sql`; it adds the distinct `request_more_information` audit action without deriving available decisions from FFF outcomes.
+- DEV-068 pre-submit recognition source context is migration `037_drawing_recognition_pre_submit_source.sql`; it extends the session constraint for `drawing_number` and remains local/shadow evidence until separately authorized for production.

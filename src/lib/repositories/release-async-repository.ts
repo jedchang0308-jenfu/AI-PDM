@@ -42,6 +42,7 @@ export const SELECT_ASYNC_RELEASED_FILENAME_CONFLICT_SQL = `
     AND s.item_id <> current_submission.item_id
     AND f.file_role = :fileRole
     AND lower(f.original_filename) = lower(:originalFilename)
+    AND (:sha256 IS NULL OR lower(COALESCE(f.sha256, '')) <> lower(:sha256))
   ORDER BY COALESCE(s.released_at, s.updated_at, s.created_at) DESC, s.id DESC
   LIMIT 1
 `;
@@ -301,7 +302,7 @@ export class AsyncReleaseRepository {
 
   async findReleasedFilenameConflicts(input: {
     submissionId: string;
-    files: Array<{ file_role: string; original_filename: string }>;
+    files: Array<{ file_role: string; original_filename: string; sha256?: string | null }>;
   }): Promise<AsyncReleasedFilenameConflict[]> {
     if (input.files.length === 0) return [];
 
@@ -310,7 +311,8 @@ export class AsyncReleaseRepository {
       const predicates = files.map((file, index) => {
         params[`fileRole${index}`] = file.file_role;
         params[`originalFilename${index}`] = file.original_filename;
-        return `(f.file_role = :fileRole${index} AND lower(f.original_filename) = lower(:originalFilename${index}))`;
+        params[`sha256${index}`] = file.sha256?.trim() || null;
+        return `(f.file_role = :fileRole${index} AND lower(f.original_filename) = lower(:originalFilename${index}) AND (:sha256${index} IS NULL OR lower(COALESCE(f.sha256, '')) <> lower(:sha256${index})))`;
       });
       return this.client.query<AsyncReleasedFilenameConflict>(selectReleasedFilenameConflictsSql(predicates.join(" OR ")), params);
     });

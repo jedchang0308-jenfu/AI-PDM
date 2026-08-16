@@ -6,7 +6,7 @@
 
 ## 問題定義
 
-目前圖號模組的清單頁設計已形成理想模板：清單為主畫面、點選列後以右側 drawer 顯示明細、背景不使用深色遮罩、可快速切換其他列、`Escape` 或點擊非 drawer 區域可關閉，且 drawer 寬度可拖拉並記憶。
+目前圖號工作台的清單頁設計已形成理想模板：清單為主畫面、點選列後以右側 drawer 顯示明細、背景不使用深色遮罩、可快速切換其他列、`Escape` 或點擊非 drawer 區域可關閉，且 drawer 寬度可拖拉並記憶。
 
 其他頁面仍存在固定右欄或清單旁明細區，導致使用者在不同模組切換時需要重新判斷明細位置、關閉方式、可否繼續瀏覽清單與是否能調整寬度。此差異會降低肌肉記憶，也會讓清單頁主視覺被明細區壓縮。
 
@@ -18,7 +18,7 @@
 
 - 首頁 / 工作台的圖面送審明細。
 - `/numbering/reports` 的月報明細。
-- 已採用圖號模組 drawer 行為的 `/numbering/search`、`/numbering/drawings`、`/parts` 作為模板與驗證基準。
+- 已採用圖號工作台 drawer 行為的 `/numbering/search`、`/numbering/drawings`、`/parts` 作為模板與驗證基準。
 - `/parts?tab=drafts`、`/numbering/drawings?tab=reserved`、`/numbering/search?tab=reserved` 共用的保留號明細。
 
 不納入本次：
@@ -48,7 +48,7 @@
 
 ### Drawer
 
-- 使用共用樣式或元件，維持與圖號模組一致的視覺語言。
+- 使用共用樣式或元件，維持與圖號工作台一致的視覺語言。
 - 右側浮出，背景不加深色遮罩。
 - drawer 與底頁要有明確邊界，例如陰影、邊線、較高 z-index、固定寬度。
 - drawer 內部可捲動，底頁清單仍可閱讀。
@@ -98,7 +98,7 @@
 
 ## 驗收條件
 
-- 納入範圍的明細欄皆改為圖號模組同款 drawer 行為。
+- 納入範圍的明細欄皆改為圖號工作台同款 drawer 行為。
 - drawer 開啟時，清單仍是主畫面且可快速切換列。
 - drawer 不使用深色遮罩。
 - drawer 寬度可拖拉，重新整理後保留上次寬度。
@@ -131,5 +131,5 @@
 ## Assumptions
 
 - 本任務不修改 DB schema、API contract、權限矩陣或 sidebar 資訊架構。
-- 圖號模組既有設計為全系統清單頁 drawer 模板。
+- 圖號工作台既有設計為全系統清單頁 drawer 模板。
 - BOM 工作台與 BOM 審核頁的固定工具面板屬於不同 UI 型態，後續若要改需另開 spec。

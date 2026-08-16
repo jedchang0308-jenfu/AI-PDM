@@ -1,0 +1,12 @@
+{
+  "auth": {
+    "providers": {
+      "anonymous": false,
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Jenfu AI PDM Production",
+        "supportEmail": "jedchang0308@jenfu.com.tw"
+      }
+    }
+  }
+}

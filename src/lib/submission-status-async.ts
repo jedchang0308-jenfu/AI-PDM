@@ -9,6 +9,10 @@ export async function getActiveSandboxBranchForSubmissionAsync(submissionId: str
   return new AsyncSubmissionStatusRepository(getAsyncDatabaseClient()).getActiveSandboxBranchForSubmission(submissionId);
 }
 
+export async function getSubmissionReleaseActionabilityAsync(id: string) {
+  return new AsyncSubmissionStatusRepository(getAsyncDatabaseClient()).getSubmissionReleaseActionability({ id });
+}
+
 export async function markSubmissionReleasingAsync(id: string): Promise<void> {
   return new AsyncSubmissionStatusRepository(getAsyncDatabaseClient()).markSubmissionReleasing(id);
 }

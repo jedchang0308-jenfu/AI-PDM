@@ -129,7 +129,7 @@ async function verifyViewport(browser, viewport) {
 
   await loginAsAdmin(context);
   await page.goto(`${apiBaseUrl}/numbering/search`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "圖料模組" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "圖料工作台" }).waitFor({ timeout: 10_000 });
   await page.locator(".pdm-master-toolbar").waitFor({ timeout: 10_000 });
   record(`Search page renders at ${viewport.width}px`, await page.locator(".pdm-master-toolbar").isVisible());
   record(`Relation view switch renders at ${viewport.width}px`, await page.getByRole("tab", { name: "關係樹" }).isVisible());
@@ -142,7 +142,7 @@ async function verifyViewport(browser, viewport) {
   record(`Drawing number result renders at ${viewport.width}px`, await page.getByText(drawingNumber).first().isVisible());
 
   await page.locator(".pdm-relation-root-header", { hasText: rootCode }).first().click();
-  await page.getByRole("heading", { name: `主根明細 ${rootCode}` }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: `圖料根號明細 ${rootCode}` }).waitFor({ timeout: 10_000 });
   record(`Root detail opens at ${viewport.width}px`, await page.getByText("QC 查詢同圖件").first().isVisible());
   record(`Warning markers render at ${viewport.width}px`, (await page.locator(".search-warning-marker").count()) >= 1);
 

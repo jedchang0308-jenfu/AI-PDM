@@ -393,12 +393,12 @@ QA只制定與執行計畫，不預填通過。沒有事實證據的case標記`N
 | COST-OPT-01 | 開啟三個同根料號皆無標準成本、其餘必要資料完整的formal drawer | `送審檢查`顯示`資料已備妥`；標準成本顯示`3 筆未設定・選填`且不是紅色阻擋 |
 | COST-OPT-02 | 同時存在N筆主資料缺口與3筆未設定成本 | `待補`只計N筆主資料；成本3筆不加入總數 |
 | COST-OPT-03 | 由同根料號卡點擊`補成本` | 成本維護入口仍可達；不因改為選填而刪除成本功能 |
-| COST-OPT-04 | 從圖料查詢drawer查看相同圖號 | 標準成本顯示`未設定（選填）`且為中性tone，不使用danger |
+| COST-OPT-04 | 從圖料工作台 drawer 查看相同圖號 | 標準成本顯示`未設定（選填）`且為中性tone，不使用danger |
 | COST-OPT-05 | targeted static contract、TypeScript及固定3000真實渲染 | 全部通過；無visible error或非預期overflow |
 
 Fail：成本缺漏仍增加`待補`、顯示紅色阻擋、停用送審，或成本維護入口消失。此delta不改schema／API／既有成本資料，也不得修改DEV-054。
 
-本輪結果：COST-OPT-01～05 PASS。固定3000的A0005-M01實際有P01/P02/P03三筆未設定標準成本，formal drawer顯示`資料已備妥`、`3 筆未設定・選填`、panel=`is-ready`、cost chip=`is-default`；圖料查詢drawer顯示`3 筆未設定（選填）`且icon為中性色。1280×720兩入口visible error皆0、document horizontal overflow皆0；未送審、未修改A0005資料。
+本輪結果：COST-OPT-01～05 PASS。固定3000的A0005-M01實際有P01/P02/P03三筆未設定標準成本，formal drawer顯示`資料已備妥`、`3 筆未設定・選填`、panel=`is-ready`、cost chip=`is-default`；圖料工作台 drawer 顯示`3 筆未設定（選填）`且icon為中性色。1280×720兩入口visible error皆0、document horizontal overflow皆0；未送審、未修改A0005資料。
 
 ## 9F. 版次意圖鎖定驗證
 

@@ -443,15 +443,15 @@ export function LegacyPartsPage() {
     visibleParts.length
   ]);
 
-  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟料號模組...</div></section>;
+  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟料號工作台...</div></section>;
   if (activeTab === "reserved") return <NumberStateWorkspaceWorkbench module="parts" />;
 
   return (
     <>
       <div className="topbar">
         <div>
-          <h1>料號模組</h1>
-          <p>以主根號自動串聯圖號與料號，材質與顏色都以料號為主體管理。</p>
+          <h1>料號工作台</h1>
+          <p>以圖料根號自動串聯圖號與料號，材質與顏色都以料號為主體管理。</p>
         </div>
         <div className="number-state-owner-actions">
           <button className="secondary-button" type="button" onClick={refreshSelected}>
@@ -463,16 +463,16 @@ export function LegacyPartsPage() {
       </div>
       <NumberStateModuleTabs module="parts" active="official" />
 
-      {state === "unauthorized" ? <section className="panel"><div className="empty">沒有料號模組檢視權限。</div></section> : null}
+      {state === "unauthorized" ? <section className="panel"><div className="empty">沒有料號工作台檢視權限。</div></section> : null}
       {state === "error" ? (
         <section className="panel">
           <NextStepState
             eyebrow="重新嘗試"
             title="料號資料暫時無法讀取"
-            body={`${error} 現在請重試或回圖料模組重新定位來源資料；若仍失敗，請 Admin 協助確認。`}
+            body={`${error} 現在請重試或回圖料工作台重新定位來源資料；若仍失敗，請 Admin 協助確認。`}
             actions={[
               { href: "/parts", label: "重新整理", variant: "primary" },
-              { href: "/numbering/search", label: "回圖料模組" }
+              { href: "/numbering/search", label: "回圖料工作台" }
             ]}
           />
         </section>
@@ -484,7 +484,7 @@ export function LegacyPartsPage() {
             <div className="pdm-master-filter-grid">
               <label className="pdm-master-field">
                 <span>關鍵字</span>
-                <input value={query} placeholder="料號、主根號、名稱、材質、顏色" onChange={(event) => setQuery(event.target.value)} />
+                <input value={query} placeholder="料號、圖料根號、名稱、材質、顏色" onChange={(event) => setQuery(event.target.value)} />
               </label>
               <FilterSelectField label="系列代號" value={seriesCode} onChange={setSeriesCode} options={["", ...seriesCodeOptions]} allLabel="全部系列代號" />
               <FilterSelectField label="類型" value={itemKind} onChange={setItemKind} options={itemKinds} />
@@ -564,7 +564,7 @@ function PartList({
         ref={listRef}
         className="table-wrap pdm-identity-scroll"
         role="region"
-        aria-label="料號模組清單（可用上下鍵快速查閱）"
+        aria-label="料號工作台清單（可用上下鍵快速查閱）"
         aria-keyshortcuts="ArrowUp ArrowDown Enter Escape PageUp PageDown Home End Control+C"
         tabIndex={0}
       >
@@ -922,7 +922,7 @@ function PartLinkedDrawingsPanel({ detail }: { detail: PartDetail }) {
             ))}
             {detail.linkedDrawings.length === 0 ? (
               <tr>
-                <td colSpan={3} style={mutedStyle}>尚未建立圖號關聯。請先從圖料模組或新增相關資料建立關係。</td>
+                <td colSpan={3} style={mutedStyle}>尚未建立圖號關聯。請先從圖料工作台或新增相關資料建立關係。</td>
               </tr>
             ) : null}
           </tbody>

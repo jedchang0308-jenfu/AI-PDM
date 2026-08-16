@@ -10,6 +10,7 @@ import { chromium } from "playwright";
 import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
 
 const root = process.cwd();
+const focusedLegacyProjectionOnly = process.argv.includes("--legacy-first-preparation-only");
 const startedAt = new Date().toISOString();
 const runId = `DEV053-${startedAt.replace(/[-:]/gu, "").replace(/\..+$/u, "").replace("T", "-")}-local-isolated`;
 const outputDir = path.join(root, "output", "playwright", "dev053-real-operation", runId);
@@ -36,6 +37,15 @@ const fixture = {
   drawingFileName: "dev053-primary-drawing.slddrw",
   modelFileName: "dev053-primary-model.sldprt"
 };
+const legacyAdoptionFixtures = [
+  { key: "dev053-origin-pending", title: "待審來源樣本", drawingCode: "Z3153-M01", sourceKind: "pending" },
+  { key: "dev053-origin-approved", title: "核准來源樣本", drawingCode: "Z3154-M01", sourceKind: "approved" },
+  { key: "dev053-origin-inconsistent", title: "不一致來源樣本", drawingCode: "Z3155-M01", sourceKind: "inconsistent" }
+];
+const forbiddenLegacyProcessText = [
+  "既有保留號已接入新流程", "查看舊審核", "查看審核", "需補齊首版圖面",
+  "差異審核", "需要管理者處理", "重試審核套用", "legacy", "recovery", "整併中", "對帳中"
+];
 const users = {
   operator: {
     id: "dev053-real-operator", displayName: "DEV-053 測試工程師", email: "dev053.operator@example.invalid",
@@ -53,13 +63,20 @@ const sourceFiles = [
   "src/app/api/numbering/drawings/workbench/route.ts",
   "src/app/api/numbering/drawings/workbench/[rowKey]/route.ts",
   "src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts",
+  "src/app/api/pdm/entity-details/[entityKey]/route.ts",
   "src/components/drawing-workbench.tsx",
+  "src/components/drawing-projection.tsx",
+  "src/components/number-state-workspace.tsx",
+  "src/components/unified-pdm-entity-detail-drawer.tsx",
   "src/components/master-attachment-panel.tsx",
   "src/components/numbering-candidate-revision-editor.tsx",
   "src/components/numbering-contextual-entrypoints.tsx",
   "src/app/numbering/revisions/page.tsx",
   "src/lib/drawing-workbench.ts",
+  "src/lib/number-lifecycle-user-view.ts",
   "src/lib/number-lifecycle-simplification.ts",
+  "src/lib/pdm-entity-detail-contract.ts",
+  "src/lib/pdm-entity-detail.ts",
   "src/lib/publication-evidence.ts",
   "src/lib/repositories/drawing-workbench-async-repository.ts",
   "src/lib/repositories/unified-drawing-async-repository.ts",
@@ -181,6 +198,79 @@ function seedFixture() {
       ) VALUES ('drawing-formal-dev053-real-master-drawing', 'company-jenfu', 'Z4053-M01',
         'rd_controlled', 'dev053-real-master-drawing', 'dev053-real-master-root', 'M', '', 1, 1,
         'numbering-rule-v3-alpha-root', ?, ?, ?, ?)` ).run(user.id, now, now, now);
+  })();
+}
+
+function seedLegacyAdoptionFixtures() {
+  const now = "2026-08-15T09:00:00.000Z";
+  database.transaction(() => {
+    for (const spec of legacyAdoptionFixtures) {
+      const workspaceId = `${spec.key}-workspace`;
+      const rootId = `${spec.key}-root`;
+      const drawingId = `${spec.key}-drawing`;
+      const rootReservationId = `${spec.key}-root-reservation`;
+      const drawingReservationId = `${spec.key}-drawing-reservation`;
+      const requestId = `${spec.key}-request`;
+      const reservationState = spec.sourceKind === "approved" ? "approved_locked" : spec.sourceKind === "pending" ? "review_locked" : "active";
+      database.prepare(`INSERT INTO numbering_draft_workspaces (
+          id, company_id, draft_mode, lifecycle_status, owner_id, created_by, row_version, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', 'new_bundle', 'active', ?, ?, 1, ?, ?)`)
+        .run(workspaceId, user.id, user.id, now, now);
+      database.prepare(`INSERT INTO numbering_draft_roots (
+          id, company_id, workspace_id, core_name, item_kind, rule_version_id, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'numbering-rule-v3-alpha-root', ?, ?)`)
+        .run(rootId, workspaceId, spec.title, now, now);
+      database.prepare(`INSERT INTO numbering_draft_drawings (
+          id, company_id, workspace_id, root_draft_id, purpose_code, purpose_description,
+          is_primary_manufacturing, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, ?, 'M', '舊保留號整併驗證', 1, ?, ?)`)
+        .run(drawingId, workspaceId, rootId, now, now);
+      for (const [id, itemType, itemId, code, state] of [
+        [rootReservationId, "root", rootId, spec.drawingCode.replace(/-M\d+$/u, ""), reservationState],
+        [drawingReservationId, "drawing", drawingId, spec.drawingCode, spec.sourceKind === "inconsistent" ? "review_locked" : reservationState]
+      ]) {
+        database.prepare(`INSERT INTO number_candidate_reservations (
+            id, company_id, workspace_id, draft_item_type, draft_item_id, candidate_code,
+            sequence_scope_key, sequence_no, reservation_state, row_version, approval_request_id,
+            created_by, created_at, updated_at
+          ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, 1, ?, 1, ?, ?, ?, ?)`)
+          .run(id, workspaceId, itemType, itemId, code, `${spec.key}:${itemType}`, state,
+            ["review_locked", "approved_locked"].includes(state) ? requestId : null, user.id, now, now);
+        const table = itemType === "root" ? "numbering_draft_roots" : "numbering_draft_drawings";
+        database.prepare(`UPDATE ${table} SET candidate_reservation_id = ? WHERE id = ?`).run(id, itemId);
+      }
+      const approved = spec.sourceKind === "approved";
+      const snapshotHash = sha(`${spec.key}:legacy-number-baseline`);
+      database.prepare(`INSERT INTO approval_platform_requests (
+            id, company_id, action_code, domain_code, request_status, title, reason,
+            requested_by, requested_at, resolved_by, resolved_at, apply_status,
+            apply_attempts, applied_by, applied_at, payload_json, created_at, updated_at
+          ) VALUES (?, 'company-jenfu', 'numbering.candidate_publication_review', 'numbering', ?, ?,
+            '舊號碼審核基線', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .run(requestId, approved ? "approved" : "pending", `舊保留號審核：${spec.title}`,
+            user.id, now, approved ? users.approver.id : null, approved ? now : null,
+            approved ? "applied" : "pending", approved ? 1 : 0,
+            approved ? users.approver.id : null, approved ? now : null,
+            JSON.stringify({ workspaceId, snapshotHash }), now, now);
+      database.prepare(`INSERT INTO approval_platform_targets (
+            id, request_id, target_role, target_type, target_id, target_label,
+            target_status, snapshot_json, sort_order, created_at
+          ) VALUES (?, ?, 'primary', 'numbering_draft_workspace', ?, ?, ?, '{}', 0, ?)`)
+          .run(`${spec.key}-target`, requestId, workspaceId, spec.title, approved ? "approved_locked" : "review_locked", now);
+      database.prepare(`INSERT INTO approval_platform_impact_snapshots (
+            id, request_id, snapshot_hash, snapshot_json, captured_by, captured_at
+          ) VALUES (?, ?, ?, ?, ?, ?)`)
+          .run(`${spec.key}-snapshot`, requestId, snapshotHash,
+            JSON.stringify({ snapshotVersion: "legacy-number-only", workspaceId }), user.id, now);
+      database.prepare(`INSERT INTO drawings (
+          id, company_id, drawing_number, lifecycle_state, workspace_id, drawing_draft_id,
+          candidate_reservation_id, purpose_code, purpose_description, sequence_no,
+          is_primary_manufacturing, owner_id, rule_version_id, created_by, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', ?, 'drawing_preparation', ?, ?, ?, 'M',
+          '舊保留號整併驗證', 1, 1, ?, 'numbering-rule-v3-alpha-root', ?, ?, ?)`)
+        .run(`drawing-${drawingId}`, spec.drawingCode, workspaceId, drawingId, drawingReservationId,
+          user.id, user.id, now, now);
+    }
   })();
 }
 
@@ -309,6 +399,7 @@ async function run() {
     PDM_NUMBER_LIFECYCLE_V2: "true",
     PDM_UNIFIED_DRAWING_WORKBENCH_V1: "true",
     PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "true",
+    PDM_UNIFIED_ENTITY_DETAIL_V1: "true",
     PDM_PRODUCTION_SLICE_MODE: "",
     PDM_NEXT_DIST_DIR: distDirRelative,
     PDM_QC_ISOLATED_TARGET: "1"
@@ -392,6 +483,7 @@ async function run() {
   await Promise.all([login(page, users.operator), login(approverPage, users.approver)]);
   database = new Database(databasePath);
   seedFixture();
+  seedLegacyAdoptionFixtures();
   const beforeRead = businessHash();
   const candidateDrawer = page.locator('[data-entity-type="candidate_bundle"]');
   const formalMasterDrawer = page.locator('[data-entity-type="drawing_number"]');
@@ -407,6 +499,36 @@ async function run() {
     JSON.stringify(headers.map((value) => value.trim()).filter(Boolean)) === JSON.stringify(["圖號", "品名", "料號", "工作狀態"]), { headers });
 
   const search = page.getByPlaceholder("圖號、品名、料號");
+  if (focusedLegacyProjectionOnly) {
+    for (const spec of legacyAdoptionFixtures) {
+      await searchWorkbench(page, search, spec.drawingCode);
+      const legacyRowButton = page.getByRole("button", { name: spec.drawingCode, exact: true });
+      await legacyRowButton.waitFor({ state: "visible" });
+      const legacyRow = page.locator(".drawing-workbench-table tbody tr").filter({ has: legacyRowButton });
+      const legacyRowText = await legacyRow.innerText();
+      await legacyRowButton.click();
+      const unifiedDrawer = page.locator(".unified-pdm-entity-detail-drawer");
+      await unifiedDrawer.waitFor({ state: "visible" });
+      await unifiedDrawer.locator('[data-component="ProjectionComposer"]').waitFor({ state: "visible" });
+      const legacyDrawerText = await unifiedDrawer.innerText();
+      const visibleText = `${legacyRowText}\n${legacyDrawerText}`;
+      record(`DEV053-REAL legacy ${spec.sourceKind} adoption is only visible as first preparation`,
+        await unifiedDrawer.getAttribute("data-detail-family") === "drawing_preparation" &&
+          forbiddenLegacyProcessText.every((fragment) => !visibleText.toLowerCase().includes(fragment.toLowerCase())),
+        { drawingCode: spec.drawingCode, sourceKind: spec.sourceKind, detailFamily: await unifiedDrawer.getAttribute("data-detail-family"), visibleText });
+      await capture(page, `legacy-${spec.sourceKind}-first-preparation-1440x900.png`);
+      await unifiedDrawer.locator('[data-pdm-drawer-close="true"]').click();
+      await unifiedDrawer.waitFor({ state: "hidden" });
+    }
+    const afterLegacyRead = businessHash();
+    record("DEV053-REAL legacy adoption list/detail reads are zero-write",
+      JSON.stringify(beforeRead) === JSON.stringify(afterLegacyRead), { beforeRead, afterLegacyRead });
+    await collectVisibleErrors(page, "operator-legacy-adoption");
+    record("DEV053-REAL legacy adoption rendered without browser or visible errors",
+      browserErrors.length === 0 && failedResponses.length === 0 && visibleErrors.length === 0,
+      { browserErrors, failedResponses, visibleErrors });
+    return;
+  }
   await searchWorkbench(page, search, "Z3053-M01");
   await page.getByRole("button", { name: "Z3053-M01", exact: true }).waitFor({ state: "visible" });
   const candidateRow = page.locator(".drawing-workbench-table tbody tr").filter({ has: page.getByRole("button", { name: "Z3053-M01", exact: true }) });

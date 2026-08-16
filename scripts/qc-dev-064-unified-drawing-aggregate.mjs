@@ -33,10 +33,11 @@ Object.assign(process.env, {
 
 let database;
 try {
-  const [{ getDb }, providerModule, unifiedDrawingModule] = await Promise.all([
+  const [{ getDb }, providerModule, unifiedDrawingModule, entityDetailModule] = await Promise.all([
     import("@/lib/db"),
     import("@/lib/db-async-provider"),
-    import("@/lib/repositories/unified-drawing-async-repository")
+    import("@/lib/repositories/unified-drawing-async-repository"),
+    import("@/lib/pdm-entity-detail")
   ]);
   database = getDb();
   const client = providerModule.createAsyncDatabaseClient({ kind: "sqlite", database });
@@ -182,6 +183,31 @@ try {
     byCanonicalId?.id === promotedDrawing.id && byLegacyFormalId?.id === promotedDrawing.id && byLegacyWorkspace?.id === promotedDrawing.id,
     JSON.stringify({ canonical: byCanonicalId?.id, formal: byLegacyFormalId?.id, workspace: byLegacyWorkspace?.id })
   );
+  database.prepare(`UPDATE file_assets
+                    SET linked_entity_type = 'drawing_number', linked_entity_id = 'dev064-formal-drawing',
+                        document_category = 'drawing_2d', revision = '0.1', updated_at = ?
+                    WHERE id = 'dev064-asset'`).run(now);
+  const rootDetail = await new entityDetailModule.PdmEntityDetailService(client).read({
+    entityKey: "root:dev064-formal-root",
+    surface: "relation",
+    companyId: "company-jenfu",
+    actorId: "dev064-user"
+  });
+  const rootDrawingProjection = rootDetail.projections.drawing?.level === "full"
+    ? rootDetail.projections.drawing.data
+    : null;
+  record(
+    "DEV064-CORE-003A root detail projects the primary Drawing controlled revision and files from the same canonical source",
+    rootDrawingProjection?.drawingNumber === "A0064-M01" &&
+      rootDrawingProjection.currentRevision.revision === "0.1" &&
+      rootDrawingProjection.attachments.length === 1 &&
+      rootDrawingProjection.attachments[0]?.displayName === "first.slddrw",
+    JSON.stringify({
+      drawingNumber: rootDrawingProjection?.drawingNumber,
+      revision: rootDrawingProjection?.currentRevision.revision,
+      attachments: rootDrawingProjection?.attachments.map((attachment) => attachment.displayName)
+    })
+  );
 
   database.prepare(`INSERT INTO numbering_draft_workspaces (
       id, company_id, draft_mode, lifecycle_status, owner_id, created_by, row_version, created_at, updated_at
@@ -229,6 +255,9 @@ try {
 
   const repositorySource = fs.readFileSync(path.join(root, "src/lib/repositories/drawing-workbench-async-repository.ts"), "utf8");
   const componentSource = fs.readFileSync(path.join(root, "src/components/drawing-workbench.tsx"), "utf8");
+  const workspaceComponentSource = fs.readFileSync(path.join(root, "src/components/number-state-workspace.tsx"), "utf8");
+  const entityDetailSource = fs.readFileSync(path.join(root, "src/lib/pdm-entity-detail.ts"), "utf8");
+  const lifecycleProjectionSource = fs.readFileSync(path.join(root, "src/lib/number-lifecycle-user-view.ts"), "utf8");
   const postgresMigration = fs.readFileSync(path.join(root, "db/postgres/030_unified_drawing_aggregate.sql"), "utf8");
   const dbSource = fs.readFileSync(path.join(root, "src/lib/db.ts"), "utf8");
   record(
@@ -240,6 +269,18 @@ try {
       componentSource.includes("detail?.candidate") &&
       componentSource.includes("detail?.drawing"),
     "canonical SQL source plus shared candidate/formal detail routing"
+  );
+  record(
+    "DEV064-CONTRACT-002 legacy adoption is one user-visible first-preparation station while source facts stay internal",
+    lifecycleProjectionSource.includes("export function projectNumberLifecycleUserView") &&
+      lifecycleProjectionSource.includes('return userProjection("drawing_preparation", "new_or_legacy_active", "complete_first_drawing")') &&
+      workspaceComponentSource.includes("projectNumberLifecycleUserView(workspace.lifecycleV2)") &&
+      workspaceComponentSource.includes("!lifecycleAdoptionHidden(workspace) && workspace.capabilities.canWithdrawReview") &&
+      workspaceComponentSource.includes("!lifecycleAdoptionHidden(workspace) && workspace.latestApproval?.status === \"apply_failed\"") &&
+      entityDetailSource.includes("projectNumberLifecycleUserView(candidate.lifecycleV2)") &&
+      entityDetailSource.includes("const candidateRequestId = adoptionHidden") &&
+      workspaceComponentSource.includes('? "目前階段" : "申請狀態"'),
+    "preformal legacy lifecycle branches share the first-preparation badge/action contract; source evidence remains in the server model"
   );
   record(
     "DEV064-MIGRATION-001 SQLite bootstrap and PostgreSQL migration carry the same aggregate and guards",

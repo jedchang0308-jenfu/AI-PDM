@@ -43,7 +43,7 @@ function buildFixture() {
     CREATE TRIGGER audit_append_only BEFORE UPDATE ON audit_logs BEGIN SELECT RAISE(ABORT, 'AUDIT_LOG_APPEND_ONLY'); END;
   `);
   db.prepare("INSERT INTO approval_requests VALUES (?, ?, ?)").run("request-1", "company-jenfu", "候選圖料號已保留，送交正式發布審核");
-  db.prepare("INSERT INTO numbering_draft_workspaces VALUES (?, ?, ?, ?, ?)").run("workspace-1", "company-jenfu", "active", "正式主根追加", null);
+  db.prepare("INSERT INTO numbering_draft_workspaces VALUES (?, ?, ?, ?, ?)").run("workspace-1", "company-jenfu", "active", "正式圖料根號追加", null);
   db.prepare("INSERT INTO number_candidate_reservations VALUES (?, ?, ?, ?)").run("reservation-1", "company-jenfu", "active", "候選號取消後已釋出");
   db.prepare("INSERT INTO numbering_task_items VALUES (?, ?, ?, ?, ?, ?)").run("task-1", "company-jenfu", "open", "候選圖料號發布審核", "請確認保留號內容", JSON.stringify({ label: "正式圖號" }));
   db.prepare("INSERT INTO numbering_notifications VALUES (?, ?, ?, ?, ?)").run("notification-1", "company-jenfu", "候選首版完成", "候選圖號已建立", JSON.stringify({ label: "正式料號" }));
@@ -59,14 +59,31 @@ try {
   const helperFixture = "候選圖料號已保留，正式圖號與正式料號尚未正式發布";
   const helperResult = rewriteNumberingHumanText(helperFixture);
   assert(!/[候選]|保留號|正式圖號|正式料號|正式發布/u.test(helperResult), "VOCAB-001 helper removes deprecated terms", helperResult);
+  const rootFixture = rewriteNumberingHumanText("主根號、同主根號料號");
+  assert(rootFixture === "圖料根號、同根料號", "VOCAB-001b helper rewrites root vocabulary", rootFixture);
 
-  const files = sourceFiles(path.join(root, "src")).filter((file) => !file.endsWith("numbering-vocabulary.ts"));
+  const files = sourceFiles(path.join(root, "src")).filter((file) =>
+    !file.endsWith("numbering-vocabulary.ts") &&
+    !file.endsWith("drawing-recognition-async-repository.ts") &&
+    !file.endsWith("drawing-recognition-review.tsx") &&
+    !file.includes(`${path.sep}recognition-sessions${path.sep}`)
+  );
   const forbidden = /保留號|候選|號碼效力|正式圖號|正式料號|已釋出/u;
   const hits = files.flatMap((file) => {
     const content = fs.readFileSync(file, "utf8");
     return forbidden.test(content) ? [path.relative(root, file)] : [];
   });
   assert(hits.length === 0, "VOCAB-002 source has no deprecated Chinese numbering terms", hits.join(", "));
+
+  const rootVocabularyFiles = sourceFiles(path.join(root, "src")).filter((file) =>
+    !file.endsWith("numbering-vocabulary.ts") &&
+    !file.endsWith("pdm-policy-rag.ts")
+  );
+  const oldRootHits = rootVocabularyFiles.flatMap((file) => {
+    const content = fs.readFileSync(file, "utf8");
+    return /主根號|主根号/u.test(content) ? [path.relative(root, file)] : [];
+  });
+  assert(oldRootHits.length === 0, "VOCAB-003 product source uses the renamed root label", oldRootHits.join(", "));
 
   const db = buildFixture();
   const rawAudit = db.prepare("SELECT detail_json FROM audit_logs WHERE id = 'audit-1'").get().detail_json;

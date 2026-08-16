@@ -71,6 +71,17 @@ record("DEV059-UI-009 response loss closes local modal and performs authoritativ
     "try { await refreshDetailAndRows(workspace.id); } catch {}",
     "setError(unknownResultMessage);"
   ]));
+record("DEV059-UI-010 unified drawing workbench routes every candidate mutation through the shared confirmation modal",
+  has(workbench, [
+    "ConfirmDialog,",
+    "const [confirmAction, setConfirmAction] = useState<WorkspaceAction | null>(null);",
+    'onSubmit={() => setConfirmAction("submit")}',
+    'onWithdraw={() => setConfirmAction("withdraw")}',
+    'onPublish={() => setConfirmAction("publish")}',
+    'onCancel={() => setConfirmAction("cancel")}',
+    "detail?.candidate && confirmAction",
+    "onConfirm={() => void runWorkspaceAction(confirmAction)}"
+  ]) && !workbench.includes("window.confirm("));
 
 const failed = results.filter((result) => !result.passed);
 for (const result of results) console.log(`${result.passed ? "PASS" : "FAIL"} ${result.id}${result.detail ? ` — ${result.detail}` : ""}`);

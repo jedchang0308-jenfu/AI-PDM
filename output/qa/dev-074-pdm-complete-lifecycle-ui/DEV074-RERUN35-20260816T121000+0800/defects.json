@@ -1,0 +1,14 @@
+[
+  {
+    "id": "DEV074-R35-P1-031",
+    "severity": "P1",
+    "path": "G01",
+    "status": "open",
+    "summary": "圖料根號作廢審核快照載入首版附件預覽時，previewDerivative 下載路由連續回傳 404",
+    "expected": "Reviewer 開啟 root obsolete snapshot 時，附件預覽正常顯示或以無錯誤的人類可讀 placeholder 呈現；不得產生非預期 4xx 或 console error。",
+    "actual": "開啟 A0052 root obsolete review 後，同一 drawing revision package file 的 previewDerivative URL 連續兩次回傳 404；console errors=2。審核決策 POST 仍為 200。",
+    "request": "GET /api/numbering/drawing-revision-packages/drawing-revision-package-NCR-2ae93bce-df9c-4232-9b43-cd1da8873c97/files/DRPF-9cd59bef-d7c9-4d04-a2fa-6a51ee1793cf?reviewRequestId=legacy:legacy_numbering:5f3a78c5-bfa4-4383-acc2-2faf07c01d58&previewDerivative=762cc7d7-dfbe-459d-ac4a-5c21e8ba6bee",
+    "partial_mutation": "Reviewer approval succeeded with 200 and A0052 root scope was obsoleted; failure is read-side preview rendering.",
+    "restart_required": true
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "label": "decision-approve",
+    "requestId": "APR-77339b26-396a-4384-82fd-f1ae1e6f8e9f",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "approved",
+      "applyStatus": "applied",
+      "applyError": null
+    },
+    "mutationCount": 1
+  }
+]

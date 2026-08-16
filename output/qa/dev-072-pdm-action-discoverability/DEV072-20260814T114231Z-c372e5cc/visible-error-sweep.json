@@ -1,0 +1,10 @@
+[
+  {
+    "label": "locked-desktop",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  }
+]

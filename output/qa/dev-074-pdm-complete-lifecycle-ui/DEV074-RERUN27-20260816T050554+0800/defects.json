@@ -1,0 +1,20 @@
+[
+  {
+    "id": "DEV074-R27-P1-023",
+    "severity": "P1",
+    "path": "D05",
+    "status": "fixed_target_retest_passed",
+    "found_at": "2026-08-16T05:31:00+08:00",
+    "fixed_at": "2026-08-16T05:36:04+08:00",
+    "summary": "Reviewer approval snapshot omitted the submitted part scope and Form/Fit/Function states.",
+    "expected": "The frozen review snapshot visibly identifies the part and every FFF state, including suspected impact.",
+    "actual": "The approval drawer showed 0 parts and no FFF state evidence.",
+    "root_cause": "The legacy drawing-revision evidence projector returned only drawing/files, while the UI drawing-review summary omitted impact facts.",
+    "fix": [
+      "Project submission_part_scopes and the FFF assessment into the approval snapshot.",
+      "Render FFF conclusion, Form, Fit, and Function in the reviewer summary."
+    ],
+    "evidence_before": "screenshots/D05/reviewer-suspected-snapshot.png",
+    "evidence_after": "screenshots/D05/target-retest-fff-visible-after-server-restart.png"
+  }
+]

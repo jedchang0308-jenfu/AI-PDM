@@ -1,0 +1,1483 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2314222a'/%3E%3Cpath d='M16 6l8 5v10l-8 5-8-5V11z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E" />
+  <title>AI PDM｜圖面辨識審核預覽</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7f8;
+      --panel: #ffffff;
+      --panel-soft: #f8fafb;
+      --line: #dfe6e9;
+      --line-strong: #cdd8dc;
+      --text: #16252b;
+      --muted: #66777e;
+      --faint: #8c9ba1;
+      --teal: #0d887e;
+      --teal-strong: #08736b;
+      --teal-soft: #e8f6f4;
+      --blue-soft: #eef6fb;
+      --blue: #397997;
+      --amber: #a96709;
+      --amber-soft: #fff6e5;
+      --red: #b53c3c;
+      --red-soft: #fff0ef;
+      --shadow: 0 10px 30px rgba(31, 55, 63, 0.08);
+      --radius: 14px;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+
+    body { min-height: 100vh; }
+
+    button, input, select { font: inherit; }
+
+    button { color: inherit; }
+
+    button:focus-visible,
+    [tabindex]:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgba(13, 136, 126, 0.24);
+      outline-offset: 2px;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 224px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      background: #fbfcfd;
+      border-right: 1px solid var(--line);
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      overflow: hidden;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 4px;
+      font-weight: 780;
+      font-size: 20px;
+      letter-spacing: 0.01em;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      color: #fff;
+      background: #14222a;
+      box-shadow: 0 5px 12px rgba(20, 34, 42, 0.18);
+    }
+
+    .nav-group { display: grid; gap: 6px; }
+
+    .nav-label {
+      padding: 0 12px 4px;
+      color: #93a1a6;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .nav-item {
+      width: 100%;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 0 11px;
+      color: #607178;
+      background: transparent;
+      font-weight: 650;
+      text-align: left;
+    }
+
+    .nav-item svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+    .nav-item.active {
+      color: #0b746c;
+      border-color: #d3e9e6;
+      background: linear-gradient(90deg, #eaf7f5 0%, #f5fbfa 100%);
+      box-shadow: inset 3px 0 0 var(--teal);
+    }
+
+    .sidebar-foot {
+      margin-top: auto;
+      border-top: 1px solid var(--line);
+      padding: 14px 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #dcecea;
+      color: #0a6f68;
+      font-weight: 800;
+    }
+
+    .workspace {
+      min-width: 0;
+      min-height: 0;
+      height: 100vh;
+      padding: 22px 26px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow: hidden;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 2.2vw, 32px);
+      line-height: 1.25;
+      letter-spacing: -0.025em;
+    }
+
+    .object-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 9px;
+      border: 1px solid #d6e3e6;
+      border-radius: 999px;
+      background: #fff;
+      color: #4f666e;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .page-subtitle {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .header-actions { display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .btn {
+      min-height: 40px;
+      border: 1px solid var(--line-strong);
+      border-radius: 9px;
+      padding: 0 15px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-weight: 720;
+      transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+    }
+
+    .btn:hover { border-color: #aebdc2; background: #fbfcfc; }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { color: #fff; background: var(--teal); border-color: var(--teal); }
+    .btn.primary:hover { background: var(--teal-strong); border-color: var(--teal-strong); }
+    .btn.small { min-height: 34px; padding-inline: 11px; font-size: 13px; }
+    .btn.ghost { background: transparent; border-color: transparent; color: #526870; }
+    .btn svg { width: 17px; height: 17px; }
+
+    .file-strip {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(26, 51, 58, 0.04);
+    }
+
+    .file-chip {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fbfcfd;
+    }
+
+    .file-icon {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: var(--teal);
+      background: var(--teal-soft);
+    }
+
+    .file-name { font-size: 13px; font-weight: 760; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-type { margin-top: 1px; color: var(--faint); font-size: 11px; }
+
+    .recognition-summary {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .summary-count {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 760;
+      color: #334a52;
+    }
+
+    .summary-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); }
+    .summary-dot.amber { background: #da932b; }
+
+    .review-layout {
+      min-height: 0;
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(320px, 0.72fr) minmax(620px, 1.55fr);
+      gap: 16px;
+    }
+
+    .panel {
+      min-width: 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .source-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-title { margin: 0; font-size: 16px; font-weight: 800; }
+    .panel-meta { margin-top: 2px; color: var(--muted); font-size: 12px; }
+
+    .segmented {
+      display: inline-flex;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #f4f7f8;
+    }
+
+    .segment {
+      min-height: 30px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 10px;
+      color: #64767d;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .segment.active { color: #0b736b; background: #fff; box-shadow: 0 2px 7px rgba(33, 61, 68, 0.1); }
+
+    .drawing-stage {
+      position: relative;
+      min-height: 300px;
+      flex: 1;
+      padding: 14px;
+      background: #eef2f3;
+      overflow: hidden;
+    }
+
+    .drawing-paper {
+      width: 100%;
+      height: 100%;
+      min-height: 270px;
+      background: #fff;
+      border: 1px solid #cfd9dc;
+      box-shadow: 0 5px 18px rgba(43, 65, 71, 0.11);
+    }
+
+    .drawing-svg { width: 100%; height: 100%; display: block; }
+    .drawing-svg text { font-family: Arial, sans-serif; fill: #42555c; }
+
+    .highlight-box {
+      fill: rgba(255, 196, 75, 0.22);
+      stroke: #d18b16;
+      stroke-width: 2;
+      stroke-dasharray: 5 4;
+      opacity: 0;
+      transition: opacity 160ms ease;
+    }
+
+    .highlight-box.active { opacity: 1; }
+
+    .source-evidence {
+      border-top: 1px solid var(--line);
+      padding: 13px 15px 15px;
+      background: #fff;
+    }
+
+    .evidence-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .evidence-heading strong { font-size: 14px; }
+
+    .confidence {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #476269;
+      font-size: 12px;
+      font-weight: 730;
+    }
+
+    .confidence-bar { width: 42px; height: 5px; border-radius: 10px; background: #dfe9e8; overflow: hidden; }
+    .confidence-bar span { display: block; height: 100%; background: var(--teal); border-radius: inherit; }
+
+    .evidence-list { display: grid; gap: 8px; }
+
+    .evidence-item {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      min-height: 40px;
+      padding: 7px 8px;
+      border-radius: 8px;
+      background: var(--panel-soft);
+    }
+
+    .evidence-symbol {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .evidence-value { font-size: 13px; font-weight: 760; }
+    .evidence-location { margin-top: 2px; color: var(--faint); font-size: 11px; }
+    .match-mark { color: var(--teal); font-size: 12px; font-weight: 760; }
+
+    .review-panel {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .review-tabs {
+      min-height: 58px;
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      position: relative;
+      min-height: 47px;
+      border: 0;
+      padding: 0 14px;
+      color: #667a81;
+      background: transparent;
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .tab::after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: -1px;
+      height: 3px;
+      border-radius: 3px 3px 0 0;
+      background: transparent;
+    }
+
+    .tab.active { color: #0b746c; }
+    .tab.active::after { background: var(--teal); }
+
+    .tab-count {
+      display: inline-grid;
+      min-width: 20px;
+      height: 20px;
+      place-items: center;
+      margin-left: 5px;
+      padding-inline: 5px;
+      border-radius: 999px;
+      color: #566b72;
+      background: #eef2f3;
+      font-size: 11px;
+    }
+
+    .tab.active .tab-count { color: #08736b; background: var(--teal-soft); }
+    .tab-count.warn { color: #8b5708; background: var(--amber-soft); }
+
+    .review-toolbar {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fcfdfd;
+    }
+
+    .baseline-note {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #4f646c;
+      font-size: 13px;
+    }
+
+    .baseline-note strong { color: #233b43; }
+
+    .toolbar-spacer { flex: 1; }
+
+    .switch-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #536970;
+      font-size: 13px;
+      font-weight: 680;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .switch-label input { position: absolute; opacity: 0; pointer-events: none; }
+
+    .switch-track {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      border-radius: 999px;
+      background: #cbd6d9;
+      transition: background 150ms ease;
+    }
+
+    .switch-track::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(22, 45, 52, 0.22);
+      transition: transform 150ms ease;
+    }
+
+    .switch-label input:checked + .switch-track { background: var(--teal); }
+    .switch-label input:checked + .switch-track::after { transform: translateX(16px); }
+
+    .review-body {
+      min-height: 0;
+      flex: 1;
+      overflow: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
+
+    .matrix-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+
+    .matrix-table th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      height: 42px;
+      padding: 0 11px;
+      border-bottom: 1px solid var(--line-strong);
+      color: #6c7d83;
+      background: #f7f9fa;
+      font-size: 12px;
+      font-weight: 780;
+      text-align: left;
+    }
+
+    .matrix-table th:first-child { width: 19%; }
+    .matrix-table th:nth-child(2) { width: 24%; }
+    .matrix-table th:nth-child(n+3) { width: 19%; }
+
+    .matrix-table td {
+      height: 66px;
+      padding: 9px 11px;
+      border-bottom: 1px solid #edf1f2;
+      vertical-align: middle;
+      background: #fff;
+    }
+
+    .matrix-table tr { cursor: pointer; }
+    .matrix-table tbody tr:hover td { background: #fbfdfd; }
+    .matrix-table tbody tr.selected td { background: #f0f9f7; }
+    .matrix-table tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--teal); }
+
+    .property-name { font-size: 14px; font-weight: 800; }
+    .property-scope { margin-top: 3px; color: var(--faint); font-size: 11px; }
+
+    .baseline-value { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 780; }
+
+    .base-mark {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 5px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font-size: 11px;
+    }
+
+    .source-inline { margin-top: 4px; color: var(--faint); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .variant-cell {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 7px;
+      border-radius: 8px;
+      padding: 6px 7px;
+    }
+
+    .variant-cell.inherit { color: #73858b; }
+    .variant-cell.change { color: #22596b; background: var(--blue-soft); }
+    .variant-cell.add { color: #23694e; background: #edf8f1; }
+    .variant-cell.na { color: #875817; background: var(--amber-soft); }
+
+    .variant-value { min-width: 0; font-size: 13px; font-weight: 760; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .state-tag {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      min-height: 20px;
+      padding: 0 6px;
+      border-radius: 999px;
+      color: #47717f;
+      background: rgba(255,255,255,.76);
+      font-size: 10px;
+      font-weight: 820;
+    }
+
+    .inherit-mark { color: #7b8d92; font-size: 12px; }
+
+    .empty-filter {
+      display: none;
+      min-height: 210px;
+      place-items: center;
+      padding: 30px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .mobile-matrix { display: none; }
+
+    .mobile-property {
+      border-bottom: 1px solid var(--line);
+      padding: 14px;
+    }
+
+    .mobile-property-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .mobile-baseline { margin-top: 10px; padding: 10px; border-radius: 9px; background: var(--teal-soft); }
+    .mobile-baseline small { display: block; color: #5c7b78; font-weight: 700; }
+    .mobile-baseline strong { display: block; margin-top: 3px; color: #0a625c; }
+    .mobile-variants { margin-top: 8px; display: grid; gap: 7px; }
+    .mobile-variant { display: grid; grid-template-columns: 48px minmax(0,1fr); align-items: center; gap: 7px; }
+    .part-code { color: #687c82; font-size: 12px; font-weight: 820; }
+
+    .review-footer {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+      box-shadow: 0 -7px 18px rgba(31, 55, 63, 0.04);
+    }
+
+    .review-progress { min-width: 0; color: var(--muted); font-size: 12px; }
+    .review-progress strong { display: block; color: #2d454d; font-size: 13px; }
+
+    .progress-line {
+      width: 130px;
+      height: 5px;
+      margin-top: 6px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e5ecee;
+    }
+
+    .progress-line span { display: block; width: 83%; height: 100%; border-radius: inherit; background: var(--teal); }
+
+    .footer-spacer { flex: 1; }
+
+    .unclassified-list, .source-list { display: grid; }
+
+    .unclassified-row, .source-row {
+      min-height: 82px;
+      display: grid;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 15px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .unclassified-row { grid-template-columns: minmax(160px, 1.1fr) minmax(150px, .9fr) minmax(170px, 1fr) auto; }
+    .source-row { grid-template-columns: minmax(180px, 1fr) minmax(140px, .7fr) minmax(180px, 1fr); }
+
+    .raw-text { font-weight: 800; }
+    .row-sub { margin-top: 4px; color: var(--faint); font-size: 12px; }
+
+    .select-like {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 0 10px;
+      background: #fff;
+      color: #41575f;
+    }
+
+    .row-actions { display: flex; gap: 6px; }
+
+    .source-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #356258;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .source-status::before { content: "✓"; color: var(--teal); }
+
+    .section-nav {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 12px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: #fcfdfd;
+      scrollbar-width: thin;
+    }
+
+    .section-jump {
+      min-height: 34px;
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      color: #597078;
+      background: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .section-jump:hover { color: var(--teal-strong); border-color: #b7d9d5; background: var(--teal-soft); }
+    .section-jump .count { margin-left: 4px; color: var(--faint); font-size: 11px; }
+    .section-jump.warn { color: #86560d; border-color: #efd8ad; background: var(--amber-soft); }
+
+    .review-section {
+      scroll-margin-top: 8px;
+      border-bottom: 8px solid var(--bg);
+      background: #fff;
+    }
+
+    .review-section:last-child { border-bottom: 0; }
+
+    .section-head {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfc;
+    }
+
+    .section-index {
+      width: 26px;
+      height: 26px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: var(--teal-strong);
+      background: var(--teal-soft);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .section-heading { min-width: 0; }
+    .section-heading h3 { margin: 0; font-size: 14px; }
+    .section-heading p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+    .section-tools { margin-left: auto; display: flex; align-items: center; gap: 9px; }
+
+    .fact-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+    }
+
+    .fact-item {
+      min-width: 0;
+      min-height: 72px;
+      display: block;
+      border: 0;
+      padding: 11px 13px;
+      color: inherit;
+      background: #fff;
+      text-align: left;
+    }
+
+    button.fact-item { cursor: pointer; }
+    button.fact-item:hover { background: #f5fbfa; }
+    .fact-label, .fact-value, .fact-source { display: block; }
+    .fact-label { color: var(--muted); font-size: 11px; font-weight: 720; }
+    .fact-value { margin-top: 5px; overflow: hidden; color: #203940; font-size: 14px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .fact-source { margin-top: 4px; color: var(--faint); font-size: 10px; }
+
+    .review-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .review-table th { height: 38px; padding: 0 13px; color: #6d7e84; background: #f7f9fa; font-size: 11px; text-align: left; }
+    .review-table td { min-height: 52px; padding: 10px 13px; border-top: 1px solid #edf1f2; vertical-align: middle; font-size: 13px; }
+    .review-table tbody tr { cursor: pointer; }
+    .review-table tbody tr:hover td { background: #f8fcfb; }
+    .review-table th:first-child { width: 24%; }
+    .review-table th:nth-child(2) { width: 30%; }
+    .review-table th:nth-child(3) { width: 24%; }
+    .review-table th:last-child { width: 22%; }
+
+    .method-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .method-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 21px;
+      padding: 0 6px;
+      border-radius: 6px;
+      color: #506a72;
+      background: #edf2f3;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .method-tag.ocr { color: #236554; background: #e9f7ef; }
+    .method-tag.cad { color: #245d7a; background: var(--blue-soft); }
+    .method-tag.manual { color: #82530d; background: var(--amber-soft); }
+
+    .write-policy { color: #60757c; font-size: 11px; line-height: 1.45; }
+    .write-policy strong { color: #314b53; }
+
+    .ocr-fulltext {
+      margin: 12px 14px 14px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fafcfc;
+    }
+    .ocr-fulltext summary { padding: 10px 12px; cursor: pointer; color: #425a62; font-size: 12px; font-weight: 780; }
+    .ocr-lines { padding: 0 12px 12px; color: #65787f; font: 11px/1.7 Consolas, "Microsoft JhengHei", monospace; white-space: pre-wrap; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      z-index: 60;
+      transform: translate(-50%, 22px);
+      min-width: 260px;
+      max-width: calc(100vw - 32px);
+      padding: 12px 15px;
+      border-radius: 10px;
+      color: #fff;
+      background: #20343b;
+      box-shadow: 0 10px 30px rgba(16, 35, 41, 0.28);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(21, 34, 40, 0.38);
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      width: min(520px, 100%);
+      max-height: min(650px, calc(100vh - 40px));
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.5);
+      border-radius: 15px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(16, 35, 41, 0.28);
+    }
+
+    .modal-head { display: flex; align-items: flex-start; gap: 12px; padding: 18px 18px 14px; border-bottom: 1px solid var(--line); }
+    .modal-icon { width: 36px; height: 36px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 10px; color: var(--teal); background: var(--teal-soft); }
+    .modal h2 { margin: 0; font-size: 19px; }
+    .modal-sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .modal-close { margin-left: auto; width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 23px; color: #6a7d83; }
+    .modal-body { overflow: auto; padding: 16px 18px; }
+    .impact-group { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .impact-row { display: grid; grid-template-columns: 78px minmax(0,1fr); gap: 10px; padding: 11px 12px; border-bottom: 1px solid var(--line); }
+    .impact-row:last-child { border-bottom: 0; }
+    .impact-row strong { font-size: 13px; }
+    .impact-row span { color: #526970; font-size: 13px; }
+    .modal-warning { margin-top: 12px; display: flex; gap: 9px; padding: 11px 12px; border-radius: 9px; color: #745117; background: var(--amber-soft); font-size: 12px; line-height: 1.6; }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 9px; padding: 13px 18px; border-top: 1px solid var(--line); }
+
+    .mobile-topbar { display: none; }
+
+    @media (max-width: 1180px) {
+      .review-layout { grid-template-columns: minmax(290px, .65fr) minmax(560px, 1.35fr); }
+      .workspace { padding-inline: 18px; }
+      .sidebar { width: 208px; }
+      .app-shell { grid-template-columns: 208px minmax(0, 1fr); }
+      .recognition-summary .summary-label { display: none; }
+    }
+
+    @media (max-width: 1100px) {
+      .app-shell { display: block; min-height: calc(100vh - 56px); }
+      .sidebar { display: none; }
+      .mobile-topbar {
+        min-height: 56px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+      }
+      .mobile-topbar .brand-mark { width: 31px; height: 31px; }
+      .mobile-topbar strong { font-size: 17px; }
+      .mobile-context { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 700; }
+      .workspace { height: calc(100vh - 56px); padding: 16px; }
+      .review-layout { grid-template-columns: minmax(310px, .72fr) minmax(0, 1.45fr); }
+      .matrix-table th, .matrix-table td { padding-inline: 9px; }
+    }
+
+    @media (max-width: 900px) {
+      .workspace { height: auto; min-height: 100vh; overflow: visible; }
+      .review-layout { display: grid; grid-template-columns: 1fr; }
+      .drawing-stage { min-height: 380px; }
+      .source-panel { min-height: 560px; }
+      .review-panel { min-height: 0; overflow: visible; }
+      .review-body { overflow: visible; scrollbar-gutter: auto; }
+      .file-strip { flex-wrap: wrap; }
+      .recognition-summary { width: 100%; margin-left: 0; padding-top: 2px; border-top: 1px solid var(--line); justify-content: flex-end; }
+    }
+
+    @media (max-width: 620px) {
+      .workspace { padding: 12px 10px 18px; gap: 12px; }
+      .page-header { align-items: stretch; }
+      .header-actions { display: none; }
+      h1 { font-size: 24px; }
+      .page-subtitle { font-size: 13px; }
+      .object-badge { min-height: 25px; font-size: 12px; }
+      .file-chip { flex: 1 1 calc(50% - 6px); }
+      .file-name { max-width: 120px; }
+      .source-panel { min-height: 500px; }
+      .drawing-stage { min-height: 290px; padding: 9px; }
+      .drawing-paper { min-height: 270px; }
+      .panel-head { padding: 10px 11px; }
+      .section-nav { position: sticky; top: 0; z-index: 6; }
+      .section-head { align-items: flex-start; flex-wrap: wrap; }
+      .section-tools { width: 100%; margin-left: 38px; }
+      .fact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .review-table { table-layout: auto; }
+      .review-table thead { display: none; }
+      .review-table, .review-table tbody, .review-table tr, .review-table td { display: block; width: 100%; }
+      .review-table tr { padding: 11px 13px; border-top: 1px solid var(--line); }
+      .review-table td { min-height: auto; padding: 3px 0; border: 0; }
+      .review-table td::before { content: attr(data-label); display: inline-block; width: 88px; color: var(--muted); font-size: 11px; font-weight: 720; }
+      .matrix-desktop { display: none; }
+      .mobile-matrix { display: block; }
+      .review-panel { min-height: 560px; }
+      .review-footer { position: sticky; bottom: 0; z-index: 5; flex-wrap: wrap; }
+      .review-progress { flex: 1 1 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .progress-line { width: 96px; margin-top: 0; }
+      .footer-spacer { display: none; }
+      .review-footer .btn { flex: 1; padding-inline: 10px; }
+      .unclassified-row, .source-row { grid-template-columns: 1fr; gap: 8px; padding: 14px; }
+      .row-actions { justify-content: flex-end; }
+      .modal-backdrop { align-items: flex-end; padding: 0; }
+      .modal { width: 100%; max-height: 88vh; border-radius: 17px 17px 0 0; }
+      .impact-row { grid-template-columns: 64px minmax(0,1fr); }
+    }
+
+    @media (max-width: 440px) {
+      .fact-grid { grid-template-columns: 1fr; }
+      .section-heading p { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mobile-topbar">
+    <div class="brand-mark" aria-hidden="true">◈</div>
+    <strong>AI PDM</strong>
+    <span class="mobile-context">辨識審核</span>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主導覽">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">◈</div>
+        <span>AI PDM</span>
+      </div>
+
+      <nav class="nav-group">
+        <div class="nav-label">圖料管理</div>
+        <button class="nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          圖號工作台
+        </button>
+        <button class="nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.7 7.5 4.2 7.5-4.2M12 12v9"/></svg>
+          料號工作台
+        </button>
+        <button class="nav-item active" type="button" aria-current="page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></svg>
+          辨識審核
+        </button>
+      </nav>
+
+      <nav class="nav-group">
+        <div class="nav-label">變更／審核</div>
+        <button class="nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="m8 10 3 3 5-5"/></svg>
+          審核工作台
+        </button>
+        <button class="nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18"/></svg>
+          圖面進版
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="avatar">王</div>
+        <div><strong>王工程師</strong><br><span>研發部</span></div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="page-header">
+        <div>
+          <div class="title-row">
+            <h1>圖面辨識審核</h1>
+            <span class="object-badge">A0005-M01 · 版次 0.3</span>
+          </div>
+          <p class="page-subtitle">在同一頁核對 OCR、料號關聯、基準與變體、圖面控制及工程註記。</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn" type="button" data-toast="已重新排入辨識佇列">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 11a8 8 0 1 1-2.3-5.7L20 8"/><path d="M20 3v5h-5"/></svg>
+            重新辨識
+          </button>
+        </div>
+      </header>
+
+      <section class="file-strip" aria-label="辨識來源檔案">
+        <div class="file-chip">
+          <div class="file-icon" aria-hidden="true">2D</div>
+          <div><div class="file-name">A0005-M01.SLDDRW</div><div class="file-type">2D 圖面</div></div>
+        </div>
+        <div class="file-chip">
+          <div class="file-icon" aria-hidden="true">3D</div>
+          <div><div class="file-name">A0005.SLDPRT</div><div class="file-type">3D CAD</div></div>
+        </div>
+        <div class="recognition-summary" aria-label="辨識摘要">
+          <span class="summary-count"><span class="summary-dot"></span>6 區辨識結果</span>
+          <span class="summary-count"><span class="summary-dot"></span>27 項候選</span>
+          <span class="summary-count"><span class="summary-dot amber"></span>2 項待分類</span>
+          <span class="summary-label">剛剛完成</span>
+        </div>
+      </section>
+
+      <section class="review-layout">
+        <article class="panel source-panel" aria-labelledby="sourceTitle">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title" id="sourceTitle">來源證據</h2>
+              <div class="panel-meta" id="sourceMeta">目前定位：材料欄位</div>
+            </div>
+            <div class="segmented" aria-label="來源模式">
+              <button class="segment active" type="button" data-source="drawing" aria-pressed="true">2D 圖面</button>
+              <button class="segment" type="button" data-source="cad" aria-pressed="false">3D 屬性</button>
+            </div>
+          </div>
+
+          <div class="drawing-stage">
+            <div class="drawing-paper" aria-label="A0005 圖面預覽">
+              <svg class="drawing-svg" viewBox="0 0 520 390" role="img" aria-label="A0005-M01 工程圖面示意">
+                <rect x="9" y="9" width="502" height="372" fill="none" stroke="#7c8d92" stroke-width="1"/>
+                <rect x="352" y="270" width="159" height="111" fill="none" stroke="#7c8d92" stroke-width="1"/>
+                <line x1="352" y1="301" x2="511" y2="301" stroke="#7c8d92"/>
+                <line x1="352" y1="330" x2="511" y2="330" stroke="#7c8d92"/>
+                <line x1="420" y1="270" x2="420" y2="381" stroke="#7c8d92"/>
+                <text x="361" y="289" font-size="8">圖號</text>
+                <text x="430" y="289" font-size="12" font-weight="700">A0005-M01</text>
+                <text x="361" y="319" font-size="8">材料</text>
+                <text x="430" y="319" font-size="11" font-weight="700">SUS304</text>
+                <text x="361" y="348" font-size="8">表面處理</text>
+                <text x="430" y="348" font-size="10" font-weight="700">拋光</text>
+                <text x="361" y="370" font-size="8">版次 0.3</text>
+                <text x="452" y="370" font-size="8">比例 1:2</text>
+
+                <g stroke="#6d7d82" fill="none" stroke-width="1.3">
+                  <path d="M92 95h155l26 26v96l-31 31H91l-25-27v-99z"/>
+                  <circle cx="169" cy="171" r="58"/>
+                  <circle cx="169" cy="171" r="23"/>
+                  <circle cx="92" cy="121" r="8"/>
+                  <circle cx="246" cy="121" r="8"/>
+                  <circle cx="92" cy="221" r="8"/>
+                  <circle cx="246" cy="221" r="8"/>
+                  <path d="M169 82v178M57 171h226" stroke-dasharray="5 4" stroke-width=".8"/>
+                  <path d="M84 274h171M84 282h171"/>
+                  <path d="M315 67h146v129H315z"/>
+                  <path d="M337 89h102v84H337z"/>
+                  <path d="M315 216h196M315 240h196"/>
+                </g>
+
+                <g font-size="8">
+                  <text x="324" y="230">一般註記：未標示處去除毛邊與銳角</text>
+                  <text x="324" y="254">整體粗糙度：Ra 3.2</text>
+                  <text x="320" y="61">P01 / P02 / P03 共用本圖</text>
+                  <text x="325" y="211">P02：黑色塗裝　P03：SUS316</text>
+                </g>
+
+                <rect class="highlight-box active" data-area="material" x="423" y="303" width="83" height="25" rx="3"/>
+                <rect class="highlight-box" data-area="surface" x="423" y="332" width="83" height="24" rx="3"/>
+                <rect class="highlight-box" data-area="color" x="317" y="198" width="190" height="21" rx="3"/>
+                <rect class="highlight-box" data-area="hardness" x="317" y="216" width="190" height="26" rx="3"/>
+                <rect class="highlight-box" data-area="roughness" x="317" y="241" width="190" height="23" rx="3"/>
+                <rect class="highlight-box" data-area="drawingNumber" x="423" y="273" width="84" height="27" rx="3"/>
+                <rect class="highlight-box" data-area="drawingControl" x="354" y="357" width="153" height="21" rx="3"/>
+                <rect class="highlight-box" data-area="variant" x="316" y="48" width="185" height="22" rx="3"/>
+                <rect class="highlight-box" data-area="notes" x="316" y="218" width="191" height="23" rx="3"/>
+                <rect class="highlight-box" data-area="geometry" x="62" y="75" width="226" height="211" rx="3"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="source-evidence" aria-live="polite">
+            <div class="evidence-heading">
+              <strong id="evidenceTitle">材料 · SUS304</strong>
+              <div class="confidence"><span>96%</span><span class="confidence-bar"><span style="width:96%"></span></span></div>
+            </div>
+            <div class="evidence-list" id="evidenceList"></div>
+          </div>
+        </article>
+
+        <article class="panel review-panel" aria-label="全部辨識結果審核">
+          <nav class="section-nav" aria-label="辨識結果區段">
+            <button class="section-jump" type="button" data-scroll="identity">識別與關聯 <span class="count">6</span></button>
+            <button class="section-jump" type="button" data-scroll="baseline">基準與變體 <span class="count">5</span></button>
+            <button class="section-jump" type="button" data-scroll="drawing-control">圖面控制 <span class="count">6</span></button>
+            <button class="section-jump" type="button" data-scroll="special-notes">特殊要求 <span class="count">3</span></button>
+            <button class="section-jump" type="button" data-scroll="geometry">工程資訊 <span class="count">5</span></button>
+            <button class="section-jump warn" type="button" data-scroll="ocr-unclassified">OCR 待分類 <span class="count">2</span></button>
+          </nav>
+          <div class="review-body" id="reviewBody"></div>
+
+          <footer class="review-footer">
+            <div class="review-progress">
+              <div><strong>已核對 5 / 6 區</strong><span>2 項 OCR 文字仍待分類</span></div>
+              <span class="progress-line" aria-hidden="true"><span></span></span>
+            </div>
+            <div class="footer-spacer"></div>
+            <button class="btn" type="button" data-toast="已暫存目前修正與審核進度，不會寫入 PDM">暫存審核進度</button>
+            <button class="btn primary" type="button" id="openImpact">檢查並寫入 PDM</button>
+          </footer>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="impactModal" role="dialog" aria-modal="true" aria-labelledby="impactTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-icon" aria-hidden="true">✓</div>
+        <div>
+          <h2 id="impactTitle">檢查寫入內容</h2>
+          <p class="modal-sub">這是正式寫入前的最後預覽，尚未變更 PDM。</p>
+        </div>
+        <button class="modal-close" type="button" aria-label="關閉" id="closeImpact">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="impact-group">
+          <div class="impact-row"><strong>識別關聯</strong><span>圖號 A0005-M01；關聯料號 P01、P02、P03；版次 0.3</span></div>
+          <div class="impact-row"><strong>共用基準</strong><span>材料 SUS304、表面處理拋光、顏色原色、硬度 HRC 28–32、整體粗糙度 Ra 3.2</span></div>
+          <div class="impact-row"><strong>P01</strong><span>繼承全部共用基準，沒有差異</span></div>
+          <div class="impact-row"><strong>P02</strong><span>表面處理改為黑色塗裝；顏色改為黑色</span></div>
+          <div class="impact-row"><strong>P03</strong><span>材料改為 SUS316</span></div>
+          <div class="impact-row"><strong>受控資料</strong><span>圖面控制 6 項、特殊要求 3 項；工程資訊保留為圖面證據與索引</span></div>
+        </div>
+        <div class="modal-warning"><span aria-hidden="true">!</span><span>尚未歸類的 2 筆文字不會寫入正式料號屬性，辨識原文與位置仍會保留供後續處理。</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" type="button" id="backToReview">返回核對</button>
+        <button class="btn primary" type="button" id="confirmApply">確認寫入 PDM</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const properties = [
+      {
+        id: "material", name: "材料", scope: "料號屬性", baseline: "SUS304", confidence: 96,
+        sources: [
+          { type: "2D", value: "SUS304", location: "圖框 · 材料欄", status: "一致" },
+          { type: "3D", value: "SUS304", location: "Custom Property · Material", status: "一致" }
+        ],
+        variants: { P01: null, P02: null, P03: { type: "change", value: "SUS316", label: "變更" } }
+      },
+      {
+        id: "surface", name: "表面處理", scope: "料號屬性", baseline: "拋光", confidence: 93,
+        sources: [
+          { type: "2D", value: "拋光", location: "圖框 · 表面處理欄", status: "基準" },
+          { type: "OCR", value: "P02 黑色塗裝", location: "一般註記 · 第 4 列", status: "差異" }
+        ],
+        variants: { P01: null, P02: { type: "change", value: "黑色塗裝", label: "變更" }, P03: null }
+      },
+      {
+        id: "color", name: "顏色", scope: "料號屬性", baseline: "原色", confidence: 91,
+        sources: [
+          { type: "2D", value: "原色", location: "一般註記 · 全部料號", status: "基準" },
+          { type: "OCR", value: "P02 黑色", location: "變體表 · P02 列", status: "差異" }
+        ],
+        variants: { P01: null, P02: { type: "change", value: "黑色", label: "變更" }, P03: null }
+      },
+      {
+        id: "hardness", name: "硬度", scope: "料號屬性", baseline: "HRC 28–32", confidence: 88,
+        sources: [
+          { type: "OCR", value: "HRC 28–32", location: "一般註記 · 第 3 列", status: "單一來源" }
+        ],
+        variants: { P01: null, P02: null, P03: null }
+      },
+      {
+        id: "roughness", name: "整體粗糙度", scope: "料號屬性", baseline: "Ra 3.2", confidence: 90,
+        sources: [
+          { type: "OCR", value: "Ra 3.2", location: "圖面右下 · 整體標註", status: "整體" },
+          { type: "2D", value: "Ra 0.8", location: "視圖 A · 局部加工面", status: "不納入基準" }
+        ],
+        variants: { P01: null, P02: null, P03: null }
+      }
+    ];
+
+    const extraEvidence = {
+      rootNumber: { id: "rootNumber", area: "drawingNumber", name: "主根號", value: "A0005", confidence: 99, sources: [{ type: "檔名", value: "A0005", location: "2D／3D 檔名共同前綴", status: "一致" }] },
+      drawingNumber: { id: "drawingNumber", area: "drawingNumber", name: "圖號", value: "A0005-M01", confidence: 99, sources: [{ type: "OCR", value: "A0005-M01", location: "圖框 · 圖號欄", status: "一致" }, { type: "2D", value: "A0005-M01", location: "文件屬性 · DrawingNo", status: "一致" }] },
+      partNumbers: { id: "partNumbers", area: "variant", name: "關聯料號", value: "P01、P02、P03", confidence: 94, sources: [{ type: "OCR", value: "P01 / P02 / P03 共用本圖", location: "圖面左上註記", status: "已關聯" }] },
+      configuration: { id: "configuration", area: "drawingControl", name: "Configuration", value: "Default", confidence: 100, sources: [{ type: "3D", value: "Default", location: "A0005.SLDPRT", status: "直接讀取" }] },
+      sheet: { id: "sheet", area: "drawingControl", name: "Sheet", value: "Sheet1 / 1", confidence: 99, sources: [{ type: "2D", value: "Sheet1 / 1", location: "A0005-M01.SLDDRW", status: "直接讀取" }] },
+      revision: { id: "revision", area: "drawingControl", name: "版次", value: "0.3", confidence: 98, sources: [{ type: "OCR", value: "版次 0.3", location: "圖框 · 版次欄", status: "一致" }, { type: "PDM", value: "0.3", location: "既有圖面版本", status: "一致" }] },
+      drawingControl: { id: "drawingControl", area: "drawingControl", name: "圖面／版次控制", value: "mm · 1:2 · 第三角法", confidence: 95, sources: [{ type: "OCR", value: "mm / 1:2 / 第三角法", location: "圖框右下", status: "已辨識" }] },
+      specialNotes: { id: "specialNotes", area: "notes", name: "特殊要求與註記", value: "去毛邊、焊道檢驗、表面保護", confidence: 89, sources: [{ type: "OCR", value: "未標示處去除毛邊與銳角", location: "一般註記 · 第 1 列", status: "已分類" }] },
+      geometry: { id: "geometry", area: "geometry", name: "幾何工程資訊", value: "尺寸、公差、GD&T、符號", confidence: 87, sources: [{ type: "2D", value: "12 項尺寸、3 項公差、1 項 GD&T", location: "主視圖與視圖 A", status: "保留證據" }] },
+      ocrPending: { id: "ocrPending", area: "notes", name: "OCR 待分類", value: "2 筆文字", confidence: 79, sources: [{ type: "OCR", value: "保護膜完成後撕除", location: "一般註記 · 第 7 列", status: "待人工" }, { type: "OCR", value: "表面不可有刀痕", location: "視圖 B 旁", status: "待人工" }] }
+    };
+
+    let selectedEvidence = "material";
+    let diffOnly = false;
+
+    const reviewBody = document.getElementById("reviewBody");
+    const toast = document.getElementById("toast");
+    const modal = document.getElementById("impactModal");
+
+    function hasDifference(item) {
+      return Object.values(item.variants).some(Boolean);
+    }
+
+    function variantMarkup(variant, mobile = false) {
+      if (!variant) {
+        return `<div class="variant-cell inherit"><span class="variant-value">繼承</span><span class="inherit-mark" aria-label="與基準相同">✓</span></div>`;
+      }
+      return `<div class="variant-cell ${variant.type}"><span class="variant-value">${variant.value}</span><span class="state-tag">${variant.label}</span></div>`;
+    }
+
+    function renderMatrixMarkup() {
+      const visible = diffOnly ? properties.filter(hasDifference) : properties;
+      const desktopRows = visible.map(item => `
+        <tr tabindex="0" data-evidence="${item.id}" class="${selectedEvidence === item.id ? "selected" : ""}">
+          <td><div class="property-name">${item.name}</div><div class="property-scope">${item.scope}</div></td>
+          <td><div class="baseline-value"><span class="base-mark">基</span>${item.baseline}</div><div class="source-inline">${item.sources.length} 個來源 · ${item.confidence}%</div></td>
+          <td>${variantMarkup(item.variants.P01)}</td>
+          <td>${variantMarkup(item.variants.P02)}</td>
+          <td>${variantMarkup(item.variants.P03)}</td>
+        </tr>`).join("");
+
+      const mobileRows = visible.map(item => `
+        <section class="mobile-property" tabindex="0" data-evidence="${item.id}">
+          <div class="mobile-property-head"><div><div class="property-name">${item.name}</div><div class="property-scope">${item.sources.length} 個來源 · ${item.confidence}%</div></div><span class="method-tag">查看證據</span></div>
+          <div class="mobile-baseline"><small>共用基準</small><strong>${item.baseline}</strong></div>
+          <div class="mobile-variants">
+            <div class="mobile-variant"><span class="part-code">P01</span>${variantMarkup(item.variants.P01, true)}</div>
+            <div class="mobile-variant"><span class="part-code">P02</span>${variantMarkup(item.variants.P02, true)}</div>
+            <div class="mobile-variant"><span class="part-code">P03</span>${variantMarkup(item.variants.P03, true)}</div>
+          </div>
+        </section>`).join("");
+
+      return `
+        <div class="matrix-desktop">
+          <table class="matrix-table">
+            <thead><tr><th>料號屬性</th><th>共用基準</th><th>A0005-P01</th><th>A0005-P02</th><th>A0005-P03</th></tr></thead>
+            <tbody>${desktopRows}</tbody>
+          </table>
+        </div>
+        <div class="mobile-matrix">${mobileRows}</div>
+        <div class="empty-filter" style="${visible.length ? "" : "display:grid"}">目前沒有料號差異；關閉「只看差異」可查看完整基準。</div>`;
+    }
+
+    function renderReview() {
+      reviewBody.innerHTML = `
+        <section class="review-section" id="identity">
+          <div class="section-head"><span class="section-index">1</span><div class="section-heading"><h3>識別與關聯</h3><p>判斷圖面、3D 與料號資料屬於誰</p></div><div class="section-tools"><span class="source-status">6 項已核對</span></div></div>
+          <div class="fact-grid">
+            <button class="fact-item" type="button" data-evidence="rootNumber"><span class="fact-label">主根號</span><span class="fact-value">A0005</span><span class="fact-source">檔名比對 · 99%</span></button>
+            <button class="fact-item" type="button" data-evidence="drawingNumber"><span class="fact-label">圖號</span><span class="fact-value">A0005-M01</span><span class="fact-source">2D + OCR · 99%</span></button>
+            <button class="fact-item" type="button" data-evidence="partNumbers"><span class="fact-label">關聯料號</span><span class="fact-value">P01、P02、P03</span><span class="fact-source">OCR 關聯 · 94%</span></button>
+            <button class="fact-item" type="button" data-evidence="configuration"><span class="fact-label">Configuration</span><span class="fact-value">Default</span><span class="fact-source">3D 直接讀取</span></button>
+            <button class="fact-item" type="button" data-evidence="sheet"><span class="fact-label">Sheet</span><span class="fact-value">Sheet1 / 1</span><span class="fact-source">2D 直接讀取</span></button>
+            <button class="fact-item" type="button" data-evidence="revision"><span class="fact-label">版次</span><span class="fact-value">0.3</span><span class="fact-source">OCR + PDM · 98%</span></button>
+          </div>
+        </section>
+
+        <section class="review-section" id="baseline">
+          <div class="section-head"><span class="section-index">2</span><div class="section-heading"><h3>料號基準與變體</h3><p>材料、製程與外觀合併為料號基準；各料號只列差異</p></div><div class="section-tools"><label class="switch-label"><input type="checkbox" id="diffOnly" ${diffOnly ? "checked" : ""}/><span class="switch-track" aria-hidden="true"></span>只看差異</label></div></div>
+          ${renderMatrixMarkup()}
+        </section>
+
+        <section class="review-section" id="drawing-control">
+          <div class="section-head"><span class="section-index">3</span><div class="section-heading"><h3>圖面／版次控制</h3><p>寫入圖面版本資料，不併入料號屬性</p></div><div class="section-tools"><span class="source-status">6 項已核對</span></div></div>
+          <table class="review-table"><thead><tr><th>欄位</th><th>辨識值</th><th>來源</th><th>寫入方式</th></tr></thead><tbody>
+            <tr tabindex="0" data-evidence="drawingNumber"><td data-label="欄位">圖號</td><td data-label="辨識值"><strong>A0005-M01</strong></td><td data-label="來源"><div class="method-tags"><span class="method-tag">2D</span><span class="method-tag ocr">OCR</span></div></td><td data-label="寫入方式"><span class="write-policy"><strong>圖面主檔</strong></span></td></tr>
+            <tr tabindex="0" data-evidence="revision"><td data-label="欄位">版次</td><td data-label="辨識值"><strong>0.3</strong></td><td data-label="來源"><div class="method-tags"><span class="method-tag ocr">OCR</span><span class="method-tag">PDM</span></div></td><td data-label="寫入方式"><span class="write-policy"><strong>圖面版本</strong></span></td></tr>
+            <tr tabindex="0" data-evidence="drawingControl"><td data-label="欄位">單位／比例</td><td data-label="辨識值"><strong>mm ／ 1:2</strong></td><td data-label="來源"><span class="method-tag ocr">OCR</span></td><td data-label="寫入方式"><span class="write-policy">圖面版本</span></td></tr>
+            <tr tabindex="0" data-evidence="drawingControl"><td data-label="欄位">投影法</td><td data-label="辨識值"><strong>第三角法</strong></td><td data-label="來源"><span class="method-tag ocr">OCR</span></td><td data-label="寫入方式"><span class="write-policy">圖面版本</span></td></tr>
+            <tr tabindex="0" data-evidence="drawingControl"><td data-label="欄位">製圖日期</td><td data-label="辨識值"><strong>2026-08-08</strong></td><td data-label="來源"><span class="method-tag ocr">OCR</span></td><td data-label="寫入方式"><span class="write-policy">圖面版本</span></td></tr>
+            <tr tabindex="0" data-evidence="drawingControl"><td data-label="欄位">製圖／審核</td><td data-label="辨識值"><strong>王工程師／陳主管</strong></td><td data-label="來源"><span class="method-tag ocr">OCR</span></td><td data-label="寫入方式"><span class="write-policy">受控紀錄</span></td></tr>
+          </tbody></table>
+        </section>
+
+        <section class="review-section" id="special-notes">
+          <div class="section-head"><span class="section-index">4</span><div class="section-heading"><h3>特殊要求與註記</h3><p>保留適用範圍，由人工決定是否映射正式欄位</p></div><div class="section-tools"><span class="source-status">3 項已核對</span></div></div>
+          <table class="review-table"><thead><tr><th>類別</th><th>辨識內容</th><th>適用範圍</th><th>處理</th></tr></thead><tbody>
+            <tr tabindex="0" data-evidence="specialNotes"><td data-label="類別">加工要求</td><td data-label="辨識內容"><strong>未標示處去除毛邊與銳角</strong></td><td data-label="適用範圍">全圖</td><td data-label="處理"><span class="write-policy"><strong>受控註記</strong></span></td></tr>
+            <tr tabindex="0" data-evidence="specialNotes"><td data-label="類別">檢驗要求</td><td data-label="辨識內容"><strong>焊道 100% 目視檢查</strong></td><td data-label="適用範圍">焊接區域</td><td data-label="處理"><span class="write-policy">受控註記</span></td></tr>
+            <tr tabindex="0" data-evidence="specialNotes"><td data-label="類別">包裝要求</td><td data-label="辨識內容"><strong>完成面加保護膜</strong></td><td data-label="適用範圍">P01、P03</td><td data-label="處理"><span class="write-policy">料號要求</span></td></tr>
+          </tbody></table>
+        </section>
+
+        <section class="review-section" id="geometry">
+          <div class="section-head"><span class="section-index">5</span><div class="section-heading"><h3>幾何工程資訊</h3><p>第一版保留可搜尋證據，不直接轉成通用 PDM 欄位</p></div><div class="section-tools"><span class="method-tag manual">證據索引</span></div></div>
+          <table class="review-table"><thead><tr><th>類別</th><th>辨識摘要</th><th>來源位置</th><th>處理</th></tr></thead><tbody>
+            <tr tabindex="0" data-evidence="geometry"><td data-label="類別">尺寸</td><td data-label="辨識摘要"><strong>12 項尺寸</strong></td><td data-label="來源位置">主視圖、視圖 A</td><td data-label="處理"><span class="write-policy">保留位置與原文</span></td></tr>
+            <tr tabindex="0" data-evidence="geometry"><td data-label="類別">公差</td><td data-label="辨識摘要"><strong>±0.1；未註公差 ISO 2768-m</strong></td><td data-label="來源位置">尺寸標註、一般註記</td><td data-label="處理"><span class="write-policy">保留位置與原文</span></td></tr>
+            <tr tabindex="0" data-evidence="geometry"><td data-label="類別">GD&amp;T</td><td data-label="辨識摘要"><strong>垂直度 0.05｜A</strong></td><td data-label="來源位置">視圖 A</td><td data-label="處理"><span class="write-policy">保留符號與基準</span></td></tr>
+            <tr tabindex="0" data-evidence="geometry"><td data-label="類別">焊接符號</td><td data-label="辨識摘要"><strong>角焊 6 mm</strong></td><td data-label="來源位置">剖面 B-B</td><td data-label="處理"><span class="write-policy">保留符號與位置</span></td></tr>
+            <tr tabindex="0" data-evidence="roughness"><td data-label="類別">表面符號</td><td data-label="辨識摘要"><strong>局部 Ra 0.8</strong></td><td data-label="來源位置">視圖 A 加工面</td><td data-label="處理"><span class="write-policy">不覆蓋整體 Ra 3.2</span></td></tr>
+          </tbody></table>
+        </section>
+
+        <section class="review-section" id="ocr-unclassified">
+          <div class="section-head"><span class="section-index">6</span><div class="section-heading"><h3>OCR 原文與待分類</h3><p>語意未確定的文字留在同頁，由人工分類或忽略</p></div><div class="section-tools"><span class="method-tag manual">2 項待處理</span></div></div>
+          <div class="unclassified-list" data-evidence="ocrPending">
+            <div class="unclassified-row">
+              <div><div class="raw-text">「保護膜完成後撕除」</div><div class="row-sub">一般註記 · 第 7 列 · OCR 82%</div></div>
+              <div><label class="row-sub" for="map1">建議歸屬</label><select id="map1" class="select-like"><option>特殊要求與註記</option><option>料號屬性候選</option><option>局部工程資訊</option></select></div>
+              <div><div class="row-sub">適用範圍</div><div>尚未辨識到指定料號</div></div>
+              <div class="row-actions"><button class="btn small" type="button" data-toast="已保留為受控註記">保留</button><button class="btn small ghost" type="button" data-toast="已標記忽略，可隨時復原">忽略</button></div>
+            </div>
+            <div class="unclassified-row">
+              <div><div class="raw-text">「表面不可有刀痕」</div><div class="row-sub">視圖 B 旁 · OCR 76%</div></div>
+              <div><label class="row-sub" for="map2">建議歸屬</label><select id="map2" class="select-like"><option>局部工程資訊</option><option>特殊要求與註記</option><option>料號屬性候選</option></select></div>
+              <div><div class="row-sub">適用範圍</div><div>可能只適用指定加工面</div></div>
+              <div class="row-actions"><button class="btn small" type="button" data-toast="已移至局部工程資訊">分類</button><button class="btn small ghost" type="button" data-toast="已標記忽略，可隨時復原">忽略</button></div>
+            </div>
+          </div>
+          <details class="ocr-fulltext"><summary>查看 OCR 全文（37 行）</summary><div class="ocr-lines">P01 / P02 / P03 共用本圖\n材料：SUS304\n表面處理：拋光\nP02：黑色塗裝\nP03：SUS316\n未標示處去除毛邊與銳角\n整體粗糙度：Ra 3.2\n保護膜完成後撕除\n表面不可有刀痕\n…其餘 28 行</div></details>
+        </section>`;
+
+      bindReviewInteractions();
+    }
+
+    function bindReviewInteractions() {
+      reviewBody.querySelectorAll("[data-evidence]").forEach(target => {
+        target.addEventListener("click", event => {
+          if (event.target.closest("button, select, summary") && !event.currentTarget.matches("button")) return;
+          selectEvidence(event.currentTarget.dataset.evidence);
+        });
+        target.addEventListener("keydown", event => { if (event.key === "Enter") selectEvidence(event.currentTarget.dataset.evidence); });
+      });
+      const diffToggle = document.getElementById("diffOnly");
+      diffToggle.addEventListener("change", event => {
+        const scrollTop = reviewBody.scrollTop;
+        diffOnly = event.target.checked;
+        renderReview();
+        reviewBody.scrollTop = scrollTop;
+      });
+      bindToastButtons();
+    }
+
+    function selectEvidence(id) {
+      selectedEvidence = id;
+      const property = properties.find(entry => entry.id === id);
+      const item = property || extraEvidence[id] || extraEvidence.drawingNumber;
+      const area = item.area || item.id;
+      document.querySelectorAll(".highlight-box").forEach(box => box.classList.toggle("active", box.dataset.area === area));
+      reviewBody.querySelectorAll("[data-evidence]").forEach(target => target.classList.toggle("selected", target.dataset.evidence === id));
+      document.getElementById("sourceMeta").textContent = `目前定位：${item.name}`;
+      document.getElementById("evidenceTitle").textContent = `${item.name} · ${property ? item.baseline : item.value}`;
+      document.querySelector(".confidence > span:first-child").textContent = `${item.confidence}%`;
+      document.querySelector(".confidence-bar span").style.width = `${item.confidence}%`;
+      document.getElementById("evidenceList").innerHTML = item.sources.map(source => `
+        <div class="evidence-item">
+          <span class="evidence-symbol">${source.type}</span>
+          <div><div class="evidence-value">${source.value}</div><div class="evidence-location">${source.location}</div></div>
+          <span class="match-mark">${source.status}</span>
+        </div>`).join("");
+      if (window.innerWidth < 901) document.querySelector(".source-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2300);
+    }
+
+    function bindToastButtons() {
+      document.querySelectorAll("[data-toast]").forEach(button => {
+        if (button.dataset.bound) return;
+        button.dataset.bound = "true";
+        button.addEventListener("click", () => showToast(button.dataset.toast));
+      });
+    }
+
+    function openModal() {
+      modal.classList.add("open");
+      document.body.style.overflow = "hidden";
+      document.getElementById("closeImpact").focus();
+    }
+
+    function closeModal() {
+      modal.classList.remove("open");
+      document.body.style.overflow = "";
+    }
+
+    document.querySelectorAll(".section-jump").forEach(button => button.addEventListener("click", () => {
+      document.getElementById(button.dataset.scroll).scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+    document.querySelectorAll(".segment").forEach(button => button.addEventListener("click", () => {
+      document.querySelectorAll(".segment").forEach(item => {
+        const active = item === button;
+        item.classList.toggle("active", active);
+        item.setAttribute("aria-pressed", String(active));
+      });
+      showToast(button.dataset.source === "drawing" ? "已切換至 2D 圖面證據" : "已切換至 3D 屬性證據");
+    }));
+
+    document.getElementById("openImpact").addEventListener("click", openModal);
+    document.getElementById("closeImpact").addEventListener("click", closeModal);
+    document.getElementById("backToReview").addEventListener("click", closeModal);
+    document.getElementById("confirmApply").addEventListener("click", () => { closeModal(); showToast("寫入流程示意完成：此原型不會變更 PDM 資料"); });
+    modal.addEventListener("click", event => { if (event.target === modal) closeModal(); });
+    document.addEventListener("keydown", event => { if (event.key === "Escape" && modal.classList.contains("open")) closeModal(); });
+
+    bindToastButtons();
+    renderReview();
+    selectEvidence("material");
+  </script>
+</body>
+</html>

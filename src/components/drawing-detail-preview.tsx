@@ -88,7 +88,7 @@ function PreviewMedia({ media, kind }: { media: DrawingDetailPreviewMedia; kind:
     const loadPreview = async () => {
       try {
         const response = await fetch(media.href, { credentials: "same-origin" });
-        if (response.status === 409 && retryCount < previewRetryLimit) {
+        if ((response.status === 202 || response.status === 409) && retryCount < previewRetryLimit) {
           retryCount += 1;
           if (!cancelled) {
             setLoadState("waiting");
@@ -143,7 +143,7 @@ function PreviewMedia({ media, kind }: { media: DrawingDetailPreviewMedia; kind:
     <div className={`drawing-preview-placeholder ${waiting ? "pending" : "unavailable"}`} data-preview-state={waiting ? "pending" : "unavailable"}>
       {previewStateIcon(waiting ? "pending" : "unavailable", kind)}
       <strong>{waiting ? "預覽正在準備" : retryLimitReached ? "預覽等待逾時" : "預覽尚未就緒"}</strong>
-      <span>{waiting ? "3D 預覽轉檔完成後會自動顯示，請稍候。" : "檔案已保留，可先下載原檔；預覽產生後會顯示在這裡。"}</span>
+      <span>{waiting ? `${kind === "three-d" ? "3D" : "2D"} 預覽轉檔完成後會自動顯示，請稍候。` : "檔案已保留，可先下載原檔；預覽產生後會顯示在這裡。"}</span>
       {failed ? (
         <button className="secondary-button preview-generate-button" type="button" onClick={() => setRetryToken((token) => token + 1)}>
           重新整理預覽

@@ -28,7 +28,8 @@ export async function releaseSubmissionViaCloudFunctionAsync(submission: Submiss
     submissionId: submission.id,
     files: submission.files.map((file) => ({
       file_role: file.file_role,
-      original_filename: file.original_filename
+      original_filename: file.original_filename,
+      sha256: file.sha256
     }))
   });
 

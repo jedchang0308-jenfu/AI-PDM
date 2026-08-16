@@ -1,0 +1,101 @@
+{
+  "runId": "DEV072-20260815T025908Z-136de368",
+  "generatedAt": "2026-08-15T02:59:37.454Z",
+  "tool": "Playwright Chromium driven by Codex QC",
+  "productionConnection": false,
+  "productionWrite": false,
+  "database": "disposable isolated SQLite copies",
+  "fixture": {
+    "buildingKey": "candidate:draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+    "terminalKey": "part:part-number-af2bc537-9272-49e2-8b37-39dbfc42a48c",
+    "partKey": "part:part-number-af2bc537-9272-49e2-8b37-39dbfc42a48c",
+    "relationKey": "root:014f8d95-84df-4d9d-833a-7f22b10ffa59",
+    "pendingRequestIds": [
+      "APR-a7fdf24d-a6d3-4722-b250-1101ecdc04a9"
+    ]
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "laptop",
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "touch": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "RUN-FATAL",
+      "passed": false,
+      "detail": {
+        "error": "DEV-072 target route warm-up failed: 500"
+      }
+    }
+  ],
+  "P0": 0,
+  "P1": 0,
+  "cleanup": {
+    "attempted": true,
+    "removedCount": 2,
+    "tempRootRemoved": true
+  },
+  "source": {
+    "provenanceVersion": 1,
+    "commit": "cc393e048b251fb1ea3356204de56bc4c9eacc45",
+    "branch": "持續優化1",
+    "dirtyWorktree": true,
+    "scopedDirty": true,
+    "dirtyHashAlgorithm": "sha256(commit + scoped git status + scoped source hash)",
+    "dirtyHash": "aeb7a40acb760e491b8832561f309e479cf78c8eed1585b228331342a6e3bc20",
+    "scopedSourceHashAlgorithm": "sha256(sorted path + NUL + file bytes + NUL)",
+    "scopedSourceHash": "2fe0e427cde1361babbc5b567806186c115dd015cdaf063b333f01aa050a1e64",
+    "scopedFiles": [
+      "package.json",
+      "scripts/qc-dev-072-action-api.mjs",
+      "scripts/qc-dev-072-action-contract.mjs",
+      "scripts/qc-dev-072-browser.mjs",
+      "src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts",
+      "src/app/api/pdm/entity-details/[entityKey]/route.ts",
+      "src/app/approvals/page.tsx",
+      "src/app/globals.css",
+      "src/components/candidate-drawing-file-upload.tsx",
+      "src/components/drawing-projection.tsx",
+      "src/components/drawing-workbench.tsx",
+      "src/components/master-attachment-panel.tsx",
+      "src/components/part-projection.tsx",
+      "src/components/part-workbench.tsx",
+      "src/components/pdm-detail-action-control.tsx",
+      "src/components/relation-matrix-table.tsx",
+      "src/components/relation-projection.tsx",
+      "src/components/relation-workbench.tsx",
+      "src/components/unified-pdm-entity-detail-drawer.tsx",
+      "src/lib/pdm-detail-action-capabilities.ts",
+      "src/lib/pdm-detail-action-resolver.ts",
+      "src/lib/pdm-entity-detail-contract.ts",
+      "src/lib/pdm-entity-detail.ts"
+    ]
+  },
+  "files": [
+    "action-contract.json",
+    "dom-metrics.json",
+    "interaction-log.json",
+    "console-network.json",
+    "data-before-after.json",
+    "visible-error-sweep.json",
+    "defects.md"
+  ]
+}

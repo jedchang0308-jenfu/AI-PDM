@@ -83,11 +83,11 @@
 
 證據截圖：`artifacts/qa-rd-lifecycle-ux/upload.png`
 
-### 4. 圖料模組查詢狀態
+### 4. 圖料工作台查詢狀態
 
 操作：
 
-1. 建立草稿號碼後回到 `圖料模組`。
+1. 建立草稿號碼後回到 `圖料工作台`。
 2. 查找剛建立的 `0051`。
 3. 開啟主根明細。
 
@@ -149,7 +149,7 @@
 | Draft 沒有變成待辦 | 待辦只處理審核/通知 | RD 找不到未完成工作 | P0 | 建立 Draft 後看待辦 | 加入 `我的草稿待送審` |
 | 狀態詞不可理解 | Draft/Active/PendingReview 直接暴露資料狀態 | 使用者不知道是否可送審 / 可交接 | P0 | 查詢圖料與明細 | 加入角色化狀態文案與 next action |
 | 查重 feedback 不明確 | 查詢結果沒有 loading / done / failed state | RD 不知道能不能安全建立 | P1 | 按查重預檢 | 加入查重狀態與需確認 warning |
-| 搜尋結果列型混雜 | 主根、料號、圖號共用列表 | 點錯物件或誤判狀態 | P1 | 圖料模組搜尋 0051 | 明確 row type、grouping、主要物件行 |
+| 搜尋結果列型混雜 | 主根、料號、圖號共用列表 | 點錯物件或誤判狀態 | P1 | 圖料工作台搜尋 0051 | 明確 row type、grouping、主要物件行 |
 | Dashboard 資訊過載 | lifecycle、通知、搜尋、資料表同屏堆疊 | RD 無法聚焦 | P1 | 首頁首屏走查 | 首屏改為 My lifecycle queue |
 | BOM parent eligibility 不清楚 | BOM 工作台只列 submission | RD 不知為何草稿料號不能建 BOM | P1 | 領號後進 BOM | 顯示 eligibility reason |
 
@@ -170,7 +170,7 @@
 - Dashboard RD 首頁
 - 領號申請
 - 上傳送審
-- 圖料模組查詢與明細
+- 圖料工作台查詢與明細
 - 我的待辦 / 圖號待辦
 - BOM 工作台
 - DVT / Release Gate 入口
@@ -185,7 +185,7 @@
 | RD-UX-003 | 查重預檢 | 填入資料後按查重 | 顯示 checking / done / warning / failed 狀態與建議動作 | P0 |
 | RD-UX-004 | 查重 warning 建立 | 有疑似重複仍建立 | 必須要求 RD 明確確認，並記錄 override reason | P0 |
 | RD-UX-005 | 領號成功後接送審 | 建立號碼後按上傳送審 | Upload 自動帶入 part/drawing/name，並標示來源 draft | P0 |
-| RD-UX-006 | 草稿回查 | 建立後到圖料模組查詢 | 明細顯示 `草稿已建立，尚未送審` 與下一步 CTA | P0 |
+| RD-UX-006 | 草稿回查 | 建立後到圖料工作台查詢 | 明細顯示 `草稿已建立，尚未送審` 與下一步 CTA | P0 |
 | RD-UX-007 | 待辦追蹤 | 建立 Draft 後進待辦 | 出現 `我的草稿待送審`，不可顯示 0 件 | P0 |
 | RD-UX-008 | 送審後追蹤 | 建立 Pending submission | RD 可看到審核人、等待時間、目前 pending 原因 | P0 |
 | RD-UX-009 | 送審頁角色化 CTA | Engineer 進 Upload | 下一步不可指向自己不能執行的審核頁，應指向追蹤狀態 | P1 |
@@ -227,7 +227,7 @@
 1. 查重預檢加入明確狀態機
    - Not checked / Checking / Clear / Warning / Blocked / Failed。
 
-2. 圖料模組列表分群
+2. 圖料工作台列表分群
    - 先顯示 root summary，再展開料號 / 圖號。
    - 列型要有固定欄位與 icon。
 

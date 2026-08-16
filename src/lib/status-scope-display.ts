@@ -180,8 +180,8 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
   numberingSearch: {
     id: "numberingSearch",
     route: "/numbering/search",
-    section: "圖料查詢",
-    title: "圖料查詢資料範圍",
+    section: "圖料工作台",
+    title: "圖料工作台資料範圍",
     description: "查詢結果分開呈現資料狀態、關聯與提醒。",
     axes: ["dataStatus", "approvalStatus", "publicationStatus", "reminderStatus"],
     contexts: ["masterRecord", "approvalStatus", "publicationStatus", "reminderStatus"],

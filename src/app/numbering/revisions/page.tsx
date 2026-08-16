@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { FileDropzone } from "@/components/file-dropzone";
 import { SearchHighlight } from "@/components/search-highlight";
 import { StatusScopeHelp } from "@/components/status-help-popover";
+import { DrawingRecognitionPreSubmitPanel } from "@/components/drawing-recognition-pre-submit-panel";
 import { AlertTriangle, ArrowLeft, CheckCircle2, GitPullRequestArrow, Info, Loader2, RotateCcw, Search, Send, UploadCloud } from "lucide-react";
 import { formatBytes } from "@/lib/format-file-size";
 import {
@@ -213,6 +214,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
   const [submissionContext, setSubmissionContext] = useState<DrawingSubmissionContext | null>(null);
   const [submissionLoading, setSubmissionLoading] = useState(false);
   const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>(initialAttachmentIdValues);
+  const selectedAttachmentIdsRef = useRef<string[]>(initialAttachmentIdValues);
   const [pendingUploadFiles, setPendingUploadFiles] = useState<PendingRevisionUploadFile[]>([]);
   const [packageRoleByAttachmentId, setPackageRoleByAttachmentId] = useState<Record<string, RevisionPackageFileRole>>({});
   const [attachmentBusy, setAttachmentBusy] = useState(false);
@@ -234,6 +236,8 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
   const changeDescriptionIssues = useMemo(() => validateRevisionChangeDescription(note), [note]);
   const reasonCategory = useMemo(() => inferRevisionReasonCategory(note), [note]);
   const targetRevision = revision.trim();
+  const recognitionReturnTo = returnTo || (resolved?.drawing ? `/numbering/revisions?drawingNumber=${encodeURIComponent(resolved.drawing.drawingNumber)}&revision=${encodeURIComponent(targetRevision)}` : null);
+  const recognitionRefreshKey = `${createdSubmissionId}:${lifecycleNext?.requestId ?? ""}:${targetRevision}`;
   const revisionIntentNotice = useMemo(
     () => buildRevisionIntentNotice(targetRevision, resolved?.latestRevision ?? null, resolved?.suggestedRevision ?? null),
     [resolved?.latestRevision, resolved?.suggestedRevision, targetRevision]
@@ -278,6 +282,18 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
       }),
     [resolved?.drawing?.drawingNumber, revision, selectedPackageFiles]
   );
+  const selectedRequiredFileBlockers = useMemo(() => {
+    const roleCounts = selectedPackageFiles.reduce((counts, file) => {
+      counts.set(file.role, (counts.get(file.role) ?? 0) + 1);
+      return counts;
+    }, new Map<RevisionPackageFileRole, number>());
+    return [
+      ...(roleCounts.get("drawing_2d") ? [] : ["本次送審包必須勾選 1 個 2D 原始檔（.SLDDRW）。"]),
+      ...(roleCounts.get("cad_3d") ? [] : ["本次送審包必須勾選 1 個 3D CAD（.SLDPRT 或 .SLDASM）。"]),
+      ...((roleCounts.get("drawing_2d") ?? 0) > 1 ? ["本次送審包只能勾選 1 個主要 2D 原始檔。"] : []),
+      ...((roleCounts.get("cad_3d") ?? 0) > 1 ? ["本次送審包只能勾選 1 個主要 3D CAD。"] : [])
+    ];
+  }, [selectedPackageFiles]);
   const selectedReleaseConflicts = selectedAttachments.filter((attachment) => attachment.releaseConflict);
   const selectedRevisionMismatch = selectedAttachments.some((attachment) => (attachment.revision ?? "").trim() !== revision.trim());
   const targetRevisionAttachments = useMemo(
@@ -301,6 +317,14 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
     submissionContext?.blockers.filter(
       (blocker) =>
         !isJustCreatedSubmissionBlocker(blocker, createdSubmissionId) &&
+        ![
+          "DRAWING_2D_REQUIRED",
+          "DRAWING_3D_REQUIRED",
+          "DRAWING_2D_PRIMARY_REQUIRED",
+          "DRAWING_3D_PRIMARY_REQUIRED",
+          "DRAWING_ROLE_EXTENSION_MISMATCH",
+          "DRAWING_REQUIRED_FILE_READINESS_FAILED"
+        ].includes(blocker.code) &&
         !(handledTargetAttachmentGap && blocker.code === "missing_attachment") &&
         !(resolved?.primaryParts.length && resolved.primaryParts.length > 1 && (blocker.code === "multiple_primary_parts" || blocker.code === "missing_primary_part"))
     ) ?? [];
@@ -319,9 +343,10 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
     Boolean(revision.trim()) &&
     !submissionLoading &&
     selectedAttachmentIds.length > 0 &&
+    selectedRequiredFileBlockers.length === 0 &&
     !primaryPartSelectionRequired &&
     !multiPartReplacementUnsupported &&
-    (submissionContext?.blockers.length ?? 0) === 0 &&
+    submitConditionBlockers.length === 0 &&
     selectedReleaseConflicts.length === 0 &&
     !selectedRevisionMismatch &&
     !mismatch &&
@@ -439,10 +464,13 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
         for (const id of options.selectAttachmentIds ?? []) {
           if (nextContext.attachments.some((attachment) => attachment.id === id && canSelectForTargetRevision(attachment, targetRevision))) selected.add(id);
         }
-        if (selected.size > 0) return Array.from(selected);
-        return nextContext.attachments
+        const nextSelected = selected.size > 0
+          ? Array.from(selected)
+          : nextContext.attachments
           .filter((attachment) => canSelectForTargetRevision(attachment, targetRevision))
           .map((attachment) => attachment.id);
+        selectedAttachmentIdsRef.current = nextSelected;
+        return nextSelected;
       });
     } catch (contextError) {
       if (contextError instanceof DOMException && contextError.name === "AbortError") return;
@@ -456,11 +484,21 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
     }
   }, [selectedPartIds, workflowIntent]);
 
+  function persistRevisionIntent(targetRevision: string) {
+    const normalized = targetRevision.trim();
+    if (compact || !normalized) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("revision") === normalized) return;
+    params.set("revision", normalized);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}${window.location.hash}`);
+  }
+
   async function uploadRevisionAttachment() {
     if (!resolved?.drawing || pendingUploadFiles.length === 0 || attachmentBusy) return;
     // Selecting files for this target revision is an explicit user commitment;
     // a post-upload context refresh must not advance it to the next suggestion.
     revisionIntentLockedRef.current = true;
+    persistRevisionIntent(revision);
     setAttachmentBusy(true);
     setError("");
     setErrorGuidance(null);
@@ -474,7 +512,7 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
       form.append("role", pending.role);
       form.append("revision", revision.trim());
       form.append("display_name", pending.file.name);
-      form.append("description", `從圖面進版工作台補上新版圖面附件；版次包類別：${revisionPackageRoleLabel(pending.role)}。`);
+      form.append("description", `${revisionIntentNotice?.tone === "history" ? "從圖面進版工作台補上歷史版圖面附件" : "從圖面進版工作台補上新版圖面附件"}；版次包類別：${revisionPackageRoleLabel(pending.role)}。`);
       const response = await fetch(`/api/numbering/drawings/${encodeURIComponent(resolved.drawing.drawingNumber)}/revision-files`, {
         method: "POST",
         body: form
@@ -491,6 +529,11 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
     setAttachmentBusy(false);
     if (uploaded.length > 0) {
       const uploadedKeys = new Set(uploaded.map((item) => item.key));
+      const nextSelectedAttachmentIds = Array.from(
+        new Set([...selectedAttachmentIdsRef.current, ...uploaded.map((item) => item.id)])
+      );
+      selectedAttachmentIdsRef.current = nextSelectedAttachmentIds;
+      setSelectedAttachmentIds(nextSelectedAttachmentIds);
       setPendingUploadFiles((current) => current.filter((item) => !uploadedKeys.has(item.key)));
       setPackageRoleByAttachmentId((current) => ({
         ...current,
@@ -509,8 +552,11 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
 
   function toggleAttachment(attachmentId: string, checked: boolean) {
     setSelectedAttachmentIds((current) => {
-      if (checked) return Array.from(new Set([...current, attachmentId]));
-      return current.filter((id) => id !== attachmentId);
+      const nextSelected = checked
+        ? Array.from(new Set([...current, attachmentId]))
+        : current.filter((id) => id !== attachmentId);
+      selectedAttachmentIdsRef.current = nextSelected;
+      return nextSelected;
     });
   }
 
@@ -559,7 +605,8 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
         selectedReleaseConflicts.length,
         changeDescriptionIssues,
         targetRevision,
-        referenceRevisionLabels
+        referenceRevisionLabels,
+        selectedRequiredFileBlockers
       );
       setError(reason);
       setErrorGuidance({
@@ -574,6 +621,8 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
     setErrorGuidance(null);
     setMessage("");
     setLifecycleNext(null);
+    const attachmentIdsForSubmission = uniqueIds(selectedAttachmentIdsRef.current);
+    const attachmentsForSubmission = submissionContext.attachments.filter((attachment) => attachmentIdsForSubmission.includes(attachment.id));
     const response = await fetch("/api/numbering/drawing-revisions/submissions", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -583,8 +632,8 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
         workflowIntent: submissionContext.revisionPolicySuggestion?.workflowIntent ?? submissionContext.suggestedRevision.workflowIntent ?? workflowIntent,
         revisionPolicySuggestion: submissionContext.revisionPolicySuggestion,
         revisionOverrideReason: note.trim() || null,
-        selectedAttachmentIds,
-        packageFileRoles: selectedAttachments.map((attachment) => ({
+        selectedAttachmentIds: attachmentIdsForSubmission,
+        packageFileRoles: attachmentsForSubmission.map((attachment) => ({
           attachmentId: attachment.id,
           role: packageRoleForAttachment(attachment, packageRoleByAttachmentId)
         })),
@@ -759,11 +808,12 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
             />
           </label>
           <label style={fieldStyle}>
-              <span style={fieldLabelStyle}>新版次（自動建議，可修改）</span>
+              <span style={fieldLabelStyle}>{revisionIntentNotice?.tone === "history" ? "補登版次（歷史，不取代最新版）" : "新版次（自動建議，可修改）"}</span>
               <input
                 className="text-input"
                 placeholder="系統自動帶入"
                 value={revision}
+              onBlur={(event) => persistRevisionIntent(event.target.value)}
               onChange={(event) => {
                 revisionManuallyEditedRef.current = true;
                 revisionIntentLockedRef.current = true;
@@ -951,7 +1001,16 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
               </div>
             ) : null}
 
+            <DrawingRecognitionPreSubmitPanel
+              drawingNumberId={resolved.drawing.id}
+              drawingNumber={resolved.drawing.drawingNumber}
+              sourceAssetIds={selectedAttachmentIds}
+              refreshKey={recognitionRefreshKey}
+              returnTo={recognitionReturnTo}
+            />
+
             {selectedPackageWarnings.length > 0 ? <RevisionPackageWarningPanel warnings={selectedPackageWarnings} audience="submitter" /> : null}
+            {selectedRequiredFileBlockers.length > 0 ? <div className="drawing-revision-file-readiness" role="alert">{selectedRequiredFileBlockers.map((blocker) => <span key={blocker}><AlertTriangle size={15} aria-hidden="true" />{blocker}</span>)}</div> : null}
 
             {referenceRevisionAttachments.length ? (
               <details style={referenceDetailsStyle}>
@@ -1150,7 +1209,8 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
               selectedReleaseConflicts.length,
               changeDescriptionIssues,
               targetRevision,
-              referenceRevisionLabels
+              referenceRevisionLabels,
+              selectedRequiredFileBlockers
             )}
           </p>
         ) : null}
@@ -1349,6 +1409,8 @@ function humanError(code: string, details?: unknown, fallbackMessage?: string) {
       return "替代料號已發布，不能再建立編輯中內容。";
     case "reserved_number_already_active_draft":
       return "替代料號已有使用中的草稿，請改用既有草稿或更換料號。";
+    case "reserved_number_already_candidate_reservation":
+      return "替代料號已由其他料號建立流程保留，請改用該流程或更換料號。";
     case "DRAWING_SUBMISSION_ATTACHMENT_REQUIRED":
       return "請至少選擇一個新版圖面附件。";
     case "DRAWING_SUBMISSION_ATTACHMENT_NOT_FOUND":
@@ -1371,9 +1433,9 @@ function humanError(code: string, details?: unknown, fallbackMessage?: string) {
     case "release_filename_conflict":
       return fallbackMessage || "附件檔名與既有正式紀錄衝突，請更名或更換附件。";
     case "missing_material":
-      return "主要料號尚未完成材質主資料，需回料號/圖號模組補齊。";
+      return "主要料號尚未完成材質主資料，需回料號/圖號工作台補齊。";
     case "missing_surface_finish":
-      return "主要料號尚未完成表面處理主資料，需回料號/圖號模組補齊。";
+      return "主要料號尚未完成表面處理主資料，需回料號/圖號工作台補齊。";
     default:
       return fallbackMessage || "操作未完成。請重新整理後再試；若仍失敗，請主管或 Admin 協助確認。";
   }
@@ -1461,7 +1523,17 @@ function submissionBlockerGroup(blocker: DrawingSubmissionBlocker): DrawingSubmi
   ) {
     return "submission_conflict";
   }
-  if (blocker.code === "duplicate_attachment_filename" || blocker.code === "release_filename_conflict" || blocker.code === "missing_attachment") return "attachment_conflict";
+  if (
+    blocker.code === "duplicate_attachment_filename" ||
+    blocker.code === "release_filename_conflict" ||
+    blocker.code === "missing_attachment" ||
+    blocker.code === "DRAWING_2D_REQUIRED" ||
+    blocker.code === "DRAWING_3D_REQUIRED" ||
+    blocker.code === "DRAWING_2D_PRIMARY_REQUIRED" ||
+    blocker.code === "DRAWING_3D_PRIMARY_REQUIRED" ||
+    blocker.code === "DRAWING_ROLE_EXTENSION_MISMATCH" ||
+    blocker.code === "DRAWING_REQUIRED_FILE_READINESS_FAILED"
+  ) return "attachment_conflict";
   if (blocker.code === "drawing_not_submittable") return "state_or_permission_blocked";
   if (blocker.code === "drawing_number_not_found") return "system_recoverable";
   return "master_data_missing";
@@ -1474,7 +1546,8 @@ function revisionSubmissionDisabledReason(
   releaseConflictCount: number,
   changeDescriptionIssues: string[] = [],
   targetRevision = "",
-  referenceRevisionLabels: string[] = []
+  referenceRevisionLabels: string[] = [],
+  selectedRequiredFileBlockers: string[] = []
 ) {
   if (!context) return "請先完成新版圖面送審資料讀取。";
   const submissionConflict = context.blockers.find((blocker) => submissionBlockerGroup(blocker) === "submission_conflict");
@@ -1488,6 +1561,7 @@ function revisionSubmissionDisabledReason(
   if (revisionMismatch) return "選取附件版次與本次進版版次不一致。";
   if (selectedAttachmentIds.length === 0 && context.attachments.length > 0 && referenceRevisionLabels.length > 0) return missingTargetRevisionAttachmentMessage(targetRevision, referenceRevisionLabels);
   if (selectedAttachmentIds.length === 0) return "請勾選至少一個新版圖面附件納入本次送審。";
+  if (selectedRequiredFileBlockers.length > 0) return selectedRequiredFileBlockers[0];
   if (changeDescriptionIssues.length > 0) return `${changeDescriptionIssues[0]} 請先補齊變更原因後再送出。`;
   if (context.blockers.length > 0) return humanError(context.blockers[0].code, undefined, context.blockers[0].message);
   return "請確認 FFF 判定與替代料號資料。";

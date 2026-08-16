@@ -247,7 +247,7 @@ function evaluateSourceIdentity(sourceId: string): SubmissionGateFieldResult {
     blockerCode: "source_identity_missing",
     remediationRoute: "numbering_search",
     okMessage: "來源物件已帶入送審規則。",
-    missingMessage: "缺少來源圖號或料號，請從圖號/料號模組重新開啟。"
+    missingMessage: "缺少來源圖號或料號，請從圖號/料號工作台重新開啟。"
   });
 }
 

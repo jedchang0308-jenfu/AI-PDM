@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   return NextResponse.json(
     {
       error: "GENERIC_SUBMISSION_RETIRED",
-      message: "通用上傳送審已退役。請從圖料模組完成主資料與附件確認後送審，不可在送審階段補填主資料。"
+      message: "通用上傳送審已退役。請從圖料工作台完成主資料與附件確認後送審，不可在送審階段補填主資料。"
     },
     { status: 410 }
   );

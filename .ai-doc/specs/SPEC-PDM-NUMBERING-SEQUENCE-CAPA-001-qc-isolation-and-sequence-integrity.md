@@ -14,7 +14,7 @@ Confirmed decisions:
 - The issue must be handled as CAPA, then optimized with `#效用理論`, then written as a development document.
 - The initial documentation request did not authorize direct sequence reset, backfill, reuse or DB repair.
 - The later `完成此開發任務` instruction authorized local Phase 1 QC isolation/integrity and Phase 2 SQLite transaction hardening only.
-- The later `只有目前在圖號模組UI上看到的是正式資料, 其他都是測試資料, 請執行` instruction authorized local Phase 3 repair using the current drawing-module UI records as the formal data set.
+- The later `只有目前在圖號工作台UI上看到的是正式資料, 其他都是測試資料, 請執行` instruction authorized local Phase 3 repair using the current drawing-module UI records as the formal data set.
 - The later critical-review instruction corrected the allocation policy: earlier empty roots should be reused unless the number exists in controlled master rows or has explicit void/obsolete evidence. Therefore V2 create must allocate the lowest root absent from controlled `part_roots`, not `max + 1`.
 - The existing compact numbering identity decision remains unchanged: root `00001`, part `00001-P01`, manufacturing drawing `00001-M01`, reference drawing `00001-R01`.
 

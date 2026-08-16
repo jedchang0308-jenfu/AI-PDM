@@ -229,7 +229,7 @@ export async function decideDrawingRevisionLifecycle(input: {
   requestId: string;
   actorId: string;
   actorRole: string;
-  decision: "approved" | "returned_for_correction";
+  decision: "approved" | "returned_for_correction" | "needs_info";
   reason?: string | null;
   idempotencyKey: string;
 }) {

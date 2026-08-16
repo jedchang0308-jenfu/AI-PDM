@@ -1,0 +1,61 @@
+{
+  "runId": "20260813123728",
+  "checkedAt": "2026-08-13T12:37:46.718Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-flag-off-browser\\20260813123728",
+  "results": [
+    {
+      "name": "flag-off engineer login",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "flag=true draft created",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "flag=true floating fixture saved",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-003 flag=false reports disabled capability",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-004 legacy PATCH fails closed",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-004 floating graph remains unchanged",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-003 hard reload shows blocked handoff",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-002 flag=false zero-floating draft created",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-002 legacy surface has no v2 leakage",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FF-002 legacy surface can still save",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "screenshots": [],
+  "productionConnected": false,
+  "productionWrites": false,
+  "cleanupStatus": "pending"
+}

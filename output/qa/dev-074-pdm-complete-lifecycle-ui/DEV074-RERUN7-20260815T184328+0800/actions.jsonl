@@ -1,0 +1,9 @@
+{"at":"2026-08-15T18:43:28+08:00","action":"run_started","actor":"QC","detail":"R6 defect repaired; R7 reset all 58 paths to not_run"}
+{"at":"2026-08-15T18:46:53+08:00","action":"login","actor":"CTX-A/B/C/D1/D2","control":"登入","detail":"five isolated R7 sessions authenticated through rendered login UI"}
+{"at":"2026-08-15T18:47:20+08:00","action":"restricted_route_check","actor":"CTX-E","control":"navigate protected route","detail":"unauthenticated session returned to login; expected 401 contained no business data"}
+{"at":"2026-08-15T18:48:00+08:00","action":"w0_pass","actor":"QC","detail":"local target, roles, source hashes, browser contexts and runtime recorded; direct API/DB mutation count 0"}
+{"at":"2026-08-15T18:51:00+08:00","action":"create_number","actor":"CTX-A","control":"建立編號申請","detail":"A01 created A0018/A0018-P01/A0018-M01 via UI"}
+{"at":"2026-08-15T18:53:00+08:00","action":"add_drawing","actor":"CTX-A","control":"建立圖號工作","detail":"A02 created reference drawing A0017-R01 via UI"}
+{"at":"2026-08-15T18:57:00+08:00","action":"add_parts","actor":"CTX-A","control":"建立編號申請","detail":"A03 created A0017-P02 manufactured, P03 purchased, P04 standard via UI"}
+{"at":"2026-08-15T18:56:30+08:00","action":"run_failed","actor":"QC","control":"A04 create mode","detail":"DEV074-R7-P1-003: manufacturing selection rendered reference-relation copy; submit not clicked, zero write"}
+{"at":"2026-08-15T18:57:30+08:00","action":"rd_fix_verified","actor":"RD/QC","control":"A04 create mode","detail":"M selection now renders primary manufacturing relation; typecheck passed; R7 remains failed and R8 is required"}

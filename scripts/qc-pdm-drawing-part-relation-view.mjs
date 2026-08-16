@@ -78,7 +78,7 @@ function seedRelationData() {
         id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
       ) VALUES (?, 'company-jenfu', ?, ?, 'manufactured', 'Active', 'numbering-rule-v2', 'user-engineer-demo', ?, ?)
     `
-    ).run(secondaryRootId, secondaryRootCode, `QC ${rootCode} 空白關係主根`, now, now);
+    ).run(secondaryRootId, secondaryRootCode, `QC ${rootCode} 空白關係圖料根號`, now, now);
     for (const [index, partNumber, partName] of [
       [1, partP01, "QC 關係主料"],
       [2, partP02, "QC 多料一圖 A"],
@@ -243,7 +243,7 @@ async function verifyViewport(browser, viewport, screenshotName) {
   if (viewport.width === 1440) await verifyRelationApi(sessionCookie);
 
   await page.goto(`${apiBaseUrl}/numbering/search`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "圖料模組" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "圖料工作台" }).waitFor({ timeout: 10_000 });
   await page.getByLabel("關鍵字").fill(rootCode);
   await page.getByRole("button", { name: "查詢", exact: true }).click();
   await page.getByRole("button", { name: rootCode, exact: true }).waitFor({ timeout: 10_000 });

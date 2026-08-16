@@ -1,0 +1,6 @@
+{"ts":"2026-08-15T21:25:47+08:00","actor":"QC","wave":"W0","action":"start_clean_full_rerun","result":"in_progress","predecessor":"DEV074-RERUN13-20260815T210918+0800"}
+{"ts":"2026-08-15T21:26:00+08:00","actor":"QC","wave":"W0","action":"fresh_role_sessions_and_rendered_login","result":"pass","roles":["owner","reviewer","admin","manufacturing","procurement","restricted"],"business_mutation_channel":"rendered_ui_only"}
+{"ts":"2026-08-15T22:00:00+08:00","actor":"QC","wave":"A-B","action":"execute_paths","result":"pass","paths":["A01","A02","A03","A04","B01","B02","B03","B04","B05","B06","B07","B08"],"business_mutation_channel":"rendered_ui_only"}
+{"ts":"2026-08-15T22:00:30+08:00","actor":"QC","wave":"C01","action":"verify_recognition_optional_for_first_release","result":"pass","business_mutation_channel":"rendered_ui_only"}
+{"ts":"2026-08-15T22:01:00+08:00","actor":"QC","wave":"C02","action":"upload_revision_sources_and_start_recognition","result":"fail","session_id":"recognition-f3ffa08f-af38-4bd6-aed6-357e1e6485fe","observed_ui_status":"等待辨識","defect_id":"DEV074-R14-P1-010","business_mutation_channel":"rendered_ui_only"}
+{"ts":"2026-08-15T22:04:42+08:00","actor":"QC","wave":"R14","action":"stop_on_first_defect","result":"failed","passed":13,"failed":1,"not_run":44,"direct_api_or_db_mutation_count":0}

@@ -52,11 +52,18 @@ export type DrawingProjectionSummary = {
   representativePreview: Pick<DrawingPreviewSlotModel, "kind" | "state" | "stateTitle" | "stateText">;
 };
 
+export type DrawingMaintenanceTarget =
+  | { kind: "candidate_revision"; workspaceId: string; drawingDraftId: string; candidateRevisionId: string; rowVersion: number; revision: string }
+  | { kind: "candidate_revision_pending"; workspaceId: string; drawingDraftId: string; workspaceRowVersion: number }
+  | { kind: "formal_drawing"; drawingNumber: string }
+  | null;
+
 export type DrawingProjectionFull = DrawingProjectionSummary & {
   stateFamily: PdmDetailStateFamily;
+  maintenanceTarget: DrawingMaintenanceTarget;
   previews: [DrawingPreviewSlotModel, DrawingPreviewSlotModel];
   currentRevision: { revision: string | null; lifecycleState: string | null };
-  revisionHistory: Array<{ revision: string; lifecycleState: string; updatedAt: string | null }>;
+  revisionHistory: Array<{ revision: string; lifecycleState: string; updatedAt: string | null; fileCount: number }>;
   attachments: Array<{ id: string; displayName: string; role: string | null; href: string | null }>;
   readiness: { blockers: string[]; owner: string; nextStep: string | null };
   linkedParts: Array<{ id: string; partNumber: string; partName: string; recordStatus: string }>;
@@ -77,7 +84,14 @@ export type PartProjectionSummary = {
 };
 
 export type PartProjectionFull = PartProjectionSummary & {
-  attributes: { customSpecification: string | null; seriesCode: string | null; variant: Record<string, unknown> | null };
+  attributes: {
+    customSpecification: string | null;
+    seriesCode: string | null;
+    materialLabel: string | null;
+    colorLabel: string | null;
+    surfaceTreatment: string | null;
+    variantNote: string | null;
+  };
   linkedDrawings: Array<{ id: string; drawingNumber: string; linkType: string }>;
   sharedModels: Array<{ id: string; label: string }>;
   readiness: { blockers: string[]; owner: string; nextStep: string | null };
@@ -105,6 +119,7 @@ export type ReviewContextProjectionFull = {
   status: string;
   actionCode: string;
   actionTitle: string;
+  requestReason: string | null;
   requester: { id: string | null; label: string | null };
   eligibleReviewer: { assigned: boolean; actorResponsibility: string; canDecide: boolean };
   targetRefs: Array<{ type: string; id: string }>;
@@ -112,25 +127,73 @@ export type ReviewContextProjectionFull = {
   decisionReady: boolean;
   allowedDecisions: Array<"approved" | "rejected" | "needs_info">;
   snapshot: { snapshotId: string | null; snapshotHash: string | null; currentAggregateHash: string | null; checkStatus: "一致" | "有差異" | "未提供"; checkedAt: string | null; drift: boolean; mismatchReason: string | null };
+  drawingRevisionEvidence: {
+    drawingNumber: string | null;
+    revision: string | null;
+    parts: Array<{
+      id: string;
+      number: string;
+      name: string;
+      linkType: string;
+      formState: string;
+      fitState: string;
+      functionState: string;
+      outcome: string;
+    }>;
+    fff: {
+      formState: string;
+      fitState: string;
+      functionState: string;
+      outcome: string;
+      reasonCategory: string;
+      note: string;
+    };
+    files: Array<{ id: string; displayName: string; role: string }>;
+  } | null;
 };
 
-export type PdmDetailActionKind = "edit" | "submit_review" | "withdraw_review" | "approve" | "return_for_correction" | "reject" | "retry_apply" | "retry_cleanup" | "create_revision" | "manage_relation" | "view_history" | "refresh" | "return";
+export type PdmDetailActionKind = "edit" | "submit_review" | "withdraw_review" | "cancel" | "approve" | "return_for_correction" | "reject" | "retry_apply" | "retry_cleanup" | "create_revision" | "view_review" | "manage_relation" | "view_history" | "refresh" | "return" | "manage_files";
+export type PdmDetailActionGroup = "object" | "workflow" | "review" | "utility";
+export type PdmDetailActionDisabledReasonCode =
+  | "PDM_ACTION_PREREQUISITE_MISSING"
+  | "PDM_ACTION_PERMISSION_REQUIRED"
+  | "PDM_ACTION_OWNER_REQUIRED"
+  | "PDM_ACTION_REVIEW_LOCKED"
+  | "PDM_ACTION_REVIEW_SCOPE_REQUIRED"
+  | "PDM_ACTION_REVIEW_DRIFT"
+  | "PDM_ACTION_PROCESSING"
+  | "PDM_ACTION_TARGET_UNAVAILABLE";
+export type PdmDetailActionExecution =
+  | { type: "navigate"; href: string }
+  | {
+      type: "command";
+      method: "POST";
+      href: string;
+      body: Record<string, string | number | boolean | null>;
+      input: "none" | "optional_reason" | "required_comment";
+      success: "refresh_detail" | "return_to_inbox";
+    }
+  | { type: "local"; command: "refresh" | "return" };
 export type PdmDetailActionDescriptor = {
-  id: string;
+  id: `detail:${"drawing" | "part" | "relation" | "approval" | "navigation"}:${string}`;
   kind: PdmDetailActionKind;
   owner: "drawing" | "part" | "relation" | "approval" | "navigation";
   label: string;
   tone: "primary" | "secondary" | "danger";
   placement: "primary" | "secondary";
+  group: PdmDetailActionGroup;
+  order: number;
   enabled: boolean;
   disabledReason: string | null;
-  href: string | null;
-  commandRef: string | null;
+  disabledReasonCode: PdmDetailActionDisabledReasonCode | null;
+  permissionCode: string | null;
+  contactRole: string | null;
+  execution: PdmDetailActionExecution | null;
   requiresConfirmation: boolean;
   idempotencyRequired: boolean;
 };
 
-export type ContextActionBarModel = { primary: PdmDetailActionDescriptor; secondary: PdmDetailActionDescriptor[] };
+export type ContextActionBarModel = { primary: PdmDetailActionDescriptor | null; secondary: PdmDetailActionDescriptor[] };
 export type PdmDetailNavigationModel = {
   ownerHref: string;
   returnTo: string;
@@ -139,7 +202,7 @@ export type PdmDetailNavigationModel = {
 };
 
 export type PdmEntityDetailResponse = {
-  schemaVersion: "pdm-entity-detail.v1";
+  schemaVersion: "pdm-entity-detail.v2";
   entityKey: PdmEntityKey;
   surface: PdmDetailSurface;
   generatedAt: string;

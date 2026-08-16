@@ -525,7 +525,7 @@ export class AsyncSubmissionStatusRepository {
         if (fallbackDrawings.length === 1)
             return fallbackDrawings[0];
         if (fallbackDrawings.length === 0) {
-            throw new Error("主資料狀態同步失敗：找不到這筆送審的圖號，不能標記為已發布。請先回圖號模組確認圖號是否存在。");
+            throw new Error("主資料狀態同步失敗：找不到這筆送審的圖號，不能標記為已發布。請先回圖號工作台確認圖號是否存在。");
         }
         throw new Error("主資料狀態同步失敗：同一個圖號對到多筆主資料，不能標記為已發布。請通知 Admin 檢查資料關聯。");
     }
@@ -544,15 +544,15 @@ export class AsyncSubmissionStatusRepository {
             return { part: primaryLinks[0], resolution: "primary_manufacturing" };
         }
         if (primaryLinks.length > 1) {
-            throw new Error("主資料狀態同步失敗：此圖號有多個主料號關聯，不能標記為已發布。請先在圖料模組確認主料號。");
+            throw new Error("主資料狀態同步失敗：此圖號有多個主料號關聯，不能標記為已發布。請先在圖料工作台確認主料號。");
         }
         if (links.length === 1) {
             return { part: links[0], resolution: "single_link_fallback" };
         }
         if (links.length === 0) {
-            throw new Error("主資料狀態同步失敗：此圖號尚未關聯主料號，不能標記為已發布。請先在圖料模組建立圖料關聯。");
+            throw new Error("主資料狀態同步失敗：此圖號尚未關聯主料號，不能標記為已發布。請先在圖料工作台建立圖料關聯。");
         }
-        throw new Error("主資料狀態同步失敗：此圖號有多個料號關聯但沒有指定主料號，不能標記為已發布。請先在圖料模組確認主料號。");
+        throw new Error("主資料狀態同步失敗：此圖號有多個料號關聯但沒有指定主料號，不能標記為已發布。請先在圖料工作台確認主料號。");
     }
 }
 function assertNoFormalDuplicateRevision(submission, releasedRows) {

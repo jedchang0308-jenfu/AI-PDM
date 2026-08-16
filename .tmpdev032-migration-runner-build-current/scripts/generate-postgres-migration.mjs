@@ -1,0 +1,211 @@
+#!/usr/bin/env node
+
+import fs from "node:fs";
+import path from "node:path";
+
+const root = process.cwd();
+const sqliteSchemaPath = path.join(root, "db", "schema.sql");
+const outputDir = path.join(root, "db", "postgres");
+const initialSchemaPath = path.join(outputDir, "001_initial_schema.sql");
+const rlsPlanPath = path.join(outputDir, "002_supabase_rls_plan.sql");
+
+function normalizeLf(value) {
+  return value.replace(/\r\n?/gu, "\n");
+}
+
+function writeIfChanged(filePath, content) {
+  if (fs.existsSync(filePath)) {
+    const existing = fs.readFileSync(filePath, "utf8");
+    if (normalizeLf(existing) === normalizeLf(content)) return;
+  }
+  fs.writeFileSync(filePath, content, "utf8");
+}
+
+function extractStatements(schema, startPattern) {
+  const statements = [];
+  const regex = new RegExp(`${startPattern}[\\s\\S]*?;`, "giu");
+  for (const match of schema.matchAll(regex)) {
+    statements.push(match[0].trim());
+  }
+  return statements;
+}
+
+function extractTableName(statement) {
+  const match = /^CREATE TABLE IF NOT EXISTS\s+([a-z0-9_]+)/iu.exec(statement);
+  if (!match) throw new Error(`Unable to extract table name from statement: ${statement.slice(0, 80)}`);
+  return match[1];
+}
+
+function extractReferencedTableNames(statement) {
+  return [...statement.matchAll(/\bREFERENCES\s+([a-z0-9_]+)/giu)].map((match) => match[1]);
+}
+
+function sortTableStatementsByDependencies(tableStatements) {
+  const tableNames = tableStatements.map(extractTableName);
+  const tableNameSet = new Set(tableNames);
+  const byName = new Map(tableStatements.map((statement) => [extractTableName(statement), statement]));
+  const dependenciesByName = new Map(
+    tableStatements.map((statement) => {
+      const tableName = extractTableName(statement);
+      const dependencies = extractReferencedTableNames(statement)
+        .filter((referencedTableName) => referencedTableName !== tableName && tableNameSet.has(referencedTableName));
+      return [tableName, [...new Set(dependencies)]];
+    })
+  );
+
+  const remaining = new Set(tableNames);
+  const sortedNames = [];
+
+  while (remaining.size > 0) {
+    const ready = tableNames.filter((tableName) => {
+      if (!remaining.has(tableName)) return false;
+      return dependenciesByName.get(tableName).every((dependency) => !remaining.has(dependency));
+    });
+
+    if (ready.length === 0) {
+      const unresolved = [...remaining].map((tableName) => ({
+        table: tableName,
+        dependencies: dependenciesByName.get(tableName).filter((dependency) => remaining.has(dependency))
+      }));
+      throw new Error(`Unable to order PostgreSQL tables because of unresolved FK dependencies: ${JSON.stringify(unresolved)}`);
+    }
+
+    for (const tableName of ready) {
+      sortedNames.push(tableName);
+      remaining.delete(tableName);
+    }
+  }
+
+  return sortedNames.map((tableName) => byName.get(tableName));
+}
+
+function escapeSqlString(value) {
+  return value.replaceAll("'", "''");
+}
+
+function toPostgresTable(statement) {
+  return statement
+    .split(/\r?\n/u)
+    .map((line) => {
+      let converted = line;
+      converted = converted.replace(/\b([a-z0-9_]*_at)\s+TEXT\b/giu, "$1 TIMESTAMPTZ");
+      converted = converted.replace(/\b(created_at|updated_at)\s+TEXT\b/giu, "$1 TIMESTAMPTZ");
+      converted = converted.replace(/\b(session_invalid_before)\s+TEXT\b/giu, "$1 TIMESTAMPTZ");
+      converted = converted.replace(/DEFAULT \(datetime\('now'\)\)/giu, "DEFAULT now()");
+      converted = converted.replace(/\b(file_size)\s+INTEGER\b/giu, "$1 BIGINT");
+      converted = converted.replace(/\bREAL\b/gu, "DOUBLE PRECISION");
+
+      if (/^\s+(detail_json|manifest_json|payload_json|response_json|merge_summary_json)\s+TEXT\b/iu.test(converted)) {
+        converted = converted.replace(/\bTEXT\b/u, "JSONB");
+        converted = converted.replace(/DEFAULT '\{\}'/u, "DEFAULT '{}'::jsonb");
+      }
+
+      return converted;
+    })
+    .join("\n");
+}
+
+function tablesWithUpdatedAt(tableStatements) {
+  return tableStatements
+    .filter((statement) => /^\s+updated_at\s+/imu.test(statement))
+    .map(extractTableName);
+}
+
+function buildInitialMigration(sqliteSchema) {
+  const tableStatements = extractStatements(sqliteSchema, "CREATE TABLE IF NOT EXISTS");
+  const sortedTableStatements = sortTableStatementsByDependencies(tableStatements);
+  const indexStatements = extractStatements(sqliteSchema, "CREATE (?:UNIQUE )?INDEX IF NOT EXISTS");
+  const convertedTables = sortedTableStatements.map(toPostgresTable);
+  const updatedAtTables = tablesWithUpdatedAt(sortedTableStatements);
+  const triggers = updatedAtTables
+    .map(
+      (tableName) => `DROP TRIGGER IF EXISTS trg_${tableName}_updated_at ON ${tableName};
+CREATE TRIGGER trg_${tableName}_updated_at
+BEFORE UPDATE ON ${tableName}
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();`
+    )
+    .join("\n\n");
+
+  return `-- AI PDM PostgreSQL / Supabase initial schema
+-- Generated by scripts/generate-postgres-migration.mjs from db/schema.sql
+-- Keep application-generated TEXT ids to preserve compatibility with the current SQLite data model.
+
+BEGIN;
+SET search_path = public;
+
+${convertedTables.join("\n\n")}
+
+${indexStatements.join("\n")}
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+${triggers}
+
+COMMIT;
+`;
+}
+
+function buildRlsPlan(tableNames) {
+  const arrayItems = tableNames.map((tableName) => `'${escapeSqlString(tableName)}'`).join(", ");
+  return `-- AI PDM Supabase RLS baseline plan
+-- Generated by scripts/generate-postgres-migration.mjs
+-- This intentionally denies direct Data API access until explicit policies are designed.
+-- Future policies must use auth.uid() or signed app metadata, never user-editable metadata.
+
+BEGIN;
+SET search_path = public;
+
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[${arrayItems}]
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
+    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', table_name);
+  END LOOP;
+END $$;
+
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+
+COMMENT ON SCHEMA public IS 'AI PDM baseline: direct Data API access is denied by default. Application access must go through the server-side PDM API until explicit RLS policies are approved.';
+
+COMMIT;
+`;
+}
+
+const sqliteSchema = fs.readFileSync(sqliteSchemaPath, "utf8");
+const tableStatements = extractStatements(sqliteSchema, "CREATE TABLE IF NOT EXISTS");
+const tableNames = sortTableStatementsByDependencies(tableStatements).map(extractTableName);
+const initialMigration = buildInitialMigration(sqliteSchema);
+const rlsPlan = buildRlsPlan(tableNames);
+
+fs.mkdirSync(outputDir, { recursive: true });
+writeIfChanged(initialSchemaPath, initialMigration);
+writeIfChanged(rlsPlanPath, rlsPlan);
+
+console.log(
+  JSON.stringify(
+    {
+      generatedAt: new Date().toISOString(),
+      generated: [
+        path.relative(root, initialSchemaPath).replaceAll(path.sep, "/"),
+        path.relative(root, rlsPlanPath).replaceAll(path.sep, "/")
+      ],
+      tables: tableNames.length,
+      bytes: {
+        initialSchema: Buffer.byteLength(initialMigration, "utf8"),
+        rlsPlan: Buffer.byteLength(rlsPlan, "utf8")
+      }
+    },
+    null,
+    2
+  )
+);

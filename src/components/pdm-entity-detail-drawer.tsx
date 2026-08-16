@@ -61,15 +61,12 @@ export function PdmEntityDetailDrawer({
   const generatedTitleId = useId();
   const titleId = `pdm-entity-drawer-${generatedTitleId.replace(/:/gu, "")}`;
   const drawerRef = useRef<HTMLElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus({ preventScroll: true }));
     return () => {
-      window.cancelAnimationFrame(focusFrame);
       const previousFocus = previousFocusRef.current;
       if (previousFocus?.isConnected) window.requestAnimationFrame(() => previousFocus.focus({ preventScroll: true }));
     };
@@ -135,7 +132,6 @@ export function PdmEntityDetailDrawer({
         <div className="pdm-entity-drawer-actions">
           {actions}
           <button
-            ref={closeButtonRef}
             className="icon-button pdm-entity-drawer-close"
             type="button"
             onClick={onClose}

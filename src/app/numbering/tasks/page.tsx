@@ -261,9 +261,9 @@ function TaskList({
       <NextStepState
         eyebrow="待辦"
         title="目前沒有待辦"
-        body="待辦清空後可回到圖料模組追蹤物件，或檢查 BOM 與製造圖影響範圍是否還有未收斂項目。"
+        body="待辦清空後可回到圖料工作台追蹤物件，或檢查 BOM 與製造圖影響範圍是否還有未收斂項目。"
         actions={[
-          { href: "/numbering/search", label: "圖料模組", variant: "primary" },
+          { href: "/numbering/search", label: "圖料工作台", variant: "primary" },
           { href: "/bom/reviews", label: "BOM 審核" },
           { href: "/numbering/impact", label: "製造圖影響" }
         ]}
@@ -351,7 +351,7 @@ function DraftSubmissionList({ drafts }: { drafts: NumberingDraftRecord[] }) {
         <table style={{ minWidth: "820px" }}>
           <thead>
             <tr>
-              <th>主根號</th>
+              <th>圖料根號</th>
               <th>圖料</th>
               <th>
                 <StatusColumnHeader label="資料狀態" context="masterRecord" />

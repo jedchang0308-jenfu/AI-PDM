@@ -823,7 +823,7 @@ record(
 );
 record(
   "NUM-UI numbering search page renders query and detail workflow",
-  numberingSearchPageSource.includes("圖料模組") &&
+  numberingSearchPageSource.includes("圖料工作台") &&
     (numberingSearchPageSource.includes("/api/numbering/search") ||
       numberingSearchPageSource.includes("/api/numbering/relations?${params.toString()}")) &&
     numberingSearchPageSource.includes("/api/numbering/roots/${"),
@@ -838,7 +838,7 @@ record(
 );
 record(
   "NUM-UI drawing management page renders module workflow",
-  numberingDrawingsPageSource.includes("圖號模組") &&
+  numberingDrawingsPageSource.includes("圖號工作台") &&
     numberingDrawingsPageSource.includes("/api/numbering/drawings") &&
     numberingDrawingsPageSource.includes("/numbering/search") &&
     numberingDrawingsPageSource.includes("/numbering/impact") &&
@@ -892,8 +892,8 @@ record(
   sidebarNavSource.includes("/approvals") && sidebarNavSource.includes("審核工作台") && sidebarNavSource.includes('badge: "approvalPending"'),
   "sidebar-nav.tsx"
 );
-record("NUM-UI sidebar links numbering search page", sidebarNavSource.includes("/numbering/search") && sidebarNavSource.includes("圖料模組"), "sidebar-nav.tsx");
-record("NUM-UI sidebar links drawing management page", sidebarNavSource.includes("/numbering/drawings") && sidebarNavSource.includes("圖號模組"), "sidebar-nav.tsx");
+record("NUM-UI sidebar links numbering search page", sidebarNavSource.includes("/numbering/search") && sidebarNavSource.includes("圖料工作台"), "sidebar-nav.tsx");
+record("NUM-UI sidebar links drawing management page", sidebarNavSource.includes("/numbering/drawings") && sidebarNavSource.includes("圖號工作台"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering impact page", sidebarNavSource.includes("/numbering/impact") && sidebarNavSource.includes("製造圖影響"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links numbering report center", sidebarNavSource.includes("/numbering/reports") && sidebarNavSource.includes("圖號報表"), "sidebar-nav.tsx");
 record(

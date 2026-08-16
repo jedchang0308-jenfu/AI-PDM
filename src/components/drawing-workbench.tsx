@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ClipboardCheck, Link2, RefreshCcw, Search, X } from "lucide-react";
 import { MasterAttachmentPanel } from "@/components/master-attachment-panel";
+import { DrawingRecognitionStatusChip } from "@/components/drawing-recognition-status-chip";
 import {
   DrawingDetailContent as SharedDrawingDetailContent,
   DrawingDetailSummary
@@ -22,6 +23,7 @@ import { SearchHighlight } from "@/components/search-highlight";
 import { NumberSortHeader } from "@/components/number-sort-header";
 import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
 import {
+  ConfirmDialog,
   NumberStateOwnerCreateAction,
   WorkspaceDrawer,
   type NumberingDraftWorkspace,
@@ -220,8 +222,8 @@ function drawingWorkbenchCopyText(row: DrawingWorkbenchRow) {
   return row.displayCode;
 }
 
-function shouldSkipUnifiedReviewDetail(unifiedEnabled: boolean) {
-  return unifiedEnabled && Boolean(new URLSearchParams(window.location.search).get("reviewRequestId"));
+function shouldSkipUnifiedReviewDetail() {
+  return Boolean(new URLSearchParams(window.location.search).get("reviewRequestId"));
 }
 
 function reviewReturnTo() {
@@ -239,11 +241,9 @@ export function DrawingWorkbench() {
   const [layout, setLayout] = useState<PdmWorkbenchLayout>("list");
   const [actionBusy, setActionBusy] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<WorkspaceAction | null>(null);
   const unifiedEntityDetailEnabled = featureStatus?.entityDetail?.enabled === true;
-  const skipUnifiedReviewDetail = useCallback(
-    () => shouldSkipUnifiedReviewDetail(unifiedEntityDetailEnabled),
-    [unifiedEntityDetailEnabled]
-  );
+  const skipUnifiedReviewDetail = useCallback(() => shouldSkipUnifiedReviewDetail(), []);
   const listRef = useRef<HTMLDivElement>(null);
   const autoOpenedQueryRef = useRef("");
   const idempotencyKeys = useRef(new Map<string, string>());
@@ -351,6 +351,7 @@ export function DrawingWorkbench() {
 
   const closeDetail = useCallback(() => {
     setEditing(false);
+    setConfirmAction(null);
     closeControllerDetail("replace");
   }, [closeControllerDetail]);
 
@@ -470,6 +471,7 @@ export function DrawingWorkbench() {
       });
     } catch {
       setActionBusy(false);
+      setConfirmAction(null);
       const unknownResultMessage = ({
         cancel: "取消結果尚未確認；請重新整理狀態後再決定下一步。",
         submit: "送審結果尚未確認；請重新整理狀態後再決定下一步。",
@@ -482,6 +484,7 @@ export function DrawingWorkbench() {
     }
     const body = await readBody<{ workspace?: NumberingDraftWorkspace }>(response);
     setActionBusy(false);
+    setConfirmAction(null);
     if (!response.ok || !body.workspace) {
       setError(apiMessage(body, "操作未完成，請重新整理後再試。"));
       if (response.status !== 503) idempotencyKeys.current.delete(mapKey);
@@ -590,7 +593,7 @@ export function DrawingWorkbench() {
       </section>
 
       {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
-      {detail?.candidate && !unifiedEntityDetailEnabled ? (
+      {detail?.candidate ? (
         <WorkspaceDrawer
           workspace={detail.candidate as NumberingDraftWorkspace}
           busy={actionBusy}
@@ -598,12 +601,10 @@ export function DrawingWorkbench() {
           onEdit={() => setEditing(true)}
           onCancelEdit={() => setEditing(false)}
           onUpdate={(payload) => void updateWorkspace(payload)}
-          onSubmit={() => void runWorkspaceAction("submit")}
-          onWithdraw={() => void runWorkspaceAction("withdraw")}
-          onPublish={() => void runWorkspaceAction("publish")}
-          onCancel={() => {
-            if (window.confirm("確定要取消這筆圖號工作嗎？取消後不能從原工作繼續。")) void runWorkspaceAction("cancel");
-          }}
+          onSubmit={() => setConfirmAction("submit")}
+          onWithdraw={() => setConfirmAction("withdraw")}
+          onPublish={() => setConfirmAction("publish")}
+          onCancel={() => setConfirmAction("cancel")}
           formalActionsUnopened={Boolean(productionSlice?.configured && !productionSlice.openPagePaths.includes("/numbering/drawings"))}
           unopenedMessage={productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage}
           canCreateDrawingRevision={detail.capabilities.canUpdateDraft}
@@ -635,8 +636,18 @@ export function DrawingWorkbench() {
           onClose={closeDetail}
         />
       ) : null}
+      {detail?.candidate && confirmAction ? (
+        <ConfirmDialog
+          action={confirmAction}
+          workspace={detail.candidate as NumberingDraftWorkspace}
+          busy={actionBusy}
+          lifecycleV2Enabled={Boolean(detail.candidate.lifecycleV2)}
+          onClose={() => setConfirmAction(null)}
+          onConfirm={() => void runWorkspaceAction(confirmAction)}
+        />
+      ) : null}
       {detail?.drawing && !unifiedEntityDetailEnabled ? <DrawingMasterDrawer drawing={detail.drawing} row={detail.row} capabilities={detail.capabilities} productionSlice={productionSlice} width={drawerWidth} onStartResize={startDrawerResize} onDataChanged={async () => { await refreshDetailAndRows(); }} onOpenDetail={openDetail} onClose={closeDetail} /> : null}
-      {unifiedEntityDetailEnabled && selectedKey ? <UnifiedPdmEntityDetailDrawer open entityKey={selectedKey} surface="drawing" reviewRequestId={reviewRequestId} width={drawerWidth} returnTo={reviewRequestId ? reviewReturnTo() : window.location.pathname + window.location.search} onStartResize={startDrawerResize} onClose={reviewRequestId ? () => router.push(reviewReturnTo()) : closeDetail} /> : null}
+      {unifiedEntityDetailEnabled && selectedKey && !detail?.candidate ? <UnifiedPdmEntityDetailDrawer open entityKey={selectedKey} surface="drawing" reviewRequestId={reviewRequestId} width={drawerWidth} returnTo={reviewRequestId ? reviewReturnTo() : window.location.pathname + window.location.search} onStartResize={startDrawerResize} onClose={reviewRequestId ? () => router.push(reviewReturnTo()) : closeDetail} /> : null}
     </>
   );
 }
@@ -780,6 +791,7 @@ function createDrawingDetailSlots({
         {row.warning ? <div className="drawing-workbench-header-warning"><AlertTriangle size={15} /><span>{row.warning.message}</span></div> : null}
         {drawing.titleBlockVariantWarning ? <TitleBlockVariantWarning /> : null}
         {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchPanel drawing={drawing} productionSlice={productionSlice} /> : null}
+        <DrawingRecognitionStatusChip drawingNumber={drawing.drawingNumber} />
         <DrawingSubmissionPrerequisitePanel drawing={drawing} canReviewApprovals={capabilities.canReviewApprovals} />
       </>
     ),

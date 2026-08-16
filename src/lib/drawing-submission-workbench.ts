@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { removeSubmissionUploadFolder, saveSubmissionFileBuffers } from "@/lib/file-store";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { listControlledDrawingRevisionHistoryAsync } from "@/lib/drawing-revision-history";
 import { ensureDrawingRevisionPackageForSubmissionAsync } from "@/lib/drawing-revision-packages-async";
 import { displayDrawingPurposeLabel } from "@/lib/numbering-identity";
 import { AsyncSubmissionWriteRepository, type CreateSubmissionAsyncInput } from "@/lib/repositories/submission-write-async-repository";
@@ -73,6 +74,7 @@ export type ExistingSubmissionSummary = {
   resolvedBySubmissionId?: string | null;
   resolvedAt?: string | null;
   correctsSubmissionId?: string | null;
+  reviewAction?: string | null;
 };
 
 export type SameRevisionSubmissionRecord = ExistingSubmissionSummary & {
@@ -168,6 +170,7 @@ export type DrawingSubmissionAttachment = {
   fileName: string;
   fileExt: string;
   fileSize: number;
+  contentHash: string | null;
   documentCategory: string;
   revision: string | null;
   createdAt: string;
@@ -305,6 +308,7 @@ type ExistingSubmissionRow = {
   resolved_by_submission_id: string | null;
   resolved_at: string | null;
   corrects_submission_id: string | null;
+  latest_review_action: string | null;
 };
 
 type ReviewSubmissionRow = ExistingSubmissionRow & {
@@ -361,14 +365,19 @@ export async function resolveDrawingSubmissionContext(input: {
     companyId: input.company.companyId,
     drawingNumber: drawing.drawing_number
   });
+  const controlledRevisions = await listControlledDrawingRevisionHistoryAsync(client, input.company.companyId, drawing.drawing_number);
+  const governedRevisions = [...revisions, ...controlledRevisions];
+  const legacyAttachmentFallback = governedRevisions.length === 0
+    ? attachmentRows
+      .filter((attachment) => attachment.revision?.trim())
+      .map((attachment) => ({ revision: attachment.revision ?? "", createdAt: attachment.created_at }))
+    : [];
   const revisionPolicySuggestion = createRevisionSuggestion({
     companyId: input.company.companyId,
     drawingNumber: drawing.drawing_number,
     workflowIntent,
-    revisions,
-    attachmentRevisions: attachmentRows
-      .filter((attachment) => attachment.revision?.trim())
-      .map((attachment) => ({ revision: attachment.revision ?? "", createdAt: attachment.created_at }))
+    revisions: governedRevisions,
+    attachmentRevisions: legacyAttachmentFallback
   });
   const suggestedRevision = targetRevision || revisionPolicySuggestion.suggestedRevision;
   const suggestedRevisionSource = targetRevision ? "manual_master" : "revision_policy";
@@ -452,7 +461,7 @@ export async function resolveRootSubmissionReadiness(input: {
 }): Promise<DrawingSubmissionContext | { pdmCompany: PdmCompany; root: DrawingSubmissionContext["root"] | null; blockers: DrawingSubmissionContext["blockers"] }> {
   const client = getAsyncDatabaseClient();
   const rootCode = normalizeText(input.rootCode);
-  if (!rootCode) throw new DrawingSubmissionWorkbenchError("ROOT_CODE_REQUIRED", "主根號為必填。", 400);
+  if (!rootCode) throw new DrawingSubmissionWorkbenchError("ROOT_CODE_REQUIRED", "圖料根號為必填。", 400);
   const root = await findRoot(client, input.company.companyId, rootCode);
   if (!root) {
     return {
@@ -461,7 +470,7 @@ export async function resolveRootSubmissionReadiness(input: {
       blockers: [
         makeSubmissionBlocker({
           code: "root_not_found",
-          message: "找不到此主根號，請確認圖料關聯是否已建立。",
+          message: "找不到此圖料根號，請確認圖料關聯是否已建立。",
           recoveryHref: "/numbering/search"
         })
       ]
@@ -475,7 +484,7 @@ export async function resolveRootSubmissionReadiness(input: {
       blockers: [
         makeSubmissionBlocker({
           code: "missing_primary_drawing",
-          message: "此主根號尚未指定主要圖號，請先在圖料模組設定主圖。",
+          message: "此圖料根號尚未指定主要圖號，請先在圖料工作台設定主圖。",
           recoveryHref: `/numbering/search?query=${encodeURIComponent(root.root_code)}`
         })
       ]
@@ -488,7 +497,7 @@ export async function resolveRootSubmissionReadiness(input: {
       blockers: [
         makeSubmissionBlocker({
           code: "multiple_primary_drawings",
-          message: "此主根號有多個主要圖號，系統無法判定送審主圖，請先修正主圖設定。",
+          message: "此圖料根號有多個主要圖號，系統無法判定送審主圖，請先修正主圖設定。",
           recoveryHref: `/numbering/search?query=${encodeURIComponent(root.root_code)}`
         })
       ]
@@ -597,9 +606,20 @@ export async function createDrawingSourceSubmission(input: {
     });
     throw new DrawingSubmissionWorkbenchError("DRAWING_SUBMISSION_ATTACHMENT_REQUIRED", "請至少選擇一個圖面附件。", 400);
   }
-  if (context.blockers.length > 0) {
-    const primaryBlocker = pickPrimarySubmissionBlocker(context.blockers);
-    const errorMessage = submissionBlockerSummary(context.blockers);
+  const invariantContextBlockers = context.blockers.filter((blocker) => ![
+    "duplicate_attachment_filename",
+    "release_filename_conflict",
+    "missing_attachment",
+    "DRAWING_2D_REQUIRED",
+    "DRAWING_3D_REQUIRED",
+    "DRAWING_2D_PRIMARY_REQUIRED",
+    "DRAWING_3D_PRIMARY_REQUIRED",
+    "DRAWING_ROLE_EXTENSION_MISMATCH",
+    "DRAWING_REQUIRED_FILE_READINESS_FAILED"
+  ].includes(blocker.code));
+  if (invariantContextBlockers.length > 0) {
+    const primaryBlocker = pickPrimarySubmissionBlocker(invariantContextBlockers);
+    const errorMessage = submissionBlockerSummary(invariantContextBlockers);
     await upsertSubmissionAttempt(client, {
       companyId: input.company.companyId,
       sourceRootCode: context.root.rootCode,
@@ -611,7 +631,7 @@ export async function createDrawingSourceSubmission(input: {
       errorCode: primaryBlocker.code,
       errorMessage,
       blockerPayload: buildBlockedAttemptPayload({
-        blockers: context.blockers,
+        blockers: invariantContextBlockers,
         companyId: input.company.companyId,
         actorId: input.submittedBy,
         idempotencyKey,
@@ -624,13 +644,13 @@ export async function createDrawingSourceSubmission(input: {
       primaryBlocker.code,
       errorMessage,
       409,
-      context.blockers.map((blocker) => blocker.message),
+      invariantContextBlockers.map((blocker) => blocker.message),
       {
         group: primaryBlocker.group,
         recoveryHref: primaryBlocker.recoveryHref,
         recoveryTarget: isSameRevisionBlockerCode(primaryBlocker.code) ? "existing_submission" : undefined,
         existingSubmission: primaryBlocker.existingSubmission,
-        blockers: context.blockers
+        blockers: invariantContextBlockers
       }
     );
   }
@@ -787,17 +807,60 @@ export async function createDrawingSourceSubmission(input: {
     );
   }
   const revision = expectedRevision || selectedRevision || context.suggestedRevision.revision;
+  const preflightPackageRoleByAttachmentId = new Map(
+    (input.packageFileRoles ?? [])
+      .map((entry) => {
+        const role = normalizeRevisionPackageFileRole(entry.role);
+        const attachmentId = normalizeText(entry.attachmentId);
+        return role && attachmentId ? ([attachmentId, role] as const) : null;
+      })
+      .filter((entry): entry is readonly [string, RevisionPackageFileRole] => Boolean(entry))
+  );
+  const preflightPackageFiles = classifyRevisionPackageFiles(
+    selectedView.map((attachment) => ({
+      id: attachment.id,
+      filename: attachment.fileName,
+      documentCategory: attachment.documentCategory,
+      userCorrectedRole: preflightPackageRoleByAttachmentId.get(attachment.id) ?? null
+    }))
+  );
+  try {
+    assertRequiredDrawingFiles(
+      selectedAttachments.map((attachment) => ({
+        id: attachment.id,
+        fileName: attachment.file_name,
+        fileExt: attachment.file_ext,
+        fileSize: attachment.file_size,
+        contentHash: attachment.content_hash,
+        role: preflightPackageFiles.find((file) => file.id === attachment.id)?.role ?? null,
+        isPrimary: true
+      }))
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "送審必須包含 1 個 2D 原始檔與 1 個 3D CAD。";
+    throw new DrawingSubmissionWorkbenchError("DRAWING_REQUIRED_FILE_READINESS_FAILED", message, 400, [message]);
+  }
+  const currentSubmissionRevisions = await listSubmissionRevisionsByDrawingAsync({
+    companyId: input.company.companyId,
+    drawingNumber: context.drawing.drawingNumber
+  });
+  const currentControlledRevisions = await listControlledDrawingRevisionHistoryAsync(
+    client,
+    input.company.companyId,
+    context.drawing.drawingNumber
+  );
+  const currentGovernedRevisions = [...currentSubmissionRevisions, ...currentControlledRevisions];
+  const currentLegacyAttachmentFallback = currentGovernedRevisions.length === 0
+    ? attachmentRows
+      .filter((attachment) => attachment.revision?.trim())
+      .map((attachment) => ({ revision: attachment.revision ?? "", createdAt: attachment.created_at }))
+    : [];
   const currentPolicySuggestion = createRevisionSuggestion({
     companyId: input.company.companyId,
     drawingNumber: context.drawing.drawingNumber,
     workflowIntent,
-    revisions: await listSubmissionRevisionsByDrawingAsync({
-      companyId: input.company.companyId,
-      drawingNumber: context.drawing.drawingNumber
-    }),
-    attachmentRevisions: attachmentRows
-      .filter((attachment) => attachment.revision?.trim())
-      .map((attachment) => ({ revision: attachment.revision ?? "", createdAt: attachment.created_at }))
+    revisions: currentGovernedRevisions,
+    attachmentRevisions: currentLegacyAttachmentFallback
   });
   if (input.revisionPolicySuggestion?.basisHash && input.revisionPolicySuggestion.basisHash !== currentPolicySuggestion.basisHash) {
     throw new DrawingSubmissionWorkbenchError(
@@ -1597,6 +1660,14 @@ async function findBlockingSubmissionByDrawingRevision(
       s.resolved_by_submission_id,
       s.resolved_at,
       s.corrects_submission_id,
+      (
+        SELECT confirmation.action
+        FROM drawing_revision_fff_assessments assessment
+        JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+        WHERE assessment.submission_id = s.id
+        ORDER BY confirmation.occurred_at DESC, confirmation.id DESC
+        LIMIT 1
+      ) AS latest_review_action,
       u.display_name AS submitted_by_name
     FROM submissions s
     LEFT JOIN users u ON u.id = s.submitted_by
@@ -1606,6 +1677,13 @@ async function findBlockingSubmissionByDrawingRevision(
       AND (
         s.status IN ('Pending', 'Releasing', 'Released', 'Obsolete')
         OR (s.status = 'ReleaseFailed' AND s.resolved_by_submission_id IS NULL)
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM drawing_revision_fff_assessments assessment
+        JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+        WHERE assessment.submission_id = s.id
+          AND confirmation.action IN ('return_for_replacement_part', 'request_more_information')
       )
     ORDER BY
       CASE
@@ -1641,6 +1719,14 @@ async function listSameRevisionSubmissions(
       s.resolved_by_submission_id,
       s.resolved_at,
       s.corrects_submission_id,
+      (
+        SELECT confirmation.action
+        FROM drawing_revision_fff_assessments assessment
+        JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+        WHERE assessment.submission_id = s.id
+        ORDER BY confirmation.occurred_at DESC, confirmation.id DESC
+        LIMIT 1
+      ) AS latest_review_action,
       u.display_name AS submitted_by_name
     FROM submissions s
     LEFT JOIN users u ON u.id = s.submitted_by
@@ -1680,6 +1766,14 @@ async function listActiveSubmissionsByDrawingRevision(
       s.resolved_by_submission_id,
       s.resolved_at,
       s.corrects_submission_id,
+      (
+        SELECT confirmation.action
+        FROM drawing_revision_fff_assessments assessment
+        JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+        WHERE assessment.submission_id = s.id
+        ORDER BY confirmation.occurred_at DESC, confirmation.id DESC
+        LIMIT 1
+      ) AS latest_review_action,
       u.display_name AS submitted_by_name
     FROM submissions s
     LEFT JOIN users u ON u.id = s.submitted_by
@@ -1687,6 +1781,13 @@ async function listActiveSubmissionsByDrawingRevision(
       AND s.drawing_number = :drawingNumber
       AND s.revision = :revision
       AND s.status IN (${activeSubmissionStatusSql})
+      AND NOT EXISTS (
+        SELECT 1
+        FROM drawing_revision_fff_assessments assessment
+        JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+        WHERE assessment.submission_id = s.id
+          AND confirmation.action IN ('return_for_replacement_part', 'request_more_information')
+      )
     ORDER BY s.created_at ASC, s.id ASC
     `,
     input
@@ -1706,25 +1807,29 @@ function mapExistingSubmissionSummary(row: ExistingSubmissionRow): ExistingSubmi
     releaseError: row.release_error ?? null,
     resolvedBySubmissionId: row.resolved_by_submission_id ?? null,
     resolvedAt: row.resolved_at ?? null,
-    correctsSubmissionId: row.corrects_submission_id ?? null
+    correctsSubmissionId: row.corrects_submission_id ?? null,
+    reviewAction: row.latest_review_action ?? null
   };
 }
 
 function mapSameRevisionSubmissionRecord(row: ExistingSubmissionRow): SameRevisionSubmissionRecord {
   const summary = mapExistingSubmissionSummary(row);
   const resolved = row.status === "ReleaseFailed" && Boolean(row.resolved_by_submission_id || row.resolved_at);
+  const correctionRequested = row.latest_review_action === "return_for_replacement_part" || row.latest_review_action === "request_more_information";
   const blocking =
-    row.status === "Pending" ||
+    (!correctionRequested && row.status === "Pending") ||
     row.status === "Releasing" ||
     row.status === "Released" ||
     row.status === "Obsolete" ||
     (row.status === "ReleaseFailed" && !resolved);
   return {
     ...summary,
-    userLabel: sameRevisionStatusLabel(summary),
+    userLabel: correctionRequested
+      ? (row.latest_review_action === "request_more_information" ? "待補資料" : "已退回修改")
+      : sameRevisionStatusLabel(summary),
     blocking,
     resolved,
-    historyMessage: sameRevisionHistoryMessage(summary, resolved)
+    historyMessage: correctionRequested ? "前次審核已要求修正，不影響同版次重新送審。" : sameRevisionHistoryMessage(summary, resolved)
   };
 }
 
@@ -1758,6 +1863,7 @@ function mapAttachment(row: AttachmentRow): DrawingSubmissionAttachment {
     fileName: row.file_name,
     fileExt,
     fileSize: Number(row.file_size ?? 0),
+    contentHash: normalizeText(row.content_hash) || null,
     documentCategory: row.document_category,
     revision: normalizeText(row.revision) || null,
     createdAt: row.created_at,
@@ -1787,6 +1893,7 @@ async function enrichAttachmentsWithReleaseConflicts(
     const conflict = await findReleasedFilenameConflict(client, {
       fileRole: normalizeFileRole(attachment.fileName),
       filename: attachment.fileName,
+      contentHash: attachment.contentHash,
       partNumber: primaryPart?.part_number ?? null
     });
     enriched.push({
@@ -1813,6 +1920,7 @@ async function findReleasedFilenameConflictForAttachmentRows(
     const conflict = await findReleasedFilenameConflict(client, {
       fileRole: normalizeFileRole(attachment.file_name),
       filename: attachment.file_name,
+      contentHash: normalizeText(attachment.content_hash) || null,
       partNumber
     });
     if (conflict) return conflict;
@@ -1822,7 +1930,7 @@ async function findReleasedFilenameConflictForAttachmentRows(
 
 async function findReleasedFilenameConflict(
   client: AsyncDatabaseClient,
-  input: { fileRole: string; filename: string; partNumber: string | null }
+  input: { fileRole: string; filename: string; contentHash: string | null; partNumber: string | null }
 ) {
   return client.queryOne<ReleasedFilenameConflictRow>(
     `
@@ -1837,6 +1945,7 @@ async function findReleasedFilenameConflict(
     WHERE s.status = 'Released'
       AND f.file_role = :fileRole
       AND lower(f.original_filename) = lower(:filename)
+      AND (:contentHash IS NULL OR lower(COALESCE(f.sha256, '')) <> lower(:contentHash))
       AND (:partNumber IS NULL OR i.part_number <> :partNumber)
     ORDER BY COALESCE(s.released_at, s.updated_at, s.created_at) DESC, s.id DESC
     LIMIT 1
@@ -1875,7 +1984,17 @@ function existingSubmissionRecoveryHref(existingSubmission: ExistingSubmissionSu
 
 function classifySubmissionBlocker(code: DrawingSubmissionBlockerCode): DrawingSubmissionBlockerGroup {
   if (isSameRevisionBlockerCode(code)) return "submission_conflict";
-  if (code === "duplicate_attachment_filename" || code === "release_filename_conflict" || code === "missing_attachment") return "attachment_conflict";
+  if (
+    code === "duplicate_attachment_filename" ||
+    code === "release_filename_conflict" ||
+    code === "missing_attachment" ||
+    code === "DRAWING_2D_REQUIRED" ||
+    code === "DRAWING_3D_REQUIRED" ||
+    code === "DRAWING_2D_PRIMARY_REQUIRED" ||
+    code === "DRAWING_3D_PRIMARY_REQUIRED" ||
+    code === "DRAWING_ROLE_EXTENSION_MISMATCH" ||
+    code === "DRAWING_REQUIRED_FILE_READINESS_FAILED"
+  ) return "attachment_conflict";
   if (code === "drawing_not_submittable") return "state_or_permission_blocked";
   if (code === "drawing_number_not_found") return "system_recoverable";
   return "master_data_missing";
@@ -1897,21 +2016,21 @@ function buildBlockers(input: {
   if (input.linkedPartRows.length === 0) {
     blockers.push(makeSubmissionBlocker({
       code: "drawing_part_link_missing",
-      message: "此圖號尚未連到主根號，請先建立圖料關聯。",
+      message: "此圖號尚未連到圖料根號，請先建立圖料關聯。",
       recoveryHref
     }));
   }
   if (linkedRootIds.length > 1 || (linkedRootIds.length === 1 && linkedRootIds[0] !== input.drawing.part_root_id)) {
     blockers.push(makeSubmissionBlocker({
       code: "ambiguous_root",
-      message: "此圖號連到多個主根號，系統無法判定送審來源，請先修正圖料關聯。",
+      message: "此圖號連到多個圖料根號，系統無法判定送審來源，請先修正圖料關聯。",
       recoveryHref
     }));
   }
   if (input.rootPrimaryDrawings.length > 1) {
     blockers.push(makeSubmissionBlocker({
       code: "multiple_primary_drawings",
-      message: "此主根號有多個主要圖號，系統無法判定送審主圖，請先修正主圖設定。",
+      message: "此圖料根號有多個主要圖號，系統無法判定送審主圖，請先修正主圖設定。",
       recoveryHref
     }));
   }
@@ -1937,8 +2056,8 @@ function buildBlockers(input: {
         code: "missing_primary_part",
         message:
           input.linkedPartRows.length > 1
-            ? "此圖號關聯多個料號，但未指定主要料號。請先在圖號模組完成關聯主料號。"
-            : "此圖號尚未關聯料號。請先在圖號模組完成圖料關係。",
+            ? "此圖號關聯多個料號，但未指定主要料號。請先在圖號工作台完成關聯主料號。"
+            : "此圖號尚未關聯料號。請先在圖號工作台完成圖料關係。",
         recoveryHref
       }));
     }
@@ -1955,14 +2074,14 @@ function buildBlockers(input: {
       if (!part.material) {
       blockers.push(makeSubmissionBlocker({
         code: "missing_material",
-          message: `本次進版料號 ${part.partNumber} 尚未完成材質主資料。請回圖號/料號模組補齊，不可在送審頁補填。`,
+          message: `本次進版料號 ${part.partNumber} 尚未完成材質主資料。請回圖號/料號工作台補齊，不可在送審頁補填。`,
         recoveryHref
       }));
       }
       if (!part.surfaceFinish) {
       blockers.push(makeSubmissionBlocker({
         code: "missing_surface_finish",
-          message: `本次進版料號 ${part.partNumber} 尚未完成表面處理主資料。請回圖號/料號模組補齊，不可在送審頁補填。`,
+          message: `本次進版料號 ${part.partNumber} 尚未完成表面處理主資料。請回圖號/料號工作台補齊，不可在送審頁補填。`,
         recoveryHref
       }));
       }
@@ -2215,6 +2334,8 @@ function isSameRevisionBlockerCode(code: string | undefined): code is DrawingSub
 }
 
 function sameRevisionStatusLabel(summary: ExistingSubmissionSummary) {
+  if (summary.reviewAction === "request_more_information") return "待補資料";
+  if (summary.reviewAction === "return_for_replacement_part") return "已退回修改";
   if (summary.status === "Pending") return "正在送審中";
   if (summary.status === "Releasing") return "正在發行中";
   if (summary.status === "ReleaseFailed" && summary.resolvedBySubmissionId) return "發行未完成，已處理";

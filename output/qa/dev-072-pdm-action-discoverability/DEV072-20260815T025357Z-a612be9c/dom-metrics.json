@@ -1,0 +1,140 @@
+[
+  {
+    "label": "locked-desktop",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "inventory": [
+      {
+        "id": "detail:drawing:edit",
+        "label": "圖面維護",
+        "group": "object",
+        "order": 100,
+        "enabled": true,
+        "ariaDisabled": null,
+        "ariaBusy": null,
+        "describedBy": null,
+        "tag": "A",
+        "primary": true,
+        "box": {
+          "x": 971,
+          "y": 839,
+          "width": 140,
+          "height": 38
+        }
+      },
+      {
+        "id": "detail:drawing:submit_review",
+        "label": "送交審核",
+        "group": "workflow",
+        "order": 200,
+        "enabled": false,
+        "ariaDisabled": "true",
+        "ariaBusy": null,
+        "describedBy": "pdm-action-reason-_r_t_",
+        "tag": "BUTTON",
+        "primary": false,
+        "box": {
+          "x": 1121,
+          "y": 839,
+          "width": 140,
+          "height": 38
+        }
+      },
+      {
+        "id": "detail:navigation:return",
+        "label": "返回",
+        "group": "utility",
+        "order": 910,
+        "enabled": true,
+        "ariaDisabled": null,
+        "ariaBusy": null,
+        "describedBy": null,
+        "tag": "BUTTON",
+        "primary": false,
+        "box": {
+          "x": 1271,
+          "y": 839,
+          "width": 140,
+          "height": 38
+        }
+      }
+    ],
+    "geometry": {
+      "documentScrollWidth": 1440,
+      "viewportWidth": 1440,
+      "bodyScrollOwnerCount": 1,
+      "horizontalOverflow": false
+    }
+  },
+  {
+    "label": "first-candidate-upload",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "inventory": [
+      {
+        "id": "detail:drawing:edit",
+        "label": "圖面維護",
+        "group": "object",
+        "order": 100,
+        "enabled": true,
+        "ariaDisabled": null,
+        "ariaBusy": null,
+        "describedBy": null,
+        "tag": "A",
+        "primary": true,
+        "box": {
+          "x": 971,
+          "y": 839,
+          "width": 140,
+          "height": 38
+        }
+      },
+      {
+        "id": "detail:drawing:submit_review",
+        "label": "送交審核",
+        "group": "workflow",
+        "order": 200,
+        "enabled": false,
+        "ariaDisabled": "true",
+        "ariaBusy": null,
+        "describedBy": "pdm-action-reason-_r_t_",
+        "tag": "BUTTON",
+        "primary": false,
+        "box": {
+          "x": 1121,
+          "y": 839,
+          "width": 140,
+          "height": 38
+        }
+      },
+      {
+        "id": "detail:navigation:return",
+        "label": "返回",
+        "group": "utility",
+        "order": 910,
+        "enabled": true,
+        "ariaDisabled": null,
+        "ariaBusy": null,
+        "describedBy": null,
+        "tag": "BUTTON",
+        "primary": false,
+        "box": {
+          "x": 1271,
+          "y": 839,
+          "width": 140,
+          "height": 38
+        }
+      }
+    ],
+    "geometry": {
+      "documentScrollWidth": 1440,
+      "viewportWidth": 1440,
+      "bodyScrollOwnerCount": 1,
+      "horizontalOverflow": false
+    }
+  }
+]

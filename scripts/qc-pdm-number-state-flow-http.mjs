@@ -426,19 +426,20 @@ try {
 
   const cancelledA = await cancel(baseUrl, cookies.ownerA, acquiredA.body.workspace, "dev048:cancel:a-primary", "qc_recycle");
   const replayCancelledA = await cancel(baseUrl, cookies.ownerA, acquiredA.body.workspace, "dev048:cancel:a-primary", "qc_recycle");
-  const reuseCreated = await createWorkspace(baseUrl, cookies.ownerA, "dev048:create:reuse", "Reuse Gap");
+  const reuseCreated = await createWorkspace(baseUrl, cookies.ownerA, "dev048:create:reuse", "Retired Gap");
   const reuseAcquired = await acquire(baseUrl, cookies.ownerA, reuseCreated.body.workspace, "dev048:acquire:reuse");
   record(
-    "HTTP-015 cancel replay recycles and lowest gap is reused",
+    "HTTP-015 cancel replay recycles reservation while candidate code remains retired",
     cancelledA.status === 200 &&
       replayCancelledA.status === 200 &&
       replayCancelledA.body?.idempotentReplay === true &&
       cancelledA.body?.workspace?.reservations?.every((item) => item.state === "recycled") &&
-      rootCode(reuseAcquired) === "A0001",
+      rootCode(reuseAcquired) === "A0023",
     {
       statuses: [cancelledA.status, replayCancelledA.status, reuseAcquired.status],
       replay: replayCancelledA.body?.idempotentReplay,
-      reusedCode: rootCode(reuseAcquired)
+      retiredCode: rootCode(acquiredA),
+      nextCode: rootCode(reuseAcquired)
     }
   );
 

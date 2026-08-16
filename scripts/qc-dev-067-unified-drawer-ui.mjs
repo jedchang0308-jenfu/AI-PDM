@@ -20,5 +20,7 @@ assert.ok(drawer.indexOf("RelationProjection") < drawer.indexOf("ReviewContextPr
 for (const source of workbenches) {
   assert.ok(source.includes("!unifiedEntityDetailEnabled"), "legacy drawer remains behind the feature gate");
   assert.ok(source.includes("UnifiedPdmEntityDetailDrawer"), "enabled workbench path mounts the canonical drawer");
+  assert.match(source, /\{detail\?\.candidate \? (?:\(|<WorkspaceDrawer)/u, "candidate work always keeps the editable workspace drawer");
+  assert.match(source, /unifiedEntityDetailEnabled && selectedKey && !detail\?\.candidate/u, "canonical read drawer must not replace candidate revision editing");
 }
-console.log("QC DEV-067 unified drawer UI: PASS (single drawer, fixed composer order, shared preview owner)");
+console.log("QC DEV-067 unified drawer UI: PASS (single formal drawer, editable candidate drawer, fixed composer order, shared preview owner)");

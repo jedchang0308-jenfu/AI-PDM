@@ -1,0 +1,13 @@
+{
+  "run_id": "DEV074-RERUN2-20260815T163010+0800",
+  "summary": { "pass": 0, "fail": 0, "blocked": 0, "not_run": 58 },
+  "paths": [
+    { "id": "A01", "status": "not_run" }, { "id": "A02", "status": "not_run" }, { "id": "A03", "status": "not_run" }, { "id": "A04", "status": "not_run" },
+    { "id": "B01", "status": "not_run" }, { "id": "B02", "status": "not_run" }, { "id": "B03", "status": "not_run" }, { "id": "B04", "status": "not_run" }, { "id": "B05", "status": "not_run" }, { "id": "B06", "status": "not_run" }, { "id": "B07", "status": "not_run" }, { "id": "B08", "status": "not_run" },
+    { "id": "C01", "status": "not_run" }, { "id": "C02", "status": "not_run" }, { "id": "C03", "status": "not_run" }, { "id": "C04", "status": "not_run" }, { "id": "C05", "status": "not_run" }, { "id": "C06", "status": "not_run" }, { "id": "C07", "status": "not_run" }, { "id": "C08", "status": "not_run" },
+    { "id": "D01", "status": "not_run" }, { "id": "D02", "status": "not_run" }, { "id": "D03", "status": "not_run" }, { "id": "D04", "status": "not_run" }, { "id": "D05", "status": "not_run" }, { "id": "D06", "status": "not_run" }, { "id": "D07", "status": "not_run" }, { "id": "D08", "status": "not_run" }, { "id": "D09", "status": "not_run" }, { "id": "D10", "status": "not_run" }, { "id": "D11", "status": "not_run" }, { "id": "D12", "status": "not_run" }, { "id": "D13", "status": "not_run" }, { "id": "D14", "status": "not_run" },
+    { "id": "E01", "status": "not_run" }, { "id": "E03", "status": "not_run" }, { "id": "E04", "status": "not_run" }, { "id": "E05", "status": "not_run" }, { "id": "E06", "status": "not_run" }, { "id": "E07", "status": "not_run" }, { "id": "E08", "status": "not_run" }, { "id": "E09", "status": "not_run" }, { "id": "E10", "status": "not_run" }, { "id": "E11", "status": "not_run" },
+    { "id": "F01", "status": "not_run" }, { "id": "F02", "status": "not_run" }, { "id": "F03", "status": "not_run" }, { "id": "F04", "status": "not_run" }, { "id": "F05", "status": "not_run" }, { "id": "F06", "status": "not_run" }, { "id": "F07", "status": "not_run" }, { "id": "F09", "status": "not_run" },
+    { "id": "G01", "status": "not_run" }, { "id": "G02", "status": "not_run" }, { "id": "G03", "status": "not_run" }, { "id": "G04", "status": "not_run" }, { "id": "G05", "status": "not_run" }, { "id": "G06", "status": "not_run" }
+  ]
+}

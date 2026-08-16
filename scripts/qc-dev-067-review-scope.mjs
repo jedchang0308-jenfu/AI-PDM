@@ -13,9 +13,9 @@ const mediaRoutes = [
 ].map(read);
 
 assert.ok(scope.includes("request.company_id = :companyId"), "review receipt is company-scoped");
-assert.ok(scope.includes("PDM_ACTIVE_REVIEW_STATUSES") && scope.includes("request.request_status"), "review receipt is active-status scoped");
+assert.ok(scope.includes("PDM_ACTIVE_REVIEW_STATUSES") && scope.includes("PDM_REVIEW_EVIDENCE_STATUSES") && scope.includes('access === "review_evidence"'), "review receipt separates active decision scope from read-only evidence scope");
 assert.ok(scope.includes("matchesRequestedAggregate") && scope.includes("targetTypes.includes(target.target_type)") && scope.includes("targetIds.includes(target.target_id)"), "review receipt matches target type/id pairs");
 assert.ok(scope.includes("PDM_REVIEW_NOT_ASSIGNED") && scope.includes("PDM_REVIEW_AGGREGATE_AMBIGUOUS"), "review scope fails closed for assignment and ambiguity");
 assert.ok(service.includes("resolvePdmReviewScopeReceiptAsync") && !service.includes("payload_json"), "detail service consumes receipt without raw payload");
-for (const route of mediaRoutes) assert.ok(route.includes("resolvePdmReviewScopeReceiptAsync"), "review media route validates the same scope receipt");
-console.log("QC DEV-067 review scope: PASS (company/status/target-pair scope, fail-closed assignment, scoped media)");
+for (const route of mediaRoutes) assert.ok(route.includes("resolvePdmReviewScopeReceiptAsync") && route.includes('access: "review_evidence"'), "review media route validates read-only evidence scope across decision transitions");
+console.log("QC DEV-067 review scope: PASS (company/status/target-pair scope, fail-closed assignment, transition-safe scoped media)");

@@ -1,0 +1,9 @@
+{"run_id":"DEV074-RERUN19-20260816T020129+0800","summary":{"pass":35,"fail":1,"blocked":0,"not_run":22},"paths":[
+{"id":"A01","status":"pass"},{"id":"A02","status":"pass"},{"id":"A03","status":"pass"},{"id":"A04","status":"pass"},
+{"id":"B01","status":"pass"},{"id":"B02","status":"pass"},{"id":"B03","status":"pass"},{"id":"B04","status":"pass"},{"id":"B05","status":"pass"},{"id":"B06","status":"pass"},{"id":"B07","status":"pass"},{"id":"B08","status":"pass"},
+{"id":"C01","status":"pass"},{"id":"C02","status":"pass"},{"id":"C03","status":"pass"},{"id":"C04","status":"pass"},{"id":"C05","status":"pass"},{"id":"C06","status":"pass"},{"id":"C07","status":"pass"},{"id":"C08","status":"pass"},
+{"id":"D01","status":"pass"},{"id":"D02","status":"pass"},{"id":"D03","status":"pass"},{"id":"D04","status":"pass"},{"id":"D05","status":"pass"},{"id":"D06","status":"pass"},{"id":"D07","status":"pass"},{"id":"D08","status":"pass"},{"id":"D09","status":"pass"},{"id":"D10","status":"pass"},{"id":"D11","status":"pass"},{"id":"D12","status":"pass"},{"id":"D13","status":"pass"},{"id":"D14","status":"pass"},
+{"id":"E01","status":"pass"},{"id":"E03","status":"fail","defect_id":"DEV074-R19-P1-015","targeted_retest":"pass_after_repair"},{"id":"E04","status":"not_run"},{"id":"E05","status":"not_run"},{"id":"E06","status":"not_run"},{"id":"E07","status":"not_run"},{"id":"E08","status":"not_run"},{"id":"E09","status":"not_run"},{"id":"E10","status":"not_run"},{"id":"E11","status":"not_run"},
+{"id":"F01","status":"not_run"},{"id":"F02","status":"not_run"},{"id":"F03","status":"not_run"},{"id":"F04","status":"not_run"},{"id":"F05","status":"not_run"},{"id":"F06","status":"not_run"},{"id":"F07","status":"not_run"},{"id":"F09","status":"not_run"},
+{"id":"G01","status":"not_run"},{"id":"G02","status":"not_run"},{"id":"G03","status":"not_run"},{"id":"G04","status":"not_run"},{"id":"G05","status":"not_run"},{"id":"G06","status":"not_run"}
+]}

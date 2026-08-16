@@ -270,8 +270,8 @@ function blockersFor(detail: NumberingRootDetailRecord): RelationBlocker[] {
   const linksByPart = groupLinks(detail.links, "partNumberId");
   const linksByDrawing = groupLinks(detail.links, "drawingNumberId");
   const manufacturing = detail.drawingNumbers.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode));
-  if (detail.partNumbers.length === 0) blockers.push({ code: "missing_part", message: "這個主根號尚未建立料號，不能判定圖料關係。", target: "root", targetId: detail.root.id });
-  if (manufacturing.length === 0) blockers.push({ code: "missing_manufacturing_drawing", message: "這個主根號還沒有製造圖類別，不能建立製造基準關聯。", target: "root", targetId: detail.root.id });
+  if (detail.partNumbers.length === 0) blockers.push({ code: "missing_part", message: "這個圖料根號尚未建立料號，不能判定圖料關係。", target: "root", targetId: detail.root.id });
+  if (manufacturing.length === 0) blockers.push({ code: "missing_manufacturing_drawing", message: "這個圖料根號還沒有製造圖類別，不能建立製造基準關聯。", target: "root", targetId: detail.root.id });
   for (const part of detail.partNumbers) {
     const manufacturingLinks = (linksByPart.get(part.id) ?? []).filter((link) => link.linkType === "primary_manufacturing" && Boolean(drawingById.get(link.drawingNumberId) && isManufacturingDrawingPurpose(drawingById.get(link.drawingNumberId)!.purposeCode)));
     if (manufacturingLinks.length > 1) blockers.push({ code: "ambiguous_primary", message: `料號 ${part.partNumber} 同時連到多張製造圖，請確認主要製造依據。`, target: "part", targetId: part.id });
@@ -387,7 +387,7 @@ function formalRootRow(detail: NumberingRootDetailRecord, sourceChanges: Relatio
     availabilityScope: projectRelationRootAvailability({ recordStatus: projectEffectiveRelationRecordStatus(detail, health, blockers.length), relationshipHealth: health, blockerCount: blockers.length, dependencyReleaseReady }),
     primaryAction: { kind: terminal ? "view_history" : "view_root", label: changes.length > 0 ? `查看變更（${changes.length}）` : terminal ? "查看歷史" : "查看關係", enabled: true, disabledReason: null, href },
     warning: blockers.length > 0 ? { code: blockers[0].code, message: blockers[0].message } : null,
-    terminal: terminal ? { kind: detail.root.recordStatus === "Merged" ? "merged" : "obsolete", reasonLabel: detail.root.recordStatus === "Merged" ? "此主根已合併。" : "此主根已作廢。", nextStepLabel: "請改用有效主根；需要追溯時再查看歷史。" } : null,
+    terminal: terminal ? { kind: detail.root.recordStatus === "Merged" ? "merged" : "obsolete", reasonLabel: detail.root.recordStatus === "Merged" ? "此圖料根號已合併。" : "此圖料根號已作廢。", nextStepLabel: "請改用有效圖料根號；需要追溯時再查看歷史。" } : null,
     updatedAt: changes[0]?.updatedAt ?? ""
   };
 }
@@ -429,11 +429,12 @@ export class RelationWorkbenchService {
       recordStatus: query.recordStatus, sortDirection: query.sortDirection, includeCandidates: actor.permissions.workspaceView && !query.recordStatus,
       cursor: cursor ? { sortValue: cursor.sortValue ?? cursor.updatedAt, rowKey: cursor.rowKey } : null, limit: query.limit
     }, (workspaces, roots, partMasterDataGaps) => {
+      const visibleWorkspaces = workspaces.filter((workspace) => query.includeHistory || candidateStage(workspace) !== "history_only");
       const sourceChanges = new Map<string, NumberingDraftWorkspaceRecord[]>();
-      for (const workspace of workspaces) if (workspace.sourceRootId) sourceChanges.set(workspace.sourceRootId, [...(sourceChanges.get(workspace.sourceRootId) ?? []), workspace]);
+      for (const workspace of visibleWorkspaces) if (workspace.sourceRootId) sourceChanges.set(workspace.sourceRootId, [...(sourceChanges.get(workspace.sourceRootId) ?? []), workspace]);
       return [
         ...roots.map((root) => formalRootRow(root, sourceChanges.get(root.root.id) ?? [], actor, partMasterDataGaps)),
-        ...workspaces.filter((workspace) => !workspace.sourceRootId).map((workspace) => candidateRootRow(workspace, actor))
+        ...visibleWorkspaces.filter((workspace) => !workspace.sourceRootId).map((workspace) => candidateRootRow(workspace, actor))
       ].filter((row) => query.includeHistory || row.stage !== "history_only")
         .filter((row) => rowInView(row, actor, query.view))
         .filter((row) => viewerStatusMatchesFilter(row.viewerStatus, row.humanStatus, query.humanStatus, row.availabilityScope));

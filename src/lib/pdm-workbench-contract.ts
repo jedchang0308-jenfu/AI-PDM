@@ -58,6 +58,8 @@ export type PdmWorkbenchRowBase<
 export type PdmWorkbenchListResponse<Row, Filters> = {
   rows: Row[];
   nextCursor: string | null;
+  previousCursor?: string | null;
+  pageIndex?: number;
   generatedAt: string;
   filters: Filters;
 };
@@ -68,6 +70,8 @@ export type PdmWorkbenchCursorPayload = {
   updatedAt: string;
   sortValue?: string;
   rowKey: string;
+  direction?: "after" | "before";
+  pageIndex?: number;
 };
 
 export type PdmWorkbenchErrorEnvelope = {

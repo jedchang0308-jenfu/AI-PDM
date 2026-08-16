@@ -6,7 +6,7 @@
 
 ## 根因
 
-FFF 影響審核已寫入 `review_confirmation_events`，所以該筆正確地從「審核工作台／待處理」消失；但一般圖面進版 package read model 只辨識候選號 `drawing_revision_package_review_approvals` companion，沒有把已核准的 FFF 事件投影為一般小數版的 effective `ReviewApproved`。結果造成同一筆資料在審核工作台已完成、圖號模組仍顯示「送審中」的狀態分裂。
+FFF 影響審核已寫入 `review_confirmation_events`，所以該筆正確地從「審核工作台／待處理」消失；但一般圖面進版 package read model 只辨識候選號 `drawing_revision_package_review_approvals` companion，沒有把已核准的 FFF 事件投影為一般小數版的 effective `ReviewApproved`。結果造成同一筆資料在審核工作台已完成、圖號工作台仍顯示「送審中」的狀態分裂。
 
 ## 修復行為
 

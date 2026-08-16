@@ -1,0 +1,19 @@
+[
+  {
+    "id": "DEV074-R33-P1-029",
+    "severity": "P1",
+    "path": "G05",
+    "status": "fixed_target_retested",
+    "title": "統一圖料明細顯示同根號第一筆資料，未依目前圖號／料號目標選擇實際關聯對象",
+    "observed": "M03 審核明細的料號資料錯顯示 P01；P06 關聯明細的圖面資料錯顯示 M01。主標題與關聯矩陣雖正確，但核心明細造成真實操作誤判。",
+    "evidence": [
+      "screenshots/G03-P06-review-exact-scope.png",
+      "Playwright snapshot f32e184 for A0048-M03 review detail",
+      "screenshots/DEV074-R33-P1-029-part-P06-target-relation-fixed.png",
+      "screenshots/DEV074-R33-P1-029-review-M03-target-relation-fixed.png",
+      "npm run qc:dev-074:target-relation-projection"
+    ],
+    "fix": "共用明細先鎖定目前圖號／料號，再依 drawing_part_links 解析實際關聯對象；primary_manufacturing 優先，移除同根號第一筆作為跨投影依據。",
+    "target_retest": "PASS: rendered UI shows M03→P03 and P06→M06. R33 remains a failed run; a clean R34 restart is mandatory."
+  }
+]

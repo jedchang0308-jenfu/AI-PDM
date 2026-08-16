@@ -110,7 +110,7 @@ export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary
         {
           id: "notification-critical",
           title: "高風險通知待處理",
-          detail: `${input.notificationSummary.critical} critical / ${input.notificationSummary.warning} warning`,
+          detail: `${input.notificationSummary.critical} 則高風險 / ${input.notificationSummary.warning} 則注意`,
           source: "notification",
           signal: "system_exception",
           severity: "critical",
@@ -155,7 +155,7 @@ export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary
         {
           id: "pending-review",
           title: "送審待主管判定",
-          detail: `${pendingCount} 件 Pending submission`,
+          detail: `${pendingCount} 件送審資料待主管判定`,
           source: "submission",
           signal: "review",
           severity: "warning",
@@ -177,7 +177,7 @@ export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary
         {
           id: "numbering-drafts",
           title: "草稿圖料待送審",
-          detail: `${input.numberingDraftCount} 件 Draft / NeedInfo`,
+          detail: `${input.numberingDraftCount} 件草稿或待補資料`,
           source: "numbering_task",
           signal: "draft",
           severity: "warning",
@@ -199,7 +199,7 @@ export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary
         {
           id: "handoff-gaps",
           title: "製造交接資料缺口",
-          detail: `${handoffGaps.length} 件 Released 缺 PDF、DWG 或發行包`,
+          detail: `${handoffGaps.length} 件已發布資料缺 PDF、DWG 或發行包`,
           source: "handoff_readiness",
           signal: "handoff",
           severity: "warning",
@@ -221,7 +221,7 @@ export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary
         {
           id: "storage-evidence",
           title: "儲存治理需檢視",
-          detail: `${input.storageEvidence.blockerCount} blockers / ${input.storageEvidence.warningCount} warnings`,
+          detail: `${input.storageEvidence.blockerCount} 項阻擋 / ${input.storageEvidence.warningCount} 項注意`,
           source: "storage_evidence",
           signal: input.storageEvidence.severity === "critical" ? "blocked" : "risk",
           severity: input.storageEvidence.severity === "critical" ? "critical" : "warning",

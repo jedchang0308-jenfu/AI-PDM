@@ -1,0 +1,299 @@
+{
+  "runId": "DEV072-20260814T113640Z-33fe7041",
+  "generatedAt": "2026-08-14T11:39:38.804Z",
+  "tool": "Playwright Chromium driven by Codex QC",
+  "productionConnection": false,
+  "productionWrite": false,
+  "database": "disposable isolated SQLite copies",
+  "fixture": {
+    "buildingKey": "candidate:draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+    "terminalKey": "part:part-qc-submit-ui-001",
+    "partKey": "part:part-qc-submit-ui-001",
+    "relationKey": "root:014f8d95-84df-4d9d-833a-7f22b10ffa59",
+    "pendingRequestIds": [
+      "APR-ed611295-6a7a-4007-8a71-76c0b29e0dde"
+    ]
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "laptop",
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "touch": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "ACT-016-018-desktop",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "mode": "hover",
+        "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-029-laptop",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "laptop",
+          "width": 1024,
+          "height": 768
+        },
+        "mode": "hover",
+        "tooltip": "尚缺必要資料或檔案：2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-029-tablet",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "tablet",
+          "width": 768,
+          "height": 1024
+        },
+        "mode": "focus",
+        "tooltip": "尚缺必要資料或檔案：2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-019-mobile",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "mobile",
+          "width": 390,
+          "height": 844,
+          "touch": true
+        },
+        "mode": "touch",
+        "tooltip": "尚缺必要資料或檔案：2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-025",
+      "passed": true,
+      "detail": {
+        "ids": [
+          "detail:part:edit",
+          "detail:part:submit_review",
+          "detail:navigation:return"
+        ],
+        "matrixParity": null
+      }
+    },
+    {
+      "id": "ACT-026",
+      "passed": true,
+      "detail": {
+        "ids": [
+          "detail:relation:manage_relation",
+          "detail:relation:view_history",
+          "detail:navigation:return"
+        ],
+        "matrixParity": {
+          "detail": {
+            "tableClass": "pdm-relation-matrix",
+            "axis": "料號＼圖號",
+            "columnCount": 2,
+            "rowCount": 1,
+            "cellCount": 1
+          },
+          "total": {
+            "tableClass": "pdm-relation-matrix",
+            "axis": "料號＼圖號",
+            "columnCount": 5,
+            "rowCount": 2,
+            "cellCount": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "ACT-030",
+      "passed": true,
+      "detail": {
+        "ids": [
+          "detail:part:view_history",
+          "detail:navigation:return"
+        ],
+        "matrixParity": null
+      }
+    },
+    {
+      "id": "ACT-020",
+      "passed": false,
+      "detail": {
+        "error": "UNIQUE constraint failed: numbering_candidate_revision_files.candidate_revision_id, numbering_candidate_revision_files.role"
+      }
+    },
+    {
+      "id": "ACT-012-stale",
+      "passed": true,
+      "detail": {
+        "status": 409,
+        "domainStateUnchanged": true,
+        "mutationCount": 1
+      }
+    },
+    {
+      "id": "ACT-024",
+      "passed": true,
+      "detail": {
+        "tooltip": "目前帳號沒有此操作權限；請聯絡工作負責人或研發主管。"
+      }
+    },
+    {
+      "id": "ACT-012-permission",
+      "passed": true,
+      "detail": {
+        "status": 403,
+        "domainStateUnchanged": true,
+        "mutationCount": 1
+      }
+    },
+    {
+      "id": "ACT-028-return_for_correction",
+      "passed": false,
+      "detail": {
+        "error": "page.waitForFunction: Timeout 30000ms exceeded."
+      }
+    },
+    {
+      "id": "ACT-028-reject",
+      "passed": false,
+      "detail": {
+        "error": "page.waitForFunction: Timeout 30000ms exceeded."
+      }
+    },
+    {
+      "id": "ACT-028-approve",
+      "passed": false,
+      "detail": {
+        "error": "page.waitForFunction: Timeout 30000ms exceeded."
+      }
+    },
+    {
+      "id": "ACT-027",
+      "passed": false,
+      "detail": {
+        "canonicalOwnerRouteUsed": true,
+        "unifiedDrawerCount": 1
+      }
+    },
+    {
+      "id": "ACT-011",
+      "passed": true,
+      "detail": {
+        "disabledMutationCount": 0
+      }
+    },
+    {
+      "id": "ACT-014",
+      "passed": false,
+      "detail": {
+        "exactlyOnceSubmit": true
+      }
+    },
+    {
+      "id": "RUN-FATAL",
+      "passed": false,
+      "detail": {
+        "error": "console/page errors: [{\"label\":\"decision-return_for_correction\",\"type\":\"console\",\"message\":\"Failed to load resource: the server responded with a status of 404 (Not Found)\"},{\"label\":\"decision-reject\",\"type\":\"console\",\"message\":\"Failed to load resource: the server responded with a status of 404 (Not Found)\"},{\"label\":\"decision-approve\",\"type\":\"console\",\"message\":\"Failed to load resource: the server responded with a status of 404 (Not Found)\"}]\n\n3 !== 0\n"
+      }
+    }
+  ],
+  "P0": 0,
+  "P1": 0,
+  "cleanup": {
+    "attempted": true,
+    "removedCount": 8,
+    "tempRootRemoved": true
+  },
+  "source": {
+    "provenanceVersion": 1,
+    "commit": "cc393e048b251fb1ea3356204de56bc4c9eacc45",
+    "branch": "持續優化1",
+    "dirtyWorktree": true,
+    "scopedDirty": true,
+    "dirtyHashAlgorithm": "sha256(commit + scoped git status + scoped source hash)",
+    "dirtyHash": "2261409e366ec72b8ed1173d20a486fd37d9ddcea1341b562ad3d5767727a71a",
+    "scopedSourceHashAlgorithm": "sha256(sorted path + NUL + file bytes + NUL)",
+    "scopedSourceHash": "c2764d4d8220a78c84f5d5e965db7cd6032fc2679d9325ca53022bf7fe239e91",
+    "scopedFiles": [
+      "package.json",
+      "scripts/qc-dev-072-action-api.mjs",
+      "scripts/qc-dev-072-action-contract.mjs",
+      "scripts/qc-dev-072-browser.mjs",
+      "src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts",
+      "src/app/api/pdm/entity-details/[entityKey]/route.ts",
+      "src/app/approvals/page.tsx",
+      "src/app/globals.css",
+      "src/components/candidate-drawing-file-upload.tsx",
+      "src/components/drawing-projection.tsx",
+      "src/components/drawing-workbench.tsx",
+      "src/components/master-attachment-panel.tsx",
+      "src/components/part-projection.tsx",
+      "src/components/part-workbench.tsx",
+      "src/components/pdm-detail-action-control.tsx",
+      "src/components/relation-matrix-table.tsx",
+      "src/components/relation-projection.tsx",
+      "src/components/relation-workbench.tsx",
+      "src/components/unified-pdm-entity-detail-drawer.tsx",
+      "src/lib/pdm-detail-action-capabilities.ts",
+      "src/lib/pdm-detail-action-resolver.ts",
+      "src/lib/pdm-entity-detail-contract.ts",
+      "src/lib/pdm-entity-detail.ts"
+    ]
+  },
+  "files": [
+    "action-contract.json",
+    "dom-metrics.json",
+    "interaction-log.json",
+    "console-network.json",
+    "data-before-after.json",
+    "visible-error-sweep.json",
+    "defects.md"
+  ]
+}

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAuthAsync } from "@/lib/auth-async";
-import { listBomCreateCadSourcesAsync, listBomCreatePartOptionsAsync } from "@/lib/bom-create-context";
+import {
+  listBomCreateAssemblyOptionsAsync,
+  listBomCreateCadSourcesAsync,
+  listBomCreateDraftOptionsAsync,
+  listBomCreatePartOptionsAsync
+} from "@/lib/bom-create-context";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 
 export const runtime = "nodejs";
@@ -14,8 +19,20 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const ownerPartNumberId = url.searchParams.get("ownerPartNumberId")?.trim() ?? "";
-  const [parts, cadSources] = await Promise.all([
+  const [parts, assemblyParts, drafts, cadSources] = await Promise.all([
     listBomCreatePartOptionsAsync({
+      user: auth.user,
+      companyId: companyResult.company.companyId,
+      query: url.searchParams.get("query") ?? "",
+      limit: 80
+    }),
+    listBomCreateAssemblyOptionsAsync({
+      user: auth.user,
+      companyId: companyResult.company.companyId,
+      query: url.searchParams.get("query") ?? "",
+      limit: 80
+    }),
+    listBomCreateDraftOptionsAsync({
       user: auth.user,
       companyId: companyResult.company.companyId,
       query: url.searchParams.get("query") ?? "",
@@ -31,7 +48,7 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json(
-    { parts, cadSources, pdmCompany: companyResult.company },
+    { parts, assemblyParts, drafts, cadSources, pdmCompany: companyResult.company },
     { headers: { "cache-control": "private, no-store" } }
   );
 }

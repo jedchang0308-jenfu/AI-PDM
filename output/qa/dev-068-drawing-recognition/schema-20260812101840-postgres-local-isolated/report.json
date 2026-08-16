@@ -1,0 +1,29 @@
+{
+  "dev": "DEV-068",
+  "sqliteTableCount": 14,
+  "postgresTableCount": 14,
+  "postgresVersion": "18.4",
+  "appliedMigrations": [
+    "001_initial_schema.sql",
+    "033_drawing_recognition.sql"
+  ],
+  "baselineShim": "controlled roles plus unified drawings/drawing_revisions dependencies only; full-chain pre-existing 004 approval_rules.phase drift is outside DEV-068",
+  "permissionRows": [
+    {
+      "permission_code": "numbering.recognition.formalize",
+      "role_count": 4
+    },
+    {
+      "permission_code": "numbering.recognition.review",
+      "role_count": 4
+    },
+    {
+      "permission_code": "numbering.recognition.run",
+      "role_count": 4
+    }
+  ],
+  "appendOnlyTriggerTableCount": 8,
+  "destructiveStatements": false,
+  "checks": "PASS",
+  "completedAt": "2026-08-12T10:18:56.558Z"
+}

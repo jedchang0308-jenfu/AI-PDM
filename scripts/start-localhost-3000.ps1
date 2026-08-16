@@ -25,6 +25,11 @@ $PreviewWorkerTokenFile = Join-Path $RuntimeDir "ai-pdm-preview-worker.token"
 $PreviewWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-preview-worker.out.log"
 $PreviewWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-preview-worker.err.log"
 $PreviewWorkerScript = Join-Path $ProjectRoot "scripts\run-windows-shell-preview-worker.mjs"
+$RecognitionWorkerPidFile = Join-Path $RuntimeDir "ai-pdm-recognition-worker.pid"
+$RecognitionWorkerTokenFile = Join-Path $RuntimeDir "ai-pdm-recognition-worker.token"
+$RecognitionWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-recognition-worker.out.log"
+$RecognitionWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-recognition-worker.err.log"
+$RecognitionWorkerScript = Join-Path $ProjectRoot "scripts\run-drawing-recognition-worker.mjs"
 $DocumentManagerPreviewWorkerPidFile = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.pid"
 $DocumentManagerPreviewWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.out.log"
 $DocumentManagerPreviewWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.err.log"
@@ -65,6 +70,44 @@ function Ensure-PreviewWorkerToken {
   $token = -join ($bytes | ForEach-Object { $_.ToString("x2") })
   Set-Content -LiteralPath $PreviewWorkerTokenFile -Value $token -Encoding ascii
   $env:PDM_PREVIEW_WORKER_TOKEN = $token
+}
+
+function Ensure-RecognitionWorkerToken {
+  if ($env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN -and $env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN.Trim().Length -ge 32) {
+    return
+  }
+
+  $localEnvFile = Join-Path $ProjectRoot ".env.local"
+  if (Test-Path -LiteralPath $localEnvFile) {
+    $line = Get-Content -LiteralPath $localEnvFile -ErrorAction SilentlyContinue | Where-Object { $_ -match '^PDM_DRAWING_RECOGNITION_WORKER_TOKEN=(.+)$' } | Select-Object -First 1
+    if ($line -and $line -match '^PDM_DRAWING_RECOGNITION_WORKER_TOKEN=(.+)$') {
+      $localToken = $Matches[1].Trim()
+      if ($localToken.Length -ge 32) {
+        $env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN = $localToken
+        return
+      }
+    }
+  }
+
+  if (Test-Path -LiteralPath $RecognitionWorkerTokenFile) {
+    $storedToken = (Get-Content -LiteralPath $RecognitionWorkerTokenFile -Raw).Trim()
+    if ($storedToken.Length -ge 32) {
+      $env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN = $storedToken
+      return
+    }
+  }
+
+  $bytes = New-Object byte[] 32
+  $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+  try {
+    $generator.GetBytes($bytes)
+  }
+  finally {
+    $generator.Dispose()
+  }
+  $token = -join ($bytes | ForEach-Object { $_.ToString("x2") })
+  Set-Content -LiteralPath $RecognitionWorkerTokenFile -Value $token -Encoding ascii
+  $env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN = $token
 }
 
 function Test-DocumentManagerPreviewKeyConfigured {
@@ -120,6 +163,75 @@ function Stop-PreviewWorker {
   }
   Remove-Item -LiteralPath $PreviewWorkerPidFile -ErrorAction SilentlyContinue
   Stop-DocumentManagerPreviewWorker
+  Stop-RecognitionWorker
+}
+
+function Get-RecognitionWorkerProcessInfo {
+  if (-not (Test-Path -LiteralPath $RecognitionWorkerPidFile)) {
+    return $null
+  }
+
+  try {
+    $workerProcessId = [int](Get-Content -LiteralPath $RecognitionWorkerPidFile -Raw).Trim()
+  }
+  catch {
+    Remove-Item -LiteralPath $RecognitionWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  $processInfo = Get-OwnerProcessInfo -OwnerProcessId $workerProcessId
+  if (-not $processInfo -or -not $processInfo.CommandLine) {
+    Remove-Item -LiteralPath $RecognitionWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  $commandLine = $processInfo.CommandLine.ToLowerInvariant()
+  if (-not $commandLine.Contains($ProjectRootLower) -or -not $commandLine.Contains("run-drawing-recognition-worker.mjs")) {
+    Remove-Item -LiteralPath $RecognitionWorkerPidFile -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  return $processInfo
+}
+
+function Stop-RecognitionWorker {
+  $processInfo = Get-RecognitionWorkerProcessInfo
+  if ($processInfo) {
+    Write-Host "Stopping AI_PDM recognition worker PID $($processInfo.ProcessId)."
+    Stop-Process -Id $processInfo.ProcessId -Force
+  }
+  Remove-Item -LiteralPath $RecognitionWorkerPidFile -ErrorAction SilentlyContinue
+}
+
+function Start-RecognitionWorker {
+  $existing = Get-RecognitionWorkerProcessInfo
+  if ($existing) {
+    return $existing
+  }
+
+  Ensure-RecognitionWorkerToken
+  $env:PDM_DRAWING_RECOGNITION_WORKER_BASE_URL = $Url
+  Remove-Item -LiteralPath $RecognitionWorkerStdoutLog, $RecognitionWorkerStderrLog, $RecognitionWorkerPidFile -ErrorAction SilentlyContinue
+  $worker = Start-Process `
+    -FilePath "node.exe" `
+    -ArgumentList @("--experimental-transform-types", "`"$RecognitionWorkerScript`"", "--worker-id", "local-drawing-recognition-worker") `
+    -WorkingDirectory $ProjectRoot `
+    -WindowStyle Hidden `
+    -PassThru `
+    -RedirectStandardOutput $RecognitionWorkerStdoutLog `
+    -RedirectStandardError $RecognitionWorkerStderrLog
+
+  Set-Content -LiteralPath $RecognitionWorkerPidFile -Value ([string]$worker.Id) -Encoding ascii
+  Start-Sleep -Milliseconds 1500
+  if ($worker.HasExited) {
+    Write-Host "Recognition worker exited during startup."
+    Get-Content -LiteralPath $RecognitionWorkerStderrLog -ErrorAction SilentlyContinue | Select-Object -Last 20
+    Remove-Item -LiteralPath $RecognitionWorkerPidFile -ErrorAction SilentlyContinue
+    throw "AI_PDM recognition worker did not start. Check the worker token and recognition worker logs."
+  }
+
+  Write-Host "Recognition worker is running (PID $($worker.Id))."
+  return Get-RecognitionWorkerProcessInfo
 }
 
 function Start-PreviewWorker {
@@ -329,6 +441,7 @@ function Write-RuntimeStatus {
     [int]$LauncherProcessId = 0,
     [int]$PortOwnerProcessId = 0,
     [int]$PreviewWorkerProcessId = 0,
+    [int]$RecognitionWorkerProcessId = 0,
     $PortOwnerProcessInfo = $null,
     $Health = $null,
     [string]$Message = ""
@@ -348,6 +461,8 @@ function Write-RuntimeStatus {
     portOwnerCommandLine = $commandLine
     previewWorkerProcessId = $PreviewWorkerProcessId
     previewWorkerState = if ($PreviewWorkerProcessId -gt 0) { "running" } else { "not_running" }
+    recognitionWorkerProcessId = $RecognitionWorkerProcessId
+    recognitionWorkerState = if ($RecognitionWorkerProcessId -gt 0) { "running" } else { "not_running" }
     documentManagerPreviewWorkerProcessId = if ($documentManagerPreviewWorker) { [int]$documentManagerPreviewWorker.ProcessId } else { 0 }
     documentManagerPreviewWorkerState = Get-DocumentManagerPreviewWorkerState
     health = $Health
@@ -445,15 +560,22 @@ if ($listeners.Count -gt 0) {
           Write-Error "AI_PDM website is healthy, but the 3D preview worker is not running. Run npm run dev:local:restart."
           exit 1
         }
+        $recognitionWorker = Get-RecognitionWorkerProcessInfo
+        if (-not $recognitionWorker) {
+          Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Website and 3D worker are healthy, but the recognition worker is not running."
+          Write-Error "AI_PDM website is healthy, but the recognition worker is not running. Run npm run dev:local."
+          exit 1
+        }
         $documentManagerPreviewWorker = Get-DocumentManagerPreviewWorkerProcessInfo
         if ((Test-DocumentManagerPreviewKeyConfigured) -and -not $documentManagerPreviewWorker) {
-          Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Website and 3D worker are healthy, but the configured 2D preview worker is not running."
+          Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Website, 3D worker, and recognition worker are healthy, but the configured 2D preview worker is not running."
           Write-Error "AI_PDM website is healthy, but the configured 2D preview worker is not running. Run npm run dev:local:restart."
           exit 1
         }
-        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview workers are healthy; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
+        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server, preview workers, and recognition worker are healthy; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "AI_PDM is healthy."
         Write-Host "3D preview worker is running."
+        Write-Host "Recognition worker is running."
         Write-Host "2D preview worker: $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "Local URL: $Url"
         exit 0
@@ -461,6 +583,7 @@ if ($listeners.Count -gt 0) {
       if (-not $RestartProjectProcess) {
         try {
           $previewWorker = Start-PreviewWorker
+          $recognitionWorker = Start-RecognitionWorker
           $documentManagerPreviewWorker = Start-DocumentManagerPreviewWorker
         }
         catch {
@@ -468,9 +591,10 @@ if ($listeners.Count -gt 0) {
           Write-Error $_.Exception.Message
           exit 1
         }
-        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview workers are healthy; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
+        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview workers are healthy; recognition worker is running; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "AI_PDM is healthy."
         Write-Host "3D preview worker is running."
+        Write-Host "Recognition worker is running."
         Write-Host "2D preview worker: $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "Local URL: $Url"
         Open-LocalPage
@@ -540,6 +664,7 @@ Remove-Item -LiteralPath $PortOwnerPidFile, $StatusFile -ErrorAction SilentlyCon
 
 $env:PDM_LOCAL_FULL_FUNCTION_VALIDATION = "true"
 Ensure-PreviewWorkerToken
+Ensure-RecognitionWorkerToken
 Write-Host "Starting AI_PDM local server..."
 Write-Host "Local full-function validation is enabled; production slice settings remain production-only."
 $process = Start-Process `
@@ -573,6 +698,7 @@ do {
     $owner = Get-CurrentPortOwner
     try {
       $previewWorker = Start-PreviewWorker
+      $recognitionWorker = Start-RecognitionWorker
       $documentManagerPreviewWorker = Start-DocumentManagerPreviewWorker
     }
     catch {
@@ -580,9 +706,10 @@ do {
       Write-Error $_.Exception.Message
       exit 1
     }
-    Write-RuntimeStatus -State "healthy_started" -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "AI_PDM local server and preview workers started; 2D worker state is $(Get-DocumentManagerPreviewWorkerState). All health checks passed."
+    Write-RuntimeStatus -State "healthy_started" -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "AI_PDM local server and preview workers started; recognition worker is running; 2D worker state is $(Get-DocumentManagerPreviewWorkerState). All health checks passed."
     Write-Host "AI_PDM is healthy."
     Write-Host "3D preview worker is running."
+    Write-Host "Recognition worker is running."
     Write-Host "2D preview worker: $(Get-DocumentManagerPreviewWorkerState)."
     Write-Host "Local URL: $Url"
     Open-LocalPage

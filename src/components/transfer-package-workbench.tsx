@@ -266,7 +266,10 @@ export function TransferPackageWorkbenchShell(props: Props) {
       sourceReference,
       sourceReferenceReason
     }, "save");
-    if (next) setMessage("案件資料已儲存。");
+    if (next) {
+      setMessage("案件資料已儲存。");
+      await load();
+    }
   }
 
   async function addScope() {
@@ -279,6 +282,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
     if (next) {
       setScopeValue("");
       setMessage("案件範圍已更新。");
+      await load();
     }
   }
 
@@ -290,7 +294,10 @@ export function TransferPackageWorkbenchShell(props: Props) {
       { expectedRowVersion: workbench.rowVersion },
       `remove:${itemId}`
     );
-    if (next) setMessage("已從案件範圍移除項目。");
+    if (next) {
+      setMessage("已從案件範圍移除項目。");
+      await load();
+    }
   }
 
   async function addDraftWorkspace() {
@@ -369,7 +376,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
         <WorkbenchTopbar title="建立技轉包" subtitle="先建立案件，再逐步補齊技轉資料。" />
         {error ? <InlineMessage kind="error" message={error} /> : null}
         {context?.sourceRequested && !context.sourceResolved ? (
-          <InlineMessage kind="error" message="找不到帶入的來源圖料；請回圖料模組重新選擇。" />
+          <InlineMessage kind="error" message="找不到帶入的來源圖料；請回圖料工作台重新選擇。" />
         ) : null}
         <section className="panel transfer-form-panel">
           <div className="panel-header">
@@ -396,7 +403,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
             disabled={Boolean(busy)}
           />
           <div className="transfer-primary-actions">
-            <Link className="secondary-button" href="/numbering/search">回圖料查詢</Link>
+            <Link className="secondary-button" href="/numbering/search">回圖料工作台</Link>
             <button
               className="primary-button"
               type="button"
@@ -525,14 +532,14 @@ export function TransferPackageWorkbenchShell(props: Props) {
           <div className="table-wrap">
             <table className="transfer-scope-table">
               <thead>
-                <tr><th>類型</th><th>編號</th><th>名稱／主根</th><th>主檔狀態</th><th aria-label="操作" /></tr>
+                <tr><th>類型</th><th>編號</th><th>名稱／圖料根號</th><th>主檔狀態</th><th aria-label="操作" /></tr>
               </thead>
               <tbody>
                 {workbench.items.map((item) => (
                   <tr key={item.id}>
                     <td>{item.entityType === "drawing_number" ? "圖號" : "料號"}</td>
                     <td><strong>{item.entityCode}</strong></td>
-                    <td>{item.displayLabel}<small>{item.rootCode ? `主根 ${item.rootCode}` : ""}</small></td>
+                    <td>{item.displayLabel}<small>{item.rootCode ? `圖料根號 ${item.rootCode}` : ""}</small></td>
                     <td>{item.recordStatus ?? "-"}</td>
                     <td>
                       {editable ? (
@@ -597,12 +604,12 @@ export function TransferPackageWorkbenchShell(props: Props) {
               {busy === "withdraw-review" ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}撤回審核
             </button>
           </> : null}
-          {workbench.status === "ReleaseFailed" && readiness?.stale ? (
+          {["ReleaseFailed", "ApprovedPendingPublish"].includes(workbench.status) && readiness?.stale ? (
             <button className="primary-button" type="button" title={canSubmit ? "重建快照並重新送審" : "目前帳號沒有送審權限"} disabled={!canSubmit || readiness.blockers.some((item) => item.code !== "approval_snapshot_stale") || Boolean(busy)} onClick={() => void lifecycleAction("submit-review")}>
               {busy === "submit-review" ? <Loader2 className="spin" size={16} /> : <Send size={16} />}重建快照並重新送審
             </button>
           ) : null}
-          {workbench.status === "ApprovedPendingPublish" || (workbench.status === "ReleaseFailed" && !readiness?.stale) ? (
+          {(workbench.status === "ApprovedPendingPublish" && !readiness?.stale) || (workbench.status === "ReleaseFailed" && !readiness?.stale) ? (
             <button className="primary-button" type="button" title={canPublish ? "發布整包" : "目前帳號沒有發布權限"} disabled={!canPublish || !readiness?.ready || readiness.stale || Boolean(busy)} onClick={() => void lifecycleAction("publish")}>
               {busy === "publish" ? <Loader2 className="spin" size={16} /> : <UploadCloud size={16} />}{workbench.status === "ReleaseFailed" ? "重試整包發布" : "發布整包"}
             </button>
@@ -612,7 +619,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
       </section>
 
       <section id="transfer-section-modules" tabIndex={-1} className="panel">
-        <div className="panel-header"><div><h2>模組狀態</h2><p>資料仍由原模組維護；這裡只呈現狀態與入口。</p></div></div>
+        <div className="panel-header"><div><h2>功能模組狀態</h2><p>資料仍由所屬功能模組維護；這裡只呈現狀態與入口。</p></div></div>
         <div className="transfer-adapter-list">
           {workbench.adapters.map((adapter) => (
             <article key={adapter.id} className="transfer-adapter-item" data-adapter-status={adapter.status}>
@@ -625,7 +632,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
       </section>
 
       <section id="transfer-section-blockers" tabIndex={-1} className="panel">
-        <div className="panel-header"><div><h2>阻擋與下一步</h2><p>依負責角色與模組整理。</p></div></div>
+        <div className="panel-header"><div><h2>阻擋與下一步</h2><p>依負責角色與功能模組整理。</p></div></div>
         <div className="transfer-blocker-list">
           {workbench.blockers.length ? workbench.blockers.map((blocker) => (
             <div key={blocker.id} className={`transfer-blocker ${props.initialBlocker === blocker.id ? "focused" : ""}`}>
@@ -681,7 +688,7 @@ function HeaderFields(props: {
 }
 
 function SourceSummary({ item, fallbackLabel }: { item: ResolvedTransferPackageEntity; fallbackLabel?: string }) {
-  return <div className="transfer-source-summary"><Link2 size={17} /><div><span>帶入來源</span><strong>{item.entityCode} · {fallbackLabel || item.displayLabel}</strong><small>{item.entityType === "drawing_number" ? "圖號" : "料號"}{item.rootCode ? ` · 主根 ${item.rootCode}` : ""}</small></div></div>;
+  return <div className="transfer-source-summary"><Link2 size={17} /><div><span>帶入來源</span><strong>{item.entityCode} · {fallbackLabel || item.displayLabel}</strong><small>{item.entityType === "drawing_number" ? "圖號" : "料號"}{item.rootCode ? ` · 圖料根號 ${item.rootCode}` : ""}</small></div></div>;
 }
 
 function NowWhat({ workbench, readiness }: { workbench: TransferPackageWorkbench; readiness: Phase1DReadiness | null }) {

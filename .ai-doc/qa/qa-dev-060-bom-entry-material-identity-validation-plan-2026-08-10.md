@@ -65,9 +65,10 @@
 AI 需從側欄執行，不得直接呼叫 handler 代替：
 
 1. 看見 `BOM > 建立 BOM / BOM 工作台 / BOM 審核`，三者目的可在 5 秒內回答。
-2. 進入 `/bom/new`；第一步搜尋並選擇 `料號（物料身份，無版次）`，畫面分開顯示 `BOM Rev`。
-3. 未選 owner、BOM Rev 無效或 owner 已終止時，下一步不可用且顯示就近原因。
-4. 第二步分別完成 CAD、SolidWorks XLS、空白人工三種來源。
+2. 進入 `/bom/new`；第一步看見三個互斥路徑：已偵測組合件、建立全新空白 BOM、已有 BOM 草稿。
+3. 組合件區只顯示有 CAD 組合件證據且沒有進行中草稿的 owner；沒有證據時呈現空狀態，不把既有 BOM 行數當成組合件證據。
+4. 空白 BOM 區只能選沒有進行中草稿的 canonical owner，BOM Rev 由 BOM history 預填；建立空白 BOM 直接建立零 line Draft。既有 Draft／PendingReview／Rejected 只提供續作入口。
+5. 組合件與 XLS 路徑進入第二步；第二步可分別完成 CAD、SolidWorks XLS、空白人工三種來源。
 5. 建立前摘要明示 owner Part Number、BOM Rev、來源；Drawing Rev 只能出現在 CAD 來源證據區。
 6. 建立成功導向 `/bom/workbench?draftId=<id>`；hard reload/deep link 可恢復同一 Draft。
 7. Cancel、Back、重入不產生 Draft；成功後 Back/Forward 不重送 POST。
@@ -89,7 +90,7 @@ AI 需從側欄執行，不得直接呼叫 handler 代替：
 - 無水平 overflow、裁切、重疊、sticky footer 遮擋或不可達 CTA。
 - Tab 順序依「owner → BOM Rev → 下一步 → source → 建立」，focus 可見且錯誤後回到第一個無效欄位。
 - loading、empty、no-result、403、409、413、500、timeout/unknown-result 均有人類文案與安全復原動作。
-- 首屏不恢復已刪除的流程定位 strip；只保留當前步驟、必要說明與一個 primary CTA。
+- 首屏不恢復已刪除的流程定位 strip；三個建立路徑各自只保留一個 primary CTA，既有草稿以 row/link 續作，不複製建立動作。
 - 不顯示 raw payload、SQL、stack、route 名稱、secret 或模糊的 `Current/Next/5 steps` 雜訊。
 
 ## 9. Gate 6：Regression 與證據

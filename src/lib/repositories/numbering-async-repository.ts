@@ -6219,6 +6219,9 @@ export class AsyncNumberingRepository {
           a.revision,
           a.assessed_at
         FROM drawing_revision_fff_assessments a
+        LEFT JOIN submissions review_submission
+          ON review_submission.id = a.submission_id
+         AND review_submission.company_id = a.company_id
         LEFT JOIN review_confirmation_events rce ON rce.id = (
           SELECT latest.id
           FROM review_confirmation_events latest
@@ -6229,6 +6232,14 @@ export class AsyncNumberingRepository {
         )
         WHERE a.drawing_number_id IN (${drawingList.sql})
           AND rce.id IS NULL
+          AND (
+            a.submission_id IS NULL
+            OR (
+              review_submission.status IN ('Pending', 'Releasing')
+              AND review_submission.superseded_by_submission_id IS NULL
+              AND review_submission.resolved_by_submission_id IS NULL
+            )
+          )
         ORDER BY a.drawing_number_id ASC, a.assessed_at DESC, a.id DESC
       `,
       drawingList.params
@@ -7714,6 +7725,22 @@ export class AsyncNumberingRepository {
       } else if (!primary) {
         await insertLink("primary_manufacturing");
       }
+      const primaryUpdatedAt = this.clock();
+      await client.execute(
+        `UPDATE drawing_numbers
+         SET is_primary_manufacturing = CASE WHEN id = :drawingNumberId THEN 1 ELSE 0 END,
+             updated_at = :updatedAt
+         WHERE company_id = :companyId AND part_root_id = :rootId AND purpose_code IN ('MA', 'M')`,
+        { drawingNumberId: drawing.id, updatedAt: primaryUpdatedAt, companyId, rootId: rootRow.id }
+      );
+      const rootDrawingIds = await client.query<{ id: string }>(
+        `SELECT id FROM drawing_numbers WHERE company_id = :companyId AND part_root_id = :rootId`,
+        { companyId, rootId: rootRow.id }
+      );
+      const unifiedDrawingRepository = new UnifiedDrawingAsyncRepository(client);
+      for (const rootDrawing of rootDrawingIds) {
+        await unifiedDrawingRepository.synchronizeFormalDrawing({ drawingNumberId: rootDrawing.id, companyId });
+      }
     } else if (input.operation === "set_reference") {
       const [primary, reference] = await Promise.all([primaryPair(), referencePair()]);
       if (primary && reference) {
@@ -7943,8 +7970,8 @@ export class AsyncNumberingRepository {
     const draftChildren = [...parts, ...drawings].filter((record) => record.recordStatus === "Draft" || record.recordStatus === "NeedInfo").length;
     const warnings = [
       draftChildren > 0 ? `尚有 ${draftChildren} 筆草稿/待補資料；正式作廢只會建立正式資料審核範圍。` : "",
-      formalTargets.length === 0 ? "此主根目前沒有可申請作廢的料號或圖號。" : "",
-      pending ? "此主根已有作廢審核中申請。" : ""
+      formalTargets.length === 0 ? "此圖料根號目前沒有可申請作廢的料號或圖號。" : "",
+      pending ? "此圖料根號已有作廢審核中申請。" : ""
     ].filter(Boolean);
     const links: RootObsoleteImpactLink[] = linkRows.map((link) => ({
       drawingNumber: link.drawing_number,
@@ -8062,6 +8089,14 @@ export class AsyncNumberingRepository {
     const drawingNumber = formatDrawingNumberForRule(root.rootCode, input.purposeCode, sequenceCode, input.ruleVersionId);
     const id = this.idFactory();
     const now = this.clock();
+    const existingPrimary = isManufacturingDrawingPurpose(input.purposeCode)
+      ? await client.queryOne<CountRow>(
+          `SELECT COUNT(*) AS count FROM drawing_numbers
+           WHERE company_id = :companyId AND part_root_id = :partRootId
+             AND purpose_code IN ('MA', 'M') AND is_primary_manufacturing = 1`,
+          { companyId: root.companyId, partRootId: root.id }
+        )
+      : null;
     await client.execute(INSERT_ASYNC_DRAWING_NUMBER_SQL, {
       id,
       companyId: root.companyId,
@@ -8070,7 +8105,7 @@ export class AsyncNumberingRepository {
       purposeCode: input.purposeCode,
       purposeDescription,
       sequenceNo,
-      isPrimaryManufacturing: isManufacturingDrawingPurpose(input.purposeCode) ? 1 : 0,
+      isPrimaryManufacturing: isManufacturingDrawingPurpose(input.purposeCode) && Number(existingPrimary?.count ?? 0) === 0 ? 1 : 0,
       recordStatus: input.recordStatus,
       ruleVersionId: input.ruleVersionId,
       createdBy: input.createdBy ?? null,

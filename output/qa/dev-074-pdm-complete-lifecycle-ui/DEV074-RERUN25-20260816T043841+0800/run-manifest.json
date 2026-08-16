@@ -1,0 +1,26 @@
+{
+  "run_id": "DEV074-RERUN25-20260816T043841+0800",
+  "predecessor": "DEV074-RERUN24-20260816T041739+0800",
+  "repair_gate": "DEV074-R24-P1-020",
+  "started_at": "2026-08-16T04:38:41+08:00",
+  "ended_at": "2026-08-16T04:48:17+08:00",
+  "status": "failed",
+  "environment": "local-isolated",
+  "base_url": "http://127.0.0.1:3000",
+  "business_mutation_policy": "rendered_ui_only",
+  "direct_api_or_db_mutation_count": 0,
+  "scope_count": 58,
+  "git_head": "cc393e048b251fb1ea3356204de56bc4c9eacc45",
+  "branch": "持續優化1",
+  "out_of_scope": ["B09", "D15", "E02", "F08", "true_engineering_content_change", "legacy_reserved_numbers"],
+  "runtime": {
+    "temporary_project": "C:\\VIBE CODING\\AI_PDM",
+    "port": 3000,
+    "owner_pid": 13692,
+    "preview_worker_pid": 31240,
+    "recognition_worker_pid": 55460,
+    "purpose": "DEV-074 R25 clean post-repair full rendered-UI QC",
+    "cleanup_condition": "retained by the same QC task for clean rerun after R25 failure",
+    "protected_runtime": {"project":"C:\\VIBE CODING\\ProJED\\ProJED","port":4173,"owner_pid":2328,"status_at_start":200,"action":"leave untouched"}
+  }
+}

@@ -9,7 +9,7 @@ import {
 } from "@/lib/number-state-flow-api";
 import { requireAuthAsync } from "@/lib/auth-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
+import { PdmReviewScopeError, resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
 import type { PdmEntityKey } from "@/lib/pdm-entity-detail-contract";
 
 export const runtime = "nodejs";
@@ -45,8 +45,27 @@ export async function GET(
   const fileId = decodeURIComponent(rawFileId);
   const client = getAsyncDatabaseClient();
   if (reviewRequestId) {
-    const scope = await resolvePdmReviewScopeReceiptAsync({ client, requestId: reviewRequestId, companyId, actorId, entityKey: `candidate:${workspaceId}` as PdmEntityKey, targetTypes: ["numbering_draft_workspace"], targetIds: [workspaceId] });
-    if (!scope) return numberStateFlowJson({ error: { code: "PDM_REVIEW_SCOPE_NOT_FOUND", message: "找不到這筆審核範圍。", retryable: false } }, { status: 404 });
+    try {
+      const scope = await resolvePdmReviewScopeReceiptAsync({
+        client,
+        requestId: reviewRequestId,
+        companyId,
+        actorId,
+        entityKey: `candidate:${workspaceId}` as PdmEntityKey,
+        targetTypes: ["numbering_draft_workspace"],
+        targetIds: [workspaceId],
+        access: "review_evidence"
+      });
+      if (!scope) return numberStateFlowJson({ error: { code: "PDM_REVIEW_SCOPE_NOT_FOUND", message: "找不到這筆審核範圍。", retryable: false } }, { status: 404 });
+    } catch (error) {
+      if (error instanceof PdmReviewScopeError) {
+        return numberStateFlowJson(
+          { error: { code: error.code, message: error.message, retryable: false } },
+          { status: error.code === "PDM_REVIEW_NOT_ASSIGNED" ? 403 : 409 }
+        );
+      }
+      throw error;
+    }
   }
   const source = await client.queryOne<CandidatePreviewSourceRow>(
     `
@@ -74,10 +93,14 @@ export async function GET(
   if (!source) return numberStateFlowJson({ error: { code: "candidate_file_not_found", message: "找不到圖面的檔案。", retryable: false } }, { status: 404 });
 
   const url = new URL(request.url);
-  const wantsPreview = url.searchParams.get("preview") === "1";
+  const derivativeId = url.searchParams.get("previewDerivative");
+  const wantsPreview = url.searchParams.get("preview") === "1" || Boolean(derivativeId);
   try {
     const resolved = wantsPreview
-      ? await resolveDrawingPreviewAsync(client, source, { allowFake: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" })
+      ? await resolveDrawingPreviewAsync(client, source, {
+          allowFake: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1",
+          derivativeId
+        })
       : {
           record: source,
           fileName: source.file_name || "圖面附件",
@@ -103,7 +126,10 @@ export async function GET(
           // Keep the source downloadable even if preview preparation is unavailable.
         }
       }
-      return numberStateFlowJson({ error: { code: "PREVIEW_NOT_READY", message: "預覽正在準備；可先下載原檔。", retryable: true } }, { status: 409 });
+      return numberStateFlowJson(
+        { error: { code: "PREVIEW_NOT_READY", message: "預覽正在準備；可先下載原檔。", retryable: true } },
+        { status: 202, headers: { "retry-after": "2", "x-pdm-preview-state": "pending" } }
+      );
     }
     const pointer = storagePointerFromRecord(resolved.record);
     const bytes = await createFileStorageServiceForPointer(pointer).readObject(pointer.key);

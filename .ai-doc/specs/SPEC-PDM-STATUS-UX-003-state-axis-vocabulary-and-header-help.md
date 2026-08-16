@@ -21,6 +21,8 @@
 > 不改 ID、enum、machine code、hash、timestamp、狀態機、權限、API payload shape 或 authority。
 > 本段為現行權威；前述 Phase 1A 號碼效力段落保留作歷史基線，不再作 DEV-063 的驗收契約。
 
+> 2026-08-12 Vocabulary Amendment：所有 user-facing `主根號` 改為 `圖料根號`；`同主根號料號` 改為 `同根料號`。`rootCode`、`root_code`、`part_root` 與其他 machine contract 維持不變；本段優先於本文件較早的舊稱示例。
+
 ## 1. Human Decision Brief
 
 來源：2026-07-16 使用者要求重新統整系統內所有與狀態有關的定義，採用不易誤解的使用者命名，並要求所有相關資料區塊的頂部欄同步新增或修改「狀態說明」視窗。

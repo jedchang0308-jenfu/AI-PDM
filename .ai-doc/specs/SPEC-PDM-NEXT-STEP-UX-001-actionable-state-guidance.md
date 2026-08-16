@@ -7,6 +7,10 @@ Created: 2026-07-04
 Owner: Dev PM
 Related DEV: `DEV-PDM-NEXT-STEP-UX-001`
 
+> **2026-08-14 DEV-072 scoped amendment — unified detail action bar**
+>
+> `UnifiedPdmEntityDetailDrawer` 的 applicable future action 以持續可見的低色階 locked control 建立流程可發現性；disabled reason 只在可存取的 hover／focus／touch tooltip 或 popover 顯示，不再要求於按鈕旁常駐重複一段 recovery 文字。locked button 本身、鎖頭與提示合計必須在 5 秒內回答「為何不能按、誰或什麼條件能解鎖」。不適用、跨 domain 或永久終結 action 完全省略。此例外只適用 DEV-072 的共用 drawer action bar；其他 blocker、empty state、error 與沒有持續可見 action control 的 disabled 情境仍遵守本文原有 nearby next-step 規則。native `title` 不能作為唯一提示，鍵盤與觸控必須可取得同一資訊。
+
 ## Human Decision Brief
 
 使用者真正要知道的不是系統狀態本身，而是「那我現在要幹嘛」。
@@ -110,7 +114,7 @@ Each actionable state should be expressible as:
 
 ### Copy Rules
 
-- Use verbs first when action is needed: `補齊`, `建立新版次`, `回圖號模組`, `查看正式紀錄`, `請 R&D Manager 處理`.
+- Use verbs first when action is needed: `補齊`, `建立新版次`, `回圖號工作台`, `查看正式紀錄`, `請 R&D Manager 處理`.
 - Use completion language when no action is needed: `這版已完成，不用再送審`.
 - Avoid main-copy patterns such as `不能重複建立`, `發生錯誤`, `not_found`, `duplicate_active_submission`, `SQLITE_CONSTRAINT`.
 - Internal IDs can appear only as supporting evidence, not as the primary answer.
@@ -137,7 +141,7 @@ Each actionable state should be expressible as:
 
 Good patterns to preserve:
 
-- `src/app/upload/page.tsx`: formal same-revision blocker was simplified toward `這版已完成，不用再送審`, with actions such as `回圖號模組`, `建立新版次`, `查看正式紀錄`.
+- `src/app/upload/page.tsx`: formal same-revision blocker was simplified toward `這版已完成，不用再送審`, with actions such as `回圖號工作台`, `建立新版次`, `查看正式紀錄`.
 - `src/app/bom/reviews/page.tsx`: empty state uses `NextStepState` with actions.
 - `src/app/handoff/page.tsx`: empty list uses `NextStepState`.
 - `src/app/numbering/tasks/page.tsx`: empty task and notification states use `NextStepState`.

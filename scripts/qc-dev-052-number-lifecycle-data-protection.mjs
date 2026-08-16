@@ -32,10 +32,11 @@ process.env.PDM_NUMBER_LIFECYCLE_V2 = "true";
 
 let database;
 try {
-  const [{ getDb }, { createAsyncDatabaseClient }, { AsyncNumberStateFlowRepository }] = await Promise.all([
+  const [{ getDb }, { createAsyncDatabaseClient }, { AsyncNumberStateFlowRepository }, { projectNumberLifecycleUserView }] = await Promise.all([
     import("@/lib/db"),
     import("@/lib/db-async-provider"),
-    import("@/lib/repositories/number-state-flow-async-repository")
+    import("@/lib/repositories/number-state-flow-async-repository"),
+    import("@/lib/number-lifecycle-simplification")
   ]);
   database = getDb();
   database.prepare(`
@@ -234,6 +235,81 @@ try {
     Object.entries(expectedStages).every(([workspaceId, stage]) => actualStages[workspaceId] === stage) &&
       JSON.stringify(firstList.map((workspace) => workspace.lifecycleV2)) === JSON.stringify(secondList.map((workspace) => workspace.lifecycleV2)),
     JSON.stringify(actualStages)
+  );
+
+  const expectedUserStages = {
+    "f2-active": "drawing_preparation",
+    "f3-pending": "drawing_preparation",
+    "f4-approved": "drawing_preparation",
+    "f5-published": "official_controlled",
+    "f6-cancelled": "history_only",
+    "f7-inconsistent": "drawing_preparation"
+  };
+  const actualUserStages = Object.fromEntries(
+    firstList
+      .filter((workspace) => workspace.id in expectedUserStages && workspace.lifecycleV2)
+      .map((workspace) => [workspace.id, projectNumberLifecycleUserView(workspace.lifecycleV2).stage])
+  );
+  record(
+    "DEV052-DP-006 pre-formal legacy reservations share one user-visible first-revision preparation station",
+    Object.entries(expectedUserStages).every(([workspaceId, stage]) => actualUserStages[workspaceId] === stage) &&
+      actualStages["f3-pending"] === "in_review" &&
+      actualStages["f4-approved"] === "drawing_addendum_required" &&
+      actualStages["f7-inconsistent"] === "recovery_required",
+    JSON.stringify({ internalStages: actualStages, userStages: actualUserStages })
+  );
+
+  const sourceReservations = database.prepare(`
+    SELECT id, workspace_id AS workspaceId, draft_item_type AS itemType,
+           draft_item_id AS itemId, candidate_code AS candidateCode,
+           reservation_state AS state, row_version AS rowVersion
+    FROM number_candidate_reservations
+    WHERE company_id = 'company-jenfu'
+    ORDER BY id
+  `).all();
+  const projectedReservations = firstList
+    .flatMap((workspace) => workspace.reservations.map((reservation) => ({
+      id: reservation.id,
+      workspaceId: workspace.id,
+      itemType: reservation.itemType,
+      itemId: reservation.itemId,
+      candidateCode: reservation.candidateCode,
+      state: reservation.state,
+      rowVersion: reservation.rowVersion
+    })))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const projectedIds = projectedReservations.map((reservation) => reservation.id);
+  const sourceIds = sourceReservations.map((reservation) => reservation.id);
+  const duplicateMappings = projectedIds.length - new Set(projectedIds).size;
+  const unmapped = sourceIds.filter((id) => !projectedIds.includes(id));
+  const unexpected = projectedIds.filter((id) => !sourceIds.includes(id));
+  const sourceById = new Map(sourceReservations.map((reservation) => [reservation.id, reservation]));
+  const changed = projectedReservations.filter((reservation) => {
+    const source = sourceById.get(reservation.id);
+    return !source || JSON.stringify(canonical(source)) !== JSON.stringify(canonical(reservation));
+  });
+  const bucketCounts = firstList.reduce((counts, workspace) => {
+    const bucket = workspace.lifecycleV2?.stage ?? "unmapped";
+    counts[bucket] = (counts[bucket] ?? 0) + workspace.reservations.length;
+    return counts;
+  }, {});
+  record(
+    "DEV052-DP-005 every legacy reservation maps exactly once without renumbering",
+    sourceReservations.length === projectedReservations.length &&
+      duplicateMappings === 0 &&
+      unmapped.length === 0 &&
+      unexpected.length === 0 &&
+      changed.length === 0 &&
+      Object.values(bucketCounts).reduce((sum, count) => sum + count, 0) === sourceReservations.length,
+    JSON.stringify({
+      sourceCount: sourceReservations.length,
+      mappedCount: projectedReservations.length,
+      duplicateMappings,
+      unmapped,
+      unexpected,
+      changed: changed.map((reservation) => reservation.id),
+      bucketCounts
+    })
   );
 
   const schema = fs.readFileSync(path.join(root, "db", "schema.sql"), "utf8");

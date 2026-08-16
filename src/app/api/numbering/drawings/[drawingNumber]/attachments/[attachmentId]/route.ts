@@ -12,7 +12,7 @@ import { contentDispositionHeader } from "@/lib/file-response";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { requireAuthAsync } from "@/lib/auth-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
+import { PdmReviewScopeError, resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
 import type { PdmEntityKey } from "@/lib/pdm-entity-detail-contract";
 
 export const runtime = "nodejs";
@@ -39,7 +39,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
         actorId: auth.user.id,
         entityKey: `drawing:${drawing.id}` as PdmEntityKey,
         targetTypes: ["drawing_number", "numbering_draft_drawing", "drawing_revision_package", "drawing_revision"],
-        targetIds: [drawing.id, decodedDrawingNumber]
+        targetIds: [drawing.id, decodedDrawingNumber],
+        access: "review_evidence"
       }) : null;
       if (!scope) return NextResponse.json({ error: "PDM_REVIEW_SCOPE_NOT_FOUND" }, { status: 404 });
     }
@@ -72,6 +73,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
     const disposition = searchParams.get("preview") === "1" ? "inline" : "attachment";
     return buildMasterAttachmentFileResponse({ ...result, disposition });
   } catch (error) {
+    if (error instanceof PdmReviewScopeError) {
+      return NextResponse.json(
+        { error: { code: error.code, message: error.message } },
+        { status: error.code === "PDM_REVIEW_NOT_ASSIGNED" ? 403 : 409 }
+      );
+    }
     const message = error instanceof Error ? error.message : "MASTER_ATTACHMENT_DOWNLOAD_FAILED";
     return NextResponse.json({ error: message }, { status: masterAttachmentStatusFromError(message) });
   }

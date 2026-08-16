@@ -130,6 +130,8 @@ function projection(
   return { stage, reasonCode, primaryAction, exceptionKind };
 }
 
+export { isNumberLifecycleAdoptionHiddenFromUser, projectNumberLifecycleUserView } from "@/lib/number-lifecycle-user-view";
+
 export function projectNumberLifecycleV2(input: NumberLifecycleProjectionInput): NumberLifecycleProjectionV2 {
   const activeReservations = input.reservations.filter((reservation) => reservation.state !== "recycled");
   const reservationStates = new Set(activeReservations.map((reservation) => reservation.state));
@@ -177,16 +179,17 @@ export function projectNumberLifecycleV2(input: NumberLifecycleProjectionInput):
     return projection("recovery_required", "inconsistent", "view_history", "recovery");
   }
 
+  if (allReservationsAre("approved_locked") && input.candidateRevisions.length === 0) {
+    return projection(
+      "drawing_addendum_required",
+      "legacy_number_approved_without_drawing",
+      "complete_first_drawing",
+      "legacy"
+    );
+  }
+
   if (allReservationsAre("approved_locked")) {
-    if (input.legacyApproval?.status === "approved" && input.legacyApproval.applyStatus === "applied") {
-      return projection(
-        "drawing_addendum_required",
-        "legacy_number_approved_without_drawing",
-        "complete_first_drawing",
-        "legacy"
-      );
-    }
-    return projection("recovery_required", "inconsistent", "view_history", "recovery");
+    return projection("auto_finalizing", "bundle_review_pending", "none");
   }
 
   const activeCandidates = input.candidateRevisions.filter((candidate) => candidate.lifecycleStatus === "draft");
@@ -463,6 +466,8 @@ export async function addNumberingCandidateRevisionFile(input: {
   const localDevelopmentEvidence = isLocalDevelopmentPublicationEvidenceEnabled();
   const cleanupTarget: { current: { key: string; provider: string } | null } = { current: null };
   let fileId = "";
+  let fileLinkResult: "created" | "already_linked" | "reactivated" = "created";
+  let hashReused = false;
   try {
     const Repository = await lifecycleRepository();
     const execution = await executePdmCommandWithOutbox({
@@ -470,6 +475,24 @@ export async function addNumberingCandidateRevisionFile(input: {
       command,
       idempotencyPayload: command.payload,
       execute: async (client) => {
+        const repository = new Repository(client);
+        const existingLink = await repository.reuseCandidateFileLink({
+          workspaceId,
+          companyId: input.metadata.actor.organizationId,
+          candidateRevisionId,
+          actorId: input.metadata.actor.pdmUserId,
+          expectedRowVersion,
+          contentHash,
+          fileSize: bytes.byteLength,
+          role,
+          isPrimary
+        });
+        if (existingLink) {
+          fileId = existingLink.fileId;
+          fileLinkResult = existingLink.mode;
+          hashReused = true;
+          return existingLink.workspace;
+        }
         fileId = `NCRF-${crypto.randomUUID()}`;
         const ownerRootId = role === "cad_3d"
           ? await findOwnerPartRootForCandidate(client, {
@@ -485,6 +508,7 @@ export async function addNumberingCandidateRevisionFile(input: {
               fileSize: bytes.byteLength
             })
           : null;
+        hashReused = Boolean(reusable);
         const requestedKey = buildStorageKey([
           "candidate-revisions",
           input.metadata.actor.organizationId,
@@ -543,7 +567,7 @@ export async function addNumberingCandidateRevisionFile(input: {
             ? { partRootId: ownerRootId, modelRevision: "candidate" }
             : null
         };
-        return new Repository(client).addCandidateFile({
+        return repository.addCandidateFile({
           workspaceId,
           companyId: input.metadata.actor.organizationId,
           candidateRevisionId,
@@ -555,13 +579,34 @@ export async function addNumberingCandidateRevisionFile(input: {
       event: (workspace) => ({
         aggregateType: "numbering_candidate_revision",
         aggregateId: candidateRevisionId,
-        eventType: "pdm.numbering.candidate_revision.file_added.v1",
-        payload: { workspaceId, candidateRevisionId, fileId, role, roleSource: detectedRole.source, isPrimary, companyId: workspace.companyId }
+        eventType: fileLinkResult === "created" ? "pdm.numbering.candidate_revision.file_added.v1" : "pdm.numbering.candidate_revision.file_reused.v1",
+        payload: { workspaceId, candidateRevisionId, fileId, role, roleSource: detectedRole.source, isPrimary, fileLinkResult, hashReused, companyId: workspace.companyId }
       })
     });
+    let recognition: Awaited<ReturnType<typeof ensureDrawingRecognitionSessionForSourceContext>> = null;
+    if (fileLinkResult === "created") {
+      try {
+        recognition = await ensureDrawingRecognitionSessionForSourceContext({
+          companyId: input.metadata.actor.organizationId,
+          actorId: input.metadata.actor.pdmUserId,
+          sourceContextType: "candidate_revision",
+          sourceContextId: candidateRevisionId
+        });
+      } catch (recognitionError) {
+        console.error("Candidate revision recognition enqueue failed.", {
+          correlationId: input.metadata.actor.correlationId,
+          candidateRevisionId,
+          recognitionError
+        });
+      }
+    }
     return {
       ...lifecycleResponse(execution.result),
       localDevelopmentEvidence,
+      fileLinkResult,
+      hashReused,
+      contentChanged: !hashReused,
+      recognition,
       receipt: lifecycleReceipt(commandName, idempotencyKey, execution.reusedFromCommandReceipt)
     };
   } catch (error) {
@@ -975,6 +1020,7 @@ export async function retryNumberingCandidateBundleApply(input: {
 }
 import crypto from "node:crypto";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { ensureDrawingRecognitionSessionForSourceContext } from "@/lib/drawing-recognition";
 import {
   buildStorageKey,
   createFileStorageService,

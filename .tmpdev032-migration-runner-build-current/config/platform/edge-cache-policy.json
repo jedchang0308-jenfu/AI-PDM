@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "default": "bypass",
+  "cdn": {
+    "cacheMode": "use-origin-headers",
+    "serveStaleSeconds": 0,
+    "negativeCaching": false,
+    "requestCookieBypass": true,
+    "authorizationHeaderBypass": true
+  },
+  "allow": [
+    {
+      "path": "/_next/static/**",
+      "contentClass": "next-content-hashed-immutable",
+      "requiredResponseHeader": "Cache-Control: public, max-age=31536000, immutable"
+    }
+  ],
+  "deny": [
+    "/api/**",
+    "/account-recovery",
+    "/login",
+    "/settings/**",
+    "/numbering/**",
+    "/dashboard/**",
+    "responses-with-set-cookie",
+    "requests-with-cookie",
+    "requests-with-authorization",
+    "authenticated-html",
+    "session-sensitive-response"
+  ]
+}

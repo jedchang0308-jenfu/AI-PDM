@@ -99,7 +99,7 @@ Success:
 ## 4. End-State Architecture
 
 ```text
-圖號 / 圖料模組
+圖號 / 圖料工作台
   -> 圖面送審工作台
     -> 發行未完成診斷
     -> 附件整理 / 上傳 / 移除錯掛附件
@@ -542,4 +542,3 @@ Not authorized from this document alone:
 Continuation rule:
 
 - `完成 dev_task` must not start this DEV unless `.ai-doc/dev_task.md` is explicitly updated from `Prepared / RD Contract Ready` to an authorized implementation state.
-

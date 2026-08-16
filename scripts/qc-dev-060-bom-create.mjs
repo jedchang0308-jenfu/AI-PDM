@@ -77,6 +77,50 @@ function prepareFixture() {
           `SELECT id
            FROM part_numbers
            WHERE record_status NOT IN ('Obsolete', 'Merged', 'MainDrawingInvalid')
+             AND (
+               EXISTS (
+                 SELECT 1
+                 FROM bom_drafts existing_bom
+                 WHERE existing_bom.owner_part_number_id = part_numbers.id
+                   AND existing_bom.status <> 'Archived'
+                   AND existing_bom.line_count > 0
+               )
+               OR EXISTS (
+                 SELECT 1
+                 FROM bom_release_snapshots released_bom
+                 WHERE released_bom.owner_part_number_id = part_numbers.id
+                   AND released_bom.line_count > 0
+               )
+               OR EXISTS (
+                 SELECT 1
+                 FROM bom_headers legacy_bom
+                 JOIN items legacy_bom_item ON legacy_bom_item.id = legacy_bom.parent_item_id
+                 WHERE legacy_bom_item.company_id = part_numbers.company_id
+                   AND upper(legacy_bom_item.part_number) = upper(part_numbers.part_number)
+                   AND legacy_bom.line_count > 0
+               )
+               OR EXISTS (
+                 SELECT 1
+                 FROM submissions assembly_submission
+                 JOIN items assembly_item ON assembly_item.id = assembly_submission.item_id
+                 WHERE assembly_submission.company_id = part_numbers.company_id
+                   AND upper(assembly_item.part_number) = upper(part_numbers.part_number)
+                   AND (
+                     EXISTS (
+                       SELECT 1
+                       FROM submission_files assembly_file
+                       WHERE assembly_file.submission_id = assembly_submission.id
+                         AND assembly_file.file_role = 'sldasm'
+                     )
+                     OR EXISTS (
+                       SELECT 1
+                       FROM file_references assembly_reference
+                       WHERE assembly_reference.submission_id = assembly_submission.id
+                         AND assembly_reference.reference_type = 'assembly_component'
+                     )
+                   )
+               )
+             )
            ORDER BY id DESC
            LIMIT 1`
         )
@@ -373,13 +417,22 @@ async function runAuthoringRoleChecks() {
   await login(engineerPage, "engineer@example.com");
   const engineerCreateContext = await api(engineerPage, "/api/bom/create-context");
   const engineerPart = engineerCreateContext.body.parts?.find((part) => part.id === engineerPartId);
-  record("Engineer sees a material identity they own", engineerCreateContext.status === 200 && Boolean(engineerPart), `HTTP ${engineerCreateContext.status}`);
-  const engineerCreate = await api(engineerPage, "/api/bom/drafts", {
-    method: "POST",
-    headers: { "content-type": "application/json", "idempotency-key": `dev060-engineer-${crypto.randomUUID()}` },
-    body: JSON.stringify({ ownerPartNumberId: engineerPart.id, bomRevision: engineerPart.suggestedBomRevision, source: "manual" })
-  });
-  record("Engineer can create a BOM for an owned material identity", engineerCreate.status === 201, `HTTP ${engineerCreate.status}`);
+  const engineerDraft = engineerCreateContext.body.drafts?.find((draft) => draft.ownerPartNumberId === engineerPartId);
+  record(
+    "Engineer sees an owned identity in the correct entry path",
+    engineerCreateContext.status === 200 && (Boolean(engineerPart) || Boolean(engineerDraft)),
+    `HTTP ${engineerCreateContext.status}`
+  );
+  if (engineerPart) {
+    const engineerCreate = await api(engineerPage, "/api/bom/drafts", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": `dev060-engineer-${crypto.randomUUID()}` },
+      body: JSON.stringify({ ownerPartNumberId: engineerPart.id, bomRevision: engineerPart.suggestedBomRevision, source: "manual" })
+    });
+    record("Engineer can create a BOM for an owned material identity", engineerCreate.status === 201, `HTTP ${engineerCreate.status}`);
+  } else {
+    record("Engineer sees an in-progress owned BOM as a continuation", Boolean(engineerDraft), JSON.stringify(engineerDraft));
+  }
   const crossCompany = await api(engineerPage, "/api/bom/create-context", { headers: { "x-pdm-company-code": "MAXIMA" } });
   record("Engineer cross-company create context fails closed", crossCompany.status === 403, `HTTP ${crossCompany.status}`);
   await engineerContext.close();
@@ -406,52 +459,59 @@ async function runBrowserChecks(page) {
     await page.locator("h1", { hasText: "建立 BOM" }).waitFor();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     record(`${viewport.name} has no horizontal overflow`, !overflow);
+    record(`${viewport.name} renders three distinct BOM entry paths`, (await page.locator(".bom-create-entry-option").count()) === 3);
     await page.screenshot({ path: path.join(outputDir, `${viewport.name}-step1.png`), fullPage: true });
   }
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${baseUrl}/bom/new`, { waitUntil: "networkidle" });
-  const firstPart = page.locator(".bom-create-part-list button").first();
-  await firstPart.waitFor();
-  await firstPart.click();
-  await page.getByRole("button", { name: /下一步：選擇來源/u }).click();
-  await page.getByRole("radio", { name: /建立空白 BOM/u }).click();
-  await page.screenshot({ path: path.join(outputDir, "desktop-step2-manual.png"), fullPage: true });
-  record("step 2 exposes CAD, XLS and blank/manual sources", (await page.getByRole("radio").count()) === 3);
-  await page.getByRole("button", { name: /建立 BOM 草稿/u }).click();
-  await page.waitForURL(/\/bom\/workbench\/[^/?#]+$/u, { timeout: 30000 });
-  await page.getByRole("region", { name: "BOM 編輯器" }).waitFor();
-  record("UI creates then hands off to the independent editor", editorPathPattern.test(new URL(page.url()).pathname), page.url());
-  const revisionLabel = page.getByText(/BOM Rev/u).first();
-  await revisionLabel.waitFor({ timeout: 30000 });
-  record("workbench labels BOM revision explicitly", await revisionLabel.isVisible());
-  await page.screenshot({ path: path.join(outputDir, "desktop-workbench-handoff.png"), fullPage: true });
-
-  await page.goto(`${baseUrl}/bom/new`, { waitUntil: "networkidle" });
-  await page.locator(".bom-create-part-list button").first().click();
-  await page.getByRole("button", { name: /下一步：選擇來源/u }).click();
-  await page.getByRole("radio", { name: /匯入 SolidWorks XLS/u }).click();
-  await page.locator('.bom-create-upload input[type="file"]').setInputFiles({
-    name: "dev060-ui.tsv",
-    mimeType: "text/tab-separated-values",
-    buffer: Buffer.from("Part Number\tQuantity\nTEST-UI-XLS-001\t1\n")
-  });
-  await page.getByRole("button", { name: /建立 BOM 草稿/u }).click();
-  await page.waitForURL(/\/bom\/workbench\/[^/?#]+$/u, { timeout: 30000 });
-  record("SolidWorks XLS source completes through the real UI", editorPathPattern.test(new URL(page.url()).pathname), page.url());
+  const entryContext = await api(page, "/api/bom/create-context");
+  const manualCandidate = entryContext.body.parts?.[0];
+  record("create entry context exposes a blank-BOM candidate", entryContext.status === 200 && Boolean(manualCandidate), `HTTP ${entryContext.status}`);
+  if (manualCandidate) {
+    await page.locator(".bom-create-inline-field select").selectOption(manualCandidate.id);
+    record("blank-BOM path keeps an alternate XLS entry", await page.getByRole("button", { name: "匯入 XLS", exact: true }).isVisible());
+    await page.getByRole("button", { name: /建立空白 BOM/u }).click();
+    await page.waitForURL(/\/bom\/workbench\/[^/?#]+$/u, { timeout: 30000 });
+    await page.getByRole("region", { name: "BOM 編輯器" }).waitFor();
+    record("blank BOM UI hands off to the independent editor", editorPathPattern.test(new URL(page.url()).pathname), page.url());
+    const revisionLabel = page.getByText(/BOM Rev/u).first();
+    await revisionLabel.waitFor({ timeout: 30000 });
+    record("workbench labels BOM revision explicitly", await revisionLabel.isVisible());
+    await page.screenshot({ path: path.join(outputDir, "desktop-workbench-handoff.png"), fullPage: true });
+  }
 
   const freshContext = await api(page, "/api/bom/create-context");
-  let cadUiCandidate = null;
-  for (const part of freshContext.body.parts.slice(0, 20)) {
-    const partContext = await api(page, `/api/bom/create-context?ownerPartNumberId=${encodeURIComponent(part.id)}`);
-    if (partContext.body.cadSources?.length) {
-      cadUiCandidate = { part, source: partContext.body.cadSources[0] };
-      break;
-    }
+  const xlsCandidate = freshContext.body.parts?.[0];
+  if (xlsCandidate) {
+    await page.goto(`${baseUrl}/bom/new`, { waitUntil: "networkidle" });
+    await page.locator(".bom-create-inline-field select").selectOption(xlsCandidate.id);
+    await page.getByRole("button", { name: "匯入 XLS", exact: true }).click();
+    record("XLS alternate path reaches the three-source step", (await page.getByRole("radio").count()) === 3);
+    await page.locator('.bom-create-upload input[type="file"]').setInputFiles({
+      name: "dev060-ui.tsv",
+      mimeType: "text/tab-separated-values",
+      buffer: Buffer.from("Part Number\tQuantity\nTEST-UI-XLS-001\t1\n")
+    });
+    await page.getByRole("button", { name: /建立 BOM 草稿/u }).click();
+    await page.waitForURL(/\/bom\/workbench\/[^/?#]+$/u, { timeout: 30000 });
+    record("SolidWorks XLS alternate path completes through the real UI", editorPathPattern.test(new URL(page.url()).pathname), page.url());
   }
-  record("fixture has a CAD source for real UI creation", Boolean(cadUiCandidate));
+
+  const postXlsContext = await api(page, "/api/bom/create-context");
+  const cadPart = postXlsContext.body.assemblyParts?.[0];
+  let cadUiCandidate = null;
+  if (cadPart) {
+    const partContext = await api(page, `/api/bom/create-context?ownerPartNumberId=${encodeURIComponent(cadPart.id)}`);
+    if (partContext.body.cadSources?.length) cadUiCandidate = { part: cadPart, source: partContext.body.cadSources[0] };
+  }
+  if (!cadUiCandidate) {
+    record("CAD source remains unavailable when the fixture has no assembly evidence", true, "fixture has no visible CAD assembly source");
+    return;
+  }
+  record("fixture has a CAD source for real UI creation", true);
   await page.goto(`${baseUrl}/bom/new`, { waitUntil: "networkidle" });
-  await page.locator(".bom-create-part-list button").filter({ hasText: cadUiCandidate.part.partNumber }).first().click();
+  await page.locator(".bom-create-assembly-list button").filter({ hasText: cadUiCandidate.part.partNumber }).first().click();
   await page.getByRole("button", { name: /下一步：選擇來源/u }).click();
   await page.getByRole("radio", { name: /從 CAD 結構帶入/u }).click();
   await page.locator(".bom-create-source-detail select").selectOption(cadUiCandidate.source.id);

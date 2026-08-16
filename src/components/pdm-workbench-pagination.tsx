@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 export type PdmWorkbenchPaginationProps = {
   pageIndex: number;
   hasNextPage: boolean;
+  hasPreviousPage?: boolean;
   loading?: boolean;
   onPrevious: () => void;
   onNext: () => void;
@@ -13,15 +14,17 @@ export type PdmWorkbenchPaginationProps = {
 export function PdmWorkbenchPagination({
   pageIndex,
   hasNextPage,
+  hasPreviousPage,
   loading = false,
   onPrevious,
   onNext
 }: PdmWorkbenchPaginationProps) {
-  if (pageIndex <= 0 && !hasNextPage) return null;
+  const canPrevious = hasPreviousPage ?? pageIndex > 0;
+  if (!canPrevious && !hasNextPage) return null;
 
   return (
     <nav className="number-state-pagination pdm-workbench-pagination" aria-label="工作台分頁">
-      <button className="secondary-button" type="button" disabled={pageIndex <= 0 || loading} onClick={onPrevious}>
+      <button className="secondary-button" type="button" disabled={!canPrevious || loading} onClick={onPrevious}>
         <ChevronLeft size={16} aria-hidden="true" />
         上一頁
       </button>

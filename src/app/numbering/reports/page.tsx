@@ -345,7 +345,7 @@ function ReportOverview({
   return (
     <div style={{ display: "grid", gap: "0.75rem", padding: "12px 16px 16px" }}>
       <div className="metrics" style={{ marginBottom: 0 }}>
-        <Metric label="主根號" value={counts.roots ?? 0} />
+        <Metric label="圖料根號" value={counts.roots ?? 0} />
         <Metric label="料號" value={counts.parts ?? 0} />
         <Metric label="圖號" value={counts.drawings ?? 0} />
         <Metric label="未結待辦" value={counts.openTasks ?? 0} />
@@ -378,9 +378,9 @@ function DepartmentPanel({ page }: { page: DepartmentPage | null }) {
         compact
         eyebrow="不用處理"
         title="此分頁目前尚無資料"
-        body="目前沒有可彙整的部門資料。若要追查來源，請回圖料模組或待辦清單確認是否有未結項目。"
+        body="目前沒有可彙整的部門資料。若要追查來源，請回圖料工作台或待辦清單確認是否有未結項目。"
         actions={[
-          { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+          { href: "/numbering/search", label: "回圖料工作台", variant: "primary" },
           { href: "/numbering/tasks", label: "查看待辦" }
         ]}
       />
@@ -397,7 +397,7 @@ function DepartmentPanel({ page }: { page: DepartmentPage | null }) {
       <div className="metrics" style={{ marginBottom: 0 }}>
         <Metric label="未結待辦" value={counts.openTasks ?? 0} />
         <Metric label="審核規則" value={counts.approvalRules ?? 0} />
-        <Metric label="主根號" value={counts.roots ?? 0} />
+        <Metric label="圖料根號" value={counts.roots ?? 0} />
         <Metric label="圖號" value={counts.drawings ?? 0} />
       </div>
     </div>
@@ -411,9 +411,9 @@ function ProjectBuckets({ buckets }: { buckets: ProjectBucket[] }) {
         compact
         eyebrow="不用處理"
         title="目前沒有專案待辦資料"
-        body="專案沒有未結待辦時不需要處理。若你在找特定圖號或料號，請回圖料模組重新查詢。"
+        body="專案沒有未結待辦時不需要處理。若你在找特定圖號或料號，請回圖料工作台重新查詢。"
         actions={[
-          { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+          { href: "/numbering/search", label: "回圖料工作台", variant: "primary" },
           { href: "/numbering/tasks", label: "查看待辦" }
         ]}
       />
@@ -573,7 +573,7 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
       <div className="empty">
         <ShieldAlert size={22} aria-hidden="true" />
         <h2>報表暫時無法讀取</h2>
-        <p>{message} 現在請重試；若仍失敗，請回待辦或圖料模組確認來源資料，或請 Admin 協助。</p>
+        <p>{message} 現在請重試；若仍失敗，請回待辦或圖料工作台確認來源資料，或請 Admin 協助。</p>
         <div className="empty-actions">
           <button className="secondary-button" type="button" onClick={onRetry}>
             <RotateCcw size={16} />
@@ -607,7 +607,7 @@ function resultSummary(result: Record<string, unknown>) {
   const roots = Array.isArray(result.roots) ? result.roots.length : 0;
   const parts = Array.isArray(result.parts) ? result.parts.length : 0;
   const drawings = Array.isArray(result.drawings) ? result.drawings.length : 0;
-  return `主根號 ${roots} / 料號 ${parts} / 圖號 ${drawings}`;
+  return `圖料根號 ${roots} / 料號 ${parts} / 圖號 ${drawings}`;
 }
 
 function formatDateTime(value: string) {

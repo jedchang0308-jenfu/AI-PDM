@@ -8,6 +8,7 @@ import { projectFileExists, readProjectFile, readProjectJson } from "./qc-projec
 const root = process.cwd();
 const schema = readProjectFile(root, "db/schema.sql");
 const serviceSource = readProjectFile(root, "src/lib/pdm-change-control-domain.ts");
+const numberStateFlowRepositorySource = readProjectFile(root, "src/lib/repositories/number-state-flow-async-repository.ts");
 const wrapperSource = readProjectFile(root, "src/lib/pdm-change-control.ts");
 const apiListRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/route.ts");
 const apiPatchRouteSource = readProjectFile(root, "src/app/api/numbering/part-number-drafts/[draftId]/route.ts");
@@ -422,6 +423,13 @@ record("CHG-SRC-003 schema defines replacement / FFF / review / BOM flag tables"
   "bom_reconfirmation_flags"
 ].every((text) => schema.includes(`CREATE TABLE IF NOT EXISTS ${text}`)), "db/schema.sql");
 record("CHG-SRC-004 active draft number unique index exists", schema.includes("idx_part_number_drafts_active_number"), "db/schema.sql");
+record(
+  "CHG-SRC-004A replacement and candidate allocators share reserved-number truth",
+  serviceSource.includes("reserved_number_already_candidate_reservation") &&
+    serviceSource.includes("FROM number_candidate_reservations") &&
+    numberStateFlowRepositorySource.includes("SELECT reserved_part_number FROM part_number_drafts"),
+  "cross-domain reserved part-number guard"
+);
 record("CHG-SRC-005 domain service exposes controlled-boundary functions", [
   "getPartNumberControlBoundary",
   "assertPartNumberDraftIsRecyclable",
@@ -615,6 +623,39 @@ try {
         actor: engineer
       }),
     "reserved_number_already_active_draft"
+  );
+
+  database
+    .prepare(
+      `INSERT INTO numbering_draft_workspaces (id, company_id, draft_mode, owner_id, created_by)
+       VALUES (?, ?, 'new_bundle', ?, ?)`
+    )
+    .run("workspace-qc-cross-reservation", companyId, engineer.userId, engineer.userId);
+  database
+    .prepare(
+      `INSERT INTO number_candidate_reservations (
+         id, company_id, workspace_id, draft_item_type, draft_item_id, candidate_code,
+         sequence_scope_key, sequence_no, reservation_state, created_by
+       ) VALUES (?, ?, ?, 'part', ?, ?, ?, 1, 'active', ?)`
+    )
+    .run(
+      "reservation-qc-cross-reservation",
+      companyId,
+      "workspace-qc-cross-reservation",
+      "draft-part-qc-cross-reservation",
+      "P-QC-CHG-CROSS-001",
+      "part:P-QC-CHG-CROSS",
+      engineer.userId
+    );
+  await expectReject(
+    "CHG-GUARD-001A candidate-workspace reservation blocks replacement draft reuse",
+    () => service.reservePartNumberDraft({
+      reservedPartNumber: "P-QC-CHG-CROSS-001",
+      draftType: "replacement_part",
+      itemType: "self_made",
+      actor: engineer
+    }),
+    "reserved_number_already_candidate_reservation"
   );
 
   const updated = await service.updatePartNumberDraft({
@@ -995,6 +1036,9 @@ try {
   const replacementLinkCount = database
     .prepare("SELECT COUNT(*) AS count FROM part_replacement_links WHERE old_part_number_id = ? AND new_part_number_id = ?")
     .get(releaseOldPart.partId, releaseResult.replacementPartNumberId).count;
+  const replacementDrawingLinkCount = database
+    .prepare("SELECT COUNT(*) AS count FROM drawing_part_links WHERE drawing_number_id = ? AND part_number_id = ? AND link_type = 'primary_manufacturing'")
+    .get(releaseDrawing.drawingId, releaseResult.replacementPartNumberId).count;
   const bomFlagCount = database
     .prepare("SELECT COUNT(*) AS count FROM bom_reconfirmation_flags WHERE bom_draft_id = ? AND old_part_number_id = ?")
     .get(flaggedBomDraftId, releaseOldPart.partId).count;
@@ -1009,13 +1053,17 @@ try {
     .get(flaggedBomDraftId, releaseOldPart.partId);
   assert(
     "CHG-REVIEW-005 confirmed impact release creates part, replacement link, and BOM flag",
-    releaseResult.replacementDraft?.status === "released" && replacementLinkCount === 1 && bomFlagCount === 1 && releaseResult.bomReconfirmationFlagCount === 1,
-    JSON.stringify({ releaseResult, replacementLinkCount, bomFlagCount })
+    releaseResult.replacementDraft?.status === "released" &&
+      replacementLinkCount === 1 &&
+      replacementDrawingLinkCount === 1 &&
+      bomFlagCount === 1 &&
+      releaseResult.bomReconfirmationFlagCount === 1,
+    JSON.stringify({ releaseResult, replacementLinkCount, replacementDrawingLinkCount, bomFlagCount })
   );
   const releasedReplacementPart = database
     .prepare(
       `
-      SELECT pn.part_number, pn.sequence_no, pn.sequence_code, pn.rule_version_id, pr.root_code, pr.rule_version_id AS root_rule_version_id
+      SELECT pn.part_number, pn.part_name, pn.sequence_no, pn.sequence_code, pn.rule_version_id, pr.root_code, pr.rule_version_id AS root_rule_version_id
       FROM part_numbers pn
       JOIN part_roots pr ON pr.id = pn.part_root_id
       WHERE pn.id = ?
@@ -1025,6 +1073,7 @@ try {
   assert(
     "CHG-REVIEW-005A confirmed impact release creates compact v2 formal part",
     releasedReplacementPart?.part_number === "90001-P01" &&
+      releasedReplacementPart.part_name === `QC part ${releaseOldPart.partNumber}` &&
       releasedReplacementPart.root_code === "90001" &&
       releasedReplacementPart.sequence_no === 1 &&
       releasedReplacementPart.sequence_code === "01" &&

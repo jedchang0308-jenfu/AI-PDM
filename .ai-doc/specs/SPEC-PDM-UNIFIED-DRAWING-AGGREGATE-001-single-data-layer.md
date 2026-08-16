@@ -2,6 +2,7 @@
 
 Status: `Local RD Implemented / QA-QC Passed / Human Directed / Production Migration & Release Gated`
 Date: 2026-08-11
+Decision amended: 2026-08-15
 Owner: Dev PM
 Related DEV: `DEV-064`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-AGGREGATE-001-canonical-drawing-and-revision.md`
@@ -28,6 +29,8 @@ RD readiness update：`DrawingProjectionFull`固定由canonical Drawing/Revision
 
 同一個圖號從建立、首版準備、送審、研發受控、發布、作廢到歷史，只能是一個 `Drawing` 業務物件。
 狀態改變不得再建立第二個圖號 identity，也不得把候選版次檔案複製成另一套正式權威。
+
+2026-08-15 使用者追加零遺漏與單一路徑決策：所有舊保留號都必須在開發階段自動納入這個生命週期。凡尚未正式化且非終結，不論來源是 `active`、`review_locked`、`approved_locked` 或不一致 facts，一般使用者只看見同一「首版準備」站；既有審核、補登、recovery、adoption 與 reconciliation 全部是 server/admin-only 證據。已研發受控／正式／發布與 terminal 歷史維持真實下游狀態，不得重開為可編輯首版，也不得因預設 filter 消失。
 
 使用者點任何狀態的圖號時，皆進入同一個「圖號明細」入口與共用 drawer frame；畫面內容、CTA 與唯讀／可編輯能力由 `lifecycle state + actor permission` 決定。
 
@@ -64,6 +67,8 @@ RD readiness update：`DrawingProjectionFull`固定由canonical Drawing/Revision
 ## 3. State and capability policy
 
 UI 只呈現 capability，不是安全邊界。所有 mutation 必須由 server/domain policy 再驗證：
+
+User-visible lifecycle 另有收斂規則：legacy／inconsistent source facts在正式化前只投影 `drawing_preparation`；不得把 `legacy_number_review`、`drawing_addendum_required`、adoption bucket、reconciliation 或 recovery owner 渲染為一般使用者 status、route、badge、CTA 或說明。內部 lifecycle/state machine與稽核資料不因此改寫。
 
 | State | Typical capability | Server rule |
 |---|---|---|
@@ -110,6 +115,15 @@ UI 只呈現 capability，不是安全邊界。所有 mutation 必須由 server/
 - 舊 table 在過渡期維持 reader 相容；新功能不得再把它們視為兩套業務物件。
 - Production migration、live backfill、flag activation、deploy 與 release 需獨立 release/data gate，本 DEV 不執行。
 
+### 6.1 Production legacy-reservation reconciliation
+
+- canonical backfill 的來源清冊以每一筆 `number_candidate_reservations.id` 為最小單位；workspace 聚合列與 Drawing row count 都不能代替 source count。
+- drawing reservation 必須恰好對應一個 canonical Drawing，或在來源 facts 不一致時進入具名 `recovery_required`；root／part reservation 不轉成 Drawing，但必須保留在同一 workspace／圖料 bundle 的 canonical relation／compatibility reference 中。
+- source reservation 的 ID、candidate code、company、workspace、item type／ID、state、row version與approval／promotion pointers不得被 canonical backfill 更新、刪除或改號。
+- flag off migration readback與read-only canary的cutover freeze必須證明：`source_count = distinct_mapped_count = bucket_distinct_id_sum`，且 `unmapped=0`、`duplicate_mapping=0`、`renumbered=0`、`source_row_hash_changed=0`。正式開放操作後合法 state／row-version 可前進，但舊 cohort 的 identity、code、evidence chain與唯一 mapping仍不得遺失。
+- `recovery_required` 可在內部保留既有矛盾而不猜測，但每筆都必須有原因與 owner；它是 admin/release gate 清冊，不是一般使用者 adoption 路徑。任何未列入 recovery 清冊的來源 reservation 都阻擋上線。
+- rollback 關閉 flag／new writes並保留 canonical 與 compatibility facts；不得 down migration、刪除 backfill 結果或改寫來源 reservation 來恢復舊版。
+
 ## 7. Invariants and failure behavior
 
 - `(company_id, drawing_number)` 在非 NULL 時唯一。
@@ -129,6 +143,8 @@ UI 只呈現 capability，不是安全邊界。所有 mutation 必須由 server/
 6. 多圖 workspace 每張圖各自有 stable Drawing identity；workspace 只負責整包操作。
 7. 舊 deep link、既有 formal reader 與原子整包審核仍可運作。
 8. 1440×900、1024×768、390×844 無抽屜裁切、水平溢位、visible error 或 console/server 5xx。
+9. 每一筆舊 reservation ID 都在 canonical／compatibility adoption manifest 中恰好出現一次；所有未正式化且非終結案件在一般使用者畫面只由「首版準備」找到，不顯示 legacy／addendum／recovery adoption 路徑；正式、發布與 terminal 歷史仍由真實下游分類找到。
+10. production cutover evidence 為全 company、全分頁、全狀態逐筆對帳，零遺漏、零重複、零改號，且 cutover freeze 期間零來源 hash 變更；抽樣與 UI 筆數不構成通過。
 
 ## 9. Stop conditions
 
@@ -136,3 +152,13 @@ UI 只呈現 capability，不是安全邊界。所有 mutation 必須由 server/
 - 無法在單一 transaction 保證 canonical 與 compatibility projection 全成全退。
 - 必須放寬編號唯一性、snapshot、permission 或受控版次不可竄改政策。
 - 需修改 DEV-054 protected migration／spec／QA／QC 或刪除既有正式資料。
+- source/adoption manifest 任一筆數、distinct ID、候選號或 hash 不一致，或任一舊 reservation 無 canonical／compatibility／recovery reference。
+- rollback 需要刪除 canonical backfill 結果、candidate／approval facts或更新來源 reservation rows。
+
+## 10. 2026-08-14 DEV-073 CAPA Amendment — Effective Lifecycle Convergence
+
+- canonical synchronizer與Drawing workbench reader必須共用同一effective revision lifecycle projector。
+- 小數版physical `Pending`若有既有terminal FFF confirmation，effective state為`rd_controlled`；physical package與decision evidence維持原值，不得投影為`Released`。
+- promoted candidate若沒有active approval request是既有受控證據；若仍有active request則不得遮蔽進行中的review。
+- canonical controlled／released／superseded狀態是單向證據，compatibility sync不得因較舊physical source降級；no-op同步不得製造語意狀態差異。
+- drift repair必須由domain synchronizer執行，預設copy dry-run，apply需expected SHA-256、明確confirmation與hash-verified backup。完整契約見`SPEC-PDM-STATUS-ACTIONABILITY-CAPA-001`。

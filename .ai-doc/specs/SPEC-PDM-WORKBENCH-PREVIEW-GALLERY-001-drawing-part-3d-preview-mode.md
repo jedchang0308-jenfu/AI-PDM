@@ -39,8 +39,8 @@ Related authority: `.ai-doc/specs/SPEC-PDM-WORKBENCH-CORE-001-shared-read-and-co
 
 ### 1.2 交付結果
 
-- 圖號模組與料號模組各新增 `預覽圖` 模式；既有模式命名為 `清單`。
-- 切換器採圖料模組 `關係樹／矩陣` 的 segmented-control 視覺與互動語言。
+- 圖號工作台與料號工作台各新增 `預覽圖` 模式；既有模式命名為 `清單`。
+- 切換器採圖料工作台 `關係樹／矩陣` 的 segmented-control 視覺與互動語言。
 - 預覽主體為既有 native SolidWorks pipeline 產生的靜態 PNG；瀏覽器不解析 `.SLDPRT/.SLDASM`，也不新增互動式 3D viewer。
 - 圖號卡片顯示該 canonical drawing 最新有效版次的 primary 3D 預覽。
 - 料號卡片顯示同主根號下、最小圖號流水號之代表圖的最新有效版次 primary 3D 預覽，並明示 `代表圖`。
@@ -83,7 +83,7 @@ PM 對 1A 的可執行解讀：`根號` 對應 canonical `part_root_id`；`最�
 
 ### 4.1 Mode switch
 
-建立共用 `PdmWorkbenchLayoutSwitch`；優先抽取圖料模組既有 `關係樹／矩陣` segmented-control primitive，不複製另一套近似 CSS。
+建立共用 `PdmWorkbenchLayoutSwitch`；優先抽取圖料工作台既有 `關係樹／矩陣` segmented-control primitive，不複製另一套近似 CSS。
 
 - 選項固定為 `清單`、`預覽圖`；順序不可交換。
 - 使用真正的 button 或等價 radio semantics，具可辨識 selected state、focus ring、`aria-pressed` 或 radiogroup state。

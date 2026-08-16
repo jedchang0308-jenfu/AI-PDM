@@ -31,7 +31,8 @@ export function approvalApiErrorResponse(error: unknown, operation: "decision" |
   const correlationId = request.headers.get("x-correlation-id")?.trim() || crypto.randomUUID();
   console.error(`Approval ${operation} failed`, {
     correlationId,
-    errorName: error instanceof Error ? error.name : "UnknownError"
+    errorName: error instanceof Error ? error.name : "UnknownError",
+    errorMessage: error instanceof Error ? error.message : String(error)
   });
   return Response.json(
     { error: operation === "decision" ? "APPROVAL_DECISION_FAILED" : "APPROVAL_APPLY_FAILED", correlationId },

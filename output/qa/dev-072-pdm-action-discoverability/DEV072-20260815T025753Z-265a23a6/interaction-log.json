@@ -1,0 +1,14 @@
+[
+  {
+    "type": "server-start-retry",
+    "label": "main",
+    "attempt": 1,
+    "reason": "transient target-route build manifest race"
+  },
+  {
+    "type": "server-start-retry",
+    "label": "main",
+    "attempt": 2,
+    "reason": "transient target-route build manifest race"
+  }
+]

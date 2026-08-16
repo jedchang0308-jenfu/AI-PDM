@@ -1,0 +1,98 @@
+{
+  "checkedAt": "2026-08-13T12:33:04.715Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813123226",
+  "total": 17,
+  "passed": 17,
+  "failed": 1,
+  "consoleErrors": [],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [],
+  "results": [
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"0b10d0a0-924b-4dff-bb25-ba5866361dde\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-24346287\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-24346287\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T12:32:35.755Z\",\"updated_at\":\"2026-08-13T12:32:35.755Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"0b10d0a0-924b-4dff-bb25-ba5866361dde\",\"ownerPartNumberId\":\"dev071-browser-parent-part-24346287\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"5d5d2e03-fb49-414b-a59c-84d6a1a0adbb\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/0b10d0a0-924b-4dff-bb25-ba5866361dde\"}"
+    },
+    {
+      "name": "CR-001 toolbar Topic opens canonical picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-001 canonical item inserted as Topic",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-002 toolbar Subtopic opens picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-002 keyboard Enter inserts first result",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-003 hover plus opens picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-003 hover plus inserts child",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "TB-005 Insert menu exposes Parent/Floating/Group",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "TB-005 Parent/Floating/Group actions complete",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "KB-008 leaf Delete is direct and reversible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "KB-008 Ctrl+Z restores leaf",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-004..007 More menu exposes lifecycle actions",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-006 clone action is enabled on saved Draft",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-006 clone creates and selects a new Draft",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-005 inactive Draft can be set active",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-007 delete shows high-risk impact confirmation",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('BOM 草稿已刪除。', { exact: true }) to be visible\u001b[22m\n"
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "label": "locked-desktop",
+    "type": "hover",
+    "actionId": "detail:drawing:submit_review",
+    "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+      "left": 1057.96875,
+      "right": 1324.03125,
+      "top": 794.90625,
+      "bottom": 831,
+      "viewportWidth": 1440,
+      "viewportHeight": 900
+    }
+  },
+  {
+    "label": "locked-desktop",
+    "type": "drawer-anchor-navigation",
+    "actionId": "detail:drawing:edit",
+    "anchor": "drawing-data-maintenance",
+    "url": "http://127.0.0.1:57099/numbering/drawings?detail=drawing%3Adrawing-draft-drawing-f398667d-6a2a-49de-97d5-933c6442b9b5#drawing-data-maintenance"
+  },
+  {
+    "label": "first-candidate-upload",
+    "type": "drawer-anchor-navigation",
+    "actionId": "detail:drawing:edit",
+    "anchor": "drawing-data-maintenance",
+    "url": "http://127.0.0.1:57099/numbering/drawings?detail=drawing%3Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd#drawing-data-maintenance"
+  }
+]

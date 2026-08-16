@@ -1,10 +1,10 @@
 # SPEC-PDM-APPROVAL-PLATFORM-001 - System-wide approval platform
 
-Status: Phase 1A-1B local implementation complete; Phase 1C-A reviewer workbench entrypoint consolidation implemented and locally verified; Phase 1C-B legacy reviewer page convergence implemented and locally verified; Phase 1C-C low-noise drawing object pending-review projection implemented and locally verified; Phase 1C-D / DEV-067 native owner-module review detail reuse and scoped full projections are `Local RD Implemented / Local QA-QC Passed`; Phase 2-4 transitional adapters present; Phase 5 guarded dry-run/apply tooling present; Phase 6 release/live migration not authorized
+Status: Phase 1A-1B local implementation complete; Phase 1C-A reviewer workbench entrypoint consolidation implemented and locally verified; Phase 1C-B legacy reviewer page convergence implemented and locally verified; Phase 1C-C low-noise drawing object pending-review projection implemented and locally verified; Phase 1C-D / DEV-067 native owner-module review detail reuse and scoped full projections are `Local RD Implemented / Local QA-QC Passed`; DEV-070 approval inbox workbench reuse is `Local RD Implemented / Focused Contract + Query + Browser QC Passed / Full APW Matrix Pending / Production Release Gated`; Phase 2-4 transitional adapters present; Phase 5 guarded dry-run/apply tooling present; Phase 6 release/live migration not authorized
 Date: 2026-07-08
 Owner: Dev PM
-Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
-Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`; `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
+Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`
+Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`; `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`; `.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`
 Related QA: `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
 Amends: `DEV-PDM-NUMBERING-004`, `DEV-PDM-SUBMISSION-GATE-001`, `DEV-PDM-LIFECYCLE-ACTIONS-001`, numbering approval flows, submission lifecycle requests, BOM review requests, part cost change requests and drawing revision supplement approvals.
 
@@ -55,6 +55,339 @@ Acceptance direction:
 - Multi-target review identifies every target in scope, provides stable target/section anchors and retains one atomic decision boundary. If no canonical aggregate exists, the request is not actionable until the contract is resolved.
 
 2026-08-12 readiness update: the same `DEV-067` is now `RD Implementation Ready` for local Phase 1A～1D. Exact projection models, unified read API, one-snapshot boundary, scoped-review receipt, action-to-owner resolver, multi-target ambiguity handling, transaction lock matrix, preview/return contract, file list, phases and `UDD-001..050` QA evidence IDs are authoritative in `SPEC-PDM-ENTITY-DETAIL-DRAWER-001` and `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`. Product implementation may begin locally; schema/migration, production/staging data, deployment, release, merge and PR remain unauthorized.
+
+## 2026-08-12 Human Decision Amendment - Approval inbox workbench reuse (`DEV-070`)
+
+Status: `RD Implementation Ready / Human Confirmed / Local RD Not Started / Production Release Gated`.
+
+This amendment is a `Compatible extension` of the existing unified inbox, DEV-062 shared workbench mechanics, DEV-066 toolbar muscle memory and DEV-067 owner-module review navigation. It does not change approval assignment, eligibility, decision, audit, idempotency, request status, domain handler or locked owner-data authority.
+
+Confirmed product rules:
+
+1. `/approvals` adopts the same workbench shell and interaction mechanics used by the PDM workbenches: stable topbar/toolbar/result panel placement, search/filter state, selected row, loading/empty/error/recovery states, keyboard behavior, cursor pagination, URL/history and responsive rules.
+2. Shared mechanics do not imply a shared domain row body. Relation keeps its expandable root tree/matrix projection; approval uses an `ApprovalInboxRowProjection` for review target/name, review type, requester, requested time and request status. `/approvals` must not expose the relation tree/matrix view switch.
+3. The shared workbench core must not interpret approval status, action code, assignment or decision capability. Approval APIs/adapters own those values and map them into generic row, filter, cursor and navigation contracts.
+4. Selecting a covered PDM request continues to navigate to the server-authorized Drawing, Part or Relation owner route and mounts the same `UnifiedPdmEntityDetailDrawer`. `/approvals` must not reintroduce an approval-only detail body, file preview, attachment section, snapshot body or decision footer.
+5. Navigation obeys **`哪裡來，哪裡去`** at list granularity. The validated `returnTo` preserves status, domain, action, search query, cursor/page and selected request. Close, Back or completed decision returns to the exact inbox context, keeps the affected row locatable and refreshes affected data.
+6. Search and pagination are server-authoritative. The current fixed `limit=100` merged list is not the end-state contract; pagination across native and legacy sources requires deterministic ordering, a stable tie-breaker and no duplicate or missing rows.
+7. Rapid query/filter/page changes must cancel or supersede older requests. A late response must not overwrite newer query, rows, selection or URL state.
+8. Keyboard and accessibility behavior follows the shared workbench contract: ArrowUp/Down, Home/End, PageUp/Down, Enter, Escape and copy-current-identifier where safe; inputs, textareas and selects retain native behavior.
+9. Normal rows remain low-noise. Status uses a compact badge/icon/row state and is not duplicated in large cards. Only blocked, error, empty, forbidden or unavailable states show recovery guidance.
+
+Current observed gaps:
+
+- `src/app/approvals/page.tsx` owns independent `useState`/`loadInbox`, item buttons and approval-only list CSS instead of the shared workbench controller/list/pagination mechanics.
+- The inbox lacks search, signed/cursor pagination and shared list keyboard behavior; `items.length` only describes the loaded slice.
+- The page-local request path has no shared abort/request-sequence guard, so rapid filter changes can permit stale-response replacement.
+- Filter values reach the URL, but selected request and cursor/page do not form a complete canonical return context. Returning from an owner route can therefore lose the original selected row.
+- Visual similarity is currently maintained by parallel DOM/CSS rather than a single shell/interaction contract, allowing future density, state and responsive drift.
+
+Current phase scope:
+
+- Reuse or extract shared workbench shell/toolbar/collection/pagination primitives and the common controller behaviors without moving domain policy into core.
+- Add approval search, deterministic server-side cursor pagination, URL selection and request race protection.
+- Keep approval-specific row/filter projection and server-authorized owner navigation.
+- Preserve the existing legacy fallback only where a canonical owner surface is not yet available; the inbox shell remains shared regardless of detail destination.
+
+Out of scope:
+
+- Relation tree/matrix controls, root expansion and relation mutation inside `/approvals`.
+- A new approval-specific detail UI or duplicated Drawing/Part/Relation projection.
+- Approval authority, permissions, status machine, decision semantics, audit retention, data lock or schema/migration changes.
+- Mandatory owner-detail convergence for BOM, submission and drawing-package domains in this phase.
+- Production, staging, deploy or release execution.
+
+Acceptance direction:
+
+- `/approvals` and PDM workbenches exhibit the same toolbar/result/selection/pagination/loading/error/empty muscle memory while preserving approval-specific fields.
+- URL reload, share, Back/Forward and owner-route return restore exact query/filter/page/selection context; rapid interactions only render the newest response.
+- More than 100 eligible requests are fully reachable with deterministic no-duplicate/no-gap pagination and safe invalid-cursor recovery.
+- Covered PDM rows mount exactly one owner-route `UnifiedPdmEntityDetailDrawer`; no enabled-path approval-only body coexists.
+- 1440x900, 1024x768, 768x1024 and 390x844 pass interaction, keyboard, focus, scroll-owner, overflow, visible-error, console and unexpected 4xx/5xx checks.
+
+ADR decision: no new ADR is required for RD Implementation Ready. `ADR-PDM-WORKBENCH-CORE-001` already selects shared mechanics plus domain adapters and rejects a mega generic domain component. Re-enter architecture review only if cursor correctness requires a new persistent model, core must understand approval policy, or owner navigation/safe return must change.
+
+### DEV-070 RD handoff contract
+
+#### 1. Canonical inbox read API
+
+`GET /api/approvals/inbox` remains the single inbox read entrypoint and accepts:
+
+| Parameter | Contract |
+|---|---|
+| `status` | Existing approval status filter; normalized by approval authority. |
+| `domain` | Existing domain filter; empty means all authorized domains. |
+| `action` | Existing action filter; empty means all authorized actions. |
+| `query` | New server-side search term; trim, collapse whitespace and compare case-insensitively. |
+| `limit` | Default `60`, minimum `1`, maximum `100`. |
+| `cursor` | Optional signed `approval-inbox-v1` cursor. Invalid, tampered or context-mismatched values return HTTP 400. |
+
+The response contains `rows`, `nextCursor`, `previousCursor`, `generatedAt`, normalized `filters` and reviewer-scoped `summary.pending`. `summary.pending` is an exact authorized count and must not be derived from the current page length. If an exact filtered total is not returned, the visible list label says `本頁 N 筆`, not a false total.
+
+#### 2. Approval row projection
+
+Each `ApprovalWorkbenchRow` contains:
+
+```ts
+type ApprovalWorkbenchRow = {
+  rowKey: `approval:${string}:${string}`;
+  requestId: string;
+  source: string;
+  displayCode: string | null;
+  displayName: string;
+  actionCode: string;
+  actionTitle: string;
+  domainCode: string;
+  requesterName: string;
+  requestedAt: string;
+  status: string;
+  ownerHref: string | null;
+};
+```
+
+`rowKey` is globally stable and collision-free across the native and five legacy sources: platform uses its request ID and legacy uses `item.legacy.id` as `sourceRecordId`. `requestId` remains the current native or encoded-legacy detail API identifier. `displayCode` prefers a human target/package code; `displayName` prefers target label or request title and only falls back to a safe human-readable placeholder. The shared workbench core treats every approval field as opaque display/navigation data.
+
+#### 3. Search, ordering and multi-source cursor
+
+- Search covers authorized target code/label/title, request title, requester display name and package code. Phase 1 does not require fuzzy search.
+- Reviewer assignment and actor/company scope are applied in each source query; status and search are pushed down where the source has a stable column mapping, while the normalized domain/action projection is enforced at the server merge boundary. Full 101+ collision proof remains a phase gate.
+- Sources are native platform, numbering, submission, BOM, drawing package and drawing revision review. The local implementation performs a bounded source scan (`max(500, limit + 1)` per source), then the server merges and slices them using `requestedAt DESC, rowKey ASC`; replacing this bounded scan with strict per-source `limit + 1` keyset readers is part of the pending 101+ evidence gate.
+- Cursor namespace is `approval-inbox-v1`; its signed filter hash includes normalized status/domain/action/query, `companyId` and `actorId`. Next and previous navigation use the same global order and cannot cross user, company or filter context.
+- The signed wire payload reuses `PdmWorkbenchCursorPayload`: `{ version: 1, filterHash, updatedAt: requestedAt, rowKey, direction: "after" | "before", pageIndex }`. Namespace `approval-inbox-v1` is part of `filterHash`, not a second unsigned query parameter. For `after`, eligible rows satisfy `requestedAt < anchor` or equal time with `rowKey > anchor`; for `before`, predicates reverse, bounded source results are read in reverse order and the final page is returned in canonical order. `nextCursor` anchors the last row and targets `pageIndex + 1`; `previousCursor` anchors the first row and targets `pageIndex - 1`, and is null at page index 0.
+- Client-side merge is not used; the server performs the multi-source merge. The current bounded source scan is explicitly not treated as proof of complete 101+ traversal, and the full QA gate must close that gap before release. The list path has a hard budget of `<=16` database reads at 1/20/60 rows and no row-count-dependent query growth.
+
+#### 4. Canonical URL and owner return
+
+The canonical browser state is:
+
+```text
+/approvals?status=...&domain=...&action=...&query=...&cursor=...&requestId=...
+```
+
+Changing filter/query clears cursor and any selection that is no longer in the result. Reload, shared URL and browser Back/Forward restore the same visible page and selected request. The API constructs each covered PDM `ownerHref` from normalized list state plus that row's `requestId`; the client must not reconstruct or widen it.
+
+Drawing, Part and Relation requests navigate to their canonical owner route and mount exactly one owner-module `UnifiedPdmEntityDetailDrawer`. Close, browser Back and successful decision return to the exact inbox state, keep the row locatable and refresh only the affected row plus exact pending count. `/approvals` does not mount a parallel PDM detail body.
+
+#### 5. Permission and failure behavior
+
+- Existing reviewer role, assignment, decision capability, company/workspace isolation and domain handler authority remain unchanged.
+- Scope is enforced before search, count, cursor and owner-link generation. HTTP 403 reveals no row, count, target or owner URL.
+- Rapid changes use abort plus latest-response sequencing; stale responses cannot replace rows, selection, status or URL.
+- A required source failure fails the whole inbox read closed. Partial inbox results must not be presented as complete.
+- HTTP 400 invalid cursor clears the cursor and recovers to page one with a concise notice; 401 follows the existing login return; 403 renders the shared no-permission state; a stale owner target returns safely to the preserved inbox context.
+
+#### 6. Dependency and execution boundary
+
+DEV-070 depends on DEV-062 shared mechanics/cursor contract, DEV-066 placement and muscle memory, DEV-067 owner drawer/resolver/safe return, and the existing approval platform for all approval policy. No database schema or migration is required by this contract.
+
+DEV-070 has since passed the Implementation Readiness Assessment in the governing section below. The 2026-08-12 RD execution implemented the local Phase 1A～1C path and focused evidence; full Phase 1D remains gated by the 101+ traversal, four-viewport, cross-scope and PostgreSQL runtime matrix. Dependency installation, schema/data change, staging, production, stage/commit, merge/PR, deploy and release remain outside the current boundary. Stop and return to Dev PM if a persistent cross-source identity/materialized inbox, approval authority change, partial-source degraded mode, shared-core approval branch or release action becomes necessary.
+
+#### 7. Phase and evidence gate
+
+1. `1A Server list contract`: normalized search/filter, six-source global cursor, exact pending count and bounded query evidence.
+2. `1B Shared client mechanics`: shell/controller/list/pagination reuse, approval adapter, URL selection, race guard, keyboard/focus and responsive behavior.
+3. `1C Owner return`: canonical owner href, exact return context and affected-row refresh.
+4. `1D QA/QC`: execute `APW-001..028`; include 0/1/20/60/101+ and six-source collision fixtures, cursor tamper/context isolation, four viewports, browser history, keyboard/focus, console/network and architecture static checks.
+
+Completion requires reproducible evidence of shared mechanics, no duplicate/missing row, no N+1, latest-response-wins and exact owner return. Visual resemblance alone is not acceptance.
+
+### DEV-070 RD Implementation Contract
+
+Readiness result: `PASS / no P0-P1 open decision`. Existing data and approval authority are sufficient. RD does not add a table, index migration, dependency, environment variable or feature flag for this phase.
+
+#### 1. Exact product file plan
+
+| File | RD change | Boundary |
+|---|---|---|
+| `src/lib/approval-workbench-contract.ts` | **New.** Own normalized query, row/list response, navigation mode, cursor validation, requestId↔rowKey helpers and item-to-row projection types. | Approval semantics only; no React and no database client. |
+| `src/lib/pdm-workbench-contract.ts` | Add optional `previousCursor`, `pageIndex`, cursor `direction` and cursor `pageIndex`. | Existing consumers compile unchanged because additions are optional. |
+| `src/lib/pdm-workbench-cursor.ts` | Add `approval-inbox-v1` to the namespace union; continue using existing HMAC secret and timing-safe verification. | Do not change Drawing/Part/Relation signatures or accepted payloads. |
+| `src/components/use-pdm-workbench-controller.ts` | Add optional `paginationMode: "history" | "server-bidirectional"`; location-backed cursor/page and server `previousCursor` are enabled only for the second mode. | Default remains `history`; existing three workbenches must retain current behavior. |
+| `src/components/pdm-workbench-pagination.tsx` | Accept optional `hasPreviousPage`; default derives from `pageIndex > 0`. | No visual redesign. |
+| `src/lib/repositories/approval-platform-async-repository.ts` | Replace post-limit merge with six source-scoped keyset readers, global merge, grouped status counts and deterministic page cursors. | Existing request detail/decision/apply paths remain unchanged. |
+| `src/lib/approval-platform.ts` | Extend `ApprovalPlatformInboxFilter`; return a typed inbox page rather than an unbounded item array. | No approval handler or decision semantics change. |
+| `src/app/api/approvals/inbox/route.ts` | Parse normalized query/cursor/limit, map items to rows, create canonical per-row owner return and emit the shared list envelope. | Keep `R&D Manager`/`Admin` gate and fail closed. |
+| `src/lib/pdm-review-navigation.ts` | Add canonical approval return builder/allowlist for status/domain/action/query/cursor/page/requestId. | Same-origin `/approvals` only; reject nested/foreign returns. |
+| `src/app/approvals/page.tsx` | Replace page-local list state/loading/filter sync with shared controller, `PdmWorkbenchList`, `PdmWorkbenchPagination` and `useListKeyboardShortcuts`; retain legacy detail only for rows explicitly marked `legacy`. | No first-row auto-open; covered PDM rows navigate to owner module. |
+| `src/components/sidebar-nav.tsx` | Read exact `summary.pending`; remove `items.length` fallback. | Badge remains reviewer-scoped and low-noise. |
+| `src/app/globals.css` | Remove approval-only list/selected/pagination mechanics and keep only approval column/status/detail-fallback presentation. | Shared workbench selectors become the enabled list styling authority. |
+
+Reuse without modification unless implementation proves a contract defect: `src/components/pdm-workbench-list.tsx`, `src/components/use-list-keyboard-shortcuts.ts`, `src/components/unified-pdm-entity-detail-drawer.tsx` and the Drawing/Part/Relation workbench components. A requested change to those files is a stop-and-explain event, not an implicit expansion.
+
+#### 2. Exact wire and domain types
+
+`src/lib/approval-workbench-contract.ts` owns these equivalent contracts:
+
+```ts
+type ApprovalWorkbenchQuery = {
+  status: "active" | "all" | ApprovalPlatformStatus;
+  domainCode: string;
+  actionCode: string;
+  query: string;
+  cursor: string;
+  limit: number;
+};
+
+type ApprovalWorkbenchRow = {
+  rowKey: `approval:${ApprovalPlatformSource}:${string}`;
+  requestId: string;
+  source: ApprovalPlatformSource;
+  displayCode: string | null;
+  displayName: string;
+  actionCode: string;
+  actionTitle: string;
+  domainCode: string;
+  requesterName: string;
+  requestedAt: string;
+  status: ApprovalPlatformStatus;
+  detailMode: "owner" | "legacy" | "unavailable";
+  ownerHref: string | null;
+};
+
+type ApprovalWorkbenchListResponse =
+  PdmWorkbenchListResponse<ApprovalWorkbenchRow, {
+    status: string;
+    domainCode: string;
+    actionCode: string;
+    query: string;
+  }> & {
+    previousCursor: string | null;
+    pageIndex: number;
+    summary: {
+      total: number;
+      pending: number;
+      needsInfo: number;
+      applyFailed: number;
+    };
+  };
+```
+
+Normalization rules:
+
+- `status` unknown → `active`; empty domain/action → all; query trims and collapses whitespace, maximum 160 characters; `limit` defaults to 60 and clamps to 1～100; cursor maximum 2,000 characters.
+- `summary` is an exact reviewer/company-scoped global status summary independent of current search/filter/page. The current page count is rendered separately as `本頁 N 筆`.
+- `displayCode` uses primary target code, package code or target summary in that order. `displayName` uses primary target label or request title; empty values become `未命名審核項目`, never a raw internal ID unless no human identifier exists.
+- `rowKey` uses `approval:${source}:${item.id}` for platform and `approval:${source}:${item.legacy.id}` for legacy. `requestId` separately keeps `item.id`, including the existing encoded legacy form required by request-detail routes.
+- Pure helpers are bijective: `approvalRowKeyFromRequestId(requestId)` decodes existing `legacy:{source}:{id}` IDs and otherwise treats the ID as platform; `approvalRequestIdFromRowKey(rowKey)` reverses that mapping. Approval URL `requestId` remains the API identifier while controller `detailKey/selectedKey` remains the global rowKey.
+- `detailMode=owner` requires a non-null server-authorized `ownerHref`; `legacy` is allowed only for an existing non-covered domain fallback; a covered action with missing/invalid target is `unavailable` and must not fall back to the duplicate approval drawer.
+- The enabled response uses `rows`; the old slice-derived `items`/`summary.total` response is removed in the same local change. `sidebar-nav` is migrated atomically, so no internal caller remains on `items`.
+
+#### 3. Cursor and canonical location algorithm
+
+1. Normalize filters and calculate HMAC filter hash from namespace `approval-inbox-v1`, status/domain/action/lower-cased query, companyId and actorId.
+2. Decode cursor through the shared verifier, then require `direction`, non-negative integer `pageIndex`, valid timestamp in `updatedAt` and `rowKey` beginning with `approval:`. A mismatch throws `PdmWorkbenchCursorError` and the route returns the standard 400 envelope.
+3. Initial request has no cursor and page index 0. An `after` cursor identifies the last row of the prior page and its target page index. A `before` cursor identifies the first row of the prior page and its target page index.
+4. For canonical order `requestedAt DESC, rowKey ASC`, `after` uses `(time < anchorTime) OR (time = anchorTime AND rowKey > anchorKey)`; `before` uses the inverse predicate, reverse SQL order and a final canonical reorder.
+5. Each source returns at most `limit + 1`. Merge all candidates by the same comparator, keep `limit`, and derive existence of the movement-side page from the extra row. When navigating backward, the incoming signed page index establishes the known next page; page index 0 never emits `previousCursor`.
+6. Browser URL uses one-based `page` only when greater than 1. Its value is derived from the verified cursor/response and never used as a data authorization input. A mismatched cosmetic page value is replaced with the server value.
+
+Canonical URL order is `status`, `domain`, `action`, `query`, `cursor`, `page`, `requestId`; defaults/empty values are omitted except `status=active`. Every owner href receives a server-built `returnTo` with that row's requestId. Client code must not rebuild owner ownership or append unchecked query parameters.
+
+#### 4. Six-source repository implementation
+
+All source readers receive one normalized `ApprovalInboxSourceQuery` containing companyId, actorId, status/domain/action/query, decoded cursor anchor, direction and `scanLimit=limit+1`.
+
+| Existing method/source | Scope and filter pushdown | Canonical time/key | Search columns |
+|---|---|---|---|
+| `listNativeInbox` / platform | `r.company_id`; existing lifecycle assigned-reviewer `EXISTS`; `r.domain_code`, `r.action_code`, status | `r.requested_at`; `approval:platform:` + `r.id` | request/action title, requester name, package code and `EXISTS` target code/label |
+| `listLegacyNumberingInbox` | `ar.company_id`; numbering/action/status literal | `ar.requested_at`; `approval:legacy_numbering:` + `ar.id` | entity/target code and label, requester name, batch code |
+| `listLegacySubmissionInbox` | add `s.company_id = :companyId`; submission/obsolete/status literal | `r.requested_at`; `approval:legacy_submission:` + `r.id` | drawing number, part number, revision, requester name |
+| `listLegacyBomInbox` | add `bd.company_id = :companyId`; BOM lifecycle/status | `rr.submitted_at`; `approval:legacy_bom:` + `rr.id` | draft name, BOM revision, requester name |
+| `listLegacyDrawingPackageInbox` | `p.company_id`; drawing-package/status literal | `s.requested_at`; `approval:legacy_drawing_package:` + `s.id` | drawing number, revision, reason, requester name, package id |
+| `listLegacyDrawingRevisionReviewInbox` | `a.company_id`; numbering/action/derived status | `a.assessed_at`; `approval:legacy_drawing_revision_review:` + `a.id` | drawing number, revision, replacement part, assessor name, reason |
+
+Search uses escaped `%`/`_`/`\\` literals and `LOWER(COALESCE(column,'')) LIKE :queryLike ESCAPE '\\'` so SQLite and PostgreSQL behave consistently. Source-constant domain/action mismatches return an empty source without a database read. The drawing-revision reader must stop ordering by `COALESCE(review_occurred_at, assessed_at)` because that differs from its exposed request time.
+
+Timestamp handling is provider-aware and deterministic. PostgreSQL compares native `TIMESTAMPTZ` columns against the ISO cursor parameter. SQLite uses one shared SQL expression such as `strftime('%Y-%m-%dT%H:%M:%fZ', column)` for SELECT sort value, keyset predicate and ORDER BY so default `YYYY-MM-DD HH:mm:ss` and application ISO values do not split the order. Row mapping converts `string | Date` to an ISO API value before global comparison/cursor encoding; invalid timestamps fail the required source rather than receiving a guessed order.
+
+List read budget is native request + target + impact (`<=3`) plus five legacy readers (`<=5`) plus one grouped status-count query per source (`<=6`): expected maximum 14, hard gate `<=16`, independent of 1/20/60 returned rows. Any source or count query failure rejects the whole `Promise.all`; no partial result is serialized.
+
+#### 5. Shared controller and UI implementation
+
+- `PdmWorkbenchLocationState` gains optional `cursor` and `pageIndex`. `paginationMode` defaults to `history`, preserving Drawing/Part/Relation. In `server-bidirectional`, controller initializes/restores the verified URL cursor, stores response `previousCursor/pageIndex`, and writes cursor/page on Next/Previous.
+- Query/filter change aborts the current list request, clears cursor/page, keeps selection only until the new response proves that requestId still exists, then removes unavailable selection with `replaceState`.
+- `popstate` restores query/cursor/page/requestId before loading. The latest request sequence remains the only response allowed to mutate rows, summary, selection, notice or URL.
+- Approval `readLocation` converts URL requestId to rowKey before handing it to the shared controller; `writeLocation` converts rowKey back to requestId. Therefore no approval-specific key branch is added to the controller and deep-link selection can restore before rows arrive.
+- Approval columns are `審核對象`, `品名`, `審核類型`, `送審者`, `送審時間`, `狀態`; desktop uses the shared table and mobile uses its existing `data-label` projection. There is no relation tree/matrix or layout switch.
+- `useListKeyboardShortcuts` supplies ArrowUp/Down, Home/End, PageUp/Down, Enter, Escape and copy identifier. Inputs/selects/textareas keep native behavior; focus returns to the originating approval row after owner return/legacy drawer close when it still exists.
+- Initial load selects nothing. `owner` rows navigate using returned href; `legacy` rows write requestId then fetch existing detail; `unavailable` rows show the shared recoverable notice and open no drawer.
+- Existing approval detail/decision code remains only for explicit legacy fallback. Covered PDM review continues to use DEV-067 owner drawer and decision action bar.
+
+#### 6. Failure and compatibility matrix
+
+| Condition | Required behavior |
+|---|---|
+| Invalid/tampered/filter/actor/company cursor | HTTP 400 standard workbench envelope; clear cursor/page, preserve filters, first-page reload, concise notice. |
+| 401 | Existing login redirect with safe current approval return. |
+| 403 | Shared no-permission state; rows, counts, requestId and owner URL absent. |
+| One source/count query fails | Whole list request fails closed; old successful rows are not relabelled current; Retry issues a new request. |
+| Late/aborted response | Cannot mutate any visible or URL state. |
+| Covered PDM target missing | `detailMode=unavailable`; no approval-only PDM drawer. |
+| Legacy fallback request deleted | Clear requestId, show recoverable message and retain list context. |
+| Decision succeeds | Owner route returns exact context; affected row plus global summary refresh. |
+| Decision fails | Owner drawer retains context and error; inbox must not optimistically remove/decrement. |
+| Feature flag off | Existing DEV-067 fallback behavior remains; DEV-070 list mechanics still operate. |
+
+#### 7. Exact test and evidence file plan
+
+| File | Coverage |
+|---|---|
+| `scripts/qc-approval-inbox-query-budget.mjs` | Expand existing native N+1 characterization into six-source 0/1/20/60/101+ deterministic cursor, exact count, company isolation, source failure and `<=16` reads. |
+| `scripts/qc-dev-070-approval-workbench.mjs` | **New.** Static/type-level contract for shared imports, no core approval branch, URL/cursor normalization, row/navigation mode and no enabled-path duplicate PDM detail. |
+| `scripts/qc-dev-070-browser.mjs` | **New.** Authenticated disposable-SQLite Chromium matrix for APW-015～028 at four viewports. |
+| `scripts/qc-dev-070-postgres.mjs` | **New.** Disposable PostgreSQL parity for six-source search/order/after-before cursor/count and timestamp normalization; no migration or persistent data. |
+| `scripts/qc-pdm-approval-platform.mjs` | Replace only expectations superseded by DEV-067/070; retain approval policy/decision/audit regressions. |
+| `package.json` | Add `qc:dev-070:contract`, `qc:dev-070:query`, `qc:dev-070:postgres`, `qc:dev-070:browser`, `qc:dev-070`; do not add dependencies. |
+
+Required local commands, in order:
+
+```text
+npm run qc:dev-070:contract
+npm run qc:dev-070:query
+npm run qc:dev-070:postgres
+npm run qc:dev-062:core
+npm run qc:dev-067:navigation
+npm run qc:pdm-approval-platform
+npm run typecheck:app
+npm run build:isolated
+npm run qc:dev-070:browser
+```
+
+`qc:dev-070` aggregates the same sequence except any environment-dependent historical suite must report its own blocker rather than being counted as a DEV-070 pass. Evidence is retained under `output/qa/dev-070-approval-workbench/<run-id>/` and `output/playwright/dev-070-approval-workbench/<run-id>/` with manifest, fixture seed, query counts, screenshots and console/network summary.
+
+#### 8. Dirty-worktree implementation boundary
+
+Readiness was assessed on branch `持續優化1`, HEAD `cc393e04`. No target file is staged. The following target files already contain user changes and must be preserved hunk-by-hunk: `package.json`, `src/app/approvals/page.tsx`, `src/app/globals.css`, `src/components/sidebar-nav.tsx`, `src/lib/repositories/approval-platform-async-repository.ts`. All other dirty files are outside DEV-070.
+
+At RD start, record `git diff --` for those five files before editing; do not reset, checkout, reformat globally or absorb unrelated vocabulary/BOM/DEV-068 work. If an existing target hunk contradicts this contract, stop with exact hunk and spec classification. Generated `.tmp`, backup and output directories remain out of source scope.
+
+#### 8A. DEV-070 local implementation evidence (2026-08-12)
+
+Phase 1A～1C is implemented in the scoped product files and focused local QC has passed. The shared approval path now uses the PDM workbench controller/list/pagination primitives, six-source server ordering with deterministic `rowKey`, signed after/before cursors, reviewer/company-scoped summary, canonical `returnTo`, and owner-module navigation without first-row auto-open. Submission and BOM legacy readers both push `companyId` into SQL scope predicates. The duplicate BOM approval sidebar entry was removed so the centralized approval workbench is the only primary entry.
+
+Evidence:
+
+- `qc:dev-070:contract` PASS.
+- `qc:dev-070:query` PASS; legacy 3-read and batched 3-read native query results are deep-equal.
+- `qc:dev-070:postgres` PASS for static guard; no external PostgreSQL target is configured locally, so runtime provider parity remains pending and is not claimed as PASS.
+- `qc:dev-070:navigation` PASS; `qc:dev-062:core` PASS (6/6); `qc:pdm-approval-platform` PASS (123/123).
+- `typecheck:app` PASS; `build:isolated` PASS.
+- `qc:dev-070:browser` PASS for shared list/filter/pagination envelope, no auto-open, owner route, expected network/console sweep and screenshot `output/playwright/dev-070-approval-workbench/approval-workbench.png`.
+
+The remaining gate is the full `APW-001..028` evidence matrix: four viewports, 101+ collision traversal, cross actor/company isolation, full browser history and decision-return coverage, plus disposable PostgreSQL runtime parity. No schema/migration, production/staging data, stage/commit/merge/PR/deploy/release is authorized by this evidence update.
+
+#### 9. Phase gates and stop conditions
+
+| Phase | Exact output | Exit gate |
+|---|---|---|
+| 1A | contract/cursor/repository/service/API/count | APW-004～014 and 026 query/failure cases pass on SQLite plus disposable PostgreSQL parity; no schema/data write. |
+| 1B | optional shared controller/pagination extension plus approval shared list UI | APW-001～003, 005, 015～018, 024～027 pass; DEV-062 core regression passes. |
+| 1C | canonical owner return, navigation modes, sidebar exact badge | APW-019～023 pass; DEV-067 navigation regression passes. |
+| 1D | complete focused/static/build/browser evidence and docs drift update | APW-001～028 pass, four viewports, zero unexpected console/network error. |
+
+Stop immediately for schema/index migration, persistent/materialized inbox, new dependency or secret, approval assignment/status/decision change, partial-source degradation, shared core approval conditional, owner authority change, production/staging data, destructive Git, stage/commit, merge/PR, deploy or release. Return with the failing gate, affected files, options and evidence; do not widen scope silently.
+
+This section is the implementation authority for DEV-070. Earlier `Brief` and RD-contract paragraphs remain rationale; where implementation detail differs, this section governs.
 
 ## Human Decision Brief
 
@@ -495,7 +828,7 @@ The UI must make approval feel like one system without hiding domain context:
 - Specialized reviewer decision pages such as formal release approval, drawing revision impact review and BOM review must not remain separate primary sidebar destinations once their work can be found from the approval workbench.
 - Domain creation, analysis or preparation pages may remain in domain navigation only when their primary job is not reviewer decision-making, for example creating a drawing revision package or analyzing impact before a request exists.
 - Legacy approval pages may remain reachable during compatibility phases through workbench filters, row actions or deep links; they should not compete as the default reviewer start point.
-- Domain detail pages keep contextual CTAs, for example `申請主根作廢`, `送審`, `補件審核`.
+- Domain detail pages keep contextual CTAs, for example `申請圖料根號作廢`, `送審`, `補件審核`.
 - For Phase 1C-D-covered domains, the visible detail is `UnifiedPdmEntityDetailDrawer` with server-scoped owner projections and one `ContextActionBar`; no approval-specific body or second footer may be composed. `ReviewContextProjection` contributes:
   - request title,
   - domain,
@@ -848,3 +1181,10 @@ Human decision is required if:
 | Phase 4 / cost and supplement adapters | Authorized / Transitional | Adapter implemented | transitional cost and supplement inbox/history adapters | final launch state by adapter only | Phase 1 evidence | cost/supplement records can appear in unified inbox and delegate decision to domain logic | platform QC; adapter is not final launch readiness |
 | Phase 5 / historical migration and hardening | Dry-run authorized / live execution not authorized | Guarded dry-run/apply tooling present | full physical historical approval migration, bypass audit, guardrails, governance scanner | production release/live rewrite | Phase 1-4 evidence | dry-run inventories records and parity hashes without mutation; guarded apply self-test passes on disposable DB | migration dry-run report |
 | Phase 6 / release | Not authorized | Release Authorization Required | deploy, migration, smoke, rollback | unapproved live changes | release authorization | release gate pass | deployment-release-gate evidence |
+
+## 2026-08-14 DEV-073 CAPA Amendment — Active Inbox Is Not Lifecycle History
+
+- `active` inbox remains limited to actionable pending／needs-info／apply-failed work items; completed legacy FFF confirmations must not be reinserted merely to match a stale object status.
+- A terminal confirmation projects the effective Drawing／Revision result while remaining traceable through history and immutable confirmation evidence.
+- A physical／canonical `in_review` state without active request/workflow and without deterministic terminal evidence is an orphan review: owner surfaces must fail closed to `負責人待確認` with recovery ownership, not synthesize a request or reviewer.
+- This is a compatible CAPA under `SPEC-PDM-STATUS-ACTIONABILITY-CAPA-001`; it changes neither decision authority nor request status semantics.

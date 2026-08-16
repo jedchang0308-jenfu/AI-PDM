@@ -66,7 +66,7 @@ export default function NumberingImpactPage() {
   }, []);
 
   const backHref = returnTo || "/numbering/search";
-  const backLabel = returnTo ? "返回圖號" : "回圖料模組";
+  const backLabel = returnTo ? "返回圖號" : "回圖料工作台";
 
   async function analyze(applyInvalidation = false) {
     setBusy(applyInvalidation ? "apply" : "analyze");
@@ -236,7 +236,7 @@ function ImpactResult({
               compact
               eyebrow="沒有關聯"
               title="目前沒有主要製造圖關聯料號"
-              body="可回圖料模組確認製造圖關聯，或改查另一張製造圖。"
+              body="可回圖料工作台確認製造圖關聯，或改查另一張製造圖。"
               actions={[{ href: backHref, label: backLabel, variant: "primary" }]}
             />
           ) : (

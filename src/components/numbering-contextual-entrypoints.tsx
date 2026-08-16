@@ -125,7 +125,7 @@ export function NumberingContextualEntrypoints({
       setBusy(false);
       if (cancelled) return;
       if (response.ok) setImpact(body as RootObsoleteImpact);
-      else setError(humanizeError(body.error ?? "主根作廢影響預覽失敗"));
+      else setError(humanizeError(body.error ?? "圖料根號作廢影響預覽失敗"));
     }
     void loadImpact();
     return () => {
@@ -133,7 +133,7 @@ export function NumberingContextualEntrypoints({
     };
   }, [dialog, rootCode]);
 
-  const disabledReason = policy?.locked ? "此主根已關閉，不能再追加圖號或料號。" : drawingWorkbenchEnabled === null ? "正在確認新增流程。" : "";
+  const disabledReason = policy?.locked ? "此圖料根號已關閉，不能再追加圖號或料號。" : drawingWorkbenchEnabled === null ? "正在確認新增流程。" : "";
   const appendDisabled = Boolean(policy?.locked || busy || drawingWorkbenchEnabled === null);
   const canObsoleteRoot = Boolean(rootRecordStatus && isRootObsoleteCandidate(rootRecordStatus, rootFormalChildCount));
   const canDeleteDraftRoot = Boolean(rootRecordStatus && isDraftDeleteCandidate(rootRecordStatus) && rootFormalChildCount === 0);
@@ -173,7 +173,7 @@ export function NumberingContextualEntrypoints({
             ) : (
               <button className="secondary-button danger-button" type="button" disabled={!canObsoleteRoot || busy} onClick={() => open("obsolete_root")}>
                 <ShieldAlert size={16} />
-                申請主根作廢
+                申請圖料根號作廢
               </button>
             )}
           </>
@@ -292,7 +292,7 @@ function AddDrawingDialog({
     if (drawingWorkbenchEnabled) {
       if (!rootId) {
         setBusy(false);
-        setError("目前找不到主根識別，請重新整理後再試；系統不會直接建立圖號。");
+        setError("目前找不到圖料根號識別，請重新整理後再試；系統不會直接建立圖號。");
         return;
       }
       if (purposeCode === "M" && (!linkPart || !part?.id)) {
@@ -347,7 +347,7 @@ function AddDrawingDialog({
       return;
     }
     const linkedText = body.linkedPart?.partNumber ? `，並已建立與 ${body.linkedPart.partNumber} 的圖料關係` : "";
-    setMessage(`已新增圖號 ${body.drawingNumber?.drawingNumber ?? ""}${linkedText}，仍在同一個主根 ${rootCode}。`);
+    setMessage(`已新增圖號 ${body.drawingNumber?.drawingNumber ?? ""}${linkedText}，仍在同一個圖料根號 ${rootCode}。`);
     await onChanged?.();
     onClose();
   }
@@ -514,7 +514,7 @@ function AddPartDialog({
       setError(humanizeError(body.error ?? "新增料號失敗"));
       return;
     }
-    setMessage(`已新增料號 ${body.partNumber?.partNumber ?? ""}，仍在同一個主根 ${rootCode}。`);
+    setMessage(`已新增料號 ${body.partNumber?.partNumber ?? ""}，仍在同一個圖料根號 ${rootCode}。`);
     await onChanged?.();
     onClose();
   }
@@ -610,7 +610,7 @@ function DeleteDraftRootDialog({
       setError(humanizeError(body.error ?? "刪除草稿失敗"));
       return;
     }
-    setMessage(`已刪除草稿主根 ${rootCode}。`);
+    setMessage(`已刪除草稿圖料根號 ${rootCode}。`);
     await onChanged?.();
     onClose();
   }
@@ -620,7 +620,7 @@ function DeleteDraftRootDialog({
       <DialogHeader title="刪除草稿" onClose={onClose} />
       <LockedRoot rootCode={rootCode} coreName={coreName} />
       <ul className="pdm-contextual-impact-list">
-        <li>會刪除這組尚未送審的主根草稿。</li>
+        <li>會刪除這組尚未送審的圖料根號草稿。</li>
         <li>包含料號 {rootPartCount} 筆、圖號 {rootDrawingCount} 筆與草稿圖料關係。</li>
         <li>若已有附件，附件會移到已刪除狀態；正式或送審資料不允許走這個動作。</li>
       </ul>
@@ -729,16 +729,16 @@ function RootObsoleteDialog({
     const body = await response.json().catch(() => ({}));
     setBusy(false);
     if (!response.ok) {
-      setError(humanizeError(body.error ?? "建立主根作廢申請失敗"));
+      setError(humanizeError(body.error ?? "建立圖料根號作廢申請失敗"));
       return;
     }
-    setMessage(`已建立主根 ${rootCode} 作廢審核申請，正式資料會在核准後才異動。`);
+    setMessage(`已建立圖料根號 ${rootCode} 作廢審核申請，正式資料會在核准後才異動。`);
     await onChanged?.();
     onClose();
   }
   return (
-    <div className="pdm-contextual-dialog" role="dialog" aria-label="主根作廢影響預覽">
-      <DialogHeader title="主根作廢影響預覽" onClose={onClose} />
+    <div className="pdm-contextual-dialog" role="dialog" aria-label="圖料根號作廢影響預覽">
+      <DialogHeader title="圖料根號作廢影響預覽" onClose={onClose} />
       {!impact && busy ? <p className="pdm-contextual-hint">正在讀取影響範圍...</p> : null}
       {impact ? (
         <>
@@ -758,7 +758,7 @@ function RootObsoleteDialog({
       <TextAreaInput label="作廢原因" value={reason} onChange={setReason} />
       <label className="pdm-contextual-check">
         <input type="checkbox" checked={ack} onChange={(event) => setAck(event.target.checked)} />
-        <span>已確認主根底下料號、圖號與圖料關係會一起形成審核範圍；核准前不直接作廢。</span>
+        <span>已確認圖料根號底下料號、圖號與圖料關係會一起形成審核範圍；核准前不直接作廢。</span>
       </label>
       <div className="pdm-contextual-dialog-actions">
         <button className="danger-button" type="button" disabled={busy || !impact || impact.pendingRequestId !== null || impact.formalTargets.length === 0 || !reason.trim() || !ack} onClick={submit}>建立作廢申請</button>
@@ -777,7 +777,7 @@ function DialogHeader({ title, onClose }: { title: string; onClose: () => void }
 }
 
 function LockedRoot({ rootCode, coreName }: { rootCode: string; coreName?: string | null }) {
-  return <p className="pdm-contextual-preview">主根鎖定：<strong>{rootCode}</strong>{coreName ? ` / ${coreName}` : ""}</p>;
+  return <p className="pdm-contextual-preview">圖料根號鎖定：<strong>{rootCode}</strong>{coreName ? ` / ${coreName}` : ""}</p>;
 }
 
 function TextInput({ label, value, onChange, maxLength }: { label: string; value: string; onChange: (value: string) => void; maxLength?: number }) {
@@ -817,7 +817,7 @@ function isRootObsoleteCandidate(status: RecordStatus, formalChildCount: number)
 function humanizeError(error: unknown) {
   const message = String(error ?? "").trim();
   if (!message) return "操作失敗，請重新整理後再試。";
-  if (message.includes("APPEND_REASON_REQUIRED_FOR_FORMAL_ROOT")) return "這個主根已有正式資料，追加前請填寫原因。";
+  if (message.includes("APPEND_REASON_REQUIRED_FOR_FORMAL_ROOT")) return "這個圖料根號已有正式資料，追加前請填寫原因。";
   if (message.includes("PRIMARY_RELATION_REQUIRES_MANUFACTURING_DRAWING")) return "參考圖不可作為製造依據，請改建立參考關係。";
   if (message.includes("NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES")) return "這組資料已進入送審、版本、製造基準或其他受控流程，不能直接刪除草稿。";
   if (message.includes("NUMBERING_ROOT_NOT_DRAFT") || message.includes("NUMBERING_PART_NOT_DRAFT") || message.includes("NUMBERING_DRAWING_NOT_DRAFT")) return "只有尚未送審的草稿可以直接刪除；正式或審核中資料請使用作廢或審核流程。";
@@ -825,7 +825,7 @@ function humanizeError(error: unknown) {
   if (message.includes("LIFE_OBSOLETE_NOT_FORMAL")) return "只有正式資料可申請作廢；草稿請走草稿清理流程。";
   if (message.includes("LOCKED")) return "目前狀態已鎖定，不能執行此操作。";
   if (message.includes("NOT_FOUND")) return "找不到目標資料，請重新整理後再試。";
-  if (message.includes("MISMATCH")) return "目標資料不在同一個主根或公司範圍，操作已被阻擋。";
+  if (message.includes("MISMATCH")) return "目標資料不在同一個圖料根號或公司範圍，操作已被阻擋。";
   return message;
 }
 

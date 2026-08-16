@@ -1,11 +1,11 @@
-# SPEC-PDM-ENTITY-DETAIL-DRAWER-001 - 圖號 / 料號 / 主根號統一物件詳情抽屜
+# SPEC-PDM-ENTITY-DETAIL-DRAWER-001 - 圖號 / 料號 / 圖料根號統一物件詳情抽屜
 
-Status: Phase 1C Unified Drawing Workspace Implemented Locally / Independent QC Passed; `DEV-067 UnifiedPdmEntityDetailDrawer Local RD Implemented / Local QA-QC Passed`; Production Release Gated
-Date: 2026-07-09
+Status: Phase 1C Unified Drawing Workspace Implemented Locally / Independent QC Passed; `DEV-067 UnifiedPdmEntityDetailDrawer Local RD Implemented / Local QA-QC Passed`; `DEV-072 Local RD/QA/QC Complete / Human Confirmed`; Production Release Gated
+Date: 2026-07-09; amended 2026-08-14
 Owner: Dev PM
-Related DEV: `DEV-PDM-ENTITY-DETAIL-DRAWER-001` / `DEV-039`; `DEV-PDM-DRAWING-WORKBENCH-SIMPLIFICATION-001` / `DEV-057`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
+Related DEV: `DEV-PDM-ENTITY-DETAIL-DRAWER-001` / `DEV-039`; `DEV-PDM-DRAWING-WORKBENCH-SIMPLIFICATION-001` / `DEV-057`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-DETAIL-ACTION-DISCOVERABILITY-001` / `DEV-072`
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
-Related QA: `.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
+Related QA: `.ai-doc/qa/qa-pdm-entity-detail-drawer-validation-plan-2026-07-09.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`; `.ai-doc/qa/qa-dev-072-pdm-action-discoverability-ai-real-operation-validation-plan-2026-08-14.md`
 Extends: `.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard.md`
 Extends: `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md`
 Extends: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-RELATION-VIEW-001-root-drawing-part-relation-list.md`
@@ -14,6 +14,379 @@ Extends: `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-en
 > **2026-08-11 Part-cost retirement amendment**
 >
 > The part-cost sections, cost status, cost redaction and cost-maintenance deep links are retired from the current drawer contract by `ADR-PDM-PART-COST-RETIREMENT-001`. This document's historical cost references must not be implemented or used as current acceptance criteria.
+
+## 2026-08-14 DEV-072 Amendment - 可預期但不可旁路的明細動作列
+
+Status: `Local RD/QA/QC Complete / Human Confirmed / Production Release Gated`.
+
+### 2026-08-14 Approval owner drawer follow-up - 審核情境移除重複流程入口
+
+在 `/approvals` 由送審項目進入的 `UnifiedPdmEntityDetailDrawer` 已經是審核者正在處理的明細，不再重複提供會把人帶回同一流程或改變受控資料的 owner workflow entry：
+
+- `detail:<owner>:view_review`（`查看審核`）省略：目前已在審核工作台。
+- `detail:<owner>:withdraw_review`（`撤回送審`）省略：撤回是送審者／owner 的送審流程操作，不是審核者決策操作。
+- `detail:relation:manage_relation`（`維護圖料關聯`）省略：審核者只查閱送審快照與做 request 允許的決策，不在審核抽屜開啟關聯維護。
+
+此規則只由 server resolver 在 `review` receipt 存在的 Approval owner context 套用；一般圖號、料號、圖料根號工作台，以及未帶 review receipt 的 owner detail 不變。審核決策 action 與「返回」保留，Projection data、3D／2D preview、snapshot 與 command authority 不變；審核者畫面只去除重複的人類狀態 badge 與 `自動預覽` 標題列。
+
+### 2026-08-14 Visible detail cleanup - 預覽資訊去重
+
+在所有 `UnifiedPdmEntityDetailDrawer` context 中，`DrawingProjection` 不再顯示重複的「預覽狀態／代表狀態」fact，也不顯示 `DrawingDetailPreview` 的 `自動預覽` 標題列；3D／2D preview card、檔案名稱、ready／missing／running 等卡片內狀態仍保留。預覽狀態只在實際 3D／2D 卡片內呈現，避免同一狀態在圖面資料摘要、區段標題與預覽卡重複。
+
+### Human decision and problem statement
+
+圖號、料號、圖料根號及審核 owner detail 現行只顯示「現在可按」或「現在主要」的動作，其他動作在不同狀態突然出現或消失。這讓使用者無法預先建立流程心智模型，也無法知道完成目前條件後可做什麼。人類已確認以下顯示原則：
+
+1. 對目前 owner surface 與物件生命週期仍然**適用**的動作一律顯示；尚不可執行時顯示低色階鎖頭並禁止操作。
+2. locked 原因不常駐佔版；桌面 hover、鍵盤 focus、觸控點擊鎖頭時顯示短提示。
+3. 不屬於該 surface、跨 domain 的管理動作、或已永久終結且未來不可能執行的動作完全不顯示，也不放進「更多」。資料摘要仍依 projection policy 顯示，不因隱藏跨 domain 動作而消失。
+4. 可執行動作以 primary／accent 渲染提示；同一動作由 locked 轉 enabled 時位置與文字不變。
+5. 每個情境最多一個 primary CTA；審核情境在 owner action catalog 上增加精確允許的審核決策，送審期間 owner mutation 保持 locked。
+
+此設計有意取代「只顯示當下 CTA」、「無權限時不顯示 disabled 假入口」及「disabled 原因必須常駐在控制項旁」在本共用 drawer action bar 的舊顯示規則；不取代 server permission、狀態機、separation of duties、domain command authority、active-review write lock、idempotency、audit 或 publication authority。Spec Impact Preflight：`Intentional replacement`。既有 DEV-067 composer／projection ADR 足以承載本變更，不新增架構 ADR。
+
+### Applicability contract
+
+server 必須先判定 action 是否適用，再判定現在能否執行：
+
+```text
+action definition
+  -> applicable = false  => omit from payload and DOM
+  -> applicable = true
+       -> enabled = true  => render actionable control
+       -> enabled = false => render locked control + accessible reason
+```
+
+- `applicable` 是 domain、surface、生命週期及永久終態的判定，不等同權限。client 不得以 CSS 隱藏 server 已回傳的不適用動作，也不得自行補出 server 未授權的動作。
+- 因 prerequisite、processing、active review、actor permission、ownership 或 separation-of-duties 暫時不能執行，但未來仍可能執行的 action 保留並 locked。
+- 已取消、作廢、純歷史、永遠不屬於該 owner surface，或沒有任何合法恢復路徑的 mutation action 必須省略；utility read action 只有仍有任務價值時保留。
+- `disabledReason` 必須是人類可理解的一句原因與必要責任角色；machine reason 使用獨立 `disabledReasonCode`。UI 不得顯示 raw API error、stack、SQL 或內部例外。
+- disabled control 的 click、Enter、Space、touch 及 direct API 旁路均不得導航、送 request 或造成資料異動；domain server authority 仍須對 enabled command 重新驗證，不能信任 client descriptor。
+
+### Owner action inventory
+
+以下是 action **種類清冊**，不是要求所有列同時渲染；resolver 仍依上節判斷 applicable。跨 domain 資料可以摘要顯示，但跨 domain 管理 action 完全省略。
+
+| Owner surface | 可納入的 action catalog | 必須省略的跨 domain action |
+|---|---|---|
+| Drawing | `edit`（UI label：`圖面維護`，同一入口承載主資料與附件維護）、`submit_review`、`view_review`、`withdraw_review`、`create_revision`、`view_history`、`refresh`、`return` | Part 主資料編輯、Relation 管理 |
+| Part | `edit`、`submit_review`、`view_review`、`withdraw_review`、`view_history`、`refresh`、`return` | Drawing 檔案／進版、Relation 管理 |
+| Relation | `manage_relation`、`submit_review`、`view_review`、`withdraw_review`、`view_history`、`refresh`、`return` | Drawing 檔案／進版、Part 主資料編輯 |
+| Assigned active review | request policy 精確允許的 `approve`、`return_for_correction`、`reject`，加上 `return`；Approval owner context 省略 `view_review`、`withdraw_review`，且 Relation 不提供 `manage_relation` | request scope 外、未指派、跨公司或該 domain 不支援的 decision，以及審核者不應在此處執行的 owner workflow entry |
+
+`return` 可依「哪裡來，哪裡去」由 drawer close／back affordance 承擔，不要求在 footer 重複一顆按鈕；但 return contract 必須在 action model 或 shell contract 中可驗證。`refresh` 只在 delayed／processing／recoverable error 有任務價值時適用。
+
+### Stable grouping, order and rendering
+
+- 固定群組順序：`object -> workflow -> review -> utility`。同群組由 server `order` 排序；狀態切換不得改變同一 action 的相對位置。
+- `primary` 只能有 0 或 1 個。當 prerequisite 尚未完成時，未來 primary 仍留在其固定位置但為 locked；目前可推進流程的 action 才使用 primary/accent。其他 action 為 secondary／tertiary。
+- 本 contract 不提供「更多」作為 action 倉庫。不適用 action 完全省略；適用 action 必須在 action bar 可發現。
+- locked control 使用低色階 lock icon、正常可讀標籤、`aria-disabled="true"` 與明確 focus style；不得只靠顏色，也不得使用不可 focus 的原生 disabled button 作為唯一 DOM。
+- 原因提示使用同一 accessible tooltip／popover primitive：pointer hover 約 300ms、鍵盤 focus 立即、touch 點擊鎖頭開啟；最多兩行、不可包含互動連結；Escape、移出／失焦、點外關閉。native `title` 不得作為唯一提示機制。
+- drawer action bar 必須維持單一 body scroll owner、sticky/footer 安全距離與 1440×900、1024×768、768×1024、390×844 可達性；不可遮住內容、產生水平 overflow 或讓 mobile touch target 小於既有設計系統下限。
+
+### State expectations
+
+| State family | Expected action behavior |
+|---|---|
+| 建立／準備中 | 編輯或補件可用；`送交審核`固定顯示但 locked，提示尚缺的最高優先 prerequisite |
+| 可送審 | 同位置的`送交審核`解鎖並成為唯一 primary；不新增第二顆送審按鈕 |
+| 送審／審核中（owner 工作台） | `查看審核`為主要可用動作；owner edit、檔案、關係等適用 mutation locked，提示`送審中不可修改`；撤回只在 policy 允許時 enabled，否則 locked 或在永久不適用時省略 |
+| 審核者 Approval owner drawer | 不重複顯示 `查看審核`、`撤回送審`；Relation 也不顯示 `維護圖料關聯`；只顯示 request 允許的決策與安全返回，投影與審核快照仍完整可查閱 |
+| 系統正式化／處理中 | mutation locked；有任務價值時顯示可用`重新整理`／`查看處理狀態`，不提供人工發布 |
+| 退回補正 | owner 修正動作解鎖；重新送審保留但在 prerequisite 未完成前 locked |
+| 已發布／受控 | Drawing 的`建立新版`依 authority 可用或 locked；首版送審、審核決策等已不適用 action 省略 |
+| 已取消／作廢／純歷史 | mutation action 全部省略；只保留仍具任務價值的 history／return/read utility |
+
+### Typed contract and API version
+
+現行 `pdm-entity-detail.v1` 的 `primary` 必填、descriptor 欄位不足且 Drawing 可由 client override，無法安全表示本需求。這是 feature-gated、`private, no-store`、由同一部署的單一 drawer 消費的內部 API；RD 必須將 response 明確升為 `pdm-entity-detail.v2`，不得在同一 schema version 靜默改變 nullability 或 action semantics。endpoint 與 query parameters 不變：
+
+```text
+GET /api/pdm/entity-details/[entityKey]
+  ?surface=drawing|part|relation
+  &reviewRequestId=<optional exact request>
+  &returnTo=<validated local path>
+```
+
+`src/lib/pdm-entity-detail-contract.ts` 的目標型別固定如下：
+
+```ts
+type PdmDetailActionKind =
+  | "edit"
+  | "submit_review"
+  | "withdraw_review"
+  | "approve"
+  | "return_for_correction"
+  | "reject"
+  | "retry_apply"
+  | "retry_cleanup"
+  | "create_revision"
+  | "view_review"
+  | "manage_relation"
+  | "view_history"
+  | "refresh"
+  | "return"
+  | "manage_files";
+
+type PdmDetailActionGroup = "object" | "workflow" | "review" | "utility";
+
+type PdmDetailActionDisabledReasonCode =
+  | "PDM_ACTION_PREREQUISITE_MISSING"
+  | "PDM_ACTION_PERMISSION_REQUIRED"
+  | "PDM_ACTION_OWNER_REQUIRED"
+  | "PDM_ACTION_REVIEW_LOCKED"
+  | "PDM_ACTION_REVIEW_SCOPE_REQUIRED"
+  | "PDM_ACTION_REVIEW_DRIFT"
+  | "PDM_ACTION_PROCESSING"
+  | "PDM_ACTION_TARGET_UNAVAILABLE";
+
+type PdmDetailActionExecution =
+  | { type: "navigate"; href: string }
+  | {
+      type: "command";
+      method: "POST";
+      href: string;
+      body: Record<string, string | number | boolean | null>;
+      input: "none" | "optional_reason" | "required_comment";
+      success: "refresh_detail" | "return_to_inbox";
+    }
+  | { type: "local"; command: "refresh" | "return" };
+
+type PdmDetailActionDescriptor = {
+  id: `detail:${"drawing" | "part" | "relation" | "approval" | "navigation"}:${string}`;
+  kind: PdmDetailActionKind;
+  owner: "drawing" | "part" | "relation" | "approval" | "navigation";
+  label: string;
+  tone: "primary" | "secondary" | "danger";
+  placement: "primary" | "secondary";
+  group: PdmDetailActionGroup;
+  order: number;
+  enabled: boolean;
+  disabledReason: string | null;
+  disabledReasonCode: PdmDetailActionDisabledReasonCode | null;
+  permissionCode: string | null;
+  contactRole: string | null;
+  execution: PdmDetailActionExecution | null;
+  requiresConfirmation: boolean;
+  idempotencyRequired: boolean;
+};
+
+type ContextActionBarModel = {
+  primary: PdmDetailActionDescriptor | null;
+  secondary: PdmDetailActionDescriptor[];
+};
+
+type PdmEntityDetailResponse = {
+  schemaVersion: "pdm-entity-detail.v2";
+  // entity/header/projections/navigation stay compatible with v1
+  actionBar: ContextActionBarModel;
+};
+```
+
+不新增 `visible` 或 `applicable` 欄位：不適用即不回傳。`primary` 與 `secondary` 合計必須包含所有 applicable context actions，且 group/order 是穩定順序的唯一權威。enabled action 必須有非 null `execution`；locked action 必須 `execution=null`，避免 event guard 失效時仍保留可執行 target。`href`／`commandRef` 舊欄位由 v2 的 discriminated `execution` 取代，不保留兩份 action target truth。
+
+`GET /api/pdm/entity-details/[entityKey]?surface=...&reviewRequestId=...&returnTo=...` 回傳的 `actionBar` 是 drawer 的唯一 action truth。現行 Drawing route 的 `primaryContextAction` client prop／override 必須自 `UnifiedPdmEntityDetailDrawer` public contract 移除；`drawing-workbench.tsx` 的 list-row `primaryAction` 可繼續服務清單列，但不得再注入或覆蓋 drawer action bar。Part、Relation 與 Approval owner route 同樣不得新增平行 override。
+
+### Server action resolver contract
+
+新增 `src/lib/pdm-detail-action-resolver.ts`，只接受已驗證的 server facts，不讀 request query 中的 role、enabled、action kind 或 permission。`PdmEntityDetailService.compose()` 在同一次 aggregate read 後傳入：
+
+- canonical `entityKey`、requested owner `surface`、server-derived `stateFamily`；
+- candidate workspace ID、owner ID、row version、lifecycle-v2 effective flag、active request ID、decision count；
+- formal Drawing number、current lifecycle request／submitter／decision count；
+- readiness blocker codes，依既有 owner service 的必要條件排序；
+- exact review receipt、allowed decisions、snapshot drift 與 return path；
+- server-resolved capability map及現有 canonical owner href。
+
+新增 `src/lib/pdm-detail-action-capabilities.ts`，由 API route 對 authenticated user/company 一次取得本 surface 所需 capability。允許的既有 permission code 只有：
+
+| Capability | Existing permission authority |
+|---|---|
+| workspace edit | `numbering.workspace.update` |
+| formal/candidate Drawing data edit | `numbering.draft.update` |
+| submit review | `numbering.candidate.review.submit` |
+| withdraw review | `numbering.candidate.review.withdraw` |
+| retry publication | `numbering.publish` |
+| create Drawing revision | `post_release_change` |
+| manage Drawing files | `numbering.attachments.manage` 或既有 revision owner authority |
+| edit Part variant | `numbering.draft.update` |
+| manage Drawing-Part relation | `numbering.link_variant` |
+| show Admin permission link | `settings.admin_matrix` |
+
+review decision 不以一般 role boolean 取代；仍以 DEV-067 exact request/company/target `PdmReviewScopeReceipt` 與 decision API 為權威。permission resolution 位於 read snapshot 外，aggregate projection 的 `16/16/24/28` query budget不變；capability checks 必須是固定集合，不得依附件／料號／關聯數量 N+1。
+
+### Canonical action IDs, order and primary selection
+
+stable ID/order 固定如下；不適用可省略，但不得重編號或把 enabled action移到前方：
+
+| Action | Stable ID pattern | Group / order |
+|---|---|---:|
+| edit | `detail:<owner>:edit` | `object / 100` |
+| manage_files | `detail:drawing:manage_files` | `object / 110` |
+| manage_relation | `detail:relation:manage_relation` | `object / 120` |
+| submit_review | `detail:<owner>:submit_review` | `workflow / 200` |
+| view_review | `detail:<owner>:view_review` | `workflow / 210` |
+| withdraw_review | `detail:<owner>:withdraw_review` | `workflow / 220` |
+| retry_apply | `detail:<owner>:retry_apply` | `workflow / 230` |
+| retry_cleanup | `detail:<owner>:retry_cleanup` | `workflow / 240` |
+| create_revision | `detail:drawing:create_revision` | `workflow / 250` |
+| view_history | `detail:<owner>:view_history` | `workflow / 260` |
+| approve | `detail:approval:approve` | `review / 300` |
+| return_for_correction | `detail:approval:return_for_correction` | `review / 310` |
+| reject | `detail:approval:reject` | `review / 320` |
+| refresh | `detail:navigation:refresh` | `utility / 900` |
+| return | `detail:navigation:return` | `utility / 910` |
+
+primary 選擇是純 server priority，不依 client array position：
+
+1. exact assigned review 且可決策：`approve`；
+2. correction/building：enabled `edit` 或 `manage_relation`；
+3. ready：enabled `submit_review`；
+4. in-review owner surface：`view_review`；
+5. recovery：enabled `retry_apply` 或 `retry_cleanup`；
+6. released Drawing：enabled `create_revision`；
+7. processing、terminal、只有 locked actions或只有 utility read：`primary=null`。
+
+locked future action不得以 primary tone 假裝可執行；它保留原 group/order並使用 secondary low-tone lock。當同一 action 解鎖時 ID/order/label不變，只改 `enabled`、reason、tone/placement、execution。
+
+### Applicability and disabled-reason precedence
+
+resolver 依下列順序選一個最可行的 locked reason，禁止 client拼接：
+
+1. snapshot drift／exact review scope不成立；
+2. active-review mutation lock；
+3. system processing；
+4. ownership／submitter條件；
+5. permission；
+6. readiness prerequisite；
+7. canonical target 暫不可用。
+
+狀態 inventory 固定為：
+
+- Candidate building/preparation/correction：owner object actions + `submit_review`；尚缺必要條件時 submit locked。尚未存在 request 時不顯示 `view_review/withdraw_review`。
+- Candidate ready：同一 `submit_review` 解鎖；object actions仍依 owner/permission可用。
+- Candidate/formal in review（owner 工作台、未帶 review receipt）：object mutations保留但以 `PDM_ACTION_REVIEW_LOCKED` 鎖定；`view_review`可用；`withdraw_review`只要 request仍具可能撤回的語意即顯示，非 submitter、已有 decision或缺權限時 locked，request已 terminal則省略。
+- Auto-finalizing：mutation locked；只有有任務價值的 `refresh`／processing view，不顯示人工 publish。
+- Recovery：只顯示現有 owner authority真正支援的 retry/view/history；不得新造 publish command。
+- Released/controlled Drawing：candidate submit/withdraw省略；`create_revision`依 `post_release_change` enabled或locked；history可用。
+- Formal Part：Part-owned `edit`與history；Drawing file/revision及Relation管理省略。
+- Formal Relation：Relation-owned `manage_relation`與history；Drawing file/revision及Part edit省略。
+- Cancelled/obsolete/merged/history-only：mutation全部省略，只保留有資料可看的 history及 shell return。
+- Assigned active review：Approval owner context 不套用 owner workflow entry 的重複入口；省略 `view_review`、`withdraw_review`，Relation 的 `manage_relation` 亦省略，只疊加 request真正允許的 decisions 與安全 return。未列於 `allowedDecisions` 的 decision省略，而不是顯示全域三顆按鈕。
+
+### Existing command routing and payload
+
+DEV-072 不新增 domain mutation API。server descriptor只可指向下列既有 owner authority；所有 command仍由 endpoint重新驗證 permission、company、state、ownership、row version、review lock與 idempotency：
+
+| Action | Existing execution |
+|---|---|
+| candidate submit | `POST /api/numbering/draft-workspaces/{workspaceId}/submit-bundle-review` when lifecycle v2 effective，否則既有 `/submit-review`; body包含 server-read row version與 reason；Idempotency-Key必填 |
+| candidate withdraw | `POST /api/numbering/draft-workspaces/{workspaceId}/withdraw-bundle-review` when lifecycle v2 effective，否則既有 `/withdraw-review`; body包含 server-read row version與 reason；Idempotency-Key必填 |
+| formal Drawing review withdraw | `POST /api/approvals/requests/{requestId}/withdraw`; Idempotency-Key必填 |
+| review approve/return/reject | `POST /api/approvals/requests/{requestId}/decisions`; body decision只能來自 descriptor kind mapping，非 approve需 `required_comment`; Idempotency-Key必填 |
+| create revision | existing `/numbering/revisions?drawingNumber=...&returnTo=...` canonical navigation |
+| edit/files/relation/history/view review | existing canonical owner href/anchor only；若目前沒有可完成任務的 owner target，該 action不得標 enabled，且不得新增平行 drawer或跨-domain write API |
+| refresh/return | drawer local refresh與 validated `navigation.returnTo` |
+
+command body內的 row version是當次 detail response 的 optimistic token；若 response在執行前已 stale，existing endpoint回409。client 顯示人類化訊息並重新讀取整個 v2 detail；不得自動以新 version重送。busy期間該輪所有 mutation controls設 `aria-busy`/locked且 exactly-once；navigation/read actions可依既有 UX保留。
+
+### Shared control component and interaction contract
+
+新增 `src/components/pdm-detail-action-control.tsx`，由 `UnifiedPdmEntityDetailDrawer` 的 primary/secondary actions共用：
+
+- enabled navigate使用 `<a>`；enabled command/local使用 `<button>`。
+- locked一律使用可聚焦的 `<button type="button" aria-disabled="true">`，不使用 native `disabled`，並在 click／Enter／Space handler第一行阻擋 execution。
+- 每個 locked control渲染低色階 `LockKeyhole`、`aria-describedby=<stable-tooltip-id>`、`data-action-id/group/order/enabled`，供 a11y 與 QC盤點。
+- tooltip state集中在 action control，不在 drawer page複製；hover 300ms timer、focus立即、touch點鎖頭開啟，Escape/blur/outside pointer關閉，unmount清 timer；使用 viewport-clamped fixed portal或等效現有 primitive。
+- tooltip文字來自 server `disabledReason`，最多兩行；`permissionCode`可供支援證據，不得把 raw API/stack當主要文案。
+- action busy不得把既有 permission/review reason永久覆蓋；busy只是一個本輪 UI狀態，完成後重新讀 server action truth。
+
+`UnifiedPdmEntityDetailDrawer` 只執行 `execution` discriminated union，不依 entity state/role決定顯示。review comment UI可沿用現行最小互動，但 action kind到 decision payload mapping必須集中且 exhaustively typed；unknown kind/execution fail closed並觸發可見 generic refresh error。
+
+### Exact implementation files
+
+新增：
+
+- `src/lib/pdm-detail-action-resolver.ts`：pure applicability、reason、order與primary resolver。
+- `src/lib/pdm-detail-action-capabilities.ts`：固定 permission capability resolver。
+- `src/components/pdm-detail-action-control.tsx`：共用 enabled/locked/tooltip control。
+- `scripts/qc-dev-072-action-contract.mjs`：v2 schema、inventory、negative inventory、stable order、no client override、no CSS hiding。
+- `scripts/qc-dev-072-action-api.mjs`：disposable fixture 的 disabled no-op、direct API fail-closed、submit/withdraw/decision/idempotency/data hash。
+- `scripts/qc-dev-072-browser.mjs`：AI real-browser `ACT-016..030`、四 viewport與 evidence manifest。
+
+修改：
+
+- `src/lib/pdm-entity-detail-contract.ts`、`src/lib/pdm-entity-detail.ts`。
+- `src/app/api/pdm/entity-details/[entityKey]/route.ts`：capability resolution與v2 response；不改 page-view gate/company isolation。
+- `src/components/unified-pdm-entity-detail-drawer.tsx`：移除 `primaryContextAction`、只執行 v2 execution、nullable primary、busy/error/refresh。
+- `src/components/drawing-workbench.tsx`：移除 `PdmDetailActionDescriptor` adapter與 `unifiedPrimaryAction` injection；list-row action維持。
+- `src/app/globals.css`：scoped action bar、locked、tooltip、focus、touch與responsive styles。
+- `scripts/qc-dev-067-unified-entity-contract.mjs`、`scripts/qc-dev-067-unified-drawer-ui.mjs`及必要的 `scripts/qc-dev-067-browser.mjs` assertions：接受v2並證明DEV-067 projection/review/return不回歸；歷史證據檔不改寫。
+- `package.json`：新增 `qc:dev-072:contract`、`qc:dev-072:api`、`qc:dev-072:browser`、`qc:dev-072`。
+
+`part-workbench.tsx`、`relation-workbench.tsx`、`app/approvals/page.tsx` 預期只需由現有 unified drawer自動取得 v2 action，無新 override；若實作必須修改，僅允許型別／selector／safe-return整合，不得加入 domain action catalog。無 schema/migration、fixture migration、新 dependency、env或feature flag；沿用 `PDM_UNIFIED_ENTITY_DETAIL_V1` 作 rollback gate，API payload schema本身為v2。
+
+`package.json` script value 也是交付契約，不只是命名建議：
+
+```json
+{
+  "qc:dev-072:contract": "node scripts/qc-dev-072-action-contract.mjs",
+  "qc:dev-072:api": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-072-action-api.mjs",
+  "qc:dev-072:browser": "node scripts/qc-dev-072-browser.mjs",
+  "qc:dev-072": "npm run qc:dev-072:contract && npm run qc:dev-072:api && npm run qc:dev-067:contract && npm run qc:dev-067:policy && npm run qc:dev-067:query && npm run qc:dev-067:ui && npm run qc:dev-067:preview && npm run qc:dev-067:review && npm run qc:dev-067:lock && npm run qc:dev-067:navigation && npm run qc:dev-072:browser && npm run typecheck:app && npm run build:isolated"
+}
+```
+
+### Phase sequence and exit gates
+
+| Phase | RD scope | Exit gate |
+|---|---|---|
+| 1A Contract/server | v2 types、capability resolver、action resolver、route/service、Drawing override removal | `qc:dev-072:contract`、`qc:dev-067:contract`、`qc:dev-067:policy`、`qc:dev-067:query`、`qc:dev-067:navigation` PASS；ACT-001..010 static/fixture evidence |
+| 1B Shared UI | action control、tooltip、nullable primary、stable layout、busy/no-op/a11y | focused component/DOM checks + affected lint/typecheck；ACT-011、013..015 PASS |
+| 1C Command integration | existing submit/withdraw/decision/navigation execution、409/403 refresh、idempotency、exact review overlay | `qc:dev-072:api` + DEV-067 lock/review regressions PASS；ACT-012 and mutation evidence |
+| 1D AI QC | disposable isolated app，AI真實操作ACT-016..030 | `qc:dev-072:browser`、四viewport、cleanup、P0/P1=0；aggregate `qc:dev-072` PASS |
+
+RD每一 phase完成後才進下一 phase。若1A發現 action truth只能由 client workbench state取得，立即停止，不得先做 CSS/tooltip 製造表面完成。
+
+### Implementation boundary and exact impact
+
+本機 Phase 1A～1D 現在可由 RD 執行。禁止 schema/migration、新 dependency、環境變數、production/staging data、permission/state-machine改寫、第二套 drawer、直接改正式資料或 release。若實作發現必須改其中任一項，或無法由既有 server capability判定 applicability，立即停止回 Dev PM，不可在 client猜測。
+
+Dirty worktree boundary：目前 branch已有大量既存修改，且 DEV-067相關產品檔亦為 dirty。RD 必須先記錄本任務開始時的 scoped diff，僅在上述 exact files上疊加最小變更；不得 reset、restore、重排或提交其他人的修改。若同一 hunk 無法安全分離，停止並回報衝突檔/hunk，不可覆寫。
+
+### Acceptance and AI real-operation QC gate
+
+- `ACT-001..015`：action inventory、applicability omission、stable group/order、唯一 primary、disabled no-op、server bypass、permission/company/request scope contract。
+- `ACT-016..030`：AI 必須在真實 Chromium rendered page 操作四工作台 owner detail，覆蓋 hover、keyboard focus、touch tooltip、locked→enabled 同位置、真實 disposable 送審／撤回／決策、returnTo、四 viewport、visible error、console/network/5xx sweep。
+- QC evidence authority：`.ai-doc/qa/qa-dev-072-pdm-action-discoverability-ai-real-operation-validation-plan-2026-08-14.md`。
+- PASS 必須有可重跑 manifest、case result、before/after screenshots、DOM/ARIA snapshot、interaction trace、network/data mutation assertion與 cleanup 結果。單元測試、source scan、build 或「畫面看起來正確」均不能取代 AI 真實操作。
+- DEV-072 本機 Phase 1A～1D 已完成；final AI real-browser evidence與aggregate均通過。DEV-067 歷史 PASS未被冒充為DEV-072證據，production release保持 gated。
+
+### RD Readiness Review
+
+- Architecture：沿用 DEV-067 composer/projection/server-policy ADR；新增的是 action resolver/control，不建立第二套 detail body。ADR not needed。
+- API：同 endpoint 升為明示 v2；input/output、action execution、nullable primary與client override removal已固定。
+- Data/schema/migration：無 persistent data change、無 migration、無 cache migration。
+- Permissions：只讀取既有固定 capability；decision仍由 exact review receipt與既有 command API；不新增或放寬權限。
+- State machine：不改 transition；applicability/state matrix、terminal omission與reason precedence已固定。
+- Transaction/concurrency：read projection snapshot不變；write仍由既有 endpoint transaction/lock/idempotency/row version權威；409不自動重送。
+- Failure recovery：unknown action fail closed、disabled零execution、403/409整體refresh、202 processing、tooltip失效不解鎖皆已定義。
+- Backward compatibility/rollback：feature flag預設/現況邊界不變；同部署 client/server使用v2；關閉既有 unified detail flag回legacy，無資料回滾。
+- QA/QC：ACT-001..030、phase gates、exact scripts、evidence/cleanup與AI真實操作已定義。
+- Open P0/P1 readiness gap：0。高影響 deferred scope只有production release，維持既有 release gate；沒有新future phase或新DEV。
+
+Result: `DEV-072 Local RD/QA/QC Complete / Human Confirmed / Production Release Gated`.
+
+### 2026-08-14 DEV-072 Implementation and QC Result
+
+- Server：`pdm-entity-detail.v2`、固定九項capability map、pure action resolver、typed execution、reason precedence、stable ID/group/order與nullable unique primary已落地。
+- Client：四工作台共用同一`ContextActionBar`與`PdmDetailActionControl`；Drawing override、`primaryContextAction`、`showOwnerNavigation`與client decision mapping已退役。locked control支援hover/focus/touch、event guard、fixed portal與140px desktop stable slot；390px改為full-width。
+- Command integration：沿用既有submit/withdraw/decision routes與server revalidation；403/409 fail closed，409不自動重送；`return_to_inbox`成功不再背景refresh失效detail。
+- Final evidence：`output/qa/dev-072-pdm-action-discoverability/DEV072-20260814T050039Z-113d57e2/`，21/21 browser cases、13 screenshots、12/12 visible-error sweeps、0 console/page error、0 unexpected 4xx/5xx、2 expected-negative、cleanup removed 8且temporary root removed。manifest含實際HEAD／branch、scoped dirty/content SHA-256與19個來源檔清單；runner只對已知Windows `next-env.d.ts` transient lock做最多三次啟動重試，其他錯誤仍fail closed。
+- Mutation evidence：confirmation cancel=0 write；submit、withdraw、needs-info、reject、approve各exactly once；stale direct submit=409、permission direct submit=403，兩者domain state unchanged。
+- Aggregate：`npm run qc:dev-072` PASS，包含DEV-067回歸、TypeScript與isolated production build。Focused QC conclusion：`.ai-doc/qc/qc-dev-072-pdm-action-discoverability-2026-08-14.md`。
+- Boundary：無schema/migration、新permission code、domain mutation API、dependency、env或production data change；production release仍gated。
 
 ## 2026-08-12 DEV-067 Amendment - `UnifiedPdmEntityDetailDrawer`
 
@@ -685,11 +1058,11 @@ Required sections:
 - `Object lifecycle`: status, phase, why it can/cannot proceed.
 - `圖號附件庫`: current attachments, deleted data section and refresh state.
 - `送審檢查`: prerequisite blockers, missing attachment/data states and next CTA.
-- `同主根號料號`: linked parts and same-root part cards.
+- `同根料號`: linked parts and same-root part cards.
 - `關係 / 影響`: traceability and impact analysis entry.
 - `新增相關資料`: drawing-context `NumberingContextualEntrypoints`.
 
-The drawing detail panel must be the same whether opened from `/numbering/drawings` or `/numbering/search`. The relation page may default-scroll to `同主根號料號` or `關係 / 影響`, but it cannot omit attachments or readiness sections.
+The drawing detail panel must be the same whether opened from `/numbering/drawings` or `/numbering/search`. The relation page may default-scroll to `同根料號` or `關係 / 影響`, but it cannot omit attachments or readiness sections.
 
 Candidate reservations that contain a drawing are members of the same `drawing_number` detail family, even though their canonical entity metadata remains `candidate_bundle`. Candidate and formal drawing drawers MUST therefore publish `data-detail-family="drawing_number"` and `data-drawing-detail-skeleton="true"`, and render this ordered section contract:
 
@@ -881,7 +1254,7 @@ Historical Phase 2 optional facade（superseded by the required DEV-067 facade�
 
 | State | First visible answer |
 |---|---|
-| root not found | `找不到這個主根號，請重新查詢或確認權限。` |
+| root not found | `找不到這個圖料根號，請重新查詢或確認權限。` |
 | drawing not found | `找不到這個圖號，請重新查詢或確認是否已切換公司/資料範圍。` |
 | part not found | `找不到這個料號，請重新查詢或確認是否已切換公司/資料範圍。` |
 | restricted | `目前角色不能查看這項資料，請改用有權限的帳號或聯絡 Admin。` |
@@ -1109,3 +1482,20 @@ The user has selected the A0005 formal drawing detail drawer as the only current
 - No QA/QC PASS may be restored from static source inspection or old screenshots. The AI must operate the current route in a real browser, execute isolated fault cases and complete disposable mutation/readback/cleanup evidence.
 
 Focused result (2026-08-09): DEV-059 completed the current-route modal recovery portion with AI browser evidence for X, 返回檢查, Escape, physical click, hard reload, back/forward, candidate switching and 1440/1024/390 viewport checks. The parent full PASS remains gated because the shared candidate was intentionally not mutated; isolated flow/integration evidence covers submit/withdraw/fault behavior, while an isolated disposable UI mutation run remains an extended gate.
+
+## 2026-08-14 DEV-073 CAPA Amendment — Status/Action/Work-item Consistency
+
+This amendment is authoritative for the A0005 formal drawer state inconsistency and intentionally replaces any owner-only responsibility interpretation.
+
+- A published workspace is provenance only; it must not be passed to the action resolver as an active candidate or override formal lifecycle/action ownership.
+- The action catalog is resolved before viewer responsibility. `current_user` requires an applicable domain responsibility action; history and navigation alone are insufficient.
+- Formal `rd_controlled` renders usable status and formal actions such as create revision/history, subject to existing permission rules.
+- `in_review` without a resolvable request/workflow renders `unknown / 負責人待確認` and a locked `view_review` gateway with `PDM_ACTION_TARGET_UNAVAILABLE` plus PDM administrator recovery wording.
+- Acceptance and evidence are controlled by `SPEC-PDM-STATUS-ACTIONABILITY-CAPA-001`, QA-DEV-073 and QC-DEV-073. No schema, permission or decision-authority change is implied.
+
+## 2026-08-14 Drawing maintenance entry merge amendment
+
+- `編輯圖面資料` 與 `管理圖面檔案` 僅在 UI/action catalog 層合併為單一 `detail:drawing:edit`，可見 label 固定為 `圖面維護`。此入口進入同一 `DrawingProjection`，同時提供基本資料、自動 3D／2D 預覽、版本與附件、受控補檔表單及關聯料號。
+- 主資料保存與附件上傳仍是兩個獨立 backend mutation boundary；任一 mutation 失敗不回滾另一者。附件類別仍由 server-side 自動偵測，UI 不提供人工 3D／2D 類別選擇。若資料或附件維護能力任一缺少，合併入口整體以低色階鎖定並以 tooltip 說明，避免進入後出現未授權控制。
+- 影響檔案：`src/lib/pdm-detail-action-resolver.ts`、`src/components/unified-pdm-entity-detail-drawer.tsx`、`src/components/drawing-projection.tsx`、`src/components/master-attachment-panel.tsx`、`scripts/qc-dev-072-action-api.mjs`、`scripts/qc-dev-072-browser.mjs`。
+- Focused browser evidence：`output/qa/dev-072-pdm-action-discoverability/DEV072-20260814T110623Z-5ad38d84/run-manifest.json`；AI Chromium 確認圖面只出現 `detail:drawing:edit` 且不再輸出 `detail:drawing:manage_files`，並通過補檔表單可見與審核中鎖定斷言。完整 browser runner 後段既有 approval fixture 仍有 404／等待逾時，因此本 amendment 不宣告新的 aggregate 21/21；既有 DEV-072 baseline PASS 不被覆寫。

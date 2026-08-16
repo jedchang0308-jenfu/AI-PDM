@@ -1,0 +1,98 @@
+{
+  "runId": "DEV072-20260814T094445Z-b4b9e819",
+  "generatedAt": "2026-08-14T09:44:46.101Z",
+  "tool": "Playwright Chromium driven by Codex QC",
+  "productionConnection": false,
+  "productionWrite": false,
+  "database": "disposable isolated SQLite copies",
+  "fixture": null,
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "laptop",
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "touch": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "RUN-FATAL",
+      "passed": false,
+      "detail": {
+        "error": "CHECK constraint failed: (lifecycle_status = 'draft'\n      AND formal_drawing_number_id IS NULL AND formal_revision_package_id IS NULL\n      AND promoted_at IS NULL AND cancelled_at IS NULL AND cancelled_by IS NULL)\n    OR (lifecycle_status = 'review_locked'\n      AND approval_request_id IS NOT NULL AND review_snapshot_hash IS NOT NULL\n      AND formal_drawing_number_id IS NULL AND formal_revision_package_id IS NULL\n      AND promoted_at IS NULL AND cancelled_at IS NULL AND cancelled_by IS NULL)\n    OR (lifecycle_status = 'promoted'\n      AND approval_request_id IS NOT NULL AND review_snapshot_hash IS NOT NULL\n      AND formal_drawing_number_id IS NOT NULL AND formal_revision_package_id IS NOT NULL\n      AND promoted_at IS NOT NULL AND cancelled_at IS NULL AND cancelled_by IS NULL)\n    OR (lifecycle_status = 'cancelled'\n      AND formal_drawing_number_id IS NULL AND formal_revision_package_id IS NULL\n      AND promoted_at IS NULL AND cancelled_at IS NOT NULL AND cancelled_by IS NOT NULL)"
+      }
+    },
+    {
+      "id": "CLEANUP",
+      "passed": false,
+      "detail": {
+        "error": "EPERM, Permission denied: \\\\?\\C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev072-browser-Tu8J31 '\\\\?\\C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev072-browser-Tu8J31'"
+      }
+    }
+  ],
+  "P0": 0,
+  "P1": 0,
+  "cleanup": {
+    "attempted": true,
+    "removedCount": 0,
+    "tempRootRemoved": false
+  },
+  "source": {
+    "provenanceVersion": 1,
+    "commit": "cc393e048b251fb1ea3356204de56bc4c9eacc45",
+    "branch": "持續優化1",
+    "dirtyWorktree": true,
+    "scopedDirty": true,
+    "dirtyHashAlgorithm": "sha256(commit + scoped git status + scoped source hash)",
+    "dirtyHash": "bdb7b370e8c96c5f45a08459e8c3c4b3f5aa1bbabf4d580eb87f27d9de554ec9",
+    "scopedSourceHashAlgorithm": "sha256(sorted path + NUL + file bytes + NUL)",
+    "scopedSourceHash": "7a982c1f25e71b50345d5f9e71af8c54e727b75eaf967f34a44d0739b5df734e",
+    "scopedFiles": [
+      "package.json",
+      "scripts/qc-dev-072-action-api.mjs",
+      "scripts/qc-dev-072-action-contract.mjs",
+      "scripts/qc-dev-072-browser.mjs",
+      "src/app/api/pdm/entity-details/[entityKey]/route.ts",
+      "src/app/approvals/page.tsx",
+      "src/app/globals.css",
+      "src/components/drawing-projection.tsx",
+      "src/components/drawing-workbench.tsx",
+      "src/components/master-attachment-panel.tsx",
+      "src/components/part-projection.tsx",
+      "src/components/part-workbench.tsx",
+      "src/components/pdm-detail-action-control.tsx",
+      "src/components/relation-matrix-table.tsx",
+      "src/components/relation-projection.tsx",
+      "src/components/relation-workbench.tsx",
+      "src/components/unified-pdm-entity-detail-drawer.tsx",
+      "src/lib/pdm-detail-action-capabilities.ts",
+      "src/lib/pdm-detail-action-resolver.ts",
+      "src/lib/pdm-entity-detail-contract.ts",
+      "src/lib/pdm-entity-detail.ts"
+    ]
+  },
+  "files": [
+    "action-contract.json",
+    "dom-metrics.json",
+    "interaction-log.json",
+    "console-network.json",
+    "data-before-after.json",
+    "visible-error-sweep.json",
+    "defects.md"
+  ]
+}

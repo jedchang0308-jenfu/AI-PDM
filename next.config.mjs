@@ -1,6 +1,59 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const distDir = process.env.PDM_NEXT_DIST_DIR?.trim() || ".next";
+
+// Keep every temporary Next runtime from rewriting the canonical TypeScript configs.
+function ensureIsolatedNextTsconfig(customDistDir) {
+  const resolvedDistDir = path.resolve(projectRoot, customDistDir);
+  const temporaryRoot = path.resolve(projectRoot, ".tmp");
+  if (!resolvedDistDir.startsWith(`${temporaryRoot}${path.sep}`)) {
+    throw new Error("Custom PDM_NEXT_DIST_DIR must stay under .tmp or provide PDM_NEXT_TSCONFIG_PATH.");
+  }
+
+  const configDir = path.join(temporaryRoot, "next-tsconfig");
+  const configKey = crypto.createHash("sha256").update(customDistDir).digest("hex").slice(0, 16);
+  const configPath = path.join(configDir, `${configKey}.json`);
+  const normalizedDistDir = customDistDir.replaceAll("\\", "/");
+  const config = {
+    extends: "../../tsconfig.next.json",
+    compilerOptions: {
+      incremental: false
+    },
+    include: [
+      "../../next-env.d.ts",
+      "../../src/**/*.ts",
+      "../../src/**/*.tsx",
+      `../../${normalizedDistDir}/types/**/*.ts`,
+      `../../${normalizedDistDir}/dev/types/**/*.ts`
+    ],
+    exclude: [
+      "../../node_modules",
+      "../../output",
+      "../../backups"
+    ]
+  };
+
+  fs.mkdirSync(configDir, { recursive: true });
+  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+  return path.relative(projectRoot, configPath).replaceAll("\\", "/");
+}
+
+function resolveNextTsconfigPath() {
+  const explicitPath = process.env.PDM_NEXT_TSCONFIG_PATH?.trim();
+  if (explicitPath) return explicitPath;
+  return distDir === ".next" ? "tsconfig.next.json" : ensureIsolatedNextTsconfig(distDir);
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  distDir: process.env.PDM_NEXT_DIST_DIR?.trim() || ".next",
+  distDir,
+  typescript: {
+    tsconfigPath: resolveNextTsconfigPath()
+  },
   devIndicators: false,
   output: "standalone",
   poweredByHeader: false,

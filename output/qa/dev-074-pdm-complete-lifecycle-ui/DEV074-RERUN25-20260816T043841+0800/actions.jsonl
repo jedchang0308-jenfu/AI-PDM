@@ -1,0 +1,7 @@
+{"at":"2026-08-16T04:38:41+08:00","actor":"qc","action":"run_started","run_id":"DEV074-RERUN25-20260816T043841+0800","root":"A0037","policy":"rendered_ui_only"}
+{"at":"2026-08-16T04:44:00+08:00","actor":"qc","action":"wave_passed","paths":["A01","A02","A03","A04"],"result":"4/4 pass"}
+{"at":"2026-08-16T04:45:30+08:00","actor":"qc","action":"paths_passed","paths":["B01","B02","B03"]}
+{"at":"2026-08-16T04:46:30+08:00","actor":"qc","action":"path_failed","path":"B04","defect_id":"DEV074-R25-P1-021","reason":"preview pending polling returned repeated HTTP 409 browser errors"}
+{"at":"2026-08-16T04:47:30+08:00","actor":"rd","action":"repair_completed","defect_id":"DEV074-R25-P1-021","checks":["typecheck:app","qc:dev-074:preview-pending-console-safety","qc:dev-074:review-attachment-visibility"]}
+{"at":"2026-08-16T04:48:00+08:00","actor":"qc","action":"targeted_ui_retest_passed","path":"B04","console_errors":0,"evidence":"screenshots/B04/targeted-preview-pending-no-console-error.png"}
+{"at":"2026-08-16T04:48:17+08:00","actor":"qc","action":"run_sealed_failed","summary":{"pass":7,"fail":1,"blocked":0,"not_run":50}}

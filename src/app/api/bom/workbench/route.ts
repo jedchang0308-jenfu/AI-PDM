@@ -10,6 +10,7 @@ import {
 import { buildBomWorkbenchDraftLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 import { canReadBomDraftAsync } from "@/lib/permissions";
 import { getSubmissionAsync } from "@/lib/submissions-async";
+import { bomXmindEditorV2ClientStatus } from "@/lib/bom-editor-feature";
 
 export const runtime = "nodejs";
 
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     const draft = await getBomWorkbenchDraftByIdAsync(draftId);
     if (!draft) return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
     if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
-    return NextResponse.json({ workbench: await getBomWorkbenchByDraftIdAsync(draftId) });
+    return NextResponse.json({ workbench: await getBomWorkbenchByDraftIdAsync(draftId), editorCapability: bomXmindEditorV2ClientStatus() });
   }
   const submissionId = url.searchParams.get("submissionId")?.trim();
   if (!submissionId) {
@@ -48,6 +49,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    workbench: await getBomWorkbenchBySubmissionIdAsync(submissionId)
+    workbench: await getBomWorkbenchBySubmissionIdAsync(submissionId),
+    editorCapability: bomXmindEditorV2ClientStatus()
   });
 }

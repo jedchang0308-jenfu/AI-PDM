@@ -6,7 +6,7 @@
 
 ## Decision
 
-使用者可見的物件身份固定使用「編號／主根號／料號／圖號」。移除「保留號」、「候選」與
+使用者可見的物件身份固定使用「編號／圖料根號／料號／圖號」。`同主根號料號` 的顯示名稱固定為「同根料號」。移除「保留號」、「候選」與
 `預覽／已保留／正式／已釋出` 號碼效力分類；流程只保留「編輯中／申請中／送審中／審核中／已發布／已取消」，
 必要限制以白話說明與 disabled CTA 呈現。
 
@@ -35,3 +35,7 @@ timestamp、狀態值、權限、API payload key 或任何流程 authority。
 
 - 本 ADR 不授權 production data migration、正式環境執行、deploy、release 或刪除資料。
 - RD 必須先做 exact field inventory 與 dry-run，遇到 machine token 命中、欄位語意不明或 count mismatch 即停止。
+
+## 2026-08-12 Vocabulary amendment
+
+使用者要求將 user-facing `主根號` 改名為 `圖料根號`，並將 `同主根號料號` 改為 `同根料號`。本 amendment 取代本 ADR 內現行顯示詞彙的舊稱，但不改 `part_roots`、`root_code`、`part_root_id`、`source_root_id`、`rootCode`、API 路徑、query key、action code、enum、hash 或任何資料 authority。歷史報告與 archived evidence 保留原始用語，以維持證據可追溯性。

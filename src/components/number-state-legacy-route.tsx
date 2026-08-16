@@ -75,7 +75,7 @@ export function NumberStateLegacyRoute({
               <ArrowRight size={16} aria-hidden="true" />
             </Link>
             <Link className="secondary-button" href="/numbering/search">
-              回圖料模組
+              回圖料工作台
             </Link>
           </div>
         </div>

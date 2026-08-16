@@ -1,0 +1,18 @@
+[
+  {
+    "label": "locked-desktop",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "first-candidate-upload",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  }
+]

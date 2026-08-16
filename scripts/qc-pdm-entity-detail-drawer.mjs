@@ -174,7 +174,7 @@ record(
     !numberStateWorkspace.includes("<h3>保留號內容</h3>") &&
     !numberStateWorkspace.includes("number-state-candidate-watermark") &&
     numberStateWorkspace.includes("WorkspaceRelationsDetails") &&
-    numberStateWorkspace.includes('title="主根"') &&
+    numberStateWorkspace.includes('title="圖料根號"') &&
     numberStateWorkspace.includes("primaryDrawingCode={drawingCode}"),
   "candidate header identity and secondary relations"
 );
@@ -203,10 +203,10 @@ record(
 record(
   "Candidate missing-file guidance appears once beside the upload control",
   candidateRevisionEditor.includes("主要 2D 圖面與 3D 模型需重新上傳。") &&
-    candidateRevisionEditor.includes("主要 2D 圖面與 3D 模型已完成，可送審。") &&
+    candidateRevisionEditor.includes("主要 2D 圖面與 3D 模型都已就緒，現在可送交審核。") &&
     sharedDetailPreview.includes("尚無可預覽圖面") &&
     !candidatePreviewSource.includes("先在上方加入") &&
-    candidateDrawerSource.includes("shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)") &&
+    candidateDrawerSource.includes("shouldRenderLifecycleV2Pending(projectNumberLifecycleUserView(workspace.lifecycleV2).stage)") &&
     numberStateWorkspace.includes('!["drawing_preparation", "drawing_addendum_required", "bundle_ready"].includes(stage)') &&
     sharedDetailContent.includes('dataSection="drawing-pending"'),
   "preparation stages keep the shared detail contract and hide empty guidance"
@@ -489,7 +489,7 @@ record(
 record(
   "Drawing target includes canonical drawing owner sections",
   searchPage.includes("送審檢查") &&
-    searchPage.includes("同主根號料號") &&
+    searchPage.includes("同根料號") &&
     searchPage.includes('entityType="drawing_number"') &&
     searchPage.includes("processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)}"),
   "src/app/numbering/search/page.tsx"

@@ -1,0 +1,11 @@
+{
+  "run_id": "DEV074-RERUN3-20260815T164054+0800",
+  "actors": [
+    {"context":"CTX-A","display_name":"Demo Engineer","role":"Engineer","session":"dev074-owner-r3","confirmed_via_ui":true},
+    {"context":"CTX-B","display_name":"R&D Manager","role":"R&D Manager","session":"dev074-reviewer-r3","confirmed_via_ui":true},
+    {"context":"CTX-C/CTX-QC","display_name":"Demo Admin","role":"Admin","session":"qcRun3AdminTab","confirmed_via_ui":true},
+    {"context":"CTX-D1","display_name":"Demo Manufacturing","role":"Manufacturing","session":"dev074-manufacturing-r3","confirmed_via_ui":true},
+    {"context":"CTX-D2","display_name":"Demo Procurement","role":"Procurement","session":"dev074-procurement-r3","confirmed_via_ui":true},
+    {"context":"CTX-E","display_name":"restricted or cross-company principal","role":"Restricted","session":null,"confirmed_via_ui":false}
+  ]
+}

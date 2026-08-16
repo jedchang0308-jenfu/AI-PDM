@@ -740,14 +740,14 @@ function LegacyNumberingSearchPage() {
     if (rootCode) await loadDetail(rootCode);
   }
 
-  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟圖料模組...</div></section>;
+  if (activeTab === null) return <section className="panel"><div className="empty">正在開啟圖料工作台...</div></section>;
   if (activeTab === "reserved") return <NumberStateWorkspaceWorkbench module="search" />;
 
   return (
     <>
       <div className="topbar">
         <div>
-          <h1>圖料模組</h1>
+          <h1>圖料工作台</h1>
           <p>料件、料號與圖號集中查詢，明細標示風險與影響資訊。</p>
         </div>
         <div className="number-state-owner-actions">
@@ -773,7 +773,7 @@ function LegacyNumberingSearchPage() {
             <div className="pdm-master-filter-grid">
               <label className="pdm-master-field">
                 <span>關鍵字</span>
-                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="主根號 / 料號 / 圖號 / 名稱" />
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="圖料根號 / 料號 / 圖號 / 名稱" />
               </label>
               <label className="pdm-master-field">
                 <span>系列代號</span>
@@ -790,7 +790,7 @@ function LegacyNumberingSearchPage() {
                 <span>類型</span>
                 <select value={entityType} onChange={(event) => setEntityType(event.target.value as EntityType)}>
                   <option value="all">全部</option>
-                  <option value="part_root">料件主根</option>
+                  <option value="part_root">圖料根號</option>
                   <option value="part_number">料號</option>
                   <option value="drawing_number">圖號</option>
                 </select>
@@ -900,7 +900,7 @@ function RelationResultsPanel({
         <NextStepState
           eyebrow="查無結果"
           title="目前沒有符合條件的圖料關係"
-          body="查不到符合條件的圖料關係，請清除篩選或改用主根號、圖號、料號搜尋。若這是新圖號或新料號，請改到編號申請建立來源資料。"
+          body="查不到符合條件的圖料關係，請清除篩選或改用圖料根號、圖號、料號搜尋。若這是新圖號或新料號，請改到編號申請建立來源資料。"
           actions={[
             { href: "/numbering/search", label: "重新查詢", variant: "primary" },
             { href: "/numbering/search?tab=reserved", label: "建立編號" }
@@ -921,7 +921,7 @@ function RelationResultsPanel({
         ref={listRef}
         className="pdm-relation-scroll"
         role="region"
-        aria-label="圖料模組關係清單（可用上下鍵快速查閱）"
+        aria-label="圖料工作台關係清單（可用上下鍵快速查閱）"
         aria-keyshortcuts="ArrowUp ArrowDown Enter Escape PageUp PageDown Home End Control+C"
         tabIndex={0}
       >
@@ -1039,7 +1039,7 @@ function RelationRootHeader({
       <div className="pdm-relation-root-meta">
         <span className="pdm-relation-root-summary">{root.drawings.length} 圖號・{root.parts.length} 料號</span>
         <span className="pdm-relation-status-context">
-          <span className="pdm-relation-status-label">主根號工作</span>
+          <span className="pdm-relation-status-label">圖料根號工作</span>
           <HumanStatusBadge status={root.humanStatus} viewerStatus={root.viewerStatus} availabilityScope={root.availabilityScope} />
         </span>
         <span className="pdm-relation-status-context">
@@ -1668,7 +1668,7 @@ function detailTargetHeader(detail: RootDetail, target: DetailTarget) {
     };
   }
   return {
-    title: `主根明細 ${detail.root.rootCode}`,
+    title: `圖料根號明細 ${detail.root.rootCode}`,
     subtitle: detail.root.coreName,
     code: detail.root.rootCode
   };
@@ -1762,7 +1762,7 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
         owner="RD / Manager"
         identities={[
           { label: "料號", value: partNumber.partNumber },
-          { label: "主根號", value: detail.root.rootCode },
+          { label: "圖料根號", value: detail.root.rootCode },
           { label: "關聯圖號", value: links.length },
           { label: "製造圖", value: manufacturingLinks.map((link) => link.drawingNumber).join("、") || "-" }
         ]}
@@ -1805,7 +1805,7 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
         owner="RD / Manager"
         identities={[
           { label: "圖號", value: drawingNumber.drawingNumber },
-          { label: "主根號", value: detail.root.rootCode },
+          { label: "圖料根號", value: detail.root.rootCode },
           { label: "用途", value: purposeLabel(drawingNumber.purposeCode) },
           { label: "關聯料號", value: links.length }
         ]}
@@ -1837,12 +1837,12 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
   const primaryDrawing = detail.drawingNumbers.find((drawingNumber) => drawingNumber.isPrimaryManufacturing) ?? detail.drawingNumbers[0] ?? null;
   return (
     <ObjectLifecycleStatusPanel
-      title="這個主根目前狀態"
+      title="這個圖料根號目前狀態"
       objectName={`${detail.root.rootCode} / ${detail.root.coreName}`}
       status={detail.root.recordStatus}
       owner="RD / Manager"
       identities={[
-        { label: "主根號", value: detail.root.rootCode },
+        { label: "圖料根號", value: detail.root.rootCode },
         { label: "主要料號", value: primaryPart?.partNumber ?? "-" },
         { label: "主要圖號", value: primaryDrawing?.drawingNumber ?? "-" },
         { label: "提醒", value: displayNumberingWarnings(detail.warnings).length }
@@ -2070,9 +2070,9 @@ function TargetRootCoreSection({ detail }: { detail: RootDetail }) {
   const primaryPart = detail.partNumbers[0] ?? null;
   return (
     <section style={sectionStyle} data-entity-core-section="root-identity">
-      <h3 style={sectionHeadingStyle}>主根資訊</h3>
+      <h3 style={sectionHeadingStyle}>圖料根號資訊</h3>
       <div style={targetInfoGridStyle}>
-        <TargetInfoBlock icon={<FileText size={16} />} title="主根號" value={detail.root.rootCode} />
+        <TargetInfoBlock icon={<FileText size={16} />} title="圖料根號" value={detail.root.rootCode} />
         <TargetInfoBlock icon={<Palette size={16} />} title="品名" value={detail.root.coreName} />
         <TargetInfoBlock icon={<Link2 size={16} />} title="主要料號" value={primaryPart?.partNumber ?? "尚未建立料號"} />
         <TargetInfoBlock icon={<Workflow size={16} />} title="主要圖號" value={primaryDrawing?.drawingNumber ?? "尚未建立圖號"} />
@@ -2162,7 +2162,7 @@ function TargetDrawingCoreSections({
       </section>
 
       <section style={sectionStyle} data-entity-core-section="drawing-linked-parts">
-        <h3 style={sectionHeadingStyle}>同主根號料號</h3>
+      <h3 style={sectionHeadingStyle}>同根料號</h3>
         <div style={cardListStyle}>
           {ownerParts.length > 0
             ? ownerParts.map((part) => <DrawingOwnerPartSummaryCard part={part} key={part.id} />)
@@ -2679,7 +2679,7 @@ function humanizeAuditAction(action: string) {
   const labels: Record<string, string> = {
     "numbering.v3.cutover": "資料結構更新",
     "numbering.v2.cutover": "資料結構更新",
-    "part_root.created": "建立主根號",
+    "part_root.created": "建立圖料根號",
     "part_number.created": "建立料號",
     "drawing_number.created": "建立圖號",
     "numbering.relation.created": "建立圖料關聯",
@@ -2718,7 +2718,7 @@ function AccessPanel() {
       <div className="empty">
         <AlertTriangle size={24} />
         <h2>需要登入</h2>
-        <p>請先登入後再使用圖料模組。</p>
+        <p>請先登入後再使用圖料工作台。</p>
       </div>
     </section>
   );
@@ -2729,7 +2729,7 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
     <section className="panel">
       <div className="empty">
         <AlertTriangle size={24} />
-        <h2>圖料查詢暫時無法完成</h2>
+        <h2>圖料工作台暫時無法完成</h2>
         <p>{message} 現在請重試；若仍失敗，請放寬查詢條件或請 Admin 協助確認來源資料。</p>
         <div className="empty-actions">
           <button className="secondary-button" type="button" onClick={onRetry}>

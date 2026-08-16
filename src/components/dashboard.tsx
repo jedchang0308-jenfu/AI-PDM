@@ -274,7 +274,7 @@ function getPlatformWorkbenchSections({
           detail: `${notificationSummary.critical} 高風險 / ${notificationSummary.warning} 注意`,
           icon: Bell
         },
-        { href: "/bom/reviews", label: "BOM 審核", detail: "主管與跨部門 BOM gate", icon: ListTree },
+        { href: "/bom/reviews", label: "BOM 審核", detail: "主管與跨部門審核關卡", icon: ListTree },
         { href: "/numbering/approvals", label: "發行審核", detail: "發布與例外決策", icon: GitPullRequestArrow }
       ]
     },
@@ -294,7 +294,7 @@ function getPlatformWorkbenchSections({
       badge: `${recentDrawings.length} 最近 / ${favoriteDrawings.length} 關注`,
       icon: Search,
       links: [
-        { href: "/numbering/search", label: "圖料模組", detail: "圖號、料號、同圖多料號", icon: Search },
+        { href: "/numbering/search", label: "圖料工作台", detail: "圖號、料號、同圖多料號", icon: Search },
         { href: "/numbering/impact", label: "製造圖影響分析", detail: "作廢前先看影響", icon: ShieldAlert },
         { href: "/numbering/reports", label: "圖號報表", detail: "匯出、稽核、月報", icon: FileText }
       ]
@@ -306,7 +306,7 @@ function getPlatformWorkbenchSections({
       icon: Factory,
       links: [
         { href: "/handoff", label: "製造交接", detail: "已發布圖料與交接包", icon: Factory },
-        { href: "/bom/workbench", label: "BOM 工作台", detail: "BOM snapshot / 匯出", icon: ListTree },
+        { href: "/bom/workbench", label: "BOM 工作台", detail: "BOM 正式版本／匯出", icon: ListTree },
         { href: "/numbering/reports", label: "報表輸出", detail: "跨角色狀態彙整", icon: FileText }
       ]
     },
@@ -336,12 +336,23 @@ const taskSourceIcons: Record<TaskSummarySource, LucideIcon> = {
   submission: FileText
 };
 
+const taskSignalLabels: Record<TaskSummary["signal"], string> = {
+  overdue: "逾期",
+  blocked: "已阻擋",
+  risk: "需注意",
+  review: "待審核",
+  handoff: "待交接",
+  system_exception: "系統異常",
+  draft: "草稿",
+  none: "一般"
+};
+
 function AdaptiveTaskFeedPanel({ tasks }: { tasks: TaskSummary[] }) {
   return (
     <section className="platform-workbench adaptive-task-feed" aria-label="自適應任務排序">
       <div className="platform-workbench-header">
         <div>
-          <span className="section-label">Adaptive task feed</span>
+          <span className="section-label">任務排序</span>
           <h2>下一個該處理的任務</h2>
           <p>依角色、風險、審核中、交接與系統異常排序。</p>
         </div>
@@ -356,7 +367,7 @@ function AdaptiveTaskFeedPanel({ tasks }: { tasks: TaskSummary[] }) {
                   <Icon size={18} aria-hidden="true" />
                 </span>
                 <div>
-                  <span className="metadata-badge">{item.signal}</span>
+                  <span className="metadata-badge">{taskSignalLabels[item.signal]}</span>
                   <h3>{item.title}</h3>
                 </div>
               </div>
@@ -364,10 +375,7 @@ function AdaptiveTaskFeedPanel({ tasks }: { tasks: TaskSummary[] }) {
               <div className="workbench-link-list">
                 <Link className="workbench-link" href={item.href}>
                   <GitBranch size={15} aria-hidden="true" />
-                  <span>
-                    <strong>{item.primaryActionLabel}</strong>
-                    <small>{item.evidence}</small>
-                  </span>
+                  <strong>{item.primaryActionLabel}</strong>
                 </Link>
               </div>
             </article>
@@ -393,13 +401,13 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
         owner="RD"
         identities={[
           { label: "待送審草稿", value: uniqueDrafts.length },
-          { label: "主根號", value: firstDraft.rootCode },
+          { label: "圖料根號", value: firstDraft.rootCode },
           { label: "料號", value: firstPart ?? "-" },
           { label: "圖號", value: firstDrawing ?? "-" },
           { label: "品名", value: firstDraft.displayName || firstDraft.coreName }
         ]}
         blockers={["草稿已有號碼，但尚未形成審核中送審單", "未送審前不可作為正式 BOM、製造或採購交接資料"]}
-        nextStep="從這裡接續上傳送審；送出後才會進入審核者的待辦與 release 流程。"
+        nextStep="從這裡接續上傳送審；送出後才會進入審核者的待辦與發行流程。"
         primaryAction={{
           href: buildUploadPrefillHref({
             rootCode: firstDraft.rootCode,
@@ -411,7 +419,7 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
         }}
         secondaryActions={[
           { href: "/numbering/tasks", label: "看全部草稿" },
-          { href: `/numbering/search?query=${encodeURIComponent(firstDraft.rootCode)}`, label: "開主根明細" }
+          { href: `/numbering/search?query=${encodeURIComponent(firstDraft.rootCode)}`, label: "開圖料根號明細" }
         ]}
       />
       {uniqueDrafts.length > 1 ? (
@@ -808,7 +816,19 @@ function StorageEvidencePanel({
   const blockerCount = evidence?.readiness?.blockers.length ?? 0;
   const warningCount = evidence?.readiness?.warnings.length ?? 0;
   const statusLabel = evidence?.run ? `${evidence.run.period} / ${formatStatusForUser(evidence.run.status, "fileSync")}` : evidence?.source.available === false ? "缺少證據" : "尚未載入";
-  const primaryAction = evidence?.nextActions[0] ?? "執行每月儲存證據工作。";
+  const primaryAction = blockerCount > 0
+    ? `先處理 ${blockerCount} 項儲存治理阻擋，再重新整理證據。`
+    : warningCount > 0
+      ? `檢視 ${warningCount} 項儲存治理提醒，並維持每月證據更新。`
+      : "維持每月儲存證據更新。";
+  const governanceLabel = evidence?.governance
+    ? ({ stable: "穩定", observe: "觀察中", review: "待檢視", control: "受管制", blocked: "已阻擋" } as const)[evidence.governance.level]
+    : "尚未分類";
+  const governanceReviewHint = evidence?.governance?.level === "blocked"
+    ? "阻擋解除後重新檢查治理狀態。"
+    : evidence?.governance?.level === "review" || evidence?.governance?.level === "control"
+      ? "完成本期檢視後重新確認治理狀態。"
+      : "下一期每月證據完成後再次檢查。";
 
   return (
     <section className={`panel storage-evidence-panel ${severityClass}`} aria-label="儲存成本證據">
@@ -860,34 +880,34 @@ function StorageEvidencePanel({
           </div>
             <div className="storage-evidence-lists">
               <div>
-                <span className="metadata-label">Next action</span>
+                <span className="metadata-label">目前可做</span>
                 <strong>{primaryAction}</strong>
               </div>
               <div>
-                <span className="metadata-label">Governance</span>
-                <strong>{evidence.governance?.label ?? "Not classified"}</strong>
-                <small>{evidence.governance?.nextReviewTrigger ?? "Run monthly storage evidence job."}</small>
+                <span className="metadata-label">治理狀態</span>
+                <strong>{governanceLabel}</strong>
+                <small>{governanceReviewHint}</small>
               </div>
-              <div className="metadata-list" aria-label="Storage evidence health">
+              <div className="metadata-list" aria-label="儲存證據健康狀態">
               <span className="metadata-pair">
-                <span className="metadata-label">Objects</span>
+                <span className="metadata-label">物件數</span>
                 <span className="metadata-value">{evidence.summary?.metadataObjectCount ?? 0}</span>
               </span>
               <span className="metadata-pair">
-                <span className="metadata-label">Missing local</span>
+                <span className="metadata-label">本機缺檔</span>
                 <span className="metadata-value">{evidence.summary?.missingLocalObjectCount ?? 0}</span>
               </span>
               <span className="metadata-pair">
-                <span className="metadata-label">Hash mismatch</span>
+                <span className="metadata-label">雜湊不符</span>
                 <span className="metadata-value">{evidence.summary?.hashMismatchCount ?? 0}</span>
               </span>
                 <span className="metadata-pair">
-                  <span className="metadata-label">Public share bytes</span>
+                  <span className="metadata-label">公開分享流量</span>
                   <span className="metadata-value">{formatByteSavings(evidence.summary?.publicShareEgressBytes)}</span>
                 </span>
                 <span className="metadata-pair">
-                  <span className="metadata-label">Provider review</span>
-                  <span className="metadata-value">{evidence.governance?.alternateProviderReviewRecommended ? "Yes" : "No"}</span>
+                  <span className="metadata-label">需檢視儲存服務</span>
+                  <span className="metadata-value">{evidence.governance?.alternateProviderReviewRecommended ? "是" : "否"}</span>
                 </span>
               </div>
             </div>
@@ -2236,6 +2256,10 @@ export function Dashboard() {
     Boolean(detail && detail.status === "Released" && !pendingSubmissionObsoleteRequest) &&
     (currentUser.role === "Engineer" || currentUser.role === "R&D Manager" || currentUser.role === "Admin");
   const canReviewSubmissionObsolete = Boolean(pendingSubmissionObsoleteRequest && canReview);
+  const submissionTerminalReadOnly = detail?.release_actionability?.code.startsWith("SUBMISSION_RELEASE_TERMINAL_") ?? false;
+  const detailHeaderSummary = submissionTerminalReadOnly && selectedSummary
+    ? { ...selectedSummary, status: "Obsolete" as const }
+    : selectedSummary;
 
   return (
     <>
@@ -2281,7 +2305,7 @@ export function Dashboard() {
         <NumberingDraftWorkbench drafts={numberingDrafts} />
       ) : null}
 
-      <section className="platform-workbench" aria-label="AI PDM multi-role workbench">
+      <section className="platform-workbench" aria-label="AI PDM 多角色工作台">
         <div className="platform-workbench-header">
           <div>
             <span className="section-label">多角色工作台</span>
@@ -2627,7 +2651,7 @@ export function Dashboard() {
             detailPanelRef={detailPanelRef}
             drawerWidth={detailDrawerWidth}
             isDetailLoading={isDetailLoading}
-            selectedSummary={selectedSummary}
+            selectedSummary={detailHeaderSummary}
             onClose={() => setSelectedId(null)}
             onStartResize={startDrawerResize}
           >
@@ -2639,8 +2663,21 @@ export function Dashboard() {
                   <strong>檔案與發布包</strong>
                   <small>{detail.files.length} 個檔案可操作</small>
                 </div>
-                <RevisionPackageReviewWarningCard detail={detail} />
-                {detail.status === "Pending" ? (
+                {!submissionTerminalReadOnly ? <RevisionPackageReviewWarningCard detail={detail} /> : null}
+                {detail.status === "Pending" && submissionTerminalReadOnly ? (
+                  <div className="review-decision-card">
+                    <div>
+                      <span className="section-label">受控歷史</span>
+                      <strong>正式圖料已結束，這筆送審只供追溯</strong>
+                      <small>{detail.release_actionability?.message}</small>
+                    </div>
+                    <div className="actions">
+                      <Link className="secondary-button" href={detail.release_actionability?.recovery_href ?? "/numbering/search"}>
+                        {detail.release_actionability?.code === "SUBMISSION_RELEASE_TERMINAL_SANDBOX" ? "返回來源圖面" : "返回圖料歷史"}
+                      </Link>
+                    </div>
+                  </div>
+                ) : detail.status === "Pending" ? (
                   <div className="review-decision-card">
                     <div>
                       <span className="section-label">審核決策</span>
@@ -2648,7 +2685,7 @@ export function Dashboard() {
                       <small>
                         {canReview
                           ? "審核後核准會進入發布流程；駁回後需由建立者修正後重送。"
-                          : "只有 R&D Manager 或 Admin 可以在此核准或駁回。"}
+                          : "只有研發主管或系統管理員可以在此核准或駁回。"}
                       </small>
                     </div>
                     <div className="actions">
@@ -2751,7 +2788,7 @@ export function Dashboard() {
                   <div className="release-package-card missing">
                     <div>
                       <span className="section-label">發布包</span>
-                      <small>製造端現在不能下載發布包。請 R&D Manager 或 Admin 回送審明細補齊發布包。</small>
+                      <small>製造端現在不能下載發布包。請研發主管或系統管理員回送審明細補齊發布包。</small>
                     </div>
                     <Link className="secondary-button" href={`/submissions/${encodeURIComponent(detail.id)}`}>
                       查看送審
@@ -3067,7 +3104,7 @@ export function Dashboard() {
                         <small>目前沒有人預約編輯此料號。</small>
                       )}
                     </div>
-                    {canCheckout ? (
+                    {canCheckout && !submissionTerminalReadOnly ? (
                       detail.active_lock?.locked_by === currentUser.id || currentUser.role === "Admin" ? (
                         <button className="secondary-button" type="button" onClick={() => runCheckout("unlock")} disabled={checkoutLoading}>
                           <Unlock size={14} aria-hidden="true" />
@@ -3106,7 +3143,7 @@ export function Dashboard() {
                           </span>
                           <span className="metadata-badge">Rev {currentSandboxBranch.source_revision}</span>
                         </div>
-                        {currentSandboxBranch.created_by === currentUser.id || currentUser.role === "Admin" ? (
+                        {!submissionTerminalReadOnly && (currentSandboxBranch.created_by === currentUser.id || currentUser.role === "Admin") ? (
                           <button
                             className="primary-button"
                             type="button"
@@ -3118,7 +3155,7 @@ export function Dashboard() {
                           </button>
                         ) : null}
                       </div>
-                    ) : canCheckout ? (
+                    ) : canCheckout && !submissionTerminalReadOnly ? (
                       <div className="readonly-share-form">
                         <label>
                           分支名稱
@@ -3161,7 +3198,7 @@ export function Dashboard() {
                                 <Eye size={14} aria-hidden="true" />
                                 開啟試作
                               </button>
-                              {branch.status === "active" && (branch.created_by === currentUser.id || currentUser.role === "Admin") ? (
+                              {!submissionTerminalReadOnly && branch.status === "active" && (branch.created_by === currentUser.id || currentUser.role === "Admin") ? (
                                 <button
                                   className="primary-button"
                                   type="button"
@@ -3172,7 +3209,7 @@ export function Dashboard() {
                                   合併
                                 </button>
                               ) : null}
-                              {branch.status === "active" && (branch.created_by === currentUser.id || currentUser.role === "Admin") ? (
+                              {!submissionTerminalReadOnly && branch.status === "active" && (branch.created_by === currentUser.id || currentUser.role === "Admin") ? (
                                 <button
                                   className="secondary-button"
                                   type="button"
@@ -3609,7 +3646,7 @@ export function Dashboard() {
                             </span>
                           </div>
                         ) : (
-                          <button className="secondary-button" type="button" onClick={() => resolvePdfMarkup(markup.id)} disabled={markupLoading}>
+                          <button className="secondary-button" type="button" onClick={() => resolvePdfMarkup(markup.id)} disabled={markupLoading || submissionTerminalReadOnly}>
                             <Check size={14} aria-hidden="true" />
                             結案標註
                           </button>
@@ -3619,7 +3656,7 @@ export function Dashboard() {
                   </div>
                 )}
                 <div className="markup-form">
-                  <select className="dropdown-select" value={markupFileId} onChange={(event) => setMarkupFileId(event.target.value)} disabled={markupLoading}>
+                  <select className="dropdown-select" value={markupFileId} onChange={(event) => setMarkupFileId(event.target.value)} disabled={markupLoading || submissionTerminalReadOnly}>
                     <option value="">PDF 檔案</option>
                     {detail.files
                       .filter((file) => file.file_role === "pdf")
@@ -3637,7 +3674,7 @@ export function Dashboard() {
                     value={markupPage}
                     onChange={(event) => setMarkupPage(event.target.value)}
                     aria-label="標註頁次"
-                    disabled={markupLoading}
+                    disabled={markupLoading || submissionTerminalReadOnly}
                   />
                   <input
                     type="number"
@@ -3647,7 +3684,7 @@ export function Dashboard() {
                     value={markupX}
                     onChange={(event) => setMarkupX(event.target.value)}
                     aria-label="標註 X 百分比"
-                    disabled={markupLoading}
+                    disabled={markupLoading || submissionTerminalReadOnly}
                   />
                   <input
                     type="number"
@@ -3657,16 +3694,16 @@ export function Dashboard() {
                     value={markupY}
                     onChange={(event) => setMarkupY(event.target.value)}
                     aria-label="標註 Y 百分比"
-                    disabled={markupLoading}
+                    disabled={markupLoading || submissionTerminalReadOnly}
                   />
                   <textarea
                     value={markupBody}
                     onChange={(event) => setMarkupBody(event.target.value)}
                     placeholder="PDF 標註內容"
                     rows={3}
-                    disabled={markupLoading}
+                    disabled={markupLoading || submissionTerminalReadOnly}
                   />
-                  <button className="secondary-button" type="button" onClick={submitPdfMarkup} disabled={markupLoading || !markupFileId || !markupBody.trim()}>
+                  <button className="secondary-button" type="button" onClick={submitPdfMarkup} disabled={submissionTerminalReadOnly || markupLoading || !markupFileId || !markupBody.trim()}>
                     <MessageSquare size={14} aria-hidden="true" />
                     新增標註
                   </button>
@@ -3696,7 +3733,7 @@ export function Dashboard() {
                           </span>
                         </div>
                         {comment.status === "open" ? (
-                          <button className="secondary-button" type="button" onClick={() => resolveDiscussion(comment.id)} disabled={discussionLoading}>
+                          <button className="secondary-button" type="button" onClick={() => resolveDiscussion(comment.id)} disabled={discussionLoading || submissionTerminalReadOnly}>
                             <Check size={14} aria-hidden="true" />
                             結案
                           </button>
@@ -3706,7 +3743,7 @@ export function Dashboard() {
                   </div>
                 )}
                 <div className="discussion-form">
-                  <select className="dropdown-select" value={discussionFileId} onChange={(event) => setDiscussionFileId(event.target.value)} disabled={discussionLoading}>
+                  <select className="dropdown-select" value={discussionFileId} onChange={(event) => setDiscussionFileId(event.target.value)} disabled={discussionLoading || submissionTerminalReadOnly}>
                     <option value="">送審資料</option>
                     {detail.files.map((file) => (
                       <option value={file.id} key={file.id}>
@@ -3719,9 +3756,9 @@ export function Dashboard() {
                     onChange={(event) => setDiscussionBody(event.target.value)}
                     placeholder="新增審核留言"
                     rows={3}
-                    disabled={discussionLoading}
+                    disabled={discussionLoading || submissionTerminalReadOnly}
                   />
-                  <button className="secondary-button" type="button" onClick={submitDiscussion} disabled={discussionLoading || !discussionBody.trim()}>
+                  <button className="secondary-button" type="button" onClick={submitDiscussion} disabled={submissionTerminalReadOnly || discussionLoading || !discussionBody.trim()}>
                     <MessageSquare size={14} aria-hidden="true" />
                     新增留言
                   </button>
@@ -3778,9 +3815,9 @@ export function Dashboard() {
                               onChange={(event) => setIssueResolution((current) => ({ ...current, [issue.id]: event.target.value }))}
                               placeholder="結案說明"
                               rows={2}
-                              disabled={issueLoading}
+                              disabled={issueLoading || submissionTerminalReadOnly}
                             />
-                            <button className="secondary-button" type="button" onClick={() => resolveIssue(issue.id)} disabled={issueLoading}>
+                            <button className="secondary-button" type="button" onClick={() => resolveIssue(issue.id)} disabled={issueLoading || submissionTerminalReadOnly}>
                               <Check size={14} aria-hidden="true" />
                               結案問題
                             </button>
@@ -3791,7 +3828,7 @@ export function Dashboard() {
                   </div>
                 )}
                 <div className="issue-form">
-                  <select className="dropdown-select" value={issueFileId} onChange={(event) => setIssueFileId(event.target.value)} disabled={issueLoading}>
+                  <select className="dropdown-select" value={issueFileId} onChange={(event) => setIssueFileId(event.target.value)} disabled={issueLoading || submissionTerminalReadOnly}>
                     <option value="">送審資料</option>
                     {detail.files.map((file) => (
                       <option value={file.id} key={file.id}>
@@ -3803,20 +3840,20 @@ export function Dashboard() {
                     value={issueTitle}
                     onChange={(event) => setIssueTitle(event.target.value)}
                     placeholder="問題標題"
-                    disabled={issueLoading}
+                    disabled={issueLoading || submissionTerminalReadOnly}
                   />
                   <textarea
                     value={issueDescription}
                     onChange={(event) => setIssueDescription(event.target.value)}
                     placeholder="描述需要修正的內容"
                     rows={3}
-                    disabled={issueLoading}
+                    disabled={issueLoading || submissionTerminalReadOnly}
                   />
                   <button
                     className="secondary-button"
                     type="button"
                     onClick={submitIssue}
-                    disabled={issueLoading || !issueTitle.trim() || !issueDescription.trim()}
+                    disabled={submissionTerminalReadOnly || issueLoading || !issueTitle.trim() || !issueDescription.trim()}
                   >
                     <AlertTriangle size={14} aria-hidden="true" />
                     新增問題
@@ -3837,7 +3874,7 @@ export function Dashboard() {
                 </div>
                 {approvalMatrixRequirements.length === 0 ? (
                   canReview ? (
-                    <button className="secondary-button" type="button" onClick={initializeApprovalMatrix} disabled={approvalMatrixLoading}>
+                    <button className="secondary-button" type="button" onClick={initializeApprovalMatrix} disabled={approvalMatrixLoading || submissionTerminalReadOnly}>
                       <Lock size={14} aria-hidden="true" />
                       啟用矩陣
                     </button>
@@ -3863,7 +3900,7 @@ export function Dashboard() {
                             <span className="metadata-value">{requirement.created_by_name}</span>
                           </span>
                         </div>
-                        {requirement.status === "open" && canReview ? (
+                        {requirement.status === "open" && canReview && !submissionTerminalReadOnly ? (
                           <div className="file-actions">
                             <button
                               className="secondary-button"
@@ -3921,7 +3958,7 @@ export function Dashboard() {
                             <span className="metadata-value">{new Date(change.created_at).toLocaleString()}</span>
                           </span>
                         </div>
-                        {change.status === "open" && canReview ? (
+                        {change.status === "open" && canReview && !submissionTerminalReadOnly ? (
                           <div className="issue-resolve">
                             <textarea
                               value={changeDecision[change.id] ?? ""}
@@ -3958,38 +3995,38 @@ export function Dashboard() {
                   </div>
                 )}
                 <div className="change-form">
-                  <select className="dropdown-select" value={changeKind} onChange={(event) => setChangeKind(event.target.value as ChangeRequest["kind"])} disabled={changeLoading}>
+                  <select className="dropdown-select" value={changeKind} onChange={(event) => setChangeKind(event.target.value as ChangeRequest["kind"])} disabled={changeLoading || submissionTerminalReadOnly}>
                     <option value="ECR">ECR</option>
                     <option value="ECO">ECO</option>
                     <option value="ECN">ECN</option>
                   </select>
-                  <input value={changeTitle} onChange={(event) => setChangeTitle(event.target.value)} placeholder="變更標題" disabled={changeLoading} />
+                  <input value={changeTitle} onChange={(event) => setChangeTitle(event.target.value)} placeholder="變更標題" disabled={changeLoading || submissionTerminalReadOnly} />
                   <textarea
                     value={changeReason}
                     onChange={(event) => setChangeReason(event.target.value)}
                     placeholder="原因"
                     rows={3}
-                    disabled={changeLoading}
+                    disabled={changeLoading || submissionTerminalReadOnly}
                   />
                   <textarea
                     value={changeImpact}
                     onChange={(event) => setChangeImpact(event.target.value)}
                     placeholder="影響"
                     rows={3}
-                    disabled={changeLoading}
+                    disabled={changeLoading || submissionTerminalReadOnly}
                   />
                   <button
                     className="secondary-button"
                     type="button"
                     onClick={submitChangeRequest}
-                    disabled={changeLoading || !changeTitle.trim() || !changeReason.trim() || !changeImpact.trim()}
+                    disabled={submissionTerminalReadOnly || changeLoading || !changeTitle.trim() || !changeReason.trim() || !changeImpact.trim()}
                   >
                     <Archive size={14} aria-hidden="true" />
                     新增變更
                   </button>
                 </div>
               </div>
-              {detail.status === "Pending" && canReview ? (
+              {detail.status === "Pending" && canReview && !submissionTerminalReadOnly ? (
                 <>
                   <RevisionPackageReviewWarningCard detail={detail} compact />
                   <div className="actions">
@@ -4214,7 +4251,7 @@ export function Dashboard() {
                 title="請選擇一筆圖面資料查看明細"
                 body="明細會串接版次、BOM、影響範圍、交接包與協作紀錄；也可以先建立新送審。"
                 actions={[
-                  { href: "/numbering/search", label: "圖料模組", variant: "primary" },
+                  { href: "/numbering/search", label: "圖料工作台", variant: "primary" },
                   { href: "/upload", label: "上傳送審" }
                 ]}
               />

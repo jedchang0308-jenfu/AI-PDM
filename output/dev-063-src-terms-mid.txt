@@ -1,0 +1,86 @@
+src\lib\availability-scope.ts:39:    return scope("production", "release_evidence", "正式發布圖面，可供生產使用。");
+src\lib\availability-scope.ts:51:  if (source.recordStatus === "Released") return scope("production", "release_evidence", "正式發布圖面，可供生產使用。");
+src\lib\availability-scope.ts:70:      return scope("unknown", "dependency", "料號已發布，但製造圖版次尚未確認為正式發布。");
+src\lib\availability-scope.ts:72:    return scope("production", "release_evidence", "正式發布料號，可供生產使用。");
+src\lib\availability-scope.ts:87:    return scope("unknown", "dependency", "關聯料號或製造圖尚未全部正式發布，暫不能判定生產使用資格。");
+src\lib\availability-scope.ts:89:  if (source.recordStatus === "Released") return scope("production", "release_evidence", "正式發布且圖料關係完整，可供生產使用。");
+src\app\settings\page.tsx:622:      setMessage({ type: "error", text: "審核中暫存區與正式發布區不可指向同一個資料夾" });
+src\app\settings\page.tsx:739:                  <p>{selectedFolder ? "請驗證後指定用途，再儲存設定。" : "從左側資料夾樹選取審核中暫存區或正式發布區。"}</p>
+src\app\settings\page.tsx:785:                  設為正式發布區
+src\app\settings\page.tsx:808:            <FolderAssignmentCard title="正式發布區" folderId={releasedFolder} snapshot={releasedSnapshot} />
+src\app\settings\page.tsx:835:                正式發布資料夾 ID
+src\app\settings\page.tsx:1443:  if (use === "released") return "正式發布區";
+src\app\settings\page.tsx:3169:    RELEASED_DOCUMENT_REVISION_REQUIRED: "已正式發布的受影響文件，必須先建立新版或修訂後才能放行。",
+src\lib\drawing-revision-lifecycle.ts:39:  displayStatus: "準備中" | "送審中" | "退回修改" | "研發受控" | "正式發布";
+src\lib\drawing-revision-lifecycle.ts:418:    released: { displayStatus: "正式發布", primaryAction: "create_revision" }
+src\components\bom-create-workflow.tsx:159:      setError(caught instanceof Error ? caught.message : "BOM 建立未完成，已保留目前選擇，請再試一次。");
+src\app\privacy\page.tsx:31:          本告知適用於 AI PDM 內部 Pilot 的正式領號與草稿作業。請閱讀下列資料處理方式；「我已閱讀並了解」是閱讀確認，不代表對所有處理活動作概括同意。
+src\lib\pdm-policy-rag-data.ts:25:    "content": "| 資料效力 | 使用時機 | 版次範例 | 可以拿來正式生產嗎 |\n| --- | --- | --- | --- |\n| 研發作業版 | 新產品研發、概念驗證、草案設計 | `0.1 -> 0.2 -> 0.3 -> ... -> 0.11` | 不可以 |\n| 待移轉資料 | 必要驗證證據已完成，準備交給生產 | `0.x` | 原則上不可以，除非主管核准試用 |\n| 正式發布資料 | 技術移轉完成，可作為正式依據 | `1` | 可以 |\n| 設計變更作業版 | 已發布產品正在修改、驗證或補正 | `1.1 -> 1.2 -> 1.3 -> ... -> 1.11` | 不可以 |\n| 變更後正式資料 | 設計變更驗證與審查完成，正式取代前版 | `2` | 可以 |\n| 歷史版本 | 已被新版取代，但仍需查詢歷史 | `Obsolete` | 不可以 |\n\n使用者只要記住一件事：小版次是尚未正式發布的作業資料；大版次是完成技術移轉或設計變更審查後的正式資料。"
+src\lib\pdm-policy-rag-data.ts:30:    "content": "- `revision` 是版次欄位，送審時必須有值。\n- 系統依工程圖資料及編號管理辦法 4.1 原則自動帶入預設版次，使用者可依圖紙修訂欄編輯。\n- 版次格式一律不加 `V`；欄位名稱「版次」本身就代表 Version。\n- 系統不得接受 `V1`、`V0.1`、`A/B/C`、`R01/R02` 或其他英文字母版次格式。\n- 發行區使用大版次整數，例如 `1`、`2`、`3`。\n- 技術移轉前，所有需要圖號管控的圖面使用小版次：`0.1 -> 0.2 -> 0.3 -> ... -> 0.11 -> ...`。\n- 技術移轉完成後，候選小版次轉為第一個大版次：`0.x -> 1`。\n- 技術移轉後若發生設計變更，先進入小版次：`1.1 -> 1.2 -> 1.3 -> ... -> 1.11 -> ...`。\n- 設計變更完成並經核准後，轉為下一個大版次：`1.x -> 2`。\n- 後續依同樣規則循環：`2.1 -> 2.2 -> ... -> 3`。\n- 小版次必須當成文字或分段數字理解；`0.11` 是第 11 次小版，不是 Excel 小數，也不是 `0.1`。\n\n使用者常見判斷：\n\n| 情境 | 應使用版次 |\n| --- | --- |\n| 新產品第一次畫圖 | `0.1` |\n| 開發中修改第二次 | `0.2` |\n| 開發中修改第十一版 | `0.11` |\n| 技術移轉完成 | `1` |\n| Rev1 正式發行後要設計變更 | `1.1` |\n| 設變中補正到第十一版 | `1.11` |\n| 設變完成並核准 | `2` |"
+src\lib\pdm-policy-rag-data.ts:45:    "content": "技術移轉不是「檔案上傳完成」，而是公司確認這個產品或重大改良已經可以交給生產穩定執行。\n\n技術移轉前至少確認：\n\n1. 正式圖面已審查，所有受控圖面停留在同一候選小版次。\n2. BOM 已確認，料號、材質、規格、供應商來源清楚。\n3. 專案所要求的必要驗證紀錄已完成，重大風險已有處置。\n4. 試車、檢驗、安裝、保養重點已文件化。\n5. 生產部確認可製造。\n6. 營銷或現場人員確認符合客戶使用情境。\n7. 總經理或授權主管核准技術移轉。\n\n技術移轉完成後，受控圖面、BOM、SOP、檢驗表由 `0.x` 轉為 `Rev1` 或大版次 `1`，並進入正式可生產狀態。"
+src\lib\pdm-policy-rag-data.ts:80:    "content": "截至 2026-07-09，ISO 官方頁面顯示 ISO/FDIS 9001 已進入新版準備階段，預計於 2026 年 9 月發布新版並取代 ISO 9001:2015。因此本管理辦法先依 ISO 9001:2015 的成熟架構與 2026 新版方向建立可落地流程；待 ISO 9001:2026 正式發布後，再校準正式條文號與用語。\n\n| PDM 管理活動 | 對應的品質管理意義 | ISO 9001 對應方向 |\n| --- | --- | --- |\n| A/B/C 產品分級 | 先判斷風險與流程深度，避免過度或不足管理 | 風險導向思維、營運規劃 |\n| 設計輸入與需求確認 | 確認客戶需求、現場條件、法規與公司能力 | 設計與開發輸入、顧客要求 |\n| 研發驗證證據 | 用證據確認設計可行、可用、可製造 | 設計與開發控制、驗證與確認 |\n| 技術移轉 | 把設計成果正式交給生產、檢驗與交付流程 | 生產與服務提供、產品放行 |\n| 主根號、圖號、料號、版次 | 控制設計主題、圖料關係、工程資料與有效版本，避免錯版製造 | 文件化資訊、識別與追溯、設計開發控制 |\n| ECO 設計變更 | 正式控管變更影響、驗證與發行 | 變更控制、不符合與矯正措施 |\n| Released / Obsolete | 明確有效版本與歷史版本 | 產品放行、追溯與知識保存 |\n| 審核權限 | 避免未授權放行或同一人重複核准 | 職責權限、內部控制 |"
+src\app\policy\page.tsx:191:              <p>{editing ? "儲存後會更新所有使用者看到的管理辦法。" : "小版次用於研發或設計變更作業，大版次才是正式發布資料。"}</p>
+src\lib\numbering-vocabulary.ts:18:  [/候選圖料與首版/g, "圖料與首版"],
+src\lib\numbering-vocabulary.ts:19:  [/候選圖料號/g, "圖料號"],
+src\lib\numbering-vocabulary.ts:20:  [/候選圖號/g, "圖號"],
+src\lib\numbering-vocabulary.ts:21:  [/候選料號/g, "料號"],
+src\lib\numbering-vocabulary.ts:22:  [/候選首版/g, "首版準備"],
+src\lib\numbering-vocabulary.ts:23:  [/候選版次/g, "版次"],
+src\lib\numbering-vocabulary.ts:24:  [/候選關係/g, "關係"],
+src\lib\numbering-vocabulary.ts:25:  [/候選工作/g, "工作"],
+src\lib\numbering-vocabulary.ts:26:  [/候選欄位/g, "待確認欄位"],
+src\lib\numbering-vocabulary.ts:27:  [/候選值/g, "待確認值"],
+src\lib\numbering-vocabulary.ts:28:  [/候選號碼/g, "編號"],
+src\lib\numbering-vocabulary.ts:29:  [/候選號/g, "編號"],
+src\lib\numbering-vocabulary.ts:30:  [/候選/g, "待確認"],
+src\lib\numbering-vocabulary.ts:34:  [/建立保留號/g, "建立編號"],
+src\lib\numbering-vocabulary.ts:35:  [/保留號建立/g, "建立編號"],
+src\lib\numbering-vocabulary.ts:36:  [/保留號碼/g, "編號"],
+src\lib\numbering-vocabulary.ts:37:  [/保留號/g, "編號"],
+src\lib\numbering-vocabulary.ts:39:  [/正式圖號/g, "圖號"],
+src\lib\numbering-vocabulary.ts:40:  [/正式料號/g, "料號"],
+src\lib\numbering-vocabulary.ts:42:  [/正式發布/g, "發布"],
+src\lib\numbering-vocabulary.ts:46:  [/正式領號/g, "編號建立"]
+src\lib\privacy-notice-content.ts:7:  "AI PDM 會處理帳號、權限、登入安全與正式領號／草稿操作所需資料。",
+src\lib\privacy-notice-content.ts:19:    body: "建立與驗證 AI PDM 帳號、執行權限控管與多因素驗證、提供正式領號及草稿作業、維護資安與系統穩定、追查異常操作、履行內部管理及法令義務。"
+src\lib\privacy-notice-content.ts:27:    body: "離職時立即停用帳號，Firebase identity 原則上於離職後 30 日刪除；邀請、復原及 session 安全事件保存 180 日；應用程式安全 log 保存 365 日；Google _Required 系統 log 依供應商固定政策保存 400 日。正式圖號與防止重複使用所需的最小台帳永久保存；已關閉或取消的草稿保存 3 年；操作稽核保存 3 年並以穩定 PDM User ID 識別；已退役工號／登入別名保存 3 年後移除原始別名。具名、具理由及到期日的法律或資安保全要求得暫緩刪除。"
+src\app\numbering\revisions\page.tsx:726:            <p style={mutedTextStyle}>可輸入正式圖號或料號，例如 A0001-M01。內部 ID 僅顯示於解析結果，不需要人工填寫。</p>
+src\app\numbering\revisions\page.tsx:747:            <span style={fieldLabelStyle}>正式圖號 / 料號</span>
+src\app\numbering\revisions\page.tsx:806:            請先定位正式圖號。
+src\app\numbering\revisions\page.tsx:1140:            送出前需先解析正式圖號。
+src\app\numbering\revisions\page.tsx:1161:            <span>版次 {lifecycleNext.revision}。{lifecycleNext.displayStatus === "送審中" ? "等待審核；不需要另外到送審明細頁。" : "內容已保留，可從同一圖號繼續。"}</span>
+src\app\numbering\revisions\page.tsx:1185:            <span>版次 {revision.trim() || "-"} 目前是審核中，不是正式發布；附件庫只保留這次送審用檔案供比對。</span>
+src\app\numbering\revisions\page.tsx:1311:  return "請輸入正式圖號或料號。";
+src\app\numbering\revisions\page.tsx:1331:      return "找不到圖號。請輸入正式圖號，例如 A0001-M01，不需要填內部 ID。";
+src\app\numbering\revisions\page.tsx:1349:      return "替代料號已是正式料號，不能再建立草稿。";
+src\app\numbering\revisions\page.tsx:1419:      return "請回圖號定位區確認正式圖號，再重新送審。";
+src\lib\status-display.ts:184:  { keys: ["NotReady", "not_ready", "not_published", "unreleased", "blocked"], label: "尚未可發布", description: "目前仍有必要條件未完成，不能正式發布。", tone: "warning", actionable: true },
+src\lib\status-display.ts:185:  { keys: ["Ready", "ready", "can_publish", "approved"], label: "可發布", description: "必要條件已具備，可以由具權限角色進行正式發布。", tone: "success", actionable: true },
+src\lib\status-display.ts:188:  { keys: ["ReleaseFailed", "release_failed", "failed"], label: "發布失敗", description: "正式發布未完成，請查看錯誤明細並重試或請管理員協助。", tone: "critical", abnormal: true, actionable: true },
+src\lib\status-display.ts:471:  if (text.includes("release_failed")) return "核准已送出，但正式發布未完成。請開完整送審頁查看發布錯誤，修正後再重新發布或請 Admin 協助。";
+src\lib\status-scope-display.ts:99:    description: "核准與正式發布是不同步驟；發布失敗時會保留可處理的提醒。"
+src\lib\status-scope-display.ts:253:    description: "送審紀錄、附件檔案與正式發布結果各自有清楚的狀態軸。",
+src\components\drawing-detail-preview.tsx:120:      <span>{failed ? "檔案已保留，可先下載原檔；預覽產生後會顯示在這裡。" : "正在讀取檔案預覽。"}</span>
+src\app\numbering\search\page.tsx:1764:          needsManufacturingDrawing ? "此料號尚未指定製造圖，技術移轉與正式發布會阻擋。" : "製造圖關聯可在下方關係維護區確認。",
+src\lib\transfer-packages.ts:368:      message: record.status === "Published" ? "技轉包已完成審核與正式發布。" : record.status === "Draft" ? "readiness 完成後可送交整包審核。" : `目前狀態：${record.status}。`,
+src\components\drawing-workbench.tsx:84:  if (errorCode === "candidate_review_service_unavailable") return "送審服務目前不可用。表單內容已保留，請稍後重試。";
+src\lib\repositories\numbering-async-repository.ts:8933:      formalTargets.length === 0 ? "此主根目前沒有可申請作廢的正式料號或圖號。" : "",
+src\components\master-attachment-panel.tsx:1659:        note: submissionId ? `已納入送審 ${submissionId}（${revisionText}），目前審核中，尚未正式發布。` : "已納入送審，目前審核中，尚未正式發布。"
+src\components\master-attachment-panel.tsx:1671:        note: submissionId ? `已由送審 ${submissionId}（${revisionText}）正式發布。` : "此附件已正式發布。"
+src\components\master-attachment-panel.tsx:1683:        note: submissionId ? `送審 ${submissionId} 已退回，這不是正式發布附件。` : "送審已退回，這不是正式發布附件。"
+src\components\master-attachment-panel.tsx:1689:        note: submissionId ? `送審 ${submissionId} 已取消，這不是正式發布附件。` : "送審已取消，這不是正式發布附件。"
+src\components\master-attachment-panel.tsx:1701:        note: "這是附件庫工作檔，尚未納入送審，不是正式發布紀錄。"
+src\components\number-state-workspace.tsx:484:  if (response.status === 503 || code === "numbering_authority_unavailable") return "編號服務目前不可用。表單內容已保留，請稍後重試；不可改用離線或自行編號。";
+src\components\number-state-workspace.tsx:1336:      setError(apiErrorMessage(response, responseBody, "申請建立或號碼保留失敗。表單內容已保留。"));
+src\components\numbering-contextual-entrypoints.tsx:295:        setError("目前找不到主根識別，請重新整理後再試；系統不會直接建立正式圖號。");
+src\components\numbering-contextual-entrypoints.tsx:461:        setError("目前找不到來源圖號識別，請重新整理後再試；系統不會直接建立正式料號。");
+src\components\numbering-contextual-entrypoints.tsx:761:        <span>已確認主根底下正式料號、圖號與圖料關係會一起形成審核範圍；核准前不直接作廢。</span>
+src\components\transfer-package-workbench.tsx:346:    setMessage(action === "submit-review" ? "技轉包已送審。" : action === "withdraw-review" ? "技轉包已撤回。" : "技轉包已正式發布。");
+src\components\transfer-package-workbench.tsx:606:            <button className="primary-button" type="button" title={canPublish ? "正式發布整包" : "目前帳號沒有正式發布權限"} disabled={!canPublish || !readiness?.ready || readiness.stale || Boolean(busy)} onClick={() => void lifecycleAction("publish")}>
+src\components\transfer-package-workbench.tsx:607:              {busy === "publish" ? <Loader2 className="spin" size={16} /> : <UploadCloud size={16} />}{workbench.status === "ReleaseFailed" ? "重試整包發布" : "正式發布整包"}
+src\components\transfer-package-workbench.tsx:688:  if (workbench.status === "Cancelled") return <div className="transfer-now-what neutral"><Ban size={20} /><div><strong>此技轉包已取消，不會再進入送審。</strong><p>資料與異動紀錄已保留；需要繼續時請建立新技轉包。</p></div><Link className="secondary-button" href="/transfer-packages/new">建立新技轉包</Link></div>;
+src\components\transfer-package-workbench.tsx:689:  if (workbench.status === "Published") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已正式發布，可供製造與採購交接使用。</strong><p>交接資料只包含正式號碼與受控發布內容。</p></div><Link className="primary-button" href="/technical-transfer?tab=published">查看正式交接</Link></div>;
+src\components\transfer-package-workbench.tsx:690:  if (workbench.status === "InReview") return <div className="transfer-now-what"><ClipboardList size={20} /><div><strong>技轉包審核中，案件範圍與保留號碼已鎖定。</strong><p>審核決定請在審核工作台完成；核准不會自動發布。</p></div><Link className="primary-button" href={`/approvals?requestId=${encodeURIComponent(workbench.reviewRequestId ?? "")}`}>查看審核</Link></div>;
+src\components\transfer-package-workbench.tsx:691:  if (workbench.status === "ApprovedPendingPublish") return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>整包已核准，仍需明確執行正式發布。</strong><p>發布前會重新驗證快照、檔案證據與所有保留號碼。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>執行發布</Link></div>;
+src\components\transfer-package-workbench.tsx:694:  return <div className="transfer-now-what"><CheckCircle2 size={20} /><div><strong>技轉包已準備完成，可送交整包審核。</strong><p>核准後仍需另行正式發布。</p></div><Link className="primary-button" href={`/transfer-packages/${encodeURIComponent(workbench.id)}?section=review`}>前往送審</Link></div>;
+src\components\transfer-package-workbench.tsx:751:    PackagePublished: "正式發布技轉包", ReleaseFailed: "整包發布失敗",

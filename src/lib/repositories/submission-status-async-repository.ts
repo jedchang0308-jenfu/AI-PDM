@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { compareRevisionCodes } from "@/lib/revision-policy";
-import type { SandboxBranch } from "@/lib/types";
+import type { SandboxBranch, SubmissionReleaseActionability } from "@/lib/types";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 
 export const REJECT_ASYNC_SUBMISSION_SQL = `
@@ -35,6 +35,24 @@ export const SELECT_ASYNC_ACTIVE_SANDBOX_BRANCH_SQL = `
   JOIN submissions sandbox ON sandbox.id = b.sandbox_submission_id
   WHERE b.sandbox_submission_id = :submissionId
     AND b.status = 'active'
+  ORDER BY b.created_at DESC, b.id DESC
+  LIMIT 1
+`;
+
+export const SELECT_ASYNC_TERMINAL_SANDBOX_BRANCH_SQL = `
+  SELECT
+    b.id,
+    b.source_submission_id,
+    b.sandbox_submission_id,
+    b.branch_name,
+    b.status,
+    b.merged_at,
+    source.drawing_number AS source_drawing_number,
+    source.revision AS source_revision
+  FROM sandbox_branches b
+  JOIN submissions source ON source.id = b.source_submission_id
+  WHERE b.sandbox_submission_id = :submissionId
+    AND (b.status IN ('promoted', 'closed') OR b.merged_at IS NOT NULL)
   ORDER BY b.created_at DESC, b.id DESC
   LIMIT 1
 `;
@@ -329,6 +347,11 @@ type ReleaseSubmissionPartScopeRow = {
   current_link_type: "primary_manufacturing" | "reference" | null;
 };
 
+type TerminalSandboxBranchRow = Pick<
+  SandboxBranch,
+  "id" | "source_submission_id" | "sandbox_submission_id" | "branch_name" | "status" | "merged_at" | "source_drawing_number" | "source_revision"
+>;
+
 type MasterStatusSyncEntityResult = {
   id: string;
   code: string;
@@ -366,7 +389,7 @@ export type AsyncReleaseLifecycleResult = {
 
 const PROTECTED_RELEASE_MASTER_STATUSES = new Set<MasterLifecycleStatus>(["Obsolete", "Merged"]);
 
-function isProtectedReleaseMasterStatus(status: MasterLifecycleStatus) {
+function isProtectedReleaseMasterStatus(status: MasterLifecycleStatus): status is Extract<MasterLifecycleStatus, "Obsolete" | "Merged"> {
   return PROTECTED_RELEASE_MASTER_STATUSES.has(status);
 }
 
@@ -403,6 +426,131 @@ export class AsyncSubmissionStatusRepository {
 
   async getActiveSandboxBranchForSubmission(submissionId: string): Promise<SandboxBranch | null> {
     return this.client.queryOne<SandboxBranch>(SELECT_ASYNC_ACTIVE_SANDBOX_BRANCH_SQL, { submissionId });
+  }
+
+  async getSubmissionReleaseActionability(input: { id: string }): Promise<SubmissionReleaseActionability> {
+    const submission = await this.client.queryOne<ReleaseLifecycleSubmissionRow>(
+      SELECT_ASYNC_RELEASE_LIFECYCLE_SUBMISSION_SQL,
+      { id: input.id }
+    );
+    if (!submission) {
+      return {
+        allowed: false,
+        code: "SUBMISSION_NOT_FOUND",
+        message: "找不到送審資料，不能核准或發布。",
+        recovery_href: "/",
+        terminal_entities: []
+      };
+    }
+
+    const terminalSandboxBranch = await this.client.queryOne<TerminalSandboxBranchRow>(
+      SELECT_ASYNC_TERMINAL_SANDBOX_BRANCH_SQL,
+      { submissionId: submission.id }
+    );
+    if (terminalSandboxBranch) {
+      const terminalState = terminalSandboxBranch.merged_at
+        ? "已合併"
+        : terminalSandboxBranch.status === "closed"
+          ? "已關閉"
+          : "已結束";
+      return {
+        allowed: false,
+        code: "SUBMISSION_RELEASE_TERMINAL_SANDBOX",
+        message: `試作分支「${terminalSandboxBranch.branch_name}」${terminalState}，這筆試作送審只供追溯；不能再核准、發布、駁回、預約編輯或建立新分支。`,
+        recovery_href: `/submissions/${encodeURIComponent(terminalSandboxBranch.source_submission_id)}`,
+        terminal_entities: []
+      };
+    }
+
+    try {
+      const drawing = await this.resolveReleaseSourceDrawing(this.client, submission);
+      const scopedParts = await this.client.query<ReleaseSubmissionPartScopeRow>(SELECT_ASYNC_RELEASE_SUBMISSION_PART_SCOPES_SQL, {
+        submissionId: submission.id,
+        companyId: submission.company_id,
+        drawingNumberId: drawing.drawing_id
+      });
+      for (const scope of scopedParts) {
+        if (!scope.current_link_type || scope.current_link_type !== scope.snapshotted_link_type) {
+          return {
+            allowed: false,
+            code: "SUBMISSION_RELEASE_MASTER_SCOPE_INVALID",
+            message: `送審範圍料號 ${scope.part_number} 的圖料關係已變更，不能核准或發布；請回圖料工作台確認關係後重新送審。`,
+            recovery_href: `/numbering/search?query=${encodeURIComponent(drawing.root_code)}`,
+            terminal_entities: []
+          };
+        }
+      }
+      const legacyPartResolution = scopedParts.length === 0
+        ? await this.resolveReleaseSourcePart(this.client, drawing, submission)
+        : null;
+      const releaseParts: ReleaseSourcePartLinkRow[] = scopedParts.length > 0
+        ? scopedParts.map((scope) => ({
+            link_type: scope.current_link_type ?? scope.snapshotted_link_type,
+            part_id: scope.part_id,
+            part_number: scope.part_number,
+            part_record_status: scope.part_record_status
+          }))
+        : legacyPartResolution
+          ? [legacyPartResolution.part]
+          : [];
+      if (releaseParts.length === 0) {
+        throw new Error("送審沒有可發布的料號範圍。");
+      }
+
+      const terminalEntities: SubmissionReleaseActionability["terminal_entities"] = [];
+      if (isProtectedReleaseMasterStatus(drawing.root_record_status)) {
+        terminalEntities.push({
+          kind: "part_root",
+          id: drawing.root_id,
+          code: drawing.root_code,
+          record_status: drawing.root_record_status
+        });
+      }
+      if (isProtectedReleaseMasterStatus(drawing.drawing_record_status)) {
+        terminalEntities.push({
+          kind: "drawing_number",
+          id: drawing.drawing_id,
+          code: drawing.drawing_number,
+          record_status: drawing.drawing_record_status
+        });
+      }
+      for (const part of releaseParts) {
+        if (isProtectedReleaseMasterStatus(part.part_record_status)) {
+          terminalEntities.push({
+            kind: "part_number",
+            id: part.part_id,
+            code: part.part_number,
+            record_status: part.part_record_status
+          });
+        }
+      }
+      if (terminalEntities.length > 0) {
+        const labels = terminalEntities.map((entity) => `${entity.code}（${entity.record_status === "Merged" ? "已合併" : "已作廢"}）`);
+        return {
+          allowed: false,
+          code: "SUBMISSION_RELEASE_TERMINAL_MASTER",
+          message: `這筆送審對應的正式資料 ${labels.join("、")} 已結束，僅供追溯；不能再核准、發布、編輯或建立試作分支。`,
+          recovery_href: `/numbering/search?query=${encodeURIComponent(drawing.root_code)}&history=include`,
+          terminal_entities: terminalEntities
+        };
+      }
+
+      return {
+        allowed: true,
+        code: "SUBMISSION_RELEASE_ALLOWED",
+        message: "送審對應的正式圖料仍可進入核准與發布流程。",
+        recovery_href: `/numbering/search?query=${encodeURIComponent(drawing.root_code)}`,
+        terminal_entities: []
+      };
+    } catch (error) {
+      return {
+        allowed: false,
+        code: "SUBMISSION_RELEASE_MASTER_SCOPE_INVALID",
+        message: error instanceof Error ? error.message : "無法確認送審對應的正式圖料範圍，不能核准或發布。",
+        recovery_href: `/numbering/search?query=${encodeURIComponent(submission.drawing_number)}`,
+        terminal_entities: []
+      };
+    }
   }
 
   async rejectSubmission(input: { id: string; rejectReason: string }): Promise<void> {
@@ -582,6 +730,8 @@ export class AsyncSubmissionStatusRepository {
   }
 
   async assertSubmissionRevisionCanRelease(input: { id: string }): Promise<void> {
+    const actionability = await this.getSubmissionReleaseActionability(input);
+    if (!actionability.allowed) throw new Error(actionability.message);
     const submission = await this.client.queryOne<ReleaseLifecycleSubmissionRow>(
       SELECT_ASYNC_RELEASE_LIFECYCLE_SUBMISSION_SQL,
       { id: input.id }
@@ -709,7 +859,7 @@ export class AsyncSubmissionStatusRepository {
     });
     if (fallbackDrawings.length === 1) return fallbackDrawings[0];
     if (fallbackDrawings.length === 0) {
-      throw new Error("主資料狀態同步失敗：找不到這筆送審的圖號，不能標記為已發布。請先回圖號模組確認圖號是否存在。");
+      throw new Error("主資料狀態同步失敗：找不到這筆送審的圖號，不能標記為已發布。請先回圖號工作台確認圖號是否存在。");
     }
 
     throw new Error("主資料狀態同步失敗：同一個圖號對到多筆主資料，不能標記為已發布。請通知 Admin 檢查資料關聯。");
@@ -735,16 +885,16 @@ export class AsyncSubmissionStatusRepository {
       return { part: primaryLinks[0], resolution: "primary_manufacturing" };
     }
     if (primaryLinks.length > 1) {
-      throw new Error("主資料狀態同步失敗：此圖號有多個主料號關聯，不能標記為已發布。請先在圖料模組確認主料號。");
+      throw new Error("主資料狀態同步失敗：此圖號有多個主料號關聯，不能標記為已發布。請先在圖料工作台確認主料號。");
     }
     if (links.length === 1) {
       return { part: links[0], resolution: "single_link_fallback" };
     }
     if (links.length === 0) {
-      throw new Error("主資料狀態同步失敗：此圖號尚未關聯主料號，不能標記為已發布。請先在圖料模組建立圖料關聯。");
+      throw new Error("主資料狀態同步失敗：此圖號尚未關聯主料號，不能標記為已發布。請先在圖料工作台建立圖料關聯。");
     }
 
-    throw new Error("主資料狀態同步失敗：此圖號有多個料號關聯但沒有指定主料號，不能標記為已發布。請先在圖料模組確認主料號。");
+    throw new Error("主資料狀態同步失敗：此圖號有多個料號關聯但沒有指定主料號，不能標記為已發布。請先在圖料工作台確認主料號。");
   }
 }
 

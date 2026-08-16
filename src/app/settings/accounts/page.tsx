@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Ban, CheckCircle2, ClipboardCopy, KeyRound, RefreshCw, RotateCcw, ShieldCheck, ShieldOff, UserCog, UserPlus } from "lucide-react";
+import { ReasonActionDialog } from "@/components/reason-action-dialog";
 import { SearchHighlight } from "@/components/search-highlight";
 import AccountInvitationsPage from "../account-invitations/page";
 import { ApprovalMatrixSettings } from "../page";
@@ -70,6 +71,15 @@ type AccountDetail = AccountSummary & {
 };
 
 type Tab = "accounts" | "invite" | "roles" | "audit";
+
+type ReasonActionRequest = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  defaultReason?: string;
+  tone?: "default" | "danger";
+  execute: (reason: string) => Promise<boolean>;
+};
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: "accounts", label: "帳號管理" },
@@ -169,6 +179,7 @@ function AccountManagementPanel() {
   const [resetUrl, setResetUrl] = useState("");
   const [loginAlias, setLoginAlias] = useState("");
   const [loginAliasReason, setLoginAliasReason] = useState("");
+  const [reasonAction, setReasonAction] = useState<ReasonActionRequest | null>(null);
   const didInitialLoad = useRef(false);
 
   const selectedAccount = useMemo(() => accounts.find((account) => account.id === selectedId) ?? null, [accounts, selectedId]);
@@ -210,9 +221,7 @@ function AccountManagementPanel() {
     void loadAccounts("");
   }, [loadAccounts]);
 
-  async function submitAccountAction(action: string, userId = selectedId) {
-    const reason = window.prompt("請輸入異動原因，系統會寫入異動紀錄。");
-    if (!reason?.trim()) return;
+  async function submitAccountAction(action: string, userId: string, reason: string) {
     setBusy(true);
     setMessage(null);
     setResetUrl("");
@@ -225,16 +234,15 @@ function AccountManagementPanel() {
     setBusy(false);
     if (!response.ok) {
       setMessage({ type: "error", text: body.message ?? "帳號狀態異動失敗。" });
-      return;
+      return false;
     }
     setMessage({ type: "success", text: "帳號狀態已更新。" });
     await loadAccounts(userId);
+    return true;
   }
 
-  async function revokeSessions() {
-    if (!selectedId) return;
-    const reason = window.prompt("請輸入撤銷登入狀態原因。");
-    if (!reason?.trim()) return;
+  async function revokeSessions(reason: string) {
+    if (!selectedId) return false;
     setBusy(true);
     setMessage(null);
     const response = await fetch(`/api/admin/accounts/${encodeURIComponent(selectedId)}/sessions/revoke`, {
@@ -246,16 +254,15 @@ function AccountManagementPanel() {
     setBusy(false);
     if (!response.ok) {
       setMessage({ type: "error", text: body.message ?? "撤銷登入狀態失敗。" });
-      return;
+      return false;
     }
     setMessage({ type: "success", text: "此帳號既有登入狀態已失效。" });
     await loadAccounts(selectedId);
+    return true;
   }
 
-  async function updateIdentity(identity: AccountIdentity, status: IdentityStatus) {
-    if (!selectedId) return;
-    const reason = window.prompt(`請輸入${status === "active" ? "啟用" : "停用"}登入方式原因。`);
-    if (!reason?.trim()) return;
+  async function updateIdentity(identity: AccountIdentity, status: IdentityStatus, reason: string) {
+    if (!selectedId) return false;
     setBusy(true);
     setMessage(null);
     const response = await fetch(`/api/admin/accounts/${encodeURIComponent(selectedId)}/identities/${encodeURIComponent(identity.id)}`, {
@@ -267,10 +274,11 @@ function AccountManagementPanel() {
     setBusy(false);
     if (!response.ok) {
       setMessage({ type: "error", text: body.message ?? "登入方式異動失敗。" });
-      return;
+      return false;
     }
     setMessage({ type: "success", text: "登入方式已更新。" });
     await loadAccounts(selectedId);
+    return true;
   }
 
   async function createPasswordReset() {
@@ -319,10 +327,8 @@ function AccountManagementPanel() {
     await loadAccounts(selectedId);
   }
 
-  async function retireLoginAlias(alias: AccountLoginAlias) {
-    if (!selectedId) return;
-    const reason = window.prompt("請輸入退役原因；原工號會保留於歷史紀錄，不可直接改寫。", "人員或工號異動");
-    if (!reason?.trim()) return;
+  async function retireLoginAlias(alias: AccountLoginAlias, reason: string) {
+    if (!selectedId) return false;
     setBusy(true);
     setMessage(null);
     const response = await fetch(`/api/admin/accounts/${encodeURIComponent(selectedId)}/login-aliases/${encodeURIComponent(alias.id)}`, {
@@ -334,10 +340,11 @@ function AccountManagementPanel() {
     setBusy(false);
     if (!response.ok) {
       setMessage({ type: "error", text: body.message ?? "工號別名退役失敗。" });
-      return;
+      return false;
     }
     setMessage({ type: "success", text: "工號別名已退役。" });
     await loadAccounts(selectedId);
+    return true;
   }
 
   async function copyResetUrl() {
@@ -423,30 +430,30 @@ function AccountManagementPanel() {
               </div>
               <div className="account-detail-actions">
                 {detail?.accountStatus === "active" ? (
-                  <button className="secondary-button" type="button" disabled={busy} onClick={() => void submitAccountAction("suspend")}>
+                  <button className="secondary-button" type="button" disabled={busy} onClick={() => setReasonAction({ title: "暫停帳號", description: "暫停後，此帳號將不能再登入；原因會寫入異動紀錄。", confirmLabel: "確認暫停", tone: "danger", execute: (reason) => submitAccountAction("suspend", selectedId, reason) })}>
                     <Ban size={16} aria-hidden="true" />
                     暫停
                   </button>
                 ) : null}
                 {detail?.accountStatus === "suspended" || detail?.accountStatus === "expired" ? (
-                  <button className="secondary-button" type="button" disabled={busy} onClick={() => void submitAccountAction("reactivate")}>
+                  <button className="secondary-button" type="button" disabled={busy} onClick={() => setReasonAction({ title: "恢復帳號", description: "恢復後，此帳號可依既有登入方式重新使用系統。", confirmLabel: "確認恢復", execute: (reason) => submitAccountAction("reactivate", selectedId, reason) })}>
                     <CheckCircle2 size={16} aria-hidden="true" />
                     恢復
                   </button>
                 ) : null}
                 {detail?.accountStatus === "offboarded" ? (
-                  <button className="secondary-button" type="button" disabled={busy} onClick={() => void submitAccountAction("return_to_work")}>
+                  <button className="secondary-button" type="button" disabled={busy} onClick={() => setReasonAction({ title: "復職帳號", description: "復職會重新開啟系統角色；登入方式仍依個別狀態管理。", confirmLabel: "確認復職", execute: (reason) => submitAccountAction("return_to_work", selectedId, reason) })}>
                     <RotateCcw size={16} aria-hidden="true" />
                     復職
                   </button>
                 ) : null}
                 {detail?.accountStatus !== "offboarded" ? (
-                  <button className="danger-button" type="button" disabled={busy} onClick={() => void submitAccountAction("offboard")}>
+                  <button className="danger-button" type="button" disabled={busy} onClick={() => setReasonAction({ title: "辦理離職", description: "離職會關閉系統角色與登入方式，並撤銷既有登入狀態。", confirmLabel: "確認離職", tone: "danger", execute: (reason) => submitAccountAction("offboard", selectedId, reason) })}>
                     <ShieldOff size={16} aria-hidden="true" />
                     離職
                   </button>
                 ) : null}
-                <button className="secondary-button" type="button" disabled={busy} onClick={() => void revokeSessions()}>
+                <button className="secondary-button" type="button" disabled={busy} onClick={() => setReasonAction({ title: "撤銷既有登入", description: "目前帳號的既有登入狀態會失效；使用者需重新登入。", confirmLabel: "確認撤銷", tone: "danger", execute: revokeSessions })}>
                   <KeyRound size={16} aria-hidden="true" />
                   撤銷登入
                 </button>
@@ -471,7 +478,16 @@ function AccountManagementPanel() {
                       className={identity.status === "active" ? "danger-button" : "secondary-button"}
                       type="button"
                       disabled={busy || identity.provider === "invite"}
-                      onClick={() => void updateIdentity(identity, identity.status === "active" ? "disabled" : "active")}
+                      onClick={() => {
+                        const nextStatus = identity.status === "active" ? "disabled" : "active";
+                        setReasonAction({
+                          title: nextStatus === "active" ? "啟用登入方式" : "停用登入方式",
+                          description: nextStatus === "active" ? "啟用後可使用這個登入方式進入系統。" : "停用後無法再使用這個登入方式。",
+                          confirmLabel: nextStatus === "active" ? "確認啟用" : "確認停用",
+                          tone: nextStatus === "active" ? "default" : "danger",
+                          execute: (reason) => updateIdentity(identity, nextStatus, reason)
+                        });
+                      }}
                     >
                       {identity.status === "active" ? "停用" : "啟用"}
                     </button>
@@ -493,7 +509,7 @@ function AccountManagementPanel() {
                       className="danger-button"
                       type="button"
                       disabled={busy || alias.status !== "active"}
-                      onClick={() => void retireLoginAlias(alias)}
+                      onClick={() => setReasonAction({ title: "退役工號", description: "原工號會保留在歷史紀錄中，不能直接改寫。", confirmLabel: "確認退役", defaultReason: "人員或工號異動", tone: "danger", execute: (reason) => retireLoginAlias(alias, reason) })}
                     >
                       {alias.status === "active" ? "退役" : "已退役"}
                     </button>
@@ -576,6 +592,20 @@ function AccountManagementPanel() {
           )}
         </aside>
       </div>
+      <ReasonActionDialog
+        open={Boolean(reasonAction)}
+        title={reasonAction?.title ?? "確認操作"}
+        description={reasonAction?.description ?? "請填寫原因後確認。"}
+        confirmLabel={reasonAction?.confirmLabel ?? "確認"}
+        defaultReason={reasonAction?.defaultReason}
+        tone={reasonAction?.tone}
+        busy={busy}
+        onCancel={() => setReasonAction(null)}
+        onConfirm={async (reason) => {
+          if (!reasonAction) return;
+          if (await reasonAction.execute(reason)) setReasonAction(null);
+        }}
+      />
     </section>
   );
 }

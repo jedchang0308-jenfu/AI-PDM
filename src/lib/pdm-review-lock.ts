@@ -63,6 +63,78 @@ function normalizedTargetRefs(scope: PdmReviewLockScope): PdmEntityTargetRef[] {
     .sort((left, right) => (LOCK_ORDER[left.type] ?? 999) - (LOCK_ORDER[right.type] ?? 999) || left.id.localeCompare(right.id));
 }
 
+function legacyNumberingPredicate(ref: PdmEntityTargetRef, index: number) {
+  const type = ref.type === "root" ? "part_root" : ref.type === "drawing" ? "drawing_number" : ref.type === "part" ? "part_number" : ref.type;
+  if (!["part_root", "drawing_number", "part_number"].includes(type)) return null;
+  return `(legacy_request.entity_type = '${type}' AND legacy_request.entity_id = :targetId${index})`;
+}
+
+function legacyFffPredicate(ref: PdmEntityTargetRef, index: number) {
+  const id = `:targetId${index}`;
+  if (["drawing", "drawing_number"].includes(ref.type)) return `assessment.drawing_number_id = ${id}`;
+  if (["root", "part_root"].includes(ref.type)) return `drawing.part_root_id = ${id}`;
+  if (["part", "part_number"].includes(ref.type)) {
+    return `EXISTS (SELECT 1 FROM part_numbers reviewed_part WHERE reviewed_part.id = ${id} AND reviewed_part.part_root_id = drawing.part_root_id)`;
+  }
+  if (["revision", "drawing_revision"].includes(ref.type)) {
+    return `EXISTS (
+      SELECT 1
+        FROM drawing_revisions reviewed_revision
+        JOIN drawings reviewed_drawing ON reviewed_drawing.id = reviewed_revision.drawing_id
+       WHERE reviewed_revision.id = ${id}
+         AND reviewed_drawing.formal_drawing_number_id = assessment.drawing_number_id
+    )`;
+  }
+  if (ref.type === "drawing_revision_package") {
+    return `EXISTS (
+      SELECT 1 FROM drawing_revision_packages reviewed_package
+       WHERE reviewed_package.id = ${id}
+         AND reviewed_package.company_id = assessment.company_id
+         AND reviewed_package.drawing_number_id = assessment.drawing_number_id
+         AND reviewed_package.revision = assessment.revision
+         AND (assessment.submission_id IS NULL OR reviewed_package.source_submission_id = assessment.submission_id)
+    )`;
+  }
+  if (ref.type === "drawing_revision_package_file" || ref.type === "attachment") {
+    const filePredicate = ref.type === "attachment" ? `reviewed_file.source_file_asset_id = ${id}` : `reviewed_file.id = ${id}`;
+    return `EXISTS (
+      SELECT 1
+        FROM drawing_revision_packages reviewed_package
+        JOIN drawing_revision_package_files reviewed_file ON reviewed_file.package_id = reviewed_package.id
+       WHERE ${filePredicate}
+         AND reviewed_package.company_id = assessment.company_id
+         AND reviewed_package.drawing_number_id = assessment.drawing_number_id
+         AND reviewed_package.revision = assessment.revision
+         AND (assessment.submission_id IS NULL OR reviewed_package.source_submission_id = assessment.submission_id)
+    )`;
+  }
+  if (["relation", "drawing_part_link"].includes(ref.type)) {
+    return `EXISTS (
+      SELECT 1 FROM drawing_part_links reviewed_link
+       WHERE reviewed_link.id = ${id}
+         AND reviewed_link.drawing_number_id = assessment.drawing_number_id
+    )`;
+  }
+  return null;
+}
+
+function legacySupplementPredicate(ref: PdmEntityTargetRef, index: number) {
+  const id = `:targetId${index}`;
+  if (ref.type === "drawing_revision_package") return `reviewed_package.id = ${id}`;
+  if (["drawing", "drawing_number"].includes(ref.type)) return `reviewed_package.drawing_number_id = ${id}`;
+  if (["root", "part_root"].includes(ref.type)) return `drawing.part_root_id = ${id}`;
+  if (["part", "part_number"].includes(ref.type)) {
+    return `EXISTS (SELECT 1 FROM part_numbers reviewed_part WHERE reviewed_part.id = ${id} AND reviewed_part.part_root_id = drawing.part_root_id)`;
+  }
+  if (ref.type === "drawing_revision_package_file") {
+    return `EXISTS (SELECT 1 FROM drawing_revision_package_files reviewed_file WHERE reviewed_file.package_id = reviewed_package.id AND reviewed_file.id = ${id})`;
+  }
+  if (ref.type === "attachment") {
+    return `EXISTS (SELECT 1 FROM drawing_revision_package_files reviewed_file WHERE reviewed_file.package_id = reviewed_package.id AND reviewed_file.source_file_asset_id = ${id})`;
+  }
+  return null;
+}
+
 /**
  * Locks canonical rows in the one global order used by review submission and
  * covered mutations. SQLite relies on its existing write transaction; Postgres
@@ -152,12 +224,70 @@ export async function assertPdmEntityWriteAllowedAsync(client: AsyncDatabaseClie
        FROM approval_platform_targets target
        JOIN approval_platform_requests request ON request.id = target.request_id
       WHERE request.company_id = :companyId
-        AND request.request_status IN ('pending', 'needs_info', 'apply_failed')
+        AND request.request_status IN ('pending', 'apply_failed')
         AND (${targetPairPredicates})
       LIMIT 1`,
     params
   );
   if (activeTarget) throw new PdmReviewLockError();
+
+  const legacyNumberingPredicates = refs.map(legacyNumberingPredicate).filter((predicate): predicate is string => Boolean(predicate));
+  if (legacyNumberingPredicates.length > 0) {
+    const activeLegacyNumbering = await client.queryOne<{ id: string }>(
+      `SELECT legacy_request.id
+         FROM approval_requests legacy_request
+        WHERE legacy_request.company_id = :companyId
+          AND legacy_request.request_status = 'pending'
+          AND (${legacyNumberingPredicates.join(" OR ")})
+        LIMIT 1`,
+      params
+    );
+    if (activeLegacyNumbering) throw new PdmReviewLockError();
+  }
+
+  const legacyFffPredicates = refs.map(legacyFffPredicate).filter((predicate): predicate is string => Boolean(predicate));
+  if (legacyFffPredicates.length > 0) {
+    const activeLegacyFff = await client.queryOne<{ id: string }>(
+      `SELECT assessment.id
+         FROM drawing_revision_fff_assessments assessment
+         JOIN drawing_numbers drawing ON drawing.id = assessment.drawing_number_id
+        WHERE assessment.company_id = :companyId
+          AND NOT EXISTS (
+            SELECT 1 FROM submissions source_submission
+             WHERE source_submission.id = assessment.submission_id
+               AND source_submission.status IN ('Cancelled', 'Rejected')
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM review_confirmation_events confirmation
+             WHERE confirmation.company_id = assessment.company_id
+               AND confirmation.review_id = assessment.id
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM drawing_revision_lifecycle_workflows lifecycle
+             WHERE lifecycle.legacy_fff_assessment_id = assessment.id
+          )
+          AND (${legacyFffPredicates.join(" OR ")})
+        LIMIT 1`,
+      params
+    );
+    if (activeLegacyFff) throw new PdmReviewLockError();
+  }
+
+  const legacySupplementPredicates = refs.map(legacySupplementPredicate).filter((predicate): predicate is string => Boolean(predicate));
+  if (legacySupplementPredicates.length > 0) {
+    const activeLegacySupplement = await client.queryOne<{ id: string }>(
+      `SELECT supplement.id
+         FROM drawing_revision_package_supplements supplement
+         JOIN drawing_revision_packages reviewed_package ON reviewed_package.id = supplement.package_id
+         JOIN drawing_numbers drawing ON drawing.id = reviewed_package.drawing_number_id
+        WHERE reviewed_package.company_id = :companyId
+          AND supplement.status = 'Pending'
+          AND (${legacySupplementPredicates.join(" OR ")})
+        LIMIT 1`,
+      params
+    );
+    if (activeLegacySupplement) throw new PdmReviewLockError();
+  }
 
   if (workspaceRefs.length === 0) return;
   const workspacePlaceholders = workspaceRefs.map((_, index) => `:workspaceId${index}`).join(", ");

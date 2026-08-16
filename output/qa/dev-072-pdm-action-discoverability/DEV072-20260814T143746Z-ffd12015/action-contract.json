@@ -1,0 +1,42 @@
+[
+  {
+    "label": "decision-approve",
+    "actions": [
+      {
+        "id": "detail:approval:approve",
+        "label": "核准",
+        "group": "review",
+        "order": 300,
+        "enabled": true,
+        "primary": true
+      },
+      {
+        "id": "detail:approval:return_for_correction",
+        "label": "要求補充資料",
+        "group": "review",
+        "order": 310,
+        "enabled": true,
+        "primary": false
+      },
+      {
+        "id": "detail:approval:reject",
+        "label": "退回修改",
+        "group": "review",
+        "order": 320,
+        "enabled": true,
+        "primary": false
+      },
+      {
+        "id": "detail:navigation:return",
+        "label": "返回",
+        "group": "utility",
+        "order": 910,
+        "enabled": true,
+        "primary": false
+      }
+    ],
+    "primary": [
+      "detail:approval:approve"
+    ]
+  }
+]

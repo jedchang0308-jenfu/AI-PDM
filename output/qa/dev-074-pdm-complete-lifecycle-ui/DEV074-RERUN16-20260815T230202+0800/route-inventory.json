@@ -1,0 +1,5 @@
+{
+  "families":{"A":["/numbering/search","/numbering/drawings","/parts"],"B":["/numbering/drawings","/approvals"],"C":["/numbering/drawings"],"D":["/numbering/revisions","/approvals"],"E":["/bom/new","/bom/workbench","/approvals"],"F":["/technical-transfer","/approvals"],"G":["/numbering/search","/numbering/impact","/approvals"]},
+  "viewport_primary":"1440x900",
+  "viewport_regression":["1024x768","768x1024","390x844"]
+}

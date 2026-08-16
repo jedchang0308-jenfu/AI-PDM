@@ -88,7 +88,7 @@ export async function GET(
       return wantsPreview
         ? NextResponse.json(
             { code: "PREVIEW_NOT_READY", error: "預覽正在準備，請稍後再試；也可以先下載原檔。" },
-            { status: 409 }
+            { status: 202, headers: { "retry-after": "2", "x-pdm-preview-state": "pending" } }
           )
         : NextResponse.json(
             { code: "EVIDENCE_FILE_UNAVAILABLE", error: "原檔目前無法下載，請稍後再試。" },
@@ -120,21 +120,33 @@ function evidenceBelongsToRequest(detail: {
   actionCode: string;
   impactSnapshots: Array<{ snapshot: Record<string, unknown> }>;
 }, sourceFileAssetId: string) {
-  if (detail.actionCode !== "numbering.candidate_bundle_review") return false;
+  const isCandidateBundle = detail.actionCode === "numbering.candidate_bundle_review";
+  const isDrawingRevision = detail.actionCode === "numbering.drawing_revision_impact_review"
+    || detail.actionCode === "numbering.drawing_revision_lifecycle_review";
+  if (!isCandidateBundle && !isDrawingRevision) return false;
   for (const impact of detail.impactSnapshots) {
     const snapshot = impact.snapshot;
-    const candidates = Array.isArray(snapshot.candidateRevisions) ? snapshot.candidateRevisions : [];
-    for (const candidate of candidates) {
-      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
-      const files = (candidate as Record<string, unknown>).files;
-      if (!Array.isArray(files)) continue;
-      if (files.some((file) => {
-        if (!file || typeof file !== "object" || Array.isArray(file)) return false;
-        return (file as Record<string, unknown>).sourceFileAssetId === sourceFileAssetId;
-      })) return true;
+    if (isCandidateBundle) {
+      const candidates = Array.isArray(snapshot.candidateRevisions) ? snapshot.candidateRevisions : [];
+      for (const candidate of candidates) {
+        if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
+        const files = (candidate as Record<string, unknown>).files;
+        if (!Array.isArray(files)) continue;
+        if (files.some((file) => snapshotFileMatches(file, sourceFileAssetId))) return true;
+      }
+    }
+    if (isDrawingRevision) {
+      const files = Array.isArray(snapshot.files) ? snapshot.files : [];
+      if (files.some((file) => snapshotFileMatches(file, sourceFileAssetId))) return true;
     }
   }
   return false;
+}
+
+function snapshotFileMatches(file: unknown, sourceFileAssetId: string) {
+  if (!file || typeof file !== "object" || Array.isArray(file)) return false;
+  const value = file as Record<string, unknown>;
+  return value.sourceFileAssetId === sourceFileAssetId || value.assetId === sourceFileAssetId;
 }
 
 function resolveSource(source: FileAssetRow) {

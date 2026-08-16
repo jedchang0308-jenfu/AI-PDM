@@ -379,7 +379,7 @@ async function runRaceEvidence(page) {
     listBodies.set(query, await readJsonResponse(response, `Part race fixture ${query}`));
   }
   await page.goto(`${baseUrl}/parts?view=all`, { waitUntil: "networkidle" });
-  const input = page.getByPlaceholder("料號、主根號、名稱、材質、顏色");
+  const input = page.getByPlaceholder("料號、圖料根號、名稱、材質、顏色");
   const listRoutePattern = "**/api/parts/workbench?**";
   const listDelays = new Map([["Z3062", 1000], ["Q0001", 500], ["Q0002", 100]]);
   const listHandler = async (route) => {
@@ -475,7 +475,7 @@ async function captureStateEvidence(page) {
   record("PART UX drawer state is actionable", await page.getByRole("button", { name: "關閉料號明細" }).count() === 1, { screenshot: "screenshots/drawer-part-formal.png" });
   await page.keyboard.press("Escape");
 
-  const input = page.getByPlaceholder("料號、主根號、名稱、材質、顏色");
+  const input = page.getByPlaceholder("料號、圖料根號、名稱、材質、顏色");
   const emptyResponse = page.waitForResponse((response) => new URL(response.url()).searchParams.get("query") === "DEV062_NO_MATCH" && response.status() === 200);
   await input.fill("DEV062_NO_MATCH");
   await emptyResponse;
@@ -851,13 +851,13 @@ async function runFlagOn() {
   await measureWarmReads(page);
   await measureSearchVisibility(page, {
     pathname: "/parts?view=all",
-    placeholder: "料號、主根號、名稱、材質、顏色",
+    placeholder: "料號、圖料根號、名稱、材質、顏色",
     endpointPath: "/api/parts/workbench",
     expected: (currentPage) => currentPage.getByText("Z3062-P01", { exact: true }).first()
   });
   await measureSearchVisibility(page, {
     pathname: "/numbering/search?view=all",
-    placeholder: "主根號、料號、圖號、名稱",
+    placeholder: "圖料根號、料號、圖號、名稱",
     endpointPath: "/api/numbering/relations",
     expected: (currentPage) => currentPage.getByRole("button", { name: "Z3062", exact: true }).first()
   });

@@ -1,0 +1,8 @@
+{
+  "owner": {"login":"engineer@example.com","session":"dev074-r17-owner"},
+  "reviewer": {"login":"manager@example.com","session":"dev074-r17-reviewer"},
+  "admin": {"login":"admin@example.com","session":"dev074-r17-admin"},
+  "manufacturing": {"login":"manufacturing@example.com","session":"dev074-r17-manufacturing"},
+  "procurement": {"login":"procurement@example.com","session":"dev074-r17-procurement"},
+  "restricted": {"login":null,"session":"dev074-r17-restricted"}
+}

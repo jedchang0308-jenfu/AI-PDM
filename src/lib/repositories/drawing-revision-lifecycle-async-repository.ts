@@ -182,6 +182,13 @@ export class AsyncDrawingRevisionLifecycleRepository {
           { packageId, companyId: input.companyId, snapshotJson: JSON.stringify(input.snapshot), now }
         );
         await tx.execute(
+          `DELETE FROM drawing_revision_files
+           WHERE source_package_file_id IN (
+             SELECT id FROM drawing_revision_package_files WHERE package_id = :packageId
+           )`,
+          { packageId }
+        );
+        await tx.execute(
           `DELETE FROM drawing_revision_package_files
            WHERE package_id = :packageId AND source_submission_file_id IS NULL`,
           { packageId }
@@ -309,7 +316,7 @@ export class AsyncDrawingRevisionLifecycleRepository {
             drawingNumber: input.drawingNumber,
             revision: input.revision,
             packageId,
-            allowedDecisions: ["approved", "rejected"]
+            allowedDecisions: ["approved", "rejected", "needs_info"]
           }),
           now
         }
@@ -455,7 +462,7 @@ export class AsyncDrawingRevisionLifecycleRepository {
     requestId: string;
     actorId: string;
     actorRole: string;
-    decision: "approved" | "returned_for_correction";
+    decision: "approved" | "returned_for_correction" | "needs_info";
     reason?: string | null;
     keyHash: string;
     scopeHash: string;
@@ -513,7 +520,7 @@ export class AsyncDrawingRevisionLifecycleRepository {
       if (!packageRow || packageRow.lifecycle_state !== "in_review") {
         throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_STATE_CONFLICT", "版次狀態已更新，請重新整理。", 409);
       }
-      const decision = input.decision === "approved" ? "approved" : "rejected";
+      const decision = input.decision === "approved" ? "approved" : input.decision === "needs_info" ? "needs_info" : "rejected";
       const lifecycleState: DrawingRevisionLifecycleState = input.decision === "approved"
         ? parseRevisionCode(packageRow.revision)?.kind === "major" ? "released" : "rd_controlled"
         : "correction_required";
@@ -554,12 +561,13 @@ export class AsyncDrawingRevisionLifecycleRepository {
          SET status = :status, lifecycle_state = :lifecycleState,
              active_correction_reason = :correctionReason,
              released_at = CASE WHEN :lifecycleState = 'released' THEN :now ELSE released_at END,
-             rejected_at = CASE WHEN :lifecycleState = 'correction_required' THEN :now ELSE NULL END,
+             rejected_at = CASE WHEN :decisionStatus = 'rejected' THEN :now ELSE NULL END,
              updated_at = :now
          WHERE id = :packageId`,
         {
           status: compatibilityStatus,
           lifecycleState,
+          decisionStatus: decision,
           correctionReason: lifecycleState === "correction_required" ? input.reason?.trim() || null : null,
           now,
           packageId: workflow.package_id

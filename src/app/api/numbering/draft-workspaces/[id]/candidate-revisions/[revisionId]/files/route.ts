@@ -44,7 +44,7 @@ export async function POST(
       displayName: body.displayName,
       description: body.description
     });
-    return numberStateFlowJson({ ...result, pdmCompany: access.company }, { status: 201 });
+    return numberStateFlowJson({ ...result, pdmCompany: access.company }, { status: result.fileLinkResult === "created" ? 201 : 200 });
   } catch (error) {
     return numberStateFlowErrorResponse(
       error,

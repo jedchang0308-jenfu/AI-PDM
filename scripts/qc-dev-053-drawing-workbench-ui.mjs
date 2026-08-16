@@ -25,6 +25,7 @@ const sharedWorkbenchController = read("src/components/use-pdm-workbench-control
 const sharedListKeyboard = read("src/components/use-list-keyboard-shortcuts.ts");
 const numberStateWorkspace = read("src/components/number-state-workspace.tsx");
 const sharedPreview = read("src/components/drawing-detail-preview.tsx");
+const candidateFileRoute = read("src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/[fileId]/route.ts");
 const approvalPage = read("src/app/approvals/page.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
 const css = read("src/app/globals.css");
@@ -249,6 +250,10 @@ record("DEV053-UI-023 candidate, formal and approval drawers use one content ren
   has(numberStateWorkspace, ["content={{", "bodyTitle: \"圖面與附件\""]) &&
   has(approvalPage, ["content={{", "bodyTitle: \"圖面與附件\""]) &&
   has(sharedPreview, ["PreviewMedia", "預覽正在準備", "預覽等待逾時", "重新整理預覽"]));
+
+record("DEV053-UI-024 pending preview polling is console-clean and kind-specific",
+  has(sharedPreview, ['response.status === 202', 'kind === "three-d" ? "3D" : "2D"', "預覽轉檔完成後會自動顯示"]) &&
+  has(candidateFileRoute, ['status: 202', '"retry-after": "2"', '"x-pdm-preview-state": "pending"']));
 
 const failed = results.filter((result) => !result.passed);
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));

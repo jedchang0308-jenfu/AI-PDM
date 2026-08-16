@@ -1,0 +1,41 @@
+[
+  {
+    "label": "decision-return_for_correction",
+    "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "needs_info",
+      "applyStatus": "applied"
+    },
+    "mutationCount": 1
+  },
+  {
+    "label": "decision-reject",
+    "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "rejected",
+      "applyStatus": "applied"
+    },
+    "mutationCount": 1
+  },
+  {
+    "label": "decision-approve",
+    "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "approved",
+      "applyStatus": "applied"
+    },
+    "mutationCount": 1
+  }
+]

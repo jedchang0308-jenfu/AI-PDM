@@ -1,8 +1,8 @@
-# SPEC-PDM-DRAWING-PART-RELATION-VIEW-001 - 圖料模組主根號-圖號-料號關係視圖
+# SPEC-PDM-DRAWING-PART-RELATION-VIEW-001 - 圖料工作台圖料根號-圖號-料號關係視圖
 
 > 2026-08-06 Amendment：`SPEC-PDM-STATUS-UX-004` 取代本文件 root/drawing/part row 的多狀態 badge
 > 呈現。counts 與用途可保留，但每列只顯示一個 human status；「草稿確認」退役。圖／料節點開啟
-> owner module 共用 overlay drawer，不建立圖料模組專用的第二套明細內容。
+> owner module 共用 overlay drawer，不建立圖料工作台專用的第二套明細內容。
 
 Status: `Phase 1-3 Implemented / DEV-062 Amendment Local QA-QC Passed / Release Gated`
 Date: 2026-07-07
@@ -211,8 +211,8 @@ type RelationWorkbenchDetailResponse = {
 
 Confirmed decisions from APP feedback and follow-up discussion:
 
-- Current 圖料模組 flat list is not useful because it repeats the same root across root/drawing/part rows and does not show relationship meaning.
-- The UI must answer: `這個主根號底下有哪些圖、哪些料、哪些圖可製造、每張圖對應哪些料號、哪裡缺關聯。`
+- Current 圖料工作台 flat list is not useful because it repeats the same root across root/drawing/part rows and does not show relationship meaning.
+- The UI must answer: `這個圖料根號底下有哪些圖、哪些料、哪些圖可製造、每張圖對應哪些料號、哪裡缺關聯。`
 - A root can have many drawings.
 - One drawing can relate to many part numbers.
 - One part can appear under more than one drawing when the relationship is legitimate.
@@ -226,11 +226,11 @@ Rejected options:
 - Show only one primary drawing and one primary part when multiple legitimate relationships exist.
 - Hide many-to-many relationships in the drawer only.
 - Add more number-code semantics to solve a UI relationship problem.
-- Make 圖料模組 directly own drawing or part master data.
+- Make 圖料工作台 directly own drawing or part master data.
 
 AI assumptions:
 
-- First implementation target is the existing 圖料模組 route, currently `/numbering/search` or its equivalent root/drawing/part aggregation page.
+- First implementation target is the existing 圖料工作台 route, currently `/numbering/search` or its equivalent root/drawing/part aggregation page.
 - Existing entities remain authoritative: `part_roots`, `drawing_numbers`, `part_numbers`, `drawing_part_links`, attachment/readiness services and status display helpers.
 - Implemented as a backward-compatible `/api/numbering/relations` aggregation and controlled maintenance endpoint; no DB schema change was required.
 - Existing `/parts` and `/numbering/drawings` owner pages remain available for owner-specific details and edits.
@@ -267,8 +267,8 @@ The issue is not just column naming. It is a relationship-visualization problem.
 - 使用者：RD、R&D Manager、QA/QC、製造/採購前置查閱者。
 - 使用情境：快速查圖料關係、確認缺漏、判斷是否能送審或製造、追溯一張圖影響哪些料。
 - 使用的 HCS 思考習慣：`#目的`、`#受眾`、`#差距分析`、`#心理成因`、`#捷思法`、`#內容組織`。
-- 使用者心智模型：先找主根號或品名，再看底下圖號與料號如何連在一起。
-- 主要任務：看懂 `主根號 -> 圖號 -> 料號` 的關係與缺口。
+- 使用者心智模型：先找圖料根號或品名，再看底下圖號與料號如何連在一起。
+- 主要任務：看懂 `圖料根號 -> 圖號 -> 料號` 的關係與缺口。
 - 成功狀態：5 秒內能知道此 root 有幾張製造圖、幾張參考圖、幾個料號、哪些圖料已關聯、下一步要補什麼。
 - 使用者此刻真正問題：`這一組圖料到底完整嗎？哪張圖對應哪個料？`
 - 自然下一步：展開 root、點圖號或料號開 drawer、修正缺口或前往送審/owner page。
@@ -277,7 +277,7 @@ The issue is not just column naming. It is a relationship-visualization problem.
 
 ## End-State Architecture
 
-The 圖料模組 relationship view has three layers:
+The 圖料工作台 relationship view has three layers:
 
 ```text
 Root group
@@ -292,7 +292,7 @@ Mermaid relationship model:
 
 ```mermaid
 flowchart LR
-  Root["主根號 00007<br/>馬達總成"] --> M01["製造圖 00007-M01"]
+  Root["圖料根號 00007<br/>馬達總成"] --> M01["製造圖 00007-M01"]
   Root --> M02["製造圖 00007-M02"]
   Root --> R01["參考圖 00007-R01"]
   M01 --> P01["料號 00007-P01"]
@@ -319,12 +319,12 @@ The default tree is an effective-relationship view. It uses the latest current
 master records that are still usable for the relationship decision, so a root
 that has a released drawing/part relationship remains understandable while a
 new candidate is under review. A candidate drawing/part change must not replace
-the current `主根號 -> 圖號 -> 料號` nodes or make them look unavailable before
+the current `圖料根號 -> 圖號 -> 料號` nodes or make them look unavailable before
 the change is published.
 
 When an active candidate workspace or drawing revision review exists, show it
 only in a collapsed secondary section named `變更審查中`. When expanded, the
-section must render each review with the exact same `主根號 -> 圖號 -> 料號`
+section must render each review with the exact same `圖料根號 -> 圖號 -> 料號`
 tree structure, identity order, relation-role chips and node-level information
 as the formal released data. The only default presentation difference is that
 the review section is collapsed. The review status and workflow ownership may
@@ -489,7 +489,7 @@ Rules:
 
 ### Frontend
 
-- Replace the default flat result list in 圖料模組 with root-grouped relationship groups.
+- Replace the default flat result list in 圖料工作台 with root-grouped relationship groups.
 - Keep compact search/filter toolbar and summary chips.
 - Add a segmented control or tabs: `關係樹` default, `矩陣` secondary.
 - Root groups must be keyboard navigable.
@@ -515,17 +515,17 @@ Rules:
 
 Empty state:
 
-- If no data because filters are narrow: `查不到符合條件的圖料關係，請清除篩選或改用主根號、圖號、料號搜尋。`
-- If no accessible data: `目前沒有可查看的圖料資料，請確認權限或先建立主根號。`
+- If no data because filters are narrow: `查不到符合條件的圖料關係，請清除篩選或改用圖料根號、圖號、料號搜尋。`
+- If no accessible data: `目前沒有可查看的圖料資料，請確認權限或先建立圖料根號。`
 
 Blocked relationship state examples:
 
 | Code | First visible sentence |
 |---|---|
-| `missing_manufacturing_drawing` | `這個主根號還沒有製造圖類別，不能建立製造基準關聯。` |
+| `missing_manufacturing_drawing` | `這個圖料根號還沒有製造圖類別，不能建立製造基準關聯。` |
 | `part_without_manufacturing_drawing` | `這個料號尚未連到製造圖，請先建立圖料關係。` |
 | `reference_only` | `這張圖是參考圖，不可作為製造依據。` |
-| `ambiguous_primary` | `這個主根號有多個主圖或主料，系統不能判定送審主體。` |
+| `ambiguous_primary` | `這個圖料根號有多個主圖或主料，系統不能判定送審主體。` |
 
 ## Phase Roadmap
 
@@ -684,8 +684,8 @@ Executed on 2026-07-07 against disposable SQLite runtime `output/qc-runtime/pdm-
 Cross-spec handling:
 
 - Extends `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.md` without changing ownership, submission snapshot or retired upload rules.
-- Extends `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md`; this spec supersedes the flat-list interpretation for 圖料模組 only.
-- Refines `.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md`; identity-first columns remain useful for owner pages, but 圖料模組 default view must prioritize relationships over equal-weight rows.
+- Extends `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md`; this spec supersedes the flat-list interpretation for 圖料工作台 only.
+- Refines `.ai-doc/specs/SPEC-PDM-IDENTITY-LIST-001-master-list-primary-columns.md`; identity-first columns remain useful for owner pages, but 圖料工作台 default view must prioritize relationships over equal-weight rows.
 - Compatible with `.ai-doc/specs/SPEC-PDM-NUMBERING-002-compact-root-drawing-part-numbering.md`; v2 compact identities remain unchanged.
 
 ADR decision:

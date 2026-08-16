@@ -1,0 +1,10 @@
+[
+  {
+    "label": "decision-approve",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  }
+]

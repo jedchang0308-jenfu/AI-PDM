@@ -1,0 +1,5 @@
+{"at":"2026-08-15T18:57:40+08:00","action":"run_started","actor":"QC","detail":"R7 defect repaired; R8 reset all 58 paths to not_run"}
+{"at":"2026-08-15T19:00:30+08:00","action":"w0_pass","actor":"QC","detail":"fresh sessions, roles, local runtime, source hashes and unauthenticated protection verified through rendered UI"}
+{"at":"2026-08-15T19:05:00+08:00","action":"A01-A04_pass","actor":"CTX-A/QC","detail":"A0019 root bundle plus A0017 R02/P05/P06/P07/M02/P08 created via rendered UI; R7 relation defect reverified closed"}
+{"at":"2026-08-15T19:06:00+08:00","action":"run_failed","actor":"QC","control":"B01 2D-only first revision","detail":"DEV074-R8-P1-004: preview polling emitted repeated 409 console errors and wrong 3D wording"}
+{"at":"2026-08-15T19:08:01+08:00","action":"rd_fix_verified","actor":"RD/QC","control":"2D preview pending state","detail":"fresh UI observed 202,202,202; correct 2D copy; console error count 0"}

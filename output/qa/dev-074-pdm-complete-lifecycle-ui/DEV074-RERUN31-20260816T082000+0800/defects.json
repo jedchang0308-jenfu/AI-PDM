@@ -1,0 +1,17 @@
+[
+  {
+    "id": "DEV074-R31-P1-027",
+    "severity": "P1",
+    "path": "E10",
+    "title": "BOM 作廢申請理由未顯示於審核與已決歷史抽屜",
+    "observed": "申請端已輸入理由且資料層保存 change_reason，但審核摘要只顯示範圍與影響；駁回後重新開啟仍看不到申請理由。",
+    "expected": "審核中與已決歷史都應顯示送審時鎖定的 BOM 作廢理由。",
+    "status": "fixed_targeted_ui_retest_passed",
+    "fix": [
+      "src/app/approvals/page.tsx",
+      "scripts/qc-dev-074-bom-obsolete-reason-visibility.mjs",
+      "package.json"
+    ],
+    "targeted_ui_evidence": "screenshots/E10/targeted-retest-obsolete-reason-visible.png"
+  }
+]

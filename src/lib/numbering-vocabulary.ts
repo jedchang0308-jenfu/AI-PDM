@@ -10,11 +10,17 @@ export const NUMBERING_VOCABULARY = {
   drawing: "圖號",
   part: "料號",
   drawingPart: "圖號與料號",
+  root: "圖料根號",
+  sameRootPart: "同根料號",
   application: "編號申請",
   preparation: "首版準備"
 } as const;
 
 const NUMBERING_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/同主根號料號/g, "同根料號"],
+  [/同主根料號/g, "同根料號"],
+  [/主根號/g, "圖料根號"],
+  [/主根/g, "圖料根號"],
   [/候選圖料與首版/g, "圖料與首版"],
   [/候選圖料號/g, "圖料號"],
   [/候選圖號/g, "圖號"],

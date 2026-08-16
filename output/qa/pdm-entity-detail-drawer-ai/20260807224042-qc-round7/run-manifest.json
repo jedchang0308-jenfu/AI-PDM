@@ -35,7 +35,7 @@
   "writeGate": "Not Executed (Safety Boundary: canonical local data, no disposable boundary)",
   "stopReason": "P0 same-object visible status contradiction: A0007 list 生產可用 vs drawer 待你處理",
   "dirtyBoundary": "Pre-existing dirty worktree preserved; QC changed no product source, data, staging or commits. Only this evidence directory was written.",
-  "note": "圖號模組的 PDM_UNIFIED_DRAWING_WORKBENCH_V1 實際介面為單一工作台，無 official/reserved tabs；shared tabs source/static contract 通過，但該 live tab 往返不適用。",
+  "note": "圖號工作台的 PDM_UNIFIED_DRAWING_WORKBENCH_V1 實際介面為單一工作台，無 official/reserved tabs；shared tabs source/static contract 通過，但該 live tab 往返不適用。",
   "scopedHashes": {
     "package.json": "212839aab17789873cbdb1e412d25dac6881cd34fb3e184b733519537b135d6e",
     "scripts/qc-pdm-entity-detail-drawer.mjs": "d6c4c055bd3d6485031d793a6d3f75f69bff7cc4b2e744055dd9dd8b36ffb9d9",

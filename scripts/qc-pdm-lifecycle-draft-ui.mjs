@@ -57,7 +57,7 @@ async function runCompatibilityCheck(baseUrl, cookie) {
     });
 
     await page.goto(`${baseUrl}/numbering/part-drafts?foo=bar&returnTo=${encodeURIComponent("/numbering/search")}`, { waitUntil: "networkidle" });
-    await page.getByRole("heading", { name: /料號模組/ }).waitFor({ timeout: 15_000 });
+    await page.getByRole("heading", { name: /料號工作台/ }).waitFor({ timeout: 15_000 });
     await page.getByRole("region", { name: "保留號清單" }).waitFor({ timeout: 15_000 });
 
     const current = new URL(page.url());

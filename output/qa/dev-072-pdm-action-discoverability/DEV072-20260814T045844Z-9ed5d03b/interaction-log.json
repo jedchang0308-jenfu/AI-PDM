@@ -1,0 +1,104 @@
+[
+  {
+    "label": "locked-desktop",
+    "type": "hover",
+    "actionId": "detail:drawing:submit_review",
+    "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+      "left": 1057.96875,
+      "right": 1324.03125,
+      "top": 794.90625,
+      "bottom": 831,
+      "viewportWidth": 1440,
+      "viewportHeight": 900
+    }
+  },
+  {
+    "label": "locked-laptop",
+    "type": "hover",
+    "actionId": "detail:drawing:submit_review",
+    "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+      "left": 641.96875,
+      "right": 908.03125,
+      "top": 662.90625,
+      "bottom": 699,
+      "viewportWidth": 1024,
+      "viewportHeight": 768
+    }
+  },
+  {
+    "label": "locked-tablet",
+    "type": "focus",
+    "actionId": "detail:drawing:submit_review",
+    "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+      "left": 385.96875,
+      "right": 652.03125,
+      "top": 918.90625,
+      "bottom": 955,
+      "viewportWidth": 768,
+      "viewportHeight": 1024
+    }
+  },
+  {
+    "label": "locked-mobile",
+    "type": "touch",
+    "actionId": "detail:drawing:submit_review",
+    "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+      "left": 61.46875,
+      "right": 327.53125,
+      "top": 690.90625,
+      "bottom": 727,
+      "viewportWidth": 390,
+      "viewportHeight": 844
+    }
+  },
+  {
+    "label": "unlock-submit-withdraw",
+    "type": "confirmation-cancel",
+    "actionId": "detail:drawing:submit_review",
+    "mutationCount": 0
+  },
+  {
+    "label": "unlock-submit-withdraw-review-lock",
+    "type": "hover",
+    "actionId": "detail:drawing:edit",
+    "tooltip": "送審中不可修改；如需變更應先撤回送審。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "送審中不可修改；如需變更應先撤回送審。",
+      "left": 761.4375,
+      "right": 1020.5625,
+      "top": 746.90625,
+      "bottom": 783,
+      "viewportWidth": 1440,
+      "viewportHeight": 900
+    }
+  },
+  {
+    "label": "no-permission",
+    "type": "hover",
+    "actionId": "detail:drawing:edit",
+    "tooltip": "目前帳號沒有此操作權限；請聯絡工作負責人或研發主管。",
+    "mutationCount": 0,
+    "geometry": {
+      "text": "目前帳號沒有此操作權限；請聯絡工作負責人或研發主管。",
+      "left": 731,
+      "right": 1051,
+      "top": 776.8125,
+      "bottom": 831,
+      "viewportWidth": 1440,
+      "viewportHeight": 900
+    }
+  }
+]

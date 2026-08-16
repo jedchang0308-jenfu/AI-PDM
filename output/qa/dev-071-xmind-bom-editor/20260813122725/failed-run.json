@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-08-13T12:27:36.346Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813122725",
+  "total": 2,
+  "passed": 2,
+  "failed": 1,
+  "consoleErrors": [],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [],
+  "results": [
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"560ba628-b0f1-4dd0-8a86-3da4f7e6ef7d\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-24045930\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-24045930\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T12:27:32.944Z\",\"updated_at\":\"2026-08-13T12:27:32.944Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"560ba628-b0f1-4dd0-8a86-3da4f7e6ef7d\",\"ownerPartNumberId\":\"dev071-browser-parent-part-24045930\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"df560803-daa1-40d9-b8cc-ba1b1b2e4431\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/560ba628-b0f1-4dd0-8a86-3da4f7e6ef7d\"}"
+    }
+  ],
+  "error": "page.goto: net::ERR_ABORTED at http://127.0.0.1:58015/bom/workbench/560ba628-b0f1-4dd0-8a86-3da4f7e6ef7d\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:58015/bom/workbench/560ba628-b0f1-4dd0-8a86-3da4f7e6ef7d\", waiting until \"domcontentloaded\"\u001b[22m\n"
+}

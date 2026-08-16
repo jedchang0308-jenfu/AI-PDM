@@ -1,0 +1,114 @@
+[
+  {
+    "label": "locked-desktop",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "locked-laptop",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "locked-tablet",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "locked-mobile",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "first-candidate-upload",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "surface-part",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "surface-relation",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "surface-relation-total-matrix",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "surface-terminal",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "unlock-submit-withdraw-before",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "no-permission",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "decision-return_for_correction",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "decision-reject",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  },
+  {
+    "label": "decision-approve",
+    "texts": [],
+    "expectedBusinessAlerts": [],
+    "fatal": [],
+    "horizontalOverflow": false,
+    "passed": true
+  }
+]

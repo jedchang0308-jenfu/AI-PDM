@@ -1,0 +1,8 @@
+{"run_id":"DEV074-RERUN5-20260815T172729+0800","contexts":[
+  {"context":"CTX-A","session":"dev074-owner-r5","account":"engineer@example.com","display_name":"Demo Engineer","role":"Engineer"},
+  {"context":"CTX-B","session":"dev074-reviewer-r5","account":"manager@example.com","display_name":"Demo Manager","role":"R&D Manager"},
+  {"context":"CTX-C","session":"dev074-admin-r5","account":"admin@example.com","display_name":"Demo Admin","role":"Admin"},
+  {"context":"CTX-D1","session":"dev074-manufacturing-r5","account":"manufacturing@example.com","display_name":"Demo Manufacturing","role":"Manufacturing"},
+  {"context":"CTX-D2","session":"dev074-procurement-r5","account":"procurement@example.com","display_name":"Demo Procurement","role":"Procurement"},
+  {"context":"CTX-E","session":"dev074-unauth-r5","account":null,"display_name":"Unauthenticated","role":"Restricted"}
+]}

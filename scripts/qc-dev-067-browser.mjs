@@ -241,11 +241,19 @@ async function runFocusRestoreCase() {
     await source.focus();
     await source.click();
     await waitForUnifiedDrawer(page);
-    assert.equal(await page.locator("aside.pdm-entity-detail-drawer [data-pdm-drawer-close='true']").evaluate((node) => document.activeElement === node), true, "opening a drawer must move focus to close");
+    assert.equal(await source.evaluate((node) => document.activeElement === node), true, "opening a non-modal drawer must preserve focus on the source row");
+    const drawerTitle = page.locator("aside.pdm-entity-detail-drawer h2");
+    const firstDrawerTitle = (await drawerTitle.innerText()).trim();
+    await page.keyboard.press("ArrowDown");
+    await page.waitForFunction((previousTitle) => {
+      const node = document.querySelector("aside.pdm-entity-detail-drawer h2");
+      return Boolean(node && (node.textContent ?? "").trim() !== previousTitle);
+    }, firstDrawerTitle, { timeout: 10000 });
+    assert.equal(await page.locator('[data-component="unified-pdm-entity-detail-drawer"]').count(), 1, "ArrowDown after mouse-open must keep the drawer open");
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.querySelector('[data-component="unified-pdm-entity-detail-drawer"]'), null, { timeout: 10000 });
     assert.equal(await source.evaluate((node) => document.activeElement === node), true, "closing a drawer must restore focus to the source row");
-    record("UDD-BROWSER-focus-restore", true, { focusedAfterClose: await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.textContent?.trim()) });
+    record("UDD-BROWSER-mouse-open-arrow-navigation", true, { shortcuts: "mouse open -> ArrowDown -> Escape", focusedAfterClose: await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.textContent?.trim()) });
   } finally {
     await context.close();
   }

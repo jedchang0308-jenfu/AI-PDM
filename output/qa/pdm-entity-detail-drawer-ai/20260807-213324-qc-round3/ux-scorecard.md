@@ -6,7 +6,7 @@
 2. A0007-M01 初始狀態不可信：純查看會從 `生產可用` 改成 `等他人處理`。
 3. Root 只有一個主要 CTA：`檢查新版送審`。
 4. X、Escape、滑鼠列切換、寬度記憶皆直覺。
-5. 圖料模組的 part keyboard target 錯開 root，破壞快速連續查閱。
+5. 圖料工作台的 part keyboard target 錯開 root，破壞快速連續查閱。
 6. 風險操作維持次要樣式，候選取消有 modal 且 Escape 只關 modal。
 
 | Dimension | Score | Evidence |

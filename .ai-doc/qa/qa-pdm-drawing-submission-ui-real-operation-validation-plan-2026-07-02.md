@@ -108,7 +108,7 @@ If a role cannot be logged in through UI, the validation is blocked.
 
 ```mermaid
 flowchart TD
-  A["圖號 / 圖料模組"] --> B["圖面送審工作台"]
+  A["圖號 / 圖料工作台"] --> B["圖面送審工作台"]
   B --> C{"送審條件"}
   C -->|資料完整、附件已選、備註有效| D["送出審核"]
   C -->|資料或附件不足| E["中文阻擋原因與可處置方向"]
@@ -141,7 +141,7 @@ Each case must produce a QC record with role, fixture id, route, viewport, steps
 | ID | Area | Role | Preconditions | UI operation | Expected result |
 |---|---|---|---|---|---|
 | `UI26-001` | Login / role baseline | Engineer, Other Engineer, R&D Manager, Admin | Test accounts exist | Log in from `/login` for each role | Each role reaches authenticated UI and role-specific actions are available or hidden correctly |
-| `UI26-002` | Drawing entry | Engineer | Disposable drawing has valid primary part and attachments | Open 圖號模組, select fixture drawing, click `送審` | Workbench opens for the same drawing number; no unrelated drawing appears |
+| `UI26-002` | Drawing entry | Engineer | Disposable drawing has valid primary part and attachments | Open 圖號工作台, select fixture drawing, click `送審` | Workbench opens for the same drawing number; no unrelated drawing appears |
 | `UI26-003` | Drawing-part entry | Engineer | Root has one clear primary drawing | Open 圖料 / 主根號 workbench, click drawing submission action | System opens the same canonical drawing submission workbench with root, part and drawing context visible |
 | `UI26-004` | Ambiguous drawing entry | Engineer | Root has no clear primary drawing or multiple eligible drawings | Click submission action from 圖料 context | UI blocks or asks user to choose a drawing; it does not open a blank upload form |
 | `UI26-005` | Legacy compatibility | Engineer | Fixture drawing exists | Open `/upload?source=drawing&drawingNumber=<fixture>` from browser | Route redirects to or renders drawing submission workbench; generic upload/PDM attribute form is not shown |

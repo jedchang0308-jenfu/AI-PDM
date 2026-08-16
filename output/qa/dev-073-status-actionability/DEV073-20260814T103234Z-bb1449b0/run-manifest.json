@@ -1,0 +1,282 @@
+{
+  "runId": "DEV073-20260814T103234Z-bb1449b0",
+  "generatedAt": "2026-08-14T10:33:03.618Z",
+  "tool": "Playwright Chromium isolated local QC",
+  "productionConnection": false,
+  "productionWrite": false,
+  "database": "disposable SQLite copy",
+  "fixture": {
+    "drawingKey": "drawing:drawing-draft-drawing-2219671e-8325-49c5-b409-dd793cb2d6f5",
+    "drawing": {
+      "id": "drawing-draft-drawing-2219671e-8325-49c5-b409-dd793cb2d6f5",
+      "drawingNumber": "A0005-M01",
+      "lifecycleState": "rd_controlled"
+    },
+    "revisions": [
+      {
+        "revision": "0.1",
+        "lifecycleState": "rd_controlled"
+      },
+      {
+        "revision": "0.2",
+        "lifecycleState": "rd_controlled"
+      },
+      {
+        "revision": "0.3",
+        "lifecycleState": "rd_controlled"
+      },
+      {
+        "revision": "0.5",
+        "lifecycleState": "rd_controlled"
+      }
+    ],
+    "terminalConfirmationCount": 3,
+    "orphanKey": "drawing:drawing-formal-5ad8984c-5492-4f22-8258-d1190c915200",
+    "orphan": {
+      "id": "drawing-formal-5ad8984c-5492-4f22-8258-d1190c915200",
+      "drawingNumber": "A0007-M01"
+    }
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "tablet",
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "touch": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "CAPA-BROWSER-desktop",
+      "passed": true,
+      "detail": {
+        "label": "A0005-desktop",
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "status": {
+          "key": "rd_controlled",
+          "phase": "usable",
+          "primary": "研發可用",
+          "viewerCategory": "usable"
+        },
+        "actions": [
+          {
+            "id": "detail:drawing:create_revision",
+            "enabled": true,
+            "label": "建立新版次"
+          },
+          {
+            "id": "detail:drawing:view_history",
+            "enabled": true,
+            "label": "查看歷史"
+          },
+          {
+            "id": "detail:navigation:return",
+            "enabled": true,
+            "label": "返回"
+          }
+        ],
+        "geometry": {
+          "viewportWidth": 1440,
+          "documentScrollWidth": 1440,
+          "drawer": {
+            "left": 768,
+            "right": 1428,
+            "width": 660
+          }
+        }
+      }
+    },
+    {
+      "id": "CAPA-BROWSER-tablet",
+      "passed": true,
+      "detail": {
+        "label": "A0005-tablet",
+        "viewport": {
+          "name": "tablet",
+          "width": 1024,
+          "height": 768
+        },
+        "status": {
+          "key": "rd_controlled",
+          "phase": "usable",
+          "primary": "研發可用",
+          "viewerCategory": "usable"
+        },
+        "actions": [
+          {
+            "id": "detail:drawing:create_revision",
+            "enabled": true,
+            "label": "建立新版次"
+          },
+          {
+            "id": "detail:drawing:view_history",
+            "enabled": true,
+            "label": "查看歷史"
+          },
+          {
+            "id": "detail:navigation:return",
+            "enabled": true,
+            "label": "返回"
+          }
+        ],
+        "geometry": {
+          "viewportWidth": 1024,
+          "documentScrollWidth": 1024,
+          "drawer": {
+            "left": 352,
+            "right": 1012,
+            "width": 660
+          }
+        }
+      }
+    },
+    {
+      "id": "CAPA-BROWSER-mobile",
+      "passed": true,
+      "detail": {
+        "label": "A0005-mobile",
+        "viewport": {
+          "name": "mobile",
+          "width": 390,
+          "height": 844,
+          "touch": true
+        },
+        "status": {
+          "key": "rd_controlled",
+          "phase": "usable",
+          "primary": "研發可用",
+          "viewerCategory": "usable"
+        },
+        "actions": [
+          {
+            "id": "detail:drawing:create_revision",
+            "enabled": true,
+            "label": "建立新版次"
+          },
+          {
+            "id": "detail:drawing:view_history",
+            "enabled": true,
+            "label": "查看歷史"
+          },
+          {
+            "id": "detail:navigation:return",
+            "enabled": true,
+            "label": "返回"
+          }
+        ],
+        "geometry": {
+          "viewportWidth": 390,
+          "documentScrollWidth": 390,
+          "drawer": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          }
+        }
+      }
+    },
+    {
+      "id": "CAPA-BROWSER-ORPHAN-desktop",
+      "passed": true,
+      "detail": {
+        "label": "orphan-desktop",
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "status": "unknown",
+        "actionId": "detail:drawing:view_review",
+        "reasonCode": "PDM_ACTION_TARGET_UNAVAILABLE",
+        "recovery": {
+          "text": "找不到有效的審核工作項；請聯絡 PDM 管理者確認流程。",
+          "left": 1031,
+          "right": 1351,
+          "top": 728.8125,
+          "bottom": 783,
+          "viewportWidth": 1440,
+          "viewportHeight": 900
+        }
+      }
+    },
+    {
+      "id": "CAPA-BROWSER-ORPHAN-tablet",
+      "passed": true,
+      "detail": {
+        "label": "orphan-tablet",
+        "viewport": {
+          "name": "tablet",
+          "width": 1024,
+          "height": 768
+        },
+        "status": "unknown",
+        "actionId": "detail:drawing:view_review",
+        "reasonCode": "PDM_ACTION_TARGET_UNAVAILABLE",
+        "recovery": {
+          "text": "找不到有效的審核工作項；請聯絡 PDM 管理者確認流程。",
+          "left": 615,
+          "right": 935,
+          "top": 596.8125,
+          "bottom": 651,
+          "viewportWidth": 1024,
+          "viewportHeight": 768
+        }
+      }
+    },
+    {
+      "id": "CAPA-BROWSER-ORPHAN-mobile",
+      "passed": true,
+      "detail": {
+        "label": "orphan-mobile",
+        "viewport": {
+          "name": "mobile",
+          "width": 390,
+          "height": 844,
+          "touch": true
+        },
+        "status": "unknown",
+        "actionId": "detail:drawing:view_review",
+        "reasonCode": "PDM_ACTION_TARGET_UNAVAILABLE",
+        "recovery": {
+          "text": "找不到有效的審核工作項；請聯絡 PDM 管理者確認流程。",
+          "left": 34.5,
+          "right": 354.5,
+          "top": 618.8125,
+          "bottom": 673,
+          "viewportWidth": 390,
+          "viewportHeight": 844
+        }
+      }
+    },
+    {
+      "id": "CAPA-BROWSER-ACTIVE-INBOX",
+      "passed": true,
+      "detail": {
+        "label": "A0005-active-inbox",
+        "absentDrawingNumber": "A0005-M01"
+      }
+    }
+  ],
+  "P0": 0,
+  "P1": 0,
+  "sourceDatabaseSha256": "27da10d9f7b83f9ecd6a95478ffda0fb05c38e8f05e1542bcfa39fcc4eb043be",
+  "files": [
+    "browser-evidence.json",
+    "console-network.json",
+    "defects.md"
+  ]
+}
