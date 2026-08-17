@@ -901,7 +901,7 @@ const sandboxPromotedApproveResponse = await fetch(`${baseUrl}/api/submissions/$
 });
 const sandboxPromotedApproveBody = await sandboxPromotedApproveResponse.json().catch(() => ({}));
 results.push(await expectStatus("SANDBOX-013 promoted sandbox revision remains release-policy controlled", sandboxPromotedApproveResponse.status, 409));
-results.push(await expectStatus("SANDBOX-014 sandbox branch revision returns policy blocker", sandboxPromotedApproveBody.code, "revision_format_invalid"));
+results.push(await expectStatus("SANDBOX-014 sandbox branch revision returns policy blocker", sandboxPromotedApproveBody.code, "SUBMISSION_RELEASE_TERMINAL_SANDBOX"));
 
 const duplicateSeedDetailResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}`, {
   headers: { cookie: engineerCookie }

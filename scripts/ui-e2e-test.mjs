@@ -200,7 +200,7 @@ async function run() {
     record(
       "UI-002 manager dashboard loads",
       await managerPage
-        .locator('section[aria-label="AI PDM multi-role workbench"]')
+        .locator('section[aria-label="AI PDM 多角色工作台"]')
         .count()
         .then((count) => count === 1)
     );
