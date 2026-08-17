@@ -112,7 +112,7 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
           AND candidate.review_snapshot_hash = companion.snapshot_hash
       ) OR (
         p.status = 'Pending'
-        AND instr(p.revision, '.') > 0
+        AND p.revision LIKE '%.%'
         AND EXISTS (
           SELECT 1
           FROM drawing_revision_fff_assessments fff
@@ -154,7 +154,7 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
           AND candidate.review_snapshot_hash = companion.snapshot_hash
       ) OR (
         p.status = 'Pending'
-        AND instr(p.revision, '.') > 0
+        AND p.revision LIKE '%.%'
         AND EXISTS (
           SELECT 1
           FROM drawing_revision_fff_assessments fff
@@ -291,7 +291,7 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
           AND candidate.review_snapshot_hash = companion.snapshot_hash
       ) OR (
         p.status = 'Pending'
-        AND instr(p.revision, '.') > 0
+        AND p.revision LIKE '%.%'
         AND EXISTS (
           SELECT 1
           FROM drawing_revision_fff_assessments fff
@@ -333,7 +333,7 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
           AND candidate.review_snapshot_hash = companion.snapshot_hash
       ) OR (
         p.status = 'Pending'
-        AND instr(p.revision, '.') > 0
+        AND p.revision LIKE '%.%'
         AND EXISTS (
           SELECT 1
           FROM drawing_revision_fff_assessments fff
