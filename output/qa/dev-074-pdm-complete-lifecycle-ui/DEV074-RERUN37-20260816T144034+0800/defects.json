@@ -1,0 +1,13 @@
+[
+  {
+    "id": "DEV074-R37-P1-033",
+    "severity": "P1",
+    "surface": "dashboard responsive tables",
+    "viewport": "1024x768",
+    "observed": "document width expanded to 1233px when controlled history was open",
+    "expected": "no page-level horizontal scroll; only intentional desktop table scrolling",
+    "repair": ["src/app/globals.css", "src/app/styles/responsive.css"],
+    "targeted_retest": "9 viewport-route combinations passed",
+    "full_rerun_required": "DEV074-RERUN38-20260816T160009+0800"
+  }
+]

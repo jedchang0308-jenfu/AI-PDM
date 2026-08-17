@@ -1,0 +1,15 @@
+{
+  "run_id":"DEV074-RERUN13-20260815T210918+0800",
+  "predecessor":"DEV074-RERUN12-20260815T205236+0800",
+  "started_at":"2026-08-15T21:09:18+08:00",
+  "completed_at":"2026-08-15T21:21:03+08:00",
+  "status":"failed_stop_on_first_defect",
+  "environment":"local-isolated",
+  "base_url":"http://127.0.0.1:3000",
+  "business_mutation_policy":"rendered_ui_only",
+  "direct_api_or_db_mutation_count":0,
+  "scope_count":58,
+  "result":{"pass":9,"fail":1,"not_run":48,"defect_id":"DEV074-R13-P2-009"},
+  "out_of_scope":["B09","D15","E02","F08","true_engineering_content_change","legacy_reserved_numbers"],
+  "git":{"branch":"持續優化1","head":"cc393e048b251fb1ea3356204de56bc4c9eacc45","dirty_paths_at_start":313,"dirty_worktree_policy":"preserved_user_owned_changes"}
+}

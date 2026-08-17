@@ -2,6 +2,7 @@
 
 Status: `QA Plan Ready for AI Real-Operation Revalidation / Prior Local QA-QC Passed / Production Migration & Release Gated`
 Date: 2026-08-11
+Visible lifecycle amendment: 2026-08-15
 Owner: QA
 Related DEV: `DEV-064`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-AGGREGATE-001-single-data-layer.md`
@@ -27,6 +28,16 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-AGGREGATE-001-canonical-
 | QA-064-010 | dual-write fault injection | canonical／legacy projection 任一失敗全交易 rollback |
 | QA-064-011 | cross-company／tampered ID | 404/403/409 fail closed，不洩漏其他公司資料 |
 | QA-064-012 | migration rerun | backfill冪等；promoted candidate與formal master只產生一個 Drawing |
+| QA-064-013 | 舊 reservation 全量 adoption | 每一 source reservation ID 恰好映射一次；所有尚未正式化且非終結的舊 reservation，不論 internal bucket，使用者只見「首版準備」；正式／發布／terminal維持真實下游狀態 |
+| QA-064-014 | production manifest reconciliation | `source_count = distinct_mapped_count = bucket_distinct_id_sum`；unmapped／duplicate／renumbered 全為 0，cutover freeze 期間 source hash changed 為 0 |
+| QA-064-015 | root／part reservation continuity | 不誤建 Drawing，但仍由原 workspace／bundle 與 canonical relation／compatibility reference完整追溯 |
+| QA-064-016 | flag rollback rehearsal | 關閉 new writes後來源與 canonical／compatibility facts仍可讀，零刪除、零 down migration |
+
+## Production zero-loss adoption gate
+
+本 QA 計畫不授權 production migration；實際 release 必須另外在經核准的 read-only/repeatable snapshot 上逐 company、全分頁產生 source manifest，並在 flag off backfill readback、read-only canary與activation前最後cutover freeze重跑。最小對帳單位固定為 `number_candidate_reservations.id`，不得以 workbench row、Drawing count或抽樣替代。
+
+每筆 source ID 必須在 admin-only manifest 中恰好落入 `building/drawing_preparation/bundle_ready`、`in_review/auto_finalizing`、`drawing_addendum_required`、`rd_controlled/released`、`obsolete/merged/cancelled/history_only` 或 `recovery_required`；這些 internal buckets 只用於零遺漏對帳，不是一般使用者路徑。所有 preformal／nonterminal 舊資料在一般 UI 一律投影為「首版準備」，且不得出現 legacy、補登、差異審核、整併、復原或對帳字樣／CTA；drawing reservation 要有唯一 canonical Drawing／recovery reference，root／part reservation要有 workspace／bundle trace。任何遺漏、重複、改號、cutover freeze 期間 source hash 變更、未具名 recovery 或需要刪除資料的 rollback 均為 P0／no-go。正式開放後合法 state／row-version 前進須由command／audit證據解釋，不視為遺失。
 
 ## Required evidence
 
@@ -109,6 +120,7 @@ Out of scope：
 | Restricted actor | 同公司但沒有編輯／審核 capability | 驗證 403／隱藏 CTA／不可直接 mutation |
 | Cross-company actor | 不屬於 fixture company | 驗證 404/403 fail closed 與資料不洩漏 |
 | Candidate fixture | 一個 workspace、至少兩張 drawing draft；其中一張進入完整流程 | 驗證 workspace 不等於 drawing identity |
+| Legacy adoption fixtures | `active`、`review_locked`、`approved_locked`、inconsistent 各至少一筆 preformal／nonterminal reservation | 四者使用者皆只見「首版準備」；source state、approval、reason與owner仍可由 admin evidence對帳 |
 | Formal fixture | 既有 `rd_controlled` drawing，含 2D／3D 受控檔 | 對照正式狀態共用 shell 與唯讀能力 |
 | Terminal/error fixtures | released、obsolete、cancelled、recovery_required 各一個 canonical Drawing | 狀態覆蓋與 Now What 檢查；只作 setup，不冒充操作 |
 
@@ -123,7 +135,7 @@ fixture code、workspace ID、canonical Drawing ID 必須在 run manifest 明列
 | `bundle_ready` | UI 上傳並驗證 2D＋3D | 同一 Drawing／Revision；顯示可送審，沒有第二份 file authority |
 | `in_review` | UI 送審 | 同一 canonical key；內容鎖定；Owner 可見撤回，非 owner 不可改 |
 | `auto_finalizing` | 核准 transaction event | 只驗 transaction/event；不得要求穩定 UI 截圖或人為延長鎖 |
-| `recovery_required` | isolated fault injection | 同一 Drawing 顯示可理解恢復路徑；不得產生半套正式 canonical rows |
+| `recovery_required` | isolated fault injection | 新流程 `bundle_apply_failed` 顯示必要處理資訊；legacy inconsistent adoption一般使用者只見「首版準備」，診斷留 admin evidence；兩者皆不得產生半套正式 canonical rows |
 | `rd_controlled` | 核准 authority | 原 candidate row 轉為一筆「研發可用」canonical row；受控檔唯讀、可建立新版 |
 | `released` | isolated fixture／合法 release flow | 同一明細 shell；不可直接改受控版次，提供建立新版或查看紀錄 |
 | `obsolete` | isolated fixture／合法 obsolete flow | terminal read-only；明確說明已作廢與可採取的替代下一步 |
@@ -144,6 +156,7 @@ fixture code、workspace ID、canonical Drawing ID 必須在 run manifest 明列
 | terminal/recovery 沒有下一步 | 狀態文案只顯示原因 | 使用者不知道改做什麼 | Now What matrix、目視 | P1 | RO-064-018 |
 | drawer 在小 viewport 裁切 | 固定寬度或雙捲軸 | 無法關閉或按 CTA | viewport screenshot、scroll test | P1 | RO-064-019 |
 | 舊 deep link 打開另一個物件 | compatibility key 未正規化 | 同圖號出現兩份明細 | URL 與 canonical ID | P1 | RO-064-013 |
+| 舊保留號暴露整併分流 | 直接顯示 source lifecycle／legacy CTA | 使用者被迫理解舊審核、補登或復原流程 | 四種 legacy fixture、可見詞掃描、截圖 | P0 | RO-064-004、018 |
 | 測試誤碰正式環境或未清理 | 環境變數／path scope 錯誤 | 正式資料風險或殘留 | manifest、target resolve、cleanup | P0 | RO-064-001、021 |
 
 ### 8. AI 真實操作案例
@@ -167,14 +180,14 @@ fixture code、workspace ID、canonical Drawing ID 必須在 run manifest 明列
 | RO-064-015 | Restricted／cross-company actor 使用 canonical 與 tampered IDs 查詢／mutation | 404/403/409 fail closed；不回傳他公司 payload | response status、redacted body |
 | RO-064-016 | isolated fault injection 使正式化中途失敗，再 retry | 第一次全 rollback 且同 Drawing 進 recovery；retry只正式化一次 | before/fault/retry count/hash |
 | RO-064-017 | 正式化後連續 reload 三次、重複相同 idempotency key | 沒有新增 row、重複 outbox、第二份附件或第二次狀態轉移 | idempotency receipt、hash |
-| RO-064-018 | 開啟 released／obsolete／cancelled／recovery fixtures | 都使用同一 shell；能力與 Now What 文案符合矩陣 | 每狀態 screenshot、CTA inventory |
+| RO-064-018 | 開啟四種 legacy adoption 與 released／obsolete／cancelled／bundle-apply-failed fixtures | 四種 preformal／nonterminal legacy只顯示「首版準備」且無 adoption過程字樣／CTA；formal／terminal／實際套用失敗維持真實狀態 | 每狀態 screenshot、CTA inventory、visible-text sweep |
 | RO-064-019 | 候選與正式 drawer 在 1440×900、1024×768、390×844 操作、捲動、關閉 | 無裁切、重疊、水平 overflow、scroll chaining；關閉鈕與主要 CTA 可操作 | 每 viewport 截圖、overflow metrics |
 | RO-064-020 | 掃描兩個 browser context 的 console、pageerror、network、visible text | unexpected console/page error、5xx、`.inline-error`、`[role=alert]` failure皆為 0 | JSON summaries、error extracts |
 | RO-064-021 | 關閉 browser/app 並清理本輪 targets | cleanup removed；source files與共用程序未被改動 | cleanup.json、post-run manifest |
 
 ### 9. UI/UX 人工目視檢查
 
-AI 必須對候選、審核中、研發可用、terminal/recovery 與三個 viewport 逐張檢視，不可只相信 DOM：
+AI 必須對候選、四種 legacy adoption、審核中、研發可用、terminal／bundle-apply-failed 與三個 viewport 逐張檢視，不可只相信 DOM：
 
 | 問題 | 通過標準 |
 |---|---|
@@ -221,6 +234,7 @@ npm.cmd run typecheck
 ### 12. 總體判定
 
 - `通過`：RO-064-001～021 必要案例全數通過；P0=0；manual UX review與三個 viewport證據齊全；canonical identity timeline證明無複製；production false；cleanup removed。
+- production release 另須 QA-064-013～016 的目標環境 evidence 全數通過；既有 local PASS 不可替代全量正式資料對帳。
 - `未通過`：任一 P0/P1 驗收失敗、visible error、5xx、資料 identity分裂、UI-only protection、跨公司洩漏、讀取寫入、正式化半套成功、viewport不可操作或清理失敗。
 - `未充分驗證`：缺 screenshot目視、trace、identity timeline、business hash、角色／狀態／viewport覆蓋，或把 API setup冒充 UI 操作。
 - `阻塞`：工具、Chromium、隔離 app、fixture、登入或 disposable環境無法建立，且無法安全繼續。
@@ -239,6 +253,14 @@ QC 發現缺陷時只記錄重現步驟、預期、實際、影響、route／vie
 
 QC report：`.ai-doc/qc/qc-dev-064-unified-drawing-aggregate-report-2026-08-11.md`。
 
+## 2026-08-15 Visible Legacy-path Amendment Evidence
+
+- `npm.cmd run qc:dev-064-unified-drawing-aggregate`：8/8 PASS；在原7項stable identity／single aggregate／DB guard基線上，新增舊保留號 user-view projection與目前統一明細契約，防止內部 legacy request/state重新產生第二條可見流程。
+- `npm.cmd run qc:dev-052-number-lifecycle-data-protection`：6/6 PASS；18/18 reservation ID一對一映射，unmapped／duplicate／unexpected／changed皆0，read hashes不變。
+- `npm.cmd run qc:dev-052-number-lifecycle-ui`：17/17 PASS；一般使用者看不到舊審核、補登、修復、整併、對帳與舊制重試控制。
+- `npm.cmd run qc:dev-052-legacy-first-preparation-browser`：7/7 PASS；current unified drawer對pending／approved／inconsistent舊來源皆回傳 `drawing_preparation`，run `DEV053-20260815-031953-local-isolated` 的三張1440×900 screenshots已目視確認，console／failed response／visible error為0，production connection/write=false，cleanup=removed。
+- 此段為本次產品修改後的RD/QA focused verification；2026-08-11獨立QC基線不被改寫，production仍需另行全量reservation manifest與release gate。
+
 ## Stop conditions
 
 - migration 或 backfill 指向 local isolated target 以外環境；
@@ -246,3 +268,6 @@ QC report：`.ai-doc/qc/qc-dev-064-unified-drawing-aggregate-report-2026-08-11.m
 - 受控 revision 必須就地改寫才能相容；
 - dual-write 無法在同一 transaction 全成全退；
 - 需要 deploy、release、merge、PR 或 production activation。
+- source/adoption manifest 未涵蓋所有 company/page/state，或任一 reservation unmapped、duplicate、renumbered、cutover freeze 期間 source hash changed；
+- 任一 preformal／nonterminal 舊保留號無法由「首版準備」找到，或一般 UI 暴露 legacy／補登／差異審核／整併／recovery／對帳過程；terminal／正式資料未維持真實下游狀態；
+- rollback 需要刪除 canonical backfill、candidate／approval facts或改寫來源 reservation。

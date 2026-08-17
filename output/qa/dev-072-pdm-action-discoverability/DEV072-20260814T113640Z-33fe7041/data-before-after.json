@@ -1,0 +1,104 @@
+[
+  {
+    "label": "direct-bypass-stale",
+    "expectedStatus": 409,
+    "before": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 4
+        }
+      ]
+    },
+    "after": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 4
+        }
+      ]
+    },
+    "mutationCount": 1
+  },
+  {
+    "label": "direct-bypass-permission",
+    "expectedStatus": 403,
+    "before": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-manufacturing-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 4
+        }
+      ]
+    },
+    "after": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-manufacturing-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 4
+        }
+      ]
+    },
+    "mutationCount": 1
+  }
+]

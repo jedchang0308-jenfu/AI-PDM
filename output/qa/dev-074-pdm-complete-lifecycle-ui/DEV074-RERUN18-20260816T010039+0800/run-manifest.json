@@ -1,0 +1,24 @@
+{
+  "run_id": "DEV074-RERUN18-20260816T010039+0800",
+  "predecessor": "DEV074-RERUN17-20260816T001641+0800",
+  "repair_gate": "DEV074-R17-P1-013",
+  "started_at": "2026-08-16T01:00:39+08:00",
+  "status": "failed",
+  "ended_at": "2026-08-16T02:01:29+08:00",
+  "failure_path": "D11",
+  "failure_defect": "DEV074-R18-P1-014",
+  "environment": "local-isolated",
+  "base_url": "http://127.0.0.1:3000",
+  "business_mutation_policy": "rendered_ui_only",
+  "direct_api_or_db_mutation_count": 0,
+  "scope_count": 58,
+  "out_of_scope": ["B09", "D15", "E02", "F08", "true_engineering_content_change", "legacy_reserved_numbers"],
+  "runtime": {
+    "temporary_project": "C:\\VIBE CODING\\AI_PDM",
+    "port": 3000,
+    "owner_pid": 27860,
+    "purpose": "DEV-074 R18 clean post-repair full rendered-UI QC",
+    "cleanup_condition": "after final R18 evidence and report audit",
+    "protected_runtime": {"project":"C:\\VIBE CODING\\ProJED\\ProJED","port":4173,"owner_pid":2328,"status_at_start":200,"action":"leave untouched"}
+  }
+}

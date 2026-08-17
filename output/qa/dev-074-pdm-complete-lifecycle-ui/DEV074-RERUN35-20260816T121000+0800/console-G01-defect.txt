@@ -1,0 +1,9 @@
+DEV074-R35-P1-031
+Session: dev074-r35-g-reviewer
+Console errors: 2
+
+[ERROR] GET /api/numbering/drawing-revision-packages/drawing-revision-package-NCR-2ae93bce-df9c-4232-9b43-cd1da8873c97/files/DRPF-9cd59bef-d7c9-4d04-a2fa-6a51ee1793cf?reviewRequestId=legacy:legacy_numbering:5f3a78c5-bfa4-4383-acc2-2faf07c01d58&previewDerivative=762cc7d7-dfbe-459d-ac4a-5c21e8ba6bee => 404 Not Found
+[ERROR] Same request repeated => 404 Not Found
+
+Approval decision request:
+POST /api/approvals/requests/legacy:legacy_numbering:5f3a78c5-bfa4-4383-acc2-2faf07c01d58/decisions => 200 OK

@@ -127,6 +127,9 @@ export async function ensureDemoUserAsync(input: {
     role: input.role,
     companyCodes: input.companyCodes ?? (input.role === "Admin" ? ["JENFU", "MAXIMA"] : ["JENFU"])
   });
+  const storedUser = await repository.getUserByEmail(input.email);
+  if (!storedUser) throw new Error("DEMO_USER_BOOTSTRAP_READBACK_FAILED");
+  await repository.restoreDemoUserForLocalValidation(storedUser.id);
 }
 
 export async function requireAuthAsync(request: Request): Promise<AsyncAuthResult> {

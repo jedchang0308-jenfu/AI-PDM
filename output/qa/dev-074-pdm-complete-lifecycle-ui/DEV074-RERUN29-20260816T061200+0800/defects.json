@@ -1,0 +1,25 @@
+[
+  {
+    "id": "DEV074-R29-P1-025",
+    "path": "E04",
+    "severity": "P1",
+    "status": "fixed_target_retest_passed",
+    "title": "Canonical BOM picker revision is shown in the editor but silently disappears after save and UI reload",
+    "expected": "Canonical Part Number lines must never present a transient Part Number revision; the editor state before save and after UI reload must be semantically identical.",
+    "actual": "Picker insertion displayed Rev 1 and Rev 0.10. The save route correctly normalized canonical line revisions to null, so both revision fields became empty after UI reload.",
+    "evidence": [
+      "screenshots/E04/picker-inspector-hierarchy.png",
+      "screenshots/E04/saved-tree.png",
+      "screenshots/E04/reload-consistent.png",
+      "screenshots/DEFECT-025-TARGET-RETEST/picker-source-drawing-rev-labelled.png",
+      "screenshots/DEFECT-025-TARGET-RETEST/canonical-line-has-no-false-revision.png",
+      "screenshots/DEFECT-025-TARGET-RETEST/canonical-line-reload-consistent.png"
+    ],
+    "fix": [
+      "Canonical BOM insertion now stores revision=null from the first rendered state.",
+      "Legacy source revision remains supported and is explicitly labelled as source Drawing Rev.",
+      "Canonical inspector no longer shows a misleading Part Number revision field."
+    ],
+    "direct_api_or_db_mutation_count": 0
+  }
+]

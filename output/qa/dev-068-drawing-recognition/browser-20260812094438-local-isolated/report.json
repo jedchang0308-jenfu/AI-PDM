@@ -1,0 +1,14 @@
+{
+  "dev": "DEV-068",
+  "sessionId": "recognition-05f7481a-00f2-454d-bc4c-961c61db9440",
+  "sourceCount": 2,
+  "candidateCount": 21,
+  "sections": 6,
+  "impactChangeCount": 4,
+  "desktopScreenshot": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-068-drawing-recognition\\browser-20260812094438-local-isolated\\impact-preview-1440x960.png",
+  "mobileScreenshot": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-068-drawing-recognition\\browser-20260812094438-local-isolated\\impact-preview-390x844.png",
+  "workerUnauthorizedStatus": 401,
+  "formalization": "PASS",
+  "checks": "PASS",
+  "completedAt": "2026-08-12T09:45:01.781Z"
+}

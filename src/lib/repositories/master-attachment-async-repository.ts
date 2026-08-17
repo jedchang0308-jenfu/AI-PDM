@@ -18,6 +18,7 @@ import type {
   MasterAttachmentEntityType,
   MasterAttachmentRecord
 } from "@/lib/repositories/master-attachment-repository";
+import { assertPdmEntityWriteAllowedAsync } from "@/lib/pdm-review-lock";
 
 type MasterAttachmentRow = {
   id: string;
@@ -623,6 +624,18 @@ export class AsyncMasterAttachmentRepository {
   }) {
     const entity = await this.resolveEntity(input.entityType, input.entityCode);
     if (!entity) throw new Error("MASTER_ATTACHMENT_ENTITY_NOT_FOUND");
+    const companyId = (await this.client.queryOne<{ company_id: string }>(
+        input.entityType === "drawing_number"
+          ? "SELECT company_id FROM drawing_numbers WHERE id = :id"
+          : "SELECT company_id FROM part_numbers WHERE id = :id",
+        { id: entity.id }
+      ))?.company_id;
+    if (!companyId) throw new Error("MASTER_ATTACHMENT_ENTITY_NOT_FOUND");
+    await assertPdmEntityWriteAllowedAsync(this.client, {
+      companyId,
+      targetIds: [entity.id],
+      targetRefs: [{ type: input.entityType, id: entity.id }]
+    });
 
     const category = normalizeCategory(entity.type, input.documentCategory);
     const revision = normalizeAttachmentRevision(input.revision);
@@ -729,6 +742,18 @@ export class AsyncMasterAttachmentRepository {
   }) {
     const entity = await this.resolveEntity(input.entityType, input.entityCode);
     if (!entity) throw new Error("MASTER_ATTACHMENT_ENTITY_NOT_FOUND");
+    const companyId = (await this.client.queryOne<{ company_id: string }>(
+      input.entityType === "drawing_number"
+        ? "SELECT company_id FROM drawing_numbers WHERE id = :id"
+        : "SELECT company_id FROM part_numbers WHERE id = :id",
+      { id: entity.id }
+    ))?.company_id;
+    if (!companyId) throw new Error("MASTER_ATTACHMENT_ENTITY_NOT_FOUND");
+    await assertPdmEntityWriteAllowedAsync(this.client, {
+      companyId,
+      targetIds: [entity.id, input.attachmentId],
+      targetRefs: [{ type: input.entityType, id: entity.id }, { type: "attachment", id: input.attachmentId }]
+    });
     const row = await this.selectMasterAttachmentRow(entity, input.attachmentId);
     if (!row) throw new Error("MASTER_ATTACHMENT_NOT_FOUND");
     const now = this.clock();
@@ -757,6 +782,18 @@ export class AsyncMasterAttachmentRepository {
   }) {
     const entity = await this.resolveEntity(input.entityType, input.entityCode);
     if (!entity) throw new Error("LIFE_ATTACHMENT_PARENT_INVALID");
+    const companyId = (await this.client.queryOne<{ company_id: string }>(
+      input.entityType === "drawing_number"
+        ? "SELECT company_id FROM drawing_numbers WHERE id = :id"
+        : "SELECT company_id FROM part_numbers WHERE id = :id",
+      { id: entity.id }
+    ))?.company_id;
+    if (!companyId) throw new Error("LIFE_ATTACHMENT_PARENT_INVALID");
+    await assertPdmEntityWriteAllowedAsync(this.client, {
+      companyId,
+      targetIds: [entity.id, input.attachmentId],
+      targetRefs: [{ type: input.entityType, id: entity.id }, { type: "attachment", id: input.attachmentId }]
+    });
 
     const row = await this.selectMasterAttachmentAnyRow(entity, input.attachmentId);
     if (!row) throw new Error("LIFE_ATTACHMENT_NOT_FOUND");

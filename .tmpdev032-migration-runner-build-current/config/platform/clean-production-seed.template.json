@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "fixtureOnly": true,
+  "releaseReady": false,
+  "releaseGate": {
+    "dev": "DEV-032",
+    "phase": "DEV-046-Phase-3A.0-production-slice",
+    "templateOnly": true,
+    "productionMutationAllowed": false,
+    "requiredBeforeCanary": true,
+    "status": "template_not_evidence"
+  },
+  "sameEmailAutoLinkAllowed": false,
+  "sourceArchive": {
+    "readOnly": true,
+    "sourceActorIdsPreserved": true,
+    "owner": "jenfu-source-archive-owner",
+    "inventorySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "legacyIdentityIds": [
+    "legacy-user-jedchang0308"
+  ],
+  "users": [
+    {
+      "id": "prod-pdm-user-admin-001",
+      "firebaseUid": "prod-firebase-user-admin-001",
+      "email": "jedchang0308@jenfu.com.tw",
+      "role": "Admin",
+      "companyId": "company-jenfu",
+      "credentialBootstrap": "google-federation"
+    }
+  ],
+  "companies": [
+    { "id": "company-jenfu", "name": "Jenfu Machinery" }
+  ],
+  "roles": [
+    { "code": "admin", "minimum": true },
+    { "code": "rd_engineer", "minimum": true }
+  ],
+  "configuration": [
+    { "key": "production_slice_mode", "value": "official-numbering-draft" },
+    { "key": "gcs_file_authority_enabled", "value": "false" },
+    { "key": "non_google_wave0_enabled", "value": "false" },
+    { "key": "workspace_aal_policy", "value": "pending_explicit_risk_acceptance_or_mfa_evidence" }
+  ],
+  "canaryAllowlist": {
+    "mode": "named-pdm-user-ids-only",
+    "wave0GoogleWorkspaceOnly": true,
+    "failClosed": true,
+    "hashAlgorithm": "sha256",
+    "source": "not-populated-template",
+    "users": [
+      {
+        "pdmUserId": "prod-pdm-user-admin-001",
+        "email": "jedchang0308@jenfu.com.tw",
+        "companyId": "company-jenfu",
+        "role": "Admin",
+        "initialAdmin": true,
+        "provider": "google_workspace"
+      }
+    ],
+    "nonCanaryAccessExpected": "denied"
+  },
+  "wavePolicy": {
+    "wave0": {
+      "googleWorkspaceOnly": true,
+      "controlledNonGoogleAllowed": false,
+      "maximumNamedUsers": 5
+    },
+    "wave1": {
+      "controlledNonGoogleRequired": true,
+      "requiresSeparateDev032Approval": true
+    }
+  },
+  "numberingSequences": [
+    { "companyId": "company-jenfu", "sequenceKey": "root", "nextValue": 1 }
+  ],
+  "historicalOfficialNumbers": [],
+  "numberingRecoveryReservations": [],
+  "historicalOfficialNumberEvidence": {
+    "status": "missing_production_inventory",
+    "requiredBeforeCanary": true,
+    "source": "read-only source archive inventory plus approved external official-number list",
+    "mustCreateNonReusableReservations": true
+  },
+  "preCanaryRestoreReconciliation": {
+    "decision": "HD-8-4 / 1A",
+    "requiredBeforeCanary": true,
+    "status": "missing_evidence",
+    "cloudSqlAutomatedBackupRequired": true,
+    "pitrRequired": true,
+    "separateIsolatedTargetRequired": true,
+    "sourceOverwriteAllowed": false,
+    "checks": [
+      "schema_and_migration_history",
+      "principal_and_account_mapping",
+      "audit_receipt_outbox_orphan_check",
+      "official_number_ledger_consistency",
+      "numbering_sequence_regression_check",
+      "non_reuse_reservation_coverage",
+      "clean_seed_no_business_draft_demo_test_source_rows"
+    ],
+    "passCondition": "all checks pass with zero unexplained gaps, zero duplicate official numbers, zero source-row mutation and zero orphan operational records"
+  },
+  "rollbackReadiness": {
+    "requiredBeforeCanary": true,
+    "status": "missing_evidence",
+    "cloudRunPreviousRevisionRequired": true,
+    "databaseRestorePointRequired": true,
+    "operatorRunbookRequired": true
+  },
+  "evidenceRequired": [
+    "exact release commit or immutable source snapshot",
+    "production project and environment readback",
+    "production Secret Manager readback without printing values",
+    "clean seed SQL/package review",
+    "allowlist hash and non-canary denial evidence",
+    "separate-target restore transcript",
+    "numbering ledger/sequence/non-reuse reconciliation report",
+    "rollback target readback",
+    "Level 3 production-like smoke",
+    "Level 4 post-deploy production smoke"
+  ],
+  "excludedRows": {
+    "businessRows": [],
+    "draftRows": [],
+    "demoRows": [],
+    "testRows": [],
+    "historicalAuditRows": [],
+    "credentials": [],
+    "sessions": []
+  }
+}

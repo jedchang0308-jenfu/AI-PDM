@@ -1,0 +1,44 @@
+{
+  "run_id": "DEV074-RERUN2-20260815T163010+0800",
+  "objective": "重新執行 DEV-074 全部 58 條 rendered UI journey；失敗則退回 RD，修復後整輪重跑",
+  "status": "failed_at_w0",
+  "started_at": "2026-08-15T16:30:10+08:00",
+  "environment": {
+    "target": "http://127.0.0.1:3000",
+    "scope": "local_isolated_only",
+    "production_mutation_allowed": false,
+    "business_mutation_mode": "rendered_ui_only",
+    "direct_api_mutation_count": 0,
+    "direct_db_mutation_count": 0
+  },
+  "source": {
+    "branch": "持續優化1",
+    "head": "cc393e048b251fb1ea3356204de56bc4c9eacc45",
+    "worktree": "dirty_user_owned_changes_preserved"
+  },
+  "predecessor_attempt": {
+    "run_id": "DEV074-RERUN-20260815T162652+0800",
+    "result": "failed_at_w0",
+    "reason": "首頁顯示 raw status 與內部英文實作詞；已退回 RD 修復"
+  },
+  "scope": {
+    "in_scope_count": 58,
+    "out_of_scope": ["B09", "D15", "E02", "F08", "true_engineering_content_change", "legacy_reserved_numbers"]
+  },
+  "actors": [
+    { "label": "CTX-C / CTX-QC", "display_name": "Demo Admin", "role": "Admin", "confirmed_via_ui": true },
+    { "label": "CTX-A", "display_name": null, "role": "Engineer", "confirmed_via_ui": false },
+    { "label": "CTX-B", "display_name": null, "role": "R&D Manager", "confirmed_via_ui": false },
+    { "label": "CTX-D", "display_name": null, "role": "Manufacturing / Procurement", "confirmed_via_ui": false },
+    { "label": "CTX-E", "display_name": null, "role": "Restricted / Cross-company", "confirmed_via_ui": false }
+  ],
+  "viewports": ["1440x900", "1024x768", "768x1024", "390x844"],
+  "ended_at": "2026-08-15T16:35:00+08:00",
+  "failure": {
+    "id": "DEV074-RERUN2-W0-001",
+    "severity": "P1",
+    "actual": "帳號復職按鈕呼叫 window.prompt，瀏覽器顯示 Runtime Error：prompt() is not supported；帳號狀態未變",
+    "expected": "由 rendered UI 對話框輸入原因並完成復職",
+    "evidence": "screenshots/W0/W0-account-reactivate-runtime-error-1440x900.png"
+  }
+}

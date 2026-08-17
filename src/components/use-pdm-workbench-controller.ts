@@ -7,6 +7,8 @@ export type PdmWorkbenchLocationState<QueryState> = {
   query: QueryState;
   detailKey: string | null;
   legacyDetail: string | null;
+  cursor?: string | null;
+  pageIndex?: number;
 };
 
 type UpdateQuery<QueryState> = QueryState | ((current: QueryState) => QueryState);
@@ -23,6 +25,8 @@ export type UsePdmWorkbenchControllerOptions<Row, Detail, QueryState, Filters> =
   normalizeDetail: (value: unknown) => Detail;
   detailRowKey: (detail: Detail) => string;
   detailHistoryMode?: "replace" | "push";
+  paginationMode?: "history" | "server-bidirectional";
+  shouldSkipDetailFetch?: (rowKey: string) => boolean;
   listErrorMessage?: string;
   detailErrorMessage?: string;
   invalidCursorMessage?: string;
@@ -55,6 +59,8 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
   normalizeDetail,
   detailRowKey,
   detailHistoryMode = "push",
+  paginationMode = "history",
+  shouldSkipDetailFetch,
   listErrorMessage = "工作清單目前無法載入，請重新整理。",
   detailErrorMessage = "這筆工作已不存在或目前無法查看。",
   invalidCursorMessage = "清單內容已更新，已回到第一頁。",
@@ -65,6 +71,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
   const [rows, setRows] = useState<Row[]>([]);
   const [filters, setFilters] = useState<Filters | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [previousCursor, setPreviousCursor] = useState<string | null>(null);
   const [cursorHistory, setCursorHistory] = useState<Array<string | null>>([null]);
   const [pageIndex, setPageIndex] = useState(0);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -88,11 +95,23 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     setCursorHistory([null]);
     setPageIndex(0);
     setNextCursor(null);
+    setPreviousCursor(null);
   }, []);
 
-  const writeCurrentLocation = useCallback((nextQuery: QueryState, detailKey: string | null, mode: "replace" | "push") => {
-    writeLocation({ query: nextQuery, detailKey, legacyDetail: null }, mode);
-  }, [writeLocation]);
+  const writeCurrentLocation = useCallback((
+    nextQuery: QueryState,
+    detailKey: string | null,
+    mode: "replace" | "push",
+    includePagination = true
+  ) => {
+    writeLocation({
+      query: nextQuery,
+      detailKey,
+      legacyDetail: null,
+      cursor: paginationMode === "server-bidirectional" && includePagination ? currentCursor : null,
+      pageIndex: paginationMode === "server-bidirectional" && includePagination ? pageIndex : 0
+    }, mode);
+  }, [currentCursor, pageIndex, paginationMode, writeLocation]);
 
   const loadRows = useCallback(async () => {
     if (!initialized) return;
@@ -133,6 +152,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     const body = normalizeResponse(raw);
     setRows(body.rows);
     setNextCursor(body.nextCursor);
+    setPreviousCursor(paginationMode === "server-bidirectional" ? body.previousCursor ?? null : null);
     setFilters(body.filters);
     if (reconcileSelectionAfterQueryRef.current) {
       reconcileSelectionAfterQueryRef.current = false;
@@ -146,7 +166,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
         writeCurrentLocation(queryRef.current, null, "replace");
       }
     }
-  }, [buildListUrl, currentCursor, getRowKey, initialized, invalidCursorMessage, listErrorMessage, normalizeResponse, onUnauthorized, query, resetPagination, writeCurrentLocation]);
+  }, [buildListUrl, currentCursor, getRowKey, initialized, invalidCursorMessage, listErrorMessage, normalizeResponse, onUnauthorized, paginationMode, query, resetPagination, writeCurrentLocation]);
 
   const setQuery = useCallback((update: UpdateQuery<QueryState>) => {
     const current = queryRef.current;
@@ -154,7 +174,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     queryRef.current = next;
     reconcileSelectionAfterQueryRef.current = true;
     setQueryState(next);
-    writeCurrentLocation(next, selectedKey, "replace");
+    writeCurrentLocation(next, selectedKey, "replace", false);
     resetPagination();
   }, [resetPagination, selectedKey, writeCurrentLocation]);
 
@@ -173,6 +193,13 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     const controller = new AbortController();
     detailAbortRef.current = controller;
     setSelectedKey(rowKey);
+    if (shouldSkipDetailFetch?.(rowKey)) {
+      setDetail(null);
+      setDetailLoading(false);
+      setError("");
+      writeCurrentLocation(queryRef.current, rowKey, mode);
+      return null;
+    }
     setDetailLoading(true);
     setError("");
     let response: Response;
@@ -209,17 +236,44 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
       : row));
     writeCurrentLocation(queryRef.current, canonicalKey, mode);
     return body;
-  }, [buildDetailUrl, detailErrorMessage, detailHistoryMode, detailRowKey, getRowKey, normalizeDetail, onUnauthorized, writeCurrentLocation]);
+  }, [buildDetailUrl, detailErrorMessage, detailHistoryMode, detailRowKey, getRowKey, normalizeDetail, onUnauthorized, shouldSkipDetailFetch, writeCurrentLocation]);
 
   const goNext = useCallback(() => {
     if (!nextCursor) return;
+    if (paginationMode === "server-bidirectional") {
+      const nextPageIndex = pageIndex + 1;
+      setCursorHistory([nextCursor]);
+      setPageIndex(nextPageIndex);
+      writeLocation({
+        query: queryRef.current,
+        detailKey: selectedKeyRef.current,
+        legacyDetail: null,
+        cursor: nextCursor,
+        pageIndex: nextPageIndex
+      }, "push");
+      return;
+    }
     setCursorHistory((current) => [...current.slice(0, pageIndex + 1), nextCursor]);
     setPageIndex((current) => current + 1);
-  }, [nextCursor, pageIndex]);
+  }, [nextCursor, pageIndex, paginationMode, writeLocation]);
 
   const goPrevious = useCallback(() => {
+    if (paginationMode === "server-bidirectional") {
+      if (pageIndex <= 0) return;
+      const previousPageIndex = pageIndex - 1;
+      setCursorHistory([previousCursor]);
+      setPageIndex(previousPageIndex);
+      writeLocation({
+        query: queryRef.current,
+        detailKey: selectedKeyRef.current,
+        legacyDetail: null,
+        cursor: previousCursor,
+        pageIndex: previousPageIndex
+      }, "push");
+      return;
+    }
     setPageIndex((current) => Math.max(0, current - 1));
-  }, []);
+  }, [pageIndex, paginationMode, previousCursor, writeLocation]);
 
   const refresh = useCallback(async () => {
     const key = selectedKey;
@@ -238,6 +292,8 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     queryRef.current = location.query;
     setQueryState(location.query);
     setSelectedKey(location.detailKey);
+    setCursorHistory([location.cursor ?? null]);
+    setPageIndex(location.pageIndex ?? 0);
     initialDetailRef.current = location.detailKey;
     setInitialized(true);
   }, [initialLocation]);
@@ -261,7 +317,10 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
       const location = readLocation();
       queryRef.current = location.query;
       setQueryState(location.query);
-      resetPagination();
+      setCursorHistory([location.cursor ?? null]);
+      setPageIndex(location.pageIndex ?? 0);
+      setNextCursor(null);
+      setPreviousCursor(null);
       if (location.detailKey) void openDetail(location.detailKey, "replace");
       else {
         detailAbortRef.current?.abort();
@@ -298,6 +357,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     detail,
     setDetail,
     nextCursor,
+    previousCursor,
     pageIndex,
     resetPagination,
     loadFirstPage: resetPagination,

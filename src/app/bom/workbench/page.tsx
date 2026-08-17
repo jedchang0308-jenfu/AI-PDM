@@ -47,6 +47,7 @@ import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
 import { SearchHighlight } from "@/components/search-highlight";
 import { PdmDetailDrawer, useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { StatusBadge, StatusScopeHelp } from "@/components/status-help-popover";
+import { BomXmindEditor } from "@/components/bom-editor/bom-xmind-editor";
 import { formatStatusForUser } from "@/lib/status-display";
 import type { BomWorkbenchListRecord } from "@/lib/types";
 
@@ -104,7 +105,25 @@ type BomWorkbenchDraftSummary = {
   is_active: number;
   line_count: number;
   review_attempt: number;
+  editor_version: number;
   updated_at: string;
+};
+
+type BomDraftFloatingTopic = {
+  id: string;
+  bom_draft_id: string;
+  parent_floating_topic_id: string | null;
+  node_type: BomWorkbenchNodeType;
+  item_id: string | null;
+  part_number: string | null;
+  part_name?: string | null;
+  revision: string | null;
+  group_name: string | null;
+  quantity: number | null;
+  sequence_no: number;
+  root_position_x: number;
+  root_position_y: number;
+  source: BomWorkbenchSource;
 };
 
 type BomReconfirmationFlag = {
@@ -117,6 +136,7 @@ type BomReconfirmationFlag = {
 
 type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
   lines: BomWorkbenchLine[];
+  floating_topics: BomDraftFloatingTopic[];
   reconfirmation_flags: BomReconfirmationFlag[];
 };
 
@@ -247,6 +267,8 @@ export default function BomWorkbenchPage() {
   const [error, setError] = useState("");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isInsertItemOpen, setIsInsertItemOpen] = useState(false);
+  const [editorV2Enabled, setEditorV2Enabled] = useState(false);
+  const [releasedReadOnly, setReleasedReadOnly] = useState(false);
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({
     storageKey: BOM_DRAWER_WIDTH_STORAGE_KEY,
     defaultWidth: 520,
@@ -315,7 +337,18 @@ export default function BomWorkbenchPage() {
   const loadDraft = useCallback(
     async (draftId: string) => {
       setMessage("");
-      const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>(`/api/bom/drafts/${draftId}`);
+      const body = await requestJson<{
+        draft: BomWorkbenchDraftDetail;
+        editorCapability?: { enabled?: boolean };
+        accessCapability?: { releasedReadOnly?: boolean };
+      }>(`/api/bom/drafts/${draftId}`);
+      setEditorV2Enabled(Boolean(body.editorCapability?.enabled));
+      setReleasedReadOnly(Boolean(body.accessCapability?.releasedReadOnly));
+      if (!body.editorCapability?.enabled && (body.draft.floating_topics?.length ?? 0) > 0) {
+        setError("此草稿包含未納入 BOM 的 Floating Topic；目前版本已鎖定保存，請切換至新版 BOM 編輯器後再歸位或送審。");
+      } else {
+        setError("");
+      }
       setDraftFromDetail(body.draft);
     },
     [requestJson, setDraftFromDetail]
@@ -427,14 +460,14 @@ export default function BomWorkbenchPage() {
         );
         await loadDraft(draftId);
         const nextUrl = `/bom/workbench/${encodeURIComponent(draftId)}`;
-        if (`${window.location.pathname}${window.location.search}` !== nextUrl) window.history.replaceState(null, "", nextUrl);
+        if (`${window.location.pathname}${window.location.search}` !== nextUrl) router.replace(nextUrl);
       } catch (err) {
         setError(err instanceof Error ? err.message : "載入 BOM 工作台失敗");
       } finally {
         setLoading(false);
       }
     },
-    [loadDraft, requestJson]
+    [loadDraft, requestJson, router]
   );
 
   useEffect(() => {
@@ -880,25 +913,63 @@ export default function BomWorkbenchPage() {
   }
 
   async function cloneDraft() {
-    if (!selectedDraft || !selectedSubmission) return;
+    if (!selectedDraft) return;
     setLoading(true);
     setError("");
     try {
-      const created = await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts/from-assembly", {
-        method: "POST",
-        body: JSON.stringify({ submissionId: selectedSubmission.id, draftName: `${selectedDraft.draft_name} 副本`, setActive: false })
-      });
+      const nextRevision = nextCloneRevision(selectedDraft.bom_revision ?? selectedDraft.parent_revision);
+      const clonedDraftName = `${workbench?.parent_part_number ?? selectedDraft.draft_name} BOM Rev ${nextRevision}`;
+      const created = selectedSubmission
+        ? await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts/from-assembly", {
+            method: "POST",
+            headers: { "idempotency-key": crypto.randomUUID() },
+            body: JSON.stringify({
+              submissionId: selectedSubmission.id,
+              bomRevision: nextRevision,
+              draftName: clonedDraftName,
+              setActive: false
+            })
+          })
+        : await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts", {
+            method: "POST",
+            headers: { "idempotency-key": crypto.randomUUID() },
+            body: JSON.stringify({
+              ownerPartNumberId: selectedDraft.owner_part_number_id,
+              bomRevision: nextRevision,
+              source: "manual",
+              draftName: clonedDraftName
+            })
+          });
       const idMap = new Map(selectedDraft.lines.map((line) => [line.id, makeId()]));
       const clonedLines = selectedDraft.lines.map((line) => ({
         ...toPatchLine(line),
         id: idMap.get(line.id),
         parentLineId: line.parent_line_id ? idMap.get(line.parent_line_id) ?? null : null
       }));
+      const floatingIdMap = new Map(selectedDraft.floating_topics.map((topic) => [topic.id, makeId()]));
+      const clonedFloatingTopics = selectedDraft.floating_topics.map((topic) => ({
+        id: floatingIdMap.get(topic.id),
+        parentFloatingTopicId: topic.parent_floating_topic_id ? floatingIdMap.get(topic.parent_floating_topic_id) ?? null : null,
+        nodeType: topic.node_type,
+        partNumber: topic.part_number,
+        revision: topic.revision,
+        groupName: topic.group_name,
+        quantity: topic.quantity,
+        sequenceNo: topic.sequence_no,
+        rootPositionX: topic.root_position_x,
+        rootPositionY: topic.root_position_y
+      }));
       const patched = await requestJson<{ draft: BomWorkbenchDraftDetail }>(`/api/bom/drafts/${created.draft.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ reason: `Clone from ${selectedDraft.id}`, lines: clonedLines })
+        body: JSON.stringify({
+          reason: `Clone from ${selectedDraft.id}`,
+          expectedEditorVersion: created.draft.editor_version,
+          lines: clonedLines,
+          floatingTopics: clonedFloatingTopics
+        })
       });
-      await loadWorkbench(selectedSubmission.id, patched.draft.id);
+      if (selectedSubmission) await loadWorkbench(selectedSubmission.id, patched.draft.id);
+      else await loadWorkbenchByDraft(patched.draft.id);
       setMessage("草稿已複製");
     } catch (err) {
       setError(err instanceof Error ? err.message : "複製草稿失敗");
@@ -935,7 +1006,7 @@ export default function BomWorkbenchPage() {
     }
   }
 
-  async function requestObsolete() {
+  async function requestObsolete(reasonOverride?: string) {
     if (!selectedDraft) return;
     if (dirty) {
       setError("申請作廢前請先儲存或放棄目前未儲存變更");
@@ -946,7 +1017,7 @@ export default function BomWorkbenchPage() {
     try {
       await requestJson(`/api/bom/drafts/${selectedDraft.id}/obsolete-request`, {
         method: "POST",
-        body: JSON.stringify({ reason: obsoleteReason.trim() })
+        body: JSON.stringify({ reason: (typeof reasonOverride === "string" ? reasonOverride : obsoleteReason).trim() })
       });
       await loadWorkbenchByDraft(selectedDraft.id);
       await loadBomRecords();
@@ -1030,7 +1101,9 @@ export default function BomWorkbenchPage() {
         obsoleteReason,
         compareDraftId,
         comparison,
-        isEditorSurface
+        isEditorSurface,
+        editorV2Enabled,
+        releasedReadOnly
       }}
       actions={{
         setQuery,
@@ -1117,6 +1190,8 @@ type BomWorkbenchPresentationProps = {
     compareDraftId: string;
     comparison: CompareRow[];
     isEditorSurface: boolean;
+    editorV2Enabled: boolean;
+    releasedReadOnly: boolean;
   };
   actions: {
     setQuery: (value: string) => void;
@@ -1158,9 +1233,9 @@ type BomWorkbenchPresentationProps = {
     deleteLine: (lineId: string) => void;
     updateLine: (lineId: string, patch: Partial<BomWorkbenchLine>) => void;
     importXlsText: () => void;
-    reconfirmReplacementFlags: () => void;
+    reconfirmReplacementFlags: () => Promise<void>;
     submitReview: () => void;
-    requestObsolete: () => void;
+    requestObsolete: (reasonOverride?: string) => Promise<void>;
     loadCompareDraft: (draftId: string) => void;
     openBomEditor: (draftId: string) => void;
   };
@@ -1197,7 +1272,9 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
     obsoleteReason,
     compareDraftId,
     comparison,
-    isEditorSurface
+    isEditorSurface,
+    editorV2Enabled,
+    releasedReadOnly
   } = model;
   const {
     setQuery,
@@ -1240,6 +1317,23 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
     loadCompareDraft,
     openBomEditor
   } = actions;
+
+  if (isEditorSurface && editorV2Enabled && selectedDraft && workbench) {
+    return (
+      <BomXmindEditor
+        draft={selectedDraft}
+        rootPartNumber={workbench.parent_part_number}
+        rootPartName={workbench.parent_part_name}
+        onReload={() => loadWorkbenchByDraft(selectedDraft.id)}
+        onSaved={() => loadWorkbenchByDraft(selectedDraft.id)}
+        onSetActiveDraft={releasedReadOnly ? undefined : setActiveDraft}
+        onCloneDraft={releasedReadOnly ? undefined : cloneDraft}
+        onDeleteDraft={releasedReadOnly ? undefined : deleteDraft}
+        onReconfirmReplacementFlags={releasedReadOnly ? undefined : reconfirmReplacementFlags}
+        onRequestObsolete={releasedReadOnly ? undefined : requestObsolete}
+      />
+    );
+  }
 
   return (
     <section className="bom-workbench-page" aria-label="BOM 工作台">
@@ -1468,20 +1562,14 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
               ) : null}
               {rows.length === 0 && (
                 <div className="bom-empty-draft-state">
-                  {selectedSubmission ? (
+                  {selectedDraft ? (
                     <>
                       <div className="bom-empty-draft-copy">
-                        <span className="section-label">現在要做什麼</span>
-                        <h3>先建立一份 BOM 草稿</h3>
-                        <p>這個主件目前還沒有草稿。選一種資料來源後，系統會把內容載入中央畫布，接著再整理階層、版次與數量。</p>
+                        <span className="section-label">空白 BOM 草稿</span>
+                        <h3>目前尚未加入任何料件</h3>
+                        <p>這份 BOM Rev 已建立且可以編輯；請用「新增群組」或「插入料件」開始建立產品結構。</p>
                       </div>
-                      <div className="bom-empty-draft-options">
-                        <a className="primary-button" href="/bom/new">
-                          建立 BOM
-                          <ArrowRight size={17} aria-hidden="true" />
-                        </a>
-                      </div>
-                      <p className="bom-empty-draft-note">先選擇料號與 BOM Rev，再從 CAD、SolidWorks XLS 或空白草稿開始。</p>
+                      <p className="bom-empty-draft-note">目前 0 個料件；儲存後重新開啟仍會保留這份空白草稿。</p>
                     </>
                   ) : (
                     <NextStepState
@@ -1711,7 +1799,7 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
                     <span>作廢原因</span>
                     <textarea value={obsoleteReason} onChange={(event) => setObsoleteReason(event.target.value)} placeholder="描述正式 BOM 為何需要作廢" />
                   </label>
-                  <button className="danger-button" type="button" onClick={requestObsolete} disabled={!obsoleteReason.trim() || dirty || loading}>
+                  <button className="danger-button" type="button" onClick={() => void requestObsolete()} disabled={!obsoleteReason.trim() || dirty || loading}>
                     <AlertTriangle size={16} aria-hidden="true" />
                     申請作廢
                   </button>
@@ -1872,7 +1960,7 @@ function buildFlowElements(
       id: `${line.parent_line_id ?? ROOT_FLOW_NODE_ID}-${line.id}`,
       source: line.parent_line_id ?? ROOT_FLOW_NODE_ID,
       target: line.id,
-      type: "smoothstep",
+      type: "straight",
       markerEnd: { type: MarkerType.ArrowClosed },
       className: line.id === selectedLineId ? "selected" : undefined
     });
@@ -1940,6 +2028,13 @@ function toPatchLine(line: BomWorkbenchLine) {
     quantity: line.quantity,
     sequenceNo: line.sequence_no
   };
+}
+
+function nextCloneRevision(revision: string) {
+  const numeric = Number.parseInt(revision, 10);
+  if (Number.isInteger(numeric) && numeric >= 0 && String(numeric) === revision) return String(numeric + 1);
+  if (/^[A-Z]$/u.test(revision)) return String.fromCharCode(revision.charCodeAt(0) + 1);
+  return "2";
 }
 
 function buildCompareRows(before: BomWorkbenchDraftDetail | null, after: BomWorkbenchDraftDetail | null): CompareRow[] {

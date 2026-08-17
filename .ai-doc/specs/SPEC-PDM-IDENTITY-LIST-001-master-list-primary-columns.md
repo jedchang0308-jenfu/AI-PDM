@@ -9,7 +9,7 @@
 
 ## 1. 文件目的
 
-本規格定義「圖料查詢 / 圖號管理 / 料號模組」三個 PDM 主資料清單的資訊權重調整。
+本規格定義「圖料工作台 / 圖號管理 / 料號工作台」三個 PDM 主資料清單的資訊權重調整。
 既有 `DEV-PDM-MASTER-WORKBENCH-001` 已完成三頁版型一致化，本任務延伸該成果，將重點從「工作台版型一致」推進到「清單主識別欄位一致」。
 
 目標是讓 RD 在切換三頁時優先掃描 `圖號 / 品名 / 料號`，而不是被狀態、成本、用途、動作等次要資訊分散注意力。
@@ -18,9 +18,9 @@
 
 目前三頁已共用 topbar、filter、左側總表與右側固定明細，但清單欄位仍偏平均分配：
 
-- 圖料查詢以 `類型 / 代碼 / 名稱 / 主根號 / 狀態 / 階段 / 關聯 / 提示` 呈現，工程識別資訊被拆散。
+- 圖料工作台以 `類型 / 代碼 / 名稱 / 主根號 / 狀態 / 階段 / 關聯 / 提示` 呈現，工程識別資訊被拆散。
 - 圖號管理將用途、主根、狀態、關聯料號、提醒、動作都放進同一列，圖號本身沒有取得足夠主視覺寬度。
-- 料號模組清單缺少明確品名欄，材質、成本與圖號分走主畫面注意力。
+- 料號工作台清單缺少明確品名欄，材質、成本與圖號分走主畫面注意力。
 
 RD 的主要判斷不是先看狀態或成本，而是先確認「這是哪一張圖、哪個品名、哪個料號」。因此三頁清單應建立一致的主識別欄位邏輯。
 
@@ -37,9 +37,9 @@ RD 的主要判斷不是先看狀態或成本，而是先確認「這是哪一�
 
 | 頁面 | 圖號欄 | 品名欄 | 料號欄 | 其他欄 |
 |---|---|---|---|---|
-| 圖料查詢 `/numbering/search` | `drawingNumber ?? primaryDrawingNumber` | `displayName`，root / drawing row 可用 `coreName` 補足 | `partNumber` 或料號數量摘要 | 類型、狀態、階段、提醒、關聯摘要 |
+| 圖料工作台 `/numbering/search` | `drawingNumber ?? primaryDrawingNumber` | `displayName`，root / drawing row 可用 `coreName` 補足 | `partNumber` 或料號數量摘要 | 類型、狀態、階段、提醒、關聯摘要 |
 | 圖號管理 `/numbering/drawings` | `drawingNumber` | `coreName` | `linkedPartNumbers` compact chips | MA/OT、狀態、階段、提醒 |
-| 料號模組 `/parts` | `primaryDrawingNumber` | `partName` | `partNumber` | 材質/顏色、成本摘要、狀態或成本待審提示 |
+| 料號工作台 `/parts` | `primaryDrawingNumber` | `partName` | `partNumber` | 材質/顏色、成本摘要、狀態或成本待審提示 |
 
 圖號管理的品名採 `coreName`，不展開多個關聯料號品名，避免清單變成多列或資訊過載。
 
@@ -84,7 +84,7 @@ RD 的主要判斷不是先看狀態或成本，而是先確認「這是哪一�
 - 不改權限矩陣。
 - 不改 sidebar 資訊架構。
 - 不改三頁工作台主版型。
-- 允許 backward-compatible API 擴充：`NumberingSearchResultRecord` 可新增 `coreName`，讓圖料查詢中的 root / drawing row 能正確呈現品名。
+- 允許 backward-compatible API 擴充：`NumberingSearchResultRecord` 可新增 `coreName`，讓圖料工作台中的 root / drawing row 能正確呈現品名。
 - `/api/numbering/drawings` 與 `/api/parts` 已有足夠欄位，原則上不需變更 API。
 
 ## 7. 驗收標準

@@ -1,0 +1,4 @@
+{
+  "policy": "UI-only cleanup; formal and historical records without a delete UI are retained by design",
+  "items": []
+}

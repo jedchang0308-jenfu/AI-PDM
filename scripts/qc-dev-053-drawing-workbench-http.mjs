@@ -44,7 +44,7 @@ record("DEV053-HTTP-005 contextual create uses candidate API plus idempotency",
 record("DEV053-HTTP-006 new-flag missing IDs fail closed without direct-master fallback",
   has(contextual, [
     "目前找不到來源圖號識別",
-    "目前找不到主根識別",
+    "目前找不到圖料根號識別",
     "製造圖必須先選定來源料號",
     "系統不會直接建立料號",
     "系統不會直接建立圖號",

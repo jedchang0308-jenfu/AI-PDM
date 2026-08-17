@@ -236,20 +236,20 @@ function RetiredGenericUploadPage() {
       <div className="topbar">
         <div>
           <h1>上傳送審已退役</h1>
-          <p>送審不再接受空白表單補主資料；請先在圖料模組完成圖號、料號、材質、表面處理與附件後再送審。</p>
+          <p>送審不再接受空白表單補主資料；請先在圖料工作台完成圖號、料號、材質、表面處理與附件後再送審。</p>
         </div>
       </div>
       <section className="panel">
         <div className="empty">
           <AlertTriangle size={28} aria-hidden="true" />
           <h2>請從受控主資料送審</h2>
-          <p>圖號或料號資料缺漏時，應回圖號模組或圖料模組修正，送審頁只負責確認與建立審核中流程。</p>
+          <p>圖號或料號資料缺漏時，應回圖號工作台或圖料工作台修正，送審頁只負責確認與建立審核中流程。</p>
           <div className="next-step-inline-actions">
             <Link className="primary-button" href="/numbering/search">
-              前往圖料模組
+              前往圖料工作台
             </Link>
             <Link className="secondary-button" href="/numbering/drawings">
-              前往圖號模組
+              前往圖號工作台
             </Link>
           </div>
         </div>
@@ -483,18 +483,18 @@ function GenericUploadPage() {
       {prefillContext ? (
         <ObjectLifecycleStatusPanel
           title="從領號草稿接續送審"
-          objectName={`${prefillContext.rootCode || "未帶入主根號"} / ${metadata.part_number || "未帶入料號"} / ${metadata.drawing_number || "未帶入圖號"}`}
+          objectName={`${prefillContext.rootCode || "未帶入圖料根號"} / ${metadata.part_number || "未帶入料號"} / ${metadata.drawing_number || "未帶入圖號"}`}
           status="Draft"
           owner="RD"
           identities={[
-            { label: "主根號", value: prefillContext.rootCode || "-" },
+            { label: "圖料根號", value: prefillContext.rootCode || "-" },
             { label: "料號", value: metadata.part_number || "-" },
             { label: "圖號", value: metadata.drawing_number || "-" },
             { label: "品名", value: metadata.part_name || "-" }
           ]}
           blockers={missingRequiredMetadata.length > 0 ? missingRequiredMetadata.map((field) => `尚缺 ${fieldLabels[field]}`) : ["欄位已帶入，仍需確認檔案與變更原因"]}
           nextStep="補齊必要欄位與送審檔案後送出，送審單會進入審核中並交由審核者處理。"
-          secondaryActions={[{ href: prefillContext.rootCode ? `/numbering/search?query=${encodeURIComponent(prefillContext.rootCode)}` : "/numbering/search", label: "回主根明細" }]}
+          secondaryActions={[{ href: prefillContext.rootCode ? `/numbering/search?query=${encodeURIComponent(prefillContext.rootCode)}` : "/numbering/search", label: "回圖料根號明細" }]}
         />
       ) : null}
 
@@ -884,7 +884,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
     async (signal?: AbortSignal, options?: { preserveSelection?: boolean; clearMessage?: boolean }) => {
       if (!normalizedDrawingNumber) {
         setLoading(false);
-        setMessage({ type: "error", text: "缺少來源圖號，請回圖號模組重新開啟送審。" });
+        setMessage({ type: "error", text: "缺少來源圖號，請回圖號工作台重新開啟送審。" });
         return;
       }
 
@@ -1123,10 +1123,10 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
       <div className="topbar">
         <div>
           <h1>圖面送審 <StatusScopeHelp scope="uploadSubmission" /></h1>
-          <p>從圖號模組建立審核包；主資料只讀，缺漏請回圖號/料號模組完成。</p>
+          <p>從圖號工作台建立審核包；主資料只讀，缺漏請回圖號/料號工作台完成。</p>
         </div>
         <Link className="secondary-button" href="/numbering/drawings">
-          回圖號模組
+          回圖號工作台
         </Link>
       </div>
 
@@ -1136,7 +1136,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
         steps={["圖號主資料", "圖面送審", "審核", "發行", "交接"]}
         currentStep="圖面送審"
         actions={[
-          { href: "/numbering/drawings", label: "回圖號模組" },
+          { href: "/numbering/drawings", label: "回圖號工作台" },
           { href: "/numbering/tasks", label: "看待辦", variant: "primary" }
         ]}
       />
@@ -1381,7 +1381,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
                                         className="primary-button"
                                         href={`/numbering/drawings?query=${encodeURIComponent(context.drawing.drawingNumber)}`}
                                       >
-                                        回圖號模組
+                                        回圖號工作台
                                       </Link>
                                       <Link
                                         className="secondary-button"
@@ -1485,7 +1485,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
                         看待辦
                       </Link>
                       <Link className="secondary-button" href="/numbering/drawings">
-                        回圖號模組
+                        回圖號工作台
                       </Link>
                     </div>
                   ) : null}
@@ -1523,7 +1523,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
             <h2>圖面送審無法開啟</h2>
             <p>{message.text}</p>
             <Link className="secondary-button" href="/numbering/drawings">
-              回圖號模組
+              回圖號工作台
             </Link>
           </div>
         </section>
@@ -1614,7 +1614,7 @@ function drawingSubmissionBlockerGroupMeta(group: DrawingSubmissionBlockerGroup,
       if (blockers.length > 0 && blockers.every(isFormalSameRevisionBlocker)) {
         return {
           headline: "這版已完成，不用再送審",
-          description: "不改內容：回圖號模組即可。要改內容：建立新版次。",
+          description: "不改內容：回圖號工作台即可。要改內容：建立新版次。",
           recoveryLabel: "查看正式紀錄"
         };
       }
@@ -1645,8 +1645,8 @@ function drawingSubmissionBlockerGroupMeta(group: DrawingSubmissionBlockerGroup,
     case "system_recoverable":
       return {
         headline: "送審資料無法解析",
-        description: "系統找不到或無法解析來源資料，請回來源模組重新開啟。",
-        recoveryLabel: "回來源模組"
+        description: "系統找不到或無法解析來源資料，請回來源工作台重新開啟。",
+        recoveryLabel: "回來源工作台"
       };
     default:
       return {
@@ -1705,7 +1705,7 @@ function drawingSubmissionNoteValidationMessage(note: string) {
 function userFacingDrawingSubmissionError(value: string) {
   if (value.includes("UNIQUE constraint failed")) return "此圖號版次已有送審紀錄，不能重複建立。";
   if (value.includes("Internal Server Error")) return "圖面送審處理失敗，請重新整理後再試或通知管理員。";
-  if (value === "DRAWING_NUMBER_NOT_FOUND") return "找不到此公司範圍內的圖號，請回圖號模組重新開啟。";
+  if (value === "DRAWING_NUMBER_NOT_FOUND") return "找不到此公司範圍內的圖號，請回圖號工作台重新開啟。";
   if (value === "DRAWING_SUBMISSION_DUPLICATE_REVISION") return "此圖號與版次已有送審紀錄，不能重複建立。";
   if (value === "duplicate_active_submission" || value === "same_revision_in_progress") {
     return "此圖號版次正在送審或發行中，請先查看既有送審或聯絡負責人。";
@@ -1723,7 +1723,7 @@ function userFacingMasterAttachmentError(value: unknown) {
   if (!text) return "附件處理失敗，請重新整理後再試。";
   if (text.includes("DUPLICATE")) return "圖號附件庫已有相同檔名、類別與版次的附件，請先移除舊附件或調整檔名。";
   if (text.includes("FILE_REQUIRED")) return "請先選擇要上傳的附件。";
-  if (text.includes("ENTITY_NOT_FOUND") || text.includes("NOT_FOUND")) return "找不到目前圖號，請回圖號模組重新開啟。";
+  if (text.includes("ENTITY_NOT_FOUND") || text.includes("NOT_FOUND")) return "找不到目前圖號，請回圖號工作台重新開啟。";
   if (text.includes("PERMISSION") || text.includes("FORBIDDEN")) return "你目前沒有權限管理此圖號附件，請由負責人、主管或 Admin 處理。";
   if (text.includes("TOO_LARGE")) return "附件太大，請改用較小檔案或請 Admin 調整上傳限制。";
   if (text.includes("EXTENSION")) return "此檔案格式目前不能上傳到圖號附件庫。";

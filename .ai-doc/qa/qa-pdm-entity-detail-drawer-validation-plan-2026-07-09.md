@@ -5,6 +5,8 @@ Related DEV: `DEV-PDM-ENTITY-DETAIL-DRAWER-001` / `DEV-039`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`
 Status: Executed Locally through Phase 1C / Independent QC Passed / Release Not Authorized
 
+> 2026-08-14 note：本文件保留 DEV-039／DEV-067 shared shell 與 projection 的歷史驗證結論。共用 drawer action 的「適用動作持續顯示、locked reason tooltip、locked→enabled 同位置、不適用完全省略」改由 DEV-072 QA 計畫驗證；不得以本文件既有 PASS 冒充 DEV-072 PASS。
+
 ## Validation Objective
 
 Verify that root, drawing and part detail drawers follow one object-detail contract across entry pages, and that candidate/formal drawings render one `DrawingWorkspaceDrawer` without merging lifecycle write authority or adding a second preparation layer:
@@ -96,7 +98,7 @@ Use disposable local fixtures or stable demo data. Do not mutate production or S
 | ENTITY-DRAW-010 | P1 | 5-second first-screen review | Reviewer can state drawing code, product name, status and next step without reading a duplicate identity/status card |
 | ENTITY-DRAW-011 | P0 | Inspect candidate/formal render paths | Both directly render `DrawingWorkspaceDrawer` and the DOM publishes exactly one `data-component="drawing-workspace-drawer"` |
 | ENTITY-DRAW-012 | P0 | Open an incomplete candidate | First-revision editor and missing requirements are available inline; no visible `準備首版圖面` navigation, duplicate CTA or extra `下一步` card exists |
-| ENTITY-DRAW-013 | P0 | Candidate becomes ready | Existing server-derived `送交審核` action becomes available in the same open drawer without route change or drawer replacement |
+| ENTITY-DRAW-013 | P0 | Candidate becomes ready | The existing locked server-derived `送交審核` action unlocks in the same position and same open drawer without route change, duplicate CTA or drawer replacement; DEV-072 owns the focused evidence |
 | ENTITY-DRAW-014 | P0 | Compare incomplete/review/returned/controlled states | Same component stays mounted and each state exposes at most one primary CTA; lifecycle and permission authority remain unchanged |
 
 ### Part Detail Requirements

@@ -1,0 +1,1 @@
+{"path":"B01","method":"GET","url_pattern":"/api/numbering/draft-workspaces/*/candidate-revisions/*/files/*?preview=1","status":409,"classification":"expected","reason":"PREVIEW_NOT_READY polling protocol; explicitly allowlisted by existing UI QC contract; stopped after media source changed"}

@@ -1,0 +1,18 @@
+path_id,result,notes
+A01,PASS,UI created new root and first drawing/part candidates
+A02,PASS,UI appended candidate drawing to existing root
+A03,PASS,UI created manufactured purchased and standard candidate parts
+A04,PASS,UI created and linked drawing/part candidates
+B01,PASS,UI validation blocked incomplete bundle states and allowed complete state
+B02,PASS,UI submit and reviewer approval formalized once
+B03,PASS,confirmation cancel produced zero write and remained resubmittable
+B04,PASS,owner withdrew edited revision/reason and resubmitted with new snapshot
+B05,FAIL,older needs_info request remained visible in active inbox after newer request approval
+B06,NOT_RUN,stopped on B05 defect
+B07,PASS,cancelled history-only workspace exposed no cancel mutation
+B08,NOT_RUN,stopped on B05 defect
+C01-C08,NOT_RUN,stopped on B05 defect
+D01-D14,NOT_RUN,stopped on B05 defect
+E01,E03-E11,NOT_RUN,stopped on B05 defect
+F01-F07,F09,NOT_RUN,stopped on B05 defect
+G01-G06,NOT_RUN,stopped on B05 defect

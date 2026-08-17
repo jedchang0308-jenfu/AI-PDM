@@ -70,7 +70,7 @@ const lifecycleStages: LifecycleStage[] = [
     id: "numbering",
     title: "需求與編號",
     qualityStage: "研發階段",
-    owner: "RD",
+    owner: "研發工程師",
     state: "草稿 / 可作業",
     intent: "確認要開發的是新料件、共用件或既有料件延伸，先避免重複建號。",
     risk: "重複料號、缺主要製造圖、品名或分類不清會讓後續 BOM 與交接失準。",
@@ -83,7 +83,7 @@ const lifecycleStages: LifecycleStage[] = [
     id: "submission",
     title: "設計送審",
     qualityStage: "研發階段",
-    owner: "RD",
+    owner: "研發工程師",
     state: "審核中",
     intent: "從受控圖料主資料確認圖面、3D、PDF、DWG 與變更原因後送進 PDM。",
     risk: "主圖、主料、材質、表面處理或附件缺漏會讓審核者無法判斷可否放行。",
@@ -96,11 +96,11 @@ const lifecycleStages: LifecycleStage[] = [
     id: "review",
     title: "審核與放行",
     qualityStage: "研發階段",
-    owner: "R&D Manager",
+    owner: "研發主管",
     state: "發行中 / 已發布",
     intent: "判斷此版是否能成為正式工程資料，而不是只看檔案是否存在。",
     risk: "未發布子件、舊版子件、同名正式檔案、較新版次都要先處理。",
-    doneSignal: "核准後完成發行包；發行未完成時產生主管/Admin 待辦。",
+    doneSignal: "核准後完成發行包；發行未完成時產生主管或系統管理員待辦。",
     href: "/numbering/approvals",
     cta: "審核待辦",
     icon: ClipboardCheck
@@ -109,7 +109,7 @@ const lifecycleStages: LifecycleStage[] = [
     id: "bom",
     title: "BOM 建立與審核",
     qualityStage: "研發階段",
-    owner: "RD / Manager",
+    owner: "研發工程師／主管",
     state: "草稿 / 審核中 / 已發布",
     intent: "從 CAD reference、SolidWorks XLS 或手動資料建立可追溯的階層 BOM。",
     risk: "缺子件、子件未放行、數量/階層錯誤會直接影響採購與製造版本。",
@@ -122,7 +122,7 @@ const lifecycleStages: LifecycleStage[] = [
     id: "gate",
     title: "技術移轉關卡",
     qualityStage: "技術移轉",
-    owner: "RD / Manager / Admin",
+    owner: "研發工程師／主管／系統管理員",
     state: "可處理 / 例外核准 / 阻擋",
     intent: "集中確認圖料、BOM 與必要證據是否足以移交下游使用。",
     risk: "缺製造圖、缺審核、資料不完整或例外未核准時不可完成移轉。",
@@ -135,7 +135,7 @@ const lifecycleStages: LifecycleStage[] = [
     id: "handoff",
     title: "製造與採購交接",
     qualityStage: "技術移轉",
-    owner: "Manufacturing / Procurement",
+    owner: "製造／採購",
     state: "只取已發布資料",
     intent: "只取已發布圖料、審核紀錄、交接包與完整性資訊。",
     risk: "審核中、已退回、已作廢或缺交接包的資料不可混入正式取用清單。",
@@ -148,7 +148,7 @@ const lifecycleStages: LifecycleStage[] = [
     id: "ecr",
     title: "ECR / 改版 / 廢止",
     controlDimension: "變更管制",
-    owner: "RD / Manager / Admin",
+    owner: "研發工程師／主管／系統管理員",
     state: "影響分析 / 已作廢",
     intent: "從既有料件啟動變更前，先看上層 BOM、圖面、供應商與交接影響。",
     risk: "未確認影響範圍就改版或廢止，會造成製造端拿錯版或缺文件。",
@@ -190,7 +190,7 @@ export function LifecycleMap({
     <section className="lifecycle-map" aria-label="料件開發生命週期">
       <div className="lifecycle-map-header">
         <div>
-          <span className="section-label">Lifecycle UX</span>
+          <span className="section-label">生命週期</span>
           <h2>料件從領號到 ECR 的跨角色操作路徑</h2>
           <p>每一步都標出主要角色、狀態、風險與交接訊號，讓使用者知道目前卡在哪裡。</p>
         </div>
@@ -249,15 +249,15 @@ export function LifecycleStageGuidance({
     summary: stage.intent,
     sections: [
       {
-        title: "Responsibility and status",
+        title: "責任與狀態",
         items: [stage.owner, stage.state]
       },
       {
-        title: "Risk",
+        title: "風險",
         body: stage.risk
       },
       {
-        title: "Done signal",
+        title: "完成條件",
         body: stage.doneSignal
       }
     ],
@@ -281,12 +281,12 @@ export function LifecycleStageGuidance({
         <PageHelpDrawerButton content={resolvedHelpContent} className="lifecycle-help-trigger" />
       </div>
       <div className="lifecycle-guidance-grid">
-        <GuidanceItem title="Owner" value={stage.owner} />
-        <GuidanceItem title="State" value={stage.state} />
+        <GuidanceItem title="負責角色" value={stage.owner} />
+        <GuidanceItem title="目前狀態" value={stage.state} />
         {variant === "expanded" ? (
           <>
-            <GuidanceItem title="Risk" value={stage.risk} icon={AlertTriangle} />
-            <GuidanceItem title="Done signal" value={stage.doneSignal} />
+            <GuidanceItem title="風險" value={stage.risk} icon={AlertTriangle} />
+            <GuidanceItem title="完成條件" value={stage.doneSignal} />
           </>
         ) : null}
       </div>
@@ -302,11 +302,11 @@ export function LifecycleStageGuidance({
       ) : null}
       <div className="lifecycle-guidance-actions">
         <span className="primary-button lifecycle-current-action" aria-current="step">
-          Current: {stage.cta}
+          目前：{stage.cta}
         </span>
         {nextStage.id !== stage.id ? (
           <Link className="secondary-button" href={nextStage.href}>
-            Next: {nextStage.title}
+            接著：{nextStage.title}
           </Link>
         ) : null}
       </div>
@@ -337,7 +337,7 @@ export function buildUploadPrefillHref({
 }
 
 export function ObjectLifecycleStatusPanel({
-  title = "Object lifecycle",
+  title = "物件生命週期",
   objectName,
   status,
   owner,
@@ -370,19 +370,19 @@ export function ObjectLifecycleStatusPanel({
     summary: statusCopy.description,
     sections: [
       {
-        title: "Object",
+        title: "物件",
         items: [objectName, owner, statusCopy.label]
       },
       {
-        title: "Blockers and notes",
+        title: "阻擋與注意事項",
         items: visibleBlockers
       },
       {
-        title: "Next step",
+        title: "目前可做",
         body: resolvedNextStep
       },
       {
-        title: "Identity",
+        title: "識別資料",
         items: visibleIdentities.map((identity) => `${identity.label}: ${identity.value}`)
       }
     ],
@@ -393,7 +393,7 @@ export function ObjectLifecycleStatusPanel({
     <section className={`object-lifecycle-panel ${statusCopy.tone}`} aria-label={title}>
       <div className="object-lifecycle-header">
         <div>
-          <span className="section-label">Object lifecycle</span>
+          <span className="section-label">物件生命週期</span>
           <h2>{title}</h2>
           <p>{objectName}</p>
         </div>
@@ -429,7 +429,7 @@ export function ObjectLifecycleStatusPanel({
           ) : null}
           {showBlockersInline ? (
             <div>
-              <span className="section-label">Notes</span>
+              <span className="section-label">注意事項</span>
               <ul>
                 {visibleBlockers.map((blocker) => (
                   <li key={blocker}>{blocker}</li>
@@ -439,7 +439,7 @@ export function ObjectLifecycleStatusPanel({
           ) : null}
           {actions.length > 0 ? (
             <div className="object-lifecycle-actions-panel">
-              <span className="section-label">Actions</span>
+              <span className="section-label">操作</span>
               <div className="object-lifecycle-actions">
                 {primaryAction ? (
                   <Link className={primaryAction.variant === "secondary" ? "secondary-button" : "primary-button"} href={primaryAction.href}>
@@ -502,7 +502,7 @@ function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
     },
     Released: {
       label: "已發布",
-      description: "此物件可作為正式工程資料來源，後續仍需確認交接包與 BOM snapshot。",
+      description: "此物件可作為正式工程資料來源，後續仍需確認交接包與 BOM 正式版本。",
       nextStep: "進入製造交接、BOM 已發布快照或 ECR 影響分析。",
       tone: "success",
       defaultBlockers: ["確認交接包、SHA256 與 released BOM 是否完整"]

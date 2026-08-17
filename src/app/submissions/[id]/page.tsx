@@ -161,7 +161,7 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
           <NextStepState
             eyebrow="重新定位"
             title="找不到這筆送審資料"
-            body={`現在請回送審來源或圖料模組重新開啟既有送審。若清單也找不到 ${submissionId}，請 Admin 協助確認。`}
+            body={`現在請回送審來源或圖料工作台重新開啟既有送審。若清單也找不到 ${submissionId}，請 Admin 協助確認。`}
             actions={[
               { href: "/numbering/drawings", label: "回圖號工作台", variant: "primary" },
               { href: "/", label: "回工作台" }
@@ -175,10 +175,10 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
           <NextStepState
             eyebrow="重新嘗試"
             title="送審明細暫時無法讀取"
-            body={`${state.message} 現在請重新整理；若仍失敗，回圖料模組重新開啟來源紀錄，或請主管 / Admin 協助確認。`}
+            body={`${state.message} 現在請重新整理；若仍失敗，回圖料工作台重新開啟來源紀錄，或請主管 / Admin 協助確認。`}
             actions={[
               { href: `/submissions/${encodeURIComponent(submissionId)}`, label: "重新整理", variant: "primary" },
-              { href: "/numbering/search", label: "回圖料模組" }
+              { href: "/numbering/search", label: "回圖料工作台" }
             ]}
           />
         </section>
@@ -228,7 +228,7 @@ function RestrictedSubmissionView({ summary, message }: { summary: RestrictedSub
           title="你目前不用在這裡處理完整送審"
           body="若你只是確認來源，這份摘要已足夠。若要審核、重新發行或取消送審，請交由送審建立者、R&D Manager 或 Admin 開啟完整明細。"
           actions={[
-            { href: "/numbering/search", label: "回圖料模組", variant: "primary" },
+            { href: "/numbering/search", label: "回圖料工作台", variant: "primary" },
             { href: "/", label: "回工作台" }
           ]}
         />
@@ -263,8 +263,9 @@ function SubmissionDetailView({
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string; href?: string; label?: string } | null>(null);
   const canManageRelease = currentUser?.role === "R&D Manager" || currentUser?.role === "Admin";
   const packageReviewApproved = submission.revision_package?.effective_status === "ReviewApproved";
-  const canApprove = submission.status === "Pending" && !packageReviewApproved && canManageRelease;
-  const canCancel = submission.status === "Pending" && !packageReviewApproved && (canManageRelease || currentUser?.id === submission.submitted_by);
+  const terminalLifecycleReadOnly = submission.release_actionability?.code.startsWith("SUBMISSION_RELEASE_TERMINAL_") ?? false;
+  const canApprove = submission.status === "Pending" && !packageReviewApproved && !terminalLifecycleReadOnly && canManageRelease;
+  const canCancel = submission.status === "Pending" && !packageReviewApproved && !terminalLifecycleReadOnly && (canManageRelease || currentUser?.id === submission.submitted_by);
   const isUnresolvedReleaseIncomplete =
     submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id && !submission.resolved_at;
   const workbenchHref = `/drawings/${encodeURIComponent(submission.drawing_number)}/submission-workbench`;
@@ -308,7 +309,7 @@ function SubmissionDetailView({
         <div className="panel-header">
           <h2>
             {submission.drawing_number}
-            <StatusBadge status={packageReviewApproved ? "ReviewApproved" : submission.status} context="submission" />
+            <StatusBadge status={terminalLifecycleReadOnly ? "Obsolete" : packageReviewApproved ? "ReviewApproved" : submission.status} context="submission" />
           </h2>
           <span className="metadata-badge">送審 ID {submission.id}</span>
         </div>
@@ -325,7 +326,11 @@ function SubmissionDetailView({
             label="狀態"
             value={
               packageReviewApproved
-                ? submissionDetailStatusLabels.ReviewApproved
+                ? terminalLifecycleReadOnly
+                  ? `受控歷史（原狀態：${submissionDetailStatusLabels.ReviewApproved}）`
+                  : submissionDetailStatusLabels.ReviewApproved
+                : terminalLifecycleReadOnly
+                  ? `受控歷史（原狀態：${submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, "submission")}）`
                 : submissionDetailStatusLabels[submission.status] ?? formatStatusForUser(submission.status, "submission")
             }
           />
@@ -342,7 +347,17 @@ function SubmissionDetailView({
           </div>
         ) : null}
 
-        {revisionPackageWarnings.length > 0 ? <RevisionPackageReviewWarnings warnings={revisionPackageWarnings} /> : null}
+        {terminalLifecycleReadOnly ? (
+          <div className="upload-message error">
+            <ShieldAlert size={16} aria-hidden="true" />
+            <p>{submission.release_actionability?.message}</p>
+            <Link href={submission.release_actionability?.recovery_href ?? "/numbering/search"}>
+              {submission.release_actionability?.code === "SUBMISSION_RELEASE_TERMINAL_SANDBOX" ? "返回來源圖面" : "返回圖料歷史"}
+            </Link>
+          </div>
+        ) : null}
+
+        {revisionPackageWarnings.length > 0 && !terminalLifecycleReadOnly ? <RevisionPackageReviewWarnings warnings={revisionPackageWarnings} /> : null}
 
         <div className="next-step-inline-actions">
           <Link className="secondary-button" href={workbenchHref}>
@@ -369,11 +384,11 @@ function SubmissionDetailView({
               disabled={busyAction !== null}
               onClick={() =>
                 runSubmissionAction("cancel", `/api/submissions/${encodeURIComponent(submission.id)}/cancel`, {
-                  reason: "由送審明細取消審核中送審。"
+                  reason: "由送審明細撤回審核中送審。"
                 })
               }
             >
-              {busyAction === "cancel" ? "取消中..." : "取消送審"}
+              {busyAction === "cancel" ? "撤回中..." : "撤回送審"}
             </button>
           ) : null}
           {isUnresolvedReleaseIncomplete && canManageRelease ? (
@@ -528,9 +543,9 @@ function formatBytes(bytes: number) {
 
 function humanSubmissionLoadError(value: unknown) {
   const text = String(value ?? "").trim();
-  if (!text) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回圖料模組重新開啟或請 Admin 協助確認。";
+  if (!text) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回圖料工作台重新開啟或請 Admin 協助確認。";
   if (text === "Insufficient role permission" || text === "FORBIDDEN") return "你沒有權限查看這筆送審資料。";
-  if (text.includes("Internal Server Error")) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回圖料模組重新開啟或請 Admin 協助確認。";
+  if (text.includes("Internal Server Error")) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回圖料工作台重新開啟或請 Admin 協助確認。";
   return formatStatusErrorForUser(text, "submission");
 }
 

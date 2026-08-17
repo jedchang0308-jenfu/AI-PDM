@@ -1,0 +1,4 @@
+{"at":"2026-08-16T08:20:00+08:00","actor":"qc","action":"run_started","run_id":"DEV074-RERUN31-20260816T082000+0800","planned_root":"A0044","policy":"rendered_ui_only","repair_gate":"DEV074-R30-P1-026"}
+{"at":"2026-08-16T08:22:00+08:00","actor":"qc","action":"defect_found","path":"E10","defect_id":"DEV074-R31-P1-027","summary":"BOM obsolete request reason absent from approval and decided-history UI"}
+{"at":"2026-08-16T08:25:00+08:00","actor":"rd","action":"repair_completed","defect_id":"DEV074-R31-P1-027","checks":["typecheck:app","qc:dev-074:bom-obsolete-reason-visibility","targeted_rendered_ui_retest"]}
+{"at":"2026-08-16T08:25:09+08:00","actor":"qc","action":"run_sealed_failed","result":{"pass":42,"fail":1,"not_run":15},"next":"R32_from_A01"}

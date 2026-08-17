@@ -3,9 +3,9 @@
 Status: `Local RD Implemented / QA-QC Passed / Release Gated`
 Date: 2026-08-10
 Owner: Dev PM
-Related DEV: `DEV-062`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
+Related DEV: `DEV-062`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`
 Related ADR: `.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`; `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
-Related QA: `.ai-doc/qa/qa-dev-062-unified-part-relation-workbench-validation-plan-2026-08-10.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
+Related QA: `.ai-doc/qa/qa-dev-062-unified-part-relation-workbench-validation-plan-2026-08-10.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`; `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md` (`APW-001..028`)
 
 本規格只治理跨模組「機制」，不重複定義 Part／Relation 產品行為。料號單頁行為以 `SPEC-PDM-NUMBER-STATE-FLOW-001` 的 DEV-062 amendment 為準；圖料單頁行為以 `SPEC-PDM-DRAWING-PART-RELATION-VIEW-001` 的 DEV-062 amendment 為準。
 
@@ -24,6 +24,61 @@ Status: `RD Implementation Ready / Human Confirmed / RD not started / Local impl
 Spec Impact Preflight：`Compatible extension` ADR-PDM-WORKBENCH-CORE-001。它仍選擇shared mechanics + domain adapters，明確拒絕「one React component renders every domain」。若RD設計要求core理解domain status/fields、擁有跨domain mutation或建立新的cross-domain data owner，屬`Unresolved conflict`，必須停止並回Dev PM/ADR。
 
 RD readiness update：shared core新增純型別`PdmEntityDetailResponse`、fixed registry、request race guard與single action bar mechanics；domain fields仍不進core。`PdmEntityDetailService`擁有一個`withPdmWorkbenchReadSnapshot`，各repository提供`...InClient` reader，不得nested transaction或component mount後自行fetch detail。Hard budgets為Drawing/Part `<=16`、Relation `<=24`、review `<=28`，且1/20/50 child/target query count不成長；required projection failure整體fail closed。
+
+## 0A. DEV-070 Compatible Extension：Approval inbox 成為 shared workbench consumer（2026-08-12）
+
+Status: `Local RD Implemented / Focused Contract + Query + Browser QC Passed / Full APW Matrix Pending / Production Release Gated`.
+
+DEV-070 extends the same architecture rule from Drawing/Part/Relation lists to the approval inbox:
+
+- Core owns list mechanics only: topbar/toolbar/result/pagination placement, query/location synchronization, request cancellation and latest-response guard, cursor history, selection, Back/Forward, loading/empty/error recovery, keyboard/focus and responsive behavior.
+- Approval owns row/filter semantics: request status, domain/action filters, reviewer assignment, requester/time, decision capability and server-authorized owner href. These fields must not be added as approval branches inside a generic core component.
+- Relation continues to use its root/tree/matrix row projection. Approval supplies a flat work-queue row projection and must not import or emulate `RelationRowCard`.
+
+Implementation evidence: `qc:dev-070:contract`, `qc:dev-070:query`, `qc:dev-070:navigation`, `qc:dev-062:core`, `typecheck:app`, `build:isolated` and focused `qc:dev-070:browser` all pass locally. PostgreSQL runtime parity and the complete `APW-001..028` matrix remain release-gated.
+- Existing `PdmWorkbenchList` and `usePdmWorkbenchController` are starting primitives, not proof that the full shell is already shared. RD must identify the smallest shell/collection extraction that removes parallel mechanics without forcing tree and table DOM into one renderer.
+- Approval cursor/search requires a server contract compatible with the shared controller. A fixed merged `limit=100` response or client-only filtering cannot satisfy pagination correctness.
+- The detail boundary remains DEV-067: the approval row navigates to the canonical owner route; close/Back/decision returns through a validated exact list context. Core does not render approval detail or decide owner routing.
+
+Conceptual composition:
+
+```text
+SharedPdmWorkbenchMechanics
+├─ WorkbenchTopbar / Toolbar
+├─ URL + Search + Filter + Cursor Controller
+├─ Collection / Selection / Keyboard / Pagination
+├─ Loading / Empty / Error / Recovery
+└─ RowProjection
+   ├─ RelationRootRowProjection
+   └─ ApprovalInboxRowProjection
+```
+
+This amendment does not change the DEV-062 non-goal that one React component must not render every domain. The target is one mechanical contract with domain adapters, not visual copying or a cross-domain conditional tree.
+
+### DEV-070 shared-core delta contract
+
+This is a compatible extension, not an approval rewrite inside core:
+
+- The shared controller may accept an optional location-backed current cursor and server-returned `previousCursor`. Existing Drawing/Part/Relation consumers may continue using their in-memory cursor history until separately migrated; approval correctness must not silently change their ordering or URL shape.
+- The shared list response may add optional `previousCursor` and summary metadata. Additions remain backward-compatible; domain-specific status, action, assignment, counts and owner routing do not enter `PdmWorkbenchListResponse` as required generic fields.
+- Approval contributes `ApprovalWorkbenchFilters`, `ApprovalWorkbenchRow`, row renderer and owner-navigation adapter. Core contributes URL/search/filter/cursor/selection synchronization, abort/latest-response guard, keyboard/focus, list/pagination states and responsive mechanics.
+- Approval cursor signing reuses the existing HMAC/filter-hash mechanism with namespace `approval-inbox-v1`. Its filter hash includes normalized status/domain/action/query plus company and actor scope. Cursor verification happens server-side before source reads.
+- Approval's adapter-owned cursor reuses version 1 fields with `updatedAt` carrying requestedAt and adds optional `direction` plus `pageIndex`; namespace remains inside the signed filter hash. `after` uses the canonical descending-time/ascending-key predicate; `before` reverses the predicate/read and reorders the returned page canonically. Core only stores, restores and passes opaque signed cursors.
+- Approval uses global `requestedAt DESC, rowKey ASC`; this domain order is provided to the adapter and must not replace the core ADR's existing Drawing/Part/Relation order.
+- `returnTo` is canonical server output from approval state, not a client-built URL. The core can preserve/restore that location but cannot decide which Drawing/Part/Relation owner owns the request.
+- Required-source failure is an error state. Shared mechanics expose retry/recovery; they do not merge partial approval rows or relabel them complete.
+
+Implementation must preserve the architecture invariant: no `if (domain === approval)` or approval status/action interpretation inside a supposedly generic shell/controller/list primitive. If that invariant cannot be met, stop for ADR review instead of widening the core.
+
+### DEV-070 implementation-ready core file delta
+
+- `src/lib/pdm-workbench-contract.ts`: `PdmWorkbenchListResponse` receives optional `previousCursor?: string | null` and `pageIndex?: number`; `PdmWorkbenchCursorPayload` receives optional `direction?: "after" | "before"` and `pageIndex?: number`. Existing response/cursor producers require no change.
+- `src/lib/pdm-workbench-cursor.ts`: only the filter-hash namespace union adds `approval-inbox-v1`; encoding, HMAC secret selection, signature and base validation remain shared.
+- `src/components/use-pdm-workbench-controller.ts`: add optional `paginationMode?: "history" | "server-bidirectional"`, default `history`. `PdmWorkbenchLocationState` adds optional cursor/pageIndex. Only bidirectional mode reads/writes those values and consumes response previousCursor/pageIndex.
+- `src/components/pdm-workbench-pagination.tsx`: optional `hasPreviousPage` overrides the existing `pageIndex > 0` derivation; default behavior is unchanged.
+- `src/components/pdm-workbench-list.tsx` and `src/components/use-list-keyboard-shortcuts.ts` are reused without changes. If approval cannot render through those current contracts, RD stops before creating another generic list or approval-only keyboard controller.
+
+Regression requirement: `qc:dev-062:core` must pass after the optional extension. Drawing/Part/Relation URL, cursor order, history pagination, detail selection and render behavior are not accepted collateral changes.
 
 ## 1. Goal and Non-goals
 

@@ -1,4 +1,5 @@
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { ensureDrawingRecognitionSessionForSourceContext } from "@/lib/drawing-recognition";
 import {
   AsyncDrawingRevisionPackageRepository,
   DrawingRevisionPackageError
@@ -9,7 +10,22 @@ export { DrawingRevisionPackageError };
 
 export async function ensureDrawingRevisionPackageForSubmissionAsync(input: { submissionId: string; actorId: string }) {
   const repository = new AsyncDrawingRevisionPackageRepository(getAsyncDatabaseClient());
-  return repository.ensurePackageForSubmission(input);
+  const packageRecord = await repository.ensurePackageForSubmission(input);
+  try {
+    await ensureDrawingRecognitionSessionForSourceContext({
+      companyId: packageRecord.company_id,
+      actorId: input.actorId,
+      sourceContextType: "revision_package",
+      sourceContextId: packageRecord.id
+    });
+  } catch (recognitionError) {
+    console.error("Drawing revision package recognition enqueue failed.", {
+      submissionId: input.submissionId,
+      packageId: packageRecord.id,
+      recognitionError
+    });
+  }
+  return packageRecord;
 }
 
 export async function getDrawingRevisionPackageBySubmissionIdAsync(submissionId: string) {
@@ -25,6 +41,11 @@ export async function markDrawingRevisionPackageReleasedForSubmissionAsync(input
 export async function markDrawingRevisionPackageCancelledForSubmissionAsync(input: { submissionId: string; actorId: string; reason: string }) {
   const repository = new AsyncDrawingRevisionPackageRepository(getAsyncDatabaseClient());
   return repository.markPackageCancelledForSubmission(input);
+}
+
+export async function markDrawingRevisionPackageCorrectionRequiredForSubmissionAsync(input: { submissionId: string; actorId: string; reason: string }) {
+  const repository = new AsyncDrawingRevisionPackageRepository(getAsyncDatabaseClient());
+  return repository.markPackageCorrectionRequiredForSubmission(input);
 }
 
 export async function requestDrawingRevisionPackageSupplementAsync(input: {

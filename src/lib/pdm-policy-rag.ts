@@ -5,7 +5,7 @@ import type { AiSource } from "@/lib/ai-tools";
 import type { PdmPolicyChunk } from "@/lib/pdm-policy-rag-data";
 
 const KEYWORD_ALIASES: Record<string, string[]> = {
-  root: ["root", "root_code", "主根號", "主根", "圖料"],
+  root: ["root", "root_code", "圖料根號", "主根號", "主根", "圖料", "同根"],
   drawing: ["drawing", "drawing_number", "圖號"],
   part: ["part", "part_number", "料號"],
   revision: ["revision", "版次", "rev"],

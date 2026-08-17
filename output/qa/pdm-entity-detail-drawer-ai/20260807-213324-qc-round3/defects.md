@@ -11,7 +11,7 @@
 - Actual: 開啟前 `生產可用`；點開後清單與 drawer 變成 `等他人處理`。
 - Evidence: `screenshots/search-A0007-M01-before-open-1440x900.png`, `screenshots/search-A0007-M01-after-open-1440x900.png`, `same-object-diff.json`。
 
-## QC-DRAWER-R3-002 — P0 — 圖料模組料號鍵盤操作開成主根號
+## QC-DRAWER-R3-002 — P0 — 圖料工作台料號鍵盤操作開成主根號
 
 - Route: `/numbering/search`
 - Viewport: `1440x900`

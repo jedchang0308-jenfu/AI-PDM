@@ -50,6 +50,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (action !== "promote" && action !== "merge" && action !== "close") {
     return NextResponse.json({ error: "??敹??箏?蝝?雿菜???" }, { status: 400 });
   }
+  const terminalReadOnly = submission.release_actionability?.code.startsWith("SUBMISSION_RELEASE_TERMINAL_") ?? false;
+  if ((action !== "close" || terminalReadOnly) && submission.release_actionability && !submission.release_actionability.allowed) {
+    return NextResponse.json(
+      {
+        error: submission.release_actionability.code,
+        code: submission.release_actionability.code,
+        message: submission.release_actionability.message,
+        recoveryHref: submission.release_actionability.recovery_href
+      },
+      { status: 409 }
+    );
+  }
 
   if (action === "merge") {
     const result = await mergeSandboxBranchAsync({ branchId, userId: auth.user.id });

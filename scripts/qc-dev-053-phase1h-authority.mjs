@@ -126,6 +126,35 @@ function submitInput(fixture, revision, key) {
 }
 
 try {
+  const informationFixture = seedDrawing("100");
+  const informationSubmitted = await repository.submit(submitInput(informationFixture, "0.1", "needs-info"));
+  const informationDecision = await repository.decide({
+    requestId: informationSubmitted.projection.requestId,
+    actorId: "phase1h-manager",
+    actorRole: "R&D Manager",
+    decision: "needs_info",
+    reason: "請補充設計依據",
+    keyHash: "decision-needs-info",
+    scopeHash: "decision-needs-info-scope"
+  });
+  const informationState = database.prepare(`
+    SELECT
+      (SELECT request_status FROM approval_platform_requests WHERE id = ?) AS request_status,
+      (SELECT decision FROM approval_platform_decisions WHERE request_id = ? ORDER BY decided_at DESC LIMIT 1) AS decision,
+      (SELECT lifecycle_state FROM drawing_revision_packages WHERE id = ?) AS lifecycle_state,
+      (SELECT active_correction_reason FROM drawing_revision_packages WHERE id = ?) AS reason
+  `).get(
+    informationSubmitted.projection.requestId,
+    informationSubmitted.projection.requestId,
+    informationSubmitted.projection.packageId,
+    informationSubmitted.projection.packageId
+  );
+  record("DEV053-1H-AUTH-012 request-information remains distinct from rejection",
+    informationState.request_status === "needs_info" && informationState.decision === "needs_info" &&
+    informationState.lifecycle_state === "correction_required" && informationState.reason === "請補充設計依據",
+    JSON.stringify(informationState));
+  await repository.cleanupTerminalWorkflow(informationDecision.workflowId);
+
   const returnedFixture = seedDrawing("101");
   const submitted = await repository.submit(submitInput(returnedFixture, "0.1", "return"));
   const freshCounts = database.prepare(`

@@ -125,7 +125,7 @@ const submissionStatuses: StatusDefinition[] = [
 
 const bomDraftStatuses: StatusDefinition[] = [
   { keys: ["Draft"], label: "草稿", description: "BOM 尚未送審，可以繼續編輯。", tone: "warning", actionable: true },
-  { keys: ["Rejected"], label: "草稿", description: "BOM 已退回，修正後可重新送審。", tone: "warning", actionable: true },
+  { keys: ["Rejected"], label: "已退回", description: "BOM 已退回，修正後可重新送審。", tone: "warning", actionable: true },
   { keys: ["PendingReview"], label: "審核中", description: "BOM 已送出，等待審核結果。", tone: "warning" },
   { keys: ["Released"], label: "已發布", description: "BOM 已審核通過並成為正式版本。", tone: "success", terminal: true },
   { keys: ["Obsolete"], label: "已作廢", description: "此 BOM 不再作為日常使用版本。", tone: "critical", terminal: true },
@@ -457,7 +457,7 @@ export function formatStatusErrorForUser(value: unknown, context: StatusDisplayC
   if (text.includes("release_failed")) return "核准已送出，但發布未完成。請開完整送審頁查看發布錯誤，修正後再重新發布或請 Admin 協助。";
   if (text.includes("duplicate_active_submission")) return "這版已有送審在處理。請先查看既有送審；若不送審了，請取消審核中送審後再重新建立。";
   if (text.includes("UNIQUE constraint failed: submission_files")) return "送審附件重複，請保留一份正確附件後再送出。";
-  if (text.includes("drawing_number_not_found")) return "找不到此圖號。請回圖號模組確認編號是否存在，再重新開啟這個流程。";
+  if (text.includes("drawing_number_not_found")) return "找不到此圖號。請回圖號工作台確認編號是否存在，再重新開啟這個流程。";
   if (/not_found|not found|404/i.test(text)) return "找不到這筆資料。請回上一個清單重新開啟；若清單也找不到，請 Admin 協助確認。";
   if (/forbidden|unauthorized|401|403|Insufficient role permission/i.test(text)) return "你目前不能執行這個動作。請改由負責角色處理，或請主管確認權限。";
   if (/constraint failed|SQLITE_CONSTRAINT|Internal Server Error|HTTP 5\d\d|\/api\//i.test(text)) return "操作未完成。請重新整理後再試；若仍發生，請把這個畫面交給 Admin 檢查。";

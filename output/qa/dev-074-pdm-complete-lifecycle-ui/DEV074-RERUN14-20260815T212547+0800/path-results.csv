@@ -1,0 +1,20 @@
+path_id,result,notes
+A01,PASS,UI created a new root and first drawing/part candidates
+A02,PASS,UI appended a candidate drawing to an existing root
+A03,PASS,UI created manufactured purchased and standard candidate parts
+A04,PASS,UI created and linked drawing/part candidates
+B01,PASS,UI validation covered empty 3D-only 2D-only and complete bundle states including same-content reupload
+B02,PASS,UI submit and reviewer approval formalized once with both controlled files visible
+B03,PASS,confirmation cancel produced zero write and remained resubmittable
+B04,PASS,owner withdrew edited revision and reason then resubmitted with a new snapshot
+B05,PASS,needs-info PDF supplement resubmit and approval succeeded and superseded request left the active inbox
+B06,PASS,reviewer return owner edit resubmit and approval succeeded
+B07,PASS,cancelled history-only workspace exposed no cancel mutation
+B08,PASS,concurrent owner submits and reviewer approvals produced one request and one formalization
+C01,PASS,first release completed without recognition and no unconfirmed attributes were written
+C02,FAIL,UI recognition remained waiting because required worker had exited while preflight reported healthy
+C03-C08,NOT_RUN,stopped on C02 defect
+D01-D14,NOT_RUN,stopped on C02 defect
+E01,E03-E11,NOT_RUN,stopped on C02 defect
+F01-F07,F09,NOT_RUN,stopped on C02 defect
+G01-G06,NOT_RUN,stopped on C02 defect

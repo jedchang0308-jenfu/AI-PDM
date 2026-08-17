@@ -8,6 +8,7 @@ import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage
 import type {
   BomImportJob,
   BomImportProfile,
+  BomDraftFloatingTopic,
   BomReconfirmationFlag,
   BomReleaseSnapshotDetail,
   BomReleaseGateIssue,
@@ -174,6 +175,7 @@ export type SaveAsyncBomWorkbenchDraftTreeInput = {
   draftId: string;
   actorId: string | null;
   reason?: string;
+  expectedEditorVersion: number;
   lines: Array<{
     id?: string;
     parentLineId?: string | null;
@@ -183,6 +185,18 @@ export type SaveAsyncBomWorkbenchDraftTreeInput = {
     groupName?: string | null;
     quantity?: number | null;
     sequenceNo?: number | null;
+  }>;
+  floatingTopics: Array<{
+    id?: string;
+    parentFloatingTopicId?: string | null;
+    nodeType: "item" | "group";
+    partNumber?: string | null;
+    revision?: string | null;
+    groupName?: string | null;
+    quantity?: number | null;
+    sequenceNo?: number | null;
+    rootPositionX?: number | null;
+    rootPositionY?: number | null;
   }>;
 };
 
@@ -218,6 +232,7 @@ export type CreateCanonicalBomDraftInput = {
   bomRevision: string;
   source: "manual" | "cad_reference";
   sourceSubmissionId?: string | null;
+  sourceRevisionPackageId?: string | null;
   actorId: string;
   idempotencyKey: string;
   requestFingerprint: string;
@@ -226,7 +241,7 @@ export type CreateCanonicalBomDraftInput = {
 
 export type CreateCanonicalBomDraftFromSolidWorksXlsInput = Omit<
   CreateCanonicalBomDraftInput,
-  "source" | "sourceSubmissionId"
+  "source" | "sourceSubmissionId" | "sourceRevisionPackageId"
 > & {
   originalFilename: string;
   fileBuffer: Buffer;
@@ -297,6 +312,19 @@ type NormalizedWorkbenchTreeLine = {
   sequenceNo: number;
 };
 
+type NormalizedFloatingTopic = {
+  id: string;
+  parentFloatingTopicId: string | null;
+  nodeType: "item" | "group";
+  partNumber: string | null;
+  revision: string | null;
+  groupName: string | null;
+  quantity: number | null;
+  sequenceNo: number;
+  rootPositionX: number;
+  rootPositionY: number;
+};
+
 const BOM_WORKBENCH_SOURCE_PRIORITY = {
   cad_reference: 10,
   solidworks_xls: 20,
@@ -334,6 +362,21 @@ export class BomReleaseGateError extends Error {
   constructor(issues: BomReleaseGateIssue[]) {
     super("BOM_RELEASE_GATE_BLOCKED");
     this.issues = issues;
+  }
+}
+
+export class BomDraftEditorVersionConflictError extends Error {
+  constructor(
+    public readonly expectedVersion: number,
+    public readonly actualVersion: number
+  ) {
+    super("BOM_DRAFT_EDITOR_VERSION_CONFLICT");
+  }
+}
+
+export class BomFloatingTopicsUnresolvedError extends Error {
+  constructor(public readonly floatingTopicCount: number) {
+    super("BOM_FLOATING_TOPICS_UNRESOLVED");
   }
 }
 
@@ -430,6 +473,16 @@ export const SELECT_ASYNC_BOM_WORKBENCH_DRAFT_LINES_SQL = `
   ORDER BY COALESCE(l.parent_line_id, ''), l.sequence_no ASC, l.id ASC
 `;
 
+export const SELECT_ASYNC_BOM_DRAFT_FLOATING_TOPICS_SQL = `
+  SELECT
+    f.*,
+    i.part_name AS part_name
+  FROM bom_draft_floating_topics f
+  LEFT JOIN items i ON i.id = f.item_id
+  WHERE f.bom_draft_id = :draftId
+  ORDER BY COALESCE(f.parent_floating_topic_id, ''), f.sequence_no ASC, f.id ASC
+`;
+
 export const SELECT_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAGS_SQL = `
   SELECT
     brf.id,
@@ -456,6 +509,35 @@ export const RESOLVE_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAGS_SQL = `
       resolved_by = :resolvedBy
   WHERE bom_draft_id = :draftId
     AND resolved_at IS NULL
+`;
+
+export const SELECT_ASYNC_BOM_WORKBENCH_REPLACEMENT_CANDIDATES_SQL = `
+  SELECT DISTINCT
+    links.company_id,
+    links.old_part_number_id,
+    links.new_part_number_id
+  FROM bom_drafts draft
+  JOIN bom_lines_tree line ON line.bom_draft_id = draft.id
+  JOIN part_numbers old_part ON upper(old_part.part_number) = upper(line.part_number)
+  JOIN part_replacement_links links ON links.old_part_number_id = old_part.id
+  WHERE draft.id = :draftId
+    AND links.company_id = COALESCE(draft.company_id, old_part.company_id)
+`;
+
+export const INSERT_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAG_SQL = `
+  INSERT INTO bom_reconfirmation_flags (
+    id, company_id, bom_draft_id, old_part_number_id, new_part_number_id, reason, created_at
+  )
+  SELECT
+    :id, :companyId, :draftId, :oldPartNumberId, :newPartNumberId, :reason, :createdAt
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM bom_reconfirmation_flags
+    WHERE company_id = :companyId
+      AND bom_draft_id = :draftId
+      AND old_part_number_id = :oldPartNumberId
+      AND new_part_number_id = :newPartNumberId
+  )
 `;
 
 export const DEACTIVATE_ASYNC_BOM_WORKBENCH_ACTIVE_DRAFTS_SQL = `
@@ -528,11 +610,11 @@ export const INSERT_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
 
 export const INSERT_ASYNC_CANONICAL_BOM_DRAFT_SQL = `
   INSERT INTO bom_drafts (
-    id, company_id, owner_part_number_id, bom_revision, source_submission_id, identity_authority,
+    id, company_id, owner_part_number_id, bom_revision, source_submission_id, source_revision_package_id, identity_authority,
     parent_item_id, parent_submission_id, parent_revision, draft_name, status, source,
     is_active, line_count, review_attempt, created_by, updated_by, created_at, updated_at
   ) VALUES (
-    :id, :companyId, :ownerPartNumberId, :bomRevision, :sourceSubmissionId, 'canonical_part_number',
+    :id, :companyId, :ownerPartNumberId, :bomRevision, :sourceSubmissionId, :sourceRevisionPackageId, 'canonical_part_number',
     :parentItemId, :parentSubmissionId, NULL, :draftName, 'Draft', :source,
     1, :lineCount, 0, :createdBy, :updatedBy, :createdAt, :updatedAt
   )
@@ -559,6 +641,11 @@ export const DELETE_ASYNC_BOM_WORKBENCH_DRAFT_LINES_SQL = `
   WHERE bom_draft_id = :draftId
 `;
 
+export const DELETE_ASYNC_BOM_DRAFT_FLOATING_TOPICS_SQL = `
+  DELETE FROM bom_draft_floating_topics
+  WHERE bom_draft_id = :draftId
+`;
+
 export const INSERT_ASYNC_BOM_WORKBENCH_DRAFT_LINE_SQL = `
   INSERT INTO bom_lines_tree (
     id, bom_draft_id, parent_line_id, node_type, item_id, part_number, revision, group_name,
@@ -567,6 +654,18 @@ export const INSERT_ASYNC_BOM_WORKBENCH_DRAFT_LINE_SQL = `
   ) VALUES (
     :id, :draftId, :parentLineId, :nodeType, :itemId, :partNumber, :revision, :groupName,
     :quantity, :sequenceNo, :source, :sourcePriority, :sourceRefId, :sourceFilename,
+    :createdBy, :updatedBy, :createdAt, :updatedAt
+  )
+`;
+
+export const INSERT_ASYNC_BOM_DRAFT_FLOATING_TOPIC_SQL = `
+  INSERT INTO bom_draft_floating_topics (
+    id, bom_draft_id, parent_floating_topic_id, node_type, item_id, part_number, revision, group_name,
+    quantity, sequence_no, root_position_x, root_position_y, source,
+    created_by, updated_by, created_at, updated_at
+  ) VALUES (
+    :id, :draftId, :parentFloatingTopicId, :nodeType, :itemId, :partNumber, :revision, :groupName,
+    :quantity, :sequenceNo, :rootPositionX, :rootPositionY, 'manual',
     :createdBy, :updatedBy, :createdAt, :updatedAt
   )
 `;
@@ -630,9 +729,11 @@ export const UPDATE_ASYNC_BOM_WORKBENCH_DRAFT_AFTER_SAVE_SQL = `
   UPDATE bom_drafts
   SET source = :source,
       line_count = :lineCount,
+      editor_version = editor_version + 1,
       updated_by = :updatedBy,
       updated_at = :updatedAt
   WHERE id = :draftId
+    AND editor_version = :expectedEditorVersion
 `;
 
 export const SELECT_ASYNC_BOM_WORKBENCH_LATEST_RELEASE_SNAPSHOT_SQL = `
@@ -721,6 +822,32 @@ export const SELECT_ASYNC_BOM_WORKBENCH_REVIEW_SQL = `
   WHERE id = :reviewId
 `;
 
+export const SELECT_ASYNC_BOM_WORKBENCH_LATEST_REVIEW_SQL = `
+  SELECT
+    id,
+    bom_draft_id,
+    status,
+    COALESCE(lifecycle_action, 'release') AS lifecycle_action,
+    submitted_by,
+    reviewed_by,
+    change_reason,
+    decision_reason,
+    submitted_at,
+    reviewed_at
+  FROM bom_review_requests
+  WHERE bom_draft_id = :draftId
+  ORDER BY submitted_at DESC, id DESC
+  LIMIT 1
+`;
+
+export const SELECT_ASYNC_BOM_WORKBENCH_DRAFT_RELEASE_SNAPSHOT_ID_SQL = `
+  SELECT id
+  FROM bom_release_snapshots
+  WHERE bom_draft_id = :draftId
+  ORDER BY released_at DESC, id DESC
+  LIMIT 1
+`;
+
 export const SELECT_ASYNC_BOM_WORKBENCH_OBSOLETE_HISTORY_SQL = `
   SELECT
     d.id AS bom_draft_id,
@@ -763,8 +890,8 @@ export const SELECT_ASYNC_BOM_WORKBENCH_EXISTING_PENDING_REVIEW_SQL = `
   SELECT id
   FROM bom_drafts
   WHERE (
-      (owner_part_number_id IS NOT NULL AND owner_part_number_id = :ownerPartNumberId AND upper(bom_revision) = upper(:bomRevision))
-      OR (owner_part_number_id IS NULL AND parent_item_id = :parentItemId AND upper(parent_revision) = upper(:parentRevision))
+      (owner_part_number_id IS NOT NULL AND owner_part_number_id = :ownerPartNumberId)
+      OR (owner_part_number_id IS NULL AND parent_item_id = :parentItemId)
     )
     AND status = 'PendingReview'
     AND id <> :draftId
@@ -840,8 +967,8 @@ export const OBSOLETE_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOTS_SQL = `
   SET obsolete_at = :obsoleteAt,
       obsolete_by = :obsoleteBy
   WHERE (
-      (owner_part_number_id IS NOT NULL AND owner_part_number_id = :ownerPartNumberId AND upper(bom_revision) = upper(:bomRevision))
-      OR (owner_part_number_id IS NULL AND parent_item_id = :parentItemId AND upper(parent_revision) = upper(:parentRevision))
+      (owner_part_number_id IS NOT NULL AND owner_part_number_id = :ownerPartNumberId)
+      OR (owner_part_number_id IS NULL AND parent_item_id = :parentItemId)
     )
     AND obsolete_at IS NULL
 `;
@@ -855,8 +982,8 @@ export const OBSOLETE_ASYNC_BOM_WORKBENCH_RELEASED_DRAFTS_SQL = `
     SELECT bom_draft_id
     FROM bom_release_snapshots
     WHERE (
-        (owner_part_number_id IS NOT NULL AND owner_part_number_id = :ownerPartNumberId AND upper(bom_revision) = upper(:bomRevision))
-        OR (owner_part_number_id IS NULL AND parent_item_id = :parentItemId AND upper(parent_revision) = upper(:parentRevision))
+        (owner_part_number_id IS NOT NULL AND owner_part_number_id = :ownerPartNumberId)
+        OR (owner_part_number_id IS NULL AND parent_item_id = :parentItemId)
       )
       AND id <> :snapshotId
   )
@@ -882,11 +1009,11 @@ export const OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
 
 export const INSERT_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOT_SQL = `
   INSERT INTO bom_release_snapshots (
-    id, bom_draft_id, company_id, owner_part_number_id, bom_revision, source_submission_id,
+    id, bom_draft_id, company_id, owner_part_number_id, bom_revision, source_submission_id, source_revision_package_id,
     parent_item_id, parent_submission_id, parent_revision,
     line_snapshot_json, line_count, released_by, released_at
   ) VALUES (
-    :id, :draftId, :companyId, :ownerPartNumberId, :bomRevision, :sourceSubmissionId,
+    :id, :draftId, :companyId, :ownerPartNumberId, :bomRevision, :sourceSubmissionId, :sourceRevisionPackageId,
     :parentItemId, :parentSubmissionId, :parentRevision,
     :lineSnapshotJson, :lineCount, :releasedBy, :releasedAt
   )
@@ -996,14 +1123,20 @@ export class AsyncBomWorkbenchRepository {
     const draft = await this.client.queryOne<BomWorkbenchDraftSummary>(SELECT_ASYNC_BOM_WORKBENCH_DRAFT_SQL, { draftId });
     if (!draft) return null;
 
-    const [lines, reconfirmationFlags] = await Promise.all([
+    const [lines, floatingTopics, reconfirmationFlags, latestReview, releaseSnapshot] = await Promise.all([
       this.client.query<BomWorkbenchLine>(SELECT_ASYNC_BOM_WORKBENCH_DRAFT_LINES_SQL, { draftId }),
-      this.client.query<BomReconfirmationFlag>(SELECT_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAGS_SQL, { draftId })
+      this.client.query<BomDraftFloatingTopic>(SELECT_ASYNC_BOM_DRAFT_FLOATING_TOPICS_SQL, { draftId }),
+      this.client.query<BomReconfirmationFlag>(SELECT_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAGS_SQL, { draftId }),
+      this.client.queryOne<BomWorkbenchReview>(SELECT_ASYNC_BOM_WORKBENCH_LATEST_REVIEW_SQL, { draftId }),
+      this.client.queryOne<{ id: string }>(SELECT_ASYNC_BOM_WORKBENCH_DRAFT_RELEASE_SNAPSHOT_ID_SQL, { draftId })
     ]);
     return {
       ...coerceDraftSummary(draft),
       lines: lines.map(coerceWorkbenchLine),
-      reconfirmation_flags: reconfirmationFlags
+      floating_topics: floatingTopics.map(coerceFloatingTopic),
+      reconfirmation_flags: reconfirmationFlags,
+      release_snapshot_id: releaseSnapshot?.id ?? null,
+      latest_review: latestReview ?? null
     };
   }
 
@@ -1045,9 +1178,10 @@ export class AsyncBomWorkbenchRepository {
     const replay = await this.getCanonicalCreateReplay(input);
     if (replay) return replay;
     await this.assertCanonicalRevisionAvailable(input);
-    if (input.source === "cad_reference" && !input.sourceSubmissionId) {
+    if (input.source === "cad_reference" && !input.sourceSubmissionId && !input.sourceRevisionPackageId) {
       throw new Error("BOM_CAD_SOURCE_SUBMISSION_REQUIRED");
     }
+    if (input.sourceSubmissionId && input.sourceRevisionPackageId) throw new Error("BOM_CAD_SOURCE_AMBIGUOUS");
 
     const references = input.sourceSubmissionId
       ? await this.client.query<FileReference>(SELECT_ASYNC_BOM_WORKBENCH_ASSEMBLY_REFERENCES_SQL, {
@@ -1075,6 +1209,7 @@ export class AsyncBomWorkbenchRepository {
         ownerPartNumberId: input.ownerPartNumberId,
         bomRevision: input.bomRevision,
         sourceSubmissionId: input.sourceSubmissionId ?? null,
+        sourceRevisionPackageId: input.sourceRevisionPackageId ?? null,
         parentItemId: input.legacyItemId,
         parentSubmissionId: input.sourceSubmissionId ?? null,
         draftName,
@@ -1124,6 +1259,7 @@ export class AsyncBomWorkbenchRepository {
           ownerPartNumberId: input.ownerPartNumberId,
           bomRevision: input.bomRevision,
           source: input.source,
+          sourceRevisionPackageId: input.sourceRevisionPackageId ?? null,
           lineCount: lines.length
         }),
         reason: "Create canonical material-owned BOM draft",
@@ -1134,7 +1270,13 @@ export class AsyncBomWorkbenchRepository {
         submissionId: input.sourceSubmissionId ?? null,
         actorId: input.actorId,
         action: "CanonicalBomDraftCreated",
-        detailJson: JSON.stringify({ draftId, ownerPartNumberId: input.ownerPartNumberId, bomRevision: input.bomRevision, source: input.source }),
+        detailJson: JSON.stringify({
+          draftId,
+          ownerPartNumberId: input.ownerPartNumberId,
+          bomRevision: input.bomRevision,
+          source: input.source,
+          sourceRevisionPackageId: input.sourceRevisionPackageId ?? null
+        }),
         createdAt: now
       });
       await client.execute(INSERT_ASYNC_BOM_CREATE_EFFECT_SQL, {
@@ -1711,10 +1853,32 @@ export class AsyncBomWorkbenchRepository {
     assertBomDraftMutable(before.status);
 
     const normalizedLines = this.normalizeWorkbenchTreeLines(input.lines);
+    const normalizedFloatingTopics = this.normalizeFloatingTopics(input.floatingTopics);
+    const lineIds = new Set(normalizedLines.map((line) => line.id));
+    if (normalizedFloatingTopics.some((topic) => lineIds.has(topic.id))) throw new Error("BOM_EDITOR_DUPLICATE_NODE_ID");
     const now = this.clock();
     const reason = input.reason?.trim() || "Save BOM workbench draft tree";
     const save = async (client: AsyncDatabaseClient) => {
+      const lockedDraft = await client.queryOne<{ status: BomWorkbenchDraftSummary["status"]; editor_version: number }>(
+        `
+          SELECT status, editor_version
+          FROM bom_drafts
+          WHERE id = :draftId
+          ${client.kind === "postgres" ? "FOR UPDATE" : ""}
+        `,
+        { draftId: input.draftId }
+      );
+      if (!lockedDraft) throw new Error("BOM_DRAFT_NOT_FOUND");
+      assertBomDraftMutable(lockedDraft.status);
+      const actualVersion = numberValue(lockedDraft.editor_version);
+      if (actualVersion !== input.expectedEditorVersion) {
+        throw new BomDraftEditorVersionConflictError(input.expectedEditorVersion, actualVersion);
+      }
+
       await client.execute(DELETE_ASYNC_BOM_WORKBENCH_DRAFT_LINES_SQL, {
+        draftId: input.draftId
+      });
+      await client.execute(DELETE_ASYNC_BOM_DRAFT_FLOATING_TOPICS_SQL, {
         draftId: input.draftId
       });
 
@@ -1747,10 +1911,54 @@ export class AsyncBomWorkbenchRepository {
         });
       }
 
+      for (const topic of normalizedFloatingTopics) {
+        const childItem =
+          topic.nodeType === "item" && topic.partNumber
+            ? await client.queryOne<{ id: string }>(SELECT_ASYNC_BOM_WORKBENCH_ITEM_BY_PART_NUMBER_SQL, {
+                partNumber: topic.partNumber
+              })
+            : null;
+        await client.execute(INSERT_ASYNC_BOM_DRAFT_FLOATING_TOPIC_SQL, {
+          id: topic.id,
+          draftId: input.draftId,
+          parentFloatingTopicId: topic.parentFloatingTopicId,
+          nodeType: topic.nodeType,
+          itemId: childItem?.id ?? null,
+          partNumber: topic.nodeType === "item" ? topic.partNumber : null,
+          revision: topic.nodeType === "item" ? topic.revision : null,
+          groupName: topic.nodeType === "group" ? topic.groupName : null,
+          quantity: topic.nodeType === "item" ? topic.quantity : null,
+          sequenceNo: topic.sequenceNo,
+          rootPositionX: topic.rootPositionX,
+          rootPositionY: topic.rootPositionY,
+          createdBy: input.actorId,
+          updatedBy: input.actorId,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+
+      const replacementCandidates = await client.query<{ company_id: string; old_part_number_id: string; new_part_number_id: string }>(
+        SELECT_ASYNC_BOM_WORKBENCH_REPLACEMENT_CANDIDATES_SQL,
+        { draftId: input.draftId }
+      );
+      for (const candidate of replacementCandidates) {
+        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_RECONFIRMATION_FLAG_SQL, {
+          id: this.idFactory(),
+          companyId: candidate.company_id,
+          draftId: input.draftId,
+          oldPartNumberId: candidate.old_part_number_id,
+          newPartNumberId: candidate.new_part_number_id,
+          reason: "replacement_part_released",
+          createdAt: now
+        });
+      }
+
       await client.execute(UPDATE_ASYNC_BOM_WORKBENCH_DRAFT_AFTER_SAVE_SQL, {
         draftId: input.draftId,
         source: "manual",
         lineCount: normalizedLines.length,
+        expectedEditorVersion: input.expectedEditorVersion,
         updatedBy: input.actorId,
         updatedAt: now
       });
@@ -1759,8 +1967,20 @@ export class AsyncBomWorkbenchRepository {
         draftId: input.draftId,
         actorId: input.actorId,
         eventType: "save_tree",
-        beforeJson: JSON.stringify({ lineCount: before.lines.length, lines: before.lines }),
-        afterJson: JSON.stringify({ lineCount: normalizedLines.length, lines: normalizedLines }),
+        beforeJson: JSON.stringify({
+          editorVersion: input.expectedEditorVersion,
+          lineCount: before.lines.length,
+          floatingTopicCount: before.floating_topics.length,
+          lines: before.lines,
+          floatingTopics: before.floating_topics
+        }),
+        afterJson: JSON.stringify({
+          editorVersion: input.expectedEditorVersion + 1,
+          lineCount: normalizedLines.length,
+          floatingTopicCount: normalizedFloatingTopics.length,
+          lines: normalizedLines,
+          floatingTopics: normalizedFloatingTopics
+        }),
         reason,
         createdAt: now
       });
@@ -1773,17 +1993,17 @@ export class AsyncBomWorkbenchRepository {
           draftId: input.draftId,
           beforeLineCount: before.lines.length,
           afterLineCount: normalizedLines.length,
+          beforeFloatingTopicCount: before.floating_topics.length,
+          afterFloatingTopicCount: normalizedFloatingTopics.length,
+          expectedEditorVersion: input.expectedEditorVersion,
+          savedEditorVersion: input.expectedEditorVersion + 1,
           reason: input.reason?.trim() || null
         }),
         createdAt: now
       });
     };
 
-    if (this.client.kind === "postgres") {
-      await this.client.transaction(save);
-    } else {
-      await save(this.client);
-    }
+    await this.client.transaction(save);
 
     return this.getDraftById(input.draftId);
   }
@@ -1792,6 +2012,9 @@ export class AsyncBomWorkbenchRepository {
     const draft = await this.getDraftById(input.draftId);
     if (!draft) return null;
     assertBomDraftMutable(draft.status);
+    if (draft.floating_topics.length > 0) {
+      throw new BomFloatingTopicsUnresolvedError(draft.floating_topics.length);
+    }
     if (draft.reconfirmation_flags.length > 0) {
       throw new Error("BOM_RECONFIRMATION_REQUIRED");
     }
@@ -2137,6 +2360,10 @@ export class AsyncBomWorkbenchRepository {
 
     if (draft.status !== "PendingReview") throw new Error("BOM_DRAFT_NOT_PENDING_REVIEW");
 
+    if (draft.floating_topics.length > 0) {
+      throw new BomFloatingTopicsUnresolvedError(draft.floating_topics.length);
+    }
+
     const issues = await this.evaluateReleaseGate(draft.lines);
     if (issues.length > 0) throw new BomReleaseGateError(issues);
 
@@ -2147,7 +2374,7 @@ export class AsyncBomWorkbenchRepository {
       await client.execute(OBSOLETE_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOTS_SQL, {
         ownerPartNumberId: draft.owner_part_number_id,
         bomRevision: draft.bom_revision,
-        parentItemId: draft.parent_item_id,
+        parentItemId: draft.parent_item_id || null,
         parentRevision: draft.parent_revision,
         obsoleteAt: now,
         obsoleteBy: input.actorId
@@ -2161,21 +2388,37 @@ export class AsyncBomWorkbenchRepository {
         updatedBy: input.actorId,
         updatedAt: now
       });
-      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOT_SQL, {
+      const snapshotParameters = {
         id: snapshotId,
         draftId: draft.id,
         companyId: draft.company_id,
         ownerPartNumberId: draft.owner_part_number_id,
         bomRevision: draft.bom_revision,
         sourceSubmissionId: draft.source_submission_id,
-        parentItemId: draft.parent_item_id,
+        sourceRevisionPackageId: draft.source_revision_package_id ?? null,
+        parentItemId: draft.parent_item_id || null,
         parentSubmissionId: draft.source_submission_id || draft.parent_submission_id || null,
         parentRevision: draft.identity_authority === "canonical_part_number" ? null : draft.parent_revision,
         lineSnapshotJson: JSON.stringify(draft.lines),
         lineCount: draft.lines.length,
         releasedBy: input.actorId,
         releasedAt: now
-      });
+      };
+      try {
+        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOT_SQL, snapshotParameters);
+      } catch (error) {
+        console.error("BOM release snapshot insert failed", {
+          draftId: snapshotParameters.draftId,
+          companyId: snapshotParameters.companyId,
+          ownerPartNumberId: snapshotParameters.ownerPartNumberId,
+          sourceSubmissionId: snapshotParameters.sourceSubmissionId,
+          parentItemId: snapshotParameters.parentItemId,
+          parentSubmissionId: snapshotParameters.parentSubmissionId,
+          releasedBy: snapshotParameters.releasedBy,
+          errorMessage: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
       await client.execute(RELEASE_ASYNC_BOM_WORKBENCH_DRAFT_SQL, {
         draftId: draft.id,
         updatedBy: input.actorId,
@@ -2504,6 +2747,63 @@ export class AsyncBomWorkbenchRepository {
     return sortWorkbenchTreeLines(merged);
   }
 
+  private normalizeFloatingTopics(topics: SaveAsyncBomWorkbenchDraftTreeInput["floatingTopics"]): NormalizedFloatingTopic[] {
+    const normalized = topics.map((topic, index) => {
+      const base = this.normalizeWorkbenchTreeLine(
+        {
+          id: topic.id,
+          parentLineId: topic.parentFloatingTopicId,
+          nodeType: topic.nodeType,
+          partNumber: topic.partNumber,
+          revision: topic.revision,
+          groupName: topic.groupName,
+          quantity: topic.quantity,
+          sequenceNo: topic.sequenceNo
+        },
+        index
+      );
+      const rootPositionX = Number(topic.rootPositionX ?? 0);
+      const rootPositionY = Number(topic.rootPositionY ?? 0);
+      if (!Number.isFinite(rootPositionX) || !Number.isFinite(rootPositionY)) {
+        throw new Error("BOM_FLOATING_TOPIC_POSITION_INVALID");
+      }
+      return {
+        id: base.id,
+        parentFloatingTopicId: base.parentLineId,
+        nodeType: base.nodeType,
+        partNumber: base.partNumber,
+        revision: base.revision,
+        groupName: base.groupName,
+        quantity: base.quantity,
+        sequenceNo: base.sequenceNo,
+        rootPositionX,
+        rootPositionY
+      };
+    });
+    const byId = new Map<string, NormalizedFloatingTopic>();
+    for (const topic of normalized) {
+      if (byId.has(topic.id)) throw new Error("BOM_DUPLICATE_FLOATING_TOPIC_ID");
+      byId.set(topic.id, topic);
+    }
+    for (const topic of normalized) {
+      if (topic.parentFloatingTopicId && !byId.has(topic.parentFloatingTopicId)) throw new Error("BOM_FLOATING_TOPIC_PARENT_NOT_FOUND");
+      if (topic.parentFloatingTopicId === topic.id) throw new Error("BOM_CYCLE_DETECTED");
+    }
+    const structuralLines = normalized.map<NormalizedWorkbenchTreeLine>((topic) => ({
+      id: topic.id,
+      parentLineId: topic.parentFloatingTopicId,
+      nodeType: topic.nodeType,
+      partNumber: topic.partNumber,
+      revision: topic.revision,
+      groupName: topic.groupName,
+      quantity: topic.quantity,
+      sequenceNo: topic.sequenceNo
+    }));
+    validateTreeDepthAndCycles(structuralLines);
+    const topicById = new Map(normalized.map((topic) => [topic.id, topic]));
+    return sortWorkbenchTreeLines(structuralLines).map((line) => topicById.get(line.id) as NormalizedFloatingTopic);
+  }
+
   private normalizeWorkbenchTreeLine(
     line: SaveAsyncBomWorkbenchDraftTreeInput["lines"][number],
     index: number
@@ -2622,7 +2922,8 @@ function coerceDraftSummary(row: BomWorkbenchDraftSummary): BomWorkbenchDraftSum
     parent_revision: row.parent_revision ?? row.bom_revision ?? "",
     is_active: numberValue(row.is_active),
     line_count: numberValue(row.line_count),
-    review_attempt: numberValue(row.review_attempt)
+    review_attempt: numberValue(row.review_attempt),
+    editor_version: numberValue(row.editor_version)
   };
 }
 
@@ -2632,6 +2933,16 @@ function coerceWorkbenchLine(row: BomWorkbenchLine): BomWorkbenchLine {
     quantity: nullableNumberValue(row.quantity),
     sequence_no: numberValue(row.sequence_no),
     source_priority: numberValue(row.source_priority)
+  };
+}
+
+function coerceFloatingTopic(row: BomDraftFloatingTopic): BomDraftFloatingTopic {
+  return {
+    ...row,
+    quantity: nullableNumberValue(row.quantity),
+    sequence_no: numberValue(row.sequence_no),
+    root_position_x: numberValue(row.root_position_x),
+    root_position_y: numberValue(row.root_position_y)
   };
 }
 

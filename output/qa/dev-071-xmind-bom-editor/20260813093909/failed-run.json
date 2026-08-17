@@ -1,0 +1,38 @@
+{
+  "checkedAt": "2026-08-13T09:40:23.804Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813093909",
+  "total": 5,
+  "passed": 5,
+  "failed": 1,
+  "consoleErrors": [],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [],
+  "results": [
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"f384a997-dd4a-4973-878b-c5f725f2f9ec\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-13949291\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-13949291\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T09:39:36.140Z\",\"updated_at\":\"2026-08-13T09:39:36.140Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"f384a997-dd4a-4973-878b-c5f725f2f9ec\",\"ownerPartNumberId\":\"dev071-browser-parent-part-13949291\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"34a53f07-03b1-4c16-a63f-e374ea218b97\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/f384a997-dd4a-4973-878b-c5f725f2f9ec\"}"
+    },
+    {
+      "name": "toolbar has exact 10 XMind slots",
+      "passed": true,
+      "detail": "10"
+    },
+    {
+      "name": "toolbar slot order is monotonic",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    },
+    {
+      "name": "toolbar slots are 52px",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    }
+  ],
+  "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.xmind-bom-node').filter({ hasText: '主群組' })\u001b[22m\n\u001b[2m    - locator resolved to <div aria-selected=\"false\" data-editor-node-kind=\"line\" class=\"xmind-bom-node line  \" data-editor-node-id=\"0f45daf5-f4fb-45db-99d0-b88b64fa7760\">…</div>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - element is outside of the viewport\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - element is outside of the viewport\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    56 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - element is outside of the viewport\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+}

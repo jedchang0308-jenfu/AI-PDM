@@ -10,7 +10,7 @@ Related DEV: `DEV-PDM-DRAWING-SUBMISSION-001`
 Source decision from user APP validation on 2026-06-30:
 
 - User rejected the current behavior where drawing detail `送審` opens a blank generic `/upload` form.
-- User confirmed the product rule: `送審階段不應該再補資料，這些應該都在圖號模組完成`.
+- User confirmed the product rule: `送審階段不應該再補資料，這些應該都在圖號工作台完成`.
 
 HCS thinking habits applied:
 
@@ -67,7 +67,7 @@ Instead, the current UI asks the user to re-enter PDM attributes. This creates d
 Authoritative boundary:
 
 ```text
-圖號模組 = 主資料完成區
+圖號工作台 = 主資料完成區
 送審頁 = 審核提交區
 ```
 

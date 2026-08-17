@@ -22,9 +22,9 @@ Implementation progress note:
 
 Human-confirmed decisions from 2026-07-02 HCS guided planning:
 
-- Submission entry remains in 圖號模組 / 圖料模組. The workbench itself may be an independent page.
+- Submission entry remains in 圖號工作台 / 圖料工作台. The workbench itself may be an independent page.
 - New drawing submission workbench route: `/drawings/[drawingNumber]/submission-workbench`.
-- 圖號模組直接 opens the drawing submission workbench. 圖料模組 must first resolve/select the primary or MA drawing, then open the same workbench.
+- 圖號工作台直接 opens the drawing submission workbench. 圖料工作台 must first resolve/select the primary or MA drawing, then open the same workbench.
 - Workbench carries root and primary part context, but drawing number is the primary object.
 - Phase 1 may keep legacy `/upload?source=drawing&drawingNumber=...` for compatibility, but module entry points must prefer the new workbench route.
 - The workbench has three Phase 1 areas: `送審條件`, `既有紀錄 / 阻擋`, `送審動作`.
@@ -120,11 +120,11 @@ The main issue is not only duplicate detection. It is missing lifecycle recovery
 ### 3.1 Entry and workbench
 
 ```text
-圖號模組
+圖號工作台
   -> 送審
   -> /drawings/[drawingNumber]/submission-workbench
 
-圖料模組 / 主根號工作台
+圖料工作台 / 主根號工作台
   -> choose primary or MA drawing
   -> /drawings/[drawingNumber]/submission-workbench
 
@@ -141,8 +141,8 @@ The main issue is not only duplicate detection. It is missing lifecycle recovery
 
 | Surface | Responsibility |
 |---|---|
-| 圖號模組 | Drawing-focused entry and drawing attachments. |
-| 圖料模組 | Root/part/drawing context and choosing the drawing to submit. |
+| 圖號工作台 | Drawing-focused entry and drawing attachments. |
+| 圖料工作台 | Root/part/drawing context and choosing the drawing to submit. |
 | Drawing submission workbench | Readiness, same-revision conflict visibility, submission action and recovery links. |
 | Submission detail page | Existing submission status, role-appropriate actions and human-readable next steps. |
 | Release service | Retry release for already-approved failed release. |
@@ -260,7 +260,7 @@ This capsule preserves decisions that must not be lost when Phase 2 or later wor
 
 Fixed decisions:
 
-- The formal entry remains in 圖號模組 / 圖料模組; the workbench may be a standalone page.
+- The formal entry remains in 圖號工作台 / 圖料工作台; the workbench may be a standalone page.
 - The workbench is a submission-preparation surface, not a new source of truth.
 - 圖號 data remains owned by drawing domain.
 - 料號 data remains owned by part domain.
@@ -276,7 +276,7 @@ Fixed decisions:
 End-state data flow:
 
 ```text
-圖號 / 圖料模組 entry
+圖號 / 圖料工作台 entry
   -> 圖面送審工作台
   -> 讀取 drawing/root/part/attachment owner data
   -> 使用者補齊可編輯欄位

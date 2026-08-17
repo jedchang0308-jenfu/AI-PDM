@@ -220,7 +220,7 @@ Submission confirmation panel states:
 CTA requirements for `submission_conflict`:
 
 - `查看既有送審`
-- `返回圖料模組`
+- `返回圖料工作台`
 - `建立新版次` or `進版` only when the controlled revision/change flow is valid for the record
 
 The panel must not show a green "all passed" message while the button is disabled for a blocker. If only the note is missing, the green message may say source data passed, but the disabled reason must clearly say the note is missing.

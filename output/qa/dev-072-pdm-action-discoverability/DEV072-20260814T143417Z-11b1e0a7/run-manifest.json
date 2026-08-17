@@ -1,0 +1,114 @@
+{
+  "runId": "DEV072-20260814T143417Z-11b1e0a7",
+  "generatedAt": "2026-08-14T14:35:00.024Z",
+  "tool": "Playwright Chromium driven by Codex QC",
+  "productionConnection": false,
+  "productionWrite": false,
+  "database": "disposable isolated SQLite copies",
+  "fixture": {
+    "buildingKey": "candidate:draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+    "terminalKey": "part:part-number-af2bc537-9272-49e2-8b37-39dbfc42a48c",
+    "partKey": "part:part-number-af2bc537-9272-49e2-8b37-39dbfc42a48c",
+    "relationKey": "root:014f8d95-84df-4d9d-833a-7f22b10ffa59",
+    "pendingRequestIds": [
+      "APR-a7fdf24d-a6d3-4722-b250-1101ecdc04a9"
+    ]
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    }
+  ],
+  "cases": [
+    {
+      "id": "ACT-028-approve",
+      "passed": true,
+      "detail": {
+        "requestId": "APR-72c5536b-188e-4004-9254-16e713d469f4",
+        "actionId": "detail:approval:approve",
+        "dialogs": 0,
+        "before": {
+          "status": "pending",
+          "applyStatus": "pending"
+        },
+        "after": {
+          "status": "approved",
+          "applyStatus": "applied",
+          "applyError": null
+        },
+        "returnTo": "http://127.0.0.1:62962/approvals?status=active&limit=100&domain=numbering"
+      }
+    },
+    {
+      "id": "ACT-027",
+      "passed": true,
+      "detail": {
+        "canonicalOwnerRouteUsed": true,
+        "unifiedDrawerCount": 1,
+        "postDecisionDrawerClosed": true,
+        "inboxRefreshed": true
+      }
+    },
+    {
+      "id": "RUN-FATAL",
+      "passed": false,
+      "detail": {
+        "error": "console/page errors: [{\"label\":\"decision-approve\",\"type\":\"console\",\"message\":\"Failed to load resource: the server responded with a status of 404 (Not Found)\"}]\n\n1 !== 0\n"
+      }
+    }
+  ],
+  "P0": 0,
+  "P1": 0,
+  "cleanup": {
+    "attempted": true,
+    "removedCount": 4,
+    "tempRootRemoved": true
+  },
+  "source": {
+    "provenanceVersion": 1,
+    "commit": "cc393e048b251fb1ea3356204de56bc4c9eacc45",
+    "branch": "持續優化1",
+    "dirtyWorktree": true,
+    "scopedDirty": true,
+    "dirtyHashAlgorithm": "sha256(commit + scoped git status + scoped source hash)",
+    "dirtyHash": "bf3c5e70fb791a8fa9f6d837e36a38280f75403461ec1125898e997d2f53b5f2",
+    "scopedSourceHashAlgorithm": "sha256(sorted path + NUL + file bytes + NUL)",
+    "scopedSourceHash": "9899ed83f3cdc37c973ede600c3cfea0bec1f267c25fff1e22c73be55272fede",
+    "scopedFiles": [
+      "package.json",
+      "scripts/qc-dev-072-action-api.mjs",
+      "scripts/qc-dev-072-action-contract.mjs",
+      "scripts/qc-dev-072-browser.mjs",
+      "src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/route.ts",
+      "src/app/api/pdm/entity-details/[entityKey]/route.ts",
+      "src/app/approvals/page.tsx",
+      "src/app/globals.css",
+      "src/components/candidate-drawing-file-upload.tsx",
+      "src/components/drawing-projection.tsx",
+      "src/components/drawing-workbench.tsx",
+      "src/components/master-attachment-panel.tsx",
+      "src/components/part-projection.tsx",
+      "src/components/part-workbench.tsx",
+      "src/components/pdm-detail-action-control.tsx",
+      "src/components/relation-matrix-table.tsx",
+      "src/components/relation-projection.tsx",
+      "src/components/relation-workbench.tsx",
+      "src/components/unified-pdm-entity-detail-drawer.tsx",
+      "src/lib/pdm-detail-action-capabilities.ts",
+      "src/lib/pdm-detail-action-resolver.ts",
+      "src/lib/pdm-entity-detail-contract.ts",
+      "src/lib/pdm-entity-detail.ts"
+    ]
+  },
+  "files": [
+    "action-contract.json",
+    "dom-metrics.json",
+    "interaction-log.json",
+    "console-network.json",
+    "data-before-after.json",
+    "visible-error-sweep.json",
+    "defects.md"
+  ]
+}

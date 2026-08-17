@@ -76,3 +76,21 @@ Evidence root: `output/playwright/dev052-real-operation/DEV052-20260804-045957-l
 - Current run：`output/playwright/dev052-real-operation/DEV052-20260806-015522-local-isolated/`；manifest為`productionConnected=false`、`productionWrites=false`、cleanup=`removed`。
 - DEV-053／lifecycle回歸另由同一獨立QC freeze依序執行，未以共用固定3000或production資料代替隔離fixture。
 - 最終判定維持`PASS / P0=0 / P1=0 / P2=0`；commit、migration、activation、deploy與production release未授權。
+
+## 8. 2026-08-15 User-visible Legacy-path Focused Amendment
+
+Status: `PASS for RD/QA focused local scope / Independent production QC not run`
+
+本次依人類決策將所有尚未正式化且非終結的舊保留號，無論內部為active、pending、approved或inconsistent，統一投影到使用者唯一可見的「首版準備」站。internal adoption bucket、舊審核證據、addendum/recovery原因與reservation reconciliation仍完整保留於server/admin evidence；open/read不改寫來源資料。正式／發布／terminal資料維持真實狀態，不被重開。
+
+| Check | Result | Focused evidence |
+|---|---:|---|
+| `npm.cmd run qc:dev-052-number-lifecycle-data-protection` | 6/6 | 18/18 source reservation IDs一對一；unmapped／duplicate／unexpected／changed=0；protected hashes與read total changes不變 |
+| `npm.cmd run qc:dev-052-number-lifecycle-ui` | 17/17 | hidden adoption全部使用共用user projection；可見舊審核／補登／修復／整併／對帳／重試控制被禁止 |
+| `npm.cmd run qc:dev-064-unified-drawing-aggregate` | 8/8 | canonical Drawing stable identity與目前統一明細資料契約皆使用同一user-view projection |
+| `npm.cmd run qc:dev-052-legacy-first-preparation-browser` | 7/7 | pending／approved／inconsistent三情境皆由current unified drawer回傳`drawing_preparation`；禁用流程文字／控制=0；read hash不變 |
+| `npm.cmd run typecheck:app` | PASS | 目前application TypeScript contract無錯誤 |
+
+Focused Chromium run：`output/playwright/dev053-real-operation/DEV053-20260815-031953-local-isolated/`。三張1440×900 screenshots已目視確認；source manifest包含本次user-view helper、PDM entity-detail composer/contract、API route與current unified drawer；console errors=0、failed responses=0、visible errors=0、productionConnected=false、productionWrites=false、cleanup=`removed`。
+
+此amendment只宣告本次修改的本機focused verification；不把同一執行階段誤稱為獨立QC，也不宣告generic DEV-053完整真實操作runner或production release已通過。正式啟用前仍必須在獨立release/data gate完成全company／全分頁reservation-ID manifest，任一遺漏、重複、改號或cutover freeze來源hash變更即no-go。

@@ -42,6 +42,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (submission.status !== "Pending") {
     return NextResponse.json({ error: `Only Pending submissions can be rejected. Current status: ${submission.status}` }, { status: 409 });
   }
+  if (submission.release_actionability?.code.startsWith("SUBMISSION_RELEASE_TERMINAL_")) {
+    return NextResponse.json(
+      {
+        error: submission.release_actionability.code,
+        code: submission.release_actionability.code,
+        message: submission.release_actionability.message,
+        recoveryHref: submission.release_actionability.recovery_href
+      },
+      { status: 409 }
+    );
+  }
   if (await reviewerHasDecisionAsync({ submissionId: id, reviewerId })) {
     return NextResponse.json({ error: "Reviewer already decided this submission" }, { status: 409 });
   }

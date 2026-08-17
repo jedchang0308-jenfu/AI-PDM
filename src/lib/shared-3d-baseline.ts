@@ -250,6 +250,131 @@ export async function assertDrawingPackageModelBasisForReleaseAsync(packageId: s
   return { ok: true, reason: basis.basisType };
 }
 
+/**
+ * An approved manufacturing drawing package may reuse the root's existing 3D
+ * truth when both SHA-256 and byte size match. The drawing revision keeps its
+ * own logical file row, while this method links the package to (and, on first
+ * formal release, promotes) the one shared model version.
+ */
+export async function ensureApprovedDrawingPackageSharedModelBasisAsync(input: {
+  packageId: string;
+  actorId: string;
+}) {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncShared3dBaselineRepository(client);
+  const pkg = await repository.getDrawingPackage(input.packageId);
+  if (!pkg) throw new Shared3dBaselineError("DRAWING_PACKAGE_NOT_FOUND", "找不到圖面版次附件包。", 404);
+  if (!isManufacturingDrawingPurpose(pkg.drawingPurposeCode)) {
+    return { configured: false, reason: "non_ma_package" as const };
+  }
+
+  const existingBasis = await repository.getPackageModelBasis(pkg.id);
+  if (existingBasis?.basisType === "two_d_only") {
+    return { configured: true, reason: "two_d_only" as const, modelId: null };
+  }
+
+  const reusable = await client.queryOne<{
+    id: string;
+    status: SharedCadModelStatus;
+    content_hash: string;
+    file_size: number | string | null;
+  }>(
+    `
+      SELECT
+        model.id,
+        model.status,
+        model.content_hash,
+        package_asset.file_size
+      FROM drawing_revision_package_files package_file
+      JOIN file_assets package_asset
+        ON package_asset.id = package_file.source_file_asset_id
+       AND package_asset.deleted_at IS NULL
+      JOIN shared_cad_model_versions model
+        ON model.company_id = :companyId
+       AND model.owner_scope = 'part_root'
+       AND model.owner_id = :partRootId
+       AND model.content_hash = package_asset.content_hash
+       AND UPPER(COALESCE(model.hash_algorithm, 'SHA-256')) = UPPER(COALESCE(package_asset.hash_algorithm, 'SHA-256'))
+       AND model.status <> 'Obsolete'
+      JOIN file_assets model_asset
+        ON model_asset.id = model.source_file_asset_id
+       AND model_asset.deleted_at IS NULL
+       AND COALESCE(model_asset.file_size, -1) = COALESCE(package_asset.file_size, -1)
+      WHERE package_file.package_id = :packageId
+        AND package_file.role = 'cad_3d'
+      ORDER BY CASE model.status WHEN 'Released' THEN 0 WHEN 'Pending' THEN 1 WHEN 'Draft' THEN 2 ELSE 3 END,
+               model.created_at ASC,
+               model.id ASC
+      LIMIT 1
+    `,
+    { packageId: pkg.id, companyId: pkg.companyId, partRootId: pkg.drawingPartRootId }
+  );
+  if (!reusable) {
+    return { configured: false, reason: "no_matching_shared_model" as const };
+  }
+
+  const now = new Date().toISOString();
+  if (!existingBasis || existingBasis.sharedModelVersionId !== reusable.id || existingBasis.reviewStatus !== "confirmed") {
+    await repository.upsertPackageModelBasis({
+      id: existingBasis?.id ?? `DPM-${crypto.randomUUID()}`,
+      packageId: pkg.id,
+      basisType: "shared_model",
+      sharedModelVersionId: reusable.id,
+      exceptionReason: null,
+      exceptionConfirmedBy: null,
+      exceptionConfirmedAt: null,
+      reviewStatus: "confirmed",
+      createdBy: existingBasis?.createdBy ?? input.actorId,
+      createdAt: existingBasis?.createdAt ?? now,
+      updatedAt: now
+    });
+    await createAuditLogAsync({
+      actorId: input.actorId,
+      action: "DrawingPackageModelBasisAutoLinkedFromApprovedRevision",
+      detail: {
+        packageId: pkg.id,
+        sharedModelVersionId: reusable.id,
+        contentHash: reusable.content_hash,
+        fileSize: reusable.file_size,
+        identityRule: "part_root+sha256+byte_size"
+      }
+    });
+  }
+
+  if (reusable.status !== "Released") {
+    await client.execute(
+      `
+        UPDATE shared_cad_model_versions
+        SET status = 'Released',
+            released_by = :actorId,
+            released_at = :releasedAt,
+            release_reason = :releaseReason
+        WHERE id = :modelId
+          AND status IN ('Draft', 'Pending')
+      `,
+      {
+        modelId: reusable.id,
+        actorId: input.actorId,
+        releasedAt: now,
+        releaseReason: `Approved drawing revision ${pkg.drawingNumber} rev ${pkg.revision} reused identical 3D content.`
+      }
+    );
+    await createAuditLogAsync({
+      actorId: input.actorId,
+      action: "SharedCadModelVersionReleasedFromApprovedDrawingRevision",
+      detail: {
+        packageId: pkg.id,
+        sharedModelVersionId: reusable.id,
+        contentHash: reusable.content_hash,
+        fileSize: reusable.file_size,
+        identityRule: "part_root+sha256+byte_size"
+      }
+    });
+  }
+
+  return { configured: true, reason: "shared_model" as const, modelId: reusable.id };
+}
+
 export async function resolveRequiredMaForBaselineAsync(input: { ownerScope: SharedModelOwnerScope; ownerCode: string }): Promise<RequiredMaResolverResult> {
   const repository = new AsyncShared3dBaselineRepository(getAsyncDatabaseClient());
   const owner = await resolveOwner(input, repository);

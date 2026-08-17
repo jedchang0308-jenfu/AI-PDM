@@ -113,6 +113,43 @@
 }
 
 @media (min-width: 761px) and (max-width: 1180px) {
+  .controlled-history-table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .controlled-history-table th:nth-child(3),
+  .controlled-history-table td:nth-child(3) {
+    display: none;
+  }
+
+  .controlled-history-table th:nth-child(1) { width: 24%; }
+  .controlled-history-table th:nth-child(2) { width: 14%; }
+  .controlled-history-table th:nth-child(4) { width: 18%; }
+  .controlled-history-table th:nth-child(5) { width: 28%; }
+  .controlled-history-table th:nth-child(6) { width: 16%; }
+
+  .virtual-table-wrap table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .virtual-table-wrap col:nth-child(3),
+  .virtual-table-wrap col:nth-child(7),
+  .virtual-table-wrap th:nth-child(3),
+  .virtual-table-wrap th:nth-child(7),
+  .virtual-table-wrap td:nth-child(3),
+  .virtual-table-wrap td:nth-child(7) {
+    display: none;
+  }
+
+  .virtual-table-wrap col:nth-child(1) { width: 22%; }
+  .virtual-table-wrap col:nth-child(2) { width: 22%; }
+  .virtual-table-wrap col:nth-child(4) { width: 10%; }
+  .virtual-table-wrap col:nth-child(5) { width: 15%; }
+  .virtual-table-wrap col:nth-child(6) { width: 14%; }
+  .virtual-table-wrap col:nth-child(8) { width: 17%; }
+
   .finder-summary-row {
     grid-template-columns: minmax(0, 1fr) minmax(174px, auto);
   }
@@ -128,6 +165,48 @@
 }
 
 @media (max-width: 760px) {
+  .controlled-history-table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .controlled-history-table th:nth-child(2),
+  .controlled-history-table th:nth-child(3),
+  .controlled-history-table td:nth-child(2),
+  .controlled-history-table td:nth-child(3) {
+    display: none;
+  }
+
+  .controlled-history-table th:nth-child(1) { width: 30%; }
+  .controlled-history-table th:nth-child(4) { width: 20%; }
+  .controlled-history-table th:nth-child(5) { width: 28%; }
+  .controlled-history-table th:nth-child(6) { width: 22%; }
+
+  .virtual-table-wrap table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .virtual-table-wrap col:nth-child(2),
+  .virtual-table-wrap col:nth-child(3),
+  .virtual-table-wrap col:nth-child(6),
+  .virtual-table-wrap col:nth-child(7),
+  .virtual-table-wrap th:nth-child(2),
+  .virtual-table-wrap th:nth-child(3),
+  .virtual-table-wrap th:nth-child(6),
+  .virtual-table-wrap th:nth-child(7),
+  .virtual-table-wrap td:nth-child(2),
+  .virtual-table-wrap td:nth-child(3),
+  .virtual-table-wrap td:nth-child(6),
+  .virtual-table-wrap td:nth-child(7) {
+    display: none;
+  }
+
+  .virtual-table-wrap col:nth-child(1) { width: 37%; }
+  .virtual-table-wrap col:nth-child(4) { width: 13%; }
+  .virtual-table-wrap col:nth-child(5) { width: 24%; }
+  .virtual-table-wrap col:nth-child(8) { width: 26%; }
+
   .app-shell {
     grid-template-columns: minmax(0, 1fr);
   }

@@ -3,6 +3,7 @@
 Status: `Phase 1A-1D Focused Local QC Passed / Production Evidence Deferred`
 Date: 2026-08-03
 Readiness reviewed: 2026-08-04
+Visible lifecycle amended: 2026-08-15
 AI real-operation plan added: 2026-08-04 (`Planned / Not Yet Executed`)
 Owner: QA
 Related DEV: `DEV-052`
@@ -18,6 +19,7 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-addi
 - 核准後正式化是原子、冪等、可恢復；
 - 小數研發版由 physical `Pending` package + immutable companion 投影為 effective `ReviewApproved`，永不成為 `Released`；
 - legacy pending/approved number-only requests 不被錯誤擴大為圖面核准。
+- 所有 preformal／nonterminal 舊保留號在一般使用者 UI 只出現在「首版準備」；舊審核、補登、復原、整併與對帳過程完全不可見，但來源 facts 與稽核證據不得遺失。
 
 本計畫不授權讀寫 production。任何 production snapshot 必須為經核准的 sanitised/read-only evidence 或獨立 release gate 提供的受控 target。
 
@@ -37,11 +39,11 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-addi
 |---|---|---|
 | F1 new root+drawing+part | no workspace | create → `drawing_preparation` |
 | F2 legacy active | workspace active + active reservations, no candidate revision | `drawing_preparation`，read zero-write |
-| F3 legacy pending | review_locked + pending number-only approval | `in_review / legacy_number_review` |
-| F4 legacy approved | approved_locked + approved number-only snapshot | `drawing_addendum_required` |
+| F3 legacy pending | review_locked + pending number-only approval | internal `in_review / legacy_number_review`；user `drawing_preparation` |
+| F4 legacy approved | approved_locked + approved number-only snapshot | internal `drawing_addendum_required`；user `drawing_preparation` |
 | F5 published | workspace published + promoted reservations | `official_controlled`，no duplicate write |
 | F6 cancelled/recycled | terminal history facts | `history_only` |
-| F7 inconsistent | missing approval, conflicting claims or mixed impossible state | `recovery_required` |
+| F7 inconsistent | missing approval, conflicting claims or mixed impossible state | internal `recovery_required`；user `drawing_preparation` |
 | F8 cross-company twin codes | same display codes in separate companies | no leakage/collision across company scope |
 
 所有 ID、號碼、snapshot hash 與 row counts 在測試前保存 baseline。
@@ -71,6 +73,15 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-addi
 
 正式 activation 前，需另有：target identity、backup/restore evidence、sanitized or read-only comparison evidence、migration owner、recovery owner、feature-flag rollback與 old/new app read compatibility。缺一即 no-go。
 
+### DP-05 Legacy reservation zero-loss reconciliation
+
+- 在 feature flag off、read-only/repeatable snapshot 中逐 company、全分頁列出所有 `number_candidate_reservations`，以 reservation ID 為最小單位建立 source manifest；不得用 workspace 或 UI row count 代替。
+- adoption manifest 必須讓每一 source ID 恰好落入 `drawing_preparation`、`bundle_ready`、`in_review`、`auto_finalizing`、`drawing_addendum_required`、`official_controlled`、`history_only` 或 `recovery_required` 一個 bucket。
+- adoption bucket是 admin/release reconciliation evidence，不是一般使用者頁籤、badge、CTA或導引；F2／F3／F4／F7在 user projection 必須全部是 `drawing_preparation`。
+- 必要結果：`source_count = distinct_mapped_count = bucket_distinct_id_sum`，且 `unmapped=0`、`duplicate_mapping=0`、`renumbered=0`；migration／backfill／flag-off readback／read-only canary 的 cutover freeze 期間另須 `source_row_hash_changed=0`。正式開放操作後合法 state／row-version 前進不視為遺失，但 identity、code與mapping仍不可改變。
+- drawing reservation 必須有唯一 canonical Drawing／明確 recovery reference；root／part reservation 必須仍由同一 workspace／bundle 可追溯。所有 recovery 筆數均需原因與具名 owner。
+- schema／canonical adoption 後、canary 後及 rollback rehearsal 後重跑同一 manifest；任何差異都是 P0／no-go。DEV-064 若執行新增 canonical rows 的受控 backfill，仍不得更新、刪除或改號來源 reservation rows。
+
 ## 5. Functional Test Cases
 
 | ID | Scenario | Expected result |
@@ -84,15 +95,15 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-addi
 | QA-052-007 | pending withdraw | 保存舊 snapshot，解鎖成可編輯 draft；重送建立新 snapshot version |
 | QA-052-008 | bundle reject/needs-info | 不建立 formal records；回到安全可修正狀態 |
 | QA-052-009 | bundle approve | 同交易建立完整 masters/links/promotions、physical `Pending` package、immutable review-approval companion、audit/receipt/outbox；effective `ReviewApproved` |
-| QA-052-010 | F3 legacy review approve | 不自動發布；轉 `drawing_addendum_required` |
-| QA-052-011 | F3 withdraw/reject | 進 `drawing_preparation`，之後送完整 bundle |
-| QA-052-012 | F4 addendum submit/approve | 引用 legacy approval hash；只審新增圖面範圍；成功後完整正式化 |
+| QA-052-010 | F3 legacy review approve | internal evidence不自動發布並保留原核准事實；一般使用者始終只見 `drawing_preparation`，不見舊審核續接 |
+| QA-052-011 | F3 withdraw/reject | internal facts安全收斂；一般使用者始終只見 `drawing_preparation`，之後只走完整 bundle |
+| QA-052-012 | F4 first-revision submit/approve | 後台引用 legacy approval hash並限制審核範圍；一般使用者只走首版準備→整包送審，成功後完整正式化 |
 | QA-052-013 | F5 open/retry | 唯讀；不得重建 candidate、master、package或 event |
 | QA-052-014 | F6 terminal open | 只有歷史檢視，不提供復活／發布捷徑 |
-| QA-052-015 | F7 inconsistent | 顯示 recovery guidance；不猜測、不寫入、不正式化 |
-| QA-052-016 | 進入保留號頁 | `/numbering/drawings?tab=reserved` 保留；tab顯示 `保留號`、V2工作區顯示 `保留號／首版準備`；無第二套V2/legacy page |
+| QA-052-015 | F7 inconsistent | 一般使用者只見 `drawing_preparation`；recovery reason／owner只在 admin evidence，不猜測、不漏列、不正式化 |
+| QA-052-016 | 進入舊保留號 URL | `/numbering/drawings?tab=reserved` zero-write收斂到同一圖號工作台；無第二套V2／legacy頁或可見整併過程 |
 | QA-052-017 | V2正常狀態切換 | preparation=`完成首版圖面`、editing=`繼續完成首版`、ready=`送交審核`、review=`查看審核`；每個狀態只有一個primary CTA |
-| QA-052-018 | V2例外狀態 | empty/legacy/blocked/recovery/terminal才顯示 Now What，首句回答使用者下一步或免處理 |
+| QA-052-018 | V2例外狀態 | legacy adoption／inconsistent recovery不形成一般使用者 Now What分流；只有empty、restricted、terminal或實際bundle apply failure顯示必要指引 |
 | QA-052-019 | 正式化成功後重新載入 | 案件離開預設進行中保留號清單，在正式圖號頁及歷史／全部篩選仍可找到 |
 | QA-052-020 | V2 flag off | 現有 route、tab、V1文案與操作維持不變；不得出現半套V2 CTA或candidate lazy write |
 
@@ -141,8 +152,8 @@ Browser matrix：Chromium desktop 1440x900、1280x720、1024x768、mobile 390x84
 
 ### 9.1 Page retention and navigation
 
-- 直接開啟及 hard reload `/numbering/drawings?tab=reserved` 均停留同一 route；不得跳到 `/numbering/revisions`、新 V2 route或 legacy page。
-- 頁籤文字仍為 `保留號`；V2工作區 H1／主標題為 `保留號／首版準備`，首屏最多保留一句用途說明。
+- 直接開啟及 hard reload `/numbering/drawings?tab=reserved` 均收斂到同一圖號工作台；不得跳到 `/numbering/revisions`、新 V2 route或 legacy page。
+- 工作台以 `圖號／首版準備` 表達唯一入口；不得另顯示 legacy／adoption／補登／差異審核／recovery頁籤或流程說明。
 - 預設清單只顯示需推進案件；正式化成功後該列消失於預設進行中清單，但正式圖號頁與歷史／全部篩選可定位同一 business identity。
 - list load、filter、tab switch、drawer open/close、hard reload 前後通過 DP-02 零寫入 gate。
 
@@ -162,10 +173,11 @@ Browser matrix：Chromium desktop 1440x900、1280x720、1024x768、mobile 390x84
 ### 9.3 Information hierarchy and state language
 
 - F2 第一眼只有一個主要動作 `完成首版圖面`；不再顯示「此階段尚未開放」。
+- F2／F3／F4／F7第一眼都只顯示「首版準備」；不得出現「既有保留號已接入新流程」「查看舊審核」「補齊首版圖面」「差異審核」「需要管理者處理」或任何整併／對帳過程字樣。
 - 完成 candidate content 後主要動作變為 `送交審核`；沒有第二個號碼審核入口。
-- in-review、approved/finalizing、success、apply-failed、legacy addendum與history-only 文案可區分。
+- 新流程 in-review、approved/finalizing、success、apply-failed與history-only文案可區分；legacy來源分支不得以不同可見文案暴露。
 - 不把 `rowVersion` 顯示為 drawing version；`0.1` 不顯示為正式發行。
-- 正常 preparation／ready／review／success 不渲染 `NowWhatPanel`；empty、legacy、blocked、recovery、restricted、terminal的首句必須回答「現在做什麼／是否不用處理」。
+- 正常 preparation／ready／review／success 不渲染 `NowWhatPanel`；legacy adoption與inconsistent recovery也不得渲染使用者分流。只有empty、restricted、terminal或實際bundle apply failure的首句回答「現在做什麼／是否不用處理」。
 - 主畫面不得顯示 `DEV-052`、snapshot hash、API route、raw lifecycle/status、fixture或 storage path；完整技術資料只能在detail/audit。
 - 紅筆刪除測試必須證明頁首副標、summary小字、section heading及table第二行都有當下決策價值，否則刪除或降層。
 
@@ -247,9 +259,9 @@ QA report 必須逐 phase列出 command、exit code、pass count、artifact path
 ## 12. Exit Criteria
 
 - 所有 P0/P1 test cases 通過，零 open P0/P1 defect。
-- DP-01..04 有可重現 evidence；production-like old-data comparison 為零 business-row mutation。
+- DP-01..05 有可重現 evidence；production-like old-data comparison 為零來源 business-row mutation，且全量 reservation-ID reconciliation 為零遺漏、零重複、零改號。
 - atomic failure injection 與三次 duplicate retry 全數通過。
-- legacy F2-F7 映射與 addendum 路徑通過，無 blind auto-publish。
+- legacy F2-F7 internal映射與證據保留通過，F2／F3／F4／F7 user projection全部只到「首版準備」，無可見addendum／recovery分流且無 blind auto-publish。
 - desktop/mobile UI、accessibility、typecheck、build與指定 regression 通過。
 - QA report 明確區分 local/staging evidence 與尚未執行的 production evidence。
 
@@ -265,6 +277,9 @@ QA report 必須逐 phase列出 command、exit code、pass count、artifact path
 - 測試要求 production credential、live mutation、deploy或 release，但沒有獨立授權。
 - physical package status 被新增 `ReviewApproved`，或 migration 需 rebuild/copy `drawing_revision_packages`。
 - V2 mutation 被加入目前 production-slice allowlist，或 flag default-on。
+- source/adoption manifest 未全量分頁、筆數或 distinct ID 不相等、任一 reservation 無 bucket／被重複映射／改號／hash 改變；
+- terminal、歷史或異常 reservation 只因預設 filter 而不可由號碼、ID或 old deep link 找回；
+- rollback／清理計畫會刪除來源 reservation、canonical Drawing、candidate、approval 或 formalization facts。
 
 ## 14. Local Execution Result (2026-08-04)
 
@@ -274,6 +289,9 @@ Verdict: `PASS for local implementation scope`；production migration、真實 G
 - Phase 1B：HTTP/idempotency 10/10、UI contract 9/9；保留原 route/tab，候選首版在同一 drawer完成，normal state單一primary CTA。
 - Phase 1C：bundle/atomic flow 8/8；fault rollback、immutable decision、`apply_failed`、same-snapshot retry、legacy approved addendum與 `ReviewApproved` projection通過。
 - Phase 1D focused regression：revision release gate 11/11、DEV-048 runtime 7/7、Supabase migration 69/69、TypeScript、scoped lint、production build通過。
+- 2026-08-15 zero-loss focused extension：`npm.cmd run qc:dev-052-number-lifecycle-data-protection` 6/6；18筆 root／part／drawing source reservations 全數映射18筆，duplicate／unmapped／unexpected／changed均為0，六個 internal adoption buckets各3筆，read total changes與protected-table hashes不變；新增 user-view assertion 證明 active／pending／approved／inconsistent 舊來源全部只投影為 `drawing_preparation`，official／history仍保持真實狀態。
+- 2026-08-15 visible-path contract：`npm.cmd run qc:dev-052-number-lifecycle-ui` 17/17、`npm.cmd run qc:dev-064-unified-drawing-aggregate` 8/8；目前統一實體明細不再由 hidden legacy request/state導出舊審核、補登、修復或重試操作。
+- 2026-08-15 focused real Chromium：`npm.cmd run qc:dev-052-legacy-first-preparation-browser` 7/7；run `DEV053-20260815-031953-local-isolated` 逐一開啟 pending／approved／inconsistent舊來源，三者 detail family皆為 `drawing_preparation`，禁用舊制流程文字／控制皆未出現，read business hash不變，console errors／failed responses／visible errors均為0，production connection/write=false，cleanup=removed。此為本次RD/QA focused verification，不取代正式環境獨立release/data gate。
 - 真實瀏覽器：本機既有 A0005-M01 只做 read/open；顯示 `準備候選首版`、`尚不可正式使用`與唯一下一步，desktop/mobile無水平overflow，console errors/warnings為0；未對既有資料執行建立、更新、送審或取消。
 - 完整命令、環境邊界與既有 baseline suite drift見 `.ai-doc/qc/qc-dev-052-number-lifecycle-simplification-2026-08-04.md`。baseline drift不以弱化 DEV-052 safety assertions處理。
 
@@ -305,7 +323,7 @@ AI真實操作驗證必須同時回答：
 |---|---|---|
 | A. isolated local | 專用 fixture 的完整新增、編輯、上傳、送審、撤回、決議、故障注入與重試 | 連線 production DB／bucket；使用真實員工或客戶資料 |
 | B. approved staging / sanitised clone | AI以真實瀏覽器執行完整流程、真實 provider evidence、舊資料相容與 RWD 驗證 | 使用 `local_fake` evidence；把 production credential 複製到測試環境 |
-| C. production read-only gate | 經 release owner 書面授權後，以既有部署做 list/detail/drawer/reload 唯讀觀察，並以 read-only replica／帳號比較既有資料 hash | 開 feature flag、migration、啟動連 production DB 的本機 server、建立 candidate、上傳、送審、撤回、決議、重試、取消或清理任何既有保留號 |
+| C. production read-only gate | 經 release owner 書面授權後，以既有部署做 list/detail/drawer/reload 唯讀觀察，並以 read-only replica／帳號逐 company、全分頁產出 reservation-ID source/adoption manifest與 hash comparison | 開 feature flag、migration、啟動連 production DB 的本機 server、建立 candidate、上傳、送審、撤回、決議、重試、取消或清理任何既有保留號 |
 
 production 既有保留號不得被當 fixture。若需要驗證其「直接進入新流程」能力，先擷取經核准且去識別化的 snapshot 到 Target B；原始 production row 只做唯讀 baseline comparison。任何 production 寫入、deploy、migration 或 feature activation 都屬獨立 release gate，不由本 QA 計畫授權。
 
@@ -503,6 +521,7 @@ output/playwright/dev052-real-operation/<RUN_ID>/
 
 - RO-00..20中適用案例全部通過，P0/P1為0；不適用項有書面理由與替代證據。
 - R07-R12 read/open與production read-only comparison為零business-row、audit、receipt、outbox、sequence delta。
+- DP-05 證明 source reservation 與八個 lifecycle adoption buckets 全量一對一，零遺漏、零重複、零改號，且 cutover freeze 期間零來源 hash 變更；未出現在舊資料 fixture 的 `bundle_ready`／`auto_finalizing` 另以新流程與故障注入案例驗證，recovery 清冊每筆有原因與 owner。
 - happy path由AI透過兩個不同test principals與隔離browser contexts完成，且核准後無人工正式發布步驟。
 - approval、formalization、package/companion、pointer、audit、receipt與outbox exact-count一致。
 - legacy pending／approved分別走number-only continuation與drawing addendum，沒有blind auto-publish。

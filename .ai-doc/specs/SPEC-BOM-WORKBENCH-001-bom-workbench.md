@@ -244,9 +244,9 @@ ASM-001 / BOM Rev 1
 `BOM 工作台` 不建立第二份「BOM 草稿清單」或獨立入口。Draft、PendingReview、Rejected、Released、Obsolete
 都出現在同一份 BOM 清單，以 lifecycle 狀態標示；Archived 不出現在主清單，也不在 BOM 編輯頁提供 recovery surface。
 
-清單外殼、table semantics、選取列、鍵盤操作、loading／empty state 與 RWD 必須和「圖號模組」共用同一個
+清單外殼、table semantics、選取列、鍵盤操作、loading／empty state 與 RWD 必須和「圖號工作台」共用同一個
 `PdmWorkbenchList` 元件；兩個模組只透過 columns／row renderer／資料查詢替換內容，不得複製另一份 table markup。
-圖號模組顯示圖號、品名、料號與工作狀態；BOM 模組顯示 owner Part Number、品名／BOM 名稱、BOM Rev、項目數與工作狀態。
+圖號工作台顯示圖號、品名、料號與工作狀態；BOM 工作台顯示 owner Part Number、品名／BOM 名稱、BOM Rev、項目數與工作狀態。
 
 ```text
 BOM 工作台
@@ -455,7 +455,7 @@ BOM_ASM-001_BOM-Rev1_20260530.csv
 2. `BOM 工作台`：搜尋、續作與管理既有 Draft／Released Snapshot。
 3. `BOM 審核`：進入 canonical `/approvals?domain=bom`，不建立第二套審核 authority。
 
-`BOM 工作台` 只保留一份全狀態 BOM 清單，並與「圖號模組」共用工作清單元件；草稿是 lifecycle 狀態，
+`BOM 工作台` 只保留一份全狀態 BOM 清單，並與「圖號工作台」共用工作清單元件；草稿是 lifecycle 狀態，
 不是另一個清單、tab 或側欄入口。
 
 主內容採單欄全寬；舊「料號／圖面搜尋」常駐側欄移除，BOM 清單為第一視覺層級。
@@ -467,14 +467,17 @@ BOM_ASM-001_BOM-Rev1_20260530.csv
 
 ### 17.3 資訊架構與兩步驟流程
 
-#### Step 1：選擇物料身份與 BOM Rev
+#### Step 1：選擇建立路徑
 
-- 搜尋欄 label 固定為 `料號（物料身份，無版次）`，搜尋 canonical `part_numbers`。
-- 結果顯示 Part Number、品名、料件類型與資料狀態；不得顯示「料號 Rev」。
-- 可選身份為同 company 且 `record_status` 不在 `Obsolete / Merged / MainDrawingInvalid`。
-- 選定後由 server 回傳該 owner 的 BOM history 與 `suggestedBomRevision`；suggestion 只能依 BOM history 計算，禁止讀 Drawing/submission revision。
-- BOM Rev 使用既有 numeric revision grammar。DEV-060 第一版建立「下一個正式 BOM release candidate」，以 `suggestRevisionCode(bomHistory, "release_area")` 建議，無歷史時為 `1`；使用者可輸入其他合法且未占用的 forward major revision，但 server 必須重新驗證。Minor BOM 工作／試用 lane 不在本 DEV，且不得藉由本入口成為 `Released`。
-- 若同 owner + BOM Rev 已有 Active/Pending/Released，建立摘要顯示現況；Pending/Released 不得被新 Draft 覆寫。
+入口先以三個並列區塊分流，讓使用者不會把既有 BOM 誤判為新的建立候選：
+
+- `從已偵測的組合件建立`：只列同 company、可讀且有 `.sldasm` 或 `assembly_component` 證據的 canonical Part Number；同 owner 已有 `Draft / PendingReview / Rejected` 等進行中草稿時，不再列為新建候選。
+- `建立全新空白 BOM`：列同 company、狀態可用且沒有進行中草稿的 canonical Part Number；選定後以 server 回傳的 `suggestedBomRevision` 預填 BOM Rev，可直接建立 `source=manual`、零 line Draft。
+- `已有 BOM 草稿`：列可讀的 `Draft / PendingReview / Rejected`，提供續作／回到該 Draft 的入口；這些 owner 同時從前兩個新建候選排除。
+
+搜尋可同時縮小組合件、空白 BOM 候選與既有草稿；結果顯示 Part Number、品名與必要狀態，不顯示「料號 Rev」。
+BOM Rev 仍使用既有 numeric revision grammar，suggestion 只能依 BOM history 計算，禁止讀 Drawing/submission revision。
+若使用者需保留既有入口能力，空白 BOM 區塊另提供次要 `匯入 XLS` 路徑，帶入同一 owner 與 BOM Rev 後進入 Step 2；`建立空白 BOM` 是該區塊唯一 primary action。
 
 #### Step 2：選擇來源並確認
 
@@ -494,7 +497,7 @@ BOM Rev：1
 建立結果：1 份可追溯 BOM Draft
 ```
 
-全頁每一步只保留一個 primary CTA：Step 1 `下一步：選擇建立方式`；Step 2 `建立 BOM 草稿`。`取消`／`上一步`為 secondary。
+全頁每一條建立路徑只保留一個 primary CTA：組合件路徑進入 Step 2 的 `下一步：選擇來源`；空白路徑的 `建立空白 BOM`；Step 2 的 `建立 BOM 草稿`。`匯入 XLS`、`取消`／`上一步`為 secondary。
 不得恢復使用者已要求刪除的流程定位 strip，或顯示 `Current / Next / 5 steps` 等內部流程雜訊。
 
 ### 17.4 Canonical Data Contract

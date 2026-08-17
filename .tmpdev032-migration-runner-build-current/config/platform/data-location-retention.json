@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "phase": "phase1-planning",
+  "reviewOwner": "jedchang0308@jenfu.com.tw",
+  "releaseReady": false,
+  "entries": [
+    {
+      "category": "identity",
+      "authority": "Firebase Authentication with Identity Platform",
+      "location": "provider-managed-US-processing",
+      "placementStatus": "provider-managed-exception",
+      "retentionPolicy": "disable immediately on offboarding; delete Firebase identity after 30 days unless a documented legal or security hold applies",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
+      "containsFormalData": false,
+      "exceptionApproved": true
+    },
+    {
+      "category": "database",
+      "authority": "Cloud SQL for PostgreSQL",
+      "location": "asia-east1",
+      "placementStatus": "planned",
+      "retentionPolicy": "minimum official-number/non-reuse ledger permanent; closed or cancelled drafts 3 years; operation audit 3 years using stable PDM user ID; retired raw employee-login-alias mapping 3 years; remaining operational classes require an approved schedule before production",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
+      "containsFormalData": true
+    },
+    {
+      "category": "files",
+      "authority": "direct Google Cloud Storage",
+      "location": "asia-east1",
+      "placementStatus": "planned",
+      "retentionPolicy": "30-day soft delete target; record retention requires separate approval",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
+      "containsFormalData": true
+    },
+    {
+      "category": "backups",
+      "authority": "separately administered Google Cloud backup project",
+      "location": "asia-east1",
+      "placementStatus": "planned",
+      "retentionPolicy": "Cloud SQL PITR plus isolated pre-canary restore; long-term backup remains deferred",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
+      "containsFormalData": true,
+      "regionalDrClaimAllowed": false
+    },
+    {
+      "category": "runtime",
+      "authority": "Cloud Run",
+      "location": "asia-east1",
+      "placementStatus": "planned",
+      "retentionPolicy": "immutable revisions retained through release rollback window",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
+      "containsFormalData": false
+    },
+    {
+      "category": "builds_images",
+      "authority": "Cloud Build and Artifact Registry",
+      "location": "asia-east1-where-configurable",
+      "placementStatus": "planned",
+      "retentionPolicy": "digest-pinned release images; deletion policy requires measured storage cost",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
+      "containsFormalData": false
+    },
+    {
+      "category": "logs",
+      "authority": "Cloud Logging",
+      "location": "asia-east1 custom application bucket plus global system buckets",
+      "placementStatus": "provider-managed-exception",
+      "retentionPolicy": "application security logs 365 days; global _Required bucket provider retention is fixed at 400 days and disclosed separately",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
+      "containsFormalData": false,
+      "exceptionApproved": true
+    },
+    {
+      "category": "secrets_keys",
+      "authority": "Secret Manager and Cloud KMS",
+      "location": "asia-east1 user-managed replication/key ring",
+      "placementStatus": "planned",
+      "retentionPolicy": "rotation and disabled-version destruction schedule required before live use",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
+      "containsFormalData": false
+    },
+    {
+      "category": "exports",
+      "authority": "PDM-approved export manifest; Workspace copy is non-authoritative",
+      "location": "Google Workspace provider-managed",
+      "placementStatus": "provider-managed-exception",
+      "retentionPolicy": "classification-specific Workspace retention requires business owner approval",
+      "retentionOwner": "jedchang0308@jenfu.com.tw",
+      "containsFormalData": false,
+      "exceptionApproved": true
+    }
+  ]
+}

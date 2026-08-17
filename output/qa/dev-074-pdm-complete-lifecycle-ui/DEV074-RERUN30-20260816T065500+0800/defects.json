@@ -1,0 +1,13 @@
+[
+  {
+    "id": "DEV074-R30-P1-026",
+    "path": "E07",
+    "severity": "P1",
+    "status": "fixed_targeted_ui_retest_passed",
+    "symptom": "Manufacturing and Procurement saw no Released BOM in the BOM list and received Insufficient role permission when opening the Released BOM directly.",
+    "root_cause": "canReadBomDraftRecordAsync unconditionally rejected released-only roles, even for immutable Released BOM records.",
+    "repair": "Released-only roles may read same-company Released BOM records; lifecycle mutation endpoints use a separate management permission; read-only UI hides obsolete request and disables all editor mutations.",
+    "targeted_ui_retest": "Both roles listed and opened A0042-P07 BOM Rev 30, downloaded the same CSV hash, and had no enabled mutation control.",
+    "next_gate": "R31 full 58-path clean rerun"
+  }
+]

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "timezone": "Asia/Taipei",
+  "businessHours": {
+    "weekdays": [1, 2, 3, 4, 5],
+    "start": "08:00",
+    "end": "17:00"
+  },
+  "companyHolidays": [
+    "2026-01-01",
+    "2026-02-16",
+    "2026-02-17",
+    "2026-02-18",
+    "2026-02-19",
+    "2026-02-20",
+    "2026-04-06",
+    "2026-05-01",
+    "2026-06-19",
+    "2026-09-25",
+    "2026-09-28",
+    "2026-10-09"
+  ],
+  "holidayCalendarOwner": "jenfu-hr-owner",
+  "holidayCalendarReviewedThrough": "2026-12-31",
+  "rpoWallClockMinutes": 60,
+  "rtoBusinessMinutes": 240,
+  "allHoursAcknowledgementMinutes": 60,
+  "containmentStartMinutesAfterAcknowledgement": 15,
+  "roster": {
+    "primary": "jedchang0308@jenfu.com.tw",
+    "backup": "dani@jenfu.com.tw"
+  },
+  "containmentChecklist": [
+    "stop official numbering writes",
+    "preserve logs and immutable release identifiers",
+    "classify security, data-loss and availability scope",
+    "notify primary and backup owners",
+    "choose rollback, isolated restore or provider escalation"
+  ],
+  "regionalDrClaimAllowed": false,
+  "releaseReady": false
+}

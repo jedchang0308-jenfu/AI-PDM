@@ -1,4 +1,6 @@
 import type { LifecycleActionPolicy, LifecycleDetailTag } from "@/lib/pdm-lifecycle-policy";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 import { NUMBERING_RULE_V2_ID, NUMBERING_RULE_V3_ID, parseNumberingIdentity } from "./numbering-identity.ts";
 
 function parseCompactPartNumber(value: string): { rootCode: string; sequenceCode: string; ruleVersionId: string } | null {
@@ -28,6 +30,7 @@ export type DrawingRevisionReviewAction =
   | "confirm_bom_no_revision"
   | "confirm_original_part_reuse"
   | "return_for_replacement_part"
+  | "request_more_information"
   | "approve_replacement_part_and_drawing_release";
 
 export type PartNumberControlBoundaryReason =
@@ -233,6 +236,7 @@ type IdRow = {
 type PartNumberIdentityRow = {
   id: string;
   part_number: string;
+  part_name: string;
 };
 
 type BomDraftReferenceRow = {
@@ -822,7 +826,12 @@ export class PdmChangeControlDomainService {
         throw new PdmChangeControlError("source_part_required_for_replacement_release");
       }
       const oldPart = await this.requireFormalPartById(companyId, replacementDraft.sourcePartNumberId);
-      replacementPartNumberId = await this.createReleasedPartNumberFromDraft(companyId, replacementDraft, input.actor.userId);
+      replacementPartNumberId = await this.createReleasedPartNumberFromDraft(
+        companyId,
+        replacementDraft,
+        input.actor.userId,
+        oldPart.part_name
+      );
       await this.client.execute(
         `
         UPDATE part_number_drafts
@@ -860,6 +869,12 @@ export class PdmChangeControlDomainService {
           releasedAt: this.clock()
         }
       );
+      await this.linkReplacementPartToSourceDrawing({
+        companyId,
+        drawingNumberId: assessment.drawingNumberId,
+        partNumberId: replacementPartNumberId,
+        actorUserId: input.actor.userId
+      });
       bomReconfirmationFlagCount = await this.createBomReconfirmationFlags(companyId, oldPart, replacementPartNumberId);
       replacementDraft = await this.requireDraft(replacementDraft.id, companyId);
     }
@@ -871,6 +886,15 @@ export class PdmChangeControlDomainService {
       reviewerUserId: input.actor.userId,
       result: input.result?.trim() || input.action,
       metadata: { outcome, replacementPartNumberId, bomReconfirmationFlagCount }
+    });
+
+    // Keep the canonical Drawing/Revision projection in the same transaction as
+    // the legacy FFF terminal evidence. The physical minor-revision package
+    // deliberately remains Pending; the synchronizer applies ReviewApproved as
+    // the effective R&D-controlled lifecycle without replaying a decision.
+    await new UnifiedDrawingAsyncRepository(this.client as unknown as AsyncDatabaseClient).synchronizeFormalDrawing({
+      drawingNumberId: assessment.drawingNumberId,
+      companyId
     });
 
     return {
@@ -1141,6 +1165,7 @@ export class PdmChangeControlDomainService {
   private async assertReservedNumberAvailable(companyId: string, reservedPartNumber: string) {
     const formal = await this.getFormalPartId(companyId, reservedPartNumber);
     if (formal) throw new PdmChangeControlError("reserved_number_already_formal_part");
+    await this.assertCandidateReservationAvailable(companyId, reservedPartNumber);
     const activeDraft = await this.client.queryOne<{ id: string }>(
       `
       SELECT id
@@ -1153,6 +1178,27 @@ export class PdmChangeControlDomainService {
       { companyId, reservedPartNumber }
     );
     if (activeDraft) throw new PdmChangeControlError("reserved_number_already_active_draft", undefined, { draftId: activeDraft.id });
+  }
+
+  private async assertCandidateReservationAvailable(companyId: string, reservedPartNumber: string) {
+    const reservation = await this.client.queryOne<{ id: string; workspace_id: string }>(
+      `
+      SELECT id, workspace_id
+      FROM number_candidate_reservations
+      WHERE company_id = :companyId
+        AND draft_item_type = 'part'
+        AND candidate_code = :reservedPartNumber
+        AND reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted')
+      LIMIT 1
+      `,
+      { companyId, reservedPartNumber }
+    );
+    if (reservation) {
+      throw new PdmChangeControlError("reserved_number_already_candidate_reservation", undefined, {
+        reservationId: reservation.id,
+        workspaceId: reservation.workspace_id
+      });
+    }
   }
 
   private async requireDraft(draftId: string, companyId: string) {
@@ -1318,10 +1364,11 @@ export class PdmChangeControlDomainService {
   }
 
   private assertReviewActionMatchesOutcome(action: DrawingRevisionReviewAction, outcome: DrawingRevisionFffOutcome) {
+    if (action === "return_for_replacement_part" || action === "request_more_information") return;
     if (outcome === "no_impact" && action !== "confirm_bom_no_revision") {
       throw new PdmChangeControlError("review_action_mismatch", "No-impact FFF requires BOM no-revision confirmation", { outcome, action });
     }
-    if (outcome === "suspected_impact" && action !== "confirm_original_part_reuse" && action !== "return_for_replacement_part") {
+    if (outcome === "suspected_impact" && action !== "confirm_original_part_reuse") {
       throw new PdmChangeControlError("review_action_mismatch", "Suspected-impact FFF requires reuse confirmation or return", { outcome, action });
     }
     if (outcome === "confirmed_impact" && action !== "approve_replacement_part_and_drawing_release") {
@@ -1329,7 +1376,12 @@ export class PdmChangeControlDomainService {
     }
   }
 
-  private async createReleasedPartNumberFromDraft(companyId: string, draft: PartNumberDraftRecord, actorUserId: string) {
+  private async createReleasedPartNumberFromDraft(
+    companyId: string,
+    draft: PartNumberDraftRecord,
+    actorUserId: string,
+    sourcePartName: string
+  ) {
     const partNumber = draft.reservedPartNumber.trim().toUpperCase();
     const identity = parseCompactPartNumber(partNumber);
     if (!identity) {
@@ -1337,6 +1389,7 @@ export class PdmChangeControlDomainService {
     }
     const existing = await this.getFormalPartId(companyId, partNumber);
     if (existing) throw new PdmChangeControlError("replacement_part_already_released", undefined, { partNumberId: existing });
+    await this.assertCandidateReservationAvailable(companyId, partNumber);
     const now = this.clock();
     const existingRoot = await this.client.queryOne<{ id: string }>(
       "SELECT id FROM part_roots WHERE company_id = :companyId AND root_code = :rootCode LIMIT 1",
@@ -1383,7 +1436,7 @@ export class PdmChangeControlDomainService {
         partNumber,
         sequenceNo: Number(identity.sequenceCode),
         sequenceCode: identity.sequenceCode,
-        partName: partNumber,
+        partName: sourcePartName.trim() || partNumber,
         itemKind: itemKindForDraftItemType(draft.itemType),
         ruleVersionId: identity.ruleVersionId,
         createdBy: actorUserId,
@@ -1394,9 +1447,41 @@ export class PdmChangeControlDomainService {
     return partNumberId;
   }
 
+  private async linkReplacementPartToSourceDrawing(input: {
+    companyId: string;
+    drawingNumberId: string;
+    partNumberId: string;
+    actorUserId: string;
+  }) {
+    await this.client.execute(
+      `
+      INSERT INTO drawing_part_links (
+        id, drawing_number_id, part_number_id, link_type, created_by, created_at
+      )
+      SELECT
+        :id,
+        drawing.id,
+        :partNumberId,
+        CASE WHEN drawing.purpose_code IN ('M', 'MA') THEN 'primary_manufacturing' ELSE 'reference' END,
+        :actorUserId,
+        :createdAt
+      FROM drawing_numbers drawing
+      WHERE drawing.id = :drawingNumberId
+        AND drawing.company_id = :companyId
+        AND NOT EXISTS (
+          SELECT 1
+          FROM drawing_part_links link
+          WHERE link.drawing_number_id = drawing.id
+            AND link.part_number_id = :partNumberId
+        )
+      `,
+      { ...input, id: this.idFactory(), createdAt: this.clock() }
+    );
+  }
+
   private async requireFormalPartById(companyId: string, partNumberId: string) {
     const row = await this.client.queryOne<PartNumberIdentityRow>(
-      "SELECT id, part_number FROM part_numbers WHERE id = :partNumberId AND company_id = :companyId LIMIT 1",
+      "SELECT id, part_number, part_name FROM part_numbers WHERE id = :partNumberId AND company_id = :companyId LIMIT 1",
       { partNumberId, companyId }
     );
     if (!row) throw new PdmChangeControlError("source_part_not_found", `Source part not found: ${partNumberId}`);

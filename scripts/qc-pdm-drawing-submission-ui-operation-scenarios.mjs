@@ -634,7 +634,7 @@ async function run() {
       record("AUTH-001", "三種測試角色可用登入頁表單登入", "pass", "Engineer / R&D Manager / Admin 均完成 UI 登入");
     });
 
-    await runScenario("REAL-001", "從圖號模組點選 QC 專用圖號送審入口", async () => {
+    await runScenario("REAL-001", "從圖號工作台點選 QC 專用圖號送審入口", async () => {
       const { context, page } = await loginByUi(browser, "Admin");
       await page.goto(`${baseUrl}/numbering/drawings`, { waitUntil: "networkidle" });
       await page.locator("input").first().fill(realRouteFixture.drawingNumber);
@@ -651,7 +651,7 @@ async function run() {
       await assertNoHorizontalOverflow(page, `${realRouteFixture.drawingNumber} 圖號入口`);
       const filePath = await screenshot(page, "REAL-001-qc-submit-drawing-entry");
       await context.close();
-      record("REAL-001", "從圖號模組點選 QC 專用圖號送審入口", "pass", "導到同一圖號工作台且正式版次被鎖定", { screenshot: filePath });
+      record("REAL-001", "從圖號工作台點選 QC 專用圖號送審入口", "pass", "導到同一圖號工作台且正式版次被鎖定", { screenshot: filePath });
     });
 
     await runScenario("REAL-002", "Legacy drawing upload route 不回到泛用上傳表單", async () => {
@@ -671,7 +671,7 @@ async function run() {
       const { context, page } = await loginByUi(browser, "Admin");
       await page.goto(`${baseUrl}/upload`, { waitUntil: "networkidle" });
       await page.getByText("上傳送審已退役").waitFor({ timeout: 15000 });
-      await page.getByRole("link", { name: "前往圖料模組" }).waitFor({ timeout: 15000 });
+      await page.getByRole("link", { name: "前往圖料工作台" }).waitFor({ timeout: 15000 });
       await assertVisibleErrorClean(page, "泛用 upload 退役頁");
       const filePath = await screenshot(page, "REAL-003-retired-upload");
       await context.close();
@@ -839,7 +839,7 @@ async function run() {
         const cancelCount = await page.getByRole("button", { name: "取消送審" }).count();
         expect(cancelCount === (state.status === "Pending" ? 1 : 0), `${state.status} 工作台取消按鈕顯示不正確`);
         if (state.status === "Released") {
-          await page.getByText("不改內容：回圖號模組即可").waitFor({ timeout: 15000 });
+          await page.getByText("不改內容：回圖號工作台即可").waitFor({ timeout: 15000 });
           await page.locator(`a[href="/numbering/drawings?query=${encodeURIComponent(drawingNumber)}"]`).waitFor({ timeout: 15000 });
           await page.locator(`a[href="/numbering/revisions?drawingNumber=${encodeURIComponent(drawingNumber)}"]`).waitFor({ timeout: 15000 });
         }
@@ -1051,7 +1051,7 @@ async function run() {
       await mockSubmissionDetail(page, "SUB-QA-NOTFOUND", () => null, { notFound: true });
       await page.goto(`${baseUrl}/submissions/SUB-QA-NOTFOUND`, { waitUntil: "networkidle" });
       await page.getByText("找不到這筆送審資料").waitFor({ timeout: 15000 });
-      await page.getByText("回圖料模組").waitFor({ timeout: 15000 });
+      await page.getByText("回圖料工作台").waitFor({ timeout: 15000 });
       const text = await visibleText(page);
       expect(!text.includes("讀取失敗"), "404 應是找不到資料，不應是泛用讀取失敗");
       await screenshot(page, "MOCK-DETAIL-002-not-found");

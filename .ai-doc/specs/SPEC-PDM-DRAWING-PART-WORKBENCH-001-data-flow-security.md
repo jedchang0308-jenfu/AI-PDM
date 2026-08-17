@@ -1,4 +1,4 @@
-# SPEC-PDM-DRAWING-PART-WORKBENCH-001 - 圖料模組資料流與送審安全架構
+# SPEC-PDM-DRAWING-PART-WORKBENCH-001 - 圖料工作台資料流與送審安全架構
 
 Status: DEV-053 multi-part scope amendment implemented locally / production migration gated
 Date: 2026-07-01
@@ -10,9 +10,9 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-DRAWING-PART-WORKBENCH-001-data-ownershi
 
 Confirmed decisions from user architecture review on 2026-07-01:
 
-- 圖號模組維持「以圖為主」，不升級成主根號工作台。
-- 圖料模組升級為主根號 / 圖料關聯 / 送審準備工作台。
-- 圖料模組允許 inline 編輯圖號與料號欄位，但實際寫入必須走圖號或料號 owner domain validation 與 audit。
+- 圖號工作台維持「以圖為主」，不升級成圖料根號工作台。
+- 圖料工作台升級為圖料根號 / 圖料關聯 / 送審準備工作台。
+- 圖料工作台允許 inline 編輯圖號與料號欄位，但實際寫入必須走圖號或料號 owner domain validation 與 audit。
 - 送審時必須複製當下圖號、料號、附件、版次與備註到 submission snapshot，審核後不受主資料後續變動影響。
 - 送審前安全 gate 採三層防線：前端顯示、後端 API 強制檢查、DB constraint 最後防線。
 - 同一送審包內不允許相同 `file_role + original_filename` 的附件；送出前阻擋，錯誤訊息必須是人類中文。
@@ -25,16 +25,16 @@ User-approved amendment on 2026-08-06:
 
 HCS thinking habits applied:
 
-- `#批判`: 檢查「主根號是否應成為所有資料來源」的隱含假設，結論是主根號可當聚合入口，但不能取代圖號、料號、submission 各自的資料 owner。
+- `#批判`: 檢查「圖料根號是否應成為所有資料來源」的隱含假設，結論是圖料根號可當聚合入口，但不能取代圖號、料號、submission 各自的資料 owner。
 - `#演算法`: 將送審 readiness 與 snapshot 建立流程拆成可驗證步驟。
 - `#來源品質`: 前端狀態不可作為送審真相來源，必須由後端重新讀 owner domain 資料。
 - `#可驗證性`: 所有安全規則都要有 UI、API、DB 或 audit evidence。
-- `#情境脈絡`: 圖號模組、料號模組、圖料模組、送審頁分別服務不同操作情境，不應用單一頁面承擔所有行為。
+- `#情境脈絡`: 圖號工作台、料號工作台、圖料工作台、送審頁分別服務不同操作情境，不應用單一頁面承擔所有行為。
 
 Rejected options:
 
-- 把圖號模組升級成主根號工作台。
-- 圖料模組只顯示缺口，不能 inline 編輯。
+- 把圖號工作台升級成圖料根號工作台。
+- 圖料工作台只顯示缺口，不能 inline 編輯。
 - 送審審核時即時讀最新主資料，而不保存送審當下 snapshot。
 - 只靠前端或只靠 DB constraint 做送審防呆。
 - 同檔名附件自動改名後送審。
@@ -42,8 +42,8 @@ Rejected options:
 
 AI assumptions:
 
-- 現有 `/numbering/search` 是圖料模組入口，可作為第一版升級載體；若 RD 建立更明確路由，必須保留同一資料流契約。
-- 現有 `/numbering/drawings` 繼續是圖號模組，負責圖號、圖面附件、圖面追溯與圖面治理動作。
+- 現有 `/numbering/search` 是圖料工作台入口，可作為第一版升級載體；若 RD 建立更明確路由，必須保留同一資料流契約。
+- 現有 `/numbering/drawings` 繼續是圖號工作台，負責圖號、圖面附件、圖面追溯與圖面治理動作。
 - 現有 `/parts` 或 `/api/parts/{partNumber}` 繼續是料號 owner surface。
 - Production deploy、Supabase production cutover、遠端 schema migration、直接資料修復不在本文件授權範圍內。
 
@@ -58,9 +58,9 @@ Re-entry triggers:
 
 目前流程的主要風險不是單一按鈕錯誤，而是資料流責任不清：
 
-- 圖號模組負責圖，但有些料號主資料缺口會影響送審。
+- 圖號工作台負責圖，但有些料號主資料缺口會影響送審。
 - 舊上傳送審頁可填很多 PDM 屬性，反而弱化了圖號/料號主資料 owner。
-- 從圖號模組進入送審時，使用者期待送出目前圖號，卻可能落入通用 upload 流程。
+- 從圖號工作台進入送審時，使用者期待送出目前圖號，卻可能落入通用 upload 流程。
 - 後端 DB constraint 可能在送出後才暴露，例如 `submission_files.submission_id + file_role + original_filename` 重複。
 - 若審核時讀最新主資料，審核證據會因送審後主資料變動而失真。
 
@@ -70,9 +70,9 @@ Re-entry triggers:
 
 | Module | Primary job | Can edit | Must not do |
 |---|---|---|---|
-| 圖號模組 | 圖號、圖面用途、圖面版次、圖面附件、圖面追溯 | 圖號 owner 欄位、圖面附件 | 不維護完整料號主資料、不建立正式送審 snapshot |
-| 料號模組 | 料號、品名、材質、表面處理、製程、產品系列、料號狀態 | 料號 owner 欄位 | 不治理圖面文件生命週期 |
-| 圖料模組 | 主根號、圖料關聯、主圖/主料、資料完整性、送審 readiness、正式送審入口 | 可 inline 編輯，但必須呼叫 owner domain API | 不直接寫圖號/料號 table、不成為第二份主資料 |
+| 圖號工作台 | 圖號、圖面用途、圖面版次、圖面附件、圖面追溯 | 圖號 owner 欄位、圖面附件 | 不維護完整料號主資料、不建立正式送審 snapshot |
+| 料號工作台 | 料號、品名、材質、表面處理、製程、產品系列、料號狀態 | 料號 owner 欄位 | 不治理圖面文件生命週期 |
+| 圖料工作台 | 圖料根號、圖料關聯、主圖/主料、資料完整性、送審 readiness、正式送審入口 | 可 inline 編輯，但必須呼叫 owner domain API | 不直接寫圖號/料號 table、不成為第二份主資料 |
 | 送審確認區 | 只讀確認、選來源附件、填送審備註、送出審核 | 送審備註與附件選取 | 不補圖號、不補料號、不上傳新主檔 |
 | Submission domain | 保存送審 snapshot、流程狀態與 audit | submission 狀態與 snapshot | 不回寫主資料 |
 
@@ -87,15 +87,15 @@ Re-entry triggers:
 審核流程 -> workflow / approval domain owns and validates
 ```
 
-圖料模組是聚合工作台，不是資料 owner。所有 inline save 必須依欄位 owner 分派到對應 API。
+圖料工作台是聚合工作台，不是資料 owner。所有 inline save 必須依欄位 owner 分派到對應 API。
 
 ## 4. Target User Flow
 
 ### 4.1 Standard flow
 
 ```text
-使用者進入圖料模組
--> 選主根號
+使用者進入圖料工作台
+-> 選圖料根號
 -> 查看主圖、主料、圖料關聯、附件與缺口
 -> 在同一工作台 inline 補必要欄位
 -> 每個欄位寫入 owner domain API 並留下 audit
@@ -111,20 +111,20 @@ Re-entry triggers:
 
 | Entry | Target behavior |
 |---|---|
-| 圖料模組主根明細 `送審` | 留在圖料模組或進入圖料模組下的送審確認區 |
-| 圖號模組 `送審` 快捷 | 導到圖料模組對應主根號與送審準備區，不直接進 generic upload |
-| 料號模組送審相關 CTA | 導到圖料模組對應主根號與送審準備區 |
-| 舊 `/upload` UI | 退役。直接存取時導到圖料模組並顯示中文退役訊息，或回 410 with user-facing Chinese message |
+| 圖料工作台圖料根號明細 `送審` | 留在圖料工作台或進入圖料工作台下的送審確認區 |
+| 圖號工作台 `送審` 快捷 | 導到圖料工作台對應圖料根號與送審準備區，不直接進 generic upload |
+| 料號工作台送審相關 CTA | 導到圖料工作台對應圖料根號與送審準備區 |
+| 舊 `/upload` UI | 退役。直接存取時導到圖料工作台並顯示中文退役訊息，或回 410 with user-facing Chinese message |
 
 ## 5. Product Rules
 
 ### 5.1 Inline editing rule
 
-圖料模組可 inline 編輯以下類型資料，但每次寫入必須走 owner API：
+圖料工作台可 inline 編輯以下類型資料，但每次寫入必須走 owner API：
 
 | Field group | Owner API target | Audit action |
 |---|---|---|
-| 主根號核心品名、階段、狀態 | `numbering.records` / root domain | `numbering.root.update` |
+| 圖料根號核心品名、階段、狀態 | `numbering.records` / root domain | `numbering.root.update` |
 | 圖號用途、圖號狀態、主要 MA 圖關係 | drawing domain | `numbering.drawing.update` |
 | 料號品名、料件類型、製程、產品系列 | part domain | `numbering.part.update` |
 | 材質、顏色、表面處理、變體備註 | `PUT /api/parts/{partNumber}/variant` or equivalent | `numbering.part.variant.update` |
@@ -135,7 +135,7 @@ Forbidden:
 
 - UI 直接呼叫一個萬用 API 更新任意欄位。
 - API 根據前端傳來的 `owner` 信任欄位決定寫入 table。
-- 圖料模組直接更新 `drawing_numbers`、`part_numbers`、`part_variant_attributes` 或 `drawing_part_links` table。
+- 圖料工作台直接更新 `drawing_numbers`、`part_numbers`、`part_variant_attributes` 或 `drawing_part_links` table。
 
 ### 5.2 Submission readiness rule
 
@@ -176,8 +176,8 @@ P0 blocker codes:
 
 | Code | Human-facing message requirement |
 |---|---|
-| `missing_primary_drawing` | `此主根號尚未指定主要圖號，請先在圖料模組設定主圖。` |
-| `missing_primary_part` | `此主根號尚未指定主料號，請先在圖料模組設定主料。` |
+| `missing_primary_drawing` | `此圖料根號尚未指定主要圖號，請先在圖料工作台設定主圖。` |
+| `missing_primary_part` | `此圖料根號尚未指定主料號，請先在圖料工作台設定主料。` |
 | `missing_part_name` | `主料號尚未填品名，請先補齊料號主資料。` |
 | `missing_material` | `主料號尚未填材質，請先補齊料號主資料。` |
 | `missing_surface_finish` | `主料號尚未填表面處理，請先補齊料號主資料。` |
@@ -208,7 +208,7 @@ System behavior:
 
 ### 6.1 Frontend
 
-Upgrade `/numbering/search` or equivalent 圖料模組 page:
+Upgrade `/numbering/search` or equivalent 圖料工作台 page:
 
 - Right detail panel adds `送審準備` tab or section.
 - Shows owner-labeled fields: each field displays whether it comes from 圖號、料號、圖料關聯 or submission.
@@ -222,12 +222,12 @@ Retire `/upload` UI:
 
 - Remove `上傳送審` from sidebar/nav for formal flow.
 - Direct GET `/upload` must not show the old generic upload form.
-- Preferred behavior: redirect to `/numbering/search` with a user-facing message `上傳送審頁已退役，請從圖料模組建立送審。`
+- Preferred behavior: redirect to `/numbering/search` with a user-facing message `上傳送審頁已退役，請從圖料工作台建立送審。`
 - If route cannot redirect immediately, it must render a retired-state panel and no file dropzone or PDM attribute form.
 
 Update drawing detail:
 
-- 圖號模組 keeps `送審` shortcut, but target is 圖料模組 submission readiness for the drawing root.
+- 圖號工作台 keeps `送審` shortcut, but target is 圖料工作台 submission readiness for the drawing root.
 - `開啟圖料追溯` remains a normal traceability action.
 - `送審` shortcut may pass `drawingNumber` to help resolve the root, but the server must validate company/root relationship.
 
@@ -408,7 +408,7 @@ Minimum permission gates:
 
 | Action | Permission |
 |---|---|
-| View 圖料模組 | `numbering.search` |
+| View 圖料工作台 | `numbering.search` |
 | Inline edit root/drawing/part draft fields | `numbering.draft.update` or stricter owner-specific action |
 | Manage attachments | `numbering.attachments.manage` |
 | Create submission | existing Engineer/Admin gate or new `numbering.submissions.create` |
@@ -447,13 +447,13 @@ Forbidden:
 
 ## 10. RD Acceptance
 
-- 圖號模組 remains圖-focused and does not become root workbench.
-- 圖料模組 shows root/drawing/part/readiness in one workbench.
+- 圖號工作台 remains圖-focused and does not become root workbench.
+- 圖料工作台 shows root/drawing/part/readiness in one workbench.
 - Inline edit writes through owner APIs and creates audit records.
 - Readiness blockers are calculated server-side and displayed in Chinese.
 - Same selected attachment filename/role is blocked before submission.
 - `/upload` no longer renders the formal generic upload/send-review form.
-- Drawing and part shortcuts route to 圖料模組 readiness, not generic upload.
+- Drawing and part shortcuts route to 圖料工作台 readiness, not generic upload.
 - Successful submission stores immutable snapshot and source traceability.
 - Failed/blocking submission attempts leave audit trail.
 - Duplicate active drawing/revision submission is blocked.
@@ -502,10 +502,10 @@ Formal submission creation must not be reachable through the old generic upload 
 
 | Surface | Required behavior |
 |---|---|
-| `GET /upload` | Must not render the old file dropzone, PDM attribute form or generic send-review form. It must redirect to 圖料模組 with notice `上傳送審頁已退役，請從圖料模組建立送審。`, or render a retired-state panel with the same message. |
+| `GET /upload` | Must not render the old file dropzone, PDM attribute form or generic send-review form. It must redirect to 圖料工作台 with notice `上傳送審頁已退役，請從圖料工作台建立送審。`, or render a retired-state panel with the same message. |
 | Sidebar `上傳送審` | Remove from formal flow navigation, or route to the retired-state panel only. |
-| Drawing/part shortcut `送審` | Resolve to 圖料模組 readiness. It must not open `/upload` as a blank generic form. |
-| `POST /api/submissions` generic create | Retire for normal web/session formal submission. Return HTTP `410` or `409` with code `GENERIC_SUBMISSION_RETIRED` and Chinese message `通用上傳送審已退役，請從圖料模組建立送審。` |
+| Drawing/part shortcut `送審` | Resolve to 圖料工作台 readiness. It must not open `/upload` as a blank generic form. |
+| `POST /api/submissions` generic create | Retire for normal web/session formal submission. Return HTTP `410` or `409` with code `GENERIC_SUBMISSION_RETIRED` and Chinese message `通用上傳送審已退役，請從圖料工作台建立送審。` |
 | Existing submission read/history routes | May remain for dashboard, review, audit and historical access. |
 | Trusted external integration create path | Must be a separate approved route, source label, permission, audit action and QA scope. It must not reuse the retired generic web create behavior. |
 
@@ -536,10 +536,10 @@ Additional P0 blocker codes:
 | Code | Message | Recovery target |
 |---|---|---|
 | `drawing_number_not_found` | `找不到此圖號，請確認圖號是否存在於目前公司。` | 圖號搜尋 |
-| `root_not_found` | `找不到此主根號，請確認圖料關聯是否已建立。` | 圖料關聯 |
-| `drawing_part_link_missing` | `此圖號尚未連到主根號，請先建立圖料關聯。` | 圖料關聯 |
-| `ambiguous_root` | `此圖號連到多個主根號，系統無法判定送審來源，請先修正圖料關聯。` | 圖料關聯 |
-| `multiple_primary_drawings` | `此主根號有多個主要圖號，系統無法判定送審主圖，請先修正主圖設定。` | 主圖設定 |
+| `root_not_found` | `找不到此圖料根號，請確認圖料關聯是否已建立。` | 圖料關聯 |
+| `drawing_part_link_missing` | `此圖號尚未連到圖料根號，請先建立圖料關聯。` | 圖料關聯 |
+| `ambiguous_root` | `此圖號連到多個圖料根號，系統無法判定送審來源，請先修正圖料關聯。` | 圖料關聯 |
+| `multiple_primary_drawings` | `此圖料根號有多個主要圖號，系統無法判定送審主圖，請先修正主圖設定。` | 主圖設定 |
 | `part_scope_required` | `請至少選擇一個本次一起進版的料號。` | 圖面進版的批次料號選擇 |
 | `part_scope_invalid` | `本次料號範圍已變更，請重新整理後再送審。` | 重新解析圖料關係 |
 | `DRAWING_SUBMISSION_MULTI_PART_REPLACEMENT_REQUIRED` | `確認影響時，每個舊料號都需要自己的替代料號；請分開處理或先補齊逐料號替代規則。` | 確認影響分流 |
@@ -549,7 +549,7 @@ Ambiguous root or primary-drawing ownership blocks submission. Multiple legitima
 
 ### 12.3 Owner API contracts
 
-All inline edits from 圖料模組 must call an owner API. RD may reuse existing routes only if the same contract is preserved.
+All inline edits from 圖料工作台 must call an owner API. RD may reuse existing routes only if the same contract is preserved.
 
 Every write request must include either `If-Match` or a numeric/string `version` token from the latest owner read. Stale writes return `409` with code `OWNER_VERSION_CONFLICT` and Chinese message `資料已被其他人更新，請重新整理後再修改。`
 

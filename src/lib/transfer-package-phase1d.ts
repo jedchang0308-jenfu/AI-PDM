@@ -51,6 +51,20 @@ type TransferWorkspaceSnapshot = {
   };
 };
 
+type TransferOfficialItemSnapshot = {
+  itemId: string;
+  entityType: "drawing_number" | "part_number";
+  entityId: string;
+  entityCode: string;
+  recordStatus: string | null;
+  masterUpdatedAt: string | null;
+  masterContentHash: string;
+  currentControlledVersionId: string | null;
+  currentControlledVersion: string | null;
+  currentControlledVersionStatus: string | null;
+  currentControlledVersionAt: string | null;
+};
+
 export type TransferReadinessSnapshot = {
   snapshotVersion: "transfer-package-review-v1";
   packageId: string;
@@ -114,7 +128,11 @@ function candidateFacts(workspace: NumberingDraftWorkspaceRecord) {
     .sort((left, right) => left.id.localeCompare(right.id));
 }
 
-function authorityFacts(record: TransferPackageRecord, workspaces: TransferWorkspaceSnapshot[]) {
+function authorityFacts(
+  record: TransferPackageRecord,
+  officialItems: TransferOfficialItemSnapshot[],
+  workspaces: TransferWorkspaceSnapshot[]
+) {
   return {
     package: {
       id: record.id,
@@ -127,15 +145,7 @@ function authorityFacts(record: TransferPackageRecord, workspaces: TransferWorks
       sourceReferenceReason: record.sourceReferenceReason,
       ownerId: record.ownerId
     },
-    officialItems: record.items
-      .map((item) => ({
-        id: item.id,
-        entityType: item.entityType,
-        entityId: item.entityId,
-        entityCode: item.entityCode,
-        recordStatus: item.recordStatus
-      }))
-      .sort((left, right) => left.id.localeCompare(right.id)),
+    officialItems: [...officialItems].sort((left, right) => left.itemId.localeCompare(right.itemId)),
     draftItems: record.draftItems
       .map((item) => ({
         id: item.id,
@@ -153,6 +163,138 @@ function authorityFacts(record: TransferPackageRecord, workspaces: TransferWorks
         evidence: workspace.evidence
       }))
       .sort((left, right) => left.workspaceId.localeCompare(right.workspaceId))
+  };
+}
+
+async function officialItemSnapshot(
+  client: AsyncDatabaseClient,
+  companyId: string,
+  item: TransferPackageRecord["items"][number]
+): Promise<TransferOfficialItemSnapshot | null> {
+  if (item.entityType === "drawing_number") {
+    const row = await client.queryOne<{
+      record_status: string;
+      updated_at: string;
+      purpose_code: string;
+      purpose_description: string;
+      is_primary_manufacturing: number | boolean;
+      current_version_id: string | null;
+      current_version: string | null;
+      current_version_status: string | null;
+      current_version_at: string | null;
+    }>(
+      `SELECT drawing.record_status, drawing.updated_at,
+              drawing.purpose_code, drawing.purpose_description, drawing.is_primary_manufacturing,
+              package.id AS current_version_id,
+              package.revision AS current_version,
+              COALESCE(package.lifecycle_state, package.status) AS current_version_status,
+              COALESCE(package.released_at, package.updated_at) AS current_version_at
+         FROM drawing_numbers drawing
+         LEFT JOIN drawing_revision_packages package
+           ON package.id = (
+             SELECT candidate.id
+               FROM drawing_revision_packages candidate
+              WHERE candidate.company_id = drawing.company_id
+                AND candidate.drawing_number_id = drawing.id
+                AND (candidate.lifecycle_state = 'released' OR candidate.status = 'Released')
+              ORDER BY COALESCE(candidate.released_at, candidate.updated_at) DESC, candidate.id DESC
+              LIMIT 1
+           )
+        WHERE drawing.id = :entityId AND drawing.company_id = :companyId`,
+      { entityId: item.entityId, companyId }
+    );
+    if (!row) return null;
+    return {
+      itemId: item.id,
+      entityType: item.entityType,
+      entityId: item.entityId,
+      entityCode: item.entityCode,
+      recordStatus: row.record_status,
+      masterUpdatedAt: row.updated_at,
+      masterContentHash: sha256(canonicalNumberStateJson({
+        recordStatus: row.record_status,
+        purposeCode: row.purpose_code,
+        purposeDescription: row.purpose_description,
+        isPrimaryManufacturing: Boolean(row.is_primary_manufacturing)
+      })),
+      currentControlledVersionId: row.current_version_id,
+      currentControlledVersion: row.current_version,
+      currentControlledVersionStatus: row.current_version_status,
+      currentControlledVersionAt: row.current_version_at
+    };
+  }
+
+  const row = await client.queryOne<{
+    record_status: string;
+    updated_at: string;
+    part_name: string;
+    item_kind: string;
+    bom_usage_policy: string;
+    custom_specification: string | null;
+    series_code: string | null;
+    attribute_updated_at: string | null;
+    material_code: string | null;
+    material_label: string | null;
+    color_code: string | null;
+    color_label: string | null;
+    surface_treatment: string | null;
+    variant_note: string | null;
+    current_version_id: string | null;
+    current_version: string | null;
+    current_version_status: string | null;
+    current_version_at: string | null;
+  }>(
+    `SELECT part.record_status, part.updated_at,
+            part.part_name, part.item_kind, part.bom_usage_policy,
+            part.custom_specification, part.series_code,
+            attributes.updated_at AS attribute_updated_at,
+            attributes.material_code, attributes.material_label,
+            attributes.color_code, attributes.color_label,
+            attributes.surface_treatment, attributes.variant_note,
+            snapshot.id AS current_version_id,
+            snapshot.bom_revision AS current_version,
+            CASE WHEN snapshot.obsolete_at IS NULL THEN 'Released' ELSE 'Obsolete' END AS current_version_status,
+            COALESCE(snapshot.obsolete_at, snapshot.released_at) AS current_version_at
+       FROM part_numbers part
+       LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id
+       LEFT JOIN bom_release_snapshots snapshot
+         ON snapshot.id = (
+           SELECT candidate.id
+             FROM bom_release_snapshots candidate
+            WHERE candidate.company_id = part.company_id
+              AND candidate.owner_part_number_id = part.id
+            ORDER BY candidate.released_at DESC, candidate.id DESC
+            LIMIT 1
+         )
+      WHERE part.id = :entityId AND part.company_id = :companyId`,
+    { entityId: item.entityId, companyId }
+  );
+  if (!row) return null;
+  return {
+    itemId: item.id,
+    entityType: item.entityType,
+    entityId: item.entityId,
+    entityCode: item.entityCode,
+    recordStatus: row.record_status,
+    masterUpdatedAt: [row.updated_at, row.attribute_updated_at].filter((value): value is string => Boolean(value)).sort().at(-1) ?? null,
+    masterContentHash: sha256(canonicalNumberStateJson({
+      recordStatus: row.record_status,
+      partName: row.part_name,
+      itemKind: row.item_kind,
+      bomUsagePolicy: row.bom_usage_policy,
+      customSpecification: row.custom_specification,
+      seriesCode: row.series_code,
+      materialCode: row.material_code,
+      materialLabel: row.material_label,
+      colorCode: row.color_code,
+      colorLabel: row.color_label,
+      surfaceTreatment: row.surface_treatment,
+      variantNote: row.variant_note
+    })),
+    currentControlledVersionId: row.current_version_id,
+    currentControlledVersion: row.current_version,
+    currentControlledVersionStatus: row.current_version_status,
+    currentControlledVersionAt: row.current_version_at
   };
 }
 
@@ -194,6 +336,7 @@ export async function buildTransferPackageReadiness(
   const record = await new AsyncTransferPackageRepository(client).getById(packageId, companyId);
   const blockers: TransferReadinessBlocker[] = [];
   const workspaceSnapshots: TransferWorkspaceSnapshot[] = [];
+  const officialItemSnapshots: TransferOfficialItemSnapshot[] = [];
 
   if (record.items.length + record.draftItems.length === 0) {
     blockers.push(blocker({
@@ -207,12 +350,8 @@ export async function buildTransferPackageReadiness(
   }
 
   for (const item of record.items) {
-    const table = item.entityType === "drawing_number" ? "drawing_numbers" : "part_numbers";
-    const current = await client.queryOne<{ record_status: string }>(
-      `SELECT record_status FROM ${table} WHERE id = :entityId AND company_id = :companyId`,
-      { entityId: item.entityId, companyId }
-    );
-    if (!current || !["Active", "Released"].includes(current.record_status)) {
+    const current = await officialItemSnapshot(client, companyId, item);
+    if (!current || !["Active", "Released"].includes(current.recordStatus ?? "")) {
       blockers.push(blocker({
         code: "transfer_official_item_invalid",
         message: `正式項目 ${item.entityCode} 已不存在或不再可正式使用。`,
@@ -222,6 +361,7 @@ export async function buildTransferPackageReadiness(
         actionHref: item.entityType === "drawing_number" ? "/numbering/drawings" : "/parts"
       }));
     }
+    if (current) officialItemSnapshots.push(current);
   }
 
   for (const item of [...record.draftItems].sort((left, right) => left.workspaceId.localeCompare(right.workspaceId))) {
@@ -342,7 +482,7 @@ export async function buildTransferPackageReadiness(
     });
   }
 
-  const facts = authorityFacts(record, workspaceSnapshots);
+  const facts = authorityFacts(record, officialItemSnapshots, workspaceSnapshots);
   const authorityHash = sha256(canonicalNumberStateJson(facts));
   const snapshot: TransferReadinessSnapshot = {
     snapshotVersion: "transfer-package-review-v1",
@@ -571,25 +711,33 @@ export async function submitTransferPackageReview(input: {
       if (Number(row.row_version) !== input.expectedRowVersion) {
         throw new TransferPackageError("TRANSFER_PACKAGE_STALE", "技轉包已更新，請重新整理。", 409);
       }
-      if (!["Draft", "NeedsInfo", "ReleaseFailed"].includes(row.package_status)) {
+      if (!["Draft", "NeedsInfo", "ReleaseFailed", "ApprovedPendingPublish"].includes(row.package_status)) {
         throw new TransferPackageError("TRANSFER_REVIEW_STATE_INVALID", "目前狀態不可送審。", 409);
       }
       const rebuildingFailedReview = row.package_status === "ReleaseFailed" && Boolean(row.review_request_id);
-      if (rebuildingFailedReview && row.review_request_id) {
+      const rebuildingStaleApproval = row.package_status === "ApprovedPendingPublish" && Boolean(row.review_request_id);
+      if (rebuildingStaleApproval) {
+        const approvedReadiness = await buildTransferPackageReadiness(input.packageId, companyId, client);
+        if (!approvedReadiness.stale) {
+          throw new TransferPackageError("TRANSFER_REVIEW_STATE_INVALID", "目前核准快照仍有效，不需要重新送審。", 409);
+        }
+      }
+      const rebuildingReview = rebuildingFailedReview || rebuildingStaleApproval;
+      if (rebuildingReview && row.review_request_id) {
         await unlockFailedTransferReviewReservations(client, {
           companyId,
           packageId: input.packageId,
           requestId: row.review_request_id,
           actorId: input.metadata.actor.pdmUserId,
           now: new Date().toISOString(),
-          reason: "release_failed_resubmit"
+          reason: rebuildingStaleApproval ? "approved_snapshot_stale_resubmit" : "release_failed_resubmit"
         });
       }
       const readiness = await buildTransferPackageReadiness(
         input.packageId,
         companyId,
         client,
-        { ignoreExistingApprovalSnapshot: rebuildingFailedReview }
+        { ignoreExistingApprovalSnapshot: rebuildingReview }
       );
       if (!readiness.ready) {
         throw new TransferPackageError(readiness.firstBlocker?.code ?? "TRANSFER_NOT_READY", readiness.firstBlocker?.message ?? "技轉包尚未準備完成。", 409);
@@ -680,7 +828,7 @@ export async function submitTransferPackageReview(input: {
            release_failure_correlation_id = NULL,
            row_version = row_version + 1, updated_at = :updatedAt
          WHERE id = :packageId AND company_id = :companyId
-           AND package_status IN ('Draft', 'NeedsInfo', 'ReleaseFailed')
+           AND package_status IN ('Draft', 'NeedsInfo', 'ReleaseFailed', 'ApprovedPendingPublish')
            AND row_version = :expectedRowVersion
          RETURNING id`,
         {

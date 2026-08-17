@@ -1,0 +1,6 @@
+{"at":"2026-08-16T06:55:00+08:00","actor":"qc","action":"run_started","run_id":"DEV074-RERUN30-20260816T065500+0800","planned_root":"A0042","policy":"rendered_ui_only","repair_gate":"DEV074-R29-P1-025"}
+{"at":"2026-08-16T07:27:00+08:00","actor":"qc","action":"wave_passed","wave":"A-B","pass":12,"fail":0,"evidence":"screenshots/A01-A04,B01-B08"}
+{"at":"2026-08-16T07:43:00+08:00","actor":"qc","action":"wave_passed","wave":"C","pass":8,"fail":0,"detail":"C08 preview zero-write, stale preview rejection, exactly-once formalization","evidence":"screenshots/C01-C08"}
+{"at":"2026-08-16T08:01:00+08:00","actor":"qc","action":"wave_passed","wave":"D","pass":14,"fail":0,"detail":"same-content revisions, latest feedback, replacement part, withdrawal, supplement, major and historical backfill, duplicate guard","evidence":"screenshots/D01-D14"}
+{"at":"2026-08-16T08:08:00+08:00","actor":"qc","action":"path_failed","path":"E07","defect_id":"DEV074-R30-P1-026","detail":"Manufacturing and Procurement could not list or open Released BOM"}
+{"at":"2026-08-16T08:18:00+08:00","actor":"rd_qc","action":"targeted_retest_passed","defect_id":"DEV074-R30-P1-026","detail":"Released-only visibility and export passed; mutations remained blocked","next_gate":"R31 full clean rerun"}

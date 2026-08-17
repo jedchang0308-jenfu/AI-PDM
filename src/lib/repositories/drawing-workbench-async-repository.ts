@@ -1,10 +1,12 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { projectEffectiveDrawingRevisionLifecycle } from "@/lib/drawing-revision-effective-lifecycle";
 import { AsyncNumberStateFlowRepository, type NumberingDraftWorkspaceRecord } from "@/lib/repositories/number-state-flow-async-repository";
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import type { DrawingModuleListRecord } from "@/lib/repositories/numbering-repository";
 import type { DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 import type { NumberSortDirection } from "@/lib/number-sort";
+import { compareRevisionCodes } from "@/lib/revision-policy";
 import {
   UnifiedDrawingAsyncRepository,
   type UnifiedDrawingRecord
@@ -37,6 +39,7 @@ export type DrawingWorkbenchIdentityRecord = {
 };
 
 type LifecycleOverlayRow = {
+  package_id: string;
   drawing_number_id: string;
   revision: string;
   lifecycle_state: NonNullable<DrawingModuleListRecord["lifecycle"]>["state"];
@@ -46,6 +49,8 @@ type LifecycleOverlayRow = {
   submitted_by: string | null;
   workflow_id: string | null;
   requested_at: string | null;
+  package_status: string;
+  legacy_review_confirmed: number | string | boolean;
 };
 
 type LifecycleReviewerRow = { workflow_id: string; reviewer_id: string };
@@ -331,15 +336,33 @@ export class DrawingWorkbenchAsyncRepository {
     const drawingList = createNamedList("drawingId", drawingIds);
     const lifecycleRows = await client.query<LifecycleOverlayRow>(
       `SELECT
+         package.id AS package_id,
          package.drawing_number_id,
          package.revision,
+         package.status AS package_status,
          package.lifecycle_state,
          package.active_correction_reason,
          package.updated_at,
          workflow.approval_request_id AS request_id,
          workflow.submitted_by,
          workflow.id AS workflow_id,
-         request.requested_at
+         request.requested_at,
+         CASE WHEN EXISTS (
+           SELECT 1
+           FROM drawing_revision_fff_assessments assessment
+           JOIN review_confirmation_events confirmation
+             ON confirmation.review_id = assessment.id
+            AND confirmation.company_id = assessment.company_id
+           WHERE assessment.company_id = package.company_id
+             AND assessment.submission_id = package.source_submission_id
+             AND assessment.drawing_number_id = package.drawing_number_id
+             AND assessment.revision = package.revision
+             AND confirmation.action IN (
+               'confirm_bom_no_revision',
+               'confirm_original_part_reuse',
+               'approve_replacement_part_and_drawing_release'
+             )
+         ) THEN 1 ELSE 0 END AS legacy_review_confirmed
        FROM drawing_revision_packages package
        LEFT JOIN drawing_revision_lifecycle_workflows workflow
          ON workflow.package_id = package.id
@@ -347,13 +370,33 @@ export class DrawingWorkbenchAsyncRepository {
        LEFT JOIN approval_platform_requests request ON request.id = workflow.approval_request_id
        WHERE package.company_id = :companyId
          AND package.drawing_number_id IN (${drawingList.sql})
-         AND package.lifecycle_state IS NOT NULL
        ORDER BY package.drawing_number_id ASC, package.updated_at DESC, package.id DESC`,
       { companyId, ...drawingList.params }
     );
     const latestByDrawingId = new Map<string, LifecycleOverlayRow>();
     for (const row of lifecycleRows) {
-      if (!latestByDrawingId.has(row.drawing_number_id)) latestByDrawingId.set(row.drawing_number_id, row);
+      const effectiveState = projectEffectiveDrawingRevisionLifecycle({
+        revision: row.revision,
+        physicalStatus: row.package_status,
+        lifecycleState: row.lifecycle_state,
+        hasLegacyTerminalConfirmation: row.legacy_review_confirmed === true || Number(row.legacy_review_confirmed) === 1
+      });
+      if (["cancelled", "superseded"].includes(effectiveState)) continue;
+      const projectedRow = { ...row, lifecycle_state: effectiveState as LifecycleOverlayRow["lifecycle_state"] };
+      const current = latestByDrawingId.get(row.drawing_number_id);
+      if (!current) {
+        latestByDrawingId.set(row.drawing_number_id, projectedRow);
+        continue;
+      }
+      let revisionOrder = 0;
+      try {
+        revisionOrder = compareRevisionCodes(row.revision, current.revision, { allowLegacy: true });
+      } catch {
+        revisionOrder = row.revision.localeCompare(current.revision, "en");
+      }
+      if (revisionOrder > 0 || (revisionOrder === 0 && (row.updated_at.localeCompare(current.updated_at) > 0 || (row.updated_at === current.updated_at && row.package_id.localeCompare(current.package_id, "en") > 0)))) {
+        latestByDrawingId.set(row.drawing_number_id, projectedRow);
+      }
     }
 
     const workflowIds = [...new Set(lifecycleRows.map((row) => row.workflow_id).filter((id): id is string => Boolean(id)))];

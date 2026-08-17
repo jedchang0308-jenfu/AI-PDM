@@ -42,7 +42,7 @@ const css = read("src/app/globals.css");
 
 record(
   "Contextual component exposes root, drawing, and part natural actions",
-  includesAll(component, ["新增圖號", "新增料號", "申請主根作廢", "新增同根圖號", "新增同圖料號", "申請圖號作廢", "新增同根料號", "申請料號作廢"]),
+  includesAll(component, ["新增圖號", "新增料號", "申請圖料根號作廢", "新增同根圖號", "新增同圖料號", "申請圖號作廢", "新增同根料號", "申請料號作廢"]),
   "src/components/numbering-contextual-entrypoints.tsx"
 );
 record(
@@ -126,7 +126,7 @@ record(
 
 record(
   "DEV-048 owner workspace has new root and existing-root append modes",
-  includesAll(numberStateWorkspace, ["new_bundle", "append_drawing", "append_part", "append_drawing_part", "建立新圖料", "既有主根加圖號", "既有主根加料號"]),
+  includesAll(numberStateWorkspace, ["new_bundle", "append_drawing", "append_part", "append_drawing_part", "建立新圖料", "既有圖料根號加圖號", "既有圖料根號加料號"]),
   "src/components/number-state-workspace.tsx"
 );
 record(
@@ -222,7 +222,7 @@ record(
   includesAll(lifecycleRoute, ["part_root", "obsolete_part_root", "requestRootObsoleteApprovalAsync"]),
   "obsolete-requests route"
 );
-record("Approval platform labels root obsolete action", approvalPlatformRepository.includes('obsolete_part_root: "主根作廢審核"'), "approval-platform-async-repository.ts");
+record("Approval platform labels root obsolete action", approvalPlatformRepository.includes('obsolete_part_root: "圖料根號作廢審核"'), "approval-platform-async-repository.ts");
 record("Permission codes include root obsolete action", permissionCodes.includes('"obsolete_part_root"'), "numbering-permission-codes.ts");
 record(
   "Schema seeds root obsolete approval rule, platform action, and admin permissions",

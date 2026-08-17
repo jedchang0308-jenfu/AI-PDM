@@ -125,8 +125,9 @@ try {
   });
   const secondCodes = secondAcquired.workspace.reservations.map((reservation) => reservation.candidateCode);
   record(
-    "NSF-RT-004 recycled gaps are reusable with new reservation IDs",
-    secondCodes.join(",") === acquiredCodes.join(",") &&
+    "NSF-RT-004 recycled candidate codes remain retired and allocation advances",
+    secondCodes.join(",") === "A0002,A0002-P01,A0002-M01" &&
+      secondCodes.every((code) => !acquiredCodes.includes(code)) &&
       secondAcquired.workspace.reservations.every((reservation, index) => reservation.id !== acquired.workspace.reservations[index].id),
     JSON.stringify({ first: acquiredCodes, second: secondCodes })
   );

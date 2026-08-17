@@ -63,17 +63,16 @@ const navSections: NavSection[] = [
   {
     label: "圖料管理",
     items: [
-      { href: "/numbering/search", label: "圖料模組", icon: Search },
-      { href: "/numbering/drawings", label: "圖號模組", icon: FileText },
-      { href: "/parts", label: "料號模組", icon: PackageSearch },
+      { href: "/numbering/search", label: "圖料工作台", icon: Search },
+      { href: "/numbering/drawings", label: "圖號工作台", icon: FileText },
+      { href: "/parts", label: "料號工作台", icon: PackageSearch },
     ]
   },
   {
     label: "BOM",
     items: [
       { href: "/bom/new", label: "建立 BOM", icon: ListPlus },
-      { href: "/bom/workbench", label: "BOM 工作台", icon: ListTree },
-      { href: "/approvals?domain=bom", label: "BOM 審核", icon: CircleCheckBig, badge: "approvalPending" }
+      { href: "/bom/workbench", label: "BOM 工作台", icon: ListTree }
     ]
   },
   {
@@ -166,9 +165,9 @@ export function SidebarNav() {
     const loadPendingApprovalCount = () => {
       fetch("/api/approvals/inbox?status=pending&limit=100")
         .then((response) => (response.ok ? response.json() : null))
-        .then((body: { summary?: { pending?: number }; items?: unknown[] } | null) => {
+        .then((body: { summary?: { pending?: number } } | null) => {
           if (cancelled) return;
-          const pending = typeof body?.summary?.pending === "number" ? body.summary.pending : body?.items?.length ?? 0;
+          const pending = typeof body?.summary?.pending === "number" ? body.summary.pending : 0;
           setPendingApprovalCount(pending);
         })
         .catch(() => {

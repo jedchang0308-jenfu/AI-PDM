@@ -16,6 +16,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
   }
   if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
+  if (submission.release_actionability && !submission.release_actionability.allowed) {
+    return NextResponse.json(
+      {
+        error: submission.release_actionability.code,
+        code: submission.release_actionability.code,
+        message: submission.release_actionability.message,
+        recoveryHref: submission.release_actionability.recovery_href
+      },
+      { status: 409 }
+    );
+  }
 
   const body = await request.json().catch(() => ({}));
   const reason = String(body.reason ?? "Edit reservation").trim();
@@ -48,6 +59,18 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
   }
   if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
+
+  if (submission.release_actionability?.code.startsWith("SUBMISSION_RELEASE_TERMINAL_")) {
+    return NextResponse.json(
+      {
+        error: submission.release_actionability.code,
+        code: submission.release_actionability.code,
+        message: submission.release_actionability.message,
+        recoveryHref: submission.release_actionability.recovery_href
+      },
+      { status: 409 }
+    );
+  }
 
   const result = await releaseItemLockAsync({
     submissionId: id,

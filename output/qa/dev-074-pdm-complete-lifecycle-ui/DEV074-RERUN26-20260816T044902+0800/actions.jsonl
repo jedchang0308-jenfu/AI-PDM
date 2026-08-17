@@ -1,0 +1,5 @@
+{"at":"2026-08-16T04:49:02+08:00","actor":"qc","action":"run_started","run_id":"DEV074-RERUN26-20260816T044902+0800","root":"A0038","policy":"rendered_ui_only"}
+{"at":"2026-08-16T04:55:00+08:00","actor":"qc","action":"paths_passed","paths":["A01","A02","A03","A04","B01","B02","B03","B04","B05"]}
+{"at":"2026-08-16T04:58:00+08:00","actor":"qc","action":"path_failed","path":"B06","defect_id":"DEV074-R26-QC-022","reason":"QC script omitted required revision override reason and did not verify save"}
+{"at":"2026-08-16T05:04:30+08:00","actor":"qc","action":"targeted_ui_retest_passed","path":"B06","revision":"0.2","dwg_visible":true,"product_defect":false}
+{"at":"2026-08-16T05:05:06+08:00","actor":"qc","action":"run_sealed_failed","summary":{"pass":9,"fail":1,"blocked":0,"not_run":48}}

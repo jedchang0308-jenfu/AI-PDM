@@ -33,7 +33,7 @@ export function getFilesNeedingUpload(submissionId: string) {
 
 export function findReleasedFilenameConflicts(input: {
   submissionId: string;
-  files: Array<{ file_role: string; original_filename: string }>;
+  files: Array<{ file_role: string; original_filename: string; sha256?: string | null }>;
 }) {
   if (input.files.length === 0) return [];
 
@@ -55,12 +55,14 @@ export function findReleasedFilenameConflicts(input: {
       AND s.item_id <> current_submission.item_id
       AND f.file_role = ?
       AND lower(f.original_filename) = lower(?)
+      AND (? IS NULL OR lower(COALESCE(f.sha256, '')) <> lower(?))
     LIMIT 1
   `
   );
 
   for (const file of input.files) {
-    const conflict = query.get(input.submissionId, file.file_role, file.original_filename) as
+    const contentHash = file.sha256?.trim() || null;
+    const conflict = query.get(input.submissionId, file.file_role, file.original_filename, contentHash, contentHash) as
       | {
           submission_id: string;
           drawing_number: string;

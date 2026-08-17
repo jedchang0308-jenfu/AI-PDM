@@ -39,7 +39,7 @@ export type ResolvedDrawingPreview = {
 export async function resolveDrawingPreviewAsync(
   client: AsyncDatabaseClient,
   source: DrawingPreviewSource,
-  options: { allowFake?: boolean } = {}
+  options: { allowFake?: boolean; derivativeId?: string | null } = {}
 ): Promise<ResolvedDrawingPreview | null> {
   const mimeType = source.mime_type?.trim().toLowerCase() || "";
   if (mimeType === "application/pdf" || mimeType.startsWith("image/")) {
@@ -53,6 +53,7 @@ export async function resolveDrawingPreviewAsync(
              generator_profile, generator_version
       FROM file_derivatives
       WHERE source_file_asset_id = :sourceFileAssetId
+        AND (:derivativeId IS NULL OR id = :derivativeId)
         AND status = 'ready'
         AND derivative_kind IN ('model_preview_png', 'thumbnail_png', 'drawing_pdf', 'sheet_png')
         AND (:allowFake = 1 OR NOT (generator_profile = 'fake_preview_worker' AND generator_version = 'fake-local-pipeline'))
@@ -64,7 +65,7 @@ export async function resolveDrawingPreviewAsync(
       END, created_at DESC
       LIMIT 1
     `,
-    { sourceFileAssetId: source.id, allowFake: options.allowFake ? 1 : 0 }
+    { sourceFileAssetId: source.id, derivativeId: options.derivativeId ?? null, allowFake: options.allowFake ? 1 : 0 }
   );
   if (!derivative) return null;
   if (source.content_hash && derivative.source_content_hash !== source.content_hash) return null;

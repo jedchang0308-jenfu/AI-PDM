@@ -123,26 +123,17 @@ try {
     SET reservation_state = 'recycled', recycled_at = datetime('now'), recycled_by = 'nsf-user',
         recycle_reason = 'workspace_cancelled', row_version = row_version + 1, updated_at = datetime('now')
     WHERE id = 'nsf-reservation-1';
-    INSERT INTO number_candidate_reservations (
-      id, company_id, workspace_id, draft_item_type, draft_item_id,
-      candidate_code, sequence_scope_key, sequence_no, reservation_state,
-      row_version, created_by, created_at, updated_at
-    ) VALUES (
-      'nsf-reservation-2', 'company-jenfu', 'nsf-workspace', 'root', 'nsf-root-2',
-      'A0001', 'company-jenfu:root:numbering-rule-v3-alpha-root', 1, 'active',
-      1, 'nsf-user', datetime('now'), datetime('now')
-    );
     INSERT INTO number_candidate_events (
       id, company_id, workspace_id, reservation_id, event_type, actor_id, occurred_at, detail_json
     ) VALUES (
-      'nsf-event', 'company-jenfu', 'nsf-workspace', 'nsf-reservation-2',
-      'candidate_reserved', 'nsf-user', datetime('now'), '{}'
+      'nsf-event', 'company-jenfu', 'nsf-workspace', 'nsf-reservation-1',
+      'candidate_recycled', 'nsf-user', datetime('now'), '{}'
     );
   `);
-  const reused = db.prepare(
-    "SELECT count(*) AS count FROM number_candidate_reservations WHERE candidate_code = 'A0001'"
+  const recycled = db.prepare(
+    "SELECT count(*) AS count FROM number_candidate_reservations WHERE candidate_code = 'A0001' AND reservation_state = 'recycled'"
   ).get().count;
-  record("domain", "NSF-REC-007", reused === 2, `reservation history count=${reused}`);
+  record("domain", "NSF-REC-007", recycled === 1, `retired reservation history count=${recycled}`);
 
   let eventMutation = "";
   try {
@@ -190,6 +181,7 @@ try {
 }
 
 const repositorySource = read("src/lib/repositories/number-state-flow-async-repository.ts");
+const previewSource = read("src/lib/number-candidate-preview.ts");
 const serviceSource = read("src/lib/number-state-flow.ts");
 const apiSource = [
   read("src/lib/number-state-flow-api.ts"),
@@ -233,6 +225,13 @@ record(
     repositorySource.includes("FOR UPDATE") &&
     repositorySource.includes("numbering_recovery_reservations"),
   "allocator must serialize PostgreSQL scopes, exclude recovery reservations, and bound retries"
+);
+record(
+  "api",
+  "NSF-NUM-retired-code",
+  repositorySource.includes("reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted', 'recycled')") &&
+    previewSource.includes("reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted', 'recycled')"),
+  "allocator and preview must retain recycled candidate codes as historical identifiers"
 );
 record(
   "api",

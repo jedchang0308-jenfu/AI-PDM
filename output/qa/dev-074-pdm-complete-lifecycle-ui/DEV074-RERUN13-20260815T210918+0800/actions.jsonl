@@ -1,0 +1,5 @@
+{"ts":"2026-08-15T21:09:18+08:00","actor":"QC","wave":"W0","action":"start_clean_full_rerun","result":"in_progress","predecessor":"DEV074-RERUN12-20260815T205236+0800"}
+{"ts":"2026-08-15T21:12:10+08:00","actor":"QC","wave":"A","action":"execute_A01_A04_via_rendered_ui","result":"pass","paths":["A01","A02","A03","A04"]}
+{"ts":"2026-08-15T21:14:30+08:00","actor":"QC","wave":"B","action":"execute_B01_B04_and_B07_via_rendered_ui","result":"pass","paths":["B01","B02","B03","B04","B07"]}
+{"ts":"2026-08-15T21:17:01+08:00","actor":"QC","wave":"B","action":"execute_B05_needs_info_resubmit_approve_via_rendered_ui","result":"fail","defect_id":"DEV074-R13-P2-009","business_result":"new_request_approved_and_formalized_once","ui_error":"superseded_needs_info_request_remained_in_active_inbox"}
+{"ts":"2026-08-15T21:21:03+08:00","actor":"QC","wave":"STOP","action":"stop_on_first_defect","result":"failed","pass":9,"fail":1,"not_run":48,"direct_api_or_db_mutations":0}

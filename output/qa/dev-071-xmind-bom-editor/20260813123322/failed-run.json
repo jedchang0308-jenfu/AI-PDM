@@ -1,0 +1,288 @@
+{
+  "checkedAt": "2026-08-13T12:33:55.719Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813123322",
+  "total": 52,
+  "passed": 51,
+  "failed": 1,
+  "consoleErrors": [
+    {
+      "url": "http://127.0.0.1:64510/",
+      "text": "TypeError: Failed to fetch\n    at Dashboard.useCallback[loadMe] (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:1946:36)\n    at Dashboard.useEffect (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:2610:13)\n    at Object.react_stack_bottom_frame (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:14944:22)\n    at runWithFiberInDEV (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:761:74)\n    at commitHookEffectListMount (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7082:167)\n    at commitHookPassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7117:60)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8609:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)"
+    },
+    {
+      "url": "http://127.0.0.1:64510/",
+      "text": "TypeError: Failed to fetch\n    at Dashboard.useCallback[loadMe] (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:1946:36)\n    at Dashboard.useEffect (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:2610:13)\n    at Object.react_stack_bottom_frame (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:14944:22)\n    at runWithFiberInDEV (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:761:74)\n    at commitHookEffectListMount (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7082:167)\n    at commitHookPassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7117:60)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8519:33)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8523:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8523:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)"
+    }
+  ],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [
+    {
+      "url": "http://127.0.0.1:64510/api/bom/drafts/4553fab5-e545-4204-9406-fb84d7570d14",
+      "status": 409,
+      "method": "PATCH"
+    }
+  ],
+  "results": [
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"5f555c7e-4927-42b6-ac81-fd0d9c58f95d\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-24402085\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-24402085\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T12:33:29.969Z\",\"updated_at\":\"2026-08-13T12:33:29.969Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"5f555c7e-4927-42b6-ac81-fd0d9c58f95d\",\"ownerPartNumberId\":\"dev071-browser-parent-part-24402085\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"cb718b13-5e9b-4d3a-a7c0-0978d682638f\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/5f555c7e-4927-42b6-ac81-fd0d9c58f95d\"}"
+    },
+    {
+      "name": "CR-001 toolbar Topic opens canonical picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-001 canonical item inserted as Topic",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-002 toolbar Subtopic opens picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-002 keyboard Enter inserts first result",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-003 hover plus opens picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-003 hover plus inserts child",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "TB-005 Insert menu exposes Parent/Floating/Group",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "TB-005 Parent/Floating/Group actions complete",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "KB-008 leaf Delete is direct and reversible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "KB-008 Ctrl+Z restores leaf",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-004..007 More menu exposes lifecycle actions",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-006 clone action is enabled on saved Draft",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-006 clone creates and selects a new Draft",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-005 inactive Draft can be set active",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-007 delete shows high-risk impact confirmation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-007 confirmed delete completes",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"4553fab5-e545-4204-9406-fb84d7570d14\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-24402085\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-24402085\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T12:33:44.041Z\",\"updated_at\":\"2026-08-13T12:33:44.041Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"4553fab5-e545-4204-9406-fb84d7570d14\",\"ownerPartNumberId\":\"dev071-browser-parent-part-24402085\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"a357c4cd-01bd-4764-9a1e-284144df45a0\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/4553fab5-e545-4204-9406-fb84d7570d14\"}"
+    },
+    {
+      "name": "toolbar has exact 10 XMind slots",
+      "passed": true,
+      "detail": "10"
+    },
+    {
+      "name": "toolbar slot order is monotonic",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    },
+    {
+      "name": "toolbar slots are 52px",
+      "passed": true,
+      "detail": "[{\"label\":\"復原 (Ctrl+Z)\",\"left\":261,\"height\":52},{\"label\":\"重做 (Ctrl+Shift+Z)\",\"left\":332,\"height\":52},{\"label\":\"主題 (Enter)\",\"left\":403,\"height\":52},{\"label\":\"子主題 (Tab)\",\"left\":474,\"height\":52},{\"label\":\"插入\",\"left\":545,\"height\":52},{\"label\":\"摺疊 (Ctrl+/)\",\"left\":616,\"height\":52},{\"label\":\"專注 (Ctrl+;)\",\"left\":687,\"height\":52},{\"label\":\"已儲存 (Ctrl+S)\",\"left\":1207,\"height\":52},{\"label\":\"詳細資料\",\"left\":1278,\"height\":52},{\"label\":\"更多\",\"left\":1349,\"height\":52}]"
+    },
+    {
+      "name": "Enter Tab Ctrl+Enter create expected topics",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "double-click blank creates Floating Topic",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "unresolved Floating Topic has visible review blocker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "review button disabled while floating exists",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Ctrl+S saves both editor graphs",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Outliner renders formal and floating graphs",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "branch focus exposes full-content recovery",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Delete opens reversible branch confirmation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag before preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag child preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "drag after preview is visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "concurrent winner saves before stale tab",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "stale UI gets visible 409 recovery",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "right inspector renders on desktop",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "bottom-right zoom controls render",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "1440x900 no horizontal overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "name": "login for 1024x768",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "1024x768 renders Map",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "1024x768 editor stays inside viewport",
+      "passed": true,
+      "detail": "{\"x\":252,\"y\":12,\"width\":760,\"height\":736}"
+    },
+    {
+      "name": "1024x768 no horizontal overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "name": "login for 768x1024",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "768x1024 renders Map",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "768x1024 editor stays inside viewport",
+      "passed": true,
+      "detail": "{\"x\":252,\"y\":12,\"width\":504,\"height\":992}"
+    },
+    {
+      "name": "768x1024 no horizontal overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "name": "login for 390x844",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "390x844 defaults to Outliner",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "390x844 editor stays inside viewport",
+      "passed": true,
+      "detail": "{\"x\":16,\"y\":98,\"width\":358,\"height\":730}"
+    },
+    {
+      "name": "390x844 no horizontal overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "name": "no unexpected console errors",
+      "passed": false,
+      "detail": "[{\"url\":\"http://127.0.0.1:64510/\",\"text\":\"TypeError: Failed to fetch\\n    at Dashboard.useCallback[loadMe] (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:1946:36)\\n    at Dashboard.useEffect (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:2610:13)\\n    at Object.react_stack_bottom_frame (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:14944:22)\\n    at runWithFiberInDEV (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:761:74)\\n    at commitHookEffectListMount (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7082:167)\\n    at commitHookPassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7117:60)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8609:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\"},{\"url\":\"http://127.0.0.1:64510/\",\"text\":\"TypeError: Failed to fetch\\n    at Dashboard.useCallback[loadMe] (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:1946:36)\\n    at Dashboard.useEffect (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:2610:13)\\n    at Object.react_stack_bottom_frame (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:14944:22)\\n    at runWithFiberInDEV (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:761:74)\\n    at commitHookEffectListMount (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7082:167)\\n    at commitHookPassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7117:60)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8519:33)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8523:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8523:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\"}]"
+    }
+  ],
+  "error": "no unexpected console errors: [{\"url\":\"http://127.0.0.1:64510/\",\"text\":\"TypeError: Failed to fetch\\n    at Dashboard.useCallback[loadMe] (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:1946:36)\\n    at Dashboard.useEffect (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:2610:13)\\n    at Object.react_stack_bottom_frame (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:14944:22)\\n    at runWithFiberInDEV (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:761:74)\\n    at commitHookEffectListMount (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7082:167)\\n    at commitHookPassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7117:60)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8609:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8623:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\\n    at reconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8608:17)\\n    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8596:13)\"},{\"url\":\"http://127.0.0.1:64510/\",\"text\":\"TypeError: Failed to fetch\\n    at Dashboard.useCallback[loadMe] (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:1946:36)\\n    at Dashboard.useEffect (http://127.0.0.1:64510/_next/static/chunks/src_components_dashboard_tsx_0-vx9r6._.js:2610:13)\\n    at Object.react_stack_bottom_frame (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:14944:22)\\n    at runWithFiberInDEV (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:761:74)\\n    at commitHookEffectListMount (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7082:167)\\n    at commitHookPassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:7117:60)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8519:33)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8523:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8523:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8580:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\\n    at commitPassiveMountOnFiber (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8518:17)\\n    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:64510/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:8506:316)\"}]"
+}

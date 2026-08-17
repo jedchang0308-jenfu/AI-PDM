@@ -312,6 +312,10 @@ function initDatabase(database: SqliteDatabase) {
   ensureSubmissionSnapshotAndAttemptSchema(database);
   ensureSubmissionLifecycleRequestSchema(database);
   ensureBomReviewLifecycleSchema(database);
+  ensureReviewConfirmationDecisionSchema(database);
+  ensureColumn(database, "bom_drafts", "editor_version", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(database, "bom_drafts", "source_revision_package_id", "TEXT");
+  ensureColumn(database, "bom_release_snapshots", "source_revision_package_id", "TEXT");
   ensureSettingsSecretLifecycleSchema(database);
   ensureShared3dBaselineSchema(database);
   ensureSubmissionIndexes(database);
@@ -333,6 +337,61 @@ function initDatabase(database: SqliteDatabase) {
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
   ensureUnifiedDrawingAggregateBackfill(database);
   seedConfiguredUsers(database);
+}
+
+function ensureReviewConfirmationDecisionSchema(database: SqliteDatabase) {
+  const table = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'review_confirmation_events'")
+    .get() as { sql?: string } | undefined;
+  if (!table?.sql || table.sql.includes("request_more_information")) return;
+
+  database.exec("PRAGMA foreign_keys = OFF;");
+  try {
+    database.exec(`
+      BEGIN IMMEDIATE;
+
+      DROP INDEX IF EXISTS idx_review_confirmation_events_review;
+      ALTER TABLE review_confirmation_events RENAME TO review_confirmation_events_before_human_decisions;
+
+      CREATE TABLE review_confirmation_events (
+        id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL DEFAULT 'company-jenfu',
+        review_id TEXT NOT NULL,
+        action TEXT NOT NULL CHECK (
+          action IN (
+            'confirm_bom_no_revision',
+            'confirm_original_part_reuse',
+            'return_for_replacement_part',
+            'request_more_information',
+            'approve_replacement_part_and_drawing_release'
+          )
+        ),
+        reviewer_user_id TEXT NOT NULL,
+        result TEXT NOT NULL,
+        occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        FOREIGN KEY (company_id) REFERENCES companies(id),
+        FOREIGN KEY (reviewer_user_id) REFERENCES users(id)
+      );
+
+      INSERT INTO review_confirmation_events (
+        id, company_id, review_id, action, reviewer_user_id, result, occurred_at, metadata_json
+      )
+      SELECT id, company_id, review_id, action, reviewer_user_id, result, occurred_at, metadata_json
+      FROM review_confirmation_events_before_human_decisions;
+
+      DROP TABLE review_confirmation_events_before_human_decisions;
+      CREATE INDEX idx_review_confirmation_events_review
+      ON review_confirmation_events(company_id, review_id, occurred_at DESC);
+
+      COMMIT;
+    `);
+  } catch (error) {
+    if (database.inTransaction) database.exec("ROLLBACK");
+    throw error;
+  } finally {
+    database.exec("PRAGMA foreign_keys = ON;");
+  }
 }
 
 function ensureUnifiedDrawingAggregateBackfill(database: SqliteDatabase) {

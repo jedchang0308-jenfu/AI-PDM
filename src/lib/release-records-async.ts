@@ -23,7 +23,7 @@ export async function upsertReleasePackageRecordAsync(input: {
 
 export async function findReleasedFilenameConflictsAsync(input: {
   submissionId: string;
-  files: Array<{ file_role: string; original_filename: string }>;
+  files: Array<{ file_role: string; original_filename: string; sha256?: string | null }>;
 }) {
   return new AsyncReleaseRepository(getAsyncDatabaseClient()).findReleasedFilenameConflicts(input);
 }

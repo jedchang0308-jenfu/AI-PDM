@@ -21,6 +21,7 @@ import { isHumanStatusFilter, projectViewerHumanStatus, viewerStatusMatchesFilte
 import { projectDrawingAvailability, type AvailabilityScopeProjection } from "@/lib/availability-scope";
 import { projectDrawingHumanStatus } from "@/lib/drawing-workbench-status";
 import { ACTIVE_DRAWING_PURPOSE_CODES } from "@/lib/numbering-identity";
+import { projectNumberLifecycleUserView } from "@/lib/number-lifecycle-user-view";
 import type { NumberingDraftWorkspaceRecord } from "@/lib/repositories/number-state-flow-async-repository";
 import type { DrawingModuleListRecord, DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 import { parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
@@ -259,7 +260,7 @@ function candidateStage(workspace: NumberingDraftWorkspaceRecord): DrawingWorkbe
   if (workspace.lifecycleStatus === "cancelled") return "history_only";
   if (workspace.lifecycleV2?.stage === "drawing_addendum_required") return "drawing_preparation";
   if (workspace.reservations.filter((reservation) => reservation.state !== "recycled").length === 0) return "building";
-  const stage = workspace.lifecycleV2?.stage;
+  const stage = workspace.lifecycleV2 ? projectNumberLifecycleUserView(workspace.lifecycleV2).stage : undefined;
   if (stage && (DRAWING_WORKBENCH_STAGES as readonly string[]).includes(stage)) return stage as DrawingWorkbenchStage;
   return "recovery_required";
 }
@@ -461,6 +462,15 @@ function drawingViewerStatus(
   humanStatus: HumanStatusProjection
 ) {
   if (row.stage === "revision_in_review") {
+    if (!drawing.lifecycle?.requestId) {
+      return projectViewerHumanStatus(humanStatus, {
+        responsibility: "unknown",
+        basis: "unknown",
+        canAct: false,
+        actorLabel: "找不到有效的審核工作項",
+        nextStep: "請聯絡 PDM 管理者確認流程"
+      });
+    }
     const exactReviewer = Boolean(drawing.lifecycle?.requestId && drawing.lifecycle.reviewerIds.includes(actor.id));
     return projectViewerHumanStatus(humanStatus, {
       responsibility: exactReviewer ? "current_user" : "other_user",
@@ -495,7 +505,7 @@ function drawingRow(drawing: DrawingModuleListRecord, actor: DrawingWorkbenchAct
     const exactReviewer = Boolean(drawing.lifecycle?.requestId && drawing.lifecycle.reviewerIds.includes(actor.id));
     primaryAction = {
       kind: "view_review",
-      label: exactReviewer ? "前往審核" : "查看進度",
+      label: !drawing.lifecycle?.requestId ? "確認審核狀態" : exactReviewer ? "前往審核" : "查看進度",
       enabled: true,
       disabledReason: null,
       href: exactReviewer ? drawing.pendingApproval?.workbenchHref ?? detailHref : detailHref

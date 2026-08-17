@@ -1,0 +1,3 @@
+{"at":"2026-08-16T13:07:00+08:00","actor":"qc","action":"run_started","run_id":"DEV074-RERUN36-20260816T130700+0800","planned_root":"pending_ui_assignment","policy":"rendered_ui_only","repair_gate":"DEV074-R35-P1-031"}
+{"at":"2026-08-16T13:09:00+08:00","actor":"qc","action":"wave_passed","paths":["A01","A02","A03","A04"],"planned_root":"A0053","console_errors":0,"assignment_verified_by_exact_ui_name":"QC074R36驗證件_R36_修復後全量重跑_A"}
+{"at":"2026-08-16T13:15:00+08:00","actor":"qc","action":"wave_passed","paths":["B01","B02","B03","B04","B05","B06","B07","B08"],"root":"A0053","same_content_accepted":true,"pdf_readback_visible":true,"double_submit_single_request":true,"double_approve_single_decision":true,"console_errors":0}

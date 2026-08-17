@@ -20,7 +20,46 @@ export const SELECT_ASYNC_SUBMISSION_REVISIONS_BY_DRAWING_SQL = `
   FROM submissions
   WHERE drawing_number = :drawingNumber
     AND company_id = :companyId
+    AND status <> 'Cancelled'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM drawing_revision_fff_assessments assessment
+      JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+      WHERE assessment.submission_id = submissions.id
+        AND confirmation.action IN ('return_for_replacement_part', 'request_more_information')
+    )
   ORDER BY created_at ASC, id ASC
+`;
+
+const NORMALIZE_ASYNC_CORRECTION_SUBMISSION_SQL = `
+  UPDATE submissions
+  SET status = 'Rejected',
+      rejected_at = COALESCE(rejected_at, :now),
+      reject_reason = COALESCE(
+        (
+          SELECT confirmation.result
+          FROM drawing_revision_fff_assessments assessment
+          JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+          WHERE assessment.submission_id = submissions.id
+            AND confirmation.action IN ('return_for_replacement_part', 'request_more_information')
+          ORDER BY confirmation.occurred_at DESC, confirmation.id DESC
+          LIMIT 1
+        ),
+        reject_reason,
+        '審核要求修正後重新送審。'
+      ),
+      updated_at = :now
+  WHERE company_id = :companyId
+    AND drawing_number = :drawingNumber
+    AND revision = :revision
+    AND status = 'Pending'
+    AND EXISTS (
+      SELECT 1
+      FROM drawing_revision_fff_assessments assessment
+      JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+      WHERE assessment.submission_id = submissions.id
+        AND confirmation.action IN ('return_for_replacement_part', 'request_more_information')
+    )
 `;
 
 export const UPSERT_ASYNC_SUBMISSION_ITEM_SQL = `
@@ -269,6 +308,72 @@ export class AsyncSubmissionWriteRepository {
     });
 
     const create = async (client: AsyncDatabaseClient) => {
+      await client.execute(NORMALIZE_ASYNC_CORRECTION_SUBMISSION_SQL, {
+        companyId: input.companyId,
+        drawingNumber: input.drawingNumber,
+        revision: input.revision,
+        now
+      });
+      await client.execute(
+        `UPDATE drawing_revision_packages
+            SET status = 'Rejected',
+                lifecycle_state = NULL,
+                active_correction_reason = NULL,
+                updated_at = :now
+          WHERE source_submission_id IN (
+            SELECT submission.id
+            FROM submissions submission
+            WHERE submission.company_id = :companyId
+              AND submission.drawing_number = :drawingNumber
+              AND submission.revision = :revision
+              AND submission.status = 'Rejected'
+          )
+            AND status IN ('Pending', 'Rejected')`,
+        { companyId: input.companyId, drawingNumber: input.drawingNumber, revision: input.revision, now }
+      );
+      await client.execute(
+        `UPDATE drawing_revision_packages
+            SET lifecycle_state = 'correction_required',
+                active_correction_reason = (
+                  SELECT confirmation.result
+                  FROM drawing_revision_fff_assessments assessment
+                  JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+                  WHERE assessment.submission_id = drawing_revision_packages.source_submission_id
+                    AND confirmation.action IN ('return_for_replacement_part', 'request_more_information')
+                  ORDER BY confirmation.occurred_at DESC, confirmation.id DESC
+                  LIMIT 1
+                ),
+                updated_at = :now
+          WHERE id = (
+            SELECT package.id
+            FROM drawing_revision_packages package
+            JOIN submissions submission ON submission.id = package.source_submission_id
+            WHERE package.company_id = :companyId
+              AND package.drawing_number = :drawingNumber
+              AND package.revision = :revision
+              AND submission.status = 'Rejected'
+              AND EXISTS (
+                SELECT 1
+                FROM drawing_revision_fff_assessments assessment
+                JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+                WHERE assessment.submission_id = submission.id
+                  AND confirmation.action IN ('return_for_replacement_part', 'request_more_information')
+              )
+            ORDER BY (
+              SELECT confirmation.occurred_at
+              FROM drawing_revision_fff_assessments assessment
+              JOIN review_confirmation_events confirmation ON confirmation.review_id = assessment.id
+              WHERE assessment.submission_id = submission.id
+                AND confirmation.action IN ('return_for_replacement_part', 'request_more_information')
+              ORDER BY confirmation.occurred_at DESC, confirmation.id DESC
+              LIMIT 1
+            ) DESC,
+            submission.created_at DESC,
+            submission.id DESC
+            LIMIT 1
+          )`,
+        { companyId: input.companyId, drawingNumber: input.drawingNumber, revision: input.revision, now }
+      );
       const item = await client.queryOne<{ id: string }>(UPSERT_ASYNC_SUBMISSION_ITEM_SQL, {
         id: itemId,
         companyId: input.companyId,

@@ -1,12 +1,14 @@
 # SPEC-PDM-NUMBER-STATE-FLOW-001：圖料號、草稿、狀態與技術移轉入口整合功能規格
 
-狀態：`Phase 1A-1D Local QC Passed / DEV-062 Amendment Local QA-QC Passed / DEV-067 RD Implementation Ready / Human Confirmed / RD not started / Release Gate Required`
+狀態：`Phase 1A-1D Local QC Passed / DEV-062 Amendment Local QA-QC Passed / DEV-067 Local RD Implemented / Local QA-QC Passed / Release Gate Required`
 建立日期：2026-07-13
 Owner：Dev PM
 Related DEV：`DEV-PDM-NUMBER-STATE-FLOW-001` / `DEV-048` / `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
 Current execution boundary：Phase 1A local authority、Phase 1B owner surfaces/compatibility、Phase 1C approval/publication及Phase 1D transfer integration均已完成RD與獨立QC。Live provider、正式資料、staging、deployment與release artifact仍未執行。
 RD readiness：`HD-048-01..03`已由使用者以`1C / 2C / 3C`關閉；Phase 1A-1D已依序通過。下一步不得自動續做 provider 或 release，需明確進入 DEV-046 / DEV-032 對應 gate。
 Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/BFF、Cloud SQL PostgreSQL 正式資料唯一權威、Firebase Auth with Identity Platform 身分邊界與 direct GCS 正式檔案終局架構。
+
+2026-08-15 DEV-074 lifecycle amendment：只要候選圖號／料號已由 UI 顯示並寫入可查歷史，取消 workspace 時仍將 reservation 標為 `recycled`，但該 candidate code 轉為歷史保留，不再回到可用池。預覽與正式配置必須共同排除 `active / review_locked / approved_locked / promoted / recycled` 的既有 code。這項 amendment 取代本文所有「recycled code 可重新分配」的舊條款，以避免取消歷史與 unified drawing/part identity 產生同號歧義；取消不等於正式作廢，也不會復活舊 row。
 
 2026-08-03 contract amendment：使用者已在 `DEV-052` 決定以整包圖料審核取代新流程的 number-only review + manual publication。所有非終結既有保留號將以 read-time compatibility projection 進入新流程，不做 bulk backfill；新 action `numbering.candidate_bundle_review` 核准後可在同一原子／冪等交易自動正式化。已存在的 `numbering.candidate_publication_review` request 仍維持本規格原 snapshot/apply 語意，不得用舊核准直接發布未審圖面。DEV-052 尚未實作或 release 前，本規格仍是 production runtime authority。詳見 `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`。
 
@@ -231,13 +233,13 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 決策來源為 2026-07-13 使用者對既有優化方案的註解與後續「以上寫成開發規格書，先寫功能規格，不寫架構」指令。
 
-1. `＋建立圖料號` 的主要入口放在「圖料模組」頁首右上角，不放在全系統頂端，也不另建一個「領號申請」主模組。
-2. 「圖號模組」與「料號模組」各自保留任務對應的 `＋建立圖號`、`＋建立料號`；物件詳情抽屜保留依主根、圖號、料號脈絡預填的新增入口。
+1. `＋建立圖料號` 的主要入口放在「圖料工作台」頁首右上角，不放在全系統頂端，也不另建一個「領號申請」主模組。
+2. 「圖號工作台」與「料號工作台」各自保留任務對應的 `＋建立圖號`、`＋建立料號`；物件詳情抽屜保留依圖料根號、圖號、料號脈絡預填的新增入口。
 3. 技術移轉的整批送審入口不放在一般「上傳送審」，而放在「發行 / 交接」下的「技術移轉」，以技轉包為工作單位。
-4. 技轉包從案件、組合件、主根或設計變更脈絡建立，自動彙整圖號、料號、BOM、附件與受影響項目，經完整性檢查後整批送審。
+4. 技轉包從案件、組合件、圖料根號或設計變更脈絡建立，自動彙整圖號、料號、BOM、附件與受影響項目，經完整性檢查後整批送審。
 5. ISO 9001 的最低必要管制邊界採「已發布」：草稿階段不視同正式發布號碼，不因號碼曾顯示給使用者就永久占用。
-6. 草稿候選號可以回收；審核中只做暫時排他鎖定；只有已發布與已作廢的正式號碼永久保留且不得重用。
-7. 第一版不強制 7 天回收冷卻期。候選號在明確取消、零有效引用且未處於審核鎖定時，可立即回收。
+6. 草稿候選 reservation 可以取消並標為回收；候選 code 一旦顯示並留存歷史即不得重用。審核中另做排他鎖定；已發布與已作廢的正式號碼同樣永久保留。
+7. 第一版不強制 7 天冷卻期。候選號在明確取消、零有效引用且未處於審核鎖定時，可立即結束 reservation，但 candidate code 不回到可用池。
 8. Phase 1B 開放時，舊側欄`料號草稿 / 領號申請 / 上傳送審 / 製造交接`立即退出可見側欄；功能整併到 owner surfaces。舊網址暫留 redirect / guidance 以保護 bookmark，不保留第二套可變更流程。
 9. 建立或發布 drawing，以及含 drawing 或被規則標示為必要檔案的技轉包，必須有 finalized controlled-file evidence；純 root 或不含 drawing/file obligation 的 part-only publication 可由版本化 server rule 明確回傳`not_required`。正式環境在 direct GCS evidence verifier 就緒前，所有需檔案的發布維持鎖定。
 10. 第一版不強制 submitter、approver、publisher 為不同自然人；同一人可完成三步，但每一步仍須有獨立明示權限、獨立 command / confirmation 與獨立 audit fact。任何角色或 Admin 身分都不隱含其他權限，approval 不得自動觸發 publication。
@@ -246,8 +248,8 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 以下是為了消除入口與狀態矛盾所做的產品收斂，不是架構決策：
 
-- 原側欄「料號草稿」不再是獨立一級模組，併入「料號模組」的草稿頁籤。
-- 原側欄「領號申請」不再是主要入口；建立動作由圖料、圖號、料號模組與物件脈絡承接。
+- 原側欄「料號草稿」不再是獨立一級工作台，併入「料號工作台」的草稿頁籤。
+- 原側欄「領號申請」不再是主要入口；建立動作由圖料、圖號、料號工作台與物件脈絡承接。
 - 原側欄「上傳送審」不再作為泛用流程入口；研發送審由所選圖號、料號或關係進入，技轉送審由技轉包進入。
 - 「技術移轉」使用 `準備中 / 審核中 / 已發布交接` 三個主要頁籤；目前「製造交接」內容收斂到 `已發布交接`，不再與技術移轉並列成兩個容易混淆的主入口。
 - 為避免「已核准」被誤認為「已發布」，新增使用者可見的 `待發布` 階段；若某流程核准與發布為同一動作，該階段可短暫略過，但語意仍須分開。
@@ -267,7 +269,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 本規格採比例與風險導向原則：正式輸出、設計變更、核准、發布與歷史版本必須受控；未發布草稿則只需保留足以防止誤用、重複占號與無法追查的最低證據。
 
-本規格不主張 ISO 9001 明文要求「草稿號可回收」，也不主張 ISO 9001 要求「號碼一顯示就永久占用」。產品政策是：以是否正式發布與是否進入正式使用作為永久管制邊界，而不是以 UI 是否顯示過號碼作為邊界。
+本規格不主張 ISO 9001 明文要求「草稿號可回收」或「號碼一顯示就永久占用」。產品政策基於 DEV-074 的單一真相與歷史可追溯要求：候選 reservation 可取消，但已顯示且已留存歷史的 candidate code 不重用；只有正式發布資料可供正式使用。
 
 參考：
 
@@ -276,8 +278,8 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 ### 1.5 AI assumptions
 
-- 圖料模組仍是主根、圖號、料號與關係的跨物件檢視中心。
-- 圖號模組、料號模組仍分別是圖號與料號的 owner module。
+- 圖料工作台仍是圖料根號、圖號、料號與關係的跨物件檢視中心。
+- 圖號工作台、料號工作台仍分別由圖號與料號功能模組負責。
 - `審核工作台` 仍是審核者的單一主要 inbox；「技術移轉」是案件 owner 的準備與追蹤中心，不複製審核工作台。
 - 現有技轉包的案件式、不可直接單品技轉、完整性阻擋、核准不等於發布等規則保持有效。
 - 候選號可用於草稿 CAD 或內部協作，但所有畫面與輸出都必須清楚標示「候選 / 草稿 / 不可供製造使用」。
@@ -287,7 +289,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 - 使用者要求保留「料號草稿」、「上傳送審」或「領號申請」為獨立一級側欄入口。
 - 使用者要求「製造交接」與「技術移轉」繼續並列為兩個主入口。
 - 使用者要求審核通過即自動等同正式發布。
-- 使用者要求草稿候選號一律不可回收，或要求已發布 / 已作廢號碼可回收。
+- 使用者要求刪除已取消候選號的歷史、重用已顯示 candidate code，或要求已發布 / 已作廢號碼可回收。
 - 使用者要求加入固定回收冷卻期、自動逾期回收或跨公司共享號池。
 - 實作需要改變本文件已固定的正式發布邊界、候選號回收條件、單一審核 inbox 或 DEV-046 平台權威。
 - 歷史資料存在無法分類為 `published/obsolete official`、`legacy official reservation` 或 `candidate draft` 的歧義，且自動處理會改變號碼可重用性。
@@ -312,7 +314,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 目前系統把「物件」、「動作」與「內部資料結構」混在側欄：
 
-- `圖料模組 / 圖號模組 / 料號模組` 是使用者理解的物件中心。
+- `圖料工作台 / 圖號工作台 / 料號工作台` 是使用者理解的物件中心。
 - `料號草稿` 是生命週期切片，不應與物件模組平行。
 - `上傳送審` 是技術動作，不是明確的業務任務。
 - `領號申請` 與各模組內的新增行為重疊，使用者無法判斷該從哪裡開始。
@@ -349,7 +351,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 | 指標 | 目標 |
 |---|---|
 | 新使用者找到建立圖料號入口的時間 | 5 秒內 |
-| 從圖料模組開始建立圖號或料號的主要入口數 | 每種任務 1 個主要入口；其餘為脈絡捷徑 |
+| 從圖料工作台開始建立圖號或料號的主要入口數 | 每種任務 1 個主要入口；其餘為脈絡捷徑 |
 | 因「已核准」誤認為「已發布」造成的正式使用 | 0 件 |
 | 沒有對應審核案件的 `待審核` 草稿 | 0 件 |
 | 同一候選號同時存在兩筆有效草稿或審核 | 0 件 |
@@ -365,7 +367,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 1. 側欄與模組內主要建立入口的功能位置。
 2. 圖料、圖號、料號建立動作的共用功能語意。
-3. 「料號草稿」併入料號模組的頁籤與清單行為。
+3. 「料號草稿」併入料號工作台的頁籤與清單行為。
 4. 「上傳送審」與「領號申請」退出一級側欄後的替代任務入口。
 5. 未領號草稿、候選號、審核鎖定、待發布、已發布、已作廢與已回收的功能規則。
 6. 候選號取得、取消、回收、送審與正式化的使用者流程。
@@ -434,9 +436,9 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 `專案 / 圖料`：
 
-- 圖料模組
-- 圖號模組
-- 料號模組
+- 圖料工作台
+- 圖號工作台
+- 料號工作台
 
 `發行 / 交接`：
 
@@ -447,32 +449,32 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 下列項目退出一級側欄：
 
-- `料號草稿`：改為料號模組內的 `草稿` 頁籤。
+- `料號草稿`：改為料號工作台內的 `草稿` 頁籤。
 - `上傳送審`：改由物件或技轉包脈絡進入。
 - `領號申請`：改由各模組的建立 CTA 進入。
 - `製造交接`：功能收斂到技術移轉的 `已發布交接` 頁籤。
 
-### 6.2 圖料模組
+### 6.2 圖料工作台
 
 頁首右上角固定主要 CTA：`＋建立圖料號`。
 
 點擊後提供四種任務模式：
 
-1. `建立新主根 + 圖號 + 料號`
-2. `在既有主根新增圖號`
-3. `在既有主根新增料號`
+1. `建立新圖料根號 + 圖號 + 料號`
+2. `在既有圖料根號新增圖號`
+3. `在既有圖料根號新增料號`
 4. `新增圖號 + 料號並建立關係`
 
 功能規則：
 
 - 使用者選擇模式後才顯示該任務需要的欄位。
-- 既有主根模式先搜尋並鎖定主根，不得誤建新主根。
+- 既有圖料根號模式先搜尋並鎖定圖料根號，不得誤建新圖料根號。
 - 儲存前要明示結果是未領號草稿、候選號草稿或正式發布流程的哪一種。
 - 建立完成後回到原圖料脈絡，展開並高亮新項目。
 - Phase 1E修復範圍內，建立表單必須保留公司管理辦法的品名引導能力：使用者先填核心名詞與其他資訊，系統依料件類型產生可套用的建議品名，使用者可微調後形成`確定品名`；建議欄位不得變成阻擋性欄位。
 - `確定品名`是人類溝通與系統篩選名稱，不要求唯一；它作為圖料主題名稱與同一草稿下料號預設品名。唯一性只由圖號、料號與正式發布authority保證。
 - 建議品名模板必須依管理辦法保留三種型態，段落以半形底線`_`串接：外購件`[核心名詞]_[品牌]_[規格/型號]`；自製/發包/客製件`[核心名詞]_[特性]_[流水識別]`；共用件追加`共用`範圍標示。品牌、特性與流水識別仍可選填。自製非共用件的`系列代號`改為獨立 metadata 欄位：可先自創、正式發行前再修正、必須持久化到料號草稿/正式料號，但不得自動寫入`確定品名`或建議品名。
-- 相似品名查重只作提醒與引導改用既有主根，不得阻擋使用者建立新主根。
+- 相似品名查重只作提醒與引導改用既有圖料根號，不得阻擋使用者建立新圖料根號。
 - 圖號需求不得由「共用件」推導，也不讓一般使用者在建立草稿時判斷「是否須製程管制」。建立表單只保留`包含圖號草稿`作為可見控制：外購件預設不建圖號，自製/發包/客製預設建圖號，共用件不參與圖號預設判斷；使用者仍可手動覆寫。
 - 本規格維持既有v3編碼、M/R用途碼與候選號/正式發布邊界；Phase 1E不得導入`000`萬用料號或改回`P-0001-001 / D-0001-MA1`格式。
 
@@ -489,24 +491,24 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 模式切換必須清除不屬於新模式的未提交欄位，不得把上一模式hidden values送入API。若workspace已保存，模式與typed item set在Phase 1B不可變；使用者須取消後依正確模式重建。
 
-### 6.3 圖號模組
+### 6.3 圖號工作台
 
 頁首右上角固定主要 CTA：`＋建立圖號`。
 
 支援：
 
-- 新主根下建立圖號。
-- 既有主根下新增製造圖或參考圖。
+- 新圖料根號下建立圖號。
+- 既有圖料根號下新增製造圖或參考圖。
 - 從既有料號脈絡新增並建立圖料關係。
 
 圖號詳情抽屜保留：
 
-- `在此主根新增圖號`
+- `在此圖料根號新增圖號`
 - `新增同圖料號`
 - `送審`
 - 正式發布後才顯示 `申請圖號作廢`
 
-### 6.4 料號模組
+### 6.4 料號工作台
 
 頁首右上角固定主要 CTA：`＋建立料號`。
 
@@ -529,7 +531,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 料號詳情抽屜保留：
 
-- `在此主根新增料號`
+- `在此圖料根號新增料號`
 - `建立替代料號`
 - `新增同根圖號`
 - `送審`
@@ -564,7 +566,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 系統在使用者送出前必須檢查：
 
-- 主根脈絡是否正確。
+- 圖料根號脈絡是否正確。
 - 是否已有相同用途、相同來源或相同關係的有效草稿。
 - 使用者是否誤選參考圖作為製造依據。
 - 必填主資料是否足以保存草稿。
@@ -580,7 +582,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 完成後必須顯示：
 
-- 建立的物件類型與主根脈絡。
+- 建立的物件類型與圖料根號脈絡。
 - 號碼資格：未領號或候選號。
 - 下一步：繼續編輯、建立關係、取得候選號、加入技轉包或送審。
 - 若候選號配置衝突，系統重新檢查並提示最新可用候選號，不得留下半完成的有效草稿。
@@ -599,7 +601,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 | 已核准待發布 | 候選號 + 暫時鎖定 | 完成發布前檢查、等待發布 | 當正式號使用、回收 |
 | 已發布 | 正式號 | 正式使用、交接、變更、建立新版或替代 | 刪除、回收、重用 |
 | 已作廢 | 正式號 + 歷史保留 | 查歷程、查取代關係 | 回收、重用、恢復成另一物件 |
-| 已回收 | 無有效物件占用 | 稽核查詢、候選號重新分配 | 恢復舊草稿為有效物件 |
+| 已回收 | 無有效物件占用、code 已退休 | 稽核查詢、歷史追溯 | 重新分配該 code、恢復舊草稿為有效物件 |
 
 ### 8.2 主要轉換
 
@@ -720,7 +722,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 - 技術移轉頁首 `＋建立技轉包`。
 - BOM 或組合件詳情的 `建立技轉包`。
-- 主根 / 圖料詳情的 `加入技術移轉`。
+- 圖料根號 / 圖料詳情的 `加入技術移轉`。
 - 開發案或設計變更案的 `建立技轉包`。
 - 已核准變更案件的 `準備技術移轉`。
 
@@ -728,7 +730,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 ### 10.3 功能流程
 
-1. 選擇開發案、設變案、組合件、BOM、主根或來源物件。
+1. 選擇開發案、設變案、組合件、BOM、圖料根號或來源物件。
 2. 明確按下 `建立技轉包` 後，才保存案件與穩定技轉包識別。
 3. 系統依既有關係彙整圖號、料號、BOM、附件、組合件與受影響項目。
 4. 系統顯示每一項為何被納入、來源關係與是否為必要項目。
@@ -743,7 +745,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 功能結果必須是可解釋且可重現的：
 
-- 每個自動納入項目顯示來源，例如 `由 BOM 使用關係納入`、`由主根關係納入`、`由設變影響納入`。
+- 每個自動納入項目顯示來源，例如 `由 BOM 使用關係納入`、`由圖料根號關係納入`、`由設變影響納入`。
 - 系統可以建議，不可在無人確認下自行決定正式範圍或發布。
 - 下一步按下列優先序只顯示最重要的一個主要 CTA：
   1. 硬性阻擋。
@@ -791,10 +793,10 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 | ID | 功能需求 |
 |---|---|
-| NAV-001 | 圖料模組頁首右上角顯示 `＋建立圖料號`。 |
-| NAV-002 | 圖號模組頁首右上角顯示 `＋建立圖號`。 |
-| NAV-003 | 料號模組頁首右上角顯示 `＋建立料號`。 |
-| NAV-004 | 料號草稿併入料號模組 `草稿` 頁籤，不再是一級側欄入口。 |
+| NAV-001 | 圖料工作台頁首右上角顯示 `＋建立圖料號`。 |
+| NAV-002 | 圖號工作台頁首右上角顯示 `＋建立圖號`。 |
+| NAV-003 | 料號工作台頁首右上角顯示 `＋建立料號`。 |
+| NAV-004 | 料號草稿併入料號工作台 `草稿` 頁籤，不再是一級側欄入口。 |
 | NAV-005 | `領號申請` 退出一級側欄，建立任務由模組 CTA 承接。 |
 | NAV-006 | `上傳送審` 退出一級側欄；研發送審與技轉送審分別由物件與技轉包承接。 |
 | NAV-007 | `發行 / 交接` 下提供 `技術移轉`，含 `準備中 / 審核中 / 已發布交接`。 |
@@ -880,9 +882,9 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 ### 14.1 入口驗收
 
-- AC-NAV-001：Given 使用者在圖料模組，When 查看頁首，Then 能直接看到 `＋建立圖料號`，且可選四種建立模式。
-- AC-NAV-002：Given 使用者在圖號或料號模組，Then 主要 CTA 分別是 `＋建立圖號`、`＋建立料號`，不需要先去 `領號申請`。
-- AC-NAV-003：Given DEV-048 owner surfaces開啟，When 使用者查看側欄並尋找自己的領號申請，Then `料號草稿 / 領號申請 / 上傳送審 / 製造交接`不再顯示為側欄項目，且可從料號模組`草稿`頁籤找到申請；直接開啟舊網址時只提供保留context的redirect/guidance，不出現第二套mutation流程。
+- AC-NAV-001：Given 使用者在圖料工作台，When 查看頁首，Then 能直接看到 `＋建立圖料號`，且可選四種建立模式。
+- AC-NAV-002：Given 使用者在圖號或料號工作台，Then 主要 CTA 分別是 `＋建立圖號`、`＋建立料號`，不需要先去 `領號申請`。
+- AC-NAV-003：Given DEV-048 owner surfaces開啟，When 使用者查看側欄並尋找自己的領號申請，Then `料號草稿 / 領號申請 / 上傳送審 / 製造交接`不再顯示為側欄項目，且可從料號工作台`草稿`頁籤找到申請；直接開啟舊網址時只提供保留context的redirect/guidance，不出現第二套mutation流程。
 - AC-NAV-004：Given 使用者要送研發審核，Then 必須先選定圖號、料號或關係；不存在沒有對象的泛用送審。
 - AC-NAV-005：Given 使用者要整批技轉送審，Then 能從 `發行 / 交接 > 技術移轉` 建立技轉包。
 - AC-NAV-006：Given 390px 寬畫面，Then 主要建立 CTA 仍在首屏可見且不藏入三點選單。
@@ -892,7 +894,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 - AC-NUM-001：Given 新建內容尚在探索，When 選 `儲存草稿`，Then 系統建立未領號草稿且不配置候選號。
 - AC-NUM-002：Given 未領號草稿，When 明確選 `取得候選號`，Then 才配置並顯示候選號與非正式警示。
-- AC-NUM-003：Given 候選號草稿沒有有效引用且未送審，When 使用者確認取消並回收，Then 候選號可立即回到可用池，不強制 7 天等待。
+- AC-NUM-003：Given 候選號草稿沒有有效引用且未送審，When 使用者確認取消並回收，Then reservation 可立即轉為 recycled、不強制 7 天等待，舊 candidate code 保留於歷史且下一筆跳到新號。
 - AC-NUM-004：Given 候選號仍被技轉包或審核引用，When 嘗試回收，Then 系統阻擋並列出引用與解除方式。
 - AC-NUM-005：Given 候選號進入審核，Then 它不可被其他草稿配置，也不可直接回收。
 - AC-NUM-006：Given 審核被退回或撤回，Then 物件回到候選號草稿，而不是永久占號或自動作廢。
@@ -911,7 +913,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 
 ### 14.4 技術移轉驗收
 
-- AC-TRF-001：Given 使用者從 BOM、主根、圖料或設變案建立技轉包，Then 進入同一技轉包流程且來源被預填。
+- AC-TRF-001：Given 使用者從 BOM、圖料根號、圖料或設變案建立技轉包，Then 進入同一技轉包流程且來源被預填。
 - AC-TRF-002：Given 使用者只開啟建立頁，Then 不自動建立空技轉包；明確按 `建立技轉包` 後才保存。
 - AC-TRF-003：Given 系統自動納入項目，Then 每一項都能說明納入來源與必要性。
 - AC-TRF-004：Given 有必要項目缺失，Then 技轉送審被阻擋，並顯示第一個可修正入口。
@@ -943,7 +945,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 - `SPEC-PDM-STATUS-UX-002`：狀態必須依任務分層，已核准與已發布不得混淆。
 - `SPEC-PDM-SUBMISSION-GATE-001`：技轉不可直接以單一散落物件送審，必須有案件式技轉包。
 - `SPEC-PDM-TRANSFER-PACKAGE-INTAKE-001`：明確建立技轉包、工作台集中、完整性阻擋、不可變送審範圍、技轉核准不等於正式發布。
-- `ADR-PDM-CHANGE-CONTROL-001`：未跨正式邊界的草稿候選號可回收；已發布受控號不可回收。
+- `ADR-PDM-CHANGE-CONTROL-001`：未跨正式邊界的草稿候選 reservation 可取消；DEV-074 起已顯示 candidate code 與已發布受控號均不可重用。
 
 ### 15.2 Intentional replacement
 
@@ -952,7 +954,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 | 既有文件 / 規則 | 舊語意 | 本規格新語意 |
 |---|---|---|
 | `ADR-PDM-CHANGE-CONTROL-001` | 送審即跨越受控邊界，受控料號不可回收 | 送審只造成暫時審核鎖定；只有正式發布使號碼永久不可回收 |
-| `SPEC-PDM-CHANGE-CONTROL-001` | 預留草稿號預設 7 天回收冷卻 | 第一版不強制冷卻；零有效引用且未鎖定時可立即回收 |
+| `SPEC-PDM-CHANGE-CONTROL-001` | 預留草稿號預設 7 天回收冷卻 | 第一版不強制冷卻；零有效引用且未鎖定時可立即結束 reservation，但 code 留存歷史且不重用 |
 | `SPEC/ADR-PDM-PRODUCTION-SLICE-001` | 正式領號流程一建立的 root / drawing / part 即視為 official reserved record | 草稿建立可不領號；已取得的候選號仍非正式，發布後才是正式號 |
 | 現行側欄 | 料號草稿、上傳送審、領號申請皆為一級入口 | 依物件與業務任務收斂到料號草稿頁籤、物件送審與技轉包 |
 
@@ -1033,7 +1035,7 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 3. Firebase Auth with Identity Platform 只證明身分；Firebase UID 必須解析為 stable PDM user ID、company membership 與有效 role assignment，授權不可只看 email。
 4. 所有受控 mutation 都必須遵守 `resolve actor/company -> authorize -> validate state/version -> reserve idempotency -> mutate -> audit -> outbox -> commit`；domain row、audit 與 outbox 必須同 transaction。
 5. 正式檔案終局權威是 direct GCS；Phase 1 只可使用 interface/fake/fail-close。沒有有效正式檔案證據時，不得把需要檔案的 publication 假裝完成。
-6. 草稿 workspace、候選號與正式 master 是三種不同權威：草稿可沒有號；候選號可回收；只有 publication transaction 成功後才寫入正式 master。
+6. 草稿 workspace、候選號與正式 master 是三種不同權威：草稿可沒有號；候選 reservation 可回收但 code 必須留存且不重用；只有 publication transaction 成功後才寫入正式 master。
 7. `part_roots / part_numbers / drawing_numbers` 只保存已正式化或舊制明確保留的 master identity；新候選號不得先寫入這三表再靠 `record_status = Draft` 猜測是否正式。
 8. 審核平台只有一個 reviewer inbox：`/approvals`。料號、圖號與技轉頁是 owner 的準備 / 追蹤 surface，不建立第二套 decision authority。
 9. `Approved` 只表示核准 snapshot；publication 必須是另一個明確、冪等、全有或全無的 command。技轉包核准不得直接改 master 為 `Released`。
@@ -1097,7 +1099,7 @@ flowchart LR
 
 - DEV-048 是既有 AI_PDM numbering domain，current local implementation 的新表沿用被鎖定的 PDM `public` schema，避免趁機執行 DEV-047 擁有的 legacy schema relocation。
 - PostgreSQL migration 必須提供同名、同 constraint、同 index 語意；SQLite 可使用 provider 對應語法，但 repository contract 與測試案例必須一致。
-- 所有新主鍵使用 stable opaque TEXT/UUID；candidate code 不是主鍵，回收後同一 code 可由另一 reservation ID 重新取得。
+- 所有新主鍵使用 stable opaque TEXT/UUID；candidate code 不是主鍵，但回收後同一 code 不得由另一 reservation ID 重新取得。
 - JSON 只允許不可查詢的 frozen snapshot / event detail；核心 root、part、drawing、relation、state、version、ownership 不得做成 JSON/EAV。
 
 ### 21.2 `numbering_draft_workspaces`
@@ -1151,7 +1153,7 @@ Required indexes / constraints：
 
 - Partial unique：`(company_id, draft_item_type, candidate_code)` where state in `active, review_locked, approved_locked, promoted`。
 - Unique active reservation per `(workspace_id, draft_item_type, draft_item_id)`。
-- `recycled` 不參與 exclusivity；同 code 再取得時建立新 ID，不復活舊 row。
+- `recycled` 不屬於有效 reservation，但 allocator 與 preview 必須把其 code 視為歷史占用；不得再取得同 code，也不得復活舊 row。
 - `promoted` 不可回到任何 candidate state；其 code 同時受正式 master unique constraint 與 DEV-046 ledger/recovery reservation 保護。
 - candidate reservation 不可 cascade delete；workspace cancel 只改 state。
 
@@ -1215,7 +1217,7 @@ Hard constraints：
 
 - 排除正式 master、`promoted` reservation、DEV-046 recovery non-reuse reservation。
 - 排除其他 `active / review_locked / approved_locked` reservation。
-- `recycled` reservation 可重用，但舊 event/history 保留。
+- `recycled` reservation 不再有效占用物件，但其 candidate code 永久排除於配置池，舊 event/history 保留。
 - 不跨 company、rule version、root 或 drawing purpose scope。
 - preview / form open / validation 不得 reserve。
 - DB 不可用即失敗，不 fallback 到 client-generated code。
@@ -1294,7 +1296,7 @@ Projection 若找不到其宣稱的 approval request、master row 或 evidence�
 | Method / path | Permission | Behavior |
 |---|---|---|
 | `POST /api/numbering/draft-workspaces` | `numbering.workspace.create` | 建立未領號 workspace + typed items；不配置 candidate。 |
-| `GET /api/numbering/draft-workspaces` | `numbering.workspace.view` | company/owner/scope filtered list，支援料號模組草稿 tab。 |
+| `GET /api/numbering/draft-workspaces` | `numbering.workspace.view` | company/owner/scope filtered list，支援料號工作台草稿 tab。 |
 | `GET /api/numbering/draft-workspaces/[id]` | `numbering.workspace.view` | 回傳 typed detail、status projection、capabilities、refs。 |
 | `PATCH /api/numbering/draft-workspaces/[id]` | `numbering.workspace.update` | 只允許 active + unlocked；version check；不接受 client state。 |
 | `POST /api/numbering/draft-workspaces/[id]/candidate-numbers` | `numbering.candidate.acquire` | 依 bundle 原子配置所需 candidates。 |
@@ -1482,9 +1484,9 @@ Local DB 中舊制未發布 master 的保守分類是相容措施，不改變新
 
 | Area | Primary route | Primary CTA / tabs |
 |---|---|---|
-| 圖料模組 | `/numbering/search` | page header top-right `＋建立圖料號`；四種 mode。 |
-| 圖號模組 | `/numbering/drawings` | `＋建立圖號`。 |
-| 料號模組 | `/parts` | `＋建立料號`；tabs `正式料號 / 草稿`。 |
+| 圖料工作台 | `/numbering/search` | page header top-right `＋建立圖料號`；四種 mode。 |
+| 圖號工作台 | `/numbering/drawings` | `＋建立圖號`。 |
+| 料號工作台 | `/parts` | `＋建立料號`；tabs `正式料號 / 草稿`。 |
 | 發行 / 交接 > 技術移轉 | `/technical-transfer` | `＋建立技轉包`；tabs `準備中 / 審核中 / 已發布交接`。 |
 | 審核工作台 | `/approvals` | reviewer inbox；不在技轉頁複製 decision UI。 |
 
@@ -1600,7 +1602,7 @@ Entry gate：
 
 Task list：
 
-- [x] `DEV-048-1B-01`：新增圖料、圖號、料號模組頁首CTA與owner-surface導覽；未開放的Phase 1C/1D actions維持disabled + `未開放` tooltip，direct mutation仍server fail closed。
+- [x] `DEV-048-1B-01`：新增圖料、圖號、料號工作台頁首CTA與owner-surface導覽；未開放的Phase 1C/1D actions維持disabled + `未開放` tooltip，direct mutation仍server fail closed。
 - [x] `DEV-048-1B-02`：完成`/parts?tab=drafts`草稿清單、filters、pagination/empty/error states與workspace detail/drawer；正式料號tab不得查入candidate authority。
 - [x] `DEV-048-1B-03`：完成四種create mode表單、`儲存草稿`與保存後`取得候選號`兩段式流程；打開/關閉表單不得寫DB或占號。
 - [x] `DEV-048-1B-04`：建立共用`NumberStateProjection`、badge與唯一primary `Now What`元件；UI只render server projection/capabilities，不自行推導權限或狀態。
@@ -1777,8 +1779,8 @@ Human decisions：
 - 維持現行v3編碼原則，不改`A0001-P01`、`A0001-M01/R01`樣式。
 - `000`萬用料號先不落地。
 - 維持現行M/R用途碼設計，不改回MA/OT。
-- 品名查重不得阻擋建立，只能提醒可能重複並建議沿用既有主根；品名不要求唯一，唯一性由圖號/料號承擔。
-- 確定品名取代使用者可見的`主根名稱`。內部欄位可沿用`coreName`/root語意，但一般表單必須把核心名詞視為品名第一段，而不是完整主根名稱。
+- 品名查重不得阻擋建立，只能提醒可能重複並建議沿用既有圖料根號；品名不要求唯一，唯一性由圖號/料號承擔。
+- 確定品名取代使用者可見的`圖料根號名稱`。內部欄位可沿用`coreName`/root語意，但一般表單必須把核心名詞視為品名第一段，而不是完整圖料根號名稱。
 - 系列代號維持選填，作為自製非共用件的獨立分類 metadata，不自動併入建議品名或`確定品名`；自製非共用件可先自創，正式發行前再改正式名。
 
 Task list：

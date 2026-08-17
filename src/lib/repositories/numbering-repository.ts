@@ -2187,7 +2187,7 @@ function numberingApprovalActionLabel(value: string | null | undefined) {
     main_drawing_restore: "製造圖恢復",
     obsolete_part_number: "料號作廢審核",
     obsolete_ma_drawing: "圖號作廢審核",
-    obsolete_part_root: "主根作廢審核"
+    obsolete_part_root: "圖料根號作廢審核"
   };
   return value ? labels[value] ?? value : "審核";
 }

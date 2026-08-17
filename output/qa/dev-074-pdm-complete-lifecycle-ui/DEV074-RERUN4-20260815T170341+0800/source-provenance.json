@@ -1,0 +1,9 @@
+{
+  "run_id":"DEV074-RERUN4-20260815T170341+0800",
+  "branch":"持續優化1",
+  "head":"cc393e048b251fb1ea3356204de56bc4c9eacc45",
+  "dirty_diff_sha256":"0D908C60FF227314FD0A28CFDE925945B663594524CF5F5E2EF7ECCA7E599969",
+  "local_url":"http://127.0.0.1:3000",
+  "runtime_check":"healthy",
+  "production_target_detected":false
+}

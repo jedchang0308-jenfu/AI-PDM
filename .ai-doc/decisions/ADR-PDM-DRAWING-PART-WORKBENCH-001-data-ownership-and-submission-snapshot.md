@@ -1,4 +1,4 @@
-# ADR-PDM-DRAWING-PART-WORKBENCH-001 - 圖料模組資料 ownership 與送審 snapshot
+# ADR-PDM-DRAWING-PART-WORKBENCH-001 - 圖料工作台資料 ownership 與送審 snapshot
 
 Status: Accepted; amended 2026-08-06 for multi-part atomic submission scope
 Date: 2026-07-01
@@ -10,21 +10,21 @@ Related DEV: `DEV-PDM-DRAWING-PART-WORKBENCH-001`
 
 User reviewed the PDM drawing submission architecture and accepted the large module split:
 
-- 圖號模組維持以圖為主。
-- 圖料模組升級成主根號 / 圖料關聯 / 送審準備工作台。
+- 圖號工作台維持以圖為主。
+- 圖料工作台升級成主根號 / 圖料關聯 / 送審準備工作台。
 - 舊上傳送審頁完全退役。
 
-The risk is data safety. If 圖料模組 becomes a convenient aggregate editor but bypasses drawing/part owner rules, the system will create a second source of truth. If submission reads live master data during review, approval evidence can drift after later edits.
+The risk is data safety. If 圖料工作台 becomes a convenient aggregate editor but bypasses drawing/part owner rules, the system will create a second source of truth. If submission reads live master data during review, approval evidence can drift after later edits.
 
 ## Decision
 
 Adopt the following architecture rules:
 
-1. 圖料模組 is the aggregate workbench and submission-preparation entry, not the owner of all data.
+1. 圖料工作台 is the aggregate workbench and submission-preparation entry, not the owner of all data.
 2. 圖號資料 remains owned by drawing domain.
 3. 料號資料 remains owned by part domain.
 4. 主根號與圖料關聯 remain owned by root/link domain.
-5. 圖料模組 may provide inline editing, but every write must route through the correct owner domain API, validation and audit.
+5. 圖料工作台 may provide inline editing, but every write must route through the correct owner domain API, validation and audit.
 6. Submission creation must freeze an immutable snapshot of the drawing, complete selected-part scope, attachment selection, revision, note and source ids.
 7. Same `file_role + original_filename` attachment duplicates are not allowed in one submission package.
 8. Failed or blocked submit attempts must leave audit trail.
@@ -35,8 +35,8 @@ Adopt the following architecture rules:
 
 | Option | Decision | Reason |
 |---|---|---|
-| Make 圖號模組 the main root workbench | Rejected | It overloads a drawing-focused module with part/root responsibilities. |
-| Make 圖料模組 read-only and link out for every edit | Rejected | Safe but inefficient; users would bounce between modules for routine completion. |
+| Make 圖號工作台 the main root workbench | Rejected | It overloads a drawing-focused module with part/root responsibilities. |
+| Make 圖料工作台 read-only and link out for every edit | Rejected | Safe but inefficient; users would bounce between modules for routine completion. |
 | Allow 圖料 inline edit through owner APIs | Accepted | Best operator flow while preserving domain ownership and audit. |
 | Read live master data during approval | Rejected | Approval evidence can drift if master data changes after submission. |
 | Store submission snapshot | Accepted | Preserves what reviewers actually approved. |
@@ -93,7 +93,7 @@ RD review found that the first ADR version had the correct direction but left se
    - `GET /upload` must not render the old generic upload/send-review form.
    - `POST /api/submissions` generic create must reject normal web/session formal submission with `GENERIC_SUBMISSION_RETIRED`.
    - Existing read/history/review access to old submissions remains allowed.
-2. 圖料模組 inline edit requires explicit owner API contracts.
+2. 圖料工作台 inline edit requires explicit owner API contracts.
    - Root fields go through root/numbering record owner APIs.
    - Drawing fields go through drawing owner APIs.
    - Part and variant fields go through part owner APIs.
@@ -143,7 +143,7 @@ RD must not mark implementation complete until:
 
 ## Amendment: Drawing Submission Workbench And Release-Incomplete Recovery (2026-07-02)
 
-User clarified that the submission entry should remain in 圖號模組 / 圖料模組, while the drawing submission workbench itself may be an independent page.
+User clarified that the submission entry should remain in 圖號工作台 / 圖料工作台, while the drawing submission workbench itself may be an independent page.
 
 This amends the earlier "old generic `/upload` submission page is retired" rule as follows:
 

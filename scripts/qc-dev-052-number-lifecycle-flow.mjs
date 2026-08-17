@@ -198,11 +198,48 @@ try {
     })
   );
 
+  const removedDrawing = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).removeCandidateFile({
+    workspaceId: "dev052-flow",
+    companyId: "company-jenfu",
+    candidateRevisionId: candidate.id,
+    fileId: "dev052-drawing-candidate-file",
+    actorId: "dev052-flow-user",
+    expectedRowVersion: added.candidateRevisions[0].rowVersion,
+    reason: "QC same-content relink"
+  }));
+  const drawingAsset = database.prepare(`SELECT content_hash, file_size FROM file_assets WHERE id = 'dev052-drawing-file-asset'`).get();
+  const reusedDrawing = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).reuseCandidateFileLink({
+    workspaceId: "dev052-flow",
+    companyId: "company-jenfu",
+    candidateRevisionId: candidate.id,
+    actorId: "dev052-flow-user",
+    expectedRowVersion: removedDrawing.candidateRevisions[0].rowVersion,
+    contentHash: drawingAsset.content_hash,
+    fileSize: Number(drawingAsset.file_size),
+    role: "drawing_2d",
+    isPrimary: true
+  }));
+  const restoredDrawing = database.prepare(`
+    SELECT source_file_asset_id, is_primary, removed_at, removed_by
+    FROM numbering_candidate_revision_files
+    WHERE id = 'dev052-drawing-candidate-file'
+  `).get();
+  record(
+    "DEV052-FLOW-002A same-content upload restores the soft-removed revision reference without duplicating the physical asset",
+    reusedDrawing?.mode === "reactivated" &&
+      reusedDrawing.fileId === "dev052-drawing-candidate-file" &&
+      reusedDrawing.workspace.lifecycleV2?.stage === "bundle_ready" &&
+      restoredDrawing.source_file_asset_id === "dev052-drawing-file-asset" &&
+      Number(restoredDrawing.is_primary) === 1 && restoredDrawing.removed_at === null && restoredDrawing.removed_by === null &&
+      database.prepare(`SELECT count(*) AS count FROM file_assets WHERE content_hash = ? AND file_size = ?`).get(drawingAsset.content_hash, drawingAsset.file_size).count === 1,
+    JSON.stringify({ mode: reusedDrawing?.mode, fileId: reusedDrawing?.fileId, restoredDrawing })
+  );
+
   const submitted = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).submitBundleReview({
     workspaceId: "dev052-flow",
     companyId: "company-jenfu",
     actorId: "dev052-flow-user",
-    expectedWorkspaceRowVersion: added.rowVersion,
+    expectedWorkspaceRowVersion: reusedDrawing.workspace.rowVersion,
     reason: "QC bundle review"
   }));
   const snapshotRow = database.prepare(`SELECT snapshot_hash, snapshot_json FROM approval_platform_impact_snapshots WHERE request_id = ?`).get(submitted.requestId);

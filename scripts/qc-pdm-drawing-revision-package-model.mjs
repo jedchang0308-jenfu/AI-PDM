@@ -24,6 +24,7 @@ const submissionWorkbench = read("src/lib/drawing-submission-workbench.ts");
 const submissionRoute = read("src/app/api/numbering/drawing-revisions/submissions/route.ts");
 const releaseWorkflow = read("src/lib/submission-release-workflow.ts");
 const submissionStatusRepository = read("src/lib/repositories/submission-status-async-repository.ts");
+const submissionWriteRepository = read("src/lib/repositories/submission-write-async-repository.ts");
 const masterAttachmentAsyncRepository = read("src/lib/repositories/master-attachment-async-repository.ts");
 const submissionListAsyncRepository = read("src/lib/repositories/submission-list-async-repository.ts");
 const approvalPlatform = read("src/lib/approval-platform.ts");
@@ -96,6 +97,13 @@ assert(repository.includes("supplement_reason_note_required"), "Repository requi
 assert(repository.includes("drawing_revision_fff_assessments fff") && repository.includes("ReviewApproved"), "Revision package projects approved FFF minor revisions as ReviewApproved");
 assert(repository.includes("supplement_self_approve_forbidden"), "Repository blocks non-Admin self approval");
 assert(repository.includes("R&D Manager") && repository.includes("Admin"), "Repository restricts supplement decision to manager/Admin");
+assert(
+  repository.includes("supersededCorrectionPackageIds")
+    && repository.includes("AND id <> :packageId")
+    && repository.includes("AND lifecycle_state = 'correction_required'")
+    && repository.includes("superseded_by_package_id = COALESCE(superseded_by_package_id, :packageId)"),
+  "Same-revision correction resubmission transfers canonical correction authority and preserves superseded package history"
+);
 assert(wrapper.includes("requestDrawingRevisionPackageSupplementAsync") && wrapper.includes("decideDrawingRevisionPackageSupplementAsync"), "Async wrapper exposes supplement APIs");
 
 const requestRoutePath = "src/app/api/numbering/drawing-revision-packages/[packageId]/supplements/route.ts";
@@ -112,6 +120,12 @@ assert(submissionWorkbench.includes("ensureDrawingRevisionPackageForSubmissionAs
 assert(submissionRoute.includes("packageId: submissionResult.packageId"), "Submission API returns packageId");
 assert(releaseWorkflow.includes("ensureDrawingRevisionPackageForSubmissionAsync"), "Release workflow ensures package before release");
 assert(submissionStatusRepository.includes("UPDATE drawing_revision_packages") && submissionStatusRepository.includes("status = 'Released'"), "Release transaction marks package Released");
+assert(
+  submissionWriteRepository.includes("AND status IN ('Pending', 'Rejected')")
+    && submissionWriteRepository.includes("SET lifecycle_state = 'correction_required'")
+    && submissionWriteRepository.includes("ORDER BY confirmation.occurred_at DESC"),
+  "Correction resubmission retains rejected history and assigns one latest correction authority"
+);
 
 assert(masterAttachmentAsyncRepository.includes("drawing_revision_package_supplement_files"), "Master attachment query links supplement files");
 assert(masterAttachmentAsyncRepository.includes("review_confirmation_events rce") && masterAttachmentAsyncRepository.includes("instr(p.revision, '.') > 0"), "Master attachment query projects approved FFF minor revisions");

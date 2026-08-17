@@ -1,0 +1,253 @@
+{
+  "runId": "DEV072-20260814T015050Z-d73dda03",
+  "generatedAt": "2026-08-14T01:54:29.175Z",
+  "tool": "Playwright Chromium driven by Codex QC",
+  "productionConnection": false,
+  "productionWrite": false,
+  "database": "disposable isolated SQLite copies",
+  "fixture": {
+    "buildingKey": "candidate:draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+    "terminalKey": "candidate:draft-workspace-cf2f532e-d132-48db-bbd8-9b83601560b0",
+    "partKey": "part:part-qc-submit-ui-001",
+    "relationKey": "root:014f8d95-84df-4d9d-833a-7f22b10ffa59",
+    "pendingRequestIds": [
+      "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+      "APR-0b2f219a-6e28-4c9a-b63a-fa9822c23385"
+    ]
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "laptop",
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "touch": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "ACT-016-018-desktop",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "mode": "hover",
+        "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:manage_files",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-029-laptop",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "laptop",
+          "width": 1024,
+          "height": 768
+        },
+        "mode": "hover",
+        "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:manage_files",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-029-tablet",
+      "passed": true,
+      "detail": {
+        "viewport": {
+          "name": "tablet",
+          "width": 768,
+          "height": 1024
+        },
+        "mode": "focus",
+        "tooltip": "尚缺必要資料或檔案：主要檔案、2D 圖面。",
+        "actionIds": [
+          "detail:drawing:edit",
+          "detail:drawing:manage_files",
+          "detail:drawing:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-019-mobile",
+      "passed": false,
+      "detail": {
+        "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-action-id=\"detail:drawing:submit_review\"]')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-disabled=\"true\" data-action-order=\"200\" data-action-enabled=\"false\" data-action-group=\"workflow\" aria-describedby=\"pdm-action-reason-_r_t_\" data-action-id=\"detail:drawing:submit_review\" data-action-reason-code=\"PDM_ACTION_PREREQUISITE_MISSING\" class=\"pdm-detail-action-control secondary-button is-locked\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+      }
+    },
+    {
+      "id": "ACT-025",
+      "passed": true,
+      "detail": {
+        "ids": [
+          "detail:part:edit",
+          "detail:part:submit_review",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-026",
+      "passed": true,
+      "detail": {
+        "ids": [
+          "detail:relation:manage_relation",
+          "detail:relation:view_history",
+          "detail:navigation:return"
+        ]
+      }
+    },
+    {
+      "id": "ACT-030",
+      "passed": false,
+      "detail": {
+        "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-component=\"unified-pdm-entity-detail-drawer\"]') to be visible\u001b[22m\n"
+      }
+    },
+    {
+      "id": "ACT-020",
+      "passed": false,
+      "detail": {
+        "error": "submit x position remains stable\n\n1253 !== 1231\n"
+      }
+    },
+    {
+      "id": "ACT-024",
+      "passed": false,
+      "detail": {
+        "error": "no-permission: at least return must remain enabled"
+      }
+    },
+    {
+      "id": "ACT-028-return_for_correction",
+      "passed": true,
+      "detail": {
+        "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+        "actionId": "detail:approval:return_for_correction",
+        "dialogs": 2,
+        "before": {
+          "status": "pending",
+          "applyStatus": "pending"
+        },
+        "after": {
+          "status": "needs_info",
+          "applyStatus": "applied"
+        },
+        "returnTo": "http://127.0.0.1:56114/approvals?status=active&limit=100&domain=numbering"
+      }
+    },
+    {
+      "id": "ACT-028-reject",
+      "passed": true,
+      "detail": {
+        "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+        "actionId": "detail:approval:reject",
+        "dialogs": 2,
+        "before": {
+          "status": "pending",
+          "applyStatus": "pending"
+        },
+        "after": {
+          "status": "rejected",
+          "applyStatus": "applied"
+        },
+        "returnTo": "http://127.0.0.1:58924/approvals?status=active&limit=100&domain=numbering"
+      }
+    },
+    {
+      "id": "ACT-028-approve",
+      "passed": true,
+      "detail": {
+        "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+        "actionId": "detail:approval:approve",
+        "dialogs": 0,
+        "before": {
+          "status": "pending",
+          "applyStatus": "pending"
+        },
+        "after": {
+          "status": "approved",
+          "applyStatus": "applied"
+        },
+        "returnTo": "http://127.0.0.1:49511/approvals?status=active&limit=100&domain=numbering"
+      }
+    },
+    {
+      "id": "ACT-027",
+      "passed": true,
+      "detail": {
+        "canonicalOwnerRouteUsed": true,
+        "unifiedDrawerCount": 1
+      }
+    },
+    {
+      "id": "ACT-011",
+      "passed": true,
+      "detail": {
+        "disabledMutationCount": 0
+      }
+    },
+    {
+      "id": "ACT-014",
+      "passed": false,
+      "detail": {
+        "exactlyOnceSubmit": true
+      }
+    },
+    {
+      "id": "RUN-FATAL",
+      "passed": false,
+      "detail": {
+        "error": "console/page errors: [{\"label\":\"surface-terminal\",\"type\":\"console\",\"message\":\"Failed to load resource: the server responded with a status of 404 (Not Found)\"},{\"label\":\"no-permission\",\"type\":\"console\",\"message\":\"Failed to load resource: the server responded with a status of 404 (Not Found)\"},{\"label\":\"decision-reject\",\"type\":\"console\",\"message\":\"Failed to load resource: the server responded with a status of 409 (Conflict)\"},{\"label\":\"decision-approve\",\"type\":\"console\",\"message\":\"Failed to load resource: the server responded with a status of 404 (Not Found)\"}]\n\n4 !== 0\n"
+      }
+    }
+  ],
+  "P0": 0,
+  "P1": 0,
+  "cleanup": {
+    "attempted": true,
+    "removedCount": 8,
+    "tempRootRemoved": true
+  },
+  "source": {
+    "commit": "ref: refs/heads/持續優化1",
+    "dirtyWorktree": true
+  },
+  "files": [
+    "action-contract.json",
+    "dom-metrics.json",
+    "interaction-log.json",
+    "console-network.json",
+    "data-before-after.json",
+    "visible-error-sweep.json",
+    "defects.md"
+  ]
+}

@@ -20,6 +20,7 @@ type CreateBody = {
   bomRevision?: unknown;
   source?: unknown;
   sourceSubmissionId?: unknown;
+  sourceRevisionPackageId?: unknown;
   draftName?: unknown;
   idempotencyKey?: unknown;
   pdmCompanyCode?: unknown;
@@ -75,23 +76,28 @@ export async function POST(request: Request) {
   const bomRevision = textValue(body.bomRevision);
   const source = body.source === "cad_reference" ? "cad_reference" : body.source === "manual" ? "manual" : null;
   const sourceSubmissionId = textValue(body.sourceSubmissionId) || null;
+  const sourceRevisionPackageId = textValue(body.sourceRevisionPackageId) || null;
   const idempotencyKey = request.headers.get("idempotency-key")?.trim() || textValue(body.idempotencyKey);
   if (!ownerPartNumberId || !bomRevision || !source || !idempotencyKey) {
     return NextResponse.json({ error: "BOM_CREATE_FIELDS_REQUIRED" }, { status: 422 });
   }
   const revisionError = validateRevisionCode(bomRevision, { lifecycleStage: "release_area" });
   if (revisionError) return NextResponse.json({ error: revisionError }, { status: 422 });
-  if (source === "cad_reference" && !sourceSubmissionId) {
+  if (source === "cad_reference" && !sourceSubmissionId && !sourceRevisionPackageId) {
     return NextResponse.json({ error: "BOM_CAD_SOURCE_SUBMISSION_REQUIRED" }, { status: 422 });
   }
-  if (source === "manual" && sourceSubmissionId) {
+  if (source === "cad_reference" && sourceSubmissionId && sourceRevisionPackageId) {
+    return NextResponse.json({ error: "BOM_CAD_SOURCE_AMBIGUOUS" }, { status: 422 });
+  }
+  if (source === "manual" && (sourceSubmissionId || sourceRevisionPackageId)) {
     return NextResponse.json({ error: "BOM_MANUAL_SOURCE_SUBMISSION_FORBIDDEN" }, { status: 422 });
   }
   const accessInput = {
     user: auth.user,
     companyId: companyResult.company.companyId,
     ownerPartNumberId,
-    sourceSubmissionId
+    sourceSubmissionId,
+    sourceRevisionPackageId
   };
   const owner = await resolveBomOwnerAccessContextAsync(accessInput);
   if (!owner) return NextResponse.json({ error: "BOM_CREATE_FORBIDDEN" }, { status: 403 });
@@ -101,7 +107,16 @@ export async function POST(request: Request) {
 
   const requestFingerprint = crypto
     .createHash("sha256")
-    .update(JSON.stringify({ ownerPartNumberId, bomRevision, source, sourceSubmissionId, draftName: textValue(body.draftName) }))
+    .update(
+      JSON.stringify({
+        ownerPartNumberId,
+        bomRevision,
+        source,
+        sourceSubmissionId,
+        sourceRevisionPackageId,
+        draftName: textValue(body.draftName)
+      })
+    )
     .digest("hex");
   try {
     const result = await createCanonicalBomDraftAsync({
@@ -112,6 +127,7 @@ export async function POST(request: Request) {
       bomRevision,
       source,
       sourceSubmissionId,
+      sourceRevisionPackageId,
       actorId: auth.user.id,
       idempotencyKey,
       requestFingerprint,

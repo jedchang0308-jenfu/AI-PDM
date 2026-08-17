@@ -3088,7 +3088,7 @@ function permissionLabel(code: string) {
   const labels: Record<string, string> = {
     "numbering.request": "申請",
     "numbering.search": "查詢",
-    "numbering.drawings.view": "圖號模組",
+    "numbering.drawings.view": "圖號工作台",
     "numbering.approvals": "審核",
     "numbering.impact": "影響",
     "numbering.tasks": "待辦",

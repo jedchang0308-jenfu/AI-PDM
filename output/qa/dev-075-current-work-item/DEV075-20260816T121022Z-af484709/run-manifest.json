@@ -1,0 +1,135 @@
+{
+  "runId": "DEV075-20260816T121022Z-af484709",
+  "generatedAt": "2026-08-16T12:10:50.919Z",
+  "scope": "PA: current work item projection, historical needs_info visibility, exact request navigation, UI actionability",
+  "runtime": {
+    "project": "C:\\VIBE CODING\\AI_PDM",
+    "baseUrl": "http://127.0.0.1:58658",
+    "temporary": true,
+    "cleanup": "completed in finally"
+  },
+  "cases": [
+    {
+      "id": "PA-UI-desktop",
+      "passed": true,
+      "detail": {
+        "row": "A0005-M01 / rev 0.10\n圖面進版影響審核\n\t圖料\tDemo Admin\t\n待補資料\n歷史\n\t08/16 上午01:46",
+        "geometry": {
+          "viewportWidth": 1440,
+          "documentScrollWidth": 1440,
+          "drawer": {
+            "left": 768,
+            "right": 1428,
+            "width": 660
+          }
+        }
+      }
+    },
+    {
+      "id": "PA-UI-tablet",
+      "passed": true,
+      "detail": {
+        "row": "A0005-M01 / rev 0.10\n圖面進版影響審核\n\t圖料\tDemo Admin\t\n待補資料\n歷史\n\t08/16 上午01:46",
+        "geometry": {
+          "viewportWidth": 1024,
+          "documentScrollWidth": 1024,
+          "drawer": {
+            "left": 352,
+            "right": 1012,
+            "width": 660
+          }
+        }
+      }
+    },
+    {
+      "id": "PA-UI-mobile",
+      "passed": true,
+      "detail": {
+        "row": "A0005-M01 / rev 0.10\n圖面進版影響審核\n圖料\nDemo Admin\n待補資料\n歷史\n08/16 上午01:46",
+        "geometry": {
+          "viewportWidth": 390,
+          "documentScrollWidth": 390,
+          "drawer": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          }
+        }
+      }
+    }
+  ],
+  "browserEvidence": [
+    {
+      "label": "PA-desktop",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "historyRowText": "A0005-M01 / rev 0.10\n圖面進版影響審核\n\t圖料\tDemo Admin\t\n待補資料\n歷史\n\t08/16 上午01:46",
+      "drawerText": "待補資料\n審核案件\nA0005-M01 / rev 0.10\n\n圖面進版影響審核 · Demo Admin · 2026/08/16 上午01:46\n\n審核摘要\n送審時固定的內容\n範圍\nA0005-M01\n版次\n0.10\n料號\n4 個\n檔案\n3 個\nFFF 結論\n疑似影響\nForm\n無影響\nFit\n疑似影響\nFunction\n無影響\n申請理由\nQC R18 D09 撤回後新增 PDF 並將 Fit 改為疑似影響重送\n圖面與附件\n送審時固定的檔案證據\n圖面\nA0005-M01\n版次 0.10\nD-0007-MA1.SLDDRW\n2D 圖面 · 主要受控檔 · 需要先驗證，才能送審\n從圖面進版工作台補上新版圖面附件；版次包類別：2D 圖面。\n預覽\n下載\nD-0007-MA1.SLDPRT\n3D 模型 · 主要受控檔 · 需要先驗證，才能送審\n從圖面進版工作台補上新版圖面附件；版次包類別：3D CAD。\n預覽\n下載\nD-0007-MA1.pdf\nPDF · 受控附件 · 需要先驗證，才能送審\n從圖面進版工作台補上新版圖面附件；版次包類別：PDF。\n預覽\n下載\n圖面預覽\n2 類\n3D 模型\n預覽正在準備\n3D 預覽轉檔完成後會自動顯示，請稍候。\nD-0007-MA1.SLDPRT\n預覽\n下載\n2D 圖面\n預覽正在準備\n2D 預覽轉檔完成後會自動顯示，請稍候。\nD-0007-MA1.SLDDRW\n預覽\n下載\n目前狀態\n這筆不是目前待辦\n此審核已由較新的案件接續，保留本筆只供追溯；目前不提供核准或駁回操作。\n查看目前案件\n更多\n先前決策1 筆",
+      "decisionButtons": [
+        "",
+        ""
+      ],
+      "geometry": {
+        "viewportWidth": 1440,
+        "documentScrollWidth": 1440,
+        "drawer": {
+          "left": 768,
+          "right": 1428,
+          "width": 660
+        }
+      }
+    },
+    {
+      "label": "PA-tablet",
+      "viewport": {
+        "name": "tablet",
+        "width": 1024,
+        "height": 768
+      },
+      "historyRowText": "A0005-M01 / rev 0.10\n圖面進版影響審核\n\t圖料\tDemo Admin\t\n待補資料\n歷史\n\t08/16 上午01:46",
+      "drawerText": "待補資料\n審核案件\nA0005-M01 / rev 0.10\n\n圖面進版影響審核 · Demo Admin · 2026/08/16 上午01:46\n\n審核摘要\n送審時固定的內容\n範圍\nA0005-M01\n版次\n0.10\n料號\n4 個\n檔案\n3 個\nFFF 結論\n疑似影響\nForm\n無影響\nFit\n疑似影響\nFunction\n無影響\n申請理由\nQC R18 D09 撤回後新增 PDF 並將 Fit 改為疑似影響重送\n圖面與附件\n送審時固定的檔案證據\n圖面\nA0005-M01\n版次 0.10\nD-0007-MA1.SLDDRW\n2D 圖面 · 主要受控檔 · 需要先驗證，才能送審\n從圖面進版工作台補上新版圖面附件；版次包類別：2D 圖面。\n預覽\n下載\nD-0007-MA1.SLDPRT\n3D 模型 · 主要受控檔 · 需要先驗證，才能送審\n從圖面進版工作台補上新版圖面附件；版次包類別：3D CAD。\n預覽\n下載\nD-0007-MA1.pdf\nPDF · 受控附件 · 需要先驗證，才能送審\n從圖面進版工作台補上新版圖面附件；版次包類別：PDF。\n預覽\n下載\n圖面預覽\n2 類\n3D 模型\n預覽正在準備\n3D 預覽轉檔完成後會自動顯示，請稍候。\nD-0007-MA1.SLDPRT\n預覽\n下載\n2D 圖面\n預覽正在準備\n2D 預覽轉檔完成後會自動顯示，請稍候。\nD-0007-MA1.SLDDRW\n預覽\n下載\n目前狀態\n這筆不是目前待辦\n此審核已由較新的案件接續，保留本筆只供追溯；目前不提供核准或駁回操作。\n查看目前案件\n更多\n先前決策1 筆",
+      "decisionButtons": [
+        "",
+        ""
+      ],
+      "geometry": {
+        "viewportWidth": 1024,
+        "documentScrollWidth": 1024,
+        "drawer": {
+          "left": 352,
+          "right": 1012,
+          "width": 660
+        }
+      }
+    },
+    {
+      "label": "PA-mobile",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "hasTouch": true
+      },
+      "historyRowText": "A0005-M01 / rev 0.10\n圖面進版影響審核\n圖料\nDemo Admin\n待補資料\n歷史\n08/16 上午01:46",
+      "drawerText": "待補資料\n審核案件\nA0005-M01 / rev 0.10\n\n圖面進版影響審核 · Demo Admin · 2026/08/16 上午01:46\n\n審核摘要\n送審時固定的內容\n範圍\nA0005-M01\n版次\n0.10\n料號\n4 個\n檔案\n3 個\nFFF 結論\n疑似影響\nForm\n無影響\nFit\n疑似影響\nFunction\n無影響\n申請理由\nQC R18 D09 撤回後新增 PDF 並將 Fit 改為疑似影響重送\n圖面與附件\n送審時固定的檔案證據\n圖面\nA0005-M01\n版次 0.10\nD-0007-MA1.SLDDRW\n2D 圖面 · 主要受控檔 · 需要先驗證，才能送審\n從圖面進版工作台補上新版圖面附件；版次包類別：2D 圖面。\n預覽\n下載\nD-0007-MA1.SLDPRT\n3D 模型 · 主要受控檔 · 需要先驗證，才能送審\n從圖面進版工作台補上新版圖面附件；版次包類別：3D CAD。\n預覽\n下載\nD-0007-MA1.pdf\nPDF · 受控附件 · 需要先驗證，才能送審\n從圖面進版工作台補上新版圖面附件；版次包類別：PDF。\n預覽\n下載\n圖面預覽\n2 類\n3D 模型\n預覽正在準備\n3D 預覽轉檔完成後會自動顯示，請稍候。\nD-0007-MA1.SLDPRT\n預覽\n下載\n2D 圖面\n預覽正在準備\n2D 預覽轉檔完成後會自動顯示，請稍候。\nD-0007-MA1.SLDDRW\n預覽\n下載\n目前狀態\n這筆不是目前待辦\n此審核已由較新的案件接續，保留本筆只供追溯；目前不提供核准或駁回操作。\n查看目前案件\n更多\n先前決策1 筆",
+      "decisionButtons": [
+        "",
+        ""
+      ],
+      "geometry": {
+        "viewportWidth": 390,
+        "documentScrollWidth": 390,
+        "drawer": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        }
+      }
+    }
+  ],
+  "networkErrors": [],
+  "pageErrors": []
+}

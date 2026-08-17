@@ -3,7 +3,7 @@
 版本：1.0
 日期：2026-08-11
 狀態：`RD Implemented / Focused Contract QC 12/12 / Browser Smoke Blocked by auth / Production Release Gated`
-Related DEV：`DEV-066`
+Related DEV：`DEV-066`；`DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`
 父任務：`DEV-062`、`DEV-065`
 
 ## 0. 使用思考習慣
@@ -13,6 +13,22 @@ Related DEV：`DEV-066`
 `#捷思法`：固定空間位置比新增文字提示更能形成肌肉記憶；搜尋／篩選是同一組任務，歷史條件是左側輔助條件，顯示模式是右側呈現選擇。
 
 `#內容組織`：頂部欄只保留頁面識別與建立／重新整理；工具列固定為「篩選列 → 工具列 footer」；清單內容與分頁固定在結果面板底部。
+
+## 0A. DEV-070 Compatible Extension：審核清單共用空間語法
+
+Status：`Local RD Implemented / Focused Browser QC Passed / Full APW Matrix Pending / Production Release Gated`。
+
+DEV-070 將相同的 topbar、filter row、result panel、selection、loading/empty/error 與 pagination 空間語法延伸到 `/approvals`，但不把審核工作台改成第四種圖料關係瀏覽器：
+
+- 審核工作台使用搜尋、status/domain/action filters；沒有 `包含歷史` 與 view-mode switch 時，不渲染空白 footer control 或占位。
+- 結果列透過既有 `PdmWorkbenchList` 顯示 approval-specific columns，不使用 `RelationRowCard`，也沒有關係樹／矩陣。
+- 分頁仍由 `PdmWorkbenchPagination` 擁有 markup、ARIA、順序與位置。DEV-070 只增加 optional `hasPreviousPage?: boolean`；未傳入時仍以 `pageIndex > 0` 判定，DEV-066 三工作台行為不變。
+- `.pdm-workbench-toolbar`、`.pdm-workbench-list-*`、`.pdm-workbench-pagination` 及 shared selected/loading/empty/error selectors 是 enabled inbox 的視覺 authority；不得保留平行 approval-only list/selection/pagination CSS。
+- 審核頁可以保留 approval status chip 與 legacy detail fallback 的 domain styling；這些不改變 shared shell mechanics。
+
+本 amendment 只做 compatible extension。DEV-070 的 API/cursor/return、exact files與 `APW-001..028` 由 approval platform SPEC/QA 管理；DEV-066 的歷史 12/12 evidence 不被重新宣稱為 DEV-070 evidence。
+
+實作證據：`/approvals` 已接入 shared controller、`PdmWorkbenchList`、`PdmWorkbenchPagination` 與 shared keyboard mechanics；focused contract/query/navigation/typecheck/build/browser QC 已通過。完整四 viewport、101+ 分頁、cross-scope 與決策返回矩陣仍待 QA phase gate。
 
 ## 1. 問題與使用者價值
 

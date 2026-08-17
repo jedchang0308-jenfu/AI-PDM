@@ -168,6 +168,7 @@ export class AsyncDrawingRevisionPackageRepository {
     const now = this.clock();
     const snapshot = parseSnapshot(seed.snapshot_json);
     const packageRoleBySourceId = packageRolesFromSnapshot(snapshot);
+    let supersededCorrectionPackageIds: string[] = [];
     const fileRows = await this.client.query<SubmissionPackageFileSeedRow>(
       `
       SELECT
@@ -214,6 +215,41 @@ export class AsyncDrawingRevisionPackageRepository {
           submittedAt: seed.created_at ?? now,
           releasedAt: packageStatus === "Released" ? seed.released_at ?? now : null,
           snapshotJson: seed.snapshot_json
+        }
+      );
+      const supersededCorrectionPackages = await tx.query<{ id: string }>(
+        `SELECT id
+           FROM drawing_revision_packages
+          WHERE company_id = :companyId
+            AND drawing_number_id = :drawingNumberId
+            AND revision = :revision
+            AND id <> :packageId
+            AND lifecycle_state = 'correction_required'`,
+        {
+          companyId: seed.company_id,
+          drawingNumberId,
+          revision: seed.revision,
+          packageId
+        }
+      );
+      supersededCorrectionPackageIds = supersededCorrectionPackages.map((pkg) => pkg.id);
+      await tx.execute(
+        `UPDATE drawing_revision_packages
+            SET lifecycle_state = NULL,
+                active_correction_reason = NULL,
+                superseded_by_package_id = COALESCE(superseded_by_package_id, :packageId),
+                updated_at = :now
+          WHERE company_id = :companyId
+            AND drawing_number_id = :drawingNumberId
+            AND revision = :revision
+            AND id <> :packageId
+            AND lifecycle_state = 'correction_required'`,
+        {
+          companyId: seed.company_id,
+          drawingNumberId,
+          revision: seed.revision,
+          packageId,
+          now
         }
       );
 
@@ -311,7 +347,12 @@ export class AsyncDrawingRevisionPackageRepository {
         submissionId: seed.id,
         actorId: input.actorId,
         action: "drawing_revision_package.created",
-        detail: { packageId, status: packageStatus, fileCount: fileRows.filter((file) => file.source_file_asset_id).length },
+        detail: {
+          packageId,
+          status: packageStatus,
+          fileCount: fileRows.filter((file) => file.source_file_asset_id).length,
+          supersededCorrectionPackageIds
+        },
         createdAt: now
       });
       await new UnifiedDrawingAsyncRepository(tx).synchronizeFormalDrawing({
@@ -388,6 +429,74 @@ export class AsyncDrawingRevisionPackageRepository {
         actorId: input.actorId,
         action: "drawing_revision_package.cancelled",
         detail: { packageId: existing.id, reason: input.reason },
+        createdAt: now
+      });
+      await new UnifiedDrawingAsyncRepository(tx).synchronizeFormalDrawing({
+        drawingNumberId: existing.drawing_number_id,
+        companyId: existing.company_id
+      });
+    });
+    return true;
+  }
+
+  async markPackageCorrectionRequiredForSubmission(input: { submissionId: string; actorId: string; reason: string }) {
+    const existing = await this.getPackageBySubmissionId(input.submissionId);
+    if (!existing || existing.status === "Released" || existing.status === "Cancelled") return false;
+    const now = this.clock();
+    await this.client.transaction(async (tx) => {
+      const supersededPackages = await tx.query<{ id: string }>(
+        `SELECT id
+           FROM drawing_revision_packages
+          WHERE company_id = :companyId
+            AND drawing_number_id = :drawingNumberId
+            AND revision = :revision
+            AND id <> :packageId
+            AND lifecycle_state = 'correction_required'`,
+        {
+          companyId: existing.company_id,
+          drawingNumberId: existing.drawing_number_id,
+          revision: existing.revision,
+          packageId: existing.id
+        }
+      );
+      await tx.execute(
+        `UPDATE drawing_revision_packages
+            SET lifecycle_state = NULL,
+                active_correction_reason = NULL,
+                updated_at = :now
+          WHERE company_id = :companyId
+            AND drawing_number_id = :drawingNumberId
+            AND revision = :revision
+            AND id <> :packageId
+            AND lifecycle_state = 'correction_required'`,
+        {
+          companyId: existing.company_id,
+          drawingNumberId: existing.drawing_number_id,
+          revision: existing.revision,
+          packageId: existing.id,
+          now
+        }
+      );
+      await tx.execute(
+        `UPDATE drawing_revision_packages
+            SET status = 'Rejected',
+                lifecycle_state = 'correction_required',
+                active_correction_reason = :reason,
+                updated_at = :now
+          WHERE source_submission_id = :submissionId
+            AND status IN ('Draft', 'Pending', 'Rejected')`,
+        { submissionId: input.submissionId, reason: input.reason, now }
+      );
+      await insertPackageAudit(tx, {
+        id: this.idFactory(),
+        submissionId: input.submissionId,
+        actorId: input.actorId,
+        action: "drawing_revision_package.correction_required",
+        detail: {
+          packageId: existing.id,
+          reason: input.reason,
+          supersededCorrectionPackageIds: supersededPackages.map((pkg) => pkg.id)
+        },
         createdAt: now
       });
       await new UnifiedDrawingAsyncRepository(tx).synchronizeFormalDrawing({

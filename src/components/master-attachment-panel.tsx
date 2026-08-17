@@ -191,6 +191,8 @@ export function MasterAttachmentPanel({
   readOnly = false,
   authorityMode = "combined_legacy",
   compact = false,
+  allowControlledUpload = false,
+  hidePreview = false,
   drawingDetailSkeleton = false,
   alwaysExpandedExceptHistory = false,
   onBackfillHistoricalRevision,
@@ -204,6 +206,10 @@ export function MasterAttachmentPanel({
   readOnly?: boolean;
   authorityMode?: MasterAttachmentAuthorityMode;
   compact?: boolean;
+  /** Allow the compact controlled-summary entry to upload one server-classified drawing file. */
+  allowControlledUpload?: boolean;
+  /** Omit the preview board when the parent projection already renders the shared preview. */
+  hidePreview?: boolean;
   drawingDetailSkeleton?: boolean;
   /** Keep every attachment subsection open in the drawing detail drawer; history remains the only disclosure. */
   alwaysExpandedExceptHistory?: boolean;
@@ -240,7 +246,7 @@ export function MasterAttachmentPanel({
   const productionSliceEnforced = productionSliceEnforcedOverride ?? productionSlice?.configured === true;
   const productionSliceUnopenedMessage = productionSliceUnopenedMessageOverride ?? productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage;
   const productionSliceTitle = `未開放。${productionSliceUnopenedMessage}`;
-  const effectiveReadOnly = readOnly || authorityMode === "controlled_summary";
+  const effectiveReadOnly = readOnly || (authorityMode === "controlled_summary" && !allowControlledUpload);
 
   useEffect(() => {
     if (typeof productionSliceEnforcedOverride === "boolean") return;
@@ -988,7 +994,7 @@ export function MasterAttachmentPanel({
   ) : null;
   const compactControlledSummary = compact && authorityMode === "controlled_summary" && compactControlledListAttachments.length > 0 ? (
     <div className="master-attachment-compact-controlled">
-      {drawingPreviewSlots.length > 0 ? <DrawingDetailPreview cards={compactDrawingPreviewCards} showHeader={false} showFileName={false} dataSection={drawingDetailSkeleton ? "drawing-preview" : undefined} /> : null}
+      {drawingPreviewSlots.length > 0 && !hidePreview ? <DrawingDetailPreview cards={compactDrawingPreviewCards} showHeader={false} showFileName={false} dataSection={drawingDetailSkeleton ? "drawing-preview" : undefined} /> : null}
       <section className="master-attachment-file-details" aria-label="檔案清單">
         <div className="master-attachment-file-details-header">
           <span><FileText size={16} />檔案清單</span>
@@ -1000,7 +1006,7 @@ export function MasterAttachmentPanel({
     </div>
   ) : null;
   const compactControlledUploadEmptyEntry = compact && authorityMode === "controlled_summary" && entityType === "drawing_number" && compactControlledListAttachments.length === 0 ? compactControlledUploadForm : null;
-  const drawingPreviewEmpty = drawingDetailSkeleton && entityType === "drawing_number" && drawingPreviewSlots.length === 0 ? (
+  const drawingPreviewEmpty = drawingDetailSkeleton && !hidePreview && entityType === "drawing_number" && drawingPreviewSlots.length === 0 ? (
     <DrawingDetailPreview
       title="圖面預覽"
       meta="0 類"

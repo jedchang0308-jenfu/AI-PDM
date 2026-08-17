@@ -1,5 +1,6 @@
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { PdmChangeControlError } from "@/lib/pdm-change-control-domain";
+import { listControlledDrawingRevisionHistoryAsync } from "@/lib/drawing-revision-history";
 import { compareRevisionCodes } from "@/lib/revision-policy";
 import {
   createRevisionSuggestion,
@@ -136,19 +137,21 @@ async function buildResolvedContext(
   const primaryParts = (await findPrimaryParts(client, companyId, drawing.id)).map(mapPart);
   const attachmentRevisions = await listDrawingAttachmentRevisions(client, drawing.id);
   const revisions = await listSubmissionRevisionsByDrawingAsync({ companyId, drawingNumber: drawing.drawingNumber });
+  const controlledRevisions = await listControlledDrawingRevisionHistoryAsync(client, companyId, drawing.drawingNumber);
+  const governedRevisions = [...revisions, ...controlledRevisions];
+  const legacyAttachmentFallback = governedRevisions.length === 0
+    ? attachmentRevisions.map((attachment) => ({ revision: attachment.revision ?? "", createdAt: attachment.created_at }))
+    : [];
   const latestRevision = latestRevisionByVersion([
-    ...revisions.map((revision) => revision.revision),
-    ...attachmentRevisions.map((attachment) => attachment.revision ?? "")
+    ...governedRevisions.map((revision) => revision.revision),
+    ...legacyAttachmentFallback.map((attachment) => attachment.revision)
   ]);
   const revisionPolicySuggestion = createRevisionSuggestion({
     companyId,
     drawingNumber: drawing.drawingNumber,
     workflowIntent,
-    revisions,
-    attachmentRevisions: attachmentRevisions.map((attachment) => ({
-      revision: attachment.revision ?? "",
-      createdAt: attachment.created_at
-    }))
+    revisions: governedRevisions,
+    attachmentRevisions: legacyAttachmentFallback
   });
   return {
     status: primaryParts.length === 0 ? "resolved_with_missing_part" : primaryParts.length > 1 ? "multiple_primary_parts" : "resolved",

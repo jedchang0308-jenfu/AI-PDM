@@ -3,6 +3,24 @@ import type { RevisionPackageFileRole, RevisionPackageWarning } from "@/lib/revi
 export type SubmissionStatus = "Pending" | "Releasing" | "Released" | "Rejected" | "ReleaseFailed" | "Obsolete" | "Cancelled";
 export type FileRole = "sldprt" | "sldasm" | "slddrw" | "pdf" | "dwg" | "other";
 
+export type SubmissionReleaseActionability = {
+  allowed: boolean;
+  code:
+    | "SUBMISSION_RELEASE_ALLOWED"
+    | "SUBMISSION_RELEASE_TERMINAL_MASTER"
+    | "SUBMISSION_RELEASE_TERMINAL_SANDBOX"
+    | "SUBMISSION_RELEASE_MASTER_SCOPE_INVALID"
+    | "SUBMISSION_NOT_FOUND";
+  message: string;
+  recovery_href: string;
+  terminal_entities: Array<{
+    kind: "part_root" | "drawing_number" | "part_number";
+    id: string;
+    code: string;
+    record_status: "Obsolete" | "Merged";
+  }>;
+};
+
 export type SubmissionSummary = {
   id: string;
   company_id?: string;
@@ -154,6 +172,7 @@ export type BomWorkbenchDraftSummary = {
   owner_part_number_id: string | null;
   bom_revision: string | null;
   source_submission_id: string | null;
+  source_revision_package_id?: string | null;
   identity_authority: "canonical_part_number" | "legacy_submission_bound" | "manual_review";
   parent_item_id: string;
   parent_submission_id: string;
@@ -164,6 +183,7 @@ export type BomWorkbenchDraftSummary = {
   is_active: number;
   line_count: number;
   review_attempt: number;
+  editor_version: number;
   created_by: string | null;
   updated_by: string | null;
   created_at: string;
@@ -210,9 +230,41 @@ export type BomWorkbenchLine = {
   updated_at: string;
 };
 
+export type BomDraftFloatingTopic = {
+  id: string;
+  bom_draft_id: string;
+  parent_floating_topic_id: string | null;
+  node_type: BomWorkbenchNodeType;
+  item_id: string | null;
+  part_number: string | null;
+  part_name?: string | null;
+  revision: string | null;
+  group_name: string | null;
+  quantity: number | null;
+  sequence_no: number;
+  root_position_x: number;
+  root_position_y: number;
+  source: BomWorkbenchSource;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
   lines: BomWorkbenchLine[];
+  floating_topics: BomDraftFloatingTopic[];
   reconfirmation_flags: BomReconfirmationFlag[];
+  release_snapshot_id?: string | null;
+  latest_review?: {
+    id: string;
+    status: "PendingReview" | "Approved" | "Rejected" | "Cancelled";
+    lifecycle_action: "release" | "obsolete";
+    change_reason: string;
+    decision_reason: string | null;
+    submitted_at: string;
+    reviewed_at: string | null;
+  } | null;
 };
 
 export type BomImportJobStatus = "Staged" | "Imported" | "Rejected" | "Failed";
@@ -279,6 +331,7 @@ export type BomReleaseSnapshotDetail = {
   owner_part_number_id: string | null;
   bom_revision: string | null;
   source_submission_id: string | null;
+  source_revision_package_id?: string | null;
   parent_item_id: string;
   parent_submission_id: string;
   parent_revision: string;
@@ -609,6 +662,7 @@ export type PdfMarkup = {
 };
 
 export type SubmissionDetail = SubmissionSummary & {
+  release_actionability?: SubmissionReleaseActionability;
   files: SubmissionFile[];
   part_scopes: SubmissionPartScope[];
   references: FileReference[];

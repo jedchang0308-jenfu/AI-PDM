@@ -11,7 +11,7 @@ import { getDuplicateActiveSubmissionConflictForReviewAsync } from "@/lib/drawin
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { assertSubmissionReleasePolicyAsync } from "@/lib/revision-policy-release-gate";
 import { executeSubmissionReleaseWorkflowAsync } from "@/lib/submission-release-workflow";
-import { getActiveSandboxBranchForSubmissionAsync } from "@/lib/submission-status-async";
+import { getActiveSandboxBranchForSubmissionAsync, getSubmissionReleaseActionabilityAsync } from "@/lib/submission-status-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 import { resolveLegacyDrawingLifecycleNavigation } from "@/lib/approval-workbench-legacy-redirect";
 
@@ -50,6 +50,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (submission.status !== "Pending") {
     return NextResponse.json(
       { error: "submission_not_pending", message: "只有審核中的送審可以核准。" },
+      { status: 409 }
+    );
+  }
+  const releaseActionability = await getSubmissionReleaseActionabilityAsync(id);
+  if (!releaseActionability.allowed) {
+    return NextResponse.json(
+      {
+        error: releaseActionability.code,
+        code: releaseActionability.code,
+        message: releaseActionability.message,
+        recoveryHref: releaseActionability.recovery_href,
+        terminalEntities: releaseActionability.terminal_entities
+      },
       { status: 409 }
     );
   }

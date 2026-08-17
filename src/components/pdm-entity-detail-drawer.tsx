@@ -61,6 +61,16 @@ export function PdmEntityDetailDrawer({
   const generatedTitleId = useId();
   const titleId = `pdm-entity-drawer-${generatedTitleId.replace(/:/gu, "")}`;
   const drawerRef = useRef<HTMLElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      const previousFocus = previousFocusRef.current;
+      if (previousFocus?.isConnected) window.requestAnimationFrame(() => previousFocus.focus({ preventScroll: true }));
+    };
+  }, [open]);
 
   function closeFromKeyboard(event: ReactKeyboardEvent<HTMLButtonElement>) {
     if (event.key !== "Enter" && event.key !== " ") return;

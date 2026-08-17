@@ -270,7 +270,7 @@ G8-G9不因local G0-G7通過而自動開始。
 | UI-001 | Open create then close | no network mutation / DB count change。 |
 | UI-002 | Header CTAs | exact owner-module CTA visible and only one primary CTA。 |
 | UI-003 | Sidebar roadmap / compatibility | DEV-048 owner surfaces開啟時`料號草稿 / 領號申請 / 上傳送審 / 製造交接`四項不可見；新owner-surface入口可到達，舊URL只redirect/guidance並保留query/`returnTo`，無第二套mutation。 |
-| UI-004 | Draft tab discoverability | user can reach own drafts from料號模組without knowingold route。 |
+| UI-004 | Draft tab discoverability | user can reach own drafts from料號工作台without knowingold route。 |
 | UI-005 | Candidate qualification | text + icon/badge, not color-only；never says official。 |
 | UI-006 | Approved projection | simultaneously shows已核准、待發布、候選、不可正式使用。 |
 | UI-007 | Now What | each nonterminal state has one action, owner role, blocker reason。 |

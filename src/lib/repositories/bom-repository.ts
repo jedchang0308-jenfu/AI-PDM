@@ -1412,7 +1412,21 @@ export function getBomWorkbenchDraftById(draftId: string): BomWorkbenchDraftDeta
     )
     .all(draftId) as BomWorkbenchLine[];
 
-  return { ...draft, lines, reconfirmation_flags: [] };
+  const floatingTopics = database
+    .prepare(
+      `
+      SELECT
+        f.*,
+        i.part_name AS part_name
+      FROM bom_draft_floating_topics f
+      LEFT JOIN items i ON i.id = f.item_id
+      WHERE f.bom_draft_id = ?
+      ORDER BY COALESCE(f.parent_floating_topic_id, ''), f.sequence_no ASC, f.rowid ASC
+    `
+    )
+    .all(draftId) as import("@/lib/types").BomDraftFloatingTopic[];
+
+  return { ...draft, lines, floating_topics: floatingTopics, reconfirmation_flags: [] };
 }
 
 export function getBomImportJobById(importJobId: string): BomImportJob | null {

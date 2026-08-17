@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jenfu.example/schemas/data-location-retention-v1.json",
+  "title": "AI PDM data location and retention inventory",
+  "type": "object",
+  "required": ["schemaVersion", "phase", "reviewOwner", "entries"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "phase": { "enum": ["phase1-planning", "staging", "production"] },
+    "reviewOwner": { "type": "string", "minLength": 1 },
+    "entries": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "type": "object",
+        "required": ["category", "authority", "location", "placementStatus", "retentionPolicy", "retentionOwner", "containsFormalData"],
+        "properties": {
+          "category": {
+            "enum": ["identity", "database", "files", "backups", "runtime", "builds_images", "logs", "secrets_keys", "exports"]
+          },
+          "authority": { "type": "string", "minLength": 1 },
+          "location": { "type": "string", "minLength": 1 },
+          "placementStatus": { "enum": ["planned", "provider-managed-exception", "verified"] },
+          "retentionPolicy": { "type": "string", "minLength": 1 },
+          "retentionOwner": { "type": "string", "minLength": 1 },
+          "containsFormalData": { "type": "boolean" },
+          "exceptionApproved": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,21 @@
+{
+  "run_id":"DEV074-RERUN12-20260815T205236+0800",
+  "summary":{"pass":7,"fail":1,"blocked":0,"not_run":50},
+  "paths":[
+    {"id":"A01","status":"pass","evidence":"screenshots/A01","observed":"UI created A0023 root, A0023-P01, A0023-M01 and one relation"},
+    {"id":"A02","status":"pass","evidence":"screenshots/A02","observed":"UI added A0007-R03 under existing root with human-readable reason and reference purpose"},
+    {"id":"A03","status":"pass","evidence":"screenshots/A03","observed":"UI added A0007-P23 manufactured, A0007-P24 purchased and A0007-P25 standard parts"},
+    {"id":"A04","status":"pass","evidence":"screenshots/A04","observed":"UI created A0007-M12 and A0007-P26 in one linked workspace"},
+    {"id":"B01","status":"pass","evidence":"screenshots/B01","observed":"UI exercised empty, 3D-only, 2D-only and complete states; the same 3D was re-linked and review readiness restored"},
+    {"id":"B02","status":"pass","evidence":"screenshots/B02","observed":"Owner submitted A0023-M01, reviewer approved, and formal UI readback showed revision 0.1 with 2D and 3D"},
+    {"id":"B03","status":"pass","evidence":"screenshots/B03","observed":"Returning from final confirmation caused zero mutation and the confirmation reopened"},
+    {"id":"B04","status":"not_run"},{"id":"B05","status":"not_run"},{"id":"B06","status":"not_run"},
+    {"id":"B07","status":"fail","defect":"DEV074-R12-P1-008","evidence":"screenshots/B07","observed":"Cancelled history-only work still rendered a disabled terminal mutation button labelled 取消圖號工作"},
+    {"id":"B08","status":"not_run"},
+    {"id":"C01","status":"not_run"},{"id":"C02","status":"not_run"},{"id":"C03","status":"not_run"},{"id":"C04","status":"not_run"},{"id":"C05","status":"not_run"},{"id":"C06","status":"not_run"},{"id":"C07","status":"not_run"},{"id":"C08","status":"not_run"},
+    {"id":"D01","status":"not_run"},{"id":"D02","status":"not_run"},{"id":"D03","status":"not_run"},{"id":"D04","status":"not_run"},{"id":"D05","status":"not_run"},{"id":"D06","status":"not_run"},{"id":"D07","status":"not_run"},{"id":"D08","status":"not_run"},{"id":"D09","status":"not_run"},{"id":"D10","status":"not_run"},{"id":"D11","status":"not_run"},{"id":"D12","status":"not_run"},{"id":"D13","status":"not_run"},{"id":"D14","status":"not_run"},
+    {"id":"E01","status":"not_run"},{"id":"E03","status":"not_run"},{"id":"E04","status":"not_run"},{"id":"E05","status":"not_run"},{"id":"E06","status":"not_run"},{"id":"E07","status":"not_run"},{"id":"E08","status":"not_run"},{"id":"E09","status":"not_run"},{"id":"E10","status":"not_run"},{"id":"E11","status":"not_run"},
+    {"id":"F01","status":"not_run"},{"id":"F02","status":"not_run"},{"id":"F03","status":"not_run"},{"id":"F04","status":"not_run"},{"id":"F05","status":"not_run"},{"id":"F06","status":"not_run"},{"id":"F07","status":"not_run"},{"id":"F09","status":"not_run"},
+    {"id":"G01","status":"not_run"},{"id":"G02","status":"not_run"},{"id":"G03","status":"not_run"},{"id":"G04","status":"not_run"},{"id":"G05","status":"not_run"},{"id":"G06","status":"not_run"}
+  ]
+}

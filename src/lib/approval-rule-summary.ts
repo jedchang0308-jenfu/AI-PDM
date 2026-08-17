@@ -22,7 +22,7 @@ export function withPredictedApprovalControls<T extends ApprovalRuleSummaryInput
 export function approvalActionLabel(code: string | null | undefined) {
   const labels: Record<string, string> = {
     "numbering.search": "查詢",
-    "numbering.drawings.view": "圖號模組",
+    "numbering.drawings.view": "圖號工作台",
     "numbering.approvals": "審核",
     "numbering.impact": "影響",
     "numbering.tasks": "待辦",
@@ -52,7 +52,7 @@ export function approvalActionLabel(code: string | null | undefined) {
     same_drawing_variant_after_release: "發行後同圖多料號",
     main_drawing_restore: "恢復主要製造圖",
     merge_part_number: "合併參考料號",
-    obsolete_part_root: "主根作廢審核",
+    obsolete_part_root: "圖料根號作廢審核",
     obsolete_ma_drawing: "作廢製造圖",
     obsolete_part_number: "作廢料號",
     post_release_change: "發行後異動",

@@ -7,7 +7,10 @@ import {
 } from "@/lib/approval-async";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
-import { decideDrawingRevisionPackageSupplementAsync } from "@/lib/drawing-revision-packages-async";
+import {
+  decideDrawingRevisionPackageSupplementAsync,
+  markDrawingRevisionPackageCorrectionRequiredForSubmissionAsync
+} from "@/lib/drawing-revision-packages-async";
 import {
   decideNumberingApprovalBatchAsync,
   decideNumberingApprovalAsync
@@ -17,6 +20,7 @@ import { approveSubmissionObsoleteReviewAsync, rejectSubmissionObsoleteReviewAsy
 import { assertSubmissionReleasePolicyAsync } from "@/lib/revision-policy-release-gate";
 import { parseRevisionCode } from "@/lib/revision-policy";
 import { executeSubmissionReleaseWorkflowAsync } from "@/lib/submission-release-workflow";
+import { rejectSubmissionAsync } from "@/lib/submission-status-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 import type { DbUser } from "@/lib/db";
 import {
@@ -25,7 +29,8 @@ import {
   encodeLegacyApprovalId,
   type ApprovalPlatformAction,
   type ApprovalPlatformDecision,
-  type ApprovalPlatformInboxItem,
+  type ApprovalPlatformInboxCursor,
+  type ApprovalPlatformInboxPage,
   type ApprovalPlatformRequestDetail,
   type ApprovalPlatformSource,
   type ApprovalPlatformStatus,
@@ -117,10 +122,12 @@ export type ApprovalPlatformInboxFilter = {
   limit?: number;
   domainCode?: string;
   actionCode?: string;
+  query?: string;
+  cursor?: ApprovalPlatformInboxCursor | null;
 };
 
 export async function listApprovalPlatformInboxAsync(input: ApprovalPlatformInboxFilter = {}) {
-  return repository().listInbox(input) as Promise<ApprovalPlatformInboxItem[]>;
+  return repository().listInbox(input) as Promise<ApprovalPlatformInboxPage>;
 }
 
 export async function getApprovalPlatformRequestDetailAsync(requestId: string) {
@@ -128,7 +135,7 @@ export async function getApprovalPlatformRequestDetailAsync(requestId: string) {
 }
 
 export async function getApprovalPlatformRequestDetailForCompanyAsync(requestId: string, companyId: string) {
-  const detail = await repository().getRequestDetail(requestId);
+  const detail = await repository().getRequestDetail(requestId, companyId);
   return detail?.companyId === companyId ? detail : null;
 }
 
@@ -147,7 +154,7 @@ export async function decideApprovalPlatformRequestAsync(input: DecideApprovalPl
   if (legacy) return (await decideLegacyApprovalWithResult(input, legacy.source, legacy.legacyId)).detail;
 
   const repo = repository();
-  const before = await repo.getRequestDetail(input.requestId);
+  const before = await repo.getRequestDetail(input.requestId, input.companyId);
   if (!before) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
   const action = await repo.getAction(before.actionCode);
   if (!action || !action.enabled) throw new Error(`APPROVAL_ACTION_NOT_REGISTERED: ${before.actionCode}`);
@@ -191,20 +198,21 @@ async function decideLegacyApprovalWithResult(
   source: LegacyApprovalSource,
   legacyId: string
 ): Promise<LegacyApprovalDecisionResult> {
-  if (input.decision === "needs_info" && source !== "legacy_numbering") {
+  const companyId = input.companyId ?? "company-jenfu";
+  if (input.decision === "needs_info" && source !== "legacy_numbering" && source !== "legacy_drawing_revision_review") {
     throw new Error("APPROVAL_LEGACY_NEEDS_INFO_UNSUPPORTED");
   }
 
   if (source === "legacy_numbering") {
     const legacyResult = await decideNumberingApprovalAsync({
-      companyId: input.companyId,
+      companyId,
       approvalRequestId: legacyId,
       decision: input.decision,
       comment: input.comment ?? undefined,
       approverRole: input.actor.role,
       approverId: input.actor.id
     });
-    const detail = await repository().getRequestDetail(input.requestId);
+    const detail = await repository().getRequestDetail(input.requestId, companyId);
     if (!detail) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
     return { detail, legacyResult };
   }
@@ -224,7 +232,7 @@ async function decideLegacyApprovalWithResult(
         decisionReason: input.comment ?? undefined
       });
     }
-    const detail = await repository().getRequestDetail(input.requestId);
+    const detail = await repository().getRequestDetail(input.requestId, companyId);
     if (!detail) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
     return { detail, legacyResult };
   }
@@ -236,7 +244,7 @@ async function decideLegacyApprovalWithResult(
     } else {
       legacyResult = await rejectBomWorkbenchReviewAsync({ reviewId: legacyId, actorId: input.actor.id, decisionReason: input.comment ?? undefined });
     }
-    const detail = await repository().getRequestDetail(input.requestId);
+    const detail = await repository().getRequestDetail(input.requestId, companyId);
     if (!detail) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
     return { detail, legacyResult };
   }
@@ -244,19 +252,19 @@ async function decideLegacyApprovalWithResult(
   if (source === "legacy_drawing_package") {
     const legacyResult = await decideDrawingRevisionPackageSupplementAsync({
       supplementId: legacyId,
-      companyId: input.companyId ?? "company-jenfu",
+      companyId,
       actorId: input.actor.id,
       actorRole: input.actor.role,
       decision: input.decision === "approved" ? "approve" : "reject",
       note: input.comment ?? null
     });
-    const detail = await repository().getRequestDetail(input.requestId);
+    const detail = await repository().getRequestDetail(input.requestId, companyId);
     if (!detail) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
     return { detail, legacyResult };
   }
 
   if (source === "legacy_drawing_revision_review") {
-    const before = await repository().getRequestDetail(input.requestId);
+    const before = await repository().getRequestDetail(input.requestId, companyId);
     if (!before) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
     const action = drawingRevisionReviewDecisionAction(input.decision, String(before.payload.outcome ?? ""));
     const legacyResult = await applyDrawingRevisionReviewAction({
@@ -265,16 +273,17 @@ async function decideLegacyApprovalWithResult(
       result: input.comment?.trim() || action,
       actor: {
         userId: input.actor.id,
-        companyId: input.companyId ?? before.companyId,
+        companyId,
         role: input.actor.role
       }
     });
     await advanceDrawingRevisionSubmissionAfterImpactReviewAsync({
       assessment: legacyResult.assessment,
       action: legacyResult.action,
+      correctionReason: input.comment?.trim() || legacyResult.action,
       actorId: input.actor.id
     });
-    const detail = await repository().getRequestDetail(input.requestId);
+    const detail = await repository().getRequestDetail(input.requestId, companyId);
     if (!detail) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
     return { detail, legacyResult };
   }
@@ -290,10 +299,20 @@ async function decideLegacyApprovalWithResult(
 async function advanceDrawingRevisionSubmissionAfterImpactReviewAsync(input: {
   assessment: { submissionId: string | null; revision: string; companyId: string };
   action: DrawingRevisionReviewAction;
+  correctionReason: string;
   actorId: string;
 }) {
   const submissionId = input.assessment.submissionId;
-  if (!submissionId || input.action === "return_for_replacement_part") return;
+  if (!submissionId) return;
+  if (input.action === "return_for_replacement_part" || input.action === "request_more_information") {
+    await rejectSubmissionAsync({ id: submissionId, rejectReason: input.correctionReason });
+    await markDrawingRevisionPackageCorrectionRequiredForSubmissionAsync({
+      submissionId,
+      actorId: input.actorId,
+      reason: input.correctionReason
+    });
+    return;
+  }
 
   const submission = await getSubmissionAsync(submissionId);
   if (!submission) {
@@ -382,10 +401,10 @@ async function advanceDrawingRevisionSubmissionAfterImpactReviewAsync(input: {
 }
 
 function drawingRevisionReviewDecisionAction(decision: ApprovalPlatformDecision, outcome: string): DrawingRevisionReviewAction {
-  if (decision === "needs_info") throw new Error("APPROVAL_DRAWING_REVISION_NEEDS_INFO_UNSUPPORTED");
+  if (decision === "needs_info") return "request_more_information";
+  if (decision === "rejected") return "return_for_replacement_part";
   if (outcome === "no_impact" && decision === "approved") return "confirm_bom_no_revision";
   if (outcome === "suspected_impact" && decision === "approved") return "confirm_original_part_reuse";
-  if (outcome === "suspected_impact" && decision === "rejected") return "return_for_replacement_part";
   if (outcome === "confirmed_impact" && decision === "approved") return "approve_replacement_part_and_drawing_release";
   throw new Error(`APPROVAL_DRAWING_REVISION_DECISION_UNSUPPORTED: ${decision}/${outcome}`);
 }

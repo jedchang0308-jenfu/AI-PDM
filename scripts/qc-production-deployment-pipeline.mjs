@@ -17,6 +17,8 @@ import { selectProductionServingRevision } from "./select-production-serving-rev
 const root = process.cwd();
 const read = (relativePath) => readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
 const workflow = read(".github/workflows/deploy-production.yml");
+const candidateWorkflow = workflow.split("\n  promote:")[0];
+const promotionWorkflow = workflow.split("\n  promote:")[1] ?? "";
 const identity = read("infra/google-cloud/production/deployment-identity.tf");
 const runtime = read("infra/google-cloud/production/runtime.tf");
 const locals = read("infra/google-cloud/production/locals.tf");
@@ -111,6 +113,31 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(workflow, /--kind candidate/u);
   assert.match(workflow, /\.percent \/\/ 0/u);
   assert.match(workflow, /select-production-serving-revision\.mjs/u);
+});
+
+record("PROD-PIPE-008B candidate and promotion are separate dispatch stages", () => {
+  assert.match(workflow, /stage:\s*\n\s+description: candidate deploys with 0% traffic/u);
+  assert.match(workflow, /type: choice/u);
+  assert.match(candidateWorkflow, /if: \$\{\{ inputs\.stage == 'candidate' \}\}/u);
+  assert.match(promotionWorkflow, /if: \$\{\{ inputs\.stage == 'promote' \}\}/u);
+  assert.doesNotMatch(candidateWorkflow, /--mode promote-latest/u);
+});
+
+record("PROD-PIPE-008C promotion requires current Level 4, Wave 0, and product-owner evidence", () => {
+  assert.match(promotionWorkflow, /level4_evidence_ref/u);
+  assert.match(promotionWorkflow, /wave0_users/u);
+  assert.match(promotionWorkflow, /PRODUCT_OWNER_DECISION/u);
+  assert.match(promotionWorkflow, /AI-PDM-PRODUCTION-PROMOTION-APPROVED/u);
+  assert.match(promotionWorkflow, /\$\{#users\[@\]\} >= 3 && \$\{#users\[@\]\} <= 5/u);
+  assert.match(promotionWorkflow, /\[\[ "\$PRODUCT_OWNER_DECISION" == "go" \]\]/u);
+});
+
+record("PROD-PIPE-008D promotion rechecks candidate zero traffic and immutable image provenance", () => {
+  assert.match(promotionWorkflow, /CANDIDATE_PERCENT/u);
+  assert.match(promotionWorkflow, /\[\[ "\$CANDIDATE_PERCENT" == "0" \]\]/u);
+  assert.match(promotionWorkflow, /image_summary\.digest/u);
+  assert.match(promotionWorkflow, /CANDIDATE_IMAGE/u);
+  assert.match(promotionWorkflow, /\[\[ "\$CANDIDATE_IMAGE" == "\$EXPECTED_IMAGE" \]\]/u);
 });
 
 record("PROD-PIPE-009 promotion and rollback use reviewed traffic-only REST runner", () => {

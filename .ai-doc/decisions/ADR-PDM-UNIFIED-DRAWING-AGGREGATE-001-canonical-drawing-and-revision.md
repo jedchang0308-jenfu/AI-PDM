@@ -2,9 +2,12 @@
 
 Status: `Accepted by User Direction / Local Implemented / QA-QC Passed / Production Gated`
 Date: 2026-08-11
+Decision amended: 2026-08-15
 Owner: Dev PM
 Related DEV: `DEV-064`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-AGGREGATE-001-single-data-layer.md`
+
+> Amendment 2026-08-15：舊保留號在開發階段即自動納入 canonical Drawing，production canonical adoption 時亦不得遺漏。`number_candidate_reservations.id` 是 cutover reconciliation 最小單位；所有未正式化且非終結的 legacy／inconsistent facts只投影成使用者唯一可見站「首版準備」，來源狀態與 recovery owner 留在後台。正式／發布／terminal資料維持真實下游狀態。任何 unmapped、重複映射、改號或 cutover freeze 期間的來源 hash 變更都 fail closed；正式開放後合法 state／row-version 前進不算遺失。
 
 ## Context
 
@@ -22,6 +25,8 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-AGGREGATE-001-single-data-
 - legacy candidate/formal tables 在遷移期降級為 compatibility projections。
 - 工作台與明細先讀 canonical identity，再依狀態 hydrate candidate workflow 或 formal module adapter。
 - 權限與狀態轉換由 server policy 執行；UI 只投影 capability。
+- canonical migration 可以新增 deterministic Drawing／Revision／File rows，但不得更新、刪除或改號來源 reservation；每筆 drawing reservation 必須唯一連到 canonical Drawing或具名 recovery，root／part reservation則保留於同一 workspace／bundle trace。
+- normal user projection 在正式化前固定收斂 legacy／inconsistent sources為 `drawing_preparation`；legacy review、addendum、recovery與reconciliation不得形成第二個可見工作台、狀態路徑或操作 CTA。
 
 這是對 DEV-052／DEV-053 中「candidate aggregate 與 formal master 分離」的 `Intentional replacement`。既有編號 reservation、整包 snapshot、原子核准、formal reader 與 release gate 保留。
 
@@ -61,3 +66,4 @@ Drawing 可在未取號階段維持 `drawing_number = NULL`，首次取號後由
 - 想移除 dual-write 前尚有 legacy reader；
 - 想允許受控／發布 revision 就地改檔；
 - 想對 production live data 執行 backfill、repair 或 cutover。
+- 全量 source/adoption manifest 無法證明每一筆舊 reservation 恰好納管一次，或 rollback 需要刪除 canonical／compatibility facts。

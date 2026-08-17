@@ -66,6 +66,7 @@ export type ApprovalPlatformEventRecord = {
 };
 
 export type ApprovalPlatformInboxItem = {
+  rowKey: string;
   id: string;
   source: ApprovalPlatformSource;
   companyId: string;
@@ -84,6 +85,11 @@ export type ApprovalPlatformInboxItem = {
   targetSummary: string;
   impactSummary: string | null;
   legacy: { table: string; id: string } | null;
+  primaryTarget?: { type: string; targetId: string; code: string | null; label: string };
+  ownerHref?: string;
+  historyOnly?: boolean;
+  supersededByRequestId?: string | null;
+  supersededAt?: string | null;
 };
 
 export type ApprovalPlatformRequestDetail = ApprovalPlatformInboxItem & {
@@ -165,6 +171,8 @@ type NativeRequestRow = {
   action_title: string;
   package_code: string | null;
   package_status: string | null;
+  superseded_by_request_id: string | null;
+  superseded_at: string | null;
 };
 
 type TargetRow = {
@@ -221,16 +229,111 @@ type ApprovalPlatformInboxFilter = {
   limit?: number;
   domainCode?: string;
   actionCode?: string;
+  query?: string;
+  cursor?: ApprovalPlatformInboxCursor | null;
 };
+
+export type ApprovalPlatformInboxCursor = {
+  sortValue: string;
+  rowKey: string;
+  direction?: "after" | "before";
+};
+
+export type ApprovalPlatformInboxPage = {
+  items: ApprovalPlatformInboxItem[];
+  nextCursor: ApprovalPlatformInboxCursor | null;
+  previousCursor: ApprovalPlatformInboxCursor | null;
+  summary: {
+    total: number;
+    pending: number;
+    needsInfo: number;
+    applyFailed: number;
+  };
+};
+
+export function approvalPlatformInboxRowKey(source: ApprovalPlatformSource, id: string) {
+  return `approval:${source}:${id}`;
+}
 
 function matchesInboxFilter(item: ApprovalPlatformInboxItem, input: ApprovalPlatformInboxFilter) {
   const domainCode = input.domainCode?.trim();
   const actionCode = input.actionCode?.trim();
+  const query = input.query?.trim().toLocaleLowerCase("zh-Hant");
 
   if (domainCode && item.domainCode !== domainCode) return false;
   if (actionCode && item.actionCode !== actionCode) return false;
+  if (query) {
+    const searchable = [
+      item.targetSummary,
+      item.title,
+      item.actionTitle,
+      item.requestedByName,
+      item.requestedBy,
+      item.packageCode
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase("zh-Hant");
+    if (!searchable.includes(query)) return false;
+  }
 
   return true;
+}
+
+function approvalSearchPredicate(query: string | undefined, columns: string[]) {
+  const normalized = query?.trim().toLocaleLowerCase("zh-Hant");
+  if (!normalized) return { sql: "", params: {} as Record<string, string> };
+  const escaped = normalized.replace(/[\\%_]/gu, (value) => `\\${value}`);
+  return {
+    sql: `AND (${columns.map((column) => `LOWER(COALESCE(${column}, '')) LIKE :queryLike ESCAPE '\\'`).join(" OR ")})`,
+    params: { queryLike: `%${escaped}%` }
+  };
+}
+
+function nativeApprovalSearchPredicate(query: string | undefined) {
+  const base = approvalSearchPredicate(query, [
+    "r.id",
+    "r.title",
+    "a.title",
+    "requester.display_name",
+    "p.package_code"
+  ]);
+  if (!base.sql) return base;
+  const directConditions = base.sql.slice("AND (".length, -1);
+  return {
+    sql: `AND (
+      ${directConditions}
+      OR EXISTS (
+        SELECT 1
+        FROM approval_platform_targets search_target
+        WHERE search_target.request_id = r.id
+          AND (
+            LOWER(COALESCE(search_target.target_code, '')) LIKE :queryLike ESCAPE '\\'
+            OR LOWER(COALESCE(search_target.target_label, '')) LIKE :queryLike ESCAPE '\\'
+            OR LOWER(COALESCE(search_target.target_id, '')) LIKE :queryLike ESCAPE '\\'
+          )
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM approval_platform_impact_snapshots search_snapshot
+        WHERE search_snapshot.request_id = r.id
+          AND LOWER(COALESCE(CAST(search_snapshot.snapshot_json AS TEXT), '')) LIKE :queryLike ESCAPE '\\'
+      )
+    )`,
+    params: base.params
+  };
+}
+
+function compareInboxItems(left: ApprovalPlatformInboxItem, right: ApprovalPlatformInboxItem) {
+  return right.requestedAt.localeCompare(left.requestedAt) || left.rowKey.localeCompare(right.rowKey);
+}
+
+function isAfterInboxCursor(item: ApprovalPlatformInboxItem, cursor: ApprovalPlatformInboxCursor) {
+  return item.requestedAt < cursor.sortValue || (item.requestedAt === cursor.sortValue && item.rowKey > cursor.rowKey);
+}
+
+function isBeforeInboxCursor(item: ApprovalPlatformInboxItem, cursor: ApprovalPlatformInboxCursor) {
+  return item.requestedAt > cursor.sortValue || (item.requestedAt === cursor.sortValue && item.rowKey < cursor.rowKey);
 }
 
 export function encodeLegacyApprovalId(source: Exclude<ApprovalPlatformSource, "platform">, legacyId: string) {
@@ -362,14 +465,15 @@ function drawingRevisionOutcome(row: { form_state: string; fit_state: string; fu
   return "no_impact";
 }
 
-function drawingRevisionReviewStatus(row: { review_action: string | null }): ApprovalPlatformStatus {
+function drawingRevisionReviewStatus(row: { review_action: string | null; source_submission_status?: string | null }): ApprovalPlatformStatus {
+  if (row.source_submission_status === "Cancelled") return "cancelled";
   if (!row.review_action) return "pending";
+  if (row.review_action === "request_more_information") return "needs_info";
   return row.review_action === "return_for_replacement_part" ? "rejected" : "approved";
 }
 
-function drawingRevisionAllowedDecisions(outcome: string | null): ApprovalPlatformDecision[] {
-  if (outcome === "suspected_impact") return ["approved", "rejected"];
-  return ["approved"];
+function drawingRevisionAllowedDecisions(): ApprovalPlatformDecision[] {
+  return ["approved", "rejected", "needs_info"];
 }
 
 function drawingRevisionRecommendedAction(outcome: string | null) {
@@ -380,11 +484,71 @@ function drawingRevisionRecommendedAction(outcome: string | null) {
 
 function drawingRevisionReviewStatusPredicate(status: "active" | "all" | ApprovalPlatformStatus = "active") {
   if (status === "all") return "";
-  if (status === "active" || status === "pending") return "AND rce.id IS NULL";
-  if (status === "approved") return "AND rce.id IS NOT NULL AND rce.action <> 'return_for_replacement_part'";
-  if (status === "rejected") return "AND rce.action = 'return_for_replacement_part'";
+  if (status === "cancelled") return "AND source_submission.status = 'Cancelled'";
+  const activeSubmission = "AND COALESCE(source_submission.status, '') <> 'Cancelled'";
+  const currentAssessment = `
+    AND NOT EXISTS (
+      SELECT 1
+      FROM drawing_revision_fff_assessments newer_assessment
+      WHERE newer_assessment.company_id = a.company_id
+        AND newer_assessment.drawing_number_id = a.drawing_number_id
+        AND newer_assessment.revision = a.revision
+        AND (
+          newer_assessment.assessed_at > a.assessed_at
+          OR (newer_assessment.assessed_at = a.assessed_at AND newer_assessment.id > a.id)
+        )
+    )`;
+  if (status === "active") return `${activeSubmission} AND rce.id IS NULL${currentAssessment}`;
+  if (status === "pending") return `${activeSubmission} AND rce.id IS NULL${currentAssessment}`;
+  if (status === "needs_info") return `${activeSubmission} AND rce.action = 'request_more_information'${currentAssessment}`;
+  if (status === "approved") return `${activeSubmission} AND rce.id IS NOT NULL AND rce.action NOT IN ('return_for_replacement_part', 'request_more_information')`;
+  if (status === "rejected") return `${activeSubmission} AND rce.action = 'return_for_replacement_part'`;
   return "AND 1 = 0";
 }
+
+const nativeSupersessionProjection = `
+        (
+          SELECT newer_request.id
+          FROM approval_platform_targets current_workspace
+          JOIN approval_platform_targets newer_workspace
+            ON newer_workspace.target_type = current_workspace.target_type
+           AND newer_workspace.target_id = current_workspace.target_id
+          JOIN approval_platform_requests newer_request
+            ON newer_request.id = newer_workspace.request_id
+           AND newer_request.company_id = r.company_id
+           AND newer_request.action_code = r.action_code
+          WHERE r.action_code = 'numbering.candidate_bundle_review'
+            AND r.request_status = 'needs_info'
+            AND current_workspace.request_id = r.id
+            AND current_workspace.target_type = 'numbering_draft_workspace'
+            AND (
+              newer_request.requested_at > r.requested_at
+              OR (newer_request.requested_at = r.requested_at AND newer_request.id > r.id)
+            )
+          ORDER BY newer_request.requested_at DESC, newer_request.id DESC
+          LIMIT 1
+        ) AS superseded_by_request_id,
+        (
+          SELECT newer_request.requested_at
+          FROM approval_platform_targets current_workspace
+          JOIN approval_platform_targets newer_workspace
+            ON newer_workspace.target_type = current_workspace.target_type
+           AND newer_workspace.target_id = current_workspace.target_id
+          JOIN approval_platform_requests newer_request
+            ON newer_request.id = newer_workspace.request_id
+           AND newer_request.company_id = r.company_id
+           AND newer_request.action_code = r.action_code
+          WHERE r.action_code = 'numbering.candidate_bundle_review'
+            AND r.request_status = 'needs_info'
+            AND current_workspace.request_id = r.id
+            AND current_workspace.target_type = 'numbering_draft_workspace'
+            AND (
+              newer_request.requested_at > r.requested_at
+              OR (newer_request.requested_at = r.requested_at AND newer_request.id > r.id)
+            )
+          ORDER BY newer_request.requested_at DESC, newer_request.id DESC
+          LIMIT 1
+        ) AS superseded_at`;
 
 export class AsyncApprovalPlatformRepository {
   constructor(
@@ -528,6 +692,7 @@ export class AsyncApprovalPlatformRepository {
       `
       SELECT
         r.*,
+        ${nativeSupersessionProjection},
         requester.display_name AS requested_by_name,
         a.title AS action_title,
         p.package_code,
@@ -542,26 +707,51 @@ export class AsyncApprovalPlatformRepository {
     );
   }
 
-  async listInbox(input: ApprovalPlatformInboxFilter = {}) {
+  async listInbox(input: ApprovalPlatformInboxFilter = {}): Promise<ApprovalPlatformInboxPage> {
     const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
     const limit = Math.max(1, Math.min(input.limit ?? 100, 500));
+    const sourceLimit = Math.min(500, Math.max(limit + 1, 100));
     const [nativeItems, numbering, submission, bom, supplement, drawingRevisionReviews] = await Promise.all([
-      this.listNativeInbox({ companyId, actorId: input.actorId, status: input.status, limit }),
-      this.listLegacyNumberingInbox({ companyId, status: input.status, limit }),
-      this.listLegacySubmissionInbox({ status: input.status, limit }),
-      this.listLegacyBomInbox({ status: input.status, limit }),
-      this.listLegacyDrawingPackageInbox({ companyId, status: input.status, limit }),
-      this.listLegacyDrawingRevisionReviewInbox({ companyId, status: input.status, limit })
+      this.listNativeInbox({ companyId, actorId: input.actorId, status: input.status, query: input.query, limit: sourceLimit }),
+      this.listLegacyNumberingInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
+      this.listLegacySubmissionInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
+      this.listLegacyBomInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
+      this.listLegacyDrawingPackageInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
+      this.listLegacyDrawingRevisionReviewInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit })
     ]);
-    return [...nativeItems, ...numbering, ...submission, ...bom, ...supplement, ...drawingRevisionReviews]
+    const sorted = [...nativeItems, ...numbering, ...submission, ...bom, ...supplement, ...drawingRevisionReviews]
       .filter((item) => matchesInboxFilter(item, input))
-      .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
-      .slice(0, limit);
+      .sort(compareInboxItems);
+    const cursor = input.cursor ?? null;
+    const direction = cursor?.direction ?? "after";
+    const eligible = cursor
+      ? sorted.filter((item) => direction === "before" ? isBeforeInboxCursor(item, cursor) : isAfterInboxCursor(item, cursor))
+      : sorted;
+    const items = direction === "before" ? eligible.slice(Math.max(0, eligible.length - limit)) : eligible.slice(0, limit);
+    const first = items[0];
+    const last = items.at(-1);
+    const firstIndex = first ? sorted.findIndex((item) => item.rowKey === first.rowKey) : -1;
+    const lastIndex = last ? sorted.findIndex((item) => item.rowKey === last.rowKey) : -1;
+    return {
+      items,
+      nextCursor: last && lastIndex >= 0 && lastIndex < sorted.length - 1
+        ? { sortValue: last.requestedAt, rowKey: last.rowKey, direction: "after" }
+        : null,
+      previousCursor: first && firstIndex > 0
+        ? { sortValue: first.requestedAt, rowKey: first.rowKey, direction: "before" }
+        : null,
+      summary: {
+        total: sorted.length,
+        pending: sorted.filter((item) => item.status === "pending").length,
+        needsInfo: sorted.filter((item) => item.status === "needs_info").length,
+        applyFailed: sorted.filter((item) => item.status === "apply_failed").length
+      }
+    };
   }
 
-  async getRequestDetail(id: string): Promise<ApprovalPlatformRequestDetail | null> {
+  async getRequestDetail(id: string, companyId = DEFAULT_COMPANY_ID): Promise<ApprovalPlatformRequestDetail | null> {
     const legacy = decodeLegacyApprovalId(id);
-    if (legacy) return this.getLegacyDetail(legacy.source, legacy.legacyId);
+    if (legacy) return this.getLegacyDetail(legacy.source, legacy.legacyId, companyId);
     const row = await this.getNativeRequestRow(id);
     if (!row) return null;
     const [targets, impactSnapshots, decisions, events] = await Promise.all([
@@ -571,6 +761,7 @@ export class AsyncApprovalPlatformRepository {
       this.listEvents(row.id)
     ]);
     return {
+      rowKey: approvalPlatformInboxRowKey("platform", row.id),
       id: row.id,
       source: "platform",
       companyId: row.company_id,
@@ -589,6 +780,9 @@ export class AsyncApprovalPlatformRepository {
       targetSummary: targetSummary(row.action_code, targets, impactSnapshots[0]?.snapshot),
       impactSummary: impactSnapshots[0]?.snapshotHash ?? null,
       legacy: null,
+      historyOnly: Boolean(row.superseded_by_request_id),
+      supersededByRequestId: row.superseded_by_request_id,
+      supersededAt: row.superseded_at,
       payload: parseJsonObject(row.payload_json),
       targets,
       impactSnapshots,
@@ -705,12 +899,38 @@ export class AsyncApprovalPlatformRepository {
     return this.getRequestDetail(input.requestId);
   }
 
-  private async listNativeInbox(input: { companyId: string; actorId?: string; status?: "active" | "all" | ApprovalPlatformStatus; limit: number }) {
+  private async listNativeInbox(input: { companyId: string; actorId?: string; status?: "active" | "all" | ApprovalPlatformStatus; query?: string; limit: number }) {
     const statusClause = this.statusWhereClause("r.request_status", input.status);
+    const hideSupersededNeedsInfo = input.status === undefined || input.status === "active" || input.status === "needs_info"
+      ? `
+        AND NOT (
+          r.action_code = 'numbering.candidate_bundle_review'
+          AND r.request_status = 'needs_info'
+          AND EXISTS (
+            SELECT 1
+            FROM approval_platform_targets current_workspace
+            JOIN approval_platform_targets newer_workspace
+              ON newer_workspace.target_type = current_workspace.target_type
+             AND newer_workspace.target_id = current_workspace.target_id
+            JOIN approval_platform_requests newer_request
+              ON newer_request.id = newer_workspace.request_id
+             AND newer_request.company_id = r.company_id
+             AND newer_request.action_code = r.action_code
+            WHERE current_workspace.request_id = r.id
+              AND current_workspace.target_type = 'numbering_draft_workspace'
+              AND (
+                newer_request.requested_at > r.requested_at
+                OR (newer_request.requested_at = r.requested_at AND newer_request.id > r.id)
+              )
+          )
+        )`
+      : "";
+    const searchClause = nativeApprovalSearchPredicate(input.query);
     const rows = await this.client.query<NativeRequestRow>(
       `
       SELECT
         r.*,
+        ${nativeSupersessionProjection},
         requester.display_name AS requested_by_name,
         a.title AS action_title,
         p.package_code,
@@ -735,10 +955,12 @@ export class AsyncApprovalPlatformRepository {
           )
         )
         ${statusClause.sql}
+        ${hideSupersededNeedsInfo}
+        ${searchClause.sql}
       ORDER BY r.requested_at DESC, r.id DESC
       LIMIT :limit
     `,
-      { companyId: input.companyId, actorId: input.actorId ?? null, limit: input.limit, ...statusClause.params }
+      { companyId: input.companyId, actorId: input.actorId ?? null, limit: input.limit, ...statusClause.params, ...searchClause.params }
     );
     const requestIds = rows.map((row) => row.id);
     const targetRows = requestIds.length
@@ -779,6 +1001,7 @@ export class AsyncApprovalPlatformRepository {
     for (const row of rows) {
       const targets = targetsByRequestId.get(row.id) ?? [];
       items.push({
+        rowKey: approvalPlatformInboxRowKey("platform", row.id),
         id: row.id,
         source: "platform",
         companyId: row.company_id,
@@ -796,7 +1019,14 @@ export class AsyncApprovalPlatformRepository {
         packageStatus: row.package_status,
         targetSummary: targetSummary(row.action_code, targets, impactByRequestId.get(row.id)),
         impactSummary: null,
-        legacy: null
+        legacy: null,
+        historyOnly: Boolean(row.superseded_by_request_id),
+        supersededByRequestId: row.superseded_by_request_id,
+        supersededAt: row.superseded_at,
+        primaryTarget: (() => {
+          const target = targets.find((item) => item.role === "primary") ?? targets[0];
+          return target ? { type: target.type, targetId: target.targetId, code: target.code, label: target.label } : undefined;
+        })()
       });
     }
     return items;
@@ -939,8 +1169,21 @@ export class AsyncApprovalPlatformRepository {
     );
   }
 
-  private async listLegacyNumberingInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; limit: number }) {
+  private async listLegacyNumberingInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; query?: string; limit: number }) {
     const status = this.legacyStatusPredicate("ar.request_status", input.status);
+    const search = approvalSearchPredicate(input.query, [
+      "ar.id",
+      "ar.action_code",
+      "ar.entity_id",
+      "requester.display_name",
+      "ab.batch_code",
+      "pr.root_code",
+      "pr.core_name",
+      "pn.part_number",
+      "pn.part_name",
+      "dn.drawing_number",
+      "dn.purpose_description"
+    ]);
     const rows = await this.client.query<{
       id: string;
       company_id: string;
@@ -979,13 +1222,15 @@ export class AsyncApprovalPlatformRepository {
       LEFT JOIN drawing_numbers dn ON ar.entity_type = 'drawing_number' AND dn.id = ar.entity_id
       WHERE ar.company_id = :companyId
         ${status.sql}
+        ${search.sql}
       ORDER BY ar.requested_at DESC, ar.id DESC
       LIMIT :limit
     `,
-      { companyId: input.companyId, limit: input.limit, ...status.params }
+      { companyId: input.companyId, limit: input.limit, ...status.params, ...search.params }
     );
 
     return rows.map((row): ApprovalPlatformInboxItem => ({
+      rowKey: approvalPlatformInboxRowKey("legacy_numbering", encodeLegacyApprovalId("legacy_numbering", row.id)),
       id: encodeLegacyApprovalId("legacy_numbering", row.id),
       source: "legacy_numbering",
       companyId: row.company_id,
@@ -1003,12 +1248,21 @@ export class AsyncApprovalPlatformRepository {
       packageStatus: row.batch_status,
       targetSummary: row.target_code ?? row.entity_id,
       impactSummary: firstMeaningfulText(row.target_status, row.entity_type),
-      legacy: { table: "approval_requests", id: row.id }
+      legacy: { table: "approval_requests", id: row.id },
+      primaryTarget: { type: row.entity_type, targetId: row.entity_id, code: row.target_code, label: row.target_label ?? row.entity_type }
     }));
   }
 
-  private async listLegacySubmissionInbox(input: { status?: "active" | "all" | ApprovalPlatformStatus; limit: number }) {
+  private async listLegacySubmissionInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; query?: string; limit: number }) {
     const status = this.legacyStatusPredicate("r.request_status", input.status);
+    const search = approvalSearchPredicate(input.query, [
+      "r.id",
+      "r.submission_id",
+      "requester.display_name",
+      "i.part_number",
+      "s.drawing_number",
+      "s.revision"
+    ]);
     const rows = await this.client.query<{
       id: string;
       submission_id: string;
@@ -1034,14 +1288,17 @@ export class AsyncApprovalPlatformRepository {
       JOIN submissions s ON s.id = r.submission_id
       JOIN items i ON i.id = s.item_id
       LEFT JOIN users requester ON requester.id = r.requested_by
-      WHERE r.action_code = 'obsolete_submission'
+      WHERE s.company_id = :companyId
+        AND r.action_code = 'obsolete_submission'
         ${status.sql}
+        ${search.sql}
       ORDER BY r.requested_at DESC, r.id DESC
       LIMIT :limit
     `,
-      { limit: input.limit, ...status.params }
+      { companyId: input.companyId, limit: input.limit, ...status.params, ...search.params }
     );
     return rows.map((row): ApprovalPlatformInboxItem => ({
+      rowKey: approvalPlatformInboxRowKey("legacy_submission", encodeLegacyApprovalId("legacy_submission", row.id)),
       id: encodeLegacyApprovalId("legacy_submission", row.id),
       source: "legacy_submission",
       companyId: row.company_id ?? DEFAULT_COMPANY_ID,
@@ -1059,12 +1316,29 @@ export class AsyncApprovalPlatformRepository {
       packageStatus: null,
       targetSummary: [row.drawing_number, row.part_number, row.revision].filter(Boolean).join(" / ") || row.submission_id,
       impactSummary: "Released -> Obsolete",
-      legacy: { table: "submission_lifecycle_requests", id: row.id }
+      legacy: { table: "submission_lifecycle_requests", id: row.id },
+      primaryTarget: {
+        type: "submission",
+        targetId: row.submission_id,
+        code: row.drawing_number,
+        label: [row.drawing_number, row.revision].filter(Boolean).join(" / ") || row.submission_id
+      }
     }));
   }
 
-  private async listLegacyBomInbox(input: { status?: "active" | "all" | ApprovalPlatformStatus; limit: number }) {
+  private async listLegacyBomInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; query?: string; limit: number }) {
     const status = this.legacyStatusPredicate("rr.status", input.status);
+    const search = approvalSearchPredicate(input.query, [
+      "rr.id",
+      "rr.bom_draft_id",
+      "rr.lifecycle_action",
+      "requester.display_name",
+      "bd.draft_name",
+      "pn.part_number",
+      "i.part_number",
+      "bd.bom_revision",
+      "bd.parent_revision"
+    ]);
     const rows = await this.client.query<{
       id: string;
       bom_draft_id: string;
@@ -1074,31 +1348,39 @@ export class AsyncApprovalPlatformRepository {
       requested_by_name: string | null;
       change_reason: string;
       submitted_at: string;
+      company_id: string | null;
       draft_name: string;
+      parent_part_number: string;
       parent_submission_id: string;
-      parent_revision: string;
+      display_revision: string;
     }>(
       `
       SELECT
         rr.*,
         requester.display_name AS requested_by_name,
+        bd.company_id,
         bd.draft_name,
         bd.parent_submission_id,
-        bd.parent_revision
+        COALESCE(pn.part_number, i.part_number, '') AS parent_part_number,
+        COALESCE(bd.bom_revision, bd.parent_revision, '-') AS display_revision
       FROM bom_review_requests rr
       JOIN bom_drafts bd ON bd.id = rr.bom_draft_id
       LEFT JOIN users requester ON requester.id = rr.submitted_by
-      WHERE 1 = 1
+      LEFT JOIN part_numbers pn ON pn.id = bd.owner_part_number_id
+      LEFT JOIN items i ON i.id = bd.parent_item_id
+      WHERE bd.company_id = :companyId
         ${status.sql}
+        ${search.sql}
       ORDER BY rr.submitted_at DESC, rr.id DESC
       LIMIT :limit
     `,
-      { limit: input.limit, ...status.params }
+      { companyId: input.companyId, limit: input.limit, ...status.params, ...search.params }
     );
     return rows.map((row): ApprovalPlatformInboxItem => ({
+      rowKey: approvalPlatformInboxRowKey("legacy_bom", encodeLegacyApprovalId("legacy_bom", row.id)),
       id: encodeLegacyApprovalId("legacy_bom", row.id),
       source: "legacy_bom",
-      companyId: DEFAULT_COMPANY_ID,
+      companyId: row.company_id ?? input.companyId,
       actionCode: row.lifecycle_action === "obsolete" ? "bom.obsolete_review" : "bom.release_review",
       actionTitle: row.lifecycle_action === "obsolete" ? "BOM 作廢審核" : "BOM 發行審核",
       domainCode: "bom",
@@ -1111,14 +1393,27 @@ export class AsyncApprovalPlatformRepository {
       packageId: null,
       packageCode: null,
       packageStatus: null,
-      targetSummary: `${row.draft_name} / ${row.parent_revision}`,
+      targetSummary: row.parent_part_number
+        ? `${row.parent_part_number} BOM Rev ${row.display_revision}`
+        : /\bBOM\s+Rev\b/i.test(row.draft_name)
+          ? row.draft_name
+          : `${row.draft_name} / BOM Rev ${row.display_revision}`,
       impactSummary: row.lifecycle_action,
       legacy: { table: "bom_review_requests", id: row.id }
     }));
   }
 
-  private async listLegacyDrawingPackageInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; limit: number }) {
+  private async listLegacyDrawingPackageInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; query?: string; limit: number }) {
     const status = this.legacyStatusPredicate("s.status", input.status);
+    const search = approvalSearchPredicate(input.query, [
+      "s.id",
+      "s.package_id",
+      "s.reason_code",
+      "s.reason_note",
+      "requester.display_name",
+      "p.drawing_number",
+      "p.revision"
+    ]);
     const rows = await this.client.query<{
       id: string;
       package_id: string;
@@ -1146,12 +1441,14 @@ export class AsyncApprovalPlatformRepository {
       LEFT JOIN users requester ON requester.id = s.requested_by
       WHERE p.company_id = :companyId
         ${status.sql}
+        ${search.sql}
       ORDER BY s.requested_at DESC, s.id DESC
       LIMIT :limit
     `,
-      { companyId: input.companyId, limit: input.limit, ...status.params }
+      { companyId: input.companyId, limit: input.limit, ...status.params, ...search.params }
     );
     return rows.map((row): ApprovalPlatformInboxItem => ({
+      rowKey: approvalPlatformInboxRowKey("legacy_drawing_package", encodeLegacyApprovalId("legacy_drawing_package", row.id)),
       id: encodeLegacyApprovalId("legacy_drawing_package", row.id),
       source: "legacy_drawing_package",
       companyId: row.company_id,
@@ -1169,16 +1466,34 @@ export class AsyncApprovalPlatformRepository {
       packageStatus: null,
       targetSummary: `${row.drawing_number} / rev ${row.revision}`,
       impactSummary: row.reason_code,
-      legacy: { table: "drawing_revision_package_supplements", id: row.id }
+      legacy: { table: "drawing_revision_package_supplements", id: row.id },
+      primaryTarget: {
+        type: "drawing_revision_package",
+        targetId: row.package_id,
+        code: row.drawing_number,
+        label: `${row.drawing_number} / rev ${row.revision}`
+      }
     }));
   }
 
   private async listLegacyDrawingRevisionReviewInbox(input: {
     companyId: string;
     status?: "active" | "all" | ApprovalPlatformStatus;
+    query?: string;
     limit: number;
   }) {
     const statusSql = drawingRevisionReviewStatusPredicate(input.status);
+    const search = approvalSearchPredicate(input.query, [
+      "a.id",
+      "a.revision",
+      "a.detected_part_number",
+      "a.corrected_part_number",
+      "a.reason_category",
+      "a.note",
+      "assessor.display_name",
+      "dn.drawing_number",
+      "pnd.reserved_part_number"
+    ]);
     const rows = await this.client.query<{
       id: string;
       company_id: string;
@@ -1202,6 +1517,10 @@ export class AsyncApprovalPlatformRepository {
       review_action: string | null;
       review_result: string | null;
       review_occurred_at: string | null;
+      superseded_by_assessment_id: string | null;
+      superseded_at: string | null;
+      revision_package_id: string | null;
+      source_submission_status: string | null;
     }>(
       `
       SELECT
@@ -1209,11 +1528,51 @@ export class AsyncApprovalPlatformRepository {
         assessor.display_name AS assessed_by_name,
         dn.drawing_number,
         pnd.reserved_part_number AS replacement_reserved_part_number,
+        source_submission.status AS source_submission_status,
         rce.action AS review_action,
         rce.result AS review_result,
-        rce.occurred_at AS review_occurred_at
+        rce.occurred_at AS review_occurred_at,
+        (
+          SELECT newer_assessment.id
+          FROM drawing_revision_fff_assessments newer_assessment
+          WHERE newer_assessment.company_id = a.company_id
+            AND newer_assessment.drawing_number_id = a.drawing_number_id
+            AND newer_assessment.revision = a.revision
+            AND (
+              newer_assessment.assessed_at > a.assessed_at
+              OR (newer_assessment.assessed_at = a.assessed_at AND newer_assessment.id > a.id)
+            )
+          ORDER BY newer_assessment.assessed_at DESC, newer_assessment.id DESC
+          LIMIT 1
+        ) AS superseded_by_assessment_id,
+        (
+          SELECT newer_assessment.assessed_at
+          FROM drawing_revision_fff_assessments newer_assessment
+          WHERE newer_assessment.company_id = a.company_id
+            AND newer_assessment.drawing_number_id = a.drawing_number_id
+            AND newer_assessment.revision = a.revision
+            AND (
+              newer_assessment.assessed_at > a.assessed_at
+              OR (newer_assessment.assessed_at = a.assessed_at AND newer_assessment.id > a.id)
+            )
+          ORDER BY newer_assessment.assessed_at DESC, newer_assessment.id DESC
+          LIMIT 1
+        ) AS superseded_at,
+        (
+          SELECT package.id
+          FROM drawing_revision_packages package
+          WHERE package.company_id = a.company_id
+            AND package.drawing_number_id = a.drawing_number_id
+            AND package.revision = a.revision
+            AND (a.submission_id IS NULL OR package.source_submission_id = a.submission_id)
+          ORDER BY CASE WHEN package.source_submission_id = a.submission_id THEN 0 ELSE 1 END,
+                   package.updated_at DESC,
+                   package.id DESC
+          LIMIT 1
+        ) AS revision_package_id
       FROM drawing_revision_fff_assessments a
       LEFT JOIN users assessor ON assessor.id = a.assessed_by
+      LEFT JOIN submissions source_submission ON source_submission.id = a.submission_id
       LEFT JOIN drawing_numbers dn ON dn.id = a.drawing_number_id
       LEFT JOIN part_number_drafts pnd ON pnd.id = a.replacement_part_number_draft_id
       LEFT JOIN review_confirmation_events rce ON rce.id = (
@@ -1231,10 +1590,11 @@ export class AsyncApprovalPlatformRepository {
           WHERE lifecycle.legacy_fff_assessment_id = a.id
         )
         ${statusSql}
+        ${search.sql}
       ORDER BY COALESCE(rce.occurred_at, a.assessed_at) DESC, a.id DESC
       LIMIT :limit
     `,
-      { companyId: input.companyId, limit: input.limit }
+      { companyId: input.companyId, limit: input.limit, ...search.params }
     );
 
     return rows.map((row): ApprovalPlatformInboxItem => {
@@ -1245,7 +1605,11 @@ export class AsyncApprovalPlatformRepository {
       ]
         .filter(Boolean)
         .join(" / ");
+      const supersededByRequestId = row.superseded_by_assessment_id
+        ? encodeLegacyApprovalId("legacy_drawing_revision_review", row.superseded_by_assessment_id)
+        : null;
       return {
+        rowKey: approvalPlatformInboxRowKey("legacy_drawing_revision_review", encodeLegacyApprovalId("legacy_drawing_revision_review", row.id)),
         id: encodeLegacyApprovalId("legacy_drawing_revision_review", row.id),
         source: "legacy_drawing_revision_review",
         companyId: row.company_id,
@@ -1263,51 +1627,93 @@ export class AsyncApprovalPlatformRepository {
         packageStatus: null,
         targetSummary,
         impactSummary: outcome,
-        legacy: { table: "drawing_revision_fff_assessments", id: row.id }
+        legacy: { table: "drawing_revision_fff_assessments", id: row.id },
+        historyOnly: Boolean(supersededByRequestId),
+        supersededByRequestId,
+        supersededAt: row.superseded_at,
+        primaryTarget: {
+          type: row.revision_package_id ? "drawing_revision_package" : "drawing_number",
+          targetId: row.revision_package_id ?? row.drawing_number_id,
+          code: row.drawing_number,
+          label: `${row.drawing_number ?? row.drawing_number_id} / rev ${row.revision}`
+        }
       };
     });
   }
 
-  private async getLegacyDetail(source: Exclude<ApprovalPlatformSource, "platform">, legacyId: string) {
+  private async getLegacyDetail(source: Exclude<ApprovalPlatformSource, "platform">, legacyId: string, companyId: string) {
     const lists = {
-      legacy_numbering: () => this.listLegacyNumberingInbox({ companyId: DEFAULT_COMPANY_ID, status: "all", limit: 500 }),
-      legacy_submission: () => this.listLegacySubmissionInbox({ status: "all", limit: 500 }),
-      legacy_bom: () => this.listLegacyBomInbox({ status: "all", limit: 500 }),
-      legacy_drawing_package: () => this.listLegacyDrawingPackageInbox({ companyId: DEFAULT_COMPANY_ID, status: "all", limit: 500 }),
+      legacy_numbering: () => this.listLegacyNumberingInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
+      legacy_submission: () => this.listLegacySubmissionInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
+      legacy_bom: () => this.listLegacyBomInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
+      legacy_drawing_package: () => this.listLegacyDrawingPackageInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
       legacy_drawing_revision_review: () =>
-        this.listLegacyDrawingRevisionReviewInbox({ companyId: DEFAULT_COMPANY_ID, status: "all", limit: 500 })
+        this.listLegacyDrawingRevisionReviewInbox({ companyId, status: "all", query: legacyId, limit: 10 })
     };
     const encoded = encodeLegacyApprovalId(source, legacyId);
     const base = (await lists[source]()).find((item) => item.id === encoded);
     if (!base) return null;
+    const legacyNumberingPayload = source === "legacy_numbering"
+      ? parseJsonObject((await this.client.queryOne<{ payload_json: string }>(
+          `SELECT payload_json FROM approval_requests WHERE id = :legacyId AND company_id = :companyId LIMIT 1`,
+          { legacyId, companyId }
+        ))?.payload_json)
+      : {};
     const isDrawingRevisionReview = source === "legacy_drawing_revision_review";
+    const drawingRevisionEvidence = isDrawingRevisionReview
+      ? await this.getLegacyDrawingRevisionEvidenceSnapshot(legacyId, companyId)
+      : null;
     const payload = isDrawingRevisionReview
       ? {
           outcome: base.impactSummary,
-          allowedDecisions: drawingRevisionAllowedDecisions(base.impactSummary),
+          allowedDecisions: drawingRevisionAllowedDecisions(),
           recommendedAction: drawingRevisionRecommendedAction(base.impactSummary)
         }
-      : {};
+      : legacyNumberingPayload;
     const impactSnapshot = isDrawingRevisionReview
       ? {
           targetSummary: base.targetSummary,
           outcome: base.impactSummary,
-          allowedDecisions: drawingRevisionAllowedDecisions(base.impactSummary),
+          allowedDecisions: drawingRevisionAllowedDecisions(),
           recommendedAction: drawingRevisionRecommendedAction(base.impactSummary),
+          ...(drawingRevisionEvidence ?? {}),
           legacy: base.legacy
         }
-      : { targetSummary: base.targetSummary, impactSummary: base.impactSummary, legacy: base.legacy };
+      : { ...legacyNumberingPayload, targetSummary: base.targetSummary, impactSummary: base.impactSummary, legacy: base.legacy };
+    const primaryTarget = base.primaryTarget;
+    const childTargets = source === "legacy_numbering" && Array.isArray(legacyNumberingPayload.childTargets)
+      ? legacyNumberingPayload.childTargets.flatMap((value, index): ApprovalPlatformTarget[] => {
+          if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+          const child = value as Record<string, unknown>;
+          const type = typeof child.entityType === "string" ? child.entityType.trim() : "";
+          const targetId = typeof child.entityId === "string" ? child.entityId.trim() : "";
+          const code = typeof child.entityCode === "string" ? child.entityCode.trim() : "";
+          const status = typeof child.recordStatus === "string" ? child.recordStatus.trim() : "";
+          if (!type || !targetId) return [];
+          return [{
+            id: `${encoded}:impact:${index}`,
+            role: "impact",
+            type,
+            targetId,
+            code: code || null,
+            label: code || targetId,
+            status: status || null,
+            snapshot: { ...child }
+          }];
+        })
+      : [];
     const targets: ApprovalPlatformTarget[] = [
       {
         id: `${encoded}:target`,
         role: "primary",
-        type: base.legacy?.table ?? source,
-        targetId: legacyId,
-        code: base.targetSummary,
-        label: base.targetSummary,
+        type: primaryTarget?.type ?? base.legacy?.table ?? source,
+        targetId: primaryTarget?.targetId ?? legacyId,
+        code: primaryTarget?.code ?? base.targetSummary,
+        label: primaryTarget?.label ?? base.targetSummary,
         status: base.status,
         snapshot: { legacy: base.legacy }
-      }
+      },
+      ...childTargets
     ];
     return {
       ...base,
@@ -1328,6 +1734,229 @@ export class AsyncApprovalPlatformRepository {
       applyAttempts: null,
       applyError: null
     } satisfies ApprovalPlatformRequestDetail;
+  }
+
+  private async getLegacyDrawingRevisionEvidenceSnapshot(legacyId: string, companyId: string) {
+    const rows = await this.client.query<{
+      drawing_number_id: string;
+      drawing_number: string | null;
+      revision: string;
+      submission_id: string | null;
+      package_id: string | null;
+      file_id: string | null;
+      source_file_asset_id: string | null;
+      source_submission_file_id: string | null;
+      role: string | null;
+      display_name: string | null;
+      description: string | null;
+      is_primary: number | string | null;
+      original_filename: string | null;
+      sha256: string | null;
+      file_size: number | string | null;
+      hash_algorithm: string | null;
+      detected_part_number: string | null;
+      corrected_part_number: string | null;
+      form_state: string;
+      fit_state: string;
+      function_state: string;
+      reason_category: string;
+      note: string | null;
+    }>(
+      `
+        SELECT
+          assessment.drawing_number_id,
+          drawing.drawing_number,
+          assessment.revision,
+          assessment.submission_id,
+          revision_package.id AS package_id,
+          package_file.id AS file_id,
+          package_file.source_file_asset_id,
+          package_file.source_submission_file_id,
+          package_file.role,
+          package_file.display_name,
+          package_file.description,
+          package_file.is_primary,
+          submission_file.original_filename,
+          COALESCE(submission_file.sha256, source_asset.content_hash) AS sha256,
+          COALESCE(submission_file.file_size, source_asset.file_size) AS file_size,
+          COALESCE(source_asset.hash_algorithm, 'SHA-256') AS hash_algorithm,
+          assessment.detected_part_number,
+          assessment.corrected_part_number,
+          assessment.form_state,
+          assessment.fit_state,
+          assessment.function_state,
+          assessment.reason_category,
+          assessment.note
+        FROM drawing_revision_fff_assessments assessment
+        LEFT JOIN drawing_numbers drawing ON drawing.id = assessment.drawing_number_id
+        LEFT JOIN drawing_revision_packages revision_package ON revision_package.id = (
+          SELECT candidate.id
+          FROM drawing_revision_packages candidate
+          WHERE candidate.company_id = assessment.company_id
+            AND candidate.drawing_number_id = assessment.drawing_number_id
+            AND candidate.revision = assessment.revision
+            AND (assessment.submission_id IS NULL OR candidate.source_submission_id = assessment.submission_id)
+          ORDER BY CASE WHEN candidate.source_submission_id = assessment.submission_id THEN 0 ELSE 1 END,
+                   candidate.updated_at DESC,
+                   candidate.id DESC
+          LIMIT 1
+        )
+        LEFT JOIN drawing_revision_package_files package_file ON package_file.package_id = revision_package.id
+        LEFT JOIN submission_files submission_file ON submission_file.id = package_file.source_submission_file_id
+        LEFT JOIN file_assets source_asset ON source_asset.id = package_file.source_file_asset_id
+        WHERE assessment.id = :legacyId
+          AND assessment.company_id = :companyId
+        ORDER BY package_file.sort_order ASC, package_file.created_at ASC, package_file.id ASC
+      `,
+      { legacyId, companyId }
+    );
+    const header = rows[0];
+    if (!header) return null;
+
+    let files = rows
+      .filter((row) => Boolean(row.file_id && row.source_file_asset_id))
+      .map((row) => ({
+        id: row.file_id,
+        sourceFileAssetId: row.source_file_asset_id,
+        submissionFileId: row.source_submission_file_id,
+        role: row.role ?? "other",
+        displayName: row.display_name || row.original_filename || "審核附件",
+        description: row.description ?? "",
+        isPrimary: Number(row.is_primary) === 1,
+        contentHash: row.sha256,
+        hashAlgorithm: row.hash_algorithm ?? "SHA-256",
+        fileSize: row.file_size === null ? null : Number(row.file_size)
+      }));
+
+    if (files.length === 0 && header.submission_id) {
+      const fallbackRows = await this.client.query<{
+        id: string;
+        source_file_asset_id: string | null;
+        source_master_attachment_id: string | null;
+        file_role: string;
+        original_filename: string;
+        sha256: string;
+        file_size: number | string;
+        document_category: string | null;
+        display_name: string | null;
+        description: string | null;
+      }>(
+        `
+          SELECT
+            submission_file.id,
+            submission_file.source_file_asset_id,
+            submission_file.source_master_attachment_id,
+            submission_file.file_role,
+            submission_file.original_filename,
+            submission_file.sha256,
+            submission_file.file_size,
+            source_asset.document_category,
+            source_asset.display_name,
+            source_asset.description
+          FROM submission_files submission_file
+          LEFT JOIN file_assets source_asset
+            ON source_asset.id = COALESCE(submission_file.source_file_asset_id, submission_file.source_master_attachment_id)
+          WHERE submission_file.submission_id = :submissionId
+          ORDER BY submission_file.created_at ASC, submission_file.id ASC
+        `,
+        { submissionId: header.submission_id }
+      );
+      files = fallbackRows.map((row) => ({
+        id: row.id,
+        sourceFileAssetId: row.source_file_asset_id ?? row.source_master_attachment_id,
+        submissionFileId: row.id,
+        role: legacyDrawingRevisionFileRole(row.document_category, row.file_role),
+        displayName: row.display_name || row.original_filename,
+        description: row.description ?? "",
+        isPrimary: ["cad_3d", "drawing_2d"].includes(legacyDrawingRevisionFileRole(row.document_category, row.file_role)),
+        contentHash: row.sha256,
+        hashAlgorithm: "SHA-256",
+        fileSize: Number(row.file_size)
+      }));
+    }
+
+    const scopedParts = header.submission_id
+      ? await this.client.query<{
+          id: string;
+          part_number_id: string;
+          part_number: string;
+          part_name: string;
+          link_type: string;
+          form_state: string;
+          fit_state: string;
+          function_state: string;
+          fff_outcome: string;
+        }>(
+          `
+            SELECT
+              id,
+              part_number_id,
+              part_number,
+              part_name,
+              link_type,
+              form_state,
+              fit_state,
+              function_state,
+              fff_outcome
+            FROM submission_part_scopes
+            WHERE submission_id = :submissionId
+              AND company_id = :companyId
+            ORDER BY part_number ASC, part_number_id ASC
+          `,
+          { submissionId: header.submission_id, companyId }
+        )
+      : [];
+    const fallbackPartNumber = header.corrected_part_number || header.detected_part_number;
+    const outcome = drawingRevisionOutcome(header);
+    const parts = scopedParts.length > 0
+      ? scopedParts.map((part) => ({
+          id: part.part_number_id || part.id,
+          number: part.part_number,
+          name: part.part_name,
+          linkType: part.link_type,
+          fff: {
+            formState: part.form_state,
+            fitState: part.fit_state,
+            functionState: part.function_state,
+            outcome: part.fff_outcome
+          }
+        }))
+      : fallbackPartNumber
+        ? [{
+            id: fallbackPartNumber,
+            number: fallbackPartNumber,
+            name: "",
+            linkType: "primary_manufacturing",
+            fff: {
+              formState: header.form_state,
+              fitState: header.fit_state,
+              functionState: header.function_state,
+              outcome
+            }
+          }]
+        : [];
+
+    return {
+      drawing: {
+        id: header.drawing_number_id,
+        number: header.drawing_number,
+        revision: header.revision,
+        packageId: header.package_id,
+        submissionId: header.submission_id
+      },
+      parts,
+      fff: {
+        detectedPartNumber: header.detected_part_number,
+        correctedPartNumber: header.corrected_part_number,
+        formState: header.form_state,
+        fitState: header.fit_state,
+        functionState: header.function_state,
+        outcome,
+        reasonCategory: header.reason_category,
+        note: header.note
+      },
+      files
+    };
   }
 
   private async listLegacyDecisions(
@@ -1413,7 +2042,23 @@ function numberingActionTitle(actionCode: string) {
     main_drawing_restore: "主圖恢復審核",
     obsolete_part_number: "料號作廢審核",
     obsolete_ma_drawing: "圖號作廢審核",
-    obsolete_part_root: "主根作廢審核"
+    obsolete_part_root: "圖料根號作廢審核"
   };
   return titles[actionCode] ?? actionCode;
+}
+
+function legacyDrawingRevisionFileRole(documentCategory: string | null, fileRole: string) {
+  const normalizedCategory = documentCategory?.trim().toLowerCase();
+  if (normalizedCategory === "cad_3d" || normalizedCategory === "drawing_2d" || normalizedCategory === "pdf") {
+    return normalizedCategory;
+  }
+  if (normalizedCategory === "dwg" || normalizedCategory === "dxf" || normalizedCategory === "dwg_dxf") {
+    return "dwg_dxf";
+  }
+  const normalizedRole = fileRole.trim().toLowerCase();
+  if (["sldprt", "sldasm", "step", "stp", "iges", "igs", "x_t", "x_b"].includes(normalizedRole)) return "cad_3d";
+  if (["slddrw", "drawing_2d"].includes(normalizedRole)) return "drawing_2d";
+  if (normalizedRole === "pdf") return "pdf";
+  if (["dwg", "dxf", "dwg_dxf"].includes(normalizedRole)) return "dwg_dxf";
+  return "other";
 }

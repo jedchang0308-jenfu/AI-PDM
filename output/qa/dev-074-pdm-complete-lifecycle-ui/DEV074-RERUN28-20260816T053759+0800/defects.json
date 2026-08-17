@@ -1,0 +1,16 @@
+[
+  {
+    "id": "DEV074-R28-P1-024",
+    "severity": "P1",
+    "path": "D05",
+    "status": "fixed_target_retest_passed",
+    "title": "Unified reviewer drawer omits locked FFF assessment facts",
+    "expected": "Reviewer UI visibly shows A0040-P06, Form suspected impact, Fit no impact, Function no impact, and both controlled files before decision.",
+    "actual": "Reviewer UI showed the drawing, A0040-P06 and both files, but the ReviewContextProjection contained no FFF conclusion or Form/Fit/Function values.",
+    "evidence": "screenshots/D05/fff-snapshot-missing-failure.png",
+    "request_id": "legacy:legacy_drawing_revision_review:aaa7c620-c672-475f-b106-ad2e9ab4663b",
+    "root_cause": "The primary approvals route uses UnifiedPdmEntityDetailDrawer, while the prior repair rendered FFF facts only in the legacy ApprovalDetailDrawer.",
+    "fix": "Projected the same locked legacy review evidence into ReviewContextProjection and rendered FFF, affected parts, and submitted files.",
+    "target_retest": "screenshots/D05/rd-target-retest-unified-fff-visible.png"
+  }
+]

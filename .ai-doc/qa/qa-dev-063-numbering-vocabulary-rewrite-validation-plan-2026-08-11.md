@@ -9,7 +9,7 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-NUMBERING-IDENTITY-VOCABULARY-001-stored
 
 ## 1. Objective
 
-驗證使用者可見身份統一為「編號／主根號／料號／圖號」，移除「保留號」、「候選」與號碼效力分類，
+驗證使用者可見身份統一為「編號／圖料根號／料號／圖號」，並將「同主根號料號」顯示為「同根料號」，移除「保留號」、「候選」與號碼效力分類，
 並確認 5C local rewrite 只改人類可讀文字，不破壞 machine identity、流程狀態與權限 authority。
 
 本 phase 尚無稽核要求；5C 仍驗證 raw audit／hash-bound snapshot 不覆寫，並驗證其人類可讀顯示投影。Production data、正式 migration、deploy 與 release 不在本計畫範圍。
@@ -35,6 +35,7 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-NUMBERING-IDENTITY-VOCABULARY-001-stored
 | QA-063-008 | old URL | `?tab=reserved`／`?tab=drafts` 仍 zero-write canonicalize |
 | QA-063-009 | 5C rewrite | history 與可變人類文字完成改寫；audit/snapshot 以顯示投影改寫，raw value/hash、machine code、ID、state、permission invariants 不變 |
 | QA-063-010 | rerun | 相同 migration version 重跑不重複改寫、不增加資料列、不改號碼值 |
+| QA-063-011 | root vocabulary | 產品畫面與現行 API/服務訊息使用「圖料根號」；同根料件區塊使用「同根料號」；內部 root identifiers 維持原值 |
 
 ## 4. Data Rewrite Gates
 

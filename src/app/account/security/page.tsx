@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyRound, MonitorSmartphone, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
+import { ReasonActionDialog } from "@/components/reason-action-dialog";
 
 type AccountSession = {
   id: string;
@@ -45,6 +46,7 @@ export default function AccountSecurityPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [sessionToRevoke, setSessionToRevoke] = useState<AccountSession | null>(null);
 
   const activeSessions = useMemo(() => sessions.filter((session) => !session.revokedAt), [sessions]);
   const currentSession = useMemo(() => sessions.find((session) => session.current) ?? null, [sessions]);
@@ -71,9 +73,7 @@ export default function AccountSecurityPage() {
     void load();
   }, [load]);
 
-  async function revoke(session: AccountSession) {
-    const reason = window.prompt("請輸入撤銷原因。", "非本人使用或不再使用此裝置");
-    if (!reason?.trim()) return;
+  async function revoke(session: AccountSession, reason: string) {
     setBusy(session.id);
     setMessage(null);
     const response = await fetch(`/api/account/sessions/${encodeURIComponent(session.id)}/revoke`, {
@@ -85,10 +85,11 @@ export default function AccountSecurityPage() {
     setBusy("");
     if (!response.ok) {
       setMessage({ type: "error", text: body.message ?? "工作階段撤銷失敗。" });
-      return;
+      return false;
     }
     setMessage({ type: "success", text: "已撤銷指定登入裝置。" });
     await load();
+    return true;
   }
 
   async function requestRecovery() {
@@ -181,7 +182,7 @@ export default function AccountSecurityPage() {
                   ) : session.current ? (
                     <span className="account-session-state"><ShieldCheck size={15} aria-hidden="true" />保留目前登入</span>
                   ) : (
-                    <button className="danger-button" type="button" disabled={Boolean(busy)} onClick={() => void revoke(session)}>
+                    <button className="danger-button" type="button" disabled={Boolean(busy)} onClick={() => setSessionToRevoke(session)}>
                       {busy === session.id ? "撤銷中..." : "撤銷"}
                     </button>
                   )}
@@ -191,6 +192,20 @@ export default function AccountSecurityPage() {
           </div>
         ) : null}
       </section>
+      <ReasonActionDialog
+        open={Boolean(sessionToRevoke)}
+        title="撤銷登入裝置"
+        description="撤銷後，這個裝置的登入狀態會立即失效。"
+        confirmLabel="確認撤銷"
+        defaultReason="非本人使用或不再使用此裝置"
+        tone="danger"
+        busy={Boolean(busy)}
+        onCancel={() => setSessionToRevoke(null)}
+        onConfirm={async (reason) => {
+          if (!sessionToRevoke) return;
+          if (await revoke(sessionToRevoke, reason)) setSessionToRevoke(null);
+        }}
+      />
     </div>
   );
 }

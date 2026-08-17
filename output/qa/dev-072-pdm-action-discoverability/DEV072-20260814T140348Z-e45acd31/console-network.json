@@ -1,0 +1,1269 @@
+{
+  "consoleEvents": [],
+  "network": [
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/login",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_app_0hs20a4._.css",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1di75ot._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_client_0_90u2t._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/_1anvha4._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/turbopack-_08bm286._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/_1urspxg._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_0ar-kp6._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_1dn5jw-._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_14e3owu._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_1w7-qx4._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "POST",
+      "url": "http://127.0.0.1:59050/api/auth/login",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/mode",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/mode",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/numbering/drawings?view=all&detail=candidate%3Adraft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_app_0hs20a4._.css",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1di75ot._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_client_0_90u2t._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/_1anvha4._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/turbopack-_08bm286._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/_1uz5izg._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_0ar-kp6._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_1dn5jw-._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_components_master-attachment-panel_tsx_0b5y1ka._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_components_number-state-workspace_tsx_1mho3vz._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_components_drawing-workbench_tsx_10w5fpf._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_components_1dxpopo._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_app_numbering_drawings_page_tsx_1yep7wo._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_lib_0np6cs0._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_0davncr._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/me",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/privacy/acknowledgements/current",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/me",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/privacy/acknowledgements/current",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/me",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/me",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/drawings/workbench?view=all&limit=50&history=exclude&sortDirection=asc",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/drawings/workbench/candidate%3Adraft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/pdm/entity-details/candidate%3Adraft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c?surface=drawing&returnTo=%2Fnumbering%2Fdrawings%3Fview%3Dall%26detail%3Dcandidate%253Adraft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/pdm/entity-details/candidate%3Adraft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c?surface=drawing&returnTo=%2Fnumbering%2Fdrawings%3Fview%3Dall%26detail%3Dcandidate%253Adraft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/approvals/inbox?status=pending&limit=100",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/pdm/entity-details/drawing%3Adrawing-draft-drawing-f398667d-6a2a-49de-97d5-933c6442b9b5?surface=drawing&returnTo=%2Fnumbering%2Fdrawings%3Fview%3Dall%26detail%3Ddrawing%253Adrawing-draft-drawing-f398667d-6a2a-49de-97d5-933c6442b9b5",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/numbering/drawings?detail=drawing%3Adrawing-draft-drawing-f398667d-6a2a-49de-97d5-933c6442b9b5&_rsc=xd3OwbpC5jIlEwdh",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "POST",
+      "url": "http://127.0.0.1:59050/api/numbering/draft-workspaces/draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c/candidate-revisions/NCR-dcbee120-6f92-4274-86cf-7e876d07df0c/files",
+      "mutation": true,
+      "expectedNegative": false
+    },
+    {
+      "label": "locked-desktop",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/pdm/entity-details/drawing%3Adrawing-draft-drawing-f398667d-6a2a-49de-97d5-933c6442b9b5?surface=drawing&returnTo=%2Fnumbering%2Fdrawings%3Fview%3Dall%26detail%3Ddrawing%253Adrawing-draft-drawing-f398667d-6a2a-49de-97d5-933c6442b9b5",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/login",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_app_0hs20a4._.css",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1di75ot._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_client_0_90u2t._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/_1anvha4._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/turbopack-_08bm286._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/_1urspxg._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_0ar-kp6._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_1dn5jw-._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_14e3owu._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_1w7-qx4._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "POST",
+      "url": "http://127.0.0.1:59050/api/auth/login",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/mode",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/mode",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/numbering/drawings?view=all&detail=drawing%3Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_app_0hs20a4._.css",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1di75ot._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_090k2jm.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-6._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_client_0_90u2t._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_%40swc_helpers_cjs_1r9vbqw._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/_1anvha4._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/turbopack-_08bm286._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/_1uz5izg._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_0ar-kp6._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_1dn5jw-._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_components_master-attachment-panel_tsx_0b5y1ka._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_components_number-state-workspace_tsx_1mho3vz._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_components_drawing-workbench_tsx_10w5fpf._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_components_1dxpopo._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_app_numbering_drawings_page_tsx_1yep7wo._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/src_lib_0np6cs0._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/node_modules_0davncr._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/me",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/privacy/acknowledgements/current",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/me",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/privacy/acknowledgements/current",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/me",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/auth/me",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/permissions",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/production-slice/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/state-flow/status",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/drawings/workbench?view=all&limit=50&history=exclude&sortDirection=asc",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/numbering/drawings/workbench/drawing%3Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/pdm/entity-details/drawing%3Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd?surface=drawing&returnTo=%2Fnumbering%2Fdrawings%3Fview%3Dall%26detail%3Ddrawing%253Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/pdm/entity-details/drawing%3Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd?surface=drawing&returnTo=%2Fnumbering%2Fdrawings%3Fview%3Dall%26detail%3Ddrawing%253Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/approvals/inbox?status=pending&limit=100",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/numbering/drawings?detail=drawing%3Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd&_rsc=xd3OwbpC5jIlEwdh",
+      "mutation": false,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "POST",
+      "url": "http://127.0.0.1:59050/api/numbering/draft-workspaces/draft-workspace-d261c7d7-3108-497d-ad6d-af2d123eee8d/candidate-revisions",
+      "mutation": true,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "POST",
+      "url": "http://127.0.0.1:59050/api/numbering/draft-workspaces/draft-workspace-d261c7d7-3108-497d-ad6d-af2d123eee8d/candidate-revisions/NCR-9fd78529-0f5d-41ac-ae54-23389a44b436/files",
+      "mutation": true,
+      "expectedNegative": false
+    },
+    {
+      "label": "first-candidate-upload",
+      "phase": "request",
+      "method": "GET",
+      "url": "http://127.0.0.1:59050/api/pdm/entity-details/drawing%3Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd?surface=drawing&returnTo=%2Fnumbering%2Fdrawings%3Fview%3Dall%26detail%3Ddrawing%253Adrawing-draft-drawing-240a7e1f-fa5a-4dc9-8f95-6feceb61cecd",
+      "mutation": false,
+      "expectedNegative": false
+    }
+  ]
+}

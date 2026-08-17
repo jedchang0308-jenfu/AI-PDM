@@ -1,0 +1,188 @@
+[
+  {
+    "label": "A0005-desktop",
+    "viewport": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    "status": {
+      "key": "rd_controlled",
+      "phase": "usable",
+      "primary": "研發可用",
+      "viewerCategory": "usable"
+    },
+    "actions": [
+      {
+        "id": "detail:drawing:create_revision",
+        "enabled": true,
+        "label": "建立新版次"
+      },
+      {
+        "id": "detail:drawing:view_history",
+        "enabled": true,
+        "label": "查看歷史"
+      },
+      {
+        "id": "detail:navigation:return",
+        "enabled": true,
+        "label": "返回"
+      }
+    ],
+    "geometry": {
+      "viewportWidth": 1440,
+      "documentScrollWidth": 1440,
+      "drawer": {
+        "left": 768,
+        "right": 1428,
+        "width": 660
+      }
+    }
+  },
+  {
+    "label": "A0005-tablet",
+    "viewport": {
+      "name": "tablet",
+      "width": 1024,
+      "height": 768
+    },
+    "status": {
+      "key": "rd_controlled",
+      "phase": "usable",
+      "primary": "研發可用",
+      "viewerCategory": "usable"
+    },
+    "actions": [
+      {
+        "id": "detail:drawing:create_revision",
+        "enabled": true,
+        "label": "建立新版次"
+      },
+      {
+        "id": "detail:drawing:view_history",
+        "enabled": true,
+        "label": "查看歷史"
+      },
+      {
+        "id": "detail:navigation:return",
+        "enabled": true,
+        "label": "返回"
+      }
+    ],
+    "geometry": {
+      "viewportWidth": 1024,
+      "documentScrollWidth": 1024,
+      "drawer": {
+        "left": 352,
+        "right": 1012,
+        "width": 660
+      }
+    }
+  },
+  {
+    "label": "A0005-mobile",
+    "viewport": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "touch": true
+    },
+    "status": {
+      "key": "rd_controlled",
+      "phase": "usable",
+      "primary": "研發可用",
+      "viewerCategory": "usable"
+    },
+    "actions": [
+      {
+        "id": "detail:drawing:create_revision",
+        "enabled": true,
+        "label": "建立新版次"
+      },
+      {
+        "id": "detail:drawing:view_history",
+        "enabled": true,
+        "label": "查看歷史"
+      },
+      {
+        "id": "detail:navigation:return",
+        "enabled": true,
+        "label": "返回"
+      }
+    ],
+    "geometry": {
+      "viewportWidth": 390,
+      "documentScrollWidth": 390,
+      "drawer": {
+        "left": 0,
+        "right": 390,
+        "width": 390
+      }
+    }
+  },
+  {
+    "label": "orphan-desktop",
+    "viewport": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    "status": "unknown",
+    "actionId": "detail:drawing:view_review",
+    "reasonCode": "PDM_ACTION_TARGET_UNAVAILABLE",
+    "recovery": {
+      "text": "找不到有效的審核工作項；請聯絡 PDM 管理者確認流程。",
+      "left": 881,
+      "right": 1201,
+      "top": 776.8125,
+      "bottom": 831,
+      "viewportWidth": 1440,
+      "viewportHeight": 900
+    }
+  },
+  {
+    "label": "orphan-tablet",
+    "viewport": {
+      "name": "tablet",
+      "width": 1024,
+      "height": 768
+    },
+    "status": "unknown",
+    "actionId": "detail:drawing:view_review",
+    "reasonCode": "PDM_ACTION_TARGET_UNAVAILABLE",
+    "recovery": {
+      "text": "找不到有效的審核工作項；請聯絡 PDM 管理者確認流程。",
+      "left": 465,
+      "right": 785,
+      "top": 644.8125,
+      "bottom": 699,
+      "viewportWidth": 1024,
+      "viewportHeight": 768
+    }
+  },
+  {
+    "label": "orphan-mobile",
+    "viewport": {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "touch": true
+    },
+    "status": "unknown",
+    "actionId": "detail:drawing:view_review",
+    "reasonCode": "PDM_ACTION_TARGET_UNAVAILABLE",
+    "recovery": {
+      "text": "找不到有效的審核工作項；請聯絡 PDM 管理者確認流程。",
+      "left": 34.5,
+      "right": 354.5,
+      "top": 618.8125,
+      "bottom": 673,
+      "viewportWidth": 390,
+      "viewportHeight": 844
+    }
+  },
+  {
+    "label": "A0005-active-inbox",
+    "absentDrawingNumber": "A0005-M01"
+  }
+]

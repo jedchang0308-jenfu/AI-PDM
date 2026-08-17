@@ -1,0 +1,37 @@
+{
+  "report": "DEV-074 complete drawing/part lifecycle rendered-UI QC",
+  "run_id": "DEV074-RERUN41-20260816T175643+0800",
+  "status": "PASS",
+  "scope": { "planned": 58, "passed": 58, "failed": 0 },
+  "waves": {
+    "A": { "passed": 4, "failed": 0 },
+    "B": { "passed": 8, "failed": 0 },
+    "C": { "passed": 8, "failed": 0 },
+    "D": { "passed": 14, "failed": 0 },
+    "E": { "passed": 10, "failed": 0 },
+    "F": { "passed": 8, "failed": 0 },
+    "G": { "passed": 6, "failed": 0 }
+  },
+  "test_data": { "main_root": "A0068", "assembly_root": "A0069" },
+  "business_operation_channel": "rendered UI only",
+  "direct_api_or_database_business_mutations": 0,
+  "same_content_policy": {
+    "same_filename_only_is_identity": false,
+    "identity_basis": ["tenant", "role", "SHA-256", "size/content metadata"],
+    "same_content_cross_revision_reuse": "passed",
+    "logical_attachment_visible_per_revision": "passed",
+    "different_content_with_same_filename_blocked": "passed",
+    "missing_content_identity_fail_closed": "passed"
+  },
+  "supplemental": {
+    "viewport": { "passed": 12, "failed": 0 },
+    "dev074_contracts": { "passed": 14, "failed": 0 },
+    "approval_platform_contracts": { "passed": 123, "failed": 0 },
+    "typecheck": "passed",
+    "isolated_production_build": "passed",
+    "git_diff_check": "passed",
+    "unexpected_product_errors": 0
+  },
+  "evidence": { "screenshots": 239, "downloads": 6 },
+  "excluded": ["B09", "D15", "E02", "F08", "legacy_reserved_numbers", "true_engineering_content_change", "bom_xls_import", "ReleaseFailed"]
+}

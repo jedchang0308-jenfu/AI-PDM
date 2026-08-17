@@ -1,4 +1,8 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import {
+  preserveControlledDrawingRevisionLifecycle,
+  projectEffectiveDrawingRevisionLifecycle
+} from "@/lib/drawing-revision-effective-lifecycle";
 
 export const UNIFIED_DRAWING_LIFECYCLE_STATES = [
   "building",
@@ -155,6 +159,7 @@ type FormalRevisionSourceRow = {
   drawing_number_id: string;
   revision: string;
   status: string;
+  submission_status: string | null;
   lifecycle_state: string | null;
   active_correction_reason: string | null;
   snapshot_json: string | Record<string, unknown> | null;
@@ -166,7 +171,9 @@ type FormalRevisionSourceRow = {
   cancelled_at: string | null;
   candidate_revision_id: string | null;
   approval_request_id: string | null;
+  approval_request_status: string | null;
   review_snapshot_hash: string | null;
+  legacy_review_confirmed: number | boolean;
 };
 
 export type UnifiedDrawingRecord = {
@@ -243,16 +250,35 @@ function mapDrawing(row: UnifiedDrawingRow): UnifiedDrawingRecord {
 }
 
 function revisionLifecycleFromSource(input: {
+  revision?: string | null;
   candidateStatus?: WorkspaceDrawingSourceRow["candidate_lifecycle_status"];
   packageStatus?: string | null;
   packageLifecycle?: string | null;
+  approvalRequestStatus?: string | null;
+  legacyReviewConfirmed?: boolean;
 }): UnifiedDrawingRevisionLifecycleState {
-  if (input.packageLifecycle === "released" || input.packageStatus === "Released") return "released";
-  if (input.packageLifecycle === "rd_controlled" || input.candidateStatus === "promoted") return "rd_controlled";
-  if (input.packageLifecycle === "correction_required" || input.packageStatus === "Rejected") return "correction_required";
-  if (input.packageLifecycle === "in_review" || input.packageStatus === "Pending" || input.candidateStatus === "review_locked") return "in_review";
-  if (input.packageStatus === "Cancelled" || input.candidateStatus === "cancelled") return "cancelled";
-  return "preparing";
+  return projectEffectiveDrawingRevisionLifecycle({
+    revision: input.revision,
+    physicalStatus: input.packageStatus,
+    lifecycleState: input.packageLifecycle,
+    candidateStatus: input.candidateStatus,
+    hasActiveApprovalRequest: ["pending", "needs_info"].includes(input.approvalRequestStatus ?? ""),
+    hasLegacyTerminalConfirmation: input.legacyReviewConfirmed
+  });
+}
+
+function preserveControlledDrawingLifecycle(
+  current: UnifiedDrawingLifecycleState | null | undefined,
+  projected: UnifiedDrawingLifecycleState
+): UnifiedDrawingLifecycleState {
+  if (current === "obsolete" || current === "merged") return current;
+  if (current === "released") {
+    return projected === "obsolete" || projected === "merged" ? projected : "released";
+  }
+  if (current === "rd_controlled") {
+    return ["released", "obsolete", "merged"].includes(projected) ? projected : "rd_controlled";
+  }
+  return projected;
 }
 
 function drawingLifecycleFromWorkspace(row: WorkspaceDrawingSourceRow): UnifiedDrawingLifecycleState {
@@ -261,7 +287,8 @@ function drawingLifecycleFromWorkspace(row: WorkspaceDrawingSourceRow): UnifiedD
   const revisionState = revisionLifecycleFromSource({
     candidateStatus: row.candidate_lifecycle_status,
     packageStatus: row.package_status,
-    packageLifecycle: row.package_lifecycle_state
+    packageLifecycle: row.package_lifecycle_state,
+    approvalRequestStatus: row.approval_request_status
   });
   if (row.formal_record_status === "Released" || revisionState === "released") return "released";
   if (revisionState === "rd_controlled" || row.formal_drawing_number_id || row.promoted_master_id) return "rd_controlled";
@@ -282,15 +309,23 @@ function drawingLifecycleFromFormal(row: FormalDrawingSourceRow, revisions: Form
   const latest = revisions[0];
   const revisionState = latest
     ? revisionLifecycleFromSource({
-        packageStatus: latest.status,
+        packageStatus: effectiveFormalPackageStatus(latest),
         packageLifecycle: latest.lifecycle_state,
-        candidateStatus: latest.candidate_revision_id ? "promoted" : null
+        candidateStatus: latest.candidate_revision_id ? "promoted" : null,
+        revision: latest.revision,
+        legacyReviewConfirmed: toBoolean(latest.legacy_review_confirmed)
       })
     : null;
   if (row.record_status === "Released" || revisionState === "released") return "released" as const;
   if (revisionState === "in_review") return "in_review" as const;
   if (revisionState === "correction_required") return "drawing_preparation" as const;
   return "rd_controlled" as const;
+}
+
+function effectiveFormalPackageStatus(row: Pick<FormalRevisionSourceRow, "status" | "submission_status">) {
+  if (row.submission_status === "Cancelled") return "Cancelled";
+  if (row.submission_status === "Rejected") return "Rejected";
+  return row.status;
 }
 
 export class UnifiedDrawingAsyncRepository {
@@ -436,6 +471,7 @@ export class UnifiedDrawingAsyncRepository {
          package.drawing_number_id,
          package.revision,
          package.status,
+         submission.status AS submission_status,
          package.lifecycle_state,
          package.active_correction_reason,
          package.snapshot_json,
@@ -447,17 +483,37 @@ export class UnifiedDrawingAsyncRepository {
          package.cancelled_at,
          candidate.id AS candidate_revision_id,
          candidate.approval_request_id,
-         candidate.review_snapshot_hash
+         request.request_status AS approval_request_status,
+         candidate.review_snapshot_hash,
+         CASE WHEN EXISTS (
+           SELECT 1
+           FROM drawing_revision_fff_assessments assessment
+           JOIN review_confirmation_events confirmation
+             ON confirmation.review_id = assessment.id
+            AND confirmation.company_id = assessment.company_id
+           WHERE assessment.company_id = package.company_id
+             AND assessment.submission_id = package.source_submission_id
+             AND assessment.drawing_number_id = package.drawing_number_id
+             AND assessment.revision = package.revision
+             AND confirmation.action IN (
+               'confirm_bom_no_revision',
+               'confirm_original_part_reuse',
+               'approve_replacement_part_and_drawing_release'
+             )
+         ) THEN 1 ELSE 0 END AS legacy_review_confirmed
        FROM drawing_revision_packages package
+       LEFT JOIN submissions submission ON submission.id = package.source_submission_id
        LEFT JOIN numbering_candidate_revision_drafts candidate
          ON candidate.formal_revision_package_id = package.id AND candidate.company_id = package.company_id
+       LEFT JOIN approval_platform_requests request
+         ON request.id = candidate.approval_request_id AND request.company_id = candidate.company_id
        WHERE package.drawing_number_id = :drawingNumberId AND package.company_id = :companyId
        ORDER BY package.updated_at DESC, package.id DESC`,
       input
     );
     const existing = await this.findByIdOrFormalId({ drawingId: formal.id, companyId: formal.company_id });
     const drawingId = existing?.id ?? (formal.drawing_draft_id ? `drawing-${formal.drawing_draft_id}` : `drawing-formal-${formal.id}`);
-    const lifecycleState = drawingLifecycleFromFormal(formal, revisions);
+    const lifecycleState = preserveControlledDrawingLifecycle(existing?.lifecycleState, drawingLifecycleFromFormal(formal, revisions));
     await this.upsertDrawing({
       id: drawingId,
       companyId: formal.company_id,
@@ -525,7 +581,9 @@ export class UnifiedDrawingAsyncRepository {
     const targetState = revisionLifecycleFromSource({
       candidateStatus: row.candidate_lifecycle_status,
       packageStatus: row.package_status,
-      packageLifecycle: row.package_lifecycle_state
+      packageLifecycle: row.package_lifecycle_state,
+      revision: row.revision,
+      approvalRequestStatus: row.approval_request_status
     });
     const revisionId = `drawing-revision-${row.candidate_revision_id}`;
     await this.upsertRevisionPreparing({
@@ -552,6 +610,9 @@ export class UnifiedDrawingAsyncRepository {
     await this.synchronizeCandidateFiles(revisionId, row.company_id, row.candidate_revision_id);
     if (row.formal_revision_package_id) await this.synchronizePackageFiles(revisionId, row.company_id, row.formal_revision_package_id);
     await this.transitionRevision(revisionId, row.company_id, targetState, row.candidate_updated_by, updatedAt);
+    if (formalDrawingNumberId) {
+      await this.synchronizeFormalDrawing({ drawingNumberId: formalDrawingNumberId, companyId: row.company_id });
+    }
   }
 
   private async synchronizeFormalRevision(drawingId: string, row: FormalRevisionSourceRow) {
@@ -560,8 +621,11 @@ export class UnifiedDrawingAsyncRepository {
       : `drawing-revision-package-${row.package_id}`;
     const targetState = revisionLifecycleFromSource({
       candidateStatus: row.candidate_revision_id ? "promoted" : null,
-      packageStatus: row.status,
-      packageLifecycle: row.lifecycle_state
+      packageStatus: effectiveFormalPackageStatus(row),
+      packageLifecycle: row.lifecycle_state,
+      revision: row.revision,
+      approvalRequestStatus: row.approval_request_status,
+      legacyReviewConfirmed: toBoolean(row.legacy_review_confirmed)
     });
     await this.upsertRevisionPreparing({
       id: revisionId,
@@ -611,6 +675,33 @@ export class UnifiedDrawingAsyncRepository {
     releasedAt: string | null;
     terminalAt: string | null;
   }) {
+    const currentRow = await this.client.queryOne<UnifiedDrawingRow>(
+      "SELECT * FROM drawings WHERE id = :id AND company_id = :companyId",
+      input
+    );
+    const current = currentRow ? mapDrawing(currentRow) : null;
+    const lifecycleState = preserveControlledDrawingLifecycle(current?.lifecycleState, input.lifecycleState);
+    if (current) {
+      const unchanged =
+        current.drawingNumber === (input.drawingNumber ?? current.drawingNumber) &&
+        current.lifecycleState === lifecycleState &&
+        current.workspaceId === (input.workspaceId ?? current.workspaceId) &&
+        current.drawingDraftId === (input.drawingDraftId ?? current.drawingDraftId) &&
+        current.candidateReservationId === (input.reservationId ?? current.candidateReservationId) &&
+        current.formalDrawingNumberId === (input.formalDrawingNumberId ?? current.formalDrawingNumberId) &&
+        current.partRootId === (input.partRootId ?? current.partRootId) &&
+        current.purposeCode === (input.purposeCode ?? current.purposeCode) &&
+        current.purposeDescription === (input.purposeDescription || current.purposeDescription) &&
+        current.sequenceNo === (input.sequenceNo ?? current.sequenceNo) &&
+        current.isPrimaryManufacturing === input.primary &&
+        current.ownerId === (input.ownerId ?? current.ownerId) &&
+        current.ruleVersionId === (input.ruleVersionId ?? current.ruleVersionId) &&
+        current.updatedAt === input.updatedAt &&
+        current.controlledAt === (current.controlledAt ?? input.controlledAt) &&
+        current.releasedAt === (current.releasedAt ?? input.releasedAt) &&
+        current.terminalAt === (current.terminalAt ?? input.terminalAt);
+      if (unchanged) return;
+    }
     await this.client.execute(
       `INSERT INTO drawings (
          id, company_id, drawing_number, lifecycle_state, workspace_id, drawing_draft_id,
@@ -644,7 +735,7 @@ export class UnifiedDrawingAsyncRepository {
          controlled_at = COALESCE(drawings.controlled_at, excluded.controlled_at),
          released_at = COALESCE(drawings.released_at, excluded.released_at),
          terminal_at = COALESCE(drawings.terminal_at, excluded.terminal_at)`,
-      { ...input, primary: input.primary ? 1 : 0 }
+      { ...input, lifecycleState, primary: input.primary ? 1 : 0 }
     );
   }
 
@@ -883,6 +974,13 @@ export class UnifiedDrawingAsyncRepository {
     actorId: string | null,
     updatedAt: string
   ) {
+    const current = await this.client.queryOne<{ lifecycle_state: UnifiedDrawingRevisionLifecycleState }>(
+      "SELECT lifecycle_state FROM drawing_revisions WHERE id = :revisionId AND company_id = :companyId",
+      { revisionId, companyId }
+    );
+    if (!current) return;
+    const nextState = preserveControlledDrawingRevisionLifecycle(current.lifecycle_state, lifecycleState);
+    if (current.lifecycle_state === nextState) return;
     await this.client.execute(
       `UPDATE drawing_revisions
        SET lifecycle_state = :lifecycleState,
@@ -893,7 +991,7 @@ export class UnifiedDrawingAsyncRepository {
            released_at = CASE WHEN :lifecycleState = 'released' THEN COALESCE(released_at, :updatedAt) ELSE released_at END,
            cancelled_at = CASE WHEN :lifecycleState = 'cancelled' THEN COALESCE(cancelled_at, :updatedAt) ELSE cancelled_at END
        WHERE id = :revisionId AND company_id = :companyId`,
-      { revisionId, companyId, lifecycleState, actorId, updatedAt }
+      { revisionId, companyId, lifecycleState: nextState, actorId, updatedAt }
     );
   }
 }

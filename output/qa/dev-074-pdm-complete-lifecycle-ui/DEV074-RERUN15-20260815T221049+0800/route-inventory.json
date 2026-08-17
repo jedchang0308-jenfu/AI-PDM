@@ -1,0 +1,5 @@
+{
+  "families":{"A":["/numbering","/numbering/drawings","/numbering/parts"],"B":["/numbering","/approvals"],"C":["/numbering","/numbering/recognition"],"D":["/numbering/revisions","/approvals"],"E":["/bom/new","/bom/workbench","/approvals"],"F":["/technical-transfer","/approvals"],"G":["/numbering","/numbering/impact","/approvals"]},
+  "viewport_primary":"1440x900",
+  "viewport_regression":["1024x768","768x1024","390x844"]
+}

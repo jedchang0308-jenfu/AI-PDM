@@ -15,14 +15,14 @@ Phase 1 的產品結果固定為：
 - 圖號、料號、圖料清單的每個可選物件最多一個主要狀態。
 - 使用者不讀說明即可分辨 viewer 狀態：待你處理、等他人處理、系統處理中、具體可用範圍、已結束；責任缺口必須明確標示為負責人待確認。
 - 使用者需要原因時，滑過、聚焦或點擊主狀態即可看到同一個人類語言說明層；說明層回答「現在發生什麼、誰要處理、會不會自動完成、下一步」。
-- 同一物件從 owner module 或圖料模組開啟時，狀態、主要 CTA 與 drawer 核心內容一致。
+- 同一物件從 owner module 或圖料工作台開啟時，狀態、主要 CTA 與 drawer 核心內容一致。
 - drawer 維持覆蓋式，開著時可連續點清單切換，不推擠清單。
 - 完成語法只由可追溯證據產生；不得由 `Draft`、`NeedInfo` 或「沒有 blocker」推論已確認。
 
 ## 2. Human Decisions
 
 - 維持覆蓋式 drawer，不改成清單與 drawer 並排。
-- drawing、part 必須共用 owner detail；圖料模組不得維護第二套內容。
+- drawing、part 必須共用 owner detail；圖料工作台不得維護第二套內容。
 - drawer 關閉鈕屬 header inline action，不得另做浮動 X 或上一筆／下一筆控制盒；快速查閱直接點背景清單列。
 - list 第一層只顯示一個主要狀態；counts、分類與識別資訊不得偽裝成競爭狀態。
 - 移除「草稿確認」。若未來需要獨立關聯確認，必須先建立確認人、時間與 relation version/fingerprint evidence。
@@ -517,3 +517,13 @@ Phase 3：若業務需要獨立圖料關聯確認。
 - 必須有 `confirmedAt`、`confirmedBy`、relation version/fingerprint；關係改動後進 `needs_reconfirmation`。
 - re-entry trigger：使用者確認這是獨立業務 gate，而不只是送審 readiness。
 - 狀態：`Future Phase Captured / Not Requested`。
+
+## 17. 2026-08-14 DEV-073 CAPA Amendment — Responsibility Requires Actionability
+
+本節有意收窄原本「assignee／reviewer等於current user即可顯示待你處理」的過寬解讀；完整authority為 `SPEC-PDM-STATUS-ACTIONABILITY-CAPA-001`。
+
+- `current_user` 必須同時有目前責任證據與至少一個適用的domain responsibility action；history／refresh／return等查閱或utility action不能單獨產生待辦。
+- `rd_controlled`／`released` 的客觀usable狀態優先於owner投影，依availability顯示研發可用／生產可用。
+- active review只有exact reviewer可為`current_user`；送審者的可選撤回不等於必辦責任。
+- `in_review`缺active request/workflow時必須fail closed為`unknown / 負責人待確認`，並提供可達的精確恢復原因，不得顯示phantom「待你處理」。
+- 本機實作與DEV-073 QA/QC已通過；production release仍gated。

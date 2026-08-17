@@ -1,0 +1,16 @@
+{
+  "run_id":"DEV074-RERUN4-20260815T170341+0800",
+  "summary":{"pass":4,"fail":1,"blocked":0,"not_run":53},
+  "paths":[
+    {"id":"A01","status":"pass","fixture":"A0015 / A0015-P01 / A0015-M01","evidence":["screenshots/A01/A01-after-1440x900.png"],"readback":"單一候選工作區同時顯示 root、part、drawing 與 1 筆製造基準關聯"},
+    {"id":"A02","status":"pass","fixture":"A0007-M04","evidence":["screenshots/A02/A02-after-1440x900.png"],"readback":"沿用 A0007，只新增 drawing scope；下一料號未被占用"},
+    {"id":"A03","status":"pass","fixture":"A0007-P06 / A0007-P07 / A0007-P08","evidence":["screenshots/A03/A03-manufactured-1440x900.png","screenshots/A03/A03-purchased-1440x900.png","screenshots/A03/A03-standard-1440x900.png"],"readback":"自製、外購、標準件三個資料分區皆由 UI 建立；自製件連到正式製造圖 A0007-M01"},
+    {"id":"A04","status":"pass","fixture":"A0007-M05 / A0007-P09","evidence":["screenshots/A04/A04-after-1440x900.png"],"readback":"同一工作區各建立一次 drawing、part 與 relation；兩端同 root A0007"},
+    {"id":"B01","status":"fail","defect_id":"DEV074-R4-P0-001","fixture":"A0015 / NCR-06d57cb1-50f7-4493-9525-2ea128f48777 / A0033-M01.SLDDRW","evidence":["screenshots/B01/B01-defect-same-content-reattach-blocked-1440x900.png"],"readback":"同一候選版次先由 UI 移除 2D，再重新選取完全相同 bytes；物理資產被去重，但既有 soft-deleted revision-file relation 未恢復，UI 誤報首版主要檔案尚未加入並阻擋流程"},{"id":"B02","status":"not_run"},{"id":"B03","status":"not_run"},{"id":"B04","status":"not_run"},{"id":"B05","status":"not_run"},{"id":"B06","status":"not_run"},{"id":"B07","status":"not_run"},{"id":"B08","status":"not_run"},
+    {"id":"C01","status":"not_run"},{"id":"C02","status":"not_run"},{"id":"C03","status":"not_run"},{"id":"C04","status":"not_run"},{"id":"C05","status":"not_run"},{"id":"C06","status":"not_run"},{"id":"C07","status":"not_run"},{"id":"C08","status":"not_run"},
+    {"id":"D01","status":"not_run"},{"id":"D02","status":"not_run"},{"id":"D03","status":"not_run"},{"id":"D04","status":"not_run"},{"id":"D05","status":"not_run"},{"id":"D06","status":"not_run"},{"id":"D07","status":"not_run"},{"id":"D08","status":"not_run"},{"id":"D09","status":"not_run"},{"id":"D10","status":"not_run"},{"id":"D11","status":"not_run"},{"id":"D12","status":"not_run"},{"id":"D13","status":"not_run"},{"id":"D14","status":"not_run"},
+    {"id":"E01","status":"not_run"},{"id":"E03","status":"not_run"},{"id":"E04","status":"not_run"},{"id":"E05","status":"not_run"},{"id":"E06","status":"not_run"},{"id":"E07","status":"not_run"},{"id":"E08","status":"not_run"},{"id":"E09","status":"not_run"},{"id":"E10","status":"not_run"},{"id":"E11","status":"not_run"},
+    {"id":"F01","status":"not_run"},{"id":"F02","status":"not_run"},{"id":"F03","status":"not_run"},{"id":"F04","status":"not_run"},{"id":"F05","status":"not_run"},{"id":"F06","status":"not_run"},{"id":"F07","status":"not_run"},{"id":"F09","status":"not_run"},
+    {"id":"G01","status":"not_run"},{"id":"G02","status":"not_run"},{"id":"G03","status":"not_run"},{"id":"G04","status":"not_run"},{"id":"G05","status":"not_run"},{"id":"G06","status":"not_run"}
+  ]
+}

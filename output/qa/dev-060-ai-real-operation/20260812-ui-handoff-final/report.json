@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-08-12T12:22:42.398Z",
+  "baseUrl": "http://127.0.0.1:62526",
+  "productionConnected": false,
+  "productionWrites": false,
+  "error": "server timeout",
+  "consoleErrors": [],
+  "httpErrors": []
+}

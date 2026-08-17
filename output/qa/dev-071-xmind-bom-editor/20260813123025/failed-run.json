@@ -1,0 +1,93 @@
+{
+  "checkedAt": "2026-08-13T12:30:57.316Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813123025",
+  "total": 16,
+  "passed": 15,
+  "failed": 1,
+  "consoleErrors": [],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [],
+  "results": [
+    {
+      "name": "login for 1440x900",
+      "passed": true,
+      "detail": "HTTP 303"
+    },
+    {
+      "name": "browser fixture draft created",
+      "passed": true,
+      "detail": "HTTP 201 {\"draft\":{\"id\":\"d3d8889a-642e-4f8e-91ef-8b945aeba05b\",\"company_id\":\"company-jenfu\",\"owner_part_number_id\":\"dev071-browser-parent-part-24225339\",\"bom_revision\":\"1\",\"source_submission_id\":null,\"identity_authority\":\"canonical_part_number\",\"parent_item_id\":\"dev071-browser-parent-item-24225339\",\"parent_submission_id\":\"\",\"parent_revision\":\"1\",\"draft_name\":\"DEV-071 browser draft\",\"status\":\"Draft\",\"source\":\"manual\",\"is_active\":1,\"line_count\":0,\"review_attempt\":0,\"created_by\":\"user-engineer-demo\",\"updated_by\":\"user-engineer-demo\",\"created_at\":\"2026-08-13T12:30:38.151Z\",\"updated_at\":\"2026-08-13T12:30:38.151Z\",\"editor_version\":0,\"lines\":[],\"floating_topics\":[],\"reconfirmation_flags\":[]},\"replayed\":false,\"draftId\":\"d3d8889a-642e-4f8e-91ef-8b945aeba05b\",\"ownerPartNumberId\":\"dev071-browser-parent-part-24225339\",\"bomRevision\":\"1\",\"source\":\"manual\",\"receipt\":{\"idempotencyKey\":\"ec2f0f83-a82e-429f-a76b-449b7e94e624\",\"replayed\":false},\"workbenchUrl\":\"/bom/workbench/d3d8889a-642e-4f8e-91ef-8b945aeba05b\"}"
+    },
+    {
+      "name": "CR-001 toolbar Topic opens canonical picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-001 canonical item inserted as Topic",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-002 toolbar Subtopic opens picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-002 keyboard Enter inserts first result",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-003 hover plus opens picker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CR-003 hover plus inserts child",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "TB-005 Insert menu exposes Parent/Floating/Group",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "TB-005 Parent/Floating/Group actions complete",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "KB-008 leaf Delete is direct and reversible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "KB-008 Ctrl+Z restores leaf",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-004..007 More menu exposes lifecycle actions",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-006 clone action is enabled on saved Draft",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-006 clone creates and selects a new Draft",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MR-005 inactive Draft can be set active",
+      "passed": false,
+      "detail": ""
+    }
+  ],
+  "error": "MR-005 inactive Draft can be set active"
+}

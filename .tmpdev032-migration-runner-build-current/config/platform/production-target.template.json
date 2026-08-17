@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-032",
+  "phase": "DEV-046-Phase-3A.0-production-slice",
+  "templateOnly": true,
+  "releaseReady": false,
+  "productionActionAllowed": false,
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "runtimeService": "ai-pdm-prod",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "database": "ai_pdm",
+    "artifactRepository": "ai-pdm",
+    "productionDomain": "pdm.jenfu.com.tw",
+    "publicBaseUrl": "https://jenfu-ai-pdm-prod.web.app",
+    "entrypointMode": "firebase-hosting-default-domain-production-pilot",
+    "deferredCustomDomainUrl": "https://pdm.jenfu.com.tw"
+  },
+  "edge": {
+    "type": "firebase-hosting-cloud-run-rewrite",
+    "serverlessNegRegion": "asia-east1",
+    "firebaseHostingSite": "jenfu-ai-pdm-prod",
+    "firebaseHostingGatewayAllowed": true,
+    "firebaseHostingOwnsBusinessLogic": false,
+    "managedTlsRequired": false,
+    "customDomainRequired": false,
+    "customDomainDeferred": true,
+    "cloudRunIngress": "all",
+    "cloudRunDefaultUrlDisabled": false,
+    "directRunAppOriginSessionExchange": "denied-by-canonical-origin",
+    "directRunAppResidualRiskAccepted": true,
+    "privateResponseCacheAllowed": false,
+    "immutableAssetCdnOnly": true,
+    "futureEdgeBaseline": "external-application-load-balancer-managed-tls-custom-domain"
+  },
+  "database": {
+    "provider": "Cloud SQL for PostgreSQL",
+    "version": "POSTGRES_17",
+    "availabilityType": "REGIONAL",
+    "edition": "ENTERPRISE",
+    "privateIpRequired": true,
+    "automaticIamDatabaseAuthenticationRequired": true,
+    "staticDatabasePasswordAllowed": false,
+    "automatedBackupRequired": true,
+    "pitrRequired": true,
+    "deletionProtectionRequired": true,
+    "backupLocation": "asia-east1"
+  },
+  "identity": {
+    "provider": "Firebase Authentication with Identity Platform",
+    "firebaseProjectId": "jenfu-ai-pdm-prod",
+    "authorizedDomains": ["jenfu-ai-pdm-prod.web.app", "pdm.jenfu.com.tw", "jenfu-ai-pdm-prod.firebaseapp.com"],
+    "firestoreAuthorityAllowed": false,
+    "firebaseStorageAuthorityAllowed": false,
+    "firebaseFunctionsAuthorityAllowed": false,
+    "wave0": {
+      "googleWorkspaceOnly": true,
+      "domains": ["jenfu.com.tw"],
+      "controlledNonGoogleAllowed": false
+    },
+    "wave1": {
+      "controlledNonGoogleRequired": true,
+      "requiresSeparateDev032Approval": true
+    },
+    "aalPolicy": "pending_explicit_risk_acceptance_or_workspace_2sv_or_provider_mfa_evidence"
+  },
+  "runtimeEnvironment": {
+    "requiredPublicEnv": [
+      "PDM_AUTH_MODE",
+      "PDM_DB_PROVIDER",
+      "PDM_PUBLIC_BASE_URL",
+      "PDM_FIREBASE_API_KEY",
+      "PDM_FIREBASE_AUTH_DOMAIN",
+      "PDM_FIREBASE_PROJECT_ID",
+      "PDM_FIREBASE_APP_ID",
+      "PDM_SESSION_ISSUER",
+      "PDM_SESSION_AUDIENCE",
+      "PDM_SESSION_CURRENT_KEY_ID",
+      "PDM_SESSION_PREVIOUS_KEY_ID"
+    ],
+    "requiredSecretBackedEnv": [
+      "PDM_SESSION_CURRENT_SECRET",
+      "PDM_SESSION_PREVIOUS_SECRET"
+    ],
+    "forbiddenEnvValues": [
+      "jenfu-ai-pdm-stg-361825",
+      "ai-pdm-stg",
+      "pdm-stg.jenfu.com.tw",
+      "jenfu-ai-pdm-stg-361825.web.app"
+    ]
+  },
+  "secrets": {
+    "valuesMustNotBeCommitted": true,
+    "requiredSecretIds": [
+      "pdm-session-signing-current",
+      "pdm-session-signing-previous"
+    ],
+    "replicationLocation": "asia-east1",
+    "runtimeAccessor": "runtime service account only"
+  },
+  "releaseGates": {
+    "exactReleaseCommitRequired": true,
+    "productionTargetReadbackRequired": true,
+    "productionProviderConfigRequired": true,
+    "productionEnvSourceRequired": true,
+    "productionSecretMetadataReadbackRequired": true,
+    "cleanSeedAndAllowlistRequired": true,
+    "hd84SeparateTargetRestoreRequired": true,
+    "rollbackReadinessRequired": true,
+    "level3ProductionLikeSmokeRequired": true,
+    "level4PostDeploySmokeRequired": true
+  },
+  "stopConditions": [
+    "Do not use any Firebase Hosting site except jenfu-ai-pdm-prod.web.app as the production pilot gateway.",
+    "Do not permit a direct run.app browser origin to exchange a PDM business session.",
+    "Do not use staging Firebase project, staging Cloud Run service, staging Cloud SQL instance or staging secrets.",
+    "Do not create, update, import, migrate or deploy production resources from this template.",
+    "Do not proceed to production canary until HD-8-4 / 1A restore/reconciliation and rollback readiness pass.",
+    "Do not enable GCS file authority in Phase 3A."
+  ]
+}

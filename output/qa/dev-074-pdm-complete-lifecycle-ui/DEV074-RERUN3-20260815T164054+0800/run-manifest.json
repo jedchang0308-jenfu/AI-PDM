@@ -1,0 +1,43 @@
+{
+  "run_id": "DEV074-RERUN3-20260815T164054+0800",
+  "objective": "修復後從 W0 歸零，重新執行 DEV-074 全部 58 條 rendered UI journey",
+  "status": "failed_at_B01",
+  "started_at": "2026-08-15T16:40:54+08:00",
+  "ended_at": "2026-08-15T16:58:40+08:00",
+  "failure": {
+    "path_id": "B01",
+    "defect_id": "DEV074-RERUN3-B01-001",
+    "severity": "P0",
+    "reason": "統一明細啟用後，候選圖料工作沒有可建立首版或上傳 2D/3D 檔案的 rendered UI 入口，生命週期只能停在準備首版。"
+  },
+  "environment": {
+    "target": "http://127.0.0.1:3000",
+    "scope": "local_isolated_only",
+    "production_mutation_allowed": false,
+    "business_mutation_mode": "rendered_ui_only",
+    "direct_api_mutation_count": 0,
+    "direct_db_mutation_count": 0
+  },
+  "source": {
+    "branch": "持續優化1",
+    "head": "cc393e048b251fb1ea3356204de56bc4c9eacc45",
+    "worktree": "dirty_user_owned_changes_preserved"
+  },
+  "predecessor_attempts": [
+    {
+      "run_id": "DEV074-RERUN-20260815T162652+0800",
+      "result": "failed_at_w0",
+      "reason": "首頁顯示 raw status 與內部英文實作詞"
+    },
+    {
+      "run_id": "DEV074-RERUN2-20260815T163010+0800",
+      "result": "failed_at_w0",
+      "reason": "帳號復職使用不受支援的 window.prompt"
+    }
+  ],
+  "scope": {
+    "in_scope_count": 58,
+    "out_of_scope": ["B09", "D15", "E02", "F08", "true_engineering_content_change", "legacy_reserved_numbers"]
+  },
+  "viewports": ["1440x900", "1024x768", "768x1024", "390x844"]
+}

@@ -1,0 +1,9 @@
+{
+  "CTX-A": {"account":"engineer@example.com","role":"owner_engineer","purpose":"create_upload_submit_correct"},
+  "CTX-B": {"account":"manager@example.com","role":"reviewer","purpose":"needs_info_reject_approve"},
+  "CTX-C": {"account":"admin@example.com","role":"publisher_admin","purpose":"publish_governance"},
+  "CTX-D1": {"account":"manufacturing@example.com","role":"manufacturing","purpose":"released_read_only"},
+  "CTX-D2": {"account":"procurement@example.com","role":"procurement","purpose":"released_read_only"},
+  "CTX-E": {"account":null,"role":"unauthenticated_or_restricted","purpose":"access_boundary"},
+  "authentication": "all authenticated contexts log in through rendered UI"
+}

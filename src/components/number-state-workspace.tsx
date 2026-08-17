@@ -38,6 +38,11 @@ import { NumberingSubmissionResult } from "@/components/numbering-submission-res
 import { SearchHighlight } from "@/components/search-highlight";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { shouldActivateLinkFromKeyboard } from "@/lib/keyboard-link-activation";
+import {
+  isNumberLifecycleAdoptionHiddenFromUser,
+  projectNumberLifecycleUserView,
+  type NumberLifecycleProjectionV2
+} from "@/lib/number-lifecycle-user-view";
 import type { StatusScopeId } from "@/lib/status-scope-display";
 
 type DraftMode = "new_bundle" | "append_drawing" | "append_part" | "append_drawing_part";
@@ -139,14 +144,19 @@ export type NumberingDraftWorkspace = {
     applyStatus: "not_ready" | "not_required" | "pending" | "applied" | "failed";
     applyError: string | null;
     snapshotHash: string | null;
+    decision: "approved" | "rejected" | "needs_info" | null;
+    comment: string | null;
+    decidedAt: string | null;
+  };
+  latestReviewFeedback: null | {
+    requestId: string;
+    status: "pending" | "approved" | "rejected" | "needs_info" | "cancelled" | "apply_failed" | "applied";
+    decision: "approved" | "rejected" | "needs_info" | null;
+    comment: string | null;
+    decidedAt: string | null;
   };
   projection: NumberStateProjection;
-  lifecycleV2: null | {
-    stage: "drawing_preparation" | "bundle_ready" | "in_review" | "auto_finalizing" | "official_controlled" | "drawing_addendum_required" | "recovery_required" | "history_only";
-    reasonCode: string;
-    primaryAction: "complete_first_drawing" | "submit_bundle_review" | "view_review" | "retry_formalization" | "continue_formal_revision" | "view_history" | "none";
-    exceptionKind: "none" | "legacy" | "blocked" | "recovery";
-  };
+  lifecycleV2: NumberLifecycleProjectionV2 | null;
   candidateRevisions: Array<{
     id: string;
     drawingDraftId: string;
@@ -227,6 +237,12 @@ type AppendPolicy = {
     drawingM: string;
     drawingR: string;
   };
+  drawings: Array<{
+    id: string;
+    drawingNumber: string;
+    purposeCode: PurposeCode;
+    recordStatus: string;
+  }>;
 };
 
 type NumberPreview = {
@@ -249,6 +265,7 @@ type CreateFormState = {
   sharedName: boolean;
   rootItemKind: ItemKind;
   appendReason: string;
+  sourceDrawingNumberId: string;
   partName: string;
   partItemKind: ItemKind;
   isUniversal: boolean;
@@ -270,15 +287,20 @@ const itemKindOptions: Array<{ value: ItemKind; label: string }> = [
   { value: "custom", label: "客製" }
 ];
 const createItemKindOptions = itemKindOptions.filter((option) => option.value === "manufactured" || option.value === "purchased");
+const appendPartKindOptions: Array<{ value: ItemKind | "standard"; label: string }> = [
+  { value: "manufactured", label: "自製件" },
+  { value: "purchased", label: "外購件" },
+  { value: "standard", label: "標準件" }
+];
 const purposeOptions: Array<{ value: PurposeCode; label: string }> = [
   { value: "M", label: "製造圖 M" },
   { value: "R", label: "參考圖 R" }
 ];
 const modeOptions: Array<{ value: DraftMode; label: string; description: string }> = [
   { value: "new_bundle", label: "建立新圖料", description: "建立新的品名主題，可同時準備料號與圖號。" },
-  { value: "append_drawing", label: "既有主根加圖號", description: "在既有主根下新增圖號。" },
-  { value: "append_part", label: "既有主根加料號", description: "在既有主根下新增料號。" },
-  { value: "append_drawing_part", label: "既有主根加圖號與料號", description: "同一申請內建立相互關聯的圖號與料號。" }
+  { value: "append_drawing", label: "既有圖料根號加圖號", description: "在既有圖料根號下新增圖號。" },
+  { value: "append_part", label: "既有圖料根號加料號", description: "在既有圖料根號下新增料號。" },
+  { value: "append_drawing_part", label: "既有圖料根號加圖號與料號", description: "同一申請內建立相互關聯的圖號與料號。" }
 ];
 
 export type NumberStateCreateSurface = "parts" | "drawings" | "search" | "drafts" | "root-detail" | "global";
@@ -298,36 +320,36 @@ type NumberStateModuleConfig = {
 
 const numberStateModuleConfigs: Record<NumberStateModule, NumberStateModuleConfig> = {
   search: {
-    title: "圖料模組",
+    title: "圖料工作台",
     officialLabel: "圖料總表",
     officialHref: "/numbering/search",
     officialHelpScope: "numberingSearch",
     reservedHref: "/numbering/search?tab=reserved",
     reservedCodeLabel: "圖號 / 料號",
     emptyCodeLabel: "尚未產生圖料號",
-    ariaLabel: "圖料模組分頁",
+    ariaLabel: "圖料工作台分頁",
     createSurface: "search"
   },
   drawings: {
-    title: "圖號模組",
+    title: "圖號工作台",
     officialLabel: "圖號總表",
     officialHref: "/numbering/drawings",
     officialHelpScope: "drawingList",
     reservedHref: "/numbering/drawings?tab=reserved",
     reservedCodeLabel: "圖號",
     emptyCodeLabel: "尚未產生圖號",
-    ariaLabel: "圖號模組分頁",
+    ariaLabel: "圖號工作台分頁",
     createSurface: "drawings"
   },
   parts: {
-    title: "料號模組",
+    title: "料號工作台",
     officialLabel: "料號總表",
     officialHref: "/parts",
     officialHelpScope: "partsList",
     reservedHref: "/parts?tab=drafts",
     reservedCodeLabel: "料號",
     emptyCodeLabel: "尚未產生料號",
-    ariaLabel: "料號模組分頁",
+    ariaLabel: "料號工作台分頁",
     createSurface: "parts"
   }
 };
@@ -351,24 +373,24 @@ export function getNumberStateCreateCta({
   if (hasRootContext && preferredMode === "append_drawing") {
     return {
       label: "建立新圖號",
-      title: "在目前主根建立新圖號",
-      ariaLabel: "在目前主根建立新圖號",
+      title: "在目前圖料根號建立新圖號",
+      ariaLabel: "在目前圖料根號建立新圖號",
       defaultMode: "append_drawing"
     };
   }
   if (hasRootContext && preferredMode === "append_part") {
     return {
       label: "建立新料號",
-      title: "在目前主根建立新料號",
-      ariaLabel: "在目前主根建立新料號",
+      title: "在目前圖料根號建立新料號",
+      ariaLabel: "在目前圖料根號建立新料號",
       defaultMode: "append_part"
     };
   }
   if (hasRootContext && preferredMode === "append_drawing_part") {
     return {
       label: "建立新圖號與料號",
-      title: "在目前主根建立相互關聯的圖號與料號",
-      ariaLabel: "在目前主根建立新圖號與料號",
+      title: "在目前圖料根號建立相互關聯的圖號與料號",
+      ariaLabel: "在目前圖料根號建立新圖號與料號",
       defaultMode: "append_drawing_part"
     };
   }
@@ -395,6 +417,7 @@ function initialCreateForm(mode: DraftMode = "new_bundle", sourceRootCode = ""):
     sharedName: false,
     rootItemKind: "manufactured",
     appendReason: "",
+    sourceDrawingNumberId: "",
     partName: "",
     partItemKind: "manufactured",
     isUniversal: false,
@@ -467,9 +490,11 @@ function apiErrorMessage(response: Response, body: ApiErrorEnvelope, fallback: s
   if (response.status === 401) return "登入已失效，請重新登入後回到這筆編號。";
   if (response.status === 403) return "目前帳號或公司沒有執行此動作的權限。";
   if (response.status === 404) return "找不到這筆編號，或它不屬於目前公司。";
-  if (code === "source_root_not_found") return "找不到這個主根號，請確認後重試。";
-  if (code === "append_reason_required") return "此主根已有已發布資料，請填寫新增原因。";
+  if (code === "source_root_not_found") return "找不到這個圖料根號，請確認後重試。";
+  if (code === "append_reason_required") return "此圖料根號已有已發布資料，請填寫新增原因。";
   if (code === "numbering_invalid_relation") return "圖料關聯不符合規則；參考圖不能設為製造基準。";
+  if (code === "candidate_collision") return "候選號同時被另一筆申請取得，請重新整理後再試。";
+  if (code === "numbering_conflict") return "編號與既有歷史衝突；系統未建立資料。請重新整理取得下一個可用編號。";
   if (response.status === 409 && code === "workspace_version_conflict") return "編號內容已被更新，系統已重新載入最新內容，請確認後再操作。";
   if (code === "candidate_required_before_review") return "這筆申請尚未完成編號建立，請重新建立申請或請 PDM Admin 協助。";
   if (code === "candidate_review_already_pending") return "這筆編號已在審核中，請前往審核中心查看。";
@@ -972,7 +997,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
       {error ? (
         <div className="number-state-message is-error" role="alert">
           <span>{error}</span>
-          {selected && recoveryHref(selected) ? <Link href={recoveryHref(selected)!}>前往處理阻擋</Link> : null}
+          {selected && !lifecycleAdoptionHidden(selected) && recoveryHref(selected) ? <Link href={recoveryHref(selected)!}>前往處理阻擋</Link> : null}
           <button className="icon-button" type="button" onClick={() => setError("")} aria-label="關閉錯誤訊息"><X size={16} /></button>
         </div>
       ) : null}
@@ -1003,7 +1028,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
                 <col className="pdm-identity-col-part" />
                 <col className="pdm-identity-col-meta" />
               </colgroup>
-              <thead><tr><th>{moduleConfig.reservedCodeLabel}</th><th>申請名稱</th><th>內容</th><th>{lifecycleV2Enabled && module === "drawings" ? "首版準備 / 整包狀態" : "申請狀態"}</th></tr></thead>
+              <thead><tr><th>{moduleConfig.reservedCodeLabel}</th><th>申請名稱</th><th>內容</th><th>{lifecycleV2Enabled && module === "drawings" ? "目前階段" : "申請狀態"}</th></tr></thead>
               <tbody>
                 {visible.map((workspace) => {
                   const codes = candidateCodesForModule(workspace, module);
@@ -1035,7 +1060,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
                         <div className="pdm-identity-name"><SearchHighlight value={workspaceTitle(workspace)} query={query} /></div>
                       </td>
                       <td data-label="內容"><SearchHighlight value={moduleContentSummary(workspace, module)} query={query} /></td>
-                      <td data-label={lifecycleV2Enabled && module === "drawings" ? "首版準備 / 整包狀態" : "申請狀態"}>
+                      <td data-label={lifecycleV2Enabled && module === "drawings" ? "目前階段" : "申請狀態"}>
                         {lifecycleV2Enabled && workspace.lifecycleV2 ? <LifecycleV2Badge workspace={workspace} /> : <div className="pdm-meta-strip"><LifecycleBadge lifecycle={workspace.projection.lifecycle} /></div>}
                       </td>
                     </tr>
@@ -1147,8 +1172,13 @@ function DraftCreateDialog({
   const effectiveCoreName = form.mode === "new_bundle" ? form.coreName.trim() : appendPolicy?.root.coreName ?? "";
   const lockedPartName = effectiveCoreName.trim();
   const manufacturingDrawing = isManufacturingPurposeCode(form.purposeCode);
-  const effectivePrimaryManufacturing = manufacturingDrawing;
+  const effectivePrimaryManufacturing = manufacturingDrawing && includesPart && includesDrawing;
   const relationLinkType = includesPart && includesDrawing && effectivePrimaryManufacturing ? "primary_manufacturing" : "reference";
+  const visiblePreviewState = form.mode === "new_bundle" ? numberPreviewState : appendPolicyState;
+  const visiblePartPreview = form.mode === "new_bundle" ? numberPreview?.part : appendPolicy?.nextNumbers.part;
+  const visibleDrawingPreview = form.mode === "new_bundle"
+    ? numberPreview?.drawing
+    : form.purposeCode === "R" ? appendPolicy?.nextNumbers.drawingR : appendPolicy?.nextNumbers.drawingM;
   const suggestedName = suggestedCoreName(form);
   const duplicateCheckName = suggestedName || form.coreName.trim();
   const drawingHint = drawingToggleHint(effectiveIncludeDrawing);
@@ -1168,6 +1198,8 @@ function DraftCreateDialog({
       sharedName: current.sharedName,
       processControlled: current.processControlled,
       partItemKind: current.partItemKind,
+      isUniversal: mode === "new_bundle" ? false : current.isUniversal,
+      universalReason: mode === "new_bundle" ? "" : current.universalReason,
       customSpecification: current.customSpecification,
       seriesCode: current.seriesCode,
       includeDrawing: mode === "new_bundle" ? defaultIncludeDrawing(current.partItemKind) : current.includeDrawing
@@ -1211,6 +1243,15 @@ function DraftCreateDialog({
       controller.abort();
     };
   }, [form.mode, form.sourceRootCode]);
+
+  useEffect(() => {
+    if (form.mode !== "append_part" || form.partItemKind !== "manufactured" || form.isUniversal || !appendPolicy) return;
+    const availableManufacturingDrawings = appendPolicy.drawings.filter(
+      (drawing) => drawing.purposeCode === "M" && !["Obsolete", "Merged"].includes(drawing.recordStatus)
+    );
+    if (form.sourceDrawingNumberId && availableManufacturingDrawings.some((drawing) => drawing.id === form.sourceDrawingNumberId)) return;
+    setForm((current) => ({ ...current, sourceDrawingNumberId: availableManufacturingDrawings[0]?.id ?? "" }));
+  }, [appendPolicy, form.isUniversal, form.mode, form.partItemKind, form.sourceDrawingNumberId]);
 
   useEffect(() => {
     if (form.mode !== "new_bundle") {
@@ -1294,13 +1335,14 @@ function DraftCreateDialog({
   async function submit() {
     if (form.mode === "new_bundle" && !form.coreName.trim()) return setError("請輸入確定品名。");
     if (form.mode === "new_bundle" && duplicateCheckState === "checking") return setError("正在查重，請稍候。");
-    if (form.mode !== "new_bundle" && !form.sourceRootCode.trim()) return setError("請輸入既有主根號。");
-    if (form.mode !== "new_bundle" && appendPolicyState === "loading") return setError("正在讀取主根資料，請稍候。");
-    if (form.mode !== "new_bundle" && appendPolicyState !== "ready") return setError("找不到這個主根號，請確認後重試。");
-    if (appendPolicy?.locked) return setError("此主根已關閉，不能再新增圖號或料號。");
-    if (appendPolicy?.reasonRequired && !form.appendReason.trim()) return setError("此主根已有已發布資料，請填寫新增原因。");
+    if (form.mode !== "new_bundle" && !form.sourceRootCode.trim()) return setError("請輸入既有圖料根號。");
+    if (form.mode !== "new_bundle" && appendPolicyState === "loading") return setError("正在讀取圖料根號資料，請稍候。");
+    if (form.mode !== "new_bundle" && appendPolicyState !== "ready") return setError("找不到這個圖料根號，請確認後重試。");
+    if (appendPolicy?.locked) return setError("此圖料根號已關閉，不能再新增圖號或料號。");
+    if (appendPolicy?.reasonRequired && !form.appendReason.trim()) return setError("此圖料根號已有已發布資料，請填寫新增原因。");
     if (includesPart && !lockedPartName) return setError("請先完成確定品名。");
     if (includesPart && form.partItemKind === "custom" && !form.customSpecification.trim()) return setError("客製料件請填寫客製尺寸或規格。");
+    if (form.mode === "append_part" && form.partItemKind === "manufactured" && !form.isUniversal && !form.sourceDrawingNumberId) return setError("自製件必須選擇同一圖料根號的正式製造圖。");
     if (includesDrawing && form.purposeCode === "R" && !form.purposeDescription.trim()) return setError("請填寫參考用途。");
 
     const partClientKey = "part-1";
@@ -1309,14 +1351,16 @@ function DraftCreateDialog({
       autoAcquireCandidates: true,
       draftMode: form.mode,
       sourceRootId: form.mode === "new_bundle" ? undefined : appendPolicy?.root.id,
+      sourceDrawingNumberId: form.mode === "append_part" && form.sourceDrawingNumberId ? form.sourceDrawingNumberId : undefined,
+      sourceLinkType: form.mode === "append_part" && form.sourceDrawingNumberId ? "primary_manufacturing" : undefined,
       appendReason: form.mode === "new_bundle" ? undefined : form.appendReason.trim() || null,
       root: form.mode === "new_bundle" ? { coreName: form.coreName.trim(), itemKind: form.rootItemKind } : undefined,
       parts: includesPart ? [{
         clientKey: partClientKey,
         partName: lockedPartName,
         itemKind: form.partItemKind,
-        isUniversal: false,
-        universalReason: null,
+        isUniversal: form.isUniversal,
+        universalReason: form.universalReason.trim() || null,
         customSpecification: form.customSpecification.trim() || null,
         seriesCode: form.partItemKind === "manufactured" ? form.seriesCode.trim() || null : null
       }] : [],
@@ -1367,6 +1411,8 @@ function DraftCreateDialog({
                     ...form,
                     rootItemKind: nextKind,
                     partItemKind: nextKind,
+                    isUniversal: false,
+                    universalReason: "",
                     processControlled,
                     includeDrawing: defaultIncludeDrawing(nextKind),
                     seriesCode: nextKind === "manufactured" ? form.seriesCode : ""
@@ -1396,7 +1442,7 @@ function DraftCreateDialog({
               <Field label="確定品名" required hint="此欄位是唯一名稱來源；送出後系統會同步到料號主檔。品名不需唯一，唯一性由圖號 / 料號負責。"><input value={form.coreName} onChange={(event) => setForm({ ...form, coreName: event.target.value })} maxLength={300} /></Field>
             </>
           ) : (
-            <><Field label="既有主根號" required hint="輸入使用者看得到的主根號，例如 A0001；系統會自動讀取主根 ID。"><input value={form.sourceRootCode} onChange={(event) => setForm({ ...form, sourceRootCode: event.target.value.toUpperCase() })} maxLength={80} placeholder="例如：A0001" /></Field><AppendPolicyPanel policy={appendPolicy} state={appendPolicyState} rootCode={form.sourceRootCode} />{appendPolicy ? <Field label={`新增原因${appendPolicy.reasonRequired ? "" : "（選填）"}`} required={appendPolicy.reasonRequired} hint="追加主根時請留下人類可讀的原因。"><input value={form.appendReason} onChange={(event) => setForm({ ...form, appendReason: event.target.value })} maxLength={1000} placeholder="例如：同主根新增第二款料件或補參考圖" /></Field> : null}</>
+            <><Field label="既有圖料根號" required hint="輸入使用者看得到的圖料根號，例如 A0001；系統會自動讀取圖料根號 ID。"><input value={form.sourceRootCode} onChange={(event) => setForm({ ...form, sourceRootCode: event.target.value.toUpperCase() })} maxLength={80} placeholder="例如：A0001" /></Field><AppendPolicyPanel policy={appendPolicy} state={appendPolicyState} rootCode={form.sourceRootCode} />{appendPolicy ? <Field label={`新增原因${appendPolicy.reasonRequired ? "" : "（選填）"}`} required={appendPolicy.reasonRequired} hint="追加圖料根號時請留下人類可讀的原因。"><input value={form.appendReason} onChange={(event) => setForm({ ...form, appendReason: event.target.value })} maxLength={1000} placeholder="例如：同一圖料根號新增第二款料件或補參考圖" /></Field> : null}</>
           )}
           {includesPart ? (
             <div className="number-state-form-section">
@@ -1407,23 +1453,40 @@ function DraftCreateDialog({
                   <div>
                     <span>固定建立</span>
                     <strong>1 個料號</strong>
-                    <small data-qc="part-number-preview">編號預覽：{previewText(numberPreviewState, numberPreview?.part)}</small>
+                    <small data-qc="part-number-preview">編號預覽：{previewText(visiblePreviewState, visiblePartPreview)}</small>
                     <small data-qc="number-preview-note">預覽不建立編號；送出申請後才會建立。</small>
                   </div>
                 </div>
                 {showPartKindSelector ? (
                   <SelectField
                     label="料件類型"
-                    value={form.partItemKind}
+                    value={form.partItemKind === "purchased" && form.isUniversal && form.universalReason === "standard_part" ? "standard" : form.partItemKind}
                     onChange={(value) => {
-                      const nextKind = value as ItemKind;
+                      const standard = value === "standard";
+                      const nextKind = (standard ? "purchased" : value) as ItemKind;
                       setForm({
                         ...form,
                         partItemKind: nextKind,
+                        isUniversal: standard,
+                        universalReason: standard ? "standard_part" : "",
+                        sourceDrawingNumberId: nextKind === "manufactured" && !standard ? form.sourceDrawingNumberId : "",
                         seriesCode: nextKind === "manufactured" ? form.seriesCode : ""
                       });
                     }}
-                    options={createItemKindOptions}
+                    options={appendPartKindOptions}
+                  />
+                ) : null}
+                {form.mode === "append_part" && form.partItemKind === "manufactured" && !form.isUniversal ? (
+                  <SelectField
+                    label="自製件製造圖關聯"
+                    value={form.sourceDrawingNumberId}
+                    onChange={(value) => setForm({ ...form, sourceDrawingNumberId: value })}
+                    options={[
+                      { value: "", label: "請選擇正式製造圖" },
+                      ...(appendPolicy?.drawings ?? [])
+                        .filter((drawing) => drawing.purposeCode === "M" && !["Obsolete", "Merged"].includes(drawing.recordStatus))
+                        .map((drawing) => ({ value: drawing.id, label: drawing.drawingNumber }))
+                    ]}
                   />
                 ) : null}
                 {showPartCustomSpecification ? (
@@ -1452,7 +1515,7 @@ function DraftCreateDialog({
                   <div>
                     <span>{includesDrawing ? (canToggleDrawingDraft ? "同時建立" : "固定建立") : "本次不建立"}</span>
                     <strong>{includesDrawing ? "圖號" : "未建立圖號"}</strong>
-                    <small data-qc="drawing-number-preview">{includesDrawing ? `編號預覽：${previewText(numberPreviewState, numberPreview?.drawing)}` : drawingHint}</small>
+                    <small data-qc="drawing-number-preview">{includesDrawing ? `編號預覽：${previewText(visiblePreviewState, visibleDrawingPreview)}` : drawingHint}</small>
                   </div>
                 </div>
                 {includesDrawing ? (
@@ -1482,7 +1545,7 @@ function DraftCreateDialog({
           ) : null}
         </div>
         {error ? <div className="number-state-form-error" role="alert"><AlertTriangle size={17} />{error}</div> : null}
-        <div className="number-state-modal-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy}>取消</button><button className="primary-button" type="button" onClick={() => void submit()} disabled={busy || duplicateCheckState === "checking" || appendPolicyState === "loading" || Boolean(appendPolicy?.locked)}><Save size={16} />{busy ? "建立中..." : duplicateCheckState === "checking" ? "正在查重..." : appendPolicyState === "loading" ? "正在讀取主根..." : "建立編號申請"}</button></div>
+        <div className="number-state-modal-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy}>取消</button><button className="primary-button" type="button" onClick={() => void submit()} disabled={busy || duplicateCheckState === "checking" || appendPolicyState === "loading" || Boolean(appendPolicy?.locked)}><Save size={16} />{busy ? "建立中..." : duplicateCheckState === "checking" ? "正在查重..." : appendPolicyState === "loading" ? "正在讀取圖料根號..." : "建立編號申請"}</button></div>
       </section>
     </div>
   );
@@ -1532,7 +1595,7 @@ function SuggestedNameReviewPanel({
     return (
       <>
         <span data-qc={hasSimilarityWarning ? "duplicate-warning-only" : undefined}>
-          {result.matches.length === 0 ? "未找到相同或高相似資料，可以繼續建立新主根。" : `找到 ${result.matches.length} 筆相似資料，建議先確認是否沿用既有主根；確認是新主題仍可繼續建立草稿。`}
+          {result.matches.length === 0 ? "未找到相同或高相似資料，可以繼續建立新圖料根號。" : `找到 ${result.matches.length} 筆相似資料，建議先確認是否沿用既有圖料根號；確認是新主題仍可繼續建立草稿。`}
         </span>
         {result.matches.length > 0 ? (
           <details>
@@ -1561,16 +1624,16 @@ function SuggestedNameReviewPanel({
 }
 
 function AppendPolicyPanel({ policy, state, rootCode }: { policy: AppendPolicy | null; state: "idle" | "loading" | "ready" | "error"; rootCode: string }) {
-  if (state === "idle") return <div className="number-state-check-panel"><Search size={16} /><span>輸入主根號後會顯示名稱與下一號預覽。</span></div>;
-  if (state === "loading") return <div className="number-state-check-panel" aria-live="polite"><RefreshCcw size={16} /><span>正在讀取主根資料...</span></div>;
-  if (state === "error" || !policy) return <div className="number-state-check-panel is-error" role="alert"><AlertTriangle size={16} /><span>找不到主根 {rootCode || ""}，請確認後重試。</span></div>;
+  if (state === "idle") return <div className="number-state-check-panel"><Search size={16} /><span>輸入圖料根號後會顯示名稱與下一號預覽。</span></div>;
+  if (state === "loading") return <div className="number-state-check-panel" aria-live="polite"><RefreshCcw size={16} /><span>正在讀取圖料根號資料...</span></div>;
+  if (state === "error" || !policy) return <div className="number-state-check-panel is-error" role="alert"><AlertTriangle size={16} /><span>找不到圖料根號 {rootCode || ""}，請確認後重試。</span></div>;
   return (
     <div className={`number-state-check-panel${policy.locked ? " is-blocked" : " is-ready"}`}>
       {policy.locked ? <AlertTriangle size={16} /> : <Check size={16} />}
       <div>
         <strong>{policy.root.rootCode} · {policy.root.coreName}</strong>
         <span>下一料號 {policy.nextNumbers.part} · 製造圖 {policy.nextNumbers.drawingM} · 參考圖 {policy.nextNumbers.drawingR}</span>
-        <small>{policy.locked ? "此主根已關閉，不能追加。" : policy.reasonRequired ? "此主根已有已發布資料，新增原因必填。" : "可追加；新增原因選填。"}</small>
+        <small>{policy.locked ? "此圖料根號已關閉，不能追加。" : policy.reasonRequired ? "此圖料根號已有已發布資料，新增原因必填。" : "可追加；新增原因選填。"}</small>
       </div>
     </div>
   );
@@ -1663,6 +1726,7 @@ export function WorkspaceDrawer({
       content={{
         overview: overview ?? <CandidateDrawingOverview workspace={workspace} />,
         body: <>
+          <ReviewFeedbackPanel workspace={workspace} />
           <div id="candidate-revision-files" className="drawing-detail-section" data-drawing-detail-section="drawing-revision-files">
             {lifecycleV2Enabled && workspace.lifecycleV2 ? (
               !["official_controlled", "history_only"].includes(workspace.lifecycleV2.stage) ? (
@@ -1684,7 +1748,7 @@ export function WorkspaceDrawer({
           <CandidateDrawingPreview workspace={workspace} />
         </>,
         pending: lifecycleV2Enabled && workspace.lifecycleV2
-        ? shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)
+        ? shouldRenderLifecycleV2Pending(projectNumberLifecycleUserView(workspace.lifecycleV2).stage)
           ? <LifecycleV2PendingPanel workspace={workspace} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} />
           : null
         : <NowWhatPanel workspace={workspace} busy={busy} onSubmit={onSubmit} onPublish={onPublish} formalActionsUnopened={formalActionsUnopened} unopenedMessage={unopenedMessage} showAction={false} />,
@@ -1694,9 +1758,11 @@ export function WorkspaceDrawer({
               : <WorkspaceRelationsDetails workspace={workspace} primaryDrawingCode={drawingCode} />}
             <div className="number-state-future-actions">
               {workspace.capabilities.canUpdate && !editing ? <button className="secondary-button" type="button" onClick={onEdit}><Pencil size={15} />編輯資料</button> : null}
-              {workspace.capabilities.canWithdrawReview ? formalActionsUnopened ? <UnopenedAction label="撤回審核" reason={unopenedMessage}><RotateCcw size={15} /></UnopenedAction> : <button className="secondary-button" type="button" onClick={onWithdraw} disabled={busy}><RotateCcw size={15} />撤回審核</button> : null}
-              {workspace.latestApproval?.status === "apply_failed" ? <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><RefreshCcw size={15} />重試審核套用</Link> : null}
-              <button className="danger-button" type="button" disabled={!workspace.capabilities.canCancel || busy} title={!workspace.capabilities.canCancel ? blockedReasonLabel(workspace.projection.nowWhat.blockedReason) : presentation?.cancelTitle ?? "取消圖號申請"} onClick={onCancel}><Ban size={16} />{presentation?.cancelLabel ?? "取消圖號申請"}</button>
+              {!lifecycleAdoptionHidden(workspace) && workspace.capabilities.canWithdrawReview ? formalActionsUnopened ? <UnopenedAction label="撤回審核" reason={unopenedMessage}><RotateCcw size={15} /></UnopenedAction> : <button className="secondary-button" type="button" onClick={onWithdraw} disabled={busy}><RotateCcw size={15} />撤回審核</button> : null}
+              {!lifecycleAdoptionHidden(workspace) && workspace.latestApproval?.status === "apply_failed" ? <Link className="secondary-button" href={`/approvals?requestId=${encodeURIComponent(workspace.latestApproval.requestId)}`}><RefreshCcw size={15} />重試審核套用</Link> : null}
+              {workspace.capabilities.canCancel ? (
+                <button className="danger-button" type="button" disabled={busy} title={presentation?.cancelTitle ?? "取消圖號申請"} onClick={onCancel}><Ban size={16} />{presentation?.cancelLabel ?? "取消圖號申請"}</button>
+              ) : null}
             </div>
           </>,
         bodyTitle: "圖面與附件",
@@ -1711,7 +1777,8 @@ export function WorkspaceDrawer({
 
 function WorkspaceHeaderStatus({ workspace, lifecycleV2Enabled }: { workspace: NumberingDraftWorkspace; lifecycleV2Enabled: boolean }) {
   if (lifecycleV2Enabled && workspace.lifecycleV2) {
-    return <span className={`number-state-badge lifecycle-v2-${workspace.lifecycleV2.stage}`}>{lifecycleV2Label(workspace.lifecycleV2.stage)}</span>;
+    const lifecycle = projectNumberLifecycleUserView(workspace.lifecycleV2);
+    return <span className={`number-state-badge lifecycle-v2-${lifecycle.stage}`}>{lifecycleV2Label(lifecycle.stage)}</span>;
   }
   return <LifecycleBadge lifecycle={workspace.projection.lifecycle} />;
 }
@@ -1738,7 +1805,7 @@ function workspaceHeaderPrimaryAction({
   onPublish: () => void;
 }) {
   if (lifecycleV2Enabled && workspace.lifecycleV2) {
-    const lifecycle = workspace.lifecycleV2;
+    const lifecycle = projectNumberLifecycleUserView(workspace.lifecycleV2);
     const requestId = bundleRequestId(workspace);
     if (lifecycle.stage === "drawing_preparation" || lifecycle.stage === "drawing_addendum_required") {
       return null;
@@ -1799,6 +1866,19 @@ function CandidateDrawingOverview({ workspace }: { workspace: NumberingDraftWork
   );
 }
 
+function ReviewFeedbackPanel({ workspace }: { workspace: NumberingDraftWorkspace }) {
+  const feedback = workspace.latestReviewFeedback;
+  if (!feedback || !["needs_info", "rejected"].includes(feedback.status) || !feedback.comment?.trim()) return null;
+  const rejected = feedback.status === "rejected";
+  return (
+    <section className={`number-state-review-feedback${rejected ? " is-rejected" : ""}`} aria-label={rejected ? "審核退回原因" : "審核要求補充資料"}>
+      <span>{rejected ? "審核退回原因" : "審核要求補充資料"}</span>
+      <strong>{feedback.comment}</strong>
+      <small>請依此意見修正後，再送交審核。</small>
+    </section>
+  );
+}
+
 function CandidateDrawingPreview({ workspace }: { workspace: NumberingDraftWorkspace }) {
   const activeFiles = workspace.candidateRevisions.flatMap((candidate) => candidate.files.filter((file) => !file.removedAt).map((file) => ({ candidate, file })));
   const threeD = activeFiles.find((entry) => entry.file.role === "cad_3d");
@@ -1841,7 +1921,7 @@ function shouldRenderLifecycleV2Pending(stage: NonNullable<NumberingDraftWorkspa
 }
 
 function LifecycleV2PendingPanel({ workspace, formalActionsUnopened, unopenedMessage }: { workspace: NumberingDraftWorkspace; formalActionsUnopened: boolean; unopenedMessage: string }) {
-  const stage = workspace.lifecycleV2!.stage;
+  const stage = projectNumberLifecycleUserView(workspace.lifecycleV2!).stage;
   const content = ({
     drawing_preparation: { title: "補齊首版檔案", detail: "在上方加入主要受控檔並完成驗證。" },
     bundle_ready: { title: "送交審核", detail: "圖料號、關係與首版檔案已齊。" },
@@ -1884,7 +1964,7 @@ function WorkspaceRelationsDetails({ workspace, primaryDrawingCode }: { workspac
   return (
     <details className="drawing-workbench-secondary-section candidate-drawing-relations">
       <summary><span>圖號與關聯</span><strong>{workspace.parts.length + additionalDrawings.length} 筆</strong></summary>
-      <div className="number-state-item-list">{workspace.root ? <DraftItem icon={<PackagePlus size={16} />} title="主根" subtitle={`${itemKindLabel(workspace.root.itemKind)} · ${draftNumberLabel(workspace, workspace.root.candidateCode)}`} /> : null}{workspace.parts.map((part) => <DraftItem key={part.id} icon={<PackagePlus size={16} />} title={part.candidateCode ?? "尚未產生料號"} subtitle={`${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列 ${part.seriesCode}` : ""}`} />)}{additionalDrawings.map((drawing) => <DraftItem key={drawing.id} icon={<FileText size={16} />} title={drawing.candidateCode ?? "尚未產生圖號"} subtitle={purposeLabel(drawing.purposeCode)} />)}</div>
+      <div className="number-state-item-list">{workspace.root ? <DraftItem icon={<PackagePlus size={16} />} title="圖料根號" subtitle={`${itemKindLabel(workspace.root.itemKind)} · ${draftNumberLabel(workspace, workspace.root.candidateCode)}`} /> : null}{workspace.parts.map((part) => <DraftItem key={part.id} icon={<PackagePlus size={16} />} title={part.candidateCode ?? "尚未產生料號"} subtitle={`${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列 ${part.seriesCode}` : ""}`} />)}{additionalDrawings.map((drawing) => <DraftItem key={drawing.id} icon={<FileText size={16} />} title={drawing.candidateCode ?? "尚未產生圖號"} subtitle={purposeLabel(drawing.purposeCode)} />)}</div>
     </details>
   );
 }
@@ -1904,8 +1984,9 @@ function lifecycleV2Label(stage: NonNullable<NumberingDraftWorkspace["lifecycleV
 
 function LifecycleV2Badge({ workspace }: { workspace: NumberingDraftWorkspace }) {
   if (!workspace.lifecycleV2) return null;
+  const lifecycle = projectNumberLifecycleUserView(workspace.lifecycleV2);
   const readyCandidates = workspace.candidateRevisions.filter((candidate) => candidate.files.some((file) => !file.removedAt && file.isPrimary && file.publicationEvidenceId)).length;
-  return <div className="pdm-meta-strip"><span className={`number-state-badge lifecycle-v2-${workspace.lifecycleV2.stage}`}>{lifecycleV2Label(workspace.lifecycleV2.stage)}</span><span className="muted-text">首版 {readyCandidates}/{workspace.drawings.length}</span></div>;
+  return <div className="pdm-meta-strip"><span className={`number-state-badge lifecycle-v2-${lifecycle.stage}`}>{lifecycleV2Label(lifecycle.stage)}</span><span className="muted-text">首版 {readyCandidates}/{workspace.drawings.length}</span></div>;
 }
 
 function bundleRequestId(workspace: NumberingDraftWorkspace) {
@@ -2097,7 +2178,7 @@ export function ConfirmDialog({ action, workspace, busy, lifecycleV2Enabled = fa
     publish: {
       title: "發布圖料號",
       strong: "此動作會建立主檔，無法由此畫面復原",
-      detail: `將以已核准的編號建立主根、${workspace.parts.length} 個料號與 ${workspace.drawings.length} 個圖號。核准本身尚未執行這個動作。`,
+      detail: `將以已核准的編號建立圖料根號、${workspace.parts.length} 個料號與 ${workspace.drawings.length} 個圖號。核准本身尚未執行這個動作。`,
       confirm: "確認發布",
       icon: <AlertTriangle size={22} />,
       danger: true
@@ -2280,6 +2361,10 @@ function recoveryHref(workspace: NumberingDraftWorkspace) {
   return workspace.projection.nowWhat.blockedReason === "candidate_review_locked" ? "/approvals" : null;
 }
 
+function lifecycleAdoptionHidden(workspace: NumberingDraftWorkspace) {
+  return workspace.lifecycleV2 ? isNumberLifecycleAdoptionHiddenFromUser(workspace.lifecycleV2) : false;
+}
+
 function draftModeLabel(value: DraftMode) { return ({ new_bundle: "新圖料", append_drawing: "新增圖號", append_part: "新增料號", append_drawing_part: "新增圖號與料號" } as const)[value]; }
 function itemKindLabel(value: ItemKind) { return itemKindOptions.find((option) => option.value === value)?.label ?? value; }
 function purposeLabel(value: PurposeCode) { return purposeOptions.find((option) => option.value === value)?.label ?? value; }
@@ -2287,7 +2372,6 @@ function isManufacturingPurposeCode(value: PurposeCode) { return value === "M" |
 function lifecycleLabel(value: NumberStateProjection["lifecycle"]) { return ({ draft: "編輯中", cancelled: "已取消", published: "已發布", obsolete: "已失效" } as const)[value]; }
 function ownerRoleLabel(value: string) { return ({ "Draft owner": "編號申請負責人", Approver: "審核者", Publisher: "發布者", PDM: "PDM 管理者", "PDM Admin": "PDM Admin" } as Record<string, string>)[value] ?? value; }
 function nowWhatLabel(value: string) { return ({ "Acquire candidate numbers": "尚未產生編號", "Complete draft and submit review": "完成編號申請並送審", "View cancelled draft": "查看已取消編號申請", "View official record": "查看已發布資料", "Check state inconsistency": "請 PDM Admin 檢查狀態", "View review": "查看審核", "Retry approval apply": "重試核准套用", "Update requested information": "補齊審核要求的資料", "Revise draft before resubmission": "修訂編號申請後重新送審", "Publish official number": "發布編號" } as Record<string, string>)[value] ?? value; }
-function blockedReasonLabel(value: string | null) { return ({ candidate_review_locked: "編號正在審核，請先查看或撤回審核。", approval_apply_failed: "核准結果尚未成功套用，請至審核中心重試。", state_inconsistent: "狀態不一致，請 PDM Admin 協助。" } as Record<string, string>)[value ?? ""] ?? "目前狀態不可取消。"; }
 function publicationBlockerLabel(value: string | null) {
   if (value?.startsWith("drawing_evidence_not_finalized:")) return "至少一份圖面受控檔案證據尚未定稿。";
   return ({

@@ -1,0 +1,4 @@
+{"ts":"2026-08-15T19:23:10+08:00","actor":"QC","wave":"W0","action":"start_clean_full_rerun_after_DEV074-R9-P1-005","result":"in_progress","predecessor":"DEV074-RERUN9-20260815T190801+0800"}
+{"ts":"2026-08-15T19:52:00+08:00","actor":"QC","wave":"B05","action":"approve_resubmitted_bundle_after_needs_info_via_rendered_ui","result":"failed","request_id":"APR-0f87e4d9-eb20-404d-9437-e52c94bdd003","defect":"DEV074-R10-P1-006"}
+{"ts":"2026-08-15T19:53:00+08:00","actor":"QC","wave":"diagnostic_only","action":"stop_scoring_and_confirm_common_failure_in_B06_B08","result":"APPROVAL_SNAPSHOT_STALE","scored":false}
+{"ts":"2026-08-15T20:17:00+08:00","actor":"RD_QC","wave":"repair_proof","action":"shared_asset_formalization_fix_and_ui_retry","result":"passed","evidence":["B05-repair-retry-confirmation.png","B06-repair-retry-visible.png","B06-repair-retry-confirmation.png","B06-repair-returned-inbox.png","B06-repair-formal-ui-visible.png"],"scored":false}

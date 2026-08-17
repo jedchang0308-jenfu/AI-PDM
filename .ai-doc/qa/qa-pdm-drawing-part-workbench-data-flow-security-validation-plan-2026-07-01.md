@@ -1,4 +1,4 @@
-# QA - 圖料模組資料流與送審安全驗證計畫
+# QA - 圖料工作台資料流與送審安全驗證計畫
 
 Date: 2026-07-01
 Related SPEC: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.md`
@@ -8,12 +8,12 @@ Status: Prepared / RD Implementation Ready
 
 ## 1. Validation Goal
 
-Validate that the upgraded 圖料模組 can act as the root/drawing/part submission-preparation workbench without becoming an unsafe second source of truth.
+Validate that the upgraded 圖料工作台 can act as the root/drawing/part submission-preparation workbench without becoming an unsafe second source of truth.
 
 Primary quality claim:
 
 ```text
-圖料模組可聚合與 inline 編輯，但資料寫入仍回到 owner domain；
+圖料工作台可聚合與 inline 編輯，但資料寫入仍回到 owner domain；
 送審只凍結 snapshot，不補主資料；
 舊上傳送審頁退役；
 資料錯誤用人類中文阻擋，不外漏 DB error。
@@ -23,7 +23,7 @@ Primary quality claim:
 
 In scope:
 
-- 圖料模組 root detail readiness surface.
+- 圖料工作台 root detail readiness surface.
 - Inline edit routing to owner APIs.
 - Owner-domain validation and audit.
 - Submission readiness API.
@@ -62,8 +62,8 @@ Use disposable local prefixes for write tests, for example `QC-DPW-*`. Do not mu
 
 | ID | Priority | Scenario | Expected result |
 |---|---|---|---|
-| DPW-UI-001 | P0 | Open 圖料模組 root detail | Shows root, primary drawing, primary part, readiness and owner-labeled fields |
-| DPW-UI-002 | P0 | Inline edit material from 圖料模組 | UI calls part/variant owner API, not a generic root write |
+| DPW-UI-001 | P0 | Open 圖料工作台 root detail | Shows root, primary drawing, primary part, readiness and owner-labeled fields |
+| DPW-UI-002 | P0 | Inline edit material from 圖料工作台 | UI calls part/variant owner API, not a generic root write |
 | DPW-UI-003 | P0 | Inline edit drawing-owned field | UI calls drawing owner API or equivalent owner service |
 | DPW-UI-004 | P0 | Save inline edit succeeds | Readiness refetches and audit evidence exists |
 | DPW-UI-005 | P0 | Missing primary part/drawing | `送審` disabled; blocker uses Chinese and points to correct section |
@@ -96,7 +96,7 @@ These cases are mandatory because they close the RD review P0/P1 gaps.
 | DPW-UPLOAD-001 | P0 | Open `GET /upload` directly | Old dropzone/PDM attribute/send-review form is absent; user sees redirect or retired Chinese message |
 | DPW-UPLOAD-002 | P0 | Direct `POST /api/submissions` using the old generic create payload | API rejects with `GENERIC_SUBMISSION_RETIRED`; no Pending submission, no file rows, no raw error |
 | DPW-UPLOAD-003 | P1 | Existing old submission detail/review route | Historical submission remains readable where permissions allow |
-| DPW-OWNER-001 | P0 | Edit part material from 圖料模組 | Request goes to part/variant owner API; audit action is `numbering.part.variant.update` |
+| DPW-OWNER-001 | P0 | Edit part material from 圖料工作台 | Request goes to part/variant owner API; audit action is `numbering.part.variant.update` |
 | DPW-OWNER-002 | P0 | Send a part-owned field to drawing owner API | API returns `OWNER_FIELD_FORBIDDEN` with Chinese message |
 | DPW-OWNER-003 | P0 | Save with stale `version` or `If-Match` | API returns `OWNER_VERSION_CONFLICT`; no silent overwrite |
 | DPW-OWNER-004 | P0 | Inline edit on Released master data | Blocked with `RECORD_STATUS_NOT_EDITABLE` or routed to controlled revision/change flow |
@@ -173,8 +173,8 @@ The focused QC must verify:
 
 Capture desktop and mobile screenshots for:
 
-- 圖料模組 root detail with readiness ready.
-- 圖料模組 root detail with blockers.
+- 圖料工作台 root detail with readiness ready.
+- 圖料工作台 root detail with blockers.
 - Inline edit owner field before/after save.
 - Duplicate attachment filename blocker.
 - Retired `/upload` route.
@@ -197,7 +197,7 @@ Stop and return to PM/user if:
 - RD cannot create snapshot without destructive migration.
 - RD needs production deploy, production migration, direct DB mutation or cleanup.
 - Owner API boundaries cannot be enforced with the current permission model.
-- The only possible implementation would make 圖料模組 directly write owner tables without validation/audit.
+- The only possible implementation would make 圖料工作台 directly write owner tables without validation/audit.
 
 ## 9. Pass / Fail
 

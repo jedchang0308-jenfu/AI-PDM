@@ -153,7 +153,11 @@ export function buildAiRiskReport(input: { submission: SubmissionDetail; submitt
 
   const filenameConflicts = findReleasedFilenameConflicts({
     submissionId: submission.id,
-    files: submission.files.map((file) => ({ file_role: file.file_role, original_filename: file.original_filename }))
+    files: submission.files.map((file) => ({
+      file_role: file.file_role,
+      original_filename: file.original_filename,
+      sha256: file.sha256
+    }))
   });
 
   if (filenameConflicts.length > 0) {

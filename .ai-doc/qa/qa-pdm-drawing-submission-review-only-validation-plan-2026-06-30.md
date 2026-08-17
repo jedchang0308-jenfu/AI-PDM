@@ -12,7 +12,7 @@ Validate that drawing detail `送審` creates a drawing-source review package wi
 Primary quality claim:
 
 ```text
-圖號模組完成主資料；送審頁只做唯讀確認、缺漏阻擋、附件選擇與送出審核。
+圖號工作台完成主資料；送審頁只做唯讀確認、缺漏阻擋、附件選擇與送出審核。
 ```
 
 ## 2. Scope

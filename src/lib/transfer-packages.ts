@@ -304,7 +304,7 @@ function buildWorkbench(record: TransferPackageRecord): TransferPackageWorkbench
       id: "scope",
       severity: "required",
       ownerRole: "RD",
-      ownerModule: "圖料模組",
+      ownerModule: "圖料工作台",
       message: "技轉包尚未加入任何受影響圖號或料號。",
       actionLabel: "加入案件範圍",
       actionHref: scopeHref
@@ -328,7 +328,7 @@ function buildWorkbench(record: TransferPackageRecord): TransferPackageWorkbench
       label: "圖料範圍",
       status: record.items.length + record.draftItems.length ? "ready" : "blocked",
       message: record.items.length + record.draftItems.length ? `已納入 ${record.items.length} 個正式項目與 ${record.draftItems.length} 個草稿。` : "尚未加入受影響圖號、料號或草稿工作區。",
-      ownerModule: "圖料模組",
+      ownerModule: "圖料工作台",
       actionLabel: record.items.length ? "查看圖料" : "搜尋圖料",
       actionHref: ownerHref
     },

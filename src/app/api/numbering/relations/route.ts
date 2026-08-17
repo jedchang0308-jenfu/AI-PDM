@@ -233,7 +233,7 @@ export async function POST(request: Request) {
         : message.includes("REQUIRED")
           ? 400
           : 422;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message === "CANDIDATE_REVIEW_LOCKED" ? "PDM_REVIEW_LOCKED" : message }, { status });
   }
 }
 
@@ -546,10 +546,10 @@ function buildRelationBlockers(
 ): DrawingPartRelationBlocker[] {
   const blockers: DrawingPartRelationBlocker[] = [];
   if (detail.partNumbers.length === 0) {
-    blockers.push({ code: "missing_part", message: "這個主根號尚未建立料號，不能判定圖料關係。", target: "root", targetId: detail.root.id });
+    blockers.push({ code: "missing_part", message: "這個圖料根號尚未建立料號，不能判定圖料關係。", target: "root", targetId: detail.root.id });
   }
   if (manufacturingDrawings.length === 0) {
-    blockers.push({ code: "missing_manufacturing_drawing", message: "這個主根號還沒有製造圖類別，不能建立製造基準關聯。", target: "root", targetId: detail.root.id });
+    blockers.push({ code: "missing_manufacturing_drawing", message: "這個圖料根號還沒有製造圖類別，不能建立製造基準關聯。", target: "root", targetId: detail.root.id });
   }
   for (const part of detail.partNumbers) {
     const links = linksByPart.get(part.id) ?? [];

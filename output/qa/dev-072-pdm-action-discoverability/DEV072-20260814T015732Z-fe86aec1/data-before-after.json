@@ -1,0 +1,122 @@
+[
+  {
+    "label": "unlock-submit-withdraw",
+    "before": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 3
+        }
+      ]
+    },
+    "afterFiles": {
+      "activeFiles": 2
+    },
+    "submitted": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "review_locked",
+          "count": 3
+        }
+      ],
+      "requests": [
+        {
+          "id": "APR-2fc8f93c-062a-4a0f-a58f-8fc63e7fe2ab",
+          "status": "pending",
+          "actionCode": "numbering.candidate_bundle_review"
+        }
+      ],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "review_locked",
+          "requestId": "APR-2fc8f93c-062a-4a0f-a58f-8fc63e7fe2ab",
+          "rowVersion": 4
+        }
+      ]
+    },
+    "withdrawn": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 5
+        }
+      ]
+    }
+  },
+  {
+    "label": "decision-return_for_correction",
+    "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "needs_info",
+      "applyStatus": "applied"
+    },
+    "mutationCount": 1
+  },
+  {
+    "label": "decision-reject",
+    "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "rejected",
+      "applyStatus": "applied"
+    },
+    "mutationCount": 1
+  },
+  {
+    "label": "decision-approve",
+    "requestId": "APR-2c22e0f9-dba9-4147-afc6-7a50644e206c",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "approved",
+      "applyStatus": "applied"
+    },
+    "mutationCount": 1
+  }
+]

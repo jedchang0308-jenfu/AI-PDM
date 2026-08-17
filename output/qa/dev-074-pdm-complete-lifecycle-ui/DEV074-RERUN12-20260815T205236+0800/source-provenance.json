@@ -1,0 +1,9 @@
+{
+  "source": "J:/我的雲端硬碟/02_工作/00_雜項任務(進行中)/20260703 PDM開發/D-0007-MA1.zip",
+  "bytes": 1881755,
+  "last_modified": "2026-08-15T09:44:11.5510000+08:00",
+  "sha256": "AA0E29A6FDA7D0D86B9A562DE466B67860BA4F780F977C021CD62A7454494DD3",
+  "content_identity_rule": "company_or_owner_root + file_role + sha256 + byte_size; filename excluded",
+  "upload_policy": "files are selected only through rendered UI file inputs",
+  "extracted_read_only_source": "../DEV074-RERUN11-20260815T202354+0800/input"
+}

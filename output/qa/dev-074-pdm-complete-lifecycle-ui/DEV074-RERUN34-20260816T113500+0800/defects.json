@@ -1,0 +1,14 @@
+[
+  {
+    "id": "DEV074-R34-P1-030",
+    "path": "D09",
+    "severity": "P1",
+    "status": "fixed_target_retested",
+    "expected": "撤回後重新選擇內容完全相同的本版 2D／3D 檔應重用既有受控附件，正向 UI 流程不得產生 4xx 或 console error。",
+    "actual": "UI 可繼續並保留附件，但兩個 revision-files POST 回傳 409 Conflict，瀏覽器記錄兩筆 console error。",
+    "root_cause": "主附件唯一性只以實體、角色、版次與檔名判重；UI 重送同版保留檔時未把內容相同視為冪等成功。",
+    "fix": "以 SHA-256、大小、版次、角色與檔名辨識完全相同內容，回傳 200 與既有附件；同名但不同內容仍維持 409。",
+    "target_retest": "全新管理員 browser context 由 UI 重傳本版相同 SLDDRW/SLDPRT；兩筆 POST 均 200、附件可見、console error=0。",
+    "clean_restart_required": true
+  }
+]

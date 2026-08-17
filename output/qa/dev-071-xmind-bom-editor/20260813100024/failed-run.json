@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-08-13T10:03:25.381Z",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-071-xmind-bom-editor\\20260813100024",
+  "total": 0,
+  "passed": 0,
+  "failed": 1,
+  "consoleErrors": [],
+  "unexpectedHttpErrors": [],
+  "expectedHttpErrors": [],
+  "results": [],
+  "error": "DEV071_BROWSER_SERVER_TIMEOUT\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:50856\n- Network:       http://127.0.0.1:50856\n- Environments: .env.development.local, .env.local, .env\n✓ Ready in 8.5s\n✓ Running next.config.mjs took 213ms\n\n  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.\n  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:\n\n  \t- include was updated to add '.tmp/next-qc-dev071-browser-0ed9dfa1-c87a-41a8-8f14-bcda7e06f7a8/types/**/*.ts'\n  \t- include was updated to add '.tmp/next-qc-dev071-browser-0ed9dfa1-c87a-41a8-8f14-bcda7e06f7a8/dev/types/**/*.ts'\n\nUNKNOWN: unknown error, open 'C:\\VIBE CODING\\AI_PDM\\next-env.d.ts'\nUnhandled Rejection: Error: UNKNOWN: unknown error, open 'C:\\VIBE CODING\\AI_PDM\\next-env.d.ts'\n    at ignore-listed frames {\n  errno: -4094,\n  code: 'UNKNOWN',\n  syscall: 'open',\n  path: 'C:\\\\VIBE CODING\\\\AI_PDM\\\\next-env.d.ts'\n}\n"
+}

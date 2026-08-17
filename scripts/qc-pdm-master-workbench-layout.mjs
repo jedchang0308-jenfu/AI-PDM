@@ -35,7 +35,7 @@ const copyShortcutFunctionByRoute = {
   "/parts": "copySelectedPartNumber"
 };
 const identityHeadersByRoute = {
-  "/numbering/search": ["主根號", "品名", "料號", "資料狀態 / 開發階段 / 提醒"],
+  "/numbering/search": ["圖料根號", "品名", "料號", "資料狀態 / 開發階段 / 提醒"],
   "/numbering/drawings": ["圖號", "品名", "料號", "資料狀態 / 開發階段 / 提醒"],
   "/parts": ["料號", "品名", "圖號", "資料狀態 / 開發階段 / 提醒"]
 };

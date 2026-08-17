@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, RefreshCw, ShieldAlert, XCircle } from "lucide-react";
+import { CheckCircle2, RefreshCw, Search, ShieldAlert, XCircle } from "lucide-react";
+import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
+import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
+import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
+import { usePdmWorkbenchController, type PdmWorkbenchLocationState } from "@/components/use-pdm-workbench-controller";
+import type { ApprovalWorkbenchQuery, ApprovalWorkbenchListResponse } from "@/lib/approval-workbench-contract";
 import {
   DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH,
   DRAWING_DETAIL_DRAWER_MIN_WIDTH,
@@ -11,13 +16,15 @@ import {
 import { NumberingSubmissionResult, type NumberingSubmissionResultCandidate } from "@/components/numbering-submission-result";
 import { DrawingDetailPreview } from "@/components/drawing-detail-preview";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { StatusScopeHelp } from "@/components/status-help-popover";
+import { isPdmOwnerApprovalAction, resolvePdmApprovalOwnerContext } from "@/lib/pdm-approval-owner-route";
+import { UnifiedPdmEntityDetailDrawer } from "@/components/unified-pdm-entity-detail-drawer";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "needs_info" | "cancelled" | "apply_failed" | "applied";
 type ApprovalDecision = "approved" | "rejected" | "needs_info";
 
 type ApprovalInboxItem = {
+  rowKey: string;
   id: string;
   source: string;
   companyId: string;
@@ -36,6 +43,11 @@ type ApprovalInboxItem = {
   targetSummary: string;
   impactSummary: string | null;
   legacy: { table: string; id: string } | null;
+  primaryTarget?: { type: string; targetId: string; code: string | null; label: string };
+  ownerHref?: string;
+  historyOnly?: boolean;
+  supersededByRequestId?: string | null;
+  supersededAt?: string | null;
 };
 
 type ApprovalDetail = ApprovalInboxItem & {
@@ -74,7 +86,12 @@ type ApprovalDetail = ApprovalInboxItem & {
 
 type InboxResponse = {
   summary?: { total: number; pending: number; needsInfo: number; applyFailed: number };
+  rows?: ApprovalInboxItem[];
   items?: ApprovalInboxItem[];
+  nextCursor?: string | null;
+  previousCursor?: string | null;
+  pageIndex?: number;
+  filters?: { status: string; domain: string; action: string; query?: string };
   error?: string;
 };
 
@@ -108,7 +125,7 @@ const actionFilters = [
   { value: "numbering.candidate_bundle_review", label: "圖料與首版整包審核" },
   { value: "numbering.obsolete_part_number", label: "料號作廢審核" },
   { value: "numbering.obsolete_ma_drawing", label: "圖號作廢審核" },
-  { value: "numbering.obsolete_part_root", label: "主根作廢審核" },
+  { value: "numbering.obsolete_part_root", label: "圖料根號作廢審核" },
   { value: "submission.obsolete", label: "送審單作廢審核" },
   { value: "bom.release_review", label: "BOM 發行審核" },
   { value: "bom.obsolete_review", label: "BOM 作廢審核" },
@@ -118,6 +135,17 @@ const actionFilters = [
 type StatusFilter = (typeof statusFilters)[number]["value"];
 type DomainFilter = (typeof domainFilters)[number]["value"];
 type ActionFilter = (typeof actionFilters)[number]["value"];
+
+function isDrawingRevisionReviewAction(actionCode: string) {
+  return actionCode === "numbering.drawing_revision_impact_review"
+    || actionCode === "numbering.drawing_revision_lifecycle_review";
+}
+
+function approvalEvidenceRequestId(detail: ApprovalDetail) {
+  return detail.actionCode === "numbering.candidate_bundle_review" || isDrawingRevisionReviewAction(detail.actionCode)
+    ? detail.id
+    : null;
+}
 
 const statusText: Record<ApprovalStatus, string> = {
   pending: "待審",
@@ -136,6 +164,7 @@ const domainText: Record<string, string> = {
   bom: "BOM",
   drawing_package: "圖面包"
 };
+type FeatureStatusResponse = { entityDetail?: { enabled?: boolean } };
 
 const legacyRedirectMessages: Record<string, string> = {
   numbering_approvals: "已從舊的發行審核入口轉到審核工作台；目前已套用圖料審核篩選。",
@@ -143,28 +172,64 @@ const legacyRedirectMessages: Record<string, string> = {
   numbering_change_reviews: "已從舊的圖面進版影響審核入口轉到審核工作台；目前已套用圖面進版影響審核篩選。"
 };
 
-// The approval drawer is intentionally retired while the drawer family is being redesigned.
-// Keep the inbox and API contracts available for the replacement UI.
-const APPROVAL_DETAIL_DRAWER_ENABLED = false;
+const APPROVAL_DETAIL_DRAWER_ENABLED = true;
 
 export default function ApprovalPlatformPage() {
   const [state, setState] = useState<LoadState>("loading");
-  // Keep the first render deterministic between SSR and the browser. Reading
-  // window.location in a state initializer made deep links hydrate different
-  // markup and caused the approval workbench to fail before it could load.
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
-  const [domainFilter, setDomainFilter] = useState<DomainFilter>("all");
-  const [actionFilter, setActionFilter] = useState<ActionFilter>("all");
   const [legacyRedirectMessage, setLegacyRedirectMessage] = useState<string | null>(null);
-  const [filtersReady, setFiltersReady] = useState(false);
-  const deepLinkedRequestRef = useRef<string | null>(null);
-  const [items, setItems] = useState<ApprovalInboxItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ApprovalDetail | null>(null);
   const [busy, setBusy] = useState<ApprovalDecision | "retry-apply" | "retry-cleanup" | "reload" | "detail" | null>(null);
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [unifiedEntityDetailEnabled, setUnifiedEntityDetailEnabled] = useState<boolean | null>(null);
+  const [unifiedDetailRequestId, setUnifiedDetailRequestId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const initialQuery: ApprovalWorkbenchQuery = { status: "active", domain: "all", action: "all", query: "", limit: 100 };
+  const handleUnauthorized = useCallback(() => setState("unauthorized"), []);
+  const skipApprovalDetailFetch = useCallback(() => true, []);
+  const controller = usePdmWorkbenchController<ApprovalInboxItem, ApprovalDetail, ApprovalWorkbenchQuery, ApprovalWorkbenchListResponse["filters"]>({
+    initialQuery,
+    initialLocation: readApprovalWorkbenchLocation,
+    readLocation: readApprovalWorkbenchLocation,
+    writeLocation: writeApprovalWorkbenchLocation,
+    buildListUrl: buildApprovalWorkbenchListUrl,
+    buildDetailUrl: (rowKey) => `/api/approvals/requests/${encodeURIComponent(rowKey)}`,
+    getRowKey: approvalWorkbenchRowKey,
+    normalizeResponse: normalizeApprovalWorkbenchResponse,
+    normalizeDetail: (value) => {
+      const body = value as { request?: ApprovalDetail };
+      return body.request ?? value as ApprovalDetail;
+    },
+    detailRowKey: approvalWorkbenchRowKey,
+    detailHistoryMode: "replace",
+    paginationMode: "server-bidirectional",
+    shouldSkipDetailFetch: skipApprovalDetailFetch,
+    listErrorMessage: "審核清單目前無法載入，請重新整理。",
+    detailErrorMessage: "這筆審核已不存在或目前無法查看。",
+    onUnauthorized: handleUnauthorized
+  });
+  const {
+    initialized,
+    rows: items,
+    loading,
+    error: controllerError,
+    query: workbenchQuery,
+    setQuery: setWorkbenchQuery,
+    selectedKey: selectedId,
+    setSelectedKey: setSelectedId,
+    nextCursor,
+    previousCursor,
+    pageIndex,
+    loadRows,
+    goNext,
+    goPrevious,
+    openDetail: openControllerDetail,
+    closeDetail: closeControllerDetail
+  } = controller;
+  const statusFilter = workbenchQuery.status as StatusFilter;
+  const domainFilter = workbenchQuery.domain as DomainFilter;
+  const actionFilter = workbenchQuery.action as ActionFilter;
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({
     storageKey: DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY,
     defaultWidth: DRAWING_DETAIL_DRAWER_DEFAULT_WIDTH,
@@ -172,12 +237,16 @@ export default function ApprovalPlatformPage() {
   });
 
   useEffect(() => {
-    setStatusFilter(readInitialFilter("status", statusFilters, "active"));
-    setDomainFilter(readInitialFilter("domain", domainFilters, "all"));
-    setActionFilter(readInitialFilter("action", actionFilters, "all"));
-    deepLinkedRequestRef.current = readInitialTextParam("requestId");
     setLegacyRedirectMessage(readLegacyRedirectMessage());
-    setFiltersReady(true);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/numbering/state-flow/status", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<FeatureStatusResponse> : null)
+      .then((status) => { if (!cancelled) setUnifiedEntityDetailEnabled(status?.entityDetail?.enabled === true); })
+      .catch(() => { if (!cancelled) setUnifiedEntityDetailEnabled(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const visibleActionFilters = useMemo(
@@ -188,41 +257,29 @@ export default function ApprovalPlatformPage() {
     [domainFilter]
   );
   const showInboxAction = useMemo(() => new Set(items.map((item) => item.actionCode)).size > 1, [items]);
-  const loadInbox = useCallback(async (options?: { preserveFeedback?: boolean; preserveSelection?: boolean }) => {
+  const selectedItem = items.find((item) => item.id === selectedId) ?? null;
+  const selectedOwnerContext = selectedItem ? resolvePdmApprovalOwnerContext(selectedItem) : null;
+  const selectedIsPdmOwner = Boolean(selectedItem && isPdmOwnerApprovalAction(selectedItem.actionCode));
+  const selectedIsHistoricalPdmReview = Boolean(
+    selectedItem
+      && selectedIsPdmOwner
+      && selectedItem.status !== "pending"
+      && selectedItem.status !== "apply_failed"
+  );
+  const legacyDetailFallback = APPROVAL_DETAIL_DRAWER_ENABLED && (
+    selectedIsHistoricalPdmReview
+      ||
+    (unifiedEntityDetailEnabled !== true && Boolean(selectedItem && !selectedIsPdmOwner))
+      || (unifiedEntityDetailEnabled === true && Boolean(selectedItem && !selectedItem.ownerHref && !selectedIsPdmOwner))
+  );
+  const loadInbox = useCallback(async (options?: { preserveFeedback?: boolean }) => {
     setBusy("reload");
     setError("");
     if (!options?.preserveFeedback) setMessage("");
-    const response = await fetch(buildInboxUrl(statusFilter, domainFilter, actionFilter));
+    await loadRows();
     setBusy(null);
-    if (response.status === 401) {
-      setState("unauthorized");
-      return;
-    }
-    if (response.status === 403) {
-      setState("forbidden");
-      return;
-    }
-    const body = (await response.json().catch(() => ({}))) as InboxResponse;
-    if (!response.ok) {
-      setState("error");
-      setError(body.error ?? "審核清單讀取失敗");
-      return;
-    }
-    const nextItems = body.items ?? [];
-    const deepLinkedRequestId = deepLinkedRequestRef.current;
-    const deepLinkedItem = deepLinkedRequestId ? nextItems.find((item) => item.id === deepLinkedRequestId) : null;
-    setItems(nextItems);
-    setSelectedId((current) => {
-      if (!APPROVAL_DETAIL_DRAWER_ENABLED) return null;
-      if (deepLinkedItem) return deepLinkedItem.id;
-      if (deepLinkedRequestId) return deepLinkedRequestId;
-      if (current && nextItems.some((item) => item.id === current)) return current;
-      if (options?.preserveSelection && current) return current;
-      return nextItems[0]?.id ?? null;
-    });
-    deepLinkedRequestRef.current = null;
     setState("ready");
-  }, [actionFilter, domainFilter, statusFilter]);
+  }, [loadRows]);
 
   const loadDetail = useCallback(async (requestId: string) => {
     setBusy("detail");
@@ -246,22 +303,29 @@ export default function ApprovalPlatformPage() {
   }, []);
 
   useEffect(() => {
-    if (!filtersReady) return;
-    syncFilterQuery(statusFilter, domainFilter, actionFilter);
-    loadInbox();
-  }, [actionFilter, domainFilter, filtersReady, loadInbox, statusFilter]);
+    if (initialized && controllerError && state === "loading") {
+      setState("error");
+      setError(controllerError);
+    } else if (initialized && !loading && !controllerError && state === "loading") {
+      setState("ready");
+    }
+  }, [controllerError, initialized, loading, state]);
 
   useEffect(() => {
-    if (!APPROVAL_DETAIL_DRAWER_ENABLED) {
-      setDetail(null);
-      return;
-    }
-    if (selectedId) {
-      loadDetail(selectedId);
-    } else {
-      setDetail(null);
-    }
-  }, [loadDetail, selectedId]);
+    const requestId = readInitialTextParam("requestId");
+    if (initialized && requestId && selectedId === requestId) setUnifiedDetailRequestId(requestId);
+  }, [initialized, selectedId]);
+
+  useEffect(() => {
+    if (!legacyDetailFallback) return;
+    if (selectedId) void loadDetail(selectedId);
+    else setDetail(null);
+  }, [legacyDetailFallback, loadDetail, selectedId]);
+
+  useEffect(() => {
+    setDetail(null);
+    setComment("");
+  }, [selectedId]);
 
   async function decide(decision: ApprovalDecision) {
     if (!detail) return;
@@ -276,20 +340,25 @@ export default function ApprovalPlatformPage() {
       },
       body: JSON.stringify({ decision, comment })
     });
-    const body = (await response.json().catch(() => ({}))) as { request?: ApprovalDetail; lifecycle?: { cleanupPending?: boolean }; error?: string };
+    const body = (await response.json().catch(() => ({}))) as {
+      request?: ApprovalDetail;
+      lifecycle?: { cleanupPending?: boolean };
+      error?: string;
+      message?: string;
+    };
     setBusy(null);
     if (!response.ok || !body.request) {
-      setError(body.error ?? "審核決策失敗");
+      setError(body.message ?? body.error ?? "審核決策失敗");
       return;
     }
     setDetail({ ...body.request, cleanupPending: body.lifecycle?.cleanupPending ?? body.request.cleanupPending ?? false });
     setMessage(
-      detail.actionCode === "numbering.drawing_revision_lifecycle_review" && decision === "rejected"
+      isDrawingRevisionReviewAction(detail.actionCode) && decision === "rejected"
         ? "已退回修改"
         : `已${decision === "approved" ? "核准" : decision === "rejected" ? "駁回" : "要求補資料"}`
     );
     window.dispatchEvent(new Event("approval-inbox-changed"));
-    await loadInbox({ preserveFeedback: true, preserveSelection: true });
+    await loadInbox({ preserveFeedback: true });
   }
 
   async function retryCleanup() {
@@ -314,7 +383,7 @@ export default function ApprovalPlatformPage() {
     setDetail((current) => current ? { ...current, cleanupPending: false } : current);
     setMessage(body.message ?? "已完成流程整理。");
     window.dispatchEvent(new Event("approval-inbox-changed"));
-    await loadInbox({ preserveFeedback: true, preserveSelection: true });
+    await loadInbox({ preserveFeedback: true });
   }
 
   async function retryApply() {
@@ -343,11 +412,12 @@ export default function ApprovalPlatformPage() {
         : "審核決策已重新套用。編號仍需由具發布權限者完成發布。"
     );
     window.dispatchEvent(new Event("approval-inbox-changed"));
-    await loadInbox({ preserveFeedback: true, preserveSelection: true });
+    await loadInbox({ preserveFeedback: true });
   }
 
   function closeDetail() {
-    setSelectedId(null);
+    closeControllerDetail();
+    setUnifiedDetailRequestId(null);
     setDetail(null);
     setComment("");
     setMessage("");
@@ -355,11 +425,48 @@ export default function ApprovalPlatformPage() {
     clearApprovalDetailQuery();
   }
 
+  const openApprovalRow = useCallback((item: ApprovalInboxItem) => {
+    const ownerContext = resolvePdmApprovalOwnerContext(item);
+    const historicalPdmReview = isPdmOwnerApprovalAction(item.actionCode)
+      && item.status !== "pending"
+      && item.status !== "apply_failed";
+    if (historicalPdmReview && APPROVAL_DETAIL_DRAWER_ENABLED) {
+      setUnifiedDetailRequestId(null);
+      void openControllerDetail(item.id);
+      return;
+    }
+    if (unifiedEntityDetailEnabled !== false && ownerContext) {
+      setUnifiedDetailRequestId(item.id);
+      void openControllerDetail(item.id);
+      return;
+    }
+    if (isPdmOwnerApprovalAction(item.actionCode)) {
+      setError("此審核案目前無法對應原工作台資料，已停止開啟，請由 PDM Admin 修正送審目標。");
+      return;
+    }
+    if (APPROVAL_DETAIL_DRAWER_ENABLED) void openControllerDetail(item.id);
+  }, [openControllerDetail, unifiedEntityDetailEnabled]);
+  const listKeyboard = useListKeyboardShortcuts({
+    items,
+    selectedKey: selectedId,
+    listRef,
+    rowSelector: "[data-approval-workbench-row='true']",
+    getKey: approvalWorkbenchRowKey,
+    getCopyText: (item) => item.targetSummary || item.title,
+    onSelect: (item, options) => {
+      if (options.openDetail) openApprovalRow(item);
+      else setSelectedId(item.id);
+    },
+    onOpenDetail: openApprovalRow,
+    onCloseDetail: closeDetail,
+    isDetailOpen: Boolean((legacyDetailFallback && detail) || (unifiedDetailRequestId && unifiedDetailRequestId === selectedId))
+  });
+
   return (
     <div className="approval-platform-page">
       <header className="topbar">
         <div>
-          <h1>審核工作台 <StatusScopeHelp scope="approvalInbox" /></h1>
+          <h1>審核工作台</h1>
         </div>
         <button className="secondary-button" type="button" onClick={() => loadInbox()} disabled={busy === "reload"} title="重新整理">
           <RefreshCw size={16} aria-hidden="true" />
@@ -368,12 +475,24 @@ export default function ApprovalPlatformPage() {
       </header>
 
       {legacyRedirectMessage ? <div className="approval-message info">{legacyRedirectMessage}</div> : null}
-      {!APPROVAL_DETAIL_DRAWER_ENABLED ? <div className="approval-message info">審核明細抽屜已暫停開發；目前保留審核清單，待後續重新設計。</div> : null}
+      {error && state === "ready" && !detail ? <div className="approval-message error" role="alert">{error}</div> : null}
 
-      <section className="approval-filter-bar" aria-label="審核篩選">
+      <section className="approval-filter-bar pdm-workbench-filter-bar" aria-label="審核篩選">
+        <label className="approval-filter-field approval-filter-search">
+          <span>搜尋</span>
+          <div className="approval-filter-search-control">
+            <Search size={16} aria-hidden="true" />
+            <input
+              value={workbenchQuery.query}
+              onChange={(event) => setWorkbenchQuery((current) => ({ ...current, query: event.target.value }))}
+              placeholder="圖號、料號、品名、送審者"
+              aria-label="搜尋圖號、料號、品名或送審者"
+            />
+          </div>
+        </label>
         <label className="approval-filter-field">
           <span>狀態</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+          <select value={statusFilter} onChange={(event) => setWorkbenchQuery((current) => ({ ...current, status: event.target.value as StatusFilter }))}>
             {statusFilters.map((filter) => (
               <option value={filter.value} key={filter.value}>
                 {filter.label}
@@ -386,8 +505,7 @@ export default function ApprovalPlatformPage() {
           <select
             value={domainFilter}
             onChange={(event) => {
-              setDomainFilter(event.target.value as DomainFilter);
-              setActionFilter("all");
+              setWorkbenchQuery((current) => ({ ...current, domain: event.target.value as DomainFilter, action: "all" }));
             }}
           >
             {domainFilters.map((filter) => (
@@ -399,7 +517,7 @@ export default function ApprovalPlatformPage() {
         </label>
         <label className="approval-filter-field">
           <span>審核類型</span>
-          <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value as ActionFilter)}>
+          <select value={actionFilter} onChange={(event) => setWorkbenchQuery((current) => ({ ...current, action: event.target.value as ActionFilter }))}>
             {visibleActionFilters.map((filter) => (
               <option value={filter.value} key={filter.value}>
                 {filter.label}
@@ -407,14 +525,12 @@ export default function ApprovalPlatformPage() {
             ))}
           </select>
         </label>
-        {statusFilter !== "active" || domainFilter !== "all" || actionFilter !== "all" ? (
+        {statusFilter !== "active" || domainFilter !== "all" || actionFilter !== "all" || workbenchQuery.query ? (
           <button
             className="secondary-button"
             type="button"
             onClick={() => {
-              setStatusFilter("active");
-              setDomainFilter("all");
-              setActionFilter("all");
+              setWorkbenchQuery((current) => ({ ...current, status: "active", domain: "all", action: "all", query: "" }));
             }}
           >
             清除篩選
@@ -424,42 +540,57 @@ export default function ApprovalPlatformPage() {
 
       {state === "unauthorized" ? <div className="panel approval-empty">請先登入。</div> : null}
       {state === "forbidden" ? <div className="panel approval-empty">目前帳號沒有審核中心讀取權限。</div> : null}
-      {state === "error" ? <div className="panel approval-error">{error}</div> : null}
+      {state === "error" ? <div className="panel approval-error">{error || controllerError}</div> : null}
 
       <div className="approval-platform-layout">
         <section className="panel approval-inbox-panel" aria-label="審核清單">
           <div className="panel-header">
             <h2>審核清單</h2>
-            <span className="approval-count">{state === "loading" ? "讀取中" : `${items.length} 筆`}</span>
+            <span className="approval-count">{loading && items.length === 0 ? "讀取中" : `${items.length} 筆`}</span>
           </div>
-          <div className="approval-inbox-list">
-            {items.map((item) => (
-              <button
-                type="button"
-                className={item.id === selectedId ? "approval-inbox-item active" : "approval-inbox-item"}
-                onClick={() => {
-                  if (APPROVAL_DETAIL_DRAWER_ENABLED) setSelectedId(item.id);
-                }}
-                aria-disabled={!APPROVAL_DETAIL_DRAWER_ENABLED}
-                aria-current={item.id === selectedId ? "true" : undefined}
-                aria-label={`${item.targetSummary || item.title}，${item.actionTitle}，${statusText[item.status] ?? item.status}，${item.requestedByName ?? item.requestedBy ?? "未知申請者"}`}
-                key={item.id}
-              >
-                <span className="approval-inbox-primary">
-                  <strong>{item.targetSummary || item.title}</strong>
-                  {showInboxAction ? <small>{item.actionTitle}</small> : null}
-                </span>
-                <span className={`approval-status-chip ${statusClass(item.status)}`}>{statusText[item.status] ?? item.status}</span>
-                <span className="approval-inbox-meta">
-                  <span>{item.requestedByName ?? item.requestedBy ?? "未知申請者"}</span>
-                  <time dateTime={item.requestedAt}>{formatCompactDate(item.requestedAt)}</time>
-                </span>
-              </button>
-            ))}
-            {state === "ready" && items.length === 0 ? <div className="approval-empty">目前沒有待處理審核。</div> : null}
-          </div>
+          <PdmWorkbenchList
+            rows={items}
+            getRowKey={approvalWorkbenchRowKey}
+            selectedKey={selectedId}
+            ariaLabel="審核工作清單"
+            className="approval-inbox-list"
+            tableClassName="approval-workbench-table"
+            rowDataAttribute="data-approval-workbench-row"
+            rowAriaKeyShortcuts={listKeyboard.shortcuts}
+            containerRef={listRef}
+            onContainerKeyDown={listKeyboard.handleKeyDown}
+            loading={loading}
+            loadingState={<div className="approval-empty">正在載入審核清單...</div>}
+            emptyState={state === "ready" ? <div className="approval-empty">目前沒有符合條件的待處理審核。</div> : null}
+            onOpenRow={openApprovalRow}
+            columns={[
+              { key: "target", header: "審核項目", dataLabel: "審核項目", className: "approval-workbench-col-target", render: (item) => <span className="approval-inbox-primary"><strong>{item.targetSummary || item.title}</strong>{showInboxAction ? <small>{item.actionTitle}</small> : null}</span> },
+              { key: "domain", header: "領域", dataLabel: "領域", className: "approval-workbench-col-domain", render: (item) => <span>{domainText[item.domainCode] ?? item.domainCode}</span> },
+              { key: "requester", header: "送審者", dataLabel: "送審者", className: "approval-workbench-col-requester", render: (item) => <span>{item.requestedByName ?? item.requestedBy ?? "未知申請者"}</span> },
+              { key: "status", header: "狀態", dataLabel: "狀態", className: "approval-workbench-col-status", render: (item) => <span className="approval-status-cell"><span className={`approval-status-chip ${statusClass(item.status)}`}>{statusText[item.status] ?? item.status}</span>{item.historyOnly ? <small className="approval-history-label" title={item.supersededByRequestId ? "此案件已由較新的審核案件取代" : "歷史案件"}>{item.supersededByRequestId ? "已取代" : "歷史"}</small> : null}</span> },
+              { key: "requestedAt", header: "送審時間", dataLabel: "送審時間", className: "approval-workbench-col-time", render: (item) => <time dateTime={item.requestedAt}>{formatCompactDate(item.requestedAt)}</time> }
+            ]}
+          />
+          <PdmWorkbenchPagination pageIndex={pageIndex} hasPreviousPage={Boolean(previousCursor)} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
         </section>
-        {/* ApprovalDetailDrawer is intentionally not mounted during the redesign. */}
+        {legacyDetailFallback && detail ? <ApprovalDetailDrawer detail={detail} busy={busy} comment={comment} message={message} error={error} drawerWidth={drawerWidth} onStartResize={startDrawerResize} onClose={closeDetail} onCommentChange={setComment} onDecide={decide} onRetryCleanup={retryCleanup} onRetryApply={retryApply} /> : null}
+        {!legacyDetailFallback && unifiedEntityDetailEnabled && unifiedDetailRequestId === selectedItem?.id && selectedItem && selectedOwnerContext ? (
+          <UnifiedPdmEntityDetailDrawer
+            open
+            entityKey={selectedOwnerContext.entityKey}
+            surface={selectedOwnerContext.surface}
+            reviewRequestId={selectedItem.id}
+            width={drawerWidth}
+            returnTo={approvalDrawerReturnTo()}
+            onStartResize={startDrawerResize}
+            onClose={closeDetail}
+            onCommandSuccess={async () => {
+              window.dispatchEvent(new Event("approval-inbox-changed"));
+              closeDetail();
+              await loadInbox({ preserveFeedback: true });
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -556,17 +687,22 @@ function ApprovalImpactSummary({ detail }: { detail: ApprovalDetail }) {
   const lifecycleDrawing = asRecord(snapshot.drawing);
   const lifecycleParts = asRecordArray(snapshot.parts);
   const lifecycleFiles = asRecordArray(snapshot.files);
+  const lifecycleFff = asRecord(snapshot.fff);
   const candidateReservations = asRecordArray(snapshot.lockedReservations);
   const candidateCodes = candidateReservations.map((item) => stringValue(item.candidateCode)).filter(Boolean);
   const candidateNumberFacts = asRecord(snapshot.numberFacts);
   const candidateRelations = asRecordArray(candidateNumberFacts.relations);
   const candidateFiles = resultCandidates.flatMap((candidate) => candidate.files);
-  const facts = detail.actionCode === "numbering.drawing_revision_lifecycle_review"
+  const facts = isDrawingRevisionReviewAction(detail.actionCode)
     ? [
         { label: "範圍", value: stringValue(lifecycleDrawing.number) || detail.targetSummary },
         { label: "版次", value: stringValue(lifecycleDrawing.revision) || "-" },
         { label: "料號", value: `${lifecycleParts.length} 個` },
-        { label: "檔案", value: `${lifecycleFiles.length} 個` }
+        { label: "檔案", value: `${lifecycleFiles.length} 個` },
+        { label: "FFF 結論", value: approvalImpactStateLabel(stringValue(lifecycleFff.outcome) || detail.impactSummary) },
+        { label: "Form", value: approvalImpactStateLabel(stringValue(lifecycleFff.formState)) },
+        { label: "Fit", value: approvalImpactStateLabel(stringValue(lifecycleFff.fitState)) },
+        { label: "Function", value: approvalImpactStateLabel(stringValue(lifecycleFff.functionState)) }
       ]
     : isCandidateBundle
       ? [
@@ -581,12 +717,16 @@ function ApprovalImpactSummary({ detail }: { detail: ApprovalDetail }) {
           { label: "範圍", value: detail.targets.map((target) => approvalTargetLabel(detail, target)).join("、") || detail.targetSummary },
           { label: "影響", value: approvalImpactLabel(detail.impactSummary) }
         ];
+  const requestReason = detail.reason.trim();
+  if (requestReason) {
+    facts.push({ label: "申請理由", value: approvalReasonLabel(requestReason) });
+  }
 
   return (
     <div
       className="approval-impact-summary"
       data-approval-bundle-summary={isCandidateBundle ? "true" : undefined}
-      data-drawing-lifecycle-review-summary={detail.actionCode === "numbering.drawing_revision_lifecycle_review" ? "true" : undefined}
+      data-drawing-lifecycle-review-summary={isDrawingRevisionReviewAction(detail.actionCode) ? "true" : undefined}
     >
       <NumberingSubmissionResult
         mode="reviewer"
@@ -605,7 +745,7 @@ function ApprovalResultBody({ detail, candidates }: { detail: ApprovalDetail; ca
       {candidates.length > 0 ? (
         <NumberingSubmissionResult
           mode="reviewer"
-          requestId={detail.actionCode === "numbering.candidate_bundle_review" ? detail.id : null}
+          requestId={approvalEvidenceRequestId(detail)}
           heading="圖面與附件"
           showHeader={false}
           candidates={candidates}
@@ -619,7 +759,7 @@ function ApprovalResultBody({ detail, candidates }: { detail: ApprovalDetail; ca
 }
 
 function ApprovalDrawingPreview({ detail, candidates }: { detail: ApprovalDetail; candidates: NumberingSubmissionResultCandidate[] }) {
-  const requestId = detail.actionCode === "numbering.candidate_bundle_review" ? detail.id : null;
+  const requestId = approvalEvidenceRequestId(detail);
   const files = candidates.flatMap((candidate) => candidate.files);
   const threeD = files.find((file) => file.role === "cad_3d");
   const twoD = files.find((file) => ["drawing_2d", "pdf", "dwg_dxf"].includes(file.role));
@@ -663,6 +803,26 @@ function ApprovalDrawingPreview({ detail, candidates }: { detail: ApprovalDetail
 }
 
 function ApprovalPendingSummary({ detail }: { detail: ApprovalDetail }) {
+  if (detail.historyOnly) {
+    const currentHref = detail.supersededByRequestId
+      ? `/approvals?status=all&requestId=${encodeURIComponent(detail.supersededByRequestId)}`
+      : null;
+    return (
+      <section className="approval-drawer-pending approval-drawer-history" aria-label="歷史案件提示">
+        <strong>這筆不是目前待辦</strong>
+        <span>此審核已由較新的案件接續，保留本筆只供追溯；目前不提供核准或駁回操作。</span>
+        {currentHref ? <a className="secondary-button" href={currentHref}>查看目前案件</a> : null}
+      </section>
+    );
+  }
+  if (detail.status === "needs_info") {
+    return (
+      <section className="approval-drawer-pending approval-drawer-needs-info" aria-label="目前待處理事項">
+        <strong>等待送審者補齊資料</strong>
+        <span>資料補齊並重新送審後，主管才需要再次決策。</span>
+      </section>
+    );
+  }
   if (detail.status !== "pending") return null;
   return (
     <section className="approval-drawer-pending" aria-label="目前待處理事項">
@@ -689,7 +849,7 @@ function ApprovalMoreDetails({ detail }: { detail: ApprovalDetail }) {
           </div>
         </details>
       ) : null}
-      {detail.actionCode !== "numbering.drawing_revision_lifecycle_review" ? <details className="approval-trace-details">
+      {!isDrawingRevisionReviewAction(detail.actionCode) ? <details className="approval-trace-details">
         <summary>
           <span>追溯資料</span>
           <small>批次、流程與系統鎖定內容</small>
@@ -728,7 +888,7 @@ function ApprovalDecisionFooter({
       {error ? <div className="approval-message error" role="alert">{error}</div> : null}
       {detail.status === "pending" ? (
         <section className="approval-decision-box" aria-label="審核決策">
-          <textarea value={comment} onChange={(event) => onCommentChange(event.target.value)} placeholder={detail.actionCode === "numbering.drawing_revision_lifecycle_review" ? "退回說明（選填）" : "決策備註"} rows={2} />
+          <textarea value={comment} onChange={(event) => onCommentChange(event.target.value)} placeholder={isDrawingRevisionReviewAction(detail.actionCode) ? "退回說明（選填）" : "決策備註"} rows={2} />
           <div className="approval-decision-actions">
             {allowedDecisionsForDetail(detail).includes("needs_info") ? (
               <button className="secondary-button" type="button" onClick={() => void onDecide("needs_info")} disabled={Boolean(busy)}>
@@ -739,7 +899,7 @@ function ApprovalDecisionFooter({
             {allowedDecisionsForDetail(detail).includes("rejected") ? (
               <button className="danger-button" type="button" onClick={() => void onDecide("rejected")} disabled={Boolean(busy)}>
                 <XCircle size={16} aria-hidden="true" />
-                {detail.actionCode === "numbering.drawing_revision_lifecycle_review" ? "退回修改" : "駁回"}
+                {isDrawingRevisionReviewAction(detail.actionCode) ? "退回修改" : "駁回"}
               </button>
             ) : null}
             {allowedDecisionsForDetail(detail).includes("approved") ? (
@@ -751,7 +911,7 @@ function ApprovalDecisionFooter({
           </div>
         </section>
       ) : null}
-      {detail.actionCode === "numbering.drawing_revision_lifecycle_review" && detail.cleanupPending ? (
+      {isDrawingRevisionReviewAction(detail.actionCode) && detail.cleanupPending ? (
         <section className="approval-decision-box" aria-label="流程整理重試">
           <p className="approval-reason">審核決策已完成，僅剩流程整理；重試不會重新審核或建立第二筆送審。</p>
           <div className="approval-decision-actions">
@@ -806,7 +966,7 @@ function buildApprovalResultCandidates(detail: ApprovalDetail): NumberingSubmiss
       };
     });
   }
-  if (detail.actionCode !== "numbering.drawing_revision_lifecycle_review") return [];
+  if (!isDrawingRevisionReviewAction(detail.actionCode)) return [];
   const drawing = asRecord(snapshot.drawing);
   const files = asRecordArray(snapshot.files);
   if (files.length === 0) return [];
@@ -828,7 +988,7 @@ function buildApprovalResultCandidates(detail: ApprovalDetail): NumberingSubmiss
 
 function approvalSourceLabel(detail: ApprovalDetail) {
   if (detail.legacy) return "既有審核紀錄";
-  if (detail.actionCode === "numbering.drawing_revision_lifecycle_review") return "圖面進版";
+  if (isDrawingRevisionReviewAction(detail.actionCode)) return "圖面進版";
   return detail.actionCode === "numbering.candidate_bundle_review" ? "圖料整包送審" : "系統審核流程";
 }
 
@@ -863,7 +1023,7 @@ function approvalTargetStatusLabel(status: string | null, type: string) {
     drawing_number: "圖號",
     drawing_revision_package: "圖面版次",
     part_number: "料號",
-    part_root: "主根"
+    part_root: "圖料根號"
   };
   return typeLabels[type] ?? "審核項目";
 }
@@ -893,6 +1053,15 @@ function approvalImpactLabel(impactSummary: string | null) {
   return /^[a-z0-9_.-]+$/u.test(normalized)
     ? "影響內容已隨案件鎖定，請依審核範圍判斷。"
     : normalized;
+}
+
+function approvalImpactStateLabel(value: string | null) {
+  const labels: Record<string, string> = {
+    no_impact: "無影響",
+    suspected_impact: "疑似影響",
+    confirmed_impact: "確認影響"
+  };
+  return labels[value?.trim() ?? ""] ?? "未提供";
 }
 
 function approvalDecisionLabel(decision: ApprovalDecision) {
@@ -928,6 +1097,85 @@ function allowedDecisionsForDetail(detail: ApprovalDetail): ApprovalDecision[] {
   }
   if (detail.source !== "platform" && detail.source !== "legacy_numbering") return ["approved", "rejected"];
   return ["approved", "needs_info", "rejected"];
+}
+
+function approvalWorkbenchRowKey(item: ApprovalInboxItem) {
+  return item.rowKey || `approval:${item.source}:${item.id}`;
+}
+
+function readApprovalWorkbenchLocation(): PdmWorkbenchLocationState<ApprovalWorkbenchQuery> {
+  const status = readInitialFilter("status", statusFilters, "active");
+  const domain = readInitialFilter("domain", domainFilters, "all");
+  const action = readInitialFilter("action", actionFilters, "all");
+  const query = normalizeApprovalQueryParam(readInitialTextParam("query"));
+  const cursor = readInitialTextParam("cursor");
+  const page = Number(readInitialTextParam("page"));
+  return {
+    query: { status, domain, action, query, limit: 100 },
+    detailKey: readInitialTextParam("requestId"),
+    legacyDetail: null,
+    cursor,
+    pageIndex: Number.isFinite(page) ? Math.max(0, Math.floor(page)) : 0
+  };
+}
+
+function writeApprovalWorkbenchLocation(
+  state: PdmWorkbenchLocationState<ApprovalWorkbenchQuery>,
+  mode: "replace" | "push"
+) {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  params.set("status", state.query.status);
+  if (state.query.query) params.set("query", state.query.query);
+  else params.delete("query");
+  if (state.query.domain === "all") params.delete("domain");
+  else params.set("domain", state.query.domain);
+  if (state.query.action === "all") params.delete("action");
+  else params.set("action", state.query.action);
+  if (state.detailKey) params.set("requestId", state.detailKey);
+  else {
+    params.delete("requestId");
+    params.delete("drawing");
+  }
+  if (state.cursor) {
+    params.set("cursor", state.cursor);
+    if ((state.pageIndex ?? 0) > 0) params.set("page", String(state.pageIndex));
+    else params.delete("page");
+  } else {
+    params.delete("cursor");
+    params.delete("page");
+  }
+  const query = params.toString();
+  const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
+  if (mode === "push") window.history.pushState(null, "", nextUrl);
+  else window.history.replaceState(null, "", nextUrl);
+}
+
+function buildApprovalWorkbenchListUrl(query: ApprovalWorkbenchQuery, cursor: string | null) {
+  const params = new URLSearchParams({ status: query.status, limit: String(query.limit) });
+  if (query.query) params.set("query", normalizeApprovalQueryParam(query.query));
+  if (query.domain !== "all") params.set("domain", query.domain);
+  if (query.action !== "all") params.set("action", query.action);
+  if (cursor) params.set("cursor", cursor);
+  return `/api/approvals/inbox?${params.toString()}`;
+}
+
+function normalizeApprovalWorkbenchResponse(value: unknown): ApprovalWorkbenchListResponse {
+  const body = value as InboxResponse;
+  return {
+    rows: body.rows ?? body.items ?? [],
+    nextCursor: body.nextCursor ?? null,
+    previousCursor: body.previousCursor ?? null,
+    pageIndex: body.pageIndex ?? 0,
+    generatedAt: new Date().toISOString(),
+    filters: {
+      status: (body.filters?.status as ApprovalWorkbenchListResponse["filters"]["status"] | undefined) ?? "active",
+      domain: body.filters?.domain ?? "all",
+      action: body.filters?.action ?? "all",
+      query: body.filters?.query ?? ""
+    },
+    summary: body.summary ?? { total: 0, pending: 0, needsInfo: 0, applyFailed: 0 }
+  };
 }
 
 function buildInboxUrl(status: StatusFilter, domain: DomainFilter, action: ActionFilter) {
@@ -975,6 +1223,10 @@ function syncFilterQuery(status: StatusFilter, domain: DomainFilter, action: Act
   }
 }
 
+function normalizeApprovalQueryParam(value: string | null) {
+  return (value ?? "").trim().replace(/\s+/gu, " ").slice(0, 160);
+}
+
 function clearApprovalDetailQuery() {
   if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
@@ -982,6 +1234,15 @@ function clearApprovalDetailQuery() {
   params.delete("drawing");
   const nextQuery = params.toString();
   window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
+}
+
+function approvalDrawerReturnTo() {
+  if (typeof window === "undefined") return "/approvals";
+  const params = new URLSearchParams(window.location.search);
+  params.delete("requestId");
+  params.delete("drawing");
+  const query = params.toString();
+  return `${window.location.pathname}${query ? `?${query}` : ""}`;
 }
 
 function statusClass(status: ApprovalStatus) {

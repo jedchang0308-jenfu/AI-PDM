@@ -24,6 +24,7 @@ import {
   type NumberingCandidateRevisionRecord
 } from "@/lib/number-lifecycle-simplification";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
+import { assertPdmReviewScopeWritableAsync, lockPdmDraftWorkspaceScopeAsync } from "@/lib/pdm-review-lock";
 
 export const MAX_CANDIDATE_ALLOCATION_ATTEMPTS = 3;
 
@@ -146,6 +147,9 @@ type CandidateApprovalRow = {
   apply_attempts: number;
   apply_error: string | null;
   payload_json: string | Record<string, unknown>;
+  latest_decision: "approved" | "rejected" | "needs_info" | null;
+  latest_decision_comment: string | null;
+  latest_decided_at: string | null;
 };
 
 type CandidateRevisionRow = {
@@ -208,6 +212,9 @@ export type NumberingCandidateApprovalRecord = {
   applyAttempts: number;
   applyError: string | null;
   snapshotHash: string | null;
+  decision: CandidateApprovalRow["latest_decision"];
+  comment: string | null;
+  decidedAt: string | null;
 };
 
 export class NumberStateApprovalApplyFault extends Error {
@@ -328,6 +335,7 @@ export type NumberingDraftWorkspaceRecord = {
   }>;
   reservations: NumberCandidateReservationRecord[];
   latestApproval: NumberingCandidateApprovalRecord | null;
+  latestReviewFeedback: NumberingCandidateApprovalRecord | null;
   projection: NumberStateProjection;
   lifecycleV2: NumberLifecycleProjectionV2 | null;
   candidateRevisions: NumberingCandidateRevisionRecord[];
@@ -499,7 +507,10 @@ function mapCandidateApproval(row: CandidateApprovalRow | null): NumberingCandid
     applyStatus: row.apply_status,
     applyAttempts: Number(row.apply_attempts),
     applyError: row.apply_error,
-    snapshotHash: typeof payload.snapshotHash === "string" ? payload.snapshotHash : null
+    snapshotHash: typeof payload.snapshotHash === "string" ? payload.snapshotHash : null,
+    decision: row.latest_decision ?? null,
+    comment: row.latest_decision_comment ?? null,
+    decidedAt: row.latest_decided_at ?? null
   };
 }
 
@@ -722,6 +733,29 @@ export function numberingCandidateSnapshotFacts(workspace: NumberingDraftWorkspa
 
 const candidateSnapshotFacts = numberingCandidateSnapshotFacts;
 
+export function numberingCandidateReviewSnapshotHash(workspace: NumberingDraftWorkspaceRecord) {
+  const facts = candidateSnapshotFacts(workspace);
+  const factsHash = sha256(canonicalJson(facts));
+  const snapshot = {
+    snapshotVersion: "numbering-candidate-publication-review-v1",
+    factsHash,
+    facts,
+    lockedReservations: workspace.reservations
+      .filter((reservation) => reservation.state !== "recycled")
+      .map((reservation) => ({
+        id: reservation.id,
+        itemType: reservation.itemType,
+        itemId: reservation.itemId,
+        candidateCode: reservation.candidateCode,
+        sequenceScopeKey: reservation.sequenceScopeKey,
+        sequenceNo: reservation.sequenceNo,
+        rowVersion: reservation.rowVersion
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id))
+  };
+  return sha256(canonicalJson(snapshot));
+}
+
 function buildCandidateSnapshot(workspace: NumberingDraftWorkspaceRecord) {
   const facts = candidateSnapshotFacts(workspace);
   const factsHash = sha256(canonicalJson(facts));
@@ -915,8 +949,9 @@ export class AsyncNumberStateFlowRepository {
         drawingDraftIds: drawings.map((drawing) => drawing.id),
         relationCount: relations.length,
         relationshipOnlyReady: workspace.draft_mode === "append_part"
-          && Boolean(workspace.source_drawing_number_id)
-          && parts.length > 0,
+          && parts.length > 0
+          && (Boolean(workspace.source_drawing_number_id)
+            || parts.every((part) => !["manufactured", "outsourced", "custom"].includes(part.item_kind))),
         reservations: reservations.map((reservation) => ({
           itemType: reservation.draft_item_type,
           state: reservation.reservation_state
@@ -991,6 +1026,7 @@ export class AsyncNumberStateFlowRepository {
       })),
       reservations: reservations.map(mapReservation),
       latestApproval,
+      latestReviewFeedback: latestBundleApproval ?? latestApproval,
       projection: buildProjection(workspace, reservations, latestApproval),
       lifecycleV2,
       candidateRevisions,
@@ -1252,7 +1288,10 @@ export class AsyncNumberStateFlowRepository {
       queryChunks<ReservationRow>((ids) => `SELECT * FROM number_candidate_reservations
         WHERE company_id = :companyId AND workspace_id IN (${ids})
         ORDER BY CASE draft_item_type WHEN 'root' THEN 0 WHEN 'part' THEN 1 WHEN 'drawing' THEN 2 ELSE 3 END, created_at, id`),
-      queryChunks<TargetedApprovalRow>((ids) => `SELECT request.*, target.target_id AS target_workspace_id
+      queryChunks<TargetedApprovalRow>((ids) => `SELECT request.*, target.target_id AS target_workspace_id,
+          (SELECT decision.decision FROM approval_platform_decisions decision WHERE decision.request_id = request.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decision,
+          (SELECT decision.comment FROM approval_platform_decisions decision WHERE decision.request_id = request.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decision_comment,
+          (SELECT decision.decided_at FROM approval_platform_decisions decision WHERE decision.request_id = request.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decided_at
         FROM approval_platform_requests request
         JOIN approval_platform_targets target ON target.request_id = request.id
         WHERE request.company_id = :companyId
@@ -1283,7 +1322,10 @@ export class AsyncNumberStateFlowRepository {
           JOIN drawing_revision_packages package
             ON package.id = approval.package_id AND package.company_id = approval.company_id
           WHERE candidate.company_id = :companyId AND candidate.workspace_id IN (${ids})`),
-        queryChunks<TargetedApprovalRow>((ids) => `SELECT request.*, target.target_id AS target_workspace_id
+        queryChunks<TargetedApprovalRow>((ids) => `SELECT request.*, target.target_id AS target_workspace_id,
+          (SELECT decision.decision FROM approval_platform_decisions decision WHERE decision.request_id = request.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decision,
+          (SELECT decision.comment FROM approval_platform_decisions decision WHERE decision.request_id = request.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decision_comment,
+          (SELECT decision.decided_at FROM approval_platform_decisions decision WHERE decision.request_id = request.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decided_at
           FROM approval_platform_requests request
           JOIN approval_platform_targets target ON target.request_id = request.id
           WHERE request.company_id = :companyId
@@ -1371,7 +1413,10 @@ export class AsyncNumberStateFlowRepository {
         { workspaceId, companyId }
       ),
       this.client.queryOne<CandidateApprovalRow>(
-        `SELECT r.*
+        `SELECT r.*,
+                (SELECT decision.decision FROM approval_platform_decisions decision WHERE decision.request_id = r.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decision,
+                (SELECT decision.comment FROM approval_platform_decisions decision WHERE decision.request_id = r.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decision_comment,
+                (SELECT decision.decided_at FROM approval_platform_decisions decision WHERE decision.request_id = r.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decided_at
          FROM approval_platform_requests r
          JOIN approval_platform_targets t ON t.request_id = r.id
          WHERE r.company_id = :companyId
@@ -1419,7 +1464,10 @@ export class AsyncNumberStateFlowRepository {
           { workspaceId, companyId }
         ),
         this.client.queryOne<CandidateApprovalRow>(
-          `SELECT request.*
+          `SELECT request.*,
+                  (SELECT decision.decision FROM approval_platform_decisions decision WHERE decision.request_id = request.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decision,
+                  (SELECT decision.comment FROM approval_platform_decisions decision WHERE decision.request_id = request.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decision_comment,
+                  (SELECT decision.decided_at FROM approval_platform_decisions decision WHERE decision.request_id = request.id ORDER BY decision.decided_at DESC, decision.id DESC LIMIT 1) AS latest_decided_at
            FROM approval_platform_requests request
            JOIN approval_platform_targets target ON target.request_id = request.id
            WHERE request.company_id = :companyId
@@ -1441,8 +1489,14 @@ export class AsyncNumberStateFlowRepository {
   async updateWorkspace(input: UpdateNumberingDraftWorkspaceData) {
     return this.client.transaction(async (client) => {
       const repository = new AsyncNumberStateFlowRepository(client, this.clock, this.idFactory);
+      await lockPdmDraftWorkspaceScopeAsync(client, input);
       const workspace = await repository.workspaceRow(input.workspaceId, input.companyId, true);
       if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
+      await assertPdmReviewScopeWritableAsync(client, {
+        companyId: input.companyId,
+        targetIds: [input.workspaceId],
+        targetRefs: [{ type: "numbering_draft_workspace", id: input.workspaceId }]
+      });
       if (workspace.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
       if (Number(workspace.row_version) !== input.expectedRowVersion) throw new Error("WORKSPACE_VERSION_CONFLICT");
       const locked = await client.queryOne<{ count: number | string }>(
@@ -1540,21 +1594,33 @@ export class AsyncNumberStateFlowRepository {
   }
 
   private async usedCodes(companyId: string, itemType: NumberCandidateItemType, sequenceScopeKey: string) {
-    const [candidateRows, recoveryRows] = await Promise.all([
+    const [candidateRows, recoveryRows, partDraftRows] = await Promise.all([
       this.client.query<{ candidate_code: string }>(
         `SELECT candidate_code FROM number_candidate_reservations
          WHERE company_id = :companyId AND draft_item_type = :itemType
            AND sequence_scope_key = :sequenceScopeKey
-           AND reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted')`,
+           AND reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted', 'recycled')`,
         { companyId, itemType, sequenceScopeKey }
       ),
       this.client.query<{ number_value: string }>(
         `SELECT number_value FROM numbering_recovery_reservations
          WHERE company_id = :companyId AND number_kind = :itemType AND reservation_status = 'reserved'`,
         { companyId, itemType }
-      )
+      ),
+      itemType === "part"
+        ? this.client.query<{ reserved_part_number: string }>(
+            `SELECT reserved_part_number FROM part_number_drafts
+             WHERE company_id = :companyId
+               AND status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation')`,
+            { companyId }
+          )
+        : Promise.resolve([])
     ]);
-    return [...candidateRows.map((row) => row.candidate_code), ...recoveryRows.map((row) => row.number_value)];
+    return [
+      ...candidateRows.map((row) => row.candidate_code),
+      ...recoveryRows.map((row) => row.number_value),
+      ...partDraftRows.map((row) => row.reserved_part_number)
+    ];
   }
 
   private async allocateCode(input: {
@@ -1673,6 +1739,7 @@ export class AsyncNumberStateFlowRepository {
   }
 
   async acquireCandidates(input: { workspaceId: string; companyId: string; actorId: string; expectedRowVersion: number }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspace = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspace.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -1747,6 +1814,7 @@ export class AsyncNumberStateFlowRepository {
     expectedRowVersion: number;
     reason: string;
   }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspace = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspace.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -1819,6 +1887,7 @@ export class AsyncNumberStateFlowRepository {
     expectedRowVersion: number;
     reason: string;
   }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspaceRow = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspaceRow) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspaceRow.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -2001,6 +2070,7 @@ export class AsyncNumberStateFlowRepository {
     actorId: string;
     expectedRowVersion: number;
   }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspaceRow = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspaceRow) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspaceRow.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -2295,6 +2365,7 @@ export class AsyncNumberStateFlowRepository {
       reservationVersionOffset: number;
     };
   }): Promise<NumberingPublicationResult> {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const workspaceRow = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspaceRow) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspaceRow.lifecycle_status === "published") throw new Error("WORKSPACE_ALREADY_PUBLISHED");
@@ -2437,6 +2508,18 @@ export class AsyncNumberStateFlowRepository {
       const reservation = reservationByItem.get(`drawing:${drawing.id}`);
       if (!reservation) throw new Error("CANDIDATE_DRAWING_REQUIRED");
       const masterId = `drawing-number-${reservation.id}`;
+      const hasPrimaryRelation = workspace.relations.some((relation) => relation.drawingDraftId === drawing.id && relation.linkType === "primary_manufacturing")
+        || Boolean(sourceContext.sourcePart && workspace.sourceLinkType === "primary_manufacturing");
+      const publishAsPrimaryManufacturing = isManufacturingPurpose(drawing.purposeCode) && drawing.isPrimaryManufacturing && hasPrimaryRelation;
+      if (publishAsPrimaryManufacturing) {
+        await this.client.execute(
+          `UPDATE drawing_numbers
+           SET is_primary_manufacturing = 0, updated_at = :updatedAt
+           WHERE company_id = :companyId AND part_root_id = :partRootId
+             AND purpose_code IN ('MA', 'M') AND is_primary_manufacturing = 1`,
+          { companyId: input.companyId, partRootId: rootId, updatedAt: now }
+        );
+      }
       this.approvalFaultInjector?.("before_drawing_insert");
       await this.client.execute(
         `INSERT INTO drawing_numbers (
@@ -2456,7 +2539,7 @@ export class AsyncNumberStateFlowRepository {
           purposeCode: drawing.purposeCode,
           purposeDescription: drawing.purposeDescription,
           sequenceNo: reservation.sequence_no,
-          isPrimaryManufacturing: drawing.isPrimaryManufacturing ? 1 : 0,
+          isPrimaryManufacturing: publishAsPrimaryManufacturing ? 1 : 0,
           ruleVersionId,
           createdBy: input.actorId,
           createdAt: now,

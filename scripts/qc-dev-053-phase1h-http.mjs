@@ -30,13 +30,16 @@ record("DEV053-H-HTTP-001 enforced submission uses only the native lifecycle com
     "lifecycle: true"
   ]) && submit.indexOf("submitDrawingRevisionLifecycle({") < submit.indexOf("createDrawingSourceSubmission({"));
 
-record("DEV053-H-HTTP-002 native decision exposes exactly approve or return-for-correction",
+record("DEV053-H-HTTP-002 native decision exposes all three human decisions",
   has(decision, [
     'detail.actionCode === "numbering.drawing_revision_lifecycle_review"',
     'decision === "needs_info"',
-    'decision === "approved" ? "approved" : "returned_for_correction"',
+    'decision === "approved" ? "approved" : decision === "needs_info" ? "needs_info" : "returned_for_correction"',
     'requireRoleAsync(request, ["R&D Manager", "Admin"])',
     "drawingRevisionLifecycleErrorPayload(error)"
+  ]) && has(lifecycleRepository, [
+    'decision: "approved" | "returned_for_correction" | "needs_info"',
+    'input.decision === "needs_info" ? "needs_info" : "rejected"'
   ]));
 
 record("DEV053-H-HTTP-003 request detail is company-scoped and exact-reviewer-scoped",

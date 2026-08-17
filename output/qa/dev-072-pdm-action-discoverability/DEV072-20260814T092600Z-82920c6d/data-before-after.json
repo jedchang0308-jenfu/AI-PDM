@@ -1,0 +1,224 @@
+[
+  {
+    "label": "unlock-submit-withdraw",
+    "before": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 3
+        }
+      ]
+    },
+    "afterFiles": {
+      "activeFiles": 2
+    },
+    "submitted": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "review_locked",
+          "count": 3
+        }
+      ],
+      "requests": [
+        {
+          "id": "APR-a77ed9cc-ac2c-49fb-a128-b462792a2e27",
+          "status": "pending",
+          "actionCode": "numbering.candidate_bundle_review"
+        }
+      ],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "review_locked",
+          "requestId": "APR-a77ed9cc-ac2c-49fb-a128-b462792a2e27",
+          "rowVersion": 4
+        }
+      ]
+    },
+    "withdrawn": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 5
+        }
+      ]
+    }
+  },
+  {
+    "label": "direct-bypass-stale",
+    "expectedStatus": 409,
+    "before": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 5
+        }
+      ]
+    },
+    "after": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-admin-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 5
+        }
+      ]
+    },
+    "mutationCount": 1
+  },
+  {
+    "label": "direct-bypass-permission",
+    "expectedStatus": 403,
+    "before": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-manufacturing-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 5
+        }
+      ]
+    },
+    "after": {
+      "workspace": {
+        "id": "draft-workspace-5de61a2a-4098-4c0e-be75-27cf44037f1c",
+        "lifecycleStatus": "active",
+        "rowVersion": 3,
+        "ownerId": "user-manufacturing-demo"
+      },
+      "reservations": [
+        {
+          "state": "active",
+          "count": 3
+        }
+      ],
+      "requests": [],
+      "candidates": [
+        {
+          "id": "NCR-dcbee120-6f92-4274-86cf-7e876d07df0c",
+          "lifecycleStatus": "draft",
+          "requestId": null,
+          "rowVersion": 5
+        }
+      ]
+    },
+    "mutationCount": 1
+  },
+  {
+    "label": "decision-return_for_correction",
+    "requestId": "APR-0b2f219a-6e28-4c9a-b63a-fa9822c23385",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "needs_info",
+      "applyStatus": "applied"
+    },
+    "mutationCount": 1
+  },
+  {
+    "label": "decision-reject",
+    "requestId": "APR-0b2f219a-6e28-4c9a-b63a-fa9822c23385",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "rejected",
+      "applyStatus": "applied"
+    },
+    "mutationCount": 1
+  },
+  {
+    "label": "decision-approve",
+    "requestId": "APR-0b2f219a-6e28-4c9a-b63a-fa9822c23385",
+    "before": {
+      "status": "pending",
+      "applyStatus": "pending"
+    },
+    "after": {
+      "status": "approved",
+      "applyStatus": "applied"
+    },
+    "mutationCount": 1
+  }
+]

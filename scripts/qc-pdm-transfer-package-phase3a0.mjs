@@ -87,7 +87,7 @@ record("TP0-011 new and detail routes share one workbench shell", newPage.includ
 record("TP0-012 UI exposes explicit create, scope, adapters, blockers and history", includesAll(workbench, [
   "建立技轉包",
   "案件範圍",
-  "模組狀態",
+  "功能模組狀態",
   "阻擋與下一步",
   "異動紀錄",
   "data-transfer-package-mode"

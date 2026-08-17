@@ -18,6 +18,7 @@ import {
 } from "@/lib/repositories/number-state-flow-async-repository";
 import type { NumberingCandidateRevisionFileRecord } from "@/lib/number-lifecycle-simplification";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
+import { assertPdmReviewScopeWritableAsync, lockPdmDraftWorkspaceScopeAsync } from "@/lib/pdm-review-lock";
 
 type WorkspaceRow = {
   id: string;
@@ -355,6 +356,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
     actorId: string;
     expectedWorkspaceRowVersion: number;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.drawingDraftId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_draft_drawing", id: input.drawingDraftId }
+      ]
+    });
     const workspace = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspace.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -464,6 +473,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
     revision: string;
     overrideReason: string | null;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId }
+      ]
+    });
     const row = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!row) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (row.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -518,6 +535,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
     expectedRowVersion: number;
     storage: CandidateFileStorageInput;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId }
+      ]
+    });
     const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -679,6 +704,96 @@ export class AsyncNumberLifecycleSimplificationRepository {
     return this.stateRepository().getWorkspace(input.workspaceId, input.companyId);
   }
 
+  async reuseCandidateFileLink(input: {
+    workspaceId: string;
+    companyId: string;
+    candidateRevisionId: string;
+    actorId: string;
+    expectedRowVersion: number;
+    contentHash: string;
+    fileSize: number;
+    role: NumberingCandidateRevisionFileRecord["role"];
+    isPrimary: boolean;
+  }): Promise<{ workspace: NumberingDraftWorkspaceRecord; fileId: string; mode: "already_linked" | "reactivated" } | null> {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId }
+      ]
+    });
+    const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
+    if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
+    if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
+    const existing = await this.client.queryOne<{ id: string; is_primary: number | string; removed_at: string | null }>(
+      `SELECT candidate_file.id, candidate_file.is_primary, candidate_file.removed_at
+       FROM numbering_candidate_revision_files candidate_file
+       JOIN file_assets asset ON asset.id = candidate_file.source_file_asset_id
+       WHERE candidate_file.candidate_revision_id = :candidateRevisionId
+         AND candidate_file.company_id = :companyId
+         AND candidate_file.role = :role
+         AND asset.deleted_at IS NULL
+         AND asset.content_hash = :contentHash
+         AND asset.file_size = :fileSize
+       ORDER BY CASE WHEN candidate_file.removed_at IS NULL THEN 0 ELSE 1 END,
+                candidate_file.created_at, candidate_file.id
+       LIMIT 1`,
+      input
+    );
+    if (!existing) return null;
+    const wasRemoved = Boolean(existing.removed_at);
+    const alreadyPrimary = Number(existing.is_primary) === 1;
+    const primaryChanged = alreadyPrimary !== input.isPrimary;
+    const relationChanged = wasRemoved || primaryChanged;
+    if (relationChanged) {
+      if (Number(candidate.row_version) !== input.expectedRowVersion) throw new Error("CANDIDATE_REVISION_VERSION_CONFLICT");
+      const now = this.clock();
+      if (input.isPrimary) {
+        await this.client.execute(
+          `UPDATE numbering_candidate_revision_files
+           SET is_primary = 0, updated_at = :updatedAt
+           WHERE candidate_revision_id = :candidateRevisionId AND company_id = :companyId
+             AND role = :role AND is_primary = 1 AND removed_at IS NULL`,
+          { ...input, updatedAt: now }
+        );
+      }
+      const restored = await this.client.queryOne<{ id: string }>(
+        `UPDATE numbering_candidate_revision_files
+         SET is_primary = :isPrimary, removed_at = NULL, removed_by = NULL, updated_at = :updatedAt
+         WHERE id = :fileId AND candidate_revision_id = :candidateRevisionId
+           AND company_id = :companyId
+         RETURNING id`,
+        { ...input, fileId: existing.id, isPrimary: input.isPrimary ? 1 : 0, updatedAt: now }
+      );
+      if (!restored) throw new Error("CANDIDATE_FILE_NOT_FOUND");
+      const updated = await this.client.queryOne<{ id: string }>(
+        `UPDATE numbering_candidate_revision_drafts
+         SET row_version = row_version + 1, updated_by = :actorId, updated_at = :updatedAt
+         WHERE id = :candidateRevisionId AND company_id = :companyId
+           AND lifecycle_status = 'draft' AND row_version = :expectedRowVersion
+         RETURNING id`,
+        { ...input, updatedAt: now }
+      );
+      if (!updated) throw new Error("CANDIDATE_REVISION_VERSION_CONFLICT");
+    }
+    await this.audit(input.actorId, "pdm.numbering.reuse_candidate_revision_file", {
+      companyId: input.companyId,
+      workspaceId: input.workspaceId,
+      candidateRevisionId: input.candidateRevisionId,
+      candidateFileId: existing.id,
+      contentHash: input.contentHash,
+      role: input.role,
+      mode: wasRemoved ? "reactivated" : "already_linked"
+    });
+    if (relationChanged) await this.synchronizeUnifiedDrawings(input.workspaceId, input.companyId);
+    return {
+      workspace: await this.stateRepository().getWorkspace(input.workspaceId, input.companyId),
+      fileId: existing.id,
+      mode: wasRemoved ? "reactivated" : "already_linked"
+    };
+  }
+
   async candidateFileVerificationSource(input: {
     workspaceId: string;
     companyId: string;
@@ -686,6 +801,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
     fileId: string;
     expectedRowVersion: number;
   }): Promise<CandidateFileVerificationSource> {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId }
+      ]
+    });
     const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -736,6 +859,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
       finalizedAt: string;
     } | null;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId }
+      ]
+    });
     const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -819,6 +950,15 @@ export class AsyncNumberLifecycleSimplificationRepository {
     expectedRowVersion: number;
     reason: string | null;
   }) {
+    await assertPdmReviewScopeWritableAsync(this.client, {
+      companyId: input.companyId,
+      targetIds: [input.workspaceId, input.candidateRevisionId, input.fileId],
+      targetRefs: [
+        { type: "numbering_draft_workspace", id: input.workspaceId },
+        { type: "numbering_candidate_revision", id: input.candidateRevisionId },
+        { type: "numbering_candidate_revision_file", id: input.fileId }
+      ]
+    });
     const candidate = await this.candidateRow(input.candidateRevisionId, input.workspaceId, input.companyId, true);
     if (!candidate) throw new Error("CANDIDATE_REVISION_NOT_FOUND");
     if (candidate.lifecycle_status !== "draft") throw new Error("CANDIDATE_REVISION_LOCKED");
@@ -948,6 +1088,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
     expectedWorkspaceRowVersion: number;
     reason: string | null;
   }) {
+    await lockPdmDraftWorkspaceScopeAsync(this.client, input);
     const row = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!row) throw new Error("WORKSPACE_NOT_FOUND");
     if (row.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
@@ -958,8 +1099,9 @@ export class AsyncNumberLifecycleSimplificationRepository {
     const legacyAddendum = activeReservations.length > 0 && activeReservations.every((reservation) => reservation.state === "approved_locked");
     if (!fullBundle && !legacyAddendum) throw new Error("BUNDLE_NOT_READY");
     const relationshipOnlyReady = workspace.draftMode === "append_part"
-      && Boolean(workspace.sourceDrawingNumberId)
-      && workspace.parts.length > 0;
+      && workspace.parts.length > 0
+      && (Boolean(workspace.sourceDrawingNumberId)
+        || workspace.parts.every((part) => !["manufactured", "outsourced", "custom"].includes(part.itemKind)));
     if (!relationshipOnlyReady && (workspace.drawings.length === 0 || (workspace.relations.length === 0 && workspace.parts.length > 0))) {
       throw new Error("BUNDLE_NOT_READY");
     }
@@ -1333,29 +1475,35 @@ export class AsyncNumberLifecycleSimplificationRepository {
       );
       const files = await this.candidateFiles(candidate.id);
       for (const file of files.filter((entry) => !entry.removed_at)) {
-        const candidateAsset = await this.client.queryOne<{ id: string }>(
-          `SELECT id FROM file_assets
-           WHERE id = :sourceFileAssetId
-             AND linked_entity_type = 'numbering_candidate_revision'
-             AND linked_entity_id = :candidateRevisionId
-             AND deleted_at IS NULL`,
-          { sourceFileAssetId: file.source_file_asset_id, candidateRevisionId: candidate.id }
+        const candidateAsset = await this.client.queryOne<{
+          id: string;
+          linked_entity_type: string;
+          linked_entity_id: string;
+        }>(
+          `SELECT id, linked_entity_type, linked_entity_id FROM file_assets
+           WHERE id = :sourceFileAssetId AND deleted_at IS NULL`,
+          { sourceFileAssetId: file.source_file_asset_id }
         );
         if (!candidateAsset) throw new Error("APPROVAL_SNAPSHOT_STALE");
-        await this.client.execute(
-          `UPDATE file_assets
-           SET linked_entity_type = 'drawing_number', linked_entity_id = :drawingNumberId,
-               updated_at = :updatedAt
-           WHERE id = :sourceFileAssetId
-             AND linked_entity_type = 'numbering_candidate_revision'
-             AND linked_entity_id = :candidateRevisionId`,
-          {
-            sourceFileAssetId: file.source_file_asset_id,
-            candidateRevisionId: candidate.id,
-            drawingNumberId,
-            updatedAt: now
-          }
-        );
+        if (
+          candidateAsset.linked_entity_type === "numbering_candidate_revision" &&
+          candidateAsset.linked_entity_id === candidate.id
+        ) {
+          await this.client.execute(
+            `UPDATE file_assets
+             SET linked_entity_type = 'drawing_number', linked_entity_id = :drawingNumberId,
+                 updated_at = :updatedAt
+             WHERE id = :sourceFileAssetId
+               AND linked_entity_type = 'numbering_candidate_revision'
+               AND linked_entity_id = :candidateRevisionId`,
+            {
+              sourceFileAssetId: file.source_file_asset_id,
+              candidateRevisionId: candidate.id,
+              drawingNumberId,
+              updatedAt: now
+            }
+          );
+        }
         await this.client.execute(
           `INSERT INTO drawing_revision_package_files (
              id, package_id, source_file_asset_id, source_submission_file_id, role, role_source,

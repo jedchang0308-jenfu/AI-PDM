@@ -7,6 +7,7 @@ import { HumanStatusBadge } from "@/components/human-status-badge";
 import { HumanStatusFilterSelect } from "@/components/human-status-filter";
 import { NumberStateOwnerCreateAction, WorkspaceDrawer, ConfirmDialog, type NumberingDraftWorkspace, type WorkspaceAction } from "@/components/number-state-workspace";
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
+import { UnifiedPdmEntityDetailDrawer } from "@/components/unified-pdm-entity-detail-drawer";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
 import { PdmWorkbenchLayoutSwitch, type PdmWorkbenchLayout } from "@/components/pdm-workbench-layout-switch";
@@ -21,6 +22,7 @@ import type { HumanStatusFilter } from "@/lib/human-status-projection";
 import type { PartWorkbenchDetailResponse, PartWorkbenchListResponse, PartWorkbenchRow, PartWorkbenchStage, PartWorkbenchView } from "@/lib/part-workbench";
 import type { NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 import { DEFAULT_NUMBER_SORT_DIRECTION, type NumberSortDirection } from "@/lib/number-sort";
+import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
 
 type PartWorkbenchQueryState = {
   view: PartWorkbenchView;
@@ -43,7 +45,7 @@ export type PartFormalDetailRendererProps = {
   onUpdated: () => Promise<void>;
 };
 
-type FeatureStatus = { lifecycleV2?: { enabled?: boolean }; partRelationWorkbench?: { enabled?: boolean }; previewGallery?: { partEnabled?: boolean } };
+type FeatureStatus = { lifecycleV2?: { enabled?: boolean }; partRelationWorkbench?: { enabled?: boolean }; previewGallery?: { partEnabled?: boolean }; entityDetail?: { enabled?: boolean } };
 type ProductionSliceStatus = { configured?: boolean; unopenedMessage?: string };
 type ApiBody = { error?: string | { code?: string; message?: string }; message?: string };
 
@@ -114,6 +116,8 @@ function writeLocation(state: PdmWorkbenchLocationState<PartWorkbenchQueryState>
   setOptional("humanStatus", state.query.humanStatus === "all" ? "" : state.query.humanStatus);
   setOptional("sortDirection", state.query.sortDirection === DEFAULT_NUMBER_SORT_DIRECTION ? "" : state.query.sortDirection);
   state.query.includeHistory ? params.set("history", "include") : params.delete("history");
+  const reviewRequestId = new URLSearchParams(window.location.search).get("reviewRequestId");
+  reviewRequestId ? params.set("reviewRequestId", reviewRequestId) : params.delete("reviewRequestId");
   setOptional("detail", state.detailKey ?? "");
   window.history[mode === "push" ? "pushState" : "replaceState"](null, "", `${window.location.pathname}?${params.toString()}`);
 }
@@ -151,11 +155,23 @@ function idempotencyKey(action: string) {
   return `dev062:part:${action}:${crypto.randomUUID()}`;
 }
 
+function shouldSkipUnifiedReviewDetail() {
+  return Boolean(new URLSearchParams(window.location.search).get("reviewRequestId"));
+}
+
+function reviewReturnTo() {
+  const value = new URLSearchParams(window.location.search).get("returnTo") ?? "";
+  return normalizePdmApprovalReturnTo(value);
+}
+
 export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (props: PartFormalDetailRendererProps) => ReactNode }) {
   const router = useRouter();
   const redirectLogin = useCallback(() => {
     router.push(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
   }, [router]);
+  const [feature, setFeature] = useState<FeatureStatus | null>(null);
+  const unifiedEntityDetailEnabled = feature?.entityDetail?.enabled === true;
+  const skipUnifiedReviewDetail = useCallback(() => shouldSkipUnifiedReviewDetail(), []);
   const controller = usePdmWorkbenchController<PartWorkbenchRow, PartWorkbenchDetailResponse, PartWorkbenchQueryState, PartWorkbenchListResponse["filters"]>({
     initialQuery,
     initialLocation,
@@ -168,6 +184,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
     normalizeDetail,
     detailRowKey: getDetailKey,
     detailHistoryMode: "push",
+    shouldSkipDetailFetch: skipUnifiedReviewDetail,
     listErrorMessage: "料號工作台目前無法載入，請重新整理。",
     detailErrorMessage: "這筆料號工作已不存在或目前無法查看。",
     onUnauthorized: redirectLogin
@@ -178,9 +195,10 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
     nextCursor, pageIndex, loadRows, goNext, goPrevious, openDetail: openControllerDetail,
     closeDetail: closeControllerDetail
   } = controller;
-  const [feature, setFeature] = useState<FeatureStatus | null>(null);
   const [layout, setLayout] = useState<PdmWorkbenchLayout>("list");
   const [productionSlice, setProductionSlice] = useState<ProductionSliceStatus | null>(null);
+  const [reviewRequestId, setReviewRequestId] = useState<string | null>(null);
+  useEffect(() => { setReviewRequestId(new URLSearchParams(window.location.search).get("reviewRequestId")); }, []);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmAction, setConfirmAction] = useState<WorkspaceAction | null>(null);
@@ -206,11 +224,8 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
       }
       return;
     }
-    const apply = () => setLayout(readPartLayout(true));
-    apply();
-    window.addEventListener("popstate", apply);
-    return () => window.removeEventListener("popstate", apply);
-  }, [previewEnabled]);
+    setLayout(readPartLayout(true));
+  }, [previewEnabled, query]);
   const changeLayout = useCallback((next: PdmWorkbenchLayout) => {
     if (!previewEnabled) return;
     setLayout(next);
@@ -359,7 +374,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
 
       <section className="panel pdm-workbench-toolbar">
         <div className="drawing-workbench-filter-grid">
-          <label className="drawing-workbench-search"><span>搜尋</span><div><Search size={16} /><input value={query.query} onChange={(event) => updateQuery({ query: event.target.value })} placeholder="料號、主根號、名稱、材質、顏色" /></div></label>
+          <label className="drawing-workbench-search"><span>搜尋</span><div><Search size={16} /><input value={query.query} onChange={(event) => updateQuery({ query: event.target.value })} placeholder="料號、圖料根號、名稱、材質、顏色" /></div></label>
           <label><span>範圍</span><select value={query.view} onChange={(event) => updateQuery({ view: event.target.value as PartWorkbenchView })}><option value="all">全部</option><option value="mine">我的待處理</option><option value="work">工作中</option></select></label>
           <label><span>工作狀態</span><HumanStatusFilterSelect value={query.humanStatus} onChange={(humanStatus) => updateQuery({ humanStatus })} /></label>
           <label><span>系列代號</span><select value={query.seriesCode} onChange={(event) => updateQuery({ seriesCode: event.target.value })}><option value="">全部系列</option>{seriesCodeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
@@ -449,7 +464,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
         onClose={closeDetail}
       /> : null}
       {detail?.candidate && confirmAction ? <ConfirmDialog action={confirmAction} workspace={detail.candidate as NumberingDraftWorkspace} busy={busy} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onClose={() => setConfirmAction(null)} onConfirm={() => void runWorkspaceAction(confirmAction)} /> : null}
-      {detail?.part ? <PdmEntityDetailDrawer
+      {detail?.part && !unifiedEntityDetailEnabled ? <PdmEntityDetailDrawer
         open
         width={drawerWidth}
         ariaLabel="料號明細"
@@ -465,6 +480,7 @@ export function PartWorkbench({ renderFormalDetail }: { renderFormalDetail: (pro
         onStartResize={startDrawerResize}
         keepOpenSelector="[data-part-workbench-row='true']"
       ><div className="pdm-entity-drawer-body">{renderFormalDetail({ detail: detail.part, busy, productionSliceEnforced, productionSliceUnopenedMessage: unopenedMessage, setBusy, onUpdated: refresh })}</div></PdmEntityDetailDrawer> : null}
+      {unifiedEntityDetailEnabled && selectedKey && !detail?.candidate ? <UnifiedPdmEntityDetailDrawer open entityKey={selectedKey} surface="part" reviewRequestId={reviewRequestId} width={drawerWidth} returnTo={reviewRequestId ? reviewReturnTo() : window.location.pathname + window.location.search} onStartResize={startDrawerResize} onClose={reviewRequestId ? () => router.push(reviewReturnTo()) : closeDetail} /> : null}
     </>
   );
 }

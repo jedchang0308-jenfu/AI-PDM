@@ -1,0 +1,1 @@
+{"at":"2026-08-16T03:16:32+08:00","actor":"QC/RD","path":"E03","result":"fail_then_targeted_pass","defect_id":"DEV074-R19-P1-015","mutation_channel":"rendered_ui","repair":"controlled drawing revision package is now a traceable BOM CAD source","next_gate":"R20 full 58-path clean rerun"}

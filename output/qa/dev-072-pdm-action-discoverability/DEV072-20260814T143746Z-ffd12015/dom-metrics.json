@@ -1,0 +1,89 @@
+[
+  {
+    "label": "decision-approve",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "inventory": [
+      {
+        "id": "detail:approval:approve",
+        "label": "核准",
+        "group": "review",
+        "order": 300,
+        "enabled": true,
+        "ariaDisabled": null,
+        "ariaBusy": null,
+        "describedBy": null,
+        "tag": "BUTTON",
+        "primary": true,
+        "box": {
+          "x": 971,
+          "y": 791,
+          "width": 140,
+          "height": 38
+        }
+      },
+      {
+        "id": "detail:approval:return_for_correction",
+        "label": "要求補充資料",
+        "group": "review",
+        "order": 310,
+        "enabled": true,
+        "ariaDisabled": null,
+        "ariaBusy": null,
+        "describedBy": null,
+        "tag": "BUTTON",
+        "primary": false,
+        "box": {
+          "x": 1121,
+          "y": 791,
+          "width": 140,
+          "height": 38
+        }
+      },
+      {
+        "id": "detail:approval:reject",
+        "label": "退回修改",
+        "group": "review",
+        "order": 320,
+        "enabled": true,
+        "ariaDisabled": null,
+        "ariaBusy": null,
+        "describedBy": null,
+        "tag": "BUTTON",
+        "primary": false,
+        "box": {
+          "x": 1271,
+          "y": 791,
+          "width": 140,
+          "height": 38
+        }
+      },
+      {
+        "id": "detail:navigation:return",
+        "label": "返回",
+        "group": "utility",
+        "order": 910,
+        "enabled": true,
+        "ariaDisabled": null,
+        "ariaBusy": null,
+        "describedBy": null,
+        "tag": "BUTTON",
+        "primary": false,
+        "box": {
+          "x": 1271,
+          "y": 839,
+          "width": 140,
+          "height": 38
+        }
+      }
+    ],
+    "geometry": {
+      "documentScrollWidth": 1440,
+      "viewportWidth": 1440,
+      "bodyScrollOwnerCount": 1,
+      "horizontalOverflow": false
+    }
+  }
+]

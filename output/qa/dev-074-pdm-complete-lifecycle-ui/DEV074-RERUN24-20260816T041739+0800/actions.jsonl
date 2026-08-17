@@ -1,0 +1,5 @@
+{"at":"2026-08-16T04:17:39+08:00","actor":"qc","action":"run_started","run_id":"DEV074-RERUN24-20260816T041739+0800","root":"A0036","policy":"rendered_ui_only"}
+{"at":"2026-08-16T04:29:00+08:00","actor":"qc","action":"path_failed","path":"B05","defect_id":"DEV074-R24-P1-020","reason":"owner UI omitted reviewer needs-info comment"}
+{"at":"2026-08-16T04:35:00+08:00","actor":"rd","action":"repair_completed","defect_id":"DEV074-R24-P1-020","checks":["typecheck:app","qc:dev-074:owner-review-feedback-visibility","qc:dev-074:review-attachment-visibility","qc:dev-074:content-aware-release-conflict"]}
+{"at":"2026-08-16T04:37:00+08:00","actor":"qc","action":"targeted_ui_retest_passed","path":"B05","evidence":"screenshots/B05/targeted-owner-feedback-visible.png"}
+{"at":"2026-08-16T04:37:51+08:00","actor":"qc","action":"run_sealed_failed","summary":{"pass":8,"fail":1,"blocked":0,"not_run":49}}

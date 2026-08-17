@@ -1,0 +1,83 @@
+{
+  "dev": "DEV-068",
+  "fixture": "A0005",
+  "database": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-068-drawing-recognition\\A0005-20260815165853-local-isolated\\ai-pdm.sqlite",
+  "sessionId": "recognition-2feb1f82-5423-41c7-8c5b-d511d9e8108d",
+  "sourceHashes": [
+    {
+      "fileName": "A0005.SLDPRT",
+      "contentHash": "e2060691a2e02c285d04c56d1d17da3ef40c9ae17fd2ee11d2ccf96e5f4328f2"
+    },
+    {
+      "fileName": "A0005-M01.SLDDRW",
+      "contentHash": "0dc8d2b64736c67c035237d9dccf515a65c90a58c089029f801390ec7462337e"
+    }
+  ],
+  "targetParts": [
+    "A0005-P01",
+    "A0005-P02",
+    "A0005-P03"
+  ],
+  "categories": [
+    "controlled_note",
+    "drawing_revision",
+    "engineering_evidence",
+    "identity_relation",
+    "part_attribute",
+    "unclassified"
+  ],
+  "candidateCount": 21,
+  "baseline": [
+    {
+      "fieldKey": "material",
+      "fieldLabel": "材料",
+      "value": "SUS304",
+      "support": 2,
+      "partCount": 3
+    },
+    {
+      "fieldKey": "surface_finish",
+      "fieldLabel": "表面處理",
+      "value": "無",
+      "support": 3,
+      "partCount": 3
+    },
+    {
+      "fieldKey": "color",
+      "fieldLabel": "顏色",
+      "value": "無",
+      "support": 2,
+      "partCount": 3
+    },
+    {
+      "fieldKey": "variant_note",
+      "fieldLabel": "變體備註",
+      "value": "無",
+      "support": 3,
+      "partCount": 3
+    }
+  ],
+  "impact": {
+    "changeCount": 5,
+    "exclusionCount": 16,
+    "blockerCount": 0
+  },
+  "formalization": {
+    "appliedCount": 5,
+    "eventId": "recognition-event-f8d15a91-1e4f-4041-9742-9652fcbb9932",
+    "idempotentReplay": true
+  },
+  "openFieldFormalized": {
+    "stable_key": "reference_motor_code",
+    "display_label": "參考馬達代碼",
+    "value_text": "REF-MOTOR-B"
+  },
+  "missingValueNoChange": true,
+  "notApplicableReasonRequired": true,
+  "notApplicableWithoutTargetNonBlocking": true,
+  "appendOnlyProtected": true,
+  "staleTargetProtected": true,
+  "atomicRollbackProtected": true,
+  "checks": "PASS",
+  "completedAt": "2026-08-15T16:58:54.283Z"
+}

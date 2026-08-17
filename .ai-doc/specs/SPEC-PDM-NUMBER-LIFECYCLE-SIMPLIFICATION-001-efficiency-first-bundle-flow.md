@@ -3,6 +3,7 @@
 Status: `Phase 1A-1D Implemented / Local QC Passed / Production Release Gated`
 Date: 2026-08-03
 Readiness reviewed: 2026-08-04
+Decision amended: 2026-08-15
 Owner: Dev PM
 Related DEV: `DEV-052` / `DEV-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001`
 Related ADR: `.ai-doc/decisions/ADR-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-additive-adoption-and-auto-finalization.md`
@@ -11,6 +12,8 @@ Related QA: `.ai-doc/qa/qa-pdm-number-lifecycle-simplification-validation-plan-2
 Current execution boundary: DEV-052 Phase 1A-1D 已在本機完成；V2 feature flag 仍預設 off，production mutation allowlist 未開放。本文與本機證據不授權 production migration、既有資料修復、部署、release 或 production smoke。
 
 > 2026-08-04 後續 UI 決策：使用者已以 `DEV-053` 確認未來改採單一「圖號工作台」，不再保留「圖號總表／保留號」雙分頁。此決策分類為對 `HD-052-04` 的 `Intentional replacement + additive source-context extension`，目前成熟度為 `RD Implementation Ready / Human Confirmed / Awaiting Phase 1A Local Execution`；authoritative契約、ADR與QA見 `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`、`.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`、`.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`。DEV-053只允許在workspace additive保存指定existing drawing/part/link context，既有rows維持NULL且不backfill。在DEV-053完成產品實作與QA/QC前，本文件第9節仍描述現行DEV-052本機實作；DEV-052候選aggregate、legacy compatibility、single bundle review、atomic auto-finalization、權限、冪等與release gate不因UI提案而改變。
+
+> 2026-08-15 使用者可見路徑修訂：由 DEV-064 canonical Drawing 契約取代舊的 visible legacy／addendum／recovery 分流。所有尚未正式化且非終結的舊保留號，在開發階段自動納入同一圖號工作台並只投影為「首版準備」；來源 `review_locked`、`approved_locked`、不一致原因、基線審核與 adoption reconciliation 仍保留為 server/admin-only 證據，不得顯示成使用者工作站、頁籤、badge、CTA 或導引。正式／已發布與終結歷史仍依真實下游狀態呈現，不得重開成可編輯首版。正式環境啟用時比照此可見契約，但仍受 reservation-ID 全量零遺漏 gate 約束。
 
 Related authority:
 
@@ -31,6 +34,8 @@ Related authority:
 - `HD-052-02`：候選圖號可以建立、編輯不可正式使用的首版圖面草稿；正式承諾在整包送審 snapshot 固化。
 - `HD-052-03`：核准後由系統以冪等、原子方式自動正式化；證據不足或寫入失敗不得留下部分正式資料。
 - `HD-052-04`：保留既有「保留號」頁籤與 `/numbering/drawings?tab=reserved` 入口，不建立第二套新版頁面；頁籤仍稱 `保留號`，頁面工作區標題改為 `保留號／首版準備`，角色由號碼審核／人工發布頁改為候選首版準備工作區。
+- `HD-052-05`：舊保留號必須全量整併進「首版準備」生命週期；正式環境啟用時逐筆比對來源與新投影，任何遺漏、重複、改號或無法追溯的保留號都必須阻擋上線，不得以抽樣或 UI 筆數代替全量對帳。
+- `HD-052-06`：所有尚未正式化且非終結的舊保留號，對一般使用者只能出現在唯一「首版準備」站；既有審核、補登、復原、整併與對帳過程全部留在後台，不形成可見路徑。
 
 「既有保留號進入新流程」的資料安全解讀如下：
 
@@ -39,6 +44,8 @@ Related authority:
 3. 只有使用者明確建立／儲存候選首版圖面時，才新增 candidate-stage 資料。
 4. 不改號、不 backfill workflow version、不重播舊審核、不把舊 number-only 核准冒充為圖面核准。
 5. 已發布、已取消、已回收與資料矛盾案件只做安全映射，不猜測、不自動再發布。
+6. 整併不改寫來源狀態：`active`、`review_locked`、`approved_locked` 與不一致原因仍是後台 facts；但只要尚未正式化且非終結，使用者可見投影一律為 `drawing_preparation / 首版準備`，不得出現 legacy／addendum／recovery adoption 路徑。
+7. 每一筆來源 reservation row 都必須保留原 ID、候選號、公司、workspace、item type、item ID、狀態與證據鏈；一般使用者由首版準備、正式圖號或歷史分類找回，具名 recovery manifest 只供 admin／release gate 對帳。
 
 ## 2. Outcome
 
@@ -70,7 +77,7 @@ Related authority:
 | 人工確認次數 | 號碼送審、號碼核准、人工發布，之後另有圖面作業 | 一次bundle送審、一次核准；沒有第二次人工發布 |
 | 失敗邊界 | 審核與發布為不同commands，可能停在已核准未發布 | savepoint內全有或全無；失敗保留decision/diagnostic但不留部分正式資料 |
 | 小數版效力 | 不因號碼核准成為受控首版，且不得 `Released` | 核准後effective `ReviewApproved`，仍不得 `Released`或進manufacturing current |
-| 既有保留號 | 繼續現行number-only review/manual publication | 零寫入compatibility projection進同一頁往前推；舊核准缺圖面時走addendum |
+| 既有保留號 | 繼續現行number-only review/manual publication | 開發階段自動納入同一圖號工作台；未正式化且非終結者只顯示首版準備，既有審核／addendum／recovery只作後台證據 |
 
 此表描述產品契約差異，不表示新流程已上線；直到 DEV-052 implementation、QA/QC與release gate完成前，正式環境仍使用左欄行為。
 
@@ -114,6 +121,45 @@ Related authority:
 | 狀態互相矛盾、approval 缺失、同號多個 active claim | `recovery_required` | PDM Admin 檢視診斷；依獨立修復 gate 處置 | 推測狀態、批次修復、自動發布 |
 
 `drawing_addendum_required` 是既有資料的過渡節點，不是新建案件的正常額外步驟。差異審核必須引用原 number-only approval request、其 snapshot hash 與目前 candidate drawing snapshot，才能保留完整證據鏈。
+
+### 5.1 Production zero-loss adoption contract
+
+正式環境啟用前後必須以同一個 read-only source manifest 做全量對帳。manifest 的最小單位是 `number_candidate_reservations.id`，不是工作台聚合列；一個 workspace 可包含 root、part、drawing 多筆 reservation，因此 UI row count 不得當成資料完整性證據。
+
+每筆來源 reservation 必須恰好出現在一個 adoption bucket：
+
+| Source fact | Internal adoption bucket | 使用者可見位置／後台處置 |
+|---|---|---|
+| `active` 且 workspace facts 一致 | `drawing_preparation` | 「首版準備」預設工作範圍；可依權限完成首版 |
+| `active` 且候選首版證據已齊 | `bundle_ready` | 「首版準備」中的可送審範圍 |
+| `review_locked` | `in_review` | 舊審核只作後台基線；一般使用者仍只見「首版準備」 |
+| bundle 已核准且系統尚在套用 | `auto_finalizing` | 新流程送審後可見正式化中；不得重建或漏列 |
+| `approved_locked` 且舊核准未含圖面 | `drawing_addendum_required` | 舊核准與差異範圍只作後台證據；一般使用者仍只見「首版準備」 |
+| `promoted`／workspace `published` | `official_controlled` | 正式圖號／研發受控範圍 |
+| `recycled`／workspace `cancelled` | `history_only` | 歷史範圍，仍可用原號碼與 ID 查得 |
+| 混合狀態、缺證據、重複 claim 或無法判定 | `recovery_required` | 一般使用者仍只見「首版準備」；原因、owner 與復原清冊僅供 admin/release gate |
+
+正式 activation 的必要等式與零容忍條件：
+
+```text
+source_reservation_count
+  = distinct_mapped_reservation_count
+  = sum(distinct reservation IDs in all eight lifecycle adoption buckets)
+
+unmapped = 0
+duplicate_mapping = 0
+renumbered = 0
+source_row_hash_changed = 0
+```
+
+`source_row_hash_changed=0` 適用於 migration／backfill／flag-off readback／read-only canary 的 cutover freeze；正式開放操作後，合法送審／核准可推進 state 與 row version，但舊 cohort 的 reservation ID、candidate code、company／workspace／item identity、證據鏈與唯一 adoption mapping 仍不得遺失或改號。
+
+- source manifest 至少保存 `company_id`、reservation ID、workspace ID、item type／ID、candidate code、state、row version、approval／promotion pointers 與 canonical hash。
+- drawing reservation 必須連到恰好一個 canonical Drawing 或明確 `recovery_required`；root／part reservation 必須保留在同一 workspace／圖料 bundle 的可追溯關係中，不得為了 Drawing 收斂而丟棄。
+- 對帳必須逐 company、全分頁、全狀態執行；預設清單、篩選器或抽樣查核都不能證明零遺漏。
+- `recovery_required` 不算遺失，但每筆都要有原因、owner 與後續 gate；任何未列入清冊的異常仍為 no-go。
+- production schema／canonical adoption 後先在 flag off 狀態完成 readback，再做小範圍 canary 搜尋、list、detail、舊 deep link 與歷史入口驗證；全部通過才可擴大啟用。
+- 回滾只關閉新 write path／feature flag；來源 rows、已建立 canonical rows、candidate／approval／formalization facts一律保留，不得用刪除或 down migration「回復」。
 
 ## 6. Candidate First-Revision Authority
 
@@ -214,7 +260,7 @@ decision command 使用 outer transaction + `candidate_bundle_formalization` sav
 | UI surface | 現在流程 | DEV-052 新流程 |
 |---|---|---|
 | `保留號` 頁面 | 保留號碼、號碼送審與人工正式發布作業 | 保留同一頁面，改為候選圖料號＋首版圖面準備工作區 |
-| 頁面標題 | 既有圖號模組／保留號脈絡 | 頁籤 `保留號`；工作區標題 `保留號／首版準備` |
+| 頁面標題 | 既有圖號工作台／保留號脈絡 | 頁籤 `保留號`；工作區標題 `保留號／首版準備` |
 | 清單判斷資訊 | 候選號、號碼審核／發布狀態 | 候選號、首版準備度、整包審核與正式化狀態 |
 | 打開 drawer | 狀態、保留內容、版次預告與分散後續動作 | 直接看候選版次、圖面檔案、圖料關係與目前唯一下一步 |
 | 第一個 primary CTA | `送交發布審核` | `完成首版圖面` |
@@ -224,7 +270,7 @@ decision command 使用 outer transaction + `candidate_bundle_formalization` sav
 | 審核中 | `查看審核`／`撤回審核`，後續仍保留人工發布 | primary 為 `查看審核`；符合規則才顯示 secondary `撤回審核` |
 | 核准後 | 顯示 `正式發布`，等待第二次人工操作 | 顯示系統正式化狀態，不再出現人工 `正式發布` |
 | 成功結果 | 正式發布後再開始首版圖面工作 | 顯示 `圖料號已正式建立`＋`研發版已核准`，並提供 `查看正式圖面` |
-| `Now What` | 正常狀態也可能與後續動作重複 | 正常狀態不顯示；只在 legacy、blocked、recovery、terminal／empty 等分流狀態顯示 |
+| `Now What` | 正常狀態也可能與後續動作重複 | 正常狀態不顯示；legacy adoption／reconciliation／recovery 不形成一般使用者分流，只在真正 terminal／empty 或新流程套用失敗時提供必要說明 |
 | 正式化後清單位置 | 仍可能停在保留號操作脈絡 | 離開預設進行中保留號清單，進正式圖號；歷史仍可查 |
 
 ### 9.3 State-to-primary-action contract
@@ -238,7 +284,7 @@ decision command 使用 outer transaction + `candidate_bundle_formalization` sav
 | auto finalizing | `核准完成，系統正在建立正式資料` | 無人工 CTA | loading status；不得顯示 disabled publish |
 | official controlled | `圖料號已正式建立`、`研發版已核准` | `查看正式圖面` | 歷史／audit降層 |
 | apply failed | `正式化未完成，沒有留下部分正式資料` | 有權限者 `重試正式化`；一般使用者 `查看處理狀態` | 顯示責任角色與安全返回 |
-| legacy addendum | `需補齊首版圖面`或`需完成首版圖面差異審核` | 依 projection 顯示 `補齊首版圖面`／`送交差異審核` | 原 number-only approval放 history/detail |
+| legacy preformal／nonterminal | `首版準備` | 與新案件共用首版準備內容與一般 CTA；不得顯示 legacy、補登、差異審核、整併、復原或對帳流程 | 原 number-only approval、來源狀態與 recovery owner只保留於 server/admin evidence |
 | history only | `已取消／已回收，不需再處理` | `查看紀錄` | 不提供復活或發布捷徑 |
 
 `完成首版圖面` 是建立 candidate aggregate 的明確寫入動作，需 loading防重與錯誤回復；單純搜尋、切頁籤、篩選、開 drawer、查看建議版次與關閉 drawer皆為零寫入。
@@ -249,7 +295,7 @@ decision command 使用 outer transaction + `candidate_bundle_formalization` sav
 - 心智模型：`保留號` 是「尚未正式但正在準備」的工作；正式化後自然回到正式圖號，不把保留號頁當永久歷史主檔。
 - 5 秒成功標準：能回答「我在保留號／首版準備、目前是否完成首版、下一步是哪個按鈕、此版能否正式使用」。
 - 首屏只保留頁名、短用途句、狀態、風險與一個 primary CTA；snapshot hash、row version、raw lifecycle、API／DEV代號進 detail/audit，不得出現在主畫面。
-- `NowWhatPanel` 只保留在 empty、legacy、blocked、recovery、restricted、terminal等需要分流／免處理判斷的狀態；正常 preparation／ready／review／success使用狀態標題＋CTA即可。
+- `NowWhatPanel` 只保留在 empty、restricted、terminal 或新流程正式化失敗等真正需要使用者判斷的狀態；legacy adoption／reconciliation／inconsistent recovery 不得形成一般使用者分流，正常 preparation／ready／review／success使用狀態標題＋CTA即可。
 - `送交審核` 是會鎖定內容的高風險動作，confirmation 必須摘要候選號、首版版次、檔案數與圖料關係；自動正式化不再要求第二次 confirmation。
 
 ### 9.5 Responsive and accessibility gates
@@ -269,7 +315,7 @@ decision command 使用 outer transaction + `candidate_bundle_formalization` sav
 | process crash before commit | 無正式化結果；相同 idempotency key 可安全重試 |
 | process crash after commit before response | 重試回傳原 receipt；不產生第二組 master/package/event |
 | outbox delivery failed | domain commit 保留；outbox 重送，不回滾已完成正式化 |
-| legacy facts inconsistent | `recovery_required`；唯讀診斷，另立 data-repair gate |
+| legacy facts inconsistent | internal `recovery_required`；一般使用者仍只投影為「首版準備」，唯讀診斷與 data-repair gate 僅供 admin/release evidence |
 
 ## 11. Phased Delivery Contract
 
@@ -278,10 +324,10 @@ decision command 使用 outer transaction + `candidate_bundle_formalization` sav
 | 1A | compatibility projection、additive candidate schema、zero-write read path、feature flag | migration parity、old-data snapshot invariants、repository/service tests |
 | 1B | candidate first-revision workbench、file evidence binding、single primary CTA | focused UI/API tests、desktop/mobile browser evidence |
 | 1C | bundle snapshot、approval action、atomic auto-finalization、idempotent recovery | transaction failure injection、duplicate retry、permission/audit/outbox tests |
-| 1D | legacy pending/approved continuation、regression與 QC | production-like snapshot rehearsal、DEV-048/050/051 regression、QC report |
-| Release gate | staging GCS authority、migration rehearsal、rollback/read compatibility、production target confirmation | separate deployment-release approval and signed evidence |
+| 1D | legacy pending/approved internal evidence compatibility、單一可見「首版準備」投影、regression與 QC | production-like snapshot rehearsal、使用者不可見詞掃描、DEV-048/050/051 regression、QC report |
+| Release gate | staging GCS authority、migration rehearsal、全量舊保留號manifest與零遺漏對帳、rollback/read compatibility、production target confirmation | separate deployment-release approval and signed reconciliation evidence |
 
-Phase 1A-1D 均尚未執行。DEV-052 已完成 implementation readiness；下一步只能明確派工 `DEV-052 Phase 1A`。Phase 1B-1D 必須依序以前一 phase 的 exit evidence 為 entry gate，不能把 production activation 混入本機 phase。
+Phase 1A-1D 已完成本機實作與獨立 QC；production activation 仍是獨立 release gate。正式上線不得只沿用本機 F2-F7 fixture 結果，必須另外提交目標環境的全量舊保留號 reconciliation evidence。
 
 ## 12. Acceptance Criteria
 
@@ -298,6 +344,10 @@ Phase 1A-1D 均尚未執行。DEV-052 已完成 implementation readiness；下�
 11. `/numbering/drawings?tab=reserved` 與 `保留號` 頁籤保留；V2 工作區標題為 `保留號／首版準備`，不得另建新版或 legacy 平行頁。
 12. 正常 preparation／ready／review／success 狀態只有一個 primary CTA且不顯示重複 `Now What`；例外狀態先回答下一步，再顯示原因與 detail。
 13. 正式化成功後案件離開預設進行中保留號清單，可由正式圖號頁與歷史／全部篩選找到；此切換不得刪除或改寫既有歷史資料。
+14. 正式環境 source manifest 的每一筆 reservation ID 都恰好對應一個 adoption bucket；`unmapped=0`、`duplicate_mapping=0`、`renumbered=0`，且 cutover freeze 期間 `source_row_hash_changed=0`。
+15. 可工作的舊 `active` reservation 進入「首版準備」；其他狀態不被強制重設，而是進入審核、補首版、正式、歷史或復原範圍。
+16. 逐 company、全分頁以 reservation ID／candidate code 搜尋與 old deep link readback，證明預設工作範圍、歷史與復原入口合計可找回全部來源保留號。
+17. feature-flag rollback 後來源與新增事實仍可讀且不刪除；不得以清資料作為 rollback 步驟。
 
 ## 13. Deferred Scope Audit
 
@@ -329,6 +379,9 @@ Classification: `Intentional replacement`。
 - production file evidence authority 未就緒卻要求放行 drawing publication；
 - 需要放寬 minor revision release gate；
 - 需要 live credential、production target、data repair、merge、PR、deploy 或 release。
+- production source manifest 與 adoption manifest 的筆數／distinct ID／code／hash 任一不一致，或對帳未涵蓋所有 company、page、state；
+- 任一舊保留號只因 UI filter、canonical Drawing 收斂或 terminal 狀態而無法搜尋、開啟或進入歷史／復原入口；
+- rollback 計畫要求刪除來源、canonical、candidate、approval 或 formalization facts。
 
 ## 16. Implementation Architecture Contract
 
@@ -537,6 +590,7 @@ preflight 若發現同 company/drawing/revision 已有非終結且非本 candida
 - [x] Human decisions and intentional spec replacements are closed.
 - [x] Exact schema strategy avoids existing-table rebuild, business-row DML and enum widening.
 - [x] Existing production reservations have a zero-write read projection and explicit legacy addendum path.
+- [x] Production zero-loss adoption has an exhaustive reservation-ID manifest, one-bucket mapping, reconciliation equation and fail-closed release gate.
 - [x] API, permission, state, snapshot, transaction, idempotency and recovery contracts are specified.
 - [x] Phase-by-phase exact file impacts and focused tests are specified.
 - [x] `ReviewApproved` cannot be confused with physical `Released` by old readers.

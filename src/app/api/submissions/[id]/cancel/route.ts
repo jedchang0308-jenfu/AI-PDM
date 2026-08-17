@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
+import { markDrawingRevisionPackageCancelledForSubmissionAsync } from "@/lib/drawing-revision-packages-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { cancelPendingSubmissionAsync } from "@/lib/submission-status-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
@@ -59,8 +60,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       { status: 409 }
     );
   }
+  if (submission.release_actionability?.code.startsWith("SUBMISSION_RELEASE_TERMINAL_")) {
+    return NextResponse.json(
+      {
+        error: submission.release_actionability.code,
+        code: submission.release_actionability.code,
+        message: submission.release_actionability.message,
+        recoveryHref: submission.release_actionability.recovery_href
+      },
+      { status: 409 }
+    );
+  }
 
   await cancelPendingSubmissionAsync({ id, actorId: auth.user.id, reason });
+  await markDrawingRevisionPackageCancelledForSubmissionAsync({ submissionId: id, actorId: auth.user.id, reason });
   await createAuditLogAsync({ submissionId: id, actorId: auth.user.id, action: "submission.cancelled", detail: { reason } });
-  return NextResponse.json({ submissionId: id, status: "Cancelled", message: "送審已取消，可重新建立同版次送審。" });
+  return NextResponse.json({ submissionId: id, status: "Cancelled", message: "送審已撤回；原送審快照已保留，可修正後重新建立同版次送審。" });
 }

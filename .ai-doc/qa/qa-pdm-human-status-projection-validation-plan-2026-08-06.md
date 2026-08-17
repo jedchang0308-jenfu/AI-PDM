@@ -21,7 +21,7 @@ Phase 1 必測：
 - drawing、part、root overlay drawer
 - human status filter；drawing workbench 既有 pagination／cursor consistency
 - projection engine、unknown／conflicting evidence fallback
-- owner module 與圖料模組共用 drawer 一致性
+- owner module 與圖料工作台共用 drawer 一致性
 
 執行邊界：只驗證 `DEV-055 Phase 1A～1D` 本機產品；不連線或修改 production，不執行 migration、deploy、release、commit 或 PR。
 

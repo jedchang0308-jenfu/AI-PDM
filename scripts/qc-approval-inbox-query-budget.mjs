@@ -12,6 +12,10 @@ const inboxBlock = source.match(/private async listNativeInbox[\s\S]*?(?=\n  pri
 assert.match(inboxBlock, /FROM approval_platform_targets/);
 assert.match(inboxBlock, /request_id IN/);
 assert.doesNotMatch(inboxBlock, /await this\.listTargets\(/);
+assert.match(inboxBlock, /hideSupersededNeedsInfo/);
+assert.match(inboxBlock, /newer_request\.requested_at > r\.requested_at/);
+assert.match(inboxBlock, /current_workspace\.target_type = 'numbering_draft_workspace'/);
+assert.match(inboxBlock, /nativeApprovalSearchPredicate/);
 
 const { AsyncApprovalPlatformRepository } = await import(pathToFileURL(repositoryPath).href);
 
@@ -36,7 +40,9 @@ const nativeRows = [
     payload_json: "{}",
     action_title: "建立編號",
     package_code: null,
-    package_status: null
+    package_status: null,
+    superseded_by_request_id: null,
+    superseded_at: null
   },
   {
     id: "native-2",
@@ -58,7 +64,9 @@ const nativeRows = [
     payload_json: "{}",
     action_title: "發行編號",
     package_code: "PKG-2",
-    package_status: "pending"
+    package_status: "pending",
+    superseded_by_request_id: null,
+    superseded_at: null
   }
 ];
 const targetRows = [
@@ -83,6 +91,7 @@ function mapTarget(row) {
 function toItem(row, targets) {
   const primary = targets.find((target) => target.role === "primary") ?? targets[0];
   return {
+    rowKey: `approval:platform:${row.id}`,
     id: row.id,
     source: "platform",
     companyId: row.company_id,
@@ -100,7 +109,11 @@ function toItem(row, targets) {
     packageStatus: row.package_status,
     targetSummary: primary?.code ?? primary?.label ?? primary?.target_id ?? "未指定目標",
     impactSummary: null,
-    legacy: null
+    legacy: null,
+    historyOnly: Boolean(row.superseded_by_request_id),
+    supersededByRequestId: row.superseded_by_request_id,
+    supersededAt: row.superseded_at,
+    primaryTarget: primary ? { type: primary.type, targetId: primary.targetId, code: primary.code, label: primary.label } : undefined
   };
 }
 
@@ -117,6 +130,7 @@ class CountingClient {
       const requestedIds = new Set(Object.values(params).map(String));
       return targetRows.filter((row) => requestedIds.has(row.request_id));
     }
+    if (sql.includes("FROM approval_platform_impact_snapshots")) return [];
     throw new Error(`Unexpected query: ${sql}`);
   }
 
@@ -147,5 +161,5 @@ const batchedItems = await repository.listNativeInbox({ companyId: "company-jenf
 
 assert.deepEqual(batchedItems, legacyItems, "native inbox output parity");
 assert.equal(legacyClient.queryCount, 3, "legacy query count characterization");
-assert.equal(batchedClient.queryCount, 2, "batched native inbox query budget");
+assert.equal(batchedClient.queryCount, 3, "batched native inbox query budget");
 console.log(`QC approval inbox query budget: PASS (legacy ${legacyClient.queryCount} queries -> batched ${batchedClient.queryCount}, deep-equal output)`);

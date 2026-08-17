@@ -13,6 +13,10 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-proje
 >
 > The product part-cost capability is retired by `ADR-PDM-PART-COST-RETIREMENT-001`. Any historical standard-cost optionality, cost chip, cost maintenance entry or cost acceptance case in this document is superseded and must not be restored.
 
+> **2026-08-14 DEV-072 detail-action amendment**
+>
+> 本文中「顯示／啟用送交審核」改讀為：在 `UnifiedPdmEntityDetailDrawer` 的 applicable action catalog 中，`送交審核`於準備階段已固定顯示但 locked，完成必要條件後在同一位置解鎖並成為唯一 primary。暫時無權限、送審鎖定或 prerequisite 未完成的 applicable action 亦採低色階 locked control，原因只在可存取的 hover／focus／touch tooltip 顯示；不適用、跨 domain、terminal 且無恢復路徑的 action 仍完全省略。這有意取代本文「無權限不顯示 disabled 假入口」在共用 drawer action bar 的舊規則，但不改 list row 的 current-primary-only 行為，也不改 server permission、狀態機、送審／發布 authority。完整契約與 AI 真實操作 QC 見 `SPEC-PDM-ENTITY-DETAIL-DRAWER-001` 的 DEV-072 amendment。
+
 > **2026-08-10 DEV-061 Amendment**
 >
 > 圖號工作台的新檔案 UX 與 write authority 改由 `.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part-files-and-3d-reuse.md` 管理。圖號只顯示受控 2D／3D 與版次檔案，不再提供參考附件、附件管理、已刪除資料或一般附件上傳；每次首版／進版 hard-require 本次上傳 `.SLDDRW` + `.SLDPRT/.SLDASM`，相同 3D 由系統共用 canonical asset。預覽圖本身即為開啟預覽入口，不另設重複按鈕。本文的 controlled/reference 雙區、warning-only required files 與一般附件管理段落保留為 DEV-053 歷史證據，衝突處由 DEV-061 取代。
@@ -56,7 +60,7 @@ Current execution boundary: DEV-053 Phase 1A～1G的本機實作與QC證據保�
 | GAP-06 | P2 | 清單保留發布狀態不一致的直接修正／送審明細入口，不增加無必要drawer摩擦。 |
 | GAP-07 | P2 | 恢復清單方向鍵、Home/End、PageUp/Down、Enter、Esc與複製圖號快捷鍵及focus行為。 |
 | GAP-08 | P2 | 403顯示缺少的權限與可採取的管理員處理方式；不得與一般讀取錯誤混在一起。 |
-| GAP-09 | P2 | empty state提供建立圖號、切換範圍與前往圖料查詢等可執行CTA。 |
+| GAP-09 | P2 | empty state提供建立圖號、切換範圍與前往圖料工作台等可執行CTA。 |
 | GAP-10 | P2 | terminal/history列顯示終止原因與正確下一步；Obsolete、Merged與取消不得只靠共同`歷史紀錄`文案辨識，Rejected須回可修正流程。 |
 | GAP-11 | P1 | 預設`我的待處理`排除大多數正式圖面；第一次進入必須可發現候選、正式受控與已發布，歷史另以清楚toggle可發現。 |
 | GAP-12 | P1 | 搜尋與篩選request需debounce或取消／request sequence保護，舊回應不得覆蓋較新的使用者條件。 |
@@ -198,7 +202,7 @@ Phase 1E能力清冊是逐項驗收契約，不得以「route仍存在」代替U
 | CAP-09 | 發布狀態不一致說明與修正入口 |
 | CAP-10 | Title block變體風險 |
 | CAP-11 | 送審完整性、標準成本與待審檢查 |
-| CAP-12 | 同主根料號清單 |
+| CAP-12 | 同根料號清單 |
 | CAP-13 | 材質、顏色、表面處理與變體備註主資料編輯 |
 | CAP-14 | 標準成本維護入口與主要製造圖資訊 |
 

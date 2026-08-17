@@ -270,7 +270,7 @@ Implementation contract:
 
 Acceptance:
 
-- 圖號模組狀態篩選器不再顯示 `Draft / Active / PendingReview / Released / Obsolete / MainDrawingInvalid`。
+- 圖號工作台狀態篩選器不再顯示 `Draft / Active / PendingReview / Released / Obsolete / MainDrawingInvalid`。
 - 料號、圖料、送審、待辦、BOM 工作台等一般表格不直接顯示英文 status。
 - 所有有 `狀態` 欄的表格標題旁可見 `?`。
 - 點 `?` 開啟中文狀態說明。

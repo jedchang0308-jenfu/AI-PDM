@@ -513,7 +513,7 @@ async function runUiCases() {
     return { roleEmails: Object.fromEntries(Object.entries(roles).map(([key, role]) => [key, role.email])), screenshots };
   });
 
-  await runCase("UI26-002", "從圖號模組送審入口開啟同一圖號工作台", async () => {
+  await runCase("UI26-002", "從圖號工作台送審入口開啟同一圖號工作台", async () => {
     const fixture = seedDrawingFixture("002");
     return withLoggedInPage(roles.engineer, async (page) => {
       await page.goto(`${baseUrl}/numbering/drawings`, { waitUntil: "networkidle" });
@@ -527,11 +527,11 @@ async function runUiCases() {
     });
   });
 
-  await runCase("UI26-003", "從圖料模組送審入口開啟同一主根與圖號工作台", async () => {
+  await runCase("UI26-003", "從圖料工作台送審入口開啟同一圖料根號與圖號工作台", async () => {
     const fixture = seedDrawingFixture("003");
     return withLoggedInPage(roles.engineer, async (page) => {
       await page.goto(`${baseUrl}/numbering/search`, { waitUntil: "networkidle" });
-      await page.getByPlaceholder("主根號 / 料號 / 圖號 / 名稱").fill(fixture.rootCode);
+      await page.getByPlaceholder("圖料根號 / 料號 / 圖號 / 名稱").fill(fixture.rootCode);
       await page.locator("[data-search-row='true']").filter({ hasText: fixture.rootCode }).first().click();
       await page.getByRole("link", { name: /檢查.*送審條件/ }).click();
       await waitForWorkbench(page, fixture.drawingNumber);
@@ -545,7 +545,7 @@ async function runUiCases() {
     const fixture = seedRootWithoutDrawing("004");
     return withLoggedInPage(roles.engineer, async (page) => {
       await page.goto(`${baseUrl}/numbering/search`, { waitUntil: "networkidle" });
-      await page.getByPlaceholder("主根號 / 料號 / 圖號 / 名稱").fill(fixture.rootCode);
+      await page.getByPlaceholder("圖料根號 / 料號 / 圖號 / 名稱").fill(fixture.rootCode);
       await page.locator("[data-search-row='true']").filter({ hasText: fixture.rootCode }).first().click();
       await page.getByText("尚未找到主要 MA 圖").waitFor({ timeout: 15000 });
       expect((await page.getByRole("link", { name: /檢查.*送審條件/ }).count()) === 0, "無主圖時仍出現送審入口");
@@ -636,7 +636,7 @@ async function runUiCases() {
       const text = await visibleText(page);
       expect(text.includes("主資料尚未完成"), "未顯示主資料未完成");
       expect(text.includes("材質") && text.includes("表面處理"), "未列出材質或表面處理缺漏");
-      expect(text.includes("回圖號/料號"), "未告知回主資料模組補齊");
+      expect(text.includes("回圖號/料號"), "未告知回主資料工作台補齊");
       return { fixture, screenshot: await captureEvidence(page, "UI26-011", fixture.drawingNumber) };
     });
   });
@@ -902,7 +902,7 @@ async function runUiCases() {
       await page.getByPlaceholder("圖號 / 料號 / 文件用途").fill(fixture.drawingNumber);
       await page.locator("[data-drawing-row='true']").filter({ hasText: fixture.drawingNumber }).first().click();
       const text = await visibleText(page);
-      expect(text.includes("Released / Release") || (text.includes("Released") && !text.includes("Draft")), "圖號模組仍顯示 Draft 狀態");
+      expect(text.includes("Released / Release") || (text.includes("Released") && !text.includes("Draft")), "圖號工作台仍顯示 Draft 狀態");
       return {
         fixture,
         oldSubmissionId,

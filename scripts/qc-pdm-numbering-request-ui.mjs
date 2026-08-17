@@ -52,7 +52,7 @@ async function verifyViewport(browser, viewport) {
   record(`Redirect records legacy source at ${viewport.width}px`, current.searchParams.get("legacyFrom") === "/numbering/request", current.search);
   record(`Old request page shell is absent at ${viewport.width}px`, (await page.locator(".numbering-request-page").count()) === 0);
 
-  for (const label of ["建立新圖料", "既有主根加圖號", "既有主根加料號", "既有主根加圖號與料號"]) {
+  for (const label of ["建立新圖料", "既有圖料根號加圖號", "既有圖料根號加料號", "既有圖料根號加圖號與料號"]) {
     record(`${label} mode is available at ${viewport.width}px`, await page.getByText(label, { exact: true }).isVisible());
   }
   record(`Confirmed-name owner field is visible at ${viewport.width}px`, await page.getByLabel("確定品名").isVisible());

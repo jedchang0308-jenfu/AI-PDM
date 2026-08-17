@@ -121,6 +121,7 @@ function normalizeRepositoryError(error: unknown): never {
     WORKSPACE_ITEM_SET_MISMATCH: ["workspace_item_set_mismatch", "Phase 1A updates cannot add or remove draft items.", 409],
     CANDIDATE_RULE_VERSION_LOCKED: ["candidate_rule_version_locked", "The numbering rule cannot change after candidate allocation.", 409],
     CANDIDATE_REVIEW_LOCKED: ["candidate_review_locked", "The candidate is locked by review or publication state.", 409],
+    PDM_REVIEW_LOCKED: ["candidate_review_locked", "The data is locked while its review is active.", 409],
     CANDIDATE_ALREADY_ACQUIRED: ["candidate_already_acquired", "This workspace already has active candidate numbers.", 409],
     CANDIDATE_RECYCLE_BLOCKED: ["candidate_recycle_blocked", "The candidate cannot be recycled while locked or promoted.", 409],
     CANDIDATE_COLLISION: ["candidate_collision", "Candidate allocation conflicted after bounded retries.", 409, true],

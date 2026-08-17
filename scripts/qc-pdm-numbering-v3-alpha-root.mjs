@@ -130,7 +130,7 @@ try {
     fileIncludes("src/app/api/numbering/relations/route.ts", [
       "製造基準關聯完整",
       "參考圖不可作為製造基準",
-      "這個主根號還沒有製造圖類別，不能建立製造基準關聯。"
+      "這個圖料根號還沒有製造圖類別，不能建立製造基準關聯。"
     ]) &&
       sourceDoesNotMatch("src/app/api/numbering/relations/route.ts", /可用於製造|可製造圖|nextStep:.*"可製造"/u) &&
       fileIncludes("src/lib/repositories/numbering-async-repository.ts", ["PRIMARY_RELATION_REQUIRES_MANUFACTURING_DRAWING"]) &&
