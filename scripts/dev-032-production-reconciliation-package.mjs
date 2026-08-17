@@ -23,14 +23,20 @@ function sqlString(value) {
 
 function buildReadbackSql(migrations) {
   const expectedValues = migrations
-    .map((migration) => `    (${sqlString(migration.version)}, ${sqlString(migration.outputSha256)})`)
+    .flatMap((migration) => [...new Set([
+      migration.outputSha256,
+      ...(migration.acceptedExistingChecksums ?? [])
+    ])].map((checksum) => `    (${sqlString(migration.version)}, ${sqlString(checksum)})`))
     .join(",\n");
   return `-- DEV-032 production/restore read-only reconciliation
 -- No mutation statement is permitted in this artifact.
 WITH
-expected_migrations(version, checksum) AS (
+expected_migration_checksums(version, checksum) AS (
   VALUES
 ${expectedValues}
+),
+expected_migrations(version) AS (
+  SELECT DISTINCT version FROM expected_migration_checksums
 ),
 official_codes(number_kind, company_id, number_value) AS (
   SELECT 'root', company_id, root_code FROM part_roots
@@ -77,7 +83,13 @@ SELECT
   (SELECT COUNT(*)::int FROM pdm_schema_migrations) AS actual_migration_count,
   (SELECT COUNT(*)::int FROM expected_migrations e LEFT JOIN pdm_schema_migrations a USING (version) WHERE a.version IS NULL) AS missing_migration_count,
   (SELECT COUNT(*)::int FROM pdm_schema_migrations a LEFT JOIN expected_migrations e USING (version) WHERE e.version IS NULL) AS extra_migration_count,
-  (SELECT COUNT(*)::int FROM expected_migrations e JOIN pdm_schema_migrations a USING (version) WHERE a.checksum <> e.checksum) AS checksum_mismatch_count,
+  (SELECT COUNT(*)::int
+   FROM pdm_schema_migrations a
+   JOIN expected_migrations e USING (version)
+   WHERE NOT EXISTS (
+     SELECT 1 FROM expected_migration_checksums allowed
+     WHERE allowed.version = a.version AND allowed.checksum = a.checksum
+   )) AS checksum_mismatch_count,
   (SELECT COUNT(*)::int FROM (SELECT company_id, root_code FROM part_roots GROUP BY company_id, root_code HAVING COUNT(*) > 1) x) AS duplicate_root_count,
   (SELECT COUNT(*)::int FROM (SELECT company_id, part_number FROM part_numbers GROUP BY company_id, part_number HAVING COUNT(*) > 1) x) AS duplicate_part_count,
   (SELECT COUNT(*)::int FROM (SELECT company_id, drawing_number FROM drawing_numbers GROUP BY company_id, drawing_number HAVING COUNT(*) > 1) x) AS duplicate_drawing_count,

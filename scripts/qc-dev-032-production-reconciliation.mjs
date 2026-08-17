@@ -136,6 +136,15 @@ record("DEV032-RECON-008 static database secrets and source drift are forbidden"
   assert.throws(() => assertDev032ProductionReconciliationEnvironment(plan, { ...env, DEV032_EXPECTED_SOURCE_REVISION: "b".repeat(40) }), /SOURCE_REVISION_MISMATCH/u);
 });
 
+record("DEV032-RECON-009 controlled historical checksums remain valid reconciliation evidence", () => {
+  const acceptedHistoricalChecksums = migrationPlan.schemaMigrations
+    .flatMap((migration) => migration.acceptedExistingChecksums ?? []);
+  assert.ok(acceptedHistoricalChecksums.length > 0);
+  for (const checksum of acceptedHistoricalChecksums) assert.match(packageData.readbackSql, new RegExp(checksum, "u"));
+  assert.match(packageData.readbackSql, /FROM expected_migration_checksums allowed/iu);
+  assert.match(packageData.readbackSql, /allowed\.version = a\.version AND allowed\.checksum = a\.checksum/iu);
+});
+
 for (const result of results) console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);
 console.log(`\nDEV-032 production reconciliation QC: ${results.filter((item) => item.passed).length}/${results.length} passed`);
 if (results.some((item) => !item.passed)) process.exitCode = 1;
