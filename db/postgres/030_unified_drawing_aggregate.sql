@@ -113,7 +113,10 @@ SELECT
   'drawing-' || draft.id,
   draft.company_id,
   reservation.candidate_code,
-  'building',
+  CASE
+    WHEN workspace.lifecycle_status = 'cancelled' THEN 'cancelled'
+    ELSE 'building'
+  END,
   draft.workspace_id,
   draft.id,
   reservation.id,
