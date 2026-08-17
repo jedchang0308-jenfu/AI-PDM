@@ -288,10 +288,11 @@ try {
       postgresMigration.includes("CREATE TABLE IF NOT EXISTS drawings") &&
       postgresMigration.includes("CREATE TABLE IF NOT EXISTS drawing_revisions") &&
       postgresMigration.includes("CREATE TABLE IF NOT EXISTS drawing_revision_files") &&
+      postgresMigration.includes("WHEN workspace.lifecycle_status = 'cancelled' THEN 'cancelled'") &&
       postgresMigration.includes("DRAWING_NUMBER_IMMUTABLE") &&
       postgresMigration.includes("DRAWING_REVISION_STATE_TRANSITION_DENIED") &&
       postgresMigration.includes("DRAWING_REVISION_FILES_CONTROLLED_IMMUTABLE"),
-    "local backfill marker and PostgreSQL DDL present"
+    "local backfill marker, cancelled-history-safe PostgreSQL adoption and guards present"
   );
 } catch (error) {
   record("DEV064-fixture", false, error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error));

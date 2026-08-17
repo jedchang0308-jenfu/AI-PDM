@@ -1,0 +1,37 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - migration-runner
+      - --build-arg
+      - SOURCE_REVISION=a1fddb21c0bdc4297a5c25f381a1c35ae06c5b3d
+      - --build-arg
+      - SOURCE_CREATED_AT=2026-08-17T05:42:01Z
+      - --build-arg
+      - SOURCE_VERSION=dev-064-staging-rehearsal
+      - --build-arg
+      - SOURCE_STATE=clean
+      - --tag
+      - asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration:a1fddb21
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - runner
+      - --build-arg
+      - SOURCE_REVISION=a1fddb21c0bdc4297a5c25f381a1c35ae06c5b3d
+      - --build-arg
+      - SOURCE_CREATED_AT=2026-08-17T05:42:01Z
+      - --build-arg
+      - SOURCE_VERSION=dev-064-staging-rehearsal
+      - --build-arg
+      - SOURCE_STATE=clean
+      - --tag
+      - asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm:a1fddb21
+      - .
+images:
+  - asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration:a1fddb21
+  - asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm:a1fddb21
+timeout: 3600s

@@ -108,7 +108,7 @@ export class AsyncDrawingRevisionPackageRepository {
                     AND companion.snapshot_hash = candidate.review_snapshot_hash
                   )
                   OR (
-                    instr(package.revision, '.') > 0
+                    package.revision LIKE '%.%'
                     AND EXISTS (
                       SELECT 1
                       FROM drawing_revision_fff_assessments fff
@@ -787,7 +787,7 @@ export class AsyncDrawingRevisionPackageRepository {
                     AND companion.snapshot_hash = candidate.review_snapshot_hash
                   )
                   OR (
-                    instr(package.revision, '.') > 0
+                    package.revision LIKE '%.%'
                     AND EXISTS (
                       SELECT 1
                       FROM drawing_revision_fff_assessments fff

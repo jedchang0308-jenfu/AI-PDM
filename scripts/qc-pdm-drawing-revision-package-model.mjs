@@ -128,7 +128,14 @@ assert(
 );
 
 assert(masterAttachmentAsyncRepository.includes("drawing_revision_package_supplement_files"), "Master attachment query links supplement files");
-assert(masterAttachmentAsyncRepository.includes("review_confirmation_events rce") && masterAttachmentAsyncRepository.includes("instr(p.revision, '.') > 0"), "Master attachment query projects approved FFF minor revisions");
+assert(masterAttachmentAsyncRepository.includes("review_confirmation_events rce") && masterAttachmentAsyncRepository.includes("p.revision LIKE '%.%'"), "Master attachment query projects approved FFF minor revisions");
+for (const [label, source] of [
+  ["Master attachment", masterAttachmentAsyncRepository],
+  ["Revision package", repository],
+  ["Submission list", submissionListAsyncRepository]
+]) {
+  assert(!source.includes("instr("), `${label} async queries avoid SQLite-only instr()`);
+}
 assert(masterAttachmentAsyncRepository.includes("revision_package_file_kind"), "Master attachment query exposes package file kind");
 assert(masterAttachmentPanel.includes("isApprovedSupplementAttachment"), "Master attachment panel detects approved supplements");
 assert(masterAttachmentPanel.includes("master-attachment-status supplement") && masterAttachmentPanel.includes("補件"), "Master attachment panel renders 補件 tag");

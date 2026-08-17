@@ -1,0 +1,20 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - runner
+      - --build-arg
+      - SOURCE_REVISION=1abfb543101327008d0a15469da6e375a79f8de9
+      - --build-arg
+      - SOURCE_CREATED_AT=2026-08-17T06:24:32Z
+      - --build-arg
+      - SOURCE_VERSION=dev-064-staging-rehearsal
+      - --build-arg
+      - SOURCE_STATE=clean
+      - --tag
+      - asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm:1abfb543
+      - .
+images:
+  - asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm:1abfb543
+timeout: 3600s

@@ -388,3 +388,27 @@ Fixed runtime run `DEV062-FIX-20260810124507-fixed3000` 為 10/10 PASS；證據�
 - 預期 DOM：`A0005-M01`、`馬達_JF_2HP_B`、`研發可用` 同列；`建立新版次` 與 `關閉圖號明細` 可見；`正式圖號` eyebrow 不存在。
 - 固定 `127.0.0.1:3000` 實際 Chrome 驗證：同列基線成立、visible alert=0、horizontal overflow=false、歷史版本 disclosure 仍為 3 個且可互動。
 - Evidence：`output/qa/dev-062-unified-part-relation-workbench/DEV062-FIX-20260810124507-fixed3000/drawing-header-target-20260810.png`。
+
+## 20. DEV-076 Restored Candidate Relationship QA Reopen（2026-08-17）
+
+Trigger：staging 使用 production snapshot 還原資料時，A0002／A0003／A0004 雖存在 draft drawing、draft part 與 `numbering_draft_relations`，圖料工作台仍顯示空樹／空矩陣。原 DEV-062 PASS 因 fixture 只驗證 source-less candidate root 可達，沒有候選圖號與關聯，證據不足並依法重開。
+
+Severity：P0；使用者要求資料與 UI 自動轉換，不接受任何人工補建關聯作為 workaround。
+
+Required cases：
+
+- `REL-C01`：source-less active candidate 的 drawing／part／primary relation 在 list tree、list matrix與detail response完全一致。
+- `REL-C02`：完整 candidate 顯示「關係已建立（尚未生效）」；不顯示空矩陣／關係待處理；candidate identity 不進入不存在的 formal detail。
+- `REL-C03`：兩個 required parts 只有一個 primary relation時，readiness與submit皆 fail closed，並指出缺漏料號。
+- `REL-C04`：同一 required part 有零個或多個 primary、primary 指向 reference drawing、relation endpoint orphan、cross workspace或cross company，全部 fail closed。
+- `REL-C05`：purchased/shared-only part 不被誤判為需 primary manufacturing；合法 reference relation仍投影為 `參考`。
+- `REL-C06`：cancelled workspace預設不可見，`history=include` 才可見；filter-before-cursor/limit 不產生假空頁或漏列。
+- `REL-C07`：Engineer／Reviewer／Admin與無 workspace-view角色遵循既有 permission；read-only list/detail/matrix zero write。
+- `REL-C08`：staging A0002／A0003／A0004 DB active workspace、drawing、part、relation pair count/hash與API／rendered UI對帳一致；cancelled duplicate 不污染 active result。
+- `REL-C09`：1440×900、1024×768、390×844 的 tree/matrix可讀、matrix只在容器內水平捲動，page-level overflow=false；visible raw error、console error、unexpected 4xx/5xx=0。
+
+Evidence root：`output/qa/dev-076-candidate-relation-reconciliation/<runId>/`。
+
+Required artifacts：commit/revision/image provenance、DB read-only receipt、active/history relation pair JSON與hash、API list/detail payload、before/after DB hash、three-viewport screenshots、console/network/error sweeps、focused test results、typecheck、isolated build與QA verdict。
+
+Exit gate：所有 `REL-C01..C09` PASS、P0/P1=0、production connection/write=false、staging business write=false。若必須猜測關聯、改 schema/authority/permission、或觸及 production，停止並回 Dev PM／deployment release gate。

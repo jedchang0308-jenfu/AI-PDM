@@ -94,12 +94,103 @@ export type NumberLifecycleProjectionInput = {
   workspaceLifecycle: "active" | "cancelled" | "published";
   drawingDraftIds: string[];
   relationCount: number;
+  relationsReady?: boolean;
   relationshipOnlyReady?: boolean;
   reservations: ReservationFact[];
   legacyApproval: ApprovalFact;
   bundleApproval: ApprovalFact;
   candidateRevisions: NumberingCandidateRevisionRecord[];
 };
+
+export type NumberingDraftRelationReadinessInput = {
+  draftMode: "new_bundle" | "append_drawing" | "append_part" | "append_drawing_part";
+  sourceDrawingNumberId: string | null;
+  sourcePartNumberId: string | null;
+  sourceLinkType: "primary_manufacturing" | "reference" | null;
+  parts: Array<{ id: string; itemKind: "purchased" | "manufactured" | "outsourced" | "shared" | "custom" }>;
+  drawings: Array<{ id: string; purposeCode: "MA" | "OT" | "M" | "R" }>;
+  relations: Array<{
+    id: string;
+    drawingDraftId: string;
+    partDraftId: string;
+    linkType: "primary_manufacturing" | "reference";
+    isPrimary: boolean;
+  }>;
+};
+
+export type NumberingDraftRelationReadinessIssue = {
+  code:
+    | "orphan_relation"
+    | "duplicate_relation_pair"
+    | "invalid_primary_relation"
+    | "missing_primary_relation"
+    | "duplicate_primary_relation"
+    | "missing_source_relation";
+  partId?: string;
+  drawingId?: string;
+  relationId?: string;
+};
+
+export type NumberingDraftRelationReadiness = {
+  ready: boolean;
+  issues: NumberingDraftRelationReadinessIssue[];
+};
+
+const manufacturingDraftItemKinds = new Set(["manufactured", "outsourced", "custom"]);
+
+function isManufacturingDraftPurpose(purposeCode: NumberingDraftRelationReadinessInput["drawings"][number]["purposeCode"]) {
+  return purposeCode === "M" || purposeCode === "MA";
+}
+
+export function evaluateNumberingDraftRelationReadiness(
+  input: NumberingDraftRelationReadinessInput
+): NumberingDraftRelationReadiness {
+  const issues: NumberingDraftRelationReadinessIssue[] = [];
+  const partById = new Map(input.parts.map((part) => [part.id, part]));
+  const drawingById = new Map(input.drawings.map((drawing) => [drawing.id, drawing]));
+  const seenPairs = new Set<string>();
+  const validPrimaryByPart = new Map<string, number>();
+  for (const relation of input.relations) {
+    const part = partById.get(relation.partDraftId);
+    const drawing = drawingById.get(relation.drawingDraftId);
+    if (!part || !drawing) {
+      issues.push({ code: "orphan_relation", partId: relation.partDraftId, drawingId: relation.drawingDraftId, relationId: relation.id });
+      continue;
+    }
+    const pair = `${relation.partDraftId}:${relation.drawingDraftId}`;
+    if (seenPairs.has(pair)) {
+      issues.push({ code: "duplicate_relation_pair", partId: relation.partDraftId, drawingId: relation.drawingDraftId, relationId: relation.id });
+    }
+    seenPairs.add(pair);
+    if (relation.linkType === "primary_manufacturing") {
+      if (!relation.isPrimary || !isManufacturingDraftPurpose(drawing.purposeCode)) {
+        issues.push({ code: "invalid_primary_relation", partId: part.id, drawingId: drawing.id, relationId: relation.id });
+      } else {
+        validPrimaryByPart.set(part.id, (validPrimaryByPart.get(part.id) ?? 0) + 1);
+      }
+    } else if (relation.isPrimary) {
+      issues.push({ code: "invalid_primary_relation", partId: part.id, drawingId: drawing.id, relationId: relation.id });
+    }
+  }
+
+  if (input.sourcePartNumberId) {
+    const sourceReady = Boolean(input.sourceLinkType)
+      && (input.sourceLinkType !== "primary_manufacturing"
+        || (input.drawings.length === 1 && isManufacturingDraftPurpose(input.drawings[0].purposeCode)));
+    if (!sourceReady) issues.push({ code: "missing_source_relation" });
+  }
+
+  for (const part of input.parts) {
+    if (!manufacturingDraftItemKinds.has(part.itemKind)) continue;
+    const sourcePrimary = input.draftMode === "append_part"
+      && Boolean(input.sourceDrawingNumberId)
+      && input.sourceLinkType === "primary_manufacturing";
+    const primaryCount = (validPrimaryByPart.get(part.id) ?? 0) + (sourcePrimary ? 1 : 0);
+    if (primaryCount === 0) issues.push({ code: "missing_primary_relation", partId: part.id });
+    if (primaryCount > 1) issues.push({ code: "duplicate_primary_relation", partId: part.id });
+  }
+  return { ready: issues.length === 0, issues };
+}
 
 export type CandidateRevisionReadiness = {
   ready: boolean;
@@ -198,7 +289,8 @@ export function projectNumberLifecycleV2(input: NumberLifecycleProjectionInput):
     const candidate = candidateByDrawing.get(drawingDraftId);
     return candidate ? evaluateCandidateRevisionReadiness(candidate).ready : false;
   }));
-  const relationsReady = Boolean(input.relationshipOnlyReady) || input.relationCount > 0 || input.drawingDraftIds.length === 0;
+  const relationsReady = input.relationsReady
+    ?? (Boolean(input.relationshipOnlyReady) || input.relationCount > 0 || input.drawingDraftIds.length === 0);
 
   if (allReservationsAre("active") && everyDrawingReady && relationsReady) {
     return projection("bundle_ready", "bundle_complete", "submit_bundle_review");

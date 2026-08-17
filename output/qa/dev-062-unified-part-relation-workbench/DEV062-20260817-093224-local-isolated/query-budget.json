@@ -1,0 +1,7 @@
+{
+  "runId": "DEV062-20260817-093224-local-isolated",
+  "passed": false,
+  "cardinalityRule": "representative query count must equal baseline query count",
+  "part": null,
+  "relation": null
+}

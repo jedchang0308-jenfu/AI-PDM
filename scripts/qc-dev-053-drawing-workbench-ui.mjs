@@ -190,7 +190,7 @@ record("DEV053-UI-019 candidate revision upload is multi-file, sequential and ac
   !candidateEditor.includes('form.set("role"') &&
   !candidateEditor.includes('form.set("isPrimary"') &&
   has(numberStateWorkspace, [
-    "shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)",
+    "shouldRenderLifecycleV2Pending(projectNumberLifecycleUserView(workspace.lifecycleV2).stage)",
     '!["drawing_preparation", "drawing_addendum_required", "bundle_ready"].includes(stage)',
     "DrawingDetailPreview"
   ]) &&

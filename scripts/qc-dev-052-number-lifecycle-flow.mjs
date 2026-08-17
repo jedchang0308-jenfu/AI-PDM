@@ -235,6 +235,51 @@ try {
     JSON.stringify({ mode: reusedDrawing?.mode, fileId: reusedDrawing?.fileId, restoredDrawing })
   );
 
+  database.prepare(`
+    INSERT INTO numbering_draft_parts (
+      id, company_id, workspace_id, root_draft_id, part_name, item_kind, is_universal, series_code,
+      created_at, updated_at
+    ) VALUES (
+      'dev052-part-missing-relation', 'company-jenfu', 'dev052-flow', 'dev052-root',
+      'DEV-052 Missing Relation', 'manufactured', 0, 'JF', datetime('now'), datetime('now')
+    )
+  `).run();
+  database.prepare(`
+    INSERT INTO number_candidate_reservations (
+      id, company_id, workspace_id, draft_item_type, draft_item_id, candidate_code,
+      sequence_scope_key, sequence_no, reservation_state, row_version, created_by, created_at, updated_at
+    ) VALUES (
+      'dev052-res-part-missing-relation', 'company-jenfu', 'dev052-flow', 'part',
+      'dev052-part-missing-relation', 'A052-P02', 'part:dev052-flow', 2, 'active', 1,
+      'dev052-flow-user', datetime('now'), datetime('now')
+    )
+  `).run();
+  database.prepare(`UPDATE numbering_draft_parts
+    SET candidate_reservation_id = 'dev052-res-part-missing-relation'
+    WHERE id = 'dev052-part-missing-relation'`).run();
+  let incompleteRelationError = null;
+  try {
+    await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).submitBundleReview({
+      workspaceId: "dev052-flow",
+      companyId: "company-jenfu",
+      actorId: "dev052-flow-user",
+      expectedWorkspaceRowVersion: reusedDrawing.workspace.rowVersion,
+      reason: "QC incomplete relation must fail closed"
+    }));
+  } catch (error) {
+    incompleteRelationError = error instanceof Error ? error.message : String(error);
+  }
+  record(
+    "DEV052-FLOW-002B every required Part needs its own primary manufacturing relation",
+    incompleteRelationError === "BUNDLE_NOT_READY" &&
+      database.prepare(`SELECT count(*) AS count FROM approval_platform_requests
+        WHERE action_code = 'numbering.candidate_bundle_review'`).get().count === 0,
+    JSON.stringify({ incompleteRelationError })
+  );
+  database.prepare(`UPDATE numbering_draft_parts SET candidate_reservation_id = NULL WHERE id = 'dev052-part-missing-relation'`).run();
+  database.prepare(`DELETE FROM number_candidate_reservations WHERE id = 'dev052-res-part-missing-relation'`).run();
+  database.prepare(`DELETE FROM numbering_draft_parts WHERE id = 'dev052-part-missing-relation'`).run();
+
   const submitted = await client.transaction((tx) => new AsyncNumberLifecycleSimplificationRepository(tx).submitBundleReview({
     workspaceId: "dev052-flow",
     companyId: "company-jenfu",

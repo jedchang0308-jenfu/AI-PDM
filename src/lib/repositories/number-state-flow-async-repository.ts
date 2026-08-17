@@ -17,6 +17,7 @@ import {
 } from "@/lib/publication-evidence";
 import { isNumberLifecycleV2Enabled } from "@/lib/number-state-flow-feature";
 import {
+  evaluateNumberingDraftRelationReadiness,
   projectNumberLifecycleV2,
   type CandidateRevisionLifecycleStatus,
   type NumberLifecycleProjectionV2,
@@ -944,14 +945,26 @@ export class AsyncNumberStateFlowRepository {
         companionByCandidate.get(candidate.id)
       ));
       latestBundleApproval = mapCandidateApproval(input.latestBundleApprovalRow ?? null);
+      const relationReadiness = evaluateNumberingDraftRelationReadiness({
+        draftMode: workspace.draft_mode,
+        sourceDrawingNumberId: workspace.source_drawing_number_id ?? null,
+        sourcePartNumberId: workspace.source_part_number_id ?? null,
+        sourceLinkType: workspace.source_link_type ?? null,
+        parts: parts.map((part) => ({ id: part.id, itemKind: part.item_kind })),
+        drawings: drawings.map((drawing) => ({ id: drawing.id, purposeCode: drawing.purpose_code })),
+        relations: relations.map((relation) => ({
+          id: relation.id,
+          drawingDraftId: relation.drawing_draft_id,
+          partDraftId: relation.part_draft_id,
+          linkType: relation.link_type,
+          isPrimary: toBoolean(relation.is_primary)
+        }))
+      });
       lifecycleV2 = projectNumberLifecycleV2({
         workspaceLifecycle: workspace.lifecycle_status,
         drawingDraftIds: drawings.map((drawing) => drawing.id),
         relationCount: relations.length,
-        relationshipOnlyReady: workspace.draft_mode === "append_part"
-          && parts.length > 0
-          && (Boolean(workspace.source_drawing_number_id)
-            || parts.every((part) => !["manufactured", "outsourced", "custom"].includes(part.item_kind))),
+        relationsReady: relationReadiness.ready,
         reservations: reservations.map((reservation) => ({
           itemType: reservation.draft_item_type,
           state: reservation.reservation_state
