@@ -222,6 +222,13 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     }
     const source = read(file);
     const sanitized = sanitizeSqlForCloudSql({ file, source });
+    const version = migrationName(file).split("_")[0];
+    const duplicateVersion = schemaFiles.find((migration) => migration.version === version);
+    if (duplicateVersion) {
+      throw new Error(
+        `CLOUDSQL_MIGRATION_VERSION_DUPLICATE:${version}:${duplicateVersion.source}:${file}`
+      );
+    }
     removedTransactionWrappers += sanitized.transformations.removedTransactionWrappers;
     removedRlsStatements += sanitized.transformations.removedRlsStatements;
     rewrittenSupabaseRoleReferences += sanitized.transformations.rewrittenSupabaseRoleReferences;
@@ -231,7 +238,7 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     schemaFiles.push({
       source: file,
       output: `${candidateSqlDirectory}/${cloudSqlOutputName(file)}`,
-      version: migrationName(file).split("_")[0],
+      version,
       name: migrationName(file),
       sourceSha256: sha256(source),
       outputSha256: sha256(sanitized.sql),
