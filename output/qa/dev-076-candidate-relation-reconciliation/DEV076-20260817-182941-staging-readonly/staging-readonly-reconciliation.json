@@ -1,0 +1,66 @@
+{
+  "targetProject": "jenfu-ai-pdm-stg-361825",
+  "database": "ai_pdm",
+  "sourceRevision": "89e8023a7b44fcd08257f7ec226f25b24b6096ba",
+  "transactionReadOnly": "on",
+  "productionConnection": false,
+  "databaseWrites": false,
+  "beforeExecution": "ai-pdm-stg-migration-runner-9rnrq",
+  "afterExecution": "ai-pdm-stg-migration-runner-rntvj",
+  "workspaceCount": 60,
+  "activeWorkspaceCount": 57,
+  "cancelledWorkspaceCount": 3,
+  "activeInvalidScopeCount": 0,
+  "activeMissingPrimaryPartCount": 1,
+  "activeDuplicatePrimaryPartCount": 0,
+  "allCandidatePairHashBefore": "f6f061b1a8d75c885f3509b157bad811",
+  "allCandidatePairHashAfter": "f6f061b1a8d75c885f3509b157bad811",
+  "targets": [
+    {
+      "rootCode": "A0002",
+      "workspaceId": "draft-workspace-cf01231a-ac00-44bc-a53f-afce67b11a02",
+      "drawingCount": 1,
+      "partCount": 1,
+      "relationCount": 1,
+      "primaryRelationCount": 1,
+      "invalidScopeCount": 0,
+      "missingPrimaryPartCount": 0,
+      "duplicatePrimaryPartCount": 0,
+      "pairHashBefore": "3d96a2b75c0ffcf3f8f4cf214e924da7",
+      "pairHashAfter": "3d96a2b75c0ffcf3f8f4cf214e924da7"
+    },
+    {
+      "rootCode": "A0003",
+      "workspaceId": "draft-workspace-4e7bde27-5f85-4c91-8228-b30fef0d07dd",
+      "drawingCount": 1,
+      "partCount": 1,
+      "relationCount": 1,
+      "primaryRelationCount": 1,
+      "invalidScopeCount": 0,
+      "missingPrimaryPartCount": 0,
+      "duplicatePrimaryPartCount": 0,
+      "pairHashBefore": "38680d88d26d44b4fed162c3ccae69bb",
+      "pairHashAfter": "38680d88d26d44b4fed162c3ccae69bb"
+    },
+    {
+      "rootCode": "A0004",
+      "workspaceId": "draft-workspace-0f8e316c-2159-43eb-87e5-0897a0c77549",
+      "drawingCount": 1,
+      "partCount": 1,
+      "relationCount": 1,
+      "primaryRelationCount": 1,
+      "invalidScopeCount": 0,
+      "missingPrimaryPartCount": 0,
+      "duplicatePrimaryPartCount": 0,
+      "pairHashBefore": "6fd61cd5a870818018f1f17d588cba0e",
+      "pairHashAfter": "6fd61cd5a870818018f1f17d588cba0e"
+    }
+  ],
+  "jobRestored": {
+    "ready": true,
+    "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration@sha256:4efbae871f5ed8d8afacaa90ba2911869c6a1965636a77c638d457777477ee2e",
+    "sourceRevision": "f908881a25eec0a88c40b91d756d1d306d17e92e",
+    "command": null,
+    "args": null
+  }
+}

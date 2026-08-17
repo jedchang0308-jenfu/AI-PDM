@@ -253,7 +253,7 @@ Owner：Dev PM
   - 下一步：等待使用者提供 SW 檔案包與隔離測試帳號／環境，由 AI-QA 依 58 條 in-scope 路徑執行並留證，再交獨立 AI-QC；目前 0/58 executed，未修改產品碼或任何 business data。
   - 計入交付：是（只有 58/58 PASS、Blocked=0、P0/P1=0 才可結案；四條 Out of Scope 不進分母）。
 
-- 還原資料候選關聯自動投影與移轉對帳：`● DEV-076` `RD Implementation Ready / Repair In Progress` `P0` `Local + Staging Read-only / Production Release Gated`。
+- 還原資料候選關聯自動投影與移轉對帳：`✓ DEV-076` `RD/QA/QC Complete / Authenticated Staging Read-only Passed` `P0` `Production Release Gated`。
   - 目標：既有 production 備份還原到 staging 後，candidate-first 架構中的圖號、料號與關聯必須自動投影到目前樹／矩陣 UI；資料完整時不得顯示空矩陣或要求使用者重建關聯。
   - 根因：候選根列將 `drawings`、`parts`、`matrix` 硬編碼為空陣列；既有 QC fixture 沒有候選圖號／關聯，且生命週期 readiness 只驗證全 workspace `relationCount > 0`，未逐一驗證每個需製造圖的料號。
   - 父任務：`DEV-062`、`DEV-064`；關聯 `DEV-052`、`DEV-053`、`SPEC-PDM-DRAWING-PART-RELATION-VIEW-001`。
@@ -1510,7 +1510,7 @@ Owner：Dev PM
   - 本輪狀態：QA 文件已建立；`npx` 可用；`D-0007-MA1.zip` 已收到但尚未透過 UI 上傳，未執行 business mutation、未產生 QC 結論。
   - 計入交付：是。
 
-- ● DEV-076 [開發點] [RD Implementation Ready / Repair In Progress] [P0] [Local + Staging Read-only / Production Release Gated] 還原資料候選關聯自動投影與移轉對帳
+- ✓ DEV-076 [交付點] [RD/QA/QC Complete / Authenticated Staging Read-only Passed] [P0] [Production Release Gated] 還原資料候選關聯自動投影與移轉對帳
   - 摘要：修正 production 備份還原到 candidate-first staging 後，候選資料雖存在 `numbering_draft_relations`，圖料工作台卻顯示空樹／空矩陣的偏差；資料與 UI 轉換必須由系統自動完成，使用者不承擔轉換動作。
   - 父任務：`DEV-062`、`DEV-064`；關聯：`DEV-052`、`DEV-053`、`DEV-PDM-DRAWING-PART-RELATION-VIEW-001`。
   - Spec Impact Preflight：`Compatible correction`。DEV-062 與 relation-view spec 已要求 source-less candidate root、tree/matrix 同源投影及 filter-before-pagination；本 DEV 修正實作與測試偏離，不新增 ADR、schema、狀態、permission 或 write authority。
@@ -1532,6 +1532,9 @@ Owner：Dev PM
     6. Engineer／Reviewer／Admin 可見與可操作性符合既有 permission；無權限與跨 company fail closed。
     7. 1440×900、1024×768、390×844 無 page-level overflow、裁切、raw error、console error或 unexpected 4xx/5xx。
   - Evidence：`npm run qc:dev-076`、`npm run typecheck:app`、`npm run build:isolated`；staging evidence 輸出至 `output/qa/dev-076-candidate-relation-reconciliation/<runId>/`，保存 revision/commit、DB read-only receipt、pair hashes、API payload、三 viewport screenshots、console/network、zero-write before/after hash與 verdict。
+  - Completion evidence（2026-08-17）：implementation commit `89e8023a7b44fcd08257f7ec226f25b24b6096ba`；Cloud Build `8a7a2bb6-c8a7-43fd-96cb-0ff2ff15fe32`；staging revision `ai-pdm-stg-dev07689e802`。A0002／A0003／A0004 authenticated tree、matrix、workbench API 皆 PASS，console error 0；驗證前後 all-candidate hash 均為 `f6f061b1a8d75c885f3509b157bad811`，三筆 target hash 逐筆相同，DB write 0。QC：`.ai-doc/qc/qc-dev-076-candidate-relation-reconciliation-2026-08-17.md`；evidence：`output/qa/dev-076-candidate-relation-reconciliation/DEV076-20260817-182941-staging-readonly/`。
+  - RWD qualification：同一 source commit 的 isolated Chromium 通過 1440×900、1024×768、768×1024、390×844；authenticated staging Chrome 完成 live data/UI/API/console 驗證。Chrome extension 的 viewport override 實測未生效，未把固定 1536px 誤記為三尺寸；詳細補償控制與限制見 QC report。
+  - Known non-blocker：全 staging 有 1 個與 target 無關的未完成 active draft part 缺 primary relation；target 三筆 missing/duplicate/invalid-scope 都是 0。未完成草稿依既有規則 fail closed，不猜測或自動補資料。
   - 執行邊界：本輪可修改本機產品碼／測試／文件並部署 staging candidate 做 read-only 驗證；production、正式 traffic、production DB migration/write、merge/release另走 deployment release gate。
   - 計入交付：是；QA P0/P1=0、focused/local gate與 staging read-only gate全數通過才標完成。
 

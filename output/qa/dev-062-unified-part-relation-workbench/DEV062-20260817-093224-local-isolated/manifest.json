@@ -1,0 +1,165 @@
+{
+  "task": "DEV-062 unified Part and Relation workbenches",
+  "runId": "DEV062-20260817-093224-local-isolated",
+  "startedAt": "2026-08-17T09:32:24.401Z",
+  "finishedAt": "2026-08-17T09:33:50.755Z",
+  "source": {
+    "gitHead": "1abfb543101327008d0a15469da6e375a79f8de9",
+    "worktreeHash": "89ee92460609e7e2153ee569e4650048c94d0df2109915428a3e5e9bdf3a0e65",
+    "files": [
+      {
+        "file": "src/lib/pdm-workbench-contract.ts",
+        "sha256": "6c6bfdaadef62bb76d0219d4cc23d915a1af4aa9e1602d0edaf0b1bbb561c5bb"
+      },
+      {
+        "file": "src/lib/pdm-workbench-cursor.ts",
+        "sha256": "bcb95510fa2a65d3508544f739b9c12af23c260f7dc212a0326a8529bc9f4cf3"
+      },
+      {
+        "file": "src/lib/repositories/pdm-workbench-read-snapshot.ts",
+        "sha256": "1358a9fc0501c84e51bb1b611bbee5d2219bcaa456e82b1362863509b454cef7"
+      },
+      {
+        "file": "src/components/use-pdm-workbench-controller.ts",
+        "sha256": "add5e7e02e57725819d83672f76a0dddf676d41c5dc9aa4b5b33fb6e0e2f432d"
+      },
+      {
+        "file": "src/components/pdm-workbench-list.tsx",
+        "sha256": "3c0a646c32631032e1d47bdb925232b010e07b8cd46474f81f8d088b44c2c00b"
+      },
+      {
+        "file": "src/lib/drawing-workbench.ts",
+        "sha256": "ed635757e84c08d3c1e8ec867808b0c6034273fe58c9484f8ef589e5dbbea3b6"
+      },
+      {
+        "file": "src/lib/repositories/drawing-workbench-async-repository.ts",
+        "sha256": "0cd65df7a8a8785cdfcf71a8fba1b6ffd97e757590c2db5cd1bac8a2a0a90f43"
+      },
+      {
+        "file": "src/components/drawing-workbench.tsx",
+        "sha256": "79582d9c228031ce6174f028286ad4c0e6dc169e55edb027d85cb6708ffc6732"
+      },
+      {
+        "file": "src/lib/part-workbench.ts",
+        "sha256": "3af9e957bf2dcd92c477b440c47ab16687a8030fb76c3ef9d531b444aca504b8"
+      },
+      {
+        "file": "src/lib/repositories/part-workbench-async-repository.ts",
+        "sha256": "c3ef2f1add0c0c34c2d907387cf837dd8beac35cefe2926b7f67ce669cf1c148"
+      },
+      {
+        "file": "src/app/api/parts/workbench/route.ts",
+        "sha256": "59b0e2d4a906f234eafbd4983fe429deb7fc5fca18cb7609a5aa78aa77d00e4c"
+      },
+      {
+        "file": "src/app/api/parts/workbench/[rowKey]/route.ts",
+        "sha256": "b350aff54c31b0fc62c5e7e69708264c55559d8dc211466978b69680258be067"
+      },
+      {
+        "file": "src/components/part-workbench.tsx",
+        "sha256": "39c2a597051cba8ed2a2ee80363002b4584c089ef42b995365b1b817c751f411"
+      },
+      {
+        "file": "src/components/part-detail-content.tsx",
+        "sha256": "3da1e03644858d0f9438f2f8f253d798db8a4a9c73c85c3f426344d65cf11acf"
+      },
+      {
+        "file": "src/lib/relation-workbench.ts",
+        "sha256": "5e647536907eec2d4e357bd8496cefe310d0414f0099b1f2b3876b7444d86bb7"
+      },
+      {
+        "file": "src/lib/repositories/relation-workbench-async-repository.ts",
+        "sha256": "ef7c6326c79756184c06c15388f23e3a24eb789108783ad798ee3f86dd8fb5f9"
+      },
+      {
+        "file": "src/app/api/numbering/relations/route.ts",
+        "sha256": "99199465f0cfc83b3dcf1621de04a1cabb4e8bdc0def08a8a41b838879eae074"
+      },
+      {
+        "file": "src/app/api/numbering/relations/[rowKey]/route.ts",
+        "sha256": "da04482aad4ee28b632ff43ca78539131e35d75e0c474b07e81c9539000a6906"
+      },
+      {
+        "file": "src/components/relation-workbench.tsx",
+        "sha256": "b9c22876c9743dc0e77c779a85ae9b83e35b1d002bbab3b664b03eec52642cf3"
+      },
+      {
+        "file": "src/app/numbering/search/page.tsx",
+        "sha256": "3ce8be5192f7d9c5bd21248ed70968cbf18024eba0819fe818699c5b2f0f7b93"
+      },
+      {
+        "file": "src/lib/number-state-flow-feature.ts",
+        "sha256": "d0af2e2680fb1d56240d73d792670f6f221a2bfb045a6cea998be6a330e1ad54"
+      },
+      {
+        "file": "src/lib/number-state-flow-legacy-route.ts",
+        "sha256": "65d1a685e470240b137a5c1b676c8bc8f9c3fe24bd2176c9f1f214e826f1f4b1"
+      },
+      {
+        "file": "scripts/qc-dev-062-workbench-core.mjs",
+        "sha256": "975bab14fac07c2ce5cd81ac7d114a62dffd87057c6653cdcb513aae93c3fd41"
+      },
+      {
+        "file": "scripts/qc-dev-062-part-workbench.mjs",
+        "sha256": "d4dcc97c8854988ca42bde825e934409209e883467009398fe436b37e1b9dff6"
+      },
+      {
+        "file": "scripts/qc-dev-062-relation-workbench.mjs",
+        "sha256": "9eb03f288dd2c32b7d32417452d8cf39a45f57aed129a0524bdd4c1cde810bd8"
+      },
+      {
+        "file": "scripts/qc-dev-062-compat.mjs",
+        "sha256": "dd4ddf06afbbfce90d16b94311ae9c42e101c2d3e34cc24a3dd9114790c7cbb7"
+      },
+      {
+        "file": "scripts/qc-dev-062-real-operation.mjs",
+        "sha256": "03f9da32728bc784450ae44bcd5a12dffc8e39fc08965bcbc3fa22fc051d25b1"
+      },
+      {
+        "file": "scripts/qc-dev-062-aggregate.mjs",
+        "sha256": "b7f50f39cae915cea425676eaf35882290abcd7691ab7b5a3e429d5f1330da88"
+      },
+      {
+        "file": "package.json",
+        "sha256": "f3c8a84550046a38190d72af5f56b9df559738804fccb1f253e52fdc09c7343a"
+      }
+    ]
+  },
+  "flags": {
+    "PDM_NUMBER_STATE_FLOW_V1": true,
+    "PDM_NUMBER_LIFECYCLE_V2": true,
+    "PDM_UNIFIED_DRAWING_WORKBENCH_V1": true,
+    "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1": {
+      "flagOnRun": true,
+      "rollbackRun": false
+    }
+  },
+  "target": {
+    "kind": "isolated SQLite + local Next.js",
+    "production": false,
+    "productionConnected": false,
+    "productionWrites": false
+  },
+  "accounts": [
+    {
+      "id": "dev062-real-owner",
+      "role": "R&D Manager",
+      "companyCodes": [
+        "JENFU"
+      ]
+    }
+  ],
+  "fixtureIds": {
+    "candidateWorkspace": "dev062-real-candidate",
+    "formalRoot": "dev062-real-root",
+    "formalPart": "dev062-real-part",
+    "historyRoot": "dev062-history-root",
+    "representativeRootPrefix": "dev062-perf-root-"
+  },
+  "cleanup": {
+    "completed": true,
+    "method": "isolated temporary target removed",
+    "targetKind": "OS temporary directory",
+    "targetPathHash": "0278e996efda746796b3962205fb5bf5805dd3d974d50fec5995f3114347a639"
+  }
+}

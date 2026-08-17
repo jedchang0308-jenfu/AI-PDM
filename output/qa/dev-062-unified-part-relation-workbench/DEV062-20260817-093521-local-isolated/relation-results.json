@@ -1,0 +1,35 @@
+{
+  "suite": "DEV-062 Relation workbench",
+  "passed": true,
+  "queryBudget": {
+    "list": {
+      "budget": 18,
+      "baseline": 18,
+      "representative": 18,
+      "rootCardinality": 60,
+      "rowCardinality": 60
+    },
+    "rootDetail": {
+      "budget": 10,
+      "baseline": 10,
+      "representative": 10,
+      "partCardinality": 5,
+      "drawingCardinality": 3
+    },
+    "candidateDetail": {
+      "budget": 13,
+      "baseline": 11,
+      "representative": 11,
+      "childCardinality": 5
+    }
+  },
+  "permission": {
+    "candidateOmittedWithoutWorkspaceView": true,
+    "crossCompanyStableIdHidden": true
+  },
+  "zeroWrite": {
+    "before": "612135b975af3b0329d82762fe52925208e8638eb968cc50cd93dc3764000ab4",
+    "after": "612135b975af3b0329d82762fe52925208e8638eb968cc50cd93dc3764000ab4",
+    "unchanged": true
+  }
+}
