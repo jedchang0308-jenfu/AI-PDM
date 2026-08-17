@@ -5,16 +5,9 @@ import { requireAuthAsync } from "@/lib/auth-async";
 import { getAuthMode } from "@/lib/auth-config";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { verifyPlatformSessionV2 } from "@/lib/platform-session-v2";
+import { isAllowedRequestOrigin } from "@/lib/request-origin";
 
 export const runtime = "nodejs";
-
-function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  const configured = String(process.env.PDM_PUBLIC_BASE_URL ?? "").trim();
-  const expected = configured ? new URL(configured).origin : new URL(request.url).origin;
-  return origin === expected;
-}
 
 function currentSessionId(request: Request) {
   if (getAuthMode() === "firebase_bff") {
@@ -39,7 +32,7 @@ function sessionError(error: unknown) {
 export async function POST(request: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   const auth = await requireAuthAsync(request);
   if (auth.response || !auth.user) return auth.response;
-  if (!sameOrigin(request)) {
+  if (!isAllowedRequestOrigin(request)) {
     return NextResponse.json({ error: "invalid_origin", message: "要求來源不正確。" }, { status: 403 });
   }
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {

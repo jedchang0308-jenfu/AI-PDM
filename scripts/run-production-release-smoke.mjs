@@ -65,6 +65,15 @@ async function run(argv = process.argv.slice(2)) {
     const body = await responseJson(response);
     return { status: response.status, authMode: body.authMode ?? null, noStore: /no-store/iu.test(response.headers.get("cache-control") ?? "") };
   });
+  await check(`${args.kind} origin reaches token validation`, (value) => value.status === 401 && value.code === "firebase_token_invalid", async () => {
+    const response = await request(`${args.baseUrl}/api/auth/firebase/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: args.baseUrl },
+      body: JSON.stringify({ idToken: "smoke-only-invalid-token" })
+    });
+    const body = await responseJson(response);
+    return { status: response.status, code: body.code ?? null };
+  });
   await check(`${args.kind} production slice`, (value) => value.status === 200 && value.configured === true && value.active === true && value.mode === "official-numbering-draft" && value.noStore, async () => {
     const response = await request(`${args.baseUrl}/api/production-slice/status`);
     const body = await responseJson(response);

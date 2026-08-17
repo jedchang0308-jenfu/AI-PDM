@@ -14,16 +14,9 @@ import { FirebasePlatformPrincipalRepository } from "@/lib/firebase-platform-pri
 import { exchangeFirebaseIdTokenForPlatformSession } from "@/lib/platform-identity-contract";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { verifyPlatformSessionV2 } from "@/lib/platform-session-v2";
+import { isAllowedRequestOrigin } from "@/lib/request-origin";
 
 export const runtime = "nodejs";
-
-function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  const configured = String(process.env.PDM_PUBLIC_BASE_URL ?? "").trim();
-  const expected = configured ? new URL(configured).origin : new URL(request.url).origin;
-  return origin === expected;
-}
 
 function exchangeFailure(error: unknown) {
   const code = error instanceof Error ? error.message : "FIREBASE_SESSION_EXCHANGE_FAILED";
@@ -52,7 +45,7 @@ export async function POST(request: Request) {
   if (getAuthMode() !== "firebase_bff") {
     return NextResponse.json({ error: "Firebase BFF is disabled" }, { status: 404 });
   }
-  if (!sameOrigin(request)) {
+  if (!isAllowedRequestOrigin(request)) {
     return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
   }
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
