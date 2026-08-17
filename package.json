@@ -218,6 +218,7 @@
     "qc:dev-046-phase1": "npm run qc:dev-046-phase1a && npm run qc:dev-046-phase1b && npm run qc:dev-046-phase1c && npm run qc:dev-046-phase1d && npm run qc:dev-046-phase1e",
     "qc:dev-046-phase2a": "node scripts/qc-dev-046-phase2a-preflight.mjs",
     "qc:dev-046-phase2b": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-046-phase2b-firebase-bff.mjs",
+    "qc:request-origin": "node --experimental-transform-types scripts/qc-request-origin.mjs",
     "qc:dev-046-firebase-hosting-entrypoint": "node scripts/qc-dev-046-firebase-hosting-entrypoint.mjs",
     "qc:dev-046-artifact-provenance": "node scripts/qc-dev-046-application-artifact-provenance.mjs",
     "qc:dev-046-login-popup-recovery": "node scripts/qc-dev-046-login-popup-recovery.mjs",

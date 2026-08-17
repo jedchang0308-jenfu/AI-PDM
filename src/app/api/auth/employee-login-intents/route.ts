@@ -4,16 +4,9 @@ import {
   EmployeeLoginAliasError,
   issueEmployeeLoginIntentAsync
 } from "@/lib/employee-login-aliases";
+import { isAllowedRequestOrigin } from "@/lib/request-origin";
 
 export const runtime = "nodejs";
-
-function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  const configured = String(process.env.PDM_PUBLIC_BASE_URL ?? "").trim();
-  const expected = configured ? new URL(configured).origin : new URL(request.url).origin;
-  return origin === expected;
-}
 
 function clientKey(request: Request) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
@@ -25,7 +18,7 @@ export async function POST(request: Request) {
   if (getAuthMode() !== "firebase_bff") {
     return NextResponse.json({ error: "Employee login routing is disabled" }, { status: 404 });
   }
-  if (!sameOrigin(request)) {
+  if (!isAllowedRequestOrigin(request)) {
     return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
   }
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {

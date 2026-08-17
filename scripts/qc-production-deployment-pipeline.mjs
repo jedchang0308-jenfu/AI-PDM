@@ -113,6 +113,9 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(workflow, /--kind candidate/u);
   assert.match(workflow, /\.percent \/\/ 0/u);
   assert.match(workflow, /select-production-serving-revision\.mjs/u);
+  assert.match(runtime, /PDM_CANDIDATE_CLOUD_RUN_SERVICE/u);
+  assert.match(workflow, /--update-env-vars "PDM_CANDIDATE_CLOUD_RUN_SERVICE=\$CLOUD_RUN_SERVICE"/u);
+  assert.match(smoke, /origin reaches token validation/u);
 });
 
 record("PROD-PIPE-008B candidate and promotion are separate dispatch stages", () => {

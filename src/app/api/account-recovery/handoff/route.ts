@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server";
 import { requestProviderRecoveryHandoffByEmailAsync } from "@/lib/account-recovery-handoff";
 import { getAuthMode } from "@/lib/auth-config";
+import { isAllowedRequestOrigin } from "@/lib/request-origin";
 
 export const runtime = "nodejs";
 
-function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  const configured = String(process.env.PDM_PUBLIC_BASE_URL ?? "").trim();
-  const expected = configured ? new URL(configured).origin : new URL(request.url).origin;
-  return origin === expected;
-}
-
 export async function POST(request: Request) {
-  if (!sameOrigin(request)) {
+  if (!isAllowedRequestOrigin(request)) {
     return NextResponse.json({ error: "invalid_origin", message: "要求來源不正確。" }, { status: 403 });
   }
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {

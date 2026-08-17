@@ -137,6 +137,14 @@ resource "google_cloud_run_v2_service" "pdm" {
         value = var.runtime_public_base_url
       }
 
+      # Candidate revisions are reached through Cloud Run tag URLs during the
+      # zero-traffic release gate. Keep this service-specific and tag-shaped;
+      # do not allow arbitrary *.a.run.app origins.
+      env {
+        name  = "PDM_CANDIDATE_CLOUD_RUN_SERVICE"
+        value = local.name_prefix
+      }
+
       env {
         name  = "PDM_COOKIE_SECURE"
         value = "true"
