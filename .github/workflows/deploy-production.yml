@@ -15,6 +15,34 @@ on:
         description: Release reason or incident reference
         required: true
         type: string
+      stage:
+        description: candidate deploys with 0% traffic; promote requires current Level 4 and Wave 0 approval
+        required: true
+        default: candidate
+        type: choice
+        options:
+          - candidate
+          - promote
+      candidate_revision:
+        description: Required for promote; exact candidate Cloud Run revision from the candidate run
+        required: false
+        type: string
+      level4_evidence_ref:
+        description: Required for promote; immutable evidence reference for current-release authenticated Level 4
+        required: false
+        type: string
+      wave0_users:
+        description: Required for promote; comma-separated 3-5 named Workspace users who completed Wave 0
+        required: false
+        type: string
+      product_owner_decision:
+        description: Required for promote; type go only after product-owner review
+        required: false
+        type: string
+      promotion_approval:
+        description: Required for promote; type AI-PDM-PRODUCTION-PROMOTION-APPROVED
+        required: false
+        type: string
 
 concurrency:
   group: ai-pdm-production-deploy
@@ -39,9 +67,11 @@ jobs:
         env:
           RELEASE_COMMIT: ${{ inputs.release_commit }}
           RELEASE_APPROVAL: ${{ inputs.approval }}
+          RELEASE_STAGE: ${{ inputs.stage }}
         run: |
           if ($env:GITHUB_REF -ne "refs/heads/main") { throw "Workflow must be dispatched from main." }
           if ($env:RELEASE_APPROVAL -ne "DEPLOY-AI-PDM-PRODUCTION") { throw "Exact production approval text is missing." }
+          if ($env:RELEASE_STAGE -notin @("candidate", "promote")) { throw "Release stage must be candidate or promote." }
           if ($env:RELEASE_COMMIT -notmatch '^[a-f0-9]{40}$') { throw "Release commit must be a lowercase 40-character SHA." }
           $head = (git rev-parse HEAD).Trim()
           $remoteMain = ((git ls-remote origin refs/heads/main) -split "`t")[0].Trim()
@@ -70,8 +100,9 @@ jobs:
           npm run qc:production-deployment-pipeline
           npm run build
 
-  deploy:
-    name: Build, deploy candidate, smoke, and promote
+  candidate:
+    name: Build, deploy, and smoke zero-traffic candidate
+    if: ${{ inputs.stage == 'candidate' }}
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -81,6 +112,10 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      candidate_revision: ${{ steps.candidate.outputs.candidate_revision }}
+      candidate_url: ${{ steps.candidate.outputs.candidate_url }}
+      image_digest: ${{ steps.image.outputs.digest }}
     env:
       GCP_PROJECT_ID: jenfu-ai-pdm-prod
       GCP_PROJECT_NUMBER: "451715062958"
@@ -240,11 +275,157 @@ jobs:
             --expected-latest-revision "$PDM_PRODUCTION_EXPECTED_LATEST_REVISION" \
             --output-dir output/production-release
 
-      - name: Promote candidate to production traffic
-        id: promote
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-candidate-${{ github.sha }}-${{ github.run_id }}
+          path: output/production-release
+          if-no-files-found: error
+          retention-days: 30
+
+  promote:
+    name: Verify Level 4 and Wave 0, then promote candidate
+    if: ${{ inputs.stage == 'promote' }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production
+      url: https://jenfu-ai-pdm-prod.web.app
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_PROJECT_ID: jenfu-ai-pdm-prod
+      GCP_PROJECT_NUMBER: "451715062958"
+      GCP_REGION: asia-east1
+      CLOUD_RUN_SERVICE: ai-pdm-prod
+      APPLICATION_CONTAINER: ai-pdm
+      IMAGE_PATH: asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm
+      CANONICAL_BASE_URL: https://jenfu-ai-pdm-prod.web.app
+      WIF_PROVIDER: projects/451715062958/locations/global/workloadIdentityPools/github-actions/providers/ai-pdm-production
+      DEPLOYER_SERVICE_ACCOUNT: ai-pdm-prod-deployer@jenfu-ai-pdm-prod.iam.gserviceaccount.com
+      PDM_PRODUCTION_RELEASE_TRAFFIC_APPROVAL: AI-PDM-PRODUCTION-RELEASE-TRAFFIC-APPROVED
+      PDM_PRODUCTION_PROJECT_ID: jenfu-ai-pdm-prod
+      PDM_PRODUCTION_REGION: asia-east1
+      PDM_PRODUCTION_SERVICE: ai-pdm-prod
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.release_commit }}
+          fetch-depth: 0
+
+      - name: Reconfirm source provenance
         shell: bash
         env:
-          PDM_PRODUCTION_EXPECTED_LATEST_REVISION: ${{ steps.candidate.outputs.candidate_revision }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          RELEASE_APPROVAL: ${{ inputs.approval }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$RELEASE_APPROVAL" == "DEPLOY-AI-PDM-PRODUCTION" ]]
+          [[ "$RELEASE_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_COMMIT" ]]
+          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$RELEASE_COMMIT" ]]
+          [[ -z "$(git status --porcelain)" ]]
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require current Level 4 and Wave 0 approvals
+        shell: bash
+        env:
+          CANDIDATE_REVISION: ${{ inputs.candidate_revision }}
+          LEVEL4_EVIDENCE_REF: ${{ inputs.level4_evidence_ref }}
+          WAVE0_USERS: ${{ inputs.wave0_users }}
+          PRODUCT_OWNER_DECISION: ${{ inputs.product_owner_decision }}
+          PROMOTION_APPROVAL: ${{ inputs.promotion_approval }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_REVISION" =~ ^ai-pdm-prod-[a-z0-9-]{3,48}$ ]]
+          [[ -n "$LEVEL4_EVIDENCE_REF" ]]
+          [[ "$PRODUCT_OWNER_DECISION" == "go" ]]
+          [[ "$PROMOTION_APPROVAL" == "AI-PDM-PRODUCTION-PROMOTION-APPROVED" ]]
+          IFS=',' read -r -a users <<< "$WAVE0_USERS"
+          (( ${#users[@]} >= 3 && ${#users[@]} <= 5 ))
+          for user in "${users[@]}"; do
+            user="${user//[[:space:]]/}"
+            [[ "$user" =~ ^[^@[:space:]]+@[^@[:space:]]+$ ]]
+          done
+
+      - name: Authenticate to Google Cloud without a key
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          version: ">= 490.0.0"
+
+      - name: Confirm candidate provenance and zero traffic
+        id: context
+        shell: bash
+        env:
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          CANDIDATE_REVISION: ${{ inputs.candidate_revision }}
+          LEVEL4_EVIDENCE_REF: ${{ inputs.level4_evidence_ref }}
+        run: |
+          set -euo pipefail
+          [[ "$(gcloud config get-value project)" == "$GCP_PROJECT_ID" ]]
+          [[ "$(gcloud auth list --filter=status:ACTIVE --format='value(account)')" == "$DEPLOYER_SERVICE_ACCOUNT" ]]
+          mkdir -p output/production-release
+          SERVICE_JSON=output/production-release/service-before-promotion.json
+          REVISION_JSON=output/production-release/revision-before-promotion.json
+          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > "$SERVICE_JSON"
+          LATEST_READY="$(jq -r '.status.latestReadyRevisionName' "$SERVICE_JSON")"
+          [[ "$LATEST_READY" == "$CANDIDATE_REVISION" ]]
+          PREVIOUS_REVISION="$(node scripts/select-production-serving-revision.mjs "$SERVICE_JSON")"
+          [[ "$PREVIOUS_REVISION" != "$CANDIDATE_REVISION" ]]
+          CANDIDATE_PERCENT="$(jq -r --arg revision "$CANDIDATE_REVISION" '[.status.traffic[] | select((.revisionName // .revision) == $revision) | (.percent // 0)] | add // 0' "$SERVICE_JSON")"
+          [[ "$CANDIDATE_PERCENT" == "0" ]]
+
+          gcloud run revisions describe "$CANDIDATE_REVISION" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > "$REVISION_JSON"
+          EXPECTED_DIGEST="$(gcloud artifacts docker images describe "$IMAGE_PATH:$RELEASE_COMMIT" --project "$GCP_PROJECT_ID" --format='value(image_summary.digest)')"
+          [[ "$EXPECTED_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          EXPECTED_IMAGE="$IMAGE_PATH@$EXPECTED_DIGEST"
+          CANDIDATE_IMAGE="$(jq -r --arg name "$APPLICATION_CONTAINER" '.spec.containers[] | select(.name == $name) | .image' "$REVISION_JSON")"
+          [[ "$CANDIDATE_IMAGE" == "$EXPECTED_IMAGE" ]]
+
+          printf '%s\n' "$LEVEL4_EVIDENCE_REF" > output/production-release/authenticated-level4-evidence-ref.txt
+          echo "candidate_revision=$CANDIDATE_REVISION" >> "$GITHUB_OUTPUT"
+          echo "previous_revision=$PREVIOUS_REVISION" >> "$GITHUB_OUTPUT"
+          echo "image_digest=$EXPECTED_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "direct_base_url=$(jq -r '.status.url' "$SERVICE_JSON")" >> "$GITHUB_OUTPUT"
+
+      - name: Validate traffic-only promotion and rollback requests
+        shell: bash
+        env:
+          PDM_PRODUCTION_EXPECTED_LATEST_REVISION: ${{ steps.context.outputs.candidate_revision }}
+        run: |
+          set -euo pipefail
+          node scripts/run-production-release-traffic.mjs \
+            --mode validate \
+            --rollback-revision "${{ steps.context.outputs.previous_revision }}" \
+            --expected-latest-revision "$PDM_PRODUCTION_EXPECTED_LATEST_REVISION" \
+            --output-dir output/production-release
+
+      - name: Promote approved candidate to production traffic
+        shell: bash
+        env:
+          PDM_PRODUCTION_EXPECTED_LATEST_REVISION: ${{ steps.context.outputs.candidate_revision }}
         run: |
           set -euo pipefail
           node scripts/run-production-release-traffic.mjs \
@@ -259,31 +440,31 @@ jobs:
           node scripts/run-production-release-smoke.mjs \
             --kind canonical \
             --base-url "$CANONICAL_BASE_URL" \
-            --direct-base-url "${{ steps.candidate.outputs.direct_base_url }}" \
-            --revision "${{ steps.candidate.outputs.candidate_revision }}" \
-            --image-digest "${{ steps.image.outputs.digest }}" \
-            --source-revision "$GITHUB_SHA" \
+            --direct-base-url "${{ steps.context.outputs.direct_base_url }}" \
+            --revision "${{ steps.context.outputs.candidate_revision }}" \
+            --image-digest "${{ steps.context.outputs.image_digest }}" \
+            --source-revision "${{ inputs.release_commit }}" \
             --output output/production-release/canonical-smoke.json
 
-      - name: Roll back traffic after any post-candidate failure
-        if: ${{ failure() && steps.candidate.outputs.candidate_revision != '' }}
+      - name: Roll back traffic after any promotion failure
+        if: ${{ failure() && steps.context.outputs.candidate_revision != '' && steps.context.outputs.previous_revision != '' }}
         shell: bash
         env:
-          PDM_PRODUCTION_EXPECTED_LATEST_REVISION: ${{ steps.candidate.outputs.candidate_revision }}
+          PDM_PRODUCTION_EXPECTED_LATEST_REVISION: ${{ steps.context.outputs.candidate_revision }}
         run: |
           set -euo pipefail
           node scripts/run-production-release-traffic.mjs \
             --mode rollback-revision \
-            --rollback-revision "${{ steps.candidate.outputs.previous_revision }}" \
+            --rollback-revision "${{ steps.context.outputs.previous_revision }}" \
             --expected-latest-revision "$PDM_PRODUCTION_EXPECTED_LATEST_REVISION" \
             --output-dir output/production-release
           curl --fail --silent --show-error --max-time 30 "$CANONICAL_BASE_URL/login" | grep -q "AI PDM"
 
-      - name: Upload release evidence
+      - name: Upload promotion evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: production-release-${{ github.sha }}-${{ github.run_id }}
+          name: production-promotion-${{ github.sha }}-${{ github.run_id }}
           path: output/production-release
           if-no-files-found: error
           retention-days: 30
