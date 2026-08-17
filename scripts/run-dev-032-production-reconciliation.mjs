@@ -97,7 +97,7 @@ export function assertDev032ProductionReconciliationReadback(plan, mode, row) {
   if (asNumber(row, "company_count") !== 1 || asNumber(row, "active_admin_count") !== 1) {
     throw new Error("PRODUCTION_RECONCILIATION_IDENTITY_SEED_MISMATCH");
   }
-  if (asNumber(row, "role_count") !== plan.expectedRoleCount || asNumber(row, "permission_count") !== plan.expectedPermissionCount) {
+  if (asNumber(row, "role_count") !== plan.expectedRoleCount || asNumber(row, "canonical_permission_count") !== plan.expectedPermissionCount) {
     throw new Error("PRODUCTION_RECONCILIATION_PERMISSION_SEED_MISMATCH");
   }
   if (mode === "pre_canary") {
@@ -111,7 +111,8 @@ export function assertDev032ProductionReconciliationReadback(plan, mode, row) {
     allChecksPassed: true,
     migrationCount: plan.expectedMigrationCount,
     roleCount: plan.expectedRoleCount,
-    permissionCount: plan.expectedPermissionCount,
+    canonicalPermissionCount: plan.expectedPermissionCount,
+    permissionCount: asNumber(row, "permission_count"),
     counts: {
       roots: asNumber(row, "root_count"),
       parts: asNumber(row, "part_count"),
