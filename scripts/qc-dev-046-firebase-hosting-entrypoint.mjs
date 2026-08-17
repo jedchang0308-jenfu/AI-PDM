@@ -83,9 +83,12 @@ record(
     variables.includes('default     = ""')
 );
 record(
-  "DEV046-HOST-010 production pilot exception preserves the future ALB baseline",
-  contract.productionEdgeBaseline?.type === "external-application-load-balancer" &&
-    contract.productionEdgeBaseline?.status === "future-cutover-baseline-after-internal-pilot" &&
+  "DEV046-HOST-010 production prelaunch baseline removes the ALB while preserving a reviewed re-entry capsule",
+  contract.productionEdgeBaseline?.type === "firebase-hosting-cloud-run-rewrite" &&
+    contract.productionEdgeBaseline?.externalApplicationLoadBalancerProvisioned === false &&
+    contract.productionEdgeBaseline?.status === "active-prelaunch-low-cost-baseline" &&
+    contract.futureCustomDomainEdge?.type === "external-application-load-balancer" &&
+    contract.futureCustomDomainEdge?.status === "deferred" &&
     contract.productionInternalPilotGateway?.decision === "firebase-hosting-default-domain-no-dns" &&
     contract.productionInternalPilotGateway?.canonicalOrigin === "https://jenfu-ai-pdm-prod.web.app" &&
     contract.productionInternalPilotGateway?.directRunAppOriginSessionExchange === "denied-when-origin-is-run-app"

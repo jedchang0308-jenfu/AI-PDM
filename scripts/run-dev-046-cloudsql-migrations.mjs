@@ -151,11 +151,17 @@ async function executeMigrations(plan) {
     const appliedByVersion = new Map(applied.rows.map((row) => [row.version, row.checksum]));
     for (const migration of plan.schemaMigrations) {
       const existingChecksum = appliedByVersion.get(migration.version);
-      if (existingChecksum && existingChecksum !== migration.outputSha256) {
+      const acceptedExistingChecksums = new Set([migration.outputSha256, ...(migration.acceptedExistingChecksums ?? [])]);
+      if (existingChecksum && !acceptedExistingChecksums.has(existingChecksum)) {
         throw new Error(`MIGRATION_HISTORY_CHECKSUM_MISMATCH:${migration.version}`);
       }
       if (existingChecksum) continue;
-      await client.query(migration.sql);
+      try {
+        await client.query(migration.sql);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`MIGRATION_SQL_FAILED:${migration.version}:${message}`, { cause: error });
+      }
       await client.query("INSERT INTO pdm_schema_migrations (version, name, checksum) VALUES ($1, $2, $3)", [
         migration.version,
         migration.name,

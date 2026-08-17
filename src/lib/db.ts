@@ -472,7 +472,9 @@ function ensureUnifiedDrawingAggregateBackfill(database: SqliteDatabase) {
         ON reservation.company_id = formal.company_id
        AND reservation.promoted_master_type = 'drawing_number'
        AND reservation.promoted_master_id = formal.id
-      ON CONFLICT(company_id, drawing_number) DO UPDATE SET
+      ON CONFLICT(company_id, drawing_number)
+        WHERE drawing_number IS NOT NULL AND lifecycle_state <> 'cancelled'
+        DO UPDATE SET
         formal_drawing_number_id = excluded.formal_drawing_number_id,
         part_root_id = excluded.part_root_id,
         purpose_code = excluded.purpose_code,

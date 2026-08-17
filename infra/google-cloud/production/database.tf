@@ -9,7 +9,7 @@ resource "google_sql_database_instance" "pdm" {
 
   settings {
     tier                        = var.database_tier
-    availability_type           = "REGIONAL"
+    availability_type           = var.database_availability_type
     disk_type                   = "PD_SSD"
     disk_size                   = 20
     disk_autoresize             = true

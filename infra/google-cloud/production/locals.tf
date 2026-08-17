@@ -51,6 +51,7 @@ locals {
   ])
 
   firebase_hosting_gateway_ready = (
+    !var.enable_external_load_balancer &&
     var.enable_firebase_hosting_gateway &&
     var.firebase_hosting_gateway_acknowledgement == local.firebase_hosting_acknowledgement &&
     var.runtime_public_base_url == local.firebase_hosting_origin &&
@@ -59,6 +60,7 @@ locals {
   )
 
   custom_domain_gateway_ready = (
+    var.enable_external_load_balancer &&
     !var.enable_firebase_hosting_gateway &&
     var.runtime_public_base_url == "https://pdm.jenfu.com.tw" &&
     var.session_issuer == "https://pdm.jenfu.com.tw" &&
@@ -66,6 +68,8 @@ locals {
   )
 
   production_entrypoint_ready = local.firebase_hosting_gateway_ready || local.custom_domain_gateway_ready
+  create_edge_resources       = local.create_resources && var.enable_external_load_balancer
+  runtime_capacity_ready      = var.cloud_run_max_instances * 2 * var.cloud_sql_pool_max + 2 <= floor(25 * 0.70)
 
   real_target_values_ready = (
     var.production_project_id == "jenfu-ai-pdm-prod" &&
@@ -230,7 +234,14 @@ check "production_reconciliation_execution_guard" {
 
 check "production_entrypoint_guard" {
   assert {
-    condition     = local.production_entrypoint_ready && !can(regex("stg|staging", var.runtime_public_base_url))
+    condition     = !var.enable_resource_creation || (local.production_entrypoint_ready && !can(regex("stg|staging", var.runtime_public_base_url)))
     error_message = "Production entrypoint must use either the custom-domain baseline or the explicitly acknowledged production web.app pilot origin; staging origins are forbidden."
+  }
+}
+
+check "production_prelaunch_capacity_guard" {
+  assert {
+    condition     = local.runtime_capacity_ready
+    error_message = "Prelaunch capacity must satisfy 2 concurrent revisions * max instances * pool max + 2 migration connections <= 70% of 25 expected db-f1-micro connections."
   }
 }

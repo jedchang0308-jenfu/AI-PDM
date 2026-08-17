@@ -11,11 +11,12 @@ target after the release gates close:
 - Region: `asia-east1`
 - Runtime: Cloud Run `ai-pdm-prod`, default `run.app` URL disabled
 - Pilot edge: Firebase Hosting default site `jenfu-ai-pdm-prod.web.app` rewrites
-  to the existing Cloud Run service. The external Application Load Balancer,
-  managed TLS resource and `pdm.jenfu.com.tw` remain provisioned but DNS is
-  intentionally deferred and they are not the current browser entrypoint.
-- Database: Cloud SQL for PostgreSQL `POSTGRES_17`, `REGIONAL`, private IP,
-  IAM DB auth, backups, PITR and deletion protection
+  to the existing Cloud Run service. DEV-069 removes the unused external
+  Application Load Balancer, managed TLS resource and reserved edge IPv4;
+  `pdm.jenfu.com.tw` remains a deferred re-entry decision.
+- Database: Cloud SQL for PostgreSQL `POSTGRES_17`, `db-f1-micro`, `ZONAL`,
+  private IP, IAM DB auth, backups, PITR and deletion protection. This prelaunch
+  topology has no database SLA and must be upsized before general availability.
 - Identity: Firebase Authentication with Identity Platform only
 - Auth handler and canonical pilot origin: `jenfu-ai-pdm-prod.web.app`.
   `jenfu-ai-pdm-prod.firebaseapp.com` remains an authorized Firebase domain.
@@ -25,6 +26,9 @@ target after the release gates close:
 - Secrets: Secret Manager containers only; values are never stored here
 - Logs and signing: regional application-log bucket and HSM-backed numbering
   ledger signing key
+- Runtime capacity: Cloud Run min 0 / max 2 per revision and PostgreSQL pool 2;
+  two concurrent revisions plus migration reserve use at most 10 of the
+  expected 25 connections.
 - File authority: GCS remains disabled for Phase 3A
 
 Terraform state is isolated at

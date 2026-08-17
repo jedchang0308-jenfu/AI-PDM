@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "policy": "accepted_existing_checksums_only",
+  "entries": [
+    {
+      "targetProjectId": "jenfu-ai-pdm-stg-361825",
+      "version": "001",
+      "acceptedExistingChecksums": [
+        "309039c3f931a269e42a4350c9295e795eb3e494f6e4ad54abb10e40a90aa387"
+      ],
+      "historicalSourceSha256": "ea7a9d7b2eed8d54dae07ccebbf0cbc86dbf5b749b2cfd1b3d64ae3c9664785e",
+      "historicalOutputSha256": "309039c3f931a269e42a4350c9295e795eb3e494f6e4ad54abb10e40a90aa387",
+      "historicalManifestCommit": "69a8c1da0c694079940988edbde8c74211f62d19",
+      "historicalAppliedAt": "2026-07-15T03:48:16.530555Z",
+      "reason": "Staging already applied this reviewed baseline. The current 001 file is a clean-room baseline refactor; its changes are represented by forward migrations 021-033. Preserve the live ledger and accept only this verified historical checksum so forward migrations can resume."
+    }
+  ]
+}

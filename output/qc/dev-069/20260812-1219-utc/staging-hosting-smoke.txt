@@ -1,0 +1,23 @@
+DEV-069 QC Staging Hosting smoke
+Observation window: 2026-08-12 20:40–20:49 (UTC+8)
+
+Correct Firebase Hosting site:
+  https://jenfu-ai-pdm-stg-361825.web.app/login                 200
+  https://jenfu-ai-pdm-stg-361825.web.app/api/auth/mode         200
+  https://jenfu-ai-pdm-stg-361825.web.app/api/numbering/permissions 401 (unauthenticated boundary)
+
+Wrong alias intentionally checked:
+  https://jenfu-ai-pdm-stg.web.app/login                         404 Site Not Found
+
+Direct Cloud Run fallback cross-check:
+  https://ai-pdm-stg-1042387036944.asia-east1.run.app/login      200
+  https://ai-pdm-stg-1042387036944.asia-east1.run.app/api/auth/mode 200
+  https://ai-pdm-stg-1042387036944.asia-east1.run.app/api/numbering/permissions 401
+
+No authenticated write, migration, or fixture mutation was performed.
+
+Post-stop read-only recheck at the correct Hosting URL:
+  /login                                                        200
+  /api/auth/mode                                                200
+  /api/numbering/permissions                                   401
+Cloud SQL final readback: STOPPED / NEVER.

@@ -118,7 +118,8 @@ const checks = {
     && sourceSql?.region === contract.target.region
     && sourceSql?.name === contract.target.cloudSqlInstance
     && sourceSql?.state === "RUNNABLE"
-    && sourceSql?.settings?.availabilityType === "REGIONAL"
+    && sourceSql?.settings?.tier === contract.database?.tier
+    && sourceSql?.settings?.availabilityType === contract.database?.availabilityType
     && sourceSql?.settings?.backupConfiguration?.enabled === true
     && sourceSql?.settings?.backupConfiguration?.pointInTimeRecoveryEnabled === true
     && sourceSql?.settings?.deletionProtectionEnabled === true

@@ -92,7 +92,7 @@ resource "google_cloud_run_v2_job" "migration_runner" {
 
         env {
           name  = "PDM_CLOUD_SQL_POOL_MAX"
-          value = "2"
+          value = tostring(var.cloud_sql_pool_max)
         }
 
         env {

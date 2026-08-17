@@ -1,0 +1,37 @@
+# Planning values only. Do not rename this file to *.auto.tfvars during Phase 2A.
+enable_resource_creation       = false
+enable_secret_container_bootstrap = false
+enable_migration_runner_job    = false
+session_secret_versions_ready  = false
+phase2_change_ticket           = "CHG-DEV046-PHASE2B-20260714"
+phase2_apply_acknowledgement   = ""
+migration_runner_job_acknowledgement = ""
+staging_project_id             = "jenfu-ai-pdm-stg-361825"
+staging_project_number         = "1042387036944"
+production_project_id          = "jenfu-ai-pdm-prod"
+billing_account_id             = "018678-C2F032-7680E4"
+billing_budget_currency_code   = "TWD"
+billing_budget_units           = 9600
+staging_domain                 = "pdm-stg.jenfu.com.tw"
+enable_firebase_hosting_gateway = true
+enable_external_load_balancer   = false
+runtime_public_base_url         = "https://jenfu-ai-pdm-stg-361825.web.app"
+firebase_web_api_key           = "AIzaSyBV4QkOBrY5bKgHd772AgaHrNG2vylEim4"
+firebase_auth_domain           = "jenfu-ai-pdm-stg-361825.web.app"
+firebase_web_app_id            = "1:1042387036944:web:dc5bf62bb50038c7ac9395"
+trust_google_workspace_mfa     = false
+allow_google_workspace_aal1_privileged = true
+google_workspace_domains       = ["jenfu.com.tw"]
+database_tier                  = "db-f1-micro"
+database_activation_policy     = "NEVER"
+cloud_run_max_instances        = 2
+cloud_sql_pool_max             = 2
+budget_notification_channel_ids = []
+alert_notification_channel_ids  = []
+
+# Immutable staging image pushed from the reviewed Phase 2B local container smoke.
+application_image = "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm@sha256:9a6ba6dd1d2c6e2266ee477e4014c4378d36e95107990f30c3bf2dd29b34138b"
+
+# Placeholder only. Keep disabled until a reviewed migration-runner image digest exists
+# and the runner job has separate explicit approval.
+migration_runner_image = "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration@sha256:0000000000000000000000000000000000000000000000000000000000000000"

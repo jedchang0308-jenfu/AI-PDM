@@ -29,9 +29,14 @@ CREATE TABLE IF NOT EXISTS drawings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   controlled_at TIMESTAMPTZ,
   released_at TIMESTAMPTZ,
-  terminal_at TIMESTAMPTZ,
-  UNIQUE (company_id, drawing_number)
+  terminal_at TIMESTAMPTZ
+  -- Cancelled candidate projections retain their immutable historical number,
+  -- but do not block a new reservation from reusing that provisional code.
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_drawings_active_company_number
+  ON drawings(company_id, drawing_number)
+  WHERE drawing_number IS NOT NULL AND lifecycle_state <> 'cancelled';
 
 CREATE INDEX IF NOT EXISTS idx_drawings_company_lifecycle
   ON drawings(company_id, lifecycle_state, drawing_number, id);
@@ -164,7 +169,9 @@ LEFT JOIN number_candidate_reservations reservation
   ON reservation.company_id = formal.company_id
  AND reservation.promoted_master_type = 'drawing_number'
  AND reservation.promoted_master_id = formal.id
-ON CONFLICT (company_id, drawing_number) DO UPDATE SET
+ON CONFLICT (company_id, drawing_number)
+  WHERE drawing_number IS NOT NULL AND lifecycle_state <> 'cancelled'
+DO UPDATE SET
   formal_drawing_number_id = EXCLUDED.formal_drawing_number_id,
   part_root_id = EXCLUDED.part_root_id,
   purpose_code = EXCLUDED.purpose_code,
@@ -291,8 +298,10 @@ JOIN drawing_revisions revision ON revision.source_revision_package_id = file.pa
 ON CONFLICT (drawing_revision_id, source_file_asset_id) DO UPDATE SET
   source_package_file_id = EXCLUDED.source_package_file_id;
 
-UPDATE drawing_revisions revision
-SET lifecycle_state = CASE
+WITH revision_projection AS (
+  SELECT
+    revision.id,
+    CASE
       WHEN candidate.lifecycle_status = 'review_locked' THEN 'in_review'
       WHEN candidate.lifecycle_status = 'cancelled' THEN 'cancelled'
       WHEN package.lifecycle_state = 'released' OR package.status = 'Released' THEN 'released'
@@ -301,13 +310,18 @@ SET lifecycle_state = CASE
       WHEN package.lifecycle_state = 'in_review' OR package.status = 'Pending' THEN 'in_review'
       WHEN package.status = 'Cancelled' THEN 'cancelled'
       ELSE 'preparing'
-    END
-FROM drawings drawing
-LEFT JOIN numbering_candidate_revision_drafts candidate
-  ON candidate.id = revision.source_candidate_revision_id
-LEFT JOIN drawing_revision_packages package
-  ON package.id = revision.source_revision_package_id
-WHERE drawing.id = revision.drawing_id;
+    END AS lifecycle_state
+  FROM drawing_revisions revision
+  JOIN drawings drawing ON drawing.id = revision.drawing_id
+  LEFT JOIN numbering_candidate_revision_drafts candidate
+    ON candidate.id = revision.source_candidate_revision_id
+  LEFT JOIN drawing_revision_packages package
+    ON package.id = revision.source_revision_package_id
+)
+UPDATE drawing_revisions target
+SET lifecycle_state = revision_projection.lifecycle_state
+FROM revision_projection
+WHERE target.id = revision_projection.id;
 
 WITH latest_revision AS (
   SELECT DISTINCT ON (item.drawing_id)

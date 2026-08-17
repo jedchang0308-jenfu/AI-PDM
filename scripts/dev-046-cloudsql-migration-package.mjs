@@ -260,6 +260,18 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     }
   ];
 
+  const historyCompatibility = json("config/platform/cloudsql-migration-history-compatibility.json");
+  const compatibilityEntries = historyCompatibility.entries
+    .filter((entry) => entry.targetProjectId === target.projectId)
+    .map((entry) => ({ ...entry, acceptedExistingChecksums: [...entry.acceptedExistingChecksums] }));
+  const compatibilityByVersion = new Map(compatibilityEntries.map((entry) => [entry.version, entry]));
+  const orderedSchemaMigrations = schemaFiles.map((file) => {
+    const compatibility = compatibilityByVersion.get(file.version);
+    return compatibility
+      ? { ...file, acceptedExistingChecksums: compatibility.acceptedExistingChecksums }
+      : file;
+  });
+
   const orderedManifest = {
     schemaVersion: 1,
     packageVersion: DEV046_CLOUDSQL_MIGRATION_PACKAGE_VERSION,
@@ -274,7 +286,11 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
       excludesPublicIpDatabaseAccess: true
     },
     supportFiles: supportFiles.map(({ sql: _sql, ...file }) => file),
-    orderedSchemaMigrations: schemaFiles.map(({ sql: _sql, ...file }) => file),
+    orderedSchemaMigrations: orderedSchemaMigrations.map(({ sql: _sql, ...file }) => file),
+    migrationHistoryCompatibility: {
+      policy: historyCompatibility.policy,
+      entries: compatibilityEntries
+    },
     excludedFiles,
     transformations: {
       removedTransactionWrappers,
@@ -291,7 +307,8 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     readyForPackageReview: true,
     liveApplyAllowed: false,
     supportFiles,
-    schemaFiles,
+    schemaFiles: orderedSchemaMigrations,
+    historyCompatibility: orderedManifest.migrationHistoryCompatibility,
     orderedManifest,
     excludedFiles,
     transformations: orderedManifest.transformations
@@ -510,7 +527,10 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
     },
     sourceInventory: {
       postgresDirectory: "db/postgres",
-      postgresReadmeDeclaresSupabaseUpgrade: read("db/postgres/README.md").includes("future SQLite-to-Supabase upgrade"),
+      postgresReadmeDeclaresCloudSqlAuthority:
+        read("db/postgres/README.md").includes("authoritative PostgreSQL migration source") &&
+        read("db/postgres/README.md").includes("approved production database is Google Cloud SQL for PostgreSQL") &&
+        read("db/postgres/README.md").includes("Supabase is retired"),
       postgresSqlFileCount: migrations.length,
       cloudSqlGrantFile: grantsFile,
       cloudSqlGrantFileSha256: sha256(grantSql),

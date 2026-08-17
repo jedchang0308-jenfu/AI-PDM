@@ -27,7 +27,7 @@ resource "google_cloud_run_v2_service" "pdm" {
 
   scaling {
     min_instance_count = 0
-    max_instance_count = 5
+    max_instance_count = var.cloud_run_max_instances
   }
 
   template {
@@ -38,7 +38,7 @@ resource "google_cloud_run_v2_service" "pdm" {
 
     scaling {
       min_instance_count = 0
-      max_instance_count = 5
+      max_instance_count = var.cloud_run_max_instances
     }
 
     vpc_access {
@@ -125,6 +125,11 @@ resource "google_cloud_run_v2_service" "pdm" {
       env {
         name  = "PDM_CLOUD_SQL_USER"
         value = trimsuffix(google_service_account.runtime[0].email, ".gserviceaccount.com")
+      }
+
+      env {
+        name  = "PDM_CLOUD_SQL_POOL_MAX"
+        value = tostring(var.cloud_sql_pool_max)
       }
 
       env {
@@ -234,7 +239,8 @@ resource "google_cloud_run_v2_service" "pdm" {
           cpu    = "1"
           memory = "256Mi"
         }
-        cpu_idle = true
+        cpu_idle          = true
+        startup_cpu_boost = true
       }
 
       startup_probe {

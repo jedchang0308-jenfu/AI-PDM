@@ -51,19 +51,20 @@ record("DEV046-1A-006 build has no private database dependency", dockerfile.incl
 record(
   "DEV046-1A-007 Cloud Run region, bounded scale and production ingress modes are explicit",
   cloudRun.service.region === "asia-east1" &&
-    cloudRun.service.maxInstances === 5 &&
+    cloudRun.service.maxInstances === 2 &&
     cloudRun.service.containerConcurrency === 20 &&
-    cloudRun.productionEdgeBaseline?.cloudRunIngress === "internal-and-cloud-load-balancing" &&
+    cloudRun.productionEdgeBaseline?.cloudRunIngress === "all" &&
     cloudRun.productionInternalPilotGateway?.cloudRunIngress === "all"
 );
 record(
-  "DEV046-1A-008 production ALB baseline and bounded Hosting pilot are both fail-closed",
-  cloudRun.edge.type === "external-application-load-balancer" &&
-    cloudRun.edge.backend === "serverless-neg" &&
+  "DEV046-1A-008 Firebase Hosting is the active prelaunch edge and custom-domain ALB is deferred",
+  cloudRun.edge.type === "firebase-hosting-cloud-run-rewrite" &&
+    cloudRun.edge.backend === "cloud-run-service" &&
     cloudRun.edge.serverlessNegRegion === "asia-east1" &&
-    cloudRun.productionEdgeBaseline?.type === "external-application-load-balancer" &&
-    cloudRun.productionEdgeBaseline?.customDomainRequired === true &&
-    cloudRun.productionEdgeBaseline?.cloudRunDefaultUrlDisabled === true &&
+    cloudRun.productionEdgeBaseline?.type === "firebase-hosting-cloud-run-rewrite" &&
+    cloudRun.productionEdgeBaseline?.customDomainRequired === false &&
+    cloudRun.productionEdgeBaseline?.externalApplicationLoadBalancerProvisioned === false &&
+    cloudRun.futureCustomDomainEdge?.status === "deferred" &&
     cloudRun.productionInternalPilotGateway?.canonicalOrigin === "https://jenfu-ai-pdm-prod.web.app" &&
     cloudRun.productionInternalPilotGateway?.directRunAppOriginSessionExchange === "denied-when-origin-is-run-app"
 );

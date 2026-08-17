@@ -3,10 +3,8 @@ import { getDb, getUserById, type DbUser } from "@/lib/db";
 
 export const SESSION_COOKIE_NAME = "pdm_session";
 export const FIREBASE_HOSTING_SESSION_COOKIE_NAME = "__session";
-export const PRIVACY_PENDING_COOKIE_NAME = "pdm_privacy_pending";
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400;
 export const FIREBASE_BFF_SESSION_COOKIE_MAX_AGE_SECONDS = 8 * 60 * 60;
-export const PRIVACY_PENDING_COOKIE_MAX_AGE_SECONDS = 10 * 60;
 
 export type LegacySessionPayload = {
   userId: string;
@@ -125,19 +123,6 @@ export function createFirebaseBffSessionCookie(token: string) {
 export function createFirebaseHostingBffSessionCookie(token: string) {
   if (!/^[A-Za-z0-9_.-]+$/u.test(token)) throw new Error("SESSION_V2_COOKIE_TOKEN_INVALID");
   return `${FIREBASE_HOSTING_SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${FIREBASE_BFF_SESSION_COOKIE_MAX_AGE_SECONDS}${secureCookieDirective()}`;
-}
-
-export function createPrivacyPendingCookie(token: string) {
-  if (!/^[A-Za-z0-9_.-]+$/u.test(token)) throw new Error("PRIVACY_PENDING_COOKIE_TOKEN_INVALID");
-  return `${PRIVACY_PENDING_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${PRIVACY_PENDING_COOKIE_MAX_AGE_SECONDS}${secureCookieDirective()}`;
-}
-
-export function clearPrivacyPendingCookie() {
-  return `${PRIVACY_PENDING_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureCookieDirective()}`;
-}
-
-export function getPrivacyPendingToken(request: Request) {
-  return parseCookies(request.headers.get("cookie")).get(PRIVACY_PENDING_COOKIE_NAME) ?? null;
 }
 
 export function createLogoutCookie() {

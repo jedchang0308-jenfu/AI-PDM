@@ -197,19 +197,10 @@ async function scopeMetrics(page, scope) {
   }, scope);
 }
 
-async function waitForPrivacyGateToSettle(page) {
-  await page.waitForFunction(
-    () => !document.querySelector(".privacy-gate-state"),
-    undefined,
-    { timeout: 5000 }
-  ).catch(() => undefined);
-}
-
 async function pageDebugSnapshot(page) {
   return page.evaluate(() => ({
     title: document.title,
     bodyPreview: document.body.innerText.slice(0, 1200),
-    privacyGate: document.querySelector(".privacy-gate-state")?.textContent?.trim() ?? null,
     statusScopeTriggers: [...document.querySelectorAll("[data-status-scope-help-trigger]")]
       .map((element) => element.getAttribute("data-status-scope-help-trigger"))
       .filter(Boolean),
@@ -250,7 +241,6 @@ try {
         const url = `${baseUrl}${route.path}`;
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
         await page.waitForLoadState("networkidle", { timeout: 1500 }).catch(() => undefined);
-        await waitForPrivacyGateToSettle(page);
         if (route.authority === "production") {
           const visibleErrors = await visibleErrorSweep(page);
           const bodyText = await page.locator("body").innerText();

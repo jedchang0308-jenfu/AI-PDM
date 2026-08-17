@@ -6,7 +6,6 @@ import type { DbUser } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { verifyPlatformSessionV2 } from "@/lib/platform-session-v2";
-import { getPrivacyAcknowledgementStatusAsync, isPrivacyNoticeEnforced } from "@/lib/privacy-notice";
 import { AsyncAuthIdentityRepository, type ResolvedAuthIdentity } from "@/lib/repositories/auth-identity-async-repository";
 import type { DbUserWithPassword } from "@/lib/repositories/user-repository";
 import { AsyncUserRepository } from "@/lib/repositories/user-async-repository";
@@ -136,32 +135,6 @@ export async function ensureDemoUserAsync(input: {
 export async function requireAuthAsync(request: Request): Promise<AsyncAuthResult> {
   const user = await getSessionUserAsync(request);
   if (!user) return { user: null, response: unauthorized() };
-  if (isPrivacyNoticeEnforced()) {
-    try {
-      const privacy = await getPrivacyAcknowledgementStatusAsync({ userId: user.id, companyId: user.company_id });
-      if (privacy.status !== "acknowledged") {
-        return {
-          user: null,
-          response: Response.json(
-            {
-              error: "privacy_acknowledgement_required",
-              message: "請先閱讀並確認目前版本的員工個人資料告知事項。",
-              acknowledgementUrl: "/privacy/acknowledgement"
-            },
-            { status: 428, headers: { "cache-control": "no-store" } }
-          )
-        };
-      }
-    } catch {
-      return {
-        user: null,
-        response: Response.json(
-          { error: "privacy_gate_unavailable", message: "隱私確認狀態暫時無法驗證，請稍後重試或聯絡系統管理員。" },
-          { status: 503, headers: { "cache-control": "no-store" } }
-        )
-      };
-    }
-  }
   return { user, response: null };
 }
 

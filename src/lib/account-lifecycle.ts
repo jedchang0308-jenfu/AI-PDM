@@ -9,11 +9,9 @@ import {
   type AdminAccountSummary
 } from "@/lib/repositories/account-lifecycle-async-repository";
 import type { AuthIdentityStatus } from "@/lib/repositories/auth-identity-async-repository";
-import { getPrivacyAdminEvidenceAsync } from "@/lib/privacy-notice";
-import type { PrivacyAcknowledgementEvidence } from "@/lib/repositories/privacy-notice-async-repository";
 
 export { AccountLifecycleError };
-export type AdminAccountDetail = RepositoryAdminAccountDetail & { privacyEvidence: PrivacyAcknowledgementEvidence };
+export type AdminAccountDetail = RepositoryAdminAccountDetail;
 export type { AccountLifecycleAction, AdminAccountSummary };
 
 function repository() {
@@ -31,12 +29,7 @@ export async function listAdminAccountsAsync(input: {
 }
 
 export async function getAdminAccountDetailAsync(userId: string) {
-  const account = await repository().getAccountDetail(userId.trim());
-  if (!account) return null;
-  return {
-    ...account,
-    privacyEvidence: await getPrivacyAdminEvidenceAsync({ userId: account.id, companyId: account.companyId })
-  };
+  return repository().getAccountDetail(userId.trim());
 }
 
 export async function updateAdminAccountLifecycleAsync(input: {

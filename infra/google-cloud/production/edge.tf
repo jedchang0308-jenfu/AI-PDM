@@ -1,5 +1,5 @@
 resource "google_compute_region_network_endpoint_group" "pdm" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project               = var.production_project_id
   name                  = "${local.name_prefix}-neg"
@@ -12,7 +12,7 @@ resource "google_compute_region_network_endpoint_group" "pdm" {
 }
 
 resource "google_compute_backend_service" "application" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project               = var.production_project_id
   name                  = "${local.name_prefix}-app"
@@ -31,7 +31,7 @@ resource "google_compute_backend_service" "application" {
 }
 
 resource "google_compute_backend_service" "immutable_static" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project               = var.production_project_id
   name                  = "${local.name_prefix}-immutable-static"
@@ -62,7 +62,7 @@ resource "google_compute_backend_service" "immutable_static" {
 }
 
 resource "google_compute_url_map" "https" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project         = var.production_project_id
   name            = "${local.name_prefix}-https"
@@ -85,7 +85,7 @@ resource "google_compute_url_map" "https" {
 }
 
 resource "google_compute_url_map" "http_redirect" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project = var.production_project_id
   name    = "${local.name_prefix}-http-redirect"
@@ -97,7 +97,7 @@ resource "google_compute_url_map" "http_redirect" {
 }
 
 resource "google_compute_managed_ssl_certificate" "pdm" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project = var.production_project_id
   name    = "${local.name_prefix}-managed-tls"
@@ -112,7 +112,7 @@ resource "google_compute_managed_ssl_certificate" "pdm" {
 }
 
 resource "google_compute_global_address" "pdm" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project      = var.production_project_id
   name         = "${local.name_prefix}-ipv4"
@@ -121,7 +121,7 @@ resource "google_compute_global_address" "pdm" {
 }
 
 resource "google_compute_target_https_proxy" "pdm" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project          = var.production_project_id
   name             = "${local.name_prefix}-https"
@@ -130,7 +130,7 @@ resource "google_compute_target_https_proxy" "pdm" {
 }
 
 resource "google_compute_target_http_proxy" "redirect" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project = var.production_project_id
   name    = "${local.name_prefix}-http-redirect"
@@ -138,7 +138,7 @@ resource "google_compute_target_http_proxy" "redirect" {
 }
 
 resource "google_compute_global_forwarding_rule" "https" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project               = var.production_project_id
   name                  = "${local.name_prefix}-https"
@@ -149,7 +149,7 @@ resource "google_compute_global_forwarding_rule" "https" {
 }
 
 resource "google_compute_global_forwarding_rule" "http" {
-  count = local.create_resources ? 1 : 0
+  count = local.create_edge_resources ? 1 : 0
 
   project               = var.production_project_id
   name                  = "${local.name_prefix}-http"

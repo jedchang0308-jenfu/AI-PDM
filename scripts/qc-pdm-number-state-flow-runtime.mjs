@@ -132,6 +132,21 @@ try {
     JSON.stringify({ first: acquiredCodes, second: secondCodes })
   );
 
+  const canonicalReuseEvidence = db.prepare(`
+    SELECT lifecycle_state, drawing_number
+    FROM drawings
+    WHERE company_id = 'company-jenfu' AND drawing_number IS NOT NULL
+      AND drawing_number = ?
+    ORDER BY drawing_number, lifecycle_state
+  `).all(acquiredCodes.at(-1));
+  record(
+    "NSF-RT-004b cancelled drawing history keeps its immutable code while active reuse is allowed",
+    canonicalReuseEvidence.length === 2 &&
+      canonicalReuseEvidence.filter((row) => row.lifecycle_state === "cancelled").length === 1 &&
+      canonicalReuseEvidence.filter((row) => row.lifecycle_state === "drawing_preparation").length === 1,
+    JSON.stringify(canonicalReuseEvidence)
+  );
+
   const beforeRollback = {
     workspaces: count(db, "numbering_draft_workspaces"),
     events: count(db, "number_candidate_events"),
@@ -196,7 +211,14 @@ try {
   const resolvedFixture = path.resolve(fixtureRoot);
   const resolvedTmp = path.resolve(root, ".tmp");
   if (resolvedFixture.startsWith(`${resolvedTmp}${path.sep}`)) {
-    fs.rmSync(resolvedFixture, { recursive: true, force: true });
+    try {
+      fs.rmSync(resolvedFixture, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    } catch (error) {
+      // Windows can release SQLite handles just after the process closes the
+      // connection. Cleanup must not turn a passed domain regression into a
+      // false-negative QC result; the fixture remains scoped under .tmp.
+      console.warn(`QC fixture cleanup deferred: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
 

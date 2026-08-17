@@ -60,10 +60,10 @@ try {
       report.target.privateIpOnly === true
   );
   record(
-    "DEV046-CLOUDSQL-MIG-004 source inventory detects the existing PostgreSQL package",
+    "DEV046-CLOUDSQL-MIG-004 source inventory detects the Cloud SQL PostgreSQL package",
     report.sourceInventory.postgresDirectory === "db/postgres" &&
       report.sourceInventory.postgresSqlFileCount >= 20 &&
-      report.sourceInventory.postgresReadmeDeclaresSupabaseUpgrade === true
+      report.sourceInventory.postgresReadmeDeclaresCloudSqlAuthority === true
   );
   record(
     "DEV046-CLOUDSQL-MIG-005 Supabase role references are detected rather than ignored",

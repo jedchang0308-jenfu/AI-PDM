@@ -63,7 +63,7 @@ export default function AccountRecoveryRequestPage() {
           </button>
         </form>
 
-        <div className="login-privacy-footer">
+        <div className="login-help-footer">
           <Link href="/login">返回登入</Link>
         </div>
       </section>

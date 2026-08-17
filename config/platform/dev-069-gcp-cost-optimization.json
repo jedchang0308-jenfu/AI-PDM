@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-069",
+  "status": "live-implementation-complete-billing-measurement-pending",
+  "region": "asia-east1",
+  "production": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "entrypoint": "https://jenfu-ai-pdm-prod.web.app",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "databaseTier": "db-f1-micro",
+    "availabilityType": "ZONAL",
+    "activationPolicy": "ALWAYS",
+    "cloudRunService": "ai-pdm-prod",
+    "cloudRunMinInstances": 0,
+    "cloudRunMaxInstancesPerRevision": 2,
+    "externalApplicationLoadBalancerEnabled": false
+  },
+  "staging": {
+    "projectId": "jenfu-ai-pdm-stg-361825",
+    "entrypoint": "https://jenfu-ai-pdm-stg-361825.web.app",
+    "cloudSqlInstance": "ai-pdm-stg-postgres",
+    "databaseTier": "db-f1-micro",
+    "availabilityType": "ZONAL",
+    "normalActivationPolicy": "NEVER",
+    "validationActivationPolicy": "ALWAYS",
+    "cloudRunService": "ai-pdm-stg",
+    "cloudRunMinInstances": 0,
+    "cloudRunMaxInstancesPerRevision": 2,
+    "externalApplicationLoadBalancerEnabled": false
+  },
+  "restoreTarget": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "instance": "ai-pdm-prod-restore-20260716a",
+    "action": "delete",
+    "requiresSuccessfulProductionBackup": true,
+    "requiresExistingRestoreEvidence": true
+  },
+  "capacity": {
+    "maximumConcurrentRevisions": 2,
+    "poolMaxPerInstance": 2,
+    "migrationAdminReserve": 2,
+    "expectedDatabaseMaxConnections": 25,
+    "minimumReserveRatio": 0.3,
+    "calculatedPeakConnections": 10,
+    "allowedConnections": 17
+  },
+  "estimatedBenefit": {
+    "currency": "TWD",
+    "targetMonthlyRunRate": 550,
+    "additionalMonthlySavings": 3749,
+    "annualizedAdditionalSavings": 44988,
+    "components": [
+      {
+        "name": "production-cloud-sql-micro-zonal",
+        "estimatedMonthlySavings": 3050
+      },
+      {
+        "name": "remove-production-and-staging-load-balancers",
+        "estimatedMonthlySavings": 591
+      },
+      {
+        "name": "delete-restore-instance-storage",
+        "estimatedMonthlySavings": 108
+      }
+    ],
+    "measurementRule": "Use the 24-72 hour Cloud Billing run-rate after the live change; estimates are not invoice evidence."
+  },
+  "preservedControls": [
+    "Cloud SQL private IP",
+    "Cloud SQL IAM database authentication",
+    "automated backups",
+    "point-in-time recovery",
+    "deletion protection on primary databases",
+    "production HSM numbering-ledger signing",
+    "Firebase Hosting canonical origins",
+    "Cloud Run minimum instances zero"
+  ],
+  "planAcceptance": {
+    "edgeResourceAddresses": [
+      "google_compute_region_network_endpoint_group.pdm[0]",
+      "google_compute_backend_service.application[0]",
+      "google_compute_backend_service.immutable_static[0]",
+      "google_compute_url_map.https[0]",
+      "google_compute_url_map.http_redirect[0]",
+      "google_compute_managed_ssl_certificate.pdm[0]",
+      "google_compute_global_address.pdm[0]",
+      "google_compute_target_https_proxy.pdm[0]",
+      "google_compute_target_http_proxy.redirect[0]",
+      "google_compute_global_forwarding_rule.https[0]",
+      "google_compute_global_forwarding_rule.http[0]"
+    ],
+    "phases": {
+      "production-runtime": {
+        "required": {
+          "google_cloud_run_v2_service.pdm[0]": "update"
+        }
+      },
+      "production-cost": {
+        "required": {
+          "google_sql_database_instance.pdm[0]": "update",
+          "$edge": "delete"
+        }
+      },
+      "staging-validation": {
+        "required": {
+          "google_cloud_run_v2_service.pdm[0]": "update",
+          "google_sql_database_instance.pdm[0]": "update",
+          "$edge": "delete"
+        }
+      },
+      "staging-stop": {
+        "required": {
+          "google_sql_database_instance.pdm[0]": "update"
+        }
+      }
+    },
+    "forbiddenResourceTypePatterns": [
+      "^google_compute_network$",
+      "^google_compute_subnetwork$",
+      "^google_compute_global_address\\.private_service_access$",
+      "^google_service_networking_connection$",
+      "^google_secret_manager_",
+      "^google_firebase_",
+      "^google_identity_platform_",
+      "^google_project_iam_"
+    ],
+    "replacementAllowed": false,
+    "unexpectedChangeAllowed": false
+  },
+  "releaseGate": {
+    "riskLane": 3,
+    "terraformBackendRequired": true,
+    "credentialledPlanRequired": true,
+    "backupAndRollbackRequired": true,
+    "level3StagingSmokeRequired": true,
+    "level4ProductionSmokeRequired": true,
+    "billingReadbackDelayHours": [
+      24,
+      72
+    ]
+  },
+  "liveExecution": {
+    "executedAt": "2026-08-12",
+    "releaseSource": "codex/dev-069-cost-optimization",
+    "production": {
+      "cloudSqlTier": "db-f1-micro",
+      "availabilityType": "ZONAL",
+      "state": "RUNNABLE",
+      "cloudRunReady": true,
+      "cloudRunMaxInstancesPerRevision": 2,
+      "cloudSqlPoolMax": 2,
+      "externalAlbResourceCount": 0,
+      "terraformFinalPlanExitCode": 0
+    },
+    "staging": {
+      "cloudSqlTier": "db-f1-micro",
+      "availabilityType": "ZONAL",
+      "state": "STOPPED",
+      "activationPolicy": "NEVER",
+      "cloudRunReady": true,
+      "cloudRunMaxInstancesPerRevision": 2,
+      "cloudSqlPoolMax": 2,
+      "externalAlbResourceCount": 0,
+      "terraformFinalPlanExitCode": 0
+    },
+    "restoreTargetAbsent": true,
+    "productionBackupId": "1786527874220",
+    "productionBackupStatus": "SUCCESSFUL",
+    "productionMaxConnectionsReadback": 25,
+    "billingMeasurement": {
+      "status": "pending-provider-latency",
+      "earliestReviewHours": 24,
+      "latestReviewHours": 72
+    }
+  }
+}
