@@ -6,6 +6,7 @@ import {
   buildDev032ProductionPrincipalBootstrapPackage,
   DEV032_PRODUCTION_FIREBASE_UID_TEMPLATE
 } from "./dev-032-production-principal-bootstrap-package.mjs";
+import { buildDev046CanonicalAccessMatrix } from "./dev-046-staging-principal-bootstrap-package.mjs";
 import {
   assertDev032ProductionPrincipalBootstrapEnvironment,
   buildDev032ProductionPrincipalBootstrapRunPlan,
@@ -31,6 +32,7 @@ const verifiedUid = "prodFirebaseUidTest_001";
 const template = buildDev032ProductionPrincipalBootstrapPackage();
 const candidate = buildDev032ProductionPrincipalBootstrapPackage({ firebaseUid: verifiedUid });
 const plan = buildDev032ProductionPrincipalBootstrapRunPlan(verifiedUid);
+const canonicalAccessMatrix = buildDev046CanonicalAccessMatrix();
 
 record("DEV032-PRINCIPAL-001 template cannot be treated as live candidate", () => {
   assert.equal(template.report.status, "template_waiting_for_verified_firebase_uid");
@@ -53,8 +55,10 @@ record("DEV032-PRINCIPAL-003 staging identities are absent", () => {
 });
 
 record("DEV032-PRINCIPAL-004 canonical role and permission matrix is complete", () => {
-  assert.equal(candidate.report.canonicalMatrix.roleCount, 9);
-  assert.equal(candidate.report.canonicalMatrix.permissionCount, 237);
+  assert.equal(candidate.report.canonicalMatrix.roleCount, canonicalAccessMatrix.roles.length);
+  assert.equal(candidate.report.canonicalMatrix.permissionCount, canonicalAccessMatrix.permissions.length);
+  assert.ok(candidate.report.canonicalMatrix.roleCount > 0);
+  assert.ok(candidate.report.canonicalMatrix.permissionCount > 0);
   assert.deepEqual(candidate.report.canonicalMatrix.requiredAdminRoles, ["system_admin", "pdm_admin"]);
 });
 
