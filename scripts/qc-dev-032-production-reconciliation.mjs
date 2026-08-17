@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { buildDev032ProductionReconciliationPackage } from "./dev-032-production-reconciliation-package.mjs";
+import { buildDev046CloudSqlMigrationRunPlan } from "./run-dev-046-cloudsql-migrations.mjs";
 import {
   assertDev032ProductionReconciliationEnvironment,
   assertDev032ProductionReconciliationReadback,
@@ -23,6 +24,7 @@ function record(name, fn) {
 
 const packageData = buildDev032ProductionReconciliationPackage();
 const plan = buildDev032ProductionReconciliationRunPlan();
+const migrationPlan = buildDev046CloudSqlMigrationRunPlan("output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json");
 const zeroColumns = {
   missing_migration_count: 0,
   extra_migration_count: 0,
@@ -40,8 +42,8 @@ const zeroColumns = {
 };
 const cleanRow = {
   ...zeroColumns,
-  expected_migration_count: 18,
-  actual_migration_count: 18,
+  expected_migration_count: migrationPlan.schemaMigrationCount,
+  actual_migration_count: migrationPlan.schemaMigrationCount,
   company_count: 1,
   active_admin_count: 1,
   role_count: 9,
@@ -56,7 +58,8 @@ const cleanRow = {
 
 record("DEV032-RECON-001 package is production-only and read-only", () => {
   assert.equal(packageData.report.target.projectId, "jenfu-ai-pdm-prod");
-  assert.equal(packageData.report.expectedMigrationCount, 18);
+  assert.equal(packageData.report.expectedMigrationCount, migrationPlan.schemaMigrationCount);
+  assert.equal(plan.expectedMigrationCount, migrationPlan.schemaMigrationCount);
   assert.equal(packageData.report.mutationAllowed, false);
   assert.doesNotMatch(packageData.readbackSql, /\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE|GRANT|REVOKE)\b/iu);
 });

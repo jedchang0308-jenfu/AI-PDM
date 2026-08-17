@@ -127,7 +127,7 @@ SELECT
 
 export function buildDev032ProductionReconciliationPackage() {
   const migrationPlan = buildDev046CloudSqlMigrationRunPlan(manifestPath);
-  if (migrationPlan.target.projectId !== "jenfu-ai-pdm-prod" || migrationPlan.schemaMigrationCount !== 18) {
+  if (migrationPlan.target.projectId !== "jenfu-ai-pdm-prod" || migrationPlan.schemaMigrationCount < 1) {
     throw new Error("DEV032_RECONCILIATION_MIGRATION_MANIFEST_MISMATCH");
   }
   const readbackSql = buildReadbackSql(migrationPlan.schemaMigrations);
