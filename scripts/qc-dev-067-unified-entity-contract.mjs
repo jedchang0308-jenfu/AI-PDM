@@ -22,6 +22,7 @@ expect("fixed projection order", drawer.indexOf("DrawingProjection") < drawer.in
 expect("surface policy matrix", policy.includes('surface === "drawing"') && policy.includes('surface === "part"') && policy.includes('return { drawing: "full", part: "full", relation: "full"'));
 expect("server policy enforcement", service.includes("derivePdmDetailProjectionPolicy") && service.includes("if (policy.drawing") && service.includes("if (policy.part") && service.includes("if (policy.relation"));
 expect("single repeatable read snapshot", service.includes("withPdmWorkbenchReadSnapshot") && service.indexOf("withPdmWorkbenchReadSnapshot") < service.indexOf("return this.compose"));
+expect("PostgreSQL revision history parameter typing", service.includes(":hasDrawingNumberId = 1") && service.includes("hasDrawingNumberId: drawingNumberId ? 1 : 0") && !service.includes(":drawingNumberId IS NOT NULL"));
 expect("aggregate repository boundary", repository.includes("PdmEntityDetailAsyncRepository") && repository.includes("readCandidate") && repository.includes("readDrawing"));
 expect("review excludes raw payload", !service.includes("payload_json") && !contract.includes("payload_json") && !contract.includes("snapshotJson"));
 expect("candidate preview authority", service.includes("/api/numbering/draft-workspaces/") && service.includes("decorateMasterAttachmentsWithPreviewState"));

@@ -416,15 +416,16 @@ export class PdmEntityDetailService {
                     ELSE COALESCE(package.lifecycle_state, package.status)
                   END AS lifecycle_state,
                   package.updated_at, COUNT(package_file.id)
-             FROM drawing_revision_packages package
-             LEFT JOIN drawing_revision_package_files package_file ON package_file.package_id = package.id
-            WHERE package.company_id = :companyId
-              AND (:drawingNumberId IS NOT NULL AND package.drawing_number_id = :drawingNumberId)
+            FROM drawing_revision_packages package
+            LEFT JOIN drawing_revision_package_files package_file ON package_file.package_id = package.id
+           WHERE package.company_id = :companyId
+              AND :hasDrawingNumberId = 1
+              AND package.drawing_number_id = :drawingNumberId
             GROUP BY package.id, package.revision, package.lifecycle_state, package.status, package.updated_at
          ) records
         GROUP BY revision
         ORDER BY updated_at ASC, revision ASC`,
-      { drawingId, drawingNumberId, companyId }
+      { drawingId, drawingNumberId: drawingNumberId ?? "", hasDrawingNumberId: drawingNumberId ? 1 : 0, companyId }
     );
     const attachmentCounts = new Map<string, number>();
     for (const attachment of attachments) {
