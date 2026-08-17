@@ -943,8 +943,7 @@ export class AsyncApprovalPlatformRepository {
         AND (
           r.action_code <> 'numbering.drawing_revision_lifecycle_review'
           OR (
-            :actorId IS NOT NULL
-            AND EXISTS (
+            EXISTS (
               SELECT 1
               FROM drawing_revision_lifecycle_workflows lifecycle
               JOIN drawing_revision_lifecycle_reviewers reviewer ON reviewer.workflow_id = lifecycle.id

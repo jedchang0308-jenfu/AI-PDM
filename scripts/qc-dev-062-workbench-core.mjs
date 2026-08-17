@@ -143,6 +143,20 @@ await check("CORE-06 routes and owner content keep bounded responsibilities", ()
   );
 });
 
+await check("CORE-07 PostgreSQL relation timestamps stay type-safe", () => {
+  const source = read("src/lib/repositories/relation-workbench-async-repository.ts");
+  assert.doesNotMatch(
+    source,
+    /COALESCE\(\(SELECT MAX\(w\.updated_at\)[\s\S]*?\),\s*['"]{2}\)/u,
+    "timestamp expressions must not use an empty-string fallback"
+  );
+  assert.match(
+    source,
+    /SELECT MAX\(w\.updated_at\)[\s\S]*?> r\.updated_at/u,
+    "formal roots compare workspace and root timestamps without cross-type coercion"
+  );
+});
+
 const failed = checks.filter((item) => !item.passed);
 if (process.env.DEV062_EVIDENCE_DIR) {
   fs.mkdirSync(process.env.DEV062_EVIDENCE_DIR, { recursive: true });

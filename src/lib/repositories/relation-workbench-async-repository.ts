@@ -93,9 +93,9 @@ export class RelationWorkbenchAsyncRepository {
          SELECT
            'formal_root' AS row_kind,
            r.id AS id,
-           CASE WHEN COALESCE((SELECT MAX(w.updated_at) FROM numbering_draft_workspaces w WHERE w.source_root_id = r.id AND w.company_id = r.company_id AND w.lifecycle_status <> 'published'), '') > COALESCE(r.updated_at, '')
+           CASE WHEN (SELECT MAX(w.updated_at) FROM numbering_draft_workspaces w WHERE w.source_root_id = r.id AND w.company_id = r.company_id AND w.lifecycle_status <> 'published') > r.updated_at
              THEN (SELECT MAX(w.updated_at) FROM numbering_draft_workspaces w WHERE w.source_root_id = r.id AND w.company_id = r.company_id AND w.lifecycle_status <> 'published')
-             ELSE COALESCE(r.updated_at, '') END AS updated_at,
+             ELSE r.updated_at END AS updated_at,
            r.root_code AS sort_value,
            'root:' || r.id AS row_key
          FROM part_roots r

@@ -16,6 +16,8 @@ assert.match(inboxBlock, /hideSupersededNeedsInfo/);
 assert.match(inboxBlock, /newer_request\.requested_at > r\.requested_at/);
 assert.match(inboxBlock, /current_workspace\.target_type = 'numbering_draft_workspace'/);
 assert.match(inboxBlock, /nativeApprovalSearchPredicate/);
+assert.doesNotMatch(inboxBlock, /:actorId IS NOT NULL/);
+assert.match(inboxBlock, /reviewer\.reviewer_id = :actorId/);
 
 const { AsyncApprovalPlatformRepository } = await import(pathToFileURL(repositoryPath).href);
 
@@ -121,10 +123,12 @@ class CountingClient {
   constructor() {
     this.kind = "sqlite";
     this.queryCount = 0;
+    this.queries = [];
   }
 
   async query(sql, params = {}) {
     this.queryCount += 1;
+    this.queries.push({ sql, params });
     if (sql.includes("FROM approval_platform_requests")) return nativeRows;
     if (sql.includes("FROM approval_platform_targets")) {
       const requestedIds = new Set(Object.values(params).map(String));
@@ -162,4 +166,6 @@ const batchedItems = await repository.listNativeInbox({ companyId: "company-jenf
 assert.deepEqual(batchedItems, legacyItems, "native inbox output parity");
 assert.equal(legacyClient.queryCount, 3, "legacy query count characterization");
 assert.equal(batchedClient.queryCount, 3, "batched native inbox query budget");
+assert.equal(batchedClient.queries[0]?.params.actorId, null, "missing actor is bound as null");
+assert.doesNotMatch(batchedClient.queries[0]?.sql ?? "", /:actorId IS NOT NULL/, "nullable actor parameter is not used without a type context");
 console.log(`QC approval inbox query budget: PASS (legacy ${legacyClient.queryCount} queries -> batched ${batchedClient.queryCount}, deep-equal output)`);
