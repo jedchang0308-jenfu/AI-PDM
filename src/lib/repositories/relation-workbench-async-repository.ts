@@ -22,6 +22,7 @@ export type RelationWorkbenchRepositoryQuery = {
   recordStatus: NumberingRecordStatus | "";
   sortDirection: NumberSortDirection;
   includeCandidates: boolean;
+  includeHistory: boolean;
   cursor: RelationWorkbenchIdentityCursor | null;
   limit: number;
 };
@@ -117,6 +118,7 @@ export class RelationWorkbenchAsyncRepository {
            AND w.company_id = :companyId
            AND w.source_root_id IS NULL
            AND w.lifecycle_status <> 'published'
+           AND (:includeHistory = 1 OR w.lifecycle_status = 'active')
            ${candidateEntityFilter}
            ${input.query ? `AND (
              LOWER(w.id) LIKE :queryPattern OR LOWER(COALESCE(draft_root.core_name, '')) LIKE :queryPattern
@@ -131,6 +133,7 @@ export class RelationWorkbenchAsyncRepository {
       {
         companyId: input.companyId,
         includeCandidates: input.includeCandidates ? 1 : 0,
+        includeHistory: input.includeHistory ? 1 : 0,
         queryPattern: searchPattern(input.query),
         seriesCode: input.seriesCode,
         recordStatus: input.recordStatus,
@@ -147,30 +150,45 @@ export class RelationWorkbenchAsyncRepository {
     project: (workspaces: NumberingDraftWorkspaceRecord[], roots: NumberingRootDetailRecord[], partMasterDataGaps: ReadonlyMap<string, boolean>) => T[]
   ): Promise<RelationWorkbenchReadPage<T>> {
     return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
-      const identities = await this.identityPage(client, input);
-      const rootIds = identities.filter((row) => row.row_kind === "formal_root").map((row) => row.id);
-      const sourceLessWorkspaceIds = identities.filter((row) => row.row_kind === "candidate_root").map((row) => row.id);
       const numberingRepository = new AsyncNumberingRepository(client);
-      const rootsPromise = numberingRepository.getNumberingRootDetailsByIds(rootIds, input.companyId, { includeAncillary: false, includePartMasterDataGaps: true });
-      const sourceWorkspaceRowsPromise = rootIds.length > 0 && input.includeCandidates
-        ? client.query<{ id: string }>(
-            `SELECT id FROM numbering_draft_workspaces
-             WHERE company_id = :companyId AND source_root_id IN (${rootIds.map((_, index) => `:sourceRootId${index}`).join(", ")}) AND lifecycle_status <> 'published'
-             ORDER BY updated_at DESC, id ASC`,
-            { companyId: input.companyId, ...Object.fromEntries(rootIds.map((id, index) => [`sourceRootId${index}`, id])) }
-          )
-        : Promise.resolve([] as Array<{ id: string }>);
-      const [roots, sourceWorkspaceRows] = await Promise.all([rootsPromise, sourceWorkspaceRowsPromise]);
-      const partMasterDataGaps = new Map(roots.flatMap((root) => [...buildPartMasterDataGapMap(root).entries()]));
-      const workspaceIds = [...new Set([...sourceLessWorkspaceIds, ...sourceWorkspaceRows.map((row) => row.id)])];
-      const workspaces = input.includeCandidates
-        ? await new AsyncNumberStateFlowRepository(client).getWorkspacesByIds(workspaceIds, input.companyId)
-        : [];
-      const projectedByKey = new Map(project(workspaces, roots, partMasterDataGaps).map((row) => [row.rowKey, row]));
-      const rows = identities.flatMap((identity) => {
-        const row = projectedByKey.get(identity.row_key);
-        return row ? [{ ...row, updatedAt: identity.updated_at }] : [];
-      });
+      const rows: T[] = [];
+      const scanLimit = Math.min(240, Math.max(60, input.limit * 4));
+      let scanCursor = input.cursor;
+      while (rows.length <= input.limit) {
+        const identities = await this.identityPage(client, { ...input, cursor: scanCursor });
+        if (identities.length === 0) break;
+        const rootIds = identities.filter((row) => row.row_kind === "formal_root").map((row) => row.id);
+        const sourceLessWorkspaceIds = identities.filter((row) => row.row_kind === "candidate_root").map((row) => row.id);
+        const rootsPromise = numberingRepository.getNumberingRootDetailsByIds(rootIds, input.companyId, { includeAncillary: false, includePartMasterDataGaps: true });
+        const sourceWorkspaceRowsPromise = rootIds.length > 0 && input.includeCandidates
+          ? client.query<{ id: string }>(
+              `SELECT id FROM numbering_draft_workspaces
+               WHERE company_id = :companyId AND source_root_id IN (${rootIds.map((_, index) => `:sourceRootId${index}`).join(", ")})
+                 AND lifecycle_status <> 'published' AND (:includeHistory = 1 OR lifecycle_status = 'active')
+               ORDER BY updated_at DESC, id ASC`,
+              {
+                companyId: input.companyId,
+                includeHistory: input.includeHistory ? 1 : 0,
+                ...Object.fromEntries(rootIds.map((id, index) => [`sourceRootId${index}`, id]))
+              }
+            )
+          : Promise.resolve([] as Array<{ id: string }>);
+        const [roots, sourceWorkspaceRows] = await Promise.all([rootsPromise, sourceWorkspaceRowsPromise]);
+        const partMasterDataGaps = new Map(roots.flatMap((root) => [...buildPartMasterDataGapMap(root).entries()]));
+        const workspaceIds = [...new Set([...sourceLessWorkspaceIds, ...sourceWorkspaceRows.map((row) => row.id)])];
+        const workspaces = input.includeCandidates
+          ? await new AsyncNumberStateFlowRepository(client).getWorkspacesByIds(workspaceIds, input.companyId)
+          : [];
+        const projectedByKey = new Map(project(workspaces, roots, partMasterDataGaps).map((row) => [row.rowKey, row]));
+        for (const identity of identities) {
+          const row = projectedByKey.get(identity.row_key);
+          if (row) rows.push({ ...row, updatedAt: identity.updated_at });
+          if (rows.length > input.limit) break;
+        }
+        const lastIdentity = identities.at(-1);
+        if (rows.length > input.limit || identities.length < scanLimit || !lastIdentity) break;
+        scanCursor = { sortValue: lastIdentity.sort_value, rowKey: lastIdentity.row_key };
+      }
       return {
         rows: rows.slice(0, input.limit + 1),
         seriesCodeOptions: await numberingRepository.listSeriesCodeOptions(input.companyId)

@@ -50,6 +50,7 @@ function cleanupRelationData() {
       for (const partId of partIds) db.prepare("DELETE FROM same_drawing_variants WHERE part_number_id = ?").run(partId);
       for (const drawingId of drawingIds) db.prepare("DELETE FROM drawing_part_links WHERE drawing_number_id = ?").run(drawingId);
       for (const partId of partIds) db.prepare("DELETE FROM drawing_part_links WHERE part_number_id = ?").run(partId);
+      for (const drawingId of drawingIds) db.prepare("DELETE FROM drawings WHERE formal_drawing_number_id = ?").run(drawingId);
       db.prepare("DELETE FROM warning_events WHERE entity_id = ?").run(existingRoot.id);
       db.prepare("DELETE FROM drawing_numbers WHERE part_root_id = ?").run(existingRoot.id);
       db.prepare("DELETE FROM part_numbers WHERE part_root_id = ?").run(existingRoot.id);

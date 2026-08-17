@@ -171,6 +171,8 @@
     "qc:dev-074:merged-sandbox-readonly": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-074-merged-sandbox-readonly.mjs",
     "qc:dev-075:current-work-item": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-075-current-work-item.mjs",
     "qc:dev-075:browser": "node scripts/qc-dev-075-browser.mjs",
+    "qc:dev-076:relations": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-076-candidate-relations.mjs",
+    "qc:dev-076": "npm run qc:dev-076:relations && npm run qc:dev-062:relation && npm run qc:dev-052-number-lifecycle-flow && npm run typecheck:app",
     "qc:external-blocker-closure": "node scripts/qc-external-blocker-closure-package.mjs",
     "qc:gdrive": "node --experimental-strip-types scripts/qc-gdrive-integration-test.mjs",
     "qc:full": "node scripts/qc-full-test.mjs",

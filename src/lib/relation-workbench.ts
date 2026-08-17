@@ -310,6 +310,208 @@ function matrixFor(parts: PartNumberRecord[], drawings: DrawingNumberRecord[], l
   }));
 }
 
+type CandidatePart = NumberingDraftWorkspaceRecord["parts"][number];
+type CandidateDrawing = NumberingDraftWorkspaceRecord["drawings"][number];
+type CandidateRelation = NumberingDraftWorkspaceRecord["relations"][number];
+
+function candidateCode(code: string | null, label: "圖" | "料", index: number) {
+  return code ?? `未取號${label}${index + 1}`;
+}
+
+function candidateBlockers(workspace: NumberingDraftWorkspaceRecord): RelationBlocker[] {
+  const blockers: RelationBlocker[] = [];
+  const partById = new Map(workspace.parts.map((part) => [part.id, part]));
+  const drawingById = new Map(workspace.drawings.map((drawing) => [drawing.id, drawing]));
+  const relationsByPart = new Map<string, CandidateRelation[]>();
+  const relationsByDrawing = new Map<string, CandidateRelation[]>();
+  const seenPairs = new Set<string>();
+  for (const relation of workspace.relations) {
+    relationsByPart.set(relation.partDraftId, [...(relationsByPart.get(relation.partDraftId) ?? []), relation]);
+    relationsByDrawing.set(relation.drawingDraftId, [...(relationsByDrawing.get(relation.drawingDraftId) ?? []), relation]);
+    const part = partById.get(relation.partDraftId);
+    const drawing = drawingById.get(relation.drawingDraftId);
+    if (!part || !drawing) {
+      blockers.push({
+        code: "candidate_relation_orphan",
+        message: "這筆關聯的圖號或料號不屬於目前工作，請聯絡系統管理員檢查移轉資料。",
+        target: "relationship",
+        targetId: relation.id
+      });
+      continue;
+    }
+    const pair = `${relation.partDraftId}:${relation.drawingDraftId}`;
+    if (seenPairs.has(pair)) {
+      blockers.push({
+        code: "candidate_relation_duplicate",
+        message: `料號 ${part.candidateCode ?? part.partName} 與圖號 ${drawing.candidateCode ?? drawing.purposeCode} 存在重複關聯，請聯絡系統管理員檢查移轉資料。`,
+        target: "relationship",
+        targetId: relation.id
+      });
+    }
+    seenPairs.add(pair);
+    if ((relation.linkType === "primary_manufacturing" && (!relation.isPrimary || !isManufacturingDrawingPurpose(drawing.purposeCode)))
+      || (relation.linkType === "reference" && relation.isPrimary)) {
+      blockers.push({
+        code: "candidate_primary_invalid",
+        message: `料號 ${part.candidateCode ?? part.partName} 的主要製造關聯不是有效製造圖，請檢查關聯資料。`,
+        target: "relationship",
+        targetId: relation.id
+      });
+    }
+  }
+  if (workspace.parts.length === 0) {
+    blockers.push({ code: "missing_part", message: "這筆工作尚未建立料號，不能判定圖料關係。", target: "root", targetId: workspace.id });
+  }
+  const requiredParts = workspace.parts.filter((part) => requiresManufacturingDrawing(part.itemKind));
+  const manufacturingDrawings = workspace.drawings.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode));
+  if (requiredParts.length > 0 && manufacturingDrawings.length === 0) {
+    blockers.push({ code: "missing_manufacturing_drawing", message: "這筆工作還沒有製造圖類別，不能建立製造基準關聯。", target: "root", targetId: workspace.id });
+  }
+  for (const part of requiredParts) {
+    const validPrimary = (relationsByPart.get(part.id) ?? []).filter((relation) => {
+      const drawing = drawingById.get(relation.drawingDraftId);
+      return relation.linkType === "primary_manufacturing"
+        && relation.isPrimary
+        && Boolean(drawing && isManufacturingDrawingPurpose(drawing.purposeCode));
+    });
+    if (validPrimary.length === 0) {
+      blockers.push({
+        code: "part_without_manufacturing_drawing",
+        message: `料號 ${part.candidateCode ?? part.partName} 尚未連到製造圖，請先建立圖料關係。`,
+        target: "part",
+        targetId: part.id
+      });
+    } else if (validPrimary.length > 1) {
+      blockers.push({
+        code: "ambiguous_primary",
+        message: `料號 ${part.candidateCode ?? part.partName} 同時連到多張製造圖，請確認主要製造依據。`,
+        target: "part",
+        targetId: part.id
+      });
+    }
+  }
+  for (const drawing of workspace.drawings) {
+    if ((relationsByDrawing.get(drawing.id) ?? []).length === 0) {
+      blockers.push({
+        code: "drawing_without_part",
+        message: `圖號 ${drawing.candidateCode ?? drawing.purposeCode} 尚未關聯料號。`,
+        target: "drawing",
+        targetId: drawing.id
+      });
+    }
+  }
+  return blockers;
+}
+
+function candidateHealth(workspace: NumberingDraftWorkspaceRecord, blockers: RelationBlocker[]): RelationHealth {
+  if (workspace.parts.length === 0) return "missing_part";
+  if (blockers.some((blocker) => ["candidate_relation_orphan", "candidate_relation_duplicate", "candidate_primary_invalid"].includes(blocker.code))) return "blocked";
+  if (blockers.some((blocker) => blocker.code === "ambiguous_primary")) return "ambiguous";
+  if (blockers.some((blocker) => blocker.code === "missing_manufacturing_drawing" || blocker.code === "part_without_manufacturing_drawing")) return "missing_manufacturing_drawing";
+  return "draft";
+}
+
+function candidateMatrix(workspace: NumberingDraftWorkspaceRecord): RelationMatrixCell[] {
+  const relationsByPair = new Map<string, CandidateRelation[]>();
+  for (const relation of workspace.relations) {
+    const pair = `${relation.partDraftId}:${relation.drawingDraftId}`;
+    relationsByPair.set(pair, [...(relationsByPair.get(pair) ?? []), relation]);
+  }
+  const manufacturingDrawingIds = new Set(workspace.drawings.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode)).map((drawing) => drawing.id));
+  const partNumbers = new Map(workspace.parts.map((part, index) => [part.id, candidateCode(part.candidateCode, "料", index)]));
+  const drawingNumbers = new Map(workspace.drawings.map((drawing, index) => [drawing.id, candidateCode(drawing.candidateCode, "圖", index)]));
+  return workspace.parts.flatMap((part) => workspace.drawings.map((drawing) => {
+    const pairRelations = relationsByPair.get(`${part.id}:${drawing.id}`) ?? [];
+    const relation = pairRelations[0];
+    const drawingNumber = drawingNumbers.get(drawing.id)!;
+    const partNumber = partNumbers.get(part.id)!;
+    if (pairRelations.length > 1) {
+      return { drawingNumber, partNumber, relationType: "blocked" as const };
+    }
+    if (!relation) {
+      const hasManufacturing = workspace.relations.some((item) => item.partDraftId === part.id
+        && item.linkType === "primary_manufacturing"
+        && item.isPrimary
+        && manufacturingDrawingIds.has(item.drawingDraftId));
+      if (!isManufacturingDrawingPurpose(drawing.purposeCode) || !requiresManufacturingDrawing(part.itemKind) || hasManufacturing) {
+        return { drawingNumber, partNumber, relationType: "not_applicable" as const };
+      }
+      return { drawingNumber, partNumber, relationType: manufacturingDrawingIds.size === 1 ? "required_missing" as const : "pending" as const };
+    }
+    if (relation.linkType === "primary_manufacturing" && relation.isPrimary && manufacturingDrawingIds.has(relation.drawingDraftId)) {
+      return { drawingNumber, partNumber, relationType: "manufacturing_basis" as const, isPrimary: true };
+    }
+    if (relation.linkType === "primary_manufacturing") {
+      return { drawingNumber, partNumber, relationType: "blocked" as const, isPrimary: true };
+    }
+    return { drawingNumber, partNumber, relationType: "reference" as const };
+  }));
+}
+
+function mapCandidateDrawing(
+  drawing: CandidateDrawing,
+  index: number,
+  workspace: NumberingDraftWorkspaceRecord,
+  humanStatus: HumanStatusProjection,
+  viewerStatus: ViewerHumanStatusProjection
+): RelationDrawing {
+  const drawingNumber = candidateCode(drawing.candidateCode, "圖", index);
+  const relatedPartIds = workspace.relations.filter((relation) => relation.drawingDraftId === drawing.id).map((relation) => relation.partDraftId);
+  const partNumbers = new Map(workspace.parts.map((part, partIndex) => [part.id, candidateCode(part.candidateCode, "料", partIndex)]));
+  const reference = isReferenceDrawingPurpose(drawing.purposeCode);
+  return {
+    id: drawing.id,
+    drawingNumber,
+    purposeCode: drawing.purposeCode,
+    purposeLabel: reference ? "參考圖" : "製造圖",
+    purposeText: drawing.purposeDescription || drawing.purposeCode,
+    isManufacturing: isManufacturingDrawingPurpose(drawing.purposeCode),
+    isReferenceOnly: reference,
+    recordStatus: "Draft",
+    humanStatus,
+    viewerStatus,
+    availabilityScope: projectDrawingRecordAvailability({ recordStatus: "Draft" }),
+    linkedPartNumbers: relatedPartIds.map((partId) => partNumbers.get(partId)).filter((value): value is string => Boolean(value)),
+    nextStep: reference ? "參考圖不可作為製造基準" : relatedPartIds.length === 0 ? "未關聯料號" : "關係已建立，待正式生效"
+  };
+}
+
+function mapCandidatePart(
+  part: CandidatePart,
+  index: number,
+  workspace: NumberingDraftWorkspaceRecord,
+  humanStatus: HumanStatusProjection,
+  viewerStatus: ViewerHumanStatusProjection
+): RelationPart {
+  const partNumber = candidateCode(part.candidateCode, "料", index);
+  const drawingById = new Map(workspace.drawings.map((drawing) => [drawing.id, drawing]));
+  const drawingNumbers = new Map(workspace.drawings.map((drawing, drawingIndex) => [drawing.id, candidateCode(drawing.candidateCode, "圖", drawingIndex)]));
+  const related = workspace.relations.filter((relation) => relation.partDraftId === part.id);
+  const primary = related.find((relation) => {
+    const drawing = drawingById.get(relation.drawingDraftId);
+    return relation.linkType === "primary_manufacturing" && relation.isPrimary && Boolean(drawing && isManufacturingDrawingPurpose(drawing.purposeCode));
+  });
+  return {
+    id: part.id,
+    partNumber,
+    partName: part.partName,
+    itemKind: part.itemKind,
+    recordStatus: "Draft",
+    humanStatus,
+    viewerStatus,
+    availabilityScope: projectPartAvailability({
+      recordStatus: "Draft",
+      itemKind: part.itemKind,
+      primaryDrawingNumber: primary ? drawingNumbers.get(primary.drawingDraftId) ?? null : null,
+      primaryDrawingRecordStatus: primary ? "Draft" : null,
+      hasManufacturingDrawing: Boolean(primary)
+    }),
+    linkedDrawingNumbers: related.map((relation) => drawingNumbers.get(relation.drawingDraftId)).filter((value): value is string => Boolean(value)),
+    hasManufacturingDrawing: Boolean(primary),
+    hasMasterDataGap: false
+  };
+}
+
 function mapDrawing(drawing: DrawingNumberRecord, links: NumberingLinkRecord[], actor: RelationWorkbenchActor): RelationDrawing {
   const humanStatus = projectDrawingRecordHumanStatus(drawing);
   const reference = isReferenceDrawingPurpose(drawing.purposeCode);
@@ -396,15 +598,29 @@ function candidateRootRow(workspace: NumberingDraftWorkspaceRecord, actor: Relat
   const change = activeChange(workspace, actor);
   const humanStatus = candidateStatus(change.stage);
   const currentUser = workspace.ownerId === actor.id || (change.stage === "in_review" && actor.permissions.candidateReview);
+  const viewerStatus = projectViewerHumanStatus(humanStatus, { responsibility: change.stage === "auto_finalizing" ? "system" : currentUser ? "current_user" : "other_user", basis: change.stage === "in_review" ? "role_capability" : change.stage === "auto_finalizing" ? "system" : "assignee", canAct: currentUser && Boolean(change.primaryAction?.enabled), actorLabel: change.stage === "auto_finalizing" ? "系統正在建立已發布資料" : currentUser ? "這筆工作需要你處理" : "等待負責人處理", nextStep: change.primaryAction?.label ?? null });
+  const blockers = candidateBlockers(workspace);
+  const health = candidateHealth(workspace, blockers);
+  const actionableBlockers = blockers.filter((blocker) => blocker.code !== "drawing_without_part");
+  const relationshipComplete = actionableBlockers.length === 0;
   return {
     rowKey: change.rowKey, rowKind: "candidate_root", sourceKind: "candidate", rootId: null, workspaceId: workspace.id,
     displayCode: change.displayCode, displayName: change.displayName, recordStatus: null,
-    relationshipHealth: "draft", relationshipLabel: "關係待處理", nextStep: { label: change.stageLabel, severity: change.stage === "recovery_required" ? "blocked" : "info" },
-    drawings: [], parts: [], matrix: [], blockers: [], activeChanges: [change], stage: change.stage, stageLabel: change.stageLabel,
+    relationshipHealth: health,
+    relationshipLabel: relationshipComplete
+      ? workspace.relations.length > 0 ? "關係已建立（尚未生效）" : "關係資料完整（尚未生效）"
+      : relationshipHealthLabel(health),
+    nextStep: relationshipComplete ? { label: change.stageLabel, severity: "info" } : nextStep(health, actionableBlockers),
+    drawings: workspace.drawings.map((drawing, index) => mapCandidateDrawing(drawing, index, workspace, humanStatus, viewerStatus)),
+    parts: workspace.parts.map((part, index) => mapCandidatePart(part, index, workspace, humanStatus, viewerStatus)),
+    matrix: candidateMatrix(workspace), blockers, activeChanges: [change], stage: change.stage, stageLabel: change.stageLabel,
     humanStatus,
-    viewerStatus: projectViewerHumanStatus(humanStatus, { responsibility: change.stage === "auto_finalizing" ? "system" : currentUser ? "current_user" : "other_user", basis: change.stage === "in_review" ? "role_capability" : change.stage === "auto_finalizing" ? "system" : "assignee", canAct: currentUser && Boolean(change.primaryAction?.enabled), actorLabel: change.stage === "auto_finalizing" ? "系統正在建立已發布資料" : currentUser ? "這筆工作需要你處理" : "等待負責人處理", nextStep: change.primaryAction?.label ?? null }),
+    viewerStatus,
     availabilityScope: projectDrawingAvailability({ stage: change.stage, usage: "not_for_formal_use", terminal: change.stage === "history_only" }),
-    primaryAction: change.primaryAction, warning: change.stage === "recovery_required" ? { code: "candidate_recovery_required", message: "這筆工作需要處理後才能繼續。" } : null,
+    primaryAction: change.primaryAction,
+    warning: change.stage === "recovery_required"
+      ? { code: "candidate_recovery_required", message: "這筆工作需要處理後才能繼續。" }
+      : actionableBlockers.length > 0 ? { code: actionableBlockers[0].code, message: actionableBlockers[0].message } : null,
     terminal: change.stage === "history_only" ? { kind: "cancelled", reasonLabel: "此工作已取消。", nextStepLabel: "如仍需要圖料關係，請建立新的工作。" } : null,
     updatedAt: workspace.updatedAt
   };
@@ -427,6 +643,7 @@ export class RelationWorkbenchService {
     const page = await this.repository.readListPage<RelationWorkbenchRow>({
       companyId: actor.companyId, query: query.query, seriesCode: query.seriesCode, entityType: query.entityType,
       recordStatus: query.recordStatus, sortDirection: query.sortDirection, includeCandidates: actor.permissions.workspaceView && !query.recordStatus,
+      includeHistory: query.includeHistory,
       cursor: cursor ? { sortValue: cursor.sortValue ?? cursor.updatedAt, rowKey: cursor.rowKey } : null, limit: query.limit
     }, (workspaces, roots, partMasterDataGaps) => {
       const visibleWorkspaces = workspaces.filter((workspace) => query.includeHistory || candidateStage(workspace) !== "history_only");

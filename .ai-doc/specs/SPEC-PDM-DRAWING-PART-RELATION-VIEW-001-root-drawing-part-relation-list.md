@@ -698,3 +698,20 @@ RD readiness review:
 - Phase 1-3 local implementation is complete and verified.
 - Engineering contract is now implemented through `/api/numbering/relations`, root-grouped UI, matrix mode and controlled relationship maintenance.
 - Remaining blocked scope: production deploy, Supabase live cutover, direct data repair/deletion, generic bulk relationship maintenance and release artifacts.
+
+## DEV-076 Restored Candidate Relationship Projection Amendment（2026-08-17）
+
+Classification: `Compatible correction` to the existing candidate-root and tree/matrix projection contract. No ADR or schema change is required.
+
+Normative rules:
+
+1. A source-less candidate workspace is a first-class candidate root. Its visible drawings, parts and matrix cells MUST be projected from `numbering_draft_drawings`, `numbering_draft_parts` and `numbering_draft_relations`; the projector MUST NOT replace those facts with empty arrays.
+2. List and detail MUST call the same candidate projector. The tree, matrix, relationship health, blockers and drawer MUST therefore agree on drawing/part identities and relation pairs.
+3. A candidate relationship can be complete as a draft fact without being production-effective. The UI MUST distinguish `關係已建立（尚未生效）` from missing/ambiguous relationships and MUST NOT label a complete restored candidate as `關係待處理`.
+4. Candidate drawing/part identities MUST open the owning candidate workspace (or render as non-navigation identity). They MUST NOT manufacture a formal owner route before publication.
+5. Every draft part whose item kind is `manufactured`, `outsourced` or `custom` MUST have exactly one `primary_manufacturing` relation to a manufacturing-purpose draft drawing. Missing, duplicate, reference-only, orphan or cross-workspace/company facts fail closed.
+6. Cancelled candidate workspaces are excluded by default and are included only when `history=include`. History/view/human-status filters MUST be applied before keyset cursor and limit so filtered rows cannot create a false empty page.
+7. Restored-data acceptance requires read-only reconciliation of workspace lifecycle, child ownership, relation pairs and deterministic count/hash parity across DB, API, tree and matrix. Navigation and verification MUST preserve the before/after DB hash.
+8. Migration UX is automatic: a user MUST NOT be required to reselect, re-save or recreate a deterministic relationship solely because data moved from the former production shape to candidate-first architecture.
+
+Acceptance fixtures MUST include at least one source-less candidate with one drawing, one manufacturing part and one primary relationship, plus multi-part missing/duplicate/reference/cancelled/cross-scope negative cases. An existence-only candidate fixture is insufficient evidence.

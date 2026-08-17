@@ -253,6 +253,14 @@ Owner：Dev PM
   - 下一步：等待使用者提供 SW 檔案包與隔離測試帳號／環境，由 AI-QA 依 58 條 in-scope 路徑執行並留證，再交獨立 AI-QC；目前 0/58 executed，未修改產品碼或任何 business data。
   - 計入交付：是（只有 58/58 PASS、Blocked=0、P0/P1=0 才可結案；四條 Out of Scope 不進分母）。
 
+- 還原資料候選關聯自動投影與移轉對帳：`● DEV-076` `RD Implementation Ready / Repair In Progress` `P0` `Local + Staging Read-only / Production Release Gated`。
+  - 目標：既有 production 備份還原到 staging 後，candidate-first 架構中的圖號、料號與關聯必須自動投影到目前樹／矩陣 UI；資料完整時不得顯示空矩陣或要求使用者重建關聯。
+  - 根因：候選根列將 `drawings`、`parts`、`matrix` 硬編碼為空陣列；既有 QC fixture 沒有候選圖號／關聯，且生命週期 readiness 只驗證全 workspace `relationCount > 0`，未逐一驗證每個需製造圖的料號。
+  - 父任務：`DEV-062`、`DEV-064`；關聯 `DEV-052`、`DEV-053`、`SPEC-PDM-DRAWING-PART-RELATION-VIEW-001`。
+  - 不可變限制：不新增 schema／authority／permission／mutation API；不修改 production；staging 驗證僅使用既有還原資料與 read-only 對帳；不得要求使用者為移轉資料補按鈕、重選關聯或手動轉換。
+  - 驗收：A0002／A0003／A0004 的有效候選關聯在樹與矩陣可見，清單／明細／DB 對帳一致；取消資料預設排除；缺一個必要 primary manufacturing 關聯即禁止 readiness；candidate identity 不誤導為正式可用；三 viewport、權限、zero-write、typecheck、build 與 staging browser evidence 通過。
+  - 計入交付：是；只有 QA P0/P1=0 且 staging read-only 驗證通過才能結案。
+
 - 2026-08-13 RD repair + QC convergence：依 AI full-operation recheck 的實際失敗修復 picker entrypoints、Insert menu、leaf Delete direct path、More lifecycle actions、canonical clone revision、draft-delete impact confirmation、flag-off Floating handoff／legacy PATCH fail-closed，並修正既有 browser smoke 使其遵循 SPEC 的 picker 與 leaf-delete contract。`npm run qc:dev-071-browser` 最新 run `output/qa/dev-071-xmind-bom-editor/20260813131302/run-manifest.json` 為 56/56、17 screenshots、console error 0、unexpected HTTP 0；`npm run qc:dev-071-flag-off-browser` 最新 run `output/qa/dev-071-flag-off-browser/20260813131601/run-manifest.json` 為 10/10，包含 flag=true 建立 Floating、flag=false hard reload blocked handoff、legacy PATCH 409 `BOM_EDITOR_V2_REQUIRED`、兩 graph unchanged 與 zero-floating legacy save。QC gate：`PASS`（local only / production release gated）。
 - 2026-08-14 edge geometry amendment：依使用者畫面回饋，BOM legacy canvas 與 XMind editor 的 parent-child edge 統一由 `smoothstep` 改為 `straight`，下一階從父節點以單一直線連接、不使用彎折。typecheck PASS、affected lint 0 errors；flag-off rendered QC 10/10，flag-on XMind browser QC 56/56、17 screenshots、console error 0、unexpected HTTP 0。證據：`output/qa/bom-straight-edge/20260814101014/run-manifest.json`、`output/qa/bom-straight-edge/20260814101255/run-manifest.json`。Release 仍 gated。
 
@@ -1501,6 +1509,31 @@ Owner：Dev PM
   - Evidence：預定輸出 `output/qa/dev-074-pdm-complete-lifecycle-ui/<runId>/`，逐 path 保存 action provenance、before/during/after screenshot、UI-triggered network、visible-error sweep、viewport、SW hash、readback、defect 與 cleanup ledger。
   - 本輪狀態：QA 文件已建立；`npx` 可用；`D-0007-MA1.zip` 已收到但尚未透過 UI 上傳，未執行 business mutation、未產生 QC 結論。
   - 計入交付：是。
+
+- ● DEV-076 [開發點] [RD Implementation Ready / Repair In Progress] [P0] [Local + Staging Read-only / Production Release Gated] 還原資料候選關聯自動投影與移轉對帳
+  - 摘要：修正 production 備份還原到 candidate-first staging 後，候選資料雖存在 `numbering_draft_relations`，圖料工作台卻顯示空樹／空矩陣的偏差；資料與 UI 轉換必須由系統自動完成，使用者不承擔轉換動作。
+  - 父任務：`DEV-062`、`DEV-064`；關聯：`DEV-052`、`DEV-053`、`DEV-PDM-DRAWING-PART-RELATION-VIEW-001`。
+  - Spec Impact Preflight：`Compatible correction`。DEV-062 與 relation-view spec 已要求 source-less candidate root、tree/matrix 同源投影及 filter-before-pagination；本 DEV 修正實作與測試偏離，不新增 ADR、schema、狀態、permission 或 write authority。
+  - 真正需求：candidate 架構是 migration/read authority；production snapshot 還原後，有效候選圖號、料號、primary/reference 關聯與 UI 狀態須由 server projection 自動呈現，不能要求使用者重建或確認既有關聯。
+  - Scope：
+    - server-side candidate relation projector：以 workspace draft drawings／parts／relations 產生 tree、matrix、blocker 與 relationship health，list/detail 使用同一 projector；
+    - candidate UI：完整資料顯示「關係已建立（尚未生效）」並呈現樹／矩陣；candidate identity 開啟同一 workspace drawer，不建立不存在的 formal deep link；
+    - lifecycle gate：逐一驗證每個 `manufactured|outsourced|custom` draft part 恰有一個合法 primary manufacturing relation，避免一筆 relation 掩蓋其他缺漏；
+    - read-only reconciliation：對 active/cancelled workspace、draft relation、formal link 做 company/workspace ownership、orphan、必要關聯缺漏、count/hash 與 UI/API parity 對帳；
+    - focused regression、typecheck、isolated build、staging browser 三 viewport與 visible/network/console error sweep。
+  - Out of Scope：production migration/deploy/traffic、production business write、使用者手動轉換、bulk relation edit、new relation mutation authority、資料刪除、無唯一規則可決定的自動修復。
+  - Stop Conditions：發現 relation 無法由既有 draft facts 唯一投影、需要猜測主製造圖、跨 company/workspace 關聯、需新 schema/permission/status/authority、或 staging 驗證會寫 production 時，停止並回 Dev PM／release gate。
+  - Acceptance：
+    1. A0002／A0003／A0004 active workspace 既有 1×1 primary manufacturing 關聯在樹與矩陣可見；list/detail/DB count與pair hash一致。
+    2. 完整 candidate 不顯示「關係待處理」或空矩陣；仍清楚標示尚未正式生效，且不提供 formal owner deep link。
+    3. 每個需製造依據的料號都必須恰有一個合法 primary relation；缺漏、重複、reference-only、orphan或cross-scope一律 fail closed。
+    4. cancelled/history 預設排除，`history=include` 才可見；搜尋／篩選必須在 cursor/limit 前生效，不得造成假空頁。
+    5. repository、API、tree、matrix、drawer 使用同一候選關聯事實；read-only 導覽與驗證的 DB hash 不變。
+    6. Engineer／Reviewer／Admin 可見與可操作性符合既有 permission；無權限與跨 company fail closed。
+    7. 1440×900、1024×768、390×844 無 page-level overflow、裁切、raw error、console error或 unexpected 4xx/5xx。
+  - Evidence：`npm run qc:dev-076`、`npm run typecheck:app`、`npm run build:isolated`；staging evidence 輸出至 `output/qa/dev-076-candidate-relation-reconciliation/<runId>/`，保存 revision/commit、DB read-only receipt、pair hashes、API payload、三 viewport screenshots、console/network、zero-write before/after hash與 verdict。
+  - 執行邊界：本輪可修改本機產品碼／測試／文件並部署 staging candidate 做 read-only 驗證；production、正式 traffic、production DB migration/write、merge/release另走 deployment release gate。
+  - 計入交付：是；QA P0/P1=0、focused/local gate與 staging read-only gate全數通過才標完成。
 
 - ✓ DEV-063 [交付點] [本機 RD/QA/QC 完成 / Human Confirmed] [P1] [Local Only / Production Release Gated] 編號、圖號、料號與圖料根號使用者詞彙統一
   - 摘要：將「保留號」、「候選」與號碼效力分類從使用者可見語言移除；建立動作依頁面使用「建立編號／建立圖號／建立料號／建立圖號與料號」，物件名稱只使用「編號／圖號／料號／圖料根號」，同根料件區塊使用「同根料號」，改以流程狀態、操作限制、說明與 CTA 表達下一步。

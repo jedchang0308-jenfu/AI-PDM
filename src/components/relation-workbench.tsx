@@ -420,12 +420,21 @@ function RelationRowCard({ row, query, selected, expanded, viewMode, onToggle, o
 }
 
 function RelationTree({ row, query, onOpenChange, onOpenTarget }: { row: RelationWorkbenchRow; query: string; onOpenChange: (change: RelationActiveChange) => void; onOpenTarget: (target: NumberingSearchDetailTarget) => void }) {
-  if (row.rowKind === "candidate_root") return <div className="pdm-relation-empty-line">目前關係尚不可作為製造依據；請開啟變更工作完成下一步。</div>;
   const linkedPartNumbers = new Set(row.drawings.flatMap((drawing) => drawing.linkedPartNumbers));
   const orphanParts = row.parts.filter((part) => !linkedPartNumbers.has(part.partNumber));
+  const candidateChange = row.rowKind === "candidate_root" ? row.activeChanges[0] : null;
+  const openDrawing = (drawingNumber: string) => candidateChange
+    ? onOpenChange(candidateChange)
+    : onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: row.displayCode, drawingNumber }));
+  const openPart = (partNumber: string) => candidateChange
+    ? onOpenChange(candidateChange)
+    : onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: row.displayCode, partNumber }));
+  if (row.drawings.length === 0 && row.parts.length === 0) {
+    return <div className="pdm-relation-empty-line">尚未建立可顯示的圖號或料號。</div>;
+  }
   return (
     <div className="pdm-relation-tree">
-      {row.activeChanges.length > 0 ? (
+      {row.rowKind === "formal_root" && row.activeChanges.length > 0 ? (
         <section className="pdm-relation-tree-section pdm-relation-change-section" aria-label={`${row.displayCode} 圖料變更與歷史紀錄`}>
           <strong className="pdm-relation-tree-label">變更</strong>
           <div className="pdm-relation-change-list">
@@ -451,7 +460,7 @@ function RelationTree({ row, query, onOpenChange, onOpenTarget }: { row: Relatio
                 <button
                   className={`pdm-relation-drawing-card ${drawing.isReferenceOnly ? "reference" : "manufacturing"}`}
                   type="button"
-                  onClick={() => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: row.displayCode, drawingNumber: drawing.drawingNumber }))}
+                  onClick={() => openDrawing(drawing.drawingNumber)}
                 >
                   <span><SearchHighlight value={drawing.drawingNumber} query={query} /></span>
                 </button>
@@ -461,7 +470,7 @@ function RelationTree({ row, query, onOpenChange, onOpenTarget }: { row: Relatio
                       <button
                         className={`pdm-relation-part-chip${part.hasManufacturingDrawing ? "" : " missing"}${part.hasMasterDataGap ? " pdm-missing-field" : ""}`}
                         type="button"
-                        onClick={() => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: row.displayCode, partNumber: part.partNumber }))}
+                        onClick={() => openPart(part.partNumber)}
                         key={part.id}
                       >
                         <span><SearchHighlight value={part.partNumber} query={query} /></span>
@@ -482,7 +491,7 @@ function RelationTree({ row, query, onOpenChange, onOpenTarget }: { row: Relatio
               <button
                 className={`pdm-relation-part-chip${part.hasManufacturingDrawing ? "" : " missing"}${part.hasMasterDataGap ? " pdm-missing-field" : ""}`}
                 type="button"
-                onClick={() => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: row.displayCode, partNumber: part.partNumber }))}
+                onClick={() => openPart(part.partNumber)}
                 key={part.id}
               >
                 <span><SearchHighlight value={part.partNumber} query={query} /></span>
@@ -502,7 +511,7 @@ function RelationMatrix({ row, query, onOpenTarget }: { row: RelationWorkbenchRo
     parts={row.parts.map((part) => ({ id: part.id, number: part.partNumber }))}
     matrix={row.matrix}
     query={query}
-    onOpenDrawing={(drawingNumber) => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: row.displayCode, drawingNumber }))}
-    onOpenPart={(partNumber) => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: row.displayCode, partNumber }))}
+    onOpenDrawing={row.rowKind === "formal_root" ? (drawingNumber) => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "drawing_number", rootCode: row.displayCode, drawingNumber })) : undefined}
+    onOpenPart={row.rowKind === "formal_root" ? (partNumber) => onOpenTarget(resolveNumberingSearchDetailTarget({ entityType: "part_number", rootCode: row.displayCode, partNumber })) : undefined}
   />;
 }
