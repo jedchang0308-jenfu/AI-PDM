@@ -174,6 +174,23 @@ await check("CORE-08 PostgreSQL workbench cursors stay type-safe", () => {
   }
 });
 
+await check("CORE-09 production cursors reuse managed secrets with domain separation", () => {
+  const payload = {
+    version: 1,
+    filterHash: "filter-hash",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    rowKey: "part:stable-id"
+  };
+  const sessionEnv = { NODE_ENV: "production", PDM_SESSION_CURRENT_SECRET: "managed-session-secret-at-least-24-characters" };
+  const sessionCursor = encodePdmWorkbenchCursor(payload, sessionEnv);
+  assert.deepEqual(decodePdmWorkbenchCursor(sessionCursor, payload.filterHash, sessionEnv), payload);
+
+  const dedicatedEnv = { NODE_ENV: "production", PDM_WORKBENCH_CURSOR_SECRET: "dedicated-workbench-secret-at-least-24-characters" };
+  const dedicatedCursor = encodePdmWorkbenchCursor(payload, dedicatedEnv);
+  assert.deepEqual(decodePdmWorkbenchCursor(dedicatedCursor, payload.filterHash, dedicatedEnv), payload);
+  assert.notEqual(sessionCursor, dedicatedCursor, "dedicated and derived session keys must not share signatures");
+});
+
 const failed = checks.filter((item) => !item.passed);
 if (process.env.DEV062_EVIDENCE_DIR) {
   fs.mkdirSync(process.env.DEV062_EVIDENCE_DIR, { recursive: true });
