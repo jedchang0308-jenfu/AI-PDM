@@ -85,8 +85,8 @@ export class RelationWorkbenchAsyncRepository {
       '尚未產生編號'
     )`;
     const cursorClause = input.sortDirection === "desc"
-      ? `(:cursorSortValue IS NULL OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
-      : `(:cursorSortValue IS NULL OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
+      ? `(:hasCursor = 0 OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
+      : `(:hasCursor = 0 OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
     return client.query<IdentityRow>(
       `SELECT row_kind, id, updated_at, sort_value, row_key
        FROM (
@@ -134,7 +134,8 @@ export class RelationWorkbenchAsyncRepository {
         queryPattern: searchPattern(input.query),
         seriesCode: input.seriesCode,
         recordStatus: input.recordStatus,
-        cursorSortValue: input.cursor?.sortValue ?? null,
+        hasCursor: input.cursor ? 1 : 0,
+        cursorSortValue: input.cursor?.sortValue ?? "",
         cursorRowKey: input.cursor?.rowKey ?? "",
         scanLimit: Math.min(240, Math.max(60, input.limit * 4))
       }

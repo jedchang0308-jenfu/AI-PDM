@@ -91,8 +91,8 @@ export class PartWorkbenchAsyncRepository {
       '尚未產生料號'
     )`;
     const cursorClause = input.sortDirection === "desc"
-      ? `(:cursorSortValue IS NULL OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
-      : `(:cursorSortValue IS NULL OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
+      ? `(:hasCursor = 0 OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
+      : `(:hasCursor = 0 OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
     return client.query<IdentityRow>(
       `SELECT row_kind, id, updated_at, sort_value, row_key
        FROM (
@@ -138,7 +138,8 @@ export class PartWorkbenchAsyncRepository {
         seriesCode: input.seriesCode,
         itemKind: input.itemKind,
         recordStatus: input.recordStatus,
-        cursorSortValue: cursor?.sortValue ?? null,
+        hasCursor: cursor ? 1 : 0,
+        cursorSortValue: cursor?.sortValue ?? "",
         cursorRowKey: cursor?.rowKey ?? "",
         scanLimit
       }

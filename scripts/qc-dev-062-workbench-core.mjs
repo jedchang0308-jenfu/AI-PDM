@@ -157,6 +157,23 @@ await check("CORE-07 PostgreSQL relation timestamps stay type-safe", () => {
   );
 });
 
+await check("CORE-08 PostgreSQL workbench cursors stay type-safe", () => {
+  for (const file of [
+    "src/lib/repositories/part-workbench-async-repository.ts",
+    "src/lib/repositories/drawing-workbench-async-repository.ts",
+    "src/lib/repositories/relation-workbench-async-repository.ts"
+  ]) {
+    const source = read(file);
+    assert.doesNotMatch(
+      source,
+      /:cursorSortValue\s+IS\s+NULL/u,
+      `${file} must not ask PostgreSQL to infer a nullable cursor type from IS NULL`
+    );
+    assert.match(source, /:hasCursor\s*=\s*0/u, `${file} must gate cursor filtering with a typed flag`);
+    assert.match(source, /hasCursor:\s*[^,]+\?\s*1\s*:\s*0/u, `${file} must bind the cursor flag`);
+  }
+});
+
 const failed = checks.filter((item) => !item.passed);
 if (process.env.DEV062_EVIDENCE_DIR) {
   fs.mkdirSync(process.env.DEV062_EVIDENCE_DIR, { recursive: true });

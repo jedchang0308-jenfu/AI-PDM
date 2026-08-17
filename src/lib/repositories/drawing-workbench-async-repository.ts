@@ -139,8 +139,8 @@ export class DrawingWorkbenchAsyncRepository {
     const recordStatusFilter = input.recordStatus ? "AND formal.record_status = :recordStatus" : "";
     const orderDirection = input.sortDirection === "desc" ? "DESC" : "ASC";
     const cursorClause = input.sortDirection === "desc"
-      ? `(:cursorSortValue IS NULL OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
-      : `(:cursorSortValue IS NULL OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
+      ? `(:hasCursor = 0 OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
+      : `(:hasCursor = 0 OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
     return client.query<IdentityRow>(
       `SELECT row_kind, source_kind, id, workspace_id, formal_drawing_number_id,
               drawing_draft_id, updated_at, sort_value, row_key
@@ -185,7 +185,8 @@ export class DrawingWorkbenchAsyncRepository {
         seriesCode: input.seriesCode,
         purposeCode: input.purposeCode,
         recordStatus: input.recordStatus,
-        cursorSortValue: cursor?.sortValue ?? null,
+        hasCursor: cursor ? 1 : 0,
+        cursorSortValue: cursor?.sortValue ?? "",
         cursorRowKey: cursor?.rowKey ?? "",
         scanLimit
       }
