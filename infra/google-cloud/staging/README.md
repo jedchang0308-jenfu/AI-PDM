@@ -8,7 +8,9 @@ short-term internal use and selected the Firebase Hosting default domain as a
 staging-only HTTPS gateway. `pdm-stg.jenfu.com.tw` is not live and the managed
 TLS certificate remains a deferred external gate, not a passed smoke result.
 The same day, separately approved admin bootstrap and live Cloud SQL migration
-completed; the immediate second migration run applied zero versions.
+completed; the immediate second migration run applied zero versions. Staging is
+limited to deployed integration, UI/flow and migration rehearsal; its results
+never satisfy production Candidate evidence.
 
 ## Safety boundary
 
@@ -40,7 +42,8 @@ completed; the immediate second migration run applied zero versions.
 
 ## Review-only commands
 
-The Phase 2A checks are local and do not read Google credentials:
+The Phase 2A checks are local, do not read Google credentials, and are not
+staging evidence:
 
 ```text
 npm run preflight:dev-046-phase2a

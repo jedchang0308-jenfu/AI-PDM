@@ -28,6 +28,15 @@ const CLASS_MANUAL_REVIEW = "manual_review";
 const CLASS_PROTECTED_EVIDENCE_RETAINED = "protected_evidence_retained";
 const CLASS_OUT_OF_SCOPE = "out_of_scope";
 
+// These are deterministic local QC fixtures, not business identities. They are
+// excluded by immutable row id only; production rows are never excluded by a
+// name, creator, or status pattern.
+const knownNonProductionFixtureIds = {
+  roots: new Set(["root-qc-submit-ui"]),
+  parts: new Set(["part-qc-submit-ui-001"]),
+  drawings: new Set()
+};
+
 const retainedHistoricalFields = [
   ["audit_logs", "detail_json"],
   ["numbering_export_jobs", "result_json"],
@@ -41,6 +50,9 @@ const retainedHistoricalFields = [
   ["release_packages", "package_filename"],
   ["release_packages", "local_path"],
   ["release_packages", "manifest_json"],
+  // The package summary is frozen at submit/release time and remains review evidence.
+  // Its live drawing identity is migrated through drawing_revision_packages.drawing_number.
+  ["drawing_revision_packages", "snapshot_json"],
   ["submission_files", "original_filename"],
   ["submission_files", "local_path"]
 ];
@@ -70,7 +82,6 @@ const jsonReferenceUpdates = [
   ["numbering_notifications", "detail_json"],
   ["warning_events", "detail_json"],
   ["manufacturing_baselines", "snapshot_json"],
-  ["drawing_revision_packages", "snapshot_json"],
   ["bom_release_snapshots", "line_snapshot_json"]
 ];
 
@@ -192,6 +203,10 @@ function key(companyId, value) {
   return `${companyId ?? ""}\u0000${value}`;
 }
 
+function isKnownNonProductionFixture(kind, id) {
+  return knownNonProductionFixtureIds[kind]?.has(id) === true;
+}
+
 function buildPlan(db) {
   const roots = tableExists(db, "part_roots") ? db.prepare("SELECT * FROM part_roots ORDER BY company_id ASC, root_code ASC, id ASC").all() : [];
   const parts = tableExists(db, "part_numbers") ? db.prepare("SELECT * FROM part_numbers ORDER BY company_id ASC, part_number ASC, id ASC").all() : [];
@@ -202,10 +217,13 @@ function buildPlan(db) {
   const existingDrawingByNumber = new Map(drawings.map((row) => [key(row.company_id, row.drawing_number), row]));
 
   const rootMappings = roots.map((row) => {
+    const excludedFixture = isKnownNonProductionFixture("roots", row.id);
     const to = normalizeRootToV3(row.root_code);
     const collision = to ? existingRootByCode.get(key(row.company_id, to)) : null;
     const identityAlreadyV3 = to === row.root_code && row.rule_version_id === V3_RULE;
-    const classification = !to
+    const classification = excludedFixture
+      ? CLASS_OUT_OF_SCOPE
+      : !to
       ? CLASS_MANUAL_REVIEW
       : collision && collision.id !== row.id
         ? CLASS_COLLISION
@@ -220,7 +238,9 @@ function buildPlan(db) {
       ruleFrom: row.rule_version_id,
       ruleTo: V3_RULE,
       classification,
-      reason: !to
+      reason: excludedFixture
+        ? "known_qc_fixture_excluded"
+        : !to
         ? "root_code_not_convertible_to_v3"
         : collision && collision.id !== row.id
           ? "target_root_already_exists"
@@ -235,6 +255,7 @@ function buildPlan(db) {
   const rootMappingById = new Map(rootMappings.map((mapping) => [mapping.id, mapping]));
 
   const partMappings = parts.map((row) => {
+    const excludedFixture = isKnownNonProductionFixture("parts", row.id);
     const root = rootById.get(row.part_root_id);
     const rootMapping = rootMappingById.get(row.part_root_id);
     const sequenceCode = compactSequence(row.sequence_no);
@@ -243,7 +264,9 @@ function buildPlan(db) {
     const collision = to ? existingPartByNumber.get(key(row.company_id, to)) : null;
     const rootBlocked = rootMapping?.classification === CLASS_COLLISION || rootMapping?.classification === CLASS_MANUAL_REVIEW;
     const identityAlreadyV3 = to === row.part_number && row.rule_version_id === V3_RULE && isV3PartNumber(row.part_number);
-    const classification = rootBlocked
+    const classification = excludedFixture
+      ? CLASS_OUT_OF_SCOPE
+      : rootBlocked
       ? rootMapping.classification
       : !rootTo || !sequenceCode || !to
         ? CLASS_MANUAL_REVIEW
@@ -265,7 +288,9 @@ function buildPlan(db) {
       ruleFrom: row.rule_version_id,
       ruleTo: V3_RULE,
       classification,
-      reason: rootBlocked
+      reason: excludedFixture
+        ? "known_qc_fixture_excluded"
+        : rootBlocked
         ? "root_mapping_blocked"
         : !rootTo
           ? "part_root_not_convertible_to_v3"
@@ -283,6 +308,7 @@ function buildPlan(db) {
   markDuplicateTargets(partMappings, "part");
 
   const drawingMappings = drawings.map((row) => {
+    const excludedFixture = isKnownNonProductionFixture("drawings", row.id);
     const root = rootById.get(row.part_root_id);
     const rootMapping = rootMappingById.get(row.part_root_id);
     const purposeTo = normalizePurposeToV3(row.purpose_code);
@@ -292,7 +318,9 @@ function buildPlan(db) {
     const collision = to ? existingDrawingByNumber.get(key(row.company_id, to)) : null;
     const rootBlocked = rootMapping?.classification === CLASS_COLLISION || rootMapping?.classification === CLASS_MANUAL_REVIEW;
     const identityAlreadyV3 = to === row.drawing_number && row.rule_version_id === V3_RULE && isV3DrawingNumber(row.drawing_number) && row.purpose_code === purposeTo;
-    const classification = rootBlocked
+    const classification = excludedFixture
+      ? CLASS_OUT_OF_SCOPE
+      : rootBlocked
       ? rootMapping.classification
       : !rootTo || !purposeTo || !sequenceCode || !to
         ? CLASS_MANUAL_REVIEW
@@ -316,7 +344,9 @@ function buildPlan(db) {
       ruleFrom: row.rule_version_id,
       ruleTo: V3_RULE,
       classification,
-      reason: rootBlocked
+      reason: excludedFixture
+        ? "known_qc_fixture_excluded"
+        : rootBlocked
         ? "root_mapping_blocked"
         : !rootTo
           ? "drawing_root_not_convertible_to_v3"
@@ -649,7 +679,7 @@ function insertCutoverAudit(db, plan, backupPath, updatedRows) {
         .filter((item) => item.classification === CLASS_SAFE_MAP)
         .map(({ id, from, to, purposeFrom, purposeTo }) => ({ id, from, to, purposeFrom, purposeTo })),
       protectedEvidencePolicy:
-        "Audit logs, export results, attachment file names, physical paths and release package manifests are retained as historical evidence and are not rewritten.",
+        "Audit logs, export results, frozen submission/package snapshots, attachment file names, physical paths and release package manifests are retained as historical evidence and are not rewritten.",
       backupPath,
       updatedRows
     }),
@@ -716,9 +746,15 @@ function collectStatus(db) {
   const activeRules = tableExists(db, "numbering_rule_versions")
     ? db.prepare("SELECT id, status, retired_at FROM numbering_rule_versions ORDER BY id").all()
     : [];
-  const allRoots = tableExists(db, "part_roots") ? db.prepare("SELECT id, root_code, rule_version_id FROM part_roots").all() : [];
-  const allParts = tableExists(db, "part_numbers") ? db.prepare("SELECT id, part_number, rule_version_id FROM part_numbers").all() : [];
-  const allDrawings = tableExists(db, "drawing_numbers") ? db.prepare("SELECT id, drawing_number, purpose_code, rule_version_id FROM drawing_numbers").all() : [];
+  const allRoots = tableExists(db, "part_roots")
+    ? db.prepare("SELECT id, root_code, rule_version_id FROM part_roots").all().filter((row) => !isKnownNonProductionFixture("roots", row.id))
+    : [];
+  const allParts = tableExists(db, "part_numbers")
+    ? db.prepare("SELECT id, part_number, rule_version_id FROM part_numbers").all().filter((row) => !isKnownNonProductionFixture("parts", row.id))
+    : [];
+  const allDrawings = tableExists(db, "drawing_numbers")
+    ? db.prepare("SELECT id, drawing_number, purpose_code, rule_version_id FROM drawing_numbers").all().filter((row) => !isKnownNonProductionFixture("drawings", row.id))
+    : [];
   const masterCounts = {
     legacyRoots: allRoots.filter((row) => legacyRootPattern.test(String(row.root_code)) || row.rule_version_id === V1_RULE || row.rule_version_id === V2_RULE).length,
     legacyParts: allParts.filter((row) => legacyPartPattern.test(String(row.part_number)) || row.rule_version_id === V1_RULE || row.rule_version_id === V2_RULE).length,
@@ -775,6 +811,11 @@ function buildReport(mode, plan, status, backupPath, updatedRows = []) {
       exactReferences: plan.referencePlan.exact.reduce((sum, item) => sum + item.count, 0),
       jsonReferences: plan.referencePlan.json.reduce((sum, item) => sum + item.count, 0)
     },
+    excludedNonProductionFixtures: {
+      roots: [...knownNonProductionFixtureIds.roots],
+      parts: [...knownNonProductionFixtureIds.parts],
+      drawings: [...knownNonProductionFixtureIds.drawings]
+    },
     mutation: {
       dryRun: !apply,
       unchanged: !apply
@@ -787,7 +828,7 @@ function buildReport(mode, plan, status, backupPath, updatedRows = []) {
     updatedRows,
     status,
     retainedHistoricalEvidencePolicy:
-      "正式主檔與可查詢營運欄位會 cut over 到 v3。audit、匯出結果、附件檔名、實體路徑與 release package manifest 保留原字串作為歷史證據，不以防呆方式改寫。"
+      "正式主檔與可查詢營運欄位會 cut over 到 v3。audit、匯出結果、frozen submission/package snapshot、附件檔名、實體路徑與 release package manifest 保留原字串作為歷史證據，不以防呆方式改寫。"
   };
 }
 

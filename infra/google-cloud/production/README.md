@@ -52,7 +52,8 @@ delete. Initialize it with `backend.production.hcl.example`.
 6. estimated monthly cost is at or below the USD 240 plan-review stop
 
 Clean seed/allowlist, `HD-8-4 / 1A` restore/reconciliation, rollback readiness
-and Level 3 smoke remain mandatory post-apply release gates. They cannot be
+and production-bound Candidate verification remain mandatory post-apply release
+gates. Staging rehearsal cannot satisfy Candidate evidence. These gates cannot be
 preconditions for creating the empty Cloud SQL and runtime resources they must
 validate. Terraform exposes them as `post_apply_release_gates_ready`; Gate D
 must remain closed until all four pass.
@@ -123,10 +124,19 @@ runtime service account.
 Terraform continues to own the full Cloud Run service. The application
 container image is the one deliberate split-ownership field: the production
 workflow updates it by immutable digest while Terraform ignores only that
-nested image attribute. Firebase Hosting remains a stable no-`pinTag` rewrite,
-so application releases do not create redundant Hosting versions; every release
-is instead smoked through `https://jenfu-ai-pdm-prod.web.app` after traffic
-promotion.
+nested image attribute. Every application release first deploys that exact
+digest to a 0% Candidate revision. Production-only Auth/IAM/env/secrets,
+data/migration readback, authenticated Level 4, Wave 0 and go/no-go checks apply
+to that exact revision; their evidence reference is bound to its revision and
+source commit, and staging evidence is rejected. Wave 0 may use either
+`wave0_mode=tested` with 3–5 named Workspace users or an explicit
+`wave0_mode=waived` risk-acceptance record bound to the same candidate revision
+and source commit (`WAVE0-WAIVER://<candidate_revision>/<release_commit>/<immutable-id>`);
+the waiver records that Wave 0 was not tested and does not satisfy Product Owner
+go/no-go by itself. Candidate deployment never promotes traffic. A separate
+promote dispatch rechecks provenance and approval, then Firebase Hosting at
+`https://jenfu-ai-pdm-prod.web.app` receives canonical
+smoke and automatic rollback protection after traffic activation.
 
 ## Prohibited
 

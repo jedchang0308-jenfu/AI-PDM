@@ -28,11 +28,23 @@ on:
         required: false
         type: string
       level4_evidence_ref:
-        description: Required for promote; immutable evidence reference for current-release authenticated Level 4
+        description: Required for promote; production-candidate://<candidate_revision>/<release_commit>/<immutable-id>
         required: false
         type: string
       wave0_users:
-        description: Required for promote; comma-separated 3-5 named Workspace users who completed Wave 0
+        description: Required for promote when wave0_mode=tested; comma-separated 3-5 named Workspace users who completed Wave 0
+        required: false
+        type: string
+      wave0_mode:
+        description: Promote gate mode; tested requires 3-5 users, waived requires a bound risk-acceptance record
+        required: false
+        default: tested
+        type: choice
+        options:
+          - tested
+          - waived
+      wave0_waiver_ref:
+        description: Required when wave0_mode=waived; WAVE0-WAIVER://<candidate_revision>/<release_commit>/<immutable-id>
         required: false
         type: string
       product_owner_decision:
@@ -288,7 +300,7 @@ jobs:
           retention-days: 30
 
   promote:
-    name: Verify Level 4 and Wave 0, then promote candidate
+    name: Verify Level 4 and Wave 0 test/waiver, then promote candidate
     if: ${{ inputs.stage == 'promote' }}
     needs: verify
     runs-on: ubuntu-latest
@@ -343,26 +355,44 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Require current Level 4 and Wave 0 approvals
+      - name: Require candidate-bound Level 4 and Wave 0 test/waiver approvals
         shell: bash
         env:
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
           CANDIDATE_REVISION: ${{ inputs.candidate_revision }}
           LEVEL4_EVIDENCE_REF: ${{ inputs.level4_evidence_ref }}
           WAVE0_USERS: ${{ inputs.wave0_users }}
+          WAVE0_MODE: ${{ inputs.wave0_mode }}
+          WAVE0_WAIVER_REF: ${{ inputs.wave0_waiver_ref }}
           PRODUCT_OWNER_DECISION: ${{ inputs.product_owner_decision }}
           PROMOTION_APPROVAL: ${{ inputs.promotion_approval }}
         run: |
           set -euo pipefail
           [[ "$CANDIDATE_REVISION" =~ ^ai-pdm-prod-[a-z0-9-]{3,48}$ ]]
-          [[ -n "$LEVEL4_EVIDENCE_REF" ]]
+          EXPECTED_EVIDENCE_PREFIX="production-candidate://${CANDIDATE_REVISION}/${RELEASE_COMMIT}/"
+          [[ "$LEVEL4_EVIDENCE_REF" == "$EXPECTED_EVIDENCE_PREFIX"* ]]
+          EVIDENCE_ID="${LEVEL4_EVIDENCE_REF#"$EXPECTED_EVIDENCE_PREFIX"}"
+          [[ "$EVIDENCE_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$ ]]
+          [[ "${LEVEL4_EVIDENCE_REF,,}" != *staging* ]]
+          [[ "$WAVE0_MODE" == "tested" || "$WAVE0_MODE" == "waived" ]]
+          if [[ "$WAVE0_MODE" == "tested" ]]; then
+            [[ -z "$WAVE0_WAIVER_REF" ]]
+            IFS=',' read -r -a users <<< "$WAVE0_USERS"
+            (( ${#users[@]} >= 3 && ${#users[@]} <= 5 ))
+            for user in "${users[@]}"; do
+              user="${user//[[:space:]]/}"
+              [[ "$user" =~ ^[^@[:space:]]+@[^@[:space:]]+$ ]]
+            done
+          else
+            [[ -z "$WAVE0_USERS" ]]
+            EXPECTED_WAIVER_PREFIX="WAVE0-WAIVER://${CANDIDATE_REVISION}/${RELEASE_COMMIT}/"
+            [[ "$WAVE0_WAIVER_REF" == "$EXPECTED_WAIVER_PREFIX"* ]]
+            WAIVER_ID="${WAVE0_WAIVER_REF#"$EXPECTED_WAIVER_PREFIX"}"
+            [[ "$WAIVER_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$ ]]
+            [[ "${WAVE0_WAIVER_REF,,}" != *staging* ]]
+          fi
           [[ "$PRODUCT_OWNER_DECISION" == "go" ]]
           [[ "$PROMOTION_APPROVAL" == "AI-PDM-PRODUCTION-PROMOTION-APPROVED" ]]
-          IFS=',' read -r -a users <<< "$WAVE0_USERS"
-          (( ${#users[@]} >= 3 && ${#users[@]} <= 5 ))
-          for user in "${users[@]}"; do
-            user="${user//[[:space:]]/}"
-            [[ "$user" =~ ^[^@[:space:]]+@[^@[:space:]]+$ ]]
-          done
 
       - name: Authenticate to Google Cloud without a key
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
