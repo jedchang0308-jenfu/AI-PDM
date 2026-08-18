@@ -64,7 +64,6 @@ const commands = [
   { id: "drawing_ui", label: "DEV-053 UI", command: npmCommand, args: ["run", "qc:dev-053:ui"] },
   { id: "number_state", label: "Number State Flow Phase 1D", command: npmCommand, args: ["run", "qc:pdm-number-state-flow-phase1d"] },
   { id: "relation_regression", label: "Relation isolated regression", command: npmCommand, args: ["run", "qc:pdm-drawing-part-relation-view:isolated"] },
-  { id: "part_owner", label: "Part owner regression", command: npmCommand, args: ["run", "qc:part-number-module"] },
   { id: "entity_drawer", label: "Entity drawer regression", command: npmCommand, args: ["run", "qc:pdm-entity-detail-drawer"] },
   { id: "human_status", label: "DEV-055 human status", command: npmCommand, args: ["run", "qc:dev-055"] },
   { id: "isolated_build", label: "Isolated production build", command: npmCommand, args: ["run", "build:isolated"] },

@@ -1,0 +1,16 @@
+{
+  "runId": "DEV062-20260817-093521-local-isolated",
+  "compatibility": {
+    "beforeHash": "1e1aca7acc82127eb345de30d8c5181ebe3c88c9710916ca510384a329dc9f01",
+    "afterHash": "1e1aca7acc82127eb345de30d8c5181ebe3c88c9710916ca510384a329dc9f01",
+    "unchanged": true,
+    "observedWrites": []
+  },
+  "disposable": null,
+  "cleanup": {
+    "completed": true,
+    "method": "isolated temporary target removed",
+    "targetKind": "OS temporary directory",
+    "targetPathHash": "b768791358014231a4a78afda0134859f84c98e618ff7765e965495eb70505a2"
+  }
+}

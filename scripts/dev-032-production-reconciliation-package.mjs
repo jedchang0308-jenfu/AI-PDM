@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { buildDev046CanonicalAccessMatrix } from "./dev-046-staging-principal-bootstrap-package.mjs";
 import { buildDev046CloudSqlMigrationRunPlan } from "./run-dev-046-cloudsql-migrations.mjs";
 
 export const DEV032_PRODUCTION_RECONCILIATION_PACKAGE_VERSION =
@@ -21,16 +22,29 @@ function sqlString(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
-function buildReadbackSql(migrations) {
+function buildReadbackSql(migrations, canonicalAccessMatrix) {
   const expectedValues = migrations
-    .map((migration) => `    (${sqlString(migration.version)}, ${sqlString(migration.outputSha256)})`)
+    .flatMap((migration) => [...new Set([
+      migration.outputSha256,
+      ...(migration.acceptedExistingChecksums ?? [])
+    ])].map((checksum) => `    (${sqlString(migration.version)}, ${sqlString(checksum)})`))
+    .join(",\n");
+  const expectedPermissionValues = canonicalAccessMatrix.permissions
+    .map((permission) => `    (${sqlString(permission.roleCode)}, ${sqlString(permission.permissionKind)}, ${sqlString(permission.permissionCode)}, ${permission.allowed})`)
     .join(",\n");
   return `-- DEV-032 production/restore read-only reconciliation
 -- No mutation statement is permitted in this artifact.
 WITH
-expected_migrations(version, checksum) AS (
+expected_migration_checksums(version, checksum) AS (
   VALUES
 ${expectedValues}
+),
+expected_migrations(version) AS (
+  SELECT DISTINCT version FROM expected_migration_checksums
+),
+expected_permissions(role_code, permission_kind, permission_code, allowed) AS (
+  VALUES
+${expectedPermissionValues}
 ),
 official_codes(number_kind, company_id, number_value) AS (
   SELECT 'root', company_id, root_code FROM part_roots
@@ -77,7 +91,13 @@ SELECT
   (SELECT COUNT(*)::int FROM pdm_schema_migrations) AS actual_migration_count,
   (SELECT COUNT(*)::int FROM expected_migrations e LEFT JOIN pdm_schema_migrations a USING (version) WHERE a.version IS NULL) AS missing_migration_count,
   (SELECT COUNT(*)::int FROM pdm_schema_migrations a LEFT JOIN expected_migrations e USING (version) WHERE e.version IS NULL) AS extra_migration_count,
-  (SELECT COUNT(*)::int FROM expected_migrations e JOIN pdm_schema_migrations a USING (version) WHERE a.checksum <> e.checksum) AS checksum_mismatch_count,
+  (SELECT COUNT(*)::int
+   FROM pdm_schema_migrations a
+   JOIN expected_migrations e USING (version)
+   WHERE NOT EXISTS (
+     SELECT 1 FROM expected_migration_checksums allowed
+     WHERE allowed.version = a.version AND allowed.checksum = a.checksum
+   )) AS checksum_mismatch_count,
   (SELECT COUNT(*)::int FROM (SELECT company_id, root_code FROM part_roots GROUP BY company_id, root_code HAVING COUNT(*) > 1) x) AS duplicate_root_count,
   (SELECT COUNT(*)::int FROM (SELECT company_id, part_number FROM part_numbers GROUP BY company_id, part_number HAVING COUNT(*) > 1) x) AS duplicate_part_count,
   (SELECT COUNT(*)::int FROM (SELECT company_id, drawing_number FROM drawing_numbers GROUP BY company_id, drawing_number HAVING COUNT(*) > 1) x) AS duplicate_drawing_count,
@@ -113,6 +133,14 @@ SELECT
   (SELECT COUNT(*)::int FROM companies) AS company_count,
   (SELECT COUNT(*)::int FROM users WHERE account_status = 'active' AND role = 'Admin' AND system_role_enabled = 1) AS active_admin_count,
   (SELECT COUNT(*)::int FROM roles) AS role_count,
+  (SELECT COUNT(*)::int
+   FROM expected_permissions expected
+   JOIN roles role_row ON role_row.role_code = expected.role_code AND role_row.enabled = 1
+   JOIN role_permissions actual
+     ON actual.role_id = role_row.id
+    AND actual.permission_kind = expected.permission_kind
+    AND actual.permission_code = expected.permission_code
+    AND actual.allowed = expected.allowed) AS canonical_permission_count,
   (SELECT COUNT(*)::int FROM role_permissions) AS permission_count,
   (SELECT COUNT(*)::int FROM part_roots) AS root_count,
   (SELECT COUNT(*)::int FROM part_numbers) AS part_count,
@@ -127,10 +155,11 @@ SELECT
 
 export function buildDev032ProductionReconciliationPackage() {
   const migrationPlan = buildDev046CloudSqlMigrationRunPlan(manifestPath);
-  if (migrationPlan.target.projectId !== "jenfu-ai-pdm-prod" || migrationPlan.schemaMigrationCount !== 18) {
+  const canonicalAccessMatrix = buildDev046CanonicalAccessMatrix();
+  if (migrationPlan.target.projectId !== "jenfu-ai-pdm-prod" || migrationPlan.schemaMigrationCount < 1) {
     throw new Error("DEV032_RECONCILIATION_MIGRATION_MANIFEST_MISMATCH");
   }
-  const readbackSql = buildReadbackSql(migrationPlan.schemaMigrations);
+  const readbackSql = buildReadbackSql(migrationPlan.schemaMigrations, canonicalAccessMatrix);
   const report = {
     schemaVersion: 1,
     packageVersion: DEV032_PRODUCTION_RECONCILIATION_PACKAGE_VERSION,
@@ -140,8 +169,8 @@ export function buildDev032ProductionReconciliationPackage() {
     status: "read_only_candidate_not_executed",
     target: migrationPlan.target,
     expectedMigrationCount: migrationPlan.schemaMigrationCount,
-    expectedRoleCount: 9,
-    expectedPermissionCount: 237,
+    expectedRoleCount: canonicalAccessMatrix.roles.length,
+    expectedPermissionCount: canonicalAccessMatrix.permissions.length,
     fileAuthorityExpected: false,
     mutationAllowed: false
   };

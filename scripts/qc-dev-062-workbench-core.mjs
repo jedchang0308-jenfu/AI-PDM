@@ -143,6 +143,54 @@ await check("CORE-06 routes and owner content keep bounded responsibilities", ()
   );
 });
 
+await check("CORE-07 PostgreSQL relation timestamps stay type-safe", () => {
+  const source = read("src/lib/repositories/relation-workbench-async-repository.ts");
+  assert.doesNotMatch(
+    source,
+    /COALESCE\(\(SELECT MAX\(w\.updated_at\)[\s\S]*?\),\s*['"]{2}\)/u,
+    "timestamp expressions must not use an empty-string fallback"
+  );
+  assert.match(
+    source,
+    /SELECT MAX\(w\.updated_at\)[\s\S]*?> r\.updated_at/u,
+    "formal roots compare workspace and root timestamps without cross-type coercion"
+  );
+});
+
+await check("CORE-08 PostgreSQL workbench cursors stay type-safe", () => {
+  for (const file of [
+    "src/lib/repositories/part-workbench-async-repository.ts",
+    "src/lib/repositories/drawing-workbench-async-repository.ts",
+    "src/lib/repositories/relation-workbench-async-repository.ts"
+  ]) {
+    const source = read(file);
+    assert.doesNotMatch(
+      source,
+      /:cursorSortValue\s+IS\s+NULL/u,
+      `${file} must not ask PostgreSQL to infer a nullable cursor type from IS NULL`
+    );
+    assert.match(source, /:hasCursor\s*=\s*0/u, `${file} must gate cursor filtering with a typed flag`);
+    assert.match(source, /hasCursor:\s*[^,]+\?\s*1\s*:\s*0/u, `${file} must bind the cursor flag`);
+  }
+});
+
+await check("CORE-09 production cursors reuse managed secrets with domain separation", () => {
+  const payload = {
+    version: 1,
+    filterHash: "filter-hash",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    rowKey: "part:stable-id"
+  };
+  const sessionEnv = { NODE_ENV: "production", PDM_SESSION_CURRENT_SECRET: "managed-session-secret-at-least-24-characters" };
+  const sessionCursor = encodePdmWorkbenchCursor(payload, sessionEnv);
+  assert.deepEqual(decodePdmWorkbenchCursor(sessionCursor, payload.filterHash, sessionEnv), payload);
+
+  const dedicatedEnv = { NODE_ENV: "production", PDM_WORKBENCH_CURSOR_SECRET: "dedicated-workbench-secret-at-least-24-characters" };
+  const dedicatedCursor = encodePdmWorkbenchCursor(payload, dedicatedEnv);
+  assert.deepEqual(decodePdmWorkbenchCursor(dedicatedCursor, payload.filterHash, dedicatedEnv), payload);
+  assert.notEqual(sessionCursor, dedicatedCursor, "dedicated and derived session keys must not share signatures");
+});
+
 const failed = checks.filter((item) => !item.passed);
 if (process.env.DEV062_EVIDENCE_DIR) {
   fs.mkdirSync(process.env.DEV062_EVIDENCE_DIR, { recursive: true });

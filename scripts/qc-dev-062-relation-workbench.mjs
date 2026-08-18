@@ -78,6 +78,7 @@ try {
   ) VALUES ('dev062-source-less-relation', 'company-jenfu', 'dev062-source-less', 'dev062-source-less-drawing',
     'dev062-source-less-part', 'primary_manufacturing', 1, ?, ?)` ).run(now, now);
   for (const [id, itemType, itemId, code] of [
+    ['dev062-source-less-root-reservation', 'root', 'dev062-source-less-root', 'Z4062'],
     ['dev062-source-less-part-reservation', 'part', 'dev062-source-less-part', 'Z4062-P01'],
     ['dev062-source-less-drawing-reservation', 'drawing', 'dev062-source-less-drawing', 'Z4062-M01']
   ]) {
@@ -86,9 +87,14 @@ try {
       reservation_state, row_version, created_by, created_at, updated_at
     ) VALUES (?, 'company-jenfu', 'dev062-source-less', ?, ?, ?, ?, 1, 'active', 1,
       'dev062-relation-owner', ?, ?)` ).run(id, itemType, itemId, code, `dev062:source-less:${itemType}`, now, now);
-    const table = itemType === 'part' ? 'numbering_draft_parts' : 'numbering_draft_drawings';
+    const table = itemType === 'root' ? 'numbering_draft_roots' : itemType === 'part' ? 'numbering_draft_parts' : 'numbering_draft_drawings';
     database.prepare(`UPDATE ${table} SET candidate_reservation_id = ? WHERE id = ?`).run(id, itemId);
   }
+  database.prepare(`INSERT INTO numbering_draft_workspaces (
+    id, company_id, draft_mode, lifecycle_status, owner_id, created_by, row_version, cancelled_at, cancelled_by,
+    cancel_reason, created_at, updated_at
+  ) VALUES ('dev062-cancelled-source-less', 'company-jenfu', 'new_bundle', 'cancelled', 'dev062-relation-owner',
+    'dev062-relation-owner', 2, ?, 'dev062-relation-owner', 'QC history fixture', ?, ?)` ).run(now, now, now);
 
   const actor = {
     id: "dev062-relation-owner",
@@ -122,13 +128,16 @@ try {
     partNumber: "Z4062-P01",
     relationType: "manufacturing_basis",
     isPrimary: true
-  }], "candidate matrix projects the stored primary manufacturing relation");
+  }], "candidate matrix projects the same primary manufacturing relation");
   assert.equal(candidateRow.relationshipHealth, "draft", "candidate relationship remains non-formal");
   assert.equal(candidateRow.relationshipLabel, "關係已建立（尚未生效）", "complete candidate relationship is not mislabeled as pending");
+  assert.equal(all.rows.some((row) => row.rowKey === "candidate:dev062-cancelled-source-less"), false, "cancelled candidate is excluded by default");
   assert.equal(formalRows[0].drawings[0]?.drawingNumber, "R3062-M01");
   assert.equal(formalRows[0].parts[0]?.partNumber, "R3062-P01");
   const listQueryCount = queryCount;
   assert.ok(listQueryCount <= 18, `relation list query budget exceeded: ${listQueryCount}`);
+  const history = await service.list(workbench.normalizeRelationWorkbenchQuery(new URL("http://local.test/?view=all&history=include&query=dev062-cancelled-source-less")), actor);
+  assert.equal(history.rows[0]?.rowKey, "candidate:dev062-cancelled-source-less", "cancelled candidate is visible only with history=include");
 
   queryCount = 0;
   const formalDetail = await service.detail("root:dev062-relation-root", actor);
@@ -151,7 +160,7 @@ try {
     'dev062-source-less-drawing', 'dev062-source-less-part', 'reference', 0, ?, ?)` ).run(now, now);
   const duplicateCandidate = await service.detail("candidate:dev062-source-less", actor);
   assert.equal(duplicateCandidate?.row.relationshipHealth, "blocked", "duplicate candidate pair fails closed in the workbench");
-  assert.ok(duplicateCandidate?.row.blockers.some((blocker) => blocker.code === "candidate_relation_duplicate"), "duplicate candidate pair exposes a reconciliation blocker");
+  assert.ok(duplicateCandidate?.row.blockers.some((blocker) => blocker.code === "candidate_relation_duplicate"), "duplicate candidate pair exposes a data reconciliation blocker");
   assert.equal(duplicateCandidate?.row.matrix[0]?.relationType, "blocked", "duplicate candidate pair is not silently reduced to one matrix relation");
   database.prepare("DELETE FROM numbering_draft_relations WHERE id = 'dev062-source-less-duplicate-relation'").run();
 
@@ -220,7 +229,16 @@ try {
   const representativeCandidate = await service.detail("candidate:dev062-source-less", actor);
   const representativeCandidateQueryCount = queryCount;
   assert.equal(representativeCandidate?.candidate?.parts.length, 5, "candidate detail hydrates representative Part children");
+  assert.equal(representativeCandidate?.row.parts.length, 5, "candidate relation row hydrates representative Part children");
+  assert.equal(representativeCandidate?.row.drawings.length, 1, "candidate relation row hydrates representative Drawing children");
+  assert.equal(representativeCandidate?.row.matrix.length, 5, "candidate relation matrix retains one cell per draft part/drawing pair");
+  assert.equal(representativeCandidate?.row.matrix.filter((cell) => cell.relationType === "manufacturing_basis").length, 1, "candidate relation matrix preserves the one stored primary relation");
+  assert.equal(representativeCandidate?.row.matrix.filter((cell) => cell.relationType === "required_missing").length, 4, "candidate relation matrix exposes each missing required relation");
   assert.equal(representativeCandidateQueryCount, candidateDetailQueryCount, "Relation candidate detail query count must not grow with child cardinality");
+
+  const waitingActor = { ...actor, id: "dev062-relation-observer" };
+  const waitingPage = await service.list(workbench.normalizeRelationWorkbenchQuery(new URL("http://local.test/?view=all&humanStatus=waiting&limit=1")), waitingActor);
+  assert.equal(waitingPage.rows[0]?.rowKey, "candidate:dev062-source-less", "projected filters continue scanning before pagination instead of returning a false empty page");
 
   const noCandidateActor = { ...actor, permissions: { ...actor.permissions, workspaceView: false } };
   const formalOnly = await service.list(workbench.normalizeRelationWorkbenchQuery(new URL("http://local.test/?view=all")), noCandidateActor);

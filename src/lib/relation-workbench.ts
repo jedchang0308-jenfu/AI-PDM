@@ -425,7 +425,9 @@ function candidateMatrix(workspace: NumberingDraftWorkspaceRecord): RelationMatr
     const relation = pairRelations[0];
     const drawingNumber = drawingNumbers.get(drawing.id)!;
     const partNumber = partNumbers.get(part.id)!;
-    if (pairRelations.length > 1) return { drawingNumber, partNumber, relationType: "blocked" as const };
+    if (pairRelations.length > 1) {
+      return { drawingNumber, partNumber, relationType: "blocked" as const };
+    }
     if (!relation) {
       const hasManufacturing = workspace.relations.some((item) => item.partDraftId === part.id
         && item.linkType === "primary_manufacturing"
@@ -439,7 +441,9 @@ function candidateMatrix(workspace: NumberingDraftWorkspaceRecord): RelationMatr
     if (relation.linkType === "primary_manufacturing" && relation.isPrimary && manufacturingDrawingIds.has(relation.drawingDraftId)) {
       return { drawingNumber, partNumber, relationType: "manufacturing_basis" as const, isPrimary: true };
     }
-    if (relation.linkType === "primary_manufacturing") return { drawingNumber, partNumber, relationType: "blocked" as const, isPrimary: true };
+    if (relation.linkType === "primary_manufacturing") {
+      return { drawingNumber, partNumber, relationType: "blocked" as const, isPrimary: true };
+    }
     return { drawingNumber, partNumber, relationType: "reference" as const };
   }));
 }
@@ -638,7 +642,8 @@ export class RelationWorkbenchService {
     const cursor = query.cursor ? decodePdmWorkbenchCursor(query.cursor, currentFilterHash) : null;
     const page = await this.repository.readListPage<RelationWorkbenchRow>({
       companyId: actor.companyId, query: query.query, seriesCode: query.seriesCode, entityType: query.entityType,
-      recordStatus: query.recordStatus, sortDirection: query.sortDirection, includeCandidates: actor.permissions.workspaceView && !query.recordStatus, includeHistory: query.includeHistory,
+      recordStatus: query.recordStatus, sortDirection: query.sortDirection, includeCandidates: actor.permissions.workspaceView && !query.recordStatus,
+      includeHistory: query.includeHistory,
       cursor: cursor ? { sortValue: cursor.sortValue ?? cursor.updatedAt, rowKey: cursor.rowKey } : null, limit: query.limit
     }, (workspaces, roots, partMasterDataGaps) => {
       const visibleWorkspaces = workspaces.filter((workspace) => query.includeHistory || candidateStage(workspace) !== "history_only");

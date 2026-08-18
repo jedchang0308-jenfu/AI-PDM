@@ -1,0 +1,34 @@
+{
+  "runId": "DEV062-20260817-093521-local-isolated",
+  "results": [
+    {
+      "id": "CORE-09/PART/REL accessibility keyboard-focus-names-reduced-motion-zoom",
+      "passed": true,
+      "shortcuts": [
+        "ArrowUp",
+        "ArrowDown",
+        "Home",
+        "End",
+        "PageUp",
+        "PageDown",
+        "Enter",
+        "Escape",
+        "Control+C"
+      ],
+      "copiedPartCode": "Q0001-P02",
+      "copiedRootCode": "Z2062-P01",
+      "partFocusReturned": true,
+      "relationFocusReturned": true,
+      "accessibleNames": {
+        "expand": 60,
+        "filters": 7,
+        "tabs": 2
+      },
+      "reducedMotion": "reduce",
+      "zoomMetrics": {
+        "zoom": "200%",
+        "hasVisibleAction": true
+      }
+    }
+  ]
+}

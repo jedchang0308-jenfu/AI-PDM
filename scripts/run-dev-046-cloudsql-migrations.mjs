@@ -206,6 +206,11 @@ if (isMain) {
   const execute = args.has("--execute");
   const manifestPath = argValue("--manifest", process.env.PDM_MIGRATION_PACKAGE_TARGET === "production" ? productionManifestPath : defaultManifestPath);
   try {
+    if (args.has("--relation-reconciliation")) {
+      const { runDev076StagingRelationReconciliation } = await import("./dev-076-staging-relation-reconciliation.mjs");
+      console.log(JSON.stringify(await runDev076StagingRelationReconciliation(), null, 2));
+      process.exitCode = 0;
+    } else {
     const plan = buildDev046CloudSqlMigrationRunPlan(manifestPath);
     if (!execute) {
       console.log(JSON.stringify(summarizePlan(plan, "dry_run"), null, 2));
@@ -213,6 +218,7 @@ if (isMain) {
       requireLiveExecutionApproval(plan);
       const result = await executeMigrations(plan);
       console.log(JSON.stringify({ ...summarizePlan(plan, "execute"), ...result }, null, 2));
+    }
     }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

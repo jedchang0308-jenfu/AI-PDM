@@ -22,6 +22,10 @@ try {
   const generatedSql = (await Promise.all(generatedSqlNames.map((name) => fsp.readFile(path.join(outputs.sqlDirectory, name), "utf8")))).join("\n");
   const runner = readProjectFile(root, "scripts/run-dev-046-cloudsql-migrations.mjs");
   const dockerfile = readProjectFile(root, "Dockerfile");
+  const production001Compatibility = manifest.migrationHistoryCompatibility.entries.find(
+    (entry) => entry.targetProjectId === "jenfu-ai-pdm-prod" && entry.version === "001"
+  );
+  const production001Migration = manifest.orderedSchemaMigrations.find((entry) => entry.version === "001");
 
   record("DEV032-CLOUDSQL-MIG-001 package identifies production Gate C", report.dev === "DEV-032" && report.phase === "Gate-C-production-clean-seed-migration");
   record("DEV032-CLOUDSQL-MIG-002 target is dedicated production", report.target.projectId === "jenfu-ai-pdm-prod" && report.target.cloudSqlInstance === "ai-pdm-prod-postgres" && report.target.connectionName === "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres");
@@ -33,6 +37,18 @@ try {
   record("DEV032-CLOUDSQL-MIG-008 Docker target selects production package explicitly", dockerfile.includes("MIGRATION_PACKAGE_TARGET=staging") && dockerfile.includes("dev-032:cloudsql-migration-package"));
   record("DEV032-CLOUDSQL-MIG-009 package performs no credential or cloud action", report.executionBoundary.noCredentialLookupPerformed === true && report.executionBoundary.noCloudSqlConnectionAttempted === true && report.executionBoundary.noTerraformAction === true && report.executionBoundary.noGcloudMutation === true);
   record("DEV032-CLOUDSQL-MIG-010 production package has no staging target values", !JSON.stringify(report.target).includes("ai-pdm-stg") && !JSON.stringify(report.target).includes("jenfu-ai-pdm-stg-361825"));
+  record(
+    "DEV032-CLOUDSQL-MIG-011 production 001 historical checksum is explicit and traceable",
+    production001Compatibility?.acceptedExistingChecksums?.length === 1 &&
+      production001Compatibility.acceptedExistingChecksums[0] === "309039c3f931a269e42a4350c9295e795eb3e494f6e4ad54abb10e40a90aa387" &&
+      production001Compatibility.historicalSourceSha256 === "ea7a9d7b2eed8d54dae07ccebbf0cbc86dbf5b749b2cfd1b3d64ae3c9664785e" &&
+      production001Compatibility.historicalOutputSha256 === production001Compatibility.acceptedExistingChecksums[0] &&
+      production001Compatibility.historicalManifestCommit === "69a8c1da0c694079940988edbde8c74211f62d19" &&
+      production001Compatibility.historicalAppliedAt === "2026-07-15T18:03:18.770Z" &&
+      production001Migration?.acceptedExistingChecksums?.length === 1 &&
+      production001Migration.acceptedExistingChecksums[0] === production001Compatibility.acceptedExistingChecksums[0] &&
+      production001Migration.outputSha256 !== production001Compatibility.acceptedExistingChecksums[0]
+  );
 } catch (error) {
   record("DEV032-CLOUDSQL-MIG-000 QC execution", false, error instanceof Error ? error.message : String(error));
 } finally {

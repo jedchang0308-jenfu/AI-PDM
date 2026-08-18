@@ -430,13 +430,24 @@ async function runRaceEvidence(page) {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(detailBodies.get(key)) }).catch(() => undefined);
   };
   await page.route(detailRoutePattern, detailHandler);
+  const filterPartList = async (query, code) => {
+    const filtered = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/parts/workbench" && url.searchParams.get("query") === query && response.status() === 200;
+    });
+    await input.fill(query);
+    await filtered;
+    await page.getByRole("button", { name: code, exact: true }).first().waitFor({ state: "visible" });
+  };
   const openByCode = async (code, key) => {
     await Promise.all([
       page.waitForRequest((request) => decodeURIComponent(new URL(request.url()).pathname.split("/").pop() ?? "") === key),
       page.getByRole("button", { name: code, exact: true }).first().click()
     ]);
   };
+  await filterPartList("Z3062", "Z3062-P01");
   await openByCode("Z3062-P01", detailKeys[0]);
+  await filterPartList("Q0001", "Q0001-P01");
   await openByCode("Q0001-P01", detailKeys[1]);
   await page.getByRole("heading", { name: "Q0001-P01", exact: true }).waitFor({ state: "visible" });
   await wait(1100);
@@ -447,6 +458,7 @@ async function runRaceEvidence(page) {
     { delaysMs: { [detailKeys[0]]: 1000, [detailKeys[1]]: 100 } });
   await page.keyboard.press("Escape");
   await page.getByRole("region", { name: "料號工作清單" }).focus();
+  await filterPartList("Z3062", "Z3062-P01");
   await openByCode("Z3062-P01", detailKeys[0]);
   await page.getByText("正在載入明細...").waitFor({ state: "visible" });
   await page.getByRole("region", { name: "料號工作清單" }).focus();
@@ -456,6 +468,7 @@ async function runRaceEvidence(page) {
     await page.locator('[role="complementary"]').count() === 0 && !new URL(page.url()).searchParams.has("detail"));
   await page.unroute(detailRoutePattern, detailHandler);
 
+  await filterPartList("Q0001", "Q0001-P01");
   await page.getByRole("button", { name: "Q0001-P01", exact: true }).first().click();
   await page.getByRole("heading", { name: "Q0001-P01", exact: true }).waitFor({ state: "visible" });
   const filteredResponse = page.waitForResponse((response) => {
@@ -787,11 +800,13 @@ async function runFlagOn() {
   await page.keyboard.press("Escape");
 
   await page.goto(`${baseUrl}/numbering/part-drafts?detail=dev062-real-candidate&returnTo=%2Fparts`, { waitUntil: "networkidle" });
-  await page.getByText("候選料號", { exact: true }).waitFor({ state: "visible" });
+  const candidatePartDrawer = page.locator('[role="complementary"]');
+  await candidatePartDrawer.getByRole("heading", { name: "Z2062-P01", exact: true }).waitFor({ state: "visible" });
   record("DEV062-REAL-003 legacy Part draft redirect preserves safe context",
     new URL(page.url()).pathname === "/parts" && new URL(page.url()).searchParams.get("detail") === "candidate:dev062-real-candidate" &&
-    new URL(page.url()).searchParams.get("returnTo") === "/parts",
-    { url: page.url() });
+    new URL(page.url()).searchParams.get("returnTo") === "/parts" &&
+    await candidatePartDrawer.locator(".pdm-entity-drawer-eyebrow").getByText("料號", { exact: true }).count() === 1,
+    { url: page.url(), drawerText: (await candidatePartDrawer.innerText()).slice(0, 300) });
   await page.keyboard.press("Escape");
 
   await page.goto(`${baseUrl}/parts?view=all`, { waitUntil: "networkidle" });
@@ -820,12 +835,16 @@ async function runFlagOn() {
     { url: page.url(), drawerText: (await page.locator('[role="complementary"]').innerText()).slice(0, 300) });
   await page.keyboard.press("Escape");
 
-  await page.goto(`${baseUrl}/numbering/search?view=all`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/numbering/search?view=all&query=Z3062`, { waitUntil: "networkidle" });
   const formalRootCard = page.locator(".pdm-relation-root").filter({ has: page.getByRole("button", { name: "Z3062", exact: true }) });
-  await formalRootCard.getByRole("button", { name: "展開關係" }).click();
+  const formalRootToggle = formalRootCard.getByRole("button", { name: /展開關係|收合關係/u });
+  await formalRootToggle.waitFor({ state: "visible" });
+  if (await formalRootToggle.getAttribute("aria-label") === "展開關係") await formalRootToggle.click();
+  const treeHasFormalDrawing = await formalRootCard.getByText("Z3062-M01", { exact: true }).count() > 0;
   await page.getByRole("tab", { name: "矩陣" }).click();
   await formalRootCard.getByRole("region", { name: /圖料關係矩陣/u }).waitFor({ state: "visible" });
-  record("DEV062-REAL-007 tree and matrix share one canonical root", await page.locator(".pdm-relation-root").count() >= 2 && await page.getByText("Z3062-M01", { exact: true }).count() > 0);
+  record("DEV062-REAL-007 tree and matrix share one canonical root",
+    await formalRootCard.count() === 1 && treeHasFormalDrawing && await formalRootCard.getByText("Z3062-M01", { exact: true }).count() > 0);
 
   await page.goto(`${baseUrl}/numbering/request?returnTo=https%3A%2F%2Fevil.invalid`, { waitUntil: "networkidle" });
   record("DEV062-REAL-008 unsafe returnTo is removed without writing",

@@ -53,6 +53,70 @@ function startServer() {
     const fixtureDb = new Database(targetDb);
     fixtureDb.prepare("UPDATE users SET password_hash = NULL, account_status = 'active', system_role_enabled = 1 WHERE email = 'admin@example.com'").run();
     fixtureDb.prepare("UPDATE auth_identities SET status = 'active' WHERE login_identifier = 'admin@example.com'").run();
+    fixtureDb.transaction(() => {
+      const now = "2026-08-17T00:00:00.000Z";
+      fixtureDb.prepare(`INSERT INTO numbering_draft_workspaces (
+        id, company_id, draft_mode, lifecycle_status, owner_id, created_by, row_version, created_at, updated_at
+      ) VALUES ('dev055-browser-workspace', 'company-jenfu', 'new_bundle', 'active', 'user-engineer-demo', 'user-engineer-demo', 1, ?, ?)` ).run(now, now);
+      fixtureDb.prepare(`INSERT INTO numbering_draft_roots (
+        id, company_id, workspace_id, core_name, item_kind, rule_version_id, created_at, updated_at
+      ) VALUES ('dev055-browser-root', 'company-jenfu', 'dev055-browser-workspace', '狀態驗證總成', 'manufactured', 'numbering-rule-v3-alpha-root', ?, ?)` ).run(now, now);
+      fixtureDb.prepare(`INSERT INTO numbering_draft_parts (
+        id, company_id, workspace_id, root_draft_id, part_name, item_kind, is_universal, created_at, updated_at
+      ) VALUES ('dev055-browser-part', 'company-jenfu', 'dev055-browser-workspace', 'dev055-browser-root', '狀態驗證總成', 'manufactured', 0, ?, ?)` ).run(now, now);
+      fixtureDb.prepare(`INSERT INTO numbering_draft_drawings (
+        id, company_id, workspace_id, root_draft_id, purpose_code, purpose_description,
+        is_primary_manufacturing, created_at, updated_at
+      ) VALUES ('dev055-browser-drawing', 'company-jenfu', 'dev055-browser-workspace', 'dev055-browser-root', 'M', '製造圖', 1, ?, ?)` ).run(now, now);
+      fixtureDb.prepare(`INSERT INTO numbering_draft_relations (
+        id, company_id, workspace_id, drawing_draft_id, part_draft_id, link_type, is_primary, created_at, updated_at
+      ) VALUES ('dev055-browser-relation', 'company-jenfu', 'dev055-browser-workspace', 'dev055-browser-drawing', 'dev055-browser-part', 'primary_manufacturing', 1, ?, ?)` ).run(now, now);
+      for (const [id, itemType, itemId, candidateCode, sequenceNo] of [
+        ["dev055-browser-root-reservation", "root", "dev055-browser-root", "Q0055", 55],
+        ["dev055-browser-part-reservation", "part", "dev055-browser-part", "Q0055-P01", 1],
+        ["dev055-browser-drawing-reservation", "drawing", "dev055-browser-drawing", "Q0055-M01", 1]
+      ]) {
+        fixtureDb.prepare(`INSERT INTO number_candidate_reservations (
+          id, company_id, workspace_id, draft_item_type, draft_item_id, candidate_code, sequence_scope_key,
+          sequence_no, reservation_state, row_version, created_by, created_at, updated_at
+        ) VALUES (?, 'company-jenfu', 'dev055-browser-workspace', ?, ?, ?, ?, ?, 'active', 1, 'user-engineer-demo', ?, ?)` )
+          .run(id, itemType, itemId, candidateCode, `dev055-browser:${itemType}`, sequenceNo, now, now);
+        const table = itemType === "root" ? "numbering_draft_roots" : itemType === "part" ? "numbering_draft_parts" : "numbering_draft_drawings";
+        fixtureDb.prepare(`UPDATE ${table} SET candidate_reservation_id = ? WHERE id = ?`).run(id, itemId);
+      }
+      fixtureDb.prepare(`INSERT INTO drawings (
+        id, company_id, drawing_number, lifecycle_state, workspace_id, drawing_draft_id,
+        candidate_reservation_id, purpose_code, purpose_description, sequence_no,
+        is_primary_manufacturing, owner_id, row_version, created_by, created_at, updated_at
+      ) VALUES ('drawing-dev055-browser-drawing', 'company-jenfu', 'Q0055-M01', 'building',
+        'dev055-browser-workspace', 'dev055-browser-drawing', 'dev055-browser-drawing-reservation',
+        'M', '製造圖', 1, 1, 'user-engineer-demo', 1, 'user-engineer-demo', ?, ?)` ).run(now, now);
+      fixtureDb.prepare(`INSERT INTO part_roots (
+        id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES ('dev055-browser-formal-root', 'company-jenfu', 'A0055', '正式狀態驗證總成', 'manufactured', 'Active',
+        'numbering-rule-v3-alpha-root', 'user-engineer-demo', ?, ?)` ).run(now, now);
+      fixtureDb.prepare(`INSERT INTO part_numbers (
+        id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
+        record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES ('dev055-browser-formal-part', 'company-jenfu', 'dev055-browser-formal-root', 'A0055-P01', 1, '01',
+        '正式狀態驗證總成', 'manufactured', 'Active', 'numbering-rule-v3-alpha-root', 'user-engineer-demo', ?, ?)` ).run(now, now);
+      fixtureDb.prepare(`INSERT INTO drawing_numbers (
+        id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
+        is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
+      ) VALUES ('dev055-browser-formal-drawing', 'company-jenfu', 'dev055-browser-formal-root', 'A0055-M01', 'M', '製造圖', 1,
+        1, 'Active', 'numbering-rule-v3-alpha-root', 'user-engineer-demo', ?, ?)` ).run(now, now);
+      fixtureDb.prepare(`INSERT INTO drawing_part_links (
+        id, drawing_number_id, part_number_id, link_type, created_by, created_at
+      ) VALUES ('dev055-browser-formal-relation', 'dev055-browser-formal-drawing', 'dev055-browser-formal-part',
+        'primary_manufacturing', 'user-engineer-demo', ?)` ).run(now);
+      fixtureDb.prepare(`INSERT INTO drawings (
+        id, company_id, drawing_number, lifecycle_state, formal_drawing_number_id, part_root_id,
+        purpose_code, purpose_description, sequence_no, is_primary_manufacturing, rule_version_id,
+        row_version, created_by, created_at, updated_at
+      ) VALUES ('drawing-formal-dev055-browser-formal-drawing', 'company-jenfu', 'A0055-M01', 'rd_controlled',
+        'dev055-browser-formal-drawing', 'dev055-browser-formal-root', 'M', '製造圖', 1, 1,
+        'numbering-rule-v3-alpha-root', 1, 'user-engineer-demo', ?, ?)` ).run(now, now);
+    })();
     fixtureDb.close();
   }
   child = spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
@@ -65,6 +129,8 @@ function startServer() {
       PDM_REPOSITORY_DIR: path.join(tempDir, "repository"),
       PDM_RELEASE_MODE: "local_stub",
       PDM_NUMBER_STATE_FLOW_V1: "true",
+      PDM_NUMBER_LIFECYCLE_V2: "true",
+      PDM_UNIFIED_DRAWING_WORKBENCH_V1: "true",
       PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "true",
       PDM_PUBLIC_BASE_URL: baseUrl,
       PDM_NEXT_DIST_DIR: distDirRelative
@@ -190,7 +256,7 @@ try {
 
   await page.goto(`${appBaseUrl}/numbering/drawings`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);
-  const drawingStatusFilter = page.locator(".drawing-workbench-toolbar label").filter({ hasText: "工作狀態" }).locator("select");
+  const drawingStatusFilter = page.locator(".pdm-workbench-toolbar label").filter({ hasText: "工作狀態" }).locator("select");
   assert.equal(await drawingStatusFilter.count(), 1, "drawing workbench must expose one work-status filter");
   assert.deepEqual(
     (await drawingStatusFilter.locator("option").allTextContents()).map((value) => value.trim()),
@@ -216,7 +282,7 @@ try {
 
   await page.goto(`${appBaseUrl}/numbering/drawings`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);
-  const drawingRows = page.locator("tbody tr");
+  const drawingRows = page.locator("[data-drawing-workbench-row='true']");
   if (await drawingRows.count()) {
     await drawingRows.first().locator("button.link-button").first().click();
     await page.locator(".pdm-detail-drawer").waitFor({ state: "visible" });

@@ -131,6 +131,22 @@ function extractCanonicalPermissions(schema) {
   return [...unique.values()];
 }
 
+export function buildDev046CanonicalAccessMatrix() {
+  const schema = read(canonicalSchemaPath);
+  const roles = extractCanonicalRoles(schema);
+  const permissions = extractCanonicalPermissions(schema);
+  const roleCodes = new Set(roles.map((role) => role.roleCode));
+  const unknownPermissionRoles = permissions.filter((permission) => !roleCodes.has(permission.roleCode));
+  if (unknownPermissionRoles.length > 0) {
+    throw new Error(`DEV046_PERMISSION_ROLE_MISSING:${unknownPermissionRoles.map((item) => item.roleCode).join(",")}`);
+  }
+  return {
+    canonicalSchemaSha256: sha256(schema),
+    roles,
+    permissions
+  };
+}
+
 function permissionId(permission) {
   const normalizedCode = permission.permissionCode.replace(/[._]/gu, "-");
   return `default-perm-${permission.roleCode}-${permission.permissionKind}-${normalizedCode}`;
@@ -472,15 +488,7 @@ This local package does not connect to Cloud SQL, mutate Firebase, run Terraform
 }
 
 export function buildDev046StagingPrincipalBootstrapPackage() {
-  const schema = read(canonicalSchemaPath);
-  const roles = extractCanonicalRoles(schema);
-  const permissions = extractCanonicalPermissions(schema);
-  const roleCodes = new Set(roles.map((role) => role.roleCode));
-  const unknownPermissionRoles = permissions.filter((permission) => !roleCodes.has(permission.roleCode));
-  if (unknownPermissionRoles.length > 0) {
-    throw new Error(`DEV046_PERMISSION_ROLE_MISSING:${unknownPermissionRoles.map((item) => item.roleCode).join(",")}`);
-  }
-  const canonicalSchemaSha256 = sha256(schema);
+  const { canonicalSchemaSha256, roles, permissions } = buildDev046CanonicalAccessMatrix();
   const bootstrapSql = buildBootstrapSql({ roles, permissions, canonicalSchemaSha256 });
   const readbackSql = buildReadbackSql({ roles, permissions });
   const rollbackSql = buildRollbackSql();

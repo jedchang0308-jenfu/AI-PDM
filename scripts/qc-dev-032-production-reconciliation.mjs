@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { buildDev032ProductionReconciliationPackage } from "./dev-032-production-reconciliation-package.mjs";
+import { buildDev046CloudSqlMigrationRunPlan } from "./run-dev-046-cloudsql-migrations.mjs";
 import {
   assertDev032ProductionReconciliationEnvironment,
   assertDev032ProductionReconciliationReadback,
@@ -23,6 +24,7 @@ function record(name, fn) {
 
 const packageData = buildDev032ProductionReconciliationPackage();
 const plan = buildDev032ProductionReconciliationRunPlan();
+const migrationPlan = buildDev046CloudSqlMigrationRunPlan("output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json");
 const zeroColumns = {
   missing_migration_count: 0,
   extra_migration_count: 0,
@@ -40,12 +42,13 @@ const zeroColumns = {
 };
 const cleanRow = {
   ...zeroColumns,
-  expected_migration_count: 18,
-  actual_migration_count: 18,
+  expected_migration_count: migrationPlan.schemaMigrationCount,
+  actual_migration_count: migrationPlan.schemaMigrationCount,
   company_count: 1,
   active_admin_count: 1,
-  role_count: 9,
-  permission_count: 237,
+  role_count: plan.expectedRoleCount,
+  canonical_permission_count: plan.expectedPermissionCount,
+  permission_count: plan.expectedPermissionCount + 20,
   root_count: 0,
   part_count: 0,
   drawing_count: 0,
@@ -56,9 +59,10 @@ const cleanRow = {
 
 record("DEV032-RECON-001 package is production-only and read-only", () => {
   assert.equal(packageData.report.target.projectId, "jenfu-ai-pdm-prod");
-  assert.equal(packageData.report.expectedMigrationCount, 18);
+  assert.equal(packageData.report.expectedMigrationCount, migrationPlan.schemaMigrationCount);
+  assert.equal(plan.expectedMigrationCount, migrationPlan.schemaMigrationCount);
   assert.equal(packageData.report.mutationAllowed, false);
-  assert.doesNotMatch(packageData.readbackSql, /\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE|GRANT|REVOKE)\b/iu);
+  assert.doesNotMatch(packageData.readbackSql, /^\s*(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE|GRANT|REVOKE)\b/gimu);
 });
 
 record("DEV032-RECON-002 manifest hash matches SQL", () => {
@@ -131,6 +135,24 @@ record("DEV032-RECON-008 static database secrets and source drift are forbidden"
   };
   assert.throws(() => assertDev032ProductionReconciliationEnvironment(plan, { ...env, PDM_CLOUD_SQL_PASSWORD: "forbidden" }), /STATIC_DATABASE_SECRET_FORBIDDEN/u);
   assert.throws(() => assertDev032ProductionReconciliationEnvironment(plan, { ...env, DEV032_EXPECTED_SOURCE_REVISION: "b".repeat(40) }), /SOURCE_REVISION_MISMATCH/u);
+});
+
+record("DEV032-RECON-009 controlled historical checksums remain valid reconciliation evidence", () => {
+  const acceptedHistoricalChecksums = migrationPlan.schemaMigrations
+    .flatMap((migration) => migration.acceptedExistingChecksums ?? []);
+  assert.ok(acceptedHistoricalChecksums.length > 0);
+  for (const checksum of acceptedHistoricalChecksums) assert.match(packageData.readbackSql, new RegExp(checksum, "u"));
+  assert.match(packageData.readbackSql, /FROM expected_migration_checksums allowed/iu);
+  assert.match(packageData.readbackSql, /allowed\.version = a\.version AND allowed\.checksum = a\.checksum/iu);
+});
+
+record("DEV032-RECON-010 canonical permissions are set-validated while additive feature permissions remain observable", () => {
+  assert.match(packageData.readbackSql, /expected_permissions\(role_code, permission_kind, permission_code, allowed\)/iu);
+  assert.equal(assertDev032ProductionReconciliationReadback(plan, "post_smoke", cleanRow).permissionCount, plan.expectedPermissionCount + 20);
+  assert.throws(
+    () => assertDev032ProductionReconciliationReadback(plan, "post_smoke", { ...cleanRow, canonical_permission_count: plan.expectedPermissionCount - 1 }),
+    /PERMISSION_SEED_MISMATCH/u
+  );
 });
 
 for (const result of results) console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);

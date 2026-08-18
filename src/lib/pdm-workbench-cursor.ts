@@ -14,8 +14,12 @@ export class PdmWorkbenchCursorError extends Error {
 }
 
 function cursorSecret(env: EnvLike = process.env) {
-  const configured = env.PDM_AUTH_SECRET?.trim() || env.AUTH_SECRET?.trim();
+  const configured = env.PDM_WORKBENCH_CURSOR_SECRET?.trim() || env.PDM_AUTH_SECRET?.trim() || env.AUTH_SECRET?.trim();
   if (configured) return configured;
+  const sessionSecret = env.PDM_SESSION_CURRENT_SECRET?.trim();
+  if (sessionSecret) {
+    return crypto.createHmac("sha256", sessionSecret).update("ai-pdm-workbench-cursor-v1").digest();
+  }
   if (env.NODE_ENV === "production") throw new Error("PDM_WORKBENCH_CURSOR_SECRET_REQUIRED");
   return "ai-pdm-local-workbench-cursor-v1";
 }

@@ -1,0 +1,50 @@
+{
+  "task": "DEV-076 candidate relation reconciliation",
+  "runId": "DEV076-20260817-182941-staging-readonly",
+  "verdict": "PASS / Authenticated Staging Read-only / Production Release Gated",
+  "sourceCommit": "89e8023a7b44fcd08257f7ec226f25b24b6096ba",
+  "branch": "codex/dev-064-staging-rehearsal",
+  "cloudBuildId": "8a7a2bb6-c8a7-43fd-96cb-0ff2ff15fe32",
+  "applicationImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm@sha256:60f42a30c3f094b7d6ea0ed46ce3345cf05fffcdc6b2ab55fdc8797bdfa03568",
+  "reconciliationImage": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-stg-361825/ai-pdm/ai-pdm-migration@sha256:f63c05e09c6eb3f83688e80f91dbcf3c34c66bf54fe23d719e4e2480344311be",
+  "cloudRunRevision": "ai-pdm-stg-dev07689e802",
+  "hostingUrl": "https://jenfu-ai-pdm-stg-361825.web.app/",
+  "trafficPercent": 100,
+  "productionTouched": false,
+  "databaseWrites": false,
+  "localAggregateEvidence": "output/qa/dev-062-unified-part-relation-workbench/DEV062-20260817-093521-local-isolated",
+  "localBrowser": {
+    "passed": 33,
+    "failed": 0,
+    "viewports": [
+      "1440x900",
+      "1024x768",
+      "768x1024",
+      "390x844"
+    ],
+    "consoleErrors": 0,
+    "unexpectedResponses": 0
+  },
+  "staging": {
+    "authenticatedTargets": [
+      "A0002",
+      "A0003",
+      "A0004"
+    ],
+    "treeAndMatrixVisible": true,
+    "candidateLabelVisible": true,
+    "apiStatus": 200,
+    "consoleErrors": 0,
+    "preReconciliationExecution": "ai-pdm-stg-migration-runner-9rnrq",
+    "postReconciliationExecution": "ai-pdm-stg-migration-runner-rntvj",
+    "allCandidatePairHashBefore": "f6f061b1a8d75c885f3509b157bad811",
+    "allCandidatePairHashAfter": "f6f061b1a8d75c885f3509b157bad811",
+    "transactionReadOnly": "on"
+  },
+  "notes": [
+    "Chrome extension viewport override remained at the physical 1536px viewport. Exact-commit local Chromium evidence supplies the required 1440/1024/390 responsive checks; authenticated staging supplies the live data, UI, API and console checks.",
+    "One unrelated active draft part is incomplete in staging. It is outside A0002/A0003/A0004 and is fail-closed by design; target invalid-scope, missing-primary and duplicate-primary counts are all zero.",
+    "The global dev-task evidence sync remains 12/13 because an unrelated legacy Supabase-shadow task is marked complete without its report in this worktree. DEV-076 completion audit is 8/8 and this existing external-platform evidence gap remains production-release gated.",
+    "The staging migration job was restored to its original image, source revision, command and args after both read-only reconciliations."
+  ]
+}

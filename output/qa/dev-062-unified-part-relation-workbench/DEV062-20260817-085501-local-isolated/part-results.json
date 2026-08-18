@@ -1,0 +1,33 @@
+{
+  "suite": "DEV-062 Part workbench",
+  "passed": true,
+  "queryBudget": {
+    "list": {
+      "budget": 15,
+      "baseline": 14,
+      "representative": 14,
+      "rowCardinality": 50
+    },
+    "candidateDetail": {
+      "budget": 13,
+      "baseline": 11,
+      "representative": 11,
+      "childCardinality": 25
+    },
+    "formalDetail": {
+      "budget": 6,
+      "baseline": 4,
+      "representative": 4,
+      "childCardinality": 10
+    }
+  },
+  "permission": {
+    "candidateOmittedWithoutWorkspaceView": true,
+    "crossCompanyStableIdHidden": true
+  },
+  "zeroWrite": {
+    "before": "b230891ddac7431dabe37845a21fe6aaab5ddb0d135c7520daa3326ac5a9809e",
+    "after": "b230891ddac7431dabe37845a21fe6aaab5ddb0d135c7520daa3326ac5a9809e",
+    "unchanged": true
+  }
+}

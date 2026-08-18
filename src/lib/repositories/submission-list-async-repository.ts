@@ -353,7 +353,7 @@ export const SELECT_ASYNC_SUBMISSION_REVISION_PACKAGE_STATUS_SQL = `
              AND companion.snapshot_hash = candidate.review_snapshot_hash
          )
          OR (
-           instr(p.revision, '.') > 0
+           p.revision LIKE '%.%'
            AND EXISTS (
              SELECT 1
              FROM drawing_revision_fff_assessments fff
