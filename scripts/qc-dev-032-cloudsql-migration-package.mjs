@@ -32,7 +32,15 @@ try {
   record("DEV032-CLOUDSQL-MIG-003 IAM database users are production-only", report.target.runtimeIamDatabaseUser === "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam" && report.target.migrationIamDatabaseUser === "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam");
   record("DEV032-CLOUDSQL-MIG-004 package excludes Supabase RLS and Phase 3B GCS", report.candidatePackage.excludedFiles.some((item) => item.file.endsWith("002_supabase_rls_plan.sql")) && report.candidatePackage.excludedFiles.some((item) => item.file.endsWith("011_gcs_pointer_numbering_continuity.sql")));
   record("DEV032-CLOUDSQL-MIG-005 generated SQL is runner-safe", !/\b(?:anon|authenticated|service_role)\b/iu.test(generatedSql) && !/\b(?:ENABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY\b/iu.test(generatedSql) && !/^\s*(?:BEGIN|COMMIT)\s*;\s*$/gimu.test(generatedSql));
-  record("DEV032-CLOUDSQL-MIG-006 manifest is immutable and non-authorizing", manifest.status === "proposal_only_not_approved_for_live_apply" && manifest.executionBoundary.liveApplyAllowed === false && manifest.orderedSchemaMigrations.length >= 18 && manifest.orderedSchemaMigrations.every((item) => item.outputSha256?.length === 64));
+  record(
+    "DEV032-CLOUDSQL-MIG-006 manifest is immutable, complete and non-authorizing",
+    manifest.status === "proposal_only_not_approved_for_live_apply" &&
+      manifest.executionBoundary.liveApplyAllowed === false &&
+      manifest.orderedSchemaMigrations.length === 37 &&
+      manifest.orderedSchemaMigrations.at(0)?.output === "sql/001_initial_schema.cloudsql.sql" &&
+      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/039_allow_recycled_candidate_drawing_codes.cloudsql.sql" &&
+      manifest.orderedSchemaMigrations.every((item) => item.outputSha256?.length === 64)
+  );
   record("DEV032-CLOUDSQL-MIG-007 runner requires production-specific approval", runner.includes("DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED") && runner.includes("DEV032_CLOUDSQL_MIGRATION_APPROVAL") && runner.includes("DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED"));
   record("DEV032-CLOUDSQL-MIG-008 Docker target selects production package explicitly", dockerfile.includes("MIGRATION_PACKAGE_TARGET=staging") && dockerfile.includes("dev-032:cloudsql-migration-package"));
   record("DEV032-CLOUDSQL-MIG-009 package performs no credential or cloud action", report.executionBoundary.noCredentialLookupPerformed === true && report.executionBoundary.noCloudSqlConnectionAttempted === true && report.executionBoundary.noTerraformAction === true && report.executionBoundary.noGcloudMutation === true);

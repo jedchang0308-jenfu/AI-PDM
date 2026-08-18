@@ -42,14 +42,17 @@
       "output": "sql/001_initial_schema.cloudsql.sql",
       "version": "001",
       "name": "001_initial_schema",
-      "sourceSha256": "5213e2ed996fdc592f11057e613695a7b3fe6dc610abacbbd73c416f2423d573",
-      "outputSha256": "23cb3d5b57a8afa477eb3bc8754cb0a7889cac770d0eec8c1a46c49a1b874986",
-      "bytes": 145871,
+      "sourceSha256": "9d5286380b037bea2bd59430b2ec12921ea40f40064199dc2cb6c65c41821c98",
+      "outputSha256": "11abba7051c99cd22779c95832464dab73b76dcb64889c6a2c1be1b90f5a2454",
+      "bytes": 172347,
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
         "rewrittenSupabaseRoleReferences": 0
-      }
+      },
+      "acceptedExistingChecksums": [
+        "309039c3f931a269e42a4350c9295e795eb3e494f6e4ad54abb10e40a90aa387"
+      ]
     },
     {
       "source": "db/postgres/003_harden_set_updated_at_search_path.sql",
@@ -420,9 +423,9 @@
       "output": "sql/030_unified_drawing_aggregate.cloudsql.sql",
       "version": "030",
       "name": "030_unified_drawing_aggregate",
-      "sourceSha256": "f573fd9ae364203f9e69fff175ca2a4f554496171ad5222dad1e47b583a5d0ab",
-      "outputSha256": "b64b46880cd785248b1694d52972d8f7c26caaf4f5b574f0181c0e30a643c297",
-      "bytes": 21260,
+      "sourceSha256": "b1f7344306ba75c73315a53032f4d372342da65a3ef3b06489a92f44ded54666",
+      "outputSha256": "f8045991a34a199b68d31165b8ac6e1289452bb6b3cc7d553df464e90d5d5ecd",
+      "bytes": 21937,
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
@@ -456,14 +459,129 @@
         "removedRlsStatements": 0,
         "rewrittenSupabaseRoleReferences": 0
       }
+    },
+    {
+      "source": "db/postgres/033_drawing_recognition.sql",
+      "output": "sql/033_drawing_recognition.cloudsql.sql",
+      "version": "033",
+      "name": "033_drawing_recognition",
+      "sourceSha256": "264a8df0bfa1f5d7a39c4d3a8fb37300905ff6c59f688097ea5a602c48cc2706",
+      "outputSha256": "98c633fbe15eb3eb148bdfebb914c82f6e19fc861a0c741cd4321ccd5377f26c",
+      "bytes": 16502,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/034_root_vocabulary_human_label.sql",
+      "output": "sql/034_root_vocabulary_human_label.cloudsql.sql",
+      "version": "034",
+      "name": "034_root_vocabulary_human_label",
+      "sourceSha256": "bc5fd79dc6626bb835d26bea3d2996564ef042535d949bc32845f6e920f374a8",
+      "outputSha256": "d7f736273d13182c891c1d1940eda958a7dff4cc5ab8c3deea76ddf3b1dee7d8",
+      "bytes": 650,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/035_bom_draft_floating_topics.sql",
+      "output": "sql/035_bom_draft_floating_topics.cloudsql.sql",
+      "version": "035",
+      "name": "035_bom_draft_floating_topics",
+      "sourceSha256": "b274b33d7ca90bfb522f73c4936e503f48ee370d7ffd24c7a0d81ac2bc5e9cf6",
+      "outputSha256": "f563bd0e18918aa7769c4364f35852a3d43d675155ef370696a42b8d4b1ec7ef",
+      "bytes": 2259,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/036_human_approval_decisions.sql",
+      "output": "sql/036_human_approval_decisions.cloudsql.sql",
+      "version": "036",
+      "name": "036_human_approval_decisions",
+      "sourceSha256": "d1d5daaef8acf65419d6d8a0917e6178d0075960542be5af935c3250f7580552",
+      "outputSha256": "d15436e36476d178bc94e19af395480c313e0c74dc416457454fbeb514838f81",
+      "bytes": 678,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/037_drawing_recognition_pre_submit_source.sql",
+      "output": "sql/037_drawing_recognition_pre_submit_source.cloudsql.sql",
+      "version": "037",
+      "name": "037_drawing_recognition_pre_submit_source",
+      "sourceSha256": "19b6453bbd364d54d83a29235d1a8d92588d7a7836ecc0a2378eff9e266df1ab",
+      "outputSha256": "ff01980676ae9d8a3599b4be146f1385819e53fde0805b3258aeb830162c77b8",
+      "bytes": 988,
+      "transformations": {
+        "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/038_bom_controlled_cad_source.sql",
+      "output": "sql/038_bom_controlled_cad_source.cloudsql.sql",
+      "version": "038",
+      "name": "038_bom_controlled_cad_source",
+      "sourceSha256": "06c18a99eb09c3dbd1efc98545ee9fe90eca16679468a7a420c160ef2a300d16",
+      "outputSha256": "62f0aef79f6921a97ea915361a9a22779836de60c872c5e33e29a66d9ce0dd72",
+      "bytes": 1115,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/039_allow_recycled_candidate_drawing_codes.sql",
+      "output": "sql/039_allow_recycled_candidate_drawing_codes.cloudsql.sql",
+      "version": "039",
+      "name": "039_allow_recycled_candidate_drawing_codes",
+      "sourceSha256": "b4196aff28fbce724bd770e2f0431b2dcfe05e802dbd71042d44de6b0f4c5da7",
+      "outputSha256": "23c044edfcf8c9cc03275982c94fa6705adb259653d2f7ea05f25e7b15733158",
+      "bytes": 868,
+      "transformations": {
+        "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
     }
   ],
+  "migrationHistoryCompatibility": {
+    "policy": "accepted_existing_checksums_only",
+    "entries": [
+      {
+        "targetProjectId": "jenfu-ai-pdm-prod",
+        "version": "001",
+        "acceptedExistingChecksums": [
+          "309039c3f931a269e42a4350c9295e795eb3e494f6e4ad54abb10e40a90aa387"
+        ],
+        "historicalSourceSha256": "ea7a9d7b2eed8d54dae07ccebbf0cbc86dbf5b749b2cfd1b3d64ae3c9664785e",
+        "historicalOutputSha256": "309039c3f931a269e42a4350c9295e795eb3e494f6e4ad54abb10e40a90aa387",
+        "historicalManifestCommit": "69a8c1da0c694079940988edbde8c74211f62d19",
+        "historicalAppliedAt": "2026-07-15T18:03:18.770Z",
+        "reason": "Production applied the same reviewed baseline as staging before the 001 clean-room baseline refactor. The live ledger checksum, historical manifest output and raw Git source hash were reverified on 2026-08-17; accept only this checksum so reviewed forward migrations can resume without rewriting production history."
+      }
+    ]
+  },
   "excludedFiles": [
     {
       "file": "db/postgres/002_supabase_rls_plan.sql",
       "reason": "supabase_rls_baseline_excluded_for_cloud_sql_bff_runtime",
       "detail": "Cloud SQL runtime uses private server-side BFF access and database grants; the Supabase RLS/Data API baseline would force RLS without Cloud SQL runtime policies.",
-      "sourceSha256": "12a811f405d0155d630ab4e2d2b98cc06907510913b1671c356001513030b29f"
+      "sourceSha256": "2700006ae8730651a736d5d8eb6d186fe32923ea423c0325c4b97d8cc4d5f924"
     },
     {
       "file": "db/postgres/011_gcs_pointer_numbering_continuity.sql",
@@ -473,7 +591,7 @@
     }
   ],
   "transformations": {
-    "removedTransactionWrappers": 48,
+    "removedTransactionWrappers": 52,
     "removedRlsStatements": 70,
     "rewrittenSupabaseRoleReferences": 32,
     "remainingSupabaseRoleReferences": 0,

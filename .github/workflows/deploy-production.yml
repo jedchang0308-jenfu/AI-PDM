@@ -130,6 +130,7 @@ jobs:
       candidate_revision: ${{ steps.candidate.outputs.candidate_revision }}
       candidate_url: ${{ steps.candidate.outputs.candidate_url }}
       image_digest: ${{ steps.image.outputs.digest }}
+      migration_image_digest: ${{ steps.migration_image.outputs.digest }}
     env:
       GCP_PROJECT_ID: jenfu-ai-pdm-prod
       GCP_PROJECT_NUMBER: "451715062958"
@@ -137,6 +138,7 @@ jobs:
       CLOUD_RUN_SERVICE: ai-pdm-prod
       APPLICATION_CONTAINER: ai-pdm
       IMAGE_PATH: asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm
+      MIGRATION_IMAGE_PATH: asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm-migration
       CANONICAL_BASE_URL: https://jenfu-ai-pdm-prod.web.app
       WIF_PROVIDER: projects/451715062958/locations/global/workloadIdentityPools/github-actions/providers/ai-pdm-production
       DEPLOYER_SERVICE_ACCOUNT: ai-pdm-prod-deployer@jenfu-ai-pdm-prod.iam.gserviceaccount.com
@@ -144,6 +146,7 @@ jobs:
       PDM_PRODUCTION_PROJECT_ID: jenfu-ai-pdm-prod
       PDM_PRODUCTION_REGION: asia-east1
       PDM_PRODUCTION_SERVICE: ai-pdm-prod
+      CANDIDATE_RUNTIME_FLAGS: PDM_NUMBER_STATE_FLOW_V1=true,PDM_NUMBER_LIFECYCLE_V2=true,PDM_UNIFIED_DRAWING_WORKBENCH_V1=true,PDM_UNIFIED_PART_RELATION_WORKBENCH_V1=true,PDM_UNIFIED_ENTITY_DETAIL_V1=true,PDM_DRAWING_REVISION_LIFECYCLE_MODE=enforced
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -220,6 +223,43 @@ jobs:
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           echo "image_ref=$IMAGE_REF" >> "$GITHUB_OUTPUT"
 
+      - name: Build, verify, and push immutable production migration image
+        id: migration_image
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_CREATED_AT="$(git show -s --format=%cI "$GITHUB_SHA")"
+          MIGRATION_IMAGE_TAG="$MIGRATION_IMAGE_PATH:$GITHUB_SHA"
+          docker build \
+            --pull \
+            --platform linux/amd64 \
+            --target migration-runner \
+            --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --build-arg SOURCE_CREATED_AT="$SOURCE_CREATED_AT" \
+            --build-arg SOURCE_VERSION="production-migration-${GITHUB_SHA:0:12}" \
+            --build-arg SOURCE_STATE=clean \
+            --build-arg MIGRATION_PACKAGE_TARGET=production \
+            --tag "$MIGRATION_IMAGE_TAG" \
+            .
+          [[ "$(docker inspect "$MIGRATION_IMAGE_TAG" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$GITHUB_SHA" ]]
+          docker run --rm "$MIGRATION_IMAGE_TAG" > output/production-release/migration-dry-run.json
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync("output/production-release/migration-dry-run.json", "utf8"));
+          if (report.mode !== "dry_run" || report.connectionAttempted !== false) throw new Error("PRODUCTION_MIGRATION_DRY_RUN_BOUNDARY_INVALID");
+          if (report.schemaMigrationCount !== 37) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
+          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/039_allow_recycled_candidate_drawing_codes.cloudsql.sql") {
+            throw new Error("PRODUCTION_MIGRATION_RANGE_INVALID");
+          }
+          NODE
+          docker push "$MIGRATION_IMAGE_TAG"
+          MIGRATION_DIGEST="$(gcloud artifacts docker images describe "$MIGRATION_IMAGE_TAG" --project "$GCP_PROJECT_ID" --format='value(image_summary.digest)')"
+          [[ "$MIGRATION_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          MIGRATION_IMAGE_REF="$MIGRATION_IMAGE_PATH@$MIGRATION_DIGEST"
+          printf '%s\n' "$MIGRATION_IMAGE_REF" > output/production-release/migration-image.txt
+          echo "digest=$MIGRATION_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "image_ref=$MIGRATION_IMAGE_REF" >> "$GITHUB_OUTPUT"
+
       - name: Deploy zero-traffic tagged candidate
         id: candidate
         shell: bash
@@ -245,7 +285,7 @@ jobs:
             --tag "$TAG" \
             --quiet \
             --container "$APPLICATION_CONTAINER" \
-            --update-env-vars "PDM_CANDIDATE_CLOUD_RUN_SERVICE=$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=$TAG" \
+            --update-env-vars "PDM_CANDIDATE_CLOUD_RUN_SERVICE=$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=$TAG,$CANDIDATE_RUNTIME_FLAGS" \
             --image "$IMAGE_REF"
 
           gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > "$AFTER_JSON"
@@ -258,6 +298,17 @@ jobs:
           gcloud run revisions describe "$CANDIDATE_REVISION" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > "$REVISION_JSON"
           CANDIDATE_IMAGE="$(jq -r --arg name "$APPLICATION_CONTAINER" '.spec.containers[] | select(.name == $name) | .image' "$REVISION_JSON")"
           [[ "$CANDIDATE_IMAGE" == "$IMAGE_REF" ]]
+          assert_revision_env() {
+            local env_name="$1"
+            local expected="$2"
+            local actual
+            actual="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .value' "$REVISION_JSON")"
+            [[ "$actual" == "$expected" ]]
+          }
+          for flag in PDM_NUMBER_STATE_FLOW_V1 PDM_NUMBER_LIFECYCLE_V2 PDM_UNIFIED_DRAWING_WORKBENCH_V1 PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 PDM_UNIFIED_ENTITY_DETAIL_V1; do
+            assert_revision_env "$flag" "true"
+          done
+          assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced
           [[ "$(jq -r --arg tag "$TAG" '.status.traffic[] | select(.tag == $tag) | (.percent // 0)' "$AFTER_JSON")" == "0" ]]
 
           echo "previous_revision=$PREVIOUS_REVISION" >> "$GITHUB_OUTPUT"
@@ -436,6 +487,17 @@ jobs:
           EXPECTED_IMAGE="$IMAGE_PATH@$EXPECTED_DIGEST"
           CANDIDATE_IMAGE="$(jq -r --arg name "$APPLICATION_CONTAINER" '.spec.containers[] | select(.name == $name) | .image' "$REVISION_JSON")"
           [[ "$CANDIDATE_IMAGE" == "$EXPECTED_IMAGE" ]]
+          assert_revision_env() {
+            local env_name="$1"
+            local expected="$2"
+            local actual
+            actual="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .value' "$REVISION_JSON")"
+            [[ "$actual" == "$expected" ]]
+          }
+          for flag in PDM_NUMBER_STATE_FLOW_V1 PDM_NUMBER_LIFECYCLE_V2 PDM_UNIFIED_DRAWING_WORKBENCH_V1 PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 PDM_UNIFIED_ENTITY_DETAIL_V1; do
+            assert_revision_env "$flag" "true"
+          done
+          assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced
 
           printf '%s\n' "$LEVEL4_EVIDENCE_REF" > output/production-release/authenticated-level4-evidence-ref.txt
           echo "candidate_revision=$CANDIDATE_REVISION" >> "$GITHUB_OUTPUT"
