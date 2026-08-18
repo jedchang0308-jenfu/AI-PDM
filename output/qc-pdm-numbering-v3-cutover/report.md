@@ -1,22 +1,22 @@
 # PDM Numbering V3 Formal Cutover
 
-Mode: apply
-Generated at: 2026-07-07T13:16:14.598Z
+Mode: check
+Generated at: 2026-08-18T03:33:51.132Z
 DB: C:\VIBE CODING\AI_PDM\data\ai-pdm.sqlite
-Backup: C:\VIBE CODING\AI_PDM\data\backups\pdm-numbering-v3-cutover-20260707-131614\ai-pdm.sqlite
+Backup: (none)
 
 ## Summary
 
-- Root mappings: 8
-- Part mappings: 8
-- Drawing mappings: 8
-- safe_map: 24
+- Root mappings: 62
+- Part mappings: 195
+- Drawing mappings: 175
+- safe_map: 0
 - collision: 0
 - manual_review: 0
-- protected_evidence_retained: 1
-- out_of_scope: 0
+- protected_evidence_retained: 0
+- out_of_scope: 432
 - Blockers: 0
-- Exact operational references to update: 39
+- Exact operational references to update: 0
 - JSON operational references to update: 0
 
 ## Runtime Status
@@ -28,14 +28,15 @@ Backup: C:\VIBE CODING\AI_PDM\data\backups\pdm-numbering-v3-cutover-20260707-131
 
 ## Retained Historical Evidence
 
-- audit_logs.detail_json: 101 legacy string occurrence(s) retained
-- file_assets.original_path: 11 legacy string occurrence(s) retained
-- file_assets.storage_key: 11 legacy string occurrence(s) retained
-- file_assets.file_name: 11 legacy string occurrence(s) retained
-- file_assets.display_name: 11 legacy string occurrence(s) retained
-- file_derivatives.storage_key: 7 legacy string occurrence(s) retained
-- file_derivatives.original_path: 7 legacy string occurrence(s) retained
-- file_derivatives.file_name: 7 legacy string occurrence(s) retained
-- release_packages.manifest_json: 6 legacy string occurrence(s) retained
-- submission_files.original_filename: 9 legacy string occurrence(s) retained
-- submission_files.local_path: 9 legacy string occurrence(s) retained
+- audit_logs.detail_json: 484 legacy string occurrence(s) retained
+- file_assets.original_path: 566 legacy string occurrence(s) retained
+- file_assets.storage_key: 566 legacy string occurrence(s) retained
+- file_assets.file_name: 566 legacy string occurrence(s) retained
+- file_assets.display_name: 566 legacy string occurrence(s) retained
+- file_derivatives.storage_key: 185 legacy string occurrence(s) retained
+- file_derivatives.original_path: 185 legacy string occurrence(s) retained
+- file_derivatives.file_name: 185 legacy string occurrence(s) retained
+- release_packages.manifest_json: 16 legacy string occurrence(s) retained
+- drawing_revision_packages.snapshot_json: 171 legacy string occurrence(s) retained
+- submission_files.original_filename: 405 legacy string occurrence(s) retained
+- submission_files.local_path: 405 legacy string occurrence(s) retained
