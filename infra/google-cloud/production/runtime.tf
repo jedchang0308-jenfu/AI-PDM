@@ -98,6 +98,36 @@ resource "google_cloud_run_v2_service" "pdm" {
       }
 
       env {
+        name  = "PDM_NUMBER_STATE_FLOW_V1"
+        value = "true"
+      }
+
+      env {
+        name  = "PDM_NUMBER_LIFECYCLE_V2"
+        value = "true"
+      }
+
+      env {
+        name  = "PDM_UNIFIED_DRAWING_WORKBENCH_V1"
+        value = "true"
+      }
+
+      env {
+        name  = "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1"
+        value = "true"
+      }
+
+      env {
+        name  = "PDM_UNIFIED_ENTITY_DETAIL_V1"
+        value = "true"
+      }
+
+      env {
+        name  = "PDM_DRAWING_REVISION_LIFECYCLE_MODE"
+        value = "enforced"
+      }
+
+      env {
         name  = "PDM_DB_PROVIDER"
         value = "cloud_sql_postgres"
       }

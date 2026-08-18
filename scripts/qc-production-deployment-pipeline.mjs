@@ -104,6 +104,11 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.match(workflow, /SOURCE_REVISION="\$GITHUB_SHA"/u);
   assert.match(workflow, /image_summary\.digest/u);
   assert.match(workflow, /IMAGE_PATH@\$DIGEST/u);
+  assert.match(workflow, /--target migration-runner/u);
+  assert.match(workflow, /MIGRATION_PACKAGE_TARGET=production/u);
+  assert.match(workflow, /schemaMigrationCount !== 37/u);
+  assert.match(workflow, /039_allow_recycled_candidate_drawing_codes/u);
+  assert.match(workflow, /migration-image\.txt/u);
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
 });
 
@@ -117,7 +122,19 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(runtime, /PDM_CANDIDATE_CLOUD_RUN_TAG/u);
   assert.match(workflow, /TAG="candidate"/u);
   assert.match(workflow, /--tag "\$TAG"/u);
-  assert.match(workflow, /--update-env-vars "PDM_CANDIDATE_CLOUD_RUN_SERVICE=\$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=\$TAG"/u);
+  assert.match(workflow, /--update-env-vars "PDM_CANDIDATE_CLOUD_RUN_SERVICE=\$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=\$TAG,\$CANDIDATE_RUNTIME_FLAGS"/u);
+  for (const flag of [
+    "PDM_NUMBER_STATE_FLOW_V1",
+    "PDM_NUMBER_LIFECYCLE_V2",
+    "PDM_UNIFIED_DRAWING_WORKBENCH_V1",
+    "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1",
+    "PDM_UNIFIED_ENTITY_DETAIL_V1",
+    "PDM_DRAWING_REVISION_LIFECYCLE_MODE"
+  ]) {
+    assert.match(workflow, new RegExp(flag, "u"));
+    assert.match(runtime, new RegExp(flag, "u"));
+  }
+  assert.match(candidateWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);
   assert.match(smoke, /origin reaches token validation/u);
 });
 
@@ -156,6 +173,7 @@ record("PROD-PIPE-008D promotion rechecks candidate zero traffic and immutable i
   assert.match(promotionWorkflow, /image_summary\.digest/u);
   assert.match(promotionWorkflow, /CANDIDATE_IMAGE/u);
   assert.match(promotionWorkflow, /\[\[ "\$CANDIDATE_IMAGE" == "\$EXPECTED_IMAGE" \]\]/u);
+  assert.match(promotionWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);
 });
 
 record("PROD-PIPE-009 promotion and rollback use reviewed traffic-only REST runner", () => {
