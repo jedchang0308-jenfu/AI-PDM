@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const CANONICAL_BASE_URL = "https://jenfu-ai-pdm-prod.web.app";
-const candidatePattern = /^https:\/\/[a-z0-9-]+---ai-pdm-prod-[a-z0-9-]+\.a\.run\.app$/u;
+const candidatePattern = /^https:\/\/candidate---ai-pdm-prod-[a-z0-9-]+\.a\.run\.app$/u;
 const directPattern = /^https:\/\/ai-pdm-prod-[a-z0-9-]+\.a\.run\.app$/u;
 const revisionPattern = /^ai-pdm-prod-[a-z0-9-]{3,48}$/u;
 const digestPattern = /^sha256:[a-f0-9]{64}$/u;

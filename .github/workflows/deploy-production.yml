@@ -223,7 +223,7 @@ jobs:
           DIRECT_BASE_URL="$(jq -r '.status.url' "$BEFORE_JSON")"
           [[ "$DIRECT_BASE_URL" =~ ^https://ai-pdm-prod-[a-z0-9-]+\.a\.run\.app$ ]]
 
-          TAG="candidate-${GITHUB_SHA:0:8}-${GITHUB_RUN_ID}"
+          TAG="candidate"
           REVISION_SUFFIX="gh-${GITHUB_SHA:0:8}-${GITHUB_RUN_ID}"
           gcloud run deploy "$CLOUD_RUN_SERVICE" \
             --project "$GCP_PROJECT_ID" \
@@ -233,7 +233,7 @@ jobs:
             --tag "$TAG" \
             --quiet \
             --container "$APPLICATION_CONTAINER" \
-            --update-env-vars "PDM_CANDIDATE_CLOUD_RUN_SERVICE=$CLOUD_RUN_SERVICE" \
+            --update-env-vars "PDM_CANDIDATE_CLOUD_RUN_SERVICE=$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=$TAG" \
             --image "$IMAGE_REF"
 
           gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > "$AFTER_JSON"

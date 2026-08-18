@@ -20,6 +20,9 @@ target after the release gates close:
 - Identity: Firebase Authentication with Identity Platform only
 - Auth handler and canonical pilot origin: `jenfu-ai-pdm-prod.web.app`.
   `jenfu-ai-pdm-prod.firebaseapp.com` remains an authorized Firebase domain.
+- Candidate release origin: the fixed Cloud Run `candidate` tag is authorized
+  for OAuth and remains at 0% production traffic; each candidate deployment
+  moves that tag to the new immutable revision.
 - Runtime boundary: server-only `PDM_PRODUCTION_SLICE_MODE` is fixed to
   `official-numbering-draft`; unopened workflows remain UI disabled and API
   fail-closed.
