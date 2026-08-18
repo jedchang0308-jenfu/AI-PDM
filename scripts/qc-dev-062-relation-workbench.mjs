@@ -68,6 +68,27 @@ try {
   database.prepare(`INSERT INTO numbering_draft_parts (
     id, company_id, workspace_id, root_draft_id, part_name, item_kind, series_code, created_at, updated_at
   ) VALUES ('dev062-source-less-part', 'company-jenfu', 'dev062-source-less', 'dev062-source-less-root', '候選閥體', 'manufactured', 'JF', ?, ?)` ).run(now, now);
+  database.prepare(`INSERT INTO numbering_draft_drawings (
+    id, company_id, workspace_id, root_draft_id, purpose_code, purpose_description, is_primary_manufacturing,
+    created_at, updated_at
+  ) VALUES ('dev062-source-less-drawing', 'company-jenfu', 'dev062-source-less', 'dev062-source-less-root',
+    'M', '', 1, ?, ?)` ).run(now, now);
+  database.prepare(`INSERT INTO numbering_draft_relations (
+    id, company_id, workspace_id, drawing_draft_id, part_draft_id, link_type, is_primary, created_at, updated_at
+  ) VALUES ('dev062-source-less-relation', 'company-jenfu', 'dev062-source-less', 'dev062-source-less-drawing',
+    'dev062-source-less-part', 'primary_manufacturing', 1, ?, ?)` ).run(now, now);
+  for (const [id, itemType, itemId, code] of [
+    ['dev062-source-less-part-reservation', 'part', 'dev062-source-less-part', 'Z4062-P01'],
+    ['dev062-source-less-drawing-reservation', 'drawing', 'dev062-source-less-drawing', 'Z4062-M01']
+  ]) {
+    database.prepare(`INSERT INTO number_candidate_reservations (
+      id, company_id, workspace_id, draft_item_type, draft_item_id, candidate_code, sequence_scope_key, sequence_no,
+      reservation_state, row_version, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', 'dev062-source-less', ?, ?, ?, ?, 1, 'active', 1,
+      'dev062-relation-owner', ?, ?)` ).run(id, itemType, itemId, code, `dev062:source-less:${itemType}`, now, now);
+    const table = itemType === 'part' ? 'numbering_draft_parts' : 'numbering_draft_drawings';
+    database.prepare(`UPDATE ${table} SET candidate_reservation_id = ? WHERE id = ?`).run(id, itemId);
+  }
 
   const actor = {
     id: "dev062-relation-owner",
@@ -90,7 +111,20 @@ try {
   const formalRows = all.rows.filter((row) => row.rowKey === "root:dev062-relation-root");
   assert.equal(formalRows.length, 1, "formal root appears exactly once");
   assert.equal(formalRows[0].activeChanges.length, 1, "source-root candidate is an overlay");
-  assert.ok(all.rows.some((row) => row.rowKey === "candidate:dev062-source-less"), "source-less candidate is reachable");
+  const candidateRow = all.rows.find((row) => row.rowKey === "candidate:dev062-source-less");
+  assert.ok(candidateRow, "source-less candidate is reachable");
+  assert.equal(candidateRow.drawings.length, 1, "candidate row projects its draft drawing");
+  assert.equal(candidateRow.drawings[0]?.drawingNumber, "Z4062-M01");
+  assert.equal(candidateRow.parts.length, 1, "candidate row projects its draft part");
+  assert.equal(candidateRow.parts[0]?.partNumber, "Z4062-P01");
+  assert.deepEqual(candidateRow.matrix, [{
+    drawingNumber: "Z4062-M01",
+    partNumber: "Z4062-P01",
+    relationType: "manufacturing_basis",
+    isPrimary: true
+  }], "candidate matrix projects the stored primary manufacturing relation");
+  assert.equal(candidateRow.relationshipHealth, "draft", "candidate relationship remains non-formal");
+  assert.equal(candidateRow.relationshipLabel, "關係已建立（尚未生效）", "complete candidate relationship is not mislabeled as pending");
   assert.equal(formalRows[0].drawings[0]?.drawingNumber, "R3062-M01");
   assert.equal(formalRows[0].parts[0]?.partNumber, "R3062-P01");
   const listQueryCount = queryCount;
@@ -107,8 +141,19 @@ try {
   assert.equal(formalDetail?.row.activeChanges.length, 1);
   assert.equal(legacyDetail?.row.rowKey, "root:dev062-relation-root");
   assert.equal(candidateDetail?.candidate?.id, "dev062-source-less");
+  assert.deepEqual(candidateDetail?.row.matrix, candidateRow.matrix, "candidate list/detail use the same relation projector");
   assert.ok(rootDetailQueryCount <= 10, `relation root detail query budget exceeded: ${rootDetailQueryCount}`);
   assert.ok(candidateDetailQueryCount <= 13, `relation candidate detail query budget exceeded: ${candidateDetailQueryCount}`);
+
+  database.prepare(`INSERT INTO numbering_draft_relations (
+    id, company_id, workspace_id, drawing_draft_id, part_draft_id, link_type, is_primary, created_at, updated_at
+  ) VALUES ('dev062-source-less-duplicate-relation', 'company-jenfu', 'dev062-source-less',
+    'dev062-source-less-drawing', 'dev062-source-less-part', 'reference', 0, ?, ?)` ).run(now, now);
+  const duplicateCandidate = await service.detail("candidate:dev062-source-less", actor);
+  assert.equal(duplicateCandidate?.row.relationshipHealth, "blocked", "duplicate candidate pair fails closed in the workbench");
+  assert.ok(duplicateCandidate?.row.blockers.some((blocker) => blocker.code === "candidate_relation_duplicate"), "duplicate candidate pair exposes a reconciliation blocker");
+  assert.equal(duplicateCandidate?.row.matrix[0]?.relationType, "blocked", "duplicate candidate pair is not silently reduced to one matrix relation");
+  database.prepare("DELETE FROM numbering_draft_relations WHERE id = 'dev062-source-less-duplicate-relation'").run();
 
   const seedCardinalityGrowth = database.transaction(() => {
     const insertRoot = database.prepare(`INSERT INTO part_roots (
