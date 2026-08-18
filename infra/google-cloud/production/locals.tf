@@ -11,6 +11,7 @@ locals {
   cloud_sql_instance_name             = "ai-pdm-prod-postgres"
   source_connection_name              = "${var.production_project_id}:${var.region}:${local.cloud_sql_instance_name}"
   firebase_hosting_origin             = "https://${var.production_project_id}.web.app"
+  candidate_cloud_run_auth_domain     = local.create_resources ? "candidate---${trimprefix(google_cloud_run_v2_service.pdm[0].uri, "https://")}" : ""
 
   required_services = toset([
     "artifactregistry.googleapis.com",

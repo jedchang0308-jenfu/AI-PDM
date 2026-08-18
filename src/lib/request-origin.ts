@@ -5,6 +5,7 @@ function escapeRegExp(value: string) {
 function candidateCloudRunOriginAllowed(origin: string, env: NodeJS.ProcessEnv) {
   const service = String(env.PDM_CANDIDATE_CLOUD_RUN_SERVICE ?? "").trim();
   if (!service) return false;
+  const configuredTag = String(env.PDM_CANDIDATE_CLOUD_RUN_TAG ?? "").trim();
 
   let parsed: URL;
   try {
@@ -15,8 +16,11 @@ function candidateCloudRunOriginAllowed(origin: string, env: NodeJS.ProcessEnv) 
 
   if (parsed.protocol !== "https:" || parsed.port || parsed.username || parsed.password) return false;
   const servicePattern = escapeRegExp(service);
+  const tagPattern = configuredTag
+    ? `(?:${escapeRegExp(configuredTag)}|candidate-[a-f0-9]{8}-[0-9]+)`
+    : "candidate-[a-f0-9]{8}-[0-9]+";
   const hostnamePattern = new RegExp(
-    `^candidate-[a-f0-9]{8}-[0-9]+---${servicePattern}-[a-z0-9-]+\\.a\\.run\\.app$`,
+    `^${tagPattern}---${servicePattern}-[a-z0-9-]+\\.a\\.run\\.app$`,
     "u"
   );
   return hostnamePattern.test(parsed.hostname);

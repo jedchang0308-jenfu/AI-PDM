@@ -146,6 +146,11 @@ resource "google_cloud_run_v2_service" "pdm" {
       }
 
       env {
+        name  = "PDM_CANDIDATE_CLOUD_RUN_TAG"
+        value = "candidate"
+      }
+
+      env {
         name  = "PDM_COOKIE_SECURE"
         value = "true"
       }
