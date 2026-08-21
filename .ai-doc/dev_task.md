@@ -383,7 +383,7 @@ Owner：Dev PM
     - 最小 canonical 欄位方向：entity identity reference、domain data layer、hidden Drawing `branch_id`、exact revision/work reference、`handling=none|owner|review_owner|system|system_admin|blocked`、可選human blocker reason與concurrency/version。每個Drawing revision另保存exact predecessor，target revision以`company+drawing+revision`全域原子claim；branch/source/predecessor不進UI。
     - current work authority固定為`drawing_revision_works`、`part_change_works`、`relation_change_works`三張專用table；legacy `numbering_draft_workspaces`只作conversion source，不得在新runtime承擔read/write authority。每branch／part／root只能有一份active current work，ambiguous legacy mixed workspace一律quarantine，不得猜測映射。
     - `production` row只能由approved且production-effective transaction建立或切換；Drawing RD row可指向active work或approved idle branch latest。promotion成功必須在同一原子邊界切production並將實際來源branch移入歷史；失敗不得覆蓋既有production，且不得移除其他無關RD branches。
-    - 所有 create／submit／review／return／publish／cancel／obsolete／merge／recovery command都必須由 server在同一transaction更新 domain evidence與 canonical state；client、list resolver與filter不得自行推測或修補 current status。
+    - DEV-087所有 create-work／edit／submit／return／approve／formalize／cancel／branch-void／retry command都必須由server transaction更新domain evidence與canonical state；沒有第二個人類publish動作。既有其他domain obsolete／merge流程只能經其原authority驅動canonical terminal移除，不納入本DEV另造command；client、list resolver與filter不得推測或修補current status。
     - Drawing核准版保留完整controlled history；Part／Relation核准變更保留完整before/after snapshot。每次reviewer按下核准或退回只保留backend-only `review_cycle_id + entity reference + decision_at` minimal trace；開頁／送審不計次，cancel後trace仍保留。
     - 最終退役範圍包含舊 current-status 欄位、derived projection authority、legacy filter vocabulary與fallback。退役必須在新舊資料全量reconciliation、read cutover、write cutover及rollback gate通過後執行；不是只把舊欄位藏起來。
 

@@ -201,7 +201,7 @@ Authority:
 | QA-087-098 | 無production／無canonical row時，aggregate lock row仍序列化create；DB `open_branch_count`只允許0..3且四creator最多三個成功 |
 | QA-087-099 | D-FIRST-CANCEL取消後branch/work/claim/state全無且open count減一；不得殘留空open branch |
 | QA-087-100 | D-NEXT-CANCEL取消1.2 work後保留branch與approved 1.1 idle row，claim 1.2釋放且count不變 |
-| QA-087-101 | 現行`hasPdmNonOwnerEditScope`＋action permission在三domain延續；同公司authorized non-owner正向，未授權non-owner／Manufacturing／cross-company fail closed |
+| QA-087-101 | 現行`hasPdmNonOwnerEditScope`＋SPEC §6.2既有permission code在三domain延續；逐一驗證workspace create/update/cancel、draft update、review submit/decide、draft obsolete；同公司authorized non-owner正向，未授權non-owner／Manufacturing／cross-company fail closed，且沒有新role/code/grant |
 | QA-087-102 | 只有open idle＋latest approved RD＋無active work可申請作廢；active/review/system/blocked/historical均回`DRAWING_RD_VOID_NOT_ALLOWED`且零partial write |
 | QA-087-103 | 作廢approve以exact snapshot正式化，CAS branch→historical、closed_reason正確、current row移除、count減一；approved identity/claim/artifact保留不可重用 |
 | QA-087-104 | 作廢return只新增一次minimal trace並恢復open idle；不關閉branch、不減count，可重新申請且使用新review cycle |

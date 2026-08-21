@@ -86,7 +86,7 @@ Drawing group：
 
 ### 3.1 Current state aggregate
 
-正式 DDL 名稱可由 migration 遵照 repository convention 落地，但語意與唯一鍵不得改寫：
+下列 type與`canonical_workbench_states`名稱固定；正式DDL、必要欄位與約束依§3.1.2，不得由migration另取同義名稱：
 
 ```ts
 type WorkbenchEntityType = "drawing" | "part" | "relation";
@@ -154,7 +154,7 @@ Cloud SQL PostgreSQL migration 固定為 `db/postgres/042_status_data_rebuild.sq
 | Table | 必要欄位 | PK／唯一鍵與硬約束 |
 |---|---|---|
 | `pdm_workbench_state_authority_control` | `id, mode, expected_commit, schema_hash, row_version, switched_at` | `id=1`唯一；`mode in (legacy_only,shadow_compare,cutover_window,canonical_only)` |
-| `pdm_workbench_aggregates` | `company_id, entity_type, canonical_entity_id, open_branch_count, row_version, updated_at` | PK=`company_id+entity_type+canonical_entity_id`；Drawing count `0..3`，非 Drawing 固定 `0` |
+| `pdm_workbench_aggregates` | `id, company_id, entity_type, canonical_entity_id, open_branch_count, row_version, updated_at` | PK=`id`；唯一=`company_id+entity_type+canonical_entity_id`；Drawing count `0..3`，非 Drawing 固定 `0` |
 | `drawing_rd_branches` | `id, company_id, drawing_id, base_production_revision_id, latest_approved_revision_id, status, closed_reason, closed_at, row_version` | `company_id+id`唯一；`status in (open,historical)`；close 欄位與 status 組合 CHECK |
 | `drawing_revision_claims` | `id, company_id, drawing_id, branch_id, target_major, target_minor, target_label, predecessor_revision_id, claim_state, created_at` | 唯一=`company_id+drawing_id+target_major+target_minor`；production用`target_minor=0`，RD用`>=1`，兩欄皆NOT NULL且非負，避免NULL唯一鍵穿透；`claim_state in (work,approved)`；approved claim 不可 update/delete |
 | `drawing_revision_works` | `id, company_id, drawing_id, branch_id, target_claim_id, owner_user_id, proposed_payload, base_hash, row_version, created_at, updated_at` | 每 `company_id+branch_id`最多一列；target claim一對一；owner/company 必填 |
@@ -287,7 +287,7 @@ stateDiagram-v2
 
 規則：
 
-- review_owner 由 canonical review request route（可為`/approvals/[requestId]`）載入與 owner 相同的 domain editor components、欄位、資料與 layout，但整頁唯讀；「相同 editor」指呈現與資料契約相同，不要求 URL 相同。Drawing editor 仍保持獨立架構。
+- review_owner 固定由`/approvals/[requestId]`作server-owned入口，再載入與owner相同的domain editor components、欄位、資料與layout，但整頁唯讀；owner URL仍是各domain workspace，因此「相同 editor」不代表URL相同。Drawing editor保持獨立架構。
 - DEV-087 涵蓋的 Drawing／Part／Relation request descriptor，人類 review decision 只有`核准`與`退回修改`。既有 BOM 或其他 domain 的`reject／needs_info`不被本 DEV 刪除，但不得出現在 DEV-087 request 的 action allowlist、API 或 UI。
 - review 中 owner 不可取消或編輯；只有 reviewer 可退回。退回後 owner 才可繼續編輯或取消。
 - 核准後自動更新正式，沒有第二個「發布」人類動作。
@@ -350,6 +350,22 @@ DEV-087 不新增 role 或 permission code，沿用既有 server-side permission
 | Cross-company／未授權 | 不得 hydrate row、drawer、artifact 或 request；回404／fail closed | 全部拒絕 |
 
 Manufacturing 的關鍵驗收情境：A0002-M01 同時有`量產版 1`與`研發版 1.1`時，Manufacturing 在同一清單群組看見兩列，但兩列均無 mutation action。production row 不得因 RD branch 存在而消失。
+
+既有permission code映射固定如下；DEV-087不新增code，也不得以角色名稱取代code check：
+
+| Command | 既有permission gate |
+|---|---|
+| Drawing list/detail | page=`numbering.drawings.view`；exact artifact另沿用既有artifact read policy |
+| Part／Relation list/detail | page=`numbering.search`；exact artifact／relation target另沿用既有read policy |
+| 建立Drawing／Part／Relation work | `numbering.workspace.create`；Drawing取得／編輯revision另需`numbering.draft.update` |
+| 編輯work | `numbering.workspace.update`；Drawing受控草稿內容另需`numbering.draft.update` |
+| 送交審核 | `numbering.candidate.review.submit` |
+| 取消未核准work | `numbering.workspace.cancel` |
+| DEV-087核准／退回 | `numbering.candidate.review.decide`＋exact active reviewer request |
+| Drawing RD申請作廢 | `numbering.draft.obsolete`＋same-company edit scope＋branch invariant |
+| 自動正式化 | server service identity；不要求使用者`numbering.publish`，也不提供第二個發布按鈕 |
+
+若既有部署尚未把上述code授予某角色，結果是action隱藏且server 403，不得在DEV-087自行補role grant。permission policy變更屬re-entry；本期只沿用現況。
 
 ## 7. 取消與資料保留
 
@@ -465,7 +481,7 @@ type CanonicalWorkbenchRowDto = {
 ```
 
 - `actions`是server authorization descriptor；client不得根據角色名稱或 handling 自行補 action。
-- `rowKey/entityId/rowVersion/detailHref`是 transport/navigation metadata，不得顯示於文字、tooltip或accessible name。branch id、predecessor id、raw table status與owner/reviewer name不在 DTO。
+- `rowKey`固定為`cw_<canonical_workbench_states.id>`，`groupKey`固定為`cg_<pdm_workbench_aggregates.id>`；兩個id都是application-generated UUID、建立後不可變且不含domain/branch/source語意。`rowKey/entityId/rowVersion/detailHref`是transport/navigation metadata，不得顯示於文字、tooltip或accessible name。branch id、predecessor id、raw table status與owner/reviewer name不在DTO。
 - list response固定 `{data:{groups:[{groupKey,rows}],nextCursor,totalGroups,totalRows},meta:{contractToken,correlationId}}`。`groupKey`與`nextCursor`皆opaque；total/pagination以 group 為單位，row filter 後空 group 不回傳。
 - detail response固定 `{data:{row,content,history,relations,attachments?},meta:{contractToken,correlationId}}`；Part attachments是live projection並帶 `reviewScope:"excluded_live"`，但只有 review editor顯示人類提示。
 - 禁止欄位：`humanStatus,responsibilityStatus,viewerStatus,viewerActionability,availabilityScope,laneLabel,lifecycleStatus,recordStatus,branchId,predecessorRevisionId,sourceRevisionId,ownerName,reviewerName`。
@@ -537,7 +553,7 @@ DEV-087 mutation標準錯誤：
 | `WORKBENCH_AUTHORITY_MISMATCH` | 503 | 系統切換中，請稍後再試 | 禁止 |
 | unauthorized / cross-company | 403／404 | 無權限或不存在，不透露跨公司entity | 禁止 |
 
-API response至少回`code`、safe human message與server-generated correlation id；不得回raw SQL、internal ID、stack、branch/source/predecessor。相同idempotency key的已完成command回原result及stable resource identity。
+API success/error envelope固定依§9.1/9.2，error必含`code`、safe human message與server-generated correlation id；不得回raw SQL、internal ID、stack、branch/source/predecessor。相同idempotency key的已完成command回原result及stable resource identity。
 
 ### 9.4 Numeric query budget
 
