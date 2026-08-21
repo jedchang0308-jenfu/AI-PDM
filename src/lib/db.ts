@@ -332,6 +332,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureColumn(database, "numbering_draft_parts", "series_code", "TEXT");
   ensureFileAssetsMasterAttachmentSchema(database);
   ensureSolidWorksNativePreviewSchema(database);
+  ensureDev087CanonicalWorkbenchSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
@@ -2064,6 +2065,18 @@ function ensureSettingsSecretLifecycleSchema(database: SqliteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_worker_capability_heartbeats_capability
       ON worker_capability_heartbeats(capability_code, last_seen_at DESC);
   `);
+}
+
+export function ensureDev087CanonicalWorkbenchSchema(database: SqliteDatabase) {
+  const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
+  const marker = "-- BEGIN DEV-087 canonical workbench state authority.";
+  const endMarker = "-- END DEV-087 canonical workbench state authority.";
+  const start = schema.indexOf(marker);
+  const end = schema.indexOf(endMarker);
+  if (start < 0 || end < start) throw new Error("DEV087_SQLITE_SCHEMA_MARKER_MISSING");
+  database.exec(schema.slice(start, end + endMarker.length));
+  ensureColumn(database, "platform_command_receipts", "request_hash", "TEXT");
+  ensureColumn(database, "platform_command_receipts", "effect_key", "TEXT");
 }
 
 function ensureShared3dBaselineSchema(database: SqliteDatabase) {

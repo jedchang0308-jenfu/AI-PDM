@@ -1,4 +1,1 @@
-export {
-  LegacyPartsPage,
-  PartModule
-} from "@/components/part-detail-content";
+export { PartModule } from "@/components/part-detail-content";

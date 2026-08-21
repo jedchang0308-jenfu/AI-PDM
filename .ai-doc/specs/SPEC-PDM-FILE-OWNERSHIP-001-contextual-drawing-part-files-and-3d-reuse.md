@@ -1,6 +1,6 @@
 # SPEC-PDM-FILE-OWNERSHIP-001：圖號／料號檔案歸屬、送審必備檔與 3D 共用
 
-> 2026-08-20 DEV-084 Amendment：替代料號附件快照沿用、料號附件獨立版本、所有生命週期的自由維護與whole-part edit lease，改由已達`RD Implementation Ready`的 `SPEC-PDM-PART-ATTACHMENT-REUSE-001` 與 `ADR-PDM-PART-ATTACHMENT-REUSE-001` 管理。本文件中料號附件「只有新增」及`numbering.attachments.manage`寫入規則被有意取代；exact authority為`part_attachment_contents/bindings/versions/binding_origins`、`part_edit_leases`與Cloud SQL migration `041`。圖號受控版次檔、canonical content/hash integrity與圖／料分流authority維持不變。
+> 2026-08-22 DEV-084→DEV-088 Supersession：DEV-084為歷史ID，後續由DEV-088在DEV-087之後重新縮編；2026-08-20提出的附件快照沿用、獨立版本、自由維護、whole-part lease、五表模型與041 migration只保留為歷史設計，尚未取代本文件的現行料號附件authority與`numbering.attachments.manage`規則。DEV-087只直接定義Part附件不進修改案／審核／rollback的即時語意，沿用現行讀寫與permission authority。圖號受控版次檔、canonical content/hash integrity與圖／料分流authority維持不變。
 
 Status: `RD Implementation Ready / Human Confirmed / RD Not Started`
 Date: 2026-08-10

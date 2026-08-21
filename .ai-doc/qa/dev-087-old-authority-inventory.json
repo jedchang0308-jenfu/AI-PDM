@@ -1,0 +1,19 @@
+{
+  "devId": "DEV-087",
+  "schemaVersion": 1,
+  "items": [
+    { "id": "table-numbering-draft-workspaces", "kind": "table", "path": "numbering_draft_workspaces current-state reads", "owner": "DEV-087", "disposition": "preserve_domain_evidence", "retirementPhase": "1D", "verification": "canonical runtime read/write scan equals zero", "status": "complete" },
+    { "id": "projector-human-status", "kind": "projector", "path": "src/lib/human-status-projection.ts", "owner": "DEV-087", "disposition": "retire", "retirementPhase": "1D", "verification": "active import and runtime registration scan equals zero", "status": "complete" },
+    { "id": "projector-work-status", "kind": "projector", "path": "src/lib/work-status-presentation.ts", "owner": "DEV-087", "disposition": "retire", "retirementPhase": "1D", "verification": "active import and runtime registration scan equals zero", "status": "complete" },
+    { "id": "projector-responsibility", "kind": "projector", "path": "src/lib/responsibility-status-projection.ts", "owner": "DEV-087", "disposition": "retire", "retirementPhase": "1D", "verification": "active import and runtime registration scan equals zero", "status": "complete" },
+    { "id": "projector-availability", "kind": "projector", "path": "src/lib/availability-scope.ts", "owner": "DEV-087", "disposition": "retire", "retirementPhase": "1D", "verification": "active import and runtime registration scan equals zero", "status": "complete" },
+    { "id": "projector-drawing-status", "kind": "projector", "path": "src/lib/drawing-workbench-status.ts", "owner": "DEV-087", "disposition": "retire", "retirementPhase": "1D", "verification": "active import and runtime registration scan equals zero", "status": "complete" },
+    { "id": "resolver-pdm-workbench-lane", "kind": "resolver", "path": "src/lib/pdm-workbench-lane.ts", "owner": "DEV-087", "disposition": "retire", "retirementPhase": "1D", "verification": "active import and runtime registration scan equals zero", "status": "complete" },
+    { "id": "filter-work-status", "kind": "filter", "path": "workStatus", "owner": "DEV-087", "disposition": "reject_legacy", "retirementPhase": "1B", "verification": "HTTP 410 WORKBENCH_FILTER_CONTRACT_RETIRED", "status": "complete" },
+    { "id": "filter-record-status", "kind": "filter", "path": "recordStatus/dataStatus", "owner": "DEV-087", "disposition": "reject_legacy", "retirementPhase": "1B", "verification": "HTTP 410 WORKBENCH_FILTER_CONTRACT_RETIRED", "status": "complete" },
+    { "id": "filter-lane", "kind": "filter", "path": "view/lane/versionLane", "owner": "DEV-087", "disposition": "reject_legacy", "retirementPhase": "1B", "verification": "HTTP 410 WORKBENCH_FILTER_CONTRACT_RETIRED", "status": "complete" },
+    { "id": "api-draft-workspaces", "kind": "api", "path": "/api/numbering/draft-workspaces/**", "owner": "DEV-087", "disposition": "reject_legacy", "retirementPhase": "1D", "verification": "canonical_only returns 410 WORKBENCH_COMMAND_CONTRACT_RETIRED", "status": "complete" },
+    { "id": "dto-human-status", "kind": "api", "path": "humanStatus/responsibilityStatus/viewerStatus/viewerActionability/availabilityScope/laneLabel", "owner": "DEV-087", "disposition": "replace_canonical", "retirementPhase": "1B", "verification": "canonical DTO banned-field scan equals zero", "status": "complete" },
+    { "id": "ui-status-filters", "kind": "ui_consumer", "path": "three workbench status/data/lane filter controls", "owner": "DEV-087", "disposition": "replace_canonical", "retirementPhase": "1C", "verification": "rendered browser contains only layer and handling filters", "status": "complete" }
+  ]
+}

@@ -108,8 +108,8 @@ Owner：Dev PM
   - Phase 1 邊界：1A projector contract、1B server projection/filter、1C lists/shared drawers、1D browser QA/QC；不改 DB/schema、狀態轉換、權限、正式資料或 production。
   - 下一步：本機 1A～1D 已完成；若要正式使用，另走 disposable DB 關聯操作回歸與 production release gate。
 
-- 狀態資料重建：`○ DEV-087` 三工作臺狀態資料重建與人類語意極簡整頓。
-  - 狀態：`RD Implementation Ready (RD Supervisor Reviewed) / Human Confirmed / RD Not Started / Local Phase 1A-1D Not Requested This Turn / High-Risk Data Migration Not Authorized`。
+- 狀態資料重建：`✓ DEV-087` 三工作臺狀態資料重建與人類語意極簡整頓。
+  - 狀態：`Local RD Complete / Focused QA-QC PASS / Source Conversion Quarantined (44) / Production Migration & Release Gated`。
   - 已決策：不是只在 UI 隱藏舊狀態；最終要建立單一乾淨的 workbench state authority，完成切換後拆除舊的重複狀態欄位、投影與 filter authority。
   - 人類層：圖號使用`量產版／研發版＋版次`，同一圖號顯示一列量產及最多3個open研發分支各自最新版；料號使用`正式資料／修改中`；圖料根號使用`正式關聯／調整中`。料號與圖料根號沒有版本或分支；處理狀態只顯示固定角色，不依登入者改寫成你／我／他。
   - 抽屜：三工作臺共用唯讀骨架與固定資訊順序；歷史版次只屬圖號，料號與圖料根號不建立假版本，三者以「直接關聯」統一關係入口並在受阻時顯示一項原因。
@@ -118,9 +118,10 @@ Owner：Dev PM
   - 資料與權限：Drawing／Part／Relation使用三張專用current work table，legacy mixed workspace只作conversion source；延續既有same-company non-owner edit scope。未核准physical bytes經零引用、approved-artifact與canonical-only gate後永久刪除，不提供備份回復功能；DB/schema/binding rollback仍保留。
   - 過渡期護欄：只允許`legacy_only → shadow_compare（隔離）→ cutover_window → canonical_only`；舊authority退役是同一DEV的Definition of Done，不得延後成future cleanup。缺retirement manifest或`npm run qc:dev-087:retirement`未PASS時，狀態只能是`Retirement Pending`。
   - 權威：`.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`、`.ai-doc/decisions/ADR-PDM-STATUS-DATA-REBUILD-001-single-current-state-authority.md`、`.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-21.md`。
-  - RD主管封口：Cloud SQL migration固定`042_status_data_rebuild.sql`（041屬DEV-084），SQLite使用`ensureDev087CanonicalWorkbenchSchema`；exact 14-table/schema matrix、canonical read DTO、domain command routes、transient `pdm_work_review_requests` adapter、numeric query budget、converter算法、repository/file ownership與`QA-087-001..120`均已寫入權威文件。DEV-087不寫既有`approval_platform_decisions`，避免永久保存reviewer/decision/comment違反最小留存。
+  - RD／QA主管封口：Cloud SQL migration固定`042_status_data_rebuild.sql`；041只為後續DEV-088保留，042必須在041不存在時獨立完成。SQLite使用`ensureDev087CanonicalWorkbenchSchema`；exact 14-table/schema matrix、canonical read DTO、domain command routes、transient `pdm_work_review_requests` adapter、numeric query budget、converter算法、repository/file ownership與`QA-087-001..165`均已寫入權威文件。DEV-087不寫既有`approval_platform_decisions`；QA把receipt/outbox/audit/log/error/backup旁路、關鍵獨立oracle、3項stability negative control、normal role-change、linearizability、SCALE-10K latency/load/soak/backpressure、visible-error與data-sanity列為hard gate。依最新決策首重穩定與效率，不建立惡意token／CSRF／DoS／側通道或證據偽造的紅隊防作弊範圍。
   - 新舊衝突原則：以DEV-087新決策為主；activation後安全可拆的舊current-state table/field/projector/resolver/filter/query/API command/feature flag與fallback在同一DEV拆除。DEV-086、DEV-055/078、DEV-085、workbench core、Drawing/Part/Relation owner與approval等直接文件均已加target supersession boundary；舊QA只作activation前歷史證據，不可要求保留相容路徑。
-  - 下一步：等待使用者另行明確授權後，從本機／disposable Phase 1A schema+inventory+converter開始；本次只完成文件審查。Phase 1E production migration、legacy delete、DROP、deploy與release仍須另行高風險授權，且不得跳過同窗退役。
+  - 本機結果：canonical schema／repository／commands／三工作臺UI／Drawing獨立編輯與辨識／review／cancel／retirement已實作；`npm run qc:dev-087` 8/8 gate PASS（170項focused checks、typecheck、isolated build），詳見`.ai-doc/qc/qc-dev-087-local-implementation-2026-08-22.md`。
+  - 下一步：本機產品範圍已完成；production gate仍被來源dry-run的44筆ambiguous active legacy bundle阻擋。須另行決定逐筆disposition、使`unresolved=0`並取得migration／legacy delete／DROP／deploy／release高風險授權，且不得跳過同窗退役。
 
 - 預覽自動化補強：`☑ DEV-056` Phase 1E SolidWorks 2D PNG 預覽端到端修復。
   - 狀態：`RD Implementation Complete / Local E2E Verified / P0 / Local Only / Production Release Gated`。
@@ -358,16 +359,16 @@ Owner：Dev PM
   - Implementation readiness：`PASS / CAPA Re-entry Triggered`。exact repo/file/function/route/SQL intent/index inventory、Part/Root owner queries、local data limitation、legacy classifier、projection token、數值query budget、migration=`none`、fixture/runner與dirty-hunk ledger仍有效；2026-08-21 因 flag off、invalid fixture、static-only browser evidence與單列 live result觸發 re-entry，不另寫平行規格。
   - 執行邊界：既有本機 source implementation 與 focused evidence保留，但不再視為 accepted implementation；重開後須在本機／隔離範圍完成 correction 與 QA/QC。未授權 schema／migration、正式資料、stage／commit／merge／PR／deploy／release。
 
-- ○ DEV-087 [交付點] [RD Implementation Ready (RD Supervisor Reviewed) / Human Confirmed / RD Not Started] [P0] [Documentation Complete / Local Phase 1A-1D Not Requested This Turn / High-Risk Data Migration Not Authorized] 三工作臺狀態資料重建與人類語意極簡整頓
+- ✓ DEV-087 [交付點] [Local RD Complete / Focused QA-QC PASS] [P0] [Source Conversion Quarantined (44) / Independent Full QA & Production Release Gated] 三工作臺狀態資料重建與人類語意極簡整頓
   - 摘要：重建圖號、料號、圖料工作臺的唯一狀態資料權威，將資料層、目前處理責任與受阻結果收斂成乾淨模型；完成安全切換後退役舊的 record／lifecycle／human／viewer／responsibility／availability 重複狀態 authority。Drawing改為一列production加最多3個open RD branch各自latest（最多四列）；Part／Relation沒有版本或branch，各只允許一份current work。三domain採專用work table，不延用legacy mixed workspace作authority；idle RD branch可透過受審核的`申請作廢`在本期關閉。唯讀抽屜共用骨架，三domain編輯工作區維持各自所有權。
   - 來源 ID：`DEV-PDM-STATUS-DATA-REBUILD-001`。
-  - 父任務／關聯：intentional-replace `DEV-055`、`DEV-078` Phase 2、`DEV-080` 的舊狀態 authority與 projection chain，以及`DEV-086`的Drawing單一RD列／最多雙列contract；amend `DEV-085` filter、`DEV-079／083` 唯讀抽屜與 unified entity detail/review action contract；preserve `DEV-068／079` 現有圖號編輯與智慧辨識架構、`DEV-084` Part附件獨立即時生效、`DEV-073` evidence gate、既有 approval／release business evidence與 exact artifact authority。
+  - 父任務／關聯：intentional-replace `DEV-055`、`DEV-078` Phase 2、`DEV-080` 的舊狀態 authority與 projection chain，以及`DEV-086`的Drawing單一RD列／最多雙列contract；amend `DEV-085` filter、`DEV-079／083` 唯讀抽屜與 unified entity detail/review action contract；preserve `DEV-068／079` 現有圖號編輯與智慧辨識架構、`DEV-073` evidence gate、既有 approval／release business evidence與 exact artifact authority。Part附件獨立即時生效由DEV-087直接定義並沿用現行附件authority，不依賴排在後續的DEV-088。
   - 權威文件：SPEC `.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`；ADR `.ai-doc/decisions/ADR-PDM-STATUS-DATA-REBUILD-001-single-current-state-authority.md`；QA `.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-21.md`。
-  - 下一步：文件已完成RD主管implementation-readiness封口；等待使用者另行明確授權後，依SPEC §10從本機／disposable Phase 1A schema、inventory、converter開始。不得跳到UI先行或保留舊fallback。Phase 1E production migration、legacy delete、same-window DROP、deploy與release必須另行授權。
+  - 下一步：本機schema、inventory/converter、canonical commands/read、UI/browser與retirement路徑已實作並通過focused QA/QC。正式環境仍須先處理44筆ambiguous active legacy bundle，使converter `unresolved=0`，再經獨立QA、PostgreSQL rehearsal與另行授權的Phase 1E production migration、legacy delete、same-window DROP、deploy/release。
   - 阻塞／恢復條件：任何 destructive migration／drop、正式資料重建或 production cutover 均屬高風險未授權；若DB/schema/binding backup restore drill未通過、inventory unknown不為0、migration unresolved不為0、active command不能原子維護新狀態、approved artifact guard無法證明、retirement manifest缺漏或retirement gate非PASS，立即停止，不得刪除舊 authority、不得執行physical GC、不得release，DEV狀態只能是`Retirement Pending`。
-  - 證據：2026-08-21～22 使用者逐輪 Human Decision 已收斂：極簡UI、固定角色、Drawing最多3個open研發分支latest全部呈現、hidden branch/predecessor、全域revision claim、核准即更新正式、reviewer同頁唯讀、DEV-087 request只核准／退回、Part附件獨立即時生效、新取消資料清除與minimal review trace、legacy canceled全刪、zero-unresolved migration及same-window old-authority retirement；2026-08-22 RD主管完成repository/provider/migration/approval/permission/API/UI/QA盤點，固定042/SQLite ensure、exact schema/DTO/routes/modules/query budget/converter、transient review adapter及QA-087-001..120。與過去衝突處以DEV-087新決策為主，direct active authorities已補supersession boundary；P0/P1人類決策與工程契約缺口=0。
+  - 證據：2026-08-21～22 使用者逐輪 Human Decision 已收斂；2026-08-22 完成14-table canonical schema、042/SQLite ensure、converter、三domain repository/commands/routes/UI、Drawing exact revision file/recognition、transient review與hard retirement。`npm run qc:dev-087` aggregate 8/8 PASS：contract 25、repository 17、commands 39、migration 13、retirement 30、browser 46、typecheck與isolated build；browser runtime port 61363已釋放。來源唯讀dry-run deterministic repair A0005，辨識9筆exact未核准part-only與3筆legacy cancelled可清理，但44筆active bundle缺唯一lineage而QUARANTINE，故未apply或切換正式authority。完整報告見`.ai-doc/qc/qc-dev-087-local-implementation-2026-08-22.md`；惡意token、CSRF、DoS、側通道與證據偽造攻防依使用者決策延後。
 
-  - 文件成熟度：`RD Implementation Ready (RD Supervisor Reviewed) / Human Confirmed / RD Not Started`。風險等級為 `High / P0`：目標包含 schema／資料權威／write path／migration／舊欄位退役與不可逆physical GC，且錯誤可能遺失核准證據、錯置量產與研發版本或讓生產使用錯誤版本。文件達implementation readiness不構成產品已實作、QA PASS、migration、drop、資料修復或release授權。
+  - 文件／產品成熟度：`Local RD Complete / Focused QA-QC PASS / Production Release Gated`。風險等級維持 `High / P0`：本機實作完成不構成production migration、drop、physical GC、deploy或release授權；44筆quarantine未歸零前不得切換正式authority。
 
   - 問題與使用者價值：
     - 現況同時存在資料狀態、生命週期、人類狀態、責任狀態、可用範圍與版本列，server 與 UI 又二次合成，造成同一列可能同時顯示「研發最新版」與「量產版可使用」。
@@ -455,7 +456,7 @@ Owner：Dev PM
     - 圖號編輯頁明確列為`Preserve / No Redesign`：沿用目前的版次與檔案、2D／3D大型預覽、智慧辨識、欄位核對、儲存與送審架構；DEV-087只修正workbench／drawer入口、來源／目標版次與人類狀態接線，不得藉狀態整頓重構現有圖號編輯版面、辨識流程或component ownership。
     - 圖號量產列以`進版`選擇下一量產版或下一研發版後進入現有圖號編輯頁；圖號研發列以`進行編輯`回到同一現有編輯頁。來源與目標revision必須exact傳遞，不能另開第二套簡化編輯器。
     - 料號正式列顯示`正式資料`並以`建立修改`建立唯一未生效工作資料；料號工作列顯示`修改中`並以`進行編輯`進入料號主資料編輯頁。正式資料在審核核准前持續供生產使用，不得被未完成修改覆蓋；同一料號不得同時存在兩份current修改中資料。
-    - 料號編輯頁只管理料號自身主資料欄位，例如品名、規格、材質、顏色、表面處理與現行必要屬性。Part附件依DEV-084維持獨立即時生效，不納入修改案／審核snapshot／active-review lock／取消rollback；reviewer看到當下live附件清單及review-only提示`附件獨立維護，不屬於本次資料核准`。料號與圖料根號識別唯讀；直接關聯只供查閱，不可在此頁增刪。料號沒有版次、歷史版次或進版動作。
+    - 料號編輯頁只管理料號自身主資料欄位，例如品名、規格、材質、顏色、表面處理與現行必要屬性。Part附件由DEV-087直接定義為獨立即時生效，沿用現行附件authority，不納入修改案／審核snapshot／active-review lock／取消rollback；reviewer看到當下live附件清單及review-only提示`附件獨立維護，不屬於本次資料核准`。料號與圖料根號識別唯讀；直接關聯只供查閱，不可在此頁增刪。料號沒有版次、歷史版次或進版動作。
     - 料號欄位預設只顯示一份可編輯值；欄位變更後才在該欄位附近顯示原正式值，未變更欄位不得永久重複正式／修改中兩欄。首次建立且沒有正式資料時不顯示比較資訊。
     - 圖料正式列顯示`正式關聯`並以`建立調整`建立唯一未生效關聯工作資料；圖料工作列顯示`調整中`並以`進行編輯`進入關聯樹編輯頁。正式關聯在審核核准前持續供生產使用，不得被未完成調整覆蓋；同一根號不得同時存在兩份current調整中資料。
     - 圖料編輯頁以`root → drawing → part`關聯樹為主要工作物件，只能新增關聯、移除本次關聯、調整現行系統已存在的關聯用途及復原尚未送審的調整；節點旁只以`新增／移除／調整`短標籤呈現本次差異，不建立大型變更摘要區。
@@ -467,7 +468,7 @@ Owner：Dev PM
     - 只有reviewer實際按下核准／退回才計一次review；開頁與送審不計。backend只永久保留`review_cycle_id + entity reference + decision_at`以追溯次數與時間，不保留reviewer/outcome/revision/comment/content，也不進UI。
     - 核准後自動更新正式，沒有第二個人類發布動作。Drawing minor核准只正式化RD並回idle，不改production；major只有current-base guard通過才推進production。async時為`system`且舊正式持續有效；已知安全管理員retry為`system_admin`，無安全路徑為`blocked`。retry只使用exact approved snapshot，禁止重算latest。
     - DEV-087 Drawing／Part／Relation request descriptor只允許`核准／退回修改`；BOM等其他approval domain的既有decision不被移除。reviewer從canonical request route載入相同domain editor components/data/layout的唯讀畫面，不要求與owner URL相同。
-    - Part附件維持DEV-084獨立即時生效，排除於Part review snapshot與active-review lock，review頁在附件區顯示`附件獨立維護，不屬於本次資料核准`；Drawing受控檔與Relation exact tree仍在lock/snapshot內。
+    - Part附件依DEV-087自身契約維持獨立即時生效，排除於Part review snapshot與active-review lock，review頁在附件區顯示`附件獨立維護，不屬於本次資料核准`；Drawing受控檔與Relation exact tree仍在lock/snapshot內。DEV-087不得提前建立後續DEV-088尚待縮編的附件binding/version/lease模型、替代料號附件沿用流程或權限重建。
     - Relation reference snapshot drift時技術拒絕核准，review保持`review_owner`，由reviewer決定退回；不得自動merge或自動return。
     - Drawing核准版本永久保留完整受控資料與檔案；Part／Relation每次核准保留backend-only完整before/after snapshot。新未核准work取消會刪work data/file bindings/unapproved revision/predecessor/claim，但保留已產生minimal review trace與所有shared/formal/live attachment引用。
     - legacy migration所有舊canceled資料連同舊review data全部刪除，不轉新minimal trace；physical bytes只有零有效引用、approved-artifact guard與canonical-only gate全通過才永久刪除，不提供備份回復、使用者恢復或UI復原入口。ambiguous來源不得猜測，cutover前必須repair、人工確認`source_unknown`或明確刪除，unresolved=0。
@@ -506,7 +507,7 @@ Owner：Dev PM
 
   - Spec Impact Preflight：`Intentional replacement + compatible preservation`。
     - Intentional replacement：平行current-state projector chain；DEV-086的Drawing「最多production+RD兩列／RD只代表active work」；DEV-085／066 legacy status URL compatibility；舊多decision人類review vocabulary；料號／圖料根號沿用版本語意的方向。
-    - Compatible preservation：approval/release/revision/baseline/assignment/permission/artifact作domain evidence；filter-before-group-pagination與複選互動mechanics；DEV-084 Part附件獨立即時authority；DEV-068／079現有Drawing full-page editor、智慧辨識、預覽／檔案與送審ownership。
+    - Compatible preservation：approval/release/revision/baseline/assignment/permission/artifact作domain evidence；filter-before-group-pagination與複選互動mechanics；現行Part附件讀寫authority與DEV-087直接定義的獨立即時語意；DEV-068／079現有Drawing full-page editor、智慧辨識、預覽／檔案與送審ownership。
     - `ADR created / Accepted`：`.ai-doc/decisions/ADR-PDM-STATUS-DATA-REBUILD-001-single-current-state-authority.md`固定single current-state authority、Drawing多branch、revision claim、retention與same-window retirement。
     - 受影響文件以新SPEC的Supersession Matrix為target authority；DEV-087 activation前DEV-086仍為runtime baseline，activation後被取代的projector/filter/row contract active read/write必須為0。
 
@@ -525,7 +526,7 @@ Owner：Dev PM
     12. 三工作臺及shared drawer的rendered DOM、accessible name、tooltip、popover與filter不得出現已禁止的變更／人名／日期／技術狀態詞彙。
     13. Domain資料層與handling filter直接查canonical state，精確保留命中row，不補companion production或整組，並在server-side group limit/cursor前生效；搜尋、換頁、reload、Back／Forward後不漏列、不重複、不產生client-side假空頁。
     14. 1440×900、1024×768、768×1024、390×844下，必要資訊、多branch群組與兩個狀態型filter無裁切、重疊、水平overflow或只靠顏色辨識。
-    15. QA/QC依`.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-21.md`之`QA-087-001..120`與FMEA/phase gates執行，涵蓋SQLite／PostgreSQL 042 parity、4 creators競爭3 branch名額、專用work table、revision/stale-base、role/action、branch void close、transient review adapter/minimal trace、exact DTO/API、numeric query budget、converter idempotency、fenced same-window drop/relational restore、不可逆physical GC、A0002/A0005、filter exact-row、banned text、artifact no-fallback與anti-forgetting gate；P0/P1=0且舊authority active usage=0後才可完成。
+    15. QA/QC依`.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-21.md`之`QA-087-001..165`、55項AC追溯矩陣與FMEA/phase gates執行，涵蓋SQLite／PostgreSQL 042 parity、4 creators競爭3 branch名額、專用work table、revision/stale-base、role/action、branch void close、transient review/minimal trace及receipt/outbox/log/backup留存旁路、exact DTO/API、query budget＋EXPLAIN、converter fuzz/idempotency、fenced same-window drop/relational restore、GC race、normal role-change、linearizability、關鍵獨立oracle＋3項negative control、SCALE-10K baseline latency、60分鐘load/soak/backpressure、migration resource/RTO、A0002/A0005、filter exact-row、visible-error/data-sanity、banned text、artifact no-fallback與anti-forgetting gate；本期不做紅隊防作弊。required case必須全PASS、P0/P1=0且舊authority active usage=0後才可完成。
     16. 三抽屜使用同一唯讀骨架與固定章節順序；切換圖號、料號、圖料根號或處理階段時，只有domain內容、狀態、例外與真實動作改變，沒有平行drawer或重複狀態區。
     17. 圖號抽屜固定提供歷史版次清單，能逐版唯讀查看exact preview／file；目前版、其他版與歷史版artifact不得混用或由fallback替換。
     18. 料號與圖料根號的header、body、DOM與accessible name均沒有其自身的版本／歷史版次；圖料根號沒有共同檔案區。料號既有圖號關聯與所屬根號只以一個`直接關聯`區呈現。
@@ -536,7 +537,7 @@ Owner：Dev PM
     23. 圖號量產列經`進版`選定target、或研發列經`進行編輯`後，都進入目前canonical圖號full-page editor；既有圖面／檔案／2D／3D／智慧辨識／欄位核對／送審資訊架構與主要互動沒有因DEV-087被替換、刪除或搬進共用Part／Relation表單。
     24. 圖號進入現有編輯頁時來源與目標revision exact，重新整理、返回與送審不會切到另一lane、歷史版或global latest；不得存在第二套簡化圖號編輯入口。
     25. 料號清單與filter只使用`正式資料／修改中`；正式列可建立且只建立一份current修改中資料，工作列可`進行編輯`。核准前生產讀取仍為正式資料，取消／退回／失敗都不得污染正式值。
-    26. 料號編輯頁沒有版次、歷史版次、進版或可寫關聯；Part work只編輯料號自身主資料欄位，已變更欄位才顯示原正式值。附件區即使同頁呈現，也由DEV-084 live attachment controller獨立即時寫入，不屬Part work DTO/snapshot/review/rollback；未變更欄位與首次建立資料不產生重複比較欄。
+    26. 料號編輯頁沒有版次、歷史版次、進版或可寫關聯；Part work只編輯料號自身主資料欄位，已變更欄位才顯示原正式值。附件區即使同頁呈現，也由現行live attachment controller獨立即時寫入，不屬Part work DTO/snapshot/review/rollback；未變更欄位與首次建立資料不產生重複比較欄。DEV-088重新達到RD contract前不得在此建立新附件資料模型或整料號lease。
     27. 圖料清單與filter只使用`正式關聯／調整中`；正式列可建立且只建立一份current調整中資料，工作列可`進行編輯`。核准前生產讀取仍為正式關聯，取消／退回／失敗都不得污染正式關聯。
     28. 圖料編輯頁的主要工作物件是`root → drawing → part`關聯樹，僅以`新增／移除／調整`標記本次差異；不存在根號版本、歷史版次、共同檔案、圖料附件、Drawing／Part主資料表單或智慧辨識。
     29. Part／Relation只有domain mechanics可共用；DOM中不存在三domain共用編輯表單。任何可寫欄位都只有一個domain owner，Drawing／Part／Relation不得在彼此頁面產生第二條mutation path。
@@ -556,21 +557,30 @@ Owner：Dev PM
     43. production 1可選production 2與RD 1.1；RD 1.1可續1.2且base current時可升2；stale branch只能續minor，claimed major不得跳號。
     44. 四個併發creator只能建立三個open branches；第四個回固定錯誤且無partial write，已存在三branch時其最新版仍全部顯示且既有branch可續作。
     45. authority control與runtime commit/schema/mode不一致時readiness/command fail closed；開放流量前rollback達RPO=0，發現未核准寫入則禁止自動restore。
-    46. QA每個case都有precondition/steps/expected/actual/provider/artifact/commit/result；只有aggregate綠燈或截圖不構成證據。
+    46. QA每個case都有case definition／AC／risk／獨立oracle、precondition/steps/expected/actual/provider/artifact/commit/schema/fixture seed/result/首敗/cleanup；BLOCKED、NOT_RUN、skip、flaky及只有aggregate綠燈或截圖都不構成PASS。
     47. `drawing_revision_works／part_change_works／relation_change_works`是新runtime唯一current work authority；legacy mixed workspace只能被deterministic conversion或quarantine，不能被新read/write path使用。
     48. first-work cancel會刪除空branch並原子遞減open count；已有approved revision的next-work cancel只移除work並回idle branch。兩條路徑都無孤兒claim、state或錯誤branch-cap占用。
     49. latest approved idle RD可`申請作廢`；退回恢復idle open，核准並formalize後branch closed、current row移除、cap釋放且不可reopen。active／review／system／blocked／非latest／重複request一律fail closed。
     50. branch void保留所有approved identity、minimal review trace與controlled artifact；不得因branch current row消失而刪除或改綁已核准檔案。
     51. 作廢確認明確告知整個研發系列會從目前清單移除且無法復原；沒有restore CTA，keyboard／focus／a11y與四viewport皆通過。
-    52. Cloud SQL migration固定042且不覆寫DEV-084的041；SQLite/PostgreSQL exact schema、constraint、index、fresh/apply/re-run/provider parity通過。
-    53. DEV-087審核只使用transient`pdm_work_review_requests`；return或formalize success清除request/snapshot，永久trace只有cycle/entity/time且不寫`approval_platform_decisions`。
+    52. Cloud SQL migration固定042且不占用為後續DEV-088保留但尚不存在的041；042必須在041不存在時獨立運作。SQLite/PostgreSQL exact schema、constraint、index、fresh/apply/re-run/provider parity通過。
+    53. DEV-087審核只使用transient`pdm_work_review_requests`；return或formalize success清除request/snapshot，永久trace只有cycle/entity/time且不寫`approval_platform_decisions`。terminal receipt/outbox/audit/log/error/backup依主SPEC安全投影掃描，不能由旁路還原reviewer、decision、comment、revision或work content。
     54. list/detail DTO與command routes符合SPEC §9 allowlist；retired query/command固定410，沒有舊status欄位、silent translation或compatibility write。
     55. Drawing/Part/Relation list/detail與approval adapter符合SPEC數值query hard cap，Drawing 0/1/3 branch statement delta=0且無N+1。
     56. converter依唯一證據映射，multi-target/multi-active/lineage不明/over-cap/company mismatch只進quarantine；dry-run/apply/re-run counts/hash一致且不猜測。
     57. 與過去文件或code衝突時以DEV-087為主；direct authority的supersession boundary可被fresh-session讀出，舊QA不要求保留相容路徑，retirement negative injection能證明舊code可拆且已拆。
 
-  - 執行邊界：本輪只更新DEV追蹤、cold-start、documentation map、DEV-087 SPEC／ADR／QA與其直接supersession/cross-spec文件；沒有修改產品、測試、schema/data、runtime或正式環境，亦未stage／commit／merge／PR／deploy／release。
+  - 執行邊界：本輪只更新DEV追蹤、cold-start、documentation map、DEV-087 SPEC／ADR／QA與其直接supersession/cross-spec文件；沒有修改產品、測試、schema/data、runtime或正式環境，也未執行merge／PR／deploy／release。版本控制由workspace owner處理；commit存在不構成RD實作或QA證據。
   - 計入交付：是；只有新canonical state成為唯一read/write authority、Drawing所有open branch latest完整可見、舊current-state authority完成same-window安全退役、全量資料／command／restore reconciliation通過，且三工作臺人類語意符合本契約後才完成。
+
+- ○ DEV-088 [交付點] [待排 / Follows DEV-087 / Rescope Required] [P1] [Next After DEV-087] 替代料號附件人工沿用與安靜選擇
+  - 摘要：在DEV-087本機RD、獨立QA與QC完成後，接續規劃替代料號附件沿用；核心意圖是來源有效料號附件預設全選、可取消或新增，圖號／受控版次檔案不進清單。不得直接繼承歷史DEV-084的五表平台、權限重建與整料號lease大包。
+  - 來源 ID：`DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-002`
+  - 父任務：時序前置`DEV-087`；歷史來源`DEV-084`；相關`DEV-061`檔案歸屬與現行Part附件authority。
+  - 下一步：DEV-087達成本機RD＋獨立QA／QC完成後，由Dev PM重新盤點現行附件模型與替代料號流程，先產出最小`RD Contract Ready`；未達gate前不得派RD。
+  - 阻塞／恢復條件：DEV-087僅完成文件不算解除；至少須有產品實作、targeted QA/QC與attachment current-authority穩定證據。恢復時必須重新決定內容共用或複製、source stale處理、權限、版本／還原及是否真的需要lease。
+  - 證據：歷史輸入為DEV-084 SPEC／ADR／QA；只供風險與選項參考，不是DEV-088驗收或implementation authority。
+  - 計入交付：是；獨立於DEV-087計算，DEV-087不得因DEV-088未完成而被阻塞。
 
 - PDM 統一實體明細投影、審核全景與送審鎖定：`✓ DEV-067` `Local RD Implemented / Focused Contract, Query, Lock, Build & Authenticated Browser Matrix Passed` `P0` `Production Release Gated`。
   - 目標：Drawing、Part、Relation 三個工作台共用同一 `UnifiedPdmEntityDetailDrawer` 骨架、固定投影順序與單一操作列；各 domain 只提供自己的 projection。一般圖號／料號情境依任務刪減，圖料工作台顯示完整關聯全景，審核者只在被指派 request scope 內看完整 Drawing／Part／Relation 與審核脈絡。
@@ -2677,12 +2687,13 @@ Owner：Dev PM
   - 證據：主SPEC的`2026-08-20 DEV-083 RD Implementation Contract`；ADR的DEV-083 amendment；Workbench Core SPEC §0B；QA-DEV-083；documentation map的DEV-083 entry。
   - 計入交付：是；本輪完成本機RD實作、focused contract/API、22-check authenticated browser、disposable mutation、typecheck、affected lint與isolated build證據；最新完成aggregate已保留30個child的逐項狀態（29 PASS／1 DEV-072 parent baseline FAIL，`accepted-superseded`），QA-083-19與QA-083-24已完成可追溯closure，QA-083-01～24 matrix PASS；commit與release仍受gate管控。
 
-- ○ DEV-084 [交付點] [RD Implementation Ready / Human Confirmed / RD Not Started] [P1] [Local First / Production Release Gated] 替代料號附件人工沿用與安靜選擇
-  - 摘要：以舊料號建立替代新料號時，列出來源舊料號目前有效且直接歸屬料號的附件，全部預設沿用；使用者可取消個別附件或新增只屬於新料號的附件。圖號附件不進入料號端清單。
+- × DEV-084 [交付點] [Superseded by DEV-088 / Historical ID Only] [P2] [Do Not Execute] 替代料號附件人工沿用與安靜選擇（歷史大包）
+  - 摘要：保留2026-08-20曾形成的替代附件沿用與五表／權限／lease方案作歷史追溯；未交付、不得執行，後續產品意圖與時序全部由DEV-088承接。
   - 來源 ID：`DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-001`
   - 父任務／既有 authority：`DEV-061`（檔案歸屬與內容共用）；關聯 `DEV-PDM-CHANGE-CONTROL-001`、`ADR-PDM-MATERIAL-IDENTITY-REVISION-001`。
   - 直接 authority：`.ai-doc/specs/SPEC-PDM-PART-ATTACHMENT-REUSE-001-replacement-snapshot-and-part-lock.md`、`.ai-doc/decisions/ADR-PDM-PART-ATTACHMENT-REUSE-001-snapshot-reference-and-whole-part-lock.md`。
-  - 文件成熟度：`RD Implementation Ready`。產品決策、exact schema/index/migration、API wire、permission/concurrency、lease時序、content ingestion/failure recovery、part-write consumer ledger、file/test inventory、Phase 1A～1E與QA-084-01～40均已固定；RD可開始本機Phase 1A，production migration、feature enable、deploy/release仍未授權。
+  - 文件成熟度：`Superseded / Historical`。2026-08-22決定不把完整DEV-084併入DEV-087；後續再以DEV-088排在DEV-087之後。既有exact schema/API/lease/permission/Phase 1A～1E與QA-084-01～40只保留為歷史設計輸入。
+  - 阻塞／恢復條件：DEV-084永久不恢復、不重用ID；所有後續決策、文件成熟度與開發只更新DEV-088。
 
   - 問題與使用者價值：
     - 舊料號作廢並領用新料號時，多數料號附件仍適用；逐件重新上傳會重工、產生重複檔案，且容易漏件。
@@ -2726,7 +2737,7 @@ Owner：Dev PM
     - 現行`item_locks`綁定`submissions.item_id`、預設固定8小時，未見renew/fencing與active unique guarantee；它只能作行為參考，不能直接視為已滿足formal part／persisted draft及所有part-write consumer的whole-owner lease。
     - 現行replacement release transaction建立formal part與`part_replacement_links`；DEV-084須在replacement draft建立時固定attachment decision snapshot，formalization只能promotion/resolution該snapshot，不得重新讀來源最新版。
 
-  - RD Implementation Package（2026-08-20 frozen）：
+  - 歷史 RD Implementation Package（2026-08-20 frozen；2026-08-22起非執行契約）：
     - Data：新增`part_attachment_contents`、`part_attachment_bindings`、`part_attachment_versions`、`part_attachment_binding_origins`與`part_edit_leases`；Cloud SQL migration固定`db/postgres/041_part_attachment_reuse_and_edit_leases.sql`，SQLite authority為`db/schema.sql`＋`src/lib/db.ts#ensurePartAttachmentReuseSchema`。`scripts/migrate-dev-084-legacy-part-attachments.mjs`以dry-run預設、明示apply讀storage補算hash並idempotent backfill；legacy part asset ID沿用為binding ID，Drawing rows零改寫，Supabase不是target。
     - Content：same-company`SHA-256 + size`為canonical identity，storage key固定`part-attachment-content/{companyId}/{hash-prefix}/{hash}`；`FileStorageService`回`created/reused`並create-if-absent＋hash驗證。後段失敗可保留UI不可見的verified unbound content供重用，不做可能刪除共享bytes的猜測式compensation。
     - Version/provenance：metadata edit與file replace都insert immutable version；delete/restore只改binding relation state。same-content representative採new upload優先、同層request ordinal最小，所有selected source origins與selected/excluded/new audit仍完整保留。
@@ -2737,7 +2748,7 @@ Owner：Dev PM
     - Flag／rollback：`PDM_PART_ATTACHMENT_REUSE_V1`預設off；additive migration＋兼容reader先行，再按company enable。啟用後不得rollback到不理解binding model的pre-DEV-084 binary；migration rollback採forward fix、不drop新tables。
     - Exact QA：`.ai-doc/qa/qa-dev-084-part-attachment-reuse-and-lock-validation-plan-2026-08-20.md`；40 cases覆蓋schema/backfill/content/version/replacement/permission/lease/audit/browser/回歸，evidence固定`output/qa/dev-084-part-attachment-reuse/{runId}/manifest.json`。
 
-  - Current Phase RD Handoff Contract：
+  - 歷史 Current Phase RD Handoff Contract（非當前派工依據）：
     - Logical domain至少分為`CanonicalFileContent`、`PartAttachmentBinding`、不可變`PartAttachmentVersion`、`ReplacementAttachmentDecision`與`PartEditLease`；實體命名留待Implementation Ready，但owner isolation、version restore、provenance與content integrity是不變量。
     - Replacement prepare回active direct part candidates與source token；commit以完整selected/excluded binding/version selection、new multipart uploads與idempotency為輸入。New content先做same-company deterministic canonical ingestion，server重驗來源後再於serializable transaction原子保存draft aggregate、target snapshot與audit；stale回409並保留browser session中未受影響的selection/files。
     - 同一target owner對同一immutable content最多一個active binding；檔名不參與duplicate判定。同內容可參照既有canonical content，不增加physical bytes。
@@ -2745,8 +2756,8 @@ Owner：Dev PM
     - Formal part以stable part ID、persisted draft以stable draft ID取得whole-owner lease；所有server-side part field與attachment mutations驗證opaque lease token與fencing。讀取／下載不鎖定；save/cancel release，disconnect/inactivity由expiry回收。
     - UI沿用替代料號同頁與compact料號文件清單，只保留flat rows、checkbox、新增與必要row actions；不新增件數摘要、來源badge、風險分類、說明卡或附件專屬submit。
 
-  - Execution Boundary：本輪完成開發文件升級，未修改產品程式、schema/data、runtime或provider。下一步RD可執行本機Phase 1A～1E；production migration、company flag enable、deploy、release、commit、PR與physical cleanup仍需另行授權。
-  - 風險：High。這同時改變attachment authorization、資料owner representation與所有part writes的concurrency boundary；未證明tenant isolation、transactional lease uniqueness、stale-writer fencing、atomic replacement與legacy history migration前不得實作或宣稱ready。
+  - Execution Boundary：DEV-084已被DEV-088接替且不得進入RD；不得以歷史契約建立041、五個`part_attachment_*／part_edit_leases` tables、feature flag、compat reader、replacement snapshot或whole-part lease。DEV-087只沿用現行附件authority並直接承接獨立即時語意。
+  - 風險：若未來恢復仍為High，因其會同時改變attachment authorization、資料owner representation與所有part writes的concurrency boundary；恢復前必須先縮編並重新完成Spec Impact與QA readiness。
 
   - 驗收方向：
     1. 所有符合範圍的舊料號有效附件均出現且預設勾選；圖號附件不出現。
@@ -2768,11 +2779,11 @@ Owner：Dev PM
 
   - Stop conditions：若必須動態繼承、搬移來源owner、複製相同bytes、跨company查找內容、修改Drawing/Revision authority，或無法讓所有part writes共用stable-owner lease與fencing，立即停止回Dev PM；replacement draft／attachments／audit無法形成atomic或可補償business operation時亦不得局部交付。
   - Evidence required：後續至少包含binding/content/version資料契約、source stale與idempotency API、same-company/cross-company/anonymous permission matrix、double acquire/renew/expiry/stale writer concurrency、audit重建，以及1440×900／1024×768／390×844 rendered browser UX與keyboard/focus證據。
-  - RD re-entry trigger：已滿足。P0/P1 human decision gap=0；RD由Phase 1A開始。若實作發現未分類part writer、無法維持same-company isolation／legacy ID、需要Drawing authority或physical deletion，立即停止回Dev PM，不得自行降規。
-  - Spec Impact Preflight：`Intentional replacement + compatible preservation`。有意取代`DEV-061`中料號附件只有新增及`numbering.attachments.manage`規則；保留Drawing/Revision authority、canonical content/hash、Part Number identity、replacement review與release流程。
-  - 下一步：沿用同一`DEV-084`執行本機Phase 1A Data foundation；不得另開平行DEV或直接進production。Phase 1A需先交fresh/backfill SQLite、approved disposable PostgreSQL shadow及Drawing zero-diff evidence，才能進Phase 1B。
+  - RD re-entry trigger：不適用；DEV-084不再重開。相同產品意圖只由DEV-088在DEV-087本機RD／QA／QC完成後重新封口contract。
+  - Spec Impact Preflight：`Intentional execution supersession`。2026-08-22取消原`RD Implementation Ready`執行資格；DEV-061現行料號附件authority與`numbering.attachments.manage`規則繼續有效，直到未來經核准的新契約明確取代。
+  - 下一步：無；轉DEV-088。不得直接從歷史Phase 1A開始。
   - 證據：主SPEC §5～18、Accepted ADR、`.ai-doc/qa/qa-dev-084-part-attachment-reuse-and-lock-validation-plan-2026-08-20.md`、DEV-061／change-control target amendments及documentation map entry。
-  - 計入交付：是；文件已Implementation Ready，但RD／QA／QC與功能交付均尚未開始，不得計為功能完成。
+  - 計入交付：否；未交付歷史ID，由DEV-088作為新的獨立交付點計算。
 
 - ◐ DEV-080 [交付點] [RD Implemented Locally / Human Confirmed / DEV-080 Focused QC Passed / Existing Baseline Findings Recorded] [P1] [Local Implementation Complete / Production Release Gated] 全系統第一層狀態可見性與例外分層
   - 摘要：在DEV-078六狀態主要投影之後新增surface-aware visibility authority。每個list/card/drawer header固定`1 primary + 0..1 exception`；正常、成功、重複與技術資訊降到可及popover／drawer，阻擋、錯誤、衝突、資安與缺必要條件留第一層。
@@ -3510,6 +3521,11 @@ QC 要求保留的 Supabase stop wording：
 
 ## 8. 最新更新
 
+- 2026-08-22（DEV-087本機實作與focused QA/QC完成）：完成14-table canonical schema、Cloud SQL migration 042／SQLite ensure、deterministic converter、Drawing／Part／Relation專用work authority、canonical list/detail/commands、Drawing多研發分支與exact revision file/recognition、transient review、cancel cleanup、三工作臺極簡UI與15條legacy draft-workspace route hard retirement。`npm run qc:dev-087` aggregate 8/8 PASS：contract 25、repository 17、commands 39、migration 13、retirement 30、browser 46、typecheck與isolated build；latest browser port 61363 cleanup PASS。來源DB唯讀dry-run deterministic repair A0005，分類9筆exact未核准part-only與3筆legacy cancelled可清理，但44筆active legacy bundle缺唯一lineage而QUARANTINE，故未apply、未切authority、未DROP／deploy／release。DEV-087本機產品範圍完成，production gate與完整獨立QA仍開放；惡意行為／證據防作弊紅隊依使用者決策延後。
+
+- 2026-08-22（DEV-084歷史ID由DEV-088接替）：依使用者要求將替代料號附件後續工作排在DEV-087之後。為保留穩定追溯，未竄改舊ID：DEV-084改為`Superseded by DEV-088 / Historical ID Only / Do Not Execute`且不計交付；新增DEV-088為`待排 / Follows DEV-087 / Rescope Required / P1`獨立交付點。只有DEV-087本機產品實作、獨立QA／QC完成且現行attachment authority穩定後，DEV-088才進行最小contract重建；歷史五表、權限重建與whole-part lease不自動繼承。041保留改由DEV-088持有，但DEV-087的042仍須在041不存在時獨立運作。本輪只修改文件，未改產品／測試/schema/data/runtime，未建立041或執行migration/deploy/release。
+- 2026-08-22（DEV-084延後縮編／DEV-087附件契約解耦）：依使用者確認的建議方案，完整DEV-084不併入DEV-087。DEV-087直接承接「Part附件沿用現行authority、獨立即時生效、不進修改案／review snapshot／active-review lock／cancel rollback」契約；042必須在041不存在時獨立運作，且不得建立DEV-084的替代附件沿用、五表content-binding-version-origin-lease、permission重建或whole-part lease。DEV-084改為`Deferred / Rescope Required / RD Not Eligible / P2`，原SPEC／ADR／QA與Phase 1A～1E只保留為歷史設計；恢復前須重新確認近期價值與最小scope。同步更新DEV、documentation map、cold-start、DEV-087 SPEC／ADR／QA、Approval／Entity Detail，以及file ownership／change-control的supersession boundary；本輪未修改產品／測試/schema/data/runtime，未建立041、未執行migration/deploy/release。
+- 2026-08-22（DEV-087 QA主管批判補強／穩定效率優先修訂）：QA計畫由120案擴充至`QA-087-001..165`並建立55項SPEC AC追溯矩陣。依使用者「首重穩定性與效率、防君子不防小人」決策，Phase 0只保留關鍵獨立oracle與3項stability negative control，不建立重型mutation或紅隊反作弊平台；惡意token、暴力猜測、timing side channel、CSRF/DoS與證據偽造攻防延後。新增跨provider同fixture、review terminal跨request/receipt/outbox/audit/log/error/backup留存掃描、crash checkpoints、normal role-change/idempotency、7組linearizability race、model-based sequence、SCALE-10K＋EXPLAIN、baseline p95/p99、20 readers＋5 writers 60分鐘soak、connection/worker backpressure、migration rows/sec/memory/disk/lock/RTO、migration fuzz、GC race，以及真實UI visible-error/data-sanity/200% zoom/quietness hard gate。同步補主SPEC／ADR的terminal safe projection。`package.json`目前0個DEV-087 runner，因此狀態仍是`QA Plan Strengthened / Independent QA Execution Pending`，不是QA PASS；本輪未修改產品／測試/schema/data/runtime，未啟動server，未執行migration/delete/drop/deploy/release。
 - 2026-08-22（DEV-087 RD Implementation Ready／全文件矛盾整頓）：RD主管依branch `持續優化2`／audit HEAD `050eedd4`盤點SQLite＋Cloud SQL provider、migration序列、三workbench service/repository/API/UI、permission、owner editors、approval storage與QC runners。固定Cloud SQL `042_status_data_rebuild.sql`（041屬DEV-084）、SQLite ensure、14-table exact schema、canonical DTO、domain command/review routes、query hard caps、converter與exact file/module map；因既有`approval_platform_decisions`永久保存reviewer/decision/comment且不可刪，DEV-087改用`pdm_work_review_requests` transient inbox adapter並永久只留minimal trace。QA擴充至`QA-087-001..120`。依使用者「與過去矛盾以新決策為主、能拆就拆」原則，已在DEV-086 dual-lane、DEV-055/078 status、DEV-085 filter、workbench core、Drawing/Part/Relation owner、approval、entity drawer、lifecycle及相關QA加target supersession boundary；activation後舊current-state/filter/projection/command/fallback必須同DEV退役，歷史QA只作baseline evidence。P0/P1 human/engineering gap=0，文件達`RD Implementation Ready / RD Not Started`；本輪未修改產品／測試/schema/data/runtime，未執行delete/migration/drop/deploy/release。
 - 2026-08-22（DEV-087 RD主管決策修訂）：依使用者明確選擇，延續現行same-company non-owner edit scope；current work authority採`drawing_revision_works／part_change_works／relation_change_works`三張專用table，不以legacy mixed workspace承擔新runtime；放棄未核准physical bytes的備份回復功能，但保留DB/schema/binding切換rollback，實體檔只在零有效引用、approved-artifact guard與canonical-only gate通過後永久刪除；branch close改成本期實作，latest approved idle RD以次要風險action`申請作廢`送審，退回恢復idle open，核准formalize後branch closed、current row移除、cap釋放且不得reopen，已核准identity／trace／artifact保留。已同步DEV-087 SPEC／ADR／QA、Approval／Entity Detail／Lifecycle cross-spec、DEV index、documentation map與cold-start；QA擴充至`QA-087-001..110`。此為文件演進歷史，當時的`RD Implementation Readiness Remediation Pending`已由後續RD主管全文件審查關閉；本輪未修改產品／測試/schema/data/runtime，未執行physical delete、migration、drop、deploy或release。
 - 2026-08-21（DEV-087初版RD Contract／歷史，已由後續QA remediation補強）：新增`SPEC-PDM-STATUS-DATA-REBUILD-001`、配對ADR與`QA-087-001..066`，將Brief升級為可派工contract。初版將Drawing改為production＋每個open hidden branch latest、exact predecessor與global revision claim；後續使用者決策已把open branch上限固定為3，並由QA remediation補齊版次、權限與cutover契約。其餘核准自動正式化、cancel retention、legacy canceled清除與Part附件獨立authority方向保留。本輪歷史只記錄文件演進，不代表目前狀態或QA PASS。

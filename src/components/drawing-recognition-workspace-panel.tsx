@@ -85,6 +85,7 @@ type Session = DrawingRecognitionBrowserOcrSession & {
   id: string;
   status: string;
   sourceContextType?: string;
+  sourceContextId?: string;
   rowVersion: number;
   warningCount: number;
   conflictCount: number;
@@ -387,10 +388,10 @@ export function DrawingRecognitionWorkspacePanel({
         setSession(null);
         return;
       }
-      const latest = body.session as ({ id?: string; sourceAssetIds?: string[] } | null | undefined);
-      if (latest?.id && sameSourceSet(stableSourceAssetIds, latest.sourceAssetIds ?? [])) {
+      const latest = body.session as ({ id?: string; sourceAssetIds?: string[]; sourceContextType?: string; sourceContextId?: string } | null | undefined);
+      if (latest?.id && latest.sourceContextType === sourceContextType && latest.sourceContextId === sourceContextId && sameSourceSet(stableSourceAssetIds, latest.sourceAssetIds ?? [])) {
         await loadSession(latest.id, true);
-      } else if (stableSourceAssetIds.length > 0) {
+      } else if (stableSourceAssetIds.length > 0 && !disabled) {
         const startResponse = await fetch("/api/numbering/recognition-sessions", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -412,7 +413,7 @@ export function DrawingRecognitionWorkspacePanel({
     } finally {
       setLoading(false);
     }
-  }, [drawingNumber, loadSession, sourceContextId, sourceContextType, stableSourceAssetIds]);
+  }, [disabled, drawingNumber, loadSession, sourceContextId, sourceContextType, stableSourceAssetIds]);
 
   useEffect(() => {
     const loadKey = `${sourceContextType}:${sourceContextId}:${sourceKey}`;

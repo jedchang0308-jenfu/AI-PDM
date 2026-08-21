@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, FileText, LoaderCircle, RefreshCcw, ShieldCheck, XCircle } from "lucide-react";
 import { DrawingProjection } from "@/components/drawing-projection";
+import { CanonicalChangeWorkspace } from "@/components/canonical-change-workspace";
 import { PartProjection } from "@/components/part-projection";
 import { RelationProjection } from "@/components/relation-projection";
 import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
@@ -50,11 +51,23 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
   const [busy, setBusy] = useState<ApprovalDecision | "retry" | "reload" | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [canonicalEntityType, setCanonicalEntityType] = useState<"drawing" | "part" | "relation" | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
+      const canonicalResponse = await fetch(`/api/pdm/review-requests/${encodeURIComponent(requestId)}`, { cache: "no-store" });
+      if (canonicalResponse.ok) {
+        const canonicalBody = await canonicalResponse.json() as { data?: { entityType?: "drawing" | "part" | "relation" } };
+        if (!canonicalBody.data?.entityType) throw new Error("審核明細缺少資料類型。");
+        setCanonicalEntityType(canonicalBody.data.entityType);
+        return;
+      }
+      if (canonicalResponse.status !== 404) {
+        const canonicalBody = await canonicalResponse.json().catch(() => ({}));
+        throw new Error(apiMessage(canonicalBody, "審核明細目前無法載入。"));
+      }
       const response = await fetch(`/api/approvals/requests/${encodeURIComponent(requestId)}`, { cache: "no-store" });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(apiMessage(body, response.status === 410 ? "此審核已完成，不需再處理。" : "審核明細目前無法載入。"));
@@ -122,6 +135,7 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
   const partProjection = projection?.projections.part;
   const relationProjection = projection?.projections.relation;
 
+  if (canonicalEntityType) return <CanonicalChangeWorkspace entityType={canonicalEntityType} reviewRequestId={requestId} returnTo={returnTo} />;
   if (loading) return <main className="dev079-workspace-loading" role="status"><LoaderCircle className="spin" size={20} />正在載入審核工作區...</main>;
   if (!request) return <main className="dev079-workspace-state"><h1>審核工作區</h1><p role="alert">{error || "找不到這筆審核。"}</p><button className="secondary-button" type="button" onClick={() => void load()}>重新載入</button></main>;
 

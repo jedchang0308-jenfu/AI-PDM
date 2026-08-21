@@ -81,13 +81,14 @@ Rejected。實體檔案在零有效引用且通過 canonical-only gate 後永久
 8. DEV-087 Drawing／Part／Relation request 的 review UI 只有核准／退回修改；其他 approval domain 維持既有 decision。reviewer 經 canonical request route 使用編輯者相同 components/data/layout 的 fully-readonly editor。
 9. minimal review trace 只保存 review_cycle identity、entity reference 與 decision time，用於追溯審了幾次及時間點；不進一般 UI。
 10. Drawing approved revision 保存完整 controlled evidence；Part／Relation approved change 保存完整 before/after snapshot；未核准 canceled work 依 retention contract刪除。
-11. Part attachments 保持DEV-084獨立即時生效，不進Part work/review snapshot/active-review lock/rollback；Drawing controlled file與Relation exact tree仍受review lock與snapshot治理。
+11. Part attachments 的獨立即時生效由DEV-087直接決定並沿用現行附件authority，不進Part work/review snapshot/active-review lock/rollback；Drawing controlled file與Relation exact tree仍受review lock與snapshot治理。排在後續的DEV-088替代料號附件沿用、附件平台重建、權限改寫與whole-part lease不屬本ADR execution boundary。
 12. 延續既有 non-owner edit scope：owner 可編輯自己的 work；具 `hasPdmNonOwnerEditScope` 且通過 action permission 的同公司使用者可編輯非本人 work；manufacturing 無編輯權；reviewer 只可由 exact request route 進唯讀審核頁。不得把 clean rebuild 誤改成 owner-only。
 13. 本期實作 Drawing branch `申請作廢`。只允許 open、idle、latest approved RD 且無 active work 的 branch 送審；退回後恢復 idle open，核准並完成 system formalize 後 branch 轉歷史 closed、從 current list 移除、原子遞減 `open_branch_count`，且不得 reopen。已核准 identity、minimal review trace 與 controlled artifact 保留。
 14. 未核准實體檔案在 refcount=0 且 canonical-only gate 通過後永久刪除，不提供備份回復功能。舊 current-state authority則在 external write freeze、old runtime/worker drain、DB/schema/binding backup+restore drill、shadow reconciliation、singleton authority fencing、single-authority smoke與retirement gate後，於同一maintenance window drop；開放流量前失敗以RPO=0 relational rollback，不保留read-only observation period。
 15. 遇到舊契約與DEV-087衝突，以本ADR與主SPEC的新決策為主。舊current-state table/field/projector/resolver/filter/query/API command/feature flag能安全移除者必須在同一DEV拆除，不建立雙軌相容；只保留正式版次、受控檔案、permission、approved evidence及明確列入inventory的domain authority。
-16. Cloud SQL PostgreSQL migration固定為`042_status_data_rebuild.sql`（041屬DEV-084）；042不得依賴041，可從001..040直接apply，未來041補套也不得與042衝突。SQLite由`db/schema.sql`與`ensureDev087CanonicalWorkbenchSchema`維護。schema/table/API/route/module/query-budget的exact contract依主SPEC §§3.1.2、9、10，不再留作RD preflight決策。
+16. Cloud SQL PostgreSQL migration固定為`042_status_data_rebuild.sql`（041為後續DEV-088保留但尚不存在的編號）；042不得依賴041，可從001..040直接apply，未來若DEV-088重新核准041後補套也不得與042衝突。SQLite由`db/schema.sql`與`ensureDev087CanonicalWorkbenchSchema`維護。schema/table/API/route/module/query-budget的exact contract依主SPEC §§3.1.2、9、10，不再留作RD preflight決策。
 17. DEV-087 review不寫`approval_platform_decisions`；`/approvals`只透過adapter聚合transient request與server-owned href。return或formalize成功即清除request/snapshot，apply failure只暫存到修復完成。
+18. minimal retention是跨surface規則，不只限制`pdm_review_traces`。DEV-087 terminal decision的receipt/outbox/audit/log/error只可留下content-free technical projection，不得永久保存或重建reviewer、decision、comment、revision或work snapshot；active replay先重驗exact reviewer，terminal replay只回經授權的安全acknowledgement。full DB backup是受控、加密、90-day expiry的operational recovery evidence，不得掛回一般runtime或成為review歷史來源。
 
 ## 4. Human Semantics Decision
 
@@ -121,11 +122,12 @@ branch/source/predecessor、package/baseline/workflow/approval/raw status、人�
 - 所有 approved Part/Relation before/after snapshot。
 - 新系統每次 reviewer decision 的 minimal trace，即使 work 後來取消。
 - 正式資料、shared assets 的其他有效引用、Part live attachments。
-- pre-migration DB/schema/binding backup 低成本保留 90 天，期滿刪除仍須核准。
+- pre-migration DB/schema/binding backup低成本保留90天，期滿刪除仍須核准；若備份時間點含active transient review，manifest須記錄數量、加密／存取／expiry與隔離restore限制，不能當成business trace使用。
 
 ### 刪除
 
 - 新系統未核准 canceled work 的 work data、work bindings、unapproved revision identity/predecessor/claim；零有效引用且 canonical-only gate 通過後才永久刪除 physical bytes。physical bytes 不提供備份回復或 UI 復原入口。
+- return或formalize success後的DEV-087 request/snapshot與transport payload；terminal receipt/outbox只允許主SPEC §3.4定義的safe technical projection，reviewer／decision／comment／content不得從旁路保留。
 - 遷移時所有 legacy canceled data，包括 legacy review data。legacy 不轉入新 minimal trace。
 - 通過 cutover gate 後的舊 current-state tables/fields/projectors/filter/fallback。
 
@@ -161,7 +163,7 @@ branch/source/predecessor、package/baseline/workflow/approval/raw status、人�
 - `ADR-PDM-STATUS-UX-004` 以多 projector 合成人類 current status 的部分。
 - 任何讓 legacy filter/current status fallback 保持 active 的相容決策。
 
-保留：Drawing/Part/Root identity、approved revision/release evidence、permission、artifact security、DEV-084 attachment authority、現有 Drawing editor/recognition ownership。
+保留：Drawing/Part/Root identity、approved revision/release evidence、permission、artifact security、現行Part attachment authority、現有 Drawing editor/recognition ownership。DEV-087只直接定義附件與Part work/review的隔離語意，不承接後續DEV-088尚待縮編的資料模型、替代沿用、權限或lease方案。
 
 DEV-086 在 DEV-087 尚未啟用前仍是現行 runtime baseline，不能因本 ADR 已 Accepted 就假稱產品已切換。
 

@@ -1110,6 +1110,8 @@ CREATE TABLE IF NOT EXISTS platform_command_receipts (
   correlation_id TEXT NOT NULL,
   command_status TEXT NOT NULL DEFAULT 'processing' CHECK (command_status IN ('processing', 'completed')),
   response_json TEXT NOT NULL DEFAULT '{}',
+  request_hash TEXT,
+  effect_key TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   completed_at TEXT,
   FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
@@ -4047,3 +4049,482 @@ CREATE TRIGGER IF NOT EXISTS trg_drawing_recognition_links_no_delete BEFORE DELE
 CREATE TRIGGER IF NOT EXISTS trg_pdm_engineering_evidence_no_update BEFORE UPDATE ON pdm_engineering_evidence BEGIN SELECT RAISE(ABORT, 'PDM_ENGINEERING_EVIDENCE_APPEND_ONLY'); END;
 CREATE TRIGGER IF NOT EXISTS trg_pdm_engineering_evidence_no_delete BEFORE DELETE ON pdm_engineering_evidence BEGIN SELECT RAISE(ABORT, 'PDM_ENGINEERING_EVIDENCE_APPEND_ONLY'); END;
 -- END DEV-068 drawing recognition schema.
+
+-- BEGIN DEV-087 canonical workbench state authority.
+-- DEV-087 unapproved Drawing work cancellation may remove recognition work data.
+-- Approved/formalized recognition evidence remains append-only.
+DROP TRIGGER IF EXISTS trg_drawing_recognition_sources_no_delete;
+CREATE TRIGGER trg_drawing_recognition_sources_no_delete
+BEFORE DELETE ON drawing_recognition_sources
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_recognition_sessions session
+  JOIN drawing_revisions revision ON revision.id = session.drawing_revision_id
+  WHERE session.id = OLD.session_id AND session.status = 'cancelled'
+    AND session.source_context_type = 'drawing_revision'
+    AND revision.lifecycle_state IN ('preparing', 'correction_required')
+)
+BEGIN SELECT RAISE(ABORT, 'DRAWING_RECOGNITION_SOURCE_APPEND_ONLY'); END;
+
+DROP TRIGGER IF EXISTS trg_drawing_recognition_adapter_results_no_delete;
+CREATE TRIGGER trg_drawing_recognition_adapter_results_no_delete
+BEFORE DELETE ON drawing_recognition_adapter_results
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_recognition_sessions session
+  JOIN drawing_revisions revision ON revision.id = session.drawing_revision_id
+  WHERE session.id = OLD.session_id AND session.status = 'cancelled'
+    AND session.source_context_type = 'drawing_revision'
+    AND revision.lifecycle_state IN ('preparing', 'correction_required')
+)
+BEGIN SELECT RAISE(ABORT, 'DRAWING_RECOGNITION_ADAPTER_RESULT_APPEND_ONLY'); END;
+
+DROP TRIGGER IF EXISTS trg_drawing_recognition_observations_no_delete;
+CREATE TRIGGER trg_drawing_recognition_observations_no_delete
+BEFORE DELETE ON drawing_recognition_observations
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_recognition_sessions session
+  JOIN drawing_revisions revision ON revision.id = session.drawing_revision_id
+  WHERE session.id = OLD.session_id AND session.status = 'cancelled'
+    AND session.source_context_type = 'drawing_revision'
+    AND revision.lifecycle_state IN ('preparing', 'correction_required')
+)
+BEGIN SELECT RAISE(ABORT, 'DRAWING_RECOGNITION_OBSERVATION_APPEND_ONLY'); END;
+
+DROP TRIGGER IF EXISTS trg_drawing_recognition_candidate_observations_no_delete;
+CREATE TRIGGER trg_drawing_recognition_candidate_observations_no_delete
+BEFORE DELETE ON drawing_recognition_candidate_observations
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_recognition_candidates candidate
+  JOIN drawing_recognition_sessions session ON session.id = candidate.session_id
+  JOIN drawing_revisions revision ON revision.id = session.drawing_revision_id
+  WHERE candidate.id = OLD.candidate_id AND session.status = 'cancelled'
+    AND session.source_context_type = 'drawing_revision'
+    AND revision.lifecycle_state IN ('preparing', 'correction_required')
+)
+BEGIN SELECT RAISE(ABORT, 'DRAWING_RECOGNITION_CANDIDATE_EVIDENCE_APPEND_ONLY'); END;
+
+DROP TRIGGER IF EXISTS trg_drawing_recognition_decisions_no_delete;
+CREATE TRIGGER trg_drawing_recognition_decisions_no_delete
+BEFORE DELETE ON drawing_recognition_decisions
+WHEN NOT EXISTS (
+  SELECT 1 FROM drawing_recognition_sessions session
+  JOIN drawing_revisions revision ON revision.id = session.drawing_revision_id
+  WHERE session.id = OLD.session_id AND session.status = 'cancelled'
+    AND session.source_context_type = 'drawing_revision'
+    AND revision.lifecycle_state IN ('preparing', 'correction_required')
+)
+BEGIN SELECT RAISE(ABORT, 'DRAWING_RECOGNITION_DECISION_APPEND_ONLY'); END;
+
+CREATE TABLE IF NOT EXISTS pdm_workbench_state_authority_control (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  mode TEXT NOT NULL CHECK (mode IN ('legacy_only', 'shadow_compare', 'cutover_window', 'canonical_only')),
+  expected_commit TEXT NOT NULL DEFAULT '',
+  schema_hash TEXT NOT NULL,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  switched_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS pdm_workbench_aggregates (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part', 'relation')),
+  canonical_entity_id TEXT NOT NULL,
+  open_branch_count INTEGER NOT NULL DEFAULT 0 CHECK (open_branch_count BETWEEN 0 AND 3),
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  UNIQUE (company_id, entity_type, canonical_entity_id),
+  CHECK (entity_type = 'drawing' OR open_branch_count = 0)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_rd_branches (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  drawing_id TEXT NOT NULL,
+  base_production_revision_id TEXT,
+  latest_approved_revision_id TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'historical')),
+  closed_reason TEXT CHECK (closed_reason IS NULL OR closed_reason IN ('production_promoted', 'latest_rd_voided')),
+  closed_at TEXT,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE RESTRICT,
+  FOREIGN KEY (base_production_revision_id) REFERENCES drawing_revisions(id) ON DELETE RESTRICT,
+  FOREIGN KEY (latest_approved_revision_id) REFERENCES drawing_revisions(id) ON DELETE RESTRICT,
+  CHECK (
+    (status = 'open' AND closed_reason IS NULL AND closed_at IS NULL)
+    OR (status = 'historical' AND closed_reason IS NOT NULL AND closed_at IS NOT NULL)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_claims (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  drawing_id TEXT NOT NULL,
+  branch_id TEXT NOT NULL,
+  target_major INTEGER NOT NULL CHECK (target_major >= 0),
+  target_minor INTEGER NOT NULL CHECK (target_minor >= 0),
+  target_label TEXT NOT NULL,
+  predecessor_revision_id TEXT,
+  claim_state TEXT NOT NULL DEFAULT 'work' CHECK (claim_state IN ('work', 'approved')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE RESTRICT,
+  FOREIGN KEY (branch_id) REFERENCES drawing_rd_branches(id) ON DELETE RESTRICT,
+  FOREIGN KEY (predecessor_revision_id) REFERENCES drawing_revisions(id) ON DELETE RESTRICT,
+  UNIQUE (company_id, drawing_id, target_major, target_minor),
+  UNIQUE (company_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_works (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  drawing_id TEXT NOT NULL,
+  branch_id TEXT NOT NULL,
+  target_claim_id TEXT NOT NULL UNIQUE,
+  owner_user_id TEXT NOT NULL,
+  proposed_payload TEXT NOT NULL CHECK (json_valid(proposed_payload)),
+  base_hash TEXT NOT NULL,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE RESTRICT,
+  FOREIGN KEY (branch_id) REFERENCES drawing_rd_branches(id) ON DELETE RESTRICT,
+  FOREIGN KEY (target_claim_id) REFERENCES drawing_revision_claims(id) ON DELETE RESTRICT,
+  FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+  UNIQUE (company_id, branch_id),
+  UNIQUE (company_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS drawing_revision_work_files (
+  work_id TEXT NOT NULL,
+  file_binding_id TEXT NOT NULL,
+  ordinal INTEGER NOT NULL DEFAULT 0 CHECK (ordinal >= 0),
+  content_hash TEXT NOT NULL,
+  PRIMARY KEY (work_id, file_binding_id),
+  FOREIGN KEY (work_id) REFERENCES drawing_revision_works(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS part_change_works (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  part_id TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  proposed_payload TEXT NOT NULL CHECK (json_valid(proposed_payload)),
+  base_formal_row_version INTEGER,
+  base_hash TEXT NOT NULL,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (part_id) REFERENCES part_numbers(id) ON DELETE RESTRICT,
+  FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+  UNIQUE (company_id, part_id),
+  UNIQUE (company_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS relation_change_works (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  root_id TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  proposed_tree TEXT NOT NULL CHECK (json_valid(proposed_tree)),
+  proposed_tree_hash TEXT NOT NULL,
+  base_formal_tree_hash TEXT NOT NULL,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (root_id) REFERENCES part_roots(id) ON DELETE RESTRICT,
+  FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+  UNIQUE (company_id, root_id),
+  UNIQUE (company_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS canonical_workbench_states (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part', 'relation')),
+  canonical_entity_id TEXT NOT NULL,
+  data_layer TEXT NOT NULL CHECK (data_layer IN ('drawing_production', 'drawing_rd', 'part_formal', 'part_work', 'relation_formal', 'relation_work')),
+  branch_id TEXT,
+  revision_id TEXT,
+  work_id TEXT,
+  handling TEXT NOT NULL DEFAULT 'none' CHECK (handling IN ('none', 'owner', 'review_owner', 'system', 'system_admin', 'blocked')),
+  blocker_reason TEXT,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (branch_id) REFERENCES drawing_rd_branches(id) ON DELETE RESTRICT,
+  FOREIGN KEY (revision_id) REFERENCES drawing_revisions(id) ON DELETE RESTRICT,
+  CHECK ((handling = 'blocked' AND blocker_reason IS NOT NULL) OR (handling <> 'blocked' AND blocker_reason IS NULL)),
+  CHECK (
+    (data_layer = 'drawing_production' AND entity_type = 'drawing' AND branch_id IS NULL AND revision_id IS NOT NULL AND work_id IS NULL)
+    OR (data_layer = 'drawing_rd' AND entity_type = 'drawing' AND branch_id IS NOT NULL AND revision_id IS NOT NULL)
+    OR (data_layer = 'part_formal' AND entity_type = 'part' AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NULL)
+    OR (data_layer = 'part_work' AND entity_type = 'part' AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NOT NULL)
+    OR (data_layer = 'relation_formal' AND entity_type = 'relation' AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NULL)
+    OR (data_layer = 'relation_work' AND entity_type = 'relation' AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NOT NULL)
+  )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_canonical_workbench_drawing_production
+  ON canonical_workbench_states(company_id, canonical_entity_id, data_layer)
+  WHERE data_layer = 'drawing_production';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_canonical_workbench_drawing_rd
+  ON canonical_workbench_states(company_id, canonical_entity_id, branch_id)
+  WHERE data_layer = 'drawing_rd';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_canonical_workbench_part_layer
+  ON canonical_workbench_states(company_id, canonical_entity_id, data_layer)
+  WHERE data_layer IN ('part_formal', 'part_work');
+CREATE UNIQUE INDEX IF NOT EXISTS uq_canonical_workbench_relation_layer
+  ON canonical_workbench_states(company_id, canonical_entity_id, data_layer)
+  WHERE data_layer IN ('relation_formal', 'relation_work');
+CREATE INDEX IF NOT EXISTS idx_canonical_workbench_list
+  ON canonical_workbench_states(company_id, entity_type, data_layer, canonical_entity_id);
+
+CREATE TABLE IF NOT EXISTS pdm_work_review_requests (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  request_kind TEXT NOT NULL CHECK (request_kind IN ('drawing_revision', 'drawing_rd_void', 'part_change', 'relation_change')),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part', 'relation')),
+  canonical_entity_id TEXT NOT NULL,
+  work_id TEXT,
+  branch_id TEXT,
+  reviewer_user_id TEXT NOT NULL,
+  review_cycle_id TEXT NOT NULL UNIQUE,
+  snapshot_payload TEXT NOT NULL CHECK (json_valid(snapshot_payload)),
+  snapshot_hash TEXT NOT NULL,
+  request_status TEXT NOT NULL DEFAULT 'pending' CHECK (request_status IN ('pending', 'applying', 'apply_failed')),
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (branch_id) REFERENCES drawing_rd_branches(id) ON DELETE RESTRICT,
+  FOREIGN KEY (reviewer_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+  CHECK (
+    (request_kind = 'drawing_rd_void' AND entity_type = 'drawing' AND work_id IS NULL AND branch_id IS NOT NULL)
+    OR (request_kind <> 'drawing_rd_void' AND work_id IS NOT NULL)
+  )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pdm_work_review_active_work
+  ON pdm_work_review_requests(company_id, work_id)
+  WHERE work_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pdm_work_review_active_void
+  ON pdm_work_review_requests(company_id, branch_id)
+  WHERE request_kind = 'drawing_rd_void';
+CREATE INDEX IF NOT EXISTS idx_pdm_work_review_inbox
+  ON pdm_work_review_requests(company_id, reviewer_user_id, request_status, created_at);
+CREATE INDEX IF NOT EXISTS idx_pdm_work_review_retry
+  ON pdm_work_review_requests(request_status, updated_at);
+
+CREATE TABLE IF NOT EXISTS pdm_review_traces (
+  review_cycle_id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part', 'relation')),
+  canonical_entity_id TEXT NOT NULL,
+  decision_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS part_approved_change_snapshots (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  part_id TEXT NOT NULL,
+  before_payload TEXT NOT NULL CHECK (json_valid(before_payload)),
+  after_payload TEXT NOT NULL CHECK (json_valid(after_payload)),
+  content_hash TEXT NOT NULL UNIQUE,
+  formalized_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (part_id) REFERENCES part_numbers(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS relation_approved_change_snapshots (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  root_id TEXT NOT NULL,
+  before_tree TEXT NOT NULL CHECK (json_valid(before_tree)),
+  after_tree TEXT NOT NULL CHECK (json_valid(after_tree)),
+  content_hash TEXT NOT NULL UNIQUE,
+  formalized_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (root_id) REFERENCES part_roots(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS pdm_workbench_migration_quarantine (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  source_kind TEXT NOT NULL,
+  source_identity TEXT NOT NULL,
+  reason_code TEXT NOT NULL,
+  evidence_payload TEXT NOT NULL CHECK (json_valid(evidence_payload)),
+  resolution TEXT,
+  resolved_at TEXT,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  UNIQUE (source_kind, source_identity),
+  CHECK ((resolution IS NULL AND resolved_at IS NULL) OR (resolution IS NOT NULL AND resolved_at IS NOT NULL))
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_rd_branches_company_guard
+BEFORE INSERT ON drawing_rd_branches BEGIN
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id)
+    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+  SELECT CASE WHEN NEW.base_production_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.base_production_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id)
+    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;
+  SELECT CASE WHEN NEW.latest_approved_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.latest_approved_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id)
+    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_drawing_rd_branches_company_update_guard
+BEFORE UPDATE OF company_id, drawing_id, base_production_revision_id, latest_approved_revision_id ON drawing_rd_branches BEGIN
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id)
+    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+  SELECT CASE WHEN NEW.base_production_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.base_production_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id)
+    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;
+  SELECT CASE WHEN NEW.latest_approved_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.latest_approved_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id)
+    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_claims_company_guard
+BEFORE INSERT ON drawing_revision_claims BEGIN
+  SELECT CASE WHEN NOT EXISTS (
+    SELECT 1 FROM drawings d JOIN drawing_rd_branches b ON b.id = NEW.branch_id
+    WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id
+      AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id
+  ) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+  SELECT CASE WHEN NEW.target_label <> CASE WHEN NEW.target_minor = 0 THEN CAST(NEW.target_major AS TEXT) ELSE CAST(NEW.target_major AS TEXT) || '.' || CAST(NEW.target_minor AS TEXT) END
+    THEN RAISE(ABORT, 'DEV087_REVISION_TUPLE_NOT_CANONICAL') END;
+  SELECT CASE WHEN NEW.predecessor_revision_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.predecessor_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id
+  ) THEN RAISE(ABORT, 'DEV087_PREDECESSOR_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_claims_company_update_guard
+BEFORE UPDATE OF company_id, drawing_id, branch_id, target_major, target_minor, target_label, predecessor_revision_id ON drawing_revision_claims BEGIN
+  SELECT CASE WHEN NOT EXISTS (
+    SELECT 1 FROM drawings d JOIN drawing_rd_branches b ON b.id = NEW.branch_id
+    WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id
+      AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id
+  ) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+  SELECT CASE WHEN NEW.target_label <> CASE WHEN NEW.target_minor = 0 THEN CAST(NEW.target_major AS TEXT) ELSE CAST(NEW.target_major AS TEXT) || '.' || CAST(NEW.target_minor AS TEXT) END
+    THEN RAISE(ABORT, 'DEV087_REVISION_TUPLE_NOT_CANONICAL') END;
+  SELECT CASE WHEN NEW.predecessor_revision_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.predecessor_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id
+  ) THEN RAISE(ABORT, 'DEV087_PREDECESSOR_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_claims_approved_no_update
+BEFORE UPDATE ON drawing_revision_claims WHEN OLD.claim_state = 'approved' BEGIN SELECT RAISE(ABORT, 'DEV087_APPROVED_CLAIM_IMMUTABLE'); END;
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_claims_approved_no_delete
+BEFORE DELETE ON drawing_revision_claims WHEN OLD.claim_state = 'approved' BEGIN SELECT RAISE(ABORT, 'DEV087_APPROVED_CLAIM_IMMUTABLE'); END;
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_works_company_guard
+BEFORE INSERT ON drawing_revision_works BEGIN
+  SELECT CASE WHEN NOT EXISTS (
+    SELECT 1 FROM drawing_rd_branches b JOIN drawing_revision_claims c ON c.id = NEW.target_claim_id
+    WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id
+      AND c.company_id = NEW.company_id AND c.drawing_id = NEW.drawing_id AND c.branch_id = NEW.branch_id
+  ) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE(ABORT, 'DEV087_OWNER_COMPANY_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_drawing_revision_works_company_update_guard
+BEFORE UPDATE OF company_id, drawing_id, branch_id, target_claim_id, owner_user_id ON drawing_revision_works BEGIN
+  SELECT CASE WHEN NOT EXISTS (
+    SELECT 1 FROM drawing_rd_branches b JOIN drawing_revision_claims c ON c.id = NEW.target_claim_id
+    WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id
+      AND c.company_id = NEW.company_id AND c.drawing_id = NEW.drawing_id AND c.branch_id = NEW.branch_id
+  ) OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_part_change_works_company_guard
+BEFORE INSERT ON part_change_works BEGIN
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.part_id AND p.company_id = NEW.company_id)
+      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_part_change_works_company_update_guard
+BEFORE UPDATE OF company_id, part_id, owner_user_id ON part_change_works BEGIN
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.part_id AND p.company_id = NEW.company_id)
+      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_relation_change_works_company_guard
+BEFORE INSERT ON relation_change_works BEGIN
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.root_id AND r.company_id = NEW.company_id)
+      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_relation_change_works_company_update_guard
+BEFORE UPDATE OF company_id, root_id, owner_user_id ON relation_change_works BEGIN
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.root_id AND r.company_id = NEW.company_id)
+      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_company_guard
+BEFORE INSERT ON canonical_workbench_states BEGIN
+  SELECT CASE
+    WHEN NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
+    WHEN NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
+    WHEN NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
+  END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_company_update_guard
+BEFORE UPDATE OF company_id, entity_type, canonical_entity_id ON canonical_workbench_states BEGIN
+  SELECT CASE
+    WHEN NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
+    WHEN NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
+    WHEN NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
+  END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_work_guard
+BEFORE INSERT ON canonical_workbench_states WHEN NEW.work_id IS NOT NULL BEGIN
+  SELECT CASE
+    WHEN NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+    WHEN NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+    WHEN NEW.data_layer = 'relation_work' AND NOT EXISTS (SELECT 1 FROM relation_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.root_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+  END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_work_update_guard
+BEFORE UPDATE OF company_id, data_layer, canonical_entity_id, work_id ON canonical_workbench_states WHEN NEW.work_id IS NOT NULL BEGIN
+  SELECT CASE
+    WHEN NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+    WHEN NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+    WHEN NEW.data_layer = 'relation_work' AND NOT EXISTS (SELECT 1 FROM relation_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.root_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+  END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_drawing_reference_guard
+BEFORE INSERT ON canonical_workbench_states WHEN NEW.entity_type = 'drawing' BEGIN
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.canonical_entity_id)
+    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;
+  SELECT CASE WHEN NEW.branch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_rd_branches b WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.canonical_entity_id)
+    THEN RAISE(ABORT, 'DEV087_BRANCH_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_drawing_reference_update_guard
+BEFORE UPDATE OF company_id, canonical_entity_id, revision_id, branch_id ON canonical_workbench_states WHEN NEW.entity_type = 'drawing' BEGIN
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.canonical_entity_id)
+    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;
+  SELECT CASE WHEN NEW.branch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_rd_branches b WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.canonical_entity_id)
+    THEN RAISE(ABORT, 'DEV087_BRANCH_REFERENCE_MISMATCH') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_pdm_review_requests_company_guard
+BEFORE INSERT ON pdm_work_review_requests BEGIN
+  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.reviewer_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE(ABORT, 'DEV087_REVIEWER_COMPANY_MISMATCH') END;
+  SELECT CASE
+    WHEN NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
+    WHEN NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
+    WHEN NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
+  END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_pdm_review_requests_identity_immutable
+BEFORE UPDATE OF company_id, request_kind, entity_type, canonical_entity_id, work_id, branch_id, reviewer_user_id, review_cycle_id, snapshot_payload, snapshot_hash ON pdm_work_review_requests
+BEGIN SELECT RAISE(ABORT, 'DEV087_REVIEW_REQUEST_IDENTITY_IMMUTABLE'); END;
+CREATE TRIGGER IF NOT EXISTS trg_pdm_review_traces_no_update BEFORE UPDATE ON pdm_review_traces BEGIN SELECT RAISE(ABORT, 'DEV087_REVIEW_TRACE_IMMUTABLE'); END;
+CREATE TRIGGER IF NOT EXISTS trg_pdm_review_traces_no_delete BEFORE DELETE ON pdm_review_traces BEGIN SELECT RAISE(ABORT, 'DEV087_REVIEW_TRACE_IMMUTABLE'); END;
+CREATE TRIGGER IF NOT EXISTS trg_part_approved_snapshots_no_update BEFORE UPDATE ON part_approved_change_snapshots BEGIN SELECT RAISE(ABORT, 'DEV087_APPROVED_SNAPSHOT_IMMUTABLE'); END;
+CREATE TRIGGER IF NOT EXISTS trg_part_approved_snapshots_no_delete BEFORE DELETE ON part_approved_change_snapshots BEGIN SELECT RAISE(ABORT, 'DEV087_APPROVED_SNAPSHOT_IMMUTABLE'); END;
+CREATE TRIGGER IF NOT EXISTS trg_relation_approved_snapshots_no_update BEFORE UPDATE ON relation_approved_change_snapshots BEGIN SELECT RAISE(ABORT, 'DEV087_APPROVED_SNAPSHOT_IMMUTABLE'); END;
+CREATE TRIGGER IF NOT EXISTS trg_relation_approved_snapshots_no_delete BEFORE DELETE ON relation_approved_change_snapshots BEGIN SELECT RAISE(ABORT, 'DEV087_APPROVED_SNAPSHOT_IMMUTABLE'); END;
+
+INSERT OR IGNORE INTO pdm_workbench_state_authority_control (id, mode, expected_commit, schema_hash)
+VALUES (1, 'legacy_only', '', 'dev087-v1');
+-- END DEV-087 canonical workbench state authority.

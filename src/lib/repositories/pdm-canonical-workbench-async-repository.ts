@@ -1,0 +1,250 @@
+import crypto from "node:crypto";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { CanonicalDataLayer, CanonicalHandling, CanonicalLayer, CanonicalWorkbenchQuery, WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
+import { CanonicalWorkbenchError, canonicalGroupKey } from "@/lib/pdm-canonical-workbench-contract";
+import type { CanonicalWorkbenchStateRecord } from "@/lib/pdm-canonical-workbench-state";
+import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
+
+type IdentityRow = { aggregate_id: string; entity_id: string; code: string };
+type StateRow = {
+  id: string;
+  aggregate_id: string;
+  company_id: string;
+  entity_type: WorkbenchEntityType;
+  canonical_entity_id: string;
+  code: string;
+  name: string;
+  data_layer: CanonicalDataLayer;
+  branch_id: string | null;
+  revision_id: string | null;
+  revision: string | null;
+  work_id: string | null;
+  work_owner_id: string | null;
+  review_request_id: string | null;
+  reviewer_user_id: string | null;
+  handling: CanonicalHandling;
+  blocker_reason: string | null;
+  row_version: number;
+  open_branch_count: number;
+  branch_status: "open" | "historical" | null;
+  updated_at: string | Date;
+};
+
+const dataLayers: Record<WorkbenchEntityType, Record<CanonicalLayer, CanonicalDataLayer | null>> = {
+  drawing: { production: "drawing_production", rd: "drawing_rd", formal: null, work: null },
+  part: { production: null, rd: null, formal: "part_formal", work: "part_work" },
+  relation: { production: null, rd: null, formal: "relation_formal", work: "relation_work" }
+};
+
+function namedList(prefix: string, values: readonly string[]) {
+  const params: Record<string, string> = {};
+  return {
+    sql: values.map((value, index) => {
+      const key = `${prefix}${index}`;
+      params[key] = value;
+      return `:${key}`;
+    }).join(", "),
+    params
+  };
+}
+
+function cursorSecret() {
+  return process.env.PDM_WORKBENCH_CURSOR_SECRET?.trim() || process.env.PDM_AUTH_SECRET?.trim() || "local-dev087-cursor";
+}
+
+function filterHash(input: { companyId: string; entityType: WorkbenchEntityType; query: CanonicalWorkbenchQuery }) {
+  return crypto.createHash("sha256").update(JSON.stringify({
+    companyId: input.companyId,
+    entityType: input.entityType,
+    query: input.query.query,
+    layers: [...input.query.layers].sort(),
+    handling: [...input.query.handling].sort(),
+    sort: input.query.sort
+  })).digest("hex");
+}
+
+type Cursor = { version: 1; filterHash: string; code: string; entityId: string };
+function encodeCursor(cursor: Cursor) {
+  const encoded = Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+  return `${encoded}.${crypto.createHmac("sha256", cursorSecret()).update(encoded).digest("base64url")}`;
+}
+function decodeCursor(value: string | null, expectedHash: string): Cursor | null {
+  if (!value) return null;
+  const [encoded, supplied, extra] = value.split(".");
+  if (!encoded || !supplied || extra) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "這個清單位置已失效，請從第一頁重新查詢", 400);
+  const signature = crypto.createHmac("sha256", cursorSecret()).update(encoded).digest("base64url");
+  if (signature.length !== supplied.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(supplied))) {
+    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "這個清單位置已失效，請從第一頁重新查詢", 400);
+  }
+  let cursor: Cursor;
+  try { cursor = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as Cursor; }
+  catch { throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "這個清單位置已失效，請從第一頁重新查詢", 400); }
+  if (cursor.version !== 1 || cursor.filterHash !== expectedHash || !cursor.code || !cursor.entityId) {
+    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "篩選條件已改變，請從第一頁重新查詢", 400);
+  }
+  return cursor;
+}
+
+function domainSql(entityType: WorkbenchEntityType) {
+  if (entityType === "drawing") return {
+    table: "drawings",
+    alias: "entity",
+    code: "COALESCE(entity.drawing_number, '')",
+    name: "COALESCE(root.core_name, '')",
+    joins: "LEFT JOIN part_roots root ON root.id = entity.part_root_id AND root.company_id = entity.company_id",
+    workOwner: "drawing_work.owner_user_id",
+    workJoin: "LEFT JOIN drawing_revision_works drawing_work ON drawing_work.id = state.work_id AND drawing_work.company_id = state.company_id",
+    revisionJoin: "LEFT JOIN drawing_revisions revision ON revision.id = state.revision_id AND revision.company_id = state.company_id",
+    branchJoin: "LEFT JOIN drawing_rd_branches branch ON branch.id = state.branch_id AND branch.company_id = state.company_id"
+  };
+  if (entityType === "part") return {
+    table: "part_numbers", alias: "entity", code: "entity.part_number", name: "entity.part_name", joins: "",
+    workOwner: "part_work.owner_user_id",
+    workJoin: "LEFT JOIN part_change_works part_work ON part_work.id = state.work_id AND part_work.company_id = state.company_id",
+    revisionJoin: "LEFT JOIN drawing_revisions revision ON 1 = 0",
+    branchJoin: "LEFT JOIN drawing_rd_branches branch ON 1 = 0"
+  };
+  return {
+    table: "part_roots", alias: "entity", code: "entity.root_code", name: "entity.core_name", joins: "",
+    workOwner: "relation_work.owner_user_id",
+    workJoin: "LEFT JOIN relation_change_works relation_work ON relation_work.id = state.work_id AND relation_work.company_id = state.company_id",
+    revisionJoin: "LEFT JOIN drawing_revisions revision ON 1 = 0",
+    branchJoin: "LEFT JOIN drawing_rd_branches branch ON 1 = 0"
+  };
+}
+
+function toRecord(row: StateRow): CanonicalWorkbenchStateRecord {
+  return {
+    id: row.id,
+    aggregateId: row.aggregate_id,
+    companyId: row.company_id,
+    entityType: row.entity_type,
+    canonicalEntityId: row.canonical_entity_id,
+    code: row.code,
+    name: row.name,
+    dataLayer: row.data_layer,
+    branchId: row.branch_id,
+    revisionId: row.revision_id,
+    revision: row.revision,
+    workId: row.work_id,
+    workOwnerId: row.work_owner_id,
+    reviewRequestId: row.review_request_id,
+    reviewerUserId: row.reviewer_user_id,
+    handling: row.handling,
+    blockerReason: row.blocker_reason,
+    rowVersion: Number(row.row_version),
+    openBranchCount: Number(row.open_branch_count),
+    branchStatus: row.branch_status,
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at
+  };
+}
+
+export class PdmCanonicalWorkbenchAsyncRepository {
+  constructor(private readonly client: AsyncDatabaseClient) {}
+
+  async list(input: { companyId: string; entityType: WorkbenchEntityType; query: CanonicalWorkbenchQuery }) {
+    return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
+      const domain = domainSql(input.entityType);
+      const layerValues = input.query.layers.map((layer) => dataLayers[input.entityType][layer]).filter((value): value is CanonicalDataLayer => Boolean(value));
+      const layerList = namedList("layer", layerValues);
+      const handlingList = namedList("handling", input.query.handling);
+      const hash = filterHash(input);
+      const cursor = decodeCursor(input.query.cursor, hash);
+      const descending = input.query.sort === "desc";
+      const comparator = descending ? "<" : ">";
+      const direction = descending ? "DESC" : "ASC";
+      const queryPattern = `%${input.query.query.toLocaleLowerCase("zh-Hant")}%`;
+      const commonParams = {
+        companyId: input.companyId,
+        entityType: input.entityType,
+        queryPattern,
+        hasQuery: input.query.query ? 1 : 0,
+        hasCursor: cursor ? 1 : 0,
+        cursorCode: cursor?.code ?? "",
+        cursorEntityId: cursor?.entityId ?? "",
+        ...layerList.params,
+        ...handlingList.params
+      };
+      if (!layerValues.length || !input.query.handling.length) return { groups: [], nextCursor: null, totalGroups: 0, totalRows: 0 };
+      const match = `state.company_id = :companyId AND state.entity_type = :entityType
+        AND state.data_layer IN (${layerList.sql}) AND state.handling IN (${handlingList.sql})
+        AND (:hasQuery = 0 OR LOWER(${domain.code}) LIKE :queryPattern OR LOWER(${domain.name}) LIKE :queryPattern)`;
+      const identities = await client.query<IdentityRow>(
+        `SELECT aggregate.id AS aggregate_id, entity.id AS entity_id, ${domain.code} AS code
+           FROM ${domain.table} entity
+           JOIN pdm_workbench_aggregates aggregate
+             ON aggregate.company_id = entity.company_id AND aggregate.entity_type = :entityType AND aggregate.canonical_entity_id = entity.id
+           ${domain.joins}
+          WHERE entity.company_id = :companyId
+            AND EXISTS (SELECT 1 FROM canonical_workbench_states state WHERE state.canonical_entity_id = entity.id AND ${match})
+            AND (:hasCursor = 0 OR ${domain.code} ${comparator} :cursorCode OR (${domain.code} = :cursorCode AND entity.id ${comparator} :cursorEntityId))
+          ORDER BY ${domain.code} ${direction}, entity.id ${direction}
+          LIMIT :pageLimit`,
+        { ...commonParams, pageLimit: input.query.limit + 1 }
+      );
+      const page = identities.slice(0, input.query.limit);
+      if (!page.length) return { groups: [], nextCursor: null, totalGroups: 0, totalRows: 0 };
+      const entityList = namedList("entityId", page.map((row) => row.entity_id));
+      const rows = await client.query<StateRow>(
+        `SELECT state.id, aggregate.id AS aggregate_id, state.company_id, state.entity_type, state.canonical_entity_id,
+                ${domain.code} AS code, ${domain.name} AS name, state.data_layer, state.branch_id, state.revision_id,
+                revision.revision, state.work_id, ${domain.workOwner} AS work_owner_id,
+                request.id AS review_request_id, request.reviewer_user_id, state.handling, state.blocker_reason,
+                state.row_version, aggregate.open_branch_count, branch.status AS branch_status, state.updated_at
+           FROM canonical_workbench_states state
+           JOIN pdm_workbench_aggregates aggregate
+             ON aggregate.company_id = state.company_id AND aggregate.entity_type = state.entity_type AND aggregate.canonical_entity_id = state.canonical_entity_id
+           JOIN ${domain.table} entity ON entity.id = state.canonical_entity_id AND entity.company_id = state.company_id
+           ${domain.joins} ${domain.workJoin} ${domain.revisionJoin} ${domain.branchJoin}
+           LEFT JOIN pdm_work_review_requests request
+             ON request.company_id = state.company_id AND (request.work_id = state.work_id OR (request.request_kind = 'drawing_rd_void' AND request.branch_id = state.branch_id))
+          WHERE ${match} AND state.canonical_entity_id IN (${entityList.sql})
+          ORDER BY ${domain.code} ${direction}, entity.id ${direction}, state.updated_at DESC, state.id`,
+        { ...commonParams, ...entityList.params }
+      );
+      const count = await client.queryOne<{ total_groups: number | string; total_rows: number | string }>(
+        `SELECT COUNT(DISTINCT state.canonical_entity_id) AS total_groups, COUNT(*) AS total_rows
+           FROM canonical_workbench_states state
+           JOIN ${domain.table} entity ON entity.id = state.canonical_entity_id AND entity.company_id = state.company_id
+           ${domain.joins}
+          WHERE ${match}`,
+        commonParams
+      );
+      const byAggregate = new Map<string, CanonicalWorkbenchStateRecord[]>();
+      rows.map(toRecord).forEach((row) => byAggregate.set(row.aggregateId, [...(byAggregate.get(row.aggregateId) ?? []), row]));
+      const groups = page.map((identity) => ({
+        groupKey: canonicalGroupKey(identity.aggregate_id),
+        rows: byAggregate.get(identity.aggregate_id) ?? []
+      })).filter((group) => group.rows.length > 0);
+      const last = page.at(-1);
+      return {
+        groups,
+        nextCursor: identities.length > input.query.limit && last ? encodeCursor({ version: 1, filterHash: hash, code: last.code, entityId: last.entity_id }) : null,
+        totalGroups: Number(count?.total_groups ?? 0),
+        totalRows: Number(count?.total_rows ?? 0)
+      };
+    });
+  }
+
+  async getByRowId(input: { companyId: string; rowId: string }): Promise<CanonicalWorkbenchStateRecord | null> {
+    const state = await this.client.queryOne<{ entity_type: WorkbenchEntityType }>(
+      `SELECT entity_type FROM canonical_workbench_states WHERE id = :rowId AND company_id = :companyId`, input
+    );
+    if (!state) return null;
+    const domain = domainSql(state.entity_type);
+    const row = await this.client.queryOne<StateRow>(
+      `SELECT state.id, aggregate.id AS aggregate_id, state.company_id, state.entity_type, state.canonical_entity_id,
+              ${domain.code} AS code, ${domain.name} AS name, state.data_layer, state.branch_id, state.revision_id,
+              revision.revision, state.work_id, ${domain.workOwner} AS work_owner_id,
+              request.id AS review_request_id, request.reviewer_user_id, state.handling, state.blocker_reason,
+              state.row_version, aggregate.open_branch_count, branch.status AS branch_status, state.updated_at
+       FROM canonical_workbench_states state
+       JOIN pdm_workbench_aggregates aggregate ON aggregate.company_id = state.company_id AND aggregate.entity_type = state.entity_type AND aggregate.canonical_entity_id = state.canonical_entity_id
+       JOIN ${domain.table} entity ON entity.id = state.canonical_entity_id AND entity.company_id = state.company_id
+       ${domain.joins} ${domain.workJoin} ${domain.revisionJoin} ${domain.branchJoin}
+       LEFT JOIN pdm_work_review_requests request ON request.company_id = state.company_id AND (request.work_id = state.work_id OR (request.request_kind = 'drawing_rd_void' AND request.branch_id = state.branch_id))
+       WHERE state.id = :rowId AND state.company_id = :companyId`, input
+    );
+    return row ? toRecord(row) : null;
+  }
+}

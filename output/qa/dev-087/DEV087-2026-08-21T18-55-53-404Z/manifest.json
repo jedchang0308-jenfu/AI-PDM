@@ -1,0 +1,244 @@
+{
+  "devId": "DEV-087",
+  "runId": "DEV087-2026-08-21T18-55-53-404Z",
+  "status": "PASS",
+  "port": 61363,
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-087\\DEV087-2026-08-21T18-55-53-404Z",
+  "total": 46,
+  "passed": 46,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "isolated migration applied or safely quarantined",
+      "pass": true,
+      "detail": "{\n  \"status\": \"QUARANTINE\",\n  \"apply\": true,\n  \"switchCanonical\": false,\n  \"unresolved\": 44,\n  \"identityHash\": \"f6bc71b4e7a04e56b9b55556167614f15c1db84ba6ebff5ba5ed3d01955cb7a8\",\n  \"manifestPath\": \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-browser-zVSt1n\\\\migration\\\\manifest.json\"\n}\n\n"
+    },
+    {
+      "name": "isolated fixture has A0002 production and RD rows",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "local admin login",
+      "pass": true,
+      "detail": "{\"user\":{\"id\":\"user-admin-local-quick\",\"display_name\":\"Demo Admin\",\"email\":\"admin@example.com\",\"role\":\"Admin\",\"default_company\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\",\"is_default\":true},\"companies\":[{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\",\"is_default\":true},{\"companyId\":\"company-maxima\",\"companyCode\":\"MAXIMA\",\"displayName\":\"久方\",\"is_default\":false}]}}"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing/desktop four-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "drawing/desktop only simplified filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "drawing/desktop old filters absent",
+      "pass": true,
+      "detail": "搜尋\n資料\n全部\n量產版\n研發版\n處理\n全部\n無須處理\n負責人處理\n審核負責人處理\n系統處理\n系統管理員處理\n受阻"
+    },
+    {
+      "name": "drawing/desktop no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop production and RD visible together",
+      "pass": true,
+      "detail": "[\"A0002-M01本體_BS_右_Xx5量產版 1\",\"A0002-M01↳本體_BS_右_Xx5研發版 1.1\"]"
+    },
+    {
+      "name": "drawing drawer has history",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing editor keeps dedicated file and recognition tabs",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing recognition uses the work revision context",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing owner editor remains mutable before submit",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing layer filter applies directly",
+      "pass": true,
+      "detail": "[\"研發版 1.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\"]"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "part/desktop four-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "part/desktop only simplified filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "part/desktop old filters absent",
+      "pass": true,
+      "detail": "搜尋\n資料\n全部\n正式資料\n修改中\n處理\n全部\n無須處理\n負責人處理\n審核負責人處理\n系統處理\n系統管理員處理\n受阻"
+    },
+    {
+      "name": "part/desktop no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part formal row has no revision",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "圖料工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "relation/desktop four-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "relation/desktop only simplified filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "relation/desktop old filters absent",
+      "pass": true,
+      "detail": "搜尋\n資料\n全部\n正式關聯\n調整中\n處理\n全部\n無須處理\n負責人處理\n審核負責人處理\n系統處理\n系統管理員處理\n受阻"
+    },
+    {
+      "name": "relation/desktop no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "relation formal row has no revision",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "retired query is explicit",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "local admin login",
+      "pass": true,
+      "detail": "{\"user\":{\"id\":\"user-admin-local-quick\",\"display_name\":\"Demo Admin\",\"email\":\"admin@example.com\",\"role\":\"Admin\",\"default_company\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\",\"is_default\":true},\"companies\":[{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\",\"is_default\":true},{\"companyId\":\"company-maxima\",\"companyCode\":\"MAXIMA\",\"displayName\":\"久方\",\"is_default\":false}]}}"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing/tablet four-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "drawing/tablet only simplified filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "drawing/tablet old filters absent",
+      "pass": true,
+      "detail": "搜尋\n資料\n全部\n量產版\n研發版\n處理\n全部\n無須處理\n負責人處理\n審核負責人處理\n系統處理\n系統管理員處理\n受阻"
+    },
+    {
+      "name": "drawing/tablet no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/tablet production and RD visible together",
+      "pass": true,
+      "detail": "[\"A0002-M01本體_BS_右_Xx5量產版 1\",\"A0002-M01↳本體_BS_右_Xx5研發版 1.1\"]"
+    },
+    {
+      "name": "local admin login",
+      "pass": true,
+      "detail": "{\"user\":{\"id\":\"user-admin-local-quick\",\"display_name\":\"Demo Admin\",\"email\":\"admin@example.com\",\"role\":\"Admin\",\"default_company\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\",\"is_default\":true},\"companies\":[{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\",\"is_default\":true},{\"companyId\":\"company-maxima\",\"companyCode\":\"MAXIMA\",\"displayName\":\"久方\",\"is_default\":false}]}}"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing/mobile four-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "drawing/mobile only simplified filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"資料\",\"處理\"]"
+    },
+    {
+      "name": "drawing/mobile old filters absent",
+      "pass": true,
+      "detail": "搜尋\n資料\n全部\n量產版\n研發版\n處理\n全部\n無須處理\n負責人處理\n審核負責人處理\n系統處理\n系統管理員處理\n受阻"
+    },
+    {
+      "name": "drawing/mobile no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/mobile production and RD visible together",
+      "pass": true,
+      "detail": "[\"A0002-M01本體_BS_右_Xx5量產版 1\",\"A0002-M01↳本體_BS_右_Xx5研發版 1.1\"]"
+    },
+    {
+      "name": "cancelled editor leaves no orphan recognition session",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "cancelled editor releases target revision claim",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser has no console errors",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "browser has no page/network failures",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=61363"
+    }
+  ],
+  "consoleErrors": [],
+  "failures": []
+}

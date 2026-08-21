@@ -147,7 +147,7 @@ DEV-087 不延用 `numbering_draft_workspaces` 作為新 current-work authority�
 
 ### 3.1.2 Exact provider-neutral schema contract
 
-Cloud SQL PostgreSQL migration 固定為 `db/postgres/042_status_data_rebuild.sql`；`041` 已由 DEV-084 保留，DEV-087 不得覆寫或重新編號。SQLite authority 固定為 `db/schema.sql` 與 `src/lib/db.ts#ensureDev087CanonicalWorkbenchSchema`。現有singleton runner允許version gap，因此042必須可在只有001..040時獨立apply，不得FK/查詢尚未存在的DEV-084 tables；未來041存在時package排序為041→042，若042已先套用，runner也必須能補套041而不改寫042 checksum/schema。`db/postgres/README.md`須登記此reservation/independence、apply/verify/forward-fix契約；Supabase與archived mirror不是target。
+Cloud SQL PostgreSQL migration 固定為 `db/postgres/042_status_data_rebuild.sql`；`041` 為後續DEV-088保留但目前尚不存在的編號，DEV-087 不得覆寫或重新編號。SQLite authority 固定為 `db/schema.sql` 與 `src/lib/db.ts#ensureDev087CanonicalWorkbenchSchema`。現有singleton runner允許version gap，因此042必須可在只有001..040時獨立apply，不得FK/查詢任何DEV-088 future proposal tables；未來若041經DEV-088重新核准而存在，package排序為041→042，若042已先套用，runner也必須能補套041而不改寫042 checksum/schema。`db/postgres/README.md`須登記此reservation/independence、apply/verify/forward-fix契約；Supabase與archived mirror不是target。
 
 以下名稱、key、必要欄位與約束是實作契約，不再留給 RD 自由改名；可增加純技術 index／timestamp，但不得新增另一個 lifecycle/current-state authority：
 
@@ -230,6 +230,9 @@ DEV-087 不把永久決策寫入既有 `approval_platform_decisions`。該表會
 5. request刪除不等於刪除正式證據：Drawing approved revision/artifact或Part/Relation approved snapshot才是永久業務證據。所有永久 review trace仍只回答審核次數與時間。
 6. 既有 `/api/approvals/requests/[requestId]/decisions` 只接受 `approved|rejected|needs_info`，不得為相容而扭曲 DEV-087 語意。DEV-087 使用 §9.2 的新 decision route；approval inbox adapter只回 server-owned href。
 7. 其他 approval domain 繼續使用既有 request/decision tables、handler與歷史，不做搬移或刪除。
+8. 「active review暫存」限制適用所有持久化旁路，不只request table。DEV-087 decision command在return或formalize success後，`platform_command_receipts`只能留下content-free stable acknowledgement、request hash／effect key等必要technical projection；generic `actor_id／platform_principal_id`須對DEV-087 terminal decision去識別。已published outbox須刪除或安全縮減payload，`last_error`只留fixed code；audit detail、application/worker log、telemetry與error payload不得保存或可反推出reviewer、decision、comment、revision text、snapshot或work content。其他approval domain既有audit/evidence不受此條刪除。
+9. initial decision與active replay都必須在查用receipt前重驗company、action permission與exact active reviewer。terminal replay因request已清除，只能在登入、same-company與decision action permission通過後回content-free stable acknowledgement，不得hydrate已刪request、reviewer、decision或snapshot；cross-company、未授權actor及不同payload/key scope一律fail closed。
+10. full DB backup屬受控operational recovery evidence，不是review business trace。backup manifest必須列出備份時間點的active transient request數、加密／存取／90-day expiry與restore後隔離限制；terminal狀態建立的備份必須通過同一forbidden-data scan。含active request的pre-terminal backup不得掛回一般runtime或作UI／analytics來源。
 
 ## 4. Domain Lifecycle
 
@@ -258,7 +261,7 @@ DEV-087 不把永久決策寫入既有 `approval_platform_decisions`。該表會
 - 首次建立沒有正式資料時只顯示`修改中`。
 - 同一 Part 全域最多一份 work；atomic create loser 導向既有 work。
 - Part 欄位修改納入 review；核准後原子更新正式並移除 work row。
-- Part attachment 依 DEV-084 維持獨立即時生效，不進修改案、不隨取消 rollback、也不是審核內容。reviewer 在唯讀頁看到當下最新 live attachments，須明示它們不屬本次核准 snapshot。
+- Part attachment 的獨立即時生效由DEV-087直接定義並沿用現行附件authority；不進修改案、不隨取消 rollback、也不是審核內容。reviewer 在唯讀頁看到當下最新 live attachments，須明示它們不屬本次核准 snapshot。DEV-087不得提前實作後續DEV-088尚待縮編的替代料號附件沿用、binding/version/content模型、權限重建或whole-part lease。
 - 首次建立且尚未送審的 work 取消時移除 work row；編號是否回收完全委派既有 numbering authority，DEV-087 不另創回收規則。
 
 ### 4.3 Relation
@@ -291,7 +294,7 @@ stateDiagram-v2
 - DEV-087 涵蓋的 Drawing／Part／Relation request descriptor，人類 review decision 只有`核准`與`退回修改`。既有 BOM 或其他 domain 的`reject／needs_info`不被本 DEV 刪除，但不得出現在 DEV-087 request 的 action allowlist、API 或 UI。
 - review 中 owner 不可取消或編輯；只有 reviewer 可退回。退回後 owner 才可繼續編輯或取消。
 - 核准後自動更新正式，沒有第二個「發布」人類動作。
-- Drawing 的受控檔案與 Relation 的 exact target tree 都在 approved snapshot 與 review lock 內。Part attachments 明確排除於 Part review snapshot／active-review lock之外，依 DEV-084 可獨立即時維護；reviewer 頁在附件區相鄰顯示`附件獨立維護，不屬於本次資料核准`，此提示只屬 review editor，不進 list／drawer／一般 filter。
+- Drawing 的受控檔案與 Relation 的 exact target tree 都在 approved snapshot 與 review lock 內。Part attachments 明確排除於 Part review snapshot／active-review lock之外，依DEV-087直接契約及現行附件authority獨立即時維護；reviewer 頁在附件區相鄰顯示`附件獨立維護，不屬於本次資料核准`，此提示只屬 review editor，不進 list／drawer／一般 filter。
 - async formalization 時 handling=`system`，work 鎖定，舊正式持續有效。
 - retry-safe transient failure自動最多3次，目標間隔為30秒、2分鐘、10分鐘；每次先用effect key readback確認是否已成功。三次後若exact snapshot仍可安全重放則進`system_admin`，invariant／snapshot／company／artifact identity不一致則不重試並直接進`blocked`。
 - 已知安全修復路徑為 `system_admin`，只允許對 exact approved snapshot 做 idempotent retry；不得重新讀 latest work 重算。
@@ -530,6 +533,7 @@ Owner/reviewer page route維持：Drawing=`/numbering/drawings/[drawingId]/works
 - formalize RD void：CAS branch open→historical、closed_reason=`latest_rd_voided`、移除RD canonical row並將open count減一，同一transaction；approved identity/claim/artifact不刪除、不重用。
 - 所有 command 使用 idempotency key、row version/locking與stable aggregate/request identity；同 branch 第二 work、Part/Relation 第二 work、同 drawing+revision 第二 claim、第四個open branch必須由 DB guard + server error共同阻擋。
 - response loss後相同idempotency key重送必須回同一結果；不同payload重用key回`IDEMPOTENCY_KEY_REUSED`。constraint／permission／company／stale-base／contract-expired錯誤不得留下partial write。
+- idempotency scope綁定company、command與normalized payload，支援同一合法使用者的double-click、網路重送與response loss；authorization仍先於active receipt replay。DEV-087 terminal review replay依§3.4只可回安全acknowledgement，不得以idempotency為理由永久保存reviewer或decision payload。本期不為刻意竊用他人idempotency key新增反作弊schema或流程。
 - async formalization delivery至少一次時，以approved snapshot/effect key去重；timeout重試、worker restart與manual retry不得產生第二次domain effect或第二筆review trace。
 
 DEV-087 mutation標準錯誤：
@@ -684,7 +688,7 @@ retirement allowlist的初始 code targets至少包含：`src/lib/human-status-p
 | Entity detail/reviewer 全景 | `Amend`：同 domain editor exact layout，reviewer fully read-only；技術狀態不進一般 UI |
 | Approval decision 的多種人類結論 | `Scoped amend`：DEV-087 Drawing／Part／Relation request只保留核准／退回修改；其他approval domain不變 |
 | Drawing editor/recognition | `Preserve / No redesign` |
-| DEV-084 Part attachment | `Preserve`：獨立即時生效、不納入 Part review |
+| Part attachment current authority | `Preserve + DEV-087 direct rule`：沿用現行讀寫與permission authority，獨立即時生效、不納入 Part review；後續DEV-088不構成依賴或本期scope |
 | Domain identity、permission、exact artifact、approved evidence | `Preserve` |
 
 DEV-087 啟用前，現行 runtime 不得假稱符合本規格；DEV-087 啟用後，以上被取代的 projector/filter/row contract 不得繼續 active read/write。
@@ -739,7 +743,7 @@ DEV-087 啟用前，現行 runtime 不得假稱符合本規格；DEV-087 啟用�
 46. 作廢核准後只移除current效力與關閉branch；approved revision identity、claim、受控檔案及exact history保留且不可重用或實體刪除。
 47. 作廢確認modal在四viewport與鍵盤流程中清楚顯示不可復原效果；list不增加作廢CTA，drawer只增加一個低權重secondary risk action，焦點與scroll可恢復。
 48. SQLite ensure與Cloud SQL PostgreSQL `042_status_data_rebuild.sql`建立§3.1.2 exact schema；041不被覆寫，fresh/apply/re-run/provider parity皆PASS。
-49. DEV-087 active review只暫存在`pdm_work_review_requests`；return或formalize success後request/snapshot清除，永久`pdm_review_traces`沒有reviewer/outcome/comment/revision/content，且不寫`approval_platform_decisions`。
+49. DEV-087 active review只暫存在`pdm_work_review_requests`；return或formalize success後request/snapshot清除，永久`pdm_review_traces`沒有reviewer/outcome/comment/revision/content，且不寫`approval_platform_decisions`。receipt/outbox/audit/log/error/terminal backup亦符合§3.4安全投影與forbidden-data scan，不能由旁路還原被禁止資料。
 50. 既有 `/approvals`可聚合DEV-087 adapter並導航same editor readonly page；其他approval domain既有request/decision/history完全不變。
 51. list/detail DTO只含§9.1 allowlist，retired/banned fields不存在；舊query與舊command分別回410 fixed code/message，沒有silent compatibility read/write。
 52. §9.2 routes、header、payload、decision allowlist與error envelope有contract test；route handler不直接跨表mutation，server service重驗candidate/snapshot/company/permission。

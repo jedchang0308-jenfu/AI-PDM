@@ -1545,7 +1545,14 @@ export class DrawingRecognitionAsyncRepository {
     return this.client.query<FileSourceRow>(
       select.replace("%SCOPED%", `SELECT file.source_file_asset_id AS file_asset_id, file.role AS source_role, file.sort_order
         FROM drawing_revision_files file JOIN drawing_revisions revision ON revision.id = file.drawing_revision_id
-        WHERE file.drawing_revision_id = :id AND revision.company_id = :companyId AND file.removed_at IS NULL`),
+        WHERE file.drawing_revision_id = :id AND revision.company_id = :companyId AND file.removed_at IS NULL
+        UNION
+        SELECT source.source_file_asset_id AS file_asset_id, source.role AS source_role, binding.ordinal AS sort_order
+        FROM canonical_workbench_states state
+        JOIN drawing_revision_works work ON work.id = state.work_id AND work.company_id = state.company_id
+        JOIN drawing_revision_work_files binding ON binding.work_id = work.id
+        JOIN drawing_revision_files source ON source.id = binding.file_binding_id AND source.company_id = state.company_id
+        WHERE state.revision_id = :id AND state.company_id = :companyId AND source.removed_at IS NULL`),
       { id, companyId }
     );
   }

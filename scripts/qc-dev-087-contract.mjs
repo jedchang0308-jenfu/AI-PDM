@@ -1,0 +1,21 @@
+import { assert, createFixtureDatabase, expectSqlFailure, pass, read } from "./qc-dev-087-fixtures.mjs";
+import { assertCanonicalDtoHasNoRetiredFields, canonicalLayerLabel, normalizeCanonicalWorkbenchQuery } from "../src/lib/pdm-canonical-workbench-contract.ts";
+
+const db = createFixtureDatabase();
+const expectedTables = ["pdm_workbench_state_authority_control", "pdm_workbench_aggregates", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works", "drawing_revision_work_files", "part_change_works", "relation_change_works", "canonical_workbench_states", "pdm_work_review_requests", "pdm_review_traces", "part_approved_change_snapshots", "relation_approved_change_snapshots", "pdm_workbench_migration_quarantine"];
+const actual = new Set(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all().map((row) => row.name));
+expectedTables.forEach((table) => assert(actual.has(table), `missing ${table}`));
+assert.equal(canonicalLayerLabel({ dataLayer: "drawing_production", revision: "1" }), "量產版 1");
+assert.equal(canonicalLayerLabel({ dataLayer: "drawing_rd", revision: "1.1" }), "研發版 1.1");
+assert.equal(canonicalLayerLabel({ dataLayer: "part_formal", revision: null }), "正式資料");
+assert.equal(canonicalLayerLabel({ dataLayer: "relation_work", revision: null }), "調整中");
+assert.equal(normalizeCanonicalWorkbenchQuery(new URL("http://local/?layer=rd&handling=owner"), "drawing").layers[0], "rd");
+assert.throws(() => normalizeCanonicalWorkbenchQuery(new URL("http://local/?view=all"), "drawing"), (error) => error.code === "WORKBENCH_FILTER_CONTRACT_RETIRED" && error.status === 410);
+assert.throws(() => assertCanonicalDtoHasNoRetiredFields({ data: { humanStatus: "x" } }), /DEV087_RETIRED_DTO_FIELD/);
+expectSqlFailure(() => db.prepare(`INSERT INTO drawing_revision_claims (id, company_id, drawing_id, branch_id, target_major, target_minor, target_label) VALUES ('bad-claim', 'company-dev087-a', 'drawing-dev087-a0002', 'branch-dev087-a0002-1', 1, 2, '01.2')`).run(), /DEV087_REVISION_TUPLE_NOT_CANONICAL/);
+db.prepare(`INSERT INTO pdm_review_traces (review_cycle_id, company_id, entity_type, canonical_entity_id, decision_at) VALUES ('cycle-dev087-1', 'company-dev087-a', 'drawing', 'drawing-dev087-a0002', CURRENT_TIMESTAMP)`).run();
+expectSqlFailure(() => db.prepare(`UPDATE pdm_review_traces SET decision_at = CURRENT_TIMESTAMP WHERE review_cycle_id = 'cycle-dev087-1'`).run(), /DEV087_REVIEW_TRACE_IMMUTABLE/);
+assert(!read("src/components/canonical-pdm-workbench.tsx").match(/待你|待我|由你|由我|ownerName|reviewerName/u));
+assert(read("db/postgres/042_status_data_rebuild.sql").includes("trg_dev087_canonical_state_company_guard"));
+db.close();
+pass("contract", expectedTables.length + 11);

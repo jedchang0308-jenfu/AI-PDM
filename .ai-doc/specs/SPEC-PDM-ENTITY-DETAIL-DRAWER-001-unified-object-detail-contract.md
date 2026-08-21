@@ -47,7 +47,7 @@ open Drawing branch上限為3，包含active與approved-idle；這是server/tran
 - production `M`由server提供`M+1`與最小未占用RD `M.n`；RD `M.n`提供大於`n`的最小未占用minor，且branch base仍current時才可提供`M+1`。stale branch只可續minor，顯示`量產基準已更新，這個研發分支只能繼續研發版`。
 - server原子建立／沿用branch、claim、work、canonical row成功後才導航exact full-page editor。Drawing沿用現有獨立編輯器；Part／Relation維持各自domain editor。
 - 操作超過5秒顯示進行中並防重送；失敗保留modal、focus error summary且無partial create。取消／Escape回原drawer row並恢復focus/scroll；drawer body與modal body各自是唯一scroll owner。
-- reviewer route可與owner route不同，但必須使用相同domain editor components、data及layout的fully-readonly模式。Part review attachment依DEV-084保持live，附件區顯示`附件獨立維護，不屬於本次資料核准`；此note不進一般drawer。
+- reviewer route可與owner route不同，但必須使用相同domain editor components、data及layout的fully-readonly模式。Part review attachment依DEV-087直接契約及現行附件authority保持live，附件區顯示`附件獨立維護，不屬於本次資料核准`；此note不進一般drawer。後續DEV-088不是此畫面的實作前置。
 - `申請作廢` 只在 open、idle、latest approved RD 且無active work／pending void request時顯示。確認文案為`核准後，研發版 {revision} 將不再有效，這一系列研發版會從目前清單移除，且無法復原`；核准並formalize後關閉整個branch、移除current row並釋放branch cap，不提供reopen或restore入口。退回修改則結束本次request並恢復idle open。
 
 本節由DEV-087 `QA-087-048..054、078、080、082、083、085、093、094、101..107、110、115..120`驗收。

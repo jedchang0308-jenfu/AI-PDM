@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pdm.local/schemas/dev-087-old-authority-inventory.schema.json",
+  "title": "DEV-087 old current-state authority inventory",
+  "type": "object",
+  "required": ["devId", "schemaVersion", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "devId": { "const": "DEV-087" },
+    "schemaVersion": { "const": 1 },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "path", "owner", "disposition", "retirementPhase", "verification", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["table", "column", "enum", "projector", "resolver", "filter", "url", "api", "ui_consumer"] },
+          "path": { "type": "string", "minLength": 1 },
+          "owner": { "enum": ["DEV-087"] },
+          "disposition": { "enum": ["retire", "preserve_domain_evidence", "replace_canonical", "reject_legacy"] },
+          "retirementPhase": { "enum": ["1B", "1C", "1D"] },
+          "verification": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["pending", "complete"] }
+        }
+      }
+    }
+  }
+}
