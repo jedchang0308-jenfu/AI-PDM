@@ -23,12 +23,14 @@ import type { DrawingWorkbenchRow } from "@/lib/drawing-workbench";
 import { shouldActivateLinkFromKeyboard } from "@/lib/keyboard-link-activation";
 import { DEFAULT_NUMBER_SORT_DIRECTION, parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
 import { StatusBadge } from "@/components/status-help-popover";
-import { isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import type { HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import { normalizeWorkStatusQuery, type WorkStatusFilter } from "@/lib/work-status-presentation";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { resolveNumberingSearchDetailTarget, shouldDeferNumberingSearchShortcut, type NumberingSearchDetailTarget } from "@/lib/numbering-search-target";
 import { formatStatusErrorForUser, formatStatusForUser, masterRecordStatusFilterValues } from "@/lib/status-display";
 import type { RelationActiveChange } from "@/lib/relation-workbench";
+import type { ResponsibilityStatusProjection, ViewerActionabilityProjection } from "@/lib/responsibility-status-projection";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
 type RelationViewMode = "tree" | "matrix";
@@ -72,6 +74,8 @@ type PartRoot = {
   recordStatus: NumberingRecordStatus;
   ruleVersionId: string;
   humanStatus?: HumanStatusProjection;
+  responsibilityStatus?: ResponsibilityStatusProjection;
+  viewerActionability?: ViewerActionabilityProjection;
   viewerStatus?: ViewerHumanStatusProjection;
   availabilityScope?: AvailabilityScopeProjection;
 };
@@ -89,6 +93,8 @@ type PartNumber = {
   universalReason: string | null;
   ruleVersionId: string;
   humanStatus?: HumanStatusProjection;
+  responsibilityStatus?: ResponsibilityStatusProjection;
+  viewerActionability?: ViewerActionabilityProjection;
   viewerStatus?: ViewerHumanStatusProjection;
   availabilityScope?: AvailabilityScopeProjection;
 };
@@ -104,6 +110,8 @@ type DrawingNumber = {
   recordStatus: NumberingRecordStatus;
   ruleVersionId: string;
   humanStatus?: HumanStatusProjection;
+  responsibilityStatus?: ResponsibilityStatusProjection;
+  viewerActionability?: ViewerActionabilityProjection;
   viewerStatus?: ViewerHumanStatusProjection;
   availabilityScope?: AvailabilityScopeProjection;
 };
@@ -210,6 +218,8 @@ type NumberingAudit = {
 
 type RootDetail = {
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
   root: PartRoot;
@@ -244,6 +254,8 @@ type DrawingPartRelationRoot = {
   coreName: string;
   recordStatus: NumberingRecordStatus;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
   relationshipHealth: "complete" | "missing_manufacturing_drawing" | "missing_part" | "ambiguous" | "blocked" | "draft";
@@ -290,6 +302,8 @@ type DrawingPartRelationDrawing = {
   isReferenceOnly: boolean;
   recordStatus: NumberingRecordStatus;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
   linkedPartNumbers: string[];
@@ -303,6 +317,8 @@ type DrawingPartRelationPart = {
   itemKind: SearchResult["itemKind"];
   recordStatus: NumberingRecordStatus;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
   linkedDrawingNumbers: string[];
@@ -325,6 +341,8 @@ type OwnerHeaderProjection = {
   entityCode: string;
   name: string;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
 };
@@ -409,7 +427,8 @@ function LegacyNumberingSearchPage() {
   const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [entityType, setEntityType] = useState<EntityType>("all");
   const [recordStatus, setRecordStatus] = useState("");
-  const [humanStatus, setHumanStatus] = useState<HumanStatusFilter>("all");
+  const [humanStatus, setHumanStatus] = useState<WorkStatusFilter>("all");
+  const [includeHistory, setIncludeHistory] = useState(false);
   const [sortDirection, setSortDirection] = useState<NumberSortDirection>(DEFAULT_NUMBER_SORT_DIRECTION);
   const [viewMode, setViewMode] = useState<RelationViewMode>("tree");
   const [relationRoots, setRelationRoots] = useState<DrawingPartRelationRoot[]>([]);
@@ -429,21 +448,38 @@ function LegacyNumberingSearchPage() {
   const [busy, setBusy] = useState<"search" | "detail" | "impact" | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setActiveTab(params.get("tab") === "reserved" ? "reserved" : "official");
-    const initialQuery = params.get("query")?.trim();
-    const initialEntityType = params.get("entityType") as EntityType | null;
-    const initialHumanStatus = params.get("humanStatus") as HumanStatusFilter | null;
-    const initialSortDirection = parseNumberSortDirection(params.get("sortDirection"));
-    const initialReturnTo = params.get("returnTo")?.trim() ?? "";
-    const detailRootCode = params.get("detail")?.trim();
-    if (initialQuery) setQuery(initialQuery);
-    if (initialEntityType && ["all", "part_root", "part_number", "drawing_number"].includes(initialEntityType)) setEntityType(initialEntityType);
-    if (isHumanStatusFilter(initialHumanStatus)) setHumanStatus(initialHumanStatus);
-    setSortDirection(initialSortDirection);
-    if (initialReturnTo.startsWith("/") && !initialReturnTo.startsWith("//")) setReturnTo(initialReturnTo);
-    if (detailRootCode) initialDetailRootCodeRef.current = detailRootCode;
+    const applyLocation = () => {
+      const params = new URLSearchParams(window.location.search);
+      const workStatusQuery = normalizeWorkStatusQuery(params.get("humanStatus"), params.get("history"), null);
+      setActiveTab(params.get("tab") === "reserved" ? "reserved" : "official");
+      const initialQuery = params.get("query")?.trim();
+      const initialEntityType = params.get("entityType") as EntityType | null;
+      const initialSortDirection = parseNumberSortDirection(params.get("sortDirection"));
+      const initialReturnTo = params.get("returnTo")?.trim() ?? "";
+      const detailRootCode = params.get("detail")?.trim();
+      setQuery(initialQuery ?? "");
+      if (initialEntityType && ["all", "part_root", "part_number", "drawing_number"].includes(initialEntityType)) setEntityType(initialEntityType);
+      setHumanStatus(workStatusQuery.filter);
+      setIncludeHistory(workStatusQuery.includeHistory);
+      setSortDirection(initialSortDirection);
+      setReturnTo(initialReturnTo.startsWith("/") && !initialReturnTo.startsWith("//") ? initialReturnTo : "");
+      if (detailRootCode) initialDetailRootCodeRef.current = detailRootCode;
+      workStatusQuery.filter === "all" ? params.delete("humanStatus") : params.set("humanStatus", workStatusQuery.filter);
+      workStatusQuery.includeHistory ? params.set("history", "include") : params.delete("history");
+      window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    };
+    applyLocation();
+    window.addEventListener("popstate", applyLocation);
+    return () => window.removeEventListener("popstate", applyLocation);
   }, []);
+
+  useEffect(() => {
+    if (activeTab === null) return;
+    const params = new URLSearchParams(window.location.search);
+    humanStatus === "all" ? params.delete("humanStatus") : params.set("humanStatus", humanStatus);
+    includeHistory ? params.set("history", "include") : params.delete("history");
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, [activeTab, humanStatus, includeHistory]);
 
   const loadDetail = useCallback(async (rootCode: string, target?: DetailTarget) => {
     const nextTarget = target ?? resolveNumberingSearchDetailTarget({ entityType: "part_root", rootCode });
@@ -483,6 +519,8 @@ function LegacyNumberingSearchPage() {
   const syncCanonicalOwnerProjection = useCallback((projection: OwnerHeaderProjection) => {
     const canonicalFields = {
       humanStatus: projection.humanStatus,
+      responsibilityStatus: projection.responsibilityStatus,
+      viewerActionability: projection.viewerActionability,
       viewerStatus: projection.viewerStatus
     };
     setRelationRoots((currentRoots) => currentRoots.map((root) => ({
@@ -502,6 +540,7 @@ function LegacyNumberingSearchPage() {
     if (entityType !== "all") params.set("entityType", entityType);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (humanStatus !== "all") params.set("humanStatus", humanStatus);
+    params.set("history", includeHistory ? "include" : "exclude");
     const response = await fetch(`/api/numbering/relations?${params.toString()}`);
     setBusy(null);
     if (response.status === 401) {
@@ -543,7 +582,7 @@ function LegacyNumberingSearchPage() {
       setImpact(null);
       setIsDetailOpen(false);
     }
-  }, [activeTab, entityType, humanStatus, query, recordStatus, seriesCode, sortDirection]);
+  }, [activeTab, entityType, humanStatus, includeHistory, query, recordStatus, seriesCode, sortDirection]);
 
   useEffect(() => {
     void loadResults();
@@ -778,7 +817,7 @@ function LegacyNumberingSearchPage() {
               <label className="pdm-master-field">
                 <span>系列代號</span>
                 <select value={seriesCode} onChange={(event) => setSeriesCode(event.target.value)}>
-                  <option value="">全部系列代號</option>
+                  <option value="">全部</option>
                   {seriesCodeOptions.map((option) => (
                     <option value={option} key={option}>
                       {option}
@@ -798,7 +837,7 @@ function LegacyNumberingSearchPage() {
               <label className="pdm-master-field">
                 <span>資料狀態</span>
                 <select value={recordStatus} onChange={(event) => setRecordStatus(event.target.value)}>
-                  <option value="">全部資料狀態</option>
+                  <option value="">全部</option>
                   {statusOptions.map((status) => (
                     <option value={status} key={status}>
                       {formatStatusForUser(status, "masterRecord")}
@@ -1040,18 +1079,12 @@ function RelationRootHeader({
         <span className="pdm-relation-root-summary">{root.drawings.length} 圖號・{root.parts.length} 料號</span>
         <span className="pdm-relation-status-context">
           <span className="pdm-relation-status-label">圖料根號工作</span>
-          <HumanStatusBadge status={root.humanStatus} viewerStatus={root.viewerStatus} availabilityScope={root.availabilityScope} />
+          <HumanStatusBadge status={root.humanStatus} responsibilityStatus={root.responsibilityStatus} viewerActionability={root.viewerActionability} viewerStatus={root.viewerStatus} availabilityScope={root.availabilityScope} />
         </span>
         <span className="pdm-relation-status-context">
           <span className="pdm-relation-status-label">圖料關聯</span>
           <span className={`pdm-relation-health ${relationHealthTone(root.relationshipHealth)}`}>{root.relationshipHealth === "complete" ? "完整" : root.relationshipLabel}</span>
         </span>
-        {root.availabilityScope.label ? (
-          <span className="pdm-relation-status-context">
-            <span className="pdm-relation-status-label">圖號用途</span>
-            <span className="pdm-relation-availability">{root.availabilityScope.label}</span>
-          </span>
-        ) : null}
       </div>
     </div>
   );
@@ -1087,7 +1120,6 @@ function RelationDrawingNode({
           <SearchHighlight value={drawing.drawingNumber} query={query} />
         </button>
         <span className={drawing.isReferenceOnly ? "pdm-relation-purpose reference" : "pdm-relation-purpose manufacturing"}><SearchHighlight value={drawing.purposeLabel} query={query} /></span>
-        {drawing.availabilityScope.label ? <span className="pdm-relation-effective-status">現行：{drawing.availabilityScope.label}</span> : null}
         <span className="pdm-relation-node-step">{drawing.nextStep}</span>
       </div>
       {linkedParts.length > 0 ? (
@@ -1501,11 +1533,15 @@ function RootDetailDrawer({
   if (!open) return null;
   const header = detail && target ? detailTargetHeader(detail, target) : { code: "圖料明細", subtitle: "" };
   const headerStatus = detail && target ? detailTargetHumanStatus(detail, target) : null;
+  const headerResponsibilityStatus = detail && target ? detailTargetResponsibilityStatus(detail, target) : null;
+  const headerActionability = detail && target ? detailTargetActionability(detail, target) : null;
   const headerViewerStatus = detail && target ? detailTargetViewerStatus(detail, target) : null;
   const headerAvailabilityScope = detail && target ? detailTargetAvailabilityScope(detail, target) : null;
   const isRootTarget = target?.entityType === "part_root";
   const canonicalHeader = ownerHeaderProjection?.targetKey === targetKey ? ownerHeaderProjection : null;
   const visibleHeaderStatus = isRootTarget ? headerStatus : canonicalHeader?.humanStatus;
+  const visibleHeaderResponsibilityStatus = isRootTarget ? headerResponsibilityStatus : canonicalHeader?.responsibilityStatus;
+  const visibleHeaderActionability = isRootTarget ? headerActionability : canonicalHeader?.viewerActionability;
   const visibleHeaderViewerStatus = isRootTarget ? headerViewerStatus : canonicalHeader?.viewerStatus;
   const visibleHeaderAvailabilityScope = isRootTarget ? headerAvailabilityScope : canonicalHeader?.availabilityScope;
   return (
@@ -1515,7 +1551,7 @@ function RootDetailDrawer({
       ariaLabel="圖料明細"
       title={header.code}
       subtitle={isRootTarget ? header.subtitle : canonicalHeader?.name}
-      status={detail && visibleHeaderStatus ? <HumanStatusBadge status={visibleHeaderStatus} viewerStatus={visibleHeaderViewerStatus} availabilityScope={visibleHeaderAvailabilityScope} /> : undefined}
+      status={detail && visibleHeaderStatus ? <HumanStatusBadge status={visibleHeaderStatus} responsibilityStatus={visibleHeaderResponsibilityStatus} viewerActionability={visibleHeaderActionability} viewerStatus={visibleHeaderViewerStatus} availabilityScope={visibleHeaderAvailabilityScope} /> : undefined}
       entityType={target?.entityType}
       entityCode={header.code}
       sourceContext="numbering_search"
@@ -1527,10 +1563,22 @@ function RootDetailDrawer({
       keepOpenSelector="[data-search-row='true']"
     >
       <div className="pdm-entity-drawer-body">
-        <RootDetailPanel detail={detail} detailTarget={detailTarget} activeChanges={activeChanges} onOpenChange={onOpenChange} impact={impact} busy={busy} onAnalyzeImpact={onAnalyzeImpact} onRelationChange={onRelationChange} onChanged={onChanged} onOwnerHeaderProjection={handleOwnerHeaderProjection} returnTo={returnTo} />
+        <RelationReadonlySummary detail={detail} detailTarget={detailTarget} />
       </div>
     </PdmEntityDetailDrawer>
   );
+}
+
+function RelationReadonlySummary({ detail, detailTarget }: { detail: RootDetail | null; detailTarget: DetailTarget | null }) {
+  if (!detail) return <section className="panel pdm-master-detail-panel"><div className="empty">正在載入圖料明細...</div></section>;
+  const target = resolveDetailTarget(detail, detailTarget);
+  const header = detailTargetHeader(detail, target);
+  return <div className="pdm-master-detail-panel pdm-master-detail-stack" data-detail-target={target.entityType} data-detail-code={header.code} data-source-context="numbering_search">
+    <section className="panel"><div className="panel-header"><span className="pdm-meta-chip">唯讀摘要</span></div><p>{header.subtitle}</p></section>
+    <section className="panel"><div className="panel-header"><h2>關聯摘要</h2></div><div className="pdm-fact-grid"><div><span>圖料根號</span><strong>{detail.root.rootCode}</strong></div><div><span>圖號</span><strong>{detail.drawingNumbers.length}</strong></div><div><span>料號</span><strong>{detail.partNumbers.length}</strong></div><div><span>關聯</span><strong>{detail.links.length}</strong></div></div></section>
+    <section className="panel"><div className="panel-header"><h2>圖號與料號</h2></div><ul>{detail.drawingNumbers.map((drawing) => <li key={drawing.id}>{drawing.drawingNumber} · {purposeLabel(drawing.purposeCode)} · {drawing.recordStatus}</li>)}{detail.partNumbers.map((part) => <li key={part.id}>{part.partNumber} · {part.partName} · {part.recordStatus}</li>)}</ul></section>
+    <WarningsPanel warnings={detail.warnings} />
+  </div>;
 }
 
 function RootDetailPanel({
@@ -1682,6 +1730,18 @@ function detailTargetHumanStatus(detail: RootDetail, target: DetailTarget): Huma
     return detail.partNumbers.find((part) => part.partNumber === target.partNumber)?.humanStatus ?? null;
   }
   return detail.humanStatus;
+}
+
+function detailTargetResponsibilityStatus(detail: RootDetail, target: DetailTarget): ResponsibilityStatusProjection | null {
+  if (target.entityType === "drawing_number") return detail.drawingNumbers.find((drawing) => drawing.drawingNumber === target.drawingNumber)?.responsibilityStatus ?? null;
+  if (target.entityType === "part_number") return detail.partNumbers.find((part) => part.partNumber === target.partNumber)?.responsibilityStatus ?? null;
+  return detail.responsibilityStatus;
+}
+
+function detailTargetActionability(detail: RootDetail, target: DetailTarget): ViewerActionabilityProjection | null {
+  if (target.entityType === "drawing_number") return detail.drawingNumbers.find((drawing) => drawing.drawingNumber === target.drawingNumber)?.viewerActionability ?? null;
+  if (target.entityType === "part_number") return detail.partNumbers.find((part) => part.partNumber === target.partNumber)?.viewerActionability ?? null;
+  return detail.viewerActionability;
 }
 
 function detailTargetViewerStatus(detail: RootDetail, target: DetailTarget): ViewerHumanStatusProjection | null {
@@ -1995,6 +2055,8 @@ function DetailTargetCoreSections({ detail, target, onChanged, onOwnerHeaderProj
                 entityCode: targetPartNumber,
                 name: ownerPart.partName,
                 humanStatus: ownerPart.humanStatus,
+                responsibilityStatus: ownerPart.responsibilityStatus,
+                viewerActionability: ownerPart.viewerActionability,
                 viewerStatus: ownerPart.viewerStatus,
                 availabilityScope: ownerPart.availabilityScope
               });
@@ -2016,6 +2078,8 @@ function DetailTargetCoreSections({ detail, target, onChanged, onOwnerHeaderProj
                 entityCode: targetDrawingNumber,
                 name: body.drawing.coreName,
                 humanStatus: body.row.humanStatus,
+                responsibilityStatus: body.row.responsibilityStatus,
+                viewerActionability: body.row.viewerActionability,
                 viewerStatus: body.row.viewerStatus,
                 availabilityScope: body.row.availabilityScope
               });

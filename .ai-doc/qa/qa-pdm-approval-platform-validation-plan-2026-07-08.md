@@ -7,6 +7,8 @@ Related Spec: `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-plat
 Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`; `.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`
 Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`; `DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`
 
+> **DEV-087 exception boundary**：DEV-087只沿用`/approvals`inbox mechanics與reviewer security，storage改為transient request adapter＋minimal trace，不寫platform request/decision tables。其驗收由QA-087-112..117負責；本計畫只回歸其他approval domain不變，不得要求DEV-087雙寫或保留舊decision欄位。
+
 ## Current Local Evidence - 2026-07-08
 
 Executed:

@@ -311,7 +311,7 @@ try {
     expectedRowVersion: withdrawSubmission.workspace.rowVersion
   });
   record(
-    "APR-007 only the owner withdraws pending review and unlocks candidates",
+    "APR-007 an ordinary non-owner cannot withdraw; authorized scope unlocks candidates",
     (nonOwnerWithdrawError === "review_withdraw_owner_required" || nonOwnerWithdrawError === "workspace_not_found") &&
       withdrawn.workspace.latestApproval?.status === "cancelled" &&
       withdrawn.workspace.reservations.every((item) => item.state === "active"),

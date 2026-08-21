@@ -6,6 +6,8 @@
 DEV：`DEV-PDM-STATUS-ACTIONABILITY-CAPA-001` / `DEV-073`  
 關聯：`SPEC-PDM-STATUS-UX-004`、`SPEC-PDM-ENTITY-DETAIL-DRAWER-001`、`SPEC-PDM-UNIFIED-DRAWING-AGGREGATE-001`、`SPEC-PDM-APPROVAL-PLATFORM-001`
 
+> **2026-08-22 DEV-087 target supersession**：本CAPA的「可見處理狀態必須有真實工作項／權限」原則保留；既有human/viewer/responsibility/availability修補鏈與recovery projection由DEV-087單一canonical handling、transient review request及server action descriptor取代。新決策優先；activation時舊projector/fallback拆除，不把既有repair邏輯帶入新authority。
+
 ## 1. 不符合與真正問題
 
 A0005-M01 明細曾顯示「待你處理」，但 action bar 只有歷史／返回，審核工作台 active inbox 也沒有對應項目。這不是單一按鈕漏畫，而是三個投影沒有共用同一組事實：
@@ -85,3 +87,53 @@ QC evidence：`.ai-doc/qc/qc-dev-073-status-actionability-capa-2026-08-14.md`（
 完成結果（2026-08-14）：以上本機門檻全部通過；A0005-M01 canonical Drawing 與 0.2／0.3／0.5 revision 已由 hash-gated repair 收斂為 `rd_controlled`，physical package、review confirmation、request、decision、workflow筆數均未變。最終 browser run `DEV073-20260814T103234Z-bb1449b0` 以 disposable SQLite驗證 A0005 三 viewport、active inbox排除與 orphan recovery三種互動，P0/P1=0；共用明細查詢另以跨 SQLite／PostgreSQL 的小版次判斷及契約守門。正式／staging資料與release仍未授權。
 
 ADR 判定：`Not required`。既有 canonical Drawing ADR、human-status ADR、unified detail ADR已選定架構；本 CAPA只補足它們之間遺漏的一致性 invariant 與 deterministic repair gate。
+
+## 7. 2026-08-18 DEV-078 Amendment — Actionability Is Not the Visible Responsibility Label
+
+狀態：`RD Implemented / Full Aggregate QC Passed`；authority：`SPEC-PDM-STATUS-UX-004 §18`。
+
+- 本CAPA的canonical lifecycle、active work-item與applicable responsibility action evidence gate全部保留。
+- `viewerStatus.category=current_user/other_user`在DEV-078之後只支援`viewerActionability.isMine/canAct`、舊consumer相容及`我的待辦`查詢，不再直接決定第一層可見文案。
+- active review有有效request/work item時，所有觀看者的共享責任均為`待審核負責人處理`；正式圖面依exact reviewer、candidate bundle依既有RD主管role queue計算viewer actionability。無request的orphan仍為`負責人待確認`，不得為本DEV新增assignment schema。
+- building／correction／bundle等owner工作顯示`待負責人處理`；目前actor是不是owner、是否具role capability，不改變共享責任稱謂。
+- recovery只有同時具failure evidence與適用recovery action時可顯示`待系統管理員處理`。現有`current_user_without_responsibility_action`與`can_act_without_enabled_responsibility_action`守門應等價延伸到新欄位。
+- RD實作須由同一份normalized responsibility evidence同時產出`responsibilityStatus`、`viewerActionability`與legacy`viewerStatus`；不得維護兩套互相漂移的owner／review／recovery判斷。新invariant至少增加`manual_responsibility_without_applicable_action`、`system_admin_without_failure_or_recovery_action`、`is_mine_without_responsibility_evidence`。
+- 本節不改寫DEV-073已完成QC的歷史文字；DEV-078實作後以新的cross-actor parity與禁止viewer-relative primary label證據補充，不將舊截圖偽稱為新語彙PASS。
+- DEV-078 projection／contract／browser與DEV-073完整browser recheck均已通過；若主SQLite缺少A0005-M01歷史fixture，由read-only preflight runner選用通過檢查的既有backup並複製至OS temp執行，未修改資料、未放寬expected，完成後清理隔離副本。
+
+## 8. 2026-08-19 DEV-078 Phase 2 Amendment — UI Aggregation Must Preserve Accountability
+
+狀態：`Local RD Implemented / Human Confirmed / Full Aggregate QC Passed / Production Release Gated`；authority：`SPEC-PDM-STATUS-UX-004 §19`。
+
+- 六狀態是presentation aggregation，不是資料責任合併。`owner/review_owner/system/system_admin/unknown/usable/terminal`、active work item、failure/recovery evidence與viewer actionability invariant全部保留。
+- `審核中`同時承接人工審核與正常自動正式化，但description與actionability必須區分：`review_owner`可依existing evidence成為待辦；`system`固定`isMine=false/canAct=false`，不得因UI名稱相同而產生人工動作。
+- `待確認`承接三種風險：verified system recovery、責任／工作項未知、可用範圍未知。三者必須保留不同canonical description；只有第一種可依既有recovery permission成為系統管理員待辦。
+- `全部`、`我的待辦`、`包含歷史`分別是work-status reset、viewer scope、temporal scope；任何一者都不得回寫canonical lifecycle或用來偽造active work item。
+- CAPA守門新增：`ui_label_does_not_match_group_mapping`、`reviewing_system_marked_actionable`、`needs_confirmation_reason_missing`、`terminal_exposed_as_visible_work_status`。任一命中均阻擋Phase 2完成。
+- DEV-073與DEV-078 Phase 1已完成證據保留為歷史基線；Phase 2已另取證據，不改寫舊報告或以舊截圖代替。
+- QA矯正後RD inventory固定為17 source＋12 tests＋`package.json`，共30個direct files；`work-status-presentation.ts`只聚合UI，不改寫或取代本CAPA的責任／action evidence。P2-A～P2-D均已通過。
+
+## 9. 2026-08-19 QA Readiness Inventory CAPA
+
+狀態：`Corrective Action Documented / Preventive Gates Required In Implementation / RD Implementation Ready`；authority：`SPEC-PDM-STATUS-UX-004 §19.5`與DEV-078 QA §11。
+
+### 9.1 Problem and root cause
+
+- 文件第一次盤點只從新shared component、直接UI consumer與可見舊label出發，沒有沿舊query value反查父DEV測試，也沒有把「required regression清單」和`package.json`實際aggregate command DAG做集合比對。
+- 因此漏掉`qc-dev-062-relation-workbench.mjs`中的`humanStatus=waiting&limit=1`，並錯把「既有命令可個別執行」當成「已被`qc:dev-078`聚合執行」。
+- 第二層缺口是只在route描述filter-before-limit，未追到legacy API底下sync／async repository的SQL `LIMIT`；亦未把`numbering/search`與legacy parts頁缺少history toggle／URL popstate視為同一scope contract。
+- 根因屬控制方法不足，不是單一RD遺漏：盤點維度偏向檔案依賴，缺少query語意傳播、provider parity與executable gate coverage三個層次。
+
+### 9.2 Corrective action
+
+- required inventory改為17 source＋12 tests＋`package.json`；新增兩個numbering repository、DEV-062 relation test與aggregate command修改。
+- 明定terminal result、tone/icon、fail-closed projector、canonical `humanStatus/history` URL、五host reload/deep-link/popstate、兩legacy API history input及SQL limit前history scope。
+- `qc:dev-078`既有命令以fail-fast方式納入DEV-062、DEV-053與drawer regressions；歷史報告不改寫，新run才可作Phase 2 evidence。
+
+### 9.3 Preventive action and effectiveness gate
+
+- `legacy_query_consumer_unclassified`：static test掃描active source／tests內`humanStatus=`、query parser與matcher的所有legacy values；任何命中未列required-edit或validation-only理由即FAIL。
+- `aggregate_required_command_missing`：static test解析`package.json`，required command集合不是`qc:dev-078` command DAG子集合即FAIL。
+- `history_scope_after_limit`：sync／async repository contract測試證明`includeHistory=false`在SQL `LIMIT`前排除terminal，且結果可填滿requested limit；任一provider不一致即FAIL。
+- `history_url_api_state_drift`：五host在initial、reload、deep link、back/forward與legacy canonicalization後的`humanStatus/history/view`不一致即FAIL。
+- 效果確認結果（2026-08-19）：上述四項gate、30檔inventory、Phase 2 focused／parent regression／rendered aggregate全PASS且P0/P1=0；DEV-078 Phase 2可標示`Local RD Implemented / Full Aggregate QC Passed`。production release仍須由既有release gate確認。

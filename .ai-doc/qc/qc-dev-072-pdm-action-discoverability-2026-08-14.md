@@ -1,6 +1,6 @@
 # QC DEV-072－PDM 四工作台明細動作可發現性與鎖定提示
 
-Status: AI Real-browser QC Passed / Local RD-QA-QC Complete / Production Release Gated  
+Status: AI Real-browser QC Passed / Parent baseline accepted-superseded disposition recorded / Local RD-QA-QC Complete / Production Release Gated
 Date: 2026-08-14  
 Owner: QC  
 Authority: `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`（DEV-072 amendment）
@@ -55,3 +55,27 @@ AI 使用真實 Chromium、登入 session、隔離 Next.js 與 disposable SQLite
 - 本結論限於 local SQLite／isolated Next.js；未執行 PostgreSQL live、staging／production smoke 或正式資料 mutation。
 - 沒有新增 schema、migration、permission code、domain mutation API、dependency、env 或 feature flag。
 - production release仍受既有 release gate；未執行 stage、commit、push、merge、PR、deploy 或 release。
+
+## 2026-08-20 Parent baseline disposition for DEV-083
+
+### QC 判定
+
+`accepted-superseded`（可追溯接受；不是把舊 runner 改判為 PASS）。本次 independent evidence review 接受 DEV-072 legacy action-placement assertion 由 DEV-079 readonly drawer／canonical full-page owner 取代，並將該舊 assertion 保留為 parent baseline finding。這項 disposition 可關閉 DEV-083 的 QA-083-24 parent regression partition；不代表 DEV-072 舊 command runner 仍符合現行產品契約，也不放寬任何 permission、company boundary、write API 或 expected。
+
+### Review facts
+
+- 最新 DEV-083 aggregate `output/qa/dev-083-aggregate/DEV083-aggregate-20260820T115712Z-15206e0d/manifest.json` 完成30個child：29 PASS、1個DEV-072 browser baseline FAIL；非baseline failure=0。
+- DEV-083 authenticated browser `output/qa/dev-083-part-relation-fullpage-workspaces/DEV083-20260820T115715Z-6b9c5ec8/manifest.json` 為22/22、`browserErrors=0`、`failedResponses=0`；disposable mutation `output/qa/dev-083-mutation/DEV083-MUT-20260820T115907Z-a9063105/manifest.json` 為31/31、`result=passed`、`cleanupStatus=removed`。
+- DEV-067 parent browser `output/playwright/dev-067-unified-entity-detail/DEV067-20260820T120043Z-e58ce7cb/manifest.json` 為18/18、`browserErrors=0`、`failedResponses=0`。
+- DEV-072 bounded rerun `output/qa/dev-072-pdm-action-discoverability/DEV072-20260820T120228Z-4a4dff7c/run-manifest.json` 保留fixture cleanup（`removedCount=8`、`tempRootRemoved=true`）；舊 assertion 在5秒 bounded wait下重現缺少 `unified-pdm-entity-detail-drawer` marker。這是 expected obsolete marker observation，不是新的資料或權限回歸。
+- 現行 replacement evidence 為 DEV-079 contract 22/22、layout 3/3、recognition layout 3/3；本次 QC 亦直接檢視 Part mobile drawer 與 reviewer desktop screenshots，未見 visible error、水平 overflow、drawer/page 雙寫或第二個 primary owner。
+
+### Acceptance boundary
+
+1. 保留 DEV-072 舊 runner、failure message、fixture／cleanup provenance 與 expected；不得刪 assertion、把 obsolete marker 改成現行 marker，或以現行 replacement 反向宣稱舊 runner PASS。
+2. 以 DEV-079 replacement contract／layout／recognition evidence 作現行 action-placement authority；Part／Relation／Approval mutation 仍只由 canonical full-page owner 發出。
+3. 只有同時滿足本 disposition、QA-083-01～23 evidence、aggregate 非baseline failure=0、P0/P1=0 與 production release gate 未被跳過時，QA-083-24 才可標記 `PASS / Closed by accepted-superseded baseline disposition`。
+
+### QC scope and limitation
+
+本 disposition 是 local SQLite／isolated Next.js 的 evidence-level parent regression review；未執行 PostgreSQL live、staging／production smoke、正式資料 mutation、deploy 或 release。它不取代正式 release gate，也不代表 DEV-072 legacy command placement 可恢復。

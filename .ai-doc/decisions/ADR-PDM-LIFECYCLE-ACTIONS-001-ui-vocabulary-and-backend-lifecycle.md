@@ -1,5 +1,7 @@
 # ADR-PDM-LIFECYCLE-ACTIONS-001: 前端刪除詞彙與後端生命週期分層
 
+> 2026-08-18 DEV-077 Amendment：allocated official numbering root／drawing／part 即使仍為 Draft／NeedInfo，也不是可還原或可回收的一般草稿。此 scoped exception 使用 `作廢草稿編號`，通過權限與 zero-controlled-reference gate 後免正式審核轉 `Obsolete`，永久不回收；Active／Released 仍使用 `申請作廢` 並經 approval。本 amendment 取代本 ADR 對這一類資料固定使用一般 `刪除` 的舊條款，其他資料類型的三詞模型不變。
+
 日期：2026-06-29
 狀態：Accepted for planning
 關聯任務：`DEV-PDM-LIFECYCLE-ACTIONS-001`
@@ -147,3 +149,54 @@ AI_PDM 目前已有多種資料失效語意：
 - `.ai-doc/specs/SPEC-PDM-NUMBERING-001-drawing-part-number-automation.md`
 - `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`
 - `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-implementation-contract.md`
+
+## 2026-08-18 DEV-077 Amendment：allocated official draft numbering
+
+狀態：`Accepted / Human Confirmed / RD Implementation Ready / RD Implemented / Production Release Gated`
+
+決策來源：使用者於 2026-08-18 明確採用 `HD-077-01..03`。
+
+### Scoped Decision
+
+本 ADR 的 `刪除` 仍只代表可依規則還原的未列管草稿、附件或暫存資料。下列資料屬 scoped exception：
+
+- 已寫入 official numbering master 且已配置可見圖料根號／圖號／料號的 `part_roots`、`part_numbers`、`drawing_numbers`。
+- root 與全部 children 雖仍是 Draft／NeedInfo，但 identifier 已配置且永不回收。
+
+這類資料的使用者動作固定為 `作廢草稿編號`：
+
+1. 只有 root 與全部 children 皆為 Draft／NeedInfo、company／permission 正確且 zero controlled reference 時可執行。
+2. 不建立正式 approval；同一 transaction 將整組轉為 `Obsolete`，保留 identifiers、relations、files、rows、sequence 與 append-only audit。
+3. 結果進入 `受控歷史`，不進 `已刪除資料`，不提供一般還原、回收或再次配置。
+4. 若 root 或任一 child 為 Active／Released，或存在需正式責任鏈的引用，使用 `申請作廢`，核准後才轉 `Obsolete`。
+
+### Vocabulary Consequence
+
+一般使用者的 lifecycle 詞彙不再是絕對三詞，而是「三個通用詞＋一個 official-number scoped term」：
+
+| Term | Scope | Recoverable | Approval |
+|---|---|---:|---:|
+| `刪除` | 可還原的未列管草稿／附件／暫存 | 依 policy | 否 |
+| `還原` | 已刪除且未衝突資料 | 是 | 否 |
+| `作廢草稿編號` | 已配置 official number、仍為 Draft／NeedInfo且 zero controlled reference | 否 | 否 |
+| `申請作廢` | Active／Released或需正式責任鏈資料 | 否 | 是 |
+
+`作廢草稿編號` 不是把 backend `obsolete` 任意暴露給所有草稿，而是為「已領號、不可回收、尚未正式化」提供不誤導的專用詞。candidate workspace、`part_number_drafts` 與尚未配置 official number 的草稿仍依其原 cancellation／void／recycle authority，不受本 amendment 改寫。
+
+### Alternatives and Consequences
+
+- Rejected：以 `刪除草稿` 呼叫 hard delete；它會讓使用者誤認 identifier 可消失或可回收。
+- Rejected：所有 allocated draft 一律走正式 approval；它增加無受控引用草稿的流程成本，且不增加 no-reuse／audit 保護。
+- Rejected：沿用 generic `申請作廢` 但免 approval；同一詞同時代表需審核與免審核，責任語意不清。
+
+代價是 lifecycle policy、UI capability 與 QA 必須能辨識資料 identity 類型，不能只看 `Draft` badge；優點是把可恢復刪除、不可恢復草稿終止與正式作廢責任分清楚。
+
+### Implementation Binding
+
+- DEV-077 不新增 lifecycle status、資料表或正式資料 migration；沿用 `Obsolete`、approval payload、audit、platform command receipt／outbox。
+- owner UI 的最終能力來自server policy；production以server-only累進gate `containment → draft-obsolete → formal-obsolete`控制，missing／unknown一律停在containment。
+- direct obsolete、root request與root approval apply在SQLite使用`BEGIN IMMEDIATE`，PostgreSQL使用`SERIALIZABLE`與root／children row lock；任何snapshot／dependency漂移整筆rollback。
+- `DELETE /api/numbering/records/[rootCode]/draft`永久不是production owner lifecycle；generic approval path只有在request lookup後確認為`obsolete_part_root`、`obsolete_part_number`或`obsolete_ma_drawing`才可寫入。
+- repo級檔案、API payload、stable errors、failure recovery與固定驗證命令以`.ai-doc/dev_task.md`的DEV-077 `RD Implementation Contract`為執行authority。
+
+使用思考習慣：#設計思考、#溝通設計、#可驗證性

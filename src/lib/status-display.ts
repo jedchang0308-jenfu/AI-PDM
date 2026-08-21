@@ -21,6 +21,8 @@ export type StatusDisplayContext =
   | "restorePolicy"
   | "fileSync"
   | "notification"
+  | "recognitionStatus"
+  | "recognitionReviewStatus"
   | "generic";
 
 export type StatusTone = "neutral" | "info" | "warning" | "critical" | "success";
@@ -275,6 +277,28 @@ const jobStatuses: StatusDefinition[] = [
   { keys: ["failed", "error"], label: "失敗", description: "工作未完成，請重試；若仍失敗，請 Admin 檢查。", tone: "critical", abnormal: true, actionable: true }
 ];
 
+const recognitionStatuses: StatusDefinition[] = [
+  { keys: ["queued"], label: "等待辨識", description: "辨識工作已建立，等待系統開始處理。", tone: "warning" },
+  { keys: ["extracting", "running"], label: "辨識中", description: "系統正在從來源檔案擷取資料，請等待結果。", tone: "warning" },
+  { keys: ["review_ready"], label: "待人工核對", description: "辨識已完成，請由負責人核對候選值與來源證據。", tone: "warning", actionable: true },
+  { keys: ["extraction_partial"], label: "部分完成，待核對", description: "部分資料已辨識，仍有候選值需要人工核對。", tone: "warning", actionable: true },
+  { keys: ["extraction_failed", "failed"], label: "辨識失敗", description: "辨識未完成，請重新辨識或更換來源檔案。", tone: "critical", abnormal: true, actionable: true },
+  { keys: ["ready_to_formalize"], label: "可確認寫入", description: "必要核對已完成，可以先預覽影響再確認寫入 PDM。", tone: "success", actionable: true },
+  { keys: ["formalized"], label: "已寫入 PDM", description: "辨識結果已正式寫入 PDM，保留來源與核對紀錄。", tone: "success", terminal: true },
+  { keys: ["cancelled"], label: "已由新版取代", description: "這次辨識結果已由新版辨識工作取代，僅供追溯。", tone: "neutral", terminal: true }
+];
+
+const recognitionReviewStatuses: StatusDefinition[] = [
+  { keys: ["proposed"], label: "待核對", description: "候選值尚未完成人工核對。", tone: "warning", actionable: true },
+  { keys: ["conflict"], label: "與系統正式值不同", description: "候選值與目前系統正式值不同，需要人工判定。", tone: "critical", abnormal: true, actionable: true },
+  { keys: ["accepted"], label: "已接受", description: "候選值已由人工接受。", tone: "success", terminal: true },
+  { keys: ["corrected"], label: "已修正", description: "候選值已由人工修正並保留理由。", tone: "success", terminal: true },
+  { keys: ["mapped"], label: "已歸類", description: "候選值已完成欄位與資料歸屬。", tone: "success", terminal: true },
+  { keys: ["ignored"], label: "已忽略", description: "候選值已標記為不寫入，保留追溯。", tone: "neutral", terminal: true },
+  { keys: ["deferred"], label: "已延後", description: "候選值已延後處理，尚未寫入正式資料。", tone: "warning", actionable: true },
+  { keys: ["blocked"], label: "需處理", description: "候選值缺少必要核對或歸屬，暫時不能寫入。", tone: "critical", abnormal: true, actionable: true }
+];
+
 const restorePolicyStatuses: StatusDefinition[] = [
   { keys: ["restore_allowed", "allowed", "can_restore"], label: "可還原", description: "這筆資料符合還原條件，可以回到原作業清單。", tone: "success", actionable: true },
   { keys: ["restore_blocked", "blocked", "not_allowed"], label: "不可還原", description: "目前有條件阻擋，不能直接還原。", tone: "critical", abnormal: true },
@@ -354,6 +378,8 @@ const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
   restorePolicy: restorePolicyStatuses,
   fileSync: fileSyncStatuses,
   notification: notificationStatuses,
+  recognitionStatus: recognitionStatuses,
+  recognitionReviewStatus: recognitionReviewStatuses,
   generic: [
     ...masterRecordStatuses,
     ...submissionStatuses,
@@ -373,7 +399,9 @@ const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
     ...settingsLifecycleStatuses,
     ...jobStatuses,
     ...restorePolicyStatuses,
-    ...fileSyncStatuses
+    ...fileSyncStatuses,
+    ...recognitionStatuses,
+    ...recognitionReviewStatuses
   ]
 };
 

@@ -138,7 +138,7 @@ for (const relativePath of ["src/app/numbering/drawings/page.tsx", "src/app/part
 }
 
 const searchPage = read("src/app/numbering/search/page.tsx");
-record("Search page labels status filter as 資料狀態", searchPage.includes("<span>資料狀態</span>") && searchPage.includes("全部資料狀態"));
+record("Search page labels status filter as 資料狀態", searchPage.includes("<span>資料狀態</span>") && searchPage.includes('<option value="">全部</option>'));
 
 const accountPage = read("src/app/settings/accounts/page.tsx");
 const invitationPage = read("src/app/settings/account-invitations/page.tsx");

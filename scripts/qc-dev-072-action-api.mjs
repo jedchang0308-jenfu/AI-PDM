@@ -13,7 +13,7 @@ function facts(overrides = {}) {
     stateFamily: "drawing_preparation",
     actorId: "dev072-owner",
     ownerId: "dev072-owner",
-    ownerHref: "/numbering/drawings?detail=candidate%3Adev072-workspace",
+    ownerHref: "/numbering/drawings/dev072-drawing/workspace?intent=edit_revision&returnTo=%2Fnumbering%2Fdrawings%3Fview%3Dwork",
     returnTo: "/numbering/drawings?view=work",
     capabilities: allowedCapabilities,
     readinessBlockers: ["2D 圖面", "3D 模型"],
@@ -115,21 +115,22 @@ const inReviewCandidate = {
 };
 const review = resolvePdmDetailActions(facts({ stateFamily: "in_review", readinessBlockers: [], candidate: inReviewCandidate, review: { requestId: "dev072-review", decisionReady: true, allowedDecisions: ["approved", "needs_info"], drift: false } }));
 assertDescriptorContract(review);
-assert.equal(review.primary?.kind, "approve");
+assert.equal(review.primary?.kind, "view_review");
 assert.equal(byKind(review, "edit")?.disabledReasonCode, "PDM_ACTION_REVIEW_LOCKED");
 assert.equal(byKind(review, "manage_files"), undefined);
-assert.equal(byKind(review, "view_review"), undefined);
+assert.equal(byKind(review, "view_review")?.enabled, true);
 assert.equal(byKind(review, "withdraw_review"), undefined);
 assert.equal(byKind(review, "manage_relation"), undefined);
-assert.equal(byKind(review, "approve")?.enabled, true);
-assert.equal(byKind(review, "return_for_correction")?.enabled, true);
+assert.equal(byKind(review, "approve"), undefined);
+assert.equal(byKind(review, "return_for_correction"), undefined);
 assert.equal(byKind(review, "reject"), undefined);
 
 const drift = resolvePdmDetailActions(facts({ stateFamily: "in_review", readinessBlockers: [], candidate: inReviewCandidate, review: { requestId: "dev072-review", decisionReady: false, allowedDecisions: ["approved", "rejected"], drift: true } }));
 assertDescriptorContract(drift);
-assert.equal(byKind(drift, "approve")?.disabledReasonCode, "PDM_ACTION_REVIEW_DRIFT");
-assert.equal(byKind(drift, "reject")?.disabledReasonCode, "PDM_ACTION_REVIEW_DRIFT");
-assert.equal(drift.primary, null);
+assert.equal(byKind(drift, "view_review")?.enabled, true);
+assert.equal(byKind(drift, "approve"), undefined);
+assert.equal(byKind(drift, "reject"), undefined);
+assert.equal(drift.primary?.kind, "view_review");
 
 const denied = resolvePdmDetailActions(facts({ capabilities: EMPTY_PDM_DETAIL_ACTION_CAPABILITIES }));
 assertDescriptorContract(denied);
@@ -158,7 +159,7 @@ const recoveryAdmin = resolvePdmDetailActions(facts({
 assertDescriptorContract(recoveryAdmin);
 assert.equal(recoveryAdmin.primary?.kind, "retry_apply");
 assert.equal(byKind(recoveryAdmin, "retry_apply")?.enabled, true);
-assert.equal(byKind(recoveryAdmin, "retry_apply")?.execution?.success, "return_to_inbox");
+assert.equal(byKind(recoveryAdmin, "retry_apply")?.execution?.type, "navigate");
 const recoveryDenied = resolvePdmDetailActions(facts({
   stateFamily: "recovery_required",
   actorId: "dev072-admin",

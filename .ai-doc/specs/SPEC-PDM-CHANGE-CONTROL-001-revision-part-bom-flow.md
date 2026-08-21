@@ -4,6 +4,8 @@
 
 > 2026-08-10 Identity Amendment：`ADR-PDM-MATERIAL-IDENTITY-REVISION-001` 是「升 Rev 或換 Part Number」的跨模組 authority。料號代表物料身份且無 Revision；Drawing 與 BOM 各自獨立版控。FFF 之外，互換性、法規／品質管制或其他物料身份條件改變也必須建立新料號。
 
+> 2026-08-20 DEV-084 Amendment：建立替代料號草稿時的料號附件候選、人工選擇、一次性snapshot、正式化promotion與料號級排他鎖，改依已達`RD Implementation Ready`的 `SPEC-PDM-PART-ATTACHMENT-REUSE-001`。`part-number-drafts`與drawing-revision submission共用exact snapshot wire，draft bindings於既有release transaction原子promotion，不得重新讀source；本文件的替代草稿、FFF／身份判定、review、正式化與替代關聯authority不變，附件不新增獨立approval gate。
+
 狀態：Implemented locally / Evidence captured; production/Supabase cutover deferred
 日期：2026-06-24  
 適用系統：AI_PDM  

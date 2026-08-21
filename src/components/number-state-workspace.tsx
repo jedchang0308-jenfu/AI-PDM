@@ -711,11 +711,11 @@ export function NumberStateOwnerCreateAction({
           onClose={() => setOpen(false)}
           onCreated={(workspace) => {
             if (feature?.partRelationWorkbench?.enabled && surface === "parts") {
-              window.location.assign(`/parts?view=work&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`);
+              window.location.assign(`/numbering/workspaces/${encodeURIComponent(workspace.id)}?intent=edit&returnTo=${encodeURIComponent("/parts?view=work")}`);
               return;
             }
             if (feature?.partRelationWorkbench?.enabled && surface === "search") {
-              window.location.assign(`/numbering/search?view=work&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`);
+              window.location.assign(`/numbering/workspaces/${encodeURIComponent(workspace.id)}?intent=edit&returnTo=${encodeURIComponent("/numbering/search?view=work")}`);
               return;
             }
             if (feature?.drawingWorkbench?.enabled && surface === "drawings") {
@@ -1008,7 +1008,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
             <span>搜尋</span>
             <div className="number-state-search-field"><Search size={15} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="申請名稱、編號或 ID" /></div>
           </label>
-          <label><span>系列代號</span><select value={seriesCode} onChange={(event) => setSeriesCode(event.target.value)}><option value="">全部系列代號</option>{seriesCodeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
+          <label><span>系列代號</span><select value={seriesCode} onChange={(event) => setSeriesCode(event.target.value)}><option value="">全部</option>{seriesCodeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
           <label><span>範圍</span><select value={ownerScope} onChange={(event) => setOwnerScope(event.target.value as "mine" | "all")}><option value="mine">我的編號申請</option><option value="all">全公司編號申請</option></select></label>
           <label><span>生命週期</span><select value={lifecycle} onChange={(event) => setLifecycle(event.target.value as "all" | LifecycleStatus)}><option value="all">全部</option><option value="active">進行中</option><option value="cancelled">已取消</option><option value="published">已發布</option></select></label>
         </div>
@@ -1079,36 +1079,7 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
         ) : null}
       </section>
 
-      {selected ? (
-        <WorkspaceDrawer
-          workspace={selected}
-          busy={actionBusy}
-          editing={editOpen}
-          onEdit={() => setEditOpen(true)}
-          onCancelEdit={() => setEditOpen(false)}
-          onUpdate={(payload) => void updateWorkspace(payload)}
-          onSubmit={() => setConfirmAction("submit")}
-          onWithdraw={() => setConfirmAction("withdraw")}
-          onPublish={() => setConfirmAction("publish")}
-          onCancel={() => setConfirmAction("cancel")}
-          formalActionsUnopened={formalActionsUnopened}
-          unopenedMessage={formalActionsUnopenedMessage}
-          canCreateDrawingRevision={actionPermissions?.["numbering.draft.update"] === true}
-          lifecycleV2Enabled={lifecycleV2Enabled}
-          onV2WorkspaceChange={(workspace) => {
-            const next = workspace as NumberingDraftWorkspace;
-            setSelected(next);
-            void loadWorkspaces(next.id);
-          }}
-          onV2Error={setError}
-          onV2Notice={setNotice}
-          seriesCodeOptions={seriesCodeOptions}
-          width={drawerWidth}
-          onStartResize={startDrawerResize}
-          keepOpenSelector="[data-number-state-row='true']"
-          onClose={() => { setSelected(null); setEditOpen(false); }}
-        />
-      ) : null}
+      {selected ? <WorkspaceReadonlyDrawer workspace={selected} ownerHref={`/numbering/workspaces/${encodeURIComponent(selected.id)}?intent=view&returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`} width={drawerWidth} onStartResize={startDrawerResize} keepOpenSelector="[data-number-state-row='true']" presentation={{ entityLabel: "編號工作", title: getPrimaryReservedDrawingCode(selected) ?? "編號工作", sourceContext: "number_state_workspace" }} onClose={() => { setSelected(null); setEditOpen(false); }} /> : null}
       {createOpen ? (
         <DraftCreateDialog
           initialMode={createModeFromLocation()}
@@ -1121,16 +1092,6 @@ export function NumberStateWorkspaceWorkbench({ module = "parts" }: { module?: N
             setNotice("申請已建立並取得編號；發布前不能作為製造、採購或交接依據。");
             void loadWorkspaces(workspace.id);
           }}
-        />
-      ) : null}
-      {confirmAction && selected ? (
-        <ConfirmDialog
-          action={confirmAction}
-          workspace={selected}
-          busy={actionBusy}
-          onClose={() => setConfirmAction(null)}
-          lifecycleV2Enabled={lifecycleV2Enabled}
-          onConfirm={() => void runWorkspaceAction(confirmAction)}
         />
       ) : null}
     </>
@@ -1775,6 +1736,61 @@ export function WorkspaceDrawer({
   );
 }
 
+export function WorkspaceReadonlyDrawer({
+  workspace,
+  ownerHref,
+  width,
+  onStartResize,
+  keepOpenSelector,
+  presentation,
+  onClose
+}: {
+  workspace: NumberingDraftWorkspace;
+  ownerHref: string;
+  width: number;
+  onStartResize: (clientX: number) => void;
+  keepOpenSelector?: string;
+  presentation?: { entityLabel: string; title: string; sourceContext: string };
+  onClose: () => void;
+}) {
+  const entityLabel = presentation?.entityLabel ?? "工作";
+  const title = presentation?.title ?? getPrimaryReservedDrawingCode(workspace) ?? "工作摘要";
+  return <DrawingWorkspaceDrawer
+    open
+    width={width}
+    ariaLabel={`${entityLabel}唯讀摘要`}
+    eyebrow={entityLabel}
+    title={title}
+    subtitle={workspaceTitle(workspace)}
+    status={<WorkspaceHeaderStatus workspace={workspace} lifecycleV2Enabled={Boolean(workspace.lifecycleV2)} />}
+    primaryAction={<Link className="primary-button" href={ownerHref}><Pencil size={15} />前往完整工作區</Link>}
+    entityType="candidate_bundle"
+    entityCode={workspace.id}
+    sourceContext={presentation?.sourceContext ?? "number_state_workspace"}
+    className="number-state-workspace-drawer"
+    bodyClassName="number-state-drawer-body"
+    resizeLabel={`調整${entityLabel}明細寬度`}
+    resizeTitle={`拖曳調整${entityLabel}明細寬度`}
+    closeLabel={`關閉${entityLabel}明細`}
+    onClose={onClose}
+    onStartResize={onStartResize}
+    keepOpenSelector={keepOpenSelector}
+    overviewLabel={`${entityLabel}摘要`}
+    moreLabel={`更多${entityLabel}資料`}
+    content={{
+      overview: <CandidateDrawingOverview workspace={workspace} />,
+      body: <><ReviewFeedbackPanel workspace={workspace} /><CandidateDrawingPreview workspace={workspace} /></>,
+      pending: <LifecycleV2PendingPanel workspace={workspace} formalActionsUnopened={false} unopenedMessage="目前僅提供唯讀摘要。" />,
+      more: <WorkspaceRelationsDetails workspace={workspace} primaryDrawingCode={getPrimaryReservedDrawingCode(workspace)} />,
+      bodyTitle: "圖面與附件",
+      bodyLabel: "圖面與附件",
+      pendingTitle: "下一步",
+      pendingLabel: "下一步",
+      moreTitle: "更多"
+    }}
+  />;
+}
+
 function WorkspaceHeaderStatus({ workspace, lifecycleV2Enabled }: { workspace: NumberingDraftWorkspace; lifecycleV2Enabled: boolean }) {
   if (lifecycleV2Enabled && workspace.lifecycleV2) {
     const lifecycle = projectNumberLifecycleUserView(workspace.lifecycleV2);
@@ -1961,10 +1977,39 @@ function UnopenedAction({ label, reason, children }: { label: string; reason: st
 
 function WorkspaceRelationsDetails({ workspace, primaryDrawingCode }: { workspace: NumberingDraftWorkspace; primaryDrawingCode: string | null }) {
   const additionalDrawings = workspace.drawings.filter((drawing) => drawing.candidateCode !== primaryDrawingCode);
+  const relationCount = workspace.parts.length + additionalDrawings.length;
+  const relationSummary = relationCount === 0 ? "尚無關聯" : `${relationCount} 個關聯`;
+  const childItemCount = workspace.parts.length + additionalDrawings.length;
   return (
     <details className="drawing-workbench-secondary-section candidate-drawing-relations">
-      <summary><span>圖號與關聯</span><strong>{workspace.parts.length + additionalDrawings.length} 筆</strong></summary>
-      <div className="number-state-item-list">{workspace.root ? <DraftItem icon={<PackagePlus size={16} />} title="圖料根號" subtitle={`${itemKindLabel(workspace.root.itemKind)} · ${draftNumberLabel(workspace, workspace.root.candidateCode)}`} /> : null}{workspace.parts.map((part) => <DraftItem key={part.id} icon={<PackagePlus size={16} />} title={part.candidateCode ?? "尚未產生料號"} subtitle={`${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列 ${part.seriesCode}` : ""}`} />)}{additionalDrawings.map((drawing) => <DraftItem key={drawing.id} icon={<FileText size={16} />} title={drawing.candidateCode ?? "尚未產生圖號"} subtitle={purposeLabel(drawing.purposeCode)} />)}</div>
+      <summary className="candidate-drawing-relations-summary"><span>圖號與關聯</span><strong>{relationSummary}</strong></summary>
+      <div className="number-state-item-list" role="list">
+        {workspace.root ? <RelationItem
+          icon={<PackagePlus size={16} />}
+          title={draftNumberLabel(workspace, workspace.root.candidateCode)}
+          subtitle={`圖料根號 · ${itemKindLabel(workspace.root.itemKind)}`}
+          roleLabel="主根號"
+          level="root"
+        /> : null}
+        {workspace.parts.map((part, index) => <RelationItem
+            key={part.id}
+            icon={<PackagePlus size={16} />}
+            title={part.candidateCode ?? "尚未產生料號"}
+            subtitle={`料號 · ${itemKindLabel(part.itemKind)}${part.seriesCode ? ` · 系列：${part.seriesCode}` : ""}`}
+            roleLabel="關聯料號"
+            level={workspace.root ? "child" : "root"}
+            isLast={index === childItemCount - 1}
+          />)}
+        {additionalDrawings.map((drawing, index) => <RelationItem
+            key={drawing.id}
+            icon={<FileText size={16} />}
+            title={drawing.candidateCode ?? "尚未產生圖號"}
+            subtitle={`圖號 · ${purposeLabel(drawing.purposeCode)}`}
+            roleLabel="關聯圖號"
+            level={workspace.root ? "child" : "root"}
+            isLast={workspace.parts.length + index === childItemCount - 1}
+          />)}
+      </div>
     </details>
   );
 }
@@ -2107,10 +2152,15 @@ function RevisionPreparationPanel({
   );
 }
 
-function WorkspaceEditForm({ workspace, busy, seriesCodeOptions, onCancel, onSave }: { workspace: NumberingDraftWorkspace; busy: boolean; seriesCodeOptions: string[]; onCancel: () => void; onSave: (payload: Record<string, unknown>) => void }) {
+export function WorkspaceEditForm({ workspace, busy, seriesCodeOptions, onCancel, onSave, onDirtyChange }: { workspace: NumberingDraftWorkspace; busy: boolean; seriesCodeOptions: string[]; onCancel: () => void; onSave: (payload: Record<string, unknown>) => void; onDirtyChange?: (dirty: boolean) => void }) {
   const [root, setRoot] = useState(workspace.root ? { ...workspace.root } : null);
   const [parts, setParts] = useState(workspace.parts.map((part) => ({ ...part })));
   const [drawings, setDrawings] = useState(workspace.drawings.map((drawing) => ({ ...drawing })));
+  useEffect(() => {
+    const original = JSON.stringify({ root: workspace.root, parts: workspace.parts, drawings: workspace.drawings });
+    const current = JSON.stringify({ root, parts, drawings });
+    onDirtyChange?.(original !== current);
+  }, [drawings, onDirtyChange, parts, root, workspace.drawings, workspace.parts, workspace.root]);
   return (
     <section className="number-state-drawer-section">
       <h3>編輯編號申請</h3>
@@ -2268,8 +2318,33 @@ function SelectField({ label, value, onChange, options }: { label: string; value
   return <Field label={label}><select value={value} onChange={(event) => onChange(event.target.value)}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>;
 }
 
-function DraftItem({ icon, title, subtitle }: { icon: ReactNode; title: string; subtitle: string }) {
-  return <div className="number-state-item"><span>{icon}</span><div><strong>{title}</strong><small>{subtitle}</small></div></div>;
+function RelationItem({
+  icon,
+  title,
+  subtitle,
+  roleLabel,
+  level,
+  isLast = false
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  roleLabel: string;
+  level: "root" | "child";
+  isLast?: boolean;
+}) {
+  return (
+    <div className={`number-state-item relation-item is-${level}${isLast ? " is-last" : ""}`} role="listitem">
+      <span className="number-state-item-icon">{icon}</span>
+      <div className="number-state-item-copy">
+        <div className="number-state-item-primary">
+          <strong title={title}>{title}</strong>
+          <span className="number-state-item-role">{roleLabel}</span>
+        </div>
+        <small>{subtitle}</small>
+      </div>
+    </div>
+  );
 }
 
 function LifecycleBadge({ lifecycle }: { lifecycle: NumberStateProjection["lifecycle"] }) {

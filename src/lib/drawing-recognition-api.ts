@@ -2,8 +2,17 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { DrawingRecognitionError } from "@/lib/drawing-recognition-contract";
 
-export async function recognitionJsonBody(request: Request) {
-  const body = await request.json().catch(() => null);
+export async function recognitionJsonBody(request: Request, maxBytes?: number) {
+  let body: unknown;
+  if (maxBytes) {
+    const declared = Number(request.headers.get("content-length") ?? 0);
+    if (Number.isFinite(declared) && declared > maxBytes) throw new DrawingRecognitionError("RECOGNITION_BODY_TOO_LARGE", "辨識結果內容超過限制。", 413);
+    const text = await request.text();
+    if (new TextEncoder().encode(text).byteLength > maxBytes) throw new DrawingRecognitionError("RECOGNITION_BODY_TOO_LARGE", "辨識結果內容超過限制。", 413);
+    try { body = JSON.parse(text); } catch { body = null; }
+  } else {
+    body = await request.json().catch(() => null);
+  }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     throw new DrawingRecognitionError("RECOGNITION_BODY_INVALID", "請提供有效的 JSON 內容。", 400);
   }

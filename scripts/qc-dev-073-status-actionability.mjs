@@ -140,7 +140,7 @@ const workbenchSource = fs.readFileSync("src/lib/repositories/drawing-workbench-
 const changeControlSource = fs.readFileSync("src/lib/pdm-change-control-domain.ts", "utf8");
 assert.match(serviceSource, /candidate\.lifecycleStatus === "published"/);
 assert.match(serviceSource, /candidateState === "recovery_required"/, "bundle apply failure must project the retry action into unified detail");
-assert.match(serviceSource, /projectPdmDetailViewerStatus/);
+assert.match(serviceSource, /projectPdmDetailStatusPair/, "unified detail must expose stable responsibility status plus viewer actionability");
 assert.match(serviceSource, /package\.revision LIKE '%\.%'/, "minor-revision SQL must stay portable across SQLite and PostgreSQL");
 assert.doesNotMatch(serviceSource, /instr\(package\.revision/u, "SQLite-only revision predicates must not enter the shared detail reader");
 assert.match(workbenchSource, /projectEffectiveDrawingRevisionLifecycle/);

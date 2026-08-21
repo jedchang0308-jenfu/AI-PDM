@@ -6,7 +6,8 @@ import "./styles/responsive.css";
 
 export const metadata: Metadata = {
   title: "AI PDM",
-  description: "SolidWorks AI 圖面資料管理系統"
+  description: "SolidWorks AI 圖面資料管理系統",
+  icons: { icon: "/icon.svg" }
 };
 
 export const viewport: Viewport = {

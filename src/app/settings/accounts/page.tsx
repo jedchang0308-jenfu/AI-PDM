@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Ban, CheckCircle2, ClipboardCopy, KeyRound, RefreshCw, RotateCcw, ShieldCheck, ShieldOff, UserCog, UserPlus } from "lucide-react";
 import { ReasonActionDialog } from "@/components/reason-action-dialog";
 import { SearchHighlight } from "@/components/search-highlight";
+import { StatusScopeHelp } from "@/components/status-help-popover";
+import { getStatusDisplay } from "@/lib/status-display";
 import AccountInvitationsPage from "../account-invitations/page";
 import { ApprovalMatrixSettings } from "../page";
 
@@ -89,7 +91,7 @@ const tabs: Array<{ id: Tab; label: string }> = [
 ];
 
 const statusOptions: Array<{ value: string; label: string }> = [
-  { value: "", label: "全部狀態" },
+  { value: "", label: "全部" },
   { value: "active", label: "可使用" },
   { value: "suspended", label: "已暫停" },
   { value: "expired", label: "已到期" },
@@ -97,13 +99,7 @@ const statusOptions: Array<{ value: string; label: string }> = [
 ];
 
 function statusLabel(status: AccountStatus) {
-  const labels: Record<AccountStatus, string> = {
-    active: "可使用",
-    suspended: "已暫停",
-    expired: "已到期",
-    offboarded: "已離職"
-  };
-  return labels[status];
+  return getStatusDisplay(status, "accountStatus").label;
 }
 
 function roleLabel(role: string) {
@@ -139,7 +135,7 @@ export default function AccountsSettingsPage() {
     <div className="account-console-page">
       <header className="page-header">
         <div>
-          <h1>帳號與權限</h1>
+          <h1>帳號與權限 <StatusScopeHelp scope="accountList" /></h1>
           <p>集中處理帳號生命週期、邀請、角色權限與異動紀錄；目前工作區固定為鉦富。</p>
         </div>
       </header>
@@ -549,23 +545,23 @@ function AccountManagementPanel() {
               <div className="account-detail-section">
                 <div className="account-section-heading">
                   <h3>個人資料告知確認</h3>
-                  <span className={`status-badge privacy-status-${detail?.privacyEvidence.status ?? "not_acknowledged"}`}>
-                    {detail?.privacyEvidence.status === "acknowledged"
+                  <span className={`status-badge privacy-status-${detail?.privacyEvidence?.status ?? "not_acknowledged"}`}>
+                    {detail?.privacyEvidence?.status === "acknowledged"
                       ? "已確認"
-                      : detail?.privacyEvidence.status === "reacknowledgement_required"
+                      : detail?.privacyEvidence?.status === "reacknowledgement_required"
                         ? "需重新確認"
                         : "尚未確認"}
                   </span>
                 </div>
                 <dl className="account-detail-facts privacy-evidence-facts">
-                  <div><dt>目前要求版本</dt><dd>{detail ? `Pilot v${detail.privacyEvidence.requiredVersion}` : "-"}</dd></div>
-                  <div><dt>已確認版本</dt><dd>{detail?.privacyEvidence.acknowledgedVersion ? `Pilot v${detail.privacyEvidence.acknowledgedVersion}` : "尚未確認"}</dd></div>
-                  <div><dt>確認時間</dt><dd>{formatDateTime(detail?.privacyEvidence.acknowledgedAt ?? null)}</dd></div>
-                  <div><dt>生效時間</dt><dd>{formatDateTime(detail?.privacyEvidence.effectiveAt ?? null)}</dd></div>
+                  <div><dt>目前要求版本</dt><dd>{detail?.privacyEvidence?.requiredVersion ? `Pilot v${detail.privacyEvidence.requiredVersion}` : "-"}</dd></div>
+                  <div><dt>已確認版本</dt><dd>{detail?.privacyEvidence?.acknowledgedVersion ? `Pilot v${detail.privacyEvidence.acknowledgedVersion}` : "尚未確認"}</dd></div>
+                  <div><dt>確認時間</dt><dd>{formatDateTime(detail?.privacyEvidence?.acknowledgedAt ?? null)}</dd></div>
+                  <div><dt>生效時間</dt><dd>{formatDateTime(detail?.privacyEvidence?.effectiveAt ?? null)}</dd></div>
                 </dl>
-                <p className="account-section-note privacy-evidence-hash" title={detail?.privacyEvidence.requiredContentSha256 ?? undefined}>
+                <p className="account-section-note privacy-evidence-hash" title={detail?.privacyEvidence?.requiredContentSha256 ?? undefined}>
                   <ShieldCheck size={15} aria-hidden="true" />
-                  版本內容 SHA-256：{detail?.privacyEvidence.requiredContentSha256 ?? "-"}
+                  版本內容 SHA-256：{detail?.privacyEvidence?.requiredContentSha256 ?? "-"}
                 </p>
                 <p className="account-section-note">管理員只能查閱證據，不能代替員工確認或修改歷史紀錄。</p>
               </div>

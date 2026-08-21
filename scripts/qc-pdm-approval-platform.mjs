@@ -166,7 +166,15 @@ assertIncludes(approvalPageSource, "buildInboxUrl", "Phase 1C workbench applies 
 assertIncludes(approvalPageSource, "syncFilterQuery", "Phase 1C workbench supports filter deep links");
 assertIncludes(approvalPageSource, "legacyRedirectMessages", "Phase 1C-B workbench explains legacy route redirects");
 assertIncludes(approvalPageSource, "allowedDecisionsForDetail", "Phase 1C-B workbench hides unsupported legacy decisions");
-assertIncludes(numberingDrawingsPageSource, "PendingApprovalBadge", "Phase 1C-C drawing list shows compact pending approval badge");
+assert(
+  numberingDrawingsPageSource.includes("PendingApprovalBadge")
+    || (
+      numberingDrawingsPageSource.includes("StatusSignalGroup")
+      && numberingDrawingsPageSource.includes('context: "approvalStatus"')
+      && numberingDrawingsPageSource.includes("pendingApproval")
+    ),
+  "Phase 1C-C drawing list shows compact pending approval signal"
+);
 assertNotIncludes(numberingDrawingsPageSource, "PendingApprovalPanel", "Phase 1C-C drawing detail does not duplicate a pending approval focus panel");
 assertNotIncludes(numberingDrawingsPageSource, "待審焦點", "Phase 1C-C drawing detail removes the pending approval focus block");
 assertIncludes(numberingDrawingsPageSource, "pendingRevisionReviews", "Phase 1C-C drawing detail passes pending revisions to attachment history");

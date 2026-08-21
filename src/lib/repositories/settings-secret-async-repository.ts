@@ -1,9 +1,10 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 
 export type SettingsSecretLifecycleStatus = "draft" | "tested" | "active" | "retired" | "revoked";
-export type SettingsSecretVaultProvider = "local_test_double" | "google_secret_manager" | "supabase_vault";
+export type SettingsSecretVaultProvider = "local_test_double" | "windows_dpapi" | "google_secret_manager" | "supabase_vault";
 export type SettingsSecretTestStatus = "passed" | "failed" | "blocked";
 export type SettingsSecretActivationEventType = "created_draft" | "tested" | "activated" | "retired" | "revoked";
+export type SettingsSecretProbeStatus = "pending" | "running" | "passed" | "failed" | "blocked" | "expired";
 
 export type SettingsSecretReference = {
   id: string;
@@ -43,6 +44,39 @@ export type SettingsSecretTestRun = {
   metadataJson: string;
 };
 
+export type SettingsSecretProbeJob = {
+  id: string;
+  secretReferenceId: string;
+  kind: string;
+  status: SettingsSecretProbeStatus;
+  lockedBy: string | null;
+  lockedAt: string | null;
+  heartbeatAt: string | null;
+  attemptCount: number;
+  maxAttempts: number;
+  resultCode: string | null;
+  readerVersion: string | null;
+  createdBy: string;
+  createdAt: string;
+  completedAt: string | null;
+  updatedAt: string;
+};
+
+export type WorkerCapabilityHeartbeat = {
+  workerId: string;
+  workerKind: string;
+  capabilityCode: string;
+  status: "ready" | "blocked" | "degraded";
+  appliedSecretKind: string | null;
+  appliedSecretVersion: number | null;
+  appliedSecretFingerprint: string | null;
+  readerVersion: string | null;
+  issueCode: string | null;
+  lastAppliedAt: string | null;
+  lastSeenAt: string;
+  updatedAt: string;
+};
+
 type SettingsSecretReferenceRow = {
   id: string;
   kind: string;
@@ -79,6 +113,39 @@ type SettingsSecretTestRunRow = {
   tested_by: string;
   tested_at: string;
   metadata_json: string;
+};
+
+type SettingsSecretProbeJobRow = {
+  id: string;
+  secret_reference_id: string;
+  kind: string;
+  status: SettingsSecretProbeStatus;
+  locked_by: string | null;
+  locked_at: string | null;
+  heartbeat_at: string | null;
+  attempt_count: number | string;
+  max_attempts: number | string;
+  result_code: string | null;
+  reader_version: string | null;
+  created_by: string;
+  created_at: string;
+  completed_at: string | null;
+  updated_at: string;
+};
+
+type WorkerCapabilityHeartbeatRow = {
+  worker_id: string;
+  worker_kind: string;
+  capability_code: string;
+  status: "ready" | "blocked" | "degraded";
+  applied_secret_kind: string | null;
+  applied_secret_version: number | string | null;
+  applied_secret_fingerprint: string | null;
+  reader_version: string | null;
+  issue_code: string | null;
+  last_applied_at: string | null;
+  last_seen_at: string;
+  updated_at: string;
 };
 
 export const SELECT_SECRET_REFERENCES_BY_KIND_SQL = `
@@ -267,6 +334,43 @@ function mapSecretTestRun(row: SettingsSecretTestRunRow): SettingsSecretTestRun 
   };
 }
 
+function mapProbeJob(row: SettingsSecretProbeJobRow): SettingsSecretProbeJob {
+  return {
+    id: row.id,
+    secretReferenceId: row.secret_reference_id,
+    kind: row.kind,
+    status: row.status,
+    lockedBy: row.locked_by,
+    lockedAt: row.locked_at,
+    heartbeatAt: row.heartbeat_at,
+    attemptCount: Number(row.attempt_count),
+    maxAttempts: Number(row.max_attempts),
+    resultCode: row.result_code,
+    readerVersion: row.reader_version,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    completedAt: row.completed_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapHeartbeat(row: WorkerCapabilityHeartbeatRow): WorkerCapabilityHeartbeat {
+  return {
+    workerId: row.worker_id,
+    workerKind: row.worker_kind,
+    capabilityCode: row.capability_code,
+    status: row.status,
+    appliedSecretKind: row.applied_secret_kind,
+    appliedSecretVersion: row.applied_secret_version == null ? null : Number(row.applied_secret_version),
+    appliedSecretFingerprint: row.applied_secret_fingerprint,
+    readerVersion: row.reader_version,
+    issueCode: row.issue_code,
+    lastAppliedAt: row.last_applied_at,
+    lastSeenAt: row.last_seen_at,
+    updatedAt: row.updated_at
+  };
+}
+
 export class AsyncSettingsSecretRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
@@ -376,5 +480,98 @@ export class AsyncSettingsSecretRepository {
       eventAt: input.eventAt,
       detailJson: input.detailJson
     });
+  }
+
+  async enqueueProbeJob(input: { id: string; secretReferenceId: string; kind: string; createdBy: string; createdAt: string; maxAttempts?: number }): Promise<SettingsSecretProbeJob> {
+    await this.client.execute(
+      `INSERT INTO settings_secret_probe_jobs (id, secret_reference_id, kind, status, attempt_count, max_attempts, created_by, created_at, updated_at)
+       VALUES (:id, :secretReferenceId, :kind, 'pending', 0, :maxAttempts, :createdBy, :createdAt, :createdAt)`,
+      { ...input, maxAttempts: input.maxAttempts ?? 2 }
+    );
+    const job = await this.getProbeJobById(input.id);
+    if (!job) throw new Error("SETTINGS_SECRET_PROBE_JOB_CREATE_FAILED");
+    return job;
+  }
+
+  async getProbeJobById(id: string): Promise<SettingsSecretProbeJob | null> {
+    const row = await this.client.queryOne<SettingsSecretProbeJobRow>("SELECT * FROM settings_secret_probe_jobs WHERE id = :id", { id });
+    return row ? mapProbeJob(row) : null;
+  }
+
+  async getLatestProbeJob(secretReferenceId: string): Promise<SettingsSecretProbeJob | null> {
+    const row = await this.client.queryOne<SettingsSecretProbeJobRow>(
+      "SELECT * FROM settings_secret_probe_jobs WHERE secret_reference_id = :secretReferenceId ORDER BY created_at DESC LIMIT 1",
+      { secretReferenceId }
+    );
+    return row ? mapProbeJob(row) : null;
+  }
+
+  async claimProbeJob(workerId: string, now: string): Promise<SettingsSecretProbeJob | null> {
+    return this.client.transaction(async (transactionClient) => {
+      const staleCutoff = new Date(Date.parse(now) - 60_000).toISOString();
+      await transactionClient.execute(
+        "UPDATE settings_secret_probe_jobs SET status = 'expired', result_code = 'probe_attempt_limit_exceeded', completed_at = :now, updated_at = :now WHERE status = 'running' AND updated_at < :staleCutoff AND attempt_count >= max_attempts",
+        { now, staleCutoff }
+      );
+      const candidate = await transactionClient.queryOne<SettingsSecretProbeJobRow>(
+        `SELECT * FROM settings_secret_probe_jobs
+         WHERE status = 'pending' OR (status = 'running' AND updated_at < :staleCutoff AND attempt_count < max_attempts)
+         ORDER BY created_at ASC LIMIT 1`,
+        { staleCutoff }
+      );
+      if (!candidate) return null;
+      await transactionClient.execute(
+        `UPDATE settings_secret_probe_jobs SET status = 'running', locked_by = :workerId, locked_at = :now,
+          heartbeat_at = :now, attempt_count = attempt_count + 1, updated_at = :now
+         WHERE id = :id AND (status = 'pending' OR (status = 'running' AND updated_at < :staleCutoff))`,
+        { workerId, now, id: candidate.id, staleCutoff }
+      );
+      const row = await transactionClient.queryOne<SettingsSecretProbeJobRow>("SELECT * FROM settings_secret_probe_jobs WHERE id = :id", { id: candidate.id });
+      return row?.status === "running" && row.locked_by === workerId ? mapProbeJob(row) : null;
+    });
+  }
+
+  async heartbeatProbeJob(id: string, workerId: string, now: string): Promise<boolean> {
+    await this.client.execute(
+      "UPDATE settings_secret_probe_jobs SET heartbeat_at = :now, updated_at = :now WHERE id = :id AND status = 'running' AND locked_by = :workerId",
+      { id, workerId, now }
+    );
+    const row = await this.getProbeJobById(id);
+    return row?.status === "running" && row.lockedBy === workerId;
+  }
+
+  async completeProbeJob(input: { id: string; workerId: string; status: Exclude<SettingsSecretProbeStatus, "pending" | "running" | "expired">; resultCode: string | null; readerVersion: string | null; completedAt: string }): Promise<boolean> {
+    await this.client.execute(
+      `UPDATE settings_secret_probe_jobs SET status = :status, result_code = :resultCode, reader_version = :readerVersion,
+        completed_at = :completedAt, updated_at = :completedAt WHERE id = :id AND status = 'running' AND locked_by = :workerId`,
+      input
+    );
+    const row = await this.getProbeJobById(input.id);
+    return row?.status === input.status && row.lockedBy === input.workerId;
+  }
+
+  async upsertWorkerCapabilityHeartbeat(input: WorkerCapabilityHeartbeat): Promise<void> {
+    await this.client.execute(
+      `INSERT INTO worker_capability_heartbeats
+        (worker_id, worker_kind, capability_code, status, applied_secret_kind, applied_secret_version,
+         applied_secret_fingerprint, reader_version, issue_code, last_applied_at, last_seen_at, updated_at)
+       VALUES (:workerId, :workerKind, :capabilityCode, :status, :appliedSecretKind, :appliedSecretVersion,
+         :appliedSecretFingerprint, :readerVersion, :issueCode, :lastAppliedAt, :lastSeenAt, :updatedAt)
+       ON CONFLICT(worker_id, capability_code) DO UPDATE SET
+         worker_kind = excluded.worker_kind, status = excluded.status,
+         applied_secret_kind = excluded.applied_secret_kind, applied_secret_version = excluded.applied_secret_version,
+         applied_secret_fingerprint = excluded.applied_secret_fingerprint, reader_version = excluded.reader_version,
+         issue_code = excluded.issue_code, last_applied_at = excluded.last_applied_at,
+         last_seen_at = excluded.last_seen_at, updated_at = excluded.updated_at`,
+      input
+    );
+  }
+
+  async getLatestWorkerCapabilityHeartbeat(capabilityCode: string): Promise<WorkerCapabilityHeartbeat | null> {
+    const row = await this.client.queryOne<WorkerCapabilityHeartbeatRow>(
+      "SELECT * FROM worker_capability_heartbeats WHERE capability_code = :capabilityCode ORDER BY last_seen_at DESC LIMIT 1",
+      { capabilityCode }
+    );
+    return row ? mapHeartbeat(row) : null;
   }
 }

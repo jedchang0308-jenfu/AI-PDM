@@ -154,6 +154,19 @@ try {
   assert.ok(rootDetailQueryCount <= 10, `relation root detail query budget exceeded: ${rootDetailQueryCount}`);
   assert.ok(candidateDetailQueryCount <= 13, `relation candidate detail query budget exceeded: ${candidateDetailQueryCount}`);
 
+  database.prepare(`INSERT INTO approval_platform_requests (
+    id, company_id, package_id, action_code, domain_code, request_status, title, reason,
+    requested_by, requested_at, apply_status, payload_json, created_at, updated_at
+  ) VALUES ('dev062-source-less-review', 'company-jenfu', NULL, 'numbering.candidate_publication_review', 'numbering', 'pending',
+    'DEV-062 relation filter fixture', 'QC filter-before-limit fixture', 'dev062-relation-owner', ?, 'pending', '{}', ?, ?)` ).run(now, now, now);
+  database.prepare(`INSERT INTO approval_platform_targets (
+    id, request_id, target_role, target_type, target_id, target_label, target_status, snapshot_json, sort_order, created_at
+  ) VALUES ('dev062-source-less-review-target', 'dev062-source-less-review', 'primary', 'numbering_draft_workspace',
+    'dev062-source-less', '候選閥體', 'review_locked', '{}', 0, ?)` ).run(now);
+  database.prepare(`UPDATE number_candidate_reservations
+    SET reservation_state = 'review_locked', approval_request_id = 'dev062-source-less-review', row_version = row_version + 1, updated_at = ?
+    WHERE workspace_id = 'dev062-source-less' AND company_id = 'company-jenfu' AND reservation_state = 'active'`).run(now);
+
   database.prepare(`INSERT INTO numbering_draft_relations (
     id, company_id, workspace_id, drawing_draft_id, part_draft_id, link_type, is_primary, created_at, updated_at
   ) VALUES ('dev062-source-less-duplicate-relation', 'company-jenfu', 'dev062-source-less',
@@ -237,8 +250,11 @@ try {
   assert.equal(representativeCandidateQueryCount, candidateDetailQueryCount, "Relation candidate detail query count must not grow with child cardinality");
 
   const waitingActor = { ...actor, id: "dev062-relation-observer" };
-  const waitingPage = await service.list(workbench.normalizeRelationWorkbenchQuery(new URL("http://local.test/?view=all&humanStatus=waiting&limit=1")), waitingActor);
-  assert.equal(waitingPage.rows[0]?.rowKey, "candidate:dev062-source-less", "projected filters continue scanning before pagination instead of returning a false empty page");
+  const waitingAllPage = await service.list(workbench.normalizeRelationWorkbenchQuery(new URL("http://local.test/?view=all&limit=100")), waitingActor);
+  const reviewingPage = await service.list(workbench.normalizeRelationWorkbenchQuery(new URL("http://local.test/?view=all&humanStatus=reviewing&limit=1")), waitingActor);
+  assert.equal(reviewingPage.rows[0]?.rowKey, "candidate:dev062-source-less", "canonical projected filters continue scanning before pagination instead of returning a false empty page");
+  const legacyWaitingQuery = workbench.normalizeRelationWorkbenchQuery(new URL("http://local.test/?view=all&humanStatus=waiting&limit=1"));
+  assert.deepEqual(legacyWaitingQuery.humanStatus, { mode: "all" }, "legacy waiting filter is compatibility-only and normalizes to the canonical all selection");
 
   const noCandidateActor = { ...actor, permissions: { ...actor.permissions, workspaceView: false } };
   const formalOnly = await service.list(workbench.normalizeRelationWorkbenchQuery(new URL("http://local.test/?view=all")), noCandidateActor);

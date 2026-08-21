@@ -89,7 +89,7 @@ export function DrawingDetailContent({
         {model.overview}
       </section>
       <DrawingDetailSection
-        title={model.bodyTitle ?? "圖面與附件"}
+        title={model.bodyTitle === undefined ? "圖面與附件" : model.bodyTitle}
         meta={model.bodyMeta}
         dataSection="drawing-revision-files"
         ariaLabel={model.bodyLabel ?? "圖面與附件"}

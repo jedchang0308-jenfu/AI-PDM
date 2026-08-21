@@ -79,13 +79,13 @@ record("DEV053-HTTP-008 query contract normalizes valid input and rejects invali
   record("DEV053-HTTP-009 pagination is a bounded repository keyset before hydration",
     has(repository, [
       "async readListPage",
-      "ORDER BY sort_value ${orderDirection}, row_key ASC",
+      "ORDER BY sort_value ${orderDirection}, row_key ${rowKeyDirection}",
       "LIMIT :scanLimit",
       "sort_value < :cursorSortValue",
       "getWorkspacesByIds(candidateIds",
       "listDrawingModuleRecordsByIds(drawingIds",
       "unifiedDrawingRepository.getByIds"
-    ]) && !service.includes("findIndex((row)") && !repository.includes("MAX_SNAPSHOT_IDENTITIES"));
+    ]) && repository.includes('input.direction === "before"') && !service.includes("findIndex((row)") && !repository.includes("MAX_SNAPSHOT_IDENTITIES"));
   record("DEV053-HTTP-010 formal purpose and status filters execute inside the bounded identity query",
     has(repository, [
       "canonical.purpose_code = :purposeCode",

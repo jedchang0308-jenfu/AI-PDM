@@ -148,8 +148,32 @@ export async function obsoleteDraftNumberingRecordAsync(
   input: ObsoleteDraftNumberingRecordInput
 ): Promise<NumberingRootBundleRecord | null> {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.obsoleteDraftNumberingRecord(input);
+  const commandMetadata = createFallbackCommandMetadata({
+    pdmUserId: input.obsoletedBy ?? "system",
+    organizationId: input.companyId,
+    commandName: "pdm.numbering.obsolete_official_draft_bundle",
+    idempotencyKey: input.idempotencyKey
+  });
+  const command = createPdmCommand({
+    commandName: "pdm.numbering.obsolete_official_draft_bundle",
+    idempotencyKey: commandMetadata.idempotencyKey,
+    actor: commandMetadata.actor,
+    payload: { rootCode: input.rootCode, reason: input.reason.trim() }
+  });
+  const executed = await executePdmCommandWithOutbox({
+    client,
+    command,
+    serializable: true,
+    idempotencyPayload: { rootCode: input.rootCode, reason: input.reason.trim(), companyId: input.companyId ?? null },
+    execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).obsoleteDraftNumberingRecord(input),
+    event: (result) => ({
+      aggregateType: "part_root",
+      aggregateId: result?.root.id ?? input.rootCode,
+      eventType: "pdm.numbering.official_draft_obsoleted.v1",
+      payload: { rootCode: input.rootCode, reason: input.reason.trim() }
+    })
+  });
+  return executed.result;
 }
 
 export async function deleteDraftNumberingRecordAsync(input: DeleteDraftNumberingRecordInput): Promise<DeleteDraftNumberingRecordResult> {
@@ -172,8 +196,38 @@ export async function requestNumberingApprovalAsync(input: RequestNumberingAppro
 
 export async function requestNumberingObsoleteApprovalAsync(input: RequestNumberingObsoleteApprovalInput): Promise<NumberingObsoleteApprovalResult> {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.requestNumberingObsoleteApproval(input);
+  const commandMetadata = createFallbackCommandMetadata({
+    pdmUserId: input.requestedBy,
+    organizationId: input.companyId,
+    commandName: "pdm.numbering.request_record_obsolete",
+    idempotencyKey: input.idempotencyKey
+  });
+  const command = createPdmCommand({
+    commandName: "pdm.numbering.request_record_obsolete",
+    idempotencyKey: commandMetadata.idempotencyKey,
+    actor: commandMetadata.actor,
+    payload: { entityType: input.entityType, entityId: input.entityId ?? null, entityCode: input.entityCode ?? null }
+  });
+  const executed = await executePdmCommandWithOutbox({
+    client,
+    command,
+    serializable: true,
+    idempotencyPayload: {
+      entityType: input.entityType,
+      entityId: input.entityId ?? null,
+      entityCode: input.entityCode ?? null,
+      reason: input.reason.trim(),
+      companyId: input.companyId ?? null
+    },
+    execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).requestNumberingObsoleteApproval(input),
+    event: (result) => ({
+      aggregateType: input.entityType,
+      aggregateId: result.entity.entityId,
+      eventType: "pdm.numbering.record_obsolete_requested.v1",
+      payload: { entityCode: result.entity.entityCode, actionCode: result.entity.actionCode, reason: input.reason.trim() }
+    })
+  });
+  return executed.result;
 }
 
 export async function addDrawingNumberToRootAsync(
@@ -306,8 +360,36 @@ export async function getRootObsoleteImpactAsync(input: { companyId?: string; ro
 
 export async function requestRootObsoleteApprovalAsync(input: RequestRootObsoleteApprovalInput): Promise<RootObsoleteApprovalResult> {
   const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.requestRootObsoleteApproval(input);
+  const commandMetadata = createFallbackCommandMetadata({
+    pdmUserId: input.requestedBy,
+    organizationId: input.companyId,
+    commandName: "pdm.numbering.request_root_obsolete",
+    idempotencyKey: input.idempotencyKey
+  });
+  const command = createPdmCommand({
+    commandName: "pdm.numbering.request_root_obsolete",
+    idempotencyKey: commandMetadata.idempotencyKey,
+    actor: commandMetadata.actor,
+    payload: { rootCode: input.rootCode ?? null, rootId: input.rootId ?? null }
+  });
+  const executed = await executePdmCommandWithOutbox({
+    client,
+    command,
+    serializable: true,
+    idempotencyPayload: { rootCode: input.rootCode ?? null, rootId: input.rootId ?? null, reason: input.reason.trim(), companyId: input.companyId ?? null },
+    execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).requestRootObsoleteApproval(input),
+    event: (result) => ({
+      aggregateType: "part_root",
+      aggregateId: result.impact.root.id,
+      eventType: "pdm.numbering.root_obsolete_requested.v1",
+      payload: {
+        rootCode: result.impact.root.rootCode,
+        approvalRequestId: result.approvalRequest.id,
+        targetCount: result.impact.approvalTargets.length
+      }
+    })
+  });
+  return executed.result;
 }
 
 export async function requestSameDrawingVariantApprovalAsync(input: RequestSameDrawingVariantApprovalInput): Promise<NumberingApprovalRecord> {

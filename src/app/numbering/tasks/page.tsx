@@ -6,6 +6,7 @@ import { CheckCircle2, Eye, RotateCcw, ShieldAlert, UploadCloud } from "lucide-r
 import { buildUploadPrefillHref } from "@/components/lifecycle-ux";
 import { NextStepState } from "@/components/next-step-state";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
+import { StatusSignalGroup } from "@/components/status-signal-group";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import { dedupeNumberingDraftsByRoot } from "@/lib/dedupe-numbering-drafts";
 import { formatStatusErrorForUser } from "@/lib/status-display";
@@ -224,7 +225,7 @@ export default function NumberingTaskCenterPage() {
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <select className="dropdown-select" value={notificationRead} onChange={(event) => setNotificationRead(event.target.value as NotificationRead)}>
-                  <option value="all">全部已讀狀態</option>
+                  <option value="all">全部</option>
                   <option value="unread">未讀</option>
                   <option value="read">已讀</option>
                 </select>
@@ -233,7 +234,7 @@ export default function NumberingTaskCenterPage() {
                   value={notificationHandled}
                   onChange={(event) => setNotificationHandled(event.target.value as NotificationHandled)}
                 >
-                  <option value="all">全部處理狀態</option>
+                  <option value="all">全部</option>
                   <option value="unhandled">未處理</option>
                   <option value="handled">已處理</option>
                 </select>
@@ -532,9 +533,22 @@ function MarkerList({ markers }: { markers: AttentionMarker[] }) {
   return (
     <div style={markerListStyle}>
       {markers.map((marker) => (
-        <span key={`${marker.code}-${marker.label}`} style={markerStyle(marker.severity)} title={marker.detail ?? marker.label}>
-          {marker.label}
-        </span>
+        <StatusSignalGroup
+          key={`${marker.code}-${marker.label}`}
+          surface="detail"
+          className="task-marker-signal"
+          signals={[{
+            id: `${marker.code}:${marker.label}`,
+            context: "reminderStatus",
+            raw: marker.severity === "critical" ? "blocker" : marker.severity,
+            isPrimaryAxis: false,
+            // Task markers are intentionally first-layer context for the task row,
+            // including informational proxy-submission markers.
+            affectsCurrentAction: true,
+            label: marker.label,
+            description: marker.detail ?? marker.label
+          }]}
+        />
       ))}
     </div>
   );
@@ -587,23 +601,3 @@ const markerListStyle = {
   flexWrap: "wrap",
   marginTop: "0.35rem"
 } as const;
-
-function markerStyle(severity: AttentionMarker["severity"]) {
-  const palette =
-    severity === "critical"
-      ? { background: "#fee2e2", color: "#991b1b", border: "#fecaca" }
-      : severity === "warning"
-        ? { background: "#fef3c7", color: "#92400e", border: "#fde68a" }
-        : { background: "#e0f2fe", color: "#075985", border: "#bae6fd" };
-  return {
-    display: "inline-flex",
-    borderRadius: "999px",
-    border: `1px solid ${palette.border}`,
-    padding: "0.18rem 0.52rem",
-    background: palette.background,
-    color: palette.color,
-    fontSize: "0.76rem",
-    fontWeight: 800,
-    cursor: "help"
-  } as const;
-}

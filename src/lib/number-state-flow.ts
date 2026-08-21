@@ -6,6 +6,7 @@ import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
 import { DatabasePublicationEvidencePort } from "@/lib/publication-evidence";
 import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow-contract";
+import { canEditPdmOwnedResourceInCompany, hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 import {
   AsyncNumberStateFlowRepository,
   type NumberingDraftItemKind,
@@ -22,7 +23,6 @@ const draftModes = new Set<NumberingDraftMode>(["new_bundle", "append_drawing", 
 const itemKinds = new Set<NumberingDraftItemKind>(["purchased", "manufactured", "outsourced", "shared", "custom"]);
 const purposeCodes = new Set<NumberingDraftPurposeCode>(ACTIVE_DRAWING_PURPOSE_CODES);
 const lifecycleStatuses = new Set<NumberingDraftLifecycle>(["active", "cancelled", "published"]);
-const privilegedRoles = new Set(["Admin", "R&D Manager", "system_admin", "pdm_admin", "rd_manager"]);
 const safeIdempotencyKey = /^[A-Za-z0-9._:/-]{1,200}$/u;
 
 function text(value: unknown, maximum: number) {
@@ -88,14 +88,22 @@ function validateIdempotencyKey(value: string) {
 }
 
 function hasPrivilegedScope(actor: NumberStateActor | PlatformActorContext) {
-  const roleValues = "userId" in actor ? [actor.role, ...(actor.roles ?? [])] : actor.roles;
-  return roleValues.some((role) => privilegedRoles.has(role));
+  return "userId" in actor
+    ? hasPdmNonOwnerEditScope({ role: actor.role, roles: actor.roles })
+    : hasPdmNonOwnerEditScope({ roles: actor.roles });
 }
 
 function assertWorkspaceScope(actor: NumberStateActor | PlatformActorContext, workspace: NumberingDraftWorkspaceRecord) {
   const userId = "userId" in actor ? actor.userId : actor.pdmUserId;
   const companyId = "userId" in actor ? actor.companyId : actor.organizationId;
-  if (workspace.companyId !== companyId || (workspace.ownerId !== userId && !hasPrivilegedScope(actor))) {
+  const canEdit = canEditPdmOwnedResourceInCompany({
+    actorId: userId,
+    actorCompanyId: companyId,
+    ownerId: workspace.ownerId,
+    resourceCompanyId: workspace.companyId,
+    actor: "userId" in actor ? { role: actor.role, roles: actor.roles } : { roles: actor.roles }
+  });
+  if (!canEdit) {
     throw new NumberStateFlowError("workspace_not_found", "Draft workspace was not found.", 404);
   }
 }
@@ -350,7 +358,7 @@ async function applyActorCapabilities(
     capabilities: {
       ...workspace.capabilities,
       canSubmitReview: workspace.capabilities.canSubmitReview && permissions.submitReview,
-      canWithdrawReview: workspace.capabilities.canWithdrawReview && permissions.withdrawReview && workspace.ownerId === actorId,
+      canWithdrawReview: workspace.capabilities.canWithdrawReview && permissions.withdrawReview && (workspace.ownerId === actorId || hasPrivilegedScope(actor)),
       canPublish,
       publishBlockedReason
     }
@@ -688,6 +696,7 @@ export async function withdrawNumberingCandidateReview(input: {
         workspaceId,
         companyId: input.metadata.actor.organizationId,
         actorId: input.metadata.actor.pdmUserId,
+        allowNonOwner: hasPrivilegedScope(input.metadata.actor),
         expectedRowVersion
       }),
       event: (result) => ({

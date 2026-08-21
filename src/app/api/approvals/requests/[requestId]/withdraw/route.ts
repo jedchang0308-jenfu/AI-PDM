@@ -25,6 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
     const lifecycle = await withdrawDrawingRevisionLifecycle({
       requestId: decodedRequestId,
       actorId: auth.user.id,
+      actorRole: auth.user.role,
       idempotencyKey
     });
     if (!lifecycle) {

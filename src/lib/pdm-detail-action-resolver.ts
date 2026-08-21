@@ -32,6 +32,7 @@ export type PdmDetailActionResolverFacts = {
   stateFamily: PdmDetailStateFamily;
   actorId: string;
   ownerId: string | null;
+  canEditNonOwned: boolean;
   ownerHref: string;
   returnTo: string;
   capabilities: PdmDetailActionCapabilities;
@@ -95,7 +96,7 @@ function permissionReason(capability: PdmDetailCapability): LockReason | null {
 }
 
 function ownerReason(facts: PdmDetailActionResolverFacts): LockReason | null {
-  if (!facts.ownerId || facts.ownerId === facts.actorId) return null;
+  if (!facts.ownerId || facts.ownerId === facts.actorId || facts.canEditNonOwned) return null;
   return { code: "PDM_ACTION_OWNER_REQUIRED", message: "只有這筆工作的負責人可以執行；請聯絡工作負責人。", contactRole: "工作負責人" };
 }
 
@@ -158,12 +159,34 @@ function navigate(href: string | null): PdmDetailActionExecution | null {
   return href ? { type: "navigate", href } : null;
 }
 
-function withAnchor(href: string, anchor: string) {
-  return `${href.split("#", 1)[0]}#${anchor}`;
+function drawingWorkspaceHref(facts: PdmDetailActionResolverFacts, intent: "edit_revision" | "submit_review" | "create_revision" | "manage_files" | "withdraw_review" | "recovery" | "view") {
+  if (facts.surface !== "drawing") return null;
+  try {
+    const url = new URL(facts.ownerHref, "https://pdm.local");
+    if (url.pathname.startsWith("/approvals/")) return url.toString().replace("https://pdm.local", "");
+    if (!url.pathname.endsWith("/workspace")) return null;
+    url.searchParams.set("intent", intent);
+    return `${url.pathname}?${url.searchParams.toString()}`;
+  } catch {
+    return null;
+  }
 }
 
-function command(href: string | null, body: Record<string, string | number | boolean | null>, input: "none" | "optional_reason" | "required_comment", success: "refresh_detail" | "return_to_inbox" = "refresh_detail"): PdmDetailActionExecution | null {
-  return href ? { type: "command", method: "POST", href, body, input, success } : null;
+function drawingReviewHref(facts: PdmDetailActionResolverFacts, requestId: string) {
+  if (facts.surface !== "drawing") return null;
+  return `/approvals/${encodeURIComponent(requestId)}?returnTo=${encodeURIComponent(facts.returnTo)}`;
+}
+
+function workspaceNavigationHref(facts: PdmDetailActionResolverFacts, intent: string) {
+  if (facts.surface === "drawing") return drawingWorkspaceHref(facts, intent as Parameters<typeof drawingWorkspaceHref>[1]);
+  if (!facts.ownerHref) return null;
+  try {
+    const url = new URL(facts.ownerHref, "https://pdm.local");
+    url.searchParams.set("intent", intent);
+    return `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
+  } catch {
+    return null;
+  }
 }
 
 function activeRequest(facts: PdmDetailActionResolverFacts) {
@@ -194,7 +217,7 @@ function addOwnerActions(actions: PdmDetailActionDescriptor[], facts: PdmDetailA
       ? { code: "PDM_ACTION_PREREQUISITE_MISSING", message: "目前工作狀態尚不能修改，請先完成前一步。" } satisfies LockReason
       : null;
     if (facts.surface === "drawing") {
-      const maintenanceExecution = navigate(withAnchor(facts.ownerHref, "drawing-data-maintenance"));
+      const maintenanceExecution = navigate(drawingWorkspaceHref(facts, "edit_revision"));
       const editCapability = isCandidate ? facts.capabilities.workspaceEdit : facts.capabilities.draftEdit;
       const fileCapability = isCandidate ? facts.capabilities.draftEdit : facts.capabilities.manageFiles;
       actions.push(descriptor({
@@ -213,26 +236,19 @@ function addOwnerActions(actions: PdmDetailActionDescriptor[], facts: PdmDetailA
         )
       }));
     } else if (facts.surface === "part") {
-      const editExecution = navigate(withAnchor(facts.ownerHref, "part-data-maintenance"));
+      const editExecution = navigate(workspaceNavigationHref(facts, "edit"));
       actions.push(descriptor({ kind: "edit", owner, label: facts.stateFamily === "correction_required" ? "繼續修正" : "編輯料號資料", execution: editExecution, lock: firstReason(reviewLocked, processing, isCandidate ? ownerReason(facts) : null, permissionReason(isCandidate ? facts.capabilities.workspaceEdit : facts.capabilities.draftEdit), candidateStateReason, targetReason(editExecution)) }));
     } else if (!isApprovalOwnerContext) {
-      const relationExecution = navigate(withAnchor(facts.ownerHref, "relation-maintenance"));
+      const relationExecution = navigate(workspaceNavigationHref(facts, "manage_relation"));
       actions.push(descriptor({ kind: "manage_relation", owner: "relation", label: facts.stateFamily === "correction_required" ? "繼續修正關聯" : "維護圖料關聯", execution: relationExecution, lock: firstReason(reviewLocked, processing, isCandidate ? ownerReason(facts) : null, permissionReason(facts.capabilities.manageRelation), candidateStateReason, targetReason(relationExecution)) }));
     }
   }
 
   if (isCandidate && ["building", "drawing_preparation", "correction_required", "bundle_ready"].includes(facts.stateFamily)) {
     const candidate = facts.candidate!;
-    const suffix = candidate.lifecycleV2 ? "submit-bundle-review" : "submit-review";
-    const submitExecution = command(`/api/numbering/draft-workspaces/${encodeURIComponent(candidate.workspaceId)}/${suffix}`, candidate.lifecycleV2
-      ? { expectedWorkspaceRowVersion: candidate.rowVersion, reason: "由統一明細送交審核" }
-      : { expectedRowVersion: candidate.rowVersion, reason: "由統一明細送交審核" }, "optional_reason");
+    const submitExecution = navigate(workspaceNavigationHref(facts, "submit_review"));
     actions.push(descriptor({ kind: "submit_review", owner, label: "送交審核", execution: submitExecution, confirmation: true, idempotency: true, lock: firstReason(ownerReason(facts), permissionReason(facts.capabilities.submitReview), prerequisiteReason(facts.readinessBlockers), candidate.canSubmitReview ? null : prerequisiteReason(["完成所有必要資料與檔案"]), targetReason(submitExecution)) }));
-    const cancelExecution = command(
-      `/api/numbering/draft-workspaces/${encodeURIComponent(candidate.workspaceId)}/cancel`,
-      { expectedRowVersion: candidate.rowVersion, reason: "user_cancelled_draft" },
-      "optional_reason"
-    );
+    const cancelExecution = navigate(workspaceNavigationHref(facts, "cancel"));
     actions.push(descriptor({
       kind: "cancel",
       owner,
@@ -251,25 +267,25 @@ function addOwnerActions(actions: PdmDetailActionDescriptor[], facts: PdmDetailA
   }
 
   const requestId = activeRequest(facts);
+  if (facts.surface === "drawing" && facts.review?.requestId) {
+    const reviewExecution = navigate(drawingReviewHref(facts, facts.review.requestId));
+    actions.push(descriptor({ kind: "view_review", owner: "approval", label: "前往審核", execution: reviewExecution }));
+  }
   if (facts.stateFamily === "in_review" && requestId && !isApprovalOwnerContext) {
-    const viewExecution = navigate(`/approvals?requestId=${encodeURIComponent(requestId)}&returnTo=${encodeURIComponent(facts.ownerHref)}`);
+    const viewExecution = facts.surface === "drawing"
+      ? navigate(drawingReviewHref(facts, requestId))
+      : navigate(`/approvals/${encodeURIComponent(requestId)}?returnTo=${encodeURIComponent(facts.returnTo)}`);
     actions.push(descriptor({ kind: "view_review", owner, label: "查看審核", execution: viewExecution }));
     const submittedBy = facts.candidate?.submittedBy ?? facts.formalDrawing?.submittedBy ?? null;
     const decisionCount = facts.candidate?.decisionCount ?? facts.formalDrawing?.decisionCount ?? 0;
     const canWithdrawByState = facts.candidate?.canWithdrawReview ?? decisionCount === 0;
-    const withdrawHref = facts.candidate
-      ? `/api/numbering/draft-workspaces/${encodeURIComponent(facts.candidate.workspaceId)}/${facts.candidate.lifecycleV2 ? "withdraw-bundle-review" : "withdraw-review"}`
-      : `/api/approvals/requests/${encodeURIComponent(requestId)}/withdraw`;
-    const withdrawBody: Record<string, string | number | boolean | null> = facts.candidate
-      ? facts.candidate.lifecycleV2
-        ? { expectedWorkspaceRowVersion: facts.candidate.rowVersion, reason: "由統一明細撤回送審" }
-        : { expectedRowVersion: facts.candidate.rowVersion, reason: "由統一明細撤回送審" }
-      : {};
-    const withdrawExecution = command(withdrawHref, withdrawBody, "optional_reason");
+    const withdrawExecution = facts.surface === "drawing"
+      ? navigate(drawingWorkspaceHref(facts, "withdraw_review"))
+      : navigate(workspaceNavigationHref(facts, "withdraw_review"));
     const withdrawScopeReason = decisionCount > 0 || !canWithdrawByState
       ? { code: "PDM_ACTION_REVIEW_SCOPE_REQUIRED", message: "審核已產生決策，這筆送審目前不能撤回。" } satisfies LockReason
       : null;
-    actions.push(descriptor({ kind: "withdraw_review", owner, label: "撤回送審", execution: withdrawExecution, confirmation: true, idempotency: true, danger: true, lock: firstReason(submittedBy && submittedBy !== facts.actorId ? { code: "PDM_ACTION_OWNER_REQUIRED", message: "只有送審者可以撤回；請聯絡原送審者。", contactRole: "原送審者" } : null, permissionReason(facts.capabilities.withdrawReview), withdrawScopeReason, targetReason(withdrawExecution)) }));
+    actions.push(descriptor({ kind: "withdraw_review", owner, label: "撤回送審", execution: withdrawExecution, confirmation: true, idempotency: true, danger: true, lock: firstReason(submittedBy && submittedBy !== facts.actorId && !facts.canEditNonOwned ? { code: "PDM_ACTION_OWNER_REQUIRED", message: "只有送審者、研發主管或系統管理員可以撤回。", contactRole: "原送審者、研發主管或系統管理員" } : null, permissionReason(facts.capabilities.withdrawReview), withdrawScopeReason, targetReason(withdrawExecution)) }));
   } else if (facts.stateFamily === "in_review" && !requestId && !isApprovalOwnerContext) {
     actions.push(descriptor({
       kind: "view_review",
@@ -285,13 +301,15 @@ function addOwnerActions(actions: PdmDetailActionDescriptor[], facts: PdmDetailA
   }
 
   if (facts.stateFamily === "recovery_required" && facts.candidate?.applyFailed && requestId) {
-    const retryExecution = command(`/api/approvals/requests/${encodeURIComponent(requestId)}/apply`, {}, "none", "return_to_inbox");
+    const retryExecution = facts.surface === "drawing"
+      ? navigate(drawingWorkspaceHref(facts, "recovery"))
+      : navigate(`/approvals/${encodeURIComponent(requestId)}?returnTo=${encodeURIComponent(facts.returnTo)}`);
     actions.push(descriptor({ kind: "retry_apply", owner, label: "重試正式化", execution: retryExecution, confirmation: true, idempotency: true, lock: firstReason(permissionReason(facts.capabilities.retryPublication), targetReason(retryExecution)) }));
     actions.push(descriptor({ kind: "view_history", owner, label: "查看處理紀錄", execution: navigate(facts.ownerHref) }));
   }
 
   if (facts.surface === "drawing" && !isCandidate && ["rd_controlled", "released", "drawing_preparation", "correction_required"].includes(facts.stateFamily) && facts.formalDrawing?.drawingNumber) {
-    const revisionExecution = navigate(`/numbering/revisions?drawingNumber=${encodeURIComponent(facts.formalDrawing.drawingNumber)}&returnTo=${encodeURIComponent(facts.ownerHref)}`);
+    const revisionExecution = navigate(drawingWorkspaceHref(facts, "create_revision"));
     actions.push(descriptor({ kind: "create_revision", owner: "drawing", label: facts.stateFamily === "correction_required" ? "繼續修正並重送" : "建立新版次", execution: revisionExecution, lock: firstReason(reviewLocked, permissionReason(facts.capabilities.createRevision), targetReason(revisionExecution)) }));
   }
 
@@ -306,7 +324,7 @@ function addOwnerActions(actions: PdmDetailActionDescriptor[], facts: PdmDetailA
 
 function addReviewActions(actions: PdmDetailActionDescriptor[], facts: PdmDetailActionResolverFacts) {
   const review = facts.review;
-  if (!review) return;
+  if (!review || facts.surface === "drawing") return;
   const mappings: Array<{ allowed: "approved" | "needs_info" | "rejected"; kind: "approve" | "return_for_correction" | "reject"; label: string; decision: string; danger?: boolean }> = [
     { allowed: "approved", kind: "approve", label: "核准", decision: "approved" },
     { allowed: "needs_info", kind: "return_for_correction", label: "要求補充資料", decision: "needs_info", danger: true },
@@ -314,7 +332,7 @@ function addReviewActions(actions: PdmDetailActionDescriptor[], facts: PdmDetail
   ];
   for (const mapping of mappings) {
     if (!review.allowedDecisions.includes(mapping.allowed)) continue;
-    const execution = command(`/api/approvals/requests/${encodeURIComponent(review.requestId)}/decisions`, { decision: mapping.decision, comment: null }, mapping.kind === "approve" ? "none" : "required_comment", "return_to_inbox");
+    const execution = navigate(`/approvals/${encodeURIComponent(review.requestId)}?returnTo=${encodeURIComponent(facts.returnTo)}`);
     const lock = review.drift
       ? { code: "PDM_ACTION_REVIEW_DRIFT", message: "目前資料與送審內容不一致；請重新整理並確認差異後再處理。" } satisfies LockReason
       : !review.decisionReady
@@ -326,7 +344,8 @@ function addReviewActions(actions: PdmDetailActionDescriptor[], facts: PdmDetail
 
 function selectPrimary(actions: PdmDetailActionDescriptor[], facts: PdmDetailActionResolverFacts) {
   const enabled = (kind: PdmDetailActionKind) => actions.find((action) => action.kind === kind && action.enabled);
-  const candidate = facts.review?.decisionReady && !facts.review.drift ? enabled("approve")
+  const candidate = facts.surface === "drawing" && facts.review ? enabled("view_review")
+    : facts.review?.decisionReady && !facts.review.drift ? enabled("approve")
     : ["building", "drawing_preparation", "correction_required"].includes(facts.stateFamily) ? enabled("edit") ?? enabled("manage_relation")
       : facts.stateFamily === "bundle_ready" ? enabled("submit_review")
         : facts.stateFamily === "in_review" ? enabled("view_review")

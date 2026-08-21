@@ -124,7 +124,7 @@ record(
   approvalEvidenceRoute.includes("requireRoleAsync") &&
     approvalEvidenceRoute.includes("reviewerRoles") &&
     approvalEvidenceRoute.includes("storagePointerFromRecord") &&
-    approvalEvidenceRoute.includes("contentDispositionFilename")
+    approvalEvidenceRoute.includes("contentDispositionHeader")
 );
 record(
   "Candidate evidence preview covers PDF/image originals and native CAD derivatives",

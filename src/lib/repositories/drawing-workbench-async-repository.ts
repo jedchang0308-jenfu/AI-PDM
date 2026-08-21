@@ -7,6 +7,7 @@ import type { DrawingModuleListRecord } from "@/lib/repositories/numbering-repos
 import type { DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 import type { NumberSortDirection } from "@/lib/number-sort";
 import { compareRevisionCodes } from "@/lib/revision-policy";
+import type { PdmWorkbenchFilterSelection } from "@/lib/pdm-workbench-contract";
 import {
   UnifiedDrawingAsyncRepository,
   type UnifiedDrawingRecord
@@ -58,20 +59,33 @@ type LifecycleDecisionCountRow = { request_id: string; value: number | string };
 
 export type DrawingWorkbenchIdentityCursor = { sortValue: string; rowKey: string };
 
+export type DrawingWorkbenchRevisionRecord = {
+  id: string;
+  drawingId: string;
+  revision: string;
+  lifecycleState: "preparing" | "in_review" | "correction_required" | "rd_controlled" | "released";
+  updatedAt: string;
+  releasedAt: string | null;
+  sourceRevisionPackageId: string | null;
+};
+
 export type DrawingWorkbenchReadPage<T> = {
   rows: T[];
   seriesCodeOptions: string[];
+  firstIdentity: DrawingWorkbenchIdentityRecord | null;
+  lastIdentity: DrawingWorkbenchIdentityRecord | null;
 };
 
 export type DrawingWorkbenchRepositoryQuery = {
   companyId: string;
   query: string;
-  seriesCode: string;
-  purposeCode: DrawingPurposeCode | "";
-  recordStatus: NumberingRecordStatus | "";
+  seriesCode: PdmWorkbenchFilterSelection<string>;
+  purposeCode: PdmWorkbenchFilterSelection<DrawingPurposeCode>;
+  recordStatus: PdmWorkbenchFilterSelection<NumberingRecordStatus>;
   sortDirection: NumberSortDirection;
   includeCandidates: boolean;
   cursor: DrawingWorkbenchIdentityCursor | null;
+  direction: "after" | "before";
   limit: number;
 };
 
@@ -89,6 +103,10 @@ function createNamedList(prefix: string, values: string[]) {
   return { sql: placeholders.join(", "), params };
 }
 
+function selectionValues<T extends string>(selection: PdmWorkbenchFilterSelection<T>) {
+  return selection.mode === "some" ? [...selection.values] : [];
+}
+
 export class DrawingWorkbenchAsyncRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
@@ -98,6 +116,13 @@ export class DrawingWorkbenchAsyncRepository {
     cursor: DrawingWorkbenchIdentityCursor | null,
     scanLimit: number
   ) {
+    if (input.seriesCode.mode === "none" || input.purposeCode.mode === "none" || input.recordStatus.mode === "none") return [];
+    const seriesValues = selectionValues(input.seriesCode);
+    const purposeValues = selectionValues(input.purposeCode);
+    const recordStatusValues = selectionValues(input.recordStatus);
+    const seriesBinding = createNamedList("seriesCode", seriesValues);
+    const purposeBinding = createNamedList("purposeCode", purposeValues);
+    const recordStatusBinding = createNamedList("recordStatus", recordStatusValues);
     const queryFilter = input.query
       ? `AND (
           LOWER(canonical.id) LIKE :queryPattern
@@ -119,28 +144,35 @@ export class DrawingWorkbenchAsyncRepository {
           )
         )`
       : "";
-    const seriesFilter = input.seriesCode
+    const seriesFilter = input.seriesCode.mode === "some"
       ? `AND (
           EXISTS (
             SELECT 1 FROM numbering_draft_parts series_part
             WHERE series_part.workspace_id = canonical.workspace_id
               AND series_part.company_id = canonical.company_id
-              AND series_part.series_code = :seriesCode
+              AND series_part.series_code IN (${seriesBinding.sql})
           )
           OR EXISTS (
             SELECT 1 FROM part_numbers series_part
             WHERE series_part.company_id = canonical.company_id
               AND series_part.part_root_id = canonical.part_root_id
-              AND series_part.series_code = :seriesCode
+              AND series_part.series_code IN (${seriesBinding.sql})
           )
         )`
       : "";
-    const purposeFilter = input.purposeCode ? "AND canonical.purpose_code = :purposeCode" : "";
-    const recordStatusFilter = input.recordStatus ? "AND formal.record_status = :recordStatus" : "";
-    const orderDirection = input.sortDirection === "desc" ? "DESC" : "ASC";
-    const cursorClause = input.sortDirection === "desc"
-      ? `(:hasCursor = 0 OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
-      : `(:hasCursor = 0 OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
+    const purposeFilter = input.purposeCode.mode === "some" ? `AND canonical.purpose_code IN (${purposeBinding.sql})` : "";
+    const recordStatusFilter = input.recordStatus.mode === "some" ? `AND formal.record_status IN (${recordStatusBinding.sql})` : "";
+    const cursorClause = input.direction === "before"
+      ? input.sortDirection === "desc"
+        ? `(:hasCursor = 0 OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key < :cursorRowKey))`
+        : `(:hasCursor = 0 OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key < :cursorRowKey))`
+      : input.sortDirection === "desc"
+        ? `(:hasCursor = 0 OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
+        : `(:hasCursor = 0 OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
+    const orderDirection = input.direction === "before"
+      ? input.sortDirection === "desc" ? "ASC" : "DESC"
+      : input.sortDirection === "desc" ? "DESC" : "ASC";
+    const rowKeyDirection = input.direction === "before" ? "DESC" : "ASC";
     return client.query<IdentityRow>(
       `SELECT row_kind, source_kind, id, workspace_id, formal_drawing_number_id,
               drawing_draft_id, updated_at, sort_value, row_key
@@ -176,15 +208,15 @@ export class DrawingWorkbenchAsyncRepository {
            ${recordStatusFilter}
        ) identity_page
        WHERE ${cursorClause}
-       ORDER BY sort_value ${orderDirection}, row_key ASC
+       ORDER BY sort_value ${orderDirection}, row_key ${rowKeyDirection}
        LIMIT :scanLimit`,
       {
         companyId: input.companyId,
         includeCandidates: input.includeCandidates ? 1 : 0,
         queryPattern: searchPattern(input.query),
-        seriesCode: input.seriesCode,
-        purposeCode: input.purposeCode,
-        recordStatus: input.recordStatus,
+        ...seriesBinding.params,
+        ...purposeBinding.params,
+        ...recordStatusBinding.params,
         hasCursor: cursor ? 1 : 0,
         cursorSortValue: cursor?.sortValue ?? "",
         cursorRowKey: cursor?.rowKey ?? "",
@@ -199,7 +231,9 @@ export class DrawingWorkbenchAsyncRepository {
       identities: DrawingWorkbenchIdentityRecord[],
       candidates: NumberingDraftWorkspaceRecord[],
       drawings: DrawingModuleListRecord[],
-      canonicalDrawings: UnifiedDrawingRecord[]
+      canonicalDrawings: UnifiedDrawingRecord[],
+      sourceWorkspaces?: NumberingDraftWorkspaceRecord[],
+      revisions?: DrawingWorkbenchRevisionRecord[]
     ) => T[]
   ): Promise<DrawingWorkbenchReadPage<T>> {
     return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
@@ -208,6 +242,10 @@ export class DrawingWorkbenchAsyncRepository {
       const unifiedDrawingRepository = new UnifiedDrawingAsyncRepository(client);
       const scanLimit = Math.min(MAX_IDENTITY_PAGE_SIZE, Math.max(MIN_IDENTITY_PAGE_SIZE, input.limit * 4));
       const rows: T[] = [];
+      if (input.seriesCode.mode === "none" || input.purposeCode.mode === "none" || input.recordStatus.mode === "none") {
+        return { rows: [], seriesCodeOptions: await numberingRepository.listSeriesCodeOptions(input.companyId), firstIdentity: null, lastIdentity: null };
+      }
+      const allIdentityRecords: DrawingWorkbenchIdentityRecord[] = [];
       let scanCursor = input.cursor;
       while (rows.length <= input.limit) {
         const identities = await this.identityPage(client, input, scanCursor, scanLimit);
@@ -222,6 +260,7 @@ export class DrawingWorkbenchAsyncRepository {
           updatedAt: row.updated_at,
           sortValue: row.sort_value
         }));
+        allIdentityRecords.push(...identityRecords);
         const candidateIds = [...new Set(identityRecords.filter((row) => row.sourceKind === "candidate").map((row) => row.workspaceId).filter((id): id is string => Boolean(id)))];
         const drawingIds = identityRecords.filter((row) => row.sourceKind === "formal").map((row) => row.formalDrawingNumberId).filter((id): id is string => Boolean(id));
         const [candidates, drawings, canonicalDrawings] = await Promise.all([
@@ -229,11 +268,45 @@ export class DrawingWorkbenchAsyncRepository {
           numberingRepository.listDrawingModuleRecordsByIds(drawingIds, input.companyId),
           unifiedDrawingRepository.getByIds(identityRecords.map((row) => row.id), input.companyId)
         ]);
+        const sourceWorkspaceIds = [...new Set(canonicalDrawings.map((drawing) => drawing.workspaceId).filter((id): id is string => Boolean(id)))];
+        const sourceWorkspaces = await stateRepository.getWorkspacesByIds(sourceWorkspaceIds, input.companyId);
+        const revisionDrawingIds = [...new Set(canonicalDrawings.map((drawing) => drawing.id))];
+        const revisionList = createNamedList("drawingId", revisionDrawingIds);
+        const revisions = revisionDrawingIds.length === 0 ? [] : await client.query<{
+          id: string;
+          drawing_id: string;
+          revision: string;
+          lifecycle_state: DrawingWorkbenchRevisionRecord["lifecycleState"];
+          updated_at: string;
+          released_at: string | null;
+          source_revision_package_id: string | null;
+        }>(
+          `SELECT id, drawing_id, revision, lifecycle_state, updated_at, released_at, source_revision_package_id
+             FROM drawing_revisions
+            WHERE company_id = :companyId
+              AND drawing_id IN (${revisionList.sql})
+              AND lifecycle_state IN ('preparing', 'in_review', 'correction_required', 'rd_controlled', 'released')
+            ORDER BY drawing_id ASC, updated_at DESC, id DESC`,
+          { companyId: input.companyId, ...revisionList.params }
+        );
+        const revisionRecords = revisions.map((revision): DrawingWorkbenchRevisionRecord => ({
+          id: revision.id,
+          drawingId: revision.drawing_id,
+          revision: revision.revision,
+          lifecycleState: revision.lifecycle_state,
+          updatedAt: revision.updated_at,
+          releasedAt: revision.released_at,
+          sourceRevisionPackageId: revision.source_revision_package_id
+        }));
         const drawingsWithLifecycle = await this.overlayLifecycle(client, drawings, input.companyId);
-        const projected = new Map(project(identityRecords, candidates, drawingsWithLifecycle, canonicalDrawings).map((row) => [row.rowKey, row]));
+        const projectedByBaseKey = new Map<string, T[]>();
+        for (const row of project(identityRecords, candidates, drawingsWithLifecycle, canonicalDrawings, sourceWorkspaces, revisionRecords)) {
+          const baseKey = row.rowKey.replace(/:(?:rd|production)$/u, "");
+          projectedByBaseKey.set(baseKey, [...(projectedByBaseKey.get(baseKey) ?? []), row]);
+        }
         for (const identity of identities) {
-          const row = projected.get(identity.row_key);
-          if (row) rows.push(row);
+          const projected = projectedByBaseKey.get(identity.row_key) ?? [];
+          rows.push(...projected);
           if (rows.length > input.limit) break;
         }
         const lastIdentity = identities.at(-1);
@@ -241,7 +314,18 @@ export class DrawingWorkbenchAsyncRepository {
         scanCursor = { sortValue: lastIdentity.sort_value, rowKey: lastIdentity.row_key };
       }
       const seriesCodeOptions = await numberingRepository.listSeriesCodeOptions(input.companyId);
-      return { rows: rows.slice(0, input.limit + 1), seriesCodeOptions };
+      const orderedRows = input.direction === "before" ? rows.reverse() : rows;
+      const visibleRows = orderedRows.slice(0, input.limit);
+      const identityByKey = new Map(allIdentityRecords.map((identity) => [identity.rowKey, identity]));
+      const firstRow = visibleRows[0];
+      const lastRow = visibleRows.at(-1);
+      const identityForRow = (row: T | undefined) => row ? identityByKey.get(row.rowKey) ?? identityByKey.get(row.rowKey.replace(/:(?:rd|production)$/u, "")) ?? null : null;
+      return {
+        rows: orderedRows.slice(0, input.limit + 1),
+        seriesCodeOptions,
+        firstIdentity: identityForRow(firstRow),
+        lastIdentity: identityForRow(lastRow)
+      };
     });
   }
 
@@ -256,6 +340,42 @@ export class DrawingWorkbenchAsyncRepository {
       if (!workspace || workspace.lifecycleStatus === "published") return null;
       return workspace;
     });
+  }
+
+  async readLatestRevision(input: { drawingId: string; companyId: string; lane: "released" | "rd" }) {
+    const states = input.lane === "released" ? ["released"] : ["preparing", "in_review", "correction_required", "rd_controlled"];
+    const stateList = createNamedList("revisionState", states);
+    const rows = await this.client.query<{
+      id: string;
+      drawing_id: string;
+      revision: string;
+      lifecycle_state: DrawingWorkbenchRevisionRecord["lifecycleState"];
+      updated_at: string;
+      released_at: string | null;
+      source_revision_package_id: string | null;
+    }>(
+      `SELECT id, drawing_id, revision, lifecycle_state, updated_at, released_at, source_revision_package_id
+         FROM drawing_revisions
+        WHERE company_id = :companyId
+          AND drawing_id = :drawingId
+          AND lifecycle_state IN (${stateList.sql})
+        ORDER BY updated_at DESC, id DESC`,
+      { companyId: input.companyId, drawingId: input.drawingId, ...stateList.params }
+    );
+    const sorted = rows.sort((left, right) => {
+      try { return compareRevisionCodes(right.revision, left.revision, { allowLegacy: true }); }
+      catch { return right.updated_at.localeCompare(left.updated_at) || right.id.localeCompare(left.id); }
+    });
+    const row = sorted[0];
+    return row ? {
+      id: row.id,
+      drawingId: row.drawing_id,
+      revision: row.revision,
+      lifecycleState: row.lifecycle_state,
+      updatedAt: row.updated_at,
+      releasedAt: row.released_at,
+      sourceRevisionPackageId: row.source_revision_package_id
+    } satisfies DrawingWorkbenchRevisionRecord : null;
   }
 
   async readUnifiedDetail(input: {

@@ -5,9 +5,10 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { isPdmEntityDetailV1Enabled } from "@/lib/number-state-flow-feature";
 import { isPdmDetailSurface } from "@/lib/pdm-entity-detail-policy";
 import { PdmEntityDetailError, PdmEntityDetailService } from "@/lib/pdm-entity-detail";
-import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
+import { normalizePdmSurfaceReturnTo } from "@/lib/pdm-review-navigation";
 import { resolvePdmDetailActionCapabilities } from "@/lib/pdm-detail-action-capabilities";
 import type { NumberingUserScope } from "@/lib/db";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 export const runtime = "nodejs";
 
@@ -32,9 +33,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ enti
   try {
     const { entityKey } = await params;
     const requestedReturnTo = url.searchParams.get("returnTo");
-    const returnTo = normalizePdmApprovalReturnTo(requestedReturnTo);
+    const returnSurface = reviewRequestId ? "approval" : surfaceValue;
+    const returnTo = normalizePdmSurfaceReturnTo(returnSurface, requestedReturnTo);
     const capabilities = await resolvePdmDetailActionCapabilities(actor);
-    const result = await new PdmEntityDetailService().read({ entityKey, surface: surfaceValue, companyId: company.company.companyId, actorId: actor.id, reviewRequestId, returnTo, capabilities });
+    const result = await new PdmEntityDetailService().read({ entityKey, surface: surfaceValue, companyId: company.company.companyId, actorId: actor.id, canEditNonOwned: hasPdmNonOwnerEditScope({ role: actor.role }), reviewRequestId, returnTo, capabilities });
     return NextResponse.json(result, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     if (error instanceof PdmEntityDetailError) return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status });

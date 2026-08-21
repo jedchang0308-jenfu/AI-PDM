@@ -65,6 +65,10 @@ function cleanup() {
           db.prepare(`DELETE FROM same_drawing_variants WHERE part_number_id IN (${partPlaceholders})`).run(...partIds);
           db.prepare(`DELETE FROM drawing_part_links WHERE part_number_id IN (${partPlaceholders})`).run(...partIds);
         }
+        // The unified `drawings` projection holds RESTRICT references to the
+        // canonical drawing/root rows; remove the projection before its source
+        // rows so the disposable QC fixture can clean up with FKs enabled.
+        db.prepare(`DELETE FROM drawings WHERE part_root_id IN (${rootPlaceholders})`).run(...rootIds);
         db.prepare(`DELETE FROM drawing_numbers WHERE part_root_id IN (${rootPlaceholders})`).run(...rootIds);
         db.prepare(`DELETE FROM part_numbers WHERE part_root_id IN (${rootPlaceholders})`).run(...rootIds);
         db.prepare(`DELETE FROM part_roots WHERE id IN (${rootPlaceholders})`).run(...rootIds);

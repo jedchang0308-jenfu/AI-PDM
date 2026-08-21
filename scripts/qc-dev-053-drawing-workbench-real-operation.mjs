@@ -399,7 +399,9 @@ async function run() {
     PDM_NUMBER_LIFECYCLE_V2: "true",
     PDM_UNIFIED_DRAWING_WORKBENCH_V1: "true",
     PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "true",
-    PDM_UNIFIED_ENTITY_DETAIL_V1: "true",
+    // This suite verifies the formal drawing-number maintenance contract.
+    // The unified entity-detail path has its own dedicated drawer QC coverage.
+    PDM_UNIFIED_ENTITY_DETAIL_V1: "false",
     PDM_PRODUCTION_SLICE_MODE: "",
     PDM_NEXT_DIST_DIR: distDirRelative,
     PDM_QC_ISOLATED_TARGET: "1"
@@ -717,7 +719,7 @@ async function run() {
   if (!uploadResponse.ok() || !uploadBody.workspace) {
     throw new Error(`DEV053_REAL_UPLOAD_FAILED:${uploadResponse.status()}:${JSON.stringify(uploadBody)}`);
   }
-  await page.getByText("主要 2D 圖面與 3D 模型已完成，可送審。", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
+  await page.getByRole("status").getByText("已完成 2 個受控檔案驗證；主要 2D 圖面與 3D 模型都已就緒，現在可送交審核。", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
   const uploaded = database.prepare(`SELECT asset.file_name, asset.original_path, asset.content_hash, file.role, file.is_primary,
       file.publication_evidence_id, evidence.bucket, evidence.generation, evidence.finalized_at
     FROM numbering_candidate_revision_files file
@@ -806,10 +808,15 @@ async function run() {
   const finalSearch = page.getByPlaceholder("圖號、品名、料號");
   await searchWorkbench(page, finalSearch, fixture.drawingCode);
   await page.getByRole("button", { name: fixture.drawingCode, exact: true }).waitFor({ state: "visible" });
+  const finalRows = page.locator(".drawing-workbench-table tbody tr");
+  await finalRows.first().waitFor({ state: "visible" });
+  const finalRowText = await finalRows.first().innerText();
+  const finalCompleteFirstVersionButtonCount = await page.getByRole("button", { name: "完成首版", exact: true }).count();
   record("DEV053-REAL-018 candidate row becomes one formal canonical row after approval",
-    await page.locator(".drawing-workbench-table tbody tr").count() === 1 &&
-    (await page.locator(".drawing-workbench-table tbody tr").innerText()).includes("研發可用") &&
-    await page.getByRole("button", { name: "完成首版", exact: true }).count() === 0);
+    await finalRows.count() === 1 &&
+    finalRowText.includes("研發版可使用") &&
+    finalCompleteFirstVersionButtonCount === 0,
+    { rowCount: await finalRows.count(), finalRowText, finalCompleteFirstVersionButtonCount });
   await page.getByRole("button", { name: fixture.drawingCode, exact: true }).click();
   await formalMasterDrawer.waitFor({ state: "visible" });
   await page.locator('[data-attachment-authority="controlled_summary"]').waitFor({ state: "visible" });
@@ -824,7 +831,7 @@ async function run() {
   const controlledUploadButtonCount = await controlledPanel.getByRole("button", { name: /上傳/u }).count();
   const controlledDeleteButtonCount = await controlledPanel.getByRole("button", { name: /刪除/u }).count();
   const effectiveStatuses = (formalAttachmentBody.attachments ?? []).map((attachment) => attachment.revisionPackageEffectiveStatus);
-  const controlledLabelVisible = await page.getByText("研發可用", { exact: true }).count() > 0;
+  const controlledLabelVisible = await page.getByText("研發版可使用", { exact: true }).count() > 0;
   const misleadingPendingTextVisible = await page.getByText("待處理附件", { exact: true }).count() > 0 ||
     await page.getByText("尚未納入送審", { exact: false }).count() > 0;
   record("DEV053-REAL-019 controlled 2D and 3D files stay read-only without retired reference attachments",

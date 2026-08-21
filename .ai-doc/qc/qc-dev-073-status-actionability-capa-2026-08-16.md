@@ -51,6 +51,6 @@
 
 ## 5. 結論與限制
 
-本輪指定的 RD 修復、A0005 跨頁一致性、DEV-070 legacy owner、DEV-073 actionability 與最後一次全套本機驗證均通過，P0/P1=0。受保護的 4173 primary runtime仍可用（HTTP 200）。
+本輪指定的 RD 修復、A0005 跨頁一致性、DEV-070 legacy owner、DEV-073 actionability 與最後一次全套本機驗證均通過，P0/P1=0。
 
 本報告只代表 local QC；正式資料修復、PostgreSQL runtime parity、production migration、deploy、release仍須另走 release gate。

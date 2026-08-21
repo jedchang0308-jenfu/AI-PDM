@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Archive, Download, FileText, Send } from "lucide-react";
+import { getStatusDisplay } from "@/lib/status-display";
 
 type PublicShareData = {
   share: {
@@ -68,11 +69,7 @@ type PublicShareData = {
 };
 
 function formatPublicStatus(value: string) {
-  const labels: Record<string, string> = {
-    open: "未結案",
-    closed: "已結案"
-  };
-  return labels[value] ?? value;
+  return getStatusDisplay(value, "workflow").label;
 }
 
 export default function PublicSharePage({ params }: { params: Promise<{ token: string }> }) {
@@ -216,6 +213,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           <Info label="文件" value={data.submission.document_type} />
           <Info label="材質" value={data.submission.material || "-"} />
           <Info label="表面處理" value={data.submission.surface_finish || "-"} />
+          <Info label="發布狀態" value={getStatusDisplay(data.submission.status, "submission").label} />
           <Info label="發布時間" value={data.submission.released_at ?? "-"} />
           <Info label="建立者" value={data.submission.submitted_by_name} />
           <Info label="到期時間" value={data.share.expires_at} />
@@ -317,6 +315,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           <span className="section-label">BOM</span>
           {data.bom ? (
             <div className="public-share-list">
+              <Info label="BOM 狀態" value={getStatusDisplay(data.bom.status, "bomDraft").label} />
               {data.bom.lines.map((line) => (
                 <div className="public-share-list-item" key={`${line.line_no}-${line.child_part_number}`}>
                   <div className="identity-line">
@@ -355,7 +354,7 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
             <div className="public-share-list-item" key={`${approval.reviewer_name}-${approval.decided_at}`}>
               <strong>{approval.reviewer_name}</strong>
               <div className="metadata-list">
-                <span className="metadata-badge">{approval.decision}</span>
+                <span className="metadata-badge">{getStatusDisplay(approval.decision, "workflow").label}</span>
                 <span className="metadata-pair">
                   <span className="metadata-label">時間</span>
                   <span className="metadata-value">{approval.decided_at}</span>

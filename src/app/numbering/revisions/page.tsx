@@ -179,9 +179,10 @@ export type DrawingRevisionWorkbenchProps = {
   initialFocus?: "revision" | "upload";
   onSubmitted?: (submissionId: string) => void;
   onClose?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
-export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision, initialAttachmentIds, compact = false, initialFocus = "revision", onSubmitted, onClose }: DrawingRevisionWorkbenchProps = {}) {
+export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision, initialAttachmentIds, compact = false, initialFocus = "revision", onSubmitted, onClose, onDirtyChange }: DrawingRevisionWorkbenchProps = {}) {
   const searchParams = useSearchParams();
   const initialLookup = initialDrawingNumber?.trim()
     ? { value: initialDrawingNumber.trim(), kind: "drawingNumber" as const }
@@ -224,6 +225,12 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
   const uploadSectionRef = useRef<HTMLElement | null>(null);
   const submissionSectionRef = useRef<HTMLElement | null>(null);
   const initialFocusAppliedRef = useRef(false);
+
+  useEffect(() => {
+    const initialIds = new Set(initialAttachmentIdValues);
+    const attachmentsDirty = selectedAttachmentIds.length !== initialIds.size || selectedAttachmentIds.some((id) => !initialIds.has(id));
+    onDirtyChange?.(revisionManuallyEditedRef.current || pendingUploadFiles.length > 0 || attachmentsDirty || Boolean(note.trim()));
+  }, [initialAttachmentIdValues, note, onDirtyChange, pendingUploadFiles.length, selectedAttachmentIds]);
 
   const outcome = useMemo(() => {
     if ([formState, fitState, functionState].includes("confirmed_impact")) return "confirmed_impact";

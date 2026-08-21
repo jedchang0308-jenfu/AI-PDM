@@ -21,6 +21,7 @@ const dbRuntime = readRequired("src/lib/db.ts");
 const previewService = readRequired("src/lib/preview-derivatives.ts");
 const masterAsync = readRequired("src/lib/master-attachments-async.ts");
 const panel = readRequired("src/components/master-attachment-panel.tsx");
+const detailPreview = readRequired("src/components/drawing-detail-preview.tsx");
 const drawingRoute = readRequired("src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts");
 const partRoute = readRequired("src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts");
 const drawingDownloadRoute = readRequired("src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/route.ts");
@@ -132,7 +133,7 @@ assert(documentManagerWorker.includes("--watch") && documentManagerWorker.includ
 assert(documentManagerWorker.includes("/api/preview-workers/solidworks-document-manager-key") && documentManagerWorker.includes("ensureWorkerDocumentManagerKey") && documentManagerWorker.includes("credentialRefreshMs"), "Document Manager worker resolves credentials through the server-side worker route with bounded refresh");
 assert(documentManagerWorker.includes("SolidWorksDocumentManagerPreviewExporter.exe") && documentManagerWorker.includes("solidworks-document-manager-preview-exporter.cs"), "Document Manager worker compiles the native exporter");
 assert(documentManagerWorker.includes("PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY") && documentManagerWorker.includes("PDM_SW_DOCUMENT_MANAGER_LICENSE_KEY"), "Document Manager worker reads key only from worker environment variables");
-assert(documentManagerWorker.includes("DOCUMENT_MANAGER_LICENSE_KEY_MISSING") && documentManagerWorker.includes("Google Secret Manager exact version"), "Document Manager worker reports the Google Secret Manager credential boundary clearly");
+assert(documentManagerWorker.includes("DOCUMENT_MANAGER_LICENSE_KEY_MISSING") && documentManagerWorker.includes("設定中心已啟用版本") && documentManagerWorker.includes("2D worker readiness"), "Document Manager worker reports the UI-managed credential boundary clearly");
 assert(documentManagerWorker.includes("solidworks-document-manager-preview-png-v1") && documentManagerWorker.includes("assertMeaningfulDrawingPreviewQuality"), "Document Manager worker records generator evidence and rejects blank drawing output");
 assert(documentManagerExporter.includes("GetPreviewPNGBitmapBytes") && documentManagerExporter.includes("ISwDMSheet2"), "Document Manager exporter reads sheet PNG preview bytes");
 assert(documentManagerExporter.includes("SwDocumentMgr.SwDMClassFactory") && documentManagerExporter.includes("SwDmDocumentType.swDmDocumentDrawing"), "Document Manager exporter opens SLDDRW through Document Manager");
@@ -145,7 +146,7 @@ assert(panel.includes("generatePreview") && panel.includes("/previews"), "Attach
 assert(panel.includes("forceRegenerate: true"), "Attachment panel sends explicit preview regeneration requests");
 assert(panel.includes("previewPollingNeeded") && panel.includes("setInterval") && panel.includes("background: true"), "Attachment panel polls preview state automatically without manual refresh");
 assert(!panel.includes("master-attachment-refresh") && !panel.includes("重新整理附件"), "Attachment panel removes manual refresh dependency");
-assert(panel.includes("LoaderCircle") && panel.includes("Clock3") && panel.includes("CircleAlert") && panel.includes("WifiOff"), "Attachment panel uses non-verbal preview state icons");
+assert(detailPreview.includes("Clock3") && detailPreview.includes("AlertTriangle") && detailPreview.includes("WifiOff"), "Drawing preview uses non-verbal preview state icons");
 assert(panel.includes("完成後自動更新") && panel.includes("等待預覽服務") && panel.includes("處理較久") && panel.includes("系統仍在運作"), "Attachment panel communicates queue, wait and delayed states concisely");
 assert(panel.includes("tone: \"failed\"") && panel.includes("title: \"無法預覽\"") && panel.includes("text: \"請下載原檔\""), "Attachment panel renders failure and unavailable fallback states");
 assert(panel.includes("previewDerivative="), "Attachment panel opens derivative stream URLs");
@@ -162,6 +163,9 @@ assert(
   "Local launcher manages dedicated 2D and 3D preview workers with distinct identities"
 );
 assert(workerCredentialRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && workerCredentialRoute.includes("resolveActiveSolidWorksDocumentManagerKey") && workerCredentialRoute.includes("no-store"), "Worker credential route is token-gated and never cacheable");
+assert(existsRequired("src/app/api/preview-workers/heartbeat/route.ts") && documentManagerWorker.includes("/api/preview-workers/heartbeat") && documentManagerWorker.includes("solidworks_2d_preview_png"), "2D preview worker reports a dedicated capability heartbeat");
+assert(previewService.includes("requestedPreviewKindForSource") && masterAsync.includes("requestedPreviewKindForSource"), "Automatic SolidWorks preview producers resolve native PNG kind centrally");
+assert(startLocalhost.includes("Test-DocumentManagerInteropConfigured") && !startLocalhost.includes('if (-not (Test-DocumentManagerPreviewKeyConfigured))'), "Local launcher starts the 2D worker without requiring a plaintext key in launcher environment");
 
 assert(packageJson.scripts["qc:pdm-sw-native-preview-worker"] === "node scripts/qc-pdm-sw-native-preview-worker.mjs", "package script qc:pdm-sw-native-preview-worker is registered");
 assert(packageJson.scripts["preview:worker:windows-shell"] === "node scripts/run-windows-shell-preview-worker.mjs", "package script preview:worker:windows-shell is registered");

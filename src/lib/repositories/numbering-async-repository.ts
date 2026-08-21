@@ -28,6 +28,7 @@ import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } fr
 import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
 import { evaluateHardApprovalRules as evaluateHardApprovalRulesShared } from "@/lib/numbering-hard-approval-rules";
 import { lowestAvailableSequence } from "@/lib/numbering-sequence-utils";
+import { buildNumberingPartRootLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 import type {
   ApprovalHardRule,
@@ -134,6 +135,7 @@ import type {
   RootObsoleteImpactLink,
   RootObsoleteImpactResult,
   RootObsoleteImpactTarget,
+  RootObsoleteDependencySummary,
   RequestSameDrawingVariantApprovalInput,
   ResubmitRejectedNumberingApprovalBatchItemsInput,
   SaveNumberingRolePriorityInput,
@@ -2218,9 +2220,10 @@ export const SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL = `
   SELECT
     (SELECT COUNT(*)
      FROM approval_requests
-     WHERE entity_id = :rootId
+     WHERE (entity_id = :rootId
         OR entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
-        OR entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)) AS approval_count,
+        OR entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId))
+       AND (CAST(:excludeApprovalRequestId AS text) IS NULL OR id <> CAST(:excludeApprovalRequestId AS text))) AS approval_count,
     (SELECT COUNT(*)
      FROM drawing_revision_packages
      WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)) AS revision_package_count,
@@ -2836,6 +2839,38 @@ function isClosedRecordStatus(status: NumberingRecordStatus) {
   return status === "Obsolete" || status === "Merged";
 }
 
+type RootDependencyCountRow = {
+  approval_count: number;
+  revision_package_count: number;
+  shared_model_count: number;
+  manufacturing_baseline_count: number;
+  manufacturing_baseline_item_count: number;
+  replacement_link_count: number;
+  bom_reconfirmation_count: number;
+  file_asset_count: number;
+};
+
+function mapRootDependencySummary(row: RootDependencyCountRow | null): RootObsoleteDependencySummary {
+  const summary = {
+    approvalCount: Number(row?.approval_count ?? 0),
+    revisionPackageCount: Number(row?.revision_package_count ?? 0),
+    sharedModelCount: Number(row?.shared_model_count ?? 0),
+    manufacturingBaselineCount: Number(row?.manufacturing_baseline_count ?? 0),
+    manufacturingBaselineItemCount: Number(row?.manufacturing_baseline_item_count ?? 0),
+    replacementLinkCount: Number(row?.replacement_link_count ?? 0),
+    bomReconfirmationCount: Number(row?.bom_reconfirmation_count ?? 0),
+    fileAssetCount: Number(row?.file_asset_count ?? 0)
+  };
+  const controlledReferenceCount = Object.entries(summary)
+    .filter(([key]) => key !== "fileAssetCount")
+    .reduce((total, [, value]) => total + Number(value), 0);
+  return {
+    ...summary,
+    controlledReferenceCount,
+    fingerprint: crypto.createHash("sha256").update(JSON.stringify({ ...summary, controlledReferenceCount })).digest("hex")
+  };
+}
+
 function actionCodeFromDetail(detail: Record<string, unknown>) {
   const value = detail.actionCode ?? detail.action_code;
   return typeof value === "string" ? value : null;
@@ -2961,7 +2996,8 @@ function buildNumberingSearchWhere(
     filters.push(`${recordStatusColumn} = :recordStatus`);
     params.recordStatus = input.recordStatus;
   }
-  params.limit = input.limit;
+  if (input.includeHistory === false) filters.push(`${recordStatusColumn} NOT IN ('Obsolete', 'Merged')`);
+  if (input.limit !== null) params.limit = input.limit;
   return {
     where: filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "",
     params
@@ -3019,7 +3055,8 @@ function buildPartModuleWhere(input: Required<Pick<PartModuleListInput, "query" 
     filters.push("p.record_status = :recordStatus");
     params.recordStatus = input.recordStatus;
   }
-  params.limit = input.limit;
+  if (input.includeHistory === false) filters.push("p.record_status NOT IN ('Obsolete', 'Merged')");
+  if (input.limit !== null) params.limit = input.limit;
   return {
     where: filters.length ? `WHERE ${filters.join(" AND ")}` : "",
     params
@@ -3801,8 +3838,9 @@ export class AsyncNumberingRepository {
     for (const seed of NUMBERING_RULE_VERSION_SEEDS) {
       await client.execute(
         `
-          INSERT OR IGNORE INTO numbering_rule_versions (id, rule_code, title, status, retired_at, rule_json, created_at, updated_at)
+          INSERT INTO numbering_rule_versions (id, rule_code, title, status, retired_at, rule_json, created_at, updated_at)
           VALUES (:id, :ruleCode, :title, :status, :retiredAt, :ruleJson, :now, :now)
+          ON CONFLICT (id) DO NOTHING
         `,
         {
           id: seed.id,
@@ -4198,7 +4236,7 @@ export class AsyncNumberingRepository {
     return this.client.transaction(run);
   }
 
-  async getRootObsoleteImpact(input: { companyId?: string; rootCode?: string; rootId?: string }): Promise<RootObsoleteImpactResult> {
+  async getRootObsoleteImpact(input: { companyId?: string; rootCode?: string; rootId?: string; excludeApprovalRequestId?: string | null }): Promise<RootObsoleteImpactResult> {
     return this.getRootObsoleteImpactInClient(this.client, input);
   }
 
@@ -4209,7 +4247,8 @@ export class AsyncNumberingRepository {
       if (!reason) throw new Error("reason is required");
       const impact = await this.getRootObsoleteImpactInClient(client, { companyId, rootCode: input.rootCode, rootId: input.rootId });
       if (impact.pendingRequestId) throw new Error("LIFE_OBSOLETE_ALREADY_REQUESTED");
-      if (impact.formalTargets.length === 0) throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+      if (impact.policy.action !== "request_formal_obsolete") throw new Error("LIFE_OBSOLETE_NOT_ELIGIBLE");
+      if (impact.approvalTargets.length === 0) throw new Error("LIFE_OBSOLETE_NOT_ELIGIBLE");
 
       const approvalRequest = await this.insertNumberingApprovalRequest(client, {
         companyId,
@@ -4223,8 +4262,12 @@ export class AsyncNumberingRepository {
           aggregateIntent: "whole_root_obsolete",
           rootCode: impact.root.rootCode,
           rootStatus: impact.root.recordStatus,
-          targetCount: impact.formalTargets.length,
+          schemaVersion: 1,
+          targetCount: impact.approvalTargets.length,
+          approvalTargets: impact.approvalTargets,
           childTargets: impact.formalTargets,
+          dependencySummary: impact.dependencySummary,
+          dependencyFingerprint: impact.dependencySummary.fingerprint,
           links: impact.links,
           warnings: impact.warnings,
           projectCode: input.projectCode?.trim() || null
@@ -4372,6 +4415,12 @@ export class AsyncNumberingRepository {
       });
       if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${input.rootCode}`);
       assertDraftMutableStatus(rootRow.record_status, "ROOT");
+      const impact = await this.getRootObsoleteImpactInClient(client, { companyId, rootCode: input.rootCode });
+      if (impact.pendingRequestId) throw new Error("LIFE_OBSOLETE_ALREADY_REQUESTED");
+      if (impact.policy.action !== "obsolete_draft_official_number") throw new Error("LIFE_ROOT_MIXED_OR_TERMINAL");
+      if (impact.dependencySummary.controlledReferenceCount > 0) {
+        throw new Error("NUMBERING_DRAFT_OBSOLETE_HAS_CONTROLLED_REFERENCES");
+      }
       const [partRows, drawingRows] = await Promise.all([
         client.query<PartNumberRow>(SELECT_ASYNC_ROOT_PART_NUMBERS_SQL, { rootId: rootRow.id }),
         client.query<DrawingNumberRow>(SELECT_ASYNC_ROOT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id })
@@ -4427,7 +4476,7 @@ export class AsyncNumberingRepository {
         replacement_link_count: number;
         bom_reconfirmation_count: number;
         file_asset_count: number;
-      }>(SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL, { rootId: rootRow.id });
+      }>(SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL, { rootId: rootRow.id, excludeApprovalRequestId: null });
       const controlledDependencyCount =
         Number(dependencyCounts?.approval_count ?? 0) +
         Number(dependencyCounts?.revision_package_count ?? 0) +
@@ -5842,7 +5891,7 @@ export class AsyncNumberingRepository {
     const normalizedInput = {
       ...input,
       query: input.query?.trim() ?? "",
-      limit: clampNumberingListLimit(input.limit, 50)
+      limit: input.limit === null ? null : clampNumberingListLimit(input.limit, 50)
     };
     const entityType = normalizedInput.entityType ?? "all";
     const rows: NumberingSearchRow[] = [];
@@ -5860,7 +5909,7 @@ export class AsyncNumberingRepository {
     return rows
       .map(mapNumberingSearchRow)
       .sort((a, b) => b.warningCount - a.warningCount || a.rootCode.localeCompare(b.rootCode) || a.displayCode.localeCompare(b.displayCode))
-      .slice(0, normalizedInput.limit);
+      .slice(0, normalizedInput.limit === null ? undefined : normalizedInput.limit);
   }
 
   async listProductSeriesOptions(companyId: string = DEFAULT_COMPANY_ID): Promise<string[]> {
@@ -5962,7 +6011,7 @@ export class AsyncNumberingRepository {
     const normalizedInput = {
       ...input,
       query: input.query?.trim() ?? "",
-      limit: clampNumberingListLimit(input.limit, 50)
+      limit: input.limit === null ? null : clampNumberingListLimit(input.limit, 50)
     };
     const { where, params } = buildPartModuleWhere(normalizedInput);
     const rows = await this.client.query<PartModuleListRow>(
@@ -5970,7 +6019,7 @@ export class AsyncNumberingRepository {
         ${SELECT_ASYNC_PART_MODULE_RECORDS_BASE_SQL}
         ${where}
         ORDER BY r.root_code ASC, p.sequence_no ASC, p.part_number ASC
-        LIMIT :limit
+        ${normalizedInput.limit === null ? "" : "LIMIT :limit"}
       `,
       params
     );
@@ -6106,7 +6155,7 @@ export class AsyncNumberingRepository {
         ${SELECT_ASYNC_NUMBERING_SEARCH_ROOTS_BASE_SQL}
         ${where}
         ORDER BY r.updated_at DESC, r.root_code ASC
-        LIMIT :limit
+        ${input.limit === null ? "" : "LIMIT :limit"}
       `,
       params
     );
@@ -6124,7 +6173,7 @@ export class AsyncNumberingRepository {
         ${SELECT_ASYNC_NUMBERING_SEARCH_PARTS_BASE_SQL}
         ${where}
         ORDER BY p.updated_at DESC, p.part_number ASC
-        LIMIT :limit
+        ${input.limit === null ? "" : "LIMIT :limit"}
       `,
       params
     );
@@ -6142,7 +6191,7 @@ export class AsyncNumberingRepository {
         ${SELECT_ASYNC_NUMBERING_SEARCH_DRAWINGS_BASE_SQL}
         ${where}
         ORDER BY d.updated_at DESC, d.drawing_number ASC
-        LIMIT :limit
+        ${input.limit === null ? "" : "LIMIT :limit"}
       `,
       params
     );
@@ -7267,42 +7316,72 @@ export class AsyncNumberingRepository {
       if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${request.entityId}`);
       if (rootRow.company_id !== companyId) throw new Error("PART_ROOT_COMPANY_MISMATCH");
 
-      const payloadTargets = Array.isArray(request.payload.childTargets) ? request.payload.childTargets : [];
-      const impact = payloadTargets.length > 0
-        ? null
-        : await this.getRootObsoleteImpactInClient(client, { companyId, rootId: rootRow.id });
-      const targets = payloadTargets.length > 0 ? payloadTargets : impact?.formalTargets ?? [];
-      if (targets.length === 0) throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
+      const snapshotTargets = Array.isArray(request.payload.approvalTargets) ? request.payload.approvalTargets : null;
+      const impact = await this.getRootObsoleteImpactInClient(client, {
+        companyId,
+        rootId: rootRow.id,
+        excludeApprovalRequestId: request.id
+      });
+      const targets = snapshotTargets ?? (Array.isArray(request.payload.childTargets) ? request.payload.childTargets : impact.formalTargets);
+      if (targets.length === 0) throw new Error("LIFE_OBSOLETE_NOT_ELIGIBLE");
+      if (snapshotTargets) {
+        const targetSignature = (value: unknown) => JSON.stringify(
+          (Array.isArray(value) ? value : [])
+            .map((target) => {
+              const row = target && typeof target === "object" ? (target as Record<string, unknown>) : {};
+              return {
+                entityType: String(row.entityType ?? "").trim(),
+                entityId: String(row.entityId ?? "").trim(),
+                entityCode: String(row.entityCode ?? "").trim(),
+                recordStatus: String(row.recordStatus ?? "").trim()
+              };
+            })
+            .sort((left, right) => `${left.entityType}:${left.entityId}`.localeCompare(`${right.entityType}:${right.entityId}`))
+        );
+        const expectedFingerprint = String(request.payload.dependencyFingerprint ?? "").trim();
+        if (Number(request.payload.schemaVersion ?? 0) !== 1 || !expectedFingerprint || expectedFingerprint !== impact.dependencySummary.fingerprint || targetSignature(snapshotTargets) !== targetSignature(impact.approvalTargets)) {
+          throw new Error("ROOT_OBSOLETE_SNAPSHOT_STALE");
+        }
+      }
 
       const now = this.clock();
       const obsoletedParts: string[] = [];
       const obsoletedDrawings: string[] = [];
+      let rootTargetIncluded = false;
       for (const target of targets) {
         const targetRecord = target && typeof target === "object" ? (target as Record<string, unknown>) : {};
         const entityType = String(targetRecord.entityType ?? "").trim();
         const entityId = String(targetRecord.entityId ?? "").trim();
+        const expectedStatus = String(targetRecord.recordStatus ?? "").trim();
+        if (entityType === "part_root") {
+          if (entityId !== rootRow.id || rootRow.record_status !== expectedStatus) throw new Error("ROOT_OBSOLETE_SNAPSHOT_STALE");
+          rootTargetIncluded = true;
+          continue;
+        }
         if (entityType === "part_number" && entityId) {
           const partRow = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_ID_SQL, { partNumberId: entityId });
           if (!partRow || partRow.company_id !== companyId || partRow.part_root_id !== rootRow.id) throw new Error("ROOT_OBSOLETE_TARGET_MISMATCH");
-          if (isFormalRecordStatus(partRow.record_status)) {
-            await client.execute(UPDATE_ASYNC_APPROVAL_OBSOLETE_PART_SQL, { partNumberId: partRow.id, updatedAt: now });
-            obsoletedParts.push(partRow.part_number);
-          }
+          if (partRow.record_status !== expectedStatus || isClosedRecordStatus(partRow.record_status)) throw new Error("ROOT_OBSOLETE_SNAPSHOT_STALE");
+          await client.execute(UPDATE_ASYNC_APPROVAL_OBSOLETE_PART_SQL, { partNumberId: partRow.id, updatedAt: now });
+          obsoletedParts.push(partRow.part_number);
         }
         if (entityType === "drawing_number" && entityId) {
           const drawingRow = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_ID_SQL, { drawingNumberId: entityId });
           if (!drawingRow || drawingRow.company_id !== companyId || drawingRow.part_root_id !== rootRow.id) throw new Error("ROOT_OBSOLETE_TARGET_MISMATCH");
-          if (isFormalRecordStatus(drawingRow.record_status)) {
-            await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingRow.id, updatedAt: now });
-            await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
-              drawingNumberId: drawingRow.id,
-              companyId
-            });
-            obsoletedDrawings.push(drawingRow.drawing_number);
-          }
+          if (drawingRow.record_status !== expectedStatus || isClosedRecordStatus(drawingRow.record_status)) throw new Error("ROOT_OBSOLETE_SNAPSHOT_STALE");
+          await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingRow.id, updatedAt: now });
+          await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+            drawingNumberId: drawingRow.id,
+            companyId
+          });
+          obsoletedDrawings.push(drawingRow.drawing_number);
         }
       }
-      await this.markRootClosedIfNoOpenParts(client, rootRow.id, "Obsolete", now);
+      if (rootTargetIncluded) {
+        await client.execute(UPDATE_ASYNC_ROOT_OBSOLETE_SQL, { rootId: rootRow.id, updatedAt: now });
+      } else {
+        await this.markRootClosedIfNoOpenParts(client, rootRow.id, "Obsolete", now);
+      }
       await this.insertAudit(client, {
         actorId,
         action: "lifecycle.root_obsolete.approved",
@@ -7889,7 +7968,7 @@ export class AsyncNumberingRepository {
         SELECT detail_json
         FROM audit_logs
         WHERE action = :action
-          AND (actor_id = :actorId OR (:actorId IS NULL AND actor_id IS NULL))
+          AND (actor_id = :actorId OR (CAST(:actorId AS text) IS NULL AND actor_id IS NULL))
           AND created_at >= :notBefore
           AND CAST(detail_json AS TEXT) LIKE :needle
         ORDER BY created_at DESC
@@ -7916,7 +7995,7 @@ export class AsyncNumberingRepository {
 
   private async getRootObsoleteImpactInClient(
     client: AsyncDatabaseClient,
-    input: { companyId?: string; rootCode?: string; rootId?: string }
+    input: { companyId?: string; rootCode?: string; rootId?: string; excludeApprovalRequestId?: string | null }
   ): Promise<RootObsoleteImpactResult> {
     const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
     const rootCode = input.rootCode?.trim();
@@ -7928,7 +8007,7 @@ export class AsyncNumberingRepository {
     if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode || rootId}`);
     if (rootRow.company_id !== companyId) throw new Error("PART_ROOT_COMPANY_MISMATCH");
 
-    const [partRows, drawingRows, linkRows, pending] = await Promise.all([
+    const [partRows, drawingRows, linkRows, pending, dependencyCountRow] = await Promise.all([
       client.query<PartNumberRow>(SELECT_ASYNC_ROOT_PART_NUMBERS_SQL, { rootId: rootRow.id }),
       client.query<DrawingNumberRow>(SELECT_ASYNC_ROOT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id }),
       client.query<NumberingLinkRow>(SELECT_ASYNC_NUMBERING_LINKS_FOR_ROOT_SQL, { rootId: rootRow.id }),
@@ -7942,13 +8021,19 @@ export class AsyncNumberingRepository {
             AND entity_id = :entityId
             AND action_code = 'obsolete_part_root'
             AND request_status IN ('pending', 'needs_info')
+            AND (CAST(:excludeApprovalRequestId AS text) IS NULL OR id <> CAST(:excludeApprovalRequestId AS text))
           LIMIT 1
         `,
-        { companyId, entityId: rootRow.id }
-      )
+        { companyId, entityId: rootRow.id, excludeApprovalRequestId: input.excludeApprovalRequestId ?? null }
+      ),
+      client.queryOne<RootDependencyCountRow>(SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL, {
+        rootId: rootRow.id,
+        excludeApprovalRequestId: input.excludeApprovalRequestId ?? null
+      })
     ]);
     const parts = partRows.map(mapPartNumber);
     const drawings = drawingRows.map(mapDrawingNumber);
+    const dependencySummary = mapRootDependencySummary(dependencyCountRow);
     const formalTargets: RootObsoleteImpactTarget[] = [
       ...parts
         .filter((part) => isFormalRecordStatus(part.recordStatus))
@@ -7967,10 +8052,41 @@ export class AsyncNumberingRepository {
           recordStatus: drawing.recordStatus
         }))
     ];
+    const approvalTargets: RootObsoleteImpactTarget[] = [
+      {
+        entityType: "part_root",
+        entityId: rootRow.id,
+        entityCode: rootRow.root_code,
+        recordStatus: rootRow.record_status
+      },
+      ...parts
+        .filter((part) => !isClosedRecordStatus(part.recordStatus))
+        .map((part) => ({
+          entityType: "part_number" as const,
+          entityId: part.id,
+          entityCode: part.partNumber,
+          recordStatus: part.recordStatus
+        })),
+      ...drawings
+        .filter((drawing) => !isClosedRecordStatus(drawing.recordStatus))
+        .map((drawing) => ({
+          entityType: "drawing_number" as const,
+          entityId: drawing.id,
+          entityCode: drawing.drawingNumber,
+          recordStatus: drawing.recordStatus
+        }))
+    ];
+    const policy = buildNumberingPartRootLifecyclePolicy({
+      rootStatus: rootRow.record_status,
+      childStatuses: [...parts, ...drawings].map((record) => record.recordStatus),
+      controlledReferenceCount: dependencySummary.controlledReferenceCount,
+      pendingObsoleteRequest: Boolean(pending)
+    });
     const draftChildren = [...parts, ...drawings].filter((record) => record.recordStatus === "Draft" || record.recordStatus === "NeedInfo").length;
     const warnings = [
-      draftChildren > 0 ? `尚有 ${draftChildren} 筆草稿/待補資料；正式作廢只會建立正式資料審核範圍。` : "",
-      formalTargets.length === 0 ? "此圖料根號目前沒有可申請作廢的料號或圖號。" : "",
+      draftChildren > 0 && formalTargets.length > 0 ? `尚有 ${draftChildren} 筆草稿/待補資料；正式作廢會以核准範圍為準。` : "",
+      dependencySummary.controlledReferenceCount > 0 ? `目前有 ${dependencySummary.controlledReferenceCount} 筆受控關聯，不能直接作廢草稿。` : "",
+      formalTargets.length === 0 && dependencySummary.controlledReferenceCount === 0 ? "此圖料根號目前沒有可申請作廢的正式範圍。" : "",
       pending ? "此圖料根號已有作廢審核中申請。" : ""
     ].filter(Boolean);
     const links: RootObsoleteImpactLink[] = linkRows.map((link) => ({
@@ -7984,6 +8100,9 @@ export class AsyncNumberingRepository {
       drawings,
       links,
       formalTargets,
+      approvalTargets,
+      dependencySummary,
+      policy,
       warnings,
       pendingRequestId: pending?.id ?? null
     };

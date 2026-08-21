@@ -23,7 +23,7 @@ const sidebarSource = read("src/components/sidebar-nav.tsx");
 assert.match(contractSource, /approvalWorkbenchRowKey/);
 assert.match(contractSource, /previousCursor\?\:/);
 assert.match(controllerSource, /server-bidirectional/);
-assert.match(controllerSource, /setCursorHistory\(\[location\.cursor/);
+assert.match(controllerSource, /setCursorHistory\(cursorHistoryForLocation\(location\.cursor/u, "controller restores URL cursor through the bounded history helper");
 assert.match(pageSource, /PdmWorkbenchList/);
 assert.match(pageSource, /PdmWorkbenchPagination/);
 assert.match(pageSource, /目前沒有符合條件的待處理審核/);

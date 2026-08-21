@@ -11,7 +11,6 @@ const has = (source, fragments) => fragments.every((fragment) => source.includes
 
 const component = read("src/components/drawing-workbench.tsx");
 const service = read("src/lib/drawing-workbench.ts");
-const humanStatusFilter = read("src/components/human-status-filter.tsx");
 const statusEngine = read("src/lib/drawing-workbench-status.ts");
 const page = read("src/app/numbering/drawings/page.tsx");
 const attachment = read("src/components/master-attachment-panel.tsx");
@@ -77,11 +76,11 @@ record("DEV053-UI-009 responsive rules cover desktop, 1024 and mobile card layou
 record("DEV053-UI-010 client pagination resets before filter state changes",
   has(component, [
     "updateWorkbenchQuery({ query:",
-    "updateWorkbenchQuery({ view:",
-    "updateWorkbenchQuery({ humanStatus:",
-    "updateWorkbenchQuery({ seriesCode:",
-    "updateWorkbenchQuery({ purposeCode:",
-    "updateWorkbenchQuery({ recordStatus:"
+    "onApply={(value) => updateWorkbenchQuery({ humanStatus: value })}",
+    "onApply={(value) => updateWorkbenchQuery({ seriesCode: value })}",
+    "onApply={(value) => updateWorkbenchQuery({ purposeCode: value })}",
+    "onApply={(value) => updateWorkbenchQuery({ recordStatus: value })}",
+    "PdmWorkbenchMultiSelectFilter"
   ]) && has(sharedWorkbenchController, ["const setQuery = useCallback", "resetPagination();"]));
 record("DEV053-UI-011 formal filters and linked-part identity remain visible on the unified list",
   has(component, [
@@ -89,11 +88,9 @@ record("DEV053-UI-011 formal filters and linked-part identity remain visible on 
     "資料狀態",
     'dataLabel: "料號"',
     "row.relatedPartSummary",
-    "<HumanStatusFilterSelect value={humanStatus}",
-    "<HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />"
-  ]) && has(humanStatusFilter, [
-    "HUMAN_STATUS_FILTER_OPTIONS",
-    "export function HumanStatusFilterSelect"
+    "<PdmWorkbenchMultiSelectFilter label=\"工作狀態\"",
+    "WORK_STATUS_MULTI_SELECT_OPTIONS",
+    "<HumanStatusBadge status={row.humanStatus} responsibilityStatus={row.responsibilityStatus} viewerActionability={row.viewerActionability} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />"
   ]) && has(statusEngine, [
     "releaseStatusMismatch",
     "projectDrawingHumanStatus",
@@ -144,16 +141,16 @@ record("DEV053-UI-016 one server primary action remains while secondary tools ro
   !component.includes("row.actions.map") &&
   has(component, ["<PrimaryAction action={row.primaryAction}", "row.primaryAction", "withDrawingReturnTo"]) &&
   !component.includes("DrawingMoreMenu"));
-record("DEV053-UI-017 default-all, explicit history and terminal guidance are visible",
+record("DEV053-UI-017 default-all, deep-link history and terminal guidance remain compatible",
   has(component, [
     'view: "all"',
-    'rawView === "mine" ? "mine" : "all"',
-    "包含歷史",
+    "parseWorkStatusSelection",
+    "const includeHistory = workStatusQuery.includeHistory",
     'history: query.includeHistory ? "include" : "exclude"',
     'row.stage === "history_only"',
     "row.terminal.reasonLabel",
     "row.terminal.nextStepLabel"
-  ]));
+  ]) && !component.includes('className="drawing-workbench-history-toggle"'));
 record("DEV053-UI-018 list concurrency, stale cursor and keyboard interaction are guarded",
   has(component, ["usePdmWorkbenchController", "useListKeyboardShortcuts"]) && has(sharedWorkbenchController, [
     "listRequestRef",
@@ -172,11 +169,13 @@ record("DEV053-UI-019 candidate revision upload is multi-file, sequential and ac
     "idempotencyKey",
     "safeIdempotencyHeader",
     "上傳並完成驗證",
-    "主要 2D 圖面與 3D 模型已完成，可送審",
-    "recommendedFileWarnings",
+    "都已就緒，現在可送交審核",
+    "RevisionFileRequirementsHelp",
+    "送審檔案需求",
+    "建議",
     "requiredPrimaryRoles",
     "hasRequiredPrimaryEvidence",
-    "系統會自動辨識檔案",
+    "系統會自動辨識格式",
     "uploadCandidateFile",
     "uploadProgress",
     "candidate-revision-upload-progress",

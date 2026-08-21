@@ -141,10 +141,17 @@ function configureDatabase(label) {
   if (fs.existsSync(sourceRepositoryDir)) fs.cpSync(sourceRepositoryDir, repositoryDir, { recursive: true, force: true });
   tempDataDirs.push(dataDir);
   const db = new Database(databasePath);
-  for (const email of ["admin@example.com", "manager@example.com", "manufacturing@example.com"]) {
-    db.prepare("UPDATE users SET account_status = 'active', system_role_enabled = 1, session_invalid_before = NULL WHERE email = ?").run(email);
-    db.prepare("UPDATE auth_identities SET status = 'active' WHERE login_identifier = ?").run(email);
+  try {
+    for (const email of ["admin@example.com", "manager@example.com", "manufacturing@example.com"]) {
+      db.prepare("UPDATE users SET account_status = 'active', system_role_enabled = 1, session_invalid_before = NULL WHERE email = ?").run(email);
+      db.prepare("UPDATE auth_identities SET status = 'active' WHERE login_identifier = ?").run(email);
+    }
+  } catch (error) {
+    db.close();
+    throw new Error(`DEV-072 fixture auth activation failed: ${message(error)}`);
   }
+  const adminUser = db.prepare("SELECT id FROM users WHERE email = ?").get("admin@example.com");
+  assert.ok(adminUser?.id, "DEV-072 fixture needs the local admin user identity");
   const building = db.prepare(`
     SELECT candidate.id AS candidateRevisionId, candidate.workspace_id AS workspaceId,
            candidate.drawing_draft_id AS drawingDraftId
@@ -218,7 +225,12 @@ function configureDatabase(label) {
            WHERE id = ?
         `).run(now, closedReview.workspaceId);
       });
-      restore();
+      try {
+        restore();
+      } catch (error) {
+        db.close();
+        throw new Error(`DEV-072 fixture closed-review restore failed: ${message(error)}`);
+      }
       fixtureRestoredFromClosedReview = true;
       pending = db.prepare(`
         SELECT candidate.workspace_id AS workspaceId, candidate.approval_request_id AS requestId
@@ -257,10 +269,15 @@ function configureDatabase(label) {
   assert.ok(pending.length >= 1, "DEV-072 needs one pending native candidate review");
   assert.ok(part?.id && relation?.rootId, "DEV-072 needs Part and Relation fixtures");
   assert.equal(new Set(fileSources.map((row) => row.role)).size, 2, "DEV-072 needs reusable 2D and 3D publication evidence");
-  db.prepare("UPDATE numbering_draft_workspaces SET owner_id = 'user-admin-demo' WHERE id = ?").run(building.workspaceId);
-  db.prepare("UPDATE numbering_draft_workspaces SET owner_id = 'user-admin-demo' WHERE id = ?").run(firstUpload.workspaceId);
-  db.prepare("UPDATE numbering_candidate_revision_drafts SET created_by = 'user-admin-demo', updated_by = 'user-admin-demo' WHERE id = ?").run(building.candidateRevisionId);
-  db.prepare("UPDATE part_numbers SET record_status = 'Obsolete' WHERE id = ?").run(part.id);
+  try {
+    db.prepare("UPDATE numbering_draft_workspaces SET owner_id = ? WHERE id = ?").run(adminUser.id, building.workspaceId);
+    db.prepare("UPDATE numbering_draft_workspaces SET owner_id = ? WHERE id = ?").run(adminUser.id, firstUpload.workspaceId);
+    db.prepare("UPDATE numbering_candidate_revision_drafts SET created_by = ?, updated_by = ? WHERE id = ?").run(adminUser.id, adminUser.id, building.candidateRevisionId);
+    db.prepare("UPDATE part_numbers SET record_status = 'Obsolete' WHERE id = ?").run(part.id);
+  } catch (error) {
+    db.close();
+    throw new Error(`DEV-072 fixture ownership setup failed: ${message(error)}`);
+  }
   db.close();
   return {
     dataDir,
@@ -280,7 +297,8 @@ function configureDatabase(label) {
     partNumber: part.partNumber,
     relationKey: `root:${relation.rootId}`,
     relationRootCode: relation.rootCode,
-    fileSources
+    fileSources,
+    adminUserId: adminUser.id
   };
 }
 
@@ -313,10 +331,21 @@ async function startServer(fixture, label) {
     app = startNextApp(root, "dev", port);
     try {
       await waitForNextAppReady(baseUrl, app.getOutput);
+      await delay(500);
+      const startupOutput = app.getOutput();
+      const startupNextEnvLock = /next-env\.d\.ts/iu.test(startupOutput) && /UNKNOWN|EBUSY|EPERM|EACCES/iu.test(startupOutput);
+      if (startupNextEnvLock) {
+        await stopServerProcess(app.child);
+        app = null;
+        if (attempt === 3) throw new Error("DEV-072 temporary server could not acquire next-env.d.ts after 3 attempts.");
+        interactions.push({ type: "server-start-retry", label, attempt, reason: "transient next-env.d.ts lock after ready" });
+        await delay(750 * attempt);
+        continue;
+      }
       return;
     } catch (error) {
       const output = app.getOutput();
-      await stopNextApp(app.child).catch(() => undefined);
+      await stopServerProcess(app.child);
       app = null;
       const transientNextEnvLock = /next-env\.d\.ts/iu.test(output) && /UNKNOWN|EBUSY|EPERM|EACCES/iu.test(output);
       const transientBuildManifestRace = /ENOENT/iu.test(output) && /build-manifest\.json/iu.test(output);
@@ -332,9 +361,17 @@ async function startServer(fixture, label) {
   }
 }
 
+async function stopServerProcess(child) {
+  if (!child) return;
+  if (process.platform === "win32" && child.pid) {
+    try { execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" }); } catch { /* already exited */ }
+  }
+  await stopNextApp(child).catch(() => undefined);
+}
+
 async function stopServer() {
   if (!app) return;
-  await stopNextApp(app.child);
+  await stopServerProcess(app.child);
   app = null;
 }
 
@@ -359,7 +396,9 @@ function monitor(page, label) {
 }
 
 async function waitForDrawer(page) {
-  await page.locator('[data-component="unified-pdm-entity-detail-drawer"]').waitFor({ state: "visible", timeout: 30000 });
+  // Keep the legacy marker assertion intact, but bound the wait so a superseded
+  // drawer contract cannot hold the parent regression runner for every viewport.
+  await page.locator('[data-component="unified-pdm-entity-detail-drawer"]').waitFor({ state: "visible", timeout: 5000 });
   await page.waitForFunction(() => !document.querySelector(".unified-pdm-loading") && !document.querySelector(".unified-pdm-error"), null, { timeout: 30000 });
 }
 
@@ -476,7 +515,7 @@ function addReadyFiles(fixture) {
     INSERT OR REPLACE INTO numbering_candidate_revision_files (
       id, company_id, candidate_revision_id, source_file_asset_id, publication_evidence_id, role, role_source,
       display_name, description, sort_order, is_primary, removed_at, removed_by, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, NULL, 'user-admin-demo', ?, ?)
+    ) VALUES (?, 'company-jenfu', ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, NULL, ?, ?, ?)
   `);
   let index = 0;
   for (const source of fixture.fileSources) {
@@ -498,7 +537,7 @@ function addReadyFiles(fixture) {
     );
     const relinked = relinkAsset.run(fixture.buildingCandidateRevisionId, now, source.sourceFileAssetId);
     assert.equal(relinked.changes, 1, `DEV-072 fixture asset must be linked to ${fixture.buildingCandidateRevisionId}`);
-    insert.run(`DEV072-FILE-${runId}-${source.role}`, fixture.buildingCandidateRevisionId, source.sourceFileAssetId, evidenceId, source.role, source.roleSource ?? "user", source.displayName ?? `DEV072-${source.role}`, source.description ?? "", index++, now, now);
+    insert.run(`DEV072-FILE-${runId}-${source.role}`, fixture.buildingCandidateRevisionId, source.sourceFileAssetId, evidenceId, source.role, source.roleSource ?? "user", source.displayName ?? `DEV072-${source.role}`, source.description ?? "", index++, fixture.adminUserId, now, now);
   }
   const hash = db.prepare("SELECT COUNT(*) AS count FROM numbering_candidate_revision_files WHERE candidate_revision_id = ? AND removed_at IS NULL").get(fixture.buildingCandidateRevisionId);
   db.close();

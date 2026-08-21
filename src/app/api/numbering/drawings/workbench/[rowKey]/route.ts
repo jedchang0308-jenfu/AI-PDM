@@ -3,6 +3,7 @@ import { DRAWING_WORKBENCH_NO_STORE_HEADERS, DrawingWorkbenchService, drawingWor
 import { isDrawingWorkbenchPreviewGalleryV1Enabled, isUnifiedDrawingWorkbenchV1Enabled } from "@/lib/number-state-flow-feature";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 export const runtime = "nodejs";
 
@@ -21,10 +22,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ rowK
   );
   if (companyResult.response) return companyResult.response;
   try {
-    const [workspaceView, workspaceUpdate, candidateSubmit, candidateReview, publish, createRevision, draftUpdate, manageReferenceAttachments, managePermissions] = await Promise.all([
+    const [workspaceView, workspaceUpdate, candidateSubmit, candidateWithdraw, candidateReview, publish, createRevision, draftUpdate, manageReferenceAttachments, managePermissions] = await Promise.all([
       canUserUseNumberingActionAsync(auth.user, "numbering.workspace.view"),
       canUserUseNumberingActionAsync(auth.user, "numbering.workspace.update"),
       canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.submit"),
+      canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.withdraw"),
       canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.decide"),
       canUserUseNumberingActionAsync(auth.user, "numbering.publish"),
       canUserUseNumberingActionAsync(auth.user, "post_release_change"),
@@ -41,10 +43,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ rowK
     const detail = await new DrawingWorkbenchService().detail(rowKey, {
       id: auth.user.id,
       companyId: companyResult.company.companyId,
+      canEditNonOwned: hasPdmNonOwnerEditScope({ role: auth.user.role }),
       permissions: {
         workspaceView: workspaceView.allowed,
         workspaceUpdate: workspaceUpdate.allowed,
         candidateSubmit: candidateSubmit.allowed,
+        candidateWithdraw: candidateWithdraw.allowed,
         candidateReview: candidateReview.allowed,
         publish: publish.allowed,
         createRevision: createRevision.allowed,
@@ -52,7 +56,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rowK
         manageReferenceAttachments: manageReferenceAttachments.allowed,
         managePermissions: managePermissions.allowed
       }
-    }, { previewEnabled: isDrawingWorkbenchPreviewGalleryV1Enabled() });
+    }, { previewEnabled: isDrawingWorkbenchPreviewGalleryV1Enabled(), projectionToken: new URL(request.url).searchParams.get("projectionToken") });
     if (!detail) {
       return NextResponse.json(
         { error: "drawing_workbench_row_not_found" },

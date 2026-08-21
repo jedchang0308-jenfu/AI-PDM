@@ -19,7 +19,7 @@ export type UsePdmWorkbenchControllerOptions<Row, Detail, QueryState, Filters> =
   readLocation: () => PdmWorkbenchLocationState<QueryState>;
   writeLocation: (state: PdmWorkbenchLocationState<QueryState>, mode: "replace" | "push") => void;
   buildListUrl: (query: QueryState, cursor: string | null) => string;
-  buildDetailUrl: (rowKey: string) => string;
+  buildDetailUrl: (rowKey: string, row?: Row) => string;
   getRowKey: (row: Row) => string;
   normalizeResponse: (value: unknown) => PdmWorkbenchListResponse<Row, Filters>;
   normalizeDetail: (value: unknown) => Detail;
@@ -90,6 +90,12 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
   const reconcileSelectionAfterQueryRef = useRef(false);
 
   const currentCursor = cursorHistory[pageIndex] ?? null;
+
+  function cursorHistoryForLocation(cursor: string | null | undefined, nextPageIndex: number) {
+    const history = Array<string | null>(Math.max(1, nextPageIndex + 1)).fill(null);
+    history[nextPageIndex] = cursor ?? null;
+    return history;
+  }
 
   const resetPagination = useCallback(() => {
     setCursorHistory([null]);
@@ -204,7 +210,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     setError("");
     let response: Response;
     try {
-      response = await fetch(buildDetailUrl(rowKey), { cache: "no-store", signal: controller.signal });
+      response = await fetch(buildDetailUrl(rowKey, rows.find((row) => getRowKey(row) === rowKey)), { cache: "no-store", signal: controller.signal });
     } catch (caught) {
       if (controller.signal.aborted || detailRequestRef.current !== requestId) return null;
       setDetailLoading(false);
@@ -236,13 +242,13 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
       : row));
     writeCurrentLocation(queryRef.current, canonicalKey, mode);
     return body;
-  }, [buildDetailUrl, detailErrorMessage, detailHistoryMode, detailRowKey, getRowKey, normalizeDetail, onUnauthorized, shouldSkipDetailFetch, writeCurrentLocation]);
+  }, [buildDetailUrl, detailErrorMessage, detailHistoryMode, detailRowKey, getRowKey, normalizeDetail, onUnauthorized, rows, shouldSkipDetailFetch, writeCurrentLocation]);
 
   const goNext = useCallback(() => {
     if (!nextCursor) return;
     if (paginationMode === "server-bidirectional") {
       const nextPageIndex = pageIndex + 1;
-      setCursorHistory([nextCursor]);
+      setCursorHistory((current) => [...current.slice(0, pageIndex + 1), nextCursor]);
       setPageIndex(nextPageIndex);
       writeLocation({
         query: queryRef.current,
@@ -261,7 +267,11 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     if (paginationMode === "server-bidirectional") {
       if (pageIndex <= 0) return;
       const previousPageIndex = pageIndex - 1;
-      setCursorHistory([previousCursor]);
+      setCursorHistory((current) => {
+        const next = [...current];
+        next[previousPageIndex] = previousCursor;
+        return next;
+      });
       setPageIndex(previousPageIndex);
       writeLocation({
         query: queryRef.current,
@@ -292,7 +302,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
     queryRef.current = location.query;
     setQueryState(location.query);
     setSelectedKey(location.detailKey);
-    setCursorHistory([location.cursor ?? null]);
+    setCursorHistory(cursorHistoryForLocation(location.cursor, location.pageIndex ?? 0));
     setPageIndex(location.pageIndex ?? 0);
     initialDetailRef.current = location.detailKey;
     setInitialized(true);
@@ -317,7 +327,7 @@ export function usePdmWorkbenchController<Row, Detail, QueryState, Filters>({
       const location = readLocation();
       queryRef.current = location.query;
       setQueryState(location.query);
-      setCursorHistory([location.cursor ?? null]);
+      setCursorHistory(cursorHistoryForLocation(location.cursor, location.pageIndex ?? 0));
       setPageIndex(location.pageIndex ?? 0);
       setNextCursor(null);
       setPreviousCursor(null);

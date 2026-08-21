@@ -1,6 +1,6 @@
 # External Validation Handoff - 2026-05-28
 
-Last updated: 2026-07-10
+Last updated: 2026-08-19
 Authoritative task file: `.ai-doc/dev_task.md`
 
 ## Scope
@@ -13,16 +13,19 @@ Current first-version gate state:
 |---|---|---|---|
 | `DEV-IND-007` | Disposable Postgres shadow migration/RLS gate | Complete for first-version boundary | Evidence: `data/quality/postgres-shadow/shadow-compare-1783676196559.json`; formal Supabase cutover remains in `DEV-030` / `DEV-032` |
 | `DEV-FIELD-001` | Formal numbering / draft pilot field-test closure | Open | Field-test operator, 3-5 internal users, formal numbering / draft script, signed evidence, issue closure |
-| `DEV-CAD-001` | Native SolidWorks metadata / 2D preview | Deferred from first-version blocker | Human test: SW upload OK and 3D preview OK; 2D preview/native metadata remains future CAD phase |
+| `DEV-CAD-001` | Broader CAD / 2D preview | Deferred from first-version blocker | DEV-035 native metadata local slice已完成；獨立2D preview與broader CAD production rollout仍屬future CAD phase |
+| `DEV-035` | SolidWorks 原生屬性讀取與辨識診斷 | Local complete; production release gated | Windows DPAPI v3、real probe、worker exact-version ack與受控A0002兩次real-reader E2E均PASS；production credential／migration／worker deployment仍需release gate |
 | `DEV-SW-001` | SolidWorks Add-in real-machine validation | Deferred from first-version blocker | No current Add-in product route; retain history only |
 | `DEV-BACKUP-001` | Independent restore drill | Deferred from first-version blocker | Full restore drill resumes for full PDM/file-storage production readiness |
 
-Current local gate status as of 2026-07-10:
+Current local gate status as of 2026-08-19:
 
 | Gate | Latest result |
 |---|---|
-| `qc:dev-task-completion-audit` | Updated first-version expectation: only `DEV-FIELD-001` remains as first-version external blocker |
-| `qa:dev-task:sync` | Supabase/Postgres shadow evidence now resolves through `data/quality/postgres-shadow/shadow-compare-1783676196559.json`; CAD/SW/backup remain deferred |
+| `qc:dev-task-completion-audit` | DEV-035已由real evidence關閉；`DEV-065`與platform release維持各自open gate，不由本DEV代為關閉 |
+| `qc:dev-035:completion-gate` | `PASS`；active provider=`windows_dpapi` v3、native probe passed、worker exact-version ack ready；A0002同source hash兩個獨立session皆real adapter succeeded／14 observations，八欄一致且repeatable |
+| `qc:doc-paths` / `qc:dev-task-evidence-sync` / `qc:source-boundary` | PASS, 23/23 + 13/13 + 216/216; active DEV documentation and source boundaries are aligned |
+| `qa:dev-task:sync` | Supabase/Postgres shadow evidence resolves through`data/quality/postgres-shadow/shadow-compare-1783676196559.json`；DEV-035 native metadata local slice完成，2D preview／Add-in／backup仍依各自deferred authority |
 | `qc:production-readiness:report` | Updated first-version expectation: `ready=false` until field-test / release gate is complete |
 | `qc:native-cad-extractor-contract` | PASS, 14/14; local external extractor contract and no-extractor fallback are covered |
 | `qc:document-manager-extractor-probe` / `qc:document-manager-probe-redaction` / `qc:document-manager-probe-path-gate` | PASS, 6/6 + 9/9 + 4/4; local mock probe output now uses `.tmp/...` fixtures |

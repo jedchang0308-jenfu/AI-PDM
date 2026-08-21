@@ -17,8 +17,10 @@ import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspa
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
 import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
 import { formatStatusErrorForUser, formatStatusForUser, partRecordStatusFilterValues } from "@/lib/status-display";
-import { isHumanStatusFilter, type HumanStatusFilter, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import type { HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import { normalizeWorkStatusQuery, type WorkStatusFilter } from "@/lib/work-status-presentation";
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
+import type { ResponsibilityStatusProjection, ViewerActionabilityProjection } from "@/lib/responsibility-status-projection";
 import { DEFAULT_NUMBER_SORT_DIRECTION, parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
@@ -55,6 +57,8 @@ type PartListRecord = {
   primaryDrawingNumber: string | null;
   drawingCount: number;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
 };
@@ -163,7 +167,8 @@ export function LegacyPartsPage() {
   const [seriesCodeOptions, setSeriesCodeOptions] = useState<string[]>([]);
   const [itemKind, setItemKind] = useState("");
   const [recordStatus, setRecordStatus] = useState("");
-  const [humanStatus, setHumanStatus] = useState<HumanStatusFilter>("all");
+  const [humanStatus, setHumanStatus] = useState<WorkStatusFilter>("all");
+  const [includeHistory, setIncludeHistory] = useState(false);
   const [sortDirection, setSortDirection] = useState<NumberSortDirection>(DEFAULT_NUMBER_SORT_DIRECTION);
   const [parts, setParts] = useState<PartListRecord[]>([]);
   const [selectedPartNumber, setSelectedPartNumber] = useState<string | null>(null);
@@ -182,18 +187,33 @@ export function LegacyPartsPage() {
   const productionSliceUnopenedMessage = productionSlice?.unopenedMessage ?? defaultProductionSliceUnopenedMessage;
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get("tab");
-    setActiveTab(tab === "drafts" || tab === "reserved" ? "reserved" : "official");
-    const initialQuery = params.get("query")?.trim();
-    const initialHumanStatus = params.get("humanStatus") as HumanStatusFilter | null;
-    const initialSortDirection = parseNumberSortDirection(params.get("sortDirection"));
-    const detailPartNumber = params.get("detail")?.trim();
-    if (initialQuery) setQuery(initialQuery);
-    if (isHumanStatusFilter(initialHumanStatus)) setHumanStatus(initialHumanStatus);
-    setSortDirection(initialSortDirection);
-    if (detailPartNumber) initialDetailPartNumberRef.current = detailPartNumber;
+    const applyLocation = () => {
+      const params = new URLSearchParams(window.location.search);
+      const workStatusQuery = normalizeWorkStatusQuery(params.get("humanStatus"), params.get("history"), null);
+      const tab = params.get("tab");
+      setActiveTab(tab === "drafts" || tab === "reserved" ? "reserved" : "official");
+      setQuery(params.get("query")?.trim() ?? "");
+      setHumanStatus(workStatusQuery.filter);
+      setIncludeHistory(workStatusQuery.includeHistory);
+      setSortDirection(parseNumberSortDirection(params.get("sortDirection")));
+      const detailPartNumber = params.get("detail")?.trim();
+      if (detailPartNumber) initialDetailPartNumberRef.current = detailPartNumber;
+      workStatusQuery.filter === "all" ? params.delete("humanStatus") : params.set("humanStatus", workStatusQuery.filter);
+      workStatusQuery.includeHistory ? params.set("history", "include") : params.delete("history");
+      window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    };
+    applyLocation();
+    window.addEventListener("popstate", applyLocation);
+    return () => window.removeEventListener("popstate", applyLocation);
   }, []);
+
+  useEffect(() => {
+    if (activeTab === null) return;
+    const params = new URLSearchParams(window.location.search);
+    humanStatus === "all" ? params.delete("humanStatus") : params.set("humanStatus", humanStatus);
+    includeHistory ? params.set("history", "include") : params.delete("history");
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, [activeTab, humanStatus, includeHistory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -219,6 +239,7 @@ export function LegacyPartsPage() {
     if (seriesCode) params.set("seriesCode", seriesCode);
     if (recordStatus) params.set("recordStatus", recordStatus);
     if (humanStatus !== "all") params.set("humanStatus", humanStatus);
+    params.set("history", includeHistory ? "include" : "exclude");
     params.set("sortDirection", sortDirection);
     const response = await fetch(`/api/parts?${params.toString()}`);
     if (response.status === 401 || response.status === 403) {
@@ -243,7 +264,7 @@ export function LegacyPartsPage() {
       setIsDetailOpen(false);
     }
     setState("ready");
-  }, [activeTab, humanStatus, query, recordStatus, seriesCode, sortDirection]);
+  }, [activeTab, humanStatus, includeHistory, query, recordStatus, seriesCode, sortDirection]);
 
   const loadDetail = useCallback(async (partNumber: string | null) => {
     if (!partNumber) {
@@ -486,7 +507,7 @@ export function LegacyPartsPage() {
                 <span>關鍵字</span>
                 <input value={query} placeholder="料號、圖料根號、名稱、材質、顏色" onChange={(event) => setQuery(event.target.value)} />
               </label>
-              <FilterSelectField label="系列代號" value={seriesCode} onChange={setSeriesCode} options={["", ...seriesCodeOptions]} allLabel="全部系列代號" />
+              <FilterSelectField label="系列代號" value={seriesCode} onChange={setSeriesCode} options={["", ...seriesCodeOptions]} allLabel="全部" />
               <FilterSelectField label="類型" value={itemKind} onChange={setItemKind} options={itemKinds} />
               <FilterSelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
                 <label className="pdm-master-field">
@@ -622,7 +643,14 @@ function PartList({
                 <td className="pdm-identity-layout-spacer" aria-hidden="true" />
                 <td data-label="資料狀態 / 提醒">
                   <div className="pdm-meta-strip">
-                    <HumanStatusBadge status={part.humanStatus} viewerStatus={part.viewerStatus} availabilityScope={part.availabilityScope} />
+                    <HumanStatusBadge
+                      status={part.humanStatus}
+                      responsibilityStatus={part.responsibilityStatus}
+                      viewerActionability={part.viewerActionability}
+                      viewerStatus={part.viewerStatus}
+                      availabilityScope={part.availabilityScope}
+                      exceptionSignals={part.primaryDrawingNumber ? [] : [{ id: `${part.id}:manufacturing-drawing`, context: "fileStatus", raw: "missing", isPrimaryAxis: false, affectsCurrentAction: true, missingRequired: true, label: "缺製造圖", description: "目前沒有可作為製造依據的主要製造圖，送審或後續使用可能受阻。" }]}
+                    />
                   </div>
                 </td>
               </tr>
@@ -665,7 +693,7 @@ function PartDetailDrawer({
       ariaLabel="料號明細"
       title={detail?.partNumber ?? "料號明細"}
       subtitle={detail?.partName}
-      status={<HumanStatusBadge status={detail?.humanStatus} viewerStatus={detail?.viewerStatus} availabilityScope={detail?.availabilityScope} />}
+      status={<HumanStatusBadge status={detail?.humanStatus} responsibilityStatus={detail?.responsibilityStatus} viewerActionability={detail?.viewerActionability} viewerStatus={detail?.viewerStatus} availabilityScope={detail?.availabilityScope} exceptionSignals={detail && !detail.primaryDrawingNumber ? [{ id: `${detail.id}:manufacturing-drawing`, context: "fileStatus", raw: "missing", isPrimaryAxis: false, affectsCurrentAction: true, missingRequired: true, label: "缺製造圖", description: "目前沒有可作為製造依據的主要製造圖，送審或後續使用可能受阻。" }] : []} />}
       entityType="part_number"
       entityCode={detail?.partNumber ?? ""}
       sourceContext="parts"
@@ -702,6 +730,7 @@ export function PartDetailPanel({
   productionSliceEnforced,
   productionSliceUnopenedMessage,
   showIdentityHeader = true,
+  presentation = "drawer-readonly",
   setBusy,
   onUpdated
 }: {
@@ -710,6 +739,7 @@ export function PartDetailPanel({
   productionSliceEnforced: boolean;
   productionSliceUnopenedMessage: string;
   showIdentityHeader?: boolean;
+  presentation?: "drawer-readonly" | "workspace-editor";
   setBusy: (value: boolean) => void;
   onUpdated: () => Promise<void>;
 }) {
@@ -730,7 +760,7 @@ export function PartDetailPanel({
   }, [detail.id, detail.variant]);
 
   async function saveVariant() {
-    if (productionSliceEnforced) return;
+    if (presentation !== "workspace-editor" || productionSliceEnforced) return;
     setBusy(true);
     await fetch(`/api/parts/${encodeURIComponent(detail.partNumber)}/variant`, {
       method: "PUT",
@@ -753,14 +783,14 @@ export function PartDetailPanel({
         />
       ) : null}
 
-      <MasterAttachmentPanel entityType="part_number" entityCode={detail.partNumber} productionSliceEnforced={productionSliceEnforced} productionSliceUnopenedMessage={productionSliceUnopenedMessage} />
+      <MasterAttachmentPanel entityType="part_number" entityCode={detail.partNumber} readOnly={presentation === "drawer-readonly"} productionSliceEnforced={productionSliceEnforced} productionSliceUnopenedMessage={productionSliceUnopenedMessage} />
 
       <PartLinkedDrawingsPanel detail={detail} />
 
       <section className="panel">
         <div className="panel-header">
           <h2>料號變體</h2>
-          <button
+          {presentation === "workspace-editor" ? <button
             className={`secondary-button${productionSliceEnforced ? " production-slice-unopened" : ""}`}
             type="button"
             disabled={busy || productionSliceEnforced}
@@ -772,17 +802,17 @@ export function PartDetailPanel({
             <Save size={16} />
             儲存
             {productionSliceEnforced ? <ProductionSliceUnopenedBadge /> : null}
-          </button>
+          </button> : null}
         </div>
         <div style={formGridStyle}>
-          <TextField label="材質" value={variantForm.materialLabel} onChange={(value) => setVariantForm((form) => ({ ...form, materialLabel: value }))} disabled={productionSliceEnforced} missing={!variantForm.materialLabel.trim()} />
-          <TextField label="顏色" value={variantForm.colorLabel} onChange={(value) => setVariantForm((form) => ({ ...form, colorLabel: value }))} disabled={productionSliceEnforced} />
-          <TextField label="表面處理" value={variantForm.surfaceTreatment} onChange={(value) => setVariantForm((form) => ({ ...form, surfaceTreatment: value }))} disabled={productionSliceEnforced} missing={!variantForm.surfaceTreatment.trim()} />
-          <TextField label="差異說明" value={variantForm.variantNote} onChange={(value) => setVariantForm((form) => ({ ...form, variantNote: value }))} disabled={productionSliceEnforced} />
+          <TextField label="材質" value={variantForm.materialLabel} onChange={(value) => setVariantForm((form) => ({ ...form, materialLabel: value }))} disabled={presentation === "drawer-readonly" || productionSliceEnforced} missing={!variantForm.materialLabel.trim()} />
+          <TextField label="顏色" value={variantForm.colorLabel} onChange={(value) => setVariantForm((form) => ({ ...form, colorLabel: value }))} disabled={presentation === "drawer-readonly" || productionSliceEnforced} />
+          <TextField label="表面處理" value={variantForm.surfaceTreatment} onChange={(value) => setVariantForm((form) => ({ ...form, surfaceTreatment: value }))} disabled={presentation === "drawer-readonly" || productionSliceEnforced} missing={!variantForm.surfaceTreatment.trim()} />
+          <TextField label="差異說明" value={variantForm.variantNote} onChange={(value) => setVariantForm((form) => ({ ...form, variantNote: value }))} disabled={presentation === "drawer-readonly" || productionSliceEnforced} />
         </div>
       </section>
 
-      <NumberingContextualEntrypoints
+      {presentation === "workspace-editor" ? <NumberingContextualEntrypoints
         mode="part"
         rootId={detail.partRootId}
         rootCode={detail.rootCode}
@@ -796,7 +826,7 @@ export function PartDetailPanel({
           linkedDrawingNumbers: detail.linkedDrawings.map((link) => link.drawingNumber)
         }}
         onChanged={onUpdated}
-      />
+      /> : null}
     </div>
   );
 }
@@ -1398,7 +1428,7 @@ function FilterSelectField({
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option value={option} key={option || "all"}>
-            {option ? formatOption?.(option) ?? partKindLabel(option) : allLabel ?? `全部${label}`}
+            {option ? formatOption?.(option) ?? partKindLabel(option) : allLabel ?? "全部"}
           </option>
         ))}
       </select>

@@ -31,6 +31,8 @@ type PdmWorkbenchListProps<Row> = {
   onOpenRow?: (row: Row, index: number) => void;
   onRowKeyDown?: (event: ReactKeyboardEvent<HTMLTableRowElement>, row: Row, index: number) => void;
   onRowRef?: (row: Row, node: HTMLTableRowElement | null) => void;
+  getGroupKey?: (row: Row) => string;
+  getGroupAriaLabel?: (row: Row) => string;
 };
 
 export function PdmWorkbenchList<Row,>({
@@ -50,7 +52,9 @@ export function PdmWorkbenchList<Row,>({
   onContainerKeyDown,
   onOpenRow,
   onRowKeyDown,
-  onRowRef
+  onRowRef,
+  getGroupKey,
+  getGroupAriaLabel
 }: PdmWorkbenchListProps<Row>) {
   if (loading && rows.length === 0) return <>{loadingState ?? <div className="empty">正在載入清單...</div>}</>;
   if (rows.length === 0) return <>{emptyState ?? null}</>;
@@ -77,8 +81,8 @@ export function PdmWorkbenchList<Row,>({
             ))}
           </tr>
         </thead>
-        <tbody>
-          {rows.map((row, index) => {
+        {(getGroupKey ? [...new Map(rows.map((row) => [getGroupKey(row), rows.filter((candidate) => getGroupKey(candidate) === getGroupKey(row))])).values()] : [rows]).map((groupRows, groupIndex) => <tbody role={getGroupKey ? "rowgroup" : undefined} aria-label={getGroupKey && groupRows[0] ? getGroupAriaLabel?.(groupRows[0]) : undefined} key={getGroupKey ? String(groupIndex) : "all"}>
+          {groupRows.map((row, index) => {
             const rowKey = getRowKey(row);
             const rowMarker = rowDataAttribute ? { [rowDataAttribute]: "true" } : {};
             return (
@@ -106,7 +110,7 @@ export function PdmWorkbenchList<Row,>({
               </tr>
             );
           })}
-        </tbody>
+        </tbody>)}
       </table>
     </div>
   );

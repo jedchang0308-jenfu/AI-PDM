@@ -174,7 +174,7 @@ record(
     !numberStateWorkspace.includes("<h3>保留號內容</h3>") &&
     !numberStateWorkspace.includes("number-state-candidate-watermark") &&
     numberStateWorkspace.includes("WorkspaceRelationsDetails") &&
-    numberStateWorkspace.includes('title="圖料根號"') &&
+    numberStateWorkspace.includes("subtitle={`圖料根號") &&
     numberStateWorkspace.includes("primaryDrawingCode={drawingCode}"),
   "candidate header identity and secondary relations"
 );
@@ -297,7 +297,7 @@ record(
     relationRoute.includes("projectDrawingWorkbenchRecord(drawing, projectionActor)") &&
     relationRoute.includes("canonicalDrawingRows.get(drawing.id)") &&
     relationRoute.includes("const humanStatus = canonicalRow?.humanStatus ?? fallbackHumanStatus") &&
-    relationRoute.includes("canonicalRow?.viewerStatus ?? projectRoleViewerHumanStatus(fallbackHumanStatus, viewerCapabilities)") &&
+    relationRoute.includes("canonicalRow?.viewerStatus ?? projectRoleResponsibilityStatusPair({ status: fallbackHumanStatus") &&
     relationRoute.includes("availabilityScope: projectDrawingRecordAvailability(drawing)") &&
     relationRoute.includes("revision candidate may be in review") &&
     numberingAsync.includes("export async function listDrawingModuleRecordsByIdsAsync") &&
@@ -542,7 +542,8 @@ record(
     !searchPage.includes("clampDetailDrawerWidth") &&
     !partPage.includes("clampDetailDrawerWidth") &&
     searchPage.includes("HumanStatusFilterSelect") &&
-    drawingWorkbench.includes("HumanStatusFilterSelect") &&
+    (drawingWorkbench.includes("HumanStatusFilterSelect") ||
+      (drawingWorkbench.includes("PdmWorkbenchMultiSelectFilter") && drawingWorkbench.includes("WORK_STATUS_MULTI_SELECT_OPTIONS"))) &&
     partPage.includes("HumanStatusFilterSelect") &&
     humanStatusFilter.includes("export function HumanStatusFilterSelect") &&
     humanStatusProjection.includes("export const HUMAN_STATUS_FILTER_OPTIONS"),
@@ -559,7 +560,7 @@ record(
 
 record(
   "Drawing pending approval projection remains visible without duplicating a focus panel",
-  drawingPage.includes("PendingApprovalBadge") &&
+  drawingPage.includes('context: "approvalStatus"') &&
     !drawingPage.includes("PendingApprovalPanel") &&
     !drawingPage.includes("待審焦點") &&
     drawingPage.includes("pendingRevisionReviews={drawing.pendingApproval") &&

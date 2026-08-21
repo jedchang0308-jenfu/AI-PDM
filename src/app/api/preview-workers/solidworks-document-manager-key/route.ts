@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(
-      { key: resolved.value, source: resolved.source },
+      { key: resolved.value, source: resolved.source, version: resolved.version, fingerprint: resolved.fingerprint },
       { headers: noStoreHeaders() }
     );
   } catch (error) {

@@ -2081,6 +2081,7 @@ export class AsyncNumberStateFlowRepository {
     workspaceId: string;
     companyId: string;
     actorId: string;
+    allowNonOwner?: boolean;
     expectedRowVersion: number;
   }) {
     await lockPdmDraftWorkspaceScopeAsync(this.client, input);
@@ -2088,7 +2089,7 @@ export class AsyncNumberStateFlowRepository {
     if (!workspaceRow) throw new Error("WORKSPACE_NOT_FOUND");
     if (workspaceRow.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
     if (Number(workspaceRow.row_version) !== input.expectedRowVersion) throw new Error("WORKSPACE_VERSION_CONFLICT");
-    if (workspaceRow.owner_id !== input.actorId) throw new Error("REVIEW_WITHDRAW_OWNER_REQUIRED");
+    if (workspaceRow.owner_id !== input.actorId && input.allowNonOwner !== true) throw new Error("REVIEW_WITHDRAW_OWNER_REQUIRED");
     const current = await this.getWorkspace(input.workspaceId, input.companyId);
     const requestId = current.latestApproval?.requestId;
     if (!requestId || current.latestApproval?.status !== "pending") throw new Error("CANDIDATE_REVIEW_NOT_PENDING");

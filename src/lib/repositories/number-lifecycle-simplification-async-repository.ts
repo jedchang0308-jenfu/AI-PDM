@@ -3,7 +3,7 @@ import path from "node:path";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { canonicalJsonStringify } from "@/lib/canonical-json";
 import { PUBLICATION_EVIDENCE_RULE_VERSION } from "@/lib/publication-evidence";
-import { enqueuePreviewJobForSourceAsync } from "@/lib/preview-derivatives";
+import { enqueuePreviewJobForSourceAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
 import {
   buildRevisionPolicySnapshot,
   createRevisionSuggestion,
@@ -718,7 +718,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
             linked_entity_id: input.candidateRevisionId
           },
           actorUserId: input.actorId,
-          requestedKind: extension === "slddrw" ? "drawing_pdf" : "native_thumbnail_png",
+          requestedKind: requestedPreviewKindForSource(extension),
           generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
           runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
         });
@@ -1251,13 +1251,14 @@ export class AsyncNumberLifecycleSimplificationRepository {
     workspaceId: string;
     companyId: string;
     actorId: string;
+    allowNonOwner?: boolean;
     expectedWorkspaceRowVersion: number;
     reason: string;
   }) {
     const row = await this.workspaceRow(input.workspaceId, input.companyId, true);
     if (!row) throw new Error("WORKSPACE_NOT_FOUND");
     if (row.lifecycle_status !== "active") throw new Error("WORKSPACE_NOT_ACTIVE");
-    if (row.owner_id !== input.actorId) throw new Error("REVIEW_WITHDRAW_OWNER_REQUIRED");
+    if (row.owner_id !== input.actorId && input.allowNonOwner !== true) throw new Error("REVIEW_WITHDRAW_OWNER_REQUIRED");
     if (Number(row.row_version) !== input.expectedWorkspaceRowVersion) throw new Error("WORKSPACE_VERSION_CONFLICT");
     const request = await this.client.queryOne<ApprovalRequestRow>(
       `SELECT request.*, target.target_id AS workspace_id
@@ -1456,9 +1457,11 @@ export class AsyncNumberLifecycleSimplificationRepository {
       await this.client.execute(
         `INSERT INTO drawing_revision_packages (
            id, company_id, drawing_number_id, drawing_number, revision, status,
+           lifecycle_state,
            source_submission_id, created_by, created_at, updated_at, submitted_at, snapshot_json
          ) VALUES (
            :id, :companyId, :drawingNumberId, :drawingNumber, :revision, 'Pending',
+           'rd_controlled',
            NULL, :createdBy, :createdAt, :updatedAt, :submittedAt, :snapshotJson
          )`,
         {

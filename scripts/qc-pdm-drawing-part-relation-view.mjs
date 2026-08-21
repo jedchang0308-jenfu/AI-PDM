@@ -317,31 +317,7 @@ async function verifyViewport(browser, viewport, screenshotName) {
     await closeRelationDetailDrawer(page);
     await page.getByRole("button", { name: rootCode, exact: true }).click();
     await page.getByRole("heading", { name: rootCode, exact: true }).waitFor({ timeout: 10_000 });
-    await page.getByText("關係維護").waitFor({ timeout: 10_000 });
-    const maintenance = page.locator(".pdm-relation-maintenance-grid");
-    await maintenance.locator("select").nth(0).selectOption(drawingM02);
-    await maintenance.locator("select").nth(1).selectOption(partP04);
-    await page.getByRole("button", { name: "製造依據", exact: true }).click();
-    await page.getByText("已完成關係維護並寫入 audit").waitFor({ timeout: 10_000 });
-    const db = new Database(dbPath);
-    try {
-      const relation = db
-        .prepare(
-          `
-          SELECT l.link_type
-          FROM drawing_part_links l
-          JOIN drawing_numbers d ON d.id = l.drawing_number_id
-          JOIN part_numbers p ON p.id = l.part_number_id
-          WHERE d.drawing_number = ? AND p.part_number = ?
-        `
-        )
-        .get(drawingM02, partP04);
-      record("Maintenance action creates primary manufacturing link", relation?.link_type === "primary_manufacturing", JSON.stringify(relation));
-      const audit = db.prepare("SELECT id FROM audit_logs WHERE action = 'numbering.drawing_part.relation_maintain' AND detail_json LIKE ?").get(`%${partP04}%`);
-      record("Maintenance action writes audit", Boolean(audit), JSON.stringify(audit));
-    } finally {
-      db.close();
-    }
+    record("Relation drawer remains read-only after workspace cutover", (await page.locator(".pdm-relation-maintenance-grid").count()) === 0);
   }
 
   record(`No browser console errors at ${viewport.width}px`, consoleErrors.length === 0, consoleErrors.join("\n"));

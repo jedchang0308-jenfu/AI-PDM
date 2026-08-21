@@ -3,7 +3,7 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { getPartModuleDetailAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
-import { projectRoleViewerHumanStatus } from "@/lib/human-status-projection";
+import { projectRoleResponsibilityStatusPair } from "@/lib/responsibility-status-projection";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
 import { projectPartAvailability } from "@/lib/availability-scope";
 
@@ -25,7 +25,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
   return NextResponse.json({ part: {
     ...part,
     humanStatus,
-    viewerStatus: projectRoleViewerHumanStatus(humanStatus, viewerCapabilities),
+    ...projectRoleResponsibilityStatusPair({
+      status: humanStatus,
+      actorId: auth.user.id,
+      capabilities: viewerCapabilities,
+      href: `/parts?detail=${encodeURIComponent(`part:${part.id}`)}`
+    }),
     availabilityScope: projectPartAvailability(part)
   } }, {
     headers: { "cache-control": "private, no-store" }

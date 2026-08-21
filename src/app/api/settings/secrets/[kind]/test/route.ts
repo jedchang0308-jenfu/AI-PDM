@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRoleAsync } from "@/lib/auth-async";
-import { listSettingsSecretStatuses, SettingsSecretLifecycleError, testSettingsSecretReference } from "@/lib/settings-secret-lifecycle";
+import { enqueueSettingsSecretProbe, listSettingsSecretStatuses, SettingsSecretLifecycleError } from "@/lib/settings-secret-lifecycle";
 
 export const runtime = "nodejs";
 
@@ -13,10 +13,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ kin
   const { kind: secretReferenceId } = await params;
 
   try {
-    const testRun = await testSettingsSecretReference({ secretReferenceId, actorId: auth.user.id });
+    const probeJob = await enqueueSettingsSecretProbe({ secretReferenceId, actorId: auth.user.id });
     return NextResponse.json(
-      { testRun, secrets: await listSettingsSecretStatuses() },
-      { headers: noStoreHeaders }
+      { probeJob, secrets: await listSettingsSecretStatuses() },
+      { status: 202, headers: noStoreHeaders }
     );
   } catch (error) {
     return secretLifecycleErrorResponse(error);

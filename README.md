@@ -37,10 +37,10 @@ npm.cmd run dev:local
 開啟：
 
 ```text
-http://127.0.0.1:3000
+http://localhost:3000
 ```
 
-`dev:local` 是受控本機啟動入口，會檢查 `http://127.0.0.1:3000/login` 是否真的回應成功，不只檢查 port 是否 listen。若 3000 已被本專案舊 process 佔用但健康檢查失敗，使用：
+`dev:local` 是受控本機啟動入口，會檢查 `http://localhost:3000/login` 是否真的回應成功，不只檢查 port 是否 listen。若 3000 已被本專案舊 process 佔用但健康檢查失敗，使用：
 
 ```powershell
 npm.cmd run dev:local:restart

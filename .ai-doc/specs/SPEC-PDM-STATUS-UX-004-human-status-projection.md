@@ -1,10 +1,19 @@
 # SPEC-PDM-STATUS-UX-004：任務導向的人類狀態投影
 
-狀態：`Local RD Implemented / QA-QC Passed / Production Release Gated`
+狀態：`Phase 1 + Phase 2 Local RD Implemented / Human Confirmed / Full Aggregate QC Passed / Production Release Gated`
 日期：2026-08-07
-關聯 DEV：`DEV-055` / `DEV-PDM-HUMAN-STATUS-PROJECTION-001`
+關聯 DEV：`DEV-055` / `DEV-PDM-HUMAN-STATUS-PROJECTION-001`；現行責任語彙 amendment：`DEV-078` / `DEV-PDM-RESPONSIBILITY-STATUS-VOCABULARY-001`；生命週期依賴：`DEV-052`、`DEV-053`
 風險：Medium
-目前執行邊界：Phase 1A～1D 本機產品與 QA/QC；不含 schema、migration、正式資料、production、deploy、release、commit 或 PR。
+目前執行邊界：DEV-078 Phase 1A～1D與Phase 2 P2-A～P2-D本機／隔離runtime產品實作與QA/QC均已完成；不含schema、migration、正式／staging資料、production、deploy、release、commit或PR。
+DEV-078 文件邊界：Phase 1與Phase 2均為`Local RD Implemented / Full Aggregate QC Passed`，詳見§18與§19.7；Phase 1歷史證據仍不得單獨取代Phase 2證據。
+
+> **2026-08-22 DEV-087 target supersession（RD Implementation Ready）**
+>
+> DEV-087的新決策優先。現有`humanStatus／viewerStatus／responsibilityStatus／availabilityScope`投影只保留為activation前runtime與歷史驗證證據；activation後三工作臺只讀`canonical_workbench_states.handling`並映射固定角色文字。舊projector、reason tooltip、status filter與API欄位必須依DEV-087 retirement gate移除，不得保留compatibility fallback。其他非三工作臺domain若仍需舊投影，必須在inventory明確證明為獨立domain evidence，不能再驅動三工作臺。
+
+> **2026-08-20 DEV-086 lane-row target amendment（RD Implementation Ready / Not Implemented）**
+>
+> `量產最新版`與`研發最新版`是同一 canonical group 內兩種使用目的／效力 lane，不是競爭的 workflow status。每個實際 lane row 仍必須且只能顯示一個主要 `humanStatus`；lane label、目標量產版、reference kind、availability 與用途說明不得偽裝成第二／第三個狀態 badge。兩 lane 必須以可見文字、icon／位置與 row grouping 區分，不得只靠顏色。完整 authority 與 UI 契約見 `SPEC-PDM-WORKBENCH-PRODUCTION-RD-LANES-001`；現行 runtime 尚未實作。
 
 ## 1. 問題與產品目標
 
@@ -526,4 +535,370 @@ Phase 3：若業務需要獨立圖料關聯確認。
 - `rd_controlled`／`released` 的客觀usable狀態優先於owner投影，依availability顯示研發可用／生產可用。
 - active review只有exact reviewer可為`current_user`；送審者的可選撤回不等於必辦責任。
 - `in_review`缺active request/workflow時必須fail closed為`unknown / 負責人待確認`，並提供可達的精確恢復原因，不得顯示phantom「待你處理」。
-- 本機實作與DEV-073 QA/QC已通過；production release仍gated。
+- DEV-078本機實作與完整aggregate QA/QC已通過；DEV-073 browser由read-only fixture preflight與隔離source runner完成，未修改資料或放寬expected；production release仍gated。
+
+## 18. 2026-08-18 DEV-078 Amendment — Stable Responsibility Vocabulary
+
+狀態：`RD Implemented / Full Aggregate QC Passed / Production Release Gated`。
+
+本節是現行責任語彙authority，對§1、§2、§3、§5.2、§7及§8.1中以`待你處理／等他人處理`作為第一層主要文案與工作狀態篩選的規則構成`Intentional replacement`。DEV-055既有projector、單一badge、server filter、availability、drawer與QA/QC完成證據仍有效；DEV-073 actionability gate維持authority。
+
+### 18.1 Product and role boundary
+
+- 本流程直接涉及的組織角色是RD與RD主管；`負責人／審核負責人／系統管理員`是流程責任稱謂，不是三個新RBAC role。
+- 工作負責人、送審負責人、圖料管理人及主圖維護人統一為`負責人`；審核人員統一為`審核負責人`；自動化異常恢復責任統一為`系統管理員`，現階段由具既有恢復權限的RD主管承擔。
+- `DEV-052／053`現行統一整包流程在審核完成後自動正式化；正常正式化顯示`系統處理中`。只有存在可證明的formalization/release failure與適用recovery action時，才顯示`待系統管理員處理`。DEV-048既有number-only legacy approval相容語意不由本amendment改寫。
+- 同一帳號同時具有編輯與審核能力時，主要責任由流程階段與active work item決定，不由permission聯集決定。
+
+### 18.2 Architecture end-state
+
+權威資料流修訂為：
+
+`Entity → status sources → domain projector → HumanStatusProjection → responsibility resolver → ResponsibilityStatusProjection + ViewerActionabilityProjection + AvailabilityScopeProjection → API DTO → list / drawer / filter`
+
+分工：
+
+1. `HumanStatusProjection`：客觀業務狀態與evidence，不因觀看者改變。
+2. `ResponsibilityStatusProjection`：所有合法觀看者一致的第一層責任／可用／終止結論。
+3. `ViewerActionabilityProjection`：目前actor是否屬於自己的待辦、是否可執行及阻擋原因；可因觀看者不同。
+4. `AvailabilityScopeProjection`：沿用研發／生產可用證據。
+5. 既有`ViewerHumanStatusProjection`可在相容期保留，但只作舊consumer與viewer actionability adapter；client不得再以其`label`渲染主要狀態。
+
+`ResponsibilityStatusProjection`最小read contract：
+
+```ts
+type ResponsibilityStatusCategory =
+  | "owner"
+  | "review_owner"
+  | "system"
+  | "system_admin"
+  | "usable"
+  | "terminal"
+  | "unknown";
+
+type ResponsibilityStatusProjection = {
+  schemaVersion: 1;
+  category: ResponsibilityStatusCategory;
+  label:
+    | "待負責人處理"
+    | "待審核負責人處理"
+    | "系統處理中"
+    | "待系統管理員處理"
+    | "可使用"
+    | "已結束"
+    | "負責人待確認";
+  basis:
+    | "assignee"
+    | "active_review"
+    | "automatic_finalization"
+    | "recovery_action"
+    | "objective"
+    | "unknown";
+  actorRole: "owner" | "review_owner" | "system" | "system_admin" | null;
+  actorLabel: string;
+  autoCompletes: boolean;
+  nextStep: string | null;
+};
+
+type ViewerActionabilityProjection = {
+  schemaVersion: 1;
+  isMine: boolean;
+  canAct: boolean;
+  basis: "assignee" | "reviewer" | "role_capability" | "permission" | "none";
+  disabledReason: string | null;
+};
+```
+
+`actorLabel`與`nextStep`使用server-owned human language；不得包含raw status、permission code或API route。實際負責人姓名只在現有company／record visibility已允許且assignment evidence存在時於detail/popover顯示，不新增個資可見範圍。
+
+### 18.3 Deterministic responsibility resolver
+
+優先序固定為：
+
+1. 客觀terminal evidence → `terminal`，沿用既有終止文案。
+2. 客觀usable evidence → `usable`，第一層仍由availability顯示`研發可用／生產可用／可用範圍待確認`。
+3. verified formalization/release exception + applicable system-admin recovery action → `system_admin / 待系統管理員處理`。
+4. `auto_finalizing/finalizing`且未符合前項異常證據 → `system / 系統處理中`。
+5. active review request/work item + 該domain既有review authority（exact assignment或既有role queue）→ `review_owner / 待審核負責人處理`。
+6. 非終止、非可用且存在owner responsibility action／assignment evidence → `owner / 待負責人處理`。
+7. 責任、active work item或適用動作無法證明 → `unknown / 負責人待確認`。
+
+約束：
+
+- DEV-073 invariant不變：`owner/review_owner/system_admin`都必須有相應責任證據與至少一個適用domain responsibility action；action可locked，但需有可理解原因。history、refresh、return、純navigation不得單獨產生待辦。
+- active review缺request/work item時不得輸出`review_owner`。正式圖面採既有exact reviewer assignment；candidate bundle沿用既有RD主管role queue。具`canReview`但不符合該domain既有assignment／queue authority的actor，不得因此改變責任類別或取得決策能力；不得為本DEV新增reviewer schema。
+- `role_capability`只計算`ViewerActionabilityProjection`；不得以「目前actor有權限」反向決定`ResponsibilityStatusProjection`。
+- 送審者的可選撤回不改變`review_owner`主責任；審核負責人執行退回後，下一個projection才切換為`owner`。
+- 發布較久、worker heartbeat延遲或未知錯誤不得直接輸出`system_admin`；必須同時有failure evidence與可適用recovery action。
+
+### 18.4 API and filter compatibility
+
+- drawing、part、relation list/detail DTO additive新增`responsibilityStatus`與`viewerActionability`；本phase不刪`viewerStatus`、raw fields或既有routes。
+- list/detail對同一entity/version/company的`responsibilityStatus`必須deep-equal且跨actor相同；`viewerActionability`與actions可依actor不同。
+- 穩定工作狀態filter新增machine values：`owner | review_owner | system | system_admin`；UI顯示文字與badge共用同一vocabulary。`production | rd | availability_unknown | needs_confirmation | history`維持既有語意。
+- `我的待辦`／`view=mine`依`viewerActionability.isMine`與DEV-073 evidence gate在response limit／cursor fill前由server篩選；它是viewer utility，不是第一層status filter。
+- 舊`needs_action | waiting | ready`僅保留隱藏相容解析，實作前須inventory現有URL、tests與consumer；未完成inventory不得移除，也不得把`needs_action`直接改成`owner`。
+- DTO仍含viewer-specific fields與actions，故相關response繼續`Cache-Control: private, no-store`。responsibility vocabulary不改401／403、company scope或command permission。
+
+### 18.5 Shared UI contract
+
+- `HumanStatusBadge`第一層改讀`responsibilityStatus`與`availabilityScope`；禁止以`viewerStatus.label`改寫文案。
+- 圖號、料號、圖料root／child、preview card及共用drawer對同一entity只顯示一個主要badge。A0002與A0003若同為首版準備，不論觀看者皆顯示`待負責人處理`。
+- `你可處理`、實際姓名與disabled reason只放在可及的popover/detail/action control，不建立第二個viewer badge，也不重複成每列固定教學句。
+- popover在待辦／阻擋／異常時顯示目前狀況、處理責任、既有可見的實際負責人、是否自動完成與可發現的處理／恢復方式；正常usable／terminal保持安靜，不強制每個狀態都有下一步CTA。
+- status filter顯示stable responsibility vocabulary；`我的待辦`保留在workbench view或等效viewer filter，不混進工作狀態選項。
+- icon＋文字共同表意，hover／focus／click可達，Escape可關閉；三viewport不得截斷或使popover超出viewport。
+
+### 18.6 Data, permission, migration and execution boundary
+
+- DB/schema/index/migration/backfill：無。
+- write API、transaction、approval decision、publication/retry strategy：不變。
+- permission：沿用既有owner、exact reviewer、publish/recovery capability；顯示`系統管理員`不新增或放寬RBAC role。
+- rollout：本輪已完成文件並升至`RD Implementation Ready`；RD可依§18.9做本機／隔離runtime實作。production deploy、live data與release仍不在本DEV授權內。
+
+### 18.7 Stop conditions and evidence
+
+立即停止並回Dev PM：
+
+- 正確責任需要新增assignment schema、擴大姓名可見性、改permission或改approval/publication authority。
+- 同時存在兩個不可排序的合法主要責任、平行會簽需要多責任顯示，或system exception沒有唯一recovery responsibility。
+- 正常auto-finalization實際仍要求人工發布，與已確認產品流程衝突。
+- 舊consumer把`viewerStatus.label`當穩定外部contract，且無法以additive欄位相容。
+
+QA authority：`.ai-doc/qa/qa-dev-078-responsibility-status-vocabulary-validation-plan-2026-08-18.md`。完成證據需包含resolver matrix、API/additive/compatibility/filter/cache contract、同fixture跨actor parity、A0002／A0003及三viewport rendered browser；P0／P1 finding必須為0。
+
+### 18.8 Governance
+
+- ADR：amend既有`ADR-PDM-STATUS-UX-004`，不建立新ADR。
+- `SPEC-PDM-STATUS-ACTIONABILITY-CAPA-001`保留evidence/actionability authority，並以DEV-078 amendment將`current_user/other_user`降為viewer utility，不再治理第一層文案。
+- viewerStatus退役列為`Future Phase Captured / Not Requested`；re-entry trigger是consumer inventory、雙欄位parity通過且使用者要求cleanup。
+- Auto-finalization authority沿用`SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001`與`SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001`：對DEV-052新整包流程有意取代DEV-048「approval永不自動publication」，但legacy number-only approval仍保留既有compatibility。其他approval domain不得未經確認套用本責任狀態。
+
+### 18.9 Repository-specific RD implementation contract
+
+Readiness：`READY`；P0 gap=`0`、P1 gap=`0`。既有owner ID、active approval request、正式圖面reviewer IDs、candidate review role queue、canonical stage與action descriptors足以完成投影；DB/schema/migration/backfill、新套件、env與feature flag均為`none`。
+
+#### 18.9.1 Required source boundary
+
+- 新增`src/lib/responsibility-status-projection.ts`，作為唯一責任resolver、viewer actionability、legacy viewer adapter與stable／legacy filter matcher authority。
+- 修改`src/lib/human-status-projection.ts`、`src/lib/pdm-workbench-contract.ts`、`src/lib/pdm-entity-detail-contract.ts`、`src/lib/pdm-detail-status-actionability.ts`；新欄位在workbench row、detail header、drawing／part projection為required，`viewerStatus`保留。
+- 修改`src/lib/drawing-workbench.ts`、`src/lib/part-workbench.ts`、`src/lib/relation-workbench.ts`、`src/lib/pdm-entity-detail.ts`；順序固定為objective status → actor-independent responsibility evidence/status → viewer actionability → legacy viewer adapter。
+- 修改自行組DTO的legacy adapters：`src/app/api/parts/route.ts`、`src/app/api/parts/[partNumber]/route.ts`、`src/app/api/numbering/relations/route.ts`、`src/app/api/numbering/roots/[rootCode]/route.ts`。workbench route wrappers維持pass-through與`private, no-store`，無需要不得改碼。
+- 修改`src/components/human-status-badge.tsx`、`src/components/human-status-filter.tsx`及所有已盤點consumer：drawing／part／relation workbench、preview gallery、unified drawer、drawing／part projections、part detail、`src/app/numbering/search/page.tsx`。主要文字不得讀`viewerStatus.label`。
+- 更新DEV-055 projection／contract／browser與DEV-073 actionability regression；新增`qc-dev-078-responsibility-status-{projection,contract,browser}.mjs`、`qc-dev-073-browser-runner.mjs`及`package.json`的`qc:dev-078*`命令。歷史QC報告不得重寫；DEV-073 runner只做read-only fixture preflight與OS temp copy，不修改source DB。
+
+#### 18.9.2 Exact mapping and compatibility
+
+Resolver依§18.3順序，並將owner action限制在`missing_manufacturing_drawing`、`main_drawing_invalid`、`missing_part`、`correction_required`、`data_conflict`、`data_needs_review`、`preparing`、`ready_to_submit`及canonical等價state。`system_admin`必須同時有客觀failure與非navigation recovery descriptor；目前actor的publish permission只能決定viewer actionability，不能決定共享類別。
+
+Candidate bundle的active request使所有actor共享`review_owner`；具既有`candidateReview`且有適用review action者可`isMine=true`。正式圖面則只有既有exact reviewer可`isMine=true`。兩者都不得把role capability寫回共享責任。
+
+舊query相容固定為：`needs_action`＝人工責任且`isMine=true`；`waiting`＝人工責任且`isMine=false`；`ready`＝`isMine=true`且objective phase=`ready`。它們保留解析但從visible options移除；stable values為`owner | review_owner | system | system_admin`，availability與history values不變。client遇到缺少新欄位不得fallback至viewer-relative label，只能fail closed為`負責人待確認`並讓contract gate失敗。
+
+#### 18.9.3 Slices, commands and recovery
+
+1. Phase 1A：shared projector、types、mapping、filter與legacy adapter；RS-01～15、跨actor parity、DEV-055／073 regression先PASS。
+2. Phase 1B：drawing／part／relation／detail DTO與legacy adapters；additive shape、list/detail parity、filter-before-limit、cache與permission PASS。
+3. Phase 1C：shared badge／filter與全部consumer切換；source scan禁止主要surface舊詞與第二viewer badge。
+4. Phase 1D：隔離DB＋free port做四actor、三viewport rendered QC，輸出`output/qa/dev-078-responsibility-status/<runId>/`並清理task-owned runtime。
+
+精確命令：`npm run qc:dev-078:projection`、`npm run qc:dev-078:contract`、`npm run qc:dev-055:projection`、`npm run qc:dev-055:contract`、`npm run qc:dev-073:contract`、`npm run typecheck:app`、`npm run qc:dev-078:browser`、`npm run qc:dev-055:browser`、`npm run qc:dev-073:browser`（由runner先做read-only fixture preflight）、`npm run build:isolated`，最後`npm run qc:dev-078`。聚合命令需含前述新舊回歸與build，任一步失敗即非PASS。
+
+無資料rollback。失敗時停止於當前slice，保留manifest並重跑該slice及後續gate；回復僅能最小回退DEV-078 source／scripts／package command，不得整檔覆寫或清理其他dirty worktree變更。server DTO與client切換必須同一build完成，部分route／部分surface完成不得handoff。
+
+## 19. 2026-08-19 DEV-078 Phase 2 Amendment — Six-State UI Vocabulary
+
+狀態：`Local RD Implemented / Human Confirmed / Full Aggregate QC Passed / Production Release Gated`。
+
+本節是現行可見工作狀態與篩選語彙authority，對§1、§2、§3、§8、§18.2～§18.5及§18.9中以角色責任作為第一層badge／filter文字的部分構成`Intentional replacement`。§18已完成的資料分類、責任證據、viewer actionability、API相容與QA/QC結果保留為Phase 1基線；Phase 2已完成P2-A～P2-D實作與驗證，證據見§19.7。
+
+### 19.1 Human decisions and product boundary
+
+- 唯一可見工作狀態集合固定為：`全部／編輯中／審核中／待確認／研發版可使用／量產版可使用`，順序不得調整。
+- `全部`只存在於篩選器，不是資料列badge；非終止資料列只顯示其餘五種之一。終止資料不新增第七個工作狀態，由既有`包含歷史`控制；被納入清單時顯示中性的歷史結果chip，文字沿用`humanStatus.label`的`已取消／已作廢／已合併`等精確結果，但不得成為可選work-status filter。
+- `我的待辦`是viewer scope，由`viewerActionability.isMine`決定，不是工作狀態；`歷史`是時間範圍，也不是工作狀態。
+- 負責人、審核負責人、系統管理員等當責資訊保留在popover／drawer說明與可用動作中，不再成為第一層badge名稱。
+- 同一entity/version/company在不同合法觀看者的主要狀態、說明與篩選歸類必須一致；只有可執行動作、`isMine`與disabled reason可依觀看者不同。
+
+### 19.2 Canonical data-to-UI mapping
+
+資料層category與availability evidence不改名、不回寫；UI以同一個shared presentation projector產出唯一名稱與說明。由上而下第一個命中即停止：
+
+| 資料層條件 | UI層名稱 | UI層說明內容（canonical copy） |
+|---|---|---|
+| 篩選器無工作狀態限制 | `全部` | 顯示目前所有工作資料；歷史資料需另外開啟「包含歷史」。 |
+| `responsibilityStatus.category = owner` | `編輯中` | 資料尚在建立、補件或修正，由負責人處理。 |
+| `responsibilityStatus.category = review_owner` | `審核中` | 已送審，等待審核負責人完成審核。 |
+| `responsibilityStatus.category = system` | `審核中` | 審核已完成，系統正在自動發布，不需人工操作。 |
+| `responsibilityStatus.category = system_admin` | `待確認` | 自動化處理異常，由系統管理員確認並執行恢復。 |
+| `responsibilityStatus.category = unknown` | `待確認` | 系統無法確認目前責任或有效工作項，請由管理者查核。 |
+| `category = usable`且`availabilityScope.scope = unknown | none` | `待確認` | 已符合可使用階段，但用途範圍證據不足，需確認研發版或量產版。 |
+| `category = usable`且`availabilityScope.scope = rd` | `研發版可使用` | 已受控，可用於研發、試作與設計驗證；不可作為量產依據。 |
+| `category = usable`且`availabilityScope.scope = production` | `量產版可使用` | 已正式發布，可作為採購、製造與量產依據。 |
+| `responsibilityStatus.category = terminal`或客觀phase為terminal | `humanStatus.label`精確歷史結果 | 由「包含歷史」控制是否顯示；以neutral／archive結果chip呈現，明細保留終止原因，且不歸入五種row work status。 |
+
+`審核中`是「人工審核到自動正式化完成前」的流程傘狀態；不得因兩個資料category共用同一名稱，就讓`system`產生人工審核待辦。`待確認`是需要查核的風險傘狀態；說明必須區分系統管理員恢復、責任證據不足與可用範圍不足。
+
+### 19.3 UI and filter contract
+
+```ts
+type WorkStatusFilter =
+  | "all"
+  | "editing"
+  | "reviewing"
+  | "needs_confirmation"
+  | "rd_available"
+  | "production_available";
+
+type WorkStatusPresentation =
+  | {
+      kind: "work_status";
+      filterValue: Exclude<WorkStatusFilter, "all">;
+      label: "編輯中" | "審核中" | "待確認" | "研發版可使用" | "量產版可使用";
+      description: string;
+      tone: "info" | "warning" | "success";
+      icon: "play" | "clock" | "alert" | "check";
+    }
+  | {
+      kind: "terminal_result";
+      filterValue: null;
+      label: string;
+      description: string;
+      tone: "neutral";
+      icon: "archive";
+    };
+```
+
+- visible option只允許上述六個machine values及§19.2精確文字；badge、popover title、filter option與drawer summary必須共用同一presentation authority，不得各頁維護label map。
+- `editing`匹配`owner`；`reviewing`匹配`review_owner | system`；`needs_confirmation`匹配`system_admin | unknown | usable+availability unknown/none`；兩種available依scope精確匹配。
+- `all`在`includeHistory=false`時只含目前資料；勾選`包含歷史`後才加入terminal資料。server仍須先project → filter → fill limit/cursor，禁止client先截斷再篩選。
+- 主badge只顯示一個名稱。角色、實際姓名、異常原因、是否需人工及下一步放在可hover／focus／click／touch的說明層；說明不得只靠顏色或icon傳達。
+- `審核中/system`的說明必須明示「不需人工操作」；`待確認/system_admin`必須有verified failure與適用recovery action，否則沿用`unknown`說明，不得製造phantom task。
+
+固定視覺語意為：`editing=info/play`、`reviewing=info/clock`、`needs_confirmation=warning/alert`、`rd_available=success/check`、`production_available=success/check`、`terminal_result=neutral/archive`。icon必須與可見文字並存；tone不得被viewer capability改寫。
+
+Shared projector採fail closed：`status=null`回傳`null`；terminal evidence優先於其他分類；責任資料缺失／不合法回`待確認/unknown`；usable但availability為`null/none/unknown`回`待確認/availability`；`system`只有`basis=automatic_finalization`且客觀key為`finalizing`時成立；`system_admin`只有`basis=recovery_action`、客觀key為`formalization_failed | release_status_mismatch`且`nextStep`非空時成立。任何不完整組合都回`待確認/unknown`，不得聲稱系統管理員已有恢復責任。primary label、canonical description、tone與icon不得讀viewer identity、permission或`isMine`。
+
+### 19.4 Compatibility and data boundary
+
+- `responsibilityStatus.category`、`viewerActionability`、`availabilityScope.scope`、raw lifecycle、write API、route、permission、assignment與DB schema全部不變；本phase只替換read projection的可見label、description與filter grouping。
+- 新增純read的`WorkStatusPresentation`，由`responsibilityStatus + availabilityScope + terminal humanStatus`計算，不新增API欄位。既有`responsibilityStatus.label`與`availabilityScope.label`保留作compatibility／detail evidence，primary UI不得直接render；這可避免為UI改名破壞Phase 1 DTO。
+- canonical URL仍以`humanStatus=<six-state machine value>`及`history=include|exclude`表示；client state名稱可用`includeHistory`，不得另創第二個URL key。舊query正規化：`owner→editing`；`review_owner|system→reviewing`；`system_admin|availability_unknown|needs_confirmation→needs_confirmation`；`rd→rd_available`；`production→production_available`；`humanStatus=history→humanStatus=all + history=include`。
+- viewer-relative舊值採明確降級而非隱藏篩選：`needs_action→all`，在具既有`view=mine`的drawing／part／relation頁同時正規化為`view=mine`；`waiting|ready→all`。所有頁面在首次parse後以`replaceState`寫回canonical URL；API接受舊值但依同一規則正規化，不回400、不保留使用者看不見的active predicate。
+- invalid／空值一律正規化為`all`，不得讓`<select>`出現沒有option的空白選取狀態。相容模式不得產生第七種主要badge文字或第二個「舊連結條件」UI。
+- drawing／part／relation既有workbench與`numbering/search`、legacy parts頁共用同一page-query normalizer；五個host在初始載入、reload、deep link與`popstate`都要同步`humanStatus/history/view`，正規化時只用`replaceState`，使用者主動改篩選才沿用既有URL更新策略。`numbering/search`與legacy parts頁須新增「包含歷史」toggle並把`history`傳給對應list API。
+- 無schema、migration、backfill、新permission、新env、新dependency或資料rollback。production deploy與release繼續由既有gate管控。
+
+### 19.5 Repository-specific RD implementation contract
+
+Readiness：`IMPLEMENTED after QA correction`；P0 gap=`0`、open P1 gap=`0`。2026-08-19 QA re-audit補入舊DEV-062 query consumer、兩個repository query builder及`package.json` aggregate後，盤點確認：9個UI consumer檔共有13個`HumanStatusBadge`掛載點；5個UI檔掛載`HumanStatusFilterSelect`；5個server query入口執行工作狀態解析，兩個repository在SQL `LIMIT`前執行history scope。Phase 2 focused與完整aggregate證據已通過，詳見§19.7。
+
+#### 19.5.1 Modification count
+
+| 類別 | 數量 | 是否預期改碼 | 說明 |
+|---|---:|---|---|
+| Shared presentation／compatibility／UI component | 5 files | 是 | 1個新shared projector＋4個既有authority/component |
+| Client filter hosts／visible cleanup | 5 files | 是 | 5個filter掛載點；search另移除2處重複availability文字 |
+| Server filter entrypoints | 5 files | 是 | drawing／part／relation service＋2個legacy list API |
+| Repository query builders | 2 files | 是 | sync／async path在SQL limit前套用history scope，保持provider parity |
+| Test／QC scripts | 12 files | 是 | Phase 2 focused＋DEV-055／073／062／053／drawer regressions |
+| Package command | 1 file | 是 | 既有`qc:dev-078`聚合納入所有required regression，不新增命令名稱 |
+| Badge-only consumers | 4 files | 原則否 | 由shared component自動收斂，只做source／rendered regression |
+
+預計直接修改`30 files = 17 source + 12 test scripts + package.json`；另有4個source檔列為validation-only。若三viewport實測證明現行fluid CSS無法容納`研發版可使用／量產版可使用`，`src/app/globals.css`才作條件式第31個檔案，未重現不得預先製造CSS diff。
+
+#### 19.5.2 Exact source impact — 17 required files
+
+Shared authority與元件（5）：
+
+1. 新增`src/lib/work-status-presentation.ts`：唯一`WorkStatusFilter`、六項options、五種row presentation、canonical descriptions、tone/icon、group matcher與legacy query normalizer authority。
+2. 修改`src/lib/human-status-projection.ts`：既有`HumanStatusFilter`、display labels與viewer matcher降為legacy compatibility；visible consumer不得再import舊options。
+3. 修改`src/lib/responsibility-status-projection.ts`：保留責任category/actionability；舊display/matcher只作adapter或委派給新projector，不再直接決定primary badge。
+4. 修改`src/components/human-status-badge.tsx`：primary label、icon、tone與popover title／description改讀`projectWorkStatusPresentation()`；可用狀態保持安靜，角色、實際姓名、disabled reason與恢復方式才進第二層。禁止固定輸出每列「下一步」教學句。
+5. 修改`src/components/human-status-filter.tsx`：props改為`WorkStatusFilter`，只render六項、具可及label，永不接收legacy raw value。
+
+Client filter hosts與visible cleanup（5）：
+
+6. `src/components/drawing-workbench.tsx`
+7. `src/components/part-workbench.tsx`
+8. `src/components/relation-workbench.tsx`
+9. `src/app/numbering/search/page.tsx`
+10. `src/components/part-detail-content.tsx`
+
+五檔一律使用shared page-query normalizer，初始／reload／back-forward不得以type cast接受raw value；URL只寫六個canonical values。`numbering/search/page.tsx`另移除root與drawing旁直接render的`availabilityScope.label`兩處，避免同一可用事實同時出現在primary badge與secondary文字。
+
+Server filter entrypoints（5）：
+
+11. `src/lib/drawing-workbench.ts`
+12. `src/lib/part-workbench.ts`
+13. `src/lib/relation-workbench.ts`
+14. `src/app/api/parts/route.ts`
+15. `src/app/api/numbering/relations/route.ts`
+
+五個入口改用同一normalizer與`workStatusMatchesFilter()`；順序維持`load/scan → objective/responsibility/availability projection → work-status projection → history/view/status filter → fill limit/cursor`。invalid與legacy query不得繞過company scope、private/no-store或filter-before-limit。
+
+Repository query builders（2）：
+
+16. `src/lib/repositories/numbering-repository.ts`
+17. `src/lib/repositories/numbering-async-repository.ts`
+
+在`NumberingSearchInput`與`PartModuleListInput`新增optional `includeHistory?: boolean`；`undefined`保留既有caller行為以維持相容，前述兩個legacy list API必須明確傳入`true/false`。`includeHistory=false`時，sync與async SQL builder都必須在`LIMIT`前排除`Obsolete/Merged`；`true`時保留terminal候選，再由shared projection/filter確認。禁止route先固定抓100筆再client-side篩選，亦不得以bounded scan造成underfill。此變更不新增schema、migration或index。
+
+Badge-only validation consumers（不預期改碼）：`src/components/drawing-projection.tsx`、`src/components/part-projection.tsx`、`src/components/pdm-workbench-preview-gallery.tsx`、`src/components/unified-pdm-entity-detail-drawer.tsx`。連同前述5個client hosts，共9個consumer檔／13個badge掛載點全部納入source scan與rendered matrix。
+
+#### 19.5.3 Exact test and command impact — 12 required scripts + 1 package file
+
+- Phase 2 authority：`scripts/qc-dev-078-responsibility-status-projection.mjs`、`scripts/qc-dev-078-responsibility-status-contract.mjs`、`scripts/qc-dev-078-responsibility-status-browser.mjs`。
+- Parent regression：`scripts/qc-dev-055-human-status-projection.mjs`、`scripts/qc-dev-055-human-status-contract.mjs`、`scripts/qc-dev-055-human-status-browser.mjs`。
+- Actionability/CAPA：`scripts/qc-dev-073-status-actionability.mjs`、`scripts/qc-dev-073-browser.mjs`。
+- Legacy relation query：`scripts/qc-dev-062-relation-workbench.mjs`；原`humanStatus=waiting&limit=1`案例改以canonical `editing`驗證filter-before-limit，另獨立驗證legacy `waiting`正規化為`all`且不殘留viewer predicate。
+- Workbench/detail regression：`scripts/qc-dev-053-drawing-workbench-ui.mjs`、`scripts/qc-dev-053-drawing-workbench-real-operation.mjs`、`scripts/qc-pdm-entity-detail-drawer.mjs`。
+
+修改`package.json`既有`qc:dev-078`內容但不新增或改名命令；以fail-fast `&&`依序包含`qc:dev-078:projection`、`qc:dev-078:contract`、`qc:dev-055:projection`、`qc:dev-055:contract`、`qc:dev-073:contract`、`qc:dev-062:relation`、`qc:dev-053:ui`、`typecheck:app`、`qc:dev-078:browser`、`qc:dev-055:browser`、`qc:dev-073:browser`、`qc:dev-053:real-operation`、`qc:pdm-entity-detail-drawer`、`build:isolated`。歷史QC report、run manifest與screenshots不得重寫；test expected只修改現行source contract與新run。
+
+P2-A static prevention gate還必須掃描active source／tests中`humanStatus=`、query parser及matcher使用的舊值`owner/review_owner/system/system_admin/needs_action/waiting/ready/production/rd/availability_unknown/needs_confirmation/history`；每個命中都須列為required-edit或附理由列為validation-only。另解析`package.json`並斷言`qc:dev-078`包含本節全部可執行命令，避免文件test list與aggregate command DAG再次分離。
+
+#### 19.5.4 Slices, gates and recovery
+
+1. `P2-A — shared presentation + compatibility`：新增projector，完成全部mapping、tone/icon、terminal result、fail-closed與new/legacy/invalid query matrix；執行舊query consumer與aggregate DAG static gate。Gate：focused projection＋DEV-055／073 contract PASS。
+2. `P2-B — server filter convergence`：完成5個server入口與2個repository builder的filter-before-limit。Gate：五入口new values、legacy normalization、invalid、history、mine、private/no-store、sync/async provider parity與pagination contract PASS。
+3. `P2-C — shared UI + five hosts`：badge／filter與5個host切換，移除search重複availability；4個badge-only consumer不得新增local map。Gate：source inventory、13 badge points、5 filter points、accessible copy與typecheck PASS。
+4. `P2-D — rendered aggregate`：四actor×drawing／part／relation／preview／search／drawer×1440／1024／390；重跑DEV-055、073、062、053及drawer regressions，最後只以更新後`npm run qc:dev-078`整體PASS作交付證據。
+
+Phase間fail-fast；前一gate未PASS不得進下一slice。server matcher與client visible options必須在同一build收斂，不得交付「UI已有新值但部分API當all」或「API已分組但select仍舊詞」的部分狀態。
+
+Failure／recovery：本phase無資料寫入與migration，無DB rollback。projection／query／UI gate失敗時保留evidence，最小回退Phase 2新projector imports、matcher與consumer patch；Phase 1 DTO與legacy data fields仍在，因此可回到舊read rendering。不得使用`git reset --hard`、整檔覆寫或清理其他dirty changes。browser只用temp DB＋free port，完成後停止task-owned process tree並確認port釋放。
+
+Git boundary：目前17個預定source中多數已有DEV-077／DEV-078 Phase 1等未提交diff；`package.json`與relation相關檔案亦可能重疊。RD必須先保存scoped diff inventory，再用最小patch修改，不stage／commit／回退無關檔案。開始產品碼前依project `AGENTS.md`讀`node_modules/next/dist/docs/`中與Client Components、URL/search params、Route Handlers相關的現行Next文件。
+
+### 19.6 Acceptance criteria and stop conditions
+
+1. 可見工作狀態下拉選單恰為六項、順序與文字完全符合§19.1；不存在`歷史`或舊角色責任選項。
+2. 所有主要surface不再顯示`待負責人處理／待審核負責人處理／系統處理中／待系統管理員處理／負責人待確認／研發可用／生產可用／可用範圍待確認`作為主badge或visible filter文字。
+3. `owner→編輯中`；`review_owner|system→審核中`；`system_admin|unknown|usable+scope unknown/none→待確認`；`usable+rd→研發版可使用`；`usable+production→量產版可使用`。
+4. 跨actor的名稱與canonical description一致；`viewerActionability`可不同，但不得增加第二個個人化狀態badge。
+5. `全部`預設不含terminal；`包含歷史`與`我的待辦`分別維持時間／viewer scope，不混入工作狀態。terminal列以neutral歷史結果chip顯示精確`humanStatus.label`，不得空白或冒充五種工作狀態。
+6. 舊query可依§19.4解析，filter-before-limit、`private, no-store`、401／403、company scope與command permission無退化。
+7. 1440×900、1024×768、390×844真實browser無文字截斷、popover越界、水平溢位、visible／console／network unexpected error；P0/P1 finding為0。
+8. Repository inventory保持`17 required source + 12 required tests + package.json = 30 direct files`全部收斂；4個validation-only consumer若因型別或UI差異需改碼，須在manifest說明原因並更新計數，不得靜默漏改。
+9. `qc:dev-078` command DAG包含§19.5.3全部命令；舊query static gate無未分類命中，sync／async repository在`includeHistory=false`時都於SQL `LIMIT`前排除terminal，且兩個legacy list頁的history toggle、URL、API與back-forward一致。
+
+立即停止並回Dev PM：資料層無法唯一投影到五種列badge、`審核中`會掩蓋必須人工發布的domain、`待確認`無法提供可區辨說明、legacy consumer把舊label當外部穩定契約，或實作需要改schema、permission、assignment、approval/publication authority。
+
+### 19.7 Phase 2 execution result — 2026-08-19
+
+狀態：`Local RD Implemented / Human Confirmed / Full Aggregate QC Passed / Production Release Gated`。
+
+- `npm.cmd run qc:dev-078`以fail-fast聚合完整通過：DEV-078 projection 42/42、contract 53/53；DEV-055 projection 71/71、contract 13/13、browser；DEV-073 contract與8-case browser；DEV-062 relation；DEV-053 UI 24/24與real-operation 15/15；PDM entity-detail drawer、typecheck與isolated build（124/124 static pages）均PASS。
+- Rendered evidence：DEV-078 browser為`output/qa/dev-078-responsibility-status/20260819041629-90ff3789/`（parts 1、relations 1、drawings 20、actors 4）；DEV-073 browser為`output/qa/dev-073-status-actionability/DEV073-20260819T041838Z-f6a83fac/`（8 cases）；DEV-053 real-operation為`output/playwright/dev053-real-operation/DEV053-20260819-041911-local-isolated/`（15/15，productionConnected=false、productionWrites=false、cleanupStatus=removed）。
+- Cross-cutting evidence：`npm.cmd run qc:doc-paths` 23/23、`npm.cmd run qc:dev-task-evidence-sync` 13/13、`npm.cmd run qc:dev-task-completion-audit` 8/8。無P0/P1 finding，無schema／migration／正式或staging資料變更；production deployment／release仍由既有gate控管。
+
+## 20. 2026-08-19 DEV-080 Visibility Amendment
+
+狀態：`RD Implementation Ready / Human Confirmed / RD Not Started / Production Release Gated`。
+
+`SPEC-PDM-STATUS-UX-005`是第一層狀態可見性authority。本規格的六狀態主要投影、跨actor一致性、責任／actionability／availability、filter-before-limit與單一primary badge均保留；新規格只補上secondary signal的surface-aware分層：正常、成功、重複與技術細節降到可及popover／drawer，阻擋、錯誤、資安與缺必要條件仍固定可見。`缺製造圖`不得hover-only，`關聯完整`預設不與主要工作狀態並列。
+
+本amendment不改schema、API、permission、assignment、lifecycle或DEV-078已完成證據；DEV-080需另以全系統inventory與rendered QA/QC證明，不能用DEV-078歷史PASS替代。
+
+2026-08-19 QA scope re-audit：DEV-080新增`recognitionStatus`與`recognitionReviewStatus`只補display context，不新增第七種work status或domain axis；派工數量、42-route disposition與scope繼承以`SPEC-PDM-STATUS-UX-005` §5.1／§9.1／§10為唯一authority，舊42-file初盤不得再作依據。

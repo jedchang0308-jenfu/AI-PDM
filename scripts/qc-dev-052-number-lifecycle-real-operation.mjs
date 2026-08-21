@@ -564,7 +564,7 @@ async function run() {
     () => createButton.dblclick(),
     "complete-first-drawing-double-click"
   );
-  await operatorPage.getByLabel("研發版次").waitFor({ state: "visible" });
+  await operatorPage.getByLabel("此次版次").waitFor({ state: "visible" });
   const candidateFacts = database.prepare(`SELECT id, revision, lifecycle_status, row_version FROM numbering_candidate_revision_drafts WHERE workspace_id = ?`).all(fixture.workspaceId);
   record(
     "RO-03 double click creates one candidate and no formal rows",
@@ -583,7 +583,7 @@ async function run() {
       (await operatorPage.locator(".candidate-revision-missing").innerText()).includes("下一步") &&
       (await operatorPage.locator(".candidate-revision-missing").innerText()).includes("主要受控檔") &&
       (await operatorPage.locator(".candidate-revision-missing").innerText()).includes("驗證") &&
-      await operatorPage.getByText("拖放或選擇首版圖面", { exact: true }).count() === 1 &&
+      await operatorPage.getByText("拖放或選擇檔案", { exact: true }).count() === 1 &&
       requestRowsForWorkspace(fixture.workspaceId).length === 0,
     { expectedNextAction: "select and verify a primary controlled file" }
   );
@@ -656,7 +656,7 @@ async function run() {
   await capture(operatorPage, "RO-07-in-review-locked-1440x900.png");
   record(
     "RO-07 operator sees locked review and no editable candidate fields",
-    await operatorPage.getByRole("button", { name: "撤回審核" }).count() === 1 && await operatorPage.getByLabel("研發版次").isDisabled(),
+    await operatorPage.getByRole("button", { name: "撤回審核" }).count() === 1 && await operatorPage.getByLabel("此次版次").isDisabled(),
     {}
   );
 
@@ -670,7 +670,7 @@ async function run() {
   );
   await operatorPage.getByRole("button", { name: "送交審核", exact: true }).waitFor({ state: "visible" });
   const firstRequest = requestRowsForWorkspace(fixture.workspaceId)[0];
-  await operatorPage.getByLabel("研發版次").fill("0.2");
+  await operatorPage.getByLabel("此次版次").fill("0.2");
   await operatorPage.getByLabel("調整原因").fill("撤回後補正測試");
   await mutation(
     operatorPage,
@@ -718,7 +718,7 @@ async function run() {
 
   await operatorPage.goto(`${baseUrl}/numbering/drawings?tab=reserved`, { waitUntil: "networkidle" });
   await openFixture(operatorPage, fixture.title);
-  await operatorPage.getByLabel("研發版次").fill("0.3");
+  await operatorPage.getByLabel("此次版次").fill("0.3");
   await operatorPage.getByLabel("調整原因").fill("依補資料要求調整版次");
   await mutation(
     operatorPage,

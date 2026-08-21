@@ -2,7 +2,7 @@ import { drawingPreviewMimeType, resolveDrawingPreviewAsync, type DrawingPreview
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { contentDispositionHeader } from "@/lib/file-response";
 import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
-import { enqueuePreviewJobForSourceAsync } from "@/lib/preview-derivatives";
+import { enqueuePreviewJobForSourceAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
 import {
   numberStateFlowJson,
   requireNumberStateReadAccessAsync
@@ -118,7 +118,7 @@ export async function GET(
               linked_entity_id: candidateRevisionId
             },
             actorUserId: actorId,
-            requestedKind: source.file_ext.trim().toLowerCase().replace(/^\./u, "") === "slddrw" ? "drawing_pdf" : "native_thumbnail_png",
+            requestedKind: requestedPreviewKindForSource(source.file_ext),
             generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
             runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
           });

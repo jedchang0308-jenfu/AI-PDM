@@ -1,6 +1,7 @@
 import type { MasterAttachmentEntityType } from "@/lib/repositories/master-attachment-repository";
 import type { PartNumberDraftStatus } from "@/lib/pdm-change-control-domain";
 import type { NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
+import type { RootObsoletePolicy } from "@/lib/repositories/numbering-repository";
 import type { BomWorkbenchDraftStatus, SubmissionStatus } from "@/lib/types";
 
 export type LifecycleEntityType =
@@ -9,6 +10,7 @@ export type LifecycleEntityType =
   | "numbering_import_batch"
   | "bom_workbench_draft"
   | "submission"
+  | "numbering_part_root"
   | "numbering_part_number"
   | "numbering_drawing_number";
 export type LifecycleVisibleStage = "draft" | "in_review" | "formal" | "history";
@@ -40,6 +42,95 @@ export type LifecycleActionPolicy = {
     obsolete?: LifecycleActionState & { requiresApproval: boolean };
   };
 };
+
+export function buildNumberingPartRootLifecyclePolicy(input: {
+  rootStatus: NumberingRecordStatus;
+  childStatuses: NumberingRecordStatus[];
+  controlledReferenceCount: number;
+  pendingObsoleteRequest?: boolean;
+  canDirectObsolete?: boolean;
+  canRequestObsolete?: boolean;
+  directGateOpen?: boolean;
+  formalGateOpen?: boolean;
+}): RootObsoletePolicy {
+  const terminal = input.rootStatus === "Obsolete" || input.rootStatus === "Merged" || input.childStatuses.some((status) => status === "Merged");
+  if (terminal || input.pendingObsoleteRequest) {
+    return {
+      action: "none",
+      availability: "inert",
+      requiresApproval: false,
+      requiresReason: false,
+      requiresAcknowledgement: false,
+      reasonCode: input.pendingObsoleteRequest ? "LIFE_OBSOLETE_ALREADY_REQUESTED" : "LIFE_ROOT_MIXED_OR_TERMINAL",
+      message: input.pendingObsoleteRequest ? "此圖料根號已有作廢申請處理中。" : "此圖料根號已進入受控歷史，不能重複作廢。"
+    };
+  }
+
+  const draftStatuses = new Set<NumberingRecordStatus>(["Draft", "NeedInfo"]);
+  const allDraftMutable = draftStatuses.has(input.rootStatus) && input.childStatuses.every((status) => draftStatuses.has(status));
+  const directCandidate = allDraftMutable && input.controlledReferenceCount === 0;
+  const formalCandidate =
+    input.rootStatus === "Active" ||
+    input.rootStatus === "Released" ||
+    input.rootStatus === "MainDrawingInvalid" ||
+    input.childStatuses.some((status) => status === "Active" || status === "Released" || status === "MainDrawingInvalid") ||
+    input.controlledReferenceCount > 0;
+
+  if (directCandidate) {
+    if (input.canDirectObsolete === false) {
+      return rootPolicy("obsolete_draft_official_number", "inert", false, "LIFE_PERMISSION_DENIED", "沒有作廢草稿編號的權限。", false);
+    }
+    if (input.directGateOpen === false) {
+      return rootPolicy(
+        "obsolete_draft_official_number",
+        "inert",
+        false,
+        "feature_not_open_in_production_slice",
+        "目前環境尚未開放草稿編號作廢。",
+        false
+      );
+    }
+    return rootPolicy("obsolete_draft_official_number", "enabled", false, "READY", "可將整組尚未送審的編號標記為作廢；編號不會刪除或回收。", false);
+  }
+
+  if (formalCandidate) {
+    if (input.canRequestObsolete === false) {
+      return rootPolicy("request_formal_obsolete", "inert", true, "LIFE_PERMISSION_DENIED", "沒有申請圖料根號作廢的權限。", true);
+    }
+    if (input.formalGateOpen === false) {
+      return rootPolicy(
+        "request_formal_obsolete",
+        "inert",
+        true,
+        "feature_not_open_in_production_slice",
+        "目前環境尚未開放正式編號作廢申請。",
+        true
+      );
+    }
+    return rootPolicy("request_formal_obsolete", "enabled", true, "READY", "需建立作廢申請，核准後才會將正式範圍標記為作廢。", true);
+  }
+
+  return rootPolicy("none", "inert", false, "LIFE_ROOT_MIXED_OR_TERMINAL", "目前狀態不符合可作廢的生命週期條件。", false);
+}
+
+function rootPolicy(
+  action: RootObsoletePolicy["action"],
+  availability: RootObsoletePolicy["availability"],
+  requiresApproval: boolean,
+  reasonCode: string,
+  message: string,
+  requiresAcknowledgement: boolean
+): RootObsoletePolicy {
+  return {
+    action,
+    availability,
+    requiresApproval,
+    requiresReason: availability === "enabled" || reasonCode !== "LIFE_ROOT_MIXED_OR_TERMINAL",
+    requiresAcknowledgement,
+    reasonCode,
+    message
+  };
+}
 
 export function buildMasterAttachmentLifecyclePolicy(input: {
   attachmentId: string;

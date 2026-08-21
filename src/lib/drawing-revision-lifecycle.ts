@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 import {
   DrawingSubmissionWorkbenchError,
   resolveDrawingSubmissionContext,
@@ -267,6 +268,7 @@ export async function decideDrawingRevisionLifecycle(input: {
 export async function withdrawDrawingRevisionLifecycle(input: {
   requestId: string;
   actorId: string;
+  actorRole: string;
   idempotencyKey: string;
 }) {
   const key = input.idempotencyKey.trim();
@@ -276,6 +278,7 @@ export async function withdrawDrawingRevisionLifecycle(input: {
     const withdrawn = await repository.withdraw({
       requestId: input.requestId,
       actorId: input.actorId,
+      allowNonSubmitter: hasPdmNonOwnerEditScope({ role: input.actorRole }),
       keyHash: commandHash("withdraw:key", key),
       scopeHash: commandHash("withdraw:scope", input.requestId)
     });

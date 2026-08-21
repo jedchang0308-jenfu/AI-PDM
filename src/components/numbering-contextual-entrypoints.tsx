@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FilePlus2, Plus, ShieldAlert, Trash2, X } from "lucide-react";
+import { FilePlus2, Plus, ShieldAlert, X } from "lucide-react";
 import { displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 
 type RecordStatus =
@@ -17,7 +17,7 @@ type RecordStatus =
   | "MainDrawingInvalid";
 
 type ContextMode = "root" | "drawing" | "part";
-type DialogMode = "add_drawing" | "add_part" | "delete_draft_root" | "obsolete_root" | "obsolete_drawing" | "obsolete_part" | null;
+type DialogMode = "add_drawing" | "add_part" | "obsolete_draft_root" | "obsolete_root" | "obsolete_drawing" | "obsolete_part" | null;
 const CONTEXTUAL_DIALOG_OPEN_EVENT = "pdm-numbering-contextual-open";
 
 type AppendPolicy = {
@@ -32,11 +32,24 @@ type AppendPolicy = {
 
 type RootObsoleteImpact = {
   formalTargets: Array<{ entityType: "part_number" | "drawing_number"; entityCode: string; recordStatus: RecordStatus }>;
+  approvalTargets: Array<{ entityType: "part_root" | "part_number" | "drawing_number"; entityCode: string; recordStatus: RecordStatus }>;
   parts: Array<{ partNumber: string; recordStatus: RecordStatus }>;
   drawings: Array<{ drawingNumber: string; purposeCode: string; recordStatus: RecordStatus }>;
   links: Array<{ drawingNumber: string; partNumber: string; linkType: "primary_manufacturing" | "reference" }>;
   warnings: string[];
   pendingRequestId: string | null;
+  dependencySummary: { controlledReferenceCount: number; fileAssetCount: number };
+  policy: RootObsoletePolicy;
+};
+
+type RootObsoletePolicy = {
+  action: "obsolete_draft_official_number" | "request_formal_obsolete" | "none";
+  availability: "hidden" | "inert" | "enabled";
+  requiresApproval: boolean;
+  requiresReason: boolean;
+  requiresAcknowledgement: boolean;
+  reasonCode: string;
+  message: string;
 };
 
 export function NumberingContextualEntrypoints({
@@ -69,6 +82,7 @@ export function NumberingContextualEntrypoints({
   const [dialog, setDialog] = useState<DialogMode>(null);
   const [policy, setPolicy] = useState<AppendPolicy | null>(null);
   const [impact, setImpact] = useState<RootObsoleteImpact | null>(null);
+  const [rootObsoletePolicy, setRootObsoletePolicy] = useState<RootObsoletePolicy | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -115,7 +129,7 @@ export function NumberingContextualEntrypoints({
   }, [rootCode]);
 
   useEffect(() => {
-    if (dialog !== "obsolete_root") return;
+    if (mode !== "root" || !rootCode) return;
     let cancelled = false;
     async function loadImpact() {
       setBusy(true);
@@ -124,19 +138,23 @@ export function NumberingContextualEntrypoints({
       const body = await response.json().catch(() => ({}));
       setBusy(false);
       if (cancelled) return;
-      if (response.ok) setImpact(body as RootObsoleteImpact);
+      if (response.ok) {
+        const nextImpact = body as RootObsoleteImpact;
+        setImpact(nextImpact);
+        setRootObsoletePolicy(nextImpact.policy);
+      }
       else setError(humanizeError(body.error ?? "圖料根號作廢影響預覽失敗"));
     }
     void loadImpact();
     return () => {
       cancelled = true;
     };
-  }, [dialog, rootCode]);
+  }, [mode, rootCode]);
 
   const disabledReason = policy?.locked ? "此圖料根號已關閉，不能再追加圖號或料號。" : drawingWorkbenchEnabled === null ? "正在確認新增流程。" : "";
   const appendDisabled = Boolean(policy?.locked || busy || drawingWorkbenchEnabled === null);
-  const canObsoleteRoot = Boolean(rootRecordStatus && isRootObsoleteCandidate(rootRecordStatus, rootFormalChildCount));
-  const canDeleteDraftRoot = Boolean(rootRecordStatus && isDraftDeleteCandidate(rootRecordStatus) && rootFormalChildCount === 0);
+  const rootAction = rootObsoletePolicy?.action ?? "none";
+  const rootActionEnabled = rootObsoletePolicy?.availability === "enabled";
   const emphasizedActionClass = actionEmphasis === "secondary" ? "secondary-button" : "primary-button";
 
   function open(nextDialog: DialogMode) {
@@ -165,13 +183,13 @@ export function NumberingContextualEntrypoints({
               <Plus size={16} />
               新增料號
             </button> : null}
-            {canDeleteDraftRoot ? (
-              <button className="secondary-button danger-button" type="button" disabled={busy} onClick={() => open("delete_draft_root")}>
-                <Trash2 size={16} />
-                刪除草稿
+            {rootAction === "obsolete_draft_official_number" ? (
+              <button className="secondary-button danger-button" type="button" disabled={!rootActionEnabled || busy} onClick={() => open("obsolete_draft_root")} title={rootObsoletePolicy?.message}>
+                <ShieldAlert size={16} />
+                作廢草稿編號
               </button>
             ) : (
-              <button className="secondary-button danger-button" type="button" disabled={!canObsoleteRoot || busy} onClick={() => open("obsolete_root")}>
+              <button className="secondary-button danger-button" type="button" disabled={!rootActionEnabled || busy} onClick={() => open("obsolete_root")} title={rootObsoletePolicy?.message}>
                 <ShieldAlert size={16} />
                 申請圖料根號作廢
               </button>
@@ -216,8 +234,7 @@ export function NumberingContextualEntrypoints({
         ) : null}
       </div>
       {disabledReason ? <p className="pdm-contextual-hint">{disabledReason}</p> : null}
-      {canDeleteDraftRoot && mode === "root" ? <p className="pdm-contextual-hint">尚未送審的草稿可直接刪除；正式資料才使用申請作廢。</p> : null}
-      {!canDeleteDraftRoot && !canObsoleteRoot && mode === "root" ? <p className="pdm-contextual-hint">目前狀態不可新增、刪除或申請作廢，請先查看待辦或審核狀態。</p> : null}
+      {mode === "root" && rootObsoletePolicy ? <p className="pdm-contextual-hint">{rootObsoletePolicy.message}</p> : null}
       {message ? <p className="pdm-contextual-message">{message}</p> : null}
       {error ? <p className="pdm-contextual-error">{error}</p> : null}
       {dialog === "add_drawing" ? (
@@ -226,8 +243,8 @@ export function NumberingContextualEntrypoints({
       {dialog === "add_part" ? (
         <AddPartDialog rootId={rootId} rootCode={rootCode} coreName={coreName} policy={policy} drawing={drawing} part={part} busy={busy} setBusy={setBusy} setMessage={setMessage} setError={setError} onChanged={onChanged} onClose={close} mode={mode} drawingWorkbenchEnabled={drawingWorkbenchEnabled === true} />
       ) : null}
-      {dialog === "delete_draft_root" ? (
-        <DeleteDraftRootDialog rootCode={rootCode} coreName={coreName} rootPartCount={rootPartCount} rootDrawingCount={rootDrawingCount} busy={busy} setBusy={setBusy} setMessage={setMessage} setError={setError} onChanged={onChanged} onClose={close} />
+      {dialog === "obsolete_draft_root" ? (
+        <ObsoleteDraftRootDialog rootCode={rootCode} coreName={coreName} rootPartCount={rootPartCount} rootDrawingCount={rootDrawingCount} busy={busy} setBusy={setBusy} setMessage={setMessage} setError={setError} onChanged={onChanged} onClose={close} />
       ) : null}
       {dialog === "obsolete_part" && part ? (
         <ObsoleteDialog entityType="part_number" entityCode={part.partNumber} title="申請料號作廢" impactLines={part.linkedDrawingNumbers?.length ? [`關聯圖號：${part.linkedDrawingNumbers.join("、")}`] : ["此料號目前沒有關聯圖號。"]} busy={busy} setBusy={setBusy} setMessage={setMessage} setError={setError} onChanged={onChanged} onClose={close} />
@@ -567,7 +584,7 @@ function AddPartDialog({
   );
 }
 
-function DeleteDraftRootDialog({
+function ObsoleteDraftRootDialog({
   rootCode,
   coreName,
   rootPartCount,
@@ -592,49 +609,50 @@ function DeleteDraftRootDialog({
 }) {
   const [ack, setAck] = useState(false);
   const [reason, setReason] = useState("");
+  const idempotencyKey = useMemo(() => createIdempotencyKey(), []);
 
   async function submit() {
     setBusy(true);
     setError("");
-    const response = await fetch(`/api/numbering/records/${encodeURIComponent(rootCode)}/draft`, {
-      method: "DELETE",
-      headers: { "content-type": "application/json" },
+    const response = await fetch(`/api/numbering/records/${encodeURIComponent(rootCode)}/obsolete`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "Idempotency-Key": idempotencyKey },
       body: JSON.stringify({
-        confirmDelete: true,
+        confirmObsolete: true,
         reason
       })
     });
     const body = await response.json().catch(() => ({}));
     setBusy(false);
     if (!response.ok) {
-      setError(humanizeError(body.error ?? "刪除草稿失敗"));
+      setError(humanizeError(body.message ?? body.error ?? "作廢草稿編號失敗"));
       return;
     }
-    setMessage(`已刪除草稿圖料根號 ${rootCode}。`);
+    setMessage(`已作廢草稿編號 ${rootCode}，資料與關係均予以保留，編號不會回收。`);
     await onChanged?.();
     onClose();
   }
 
   return (
-    <div className="pdm-contextual-dialog" role="dialog" aria-label="刪除草稿">
-      <DialogHeader title="刪除草稿" onClose={onClose} />
+    <div className="pdm-contextual-dialog" role="dialog" aria-label="作廢草稿編號">
+      <DialogHeader title="作廢草稿編號" onClose={onClose} />
       <LockedRoot rootCode={rootCode} coreName={coreName} />
       <ul className="pdm-contextual-impact-list">
-        <li>會刪除這組尚未送審的圖料根號草稿。</li>
-        <li>包含料號 {rootPartCount} 筆、圖號 {rootDrawingCount} 筆與草稿圖料關係。</li>
-        <li>若已有附件，附件會移到已刪除狀態；正式或送審資料不允許走這個動作。</li>
+        <li>會將這組尚未送審的圖料根號、料號與圖號標記為作廢。</li>
+        <li>包含料號 {rootPartCount} 筆、圖號 {rootDrawingCount} 筆與既有圖料關係。</li>
+        <li>資料列、識別碼、附件與稽核紀錄都會保留；編號不會被刪除或回收。</li>
       </ul>
-      <TextInput label="刪除原因（選填）" value={reason} onChange={setReason} />
+      <TextAreaInput label="作廢原因" value={reason} onChange={setReason} />
       <label className="pdm-contextual-check">
         <input type="checkbox" checked={ack} onChange={(event) => setAck(event.target.checked)} />
-        <span>我確認這是尚未送審的草稿，刪除後會從目前主資料清單移除。</span>
+        <span>我確認這是尚未送審的草稿，作廢後不會刪除資料，也不會回收編號。</span>
       </label>
       <div className="pdm-contextual-dialog-actions">
         <button className="secondary-button" type="button" disabled={busy} onClick={onClose}>
           取消
         </button>
-        <button className="danger-button" type="button" disabled={busy || !ack} onClick={submit}>
-          刪除草稿
+        <button className="danger-button" type="button" disabled={busy || !ack || !reason.trim()} onClick={submit}>
+          作廢草稿編號
         </button>
       </div>
     </div>
@@ -665,12 +683,13 @@ function ObsoleteDialog({
   onClose: () => void;
 }) {
   const [reason, setReason] = useState("");
+  const idempotencyKey = useMemo(() => createIdempotencyKey(), []);
   async function submit() {
     setBusy(true);
     setError("");
     const response = await fetch("/api/lifecycle/obsolete-requests", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "Idempotency-Key": idempotencyKey },
       body: JSON.stringify({ entityType, entityCode, reason })
     });
     const body = await response.json().catch(() => ({}));
@@ -718,13 +737,14 @@ function RootObsoleteDialog({
 }) {
   const [reason, setReason] = useState("");
   const [ack, setAck] = useState(false);
+  const idempotencyKey = useMemo(() => createIdempotencyKey(), []);
   async function submit() {
     setBusy(true);
     setError("");
     const response = await fetch("/api/lifecycle/obsolete-requests", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ entityType: "part_root", entityCode: rootCode, reason })
+      headers: { "content-type": "application/json", "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ entityType: "part_root", entityCode: rootCode, reason, confirmObsolete: true })
     });
     const body = await response.json().catch(() => ({}));
     setBusy(false);
@@ -746,11 +766,12 @@ function RootObsoleteDialog({
             <span>料號 {impact.parts.length}</span>
             <span>圖號 {impact.drawings.length}</span>
             <span>圖料關係 {impact.links.length}</span>
-            <span>正式目標 {impact.formalTargets.length}</span>
+            <span>核准目標 {impact.approvalTargets.length}</span>
+            <span>受控關聯 {impact.dependencySummary.controlledReferenceCount}</span>
           </div>
           <ul className="pdm-contextual-impact-list">
-            {impact.formalTargets.slice(0, 8).map((target) => <li key={`${target.entityType}:${target.entityCode}`}>{target.entityCode} / {target.recordStatus}</li>)}
-            {impact.formalTargets.length > 8 ? <li>另有 {impact.formalTargets.length - 8} 筆正式目標</li> : null}
+            {impact.approvalTargets.slice(0, 8).map((target) => <li key={`${target.entityType}:${target.entityCode}`}>{target.entityCode} / {target.recordStatus}</li>)}
+            {impact.approvalTargets.length > 8 ? <li>另有 {impact.approvalTargets.length - 8} 筆核准目標</li> : null}
           </ul>
           {impact.warnings.map((warning) => <p className="pdm-contextual-hint" key={warning}>{warning}</p>)}
         </>
@@ -761,7 +782,7 @@ function RootObsoleteDialog({
         <span>已確認圖料根號底下料號、圖號與圖料關係會一起形成審核範圍；核准前不直接作廢。</span>
       </label>
       <div className="pdm-contextual-dialog-actions">
-        <button className="danger-button" type="button" disabled={busy || !impact || impact.pendingRequestId !== null || impact.formalTargets.length === 0 || !reason.trim() || !ack} onClick={submit}>建立作廢申請</button>
+        <button className="danger-button" type="button" disabled={busy || !impact || impact.policy.availability !== "enabled" || impact.pendingRequestId !== null || impact.approvalTargets.length === 0 || !reason.trim() || !ack} onClick={submit}>建立作廢申請</button>
       </div>
     </div>
   );
@@ -803,15 +824,7 @@ function createIdempotencyKey() {
 }
 
 function isFormalObsoleteCandidate(status: RecordStatus) {
-  return status === "Active" || status === "Released";
-}
-
-function isDraftDeleteCandidate(status: RecordStatus) {
-  return status === "Draft" || status === "NeedInfo";
-}
-
-function isRootObsoleteCandidate(status: RecordStatus, formalChildCount: number) {
-  return isFormalObsoleteCandidate(status) || status === "MainDrawingInvalid" || formalChildCount > 0;
+  return status === "Active" || status === "Released" || status === "MainDrawingInvalid";
 }
 
 function humanizeError(error: unknown) {
@@ -819,8 +832,13 @@ function humanizeError(error: unknown) {
   if (!message) return "操作失敗，請重新整理後再試。";
   if (message.includes("APPEND_REASON_REQUIRED_FOR_FORMAL_ROOT")) return "這個圖料根號已有正式資料，追加前請填寫原因。";
   if (message.includes("PRIMARY_RELATION_REQUIRES_MANUFACTURING_DRAWING")) return "參考圖不可作為製造依據，請改建立參考關係。";
-  if (message.includes("NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES")) return "這組資料已進入送審、版本、製造基準或其他受控流程，不能直接刪除草稿。";
-  if (message.includes("NUMBERING_ROOT_NOT_DRAFT") || message.includes("NUMBERING_PART_NOT_DRAFT") || message.includes("NUMBERING_DRAWING_NOT_DRAFT")) return "只有尚未送審的草稿可以直接刪除；正式或審核中資料請使用作廢或審核流程。";
+  if (message.includes("NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES") || message.includes("NUMBERING_DRAFT_OBSOLETE_HAS_CONTROLLED_REFERENCES")) return "這組資料已有受控關聯，不能直接作廢草稿；請改走正式作廢申請。";
+  if (message.includes("NUMBERING_ROOT_NOT_DRAFT") || message.includes("NUMBERING_PART_NOT_DRAFT") || message.includes("NUMBERING_DRAWING_NOT_DRAFT")) return "只有尚未送審的草稿可以直接作廢；正式或審核中資料請使用正式作廢申請。";
+  if (message.includes("OBSOLETE_CONFIRMATION_REQUIRED")) return "請確認這是作廢編號，而不是刪除資料。";
+  if (message.includes("OBSOLETE_REASON_REQUIRED")) return "請填寫作廢原因。";
+  if (message.includes("feature_not_open_in_production_slice")) return "目前環境尚未開放這項生命週期操作。";
+  if (message.includes("LIFE_ROOT_MIXED_OR_TERMINAL") || message.includes("LIFE_OBSOLETE_NOT_ELIGIBLE")) return "目前狀態不符合可作廢的生命週期條件。";
+  if (message.includes("ROOT_OBSOLETE_SNAPSHOT_STALE")) return "資料在審核期間已有變更，請重新讀取影響範圍後再處理。";
   if (message.includes("LIFE_OBSOLETE_ALREADY_REQUESTED")) return "此資料已有作廢審核中申請，請到正式資料審核查看。";
   if (message.includes("LIFE_OBSOLETE_NOT_FORMAL")) return "只有正式資料可申請作廢；草稿請走草稿清理流程。";
   if (message.includes("LOCKED")) return "目前狀態已鎖定，不能執行此操作。";

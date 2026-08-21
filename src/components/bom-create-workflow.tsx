@@ -16,6 +16,8 @@ import {
   UploadCloud
 } from "lucide-react";
 import { SearchHighlight } from "@/components/search-highlight";
+import { StatusScopeHelp } from "@/components/status-help-popover";
+import { getStatusDisplay } from "@/lib/status-display";
 
 type PartOption = {
   id: string;
@@ -249,7 +251,7 @@ export function BomCreateWorkflow() {
       <header className="bom-create-header">
         <div>
           <p className="eyebrow">工程 BOM 管理</p>
-          <h1>建立 BOM</h1>
+          <h1>建立 BOM <StatusScopeHelp scope="bomCreate" /></h1>
           <p>料號代表物料身份，沒有版次；這裡建立的是該料號的一份受控 BOM Revision。</p>
         </div>
         <Link className="secondary-button" href="/bom/workbench">回 BOM 工作台</Link>
@@ -327,7 +329,7 @@ export function BomCreateWorkflow() {
                 {drafts.map((draft) => (
                   <Link key={draft.id} className="bom-create-draft-row" href={`/bom/workbench/${encodeURIComponent(draft.id)}`}>
                     <span><strong>{draft.partNumber}</strong><small>{draft.partName || "未填品名"} · BOM Rev {draft.bomRevision || "-"}</small></span>
-                    <span className="bom-create-draft-meta"><em className={`bom-create-status status-${draft.status.toLowerCase()}`}>{draftStatusLabel(draft.status)}</em><ArrowRight size={16} aria-hidden="true" /></span>
+                    <span className="bom-create-draft-meta"><em className={`bom-create-status status-${draft.status.toLowerCase()}`}>{getStatusDisplay(draft.status, "bomDraft").label}</em><ArrowRight size={16} aria-hidden="true" /></span>
                   </Link>
                 ))}
                 {!loading && drafts.length === 0 ? <div className="bom-create-empty-state compact"><FileClock size={22} aria-hidden="true" /><strong>目前沒有未完成的 BOM 草稿</strong><small>完成建立後，草稿會在這裡提供續作入口。</small></div> : null}
@@ -355,7 +357,7 @@ export function BomCreateWorkflow() {
           </div>
 
           {source === "cad_reference" ? (
-            <label className="bom-create-source-detail"><span>CAD 圖面來源</span><select value={sourceCadId} onChange={(event) => { setSourceCadId(event.target.value); idempotencyKeyRef.current = ""; }}><option value="">選擇一份可讀取的受控圖面</option>{cadSources.map((item) => <option key={`${item.sourceKind}:${item.id}`} value={item.id}>{item.drawingNumber} · Drawing Rev {item.drawingRevision} · {item.status}</option>)}</select>{cadSources.length === 0 ? <small>此料號目前沒有你可讀取的 CAD 組合件來源；可改用 XLS 或空白 BOM。</small> : null}</label>
+            <label className="bom-create-source-detail"><span>CAD 圖面來源</span><select value={sourceCadId} onChange={(event) => { setSourceCadId(event.target.value); idempotencyKeyRef.current = ""; }}><option value="">選擇一份可讀取的受控圖面</option>{cadSources.map((item) => <option key={`${item.sourceKind}:${item.id}`} value={item.id}>{item.drawingNumber} · Drawing Rev {item.drawingRevision} · {getStatusDisplay(item.status, "fileStatus").label}</option>)}</select>{cadSources.length === 0 ? <small>此料號目前沒有你可讀取的 CAD 組合件來源；可改用 XLS 或空白 BOM。</small> : null}</label>
           ) : null}
           {source === "solidworks_xls" ? (
             <label className="bom-create-upload"><UploadCloud size={22} aria-hidden="true" /><span><strong>{xlsFile?.name ?? "選擇 SolidWorks BOM 檔案"}</strong><small>支援 XLS、XLSX、CSV、TSV、TXT 或 HTML</small></span><input type="file" accept=".xls,.xlsx,.csv,.tsv,.txt,.html" onChange={(event) => { setXlsFile(event.target.files?.[0] ?? null); idempotencyKeyRef.current = ""; }} /></label>
@@ -394,26 +396,4 @@ function humanizeError(value: unknown) {
     BOM_XLS_EMPTY_FILE: "選擇的檔案沒有內容。"
   };
   return messages[code] ?? (code && !code.includes("_") ? code : "BOM 建立未完成，請檢查輸入後再試一次。");
-}
-
-function partStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    Draft: "草稿",
-    NeedInfo: "待補資料",
-    Active: "可使用",
-    PendingReview: "審核中",
-    Released: "已發布",
-    Rejected: "已退回",
-    PendingAdminConfirm: "待管理員確認"
-  };
-  return labels[status] ?? "狀態待確認";
-}
-
-function draftStatusLabel(status: DraftOption["status"]) {
-  const labels: Record<DraftOption["status"], string> = {
-    Draft: "草稿",
-    PendingReview: "審核中",
-    Rejected: "退回待修改"
-  };
-  return labels[status];
 }

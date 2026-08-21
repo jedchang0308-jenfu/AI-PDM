@@ -15,12 +15,12 @@ const runId = `DEV073-${new Date().toISOString().replace(/[-:]/gu, "").replace(/
 const outputDir = path.resolve(root, "output", "qa", "dev-073-status-actionability", runId);
 const screenshotDir = path.join(outputDir, "screenshots");
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev073-browser-"));
-const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
+const sourceDb = path.resolve(root, process.env.PDM_DEV073_SOURCE_DB ?? path.join("data", "ai-pdm.sqlite"));
 const sourceRepositoryDir = path.join(root, "data", "repository");
 const trackedFiles = new Map(["next-env.d.ts", "tsconfig.json"].map((file) => [file, fs.readFileSync(path.join(root, file), "utf8")]));
 const originalEnv = new Map([
   "PDM_AUTH_MODE", "PDM_DB_PROVIDER", "PDM_DATA_DIR", "PDM_REPOSITORY_DIR", "PDM_RELEASE_MODE",
-  "PDM_LOCAL_FULL_FUNCTION_VALIDATION", "PDM_NUMBER_STATE_FLOW_V1", "PDM_NUMBER_LIFECYCLE_V2",
+  "PDM_LOCAL_FULL_FUNCTION_VALIDATION", "PDM_DEV073_SOURCE_DB", "PDM_NUMBER_STATE_FLOW_V1", "PDM_NUMBER_LIFECYCLE_V2",
   "PDM_UNIFIED_ENTITY_DETAIL_V1", "PDM_UNIFIED_DRAWING_WORKBENCH_V1", "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1",
   "PDM_PRODUCTION_SLICE_MODE", "PDM_POSTGRES_URL", "DATABASE_URL", "PDM_NEXT_DIST_DIR", "PDM_PUBLIC_BASE_URL"
 ].map((key) => [key, process.env[key]]));
@@ -249,7 +249,7 @@ async function inspectOrphanRecovery(page, fixture, viewport) {
   await page.waitForFunction(() => !document.querySelector(".unified-pdm-loading") && !document.querySelector(".unified-pdm-error"), null, { timeout: 30000 });
   const badge = page.locator("aside.pdm-entity-detail-drawer .human-status-badge").first();
   assert.equal(await badge.getAttribute("data-viewer-status-category"), "unknown", `${label}: orphan responsibility must fail closed`);
-  assert.equal(await badge.getAttribute("data-human-status-primary"), "負責人待確認", `${label}: orphan label must request confirmation`);
+  assert.equal(await badge.getAttribute("data-human-status-primary"), "待確認", `${label}: orphan label must request confirmation`);
   const control = page.locator('[data-action-id="detail:drawing:view_review"]');
   assert.equal(await control.getAttribute("aria-disabled"), "true", `${label}: recovery gateway must remain locked without a target`);
   assert.equal(await control.getAttribute("data-action-reason-code"), "PDM_ACTION_TARGET_UNAVAILABLE", `${label}: reason code must be exact`);
@@ -303,7 +303,7 @@ async function inspectA0005CrossPage(page) {
   await row.waitFor({ state: "visible", timeout: 30000 });
   const rowText = (await row.innerText()).trim();
   assert.ok(rowText.includes("A0005-M01"), `${label}: workbench list must find A0005-M01`);
-  assert.ok(rowText.includes("研發可用"), `${label}: workbench list must project the effective controlled status`);
+  assert.ok(rowText.includes("研發版可使用"), `${label}: workbench list must project the effective controlled status`);
   assert.ok(!rowText.includes("待你處理"), `${label}: workbench list must not show a phantom current-user task`);
   await row.getByRole("button", { name: "A0005-M01" }).click();
   const drawer = page.locator('[data-component="unified-pdm-entity-detail-drawer"]');
@@ -325,7 +325,7 @@ async function inspectA0005CrossPage(page) {
   assert.ok(!approvalText.includes("A0005-M01"), `${label}: active approval center must exclude terminal A0005-M01`);
   await visibleErrorSweep(page, label);
   await page.screenshot({ path: path.join(screenshotDir, "A0005-cross-page-approval.png"), fullPage: true });
-  const evidence = { label, rowStatus: "研發可用", linkedParts: ["A0005-P01", "A0005-P02", "A0005-P03", "A0005-P04"], revision: "0.10", taskCenter: "absent", approvalCenter: "absent" };
+  const evidence = { label, rowStatus: "研發版可使用", linkedParts: ["A0005-P01", "A0005-P02", "A0005-P03", "A0005-P04"], revision: "0.10", taskCenter: "absent", approvalCenter: "absent" };
   browserEvidence.push(evidence);
   return evidence;
 }
@@ -370,6 +370,7 @@ function writeEvidence(fixture) {
     cases,
     P0: failed.length,
     P1: 0,
+    sourceDatabasePath: path.relative(root, sourceDb).replaceAll("\\", "/"),
     sourceDatabaseSha256: crypto.createHash("sha256").update(fs.readFileSync(sourceDb)).digest("hex"),
     files: ["browser-evidence.json", "console-network.json", "defects.md"]
   };

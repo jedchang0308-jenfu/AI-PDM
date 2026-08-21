@@ -6,13 +6,24 @@ import { Pool, type PoolClient, type QueryResultRow } from "pg";
 export type AsyncDatabaseProviderKind = "sqlite" | "postgres";
 type RuntimeAsyncDatabaseProviderKind = AsyncDatabaseProviderKind | "cloud_sql_postgres";
 export type AsyncDatabaseQueryParams = readonly unknown[] | Record<string, unknown>;
+export type AsyncDatabaseTransactionOptions = {
+  serializable?: boolean;
+};
+
+function isRetryablePostgresTransactionError(error: unknown) {
+  const candidate = error as { code?: unknown } | null;
+  return candidate?.code === "40001" || candidate?.code === "40P01";
+}
 
 export interface AsyncDatabaseClient {
   readonly kind: AsyncDatabaseProviderKind;
   query<T>(sql: string, params?: AsyncDatabaseQueryParams): Promise<T[]>;
   queryOne<T>(sql: string, params?: AsyncDatabaseQueryParams): Promise<T | null>;
   execute(sql: string, params?: AsyncDatabaseQueryParams): Promise<void>;
-  transaction<T>(fn: (client: AsyncDatabaseClient) => T | Promise<T>): Promise<T>;
+  transaction<T>(
+    fn: (client: AsyncDatabaseClient) => T | Promise<T>,
+    options?: AsyncDatabaseTransactionOptions
+  ): Promise<T>;
   close(): Promise<void>;
 }
 
@@ -131,7 +142,10 @@ export class SQLiteAsyncDatabaseClient implements AsyncDatabaseClient {
     bindRun(this.database, sql, params);
   }
 
-  async transaction<T>(fn: (client: AsyncDatabaseClient) => T | Promise<T>): Promise<T> {
+  async transaction<T>(
+    fn: (client: AsyncDatabaseClient) => T | Promise<T>,
+    _options?: AsyncDatabaseTransactionOptions
+  ): Promise<T> {
     const state = this.database as SqliteDatabase & { inTransaction?: boolean };
     if (state.inTransaction) {
       return await fn(this);
@@ -172,7 +186,10 @@ class PostgresTransactionClient implements AsyncDatabaseClient {
     await runPostgresQuery<QueryResultRow>(this.client, sql, params);
   }
 
-  async transaction<T>(fn: (client: AsyncDatabaseClient) => T | Promise<T>): Promise<T> {
+  async transaction<T>(
+    fn: (client: AsyncDatabaseClient) => T | Promise<T>,
+    _options?: AsyncDatabaseTransactionOptions
+  ): Promise<T> {
     return await fn(this);
   }
 
@@ -230,17 +247,27 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
     await runPostgresQuery<QueryResultRow>(this.pool, sql, params);
   }
 
-  async transaction<T>(fn: (client: AsyncDatabaseClient) => T | Promise<T>): Promise<T> {
+  async transaction<T>(
+    fn: (client: AsyncDatabaseClient) => T | Promise<T>,
+    options?: AsyncDatabaseTransactionOptions
+  ): Promise<T> {
     const client = await this.pool.connect();
+    const maxAttempts = options?.serializable ? 3 : 1;
     try {
-      await client.query("BEGIN");
-      const transactionClient = new PostgresTransactionClient(client);
-      const result = await fn(transactionClient);
-      await client.query("COMMIT");
-      return result;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          await client.query(options?.serializable ? "BEGIN ISOLATION LEVEL SERIALIZABLE" : "BEGIN");
+          const transactionClient = new PostgresTransactionClient(client);
+          const result = await fn(transactionClient);
+          await client.query("COMMIT");
+          return result;
+        } catch (error) {
+          await client.query("ROLLBACK").catch(() => undefined);
+          if (attempt < maxAttempts && options?.serializable && isRetryablePostgresTransactionError(error)) continue;
+          throw error;
+        }
+      }
+      throw new Error("POSTGRES_TRANSACTION_RETRY_EXHAUSTED");
     } finally {
       client.release();
     }

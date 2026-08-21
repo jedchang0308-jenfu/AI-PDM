@@ -1,4 +1,5 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { AsyncAuditRepository, type AsyncAuditLogInput } from "@/lib/repositories/audit-async-repository";
 
 export type SharedModelOwnerScope = "part_root" | "part_number";
 export type SharedCadModelStatus = "Draft" | "Pending" | "Released" | "Obsolete";
@@ -700,6 +701,20 @@ export class AsyncShared3dBaselineRepository {
 
   async releaseManufacturingBaseline(input: { baselineId: string; releasedBy: string; releasedAt: string; snapshotJson: string }): Promise<void> {
     await this.client.execute(RELEASE_MANUFACTURING_BASELINE_SQL, input);
+  }
+
+  async releaseManufacturingBaselineWithAudit(input: { baselineId: string; releasedBy: string; releasedAt: string; snapshotJson: string; audit: AsyncAuditLogInput }): Promise<void> {
+    await this.client.transaction(async (tx) => {
+      const current = await tx.queryOne<{ status: ManufacturingBaselineStatus }>(
+        `${SELECT_MANUFACTURING_BASELINE_SQL}${tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
+        { baselineId: input.baselineId }
+      );
+      if (!current || current.status !== "Draft") throw new Error("BASELINE_RELEASE_CONFLICT");
+      await tx.execute(RELEASE_MANUFACTURING_BASELINE_SQL, input);
+      const released = await tx.queryOne<{ status: ManufacturingBaselineStatus }>(SELECT_MANUFACTURING_BASELINE_SQL, { baselineId: input.baselineId });
+      if (!released || released.status !== "Released") throw new Error("BASELINE_RELEASE_CONFLICT");
+      await new AsyncAuditRepository(tx).createAuditLog(input.audit);
+    }, { serializable: true });
   }
 
   async listReleasedBaselinesByModel(sharedModelVersionId: string): Promise<ManufacturingBaseline[]> {

@@ -631,7 +631,7 @@ export class AsyncDrawingRevisionLifecycleRepository {
     });
   }
 
-  async withdraw(input: { requestId: string; actorId: string; keyHash: string; scopeHash: string }) {
+  async withdraw(input: { requestId: string; actorId: string; allowNonSubmitter?: boolean; keyHash: string; scopeHash: string }) {
     return this.client.transaction(async (tx) => {
       const token = await tx.queryOne<{ scope_hash: string }>(
         `SELECT scope_hash FROM drawing_revision_lifecycle_command_tokens
@@ -646,8 +646,8 @@ export class AsyncDrawingRevisionLifecycleRepository {
         if (token) return { projection: null, workflowId: null, cleanupPending: false, idempotentReplay: true };
         throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_WORKFLOW_NOT_FOUND", "此審核案已完成或不存在。", 404);
       }
-      if (workflow.submitted_by !== input.actorId) {
-        throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_WITHDRAW_FORBIDDEN", "只有原申請人可在審核開始前撤回。", 403);
+      if (workflow.submitted_by !== input.actorId && input.allowNonSubmitter !== true) {
+        throw new DrawingRevisionLifecycleRepositoryError("DRAWING_LIFECYCLE_WITHDRAW_FORBIDDEN", "只有原申請人、研發主管或系統管理員可在審核開始前撤回。", 403);
       }
       const count = await tx.queryOne<CountRow>(
         `SELECT COUNT(*) AS value FROM approval_platform_decisions WHERE request_id = :requestId`,

@@ -167,7 +167,7 @@ const drawingsPage = read("src/app/numbering/drawings/page.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
 record("Parts mixed column names PDM axes", partsPage.includes('label="資料狀態 / 提醒"') && partsPage.includes('data-label="資料狀態 / 提醒"'));
 record("Drawings mixed column names PDM axes", drawingsPage.includes('label="資料狀態 / 提醒"') && drawingsPage.includes('data-label="資料狀態 / 提醒"'));
-record("Search filter exposes the data-status axis", searchPage.includes("<span>資料狀態</span>") && searchPage.includes("全部資料狀態"));
+record("Search filter exposes the data-status axis", searchPage.includes("<span>資料狀態</span>") && searchPage.includes('<option value="">全部</option>'));
 
 const lifecycleUx = read("src/components/lifecycle-ux.tsx");
 record(

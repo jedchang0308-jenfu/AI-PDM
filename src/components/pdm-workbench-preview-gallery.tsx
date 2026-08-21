@@ -5,7 +5,7 @@ import Image from "next/image";
 import { HumanStatusBadge } from "@/components/human-status-badge";
 import type { PdmWorkbenchPreviewSummary } from "@/lib/pdm-workbench-contract";
 
-type GalleryRow = { rowKey: string; displayCode: string; displayName: string; preview?: PdmWorkbenchPreviewSummary | null; humanStatus: Parameters<typeof HumanStatusBadge>[0]["status"]; viewerStatus: Parameters<typeof HumanStatusBadge>[0]["viewerStatus"]; availabilityScope: Parameters<typeof HumanStatusBadge>[0]["availabilityScope"] };
+type GalleryRow = { rowKey: string; displayCode: string; displayName: string; lane?: { laneLabel: string; lane: string }; preview?: PdmWorkbenchPreviewSummary | null; humanStatus: Parameters<typeof HumanStatusBadge>[0]["status"]; responsibilityStatus: Parameters<typeof HumanStatusBadge>[0]["responsibilityStatus"]; viewerActionability: Parameters<typeof HumanStatusBadge>[0]["viewerActionability"]; viewerStatus: Parameters<typeof HumanStatusBadge>[0]["viewerStatus"]; availabilityScope: Parameters<typeof HumanStatusBadge>[0]["availabilityScope"] };
 
 function previewMessage(preview: PdmWorkbenchPreviewSummary | null | undefined) {
   if (!preview || preview.state === "missing") return "無 3D 預覽";
@@ -88,7 +88,7 @@ export function PdmWorkbenchPreviewGallery<Row extends GalleryRow>({
               } : preview)}</span></div>}
             </div>
             <div className="pdm-workbench-preview-card-body">
-              <div className="pdm-workbench-preview-card-heading"><strong>{row.displayCode}</strong><HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} /></div>
+              <div className="pdm-workbench-preview-card-heading"><strong>{row.displayCode}{row.lane ? <span className={`pdm-workbench-lane-badge is-${row.lane.lane}`}>{row.lane.laneLabel}</span> : null}</strong><HumanStatusBadge status={row.humanStatus} responsibilityStatus={row.responsibilityStatus} viewerActionability={row.viewerActionability} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} /></div>
               <div className="pdm-workbench-preview-card-name">{row.displayName}</div>
               {getSourceLabel ? <div className="pdm-workbench-preview-source">{getSourceLabel(row)}</div> : null}
             </div>

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { listPartModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
-import { normalizeHumanStatusFilter, projectRoleViewerHumanStatus, viewerStatusMatchesFilter } from "@/lib/human-status-projection";
+import { normalizeWorkStatusQuery } from "@/lib/work-status-presentation";
+import { projectRoleResponsibilityStatusPair, responsibilityStatusMatchesFilter } from "@/lib/responsibility-status-projection";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectPartAvailability } from "@/lib/availability-scope";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
@@ -35,7 +36,8 @@ export async function GET(request: Request) {
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
   const seriesCode = url.searchParams.get("seriesCode")?.trim() || undefined;
-  const humanStatus = normalizeHumanStatusFilter(url.searchParams.get("humanStatus"));
+  const workStatusQuery = normalizeWorkStatusQuery(url.searchParams.get("humanStatus"), url.searchParams.get("history"), url.searchParams.get("view"));
+  const humanStatus = workStatusQuery.filter;
   const requestedLimit = normalizeLimit(url.searchParams.get("limit"), 50);
 
   const [parts, productSeriesOptions, seriesCodeOptions, viewerCapabilities] = await Promise.all([
@@ -46,7 +48,8 @@ export async function GET(request: Request) {
       seriesCode,
       recordStatus,
       sortDirection: parseNumberSortDirection(url.searchParams.get("sortDirection")),
-      limit: humanStatus === "all" ? requestedLimit : 100
+      limit: humanStatus === "all" ? requestedLimit : null,
+      includeHistory: workStatusQuery.includeHistory
     }),
     listProductSeriesOptionsAsync(companyResult.company.companyId),
     listSeriesCodeOptionsAsync(companyResult.company.companyId),
@@ -59,11 +62,16 @@ export async function GET(request: Request) {
       return {
         ...part,
         humanStatus: objectiveStatus,
-        viewerStatus: projectRoleViewerHumanStatus(objectiveStatus, viewerCapabilities),
+        ...projectRoleResponsibilityStatusPair({
+          status: objectiveStatus,
+          actorId: auth.user.id,
+          capabilities: viewerCapabilities,
+          href: `/parts?detail=${encodeURIComponent(`part:${part.id}`)}`
+        }),
         availabilityScope: projectPartAvailability(part)
       };
     })
-    .filter((part) => viewerStatusMatchesFilter(part.viewerStatus, part.humanStatus, humanStatus, part.availabilityScope))
+    .filter((part) => responsibilityStatusMatchesFilter(part.responsibilityStatus, part.viewerActionability, part.humanStatus, humanStatus, part.availabilityScope))
     .slice(0, requestedLimit);
   return NextResponse.json({
     parts: projectedParts,

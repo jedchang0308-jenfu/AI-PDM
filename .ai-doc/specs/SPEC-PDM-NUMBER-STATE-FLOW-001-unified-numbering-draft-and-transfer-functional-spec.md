@@ -8,6 +8,14 @@ Current execution boundary：Phase 1A local authority、Phase 1B owner surfaces/
 RD readiness：`HD-048-01..03`已由使用者以`1C / 2C / 3C`關閉；Phase 1A-1D已依序通過。下一步不得自動續做 provider 或 release，需明確進入 DEV-046 / DEV-032 對應 gate。
 Platform baseline：依 `DEV-046` 的 `asia-east1` Cloud Run + Next.js 16 HTTP/BFF、Cloud SQL PostgreSQL 正式資料唯一權威、Firebase Auth with Identity Platform 身分邊界與 direct GCS 正式檔案終局架構。
 
+> **2026-08-22 DEV-087 target supersession**：本文件保留numbering identity/recycling、正式化、approval evidence與Cloud SQL authority；三工作臺Part current row改為`正式資料`0/1＋`part_change_works`的`修改中`0/1，沒有Part revision/branch。舊candidate/formal分列、production/RD lane、humanStatus/filter與legacy workspace current authority由DEV-087取代並拆除。新決策優先；既有資料只作明確preserved evidence或converter source。
+
+> **2026-08-20 DEV-086 Part production／RD lane target amendment（RD Implementation Ready / Not Implemented）**
+>
+> 本文 DEV-062「candidate/formal 各自成為獨立 top-level row」的 Part list 目標，於 DEV-086 umbrella flag 啟用後改由 canonical Part group 的 production／RD lane projection取代：同一 Part Number 最多一列`量產最新版`與一列`研發最新版`，production 以 Released manufacturing baseline（或可證明的 legacy released basis）為準，RD 彙整 active baseline／workspace／scoped drawing change。Part Number 仍是無版次物料身份，禁止新增 Part Revision；來源不同不代表建立第二份 Part master。
+>
+> source-less candidate 仍為 RD-only candidate group，不能虛構 production lane。完整 reference priority、stable key、filter、cursor、permission、failure 與 release 契約以 `SPEC-PDM-WORKBENCH-PRODUCTION-RD-LANES-001` 與其 ADR 為準；現行 runtime 在 flag 啟用前維持 DEV-062 row projection。
+
 2026-08-15 DEV-074 lifecycle amendment：只要候選圖號／料號已由 UI 顯示並寫入可查歷史，取消 workspace 時仍將 reservation 標為 `recycled`，但該 candidate code 轉為歷史保留，不再回到可用池。預覽與正式配置必須共同排除 `active / review_locked / approved_locked / promoted / recycled` 的既有 code。這項 amendment 取代本文所有「recycled code 可重新分配」的舊條款，以避免取消歷史與 unified drawing/part identity 產生同號歧義；取消不等於正式作廢，也不會復活舊 row。
 
 2026-08-03 contract amendment：使用者已在 `DEV-052` 決定以整包圖料審核取代新流程的 number-only review + manual publication。所有非終結既有保留號將以 read-time compatibility projection 進入新流程，不做 bulk backfill；新 action `numbering.candidate_bundle_review` 核准後可在同一原子／冪等交易自動正式化。已存在的 `numbering.candidate_publication_review` request 仍維持本規格原 snapshot/apply 語意，不得用舊核准直接發布未審圖面。DEV-052 尚未實作或 release 前，本規格仍是 production runtime authority。詳見 `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`。

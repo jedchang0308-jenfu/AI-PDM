@@ -99,13 +99,15 @@ export function NumberingSubmissionResultFileList({
   files,
   mode,
   requestId,
-  renderFileActions
+  renderFileActions,
+  showFileMeta = true
 }: {
   candidate: NumberingSubmissionResultCandidate;
   files: NumberingSubmissionResultFile[];
   mode: "author" | "reviewer";
   requestId?: string | null;
   renderFileActions?: (candidate: NumberingSubmissionResultCandidate, file: NumberingSubmissionResultFile) => ReactNode;
+  showFileMeta?: boolean;
 }) {
   if (files.length === 0) return <p className="numbering-submission-result-missing">尚未加入受控檔案。</p>;
   return (
@@ -114,9 +116,9 @@ export function NumberingSubmissionResultFileList({
         <li className="numbering-submission-result-file" key={file.id}>
           <div className="numbering-submission-result-file-copy">
             <strong className="numbering-submission-result-file-name">{file.displayName || "未命名附件"}</strong>
-            <span className="numbering-submission-result-file-meta">
+            {showFileMeta ? <span className="numbering-submission-result-file-meta">
               {numberingSubmissionFileRoleLabel(file.role)} · {fileStatusLabel(file)}
-            </span>
+            </span> : null}
             {file.description ? <small>{file.description}</small> : null}
           </div>
           <div className="numbering-submission-result-file-actions">

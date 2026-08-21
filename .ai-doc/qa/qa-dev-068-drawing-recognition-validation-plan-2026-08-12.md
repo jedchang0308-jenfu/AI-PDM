@@ -168,3 +168,92 @@ Known gates:
 - No real OCR/native CAD extraction quality is claimed; the A0005 adapter is hash-locked local fixture evidence.
 - Full fresh PostgreSQL chain is blocked by pre-existing migration 004 `approval_rules.phase` drift outside DEV-068; isolated PostgreSQL 001 + 033 semantic schema was executed successfully.
 - Production/staging files, credentials, migration, distributed concurrency, deployment, rollback and representative user/gold-set validation remain release work.
+
+## 9. DEV-082 PDF Browser OCR Validation Amendment — 2026-08-20
+
+Status: `RD Implemented / Local QA-QC Complete / OCR-082-001..044 PASS / Production Release Gated`
+
+This amendment validates the reopened real-PDF-content gap under DEV-068. The §8 evidence remains the Phase 1A～1D baseline, but it does not pass DEV-082 and must not be presented as proof that browser PDF OCR works.
+
+### 9.1 Entry Criteria
+
+- SPEC §0.12 remains the passed cross-source／geometry baseline and §0.13 is `RD Implementation Ready` for the active magnifier-readability slice; `config/drawing-ocr-field-priorities.json` and SolidWorks alias mapping continue to share the canonical revision semantic contract.
+- The PDF.js and Tesseract.js packages, Traditional Chinese and English language assets, licenses and hashes are pinned and recorded in the lockfile/SBOM.
+- A production-safe fixture set exists for text-layer PDF, scanned Traditional Chinese／English PDF, mixed PDF, conflicting title blocks, missing fields, encrypted/corrupt PDF and over-capacity keyword content. Gold labels are reviewed by a human and contain no production secret or personal data.
+- Test runtime confirms browser OCR creates no third-party network request and requires no user installation, API key, OCR host or worker-local environment variable.
+- Tests use disposable local data and an authorized actor; production/staging files, live schema, traffic and release remain out of scope.
+
+### 9.2 Required Test Matrix
+
+| ID | Test | Expected evidence / pass condition |
+|---|---|---|
+| OCR-082-001 | Adapter-plan extension matrix | Only canonical `.pdf` sources receive `browser-pdf-ocr.v1`; SolidWorks native formats retain DEV-035, while JPG／JPEG／PNG／DWG／other files remain filename-only. |
+| OCR-082-002 | Native text-layer PDF | PDF.js extracts sufficient text and Tesseract invocation count is zero. |
+| OCR-082-003 | Scanned `chi_tra+eng` PDF | Only pages below the text-layer threshold are rasterized and OCR produces traceable page evidence. |
+| OCR-082-004 | Mixed PDF | Text pages bypass OCR, scanned pages use OCR, and the document produces one merged deterministic result. |
+| OCR-082-005 | Tier 0 outcome completeness | `drawing_number`、`revision`、`part_number`、`title`、`material`、`scale`、`drawn_by` each reports `found`、`conflict` or `not_found`; no required field is silently omitted. |
+| OCR-082-006 | Required fields under cap pressure | All retained Tier 0 values are selected before Tier 1～3; lower tiers cannot evict them from the 50/source or 100/session capacity. |
+| OCR-082-007 | Required-field conflicts | Up to five distinct normalized values retain best evidence; a sixth distinct value emits partial/conflict diagnostics and blocks that field from formalization. |
+| OCR-082-008 | Missing required field | Stable `not_found` diagnostic is returned; no blank observation, invented value, auto-clear or formal overwrite occurs. |
+| OCR-082-009 | Tier 1 and Tier 2 fill | Remaining capacity is filled by deterministic utility order using the configured field tier, business value, label match, confidence, location, corroboration, duplicate and noise terms. |
+| OCR-082-010 | Deterministic ranking | Same source hash, config version and engine version produce the same normalized observations and tie-break order across repeated runs. |
+| OCR-082-011 | Tier 3 bound | Unclassified engineering keyword blocks never exceed ten per PDF and cannot displace Tier 0～2 selected records. |
+| OCR-082-012 | Hard capacity | Persisted browser-PDF observations are at most 50/source and total selected observations are at most 100/session, with counts reported by tier and discard reason. |
+| OCR-082-013 | Data minimization | DB, API response, logs and diagnostics contain only selected field evidence and aggregate discard counts; no full OCR word array, page bitmap, raw PDF/base64 or discarded customer text is persisted. |
+| OCR-082-014 | Policy/config fail-close | Missing, invalid, duplicate or unknown config version prevents adapter completion with a stable safe error; it does not fall back to uncontrolled ranking. |
+| OCR-082-015 | Authorized content GET | Correct company, session, source and actor can stream the source with expected hash, MIME, no-store headers and bounded range/size behavior. |
+| OCR-082-016 | Tenant/actor isolation | Wrong company, actor, session/source pair or expired authorization is denied without metadata or byte leakage. |
+| OCR-082-017 | Source integrity | Extension, MIME, PDF magic bytes and content hash mismatch returns terminal `failed/pdf_source_invalid`; no image or OCR fallback runs. |
+| OCR-082-018 | Single completion write | One PDF produces one bounded `client-adapter-results` POST; no per-page result write or unbounded retry stream occurs. |
+| OCR-082-019 | Idempotent duplicate | Same session/source/adapter/fingerprint is accepted once and replayed safely through the existing unique adapter-result authority. |
+| OCR-082-020 | Stale/race handling | Different fingerprint, stale session row version, finalized session or concurrent completion returns stable conflict and does not partially append observations. |
+| OCR-082-021 | Formalization gate | Planned client adapter pending/failed blocks recognition formalization only; drawing save, upload and lifecycle submit retain the existing DEV-079/068 behavior. |
+| OCR-082-022 | Invalid/encrypted PDF | Corrupt, encrypted, password-protected and unsupported PDF failures become visible terminal errors with sanitized diagnostics and no infinite spinner. |
+| OCR-082-023 | Resource bounds | 12 MP page raster, concurrency 1, 60-second page, 10-minute document and 20 OCR-page limits are enforced and released after completion/failure. |
+| OCR-082-024 | Interruption/re-entry | Closing or reloading the tab leaves no false success; reopening the recognition workspace derives pending state and permits a clean idempotent rerun. |
+| OCR-082-025 | UX truthfulness | Progress differentiates text extraction, OCR, ranking, upload and terminal failure; screen-reader status, retry, focus return and error help are usable. |
+| OCR-082-026 | Static assets and licensing | Worker/WASM/language assets load from approved same-origin immutable URLs, cache safely, match pinned hashes and have license/SBOM evidence. |
+| OCR-082-027 | Network/privacy sweep | Browser trace shows no OCR payload or customer document reaches a third-party domain; logs and analytics contain no extracted content. |
+| OCR-082-028 | Server-cost envelope | Per PDF, normal completion uses one authorized content GET and one completion POST, persists no more than 50 selected observations and runs no server-side OCR compute. |
+| OCR-082-029 | Responsive browser evidence | Desktop、tablet、mobile show no hidden blocking state, horizontal overflow, console error, unexpected 4xx/5xx or inaccessible progress/control. |
+| OCR-082-030 | Regression aggregate | DEV-035 native reader, DEV-068 candidate/review/formalization and DEV-079 workspace/submit behavior pass their affected focused suites. |
+| OCR-082-031 | Canonical revision alignment | SOLIDWORKS「版次」與 PDF `revision` both normalize to semantic key `revision`、category `identity_relation` and evidence-only policy before `group_key`; no new `source_revision` candidate is produced. |
+| OCR-082-032 | Same-value corroboration | CAD `0.1` and PDF `0.1` for the same owner/scope render one review field with both source evidences; input、pending count and save command are not duplicated. |
+| OCR-082-033 | Cross-source conflict | CAD `0.1` and PDF `0.2` render one unresolved conflict group with each value/file/location visible; no confidence/order-based silent winner and formalization remains blocked until human resolution. |
+| OCR-082-034 | Normalized geometry contract | PDF.js text-layer and Tesseract fixtures both persist finite 0..1 top-left page geometry with page/rotation evidence. Consumer anchors the box to the measurable rendered PDF paper element—not an iframe/browser viewer frame containing toolbar, thumbnail sidebar or margins—and the title-block box stays inside the expected cell at all supported viewports. |
+| OCR-082-035 | Evidence resolver and truthful fallback | Default focus selects locatable PDF evidence over earlier CAD property evidence; explicit CAD selection names the CAD file and no-coordinate state, while legacy/unlocatable PDF names the PDF/page and never claims `cad_property` or `not_found`. |
+| OCR-082-036 | Identity-only formalization | Accepted/corrected drawing number and revision review groups are excluded as identity evidence; impact contains no revision metadata write and cannot raise `RECOGNITION_DRAWING_FIELD_INVALID`. |
+| OCR-082-037 | Legacy append-only compatibility | Existing sessions containing `source_revision` and raw point/pixel geometry remain readable without row mutation; projection canonicalizes semantics and successor rerun produces new normalized geometry. |
+| OCR-082-038 | A0002 single-surface workspace regression | In an isolated copy/successor of the real A0002 source set, the PDF tile reports revision found and the visible revision group is singular with CAD/PDF sources. Focusing it reuses the existing 2D preview surface to show one exact PDF.js page without a browser PDF iframe. The evidence marker is a borderless translucent yellow highlighter inside the actual page with stable normalized coordinates; a same-canvas magnifier contains non-white drawing pixels, remains inside the rendered page and does not overlap the marker at desktop/tablet/mobile. Same-page focus only adds this evidence treatment, cross-file/page focus temporarily switches that same viewer, multi-page focus navigates to the exact page, and `返回原圖面`／clear focus restores the captured preview kind/source/page. CAD source switching shows the precise nonspatial fallback without pretending the visible PDF is CAD evidence. DOM/route/network/readback assert zero new PDF tab, second viewer, attachment, revision or recognition source; console/network/unexpected-response counts remain zero. |
+| OCR-082-039 | Adaptive full-field coverage | A known long material field and boundary fixtures expose the normalized evidence region、padded `targetRect`、crop rect and effective zoom. Horizontal padding is at least `max(30% region width, 0.5% page width)` per side, vertical padding at least `max(50% region height, 0.5% page height)` per side, `coverageRatio=1`, and the entire target lies inside the circular 78% safe content area after page-edge clamp. Fixed `3×` must not clip long text. |
+| OCR-082-040 | Direct high-resolution PDF crop | Normal magnifier state reports `resolutionMode=pdf_high_res_crop` and reuses the currently loaded PDF page proxy; backing scale is `2.5..3`, the backing canvas is rendered directly at target resolution, and the normal path never resamples `mainPreviewCanvas`. Switching evidence after page load adds no PDF content GET, iframe, second viewer, route or derivative file. |
+| OCR-082-041 | Minimal single-yellow-frame UI | The evidence marker remains a borderless translucent yellow highlighter and the magnifier has exactly one yellow outer ring. No highlighter outline、green ring、double ring、zoom control、mode control、new card、popover or extra explanatory panel is rendered; value／file／page remain available through the existing caption and accessible name. |
+| OCR-082-042 | Responsive placement and long-content resilience | At `1440x900`、`1024x768` and `390x844`, lens size respects the 200／168／140 px caps, the target and lens remain inside the actual PDF paper element, the lens does not overlap the marker, and long text／page-edge／rapid focus changes produce no crop、overflow、stale image、unexpected scroll or duplicate magnifier. |
+| OCR-082-043 | Bounded performance and recovery | Each backing canvas edge is `<=1024 px`, estimated RGBA memory is `<=4 MiB`, LRU size is `<=4`, stale render tasks are cancelled and unmount releases canvases. Reference-device P95 after page-ready is `<=150 ms`, cache hit is `<=16 ms`, and console/network errors remain zero. Forced high-resolution-render failure clears stale pixels, retains the marker/source caption, shows the short existing-caption recovery message and marks fallback so it cannot pass 040/044. |
+| OCR-082-044 | A0002 material readability regression | In a real Chromium run against the isolated A0002 source set, focusing material evidence shows the complete text `不鏽鋼SUS304` plus visible safety margin at browser 100% without clipping to `不鏽鋼SUS…`. Screenshot/manual QC proves the glyphs are readable at normal viewing distance, while DOM/canvas evidence proves `coverageRatio=1`、`resolutionMode=pdf_high_res_crop` and backing scale `>=2.5`; desktop／laptop／mobile all pass with one yellow ring and no console/network failure. |
+
+### 9.3 Commands and Evidence
+
+DEV-082 使用獨立 contract／repository、runtime-generated production-safe PDF 真實 Chromium suite 與 affected parent regression；browser 實證不可由手寫 JSON、source assertion 或單一客戶檔替代：
+
+- `npm run qc:dev-082:contract`
+- `npm run qc:dev-082:repository`
+- `npm run qc:dev-082:browser`
+- `npm run qc:dev-082:regression`
+- `npm run qc:dev-082:gate`
+- `npm run qc:dev-082`
+- `npm run qc:dev-035`
+- 以隔離 runtime 執行文字層、中英掃描、mixed、缺漏、衝突、大頁面、21頁、損毀與加密 PDF；包含 reload/re-entry、三 viewport、console／network、API header 與 DB readback
+- `npm run qc:dev-068`（以通過 preflight 的唯讀 A0005 source fixture 建立隔離副本）
+- `npm run qc:dev-079:contract`、`npm run qc:dev-079:layout-browser`、`npm run qc:dev-079:recognition-layout-browser`
+- `npm run typecheck:app`、affected ESLint、`npm run build:isolated` and `git diff --check`
+
+Evidence root: `output/qa/dev-082-browser-pdf-ocr/<runId>/`. Each run manifest must record source fixture hash, policy version, PDF.js/Tesseract.js/language-data versions, browser version, viewport, selected/discarded counts by tier, OCR invocation/page counts, elapsed time, request count, console/network failures and pass/fail per `OCR-082-*` case. For `039..044`, also record normalized region、target/crop rect、coverage ratio、effective zoom、resolution mode、backing scale／canvas dimensions、render/cache elapsed time、cache size、cancel/cleanup result and screenshot path. Raw customer files, persisted bitmaps and full OCR word arrays are prohibited evidence; QA screenshots may remain only in the bounded local evidence root.
+
+### 9.4 Exit and Stop Conditions
+
+DEV-082 may reach local QA/QC complete only when `OCR-082-001..044` all pass, Tier 0 missing/conflict behavior is human-reviewed, privacy/network evidence proves same-origin processing, and affected DEV-035／068／079 regressions pass. Accuracy reporting must separate each Tier 0 field; one aggregate average cannot hide a failed required field. For PDF evidence, a generic property flash、non-empty low-resolution crop or fallback mode cannot substitute for complete high-resolution field evidence.
+
+Current execution result（2026-08-21）：`OCR-082-001..044` 已由 contract、repository、runtime-generated synthetic PDF Chromium、A0002 successor recognition-layout、DEV-035／DEV-068／DEV-079 affected regression 與 completion gate 全數 PASS。082-I RD 實作已落地：`PdfPageViewport` 以同一 `PDFPageProxy` direct clipped render 取代主 preview canvas 二次放大，採 adaptive target/crop、78% safe lens、2.5..3x backing、200／168／140px lens caps、1024px canvas cap、四筆 LRU、stale/unmount cleanup、fallback 與 diagnostics；082-J contract runner 已增加 `OCR-082-039..044` 對應案例與 browser DOM/canvas 斷言。最新 gate `output/qa/dev-082-browser-pdf-ocr/gate-20260820163042-local-isolated/` 的 executable matrix 為 44/44 PASS；其引用 contract `contract-20260820162258-local-isolated/`、repository `repository-20260820162258-local-isolated/`、browser `browser-20260820162922-local-isolated/`、regression `regression-20260820161721-local-isolated/` 與 recognition layout `output/qa/dev-079-recognition-layout/20260820161949-browser/`。A0002 三 viewport 已證明完整 `不鏽鋼SUS304`、`coverageRatio=1`、`resolutionMode=pdf_high_res_crop`、backing scale `2.5`、單一黃色鏡框、螢光筆無外框、無綠框／雙環／第二 viewer／新增 content GET。canonical `revision` 已取代 fixture 舊 `source_revision`；gate 亦已分離 synthetic OCR 與 recognition-layout evidence。DEV-082 與父 DEV-068 已達 local QA/QC complete，production representative gold set、正式檔案存取、部署與 release 仍 gated。PDF 定位仍沿用既有 2D preview surface，不增加 PDF 頁籤、第二 viewer、server compute或第三方流量。
+
+Stop and return to Dev PM if implementation requires a paid/cloud OCR service, a user installation, a maintained OCR host, a new recognition-status table, per-page server writes, persistence of raw OCR text/bitmaps, OCR for non-PDF attachments, weakening tenant/actor checks, raising the documented caps, blocking drawing submit on OCR, or production/staging access, migration, deploy or release. A future background/checkpoint architecture requires the trigger in SPEC §0.11 and a new amendment; it must not be smuggled into DEV-082.

@@ -67,7 +67,6 @@ export async function listBomCreatePartOptionsAsync(input: {
   const client = getAsyncDatabaseClient();
   const query = input.query?.trim() ?? "";
   const limit = Math.min(Math.max(Math.trunc(input.limit ?? 50), 1), 100);
-  const engineerClause = input.user.role === "Engineer" ? engineerOwnerClause("pn") : "1 = 1";
   const rows = await client.query<BomCreatePartRow>(
     `
       SELECT pn.id, pn.part_number, pn.part_name, pn.item_kind, pn.record_status, pn.bom_usage_policy
@@ -85,7 +84,6 @@ export async function listBomCreatePartOptionsAsync(input: {
           OR upper(pn.part_number) LIKE upper(:queryLike)
           OR upper(pn.part_name) LIKE upper(:queryLike)
         )
-        AND ${engineerClause}
       ORDER BY pn.updated_at DESC, pn.part_number ASC
       LIMIT :limit
     `,
@@ -117,7 +115,6 @@ export async function listBomCreateAssemblyOptionsAsync(input: {
   const client = getAsyncDatabaseClient();
   const query = input.query?.trim() ?? "";
   const limit = Math.min(Math.max(Math.trunc(input.limit ?? 50), 1), 100);
-  const engineerClause = input.user.role === "Engineer" ? engineerOwnerClause("pn") : "1 = 1";
   const rows = await client.query<BomCreatePartRow>(
     `
       SELECT pn.id, pn.part_number, pn.part_name, pn.item_kind, pn.record_status, pn.bom_usage_policy
@@ -136,7 +133,6 @@ export async function listBomCreateAssemblyOptionsAsync(input: {
           OR upper(pn.part_number) LIKE upper(:queryLike)
           OR upper(pn.part_name) LIKE upper(:queryLike)
         )
-        AND ${engineerClause}
       ORDER BY pn.updated_at DESC, pn.part_number ASC
       LIMIT :limit
     `,
@@ -304,7 +300,6 @@ export async function resolveBomOwnerAccessContextAsync(input: {
   if (!(await canAccessCompany(input.user, input.companyId))) return null;
 
   const client = getAsyncDatabaseClient();
-  const engineerClause = input.user.role === "Engineer" ? engineerOwnerClause("pn") : "1 = 1";
   const row = await client.queryOne<{
     id: string;
     company_id: string;
@@ -323,7 +318,6 @@ export async function resolveBomOwnerAccessContextAsync(input: {
       WHERE pn.id = :ownerPartNumberId
         AND pn.company_id = :companyId
         AND pn.record_status NOT IN ('Obsolete', 'Merged', 'MainDrawingInvalid')
-        AND ${engineerClause}
       LIMIT 1
     `,
     { companyId: input.companyId, ownerPartNumberId: input.ownerPartNumberId, actorId: input.user.id }
@@ -369,6 +363,7 @@ export async function canReadBomDraftRecordAsync(user: DbUser, draft: BomWorkben
       })
     );
   }
+  if (draft.company_id && await canAccessCompany(user, draft.company_id)) return true;
   if (!draft.parent_submission_id) return false;
   const submission = await getSubmissionAsync(draft.parent_submission_id);
   return submission ? canReadSubmissionAsync(user, submission) : false;
@@ -426,31 +421,6 @@ async function suggestNextBomRevision(client: AsyncDatabaseClient, ownerPartNumb
   let suggestion = Number(suggestRevisionCode(released, "release_area"));
   while (occupiedRevisions.has(String(suggestion))) suggestion += 1;
   return String(suggestion);
-}
-
-function engineerOwnerClause(alias: string) {
-  return `(
-    ${alias}.created_by = :actorId
-    OR EXISTS (
-      SELECT 1
-      FROM submission_part_scopes sps
-      JOIN submissions scoped_submission ON scoped_submission.id = sps.submission_id
-      WHERE sps.part_number_id = ${alias}.id
-        AND scoped_submission.submitted_by = :actorId
-        AND scoped_submission.company_id = ${alias}.company_id
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM submissions legacy_submission
-      JOIN items legacy_item ON legacy_item.id = legacy_submission.item_id
-      WHERE legacy_submission.submitted_by = :actorId
-        AND legacy_submission.company_id = ${alias}.company_id
-        AND upper(legacy_item.part_number) = upper(${alias}.part_number)
-        AND NOT EXISTS (
-          SELECT 1 FROM submission_part_scopes legacy_scope WHERE legacy_scope.submission_id = legacy_submission.id
-        )
-    )
-  )`;
 }
 
 function assemblyEvidenceClause(alias: string) {

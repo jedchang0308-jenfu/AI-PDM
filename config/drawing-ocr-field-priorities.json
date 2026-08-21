@@ -1,0 +1,206 @@
+{
+  "schemaVersion": "drawing-ocr-field-priorities.v1",
+  "policyVersion": "2026-08-20.2",
+  "limits": {
+    "observationsPerSource": 50,
+    "observationsPerSession": 100,
+    "tier3PerSource": 10,
+    "requiredDistinctValues": 5,
+    "maxValueCharacters": 240
+  },
+  "textLayer": {
+    "minimumPrintableCharactersPerPage": 24,
+    "minimumPrintableCharactersPerDocument": 80,
+    "requiresKnownLabelPerPage": true
+  },
+  "utility": {
+    "tierWeights": {
+      "0": 10000,
+      "1": 1000,
+      "2": 100,
+      "3": 0
+    },
+    "labelExact": 80,
+    "labelPrefix": 55,
+    "textLayerConfidence": 35,
+    "ocrConfidence": 20,
+    "titleBlockOrTable": 25,
+    "corroboration": 12,
+    "duplicatePenalty": 30,
+    "noisePenalty": 45
+  },
+  "fields": [
+    {
+      "key": "drawing_number",
+      "label": "圖號",
+      "tier": 0,
+      "businessWeight": 100,
+      "category": "identity_relation",
+      "aliases": ["圖號", "圖面編號", "drawing no", "drawing number", "dwg no"]
+    },
+    {
+      "key": "revision",
+      "label": "版次",
+      "tier": 0,
+      "businessWeight": 95,
+      "category": "identity_relation",
+      "aliases": ["版次", "版本", "rev", "revision"]
+    },
+    {
+      "key": "part_number",
+      "label": "料號",
+      "tier": 0,
+      "businessWeight": 92,
+      "category": "identity_relation",
+      "aliases": ["料號", "零件號", "part no", "part number", "item no"]
+    },
+    {
+      "key": "title",
+      "label": "品名／圖名",
+      "tier": 0,
+      "businessWeight": 90,
+      "category": "drawing_revision",
+      "aliases": ["品名", "圖名", "名稱", "title", "description"]
+    },
+    {
+      "key": "material",
+      "label": "材質",
+      "tier": 0,
+      "businessWeight": 88,
+      "category": "part_attribute",
+      "aliases": ["材質", "材料", "material"]
+    },
+    {
+      "key": "scale",
+      "label": "比例",
+      "tier": 0,
+      "businessWeight": 80,
+      "category": "drawing_revision",
+      "aliases": ["比例", "scale"]
+    },
+    {
+      "key": "drawn_by",
+      "label": "製圖者",
+      "tier": 0,
+      "businessWeight": 78,
+      "category": "drawing_revision",
+      "aliases": ["製圖者", "繪圖者", "製圖", "設計", "drawn by", "drawer"]
+    },
+    {
+      "key": "unit",
+      "label": "單位",
+      "tier": 1,
+      "businessWeight": 65,
+      "category": "drawing_revision",
+      "aliases": ["單位", "unit"]
+    },
+    {
+      "key": "drawing_date",
+      "label": "製圖日期",
+      "tier": 1,
+      "businessWeight": 55,
+      "category": "drawing_revision",
+      "aliases": ["製圖日期", "日期", "date", "drawn date"]
+    },
+    {
+      "key": "sheet_number",
+      "label": "張次",
+      "tier": 1,
+      "businessWeight": 55,
+      "category": "drawing_revision",
+      "aliases": ["張次", "張數", "sheet", "sheet no"]
+    },
+    {
+      "key": "surface_finish",
+      "label": "表面處理",
+      "tier": 1,
+      "businessWeight": 72,
+      "category": "part_attribute",
+      "aliases": ["表面處理", "表處", "surface treatment", "surface finish"]
+    },
+    {
+      "key": "heat_treatment",
+      "label": "熱處理",
+      "tier": 1,
+      "businessWeight": 70,
+      "category": "part_attribute",
+      "aliases": ["熱處理", "heat treatment"]
+    },
+    {
+      "key": "hardness",
+      "label": "硬度",
+      "tier": 1,
+      "businessWeight": 68,
+      "category": "part_attribute",
+      "aliases": ["硬度", "hardness", "hrc", "hv", "hb"]
+    },
+    {
+      "key": "coating_or_color",
+      "label": "塗層／顏色",
+      "tier": 1,
+      "businessWeight": 58,
+      "category": "part_attribute",
+      "aliases": ["塗層", "塗裝", "顏色", "color", "colour", "coating"]
+    },
+    {
+      "key": "weight",
+      "label": "重量",
+      "tier": 1,
+      "businessWeight": 50,
+      "category": "part_attribute",
+      "aliases": ["重量", "質量", "weight", "mass"]
+    },
+    {
+      "key": "general_tolerance",
+      "label": "一般公差",
+      "tier": 1,
+      "businessWeight": 75,
+      "category": "controlled_note",
+      "aliases": ["一般公差", "未注公差", "general tolerance", "tolerance unless"]
+    },
+    {
+      "key": "standard_or_spec",
+      "label": "規範／標準",
+      "tier": 2,
+      "businessWeight": 60,
+      "category": "controlled_note",
+      "aliases": ["規範", "標準", "spec", "specification", "standard"]
+    },
+    {
+      "key": "process_requirement",
+      "label": "製程要求",
+      "tier": 2,
+      "businessWeight": 58,
+      "category": "controlled_note",
+      "aliases": ["製程要求", "加工要求", "process requirement", "manufacturing requirement"]
+    },
+    {
+      "key": "inspection_requirement",
+      "label": "檢驗要求",
+      "tier": 2,
+      "businessWeight": 58,
+      "category": "controlled_note",
+      "aliases": ["檢驗要求", "檢查要求", "inspection requirement", "inspection"]
+    },
+    {
+      "key": "general_note",
+      "label": "一般註記",
+      "tier": 2,
+      "businessWeight": 45,
+      "category": "controlled_note",
+      "aliases": ["一般註記", "一般備註", "備註", "notes", "general notes"]
+    },
+    {
+      "key": "supplier_or_customer_reference",
+      "label": "供應商／客戶參考",
+      "tier": 2,
+      "businessWeight": 35,
+      "category": "engineering_evidence",
+      "aliases": ["客戶料號", "供應商料號", "customer reference", "supplier reference", "customer part no"]
+    }
+  ],
+  "tier3EngineeringKeywords": [
+    "公差", "粗糙度", "倒角", "去毛邊", "焊接", "檢驗", "加工", "熱處理", "表面處理", "鍍", "塗裝",
+    "tolerance", "roughness", "deburr", "weld", "inspection", "machining", "heat treatment", "surface finish", "coating"
+  ]
+}

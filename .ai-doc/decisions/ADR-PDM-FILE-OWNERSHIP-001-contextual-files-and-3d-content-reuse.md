@@ -1,5 +1,7 @@
 # ADR-PDM-FILE-OWNERSHIP-001：情境式檔案歸屬與 3D 內容共用
 
+> 2026-08-20 DEV-084 Amendment：料號附件對immutable content的獨立binding/version、替代料號一次性snapshot、attachment-specific permission取消與whole-part edit lease，由已達`RD Implementation Ready`的 `ADR-PDM-PART-ATTACHMENT-REUSE-001` 管理；其exact model、041 migration、5m/60s/15m lease與consumer guard取代本ADR的part single-owner write假設。本ADR仍是Drawing/Revision file authority、情境式歸屬與canonical content reuse的authority。
+
 Status: Accepted / Human Confirmed / RD Implementation Ready
 Date: 2026-08-10
 Owner: Dev PM
@@ -89,4 +91,3 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part
 - `SPEC-PDM-SHARED-3D-MA-BASELINE-001` 的新案 `2D-only` 例外及「建議重用但仍可重複建立」規則。
 
 其餘圖號／料號身份、FFF、版次比較、審核 authority、Released immutability、latest/history 與權限契約維持不變。
-

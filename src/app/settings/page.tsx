@@ -259,7 +259,7 @@ type RedactedSecretVersionSummary = {
   id: string;
   version: number;
   lifecycleStatus: SecretLifecycleStatus;
-  vaultProvider: "local_test_double" | "google_secret_manager" | "supabase_vault";
+  vaultProvider: "local_test_double" | "windows_dpapi" | "google_secret_manager" | "supabase_vault";
   maskedHint: string;
   fingerprint: string;
   createdAt: string;
@@ -282,21 +282,32 @@ type SettingsSecretStatus = {
     redactedError: string | null;
     testedAt: string;
   } | null;
+  latestProbeJob: {
+    id: string;
+    status: "pending" | "running" | "passed" | "failed" | "blocked" | "expired";
+    resultCode: string | null;
+    readerVersion: string | null;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
   draftCount: number;
   testedCount: number;
   revokedCount: number;
   workQueueState: "missing" | "draft_needs_test" | "tested_needs_activation" | "ready" | "revoked";
   workQueueMessage: string;
   liveGate: {
-    provider: "local_test_double" | "google_secret_manager" | "supabase_vault";
+    provider: "local_test_double" | "windows_dpapi" | "google_secret_manager" | "supabase_vault";
     status: "mocked" | "blocked" | "ready";
     message: string;
   };
   workerReadiness: {
     status: "ready" | "blocked" | "unknown";
-    credentialSource: "worker_environment" | "google_secret_manager" | "supabase_vault" | "none";
+    credentialSource: "worker_environment" | "windows_dpapi" | "google_secret_manager" | "supabase_vault" | "none";
     serviceTokenConfigured: boolean;
     message: string;
+    appliedVersion: number | null;
+    lastSeenAt: string | null;
+    issueCode: string | null;
   };
   workerPresence: {
     status: "online" | "offline" | "unknown";
@@ -521,7 +532,7 @@ function SettingsPanel({
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.message ?? result.error ?? "機密設定操作失敗");
       setSecretStatuses(result.secrets ?? []);
-      const labels = { test: "測試完成", activate: "啟用完成", revoke: "撤銷完成" } as const;
+      const labels = { test: "已送出原生 probe，等待 worker 回報", activate: "已啟用，等待 worker 套用並回報", revoke: "撤銷完成" } as const;
       setSecretMessage({ type: "success", text: labels[action] });
     } catch (error) {
       setSecretMessage({ type: "error", text: error instanceof Error ? error.message : "機密設定操作失敗" });
@@ -920,21 +931,25 @@ function emptySolidWorksSecretStatus(available = true): SettingsSecretStatus {
     active: null,
     latest: null,
     latestTestRun: null,
+    latestProbeJob: null,
     draftCount: 0,
     testedCount: 0,
     revokedCount: 0,
     workQueueState: "missing",
     workQueueMessage: available ? "尚未建立 SolidWorks CAD 讀取金鑰草稿。" : "此功能尚未開放。",
     liveGate: {
-      provider: "google_secret_manager",
-      status: available ? "mocked" : "blocked",
-      message: available ? "目前使用本機測試替身；正式啟用前需補 Google Secret Manager 實際連線驗證。" : "正式後端尚未提供機密管理能力。"
+      provider: "windows_dpapi",
+      status: available ? "blocked" : "blocked",
+      message: available ? "請由此 UI 建立 Windows DPAPI secure version；測試替身不可啟用。" : "正式後端尚未提供機密管理能力。"
     },
     workerReadiness: {
       status: "blocked",
       credentialSource: "none",
       serviceTokenConfigured: false,
-      message: available ? "尚未配置可供 2D worker 讀取的金鑰。" : "機密管理功能尚未開放。"
+      message: available ? "請由此 UI 建立 secure provider 版本；worker 會自動熱套用，不需重啟。" : "機密管理功能尚未開放。",
+      appliedVersion: null,
+      lastSeenAt: null,
+      issueCode: null
     },
     workerPresence: {
       status: "unknown",
@@ -1005,7 +1020,7 @@ function SettingsCenterOverview({
 }: {
   solidWorksStatus: SettingsSecretStatus;
   googleDriveReady: boolean;
-  vaultProvider: "local_test_double" | "google_secret_manager" | "supabase_vault";
+  vaultProvider: "local_test_double" | "windows_dpapi" | "google_secret_manager" | "supabase_vault";
   secretManagementAvailable: boolean;
 }) {
   return (
@@ -1103,7 +1118,7 @@ function SolidWorksSecretPanel({
   const latest = status.latest;
   const active = status.active;
   const canTest = latest ? latest.lifecycleStatus === "draft" || latest.lifecycleStatus === "tested" : false;
-  const canActivate = latest?.lifecycleStatus === "tested";
+  const canActivate = latest?.lifecycleStatus === "tested" && status.latestTestRun?.resultStatus === "passed" && status.latestProbeJob?.status === "passed";
   const busy = Boolean(action) || loading;
   const unavailableTitle = available ? undefined : "未開放";
 
@@ -1192,13 +1207,13 @@ function SolidWorksSecretPanel({
           <SecretVersionDetails title="最新版本" version={latest} emptyText="尚未建立草稿" />
           <div className="settings-secret-test-run">
             <span>最近測試</span>
-            <strong>{status.latestTestRun ? secretTestStatusLabel(status.latestTestRun.resultStatus) : "尚未測試"}</strong>
-            <small>{status.latestTestRun ? `${formatDateTime(status.latestTestRun.testedAt)} / ${status.latestTestRun.summary}` : status.liveGate.message}</small>
+            <strong>{status.latestProbeJob ? probeJobStatusLabel(status.latestProbeJob.status) : status.latestTestRun ? secretTestStatusLabel(status.latestTestRun.resultStatus) : "尚未測試"}</strong>
+            <small>{status.latestProbeJob ? `${formatDateTime(status.latestProbeJob.updatedAt)} / ${status.latestProbeJob.resultCode ?? "worker 正在執行原生 credential probe"}` : status.latestTestRun ? `${formatDateTime(status.latestTestRun.testedAt)} / ${status.latestTestRun.summary}` : status.liveGate.message}</small>
           </div>
           <div className="settings-secret-test-run">
             <span>2D worker readiness</span>
             <strong>{workerReadinessLabel(status.workerReadiness.status)}</strong>
-            <small>{status.workerReadiness.message}</small>
+            <small>{status.workerReadiness.message}{status.workerReadiness.appliedVersion ? ` / 已套用 v${status.workerReadiness.appliedVersion}` : ""}</small>
           </div>
           <div className="settings-secret-test-run">
             <span>2D 預覽服務</span>
@@ -1262,9 +1277,10 @@ function workerPresenceLabel(status: SettingsSecretStatus["workerPresence"]["sta
 }
 
 function secretProviderLabel(provider: RedactedSecretVersionSummary["vaultProvider"]) {
+  if (provider === "windows_dpapi") return "Windows DPAPI";
   if (provider === "google_secret_manager") return "Google Secret Manager";
   if (provider === "supabase_vault") return "歷史 Supabase Vault";
-  return "本機測試替身";
+  return "本機測試替身（不可啟用）";
 }
 
 function secretLifecycleLabel(status: SecretLifecycleStatus) {
@@ -1282,6 +1298,14 @@ function secretTestStatusLabel(status: "passed" | "failed" | "blocked") {
   if (status === "passed") return "通過";
   if (status === "blocked") return "阻擋";
   return "失敗";
+}
+
+function probeJobStatusLabel(status: NonNullable<SettingsSecretStatus["latestProbeJob"]>["status"]) {
+  if (status === "pending") return "等待 worker";
+  if (status === "running") return "原生測試中";
+  if (status === "passed") return "原生測試通過";
+  if (status === "blocked") return "原生測試阻擋";
+  return "原生測試失敗";
 }
 
 function FolderTreeRoot({
@@ -2889,7 +2913,7 @@ function DelegationPanel({
             value={draft.actionCode}
             options={matrix.options.actionCodes}
             labels={labelsFor(matrix.options.actionCodes, actionCodeLabel)}
-            emptyLabel="全部動作"
+            emptyLabel="全部"
             onChange={(value) => setDraft((current) => ({ ...current, actionCode: value ?? "" }))}
           />
         </label>
@@ -2933,7 +2957,7 @@ function DelegationPanel({
                 <td>{delegation.delegatedFromName}</td>
                 <td>{delegation.delegatedToName}</td>
                 <td>
-                  {delegation.projectCode ?? "全部專案"} / {delegation.actionCode ? actionCodeLabel(delegation.actionCode) : "全部動作"}
+                  {delegation.projectCode ?? "全部"} / {delegation.actionCode ? actionCodeLabel(delegation.actionCode) : "全部"}
                 </td>
                 <td>
                   {(delegation.startsAt ? formatDateTime(delegation.startsAt) : "立即")} - {delegation.endsAt ? formatDateTime(delegation.endsAt) : "未設定"}

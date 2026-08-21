@@ -38,6 +38,9 @@ const parsedWorkspaceTsconfig = ts.getParsedCommandLineOfConfigFile(path.join(ro
 if (scripts["dev:server"] !== "next dev --hostname 127.0.0.1 --port 3000") {
   failures.push("package.json scripts.dev:server must keep the raw Next server command");
 }
+if (scripts["dev"] !== "npm run dev:local") {
+  failures.push("package.json scripts.dev must route daily startup through the managed localhost:3000 entrypoint");
+}
 if (!String(scripts["dev:local"] ?? "").includes("scripts/start-localhost-3000.ps1")) {
   failures.push("package.json scripts.dev:local must route through scripts/start-localhost-3000.ps1");
 }
@@ -86,6 +89,10 @@ assertIncludes("Next tsconfig", JSON.stringify(nextTsconfig), [
 
 assertIncludes("managed launcher", launcher, [
   "Test-LocalHttpHealth",
+  '$BindHost = "127.0.0.1"',
+  '$PublicHost = "localhost"',
+  '$Url = "http://${PublicHost}:$Port/"',
+  'http://${BindHost}:$Port$($check.Path)',
   "$HealthChecks = @(",
   "@{ Path = \"/\"; Expected = @(200, 301, 302, 307, 308) }",
   "@{ Path = \"/login\"; Expected = @(200, 301, 302, 307, 308) }",

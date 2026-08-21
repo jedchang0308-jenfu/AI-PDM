@@ -7,6 +7,8 @@ Related Spec: `.ai-doc/specs/SPEC-PDM-APPROVAL-PLATFORM-001-system-approval-plat
 Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`
 Amended by: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
 
+> **2026-08-22 DEV-087 explicit ADR exception**：`ADR-PDM-STATUS-DATA-REBUILD-001`是本ADR所要求的正式例外。DEV-087沿用`/approvals`聚合入口與server reviewer boundary，但active request只存在`pdm_work_review_requests`，永久只留minimal trace，不寫`approval_platform_requests/decisions`。新資料最小化決策優先；不得以shared-platform原則建立dual storage。其他approval domains維持本ADR。
+
 Implementation update on 2026-07-08:
 
 - Phase 1A selected additive v2 platform tables in `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md`.

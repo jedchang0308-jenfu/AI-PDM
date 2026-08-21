@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, RefreshCw, Search, ShieldAlert, XCircle } from "lucide-react";
+import { CheckCircle2, RefreshCw, Search, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
 import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
 import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
@@ -18,6 +18,8 @@ import { DrawingDetailPreview } from "@/components/drawing-detail-preview";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { isPdmOwnerApprovalAction, resolvePdmApprovalOwnerContext } from "@/lib/pdm-approval-owner-route";
 import { UnifiedPdmEntityDetailDrawer } from "@/components/unified-pdm-entity-detail-drawer";
+import { StatusScopeHelp } from "@/components/status-help-popover";
+import { getStatusDisplay } from "@/lib/status-display";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "needs_info" | "cancelled" | "apply_failed" | "applied";
@@ -106,7 +108,7 @@ const statusFilters = [
 ] as const;
 
 const domainFilters = [
-  { value: "all", label: "全部領域" },
+  { value: "all", label: "全部" },
   { value: "numbering", label: "圖料" },
   { value: "bom", label: "BOM" },
   { value: "submission", label: "送審" },
@@ -115,7 +117,7 @@ const domainFilters = [
 ] as const;
 
 const actionFilters = [
-  { value: "all", label: "全部類型" },
+  { value: "all", label: "全部" },
   { value: "numbering.release", label: "發行審核" },
   { value: "numbering.release_missing_ma_confirm", label: "發行缺製造圖確認" },
   { value: "numbering.same_drawing_variant_after_release", label: "同圖多料號審核" },
@@ -146,16 +148,6 @@ function approvalEvidenceRequestId(detail: ApprovalDetail) {
     ? detail.id
     : null;
 }
-
-const statusText: Record<ApprovalStatus, string> = {
-  pending: "待審",
-  approved: "已核准",
-  rejected: "已駁回",
-  needs_info: "待補資料",
-  cancelled: "已取消",
-  apply_failed: "套用失敗",
-  applied: "已套用"
-};
 
 const domainText: Record<string, string> = {
   platform: "平台",
@@ -466,7 +458,7 @@ export default function ApprovalPlatformPage() {
     <div className="approval-platform-page">
       <header className="topbar">
         <div>
-          <h1>審核工作台</h1>
+          <h1>審核工作台 <StatusScopeHelp scope="approvalInbox" /></h1>
         </div>
         <button className="secondary-button" type="button" onClick={() => loadInbox()} disabled={busy === "reload"} title="重新整理">
           <RefreshCw size={16} aria-hidden="true" />
@@ -567,7 +559,7 @@ export default function ApprovalPlatformPage() {
               { key: "target", header: "審核項目", dataLabel: "審核項目", className: "approval-workbench-col-target", render: (item) => <span className="approval-inbox-primary"><strong>{item.targetSummary || item.title}</strong>{showInboxAction ? <small>{item.actionTitle}</small> : null}</span> },
               { key: "domain", header: "領域", dataLabel: "領域", className: "approval-workbench-col-domain", render: (item) => <span>{domainText[item.domainCode] ?? item.domainCode}</span> },
               { key: "requester", header: "送審者", dataLabel: "送審者", className: "approval-workbench-col-requester", render: (item) => <span>{item.requestedByName ?? item.requestedBy ?? "未知申請者"}</span> },
-              { key: "status", header: "狀態", dataLabel: "狀態", className: "approval-workbench-col-status", render: (item) => <span className="approval-status-cell"><span className={`approval-status-chip ${statusClass(item.status)}`}>{statusText[item.status] ?? item.status}</span>{item.historyOnly ? <small className="approval-history-label" title={item.supersededByRequestId ? "此案件已由較新的審核案件取代" : "歷史案件"}>{item.supersededByRequestId ? "已取代" : "歷史"}</small> : null}</span> },
+              { key: "status", header: "狀態", dataLabel: "狀態", className: "approval-workbench-col-status", render: (item) => <span className="approval-status-cell"><span className={`approval-status-chip ${statusClass(item.status)}`}>{getStatusDisplay(item.status, "approvalStatus").label}</span>{item.historyOnly ? <small className="approval-history-label" title={item.supersededByRequestId ? "此案件已由較新的審核案件取代" : "歷史案件"}>{item.supersededByRequestId ? "已取代" : "歷史"}</small> : null}</span> },
               { key: "requestedAt", header: "送審時間", dataLabel: "送審時間", className: "approval-workbench-col-time", render: (item) => <time dateTime={item.requestedAt}>{formatCompactDate(item.requestedAt)}</time> }
             ]}
           />
@@ -584,11 +576,6 @@ export default function ApprovalPlatformPage() {
             returnTo={approvalDrawerReturnTo()}
             onStartResize={startDrawerResize}
             onClose={closeDetail}
-            onCommandSuccess={async () => {
-              window.dispatchEvent(new Event("approval-inbox-changed"));
-              closeDetail();
-              await loadInbox({ preserveFeedback: true });
-            }}
           />
         ) : null}
       </div>
@@ -628,6 +615,9 @@ function ApprovalDetailDrawer({
   onRetryApply
 }: ApprovalDetailDrawerProps) {
   const resultCandidates = buildApprovalResultCandidates(detail);
+  const pdmOwnerApproval = isPdmOwnerApprovalAction(detail.actionCode);
+  const drawingApproval = isDrawingRevisionReviewAction(detail.actionCode) || Boolean(detail.primaryTarget?.type.includes("drawing")) || detail.targets.some((target) => target.type.includes("drawing"));
+  const reviewerHref = `/approvals/${encodeURIComponent(detail.id)}?returnTo=${encodeURIComponent("/approvals")}`;
   return (
     <DrawingWorkspaceDrawer
       open
@@ -636,7 +626,8 @@ function ApprovalDetailDrawer({
       eyebrow="審核案件"
       title={detail.targetSummary || detail.title}
       subtitle={`${detail.actionTitle} · ${detail.requestedByName ?? detail.requestedBy ?? "未知申請者"} · ${formatDate(detail.requestedAt)}`}
-      status={<span className={`approval-status-chip ${statusClass(detail.status)}`}>{statusText[detail.status] ?? detail.status}</span>}
+      status={<span className={`approval-status-chip ${statusClass(detail.status)}`}>{getStatusDisplay(detail.status, "approvalStatus").label}</span>}
+      primaryAction={pdmOwnerApproval ? <a className="primary-button" href={reviewerHref}><ShieldCheck size={15} />前往審核工作區</a> : null}
       entityType="approval_request"
       entityCode={detail.id}
       sourceContext="approval_workbench"
@@ -661,19 +652,17 @@ function ApprovalDetailDrawer({
         pendingLabel: "目前狀態",
         moreTitle: "更多"
       }}
-      footer={
-        <ApprovalDecisionFooter
-          detail={detail}
-          busy={busy}
-          comment={comment}
-          message={message}
-          error={error}
-          onCommentChange={onCommentChange}
-          onDecide={onDecide}
-          onRetryCleanup={onRetryCleanup}
-          onRetryApply={onRetryApply}
-        />
-      }
+      footer={pdmOwnerApproval ? <div className="approval-drawer-footer-content"><span>審核決策改在獨立審核工作區完成，抽屜不執行決策。</span><a className="primary-button" href={reviewerHref}><ShieldCheck size={15} />開啟審核工作區</a></div> : <ApprovalDecisionFooter
+        detail={detail}
+        busy={busy}
+        comment={comment}
+        message={message}
+        error={error}
+        onCommentChange={onCommentChange}
+        onDecide={onDecide}
+        onRetryCleanup={onRetryCleanup}
+        onRetryApply={onRetryApply}
+      />}
       onClose={onClose}
       onStartResize={onStartResize}
     />

@@ -4,6 +4,7 @@ import {
   enqueuePreviewJobForAttachmentAsync,
   getPreviewDerivativeBytesForAttachmentAsync,
   isNativeSolidWorksPreviewSource,
+  requestedPreviewKindForSource,
   recoverStalePreviewJobsAsync
 } from "@/lib/preview-derivatives";
 import { AsyncMasterAttachmentRepository } from "@/lib/repositories/master-attachment-async-repository";
@@ -24,9 +25,12 @@ export async function listMasterAttachmentsAsync(input: { entityType: MasterAtta
       );
       const hasActiveJob =
         attachment.previewJob?.sourceContentHash === attachment.contentHash
+        && attachment.previewJob.requestedKind === requestedPreviewKindForSource(attachment.fileExt)
         && (attachment.previewJob.status === "queued" || attachment.previewJob.status === "running");
       if (hasCurrentDerivative || hasActiveJob) continue;
-      if (attachment.previewJob?.sourceContentHash === attachment.contentHash && attachment.previewJob.status !== "cancelled") continue;
+      if (attachment.previewJob?.sourceContentHash === attachment.contentHash
+        && attachment.previewJob.requestedKind === requestedPreviewKindForSource(attachment.fileExt)
+        && attachment.previewJob.status !== "cancelled") continue;
       try {
         await enqueuePreviewJobForAttachmentAsync(client, {
           entityType: input.entityType,
@@ -165,6 +169,7 @@ export async function syncMasterAttachmentToDriveAsync(input: { attachmentId: st
 }
 
 async function decorateSingleAttachmentWithPreviewState(client: ReturnType<typeof getAsyncDatabaseClient>, attachment: MasterAttachmentRecord) {
+  await recoverStalePreviewJobsAsync(client);
   const decorated = await decorateMasterAttachmentsWithPreviewState(client, [attachment]);
   return decorated[0] ?? attachment;
 }

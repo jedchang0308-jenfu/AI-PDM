@@ -1,5 +1,9 @@
 # SPEC-PDM-LIFECYCLE-ACTIONS-001：資料刪除、還原與作廢簡化架構
 
+> 2026-08-22 DEV-087 Amendment（RD Implementation Ready）：Drawing open idle branch 的 latest approved RD 可執行次要風險動作 `申請作廢`。送審時不建立新 revision；退回後恢復 idle open；核准並 system formalize 後關閉整個 branch、移出 current list、釋放一個 branch-cap slot，且不得 reopen。branch 內已核准 identity、minimal review trace 與 controlled artifact 保留供追溯。未核准 physical bytes 僅在零有效引用且 canonical-only gate 通過後永久刪除，DEV-087 不提供備份回復、使用者恢復或 UI 復原入口；DB/schema/binding migration backup／rollback 仍須保留。若舊 restore／obsolete／current-row action與本 amendment 衝突，以 DEV-087 新決策為主；可安全拆除的舊 current-state action、command與fallback在同一DEV移除，不保留雙軌相容。
+>
+> 2026-08-18 DEV-077 Amendment：已配置 official root／drawing／part number 的 Draft／NeedInfo bundle 不再走一般可還原 `刪除`。符合 zero-controlled-reference gate 時走免正式審核的 `作廢草稿編號 → Obsolete`，永久不回收並進受控歷史；Active／Released 或需正式責任鏈者仍走 `申請作廢 → approval → Obsolete`。本 amendment 對 DEV-077 scope 優先於本文件舊條款。
+
 狀態：Accepted / Phase 1-6 authorized / RD in progress
 日期：2026-06-30
 關聯 DEV：`DEV-PDM-LIFECYCLE-ACTIONS-001`
@@ -662,3 +666,63 @@ Implementation readiness：
 
 - RD Phase 1-6 full-scope implementation contract 已建立：`.ai-doc/specs/SPEC-PDM-LIFECYCLE-ACTIONS-001-implementation-contract.md`。
 - 使用者 HCS 決策 `1A / 2A / 3A` 已納入：一次授權 Phase 1-6、production excluded、正式作廢沿用既有 review/approval queue pattern。
+
+## 19. 2026-08-18 DEV-077 Amendment：正式編號草稿的終止語意
+
+### 19.1 Authority and Scope
+
+決策來源：使用者於 2026-08-18 採用 `HD-077-01..03`。本節只治理已配置 official identifier 的圖料根號 bundle；不改寫 client-only draft、candidate workspace、`part_number_drafts`、附件 soft delete 或 provisional number recycle。
+
+### 19.2 Lifecycle Classification
+
+| Object boundary | Visible stage | User action | Result surface | Approval | Restore / reuse |
+|---|---|---|---|---:|---|
+| 未配置 official number 的 candidate／provisional draft | 草稿 | 原 authority 的取消／刪除 | 原 draft surface | 否 | 依原 authority |
+| 已配置 official number，root＋children 全為 Draft／NeedInfo且 zero controlled reference | 草稿 | `作廢草稿編號` | `受控歷史` | 否 | 均禁止 |
+| Active／Released、既有 `MainDrawingInvalid` formal-responsibility 投影，或 Draft／NeedInfo bundle 已有受控引用 | 依目前投影 | `申請作廢` | pending approval；核准後 `受控歷史` | 是 | 均禁止 |
+| Obsolete | 歷史 | 查看追溯 | `受控歷史` | 不適用 | 均禁止 |
+
+`作廢草稿編號` 是不可恢復的 terminal transition，不是本規格 4.1 所稱可依規則還原的 `刪除`。DEV-077 scope 下，4.1、4.3、7.2、9.1 與 16 的舊一般規則應依本節解讀。
+
+### 19.3 Server Policy and Transaction
+
+- server-owned policy 必須同時計算 identity boundary、root／children status、controlled references、permission、company scope與environment capability；client 不得只用 status 推導 enabled。
+- direct transition 前在同一 transaction 重檢 root 與全部 children 皆為 Draft／NeedInfo，且沒有 pending approval、revision package、shared CAD model、manufacturing baseline、replacement link、BOM reconfirmation或等效受控引用。
+- controlled-reference predicate 必須與既有 hard-delete dependency scan 共用同一 authority或忠實包裝；production 不得有較弱 shortcut。
+- 成功只更新 status／timestamps，保留 identifiers、rows、relations、attachments、sequence與audit；一般附件存在不自動阻擋，但不得被刪除，已成為 controlled package 的附件由 reference predicate 阻擋。
+- audit 最少包含 actor、company、reason、before／after、target counts、timestamp與capability slice。
+- stale、duplicate、concurrent、cross-company、no-permission與mixed-status request 必須 zero partial mutation；已 Obsolete 不得再寫第二筆有效 transition audit。
+- SQLite transaction固定`BEGIN IMMEDIATE`；PostgreSQL固定`SERIALIZABLE`並鎖company-scoped root／parts／drawings後才重讀status與dependency。serialization／deadlock回retryable conflict，不得轉成partial success。
+- direct obsolete與obsolete request使用既有platform command receipt／outbox；固定command name與Idempotency-Key payload fingerprint。相同key同payload replay原result，同key不同payload拒絕。
+
+### 19.4 API and Permission Boundary
+
+- Draft direct-obsolete：`POST /api/numbering/records/[rootCode]/obsolete` 或等效既有 resource action，request 需 reason 與 explicit confirmation。
+- Draft hard-delete compatibility：`DELETE /api/numbering/records/[rootCode]/draft` 不再是 owner UI lifecycle；production 永久拒絕。
+- Draft permission 沿用 `numbering.draft.obsolete` 與 company scope，不新增角色語意。
+- Formal request 沿用 `obsolete_part_root`、`obsolete_part_number`、`obsolete_ma_drawing`；request 建立不改正式 status，approval decision 才 transition。
+- 受控但仍為 Draft／NeedInfo 的bundle必須走root-scoped `obsolete_part_root`；impact／snapshot需包含受控原因與targets，approved後才把核定targets轉`Obsolete`。不得因既有formal-target filter而讓這類bundle無合法終點。
+- Generic approval endpoint 在 production 必須先讀 request action code，僅對已開放 obsolete actions 生效；其他 approval／release／submission actions繼續 fail closed。
+- Root impact additive輸出`policy`、`controlledReferences`、`approvalTargets`；policy action為`obsolete_draft_official_number|request_formal_obsolete|none`，availability為`hidden|inert|enabled`。client不得由status重算。
+- Root approval snapshot保存`schemaVersion=1`、完整child target set與expected status、dependency IDs／counts及fingerprint；approved apply重算時排除目前obsolete request ID，其他target／status／dependency漂移均回`ROOT_OBSOLETE_SNAPSHOT_STALE`並整筆rollback。
+
+### 19.5 UX and Error Contract
+
+- root drawer 的 allocated draft action label 為 `作廢草稿編號`；formal label 為 `申請圖料根號作廢`，兩者不得同時 enabled。
+- write capability 尚未開放時，控制可見但必須 inert，提供 keyboard／touch 可讀理由，且 network write count=0。
+- direct-obsolete dialog 顯示 root code、part／drawing counts、不可回收、將進受控歷史、reason與acknowledgement；取消／關閉不得 mutation。
+- API 可保留 stable machine code，但一般 UI 不得顯示 raw code、route、HTTP錯誤或stack；blocked state需說明人類影響與恢復路徑。
+
+### 19.6 Acceptance and Stop Conditions
+
+- eligible bundle 完成後 root／children均為 `Obsolete`，default active list排除，include-history／受控歷史與audit可查，identifier永不再配置。
+- formal request approved前status不變；rejected／needs_info不直接異動；pending request阻止duplicate。
+- 任一 controlled reference、mixed status、permission/company mismatch或concurrency conflict均 fail closed且zero partial mutation。
+- 若RD需要hard delete、sequence reuse、production data repair、schema migration，或無法對generic approval route做action-level isolation，停止並回DEV-077／PM。
+- Focused QA authority：`.ai-doc/qa/qa-dev-077-official-numbering-obsolete-production-lifecycle-validation-plan-2026-08-18.md`。
+
+### 19.7 Implementation and Migration Boundary
+
+- `No schema migration / No data backfill / No local-cache migration`；既有`Obsolete`、approval JSON、audit與platform command tables足以承載本變更。
+- Exact file impact、error mapping、failure recovery、驗證命令與A→B→C順序以DEV-077 `RD Implementation Contract`為準；任何新增schema需求都會使本readiness失效並回PM。
+- 本 amendment 已達`RD Implementation Ready / RD Implemented`；local／isolated staging implementation 已完成，但不授權production gate值、部署、正式資料或release。

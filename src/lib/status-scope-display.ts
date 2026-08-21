@@ -35,7 +35,9 @@ export type StatusScopeId =
   | "settingsCenter"
   | "accountList"
   | "invitationList"
-  | "revisionSubmission";
+  | "revisionSubmission"
+  | "bomCreate"
+  | "drawingRecognition";
 
 export type StatusAxisDefinition = {
   id: StatusAxisId;
@@ -346,6 +348,26 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     axes: ["applicationStatus", "fileStatus", "approvalStatus", "readinessStatus", "reminderStatus"],
     contexts: ["applicationStatus", "fileStatus", "approvalStatus", "readinessStatus", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
+  },
+  bomCreate: {
+    id: "bomCreate",
+    route: "/bom/new",
+    section: "BOM 建立",
+    title: "BOM 建立資料範圍",
+    description: "BOM 建立流程將主資料、檔案、準備度與送審條件分開說明。",
+    axes: ["dataStatus", "fileStatus", "readinessStatus", "approvalStatus"],
+    contexts: ["masterRecord", "bomDraft", "fileStatus", "readinessStatus", "approvalStatus"],
+    ownerEvidence: INVENTORY_EVIDENCE
+  },
+  drawingRecognition: {
+    id: "drawingRecognition",
+    route: "/numbering/recognition/:sessionId",
+    section: "圖面辨識",
+    title: "圖面辨識資料範圍",
+    description: "辨識工作、人工核對與正式寫入準備度分開說明；原始辨識碼不直接呈現。",
+    axes: ["taskStatus", "approvalStatus", "readinessStatus", "reminderStatus"],
+    contexts: ["recognitionStatus", "recognitionReviewStatus", "readinessStatus", "reminderStatus"],
+    ownerEvidence: INVENTORY_EVIDENCE
   }
 };
 
@@ -371,7 +393,9 @@ const CONTEXT_AXIS_MAP: Partial<Record<StatusDisplayContext, readonly StatusAxis
   jobStatus: ["taskStatus"],
   restorePolicy: ["restoreStatus"],
   fileSync: ["fileStatus"],
-  notification: ["taskStatus"]
+  notification: ["taskStatus"],
+  recognitionStatus: ["taskStatus"],
+  recognitionReviewStatus: ["approvalStatus", "readinessStatus"]
 };
 
 export function getStatusScopeDefinition(scopeId: StatusScopeId) {

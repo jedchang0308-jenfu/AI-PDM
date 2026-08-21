@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireAuthAsync } from "@/lib/auth-async";
-import { getApprovalPlatformRequestDetailAsync } from "@/lib/approval-platform";
+import { getApprovalPlatformRequestDetailAsync, getApprovalPlatformRequestDetailForCompanyAsync } from "@/lib/approval-platform";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   drawingRevisionLifecycleLatestHref,
   getDrawingRevisionLifecycleCleanupStateByRequest,
   isDrawingRevisionLifecycleReviewer
 } from "@/lib/drawing-revision-lifecycle";
+import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
   if (auth.response) return auth.response;
 
   const { requestId } = await params;
-  const detail = await getApprovalPlatformRequestDetailAsync(safeDecode(requestId));
+  const enforced = isProductionSliceEnforced();
+  if (enforced && !isProductionNumberingLifecycleGateOpen("formal-obsolete")) {
+    return NextResponse.json(productionSliceDeniedPayload("approvals.request.detail"), { status: 403 });
+  }
+  const detail = enforced
+    ? await getApprovalPlatformRequestDetailForCompanyAsync(safeDecode(requestId), auth.user.company_id)
+    : await getApprovalPlatformRequestDetailAsync(safeDecode(requestId));
   if (!detail) {
     const drawingNumber = new URL(request.url).searchParams.get("drawing")?.trim() ?? "";
     const drawing = drawingNumber
@@ -32,6 +39,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
       { error: "APPROVAL_REQUEST_GONE", code: "APPROVAL_REQUEST_GONE", message: "此審核已完成，不需再處理。", canonicalHref },
       { status: 410 }
     );
+  }
+  if (enforced && !isProductionNumberingLifecycleApprovalAction(detail.actionCode)) {
+    return NextResponse.json(productionSliceDeniedPayload("approvals.request.detail"), { status: 403 });
   }
   if (detail.actionCode === "numbering.candidate_publication_review" && detail.companyId !== auth.user.company_id) {
     return NextResponse.json({ error: "Approval request not found" }, { status: 404 });

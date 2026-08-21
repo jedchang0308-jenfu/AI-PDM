@@ -4,19 +4,19 @@ import { projectEffectiveRelationRecordStatus, projectNumberingRootStatus, relat
 import { projectDrawingRecordHumanStatus } from "@/lib/drawing-workbench-status";
 import {
   createHumanStatus,
-  isHumanStatusFilter,
-  projectRoleViewerHumanStatus,
-  projectViewerHumanStatus,
-  viewerStatusMatchesFilter,
-  type HumanStatusFilter,
   type HumanStatusRoleCapabilities,
   type HumanStatusProjection,
   type ViewerHumanStatusProjection
 } from "@/lib/human-status-projection";
+import { parseWorkStatusSelection, type WorkStatusFilter } from "@/lib/work-status-presentation";
+import { actionEvidenceFrom, projectResponsibilityStatusPair, responsibilityStatusMatchesSelection, type ResponsibilityActionEvidence, type ResponsibilityStatusProjection, type ViewerActionabilityProjection } from "@/lib/responsibility-status-projection";
 import { isManufacturingDrawingPurpose, isReferenceDrawingPurpose } from "@/lib/numbering-identity";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
+import { canEditPdmOwnedResource } from "@/lib/pdm-edit-scope-policy";
 import { decodePdmWorkbenchCursor, encodePdmWorkbenchCursor, pdmWorkbenchFilterHash, PdmWorkbenchCursorError } from "@/lib/pdm-workbench-cursor";
-import type { PdmWorkbenchAction, PdmWorkbenchListResponse, PdmWorkbenchRowBase } from "@/lib/pdm-workbench-contract";
+import type { PdmWorkbenchAction, PdmWorkbenchFilterSelection, PdmWorkbenchListResponse, PdmWorkbenchRowBase } from "@/lib/pdm-workbench-contract";
+import { parsePdmWorkbenchFilterSelection, PdmWorkbenchFilterSelectionError, selectionHashValue } from "@/lib/pdm-workbench-filter-selection";
+import { RELATION_WORKBENCH_ENTITY_TYPE_VALUES as SHARED_RELATION_WORKBENCH_ENTITY_TYPE_VALUES, PDM_WORKBENCH_RECORD_STATUS_VALUES } from "@/lib/pdm-workbench-filter-options";
 import { RelationWorkbenchAsyncRepository, type RelationWorkbenchChangeSource } from "@/lib/repositories/relation-workbench-async-repository";
 import type { NumberingDraftWorkspaceRecord } from "@/lib/repositories/number-state-flow-async-repository";
 import type {
@@ -28,6 +28,9 @@ import type {
   PartNumberRecord
 } from "@/lib/repositories/numbering-repository";
 import { parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
+import { isPdmWorkbenchProductionRdLanesV1Enabled } from "@/lib/number-state-flow-feature";
+import { groupPdmWorkbenchRows, laneSelectionIncludes, makePdmWorkbenchLaneFields, withPdmWorkbenchLane } from "@/lib/pdm-workbench-lane";
+import { pdmWorkbenchReferenceFingerprint, PdmWorkbenchProjectionTokenError, verifyPdmWorkbenchProjectionToken } from "@/lib/pdm-workbench-projection-token";
 
 export type RelationWorkbenchView = "mine" | "work" | "all";
 export type RelationWorkbenchStage = "building" | "drawing_preparation" | "bundle_ready" | "in_review" | "auto_finalizing" | "recovery_required" | "correction_required" | "official_controlled" | "released" | "history_only";
@@ -47,6 +50,8 @@ export type RelationDrawing = {
   isReferenceOnly: boolean;
   recordStatus: NumberingRecordStatus;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: ReturnType<typeof projectDrawingRecordAvailability>;
   linkedPartNumbers: string[];
@@ -59,6 +64,8 @@ export type RelationPart = {
   itemKind: string;
   recordStatus: NumberingRecordStatus;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: ReturnType<typeof projectPartAvailability>;
   linkedDrawingNumbers: string[];
@@ -98,10 +105,12 @@ export type RelationWorkbenchRow = PdmWorkbenchRowBase<"formal_root" | "candidat
 
 export type ProjectedRelationRootDetail = Omit<NumberingRootDetailRecord, "drawingNumbers" | "partNumbers"> & {
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: ReturnType<typeof projectRelationRootAvailability>;
-  drawingNumbers: Array<DrawingNumberRecord & Pick<RelationDrawing, "humanStatus" | "viewerStatus" | "availabilityScope">>;
-  partNumbers: Array<PartNumberRecord & Pick<RelationPart, "humanStatus" | "viewerStatus" | "availabilityScope" | "hasMasterDataGap">>;
+  drawingNumbers: Array<DrawingNumberRecord & Pick<RelationDrawing, "humanStatus" | "responsibilityStatus" | "viewerActionability" | "viewerStatus" | "availabilityScope">>;
+  partNumbers: Array<PartNumberRecord & Pick<RelationPart, "humanStatus" | "responsibilityStatus" | "viewerActionability" | "viewerStatus" | "availabilityScope" | "hasMasterDataGap">>;
 };
 
 export type RelationWorkbenchDetailResponse = {
@@ -124,6 +133,7 @@ export type RelationWorkbenchPermissions = {
 export type RelationWorkbenchActor = {
   id: string;
   companyId: string;
+  canEditNonOwned: boolean;
   permissions: RelationWorkbenchPermissions;
   viewerCapabilities: HumanStatusRoleCapabilities;
 };
@@ -143,18 +153,23 @@ export class RelationWorkbenchError extends Error {
 type NormalizedRelationQuery = {
   query: string;
   view: RelationWorkbenchView;
-  seriesCode: string;
-  entityType: NumberingSearchEntityType;
-  recordStatus: NumberingRecordStatus | "";
-  humanStatus: HumanStatusFilter;
+  seriesCode: PdmWorkbenchFilterSelection<string>;
+  entityType: PdmWorkbenchFilterSelection<NumberingSearchEntityType>;
+  recordStatus: PdmWorkbenchFilterSelection<NumberingRecordStatus>;
+  humanStatus: PdmWorkbenchFilterSelection<WorkStatusFilter>;
   includeHistory: boolean;
   cursor: string;
+  direction: "after" | "before";
+  pageIndex: number;
   limit: number;
   sortDirection: NumberSortDirection;
+  lane: PdmWorkbenchFilterSelection<"production" | "rd">;
 };
 
-const entityTypes = ["all", "part_root", "part_number", "drawing_number"] as const satisfies readonly NumberingSearchEntityType[];
-const recordStatuses = ["Draft", "NeedInfo", "Active", "PendingReview", "Released", "Rejected", "Obsolete", "Merged", "PendingAdminConfirm", "MainDrawingInvalid"] as const satisfies readonly NumberingRecordStatus[];
+export const RELATION_WORKBENCH_ENTITY_TYPE_VALUES = SHARED_RELATION_WORKBENCH_ENTITY_TYPE_VALUES;
+export const RELATION_WORKBENCH_RECORD_STATUS_VALUES = PDM_WORKBENCH_RECORD_STATUS_VALUES;
+const entityTypes = ["all", ...RELATION_WORKBENCH_ENTITY_TYPE_VALUES] as const satisfies readonly NumberingSearchEntityType[];
+const recordStatuses = RELATION_WORKBENCH_RECORD_STATUS_VALUES;
 const stageLabels: Record<RelationWorkbenchStage, string> = {
   building: "建立中", drawing_preparation: "首版準備", bundle_ready: "可送審", in_review: "審核中",
   auto_finalizing: "系統正式化中", recovery_required: "需要處理", correction_required: "需要修正",
@@ -166,29 +181,29 @@ function text(value: string | null, max: number) { return String(value ?? "").tr
 export function normalizeRelationWorkbenchQuery(url: URL): NormalizedRelationQuery {
   const rawView = text(url.searchParams.get("view"), 20);
   const view: RelationWorkbenchView = rawView === "mine" || rawView === "work" ? rawView : "all";
-  const entityType = text(url.searchParams.get("entityType"), 30) || "all";
-  if (!(entityTypes as readonly string[]).includes(entityType)) throw new RelationWorkbenchError("workbench_invalid_entity_type", "請重新選擇有效的資料類型。", 400);
-  const recordStatus = text(url.searchParams.get("recordStatus"), 40);
-  if (recordStatus && !(recordStatuses as readonly string[]).includes(recordStatus)) throw new RelationWorkbenchError("workbench_invalid_record_status", "請重新選擇有效的資料狀態。", 400);
-  const humanStatus = text(url.searchParams.get("humanStatus"), 30) || "all";
-  if (!isHumanStatusFilter(humanStatus)) throw new RelationWorkbenchError("workbench_invalid_human_status", "請重新選擇有效的工作狀態。", 400);
+  const entityType = parsePdmWorkbenchFilterSelection<NumberingSearchEntityType>(url.searchParams, "entityType", { allowedValues: entityTypes.filter((value): value is Exclude<NumberingSearchEntityType, "all"> => value !== "all"), maxValueLength: 30 });
+  const recordStatus = parsePdmWorkbenchFilterSelection<NumberingRecordStatus>(url.searchParams, "recordStatus", { allowedValues: recordStatuses, maxValueLength: 40 });
   const history = text(url.searchParams.get("history"), 20);
   if (history && history !== "include" && history !== "exclude") throw new RelationWorkbenchError("workbench_invalid_history", "請重新選擇有效的歷史資料範圍。", 400);
+  const workStatusQuery = parseWorkStatusSelection(url.searchParams, { history, view: rawView, supportsMineView: true, strict: true });
   const rawLimit = text(url.searchParams.get("limit"), 10) || "60";
   const limit = Number(rawLimit);
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RelationWorkbenchError("workbench_invalid_limit", "每頁筆數必須介於 1 到 100。", 400);
   const sortDirection = parseNumberSortDirection(url.searchParams.get("sortDirection"));
+  const direction = url.searchParams.get("direction") === "before" ? "before" : "after";
+  const pageIndexValue = Number(url.searchParams.get("pageIndex") ?? "0");
   return {
-    query: text(url.searchParams.get("query"), 200), view, seriesCode: text(url.searchParams.get("seriesCode"), 80),
-    entityType: entityType as NumberingSearchEntityType, recordStatus: recordStatus as NumberingRecordStatus | "",
-    humanStatus, includeHistory: history === "include", cursor: text(url.searchParams.get("cursor"), 2_000), limit, sortDirection
+    query: text(url.searchParams.get("query"), 200), view: (workStatusQuery.view === "mine" || workStatusQuery.view === "work" ? workStatusQuery.view : view), seriesCode: parsePdmWorkbenchFilterSelection(url.searchParams, "seriesCode", { maxValueLength: 80 }),
+    entityType, recordStatus,
+    humanStatus: workStatusQuery.selection, includeHistory: workStatusQuery.includeHistory, cursor: text(url.searchParams.get("cursor"), 2_000), direction, pageIndex: Number.isInteger(pageIndexValue) && pageIndexValue >= 0 && pageIndexValue < 100_000 ? pageIndexValue : 0, limit, sortDirection,
+    lane: parsePdmWorkbenchFilterSelection(url.searchParams, "lane", { allowedValues: ["production", "rd"], maxValueLength: 20 })
   };
 }
 
 function relationFilterHash(query: NormalizedRelationQuery, actor: RelationWorkbenchActor) {
   return pdmWorkbenchFilterHash({ namespace: "relation-v1", filters: {
-    query: query.query.toLocaleLowerCase("zh-Hant"), view: query.view, seriesCode: query.seriesCode,
-    entityType: query.entityType, recordStatus: query.recordStatus, humanStatus: query.humanStatus, includeHistory: query.includeHistory, sortDirection: query.sortDirection
+    query: query.query.toLocaleLowerCase("zh-Hant"), view: query.view, seriesCode: selectionHashValue(query.seriesCode),
+    entityType: selectionHashValue(query.entityType), recordStatus: selectionHashValue(query.recordStatus), humanStatus: selectionHashValue(query.humanStatus), includeHistory: query.includeHistory, sortDirection: query.sortDirection, lane: selectionHashValue(query.lane)
   }, companyId: actor.companyId, actorId: actor.id });
 }
 
@@ -216,18 +231,46 @@ function candidateStatus(stage: RelationWorkbenchStage) {
   return createHumanStatus("preparing", "waiting", "準備中", "info", "clock");
 }
 
+function roleResponsibilityAction(status: HumanStatusProjection, actor: RelationWorkbenchActor, href: string): ResponsibilityActionEvidence | null {
+  const capabilities = actor.viewerCapabilities;
+  if (status.phase === "terminal" || status.phase === "usable") return null;
+  if (status.key === "waiting_review") return { kind: "review_relation", label: capabilities.canReview ? "前往審核" : "查看審核進度", enabled: capabilities.canReview, disabledReason: capabilities.canReview ? null : "目前不是審核負責人。", href };
+  if (status.key === "main_drawing_invalid") return { kind: "restore_main_drawing", label: "處理主圖恢復", enabled: capabilities.canRestoreMainDrawing, disabledReason: capabilities.canRestoreMainDrawing ? null : "目前不是主圖維護負責人。", href };
+  if (["missing_manufacturing_drawing", "missing_part", "data_conflict"].includes(status.key)) return { kind: "manage_relation", label: "維護圖料關係", enabled: capabilities.canManageRelations, disabledReason: capabilities.canManageRelations ? null : "目前不是圖料關係負責人。", href };
+  if (status.key === "ready_to_submit") return { kind: "submit_review", label: "送交審核", enabled: capabilities.canSubmit, disabledReason: capabilities.canSubmit ? null : "目前不是送審負責人。", href };
+  return { kind: "edit_relation", label: "開啟明細處理", enabled: capabilities.canEdit, disabledReason: capabilities.canEdit ? null : "目前不是負責人。", href };
+}
+
+function roleStatusPair(status: HumanStatusProjection, actor: RelationWorkbenchActor, href: string, options: { hasActiveReviewWorkItem?: boolean; systemAdminRecovery?: boolean } = {}) {
+  const action = roleResponsibilityAction(status, actor, href);
+  const reviewOwner = options.hasActiveReviewWorkItem === true || status.key === "waiting_review";
+  const systemAdmin = options.systemAdminRecovery === true;
+  const responsibilityActions = action ? [action] : [];
+  return projectResponsibilityStatusPair({
+    status,
+    actorId: actor.id,
+    hasActiveReviewWorkItem: reviewOwner,
+    hasOwnerResponsibilityAction: !reviewOwner && !systemAdmin && status.phase !== "terminal" && status.phase !== "usable",
+    hasSystemAdminRecoveryAction: systemAdmin,
+    ownerQueueEligible: !reviewOwner && !systemAdmin && Boolean(action?.enabled),
+    reviewQueueEligible: reviewOwner && actor.viewerCapabilities.canReview,
+    systemAdminQueueEligible: systemAdmin && actor.viewerCapabilities.canPublish,
+    responsibilityActions
+  });
+}
+
 function candidateAction(
   workspace: RelationChangeSource,
   stage: RelationWorkbenchStage,
   actor: RelationWorkbenchActor
 ): PdmWorkbenchAction<RelationWorkbenchActionKind> | null {
-  const href = `/numbering/search?view=work${stage === "history_only" ? "&history=include" : ""}&detail=${encodeURIComponent(`candidate:${workspace.id}`)}`;
-  const owner = workspace.ownerId === actor.id;
+  const href = `/numbering/workspaces/${encodeURIComponent(workspace.id)}?intent=${stage === "bundle_ready" ? "submit_review" : stage === "history_only" ? "view" : "edit"}&returnTo=${encodeURIComponent(`/numbering/search?view=work${stage === "history_only" ? "&history=include" : ""}`)}`;
+  const canMaintain = canEditPdmOwnedResource({ actorId: actor.id, ownerId: workspace.ownerId, canEditNonOwned: actor.canEditNonOwned });
   const owned = (kind: RelationWorkbenchActionKind, label: string, allowed: boolean, permissionCode: string): PdmWorkbenchAction<RelationWorkbenchActionKind> => ({
-    kind, label, enabled: owner && allowed,
-    disabledReason: owner ? allowed ? null : `缺少權限（${permissionCode}），請聯絡研發主管或 PDM Admin。` : "這筆工作需由負責人處理。",
-    href: owner && allowed ? href : null, permissionCode: owner && !allowed ? permissionCode : null,
-    contactRole: owner ? "研發主管或 PDM Admin" : "工作負責人", adminHref: owner && !allowed && actor.permissions.managePermissions ? "/settings/workflow" : null
+    kind, label, enabled: canMaintain && allowed,
+    disabledReason: canMaintain ? allowed ? null : `缺少權限（${permissionCode}），請聯絡研發主管或 PDM Admin。` : "這筆工作需由負責人處理。",
+    href: canMaintain && allowed ? href : null, permissionCode: canMaintain && !allowed ? permissionCode : null,
+    contactRole: canMaintain ? "研發主管或 PDM Admin" : "工作負責人", adminHref: canMaintain && !allowed && actor.permissions.managePermissions ? "/settings/workflow" : null
   });
   if (stage === "building" || stage === "drawing_preparation" || stage === "correction_required") return owned("continue_change", stage === "correction_required" ? "繼續修正" : "繼續建立", actor.permissions.workspaceUpdate, "numbering.workspace.update");
   if (stage === "bundle_ready") return owned("submit_change", "送交審核", actor.permissions.candidateSubmit, "numbering.candidate.review.submit");
@@ -453,7 +496,7 @@ function mapCandidateDrawing(
   index: number,
   workspace: NumberingDraftWorkspaceRecord,
   humanStatus: HumanStatusProjection,
-  viewerStatus: ViewerHumanStatusProjection
+  pair: ReturnType<typeof roleStatusPair>
 ): RelationDrawing {
   const drawingNumber = candidateCode(drawing.candidateCode, "圖", index);
   const relatedPartIds = workspace.relations.filter((relation) => relation.drawingDraftId === drawing.id).map((relation) => relation.partDraftId);
@@ -469,7 +512,7 @@ function mapCandidateDrawing(
     isReferenceOnly: reference,
     recordStatus: "Draft",
     humanStatus,
-    viewerStatus,
+    ...pair,
     availabilityScope: projectDrawingRecordAvailability({ recordStatus: "Draft" }),
     linkedPartNumbers: relatedPartIds.map((partId) => partNumbers.get(partId)).filter((value): value is string => Boolean(value)),
     nextStep: reference ? "參考圖不可作為製造基準" : relatedPartIds.length === 0 ? "未關聯料號" : "關係已建立，待正式生效"
@@ -481,7 +524,7 @@ function mapCandidatePart(
   index: number,
   workspace: NumberingDraftWorkspaceRecord,
   humanStatus: HumanStatusProjection,
-  viewerStatus: ViewerHumanStatusProjection
+  pair: ReturnType<typeof roleStatusPair>
 ): RelationPart {
   const partNumber = candidateCode(part.candidateCode, "料", index);
   const drawingById = new Map(workspace.drawings.map((drawing) => [drawing.id, drawing]));
@@ -498,7 +541,7 @@ function mapCandidatePart(
     itemKind: part.itemKind,
     recordStatus: "Draft",
     humanStatus,
-    viewerStatus,
+    ...pair,
     availabilityScope: projectPartAvailability({
       recordStatus: "Draft",
       itemKind: part.itemKind,
@@ -515,11 +558,12 @@ function mapCandidatePart(
 function mapDrawing(drawing: DrawingNumberRecord, links: NumberingLinkRecord[], actor: RelationWorkbenchActor): RelationDrawing {
   const humanStatus = projectDrawingRecordHumanStatus(drawing);
   const reference = isReferenceDrawingPurpose(drawing.purposeCode);
+  const pair = roleStatusPair(humanStatus, actor, `/numbering/search?detail=${encodeURIComponent(`drawing:${drawing.id}`)}`);
   return {
     id: drawing.id, drawingNumber: drawing.drawingNumber, purposeCode: drawing.purposeCode,
     purposeLabel: reference ? "參考圖" : "製造圖", purposeText: drawing.purposeCode,
     isManufacturing: isManufacturingDrawingPurpose(drawing.purposeCode), isReferenceOnly: reference,
-    recordStatus: drawing.recordStatus, humanStatus, viewerStatus: projectRoleViewerHumanStatus(humanStatus, actor.viewerCapabilities),
+    recordStatus: drawing.recordStatus, humanStatus, ...pair,
     availabilityScope: projectDrawingRecordAvailability(drawing), linkedPartNumbers: links.map((link) => link.partNumber),
     nextStep: reference ? "參考圖不可作為製造基準" : links.length === 0 ? "未關聯料號" : "製造基準關聯待狀態確認"
   };
@@ -529,9 +573,10 @@ function mapPart(part: PartNumberRecord, links: NumberingLinkRecord[], drawingBy
   const primary = links.find((link) => link.linkType === "primary_manufacturing" && Boolean(drawingById.get(link.drawingNumberId) && isManufacturingDrawingPurpose(drawingById.get(link.drawingNumberId)!.purposeCode)));
   const primaryDrawing = primary ? drawingById.get(primary.drawingNumberId) : null;
   const humanStatus = projectPartHumanStatus({ recordStatus: part.recordStatus, itemKind: part.itemKind, primaryDrawingNumber: primaryDrawing?.drawingNumber ?? null, hasManufacturingDrawing: Boolean(primary) });
+  const pair = roleStatusPair(humanStatus, actor, `/numbering/search?detail=${encodeURIComponent(`part:${part.id}`)}`);
   return {
     id: part.id, partNumber: part.partNumber, partName: part.partName, itemKind: part.itemKind, recordStatus: part.recordStatus,
-    humanStatus, viewerStatus: projectRoleViewerHumanStatus(humanStatus, actor.viewerCapabilities),
+    humanStatus, ...pair,
     availabilityScope: projectPartAvailability({ recordStatus: part.recordStatus, itemKind: part.itemKind, primaryDrawingNumber: primaryDrawing?.drawingNumber ?? null, primaryDrawingRecordStatus: primaryDrawing?.recordStatus ?? null, hasManufacturingDrawing: Boolean(primary) }),
     linkedDrawingNumbers: links.map((link) => link.drawingNumber), hasManufacturingDrawing: Boolean(primary), hasMasterDataGap: partMasterDataGaps.get(part.id) ?? false
   };
@@ -548,18 +593,19 @@ function projectRootDetail(detail: NumberingRootDetailRecord, actor: RelationWor
   const manufacturing = detail.drawingNumbers.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode));
   const dependencyReleaseReady = manufacturing.length > 0 && manufacturing.every((drawing) => drawing.recordStatus === "Released") && detail.partNumbers.every((part) => part.recordStatus === "Released");
   const availabilityScope = projectRelationRootAvailability({ recordStatus: projectEffectiveRelationRecordStatus(detail, status.relationshipHealth, blockers.length), relationshipHealth: status.relationshipHealth, blockerCount: blockers.length, dependencyReleaseReady });
+  const rootPair = roleStatusPair(status.humanStatus, actor, `/numbering/search?detail=${encodeURIComponent(`root:${detail.root.id}`)}`);
   return {
     ...detailForProjection,
     humanStatus: status.humanStatus,
-    viewerStatus: projectRoleViewerHumanStatus(status.humanStatus, actor.viewerCapabilities),
+    ...rootPair,
     availabilityScope,
     drawingNumbers: detail.drawingNumbers.map((drawing) => {
       const projection = mapDrawing(drawing, linksByDrawing.get(drawing.id) ?? [], actor);
-      return { ...drawing, humanStatus: projection.humanStatus, viewerStatus: projection.viewerStatus, availabilityScope: projection.availabilityScope };
+      return { ...drawing, humanStatus: projection.humanStatus, responsibilityStatus: projection.responsibilityStatus, viewerActionability: projection.viewerActionability, viewerStatus: projection.viewerStatus, availabilityScope: projection.availabilityScope };
     }),
     partNumbers: detail.partNumbers.map((part) => {
       const projection = mapPart(part, linksByPart.get(part.id) ?? [], drawingById, actor, partMasterDataGaps);
-      return { ...part, humanStatus: projection.humanStatus, viewerStatus: projection.viewerStatus, availabilityScope: projection.availabilityScope, hasMasterDataGap: projection.hasMasterDataGap };
+      return { ...part, humanStatus: projection.humanStatus, responsibilityStatus: projection.responsibilityStatus, viewerActionability: projection.viewerActionability, viewerStatus: projection.viewerStatus, availabilityScope: projection.availabilityScope, hasMasterDataGap: projection.hasMasterDataGap };
     })
   };
 }
@@ -577,6 +623,7 @@ function formalRootRow(detail: NumberingRootDetailRecord, sourceChanges: Relatio
   const manufacturing = detail.drawingNumbers.filter((drawing) => isManufacturingDrawingPurpose(drawing.purposeCode));
   const dependencyReleaseReady = manufacturing.length > 0 && manufacturing.every((drawing) => drawing.recordStatus === "Released") && detail.partNumbers.every((part) => part.recordStatus === "Released");
   const href = `/numbering/search?view=all${terminal ? "&history=include" : ""}&detail=${encodeURIComponent(`root:${detail.root.id}`)}`;
+  const pair = roleStatusPair(rootStatus.humanStatus, actor, href);
   return {
     rowKey: `root:${detail.root.id}`, rowKind: "formal_root", sourceKind: "formal", rootId: detail.root.id, workspaceId: null,
     displayCode: detail.root.rootCode, displayName: detail.root.coreName, recordStatus: detail.root.recordStatus,
@@ -585,7 +632,7 @@ function formalRootRow(detail: NumberingRootDetailRecord, sourceChanges: Relatio
     parts: detail.partNumbers.map((part) => mapPart(part, linksByPart.get(part.id) ?? [], drawingById, actor, partMasterDataGaps)),
     matrix: matrixFor(detail.partNumbers, detail.drawingNumbers, detail.links), blockers, activeChanges: changes,
     stage, stageLabel: stageLabels[stage], humanStatus: rootStatus.humanStatus,
-    viewerStatus: projectRoleViewerHumanStatus(rootStatus.humanStatus, actor.viewerCapabilities),
+    ...pair,
     availabilityScope: projectRelationRootAvailability({ recordStatus: projectEffectiveRelationRecordStatus(detail, health, blockers.length), relationshipHealth: health, blockerCount: blockers.length, dependencyReleaseReady }),
     primaryAction: { kind: terminal ? "view_history" : "view_root", label: changes.length > 0 ? `查看變更（${changes.length}）` : terminal ? "查看歷史" : "查看關係", enabled: true, disabledReason: null, href },
     warning: blockers.length > 0 ? { code: blockers[0].code, message: blockers[0].message } : null,
@@ -597,8 +644,24 @@ function formalRootRow(detail: NumberingRootDetailRecord, sourceChanges: Relatio
 function candidateRootRow(workspace: NumberingDraftWorkspaceRecord, actor: RelationWorkbenchActor): RelationWorkbenchRow {
   const change = activeChange(workspace, actor);
   const humanStatus = candidateStatus(change.stage);
-  const currentUser = workspace.ownerId === actor.id || (change.stage === "in_review" && actor.permissions.candidateReview);
-  const viewerStatus = projectViewerHumanStatus(humanStatus, { responsibility: change.stage === "auto_finalizing" ? "system" : currentUser ? "current_user" : "other_user", basis: change.stage === "in_review" ? "role_capability" : change.stage === "auto_finalizing" ? "system" : "assignee", canAct: currentUser && Boolean(change.primaryAction?.enabled), actorLabel: change.stage === "auto_finalizing" ? "系統正在建立已發布資料" : currentUser ? "這筆工作需要你處理" : "等待負責人處理", nextStep: change.primaryAction?.label ?? null });
+  const recoveryAction: ResponsibilityActionEvidence | null = change.stage === "recovery_required"
+    ? { kind: "retry_formalization", label: "重試正式化", enabled: actor.permissions.publish, disabledReason: actor.permissions.publish ? null : "目前沒有正式化恢復權限。", href: change.primaryAction?.href }
+    : null;
+  const responsibilityActions = [actionEvidenceFrom(change.primaryAction), recoveryAction]
+    .filter((action): action is NonNullable<ReturnType<typeof actionEvidenceFrom>> => Boolean(action && action.kind !== "view_processing" && action.kind !== "review_change" && action.kind !== "view_history"));
+  const pair = projectResponsibilityStatusPair({
+    status: humanStatus,
+    actorId: actor.id,
+    ownerId: workspace.ownerId,
+    ownerQueueEligible: actor.canEditNonOwned && responsibilityActions.some((action) => action.enabled),
+    hasActiveReviewWorkItem: change.stage === "in_review" && workspace.latestApproval?.status === "pending",
+    hasOwnerResponsibilityAction: !["in_review", "auto_finalizing", "recovery_required", "history_only"].includes(change.stage) && responsibilityActions.length > 0,
+    hasSystemAdminRecoveryAction: change.stage === "recovery_required",
+    systemFinalizing: change.stage === "auto_finalizing",
+    reviewQueueEligible: change.stage === "in_review" && actor.permissions.candidateReview,
+    systemAdminQueueEligible: change.stage === "recovery_required" && actor.permissions.publish,
+    responsibilityActions
+  });
   const blockers = candidateBlockers(workspace);
   const health = candidateHealth(workspace, blockers);
   const actionableBlockers = blockers.filter((blocker) => blocker.code !== "drawing_without_part");
@@ -611,11 +674,11 @@ function candidateRootRow(workspace: NumberingDraftWorkspaceRecord, actor: Relat
       ? workspace.relations.length > 0 ? "關係已建立（尚未生效）" : "關係資料完整（尚未生效）"
       : relationshipHealthLabel(health),
     nextStep: relationshipComplete ? { label: change.stageLabel, severity: "info" } : nextStep(health, actionableBlockers),
-    drawings: workspace.drawings.map((drawing, index) => mapCandidateDrawing(drawing, index, workspace, humanStatus, viewerStatus)),
-    parts: workspace.parts.map((part, index) => mapCandidatePart(part, index, workspace, humanStatus, viewerStatus)),
+    drawings: workspace.drawings.map((drawing, index) => mapCandidateDrawing(drawing, index, workspace, humanStatus, pair)),
+    parts: workspace.parts.map((part, index) => mapCandidatePart(part, index, workspace, humanStatus, pair)),
     matrix: candidateMatrix(workspace), blockers, activeChanges: [change], stage: change.stage, stageLabel: change.stageLabel,
     humanStatus,
-    viewerStatus,
+    ...pair,
     availabilityScope: projectDrawingAvailability({ stage: change.stage, usage: "not_for_formal_use", terminal: change.stage === "history_only" }),
     primaryAction: change.primaryAction,
     warning: change.stage === "recovery_required"
@@ -629,8 +692,7 @@ function candidateRootRow(workspace: NumberingDraftWorkspaceRecord, actor: Relat
 function rowInView(row: RelationWorkbenchRow, actor: RelationWorkbenchActor, view: RelationWorkbenchView) {
   if (view === "all") return true;
   if (view === "work") return row.rowKind === "candidate_root" || row.activeChanges.length > 0 || row.relationshipHealth !== "complete";
-  if (row.rowKind === "candidate_root") return row.activeChanges.some((change) => change.ownerId === actor.id || (change.stage === "in_review" && actor.permissions.candidateReview));
-  return row.activeChanges.some((change) => change.ownerId === actor.id || (change.stage === "in_review" && actor.permissions.candidateReview)) || row.viewerStatus.category === "current_user";
+  return row.viewerActionability.isMine;
 }
 
 export class RelationWorkbenchService {
@@ -639,52 +701,112 @@ export class RelationWorkbenchService {
 
   async list(query: NormalizedRelationQuery, actor: RelationWorkbenchActor): Promise<RelationWorkbenchListResponse> {
     const currentFilterHash = relationFilterHash(query, actor);
-    const cursor = query.cursor ? decodePdmWorkbenchCursor(query.cursor, currentFilterHash) : null;
+    const lanesEnabled = isPdmWorkbenchProductionRdLanesV1Enabled();
+    const cursor = query.cursor ? decodePdmWorkbenchCursor(query.cursor, currentFilterHash, process.env, lanesEnabled ? 2 : 1) : null;
+    const effectivePageIndex = cursor?.pageIndex ?? query.pageIndex;
     const page = await this.repository.readListPage<RelationWorkbenchRow>({
       companyId: actor.companyId, query: query.query, seriesCode: query.seriesCode, entityType: query.entityType,
-      recordStatus: query.recordStatus, sortDirection: query.sortDirection, includeCandidates: actor.permissions.workspaceView && !query.recordStatus,
+      recordStatus: query.recordStatus, sortDirection: query.sortDirection, includeCandidates: actor.permissions.workspaceView && query.recordStatus.mode === "all",
       includeHistory: query.includeHistory,
-      cursor: cursor ? { sortValue: cursor.sortValue ?? cursor.updatedAt, rowKey: cursor.rowKey } : null, limit: query.limit
-    }, (workspaces, roots, partMasterDataGaps) => {
+      cursor: cursor ? { sortValue: cursor.sortValue ?? cursor.updatedAt, rowKey: cursor.rowKey, direction: cursor.direction ?? query.direction } : null, direction: cursor?.direction ?? query.direction, limit: lanesEnabled ? Math.min(100, query.limit * 2) : query.limit
+    }, (workspaces, roots, partMasterDataGaps, rdRootIds = new Set<string>()) => {
       const visibleWorkspaces = workspaces.filter((workspace) => query.includeHistory || candidateStage(workspace) !== "history_only");
       const sourceChanges = new Map<string, NumberingDraftWorkspaceRecord[]>();
       for (const workspace of visibleWorkspaces) if (workspace.sourceRootId) sourceChanges.set(workspace.sourceRootId, [...(sourceChanges.get(workspace.sourceRootId) ?? []), workspace]);
-      return [
+      const baseRows = [
         ...roots.map((root) => formalRootRow(root, sourceChanges.get(root.root.id) ?? [], actor, partMasterDataGaps)),
         ...visibleWorkspaces.filter((workspace) => !workspace.sourceRootId).map((workspace) => candidateRootRow(workspace, actor))
       ].filter((row) => query.includeHistory || row.stage !== "history_only")
         .filter((row) => rowInView(row, actor, query.view))
-        .filter((row) => viewerStatusMatchesFilter(row.viewerStatus, row.humanStatus, query.humanStatus, row.availabilityScope));
+        .filter((row) => responsibilityStatusMatchesSelection(row.responsibilityStatus, row.viewerActionability, row.humanStatus, query.humanStatus, row.availabilityScope));
+      if (!lanesEnabled) return baseRows;
+      const laneRows: RelationWorkbenchRow[] = [];
+      for (const row of baseRows) {
+        if (row.rowKind === "candidate_root") {
+          if (!laneSelectionIncludes(query.lane, "rd")) continue;
+          const rowKey = `${row.rowKey}:rd`;
+          laneRows.push(withPdmWorkbenchLane({ ...row, rowKey }, makePdmWorkbenchLaneFields({ companyId: actor.companyId, actorId: actor.id, rowKey, groupKey: `root:candidate:${row.workspaceId ?? row.rowKey}`, entityKey: row.workspaceId ?? row.rowKey, lane: "rd", referenceKind: "candidate_workspace", referenceId: row.workspaceId ?? row.rowKey, displayRevision: row.stageLabel, purposeLabel: "研發工作區" })));
+          continue;
+        }
+        const groupKey = `root:${row.rootId}`;
+        if (laneSelectionIncludes(query.lane, "production")) {
+          const productionRowKey = `${row.rowKey}:production`;
+          laneRows.push(withPdmWorkbenchLane({ ...row, rowKey: productionRowKey }, makePdmWorkbenchLaneFields({ companyId: actor.companyId, actorId: actor.id, rowKey: productionRowKey, groupKey, entityKey: row.rootId ?? row.rowKey, lane: "production", referenceKind: "manufacturing_baseline", referenceId: row.rootId ?? row.rowKey, displayRevision: row.updatedAt, purposeLabel: "量產受控版", sourceCount: 1 })));
+        }
+        if (laneSelectionIncludes(query.lane, "rd") && row.activeChanges.length === 0 && row.rootId && rdRootIds.has(row.rootId)) {
+          const rdRowKey = `${row.rowKey}:rd`;
+          laneRows.push(withPdmWorkbenchLane({ ...row, rowKey: rdRowKey }, makePdmWorkbenchLaneFields({ companyId: actor.companyId, actorId: actor.id, rowKey: rdRowKey, groupKey, entityKey: row.rootId, lane: "rd", referenceKind: "manufacturing_baseline", referenceId: row.rootId, displayRevision: row.updatedAt, purposeLabel: "研發變更版", sourceCount: 1 })));
+        }
+        if (laneSelectionIncludes(query.lane, "rd")) for (const change of row.activeChanges.slice(0, 1)) {
+          const rowKey = `${row.rowKey}:rd`;
+          laneRows.push(withPdmWorkbenchLane({ ...row, rowKey, sourceKind: "candidate", workspaceId: change.workspaceId, activeChanges: [change], stage: change.stage, stageLabel: change.stageLabel, updatedAt: change.updatedAt }, makePdmWorkbenchLaneFields({ companyId: actor.companyId, actorId: actor.id, rowKey, groupKey, entityKey: row.rootId ?? row.rowKey, lane: "rd", referenceKind: "active_change_set", referenceId: change.workspaceId, displayRevision: change.stageLabel, purposeLabel: "研發變更版", sourceCount: 1 })));
+        }
+      }
+      return laneRows;
     });
-    const hasNext = page.rows.length > query.limit;
-    const rows = page.rows.slice(0, query.limit);
+    const rows = lanesEnabled ? groupPdmWorkbenchRows(page.rows, query.limit) : page.rows.slice(0, query.limit);
+    const hasNext = lanesEnabled ? page.rows.some((row) => !rows.includes(row)) : page.rows.length > query.limit;
     const last = rows.at(-1);
+    const first = rows.at(0);
     return {
       rows,
-      nextCursor: hasNext && last ? encodePdmWorkbenchCursor({ version: 1, filterHash: currentFilterHash, updatedAt: last.updatedAt, sortValue: last.displayCode, rowKey: last.rowKey }) : null,
+      nextCursor: hasNext && last ? encodePdmWorkbenchCursor({ version: lanesEnabled ? 2 : 1, filterHash: currentFilterHash, updatedAt: last.updatedAt, sortValue: last.displayCode, rowKey: last.rowKey, ...(lanesEnabled ? { groupKey: last.lane?.groupKey ?? last.rowKey } : {}), direction: "after", pageIndex: effectivePageIndex + 1 }) : null,
+      previousCursor: effectivePageIndex > 0 && first ? encodePdmWorkbenchCursor({ version: lanesEnabled ? 2 : 1, filterHash: currentFilterHash, updatedAt: first.updatedAt, sortValue: first.displayCode, rowKey: first.rowKey, ...(lanesEnabled ? { groupKey: first.lane?.groupKey ?? first.rowKey } : {}), direction: "before", pageIndex: Math.max(0, effectivePageIndex - 1) }) : null,
+      pageIndex: effectivePageIndex,
       generatedAt: new Date().toISOString(),
-      filters: { seriesCodeOptions: page.seriesCodeOptions, entityTypeOptions: [...entityTypes], recordStatusOptions: [...recordStatuses] }
+      filters: { seriesCodeOptions: page.seriesCodeOptions, entityTypeOptions: entityTypes.filter((value): value is Exclude<NumberingSearchEntityType, "all"> => value !== "all"), recordStatusOptions: [...recordStatuses] },
+      ...(lanesEnabled ? { paginationUnit: "group" as const, groupLimit: query.limit, groupCount: new Set(rows.map((row) => row.lane?.groupKey ?? row.rowKey)).size } : {})
     };
   }
 
-  async detail(rowKey: string, actor: RelationWorkbenchActor): Promise<RelationWorkbenchDetailResponse | null> {
+  async detail(rowKey: string, actor: RelationWorkbenchActor, options: { projectionToken?: string | null } = {}): Promise<RelationWorkbenchDetailResponse | null> {
+    const lanesEnabled = isPdmWorkbenchProductionRdLanesV1Enabled();
+    const requestedLane = lanesEnabled && rowKey.endsWith(":rd") ? "rd" : lanesEnabled && rowKey.endsWith(":production") ? "production" : null;
+    if (requestedLane) rowKey = rowKey.slice(0, -(`:${requestedLane}`).length);
     if (rowKey.startsWith("candidate:")) {
       if (!actor.permissions.workspaceView) return null;
       const candidate = await this.repository.readCandidateDetail(rowKey.slice("candidate:".length), actor.companyId);
       if (!candidate) return null;
-      return { row: candidateRootRow(candidate, actor), rootDetail: null, candidate, focusedChange: activeChange(candidate, actor), capabilities: { canManageRelations: actor.permissions.manageRelations, canManagePermissions: actor.permissions.managePermissions } };
+      let row = candidateRootRow(candidate, actor);
+      if (requestedLane === "rd") {
+        const laneRowKey = `${row.rowKey}:rd`;
+        row = withPdmWorkbenchLane({ ...row, rowKey: laneRowKey }, makePdmWorkbenchLaneFields({ companyId: actor.companyId, actorId: actor.id, rowKey: laneRowKey, groupKey: `root:candidate:${candidate.id}`, entityKey: candidate.id, lane: "rd", referenceKind: "candidate_workspace", referenceId: candidate.id, displayRevision: row.stageLabel, purposeLabel: "研發工作區" }));
+        const fingerprint = pdmWorkbenchReferenceFingerprint({ referenceKind: "candidate_workspace", referenceId: candidate.id, revisionOrBaseline: row.stageLabel, contentHashOrSnapshotHash: null });
+        verifyPdmWorkbenchProjectionToken(options.projectionToken, { companyId: actor.companyId, actorId: actor.id, rowKey: laneRowKey, lane: "rd", fingerprint });
+      }
+      return { row, rootDetail: null, candidate, focusedChange: activeChange(candidate, actor), capabilities: { canManageRelations: actor.permissions.manageRelations, canManagePermissions: actor.permissions.managePermissions } };
     }
     const result = rowKey.startsWith("root:")
       ? await this.repository.readRootDetail(rowKey.slice("root:".length), actor.companyId)
       : await this.repository.resolveRootByCode(rowKey, actor.companyId);
     if (!result) return null;
-    const row = formalRootRow(result.root, actor.permissions.workspaceView ? result.workspaces : [], actor, result.partMasterDataGaps);
+    let row = formalRootRow(result.root, actor.permissions.workspaceView ? result.workspaces : [], actor, result.partMasterDataGaps);
+    if (requestedLane === "production") {
+      const productionRowKey = `${row.rowKey}:production`;
+      row = withPdmWorkbenchLane({ ...row, rowKey: productionRowKey }, makePdmWorkbenchLaneFields({ companyId: actor.companyId, actorId: actor.id, rowKey: productionRowKey, groupKey: `root:${result.root.root.id}`, entityKey: result.root.root.id, lane: "production", referenceKind: "manufacturing_baseline", referenceId: result.root.root.id, displayRevision: row.updatedAt, purposeLabel: "量產受控版" }));
+      const fingerprint = pdmWorkbenchReferenceFingerprint({ referenceKind: "manufacturing_baseline", referenceId: result.root.root.id, revisionOrBaseline: row.updatedAt, contentHashOrSnapshotHash: null });
+      verifyPdmWorkbenchProjectionToken(options.projectionToken, { companyId: actor.companyId, actorId: actor.id, rowKey: row.rowKey, lane: "production", fingerprint });
+    } else if (requestedLane === "rd") {
+      const change = result.workspaces[0];
+      const laneRowKey = `${row.rowKey}:rd`;
+      if (change) {
+        const changeStage = candidateStage(change);
+        row = withPdmWorkbenchLane({ ...row, rowKey: laneRowKey, sourceKind: "candidate", workspaceId: change.id, activeChanges: [activeChange(change, actor)], stage: changeStage, stageLabel: stageLabels[changeStage], updatedAt: change.updatedAt }, makePdmWorkbenchLaneFields({ companyId: actor.companyId, actorId: actor.id, rowKey: laneRowKey, groupKey: `root:${result.root.root.id}`, entityKey: result.root.root.id, lane: "rd", referenceKind: "active_change_set", referenceId: change.id, displayRevision: stageLabels[changeStage], purposeLabel: "研發變更版" }));
+        const fingerprint = pdmWorkbenchReferenceFingerprint({ referenceKind: "active_change_set", referenceId: change.id, revisionOrBaseline: changeStage, contentHashOrSnapshotHash: null });
+        verifyPdmWorkbenchProjectionToken(options.projectionToken, { companyId: actor.companyId, actorId: actor.id, rowKey: laneRowKey, lane: "rd", fingerprint });
+      } else {
+        row = withPdmWorkbenchLane({ ...row, rowKey: laneRowKey }, makePdmWorkbenchLaneFields({ companyId: actor.companyId, actorId: actor.id, rowKey: laneRowKey, groupKey: `root:${result.root.root.id}`, entityKey: result.root.root.id, lane: "rd", referenceKind: "manufacturing_baseline", referenceId: result.root.root.id, displayRevision: row.updatedAt, purposeLabel: "研發變更版" }));
+        const fingerprint = pdmWorkbenchReferenceFingerprint({ referenceKind: "manufacturing_baseline", referenceId: result.root.root.id, revisionOrBaseline: row.updatedAt, contentHashOrSnapshotHash: null });
+        verifyPdmWorkbenchProjectionToken(options.projectionToken, { companyId: actor.companyId, actorId: actor.id, rowKey: laneRowKey, lane: "rd", fingerprint });
+      }
+    }
     return { row, rootDetail: projectRootDetail(result.root, actor, result.partMasterDataGaps), candidate: null, focusedChange: null, capabilities: { canManageRelations: actor.permissions.manageRelations, canManagePermissions: actor.permissions.managePermissions } };
   }
 }
 
 export function relationWorkbenchErrorResponse(error: unknown) {
-  if (error instanceof PdmWorkbenchCursorError || error instanceof RelationWorkbenchError) return Response.json({ error: { code: error.code, message: error.message, retryable: false } }, { status: error.status });
+  if (error instanceof PdmWorkbenchProjectionTokenError) return Response.json({ error: { code: error.code, message: error.message, retryable: false } }, { status: error.status });
+  if (error instanceof PdmWorkbenchCursorError || error instanceof RelationWorkbenchError || error instanceof PdmWorkbenchFilterSelectionError) return Response.json({ error: { code: error.code, message: error.message, retryable: false } }, { status: error.status });
   console.error("Relation workbench read failed", error);
   return Response.json({ error: { code: "relation_workbench_read_failed", message: "圖料工作台目前無法載入，請重新整理。", retryable: true } }, { status: 500 });
 }

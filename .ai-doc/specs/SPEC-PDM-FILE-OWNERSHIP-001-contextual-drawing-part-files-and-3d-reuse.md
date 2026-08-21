@@ -1,5 +1,7 @@
 # SPEC-PDM-FILE-OWNERSHIP-001：圖號／料號檔案歸屬、送審必備檔與 3D 共用
 
+> 2026-08-20 DEV-084 Amendment：替代料號附件快照沿用、料號附件獨立版本、所有生命週期的自由維護與whole-part edit lease，改由已達`RD Implementation Ready`的 `SPEC-PDM-PART-ATTACHMENT-REUSE-001` 與 `ADR-PDM-PART-ATTACHMENT-REUSE-001` 管理。本文件中料號附件「只有新增」及`numbering.attachments.manage`寫入規則被有意取代；exact authority為`part_attachment_contents/bindings/versions/binding_origins`、`part_edit_leases`與Cloud SQL migration `041`。圖號受控版次檔、canonical content/hash integrity與圖／料分流authority維持不變。
+
 Status: `RD Implementation Ready / Human Confirmed / RD Not Started`
 Date: 2026-08-10
 Owner: Dev PM
@@ -16,6 +18,8 @@ Related authority:
 - `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`
 - `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`
 - `.ai-doc/decisions/ADR-PDM-MATERIAL-IDENTITY-REVISION-001-part-number-vs-controlled-definition-revision.md`
+- `.ai-doc/specs/SPEC-PDM-PART-ATTACHMENT-REUSE-001-replacement-snapshot-and-part-lock.md`
+- `.ai-doc/decisions/ADR-PDM-PART-ATTACHMENT-REUSE-001-snapshot-reference-and-whole-part-lock.md`
 
 ## 1. 真正需求與成功條件
 
@@ -446,4 +450,3 @@ Future Phase Capsule：production cleanup與rollout只有在local Phase 1A～1D�
 - Existing DEV-053/old package/shared-3D implementation evidence保留為歷史，不冒充DEV-061驗證。
 - P0/P1產品語意、檔案門檻、dedupe scope、migration、API、permission、failure recovery、QA/QC與stop condition缺口為0。
 - Current execution boundary：`RD Implementation Ready / Local only / Production deletion and release gated`。
-

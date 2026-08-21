@@ -4,7 +4,7 @@ import { getApprovalPlatformRequestDetailForCompanyAsync } from "@/lib/approval-
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { contentDispositionHeader } from "@/lib/file-response";
-import { enqueuePreviewJobForSourceAsync } from "@/lib/preview-derivatives";
+import { enqueuePreviewJobForSourceAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
 import { drawingPreviewMimeType, resolveDrawingPreviewAsync } from "@/lib/drawing-preview-asset";
 
 export const runtime = "nodejs";
@@ -75,9 +75,7 @@ export async function GET(
               storage_provider: source.storage_provider ?? "local_repository"
             },
             actorUserId: auth.user.id,
-            requestedKind: source.file_ext.trim().toLowerCase().replace(/^\./u, "") === "slddrw"
-              ? "drawing_pdf"
-              : "native_thumbnail_png",
+            requestedKind: requestedPreviewKindForSource(source.file_ext),
             generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
             runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
           });

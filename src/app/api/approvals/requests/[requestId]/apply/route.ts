@@ -15,6 +15,7 @@ import {
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import { retryNumberingCandidateBundleApply } from "@/lib/number-lifecycle-simplification";
 import { numberStateFlowErrorResponse } from "@/lib/number-state-flow-api";
+import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
   if (company.response || !company.company) return company.response;
   const detail = await getApprovalPlatformRequestDetailForCompanyAsync(decodedRequestId, company.company.companyId);
   if (!detail) return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
+  if (isProductionSliceEnforced()) {
+    if (!isProductionNumberingLifecycleGateOpen("formal-obsolete") || !isProductionNumberingLifecycleApprovalAction(detail.actionCode)) {
+      return NextResponse.json(productionSliceDeniedPayload("approvals.request.apply"), { status: 403 });
+    }
+    const invalid = validateNumberStateMutationRequest({
+      request,
+      idempotencyKey: request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
+      requireIdempotency: true
+    });
+    if (invalid) return invalid;
+  }
 
   if (detail.actionCode === "numbering.candidate_bundle_review") {
     const invalid = validateNumberStateMutationRequest({

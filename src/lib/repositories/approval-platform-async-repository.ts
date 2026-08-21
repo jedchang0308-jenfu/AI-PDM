@@ -229,6 +229,7 @@ type ApprovalPlatformInboxFilter = {
   limit?: number;
   domainCode?: string;
   actionCode?: string;
+  allowedActionCodes?: string[];
   query?: string;
   cursor?: ApprovalPlatformInboxCursor | null;
 };
@@ -258,10 +259,12 @@ export function approvalPlatformInboxRowKey(source: ApprovalPlatformSource, id: 
 function matchesInboxFilter(item: ApprovalPlatformInboxItem, input: ApprovalPlatformInboxFilter) {
   const domainCode = input.domainCode?.trim();
   const actionCode = input.actionCode?.trim();
+  const allowedActionCodes = input.allowedActionCodes?.map((value) => value.trim()).filter(Boolean);
   const query = input.query?.trim().toLocaleLowerCase("zh-Hant");
 
   if (domainCode && item.domainCode !== domainCode) return false;
   if (actionCode && item.actionCode !== actionCode) return false;
+  if (allowedActionCodes?.length && !allowedActionCodes.some((value) => value === item.actionCode || value.replace(/^numbering\./u, "") === item.actionCode.replace(/^numbering\./u, ""))) return false;
   if (query) {
     const searchable = [
       item.targetSummary,
@@ -760,6 +763,7 @@ export class AsyncApprovalPlatformRepository {
       this.listDecisions(row.id),
       this.listEvents(row.id)
     ]);
+    const primaryTarget = targets.find((target) => target.role === "primary") ?? targets[0];
     return {
       rowKey: approvalPlatformInboxRowKey("platform", row.id),
       id: row.id,
@@ -780,6 +784,7 @@ export class AsyncApprovalPlatformRepository {
       targetSummary: targetSummary(row.action_code, targets, impactSnapshots[0]?.snapshot),
       impactSummary: impactSnapshots[0]?.snapshotHash ?? null,
       legacy: null,
+      primaryTarget: primaryTarget ? { type: primaryTarget.type, targetId: primaryTarget.targetId, code: primaryTarget.code, label: primaryTarget.label } : undefined,
       historyOnly: Boolean(row.superseded_by_request_id),
       supersededByRequestId: row.superseded_by_request_id,
       supersededAt: row.superseded_at,

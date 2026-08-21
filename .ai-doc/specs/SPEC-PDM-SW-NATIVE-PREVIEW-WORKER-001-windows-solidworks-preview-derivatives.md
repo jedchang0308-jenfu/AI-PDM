@@ -1,7 +1,7 @@
 # SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows SolidWorks Native Preview Derivatives
 
-Status: Phase 1 Local Implemented + Auto-Orchestration QC Passed / Google Secret Manager credential integration pending DEV-058
-Date: 2026-07-06
+Status: RD Implementation Complete / DEV-056 Phase 1E Local E2E Verified / Prior evidence retained as partial baseline / Production Release Gated
+Date: 2026-08-19
 Owner: Dev PM
 Related DEV: `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
 Related ADR: `.ai-doc/decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md`
@@ -12,10 +12,167 @@ Related authority:
 - `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`
 - `.ai-doc/decisions/ADR-PDM-SETTINGS-CENTER-001-settings-center-secret-governance.md`
 - `.ai-doc/specs/SPEC-PDM-GCP-SECRET-MANAGER-001-solidworks-worker-credential.md`
+- `.ai-doc/specs/SPEC-PDM-SOLIDWORKS-METADATA-READER-001-native-property-extraction.md`
 - `.ai-doc/specs/SPEC-PDM-SHARED-3D-MA-BASELINE-001-root-model-and-manufacturing-baseline.md`
 - `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-PACKAGE-002-first-class-attachment-package-model.md`
 - `src/components/master-attachment-panel.tsx`
 - `scripts/probe-document-manager-extractor.mjs`
+
+## 0. 2026-08-19 Phase 1E 2D Preview E2E Reopen Amendment（現行派工權威）
+
+### 0.1 重開原因與使用者成功條件
+
+既有Phase 1證據證明queue／derivative／3D Shell worker與placeholder可以運作，但沒有證明真實`.SLDDRW`會產生2D預覽。使用者在固定本機環境再次驗證`A0002-M01.SLDDRW`後仍只看見「預覽產生中」。唯讀runtime／DB證據為：
+
+- source asset存在，檔案大小為295,934 bytes，SHA-256為`e6646cb4be002c7213b3c75cccf5c6aad97fddb11aa8a36e400b0fe1dd32a6ad`；
+- preview job `f88ad620-88b3-4514-9882-d9ba8bea72ca`為`drawing_pdf/queued`、`attempt_count=0`、`locked_by=null`，沒有error或completion；
+- 3D Windows Shell worker與recognition worker在線，但Document Manager preview worker PID為0、state=`not_configured`；
+- A0002已有3D PNG derivative，沒有2D derivative。
+
+因此這不是「轉檔較慢」或已進入Document Manager後的檔案內容錯誤，而是工作從未被相容worker領取。原本把2D「處理較久」截圖列入DEV-056 completion evidence屬完成狀態誤判，現改列partial baseline。
+
+使用者已確認的產品契約：本機測試與真實環境都只在UI輸入、測試、啟用SolidWorks Document Manager key。環境可以使用不同安全provider，但不得要求日常PowerShell／`.env.local`重複設定或人工重啟worker；預覽完成必須在原工作頁自動顯示。
+
+### 0.2 Spec Impact Preflight與治理
+
+- 分類：`Intentional replacement + compatible extension`。
+- 保留：本ADR的Windows隔離worker、source/derivative分離、source-hash guard、token-gated BFF、private/no-store、current-owner completion、blank-output quality gate、Phase 2 PDF與Phase 3 interactive 3D邊界。
+- 取代：DEV-056完成宣告、launcher以plaintext env／GSM設定判斷2D worker是否可啟動、SLDDRW Phase 1自動建立`drawing_pdf`、queued job可永久呈現「產生中」、recognition或3D worker狀態可代替2D renderer readiness的任何舊敘述。
+- ADR判定：不新增ADR；既有Windows Worker Derivative Boundary仍正確，本amendment只修正同一架構內的啟動、job kind、capability與read projection契約，並同步更新既有ADR。
+- 風險：Medium implementation / P0 defect。修改跨launcher、worker、queue producer、read projection與settings UI，但不改CAD source、domain ownership、permission或production data。
+
+### 0.3 Current Phase執行邊界
+
+可執行：本機Phase 1E-A～D、既有SQLite資料的非破壞性runtime recovery、focused automated tests、真實A0002 worker smoke與三viewport browser QC。
+
+不在本Phase：`.SLDDRW -> PDF`、interactive 3D、desktop SOLIDWORKS COM/Add-in、高擬真重渲染、CAD source mutation、歷史批次回填、正式資料修復、staging/production resource/IAM/migration/deploy/release。
+
+Schema migration=`None`：復用既有`preview_jobs`、`file_derivatives`及generic `worker_capability_heartbeats`；新capability code不需要新增欄位或constraint。
+
+### 0.4 Canonical Phase 1E資料流
+
+```text
+Settings UI create/test/activate
+  -> windows_dpapi (local) / google_secret_manager (staging-production)
+  -> private token-gated exact-version broker
+  -> persistent Document Manager preview worker hot-applies active version
+
+SLDDRW current source hash
+  -> native_thumbnail_png preview job
+  -> Document Manager worker claims exact compatible kind
+  -> read-only embedded sheet preview extraction + quality gate
+  -> thumbnail_png or sheet_png derivative tied to source hash
+  -> unified detail polling renders PNG without manual refresh
+```
+
+不可跨越的界線：
+
+```text
+secret / native path / absolute source path -> trusted server and worker only
+preview job -> no plaintext secret and no source mutation authority
+derivative -> browser-readable display artifact, never controlled CAD source
+```
+
+### 0.5 Implementation Contract
+
+#### 0.5.1 Launcher與credential hot apply
+
+- `scripts/start-localhost-3000.ps1`的2D worker啟動資格只能依Windows平台、worker script／interop可用、server URL與preview worker service token判斷；不得再用`PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY`、alternate env key或GSM env是否存在作為啟動gate。
+- launcher必須啟動無credential的persistent 2D worker。worker在無active key時回`blocked/preview_credential_missing` capability heartbeat並暫不claim，不得退出或要求重啟。
+- worker沿用`/api/preview-workers/solidworks-document-manager-key`與`resolveActiveSolidWorksDocumentManagerKey()`；local解析`windows_dpapi`，staging/production解析`google_secret_manager`。UI後設、rotation或revoke要由同一PID在下一poll／refresh週期套用。
+- key最多保留60秒process-memory cache，只能傳入當次native child；不得進global process env、command line、DB、job payload、stdout/stderr、browser response或evidence。
+- runtime status的`not_configured`只表示worker必要執行元件或service token缺失；credential缺少屬於worker `blocked` capability，不得把兩者混為同一狀態。
+
+#### 0.5.2 Preview kind與derivative contract
+
+- Current Phase自動預覽kind由`src/lib/preview-derivatives.ts`的單一`requestedPreviewKindForSource(extension)` resolver決定：`.sldprt/.sldasm/.slddrw -> native_thumbnail_png`；所有producer必須呼叫resolver，不得各自寫ternary。
+- `.slddrw`的Document Manager worker claim必須宣告`supportedKinds=["native_thumbnail_png"]`及`supportedExtensions=["slddrw"]`；成功輸出`derivative_kind=thumbnail_png|sheet_png`、`mime_type=image/png`。
+- `drawing_pdf`只代表Phase 2可列印PDF，不得在Phase 1的attachment list/create、candidate、package、approval evidence或unified detail自動enqueue。現有public/internal request shape可保留該enum以相容future phase，但未配置PDF renderer時不可讓自動流程建立永久無人claim的工作。
+- 已存在的錯kind queued job不得in-place改寫歷史。prepare/recovery流程將其終止為`failed/preview_kind_unavailable`，保留原requested kind與timestamps，再以同一current source hash idempotently建立`native_thumbnail_png`工作。
+- active job去重維持source asset＋source hash＋requested kind＋generator profile；重讀頁面不得製造重複job。
+
+#### 0.5.3 2D renderer capability heartbeat
+
+- 復用`worker_capability_heartbeats`並固定`worker_kind=document_manager_preview`、`capability_code=solidworks_2d_preview_png`。
+- 新增`POST /api/preview-workers/heartbeat` token-gated route；request最小欄位為`workerId`、`status=ready|blocked|degraded`、`appliedSecretVersion`、`appliedSecretFingerprint`、`rendererVersion`、`issueCode`、`lastAppliedAt`。response只回`accepted/receivedAt`，不得回secret或provider resource path。
+- worker在idle與running期間每15秒heartbeat；30秒未見即offline。`ready`必須同時滿足interop／renderer可用、active secure-provider version可讀、worker已ack exact version/fingerprint。
+- DEV-035 recognition capability `solidworks_document_manager`、3D Shell process存在、active secret metadata或最近probe PASS，任何單一條件都不能替代`solidworks_2d_preview_png`在線。
+- Settings UI分開呈現「憑證已啟用／測試」、「原生屬性辨識worker」與「2D預覽worker」；2D status只能取本capability heartbeat。
+
+#### 0.5.4 Recovery與使用者可見狀態
+
+- `master-attachments`、candidate/drawing/part/review的unified entity detail及任何共用preview projection，在decorate前必須進入同一prepare/recovery service，禁止只有legacy attachment list會回收stale job。
+- `queued`且120秒仍`locked_by=null`：終止為`failed/preview_worker_unavailable`。若原因是kind不相容，使用`preview_kind_unavailable`並建立正確PNG job。
+- `running`且30秒無job heartbeat：最多requeue三次；第三次後終止為redacted failed。old owner completion/failure維持拒絕。
+- UI mapping：
+  - `queued + renderer online`：`等待預覽服務`，短時poll；
+  - `running + fresh heartbeat`：`預覽產生中`；
+  - `renderer blocked/offline`：顯示`2D預覽服務未就緒`及Admin settings／重試動作；
+  - terminal failure：`無法預覽`＋redacted reason＋下載原檔；
+  - ready current-hash PNG：直接顯示，不保留spinner。
+- 「系統完成後會自動更新」只能出現在系統已具備可接手worker的queued/running狀態；沒有worker、錯kind或逾時時不得使用。
+
+#### 0.5.5 Preview media rendering與版面契約
+
+- 2D preview endpoint可能回傳`image/png`的`thumbnail_png|sheet_png` derivative；即使上游卡片語意是文件預覽，前端必須依實際response MIME選擇影像 renderer，不得把PNG放進瀏覽器文件／影像viewer iframe。
+- `image/*` derivative使用`<img>`並填滿`.drawing-preview-frame`的可用寬高，`object-fit: contain`、置中、不可裁切或變形；PDF仍使用文件 renderer並保留原檔開啟連結。
+- 影像 renderer不得依賴衍生檔的640×480 intrinsic size；desktop/tablet/phone均須以主視覺舞台為尺寸來源，且不得產生水平溢出或把圖釘在左上角。
+- browser QC須驗證2D link綁定current derivative、實際renderer為image、影像元素置中且至少覆蓋舞台95%寬高；比例差異造成的contain留白屬可接受，但不得以cover裁切工程圖面。
+
+### 0.6 API、資料與權限影響
+
+- 保留`POST /api/preview-jobs/claim`、job heartbeat、complete/fail與derivative streaming contract；claim仍以supported kind／extension做exact filter。
+- 新增`POST /api/preview-workers/heartbeat`，沿用preview worker service token、constant-time compare、private/no-store與repository upsert；browser session不得呼叫。
+- credential broker保持worker-only；Admin UI不直接取得key。
+- 所有preview enqueue／retry與derivative read沿用source attachment權限及company scope；heartbeat不得取得CAD檔案或人類角色權限。
+- 無schema migration、無source attachment migration、無歷史job/data直接修復腳本；A0002錯kindjob由產品recovery path收斂。
+
+### 0.7 Exact Component Boundary
+
+- Launcher/worker：`scripts/start-localhost-3000.ps1`、`scripts/run-solidworks-document-manager-preview-worker.mjs`。
+- Worker APIs：`src/app/api/preview-workers/solidworks-document-manager-key/route.ts`、`src/app/api/preview-workers/heartbeat/route.ts`、`src/app/api/preview-jobs/claim/route.ts`及既有job heartbeat/complete/fail routes。
+- Credential/readiness：`src/lib/settings-secret-lifecycle.ts`、`src/lib/repositories/settings-secret-async-repository.ts`、`src/app/settings/page.tsx`。
+- Queue/recovery/projection：`src/lib/preview-derivatives.ts`、`src/lib/master-attachments-async.ts`、`src/lib/pdm-entity-detail.ts`。
+- Automatic producers：`src/lib/repositories/number-lifecycle-simplification-async-repository.ts`、approval evidence file route、drawing revision package file route、candidate revision file route及任何搜尋命中的SLDDRW auto-enqueue adapter。
+- UI consumers：drawing detail preview、unified entity detail/workspace preview gallery及共用attachment preview status components。
+- Validation：既有native preview/redaction/master-attachments/settings/DEV-035 gates，加上`qc:dev-056:2d-preview-e2e`與`qc:dev-056:2d-preview-browser`。
+
+### 0.8 Failure Recovery
+
+| Failure | Stable result | Recovery |
+|---|---|---|
+| UI尚未啟用real-provider key | worker `blocked/preview_credential_missing`；不claim | Admin在UI測試／啟用；同PID自動恢復 |
+| active version失效或revoked | `blocked/preview_credential_unavailable`；清除cache | UI啟用已測試版本；不用restart |
+| interop/renderer不存在 | `blocked/preview_renderer_unavailable` | 修復受控worker安裝；不得fallback到request handler |
+| producer/worker kind不相容 | 舊job `preview_kind_unavailable`＋新PNG job | contract test阻止再次漂移 |
+| queued逾120秒無claim | `preview_worker_unavailable` | 顯示服務未就緒；服務恢復後idempotent retry |
+| running heartbeat逾30秒 | requeue最多3次，之後failed | 新owner接手；old owner結果拒絕 |
+| PNG blank/low-information | terminal redacted fail，不建立ready derivative | 提示在SolidWorks儲存preview或未來renderer phase |
+| source hash changed | reject completion、舊derivative stale | 對新hash排新job |
+
+### 0.9 RD Phases與完成Gate
+
+- [x] Phase 1E-A：launcher取消env-key gate；persistent 2D worker、provider-neutral broker hot apply與runtime status語意完成。
+- [x] Phase 1E-B：所有SLDDRW automatic producers與worker claim統一`native_thumbnail_png`；舊錯kindjob安全收斂。
+- [x] Phase 1E-C：獨立2D capability heartbeat、settings projection與共用detail recovery完成。
+- [x] Phase 1E-D：focused automated gates、真實A0002 worker/PNG/source-hash/redaction證據及browser DOM evidence完成。
+
+完成必須同時滿足：A0002 job被`solidworks_2d_preview_png` worker claim、attempt至少1、exact active version被ack、ready PNG derivative綁定current source hash、原頁自動出圖、source bytes/hash不變、secret redaction sweep為0、offline/mismatch/timeout negative cases不再永久spinner。缺任一項不得恢復DEV-056完成狀態。
+
+Evidence輸出：`output/qa/dev-056-2d-preview/<runId>/`，至少保存manifest、source/job/heartbeat/derivative allowlisted metadata、before/after source hash、redaction結果、三viewport screenshots、console/network summary與verdict；不得保存key、absolute secret path或raw broker body。
+
+### 0.9.1 DEV-056 local completion receipt（2026-08-19）
+
+- Run：`output/qa/dev-056-2d-preview/20260819132108/`；focused E2E gate `18/18`。
+- A0002 source hash `e6646cb4…32a6ad`與bytes在worker前後一致；job `d8d13547-da31-4bb1-8b72-d352a083a516`以`native_thumbnail_png`被dedicated worker claim，`attempt_count=1`、`succeeded`。
+- Heartbeat capability為`solidworks_2d_preview_png`、status=`ready`、active exact version=`3`；derivative為current-hash `thumbnail_png`、`image/png`、640×480、generator=`windows_solidworks_preview_worker`。
+- Authenticated browser DOM驗證A0002-M01 workspace已選定`2D 圖面`、preview link指向該derivative，且沒有stuck `預覽產生中`文字；未手動refresh。三viewport sweep為`output/qa/dev-056-2d-preview/20260819135345-browser/browser-verification.json`，並驗證PNG以image renderer置中填滿預覽舞台。
+- 同日 typecheck、affected lint、native preview 109/109、redaction 68/68、master attachments 103/103、settings lifecycle 34/34與GSM 36/36均通過；temporary 2D worker已停止，既有3000 runtime未停止。
+- 本 receipt 只關閉DEV-056 Phase 1E local A0002 `.SLDDRW -> PNG`；`.SLDASM`廣度、Phase 2 PDF、staging/production GSM與production rollout仍是獨立gate。
+
+### 0.10 Stop Conditions
+
+若需要plaintext持久化、browser取得key、Next.js同步native CAD、desktop COM/Add-in、新license採購、CAD source write、destructive schema/data repair、live cloud/IAM、production deploy/release，或真實A0002無法取得受控worker證據，停止並回PM／release gate。不得以compile、mock、fixture、3D成功或2D placeholder替代端到端PASS。
 
 ## 2026-08-07 Credential Authority Amendment
 
@@ -520,16 +677,16 @@ Storage:
 | Phase | Document status | Purpose | Authorization boundary |
 |---|---|---|---|
 | Phase 0 - Development documents | Spec Ready / Human Confirmed | Capture product rule, ADR, QA, dev_task and documentation map | Authorized by user request to write development documents |
-| Phase 1 - Native PNG preview vertical slice | Implemented locally / Partial real worker evidence | Add queue, derivative metadata, worker contract, fake worker QC, Windows Shell worker and UI integration; `.SLDPRT` Shell smoke captured, `.SLDDRW` blank Shell output failed cleanly | Local PDM pipeline implemented and verified; full native evidence requires Document Manager/eDrawings/equivalent |
+| Phase 1 - Native PNG preview vertical slice | Phase 1E Local Complete / RD Implementation Verified | Preserve queue/derivative/Shell baseline and implement UI-only credential hot apply, SLDDRW PNG kind, dedicated 2D heartbeat and shared recovery | A0002 `.SLDDRW` current-hash PNG/browser gate passed; prior placeholder evidence is partial only |
 | Phase 2 - Drawing PDF preview | RD Contract Ready / Not Authorized | Generate `.SLDDRW -> PDF` through eDrawings/SOLIDWORKS/equivalent controlled worker | Requires separate tool/licensing/timeout approval |
 | Phase 3 - Interactive 3D derivative | RD Contract Ready / Not Authorized | Evaluate STEP/glTF/web viewer derivative | Requires separate architecture/security/performance decision |
 | Phase 4 - Production rollout | Release Gate Contract Ready / Not Authorized | Production worker deployment, storage retention, migration/backfill and smoke | Requires deployment-release gate and backup/rollback |
 
 ## 15. RD Handoff Contract
 
-Authorization: Phase 1 local non-production implementation is authorized and completed. Windows Shell `.SLDPRT` proof is captured; a SolidWorks Document Manager SLDDRW PNG worker/exporter path is implemented and compile-verified. Real `.SLDDRW` success still requires a worker-readable active Document Manager key, and full `.SLDASM` native preview readiness, Phase 2 drawing PDF, Phase 3 interactive 3D and Phase 4 production rollout remain gated.
+Authorization: Phase 1E local non-production implementation is authorized and complete for the A0002 `.SLDDRW -> PNG` vertical slice. The persistent worker resolved the UI-activated exact version, produced a real current-hash PNG and passed the browser gate; full `.SLDASM` evidence, Phase 2 drawing PDF, Phase 3 interactive 3D and Phase 4 production rollout remain gated.
 
-Document status: Phase 1 Local Implemented / Windows Shell + Document Manager Worker Partial Evidence.
+Document status: RD Implementation Complete / Phase 1E Local E2E Verified / Prior Windows Shell + placeholder evidence retained as partial baseline.
 
 Phase 1 scope:
 
@@ -640,7 +797,7 @@ Stop conditions:
 | Phase / DEV | Authorization | Document status | Scope | Out of scope | Entry condition | Acceptance | Evidence |
 |---|---|---|---|---|---|---|---|
 | Phase 0 - Development documents | Authorized | Spec Ready / Human Confirmed | SPEC, ADR, QA, dev_task and documentation map | Product implementation | User asked to write development documents | Documents capture phase plan, gates and boundaries | Updated `.ai-doc` files |
-| Phase 1 - Native PNG preview vertical slice | Authorized / implemented locally | Phase 1 Local Implemented / Windows Shell + Document Manager Worker Partial Evidence | Queue, derivatives, worker contract, fake worker QC, Shell worker, Document Manager SLDDRW PNG worker/exporter, blank-quality gate, UI integration and real `.SLDPRT` smoke | Production, high-fidelity render, release blocking, interactive 3D | Full `.SLDASM` evidence and successful `.SLDDRW` evidence with worker-readable key remain required for native readiness | PNG derivative replaces placeholder for current source hash; failures are actionable and do not display blank output | tsc/lint/focused QC/browser smoke/API worker smoke passed; Document Manager key/success evidence still required for drawings |
+| Phase 1 - Native PNG preview vertical slice | Phase 1E authorized / local complete | RD Implementation Complete / Local E2E Verified | Existing queue/derivative/Shell baseline plus UI-only DPAPI/GSM hot apply, `native_thumbnail_png` producer/claim, dedicated 2D heartbeat, unified recovery and real A0002 E2E | Production, high-fidelity render, release blocking, interactive 3D | Existing secure UI key and Windows host are available; local contract gaps are closed | A0002 current-hash PNG replaces placeholder automatically; offline/mismatch/timeout are truthful and actionable | focused regressions, `qc:dev-056:2d-preview-e2e` 18/18, redaction, real worker and authenticated browser DOM manifest |
 | Phase 2 - Drawing PDF preview | Not authorized | RD Contract Ready / Not Authorized | `.SLDDRW -> PDF` through controlled render worker | Source mutation, release package rewrite, production | Phase 1 verified plus renderer decision | Drawing PDF appears in 2D preview and download/open actions | renderer QC, browser smoke, redaction evidence |
 | Phase 3 - Interactive 3D derivative | Not authorized | RD Contract Ready / Not Authorized | STEP/glTF/viewer evaluation and derivative security | Measurement/engineering signoff unless specified | Phase 1 stable plus architecture approval | Controlled 3D viewer loads approved derivative safely | viewer security/performance/browser evidence |
 | Phase 4 - Production rollout | Not authorized | Release Gate Contract Ready / Not Authorized | Worker deployment, storage policy, backfill, smoke and rollback | Unapproved data repair/deletion | Implementation verified and release approved | Production smoke passes and rollback is ready | deployment-release evidence |
@@ -666,5 +823,5 @@ RD readiness:
 
 - Product semantics are clear enough for Phase 1 RD handoff.
 - Engineering contracts are specified for queue, derivative, worker, UI and QA.
-- Phase 1 local non-production implementation is complete and verified with fake-worker evidence.
-- Real native preview readiness still depends on worker-readable Document Manager/eDrawings/equivalent credentials and successful `.SLDDRW` / `.SLDASM` sample evidence.
+- Phase 1E local implementation is complete and backed by the A0002 `.SLDDRW` worker/PNG/hash/browser receipt above; prior fake-worker／3D evidence remains a partial baseline only.
+- Full `.SLDASM` coverage, Phase 2 PDF, production credential/resource readiness and rollout remain separately gated and are not implied by DEV-056 local completion.

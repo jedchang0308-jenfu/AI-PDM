@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createMasterAttachmentAsync, listDeletedMasterAttachmentsAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
 import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 
 export const runtime = "nodejs";
 const noStoreHeaders = { "cache-control": "private, no-store" };
@@ -35,6 +37,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ par
   if (auth.response) return auth.response;
 
   const { partNumber } = await params;
+  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
+  if (companyResult.response) return companyResult.response;
+  const entityCode = decodeURIComponent(partNumber);
+  const part = await getAsyncDatabaseClient().queryOne<{ id: string }>(
+    `SELECT id FROM part_numbers WHERE company_id = :companyId AND part_number = :partNumber LIMIT 1`,
+    { companyId: companyResult.company.companyId, partNumber: entityCode }
+  );
+  if (!part) return NextResponse.json({ error: "PART_NUMBER_NOT_FOUND" }, { status: 404 });
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
@@ -44,7 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ par
   try {
     const attachment = await createMasterAttachmentAsync({
       entityType: "part_number",
-      entityCode: decodeURIComponent(partNumber),
+      entityCode,
       file,
       documentCategory: String(form.get("document_category") ?? "other"),
       displayName: String(form.get("display_name") ?? ""),

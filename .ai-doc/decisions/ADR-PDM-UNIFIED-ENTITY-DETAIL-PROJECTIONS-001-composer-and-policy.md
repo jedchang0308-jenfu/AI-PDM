@@ -1,10 +1,47 @@
 # ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001：共用明細 Composer、Domain Projection 與 Server Policy
 
-Status: `Accepted / Human Confirmed / Local RD Implemented / Local QA-QC Passed / Production Release Gated`
-Date: 2026-08-12
+Status: `Accepted / Human Confirmed / DEV-067 Local RD Implemented + QA-QC Passed / DEV-083 RD Implemented Locally + Focused Contract/API + Authenticated Browser + Disposable Mutation + Typecheck + Affected Lint + Isolated Build Passed / Latest completed aggregate 29/30 PASS with one accepted-superseded parent baseline / QA-083-01～24 PASS / QA-083-24 Closed by QC disposition / Production Release Gated`
+Date: 2026-08-12; amended 2026-08-20
 Owner: Dev PM
-Related DEV: `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
+Related DEV: `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-PART-RELATION-READONLY-DRAWER-FULLPAGE-EDITOR-001` / `DEV-083`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`
+
+## 2026-08-20 DEV-083 Amendment - Read-only composer 與 canonical task workspace
+
+Amendment status: `Accepted / RD Implemented Locally / Human Confirmed / Focused Contract+API+Authenticated Browser PASS / Disposable Mutation PASS / Typecheck + Affected Lint + Isolated Build PASS / Latest completed aggregate 29/30 PASS with one accepted-superseded parent baseline / QA-083-01～24 PASS / QA-083-24 Closed by QC disposition / Production Release Gated`.
+
+### Context
+
+DEV-067已證明一個shared composer可以在Drawing／Part／Relation／review情境提供一致的identity、projection、focus、return與action truth；DEV-079再證明Drawing的快速查閱與長時間mutation應分離。DEV-083要求Part／Relation採用相同task-mode boundary。若只新增full-page route但仍讓composer執行command，系統會同時保留drawer與page兩個write owner；若把所有domain editor塞進一個full-page元件，則會重現本ADR已拒絕的巨型條件元件。
+
+### Options considered
+
+1. **Drawer與full page並存write**：遷移快，但同一command有兩個placement，無法證明哪一個是canonical owner；拒絕。
+2. **建立跨domain generic editor／action runner**：表面共用最多，實際把Part fields、Relation matrix、candidate lifecycle與approval decisions耦合；拒絕。
+3. **Read-only drawer composer＋輕量page frame＋domain-owned editors**：共用穩定mechanics，write只存在canonical full page；採用。
+
+### Amended decision
+
+- `UnifiedPdmEntityDetailDrawer` 是covered surface的**唯讀composer**。它可顯示server-authorized projection、preview、download、copy、history、refresh、return與navigation CTA；不得掛載form、file input、domain maintenance state、confirmation dialog或command runner。
+- Drawer的`ContextActionBar`仍是server-derived單一primary truth，但Part／Relation／Approval mutation intent只能產生`navigate`、locked或omitted execution。原ADR「實際command仍由server authority驗證」保留為domain truth，不再代表command可以從drawer發出。
+- Full-page共用只到`PdmEditPageFrame`：safe return、identity/status header、loading/error/restricted states、unsaved guard、focus與action-dock placement。它不得知道domain fields、status machine或API route。
+- Candidate aggregate只有一個`/numbering/workspaces/[workspaceId]`與一個`NumberingWorkspaceEditor`；formal Part與Relation使用各自stable-ID route與domain editor。
+- `/approvals/[requestId]`是Drawing／Part／Relation exact reviewer的共用canonical workspace。Approval request、target receipt、decision API、company、eligibility、drift、idempotency與audit authority不變。
+- Drawing現有workspace不在DEV-083改造範圍。未來若要採用page frame，須以不改Drawing behavior的獨立re-entry處理。
+
+Implementation consequence：`PdmEditPageFrame`是mechanics-only slot frame；candidate、Part、Relation與reviewer分別由`NumberingWorkspaceEditor`、`PartWorkspaceEditor`、`RelationWorkspaceEditor`與`ApprovalRequestWorkspace`擁有。Relation可抽出domain-owned `RelationWorkspaceContent`供legacy唯讀與full-page兩種discriminated presentation使用，但不得把這種domain內容提升為core。`UnifiedPdmEntityDetailDrawer`移除command runner與write callback；server action truth仍存在，但mutation placement只能是canonical navigation、locked或omitted。
+
+本amendment的Implementation Ready file/function/test inventory、dirty-worktree boundary與baseline以主SPEC的DEV-083 Implementation Contract為唯一執行權威。若實作需要在frame加入domain switch、把可寫candidate body複製到drawer、修改Drawing workspace、建立新write API或跨domain command bus，本決策失效並停止回ADR review。
+
+Evidence boundary（2026-08-20）：focused contract/API、22-check authenticated browser、disposable mutation、typecheck、lint與isolated build均已取得PASS。最新browser=`output/qa/dev-083-part-relation-fullpage-workspaces/DEV083-20260820T115715Z-6b9c5ec8/manifest.json`，22/22 checks、browserErrors=0、failedResponses=0；最新mutation=`output/qa/dev-083-mutation/DEV083-MUT-20260820T115907Z-a9063105/manifest.json`，31/31 result rows passed且cleanup=removed，以disposable SQLite＋Chromium驗證candidate lifecycle/recovery、Part variant、Part／Drawing／Relation Engineer owner/non-owner與Manager／Admin同公司正向、Manufacturing fail-closed、cross-company authority、Relation五種操作與reviewer `needs_info`／reject／approve、unassigned／terminal／錯配target scope、snapshot drift與retry formalization的exactly-once/readback/audit，已直接關閉QA-083-11/12/13/17/18/19；並保留browser與aggregate manifests。DEV-067 parent browser最新=`output/playwright/dev-067-unified-entity-detail/DEV067-20260820T120043Z-e58ce7cb/manifest.json`，18/18、browserErrors=0、failedResponses=0，已將candidate readonly marker與canonical reviewer route納入現行runner。completed aggregate=`output/qa/dev-083-aggregate/DEV083-aggregate-20260820T115712Z-15206e0d/manifest.json`為30 child／29 PASS／1 DEV-072 parent baseline FAIL（`accepted-superseded`），不誤報aggregate PASS。DEV-072 bounded legacy runner=`output/qa/dev-072-pdm-action-discoverability/DEV072-20260820T120228Z-4a4dff7c/run-manifest.json`保留cleanup與obsolete unified marker timeout；現行DEV-079 contract 22/22、layout 3/3與recognition layout 3/3作replacement evidence，原始failure與expected均保留並標記`accepted-superseded`，不誤報舊runner PASS。DEV-083 browser與DEV-070 legacy-owner後續focused gate已PASS。本輪另在既有Part attachment與Drawing revision upload route補same-company resource guard，封住cross-company route intent寫入，未新增schema／permission／lifecycle／write API。`qc-next-app-runner` readiness probe現在每次2秒可取消、DEV-072 legacy marker wait限縮5秒；`typecheck:app`、affected lint、isolated build、DEV-070 browser與DEV-079 contract已重跑PASS；QA-083-24已由`.ai-doc/qc/qc-dev-072-pdm-action-discoverability-2026-08-14.md`的accepted-superseded QC disposition關閉。此邊界維持drawer read-only、domain-owned mutation與server authority不變。
+
+### Consequences and compatibility
+
+- Positive：drawer的操作風險與command surface下降；三工作台建立一致task mode；domain editor仍可獨立演進。
+- Cost：Part／Relation list需精確return mechanics；legacy、unified與approval drawer必須同一cutover zero-write；review workspace需由Drawing-only projection擴為server owner-context projection。
+- Compatibility：既有`PdmEntityDetailService`、projection policy、domain APIs、permission、lifecycle與approval authority保留；只改action placement、route ownership與read envelope的兼容欄位。
+- 本amendment在衝突處取代下方DEV-067時期`ContextActionBar`可直接執行Part／Relation／Approval command的解讀；其餘composer／projection／server-policy決策不變。
+- 不新增ADR。若需要cross-domain business editor、persistent shared draft、第二套relation/approval write API或新的global reviewer capability，停止並重新判定ADR。
 
 ## Context
 

@@ -17,7 +17,7 @@ import type {
   MasterAttachmentRecord
 } from "@/lib/repositories/master-attachment-repository";
 
-type PreviewRequestedKind = "native_thumbnail_png" | "drawing_pdf";
+export type PreviewRequestedKind = "native_thumbnail_png" | "drawing_pdf";
 type PreviewDerivativeKind = "thumbnail_png" | "drawing_pdf" | "sheet_png" | "model_preview_png";
 
 type PreviewSourceRow = {
@@ -138,6 +138,14 @@ export function isNativeSolidWorksPreviewSource(extension: string) {
   return nativeSolidWorksExtensions.has(extension.trim().toLowerCase());
 }
 
+/**
+ * Automatic producers must use the native PNG contract for SolidWorks source
+ * files. `drawing_pdf` remains an explicit Phase 2 request only.
+ */
+export function requestedPreviewKindForSource(extension: string): PreviewRequestedKind {
+  return isNativeSolidWorksPreviewSource(extension) ? "native_thumbnail_png" : "drawing_pdf";
+}
+
 export async function decorateMasterAttachmentsWithPreviewState(
   client: AsyncDatabaseClient,
   attachments: MasterAttachmentRecord[]
@@ -152,6 +160,49 @@ export async function decorateMasterAttachmentsWithPreviewState(
       previewJob: state?.job ?? null
     };
   });
+}
+
+/** Ensure a detail read cannot leave a native SolidWorks source without a
+ * Phase 1 PNG job. The operation is idempotent through preview_jobs' key. */
+export async function ensureAutomaticPreviewJobsForAttachmentsAsync(
+  client: AsyncDatabaseClient,
+  attachments: MasterAttachmentRecord[],
+  actorUserId: string
+) {
+  for (const attachment of attachments) {
+    if (!isNativeSolidWorksPreviewSource(attachment.fileExt)) continue;
+    const requestedKind = requestedPreviewKindForSource(attachment.fileExt);
+    const hasCurrentDerivative = attachment.previewDerivatives.some(
+      (derivative) => derivative.status === "ready" && derivative.sourceContentHash === attachment.contentHash
+    );
+    const hasCurrentJob = attachment.previewJob?.sourceContentHash === attachment.contentHash
+      && attachment.previewJob.requestedKind === requestedKind
+      && ["queued", "running"].includes(attachment.previewJob.status);
+    if (hasCurrentDerivative || hasCurrentJob) continue;
+
+    try {
+      const source = await client.queryOne<PreviewSourceRow>(
+        `SELECT 'company-jenfu' AS company_id,
+                COALESCE(fa.storage_provider, 'local_repository') AS storage_provider,
+                fa.original_path, fa.storage_key, fa.file_name, fa.file_ext, fa.mime_type,
+                fa.file_size, fa.content_hash, fa.hash_algorithm,
+                fa.linked_entity_type, fa.linked_entity_id, fa.id
+           FROM file_assets fa
+          WHERE fa.id = :attachmentId AND fa.deleted_at IS NULL`,
+        { attachmentId: attachment.id }
+      );
+      if (!source) continue;
+      await enqueuePreviewJobForSourceAsync(client, {
+        source,
+        actorUserId,
+        requestedKind,
+        generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? fakePreviewGeneratorProfile : realPreviewGeneratorProfile,
+        runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
+      });
+    } catch {
+      // Preview generation is non-blocking; the original attachment remains readable.
+    }
+  }
 }
 
 export async function enqueuePreviewJobForAttachmentAsync(
@@ -194,7 +245,7 @@ export async function enqueuePreviewJobForSourceAsync(
   const source = input.source;
 
   const sourceExtension = normalizeExtension(source.file_ext);
-  const requestedKind = input.requestedKind ?? "native_thumbnail_png";
+  const requestedKind = input.requestedKind ?? requestedPreviewKindForSource(source.file_ext);
   const generatorProfile = input.generatorProfile ?? realPreviewGeneratorProfile;
   const now = new Date().toISOString();
   const status = previewRequestSupported(sourceExtension, requestedKind) ? "queued" : "skipped";

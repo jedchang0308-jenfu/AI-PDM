@@ -13,6 +13,14 @@ Extends: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.m
 Extends: `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md`
 Related QA: `.ai-doc/qa/qa-pdm-drawing-part-relation-view-validation-plan-2026-07-07.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
 
+> **2026-08-22 DEV-087 target supersession**：圖料根號沒有revision/branch；新target只顯示`正式關聯`0/1與專用`調整中`0/1，current handling只來自DEV-087 canonical state。保留relation tree/matrix、直接關聯、exact target與shared mechanics；舊root production/RD lane、legacy workspace overlay與human-status adapter在activation時拆除，不做fallback。新決策優先。
+
+> **2026-08-20 DEV-086 root production／RD lane target amendment（RD Implementation Ready / Not Implemented）**
+>
+> DEV-062 的「source-root active change 只 overlay 在一個 formal root top-level row」目標，於 DEV-086 umbrella flag 啟用後改為同一 root canonical group 內相鄰的 production／RD lane rows。這仍只有一個 root master／一個 group，不是複製 root；production 指向 Released root／manufacturing baseline（或可證明的 legacy released aggregate），RD 彙整 source-root workspace、drawing change 與 draft baseline。source-less candidate 仍是 RD-only candidate group，不得依名稱或更新時間併入 formal root。
+>
+> 每 lane row 各有一個 human status；tree／matrix／detail／preview 必須鎖定該 lane exact reference。完整 group key、filter、cursor、permission、failure 與 release 契約以 `SPEC-PDM-WORKBENCH-PRODUCTION-RD-LANES-001` 與其 ADR 為準；現行 runtime 在 flag 啟用前仍使用 DEV-062 overlay。
+
 ## 0A. DEV-067 Amendment：圖料完整投影與共用實體明細 Composer（2026-08-12）
 
 Status: `Local RD Implemented / Local QA-QC Passed / Release gated`.

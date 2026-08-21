@@ -4,6 +4,7 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
 import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { RelationWorkbenchService, relationWorkbenchErrorResponse, type RelationWorkbenchActor } from "@/lib/relation-workbench";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rowK
   const actor: RelationWorkbenchActor = {
     id: auth.user.id,
     companyId: companyResult.company.companyId,
+    canEditNonOwned: hasPdmNonOwnerEditScope({ role: auth.user.role }),
     permissions: {
       workspaceView: workspaceView.allowed,
       workspaceUpdate: workspaceUpdate.allowed,
@@ -39,7 +41,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rowK
   };
   try {
     const { rowKey } = await params;
-    const result = await new RelationWorkbenchService().detail(decodeURIComponent(rowKey), actor);
+    const result = await new RelationWorkbenchService().detail(decodeURIComponent(rowKey), actor, { projectionToken: new URL(request.url).searchParams.get("projectionToken") });
     if (!result) return NextResponse.json({ error: { code: "relation_workbench_row_not_found", message: "這筆圖料工作不存在或目前無法查看。", retryable: false } }, { status: 404 });
     return NextResponse.json(result, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {

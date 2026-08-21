@@ -85,7 +85,9 @@ async function stopServer() {
   await Promise.race([new Promise((resolve) => child.once("exit", resolve)), delay(4_000).then(() => child.kill("SIGTERM"))]);
 }
 
-const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
+const sourceDb = path.resolve(
+  process.env.PDM_DEV_068_SOURCE_SQLITE_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite")
+);
 const targetDb = path.join(tempDir, "ai-pdm.sqlite");
 fs.copyFileSync(sourceDb, targetDb);
 const fixtureDb = new Database(targetDb);

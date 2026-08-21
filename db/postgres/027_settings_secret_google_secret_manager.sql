@@ -21,7 +21,7 @@ $$;
 
 ALTER TABLE public.secret_references
   ADD CONSTRAINT secret_references_vault_provider_check
-  CHECK (vault_provider IN ('local_test_double', 'google_secret_manager', 'supabase_vault'));
+  CHECK (vault_provider IN ('local_test_double', 'windows_dpapi', 'google_secret_manager', 'supabase_vault'));
 
 COMMENT ON COLUMN public.secret_references.vault_secret_id IS
   'Opaque provider reference. For google_secret_manager this is an exact projects/.../versions/N resource name; plaintext is never stored.';

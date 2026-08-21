@@ -158,7 +158,9 @@ export type NumberingSearchInput = {
   entityType?: NumberingSearchEntityType;
   recordStatus?: NumberingRecordStatus;
   sortDirection?: NumberSortDirection;
-  limit?: number;
+  limit?: number | null;
+  /** When false, terminal records are removed before SQL LIMIT. Undefined keeps legacy caller behavior. */
+  includeHistory?: boolean;
 };
 
 export type NumberingSearchResultRecord = {
@@ -272,7 +274,9 @@ export type PartModuleListInput = {
   seriesCode?: string;
   recordStatus?: NumberingRecordStatus;
   sortDirection?: NumberSortDirection;
-  limit?: number;
+  limit?: number | null;
+  /** When false, terminal records are removed before SQL LIMIT. Undefined keeps legacy caller behavior. */
+  includeHistory?: boolean;
 };
 
 export type PartModuleDetailRecord = PartModuleListRecord & {
@@ -404,6 +408,7 @@ export type ObsoleteDraftNumberingRecordInput = {
   rootCode: string;
   reason: string;
   obsoletedBy?: string | null;
+  idempotencyKey?: string;
 };
 
 export type DeleteDraftNumberingRecordInput = {
@@ -909,6 +914,7 @@ export type RequestNumberingObsoleteApprovalInput = {
   reason: string;
   requestedBy: string;
   projectCode?: string;
+  idempotencyKey?: string;
 };
 
 export type NumberingObsoleteApprovalResult = {
@@ -924,10 +930,33 @@ export type NumberingObsoleteApprovalResult = {
 };
 
 export type RootObsoleteImpactTarget = {
-  entityType: "part_number" | "drawing_number";
+  entityType: "part_root" | "part_number" | "drawing_number";
   entityId: string;
   entityCode: string;
   recordStatus: NumberingRecordStatus;
+};
+
+export type RootObsoleteDependencySummary = {
+  approvalCount: number;
+  revisionPackageCount: number;
+  sharedModelCount: number;
+  manufacturingBaselineCount: number;
+  manufacturingBaselineItemCount: number;
+  replacementLinkCount: number;
+  bomReconfirmationCount: number;
+  fileAssetCount: number;
+  controlledReferenceCount: number;
+  fingerprint: string;
+};
+
+export type RootObsoletePolicy = {
+  action: "obsolete_draft_official_number" | "request_formal_obsolete" | "none";
+  availability: "hidden" | "inert" | "enabled";
+  requiresApproval: boolean;
+  requiresReason: boolean;
+  requiresAcknowledgement: boolean;
+  reasonCode: string;
+  message: string;
 };
 
 export type RootObsoleteImpactLink = {
@@ -942,6 +971,9 @@ export type RootObsoleteImpactResult = {
   drawings: DrawingNumberRecord[];
   links: RootObsoleteImpactLink[];
   formalTargets: RootObsoleteImpactTarget[];
+  approvalTargets: RootObsoleteImpactTarget[];
+  dependencySummary: RootObsoleteDependencySummary;
+  policy: RootObsoletePolicy;
   warnings: string[];
   pendingRequestId: string | null;
 };
@@ -953,6 +985,7 @@ export type RequestRootObsoleteApprovalInput = {
   reason: string;
   requestedBy: string;
   projectCode?: string;
+  idempotencyKey?: string;
 };
 
 export type RootObsoleteApprovalResult = {
@@ -5830,9 +5863,11 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
     filters.push("r.record_status = ?");
     params.push(input.recordStatus);
   }
+  if (input.includeHistory === false) filters.push("r.record_status NOT IN ('Obsolete', 'Merged')");
   const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
   const sortDirection = input.sortDirection ?? DEFAULT_NUMBER_SORT_DIRECTION;
   const orderDirection = sortDirection === "desc" ? "DESC" : "ASC";
+  const limitClause = input.limit === null ? "" : "LIMIT ?";
   return database
     .prepare(
       `
@@ -5866,10 +5901,10 @@ function searchRootRecords(database: SqliteDatabase, input: Required<Pick<Number
       FROM part_roots r
       ${where}
       ORDER BY r.root_code ${orderDirection}, r.id ASC
-      LIMIT ?
+      ${limitClause}
     `
     )
-    .all(...params, input.limit) as NumberingSearchRow[];
+    .all(...params, ...(input.limit === null ? [] : [input.limit])) as NumberingSearchRow[];
 }
 
 function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<NumberingSearchInput, "query" | "limit">> & NumberingSearchInput) {
@@ -5886,9 +5921,11 @@ function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<
     filters.push("p.record_status = ?");
     params.push(input.recordStatus);
   }
+  if (input.includeHistory === false) filters.push("p.record_status NOT IN ('Obsolete', 'Merged')");
   const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
   const sortDirection = input.sortDirection ?? DEFAULT_NUMBER_SORT_DIRECTION;
   const orderDirection = sortDirection === "desc" ? "DESC" : "ASC";
+  const limitClause = input.limit === null ? "" : "LIMIT ?";
   return database
     .prepare(
       `
@@ -5928,10 +5965,10 @@ function searchPartNumberRecords(database: SqliteDatabase, input: Required<Pick<
       JOIN part_roots r ON r.id = p.part_root_id
       ${where}
       ORDER BY p.part_number ${orderDirection}, p.id ASC
-      LIMIT ?
+      ${limitClause}
     `
     )
-    .all(...params, input.limit) as NumberingSearchRow[];
+    .all(...params, ...(input.limit === null ? [] : [input.limit])) as NumberingSearchRow[];
 }
 
 function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pick<NumberingSearchInput, "query" | "limit">> & NumberingSearchInput) {
@@ -5948,9 +5985,11 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
     filters.push("d.record_status = ?");
     params.push(input.recordStatus);
   }
+  if (input.includeHistory === false) filters.push("d.record_status NOT IN ('Obsolete', 'Merged')");
   const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
   const sortDirection = input.sortDirection ?? DEFAULT_NUMBER_SORT_DIRECTION;
   const orderDirection = sortDirection === "desc" ? "DESC" : "ASC";
+  const limitClause = input.limit === null ? "" : "LIMIT ?";
   return database
     .prepare(
       `
@@ -5983,10 +6022,10 @@ function searchDrawingNumberRecords(database: SqliteDatabase, input: Required<Pi
       JOIN part_roots r ON r.id = d.part_root_id
       ${where}
       ORDER BY d.drawing_number ${orderDirection}, d.id ASC
-      LIMIT ?
+      ${limitClause}
     `
     )
-    .all(...params, input.limit) as NumberingSearchRow[];
+    .all(...params, ...(input.limit === null ? [] : [input.limit])) as NumberingSearchRow[];
 }
 
 export function searchNumberingRecords(input: NumberingSearchInput = {}) {
@@ -5995,7 +6034,7 @@ export function searchNumberingRecords(input: NumberingSearchInput = {}) {
     ...input,
     query: input.query?.trim() ?? "",
     sortDirection: input.sortDirection ?? DEFAULT_NUMBER_SORT_DIRECTION,
-    limit: clampListLimit(input.limit, 50)
+    limit: input.limit === null ? null : clampListLimit(input.limit, 50)
   };
   const entityType = normalizedInput.entityType ?? "all";
   const rows: NumberingSearchRow[] = [];
@@ -6005,7 +6044,7 @@ export function searchNumberingRecords(input: NumberingSearchInput = {}) {
   return rows
     .map(mapNumberingSearchRow)
     .sort((a, b) => compareNumberCodes(a.displayCode, b.displayCode, normalizedInput.sortDirection) || a.entityType.localeCompare(b.entityType) || a.entityId.localeCompare(b.entityId))
-    .slice(0, normalizedInput.limit);
+    .slice(0, normalizedInput.limit === null ? undefined : normalizedInput.limit);
 }
 
 export function listProductSeriesOptions(companyId: string = "company-jenfu") {
@@ -6333,6 +6372,7 @@ function buildPartModuleWhere(input: PartModuleListInput) {
     where.push("p.record_status = ?");
     params.push(input.recordStatus);
   }
+  if (input.includeHistory === false) where.push("p.record_status NOT IN ('Obsolete', 'Merged')");
   return {
     sql: where.length ? `WHERE ${where.join(" AND ")}` : "",
     params
@@ -6342,10 +6382,11 @@ function buildPartModuleWhere(input: PartModuleListInput) {
 function selectPartModuleRows(database: SqliteDatabase, input: PartModuleListInput) {
   const normalizedInput = {
     ...input,
-    limit: clampListLimit(input.limit, 50)
+    limit: input.limit === null ? null : clampListLimit(input.limit, 50)
   };
   const where = buildPartModuleWhere(normalizedInput);
   const orderDirection = normalizedInput.sortDirection === "desc" ? "DESC" : "ASC";
+  const limitClause = normalizedInput.limit === null ? "" : "LIMIT ?";
   return database
     .prepare(
       `
@@ -6379,10 +6420,10 @@ function selectPartModuleRows(database: SqliteDatabase, input: PartModuleListInp
       LEFT JOIN part_variant_attributes va ON va.part_number_id = p.id
       ${where.sql}
       ORDER BY p.part_number ${orderDirection}, p.id ASC
-      LIMIT ?
+      ${limitClause}
     `
     )
-    .all(...where.params, normalizedInput.limit) as PartModuleListRow[];
+    .all(...where.params, ...(normalizedInput.limit === null ? [] : [normalizedInput.limit])) as PartModuleListRow[];
 }
 
 export function listPartModuleRecords(input: PartModuleListInput = {}) {

@@ -15,6 +15,7 @@ const drawer = read("src/components/unified-pdm-entity-detail-drawer.tsx");
 const review = read("src/components/review-context-projection.tsx");
 const lock = read("src/lib/pdm-review-lock.ts");
 const scope = read("src/lib/pdm-review-scope.ts");
+const navigation = read("src/lib/pdm-review-navigation.ts");
 const workbenches = ["drawing-workbench.tsx", "part-workbench.tsx", "relation-workbench.tsx"].map((file) => read(`src/components/${file}`));
 
 expect("canonical response schema", contract.includes('schemaVersion: "pdm-entity-detail.v2"'));
@@ -26,12 +27,12 @@ expect("PostgreSQL revision history parameter typing", service.includes(":hasDra
 expect("aggregate repository boundary", repository.includes("PdmEntityDetailAsyncRepository") && repository.includes("readCandidate") && repository.includes("readDrawing"));
 expect("review excludes raw payload", !service.includes("payload_json") && !contract.includes("payload_json") && !contract.includes("snapshotJson"));
 expect("candidate preview authority", service.includes("/api/numbering/draft-workspaces/") && service.includes("decorateMasterAttachmentsWithPreviewState"));
-expect("review action authority", service.includes("resolvePdmDetailActions") && drawer.includes("action.execution.href") && drawer.includes("Idempotency-Key"));
+expect("review action authority", service.includes("resolvePdmDetailActions") && drawer.includes("action.execution.href") && !drawer.includes("PdmDetailCommandDialog"));
 expect("review lock transaction guard", lock.includes("lockPdmEntityScopeAsync") && lock.includes("assertPdmEntityWriteAllowedAsync") && lock.includes("FOR UPDATE") && service.includes("PdmEntityDetail"));
 expect("request-scoped review receipt", scope.includes("PdmReviewScopeReceipt") && scope.includes("resolvePdmReviewScopeReceiptAsync") && service.includes("resolvePdmReviewScopeReceiptAsync"));
 expect("review context marker", review.includes('data-component="ReviewContextProjection"') && review.includes('data-component="ApprovalSnapshotProjection"'));
 expect("workbench feature gate", workbenches.every((source) => source.includes("unifiedEntityDetailEnabled") && source.includes("UnifiedPdmEntityDetailDrawer")));
-expect("return-to-owner navigation", service.includes("ownerHref") && service.includes('fallbackHref: "/approvals"'));
+expect("return-to-owner navigation", service.includes("ownerHref") && service.includes("fallbackHref") && navigation.includes("normalizePdmSurfaceReturnTo"));
 
 const failures = checks.filter(({ condition }) => !condition);
 for (const check of checks) console.log(`${check.condition ? "PASS" : "FAIL"} ${check.name}`);

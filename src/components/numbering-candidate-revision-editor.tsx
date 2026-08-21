@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BadgeCheck, FilePlus2, LoaderCircle, Save, Trash2, UploadCloud } from "lucide-react";
+import { BadgeCheck, FilePlus2, Info, LoaderCircle, LockKeyhole, Save, Trash2, UploadCloud } from "lucide-react";
 import { DrawingDetailSection } from "@/components/drawing-detail-content";
 import { FileDropzone } from "@/components/file-dropzone";
 import {
@@ -133,15 +133,6 @@ function suggestedRevision(candidate: CandidateRevision) {
   return String(candidate.policySnapshot.suggested_revision ?? candidate.revision ?? "0.1");
 }
 
-function recommendedFileWarnings(files: CandidateFile[]) {
-  const roles = new Set(files.filter((file) => !file.removedAt).map((file) => file.role));
-  const missing: string[] = [];
-  if (!roles.has("pdf")) missing.push("PDF");
-  if (!roles.has("dwg_dxf")) missing.push("DWG／DXF");
-  if (!roles.has("cad_3d")) missing.push("3D 原檔");
-  return missing;
-}
-
 function hasRequiredPrimaryEvidence(files: CandidateFile[]) {
   return requiredPrimaryRoles.every((role) =>
     files.some((file) => !file.removedAt && file.role === role && file.isPrimary && file.publicationEvidenceId)
@@ -152,20 +143,74 @@ function isRequiredPrimaryRole(role: CandidateFile["role"]) {
   return requiredPrimaryRoles.includes(role as (typeof requiredPrimaryRoles)[number]);
 }
 
+function RevisionFileRequirementsHelp() {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Node && rootRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <span className="candidate-revision-file-requirements-help" ref={rootRef}>
+      <button
+        className="candidate-revision-file-requirements-button"
+        type="button"
+        aria-label="查看送審檔案需求"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Info size={15} aria-hidden="true" />
+      </button>
+      {open ? (
+        <span className="candidate-revision-file-requirements-popover" role="dialog" aria-label="送審檔案需求">
+          <strong>送審檔案需求</strong>
+          <span><b>必要</b>主要 2D 圖面、3D 模型</span>
+          <span><b>建議</b>PDF、DWG／DXF</span>
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export function NumberingCandidateRevisionEditor({
   workspace,
   primaryDrawingCode = null,
+  showDrawingLabel = true,
   disabled,
+  disabledReason = null,
   onWorkspaceChange,
   onError,
-  onNotice
+  onNotice,
+  onDirtyChange
 }: {
   workspace: CandidateRevisionWorkspace;
   primaryDrawingCode?: string | null;
+  showDrawingLabel?: boolean;
   disabled: boolean;
+  disabledReason?: string | null;
   onWorkspaceChange: (workspace: CandidateRevisionWorkspace) => void;
   onError: (message: string) => void;
   onNotice: (message: string) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [busyKey, setBusyKey] = useState("");
   const createInFlightRef = useRef(false);
@@ -177,6 +222,15 @@ export function NumberingCandidateRevisionEditor({
     () => new Map(workspace.candidateRevisions.map((candidate) => [candidate.drawingDraftId, candidate])),
     [workspace.candidateRevisions]
   );
+
+  useEffect(() => {
+    const revisionDirty = workspace.candidateRevisions.some((candidate) =>
+      String(revisionDrafts[candidate.id] ?? candidate.revision).trim() !== candidate.revision
+      || String(overrideReasons[candidate.id] ?? candidate.overrideReason ?? "").trim() !== String(candidate.overrideReason ?? "").trim()
+    );
+    const pendingDirty = Object.values(pendingFiles).some((files) => files.length > 0);
+    onDirtyChange?.(revisionDirty || pendingDirty);
+  }, [onDirtyChange, overrideReasons, pendingFiles, revisionDrafts, workspace.candidateRevisions]);
 
   useEffect(() => {
     setRevisionDrafts(Object.fromEntries(workspace.candidateRevisions.map((candidate) => [candidate.id, candidate.revision])));
@@ -427,7 +481,7 @@ export function NumberingCandidateRevisionEditor({
 
   return (
     <DrawingDetailSection
-      title="首版圖面／版次檔案"
+      title={null}
       className="number-state-drawer-section candidate-revision-editor"
       dataSection="drawing-revision-files"
       ariaLabel="首版圖面與版次檔案"
@@ -436,7 +490,7 @@ export function NumberingCandidateRevisionEditor({
       <div className="candidate-revision-editor-list">
         {workspace.drawings.map((drawing) => {
           const candidate = candidateByDrawing.get(drawing.id);
-      const drawingLabel = drawing.candidateCode === primaryDrawingCode ? `${drawing.purposeCode} 圖面` : drawing.candidateCode ?? "圖號尚未產生";
+      const drawingLabel = drawing.candidateCode ?? primaryDrawingCode ?? "圖號尚未產生";
           if (!candidate) {
             return (
               <article className="candidate-revision-card is-empty" key={drawing.id}>
@@ -468,19 +522,25 @@ export function NumberingCandidateRevisionEditor({
             : 0;
           const uploadProgressIndeterminate = Boolean(currentUploadProgress && currentUploadProgress.bytesSent === 0);
           const requiredEvidenceReady = hasRequiredPrimaryEvidence(activeFiles);
-          const fileWarnings = recommendedFileWarnings(activeFiles);
           return (
             <article className="candidate-revision-card" key={candidate.id} data-candidate-status={candidate.lifecycleStatus}>
-              <header><div><strong>{drawingLabel}</strong><span>建議版次 {suggestion} · {locked ? "審核內容已鎖定" : "編輯中"}</span></div></header>
-              <div className="candidate-revision-fields">
-                <label><span>研發版次</span><input value={revisionValue} disabled={disabled || locked || Boolean(busyKey)} onChange={(event) => setRevisionDrafts((current) => ({ ...current, [candidate.id]: event.target.value }))} /></label>
-                {revisionValue.trim() !== suggestion ? <label><span>調整原因</span><input value={overrideReasons[candidate.id] ?? ""} disabled={disabled || locked || Boolean(busyKey)} onChange={(event) => setOverrideReasons((current) => ({ ...current, [candidate.id]: event.target.value }))} placeholder="說明為何不採用建議版次" /></label> : null}
+              <header>
+                <div className="candidate-revision-header-info">
+                  {showDrawingLabel ? <strong>{drawingLabel}</strong> : null}
+                  <span>建議版次 {suggestion}{locked ? " · 審核內容已鎖定" : ""}</span>
+                </div>
+                <label className="candidate-revision-current-revision">
+                  <span>此次版次</span>
+                  <input value={revisionValue} disabled={disabled || locked || Boolean(busyKey)} onChange={(event) => setRevisionDrafts((current) => ({ ...current, [candidate.id]: event.target.value }))} />
+                </label>
                 {!locked ? <button className="secondary-button" type="button" disabled={disabled || Boolean(busyKey)} onClick={() => void saveRevision(candidate)}><Save size={15} />{busyKey === `save:${candidate.id}` ? "儲存中..." : "儲存版次"}</button> : null}
-              </div>
+              </header>
+              {revisionValue.trim() !== suggestion ? <label className="candidate-revision-override-field"><span>調整原因</span><input value={overrideReasons[candidate.id] ?? ""} disabled={disabled || locked || Boolean(busyKey)} onChange={(event) => setOverrideReasons((current) => ({ ...current, [candidate.id]: event.target.value }))} placeholder="說明為何不採用建議版次" /></label> : null}
               <NumberingSubmissionResultFileList
                 candidate={{ id: candidate.id, drawingCode: drawing.candidateCode, revision: revisionValue, files: activeFiles } satisfies NumberingSubmissionResultCandidate}
                 files={activeFiles}
                 mode="author"
+                showFileMeta={false}
                 renderFileActions={(_, file) => !locked ? (
                   <button className="icon-button" type="button" aria-label={`移除 ${file.displayName}`} disabled={disabled || Boolean(busyKey)} onClick={() => void remove(candidate, file as unknown as CandidateFile)}>
                     <Trash2 size={15} />
@@ -489,12 +549,21 @@ export function NumberingCandidateRevisionEditor({
               />
               {!locked && unverifiedRequiredPrimaryFiles.length > 0 ? <div className="candidate-revision-existing-verification" role="status"><div><strong>主要 2D 圖面與 3D 模型需重新上傳。</strong><span>本版不可沿用舊 primary 證據；請移除舊檔並上傳本次版次原檔。</span></div></div> : null}
               {!locked && verifiableExistingFiles.length > 0 ? <div className="candidate-revision-existing-verification" aria-label="既有檔案驗證"><div><strong>可驗證已保存的非 primary 檔案，不用重新上傳。</strong><span>系統會逐檔核對內容完整性；原檔與編號都不會改變。</span></div><button className="primary-button" type="button" disabled={disabled || Boolean(busyKey)} onClick={() => void verifyExistingFiles(candidate)}><BadgeCheck size={16} />{busyKey === `verify:${candidate.id}` ? "驗證中..." : `驗證既有檔案（${verifiableExistingFiles.length}）`}</button></div> : null}
-              {requiredEvidenceReady ? <div className="candidate-revision-readiness" role="status"><strong>主要 2D 圖面與 3D 模型已完成，可送審。</strong>{fileWarnings.length > 0 ? <span>審核提醒：尚未提供 {fileWarnings.join("、")}，但不阻擋送審。</span> : <span>建議格式均已提供。</span>}</div> : null}
               {!locked ? (
                 <div className="candidate-revision-upload">
+                  <div className="candidate-revision-upload-heading">
+                    <strong>上傳此版次檔案</strong>
+                    <RevisionFileRequirementsHelp />
+                  </div>
+                  {disabled && disabledReason ? (
+                    <div className="candidate-revision-lock-notice" aria-label="此版次目前為唯讀">
+                      <LockKeyhole size={16} aria-hidden="true" />
+                      <span><strong>目前無法修改或上傳檔案</strong>{disabledReason}</span>
+                    </div>
+                  ) : null}
                   <FileDropzone
-                    label="拖放或選擇首版圖面"
-                    description="可一次選取多個 CAD、工程圖、PDF、DWG／DXF；系統會自動辨識檔案。"
+                    label={disabledReason ? "目前無法選擇檔案" : "拖放或選擇檔案"}
+                    description={disabledReason ? "請查看上方的唯讀原因。" : "可一次選取多個 CAD、工程圖、PDF、DWG／DXF；系統會自動辨識格式。"}
                     multiple
                     selectedFiles={queuedFiles.map((item) => item.file)}
                     onFilesSelected={(files) => queueFiles(candidate, files)}
@@ -522,8 +591,9 @@ export function NumberingCandidateRevisionEditor({
                     type="button"
                     data-primary-action={requiredEvidenceReady ? undefined : "complete-first-drawing"}
                     disabled={disabled || Boolean(busyKey) || queuedFiles.length === 0}
+                    title={disabledReason ?? (queuedFiles.length === 0 ? "請先選擇要上傳的檔案。" : undefined)}
                     onClick={() => void upload(candidate)}
-                  >{currentUploadProgress ? <LoaderCircle size={16} className="spin" /> : <UploadCloud size={16} />}{busyKey === `upload:${candidate.id}` ? "逐檔上傳中..." : requiredEvidenceReady ? "上傳受控檔案" : "上傳並完成驗證"}</button>
+                  >{currentUploadProgress ? <LoaderCircle size={16} className="spin" /> : <UploadCloud size={16} />}{disabledReason ? "目前無法上傳" : busyKey === `upload:${candidate.id}` ? "逐檔上傳中..." : queuedFiles.length === 0 ? "選擇檔案後上傳" : requiredEvidenceReady ? "上傳受控檔案" : "上傳並完成驗證"}</button>
                 </div>
               ) : null}
               {candidate.effectiveStatus === "ReviewApproved" ? <div className="candidate-revision-approved">研發版已核准（ReviewApproved）；實體 package 仍為 Pending。</div> : null}

@@ -30,7 +30,7 @@ function signCursor(encoded: string, env: EnvLike = process.env) {
 
 export function pdmWorkbenchFilterHash(input: {
   namespace: "drawing-v1" | "drawing-v2" | "part-v1" | "relation-v1" | "approval-inbox-v1";
-  filters: Record<string, string | number | boolean | null>;
+  filters: Record<string, string | number | boolean | null | readonly string[]>;
   companyId: string;
   actorId: string;
 }) {
@@ -50,7 +50,8 @@ export function encodePdmWorkbenchCursor(payload: PdmWorkbenchCursorPayload, env
 export function decodePdmWorkbenchCursor(
   value: string,
   expectedFilterHash: string,
-  env: EnvLike = process.env
+  env: EnvLike = process.env,
+  expectedVersion: 1 | 2 = 1
 ): PdmWorkbenchCursorPayload {
   const [encoded, providedSignature, extra] = value.split(".");
   if (!encoded || !providedSignature || extra) throw new PdmWorkbenchCursorError();
@@ -67,10 +68,11 @@ export function decodePdmWorkbenchCursor(
     throw new PdmWorkbenchCursorError();
   }
   if (
-    payload.version !== 1 ||
+    payload.version !== expectedVersion ||
     payload.filterHash !== expectedFilterHash ||
     typeof payload.updatedAt !== "string" || !payload.updatedAt ||
-    typeof payload.rowKey !== "string" || !payload.rowKey
+    typeof payload.rowKey !== "string" || !payload.rowKey ||
+    (expectedVersion === 2 && (typeof payload.groupKey !== "string" || !payload.groupKey))
   ) {
     throw new PdmWorkbenchCursorError("篩選條件已改變，請從第一頁重新查詢。");
   }

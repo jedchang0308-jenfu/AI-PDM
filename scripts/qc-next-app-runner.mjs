@@ -72,12 +72,16 @@ export async function waitForNextAppReady(baseUrl, getOutput) {
   const deadline = Date.now() + 30000;
   let lastError = "";
   while (Date.now() < deadline) {
+    const controller = new AbortController();
+    const requestTimeout = setTimeout(() => controller.abort(), 2000);
     try {
-      const response = await fetch(`${baseUrl}/login`);
+      const response = await fetch(`${baseUrl}/login`, { signal: controller.signal });
       if (response.ok) return;
       lastError = `HTTP ${response.status}`;
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
+    } finally {
+      clearTimeout(requestTimeout);
     }
     await delay(500);
   }

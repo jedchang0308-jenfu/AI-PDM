@@ -12,6 +12,8 @@ const buildDir = path.join(root, ".tmp", "solidworks-document-manager-preview");
 const exporterExePath = path.join(buildDir, "SolidWorksDocumentManagerPreviewExporter.exe");
 const defaultBaseUrl = process.env.PDM_PREVIEW_WORKER_BASE_URL || "http://127.0.0.1:3000";
 const defaultWorkerId = process.env.PDM_PREVIEW_WORKER_ID || "solidworks-document-manager-preview-worker";
+const capabilityCode = "solidworks_2d_preview_png";
+const capabilityHeartbeatMs = 10_000;
 const interopDir = process.env.PDM_SOLIDWORKS_INTEROP_DIR || "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\api\\redist";
 const sldDocumentMgrDll = path.join(interopDir, "SolidWorks.Interop.swdocumentmgr.dll");
 const swConstDll = path.join(interopDir, "SolidWorks.Interop.swconst.dll");
@@ -63,6 +65,12 @@ let idleReported = false;
 let workerCredentialLoadedFromRoute = false;
 let workerCredentialLoadedAt = 0;
 let workerCredentialValue = "";
+let workerCredentialSource = "";
+let workerCredentialVersion = null;
+let workerCredentialFingerprint = null;
+let capabilityHeartbeatAt = 0;
+let capabilityHeartbeatStatus = "";
+let capabilityHeartbeatIssueCode = "";
 
 if (watchMode) {
   console.log(JSON.stringify({ workerId, watching: true, pollMs, credentialRefreshMs }, null, 2));
@@ -73,7 +81,15 @@ while (true) {
     try {
       const shouldRefreshCredential = workerCredentialLoadedFromRoute && Date.now() - workerCredentialLoadedAt >= credentialRefreshMs;
       await ensureWorkerDocumentManagerKey({ baseUrl, token, refresh: shouldRefreshCredential });
+      await reportCapabilityHeartbeat({ baseUrl, token, workerId, status: "ready" });
     } catch (error) {
+      await reportCapabilityHeartbeat({
+        baseUrl,
+        token,
+        workerId,
+        status: "blocked",
+        issueCode: error?.code || "DOCUMENT_MANAGER_CREDENTIAL_NOT_READY"
+      });
       if (isWorkerConfigurationError(error)) throw error;
       console.error(JSON.stringify({ workerId, watching: true, status: "credential_retry", error: "Document Manager credential is not ready; the worker will retry." }, null, 2));
       await delay(pollMs);
@@ -220,7 +236,12 @@ async function claimJob(input) {
 async function ensureWorkerDocumentManagerKey(input) {
   const now = Date.now();
   if (workerCredentialLoadedFromRoute && workerCredentialValue && !input.refresh && now - workerCredentialLoadedAt < credentialRefreshMs) return;
-  if (!workerCredentialLoadedFromRoute && hasDocumentManagerLicenseKey() && !input.refresh) return;
+  if (!workerCredentialLoadedFromRoute && hasDocumentManagerLicenseKey() && !input.refresh) {
+    workerCredentialSource = "worker_environment";
+    workerCredentialVersion = null;
+    workerCredentialFingerprint = null;
+    return;
+  }
   if (input.refresh && workerCredentialLoadedFromRoute) clearRouteLoadedCredential();
   const response = await fetch(`${input.baseUrl}/api/preview-workers/solidworks-document-manager-key`, {
     method: "GET",
@@ -246,13 +267,49 @@ async function ensureWorkerDocumentManagerKey(input) {
   workerCredentialValue = key;
   workerCredentialLoadedFromRoute = true;
   workerCredentialLoadedAt = now;
+  workerCredentialSource = String(body.source ?? "broker").trim() || "broker";
+  workerCredentialVersion = Number.isInteger(body.version) ? body.version : null;
+  workerCredentialFingerprint = String(body.fingerprint ?? "").trim() || null;
 }
 
 function clearRouteLoadedCredential() {
   workerCredentialValue = "";
   workerCredentialLoadedFromRoute = false;
   workerCredentialLoadedAt = 0;
+  workerCredentialSource = "";
+  workerCredentialVersion = null;
+  workerCredentialFingerprint = null;
   delete process.env.PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY;
+}
+
+async function reportCapabilityHeartbeat(input) {
+  const now = Date.now();
+  const issueCode = input.issueCode || "";
+  if (now - capabilityHeartbeatAt < capabilityHeartbeatMs
+    && input.status === capabilityHeartbeatStatus
+    && issueCode === capabilityHeartbeatIssueCode) return;
+  capabilityHeartbeatAt = now;
+  capabilityHeartbeatStatus = input.status;
+  capabilityHeartbeatIssueCode = issueCode;
+  await fetch(`${input.baseUrl}/api/preview-workers/heartbeat`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${input.token}`,
+      "x-pdm-preview-worker-token": input.token
+    },
+    body: JSON.stringify({
+      workerId: input.workerId,
+      capability: capabilityCode,
+      status: input.status,
+      appliedSecretKind: workerCredentialValue ? "solidworks_document_manager" : null,
+      appliedSecretVersion: workerCredentialVersion,
+      appliedSecretFingerprint: workerCredentialFingerprint,
+      readerVersion: "solidworks-document-manager-preview-worker.v1",
+      issueCode: issueCode || null,
+      lastAppliedAt: workerCredentialValue ? new Date(workerCredentialLoadedAt).toISOString() : null
+    })
+  }).catch(() => undefined);
 }
 
 function isWorkerConfigurationError(error) {
@@ -439,7 +496,7 @@ function assertMeaningfulDrawingPreviewQuality(quality, outputPath) {
 
 function userFacingPreviewErrorSummary(message) {
   if (/DOCUMENT_MANAGER_LICENSE_KEY_MISSING/iu.test(message)) {
-    return "2D 圖面預覽需要 worker 可讀取的 SolidWorks Document Manager key；目前 UI 尚未提供可用的 Google Secret Manager exact version。請確認設定中心、worker token 與 2D worker readiness。";
+    return "2D 圖面預覽需要 worker 可讀取的 SolidWorks Document Manager key；請確認設定中心已啟用版本，以及 2D worker readiness。";
   }
   if (/DOCUMENT_MANAGER_OPEN_FAILED:swDmDocumentOpenErrorNoLicense/iu.test(message)) {
     return "SolidWorks Document Manager key 無效或授權不包含此功能，無法開啟工程圖產生預覽。";

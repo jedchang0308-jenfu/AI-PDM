@@ -82,6 +82,7 @@ try {
 
   record("SETTINGS-SECRET-012 UI uses password field and never displays secret value", settingsPage.includes('type="password"') && settingsPage.includes('autoComplete="new-password"') && !settingsPage.includes("solidworks_api_key"));
   record("SETTINGS-SECRET-012A UI displays worker readiness without secret material", settingsPage.includes("workerReadiness") && settingsPage.includes("workerReadinessLabel"));
+  record("SETTINGS-SECRET-012B active test-double is visibly non-readable", lifecycle.includes("本機測試替身，不能讀取 SolidWorks 屬性") && lifecycle.includes("建立 Windows DPAPI secure version"));
   record("SETTINGS-SECRET-013 UI exposes settings center areas", includesAll(settingsPage, ["settings-overview", "settings-integrations", "settings-security", "settings-workflow", "settings-system"]));
   record(
     "SETTINGS-SECRET-014 settings subpage routes render their own area",

@@ -45,7 +45,7 @@ export function DrawingProjection({ projection, returnTo = "/numbering/drawings"
     <section id="drawing-data-maintenance" className="unified-pdm-projection" data-component="DrawingProjection" aria-labelledby="unified-drawing-projection-title">
       <div className="unified-pdm-projection-heading">
         <div><h3 id="unified-drawing-projection-title">圖面資料</h3></div>
-        {showStatusBadge ? <HumanStatusBadge status={data.humanStatus} viewerStatus={data.viewerStatus} availabilityScope={data.availabilityScope} /> : null}
+        {showStatusBadge ? <HumanStatusBadge status={data.humanStatus} responsibilityStatus={data.responsibilityStatus} viewerActionability={data.viewerActionability} viewerStatus={data.viewerStatus} availabilityScope={data.availabilityScope} /> : null}
       </div>
       <div className="unified-pdm-fact-grid">
         <div><span>圖號</span><strong>{data.drawingNumber ?? data.displayName}</strong></div>

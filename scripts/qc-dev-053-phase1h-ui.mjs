@@ -72,7 +72,7 @@ record("DEV053-H-UI-008 withdrawal remains a compact drawer-header secondary act
   has(workbenchService, [
     'kind: "withdraw_review"',
     'label: "撤回送審"',
-    "drawing.lifecycle.submittedBy === actor.id",
+    "drawing.lifecycle.submittedBy === actor.id || actor.canEditNonOwned",
     "drawing.lifecycle.decisionCount === 0"
   ]) && has(workbench, [
     "DrawingLifecycleSecondaryAction",

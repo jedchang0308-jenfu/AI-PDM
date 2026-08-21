@@ -7,6 +7,8 @@ Owner: Dev PM
 Related DEV: `DEV-064`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-AGGREGATE-001-single-data-layer.md`
 
+> **2026-08-22 DEV-087 amendment**：canonical Drawing/Revision/File identity與approved artifact authority完整保留；legacy/candidate current-row投影、work identity、handling/filter/review request由DEV-087新schema/API取代。新決策優先，舊projection只能作converter source或歷史證據，不得保留runtime fallback。
+
 > Amendment 2026-08-15：舊保留號在開發階段即自動納入 canonical Drawing，production canonical adoption 時亦不得遺漏。`number_candidate_reservations.id` 是 cutover reconciliation 最小單位；所有未正式化且非終結的 legacy／inconsistent facts只投影成使用者唯一可見站「首版準備」，來源狀態與 recovery owner 留在後台。正式／發布／terminal資料維持真實下游狀態。任何 unmapped、重複映射、改號或 cutover freeze 期間的來源 hash 變更都 fail closed；正式開放後合法 state／row-version 前進不算遺失。
 
 ## Context

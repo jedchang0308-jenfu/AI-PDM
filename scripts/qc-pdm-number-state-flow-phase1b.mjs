@@ -246,7 +246,7 @@ record(
     workspace.includes("workspaceHeaderPrimaryAction") &&
     workspace.includes("NowWhatPanel") &&
     workspace.includes("LifecycleV2PendingPanel") &&
-    workspace.includes("shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)") &&
+    (workspace.includes("shouldRenderLifecycleV2Pending(workspace.lifecycleV2.stage)") || workspace.includes("shouldRenderLifecycleV2Pending(projectNumberLifecycleUserView(workspace.lifecycleV2).stage)")) &&
     workspace.includes('!["official_controlled", "history_only"].includes(workspace.lifecycleV2.stage)') &&
     drawingDetailContent.includes('dataSection="drawing-pending"') &&
     workspace.includes("useNumberStateActionPermissions") &&
@@ -301,8 +301,8 @@ record(
     workspace.includes('data-label={moduleConfig.reservedCodeLabel}') &&
     workspace.includes('data-label="申請名稱"') &&
     workspace.includes('data-label="內容"') &&
-    /data-label=\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態"\}/u.test(workspace) &&
-    /<th>\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態"\}<\/th>/u.test(workspace) &&
+    (/data-label=\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態"\}/u.test(workspace) || /data-label=\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"目前階段"\s*:\s*"申請狀態"\}/u.test(workspace)) &&
+    (/<th>\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"首版準備 \/ 整包狀態"\s*:\s*"申請狀態"\}<\/th>/u.test(workspace) || /<th>\{lifecycleV2Enabled\s*&&\s*module\s*===\s*"drawings"\s*\?\s*"目前階段"\s*:\s*"申請狀態"\}<\/th>/u.test(workspace)) &&
     !workspace.includes("number-state-next-label") &&
     !workspace.includes('<div className="pdm-identity-meta">{draftModeLabel(workspace.draftMode)}</div>') &&
     !workspace.includes('data-label="操作"') &&

@@ -2,6 +2,240 @@
   display: none;
 }
 
+/* DEV-085 — Excel-style multi-select filter popovers */
+.drawing-workbench-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) repeat(5, max-content);
+  gap: 10px;
+  align-items: end;
+}
+
+/* Keep legacy workbench adapters on the same compact filter rhythm. */
+.pdm-master-filter-grid,
+.pdm-drawing-toolbar .pdm-master-filter-grid {
+  grid-template-columns: minmax(260px, 1fr) repeat(5, max-content) auto;
+}
+
+.pdm-master-filter-grid > .pdm-master-field:not(:first-child),
+.pdm-drawing-toolbar .pdm-master-filter-grid > .pdm-master-field:not(:first-child),
+.pdm-workbench-multi-select-filter {
+  width: max-content;
+  max-width: 100%;
+}
+
+.pdm-master-field select,
+.pdm-drawing-toolbar .pdm-master-field select,
+.pdm-master-filter-action {
+  width: fit-content;
+  min-width: 7rem;
+  max-width: 100%;
+}
+
+.pdm-master-filter-action {
+  justify-self: start;
+}
+
+.drawing-workbench-search {
+  min-width: 0;
+}
+
+.drawing-workbench-search > span {
+  display: block;
+  margin-bottom: 0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.drawing-workbench-search > div {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  display: flex;
+  gap: 7px;
+  height: 38px;
+  min-height: 0;
+  padding: 0 10px;
+}
+
+.drawing-workbench-search input {
+  border: 0;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  outline: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.pdm-workbench-multi-select-filter {
+  min-width: 0;
+  position: relative;
+}
+
+.pdm-workbench-multi-select-label {
+  display: block;
+  margin-bottom: 5px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pdm-workbench-multi-select-trigger {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 8px;
+  justify-content: space-between;
+  min-height: 38px;
+  min-width: 7rem;
+  max-width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  width: max-content;
+  white-space: nowrap;
+}
+
+.pdm-workbench-multi-select-trigger:hover,
+.pdm-workbench-multi-select-trigger:focus-visible {
+  border-color: #2563eb;
+  outline: 2px solid rgba(37, 99, 235, 0.2);
+  outline-offset: 1px;
+}
+
+.pdm-workbench-multi-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.pdm-workbench-multi-select-popover {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+  max-height: min(420px, calc(100vh - 24px));
+  overflow: hidden;
+  position: fixed;
+  width: min(320px, calc(100vw - 24px));
+  z-index: 1000;
+}
+
+.pdm-workbench-multi-select-popover-header,
+.pdm-workbench-multi-select-popover-footer,
+.pdm-workbench-multi-select-header,
+.pdm-workbench-multi-select-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.pdm-workbench-multi-select-popover-header,
+.pdm-workbench-multi-select-header {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.pdm-workbench-multi-select-popover-footer,
+.pdm-workbench-multi-select-actions {
+  border-top: 1px solid #e2e8f0;
+}
+
+.pdm-workbench-multi-select-popover-footer button,
+.pdm-workbench-multi-select-actions button {
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  cursor: pointer;
+  padding: 5px 10px;
+}
+
+.pdm-workbench-multi-select-popover-footer button:last-child,
+.pdm-workbench-multi-select-actions button:last-child {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.pdm-workbench-multi-select-options {
+  max-height: 270px;
+  overflow: auto;
+  padding: 6px 12px;
+}
+
+.pdm-workbench-multi-select-option {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.pdm-workbench-multi-select-option input {
+  accent-color: #2563eb;
+}
+
+.pdm-workbench-multi-select-search {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin: 8px 12px 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  min-width: 0;
+  padding: 5px 8px;
+  width: auto;
+}
+
+.pdm-workbench-multi-select-search input {
+  border: 0;
+  min-width: 0;
+  outline: 0;
+  padding: 3px;
+  width: 100%;
+}
+
+@media (max-width: 980px) {
+  .drawing-workbench-filter-grid {
+    grid-template-columns: minmax(220px, 1fr) repeat(3, max-content);
+  }
+
+  .pdm-master-filter-grid,
+  .pdm-drawing-toolbar .pdm-master-filter-grid {
+    grid-template-columns: minmax(220px, 1fr) repeat(3, max-content) auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .drawing-workbench-filter-grid,
+  .pdm-master-filter-grid,
+  .pdm-drawing-toolbar .pdm-master-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .drawing-workbench-search,
+  .pdm-master-filter-grid > .pdm-master-field:first-child,
+  .pdm-drawing-toolbar .pdm-master-filter-grid > .pdm-master-field:first-child {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .pdm-workbench-multi-select-filter,
+  .pdm-master-filter-grid > .pdm-master-field:not(:first-child),
+  .pdm-drawing-toolbar .pdm-master-filter-grid > .pdm-master-field:not(:first-child) {
+    width: max-content;
+    justify-self: start;
+  }
+
+  .pdm-master-filter-action {
+    grid-column: auto;
+  }
+}
+
 @media (max-width: 720px) {
   .master-attachment-form {
     grid-template-columns: 1fr;
@@ -605,6 +839,29 @@
     gap: 6px;
   }
 
+  .local-quick-login-card {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .local-quick-login-list {
+    gap: 5px;
+  }
+
+  .local-quick-login-option {
+    min-height: 38px;
+    padding: 6px;
+    gap: 4px;
+  }
+
+  .local-quick-login-option-copy strong {
+    font-size: 11px;
+  }
+
+  .local-quick-login-option-action {
+    font-size: 10px;
+  }
+
   .test-account-card > div:first-child {
     gap: 1px;
   }
@@ -1050,4 +1307,26 @@
   .handoff-card {
     page-break-inside: avoid;
   }
+}
+.pdm-workbench-lane-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: .45rem;
+  padding: .15rem .4rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.pdm-workbench-lane-badge.is-production { color: #065f46; background: #d1fae5; }
+.pdm-workbench-lane-badge.is-rd { color: #1e40af; background: #dbeafe; }
+.pdm-workbench-lane-revision {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: .35rem;
+  color: #475569;
+  font-size: .72rem;
+  font-weight: 600;
+  white-space: nowrap;
 }

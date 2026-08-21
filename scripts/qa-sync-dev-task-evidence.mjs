@@ -119,6 +119,49 @@ function getSolidWorksEvidence() {
 }
 
 function getDocumentManagerEvidence() {
+  const nativeReaderRoot = path.join(root, "output", "qa", "dev-035-solidworks-native-reader");
+  const nativeReaderReports = fs.existsSync(nativeReaderRoot)
+    ? fs.readdirSync(nativeReaderRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(nativeReaderRoot, entry.name, "a0002-real-reader.json"))
+      .filter((reportPath) => fs.existsSync(reportPath))
+      .sort((left, right) => fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs)
+    : [];
+  for (const nativeReaderReportPath of nativeReaderReports) {
+    try {
+      const report = JSON.parse(fs.readFileSync(nativeReaderReportPath, "utf8"));
+      const runs = Array.isArray(report.runs) ? report.runs : [];
+      const fields = Array.isArray(report.expectedFields) ? report.expectedFields : [];
+      const assertions = report.assertions ?? {};
+      const secureProvider = ["windows_dpapi", "google_secret_manager"].includes(report.secret?.provider);
+      const realRuns = new Set(runs.map((run) => run.sessionId)).size >= 2
+        && runs.every((run) => run.adapterStatus === "succeeded" && String(run.adapter ?? "").startsWith("solidworks-document-manager"));
+      const noMismatches = ["missingFields", "valueMismatches", "ownerMismatches", "scopeMismatches"]
+        .every((key) => Array.isArray(assertions[key]) && assertions[key].length === 0);
+      const ready = report.schemaVersion === "dev-035-solidworks-native-reader-evidence.v1"
+        && report.status === "passed"
+        && secureProvider
+        && report.secret?.plaintextIncluded === false
+        && report.probe?.status === "passed"
+        && report.worker?.status === "ready"
+        && report.worker?.exactVersionAcknowledged === true
+        && /^\w{64}$/u.test(String(report.source?.sha256 ?? ""))
+        && Number(report.source?.bytes) > 0
+        && report.source?.readOnly === true
+        && report.source?.hashVerifiedBeforeAndAfter === true
+        && realRuns
+        && new Set(fields.map((field) => field.fieldKey)).size === 8
+        && assertions.repeatable === true
+        && assertions.secretRedacted === true
+        && noMismatches;
+      if (ready) {
+        return { ready: true, reportPath: nativeReaderReportPath, issues: [] };
+      }
+    } catch {
+      // Continue to the legacy report and preserve the existing fail-closed behavior.
+    }
+  }
+
   const reportPath = findLatestDocumentManagerReport(root);
   if (!reportPath) {
     return { ready: false, reportPath: null, issues: [{ type: "missing_report" }] };

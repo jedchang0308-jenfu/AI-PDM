@@ -1,7 +1,40 @@
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 import type { HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import type { ResponsibilityStatusProjection, ViewerActionabilityProjection } from "@/lib/responsibility-status-projection";
 
 export type PdmWorkbenchSourceKind = "candidate" | "formal";
+
+/** The two business projections that may coexist for one canonical group. */
+export type PdmWorkbenchLane = "production" | "rd";
+
+export type PdmWorkbenchReferenceKind =
+  | "drawing_revision_package"
+  | "manufacturing_baseline"
+  | "legacy_released_basis"
+  | "candidate_workspace"
+  | "active_change_set";
+
+export type PdmWorkbenchLaneReference = {
+  kind: PdmWorkbenchReferenceKind;
+  displayRevision: string | null;
+  purposeLabel: string;
+  sourceCount: number;
+  conflict: boolean;
+  projectionToken: string;
+};
+
+export type PdmWorkbenchLaneFields = {
+  groupKey: string;
+  entityKey: string;
+  lane: PdmWorkbenchLane;
+  laneLabel: "量產最新版" | "研發最新版";
+  reference: PdmWorkbenchLaneReference;
+};
+
+export type PdmWorkbenchFilterSelection<T extends string = string> =
+  | { mode: "all" }
+  | { mode: "none" }
+  | { mode: "some"; values: readonly T[] };
 
 export type PdmWorkbenchPreviewState = "ready" | "pending" | "delayed" | "missing" | "failed" | "unavailable";
 
@@ -49,10 +82,14 @@ export type PdmWorkbenchRowBase<
   displayName: string;
   updatedAt: string;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
   primaryAction: PdmWorkbenchAction<ActionKind> | null;
   terminal: PdmWorkbenchTerminalInfo | null;
+  /** Present when the production/R&D dual-lane projection is enabled. */
+  lane?: PdmWorkbenchLaneFields;
 };
 
 export type PdmWorkbenchListResponse<Row, Filters> = {
@@ -62,14 +99,18 @@ export type PdmWorkbenchListResponse<Row, Filters> = {
   pageIndex?: number;
   generatedAt: string;
   filters: Filters;
+  paginationUnit?: "row" | "group";
+  groupLimit?: number;
+  groupCount?: number;
 };
 
 export type PdmWorkbenchCursorPayload = {
-  version: 1;
+  version: 1 | 2;
   filterHash: string;
   updatedAt: string;
   sortValue?: string;
   rowKey: string;
+  groupKey?: string;
   direction?: "after" | "before";
   pageIndex?: number;
 };

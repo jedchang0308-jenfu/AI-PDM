@@ -1,5 +1,6 @@
 import type { AvailabilityScopeProjection } from "@/lib/availability-scope";
 import type { HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import type { ResponsibilityStatusProjection, ViewerActionabilityProjection } from "@/lib/responsibility-status-projection";
 
 export type PdmEntityKey = `candidate:${string}` | `drawing:${string}` | `part:${string}` | `root:${string}`;
 export type PdmDetailSurface = "drawing" | "part" | "relation";
@@ -18,6 +19,8 @@ export type SharedIdentityStatusHeaderModel = {
   entityCode: string;
   displayName: string;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
   stateFamily: PdmDetailStateFamily;
@@ -46,6 +49,8 @@ export type DrawingProjectionSummary = {
   purposeCode: string | null;
   purposeLabel: string | null;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
   linkedPartCount: number;
@@ -77,6 +82,8 @@ export type PartProjectionSummary = {
   displayName: string;
   itemKind: string;
   humanStatus: HumanStatusProjection;
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
   viewerStatus: ViewerHumanStatusProjection;
   availabilityScope: AvailabilityScopeProjection;
   linkedDrawingCount: number;
@@ -197,7 +204,7 @@ export type ContextActionBarModel = { primary: PdmDetailActionDescriptor | null;
 export type PdmDetailNavigationModel = {
   ownerHref: string;
   returnTo: string;
-  fallbackHref: "/approvals";
+  fallbackHref: string;
   targetAnchors: Array<{ id: string; label: string; projection: "drawing" | "part" | "relation" | "review" }>;
 };
 

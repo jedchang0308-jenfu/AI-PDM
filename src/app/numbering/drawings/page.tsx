@@ -13,9 +13,11 @@ import { NumberingContextualEntrypoints } from "@/components/numbering-contextua
 import { NumberStateModuleTabs, NumberStateOwnerCreateAction, NumberStateWorkspaceWorkbench } from "@/components/number-state-workspace";
 import { NumberSortHeader } from "@/components/number-sort-header";
 import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popover";
+import { StatusSignalGroup } from "@/components/status-signal-group";
 import { copyTextToClipboardBestEffort } from "@/lib/client-clipboard";
 import { ACTIVE_DRAWING_PURPOSE_CODES, displayDrawingPurposeLabel, isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import { drawingRecordStatusFilterValues, formatStatusForUser } from "@/lib/status-display";
+import type { StatusSignalInput } from "@/lib/status-visibility-policy";
 import { DEFAULT_NUMBER_SORT_DIRECTION, parseNumberSortDirection, type NumberSortDirection } from "@/lib/number-sort";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "error";
@@ -377,7 +379,7 @@ export default function DrawingNumbersPage() {
                 <span>關鍵字</span>
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="圖號 / 料號 / 文件用途" />
               </label>
-              <SelectField label="系列代號" value={seriesCode} onChange={setSeriesCode} options={["", ...seriesCodeOptions]} allLabel="全部系列代號" />
+              <SelectField label="系列代號" value={seriesCode} onChange={setSeriesCode} options={["", ...seriesCodeOptions]} allLabel="全部" />
               <SelectField label="用途" value={purposeCode} onChange={setPurposeCode} options={purposeCodes} formatOption={formatDrawingPurposeFilterOption} />
               <SelectField label="資料狀態" value={recordStatus} onChange={setRecordStatus} options={statuses} formatOption={(option) => formatStatusForUser(option, "masterRecord")} />
               <button className="primary-button pdm-master-filter-action" type="button" onClick={loadDrawings} disabled={busy}>
@@ -479,10 +481,44 @@ export default function DrawingNumbersPage() {
                           </td>
                           <td data-label="資料狀態 / 提醒">
                             <div className="pdm-meta-strip">
-                              <StatusBadge status={drawing.recordStatus} context="masterRecord" highlightQuery={query} />
-                              {drawing.pendingApproval ? <PendingApprovalBadge pending={drawing.pendingApproval} canReview={canReviewApprovals} /> : null}
-                              {drawing.releaseStatusMismatch ? <ReleaseStatusMismatchBadge mismatch={drawing.releaseStatusMismatch} /> : null}
-                              {drawing.warningCount > 0 ? <WarningBadge count={drawing.warningCount} /> : null}
+                              <StatusSignalGroup
+                                surface="list"
+                                primary={<StatusBadge status={drawing.recordStatus} context="masterRecord" highlightQuery={query} />}
+                                signals={[
+                                  drawing.pendingApproval ? {
+                                    id: `${drawing.id}:pending-approval`,
+                                    context: "approvalStatus" as const,
+                                    raw: "Pending",
+                                    isPrimaryAxis: false,
+                                    affectsCurrentAction: true,
+                                    label: `待審 ${drawing.pendingApproval.count} 件`,
+                                    description: `圖面進版影響審核：${revisionRangeLabel(drawing.pendingApproval.revisions)}`,
+                                    actionHref: canReviewApprovals ? drawing.pendingApproval.workbenchHref : undefined,
+                                    actionLabel: canReviewApprovals ? "查看審核" : undefined
+                                  } : null,
+                                  drawing.releaseStatusMismatch ? {
+                                    id: `${drawing.id}:release-mismatch`,
+                                    context: "publicationStatus" as const,
+                                    raw: "ReleaseFailed",
+                                    isPrimaryAxis: false,
+                                    affectsCurrentAction: true,
+                                    conflict: true,
+                                    label: "發布待同步",
+                                    description: `已發布送審版次 ${drawing.releaseStatusMismatch.revision} 尚未同步到圖號主資料。`,
+                                    actionHref: `/submissions/${encodeURIComponent(drawing.releaseStatusMismatch.submissionId)}`,
+                                    actionLabel: "查看送審明細"
+                                  } : null,
+                                  drawing.warningCount > 0 ? {
+                                    id: `${drawing.id}:warnings`,
+                                    context: "reminderStatus" as const,
+                                    raw: "warning",
+                                    isPrimaryAxis: false,
+                                    affectsCurrentAction: true,
+                                    label: `${drawing.warningCount} 項提醒`,
+                                    description: "此圖號仍有需要查看的提醒，請在明細確認是否影響下一步。"
+                                  } : null
+                                ].filter(Boolean) as unknown as StatusSignalInput[]}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -551,19 +587,6 @@ function revisionRangeLabel(revisions: string[]) {
   return `rev ${clean[0]}-${clean[clean.length - 1]}`;
 }
 
-function ReleaseStatusMismatchBadge({ mismatch }: { mismatch: NonNullable<DrawingListRecord["releaseStatusMismatch"]> }) {
-  return (
-    <Link
-      className="pdm-meta-chip"
-      href={`/submissions/${encodeURIComponent(mismatch.submissionId)}`}
-      onClick={(event) => event.stopPropagation()}
-      style={{ borderColor: "#f59e0b", color: "#92400e" }}
-    >
-      已發布送審待同步
-    </Link>
-  );
-}
-
 function ReleaseStatusMismatchPanel({ drawing }: { drawing: DrawingListRecord }) {
   const mismatch = drawing.releaseStatusMismatch;
   if (!mismatch) return null;
@@ -581,37 +604,6 @@ function ReleaseStatusMismatchPanel({ drawing }: { drawing: DrawingListRecord })
         </Link>
       </div>
     </section>
-  );
-}
-
-function PendingApprovalBadge({ pending, canReview }: { pending: DrawingPendingApprovalSummary; canReview: boolean }) {
-  const label = `待審 ${pending.count}`;
-  const title = `圖面進版影響審核：${revisionRangeLabel(pending.revisions)}`;
-  if (canReview) {
-    return (
-      <Link
-        className="pdm-meta-chip drawing-pending-approval-chip"
-        href={pending.workbenchHref}
-        onClick={(event) => event.stopPropagation()}
-        title={title}
-      >
-        {label}
-      </Link>
-    );
-  }
-  return (
-    <span className="pdm-meta-chip drawing-pending-approval-chip" title={title}>
-      {label}
-    </span>
-  );
-}
-
-function WarningBadge({ count }: { count: number }) {
-  return (
-    <span style={{ ...badgeStyle, color: "var(--danger)", borderColor: "rgba(220, 38, 38, 0.35)" }}>
-      <AlertTriangle size={14} />
-      {count}
-    </span>
   );
 }
 

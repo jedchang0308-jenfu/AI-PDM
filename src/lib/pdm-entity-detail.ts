@@ -4,20 +4,20 @@ import { projectDrawingAvailability, projectDrawingRecordAvailability, projectPa
 import { AsyncNumberStateFlowRepository, numberingCandidateReviewSnapshotHash } from "@/lib/repositories/number-state-flow-async-repository";
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
-import { decorateMasterAttachmentsWithPreviewState } from "@/lib/preview-derivatives";
+import { decorateMasterAttachmentsWithPreviewState, ensureAutomaticPreviewJobsForAttachmentsAsync, recoverStalePreviewJobsAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
 import { AsyncMasterAttachmentRepository } from "@/lib/repositories/master-attachment-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import { PdmEntityDetailAsyncRepository } from "@/lib/repositories/pdm-entity-detail-async-repository";
 import { AsyncApprovalPlatformRepository } from "@/lib/repositories/approval-platform-async-repository";
 import { derivePdmDetailProjectionPolicy, type PdmDetailProjectionPolicy } from "@/lib/pdm-entity-detail-policy";
-import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
+import { normalizePdmSurfaceReturnTo } from "@/lib/pdm-review-navigation";
 import { PdmReviewScopeError, pdmReviewEntityId, pdmReviewTargetTypesForEntityKey, resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
 import { compareRevisionCodes } from "@/lib/revision-policy";
 import { evaluateCandidateRevisionReadiness } from "@/lib/number-lifecycle-simplification";
 import { isNumberLifecycleAdoptionHiddenFromUser, projectNumberLifecycleUserView } from "@/lib/number-lifecycle-user-view";
 import { EMPTY_PDM_DETAIL_ACTION_CAPABILITIES, type PdmDetailActionCapabilities } from "@/lib/pdm-detail-action-capabilities";
 import { resolvePdmDetailActions } from "@/lib/pdm-detail-action-resolver";
-import { normalizePdmDetailStateFamily, projectPdmDetailObjectiveStatus, projectPdmDetailViewerStatus } from "@/lib/pdm-detail-status-actionability";
+import { normalizePdmDetailStateFamily, projectPdmDetailObjectiveStatus, projectPdmDetailStatusPair } from "@/lib/pdm-detail-status-actionability";
 import type { NumberingDraftWorkspaceRecord } from "@/lib/repositories/number-state-flow-async-repository";
 import type { DrawingModuleListRecord, PartModuleDetailRecord, NumberingRootDetailRecord } from "@/lib/repositories/numbering-repository";
 import type { MasterAttachmentRecord } from "@/lib/repositories/master-attachment-repository";
@@ -89,12 +89,36 @@ function previewSlot(kind: "three-d" | "two-d", title: string, attachment: Detai
   if (!attachment) return { kind, title, fileName: null, state: "missing", stateTitle: "尚無正式檔案", stateText: kind === "three-d" ? "目前沒有正式 3D CAD。" : "目前沒有正式 2D 圖面。", mediaHref: null, downloadHref: null, retryCommandRef: null };
   const sourceHref = attachment.readHref ?? `/api/numbering/drawings/${encodeURIComponent(attachment.entityCode)}/attachments/${encodeURIComponent(attachment.id)}`;
   const downloadHref = reviewRequestId ? withQuery(sourceHref, "reviewRequestId", reviewRequestId) : sourceHref;
+  // PDF is already a browser-native, page-addressable preview source. Candidate
+  // revisions may not have a generated derivative row yet, but withholding the
+  // original PDF would make valid OCR evidence appear as "preview unavailable".
+  // Keep the protected file route as the only read path and let the viewport
+  // consume the returned bytes directly.
+  const isDirectPdfPreview = kind === "two-d"
+    && attachment.fileExt.trim().toLowerCase() === "pdf"
+    && attachment.mimeType?.trim().toLowerCase() === "application/pdf";
+  if (isDirectPdfPreview) {
+    return { kind, title, fileName: attachment.displayName || attachment.fileName, state: "ready", stateTitle: "PDF 預覽已就緒", stateText: "直接使用受控 PDF 原檔顯示頁面與定位證據。", mediaHref: withQuery(downloadHref, "preview", "1"), downloadHref, retryCommandRef: null };
+  }
   const derivative = attachment.previewDerivatives.find((item) => item.status === "ready" && item.sourceContentHash === attachment.contentHash && (kind === "three-d" ? ["model_preview_png", "thumbnail_png"].includes(item.derivativeKind) : ["drawing_pdf", "sheet_png", "thumbnail_png"].includes(item.derivativeKind)));
-  const activeJob = attachment.previewJob?.sourceContentHash === attachment.contentHash && ["queued", "running"].includes(attachment.previewJob.status);
+  const expectedKind = kind === "two-d" ? requestedPreviewKindForSource(attachment.fileExt) : null;
+  const activeJob = attachment.previewJob?.sourceContentHash === attachment.contentHash
+    && (expectedKind === null || attachment.previewJob.requestedKind === expectedKind)
+    && ["queued", "running"].includes(attachment.previewJob.status);
   if (derivative) {
     return { kind, title, fileName: attachment.displayName || attachment.fileName, state: "ready", stateTitle: "預覽已就緒", stateText: "可直接開啟預覽。", mediaHref: derivative ? withQuery(downloadHref, "previewDerivative", derivative.id) : withQuery(downloadHref, "preview", "1"), downloadHref, retryCommandRef: null };
   }
-  if (activeJob) return { kind, title, fileName: attachment.displayName || attachment.fileName, state: "running", stateTitle: "預覽產生中", stateText: "系統完成後會自動更新。", mediaHref: null, downloadHref, retryCommandRef: null };
+  if (activeJob && attachment.previewJob?.status === "running") {
+    const heartbeatAt = Date.parse(attachment.previewJob.lastHeartbeatAt);
+    if (Number.isFinite(heartbeatAt) && Date.now() - heartbeatAt <= 30_000) {
+      return { kind, title, fileName: attachment.displayName || attachment.fileName, state: "running", stateTitle: "預覽產生中", stateText: "2D worker 正在處理，完成後會自動更新。", mediaHref: null, downloadHref, retryCommandRef: null };
+    }
+    return { kind, title, fileName: attachment.displayName || attachment.fileName, state: "delayed", stateTitle: "預覽服務未回應", stateText: "系統已停止顯示無限等待；稍後重新整理或確認 2D worker。", mediaHref: null, downloadHref, retryCommandRef: null };
+  }
+  if (activeJob) return { kind, title, fileName: attachment.displayName || attachment.fileName, state: "queued", stateTitle: "等待預覽服務", stateText: "工作已排入佇列，等待 2D worker 接手。", mediaHref: null, downloadHref, retryCommandRef: null };
+  if (kind === "two-d" && attachment.previewJob?.sourceContentHash === attachment.contentHash && attachment.previewJob.status === "queued") {
+    return { kind, title, fileName: attachment.displayName || attachment.fileName, state: "unavailable", stateTitle: "預覽工作需要重新排程", stateText: "目前工作類型不是 2D PNG 預覽；重新整理後系統會建立正確工作。", mediaHref: null, downloadHref, retryCommandRef: null };
+  }
   return { kind, title, fileName: attachment.displayName || attachment.fileName, state: "unavailable", stateTitle: "尚未產生可看的預覽", stateText: "可先下載原始檔查看。", mediaHref: null, downloadHref, retryCommandRef: null };
 }
 
@@ -179,12 +203,12 @@ function evidenceText(value: unknown) {
 export class PdmEntityDetailService {
   constructor(private readonly client: AsyncDatabaseClient = getAsyncDatabaseClient()) {}
 
-  async read(input: { entityKey: string; surface: PdmDetailSurface; companyId: string; actorId: string; reviewRequestId?: string | null; returnTo?: string | null; capabilities?: PdmDetailActionCapabilities }): Promise<PdmEntityDetailResponse> {
+  async read(input: { entityKey: string; surface: PdmDetailSurface; companyId: string; actorId: string; canEditNonOwned?: boolean; reviewRequestId?: string | null; returnTo?: string | null; capabilities?: PdmDetailActionCapabilities }): Promise<PdmEntityDetailResponse> {
     const key = parseKey(input.entityKey);
     const policy = derivePdmDetailProjectionPolicy(input.surface, input.reviewRequestId);
     return withPdmWorkbenchReadSnapshot(this.client, async (snapshot) => {
       const repository = new PdmEntityDetailAsyncRepository(snapshot);
-      const source = await repository.readAggregate((client) => this.loadSource(client, key, input.companyId, input.reviewRequestId));
+      const source = await repository.readAggregate((client) => this.loadSource(client, key, input.companyId, input.actorId, input.reviewRequestId));
       if (!source) throw new PdmEntityDetailError("PDM_ENTITY_DETAIL_NOT_FOUND", "找不到資料或目前無權查看。", 404);
       let review: ReviewRead | null = null;
       try {
@@ -283,7 +307,8 @@ export class PdmEntityDetailService {
     };
   }
 
-  private async loadSource(client: AsyncDatabaseClient, key: PdmEntityKey, companyId: string, reviewRequestId?: string | null): Promise<DetailSource | null> {
+  private async loadSource(client: AsyncDatabaseClient, key: PdmEntityKey, companyId: string, actorUserId: string, reviewRequestId?: string | null): Promise<DetailSource | null> {
+    await recoverStalePreviewJobsAsync(client);
     const numbering = new AsyncNumberingRepository(client);
     const unified = new UnifiedDrawingAsyncRepository(client);
     const state = new AsyncNumberStateFlowRepository(client);
@@ -292,9 +317,9 @@ export class PdmEntityDetailService {
       if (!candidate || candidate.lifecycleStatus === "published") return null;
       const root = candidate.sourceRootId ? (await numbering.getNumberingRootDetailsByIds([candidate.sourceRootId], companyId, { includeAncillary: true }))[0] ?? null : null;
       const candidateFiles = candidate.candidateRevisions.flatMap((revision) => revision.files.filter((file) => !file.removedAt).map((file) => ({ ...file, revision })));
-      const attachments = candidateFiles.length > 0
-        ? await decorateMasterAttachmentsWithPreviewState(client, await this.readCandidateAttachments(client, candidate, candidateFiles, reviewRequestId))
-        : [];
+      const rawAttachments = candidateFiles.length > 0 ? await this.readCandidateAttachments(client, candidate, candidateFiles, reviewRequestId) : [];
+      await ensureAutomaticPreviewJobsForAttachmentsAsync(client, rawAttachments, actorUserId);
+      const attachments = await decorateMasterAttachmentsWithPreviewState(client, rawAttachments);
       return { key, candidate, root, drawing: null, part: null, canonicalDrawing: null, attachments, revisionRecords: [] };
     }
     if (key.startsWith("drawing:")) {
@@ -322,6 +347,7 @@ export class PdmEntityDetailService {
         : drawing?.drawingNumber ? await new AsyncMasterAttachmentRepository(client).listMasterAttachments({ entityType: "drawing_number", entityCode: drawing.drawingNumber }) : null;
       const rawAttachments = attachmentResult?.attachments
         ?? (candidate && candidateFiles.length > 0 ? await this.readCandidateAttachments(client, candidate, candidateFiles, reviewRequestId) : []);
+      await ensureAutomaticPreviewJobsForAttachmentsAsync(client, rawAttachments, actorUserId);
       const attachments = await decorateMasterAttachmentsWithPreviewState(client, rawAttachments);
       const revisionRecords = await this.loadRevisionRecords(client, canonicalDrawing.id, canonicalDrawing.formalDrawingNumberId, companyId, attachments);
       return { key, canonicalDrawing, drawing, root, candidate, part: null, attachments, revisionRecords };
@@ -353,7 +379,9 @@ export class PdmEntityDetailService {
           entityType: "drawing_number",
           entityCode: representativeDrawing.drawingNumber
         });
-    const attachments = await decorateMasterAttachmentsWithPreviewState(client, attachmentResult?.attachments ?? []);
+    const rawAttachments = attachmentResult?.attachments ?? [];
+    await ensureAutomaticPreviewJobsForAttachmentsAsync(client, rawAttachments, actorUserId);
+    const attachments = await decorateMasterAttachmentsWithPreviewState(client, rawAttachments);
     const revisionRecords = await this.loadRevisionRecords(
       client,
       canonicalDrawing?.id ?? "",
@@ -526,7 +554,7 @@ export class PdmEntityDetailService {
     });
   }
 
-  private compose(source: DetailSource, input: { surface: PdmDetailSurface; companyId: string; actorId: string; reviewRequestId?: string | null; returnTo?: string | null; capabilities?: PdmDetailActionCapabilities }, policy: PdmDetailProjectionPolicy, review: ReviewRead | null): PdmEntityDetailResponse {
+  private compose(source: DetailSource, input: { surface: PdmDetailSurface; companyId: string; actorId: string; canEditNonOwned?: boolean; reviewRequestId?: string | null; returnTo?: string | null; capabilities?: PdmDetailActionCapabilities }, policy: PdmDetailProjectionPolicy, review: ReviewRead | null): PdmEntityDetailResponse {
     const root = source.root;
     const drawingRecord = source.drawing;
     const partRecord = source.part;
@@ -558,15 +586,40 @@ export class PdmEntityDetailService {
     const status = projectPdmDetailObjectiveStatus({ stateFamily: derivedStateFamily, entityKind });
     const availability = drawingRecord ? projectDrawingRecordAvailability(drawingRecord) : partRecord ? projectPartAvailability(partRecord) : root ? projectRelationRootAvailability({ recordStatus: root.root.recordStatus, relationshipHealth: root.summary.hasMainDrawingInvalid ? "blocked" : "complete", blockerCount: root.summary.warningCount }) : projectDrawingAvailability({ stage: "building", usage: "not_for_formal_use" });
     const ownerId = candidate?.ownerId ?? source.canonicalDrawing?.ownerId ?? source.drawing?.lifecycle?.submittedBy ?? null;
-    const ownerPath = input.surface === "drawing" ? "/numbering/drawings" : input.surface === "part" ? "/parts" : "/numbering/search";
     const revisionToken = this.aggregateHash(source);
-    const reviewReturnTo = normalizePdmApprovalReturnTo(input.returnTo);
-    const ownerParams = new URLSearchParams({ detail: source.key });
+    const returnSurface = review?.requestId ? "approval" : input.surface;
+    const reviewReturnTo = normalizePdmSurfaceReturnTo(returnSurface, input.returnTo);
+    const canonicalDrawingId = source.canonicalDrawing?.id ?? (source.key.startsWith("drawing:") ? source.key.slice("drawing:".length) : null);
+    const ownerBasePath = review?.requestId
+      ? `/approvals/${encodeURIComponent(review.requestId)}`
+      : candidate
+      ? `/numbering/workspaces/${encodeURIComponent(candidate.id)}`
+      : input.surface === "drawing" && canonicalDrawingId
+      ? `/numbering/drawings/${encodeURIComponent(canonicalDrawingId)}/workspace`
+      : input.surface === "part" && partRecord?.id
+      ? `/parts/${encodeURIComponent(partRecord.id)}/workspace`
+      : input.surface === "relation" && root?.root.id
+      ? `/numbering/relations/${encodeURIComponent(root.root.id)}/workspace`
+      : input.surface === "part" ? "/parts" : "/numbering/search";
+    const ownerParams = new URLSearchParams();
     if (review?.requestId) {
-      ownerParams.set("reviewRequestId", review.requestId);
       ownerParams.set("returnTo", reviewReturnTo);
+    } else if (candidate) {
+      ownerParams.set("intent", "view");
+      ownerParams.set("returnTo", reviewReturnTo);
+    } else if (input.surface === "drawing" && canonicalDrawingId) {
+      ownerParams.set("intent", "view");
+      ownerParams.set("returnTo", reviewReturnTo);
+    } else if (input.surface === "part" && partRecord?.id) {
+      ownerParams.set("intent", "view");
+      ownerParams.set("returnTo", reviewReturnTo);
+    } else if (input.surface === "relation" && root?.root.id) {
+      ownerParams.set("intent", "view");
+      ownerParams.set("returnTo", reviewReturnTo);
+    } else {
+      ownerParams.set("detail", source.key);
     }
-    const ownerHref = `${ownerPath}?${ownerParams.toString()}`;
+    const ownerHref = `${ownerBasePath}?${ownerParams.toString()}`;
     const activeCandidateRevision = candidate?.candidateRevisions.find((revision) => revision.lifecycleStatus === "review_locked" && revision.approvalRequestId) ?? null;
     const candidateRequestId = adoptionHidden
       ? null
@@ -590,6 +643,7 @@ export class PdmEntityDetailService {
       stateFamily: derivedStateFamily,
       actorId: input.actorId,
       ownerId,
+      canEditNonOwned: input.canEditNonOwned === true,
       ownerHref,
       returnTo: reviewReturnTo,
       capabilities: input.capabilities ?? EMPTY_PDM_DETAIL_ACTION_CAPABILITIES,
@@ -620,17 +674,18 @@ export class PdmEntityDetailService {
       review: review ? { requestId: review.requestId, decisionReady: review.decisionReady, allowedDecisions: review.allowedDecisions, drift: review.snapshot.drift } : null
     });
     const activeReviewRequestId = review?.requestId ?? candidateRequestId ?? source.drawing?.lifecycle?.requestId ?? null;
-    const projectedViewerStatus = projectPdmDetailViewerStatus({
+    const statusPair = projectPdmDetailStatusPair({
       objectiveStatus: status,
       stateFamily: derivedStateFamily,
       actorId: input.actorId,
       ownerId,
+      ownerQueueEligible: input.canEditNonOwned === true,
       reviewerIds: source.drawing?.lifecycle?.reviewerIds ?? [],
       reviewRequestId: activeReviewRequestId,
       reviewContext: Boolean(review),
       actionBar
     });
-    const header = { entityKind, entityCode, displayName, humanStatus: status, viewerStatus: projectedViewerStatus, availabilityScope: availability, stateFamily: derivedStateFamily, actorResponsibility: projectedViewerStatus.actorLabel, lockedByReview: Boolean(review) || derivedStateFamily === "in_review" };
+    const header = { entityKind, entityCode, displayName, humanStatus: status, responsibilityStatus: statusPair.responsibilityStatus, viewerActionability: statusPair.viewerActionability, viewerStatus: statusPair.viewerStatus, availabilityScope: availability, stateFamily: derivedStateFamily, actorResponsibility: statusPair.viewerStatus.actorLabel, lockedByReview: Boolean(review) || derivedStateFamily === "in_review" };
     const projections: PdmEntityDetailResponse["projections"] = {};
     if (policy.drawing && (drawingRecord || source.canonicalDrawing || source.candidate || source.root)) projections.drawing = policy.drawing === "full" ? { level: "full", data: this.drawingProjection(source, header, "full", input.reviewRequestId) as DrawingProjectionFull } : { level: "summary", data: this.drawingProjection(source, header, "summary", input.reviewRequestId) as DrawingProjectionSummary };
     if (policy.part && (partRecord || root || source.candidate)) projections.part = policy.part === "full" ? { level: "full", data: this.partProjection(source, header, "full") as PartProjectionFull } : { level: "summary", data: this.partProjection(source, header, "summary") as PartProjectionSummary };
@@ -639,7 +694,8 @@ export class PdmEntityDetailService {
       projections.relation = policy.relation === "full" ? { level: "full", data: relation as RelationProjectionFull } : { level: "summary", data: relation as RelationProjectionSummary };
     }
     if (review) projections.review = { level: "full", data: review };
-    return { schemaVersion: "pdm-entity-detail.v2", entityKey: source.key, surface: input.surface, generatedAt: new Date().toISOString(), revisionToken, header: { ...header, lockedByReview: Boolean(review) || header.lockedByReview }, projections, actionBar, navigation: { ownerHref, returnTo: reviewReturnTo, fallbackHref: "/approvals", targetAnchors: Object.keys(projections).map((projection) => ({ id: projection, label: projection === "drawing" ? "圖面" : projection === "part" ? "料號" : projection === "relation" ? "關聯" : "審核", projection: projection as "drawing" | "part" | "relation" | "review" })) } };
+    const fallbackHref = review?.requestId ? "/approvals" : input.surface === "drawing" ? "/numbering/drawings" : input.surface === "part" ? "/parts" : "/numbering/search";
+    return { schemaVersion: "pdm-entity-detail.v2", entityKey: source.key, surface: input.surface, generatedAt: new Date().toISOString(), revisionToken, header: { ...header, lockedByReview: Boolean(review) || header.lockedByReview }, projections, actionBar, navigation: { ownerHref, returnTo: reviewReturnTo, fallbackHref, targetAnchors: Object.keys(projections).map((projection) => ({ id: projection, label: projection === "drawing" ? "圖面" : projection === "part" ? "料號" : projection === "relation" ? "關聯" : "審核", projection: projection as "drawing" | "part" | "relation" | "review" })) } };
   }
 
   private aggregateHash(source: DetailSource) {
@@ -685,7 +741,7 @@ export class PdmEntityDetailService {
         .filter((relation) => relation.drawingDraftId === candidateDrawing.id)
         .flatMap((relation) => candidate.parts.filter((part) => part.id === relation.partDraftId))
       : [];
-    const summary: DrawingProjectionSummary = { drawingId, rowKey: `drawing:${drawingId}`, drawingNumber, displayName: preferCandidate ? candidate?.root?.coreName ?? source.root?.root.coreName ?? drawing?.coreName ?? header.displayName : drawing?.coreName ?? candidate?.root?.coreName ?? source.root?.root.coreName ?? header.displayName, purposeCode, purposeLabel: preferCandidate && candidateDrawing ? candidateDrawing.purposeCode : drawing?.purposeCode ?? rootDrawing?.purposeCode ?? candidateDrawing?.purposeCode ?? null, humanStatus: header.humanStatus, viewerStatus: header.viewerStatus, availabilityScope: header.availabilityScope, linkedPartCount: preferCandidate && candidateDrawing ? candidateLinkedParts.length : formalLinkedParts.length, representativePreview: { kind: "three-d", state: "missing", stateTitle: "尚無預覽", stateText: "尚未產生可用預覽。" } };
+    const summary: DrawingProjectionSummary = { drawingId, rowKey: `drawing:${drawingId}`, drawingNumber, displayName: preferCandidate ? candidate?.root?.coreName ?? source.root?.root.coreName ?? drawing?.coreName ?? header.displayName : drawing?.coreName ?? candidate?.root?.coreName ?? source.root?.root.coreName ?? header.displayName, purposeCode, purposeLabel: preferCandidate && candidateDrawing ? candidateDrawing.purposeCode : drawing?.purposeCode ?? rootDrawing?.purposeCode ?? candidateDrawing?.purposeCode ?? null, humanStatus: header.humanStatus, responsibilityStatus: header.responsibilityStatus, viewerActionability: header.viewerActionability, viewerStatus: header.viewerStatus, availabilityScope: header.availabilityScope, linkedPartCount: preferCandidate && candidateDrawing ? candidateLinkedParts.length : formalLinkedParts.length, representativePreview: { kind: "three-d", state: "missing", stateTitle: "尚無預覽", stateText: "尚未產生可用預覽。" } };
     if (level === "summary") return summary;
     const threeD = source.attachments.find((attachment) => attachment.documentCategory === "cad_3d" || ["sldprt", "sldasm", "step", "stp", "iges", "igs", "x_t", "x_b", "sat", "stl", "jt"].includes(attachment.fileExt.toLowerCase())) ?? null;
     const twoD = source.attachments.find((attachment) => attachment.documentCategory === "drawing_2d" || ["slddrw", "pdf", "dwg", "dxf", "png", "jpg", "jpeg", "webp"].includes(attachment.fileExt.toLowerCase())) ?? null;
@@ -741,7 +797,7 @@ export class PdmEntityDetailService {
     const representativeDrawing = candidateLinkedDrawings[0]
       ? { id: candidateLinkedDrawings[0].id, drawingNumber: candidateLinkedDrawings[0].candidateCode ?? "尚未取得圖號" }
       : preferredPartDrawing ? { id: preferredPartDrawing.id, drawingNumber: preferredPartDrawing.drawingNumber } : null;
-    const summary: PartProjectionSummary = { partId: id, rowKey: `part:${id}`, partNumber: preferCandidate ? candidatePart!.candidateCode ?? id : part?.partNumber ?? raw?.partNumber ?? candidatePart?.candidateCode ?? id, rootCode: source.candidate?.root?.candidateCode ?? part?.rootCode ?? root?.root.rootCode ?? "", displayName: preferCandidate ? candidatePart!.partName : part?.partName ?? raw?.partName ?? candidatePart?.partName ?? header.displayName, itemKind: preferCandidate ? displayPartItemKind(candidatePart!.itemKind, candidatePart!.isUniversal, candidatePart!.universalReason) : displayPartItemKind(part?.itemKind ?? raw?.itemKind ?? candidatePart?.itemKind, part?.isUniversal ?? raw?.isUniversal ?? candidatePart?.isUniversal, part?.universalReason ?? raw?.universalReason ?? candidatePart?.universalReason), humanStatus: header.humanStatus, viewerStatus: header.viewerStatus, availabilityScope: header.availabilityScope, linkedDrawingCount: candidatePart ? candidateLinkedDrawings.length : formalPartLinks.length, representativeDrawing };
+    const summary: PartProjectionSummary = { partId: id, rowKey: `part:${id}`, partNumber: preferCandidate ? candidatePart!.candidateCode ?? id : part?.partNumber ?? raw?.partNumber ?? candidatePart?.candidateCode ?? id, rootCode: source.candidate?.root?.candidateCode ?? part?.rootCode ?? root?.root.rootCode ?? "", displayName: preferCandidate ? candidatePart!.partName : part?.partName ?? raw?.partName ?? candidatePart?.partName ?? header.displayName, itemKind: preferCandidate ? displayPartItemKind(candidatePart!.itemKind, candidatePart!.isUniversal, candidatePart!.universalReason) : displayPartItemKind(part?.itemKind ?? raw?.itemKind ?? candidatePart?.itemKind, part?.isUniversal ?? raw?.isUniversal ?? candidatePart?.isUniversal, part?.universalReason ?? raw?.universalReason ?? candidatePart?.universalReason), humanStatus: header.humanStatus, responsibilityStatus: header.responsibilityStatus, viewerActionability: header.viewerActionability, viewerStatus: header.viewerStatus, availabilityScope: header.availabilityScope, linkedDrawingCount: candidatePart ? candidateLinkedDrawings.length : formalPartLinks.length, representativeDrawing };
     if (level === "summary") return summary;
     const linkedDrawings = candidatePart
       ? candidateLinkedDrawings.map((drawingEntry) => ({ id: drawingEntry.relation.id, drawingNumber: drawingEntry.candidateCode ?? "尚未取得圖號", linkType: drawingEntry.relation.linkType }))

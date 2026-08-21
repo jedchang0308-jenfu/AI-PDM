@@ -30,6 +30,7 @@ const panel = readRequired("src/components/master-attachment-panel.tsx");
 const sharedPreview = readRequired("src/components/drawing-detail-preview.tsx");
 const drawingsPage = readRequired("src/app/numbering/drawings/page.tsx");
 const partsPage = readRequired("src/app/parts/page.tsx");
+const partDetailContent = readRequired("src/components/part-detail-content.tsx");
 const packageJson = readProjectJson(root, "package.json");
 
 const expectedFileAssetColumns = [
@@ -101,7 +102,8 @@ const routeFiles = [
 for (const routeFile of routeFiles) {
   assert(existsRequired(routeFile), `Attachment API route exists: ${routeFile}`);
   const source = readRequired(routeFile);
-  assert(source.includes("numbering.attachments.manage"), `Attachment route enforces manage permission: ${routeFile}`);
+  const readOnlyListRoute = routeFile.endsWith("attachments/route.ts") && (source.includes("numbering.drawings.view") || source.includes("numbering.search"));
+  assert(source.includes("numbering.attachments.manage") || readOnlyListRoute, `Attachment route enforces an appropriate read/manage permission: ${routeFile}`);
   assert(source.includes("listMasterAttachments") || source.includes("createMasterAttachment") || source.includes("getMasterAttachmentBytes"), `Attachment route calls master attachment repository: ${routeFile}`);
 }
 
@@ -130,7 +132,7 @@ assert(panel.includes("placeholder={revisionStage ? suggestedRevision") && !pane
 assert(panel.includes("版次 {attachment.revision}") && !panel.includes("Rev {attachment.revision}"), "Shared panel labels attachment revision without Rev prefix");
 assert(drawingsPage.includes("MasterAttachmentPanel") && drawingsPage.includes('entityType="drawing_number"'), "Drawing drawer mounts master attachment panel");
 assert(drawingsPage.includes("processControlled={isManufacturingDrawingPurpose(drawing.purposeCode)}"), "Drawing drawer passes PDM process control to attachment panel");
-assert(partsPage.includes("MasterAttachmentPanel") && partsPage.includes('entityType="part_number"'), "Part drawer mounts master attachment panel");
+assert((partsPage + partDetailContent).includes("MasterAttachmentPanel") && (partsPage + partDetailContent).includes('entityType="part_number"'), "Part drawer mounts master attachment panel");
 assert(packageJson.scripts["qc:master-attachments"] === "node scripts/qc-master-attachments.mjs", "package script qc:master-attachments is registered");
 
 console.log(`qc:master-attachments passed ${checks.length}/${checks.length} checks`);

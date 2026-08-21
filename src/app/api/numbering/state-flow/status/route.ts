@@ -6,7 +6,8 @@ import {
   unifiedPartRelationWorkbenchV1ClientStatus,
   workbenchPreviewGalleryClientStatus,
   pdmEntityDetailClientStatus,
-  drawingRecognitionClientStatus
+  drawingRecognitionClientStatus,
+  pdmWorkbenchProductionRdLanesV1ClientStatus
 } from "@/lib/number-state-flow-feature";
 
 export const runtime = "nodejs";
@@ -19,7 +20,8 @@ export async function GET() {
     partRelationWorkbench: unifiedPartRelationWorkbenchV1ClientStatus(),
     previewGallery: workbenchPreviewGalleryClientStatus(),
     entityDetail: pdmEntityDetailClientStatus(),
-    drawingRecognition: drawingRecognitionClientStatus()
+    drawingRecognition: drawingRecognitionClientStatus(),
+    productionRdLanes: pdmWorkbenchProductionRdLanesV1ClientStatus()
   }, {
     headers: { "cache-control": "private, no-store" }
   });

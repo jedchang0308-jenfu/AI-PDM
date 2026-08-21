@@ -41,6 +41,7 @@ function stripInlineCode(value) {
 }
 
 function categoryForTask(id, text) {
+  if (id === "DEV-035") return "external_document_manager";
   if (id === "DEV-CAD-001") return "external_document_manager";
   if (id === "DEV-SW-001") return "external_solidworks_machine";
   if (id === "DEV-BACKUP-001") return "external_restore_drill";
@@ -124,6 +125,19 @@ function parseIndustrializationOverview(lines) {
   return tasks;
 }
 
+function parseActiveCheckboxDevTasks(lines) {
+  const tasks = [];
+  lines.forEach((line, index) => {
+    const match = line.match(/^-\s+([☐☑])\s+(DEV-[A-Z0-9-]+)\b\s+(.+)$/u);
+    if (!match || match[1] !== "☐") return;
+    const id = match[2];
+    if (tasks.some((task) => task.id === id)) return;
+    const text = `${id} | ${match[3].trim()}`;
+    tasks.push({ line: index + 1, section: "Active checkbox DEV", id, status: "open", text, category: categoryForTask(id, text) });
+  });
+  return tasks;
+}
+
 function parseParkedExternalBlockers(lines) {
   const tasks = [];
   let inParkedExternalBlockers = false;
@@ -168,7 +182,7 @@ if (!projectFileExists(root, taskRelativePath)) {
 }
 
 const lines = readProjectFile(root, taskRelativePath).split(/\r?\n/u);
-const tasks = [...parseTopTaskTable(lines), ...parseIndustrializationOverview(lines), ...parseParkedExternalBlockers(lines)];
+const tasks = [...parseTopTaskTable(lines), ...parseIndustrializationOverview(lines), ...parseActiveCheckboxDevTasks(lines), ...parseParkedExternalBlockers(lines)];
 const openTasks = tasks.filter((task) => task.status !== "done");
 const unclassifiedOpenTasks = openTasks.filter((task) => !allowedOpenCategories.has(task.category));
 const missingExpectedOpen = expectedExternalOpenIds
@@ -177,9 +191,9 @@ const handoff = readProjectFile(root, ".ai-doc/reports/industrialization/externa
 const handoffTasks = openTasks.filter((task) => task.category !== "external_platform_release");
 const { run: readinessRun, report: readinessReport } = runProductionReadinessReport(root);
 const readinessIds = new Set(
-  expectedExternalOpenIds.filter((id) =>
-    (readinessReport?.blockers ?? []).some((blocker) => blocker.task.includes(id))
-  )
+  (readinessReport?.blockers ?? [])
+    .map((blocker) => String(blocker.task ?? "").match(/\bDEV-[A-Z0-9-]+\b/u)?.[0] ?? null)
+    .filter(Boolean)
 );
 const openIds = new Set(openTasks.map((task) => task.id));
 const readinessMissingOpen = [...openIds].filter((id) => !readinessIds.has(id));

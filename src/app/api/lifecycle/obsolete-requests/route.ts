@@ -3,6 +3,8 @@ import { requestNumberingObsoleteApprovalAsync, requestRootObsoleteApprovalAsync
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { buildNumberingFormalRecordLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
+import { isProductionNumberingLifecycleGateOpen, productionSliceDeniedPayload, isProductionSliceEnforced } from "@/lib/production-slice";
+import { validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
 import type { RequestNumberingObsoleteApprovalInput } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
@@ -34,6 +36,9 @@ function errorStatus(message: string) {
     message.includes("LIFE_OBSOLETE_ALREADY_REQUESTED") ||
     message.includes("LIFE_OBSOLETE_ALREADY_APPROVED") ||
     message.includes("LIFE_OBSOLETE_NOT_FORMAL") ||
+    message.includes("LIFE_OBSOLETE_NOT_ELIGIBLE") ||
+    message.includes("LIFE_ROOT_MIXED_OR_TERMINAL") ||
+    message.includes("ROOT_OBSOLETE_SNAPSHOT_STALE") ||
     message.includes("MISMATCH")
   ) {
     return 409;
@@ -42,6 +47,12 @@ function errorStatus(message: string) {
 }
 
 export async function POST(request: Request) {
+  const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");
+  const invalid = validateNumberStateMutationRequest({ request, idempotencyKey, requireIdempotency: true });
+  if (invalid) return invalid;
+  if (isProductionSliceEnforced() && !isProductionNumberingLifecycleGateOpen("formal-obsolete")) {
+    return NextResponse.json(productionSliceDeniedPayload("lifecycle.obsolete-requests"), { status: 403 });
+  }
   const body = await request.json().catch(() => ({}));
   const entityTypeText = String(body.entityType ?? body.entity_type ?? "").trim();
   const entityType = extendedEntityTypeMap.get(entityTypeText);
@@ -51,7 +62,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "LIFE_UNSUPPORTED_ENTITY" }, { status: 400 });
   }
   if (!reason) {
-    return NextResponse.json({ error: "reason is required" }, { status: 400 });
+    return NextResponse.json({ error: "OBSOLETE_REASON_REQUIRED", message: "請填寫作廢原因。" }, { status: 400 });
   }
 
   const actionCode = obsoleteActionCode(entityType);
@@ -68,7 +79,8 @@ export async function POST(request: Request) {
         rootCode: String(body.entityCode ?? body.entity_code ?? body.rootCode ?? body.root_code ?? "").trim() || undefined,
         reason,
         requestedBy: auth.user.id,
-        projectCode: String(body.projectCode ?? body.project_code ?? "").trim() || undefined
+        projectCode: String(body.projectCode ?? body.project_code ?? "").trim() || undefined,
+        idempotencyKey: idempotencyKey?.trim()
       });
       return NextResponse.json(
         {
@@ -95,7 +107,8 @@ export async function POST(request: Request) {
       entityCode: String(body.entityCode ?? body.entity_code ?? body.partNumber ?? body.part_number ?? body.drawingNumber ?? body.drawing_number ?? "").trim() || undefined,
       reason,
       requestedBy: auth.user.id,
-      projectCode: String(body.projectCode ?? body.project_code ?? "").trim() || undefined
+      projectCode: String(body.projectCode ?? body.project_code ?? "").trim() || undefined,
+      idempotencyKey: idempotencyKey?.trim()
     });
     const policy = buildNumberingFormalRecordLifecyclePolicy({
       entityType: result.entity.entityType === "part_number" ? "numbering_part_number" : "numbering_drawing_number",

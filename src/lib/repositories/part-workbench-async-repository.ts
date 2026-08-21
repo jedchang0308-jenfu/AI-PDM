@@ -4,6 +4,7 @@ import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-rep
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import type { NumberingRecordStatus, PartModuleDetailRecord, PartModuleListRecord } from "@/lib/repositories/numbering-repository";
 import type { NumberSortDirection } from "@/lib/number-sort";
+import type { PdmWorkbenchFilterSelection } from "@/lib/pdm-workbench-contract";
 
 const MIN_IDENTITY_PAGE_SIZE = 50;
 const MAX_IDENTITY_PAGE_SIZE = 200;
@@ -16,15 +17,16 @@ type IdentityRow = {
   row_key: string;
 };
 
-export type PartWorkbenchIdentityCursor = { sortValue: string; rowKey: string };
+export type PartWorkbenchIdentityCursor = { sortValue: string; rowKey: string; direction?: "after" | "before" };
 
 export type PartWorkbenchRepositoryQuery = {
   companyId: string;
   query: string;
-  seriesCode: string;
-  itemKind: string;
-  recordStatus: NumberingRecordStatus | "";
+  seriesCode: PdmWorkbenchFilterSelection<string>;
+  itemKind: PdmWorkbenchFilterSelection<string>;
+  recordStatus: PdmWorkbenchFilterSelection<NumberingRecordStatus>;
   sortDirection: NumberSortDirection;
+  direction?: "after" | "before";
   includeCandidates: boolean;
   cursor: PartWorkbenchIdentityCursor | null;
   limit: number;
@@ -39,6 +41,20 @@ function searchPattern(value: string) {
   return `%${value.toLocaleLowerCase("zh-Hant")}%`;
 }
 
+function selectionValues<T extends string>(selection: PdmWorkbenchFilterSelection<T>) {
+  return selection.mode === "some" ? [...selection.values] : [];
+}
+
+function createNamedList(prefix: string, values: string[]) {
+  const params: Record<string, string> = {};
+  const placeholders = values.map((value, index) => {
+    const name = `${prefix}${index}`;
+    params[name] = value;
+    return `:${name}`;
+  });
+  return { params, sql: placeholders.join(", ") };
+}
+
 export class PartWorkbenchAsyncRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
@@ -48,6 +64,13 @@ export class PartWorkbenchAsyncRepository {
     cursor: PartWorkbenchIdentityCursor | null,
     scanLimit: number
   ) {
+    if (input.seriesCode.mode === "none" || input.itemKind.mode === "none" || input.recordStatus.mode === "none") return [];
+    const seriesValues = selectionValues(input.seriesCode);
+    const itemKindValues = selectionValues(input.itemKind);
+    const recordStatusValues = selectionValues(input.recordStatus);
+    const seriesBinding = createNamedList("seriesCode", seriesValues);
+    const itemKindBinding = createNamedList("itemKind", itemKindValues);
+    const recordStatusBinding = createNamedList("recordStatus", recordStatusValues);
     const candidateQuery = input.query ? `AND (
       LOWER(w.id) LIKE :queryPattern
       OR LOWER(COALESCE(draft_root.core_name, source_root.core_name, '')) LIKE :queryPattern
@@ -59,17 +82,17 @@ export class PartWorkbenchAsyncRepository {
           AND (LOWER(candidate_part.part_name) LIKE :queryPattern OR LOWER(COALESCE(reservation.candidate_code, '')) LIKE :queryPattern)
       )
     )` : "";
-    const candidateSeries = input.seriesCode ? `AND EXISTS (
+    const candidateSeries = input.seriesCode.mode === "some" ? `AND EXISTS (
       SELECT 1 FROM numbering_draft_parts candidate_part
       WHERE candidate_part.workspace_id = w.id
         AND candidate_part.company_id = w.company_id
-        AND candidate_part.series_code = :seriesCode
+        AND candidate_part.series_code IN (${seriesBinding.sql})
     )` : "";
-    const candidateKind = input.itemKind ? `AND EXISTS (
+    const candidateKind = input.itemKind.mode === "some" ? `AND EXISTS (
       SELECT 1 FROM numbering_draft_parts candidate_part
       WHERE candidate_part.workspace_id = w.id
         AND candidate_part.company_id = w.company_id
-        AND candidate_part.item_kind = :itemKind
+        AND candidate_part.item_kind IN (${itemKindBinding.sql})
     )` : "";
     const formalQuery = input.query ? `AND (
       LOWER(p.part_number) LIKE :queryPattern
@@ -79,7 +102,9 @@ export class PartWorkbenchAsyncRepository {
       OR LOWER(COALESCE(v.material_label, '')) LIKE :queryPattern
       OR LOWER(COALESCE(v.color_label, '')) LIKE :queryPattern
     )` : "";
-    const orderDirection = input.sortDirection === "desc" ? "DESC" : "ASC";
+    const cursorDirection = cursor?.direction ?? input.direction ?? "after";
+    const descending = input.sortDirection === "desc";
+    const orderDirection = (descending !== (cursorDirection === "before")) ? "DESC" : "ASC";
     const candidateSortValue = `COALESCE(
       (SELECT MIN(reservation.candidate_code)
        FROM numbering_draft_parts candidate_part
@@ -90,9 +115,9 @@ export class PartWorkbenchAsyncRepository {
        WHERE reservation.id = draft_root.candidate_reservation_id),
       '尚未產生料號'
     )`;
-    const cursorClause = input.sortDirection === "desc"
-      ? `(:hasCursor = 0 OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`
-      : `(:hasCursor = 0 OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`;
+    const cursorClause = cursorDirection === "before"
+      ? (descending ? `(:hasCursor = 0 OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key < :cursorRowKey))` : `(:hasCursor = 0 OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key < :cursorRowKey))`)
+      : (descending ? `(:hasCursor = 0 OR sort_value < :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))` : `(:hasCursor = 0 OR sort_value > :cursorSortValue OR (sort_value = :cursorSortValue AND row_key > :cursorRowKey))`);
     return client.query<IdentityRow>(
       `SELECT row_kind, id, updated_at, sort_value, row_key
        FROM (
@@ -124,9 +149,9 @@ export class PartWorkbenchAsyncRepository {
          LEFT JOIN part_variant_attributes v ON v.part_number_id = p.id
          WHERE p.company_id = :companyId
            ${formalQuery}
-           ${input.seriesCode ? "AND p.series_code = :seriesCode" : ""}
-           ${input.itemKind ? "AND p.item_kind = :itemKind" : ""}
-           ${input.recordStatus ? "AND p.record_status = :recordStatus" : ""}
+           ${input.seriesCode.mode === "some" ? `AND p.series_code IN (${seriesBinding.sql})` : ""}
+           ${input.itemKind.mode === "some" ? `AND p.item_kind IN (${itemKindBinding.sql})` : ""}
+           ${input.recordStatus.mode === "some" ? `AND p.record_status IN (${recordStatusBinding.sql})` : ""}
        ) identity_page
        WHERE ${cursorClause}
        ORDER BY sort_value ${orderDirection}, row_key ASC
@@ -135,9 +160,9 @@ export class PartWorkbenchAsyncRepository {
         companyId: input.companyId,
         includeCandidates: input.includeCandidates ? 1 : 0,
         queryPattern: searchPattern(input.query),
-        seriesCode: input.seriesCode,
-        itemKind: input.itemKind,
-        recordStatus: input.recordStatus,
+        ...seriesBinding.params,
+        ...itemKindBinding.params,
+        ...recordStatusBinding.params,
         hasCursor: cursor ? 1 : 0,
         cursorSortValue: cursor?.sortValue ?? "",
         cursorRowKey: cursor?.rowKey ?? "",
@@ -148,27 +173,45 @@ export class PartWorkbenchAsyncRepository {
 
   async readListPage<T extends { rowKey: string; updatedAt: string }>(
     input: PartWorkbenchRepositoryQuery,
-    project: (candidates: NumberingDraftWorkspaceRecord[], parts: PartModuleListRecord[]) => T[]
+    project: (candidates: NumberingDraftWorkspaceRecord[], parts: PartModuleListRecord[], sourceWorkspaces?: NumberingDraftWorkspaceRecord[]) => T[]
   ): Promise<PartWorkbenchReadPage<T>> {
     return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
       const stateRepository = new AsyncNumberStateFlowRepository(client);
       const numberingRepository = new AsyncNumberingRepository(client);
       const scanLimit = Math.min(MAX_IDENTITY_PAGE_SIZE, Math.max(MIN_IDENTITY_PAGE_SIZE, input.limit * 4));
       const projectedRows: T[] = [];
+      if (input.seriesCode.mode === "none" || input.itemKind.mode === "none" || input.recordStatus.mode === "none") {
+        return { rows: [], seriesCodeOptions: await numberingRepository.listSeriesCodeOptions(input.companyId) };
+      }
       let scanCursor = input.cursor;
       while (projectedRows.length <= input.limit) {
         const identities = await this.identityPage(client, input, scanCursor, scanLimit);
         if (identities.length === 0) break;
-        const candidateIds = identities.filter((row) => row.row_kind === "candidate_bundle").map((row) => row.id);
-        const partIds = identities.filter((row) => row.row_kind === "part_master").map((row) => row.id);
+        const canonicalIdentities = input.cursor?.direction === "before" ? [...identities].reverse() : identities;
+        const candidateIds = canonicalIdentities.filter((row) => row.row_kind === "candidate_bundle").map((row) => row.id);
+        const partIds = canonicalIdentities.filter((row) => row.row_kind === "part_master").map((row) => row.id);
         const [candidates, parts] = await Promise.all([
           stateRepository.getWorkspacesByIds(candidateIds, input.companyId),
           numberingRepository.listPartModuleRecordsByIds(partIds, input.companyId)
         ]);
-        const byKey = new Map(project(candidates, parts).map((row) => [row.rowKey, row]));
-        for (const identity of identities) {
-          const row = byKey.get(identity.row_key);
-          if (row) projectedRows.push(row);
+        const sourcePartIds = parts.map((part) => part.id);
+        const sourceWorkspaceRows = sourcePartIds.length === 0 ? [] : await client.query<{ id: string }>(
+          `SELECT id FROM numbering_draft_workspaces
+           WHERE company_id = :companyId
+             AND source_part_number_id IN (${sourcePartIds.map((_, index) => `:sourcePart${index}`).join(", ")})
+             AND lifecycle_status NOT IN ('published', 'cancelled', 'merged', 'obsolete')`,
+          { companyId: input.companyId, ...Object.fromEntries(sourcePartIds.map((id, index) => [`sourcePart${index}`, id])) }
+        );
+        const sourceWorkspaces = sourceWorkspaceRows.length === 0
+          ? []
+          : await stateRepository.getWorkspacesByIds(sourceWorkspaceRows.map((row) => row.id), input.companyId);
+        const byKey = new Map<string, T[]>();
+        for (const row of project(candidates, parts, sourceWorkspaces)) {
+          const baseKey = row.rowKey.replace(/:(?:rd|production)$/u, "");
+          byKey.set(baseKey, [...(byKey.get(baseKey) ?? []), row]);
+        }
+        for (const identity of canonicalIdentities) {
+          projectedRows.push(...(byKey.get(identity.row_key) ?? []));
           if (projectedRows.length > input.limit) break;
         }
         const lastIdentity = identities.at(-1);
@@ -186,6 +229,19 @@ export class PartWorkbenchAsyncRepository {
     return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
       const workspace = (await new AsyncNumberStateFlowRepository(client).getWorkspacesByIds([workspaceId], companyId))[0] ?? null;
       return workspace && workspace.lifecycleStatus !== "published" && workspace.parts.length > 0 ? workspace : null;
+    });
+  }
+
+  async readSourceWorkspacesForPart(partNumberId: string, companyId: string) {
+    return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
+      const rows = await client.query<{ id: string }>(
+        `SELECT id FROM numbering_draft_workspaces
+         WHERE company_id = :companyId AND source_part_number_id = :partNumberId
+           AND lifecycle_status NOT IN ('published', 'cancelled', 'merged', 'obsolete')
+         ORDER BY updated_at DESC, id DESC`,
+        { companyId, partNumberId }
+      );
+      return new AsyncNumberStateFlowRepository(client).getWorkspacesByIds(rows.map((row) => row.id), companyId);
     });
   }
 

@@ -1,16 +1,91 @@
 # QA-PDM-SW-NATIVE-PREVIEW-WORKER - Windows SolidWorks Native Preview Worker Validation Plan
 
-Status: Phase 1 Auto Preview Orchestration QA Passed / Google Secret Manager native readiness pending DEV-058
-Date: 2026-08-07
+Status: DEV-056 Phase 1E Local E2E Evidence Captured / RD Implementation Complete / Production Release Gated
+Date: 2026-08-19
 Owner: Dev PM / QA
 Related DEV: `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`
+
+## 0. 2026-08-19 Phase 1E Reopen Validation Amendment（現行QA權威）
+
+### 0.1 Reopen baseline and current verdict
+
+現行A0002證據推翻「2D處理較久可算Phase 1完成」：`A0002-M01.SLDDRW` job為`drawing_pdf/queued`、`attempt_count=0`、`locked_by=null`，Document Manager preview worker為`not_configured`且沒有2D derivative。既有101/101、68/68、103/103與3D/browser placeholder證據保留，但只能證明partial pipeline。
+
+本QA amendment驗證四個獨立缺口必須同時關閉：UI-only credential到2D worker、producer/claim kind一致、獨立renderer readiness、所有detail read path的逾時真實狀態。2026-08-19 local receipt已全部關閉；舊queued/not_configured內容僅保留為reopen baseline，不再代表現況。
+
+### 0.2 Added FMEA
+
+| Failure mode | User impact | Priority | Control |
+|---|---|---|---|
+| Launcher只看env/GSM，不認UI儲存的DPAPI key | 2D worker永遠不啟動 | P0 | QA-E2E-056-01/02 |
+| SLDDRW producer排`drawing_pdf`，worker只claim`native_thumbnail_png` | 工作永久queued | P0 | QA-E2E-056-03/04 |
+| Recognition／3D status冒充2D renderer online | 設定頁誤導使用者 | P1 | QA-E2E-056-05 |
+| Unified detail沒有執行queued stale recovery | 畫面永久顯示processing | P0 | QA-E2E-056-06/07 |
+| 修復只靠改DB或人工環境變數 | 下一個檔案／重啟後再發 | P0 | QA-E2E-056-08 |
+| key進log、args、job、browser或evidence | credential leak | P0 | QA-E2E-056-09 |
+
+### 0.3 Phase 1E Acceptance Matrix
+
+| ID | Criterion | Evidence |
+|---|---|---|
+| QA-E2E-056-01 | local Admin只在UI建立、真實測試、啟用`windows_dpapi` key；不設定PowerShell／`.env.local` key | settings/browser + launcher env-negative test |
+| QA-E2E-056-02 | 無key時2D worker仍常駐並回blocked heartbeat；UI啟用後同PID在bounded refresh內ready並ack exact version/fingerprint | PID/heartbeat/broker metadata manifest |
+| QA-E2E-056-03 | 所有SLDDRW automatic producers建立`native_thumbnail_png`，沒有Current Phase自動`drawing_pdf` | static inventory + API/service test |
+| QA-E2E-056-04 | Document Manager worker exact-claim同kind並產生`thumbnail_png|sheet_png`、`image/png` derivative | worker/API/DB allowlisted evidence |
+| QA-E2E-056-05 | Settings 2D service只讀`solidworks_2d_preview_png` heartbeat；recognition或3D在線不能使其online | negative projection/browser test |
+| QA-E2E-056-06 | queued無claim超過120秒轉`preview_worker_unavailable`；kind mismatch轉`preview_kind_unavailable`並idempotently排正確PNG | service/database test |
+| QA-E2E-056-07 | candidate、drawing、part、review/unified detail與legacy attachment path使用相同recovery；offline/blocked不顯示active spinner | route/browser matrix |
+| QA-E2E-056-08 | 不直接修改A0002歷史job或source；產品recovery建立正確新job且重讀不重複 | before/after job/source hash manifest |
+| QA-E2E-056-09 | key不出現在DB、job、args、stdout/stderr、HTTP capture、screenshot、manifest或artifact | sentinel/redaction scan |
+| QA-E2E-056-10 | 真實A0002同一source hash被claim、attempt≥1、ready PNG自動出現在工作頁，無手動refresh | real worker + browser evidence |
+| QA-E2E-056-11 | revoke／rotation、source hash mismatch、stale-owner completion及blank PNG仍fail closed | negative worker tests |
+| QA-E2E-056-12 | 3D、PDF、image、Drive與DEV-035 native metadata recognition regressions通過 | focused regressions |
+| QA-E2E-056-13 | ready 2D PNG以`<img>`而非文件viewer顯示；填滿可用預覽舞台、保持比例、置中且無裁切／水平溢出 | authenticated browser geometry + three viewport screenshots |
+
+### 0.4 Required commands and artifacts
+
+RD／QA至少提供：
+
+```powershell
+npm.cmd run qc:pdm-sw-native-preview-worker
+npm.cmd run qc:pdm-sw-native-preview-redaction
+npm.cmd run qc:master-attachments
+npm.cmd run qc:dev-056:2d-preview-e2e
+npm.cmd run qc:dev-056:2d-preview-browser
+npm.cmd run qc:dev-035:completion-gate
+npm.cmd run typecheck:app
+```
+
+另執行affected-file lint與三viewport browser gate：`1440x900`、`1024x768`、`390x844`。Evidence固定寫入`output/qa/dev-056-2d-preview/<runId>/`，包含allowlisted runtime/job/heartbeat/derivative資料、source bytes/hash before/after、redaction scan、screenshots、console/network summary與verdict；不得保存key或raw broker body。
+
+真實A0002 completion gate：
+
+1. source hash與bytes在前後一致；
+2. 2D capability heartbeat為fresh ready並ack active exact version/fingerprint；
+3. 新`native_thumbnail_png` job由dedicated 2D worker claim，`attempt_count >= 1`；
+4. current-hash PNG derivative為ready且通過blank/low-information gate；
+5. unified drawing workspace無手動refresh顯示圖面；
+6. DB/log/HTTP/evidence redaction sentinel命中數為0；
+7. console error、unexpected 4xx/5xx、horizontal overflow與critical control clipping均為0。
+
+### 0.5 QA stop conditions
+
+若只能以手動環境變數、人工restart、直接DB repair、fake PNG、compile-only、3D success或placeholder證明，判定`FAIL/Insufficient Evidence`。若需要plaintext持久化、CAD source write、desktop COM/Add-in、production mutation/deploy/release，停止並回PM／release gate。
+
+### 0.6 2026-08-19 local completion receipt
+
+- `npm.cmd run qc:dev-056:2d-preview-e2e`: passed `18/18`; job/heartbeat/derivative/source-hash/redaction allowlist：`output/qa/dev-056-2d-preview/20260819132108/`。
+- `npm.cmd run qc:dev-056:2d-preview-browser`: passed desktop `1440x900`、tablet `1024x768`、phone `390x844`; each returned HTTP 200, selected `2D 圖面`, bound the ready derivative, used `image` renderer, verified the image was centered and covered the preview stage, had no stuck processing copy, no console errors and zero horizontal overflow. Evidence: `output/qa/dev-056-2d-preview/20260819135345-browser/browser-verification.json` plus the three viewport PNGs.
+- `npm.cmd run qc:dev-035:completion-gate`: passed; secure DPAPI v3, native probe, exact worker acknowledgement and repeatable A0002 native evidence remain green.
+- Focused regressions: native preview `109/109`, redaction `68/68`, master attachments `103/103`, settings lifecycle `34/34`, GSM `36/36`; app typecheck and affected ESLint passed.
+- Temporary DEV-056 2D worker process was stopped after verification; existing project-owned `127.0.0.1:3000` runtime was preserved. No production/deploy/release/migration or direct data repair was executed.
 
 ## 2026-08-07 Credential Validation Amendment
 
 Preview queue, derivative, heartbeat, stale recovery, source-hash and UI criteria remain active. Secret-provider and native-readiness evidence now follows `.ai-doc/qa/qa-pdm-gcp-secret-manager-solidworks-worker-validation-plan-2026-08-07.md`.
 
-Google Secret Manager live read plus a real Windows `.SLDDRW` success are required before claiming 2D native readiness. Historical Supabase Vault or worker-local environment fallback is not the formal production target.
+The local Phase 1E claim is now limited to the real A0002 Windows `.SLDDRW -> PNG` receipt above. Google Secret Manager live-read, broader native sample coverage and production readiness remain required for a production native-readiness claim; historical Supabase Vault or worker-local environment fallback is not the formal production target.
 
 ## 1. Purpose
 
@@ -163,12 +238,12 @@ Phase 1 auto-orchestration follow-up evidence captured on 2026-08-07:
 - Browser console errors: 0. Observed preview/status API responses: HTTP 200. No manual refresh was used to observe the 3D completion.
 - Limitation: this evidence proves the PDM queue/metadata/storage/UI pipeline, one real Windows Shell `.SLDPRT` path, and the Document Manager SLDDRW worker compile/claim/fail-safe path. It does not prove successful SOLIDWORKS Document Manager/eDrawings/equivalent extraction for `.SLDASM` or `.SLDDRW` because the local settings secret provider is `local_test_double` metadata and no worker-readable key is available.
 
-Phase 1 2D stuck-state correction evidence captured on 2026-08-07:
+Phase 1 2D stuck-state correction historical baseline captured on 2026-08-07 (superseded by the 2026-08-19 local receipt):
 
 - The dedicated Document Manager worker now supports persistent `--watch` polling for `SLDDRW` jobs; the local launcher manages it separately from the model worker.
 - Queued jobs not claimed within 120 seconds are automatically failed with `preview_worker_unavailable`; the UI distinguishes `等待預覽服務` from an actively running but delayed job and never requires manual refresh.
 - `npm.cmd run qc:pdm-sw-native-preview-worker`: passed 104/104; `npm.cmd run qc:master-attachments`: passed 103/103; `npm.cmd run qc:pdm-sw-native-preview-redaction`: passed 68/68; TypeScript, lint and `npm.cmd run dev:local:check` passed.
-- Current local readiness is explicit: website and 3D worker are healthy, while the 2D worker is `not_configured` because no worker-readable SolidWorks Document Manager key is present. Successful `.SLDDRW` image generation remains gated on that secret.
+- At that historical point, the website and 3D worker were healthy while the 2D worker was `not_configured`; the current UI-managed DPAPI v3 worker/heartbeat and A0002 success receipt supersede this readiness snapshot.
 
 Required viewports:
 
@@ -245,7 +320,7 @@ Regression expectations:
 
 | Evidence | Status | Recovery condition |
 |---|---|---|
-| Real Windows Document Manager PNG success | Worker implemented / blocked on Google Secret Manager integration and success evidence | Provide an exact active credential through the DEV-058 Google Secret Manager broker, then run sample `.SLDDRW` and `.SLDASM` evidence |
+| Real Windows Document Manager PNG success | Passed for A0002 local Phase 1E on 2026-08-19 | Broader `.SLDASM`, additional sample coverage and production GSM/rollout remain separate gates |
 | `.SLDDRW -> PDF` renderer | Not authorized | Authorize Phase 2 and choose eDrawings/SOLIDWORKS/equivalent renderer |
 | Interactive 3D derivative | Not authorized | Authorize Phase 3 architecture/security review |
 | Production rollout/backfill | Not authorized | Complete implementation, storage policy, backup/rollback and deployment-release gate |

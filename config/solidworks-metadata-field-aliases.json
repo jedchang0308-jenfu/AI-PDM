@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "solidworks-property-aliases.v1",
+  "fallbackProfile": "default",
+  "profiles": {
+    "default": {
+      "aliases": [
+        { "aliases": ["品名", "part_name", "description"], "stableKey": "part_name", "category": "identity_relation", "owner": "part_number", "writePolicy": "evidence_only" },
+        { "aliases": ["3D圖號(主)", "model_number"], "stableKey": "model_root_number", "category": "identity_relation", "owner": "drawing", "writePolicy": "evidence_only" },
+        { "aliases": ["版本", "版次", "revision"], "stableKey": "revision", "category": "identity_relation", "owner": "drawing_revision", "writePolicy": "evidence_only" },
+        { "aliases": ["製圖", "drawn_by"], "stableKey": "drawn_by_name", "category": "drawing_revision", "owner": "drawing_revision", "writePolicy": "review_then_metadata" },
+        { "aliases": ["料號", "part_number"], "stableKey": "part_number", "category": "identity_relation", "owner": "part_number", "writePolicy": "evidence_anchor" },
+        { "aliases": ["材質", "material"], "stableKey": "material", "category": "part_attribute", "owner": "part_number", "writePolicy": "review_then_attribute" },
+        { "aliases": ["表面處理", "surface_finish"], "stableKey": "surface_finish", "category": "part_attribute", "owner": "part_number", "writePolicy": "review_then_attribute" },
+        { "aliases": ["熱處理", "heat_treatment"], "stableKey": "heat_treatment", "category": "part_attribute", "owner": "part_number", "writePolicy": "review_then_attribute" }
+      ]
+    }
+  }
+}

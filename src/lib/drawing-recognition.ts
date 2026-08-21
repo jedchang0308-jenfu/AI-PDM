@@ -4,6 +4,7 @@ import {
   DrawingRecognitionError,
   requireSafeRecognitionId,
   type DrawingRecognitionAdapterCompletion,
+  type DrawingRecognitionClientAdapterCompletion,
   type DrawingRecognitionDecisionInput,
   type DrawingRecognitionSourceContextType
 } from "@/lib/drawing-recognition-contract";
@@ -11,6 +12,8 @@ import { isDrawingRecognitionV1Enabled } from "@/lib/number-state-flow-feature";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { DrawingRecognitionAsyncRepository } from "@/lib/repositories/drawing-recognition-async-repository";
+import { createFileStorageServiceForPointer, sha256, storagePointerFromRecord } from "@/lib/file-storage";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 type ImpactTokenPayload = {
   sessionId: string;
@@ -58,7 +61,7 @@ export function verifyRecognitionImpactToken(token: string, expected: { sessionI
 }
 
 export function recognitionRolesArePrivileged(roles: string[]) {
-  return roles.some((role) => ["rd_manager", "pdm_admin", "system_admin"].includes(role));
+  return hasPdmNonOwnerEditScope({ roles });
 }
 
 export async function createDrawingRecognitionSession(input: {
@@ -116,6 +119,65 @@ export async function getDrawingRecognitionProjection(input: {
     privileged: recognitionRolesArePrivileged(input.roles)
   });
   return repository.getProjection(input.sessionId, input.companyId);
+}
+
+export async function readDrawingRecognitionPdfSource(input: {
+  sessionId: string;
+  sourceId: string;
+  companyId: string;
+  actorId: string;
+  roles: string[];
+  client?: AsyncDatabaseClient;
+}) {
+  const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
+  const sourceId = requireSafeRecognitionId(input.sourceId, "RECOGNITION_SOURCE_ID_INVALID");
+  await repository.assertSessionScope({
+    sessionId: requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID"),
+    companyId: input.companyId,
+    actorId: input.actorId,
+    privileged: recognitionRolesArePrivileged(input.roles)
+  });
+  const source = await repository.getSourceForActor({ sessionId: input.sessionId, sourceId, companyId: input.companyId });
+  const maxBytes = Math.max(1_024, Math.min(Number(process.env.PDM_DRAWING_RECOGNITION_BROWSER_PDF_MAX_BYTES ?? 67_108_864), 134_217_728));
+  if (!Number.isFinite(source.expectedBytes) || source.expectedBytes < 5 || source.expectedBytes > maxBytes) {
+    throw new DrawingRecognitionError("RECOGNITION_PDF_SIZE_LIMIT", "PDF 超過瀏覽器辨識允許大小。", 413);
+  }
+  const pointer = storagePointerFromRecord(source.storage);
+  const storage = createFileStorageServiceForPointer(pointer);
+  const metadata = await storage.getObjectMetadata(pointer.key);
+  if (!metadata || metadata.bytes !== source.expectedBytes || metadata.bytes > maxBytes) {
+    throw new DrawingRecognitionError("RECOGNITION_SOURCE_METADATA_MISMATCH", "辨識來源檔案狀態已改變，請重新辨識。", 409, true);
+  }
+  const bytes = await storage.readObject(pointer.key);
+  const pdfMagic = Buffer.from(bytes.subarray(0, 5)).toString("ascii");
+  if (bytes.byteLength !== source.expectedBytes || sha256(bytes) !== source.expectedHash.toLowerCase() || pdfMagic !== "%PDF-") {
+    throw new DrawingRecognitionError("RECOGNITION_PDF_SOURCE_INVALID", "PDF 來源格式或內容指紋不一致，請重新上傳。", 409, true);
+  }
+  return { fileName: source.fileName, mimeType: "application/pdf", bytes, contentHash: source.expectedHash };
+}
+
+export async function appendDrawingRecognitionClientAdapterResult(input: {
+  sessionId: string;
+  companyId: string;
+  actorId: string;
+  roles: string[];
+  result: DrawingRecognitionClientAdapterCompletion;
+  client?: AsyncDatabaseClient;
+}) {
+  const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
+  await repository.assertSessionScope({
+    sessionId: requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID"),
+    companyId: input.companyId,
+    actorId: input.actorId,
+    privileged: recognitionRolesArePrivileged(input.roles)
+  });
+  return repository.appendClientAdapterResult({
+    sessionId: input.sessionId,
+    companyId: input.companyId,
+    actorId: input.actorId,
+    expectedRowVersion: input.result.expectedRowVersion,
+    result: input.result
+  });
 }
 
 export async function getLatestDrawingRecognitionForDrawing(input: {
@@ -254,10 +316,11 @@ export async function formalizeDrawingRecognition(input: {
   return { ...execution.result, reusedFromCommandReceipt: execution.reusedFromCommandReceipt };
 }
 
-export async function claimDrawingRecognitionJob(input: { workerId: string; maxAttempts?: number; client?: AsyncDatabaseClient }) {
+export async function claimDrawingRecognitionJob(input: { workerId: string; maxAttempts?: number; allowNativeSources?: boolean; client?: AsyncDatabaseClient }) {
   return new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient()).claimJob({
     workerId: requireSafeRecognitionId(input.workerId, "RECOGNITION_WORKER_ID_INVALID"),
-    maxAttempts: Math.max(1, Math.min(input.maxAttempts ?? 2, 5))
+    maxAttempts: Math.max(1, Math.min(input.maxAttempts ?? 2, 5)),
+    allowNativeSources: input.allowNativeSources !== false
   });
 }
 
@@ -273,4 +336,33 @@ export async function completeDrawingRecognitionJob(input: {
   client?: AsyncDatabaseClient;
 }) {
   return new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient()).completeJob(input);
+}
+
+export async function readClaimedDrawingRecognitionSource(input: {
+  sessionId: string;
+  sourceId: string;
+  workerId: string;
+  client?: AsyncDatabaseClient;
+}) {
+  const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
+  const source = await repository.getClaimedSourceForWorker({
+    sessionId: requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID"),
+    sourceId: requireSafeRecognitionId(input.sourceId, "RECOGNITION_SOURCE_ID_INVALID"),
+    workerId: requireSafeRecognitionId(input.workerId, "RECOGNITION_WORKER_ID_INVALID")
+  });
+  const maxBytes = Math.max(1_024, Math.min(Number(process.env.PDM_DRAWING_RECOGNITION_SOURCE_MAX_BYTES ?? 268_435_456), 268_435_456));
+  if (!Number.isFinite(source.expectedBytes) || source.expectedBytes < 0 || source.expectedBytes > maxBytes) {
+    throw new DrawingRecognitionError("RECOGNITION_SOURCE_SIZE_LIMIT", "辨識來源檔超過允許大小。", 413, false);
+  }
+  const pointer = storagePointerFromRecord(source.storage);
+  const storage = createFileStorageServiceForPointer(pointer);
+  const metadata = await storage.getObjectMetadata(pointer.key);
+  if (!metadata || metadata.bytes !== source.expectedBytes || metadata.bytes > maxBytes) {
+    throw new DrawingRecognitionError("RECOGNITION_SOURCE_METADATA_MISMATCH", "辨識來源檔案狀態已改變，請重新辨識。", 409, true);
+  }
+  const bytes = await storage.readObject(pointer.key);
+  if (bytes.byteLength !== source.expectedBytes || sha256(bytes) !== source.expectedHash.toLowerCase()) {
+    throw new DrawingRecognitionError("RECOGNITION_SOURCE_HASH_MISMATCH", "辨識來源內容指紋不一致，請重新辨識。", 409, true);
+  }
+  return { fileName: source.fileName, mimeType: source.mimeType || "application/octet-stream", bytes, contentHash: source.expectedHash };
 }

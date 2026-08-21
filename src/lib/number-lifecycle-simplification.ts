@@ -405,6 +405,24 @@ async function lifecycleRepository() {
   return AsyncNumberLifecycleSimplificationRepository;
 }
 
+async function assertLifecycleWorkspaceEditScope(metadata: PdmCommandMetadata, workspaceId: string) {
+  const actor = metadata.actor;
+  const row = await getAsyncDatabaseClient().queryOne<{ company_id: string; owner_id: string }>(
+    `SELECT company_id, owner_id
+     FROM numbering_draft_workspaces
+     WHERE id = :workspaceId AND company_id = :companyId`,
+    { workspaceId, companyId: actor.organizationId }
+  );
+  const canEdit = Boolean(row) && canEditPdmOwnedResourceInCompany({
+    actorId: actor.pdmUserId,
+    actorCompanyId: actor.organizationId,
+    ownerId: row?.owner_id,
+    resourceCompanyId: row?.company_id ?? "",
+    actor: { roles: actor.roles }
+  });
+  if (!canEdit) throw new NumberStateFlowError("workspace_not_found", "Draft workspace was not found.", 404);
+}
+
 export async function createNumberingCandidateRevision(input: {
   metadata: PdmCommandMetadata;
   workspaceId: string;
@@ -418,6 +436,7 @@ export async function createNumberingCandidateRevision(input: {
   const drawingDraftId = lifecycleRequiredText(input.drawingDraftId, "drawingDraftId", 200);
   const expectedWorkspaceRowVersion = lifecycleInteger(input.expectedWorkspaceRowVersion, "workspace_version_stale");
   try {
+    await assertLifecycleWorkspaceEditScope(input.metadata, workspaceId);
     const command = createPdmCommand({
       commandName,
       idempotencyKey,
@@ -469,6 +488,7 @@ export async function updateNumberingCandidateRevision(input: {
   const overrideReason = lifecycleText(input.overrideReason, 1000) || null;
   const expectedRowVersion = lifecycleInteger(input.expectedRowVersion, "candidate_revision_version_stale");
   try {
+    await assertLifecycleWorkspaceEditScope(input.metadata, workspaceId);
     const command = createPdmCommand({
       commandName,
       idempotencyKey,
@@ -526,6 +546,7 @@ export async function addNumberingCandidateRevisionFile(input: {
   const workspaceId = lifecycleRequiredText(input.workspaceId, "workspaceId", 200);
   const candidateRevisionId = lifecycleRequiredText(input.candidateRevisionId, "candidateRevisionId", 200);
   const expectedRowVersion = lifecycleInteger(input.expectedRowVersion, "candidate_revision_version_stale");
+  await assertLifecycleWorkspaceEditScope(input.metadata, workspaceId);
   const fileName = input.file.name.trim().slice(0, 255) || "candidate-file";
   const displayName = lifecycleText(input.displayName, 300) || fileName;
   const description = lifecycleText(input.description, 2000);
@@ -676,21 +697,19 @@ export async function addNumberingCandidateRevisionFile(input: {
       })
     });
     let recognition: Awaited<ReturnType<typeof ensureDrawingRecognitionSessionForSourceContext>> = null;
-    if (fileLinkResult === "created") {
-      try {
-        recognition = await ensureDrawingRecognitionSessionForSourceContext({
-          companyId: input.metadata.actor.organizationId,
-          actorId: input.metadata.actor.pdmUserId,
-          sourceContextType: "candidate_revision",
-          sourceContextId: candidateRevisionId
-        });
-      } catch (recognitionError) {
-        console.error("Candidate revision recognition enqueue failed.", {
-          correlationId: input.metadata.actor.correlationId,
-          candidateRevisionId,
-          recognitionError
-        });
-      }
+    try {
+      recognition = await ensureDrawingRecognitionSessionForSourceContext({
+        companyId: input.metadata.actor.organizationId,
+        actorId: input.metadata.actor.pdmUserId,
+        sourceContextType: "candidate_revision",
+        sourceContextId: candidateRevisionId
+      });
+    } catch (recognitionError) {
+      console.error("Candidate revision recognition enqueue failed.", {
+        correlationId: input.metadata.actor.correlationId,
+        candidateRevisionId,
+        recognitionError
+      });
     }
     return {
       ...lifecycleResponse(execution.result),
@@ -734,6 +753,7 @@ export async function verifyExistingNumberingCandidateRevisionFile(input: {
   const fileId = lifecycleRequiredText(input.fileId, "fileId", 200);
   const expectedRowVersion = lifecycleInteger(input.expectedRowVersion, "candidate_revision_version_stale");
   try {
+    await assertLifecycleWorkspaceEditScope(input.metadata, workspaceId);
     const Repository = await lifecycleRepository();
     const localDevelopmentEvidence = isLocalDevelopmentPublicationEvidenceEnabled();
     const command = createPdmCommand({
@@ -869,6 +889,7 @@ export async function removeNumberingCandidateRevisionFile(input: {
   const expectedRowVersion = lifecycleInteger(input.expectedRowVersion, "candidate_revision_version_stale");
   const reason = lifecycleText(input.reason, 1000) || null;
   try {
+    await assertLifecycleWorkspaceEditScope(input.metadata, workspaceId);
     const command = createPdmCommand({
       commandName,
       idempotencyKey,
@@ -918,6 +939,7 @@ export async function submitNumberingCandidateBundleReview(input: {
   const expectedWorkspaceRowVersion = lifecycleInteger(input.expectedWorkspaceRowVersion, "workspace_version_stale");
   const reason = lifecycleText(input.reason, 2000) || null;
   try {
+    await assertLifecycleWorkspaceEditScope(input.metadata, workspaceId);
     const command = createPdmCommand({
       commandName,
       idempotencyKey,
@@ -967,6 +989,7 @@ export async function withdrawNumberingCandidateBundleReview(input: {
   const expectedWorkspaceRowVersion = lifecycleInteger(input.expectedWorkspaceRowVersion, "workspace_version_stale");
   const reason = lifecycleRequiredText(input.reason, "reason", 2000);
   try {
+    await assertLifecycleWorkspaceEditScope(input.metadata, workspaceId);
     const command = createPdmCommand({ commandName, idempotencyKey, actor: input.metadata.actor, payload: { workspaceId, expectedWorkspaceRowVersion, reason } });
     const Repository = await lifecycleRepository();
     const execution = await executePdmCommandWithOutbox({
@@ -977,6 +1000,7 @@ export async function withdrawNumberingCandidateBundleReview(input: {
         workspaceId,
         companyId: input.metadata.actor.organizationId,
         actorId: input.metadata.actor.pdmUserId,
+        allowNonOwner: hasPdmNonOwnerEditScope({ roles: input.metadata.actor.roles }),
         expectedWorkspaceRowVersion,
         reason
       }),
@@ -1126,3 +1150,4 @@ import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { isLocalDevelopmentPublicationEvidenceEnabled } from "@/lib/publication-evidence";
 import type { CandidateFileStorageInput } from "@/lib/repositories/number-lifecycle-simplification-async-repository";
 import { detectCandidateRevisionFileRole, findOwnerPartRootForCandidate, findReusableCadAsset } from "@/lib/pdm-file-ownership";
+import { canEditPdmOwnedResourceInCompany, hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";

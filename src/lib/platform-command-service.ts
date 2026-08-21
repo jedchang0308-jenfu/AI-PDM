@@ -21,6 +21,7 @@ export async function executePdmCommandWithOutbox<TPayload, TResult>(input: {
     idempotencyKeySuffix?: string;
   }>;
   idempotencyPayload?: unknown;
+  serializable?: boolean;
   faultInjector?: (point: "before_outbox_enqueue" | "before_command_complete" | "after_command_complete") => void;
 }): Promise<{ result: TResult; reusedFromCommandReceipt: boolean }> {
   return input.client.transaction(async (client) => {
@@ -63,5 +64,5 @@ export async function executePdmCommandWithOutbox<TPayload, TResult>(input: {
     await outbox.completeCommand(command, result, input.idempotencyPayload);
     input.faultInjector?.("after_command_complete");
     return { result, reusedFromCommandReceipt: false };
-  });
+  }, { serializable: input.serializable });
 }

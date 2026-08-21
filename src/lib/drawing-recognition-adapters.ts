@@ -41,6 +41,26 @@ const CATEGORIES = new Set<DrawingRecognitionCategory>([
 ]);
 const CONFIDENCE = new Set<DrawingRecognitionConfidence>(["high", "medium", "low", "unknown"]);
 
+export const BROWSER_PDF_OCR_ADAPTER_CODE = "browser-pdf-ocr.v1" as const;
+export const SOLIDWORKS_NATIVE_ADAPTER_CODE = "native-metadata-bridge.v1" as const;
+
+export function normalizedRecognitionSourceExtension(value: unknown) {
+  return String(value ?? "").trim().toLowerCase().replace(/^\./u, "");
+}
+
+export function drawingRecognitionAdapterPlanForSource(source: { fileExt: string }) {
+  const extension = normalizedRecognitionSourceExtension(source.fileExt);
+  return [
+    "filename.v1",
+    ...(["sldprt", "sldasm", "slddrw"].includes(extension) ? [SOLIDWORKS_NATIVE_ADAPTER_CODE] : []),
+    ...(extension === "pdf" ? [BROWSER_PDF_OCR_ADAPTER_CODE] : [])
+  ];
+}
+
+export function isBrowserPdfRecognitionSource(source: { fileExt: string; mimeType: string }) {
+  return normalizedRecognitionSourceExtension(source.fileExt) === "pdf" && String(source.mimeType ?? "").trim().toLowerCase() === "application/pdf";
+}
+
 function text(value: unknown, max = 4_000) {
   return String(value ?? "").trim().slice(0, max);
 }
@@ -181,6 +201,7 @@ export function validateExternalAdapterResult(sourceId: string, adapterCode: str
       geometry: observation.geometry && typeof observation.geometry === "object" && !Array.isArray(observation.geometry) ? observation.geometry as Record<string, unknown> : null,
       confidenceBand, category, fieldKey: observation.fieldKey == null ? null : text(observation.fieldKey, 120), fieldLabel: observation.fieldLabel == null ? null : text(observation.fieldLabel, 200),
       proposedOwnerType: observation.proposedOwnerType == null ? null : text(observation.proposedOwnerType, 80), proposedOwnerId: observation.proposedOwnerId == null ? null : text(observation.proposedOwnerId, 200),
+      proposedOwnerResolution: observation.proposedOwnerResolution === "resolved" || observation.proposedOwnerResolution === "ambiguous" || observation.proposedOwnerResolution === "missing" ? observation.proposedOwnerResolution : undefined,
       applicabilityScope: text(observation.applicabilityScope, 120) || "overall"
     } satisfies DrawingRecognitionObservationInput;
   }).filter((item) => item.rawText) : [];

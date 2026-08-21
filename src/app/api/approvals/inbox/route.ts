@@ -6,6 +6,7 @@ import { isPdmEntityDetailV1Enabled } from "@/lib/number-state-flow-feature";
 import { isSafePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
 import { buildPdmApprovalOwnerHref } from "@/lib/pdm-approval-owner-route";
 import { decodePdmWorkbenchCursor, encodePdmWorkbenchCursor, pdmWorkbenchFilterHash, PdmWorkbenchCursorError } from "@/lib/pdm-workbench-cursor";
+import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
 
 export const runtime = "nodejs";
 const reviewerRoles = ["R&D Manager", "Admin"] as const;
@@ -25,6 +26,10 @@ const allowedStatuses = new Set<string>([
 export async function GET(request: Request) {
   const auth = await requireRoleAsync(request, [...reviewerRoles]);
   if (auth.response) return auth.response;
+  const productionApprovalScope = isProductionSliceEnforced();
+  if (productionApprovalScope && !isProductionNumberingLifecycleGateOpen("formal-obsolete")) {
+    return NextResponse.json(productionSliceDeniedPayload("approvals.inbox"), { status: 403 });
+  }
 
   const url = new URL(request.url);
   const statusParam = url.searchParams.get("status") ?? "active";
@@ -57,7 +62,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: { code: "workbench_invalid_cursor", message, retryable: true } }, { status: 400 });
     }
   }
-  const page = await listApprovalPlatformInboxAsync({ companyId, actorId: auth.user.id, status, limit, domainCode, actionCode, query, cursor });
+  const page = await listApprovalPlatformInboxAsync({
+    companyId,
+    actorId: auth.user.id,
+    status,
+    limit,
+    domainCode,
+    actionCode: productionApprovalScope && actionCode && !isProductionNumberingLifecycleApprovalAction(actionCode) ? "__blocked_action__" : actionCode,
+    allowedActionCodes: productionApprovalScope ? ["numbering.obsolete_part_root", "numbering.obsolete_part_number", "numbering.obsolete_ma_drawing"] : undefined,
+    query,
+    cursor
+  });
   const requestedReturnTo = url.searchParams.get("returnTo") ?? "";
   const returnTo = isSafePdmApprovalReturnTo(requestedReturnTo) ? requestedReturnTo : buildApprovalReturnTo(url);
   const ownerItems = isPdmEntityDetailV1Enabled() ? page.items.map((item) => ({ ...item, ownerHref: buildPdmApprovalOwnerHref(item, returnTo) ?? undefined })) : page.items;

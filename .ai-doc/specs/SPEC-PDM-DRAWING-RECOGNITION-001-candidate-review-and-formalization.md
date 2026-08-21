@@ -1,10 +1,10 @@
 # SPEC-PDM-DRAWING-RECOGNITION-001 - 圖面／CAD 全項辨識候選、人工審核與正式化
 
-Status: Local RD Implemented / Focused QA-QC Passed / Human Confirmed / Production Release Gated
-Authorization: 使用者已指示持續推進；本機 Phase 1A～1D 已完成實作與 focused QA/QC。外部 OCR／CAD 採購、production／staging 檔案處理、production migration、部署與 release 仍未授權。
+Status: DEV-082 RD Implemented / Local QA-QC Complete / OCR-082-001..044 PASS / Production Release Gated
+Authorization: 使用者已於 2026-08-20 要求把 A0002「右側版次已找到、左側卻顯示檔案屬性無法定位」缺陷寫回既有開發文件。此指令重開 DEV-082 本機修復；不授權 production／staging、migration、部署或 release。
 Date: 2026-08-12
 Owner: Dev PM
-Related DEV: `DEV-068` / `DEV-PDM-DRAWING-ATTRIBUTE-RECOGNITION-001`
+Related DEV: `DEV-068` / `DEV-PDM-DRAWING-ATTRIBUTE-RECOGNITION-001`; reopened Current Phase child `DEV-082` / `DEV-PDM-PDF-BROWSER-OCR-001`; workspace relation `DEV-079`
 Related prototype: `output/dev-068-attribute-recognition-ui-preview.html`（概念預覽，不是實作權威）
 
 Related authority:
@@ -15,6 +15,438 @@ Related authority:
 - `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-AGGREGATE-001-single-data-layer.md`
 - `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`
 - `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
+
+## 0. DEV-082 Reopen Amendment — PDF 瀏覽器 OCR 與效用優先欄位容量
+
+### 0.1 Authority、成熟度與取代範圍
+
+本 amendment 是 DEV-068 真實 PDF 內容辨識的 Current Phase authority。2026-08-20 的 A0002 實例已由 DEV-082 以 canonical revision、normalized geometry、evidence resolver與單一 preview surface修正並完成 fresh evidence 對帳；`OCR-082-001..044`、affected regression與completion gate均通過，現行成熟度為 `RD Implemented / Local QA-QC Complete / Production Release Gated`。P0／P1 implementation gap=0；production representative accuracy、正式檔案存取、部署與release仍為獨立 gate。
+
+Spec Impact Preflight：`Intentional replacement + compatible extension`。
+
+- `Intentional replacement`：取代本文舊 §2／§5／§9／§17／§20／§25／§27／§30／§31 中「PDF／影像都可送 OCR」、「Current Phase 使用 `external-json-ocr.v1`／`PDM_DRAWING_RECOGNITION_OCR_CMD`」、「真實 OCR provider 尚未選定」及「所有未知 OCR 原文完整持久化」的 Current Phase 敘述。
+- `Compatible extension`：保留 `filename.v1`、`native-metadata-bridge.v1`、既有 session/source/result/observation/candidate schema、company/permission guard、source hash、人工核對及正式化契約。
+- 舊 `external-json-ocr.v1` 只保留未來可能的 server-side provider hook；DEV-082 adapter plan、readiness、完成判定與 UI 不得依賴它，也不得再因 `PDM_DRAWING_RECOGNITION_OCR_CMD` 未設定而顯示永久等待。
+- ADR not required：本決策沒有新增 master-data authority、permission、lifecycle、正式寫入路徑或難以回復的資料模型；現行 adapter architecture 與本 SPEC 足以成為權威。
+
+### 0.2 Human Decision Brief — 2026-08-20
+
+1. 內容 OCR 僅處理受控 PDF。JPG／JPEG／PNG／DWG 與其他附件維持檔名及檔案角色辨識，不解析內容。
+2. PDF OCR 固定在使用者瀏覽器執行，使用 PDF.js 與 Tesseract.js WebAssembly；使用者不安裝桌面程式／外掛、不輸入 OCR API Key，開發與營運不維護獨立 OCR VM、container、queue 或 GPU 主機。
+3. PDF 有原生文字層時優先使用 PDF.js 文字，不啟動 Tesseract；只有無可用文字層的掃描頁才渲染 Canvas 並執行 `chi_tra + eng` OCR。
+4. `圖號、版次、料號、品名／圖名、材質、比例、製圖者` 是 Tier 0 必要辨識欄位。必要的意思是每份 eligible PDF 都必須完成嘗試並回報 `found／conflict／not_found`，不是無證據時捏造值。
+5. 容量先保留給 Tier 0；必要欄位完成或確定找不到後，剩餘 observation 容量才依效用分數收錄 Tier 1、Tier 2 與少量尚未歸類關鍵字。不得以 OCR 出現順序或信心分數讓低價值文字擠掉必要欄位。
+6. 每份 PDF 最多持久化 50 筆 OCR observations；完整 OCR token／word boxes 只在瀏覽器記憶體中參與解析與排序，不逐字寫入資料庫。被容量淘汰的數量按 tier 記入安全 diagnostics，不保存原始內容。
+7. 第一版採單次完成提交，不做 lease、逐頁 API、checkpoint tables 或關閉分頁後背景運算。關閉分頁後重新開啟並重跑未完成 PDF；若未來中斷率或文件規模達 re-entry threshold，再評估 checkpoint 或 managed background OCR。
+
+使用思考習慣：#批判、#效用理論
+
+### 0.3 Current Phase Scope
+
+In scope：
+
+- `browser-pdf-ocr.v1` 瀏覽器 adapter、PDF.js 文字層解析、必要時 Tesseract.js WebAssembly OCR。
+- 同來源 PDF 的完整記憶體內文字解析、欄位映射、去重、效用排序與 bounded observation selection。
+- 同源靜態 WASM／worker／`chi_tra`／`eng` assets，自動下載、版本化及長效快取；不使用第三方 runtime CDN。
+- 一個 actor-authorized PDF source-content route、一個 client-adapter-result completion route，以及 session projection 的 pending-client-adapter 狀態。
+- 既有 `drawing_recognition_adapter_results`、`drawing_recognition_observations`、`drawing_recognition_candidates` 與 unique `(session_id, source_id, adapter_code)`；不新增 OCR run/page tables。
+- owner workspace 與完整 recognition review 的進度、終態、錯誤、重試與 formalization pending gate。
+- desktop Chromium／Edge 類現代瀏覽器的真實 OCR；窄 viewport 驗證可見狀態與操作不破版。執行能力仍以 WebAssembly／Web Worker feature detection 為準，不以 viewport 猜測。
+
+Out of scope：
+
+- JPG／JPEG／PNG／DWG 內容 OCR、DWG 原生解析、SolidWorks 檔案 OCR。
+- 手寫文字、尺寸／公差／GD&T／焊接符號或工程幾何的自動語意正式化。
+- 把全文 OCR 做成搜尋索引、產生含 OCR layer 的新 PDF、保存每個 word box 或頁面 bitmap。
+- 外部付費 OCR API、使用者 API Key、獨立 OCR 主機、Cloud Run Job、逐頁續傳或關頁後背景執行。
+- production migration、deploy、traffic、正式檔案 gold set 或 release artifact。
+
+### 0.4 Source Admission And Adapter Plan
+
+| Source extension | Required adapter plan | Content behavior |
+|---|---|---|
+| `.sldprt`／`.sldasm`／`.slddrw` | `filename.v1` + `native-metadata-bridge.v1` | 只讀檔名與 Document Manager metadata；不 OCR |
+| `.pdf` | `filename.v1` + `browser-pdf-ocr.v1` | PDF 文字層；掃描頁才 OCR |
+| `.jpg`／`.jpeg`／`.png`／`.dwg`／其他 | `filename.v1` | 只讀檔名／角色；不 OCR／不 native parse |
+
+Server 建立 source 時即固定 plan；client 不得自行把非 PDF source 改送 OCR。`browser-pdf-ocr.v1` 必須同時驗證 canonical source extension、MIME、PDF magic bytes、session/company 與 content hash。副檔名／MIME／magic 不一致時回 terminal `failed/pdf_source_invalid`，不得嘗試影像 fallback。
+
+### 0.5 Browser Pipeline
+
+```text
+worker 完成 filename/native adapters
+  -> session projection 發現 PDF planned adapter 尚無 terminal result
+  -> owner/reviewer browser 以既有 actor/company permission 取得受控 PDF bytes
+  -> PDF.js 對每頁讀 getTextContent()
+       -> 文字層達門檻：直接解析
+       -> 文字層不足：依 rotation 渲染 bounded Canvas，再交 Tesseract.js Web Worker
+  -> 全文只在記憶體內正規化、找 label/value、去重、排序
+  -> 一次 POST bounded adapter result
+  -> server transaction 驗證並附加 observation/candidate
+  -> row version／count／projection 更新，進入人工核對
+```
+
+文字層是否足夠由 deterministic rule 判斷，不用 LLM：每頁正規化後至少 24 個可列印字元且至少一個已知欄位 label，或整份 PDF 至少 80 個可列印字元；未達門檻的頁才 OCR。RD 可在實檔 gold set 後調整數值，但不得把「任何字元存在」視為文字層可用。
+
+Raster guard：單頁最大 12MP、concurrency 1、單頁 60 秒、整份 PDF 10 分鐘、OCR 頁數上限 20。每頁結束立即釋放 Canvas；超限回 `partial` 或 `timeout`，檔名及其他 adapter 證據維持可用。
+
+### 0.6 Necessary-First Capacity And Utility Policy
+
+#### Tier 0 — 必要辨識
+
+| Stable field key | 初始 aliases（大小寫／全半形／標點正規化後比對） | Required outcome |
+|---|---|---|
+| `drawing_number` | 圖號、圖面編號、DRAWING NO、DWG NO | `found/conflict/not_found` |
+| `revision` | 版次、版本、REV、REVISION | `found/conflict/not_found` |
+| `part_number` | 料號、零件號、PART NO、ITEM NO | `found/conflict/not_found` |
+| `title` | 品名、圖名、名稱、TITLE、DESCRIPTION | `found/conflict/not_found` |
+| `material` | 材質、材料、MATERIAL | `found/conflict/not_found` |
+| `scale` | 比例、SCALE | `found/conflict/not_found` |
+| `drawn_by` | 製圖者、繪圖者、DRAWN BY、DRAWER | `found/conflict/not_found` |
+
+Rules：
+
+- 排序前先完成整份 PDF 的可用文字擷取；不得在先讀到 50 筆文字時提前停止。
+- 每個 Tier 0 欄位保留每個 distinct normalized value 的最佳證據，單欄最多 5 個 distinct values；七欄最多占 35 筆，確保至少 15 筆可供次要欄位使用。
+- 同值多次出現時保留最高 evidence-quality observation，並以 source/page/geometry/corroboration metadata 表達其他命中，不重複占用容量。
+- 超過 5 個衝突值時，adapter 回 `partial/required_field_conflict_overflow:<fieldKey>`，該欄位保持 blocked，不能因只保存前五個值而自動接受。
+- 找不到值時輸出 bounded diagnostic `required_field_not_found:<fieldKey>`，不得建立空白、猜測或沿用正式值的 OCR observation。
+
+#### Tier 1／2／3 — 剩餘容量
+
+| Tier | Initial fields | Policy |
+|---|---|---|
+| Tier 1 | `unit`、`drawing_date`、`sheet_number`、`surface_finish`、`heat_treatment`、`hardness`、`coating_or_color`、`weight`、`general_tolerance` | Tier 0 選取完後依效用分數收錄 |
+| Tier 2 | `standard_or_spec`、`process_requirement`、`inspection_requirement`、`general_note`、`supplier_or_customer_reference` | Tier 1 後依效用分數收錄 |
+| Tier 3 | 尚未歸類但含工程關鍵字的 bounded text block | 最多 10 筆，且必須超過最低品質門檻 |
+
+欄位／alias／tier／business weight／max distinct values 放在 versioned `config/drawing-ocr-field-priorities.json`，不是散落在 UI 或 OCR worker 內。設定檔 schema 需 fail closed：重複 stable key、Tier 0 遺漏、非法 weight／alias 或超過 quota 時 build/QC 失敗。
+
+Selection algorithm：
+
+1. normalize text／label／value，移除空白與純框線噪音。
+2. 建立 potential observations，依 stable field + normalized value + scope 去重。
+3. 無條件先選 Tier 0，套用每欄最多 5 distinct values。
+4. 對剩餘候選計算 deterministic utility score：
+
+   ```text
+   utility = tierWeight
+           + businessWeight
+           + labelMatchQuality
+           + OCR/TextLayerConfidence
+           + titleBlockOrTableLocationBonus
+           + crossOccurrenceCorroboration
+           - duplicatePenalty
+           - noisePenalty
+   ```
+
+5. Tier 1、Tier 2、Tier 3 依 utility 降冪選入；同分以 page number、reading order、stable field key 固定排序。
+6. 每 PDF 最多 50 筆、每 session 最多 100 筆 `browser-pdf-ocr.v1` observations。Tier 0 先選；低 tier 不得反向淘汰 Tier 0。
+7. diagnostics 只記 `selected/discarded/not_found/conflict_overflow` counts 與 stable keys，不記被淘汰的客戶原文。
+
+### 0.7 Client Result API And Transaction Contract
+
+新增 user routes：
+
+- `GET /api/numbering/recognition-sessions/:sessionId/sources/:sourceId/content`：沿用 recognition review permission、company/source membership 與 source hash；只回 eligible PDF，`private, no-store`。若 owner workspace 已取得同一 PDF bytes，client 必須共用同一 `ArrayBuffer`，不得為預覽與 OCR 重複下載。
+- `POST /api/numbering/recognition-sessions/:sessionId/client-adapter-results`：一次提交一個 PDF source 的 terminal adapter result，不接受逐頁 POST。
+
+Request contract：
+
+```json
+{
+  "expectedRowVersion": 1,
+  "sourceId": "recognition-source-*",
+  "contentHash": "sha256",
+  "adapterCode": "browser-pdf-ocr.v1",
+  "adapterVersion": "pdfjs-<version>+tesseractjs-<version>+policy-<version>",
+  "status": "succeeded|partial|unsupported|failed|timeout",
+  "observations": [],
+  "diagnostics": []
+}
+```
+
+Boundary：
+
+- Body 上限 512 KiB；每 source 最多 50 observations；server 在同一 transaction 再檢查 session 累計最多 100 browser OCR observations。
+- Request 不得包含 PDF bytes、Base64、Canvas、page bitmap、完整 word array、WASM path、local absolute path、API key 或 secret。
+- Server 鎖定 session，驗證 actor permission/company、source membership、PDF admission、content hash、adapter plan、session nonterminal 及 `expectedRowVersion`。
+- `drawing_recognition_adapter_results` 既有 unique `(session_id,source_id,adapter_code)` 是 idempotency authority。相同 source/adapter 重送回既有 projection；需要新辨識內容時必須建立 successor rerun session，不覆寫 append-only evidence。
+- Repository 新增 client-result append transaction，復用既有 observation validation、candidate grouping、current formal comparison、counts 與 row-version 更新；不得建立第二套 mapper。
+- Session projection 新增 derived `pendingClientAdapters[]`；不新增 DB status。Recognition `formalize` 在 planned client adapter 尚未產生 terminal result 時 fail closed，但這個 gate只限制 recognition 正式寫入，不得阻擋 Drawing 版次儲存或送審。
+- Browser 不支援 WebAssembly／Worker、PDF 加密／損壞或超限時，client 必須提交 terminal `unsupported/failed/timeout` result；session 可呈現 partial 並由人類決定是否核對其他來源，不得永久停在「等待 worker」。
+
+### 0.8 UI、Failure And Recovery Contract
+
+- 使用者開啟智慧辨識頁且 worker baseline 已完成後，自動處理 planned PDF；不顯示 OCR API Key 或要求安裝。
+- 可見階段固定為：`準備 PDF`、`讀取文字層`、`辨識第 n/N 頁`、`整理必要欄位`、`提交候選`、terminal result。
+- 執行期間顯示「請保持此頁面開啟」；關閉分頁不建立 server heartbeat 或假背景工作。重新開啟時，若 adapter result 仍缺失就安全重跑。
+- Model／WASM 下載失敗、CSP／Worker／memory 問題、PDF password、頁數／像素／時間超限及 result 409/413 必須有使用者可理解訊息與重試入口；不得無限 spinner。
+- Tier 0 每欄顯示 `已找到／值衝突／未找到`。`not_found` 是辨識覆蓋狀態，不建立空候選，也不清除正式值。
+- lower-tier 候選沿用既有快速接受／修正／定位；source file role 仍不進人工待核對數。
+
+### 0.9 Security、Cost And Dependency Contract
+
+- `pdfjs-dist`、`tesseract.js`、WASM worker、`chi_tra`／`eng` traineddata 必須 pin version、納入 package lock、SBOM/license QC，並從同源 versioned static path 提供；官方基線為 PDF.js 與 Tesseract.js Apache-2.0。語言模型授權需在 dependency evidence 一併驗證。
+- Static assets 使用 content-hashed/versioned filename 與 `Cache-Control: public, max-age=31536000, immutable`；不得從任意 CDN 執行程式或模型。
+- OCR CPU/RAM 全在瀏覽器；Cloud Run 只提供既有 PDF bytes 與一次短結果 POST。不得新增 always-on instance、OCR queue、server OCR process 或 user API key。
+- PDF bytes 只經既有 same-origin authenticated boundary；client adapter 不向第三方網域發送 PDF、OCR text 或模型輸入。QA 必須以 network allowlist 實證。
+- 每份 PDF 的 server 增量成本邊界是一次必要 source read、一次 result write 與最多 50 observations；超過此邊界即停止並回 Dev PM，不以「準確率」為由無限制持久化 OCR token。
+
+### 0.10 Repository/File Impact And RD Slices
+
+Expected modified/new files：
+
+- `package.json`、`package-lock.json`：加入 pinned `pdfjs-dist`、`tesseract.js` 與必要 browser assets。
+- `config/drawing-ocr-field-priorities.json`：versioned tier／alias／utility policy。
+- `src/lib/browser-pdf-ocr.ts`：browser-only PDF text/raster/OCR runner；不得被 server bundle 執行。
+- `src/lib/drawing-ocr-priority-policy.ts`：pure deterministic normalize/rank/select contract。
+- `src/lib/drawing-recognition-contract.ts`、`src/lib/drawing-recognition.ts`、`src/lib/repositories/drawing-recognition-async-repository.ts`：pending client adapter projection、append transaction、limits、formalize gate。
+- `src/app/api/numbering/recognition-sessions/[sessionId]/sources/[sourceId]/content/route.ts`：actor-authorized PDF bytes。
+- `src/app/api/numbering/recognition-sessions/[sessionId]/client-adapter-results/route.ts`：single-result completion。
+- `src/components/drawing-recognition-workspace-panel.tsx`、`src/components/drawing-recognition-review.tsx`：browser execution、progress、required-field coverage、retry／terminal states。
+- `scripts/run-drawing-recognition-worker.mjs`、`src/lib/repositories/drawing-recognition-async-repository.ts`：從 non-PDF 與 worker OCR plan 移除 `external-json-ocr.v1`，只對 PDF plan `browser-pdf-ocr.v1`。
+- `scripts/qc-dev-082-contract.mjs`、`scripts/qc-dev-082-browser.mjs`、`scripts/qc-dev-082-gate.mjs` 與 `package.json` scripts：focused contract、真實 browser OCR、cost/security/visible-error gate。
+
+RD sequence：
+
+| Slice | Scope | Gate |
+|---|---|---|
+| 082-A | source policy、priority config/schema、pure ranking tests | 非 PDF OCR=0；Tier 0 永不被低 tier 擠出；50/100 limits deterministic |
+| 082-B | PDF.js text layer、Canvas/Tesseract worker、same-origin assets/cache | text PDF 不啟動 OCR；scanned PDF `chi_tra+eng`；無第三方 request |
+| 082-C | actor source route、single result API、append transaction、pending/formalize gate | permission/company/hash/rowVersion/idempotency/race/append-only PASS；無 migration |
+| 082-D | owner/review UI progress、coverage、retry、terminal handling | 真實 Chromium、三 viewport visible-error／overflow／console/network gate PASS |
+| 082-E | production-safe PDF gold set、regression、cost envelope | Tier 0 field outcomes、lower-tier fill、request/write counts、DEV-035/068/079 regressions PASS；不得假設既有 A0002-M01 已有合法 PDF fixture |
+
+### 0.11 Acceptance、Evidence And Stop Conditions
+
+DEV-082 local completion requires：
+
+1. PDF text-native 與 scanned gold files 都走到 terminal adapter result；非 PDF sources 的 OCR invocation count 為 0。
+2. 每份 PDF 七個 Tier 0 field 都有 deterministic `found/conflict/not_found` coverage；低 tier 不可在 cap 壓力下取代 Tier 0。
+3. 在 50 筆 cap 下，Tier 0 先選，剩餘 slots 依 utility 填入；同輸入重跑的 observation order、stable keys、values 與 diagnostics 相同。
+4. No word-level persistence、no raw PDF/result upload、no third-party network、no API key／external command／OCR host。
+5. 每 PDF 至多一個 source GET 與一個 completion POST；DB 至多一個 adapter result、50 observations及其必要 candidate links。
+6. Cross-company／wrong actor／wrong MIME／wrong magic／stale hash／stale rowVersion／duplicate result 全部 fail closed 或 idempotent，無 evidence leak／partial write。
+7. Tab close後沒有假背景狀態；重開可重跑，PDF failure仍保留 filename/native 證據且不阻擋 Drawing 送審。
+8. `qc:dev-082:*`、affected DEV-068／035／079 regression、typecheck、affected lint、isolated build及 `git diff --check` 通過；真實 browser 證據包含 desktop/tablet/mobile layout、console、network、visible errors 與 DB/API readback。
+
+目前完成判定（2026-08-21）：以上 1～8 已由 `OCR-082-001..044` fresh local executable evidence、DEV-035／DEV-068／DEV-079 affected regression與`qc:dev-082:gate`通過；矩陣覆蓋跨來源 canonical revision、normalized geometry、evidence priority、truthful fallback、identity-only formalization、legacy append-only compatibility、A0002 單一 preview surface與高解析完整文字取景。DEV-082 與父 DEV-068 已達本機 RD/QA/QC complete；production accuracy、正式檔案存取、migration、deploy與release仍維持獨立 gate。
+
+Stop and return to Dev PM if：
+
+- 無法在不新增 OCR server／paid API／user key 的前提完成 PDF OCR；
+- 需要把 JPG／PNG／DWG 納入內容辨識，或自動正式化尺寸、公差、GD&T／幾何；
+- 必須新增 OCR checkpoint schema、per-page server write、always-on compute、production resource、remote migration 或外部費用；
+- Tier 0 在 50 筆 cap 內仍可能被低 tier 淘汰，或必須保存完整 word tokens 才能運作；
+- client result 不能與 formalization race 安全隔離、不能驗證 canonical content hash，或需繞過既有 company/permission authority。
+
+Future Phase Captured / Not Requested：只有在實測 P95 OCR 超過 3 分鐘、平均 OCR 頁數超過 10，或未完成／中斷率超過 5% 時，才重新評估逐頁 checkpoint；只有產品要求關閉瀏覽器後仍執行時，才另評估 managed background OCR 與其費用、監控及 release contract。
+
+### 0.12 DEV-082 Reopen Amendment — 跨來源版次整合與證據定位
+
+#### 0.12.1 Confirmed Defect And Root Cause
+
+2026-08-20 對本機 A0002 最新 recognition session 的 read-only 查核確認：
+
+| UI 顯示 | Stored field/category | Source/evidence | Value | Geometry |
+|---|---|---|---|---|
+| 版次 | `source_revision / identity_relation` | `A0002.SLDPRT` / `cad_property` | `0.1` | null |
+| 版次 | `revision / drawing_revision` | `A0002-M01.pdf` / `pdf_title_block` page 1 | `0.1` | raw PDF points |
+
+已確認根因：
+
+1. SOLIDWORKS alias 使用 `source_revision`，PDF policy 使用 `revision`，且 category 不同；repository 的 `group_key` 包含 category／field key，所以相同值也不合併。
+2. 兩個 candidate 的可見 label 都是「版次」，DEV-079 density layout 又移除分類標題與來源輔助文字，因此使用者看不到兩者的語意差異。
+3. workspace focus 固定使用 `candidate.observations[0]`，CAD observation 通常早於 browser PDF observation；有可定位 PDF evidence 時仍可能選到 nonspatial evidence。
+4. PDF.js text layer 儲存 PDF points、Tesseract 儲存 Canvas pixels；consumer 只接受 0..1 或 0..100，且 observation 未帶完整 page width／height／origin／rotation contract。
+5. consumer 只用「geometry 能否解析」判斷來源，任何缺失或舊格式 PDF geometry 都被誤稱為「僅存在檔案屬性」。
+6. OCR `revision` 被分類為 `drawing_revision`，但正式化 allowlist 不允許 revision metadata；它應是 identity evidence-only，否則接受後可能成為 formalization blocker 或 422。
+7. DEV-079 browser gate 只要求「property flash 或 evidence box 任一成立」，沒有指定聚焦 PDF 版次必須得到 PDF 定位框，因此錯誤路徑也能 PASS。
+
+Spec Impact Preflight：`Compatible correction`。保留 append-only observation/candidate ledger、decision API、company/permission、PDF-only OCR、human review、formalization authority與零 OCR server架構；修正 canonical field semantics、derived projection、geometry contract與 UI truthfulness，不新增資料權威或 schema。
+
+#### 0.12.2 Canonical Field And Review-group Contract
+
+- Canonical recognition semantic key 固定為 `revision`；`source_revision` 只作 legacy input alias，不再作新的 candidate stable key。
+- SOLIDWORKS「版次／版本／revision」與 PDF Tier 0 `revision` 均分類為 `identity_relation`、owner type `drawing_revision`、write policy `evidence_only`。
+- 新 observation 在計算 `group_key` 前套用同一個 server-side canonicalizer；不得只在 UI 改 label。
+- 同一 owner／scope／semantic key／normalized value 的 CAD 與 PDF observations 必須連到同一 candidate，形成 corroborated evidence。
+- 同一 semantic key 有多個 normalized values 時，projection 形成一個 conflict review group，列出每個值、來源檔、location kind與 confidence；不得依來源順序或 confidence 靜默選 winner。
+- 舊 session 的 `source_revision` rows 維持 append-only，不做資料回填或 migration。Projection 以 `semanticFieldKey=revision` 相容分組；需要新 normalized geometry 時建立 successor rerun session。
+- Review group 至少回傳 `semanticFieldKey`、`fieldLabel`、`memberCandidateIds[]`、`distinctValues[]`、`observations[]`、`conflictState` 與 deterministic `primaryCandidateId`。排序不可依 fetch timing。
+- 同一次辨識工作區以 canonical `fieldKey` 作唯一可見欄位鍵；`category`、owner type／ID、來源類型、正式值來源、sheet、page、configuration 與 applicability scope 都只能成為該欄位下的 review group／observation metadata，不得再產生第二張同 `fieldKey` 欄位卡。Legacy `surface_treatment` 必須在 ingestion 與舊 session projection 時 canonicalize 為 `surface_finish`；沒有 canonical `fieldKey` 的未歸類資料才可用 category＋label fallback 分組。
+- `drawn_by`／`drawn_by_name`／「製圖」／「製圖者」統一為 `drawn_by_name`；`sw_custom_2d圖號_用途_*` 與 `sw_custom_圖號_*` 統一為 evidence-only `drawing_number`。畫面各只顯示一個「製圖者」與「圖號」，所有原始 observations 仍保留在該 canonical field 下。
+- SOLIDWORKS `SWFormatSize` 統一投影為 `paper_size`／「圖紙尺寸」；ISO A 系列標準毫米尺寸允許正反向與 `*`、`x`、`×` 分隔，`210 × 297 mm` 必須顯示為 `A4`，原始尺寸字串仍只保存在 observation evidence。
+- UI 以 review group 為一個可見欄位；同值只顯示一次「版次 0.1」，來源控制只顯示 `檔案屬性`／`PDF圖面`，不在按鈕內重複顯示檔名、頁碼、組態、座標或其他定位 metadata，也不另顯示重複的適用範圍與來源證據小標。異值顯示一張衝突卡，由人類選值或修正。
+- PDF evidence 聚焦仍保留高亮與放大鏡，但不再顯示「辨識證據／日期／檔名／頁碼」覆蓋說明，避免遮住圖面內容。
+- 批次儲存仍展開成既有 candidate decisions 並在同一 row-version command 提交；原 observations、來源差異及決策前值不得遺失。
+- `drawing_number` 與 `revision` 永遠是 `identity_relation` evidence-only。Impact 必須排除，不得寫入 `pdm_drawing_revision_metadata_values`、建立動態欄位或改變 DrawingRevision identity。
+
+#### 0.12.3 Normalized Page Geometry Contract
+
+新 PDF observations 的 geometry 固定為：
+
+```json
+{
+  "coordinateSpace": "normalized_page",
+  "origin": "top_left",
+  "x": 0.0,
+  "y": 0.0,
+  "width": 0.0,
+  "height": 0.0,
+  "pageWidth": 841.89,
+  "pageHeight": 595.28,
+  "pageRotation": 0,
+  "producerSpace": "pdf_points|ocr_pixels"
+}
+```
+
+Rules：
+
+- `x/y/width/height` 必須為有限值並落在 0..1；`width/height > 0`，框不得超出頁面。Invalid geometry 不得冒充可定位 evidence。
+- PDF.js text items 必須在 producer 端使用實際 viewport transform 轉為 top-left normalized page space；不得把 bottom-left PDF points直接交給 UI。
+- Tesseract boxes 必須以該頁實際 Canvas width／height正規化為同一 top-left space；不得只傳 canvas height。
+- rotation/crop 已由 producer 納入 transform；consumer 只使用 normalized contract，不自行猜測 PDF points、pixels或百分比。
+- `pageWidth/pageHeight/producerSpace` 是診斷證據，不是 consumer 的第二套換算 authority。
+- 舊 geometry 無法可靠換算時標記 `legacy_unlocatable`，不得改寫舊 row；successor rerun 可產生新座標。
+- Consumer 必須把 normalized geometry 套在「實際渲染 PDF 紙張」的 bounding box；不得套在包含瀏覽器 PDF toolbar、thumbnail sidebar、scrollbar 或頁面留白的 iframe／viewer frame。Evidence mode 必須取得可量測、same-origin 的 page element；若無法取得實際紙張座標面，應停止顯示 evidence treatment 並回 truthful unlocatable／load-failed 狀態，不得近似猜測。
+
+#### 0.12.4 Evidence Selection And UI Truthfulness
+
+Human-confirmed UX clarification（2026-08-20）：證據定位重用既有左側單一預覽面，不新增 PDF 頁籤、第三種 preview kind、獨立 PDF route 或額外檔案／版次。
+
+預設證據選擇順序：
+
+1. 使用者明確選取的來源；
+2. 與目前 2D preview source/page相符且有合法 normalized geometry 的 observation；
+3. 其他有合法 normalized geometry 的 PDF／OCR observation；
+4. nonspatial CAD/file evidence。
+
+行為契約：
+
+- 不得再固定取 `observations[0]`。
+- 聚焦「版次」且 PDF evidence 可定位時，左側必須切至 2D、顯示黃色螢光標記／局部放大鏡與 `A0002-M01.pdf · 第 1 頁`來源 caption。
+- `3D 模型／2D 圖面`仍是唯一 preview navigation；不得因 evidence source 是 PDF 而新增「PDF」tab、並排第二個 PDF viewer 或新的 revision/file card。
+- 左側既有 2D preview 是唯一 evidence surface：若 evidence 與目前 source/page 相同，只更新黃色螢光標記、局部放大鏡與 caption；若來源檔或頁碼不同，則在同一 surface 暫時切換至該 PDF/page，再疊加相同 evidence treatment。
+- Spatial evidence 的可見標示固定為無外框、半透明黃色螢光標記，並在同一 actual PDF page element 內顯示局部放大鏡。舊版「直接裁切已縮放預覽 canvas、固定 3×」契約由 §0.13 `Intentional replacement` 取代；現行放大內容必須重用同一已載入 `PDFPageProxy` 做高解析局部重繪，不得重新抓檔、建立第二 viewer 或使用另一套座標換算。放大鏡自動選擇不遮住標記的位置、完整留在 preview viewport，desktop／tablet／mobile 都必須可讀。黃色不是唯一證據訊號，既有 caption 仍顯示辨識值、檔名與頁碼。
+- 首次進入 evidence mode 時保存單一 `preEvidencePreviewState = { activePreviewKind, sourceId, pageNumber }`；後續切換 PDF／CAD evidence 不得覆寫這份快照。使用者按「返回原圖面」、清除候選焦點或離開 evidence mode 時，恢復原 preview kind、source 與 page。
+- 多頁 PDF 只把同一 viewer 導向 observation 的 `pageNumber`，不複製、不插入也不產生新的 PDF 頁面；caption 必須持續顯示實際檔名與 `第 N 頁`。
+- 使用瀏覽器原生 PDF viewer 顯示一般圖面時，內嵌預覽 URL 必須設定 `navpanes=0` 與 `toolbar=0`，讓左側縮圖／分頁欄及上方工具列預設隱藏；另開來源連結保留完整 viewer 工具列與 `pageNumber` 定位。此規則只降低頁內預覽雜訊，不改 PDF source、page、evidence geometry 或下載權限。
+- 暫時來源／頁碼切換是 client preview state，不得建立附件、derived file、candidate revision、recognition source或瀏覽器 route/history entry，也不得影響未儲存的右欄核對資料。
+- 多來源時來源 badge／control 可切換 PDF 與 SOLIDWORKS evidence；切到 CAD property 顯示「版次 0.1 已辨識；來源：A0002.SLDPRT 檔案屬性，無圖面座標」。
+- 切到 nonspatial CAD evidence 時不得把現有 PDF 畫面冒充 CAD 定位結果；保留原 preview 或恢復 `preEvidencePreviewState`，只顯示來源明確的無座標訊息。
+- PDF observation 缺合法 geometry 時顯示「版次 0.1 已辨識；來源：A0002-M01.pdf 第 1 頁，但此證據沒有可用定位座標」。不得宣稱它是檔案屬性，也不得把「已辨識」改成「未找到」。
+- evidence PDF/page 載入失敗時，保留目前可用 preview，移除過期螢光標記／放大鏡並顯示實際來源／頁碼與載入失敗訊息；不得用錯誤頁面的標記、空白 viewer或 CAD-property 文案掩蓋失敗。
+- 右側 Tier 0 tile 是該 PDF source 的 coverage；候選欄位是跨來源 review projection。兩者文案必須包含 source context，避免被理解成互相矛盾。
+- `found`、`conflict`、`not_found` 與 `locatable` 是不同軸；UI、ARIA與測試不得混用。
+
+#### 0.12.5 Repository And File Impact
+
+Expected affected files：
+
+- `config/solidworks-metadata-field-aliases.json`、`config/drawing-ocr-field-priorities.json`：revision stable key/category 對齊。
+- `src/lib/solidworks-metadata-mapping.ts`、`src/lib/drawing-ocr-priority-policy.ts`、recognition contract：共享 canonical field semantics及 projection types。
+- `src/lib/drawing-pdf-text-layout.ts`、`src/lib/drawing-ocr-spatial-layout.ts`、`src/lib/browser-pdf-ocr.ts`：producer-side normalized geometry。
+- `src/lib/repositories/drawing-recognition-async-repository.ts`：ingestion canonicalization、legacy projection grouping、identity evidence formalization exclusion。
+- `src/components/drawing-recognition-workspace-panel.tsx`、`src/components/drawing-owner-workspace.tsx`、`src/components/drawing-detail-preview.tsx`、`src/components/pdf-page-viewport.tsx`、必要時 `drawing-recognition-pdf-ocr.tsx`：review group、source-aware evidence selection、same-origin PDF page renderer、page-bound overlay與 truthful messages。
+- `scripts/qc-dev-082-*.mjs`、`scripts/qc-dev-079-recognition-layout-browser.mjs`：新增精確 evidence assertions，移除 `flash OR box` 弱 gate。
+
+No schema／migration／new API route／new dependency／new OCR asset／new environment variable。舊 session read compatibility是必要驗收，不以資料修復取代。
+
+RD slices：
+
+| Slice | Scope | Exit gate |
+|---|---|---|
+| 082-F | canonical revision registry、config/category與 repository grouping／legacy projection | `OCR-082-031..033,036,037` |
+| 082-G | normalized geometry producers、evidence resolver、workspace source-aware UI | `OCR-082-034,035,038` |
+| 082-H | affected DEV-035／068／079 regressions、typecheck、lint、build與 fresh completion gate | 新舊 OCR matrix全部通過 |
+
+#### 0.12.6 Acceptance And Stop Conditions
+
+DEV-082 重新完成必須同時滿足：
+
+1. A0002 等值 CAD/PDF revision 只顯示一個 review field，保留兩個來源；不同值明確顯示衝突。
+2. PDF text-layer與Tesseract evidence均產生合法 normalized top-left geometry；consumer 以實際 PDF 紙張 element 為座標面，黃色螢光標記落在正確 title-block cell且完全位於紙張內，不能以整個瀏覽器 viewer frame 代替紙張；§0.13 高解析局部重繪放大鏡必須完整涵蓋證據文字、含有實際圖面像素且不得遮住標記。
+3. 聚焦 revision 預設選可定位 PDF evidence；選 CAD evidence時顯示來源明確的 nonspatial message。
+4. 定位全程只使用既有單一 preview surface；同頁只加框、跨來源／跨頁在原 viewer 暫時切換，並可精確恢復進入 evidence mode 前的 preview kind／source／page。DOM、route、network與資料 readback 必須證明沒有新增 PDF tab、第二 viewer、附件、版次或 recognition source。
+5. PDF coverage `found` 不得被左側文案呈現為 `not_found` 或 `cad_property`。
+6. revision decisions不產生正式 metadata change或 `RECOGNITION_DRAWING_FIELD_INVALID`；identity evidence仍可完成review／impact。
+7. legacy session可讀、可核對；需新座標時以 successor rerun恢復，不修改 append-only evidence。
+8. `OCR-082-001..044`、affected DEV-035／068／079、typecheck、affected lint、isolated build及 diff check全部通過。
+
+Stop and return to Dev PM if修復需要改寫歷史 evidence、建立新的 canonical revision authority、改 Drawing submit/lifecycle、放寬 tenant/permission、增加 schema/migration、把非 PDF 送 OCR、加入外部付費服務／主機，或觸及 production/staging/deploy/release。
+
+### 0.13 DEV-082 Reopen Amendment — 放大鏡完整取景與高解析局部重繪
+
+狀態：`RD Implemented / Local QA-QC Complete / OCR-082-001..044 PASS / Production Release Gated`
+
+決策來源：2026-08-20 使用者以真實 A0002 圖面回報，局部放大鏡未完整顯示「不鏽鋼SUS304」，且文字因二次放大預覽 canvas 而模糊；使用者要求最佳化並寫入既有開發文件。
+
+Spec Impact Preflight：`Intentional replacement`。本節只取代 §0.12.4 的「固定 3×、裁切已縮放預覽 canvas」放大策略；保留 normalized geometry、同一 2D preview surface、單一 PDF page element、黃色螢光標記、caption、source-aware evidence、PDF-only OCR、candidate／formalization authority、tenant／permission及零 OCR server 架構。ADR 不需要，因為資料權威、API、schema、外部契約與部署拓撲均未改變。
+
+#### 0.13.1 UX Intent And Visual Contract
+
+- 主要任務是讓使用者在不改變目前證據核對流程下，立即看清楚被定位的完整欄位值；成功不是「畫面有放大鏡」，而是完整文字可讀、來源可核對且不遮住原定位。
+- 完整內容優先於固定倍率。RD 不得為維持 `3×` 而裁掉文字；`3×` 只作上限，不是固定值。
+- Evidence marker 維持無外框、半透明黃色螢光標記；放大鏡只保留一個黃色外框，不得再出現螢光筆外框、綠框、雙環或額外裝飾容器。
+- Current Phase 不新增倍率 slider、放大／縮小按鈕、模式切換、第二 viewer、popover、卡片或說明面板。自動取景是唯一預設；辨識值、檔名與頁碼沿用既有 caption／ARIA，顏色不得成為唯一證據訊號。
+- 圓形鏡片為預設外觀。若完整欄位在最大允許圓形尺寸下仍無法容納，可降低倍率至 `1×`；Current Phase 不自動切換長條鏡片。是否改為橫向閱讀鏡片屬 future re-entry，只有代表性圖面證明圓形鏡片經自適應後仍大量不可讀才重新評估。
+
+#### 0.13.2 Adaptive Coverage Contract
+
+以 observation 的合法 `normalized_page/top_left` geometry 為唯一取景核心，先轉換成同一 PDF page coordinate，再建立 `targetRect`：
+
+1. 水平兩側各補 `max(region.width * 0.30, page.width * 0.005)`；垂直兩側各補 `max(region.height * 0.50, page.height * 0.005)`，並裁切在實際 PDF page boundary 內。
+2. 放大鏡內定義直徑 `78%` 的中央安全內容區；完整 `targetRect` 必須落在此安全區，不能只以文字中心點定位。
+3. 鏡片 CSS 尺寸以實際紙張短邊的 `32%` 為基準：desktop clamp `128..200 px`、viewport 寬度 `481..1024` clamp `128..168 px`、`<=480` clamp `120..140 px`；不得超出紙張或 viewport。
+4. `fitZoom = min(safeWidth / targetCssWidth, safeHeight / targetCssHeight)`；實際倍率為 `min(3, fitZoom)`。若 `fitZoom < 1`，先使用該 viewport 最大鏡片，再以完整內容為優先降至 `1×`，不得裁切證據框來維持放大感。
+5. Crop 必須在頁面邊緣重新置中並 clamp；clamp 後仍要重新驗證 `targetRect` 全部位於 crop 與圓形安全內容區內。
+6. OCR／PDF bbox 過窄時使用上述安全 padding；不得依字串長度、字型估算或猜測另一套座標。Invalid／legacy geometry 沿用 §0.12 truthful unlocatable 行為，不顯示猜測位置。
+
+#### 0.13.3 High-resolution Local Render Contract
+
+- 放大鏡不得再以 `drawImage(mainPreviewCanvas, ...)` 作正常路徑。它必須重用目前已載入的 `PDFDocumentProxy/PDFPageProxy`、頁碼與同一 normalized geometry，在離屏 canvas 直接執行一次 clipped PDF.js render。
+- 不得為放大鏡重新請求 PDF bytes；不得建立 iframe、第二 viewer、第二 route或持久化衍生圖。文件已載入後，切換 evidence 不應增加 content GET。
+- Magnifier backing store 比例固定為 `min(3, max(2.5, window.devicePixelRatio))`，並直接以目標輸出解析度渲染 PDF crop；CSS 只縮至鏡片顯示尺寸，不再放大低解析 bitmap。
+- 每次只渲染 `targetRect` 所需的 bounded crop，不得為放大鏡建立整頁 4× canvas。單一 backing canvas 任一邊不得超過 `1024 px`、估計 RGBA 記憶體不得超過 `4 MiB`。
+- Cache key 至少包含 `sourceId/pageNumber/targetRect/outputScale`，採最多四筆 LRU；切頁、換檔、geometry 改變或 component unmount 時取消 stale render task並釋放不再使用的 canvas。
+- 直接 PDF render 保留 PDF.js 正常反鋸齒。只有高解析 render 失敗時，才可暫用既有 preview canvas 作 degraded fallback；fallback 必須以 `resolutionMode=fallback` 可診斷、清除過期影像，且不算 `OCR-082-040/044` 通過。不得以影像銳化或生成不存在的筆畫改變證據內容。
+- High-resolution crop 失敗時，不新增錯誤卡；在既有 caption 顯示短句「局部放大載入失敗」，保留螢光標記與來源資訊，下一次切換 evidence 可重試。
+
+#### 0.13.4 Repository And File Impact
+
+Current Phase 預期只修改：
+
+- `src/components/pdf-page-viewport.tsx`：自適應 `targetRect`、動態倍率、同 page proxy 高解析 crop render、bounded cache／cancel／cleanup、diagnostic data attributes。
+- `src/app/globals.css`：單一黃色鏡框、鏡片尺寸與 responsive 約束；不得恢復螢光筆外框或綠色第二環。
+- `scripts/qc-dev-079-recognition-layout-browser.mjs`：三 viewport 真實畫面、完整取景、單黃框、page-bound／overlap／network／console assertions。
+- `scripts/qc-dev-082-contract.mjs`、`scripts/qc-dev-082-regression.mjs`、`scripts/qc-dev-082-gate.mjs`：`OCR-082-039..044`、current-source render mode、backing ratio、cache／cleanup與完成矩陣。
+
+不修改 recognition API、DB／schema／migration、OCR field policy、permission、candidate／formalization、附件或 lifecycle；不新增 dependency、environment variable、OCR key、worker、server compute或第三方流量。
+
+#### 0.13.5 Performance, Failure And Evidence Contract
+
+- PDF page 已 ready 後，單次 magnifier crop render 的 reference-device P95 目標為 `<=150 ms`；同 key cache hit 目標 `<=16 ms`。超標需附 profile 再回 RD 調整，不得改用 server render。
+- Evidence 切換與 resize 使用 debounce／latest-task-wins；舊 render 完成後不得覆蓋新 focus，連續切換後只保留最後一個 magnifier。
+- 診斷 attributes 至少揭露 `resolutionMode=pdf_high_res_crop|fallback`、`coverageRatio`、`effectiveZoom`、`backingScale`、`cropRect` 與 `renderState`，只供測試／診斷，不在產品 UI 顯示工程詞。
+- `coverageRatio` 必須為 `1`，表示 padded `targetRect` 全部落在 crop 安全內容區；只看到非白像素或中心點不再足以通過。
+- Scanned PDF 的來源像素若本身不足，系統不得宣稱已提高來源解析度；仍需以可取得的最高原始頁面解析度渲染並保留 truthful evidence。QC 以「不二次放大預覽 canvas、全文未裁切、正常閱讀距離可辨識」判定，不以人工銳化掩蓋來源品質。
+
+#### 0.13.6 Acceptance And Stop Conditions
+
+1. 真實 A0002 材質 evidence 聚焦後，「不鏽鋼SUS304」全文與安全留白在放大鏡內可見，不得顯示成「不鏽鋼SUS…」或裁掉右側字元。
+2. 放大鏡正常路徑為 `pdf_high_res_crop`、backing scale `>=2.5`、`coverageRatio=1`，且不呼叫 `drawImage(mainPreviewCanvas, ...)` 進行二次放大。
+3. 桌面 `1440x900`、laptop `1024x768`、mobile `390x844` 均只有一個黃色鏡框；螢光標記無外框，無綠環、雙環、裁切、overflow或非預期捲動。
+4. 每個 viewport 的 magnifier 與 marker 都完全位於實際 PDF paper element 內、互不遮擋；長文字、頁面邊緣與快速切換 evidence 均保持完整取景。
+5. 在瀏覽器 100% 顯示比例下，人工 QC 可直接辨識完整材質文字，並以截圖證明；DOM／canvas evidence 同時證明 backing ratio 與高解析來源，不能只靠目視宣稱清晰。
+6. 文件載入後切換 evidence 不增加 PDF content GET；無 OCR server、API key、第三方文件流量或新增 server compute。Cache／canvas符合上限且 unmount 後可釋放。
+7. High-resolution render failure 顯示既有 caption 內的短恢復訊息，不留下舊 crop、不遮住來源資訊；fallback 不能被 completion gate 當作清晰度 PASS。
+8. `OCR-082-001..044`、DEV-079 recognition-layout三 viewport、typecheck、affected lint、isolated build及 diff check全部通過，才可將 DEV-082 與父 DEV-068 恢復為 Local RD/QC complete。
+
+Current implementation evidence（2026-08-21）：`OCR-082-039..044` 已由 isolated A0002 successor fixture 的 Chromium 1440／1024／390 matrix 全部 PASS；同一 loaded `PDFPageProxy` direct crop、coverage `1`、backing scale `2.5`、完整 `不鏽鋼SUS304`、單一黃色鏡框與 borderless highlighter 均已留存。`typecheck:app`、affected ESLint、`build:isolated`、`qc:dev-079:contract`、`qc:dev-079:layout-browser`、`qc:dev-079:recognition-layout-browser`、`qc:dev-082:contract`、`qc:dev-082:repository`、`qc:dev-082:regression`與`qc:dev-082:gate` PASS；gate evidence為 `output/qa/dev-082-browser-pdf-ocr/gate-20260820163042-local-isolated/`（44/44）。canonical `revision` 已取代 fixture 舊 `source_revision`，generic layout runner已改用隔離 A0002 fixture並保留版面斷言。production representative accuracy、正式檔案存取、migration、deploy與release仍各自 gated。
+
+Stop and return to Dev PM if實作需要改變 normalized geometry authority、建立第二 PDF viewer／route、增加 schema／API／dependency／server render、把文件送第三方、超出既有 tenant／permission，或觸及 production/staging/deploy/release。
 
 ## 1. Human Decision Brief
 
@@ -33,7 +465,7 @@ Confirmed product decisions:
 9. A0005 完整 3D＋2D 是第一個端到端 pilot；P01／P02／P03 等變體需要各別辨識與人工修正。
 10. 正式寫入前保留輕量影響確認 gate，但不建立獨立預覽頁或第二套審核功能。確認視窗只列實際異動、衝突、寫入範圍與不寫入項目。
 11. 審核頁主動作為 `確認寫入內容`；確認視窗使用 `返回核對` 與 `正式寫入 PDM`。只有後者可異動正式資料。
-12. 送審前即可在現有「新版圖面／歷史版圖面」附件區啟動辨識；此階段只建立綁定目前勾選檔案的候選工作，不建立正式版次、不建立送審，也不寫入 PDM。送審後的自動辨識保留為補救與稽核路徑。
+12. 送審前的候選版次檔案上傳完成後，系統即以目前未移除的受控檔案自動建立或重用辨識工作；正常流程不顯示獨立「開始辨識」按鈕。使用者進入工作區時，若已有可辨識檔案但沒有相同來源集合的工作，頁面必須自動補建並輪詢結果。此階段只建立候選工作，不建立正式版次、不建立送審，也不寫入 PDM；重複上傳、重新進頁或重繪不得產生相同來源集合的重複工作。
 
 Rejected behavior:
 
@@ -46,6 +478,7 @@ Rejected behavior:
 - 動態為每個 OCR 欄名新增資料庫 column。
 - 讓辨識流程建立新圖號／料號、改變版次生命週期、核准、發布或改寫原始 SolidWorks 檔。
 - 以另一張完整預覽頁重複人類已完成的審核工作。
+- 把正常辨識啟動責任交給使用者，要求每次上傳後再按一次「開始辨識」。
 
 ## 2. Problem And Outcome
 
@@ -501,7 +934,7 @@ After A0005 and Current Phase human workflow are verified, future phases may eva
 - Drawing-template/layout profiles.
 - Learning from repeated human corrections without auto-approval.
 - Historical batch OCR with dry-run and data/release gates.
-- Native SolidWorks Document Manager metadata adapter and Windows worker.
+- Native SolidWorks metadata reader and Windows worker；2026-08-20 `DEV-035 / DEV-CAD-001` 已達 `Local RD Implemented / Real A0002 QA-QC Passed / Production Release Gated`，專屬authority為 `.ai-doc/specs/SPEC-PDM-SOLIDWORKS-METADATA-READER-001-native-property-extraction.md`。Current Phase固定Document Manager、UI-managed credential broker、job-locked source bytes、file/configuration scope、company alias/owner與sanitized diagnostics；仍只輸出本SPEC的observation/candidate並沿用human review/impact/atomic formalization。2D preview、Add-in、未儲存狀態與production deploy仍是明確排除或future scope，不改變DEV-068已完成Phase 1A～1D authority。
 - Typed numeric/unit fields and controlled engineering characteristic models.
 - Review-time quality metrics: miss rate, wrong-owner rate, correction rate and median review time.
 
@@ -513,8 +946,8 @@ Re-entry requires enough reviewed data to measure error/correction behavior plus
 - ADR: not required for this RD Contract because canonical file/drawing/part/revision authorities remain unchanged and the candidate/formalization layer is additive. Re-evaluate ADR need if the generic attribute dictionary becomes a cross-domain platform, formalization becomes distributed/non-atomic, or automatic source precedence is introduced.
 - QA plan: `.ai-doc/qa/qa-dev-068-drawing-recognition-validation-plan-2026-08-12.md`。
 - Fixture manifest: `.ai-doc/qa/fixtures/dev-068-a0005-fixture-manifest.md`。
-- Current implementation blocker: none at P0/P1 within the local Phase 1A～1D contract. Coding has not started only because the user has not yet issued the separate execution command.
-- Remaining release gates: real OCR/native CAD provider availability and accuracy, license/security/cost acceptance, production representative file access, production migration, deploy and release.
+- Current implementation blocker: 無 DEV-082 本機 blocker；`qc:dev-082:gate` 已以 44/44 executable matrix 通過。production representative PDF/CAD accuracy、正式檔案存取、migration、deploy與release仍是獨立 gate，不得把本機 PASS 當成 production release authorization。
+- Remaining gates: production representative PDF/CAD accuracy set、production device/network P95、production file access、migration、deploy與release仍各自 gated。
 
 ## 22. Repository-Specific Implementation Assessment
 
@@ -686,7 +1119,7 @@ Implemented package scripts are `db:dev-068:local-schema`, `recognition:worker`,
 | Cross-company asset/evidence leak | P0 | Closed at contract: every source and target resolves through owning context and company before read/write; negative QA required. |
 | Partial or duplicate formal writes | P0 | Closed at contract: one DB transaction + platform command receipt + deterministic lock order + stale fingerprints. |
 | A0005 expected result is invented or unstable | P1 | Closed: canonical file hashes, relation IDs and existing formal values are recorded in a fixture manifest; raw OCR accuracy is not claimed. |
-| No real OCR executable is configured locally | P1 release capability | Does not block Phase 1A～1D implementation. External JSON adapter, unsupported state and deterministic fixture are fixed. Production/provider acceptance remains gated and cannot be reported as OCR quality PASS. |
+| Browser OCR assets or runtime drift | P1 release capability | Closed locally：PDF.js／Tesseract.js／chi_tra＋eng皆pin版本與hash，版本目錄每次精確重建且不得含manifest外殘留；production representative accuracy與裝置P95仍是release gate。 |
 | Local/production schema diverges | P1 | Closed at contract: SQLite baseline/apply + PostgreSQL 033 + parity/concurrency tests; production apply remains separately gated. |
 
 Final assessment: `Local RD Implemented / Focused QA-QC Passed`. No P0/P1 implementation blocker remains inside the authorized local slice. RD must stop if the next step requires live provider purchase/license, production/staging files or credentials, a non-atomic formal target, a new canonical identity authority, production migration/deploy/release, or a departure from the same-page human review decision.
@@ -711,7 +1144,7 @@ Intentional implementation simplifications accepted by this audit:
 
 Remaining release/extended-matrix gates, not local PASS claims:
 
-- real native SolidWorks/OCR provider, licensing/security/cost and measured extraction accuracy on an approved gold set;
+- production representative PDF/CAD gold set、device/network P95，以及對應license/security/cost acceptance；local browser OCR與real A0002 native reader已通過，不再列為「provider未實作」；
 - production object download/worker topology, monitoring and production migration/deployment/rollback;
 - full existing PostgreSQL migration chain currently has pre-existing migration 004 drift (`approval_rules.phase`) outside DEV-068; PostgreSQL 001 + 033 was verified in a disposable cluster;
 - production/distributed concurrency and the full actor/browser matrix in DRR-001～060 remain release evidence. Focused local QA/QC covers the implemented critical path and safety invariants, not provider quality or production readiness.

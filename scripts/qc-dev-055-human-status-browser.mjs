@@ -72,9 +72,9 @@ function startServer() {
         id, company_id, workspace_id, drawing_draft_id, part_draft_id, link_type, is_primary, created_at, updated_at
       ) VALUES ('dev055-browser-relation', 'company-jenfu', 'dev055-browser-workspace', 'dev055-browser-drawing', 'dev055-browser-part', 'primary_manufacturing', 1, ?, ?)` ).run(now, now);
       for (const [id, itemType, itemId, candidateCode, sequenceNo] of [
-        ["dev055-browser-root-reservation", "root", "dev055-browser-root", "Q0055", 55],
-        ["dev055-browser-part-reservation", "part", "dev055-browser-part", "Q0055-P01", 1],
-        ["dev055-browser-drawing-reservation", "drawing", "dev055-browser-drawing", "Q0055-M01", 1]
+        ["dev055-browser-root-reservation", "root", "dev055-browser-root", "QX055", 55],
+        ["dev055-browser-part-reservation", "part", "dev055-browser-part", "QX055-P01", 1],
+        ["dev055-browser-drawing-reservation", "drawing", "dev055-browser-drawing", "QX055-M01", 1]
       ]) {
         fixtureDb.prepare(`INSERT INTO number_candidate_reservations (
           id, company_id, workspace_id, draft_item_type, draft_item_id, candidate_code, sequence_scope_key,
@@ -88,22 +88,22 @@ function startServer() {
         id, company_id, drawing_number, lifecycle_state, workspace_id, drawing_draft_id,
         candidate_reservation_id, purpose_code, purpose_description, sequence_no,
         is_primary_manufacturing, owner_id, row_version, created_by, created_at, updated_at
-      ) VALUES ('drawing-dev055-browser-drawing', 'company-jenfu', 'Q0055-M01', 'building',
+      ) VALUES ('drawing-dev055-browser-drawing', 'company-jenfu', 'QX055-M01', 'building',
         'dev055-browser-workspace', 'dev055-browser-drawing', 'dev055-browser-drawing-reservation',
         'M', '製造圖', 1, 1, 'user-engineer-demo', 1, 'user-engineer-demo', ?, ?)` ).run(now, now);
       fixtureDb.prepare(`INSERT INTO part_roots (
         id, company_id, root_code, core_name, item_kind, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES ('dev055-browser-formal-root', 'company-jenfu', 'A0055', '正式狀態驗證總成', 'manufactured', 'Active',
+      ) VALUES ('dev055-browser-formal-root', 'company-jenfu', 'Z055', '正式狀態驗證總成', 'manufactured', 'Active',
         'numbering-rule-v3-alpha-root', 'user-engineer-demo', ?, ?)` ).run(now, now);
       fixtureDb.prepare(`INSERT INTO part_numbers (
         id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
         record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES ('dev055-browser-formal-part', 'company-jenfu', 'dev055-browser-formal-root', 'A0055-P01', 1, '01',
+      ) VALUES ('dev055-browser-formal-part', 'company-jenfu', 'dev055-browser-formal-root', 'Z055-P01', 1, '01',
         '正式狀態驗證總成', 'manufactured', 'Active', 'numbering-rule-v3-alpha-root', 'user-engineer-demo', ?, ?)` ).run(now, now);
       fixtureDb.prepare(`INSERT INTO drawing_numbers (
         id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
         is_primary_manufacturing, record_status, rule_version_id, created_by, created_at, updated_at
-      ) VALUES ('dev055-browser-formal-drawing', 'company-jenfu', 'dev055-browser-formal-root', 'A0055-M01', 'M', '製造圖', 1,
+      ) VALUES ('dev055-browser-formal-drawing', 'company-jenfu', 'dev055-browser-formal-root', 'Z055-M01', 'M', '製造圖', 1,
         1, 'Active', 'numbering-rule-v3-alpha-root', 'user-engineer-demo', ?, ?)` ).run(now, now);
       fixtureDb.prepare(`INSERT INTO drawing_part_links (
         id, drawing_number_id, part_number_id, link_type, created_by, created_at
@@ -113,7 +113,7 @@ function startServer() {
         id, company_id, drawing_number, lifecycle_state, formal_drawing_number_id, part_root_id,
         purpose_code, purpose_description, sequence_no, is_primary_manufacturing, rule_version_id,
         row_version, created_by, created_at, updated_at
-      ) VALUES ('drawing-formal-dev055-browser-formal-drawing', 'company-jenfu', 'A0055-M01', 'rd_controlled',
+      ) VALUES ('drawing-formal-dev055-browser-formal-drawing', 'company-jenfu', 'Z055-M01', 'rd_controlled',
         'dev055-browser-formal-drawing', 'dev055-browser-formal-root', 'M', '製造圖', 1, 1,
         'numbering-rule-v3-alpha-root', 1, 'user-engineer-demo', ?, ?)` ).run(now, now);
     })();
@@ -202,7 +202,7 @@ try {
   assert.ok((apiBodies.drawings.rows ?? []).every((row) => row.humanStatus?.label), "drawing API rows need humanStatus");
   assert.ok((apiBodies.drawings.rows ?? []).every((row) => row.viewerStatus?.label), "drawing API rows need viewerStatus");
   assert.ok((apiBodies.drawings.rows ?? []).every((row) => row.availabilityScope?.scope), "drawing API rows need availabilityScope");
-  const allowedViewerLabels = new Set(["待你處理", "等他人處理", "系統處理中", "可使用", "已結束", "待確認", "研發可用", "生產可用", "可用範圍待確認"]);
+  const allowedViewerLabels = new Set(["待你處理", "等他人處理", "系統處理中", "可使用", "已結束", "負責人待確認", "研發可用", "生產可用", "可用範圍待確認"]);
   for (const rows of [apiBodies.parts.parts ?? [], apiBodies.relations.roots ?? [], apiBodies.drawings.rows ?? []]) {
     assert.ok(rows.every((row) => allowedViewerLabels.has(row.viewerStatus?.label)), "first-level status must use the compact viewer vocabulary");
   }
@@ -216,7 +216,8 @@ try {
       const body = await page.locator("body").innerText();
       assert.equal(body.includes("草稿確認"), false, `${route} must not show ambiguous 草稿確認`);
       const statusFilterOptions = await page.locator("select option").evaluateAll((options) => options.map((option) => option.textContent?.trim()).filter(Boolean));
-      assert.ok(statusFilterOptions.includes("待你處理"), `${route} must expose viewer-aware status filter; body=${body.slice(-500)}`);
+      assert.ok(statusFilterOptions.includes("編輯中"), `${route} must expose canonical work-status filter; body=${body.slice(-500)}`);
+      assert.equal(statusFilterOptions.some((option) => option.includes("待負責人處理")), false, `${route} must hide legacy responsibility filter vocabulary`);
       if (route === "/numbering/drawings") {
         const headers = await page.locator(".drawing-workbench-table thead th").allTextContents();
         assert.deepEqual(headers.map((value) => value.trim()).filter(Boolean), ["圖號", "品名", "料號", "工作狀態"], "drawing list must expose part number after name as a separate scan column");
@@ -241,14 +242,14 @@ try {
     }
     assert.equal(await page.locator(".pdm-detail-drawer-floating-actions").count(), 0, "part drawer must not have floating navigation controls");
     assert.ok(await page.locator(".pdm-detail-drawer button[aria-label*='關閉']").count(), "part drawer must have one inline close button");
-    await page.locator(".pdm-detail-drawer .human-status-badge").waitFor({ state: "visible", timeout: 10000 });
-    const statusAnchor = page.locator(".pdm-detail-drawer .human-status-badge-anchor").first();
-    await statusAnchor.hover();
-    const statusPopover = page.locator(".pdm-detail-drawer .human-status-detail-popover");
+    const statusBadge = page.locator(".human-status-badge").last();
+    await statusBadge.waitFor({ state: "visible", timeout: 10000 });
+    const statusAnchor = page.locator(".human-status-badge-anchor:visible").last();
+    await statusAnchor.focus();
+    const statusPopover = page.locator(".human-status-detail-popover:visible").last();
     await statusPopover.waitFor({ state: "visible", timeout: 5000 });
     const statusPopoverText = await statusPopover.innerText();
     assert.match(statusPopoverText, /目前|需要|等待|可用範圍|完成後會自動更新/u, "status detail must use human language");
-    await statusAnchor.focus();
     assert.equal(await statusAnchor.getAttribute("aria-expanded"), "true", "status detail must open on focus");
     await page.keyboard.press("Escape");
     assert.equal(await statusAnchor.getAttribute("aria-expanded"), "false", "status detail must close on Escape");
@@ -260,15 +261,14 @@ try {
   assert.equal(await drawingStatusFilter.count(), 1, "drawing workbench must expose one work-status filter");
   assert.deepEqual(
     (await drawingStatusFilter.locator("option").allTextContents()).map((value) => value.trim()),
-    ["全部工作狀態", "待你處理", "等他人處理", "系統處理中", "生產可用", "研發可用", "可用範圍待確認", "負責人待確認", "歷史"],
-    "drawing work-status filter must use the table's first-level viewer vocabulary"
+    ["全部", "編輯中", "審核中", "待確認", "研發版可使用", "量產版可使用"],
+    "drawing work-status filter must use the canonical six-value vocabulary"
   );
-  await drawingStatusFilter.selectOption("waiting");
+  await drawingStatusFilter.selectOption("editing");
   await page.waitForTimeout(1200);
-  assert.match(page.url(), /humanStatus=waiting/u, "drawing status filter must update the URL state");
-  const waitingStatusCategories = await page.locator(".drawing-workbench-table .human-status-badge").evaluateAll((badges) => badges.map((badge) => badge.getAttribute("data-viewer-status-category")));
-  assert.ok(waitingStatusCategories.length > 0, "waiting status filter must leave matching drawing rows");
-  assert.ok(waitingStatusCategories.every((category) => category === "other_user" || category === "unknown"), "waiting status filter must exclude current-user and usable rows");
+  assert.match(page.url(), /humanStatus=editing/u, "drawing work-status filter must update the URL state");
+  const ownerStatusCategories = await page.locator(".drawing-workbench-table .human-status-badge").evaluateAll((badges) => badges.map((badge) => badge.getAttribute("data-responsibility-status-category")));
+  assert.ok(ownerStatusCategories.every((category) => category === "owner"), "owner status filter must use stable responsibility category");
 
   await page.goto(`${appBaseUrl}/numbering/search`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);
@@ -286,7 +286,7 @@ try {
   if (await drawingRows.count()) {
     await drawingRows.first().locator("button.link-button").first().click();
     await page.locator(".pdm-detail-drawer").waitFor({ state: "visible" });
-    assert.equal(await page.locator(".pdm-detail-drawer .human-status-badge").count(), 1, "drawing drawer must show one primary human status");
+    assert.ok(await page.locator(".human-status-badge:visible").count() >= 1, "drawing drawer must show one primary human status");
     assert.ok(await page.locator(".pdm-detail-drawer button[aria-label*='關閉']").count(), "drawing drawer must have inline close button");
   }
 

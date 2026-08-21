@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { createServer } from "node:net";
 import { Client } from "pg";
 
 const root = process.cwd();
@@ -41,7 +42,15 @@ const binDir = process.env.PDM_DEV_068_POSTGRES_BIN?.trim() || (versions[0] ? pa
 const initdb = path.join(binDir, "initdb.exe");
 const pgCtl = path.join(binDir, "pg_ctl.exe");
 assert.ok(fs.existsSync(initdb) && fs.existsSync(pgCtl), "PostgreSQL initdb/pg_ctl are required");
-const port = 55680 + Math.floor(Math.random() * 100);
+const port = await new Promise((resolve, reject) => {
+  const server = createServer();
+  server.once("error", reject);
+  server.listen(0, "127.0.0.1", () => {
+    const address = server.address();
+    assert.ok(address && typeof address !== "string", "PostgreSQL QC requires an allocated TCP port");
+    server.close(() => resolve(address.port));
+  });
+});
 
 function run(executable, args, options = {}) {
   const result = spawnSync(executable, args, {

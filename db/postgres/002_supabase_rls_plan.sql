@@ -17,6 +17,16 @@ BEGIN
   END LOOP;
 END $$;
 
+DO $$
+DECLARE table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY['settings_secret_probe_jobs', 'worker_capability_heartbeats']
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
+    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', table_name);
+  END LOOP;
+END $$;
+
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
 

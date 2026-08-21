@@ -1,5 +1,9 @@
 # SPEC-PDM-PRODUCTION-SLICE-001 - Official numbering and draft production slice
 
+> 2026-08-22 DEV-087 Amendment：正式號不可重用、numbering identity/recycling、default-deny與production/release gate保留；`numbering_draft_workspaces`不再是DEV-087三工作臺的current-work/status authority，只可作唯一可證明的conversion source或其他明確保留domain evidence。新決策優先，activation時舊workbench reader/command/filter/fallback能拆即拆，不保留雙軌相容。
+
+> 2026-08-18 DEV-077 Amendment：production lifecycle未開放的enabled CTA先收斂為inert；後續僅可依獨立release slice精準開放`作廢草稿編號`，再開formal obsolete request／decision。`DELETE .../draft`永久維持拒絕；generic approval route必須依request action code fail closed。本 amendment已完成local implementation，但不改變現行production allowlist或授權部署。
+
 > 2026-07-13 Amendment：本文件的已完成 local slice與DEV-046 production/release gates仍有效；其「formal create即official permanent number」的未來行為已由 `ADR/SPEC-PDM-NUMBER-STATE-FLOW-001` 取代。新草稿可先無號，candidate可在未鎖定且零引用時立即回收，只有explicit publication成功後才寫正式master與non-reuse ledger input。
 >
 > 2026-07-17 DEV-048 convergence amendment：本文件所有把`/numbering/part-drafts`描述為可操作工作台、把`/numbering/request`描述為獨立建立頁，或以`part_number_drafts`頁面作主要UI的舊條款，均由DEV-048取代。Canonical UI是`/parts?tab=drafts`與owner-surface建立CTA；舊URL只redirect/guidance。Production-slice的API default-deny、正式流程未開放、候選號安全、正式號不可重用及帳號/平台release gates不變，並改由`numbering_draft_workspaces` owner UI承接。
@@ -583,3 +587,80 @@ Phase 2 and Phase 3 remain not requested: `HD-8-1..4` are closed, but provider, 
 ## Release Artifact Boundary
 
 This document intentionally does not include merge plan, PR checklist, deployment plan, rollback plan, production smoke plan or release report. Any production/Supabase execution must be requested separately and routed through the deployment-release gate.
+
+## 2026-08-18 DEV-077 Amendment：Production lifecycle release slices
+
+狀態：`RD Implementation Ready / Human Confirmed / RD Implemented / Production Release Gated`
+
+### Current Behavior Remains Authoritative Until Release
+
+本 amendment 已固定RD實作契約，但本輪未修改產品碼，也不立即開啟任何production method。現行middleware／allowlist仍必須拒絕draft DELETE、draft obsolete、formal obsolete request與approval decision，直到對應slice完成implementation、local＋staging QA/QC並由`DEV-032`明確納入release scope。
+
+### Server-only Lifecycle Gate
+
+- 新增`PDM_PRODUCTION_NUMBERING_LIFECYCLE_GATE=containment|draft-obsolete|formal-obsolete`，只由server讀取；不得建立`NEXT_PUBLIC_`版本。
+- 當`PDM_PRODUCTION_SLICE_MODE=official-numbering-draft`生效時，missing／empty／unknown一律解析為`containment`並回報`valid=false`，不得fail open。
+- gate累進：`containment=A`、`draft-obsolete=A+B`、`formal-obsolete=A+B+C`。非enforced local環境維持完整功能供驗證；既有`PDM_LOCAL_FULL_FUNCTION_VALIDATION`規則不變。
+- `productionSliceClientStatus()`只輸出client-safe gate、validity與draft／formal boolean；真正write仍由middleware path gate與route action/domain gate雙重驗證。
+
+### Independent Release Slices
+
+| Slice | Product behavior | Production capability | Exit gate |
+|---|---|---|---|
+| A UI containment | 未開放 lifecycle action 可見但 inert，顯示人類可讀原因；不發 write | 不新增 mutation | rendered UI三viewport、zero write、raw-error sweep、P0/P1=0 |
+| B Draft official-number obsolete | eligible Draft／NeedInfo official bundle可`作廢草稿編號` | 精準開`POST /api/numbering/records/[rootCode]/obsolete` | controlled-reference／transaction／no-reuse／audit／permission／concurrency QA通過 |
+| C Formal obsolete and approval | Active／Released資料可建立作廢申請並由既有審核入口決定 | 精準開formal impact、obsolete request、obsolete-only approval decision與必要page | action-code isolation、request／approve／reject／needs_info／history鏈、P0/P1=0 |
+
+每一 slice 都是獨立 release gate。A通過不自動開B，B通過不自動開C，時間經過、local pass或單一成功smoke均不構成下一slice授權。
+
+### Method / Action Boundary Matrix
+
+| Surface / method | Slice A | Slice B | Slice C | Required server restriction |
+|---|---|---|---|---|
+| Root drawer draft action | inert | enabled when policy allows | enabled when policy allows | server-owned domain＋permission＋environment capability |
+| `DELETE /api/numbering/records/[rootCode]/draft` | denied | denied | denied | permanent production deny；owner UI never calls |
+| `POST /api/numbering/records/[rootCode]/obsolete` | denied | allowed | allowed | only Draft／NeedInfo entire bundle、zero controlled reference、reason＋confirmation |
+| `GET /api/numbering/roots/[rootCode]/obsolete-impact` | read-only if no write CTA, otherwise unopened reason | read-only as needed | allowed | company／read permission；回傳Active／Released與受控Draft／NeedInfo targets；no mutation |
+| `POST /api/lifecycle/obsolete-requests` | denied | denied | allowed | only entity types／action codes `obsolete_part_root`、`obsolete_part_number`、`obsolete_ma_drawing`；受控Draft／NeedInfo只允許root-scoped action |
+| `/approvals` page and inbox/details reads | unopened or read-only roadmap state | unopened or read-only roadmap state | allowed for permitted users | production view must not expose write actions outside opened obsolete scope |
+| `POST /api/approvals/requests/[requestId]/decisions` or equivalent generic decision | denied | denied | allowed only after request lookup | request action code must be opened obsolete action；role/company/status revalidated |
+| `POST /api/approvals/requests/[requestId]/apply` | denied | denied | allowed only for obsolete apply-failed retry | request action code、role、company、approved/apply_failed status與Idempotency-Key重驗 |
+| Other approval／release／submission／BOM／CAD／file mutation | denied | denied | denied | method-level default deny plus domain/action-level guard |
+
+Path-level allowlisting alone is insufficient for a generic route. Middleware may permit the path in Slice C only if the handler loads the request before mutation and returns the stable unopened response for every action code outside the exact obsolete allowlist. Unknown／missing action code fails closed。
+
+### Capability Source of Truth
+
+- 一個 server-owned capability authority同時輸出 page availability、method availability與action availability；UI不得只讀status或自行複製allowlist。
+- Owner drawer policy需能區分`hidden`、`inert`、`enabled`，並帶人類可讀blocked reason；route仍須獨立驗證permission、company、state與controlled reference。
+- stable machine code只供API與diagnostic；一般UI不得顯示`feature_not_open_in_production_slice`、route、HTTP或stack。
+- 未知mode、未列method、未列action、malformed request或stale capability一律default deny且zero mutation。
+- `/approvals` inbox在Gate C由repository query前即限制為legacy numbering的`obsolete_part_root`、`obsolete_part_number`、`obsolete_ma_drawing`；summary、filter hash與cursor使用相同scope，禁止client載入後才filter。
+- detail、decision與apply route共用`isProductionSliceAllowedApprovalAction`或等效單一helper；path allowlisted但action不符時回既有unopened payload，且不得洩漏跨company detail。
+
+### Production Release Preconditions
+
+- DEV-077已達`RD Implementation Ready / RD Implemented`；focused local QC已完成，但本文件仍不得直接作deploy依據，完整QA與production release必須另走gate。
+- Slice A、B、C各自有exact commit／artifact、target identity、local＋staging evidence、P0/P1=0、rollback readiness與post-deploy smoke plan。
+- Slice B需證明rows／identifiers／relations／files／sequence保留、default list排除、受控歷史與audit可讀，且DELETE永久拒絕。
+- Slice C需證明generic decision route不會順帶開啟release、submission或其他approval action；approved前正式status不變。
+- 任何production資料修復、schema migration、直接DB mutation、allowlist擴大或canary人員擴大均需另行高風險確認／`DEV-032` release decision。
+
+### Implementation Boundary
+
+- Expected files：`src/lib/production-slice.ts`、`.env.example`、obsolete routes、approval inbox/detail/decision/apply routes、`src/app/approvals/page.tsx`與focused QC scripts；`src/middleware.ts`只消費helper，DEV-077不混入Next.js 16 `proxy.ts`遷移。
+- `No schema migration / No data backfill`。若RD發現必須新增schema、正式資料修復或無法在route內做action isolation，立即退回readiness review。
+- local／isolated staging RD可依A→B→C開始；production env、deploy、rollback與smoke仍由DEV-032／deployment release gate另行產出。
+
+### QA Authority and Stop Conditions
+
+Focused QA authority：`.ai-doc/qa/qa-dev-077-official-numbering-obsolete-production-lifecycle-validation-plan-2026-08-18.md`。
+
+以下任一成立即停止release：
+
+- enabled CTA在production仍收到unopened denial，或inert CTA發出write；
+- draft obsolete未使用完整controlled-reference predicate、可刪row或可回收sequence；
+- generic approval path可處理非obsolete action；
+- raw machine／HTTP／route error可見；
+- local simulated production mode被當成live production acceptance；
+- 任一slice P0/P1未關閉或scope無法由route＋action allowlist精確描述。

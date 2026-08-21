@@ -15,6 +15,12 @@ import {
   type SettingsSecretTestRun,
   type SettingsSecretVaultProvider
 } from "@/lib/repositories/settings-secret-async-repository";
+import {
+  isWindowsDpapiAvailable,
+  readWindowsDpapiSecret,
+  WindowsDpapiSecretError,
+  writeWindowsDpapiSecret
+} from "@/lib/windows-dpapi-secret-provider";
 
 export type SettingsSecretKind = "solidworks_document_manager";
 
@@ -55,6 +61,14 @@ export type SettingsSecretStatus = {
   active: RedactedSecretVersionSummary | null;
   latest: RedactedSecretVersionSummary | null;
   latestTestRun: SettingsSecretTestRun | null;
+  latestProbeJob: {
+    id: string;
+    status: import("@/lib/repositories/settings-secret-async-repository").SettingsSecretProbeStatus;
+    resultCode: string | null;
+    readerVersion: string | null;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
   draftCount: number;
   testedCount: number;
   revokedCount: number;
@@ -67,9 +81,12 @@ export type SettingsSecretStatus = {
   };
   workerReadiness: {
     status: "ready" | "blocked" | "unknown";
-    credentialSource: "worker_environment" | "google_secret_manager" | "supabase_vault" | "none";
+    credentialSource: "worker_environment" | "windows_dpapi" | "google_secret_manager" | "supabase_vault" | "none";
     serviceTokenConfigured: boolean;
     message: string;
+    appliedVersion: number | null;
+    lastSeenAt: string | null;
+    issueCode: string | null;
   };
   workerPresence: {
     status: "online" | "offline" | "unknown";
@@ -143,11 +160,46 @@ class GoogleSecretManagerSecretProvider implements SecretProvider {
   }
 }
 
+class WindowsDpapiSecretProvider implements SecretProvider {
+  async createSecret(input: { kind: SettingsSecretKind; value: string; displayName: string; actorId: string }): Promise<SecretStoreResult> {
+    if (!isWindowsDpapiAvailable()) {
+      throw new SettingsSecretLifecycleError("WINDOWS_DPAPI_UNAVAILABLE", "目前環境不是 Windows，無法使用本機安全保管庫。", 409);
+    }
+    try {
+      const stored = await writeWindowsDpapiSecret(input.kind, input.value);
+      return {
+        vaultProvider: "windows_dpapi",
+        vaultSecretId: stored.secretId,
+        maskedHint: maskSecret(input.value),
+        fingerprint: fingerprintSecret(input.value),
+        metadata: {
+          storageBoundary: stored.storageBoundary,
+          plaintextPersisted: false,
+          userScope: "windows_current_user"
+        }
+      };
+    } catch (error) {
+      throw toLifecycleError(error, "WINDOWS_DPAPI_WRITE_FAILED", "Windows DPAPI 安全保管庫寫入失敗。");
+    }
+  }
+}
+
 function resolveProvider(): SecretProvider {
   const configuredProvider = String(process.env.PDM_SETTINGS_SECRET_PROVIDER ?? "").trim().toLowerCase();
-  const provider = configuredProvider || (process.env.NODE_ENV === "production" ? "" : "local_test_double");
+  const provider = configuredProvider || (process.env.NODE_ENV === "production" ? "" : isWindowsDpapiAvailable() ? "windows_dpapi" : "local_test_double");
   if (provider === "google_secret_manager") return new GoogleSecretManagerSecretProvider();
-  if (provider === "local_test_double") return new LocalTestDoubleSecretProvider();
+  if (provider === "windows_dpapi") return new WindowsDpapiSecretProvider();
+  if (provider === "local_test_double") {
+    const testDoubleAllowed = process.env.NODE_ENV === "test" || process.env.PDM_ALLOW_SETTINGS_SECRET_TEST_DOUBLE === "true";
+    if (testDoubleAllowed) return new LocalTestDoubleSecretProvider();
+    if (isWindowsDpapiAvailable()) return new WindowsDpapiSecretProvider();
+    throw new SettingsSecretLifecycleError(
+      "SETTINGS_SECRET_TEST_DOUBLE_FORBIDDEN",
+      "本機測試替身只允許 automated test；請在 Windows 使用 DPAPI，正式環境使用 Google Secret Manager。",
+      409,
+      { provider: "local_test_double", expected: isWindowsDpapiAvailable() ? "windows_dpapi" : "google_secret_manager" }
+    );
+  }
   if (provider === "supabase_vault") {
     throw new SettingsSecretLifecycleError(
       "SUPABASE_VAULT_PROVIDER_SUPERSEDED",
@@ -160,7 +212,7 @@ function resolveProvider(): SecretProvider {
     configuredProvider ? "SETTINGS_SECRET_PROVIDER_INVALID" : "GCP_SECRET_MANAGER_CONFIG_REQUIRED",
     "正式環境必須明確設定 PDM_SETTINGS_SECRET_PROVIDER=google_secret_manager。",
     409,
-    { provider: configuredProvider || null, expected: "google_secret_manager" }
+    { provider: configuredProvider || null, expected: isWindowsDpapiAvailable() ? "windows_dpapi" : "google_secret_manager" }
   );
 }
 
@@ -212,12 +264,24 @@ function summarizeWorkQueue(references: SettingsSecretReference[]): Pick<Setting
     return { workQueueState: "tested_needs_activation", workQueueMessage: `v${latest.version} 已測試，待 Admin 啟用。` };
   }
   if (active) {
+    if (active.vaultProvider === "local_test_double") {
+      return { workQueueState: "ready", workQueueMessage: `v${active.version} 是本機測試替身，不能讀取 SolidWorks 屬性；請重新建立 Windows DPAPI secure version。` };
+    }
     return { workQueueState: "ready", workQueueMessage: `v${active.version} 已啟用。` };
   }
   return { workQueueState: "revoked", workQueueMessage: "目前沒有可用的 active secret，請建立新草稿。" };
 }
 
 function liveGateFor(client: AsyncDatabaseClient, reference: SettingsSecretReference | null | undefined): SettingsSecretStatus["liveGate"] {
+  if (reference?.vaultProvider === "windows_dpapi") {
+    return {
+      provider: "windows_dpapi",
+      status: isWindowsDpapiAvailable() ? "ready" : "blocked",
+      message: isWindowsDpapiAvailable()
+        ? "Windows DPAPI current-user encrypted blob 已就緒；plaintext 不寫入 DB。"
+        : "此 reference 使用 Windows DPAPI，但目前 runtime 不是 Windows。"
+    };
+  }
   if (reference?.vaultProvider === "google_secret_manager") {
     const configured = Boolean(getGoogleSecretManagerConfig());
     const ready = client.kind === "postgres" && configured && isGoogleSecretManagerReadEnabled();
@@ -235,7 +299,7 @@ function liveGateFor(client: AsyncDatabaseClient, reference: SettingsSecretRefer
   if ((process.env.PDM_SETTINGS_SECRET_PROVIDER ?? "").trim().toLowerCase() === "google_secret_manager") {
     return { provider: "google_secret_manager", status: "blocked", message: "Google Secret Manager live target 尚未完成，無法建立可用 secret。" };
   }
-  return { provider: "local_test_double", status: "mocked", message: "目前使用本機 test double；正式環境需切換 Google Secret Manager。" };
+  return { provider: "local_test_double", status: "mocked", message: "目前只有本機測試替身；不可測試通過、啟用或顯示 ready。" };
 }
 
 function workerEnvironmentSecret() {
@@ -253,52 +317,58 @@ function workerServiceTokenConfigured() {
 }
 
 function workerEnvironmentFallbackAllowed() {
-  if (process.env.NODE_ENV !== "production") return true;
   return process.env.PDM_ALLOW_WORKER_ENV_SECRET_FALLBACK === "true" && Boolean(String(process.env.PDM_BREAK_GLASS_CHANGE_ID ?? "").trim());
 }
 
-function workerReadinessFor(client: AsyncDatabaseClient, active: SettingsSecretReference | null): SettingsSecretStatus["workerReadiness"] {
+function workerReadinessFor(
+  client: AsyncDatabaseClient,
+  active: SettingsSecretReference | null,
+  latestProbe: import("@/lib/repositories/settings-secret-async-repository").SettingsSecretProbeJob | null,
+  heartbeat: import("@/lib/repositories/settings-secret-async-repository").WorkerCapabilityHeartbeat | null
+): SettingsSecretStatus["workerReadiness"] {
   const serviceTokenConfigured = workerServiceTokenConfigured();
-  if (workerEnvironmentSecret() && workerEnvironmentFallbackAllowed()) {
-    return {
-      status: serviceTokenConfigured ? "ready" : "blocked",
-      credentialSource: "worker_environment",
-      serviceTokenConfigured,
-      message: serviceTokenConfigured ? "worker 已可讀取本機環境金鑰。" : "已找到本機環境金鑰，但 PDM preview worker token 尚未設定。"
-    };
-  }
-  if (workerEnvironmentSecret() && !workerEnvironmentFallbackAllowed()) {
-    return {
-      status: "blocked",
-      credentialSource: "none",
-      serviceTokenConfigured,
-      message: "正式環境已阻擋 worker-local key；請改用 Google Secret Manager broker。"
-    };
-  }
+  const appliedVersion = heartbeat?.appliedSecretVersion ?? null;
+  const lastSeenAt = heartbeat?.lastSeenAt ?? null;
+  const issueCode = heartbeat?.issueCode ?? null;
+  const recentHeartbeat = Boolean(lastSeenAt && Date.parse(lastSeenAt) >= Date.now() - 30_000);
+  const exactVersionAck = Boolean(active && heartbeat?.appliedSecretVersion === active.version && heartbeat.appliedSecretFingerprint === active.fingerprint);
+  const realProbePassed = latestProbe?.status === "passed";
+  const base = { serviceTokenConfigured, appliedVersion, lastSeenAt, issueCode };
+  if (active?.vaultProvider === "local_test_double") return { status: "blocked", credentialSource: "none", ...base, message: "本機測試替身不可啟用；請從此 UI 建立 Windows DPAPI secure version。" };
   if (active?.vaultProvider === "google_secret_manager") {
     const secretReadReady = client.kind === "postgres" && Boolean(getGoogleSecretManagerConfig()) && isGoogleSecretManagerReadEnabled();
     return {
-      status: secretReadReady && serviceTokenConfigured ? "ready" : "blocked",
+      status: secretReadReady && serviceTokenConfigured && realProbePassed && recentHeartbeat && exactVersionAck ? "ready" : "blocked",
       credentialSource: "google_secret_manager",
-      serviceTokenConfigured,
-      message:
-        secretReadReady && serviceTokenConfigured
-          ? "Google Secret Manager exact version 與 2D worker service token 均已就緒。"
-          : "Google Secret Manager reference 已存在，但 Cloud SQL、read gate、runtime ADC 或 worker token 尚未就緒。"
+      ...base,
+      message: secretReadReady && serviceTokenConfigured && realProbePassed && recentHeartbeat && exactVersionAck
+        ? "Google Secret Manager exact version、原生 probe、worker online 與 exact-version ack 均通過。"
+        : issueCode ?? "尚未滿足 active、real probe、worker online 與 exact-version ack 四項必要條件。"
+    };
+  }
+  if (active?.vaultProvider === "windows_dpapi") {
+    const secureReadReady = isWindowsDpapiAvailable();
+    return {
+      status: secureReadReady && serviceTokenConfigured && realProbePassed && recentHeartbeat && exactVersionAck ? "ready" : "blocked",
+      credentialSource: "windows_dpapi",
+      ...base,
+      message: secureReadReady && serviceTokenConfigured && realProbePassed && recentHeartbeat && exactVersionAck
+        ? "Windows DPAPI、原生 probe、worker online 與 exact-version ack 均通過。"
+        : issueCode ?? "等待 Windows DPAPI 原生 probe 與 worker exact-version ack。"
     };
   }
   if (active?.vaultProvider === "supabase_vault") {
     return {
       status: "blocked",
       credentialSource: "supabase_vault",
-      serviceTokenConfigured,
+      ...base,
       message: "歷史 Supabase Vault reference 已永久停用讀取，請建立 Google Secret Manager version。"
     };
   }
   return {
     status: "blocked",
     credentialSource: "none",
-    serviceTokenConfigured,
+    ...base,
     message: active?.vaultProvider === "local_test_double" ? "目前只有本機 test-double metadata，worker 沒有可讀取的 secret。" : "尚未啟用可供 2D worker 讀取的 SolidWorks Document Manager key。"
   };
 }
@@ -347,14 +417,21 @@ async function readGoogleSecretManagerSecret(client: AsyncDatabaseClient, versio
 
 export async function resolveActiveSolidWorksDocumentManagerKey() {
   const environmentSecret = workerEnvironmentSecret();
-  if (environmentSecret && workerEnvironmentFallbackAllowed()) return { value: environmentSecret, source: "worker_environment" as const };
+  if (environmentSecret && workerEnvironmentFallbackAllowed()) return { value: environmentSecret, source: "worker_environment" as const, version: null, fingerprint: fingerprintSecret(environmentSecret) };
 
   const client = getAsyncDatabaseClient();
   const repository = new AsyncSettingsSecretRepository(client);
   const active = (await repository.listReferencesByKind("solidworks_document_manager")).find((reference) => reference.lifecycleStatus === "active");
   if (!active) return null;
   if (active.vaultProvider === "google_secret_manager") {
-    return { value: await readGoogleSecretManagerSecret(client, active.vaultSecretId), source: "google_secret_manager" as const };
+    return { value: await readGoogleSecretManagerSecret(client, active.vaultSecretId), source: "google_secret_manager" as const, version: active.version, fingerprint: active.fingerprint };
+  }
+  if (active.vaultProvider === "windows_dpapi") {
+    try {
+      return { value: await readWindowsDpapiSecret(active.vaultSecretId), source: "windows_dpapi" as const, version: active.version, fingerprint: active.fingerprint };
+    } catch (error) {
+      throw toLifecycleError(error, "WINDOWS_DPAPI_READ_FAILED", "Windows DPAPI secret 讀取失敗。");
+    }
   }
   return null;
 }
@@ -365,6 +442,13 @@ async function resolveSecretReferenceValue(client: AsyncDatabaseClient, referenc
   if (reference.vaultProvider === "google_secret_manager") {
     return { value: await readGoogleSecretManagerSecret(client, reference.vaultSecretId), source: "google_secret_manager" as const };
   }
+  if (reference.vaultProvider === "windows_dpapi") {
+    try {
+      return { value: await readWindowsDpapiSecret(reference.vaultSecretId), source: "windows_dpapi" as const };
+    } catch (error) {
+      throw toLifecycleError(error, "WINDOWS_DPAPI_READ_FAILED", "Windows DPAPI secret 讀取失敗。");
+    }
+  }
   return null;
 }
 
@@ -372,6 +456,9 @@ function toLifecycleError(error: unknown, fallbackCode: string, fallbackMessage:
   if (error instanceof SettingsSecretLifecycleError) return error;
   if (error instanceof GoogleSecretManagerError) {
     return new SettingsSecretLifecycleError(error.code, error.message, error.status);
+  }
+  if (error instanceof WindowsDpapiSecretError) {
+    return new SettingsSecretLifecycleError(error.code, error.message, 409);
   }
   return new SettingsSecretLifecycleError(fallbackCode, fallbackMessage, 502);
 }
@@ -408,23 +495,40 @@ export async function listSettingsSecretStatuses(): Promise<SettingsSecretStatus
     const active = references.find((reference) => reference.lifecycleStatus === "active") ?? null;
     const latest = references[0] ?? null;
     const latestTestRun = latest ? await repository.getLatestTestRun(latest.id) : null;
+    const latestProbe = latest ? await repository.getLatestProbeJob(latest.id) : null;
+    const activeProbe = active ? await repository.getLatestProbeJob(active.id) : latestProbe;
+    const capabilityHeartbeat = await repository.getLatestWorkerCapabilityHeartbeat("solidworks_2d_preview_png");
     const workQueue = summarizeWorkQueue(references);
-    const workerPresence = await workerPresenceFor(client);
+    const workerPresence = capabilityHeartbeat
+      ? Date.parse(capabilityHeartbeat.lastSeenAt) >= Date.now() - 30_000
+        ? { status: "online" as const, lastSeenAt: capabilityHeartbeat.lastSeenAt, message: `2D 預覽 worker capability heartbeat 在線（${capabilityHeartbeat.status}）。` }
+        : { status: "offline" as const, lastSeenAt: capabilityHeartbeat.lastSeenAt, message: "2D 預覽 worker 最近未回報 capability heartbeat。" }
+      : await workerPresenceFor(client);
 
     statuses.push({
       kind: definition.kind,
       provider: definition.provider,
       displayName: definition.displayName,
-      configured: Boolean(active),
+      configured: Boolean(active && active.vaultProvider !== "local_test_double"),
       active: redactReference(active),
       latest: redactReference(latest),
       latestTestRun,
+      latestProbeJob: latestProbe
+        ? {
+            id: latestProbe.id,
+            status: latestProbe.status,
+            resultCode: latestProbe.resultCode,
+            readerVersion: latestProbe.readerVersion,
+            createdAt: latestProbe.createdAt,
+            updatedAt: latestProbe.updatedAt
+          }
+        : null,
       draftCount: references.filter((reference) => reference.lifecycleStatus === "draft").length,
       testedCount: references.filter((reference) => reference.lifecycleStatus === "tested").length,
       revokedCount: references.filter((reference) => reference.lifecycleStatus === "revoked").length,
       ...workQueue,
       liveGate: liveGateFor(client, active ?? latest),
-      workerReadiness: workerReadinessFor(client, active),
+      workerReadiness: workerReadinessFor(client, active, activeProbe, capabilityHeartbeat),
       workerPresence
     });
   }
@@ -503,6 +607,11 @@ export async function createSettingsSecretDraft(input: {
 }
 
 export async function testSettingsSecretReference(input: { secretReferenceId: string; actorId: string }): Promise<SettingsSecretTestRun> {
+  void input;
+  throw new SettingsSecretLifecycleError("SECRET_PROBE_ASYNC_REQUIRED", "Secret 測試已改為 worker 原生 probe queue，請使用 enqueueSettingsSecretProbe。", 409);
+}
+
+export async function enqueueSettingsSecretProbe(input: { secretReferenceId: string; actorId: string }) {
   const client = getAsyncDatabaseClient();
   const repository = new AsyncSettingsSecretRepository(client);
   const reference = await repository.getReferenceById(input.secretReferenceId);
@@ -510,80 +619,97 @@ export async function testSettingsSecretReference(input: { secretReferenceId: st
   if (reference.lifecycleStatus !== "draft" && reference.lifecycleStatus !== "tested") {
     throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_TESTABLE", "只有草稿或已測試版本可執行測試。", 409);
   }
-
-  const now = new Date().toISOString();
-  const isLocalDouble = reference.vaultProvider === "local_test_double";
-  const isGoogleSecretManager = reference.vaultProvider === "google_secret_manager";
-  let resultStatus: SettingsSecretTestRun["resultStatus"] = isLocalDouble ? "passed" : "blocked";
-  let summary = isLocalDouble
-    ? "本機 test double 已驗證 secret metadata lifecycle 與 redaction 邊界。"
-    : isGoogleSecretManager
-      ? "Google Secret Manager exact version 已建立；仍需 server-side read probe。"
-      : "歷史 Supabase Vault reference 不作為新的正式 provider。";
-  let redactedError: string | null = isLocalDouble ? null : isGoogleSecretManager ? "GCP_SECRET_MANAGER_PROVIDER_PROBE_REQUIRED" : "SUPABASE_VAULT_PROVIDER_SUPERSEDED";
-  if (!isLocalDouble && isGoogleSecretManager) {
-    try {
-      const resolved = await resolveSecretReferenceValue(client, reference);
-      if (resolved?.value) {
-        resultStatus = "passed";
-        summary = "Google Secret Manager exact version 可由 server-side worker credential broker 讀取。";
-        redactedError = null;
-      } else {
-        redactedError = "GCP_SECRET_MANAGER_SECRET_NOT_FOUND";
-      }
-    } catch (error) {
-      resultStatus = "blocked";
-      redactedError = error instanceof SettingsSecretLifecycleError ? error.code : "GCP_SECRET_MANAGER_PROVIDER_PROBE_FAILED";
-      summary = "Google Secret Manager exact version 尚未能由 server-side worker credential broker 讀取。";
-    }
+  if (reference.vaultProvider === "local_test_double") {
+    throw new SettingsSecretLifecycleError("SECRET_TEST_DOUBLE_NOT_ACTIVATABLE", "本機測試替身只供模擬，不能通過原生 probe 或啟用。", 409);
   }
+  const existing = await repository.getLatestProbeJob(reference.id);
+  if (existing && (existing.status === "pending" || existing.status === "running")) return existing;
+  const now = new Date().toISOString();
+  const job = await repository.enqueueProbeJob({
+    id: `secret-probe-${crypto.randomUUID()}`,
+    secretReferenceId: reference.id,
+    kind: reference.kind,
+    createdBy: input.actorId,
+    createdAt: now
+  });
+  await createAuditLogAsync({
+    actorId: input.actorId,
+    action: "SettingsSecretProbeQueued",
+    detail: { kind: reference.kind, version: reference.version, fingerprint: reference.fingerprint, probeJobId: job.id }
+  });
+  return job;
+}
+
+export async function completeSettingsSecretProbe(input: {
+  probeJobId: string;
+  workerId: string;
+  status: "passed" | "failed" | "blocked";
+  resultCode: string | null;
+  readerVersion: string | null;
+  summary?: string;
+}) {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncSettingsSecretRepository(client);
+  const job = await repository.getProbeJobById(input.probeJobId);
+  if (!job) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
+  if (job.status !== "running" || job.lockedBy !== input.workerId) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_LOCKED", "probe job 已被其他 worker 接手或已完成。", 409);
+  const reference = await repository.getReferenceById(job.secretReferenceId);
+  if (!reference) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_FOUND", "找不到 probe 對應 secret version。", 404);
+  const completedAt = new Date().toISOString();
+  const updated = await repository.completeProbeJob({
+    id: job.id,
+    workerId: input.workerId,
+    status: input.status,
+    resultCode: input.resultCode,
+    readerVersion: input.readerVersion,
+    completedAt
+  });
+  if (!updated) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_LOCKED", "probe job 狀態已變更。", 409);
   const testRun: SettingsSecretTestRun = {
     id: `setting-test-${crypto.randomUUID()}`,
     secretReferenceId: reference.id,
     kind: reference.kind,
     provider: reference.provider,
-    resultStatus,
-    summary,
-    redactedError,
+    resultStatus: input.status,
+    summary: input.summary ?? (input.status === "passed" ? "SolidWorks Document Manager 原生 credential probe 通過。" : "SolidWorks Document Manager 原生 credential probe 未通過。"),
+    redactedError: input.resultCode,
     artifactPath: null,
-    testedBy: input.actorId,
-    testedAt: now,
+    testedBy: reference.createdBy,
+    testedAt: completedAt,
     metadataJson: JSON.stringify({
-      liveGate: isLocalDouble
-        ? "google_secret_manager_live_verification_required"
-        : resultStatus === "passed"
-          ? isGoogleSecretManager
-            ? "server_side_google_secret_manager_read_verified"
-            : "server_side_historical_vault_read_verified"
-          : "provider_probe_required",
+      probeJobId: job.id,
+      readerVersion: input.readerVersion,
+      provider: reference.vaultProvider,
       plaintextPersisted: false
     })
   };
-
   await repository.insertTestRun(testRun);
-  if (testRun.resultStatus === "passed") {
-    await repository.markReferenceTested(reference.id, now);
-  }
+  if (input.status === "passed") await repository.markReferenceTested(reference.id, completedAt);
   await createLifecycleEvent(repository, {
     secretReferenceId: reference.id,
     kind: reference.kind as SettingsSecretKind,
     eventType: "tested",
-    actorId: input.actorId,
-    eventAt: now,
-    detail: { version: reference.version, resultStatus: testRun.resultStatus }
+    actorId: reference.createdBy,
+    eventAt: completedAt,
+    detail: { version: reference.version, resultStatus: input.status, probeJobId: job.id, resultCode: input.resultCode, workerId: input.workerId }
   });
-  await createAuditLogAsync({
-    actorId: input.actorId,
-    action: "SettingsSecretTestRun",
-    detail: {
-      kind: reference.kind,
-      version: reference.version,
-      resultStatus: testRun.resultStatus,
-      fingerprint: reference.fingerprint
-    }
-  });
-
   return testRun;
+}
+
+export async function resolveSettingsSecretProbeCredential(probeJobId: string, workerId: string) {
+  const client = getAsyncDatabaseClient();
+  const repository = new AsyncSettingsSecretRepository(client);
+  const job = await repository.getProbeJobById(probeJobId);
+  if (!job) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
+  const reference = await repository.getReferenceById(job.secretReferenceId);
+  if (!reference) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_FOUND", "找不到 probe 對應 secret version。", 404);
+  if (job.status !== "running" || job.lockedBy !== workerId) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_RUNNING", "probe job 尚未由此 worker claim。", 409);
+  if (reference.vaultProvider === "local_test_double" || reference.vaultProvider === "supabase_vault") {
+    throw new SettingsSecretLifecycleError("SECRET_PROVIDER_NOT_READABLE", "此 provider 不可執行原生 probe。", 409);
+  }
+  const resolved = await resolveSecretReferenceValue(client, reference);
+  if (!resolved?.value) throw new SettingsSecretLifecycleError("SECRET_VALUE_NOT_AVAILABLE", "secure provider 尚未提供此版本的 secret。", 409);
+  return { value: resolved.value, version: reference.version, fingerprint: reference.fingerprint, source: resolved.source };
 }
 
 export async function activateSettingsSecretReference(input: { secretReferenceId: string; actorId: string }): Promise<SettingsSecretReference> {
@@ -593,6 +719,13 @@ export async function activateSettingsSecretReference(input: { secretReferenceId
   if (!reference) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_FOUND", "找不到 secret version。", 404);
   if (reference.lifecycleStatus !== "tested") {
     throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_TESTED", "只有已測試通過的 secret version 可以啟用。", 409);
+  }
+  if (reference.vaultProvider === "local_test_double") {
+    throw new SettingsSecretLifecycleError("SECRET_TEST_DOUBLE_NOT_ACTIVATABLE", "本機測試替身不能啟用。", 409);
+  }
+  const latestProbe = await repository.getLatestProbeJob(reference.id);
+  if (!latestProbe || latestProbe.status !== "passed") {
+    throw new SettingsSecretLifecycleError("SECRET_NATIVE_PROBE_REQUIRED", "必須先完成同一版本的真實 SolidWorks Document Manager probe。", 409);
   }
 
   const now = new Date().toISOString();

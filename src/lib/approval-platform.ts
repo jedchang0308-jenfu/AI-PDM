@@ -122,6 +122,7 @@ export type ApprovalPlatformInboxFilter = {
   limit?: number;
   domainCode?: string;
   actionCode?: string;
+  allowedActionCodes?: string[];
   query?: string;
   cursor?: ApprovalPlatformInboxCursor | null;
 };

@@ -1,17 +1,25 @@
 # SPEC-PDM-WORKBENCH-CORE-001：共用讀取、游標與 Controller 開發契約
 
-Status: `Local RD Implemented / QA-QC Passed / Release Gated`
-Date: 2026-08-10
+Status: `DEV-062/067/070 Local RD Implemented / QA-QC Passed; DEV-083 RD Implemented / Focused Contract+API+Authenticated Browser+Disposable Mutation+Typecheck+Affected Lint+Isolated Build Passed / Latest completed aggregate 29/30 PASS with one accepted-superseded parent baseline / QA-083-01～24 PASS / QA-083-24 Closed by QC disposition / Release Gated`
+Date: 2026-08-10; amended 2026-08-20
 Owner: Dev PM
-Related DEV: `DEV-062`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`
+Related DEV: `DEV-062`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`; `DEV-PDM-PART-RELATION-READONLY-DRAWER-FULLPAGE-EDITOR-001` / `DEV-083`; `DEV-085`
 Related ADR: `.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`; `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
-Related QA: `.ai-doc/qa/qa-dev-062-unified-part-relation-workbench-validation-plan-2026-08-10.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`; `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md` (`APW-001..028`)
+Related QA: `.ai-doc/qa/qa-dev-062-unified-part-relation-workbench-validation-plan-2026-08-10.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`; `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md` (`APW-001..028`); `.ai-doc/qa/qa-dev-083-part-relation-readonly-drawer-fullpage-workspace-validation-plan-2026-08-20.md`; `.ai-doc/qa/qa-dev-085-workbench-multiselect-filter-validation-plan-2026-08-20.md`
 
 本規格只治理跨模組「機制」，不重複定義 Part／Relation 產品行為。料號單頁行為以 `SPEC-PDM-NUMBER-STATE-FLOW-001` 的 DEV-062 amendment 為準；圖料單頁行為以 `SPEC-PDM-DRAWING-PART-RELATION-VIEW-001` 的 DEV-062 amendment 為準。
 
+> **2026-08-22 DEV-087 target supersession**：保留shared mechanics、server composition、group pagination、signed cursor與domain adapter邊界；取代DEV-086「最多雙列／production+單一RD lane」與舊status/filter/current-work adapter。Drawing group改為production 0/1＋open branch latest RD 0..3，Part／Relation為formal 0/1＋work 0/1。新決策優先，舊adapter/query/cursor interpretation能拆即拆，不得提供canonical→legacy fallback。
+
+> **2026-08-20 DEV-086 group／lane target amendment（RD Implementation Ready / Not Implemented）**
+>
+> Workbench Core 的目標契約新增可選的 `groupKey`、`lane`、`group pagination`、lane query normalization 與 signed cursor v2 mechanics；同一 canonical group 最多輸出 production／RD 各一列且不得跨頁。Core 只治理 group identity、stable lane key、cursor encode/decode、URL/controller 與 selection reconciliation；Drawing／Part／Relation adapter 仍各自決定 production-effective reference、active RD reference、human status、availability、permission 與 action。禁止在 core 加入 domain switch、以 client join 雙 API，或用 updatedAt 猜 domain latest。
+>
+> Spec Impact：`Compatible extension + intentional cursor replacement`，完整契約以 `SPEC-PDM-WORKBENCH-PRODUCTION-RD-LANES-001` 與 `ADR-PDM-WORKBENCH-PRODUCTION-RD-LANES-001` 為準。現行 cursor v1／single-row runtime 在 umbrella flag 啟用前維持不變；第一次使用 v1 cursor 進入 v2 projection 只能安全 reset，不得誤解碼。
+
 ## 0. DEV-067 Compatibility Amendment：Detail Composer 仍採 shared mechanics + domain adapters（2026-08-12）
 
-Status: `RD Implementation Ready / Human Confirmed / RD not started / Local implementation eligible / Release gated`.
+Status: `RD Implemented Locally / Human Confirmed / Focused Contract+API+Static Browser PASS / Independent Browser+Isolated Build Pending / Release gated`.
 
 `UnifiedPdmEntityDetailDrawer`是本架構原則在detail surface的延伸，不是跨domain business service或巨型domain component：
 
@@ -79,6 +87,41 @@ Implementation must preserve the architecture invariant: no `if (domain === appr
 - `src/components/pdm-workbench-list.tsx` and `src/components/use-list-keyboard-shortcuts.ts` are reused without changes. If approval cannot render through those current contracts, RD stops before creating another generic list or approval-only keyboard controller.
 
 Regression requirement: `qc:dev-062:core` must pass after the optional extension. Drawing/Part/Relation URL, cursor order, history pagination, detail selection and render behavior are not accepted collateral changes.
+
+## 0B. DEV-083 Compatible Extension：唯讀drawer與canonical task workspace（2026-08-20）
+
+Status: `RD Implemented / Human Confirmed / Focused Contract+API+Authenticated Browser PASS / Disposable Mutation PASS / Typecheck + Affected Lint + Isolated Build PASS / Latest completed aggregate 29/30 PASS with one accepted-superseded parent baseline / QA-083-01～24 PASS / QA-083-24 Closed by QC disposition / Production Release Gated`.
+
+DEV-083延伸本規格的「shared mechanics＋domain adapters」到detail→edit task transition，不建立新的cross-domain business component：
+
+- `PdmEditPageFrame`只共用safe return、stable identity/status header、loading／restricted／not-found／conflict／server-error、unsaved guard、focus與action-dock placement；不得import Part／Relation domain model或command route，也不得接受`domain`後在內部switch渲染。
+- `NumberingWorkspaceEditor`是candidate aggregate唯一editor，stable owner為`candidate:{workspaceId}`。Part／Relation入口只提供allowlisted return與安全anchor；不得產生不同candidate mode、URL或command contract。
+- Part與Relation formal editor各自由domain擁有。共用frame不是`UnifiedWorkbench<T>`，不把Part attributes、attachments、Relation tree／matrix或approval decision轉成generic schema。
+- `UnifiedPdmEntityDetailDrawer`在DEV-083 covered surface變為read-only composer。`PdmEntityDetailResponse.actionBar`可共用descriptor schema，但drawer mutation intent只能navigate／locked／omitted；full-page command由既有domain API與server policy執行。
+- Part／Relation工作台改用controller既有`server-bidirectional`能力與additive`previousCursor/pageIndex` envelope保存精確return。Core只保存opaque cursor；domain adapter仍決定filter/order與server query，不得client join。
+- `/approvals/[requestId]`沿用Approval workbench／request owner adapter，擴為三domain reviewer workspace；core不判斷domain decision語意。
+
+Compatible preservation：既有list route、cursor HMAC、bounded read snapshot、projection policy、permission、mutation payload、approval/publication transaction與schema不變。Spec Impact=`Compatible extension + action-placement intentional replacement`；ADR authority為`ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001`的DEV-083 amendment。
+
+Static architecture gate：frame出現domain import／switch、candidate editor多份mount、Part／Relation page建立第二套cursor/controller、drawer保留`fetch` mutation／command runner，或需要新增relation／approval write endpoint時，停止回Dev PM，不得擴張core型別繞過。
+
+Execution boundary：主SPEC已補exact file/function/test inventory、dirty hunk ledger規則與baseline；本compatible extension已在consumer與domain service/repository完成本機實作，focused contract/API、authenticated browser、disposable mutation、typecheck、lint與isolated build通過。最新browser evidence為22 runner checks／三viewport／zero-write network（`output/qa/dev-083-part-relation-fullpage-workspaces/DEV083-20260820T115715Z-6b9c5ec8/manifest.json`）；最新mutation runner manifest `output/qa/dev-083-mutation/DEV083-MUT-20260820T115907Z-a9063105/manifest.json`則以disposable fixture完成31/31 result rows PASS且cleanup=removed，證實candidate／Part／Drawing／Relation Engineer owner/non-owner與Manager／Admin同公司正向、Manufacturing fail-closed、cross-company denial、authority、readback與audit，直接關閉QA-083-11/12/13/17/18/19；最新完整aggregate manifest `output/qa/dev-083-aggregate/DEV083-aggregate-20260820T115712Z-15206e0d/manifest.json`為30 child／29 PASS／1 DEV-072 parent baseline FAIL（`accepted-superseded`），DEV-072 readiness probe每次2秒可取消、legacy marker wait限縮5秒但舊expected保留。DEV-067 parent browser最新18/18 PASS（`output/playwright/dev-067-unified-entity-detail/DEV067-20260820T120043Z-e58ce7cb/manifest.json`）；DEV-072 bounded runner manifest `output/qa/dev-072-pdm-action-discoverability/DEV072-20260820T120228Z-4a4dff7c/run-manifest.json`保留cleanup與obsolete marker觀測，依DEV-079 contract 22/22、layout 3/3與recognition layout 3/3標記`accepted-superseded`，原始failure與expected均保留；`.ai-doc/qc/qc-dev-072-pdm-action-discoverability-2026-08-14.md`已記錄QC disposition並關閉QA-083-24。未改產品expected。另在既有Part attachment與Drawing revision upload route補same-company resource guard，未新增schema／permission／lifecycle／write API。`typecheck:app`、DEV-079 contract與DEV-070 browser已重跑PASS。Core mechanics維持validation-only；Part／Relation已切到既有`server-bidirectional`能力。若後續必須把domain state塞進core，停止回Spec Impact。
+
+Implementation delta固定為：Part／Relation client `readLocation`／`writeLocation`保存opaque cursor＋bounded pageIndex並設定`paginationMode: "server-bidirectional"`；兩domain query/service/repository增加signed before/after方向、first/last identity與canonical reverse；`use-pdm-workbench-controller.ts`、`pdm-workbench-pagination.tsx`、`pdm-workbench-contract.ts`、`pdm-workbench-cursor.ts`只做回歸驗證。invalid／scope-mismatch cursor仍fail closed，core不解碼cursor、不判斷domain order、不做client fetch-all或join。
+
+## 0C. DEV-085 Compatible Core Extension：typed multi-selection mechanics（2026-08-20）
+
+Status：`RD Implementation Ready / Human Confirmed / RD Not Started / Local Only / Production Release Gated`。
+
+DEV-085 延伸 shared query/filter mechanics，不把三個 domain 的選項或 SQL 塞進 core：
+
+- 共用 client-safe helper 定義 `{ mode: "all" } | { mode: "none" } | { mode: "some"; values: T[] }`，負責去重、canonical order、legacy scalar／repeated query parse與 URL serialization；共用 popover只擁有草稿、apply/cancel、全選、indeterminate、focus與viewport mechanics。
+- domain adapter繼續提供 allowlist、option label/order、無值政策、query normalization、repository欄位與 projection。Core不得出現`if (domain === ...)`選項或 SQL switch。
+- canonical URL：`all`省略該 key、`none`使用保留值`__none__`、`some`使用 repeated query keys；舊 scalar deep link仍視為單值 some。Browser遇到invalid value時安全 canonicalize該欄為 none；direct API回傳既有400 error envelope。
+- filter hash必須接收正規化、去重、排序後的 arrays與mode，不能依 query key輸入順序變動；controller apply後清空cursor/page history並保留既有abort、latest-response guard與Back/Forward還原。
+- repository同欄採 OR、跨欄採 AND，並在limit／projection scan／cursor page boundary之前篩選；none可在資料讀取前安全 short-circuit為零列。`all`須保持現行 scalar-omitted結果、排序與pagination parity。
+
+這是既有 `ADR-PDM-WORKBENCH-CORE-001` 的 compatible extension；不新增domain switch、schema、mutation、permission或lifecycle owner。完整 wire、exact files、phase、acceptance與stop conditions以 `.ai-doc/specs/SPEC-PDM-WORKBENCH-MULTISELECT-FILTER-001-excel-style-filter-contract.md` 為準，驗證以 `.ai-doc/qa/qa-dev-085-workbench-multiselect-filter-validation-plan-2026-08-20.md` 為準。若實作需要client fetch-all、cursor解碼、domain欄位進core或另一套controller，停止回Dev PM／Spec Impact。
 
 ## 1. Goal and Non-goals
 

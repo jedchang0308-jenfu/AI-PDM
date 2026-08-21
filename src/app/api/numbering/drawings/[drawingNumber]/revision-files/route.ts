@@ -19,6 +19,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   if (companyResult.response) return companyResult.response;
 
   const { drawingNumber } = await params;
+  const entityCode = decodeURIComponent(drawingNumber);
+  const drawing = await getAsyncDatabaseClient().queryOne<{ id: string }>(
+    `SELECT id FROM drawing_numbers WHERE company_id = :companyId AND drawing_number = :drawingNumber LIMIT 1`,
+    { companyId: companyResult.company.companyId, drawingNumber: entityCode }
+  );
+  if (!drawing) return NextResponse.json({ error: "DRAWING_NOT_FOUND" }, { status: 404 });
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
@@ -31,7 +37,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
       { status: 400 }
     );
   }
-  const entityCode = decodeURIComponent(drawingNumber);
   const revision = String(form.get("revision") ?? "").trim();
   const fileBytes = Buffer.from(await file.arrayBuffer());
   const contentHash = createHash("sha256").update(fileBytes).digest("hex");

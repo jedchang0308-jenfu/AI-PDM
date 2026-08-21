@@ -96,14 +96,14 @@ async function verifyViewport(browser, viewport) {
 
   await loginAsAdmin(context);
   await page.goto(`${apiBaseUrl}/numbering/tasks`, { waitUntil: "networkidle" });
-  await page.getByText("待辦中心").waitFor({ timeout: 10_000 });
+  await page.getByRole("heading", { name: "待辦中心", exact: true }).waitFor({ timeout: 10_000 });
   await page.getByText("通知中心").waitFor({ timeout: 10_000 });
   record(`Task center page renders at ${viewport.width}px`, await page.getByText("QC Task Center 待辦").isVisible());
   record(`Notification center renders at ${viewport.width}px`, await page.getByText("QC 可處理通知").isVisible());
   record(`Proxy submission marker renders at ${viewport.width}px`, (await page.getByText("代送審").count()) >= 1);
   record(`Override marker renders at ${viewport.width}px`, (await page.getByText("! Override").count()) >= 1);
   record(`Impact marker renders at ${viewport.width}px`, (await page.getByText("! 影響範圍").count()) >= 1);
-  const lockedButton = page.locator("tr", { hasText: "QC 不可關閉通知" }).getByRole("button", { name: "處理" });
+  const lockedButton = page.locator("tr", { hasText: "QC 不可關閉通知" }).getByRole("button", { name: "處理", exact: true });
   record(`Non-dismissible notification action is disabled at ${viewport.width}px`, await lockedButton.isDisabled());
 
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

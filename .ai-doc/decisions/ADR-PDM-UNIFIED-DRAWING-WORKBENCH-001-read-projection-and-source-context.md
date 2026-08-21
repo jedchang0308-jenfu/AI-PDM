@@ -8,6 +8,8 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-
 Related QA: `.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`
 Amends: `.ai-doc/decisions/ADR-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-additive-adoption-and-auto-finalization.md`
 
+> **2026-08-22 DEV-087 amendment**：保留server-side一致性投影、Drawing identity、source evidence與atomic formalization原則；current row、work identity、status/filter與legacy fallback由DEV-087新authority取代。新決策優先，`numbering_draft_workspaces`只能作converter source，不能再驅動三工作臺。
+
 ## 1. Context
 
 DEV-053 要把候選 workspace 與正式 drawing master 顯示在同一個圖號工作台，並將現行 drawer 的`新增同根圖號／新增同圖料號`改走候選流程，避免直接建立正式 master。

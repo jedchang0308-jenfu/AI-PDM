@@ -85,12 +85,13 @@ async function login(email) {
   return cookie;
 }
 
-async function request(method, urlPath, cookie, body, expectedStatus = 200) {
+async function request(method, urlPath, cookie, body, expectedStatus = 200, extraHeaders = {}) {
   const response = await fetch(`${apiBaseUrl}${urlPath}`, {
     method,
     headers: {
       "content-type": "application/json",
-      cookie
+      cookie,
+      ...extraHeaders
     },
     body: body === undefined ? undefined : JSON.stringify(body)
   });
@@ -221,8 +222,9 @@ try {
     "POST",
     `/api/numbering/records/${encodeURIComponent(draft.root.rootCode)}/obsolete`,
     engineerCookie,
-    { reason: `QC draft obsolete no approval ${unique}` },
-    200
+    { reason: `QC draft obsolete no approval ${unique}`, confirmObsolete: true },
+    200,
+    { "Idempotency-Key": `qc-draft-obsolete-${unique}` }
   );
   const obsoleteResult = obsoleted.result ?? obsoleted;
   record("Draft obsolete API returns Obsolete root", obsoleteResult.root?.recordStatus === "Obsolete", JSON.stringify(obsoleted));

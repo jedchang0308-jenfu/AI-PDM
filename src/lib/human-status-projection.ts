@@ -9,13 +9,16 @@ export const HUMAN_STATUS_PHASES = [
 export type HumanStatusPhase = (typeof HUMAN_STATUS_PHASES)[number];
 export type HumanStatusTone = "danger" | "warning" | "info" | "success" | "neutral";
 export type HumanStatusIcon = "alert" | "clock" | "play" | "check" | "archive";
-export type HumanStatusFilter = "all" | "needs_action" | "waiting" | "system" | "ready" | "production" | "rd" | "availability_unknown" | "needs_confirmation" | "history";
+export type HumanStatusFilter = "all" | "owner" | "review_owner" | "needs_action" | "waiting" | "system" | "system_admin" | "ready" | "production" | "rd" | "availability_unknown" | "needs_confirmation" | "history";
 
 export const HUMAN_STATUS_FILTER_VALUES: readonly HumanStatusFilter[] = [
   "all",
+  "owner",
+  "review_owner",
   "needs_action",
   "waiting",
   "system",
+  "system_admin",
   "ready",
   "production",
   "rd",
@@ -25,10 +28,13 @@ export const HUMAN_STATUS_FILTER_VALUES: readonly HumanStatusFilter[] = [
 ];
 
 export const HUMAN_STATUS_DISPLAY_LABELS = {
-  all: "全部工作狀態",
+  all: "全部",
+  owner: "待負責人處理",
+  review_owner: "待審核負責人處理",
   needs_action: "待你處理",
   waiting: "等他人處理",
   system: "系統處理中",
+  system_admin: "待系統管理員處理",
   usable: "可使用",
   production: "生產可用",
   rd: "研發可用",
@@ -40,9 +46,10 @@ export const HUMAN_STATUS_DISPLAY_LABELS = {
 /** Visible filter vocabulary is sourced from the same display labels used by the work-status table. */
 export const HUMAN_STATUS_FILTER_OPTIONS: ReadonlyArray<{ value: HumanStatusFilter; label: string }> = [
   { value: "all", label: HUMAN_STATUS_DISPLAY_LABELS.all },
-  { value: "needs_action", label: HUMAN_STATUS_DISPLAY_LABELS.needs_action },
-  { value: "waiting", label: HUMAN_STATUS_DISPLAY_LABELS.waiting },
+  { value: "owner", label: HUMAN_STATUS_DISPLAY_LABELS.owner },
+  { value: "review_owner", label: HUMAN_STATUS_DISPLAY_LABELS.review_owner },
   { value: "system", label: HUMAN_STATUS_DISPLAY_LABELS.system },
+  { value: "system_admin", label: HUMAN_STATUS_DISPLAY_LABELS.system_admin },
   { value: "production", label: HUMAN_STATUS_DISPLAY_LABELS.production },
   { value: "rd", label: HUMAN_STATUS_DISPLAY_LABELS.rd },
   { value: "availability_unknown", label: HUMAN_STATUS_DISPLAY_LABELS.availability_unknown },

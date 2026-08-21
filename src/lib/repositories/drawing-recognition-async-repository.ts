@@ -2,20 +2,30 @@ import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   boundedText,
+  canonicalRecognitionFieldLabel,
+  canonicalizeRecognitionSemantics,
+  canonicalizeRecognitionValue,
   DrawingRecognitionError,
   isExplicitNotApplicable,
-  normalizeRecognitionKey,
   normalizeRecognitionValue,
   parseJsonValue,
   parseRecognitionCategory,
   parseRecognitionConfidence,
   sha256Canonical,
   type DrawingRecognitionAdapterCompletion,
+  type DrawingRecognitionClientAdapterCompletion,
   type DrawingRecognitionCategory,
   type DrawingRecognitionDecisionInput,
   type DrawingRecognitionImpactChange,
   type DrawingRecognitionSourceContextType
 } from "@/lib/drawing-recognition-contract";
+import {
+  BROWSER_PDF_OCR_ADAPTER_CODE,
+  drawingRecognitionAdapterPlanForSource,
+  isBrowserPdfRecognitionSource
+} from "@/lib/drawing-recognition-adapters";
+import { projectNativeMetadataHealth } from "@/lib/drawing-recognition-diagnostics";
+import { DRAWING_OCR_POLICY } from "@/lib/drawing-ocr-priority-policy";
 
 type SessionRow = {
   id: string;
@@ -64,6 +74,7 @@ type SourceRow = {
   adapter_plan_json: string | string[];
   original_path?: string | null;
   storage_provider?: string;
+  storage_bucket?: string | null;
   storage_key?: string;
 };
 
@@ -111,6 +122,17 @@ type ObservationRow = {
   captured_at: string;
 };
 
+type AdapterResultRow = {
+  id: string;
+  source_id: string;
+  adapter_code: string;
+  adapter_version: string;
+  status: string;
+  observation_count: number | string;
+  diagnostics_json: string | null;
+  completed_at: string;
+};
+
 type FileSourceRow = {
   file_asset_id: string;
   content_hash: string | null;
@@ -128,11 +150,44 @@ type ScopeRow = { drawing_id: string | null; drawing_revision_id: string | null;
 export type RecognitionSessionProjection = ReturnType<typeof mapSession> & {
   sources: Array<ReturnType<typeof mapSource>>;
   candidates: Array<ReturnType<typeof mapCandidate> & { observations: Array<ReturnType<typeof mapObservation>> }>;
+  reviewGroups: RecognitionReviewGroup[];
   baseline: Array<{ fieldKey: string; fieldLabel: string; value: string; support: number; partCount: number }>;
+  adapterHealth: ReturnType<typeof projectNativeMetadataHealth>;
+  pendingClientAdapters: Array<{ sourceId: string; fileName: string; contentHash: string; adapterCode: typeof BROWSER_PDF_OCR_ADAPTER_CODE }>;
+  pdfOcrSources: Array<{
+    sourceId: string;
+    fileName: string;
+    status: "pending" | "succeeded" | "partial" | "unsupported" | "failed" | "timeout";
+    observationCount: number;
+    diagnostics: string[];
+    requiredOutcomes: Array<{ fieldKey: string; fieldLabel: string; outcome: "pending" | "found" | "conflict" | "not_found"; distinctValueCount: number; overflow: boolean }>;
+  }>;
+};
+
+export type RecognitionReviewGroup = {
+  id: string;
+  category: DrawingRecognitionCategory;
+  fieldKey: string | null;
+  fieldLabel: string;
+  ownerType: string | null;
+  ownerId: string | null;
+  primaryCandidateId: string;
+  memberCandidateIds: string[];
+  distinctValues: string[];
+  conflictState: "none" | "conflict";
+  reviewState: string;
+  proposedValue: string | null;
+  currentFormalValue: string | null;
+  observations: Array<ReturnType<typeof mapObservation> & { candidateId: string; sourceFileName: string | null; sourceRole: string | null }>;
 };
 
 function now() {
   return new Date().toISOString();
+}
+
+function isUnsetFormalValue(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return !normalized || normalized === "無";
 }
 
 function mapSession(row: SessionRow) {
@@ -180,21 +235,23 @@ function mapSource(row: SourceRow) {
 }
 
 function mapCandidate(row: CandidateRow) {
+  const semantics = canonicalizeRecognitionSemantics({ category: row.category, fieldKey: row.field_key, ownerType: row.proposed_owner_type, ownerId: row.proposed_owner_id });
+  const currentFormalValue = canonicalizeRecognitionValue(semantics.fieldKey, row.current_formal_value);
   return {
     id: row.id,
-    category: row.category,
-    fieldKey: row.field_key,
-    fieldLabel: row.field_label,
+    category: semantics.category,
+    fieldKey: semantics.fieldKey,
+    fieldLabel: canonicalRecognitionFieldLabel(semantics.fieldKey, row.field_label),
     rawValue: row.raw_value,
-    proposedValue: row.proposed_value,
-    normalizedValue: row.normalized_value,
-    proposedOwnerType: row.proposed_owner_type,
-    proposedOwnerId: row.proposed_owner_id,
+    proposedValue: canonicalizeRecognitionValue(semantics.fieldKey, row.proposed_value),
+    normalizedValue: canonicalizeRecognitionValue(semantics.fieldKey, row.normalized_value),
+    proposedOwnerType: semantics.ownerType,
+    proposedOwnerId: semantics.ownerId,
     applicabilityScope: row.applicability_scope,
     variantStatus: row.variant_status,
     confidenceBand: row.confidence_band,
-    reviewState: row.review_state,
-    currentFormalValue: row.current_formal_value,
+    reviewState: row.review_state === "conflict" && isUnsetFormalValue(currentFormalValue) ? "proposed" : row.review_state,
+    currentFormalValue,
     currentFormalFingerprint: row.current_formal_fingerprint,
     groupKey: row.group_key,
     sortOrder: Number(row.sort_order),
@@ -221,8 +278,120 @@ function mapObservation(row: ObservationRow) {
   };
 }
 
+function normalizedPageGeometry(value: Record<string, unknown> | null) {
+  if (!value || value.coordinateSpace !== "normalized_page" || value.origin !== "top_left") return false;
+  const numbers = [value.x, value.y, value.width, value.height].map(Number);
+  return numbers.every(Number.isFinite) && numbers[0] >= 0 && numbers[1] >= 0 && numbers[2] > 0 && numbers[3] > 0
+    && numbers[0] + numbers[2] <= 1.000001 && numbers[1] + numbers[3] <= 1.000001;
+}
+
+function projectReviewGroups(
+  candidates: Array<ReturnType<typeof mapCandidate> & { observations: Array<ReturnType<typeof mapObservation>> }>,
+  sources: SourceRow[]
+): RecognitionReviewGroup[] {
+  const sourceById = new Map(sources.map((source) => [source.id, source]));
+  const groups = new Map<string, Array<ReturnType<typeof mapCandidate> & { observations: Array<ReturnType<typeof mapObservation>> }>>();
+  for (const candidate of candidates) {
+    const key = sha256Canonical({ category: candidate.category, fieldKey: candidate.fieldKey, ownerType: candidate.proposedOwnerType, ownerId: candidate.proposedOwnerId });
+    const list = groups.get(key) ?? [];
+    list.push(candidate);
+    groups.set(key, list);
+  }
+  return [...groups.entries()].map(([id, members]) => {
+    const distinctValues = [...new Set(members.map((member) => member.normalizedValue ?? member.proposedValue).filter((value): value is string => Boolean(value)))].sort();
+    const preferredValue = distinctValues.length === 1 ? distinctValues[0] : null;
+    const primary = [...members].sort((left, right) => {
+      const leftMatchesPreferredValue = preferredValue !== null && (left.normalizedValue ?? left.proposedValue) === preferredValue;
+      const rightMatchesPreferredValue = preferredValue !== null && (right.normalizedValue ?? right.proposedValue) === preferredValue;
+      const leftLocatablePdf = left.observations.some((observation) => normalizedPageGeometry(observation.geometry) && sourceById.get(observation.sourceId)?.file_ext.toLowerCase() === "pdf");
+      const rightLocatablePdf = right.observations.some((observation) => normalizedPageGeometry(observation.geometry) && sourceById.get(observation.sourceId)?.file_ext.toLowerCase() === "pdf");
+      return Number(rightMatchesPreferredValue) - Number(leftMatchesPreferredValue)
+        || Number(rightLocatablePdf) - Number(leftLocatablePdf)
+        || left.sortOrder - right.sortOrder
+        || left.id.localeCompare(right.id);
+    })[0];
+    const currentFormalValue = [...new Set(members.map((member) => member.currentFormalValue?.trim()).filter((value): value is string => Boolean(value)))].join(" ／ ") || null;
+    const hasConflictMember = members.some((member) => member.reviewState === "conflict");
+    const hasBlockedMember = members.some((member) => member.reviewState === "blocked");
+    const observations = members.flatMap((member) => member.observations.map((observation) => ({
+      ...observation,
+      candidateId: member.id,
+      sourceFileName: sourceById.get(observation.sourceId)?.file_name ?? null,
+      sourceRole: sourceById.get(observation.sourceId)?.source_role ?? null
+    })));
+    return {
+      id,
+      category: primary.category,
+      fieldKey: primary.fieldKey,
+      fieldLabel: primary.fieldLabel,
+      ownerType: primary.proposedOwnerType,
+      ownerId: primary.proposedOwnerId,
+      primaryCandidateId: primary.id,
+      memberCandidateIds: members.map((member) => member.id).sort(),
+      distinctValues,
+      conflictState: distinctValues.length > 1 ? "conflict" as const : "none" as const,
+      reviewState: distinctValues.length > 1 || hasConflictMember
+        ? "conflict"
+        : preferredValue !== null
+          ? primary.reviewState
+          : hasBlockedMember ? "blocked" : primary.reviewState,
+      proposedValue: primary.proposedValue,
+      currentFormalValue,
+      observations
+    };
+  }).sort((left, right) => `${left.category}:${left.fieldKey ?? ""}:${left.id}`.localeCompare(`${right.category}:${right.fieldKey ?? ""}:${right.id}`));
+}
+
+function projectPdfOcrSources(
+  sources: SourceRow[],
+  adapterResults: AdapterResultRow[],
+  candidates: Array<ReturnType<typeof mapCandidate> & { observations: Array<ReturnType<typeof mapObservation>> }>
+) {
+  return sources.flatMap((source) => {
+    const adapterPlan = parseJsonValue<string[]>(source.adapter_plan_json, []);
+    if (!adapterPlan.includes(BROWSER_PDF_OCR_ADAPTER_CODE)) return [];
+    const result = adapterResults.find((item) => item.source_id === source.id && item.adapter_code === BROWSER_PDF_OCR_ADAPTER_CODE);
+    const diagnostics = result ? parseJsonValue<string[]>(result.diagnostics_json, []).filter((item) => !item.startsWith("result_fingerprint:")) : [];
+    const requiredOutcomes = DRAWING_OCR_POLICY.fields.filter((field) => field.tier === 0).map((field) => {
+      const requiredFieldKey = canonicalizeRecognitionSemantics({ category: field.category, fieldKey: field.key }).fieldKey;
+      const values = new Set(candidates
+        .filter((candidate) => candidate.fieldKey === requiredFieldKey)
+        .filter((candidate) => candidate.observations.some((observation) => observation.sourceId === source.id && observation.extractorCode === BROWSER_PDF_OCR_ADAPTER_CODE))
+        .map((candidate) => candidate.normalizedValue)
+        .filter((value): value is string => Boolean(value)));
+      const overflow = diagnostics.includes(`required_field_conflict_overflow:${field.key}`);
+      const outcome = !result
+        ? "pending"
+        : overflow || values.size > 1 || diagnostics.includes(`required_field_conflict:${field.key}`)
+          ? "conflict"
+          : values.size > 0
+            ? "found"
+            : "not_found";
+      return { fieldKey: field.key, fieldLabel: field.label, outcome, distinctValueCount: values.size, overflow } as const;
+    });
+    return [{
+      sourceId: source.id,
+      fileName: source.file_name,
+      status: result ? result.status as "succeeded" | "partial" | "unsupported" | "failed" | "timeout" : "pending" as const,
+      observationCount: Number(result?.observation_count ?? 0),
+      diagnostics,
+      requiredOutcomes
+    }];
+  });
+}
+
 export class DrawingRecognitionAsyncRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
+
+  private async effectiveConflictCount(sessionId: string) {
+    const conflict = await this.client.queryOne<{ count: number | string }>(
+      `SELECT COUNT(*) AS count FROM drawing_recognition_candidates
+       WHERE session_id = :sessionId AND review_state = 'conflict'
+         AND TRIM(COALESCE(current_formal_value, '')) NOT IN ('', '無')`,
+      { sessionId }
+    );
+    return Number(conflict?.count ?? 0);
+  }
 
   async createSession(input: {
     companyId: string;
@@ -306,6 +475,7 @@ export class DrawingRecognitionAsyncRepository {
       );
       for (let index = 0; index < ordered.length; index += 1) {
         const source = ordered[index];
+        const adapterPlan = drawingRecognitionAdapterPlanForSource({ fileExt: source.file_ext });
         await client.execute(
           `INSERT INTO drawing_recognition_sources (
              id, session_id, company_id, file_asset_id, content_hash, storage_generation, file_name, file_ext,
@@ -319,7 +489,7 @@ export class DrawingRecognitionAsyncRepository {
             fileAssetId: source.file_asset_id, contentHash: source.content_hash, storageGeneration: source.storage_generation,
             fileName: source.file_name, fileExt: source.file_ext, mimeType: source.mime_type,
             fileSize: Number(source.file_size), sourceRole: source.source_role, sortOrder: index,
-            adapterPlanJson: JSON.stringify(["filename.v1", "native-metadata-bridge.v1", "external-json-ocr.v1"]), timestamp
+            adapterPlanJson: JSON.stringify(adapterPlan), timestamp
           }
         );
       }
@@ -366,6 +536,13 @@ export class DrawingRecognitionAsyncRepository {
        ORDER BY observation.captured_at, observation.id`,
       { sessionId, companyId }
     );
+    const adapterResults = await this.client.query<AdapterResultRow>(
+      `SELECT id, source_id, adapter_code, adapter_version, status, observation_count, diagnostics_json, completed_at
+       FROM drawing_recognition_adapter_results
+       WHERE session_id = :sessionId AND company_id = :companyId
+       ORDER BY completed_at DESC, id DESC`,
+      { sessionId, companyId }
+    );
     const byCandidate = new Map<string, ObservationRow[]>();
     for (const observation of observations) {
       const list = byCandidate.get(observation.candidate_id) ?? [];
@@ -376,11 +553,27 @@ export class DrawingRecognitionAsyncRepository {
       ...mapCandidate(candidate),
       observations: (byCandidate.get(candidate.id) ?? []).map(mapObservation)
     }));
+    const effectiveConflictCount = mappedCandidates.filter((candidate) => candidate.reviewState === "conflict").length;
+    const pdfOcrSources = projectPdfOcrSources(sources, adapterResults, mappedCandidates);
     return {
       ...mapSession(session),
+      conflictCount: effectiveConflictCount,
       sources: sources.map(mapSource),
       candidates: mappedCandidates,
-      baseline: calculateBaseline(mappedCandidates)
+      reviewGroups: projectReviewGroups(mappedCandidates, sources),
+      baseline: calculateBaseline(mappedCandidates),
+      adapterHealth: projectNativeMetadataHealth({
+        sessionStatus: session.status,
+        sources: sources.map((source) => ({ id: source.id, fileName: source.file_name })),
+        adapterResults
+      }),
+      pendingClientAdapters: pdfOcrSources.filter((source) => source.status === "pending").map((source) => ({
+        sourceId: source.sourceId,
+        fileName: source.fileName,
+        contentHash: sources.find((item) => item.id === source.sourceId)?.content_hash ?? "",
+        adapterCode: BROWSER_PDF_OCR_ADAPTER_CODE
+      })),
+      pdfOcrSources
     };
   }
 
@@ -408,7 +601,7 @@ export class DrawingRecognitionAsyncRepository {
        ORDER BY created_at DESC, id DESC LIMIT 1`,
       { companyId, drawingId }
     );
-    return row ? mapSession(row) : null;
+    return row ? { ...mapSession(row), conflictCount: await this.effectiveConflictCount(row.id) } : null;
   }
 
   async latestForDrawingNumber(drawingNumber: string, companyId: string) {
@@ -426,10 +619,10 @@ export class DrawingRecognitionAsyncRepository {
        ORDER BY sort_order, id`,
       { sessionId: row.id, companyId }
     );
-    return { ...mapSession(row), sourceAssetIds: sources.map((source) => source.file_asset_id) };
+    return { ...mapSession(row), conflictCount: await this.effectiveConflictCount(row.id), sourceAssetIds: sources.map((source) => source.file_asset_id) };
   }
 
-  async claimJob(input: { workerId: string; maxAttempts: number }) {
+  async claimJob(input: { workerId: string; maxAttempts: number; allowNativeSources: boolean }) {
     return this.client.transaction(async (client) => {
       const lock = client.kind === "postgres" ? " FOR UPDATE SKIP LOCKED" : "";
       const timestamp = now();
@@ -467,7 +660,7 @@ export class DrawingRecognitionAsyncRepository {
             { drawingId: session.drawing_id, drawingRevisionId: session.drawing_revision_id, companyId: session.company_id }
           )
         : null;
-      const parts = session.drawing_id
+      const formalParts = session.drawing_id
         ? await client.query<{ id: string; part_number: string; part_name: string; record_status: string }>(
             `SELECT part.id, part.part_number, part.part_name, part.record_status
              FROM drawings drawing
@@ -478,6 +671,19 @@ export class DrawingRecognitionAsyncRepository {
             { drawingId: session.drawing_id, companyId: session.company_id }
           )
         : [];
+      const draftParts = session.drawing_id
+        ? await client.query<{ id: string; part_number: string; part_name: string; record_status: string }>(
+            `SELECT draft.id, reservation.candidate_code AS part_number, draft.part_name, 'Draft' AS record_status
+             FROM drawings drawing
+             JOIN numbering_draft_parts draft ON draft.workspace_id = drawing.workspace_id AND draft.company_id = drawing.company_id
+             JOIN number_candidate_reservations reservation ON reservation.id = draft.candidate_reservation_id
+               AND reservation.company_id = drawing.company_id AND reservation.reservation_state = 'active'
+             WHERE drawing.id = :drawingId AND drawing.company_id = :companyId
+             ORDER BY reservation.candidate_code, draft.id`,
+            { drawingId: session.drawing_id, companyId: session.company_id }
+          )
+        : [];
+      const parts = [...new Map([...formalParts, ...draftParts].map((part) => [part.id, part])).values()];
       return {
         sessionId: session.id,
         companyId: session.company_id,
@@ -509,6 +715,73 @@ export class DrawingRecognitionAsyncRepository {
       "UPDATE drawing_recognition_sessions SET heartbeat_at = :timestamp, updated_at = :timestamp WHERE id = :sessionId AND locked_by = :workerId",
       { sessionId: input.sessionId, workerId: input.workerId, timestamp: now() }
     );
+  }
+
+  async getClaimedSourceForWorker(input: { sessionId: string; sourceId: string; workerId: string }) {
+    const session = await this.client.queryOne<Pick<SessionRow, "id" | "company_id" | "status" | "locked_by">>(
+      `SELECT id, company_id, status, locked_by FROM drawing_recognition_sessions WHERE id = :sessionId`,
+      { sessionId: input.sessionId }
+    );
+    if (!session || session.status !== "extracting" || session.locked_by !== input.workerId) {
+      throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409, true);
+    }
+    const source = await this.client.queryOne<SourceRow>(
+      `SELECT source.*, asset.original_path, asset.storage_provider, asset.storage_bucket, asset.storage_key
+       FROM drawing_recognition_sources source
+       JOIN file_assets asset ON asset.id = source.file_asset_id
+       WHERE source.id = :sourceId AND source.session_id = :sessionId AND source.company_id = :companyId
+         AND asset.deleted_at IS NULL`,
+      { sourceId: input.sourceId, sessionId: input.sessionId, companyId: session.company_id }
+    );
+    if (!source) throw new DrawingRecognitionError("RECOGNITION_SOURCE_NOT_FOUND", "找不到辨識來源檔。", 404);
+    return {
+      sessionId: input.sessionId,
+      companyId: session.company_id,
+      sourceId: source.id,
+      fileName: source.file_name,
+      mimeType: source.mime_type,
+      expectedBytes: Number(source.file_size),
+      expectedHash: source.content_hash,
+      storage: {
+        storage_provider: source.storage_provider ?? null,
+        storage_bucket: source.storage_bucket ?? null,
+        storage_key: source.storage_key ?? null,
+        original_path: source.original_path ?? null
+      }
+    };
+  }
+
+  async getSourceForActor(input: { sessionId: string; sourceId: string; companyId: string }) {
+    const source = await this.client.queryOne<SourceRow>(
+      `SELECT source.*, asset.original_path, asset.storage_provider, asset.storage_bucket, asset.storage_key
+       FROM drawing_recognition_sources source
+       JOIN file_assets asset ON asset.id = source.file_asset_id
+       WHERE source.id = :sourceId AND source.session_id = :sessionId AND source.company_id = :companyId
+         AND asset.deleted_at IS NULL`,
+      input
+    );
+    if (!source) throw new DrawingRecognitionError("RECOGNITION_SOURCE_NOT_FOUND", "找不到辨識來源檔。", 404);
+    const adapterPlan = parseJsonValue<string[]>(source.adapter_plan_json, []);
+    if (!adapterPlan.includes(BROWSER_PDF_OCR_ADAPTER_CODE) || !isBrowserPdfRecognitionSource({ fileExt: source.file_ext, mimeType: source.mime_type })) {
+      throw new DrawingRecognitionError("RECOGNITION_PDF_SOURCE_INVALID", "此來源不符合 PDF 內容辨識條件。", 422);
+    }
+    return {
+      sessionId: input.sessionId,
+      companyId: input.companyId,
+      sourceId: source.id,
+      fileName: source.file_name,
+      fileExt: source.file_ext,
+      mimeType: source.mime_type,
+      expectedBytes: Number(source.file_size),
+      expectedHash: source.content_hash,
+      adapterPlan,
+      storage: {
+        storage_provider: source.storage_provider ?? null,
+        storage_bucket: source.storage_bucket ?? null,
+        storage_key: source.storage_key ?? null,
+        original_path: source.original_path ?? null
+      }
+    };
   }
 
   async completeJob(input: { sessionId: string; workerId: string; sourceSetFingerprint: string; results: DrawingRecognitionAdapterCompletion[] }) {
@@ -586,12 +859,17 @@ export class DrawingRecognitionAsyncRepository {
               capturedAt: timestamp
             }
           );
-          const category = parseRecognitionCategory(raw.category);
-          const fieldLabel = boundedText(raw.fieldLabel, 200, category === "unclassified" ? "尚未歸類" : "辨識候選") || "辨識候選";
-          const fieldKey = normalizeRecognitionKey(raw.fieldKey ?? fieldLabel) || null;
-          const ownerType = raw.proposedOwnerType ? boundedText(raw.proposedOwnerType, 80) : inferOwnerType(category);
-          const ownerId = raw.proposedOwnerId ? boundedText(raw.proposedOwnerId, 200) : inferOwnerId(category, session);
-          const groupKey = sha256Canonical({ category, fieldKey, normalizedValue, ownerType, ownerId });
+          const rawCategory = parseRecognitionCategory(raw.category);
+          const rawFieldLabel = boundedText(raw.fieldLabel, 200, rawCategory === "unclassified" ? "尚未歸類" : "辨識候選") || "辨識候選";
+          const initialSemantics = canonicalizeRecognitionSemantics({ category: rawCategory, fieldKey: raw.fieldKey ?? rawFieldLabel, ownerType: raw.proposedOwnerType, ownerId: raw.proposedOwnerId });
+          const category = initialSemantics.category;
+          const fieldKey = initialSemantics.fieldKey;
+          const fieldLabel = canonicalRecognitionFieldLabel(fieldKey, rawFieldLabel);
+          const candidateNormalizedValue = canonicalizeRecognitionValue(fieldKey, normalizedValue);
+          const candidateProposedValue = explicitlyMissingValue ? null : canonicalizeRecognitionValue(fieldKey, rawValue ?? rawText);
+          const ownerType = initialSemantics.ownerType ?? inferOwnerType(category, fieldKey);
+          const ownerId = initialSemantics.ownerId ?? inferOwnerId(category, fieldKey, session);
+          const groupKey = sha256Canonical({ category, fieldKey, normalizedValue: candidateNormalizedValue, ownerType, ownerId });
           const existingCandidate = await client.queryOne<{ id: string }>(
             `SELECT id FROM drawing_recognition_candidates
              WHERE session_id = :sessionId AND company_id = :companyId AND group_key = :groupKey
@@ -609,6 +887,8 @@ export class DrawingRecognitionAsyncRepository {
           const current = await this.readCurrentFormalValue(client, {
             companyId: session.company_id, category, fieldKey, ownerType, ownerId
           });
+          const currentValue = canonicalizeRecognitionValue(fieldKey, current.value);
+          const hasUsableFormalValue = currentValue !== null && !isUnsetFormalValue(currentValue);
           const candidateId = `recognition-candidate-${crypto.randomUUID()}`;
           await client.execute(
             `INSERT INTO drawing_recognition_candidates (
@@ -622,11 +902,14 @@ export class DrawingRecognitionAsyncRepository {
             )`,
             {
               id: candidateId, sessionId: session.id, companyId: session.company_id, category, fieldKey, fieldLabel,
-              rawValue, proposedValue: explicitlyMissingValue ? null : rawValue ?? rawText, normalizedValue, ownerType, ownerId,
+              rawValue, proposedValue: candidateProposedValue, normalizedValue: candidateNormalizedValue, ownerType, ownerId,
               applicabilityScope: boundedText(raw.applicabilityScope, 120, "overall") || "overall",
-              variantStatus: explicitlyMissingValue ? "unrecognized" : current.value === null ? "added" : current.value === normalizedValue ? "same" : isExplicitNotApplicable(normalizedValue) ? "explicit_not_applicable" : "changed",
-              confidenceBand: parseRecognitionConfidence(raw.confidenceBand), reviewState: explicitlyMissingValue ? "blocked" : current.value !== null && current.value !== normalizedValue ? "conflict" : "proposed",
-              currentFormalValue: current.value, currentFormalFingerprint: current.fingerprint, groupKey, sortOrder: observationCount, timestamp
+              variantStatus: explicitlyMissingValue ? "unrecognized" : !hasUsableFormalValue ? "added" : currentValue === candidateNormalizedValue ? "same" : isExplicitNotApplicable(candidateNormalizedValue) ? "explicit_not_applicable" : "changed",
+              confidenceBand: parseRecognitionConfidence(raw.confidenceBand),
+              reviewState: explicitlyMissingValue || raw.proposedOwnerResolution === "ambiguous" || raw.proposedOwnerResolution === "missing"
+                ? "blocked"
+                : hasUsableFormalValue && currentValue !== candidateNormalizedValue ? "conflict" : "proposed",
+              currentFormalValue: currentValue, currentFormalFingerprint: current.fingerprint, groupKey, sortOrder: observationCount, timestamp
             }
           );
           await client.execute(
@@ -638,7 +921,8 @@ export class DrawingRecognitionAsyncRepository {
       }
       const conflict = await client.queryOne<{ count: number | string }>(
         `SELECT COUNT(*) AS count FROM drawing_recognition_candidates
-         WHERE session_id = :sessionId AND review_state = 'conflict'`,
+         WHERE session_id = :sessionId AND review_state = 'conflict'
+           AND TRIM(COALESCE(current_formal_value, '')) NOT IN ('', '無')`,
         { sessionId: session.id }
       );
       const unclassified = await client.queryOne<{ count: number | string }>(
@@ -661,6 +945,263 @@ export class DrawingRecognitionAsyncRepository {
           errorCode: status === "extraction_failed" ? "all_adapters_failed" : null,
           errorSummary: status === "extraction_failed" ? "目前沒有可供審核的辨識結果；請確認本機辨識能力後重試。" : null,
           timestamp, sessionId: session.id
+        }
+      );
+      return new DrawingRecognitionAsyncRepository(client).getProjection(session.id, session.company_id);
+    });
+  }
+
+  async appendClientAdapterResult(input: {
+    sessionId: string;
+    companyId: string;
+    actorId: string;
+    expectedRowVersion: number;
+    result: DrawingRecognitionClientAdapterCompletion;
+  }) {
+    if (input.result.adapterCode !== BROWSER_PDF_OCR_ADAPTER_CODE) {
+      throw new DrawingRecognitionError("RECOGNITION_CLIENT_ADAPTER_INVALID", "瀏覽器辨識 adapter 不正確。", 400);
+    }
+    if (!["succeeded", "partial", "unsupported", "failed", "timeout"].includes(input.result.status)) {
+      throw new DrawingRecognitionError("RECOGNITION_CLIENT_ADAPTER_STATUS_INVALID", "瀏覽器辨識結果狀態不正確。", 400);
+    }
+    if ((input.result.observations?.length ?? 0) > DRAWING_OCR_POLICY.limits.observationsPerSource) {
+      throw new DrawingRecognitionError("RECOGNITION_OBSERVATION_LIMIT", "單一 PDF 辨識結果超過限制。", 400);
+    }
+    return this.client.transaction(async (client) => {
+      const lock = client.kind === "postgres" ? " FOR UPDATE" : "";
+      const session = await client.queryOne<SessionRow>(
+        `SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId${lock}`,
+        { sessionId: input.sessionId, companyId: input.companyId }
+      );
+      if (!session) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+      if (["formalized", "cancelled"].includes(session.status)) {
+        throw new DrawingRecognitionError("RECOGNITION_SESSION_TERMINAL", "辨識工作已結束，不能再加入結果。", 409);
+      }
+      if (["queued", "extracting"].includes(session.status)) {
+        throw new DrawingRecognitionError("RECOGNITION_WORKER_BASELINE_PENDING", "基礎辨識仍在執行，請稍後再試。", 409, true);
+      }
+      const source = await client.queryOne<SourceRow>(
+        "SELECT * FROM drawing_recognition_sources WHERE id = :sourceId AND session_id = :sessionId AND company_id = :companyId",
+        { sourceId: input.result.sourceId, sessionId: session.id, companyId: session.company_id }
+      );
+      if (!source) throw new DrawingRecognitionError("RECOGNITION_RESULT_SOURCE_INVALID", "辨識結果來源不在工作範圍內。", 400);
+      const adapterPlan = parseJsonValue<string[]>(source.adapter_plan_json, []);
+      if (!adapterPlan.includes(BROWSER_PDF_OCR_ADAPTER_CODE) || !isBrowserPdfRecognitionSource({ fileExt: source.file_ext, mimeType: source.mime_type })) {
+        throw new DrawingRecognitionError("RECOGNITION_CLIENT_ADAPTER_NOT_PLANNED", "此來源沒有瀏覽器 PDF 辨識計畫。", 409);
+      }
+      if (source.content_hash.toLowerCase() !== input.result.contentHash.toLowerCase()) {
+        throw new DrawingRecognitionError("RECOGNITION_SOURCE_HASH_MISMATCH", "辨識來源內容指紋不一致，請重新辨識。", 409, true);
+      }
+      const observations = input.result.observations ?? [];
+      const safeDiagnostics = (input.result.diagnostics ?? []).slice(0, 19).map((value) => boundedText(value, 300)).filter(Boolean);
+      const resultFingerprint = sha256Canonical({
+        sourceId: source.id,
+        contentHash: source.content_hash.toLowerCase(),
+        adapterCode: input.result.adapterCode,
+        adapterVersion: boundedText(input.result.adapterVersion, 80),
+        status: input.result.status,
+        diagnostics: safeDiagnostics,
+        observations
+      });
+      const existing = await client.queryOne<AdapterResultRow>(
+        `SELECT id, source_id, adapter_code, adapter_version, status, observation_count, diagnostics_json, completed_at
+         FROM drawing_recognition_adapter_results
+         WHERE session_id = :sessionId AND source_id = :sourceId AND adapter_code = :adapterCode`,
+        { sessionId: session.id, sourceId: source.id, adapterCode: BROWSER_PDF_OCR_ADAPTER_CODE }
+      );
+      if (existing) {
+        const existingDiagnostics = parseJsonValue<string[]>(existing.diagnostics_json, []);
+        if (existingDiagnostics.includes(`result_fingerprint:${resultFingerprint}`)) {
+          return new DrawingRecognitionAsyncRepository(client).getProjection(session.id, session.company_id);
+        }
+        throw new DrawingRecognitionError("RECOGNITION_CLIENT_RESULT_CONFLICT", "此 PDF 已有不同的辨識結果，請建立新的重跑工作。", 409);
+      }
+      if (Number(session.row_version) !== input.expectedRowVersion) {
+        throw new DrawingRecognitionError("RECOGNITION_SESSION_STALE", "辨識內容已更新，請重新載入後再送出。", 409, true);
+      }
+      const existingBrowserCount = await client.queryOne<{ count: number | string }>(
+        `SELECT COALESCE(SUM(observation_count), 0) AS count FROM drawing_recognition_adapter_results
+         WHERE session_id = :sessionId AND company_id = :companyId AND adapter_code = :adapterCode`,
+        { sessionId: session.id, companyId: session.company_id, adapterCode: BROWSER_PDF_OCR_ADAPTER_CODE }
+      );
+      if (Number(existingBrowserCount?.count ?? 0) + observations.length > DRAWING_OCR_POLICY.limits.observationsPerSession) {
+        throw new DrawingRecognitionError("RECOGNITION_SESSION_OBSERVATION_LIMIT", "本次辨識工作已達 PDF 候選容量上限。", 409);
+      }
+
+      const timestamp = now();
+      const adapterResultId = `recognition-adapter-${crypto.randomUUID()}`;
+      const diagnostics = [`result_fingerprint:${resultFingerprint}`, ...safeDiagnostics];
+      await client.execute(
+        `INSERT INTO drawing_recognition_adapter_results (
+           id, session_id, source_id, company_id, adapter_code, adapter_version, status, observation_count,
+           diagnostics_json, started_at, completed_at
+         ) VALUES (
+           :id, :sessionId, :sourceId, :companyId, :adapterCode, :adapterVersion, :status, :observationCount,
+           :diagnosticsJson, :timestamp, :timestamp
+         )`,
+        {
+          id: adapterResultId,
+          sessionId: session.id,
+          sourceId: source.id,
+          companyId: session.company_id,
+          adapterCode: BROWSER_PDF_OCR_ADAPTER_CODE,
+          adapterVersion: boundedText(input.result.adapterVersion, 80),
+          status: input.result.status,
+          observationCount: observations.length,
+          diagnosticsJson: JSON.stringify(diagnostics),
+          timestamp
+        }
+      );
+      let insertedObservations = 0;
+      for (const raw of observations) {
+        const rawText = boundedText(raw.rawText, 1_000);
+        if (!rawText) continue;
+        const rawValue = raw.rawValue === null || raw.rawValue === undefined ? null : boundedText(raw.rawValue, DRAWING_OCR_POLICY.limits.maxValueCharacters);
+        const normalizedValue = raw.normalizedValue === null || raw.normalizedValue === undefined
+          ? normalizeRecognitionValue(rawValue ?? rawText)
+          : normalizeRecognitionValue(raw.normalizedValue);
+        if (!rawValue || !normalizedValue) continue;
+        const observationId = `recognition-observation-${crypto.randomUUID()}`;
+        await client.execute(
+          `INSERT INTO drawing_recognition_observations (
+             id, session_id, source_id, adapter_result_id, company_id, raw_text, raw_value, normalized_value,
+             location_kind, page_number, sheet_name, configuration_name, geometry_json, confidence_band,
+             extractor_code, extractor_version, raw_payload_hash, captured_at
+           ) VALUES (
+             :id, :sessionId, :sourceId, :adapterResultId, :companyId, :rawText, :rawValue, :normalizedValue,
+             :locationKind, :pageNumber, :sheetName, :configurationName, :geometryJson, :confidenceBand,
+             :extractorCode, :extractorVersion, :rawPayloadHash, :capturedAt
+           )`,
+          {
+            id: observationId,
+            sessionId: session.id,
+            sourceId: source.id,
+            adapterResultId,
+            companyId: session.company_id,
+            rawText,
+            rawValue,
+            normalizedValue,
+            locationKind: boundedText(raw.locationKind, 80, "pdf") || "pdf",
+            pageNumber: raw.pageNumber ?? null,
+            sheetName: raw.sheetName ? boundedText(raw.sheetName, 200) : null,
+            configurationName: raw.configurationName ? boundedText(raw.configurationName, 200) : null,
+            geometryJson: raw.geometry ? JSON.stringify(raw.geometry).slice(0, 2_000) : null,
+            confidenceBand: parseRecognitionConfidence(raw.confidenceBand),
+            extractorCode: BROWSER_PDF_OCR_ADAPTER_CODE,
+            extractorVersion: boundedText(input.result.adapterVersion, 80),
+            rawPayloadHash: raw.rawPayloadHash ? boundedText(raw.rawPayloadHash, 128) : null,
+            capturedAt: timestamp
+          }
+        );
+        const rawCategory = parseRecognitionCategory(raw.category);
+        const rawFieldLabel = boundedText(raw.fieldLabel, 200, rawCategory === "unclassified" ? "尚未歸類" : "辨識候選") || "辨識候選";
+        const initialSemantics = canonicalizeRecognitionSemantics({ category: rawCategory, fieldKey: raw.fieldKey ?? rawFieldLabel, ownerType: raw.proposedOwnerType, ownerId: raw.proposedOwnerId });
+        const category = initialSemantics.category;
+        const fieldKey = initialSemantics.fieldKey;
+        const fieldLabel = canonicalRecognitionFieldLabel(fieldKey, rawFieldLabel);
+        const candidateNormalizedValue = canonicalizeRecognitionValue(fieldKey, normalizedValue);
+        const candidateProposedValue = canonicalizeRecognitionValue(fieldKey, rawValue);
+        const ownerType = initialSemantics.ownerType ?? inferOwnerType(category, fieldKey);
+        const ownerId = initialSemantics.ownerId ?? inferOwnerId(category, fieldKey, session);
+        const groupKey = sha256Canonical({ category, fieldKey, normalizedValue: candidateNormalizedValue, ownerType, ownerId });
+        const existingCandidate = await client.queryOne<{ id: string }>(
+          `SELECT id FROM drawing_recognition_candidates
+           WHERE session_id = :sessionId AND company_id = :companyId AND group_key = :groupKey
+           ORDER BY created_at, id LIMIT 1`,
+          { sessionId: session.id, companyId: session.company_id, groupKey }
+        );
+        if (existingCandidate) {
+          await client.execute(
+            "INSERT INTO drawing_recognition_candidate_observations (candidate_id, observation_id, company_id, created_at) VALUES (:candidateId, :observationId, :companyId, :timestamp)",
+            { candidateId: existingCandidate.id, observationId, companyId: session.company_id, timestamp }
+          );
+          insertedObservations += 1;
+          continue;
+        }
+        const current = await this.readCurrentFormalValue(client, { companyId: session.company_id, category, fieldKey, ownerType, ownerId });
+        const currentValue = canonicalizeRecognitionValue(fieldKey, current.value);
+        const hasUsableFormalValue = currentValue !== null && !isUnsetFormalValue(currentValue);
+        const candidateId = `recognition-candidate-${crypto.randomUUID()}`;
+        await client.execute(
+          `INSERT INTO drawing_recognition_candidates (
+             id, session_id, company_id, category, field_key, field_label, raw_value, proposed_value, normalized_value,
+             proposed_owner_type, proposed_owner_id, applicability_scope, variant_status, confidence_band, review_state,
+             current_formal_value, current_formal_fingerprint, group_key, sort_order, created_at, updated_at
+           ) VALUES (
+             :id, :sessionId, :companyId, :category, :fieldKey, :fieldLabel, :rawValue, :proposedValue, :normalizedValue,
+             :ownerType, :ownerId, :applicabilityScope, :variantStatus, :confidenceBand, :reviewState,
+             :currentFormalValue, :currentFormalFingerprint, :groupKey, :sortOrder, :timestamp, :timestamp
+           )`,
+          {
+            id: candidateId,
+            sessionId: session.id,
+            companyId: session.company_id,
+            category,
+            fieldKey,
+            fieldLabel,
+            rawValue,
+            proposedValue: candidateProposedValue,
+            normalizedValue: candidateNormalizedValue,
+            ownerType,
+            ownerId,
+            applicabilityScope: boundedText(raw.applicabilityScope, 120, "overall") || "overall",
+            variantStatus: !hasUsableFormalValue ? "added" : currentValue === candidateNormalizedValue ? "same" : isExplicitNotApplicable(candidateNormalizedValue) ? "explicit_not_applicable" : "changed",
+            confidenceBand: parseRecognitionConfidence(raw.confidenceBand),
+            reviewState: hasUsableFormalValue && currentValue !== candidateNormalizedValue ? "conflict" : "proposed",
+            currentFormalValue: currentValue,
+            currentFormalFingerprint: current.fingerprint,
+            groupKey,
+            sortOrder: 10_000 + insertedObservations,
+            timestamp
+          }
+        );
+        await client.execute(
+          "INSERT INTO drawing_recognition_candidate_observations (candidate_id, observation_id, company_id, created_at) VALUES (:candidateId, :observationId, :companyId, :timestamp)",
+          { candidateId, observationId, companyId: session.company_id, timestamp }
+        );
+        insertedObservations += 1;
+      }
+      if (insertedObservations !== observations.length) {
+        throw new DrawingRecognitionError("RECOGNITION_CLIENT_RESULT_INVALID", "瀏覽器辨識結果包含空白或無效欄位。", 400);
+      }
+      const conflict = await client.queryOne<{ count: number | string }>(
+        `SELECT COUNT(*) AS count FROM drawing_recognition_candidates
+         WHERE session_id = :sessionId AND review_state = 'conflict'
+           AND TRIM(COALESCE(current_formal_value, '')) NOT IN ('', '無')`,
+        { sessionId: session.id }
+      );
+      const unclassified = await client.queryOne<{ count: number | string }>(
+        "SELECT COUNT(*) AS count FROM drawing_recognition_candidates WHERE session_id = :sessionId AND category = 'unclassified'",
+        { sessionId: session.id }
+      );
+      const adapterWarnings = await client.queryOne<{ count: number | string }>(
+        "SELECT COUNT(*) AS count FROM drawing_recognition_adapter_results WHERE session_id = :sessionId AND status <> 'succeeded'",
+        { sessionId: session.id }
+      );
+      const terminalClientFailures = await client.queryOne<{ count: number | string }>(
+        `SELECT COUNT(*) AS count FROM drawing_recognition_adapter_results
+         WHERE session_id = :sessionId AND adapter_code = :adapterCode AND status IN ('failed', 'timeout', 'unsupported')`,
+        { sessionId: session.id, adapterCode: BROWSER_PDF_OCR_ADAPTER_CODE }
+      );
+      const status = Number(adapterWarnings?.count ?? 0) > 0 ? "extraction_partial" : "review_ready";
+      const errorSummary = Number(terminalClientFailures?.count ?? 0) > 0
+        ? "PDF 內容辨識未完成，請重試後再正式寫入；圖面儲存與送審不受影響。"
+        : null;
+      await client.execute(
+        `UPDATE drawing_recognition_sessions
+         SET status = :status, warning_count = :warningCount, conflict_count = :conflictCount,
+             unclassified_count = :unclassifiedCount, error_code = :errorCode, error_summary = :errorSummary,
+             row_version = row_version + 1, updated_at = :timestamp
+         WHERE id = :sessionId`,
+        {
+          status,
+          warningCount: Number(adapterWarnings?.count ?? 0),
+          conflictCount: Number(conflict?.count ?? 0),
+          unclassifiedCount: Number(unclassified?.count ?? 0),
+          errorCode: errorSummary ? `browser_pdf_ocr_${input.result.status}` : null,
+          errorSummary,
+          timestamp,
+          sessionId: session.id
         }
       );
       return new DrawingRecognitionAsyncRepository(client).getProjection(session.id, session.company_id);
@@ -741,6 +1282,7 @@ export class DrawingRecognitionAsyncRepository {
       throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FORMALIZABLE", "目前狀態不能計算正式寫入內容。", 409);
     }
     if (Number(session.row_version) !== input.expectedRowVersion) throw new DrawingRecognitionError("RECOGNITION_SESSION_STALE", "辨識內容已被更新，請重新載入。", 409);
+    await this.assertClientAdaptersFormalizable(session.id, session.company_id);
     const candidateOrder = input.lockTargets
       ? "proposed_owner_type, proposed_owner_id, field_key, id"
       : "sort_order, id";
@@ -897,6 +1439,29 @@ export class DrawingRecognitionAsyncRepository {
       { actorId: input.actorId, timestamp, sessionId: session.id }
     );
     return result;
+  }
+
+  private async assertClientAdaptersFormalizable(sessionId: string, companyId: string) {
+    const sources = await this.client.query<Pick<SourceRow, "id" | "file_name" | "adapter_plan_json">>(
+      "SELECT id, file_name, adapter_plan_json FROM drawing_recognition_sources WHERE session_id = :sessionId AND company_id = :companyId",
+      { sessionId, companyId }
+    );
+    const planned = sources.filter((source) => parseJsonValue<string[]>(source.adapter_plan_json, []).includes(BROWSER_PDF_OCR_ADAPTER_CODE));
+    if (planned.length === 0) return;
+    const results = await this.client.query<Pick<AdapterResultRow, "source_id" | "status">>(
+      `SELECT source_id, status FROM drawing_recognition_adapter_results
+       WHERE session_id = :sessionId AND company_id = :companyId AND adapter_code = :adapterCode`,
+      { sessionId, companyId, adapterCode: BROWSER_PDF_OCR_ADAPTER_CODE }
+    );
+    const resultBySource = new Map(results.map((result) => [result.source_id, result.status]));
+    const pending = planned.filter((source) => !resultBySource.has(source.id));
+    if (pending.length > 0) {
+      throw new DrawingRecognitionError("RECOGNITION_CLIENT_ADAPTER_PENDING", "PDF 內容辨識尚未完成，請保持頁面開啟或稍後重試。", 409, true);
+    }
+    const failed = planned.filter((source) => !["succeeded", "partial"].includes(resultBySource.get(source.id) ?? ""));
+    if (failed.length > 0) {
+      throw new DrawingRecognitionError("RECOGNITION_CLIENT_ADAPTER_FAILED", "PDF 內容辨識未成功；請重試後再正式寫入辨識結果。", 409, true);
+    }
   }
 
   private async resolveContextScope(companyId: string, type: DrawingRecognitionSourceContextType, id: string): Promise<ScopeRow | null> {
@@ -1106,7 +1671,7 @@ export class DrawingRecognitionAsyncRepository {
   }
 
   private async applyDrawingMetadata(change: DrawingRecognitionImpactChange, candidate: CandidateRow, eventId: string, actorId: string, timestamp: string) {
-    if (!["unit", "scale", "projection_method", "drawn_date", "reviewed_date"].includes(change.fieldKey)) {
+    if (!["unit", "scale", "projection_method", "drawn_date", "reviewed_date", "drawn_by_name"].includes(change.fieldKey)) {
       throw new DrawingRecognitionError("RECOGNITION_DRAWING_FIELD_INVALID", "圖面欄位不在可正式化範圍。", 422);
     }
     await this.client.execute(
@@ -1166,21 +1731,31 @@ export class DrawingRecognitionAsyncRepository {
   }
 }
 
-function inferOwnerType(category: DrawingRecognitionCategory) {
+function inferOwnerType(category: DrawingRecognitionCategory, fieldKey?: string | null) {
+  if (fieldKey === "revision") return "drawing_revision";
   if (category === "part_attribute") return "part_number";
   if (category === "drawing_revision" || category === "controlled_note" || category === "engineering_evidence") return "drawing_revision";
   return null;
 }
 
-function inferOwnerId(category: DrawingRecognitionCategory, session: SessionRow) {
+function inferOwnerId(category: DrawingRecognitionCategory, fieldKey: string | null | undefined, session: SessionRow) {
+  if (fieldKey === "revision") return session.drawing_revision_id;
   if (category === "drawing_revision" || category === "controlled_note" || category === "engineering_evidence") return session.drawing_revision_id;
   return null;
 }
 
 function decisionUpdate(candidate: CandidateRow, decision: DrawingRecognitionDecisionInput) {
-  const proposedValue = decision.action === "not_applicable" ? null : decision.value === undefined ? candidate.proposed_value : boundedText(decision.value, 4_000);
-  const fieldLabel = boundedText(decision.fieldLabel, 200, candidate.field_label) || candidate.field_label;
-  const fieldKey = normalizeRecognitionKey(decision.fieldKey ?? candidate.field_key ?? fieldLabel) || null;
+  const rawProposedValue = decision.action === "not_applicable" ? null : decision.value === undefined ? candidate.proposed_value : boundedText(decision.value, 4_000);
+  const rawFieldLabel = boundedText(decision.fieldLabel, 200, candidate.field_label) || candidate.field_label;
+  const semantics = canonicalizeRecognitionSemantics({
+    category: decision.category ?? candidate.category,
+    fieldKey: decision.fieldKey ?? candidate.field_key ?? rawFieldLabel,
+    ownerType: decision.ownerType === undefined ? candidate.proposed_owner_type : decision.ownerType,
+    ownerId: decision.ownerId === undefined ? candidate.proposed_owner_id : decision.ownerId
+  });
+  const fieldKey = semantics.fieldKey;
+  const fieldLabel = canonicalRecognitionFieldLabel(fieldKey, rawFieldLabel);
+  const proposedValue = canonicalizeRecognitionValue(fieldKey, rawProposedValue);
   const reviewState = decision.action === "ignore" ? "ignored"
     : decision.action === "defer" ? "deferred"
       : decision.action === "restore" ? "proposed"
@@ -1188,13 +1763,13 @@ function decisionUpdate(candidate: CandidateRow, decision: DrawingRecognitionDec
           : decision.action === "map" || decision.action === "create_field" ? "mapped"
             : "corrected";
   return {
-    category: decision.category ?? candidate.category,
+    category: semantics.category,
     fieldKey,
     fieldLabel,
     proposedValue,
-    normalizedValue: proposedValue === null ? null : normalizeRecognitionValue(proposedValue),
-    ownerType: decision.ownerType === undefined ? candidate.proposed_owner_type : boundedText(decision.ownerType, 80) || null,
-    ownerId: decision.ownerId === undefined ? candidate.proposed_owner_id : boundedText(decision.ownerId, 200) || null,
+    normalizedValue: proposedValue,
+    ownerType: semantics.ownerType,
+    ownerId: semantics.ownerId,
     applicabilityScope: boundedText(decision.applicabilityScope, 120, candidate.applicability_scope) || candidate.applicability_scope,
     variantStatus: decision.action === "not_applicable" ? "explicit_not_applicable" : candidate.variant_status,
     reviewState

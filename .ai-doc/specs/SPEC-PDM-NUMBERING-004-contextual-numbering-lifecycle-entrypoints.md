@@ -1,5 +1,7 @@
 # SPEC-PDM-NUMBERING-004 - Contextual numbering and lifecycle entrypoints
 
+> 2026-08-18 DEV-077 Amendment：root detail drawer 對已配置 official number 的 Draft／NeedInfo bundle 不再提供 `刪除草稿`，改為 `作廢草稿編號`；eligible bundle免正式審核轉 `Obsolete` 且永久不回收。Active／Released或需正式責任鏈者仍走 `申請圖料根號作廢`與aggregate approval。本 amendment取代本文件Root Detail Drawer及Draft root cleanup的舊delete contract。
+
 Status: Implemented / local verification passed for Phase 1-3; Phase 4 release not authorized
 Date: 2026-07-08
 Owner: Dev PM
@@ -536,3 +538,84 @@ Stop and return to PM/human decision if:
 | Phase 2 / obsolete entries | Authorized and executed | Implemented / local verification passed | part/drawing obsolete CTAs, root impact wizard, approval request package | one-click obsolete, direct mutation, production | explicit RD authorization received | requests route through lifecycle/approval with impact and reason guard | focused QC, browser smoke |
 | Phase 3 / global fallback | Authorized and executed | Implemented / local verification passed | `/numbering/request` existing-root append mode | replacing object drawers | combined with Phase 1-2 implementation | global users can append after root search | focused QC, browser smoke |
 | Phase 4 / release | Not authorized | Release Authorization Required | deploy/migration/smoke/rollback | unapproved data mutation | explicit release authorization | release gate pass | deployment-release-gate evidence |
+
+## 2026-08-18 DEV-077 Amendment：Root lifecycle entrypoint convergence
+
+狀態：`RD Implementation Ready / Human Confirmed / RD Implemented / Production Release Gated`
+
+### Root Drawer Action Matrix
+
+本節對 DEV-077 scope 取代原 Root Detail Drawer 的 `Delete draft root` row、`draft-only → delete/cancel`規則，以及 Draft root cleanup 的 hard-delete contract。
+
+| Root aggregate condition | Action label | UI behavior | Server path | Result |
+|---|---|---|---|---|
+| official root＋全部children為Draft／NeedInfo、zero controlled reference、permission allowed、environment write opened | `作廢草稿編號` | enabled danger action；開確認dialog | `POST /api/numbering/records/[rootCode]/obsolete` | root＋children原子轉`Obsolete`；no reuse |
+| 同上，但environment write尚未opened | `作廢草稿編號` | visible inert／`未開放`；keyboard/touch可讀原因 | no write request | zero mutation |
+| root或任一child為Active／Released、root為`MainDrawingInvalid` formal-responsibility投影，或Draft／NeedInfo bundle已有受控引用 | `申請圖料根號作廢` | 開impact preview與root-level approval request | `GET .../obsolete-impact`＋`POST /api/lifecycle/obsolete-requests` | 核准前不變；approved後核定targets為`Obsolete` |
+| mixed／pending／terminal／blocked reference／no permission | 依policy hidden或inert | 顯示最小充分原因與可恢復路徑 | direct call fail closed | zero mutation |
+
+`作廢草稿編號` 與 `申請圖料根號作廢` 不得同時 enabled。`DELETE /api/numbering/records/[rootCode]/draft`不得再由root drawer呼叫，production永久不列入allowlist。
+
+### Server-Owned Action Policy
+
+root drawer 不得再以 `rootRecordStatus`與`rootFormalChildCount`自行決定最終 enabled。server policy至少回傳：
+
+- action identity：`obsolete_draft_official_number`或`request_formal_obsolete`；
+- domain eligibility與stable blocked reason；
+- permission result；
+- environment capability：hidden／inert／enabled；
+- requires approval、requires reason、requires acknowledgement；
+- impact counts與pending request reference（若適用）。
+
+route／service／repository仍須獨立重驗，不得信任client policy snapshot。stale policy或競態改變時，server fail closed且UI重新整理policy，不把raw machine code顯示給使用者。
+
+實作固定由`GET /api/numbering/roots/[rootCode]/obsolete-impact` additive回傳policy，不新增第二個平行policy route。`NumberingContextualEntrypoints`只在`mode="root"`載入此payload，取代`canDeleteDraftRoot`、`isRootObsoleteCandidate`與`delete_draft_root`分支；drawing／part既有formal action仍依各自server mutation重驗。
+
+```ts
+type RootLifecyclePolicy = {
+  action: "obsolete_draft_official_number" | "request_formal_obsolete" | "none";
+  availability: "hidden" | "inert" | "enabled";
+  requiresApproval: boolean;
+  requiresReason: boolean;
+  requiresAcknowledgement: boolean;
+  reasonCode: string | null;
+  message: string | null;
+};
+```
+
+同一response另含`controlledReferences` counts、完整`approvalTargets`與相容的`formalTargets`。UI不得顯示counts以外的raw SQL／route／machine detail，也不得以client prop覆寫server availability。
+
+### Draft Direct-Obsolete Dialog
+
+最小內容：
+
+- 鎖定的圖料根號與名稱；
+- part／drawing／relation數量；
+- 「編號永久不回收」與「完成後進受控歷史」；
+- 必填原因與明確 acknowledgement；
+- `取消`與`作廢草稿編號`。
+
+dialog 關閉／取消不得發write。成功後close dialog、更新drawer／list並讓default active list排除該root；include-history／受控歷史可查。不得顯示DEV ID、API route、raw status或`feature_not_open_in_production_slice`。
+
+submit固定使用`POST /api/numbering/records/[rootCode]/obsolete`、`Content-Type: application/json`與dialog生命週期內穩定的`Idempotency-Key`，body為`{ reason, confirmObsolete: true }`。reason與ack均為必填；disabled／inert／cancel／Escape不得發request。timeout先refresh policy，已Obsolete即顯示完成，不自動重播danger action。
+
+### Formal Obsolete Production Entry
+
+formal root沿用既有aggregate impact preview與approval package，不新增平行頁：
+
+1. Root drawer先讀impact並顯示Active／Released targets、受控Draft／NeedInfo targets、children、relations、warnings與pending request。
+2. 使用者填reason並確認scope後建立一筆root intent與child targets的approval package。
+3. `/approvals`或等效既有審核入口只在production Gate C開啟；generic decision endpoint必須依request action code精準允許obsolete actions。
+4. 受控Draft／NeedInfo bundle使用root-scoped `obsolete_part_root` snapshot，不假借單筆formal action；approved才transition，rejected／needs_info維持原狀態與責任鏈。
+5. Gate C的`/approvals`由server查詢層限制為三個obsolete action；detail、decision與apply retry逐筆重驗action／company。client只調整可見filter與文案，不承擔安全隔離。
+
+### UX Acceptance
+
+- 5秒內可辨識目前物件、終止動作是否需要審核、編號不會回收，以及未開放時不能操作的原因。
+- enabled action靠近root object；impact／制度／audit細節降層到dialog／drawer／history，不在主畫面堆疊說明卡。
+- 1440／1024／390 viewport無重疊、裁切、非預期horizontal overflow；focus、Escape、touch與screen-readable label可用。
+- inert action的network write count=0；所有in-scope surface visible-error sweep不得出現raw API／HTTP／stack錯誤。
+
+### Governance
+
+決策來源為DEV-077 `HD-077-01..03`。本 amendment 不改變candidate workspace／`part_number_drafts`的cancel／void／recycle。文件與local／isolated staging implementation 已達`RD Implementation Ready / RD Implemented`；不授權production release。Exact file map、focused commands與未完成的PostgreSQL／既有回歸 gate 見DEV-077，focused QA authority為`.ai-doc/qa/qa-dev-077-official-numbering-obsolete-production-lifecycle-validation-plan-2026-08-18.md`。

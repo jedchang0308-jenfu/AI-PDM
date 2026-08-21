@@ -25,10 +25,10 @@ export type PdmApprovalOwnerContext = {
 
 function ownerLocation(target: OwnerTarget) {
   const targetType = target.type.toLowerCase();
-  if (targetType.includes("workspace")) return { path: "/numbering/search", prefix: "candidate", surface: "relation" } as const;
-  if (targetType.includes("root")) return { path: "/numbering/search", prefix: "root", surface: "relation" } as const;
+  if (targetType.includes("workspace")) return { prefix: "candidate", surface: "relation" } as const;
+  if (targetType.includes("root")) return { prefix: "root", surface: "relation" } as const;
   if (targetType.includes("drawing")) return { path: "/numbering/drawings", prefix: "drawing", surface: "drawing" } as const;
-  if (targetType.includes("part")) return { path: "/parts", prefix: "part", surface: "part" } as const;
+  if (targetType.includes("part")) return { prefix: "part", surface: "part" } as const;
   return null;
 }
 
@@ -60,10 +60,5 @@ export function buildPdmApprovalOwnerHref(
   if (!target) return null;
   const location = ownerLocation(target);
   if (!location) return null;
-  const params = new URLSearchParams({
-    detail: `${location.prefix}:${target.targetId}`,
-    reviewRequestId: item.id,
-    returnTo
-  });
-  return `${location.path}?${params.toString()}`;
+  return `/approvals/${encodeURIComponent(item.id)}?returnTo=${encodeURIComponent(returnTo)}`;
 }

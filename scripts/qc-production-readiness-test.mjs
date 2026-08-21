@@ -161,7 +161,7 @@ function classifyReadinessTask(task) {
   if (/DEV-IND-007|Supabase|Postgres\/Supabase shadow|Postgres shadow/i.test(task)) {
     return "external_supabase_shadow";
   }
-  if (/DEV-CAD-001|Document Manager|metadata extraction adapter|讀取元件|授權元件|等效讀取|custom[- ]property/i.test(task)) {
+  if (/DEV-035|DEV-CAD-001|Document Manager|metadata extraction adapter|讀取元件|授權元件|等效讀取|custom[- ]property/i.test(task)) {
     return "external_document_manager";
   }
   if (/DEV-FIELD-001|field-test|現場測試|field validation/i.test(task)) {
@@ -280,6 +280,23 @@ function parseParkedExternalBlockerTask(line, index) {
   };
 }
 
+function parseActiveCheckboxReadinessTask(line, index) {
+  const match = line.match(/^[-]\s+☐\s+(DEV-[A-Z0-9-]+)\b\s+(.+)$/u);
+  if (!match) return null;
+
+  const priorityMatch = match[2].match(/\[(P[0-2])\]/i);
+  if (!priorityMatch) return null;
+
+  const task = `${match[1]} | ${match[2].trim()}`;
+  return {
+    line: index + 1,
+    priority: priorityMatch[1].toUpperCase(),
+    status: "open",
+    task,
+    category: classifyReadinessTask(task)
+  };
+}
+
 function parseReadinessTasks(markdown) {
   const tasks = [];
   let currentPriority = null;
@@ -338,6 +355,9 @@ function parseReadinessTasks(markdown) {
 
     const tableTask = parseTableReadinessTask(line, index, currentPriority);
     if (tableTask) tasks.push(tableTask);
+
+    const activeCheckboxTask = parseActiveCheckboxReadinessTask(line, index);
+    if (activeCheckboxTask) tasks.push(activeCheckboxTask);
   });
 
   return tasks;

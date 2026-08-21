@@ -2,7 +2,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { contentDispositionHeader } from "@/lib/file-response";
 import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { drawingPreviewMimeType, resolveDrawingPreviewAsync, type DrawingPreviewSource } from "@/lib/drawing-preview-asset";
-import { enqueuePreviewJobForSourceAsync } from "@/lib/preview-derivatives";
+import { enqueuePreviewJobForSourceAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { requireAuthAsync } from "@/lib/auth-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
@@ -94,7 +94,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ pack
       : { record: source, fileName: source.file_name || "圖面附件", mimeType: source.mime_type || drawingPreviewMimeType(source.file_ext) };
     if (!resolved) {
       if (wantsPreview) {
-        await enqueuePreviewJobForSourceAsync(client, { source: { ...source, storage_provider: source.storage_provider ?? "local_repository", linked_entity_type: "drawing_revision_package", linked_entity_id: decodedPackageId }, actorUserId: auth.user.id, requestedKind: source.file_ext.toLowerCase().replace(/^\./u, "") === "slddrw" ? "drawing_pdf" : "native_thumbnail_png", generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined, runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" });
+        await enqueuePreviewJobForSourceAsync(client, { source: { ...source, storage_provider: source.storage_provider ?? "local_repository", linked_entity_type: "drawing_revision_package", linked_entity_id: decodedPackageId }, actorUserId: auth.user.id, requestedKind: requestedPreviewKindForSource(source.file_ext), generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined, runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" });
       }
       return Response.json(
         { error: "PREVIEW_NOT_READY", message: "預覽正在準備；可先下載原檔。" },

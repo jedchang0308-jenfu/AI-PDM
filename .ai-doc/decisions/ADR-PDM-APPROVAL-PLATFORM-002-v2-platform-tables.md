@@ -8,6 +8,8 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain
 Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`
 Amended by: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
 
+> **2026-08-22 DEV-087 explicit exception**：DEV-087不是`approval_platform_*` v2 table的新producer；其transient review request與minimal trace由`ADR-PDM-STATUS-DATA-REBUILD-001`治理，`/approvals`只讀adapter。這是已記錄ADR例外，新決策優先，禁止為相容而雙寫或永久保存reviewer/decision/comment。其他domain與既有歷史migration規則不變。
+
 ## Context
 
 The user authorized `DEV-PDM-APPROVAL-PLATFORM-001` after confirming the stability-first direction:

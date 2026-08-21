@@ -60,6 +60,14 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: "/generated/dev-082-ocr/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          { key: "X-Content-Type-Options", value: "nosniff" }
+        ]
+      },
+      {
         source: "/api/:path*",
         headers: [
           { key: "Cache-Control", value: "private, no-store, max-age=0" },

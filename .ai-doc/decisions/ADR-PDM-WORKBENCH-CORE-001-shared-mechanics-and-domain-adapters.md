@@ -8,6 +8,12 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-WORKBENCH-CORE-001-shared-read-and-control
 Related QA: `.ai-doc/qa/qa-dev-062-unified-part-relation-workbench-validation-plan-2026-08-10.md`
 Extends: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`
 
+> **2026-08-22 DEV-087 amendment**：shared mechanics＋domain adapters仍保留；DEV-086單一RD lane、舊current-work/status/filter adapter由DEV-087 canonical state與最多3個Drawing RD branches取代。新決策優先；activation時移除舊adapter與fallback，不以相容性延長雙權威。
+
+> **2026-08-20 DEV-086 amendment（Accepted / RD Implementation Ready / Not Implemented）**
+>
+> `ADR-PDM-WORKBENCH-PRODUCTION-RD-LANES-001` amends 本 ADR 的 single-row stable identity 與 cursor v1 決策：target runtime 以 canonical `groupKey` 加 stable production／RD lane keys、group-based signed cursor v2 投影最多兩列。原決策的 shared mechanics + domain adapters、server composition、read-only list BFF、company／actor scope 與禁止 domain switch 全部保留；lane 的業務權威仍由各 domain adapter 決定。現行 runtime 在 umbrella flag 啟用前維持 v1，不得宣稱此 target 已落地。
+
 ## 1. Context
 
 `/numbering/drawings` 已證明 candidate workspace 與 formal master 可以透過 server-side read projection 在單頁安全呈現；但 `/parts` 與 `/numbering/search` 仍把正式資料與保留號拆成兩個可見頁籤。三個頁面目前又分別持有 URL、請求競態、選取、鍵盤、drawer 與 pagination 行為，形成重複機制。

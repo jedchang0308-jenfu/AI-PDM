@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Ban, ClipboardCopy, Mail, RefreshCw, RotateCcw, Send, UserPlus, X } from "lucide-react";
+import { StatusScopeHelp } from "@/components/status-help-popover";
+import { getStatusDisplay } from "@/lib/status-display";
 
 type InvitationRole = "Engineer" | "R&D Manager" | "Admin" | "Manufacturing" | "Procurement";
 type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
@@ -39,13 +41,7 @@ function roleLabel(role: InvitationRole) {
 }
 
 function statusLabel(status: InvitationStatus) {
-  const labels: Record<InvitationStatus, string> = {
-    pending: "等待設定密碼",
-    accepted: "已啟用",
-    revoked: "已撤銷",
-    expired: "已到期"
-  };
-  return labels[status];
+  return getStatusDisplay(status, "invitationStatus").label;
 }
 
 function formatDateTime(value: string | null) {
@@ -201,7 +197,7 @@ export default function AccountInvitationsPage() {
     <div className="account-invitations-page">
       <header className="page-header">
         <div>
-          <h1>帳號邀請</h1>
+          <h1>帳號邀請 <StatusScopeHelp scope="invitationList" /></h1>
           <p>建立帳號邀請，讓內部人員依收到的連結完成啟用。</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => void loadInvitations()} disabled={loading || saving}>

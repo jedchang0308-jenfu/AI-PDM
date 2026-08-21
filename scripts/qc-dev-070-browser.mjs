@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,9 +20,61 @@ fs.mkdirSync(dataDir, { recursive: true });
 fs.copyFileSync(path.join(root, "data", "ai-pdm.sqlite"), fixtureDb);
 const sourceRepositoryDir = path.join(root, "data", "repository");
 if (fs.existsSync(sourceRepositoryDir)) fs.cpSync(sourceRepositoryDir, repositoryDir, { recursive: true, force: true });
+
+function seedApprovalFixture(db) {
+  const admin = db.prepare("SELECT id FROM users WHERE email = 'admin@example.com'").get();
+  const drawing = db.prepare(`
+    SELECT drawing.id, drawing.drawing_number AS drawingNumber
+      FROM drawing_numbers drawing
+     WHERE drawing.company_id = 'company-jenfu'
+       AND EXISTS (
+         SELECT 1 FROM drawing_part_links link WHERE link.drawing_number_id = drawing.id
+       )
+     ORDER BY drawing.id
+     LIMIT 1
+  `).get();
+  const workspace = db.prepare(`
+    SELECT id FROM numbering_draft_workspaces
+     WHERE company_id = 'company-jenfu' AND lifecycle_status = 'active'
+     ORDER BY updated_at DESC, id
+     LIMIT 1
+  `).get();
+  if (!admin?.id || !drawing?.id || !workspace?.id) throw new Error("DEV-070 browser fixture lacks reviewer, linked drawing, or active workspace");
+  const suffix = crypto.randomUUID();
+  const now = new Date();
+  const assessedAt = new Date(now.getTime() - 2_000).toISOString();
+  const olderRequestAt = new Date(now.getTime() - 1_000).toISOString();
+  const newerRequestAt = now.toISOString();
+  db.prepare(`
+    INSERT INTO drawing_revision_fff_assessments (
+      id, company_id, drawing_number_id, revision, form_state, fit_state, function_state,
+      reason_category, note, assessed_by, assessed_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 'confirmed_impact', 'confirmed_impact', 'confirmed_impact', ?, ?, ?, ?)
+  `).run(`qc-dev070-legacy-${suffix}`, drawing.id, `QC-${suffix.slice(0, 8)}`, "qc_fixture", "DEV-070 disposable legacy review", admin.id, assessedAt);
+
+  const insertRequest = db.prepare(`
+    INSERT INTO approval_platform_requests (
+      id, company_id, action_code, domain_code, request_status, title, reason,
+      requested_by, requested_at, apply_status, payload_json, updated_at
+    ) VALUES (?, 'company-jenfu', 'numbering.candidate_bundle_review', 'numbering', ?, ?, ?, ?, ?, 'not_ready', '{}', ?)
+  `);
+  const insertTarget = db.prepare(`
+    INSERT INTO approval_platform_targets (
+      id, request_id, target_role, target_type, target_id, target_code, target_label, sort_order
+    ) VALUES (?, ?, 'primary', 'numbering_draft_workspace', ?, ?, ?, 0)
+  `);
+  const olderRequestId = `qc-dev070-native-older-${suffix}`;
+  const newerRequestId = `qc-dev070-native-newer-${suffix}`;
+  insertRequest.run(olderRequestId, "needs_info", "QC candidate review history", "QC fixture needs more information", admin.id, olderRequestAt, olderRequestAt);
+  insertTarget.run(`qc-dev070-target-older-${suffix}`, olderRequestId, workspace.id, workspace.id, "QC candidate workspace");
+  insertRequest.run(newerRequestId, "pending", "QC candidate review current", "QC fixture pending review", admin.id, newerRequestAt, newerRequestAt);
+  insertTarget.run(`qc-dev070-target-newer-${suffix}`, newerRequestId, workspace.id, workspace.id, "QC candidate workspace");
+}
+
 const fixture = new Database(fixtureDb);
 fixture.prepare("UPDATE users SET password_hash = NULL, account_status = 'active', system_role_enabled = 1, session_invalid_before = NULL WHERE email = 'admin@example.com'").run();
 fixture.prepare("UPDATE auth_identities SET status = 'active' WHERE login_identifier = 'admin@example.com'").run();
+seedApprovalFixture(fixture);
 fixture.close();
 const port = await getFreePort();
 Object.assign(process.env, {
@@ -160,16 +213,13 @@ try {
     assert.match(ownerText, /料號資料/u, "shared drawer exposes part information");
     assert.match(ownerText, /圖料關聯/u, "shared drawer exposes relation information");
     assert.match(ownerText, /版本與附件/u, "shared drawer exposes exact revision attachments");
-    for (const label of ["核准", "退回修改", "要求補充資料"]) {
-      const decisionButton = ownerPage.getByRole("button", { name: label, exact: true });
-      assert.equal(await decisionButton.count(), 1, `${label} remains visible in every pending PDM review`);
-      assert.equal(await decisionButton.isEnabled(), true, `${label} is left to the assigned human reviewer`);
-    }
+    assert.equal(await ownerPage.getByRole("link", { name: "前往審核", exact: true }).count(), 0, "approval-owner Drawing drawer does not duplicate the reviewer workspace entry");
+    assert.equal(await ownerPage.locator("[data-action-id='approve']").count(), 0, "Drawing review drawer does not own approval decisions after workspace cutover");
     assert.equal(await ownerPage.getByRole("link", { name: "查看歷史" }).count(), 1, "owner workbench navigation stays inside the drawer");
     await ownerPage.screenshot({ path: path.join(outputDir, "legacy-review-shared-owner-drawer.png"), fullPage: true });
     await ownerPage.getByRole("link", { name: "查看歷史" }).click();
-    await ownerPage.waitForURL(/\/numbering\/drawings/u, { timeout: 20000 });
-    assert.equal(new URL(ownerPage.url()).pathname, "/numbering/drawings", "drawer owner link opens the drawing workbench");
+    await ownerPage.waitForURL(/\/approvals\//u, { timeout: 20000 });
+    assert.equal(new URL(ownerPage.url()).pathname, `/approvals/${encodeURIComponent(ownerCandidate.id)}`, "drawer owner link opens the canonical reviewer workspace");
   }
   await ownerContext.close();
 

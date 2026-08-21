@@ -2,11 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-const labels: Record<string, string> = {
-  queued: "等待辨識", extracting: "辨識中", review_ready: "待人工核對", extraction_partial: "部分完成，待核對",
-  extraction_failed: "辨識失敗", ready_to_formalize: "可確認寫入", formalized: "已寫入 PDM", cancelled: "已由新版取代"
-};
+import { StatusSignalGroup } from "@/components/status-signal-group";
+import { getStatusDisplay } from "@/lib/status-display";
 
 export function DrawingRecognitionStatusChip({
   drawingNumber,
@@ -46,13 +43,29 @@ export function DrawingRecognitionStatusChip({
   }
   if (!session) return <span className="drawing-recognition-chip is-empty"><span>圖面辨識</span><strong>{emptyLabel}</strong></span>;
   const needsAttention = session.warningCount > 0 || session.conflictCount > 0;
+  const statusDisplay = getStatusDisplay(session.status, "recognitionStatus");
   const recognitionHref = new URLSearchParams(returnTo ? { returnTo } : {}).toString();
   const href = `/numbering/recognition/${encodeURIComponent(session.id)}${recognitionHref ? `?${recognitionHref}` : ""}`;
   return (
-    <Link className={`drawing-recognition-chip ${needsAttention ? "is-warning" : ""}`} href={href}>
-      <span>圖面辨識</span>
-      <strong>{labels[session.status] ?? session.status}</strong>
-      {needsAttention ? <small>{session.conflictCount > 0 ? `${session.conflictCount} 筆衝突` : `${session.warningCount} 項提醒`}</small> : null}
-    </Link>
+    <StatusSignalGroup
+      surface="detail"
+      primary={(
+        <Link className={`drawing-recognition-chip ${needsAttention ? "is-warning" : ""}`} href={href}>
+          <span>圖面辨識</span>
+          <strong>{statusDisplay.label}</strong>
+        </Link>
+      )}
+      signals={needsAttention ? [{
+        id: `${session.id}:review`,
+        context: "recognitionReviewStatus",
+        raw: session.conflictCount > 0 ? "conflict" : "proposed",
+        isPrimaryAxis: false,
+        affectsCurrentAction: true,
+        conflict: session.conflictCount > 0,
+        description: session.conflictCount > 0
+          ? `${session.conflictCount} 筆候選值與系統正式值不同，請先完成核對。`
+          : `${session.warningCount} 項辨識提醒仍需查看。`
+      }] : []}
+    />
   );
 }

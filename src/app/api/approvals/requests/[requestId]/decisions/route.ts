@@ -22,6 +22,7 @@ import {
   decideDrawingRevisionLifecycle,
   drawingRevisionLifecycleErrorPayload
 } from "@/lib/drawing-revision-lifecycle";
+import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
 
 export const runtime = "nodejs";
 
@@ -43,6 +44,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
   if (company.response || !company.company) return company.response;
   const detail = await getApprovalPlatformRequestDetailForCompanyAsync(decodedRequestId, company.company.companyId);
   if (!detail) return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
+  if (isProductionSliceEnforced()) {
+    if (!isProductionNumberingLifecycleGateOpen("formal-obsolete") || !isProductionNumberingLifecycleApprovalAction(detail.actionCode)) {
+      return NextResponse.json(productionSliceDeniedPayload("approvals.request.decisions"), { status: 403 });
+    }
+    const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");
+    const invalid = validateNumberStateMutationRequest({ request, idempotencyKey, requireIdempotency: true });
+    if (invalid) return invalid;
+  }
 
   if (detail.actionCode === "transfer.package_review") {
     const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");

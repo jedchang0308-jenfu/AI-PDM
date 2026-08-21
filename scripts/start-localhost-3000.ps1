@@ -10,9 +10,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$HostName = "127.0.0.1"
+$BindHost = "127.0.0.1"
+$PublicHost = "localhost"
 $Port = 3000
-$Url = "http://${HostName}:$Port/"
+$Url = "http://${PublicHost}:$Port/"
 $ProjectRootLower = $ProjectRoot.ToLowerInvariant()
 $RuntimeDir = Join-Path $ProjectRoot "tmp\local-dev"
 $PidFile = Join-Path $RuntimeDir "ai-pdm-3000.pid"
@@ -35,6 +36,7 @@ $DocumentManagerPreviewWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-document-
 $DocumentManagerPreviewWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.err.log"
 $DocumentManagerPreviewWorkerScript = Join-Path $ProjectRoot "scripts\run-solidworks-document-manager-preview-worker.mjs"
 $env:PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 = "true"
+$env:PDM_WORKBENCH_PRODUCTION_RD_LANES_V1 = "true"
 $HealthChecks = @(
   @{ Path = "/"; Expected = @(200, 301, 302, 307, 308) },
   @{ Path = "/login"; Expected = @(200, 301, 302, 307, 308) },
@@ -127,6 +129,12 @@ function Test-DocumentManagerPreviewKeyConfigured {
     $env:PDM_ENABLE_GCP_SECRET_READS -eq "true")
 }
 
+function Test-DocumentManagerInteropConfigured {
+  $interopDir = if ($env:PDM_SOLIDWORKS_INTEROP_DIR) { $env:PDM_SOLIDWORKS_INTEROP_DIR } else { "C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\api\redist" }
+  return (Test-Path -LiteralPath (Join-Path $interopDir "SolidWorks.Interop.swdocumentmgr.dll")) -and
+    (Test-Path -LiteralPath (Join-Path $interopDir "SolidWorks.Interop.swconst.dll"))
+}
+
 function Get-PreviewWorkerProcessInfo {
   if (-not (Test-Path -LiteralPath $PreviewWorkerPidFile)) {
     return $null
@@ -210,6 +218,15 @@ function Start-RecognitionWorker {
   }
 
   Ensure-RecognitionWorkerToken
+  Ensure-PreviewWorkerToken
+  if ((Test-DocumentManagerInteropConfigured) -and (-not $env:PDM_DRAWING_RECOGNITION_METADATA_CMD)) {
+    $env:PDM_DRAWING_RECOGNITION_METADATA_CMD = "node.exe"
+    $env:PDM_DRAWING_RECOGNITION_METADATA_ARGS = '["--experimental-transform-types","scripts/run-solidworks-document-manager-metadata-extractor.mjs"]'
+  }
+  if ((Test-DocumentManagerInteropConfigured) -and (-not $env:PDM_SOLIDWORKS_DOCUMENT_MANAGER_PROBE_CMD)) {
+    $env:PDM_SOLIDWORKS_DOCUMENT_MANAGER_PROBE_CMD = "node.exe"
+    $env:PDM_SOLIDWORKS_DOCUMENT_MANAGER_PROBE_ARGS = '["scripts/run-solidworks-document-manager-credential-probe.mjs"]'
+  }
   $env:PDM_DRAWING_RECOGNITION_WORKER_BASE_URL = $Url
   Remove-Item -LiteralPath $RecognitionWorkerStdoutLog, $RecognitionWorkerStderrLog, $RecognitionWorkerPidFile -ErrorAction SilentlyContinue
   $worker = Start-Process `
@@ -308,8 +325,8 @@ function Start-DocumentManagerPreviewWorker {
   }
 
   Remove-Item -LiteralPath $DocumentManagerPreviewWorkerPidFile -ErrorAction SilentlyContinue
-  if (-not (Test-DocumentManagerPreviewKeyConfigured)) {
-    Write-Host "2D preview worker is not configured: SolidWorks Document Manager key is unavailable to the worker."
+  if (-not (Test-DocumentManagerInteropConfigured)) {
+    Write-Host "2D preview worker is not configured: SolidWorks Document Manager interop DLLs are unavailable."
     return $null
   }
 
@@ -341,7 +358,7 @@ function Get-DocumentManagerPreviewWorkerState {
   if (Get-DocumentManagerPreviewWorkerProcessInfo) {
     return "running"
   }
-  if (Test-DocumentManagerPreviewKeyConfigured) {
+  if (Test-DocumentManagerInteropConfigured) {
     return "not_running"
   }
   return "not_configured"
@@ -373,7 +390,7 @@ function Test-LocalHttpHealth {
   $healthy = $true
 
   foreach ($check in $HealthChecks) {
-    $routeUrl = "http://${HostName}:$Port$($check.Path)"
+    $routeUrl = "http://${BindHost}:$Port$($check.Path)"
     $statusCode = 0
     $errorText = ""
     $responseContent = ""
@@ -567,7 +584,7 @@ if ($listeners.Count -gt 0) {
           exit 1
         }
         $documentManagerPreviewWorker = Get-DocumentManagerPreviewWorkerProcessInfo
-        if ((Test-DocumentManagerPreviewKeyConfigured) -and -not $documentManagerPreviewWorker) {
+        if ((Test-DocumentManagerInteropConfigured) -and -not $documentManagerPreviewWorker) {
           Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Website, 3D worker, and recognition worker are healthy, but the configured 2D preview worker is not running."
           Write-Error "AI_PDM website is healthy, but the configured 2D preview worker is not running. Run npm run dev:local:restart."
           exit 1

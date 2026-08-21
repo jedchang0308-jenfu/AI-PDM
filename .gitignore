@@ -25,6 +25,7 @@ output/dev-046-phase2a-preflight/
 output/dev-046-phase2b-preflight/
 output/dev-032-production-iac-terraform-validate/
 output/dev-069-iac-terraform-validate/
+/public/generated/dev-082-ocr/
 
 # Terraform working/state files. Reviewed dependency locks stay versioned.
 **/.terraform/*

@@ -1,5 +1,6 @@
 import { createHumanStatus, projectViewerHumanStatus, type HumanStatusProjection, type ViewerHumanStatusProjection } from "@/lib/human-status-projection";
 import type { ContextActionBarModel, PdmDetailActionDescriptor, PdmDetailStateFamily } from "@/lib/pdm-entity-detail-contract";
+import { actionEvidenceFrom, projectLegacyViewerStatus, projectResponsibilityStatus, projectViewerActionability, type ResponsibilityStatusProjection, type ViewerActionabilityProjection } from "@/lib/responsibility-status-projection";
 
 const responsibilityKinds = new Set([
   "edit",
@@ -62,6 +63,7 @@ export function projectPdmDetailViewerStatus(input: {
   stateFamily: PdmDetailStateFamily;
   actorId: string;
   ownerId: string | null;
+  ownerQueueEligible?: boolean;
   reviewerIds?: string[];
   reviewRequestId?: string | null;
   reviewContext?: boolean;
@@ -118,7 +120,7 @@ export function projectPdmDetailViewerStatus(input: {
       nextStep: enabled[0]?.label ?? applicable[0]?.label ?? null
     });
   }
-  if (input.ownerId && input.ownerId !== input.actorId) {
+  if (input.ownerId && input.ownerId !== input.actorId && !input.ownerQueueEligible) {
     return projectViewerHumanStatus(objectiveStatus, {
       responsibility: "other_user",
       basis: "assignee",
@@ -143,6 +145,53 @@ export function projectPdmDetailViewerStatus(input: {
     actorLabel: applicable.length > 0 ? "等待具備權限的負責人處理" : "尚未辨識可處理的負責人",
     nextStep: applicable[0]?.label ?? "查看明細"
   });
+}
+
+export function projectPdmDetailStatusPair(input: {
+  objectiveStatus: HumanStatusProjection;
+  stateFamily: PdmDetailStateFamily;
+  actorId: string;
+  ownerId: string | null;
+  ownerQueueEligible?: boolean;
+  reviewerIds?: string[];
+  reviewRequestId?: string | null;
+  reviewContext?: boolean;
+  actionBar: ContextActionBarModel;
+}): {
+  responsibilityStatus: ResponsibilityStatusProjection;
+  viewerActionability: ViewerActionabilityProjection;
+  viewerStatus: ViewerHumanStatusProjection;
+} {
+  const actionList = actions(input.actionBar);
+  const reviewActions = actionList.filter((action) => action.group === "review" || action.kind === "view_review");
+  const recoveryActions = actionList.filter((action) => action.kind === "retry_apply" || action.kind === "retry_cleanup");
+  const ownerResponsibilityActions = actionList.filter((action) => responsibilityKinds.has(action.kind) && action.group !== "review" && action.kind !== "view_review");
+  const activeReview = input.stateFamily === "in_review" && Boolean(input.reviewRequestId);
+  const responsibilityStatus = projectResponsibilityStatus({
+    status: input.objectiveStatus,
+    hasActiveReviewWorkItem: activeReview,
+    hasOwnerResponsibilityAction: input.stateFamily !== "in_review" && ownerResponsibilityActions.length > 0,
+    hasSystemAdminRecoveryAction: input.stateFamily === "recovery_required" && recoveryActions.length > 0,
+    systemFinalizing: input.stateFamily === "auto_finalizing"
+  });
+  const actionEvidence = (activeReview ? reviewActions : ownerResponsibilityActions)
+    .map(actionEvidenceFrom)
+    .filter((action): action is NonNullable<ReturnType<typeof actionEvidenceFrom>> => Boolean(action));
+  const viewerActionability = projectViewerActionability({
+    responsibilityStatus,
+    actorId: input.actorId,
+    ownerId: input.ownerId,
+    ownerQueueEligible: input.ownerQueueEligible,
+    reviewerIds: input.reviewerIds,
+    reviewQueueEligible: activeReview && input.reviewerIds === undefined && reviewActions.some((action) => action.enabled),
+    systemAdminQueueEligible: recoveryActions.some((action) => action.enabled),
+    responsibilityActions: actionEvidence
+  });
+  return {
+    responsibilityStatus,
+    viewerActionability,
+    viewerStatus: projectLegacyViewerStatus(input.objectiveStatus, responsibilityStatus, viewerActionability, actionEvidence)
+  };
 }
 
 export function pdmDetailActionabilityInvariant(input: {

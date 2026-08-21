@@ -9,12 +9,14 @@ import { compareRevisionCodes } from "@/lib/revision-policy";
 type DrawingPreviewRow = {
   rowKey: string;
   drawingId: string;
+  projectionToken?: string | null;
 };
 
 type PartPreviewRow = {
   rowKey: string;
   partRootId: string | null;
   workspaceId: string | null;
+  projectionToken?: string | null;
 };
 
 export type RepresentativeDrawingCandidate = {
@@ -133,7 +135,8 @@ function sourceSummary(
   sourceKind: PdmWorkbenchPreviewSummary["sourceKind"],
   rowKey: string,
   derivatives: DerivativeRow[],
-  jobs: JobRow[]
+  jobs: JobRow[],
+  projectionToken?: string | null
 ): PreviewReference {
   const base = {
     sourceKind,
@@ -157,7 +160,7 @@ function sourceSummary(
   if (ready) {
     const encodedRowKey = encodeURIComponent(rowKey);
     return {
-      summary: { ...base, state: "ready", href: `${sourceKind === "drawing_latest_3d" ? "/api/numbering/drawings/workbench" : "/api/parts/workbench"}/${encodedRowKey}/preview` },
+      summary: { ...base, state: "ready", href: `${sourceKind === "drawing_latest_3d" ? "/api/numbering/drawings/workbench" : "/api/parts/workbench"}/${encodedRowKey}/preview${projectionToken ? `?projectionToken=${encodeURIComponent(projectionToken)}` : ""}` },
       derivativeId: ready.id,
       sourceFileAssetId: source.sourceFileAssetId,
       sourceContentHash: source.sourceContentHash
@@ -179,7 +182,7 @@ function sourceSummary(
 
 async function resolveForDrawings(
   client: AsyncDatabaseClient,
-  rows: Array<{ rowKey: string; drawingId: string; sourceKind: PdmWorkbenchPreviewSummary["sourceKind"] }>,
+  rows: Array<{ rowKey: string; drawingId: string; sourceKind: PdmWorkbenchPreviewSummary["sourceKind"]; projectionToken?: string | null }>,
   companyId: string
 ) {
   const result = new Map<string, PreviewReference>();
@@ -291,7 +294,7 @@ async function resolveForDrawings(
       revision: revision?.revision ?? null,
       sourceFileAssetId: file?.source_file_asset_id ?? null,
       sourceContentHash: file?.content_hash ?? null
-    }, row.sourceKind, row.rowKey, derivatives, jobs));
+    }, row.sourceKind, row.rowKey, derivatives, jobs, row.projectionToken));
   }
   return result;
 }
@@ -307,7 +310,7 @@ export async function resolvePartWorkbenchPreviewReferences(client: AsyncDatabas
   const workspaces = [...new Set(rows.filter((row) => !row.partRootId).map((row) => row.workspaceId).filter((value): value is string => Boolean(value)))];
   const params = paramsFor("root", roots, paramsFor("workspace", workspaces, { companyId }));
   if (roots.length === 0 && workspaces.length === 0) {
-    for (const row of rows) result.set(row.rowKey, sourceSummary({ drawingId: "", drawingNumber: null, revision: null, sourceFileAssetId: null, sourceContentHash: null }, "root_representative_latest_3d", row.rowKey, [], []));
+    for (const row of rows) result.set(row.rowKey, sourceSummary({ drawingId: "", drawingNumber: null, revision: null, sourceFileAssetId: null, sourceContentHash: null }, "root_representative_latest_3d", row.rowKey, [], [], row.projectionToken));
     return result;
   }
   const drawings = await client.query<{ id: string; drawing_number: string | null; part_root_id: string | null; workspace_id: string | null; sequence_no: number | string | null; lifecycle_state: string | null }>(
@@ -331,13 +334,13 @@ export async function resolvePartWorkbenchPreviewReferences(client: AsyncDatabas
   const selectedRows = rows.map((row) => {
     const key = row.partRootId ? `root:${row.partRootId}` : row.workspaceId ? `workspace:${row.workspaceId}` : null;
     const selected = key ? selectedByKey.get(key) : null;
-    return selected ? { rowKey: row.rowKey, drawingId: selected.id, sourceKind: "root_representative_latest_3d" as const } : null;
-  }).filter((row): row is { rowKey: string; drawingId: string; sourceKind: "root_representative_latest_3d" } => Boolean(row));
+    return selected ? { rowKey: row.rowKey, drawingId: selected.id, sourceKind: "root_representative_latest_3d" as const, projectionToken: row.projectionToken } : null;
+  }).filter((row): row is { rowKey: string; drawingId: string; sourceKind: "root_representative_latest_3d"; projectionToken: string | null | undefined } => Boolean(row));
   const resolved = await resolveForDrawings(client, selectedRows, companyId);
   for (const row of rows) {
     const found = resolved.get(row.rowKey);
     if (found) result.set(row.rowKey, found);
-    else result.set(row.rowKey, sourceSummary({ drawingId: "", drawingNumber: null, revision: null, sourceFileAssetId: null, sourceContentHash: null }, "root_representative_latest_3d", row.rowKey, [], []));
+    else result.set(row.rowKey, sourceSummary({ drawingId: "", drawingNumber: null, revision: null, sourceFileAssetId: null, sourceContentHash: null }, "root_representative_latest_3d", row.rowKey, [], [], row.projectionToken));
   }
   return result;
 }

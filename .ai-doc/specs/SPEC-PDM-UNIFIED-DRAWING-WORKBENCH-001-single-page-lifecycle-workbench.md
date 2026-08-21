@@ -1,17 +1,47 @@
 # SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001：單一圖號工作台與生命週期導向操作
 
-Status: `Phase 1H Local RD Implemented / AI QA + Independent QC Passed / Production Release Gated`
-Date: 2026-08-05; amended 2026-08-06
+Status: `Phase 1H Local RD Implemented / AI QA + Independent QC Passed / DEV-079 RD Implemented Locally / Focused Evidence Available / Independent QC Pending / Production Release Gated`
+Date: 2026-08-05; amended 2026-08-19
 Owner: Dev PM
-Related DEV: `DEV-053` / `DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`
+Related DEV: `DEV-053` / `DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`; `DEV-079` / `DEV-PDM-DRAWING-READONLY-DRAWER-FULLPAGE-EDITOR-001`
 Parent DEV: `DEV-052`、`DEV-050`、`DEV-051`
-Related QA: `.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`
+Related QA: `.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`; `.ai-doc/qa/qa-dev-079-drawing-readonly-drawer-fullpage-workspace-validation-plan-2026-08-19.md`
 Related authority: `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
+
+> **2026-08-22 DEV-087 target supersession**：新決策優先。保留Drawing canonical identity、現有獨立full-page editor/recognition、exact artifact、permission與正式證據；top-level single row、DEV-086最多雙列/單一RD aggregate、legacy workspace/current-status/filter projection在activation時由production 0/1＋open branch latest RD 0..3及canonical handling取代並拆除，不保留fallback。
+
+> **2026-08-20 DEV-086 production／RD lane target amendment（RD Implementation Ready / Not Implemented）**
+>
+> `SPEC-PDM-WORKBENCH-PRODUCTION-RD-LANES-001` 有意取代本文「每個 formal drawing master 在 top-level list 只呈現一列／以最高 revision overlay 作最新版」的目標契約：同一 drawing canonical group 最多相鄰呈現一列`量產最新版`與一列`研發最新版`。當 V1 已完整發布、V2 正在編輯／審核／退回／發布失敗時，V1 仍是 production lane，V2 只在 RD lane 並標示目標量產版；只有完整原子發布成功才切換為 V2 production。每個 lane row 仍只有一個 human status，preview／download／detail 必須使用該 lane exact reference，不得跨 lane fallback。
+>
+> Spec Impact：`Intentional replacement + compatible preservation`。Drawing master、revision package、approval、permission、release command 與 shared mechanics/domain adapter 邊界不變；新 list/group/cursor/filter 契約以 DEV-086 主 SPEC 與 ADR 為準。現行 runtime 在 umbrella flag 啟用前仍維持本文既有 single-row projection，不得把此 target amendment 誤報為已實作。
 
 > **2026-08-11 Part-cost retirement amendment**
 >
 > The product part-cost capability is retired by `ADR-PDM-PART-COST-RETIREMENT-001`. Any historical standard-cost optionality, cost chip, cost maintenance entry or cost acceptance case in this document is superseded and must not be restored.
+
+> **2026-08-19 DEV-079 read-only drawer / full-page editing amendment**
+>
+> 使用者已確認 `1B／2A／3A`，並以 `HD-079-04 Visual-first amendment`更新 3A 的欄位 placement：整個 Drawing detail drawer 全面唯讀；所有圖號 mutation intent 由狀態導向 CTA 前往同分頁、獨立 URL 的 canonical owner workspace；桌面左側為可切換 2D／3D 的大型主視覺，右側為可切換`版次與檔案／智慧辨識`且自行捲動的任務面板，底部保留單一生命週期 action bar，窄 viewport 依主視覺→任務面板堆疊。OCR 沿用既有 recognition authority且不構成送審 gate。完整 UI、return、acceptance 與 re-entry 契約見 `SPEC-PDM-ENTITY-DETAIL-DRAWER-001` 的 `DEV-079` amendment。
+>
+> 因此本文所有 `drawing_preparation`、`bundle_ready`、formal revision 與 review 情境的 drawer action 應改讀為**導覽動作**：`編輯首版／繼續編輯`前往版次全頁工作區；`檢查並送審`前往同一工作區的預覽／送審區；`查看審核`前往 canonical review workspace；`建立新版次`前往正式版次全頁工作區。送審、核准、退回、撤回、上傳、版次儲存與其他寫入不得在 drawer 執行。
+>
+> Spec Impact：`Intentional replacement + compatible preservation`。本 amendment 取代本文 0.2 的「高頻圖面進版與上傳送審留在 drawer」、0.7.3 的 `mode: "drawer"` mutation placement、DEV-072 amendment 中 drawer 內 `送交審核`直接解鎖，以及其他要求 drawer 內完成 mutation 的 acceptance；保留 list/detail 的 zero-write read projection、server-derived action truth、`DEV-064` 單一 Drawing／Revision／File authority、既有 permission／lifecycle／submission／publication command、idempotency 與 concurrency。本階段已完成本機079-A～079-D：圖號 owner canonical route固定為`/numbering/drawings/[drawingId]/workspace?intent=<intent>&returnTo=<encoded>`，Drawing reviewer route固定為`/approvals/[requestId]?returnTo=<encoded>`；既有`/numbering/revisions?...`作compatibility adapter／shared-shell wrapper，不得保留平行command logic。實際attributable inventory為26個direct edits，完整檔案、baseline、dirty boundary、rollback與DoD以`SPEC-PDM-ENTITY-DETAIL-DRAWER-001`的DEV-079 RD Contract為authority；079-E仍待獨立QC完成全矩陣。
+>
+> Drawer action contract：`surface=drawing` 的 edit／submit／withdraw／create revision／manage files／review decision／recovery mutation descriptor 必須改為 canonical navigation 或 omitted／locked，不能是 drawer `command`／`local`；Part／Relation 不變。legacy 與 unified Drawing drawer 必須同次 zero-write，既有 `PDM_UNIFIED_ENTITY_DETAIL_V1` 只能切換唯讀 renderer，不能保留任一 drawer write path。
+>
+> Return contract：Drawing 清單的 `returnTo` 只接受 same-origin `/numbering/drawings`，Approval 只接受 `/approvals`；不得沿用 approval-only normalizer 吞掉 Drawing URL。URL 必須保存 keyword、filters、sort、layout、history、cursor／page、selected detail；完成、取消、back／forward、hard reload 與 direct URL 都回到可解釋的 server truth。完整 component inventory、state×actor destination、permission／failure／responsive 與 QA gate 以 `SPEC-PDM-ENTITY-DETAIL-DRAWER-001` 的 DEV-079 RD Contract 為 authority。
+
+> **2026-08-20 DEV-079 density/layout amendment**
+>
+> 依 owner workspace 紅線回饋，左側預覽移除 `N 類`計數／重複標題／下方重複檔名 footer，右側候選版次移除重複圖號與受控檔案輔助 metadata；2D／3D tab 同列顯示檔名，tab、預覽與右側 editor 的空白收斂為內容所需最小間距。生命週期 action bar 只置於右側 task column 底部，不保留左側空白 placeholder；左側預覽延伸使用該列高度。保留 2D／3D 預覽、版次儲存、檔案標題、受控檔案操作、上傳、智慧辨識與單一生命週期 action bar；不改任何 domain authority、permission、lifecycle、recognition 或 submit gate。三 viewport focused evidence 由 `npm.cmd run qc:dev-079:layout-browser` 產生，不取代 QA-079 完整矩陣。
+
+> 同一輪的 recognition density amendment（歷史切片）移除智慧辨識 tab badge、`輔助工具`標籤、compact 送審前說明／狀態 chip、重複統計摘要與分類標題；`source_file_role` 內部 metadata 不進人工核對清單與待處理計數。該輪逐欄操作已由下方 silent auto-recognition amendment 取代。
+
+> 2026-08-20 silent auto-recognition amendment 有意取代正常流程的手動`開始辨識`：candidate revision 檔案上傳成功後由 server ensure 去重排程；owner workspace 進頁時對既有檔案自動補建缺少的相符 session並輪詢，處理完成直接顯示結果。候選改為欄位 focus／click 定位證據、無座標顯示來源提示、單一`完成核對並儲存`批次提交；只有自動建立／載入異常保留重試。此變更不改recognition authority、permission、來源集合指紋、正式寫入或submit gate。
+>
+> 候選卡紅線 amendment 同步移除可見的`辨識／修正值`、`目前值`與`可信度`輔助文字；空正式值列不渲染，已有值只顯示值本身。該輪保留逐欄操作的決定已由上方 silent auto-recognition amendment 取代，現行以欄位定位與單一批次儲存為準。
 
 > **2026-08-14 DEV-072 detail-action amendment**
 >

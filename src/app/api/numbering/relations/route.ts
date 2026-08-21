@@ -8,7 +8,9 @@ import { projectEffectiveRelationRecordStatus, projectNumberingRootStatus, relat
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectDrawingRecordHumanStatus } from "@/lib/drawing-workbench-status";
 import { projectDrawingWorkbenchRecord, type DrawingWorkbenchActor, type DrawingWorkbenchRow } from "@/lib/drawing-workbench";
-import { normalizeHumanStatusFilter, projectRoleViewerHumanStatus, viewerStatusMatchesFilter, type HumanStatusRoleCapabilities } from "@/lib/human-status-projection";
+import { type HumanStatusRoleCapabilities } from "@/lib/human-status-projection";
+import { normalizeWorkStatusQuery } from "@/lib/work-status-presentation";
+import { projectRoleResponsibilityStatusPair, responsibilityStatusMatchesFilter } from "@/lib/responsibility-status-projection";
 import { canUserUseNumberingActionAsync, requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
 import { projectDrawingRecordAvailability, projectPartAvailability, projectRelationRootAvailability } from "@/lib/availability-scope";
@@ -25,6 +27,7 @@ import type {
   PartNumberRecord
 } from "@/lib/repositories/numbering-repository";
 import { compareNumberCodes, parseNumberSortDirection } from "@/lib/number-sort";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 export const runtime = "nodejs";
 
@@ -110,6 +113,7 @@ export async function GET(request: Request) {
     const actor: RelationWorkbenchActor = {
       id: auth.user.id,
       companyId: companyResult.company.companyId,
+      canEditNonOwned: hasPdmNonOwnerEditScope({ role: auth.user.role }),
       permissions: {
         workspaceView: workspaceView.allowed,
         workspaceUpdate: workspaceUpdate.allowed,
@@ -134,7 +138,8 @@ export async function GET(request: Request) {
   const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
   const seriesCode = url.searchParams.get("seriesCode")?.trim() || undefined;
   const limit = Number(url.searchParams.get("limit") ?? 60);
-  const humanStatus = normalizeHumanStatusFilter(url.searchParams.get("humanStatus"));
+  const workStatusQuery = normalizeWorkStatusQuery(url.searchParams.get("humanStatus"), url.searchParams.get("history"), url.searchParams.get("view"));
+  const humanStatus = workStatusQuery.filter;
   const requestedLimit = normalizeLimit(limit, 60);
   const sortDirection = parseNumberSortDirection(url.searchParams.get("sortDirection"));
 
@@ -147,7 +152,8 @@ export async function GET(request: Request) {
       entityType,
       recordStatus,
       sortDirection,
-      limit: humanStatus === "all" ? requestedLimit : 100
+      limit: humanStatus === "all" ? requestedLimit : null,
+      includeHistory: workStatusQuery.includeHistory
     }),
     listProductSeriesOptionsAsync(companyResult.company.companyId),
     listSeriesCodeOptionsAsync(companyResult.company.companyId),
@@ -181,8 +187,8 @@ export async function GET(request: Request) {
       })
     : [];
   const roots = details
-    .map((detail) => mapRelationRoot(detail, viewerCapabilities, canonicalDrawingRows, pendingCandidateWorkspaces))
-    .filter((root) => viewerStatusMatchesFilter(root.viewerStatus, root.humanStatus, humanStatus, root.availabilityScope))
+    .map((detail) => mapRelationRoot(detail, auth.user.id, viewerCapabilities, canonicalDrawingRows, pendingCandidateWorkspaces))
+    .filter((root) => responsibilityStatusMatchesFilter(root.responsibilityStatus, root.viewerActionability, root.humanStatus, humanStatus, root.availabilityScope))
     .sort((left, right) => compareNumberCodes(left.rootCode, right.rootCode, sortDirection) || left.rootId.localeCompare(right.rootId))
     .slice(0, requestedLimit);
   const summary = {
@@ -239,6 +245,7 @@ export async function POST(request: Request) {
 
 function mapRelationRoot(
   detail: NumberingRootDetailRecord,
+  actorId: string,
   viewerCapabilities: HumanStatusRoleCapabilities,
   canonicalDrawingRows: Map<string, DrawingWorkbenchRow>,
   pendingCandidateWorkspaces: NumberingDraftWorkspaceRecord[]
@@ -264,10 +271,11 @@ function mapRelationRoot(
   const drawings = detail.drawingNumbers.map((drawing) => mapRelationDrawing(
     drawing,
     linksByDrawing.get(drawing.id) ?? [],
+    actorId,
     viewerCapabilities,
     canonicalDrawingRows.get(drawing.id)
   ));
-  const parts = detail.partNumbers.map((part) => mapRelationPart(part, linksByPart.get(part.id) ?? [], drawingById, viewerCapabilities));
+  const parts = detail.partNumbers.map((part) => mapRelationPart(part, linksByPart.get(part.id) ?? [], drawingById, actorId, viewerCapabilities));
   const changeReviews = [
     ...detail.drawingNumbers.flatMap((drawing) => relationDrawingChangeReview(
       drawing,
@@ -287,7 +295,7 @@ function mapRelationRoot(
     relationshipHealth: health,
     relationshipLabel: relationshipHealthLabel(health),
     humanStatus,
-    viewerStatus: projectRoleViewerHumanStatus(humanStatus, viewerCapabilities),
+    ...projectRoleResponsibilityStatusPair({ status: humanStatus, actorId, capabilities: viewerCapabilities, href: `/numbering/search?detail=${encodeURIComponent(`root:${detail.root.id}`)}` }),
     availabilityScope,
     nextStep: relationNextStep(health, blockers),
     drawings,
@@ -301,6 +309,7 @@ function mapRelationRoot(
 function mapRelationDrawing(
   drawing: DrawingNumberRecord,
   links: NumberingLinkRecord[],
+  actorId: string,
   viewerCapabilities: HumanStatusRoleCapabilities,
   canonicalRow?: DrawingWorkbenchRow
 ) {
@@ -318,7 +327,9 @@ function mapRelationDrawing(
     isReferenceOnly,
     recordStatus: drawing.recordStatus,
     humanStatus,
-    viewerStatus: canonicalRow?.viewerStatus ?? projectRoleViewerHumanStatus(fallbackHumanStatus, viewerCapabilities),
+    responsibilityStatus: canonicalRow?.responsibilityStatus ?? projectRoleResponsibilityStatusPair({ status: fallbackHumanStatus, actorId, capabilities: viewerCapabilities, href: `/numbering/search?detail=${encodeURIComponent(`drawing:${drawing.id}`)}` }).responsibilityStatus,
+    viewerActionability: canonicalRow?.viewerActionability ?? projectRoleResponsibilityStatusPair({ status: fallbackHumanStatus, actorId, capabilities: viewerCapabilities, href: `/numbering/search?detail=${encodeURIComponent(`drawing:${drawing.id}`)}` }).viewerActionability,
+    viewerStatus: canonicalRow?.viewerStatus ?? projectRoleResponsibilityStatusPair({ status: fallbackHumanStatus, actorId, capabilities: viewerCapabilities, href: `/numbering/search?detail=${encodeURIComponent(`drawing:${drawing.id}`)}` }).viewerStatus,
     // The relationship tree represents the effective master drawing. A
     // revision candidate may be in review, but it must not replace the
     // master drawing's current availability here.
@@ -332,10 +343,12 @@ function relationDrawingProjectionActor(userId: string, companyId: string, creat
   return {
     id: userId,
     companyId,
+    canEditNonOwned: false,
     permissions: {
       workspaceView: false,
       workspaceUpdate: false,
       candidateSubmit: false,
+      candidateWithdraw: false,
       candidateReview: false,
       publish: false,
       createRevision,
@@ -346,7 +359,7 @@ function relationDrawingProjectionActor(userId: string, companyId: string, creat
   };
 }
 
-function mapRelationPart(part: PartNumberRecord, links: NumberingLinkRecord[], drawingById: Map<string, DrawingNumberRecord>, viewerCapabilities: HumanStatusRoleCapabilities) {
+function mapRelationPart(part: PartNumberRecord, links: NumberingLinkRecord[], drawingById: Map<string, DrawingNumberRecord>, actorId: string, viewerCapabilities: HumanStatusRoleCapabilities) {
   const hasManufacturingDrawing = links.some((link) => {
     const drawing = drawingById.get(link.drawingNumberId);
     return link.linkType === "primary_manufacturing" && Boolean(drawing && isManufacturingDrawingPurpose(drawing.purposeCode));
@@ -364,7 +377,7 @@ function mapRelationPart(part: PartNumberRecord, links: NumberingLinkRecord[], d
     itemKind: part.itemKind,
     recordStatus: part.recordStatus,
     humanStatus,
-    viewerStatus: projectRoleViewerHumanStatus(humanStatus, viewerCapabilities),
+    ...projectRoleResponsibilityStatusPair({ status: humanStatus, actorId, capabilities: viewerCapabilities, href: `/numbering/search?detail=${encodeURIComponent(`part:${part.id}`)}` }),
     availabilityScope: projectPartAvailability({
       recordStatus: part.recordStatus,
       itemKind: part.itemKind,

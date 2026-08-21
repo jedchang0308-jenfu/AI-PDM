@@ -84,8 +84,9 @@ record(
   "src/components/numbering-contextual-entrypoints.tsx"
 );
 record(
-  "Contextual root draft uses delete wording instead of formal obsolete wording",
-  includesAll(component, ["刪除草稿", "delete_draft_root", "尚未送審的草稿可直接刪除", "confirmDelete: true"]),
+  "Contextual root draft uses obsolete wording and preserves the bundle",
+  includesAll(component, ["作廢草稿編號", "obsolete_draft_root", "編號不會被刪除或回收", "confirmObsolete: true"]) &&
+    !component.includes("刪除草稿") && !component.includes("delete_draft_root") && !component.includes("confirmDelete: true"),
   "src/components/numbering-contextual-entrypoints.tsx"
 );
 
@@ -179,7 +180,7 @@ record(
   "append part routes"
 );
 record("Root obsolete impact route is search permission gated", obsoleteImpactRoute.includes('requireNumberingPageAsync(request, "numbering.search")'), "obsolete-impact route");
-record("Draft delete route requires explicit confirmation and draft lifecycle permission", includesAll(draftDeleteRoute, ["export async function DELETE", "confirmDelete", 'requireNumberingActionAsync(request, "numbering.draft.obsolete")', "deleteDraftNumberingRecordAsync"]), "draft delete route");
+record("Draft delete route remains outside the production allowlist", includesAll(draftDeleteRoute, ["export async function DELETE", "deleteDraftNumberingRecordAsync"]) && !read("src/lib/production-slice.ts").includes("draft/route"), "draft delete compatibility route");
 
 record(
   "Repository exposes append input/result contracts",

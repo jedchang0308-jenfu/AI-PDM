@@ -5,7 +5,7 @@ import { projectEffectiveRelationRecordStatus, projectNumberingRootStatus } from
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectDrawingRecordHumanStatus } from "@/lib/drawing-workbench-status";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
-import { projectRoleViewerHumanStatus } from "@/lib/human-status-projection";
+import { projectRoleResponsibilityStatusPair } from "@/lib/responsibility-status-projection";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
 import { projectDrawingRecordAvailability, projectPartAvailability, projectRelationRootAvailability } from "@/lib/availability-scope";
 
@@ -34,7 +34,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
     return {
       ...drawing,
       humanStatus,
-      viewerStatus: projectRoleViewerHumanStatus(humanStatus, viewerCapabilities),
+      ...projectRoleResponsibilityStatusPair({
+        status: humanStatus,
+        actorId: auth.user.id,
+        capabilities: viewerCapabilities,
+        href: `/numbering/search?detail=${encodeURIComponent(`drawing:${drawing.id}`)}`
+      }),
       availabilityScope: projectDrawingRecordAvailability(drawing)
     };
   });
@@ -50,7 +55,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
     return {
       ...part,
       humanStatus,
-      viewerStatus: projectRoleViewerHumanStatus(humanStatus, viewerCapabilities),
+      ...projectRoleResponsibilityStatusPair({
+        status: humanStatus,
+        actorId: auth.user.id,
+        capabilities: viewerCapabilities,
+        href: `/numbering/search?detail=${encodeURIComponent(`part:${part.id}`)}`
+      }),
       availabilityScope: projectPartAvailability({
         recordStatus: part.recordStatus,
         itemKind: part.itemKind,
@@ -71,7 +81,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
   return NextResponse.json({
     ...detail,
     humanStatus,
-    viewerStatus: projectRoleViewerHumanStatus(humanStatus, viewerCapabilities),
+    ...projectRoleResponsibilityStatusPair({
+      status: humanStatus,
+      actorId: auth.user.id,
+      capabilities: viewerCapabilities,
+      href: `/numbering/search?detail=${encodeURIComponent(`root:${detail.root.id}`)}`
+    }),
     availabilityScope,
     drawingNumbers,
     partNumbers,

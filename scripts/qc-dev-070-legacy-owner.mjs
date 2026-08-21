@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import Database from "better-sqlite3";
 import { closeAsyncDatabaseClient, getAsyncDatabaseClient } from "../src/lib/db-async-provider.ts";
 import { buildPdmApprovalOwnerHref } from "../src/lib/pdm-approval-owner-route.ts";
 import { PdmEntityDetailError, PdmEntityDetailService } from "../src/lib/pdm-entity-detail.ts";
@@ -8,6 +13,46 @@ import { assertPdmEntityWriteAllowedAsync, PdmReviewLockError } from "../src/lib
 import { AsyncApprovalPlatformRepository, decodeLegacyApprovalId } from "../src/lib/repositories/approval-platform-async-repository.ts";
 
 process.env.PDM_DB_PROVIDER = "sqlite";
+
+const root = process.cwd();
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev070-legacy-owner-"));
+const dataDir = path.join(tempRoot, "data");
+const repositoryDir = path.join(dataDir, "repository");
+const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
+const fixtureDb = path.join(dataDir, "ai-pdm.sqlite");
+fs.mkdirSync(dataDir, { recursive: true });
+fs.copyFileSync(sourceDb, fixtureDb);
+const sourceRepositoryDir = path.join(root, "data", "repository");
+if (fs.existsSync(sourceRepositoryDir)) fs.cpSync(sourceRepositoryDir, repositoryDir, { recursive: true, force: true });
+const seedDb = new Database(fixtureDb);
+const reviewer = seedDb.prepare(`
+  SELECT id FROM users
+   WHERE company_id = 'company-jenfu'
+     AND role IN ('R&D Manager', 'Admin')
+     AND account_status = 'active'
+     AND system_role_enabled = 1
+   ORDER BY CASE role WHEN 'Admin' THEN 0 ELSE 1 END, id
+   LIMIT 1
+`).get();
+const seedDrawing = seedDb.prepare(`
+  SELECT d.formal_drawing_number_id AS drawingNumberId, d.id AS drawingId
+    FROM drawings d
+    JOIN drawing_part_links link ON link.drawing_number_id = d.formal_drawing_number_id
+   WHERE d.company_id = 'company-jenfu'
+   ORDER BY d.id
+   LIMIT 1
+`).get();
+assert.ok(reviewer?.id && seedDrawing?.drawingNumberId && seedDrawing?.drawingId, "disposable fixture has a reviewer and linked drawing");
+const seedSuffix = crypto.randomUUID();
+seedDb.prepare(`
+  INSERT INTO drawing_revision_fff_assessments (
+    id, company_id, drawing_number_id, revision, submission_id, review_package_id,
+    form_state, fit_state, function_state, reason_category, note, assessed_by, assessed_at
+  ) VALUES (?, 'company-jenfu', ?, ?, NULL, NULL, 'confirmed_impact', 'confirmed_impact', 'confirmed_impact', 'qc_fixture', 'DEV-070 disposable legacy owner fixture', ?, datetime('now'))
+`).run(`qc-dev070-legacy-owner-${seedSuffix}`, seedDrawing.drawingNumberId, `QC-${seedSuffix.slice(0, 8)}`, reviewer.id);
+seedDb.close();
+process.env.PDM_DATA_DIR = dataDir;
+process.env.PDM_REPOSITORY_DIR = repositoryDir;
 
 const client = getAsyncDatabaseClient();
 try {
@@ -43,9 +88,7 @@ try {
   const ownerHref = buildPdmApprovalOwnerHref(legacy, returnTo);
   assert.ok(ownerHref, "legacy PDM review receives an owner route");
   const ownerUrl = new URL(ownerHref, "http://localhost");
-  assert.equal(ownerUrl.pathname, "/numbering/drawings");
-  assert.equal(ownerUrl.searchParams.get("detail"), `drawing:${legacy.primaryTarget.targetId}`);
-  assert.equal(ownerUrl.searchParams.get("reviewRequestId"), legacy.id);
+  assert.equal(ownerUrl.pathname, `/approvals/${encodeURIComponent(legacy.id)}`);
   assert.equal(ownerUrl.searchParams.get("returnTo"), returnTo);
 
   const response = await new PdmEntityDetailService(client).read({
@@ -80,14 +123,14 @@ try {
     relation.parts.map((part) => part.partNumber).sort(),
     "drawing and relation projections use the same root aggregate"
   );
-  assert.equal(response.actionBar.primary.execution?.type, "command", "approval action exposes an executable command");
+  assert.equal(response.actionBar.primary.execution?.type, "navigate", "approval drawer action routes to the canonical reviewer workspace");
   assert.match(decodeURIComponent(response.actionBar.primary.execution?.href ?? ""), new RegExp(legacy.id.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")), "approval action remains attached to the exact legacy request");
-  assert.equal(response.actionBar.primary.kind, "approve", "approve is always visible for a pending review");
-  assert.equal(response.actionBar.primary.enabled, true, "approve is available to the assigned human reviewer");
+  assert.equal(response.actionBar.primary.kind, "view_review", "review drawer exposes the canonical reviewer workspace entry");
+  assert.equal(response.actionBar.primary.enabled, true, "reviewer workspace entry is available to the assigned human reviewer");
   assert.deepEqual(
     response.actionBar.secondary.filter((action) => action.owner === "approval").map((action) => action.kind).sort(),
-    ["reject", "return_for_correction"].sort(),
-    "return and request-information decisions remain visible regardless of FFF outcome"
+    [],
+    "approval decisions stay on the canonical reviewer workspace instead of the read-only drawer"
   );
   assert.deepEqual(
     response.projections.review?.data.allowedDecisions,
@@ -176,4 +219,9 @@ try {
   console.log(`QC DEV-070 legacy owner: PASS (${legacy.targetSummary}, ${hasExactRevisionPackage ? "exact package" : "drawing fallback"}, ${drawing.attachments.length} attachments, ${relation.parts.length} related parts)`);
 } finally {
   await closeAsyncDatabaseClient();
+  try {
+    fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch {
+    // Best-effort cleanup: the disposable database has already been closed.
+  }
 }

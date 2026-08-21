@@ -71,7 +71,7 @@ function configureFixtureDatabase() {
   const database = new Database(fixtureDbPath);
   database.prepare("UPDATE users SET account_status = 'active', system_role_enabled = 1, session_invalid_before = NULL WHERE id = 'user-admin-demo' OR email = 'admin@example.com'").run();
   database.prepare("UPDATE auth_identities SET status = 'active' WHERE login_identifier = 'admin@example.com'").run();
-  const candidate = database.prepare(`
+  let candidate = database.prepare(`
     SELECT c.workspace_id AS workspaceId, c.approval_request_id AS approvalRequestId,
            reservation.candidate_code AS drawingCode, root.core_name AS coreName,
            c.id AS candidateRevisionId
@@ -84,6 +84,30 @@ function configureFixtureDatabase() {
      ORDER BY c.updated_at DESC, c.id
      LIMIT 1
   `).get();
+  if (!candidate) {
+    const closed = database.prepare(`
+      SELECT c.workspace_id AS workspaceId, c.approval_request_id AS approvalRequestId,
+             reservation.candidate_code AS drawingCode, root.core_name AS coreName,
+             c.id AS candidateRevisionId
+        FROM numbering_candidate_revision_drafts c
+        JOIN number_candidate_reservations reservation ON reservation.id = c.candidate_reservation_id
+        JOIN numbering_draft_roots root ON root.workspace_id = c.workspace_id
+        JOIN approval_platform_requests request ON request.id = c.approval_request_id
+       WHERE c.lifecycle_status = 'promoted'
+         AND request.request_status IN ('approved', 'needs_info')
+       ORDER BY c.updated_at DESC, c.id
+       LIMIT 1
+    `).get();
+    if (closed?.workspaceId && closed.approvalRequestId && closed.candidateRevisionId) {
+      const stamp = new Date().toISOString();
+      database.transaction(() => {
+        database.prepare("UPDATE approval_platform_requests SET request_status='pending', resolved_by=NULL, resolved_at=NULL, apply_status='not_ready', apply_attempts=0, apply_error=NULL, applied_by=NULL, applied_at=NULL, updated_at=? WHERE id=?").run(stamp, closed.approvalRequestId);
+        database.prepare("UPDATE numbering_candidate_revision_drafts SET lifecycle_status='review_locked', formal_drawing_number_id=NULL, formal_revision_package_id=NULL, promoted_at=NULL, updated_at=? WHERE id=?").run(stamp, closed.candidateRevisionId);
+        database.prepare("UPDATE numbering_draft_workspaces SET lifecycle_status='active', published_at=NULL, published_by=NULL, updated_at=? WHERE id=?").run(stamp, closed.workspaceId);
+      })();
+      candidate = closed;
+    }
+  }
   const relationRoot = database.prepare(`
     SELECT root.id AS rootId, root.root_code AS rootCode
       FROM part_roots root
@@ -172,10 +196,82 @@ async function login(page) {
 
 async function waitForUnifiedDrawer(page) {
   const marker = page.locator('[data-component="unified-pdm-entity-detail-drawer"]');
-  await marker.waitFor({ state: "visible", timeout: 20000 });
+  try {
+    await marker.waitFor({ state: "visible", timeout: 20000 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      url: window.location.href,
+      unifiedMarkers: document.querySelectorAll('[data-component="unified-pdm-entity-detail-drawer"]').length,
+      candidateMarkers: document.querySelectorAll('[data-component="drawing-workspace-drawer"]').length,
+      asides: [...document.querySelectorAll("aside")].map((node) => ({ className: node.className, ariaLabel: node.getAttribute("aria-label"), hidden: node.getAttribute("aria-hidden") })),
+      loading: [...document.querySelectorAll("[role=status], .drawing-workbench-detail-loading")].map((node) => (node.textContent ?? "").trim()).filter(Boolean).slice(0, 4),
+      bodyText: (document.body.innerText ?? "").slice(0, 500)
+    }));
+    throw new Error(`${errorMessage(error)} diagnostic=${JSON.stringify(diagnostic)}`);
+  }
   await page.locator("aside.pdm-entity-detail-drawer h2").waitFor({ state: "visible", timeout: 20000 });
   await page.waitForFunction(() => !document.querySelector(".unified-pdm-loading") && !document.querySelector(".unified-pdm-error"), null, { timeout: 20000 });
   return marker;
+}
+
+async function waitForCandidateDrawer(page) {
+  const marker = page.locator('[data-component="drawing-workspace-drawer"]');
+  try {
+    await marker.waitFor({ state: "visible", timeout: 20000 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      url: window.location.href,
+      unifiedMarkers: document.querySelectorAll('[data-component="unified-pdm-entity-detail-drawer"]').length,
+      candidateMarkers: document.querySelectorAll('[data-component="drawing-workspace-drawer"]').length,
+      asides: [...document.querySelectorAll("aside")].map((node) => ({ className: node.className, ariaLabel: node.getAttribute("aria-label") })),
+      bodyText: (document.body.innerText ?? "").slice(0, 500)
+    }));
+    throw new Error(`${errorMessage(error)} diagnostic=${JSON.stringify(diagnostic)}`);
+  }
+  await page.locator("aside.pdm-entity-detail-drawer h2").waitFor({ state: "visible", timeout: 20000 });
+  await page.waitForFunction(() => !document.querySelector(".drawing-workbench-detail-loading"), null, { timeout: 20000 });
+  return marker;
+}
+
+async function waitForAnyDrawer(page) {
+  await page.waitForFunction(() => Boolean(
+    document.querySelector('[data-component="unified-pdm-entity-detail-drawer"]') ||
+    document.querySelector('[data-component="drawing-workspace-drawer"]')
+  ), null, { timeout: 20000 });
+  await page.locator("aside.pdm-entity-detail-drawer h2").waitFor({ state: "visible", timeout: 20000 });
+  return page.evaluate(() => document.querySelector('[data-component="unified-pdm-entity-detail-drawer"]') ? "unified" : "candidate");
+}
+
+async function inspectCandidateDrawer(page, label) {
+  const markerCount = await page.locator('[data-component="drawing-workspace-drawer"]').count();
+  const drawer = page.locator("aside.pdm-entity-detail-drawer");
+  assert.equal(markerCount, 1, `${label}: candidate drawer must render once`);
+  assert.equal(await drawer.count(), 1, `${label}: candidate detail shell must render once`);
+  const scrollOwnerCount = await drawer.locator(".pdm-entity-drawer-body, .number-state-drawer-body").count();
+  if (scrollOwnerCount !== 1) {
+    const diagnostic = await page.evaluate(() => ({
+      aside: [...document.querySelectorAll("aside.pdm-entity-detail-drawer")].map((node) => ({ className: node.className, html: node.innerHTML.slice(0, 1200) })),
+      markers: [...document.querySelectorAll('[data-component="drawing-workspace-drawer"]')].map((node) => ({ className: node.className, parent: node.parentElement?.className }))
+    }));
+    throw new Error(`${label}: candidate drawer one scroll owner ${scrollOwnerCount} !== 1 diagnostic=${JSON.stringify(diagnostic)}`);
+  }
+  assert.equal(await drawer.locator("[data-pdm-drawer-close='true']").count(), 1, `${label}: candidate close must render once`);
+  assert.equal(await drawer.locator(".pdm-detail-drawer-resize-handle").count(), 1, `${label}: candidate resize affordance must render once`);
+  assert.equal(await drawer.locator("form, input, textarea, select, [data-primary-action^='submit'], [data-primary-action^='save'], [data-capability*='maintenance']").count(), 0, `${label}: candidate drawer must remain read-only`);
+  const layout = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    drawerAria: document.querySelector("aside.pdm-entity-detail-drawer")?.getAttribute("aria-label"),
+    labelledBy: document.querySelector("aside.pdm-entity-detail-drawer")?.getAttribute("aria-labelledby"),
+    labelledByIsHeading: (() => { const id = document.querySelector("aside.pdm-entity-detail-drawer")?.getAttribute("aria-labelledby"); return Boolean(id && document.getElementById(id)?.tagName === "H2"); })(),
+    headings: document.querySelectorAll("aside.pdm-entity-detail-drawer h2, aside.pdm-entity-detail-drawer h3").length,
+    previewBoards: document.querySelectorAll('[data-component="drawing-detail-preview"]').length
+  }));
+  assert.ok(layout.scrollWidth <= layout.viewportWidth + 1, `${label}: horizontal overflow ${layout.scrollWidth} > ${layout.viewportWidth}`);
+  assert.equal(layout.drawerAria?.includes("唯讀"), true, `${label}: candidate drawer needs read-only aria label`);
+  assert.equal(layout.labelledByIsHeading, true, `${label}: candidate drawer must label its heading`);
+  assert.ok(layout.headings >= 2, `${label}: candidate drawer should expose summary headings`);
+  return { marker: "drawing-workspace-drawer", layout };
 }
 
 async function inspectDrawer(page, expectedProjectionOrder, label, expectPreview) {
@@ -222,9 +318,27 @@ async function openAndInspect(page, route, expectedProjectionOrder, screenshotNa
   return detail;
 }
 
+async function openAndInspectCandidate(page, route, screenshotName) {
+  await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await waitForCandidateDrawer(page);
+  const detail = await inspectCandidateDrawer(page, screenshotName);
+  await page.screenshot({ path: path.join(screenshotDir, `${screenshotName}.png`), fullPage: true });
+  return detail;
+}
+
+async function openAndInspectAny(page, route, screenshotName, expectedProjectionOrder) {
+  await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+  const drawerType = await waitForAnyDrawer(page);
+  const detail = drawerType === "unified"
+    ? await inspectDrawer(page, expectedProjectionOrder, screenshotName, true)
+    : await inspectCandidateDrawer(page, screenshotName);
+  await page.screenshot({ path: path.join(screenshotDir, `${screenshotName}.png`), fullPage: true });
+  return { ...detail, drawerType };
+}
+
 async function closeByEscape(page) {
   await page.keyboard.press("Escape");
-  await page.waitForFunction(() => !document.querySelector('[data-component="unified-pdm-entity-detail-drawer"]'), null, { timeout: 10000 });
+  await page.waitForFunction(() => !document.querySelector('[data-component="unified-pdm-entity-detail-drawer"]') && !document.querySelector('[data-component="drawing-workspace-drawer"]'), null, { timeout: 10000 });
   const url = new URL(page.url());
   assert.equal(url.searchParams.has("detail"), false, "Escape must return to owner list without detail query");
 }
@@ -240,20 +354,20 @@ async function runFocusRestoreCase() {
     await source.waitFor({ state: "visible", timeout: 20000 });
     await source.focus();
     await source.click();
-    await waitForUnifiedDrawer(page);
+    const drawerType = await waitForAnyDrawer(page);
     assert.equal(await source.evaluate((node) => document.activeElement === node), true, "opening a non-modal drawer must preserve focus on the source row");
     const drawerTitle = page.locator("aside.pdm-entity-detail-drawer h2");
     const firstDrawerTitle = (await drawerTitle.innerText()).trim();
     await page.keyboard.press("ArrowDown");
     await page.waitForFunction((previousTitle) => {
       const node = document.querySelector("aside.pdm-entity-detail-drawer h2");
-      return Boolean(node && (node.textContent ?? "").trim() !== previousTitle);
+      return Boolean(node && ((node.textContent ?? "").trim() !== previousTitle || document.querySelector('[data-component="drawing-workspace-drawer"]')));
     }, firstDrawerTitle, { timeout: 10000 });
-    assert.equal(await page.locator('[data-component="unified-pdm-entity-detail-drawer"]').count(), 1, "ArrowDown after mouse-open must keep the drawer open");
+    assert.equal(await page.locator('[data-component="unified-pdm-entity-detail-drawer"], [data-component="drawing-workspace-drawer"]').count(), 1, "ArrowDown after mouse-open must keep one drawer open");
     await page.keyboard.press("Escape");
-    await page.waitForFunction(() => !document.querySelector('[data-component="unified-pdm-entity-detail-drawer"]'), null, { timeout: 10000 });
+    await page.waitForFunction(() => !document.querySelector('[data-component="unified-pdm-entity-detail-drawer"]') && !document.querySelector('[data-component="drawing-workspace-drawer"]'), null, { timeout: 10000 });
     assert.equal(await source.evaluate((node) => document.activeElement === node), true, "closing a drawer must restore focus to the source row");
-    record("UDD-BROWSER-mouse-open-arrow-navigation", true, { shortcuts: "mouse open -> ArrowDown -> Escape", focusedAfterClose: await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.textContent?.trim()) });
+    record("UDD-BROWSER-mouse-open-arrow-navigation", true, { drawerType, shortcuts: "mouse open -> ArrowDown -> Escape", focusedAfterClose: await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.textContent?.trim()) });
   } finally {
     await context.close();
   }
@@ -274,11 +388,11 @@ async function runKeyboardCase() {
     await list.focus();
     assert.equal(await list.evaluate((node) => document.activeElement === node), true, "keyboard list must retain an operable focus target");
     await page.keyboard.press("Enter");
-    await waitForUnifiedDrawer(page);
-    assert.equal(await page.locator('[data-component="unified-pdm-entity-detail-drawer"]').count(), 1, "keyboard Enter must open the canonical drawer");
+    const drawerType = await waitForAnyDrawer(page);
+    assert.equal(await page.locator('[data-component="unified-pdm-entity-detail-drawer"], [data-component="drawing-workspace-drawer"]').count(), 1, "keyboard Enter must open one canonical/read-only drawer");
     await page.keyboard.press("Escape");
-    await page.waitForFunction(() => !document.querySelector('[data-component="unified-pdm-entity-detail-drawer"]'), null, { timeout: 10000 });
-    record("UDD-BROWSER-keyboard-list-navigation", true, { shortcuts: "ArrowDown -> Enter -> Escape" });
+    await page.waitForFunction(() => !document.querySelector('[data-component="unified-pdm-entity-detail-drawer"]') && !document.querySelector('[data-component="drawing-workspace-drawer"]'), null, { timeout: 10000 });
+    record("UDD-BROWSER-keyboard-list-navigation", true, { drawerType, shortcuts: "ArrowDown -> Enter -> Escape" });
   } finally {
     await context.close();
   }
@@ -295,8 +409,8 @@ async function runRouteMatrix() {
   const candidate = encodeURIComponent(fixture.candidateKey);
   const relation = encodeURIComponent(fixture.relationKey);
   const routes = [
-    { name: "drawing", route: `/numbering/drawings?view=all&detail=${candidate}`, projections: ["DrawingProjection", "PartProjection"] },
-    { name: "part", route: `/parts?view=all&detail=${candidate}`, projections: ["DrawingProjection", "PartProjection"], expectPreview: false },
+    { name: "drawing", route: `/numbering/drawings?view=all&detail=${candidate}`, projections: ["DrawingProjection", "PartProjection", "RelationProjection"] },
+    { name: "part", route: `/parts?view=all&detail=${candidate}`, candidateDrawer: true },
     { name: "relation", route: `/numbering/search?view=all&detail=${relation}`, projections: ["DrawingProjection", "PartProjection", "RelationProjection"] }
   ];
   for (const viewport of viewports) {
@@ -308,7 +422,10 @@ async function runRouteMatrix() {
         attachMonitor(page, label);
         try {
           await login(page);
-          const detail = await openAndInspect(page, route.route, route.projections, `browser-${viewport.name}-${route.name}`, route.expectPreview ?? true);
+          const screenshotName = `browser-${viewport.name}-${route.name}`;
+          const detail = route.candidateDrawer
+            ? await openAndInspectCandidate(page, route.route, screenshotName)
+            : await openAndInspect(page, route.route, route.projections, screenshotName, route.expectPreview ?? true);
           await closeByEscape(page);
           return { viewport, route: route.name, projections: detail.projections, previewStates: detail.layout.previewStates, escapeReturnedTo: page.url() };
         } finally {
@@ -330,25 +447,22 @@ async function runReviewInteraction() {
     assert.equal(inbox.status, 200, `approval inbox failed: ${JSON.stringify(inbox.body)}`);
     const item = (inbox.body.items ?? []).find((entry) => entry.id === fixture.approvalRequestId);
     assert.ok(item?.ownerHref, `native approval ${fixture.approvalRequestId} must expose ownerHref`);
-    assert.ok(String(item.ownerHref).includes("reviewRequestId="), "ownerHref must preserve reviewRequestId");
+    assert.ok(String(item.ownerHref).startsWith(`/approvals/${encodeURIComponent(fixture.approvalRequestId)}`), `ownerHref must be exact reviewer route: ${item.ownerHref}`);
+    assert.equal(String(item.ownerHref).includes("/numbering/search"), false, "review owner must not fall back to list route");
     await runCase("UDD-BROWSER-approval-owner-route", async () => {
-      const detail = await openAndInspect(page, item.ownerHref, ["DrawingProjection", "PartProjection", "ReviewContextProjection"], "browser-review-owner", true);
-      assert.equal(await page.locator('[data-component="ReviewContextProjection"]').count(), 1, "review projection must render once");
-      assert.equal(await page.locator('[data-component="ApprovalSnapshotProjection"]').count(), 1, "snapshot projection must render once");
-      assert.equal(await page.locator(".unified-pdm-review-snapshot strong").count(), 1, "snapshot status must be visible");
-      assert.match(await page.locator(".unified-pdm-review-snapshot strong").innerText(), /一致|有差異|未提供/u);
-      assert.ok((await page.locator("body").innerText()).includes("審核快照"), "review context must be visible in owner route");
-      return { ownerHref: item.ownerHref, projections: detail.projections };
+      await page.goto(`${baseUrl}${item.ownerHref}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.locator('[data-workspace-kind="reviewer"] .dev079-workspace-grid').waitFor({ state: "visible", timeout: 20000 });
+      const alerts = await page.locator('[data-workspace-kind="reviewer"] [role="alert"]').allTextContents();
+      assert.deepEqual(alerts, [], `reviewer must not show visible error: ${alerts.join(" | ")}`);
+      const projectionCount = await page.locator('[data-workspace-kind="reviewer"] [data-component$="Projection"]').count();
+      assert.ok(projectionCount > 0, "reviewer must render a server-selected PDM projection");
+      assert.equal(new URL(page.url()).pathname, `/approvals/${encodeURIComponent(fixture.approvalRequestId)}`, "review owner must use canonical reviewer workspace");
+      await page.screenshot({ path: path.join(screenshotDir, "browser-review-owner.png"), fullPage: true });
+      return { ownerHref: item.ownerHref, projectionCount };
     });
-    await closeByEscape(page);
-    assert.equal(new URL(page.url()).pathname, "/approvals", "review Escape must return to approval workbench");
-    assert.equal(new URL(page.url()).searchParams.get("domain"), "numbering", "review Escape must preserve approval filters");
-
-    await page.goto(`${baseUrl}${item.ownerHref}`, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await waitForUnifiedDrawer(page);
-    await page.locator('[data-pdm-drawer-close="true"]').click();
+    await page.locator('[data-workspace-kind="reviewer"] header button[aria-label="返回審核清單"]').click();
     await page.waitForURL((url) => url.pathname === "/approvals", { timeout: 10000 });
-    assert.equal(new URL(page.url()).searchParams.get("domain"), "numbering", "review close must preserve approval filters");
+    assert.equal(new URL(page.url()).searchParams.get("domain"), "numbering", "review back must preserve approval filters");
     record("UDD-BROWSER-review-close-returnTo", true, { returnTo: page.url(), expectedReturnTo: returnTo });
   } finally {
     await context.close();

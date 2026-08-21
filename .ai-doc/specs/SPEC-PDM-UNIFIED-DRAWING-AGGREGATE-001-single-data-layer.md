@@ -7,6 +7,8 @@ Owner: Dev PM
 Related DEV: `DEV-064`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-AGGREGATE-001-canonical-drawing-and-revision.md`
 Related QA: `.ai-doc/qa/qa-dev-064-unified-drawing-aggregate-validation-plan-2026-08-11.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
+
+> **2026-08-22 DEV-087 target amendment**：本文件的Drawing/Revision/File canonical identity與approved artifact authority保留；三工作臺current row、current work、handling、branch latest、review request與filter由DEV-087專屬schema/API接管。legacy workspace/lifecycle projector只能作migration source或歷史證據，新決策優先且activation時拆除fallback。
 Supersedes in conflict:
 
 - `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`

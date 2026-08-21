@@ -1890,7 +1890,7 @@ function ensureSettingsSecretLifecycleSchema(database: SqliteDatabase) {
   const existingTable = database
     .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'secret_references'")
     .get() as { sql?: string } | undefined;
-  if (existingTable && !existingTable.sql?.includes("'google_secret_manager'")) {
+  if (existingTable && !existingTable.sql?.includes("'windows_dpapi'")) {
     database.pragma("foreign_keys = OFF");
     try {
       database.exec("BEGIN IMMEDIATE");
@@ -1901,7 +1901,7 @@ function ensureSettingsSecretLifecycleSchema(database: SqliteDatabase) {
           kind TEXT NOT NULL,
           provider TEXT NOT NULL,
           display_name TEXT NOT NULL,
-          vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'google_secret_manager', 'supabase_vault')),
+          vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'windows_dpapi', 'google_secret_manager', 'supabase_vault')),
           vault_secret_id TEXT NOT NULL,
           masked_hint TEXT NOT NULL,
           fingerprint TEXT NOT NULL,
@@ -1957,7 +1957,7 @@ function ensureSettingsSecretLifecycleSchema(database: SqliteDatabase) {
       kind TEXT NOT NULL,
       provider TEXT NOT NULL,
       display_name TEXT NOT NULL,
-      vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'google_secret_manager', 'supabase_vault')),
+      vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'windows_dpapi', 'google_secret_manager', 'supabase_vault')),
       vault_secret_id TEXT NOT NULL,
       masked_hint TEXT NOT NULL,
       fingerprint TEXT NOT NULL,
@@ -2009,6 +2009,42 @@ function ensureSettingsSecretLifecycleSchema(database: SqliteDatabase) {
       FOREIGN KEY (actor_id) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS settings_secret_probe_jobs (
+      id TEXT PRIMARY KEY,
+      secret_reference_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'passed', 'failed', 'blocked', 'expired')),
+      locked_by TEXT,
+      locked_at TEXT,
+      heartbeat_at TEXT,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      max_attempts INTEGER NOT NULL DEFAULT 2,
+      result_code TEXT,
+      reader_version TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS worker_capability_heartbeats (
+      worker_id TEXT NOT NULL,
+      worker_kind TEXT NOT NULL,
+      capability_code TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('ready', 'blocked', 'degraded')),
+      applied_secret_kind TEXT,
+      applied_secret_version INTEGER,
+      applied_secret_fingerprint TEXT,
+      reader_version TEXT,
+      issue_code TEXT,
+      last_applied_at TEXT,
+      last_seen_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (worker_id, capability_code)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_secret_references_kind_status
       ON secret_references(kind, lifecycle_status, version DESC);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_secret_references_kind_active_unique
@@ -2018,6 +2054,15 @@ function ensureSettingsSecretLifecycleSchema(database: SqliteDatabase) {
       ON setting_test_runs(secret_reference_id, tested_at DESC);
     CREATE INDEX IF NOT EXISTS idx_setting_activation_events_secret
       ON setting_activation_events(secret_reference_id, event_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_settings_secret_probe_jobs_claim
+      ON settings_secret_probe_jobs(status, updated_at ASC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_settings_secret_probe_jobs_active
+      ON settings_secret_probe_jobs(secret_reference_id)
+      WHERE status IN ('pending', 'running');
+    CREATE INDEX IF NOT EXISTS idx_settings_secret_probe_jobs_reference
+      ON settings_secret_probe_jobs(secret_reference_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_worker_capability_heartbeats_capability
+      ON worker_capability_heartbeats(capability_code, last_seen_at DESC);
   `);
 }
 

@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Grid2X2, ListTree, RefreshCcw, Search, X } from "lucide-react";
 import { HumanStatusBadge } from "@/components/human-status-badge";
-import { HumanStatusFilterSelect } from "@/components/human-status-filter";
-import { ConfirmDialog, NumberStateOwnerCreateAction, WorkspaceDrawer, type NumberingDraftWorkspace, type WorkspaceAction } from "@/components/number-state-workspace";
+import { PdmWorkbenchMultiSelectFilter } from "@/components/pdm-workbench-multi-select-filter";
+import { NumberStateOwnerCreateAction, WorkspaceReadonlyDrawer, type NumberingDraftWorkspace, type WorkspaceAction } from "@/components/number-state-workspace";
 import type { CandidateRevisionWorkspace } from "@/components/numbering-candidate-revision-editor";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { UnifiedPdmEntityDetailDrawer } from "@/components/unified-pdm-entity-detail-drawer";
@@ -16,7 +16,10 @@ import { NumberingContextualEntrypoints } from "@/components/numbering-contextua
 import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
 import { usePdmWorkbenchController, type PdmWorkbenchLocationState } from "@/components/use-pdm-workbench-controller";
-import type { HumanStatusFilter, HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import type { HumanStatusProjection, ViewerHumanStatusProjection } from "@/lib/human-status-projection";
+import { parseWorkStatusSelection, WORK_STATUS_MULTI_SELECT_OPTIONS, type WorkStatusFilter } from "@/lib/work-status-presentation";
+import type { PdmWorkbenchFilterSelection } from "@/lib/pdm-workbench-contract";
+import { parsePdmWorkbenchFilterSelectionForBrowser, serializePdmWorkbenchFilterSelection } from "@/lib/pdm-workbench-filter-selection";
 import { resolveNumberingSearchDetailTarget, type NumberingSearchDetailTarget } from "@/lib/numbering-search-target";
 import type {
   ProjectedRelationRootDetail,
@@ -26,19 +29,23 @@ import type {
   RelationWorkbenchRow,
   RelationWorkbenchView
 } from "@/lib/relation-workbench";
+import { RELATION_WORKBENCH_ENTITY_TYPE_VALUES } from "@/lib/pdm-workbench-filter-options";
+import { PDM_WORKBENCH_RECORD_STATUS_VALUES } from "@/lib/pdm-workbench-filter-options";
 import type { NumberingRecordStatus, NumberingSearchEntityType } from "@/lib/repositories/numbering-repository";
 import { DEFAULT_NUMBER_SORT_DIRECTION, type NumberSortDirection } from "@/lib/number-sort";
 import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
+import { formatStatusForUser } from "@/lib/status-display";
 
 type RelationQueryState = {
   view: RelationWorkbenchView;
   query: string;
-  seriesCode: string;
-  entityType: NumberingSearchEntityType;
-  recordStatus: "" | NumberingRecordStatus;
-  humanStatus: HumanStatusFilter;
+  seriesCode: PdmWorkbenchFilterSelection<string>;
+  entityType: PdmWorkbenchFilterSelection<NumberingSearchEntityType>;
+  recordStatus: PdmWorkbenchFilterSelection<NumberingRecordStatus>;
+  humanStatus: PdmWorkbenchFilterSelection<WorkStatusFilter>;
   includeHistory: boolean;
   sortDirection: NumberSortDirection;
+  lane: PdmWorkbenchFilterSelection<"production" | "rd">;
 };
 type RelationViewMode = "tree" | "matrix";
 type ImpactAnalysis = {
@@ -78,19 +85,37 @@ type FeatureStatus = { lifecycleV2?: { enabled?: boolean }; entityDetail?: { ena
 type ProductionSliceStatus = { configured?: boolean; unopenedMessage?: string };
 type ApiBody = { error?: string | { code?: string; message?: string }; message?: string };
 
-const initialQuery: RelationQueryState = { view: "all", query: "", seriesCode: "", entityType: "all", recordStatus: "", humanStatus: "all", includeHistory: false, sortDirection: DEFAULT_NUMBER_SORT_DIRECTION };
+const initialQuery: RelationQueryState = { view: "all", query: "", seriesCode: { mode: "all" }, entityType: { mode: "all" }, recordStatus: { mode: "all" }, humanStatus: { mode: "all" }, includeHistory: false, sortDirection: DEFAULT_NUMBER_SORT_DIRECTION, lane: { mode: "all" } };
 const defaultUnopenedMessage = "此功能未納入本次編號建立 production slice。";
 
 function readLocation(canonicalize = false): PdmWorkbenchLocationState<RelationQueryState> {
   const params = new URLSearchParams(window.location.search);
   const legacyReserved = params.get("tab") === "reserved";
-  const rawView = params.get("view");
-  const view: RelationWorkbenchView = legacyReserved || rawView === "work" ? "work" : rawView === "mine" ? "mine" : "all";
+  const rawView = legacyReserved ? "work" : params.get("view");
+  let workStatusQuery: ReturnType<typeof parseWorkStatusSelection>;
+  try {
+    workStatusQuery = parseWorkStatusSelection(params, { history: params.get("history"), view: rawView, supportsMineView: true, strict: true });
+  } catch {
+    params.delete("humanStatus");
+    params.set("humanStatus", "__none__");
+    workStatusQuery = { selection: { mode: "none" }, includeHistory: false, view: "all", rewriteRequired: true };
+  }
+  const view: RelationWorkbenchView = workStatusQuery.view === "work" ? "work" : workStatusQuery.view === "mine" ? "mine" : "all";
   const rawDetail = params.get("detail")?.trim() ?? "";
   const detailKey = rawDetail ? rawDetail.includes(":") ? rawDetail : legacyReserved ? `candidate:${rawDetail}` : rawDetail : null;
+  const seriesCode = parsePdmWorkbenchFilterSelectionForBrowser(params, "seriesCode", { maxValueLength: 80 });
+  const entityType = parsePdmWorkbenchFilterSelectionForBrowser<NumberingSearchEntityType>(params, "entityType", { allowedValues: RELATION_WORKBENCH_ENTITY_TYPE_VALUES, maxValueLength: 30 });
+  const recordStatus = parsePdmWorkbenchFilterSelectionForBrowser<NumberingRecordStatus>(params, "recordStatus", { allowedValues: PDM_WORKBENCH_RECORD_STATUS_VALUES, maxValueLength: 40 });
+  const lane = parsePdmWorkbenchFilterSelectionForBrowser<"production" | "rd">(params, "lane", { allowedValues: ["production", "rd"] });
   if (canonicalize) {
     params.delete("tab");
     params.set("view", view);
+    workStatusQuery.includeHistory ? params.set("history", "include") : params.delete("history");
+    serializePdmWorkbenchFilterSelection(params, "humanStatus", workStatusQuery.selection);
+    serializePdmWorkbenchFilterSelection(params, "seriesCode", seriesCode);
+    serializePdmWorkbenchFilterSelection(params, "entityType", entityType);
+    serializePdmWorkbenchFilterSelection(params, "recordStatus", recordStatus);
+    serializePdmWorkbenchFilterSelection(params, "lane", lane);
     if (detailKey && detailKey !== rawDetail) params.set("detail", detailKey);
     window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
   }
@@ -98,15 +123,18 @@ function readLocation(canonicalize = false): PdmWorkbenchLocationState<RelationQ
     query: {
       view,
       query: params.get("query")?.trim() ?? "",
-      seriesCode: params.get("seriesCode")?.trim() ?? "",
-      entityType: (params.get("entityType")?.trim() ?? "all") as NumberingSearchEntityType,
-      recordStatus: (params.get("recordStatus")?.trim() ?? "") as "" | NumberingRecordStatus,
-      humanStatus: (params.get("humanStatus")?.trim() ?? "all") as HumanStatusFilter,
-      includeHistory: params.get("history") === "include",
+      seriesCode,
+      entityType,
+      recordStatus,
+      lane,
+      humanStatus: workStatusQuery.selection,
+      includeHistory: workStatusQuery.includeHistory,
       sortDirection: params.get("sortDirection") === "desc" ? "desc" : DEFAULT_NUMBER_SORT_DIRECTION
     },
     detailKey,
-    legacyDetail: rawDetail && !rawDetail.includes(":") ? rawDetail : null
+    legacyDetail: rawDetail && !rawDetail.includes(":") ? rawDetail : null,
+    cursor: params.get("cursor"),
+    pageIndex: Number(params.get("pageIndex") ?? "0") || 0
   };
 }
 
@@ -116,29 +144,34 @@ function writeLocation(state: PdmWorkbenchLocationState<RelationQueryState>, mod
   params.set("view", state.query.view);
   const optional = (key: string, value: string) => value ? params.set(key, value) : params.delete(key);
   optional("query", state.query.query.trim());
-  optional("seriesCode", state.query.seriesCode);
-  optional("entityType", state.query.entityType === "all" ? "" : state.query.entityType);
-  optional("recordStatus", state.query.recordStatus);
-  optional("humanStatus", state.query.humanStatus === "all" ? "" : state.query.humanStatus);
+  serializePdmWorkbenchFilterSelection(params, "seriesCode", state.query.seriesCode);
+  serializePdmWorkbenchFilterSelection(params, "entityType", state.query.entityType);
+  serializePdmWorkbenchFilterSelection(params, "recordStatus", state.query.recordStatus);
+  serializePdmWorkbenchFilterSelection(params, "lane", state.query.lane);
+  serializePdmWorkbenchFilterSelection(params, "humanStatus", state.query.humanStatus);
   optional("sortDirection", state.query.sortDirection === DEFAULT_NUMBER_SORT_DIRECTION ? "" : state.query.sortDirection);
   state.query.includeHistory ? params.set("history", "include") : params.delete("history");
   const reviewRequestId = new URLSearchParams(window.location.search).get("reviewRequestId");
   reviewRequestId ? params.set("reviewRequestId", reviewRequestId) : params.delete("reviewRequestId");
   optional("detail", state.detailKey ?? "");
+  optional("cursor", state.cursor ?? "");
+  state.pageIndex && state.pageIndex > 0 ? params.set("pageIndex", String(state.pageIndex)) : params.delete("pageIndex");
   window.history[mode === "push" ? "pushState" : "replaceState"](null, "", `${window.location.pathname}?${params.toString()}`);
 }
 
 function listUrl(query: RelationQueryState, cursor: string | null) {
-  const params = new URLSearchParams({ projection: "workbench_v1", view: query.view, limit: "60", history: query.includeHistory ? "include" : "exclude", entityType: query.entityType });
+  const params = new URLSearchParams({ projection: "workbench_v1", view: query.view, limit: "60", history: query.includeHistory ? "include" : "exclude" });
   params.set("sortDirection", query.sortDirection);
   if (query.query.trim()) params.set("query", query.query.trim());
-  if (query.seriesCode) params.set("seriesCode", query.seriesCode);
-  if (query.recordStatus) params.set("recordStatus", query.recordStatus);
-  if (query.humanStatus !== "all") params.set("humanStatus", query.humanStatus);
+  serializePdmWorkbenchFilterSelection(params, "seriesCode", query.seriesCode);
+  serializePdmWorkbenchFilterSelection(params, "entityType", query.entityType);
+  serializePdmWorkbenchFilterSelection(params, "recordStatus", query.recordStatus);
+  serializePdmWorkbenchFilterSelection(params, "lane", query.lane);
+  serializePdmWorkbenchFilterSelection(params, "humanStatus", query.humanStatus);
   if (cursor) params.set("cursor", cursor);
   return `/api/numbering/relations?${params.toString()}`;
 }
-function detailUrl(rowKey: string) { return `/api/numbering/relations/${encodeURIComponent(rowKey)}`; }
+function detailUrl(rowKey: string, row?: RelationWorkbenchRow) { const token = row?.lane?.reference.projectionToken; return `/api/numbering/relations/${encodeURIComponent(rowKey)}${token ? `?projectionToken=${encodeURIComponent(token)}` : ""}`; }
 function rowKey(row: RelationWorkbenchRow) { return row.rowKey; }
 function detailKey(detail: RelationWorkbenchDetailResponse) { return detail.row.rowKey; }
 function copyText(row: RelationWorkbenchRow) { return row.displayCode; }
@@ -176,12 +209,12 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
   const controller = usePdmWorkbenchController<RelationWorkbenchRow, RelationWorkbenchDetailResponse, RelationQueryState, RelationWorkbenchListResponse["filters"]>({
     initialQuery, initialLocation, readLocation: currentLocation, writeLocation, buildListUrl: listUrl, buildDetailUrl: detailUrl,
     getRowKey: rowKey, normalizeResponse: normalizeList, normalizeDetail, detailRowKey: detailKey,
-    detailHistoryMode: "push", shouldSkipDetailFetch: skipUnifiedReviewDetail, listErrorMessage: "圖料工作台目前無法載入，請重新整理。", detailErrorMessage: "這筆圖料工作已不存在或目前無法查看。", onUnauthorized: redirectLogin
+    detailHistoryMode: "push", paginationMode: "server-bidirectional", shouldSkipDetailFetch: skipUnifiedReviewDetail, listErrorMessage: "圖料工作台目前無法載入，請重新整理。", detailErrorMessage: "這筆圖料工作已不存在或目前無法查看。", onUnauthorized: redirectLogin
   });
   const {
     rows, filters, loading, detailLoading, error, setError, notice, setNotice,
     query, setQuery, selectedKey, setSelectedKey, detail, setDetail,
-    nextCursor, pageIndex, loadRows, goNext, goPrevious,
+    nextCursor, previousCursor, pageIndex, loadRows, goNext, goPrevious,
     openDetail: openControllerDetail, closeDetail: closeControllerDetail
   } = controller;
   const [viewMode, setViewMode] = useState<RelationViewMode>("tree");
@@ -233,7 +266,7 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
     if (body?.rootDetail) setDetailTarget(target ?? { entityType: "part_root", rootCode: body.rootDetail.root.rootCode });
     if (body?.row.stage === "history_only" && !query.includeHistory) {
       setQuery((current) => ({ ...current, includeHistory: true }));
-      setNotice("此筆為歷史紀錄，已自動開啟「包含歷史」。");
+      setNotice("此筆為歷史紀錄，已自動載入歷史資料。");
     }
     return body;
   }, [openControllerDetail, query.includeHistory, setNotice, setQuery]);
@@ -321,7 +354,11 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
 
   const toggleExpanded = useCallback((key: string) => setExpanded((current) => { const next = new Set(current); next.has(key) ? next.delete(key) : next.add(key); return next; }), []);
   const seriesOptions = filters?.seriesCodeOptions ?? [];
-  const recordOptions = filters?.recordStatusOptions ?? [];
+  const recordOptions = filters?.recordStatusOptions ?? PDM_WORKBENCH_RECORD_STATUS_VALUES;
+  const seriesFilterOptions = seriesOptions.map((option) => ({ value: option, label: option }));
+  const entityFilterOptions = RELATION_WORKBENCH_ENTITY_TYPE_VALUES.map((value) => ({ value, label: value === "part_root" ? "圖料根號" : value === "part_number" ? "料號" : "圖號" }));
+  const recordStatusFilterOptions = recordOptions.map((option) => ({ value: option, label: formatStatusForUser(option, "masterRecord") }));
+  const laneFilterOptions = [{ value: "production" as const, label: "量產最新版" }, { value: "rd" as const, label: "研發最新版" }];
   const unifiedContextualActions = (() => {
     const rootDetail = detail?.rootDetail;
     if (!unifiedEntityDetailEnabled || !rootDetail || !detailTarget || reviewRequestId) return null;
@@ -351,14 +388,13 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
       <section className="panel pdm-workbench-toolbar">
         <div className="drawing-workbench-filter-grid">
           <label className="drawing-workbench-search"><span>搜尋</span><div><Search size={16} /><input value={query.query} onChange={(event) => updateQuery({ query: event.target.value })} placeholder="圖料根號、料號、圖號、名稱" /></div></label>
-          <label><span>範圍</span><select value={query.view} onChange={(event) => updateQuery({ view: event.target.value as RelationWorkbenchView })}><option value="all">全部</option><option value="mine">我的待處理</option><option value="work">工作中</option></select></label>
-          <label><span>工作狀態</span><HumanStatusFilterSelect value={query.humanStatus} onChange={(humanStatus) => updateQuery({ humanStatus })} /></label>
-          <label><span>系列代號</span><select value={query.seriesCode} onChange={(event) => updateQuery({ seriesCode: event.target.value })}><option value="">全部系列</option>{seriesOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
-          <label><span>類型</span><select value={query.entityType} onChange={(event) => updateQuery({ entityType: event.target.value as NumberingSearchEntityType })}><option value="all">全部</option><option value="part_root">圖料根號</option><option value="part_number">料號</option><option value="drawing_number">圖號</option></select></label>
-          <label><span>資料狀態</span><select value={query.recordStatus} onChange={(event) => updateQuery({ recordStatus: event.target.value as "" | NumberingRecordStatus })}><option value="">全部狀態</option>{recordOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
+          <PdmWorkbenchMultiSelectFilter label="工作狀態" value={query.humanStatus} options={WORK_STATUS_MULTI_SELECT_OPTIONS} onApply={(value) => updateQuery({ humanStatus: value })} />
+          <PdmWorkbenchMultiSelectFilter label="系列代號" value={query.seriesCode} options={seriesFilterOptions} searchable onApply={(value) => updateQuery({ seriesCode: value })} />
+          <PdmWorkbenchMultiSelectFilter label="類型" value={query.entityType} options={entityFilterOptions} onApply={(value) => updateQuery({ entityType: value })} />
+          <PdmWorkbenchMultiSelectFilter label="資料狀態" value={query.recordStatus} options={recordStatusFilterOptions} onApply={(value) => updateQuery({ recordStatus: value })} />
+          <PdmWorkbenchMultiSelectFilter label="版本列" value={query.lane} options={laneFilterOptions} onApply={(value) => updateQuery({ lane: value })} />
         </div>
         <div className="pdm-workbench-toolbar-footer">
-          <label className="drawing-workbench-history-toggle"><input type="checkbox" checked={query.includeHistory} onChange={(event) => updateQuery({ includeHistory: event.target.checked })} /><span>包含歷史</span><small>顯示已取消、已作廢與已合併紀錄</small></label>
           <div className="pdm-workbench-toolbar-view-actions">
             <div className="pdm-relation-view-switch" role="tablist" aria-label="圖料關係顯示模式"><button className={viewMode === "tree" ? "active" : undefined} type="button" role="tab" aria-selected={viewMode === "tree"} onClick={() => setViewMode("tree")}><ListTree size={16} aria-hidden="true" />關係樹</button><button className={viewMode === "matrix" ? "active" : undefined} type="button" role="tab" aria-selected={viewMode === "matrix"} onClick={() => setViewMode("matrix")}><Grid2X2 size={16} aria-hidden="true" />矩陣</button></div>
           </div>
@@ -373,17 +409,16 @@ export function RelationWorkbench({ renderRootDetail }: { renderRootDetail: (pro
               <span>工作狀態</span>
             </div>
             <div ref={listRef} className="pdm-relation-scroll" role="region" aria-label="圖料工作清單" tabIndex={0} onKeyDown={keyboard.handleKeyDown} aria-keyshortcuts={keyboard.shortcuts}>
-              <div className="pdm-relation-list">{rows.map((row) => <RelationRowCard row={row} query={query.query} selected={row.rowKey === selectedKey} expanded={expanded.has(row.rowKey)} viewMode={viewMode} onToggle={() => toggleExpanded(row.rowKey)} onOpen={() => void openDetail(row.rowKey)} onOpenChange={(change) => void openDetail(change.rowKey)} onOpenTarget={(target) => openRootTarget(row, target)} key={row.rowKey} />)}</div>
+              <div className="pdm-relation-list">{[...new Map(rows.map((row) => [row.lane?.groupKey ?? row.rowKey, rows.filter((candidate) => (candidate.lane?.groupKey ?? candidate.rowKey) === (row.lane?.groupKey ?? row.rowKey))])).values()].map((group, index) => <div role="rowgroup" aria-label={group[0]?.lane ? `${group[0].displayCode} ${group[0].lane.laneLabel}` : undefined} key={String(index)}>{group.map((row) => <RelationRowCard row={row} query={query.query} selected={row.rowKey === selectedKey} expanded={expanded.has(row.rowKey)} viewMode={viewMode} onToggle={() => toggleExpanded(row.rowKey)} onOpen={() => void openDetail(row.rowKey)} onOpenChange={(change) => void openDetail(change.rowKey)} onOpenTarget={(target) => openRootTarget(row, target)} key={row.rowKey} />)}</div>)}</div>
             </div>
           </>
         )}
-        <PdmWorkbenchPagination pageIndex={pageIndex} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
+        <PdmWorkbenchPagination pageIndex={pageIndex} hasPreviousPage={Boolean(previousCursor)} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
       </section>
       {detailLoading && !detail ? <div className="drawing-workbench-detail-loading" role="status">正在載入明細...</div> : null}
-      {detail?.candidate ? <WorkspaceDrawer workspace={detail.candidate as NumberingDraftWorkspace} busy={workspaceBusy} editing={editing} onEdit={() => setEditing(true)} onCancelEdit={() => setEditing(false)} onUpdate={(payload) => void updateWorkspace(payload)} onSubmit={() => setConfirmAction("submit")} onWithdraw={() => setConfirmAction("withdraw")} onPublish={() => setConfirmAction("publish")} onCancel={() => setConfirmAction("cancel")} formalActionsUnopened={productionSliceEnforced} unopenedMessage={unopenedMessage} canCreateDrawingRevision={false} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onV2WorkspaceChange={acceptWorkspace} onV2Error={setError} onV2Notice={setNotice} seriesCodeOptions={seriesOptions} width={drawerWidth} onStartResize={startDrawerResize} keepOpenSelector="[data-relation-workbench-row='true']" presentation={{ entityLabel: "圖料變更", title: detail.row.displayCode, sourceContext: "relation_workbench", cancelLabel: "取消圖料變更", cancelTitle: "取消圖料申請" }} onClose={closeDetail} /> : null}
-      {detail?.candidate && confirmAction ? <ConfirmDialog action={confirmAction} workspace={detail.candidate as NumberingDraftWorkspace} busy={workspaceBusy} lifecycleV2Enabled={feature?.lifecycleV2?.enabled === true} onClose={() => setConfirmAction(null)} onConfirm={() => void runWorkspaceAction(confirmAction)} /> : null}
+      {detail?.candidate ? <WorkspaceReadonlyDrawer workspace={detail.candidate as NumberingDraftWorkspace} ownerHref={`/numbering/workspaces/${encodeURIComponent(detail.candidate.id)}?intent=view&returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`} width={drawerWidth} onStartResize={startDrawerResize} keepOpenSelector="[data-relation-workbench-row='true']" presentation={{ entityLabel: "圖料變更", title: detail.row.displayCode, sourceContext: "relation_workbench" }} onClose={closeDetail} /> : null}
       {detail?.rootDetail && detailTarget && !unifiedEntityDetailEnabled ? renderRootDetail({ detail: detail.rootDetail, detailTarget, activeChanges: detail.row.activeChanges, onOpenChange: (change) => void openDetail(change.rowKey), impact, busy: operationBusy, width: drawerWidth, onAnalyzeImpact: (drawingNumber) => void analyzeImpact(drawingNumber), onRelationChange: maintainRelation, onChanged: refresh, onCanonicalOwnerProjection: () => undefined, onStartResize: startDrawerResize, onClose: closeDetail, returnTo: window.location.pathname + window.location.search }) : null}
-      {unifiedEntityDetailEnabled && selectedKey && !detail?.candidate ? <UnifiedPdmEntityDetailDrawer open entityKey={detailEntityKey ?? selectedKey} surface="relation" reviewRequestId={reviewRequestId} width={drawerWidth} returnTo={reviewRequestId ? reviewReturnTo() : window.location.pathname + window.location.search} onRelationChange={maintainRelation} contextualActions={unifiedContextualActions} onContextualChanged={refresh} onStartResize={startDrawerResize} onClose={reviewRequestId ? () => router.push(reviewReturnTo()) : closeDetail} /> : null}
+      {unifiedEntityDetailEnabled && selectedKey && detail && !detail.candidate && (detailEntityKey || detail.rootDetail) ? <UnifiedPdmEntityDetailDrawer open entityKey={(detailEntityKey ?? (detail.rootDetail ? `root:${detail.rootDetail.root.id}` : selectedKey)).replace(/:(?:production|rd)$/u, "")} surface="relation" reviewRequestId={reviewRequestId} width={drawerWidth} returnTo={reviewRequestId ? reviewReturnTo() : window.location.pathname + window.location.search} onStartResize={startDrawerResize} onClose={reviewRequestId ? () => router.push(reviewReturnTo()) : closeDetail} /> : null}
     </>
   );
 }
@@ -407,11 +442,26 @@ function RelationRowCard({ row, query, selected, expanded, viewMode, onToggle, o
         <button className="icon-button" type="button" onClick={(event) => { event.stopPropagation(); onToggle(); }} aria-label={expanded ? "收合關係" : "展開關係"}>{expanded ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</button>
         <div className="pdm-relation-root-main">
           <button className="link-button pdm-identity-code" type="button" onClick={onOpen}><SearchHighlight value={row.displayCode} query={query} /></button>
-          <strong className="pdm-identity-name"><SearchHighlight value={row.displayName} query={query} /></strong>
+          <strong className="pdm-identity-name"><SearchHighlight value={row.displayName} query={query} />{row.lane ? <span className={`pdm-workbench-lane-badge is-${row.lane.lane}`}>{row.lane.laneLabel}</span> : null}</strong>
         </div>
         <div className="pdm-relation-root-meta">
-          <HumanStatusBadge status={row.humanStatus} viewerStatus={row.viewerStatus} availabilityScope={row.availabilityScope} />
-          <span className={`pdm-relation-health ${row.relationshipHealth === "complete" ? "ok" : row.relationshipHealth === "blocked" ? "blocked" : row.relationshipHealth === "draft" ? "info" : "warning"}`}>{row.relationshipLabel}</span>
+          <HumanStatusBadge
+            status={row.humanStatus}
+            responsibilityStatus={row.responsibilityStatus}
+            viewerActionability={row.viewerActionability}
+            viewerStatus={row.viewerStatus}
+            availabilityScope={row.availabilityScope}
+            exceptionSignals={row.relationshipHealth === "complete" ? [] : [{
+              id: `${row.rowKey}:relationship`,
+              context: "readinessStatus",
+              raw: row.relationshipHealth === "blocked" ? "Blocked" : "Incomplete",
+              isPrimaryAxis: false,
+              affectsCurrentAction: row.relationshipHealth === "blocked",
+              missingRequired: row.relationshipHealth === "blocked",
+              label: row.relationshipLabel,
+              description: row.blockers.length > 0 ? row.blockers.map((blocker) => blocker.message).join("；") : "關聯資料尚未完全收斂。"
+            }]}
+          />
         </div>
       </header>
       {expanded ? <div className="pdm-relation-root-body">{viewMode === "tree" ? <RelationTree row={row} query={query} onOpenChange={onOpenChange} onOpenTarget={onOpenTarget} /> : <RelationMatrix row={row} query={query} onOpenTarget={onOpenTarget} />}{visibleBlockers.length > 0 ? <div className="pdm-relation-blocker-list">{visibleBlockers.map((blocker) => <span key={`${blocker.code}:${blocker.targetId ?? "root"}`}>{blocker.message}</span>)}</div> : null}</div> : null}

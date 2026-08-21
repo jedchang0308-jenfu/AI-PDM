@@ -4,6 +4,7 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
 import { normalizePartWorkbenchQuery, PartWorkbenchService, partWorkbenchErrorResponse, type PartWorkbenchActor } from "@/lib/part-workbench";
 import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,7 @@ async function resolveActor(request: Request) {
   const actor: PartWorkbenchActor = {
     id: auth.user.id,
     companyId: companyResult.company.companyId,
+    canEditNonOwned: hasPdmNonOwnerEditScope({ role: auth.user.role }),
     permissions: {
       workspaceView: workspaceView.allowed,
       workspaceUpdate: workspaceUpdate.allowed,

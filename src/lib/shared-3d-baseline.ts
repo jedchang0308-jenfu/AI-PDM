@@ -509,12 +509,24 @@ export async function releaseManufacturingBaselineAsync(input: { baselineId: str
     },
     items
   });
-  await repository.releaseManufacturingBaseline({ baselineId: baseline.id, releasedBy: input.actorId, releasedAt, snapshotJson });
-  await createAuditLogAsync({
-    actorId: input.actorId,
-    action: "ManufacturingBaselineReleased",
-    detail: { baselineId: baseline.id, sharedModelVersionId: model.id, itemCount: items.length }
-  });
+  try {
+    await repository.releaseManufacturingBaselineWithAudit({
+      baselineId: baseline.id,
+      releasedBy: input.actorId,
+      releasedAt,
+      snapshotJson,
+      audit: {
+        actorId: input.actorId,
+        action: "ManufacturingBaselineReleased",
+        detail: { baselineId: baseline.id, sharedModelVersionId: model.id, itemCount: items.length }
+      }
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "BASELINE_RELEASE_CONFLICT") {
+      throw new Shared3dBaselineError("BASELINE_IMMUTABLE", "製造基準包已被其他交易發行或狀態已變更。", 409);
+    }
+    throw error;
+  }
   const released = await repository.getManufacturingBaseline(baseline.id);
   return { baseline: released, items };
 }

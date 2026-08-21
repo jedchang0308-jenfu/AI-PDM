@@ -1414,7 +1414,7 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
               <label className="bom-field">
                 <span>BOM 狀態</span>
                 <select value={bomListStatus} onChange={(event) => setBomListStatus(event.target.value as "" | BomWorkbenchDraftStatus)}>
-                  <option value="">全部狀態</option>
+                  <option value="">全部</option>
                   <option value="Draft">草稿</option>
                   <option value="PendingReview">審核中</option>
                   <option value="Rejected">已退回</option>

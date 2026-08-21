@@ -106,8 +106,8 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.match(workflow, /IMAGE_PATH@\$DIGEST/u);
   assert.match(workflow, /--target migration-runner/u);
   assert.match(workflow, /MIGRATION_PACKAGE_TARGET=production/u);
-  assert.match(workflow, /schemaMigrationCount !== 37/u);
-  assert.match(workflow, /039_allow_recycled_candidate_drawing_codes/u);
+  assert.match(workflow, /schemaMigrationCount !== 38/u);
+  assert.match(workflow, /040_supervisor_workflow_authority/u);
   assert.match(workflow, /migration-image\.txt/u);
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
 });

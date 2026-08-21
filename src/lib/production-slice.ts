@@ -3,6 +3,16 @@ import { isNumberStateFlowV1Enabled } from "@/lib/number-state-flow-feature";
 export const OFFICIAL_NUMBERING_DRAFT_SLICE = "official-numbering-draft";
 export const PRODUCTION_SLICE_UNOPENED_CODE = "feature_not_open_in_production_slice";
 export const PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次編號建立 production slice。";
+export const PRODUCTION_NUMBERING_LIFECYCLE_GATE_ENV = "PDM_PRODUCTION_NUMBERING_LIFECYCLE_GATE";
+export const PRODUCTION_NUMBERING_LIFECYCLE_GATES = ["containment", "draft-obsolete", "formal-obsolete"] as const;
+export type ProductionNumberingLifecycleGate = (typeof PRODUCTION_NUMBERING_LIFECYCLE_GATES)[number];
+export type ProductionNumberingLifecycleCapability = {
+  gate: ProductionNumberingLifecycleGate;
+  configured: boolean;
+  valid: boolean;
+  draftObsoleteOpen: boolean;
+  formalObsoleteOpen: boolean;
+};
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -66,6 +76,13 @@ const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }
   { method: "POST", pattern: /^\/api\/admin\/accounts\/[^/]+\/password-reset$/ }
 ];
 
+const numberingLifecycleApiMutationMatchers: Array<{ method: string; pattern: RegExp; gate: ProductionNumberingLifecycleGate }> = [
+  { method: "POST", pattern: /^\/api\/numbering\/records\/[^/]+\/obsolete$/, gate: "draft-obsolete" },
+  { method: "POST", pattern: /^\/api\/lifecycle\/obsolete-requests$/, gate: "formal-obsolete" },
+  { method: "POST", pattern: /^\/api\/approvals\/requests\/[^/]+\/decisions$/, gate: "formal-obsolete" },
+  { method: "POST", pattern: /^\/api\/approvals\/requests\/[^/]+\/apply$/, gate: "formal-obsolete" }
+];
+
 const numberStateFlowApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
   { method: "POST", pattern: /^\/api\/numbering\/draft-workspaces$/ },
   { method: "PATCH", pattern: /^\/api\/numbering\/draft-workspaces\/[^/]+$/ },
@@ -93,6 +110,49 @@ export function isProductionSliceActive(env: EnvLike = process.env) {
   return getProductionSliceState(env).active;
 }
 
+export function getProductionNumberingLifecycleGate(env: EnvLike = process.env): {
+  gate: ProductionNumberingLifecycleGate;
+  configured: boolean;
+  valid: boolean;
+} {
+  const state = getProductionSliceState(env);
+  if (!state.configured) return { gate: "formal-obsolete", configured: false, valid: true };
+  const raw = String(env[PRODUCTION_NUMBERING_LIFECYCLE_GATE_ENV] ?? "").trim().toLowerCase();
+  if (PRODUCTION_NUMBERING_LIFECYCLE_GATES.includes(raw as ProductionNumberingLifecycleGate)) {
+    return { gate: raw as ProductionNumberingLifecycleGate, configured: true, valid: true };
+  }
+  return { gate: "containment", configured: true, valid: false };
+}
+
+export function productionNumberingLifecycleCapability(env: EnvLike = process.env): ProductionNumberingLifecycleCapability {
+  const parsed = getProductionNumberingLifecycleGate(env);
+  const draftObsoleteOpen = parsed.gate === "draft-obsolete" || parsed.gate === "formal-obsolete";
+  const formalObsoleteOpen = parsed.gate === "formal-obsolete";
+  return {
+    ...parsed,
+    draftObsoleteOpen,
+    formalObsoleteOpen
+  };
+}
+
+export function isProductionNumberingLifecycleGateOpen(requiredGate: ProductionNumberingLifecycleGate, env: EnvLike = process.env) {
+  const capability = productionNumberingLifecycleCapability(env);
+  if (!capability.configured) return true;
+  if (requiredGate === "containment") return true;
+  return requiredGate === "draft-obsolete" ? capability.draftObsoleteOpen : capability.formalObsoleteOpen;
+}
+
+export function isProductionNumberingLifecycleApprovalAction(actionCode: string) {
+  return [
+    "numbering.obsolete_part_root",
+    "numbering.obsolete_part_number",
+    "numbering.obsolete_ma_drawing",
+    "obsolete_part_root",
+    "obsolete_part_number",
+    "obsolete_ma_drawing"
+  ].includes(actionCode.trim());
+}
+
 export function isWriteMethod(method: string) {
   return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
 }
@@ -107,6 +167,10 @@ export function isProductionSliceAllowedApiMutation(method: string, pathname: st
   const normalizedPath = normalizePathname(pathname);
   if (alwaysAllowedApiMutationMatchers.some((item) => item.method === normalizedMethod && item.pattern.test(normalizedPath))) return true;
   if (!getProductionSliceState(env).active) return false;
+  const lifecycleMatcher = numberingLifecycleApiMutationMatchers.find(
+    (item) => item.method === normalizedMethod && item.pattern.test(normalizedPath)
+  );
+  if (lifecycleMatcher) return isProductionNumberingLifecycleGateOpen(lifecycleMatcher.gate, env);
   if (isNumberStateFlowV1Enabled(env) && numberStateFlowApiMutationMatchers.some((item) => item.method === normalizedMethod && item.pattern.test(normalizedPath))) {
     return true;
   }
@@ -115,7 +179,8 @@ export function isProductionSliceAllowedApiMutation(method: string, pathname: st
 
 export function isProductionSliceOpenPagePath(pathname: string, env: EnvLike = process.env) {
   const normalizedPath = normalizePathname(pathname);
-  return openPagePaths.includes(normalizedPath) ||
+  const approvalWorkbenchOpen = normalizedPath === "/approvals" && isProductionNumberingLifecycleGateOpen("formal-obsolete", env);
+  return openPagePaths.includes(normalizedPath) || approvalWorkbenchOpen ||
     normalizedPath.startsWith("/login/") ||
     normalizedPath.startsWith("/invite/");
 }
@@ -139,6 +204,7 @@ export function productionSliceDeniedPayload(action: string, mode = getProductio
 
 export function productionSliceClientStatus(env: EnvLike = process.env) {
   const state = getProductionSliceState(env);
+  const lifecycle = productionNumberingLifecycleCapability(env);
   return {
     configured: state.configured,
     active: state.active,
@@ -147,6 +213,7 @@ export function productionSliceClientStatus(env: EnvLike = process.env) {
     expectedMode: OFFICIAL_NUMBERING_DRAFT_SLICE,
     unopenedCode: PRODUCTION_SLICE_UNOPENED_CODE,
     unopenedMessage: PRODUCTION_SLICE_UNOPENED_MESSAGE,
+    numberingLifecycle: lifecycle,
     openPagePaths
   };
 }

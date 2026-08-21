@@ -78,8 +78,11 @@ function startApp(port, releaseFunctionUrl) {
     cwd: root,
     env: {
       ...process.env,
+      PDM_AUTH_MODE: "demo",
+      PDM_DB_PROVIDER: "sqlite",
       PDM_DATA_DIR: tempDir,
       PDM_REPOSITORY_DIR: path.join(tempDir, "repository"),
+      PDM_NEXT_DIST_DIR: `.tmp/next-qc-ux-${process.pid}-${port}`,
       PDM_RELEASE_MODE: "strict",
       RELEASE_FUNCTION_URL: releaseFunctionUrl,
       RELEASE_FUNCTION_TOKEN: "mock-release-token",
@@ -284,7 +287,12 @@ function runStaticChecks() {
 
   record("CSS limits detail row label selector to direct children", css.includes(".detail-row > span"));
   record("CSS includes diagnostic value primitive", css.includes(".diagnostic-value") && css.includes(".integrity-details .diagnostic-value"));
-  record("Dashboard table uses primary identity and metadata badges", dashboardLayout.includes("identity-primary") && dashboardLayout.includes("Rev {submission.revision}"));
+  record(
+    "Dashboard table uses primary identity and metadata badges",
+    dashboardLayout.includes("identity-primary") &&
+      dashboardLayout.includes("metadata-badge") &&
+      dashboardLayout.includes("submission.revision")
+  );
   record("Dashboard sandbox metadata avoids raw dotted strings", !dashboard.includes("source_revision} - 試作版次"));
   record("Handoff SHA values use diagnostic primitive", !handoff.includes("<small>SHA256") && handoff.includes('className="diagnostic-value">SHA256'));
   record("Public share SHA values use diagnostic primitive", !share.includes("<small>SHA256") && share.includes('className="diagnostic-value">SHA256'));
