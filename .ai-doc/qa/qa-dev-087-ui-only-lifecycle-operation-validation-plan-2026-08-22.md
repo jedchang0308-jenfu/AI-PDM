@@ -1,5 +1,17 @@
 # DEV-087 三工作臺全生命週期 AI UI-only 操作驗證計畫
+<!-- QC-JOURNEY-SUPPLEMENT-2026-08-22T10:05 -->
 
+## 19. QC journey 補強：作廢申請→審核連續路徑（2026-08-22 10:05）
+
+本節補記本輪 QC journey 與產品缺口分類；完整內容以 runner evidence 為準。
+
+Evidence：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T10-05-20-130Z/`。
+
+- `D18` UI 申請作廢、`D19` reviewer UI 入口、`D20` 唯讀審核決策／readback：均 PASS。
+- supplemental `J01/J02/J03`：3/3 PASS；`C01-C11`：11/11 PASS；failures=0、consoleErrors=0；task-owned port `50708` 已釋放。
+- D19/D20 原先 BLOCKED 的根因是 runner 未等待 drawer action hydration 與 `POST /void-requests` commit；修正後不是產品缺口。
+- focused run 不等於 full release；仍要求 `67/67 PASS`、`Blocked=0`、`NotRun=0`。
+- 目前 D13/D14/D16/D17/D21/D22（multi-context fixture）、D25-D27/P18-P20/R16-R20（terminal/history UI）及 P11-P17（DEV-088 attachment scope）維持 BLOCKED，不能誤報產品 FAIL。
 ## 最新執行補充（2026-08-22）
 
 執行前先補最小可達的 QC journey，且只使用 rendered UI 觸發 business mutation；API 與 DB 僅作唯讀 readback。三個補充 journey 均需完成建立／進版、進入該 domain 工作頁、取消並返回清單，且保留 screenshot、action、network、UI/API/DB triad 與 cleanup evidence：

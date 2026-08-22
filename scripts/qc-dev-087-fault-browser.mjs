@@ -25,12 +25,21 @@ const fixtureDb = path.join(fixtureDataDir, "ai-pdm.sqlite");
 const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
 const sourceRepository = path.join(root, "data", "repository");
 const fixtureRepository = path.join(fixtureDataDir, "repository");
+const nextEnvPath = path.join(root, "next-env.d.ts");
+const nextEnvOriginal = fs.existsSync(nextEnvPath) ? fs.readFileSync(nextEnvPath, "utf8") : null;
 const checks = [];
 const failures = [];
 let app = null;
 let browser = null;
 let port = null;
 let baseUrl = "";
+
+function prepareDisposableNextEnv() {
+  // Next writes dist-specific route type imports into next-env.d.ts.  The
+  // disposable fault process must not inherit a path removed by a previous
+  // runner, nor leave its path behind for the next process.
+  fs.writeFileSync(nextEnvPath, "/// <reference types=\"next\" />\n/// <reference types=\"next/image-types/global\" />\n\n// DEV-087 disposable runtime\n", "utf8");
+}
 
 function check(name, condition, detail = "") {
   const pass = Boolean(condition);
@@ -104,6 +113,7 @@ try {
     PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: `.tmp/qc-dev087-fault-${port}`, PDM_PUBLIC_BASE_URL: baseUrl,
     PDM_DEV087_FAULT_PROFILE: profile
   });
+  prepareDisposableNextEnv();
   console.log(`QC DEV-087 fault runtime: profile=${profile}; project=${root}; purpose=rendered UI review fault path; port=${port}; cleanup=after browser assertions`);
   app = startNextApp(root, "dev", port);
   await waitForNextAppReady(baseUrl, app.getOutput);
@@ -183,6 +193,8 @@ try {
     checks.push({ name: "temporary runtime port released", pass: probe, detail: `port=${port}` });
   }
   try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch {}
+  if (nextEnvOriginal === null) { try { fs.rmSync(nextEnvPath, { force: true }); } catch {} }
+  else { try { fs.writeFileSync(nextEnvPath, nextEnvOriginal, "utf8"); } catch {} }
 }
 
 const failed = checks.filter((item) => !item.pass);

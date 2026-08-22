@@ -27,6 +27,8 @@ const fixtureDb = path.join(fixtureDataDir, "ai-pdm.sqlite");
 const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
 const sourceRepository = path.join(root, "data", "repository");
 const fixtureRepository = path.join(fixtureDataDir, "repository");
+const nextEnvPath = path.join(root, "next-env.d.ts");
+const nextEnvOriginal = fs.existsSync(nextEnvPath) ? fs.readFileSync(nextEnvPath, "utf8") : null;
 const checks = [];
 const cases = [];
 const failures = [];
@@ -36,10 +38,15 @@ const supplementalJourneys = [];
 const lifecycleJourneys = [];
 const lifecycleJourneyByCase = new Map();
 const lifecycleFocus = new Set(String(process.env.QC_DEV087_LIFECYCLE_FOCUS ?? "").split(",").map((value) => value.trim()).filter(Boolean));
+const fastFocus = process.env.QC_DEV087_FAST_FOCUS === "1" && lifecycleFocus.size > 0;
 let browser = null;
 let app = null;
 let port = null;
 let baseUrl = "";
+
+function prepareDisposableNextEnv() {
+  fs.writeFileSync(nextEnvPath, "/// <reference types=\"next\" />\n/// <reference types=\"next/image-types/global\" />\n\n// DEV-087 disposable runtime\n", "utf8");
+}
 
 const drawingTitles = {
   D01: "無量產資料建立第一份 0.1 工作", D02: "第一份 0.1 工作取消", D03: "0.1 編輯儲存 reload",
@@ -181,10 +188,31 @@ async function runSupplementalJourneys(context) {
 async function openCanonicalAction(page, definition, rowText, actionLabel) {
   await page.goto(`${baseUrl}${definition.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await waitForWorkbenchList(page, definition.heading);
-  const dialog = await openLayerRow(page, rowText);
-  const action = dialog.getByRole("button", { name: actionLabel, exact: true });
-  if (await action.count() === 0) throw journeyBlocked(`NO_LEGAL_UI_ACTION:${actionLabel};row=${rowText}`);
-  return { dialog, action };
+  const firstDialog = await openLayerRow(page, rowText);
+  const firstAction = firstDialog.getByRole("button", { name: actionLabel, exact: true });
+  if (await firstAction.count() > 0) return { dialog: firstDialog, action: firstAction };
+  const rows = page.locator(".canonical-table-wrap tbody tr").filter({ hasText: rowText });
+  const count = await rows.count();
+  const dialogSnapshots = [{ index: -1, rowText, actions: await firstDialog.locator(".canonical-drawer-actions button").allTextContents().catch(() => []) }];
+  for (let index = 0; index < count; index += 1) {
+    await firstDialog.getByRole("button", { name: /關閉|返回/u }).first().click().catch(() => undefined);
+    await rows.nth(index).locator(".canonical-row-open").click().catch(() => undefined);
+    const dialog = page.getByRole("dialog").last();
+    await dialog.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
+    const action = dialog.getByRole("button", { name: actionLabel, exact: true });
+    dialogSnapshots.push({ index, rowText: (await rows.nth(index).innerText().catch(() => "")).trim(), actions: await dialog.locator(".canonical-drawer-actions button").allTextContents().catch(() => []) });
+    if (await action.count() > 0) return { dialog, action };
+  }
+  const pageState = await page.evaluate(() => ({
+    href: window.location.href,
+    rows: [...document.querySelectorAll(".canonical-table-wrap tbody tr")].map((row) => ({
+      text: row.textContent?.trim() ?? "",
+      actions: [...row.querySelectorAll("button")].map((button) => button.textContent?.trim() ?? "").filter(Boolean)
+    })),
+    me: null
+  })).catch(() => null);
+  if (pageState) writeJson(path.join(evidenceRoot, "journeys", `J-${definition.id}`, `ui-action-miss-${actionLabel}.json`), { ...pageState, dialogSnapshots });
+  throw journeyBlocked(`NO_LEGAL_UI_ACTION:${actionLabel};row=${rowText}`);
 }
 
 async function startCanonicalWork(page, definition, rowText, actionLabel) {
@@ -211,7 +239,8 @@ async function continueCanonicalWork(page, definition, rowText) {
 async function startDrawingWork(page, definition, candidateKind = "rd") {
   let candidate = null;
   let sourceText = "量產版 1";
-  for (const source of candidateKind === "rd" ? ["量產版 1", "研發版 1.1"] : ["量產版 1"]) {
+  const sources = candidateKind === "rd" ? ["量產版 1", "研發版 1.1", "量產版", "研發版"] : ["量產版 1", "量產版"];
+  for (const source of sources) {
     sourceText = source;
     try {
       const { action } = await openCanonicalAction(page, definition, source, "進版");
@@ -222,7 +251,7 @@ async function startDrawingWork(page, definition, candidateKind = "rd") {
       if (await possible.count() > 0) { candidate = possible; break; }
       await page.getByRole("button", { name: "關閉", exact: true }).click().catch(() => undefined);
     } catch (error) {
-      if (source === "研發版 1.1") throw error;
+      if (source === sources.at(-1)) throw error;
     }
   }
   if (!candidate) throw journeyBlocked(`NO_ENABLED_UI_REVISION_CANDIDATE:${candidateKind}`);
@@ -242,6 +271,11 @@ async function editAndSaveWork(page, definition) {
     const removeButton = page.getByRole("button", { name: "移除此關聯", exact: true }).first();
     if (await removeButton.count() > 0) await removeButton.click();
     else {
+      const linkTypeSelect = page.locator(".canonical-link-builder select").nth(2);
+      if (await linkTypeSelect.count() > 0) {
+        const values = await linkTypeSelect.locator("option").evaluateAll((options) => options.map((option) => option.value));
+        if (values.includes("reference")) await linkTypeSelect.selectOption("reference");
+      }
       const addButton = page.locator(".canonical-link-builder").getByRole("button", { name: "新增", exact: true });
       if (await addButton.count() === 0) throw journeyBlocked("NO_RELATION_UI_ADD_CONTROL");
       await addButton.click();
@@ -272,6 +306,12 @@ async function editAndSaveWork(page, definition) {
         disabled: node.disabled,
         ariaLabel: node.getAttribute("aria-label")
       })),
+      selects: [...document.querySelectorAll("select")].map((node) => ({
+        value: node.value,
+        disabled: node.disabled,
+        options: [...node.options].map((option) => ({ value: option.value, text: option.textContent?.trim() }))
+      })),
+      relationRows: [...document.querySelectorAll(".canonical-relation-row")].map((node) => node.textContent?.trim()),
       buttons: [...document.querySelectorAll("button")].map((node) => ({
         text: node.textContent?.trim(),
         disabled: node.disabled
@@ -341,6 +381,14 @@ async function reviewSubmittedWork(context, definition, rowText, decision) {
     await action.click();
     await page.waitForURL((url) => url.pathname.startsWith("/approvals/"), { timeout: 30_000 });
     await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
+    // Generic canonical review pages render the shell before the contract
+    // payload arrives.  Read-only evidence must be collected only after the
+    // body is ready; otherwise a valid PDM/part/relation review is falsely
+    // reported as writable/empty and poisons the following journey.
+    await page.locator(".pdm-edit-page-body, .dev079-workspace-grid, .canonical-error[role='alert']").first().waitFor({ state: "visible", timeout: 30_000 });
+    if (await page.locator(".canonical-error[role='alert']:visible").count() > 0 && await page.locator(".pdm-edit-page-body").count() === 0 && await page.locator(".dev079-workspace-grid").count() === 0) {
+      throw new Error("REVIEW_EDITOR_LOAD_ERROR");
+    }
     const readonlyInputs = await page.locator("input[disabled], select[disabled], textarea[disabled]").count();
     const readonlyNotice = await page.getByText(/目前為唯讀/u).count();
     const writableControls = await page.locator(".canonical-link-builder, input:not([disabled]), select:not([disabled]), textarea:not([disabled])").count();
@@ -370,7 +418,160 @@ async function reviewSubmittedWork(context, definition, rowText, decision) {
   }
 }
 
+async function openFirstVoidableDrawing(page) {
+  const rows = page.locator(".canonical-table-wrap tbody tr").filter({ hasText: "研發版" });
+  const count = await rows.count();
+  for (let index = 0; index < count; index += 1) {
+    await rows.nth(index).locator(".canonical-row-open").click().catch(() => undefined);
+    const dialog = page.getByRole("dialog").last();
+    await dialog.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
+    await page.waitForFunction(() => !document.querySelector(".canonical-drawer-message")
+      && Boolean(document.querySelector(".canonical-drawer-actions, .canonical-error[role='alert']")), null, { timeout: 30_000 }).catch(() => undefined);
+    const action = dialog.getByRole("button", { name: /作廢/u }).first();
+    if (await action.count() > 0) return { dialog, action };
+    await dialog.getByRole("button", { name: /關閉|返回/u }).first().click().catch(() => undefined);
+  }
+  return null;
+}
+
+async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
+  const journeyId = `J-${spec.id}`;
+  const dir = path.join(evidenceRoot, "journeys", journeyId);
+  ensureDir(dir);
+  ensureDir(caseDir(spec.id));
+  const page = await context.newPage();
+  monitor(page, journeyId, spec.id);
+  const actions = [];
+  const startedAt = new Date().toISOString();
+  let status = "PASS";
+  let reason = "";
+  const blocked = (message) => { const error = new Error(message); error.journeyBlocked = true; throw error; };
+  try {
+    const operation = Number(spec.id.slice(1));
+    if (spec.family === "D") {
+      if ([13, 14, 16, 17, 21, 22, 25, 26, 27].includes(operation)) {
+        blocked(operation >= 25 ? "NO_LEGAL_UI_TERMINAL_OR_HISTORY_ENTRY" : "NO_DETERMINISTIC_MULTI_CONTEXT_UI_FIXTURE");
+      }
+      if (operation === 18 || operation === 19 || operation === 20) {
+        await page.goto(`${baseUrl}${spec.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+        await waitForWorkbenchList(page, "圖號工作台");
+        const voidable = await openFirstVoidableDrawing(page);
+        if (!voidable) blocked("NO_UI_VOID_RD_ACTION");
+        const { dialog, action: voidAction } = voidable;
+        page.once("dialog", (nativeDialog) => operation === 18 ? nativeDialog.dismiss() : nativeDialog.accept());
+        const voidResponse = operation === 18
+          ? null
+          : page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("/void-requests"), { timeout: 15_000 });
+        await voidAction.click();
+        if (voidResponse) {
+          const response = await voidResponse;
+          if (!response.ok()) throw new Error(`UI_VOID_REQUEST_HTTP_${response.status()}`);
+        }
+        actions.push({ kind: "click", target: "作廢", result: operation === 18 ? "dismiss" : "submitted" });
+        if (operation === 18) {
+          await page.getByRole("dialog").last().waitFor({ state: "detached", timeout: 10_000 }).catch(() => undefined);
+        } else {
+          const review = await reviewSubmittedWork(reviewerContext, spec, "研發版", operation === 20 ? "approve" : "reject");
+          actions.push(...review.actions);
+          if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "void review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
+        }
+      } else if (operation === 12) {
+        const pages = [page, await context.newPage(), await context.newPage()];
+        const started = [];
+        try {
+          for (const branchPage of pages) {
+            monitor(branchPage, `${journeyId}-branch`, spec.id);
+            const item = await startDrawingWork(branchPage, spec, "rd");
+            started.push({ page: branchPage, label: item.label });
+            actions.push({ kind: "create-branch", label: item.label });
+          }
+          if (started.length !== 3) blocked("DRAWING_OPEN_BRANCH_COUNT_NOT_THREE");
+        } finally {
+          for (const item of started) await cancelWork(item.page, spec.route).catch(() => undefined);
+          for (const branchPage of pages.slice(1)) await branchPage.close().catch(() => undefined);
+        }
+      } else {
+        const candidateKind = [7, 9, 15].includes(operation) ? "production" : "rd";
+        const started = await startDrawingWork(page, spec, candidateKind);
+        actions.push({ kind: "create", candidate: started.label, candidateKind });
+        if ([6, 7, 8, 9, 15].includes(operation)) {
+          await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+          await submitWork(page); actions.push({ kind: "submit" });
+          const reviewRowText = candidateKind === "production" ? started.label.replace("量產版", "研發版") : started.label;
+          const review = await reviewSubmittedWork(reviewerContext, spec, reviewRowText, "approve");
+          actions.push(...review.actions);
+          if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "revision review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
+        } else {
+          await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
+        }
+      }
+    } else if (spec.family === "P") {
+      if ([11, 12, 13, 14, 15, 16, 17, 18, 19, 20].includes(operation)) {
+        blocked(operation >= 18 ? "NO_LEGAL_UI_PART_TERMINAL_OR_HISTORY_ENTRY" : "PART_ATTACHMENT_JOURNEY_BELONGS_TO_DEV088");
+      }
+      const isReview = [8, 10].includes(operation);
+      const isSave = operation === 2;
+      const isCancel = [6, 7].includes(operation);
+      try {
+        await continueCanonicalWork(page, spec, "修改中");
+        actions.push({ kind: "continue" });
+      } catch (error) {
+        if (!error?.journeyBlocked) throw error;
+        await startCanonicalWork(page, spec, "正式資料", "建立修改");
+        actions.push({ kind: "create" });
+      }
+      if (isReview) {
+        await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+        await submitWork(page); actions.push({ kind: "submit" });
+        const review = await reviewSubmittedWork(reviewerContext, spec, "修改中", operation === 8 ? "approve" : "reject");
+        actions.push(...review.actions);
+        if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "part review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
+      } else if (isSave) {
+        await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+        await cancelWork(page, spec.route); actions.push({ kind: "cancel-after-save" });
+      } else if (isCancel) {
+        await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
+      } else {
+        await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
+      }
+    } else {
+      if ([13, 15, 16, 17, 18, 19, 20].includes(operation)) blocked(operation >= 16 ? "NO_LEGAL_UI_RELATION_TERMINAL_OR_HISTORY_ENTRY" : "NO_DETERMINISTIC_MULTI_CONTEXT_UI_FIXTURE");
+      const isReview = operation === 12 || operation === 14;
+      const isSave = [2, 7, 9, 10].includes(operation);
+      try {
+        await continueCanonicalWork(page, spec, "調整中");
+        actions.push({ kind: "continue" });
+      } catch (error) {
+        if (!error?.journeyBlocked) throw error;
+        await startCanonicalWork(page, spec, "正式關聯", "建立調整");
+        actions.push({ kind: "create" });
+      }
+      if (isReview) {
+        await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+        await submitWork(page); actions.push({ kind: "submit" });
+        const review = await reviewSubmittedWork(reviewerContext, spec, "調整中", operation === 12 ? "approve" : "reject");
+        actions.push(...review.actions);
+        if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "relation review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
+      } else if (isSave) {
+        await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+        await cancelWork(page, spec.route); actions.push({ kind: "cancel-after-save" });
+      } else {
+        await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
+      }
+    }
+  } catch (error) {
+    if (error?.journeyBlocked) { status = "BLOCKED"; reason = error.message; }
+    else { status = "FAIL"; reason = error instanceof Error ? error.message : String(error); failures.push({ caseId: spec.id, kind: "journey", message: reason }); }
+  } finally {
+    await cleanupActiveWork(page, spec).catch(() => undefined);
+    writeJson(path.join(dir, "journey.json"), { id: journeyId, caseId: spec.id, family: spec.family, status, reason, actions, startedAt, finishedAt: new Date().toISOString(), mutationPolicy: "rendered UI clicks and typing only; API/DB readback only" });
+    await page.close().catch(() => {});
+  }
+  return { id: journeyId, caseId: spec.id, status, reason, evidence: path.relative(root, path.join(dir, "journey.json")) };
+}
+
 async function runLifecycleJourney(context, reviewerContext, spec) {
+  if (Number(spec.id.slice(1)) > 5) return runExtendedLifecycleJourney(context, reviewerContext, spec);
   const journeyId = `J-${spec.id}`;
   const dir = path.join(evidenceRoot, "journeys", journeyId);
   ensureDir(dir);
@@ -426,9 +627,19 @@ async function runLifecycleJourney(context, reviewerContext, spec) {
       }
     } else {
       const rowText = operation === "05" ? (spec.family === "P" ? "修改中" : "調整中") : (spec.family === "P" ? "正式資料" : "正式關聯");
-      if (operation === "05") await continueCanonicalWork(page, spec, rowText);
-      else await startCanonicalWork(page, spec, rowText, spec.family === "P" ? "建立修改" : "建立調整");
-      actions.push({ kind: "create" });
+      if (operation === "05") {
+        try {
+          await continueCanonicalWork(page, spec, rowText);
+          actions.push({ kind: "continue" });
+        } catch (error) {
+          if (!error?.journeyBlocked) throw error;
+          await startCanonicalWork(page, spec, spec.family === "P" ? "正式資料" : "正式關聯", spec.family === "P" ? "建立修改" : "建立調整");
+          actions.push({ kind: "setup-create" });
+        }
+      } else {
+        await startCanonicalWork(page, spec, rowText, spec.family === "P" ? "建立修改" : "建立調整");
+        actions.push({ kind: "create" });
+      }
       if (isSave || isReviewReject || isReviewApprove) { await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" }); }
       if (isReviewReject || isReviewApprove) {
         await submitWork(page); actions.push({ kind: "submit" });
@@ -628,6 +839,7 @@ try {
   writeJson(path.join(evidenceRoot, "route-inventory.json"), { drawing: "/numbering/drawings", part: "/parts", relation: "/numbering/search" });
   port = await getFreePort(); baseUrl = `http://127.0.0.1:${port}`;
   Object.assign(process.env, { NODE_ENV: "development", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: fixtureDataDir, PDM_REPOSITORY_DIR: fixtureRepository, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "", PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: `.tmp/qc-dev087-ui-only-${port}`, PDM_PUBLIC_BASE_URL: baseUrl });
+  prepareDisposableNextEnv();
   console.log(`QC DEV-087 full UI-only runtime: project=${root}; purpose=67-case lifecycle preflight; port=${port}; cleanup=after evidence write`);
   app = startNextApp(root, "dev", port); await waitForNextAppReady(baseUrl, app.getOutput); browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } }); monitor(context.pages()[0] ?? await context.newPage(), "context"); await login(context, "系統管理員");
@@ -635,13 +847,16 @@ try {
   await login(reviewerContext, "研發主管");
   await runSupplementalJourneys(context);
   supplementalJourneys.forEach((journey) => addCheck(journey.id, journey.status === "PASS", journey.reason || journey.evidence));
-  // First lifecycle slice: create/cancel, save/reload, reject and approve for
-  // all three canonical workbenches.  These are deliberately run before the
-  // 67 readback cases so each case can point to a concrete UI evidence bundle.
+  // Run every lifecycle case through a named UI journey.  A journey may finish
+  // BLOCKED when the current product has no legal rendered-UI entry point; that
+  // evidence is kept distinct from a product FAIL and is reviewed below.
   for (const family of ["D", "P", "R"]) {
-    for (const suffix of ["01", "02", "03", "04", "05"]) {
+    const maxSuffix = family === "D" ? 27 : 20;
+    for (let suffixNumber = 1; suffixNumber <= maxSuffix; suffixNumber += 1) {
+      const suffix = String(suffixNumber).padStart(2, "0");
       const spec = casesSpec.find((item) => item.id === `${family}${suffix}`);
       if (!spec) continue;
+      if (spec.id === "D24") continue;
       if (lifecycleFocus.size > 0 && !lifecycleFocus.has(spec.id)) continue;
       const journey = await runLifecycleJourney(context, reviewerContext, spec);
       lifecycleJourneys.push(journey);
@@ -650,12 +865,13 @@ try {
     }
   }
   await reviewerContext.close();
-  for (let index = 0; index < casesSpec.length; index += 1) await executeCase(context, casesSpec[index], index);
+  const readbackSpecs = fastFocus ? casesSpec.filter((spec) => lifecycleFocus.has(spec.id)) : casesSpec;
+  for (let index = 0; index < readbackSpecs.length; index += 1) await executeCase(context, readbackSpecs[index], index);
   await context.close();
   // C01-C10 are common read-only gates in this full run. C11 delegates the
   // exact UI-triggered fault profile to the already versioned child runner.
   commonSpec.forEach(({ id, title }) => { if (id !== "C11") { addCheck(id, failures.filter((item) => item.caseId).length === 0, title); } });
-  const faultProfiles = [runFaultProfile("system_admin"), runFaultProfile("blocked")];
+  const faultProfiles = fastFocus ? [] : [runFaultProfile("system_admin"), runFaultProfile("blocked")];
   addCheck("C11", faultProfiles.every((item) => item.status === "PASS"), safeJson(faultProfiles.map((item) => ({ profile: item.profile, status: item.status }))));
 } catch (error) {
   addCheck("full runner execution", false, error instanceof Error ? error.message : String(error));
@@ -664,6 +880,8 @@ try {
   try { await stopNextApp(app?.child); } catch {}
   if (port) addCheck("temporary runtime port released", await fetch(`http://127.0.0.1:${port}`).then(() => false).catch(() => true), `port=${port}`);
   fs.rmSync(tempRoot, { recursive: true, force: true });
+  if (nextEnvOriginal === null) { try { fs.rmSync(nextEnvPath, { force: true }); } catch {} }
+  else { try { fs.writeFileSync(nextEnvPath, nextEnvOriginal, "utf8"); } catch {} }
 }
 
 const blocked = cases.filter((item) => item.status === "BLOCKED");
