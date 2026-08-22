@@ -167,7 +167,7 @@ try {
   const dbState = evidence.prepare("SELECT work_id, handling, blocker_reason FROM canonical_workbench_states WHERE work_id IS NOT NULL AND canonical_entity_id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877' ORDER BY updated_at DESC LIMIT 1").get();
   const dbReview = evidence.prepare("SELECT COUNT(*) AS count FROM pdm_work_review_requests WHERE work_id = ? AND request_status IN ('pending', 'applying')").get(dbState?.work_id ?? "");
   const after = evidence.prepare("SELECT COUNT(*) AS revisions FROM drawing_revisions WHERE drawing_id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877'").get();
-  check("database canonical state matches UI fault handling", dbState?.handling === profile && (profile === "blocked" ? dbState?.blocker_reason === "自動化正式化缺少安全修復路徑。" : dbState?.blocker_reason === "自動化正式化需要系統管理員處理。"), JSON.stringify(dbState));
+  check("database canonical state matches UI fault handling", dbState?.handling === profile && (profile === "blocked" ? dbState?.blocker_reason === "自動化正式化缺少安全修復路徑。" : dbState?.blocker_reason === null), JSON.stringify(dbState));
   check("database has no actionable review request after terminal fault", Number(dbReview?.count ?? 0) === 0, JSON.stringify(dbReview));
   check("formal drawing data was not changed by fault path", Number(after?.revisions ?? 0) === Number(baseline?.revisions ?? 0), JSON.stringify({ baseline, after }));
   evidence.close();

@@ -32,7 +32,7 @@ export async function recordDev087Fault(
   await tx.execute(
     `UPDATE canonical_workbench_states SET handling = :handling, blocker_reason = :reason, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
      WHERE company_id = :companyId AND work_id = :workId`,
-    { ...request, handling, reason: dev087FaultReason(handling) }
+    { ...request, handling, reason: handling === "blocked" ? dev087FaultReason(handling) : null }
   );
   await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, request);
   return { acknowledged: true };
