@@ -42,8 +42,13 @@ function monitor(page, label) {
   });
 }
 async function login(context) {
-  const response = await context.request.post(`${baseUrl}/api/auth/local-quick-login`, { data: { role: "Admin" } });
-  check("local admin login", response.status() === 200, await response.text());
+  const page = await context.newPage(); monitor(page, "login");
+  await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.getByRole("heading", { name: "AI PDM 登入", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  await page.getByRole("button", { name: "以系統管理員角色快速登入", exact: true }).click();
+  await page.waitForURL((url) => !url.pathname.endsWith("/login"), { timeout: 30_000 });
+  check("local admin login via rendered UI", !page.url().endsWith("/login"), page.url());
+  await page.close();
 }
 async function openWorkbench(context, route, title, allowError = false) {
   const page = await context.newPage(); monitor(page, title);
