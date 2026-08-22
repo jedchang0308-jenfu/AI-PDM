@@ -1,6 +1,38 @@
 # DEV-087 三工作臺全生命週期 AI UI-only 操作驗證計畫
 <!-- QC-JOURNEY-SUPPLEMENT-2026-08-22T10:05 -->
 
+## 20. QC journey 全量重跑與產品缺口分流（2026-08-22 10:56）
+
+先補齊並修正關聯 journey 後，以全新 disposable runtime、無 focus、完整 67-case 分母重跑。證據：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T10-56-52-112Z/`。
+
+| 指標 | 結果 |
+|---|---:|
+| D/P/R 分母 | 27 / 20 / 20（合計 67） |
+| PASS / BLOCKED / FAIL | 37 / 30 / 0 |
+| C01–C11 | 11/11 PASS |
+| supplemental J01/J02/J03 | 3/3 PASS |
+| lifecycle relation J-R03/J-R04/J-R14 | 3/3 PASS |
+| consoleErrors / direct business API-DB mutation | 0 / 0 |
+| task-owned runtime | port `61902` 已釋放 |
+
+本輪曾出現的 R03/R04/R14 紅燈均已證實是 QC journey 缺口：R03 移除既有關聯後沒有重新新增，R04 取消工作的非同步競態，R14 移除後又新增相同類型導致資料未變；修正 runner 後 focused 與 full run 均無 FAIL。
+
+### 20.1 剩餘結果不是產品缺口
+
+- 30 個 `BLOCKED` 全部有明確前置原因：D07/D09/D12/D15 的進版列已無合法可用候選、D13/D14/D16/D17/D21/D22 需要多 context fixture、D25-D27/P18-P20/R16-R20 需要合法 terminal/history UI、P11-P17 屬 DEV-088 attachment scope、R13/R15 需要多 context fixture。
+- 這些案例沒有 UI/API/DB mismatch、visible error、console error、partial write 或產品 FAIL 證據；不得改判 PASS，也不得誤登為產品 defect。
+- `status=FAIL` 是 aggregate 依契約對 BLOCKED fail-closed 的結果；不代表本輪有產品 FAIL。完整 release gate 仍未通過，因 `Blocked > 0`。
+
+### 20.2 產品缺口結論
+
+| 類別 | 目前結論 |
+|---|---|
+| 已確認產品缺口 | 0 個 open；既有 GAP-PROD-01（工作頁遮罩／Save、terminal preview race）已修正並由後續 journey 回歸通過 |
+| 已確認 runner 缺口 | 0 個 open；關聯 dirty 變更、取消清理等待、drawer hydration 均已修正 |
+| 真正剩餘缺口 | QA fixture／可由 UI 合法建立的前置能力 30 條；另有 DEV-088 scope 7 條，不列入 DEV-087 產品 backlog |
+
+目前判定：`QC journey complete for executable slice / product FAIL=0 / Full release NOT PASS (30 BLOCKED)`。後續只需補合法 UI fixture 或調整 active case scope，不能以 seed、SQL 或 business API 偷補前置。
+
 ## 19. QC journey 補強：作廢申請→審核連續路徑（2026-08-22 10:05）
 
 本節補記本輪 QC journey 與產品缺口分類；完整內容以 runner evidence 為準。

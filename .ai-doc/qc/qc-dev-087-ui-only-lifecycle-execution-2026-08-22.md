@@ -1,6 +1,29 @@
 # DEV-087 UI-only 全生命週期 QC 執行報告
 <!-- QC-JOURNEY-SUPPLEMENT-2026-08-22T10:05 -->
 
+## 15. 最新全量 QC journey 結果與產品缺口分流（2026-08-22 10:56）
+
+完整 67-case 無 focus run：`DEV087-ui-only-2026-08-22T10-56-52-112Z`；evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T10-56-52-112Z/`。
+
+| 指標 | 結果 |
+|---|---:|
+| PASS / BLOCKED / FAIL | 37 / 30 / 0 |
+| C01–C11 | 11/11 PASS |
+| J01/J02/J03 | 3/3 PASS |
+| J-R03/J-R04/J-R14 | 3/3 PASS |
+| consoleErrors / direct business API-DB mutation | 0 / 0 |
+| port cleanup | `61902` released |
+
+R03/R04/R14 的前次紅燈是 runner 操作／清理競態，不是產品行為：已改為移除後以另一合法 link type 新增、等待取消 POST 與返回清單、並確保同資料未變時不誤判可儲存。focused 重跑 `DEV087-ui-only-2026-08-22T10-53-39-668Z` 的 R14 PASS，full run 的 relation cases 亦無 FAIL。
+
+### 15.1 30 BLOCKED 的分類
+
+30 個 BLOCKED 皆為合法 UI 前置缺失：進版候選耗盡、多 context、terminal/history row 不存在，以及 DEV-088 attachment scope；沒有三方資料不一致或可見產品錯誤。依契約 aggregate 必須保持 `status=FAIL`/`NOT PASS`，不能把 BLOCKED 偷算成 PASS。
+
+### 15.2 產品缺口判定
+
+目前可歸因於產品的 open FAIL：`0`。既有工作頁 Save 遮罩、terminal preview late-read、runner drawer hydration 與關聯 journey 問題均已修正並有後續 UI/API/DB evidence。剩餘是 QA fixture／active scope 缺口，不列 DEV-087 產品 backlog；release 仍被 30 BLOCKED 阻擋。
+
 ## 14. QC journey 補強：作廢申請→審核連續路徑（2026-08-22 10:05）
 
 本節補記本輪 QC journey 與產品缺口分類；完整內容以 runner evidence 為準。
