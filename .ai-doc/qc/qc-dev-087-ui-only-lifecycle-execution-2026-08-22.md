@@ -1,5 +1,43 @@
 # DEV-087 UI-only 全生命週期 QC 執行報告
 
+## 0. 最新 QC journey 補強與全量重跑（2026-08-22）
+
+本輪先補三個真正由 rendered UI 操作的補充 journey，再執行原定 67-case 分母；補充 journey 不取代 67 個生命週期案例，只驗證三工作臺最小可達的「建立／進版 → 進入工作頁 → 取消 → 回清單」路徑：
+
+| Journey | UI 起點與操作 | 結果 |
+|---|---|---|
+| `J01-drawing-create-cancel` | 圖號 `A0002-M01` 的量產版 1 → `進版` → 選擇可用候選 → 進入既有圖號編輯頁 → `取消本次工作` | PASS |
+| `J02-part-create-cancel` | 料號 `A0002-P01` 的正式資料 → `建立修改` → 進入料號編輯頁 → `取消本次工作` | PASS |
+| `J03-relation-create-cancel` | 圖料根號 `A0002` 的正式關聯 → `建立調整` → 進入圖料關聯編輯頁 → `取消本次工作` | PASS |
+
+最新全量 run：`DEV087-ui-only-2026-08-22T07-00-51-231Z`，run manifest：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T07-00-51-231Z/run-manifest.json`，evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T07-00-51-231Z/`。其後 aggregate regression `DEV087-2026-08-22T07-07-18-304Z` 的 browser 46/46 PASS、`npm.cmd run qc:dev-087` 8/8 PASS、`typecheck:app` 與 isolated build 均 PASS。
+
+| 指標 | 結果 |
+|---|---:|
+| 67-case 分母 | 67 |
+| PASS / BLOCKED / FAIL | 1 / 66 / 0 |
+| C01–C11 | 11/11 PASS |
+| infrastructure checks | 5/5 PASS（migration、J01–J03、task-owned runtime cleanup） |
+| unexpected failure / console error | 0 |
+| direct business API / DB mutation | 0 |
+| merged/history UI rows | 0 |
+
+本輪先前發現的兩個問題已分流：
+
+1. 圖號候選按鈕曾被 runner 在 `revision-targets` 尚未完成時讀取，屬 runner timing false block；加入 UI 可見候選／錯誤的等待後，focused browser 46/46 PASS，J01 亦 PASS。
+2. 圖料關聯取消後曾回到不存在的 `/numbering/relations`，造成真實 UI 404；已將 relation safe return 修正為既有 `/numbering/search`，本輪 J03 PASS、`failures=[]`、console errors=0。
+
+因此本輪沒有剩餘可歸因於產品的 `FAIL`。仍有 66 個 `BLOCKED`，原因是隔離資料沒有可由 UI 合法取得且可重複的各生命週期前置，並且沒有合法 `Merged/history` row；依 UI-only 規則不得用 seed、SQL 或 business API 補造。這是測試資料／前置能力缺口，不是產品已通過，也不應被改判為 PASS。DEV-087 仍不可宣告完整 67/67 或 release-ready。
+
+### 剩餘結果的產品缺口判定
+
+| 分類 | 數量 | 判定 |
+|---|---:|---|
+| D24 歷史清單 readback | 1 PASS | 已有合法 UI 前置，未見產品錯誤 |
+| 其餘一般生命週期案例 | 63 BLOCKED | 缺少可由 UI 合法建立、可重複的測試前置；屬 QA fixture／前置能力缺口，不是產品 FAIL |
+| D27／P20／R20 Merged/history | 3 BLOCKED | canonical UI 沒有合法歷史列；依契約正確停止，不是產品 FAIL |
+| 可重現產品級 UI／API／DB FAIL | 0 | 目前沒有；唯一確認的 relation return 404 已修正並由 J03 重新驗證 |
+
 執行日期：2026-08-22  
 執行角色：獨立 AI-QC   
 環境：Local disposable SQLite + task-owned Next runtime；未連 production/staging  

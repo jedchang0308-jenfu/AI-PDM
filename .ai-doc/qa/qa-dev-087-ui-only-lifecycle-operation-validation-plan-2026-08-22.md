@@ -1,5 +1,25 @@
 # DEV-087 三工作臺全生命週期 AI UI-only 操作驗證計畫
 
+## 最新執行補充（2026-08-22）
+
+執行前先補最小可達的 QC journey，且只使用 rendered UI 觸發 business mutation；API 與 DB 僅作唯讀 readback。三個補充 journey 均需完成建立／進版、進入該 domain 工作頁、取消並返回清單，且保留 screenshot、action、network、UI/API/DB triad 與 cleanup evidence：
+
+| Journey | 預期結果 | 最新結果 |
+|---|---|---|
+| `J01-drawing-create-cancel` | 圖號量產最新版進版入口可選候選，進入既有圖號編輯頁並可取消 | PASS |
+| `J02-part-create-cancel` | 料號正式資料建立修改，進入料號編輯頁並可取消 | PASS |
+| `J03-relation-create-cancel` | 正式關聯建立調整，進入圖料關聯編輯頁並可取消 | PASS |
+
+最新全量證據：`DEV087-ui-only-2026-08-22T07-00-51-231Z`。67-case 分母結果為 `PASS=1、BLOCKED=66、FAIL=0`；C01–C11 為 `11/11 PASS`，infrastructure 為 `5/5 PASS`，console／unexpected failure 為 0。補充 journey 不計入 67-case 分母，亦不得用來掩蓋生命週期案例的 BLOCKED。
+
+本輪分類規則：
+
+- 真正產品缺口必須有 rendered UI 可達、前後端 triad 可讀回、且出現可重現的 UI／network／console FAIL。先前 relation 取消後導向不存在 `/numbering/relations` 的 404 已修正為 `/numbering/search`，最新 J03 PASS，因此目前沒有產品級 FAIL。
+- `BLOCKED` 只表示缺少合法、可重複的 UI 前置或既有 `Merged/history` row；禁止用 seed、SQL、直接 business API、fixture injection 或縮小分母補造。這些是測試前置／資料能力缺口，不能宣稱 PASS，也不能誤報為產品 FAIL。
+- 完整放行仍固定要求 `67/67 PASS + 11/11 gates + Blocked=0 + Not Run=0 + P0/P1=0`；本次尚未達成，DEV-087 維持未放行。
+
+本次 66 個 BLOCKED 的拆分固定為：63 個一般生命週期案例缺少合法 UI 測試前置、3 個 D27／P20／R20 缺少合法 `Merged/history` UI 列；不是 66 個產品錯誤。只有在補足合法 UI 前置後仍出現可重現的 UI／API／DB 不一致，才可升級為產品缺口。
+
 建立日期：2026-08-22  
 Owner：QA  
 執行者：AI-QA Operator；結案者：獨立 AI-QC  

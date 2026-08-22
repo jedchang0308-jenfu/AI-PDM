@@ -32,6 +32,7 @@ const cases = [];
 const failures = [];
 const network = [];
 const consoleErrors = [];
+const supplementalJourneys = [];
 let browser = null;
 let app = null;
 let port = null;
@@ -70,6 +71,101 @@ function safeJson(value) { try { return JSON.stringify(value); } catch { return 
 function caseDir(id) { return path.join(evidenceRoot, "cases", id); }
 function recordAction(id, action) { fs.appendFileSync(path.join(caseDir(id), "actions.jsonl"), `${JSON.stringify({ at: new Date().toISOString(), ...action })}\n`, "utf8"); }
 function recordNetwork(id, event) { fs.appendFileSync(path.join(caseDir(id), "network.jsonl"), `${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`, "utf8"); }
+
+function journeyBlocked(reason) {
+  const error = new Error(reason);
+  error.journeyBlocked = true;
+  return error;
+}
+
+async function waitForWorkbenchList(page, heading) {
+  await page.getByRole("heading", { name: heading, exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  await page.locator(".canonical-list-meta").waitFor({ state: "visible", timeout: 30_000 });
+  await page.waitForFunction(() => document.querySelector(".canonical-list")?.getAttribute("aria-busy") === "false", null, { timeout: 30_000 });
+}
+
+async function openLayerRow(page, layerText) {
+  const row = page.locator(".canonical-table-wrap tbody tr").filter({ hasText: layerText }).first();
+  if (await row.count() === 0) throw journeyBlocked(`NO_LEGAL_UI_ROW:${layerText}`);
+  await row.locator(".canonical-row-open").click();
+  const dialog = page.getByRole("dialog").last();
+  await dialog.waitFor({ state: "visible", timeout: 30_000 });
+  await page.waitForFunction(() => !document.querySelector(".canonical-drawer-message") && Boolean(document.querySelector(".canonical-drawer-actions, .canonical-error[role='alert']")), null, { timeout: 30_000 });
+  return dialog;
+}
+
+async function cancelOwnerWorkspace(page, route, actions) {
+  await page.getByRole("button", { name: "取消本次工作", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  actions.push({ kind: "assert", target: "owner-workspace", observed: page.url() });
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "取消本次工作", exact: true }).click();
+  await page.waitForURL((url) => url.pathname === new URL(route, baseUrl).pathname, { timeout: 30_000 });
+  await waitForWorkbenchList(page, route.startsWith("/numbering/drawings") ? "圖號工作台" : route.startsWith("/parts") ? "料號工作台" : "圖料工作台");
+  actions.push({ kind: "click", target: "取消本次工作", result: "returned-to-workbench" });
+}
+
+async function runSupplementalJourney(context, definition) {
+  const dir = path.join(evidenceRoot, "journeys", definition.id);
+  ensureDir(dir);
+  const actions = [];
+  const startedAt = new Date().toISOString();
+  let status = "PASS";
+  let reason = "";
+  const page = await context.newPage();
+  monitor(page, definition.id);
+  try {
+    actions.push({ kind: "navigate", target: definition.route });
+    await page.goto(`${baseUrl}${definition.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await waitForWorkbenchList(page, definition.heading);
+    const dialog = await openLayerRow(page, definition.layerText);
+    const actionButtons = dialog.locator(".canonical-drawer-actions button");
+    const availableActions = (await actionButtons.allTextContents()).map((value) => value.trim()).filter(Boolean);
+    const actionButton = actionButtons.filter({ hasText: definition.actionLabel }).first();
+    if (await actionButton.count() === 0) throw journeyBlocked(`NO_LEGAL_UI_ACTION:${definition.actionLabel};available=${availableActions.join("|") || "none"}`);
+    actions.push({ kind: "click", target: definition.actionLabel });
+    if (definition.kind === "drawing") {
+      await actionButton.click();
+      await page.getByRole("dialog", { name: "選擇進版方式" }).waitFor({ state: "visible", timeout: 30_000 });
+      await page.waitForFunction(() => document.querySelectorAll(".canonical-candidates button").length > 0 || Boolean(document.querySelector(".canonical-modal .canonical-error")), null, { timeout: 30_000 });
+      const candidateButtons = page.locator(".canonical-candidates button:not(:disabled)");
+      if (await candidateButtons.count() === 0) throw journeyBlocked("NO_ENABLED_UI_REVISION_CANDIDATE");
+      const candidateLabel = (await candidateButtons.first().innerText()).trim();
+      actions.push({ kind: "click", target: "candidate", label: candidateLabel });
+      await candidateButtons.first().click();
+      await page.waitForURL((url) => url.pathname.includes("/numbering/drawings/") && url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+      await page.locator(".dev079-workspace").waitFor({ state: "visible", timeout: 30_000 });
+      await page.getByRole("heading", { name: "圖號工作台", exact: false }).count();
+      actions.push({ kind: "assert", target: "圖號編輯", observed: await page.locator(".dev079-workspace-heading").innerText() });
+    } else {
+      await Promise.all([
+        page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 }),
+        actionButton.click()
+      ]);
+      await page.locator("[data-pdm-edit-page='true']").waitFor({ state: "visible", timeout: 30_000 });
+      actions.push({ kind: "assert", target: definition.editorLabel, observed: await page.locator(".pdm-edit-page-heading").innerText() });
+    }
+    await page.screenshot({ path: path.join(dir, "workspace-before-cancel.png"), fullPage: true });
+    await cancelOwnerWorkspace(page, definition.route, actions);
+    await page.screenshot({ path: path.join(dir, "workbench-after-cancel.png"), fullPage: true });
+  } catch (error) {
+    if (error?.journeyBlocked) { status = "BLOCKED"; reason = error.message; }
+    else { status = "FAIL"; reason = error instanceof Error ? error.message : String(error); failures.push({ label: definition.id, kind: "journey", message: reason }); }
+  } finally {
+    writeJson(path.join(dir, "journey.json"), { id: definition.id, kind: definition.kind, route: definition.route, status, reason, actions, startedAt, finishedAt: new Date().toISOString(), mutationPolicy: "rendered UI clicks only; API/DB readback only" });
+    await page.close().catch(() => {});
+  }
+  return { id: definition.id, status, reason, evidence: path.relative(root, path.join(dir, "journey.json")) };
+}
+
+async function runSupplementalJourneys(context) {
+  const definitions = [
+    { id: "J01-drawing-create-cancel", kind: "drawing", route: "/numbering/drawings?query=A0002-M01", heading: "圖號工作台", layerText: "量產版 1", actionLabel: "進版" },
+    { id: "J02-part-create-cancel", kind: "part", route: "/parts?query=A0002-P01", heading: "料號工作台", layerText: "正式資料", actionLabel: "建立修改", editorLabel: "料號編輯" },
+    { id: "J03-relation-create-cancel", kind: "relation", route: "/numbering/search?query=A0002", heading: "圖料工作台", layerText: "正式關聯", actionLabel: "建立調整", editorLabel: "圖料關聯編輯" }
+  ];
+  for (const definition of definitions) supplementalJourneys.push(await runSupplementalJourney(context, definition));
+  return supplementalJourneys;
+}
 
 function monitor(page, label, caseId = null) {
   page.on("console", (message) => {
@@ -216,6 +312,8 @@ try {
   console.log(`QC DEV-087 full UI-only runtime: project=${root}; purpose=67-case lifecycle preflight; port=${port}; cleanup=after evidence write`);
   app = startNextApp(root, "dev", port); await waitForNextAppReady(baseUrl, app.getOutput); browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } }); monitor(context.pages()[0] ?? await context.newPage(), "context"); await login(context);
+  await runSupplementalJourneys(context);
+  supplementalJourneys.forEach((journey) => addCheck(journey.id, journey.status === "PASS", journey.reason || journey.evidence));
   for (let index = 0; index < casesSpec.length; index += 1) await executeCase(context, casesSpec[index], index);
   await context.close();
   // C01-C10 are common read-only gates in this full run. C11 delegates the
@@ -248,6 +346,7 @@ const manifest = {
   infrastructure: { total: infrastructureChecks.length, pass: infrastructureChecks.filter((item) => item.pass).length, fail: infrastructureChecks.filter((item) => !item.pass).length },
   cases,
   checks,
+  supplementalJourneys,
   failures,
   consoleErrors,
   networkEvents: network.length,
@@ -260,7 +359,7 @@ writeJson(path.join(evidenceRoot, "prohibited-mutation-audit.json"), { directBus
 writeJson(path.join(evidenceRoot, "cleanup-ledger.json"), { status: "task-owned runtime removed", port, tempRootRemoved: true });
 writeJson(path.join(evidenceRoot, "schema-manifest.json"), { authority: "canonical_workbench_states", provider: "sqlite", schemaHash: "dev087-v1", readback: "readonly" });
 writeJson(path.join(evidenceRoot, "file-manifest.json"), { repository: "isolated disposable copy", attachments: "not mutated", credentials: "not recorded" });
-writeText(path.join(evidenceRoot, "defects.md"), `# DEV-087 full UI-only defects\n\n- Fixture has no legal existing Merged/history UI row: ${manifest.mergedHistoryRows}.\n- ${manifest.coverage.blocked}/67 lifecycle cases lack a legal UI precondition in this disposable dataset; no seed, SQL business mutation, or direct API mutation was used.\n- This is a blocking fixture/precondition gap, not a product PASS.\n`);
-writeText(path.join(evidenceRoot, "summary.md"), `# DEV-087 full UI-only run\n\n- status: ${manifest.status}\n- coverage: ${manifest.coverage.pass}/67 PASS, ${manifest.coverage.blocked} BLOCKED, ${manifest.coverage.fail} FAIL\n- gates: ${manifest.gates.pass}/${manifest.gates.total} PASS\n- infrastructure checks: ${manifest.infrastructure.pass}/${manifest.infrastructure.total} PASS\n- merged history rows: ${manifest.mergedHistoryRows}\n\nBLOCKED cases are preserved as evidence and are not counted as PASS.\n`);
+writeText(path.join(evidenceRoot, "defects.md"), `# DEV-087 full UI-only defects\n\n- Supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}.\n- Fixture has no legal existing Merged/history UI row: ${manifest.mergedHistoryRows}.\n- ${manifest.coverage.blocked}/67 lifecycle cases lack a legal UI precondition in this disposable dataset; no seed, SQL business mutation, or direct API mutation was used.\n- This is a blocking fixture/precondition gap, not a product PASS.\n`);
+writeText(path.join(evidenceRoot, "summary.md"), `# DEV-087 full UI-only run\n\n- status: ${manifest.status}\n- coverage: ${manifest.coverage.pass}/67 PASS, ${manifest.coverage.blocked} BLOCKED, ${manifest.coverage.fail} FAIL\n- gates: ${manifest.gates.pass}/${manifest.gates.total} PASS\n- infrastructure checks: ${manifest.infrastructure.pass}/${manifest.infrastructure.total} PASS\n- supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}\n- merged history rows: ${manifest.mergedHistoryRows}\n\nBLOCKED cases are preserved as evidence and are not counted as PASS. Supplemental journeys are UI-only mutation evidence and do not replace lifecycle-case preconditions.\n`);
 console.log(JSON.stringify(manifest, null, 2));
 if (manifest.status !== "PASS") process.exitCode = 1;

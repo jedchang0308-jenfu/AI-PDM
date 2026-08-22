@@ -51,7 +51,7 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
   const [partChoice, setPartChoice] = useState("");
   const [linkType, setLinkType] = useState<LinkRow["linkType"]>("reference");
   const domain = data?.entityType ?? entityType;
-  const safeReturn = returnTo || (domain === "drawing" ? "/numbering/drawings" : domain === "part" ? "/parts" : domain === "relation" ? "/numbering/relations" : "/approvals");
+  const safeReturn = returnTo || (domain === "drawing" ? "/numbering/drawings" : domain === "part" ? "/parts" : domain === "relation" ? "/numbering/search" : "/approvals");
 
   const endpoint = useMemo(() => {
     if (reviewRequestId) return `/api/pdm/review-requests/${encodeURIComponent(reviewRequestId)}`;
