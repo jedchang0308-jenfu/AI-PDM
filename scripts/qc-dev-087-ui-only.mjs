@@ -3,7 +3,7 @@
 /*
  * DEV-087 full UI-only lifecycle runner.
  *
- * This runner deliberately keeps the 67-case denominator intact.  It performs
+ * This runner enforces the current 48-case canonical denominator.  It performs
  * a rendered UI preflight and read-only API/DB reconciliation for every case;
  * a journey that lacks a legal UI mutation start point is recorded as
  * BLOCKED, never silently counted as PASS.  Business writes are only made by
@@ -66,6 +66,15 @@ const casesSpec = [
   ...Object.entries(partTitles).map(([id, title]) => ({ id, family: "P", title, route: "/parts?query=A0002-P01", api: "/api/parts/workbench?query=A0002-P01", entity: "part" })),
   ...Object.entries(relationTitles).map(([id, title]) => ({ id, family: "R", title, route: "/numbering/search?query=A0002", api: "/api/numbering/relations?query=A0002", entity: "relation" }))
 ];
+const excludedCaseIds = new Set([
+  "D25", "D26", "D27",
+  "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P20",
+  "R15", "R16", "R17", "R18", "R19", "R20"
+]);
+const includedCaseIds = new Set(casesSpec.filter((spec) => !excludedCaseIds.has(spec.id)).map((spec) => spec.id));
+const lifecycleDenominator = includedCaseIds.size;
+const isolatedBundles = [["D12", "D13"], ["D07"], ["D09"], ["D14"], ["D15"], ["D16"], ["D17"]];
+const isolatedCaseIds = new Set(isolatedBundles.flat());
 const commonSpec = [
   ["C01", "authority 與 provider 啟動檢查"], ["C02", "UI mutation provenance"], ["C03", "原子性與 zero partial write"],
   ["C04", "idempotency 與 stale guard"], ["C05", "UI/API/DB triad readback"], ["C06", "cleanup ledger"],
@@ -1197,6 +1206,37 @@ function runFaultProfile(profile) {
   return { profile, status: result.status === 0 && manifest?.status === "PASS" ? "PASS" : "FAIL", manifest };
 }
 
+function runIsolatedLifecycleBundle(caseIds) {
+  const result = spawnSync(process.execPath, [path.join(root, "scripts", "qc-dev-087-ui-only.mjs")], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      QC_DEV087_LIFECYCLE_FOCUS: caseIds.join(","),
+      QC_DEV087_FAST_FOCUS: "1",
+      QC_DEV087_SKIP_SUPPLEMENTAL: "1",
+      QC_DEV087_ISOLATED_CHILD: "1"
+    },
+    maxBuffer: 24 * 1024 * 1024
+  });
+  const match = result.stdout.match(/\{\s*"devId":\s*"DEV-087"[\s\S]*\}\s*$/u);
+  let manifest = null;
+  try { manifest = match ? JSON.parse(match[0]) : null; } catch { manifest = null; }
+  const rows = caseIds.map((caseId) => manifest?.cases?.find((item) => item.id === caseId) ?? null);
+  const journeys = caseIds.map((caseId) => manifest?.lifecycleJourneys?.find((item) => item.caseId === caseId) ?? null);
+  const pass = Boolean(manifest) && rows.every((row) => row?.status === "PASS") && journeys.every((journey) => journey?.status === "PASS") && (manifest.consoleErrors?.length ?? 0) === 0 && (manifest.failures?.length ?? 0) === 0;
+  if (!pass) {
+    const detail = safeJson({ caseIds, exitCode: result.status, rows, journeys, childFailures: manifest?.failures ?? [], childConsoleErrors: manifest?.consoleErrors ?? [], stdoutTail: result.stdout.slice(-2000), stderrTail: result.stderr.slice(-2000) });
+    throw new Error(`ISOLATED_UI_BUNDLE_FAILED:${detail}`);
+  }
+  rows.forEach((row) => cases.push(row));
+  journeys.forEach((journey) => {
+    lifecycleJourneys.push(journey);
+    lifecycleJourneyByCase.set(journey.caseId, journey);
+  });
+  addCheck(`isolated UI journey ${caseIds.join("+")}`, true, `child=${manifest.runId}; evidence=${manifest.evidenceRoot}`);
+}
+
 try {
   ensureDir(screenshotRoot); ensureDir(evidenceRoot);
   fs.mkdirSync(fixtureDataDir, { recursive: true });
@@ -1214,13 +1254,16 @@ try {
   port = await getFreePort(); baseUrl = `http://127.0.0.1:${port}`;
   Object.assign(process.env, { NODE_ENV: "development", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: fixtureDataDir, PDM_REPOSITORY_DIR: fixtureRepository, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "", PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: `.tmp/qc-dev087-ui-only-${port}`, PDM_PUBLIC_BASE_URL: baseUrl });
   prepareDisposableNextEnv();
-  console.log(`QC DEV-087 full UI-only runtime: project=${root}; purpose=67-case lifecycle preflight; port=${port}; cleanup=after evidence write`);
+  console.log(`QC DEV-087 full UI-only runtime: project=${root}; purpose=${lifecycleDenominator}-case lifecycle preflight; port=${port}; cleanup=after evidence write`);
   app = startNextApp(root, "dev", port); await waitForNextAppReady(baseUrl, app.getOutput); browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } }); monitor(context.pages()[0] ?? await context.newPage(), "context"); await login(context, "系統管理員");
   const reviewerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await login(reviewerContext, "研發主管");
   if (process.env.QC_DEV087_SKIP_SUPPLEMENTAL !== "1") await runSupplementalJourneys(context);
   supplementalJourneys.forEach((journey) => addCheck(journey.id, journey.status === "PASS", journey.reason || journey.evidence));
+  if (process.env.QC_DEV087_ISOLATED_CHILD !== "1" && lifecycleFocus.size === 0) {
+    for (const bundle of isolatedBundles) runIsolatedLifecycleBundle(bundle);
+  }
   // Run every lifecycle case through a named UI journey.  A journey may finish
   // BLOCKED when the current product has no legal rendered-UI entry point; that
   // evidence is kept distinct from a product FAIL and is reviewed below.
@@ -1231,6 +1274,8 @@ try {
       const spec = casesSpec.find((item) => item.id === `${family}${suffix}`);
       if (!spec) continue;
       if (spec.id === "D24") continue;
+      if (!includedCaseIds.has(spec.id)) continue;
+      if (process.env.QC_DEV087_ISOLATED_CHILD !== "1" && lifecycleFocus.size === 0 && isolatedCaseIds.has(spec.id)) continue;
       if (lifecycleFocus.size > 0 && !lifecycleFocus.has(spec.id)) continue;
       const journey = await runLifecycleJourney(context, reviewerContext, spec);
       lifecycleJourneys.push(journey);
@@ -1241,13 +1286,24 @@ try {
   await reviewerContext.close();
   const readbackSpecs = process.env.QC_DEV087_SKIP_READBACK === "1"
     ? []
-    : fastFocus ? casesSpec.filter((spec) => lifecycleFocus.has(spec.id)) : casesSpec;
+    : fastFocus ? casesSpec.filter((spec) => lifecycleFocus.has(spec.id) && includedCaseIds.has(spec.id)) : casesSpec.filter((spec) => includedCaseIds.has(spec.id) && (process.env.QC_DEV087_ISOLATED_CHILD === "1" || !isolatedCaseIds.has(spec.id)));
   for (let index = 0; index < readbackSpecs.length; index += 1) await executeCase(context, readbackSpecs[index], index);
   await context.close();
   // C01-C10 are common read-only gates in this full run. C11 delegates the
   // exact UI-triggered fault profile to the already versioned child runner.
   commonSpec.forEach(({ id, title }) => { if (id !== "C11") { addCheck(id, failures.filter((item) => item.caseId).length === 0, title); } });
-  const faultProfiles = fastFocus ? [] : [runFaultProfile("system_admin"), runFaultProfile("blocked")];
+  // Fault profiles are separate disposable Next runtimes.  Stop the parent
+  // before launching them because Next's development type writer uses the
+  // repository-root next-env.d.ts; concurrent runtimes can otherwise race on
+  // that shared file and turn a healthy C11 check into an environmental fail.
+  let faultProfiles = [];
+  if (!fastFocus) {
+    try { await browser?.close(); } catch {}
+    browser = null;
+    try { await stopNextApp(app?.child); } catch {}
+    app = null;
+    faultProfiles = [runFaultProfile("system_admin"), runFaultProfile("blocked")];
+  }
   addCheck("C11", faultProfiles.every((item) => item.status === "PASS"), safeJson(faultProfiles.map((item) => ({ profile: item.profile, status: item.status }))));
 } catch (error) {
   addCheck("full runner execution", false, error instanceof Error ? error.message : String(error));
@@ -1269,9 +1325,9 @@ const gateFailures = gateChecks.filter((item) => !item.pass);
 const manifest = {
   devId: "DEV-087",
   runId,
-  status: cases.length === 67 && passedCases.length === 67 && blocked.length === 0 && failedCases.length === 0 && gateFailures.length === 0 && infrastructureChecks.every((item) => item.pass) ? "PASS" : "FAIL",
-  denominator: { drawing: 27, part: 20, relation: 20, total: 67 },
-  coverage: { total: cases.length, pass: passedCases.length, blocked: blocked.length, fail: failedCases.length, notRun: 67 - cases.length },
+  status: cases.length === lifecycleDenominator && passedCases.length === lifecycleDenominator && blocked.length === 0 && failedCases.length === 0 && gateFailures.length === 0 && infrastructureChecks.every((item) => item.pass) ? "PASS" : "FAIL",
+  denominator: { drawing: 24, part: 10, relation: 14, total: lifecycleDenominator, excluded: [...excludedCaseIds] },
+  coverage: { total: cases.length, pass: passedCases.length, blocked: blocked.length, fail: failedCases.length, notRun: lifecycleDenominator - cases.length },
   gates: { total: gateChecks.length, pass: gateChecks.filter((item) => item.pass).length, fail: gateFailures.length },
   infrastructure: { total: infrastructureChecks.length, pass: infrastructureChecks.filter((item) => item.pass).length, fail: infrastructureChecks.filter((item) => !item.pass).length },
   cases,
@@ -1290,7 +1346,7 @@ writeJson(path.join(evidenceRoot, "prohibited-mutation-audit.json"), { directBus
 writeJson(path.join(evidenceRoot, "cleanup-ledger.json"), { status: "task-owned runtime removed", port, tempRootRemoved: true });
 writeJson(path.join(evidenceRoot, "schema-manifest.json"), { authority: "canonical_workbench_states", provider: "sqlite", schemaHash: "dev087-v1", readback: "readonly" });
 writeJson(path.join(evidenceRoot, "file-manifest.json"), { repository: "isolated disposable copy", attachments: "not mutated", credentials: "not recorded" });
-writeText(path.join(evidenceRoot, "defects.md"), `# DEV-087 full UI-only defects\n\n- Supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}.\n- Lifecycle journeys: ${manifest.lifecycleJourneys.map((journey) => `${journey.caseId}=${journey.status}`).join(", ") || "none"}.\n- Fixture has no legal existing Merged/history UI row: ${manifest.mergedHistoryRows}.\n- ${manifest.coverage.blocked}/67 lifecycle cases remain blocked after the first UI journey slice; no seed, SQL business mutation, or direct API mutation was used.\n- Any lifecycle journey marked FAIL is a candidate product gap; BLOCKED remains a test precondition gap until a legal UI path is added.\n`);
-writeText(path.join(evidenceRoot, "summary.md"), `# DEV-087 full UI-only run\n\n- status: ${manifest.status}\n- coverage: ${manifest.coverage.pass}/67 PASS, ${manifest.coverage.blocked} BLOCKED, ${manifest.coverage.fail} FAIL\n- gates: ${manifest.gates.pass}/${manifest.gates.total} PASS\n- infrastructure checks: ${manifest.infrastructure.pass}/${manifest.infrastructure.total} PASS\n- supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}\n- lifecycle journeys: ${manifest.lifecycleJourneys.map((journey) => `${journey.caseId}=${journey.status}`).join(", ") || "none"}\n- merged history rows: ${manifest.mergedHistoryRows}\n\nA lifecycle case counts as PASS only after its rendered UI journey and the UI/API/DB triad agree. BLOCKED cases remain visible evidence and are not counted as PASS.\n`);
+writeText(path.join(evidenceRoot, "defects.md"), `# DEV-087 full UI-only defects\n\n- Supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}.\n- Lifecycle journeys: ${manifest.lifecycleJourneys.map((journey) => `${journey.caseId}=${journey.status}`).join(", ") || "none"}.\n- Excluded follow-up cases: ${manifest.denominator.excluded.join(", ")}.\n- Fixture has no legal existing Merged/history UI row: ${manifest.mergedHistoryRows}.\n- ${manifest.coverage.blocked}/${manifest.denominator.total} lifecycle cases remain blocked in the current canonical scope; no seed, SQL business mutation, or direct API mutation was used.\n- Any lifecycle journey marked FAIL is a candidate product gap; BLOCKED remains a test precondition gap until a legal UI path is added.\n`);
+writeText(path.join(evidenceRoot, "summary.md"), `# DEV-087 full UI-only run\n\n- status: ${manifest.status}\n- coverage: ${manifest.coverage.pass}/${manifest.denominator.total} PASS, ${manifest.coverage.blocked} BLOCKED, ${manifest.coverage.fail} FAIL\n- gates: ${manifest.gates.pass}/${manifest.gates.total} PASS\n- infrastructure checks: ${manifest.infrastructure.pass}/${manifest.infrastructure.total} PASS\n- supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}\n- lifecycle journeys: ${manifest.lifecycleJourneys.map((journey) => `${journey.caseId}=${journey.status}`).join(", ") || "none"}\n- excluded follow-up cases: ${manifest.denominator.excluded.join(", ")}\n- merged history rows: ${manifest.mergedHistoryRows}\n\nA lifecycle case counts as PASS only after its rendered UI journey and the UI/API/DB triad agree. Excluded cases remain explicit follow-up scope and are not silently counted.\n`);
 console.log(JSON.stringify(manifest, null, 2));
 if (manifest.status !== "PASS") process.exitCode = 1;

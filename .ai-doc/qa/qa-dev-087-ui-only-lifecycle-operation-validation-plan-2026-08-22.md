@@ -544,3 +544,36 @@ R13 同時修正 runner 的 return 控制流與預期 409 error 監控，避免 
 - `D25–D27/P18–P20/R16–R20` 與 `R15` 仍是「產品能力／契約缺口候選」：現行 UI 沒有合法 terminal/history 或 deterministic multi-context 起點，因此只能列 `BLOCKED / 尚未證實`，不能改判 PASS，也不能以 seed、SQL 或直接 business API 偽造。
 
 結論：已證實產品缺口 `0`；DEV-087 仍 `NOT PASS`，因放行仍要求 `67/67 PASS + Blocked=0 + NotRun=0 + gates=11/11 + P0/P1=0`。
+## 26. DEV-087 scope rebaseline and completed 48-case gate（2026-08-23）
+
+依據本輪產品缺口分析與使用者決策，本期正式驗收範圍改以目前具有合法 rendered-UI 路徑、且契約已定義的 canonical lifecycle 為準：
+
+- Drawing：`D01–D24`（24 cases）
+- Part：`P01–P10`（10 cases）
+- Relation：`R01–R14`（14 cases）
+- 合計：`48 cases`，另加共同 gate `C01–C11`（11 gates）
+
+排除項目不是被靜默改判 PASS，而是明確列入後續能力／契約候選：
+
+- `D25–D26`：正式圖號 obsolete 能力候選；`D27`：歷史可達性候選。
+- `P11–P17`：DEV-088 attachment scope；`P18–P20`：料號終態／歷史可達性候選。
+- `R15`：formal-base drift 契約尚未定義；`R16–R20`：關聯終態／歷史可達性候選。
+
+### 最新 full evidence
+
+最新無 focus disposable run：`DEV087-ui-only-2026-08-22T16-03-21-109Z`，evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T16-03-21-109Z/`。
+
+| Gate | 結果 |
+|---|---|
+| lifecycle coverage | `48/48 PASS`；`Blocked=0`；`NotRun=0`；`FAIL=0` |
+| common gates | `C01–C11 = 11/11 PASS` |
+| infrastructure | `51/51 PASS` |
+| supplemental journeys | `J01/J02/J03 = 3/3 PASS` |
+| console / unexpected failure | `consoleErrors=0`；`failures=[]` |
+| UI-only mutation audit | direct business API writes `0`；direct DB writes `0`；UI initiated writes only |
+
+本輪 runner 先停止主 runtime，再啟動 `system_admin`／`blocked` fault child，避免共用根目錄 `next-env.d.ts` 造成環境競態；兩個 fault profile 均有獨立 UI/API/DB evidence 並通過。正式資料未被 fault path 改變，task-owned runtime、port 與 disposable fixture 均已清理。
+
+### 放行規則與後續決策
+
+本期 DEV-087 可依 `48/48 + 11/11 + Blocked=0 + NotRun=0 + P0/P1=0 + prohibited mutation=0` 判定為本地 QA/QC 完成；不得將排除項目解讀為已驗證。未來若業務需要任一排除案例，必須先建立對應產品能力或契約，再另開 follow-up journey；禁止以 seed、SQL、直接 business API 或人工改狀態偽造終態／歷史資料。

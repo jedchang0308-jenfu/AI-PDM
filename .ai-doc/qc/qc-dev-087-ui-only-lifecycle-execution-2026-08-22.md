@@ -449,3 +449,29 @@ R13 的 runner 控制流與預期 409 監控已補正；這兩案在 full run �
 | 產品能力／契約缺口候選，尚未證實缺陷 | `D25–D27/P18–P20/R16–R20` 及 `R15` | 目前沒有合法 UI terminal/history 或 deterministic multi-context 起點；沒有 UI/API/DB FAIL 證據 | 若產品要承諾此情境，應另立 scope／UI entry contract；禁止用 seed、SQL、直接 business API 偽造 |
 
 因此目前「已證實的產品缺口」為 `0`；但 DEV-087 仍是 `NOT PASS`，因完整放行門檻仍固定為 `67/67 PASS`、`Blocked=0`、`NotRun=0`、`gates=11/11`、`P0/P1=0`。不得把 41/67 的 full run 宣稱為 release PASS。
+## 26. QC disposition：48-case canonical scope 完成（2026-08-23）
+
+依產品缺口分流結果，本期 QC 只對可由合法 UI 路徑達成且契約已定義的 `D01–D24 / P01–P10 / R01–R14` 執行 release gate，共 `48 cases`。`D25–D27`、`P11–P20`、`R15–R20` 保留為明確的後續候選，不是 PASS，也不是本期 BLOCKED。
+
+最新 aggregate：`DEV087-ui-only-2026-08-22T16-03-21-109Z`；evidence：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T16-03-21-109Z/`。
+
+| QC 項目 | 結果 |
+|---|---|
+| lifecycle | `48/48 PASS`、`0 BLOCKED`、`0 FAIL`、`0 NotRun` |
+| common contract gates | `11/11 PASS` |
+| infrastructure | `51/51 PASS` |
+| supplemental | `J01/J02/J03 = 3/3 PASS` |
+| failure sweep | `consoleErrors=0`、`failures=[]` |
+| mutation policy | 只由 rendered UI 觸發 business mutation；API/DB 僅唯讀取證；禁止 mutation `0` |
+
+### gap disposition
+
+| 分類 | 案例 | QC disposition |
+|---|---|---|
+| Test fixture／sequence gap | `D07/D09/D12/D14/D15/D16/D17` | 以獨立 disposable UI bundle 重跑後 PASS；不再誤報為產品缺口 |
+| DEV-088 scope | `P11–P17` | 移出 DEV-087 gate，保留 DEV-088 追蹤 |
+| Product capability candidate | `D25–D26` | 需要正式 obsolete 能力時另開產品任務 |
+| History reachability candidate | `D27/P18–P20/R16–R20` | 需要合法 UI 形成歷史／終態後另開 journey；不得 seed／SQL 偽造 |
+| Contract gap candidate | `R15` | 先定義 formal-base drift 契約，再建立 follow-up QA |
+
+本期未發現可重現的 open product FAIL。C11 曾因主 runtime 與 fault child 同時爭用 `next-env.d.ts` 出現一次環境性失敗；runner 已改為先清理主 runtime，再執行 fault child，最新 aggregate 的 `system_admin` 與 `blocked` 均 PASS。故本期 QC 結論為 `PASS / Local QA-QC Complete / Production Release Gated`，但不延伸宣稱後續候選已完成。
