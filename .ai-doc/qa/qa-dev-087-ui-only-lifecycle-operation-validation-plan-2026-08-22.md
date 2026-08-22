@@ -457,3 +457,90 @@ Run-level 必含 `run-manifest.json`、`authority.json`、`actors.json`、`route
 - `J01/J02/J03/J-D04/J-D05` 全 PASS；`C01-C11=11/11 PASS`；`failures=[]`、`consoleErrors=[]`；port `61975` 已釋放。
 
 因此目前已執行的 QC journey 沒有可重現產品級 FAIL；未執行的 D06-D27（D24 為 readback-only）、P01-P20、R01-R20 仍維持 BLOCKED，必須先補合法 UI journey／fixture，再進行產品缺口判定。
+
+## 19. D21/D22 審核競合 journey 補強與產品缺口判定（2026-08-22）
+
+### 19.1 Journey contract
+
+- `D21` 必須由兩個 rendered UI context 對同一研發版同時按「作廢」；合法結果恆為一個 `200`、一個 `409`，且只有一個 reviewer request 存在。
+- `D22` 必須由兩個 reviewer rendered UI context 開啟同一 request 並同時按「核准」；合法結果恆為一個 `200`、一個 `409 WORKBENCH_REVIEW_REQUEST_STALE`，canonical branch／current list 只能完成一次 terminal transition。
+- active request 完成後可刪除工作內容，但為了讓已開啟頁面得到 deterministic stale 結果，後端只保留最小 terminal receipt（request key、company、決策時間）；receipt 不進一般清單、篩選器或 UI。
+
+### 19.2 本輪證據
+
+`DEV087-ui-only-2026-08-22T13-01-59-223Z`：`J-D21=PASS`、`J-D22=PASS`，D22 response observed=`409 / 200`；`C01-C11=11/11 PASS`、infrastructure `7/7 PASS`、supplemental `3/3 PASS`、`consoleErrors=0`、`failures=0`。本輪 readback 保持 67-case 分母，結果 `3 PASS / 64 BLOCKED / 0 FAIL`，因為只執行 D21/D22 的 lifecycle journey，不能當作 full release 結果。
+
+### 19.3 Root-cause triage
+
+| 識別 | 根因 | 判定 | 狀態 |
+|---|---|---|---|
+| `GAP-PROD-02` | active review request 刪除後，第二 reviewer context 被回 404 而非 stale 409 | 真正產品缺口 | CLOSED；以最小 terminal receipt 修正 |
+| `GAP-DATA-01` | branch／stale／多 context 缺少可由 UI 合法取得且可清理的資料起點 | QA fixture／sequence 缺口 | OPEN，不能改判 PASS |
+| `GAP-DATA-02` | terminal/history row 在資料集不存在，且沒有合法 UI 建立入口 | QA fixture／scope 缺口 | OPEN，維持 BLOCKED |
+| `GAP-SCOPE-01` | P11-P17 依契約屬 DEV-088 attachment journey | scope boundary | OPEN in DEV-087，移交 DEV-088 |
+
+在此分類下，BLOCKED 不等於產品 FAIL；但 `NOT PASS` 仍是正式結論，直到完整分母全部以 rendered UI journey 與 UI/API/DB triad 通過。
+
+## 20. 無 focus full regression：D22 FAIL 歸零（2026-08-22 13:20）
+
+最新 run：`DEV087-ui-only-2026-08-22T13-20-00-854Z`。
+
+| 指標 | 結果 |
+|---|---:|
+| coverage | `40 PASS / 27 BLOCKED / 0 FAIL` |
+| D21 / D22 | `PASS / PASS`；D22 response `200 / 409 WORKBENCH_REVIEW_REQUEST_STALE` |
+| C01–C11 | `11/11 PASS` |
+| supplemental | `J01/J02/J03=3/3 PASS` |
+| consoleErrors / unexpected failure | `0 / 0` |
+
+這次 full run 將先前 D22 的 404 產品 FAIL 關閉；route precheck 與 service 均遵守 terminal receipt stale contract。剩餘 27 BLOCKED 的 root cause 只有合法 UI 前置／sequence 不存在、terminal/history fixture 不存在、以及 DEV-088 attachment scope；依本計畫不得 seed、SQL 或直接 business API 補造，亦不得改判產品 PASS。完整放行仍固定為 `67/67 PASS + 11/11 gates + Blocked=0 + NotRun=0 + P0/P1=0`。
+
+## 21. QC journey 後的產品缺口判定規則
+
+本次先補 journey，再判定產品缺口。已關閉的產品缺口固定命名為：
+
+- `GAP-PROD-01A`：Drawing workspace 多餘欄位／preview layer 攔截 Save。
+- `GAP-PROD-01B`：取消或審核終止後，在途 preview 讀取造成 404／console error。
+- `GAP-PROD-02`：同一 review request 的第二 reviewer context 被誤回 404，未回 stale 409。
+
+最新 full evidence 已證明上述三項目前沒有 open FAIL。其餘 `27 BLOCKED` 只能列為「尚未證實」或「範圍／前置缺口」：D07/D09/D12/D14–D17/R13/R15 是 branch／stale／multi-context UI fixture；P11–P17 是 DEV-088；D25–D27/P18–P20/R16–R20 是目前沒有合法 terminal/history UI 前置。未完成相應 journey 前，不得宣稱「產品無缺口」；但也不得直接把 BLOCKED 改判 FAIL。
+
+## 22. Fresh UI fixture 證據修訂（2026-08-22 13:37–13:39）
+
+`D07`、`D09`、`D12` 分別以全新 disposable runtime 單獨執行，皆為 `PASS`，且各自 `C01–C11=11/11`、`consoleErrors=0`、UI/API/DB triad 一致。這證明全量 run 中三案的 `NO_LEGAL_UI_ACTION` 是 sequence contamination／fixture 編排問題，不是產品缺口；後續 runner 必須在不使用 seed／SQL／直接 business API 的前提下，為每一案例提供可重置的合法 UI fixture chain。
+
+同樣方式補驗 `D14`、`D16`、`D17`：三案各自 fresh run 均 `PASS`、`C01–C11=11/11`、`consoleErrors=0`、UI/API/DB triad 一致（evidence 分別為 `DEV087-ui-only-2026-08-22T13-41-24-516Z`、`13-41-59-304Z`、`13-42-33-576Z`）。因此 D14/D16/D17 的 full-run BLOCKED 亦是 sequence／fixture 編排缺口。
+
+## 23. Fresh UI fixture journey：D15／R13（2026-08-22 13:47–13:48）
+
+為持續遵守「先補 QC journey，再判定產品缺口」，D15 與 R13 亦各自以全新 disposable runtime、rendered UI mutation、唯讀 API／DB triad 重驗：
+
+| 案例 | evidence | 結果 | 判定 |
+|---|---|---|---|
+| `D15` | `DEV087-ui-only-2026-08-22T13-48-29-009Z` | PASS | branch 推進量產版 2 後，另一研發 branch 仍可見；UI/API/DB 一致，非產品缺口 |
+| `R13` | `DEV087-ui-only-2026-08-22T13-47-03-280Z` | PASS | 同一 target 兩 UI context 得到 `200 / 409`，勝者可取消、敗者 zero-write；非產品缺口 |
+
+R13 同時修正 runner 的 return 控制流與預期 409 error 監控，避免 journey 已完成卻因 runner 封裝失敗。上述 fresh evidence 將 D15/R13 從「尚未證實」更新為「已執行 PASS」；其餘 D07/D09/D12/D14/D16/D17 同樣已由 §22 fresh evidence 證實不是目前可重現的產品 FAIL。完整放行門檻仍不變：`67/67 PASS`、`Blocked=0`、`NotRun=0`、`C01–C11=11/11`、`P0/P1=0`。
+
+## 24. Full regression 後的 P04 分流（2026-08-22 13:50–13:58）
+
+無 focus full regression `DEV087-ui-only-2026-08-22T13-50-24-996Z` 出現 `P04=FAIL`，但根因是 sequential runner 沿用舊 Save locator，workspace 重繪後 locator 指向 disabled button；不是 UI/API/DB triad 的產品不一致。全新 disposable 重跑 `DEV087-ui-only-2026-08-22T13-58-29-380Z` 的 `J-P04=PASS`、`C01–C11=11/11`、`consoleErrors=0`，因此 P04 轉列 runner hydration／sequence 缺口。runner 已改為儲存前重新定位 enabled rendered button；需下一次無 focus full regression 回歸確認。
+
+## 25. QC journey 補齊後的最新全量分流（2026-08-22 14:13–14:18）
+
+先以 focused UI journey 補驗 P05，再執行無 focus full regression：
+
+| evidence | 結果 | 判定 |
+|---|---|---|
+| `DEV087-ui-only-2026-08-22T14-10-35-764Z` | P05 fresh `PASS`、C01–C11 `11/11`、console `0`、UI/API/DB 一致 | P05 可由合法 UI 完成 |
+| `DEV087-ui-only-2026-08-22T14-13-10-742Z` | P04→P05 sequential `PASS/PASS`、C01–C11 `11/11` | 儲存控制項重繪競態屬 runner，已修正 |
+| `DEV087-ui-only-2026-08-22T14-13-47-545Z` | `41 PASS / 26 BLOCKED / 0 FAIL`、gates `11/11`、console `0` | 最新 67-case coverage 基準 |
+
+### 真正產品缺口判定
+
+- `GAP-PROD-01A/01B/02` 已由 focused／full 回歸關閉，現在沒有可重現的產品 FAIL。
+- `D07/D09/D12/D14/D15/D16/D17/P04/P05/R13` 的 fresh／sequential UI triad 已 PASS；full BLOCKED／先前 P04/P05 FAIL 均為共享 state、fixture 編排或 locator 重繪，不列產品缺口。
+- `P11–P17` 明確屬 DEV-088 attachment scope，不改列 DEV-087 產品缺口。
+- `D25–D27/P18–P20/R16–R20` 與 `R15` 仍是「產品能力／契約缺口候選」：現行 UI 沒有合法 terminal/history 或 deterministic multi-context 起點，因此只能列 `BLOCKED / 尚未證實`，不能改判 PASS，也不能以 seed、SQL 或直接 business API 偽造。
+
+結論：已證實產品缺口 `0`；DEV-087 仍 `NOT PASS`，因放行仍要求 `67/67 PASS + Blocked=0 + NotRun=0 + gates=11/11 + P0/P1=0`。

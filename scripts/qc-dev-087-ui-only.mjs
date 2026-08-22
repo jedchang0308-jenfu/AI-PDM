@@ -357,8 +357,35 @@ async function editAndSaveWork(page, definition) {
     }));
     throw new Error(`UI_SAVE_DISABLED:${definition.entity}:${JSON.stringify(debug)}`);
   }
-  await save.scrollIntoViewIfNeeded();
-  await save.click();
+  // Re-resolve the enabled rendered control immediately before the click. A
+  // sequential lifecycle run can re-render the workspace after the dirty
+  // state is observed, leaving the original locator attached to a disabled
+  // button and producing a false runner FAIL.
+  // Re-resolve and click the currently rendered control.  The canonical
+  // workspace can reconcile its payload immediately after the dirty check;
+  // the old locator may then point at a disabled replacement button.  Retry
+  // the visible UI action a few times before classifying the case as a real
+  // product failure.
+  let saved = false;
+  for (let attempt = 0; attempt < 4 && !saved; attempt += 1) {
+    const enabledSave = page.locator("button:not([disabled])").filter({ hasText: "儲存" }).first();
+    if (await enabledSave.count() > 0 && await enabledSave.isVisible().catch(() => false)) {
+      await enabledSave.scrollIntoViewIfNeeded();
+      await enabledSave.click();
+      saved = true;
+      break;
+    }
+    if (attempt < 3) {
+      const liveField = page.locator("label").filter({ hasText: definition.entity === "drawing" ? "標題" : "品名" }).locator("input").first();
+      if (await liveField.count() > 0 && await liveField.isEnabled().catch(() => false)) {
+        const currentValue = await liveField.inputValue().catch(() => "");
+        await liveField.fill(`${currentValue} `);
+        await liveField.fill(currentValue);
+      }
+      await page.waitForTimeout(250);
+    }
+  }
+  if (!saved) throw new Error(`UI_SAVE_DISABLED_AFTER_HYDRATION:${definition.entity}`);
   await page.getByText(/工作資料已儲存|資料已儲存|料號資料已儲存|申請內容已更新/u).first().waitFor({ state: "visible", timeout: 30_000 }).catch(() => undefined);
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
@@ -732,6 +759,35 @@ async function runDrawingMultiContextJourney(context, reviewerContext, spec, ope
   throw journeyBlocked(`UNIMPLEMENTED_DRAWING_MULTI_CONTEXT:${operation}`);
 }
 
+async function runRelationMultiContextJourney(context, spec, operation, page, actions) {
+  if (operation !== 13) throw journeyBlocked(`UNIMPLEMENTED_RELATION_MULTI_CONTEXT:${operation}`);
+  const first = await context.newPage();
+  const second = await context.newPage();
+  monitor(first, `J-${spec.id}-relation-tab1`, spec.id);
+  monitor(second, `J-${spec.id}-relation-tab2`, spec.id);
+  try {
+    const opened = await Promise.all([first, second].map(async (targetPage) => {
+      const { action } = await openCanonicalAction(targetPage, spec, "正式關聯", "建立調整");
+      const responsePromise = targetPage.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("/change-works"), { timeout: 15_000 }).catch(() => null);
+      await action.click();
+      const response = await responsePromise;
+      return { targetPage, response };
+    }));
+    const statuses = opened.map(({ response }) => response?.status() ?? 0);
+    if (!statuses.some((status) => status === 200) || !statuses.some((status) => status === 409)) {
+      throw new Error(`RELATION_WORK_CLAIM_NOT_SINGLETON:${JSON.stringify(statuses)}`);
+    }
+    actions.push({ kind: "assert", target: "relation-work-singleton", observed: statuses });
+    const winner = opened.find(({ response }) => response?.status() === 200)?.targetPage;
+    if (!winner) throw new Error("RELATION_WORK_SINGLETON_WINNER_MISSING");
+    await winner.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+    await winner.locator("[data-pdm-edit-page='true']").waitFor({ state: "visible", timeout: 30_000 });
+    await cancelWork(winner, spec.route);
+  } finally {
+    await Promise.all([first.close().catch(() => undefined), second.close().catch(() => undefined)]);
+  }
+}
+
 async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
   const journeyId = `J-${spec.id}`;
   const dir = path.join(evidenceRoot, "journeys", journeyId);
@@ -837,29 +893,33 @@ async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
       } else {
         await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
       }
-    } else {
-      if ([13, 15, 16, 17, 18, 19, 20].includes(operation)) blocked(operation >= 16 ? "NO_LEGAL_UI_RELATION_TERMINAL_OR_HISTORY_ENTRY" : "NO_DETERMINISTIC_MULTI_CONTEXT_UI_FIXTURE");
-      const isReview = operation === 12 || operation === 14;
-      const isSave = [2, 7, 9, 10].includes(operation);
-      try {
-        await continueCanonicalWork(page, spec, "調整中");
-        actions.push({ kind: "continue" });
-      } catch (error) {
-        if (!error?.journeyBlocked) throw error;
-        await startCanonicalWork(page, spec, "正式關聯", "建立調整");
-        actions.push({ kind: "create" });
-      }
-      if (isReview) {
-        await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
-        await submitWork(page); actions.push({ kind: "submit" });
-        const review = await reviewSubmittedWork(reviewerContext, spec, "調整中", operation === 12 ? "approve" : "reject");
-        actions.push(...review.actions);
-        if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "relation review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
-      } else if (isSave) {
-        await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
-        await cancelWork(page, spec.route); actions.push({ kind: "cancel-after-save" });
+  } else {
+      if (operation === 13) {
+        await runRelationMultiContextJourney(context, spec, operation, page, actions);
       } else {
-        await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
+        if ([15, 16, 17, 18, 19, 20].includes(operation)) blocked(operation >= 16 ? "NO_LEGAL_UI_RELATION_TERMINAL_OR_HISTORY_ENTRY" : "NO_DETERMINISTIC_MULTI_CONTEXT_UI_FIXTURE");
+        const isReview = operation === 12 || operation === 14;
+        const isSave = [2, 7, 9, 10].includes(operation);
+        try {
+          await continueCanonicalWork(page, spec, "調整中");
+          actions.push({ kind: "continue" });
+        } catch (error) {
+          if (!error?.journeyBlocked) throw error;
+          await startCanonicalWork(page, spec, "正式關聯", "建立調整");
+          actions.push({ kind: "create" });
+        }
+        if (isReview) {
+          await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+          await submitWork(page); actions.push({ kind: "submit" });
+          const review = await reviewSubmittedWork(reviewerContext, spec, "調整中", operation === 12 ? "approve" : "reject");
+          actions.push(...review.actions);
+          if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "relation review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
+        } else if (isSave) {
+          await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+          await cancelWork(page, spec.route); actions.push({ kind: "cancel-after-save" });
+        } else {
+          await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
+        }
       }
     }
   } catch (error) {
@@ -989,7 +1049,8 @@ function monitor(page, label, caseId = null) {
       const expectedClaimConflict = caseId === "D14" && message.text().includes("409");
       const expectedVoidConflict = caseId === "D21" && message.text().includes("409");
       const expectedReviewConflict = caseId === "D22" && message.text().includes("409");
-      if (expectedStaleConflict || expectedClaimConflict || expectedVoidConflict || expectedReviewConflict) return;
+      const expectedRelationConflict = caseId === "R13" && message.text().includes("409");
+      if (expectedStaleConflict || expectedClaimConflict || expectedVoidConflict || expectedReviewConflict || expectedRelationConflict) return;
       consoleErrors.push({ label, message: message.text(), caseId });
       if (caseId) fs.appendFileSync(path.join(caseDir(caseId), "console.jsonl"), `${JSON.stringify({ at: new Date().toISOString(), type: "error", message: message.text() })}\n`, "utf8");
     }
@@ -1010,7 +1071,8 @@ function monitor(page, label, caseId = null) {
     const expectedClaimConflict = caseId === "D14" && response.status() === 409 && response.request().method() === "POST" && response.url().includes("/revision-works");
     const expectedVoidConflict = caseId === "D21" && response.status() === 409 && response.request().method() === "POST" && response.url().includes("/void-requests");
     const expectedReviewConflict = caseId === "D22" && response.status() === 409 && response.request().method() === "POST" && response.url().includes("/decisions");
-    if (response.status() >= 400 && !response.url().includes("/api/numbering/recognition-sessions/") && !expectedStaleConflict && !expectedClaimConflict && !expectedVoidConflict && !expectedReviewConflict) failures.push({ ...item, kind: "http" });
+    const expectedRelationConflict = caseId === "R13" && response.status() === 409 && response.request().method() === "POST" && response.url().includes("/change-works");
+    if (response.status() >= 400 && !response.url().includes("/api/numbering/recognition-sessions/") && !expectedStaleConflict && !expectedClaimConflict && !expectedVoidConflict && !expectedReviewConflict && !expectedRelationConflict) failures.push({ ...item, kind: "http" });
   });
 }
 
