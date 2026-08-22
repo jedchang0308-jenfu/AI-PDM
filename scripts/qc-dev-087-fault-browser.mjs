@@ -120,8 +120,10 @@ try {
   await owner.getByRole("dialog", { name: "選擇進版方式" }).waitFor({ state: "visible" });
   await owner.getByRole("button", { name: /^研發版 1\.2/u }).click();
   await owner.getByText("圖號編輯", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
-  check("owner editor is rendered before review", await owner.getByRole("button", { name: "送出審核" }).count() === 1);
-  await owner.locator(".dev079-workspace-footer").getByRole("button", { name: "送出審核" }).click({ force: true });
+  const submitButton = owner.locator(".dev079-workspace-footer").getByRole("button", { name: "送出審核" });
+  check("owner editor is rendered before review", await submitButton.count() === 1 && await submitButton.isEnabled());
+  await submitButton.focus();
+  await submitButton.press("Enter");
   await owner.getByRole("heading", { name: "圖號工作台", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   await owner.close();
 
