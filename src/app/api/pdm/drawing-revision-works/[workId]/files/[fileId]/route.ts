@@ -43,7 +43,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ work
             AND reviewer_user_id = :reviewerUserId AND request_status = 'pending'`,
         { requestId: reviewRequestId, companyId: access.actor.companyId, workId: decodeURIComponent(workId), reviewerUserId: access.actor.id }
       );
-      if (!review || !access.actor.permissions.decide) return Response.json({ error: { code: "WORK_FILE_NOT_FOUND", message: "找不到這個圖面檔案。" } }, { status: 404 });
+      if (!review || !access.actor.permissions.decide) {
+        // A reviewer can still have an in-flight preview request when the
+        // decision transaction has already moved the canonical work into a
+        // terminal system_admin/blocked state and removed the request row.
+        // Do not turn that harmless late read into a browser 404/console
+        // error; return an empty terminal response without exposing bytes.
+        const terminal = await client.queryOne<{ handling: string }>(
+          `SELECT handling FROM canonical_workbench_states
+            WHERE company_id = :companyId AND work_id = :workId
+              AND handling IN ('system_admin', 'blocked')
+            LIMIT 1`,
+          { companyId: access.actor.companyId, workId: decodeURIComponent(workId) }
+        );
+        if (terminal) return new Response(null, { status: 204, headers: { "cache-control": "private, no-store", "x-pdm-review-evidence-state": terminal.handling } });
+        return Response.json({ error: { code: "WORK_FILE_NOT_FOUND", message: "找不到這個圖面檔案。" } }, { status: 404 });
+      }
     } else if (source.owner_user_id !== access.actor.id && !access.actor.canEditNonOwned) {
       return Response.json({ error: { code: "WORK_FILE_NOT_FOUND", message: "找不到這個圖面檔案。" } }, { status: 404 });
     }
