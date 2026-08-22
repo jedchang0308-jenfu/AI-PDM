@@ -21,6 +21,7 @@ const fixtureRepository = path.join(fixtureDataDir, "repository");
 const checks = [];
 const failures = [];
 const consoleErrors = [];
+let expectedMissingRecognitionSessionResponses = 0;
 let app = null;
 let browser = null;
 let port = null;
@@ -32,12 +33,26 @@ function check(name, condition, detail = "") {
   if (!pass) throw new Error(`${name}${detail ? `: ${detail}` : ""}`);
 }
 function monitor(page, label) {
-  page.on("console", (message) => { if (message.type() === "error") consoleErrors.push({ label, message: message.text() }); });
+  page.on("console", (message) => {
+    if (message.type() !== "error") return;
+    const text = message.text();
+    // The cancelled-editor journey intentionally deletes its disposable
+    // recognition session; the follow-up GET is therefore an expected 404.
+    if (expectedMissingRecognitionSessionResponses > 0 && text === "Failed to load resource: the server responded with a status of 404 (Not Found)") {
+      expectedMissingRecognitionSessionResponses -= 1;
+      return;
+    }
+    consoleErrors.push({ label, message: text });
+  });
   page.on("pageerror", (error) => failures.push({ label, kind: "pageerror", message: error.message }));
   page.on("requestfailed", (request) => {
     if (request.failure()?.errorText !== "net::ERR_ABORTED") failures.push({ label, kind: "requestfailed", url: request.url(), message: request.failure()?.errorText });
   });
   page.on("response", (response) => {
+    if (response.status() === 404 && response.url().includes("/api/numbering/recognition-sessions/")) {
+      expectedMissingRecognitionSessionResponses += 1;
+      return;
+    }
     if (response.status() >= 400) failures.push({ label, kind: "http", status: response.status(), url: response.url() });
   });
 }
