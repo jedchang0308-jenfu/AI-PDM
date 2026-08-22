@@ -145,3 +145,20 @@ Evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T0
 66 個 BLOCKED 的共同原因是本次來源資料只有 A0002 的既有正式／研發 readback，沒有可由 UI 合法取得的每一種生命週期前置資料，且沒有合法既有 `Merged` history row。依 ADR／SPEC 與 QA 規則，不以 seed、SQL、直接 business API 或縮小分母補造，因此整體仍為 `NOT PASS`，不是產品失敗，也不能宣稱 67/67。
 
 Runner 已修正 gate 統計：`gates` 僅計 C01–C11；migration／runtime 等列於 `infrastructure`，避免把 13 個檢查誤報為 11 個 gate。下一個必要動作是提供合法 UI 前置資料鏈（或新增可由 UI 建立且可清理的測試情境），再以全新 run 重跑；在此之前不得 release-ready。
+
+## 8. 嚴格 UI/API/DB triad 重驗（2026-08-22）
+
+`f62749e2` 將 runner 的 list readback 從欄位數量檢查提升為實際列集合比對：UI 可見編號／品名／人類層資料標籤、API row 與唯讀 DB row 必須逐列一致；正常 `handling=none` 不要求技術字串出現在 UI。以該 commit 重新跑完整分母：
+
+| 項目 | 結果 |
+|---|---:|
+| run | `DEV087-ui-only-2026-08-22T02-17-12-187Z` |
+| D/P/R | 27/27、20/20、20/20（全部有 case evidence） |
+| PASS / BLOCKED / FAIL | 1 / 66 / 0 |
+| C01–C11 | 11/11 PASS |
+| infrastructure | 2/2 PASS |
+| unexpected failure／console error | 0 |
+| direct business API／DB mutation | 0 |
+| runtime port | `49587`，已釋放 |
+
+此次沒有出現可歸因於產品的 FAIL；66 個 BLOCKED 仍精確指向缺少合法 UI 前置／Merged history，而非被 triad 檢查掩蓋。Evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T02-17-12-187Z/`。

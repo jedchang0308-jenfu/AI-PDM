@@ -313,6 +313,6 @@ Run-level 必含 `run-manifest.json`、`authority.json`、`actors.json`、`route
 
 ## 14. 目前結論
 
-本文件的完整分母已由 runner 實際覆蓋，但尚未通過：最新 run `DEV087-ui-only-2026-08-22T02-02-02-169Z` 產生 67 個 case bundle，結果為 `PASS=1、BLOCKED=66、FAIL=0`，C01–C11 與 infrastructure checks 全部通過。BLOCKED 代表缺少合法 UI 前置，不得視為 PASS；詳細結果記錄於 `.ai-doc/qc/qc-dev-087-ui-only-lifecycle-execution-2026-08-22.md`。
+本文件的完整分母已由 runner 實際覆蓋，但尚未通過：最新嚴格 triad run `DEV087-ui-only-2026-08-22T02-17-12-187Z` 產生 67 個 case bundle，結果為 `PASS=1、BLOCKED=66、FAIL=0`，C01–C11 與 infrastructure checks 全部通過。BLOCKED 代表缺少合法 UI 前置，不得視為 PASS；詳細結果記錄於 `.ai-doc/qc/qc-dev-087-ui-only-lifecycle-execution-2026-08-22.md`。
 
 `GAP-UI-01～04` 已由 ADR／SPEC 固定或在 focused scope 關閉；完整 67-case run 已執行但仍必須取得合法 UI 前置鏈，並且 D27/P20/R20 需合法既有 Merged history row，否則以 fixture 不合格停止，不得以 seed 前置、SQL mutation 或縮小分母繼續。
