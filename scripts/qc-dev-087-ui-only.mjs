@@ -310,6 +310,25 @@ async function editAndSaveWork(page, definition) {
   if (await save.count() === 0) throw journeyBlocked(`NO_${definition.entity.toUpperCase()}_UI_SAVE`);
   await page.waitForFunction(() => [...document.querySelectorAll("button")].some((button) => button.textContent?.trim() === "儲存" && !button.disabled), null, { timeout: 5_000 }).catch(() => undefined);
   if (!(await save.isEnabled())) {
+    // If a sequential lifecycle case reopens a draft whose text value is
+    // already the QC suffix, make an additional visible form change through
+    // the UI before declaring the save contract unavailable.
+    const selects = page.locator("select:not([disabled])");
+    for (let index = 0; index < await selects.count(); index += 1) {
+      const select = selects.nth(index);
+      const currentValue = await select.inputValue().catch(() => "");
+      const candidateValue = await select.locator("option").evaluateAll((options, current) => {
+        const option = options.find((item) => item.value !== current && !item.disabled);
+        return option?.value ?? null;
+      }, currentValue).catch(() => null);
+      if (candidateValue) {
+        await select.selectOption(candidateValue);
+        break;
+      }
+    }
+    await page.waitForTimeout(100);
+  }
+  if (!(await save.isEnabled())) {
     const debug = await page.evaluate(() => ({
       inputs: [...document.querySelectorAll("input, textarea")].map((node) => ({
         name: node.getAttribute("name"),
