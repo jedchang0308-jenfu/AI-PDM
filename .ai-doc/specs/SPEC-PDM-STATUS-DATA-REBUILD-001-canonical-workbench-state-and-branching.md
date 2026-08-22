@@ -274,6 +274,15 @@ DEV-087 不把永久決策寫入既有 `approval_platform_decisions`。該表會
 - 核准後原子更新正式關聯並移除 work row。
 - 首次建立且尚未送審的 work 取消時移除 work row；根號／編號是否回收完全委派既有 numbering authority。
 
+### 4.4 Terminal lifecycle boundary
+
+DEV-087 的 canonical workbench 只維護 current work、review、formalization 與 Drawing RD branch close；整體圖號、料號或圖料根號的 obsolete／merged 仍由既有 numbering authority 負責，DEV-087 不另建第二套 terminal command。
+
+- whole-object obsolete 只有在 formal entity idle、沒有 `canonical_workbench_states.work_id`、沒有 pending request，且沒有 `owner／review_owner／system／system_admin／blocked` current work 時才可由既有 UI 入口送出。任一 active work 或處理中狀態存在時，server descriptor 不提供作廢 action；若舊頁已開啟，提交必須 zero-write fail closed，不能取消或覆寫工作資料。
+- root obsolete 不隱含取消、合併或改寫子 Drawing branch、Part work 或 Relation work。只要 root 或直接子項仍有 current work、review/system processing、open RD branch 或受控依賴，impact/policy 必須回不可執行原因；只有所有 domain 狀態各自結束後，才可重新產生 exact impact snapshot 並交由既有 authority 審核。
+- `Merged` 只作既有 authority 的 terminal domain evidence。current workbench 不建立 Merged、不把它投影成可處理 current row；合法 history 導覽只能唯讀顯示 exact record，所有 mutation/action（復活、進版、修改、發布）必須為空。測試不得用 SQL、seed 或中途 API mutation 製造 Merged。
+- 這些規則是 fail-closed safety boundary，不新增 UI 技術欄位；一般清單只維持既定的資料層／版次與固定處理角色語意，必要阻擋原因只在明細顯示一項人類可理解文字。
+
 ## 5. Work、Review 與正式化狀態機
 
 ```mermaid
@@ -390,7 +399,7 @@ Physical object recovery decision：
 
 ### 7.2 Legacy
 
-遷移時所有 legacy canceled data 全部刪除，包含舊 review data；不轉入新 minimal trace。這是 legacy-only 例外，不得套用到新系統已建立的 review trace。
+【已被 2026-08-22 Human decision A 取代】遷移時 legacy cancelled data（包含舊 review data）保留於 backend quarantine，標記 `retained_legacy_source`；不轉入新 minimal trace、不進 canonical current state，也不得驅動三工作臺。未來若另行核准 destructive cleanup，才可依 allowlist 執行，不能手動散刪。
 
 只有已核准 Drawing 才保留不可重複 revision identity。未核准且取消的 revision 可重用。
 
@@ -403,7 +412,7 @@ Physical object recovery decision：
 - `preserve_domain_evidence`
 - `convert_to_canonical`
 - `preserve_hidden_history`
-- `delete_legacy_cancelled`
+- `retain_legacy_quarantine`
 - `drop_old_current_authority`
 
 unknown 必須為 0。初始必查 repository surface：
@@ -429,6 +438,7 @@ machine-readable artifact 固定位置，禁止由執行者另取名字而讓下
 - predecessor 只有來源唯一可證明時才 backfill；否則記為 backend-only `source_unknown`。
 - `source_unknown` 經人工確認後可視為 resolved，但不得出現在 UI。
 - cutover gate 要求所有 quarantine 已修復、確認 `source_unknown` 或明確刪除；unresolved=0。
+- 2026-08-22 Human decision `A`（local preservation）：既有無法唯一映射的 legacy `new_bundle` 與 legacy cancelled workspace 全部保留，不刪除、不補假的 `0.1`、不拆成多個 canonical work。migration 以 `--retain-unmapped-legacy` 明示將 quarantine resolution 設為 `retained_legacy_source`，並在 manifest 記錄 `unresolvedBeforeResolution`、`retainedLegacy`、source counts 與 foreign-key reconciliation。保留 rows 只作 legacy source evidence，不得驅動三工作臺、canonical handling、filter 或 editor/reviewer route；此 flag 與 `--discard-unapproved-part-only-drafts` 互斥。
 
 ### 8.3 Cutover sequence
 
@@ -610,7 +620,7 @@ retirement allowlist的初始 code targets至少包含：`src/lib/human-status-p
 3. legacy active Drawing workspace若 company、drawing、target revision、owner與predecessor皆唯一，建立一個 open branch/work/claim；同drawing多個可唯一證明的active workspace各成一個branch，超過3個全部 quarantine，不截斷。
 4. 已核准但仍current的RD revision依 exact predecessor chain分組；可唯一證明同lineage者建立同branch並取latest，無法證明的lineage進quarantine，不按revision字串硬合併。
 5. Part/Relation legacy workspace只在 company、entity、owner與單一target payload/tree可唯一證明時建立一份work；同entity多份active或混合多entity workspace全部quarantine。
-6. legacy canceled rows及其legacy review資料標 `delete_legacy_cancelled`，不轉trace；approved evidence、production revision、formal Part/Relation與其受保護artifact一律preserve。
+6. 依目前 Human decision A，legacy cancelled rows及其legacy review資料標 `retained_legacy_source`，保留於quarantine且不轉trace；approved evidence、production revision、formal Part/Relation與其受保護artifact一律preserve。任何未來刪除必須另經destructive gate。
 7. apply以 stable source identity做 idempotent upsert並寫reconciliation receipt；第二次apply target row count/hash不變。任何 source mutation、hash drift、duplicate claim、over-cap、dangling ref或company mismatch立即停止，不做部分猜測。
 8. Phase 1A只允許 additive 042與target backfill；old tables/columns/code在Phase 1D disposable retirement rehearsal成功且进入authorized cutover gate前不得drop。
 
@@ -717,7 +727,7 @@ DEV-087 啟用前，現行 runtime 不得假稱符合本規格；DEV-087 啟用�
 20. Drawing approved history exact file/preview 永久唯讀；Part/Relation approved before/after snapshot 完整且 UI 隱藏。
 21. list/drawer/filter/editor/DOM/a11y 不出現被禁止資訊、branch/source/predecessor 或你我他。
 22. A0005 類型只有 active 0.1 且無 approved production 時只顯示`研發版 0.1`。
-23. legacy canceled DB data在migration manifest中全部刪除；shared bytes只有零引用時刪實體。physical bytes只在canonical-only gate後進不可逆GC，DEV-087不提供restore功能或假CTA。
+23. legacy cancelled DB data依Human decision A保留於quarantine，migration manifest必須記錄 `retained_legacy_source`；shared bytes不得因quarantine直接刪除。physical bytes只有零引用、approved-artifact guard與另行核准的canonical-only destructive gate全通過後才可進不可逆GC；DEV-087不提供restore功能或假CTA。
 24. ambiguous source 不猜測；cutover 前 unresolved quarantine=0。
 25. full DB/schema/binding backup restore drill、external-write freeze、old instance/worker drain與fencing、shadow reconciliation、same-window cutover/drop/rollback rehearsal通過；開放前失敗的relational state目標RPO=0，若曾接受未核准寫入則禁止自動restore。此門檻不宣稱可還原已永久刪除physical bytes。
 26. old filter URL 顯示`此篩選網址已失效`，沒有 silent compatibility path。

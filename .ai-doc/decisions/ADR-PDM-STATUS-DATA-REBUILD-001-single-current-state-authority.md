@@ -89,6 +89,9 @@ Rejected。實體檔案在零有效引用且通過 canonical-only gate 後永久
 16. Cloud SQL PostgreSQL migration固定為`042_status_data_rebuild.sql`（041為後續DEV-088保留但尚不存在的編號）；042不得依賴041，可從001..040直接apply，未來若DEV-088重新核准041後補套也不得與042衝突。SQLite由`db/schema.sql`與`ensureDev087CanonicalWorkbenchSchema`維護。schema/table/API/route/module/query-budget的exact contract依主SPEC §§3.1.2、9、10，不再留作RD preflight決策。
 17. DEV-087 review不寫`approval_platform_decisions`；`/approvals`只透過adapter聚合transient request與server-owned href。return或formalize成功即清除request/snapshot，apply failure只暫存到修復完成。
 18. minimal retention是跨surface規則，不只限制`pdm_review_traces`。DEV-087 terminal decision的receipt/outbox/audit/log/error只可留下content-free technical projection，不得永久保存或重建reviewer、decision、comment、revision或work snapshot；active replay先重驗exact reviewer，terminal replay只回經授權的安全acknowledgement。full DB backup是受控、加密、90-day expiry的operational recovery evidence，不得掛回一般runtime或成為review歷史來源。
+19. whole-object obsolete 不由 DEV-087 另造 command；既有 numbering authority 仍是唯一入口。只要同一 canonical entity 存在 `owner`、`review_owner`、`system`、`system_admin` 或 `blocked` 的 current work，作廢 action 必須 fail closed、不得建立 obsolete request、不得取消或改寫該 work。只有 formal entity idle 且無 active work／pending request 時，才可依既有 authority 申請作廢；此規則同時適用 Drawing、Part 與 Relation root。
+20. root obsolete 不做隱含 cascade。root 或任一直接子項仍有 current work、review、system processing、open Drawing RD branch 或受控依賴時，root 作廢入口只回阻擋資訊並 zero-write；不自動取消子項、不自動改寫 stale、不把多個 domain 的 work 合併成一個 request。所有子項先各自完成或由其既有 authority 結束後，才可重新讀取 root impact 並建立 exact scope request。
+21. `Merged` 是既有 domain authority 產生的 terminal evidence，不是 DEV-087 的建立／合併 command。三工作臺對 `Merged` 只允許從既有歷史導覽唯讀查看，current list、action descriptor 與 editor 不得提供復活、進版、修改或發布；UI-only QA 只驗證已存在且可由合法 UI 導覽的 history row，不得以 seed、SQL 或測試中途 mutation 補造 Merged 前置。
 
 ## 4. Human Semantics Decision
 
@@ -128,7 +131,7 @@ branch/source/predecessor、package/baseline/workflow/approval/raw status、人�
 
 - 新系統未核准 canceled work 的 work data、work bindings、unapproved revision identity/predecessor/claim；零有效引用且 canonical-only gate 通過後才永久刪除 physical bytes。physical bytes 不提供備份回復或 UI 復原入口。
 - return或formalize success後的DEV-087 request/snapshot與transport payload；terminal receipt/outbox只允許主SPEC §3.4定義的safe technical projection，reviewer／decision／comment／content不得從旁路保留。
-- 遷移時所有 legacy canceled data，包括 legacy review data。legacy 不轉入新 minimal trace。
+- 【已被 2026-08-22 Human decision A 取代】legacy cancelled source（含 legacy review data）保留於 backend quarantine，標記 `retained_legacy_source`；不轉入新 minimal trace、不進 canonical current state。除非另有明確授權與獨立 destructive gate，不得刪除。
 - 通過 cutover gate 後的舊 current-state tables/fields/projectors/filter/fallback。
 
 ## 7. Migration Decision
@@ -138,6 +141,7 @@ branch/source/predecessor、package/baseline/workflow/approval/raw status、人�
 - ambiguous/unmapped data 禁止猜測，進 quarantine。
 - predecessor 只有唯一可證明才 backfill；否則 hidden `source_unknown`，經人工確認可算 resolved。
 - cutover 要求 unresolved=0。
+- 2026-08-22 Human decision `A`（local preservation）：既有無法唯一映射的 legacy `new_bundle` 與 legacy cancelled workspace 全部保留，不刪除、不補假的 `0.1`、不拆成多個 current work。migration 以 `--retain-unmapped-legacy` 明示將 quarantine resolution 設為 `retained_legacy_source`，並以 `unresolvedBeforeResolution` 與 source/target reconciliation 證明 cutover 前已處理；保留 rows 只作 legacy source evidence，不得被三工作臺或任何 canonical current-state query 使用。此 flag 與 `--discard-unapproved-part-only-drafts` 互斥。
 - 不設舊表唯讀觀察期，不設永久 dual read/write。
 - rollback 依完整 DB/schema/binding backup、authority control 與 exact application version 共同 restore；若 restore drill 未通過，禁止 drop。對外寫入在開放前維持 freeze，目標 RPO=0；若偵測未核准外部寫入，禁止自動 restore 並交人類對帳。此 rollback 不承諾回復已符合永久刪除條件的 physical bytes，因此 physical GC 必須延後至 canonical-only gate 後。
 
@@ -183,7 +187,7 @@ DEV-086 在 DEV-087 尚未啟用前仍是現行 runtime baseline，不能因本 
 - pagination/query 必須支援每group最多四列（1 production+3 RD），並在0/1/3 branches維持常數query budget。
 - same-window drop 的 relational rollback 依賴 restore drill，maintenance window 與 release gate 是 P0。
 - 未核准 physical bytes 在安全門檻後永久刪除且無回復功能，refcount、approved-artifact guard 與 canonical-only gate 是 P0。
-- legacy canceled/audit cleanup 可能碰到 immutable guard，必須用明確 allowlist migration，不得手動散刪。
+- legacy cancelled/audit source 目前採保留策略；若未來另行核准 cleanup，仍須使用明確 allowlist migration，不得手動散刪。
 
 ## 10. Re-entry Triggers
 

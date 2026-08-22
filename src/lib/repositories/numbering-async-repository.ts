@@ -4587,6 +4587,13 @@ export class AsyncNumberingRepository {
       if (entityRow.record_status === "Obsolete") throw new Error("LIFE_OBSOLETE_ALREADY_APPROVED");
       if (entityRow.record_status !== "Active" && entityRow.record_status !== "Released") throw new Error("LIFE_OBSOLETE_NOT_FORMAL");
 
+      const activeCanonicalActivityCount = await this.readCanonicalActivityCount(client, {
+        companyId,
+        entityType: input.entityType === "part_number" ? "part" : "drawing",
+        entityId: entityRow.id
+      });
+      if (activeCanonicalActivityCount > 0) throw new Error("LIFE_ACTIVE_CANONICAL_WORK");
+
       const pending = await client.queryOne<{ id: string }>(SELECT_ASYNC_PENDING_OBSOLETE_APPROVAL_SQL, {
         companyId,
         entityType: input.entityType,
@@ -7993,6 +8000,74 @@ export class AsyncNumberingRepository {
     return partRows.some((row) => isFormalRecordStatus(row.record_status)) || drawingRows.some((row) => isFormalRecordStatus(row.record_status));
   }
 
+  private async readCanonicalActivityCount(client: AsyncDatabaseClient, input: { companyId: string; rootId?: string; entityType?: "part" | "drawing"; entityId?: string }): Promise<number> {
+    try {
+      if (input.rootId) {
+        const row = await client.queryOne<{ count: number }>(
+          `
+            SELECT COUNT(*) AS count
+            FROM canonical_workbench_states state
+            WHERE state.company_id = :companyId
+              AND (
+                (state.entity_type = 'relation' AND state.canonical_entity_id = :rootId)
+                OR (state.entity_type = 'part' AND EXISTS (
+                  SELECT 1 FROM part_numbers part
+                  WHERE part.id = state.canonical_entity_id
+                    AND part.part_root_id = :rootId
+                    AND part.company_id = :companyId
+                ))
+                OR (state.entity_type = 'drawing' AND EXISTS (
+                  SELECT 1 FROM drawings drawing
+                  WHERE drawing.id = state.canonical_entity_id
+                    AND drawing.part_root_id = :rootId
+                    AND drawing.company_id = :companyId
+                ))
+              )
+              AND (
+                state.data_layer = 'drawing_rd'
+                OR state.work_id IS NOT NULL
+                OR state.handling IN ('owner', 'review_owner', 'system', 'system_admin', 'blocked')
+              )
+          `,
+          { companyId: input.companyId, rootId: input.rootId }
+        );
+        return Number(row?.count ?? 0);
+      }
+
+      if (!input.entityType || !input.entityId) return 0;
+      const entityType = input.entityType;
+      const ids = entityType === "drawing"
+        ? [input.entityId, ...(await client.query<{ id: string }>(
+            `SELECT id FROM drawings WHERE company_id = :companyId AND formal_drawing_number_id = :entityId`,
+            { companyId: input.companyId, entityId: input.entityId }
+          )).map((row) => row.id)]
+        : [input.entityId];
+      const distinctIds = Array.from(new Set(ids.filter(Boolean)));
+      const placeholders = distinctIds.map((_id, index) => `:canonicalEntityId${index}`).join(", ");
+      const params: Record<string, unknown> = { companyId: input.companyId };
+      distinctIds.forEach((id, index) => { params[`canonicalEntityId${index}`] = id; });
+      const row = await client.queryOne<{ count: number }>(
+        `
+          SELECT COUNT(*) AS count
+          FROM canonical_workbench_states state
+          WHERE state.company_id = :companyId
+            AND state.entity_type = :entityType
+            AND state.canonical_entity_id IN (${placeholders || "NULL"})
+            AND (
+              state.work_id IS NOT NULL
+              OR state.handling IN ('owner', 'review_owner', 'system', 'system_admin', 'blocked')
+            )
+        `,
+        { ...params, entityType }
+      );
+      return Number(row?.count ?? 0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/no such table|does not exist/iu.test(message) && message.includes("canonical_workbench_states")) return 0;
+      throw error;
+    }
+  }
+
   private async getRootObsoleteImpactInClient(
     client: AsyncDatabaseClient,
     input: { companyId?: string; rootCode?: string; rootId?: string; excludeApprovalRequestId?: string | null }
@@ -8007,7 +8082,7 @@ export class AsyncNumberingRepository {
     if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode || rootId}`);
     if (rootRow.company_id !== companyId) throw new Error("PART_ROOT_COMPANY_MISMATCH");
 
-    const [partRows, drawingRows, linkRows, pending, dependencyCountRow] = await Promise.all([
+    const [partRows, drawingRows, linkRows, pending, dependencyCountRow, activeCanonicalActivityCount] = await Promise.all([
       client.query<PartNumberRow>(SELECT_ASYNC_ROOT_PART_NUMBERS_SQL, { rootId: rootRow.id }),
       client.query<DrawingNumberRow>(SELECT_ASYNC_ROOT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id }),
       client.query<NumberingLinkRow>(SELECT_ASYNC_NUMBERING_LINKS_FOR_ROOT_SQL, { rootId: rootRow.id }),
@@ -8029,7 +8104,8 @@ export class AsyncNumberingRepository {
       client.queryOne<RootDependencyCountRow>(SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL, {
         rootId: rootRow.id,
         excludeApprovalRequestId: input.excludeApprovalRequestId ?? null
-      })
+      }),
+      this.readCanonicalActivityCount(client, { companyId, rootId: rootRow.id })
     ]);
     const parts = partRows.map(mapPartNumber);
     const drawings = drawingRows.map(mapDrawingNumber);
@@ -8080,6 +8156,7 @@ export class AsyncNumberingRepository {
       rootStatus: rootRow.record_status,
       childStatuses: [...parts, ...drawings].map((record) => record.recordStatus),
       controlledReferenceCount: dependencySummary.controlledReferenceCount,
+      activeCanonicalActivityCount,
       pendingObsoleteRequest: Boolean(pending)
     });
     const draftChildren = [...parts, ...drawings].filter((record) => record.recordStatus === "Draft" || record.recordStatus === "NeedInfo").length;
@@ -8104,7 +8181,8 @@ export class AsyncNumberingRepository {
       dependencySummary,
       policy,
       warnings,
-      pendingRequestId: pending?.id ?? null
+      pendingRequestId: pending?.id ?? null,
+      activeCanonicalActivityCount
     };
   }
 

@@ -976,6 +976,7 @@ export type RootObsoleteImpactResult = {
   policy: RootObsoletePolicy;
   warnings: string[];
   pendingRequestId: string | null;
+  activeCanonicalActivityCount?: number;
 };
 
 export type RequestRootObsoleteApprovalInput = {

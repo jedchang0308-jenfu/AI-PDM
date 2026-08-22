@@ -231,12 +231,12 @@ API 的 `rowKey／groupKey` 只做比對，不得在 UI 顯示。`layer、revisi
 
 | Gap | 情境 | 執行處理 |
 |---|---|---|
-| `GAP-UI-01` | 正式 Drawing／Part／root 在 active work、review_owner 或 system 時同時申請 whole-object obsolete | 要求權威先定義優先序；未定義前相關案例 BLOCKED，禁止用「先點到者贏」猜測 |
-| `GAP-UI-02` | root aggregate obsolete 時，子 Drawing 尚有 open RD branch，或子 Part／Relation 有 active work | 要求 exact impact/cancel/stale 規則；未定義前 R18 BLOCKED |
-| `GAP-UI-03` | `Merged` 沒有現行合法 UI 建立入口 | 只能驗證由合法 UI 既有資料導覽；不可 seed。無資料即 D27/P20/R20 BLOCKED |
-| `GAP-UI-04` | `system_admin／blocked` 缺 deterministic、啟動前固定且不寫business data的 fault profile | C11 BLOCKED；不得改DB status或攔截response冒充 |
+| `GAP-UI-01` | 正式 Drawing／Part／root 在 active work、review_owner 或 system 時同時申請 whole-object obsolete | CLOSED：DEV-087 不另造 terminal command；既有 authority 只允許 formal idle 且無 current work/request 時申請，否則 descriptor 隱藏且 server zero-write fail closed。 |
+| `GAP-UI-02` | root aggregate obsolete 時，子 Drawing 尚有 open RD branch，或子 Part／Relation 有 active work | CLOSED：root obsolete 不 cascade；任一子項 active/open/controlled dependency 時阻擋，先各自完成後重新產生 exact impact snapshot。 |
+| `GAP-UI-03` | `Merged` 沒有現行合法 UI 建立入口 | CLOSED（scope boundary）：Merged 由既有 authority 產生；本計畫只驗證合法 UI 可導覽的既有 history row，禁止 seed／SQL／中途 mutation。若執行資料沒有合法 history row，該 run fixture 不合格，必須改用合法既有資料集，不得把缺資料算 PASS。 |
+| `GAP-UI-04` | `system_admin／blocked` 缺 deterministic、啟動前固定且不寫business data的 fault profile | CLOSED（focused）：C11 需在完整 run 再驗；不得改DB status或攔截response冒充 |
 
-任一 gap 未關閉，不影響本計畫成為可執行 QA 契約，但會阻止「全生命週期已通過」結論。QA 執行前須在 run manifest 記錄 gap authority 版本；不得邊測邊改期望。
+所有 gap 已有 authority 或 focused fault profile；這不等於全生命週期已通過。QA 執行前仍須在 run manifest 記錄 gap authority 版本；不得邊測邊改期望。
 
 ## 10. AI 執行波次
 
@@ -248,7 +248,7 @@ API 的 `rowKey／groupKey` 只做比對，不得在 UI 顯示。`layer、revisi
 | `W3` | D12-D24 多branch、stale、void、race、filter/history | cap、claim、CAS、idempotency、artifact exactness全PASS |
 | `W4` | P01-P17 Part正式／修改／附件／替代 | formal隔離、live attachment例外、DEV-088 snapshot全PASS |
 | `W5` | R01-R15 Relation正式／調整／exact tree／drift | exact tree、singleton、review parity與atomic replace全PASS |
-| `W6` | D25-D27、P18-P20、R16-R20 terminal治理 | reject/approve/direct obsolete/history/merged皆有結果；Blocked=0 |
+| `W6` | D25-D27、P18-P20、R16-R20 terminal治理 | reject/approve/direct obsolete/history/merged皆有結果；terminal action fail-closed；Blocked=0 |
 | `W7` | C11 fault/retry、四viewport、200% zoom、鍵盤、角色、cross-company、cleanup與final reconciliation | 67/67 + 11/11、P0/P1=0、prohibited mutation=0 |
 
 前一 Wave 失敗時停止向下游擴散，保留現場；不得修 DB 後繼續算同一資料鏈 PASS。
@@ -315,4 +315,4 @@ Run-level 必含 `run-manifest.json`、`authority.json`、`actors.json`、`route
 
 本文件的完整分母仍尚未完成：目前已完成 focused UI rerun 與 `system_admin／blocked` fault profile 的獨立 UI 驗證，但尚未產生 67 條 journey 的完整 evidence bundle，因此 focused PASS 不得替代全生命週期結論。詳細結果記錄於 `.ai-doc/qc/qc-dev-087-ui-only-lifecycle-execution-2026-08-22.md`。
 
-`GAP-UI-04` 已在 focused scope 關閉；`GAP-UI-01～03` 仍須由產品／ADR 固定或正式移出本計畫。任何 gap 尚未關閉時，必須如實回報 BLOCKED，不能直接改資料、seed 前置或縮小分母。
+`GAP-UI-01～04` 已由 ADR／SPEC 固定或在 focused scope 關閉；完整 67-case run 仍必須取得合法既有 Merged history row，否則以 fixture 不合格停止，不得以 seed 前置、SQL mutation 或縮小分母繼續。

@@ -38,6 +38,7 @@ function errorStatus(message: string) {
     message.includes("LIFE_OBSOLETE_NOT_FORMAL") ||
     message.includes("LIFE_OBSOLETE_NOT_ELIGIBLE") ||
     message.includes("LIFE_ROOT_MIXED_OR_TERMINAL") ||
+    message.includes("LIFE_ACTIVE_CANONICAL_WORK") ||
     message.includes("ROOT_OBSOLETE_SNAPSHOT_STALE") ||
     message.includes("MISMATCH")
   ) {

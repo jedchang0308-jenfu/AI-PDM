@@ -47,6 +47,7 @@ export function buildNumberingPartRootLifecyclePolicy(input: {
   rootStatus: NumberingRecordStatus;
   childStatuses: NumberingRecordStatus[];
   controlledReferenceCount: number;
+  activeCanonicalActivityCount?: number;
   pendingObsoleteRequest?: boolean;
   canDirectObsolete?: boolean;
   canRequestObsolete?: boolean;
@@ -64,6 +65,17 @@ export function buildNumberingPartRootLifecyclePolicy(input: {
       reasonCode: input.pendingObsoleteRequest ? "LIFE_OBSOLETE_ALREADY_REQUESTED" : "LIFE_ROOT_MIXED_OR_TERMINAL",
       message: input.pendingObsoleteRequest ? "此圖料根號已有作廢申請處理中。" : "此圖料根號已進入受控歷史，不能重複作廢。"
     };
+  }
+
+  if ((input.activeCanonicalActivityCount ?? 0) > 0) {
+    return rootPolicy(
+      "none",
+      "inert",
+      false,
+      "LIFE_ACTIVE_CANONICAL_WORK",
+      "目前有進行中的資料處理或開放研發分支，請先完成後再處理。",
+      false
+    );
   }
 
   const draftStatuses = new Set<NumberingRecordStatus>(["Draft", "NeedInfo"]);

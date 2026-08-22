@@ -838,6 +838,7 @@ function humanizeError(error: unknown) {
   if (message.includes("OBSOLETE_REASON_REQUIRED")) return "請填寫作廢原因。";
   if (message.includes("feature_not_open_in_production_slice")) return "目前環境尚未開放這項生命週期操作。";
   if (message.includes("LIFE_ROOT_MIXED_OR_TERMINAL") || message.includes("LIFE_OBSOLETE_NOT_ELIGIBLE")) return "目前狀態不符合可作廢的生命週期條件。";
+  if (message.includes("LIFE_ACTIVE_CANONICAL_WORK")) return "目前有進行中的資料處理或開放研發分支，請先完成後再處理。";
   if (message.includes("ROOT_OBSOLETE_SNAPSHOT_STALE")) return "資料在審核期間已有變更，請重新讀取影響範圍後再處理。";
   if (message.includes("LIFE_OBSOLETE_ALREADY_REQUESTED")) return "此資料已有作廢審核中申請，請到正式資料審核查看。";
   if (message.includes("LIFE_OBSOLETE_NOT_FORMAL")) return "只有正式資料可申請作廢；草稿請走草稿清理流程。";

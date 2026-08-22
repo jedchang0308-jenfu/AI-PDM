@@ -3,7 +3,7 @@
 執行日期：2026-08-22  
 執行角色：獨立 AI-QC   
 環境：Local disposable SQLite + task-owned Next runtime；未連 production/staging  
-狀態：`Focused PASS / Full UI-only lifecycle NOT PASS / Contract-blocked`  
+狀態：`Focused PASS / Full UI-only lifecycle NOT PASS / 67-case runner pending`  
 
 ## 1. 本輪實際執行
 
@@ -20,7 +20,7 @@
 
 | 子檢查 | 結果 |
 |---|---:|
-| contract | PASS 25 |
+| contract | PASS 31 |
 | repository | PASS 17 |
 | commands | PASS 39 |
 | migration | PASS 24 |
@@ -36,16 +36,16 @@
 
 新 UI-only 子契約要求：`D01-D27 + P01-P20 + R01-R20 = 67/67 journeys`，另加 `C01-C11 = 11/11 common gates`。目前 focused runner 只有 46 個畫面／回歸檢查，沒有為 67 條 journey 產生 `case.json`、`actions.jsonl`、UI/API/DB triad readback、triad diff、prohibited-mutation audit 與 cleanup ledger；因此 `Not Run > 0`，不可用舊證據替代。
 
-另外，執行契約仍有四個阻塞：
+另外，前一輪曾有四個契約缺口；本輪已由 ADR／SPEC 固定前三項，故不再以猜測阻塞 RD。完整 runner 仍須依這些規則執行：
 
 | Gap | 尚未定義／不可合法執行的事項 | QA 判定 |
 |---|---|---|
-| GAP-UI-01 | whole-object obsolete 與 active work／review／system 的優先序 | BLOCKED |
-| GAP-UI-02 | root obsolete 與子 Drawing branch／Part／Relation active work 的 impact、cancel、stale 規則 | BLOCKED |
-| GAP-UI-03 | `Merged` 沒有現行合法 UI 建立入口，無法不靠 seed 取得前置 | D27/P20/R20 BLOCKED |
+| GAP-UI-01 | whole-object obsolete 與 active work／review／system 的優先序 | CLOSED：只允許正式 idle、無 current work/request；其他情況 fail closed |
+| GAP-UI-02 | root obsolete 與子 Drawing branch／Part／Relation active work 的 impact、cancel、stale 規則 | CLOSED：不 cascade；active/open/controlled dependency 時阻擋並重讀 exact impact |
+| GAP-UI-03 | `Merged` 沒有現行合法 UI 建立入口，無法不靠 seed 取得前置 | CLOSED（scope boundary）：只導覽合法既有 history；無資料即 fixture invalid，不得 seed |
 | GAP-UI-04 | `system_admin／blocked` 沒有啟動前固定、由 UI 動作觸發且不改 business data 的 deterministic fault profile | C11 BLOCKED |
 
-其中 whole-object obsolete／merged 並非目前 DEV-087 authority 已明確承接的 mutation；權威文件目前只明確承接 Drawing RD branch 的「申請作廢」與核准後關閉分支。未經產品／ADR 決策，QC 不得自行猜測或用 DB fixture 補造。
+其中 whole-object obsolete／merged 仍由既有 authority 承接；DEV-087 只固定 fail-closed 邊界與 UI 顯示，不另造 terminal mutation。不得用 DB fixture 補造 `Merged`。
 
 ## 3. 結論與放行門檻
 
@@ -56,9 +56,9 @@
 
 ## 4. RD 返工條件
 
-1. 由產品／ADR 固定 GAP-UI-01、GAP-UI-02 的唯一規則；若不屬 DEV-087，必須從本計畫明確移出並建立關聯任務。
-2. 提供合法 UI 導覽或明確將 GAP-UI-03 標為 scope-excluded；不得 seed／SQL 補造 merged 前置。
-3. 提供 deterministic fault profile 的啟動契約，並證明只由後續 UI 動作觸發狀態。
+1. 依 ADR／SPEC 的 fail-closed 規則實作 whole-object/root terminal guard，不得自行新增第二套狀態 authority。
+2. 若執行資料沒有合法既有 `Merged` history row，runner 必須標記 fixture invalid 並停止該案例；不得 seed／SQL 補造前置。
+3. 保持 deterministic fault profile 的啟動契約，並證明只由後續 UI 動作觸發狀態。
 4. 建立並執行 67 條 journey runner；任何 FAIL 需保留首次失敗證據，由 RD 修正後以全新 disposable run 重跑，不得覆蓋原失敗。
 
 ## 5. 返工後重驗紀錄（2026-08-22）
@@ -94,9 +94,9 @@
 
 | Gap | 更新後狀態 | 說明 |
 |---|---|---|
-| `GAP-UI-01` | BLOCKED | whole-object obsolete 與 active work／review／system 優先序仍未由產品／ADR 固定。 |
-| `GAP-UI-02` | BLOCKED | root obsolete 對子 Drawing branch／Part／Relation active work 的 impact、cancel、stale 規則仍未固定。 |
-| `GAP-UI-03` | BLOCKED | `Merged` 仍沒有合法現行 UI 建立入口；不得用 seed 或 SQL 補造前置。 |
+| `GAP-UI-01` | CLOSED | ADR／SPEC 已固定只允許正式 idle、無 current work/request；active canonical work fail closed。 |
+| `GAP-UI-02` | CLOSED | ADR／SPEC 已固定 root 不 cascade，active/open/controlled dependency 直接阻擋並要求重新讀取 exact impact。 |
+| `GAP-UI-03` | CLOSED（scope boundary） | Merged 僅驗證合法既有 history 導覽；若資料集沒有合法 row，判 fixture invalid，不得補造。 |
 | `GAP-UI-04` | CLOSED（focused） | `system_admin／blocked` deterministic fault profile 與 UI-triggered triad evidence 已完成；仍須納入完整 67-case run 的 C11 coverage。 |
 
 ### 5.3 目前可發布結論
@@ -105,5 +105,5 @@
 
 - `Focused implementation gate = PASS`。
 - `C11 fault profile focused rerun = PASS`。
-- `Full UI-only lifecycle = NOT PASS / Contract-blocked`。
-- 不得宣稱 `67/67`、不得 release-ready；下一輪必須先取得 GAP-UI-01～03 的權威決策或正式移出本計畫，再以全新 disposable run 執行完整分母。
+- `Full UI-only lifecycle = NOT PASS / 67-case runner pending`。
+- 不得宣稱 `67/67`、不得 release-ready；下一輪直接依已固定的 ADR／SPEC 規則，以全新 disposable run 執行完整分母；缺少合法 Merged history 時只可判 fixture invalid，不可縮小分母。
