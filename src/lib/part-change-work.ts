@@ -4,7 +4,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { runDev087IdempotentCommand, dev087RequestHash, replayDev087TerminalReceipt } from "@/lib/pdm-canonical-command";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { issueCanonicalWorkbenchContract, verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-authority-control";
-import { beginDev087Approval, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
+import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
 import { PartChangeWorkAsyncRepository, validatePartChangePayload, type PartChangePayload } from "@/lib/repositories/part-change-work-async-repository";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 
@@ -119,6 +119,10 @@ export class PartChangeWorkService {
       if (!locked || locked.reviewerUserId !== actor.id || locked.requestStatus !== "pending" || locked.rowVersion !== context.expectedRowVersion) throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_REQUEST_STALE", "重新開啟目前審核項目", 409);
       if (decision === "return_for_correction") return returnDev087WorkForCorrection(tx, locked);
       await beginDev087Approval(tx, locked);
+      const faultHandling = dev087FaultHandling();
+      if (faultHandling) {
+        return recordDev087Fault(tx, locked, faultHandling);
+      }
       if (!locked.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
       const workRepository = new PartChangeWorkAsyncRepository(tx);
       const work = await workRepository.readWork(tx, actor.companyId, locked.workId, true);

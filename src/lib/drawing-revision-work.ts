@@ -4,7 +4,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { dev087RequestHash, replayDev087TerminalReceipt, runDev087IdempotentCommand } from "@/lib/pdm-canonical-command";
 import { CanonicalWorkbenchError, parseCanonicalRowKey } from "@/lib/pdm-canonical-workbench-contract";
 import { issueCanonicalWorkbenchContract, verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-authority-control";
-import { beginDev087Approval, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
+import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
 import { DrawingRevisionWorkAsyncRepository, type RevisionTuple } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 
@@ -110,6 +110,10 @@ export class DrawingRevisionWorkService {
         await tx.execute(`DELETE FROM canonical_workbench_states WHERE company_id = :companyId AND branch_id = :branchId`, locked);
         await tx.execute(`UPDATE pdm_workbench_aggregates SET open_branch_count = open_branch_count - 1, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND entity_type = 'drawing' AND canonical_entity_id = :canonicalEntityId AND open_branch_count > 0`, locked);
         await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked); return { acknowledged: true };
+      }
+      const faultHandling = dev087FaultHandling();
+      if (faultHandling) {
+        return recordDev087Fault(tx, locked, faultHandling);
       }
       if (!locked.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409); const repository = new DrawingRevisionWorkAsyncRepository(tx); const work = await repository.readWork(tx, actor.companyId, locked.workId, true); const snapshot = work ? { payload: typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload, revisionId: work.revision_id, claimId: work.target_claim_id } : null; if (!work || dev087RequestHash(snapshot) !== locked.snapshotHash) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
       await repository.formalize(tx, { companyId: actor.companyId, work }); await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked); return { acknowledged: true };

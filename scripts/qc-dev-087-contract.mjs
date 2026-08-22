@@ -1,5 +1,6 @@
 import { assert, createFixtureDatabase, expectSqlFailure, pass, read } from "./qc-dev-087-fixtures.mjs";
 import { assertCanonicalDtoHasNoRetiredFields, canonicalLayerLabel, normalizeCanonicalWorkbenchQuery } from "../src/lib/pdm-canonical-workbench-contract.ts";
+import { dev087FaultHandling, dev087FaultReason } from "../src/lib/pdm-work-review.ts";
 
 const db = createFixtureDatabase();
 const expectedTables = ["pdm_workbench_state_authority_control", "pdm_workbench_aggregates", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works", "drawing_revision_work_files", "part_change_works", "relation_change_works", "canonical_workbench_states", "pdm_work_review_requests", "pdm_review_traces", "part_approved_change_snapshots", "relation_approved_change_snapshots", "pdm_workbench_migration_quarantine"];
@@ -17,5 +18,8 @@ db.prepare(`INSERT INTO pdm_review_traces (review_cycle_id, company_id, entity_t
 expectSqlFailure(() => db.prepare(`UPDATE pdm_review_traces SET decision_at = CURRENT_TIMESTAMP WHERE review_cycle_id = 'cycle-dev087-1'`).run(), /DEV087_REVIEW_TRACE_IMMUTABLE/);
 assert(!read("src/components/canonical-pdm-workbench.tsx").match(/待你|待我|由你|由我|ownerName|reviewerName/u));
 assert(read("db/postgres/042_status_data_rebuild.sql").includes("trg_dev087_canonical_state_company_guard"));
+assert.equal(dev087FaultHandling({}), null);
+assert.equal(dev087FaultHandling({ PDM_DEV087_FAULT_PROFILE: "system_admin" }), "system_admin");
+assert.equal(dev087FaultReason("blocked"), "自動化正式化缺少安全修復路徑。");
 db.close();
-pass("contract", expectedTables.length + 11);
+pass("contract", expectedTables.length + 14);

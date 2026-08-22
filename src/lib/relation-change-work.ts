@@ -4,7 +4,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { dev087RequestHash, replayDev087TerminalReceipt, runDev087IdempotentCommand } from "@/lib/pdm-canonical-command";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { issueCanonicalWorkbenchContract, verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-authority-control";
-import { beginDev087Approval, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
+import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 import { RelationChangeWorkAsyncRepository, validateRelationChangeTree } from "@/lib/repositories/relation-change-work-async-repository";
 
@@ -55,7 +55,12 @@ export class RelationChangeWorkService {
     const reviews = new PdmWorkReviewAsyncRepository(this.client); const request = await reviews.get(this.client, { companyId: actor.companyId, requestId }); if (!request || request.requestKind !== "relation_change" || request.reviewerUserId !== actor.id) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "審核項目不存在", 404);
     return runDev087IdempotentCommand(this.client, { companyId: actor.companyId, actorId: actor.id, command: "review.decision", idempotencyKey: context.idempotencyKey, request: commandRequest, effectKey: `review:${request.reviewCycleId}`, correlationId, terminalReview: true }, async (tx) => {
       const locked = await reviews.get(tx, { companyId: actor.companyId, requestId }, true); if (!locked || locked.reviewerUserId !== actor.id || locked.requestStatus !== "pending" || locked.rowVersion !== context.expectedRowVersion) throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_REQUEST_STALE", "重新開啟目前審核項目", 409);
-      if (decision === "return_for_correction") return returnDev087WorkForCorrection(tx, locked); await beginDev087Approval(tx, locked); if (!locked.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
+      if (decision === "return_for_correction") return returnDev087WorkForCorrection(tx, locked); await beginDev087Approval(tx, locked);
+      const faultHandling = dev087FaultHandling();
+      if (faultHandling) {
+        return recordDev087Fault(tx, locked, faultHandling);
+      }
+      if (!locked.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
       const repository = new RelationChangeWorkAsyncRepository(tx); const work = await repository.readWork(tx, actor.companyId, locked.workId, true); if (!work || work.proposed_tree_hash !== locked.snapshotHash || dev087RequestHash(typeof work.proposed_tree === "string" ? JSON.parse(work.proposed_tree) : work.proposed_tree) !== locked.snapshotHash) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
       await repository.formalize(tx, { companyId: actor.companyId, work, reviewCycleId: locked.reviewCycleId }); await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked); return { acknowledged: true };
     });
