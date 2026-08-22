@@ -91,7 +91,7 @@ try {
   check("isolated migration applied or safely quarantined", migration.status === 0 || migration.status === 2, `${migration.stdout}\n${migration.stderr}`);
   const fixture = new Database(fixtureDb);
   fixture.prepare("UPDATE pdm_workbench_state_authority_control SET mode='canonical_only', expected_commit='local-dev', schema_hash='dev087-v1', row_version=row_version+1").run();
-  const baseline = fixture.prepare("SELECT COUNT(*) AS revisions FROM drawing_revisions WHERE drawing_id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877'").get();
+  const baseline = fixture.prepare("SELECT revision_id AS production_revision_id FROM canonical_workbench_states WHERE canonical_entity_id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877' AND data_layer = 'drawing_production'").get();
   check("isolated fixture has A0002 production and RD rows", fixture.prepare("SELECT COUNT(*) AS count FROM canonical_workbench_states state JOIN drawings drawing ON drawing.id = state.canonical_entity_id WHERE drawing.drawing_number='A0002-M01' AND state.data_layer IN ('drawing_production', 'drawing_rd')").get().count >= 2);
   fixture.close();
 
@@ -148,30 +148,30 @@ try {
   const decisionBody = await decisionResponse.json().catch(() => null);
   check("review decision request accepted", decisionResponse.ok(), JSON.stringify(decisionBody));
   await reviewer.waitForURL((url) => url.pathname === "/approvals", { timeout: 30_000 });
-  await reviewer.goto(`${baseUrl}/numbering/drawings?query=A0002-M01`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-  await reviewer.getByRole("heading", { name: "圖號工作台", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
-  const finalRead = await readWorkbench(reviewer);
+  await reviewer.close();
+  const finalPage = await openDrawing(reviewerContext, "final drawing workbench");
+  const finalRead = await readWorkbench(finalPage);
   const finalRows = (finalRead.body?.data?.groups ?? []).flatMap((group) => group.rows ?? []);
   const faultRow = finalRows.find((row) => row.layerLabel === "研發版 1.2");
   check("canonical UI row exposes selected fault handling", faultRow?.handling === profile && faultRow?.handlingLabel === (profile === "system_admin" ? "系統管理員處理" : "受阻"), JSON.stringify(faultRow));
   check("fault review request is no longer actionable", !faultRow?.actions?.length, JSON.stringify(faultRow?.actions));
   if (profile === "blocked") {
-    await reviewer.locator(".canonical-row-open").filter({ hasText: "A0002-M01" }).last().click();
-    await reviewer.getByRole("dialog", { name: /A0002-M01/u }).waitFor({ state: "visible", timeout: 30_000 });
-    check("blocked drawer shows human-readable blocker", await reviewer.getByText("自動化正式化缺少安全修復路徑。", { exact: true }).count() === 1);
+    await finalPage.locator(".canonical-row-open").filter({ hasText: "A0002-M01" }).last().click();
+    await finalPage.getByRole("dialog", { name: /A0002-M01/u }).waitFor({ state: "visible", timeout: 30_000 });
+    check("blocked drawer shows human-readable blocker", await finalPage.getByText("自動化正式化缺少安全修復路徑。", { exact: true }).count() === 1);
   }
-  await reviewer.screenshot({ path: path.join(screenshotDir, `${profile}-after-review.png`), fullPage: true });
-  await reviewer.close();
+  await finalPage.screenshot({ path: path.join(screenshotDir, `${profile}-after-review.png`), fullPage: true });
+  await finalPage.close();
   await reviewerContext.close();
   await ownerContext.close();
 
   const evidence = new Database(fixtureDb, { readonly: true });
   const dbState = evidence.prepare("SELECT work_id, handling, blocker_reason FROM canonical_workbench_states WHERE work_id IS NOT NULL AND canonical_entity_id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877' ORDER BY updated_at DESC LIMIT 1").get();
   const dbReview = evidence.prepare("SELECT COUNT(*) AS count FROM pdm_work_review_requests WHERE work_id = ? AND request_status IN ('pending', 'applying')").get(dbState?.work_id ?? "");
-  const after = evidence.prepare("SELECT COUNT(*) AS revisions FROM drawing_revisions WHERE drawing_id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877'").get();
+  const after = evidence.prepare("SELECT revision_id AS production_revision_id FROM canonical_workbench_states WHERE canonical_entity_id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877' AND data_layer = 'drawing_production'").get();
   check("database canonical state matches UI fault handling", dbState?.handling === profile && (profile === "blocked" ? dbState?.blocker_reason === "自動化正式化缺少安全修復路徑。" : dbState?.blocker_reason === null), JSON.stringify(dbState));
   check("database has no actionable review request after terminal fault", Number(dbReview?.count ?? 0) === 0, JSON.stringify(dbReview));
-  check("formal drawing data was not changed by fault path", Number(after?.revisions ?? 0) === Number(baseline?.revisions ?? 0), JSON.stringify({ baseline, after }));
+  check("formal drawing data was not changed by fault path", after?.production_revision_id === baseline?.production_revision_id, JSON.stringify({ baseline, after }));
   evidence.close();
 } catch (error) {
   checks.push({ name: "fault browser execution", pass: false, detail: error instanceof Error ? error.message : String(error) });
