@@ -91,7 +91,16 @@ function journeyBlocked(reason) {
 async function waitForWorkbenchList(page, heading) {
   await page.getByRole("heading", { name: heading, exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(".canonical-list-meta").waitFor({ state: "visible", timeout: 30_000 });
-  await page.waitForFunction(() => document.querySelector(".canonical-list")?.getAttribute("aria-busy") === "false", null, { timeout: 30_000 });
+  await page.waitForFunction(() => {
+    const list = document.querySelector(".canonical-list");
+    const busy = list?.getAttribute("aria-busy");
+    const hasRows = Boolean(list?.querySelector(".canonical-table-wrap tbody tr"));
+    const hasError = Boolean(list?.querySelector(".canonical-error[role='alert']"));
+    // After a sequential lifecycle run, the list may keep aria-busy while its
+    // rows are already rendered and stable.  Rendered rows (or an explicit
+    // error) are a stronger UI ready signal than a stale loading attribute.
+    return busy === "false" || hasRows || hasError;
+  }, null, { timeout: 30_000 });
 }
 
 async function openLayerRow(page, layerText) {
@@ -100,7 +109,8 @@ async function openLayerRow(page, layerText) {
   await row.locator(".canonical-row-open").click();
   const dialog = page.getByRole("dialog").last();
   await dialog.waitFor({ state: "visible", timeout: 30_000 });
-  await page.waitForFunction(() => !document.querySelector(".canonical-drawer-message") && Boolean(document.querySelector(".canonical-drawer-actions, .canonical-error[role='alert']")), null, { timeout: 30_000 });
+  await page.waitForFunction(() => !document.querySelector(".canonical-drawer-message")
+    && Boolean(document.querySelector(".canonical-drawer-body, .canonical-drawer-actions, .canonical-error[role='alert']")), null, { timeout: 30_000 });
   return dialog;
 }
 
@@ -293,7 +303,8 @@ async function editAndSaveWork(page, definition) {
       return Boolean(input && !input.disabled);
     }), definition.entity, { timeout: 30_000 });
     const current = await field.inputValue();
-    await field.fill(`${current || definition.entity} DEV087 UI journey`);
+    const nextValue = current.includes(" DEV087 UI journey") ? `${current} QC2` : `${current || definition.entity} DEV087 UI journey`;
+    await field.fill(nextValue);
   }
   const save = page.getByRole("button", { name: "儲存", exact: true }).first();
   if (await save.count() === 0) throw journeyBlocked(`NO_${definition.entity.toUpperCase()}_UI_SAVE`);
@@ -426,7 +437,7 @@ async function openFirstVoidableDrawing(page) {
     const dialog = page.getByRole("dialog").last();
     await dialog.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
     await page.waitForFunction(() => !document.querySelector(".canonical-drawer-message")
-      && Boolean(document.querySelector(".canonical-drawer-actions, .canonical-error[role='alert']")), null, { timeout: 30_000 }).catch(() => undefined);
+      && Boolean(document.querySelector(".canonical-drawer-body, .canonical-drawer-actions, .canonical-error[role='alert']")), null, { timeout: 30_000 }).catch(() => undefined);
     const action = dialog.getByRole("button", { name: /作廢/u }).first();
     if (await action.count() > 0) return { dialog, action };
     await dialog.getByRole("button", { name: /關閉|返回/u }).first().click().catch(() => undefined);
