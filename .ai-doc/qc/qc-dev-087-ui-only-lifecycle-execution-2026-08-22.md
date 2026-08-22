@@ -61,3 +61,49 @@
 3. 提供 deterministic fault profile 的啟動契約，並證明只由後續 UI 動作觸發狀態。
 4. 建立並執行 67 條 journey runner；任何 FAIL 需保留首次失敗證據，由 RD 修正後以全新 disposable run 重跑，不得覆蓋原失敗。
 
+## 5. 返工後重驗紀錄（2026-08-22）
+
+本節追加記錄本輪 RD 修正後的獨立重驗，不覆蓋前一輪 focused／blocked 結論。
+
+### 5.1 已完成的修正與 focused 重驗
+
+- `04a2391d fix: honor DEV-087 system admin state contract`：`system_admin` 不再寫入違反 schema CHECK 的 blocker reason；`blocked` 才保留人類可理解的受阻原因。
+- `296d473e` 至 `09e7892a`：補齊故障路徑的 UI-only 登入、送審、審核、重新導向、fresh-page readback 與精確研發版 drawer 驗證。
+- focused aggregate 最新證據：`output/qa/dev-087/DEV087-2026-08-22T01-31-47-102Z/manifest.json`。
+
+| 子檢查 | 最新結果 |
+|---|---:|
+| contract | PASS 28 |
+| repository | PASS 17 |
+| commands | PASS 39 |
+| migration | PASS 24 |
+| retirement | PASS 30 |
+| browser focused | PASS 46/46 |
+| typecheck:app | PASS |
+| build:isolated | PASS |
+| aggregate | PASS 8/8 |
+
+故障 profile 另以真正 rendered UI 重驗：
+
+- `system_admin`：`output/qa/dev-087/DEV087-fault-system_admin-2026-08-22T01-29-43-360Z/manifest.json`，`17/17 PASS`；清單顯示「系統管理員處理」、drawer 顯示「請系統管理員處理」、無 action、DB `blocker_reason = null`。
+- `blocked`：`output/qa/dev-087/DEV087-fault-blocked-2026-08-22T01-30-59-155Z/manifest.json`，`18/18 PASS`；清單顯示「受阻」、drawer 顯示單一受阻原因、無假恢復 action，正式 revision 未變更。
+
+兩個故障 profile 均由啟動前環境設定宣告，狀態只由後續 UI 核准動作觸發；沒有案例中途 DB/API business mutation，task-owned ports 均已釋放。
+
+### 5.2 Gap 狀態更新
+
+| Gap | 更新後狀態 | 說明 |
+|---|---|---|
+| `GAP-UI-01` | BLOCKED | whole-object obsolete 與 active work／review／system 優先序仍未由產品／ADR 固定。 |
+| `GAP-UI-02` | BLOCKED | root obsolete 對子 Drawing branch／Part／Relation active work 的 impact、cancel、stale 規則仍未固定。 |
+| `GAP-UI-03` | BLOCKED | `Merged` 仍沒有合法現行 UI 建立入口；不得用 seed 或 SQL 補造前置。 |
+| `GAP-UI-04` | CLOSED（focused） | `system_admin／blocked` deterministic fault profile 與 UI-triggered triad evidence 已完成；仍須納入完整 67-case run 的 C11 coverage。 |
+
+### 5.3 目前可發布結論
+
+本輪證明 focused implementation 與兩個 fault profile 已通過，但不改變全生命週期分母：`D01-D27 + P01-P20 + R01-R20 = 67 journeys`，另加 `C01-C11`。目前仍沒有 67 個 case 的完整 `case.json`、`actions.jsonl`、UI/API/DB triad diff 與 cleanup ledger，因此：
+
+- `Focused implementation gate = PASS`。
+- `C11 fault profile focused rerun = PASS`。
+- `Full UI-only lifecycle = NOT PASS / Contract-blocked`。
+- 不得宣稱 `67/67`、不得 release-ready；下一輪必須先取得 GAP-UI-01～03 的權威決策或正式移出本計畫，再以全新 disposable run 執行完整分母。

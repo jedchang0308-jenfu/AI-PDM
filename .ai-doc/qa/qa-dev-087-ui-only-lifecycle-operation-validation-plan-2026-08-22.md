@@ -3,7 +3,7 @@
 建立日期：2026-08-22  
 Owner：QA  
 執行者：AI-QA Operator；結案者：獨立 AI-QC  
-狀態：`QA Plan Ready / Human Confirmed / UI Execution Not Started / Local Isolated Only`  
+狀態：`QA Plan Ready / Human Confirmed / Focused UI Rerun Partial / Local Isolated Only`
 母計畫：`.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-21.md`  
 產品權威：`.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`  
 關聯權威：DEV-077 正式草稿／正式物件作廢；DEV-088 替代料號附件人工沿用
@@ -313,6 +313,6 @@ Run-level 必含 `run-manifest.json`、`authority.json`、`actors.json`、`route
 
 ## 14. 目前結論
 
-本文件只代表計畫完成，尚未執行 67 條 UI journey，尚未產生全生命週期 QA/QC 結論。DEV-087 現有 focused runner PASS、DEV-074 歷史 58/58、DEV-088 focused PASS 都不能替代本計畫。
+本文件的完整分母仍尚未完成：目前已完成 focused UI rerun 與 `system_admin／blocked` fault profile 的獨立 UI 驗證，但尚未產生 67 條 journey 的完整 evidence bundle，因此 focused PASS 不得替代全生命週期結論。詳細結果記錄於 `.ai-doc/qc/qc-dev-087-ui-only-lifecycle-execution-2026-08-22.md`。
 
-執行前先關閉 §9 的 contract／fixture gaps；執行時若任何 gap 仍存在，必須如實回報 BLOCKED，不能直接改資料或縮小分母。
+`GAP-UI-04` 已在 focused scope 關閉；`GAP-UI-01～03` 仍須由產品／ADR 固定或正式移出本計畫。任何 gap 尚未關閉時，必須如實回報 BLOCKED，不能直接改資料、seed 前置或縮小分母。
