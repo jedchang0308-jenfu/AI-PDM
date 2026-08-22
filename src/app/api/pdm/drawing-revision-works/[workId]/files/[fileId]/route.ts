@@ -19,6 +19,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ work
   try {
     const { workId, fileId } = await params;
     const client = getAsyncDatabaseClient();
+    const url = new URL(request.url);
+    const derivativeId = url.searchParams.get("previewDerivative");
+    const wantsPreview = url.searchParams.get("preview") === "1" || Boolean(derivativeId);
     const source = await client.queryOne<WorkFileSource>(
       `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
               asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
@@ -33,7 +36,30 @@ export async function GET(request: Request, { params }: { params: Promise<{ work
           AND asset.deleted_at IS NULL`,
       { workId: decodeURIComponent(workId), fileId: decodeURIComponent(fileId), companyId: access.actor.companyId }
     );
-    if (!source) return Response.json({ error: { code: "WORK_FILE_NOT_FOUND", message: "找不到這個圖面檔案。" } }, { status: 404 });
+    if (!source) {
+      // A preview fetch can already be in flight when the owner cancels a
+      // work. Cancellation intentionally removes the work/file binding, so
+      // the late read must end as an empty terminal response instead of a
+      // browser-visible 404/console error. Downloads and unknown work IDs
+      // remain strict 404s.
+      if (wantsPreview) {
+        const reviewRequestId = url.searchParams.get("reviewRequestId");
+        if (reviewRequestId && access.actor.permissions.decide) {
+          return new Response(null, { status: 204, headers: { "cache-control": "private, no-store", "x-pdm-review-evidence-state": "terminal" } });
+        }
+        const cancelled = await client.queryOne<{ id: string }>(
+          `SELECT id FROM platform_command_receipts
+            WHERE company_id = :companyId
+              AND command_name = 'dev087:drawing.cancel'
+              AND effect_key = :effectKey
+              AND command_status = 'completed'
+            LIMIT 1`,
+          { companyId: access.actor.companyId, effectKey: `drawing-work:${decodeURIComponent(workId)}:cancel` }
+        );
+        if (cancelled) return new Response(null, { status: 204, headers: { "cache-control": "private, no-store", "x-pdm-preview-state": "cancelled" } });
+      }
+      return Response.json({ error: { code: "WORK_FILE_NOT_FOUND", message: "找不到這個圖面檔案。" } }, { status: 404 });
+    }
 
     const reviewRequestId = new URL(request.url).searchParams.get("reviewRequestId");
     if (reviewRequestId) {
@@ -52,7 +78,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ work
         const terminal = await client.queryOne<{ handling: string }>(
           `SELECT handling FROM canonical_workbench_states
             WHERE company_id = :companyId AND work_id = :workId
-              AND handling IN ('system_admin', 'blocked')
+              AND handling IN ('owner', 'system_admin', 'blocked')
             LIMIT 1`,
           { companyId: access.actor.companyId, workId: decodeURIComponent(workId) }
         );
@@ -63,9 +89,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ work
       return Response.json({ error: { code: "WORK_FILE_NOT_FOUND", message: "找不到這個圖面檔案。" } }, { status: 404 });
     }
 
-    const url = new URL(request.url);
-    const derivativeId = url.searchParams.get("previewDerivative");
-    const wantsPreview = url.searchParams.get("preview") === "1" || Boolean(derivativeId);
     const resolved = wantsPreview
       ? await resolveDrawingPreviewAsync(client, source, { allowFake: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1", derivativeId })
       : { record: source, fileName: source.file_name || "圖面附件", mimeType: source.mime_type || drawingPreviewMimeType(source.file_ext) };

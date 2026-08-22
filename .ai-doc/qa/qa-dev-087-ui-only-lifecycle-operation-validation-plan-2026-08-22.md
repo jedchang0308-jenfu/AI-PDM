@@ -336,3 +336,80 @@ Run-level 必含 `run-manifest.json`、`authority.json`、`actors.json`、`route
 本文件的完整分母已由 runner 實際覆蓋，但尚未通過：最新嚴格 triad run `DEV087-ui-only-2026-08-22T02-17-12-187Z` 產生 67 個 case bundle，結果為 `PASS=1、BLOCKED=66、FAIL=0`，C01–C11 與 infrastructure checks 全部通過。BLOCKED 代表缺少合法 UI 前置，不得視為 PASS；詳細結果記錄於 `.ai-doc/qc/qc-dev-087-ui-only-lifecycle-execution-2026-08-22.md`。
 
 `GAP-UI-01～04` 已由 ADR／SPEC 固定或在 focused scope 關閉；完整 67-case run 已執行但仍必須取得合法 UI 前置鏈，並且 D27/P20/R20 需合法既有 Merged history row，否則以 fixture 不合格停止，不得以 seed 前置、SQL mutation 或縮小分母繼續。
+
+## 15. QC journey 補強更新（2026-08-22 08:09）
+
+本次先處理「驗證器／journey 不足」再判斷產品缺口。所有 business mutation 仍只由 rendered UI 點擊、輸入與表單完成；API／DB 僅作唯讀 readback。
+
+### 15.1 已補強並重跑的 journey
+
+| Journey | 最新結果 | 證據 |
+|---|---|---|
+| `J01-drawing-create-cancel` | PASS | `output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T08-09-59-844Z/journeys/J01-drawing-create-cancel/journey.json` |
+| `J02-part-create-cancel` | PASS | 同一 run 的 `journeys/J02-part-create-cancel/journey.json` |
+| `J03-relation-create-cancel` | PASS | 同一 run 的 `journeys/J03-relation-create-cancel/journey.json` |
+| `J-D04` 圖號送審退回 | PASS | 同一 run 的 `journeys/J-D04/journey.json` |
+
+`J-D04` 曾因 runner 只尋找通用唯讀提示文字而誤判，DOM evidence 已證明圖號審核頁實際顯示「目前為唯讀；欄位、檔案、預覽與智慧辨識位置和編輯者相同。」且 input／textarea 均 disabled；runner 已改為依人類語意 `/目前為唯讀/` 驗證，並保留失敗時的 DOM evidence。
+
+最新 focused run `DEV087-ui-only-2026-08-22T08-09-59-844Z` 的 C01–C11 與 infrastructure 全部 PASS、console errors=0、failures=[]、task-owned port `63776` 已釋放。該 run 只聚焦 `D04`，所以 67-case coverage 仍為 `2 PASS / 65 BLOCKED / 0 FAIL`，不得解讀為完整通過。
+
+### 15.2 已確認的產品缺口與非產品缺口
+
+| 分類 | 判定 | 處置 |
+|---|---|---|
+| 圖號 workspace 右側操作區被不存在的舊 resizer grid 欄位遮擋 | 真正產品缺口，已修正 | `src/app/globals.css` 改為 canonical 兩欄 grid；D03 Save 的 UI pointer interception 已解除，需在下一次 full run 再確認。 |
+| J-D04 唯讀判定失敗 | runner 缺口，非產品缺口，已修正 | 依語意提示與 disabled controls 判定，禁止要求每個 domain 使用同一段提示文案。 |
+| 取消／送審後 preview 的已在途 GET 造成 404 server log | 目前屬可解釋的 terminal race，尚未列產品 FAIL | UI 已卸載且 component 會清除 timer；若下一次 full run 仍有使用者可見錯誤、console error 或未停止輪詢，才建立產品 defect；單純已在途 request 不升級。 |
+| D06–D27、P06–P20、R06–R20 | QA 前置缺口 | 沒有可由 UI 合法建立且可清理的前置，不得 seed／SQL／business API 補造；維持 BLOCKED。 |
+| D27、P20、R20 Merged/history | 資料集缺口 | canonical UI 沒有合法既有列時判 fixture invalid，不縮小分母、不宣稱 PASS。 |
+
+### 15.3 放行閘門
+
+本次補強只把 runner false FAIL 降為 PASS／BLOCKED，沒有改變完整門檻：`D01–D27 + P01–P20 + R01–R20 = 67/67 PASS`、`C01–C11=11/11 PASS`、`Blocked=0`、`Not Run=0`、`P0/P1=0`。在合法 UI 前置鏈補齊並完成新 disposable full run 前，DEV-087 仍不可 release-ready。
+
+## 16. Preview terminal race 修正後確認（2026-08-22 08:20）
+
+`D03` focused journey 在 `DEV087-ui-only-2026-08-22T08-15-41-715Z` 真實重現：取消工作後已在途的 preview GET 回 404 並產生 console error；此為產品穩定性缺口，不是 runner 誤判。已修正 `src/app/api/pdm/drawing-revision-works/[workId]/files/[fileId]/route.ts`：
+
+- preview request 找不到已被 UI 取消的工作檔案時，依已完成的 `dev087:drawing.cancel` receipt 回 `204 No Content`，不暴露任何檔案 bytes。
+- 下載請求、未知 workId、非 preview 檔案仍維持 strict `404`。
+- 修正不新增 UI 狀態、不保留附件、不改變正式資料，只消除 terminal navigation 的無效錯誤。
+
+全新 disposable run `DEV087-ui-only-2026-08-22T08-20-06-370Z` 重驗結果：`J01/J02/J03 PASS`、`J-D03 PASS`、`C01–C11=11/11 PASS`、`failures=[]`、`consoleErrors=[]`、port `53690` 已釋放。這表示 `GAP-PROD-01` 的兩個穩定性面向（Save pointer interception、cancel preview 404）均已在 focused scope 關閉，仍待完整 67-case run 回歸。
+## 17. QC journey 連續路徑修正與重驗（2026-08-22 08:41）
+
+### 17.1 本輪補入的真實 UI journey
+
+- `J01-drawing-create-cancel`、`J02-part-create-cancel`、`J03-relation-create-cancel`：三個工作臺均由清單抽屜進入、建立工作、再由工作頁取消，三條路徑均 PASS。
+- `J-D01`：圖號由量產版列透過 UI「進版」建立第一份研發工作，PASS。
+- `J-D02`：圖號由 UI「取消本次工作」終止第一份工作並回到清單，PASS。
+- `J-D03`：同一連續執行序先完成 D01、D02，再建立研發工作；由 UI 修改標題、儲存、重新載入並驗證值仍在，PASS。
+
+### 17.2 競態根因與修正
+
+工作頁在開發執行環境可能收到重複初始化讀取；舊回應可在使用者輸入後覆蓋 `payload`，使「儲存」重新停用。這是可由 UI 觀察的產品穩定性缺口，不是測試腳本誤判。
+
+- `canonical-drawing-change-workspace.tsx`：每次載入使用序號與 `AbortController`；新請求取消舊請求，過期回應不再寫入畫面狀態。
+- 新建工作初始標題為空是合法資料，QC journey 只等待欄位可編輯，不再要求非空來源值。
+
+### 17.3 最新證據與判定
+
+證據根目錄：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T08-41-03-941Z`。
+
+- D01、D02、D03：3/3 PASS；另有 D24 readback PASS，故本輪總 coverage 為 4/67 PASS；本輪 journey `J01/J02/J03/J-D01/J-D02/J-D03` 全 PASS。
+- 共通閘門 `C01-C11`：11/11 PASS；基礎設施：8/8 PASS；`failures=[]`、`consoleErrors=[]`；臨時執行埠 `52283` 已釋放。
+- 67-case 總體仍為 `PASS 4 / BLOCKED 63 / FAIL 0 / NotRun 0`，不得宣稱完整生命週期已通過。其餘 BLOCKED 是尚未具備合法 UI 前置資料或尚未補入 journey，不列為產品 FAIL。
+
+### 17.4 產品缺口盤點原則
+
+本輪已確認並修正的產品缺口：工作頁重複載入覆蓋輸入；前次已修正的兩欄工作區點擊遮罩與取消後預覽終止競態，均由本輪無 console error 的連續 journey 重新確認。尚未執行的 D06-D27（D24 為 readback-only）、P01-P20、R01-R20 只能標示「待補 journey／待合法 fixture」，在完成 UI-only journey 前不得判定為「沒有產品缺口」。
+## 18. 審核 terminal race 修正後重驗（2026-08-22 08:49）
+
+`J-D04`（送審退回）與 `J-D05`（重送核准）均由 UI 完成，且同一執行序的 review page 預覽在決策後沒有再產生 404／console error。根因是審核決策會正常刪除 pending review request 或正式化工作；仍在途的 preview GET 不應把正常終止當成檔案不存在。
+
+- `src/app/api/pdm/drawing-revision-works/[workId]/files/[fileId]/route.ts`：對具備審核權限且帶 `reviewRequestId` 的 terminal preview 回 `204 No Content`；工作仍存在但 review request 已終止時同樣回 204；不回傳檔案 bytes，下載與未知 work 仍 strict 404。
+- 最新 disposable run：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T08-49-54-823Z`。
+- `J01/J02/J03/J-D04/J-D05` 全 PASS；`C01-C11=11/11 PASS`；`failures=[]`、`consoleErrors=[]`；port `61975` 已釋放。
+
+因此目前已執行的 QC journey 沒有可重現產品級 FAIL；未執行的 D06-D27（D24 為 readback-only）、P01-P20、R01-R20 仍維持 BLOCKED，必須先補合法 UI journey／fixture，再進行產品缺口判定。

@@ -204,3 +204,92 @@ Runner 已修正 gate 統計：`gates` 僅計 C01–C11；migration／runtime �
 ## 9. Focused aggregate 回歸（2026-08-22）
 
 在 strict triad runner 相關 commit 後再執行 `npm.cmd run qc:dev-087`：8/8 PASS（contract 31、repository 17、commands 39、migration 24、retirement 30、browser、typecheck、isolated build）。最新 browser manifest：`output/qa/dev-087/DEV087-2026-08-22T02-22-09-783Z/manifest.json`；runtime port `54750` 已釋放。此結果只確認既有 focused gate 無回歸，不改變 §8 的完整生命週期 `1 PASS／66 BLOCKED／0 FAIL` 結論。
+
+## 10. QC journey 補強後重驗（2026-08-22 08:09）
+
+本節取代前文對 D04 的暫時性 runner 失敗判讀，但不取代 67-case 完整放行門檻。
+
+### 10.1 最新 evidence
+
+Run：`DEV087-ui-only-2026-08-22T08-09-59-844Z`
+Evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T08-09-59-844Z/`
+
+| 項目 | 結果 |
+|---|---:|
+| Supplemental J01/J02/J03 | 3/3 PASS |
+| Focused lifecycle J-D04 | PASS |
+| C01–C11 | 11/11 PASS |
+| Infrastructure | 6/6 PASS |
+| Console errors／runner failures | 0 |
+| UI-only business mutation | 0 direct API／DB mutation |
+| Task-owned runtime | port `63776` 已釋放 |
+
+J-D04 的第一次 FAIL 是 runner false negative：圖號審核頁的合法提示是「目前為唯讀；欄位、檔案、預覽與智慧辨識位置和編輯者相同。」而不是料號／關聯共用文案。runner 已改以 `/目前為唯讀/` 及 disabled controls 驗證，重跑後 PASS；`review-dom.json` 保留在失敗證據中。
+
+### 10.2 產品缺口盤點（以 QC 證據為準）
+
+| 識別 | 類型 | 結論 |
+|---|---|---|
+| `GAP-PROD-01` | 已修正的產品缺口 | canonical drawing workspace 舊 CSS 保留不存在的第三欄 resizer，導致 preview layer 攔截右側 Save；已在 `src/app/globals.css` 收斂為兩欄 grid，D03 已通過。 |
+| `GAP-RUNNER-01` | 已修正的 QC runner 缺口 | 審核頁唯讀提示文字 domain-specific，不能用單一 exact string；已改語意 matcher 並保留 DOM debug。 |
+| `GAP-DATA-01` | QA fixture／前置缺口 | 其餘 63 條一般生命週期案例缺少合法、可由 UI 建立且可清理的前置；不得改判產品 FAIL。 |
+| `GAP-DATA-02` | QA fixture／前置缺口 | D27/P20/R20 沒有合法既有 Merged/history UI row；canonical UI 無入口時依契約 BLOCKED。 |
+| `GAP-CANDIDATE-01` | 待觀察穩定性議題 | terminal navigation 期間已在途 preview GET 可能在 server log 出現 404；目前沒有可見錯誤、console error 或 partial write 證據，不列產品 FAIL。下一次 full run 若重現可見影響，才升級 defect。 |
+
+### 10.3 本輪結論
+
+本輪已完成「先補 QC journey，再盤點產品缺口」的第一段：J01–J03、J-D04 及共用閘門已可由 UI 驗證；D04 的紅燈已證實是 runner 判定錯誤。現在真正可歸因於產品的缺口只有 `GAP-PROD-01`，且已修正、待 full run 回歸確認；其餘為 runner／資料前置／待觀察項，不可混成產品 backlog。
+
+完整 QC 仍維持 `NOT PASS`：必須再取得合法 UI 前置鏈，完成 `D01–D27 + P01–P20 + R01–R20 = 67/67 PASS`、`Blocked=0`、`Not Run=0` 後，才可做 release 判定。
+
+## 11. Preview terminal race 修正後重驗（2026-08-22 08:20）
+
+`DEV087-ui-only-2026-08-22T08-15-41-715Z` 的 `J-D03` 曾得到 `GET .../files/... ?preview=1 = 404` 與一筆 browser console error。由於該請求發生在 UI 取消工作後、檔案 binding 已由正常取消交易移除，這是可重現的產品穩定性缺口。
+
+RD 修正 `src/app/api/pdm/drawing-revision-works/[workId]/files/[fileId]/route.ts`：只對 preview 讀取查詢已完成的 `dev087:drawing.cancel` command receipt；若確認是 UI 取消造成的 terminal late read，回 `204 No Content`，不回傳檔案內容。未知工作、下載請求與其他未授權情境仍是 `404`，因此沒有放寬資源邊界。
+
+全新 disposable 重驗：`DEV087-ui-only-2026-08-22T08-20-06-370Z`，evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T08-20-06-370Z/`。
+
+| 項目 | 結果 |
+|---|---:|
+| J01/J02/J03 | 3/3 PASS |
+| J-D03 Save/reload/cancel | PASS |
+| C01–C11 | 11/11 PASS |
+| failures／consoleErrors | 0 / 0 |
+| runtime cleanup | port `53690` 已釋放 |
+
+因此 `GAP-CANDIDATE-01` 已升級為 `GAP-PROD-01` 並修正；目前 focused scope 已無可重現產品級 FAIL。仍不可宣告完整 QA PASS，因 65/67 case 仍是合法 UI 前置不足的 BLOCKED，且完整 67-case run 尚未完成。
+## 12. QC journey 連續路徑修正後重驗（2026-08-22 08:41）
+
+### 12.1 實際結果
+
+- 三個工作臺 smoke journey：`J01-drawing-create-cancel`、`J02-part-create-cancel`、`J03-relation-create-cancel` 全 PASS。
+- 圖號連續 journey：`J-D01` 建立、`J-D02` 取消、`J-D03` 編輯／儲存／重新載入全 PASS。
+- `D01-D03` 的 UI、API、唯讀 SQLite readback 三方一致；D03 以連續執行順序重現並通過，證明輸入未再被第二次初始化讀取覆蓋。
+
+### 12.2 產品修正與分類
+
+- 真正產品缺口：工作頁重複 GET 的過期回應會覆蓋使用者輸入；已以序號、取消控制器及過期回應防護修正。
+- 前次真正產品缺口仍納入本輪確認：工作區欄位遮罩造成 Save 點擊被攔截，以及取消後預覽請求收到 404；兩者均已修正，本輪 `consoleErrors=[]`。
+- QC runner 修正：不再把新建工作「標題非空」當成前置條件；這是合法空白初始值，不是產品錯誤。
+
+### 12.3 Gate 與剩餘缺口
+
+證據：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T08-41-03-941Z`。
+
+- `C01-C11 = 11/11 PASS`、基礎設施 `8/8 PASS`、`failures=[]`、`consoleErrors=[]`、埠 `52283` 已釋放。
+- 總矩陣仍是 `67` cases 中 `4 PASS / 63 BLOCKED / 0 FAIL`；所以本輪可說「已補齊且通過 D01-D03 的 QC journey」，不可說「DEV-087 全生命週期已完成」。
+- 63 個 BLOCKED 目前是 journey／fixture coverage 缺口（例如尚無合法 merged/history UI 前置資料），不是已證實的產品缺陷；但在各路徑真正執行前，也不能反向宣稱產品無缺口。下一階段先補 D04-D27、P04-P20、R04-R20 的 UI-only journey，再做產品缺口判定。
+## 13. 審核 terminal race 修正後重驗（2026-08-22 08:49）
+
+`J-D04` 與 `J-D05` 都通過 UI 建立、修改、送審、唯讀審核頁與決策；審核決策後的在途 preview 不再造成瀏覽器 404。修正後證據：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T08-49-54-823Z`。
+
+| 項目 | 結果 |
+|---|---:|
+| J01/J02/J03 | 3/3 PASS |
+| J-D04/J-D05 | 2/2 PASS |
+| C01-C11 | 11/11 PASS |
+| failures／consoleErrors | 0 / 0 |
+| runtime cleanup | port `61975` 已釋放 |
+
+此次修正後，已實際執行的 D01-D05 journey 均有成功證據（分別來自 08:41 與 08:49 disposable runs）；D24 維持 readback-only PASS；其餘 61 個需 lifecycle journey 的案例仍是 BLOCKED coverage，不能視為產品通過，也不能在未執行前列成產品缺口。

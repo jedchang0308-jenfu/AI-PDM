@@ -33,6 +33,9 @@ const failures = [];
 const network = [];
 const consoleErrors = [];
 const supplementalJourneys = [];
+const lifecycleJourneys = [];
+const lifecycleJourneyByCase = new Map();
+const lifecycleFocus = new Set(String(process.env.QC_DEV087_LIFECYCLE_FOCUS ?? "").split(",").map((value) => value.trim()).filter(Boolean));
 let browser = null;
 let app = null;
 let port = null;
@@ -167,6 +170,304 @@ async function runSupplementalJourneys(context) {
   return supplementalJourneys;
 }
 
+/*
+ * The 67-case matrix is intentionally broader than the three smoke journeys
+ * above.  These journeys are the first real lifecycle layer: every mutation is
+ * still a rendered click/typing action, while API/DB calls remain readback
+ * only.  The helper returns the same evidence shape for each case so the
+ * case runner can distinguish a real product result from a missing journey
+ * precondition instead of turning an untested case into a false PASS.
+ */
+async function openCanonicalAction(page, definition, rowText, actionLabel) {
+  await page.goto(`${baseUrl}${definition.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await waitForWorkbenchList(page, definition.heading);
+  const dialog = await openLayerRow(page, rowText);
+  const action = dialog.getByRole("button", { name: actionLabel, exact: true });
+  if (await action.count() === 0) throw journeyBlocked(`NO_LEGAL_UI_ACTION:${actionLabel};row=${rowText}`);
+  return { dialog, action };
+}
+
+async function startCanonicalWork(page, definition, rowText, actionLabel) {
+  const { action } = await openCanonicalAction(page, definition, rowText, actionLabel);
+  const mutationResponse = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("/change-works"), { timeout: 15_000 });
+  await action.click();
+  const response = await mutationResponse;
+  if (!response.ok()) throw new Error(`UI_CREATE_WORK_HTTP_${response.status()}`);
+  await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+  await page.locator("[data-pdm-edit-page='true']").waitFor({ state: "visible", timeout: 30_000 });
+  await page.getByRole("button", { name: "取消本次工作", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  return page.url();
+}
+
+async function continueCanonicalWork(page, definition, rowText) {
+  const { dialog, action } = await openCanonicalAction(page, definition, rowText, "進行編輯");
+  await action.click();
+  await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+  await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
+  await page.getByRole("button", { name: "取消本次工作", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  return page.url();
+}
+
+async function startDrawingWork(page, definition, candidateKind = "rd") {
+  let candidate = null;
+  let sourceText = "量產版 1";
+  for (const source of candidateKind === "rd" ? ["量產版 1", "研發版 1.1"] : ["量產版 1"]) {
+    sourceText = source;
+    try {
+      const { action } = await openCanonicalAction(page, definition, source, "進版");
+      await action.click();
+      await page.getByRole("dialog", { name: "選擇進版方式" }).waitFor({ state: "visible", timeout: 30_000 });
+      await page.waitForFunction(() => document.querySelectorAll(".canonical-candidates button").length > 0 || Boolean(document.querySelector(".canonical-modal .canonical-error")), null, { timeout: 30_000 });
+      const possible = page.locator(`.canonical-candidates button:not(:disabled)`).filter({ hasText: candidateKind === "production" ? "量產版" : "研發版" }).first();
+      if (await possible.count() > 0) { candidate = possible; break; }
+      await page.getByRole("button", { name: "關閉", exact: true }).click().catch(() => undefined);
+    } catch (error) {
+      if (source === "研發版 1.1") throw error;
+    }
+  }
+  if (!candidate) throw journeyBlocked(`NO_ENABLED_UI_REVISION_CANDIDATE:${candidateKind}`);
+  const label = (await candidate.innerText()).trim();
+  const mutationResponse = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("/revision-works"), { timeout: 15_000 });
+  await candidate.click();
+  const response = await mutationResponse;
+  if (!response.ok()) throw new Error(`UI_CREATE_REVISION_HTTP_${response.status()}`);
+  await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+  await page.locator(".dev079-workspace").waitFor({ state: "visible", timeout: 30_000 });
+  await page.getByRole("button", { name: "取消本次工作", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  return { label, url: page.url() };
+}
+
+async function editAndSaveWork(page, definition) {
+  if (definition.entity === "relation") {
+    const removeButton = page.getByRole("button", { name: "移除此關聯", exact: true }).first();
+    if (await removeButton.count() > 0) await removeButton.click();
+    else {
+      const addButton = page.locator(".canonical-link-builder").getByRole("button", { name: "新增", exact: true });
+      if (await addButton.count() === 0) throw journeyBlocked("NO_RELATION_UI_ADD_CONTROL");
+      await addButton.click();
+    }
+  } else {
+    const field = page.locator("label").filter({ hasText: definition.entity === "drawing" ? "標題" : "品名" }).locator("input").first();
+    if (await field.count() === 0) throw journeyBlocked(`NO_${definition.entity.toUpperCase()}_UI_EDIT_FIELD`);
+    await field.waitFor({ state: "visible", timeout: 30_000 });
+    // A newly created work intentionally starts with an empty title/name.
+    // Wait only for the editable control to be hydrated; a non-empty source
+    // value is not a legal precondition for the UI journey.
+    await page.waitForFunction((entity) => [...document.querySelectorAll("label")].some((label) => {
+      if (!label.textContent?.includes(entity === "drawing" ? "標題" : "品名")) return false;
+      const input = label.querySelector("input");
+      return Boolean(input && !input.disabled);
+    }), definition.entity, { timeout: 30_000 });
+    const current = await field.inputValue();
+    await field.fill(`${current || definition.entity} DEV087 UI journey`);
+  }
+  const save = page.getByRole("button", { name: "儲存", exact: true }).first();
+  if (await save.count() === 0) throw journeyBlocked(`NO_${definition.entity.toUpperCase()}_UI_SAVE`);
+  await page.waitForFunction(() => [...document.querySelectorAll("button")].some((button) => button.textContent?.trim() === "儲存" && !button.disabled), null, { timeout: 5_000 }).catch(() => undefined);
+  if (!(await save.isEnabled())) {
+    const debug = await page.evaluate(() => ({
+      inputs: [...document.querySelectorAll("input, textarea")].map((node) => ({
+        name: node.getAttribute("name"),
+        value: node.value,
+        disabled: node.disabled,
+        ariaLabel: node.getAttribute("aria-label")
+      })),
+      buttons: [...document.querySelectorAll("button")].map((node) => ({
+        text: node.textContent?.trim(),
+        disabled: node.disabled
+      })).filter((item) => item.text)
+    }));
+    throw new Error(`UI_SAVE_DISABLED:${definition.entity}:${JSON.stringify(debug)}`);
+  }
+  await save.scrollIntoViewIfNeeded();
+  await save.click();
+  await page.getByText(/工作資料已儲存|資料已儲存|料號資料已儲存|申請內容已更新/u).first().waitFor({ state: "visible", timeout: 30_000 }).catch(() => undefined);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
+  await page.getByRole("button", { name: "取消本次工作", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+}
+
+async function submitWork(page) {
+  const submit = page.getByRole("button", { name: "送出審核", exact: true }).first();
+  if (await submit.count() === 0) throw journeyBlocked("NO_UI_SUBMIT_REVIEW");
+  if (!(await submit.isEnabled())) throw new Error("UI_SUBMIT_REVIEW_DISABLED");
+  await submit.scrollIntoViewIfNeeded();
+  await submit.click();
+  await page.waitForURL((url) => url.pathname === "/numbering/drawings" || url.pathname === "/parts" || url.pathname === "/numbering/search", { timeout: 30_000 });
+}
+
+async function cancelWork(page, route) {
+  const cancel = page.getByRole("button", { name: "取消本次工作", exact: true }).first();
+  if (await cancel.count() === 0) throw journeyBlocked("NO_UI_CANCEL_WORK");
+  page.once("dialog", (dialog) => dialog.accept());
+  await cancel.click({ force: true });
+  await page.waitForURL((url) => url.pathname === new URL(route, baseUrl).pathname, { timeout: 30_000 });
+  await waitForWorkbenchList(page, route.startsWith("/numbering/drawings") ? "圖號工作台" : route.startsWith("/parts") ? "料號工作台" : "圖料工作台");
+}
+
+async function cleanupActiveWork(page, definition) {
+  const cancel = page.getByRole("button", { name: "取消本次工作", exact: true }).first();
+  if (await cancel.count() > 0 && await cancel.isVisible().catch(() => false)) {
+    page.once("dialog", (dialog) => dialog.accept());
+    await cancel.click({ force: true }).catch(() => undefined);
+    return;
+  }
+  const rowLabel = definition.family === "D" ? "研發版" : definition.family === "P" ? "修改中" : "調整中";
+  await page.goto(`${baseUrl}${definition.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => undefined);
+  await waitForWorkbenchList(page, definition.family === "D" ? "圖號工作台" : definition.family === "P" ? "料號工作台" : "圖料工作台").catch(() => undefined);
+  const row = page.locator(".canonical-table-wrap tbody tr").filter({ hasText: rowLabel }).first();
+  if (await row.count() === 0) return;
+  await row.locator(".canonical-row-open, .pdm-identity-code").first().click().catch(() => undefined);
+  const dialog = page.getByRole("dialog").last();
+  if (await dialog.count() === 0) return;
+  const edit = dialog.getByRole("button", { name: "進行編輯", exact: true }).first();
+  if (await edit.count() === 0) return;
+  await edit.click();
+  await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 }).catch(() => undefined);
+  const fallbackCancel = page.getByRole("button", { name: "取消本次工作", exact: true }).first();
+  if (await fallbackCancel.count() > 0) {
+    page.once("dialog", (dialog) => dialog.accept());
+    await fallbackCancel.click({ force: true }).catch(() => undefined);
+  }
+}
+
+async function reviewSubmittedWork(context, definition, rowText, decision) {
+  const page = await context.newPage();
+  monitor(page, `review-${definition.id}`, definition.id);
+  const actions = [];
+  try {
+    const { dialog, action } = await openCanonicalAction(page, definition, rowText, "前往審核");
+    actions.push({ kind: "click", target: "前往審核" });
+    await action.click();
+    await page.waitForURL((url) => url.pathname.startsWith("/approvals/"), { timeout: 30_000 });
+    await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
+    const readonlyInputs = await page.locator("input[disabled], select[disabled], textarea[disabled]").count();
+    const readonlyNotice = await page.getByText(/目前為唯讀/u).count();
+    const writableControls = await page.locator(".canonical-link-builder, input:not([disabled]), select:not([disabled]), textarea:not([disabled])").count();
+    if (readonlyNotice < 1 || (readonlyInputs < 1 && writableControls > 0)) {
+      writeJson(path.join(evidenceRoot, "journeys", `J-${definition.id}`, "review-dom.json"), await page.evaluate(() => ({
+        notice: [...document.querySelectorAll("[role='status']")].map((node) => node.textContent?.trim()).filter(Boolean),
+        controls: [...document.querySelectorAll("input, select, textarea, .canonical-link-builder")].map((node) => ({
+          tag: node.tagName,
+          disabled: "disabled" in node ? Boolean(node.disabled) : null,
+          className: node.className,
+          text: node.textContent?.trim().slice(0, 200)
+        }))
+      })));
+      throw new Error("REVIEW_EDITOR_NOT_READONLY");
+    }
+    const decisionButton = page.getByRole("button", { name: decision === "approve" ? "核准" : "退回修改", exact: true }).first();
+    if (await decisionButton.count() === 0) throw new Error(`NO_UI_REVIEW_DECISION:${decision}`);
+    await decisionButton.click();
+    await page.waitForURL((url) => url.pathname === "/approvals" || url.pathname === new URL(definition.route, baseUrl).pathname, { timeout: 30_000 });
+    actions.push({ kind: "decision", decision, readonlyInputs });
+    return { status: "PASS", actions };
+  } catch (error) {
+    if (error?.journeyBlocked) return { status: "BLOCKED", reason: error.message, actions };
+    return { status: "FAIL", reason: error instanceof Error ? error.message : String(error), actions };
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+async function runLifecycleJourney(context, reviewerContext, spec) {
+  const journeyId = `J-${spec.id}`;
+  const dir = path.join(evidenceRoot, "journeys", journeyId);
+  ensureDir(dir);
+  ensureDir(caseDir(spec.id));
+  const page = await context.newPage();
+  monitor(page, journeyId, spec.id);
+  const actions = [];
+  const startedAt = new Date().toISOString();
+  let status = "PASS";
+  let reason = "";
+  try {
+    const operation = spec.id.slice(1);
+    const isCancel = ["01", "02"].includes(operation);
+    const isSave = ["03"].includes(operation);
+    const isReviewReject = ["04"].includes(operation);
+    const isReviewApprove = ["05"].includes(operation);
+    if (spec.family === "D") {
+      const started = operation === "05"
+        ? { label: "研發版 1.2", url: await continueCanonicalWork(page, spec, "研發版 1.2") }
+        : await startDrawingWork(page, spec, "rd");
+      actions.push({ kind: "create", candidate: started.label });
+      if (isSave || isReviewReject || isReviewApprove) {
+        await editAndSaveWork(page, spec);
+        actions.push({ kind: "save-reload" });
+      }
+      if (isReviewReject || isReviewApprove) {
+        await submitWork(page); actions.push({ kind: "submit" });
+        const review = await reviewSubmittedWork(reviewerContext, spec, started.label, isReviewApprove ? "approve" : "reject");
+        actions.push(...review.actions);
+        if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
+        if (isReviewReject && !["D04"].includes(spec.id)) {
+          await page.goto(`${baseUrl}${spec.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+          await waitForWorkbenchList(page, "圖號工作台");
+          const row = page.locator(".canonical-table-wrap tbody tr").filter({ hasText: started.label }).first();
+          if (await row.count() > 0) {
+            await row.locator(".canonical-row-open").click();
+            const dialog = page.getByRole("dialog").last();
+            await dialog.waitFor({ state: "visible" });
+            const edit = dialog.getByRole("button", { name: "進行編輯", exact: true }).first();
+            if (await edit.count() > 0) {
+              await edit.click();
+              await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+              await page.getByRole("button", { name: "取消本次工作", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+              await cancelWork(page, spec.route);
+              actions.push({ kind: "cancel-after-reject" });
+            }
+          }
+        }
+      } else if (isSave) {
+        await cancelWork(page, spec.route); actions.push({ kind: "cancel-after-save" });
+      } else {
+        await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
+      }
+    } else {
+      const rowText = operation === "05" ? (spec.family === "P" ? "修改中" : "調整中") : (spec.family === "P" ? "正式資料" : "正式關聯");
+      if (operation === "05") await continueCanonicalWork(page, spec, rowText);
+      else await startCanonicalWork(page, spec, rowText, spec.family === "P" ? "建立修改" : "建立調整");
+      actions.push({ kind: "create" });
+      if (isSave || isReviewReject || isReviewApprove) { await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" }); }
+      if (isReviewReject || isReviewApprove) {
+        await submitWork(page); actions.push({ kind: "submit" });
+        const review = await reviewSubmittedWork(reviewerContext, spec, spec.family === "P" ? "修改中" : "調整中", isReviewApprove ? "approve" : "reject");
+        actions.push(...review.actions);
+        if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
+        if (isReviewReject && !["P04", "R04"].includes(spec.id)) {
+          await page.goto(`${baseUrl}${spec.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+          await waitForWorkbenchList(page, spec.family === "P" ? "料號工作台" : "圖料工作台");
+          const row = page.locator(".canonical-table-wrap tbody tr").filter({ hasText: spec.family === "P" ? "修改中" : "調整中" }).first();
+          if (await row.count() > 0) {
+            await row.locator(".pdm-identity-code, .canonical-row-open").first().click();
+            const dialog = page.getByRole("dialog").last();
+            await dialog.waitFor({ state: "visible" });
+            const edit = dialog.getByRole("button", { name: "進行編輯", exact: true }).first();
+            if (await edit.count() > 0) {
+              await edit.click();
+              await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+              await page.getByRole("button", { name: "取消本次工作", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+              await cancelWork(page, spec.route);
+              actions.push({ kind: "cancel-after-reject" });
+            }
+          }
+        }
+      } else {
+        await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
+      }
+    }
+  } catch (error) {
+    if (error?.journeyBlocked) { status = "BLOCKED"; reason = error.message; }
+    else { status = "FAIL"; reason = error instanceof Error ? error.message : String(error); failures.push({ caseId: spec.id, kind: "journey", message: reason }); }
+  } finally {
+    if (!["D04", "P04", "R04"].includes(spec.id)) await cleanupActiveWork(page, spec).catch(() => undefined);
+    writeJson(path.join(dir, "journey.json"), { id: journeyId, caseId: spec.id, family: spec.family, status, reason, actions, startedAt, finishedAt: new Date().toISOString(), mutationPolicy: "rendered UI clicks and typing only; API/DB readback only" });
+    await page.close().catch(() => {});
+  }
+  return { id: journeyId, caseId: spec.id, status, reason, evidence: path.relative(root, path.join(dir, "journey.json")) };
+}
+
 function monitor(page, label, caseId = null) {
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -190,12 +491,12 @@ function monitor(page, label, caseId = null) {
   });
 }
 
-async function login(context) {
+async function login(context, roleLabel = "系統管理員") {
   const page = await context.newPage();
-  monitor(page, "login");
+  monitor(page, `login-${roleLabel}`);
   await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.getByRole("heading", { name: "AI PDM 登入", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
-  await page.getByRole("button", { name: "以系統管理員角色快速登入", exact: true }).click();
+  await page.getByRole("button", { name: `以${roleLabel}角色快速登入`, exact: true }).click();
   await page.waitForURL((url) => !url.pathname.endsWith("/login"), { timeout: 30_000 });
   await page.close();
 }
@@ -214,6 +515,15 @@ function layerLabel(entity, dataLayer, revision) {
   if (entity === "part") return dataLayer === "part_formal" ? "正式資料" : "修改中";
   return dataLayer === "relation_formal" ? "正式關聯" : "調整中";
 }
+
+const handlingVisibleLabel = {
+  none: "",
+  owner: "負責人處理",
+  review_owner: "審核負責人處理",
+  system: "系統處理",
+  system_admin: "系統管理員處理",
+  blocked: "受阻"
+};
 
 function rowKey(row) {
   return [row.code, row.name, row.layer, row.revision ?? "", row.handling, row.blockerReason ?? ""].join("|");
@@ -246,7 +556,7 @@ async function executeCase(context, spec, index) {
     const dbRows = dbSnapshot.map((row) => ({ code: row.code, name: row.name, layer: row.layer, revision: row.revision, handling: row.handling, blockerReason: row.blocker_reason ?? "" }));
     const apiKeys = apiRows.map(rowKey).sort();
     const dbKeys = dbRows.map(rowKey).sort();
-    const uiMissing = apiRows.filter((row) => !rows.some((text) => [row.code, row.name, row.layer, row.handling !== "none" ? row.handling : "", row.blockerReason].filter(Boolean).every((term) => text.includes(term))));
+    const uiMissing = apiRows.filter((row) => !rows.some((text) => [row.code, row.name, row.layer, row.handling === "none" ? "" : (handlingVisibleLabel[row.handling] || row.handling), row.blockerReason].filter(Boolean).every((term) => text.includes(term))));
     const triadDiff = [
       ...(headers.join("|") === "編號|品名|資料|處理" && toolbar.join("|") === "搜尋|資料|處理" ? [] : ["list-contract-mismatch"]),
       ...(apiResponse.status === 200 ? [] : ["api-status-mismatch"]),
@@ -259,12 +569,21 @@ async function executeCase(context, spec, index) {
     if (triadDiff.length > 0) {
       status = "FAIL"; reason = "canonical list contract or readback failed";
     }
-    // Every lifecycle case still needs its actual mutation journey.  The
-    // current source dataset contains only the A0002 readback fixture; do not
-    // manufacture a new branch/work/history row with SQL or direct API calls.
+    // A case may only become PASS after its named rendered-UI journey has
+    // produced evidence.  Cases without a journey remain BLOCKED so the
+    // denominator cannot be reduced or accidentally treated as read-only.
     if (status === "PASS" && spec.id !== "D24") {
-      status = "BLOCKED";
-      reason = "本次隔離資料未提供此案例的合法 UI 前置與可重複資料鏈；禁止用 seed/SQL/API mutation 補造。";
+      const journey = lifecycleJourneyByCase.get(spec.id);
+      if (!journey) {
+        status = "BLOCKED";
+        reason = "NO_UI_JOURNEY_IMPLEMENTED_FOR_CASE";
+      } else if (journey.status === "BLOCKED") {
+        status = "BLOCKED";
+        reason = journey.reason || "UI_JOURNEY_PRECONDITION_BLOCKED";
+      } else if (journey.status === "FAIL") {
+        status = "FAIL";
+        reason = journey.reason || "UI_JOURNEY_FAILED";
+      }
     }
     if (spec.id === "D27" || spec.id === "P20" || spec.id === "R20") {
       const hasMergedText = rows.some((row) => /Merged|已合併/u.test(row));
@@ -311,9 +630,26 @@ try {
   Object.assign(process.env, { NODE_ENV: "development", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: fixtureDataDir, PDM_REPOSITORY_DIR: fixtureRepository, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "", PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: `.tmp/qc-dev087-ui-only-${port}`, PDM_PUBLIC_BASE_URL: baseUrl });
   console.log(`QC DEV-087 full UI-only runtime: project=${root}; purpose=67-case lifecycle preflight; port=${port}; cleanup=after evidence write`);
   app = startNextApp(root, "dev", port); await waitForNextAppReady(baseUrl, app.getOutput); browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } }); monitor(context.pages()[0] ?? await context.newPage(), "context"); await login(context);
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } }); monitor(context.pages()[0] ?? await context.newPage(), "context"); await login(context, "系統管理員");
+  const reviewerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await login(reviewerContext, "研發主管");
   await runSupplementalJourneys(context);
   supplementalJourneys.forEach((journey) => addCheck(journey.id, journey.status === "PASS", journey.reason || journey.evidence));
+  // First lifecycle slice: create/cancel, save/reload, reject and approve for
+  // all three canonical workbenches.  These are deliberately run before the
+  // 67 readback cases so each case can point to a concrete UI evidence bundle.
+  for (const family of ["D", "P", "R"]) {
+    for (const suffix of ["01", "02", "03", "04", "05"]) {
+      const spec = casesSpec.find((item) => item.id === `${family}${suffix}`);
+      if (!spec) continue;
+      if (lifecycleFocus.size > 0 && !lifecycleFocus.has(spec.id)) continue;
+      const journey = await runLifecycleJourney(context, reviewerContext, spec);
+      lifecycleJourneys.push(journey);
+      lifecycleJourneyByCase.set(spec.id, journey);
+      addCheck(journey.id, journey.status === "PASS", journey.reason || journey.evidence);
+    }
+  }
+  await reviewerContext.close();
   for (let index = 0; index < casesSpec.length; index += 1) await executeCase(context, casesSpec[index], index);
   await context.close();
   // C01-C10 are common read-only gates in this full run. C11 delegates the
@@ -347,6 +683,7 @@ const manifest = {
   cases,
   checks,
   supplementalJourneys,
+  lifecycleJourneys,
   failures,
   consoleErrors,
   networkEvents: network.length,
@@ -359,7 +696,7 @@ writeJson(path.join(evidenceRoot, "prohibited-mutation-audit.json"), { directBus
 writeJson(path.join(evidenceRoot, "cleanup-ledger.json"), { status: "task-owned runtime removed", port, tempRootRemoved: true });
 writeJson(path.join(evidenceRoot, "schema-manifest.json"), { authority: "canonical_workbench_states", provider: "sqlite", schemaHash: "dev087-v1", readback: "readonly" });
 writeJson(path.join(evidenceRoot, "file-manifest.json"), { repository: "isolated disposable copy", attachments: "not mutated", credentials: "not recorded" });
-writeText(path.join(evidenceRoot, "defects.md"), `# DEV-087 full UI-only defects\n\n- Supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}.\n- Fixture has no legal existing Merged/history UI row: ${manifest.mergedHistoryRows}.\n- ${manifest.coverage.blocked}/67 lifecycle cases lack a legal UI precondition in this disposable dataset; no seed, SQL business mutation, or direct API mutation was used.\n- This is a blocking fixture/precondition gap, not a product PASS.\n`);
-writeText(path.join(evidenceRoot, "summary.md"), `# DEV-087 full UI-only run\n\n- status: ${manifest.status}\n- coverage: ${manifest.coverage.pass}/67 PASS, ${manifest.coverage.blocked} BLOCKED, ${manifest.coverage.fail} FAIL\n- gates: ${manifest.gates.pass}/${manifest.gates.total} PASS\n- infrastructure checks: ${manifest.infrastructure.pass}/${manifest.infrastructure.total} PASS\n- supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}\n- merged history rows: ${manifest.mergedHistoryRows}\n\nBLOCKED cases are preserved as evidence and are not counted as PASS. Supplemental journeys are UI-only mutation evidence and do not replace lifecycle-case preconditions.\n`);
+writeText(path.join(evidenceRoot, "defects.md"), `# DEV-087 full UI-only defects\n\n- Supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}.\n- Lifecycle journeys: ${manifest.lifecycleJourneys.map((journey) => `${journey.caseId}=${journey.status}`).join(", ") || "none"}.\n- Fixture has no legal existing Merged/history UI row: ${manifest.mergedHistoryRows}.\n- ${manifest.coverage.blocked}/67 lifecycle cases remain blocked after the first UI journey slice; no seed, SQL business mutation, or direct API mutation was used.\n- Any lifecycle journey marked FAIL is a candidate product gap; BLOCKED remains a test precondition gap until a legal UI path is added.\n`);
+writeText(path.join(evidenceRoot, "summary.md"), `# DEV-087 full UI-only run\n\n- status: ${manifest.status}\n- coverage: ${manifest.coverage.pass}/67 PASS, ${manifest.coverage.blocked} BLOCKED, ${manifest.coverage.fail} FAIL\n- gates: ${manifest.gates.pass}/${manifest.gates.total} PASS\n- infrastructure checks: ${manifest.infrastructure.pass}/${manifest.infrastructure.total} PASS\n- supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}\n- lifecycle journeys: ${manifest.lifecycleJourneys.map((journey) => `${journey.caseId}=${journey.status}`).join(", ") || "none"}\n- merged history rows: ${manifest.mergedHistoryRows}\n\nA lifecycle case counts as PASS only after its rendered UI journey and the UI/API/DB triad agree. BLOCKED cases remain visible evidence and are not counted as PASS.\n`);
 console.log(JSON.stringify(manifest, null, 2));
 if (manifest.status !== "PASS") process.exitCode = 1;

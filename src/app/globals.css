@@ -17344,6 +17344,20 @@ select.dropdown-select:focus-visible,
   background: #f5f7fa;
 }
 
+/* DEV-087: canonical drawing workspace has no rendered column-resizer node.
+ * Keep the visual preview and task panel as the only two grid columns; the
+ * legacy three-column rule reserved a 10px resizer that is not present in
+ * this DOM and allowed the preview layer to overlap the action dock. */
+.dev079-workspace .dev079-workspace-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, var(--dev079-detail-panel-width, 34%));
+}
+
+@media (max-width: 900px) {
+  .dev079-workspace .dev079-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* DEV-087 canonical workbench: one human-facing layer and one handling signal. */
 .canonical-workbench { min-width: 0; padding: 8px 6px 24px; color: #172033; }
 .canonical-workbench-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }

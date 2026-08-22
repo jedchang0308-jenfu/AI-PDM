@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, Files, LoaderCircle, RefreshCcw, Save, ScanSearch, Send, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DrawingDetailPreview, type DrawingDetailPreviewCard, type DrawingDetailPreviewKind } from "@/components/drawing-detail-preview";
@@ -61,6 +61,8 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const [notice, setNotice] = useState("");
   const [detailMode, setDetailMode] = useState<"files" | "recognition">("files");
   const [visualKind, setVisualKind] = useState<DrawingDetailPreviewKind>("two-d");
+  const loadSequenceRef = useRef(0);
+  const loadControllerRef = useRef<AbortController | null>(null);
   const safeReturn = returnTo || "/numbering/drawings";
   const endpoint = reviewRequestId
     ? `/api/pdm/review-requests/${encodeURIComponent(reviewRequestId)}`
@@ -68,15 +70,28 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
 
   const load = useCallback(async () => {
     if (!endpoint) { setLoading(false); setError("找不到圖號工作資料。"); return; }
+    const sequence = ++loadSequenceRef.current;
+    loadControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadControllerRef.current = controller;
     setLoading(true); setError("");
-    const response = await fetch(endpoint, { cache: "no-store" });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) { setLoading(false); setError(apiMessage(body, "圖號工作資料目前無法載入。")); return; }
-    const result = body as ResponseShape;
-    if (result.data.entityType !== "drawing") { setLoading(false); setError("審核對象不是圖號資料。"); return; }
-    setData(result.data); setPayload(result.data.payload ?? {}); setSavedPayload(result.data.payload ?? {}); setContractToken(result.meta.contractToken); setLoading(false);
+    try {
+      const response = await fetch(endpoint, { cache: "no-store", signal: controller.signal });
+      const body = await response.json().catch(() => null);
+      if (sequence !== loadSequenceRef.current) return;
+      if (!response.ok) { setLoading(false); setError(apiMessage(body, "圖號工作資料目前無法載入。")); return; }
+      const result = body as ResponseShape;
+      if (result.data.entityType !== "drawing") { setLoading(false); setError("審核對象不是圖號資料。"); return; }
+      setData(result.data); setPayload(result.data.payload ?? {}); setSavedPayload(result.data.payload ?? {}); setContractToken(result.meta.contractToken); setLoading(false);
+    } catch (error) {
+      if (controller.signal.aborted || sequence !== loadSequenceRef.current) return;
+      setLoading(false); setError(error instanceof Error ? error.message : "圖號工作資料目前無法載入。");
+    }
   }, [endpoint]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return () => loadControllerRef.current?.abort();
+  }, [load]);
 
   const isDirty = Boolean(data && !data.readonly && JSON.stringify(payload) !== JSON.stringify(savedPayload));
   const canLeave = useUnsavedChangesGuard(isDirty);
