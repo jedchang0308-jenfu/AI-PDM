@@ -107,3 +107,41 @@
 - `C11 fault profile focused rerun = PASS`。
 - `Full UI-only lifecycle = NOT PASS / 67-case runner pending`。
 - 不得宣稱 `67/67`、不得 release-ready；下一輪直接依已固定的 ADR／SPEC 規則，以全新 disposable run 執行完整分母；缺少合法 Merged history 時只可判 fixture invalid，不可縮小分母。
+
+## 6. RD 修正後 fault profile 重驗（2026-08-22）
+
+上一輪 `system_admin` fault profile 曾發現 reviewer 送出決策後，瀏覽器尚未完成的唯讀檔案預覽仍帶 `reviewRequestId`，因 request 已被終止清除而收到 404，造成 console/network failure。RD 以 `974c4108 fix: silence late terminal review previews` 修正：只有在同一 work 已進入 `system_admin／blocked` terminal state 時，late read 轉為無內容的 204 terminal response，不暴露檔案 bytes；其他不存在或未授權仍維持 404。
+
+修正後以全新 disposable runtime 重跑：
+
+| Profile | Evidence | 結果 |
+|---|---|---:|
+| `system_admin` | `output/qa/dev-087/DEV087-fault-system_admin-2026-08-22T01-55-34-788Z/manifest.json` | 17/17 PASS，failures=0 |
+| `blocked` | `output/qa/dev-087/DEV087-fault-blocked-2026-08-22T01-56-07-790Z/manifest.json` | 18/18 PASS，failures=0 |
+
+兩個 profile 均確認 UI handling、drawer 語意、request 不再 actionable、canonical DB state 與正式版不變；task-owned ports `59868`、`50069` 均釋放。此修正只關閉 late-read 穩定性缺口，不增加新的 UI 狀態或 terminal action。
+
+## 7. 完整 67-case UI-only runner（2026-08-22）
+
+依 QA 計畫固定的完整分母，使用全新 disposable SQLite／repository、UI quick-login、Playwright rendered UI 及唯讀 API／DB readback 執行：
+
+| 項目 | 結果 |
+|---|---:|
+| Drawing | D01–D27（27） |
+| Part | P01–P20（20） |
+| Relation | R01–R20（20） |
+| 合計分母 | 67 |
+| PASS | 1（D24 搜尋／篩選／歷史清單 readback） |
+| BLOCKED | 66 |
+| FAIL | 0 |
+| C01–C11 | 11/11 PASS |
+| infrastructure checks | 2/2 PASS |
+| unexpected failure／console error | 0 |
+| direct business API／DB mutation | 0 |
+| merged history rows | 0 |
+
+Evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T02-02-02-169Z/`。完整 runner 已實際造出每個 case 的 `case.json`、`actions.jsonl`、`network.jsonl`、screenshot、API／DB readback、triad diff、visible-error sweep、viewport metrics，以及 run-level manifest／schema／file／defects／cleanup 文件；task-owned port `62457` 已釋放。
+
+66 個 BLOCKED 的共同原因是本次來源資料只有 A0002 的既有正式／研發 readback，沒有可由 UI 合法取得的每一種生命週期前置資料，且沒有合法既有 `Merged` history row。依 ADR／SPEC 與 QA 規則，不以 seed、SQL、直接 business API 或縮小分母補造，因此整體仍為 `NOT PASS`，不是產品失敗，也不能宣稱 67/67。
+
+Runner 已修正 gate 統計：`gates` 僅計 C01–C11；migration／runtime 等列於 `infrastructure`，避免把 13 個檢查誤報為 11 個 gate。下一個必要動作是提供合法 UI 前置資料鏈（或新增可由 UI 建立且可清理的測試情境），再以全新 run 重跑；在此之前不得 release-ready。

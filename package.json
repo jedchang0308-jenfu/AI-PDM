@@ -71,6 +71,7 @@
     "qc:dev-087:migration": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-087-migration.mjs",
     "qc:dev-087:retirement": "node scripts/qc-dev-087-retirement.mjs",
     "qc:dev-087:browser": "node scripts/qc-dev-087-browser.mjs",
+    "qc:dev-087:ui-only": "node scripts/qc-dev-087-ui-only.mjs",
     "qc:dev-087": "node scripts/qc-dev-087-aggregate.mjs",
     "db:postgres:migration": "node scripts/generate-postgres-migration.mjs",
     "db:postgres:guard": "node scripts/guard-postgres-shadow-target.mjs",
