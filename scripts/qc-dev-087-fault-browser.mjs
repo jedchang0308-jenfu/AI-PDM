@@ -139,7 +139,10 @@ try {
   await reviewer.goto(`${baseUrl}${reviewHref}?returnTo=${encodeURIComponent("/numbering/drawings?query=A0002-M01")}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await reviewer.getByText("唯讀審核", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   check("reviewer sees the same drawing editor in read-only mode", await reviewer.getByRole("tab", { name: "版次與檔案" }).count() === 1 && await reviewer.locator("input[disabled]").count() >= 1);
-  await reviewer.getByRole("button", { name: "核准" }).click();
+  const approveButton = reviewer.locator(".dev079-workspace-footer").getByRole("button", { name: "核准" });
+  check("reviewer approve action is rendered and enabled", await approveButton.count() === 1 && await approveButton.isEnabled());
+  await approveButton.focus();
+  await approveButton.press("Enter");
   await reviewer.getByRole("heading", { name: "圖號工作台", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   const finalRead = await readWorkbench(reviewer);
   const finalRows = (finalRead.body?.data?.groups ?? []).flatMap((group) => group.rows ?? []);
