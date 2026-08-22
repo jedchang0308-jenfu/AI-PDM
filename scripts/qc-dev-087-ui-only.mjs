@@ -107,10 +107,20 @@ async function login(context) {
 async function readOnlyDbSnapshot(entity) {
   const db = new Database(fixtureDb, { readonly: true });
   try {
-    if (entity === "drawing") return db.prepare(`SELECT state.data_layer, state.handling, state.work_id, state.revision_id FROM canonical_workbench_states state JOIN drawings drawing ON drawing.id = state.canonical_entity_id WHERE drawing.drawing_number = 'A0002-M01' ORDER BY state.data_layer, state.revision_id`).all();
-    if (entity === "part") return db.prepare(`SELECT state.data_layer, state.handling, state.work_id FROM canonical_workbench_states state JOIN part_numbers part ON part.id = state.canonical_entity_id WHERE part.part_number = 'A0002-P01' ORDER BY state.data_layer`).all();
-    return db.prepare(`SELECT state.data_layer, state.handling, state.work_id FROM canonical_workbench_states state JOIN part_roots root ON root.id = state.canonical_entity_id WHERE root.root_code = 'A0002' ORDER BY state.data_layer`).all();
+    if (entity === "drawing") return db.prepare(`SELECT drawing.drawing_number AS code, root.core_name AS name, state.data_layer, state.handling, state.blocker_reason, state.work_id, state.revision_id, revision.revision FROM canonical_workbench_states state JOIN drawings drawing ON drawing.id = state.canonical_entity_id LEFT JOIN part_roots root ON root.id = drawing.part_root_id LEFT JOIN drawing_revisions revision ON revision.id = state.revision_id WHERE drawing.drawing_number = 'A0002-M01' ORDER BY state.data_layer, state.revision_id`).all();
+    if (entity === "part") return db.prepare(`SELECT part.part_number AS code, part.part_name AS name, state.data_layer, state.handling, state.blocker_reason, state.work_id, NULL AS revision_id, NULL AS revision FROM canonical_workbench_states state JOIN part_numbers part ON part.id = state.canonical_entity_id WHERE part.part_number = 'A0002-P01' ORDER BY state.data_layer`).all();
+    return db.prepare(`SELECT root.root_code AS code, root.core_name AS name, state.data_layer, state.handling, state.blocker_reason, state.work_id, NULL AS revision_id, NULL AS revision FROM canonical_workbench_states state JOIN part_roots root ON root.id = state.canonical_entity_id WHERE root.root_code = 'A0002' ORDER BY state.data_layer`).all();
   } finally { db.close(); }
+}
+
+function layerLabel(entity, dataLayer, revision) {
+  if (entity === "drawing") return dataLayer === "drawing_production" ? `量產版 ${revision ?? "-"}` : `研發版 ${revision ?? "-"}`;
+  if (entity === "part") return dataLayer === "part_formal" ? "正式資料" : "修改中";
+  return dataLayer === "relation_formal" ? "正式關聯" : "調整中";
+}
+
+function rowKey(row) {
+  return [row.code, row.name, row.layer, row.revision ?? "", row.handling, row.blockerReason ?? ""].join("|");
 }
 
 async function executeCase(context, spec, index) {
@@ -131,15 +141,26 @@ async function executeCase(context, spec, index) {
     const toolbar = (await page.locator(".canonical-toolbar > label > span").allTextContents()).map((value) => value.trim());
     const rows = await page.locator(".canonical-table-wrap tbody tr").allTextContents();
     const apiResponse = await page.evaluate(async (api) => { const response = await fetch(api, { cache: "no-store" }); return { status: response.status, body: await response.json().catch(() => null) }; }, spec.api);
-    const dbSnapshot = await readOnlyDbSnapshot(spec.entity);
+    const dbSnapshot = (await readOnlyDbSnapshot(spec.entity)).map((row) => ({ ...row, layer: layerLabel(spec.entity, row.data_layer, row.revision) }));
     actual = { headers, toolbar, rows, apiStatus: apiResponse.status, apiBodyHash: safeJson(apiResponse.body).length, dbRows: dbSnapshot.length };
     actions.push({ kind: "readback", headers, toolbar, rows: rows.length, apiStatus: apiResponse.status, dbRows: dbSnapshot.length });
     writeJson(path.join(dir, "api-readback", "list.json"), apiResponse.body);
     writeJson(path.join(dir, "db-readback", "list.json"), { readOnly: true, entity: spec.entity, rows: dbSnapshot });
-    writeJson(path.join(dir, "triad-diff", "list.json"), { diff: headers.length === 4 && toolbar.length === 3 && apiResponse.status === 200 ? [] : ["list-contract-mismatch"], ui: { headers, toolbar }, api: { status: apiResponse.status }, db: { rows: dbSnapshot.length } });
+    const apiRows = (apiResponse.body?.data?.groups ?? []).flatMap((group) => group.rows ?? []).map((row) => ({ code: row.code, name: row.name, layer: row.layerLabel, revision: row.revision, handling: row.handling, blockerReason: row.blockerReason ?? "" }));
+    const dbRows = dbSnapshot.map((row) => ({ code: row.code, name: row.name, layer: row.layer, revision: row.revision, handling: row.handling, blockerReason: row.blocker_reason ?? "" }));
+    const apiKeys = apiRows.map(rowKey).sort();
+    const dbKeys = dbRows.map(rowKey).sort();
+    const uiMissing = apiRows.filter((row) => !rows.some((text) => [row.code, row.name, row.layer, row.handling !== "none" ? row.handling : "", row.blockerReason].filter(Boolean).every((term) => text.includes(term))));
+    const triadDiff = [
+      ...(headers.join("|") === "編號|品名|資料|處理" && toolbar.join("|") === "搜尋|資料|處理" ? [] : ["list-contract-mismatch"]),
+      ...(apiResponse.status === 200 ? [] : ["api-status-mismatch"]),
+      ...(JSON.stringify(apiKeys) === JSON.stringify(dbKeys) ? [] : ["api-db-row-mismatch"]),
+      ...(uiMissing.length === 0 ? [] : ["ui-api-row-mismatch"])
+    ];
+    writeJson(path.join(dir, "triad-diff", "list.json"), { diff: triadDiff, ui: { headers, toolbar, rows }, api: { status: apiResponse.status, rows: apiRows }, db: { rows: dbRows }, uiMissing });
     await page.screenshot({ path: path.join(dir, "screenshots", `${spec.id}-after-desktop.png`), fullPage: true });
     recordAction(spec.id, { kind: "readback", before: { route: spec.route }, after: actual });
-    if (headers.join("|") !== "編號|品名|資料|處理" || toolbar.join("|") !== "搜尋|資料|處理" || apiResponse.status !== 200) {
+    if (triadDiff.length > 0) {
       status = "FAIL"; reason = "canonical list contract or readback failed";
     }
     // Every lifecycle case still needs its actual mutation journey.  The
