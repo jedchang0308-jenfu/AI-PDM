@@ -1177,7 +1177,9 @@ try {
     }
   }
   await reviewerContext.close();
-  const readbackSpecs = fastFocus ? casesSpec.filter((spec) => lifecycleFocus.has(spec.id)) : casesSpec;
+  const readbackSpecs = process.env.QC_DEV087_SKIP_READBACK === "1"
+    ? []
+    : fastFocus ? casesSpec.filter((spec) => lifecycleFocus.has(spec.id)) : casesSpec;
   for (let index = 0; index < readbackSpecs.length; index += 1) await executeCase(context, readbackSpecs[index], index);
   await context.close();
   // C01-C10 are common read-only gates in this full run. C11 delegates the

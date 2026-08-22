@@ -443,7 +443,13 @@ function lifecycleResult(
 function normalizeLifecycleError(error: unknown): DrawingRevisionLifecycleError {
   if (error instanceof DrawingRevisionLifecycleError) return error;
   if (error instanceof DrawingRevisionLifecycleRepositoryError) {
-    return new DrawingRevisionLifecycleError(error.code, error.message, error.status);
+    // A request row is retained as a minimal terminal receipt. If another
+    // reviewer tab submits after cleanup, the workflow is gone by design;
+    // expose that as an expected stale/concurrency conflict rather than a
+    // misleading 404.
+    const status = error.code === "DRAWING_LIFECYCLE_WORKFLOW_NOT_FOUND" ? 409 : error.status;
+    const code = error.code === "DRAWING_LIFECYCLE_WORKFLOW_NOT_FOUND" ? "DRAWING_LIFECYCLE_REVIEW_ALREADY_RESOLVED" : error.code;
+    return new DrawingRevisionLifecycleError(code, error.message, status);
   }
   if (error instanceof DrawingSubmissionWorkbenchError) {
     return new DrawingRevisionLifecycleError(error.code, error.message, error.status, error.options.recoveryHref);

@@ -767,13 +767,20 @@ export class AsyncDrawingRevisionLifecycleRepository {
       }
 
       if (workflow.approval_request_id) {
-        await tx.execute(`DELETE FROM approval_platform_decisions WHERE request_id = :requestId`, { requestId: workflow.approval_request_id });
-        await tx.execute(`DELETE FROM approval_platform_events WHERE request_id = :requestId`, { requestId: workflow.approval_request_id });
+        // Keep the small decision receipt so a second reviewer tab can be
+        // identified as a terminal replay (409) and the audit can still
+        // answer who decided and when. Heavy request context is disposable
+        // after the lifecycle projection has been applied.
         await tx.execute(`DELETE FROM approval_platform_impact_snapshots WHERE request_id = :requestId`, { requestId: workflow.approval_request_id });
         await tx.execute(`DELETE FROM approval_platform_legacy_links WHERE request_id = :requestId`, { requestId: workflow.approval_request_id });
         await tx.execute(`DELETE FROM approval_platform_targets WHERE request_id = :requestId`, { requestId: workflow.approval_request_id });
         await tx.execute(`DELETE FROM approval_platform_package_items WHERE request_id = :requestId`, { requestId: workflow.approval_request_id });
-        await tx.execute(`DELETE FROM approval_platform_requests WHERE id = :requestId`, { requestId: workflow.approval_request_id });
+        await tx.execute(
+          `UPDATE approval_platform_requests
+              SET payload_json = '{}', reason = 'terminal lifecycle receipt', updated_at = :now
+            WHERE id = :requestId`,
+          { requestId: workflow.approval_request_id, now: this.clock() }
+        );
       }
       if (workflow.approval_package_id) {
         await tx.execute(`DELETE FROM approval_platform_events WHERE package_id = :packageId`, { packageId: workflow.approval_package_id });
