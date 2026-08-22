@@ -162,3 +162,7 @@ Runner 已修正 gate 統計：`gates` 僅計 C01–C11；migration／runtime �
 | runtime port | `49587`，已釋放 |
 
 此次沒有出現可歸因於產品的 FAIL；66 個 BLOCKED 仍精確指向缺少合法 UI 前置／Merged history，而非被 triad 檢查掩蓋。Evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T02-17-12-187Z/`。
+
+## 9. Focused aggregate 回歸（2026-08-22）
+
+在 strict triad runner 相關 commit 後再執行 `npm.cmd run qc:dev-087`：8/8 PASS（contract 31、repository 17、commands 39、migration 24、retirement 30、browser、typecheck、isolated build）。最新 browser manifest：`output/qa/dev-087/DEV087-2026-08-22T02-22-09-783Z/manifest.json`；runtime port `54750` 已釋放。此結果只確認既有 focused gate 無回歸，不改變 §8 的完整生命週期 `1 PASS／66 BLOCKED／0 FAIL` 結論。
