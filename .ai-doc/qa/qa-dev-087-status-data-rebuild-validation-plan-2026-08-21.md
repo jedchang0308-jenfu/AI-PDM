@@ -1,6 +1,6 @@
 # DEV-087 三工作臺狀態資料重建驗證計畫
 
-Status: `QA Plan Strengthened / Local Focused QA-QC PASS / Independent Full QA & Production Migration Pending / Stability & Efficiency First`
+Status: `QA Plan Strengthened / UI-only Lifecycle Child Plan Ready / Local Focused QA-QC PASS / Independent Full QA & Production Migration Pending / Stability & Efficiency First`
 Date: 2026-08-21; amended 2026-08-22
 Owner: QA
 Related DEV: `DEV-087`
@@ -8,6 +8,7 @@ Authority:
 
 - `.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`
 - `.ai-doc/decisions/ADR-PDM-STATUS-DATA-REBUILD-001-single-current-state-authority.md`
+- UI-only execution child contract：`.ai-doc/qa/qa-dev-087-ui-only-lifecycle-operation-validation-plan-2026-08-22.md`
 
 ## 1. 目的與完成門檻
 
@@ -24,6 +25,7 @@ Authority:
 - production cutover 仍需獨立 deployment/release gate；local PASS 不構成正式資料操作授權。
 - 每個case都有可重現的precondition／steps／expected／actual／provider／artifact／commit，不接受只有綠燈總數的證據。
 - `QA-087-001..165`逐案有結果；`BLOCKED／NOT RUN／SKIPPED／FLAKY`一律不算PASS，重跑不得覆蓋首次失敗。
+- UI-only child contract 的67條三工作臺journey與11個UI／API／DB一致性hard gates全數PASS；business mutation只允許由AI操作真實UI觸發，API／DB只可唯讀取證。任一層不一致、缺證據、Blocked或Not Run都阻止完整QA結論。
 - P0 stability invariant保留最小negative-control，確認測試會在錯誤結果出現時失敗；本期不建立重型mutation或反作弊體系。
 - UI流程除功能斷言外，visible error、console error、failed response與資料合理性皆為hard gate；HTTP 200、頁面可開或有截圖不等於PASS。
 - active review結束後，必須跨request、receipt、outbox、audit/log、error payload與backup驗證最小留存，不能只查`pdm_review_traces`一張表。
@@ -48,6 +50,7 @@ Authority:
 - `npm run qc:dev-087`：8/8 gate PASS；contract 25、repository 17、commands 39、migration 13、retirement 30、browser 46，另含`typecheck:app`與`build:isolated`，共170項focused assertions/checks。
 - browser manifest：`output/qa/dev-087/DEV087-2026-08-21T18-55-53-404Z/manifest.json`；46/46 PASS，port 61363 cleanup PASS。
 - 目前來源DB唯讀dry-run：`QUARANTINE`、`unresolved=44`；另辨識9筆exact未核准part-only draft與3筆exact legacy cancelled workspace可在未來取得正式授權後清理。本次未apply、未切authority、未DROP或刪physical file。
+- 2026-08-22 preservation decision `A`：來源DB重新盤點為44筆不可唯一映射的圖／料／根號新建包、9筆未核准part-only新建包及3筆legacy cancelled workspace，共56筆。採 `--retain-unmapped-legacy` 的本機保留策略後，`unresolvedBeforeResolution=56`、`retainedLegacy=56`、`unresolved=0`；原 legacy workspace graph、候選保留與事件資料筆數不變，canonical-only sandbox authority smoke、`PRAGMA integrity_check`與foreign-key reconciliation PASS。此結果仍是local migration evidence，不代表production cutover授權。
 - 本快照只代表本機RD自驗與focused QA/QC，不代表`QA-087-001..165`逐案全部執行，也不取代獨立QA、PostgreSQL、SCALE-10K、60分鐘soak、RTO、production rehearsal與release gate。
 - 詳細實作與差距：`.ai-doc/qc/qc-dev-087-local-implementation-2026-08-22.md`。
 
@@ -256,6 +259,7 @@ Authority:
 | QA-087-112 | DEV-087 submit只建立`pdm_work_review_requests` transient row；不寫`approval_platform_requests/decisions`；既有BOM/其他approval domain create/decide/history regression零變化 |
 | QA-087-113 | return同transaction新增一筆minimal trace、handling回owner並清除request/snapshot；approve後只在applying/apply_failed暫存，formalize success後清除；retry/double-click不重複trace |
 | QA-087-114 | `pdm_review_traces` schema與serialized backend query只有cycle/company/entity/time，DB trigger禁止update/delete；UI/API/DOM/a11y完全不呈現trace |
+| QA-087-115 | preservation migration只在明示`--retain-unmapped-legacy`時將56筆legacy quarantine標記`retained_legacy_source`；與discard flag互斥；authority切canonical-only後legacy source graph仍完整、unresolved=0且不進canonical list/query |
 | QA-087-115 | list/detail response符合SPEC §9.1 allowlist，禁止欄位零命中；opaque row/cursor不含branch/source/predecessor語意；`view/history/workStatus/recordStatus/dataStatus/humanStatus/responsibilityStatus/viewerStatus/availabilityScope/lane/versionLane`回`410 WORKBENCH_FILTER_CONTRACT_RETIRED`，既有series/type/purpose business filter仍正確且進cursor hash |
 | QA-087-116 | §9.2所有command route強制auth/company/action/idempotency/If-Match/contract token，decision只接受approve/return；retired draft-workspace command在canonical_only回`410 WORKBENCH_COMMAND_CONTRACT_RETIRED`且無write |
 | QA-087-117 | create/edit/submit/cancel/void/decision route只呼叫domain service；constraint、permission、stale token與response-loss注入沒有partial multi-table write或client-side candidate authority |
@@ -458,7 +462,7 @@ Authority:
 | Phase 0 QA harness trust | RD建立runner後、尚未採信任何功能綠燈 | `npm run qc:dev-087:harness` | 關鍵oracle獨立、3項stability negative control被抓到、首敗與result taxonomy有效；不建立反作弊mutation平台 |
 | Phase 1A schema/inventory | Phase 0 PASS、文件已達RD Implementation Ready、RD獲實作授權 | `npm run qc:dev-087:schema`、`npm run qc:dev-087:migration`、`npm run qc:dev-087:retention` | schema／inventory／converter dry-run、留存surface inventory、unknown=0 |
 | Phase 1B command/read | 1A PASS | `npm run qc:dev-087:contract`、`:repository`、`:commands`、`:concurrency`、`:fault-injection`、`:query-budget`、`:performance`、`:soak` | SQLite/PostgreSQL、race/role-change/retention/idempotency/API DTO、SCALE-10K latency、load/soak/backpressure PASS |
-| Phase 1C UI/browser | 1B PASS | `npm run qc:dev-087:browser`、`npm run qc:dev-087:visible-error`、`npm run qc:dev-087:a11y` | 四viewport＋200% zoom、data sanity、role/action/review、focus/a11y/banned text、visible/console/network error=0 |
+| Phase 1C UI/browser | 1B PASS | 依`.ai-doc/qa/qa-dev-087-ui-only-lifecycle-operation-validation-plan-2026-08-22.md`由AI執行67條真實UI journey；輔以`npm run qc:dev-087:browser`、`:visible-error`、`:a11y` | 67/67 journey＋11/11 triad gates；所有mutation具UI provenance；四viewport＋200% zoom、data sanity、role/action/review、focus/a11y/banned text、visible/console/network error=0 |
 | Phase 1D rehearsal/retirement | 1A..1C PASS | `npm run qc:dev-087:migration`、`npm run qc:dev-087:retirement`、`npm run qc:dev-087` | fuzz/partial failure/backup retention sweep、migration throughput/resource/RTO、cutover/drop/rollback、GC race與fixed manifest PASS |
 | Phase 1E production release | 1D PASS＋另行使用者授權 | deployment/release gate指定production commands | same-window canonical_only＋retirement PASS；否則rollback |
 
@@ -486,6 +490,7 @@ Authority:
 - QA harness三項stability negative-control、關鍵獨立oracle、case/AC反向索引、固定seed及immutable first-failure log；不要求反作弊／紅隊evidence。
 - schema/index/constraint assertions。
 - API/browser result、四viewport＋200% zoom screenshots、DOM/accessibility tree及expected row/value對帳。
+- UI-only lifecycle evidence：`output/qa/dev-087-ui-only-lifecycle/<runId>/`中的67條action provenance、API readback、read-only DB readback與逐checkpoint triad diff；direct API／DB mutation audit必須為0。
 - banned-text/a11y/overflow/visible alert/error overlay/console/unhandled rejection/network/4xx/5xx與unexpected empty/zero-data sweep。
 - review retention surface inventory及pending/applying/apply_failed/terminal/backup-restore各時間點的allowlist scan；evidence本身也必須脫敏。
 - normal role/company permission、role-change、double-click/idempotency與linearizability timeline；不含紅隊IDOR／CSRF／DoS／timing攻防。
