@@ -98,6 +98,22 @@ export class DrawingRevisionWorkAsyncRepository {
         : (await tx.execute(`UPDATE pdm_workbench_aggregates SET open_branch_count = open_branch_count + 1, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND entity_type = 'drawing' AND canonical_entity_id = :drawingId AND open_branch_count < 3`, { companyId: input.companyId, drawingId: source.drawing_id }), await tx.query<{ id: string }>(`SELECT id FROM pdm_workbench_aggregates WHERE company_id = :companyId AND entity_type = 'drawing' AND canonical_entity_id = :drawingId AND open_branch_count BETWEEN 1 AND 3`, { companyId: input.companyId, drawingId: source.drawing_id }));
       if (!result.length || source.open_branch_count >= 3) throw new CanonicalWorkbenchError("DRAWING_RD_BRANCH_LIMIT_REACHED", "已有 3 個研發分支，請先完成其中一個", 409);
       branchId = crypto.randomUUID(); newBranch = true;
+      // The production row is the source snapshot embedded in every
+      // candidate token.  Advance its row version as part of the same
+      // transaction that claims a branch so a second tab holding the old
+      // snapshot fails closed, even if the first work is later cancelled.
+      await tx.execute(`UPDATE canonical_workbench_states
+        SET row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = :sourceRowId AND company_id = :companyId AND row_version = :expectedRowVersion
+          AND handling = 'none' AND work_id IS NULL`, {
+        sourceRowId: input.sourceRowId,
+        companyId: input.companyId,
+        expectedRowVersion: input.expectedRowVersion
+      });
+      const versionedSource = await this.readSourceState(tx, input.companyId, input.sourceRowId, true);
+      if (!versionedSource || versionedSource.row_version !== input.expectedRowVersion + 1) {
+        throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "重新讀取目前資料", 409);
+      }
       await tx.execute(`INSERT INTO drawing_rd_branches (id, company_id, drawing_id, base_production_revision_id, status, row_version) VALUES (:id, :companyId, :drawingId, :baseRevisionId, 'open', 1)`, { id: branchId, companyId: input.companyId, drawingId: source.drawing_id, baseRevisionId: source.revision_id });
     }
     if (!branchId) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "研發分支不存在", 409);

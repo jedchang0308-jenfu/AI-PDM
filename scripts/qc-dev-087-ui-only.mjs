@@ -376,7 +376,9 @@ async function submitWork(page) {
 
 async function cancelWork(page, route) {
   const cancel = page.getByRole("button", { name: "取消本次工作", exact: true }).first();
-  if (await cancel.count() === 0) throw journeyBlocked("NO_UI_CANCEL_WORK");
+  await page.locator(".dev079-workspace, [data-pdm-edit-page='true']").first().waitFor({ state: "visible", timeout: 30_000 });
+  await cancel.waitFor({ state: "visible", timeout: 30_000 }).catch(() => undefined);
+  if (await cancel.count() === 0 || !(await cancel.isVisible().catch(() => false))) throw journeyBlocked("NO_UI_CANCEL_WORK");
   page.once("dialog", (dialog) => dialog.accept());
   await cancel.click({ force: true });
   await page.waitForURL((url) => url.pathname === new URL(route, baseUrl).pathname, { timeout: 30_000 });
@@ -478,6 +480,258 @@ async function openFirstVoidableDrawing(page) {
   return null;
 }
 
+async function openDrawingReviewDecision(page, spec, decisionLabel = "核准") {
+  const opened = await openCanonicalAction(page, spec, "研發版", "前往審核");
+  await opened.action.click();
+  await page.waitForURL((url) => url.pathname.startsWith("/approvals/"), { timeout: 30_000 });
+  await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
+  await page.locator(".pdm-edit-page-body, .dev079-workspace-grid, .canonical-error[role='alert']").first().waitFor({ state: "visible", timeout: 30_000 });
+  const decision = page.getByRole("button", { name: decisionLabel, exact: true }).first();
+  if (await decision.count() === 0) throw journeyBlocked(`NO_UI_REVIEW_DECISION:${decisionLabel}`);
+  return { decision, reviewUrl: page.url() };
+}
+
+async function openDrawingLayer(page, spec, layerText) {
+  await page.goto(`${baseUrl}${spec.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await waitForWorkbenchList(page, "圖號工作台");
+  return openLayerRow(page, layerText);
+}
+
+async function visibleDrawingRows(page) {
+  return page.locator(".canonical-table-wrap tbody tr").allTextContents();
+}
+
+async function closeCanonicalDrawer(page) {
+  const drawer = page.locator(".canonical-drawer").last();
+  const backdrop = page.locator(".canonical-drawer-backdrop").last();
+  if (await drawer.count() === 0 && await backdrop.count() === 0) return;
+  const close = drawer.getByRole("button", { name: "關閉明細", exact: true });
+  if (await close.count() > 0) await close.click({ force: true }).catch(() => undefined);
+  if (await backdrop.count() > 0) await backdrop.click({ position: { x: 4, y: 4 }, force: true }).catch(() => undefined);
+  await page.waitForURL((url) => !url.searchParams.has("detail"), { timeout: 5_000 }).catch(() => undefined);
+  await page.locator(".canonical-drawer-backdrop").waitFor({ state: "detached", timeout: 5_000 }).catch(() => undefined);
+}
+
+async function assertDrawingBranchCap(page, spec, actions) {
+  const rows = await visibleDrawingRows(page);
+  const rdRows = rows.filter((text) => text.includes("研發版"));
+  if (rdRows.length < 3) throw journeyBlocked(`DRAWING_BRANCH_FIXTURE_BELOW_CAP:${rdRows.length}`);
+  const production = await openLayerRow(page, "量產版");
+  const advance = production.getByRole("button", { name: "進版", exact: true }).first();
+  if (await advance.count() > 0) {
+    await advance.click();
+    await page.getByRole("dialog", { name: "選擇進版方式" }).waitFor({ state: "visible", timeout: 15_000 }).catch(() => undefined);
+    const enabled = page.locator(".canonical-candidates button:not(:disabled)");
+    if (await enabled.count() > 0) throw new Error("DRAWING_BRANCH_CAP_NOT_ENFORCED");
+    actions.push({ kind: "assert", target: "max-3-branches", observed: "no-enabled-candidate" });
+    await page.getByRole("button", { name: "關閉", exact: true }).click().catch(() => undefined);
+  } else {
+    actions.push({ kind: "assert", target: "max-3-branches", observed: "advance-hidden-at-cap" });
+  }
+  await closeCanonicalDrawer(page);
+}
+
+async function cancelAllActiveDrawingWorks(page, spec) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    // Use a fresh rendered page for every pass.  The canonical list can keep
+    // a drawer in React state after the owner command navigates back; page
+    // isolation makes each cancellation start from an unambiguous UI state.
+    const cleanupPage = await page.context().newPage();
+    monitor(cleanupPage, `J-${spec.id}-cleanup-${attempt}`, spec.id);
+    try {
+      await cleanupPage.goto(`${baseUrl}${spec.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await waitForWorkbenchList(cleanupPage, "圖號工作台");
+      const rows = cleanupPage.locator(".canonical-table-wrap tbody tr").filter({ hasText: "研發版" });
+      let cancelled = false;
+      for (let index = 0; index < await rows.count(); index += 1) {
+        const row = rows.nth(index);
+        const text = await row.innerText().catch(() => "");
+        // The canonical list renders the role label ("負責人處理" or
+        // "審核負責人處理") without exposing the internal handling enum.
+        if (!text.includes("負責人處理") && !text.includes("審核負責人")) continue;
+        await row.locator(".canonical-row-open").click();
+        const dialog = cleanupPage.getByRole("dialog").last();
+        await dialog.waitFor({ state: "visible", timeout: 15_000 });
+        const edit = dialog.getByRole("button", { name: "進行編輯", exact: true }).first();
+        if (await edit.count() === 0) {
+          await closeCanonicalDrawer(cleanupPage);
+          continue;
+        }
+        await edit.click();
+        await cleanupPage.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+        await cleanupPage.locator(".dev079-workspace").waitFor({ state: "visible", timeout: 30_000 });
+        const cancelButton = cleanupPage.getByRole("button", { name: "取消本次工作", exact: true }).first();
+        if (await cancelButton.count() === 0) throw journeyBlocked("NO_UI_CANCEL_WORK");
+        await cancelWork(cleanupPage, spec.route);
+        cancelled = true;
+        break;
+      }
+      if (!cancelled) return;
+    } finally {
+      await cleanupPage.close().catch(() => undefined);
+    }
+  }
+}
+
+async function runDrawingMultiContextJourney(context, reviewerContext, spec, operation, page, actions) {
+  if (operation === 13) {
+    // openDrawingLayer is a readiness/readability assertion.  Close the
+    // resulting drawer before the cap assertion opens the same production
+    // row; otherwise the drawer backdrop intercepts the second row click.
+    const preview = await openDrawingLayer(page, spec, "量產版");
+    await closeCanonicalDrawer(page);
+    await assertDrawingBranchCap(page, spec, actions);
+    return;
+  }
+  if (operation === 14) {
+    // Claim the same next target from two rendered UI contexts. Both tabs
+    // may see the candidate before either submits; exactly one POST commits
+    // and the other must fail closed with 409.
+    await openDrawingLayer(page, spec, "量產版");
+    const row = page.getByRole("dialog").last();
+    const advance = row.getByRole("button", { name: "進版", exact: true }).first();
+    if (await advance.count() === 0) throw journeyBlocked("NO_OPEN_BRANCH_FOR_TWO_TAB_CLAIM");
+    await closeCanonicalDrawer(page);
+    const other = await context.newPage(); monitor(other, `J-${spec.id}-tab2`, spec.id);
+    const second = await context.newPage(); monitor(second, `J-${spec.id}-tab3`, spec.id);
+    try {
+      await openDrawingLayer(other, spec, "量產版");
+      const otherDialog = other.getByRole("dialog").last();
+      const otherAdvance = otherDialog.getByRole("button", { name: "進版", exact: true }).first();
+      if (await otherAdvance.count() === 0) throw journeyBlocked("NO_SECOND_TAB_TARGET");
+      await openDrawingLayer(second, spec, "量產版");
+      const secondDialog = second.getByRole("dialog").last();
+      const secondAdvance = secondDialog.getByRole("button", { name: "進版", exact: true }).first();
+      if (await secondAdvance.count() === 0) throw journeyBlocked("NO_THIRD_TAB_TARGET");
+      await Promise.all([otherAdvance.click(), secondAdvance.click()]);
+      await Promise.all([
+        other.getByRole("dialog", { name: "選擇進版方式" }).waitFor({ state: "visible", timeout: 30_000 }),
+        second.getByRole("dialog", { name: "選擇進版方式" }).waitFor({ state: "visible", timeout: 30_000 })
+      ]);
+      await Promise.all([
+        other.waitForFunction(() => document.querySelectorAll(".canonical-candidates button").length > 0 || Boolean(document.querySelector(".canonical-modal .canonical-error")), null, { timeout: 30_000 }),
+        second.waitForFunction(() => document.querySelectorAll(".canonical-candidates button").length > 0 || Boolean(document.querySelector(".canonical-modal .canonical-error")), null, { timeout: 30_000 })
+      ]);
+      const target = other.locator(".canonical-candidates button:not(:disabled)").first();
+      const secondTarget = second.locator(".canonical-candidates button:not(:disabled)").first();
+      if (await target.count() === 0 || await secondTarget.count() === 0) {
+        writeJson(path.join(evidenceRoot, "journeys", `J-${spec.id}`, "target-claim-debug.json"), {
+          first: await other.evaluate(() => ({ href: window.location.href, modalText: document.querySelector(".canonical-modal")?.textContent?.trim() ?? "", candidates: [...document.querySelectorAll(".canonical-candidates button")].map((button) => ({ text: button.textContent?.trim() ?? "", disabled: (button instanceof HTMLButtonElement) ? button.disabled : null })) })),
+          second: await second.evaluate(() => ({ href: window.location.href, modalText: document.querySelector(".canonical-modal")?.textContent?.trim() ?? "", candidates: [...document.querySelectorAll(".canonical-candidates button")].map((button) => ({ text: button.textContent?.trim() ?? "", disabled: (button instanceof HTMLButtonElement) ? button.disabled : null })) }))
+        });
+        throw journeyBlocked("NO_TARGET_FOR_TWO_TAB_CLAIM");
+      }
+      const targetLabels = await Promise.all([target.innerText(), secondTarget.innerText()]);
+      if (targetLabels[0] !== targetLabels[1]) throw new Error(`DRAWING_TARGET_CLAIM_TARGET_MISMATCH:${targetLabels.join("|")}`);
+      const responsePromises = [other, second].map((targetPage) => targetPage.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("revision-works"), { timeout: 15_000 }).catch(() => null));
+      await Promise.all([target.click(), secondTarget.click()]);
+      const responses = await Promise.all(responsePromises);
+      const statuses = responses.map((response) => response?.status() ?? 0);
+      if (!statuses.some((status) => status === 200) || !statuses.some((status) => status === 409)) throw new Error(`DRAWING_TARGET_CLAIM_NOT_SINGLETON:${JSON.stringify(statuses)}`);
+      actions.push({ kind: "assert", target: "target-claim-single-winner", observed: statuses, candidate: targetLabels[0] });
+      const winnerPage = statuses.indexOf(200) === 0 ? other : second;
+      await winnerPage.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+      await cancelWork(winnerPage, spec.route);
+    } finally {
+      await Promise.all([other.close().catch(() => undefined), second.close().catch(() => undefined)]);
+    }
+    return;
+  }
+  if (operation === 16 || operation === 17) {
+    // Use the formal production row as the stale source.  It always has a
+    // legal advance candidate in a clean fixture, while a seeded RD branch
+    // may already be historical and therefore intentionally actionless.
+    await openDrawingLayer(page, spec, "量產版");
+    const branchDialog = page.getByRole("dialog").last();
+    const advance = branchDialog.getByRole("button", { name: "進版", exact: true }).first();
+    if (await advance.count() === 0) throw journeyBlocked("NO_STALE_BRANCH_TARGET");
+    const stale = await context.newPage(); monitor(stale, `J-${spec.id}-stale`, spec.id);
+    try {
+      await openDrawingLayer(stale, spec, "量產版");
+      const staleDialog = stale.getByRole("dialog").last();
+      const staleAdvance = staleDialog.getByRole("button", { name: "進版", exact: true }).first();
+      if (await staleAdvance.count() === 0) throw journeyBlocked("NO_STALE_BRANCH_SECOND_CONTEXT");
+      await advance.click();
+      await page.waitForFunction(() => document.querySelectorAll(".canonical-candidates button").length > 0 || Boolean(document.querySelector(".canonical-modal .canonical-error")), null, { timeout: 30_000 });
+      const firstTarget = page.locator(".canonical-candidates button:not(:disabled)").first();
+      if (await firstTarget.count() === 0) {
+        writeJson(path.join(evidenceRoot, "journeys", `J-${spec.id}`, "stale-candidate-debug.json"), await page.evaluate(() => ({
+          href: window.location.href,
+          candidates: [...document.querySelectorAll(".canonical-candidates button")].map((button) => ({ text: button.textContent?.trim() ?? "", disabled: (button instanceof HTMLButtonElement) ? button.disabled : null })),
+          modalText: document.querySelector(".canonical-modal")?.textContent?.trim() ?? ""
+        })));
+        throw journeyBlocked("NO_STALE_BRANCH_TARGET_CANDIDATE");
+      }
+      await firstTarget.click();
+      await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 });
+      await cancelWork(page, spec.route);
+      await staleAdvance.click();
+      await stale.waitForFunction(() => document.querySelectorAll(".canonical-candidates button").length > 0 || Boolean(document.querySelector(".canonical-modal .canonical-error")), null, { timeout: 30_000 });
+      const staleTarget = stale.locator(".canonical-candidates button:not(:disabled)").first();
+      if (await staleTarget.count() > 0) {
+        const response = stale.waitForResponse((res) => res.request().method() === "POST" && res.url().includes("revision-works"), { timeout: 15_000 }).catch(() => null);
+        await staleTarget.click();
+        const result = await response;
+        if (result?.ok()) throw new Error("STALE_BRANCH_CLAIM_NOT_REJECTED");
+      }
+      actions.push({ kind: "assert", target: operation === 16 ? "stale-minor" : "stale-production", observed: "fail-closed" });
+    } finally { await stale.close().catch(() => undefined); }
+    return;
+  }
+  if (operation === 21) {
+    await page.goto(`${baseUrl}${spec.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await waitForWorkbenchList(page, "圖號工作台");
+    const first = await openFirstVoidableDrawing(page);
+    if (!first) throw journeyBlocked("NO_VOIDABLE_BRANCH_FOR_CONCURRENT_JOURNEY");
+    const second = await context.newPage(); monitor(second, `J-${spec.id}-void-tab2`, spec.id);
+    try {
+      await second.goto(`${baseUrl}${spec.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await waitForWorkbenchList(second, "圖號工作台");
+      const secondVoid = await openFirstVoidableDrawing(second);
+      if (!secondVoid) throw journeyBlocked("NO_SECOND_VOIDABLE_BRANCH");
+      const responses = await Promise.all([1, 2].map(async (index) => {
+        const targetPage = index === 1 ? second : page;
+        const targetDialog = index === 1 ? secondVoid.dialog : first.dialog;
+        const targetAction = index === 1 ? secondVoid.action : first.action;
+        targetPage.once("dialog", (dialog) => dialog.accept());
+        const wait = targetPage.waitForResponse((res) => res.request().method() === "POST" && res.url().includes("void-requests"), { timeout: 15_000 }).catch(() => null);
+        await targetAction.click();
+        return wait;
+      }).map(async (pending) => pending));
+      const statuses = [];
+      for (const pending of responses) { const result = await pending; statuses.push(result?.status() ?? 0); }
+      if (!statuses.some((status) => status === 200) || !statuses.some((status) => status === 409)) throw new Error("VOID_REQUEST_NOT_SINGLETON");
+      actions.push({ kind: "assert", target: "void-request-singleton", observed: statuses });
+    } finally { await second.close().catch(() => undefined); }
+    return;
+  }
+  if (operation === 22) {
+    // D21 leaves one void request in reviewer ownership. D22 reuses that
+    // legal pending request and races two reviewer pages against the same
+    // decision endpoint; one decision may commit and the other must fail
+    // closed with 409 without a second state transition.
+    const reviewPages = [await reviewerContext.newPage(), await reviewerContext.newPage()];
+    reviewPages.forEach((reviewPage, index) => monitor(reviewPage, `J-${spec.id}-review-tab${index + 1}`, spec.id));
+    try {
+      const opened = await Promise.all(reviewPages.map((reviewPage) => openDrawingReviewDecision(reviewPage, spec, "核准")));
+      const responses = await Promise.all(opened.map(async ({ decision }, index) => {
+        const reviewPage = reviewPages[index];
+        const wait = reviewPage.waitForResponse((res) => res.request().method() === "POST" && res.url().includes("/decisions"), { timeout: 15_000 }).catch(() => null);
+        await decision.click();
+        const response = await wait;
+        return { response, body: response ? await response.json().catch(() => null) : null };
+      }));
+      const statuses = responses.map(({ response }) => response?.status() ?? 0);
+      if (!statuses.some((status) => status === 200) || !statuses.some((status) => status === 409)) throw new Error(`REVIEW_DECISION_NOT_SINGLETON:${JSON.stringify(responses.map(({ response, body }) => ({ status: response?.status() ?? 0, body })))}`);
+      actions.push({ kind: "assert", target: "review-decision-singleton", observed: statuses, responseBodies: responses.map(({ body }) => body) });
+    } finally {
+      await Promise.all(reviewPages.map((reviewPage) => reviewPage.close().catch(() => undefined)));
+    }
+    return;
+  }
+  throw journeyBlocked(`UNIMPLEMENTED_DRAWING_MULTI_CONTEXT:${operation}`);
+}
+
 async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
   const journeyId = `J-${spec.id}`;
   const dir = path.join(evidenceRoot, "journeys", journeyId);
@@ -489,14 +743,17 @@ async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
   const startedAt = new Date().toISOString();
   let status = "PASS";
   let reason = "";
+  let preserveActiveWork = false;
   const blocked = (message) => { const error = new Error(message); error.journeyBlocked = true; throw error; };
   try {
     const operation = Number(spec.id.slice(1));
     if (spec.family === "D") {
-      if ([13, 14, 16, 17, 21, 22, 25, 26, 27].includes(operation)) {
-        blocked(operation >= 25 ? "NO_LEGAL_UI_TERMINAL_OR_HISTORY_ENTRY" : "NO_DETERMINISTIC_MULTI_CONTEXT_UI_FIXTURE");
-      }
-      if (operation === 18 || operation === 19 || operation === 20) {
+      if ([13, 14, 16, 17, 21, 22].includes(operation)) {
+        await runDrawingMultiContextJourney(context, reviewerContext, spec, operation, page, actions);
+        if (operation === 13) await cancelAllActiveDrawingWorks(page, spec);
+      } else if ([25, 26, 27].includes(operation)) {
+        blocked("NO_LEGAL_UI_TERMINAL_OR_HISTORY_ENTRY");
+      } else if (operation === 18 || operation === 19 || operation === 20) {
         await page.goto(`${baseUrl}${spec.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
         await waitForWorkbenchList(page, "圖號工作台");
         const voidable = await openFirstVoidableDrawing(page);
@@ -531,8 +788,10 @@ async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
           }
           if (started.length !== 3) blocked("DRAWING_OPEN_BRANCH_COUNT_NOT_THREE");
         } finally {
-          for (const item of started) await cancelWork(item.page, spec.route).catch(() => undefined);
-          for (const branchPage of pages.slice(1)) await branchPage.close().catch(() => undefined);
+          // Preserve the three rendered-UI-created branch works until D13
+          // asserts the cap. D13 then cancels each work through its own UI.
+          preserveActiveWork = true;
+          for (const branchPage of pages) await branchPage.close().catch(() => undefined);
         }
       } else {
         const candidateKind = [7, 9, 15].includes(operation) ? "production" : "rd";
@@ -607,7 +866,7 @@ async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
     if (error?.journeyBlocked) { status = "BLOCKED"; reason = error.message; }
     else { status = "FAIL"; reason = error instanceof Error ? error.message : String(error); failures.push({ caseId: spec.id, kind: "journey", message: reason }); }
   } finally {
-    await cleanupActiveWork(page, spec).catch(() => undefined);
+    if (!preserveActiveWork) await cleanupActiveWork(page, spec).catch(() => undefined);
     writeJson(path.join(dir, "journey.json"), { id: journeyId, caseId: spec.id, family: spec.family, status, reason, actions, startedAt, finishedAt: new Date().toISOString(), mutationPolicy: "rendered UI clicks and typing only; API/DB readback only" });
     await page.close().catch(() => {});
   }
@@ -726,6 +985,11 @@ async function runLifecycleJourney(context, reviewerContext, spec) {
 function monitor(page, label, caseId = null) {
   page.on("console", (message) => {
     if (message.type() === "error") {
+      const expectedStaleConflict = (caseId === "D16" || caseId === "D17") && label.includes("stale") && message.text().includes("409");
+      const expectedClaimConflict = caseId === "D14" && message.text().includes("409");
+      const expectedVoidConflict = caseId === "D21" && message.text().includes("409");
+      const expectedReviewConflict = caseId === "D22" && message.text().includes("409");
+      if (expectedStaleConflict || expectedClaimConflict || expectedVoidConflict || expectedReviewConflict) return;
       consoleErrors.push({ label, message: message.text(), caseId });
       if (caseId) fs.appendFileSync(path.join(caseDir(caseId), "console.jsonl"), `${JSON.stringify({ at: new Date().toISOString(), type: "error", message: message.text() })}\n`, "utf8");
     }
@@ -742,7 +1006,11 @@ function monitor(page, label, caseId = null) {
     const item = { caseId, label, status: response.status(), method: response.request().method(), url: response.url() };
     network.push(item);
     if (caseId) recordNetwork(caseId, { type: "response", status: response.status(), method: response.request().method(), url: response.url() });
-    if (response.status() >= 400 && !response.url().includes("/api/numbering/recognition-sessions/")) failures.push({ ...item, kind: "http" });
+    const expectedStaleConflict = (caseId === "D16" || caseId === "D17") && label.includes("stale") && response.status() === 409 && response.request().method() === "POST" && response.url().includes("/revision-works");
+    const expectedClaimConflict = caseId === "D14" && response.status() === 409 && response.request().method() === "POST" && response.url().includes("/revision-works");
+    const expectedVoidConflict = caseId === "D21" && response.status() === 409 && response.request().method() === "POST" && response.url().includes("/void-requests");
+    const expectedReviewConflict = caseId === "D22" && response.status() === 409 && response.request().method() === "POST" && response.url().includes("/decisions");
+    if (response.status() >= 400 && !response.url().includes("/api/numbering/recognition-sessions/") && !expectedStaleConflict && !expectedClaimConflict && !expectedVoidConflict && !expectedReviewConflict) failures.push({ ...item, kind: "http" });
   });
 }
 
@@ -889,7 +1157,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } }); monitor(context.pages()[0] ?? await context.newPage(), "context"); await login(context, "系統管理員");
   const reviewerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await login(reviewerContext, "研發主管");
-  await runSupplementalJourneys(context);
+  if (process.env.QC_DEV087_SKIP_SUPPLEMENTAL !== "1") await runSupplementalJourneys(context);
   supplementalJourneys.forEach((journey) => addCheck(journey.id, journey.status === "PASS", journey.reason || journey.evidence));
   // Run every lifecycle case through a named UI journey.  A journey may finish
   // BLOCKED when the current product has no legal rendered-UI entry point; that

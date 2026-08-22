@@ -125,7 +125,7 @@ async function runPostgresQuery<T extends QueryResultRow>(
   return result.rows;
 }
 
-export class SQLiteAsyncDatabaseClient implements AsyncDatabaseClient {
+class SQLiteTransactionClient implements AsyncDatabaseClient {
   readonly kind = "sqlite";
 
   constructor(private readonly database: SqliteDatabase) {}
@@ -146,20 +146,58 @@ export class SQLiteAsyncDatabaseClient implements AsyncDatabaseClient {
     fn: (client: AsyncDatabaseClient) => T | Promise<T>,
     _options?: AsyncDatabaseTransactionOptions
   ): Promise<T> {
-    const state = this.database as SqliteDatabase & { inTransaction?: boolean };
-    if (state.inTransaction) {
-      return await fn(this);
-    }
+    // A transaction client is already inside the outer transaction.  Keeping
+    // this passthrough preserves callers that compose repository transactions
+    // without opening a second SQLite transaction.
+    return await fn(this);
+  }
 
-    // QC contract marker: this.database.exec("BEGIN"); runtime uses IMMEDIATE to acquire the SQLite write lock before awaited work.
+  async close(): Promise<void> {
+    return;
+  }
+}
+
+export class SQLiteAsyncDatabaseClient implements AsyncDatabaseClient {
+  readonly kind = "sqlite";
+  private transactionTail: Promise<void> = Promise.resolve();
+
+  constructor(private readonly database: SqliteDatabase) {}
+
+  async query<T>(sql: string, params?: AsyncDatabaseQueryParams): Promise<T[]> {
+    return bindAll<T>(this.database, sql, params);
+  }
+
+  async queryOne<T>(sql: string, params?: AsyncDatabaseQueryParams): Promise<T | null> {
+    return bindGet<T>(this.database, sql, params);
+  }
+
+  async execute(sql: string, params?: AsyncDatabaseQueryParams): Promise<void> {
+    bindRun(this.database, sql, params);
+  }
+
+  async transaction<T>(
+    fn: (client: AsyncDatabaseClient) => T | Promise<T>,
+    _options?: AsyncDatabaseTransactionOptions
+  ): Promise<T> {
+    // better-sqlite3 exposes one connection to the Next runtime.  Awaited
+    // repository work can otherwise interleave two BEGIN IMMEDIATE scopes on
+    // that connection, causing a generic 400 (or partial state) under two-tab
+    // races.  Queue top-level transactions and expose a separate nested client
+    // so only the outer scope owns BEGIN/COMMIT/ROLLBACK.
+    const previous = this.transactionTail;
+    let release!: () => void;
+    this.transactionTail = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
     this.database.exec("BEGIN IMMEDIATE");
     try {
-      const result = await fn(this);
+      const result = await fn(new SQLiteTransactionClient(this.database));
       this.database.exec("COMMIT");
       return result;
     } catch (error) {
       this.database.exec("ROLLBACK");
       throw error;
+    } finally {
+      release();
     }
   }
 
