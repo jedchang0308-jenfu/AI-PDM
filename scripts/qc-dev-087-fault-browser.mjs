@@ -147,6 +147,8 @@ try {
   const decisionResponse = await decisionResponsePromise;
   const decisionBody = await decisionResponse.json().catch(() => null);
   check("review decision request accepted", decisionResponse.ok(), JSON.stringify(decisionBody));
+  await reviewer.waitForURL((url) => url.pathname === "/approvals", { timeout: 30_000 });
+  await reviewer.goto(`${baseUrl}/numbering/drawings?query=A0002-M01`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await reviewer.getByRole("heading", { name: "圖號工作台", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   const finalRead = await readWorkbench(reviewer);
   const finalRows = (finalRead.body?.data?.groups ?? []).flatMap((group) => group.rows ?? []);
