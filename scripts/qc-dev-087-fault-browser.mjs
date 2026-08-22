@@ -156,7 +156,7 @@ try {
   check("canonical UI row exposes selected fault handling", faultRow?.handling === profile && faultRow?.handlingLabel === (profile === "system_admin" ? "系統管理員處理" : "受阻"), JSON.stringify(faultRow));
   check("fault review request is no longer actionable", !faultRow?.actions?.length, JSON.stringify(faultRow?.actions));
   if (profile === "blocked") {
-    await finalPage.locator(".canonical-row-open").filter({ hasText: "A0002-M01" }).last().click();
+    await finalPage.locator(".canonical-table-wrap tbody tr").filter({ hasText: "研發版 1.2" }).locator(".canonical-row-open").click();
     await finalPage.getByRole("dialog", { name: /A0002-M01/u }).waitFor({ state: "visible", timeout: 30_000 });
     check("blocked drawer shows human-readable blocker", await finalPage.getByText("自動化正式化缺少安全修復路徑。", { exact: true }).count() === 1);
   }
