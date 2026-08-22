@@ -141,8 +141,12 @@ try {
   check("reviewer sees the same drawing editor in read-only mode", await reviewer.getByRole("tab", { name: "版次與檔案" }).count() === 1 && await reviewer.locator("input[disabled]").count() >= 1);
   const approveButton = reviewer.locator(".dev079-workspace-footer").getByRole("button", { name: "核准" });
   check("reviewer approve action is rendered and enabled", await approveButton.count() === 1 && await approveButton.isEnabled());
+  const decisionResponsePromise = reviewer.waitForResponse((response) => response.url().includes("/api/pdm/review-requests/") && response.url().endsWith("/decisions") && response.request().method() === "POST", { timeout: 30_000 });
   await approveButton.focus();
   await approveButton.press("Enter");
+  const decisionResponse = await decisionResponsePromise;
+  const decisionBody = await decisionResponse.json().catch(() => null);
+  check("review decision request accepted", decisionResponse.ok(), JSON.stringify(decisionBody));
   await reviewer.getByRole("heading", { name: "圖號工作台", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   const finalRead = await readWorkbench(reviewer);
   const finalRows = (finalRead.body?.data?.groups ?? []).flatMap((group) => group.rows ?? []);
