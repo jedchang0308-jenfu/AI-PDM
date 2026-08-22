@@ -279,17 +279,25 @@ async function startDrawingWork(page, definition, candidateKind = "rd") {
 async function editAndSaveWork(page, definition) {
   if (definition.entity === "relation") {
     const removeButton = page.getByRole("button", { name: "移除此關聯", exact: true }).first();
-    if (await removeButton.count() > 0) await removeButton.click();
-    else {
-      const linkTypeSelect = page.locator(".canonical-link-builder select").nth(2);
-      if (await linkTypeSelect.count() > 0) {
-        const values = await linkTypeSelect.locator("option").evaluateAll((options) => options.map((option) => option.value));
-        if (values.includes("reference")) await linkTypeSelect.selectOption("reference");
-      }
-      const addButton = page.locator(".canonical-link-builder").getByRole("button", { name: "新增", exact: true });
-      if (await addButton.count() === 0) throw journeyBlocked("NO_RELATION_UI_ADD_CONTROL");
-      await addButton.click();
+    const existingRelationText = await page.locator(".canonical-relation-row").first().innerText().catch(() => "");
+    const existingLinkType = existingRelationText.includes("參考") ? "reference" : existingRelationText ? "primary_manufacturing" : null;
+    if (await removeButton.count() > 0) {
+      await removeButton.click();
+      await page.waitForTimeout(100);
     }
+    // A relation workspace is dirty only after the rendered UI updates the
+    // link collection.  Removing the existing row alone is insufficient for
+    // a deterministic save journey, so add the same pair back with the other
+    // legal link type through the visible builder controls.
+    const linkTypeSelect = page.locator(".canonical-link-builder select").last();
+    if (await linkTypeSelect.count() > 0) {
+      const values = await linkTypeSelect.locator("option").evaluateAll((options) => options.map((option) => option.value));
+      const nextLinkType = existingLinkType === "reference" ? "primary_manufacturing" : "reference";
+      if (values.includes(nextLinkType)) await linkTypeSelect.selectOption(nextLinkType);
+    }
+    const addButton = page.locator(".canonical-link-builder").getByRole("button", { name: "新增", exact: true });
+    if (await addButton.count() === 0) throw journeyBlocked("NO_RELATION_UI_ADD_CONTROL");
+    await addButton.click();
   } else {
     const field = page.locator("label").filter({ hasText: definition.entity === "drawing" ? "標題" : "品名" }).locator("input").first();
     if (await field.count() === 0) throw journeyBlocked(`NO_${definition.entity.toUpperCase()}_UI_EDIT_FIELD`);
@@ -378,8 +386,11 @@ async function cancelWork(page, route) {
 async function cleanupActiveWork(page, definition) {
   const cancel = page.getByRole("button", { name: "取消本次工作", exact: true }).first();
   if (await cancel.count() > 0 && await cancel.isVisible().catch(() => false)) {
+    const cancelResponse = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("/cancel"), { timeout: 15_000 }).catch(() => null);
     page.once("dialog", (dialog) => dialog.accept());
     await cancel.click({ force: true }).catch(() => undefined);
+    await cancelResponse;
+    await page.waitForURL((url) => url.pathname === new URL(definition.route, baseUrl).pathname, { timeout: 15_000 }).catch(() => undefined);
     return;
   }
   const rowLabel = definition.family === "D" ? "研發版" : definition.family === "P" ? "修改中" : "調整中";
@@ -396,8 +407,11 @@ async function cleanupActiveWork(page, definition) {
   await page.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.has("workId"), { timeout: 30_000 }).catch(() => undefined);
   const fallbackCancel = page.getByRole("button", { name: "取消本次工作", exact: true }).first();
   if (await fallbackCancel.count() > 0) {
+    const cancelResponse = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("/cancel"), { timeout: 15_000 }).catch(() => null);
     page.once("dialog", (dialog) => dialog.accept());
     await fallbackCancel.click({ force: true }).catch(() => undefined);
+    await cancelResponse;
+    await page.waitForURL((url) => url.pathname === new URL(definition.route, baseUrl).pathname, { timeout: 15_000 }).catch(() => undefined);
   }
 }
 
