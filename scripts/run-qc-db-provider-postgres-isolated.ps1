@@ -1,5 +1,6 @@
 param(
   [int]$Port = 55439,
+  [switch]$Dev095Retirement,
   [switch]$CleanupOnly
 )
 
@@ -80,14 +81,11 @@ try {
   Write-Host "Postgres QC: running live provider probe"
   & node (Join-Path $projectRoot "scripts\qc-db-provider-postgres.mjs")
   if ($LASTEXITCODE -ne 0) { throw "Postgres provider live probe failed with exit code $LASTEXITCODE" }
-  Write-Host "Postgres QC: running live BOM FMEA"
-  Push-Location $projectRoot
-  try {
-    & node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs ./scripts/qc-system-health-phase6-8-postgres-fmea.mjs
-    if ($LASTEXITCODE -ne 0) { throw "Postgres FMEA failed with exit code $LASTEXITCODE" }
-  }
-  finally {
-    Pop-Location
+
+  if ($Dev095Retirement) {
+    Write-Host "Postgres QC: running DEV-095 full migration retirement rehearsal"
+    & node (Join-Path $projectRoot "scripts\qc-dev-095-postgres-retirement.mjs")
+    if ($LASTEXITCODE -ne 0) { throw "DEV-095 Postgres retirement rehearsal failed with exit code $LASTEXITCODE" }
   }
 }
 finally {

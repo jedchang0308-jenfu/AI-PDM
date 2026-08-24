@@ -14,8 +14,6 @@ import {
   FileText,
   GitPullRequestArrow,
   KeyRound,
-  ListTree,
-  ListPlus,
   LogIn,
   Menu,
   PackageSearch,
@@ -66,13 +64,6 @@ const navSections: NavSection[] = [
       { href: "/numbering/search", label: "圖料工作台", icon: Search },
       { href: "/numbering/drawings", label: "圖號工作台", icon: FileText },
       { href: "/parts", label: "料號工作台", icon: PackageSearch },
-    ]
-  },
-  {
-    label: "BOM",
-    items: [
-      { href: "/bom/new", label: "建立 BOM", icon: ListPlus },
-      { href: "/bom/workbench", label: "BOM 工作台", icon: ListTree }
     ]
   },
   {

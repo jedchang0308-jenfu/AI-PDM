@@ -558,250 +558,6 @@ CREATE TABLE IF NOT EXISTS file_references (
   FOREIGN KEY (source_file_id) REFERENCES submission_files(id) ON DELETE SET NULL
 );
 
-CREATE TABLE IF NOT EXISTS bom_headers (
-  id TEXT PRIMARY KEY,
-  parent_item_id TEXT NOT NULL,
-  parent_submission_id TEXT NOT NULL UNIQUE,
-  parent_revision TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'ReleasedSnapshot')),
-  source TEXT NOT NULL DEFAULT 'cad_references' CHECK (source IN ('cad_references', 'manual', 'imported')),
-  line_count INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE CASCADE,
-  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS bom_lines (
-  id TEXT PRIMARY KEY,
-  bom_header_id TEXT NOT NULL,
-  line_no INTEGER NOT NULL,
-  child_part_number TEXT NOT NULL,
-  child_revision TEXT,
-  quantity REAL NOT NULL DEFAULT 1 CHECK (quantity > 0),
-  source_file_id TEXT,
-  source_reference_id TEXT,
-  source_filename TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (bom_header_id) REFERENCES bom_headers(id) ON DELETE CASCADE,
-  FOREIGN KEY (source_file_id) REFERENCES submission_files(id) ON DELETE SET NULL,
-  FOREIGN KEY (source_reference_id) REFERENCES file_references(id) ON DELETE SET NULL,
-  UNIQUE (bom_header_id, line_no)
-);
-
-CREATE TABLE IF NOT EXISTS bom_drafts (
-  id TEXT PRIMARY KEY,
-  company_id TEXT,
-  owner_part_number_id TEXT,
-  bom_revision TEXT,
-  source_submission_id TEXT,
-  source_revision_package_id TEXT,
-  identity_authority TEXT NOT NULL DEFAULT 'legacy_submission_bound' CHECK (identity_authority IN ('canonical_part_number', 'legacy_submission_bound', 'manual_review')),
-  parent_item_id TEXT,
-  parent_submission_id TEXT,
-  parent_revision TEXT,
-  draft_name TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'PendingReview', 'Rejected', 'Released', 'Obsolete', 'Archived')),
-  source TEXT NOT NULL DEFAULT 'cad_reference' CHECK (source IN ('cad_reference', 'solidworks_xls', 'manual')),
-  is_active INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
-  line_count INTEGER NOT NULL DEFAULT 0,
-  review_attempt INTEGER NOT NULL DEFAULT 0,
-  editor_version INTEGER NOT NULL DEFAULT 0,
-  created_by TEXT,
-  updated_by TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-  FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-  FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
-  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_one_active
-ON bom_drafts(parent_item_id, parent_revision)
-WHERE is_active = 1 AND status IN ('Draft', 'Rejected');
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_one_pending_review
-ON bom_drafts(parent_item_id, parent_revision)
-WHERE status = 'PendingReview';
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_canonical_one_active
-ON bom_drafts(owner_part_number_id, bom_revision)
-WHERE owner_part_number_id IS NOT NULL AND bom_revision IS NOT NULL AND is_active = 1 AND status IN ('Draft', 'Rejected');
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_canonical_one_pending_review
-ON bom_drafts(owner_part_number_id, bom_revision)
-WHERE owner_part_number_id IS NOT NULL AND bom_revision IS NOT NULL AND status = 'PendingReview';
-
-CREATE TABLE IF NOT EXISTS bom_lines_tree (
-  id TEXT PRIMARY KEY,
-  bom_draft_id TEXT NOT NULL,
-  parent_line_id TEXT,
-  node_type TEXT NOT NULL CHECK (node_type IN ('item', 'group')),
-  item_id TEXT,
-  part_number TEXT,
-  revision TEXT,
-  group_name TEXT,
-  quantity REAL CHECK (quantity IS NULL OR quantity > 0),
-  sequence_no INTEGER NOT NULL,
-  source TEXT NOT NULL DEFAULT 'cad_reference' CHECK (source IN ('cad_reference', 'solidworks_xls', 'manual')),
-  source_priority INTEGER NOT NULL DEFAULT 10,
-  source_ref_id TEXT,
-  source_filename TEXT,
-  created_by TEXT,
-  updated_by TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  CHECK (
-    (node_type = 'item' AND part_number IS NOT NULL AND trim(part_number) <> '' AND quantity IS NOT NULL)
-    OR
-    (node_type = 'group' AND group_name IS NOT NULL AND trim(group_name) <> '' AND quantity IS NULL)
-  ),
-  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
-  FOREIGN KEY (parent_line_id) REFERENCES bom_lines_tree(id) ON DELETE CASCADE,
-  FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL,
-  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS bom_draft_floating_topics (
-  id TEXT PRIMARY KEY,
-  bom_draft_id TEXT NOT NULL,
-  parent_floating_topic_id TEXT,
-  node_type TEXT NOT NULL CHECK (node_type IN ('item', 'group')),
-  item_id TEXT,
-  part_number TEXT,
-  revision TEXT,
-  group_name TEXT,
-  quantity REAL CHECK (quantity IS NULL OR quantity > 0),
-  sequence_no INTEGER NOT NULL,
-  root_position_x REAL NOT NULL DEFAULT 0,
-  root_position_y REAL NOT NULL DEFAULT 0,
-  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('cad_reference', 'solidworks_xls', 'manual')),
-  created_by TEXT,
-  updated_by TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  CHECK (
-    (node_type = 'item' AND part_number IS NOT NULL AND trim(part_number) <> '' AND quantity IS NOT NULL)
-    OR
-    (node_type = 'group' AND group_name IS NOT NULL AND trim(group_name) <> '' AND quantity IS NULL)
-  ),
-  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
-  FOREIGN KEY (parent_floating_topic_id) REFERENCES bom_draft_floating_topics(id) ON DELETE CASCADE,
-  FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL,
-  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS bom_import_profiles (
-  id TEXT PRIMARY KEY,
-  profile_name TEXT NOT NULL,
-  source_type TEXT NOT NULL DEFAULT 'solidworks_xls' CHECK (source_type IN ('solidworks_xls')),
-  version TEXT NOT NULL,
-  mapping_json TEXT NOT NULL,
-  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (profile_name, version)
-);
-
-CREATE TABLE IF NOT EXISTS bom_import_jobs (
-  id TEXT PRIMARY KEY,
-  bom_draft_id TEXT,
-  owner_part_number_id TEXT,
-  bom_revision TEXT,
-  source_submission_id TEXT,
-  parent_submission_id TEXT,
-  import_profile_id TEXT NOT NULL,
-  source_asset_id TEXT,
-  original_filename TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'Staged' CHECK (status IN ('Staged', 'Imported', 'Rejected', 'Failed')),
-  row_count INTEGER NOT NULL DEFAULT 0,
-  error_json TEXT,
-  created_by TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE SET NULL,
-  FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-  FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-  FOREIGN KEY (import_profile_id) REFERENCES bom_import_profiles(id),
-  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS bom_edit_events (
-  id TEXT PRIMARY KEY,
-  bom_draft_id TEXT NOT NULL,
-  actor_id TEXT,
-  event_type TEXT NOT NULL,
-  before_json TEXT,
-  after_json TEXT,
-  reason TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
-  FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS bom_review_requests (
-  id TEXT PRIMARY KEY,
-  bom_draft_id TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'PendingReview' CHECK (status IN ('PendingReview', 'Approved', 'Rejected', 'Cancelled')),
-  lifecycle_action TEXT NOT NULL DEFAULT 'release' CHECK (lifecycle_action IN ('release', 'obsolete')),
-  submitted_by TEXT NOT NULL,
-  reviewed_by TEXT,
-  change_reason TEXT NOT NULL,
-  decision_reason TEXT,
-  submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
-  reviewed_at TEXT,
-  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
-  FOREIGN KEY (submitted_by) REFERENCES users(id),
-  FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS bom_release_snapshots (
-  id TEXT PRIMARY KEY,
-  bom_draft_id TEXT NOT NULL,
-  company_id TEXT,
-  owner_part_number_id TEXT,
-  bom_revision TEXT,
-  source_submission_id TEXT,
-  source_revision_package_id TEXT,
-  parent_item_id TEXT,
-  parent_submission_id TEXT,
-  parent_revision TEXT,
-  line_snapshot_json TEXT NOT NULL,
-  line_count INTEGER NOT NULL DEFAULT 0,
-  released_by TEXT NOT NULL,
-  released_at TEXT NOT NULL DEFAULT (datetime('now')),
-  obsolete_at TEXT,
-  obsolete_by TEXT,
-  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-  FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-  FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
-  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-  FOREIGN KEY (released_by) REFERENCES users(id),
-  FOREIGN KEY (obsolete_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS bom_create_effects (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL,
-  actor_id TEXT NOT NULL,
-  idempotency_key TEXT NOT NULL,
-  request_fingerprint TEXT NOT NULL,
-  draft_id TEXT NOT NULL,
-  outcome_json TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (actor_id) REFERENCES users(id),
-  FOREIGN KEY (draft_id) REFERENCES bom_drafts(id),
-  UNIQUE (company_id, actor_id, idempotency_key)
-);
-
 CREATE TABLE IF NOT EXISTS item_locks (
   id TEXT PRIMARY KEY,
   item_id TEXT NOT NULL,
@@ -1224,7 +980,6 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   part_name TEXT NOT NULL,
   item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
   is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
-  bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
   custom_specification TEXT,
   series_code TEXT,
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
@@ -1389,7 +1144,6 @@ CREATE TABLE IF NOT EXISTS review_confirmation_events (
   review_id TEXT NOT NULL,
   action TEXT NOT NULL CHECK (
     action IN (
-      'confirm_bom_no_revision',
       'confirm_original_part_reuse',
       'return_for_replacement_part',
       'request_more_information',
@@ -1406,26 +1160,6 @@ CREATE TABLE IF NOT EXISTS review_confirmation_events (
 
 CREATE INDEX IF NOT EXISTS idx_review_confirmation_events_review
 ON review_confirmation_events(company_id, review_id, occurred_at DESC);
-
-CREATE TABLE IF NOT EXISTS bom_reconfirmation_flags (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL DEFAULT 'company-jenfu',
-  bom_draft_id TEXT NOT NULL,
-  old_part_number_id TEXT NOT NULL,
-  new_part_number_id TEXT NOT NULL,
-  reason TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  resolved_at TEXT,
-  resolved_by TEXT,
-  FOREIGN KEY (company_id) REFERENCES companies(id),
-  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
-  FOREIGN KEY (old_part_number_id) REFERENCES part_numbers(id),
-  FOREIGN KEY (new_part_number_id) REFERENCES part_numbers(id),
-  FOREIGN KEY (resolved_by) REFERENCES users(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_bom_reconfirmation_flags_open
-ON bom_reconfirmation_flags(company_id, bom_draft_id, resolved_at);
 
 CREATE TABLE IF NOT EXISTS drawing_part_links (
   id TEXT PRIMARY KEY,
@@ -1996,8 +1730,6 @@ VALUES
   ('numbering.obsolete_ma_drawing', 'numbering', '圖號作廢審核', 'Formal manufacturing drawing obsolete approval action.', 'numbering.compat', 'high', 1, 1, '{}'),
   ('numbering.obsolete_part_root', 'numbering', '圖料根號作廢審核', 'Root-level aggregate obsolete approval action with child targets.', 'numbering.compat', 'high', 1, 1, '{}'),
   ('submission.obsolete', 'submission', '送審單作廢審核', 'Submission lifecycle obsolete compatibility action.', 'submission.compat', 'high', 0, 1, '{}'),
-  ('bom.release_review', 'bom', 'BOM 發行審核', 'BOM release review compatibility action.', 'bom.compat', 'high', 0, 1, '{}'),
-  ('bom.obsolete_review', 'bom', 'BOM 作廢審核', 'BOM obsolete review compatibility action.', 'bom.compat', 'high', 0, 1, '{}'),
   ('drawing_package.supplement_review', 'drawing_package', '圖面補件審核', 'Drawing revision package supplement compatibility action.', 'drawing_package.compat', 'normal', 0, 1, '{}');
 
 CREATE TABLE IF NOT EXISTS approval_platform_packages (
@@ -3331,21 +3063,6 @@ CREATE INDEX IF NOT EXISTS idx_manufacturing_baseline_items_baseline ON manufact
 CREATE INDEX IF NOT EXISTS idx_file_references_submission_id ON file_references(submission_id);
 CREATE INDEX IF NOT EXISTS idx_file_references_referenced_part_number ON file_references(referenced_part_number);
 CREATE INDEX IF NOT EXISTS idx_file_references_referenced_drawing_number ON file_references(referenced_drawing_number);
-CREATE INDEX IF NOT EXISTS idx_bom_headers_parent_item_id ON bom_headers(parent_item_id);
-CREATE INDEX IF NOT EXISTS idx_bom_headers_parent_submission_id ON bom_headers(parent_submission_id);
-CREATE INDEX IF NOT EXISTS idx_bom_lines_header_id ON bom_lines(bom_header_id);
-CREATE INDEX IF NOT EXISTS idx_bom_lines_child_part_number ON bom_lines(child_part_number);
-CREATE INDEX IF NOT EXISTS idx_bom_lines_child_part_revision ON bom_lines(child_part_number, child_revision);
-CREATE INDEX IF NOT EXISTS idx_bom_drafts_parent_submission_id ON bom_drafts(parent_submission_id, status, is_active);
-CREATE INDEX IF NOT EXISTS idx_bom_drafts_parent_item_revision ON bom_drafts(parent_item_id, parent_revision, status);
-CREATE INDEX IF NOT EXISTS idx_bom_lines_tree_draft_parent ON bom_lines_tree(bom_draft_id, parent_line_id, sequence_no);
-CREATE INDEX IF NOT EXISTS idx_bom_lines_tree_part_revision ON bom_lines_tree(part_number, revision);
-CREATE INDEX IF NOT EXISTS idx_bom_draft_floating_topics_draft_parent
-ON bom_draft_floating_topics(bom_draft_id, parent_floating_topic_id, sequence_no);
-CREATE INDEX IF NOT EXISTS idx_bom_import_jobs_parent_submission_id ON bom_import_jobs(parent_submission_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_bom_edit_events_draft_id ON bom_edit_events(bom_draft_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_bom_review_requests_draft_status ON bom_review_requests(bom_draft_id, status);
-CREATE INDEX IF NOT EXISTS idx_bom_release_snapshots_parent_item_revision ON bom_release_snapshots(parent_item_id, parent_revision, released_at DESC);
 CREATE INDEX IF NOT EXISTS idx_item_locks_item_id ON item_locks(item_id, released_at, expires_at);
 CREATE INDEX IF NOT EXISTS idx_release_packages_submission_id ON release_packages(submission_id);
 CREATE INDEX IF NOT EXISTS idx_readonly_shares_submission_id ON readonly_shares(submission_id, created_at DESC);

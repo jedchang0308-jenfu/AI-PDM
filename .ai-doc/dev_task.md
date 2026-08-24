@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-08-15
+更新日期：2026-08-24
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -136,7 +136,14 @@ Owner：Dev PM
   - 下一步：DEV-059 extended gate 已完成並恢復父 `DEV-057` 本機 QA/QC PASS；commit、merge、PR、deploy、production 與 release 仍保持未授權。
   - 計入交付：否（`DEV-057` 的缺陷修復開發點，不另計新的產品交付點）。
 
-- BOM 建立入口：`✓ DEV-060` `Local RD/QA/QC Passed / Commit Pending / Production Release Gated`。
+- BOM 模組硬刪除：`◐ DEV-095` `Local Implementation + Focused QC Passed / Isolated Build Pending / Production Execution Authorized and Release-Gated` `P0`。
+  - 目標：依使用者方案 B，移除現有 BOM UI/API/repository/schema/data、Where-used、審核相容層與正式環境資料；未來 BOM 以新規格重建。
+  - 權威：`.ai-doc/decisions/ADR-PDM-BOM-RETIREMENT-001-hard-delete-and-rebuild-boundary.md`；QA：`.ai-doc/qa/qa-dev-095-bom-retirement-validation-plan-2026-08-24.md`。
+  - 安全邊界：正式刪除前必須有 Cloud SQL backup/PITR、exact candidate/image/migration digest、完整 rollback 與 Level 4／Wave 0／product-owner gate；不以空表或相容 API 保留舊契約。
+  - 目前結果：產品 source runtime BOM references=0；SQLite legacy migration 20/20、change control 59/59、lifecycle actions 165/165、controlled history 58/58、Cloud SQL package 11/11、production pipeline 20/20與 app typecheck通過。
+  - 下一步：isolated build與primary SQLite invariant後，備份並移除本機資料；再走production candidate、backup、047 migration、promotion與post-release smoke。
+
+- BOM 建立入口：`× DEV-060` `Superseded by DEV-095 / Historical only`。
   - 目標：採方案 B 的獨立 `/bom/new` 建立入口，先以「已偵測組合件／全新空白 BOM／已有 BOM 草稿」三路徑分流；組合件與 XLS 再進入來源步驟，空白人工可直接建立，所有路徑建立可追溯 Draft 後交接 `/bom/workbench/<draftId>`。
   - 核心 authority：`ADR-PDM-MATERIAL-IDENTITY-REVISION-001`。Part Number 無 Revision；Drawing/BOM 各自版控。
     同身份只升受影響定義 Rev；FFF、互換性、法規／品質或其他身份條件改變時換新 Part Number，並建立其 BOM。
@@ -217,7 +224,7 @@ Owner：Dev PM
   - Spec Impact Preflight：`Compatible extension`。承接既有圖面進版 Phase 5「extraction assistance 不取代 RD correction」；將 `SPEC-PDM-CHANGE-CONTROL-001` 尚未決定的單一來源優先序，收斂成多來源候選、衝突揭露與人工確認。正式圖檔／版次／附件權威、送審 snapshot、檔案歸屬與受控資料不可變性維持不變。
   - 計入交付：是（只有 A0005 端到端候選分流、人工修正、正式化與來源追溯皆可驗收後才計入；完成 Brief 不代表功能完成）。
 
-- BOM 樹狀編輯直覺化與 Floating Topic 暫存區：`✓ DEV-071` `本機 RD/QA/QC 完成 / Human Confirmed` `P1` `Local Only / Production Release Gated`。
+- BOM 樹狀編輯直覺化與 Floating Topic 暫存區：`× DEV-071` `Superseded by DEV-095 / Historical only`。
   - 目標：把 XMind 的靠近節點新增、可預測拖放、安全刪除、Undo、折疊／聚焦與 Floating Topic 心智模型轉譯成受治理的 BOM Draft 編輯體驗。
   - 已確認決策：Floating Topic 在編輯過程中是必要功能；它只存在「未納入 BOM」草稿暫存區，可保存並重新開啟，但在全部歸位前阻擋送審、發行與正式匯出。
   - 完成內容：035 additive schema、editor version、雙 graph 原子 repository/API、write permission、submit/approve/release fail-closed、semantic history、XMind toolbar/shortcut/drag/drop/Floating/Map/Outliner/inspector 與四 viewport 已落地。
@@ -245,7 +252,7 @@ Owner：Dev PM
   - 驗收：最終報告 `.ai-doc/qc/qc-dev-073-status-actionability-capa-2026-08-16.md`；`qc:dev-073:contract`、`qc:dev-070:legacy-owner`、`qc:dev-075:current-work-item`、`typecheck:app`、`build:isolated` PASS；DEV-073 Chromium run `DEV073-20260816T125206Z-dc0ca99b`為8 cases，DEV-070 browser PASS，console/network/visible error皆0。PostgreSQL runtime未設定，僅保留static parity guard，不宣稱 runtime PASS。
   - 計入交付：是。
 
-- 料號／圖號全生命週期 AI UI 真實操作驗證：`◇ DEV-074` `QA Plan Ready / Workflow-only Scope Frozen / UI Execution Not Started` `P0` `Local Isolated Only`。
+- 料號／圖號全生命週期 AI UI 真實操作驗證：`↷ DEV-074` `Superseded in current form by DEV-095 / Replan required` `P0`。
   - 目標：排除舊保留號後，使用 AI 控制真實 rendered browser，驗證建號、首版、辨識、圖面進版／FFF、BOM、技轉與終止治理的完整可達生命週期。
   - 路徑盤點：7 個家族、58 條 in-scope UI journey；`B09`、`D15`、`E02`、`F08` 與工程內容差異列為本輪 Out of Scope；角色、viewport、權限與 readback 是覆蓋維度，不重複灌水計數。
   - UI-only hard gate：所有 business mutation、SW 上傳、送審、撤回、退回、核准、發布、取消、作廢與測試資料清理都必須由 UI 操作；禁止直接 API／DB 寫入、fixture injection、status repair 或測試 helper 替代。UI 不可達的 recovery path 一律列 Blocked，不得降級為 PASS。
@@ -783,7 +790,14 @@ Owner：Dev PM
   - 證據：`npm.cmd run qc:dev-059:candidate-submit-modal-ui` 9/9、`npm.cmd run qc:dev-059:candidate-submit-modal-real-operation` 11/11、`npm run typecheck` PASS、affected-file ESLint PASS、`npm run qc:dev-053:flow` 7/7、number-state Phase 1C approval integration 27/27、Phase 1C HTTP 11/11、AI browser current-route evidence 8 cases PASS；isolated artifact `output/qa/pdm-candidate-submit-modal-recovery/DEV059-20260809-161835-isolated/`。既有 `qc:dev-053:real-operation` 在 stale DEV-053 list assertion 前停止，未作 DEV-059 pass evidence。
   - 下一步：DEV-059 extended gate 已完成，父 `DEV-057` 本機 QA/QC 恢復 PASS；保留 commit、merge、PR、deploy、production 與 release gate，未執行上述動作。
 
-- ✓ DEV-060 [交付點] [Local RD/QA/QC Passed] [P1] [Commit Pending / Production Release Gated] BOM 工作台入口與建立 BOM 清單
+- ◐ DEV-095 [退役點] [Local Implementation + Focused QC Passed / Isolated Build Pending] [P0] [Production Execution Authorized and Release-Gated] BOM 模組硬刪除
+  - 摘要：使用者於 2026-08-24 選擇方案 B 並明確要求正式環境也刪除。現有 BOM 必須從產品 source、SQLite、Cloud SQL 與 runtime 完全移除，未來另案重建。
+  - Spec Impact：`Intentional replacement`；取代 `DEV-060`、`DEV-071`、BOM workbench／visual editor現行契約，並要求 `DEV-074` 移除 BOM 路徑後重規劃。
+  - Data contract：SQLite hard-delete runner必須先備份並證明canonical identity digest不變；Cloud SQL使用`047_remove_bom_module.sql`，刪除前必須有backup/PITR與完整code+DB rollback。
+  - Acceptance：runtime references=0、舊路由404、退役schema/action不存在、非BOM identity/evidence不變、FK=0、isolated build與production candidate/Level4/Wave0/post-release smoke通過。
+  - Authority：`.ai-doc/decisions/ADR-PDM-BOM-RETIREMENT-001-hard-delete-and-rebuild-boundary.md`；QA `.ai-doc/qa/qa-dev-095-bom-retirement-validation-plan-2026-08-24.md`；QC `.ai-doc/qc/qc-dev-095-bom-retirement-2026-08-24.md`。
+
+- × DEV-060 [交付點] [Superseded by DEV-095 / Historical only] [P1] BOM 工作台入口與建立 BOM 清單
   - 摘要：採方案 B 建立獨立 `/bom/new` 兩步驟全頁流程，把 `建立 BOM`、`BOM 工作台`、`BOM 審核` 分成三個可理解任務；所有來源建立相同 canonical ownership 的 Draft，再以 `draftId` 交接工作台。
   - 來源 ID：`DEV-PDM-BOM-MODULE-ENTRY-001`；關聯 approval authority：`DEV-PDM-APPROVAL-PLATFORM-001`。
   - 人類已確認（2026-08-10）：`1A` 兩步驟全頁；`2` Part Number 代表物料身份且無 Revision，Drawing/BOM 為各自獨立版控的受控定義；`3B` 第一版同時支援 CAD、SolidWorks XLS、空白人工三種來源。
@@ -1358,7 +1372,7 @@ Owner：Dev PM
   - Execution Boundary：本機 Phase 1A～1C 已完成，focused QC 已完成；完整 APW matrix、外部 PostgreSQL timestamp/cursor parity、production/staging data、stage/commit、merge/PR、deploy 與 release 仍受 gate 管制。無 schema/migration、新 dependency 或環境變數。
   - Future Phase Capsule：BOM、submission、drawing-package 等非 PDM 審核明細只有在各自具備 canonical owner workbench、server-authorized owner href 與 safe return contract 後，才接入相同 owner-surface模式；重新進入條件是使用者要求該 domain 明細收斂，或 legacy fallback 成為可見一致性／維護風險。
 
-- ✓ DEV-071 [交付點] [本機 RD/QA/QC 完成 / Human Confirmed] [P1] [Local Only / Production Release Gated] BOM 樹狀編輯直覺化與 Floating Topic 暫存區
+- × DEV-071 [交付點] [Superseded by DEV-095 / Historical only] [P1] BOM 樹狀編輯直覺化與 Floating Topic 暫存區
   - 摘要：研究 XMind 的 Topic、Outliner、Filtering、Marker、Note 與 Advanced Layout，將可降低 BOM 編輯認知成本的互動轉成受治理的 Draft 工作流；正式 BOM 仍是唯一可審核、可重現、可匯出的嚴格樹。
   - 來源 ID：`DEV-PDM-BOM-VISUAL-EDITOR-002`
   - 父任務：`DEV-060`；延伸歷史 `DEV-BOM-VISUAL-EDITOR-001`，但不重開已完成的建立入口、canonical Part Number owner、BOM Rev 或 review/release/export 整合。
@@ -1500,7 +1514,7 @@ Owner：Dev PM
     - Acceptance：SPEC AC-01～09及QA CAPA-001～022全數通過，P0/P1=0。
     - ADR：Not required；沿用canonical Drawing、human status與unified detail既有ADR，只新增一致性invariant。
 
-- ◇ DEV-074 [驗證點] [QA Plan Ready / Awaiting User SW Files / UI Execution Not Started] [P0] [Local Isolated Only] 料號／圖號全生命週期 AI UI 真實操作驗證
+- ↷ DEV-074 [驗證點] [Superseded in current form by DEV-095 / Replan required] [P0] 料號／圖號全生命週期 AI UI 真實操作驗證
   - 摘要：以目前可見產品 UI 為唯一 business mutation 入口，串接建號、首版、圖面／CAD 辨識、正式圖面進版與 FFF、BOM、技轉、作廢與歷史治理；舊保留號依使用者指示排除。
   - 父任務：`DEV-052`、`DEV-053`、`DEV-060`、`DEV-061`、`DEV-062`、`DEV-064`、`DEV-067`、`DEV-068`、`DEV-070`、`DEV-071`、`DEV-072`、`DEV-073`。
   - QA 契約：`.ai-doc/qa/qa-dev-074-pdm-complete-lifecycle-ui-real-operation-validation-plan-2026-08-15.md`；7 個路徑家族、58 條 in-scope UI journey，完整 PASS 要求 58/58、Blocked=0、Not Run=0、P0/P1=0。`B09`、`D15`、`E02`、`F08` 與工程內容差異不列入本輪分母。

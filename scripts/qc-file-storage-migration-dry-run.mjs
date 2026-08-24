@@ -181,7 +181,6 @@ async function main() {
       report.planned.every((item) =>
         item.businessLinkInvariant?.invariant === "storage_pointer_update_only" &&
         item.businessLinkInvariant.untouchedRelationshipTables.includes("submissions") &&
-        item.businessLinkInvariant.untouchedRelationshipTables.includes("bom_lines") &&
         item.businessLinkInvariant.untouchedRelationshipTables.includes("drawing_part_links")
       )
   );
@@ -191,7 +190,7 @@ async function main() {
       const allowed = item.businessLinkInvariant?.allowedPointerFields ?? [];
       return (
         allowed.length > 0 &&
-        !allowed.some((field) => ["submission_id", "item_id", "drawing_number", "part_number", "bom_header_id"].includes(field))
+        !allowed.some((field) => ["submission_id", "item_id", "drawing_number", "part_number"].includes(field))
       );
     })
   );

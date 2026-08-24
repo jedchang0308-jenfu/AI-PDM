@@ -9,7 +9,6 @@ const baselineMode = process.argv.includes("--baseline");
 const root = process.cwd();
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-const bomPath = "src/lib/repositories/bom-workbench-async-repository.ts";
 const clipboardTargets = [
   "src/app/numbering/drawings/page.tsx",
   "src/app/numbering/search/page.tsx",
@@ -22,28 +21,12 @@ const byteFormatTargets = [
   "src/components/master-attachment-panel.tsx"
 ];
 
-const bomSource = read(bomPath);
-const saveFileBlock = bomSource.match(/(?:async )?function saveBomImportOriginalFile\([\s\S]*?(?=\n(?:async )?function parseSolidWorksBomImport)/u)?.[0] ?? "";
-assert(saveFileBlock, "BOM import original-file helper exists");
-
 if (baselineMode) {
-  assert.match(saveFileBlock, /fs\.mkdirSync/u, "BOM async path sync mkdir baseline");
-  assert.match(saveFileBlock, /fs\.writeFileSync/u, "BOM async path sync write baseline");
   assert.equal(clipboardTargets.filter((file) => /async function copyTextToClipboard/u.test(read(file))).length, 4, "four clipboard duplicate baselines");
   assert.equal(byteFormatTargets.filter((file) => /function formatBytes/u.test(read(file))).length, 3, "three byte formatter duplicate baselines");
-  console.log("QC System Health Phase 7 characterization: PASS (sync BOM write, 4 clipboard copies, 3 byte formatters)");
+  console.log("QC System Health Phase 7 characterization: PASS (4 clipboard copies, 3 byte formatters)");
   process.exit(0);
 }
-
-assert.match(bomSource, /const asset = await saveBomImportOriginalFile\(/u, "BOM request flow awaits original-file persistence");
-assert.match(saveFileBlock, /^async function saveBomImportOriginalFile/u, "BOM original-file helper is asynchronous");
-assert.match(saveFileBlock, /await fs\.promises\.mkdir/u, "BOM directory creation is non-blocking");
-assert.match(saveFileBlock, /await fs\.promises\.writeFile/u, "BOM buffer persistence is non-blocking");
-assert.match(saveFileBlock, /flag: "wx"/u, "BOM original file uses exclusive temporary persistence");
-assert.match(saveFileBlock, /await fs\.promises\.rename/u, "BOM original file is atomically promoted");
-assert.match(saveFileBlock, /removeBomImportOriginalFile/u, "BOM database failure has filesystem compensation");
-assert.match(bomSource, /await this\.client\.transaction\(create\)/u, "BOM import uses the provider transaction for SQLite and Postgres");
-assert.doesNotMatch(saveFileBlock, /mkdirSync|writeFileSync/u, "BOM async helper has no synchronous filesystem operation");
 
 for (const file of clipboardTargets) {
   const source = read(file);
@@ -121,4 +104,4 @@ try {
   else delete globalThis.HTMLElement;
 }
 
-console.log("QC System Health Phase 7: PASS (async BOM I/O and shared UI utility parity)");
+console.log("QC System Health Phase 7: PASS (shared UI utility parity)");

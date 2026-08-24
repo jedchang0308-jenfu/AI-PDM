@@ -4,7 +4,7 @@
   "dev": "DEV-032",
   "phase": "Gate-C-production-clean-seed-migration",
   "packageVersion": "dev-046-cloudsql-migration-package/v1",
-  "generatedAt": "2026-08-18T04:30:25.658Z",
+  "generatedAt": "2026-08-24T07:05:44.833Z",
   "target": {
     "projectId": "jenfu-ai-pdm-prod",
     "region": "asia-east1",
@@ -40,9 +40,9 @@
   "sourceInventory": {
     "postgresDirectory": "db/postgres",
     "postgresReadmeDeclaresCloudSqlAuthority": true,
-    "postgresSqlFileCount": 39,
+    "postgresSqlFileCount": 40,
     "cloudSqlGrantFile": "db/cloud-sql/pdm_runtime_grants.sql",
-    "cloudSqlGrantFileSha256": "f579c1a4d2f41190ff19059a0000295904d25b25f273e6d7a911141b98a5405d",
+    "cloudSqlGrantFileSha256": "6e159dc9374e6f3d634cebe097704e4ab105ddf62384012bc75a1ad5d13af783",
     "singletonMigrationRunnerPresent": true,
     "currentPostgresMigrations": [
       {
@@ -395,6 +395,15 @@
         "hasSupabaseRoleReferences": false,
         "supabaseRoleReferenceLines": 0,
         "ddlReviewLines": 1
+      },
+      {
+        "file": "db/postgres/047_remove_bom_module.sql",
+        "sha256": "c18c284da2a2b25adc6fc1c34501c7317d2ebbe0a44eb16d6d04075e2e53c450",
+        "bytes": 2134,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 21
       }
     ]
   },
@@ -675,9 +684,9 @@
     ]
   },
   "ddlRisk": {
-    "totalReviewLines": 133,
-    "blockingDestructiveLines": 7,
-    "reviewRequiredIdempotentLines": 124,
+    "totalReviewLines": 154,
+    "blockingDestructiveLines": 27,
+    "reviewRequiredIdempotentLines": 125,
     "sampleFindings": [
       {
         "file": "db/postgres/001_initial_schema.sql",
@@ -821,13 +830,13 @@
     "orderedManifestPath": "cloudsql-migration-manifest.json",
     "runnerContractPath": "runner-contract.md",
     "supportFileCount": 2,
-    "orderedSchemaMigrationCount": 37,
+    "orderedSchemaMigrationCount": 38,
     "supportFiles": [
       {
         "output": "sql/000_admin_bootstrap_grants.sql",
         "kind": "admin_bootstrap",
-        "outputSha256": "a0b6be1db6ed8c2e160fae417389143c554bad55ce1f7bff8897e345af3b8136",
-        "bytes": 1642
+        "outputSha256": "80bd29e5f98c991803450f9b0d7d750b47c8d3909d72952f965416069bd831a2",
+        "bytes": 1677
       },
       {
         "output": "sql/999_runtime_grants_refresh.sql",
@@ -1354,6 +1363,20 @@
         "bytes": 868,
         "transformations": {
           "removedTransactionWrappers": 2,
+          "removedRlsStatements": 0,
+          "rewrittenSupabaseRoleReferences": 0
+        }
+      },
+      {
+        "source": "db/postgres/047_remove_bom_module.sql",
+        "output": "sql/047_remove_bom_module.cloudsql.sql",
+        "version": "047",
+        "name": "047_remove_bom_module",
+        "sourceSha256": "c18c284da2a2b25adc6fc1c34501c7317d2ebbe0a44eb16d6d04075e2e53c450",
+        "outputSha256": "1e3b9ab54421c3296d8f385f788b057b837e15cc6e7a7f1a8d9932a726a316f2",
+        "bytes": 2371,
+        "transformations": {
+          "removedTransactionWrappers": 0,
           "removedRlsStatements": 0,
           "rewrittenSupabaseRoleReferences": 0
         }

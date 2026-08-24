@@ -24,7 +24,6 @@ const repositories = {
   submissionFile: "src/lib/repositories/submission-file-repository.ts",
   user: "src/lib/repositories/user-repository.ts",
   item: "src/lib/repositories/item-repository.ts",
-  bom: "src/lib/repositories/bom-repository.ts",
   submission: "src/lib/repositories/submission-repository.ts",
   contracts: "src/lib/repositories/contracts.ts"
 };
@@ -45,7 +44,6 @@ record("REPO-010 db.ts re-exports approval repository", db.includes("@/lib/repos
 record("REPO-011 db.ts re-exports submission-file repository", db.includes("@/lib/repositories/submission-file-repository"), "src/lib/db.ts");
 record("REPO-012 db.ts re-exports user repository", db.includes("@/lib/repositories/user-repository"), "src/lib/db.ts");
 record("REPO-013 db.ts re-exports item repository", db.includes("@/lib/repositories/item-repository"), "src/lib/db.ts");
-record("REPO-014 db.ts re-exports bom repository", db.includes("@/lib/repositories/bom-repository"), "src/lib/db.ts");
 record("REPO-015 db.ts re-exports submission repository", db.includes("@/lib/repositories/submission-repository"), "src/lib/db.ts");
 
 for (const symbol of [
@@ -120,11 +118,6 @@ for (const symbol of [
   "listItemRevisionHistory",
   "submissionRevisionExists",
   "findOrCreateItem",
-  "getBomBySubmissionId",
-  "materializeBomDraftFromReferences",
-  "findPreviousBomSubmissionId",
-  "getBomDiffBetweenSubmissions",
-  "listWhereUsed",
   "listSubmissions",
   "getSubmission",
   "searchSubmissions",
@@ -150,7 +143,6 @@ const approvalRepository = readProjectFile(root, repositories.approval);
 const submissionFileRepository = readProjectFile(root, repositories.submissionFile);
 const userRepository = readProjectFile(root, repositories.user);
 const itemRepository = readProjectFile(root, repositories.item);
-const bomRepository = readProjectFile(root, repositories.bom);
 const submissionRepository = readProjectFile(root, repositories.submission);
 record("REPO-017 ai repository owns LLM persistence", /llm_conversations/u.test(aiRepository) && /llm_messages/u.test(aiRepository), repositories.ai);
 record("REPO-018 dashboard repository owns metrics query", /GROUP BY status/u.test(dashboardRepository), repositories.dashboard);
@@ -217,13 +209,6 @@ record(
   "REPO-028 item repository owns item core workflows",
   ["items", "current_revision", "part_number", "revision"].every((marker) => itemRepository.includes(marker)),
   repositories.item
-);
-record(
-  "REPO-029 bom repository owns BOM and where-used workflows",
-  ["bom_headers", "bom_lines", "ReleasedSnapshot", "child_part_number", "parent_submission_id"].every((marker) =>
-    bomRepository.includes(marker)
-  ),
-  repositories.bom
 );
 record(
   "REPO-030 submission repository owns submission workflows",

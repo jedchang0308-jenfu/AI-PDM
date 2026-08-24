@@ -26,8 +26,8 @@
     {
       "output": "sql/000_admin_bootstrap_grants.sql",
       "kind": "admin_bootstrap",
-      "outputSha256": "a0b6be1db6ed8c2e160fae417389143c554bad55ce1f7bff8897e345af3b8136",
-      "bytes": 1642
+      "outputSha256": "80bd29e5f98c991803450f9b0d7d750b47c8d3909d72952f965416069bd831a2",
+      "bytes": 1677
     },
     {
       "output": "sql/999_runtime_grants_refresh.sql",
@@ -554,6 +554,20 @@
       "bytes": 868,
       "transformations": {
         "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/047_remove_bom_module.sql",
+      "output": "sql/047_remove_bom_module.cloudsql.sql",
+      "version": "047",
+      "name": "047_remove_bom_module",
+      "sourceSha256": "c18c284da2a2b25adc6fc1c34501c7317d2ebbe0a44eb16d6d04075e2e53c450",
+      "outputSha256": "1e3b9ab54421c3296d8f385f788b057b837e15cc6e7a7f1a8d9932a726a316f2",
+      "bytes": 2371,
+      "transformations": {
+        "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
         "rewrittenSupabaseRoleReferences": 0
       }

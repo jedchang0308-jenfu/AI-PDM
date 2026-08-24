@@ -55,7 +55,7 @@ record("SLICE-005 allowed mutation list opens existing-root append", /roots\\\/\
 record("SLICE-006 allowed mutation list opens provisional draft create/edit/void/recycle", /part-number-drafts/.test(allowedSection) && /void/.test(allowedSection) && /recycle/.test(allowedSection) && /method:\s*"PATCH"/.test(allowedSection));
 record(
   "SLICE-007 allowed mutation list does not open formal workflows",
-  !/(approval|submissions|obsolete|drawing-revisions|release|submit-review|reconfirm|restore|bom)/.test(allowedSection),
+  !/(approval|submissions|obsolete|drawing-revisions|release|submit-review|reconfirm|restore)/.test(allowedSection),
   allowedSection
 );
 record("SLICE-008 middleware blocks unopened API mutations", middleware.includes("NextResponse.json") && middleware.includes("isProductionSliceAllowedApiMutation"));

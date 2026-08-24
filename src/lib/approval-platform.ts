@@ -1,4 +1,3 @@
-import { approveBomWorkbenchReviewAsync, rejectBomWorkbenchReviewAsync } from "@/lib/bom-workbench-async";
 import {
   addApprovalAsync,
   getApprovalSummaryAsync,
@@ -237,18 +236,6 @@ async function decideLegacyApprovalWithResult(
     return { detail, legacyResult };
   }
 
-  if (source === "legacy_bom") {
-    let legacyResult: Awaited<ReturnType<typeof approveBomWorkbenchReviewAsync | typeof rejectBomWorkbenchReviewAsync>>;
-    if (input.decision === "approved") {
-      legacyResult = await approveBomWorkbenchReviewAsync({ reviewId: legacyId, actorId: input.actor.id, decisionReason: input.comment ?? undefined });
-    } else {
-      legacyResult = await rejectBomWorkbenchReviewAsync({ reviewId: legacyId, actorId: input.actor.id, decisionReason: input.comment ?? undefined });
-    }
-    const detail = await repository().getRequestDetail(input.requestId, companyId);
-    if (!detail) throw new Error(`APPROVAL_REQUEST_NOT_FOUND: ${input.requestId}`);
-    return { detail, legacyResult };
-  }
-
   if (source === "legacy_drawing_package") {
     const legacyResult = await decideDrawingRevisionPackageSupplementAsync({
       supplementId: legacyId,
@@ -403,7 +390,7 @@ async function advanceDrawingRevisionSubmissionAfterImpactReviewAsync(input: {
 function drawingRevisionReviewDecisionAction(decision: ApprovalPlatformDecision, outcome: string): DrawingRevisionReviewAction {
   if (decision === "needs_info") return "request_more_information";
   if (decision === "rejected") return "return_for_replacement_part";
-  if (outcome === "no_impact" && decision === "approved") return "confirm_bom_no_revision";
+  if (outcome === "no_impact" && decision === "approved") return "confirm_original_part_reuse";
   if (outcome === "suspected_impact" && decision === "approved") return "confirm_original_part_reuse";
   if (outcome === "confirmed_impact" && decision === "approved") return "approve_replacement_part_and_drawing_release";
   throw new Error(`APPROVAL_DRAWING_REVISION_DECISION_UNSUPPORTED: ${decision}/${outcome}`);
@@ -470,26 +457,6 @@ export async function decideApprovalPlatformLegacySubmissionAsync(input: {
       },
       "legacy_submission",
       input.requestId
-    )
-  ).legacyResult;
-}
-
-export async function decideApprovalPlatformLegacyBomAsync(input: {
-  reviewId: string;
-  decision: Exclude<ApprovalPlatformDecision, "needs_info">;
-  comment?: string | null;
-  actor: ApprovalPlatformActor;
-}) {
-  return (
-    await decideLegacyApprovalWithResult(
-      {
-        requestId: encodeLegacyApprovalId("legacy_bom", input.reviewId),
-        decision: input.decision,
-        comment: input.comment,
-        actor: input.actor
-      },
-      "legacy_bom",
-      input.reviewId
     )
   ).legacyResult;
 }

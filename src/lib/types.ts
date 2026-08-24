@@ -118,288 +118,6 @@ export type FileReference = {
   created_at: string;
 };
 
-export type BomLine = {
-  id: string;
-  bom_header_id: string;
-  line_no: number;
-  child_part_number: string;
-  child_revision: string | null;
-  quantity: number;
-  source_file_id: string | null;
-  source_reference_id: string | null;
-  source_filename: string | null;
-  child_submission_id?: string | null;
-  child_drawing_number?: string | null;
-  child_part_name?: string | null;
-  child_material?: string | null;
-  child_surface_finish?: string | null;
-  child_submission_revision?: string | null;
-  child_status?: SubmissionStatus | null;
-  child_latest_revision?: string | null;
-  child_latest_released_revision?: string | null;
-  created_at: string;
-};
-
-export type BomHeader = {
-  id: string;
-  parent_item_id: string;
-  parent_submission_id: string;
-  parent_revision: string;
-  status: "Draft" | "ReleasedSnapshot";
-  source: "cad_references" | "manual" | "imported";
-  line_count: number;
-  created_at: string;
-  updated_at: string;
-};
-
-export type BomDetail = BomHeader & {
-  parent_part_number: string;
-  parent_part_name: string;
-  parent_drawing_number: string;
-  parent_material: string;
-  parent_surface_finish: string;
-  parent_status: SubmissionStatus;
-  lines: BomLine[];
-};
-
-export type BomWorkbenchDraftStatus = "Draft" | "PendingReview" | "Rejected" | "Released" | "Obsolete" | "Archived";
-export type BomWorkbenchSource = "cad_reference" | "solidworks_xls" | "manual";
-export type BomWorkbenchNodeType = "item" | "group";
-
-export type BomWorkbenchDraftSummary = {
-  id: string;
-  company_id: string | null;
-  owner_part_number_id: string | null;
-  bom_revision: string | null;
-  source_submission_id: string | null;
-  source_revision_package_id?: string | null;
-  identity_authority: "canonical_part_number" | "legacy_submission_bound" | "manual_review";
-  parent_item_id: string;
-  parent_submission_id: string;
-  parent_revision: string;
-  draft_name: string;
-  status: BomWorkbenchDraftStatus;
-  source: BomWorkbenchSource;
-  is_active: number;
-  line_count: number;
-  review_attempt: number;
-  editor_version: number;
-  created_by: string | null;
-  updated_by: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type BomWorkbenchListRecord = BomWorkbenchDraftSummary & {
-  parent_part_number: string;
-  parent_part_name: string;
-};
-
-export type BomReconfirmationFlag = {
-  id: string;
-  bom_draft_id: string;
-  old_part_number_id: string;
-  old_part_number: string;
-  new_part_number_id: string;
-  new_part_number: string;
-  reason: string;
-  created_at: string;
-  resolved_at: string | null;
-  resolved_by: string | null;
-};
-
-export type BomWorkbenchLine = {
-  id: string;
-  bom_draft_id: string;
-  parent_line_id: string | null;
-  node_type: BomWorkbenchNodeType;
-  item_id: string | null;
-  part_number: string | null;
-  part_name?: string | null;
-  revision: string | null;
-  group_name: string | null;
-  quantity: number | null;
-  sequence_no: number;
-  source: BomWorkbenchSource;
-  source_priority: number;
-  source_ref_id: string | null;
-  source_filename: string | null;
-  created_by: string | null;
-  updated_by: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type BomDraftFloatingTopic = {
-  id: string;
-  bom_draft_id: string;
-  parent_floating_topic_id: string | null;
-  node_type: BomWorkbenchNodeType;
-  item_id: string | null;
-  part_number: string | null;
-  part_name?: string | null;
-  revision: string | null;
-  group_name: string | null;
-  quantity: number | null;
-  sequence_no: number;
-  root_position_x: number;
-  root_position_y: number;
-  source: BomWorkbenchSource;
-  created_by: string | null;
-  updated_by: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
-  lines: BomWorkbenchLine[];
-  floating_topics: BomDraftFloatingTopic[];
-  reconfirmation_flags: BomReconfirmationFlag[];
-  release_snapshot_id?: string | null;
-  latest_review?: {
-    id: string;
-    status: "PendingReview" | "Approved" | "Rejected" | "Cancelled";
-    lifecycle_action: "release" | "obsolete";
-    change_reason: string;
-    decision_reason: string | null;
-    submitted_at: string;
-    reviewed_at: string | null;
-  } | null;
-};
-
-export type BomImportJobStatus = "Staged" | "Imported" | "Rejected" | "Failed";
-
-export type BomImportProfile = {
-  id: string;
-  profile_name: string;
-  source_type: "solidworks_xls";
-  version: string;
-  mapping_json: string;
-  is_active: number;
-  created_at: string;
-};
-
-export type BomImportJob = {
-  id: string;
-  bom_draft_id: string | null;
-  owner_part_number_id: string | null;
-  bom_revision: string | null;
-  source_submission_id: string | null;
-  parent_submission_id: string;
-  import_profile_id: string;
-  source_asset_id: string | null;
-  original_filename: string;
-  status: BomImportJobStatus;
-  row_count: number;
-  error_json: string | null;
-  created_by: string | null;
-  created_at: string;
-};
-
-export type BomWorkbenchSummary = {
-  parent_submission_id: string;
-  parent_item_id: string;
-  parent_part_number: string;
-  parent_part_name: string;
-  parent_drawing_number: string;
-  parent_revision: string;
-  parent_status: SubmissionStatus;
-  drafts: BomWorkbenchDraftSummary[];
-  active_draft: BomWorkbenchDraftDetail | null;
-};
-
-export type BomReleaseGateIssueCode =
-  | "missing_child_item"
-  | "missing_child_revision"
-  | "child_not_released"
-  | "child_outdated_revision";
-
-export type BomReleaseGateIssue = {
-  code: BomReleaseGateIssueCode;
-  line_id: string;
-  part_number: string;
-  revision: string | null;
-  child_status?: string | null;
-  latest_released_revision?: string | null;
-  message: string;
-};
-
-export type BomReleaseSnapshotDetail = {
-  id: string;
-  bom_draft_id: string;
-  company_id: string | null;
-  owner_part_number_id: string | null;
-  bom_revision: string | null;
-  source_submission_id: string | null;
-  source_revision_package_id?: string | null;
-  parent_item_id: string;
-  parent_submission_id: string;
-  parent_revision: string;
-  parent_part_number: string;
-  parent_part_name: string;
-  parent_drawing_number: string;
-  line_count: number;
-  released_by: string;
-  released_by_name: string | null;
-  released_at: string;
-  obsolete_at: string | null;
-  obsolete_by: string | null;
-  lines: BomWorkbenchLine[];
-};
-
-export type BomDiffChangeType = "added" | "removed" | "changed" | "unchanged";
-
-export type BomDiffLine = {
-  key: string;
-  change_type: BomDiffChangeType;
-  child_part_number: string;
-  from_revision: string | null;
-  to_revision: string | null;
-  from_quantity: number | null;
-  to_quantity: number | null;
-  from_source_filename: string | null;
-  to_source_filename: string | null;
-};
-
-export type BomDiffResult = {
-  base_submission_id: string;
-  target_submission_id: string;
-  base_revision: string;
-  target_revision: string;
-  base_created_at: string;
-  target_created_at: string;
-  added_count: number;
-  removed_count: number;
-  changed_count: number;
-  unchanged_count: number;
-  lines: BomDiffLine[];
-};
-
-export type WhereUsedEntry = {
-  parent_submission_id: string;
-  parent_item_id: string;
-  parent_part_number: string;
-  parent_part_name: string;
-  parent_drawing_number: string;
-  parent_revision: string;
-  parent_status: SubmissionStatus;
-  parent_submitted_by: string;
-  parent_submitted_by_name: string;
-  bom_header_id: string;
-  bom_status: BomHeader["status"];
-  child_part_number: string;
-  child_revision: string | null;
-  child_submission_id?: string | null;
-  child_drawing_number?: string | null;
-  child_status?: SubmissionStatus | null;
-  child_latest_released_revision?: string | null;
-  child_is_outdated?: number;
-  quantity: number;
-  source_filename: string | null;
-  parent_created_at: string;
-  parent_released_at: string | null;
-};
-
 export type DesignReuseCandidate = SubmissionSummary & {
   score: number;
   match_reasons: string[];
@@ -489,7 +207,7 @@ export type SubmissionLifecycleRequest = {
 
 export type ControlledHistoryEntry = {
   id: string;
-  entity_type: "submission" | "numbering_part_number" | "numbering_drawing_number" | "bom_release";
+  entity_type: "submission" | "numbering_part_number" | "numbering_drawing_number";
   target_id: string;
   display_code: string;
   secondary_code: string;
@@ -678,7 +396,6 @@ export type SubmissionDetail = SubmissionSummary & {
     }>;
     warnings: RevisionPackageWarning[];
   } | null;
-  bom: BomDetail | null;
   active_lock: ItemLock | null;
   release_package: ReleasePackage | null;
   approvals: Array<{
@@ -752,13 +469,13 @@ export type NotificationSummary = {
 };
 
 export type AiSubmissionSummarySource = {
-  type: "submission" | "file" | "revision" | "bom" | "where_used";
+  type: "submission" | "file" | "revision";
   label: string;
   detail: string;
 };
 
 export type AiSubmissionSummarySection = {
-  key: "change_reason" | "files" | "revision_history" | "bom_diff" | "where_used" | "missing_files";
+  key: "change_reason" | "files" | "revision_history" | "missing_files";
   title: string;
   body: string;
   facts: string[];
@@ -778,12 +495,7 @@ export type AiSubmissionSummary = {
 export type AiRiskCode =
   | "missing_handoff_file"
   | "newer_revision_exists"
-  | "where_used_impact"
   | "released_filename_conflict"
-  | "bom_child_missing"
-  | "bom_child_not_released"
-  | "bom_child_outdated"
-  | "bom_duplicate_child_part"
   | "submission_required_fields_missing";
 
 export type AiRiskHint = {

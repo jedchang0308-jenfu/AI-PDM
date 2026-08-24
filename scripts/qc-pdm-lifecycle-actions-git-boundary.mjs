@@ -181,7 +181,6 @@ for (const requiredMarker of [
 
 for (const relativePath of [
   "scripts/qc-pdm-lifecycle-actions-ui.mjs",
-  "scripts/qc-pdm-lifecycle-bom-obsolete.mjs",
   "scripts/qc-pdm-lifecycle-submission-obsolete.mjs",
   "scripts/qc-pdm-lifecycle-controlled-history-ui.mjs"
 ]) {

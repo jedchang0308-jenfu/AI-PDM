@@ -93,15 +93,11 @@ function buildBusinessLinkInvariant(object) {
     untouchedRelationshipTables: [
       "submissions",
       "items",
-      "bom_headers",
-      "bom_lines",
-      "bom_drafts",
-      "bom_lines_tree",
       "drawing_numbers",
       "part_numbers",
       "drawing_part_links"
     ],
-    note: "Provider migration must not rewrite submission, drawing, part, or BOM relationship identifiers."
+    note: "Provider migration must not rewrite submission, drawing, or part relationship identifiers."
   };
 }
 

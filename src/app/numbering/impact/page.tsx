@@ -118,7 +118,7 @@ export default function NumberingImpactPage() {
 
       <WorkflowStrip
         title="製造圖影響分析"
-        description="作廢或變更前先確認父子圖、BOM 與待辦影響，再決定是否套用。"
+        description="作廢或變更前先確認父子圖與待辦影響，再決定是否套用。"
         steps={["查詢", "影響分析", "確認作廢", "待辦", "交接"]}
         currentStep="影響分析"
         actions={[

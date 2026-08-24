@@ -107,8 +107,7 @@ async function run(argv = process.argv.slice(2)) {
   for (const apiPath of [
     "/api/numbering/part-number-drafts/smoke-only/submit-review",
     "/api/files/upload",
-    "/api/cad/preview",
-    "/api/bom/publish"
+    "/api/cad/preview"
   ]) {
     await check(`${args.kind} unopened mutation ${apiPath}`, (value) => value.status === 403 && value.code === "feature_not_open_in_production_slice" && value.mode === "official-numbering-draft", async () => {
       const response = await request(`${args.baseUrl}${apiPath}`, {

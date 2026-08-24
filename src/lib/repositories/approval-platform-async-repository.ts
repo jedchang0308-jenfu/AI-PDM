@@ -16,7 +16,6 @@ export type ApprovalPlatformSource =
   | "platform"
   | "legacy_numbering"
   | "legacy_submission"
-  | "legacy_bom"
   | "legacy_drawing_package"
   | "legacy_drawing_revision_review";
 
@@ -347,7 +346,6 @@ export function decodeLegacyApprovalId(id: string): { source: Exclude<ApprovalPl
   if (
     source !== "legacy_numbering" &&
     source !== "legacy_submission" &&
-    source !== "legacy_bom" &&
     source !== "legacy_drawing_package" &&
     source !== "legacy_drawing_revision_review"
   ) {
@@ -479,7 +477,7 @@ function drawingRevisionAllowedDecisions(): ApprovalPlatformDecision[] {
 function drawingRevisionRecommendedAction(outcome: string | null) {
   if (outcome === "confirmed_impact") return "approve_replacement_part_and_drawing_release";
   if (outcome === "suspected_impact") return "confirm_original_part_reuse";
-  return "confirm_bom_no_revision";
+  return "confirm_original_part_reuse";
 }
 
 function drawingRevisionReviewStatusPredicate(status: "active" | "all" | ApprovalPlatformStatus = "active") {
@@ -711,15 +709,14 @@ export class AsyncApprovalPlatformRepository {
     const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
     const limit = Math.max(1, Math.min(input.limit ?? 100, 500));
     const sourceLimit = Math.min(500, Math.max(limit + 1, 100));
-    const [nativeItems, numbering, submission, bom, supplement, drawingRevisionReviews] = await Promise.all([
+    const [nativeItems, numbering, submission, supplement, drawingRevisionReviews] = await Promise.all([
       this.listNativeInbox({ companyId, actorId: input.actorId, status: input.status, query: input.query, limit: sourceLimit }),
       this.listLegacyNumberingInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
       this.listLegacySubmissionInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
-      this.listLegacyBomInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
       this.listLegacyDrawingPackageInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
       this.listLegacyDrawingRevisionReviewInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit })
     ]);
-    const sorted = [...nativeItems, ...numbering, ...submission, ...bom, ...supplement, ...drawingRevisionReviews]
+    const sorted = [...nativeItems, ...numbering, ...submission, ...supplement, ...drawingRevisionReviews]
       .filter((item) => matchesInboxFilter(item, input))
       .sort(compareInboxItems);
     const cursor = input.cursor ?? null;
@@ -1325,83 +1322,6 @@ export class AsyncApprovalPlatformRepository {
     }));
   }
 
-  private async listLegacyBomInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; query?: string; limit: number }) {
-    const status = this.legacyStatusPredicate("rr.status", input.status);
-    const search = approvalSearchPredicate(input.query, [
-      "rr.id",
-      "rr.bom_draft_id",
-      "rr.lifecycle_action",
-      "requester.display_name",
-      "bd.draft_name",
-      "pn.part_number",
-      "i.part_number",
-      "bd.bom_revision",
-      "bd.parent_revision"
-    ]);
-    const rows = await this.client.query<{
-      id: string;
-      bom_draft_id: string;
-      status: string;
-      lifecycle_action: string;
-      submitted_by: string;
-      requested_by_name: string | null;
-      change_reason: string;
-      submitted_at: string;
-      company_id: string | null;
-      draft_name: string;
-      parent_part_number: string;
-      parent_submission_id: string;
-      display_revision: string;
-    }>(
-      `
-      SELECT
-        rr.*,
-        requester.display_name AS requested_by_name,
-        bd.company_id,
-        bd.draft_name,
-        bd.parent_submission_id,
-        COALESCE(pn.part_number, i.part_number, '') AS parent_part_number,
-        COALESCE(bd.bom_revision, bd.parent_revision, '-') AS display_revision
-      FROM bom_review_requests rr
-      JOIN bom_drafts bd ON bd.id = rr.bom_draft_id
-      LEFT JOIN users requester ON requester.id = rr.submitted_by
-      LEFT JOIN part_numbers pn ON pn.id = bd.owner_part_number_id
-      LEFT JOIN items i ON i.id = bd.parent_item_id
-      WHERE bd.company_id = :companyId
-        ${status.sql}
-        ${search.sql}
-      ORDER BY rr.submitted_at DESC, rr.id DESC
-      LIMIT :limit
-    `,
-      { companyId: input.companyId, limit: input.limit, ...status.params, ...search.params }
-    );
-    return rows.map((row): ApprovalPlatformInboxItem => ({
-      rowKey: approvalPlatformInboxRowKey("legacy_bom", encodeLegacyApprovalId("legacy_bom", row.id)),
-      id: encodeLegacyApprovalId("legacy_bom", row.id),
-      source: "legacy_bom",
-      companyId: row.company_id ?? input.companyId,
-      actionCode: row.lifecycle_action === "obsolete" ? "bom.obsolete_review" : "bom.release_review",
-      actionTitle: row.lifecycle_action === "obsolete" ? "BOM 作廢審核" : "BOM 發行審核",
-      domainCode: "bom",
-      title: `${row.lifecycle_action === "obsolete" ? "BOM 作廢" : "BOM 發行"} - ${row.draft_name}`,
-      status: normalizeStatus(row.status),
-      reason: row.change_reason,
-      requestedBy: row.submitted_by,
-      requestedByName: row.requested_by_name,
-      requestedAt: row.submitted_at,
-      packageId: null,
-      packageCode: null,
-      packageStatus: null,
-      targetSummary: row.parent_part_number
-        ? `${row.parent_part_number} BOM Rev ${row.display_revision}`
-        : /\bBOM\s+Rev\b/i.test(row.draft_name)
-          ? row.draft_name
-          : `${row.draft_name} / BOM Rev ${row.display_revision}`,
-      impactSummary: row.lifecycle_action,
-      legacy: { table: "bom_review_requests", id: row.id }
-    }));
-  }
-
   private async listLegacyDrawingPackageInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; query?: string; limit: number }) {
     const status = this.legacyStatusPredicate("s.status", input.status);
     const search = approvalSearchPredicate(input.query, [
@@ -1644,7 +1564,6 @@ export class AsyncApprovalPlatformRepository {
     const lists = {
       legacy_numbering: () => this.listLegacyNumberingInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
       legacy_submission: () => this.listLegacySubmissionInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
-      legacy_bom: () => this.listLegacyBomInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
       legacy_drawing_package: () => this.listLegacyDrawingPackageInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
       legacy_drawing_revision_review: () =>
         this.listLegacyDrawingRevisionReviewInbox({ companyId, status: "all", query: legacyId, limit: 10 })

@@ -199,8 +199,7 @@ function buildRunnerContractMarkdown(report) {
     "",
     "## Current Blockers",
     "",
-    ...report.readiness.blockers.map((blocker) => `- ${blocker}`),
-    ""
+    ...report.readiness.blockers.map((blocker) => `- ${blocker}`)
   ].join("\n")}\n`;
 }
 
@@ -387,7 +386,6 @@ function buildMarkdown(report) {
     lines.push(`- ${note}`);
   }
 
-  lines.push("");
   return `${lines.join("\n")}\n`;
 }
 

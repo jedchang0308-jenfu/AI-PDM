@@ -26,7 +26,6 @@ export type StatusScopeId =
   | "approvalInbox"
   | "uploadSubmission"
   | "submissionDetail"
-  | "bomWorkbench"
   | "handoffWorkbench"
   | "transferPackageWorkbench"
   | "reportCenter"
@@ -247,16 +246,6 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     contexts: ["submission", "approvalStatus", "publicationStatus", "fileStatus", "readinessStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
-  bomWorkbench: {
-    id: "bomWorkbench",
-    route: "/bom/workbench",
-    section: "BOM 工作台",
-    title: "BOM 資料範圍",
-    description: "BOM 資料、審核、發布與還原分開說明。",
-    axes: ["dataStatus", "approvalStatus", "publicationStatus", "restoreStatus", "reminderStatus"],
-    contexts: ["bomDraft", "approvalStatus", "publicationStatus", "restorePolicy", "reminderStatus"],
-    ownerEvidence: INVENTORY_EVIDENCE
-  },
   handoffWorkbench: {
     id: "handoffWorkbench",
     route: "/handoff",
@@ -274,7 +263,7 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     title: "技術移轉資料範圍",
     description: "技轉案件的資料、準備、審核、發布與還原狀態分開顯示。",
     axes: ["dataStatus", "readinessStatus", "approvalStatus", "publicationStatus", "restoreStatus"],
-    contexts: ["bomDraft", "readinessStatus", "approvalStatus", "publicationStatus", "restorePolicy"],
+    contexts: ["readinessStatus", "approvalStatus", "publicationStatus", "restorePolicy"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   reportCenter: {
@@ -352,7 +341,6 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
 const CONTEXT_AXIS_MAP: Partial<Record<StatusDisplayContext, readonly StatusAxisId[]>> = {
   masterRecord: ["dataStatus"],
   submission: ["approvalStatus", "publicationStatus"],
-  bomDraft: ["dataStatus", "approvalStatus", "publicationStatus"],
   workflow: ["applicationStatus", "approvalStatus", "readinessStatus"],
   applicationStatus: ["applicationStatus"],
   approvalStatus: ["approvalStatus"],

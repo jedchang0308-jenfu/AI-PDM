@@ -563,7 +563,6 @@ function submissionDetail(id, status, overrides = {}) {
       }
     ],
     references: [],
-    bom: null,
     active_lock: null,
     release_package: null,
     approvals: [],

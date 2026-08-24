@@ -467,41 +467,6 @@ async function createDisposableSubmissionFixture({ data, files, cookie, cadRefer
       );
     }
 
-    const bomReferences = preparedReferences.filter(
-      (reference) => reference.referenceType === "assembly_component" && String(reference.referencedPartNumber ?? "").trim() !== ""
-    );
-    if (bomReferences.length > 0) {
-      const bomHeaderId = crypto.randomUUID();
-      db.prepare(
-        `INSERT INTO bom_headers (
-          id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, 'Draft', 'cad_references', ?, ?, ?)`
-      ).run(bomHeaderId, item.id, submissionId, data.revision, bomReferences.length, now, now);
-      const insertBomLine = db.prepare(
-        `INSERT INTO bom_lines (
-          id, bom_header_id, line_no, child_part_number, child_revision, quantity,
-          source_file_id, source_reference_id, source_filename, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      );
-      bomReferences.forEach((reference, index) => {
-        insertBomLine.run(
-          crypto.randomUUID(),
-          bomHeaderId,
-          index + 1,
-          reference.referencedPartNumber,
-          reference.referencedRevision ?? null,
-          reference.quantity ?? 1,
-          reference.sourceFile?.id ?? null,
-          reference.id,
-          reference.sourceFilename,
-          now
-        );
-      });
-      db.prepare(
-        "INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (?, ?, NULL, 'BomDraftMaterialized', ?, ?)"
-      ).run(crypto.randomUUID(), submissionId, JSON.stringify({ source: "file_references", lineCount: bomReferences.length }), now);
-    }
-
     db.prepare(
       "INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (?, ?, ?, 'Submit', ?, ?)"
     ).run(crypto.randomUUID(), submissionId, submittedBy, JSON.stringify({ fileCount: preparedFiles.length, fixtureSource: "qc_api_disposable_db" }), now);
@@ -1601,396 +1566,10 @@ results.push(await expectStatus("HIST-004 Engineer revision history returns 200"
 results.push(await expectStatus("HIST-005 Engineer sees only own revision", engineerHistoryBody.revisions?.length, 1));
 results.push(await expectStatus("HIST-006 Engineer scoped revision belongs to self", engineerHistoryBody.revisions?.[0]?.submitted_by, "user-engineer-demo"));
 
-const bomToken = `${Date.now().toString().slice(-6)}-${Math.random().toString(16).slice(2, 6)}`;
-const bomSubmission = await postSubmissionWithFile(
-  new File([Buffer.from("qc sldasm placeholder")], `QC-BOM-${bomToken}.sldasm`, { type: "application/octet-stream" }),
-  {
-    drawing_number: `QC-BOM-${bomToken}`,
-    part_number: `P-QC-BOM-${bomToken}`,
-    document_type: "Assembly"
-  }
-);
-results.push(await expectStatus("BOM setup assembly submission returns 201", bomSubmission.status, 201));
-
-seedAssemblyReferences(bomSubmission.body.submissionId, [
-  { filename: `QC-BOM-CHILD-1-${bomToken}.sldprt`, partNumber: `P-QC-BOM-C1-${bomToken}`, revision: "A", quantity: 2 },
-  { filename: `QC-BOM-CHILD-2-${bomToken}.sldprt`, partNumber: `P-QC-BOM-C2-${bomToken}`, revision: "B", quantity: 4 }
-]);
-
-const unauthBomResponse = await fetch(`${baseUrl}/api/submissions/${bomSubmission.body.submissionId}/bom?materialize=1`);
-results.push(await expectStatus("BOM-001 unauthenticated BOM returns 401", unauthBomResponse.status, 401));
-
-const engineerBomResponse = await fetch(`${baseUrl}/api/submissions/${bomSubmission.body.submissionId}/bom?materialize=1`, {
-  headers: { cookie: engineerCookie }
-});
-const engineerBomBody = await engineerBomResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOM-002 Engineer can materialize own BOM", engineerBomResponse.status, 200));
-results.push(await expectStatus("BOM-003 BOM header is Draft", engineerBomBody.bom?.status, "Draft"));
-results.push(await expectStatus("BOM-004 BOM contains two lines", engineerBomBody.bom?.lines?.length, 2));
-results.push(await expectStatus("BOM-005 BOM preserves child quantity", engineerBomBody.bom?.lines?.[0]?.quantity, 2));
-results.push(await expectStatus("BOM-006 BOM exposes parent part number", engineerBomBody.bom?.parent_part_number, bomSubmission.data.part_number));
-
-const managerBomResponse = await fetch(`${baseUrl}/api/submissions/${bomSubmission.body.submissionId}/bom`, {
-  headers: { cookie: managerCookie }
-});
-const managerBomBody = await managerBomResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOM-007 Manager can read materialized BOM", managerBomResponse.status, 200));
-results.push(await expectStatus("BOM-008 BOM read returns existing lines", managerBomBody.bom?.lines?.length, 2));
-
-const otherBomAsEngineer = await fetch(`${baseUrl}/api/submissions/${otherEngineerSubmission.body.submissionId}/bom`, {
-  headers: { cookie: engineerCookie }
-});
-results.push(await expectStatus("BOM-009 Engineer cannot read other Engineer BOM", otherBomAsEngineer.status, 403));
-
-const unauthBomExportResponse = await fetch(`${baseUrl}/api/submissions/${bomSubmission.body.submissionId}/bom/export?format=csv`);
-results.push(await expectStatus("BOMEXPORT-001 unauthenticated BOM CSV export returns 401", unauthBomExportResponse.status, 401));
-
-const missingBomExportResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/bom/export?format=csv`, {
-  headers: { cookie: engineerCookie }
-});
-results.push(await expectStatus("BOMEXPORT-002 missing BOM export returns 404", missingBomExportResponse.status, 404));
-
-const engineerBomExportResponse = await fetch(`${baseUrl}/api/submissions/${bomSubmission.body.submissionId}/bom/export?format=csv`, {
-  headers: { cookie: engineerCookie }
-});
-const engineerBomExportBytes = new Uint8Array(await engineerBomExportResponse.clone().arrayBuffer());
-const engineerBomExportText = await engineerBomExportResponse.text();
-results.push(await expectStatus("BOMEXPORT-003 Engineer can export own BOM CSV", engineerBomExportResponse.status, 200));
-results.push(
-  await expectStatus("BOMEXPORT-004 BOM CSV export uses csv content type", engineerBomExportResponse.headers.get("content-type")?.startsWith("text/csv") ?? false, true)
-);
-results.push(
-  await expectStatus(
-    "BOMEXPORT-005 BOM CSV export has UTF-8 BOM",
-    engineerBomExportBytes[0] === 0xef && engineerBomExportBytes[1] === 0xbb && engineerBomExportBytes[2] === 0xbf,
-    true
-  )
-);
-results.push(
-  await expectStatus(
-    "BOMEXPORT-006 BOM CSV export contains child and source filename",
-    engineerBomExportText.includes(`P-QC-BOM-C1-${bomToken}`) && engineerBomExportText.includes(`QC-BOM-${bomToken}.sldasm`),
-    true
-  )
-);
-
-const managerBomXlsResponse = await fetch(`${baseUrl}/api/submissions/${bomSubmission.body.submissionId}/bom/export?format=xls`, {
-  headers: { cookie: managerCookie }
-});
-const managerBomXlsText = await managerBomXlsResponse.text();
-results.push(await expectStatus("BOMEXPORT-007 Manager can export BOM Excel", managerBomXlsResponse.status, 200));
-results.push(
-  await expectStatus(
-    "BOMEXPORT-008 BOM Excel export uses Excel content type",
-    managerBomXlsResponse.headers.get("content-type")?.startsWith("application/vnd.ms-excel") ?? false,
-    true
-  )
-);
-results.push(
-  await expectStatus(
-    "BOMEXPORT-009 BOM Excel export uses xls filename and workbook content",
-    (managerBomXlsResponse.headers.get("content-disposition")?.includes(".xls") ?? false) &&
-      managerBomXlsText.includes("<Workbook") &&
-      managerBomXlsText.includes(`P-QC-BOM-C1-${bomToken}`),
-    true
-  )
-);
-results.push(
-  await expectStatus(
-    "BOMEXPORT-010 Engineer cannot export other Engineer BOM",
-    (
-      await fetch(`${baseUrl}/api/submissions/${otherEngineerSubmission.body.submissionId}/bom/export?format=csv`, {
-        headers: { cookie: engineerCookie }
-      })
-    ).status,
-    403
-  )
-);
-
-const autoBomToken = `${Date.now().toString().slice(-6)}-${Math.random().toString(16).slice(2, 6)}`;
-const autoBomFilename = `QC-BOM-AUTO-${autoBomToken}.sldasm`;
-const autoBomSubmission = await postSubmissionWithFile(
-  new File([Buffer.from("qc sldasm auto bom placeholder")], autoBomFilename, { type: "application/octet-stream" }),
-  {
-    drawing_number: `QC-BOM-AUTO-${autoBomToken}`,
-    part_number: `P-QC-BOM-AUTO-${autoBomToken}`,
-    document_type: "Assembly"
-  },
-  engineerCookie,
-  [
-    {
-      sourceFilename: autoBomFilename,
-      sourceFileRole: "sldasm",
-      referencedFilename: `QC-BOM-AUTO-CHILD-${autoBomToken}.sldprt`,
-      referencedPartNumber: `P-QC-BOM-AUTO-C1-${autoBomToken}`,
-      referencedDrawingNumber: `D-QC-BOM-AUTO-C1-${autoBomToken}`,
-      referencedRevision: "C",
-      referenceType: "assembly_component",
-      quantity: 3,
-      extractionMethod: "qc_payload",
-      confidence: "high"
-    }
-  ]
-);
-results.push(await expectStatus("BOM-AUTO setup assembly submission returns 201", autoBomSubmission.status, 201));
-
-const autoBomResponse = await fetch(`${baseUrl}/api/submissions/${autoBomSubmission.body.submissionId}/bom`, {
-  headers: { cookie: engineerCookie }
-});
-const autoBomBody = await autoBomResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOM-010 submission auto creates BOM draft from references", autoBomResponse.status, 200));
-results.push(await expectStatus("BOM-011 auto BOM contains one line", autoBomBody.bom?.lines?.length, 1));
-results.push(await expectStatus("BOM-012 auto BOM preserves uploaded reference quantity", autoBomBody.bom?.lines?.[0]?.quantity, 3));
-
-const autoBomDetailResponse = await fetch(`${baseUrl}/api/submissions/${autoBomSubmission.body.submissionId}`, {
-  headers: { cookie: engineerCookie }
-});
-const autoBomDetailBody = await autoBomDetailResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOM-013 submission detail exposes auto BOM", autoBomDetailBody.submission?.bom?.lines?.length, 1));
-
-const bomDiffToken = `${Date.now().toString().slice(-6)}-${Math.random().toString(16).slice(2, 6)}`;
-const bomDiffPartNumber = `P-QC-BOMDIFF-${bomDiffToken}`;
-const bomDiffDrawingNumber = `QC-BOMDIFF-${bomDiffToken}`;
-const bomDiffBaseFilename = `QC-BOMDIFF-${bomDiffToken}-A.sldasm`;
-const bomDiffTargetFilename = `QC-BOMDIFF-${bomDiffToken}-B.sldasm`;
-const bomDiffBaseSubmission = await postSubmissionWithFile(
-  new File([Buffer.from("qc bom diff base assembly")], bomDiffBaseFilename, { type: "application/octet-stream" }),
-  {
-    drawing_number: bomDiffDrawingNumber,
-    part_number: bomDiffPartNumber,
-    revision: "A",
-    document_type: "Assembly"
-  },
-  engineerCookie,
-  [
-    {
-      sourceFilename: bomDiffBaseFilename,
-      sourceFileRole: "sldasm",
-      referencedFilename: `QC-BOMDIFF-C1-${bomDiffToken}.sldprt`,
-      referencedPartNumber: `P-QC-BOMDIFF-C1-${bomDiffToken}`,
-      referencedDrawingNumber: `D-QC-BOMDIFF-C1-${bomDiffToken}`,
-      referencedRevision: "A",
-      referenceType: "assembly_component",
-      quantity: 1,
-      extractionMethod: "qc_payload",
-      confidence: "high"
-    },
-    {
-      sourceFilename: bomDiffBaseFilename,
-      sourceFileRole: "sldasm",
-      referencedFilename: `QC-BOMDIFF-C2-${bomDiffToken}.sldprt`,
-      referencedPartNumber: `P-QC-BOMDIFF-C2-${bomDiffToken}`,
-      referencedDrawingNumber: `D-QC-BOMDIFF-C2-${bomDiffToken}`,
-      referencedRevision: "A",
-      referenceType: "assembly_component",
-      quantity: 2,
-      extractionMethod: "qc_payload",
-      confidence: "high"
-    },
-    {
-      sourceFilename: bomDiffBaseFilename,
-      sourceFileRole: "sldasm",
-      referencedFilename: `QC-BOMDIFF-C4-${bomDiffToken}.sldprt`,
-      referencedPartNumber: `P-QC-BOMDIFF-C4-${bomDiffToken}`,
-      referencedDrawingNumber: `D-QC-BOMDIFF-C4-${bomDiffToken}`,
-      referencedRevision: "A",
-      referenceType: "assembly_component",
-      quantity: 4,
-      extractionMethod: "qc_payload",
-      confidence: "high"
-    }
-  ]
-);
-results.push(await expectStatus("BOMDIFF setup base submission returns 201", bomDiffBaseSubmission.status, 201));
-
-const bomDiffTargetSubmission = await postSubmissionWithFile(
-  new File([Buffer.from("qc bom diff target assembly")], bomDiffTargetFilename, { type: "application/octet-stream" }),
-  {
-    drawing_number: bomDiffDrawingNumber,
-    part_number: bomDiffPartNumber,
-    revision: "B",
-    document_type: "Assembly"
-  },
-  engineerCookie,
-  [
-    {
-      sourceFilename: bomDiffTargetFilename,
-      sourceFileRole: "sldasm",
-      referencedFilename: `QC-BOMDIFF-C1-${bomDiffToken}.sldprt`,
-      referencedPartNumber: `P-QC-BOMDIFF-C1-${bomDiffToken}`,
-      referencedDrawingNumber: `D-QC-BOMDIFF-C1-${bomDiffToken}`,
-      referencedRevision: "A",
-      referenceType: "assembly_component",
-      quantity: 1,
-      extractionMethod: "qc_payload",
-      confidence: "high"
-    },
-    {
-      sourceFilename: bomDiffTargetFilename,
-      sourceFileRole: "sldasm",
-      referencedFilename: `QC-BOMDIFF-C2-${bomDiffToken}.sldprt`,
-      referencedPartNumber: `P-QC-BOMDIFF-C2-${bomDiffToken}`,
-      referencedDrawingNumber: `D-QC-BOMDIFF-C2-${bomDiffToken}`,
-      referencedRevision: "A",
-      referenceType: "assembly_component",
-      quantity: 5,
-      extractionMethod: "qc_payload",
-      confidence: "high"
-    },
-    {
-      sourceFilename: bomDiffTargetFilename,
-      sourceFileRole: "sldasm",
-      referencedFilename: `QC-BOMDIFF-C3-${bomDiffToken}.sldprt`,
-      referencedPartNumber: `P-QC-BOMDIFF-C3-${bomDiffToken}`,
-      referencedDrawingNumber: `D-QC-BOMDIFF-C3-${bomDiffToken}`,
-      referencedRevision: "A",
-      referenceType: "assembly_component",
-      quantity: 1,
-      extractionMethod: "qc_payload",
-      confidence: "high"
-    }
-  ]
-);
-results.push(await expectStatus("BOMDIFF setup target submission returns 201", bomDiffTargetSubmission.status, 201));
-
-const aiImpactParentFilename = `QC-AI-IMPACT-PARENT-${bomDiffToken}.sldasm`;
-const aiImpactParentSubmission = await postSubmissionWithFile(
-  new File([Buffer.from("qc ai impact parent assembly")], aiImpactParentFilename, { type: "application/octet-stream" }),
-  {
-    drawing_number: `QC-AI-IMPACT-PARENT-${bomDiffToken}`,
-    part_number: `P-QC-AI-IMPACT-PARENT-${bomDiffToken}`,
-    revision: "A",
-    document_type: "Assembly"
-  },
-  engineerCookie,
-  [
-    {
-      sourceFilename: aiImpactParentFilename,
-      sourceFileRole: "sldasm",
-      referencedFilename: bomDiffTargetFilename,
-      referencedPartNumber: bomDiffPartNumber,
-      referencedDrawingNumber: bomDiffDrawingNumber,
-      referencedRevision: "B",
-      referenceType: "assembly_component",
-      quantity: 1,
-      extractionMethod: "qc_payload",
-      confidence: "high"
-    }
-  ]
-);
-results.push(await expectStatus("AI impact setup parent submission returns 201", aiImpactParentSubmission.status, 201));
-
-const aiImpactParent2Filename = `QC-AI-IMPACT-PARENT-2-${bomDiffToken}.sldasm`;
-const aiImpactParent2Submission = await postSubmissionWithFile(
-  new File([Buffer.from("qc ai impact parent assembly 2")], aiImpactParent2Filename, { type: "application/octet-stream" }),
-  {
-    drawing_number: `QC-AI-IMPACT-PARENT-2-${bomDiffToken}`,
-    part_number: `P-QC-AI-IMPACT-PARENT-2-${bomDiffToken}`,
-    revision: "A",
-    document_type: "Assembly"
-  },
-  engineerCookie,
-  [
-    {
-      sourceFilename: aiImpactParent2Filename,
-      sourceFileRole: "sldasm",
-      referencedFilename: bomDiffTargetFilename,
-      referencedPartNumber: bomDiffPartNumber,
-      referencedDrawingNumber: bomDiffDrawingNumber,
-      referencedRevision: "B",
-      referenceType: "assembly_component",
-      quantity: 2,
-      extractionMethod: "qc_payload",
-      confidence: "high"
-    }
-  ]
-);
-results.push(await expectStatus("AI impact setup second parent submission returns 201", aiImpactParent2Submission.status, 201));
-
-const unauthBomDiffResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/bom/diff`);
-results.push(await expectStatus("BOMDIFF-001 unauthenticated BOM diff returns 401", unauthBomDiffResponse.status, 401));
-
-const defaultBomDiffResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/bom/diff`, {
-  headers: { cookie: engineerCookie }
-});
-const defaultBomDiffBody = await defaultBomDiffResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOMDIFF-002 default previous BOM diff returns 200", defaultBomDiffResponse.status, 200));
-results.push(await expectStatus("BOMDIFF-003 default diff uses base revision A", defaultBomDiffBody.diff?.base_revision, "A"));
-results.push(await expectStatus("BOMDIFF-004 default diff uses target revision B", defaultBomDiffBody.diff?.target_revision, "B"));
-results.push(await expectStatus("BOMDIFF-005 default diff changed count", defaultBomDiffBody.diff?.changed_count, 1));
-results.push(await expectStatus("BOMDIFF-006 default diff added count", defaultBomDiffBody.diff?.added_count, 1));
-results.push(await expectStatus("BOMDIFF-007 default diff removed count", defaultBomDiffBody.diff?.removed_count, 1));
-results.push(await expectStatus("BOMDIFF-008 default diff unchanged count", defaultBomDiffBody.diff?.unchanged_count, 1));
-results.push(
-  await expectStatus(
-    "BOMDIFF-009 changed line preserves before and after quantity",
-    defaultBomDiffBody.diff?.lines?.some((line) => line.change_type === "changed" && line.from_quantity === 2 && line.to_quantity === 5),
-    true
-  )
-);
-
-const explicitBomDiffResponse = await fetch(
-  `${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/bom/diff?baseSubmissionId=${bomDiffBaseSubmission.body.submissionId}`,
-  { headers: { cookie: managerCookie } }
-);
-const explicitBomDiffBody = await explicitBomDiffResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOMDIFF-010 explicit base BOM diff returns 200", explicitBomDiffResponse.status, 200));
-results.push(await expectStatus("BOMDIFF-011 explicit base comparison is marked explicit", explicitBomDiffBody.comparison, "explicit"));
-
-const crossUserBomDiffResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/bom/diff`, {
-  headers: { cookie: engineer2Cookie }
-});
-results.push(await expectStatus("BOMDIFF-012 Engineer cannot diff another Engineer BOM", crossUserBomDiffResponse.status, 403));
-
-const noPreviousBomDiffResponse = await fetch(`${baseUrl}/api/submissions/${autoBomSubmission.body.submissionId}/bom/diff`, {
-  headers: { cookie: engineerCookie }
-});
-results.push(await expectStatus("BOMDIFF-013 BOM diff without previous BOM returns 404", noPreviousBomDiffResponse.status, 404));
-
-const whereUsedChildPartNumber = `P-QC-BOMDIFF-C3-${bomDiffToken}`;
-const unauthWhereUsedResponse = await fetch(`${baseUrl}/api/items/${encodeURIComponent(whereUsedChildPartNumber)}/where-used`);
-results.push(await expectStatus("WHEREUSED-001 unauthenticated where-used returns 401", unauthWhereUsedResponse.status, 401));
-
-const engineerWhereUsedResponse = await fetch(`${baseUrl}/api/items/${encodeURIComponent(whereUsedChildPartNumber)}/where-used`, {
-  headers: { cookie: engineerCookie }
-});
-const engineerWhereUsedBody = await engineerWhereUsedResponse.json().catch(() => ({}));
-results.push(await expectStatus("WHEREUSED-002 Engineer where-used returns 200", engineerWhereUsedResponse.status, 200));
-results.push(await expectStatus("WHEREUSED-003 Engineer where-used finds one parent", engineerWhereUsedBody.whereUsed?.length, 1));
-results.push(
-  await expectStatus(
-    "WHEREUSED-004 where-used parent is target BOM submission",
-    engineerWhereUsedBody.whereUsed?.[0]?.parent_submission_id,
-    bomDiffTargetSubmission.body.submissionId
-  )
-);
-results.push(await expectStatus("WHEREUSED-005 where-used preserves quantity", engineerWhereUsedBody.whereUsed?.[0]?.quantity, 1));
-
-const managerWhereUsedResponse = await fetch(`${baseUrl}/api/items/${encodeURIComponent(whereUsedChildPartNumber)}/where-used`, {
-  headers: { cookie: managerCookie }
-});
-const managerWhereUsedBody = await managerWhereUsedResponse.json().catch(() => ({}));
-results.push(await expectStatus("WHEREUSED-006 Manager where-used returns 200", managerWhereUsedResponse.status, 200));
-results.push(await expectStatus("WHEREUSED-007 Manager where-used sees parent", managerWhereUsedBody.whereUsed?.length, 1));
-
-const scopedWhereUsedResponse = await fetch(`${baseUrl}/api/items/${encodeURIComponent(whereUsedChildPartNumber)}/where-used`, {
-  headers: { cookie: engineer2Cookie }
-});
-const scopedWhereUsedBody = await scopedWhereUsedResponse.json().catch(() => ({}));
-results.push(await expectStatus("WHEREUSED-008 other Engineer where-used returns 200", scopedWhereUsedResponse.status, 200));
-results.push(await expectStatus("WHEREUSED-009 other Engineer where-used is scoped empty", scopedWhereUsedBody.whereUsed?.length, 0));
-
-const unusedWhereUsedResponse = await fetch(`${baseUrl}/api/items/${encodeURIComponent(`P-QC-WHEREUSED-UNUSED-${bomDiffToken}`)}/where-used`, {
-  headers: { cookie: engineerCookie }
-});
-const unusedWhereUsedBody = await unusedWhereUsedResponse.json().catch(() => ({}));
-results.push(await expectStatus("WHEREUSED-010 unused part where-used returns 200", unusedWhereUsedResponse.status, 200));
-results.push(await expectStatus("WHEREUSED-011 unused part where-used is empty", unusedWhereUsedBody.whereUsed?.length, 0));
-
-const unauthSummaryResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/ai-summary`);
+const unauthSummaryResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/ai-summary`);
 results.push(await expectStatus("SUMMARY-001 unauthenticated AI summary returns 401", unauthSummaryResponse.status, 401));
 
-const engineerSummaryResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/ai-summary`, {
+const engineerSummaryResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/ai-summary`, {
   headers: { cookie: engineerCookie }
 });
 const engineerSummaryBody = await engineerSummaryResponse.json().catch(() => ({}));
@@ -2000,54 +1579,37 @@ results.push(await expectStatus("SUMMARY-002 Engineer can read own AI summary", 
 results.push(await expectStatus("SUMMARY-003 AI summary includes change reason", summarySectionKeys.has("change_reason"), true));
 results.push(await expectStatus("SUMMARY-004 AI summary includes files", summarySectionKeys.has("files"), true));
 results.push(await expectStatus("SUMMARY-005 AI summary includes revision history", summarySectionKeys.has("revision_history"), true));
-results.push(await expectStatus("SUMMARY-006 AI summary includes BOM diff", summarySectionKeys.has("bom_diff"), true));
-results.push(await expectStatus("SUMMARY-007 AI summary includes Where-used", summarySectionKeys.has("where_used"), true));
 results.push(await expectStatus("SUMMARY-008 AI summary includes missing files", summarySectionKeys.has("missing_files"), true));
 results.push(await expectStatus("SUMMARY-009 AI summary reports missing DWG", engineerSummaryBody.summary?.missing_file_roles?.includes("dwg"), true));
-results.push(await expectStatus("SUMMARY-010 AI summary has traceable BOM and Where-used sources", summarySourceTypes.has("bom") && summarySourceTypes.has("where_used"), true));
+results.push(await expectStatus("SUMMARY-010 AI summary has traceable submission and file sources", summarySourceTypes.has("submission") && summarySourceTypes.has("file"), true));
 
-const managerSummaryResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/ai-summary`, {
+const managerSummaryResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/ai-summary`, {
   headers: { cookie: managerCookie }
 });
 results.push(await expectStatus("SUMMARY-011 Manager can read AI summary", managerSummaryResponse.status, 200));
 
-const otherEngineerSummaryResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/ai-summary`, {
+const otherEngineerSummaryResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/ai-summary`, {
   headers: { cookie: engineer2Cookie }
 });
 results.push(await expectStatus("SUMMARY-012 Engineer cannot read other Engineer AI summary", otherEngineerSummaryResponse.status, 403));
 
-const unauthRiskResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/ai-risks`);
+const unauthRiskResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/ai-risks`);
 results.push(await expectStatus("RISK-001 unauthenticated AI risks return 401", unauthRiskResponse.status, 401));
 
-const engineerRiskResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/ai-risks`, {
+const engineerRiskResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/ai-risks`, {
   headers: { cookie: engineerCookie }
 });
 const engineerRiskBody = await engineerRiskResponse.json().catch(() => ({}));
 const engineerRiskCodes = new Set(engineerRiskBody.report?.risks?.map((risk) => risk.code) ?? []);
-const whereUsedRisk = engineerRiskBody.report?.risks?.find((risk) => risk.code === "where_used_impact");
 results.push(await expectStatus("RISK-002 Engineer can read own AI risks", engineerRiskResponse.status, 200));
 results.push(await expectStatus("RISK-003 AI risks detect missing handoff file", engineerRiskCodes.has("missing_handoff_file"), true));
-results.push(await expectStatus("RISK-004 AI risks detect multi-parent Where-used", engineerRiskCodes.has("where_used_impact"), true));
-results.push(await expectStatus("RISK-005 Where-used risk has traceable sources", (whereUsedRisk?.sources?.length ?? 0) >= 2, true));
 
-const baseRiskResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffBaseSubmission.body.submissionId}/ai-risks`, {
-  headers: { cookie: engineerCookie }
-});
-const baseRiskBody = await baseRiskResponse.json().catch(() => ({}));
-results.push(
-  await expectStatus(
-    "RISK-006 older submission detects newer revision",
-    baseRiskBody.report?.risks?.some((risk) => risk.code === "newer_revision_exists"),
-    true
-  )
-);
-
-const managerRiskResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/ai-risks`, {
+const managerRiskResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/ai-risks`, {
   headers: { cookie: managerCookie }
 });
 results.push(await expectStatus("RISK-007 Manager can read AI risks", managerRiskResponse.status, 200));
 
-const otherEngineerRiskResponse = await fetch(`${baseUrl}/api/submissions/${bomDiffTargetSubmission.body.submissionId}/ai-risks`, {
+const otherEngineerRiskResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/ai-risks`, {
   headers: { cookie: engineer2Cookie }
 });
 results.push(await expectStatus("RISK-008 Engineer cannot read other Engineer AI risks", otherEngineerRiskResponse.status, 403));
@@ -2107,13 +1669,6 @@ results.push(await expectStatus("AI-011 summary chat returns source list", Array
 
 const detailChat = await postChat("tool: get_submission_detail", { currentSubmissionId: releasable.body.submissionId }, managerCookie);
 results.push(await expectStatus("AI-012 detail tool returns sources", Array.isArray(detailChat.body.sources) && detailChat.body.sources.some((source) => source.label === releasable.body.submissionId), true));
-
-const aiImpactChat = await postChat("tool: get_submission_detail", { currentSubmissionId: bomDiffTargetSubmission.body.submissionId }, managerCookie);
-results.push(await expectStatus("AI-022 contextual AI summary includes BOM diff", aiImpactChat.body.answer?.includes("BOM diff：新增 1，移除 1，變更 1，未變 1") ?? false, true));
-results.push(await expectStatus("AI-023 contextual AI summary includes Where-used impact", aiImpactChat.body.answer?.includes("Where-used：此料號目前被 2 個上層 BOM 使用") ?? false, true));
-results.push(await expectStatus("AI-024 contextual AI summary includes missing file hints", aiImpactChat.body.answer?.includes("缺漏檔案提示：缺 PDF、缺 DWG") ?? false, true));
-results.push(await expectStatus("AI-025 contextual AI summary returns BOM source", aiImpactChat.body.sources?.some((source) => source.type === "bom") ?? false, true));
-results.push(await expectStatus("AI-026 contextual AI summary returns Where-used source", aiImpactChat.body.sources?.some((source) => source.type === "where_used") ?? false, true));
 
 const chatFollowUp = await postChat("pending", {}, managerCookie, chatSeed.body.conversationId);
 results.push(await expectStatus("AI-013 chat continues same conversation", chatFollowUp.body.conversationId, chatSeed.body.conversationId));
@@ -2489,8 +2044,8 @@ results.push(
 );
 results.push(
   await expectStatus(
-    "PROCAPI-005 response includes file hashes and BOM payload shape",
-    Boolean(procurementEntry?.files?.[0]?.sha256 && "bom" in procurementEntry),
+    "PROCAPI-005 response includes file hashes and omits the retired assembly payload",
+    Boolean(procurementEntry?.files?.[0]?.sha256),
     true
   )
 );

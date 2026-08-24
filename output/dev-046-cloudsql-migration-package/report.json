@@ -4,7 +4,7 @@
   "dev": "DEV-046",
   "phase": "Phase-2B-staging-migration-preflight",
   "packageVersion": "dev-046-cloudsql-migration-package/v1",
-  "generatedAt": "2026-08-17T04:43:37.699Z",
+  "generatedAt": "2026-08-24T07:05:45.006Z",
   "target": {
     "projectId": "jenfu-ai-pdm-stg-361825",
     "region": "asia-east1",
@@ -40,7 +40,7 @@
   "sourceInventory": {
     "postgresDirectory": "db/postgres",
     "postgresReadmeDeclaresCloudSqlAuthority": true,
-    "postgresSqlFileCount": 39,
+    "postgresSqlFileCount": 40,
     "cloudSqlGrantFile": "db/cloud-sql/pdm_runtime_grants.sql",
     "cloudSqlGrantFileSha256": "6e159dc9374e6f3d634cebe097704e4ab105ddf62384012bc75a1ad5d13af783",
     "singletonMigrationRunnerPresent": true,
@@ -395,6 +395,15 @@
         "hasSupabaseRoleReferences": false,
         "supabaseRoleReferenceLines": 0,
         "ddlReviewLines": 1
+      },
+      {
+        "file": "db/postgres/047_remove_bom_module.sql",
+        "sha256": "c18c284da2a2b25adc6fc1c34501c7317d2ebbe0a44eb16d6d04075e2e53c450",
+        "bytes": 2134,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 21
       }
     ]
   },
@@ -675,9 +684,9 @@
     ]
   },
   "ddlRisk": {
-    "totalReviewLines": 133,
-    "blockingDestructiveLines": 7,
-    "reviewRequiredIdempotentLines": 124,
+    "totalReviewLines": 154,
+    "blockingDestructiveLines": 27,
+    "reviewRequiredIdempotentLines": 125,
     "sampleFindings": [
       {
         "file": "db/postgres/001_initial_schema.sql",
@@ -821,7 +830,7 @@
     "orderedManifestPath": "cloudsql-migration-manifest.json",
     "runnerContractPath": "runner-contract.md",
     "supportFileCount": 2,
-    "orderedSchemaMigrationCount": 37,
+    "orderedSchemaMigrationCount": 38,
     "supportFiles": [
       {
         "output": "sql/000_admin_bootstrap_grants.sql",
@@ -1354,6 +1363,20 @@
         "bytes": 868,
         "transformations": {
           "removedTransactionWrappers": 2,
+          "removedRlsStatements": 0,
+          "rewrittenSupabaseRoleReferences": 0
+        }
+      },
+      {
+        "source": "db/postgres/047_remove_bom_module.sql",
+        "output": "sql/047_remove_bom_module.cloudsql.sql",
+        "version": "047",
+        "name": "047_remove_bom_module",
+        "sourceSha256": "c18c284da2a2b25adc6fc1c34501c7317d2ebbe0a44eb16d6d04075e2e53c450",
+        "outputSha256": "1e3b9ab54421c3296d8f385f788b057b837e15cc6e7a7f1a8d9932a726a316f2",
+        "bytes": 2371,
+        "transformations": {
+          "removedTransactionWrappers": 0,
           "removedRlsStatements": 0,
           "rewrittenSupabaseRoleReferences": 0
         }

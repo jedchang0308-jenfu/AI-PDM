@@ -44,3 +44,4 @@ Implementation notes:
 - Human-controlled PDM approval decisions are migration `036_human_approval_decisions.sql`; it adds the distinct `request_more_information` audit action without deriving available decisions from FFF outcomes.
 - DEV-068 pre-submit recognition source context is migration `037_drawing_recognition_pre_submit_source.sql`; it extends the session constraint for `drawing_number` and remains local/shadow evidence until separately authorized for production.
 - DEV-069 cancelled-candidate number release is migration `039_allow_recycled_candidate_drawing_codes.sql`; it runs after the canonical Drawing aggregate exists and keeps every Cloud SQL migration-history version unique.
+- DEV-095 BOM retirement is migration `047_remove_bom_module.sql`; it permanently deletes the retired module tables and compatibility actions. Production execution requires a verified Cloud SQL backup and the dedicated live-migration approval gate.

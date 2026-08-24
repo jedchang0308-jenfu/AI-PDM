@@ -173,12 +173,6 @@ try {
   }
   await ownerContext.close();
 
-  const domainSelect = page.locator(".approval-filter-field select").nth(1);
-  await domainSelect.selectOption("bom");
-  await page.waitForURL(/domain=bom/u, { timeout: 10000 });
-  assert.equal(new URL(page.url()).searchParams.get("domain"), "bom", "domain filter is reflected in URL");
-  assert.equal(await page.locator(".approval-filter-field select").nth(1).inputValue(), "bom", "domain filter persists after reload state");
-
   await page.screenshot({ path: path.join(outputDir, "approval-workbench.png"), fullPage: true });
   assert.deepEqual(failedResponses, [], "approval workbench has no 5xx responses");
   assert.deepEqual(consoleErrors, [], "approval workbench has no console/page errors");

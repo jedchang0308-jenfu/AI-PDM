@@ -56,7 +56,6 @@ const numberingSearchPageSource = read("src/app/numbering/search/page.tsx");
 const masterAttachmentPanelSource = read("src/components/master-attachment-panel.tsx");
 const globalsSource = read("src/app/globals.css");
 const numberingApprovalsPageSource = read("src/app/numbering/approvals/page.tsx");
-const bomReviewsPageSource = read("src/app/bom/reviews/page.tsx");
 const numberingChangeReviewsPageSource = read("src/app/numbering/change-reviews/page.tsx");
 const reviewActionHandlerSource = read("src/app/api/numbering/reviews/_review-action-handler.ts");
 const legacyRedirectSource = read("src/lib/approval-workbench-legacy-redirect.ts");
@@ -72,16 +71,6 @@ const legacyDecisionRoutes = [
     route: "src/app/api/submission-lifecycle-requests/[requestId]/reject/route.ts",
     required: "decideApprovalPlatformLegacySubmissionAsync",
     forbidden: ["rejectSubmissionObsoleteReviewAsync"]
-  },
-  {
-    route: "src/app/api/bom/reviews/[reviewId]/approve/route.ts",
-    required: "decideApprovalPlatformLegacyBomAsync",
-    forbidden: ["approveBomWorkbenchReviewAsync"]
-  },
-  {
-    route: "src/app/api/bom/reviews/[reviewId]/reject/route.ts",
-    required: "decideApprovalPlatformLegacyBomAsync",
-    forbidden: ["rejectBomWorkbenchReviewAsync"]
   },
   {
     route: "src/app/api/numbering/approval-decisions/route.ts",
@@ -141,7 +130,6 @@ assert(
 assertIncludes(repositorySource, "decodeLegacyApprovalId", "Legacy approval IDs are explicitly decoded");
 assertIncludes(repositorySource, "listLegacyNumberingInbox", "Numbering adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacySubmissionInbox", "Submission adapter participates in unified inbox");
-assertIncludes(repositorySource, "listLegacyBomInbox", "BOM adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacyDrawingPackageInbox", "Drawing package adapter participates in unified inbox");
 assertIncludes(repositorySource, "legacy_drawing_revision_review", "Drawing revision review adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacyDrawingRevisionReviewInbox", "Drawing revision review inbox adapter is present");
@@ -155,7 +143,6 @@ assertIncludes(sidebarSource, 'label: "審核工作台"', "Phase 1C sidebar expo
 assertIncludes(sidebarSource, 'badge: "approvalPending"', "Phase 1C approval workbench has pending-review badge");
 assertIncludes(sidebarSource, "/api/approvals/inbox?status=pending&limit=100", "Phase 1C sidebar badge reads pending inbox count");
 assertIncludes(sidebarSource, "approval-inbox-changed", "Phase 1C sidebar badge refreshes after approval decisions");
-assert(!sidebarSource.includes('label: "BOM 審核"'), "Phase 1C removes BOM review from primary sidebar");
 assert(!sidebarSource.includes('label: "發行審核"'), "Phase 1C removes release review from primary sidebar");
 assert(!sidebarSource.includes('label: "圖面進版影響審核"'), "Phase 1C removes drawing revision impact review from primary sidebar");
 assertIncludes(approvalPageSource, "<h1>審核工作台", "Phase 1C workbench page is labeled as approval workbench");
@@ -191,10 +178,8 @@ assertIncludes(globalsSource, ".master-attachment-status.approval-pending", "Pha
 assertIncludes(legacyRedirectSource, "buildLegacyApprovalWorkbenchRedirect", "Phase 1C-B legacy redirect helper is present");
 assertIncludes(legacyRedirectSource, "numbering_change_reviews", "Phase 1C-B legacy redirect helper maps drawing revision reviews");
 assertIncludes(numberingApprovalsPageSource, "redirect(buildLegacyApprovalWorkbenchRedirect", "Phase 1C-B numbering approvals route redirects to workbench");
-assertIncludes(bomReviewsPageSource, "redirect(buildLegacyApprovalWorkbenchRedirect", "Phase 1C-B BOM reviews route redirects to workbench");
 assertIncludes(numberingChangeReviewsPageSource, "redirect(buildLegacyApprovalWorkbenchRedirect", "Phase 1C-B drawing revision reviews route redirects to workbench");
 assert(!numberingApprovalsPageSource.includes("use client"), "Phase 1C-B numbering approvals page is no longer an independent client inbox");
-assert(!bomReviewsPageSource.includes("use client"), "Phase 1C-B BOM reviews page is no longer an independent client inbox");
 assert(!numberingChangeReviewsPageSource.includes("use client"), "Phase 1C-B drawing revision reviews page is no longer an independent client inbox");
 assertIncludes(serviceSource, "drawingRevisionReviewDecisionAction", "Phase 1C-B platform service maps drawing revision review decisions");
 assertIncludes(serviceSource, "decideApprovalPlatformLegacyDrawingRevisionReviewActionAsync", "Phase 1C-B legacy drawing revision route uses platform facade");

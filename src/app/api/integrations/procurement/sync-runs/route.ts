@@ -66,18 +66,7 @@ export async function POST(request: Request) {
       filename: submission.release_package.package_filename,
       sha256: submission.release_package.sha256,
       file_size: submission.release_package.file_size
-    },
-    bom: submission.bom
-      ? {
-          line_count: submission.bom.line_count,
-          lines: submission.bom.lines.map((line) => ({
-            line_no: line.line_no,
-            child_part_number: line.child_part_number,
-            child_revision: line.child_revision,
-            quantity: line.quantity
-          }))
-        }
-      : null
+    }
   };
 
   const run = await createProcurementSyncRunAsync({

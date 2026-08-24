@@ -89,7 +89,7 @@ function configureDatabase() {
     JOIN review_confirmation_events confirmation
       ON confirmation.review_id = assessment.id AND confirmation.company_id = assessment.company_id
     WHERE assessment.drawing_number_id = (SELECT id FROM drawing_numbers WHERE drawing_number = 'A0005-M01')
-      AND confirmation.action IN ('confirm_bom_no_revision', 'confirm_original_part_reuse', 'approve_replacement_part_and_drawing_release')
+      AND confirmation.action IN ('confirm_original_part_reuse', 'approve_replacement_part_and_drawing_release')
   `).get();
   assert.ok(Number(terminalConfirmations.count) >= 3, "A0005-M01 terminal FFF evidence is required");
   const orphan = db.prepare("SELECT id, drawing_number AS drawingNumber FROM drawings WHERE drawing_number = 'A0007-M01' LIMIT 1").get();
