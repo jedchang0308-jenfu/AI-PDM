@@ -26,12 +26,8 @@ const submissionStatusRepositorySource = readProjectFile(root, "src/lib/reposito
 const revisionPolicySource = readProjectFile(root, "src/lib/revision-policy.ts");
 const reviewActionHandlerSource = readProjectFile(root, "src/app/api/numbering/reviews/_review-action-handler.ts");
 const reviewPendingRouteSource = readProjectFile(root, "src/app/api/numbering/reviews/pending/route.ts");
-const reviewConfirmBomRouteSource = readProjectFile(root, "src/app/api/numbering/reviews/[reviewId]/confirm-bom-no-revision/route.ts");
+const reviewConfirmReuseRouteSource = readProjectFile(root, "src/app/api/numbering/reviews/[reviewId]/confirm-original-part-reuse/route.ts");
 const reviewApproveReleaseRouteSource = readProjectFile(root, "src/app/api/numbering/reviews/[reviewId]/approve-confirmed-impact-release/route.ts");
-const bomWorkbenchRepositorySource = readProjectFile(root, "src/lib/repositories/bom-workbench-async-repository.ts");
-const bomSubmitReviewRouteSource = readProjectFile(root, "src/app/api/bom/drafts/[draftId]/submit-review/route.ts");
-const bomReconfirmReplacementRouteSource = readProjectFile(root, "src/app/api/bom/drafts/[draftId]/reconfirm-replacements/route.ts");
-const bomWorkbenchPageSource = readProjectFile(root, "src/app/bom/workbench/page.tsx");
 const drawingSubmissionWorkbenchSource = readProjectFile(root, "src/lib/drawing-submission-workbench.ts");
 const numberStateWorkspaceSource = readProjectFile(root, "src/components/number-state-workspace.tsx");
 const drawingRevisionPageSource = readProjectFile(root, "src/app/numbering/revisions/page.tsx");
@@ -308,101 +304,6 @@ function parseQcRevision(value) {
   return null;
 }
 
-function seedBomReference(database, partNumber) {
-  const itemId = nextId("item");
-  const submissionId = nextId("submission");
-  const bomHeaderId = nextId("bom-header");
-  const bomLineId = nextId("bom-line");
-  database.prepare("INSERT INTO items (id, company_id, part_number, part_name) VALUES (?, ?, ?, ?)").run(
-    itemId,
-    companyId,
-    `ASM-${partNumber}`,
-    "QC assembly"
-  );
-  database
-    .prepare(
-      `
-      INSERT INTO submissions (
-        id, company_id, item_id, drawing_number, revision, material, surface_finish, document_type,
-        change_description, status, submitted_by
-      ) VALUES (?, ?, ?, ?, '1', 'QC material', 'QC finish', 'drawing', 'QC BOM boundary', 'Released', ?)
-      `
-    )
-    .run(submissionId, companyId, itemId, `D-BOM-${partNumber}`, engineer.userId);
-  database
-    .prepare(
-      "INSERT INTO bom_headers (id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count) VALUES (?, ?, ?, '1', 'Draft', 'manual', 1)"
-    )
-    .run(bomHeaderId, itemId, submissionId);
-  database
-    .prepare("INSERT INTO bom_lines (id, bom_header_id, line_no, child_part_number, quantity) VALUES (?, ?, 1, ?, 1)")
-    .run(bomLineId, bomHeaderId, partNumber);
-}
-
-function seedReleasedBomSnapshotReference(database, partNumber) {
-  const itemId = nextId("released-bom-item");
-  const submissionId = nextId("released-bom-submission");
-  const bomHeaderId = nextId("released-bom-header");
-  const bomLineId = nextId("released-bom-line");
-  database.prepare("INSERT INTO items (id, company_id, part_number, part_name) VALUES (?, ?, ?, ?)").run(
-    itemId,
-    companyId,
-    `ASM-REL-${partNumber}`,
-    "QC released assembly"
-  );
-  database
-    .prepare(
-      `
-      INSERT INTO submissions (
-        id, company_id, item_id, drawing_number, revision, material, surface_finish, document_type,
-        change_description, status, submitted_by
-      ) VALUES (?, ?, ?, ?, '1', 'QC material', 'QC finish', 'drawing', 'QC released BOM immutability', 'Released', ?)
-      `
-    )
-    .run(submissionId, companyId, itemId, `D-REL-BOM-${partNumber}`, engineer.userId);
-  database
-    .prepare(
-      "INSERT INTO bom_headers (id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count) VALUES (?, ?, ?, '1', 'ReleasedSnapshot', 'manual', 1)"
-    )
-    .run(bomHeaderId, itemId, submissionId);
-  database
-    .prepare("INSERT INTO bom_lines (id, bom_header_id, line_no, child_part_number, quantity) VALUES (?, ?, 1, ?, 1)")
-    .run(bomLineId, bomHeaderId, partNumber);
-  return bomHeaderId;
-}
-
-function seedUnreleasedBomDraftReference(database, partNumber) {
-  const itemId = nextId("draft-item");
-  const submissionId = nextId("draft-submission");
-  const bomDraftId = nextId("bom-draft");
-  const lineId = nextId("bom-tree-line");
-  database.prepare("INSERT INTO items (id, company_id, part_number, part_name) VALUES (?, ?, ?, ?)").run(
-    itemId,
-    companyId,
-    `ASM-DRAFT-${partNumber}`,
-    "QC draft assembly"
-  );
-  database
-    .prepare(
-      `
-      INSERT INTO submissions (
-        id, company_id, item_id, drawing_number, revision, material, surface_finish, document_type,
-        change_description, status, submitted_by
-      ) VALUES (?, ?, ?, ?, '1', 'QC material', 'QC finish', 'drawing', 'QC BOM draft boundary', 'Pending', ?)
-      `
-    )
-    .run(submissionId, companyId, itemId, `D-DRAFT-${partNumber}`, engineer.userId);
-  database
-    .prepare(
-      "INSERT INTO bom_drafts (id, parent_item_id, parent_submission_id, parent_revision, draft_name, status, source, is_active, line_count, created_by) VALUES (?, ?, ?, '1', 'QC draft BOM', 'Draft', 'manual', 1, 1, ?)"
-    )
-    .run(bomDraftId, itemId, submissionId, engineer.userId);
-  database
-    .prepare("INSERT INTO bom_lines_tree (id, bom_draft_id, node_type, part_number, quantity, sequence_no, source, created_by) VALUES (?, ?, 'item', ?, 1, 1, 'manual', ?)")
-    .run(lineId, bomDraftId, partNumber, engineer.userId);
-  return bomDraftId;
-}
-
 function eventTypes(database, draftId) {
   return database
     .prepare("SELECT event_type FROM part_number_events WHERE part_number_draft_id = ? ORDER BY occurred_at ASC, id ASC")
@@ -416,11 +317,10 @@ const { PdmChangeControlDomainService } = await import(
 
 record("CHG-SRC-001 schema defines part_number_drafts", schema.includes("CREATE TABLE IF NOT EXISTS part_number_drafts"), "db/schema.sql");
 record("CHG-SRC-002 schema defines part_number_events", schema.includes("CREATE TABLE IF NOT EXISTS part_number_events"), "db/schema.sql");
-record("CHG-SRC-003 schema defines replacement / FFF / review / BOM flag tables", [
+record("CHG-SRC-003 schema defines replacement, FFF, and review tables", [
   "part_replacement_links",
   "drawing_revision_fff_assessments",
-  "review_confirmation_events",
-  "bom_reconfirmation_flags"
+  "review_confirmation_events"
 ].every((text) => schema.includes(`CREATE TABLE IF NOT EXISTS ${text}`)), "db/schema.sql");
 record("CHG-SRC-004 active draft number unique index exists", schema.includes("idx_part_number_drafts_active_number"), "db/schema.sql");
 record(
@@ -444,7 +344,6 @@ record("CHG-SRC-005 domain service exposes controlled-boundary functions", [
   "reconfirmPartNumberDraft"
 ].every((text) => serviceSource.includes(text)), "pdm-change-control-domain.ts");
 record("CHG-SRC-006 domain service carries required reason codes", [
-  "referenced_by_bom",
   "referenced_by_replacement_link",
   "drawing_uploaded_to_pdm",
   "submitted_for_review"
@@ -483,7 +382,7 @@ record(
   "CHG-SRC-010 retired draft page is absent and owner workspace owns cancellation",
   !projectFileExists(root, "src/app/numbering/part-drafts/page.tsx") &&
     !sidebarSource.includes('href: "/numbering/part-drafts"') &&
-    numberStateWorkspaceSource.includes("取消申請並釋出保留號碼") &&
+    numberStateWorkspaceSource.includes("取消圖號申請") &&
     numberStateWorkspaceSource.includes('action === "cancel"') &&
     navPermissionSource.includes('"/numbering/part-drafts": "numbering.tasks"'),
   "DEV-048 owner workspace and compatibility permission mapping"
@@ -565,7 +464,7 @@ record(
   "CHG-SRC-014 review action APIs and page exist",
   reviewActionHandlerSource.includes("decideApprovalPlatformLegacyDrawingRevisionReviewActionAsync") &&
     reviewPendingRouteSource.includes("listPendingDrawingRevisionReviews") &&
-  reviewConfirmBomRouteSource.includes("confirm_bom_no_revision") &&
+    reviewConfirmReuseRouteSource.includes("confirm_original_part_reuse") &&
     reviewApproveReleaseRouteSource.includes("approve_replacement_part_and_drawing_release") &&
     changeReviewPageSource.includes("buildLegacyApprovalWorkbenchRedirect") &&
     changeReviewPageSource.includes("numbering_change_reviews") &&
@@ -574,22 +473,11 @@ record(
   "review APIs and unified approval workbench redirect"
 );
 record(
-  "CHG-SRC-015 review release domain supports atomic replacement and BOM flags",
-  ["applyDrawingRevisionReviewAction", "createReleasedPartNumberFromDraft", "createBomReconfirmationFlags", "runReleaseTransaction"].every((text) =>
+  "CHG-SRC-015 review release domain supports atomic replacement release",
+  ["applyDrawingRevisionReviewAction", "createReleasedPartNumberFromDraft", "runReleaseTransaction"].every((text) =>
     serviceSource.includes(text)
   ),
   "pdm-change-control-domain.ts"
-);
-record(
-  "CHG-SRC-016 BOM workbench blocks and resolves replacement reconfirmation flags",
-  bomWorkbenchRepositorySource.includes("BOM_RECONFIRMATION_REQUIRED") &&
-    bomWorkbenchRepositorySource.includes("reconfirmReplacementFlags") &&
-    bomSubmitReviewRouteSource.includes("submitBomWorkbenchDraftReviewAsync") &&
-    bomReconfirmReplacementRouteSource.includes("reconfirmBomWorkbenchReplacementFlagsAsync") &&
-    bomWorkbenchPageSource.includes("reconfirmation_flags") &&
-    bomWorkbenchPageSource.includes("已重新確認") &&
-    bomWorkbenchPageSource.includes("openReconfirmationFlags.length > 0"),
-  "src/app/bom/workbench/page.tsx"
 );
 
 const database = new Database(":memory:");
@@ -779,21 +667,6 @@ try {
     "self_made_source_drawing_required"
   );
 
-  const bomDraft = await service.reservePartNumberDraft({
-    reservedPartNumber: "P-QC-CHG-004",
-    draftType: "new_part",
-    itemType: "standard",
-    actor: engineer
-  });
-  seedBomReference(database, "P-QC-CHG-004");
-  await expectReject(
-    "CHG-BOUNDARY-001 BOM reference blocks recycle",
-    () => service.voidPartNumberDraft({ draftId: bomDraft.id, actor: engineer }),
-    "controlled_boundary_recycle_blocked"
-  );
-  const bomBoundary = await service.getPartNumberControlBoundary(bomDraft.id, engineer);
-  assert("CHG-BOUNDARY-002 BOM reason is reported", bomBoundary.reasons.includes("referenced_by_bom"), JSON.stringify(bomBoundary));
-
   const drawing = seedDrawing(database, "D-QC-CHG-MA1");
   database
     .prepare(
@@ -976,12 +849,12 @@ try {
   );
   const noImpactReview = await service.applyDrawingRevisionReviewAction({
     assessmentId: noImpact.assessment.id,
-    action: "confirm_bom_no_revision",
+    action: "confirm_original_part_reuse",
     actor: manager
   });
   assert(
-    "CHG-REVIEW-002 no-impact review requires BOM no-revision confirmation",
-    noImpactReview.action === "confirm_bom_no_revision" && noImpactReview.replacementPartNumberId === null,
+    "CHG-REVIEW-002 no-impact review requires original-part reuse confirmation",
+    noImpactReview.action === "confirm_original_part_reuse" && noImpactReview.replacementPartNumberId === null,
     JSON.stringify(noImpactReview)
   );
 
@@ -991,7 +864,7 @@ try {
     formState: "suspected_impact",
     fitState: "no_impact",
     functionState: "no_impact",
-    reasonCategory: "BOM / 料件影響",
+    reasonCategory: "料件影響",
     actor: engineer
   });
   await expectReject(
@@ -999,7 +872,7 @@ try {
     () =>
       service.applyDrawingRevisionReviewAction({
         assessmentId: suspected.assessment.id,
-        action: "confirm_bom_no_revision",
+        action: "approve_replacement_part_and_drawing_release",
         actor: manager
       }),
     "review_action_mismatch"
@@ -1012,9 +885,6 @@ try {
   assert("CHG-REVIEW-004 suspected impact allows explicit reuse confirmation", suspectedReview.action === "confirm_original_part_reuse", JSON.stringify(suspectedReview));
 
   const releaseOldPart = seedFormalPart(database, "P-QC-REL-OLD");
-  const flaggedBomDraftId = seedUnreleasedBomDraftReference(database, releaseOldPart.partNumber);
-  const releasedBomHeaderId = seedReleasedBomSnapshotReference(database, releaseOldPart.partNumber);
-  const releasedBomBefore = database.prepare("SELECT child_part_number FROM bom_lines WHERE bom_header_id = ?").get(releasedBomHeaderId).child_part_number;
   const releaseDrawing = seedDrawing(database, "D-QC-REL-MA1");
   const releaseAssessment = await service.submitDrawingRevisionFffAssessment({
     drawingNumberId: releaseDrawing.drawingId,
@@ -1039,26 +909,12 @@ try {
   const replacementDrawingLinkCount = database
     .prepare("SELECT COUNT(*) AS count FROM drawing_part_links WHERE drawing_number_id = ? AND part_number_id = ? AND link_type = 'primary_manufacturing'")
     .get(releaseDrawing.drawingId, releaseResult.replacementPartNumberId).count;
-  const bomFlagCount = database
-    .prepare("SELECT COUNT(*) AS count FROM bom_reconfirmation_flags WHERE bom_draft_id = ? AND old_part_number_id = ?")
-    .get(flaggedBomDraftId, releaseOldPart.partId).count;
-  const openBomFlag = database
-    .prepare(
-      `
-      SELECT resolved_by, resolved_at
-      FROM bom_reconfirmation_flags
-      WHERE bom_draft_id = ? AND old_part_number_id = ?
-      `
-    )
-    .get(flaggedBomDraftId, releaseOldPart.partId);
   assert(
-    "CHG-REVIEW-005 confirmed impact release creates part, replacement link, and BOM flag",
+    "CHG-REVIEW-005 confirmed impact release creates part and replacement links",
     releaseResult.replacementDraft?.status === "released" &&
       replacementLinkCount === 1 &&
-      replacementDrawingLinkCount === 1 &&
-      bomFlagCount === 1 &&
-      releaseResult.bomReconfirmationFlagCount === 1,
-    JSON.stringify({ releaseResult, replacementLinkCount, replacementDrawingLinkCount, bomFlagCount })
+      replacementDrawingLinkCount === 1,
+    JSON.stringify({ releaseResult, replacementLinkCount, replacementDrawingLinkCount })
   );
   const releasedReplacementPart = database
     .prepare(
@@ -1081,18 +937,6 @@ try {
       releasedReplacementPart.root_rule_version_id === "numbering-rule-v2",
     JSON.stringify(releasedReplacementPart)
   );
-  assert(
-    "CHG-BOM-001 BOM reconfirmation flag starts unresolved",
-    openBomFlag?.resolved_by === null && openBomFlag?.resolved_at === null,
-    JSON.stringify(openBomFlag)
-  );
-  const releasedBomAfter = database.prepare("SELECT child_part_number FROM bom_lines WHERE bom_header_id = ?").get(releasedBomHeaderId).child_part_number;
-  assert(
-    "CHG-BOM-002 released BOM keeps old part after replacement release",
-    releasedBomBefore === releaseOldPart.partNumber && releasedBomAfter === releaseOldPart.partNumber,
-    JSON.stringify({ releasedBomBefore, releasedBomAfter })
-  );
-
   const revisionPolicyPart = seedFormalPart(database, "P-QC-REVORDER-001");
   const revisionPolicyDrawing = seedDrawing(database, "D-QC-REVORDER-MA1");
   linkDrawingToPart(database, revisionPolicyDrawing.drawingId, revisionPolicyPart.partId);

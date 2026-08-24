@@ -5584,7 +5584,6 @@ export function analyzeMainDrawingObsolescence(input: MainDrawingImpactInput): M
           "2D manufacturing drawing",
           "3D CAD model",
           "Released PDF package",
-          "BOM or where-used records",
           "Related SOP/WI or inspection documents"
         ]
       : [];
@@ -6758,7 +6757,6 @@ export function deleteDraftNumberingRecord(input: DeleteDraftNumberingRecordInpu
           (SELECT COUNT(*) FROM manufacturing_baselines WHERE part_root_id = @rootId OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)) AS manufacturing_baseline_count,
           (SELECT COUNT(*) FROM manufacturing_baseline_items WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)) AS manufacturing_baseline_item_count,
           (SELECT COUNT(*) FROM part_replacement_links WHERE old_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId) OR new_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId) OR source_drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)) AS replacement_link_count,
-          (SELECT COUNT(*) FROM bom_reconfirmation_flags WHERE old_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId) OR new_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)) AS bom_reconfirmation_count,
           (SELECT COUNT(*) FROM file_assets WHERE (linked_entity_type = 'part_root' AND linked_entity_id = @rootId) OR (linked_entity_type = 'part_number' AND linked_entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)) OR (linked_entity_type = 'drawing_number' AND linked_entity_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId))) AS file_asset_count
       `
       )
@@ -6769,7 +6767,6 @@ export function deleteDraftNumberingRecord(input: DeleteDraftNumberingRecordInpu
       manufacturing_baseline_count: number;
       manufacturing_baseline_item_count: number;
       replacement_link_count: number;
-      bom_reconfirmation_count: number;
       file_asset_count: number;
     };
     const controlledDependencyCount =
@@ -6778,8 +6775,7 @@ export function deleteDraftNumberingRecord(input: DeleteDraftNumberingRecordInpu
       Number(dependencyCounts.shared_model_count ?? 0) +
       Number(dependencyCounts.manufacturing_baseline_count ?? 0) +
       Number(dependencyCounts.manufacturing_baseline_item_count ?? 0) +
-      Number(dependencyCounts.replacement_link_count ?? 0) +
-      Number(dependencyCounts.bom_reconfirmation_count ?? 0);
+      Number(dependencyCounts.replacement_link_count ?? 0);
     if (controlledDependencyCount > 0) throw new Error("NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES");
 
     const now = new Date().toISOString();

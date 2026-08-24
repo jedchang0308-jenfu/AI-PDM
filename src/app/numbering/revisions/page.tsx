@@ -1582,7 +1582,7 @@ function inferRevisionReasonCategory(value: string) {
   if (/標註|文字|註記|字詞/.test(text)) return "標註 / 文字修正";
   if (/尺寸|公差|長度|厚度|孔徑/.test(text)) return "尺寸 / 公差修正";
   if (/材質|製程|表面|熱處理/.test(text)) return "材質 / 製程修正";
-  if (/bom|料件|料號|零件/.test(text)) return "BOM / 料件影響";
+  if (/料件|料號|零件/.test(text)) return "料件影響";
   return "其他";
 }
 

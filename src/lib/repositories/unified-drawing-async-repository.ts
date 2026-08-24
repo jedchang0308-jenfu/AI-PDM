@@ -2,7 +2,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   preserveControlledDrawingRevisionLifecycle,
   projectEffectiveDrawingRevisionLifecycle
-} from "@/lib/drawing-revision-effective-lifecycle";
+} from "../drawing-revision-effective-lifecycle.ts";
 
 export const UNIFIED_DRAWING_LIFECYCLE_STATES = [
   "building",
@@ -329,7 +329,11 @@ function effectiveFormalPackageStatus(row: Pick<FormalRevisionSourceRow, "status
 }
 
 export class UnifiedDrawingAsyncRepository {
-  constructor(private readonly client: AsyncDatabaseClient) {}
+  private readonly client: AsyncDatabaseClient;
+
+  constructor(client: AsyncDatabaseClient) {
+    this.client = client;
+  }
 
   async findByIdOrFormalId(input: { drawingId: string; companyId: string }) {
     const row = await this.client.queryOne<UnifiedDrawingRow>(
@@ -496,7 +500,6 @@ export class UnifiedDrawingAsyncRepository {
              AND assessment.drawing_number_id = package.drawing_number_id
              AND assessment.revision = package.revision
              AND confirmation.action IN (
-               'confirm_bom_no_revision',
                'confirm_original_part_reuse',
                'approve_replacement_part_and_drawing_release'
              )

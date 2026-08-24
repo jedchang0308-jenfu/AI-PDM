@@ -1,7 +1,7 @@
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { drawingRevisionLifecycleLatestHref } from "@/lib/drawing-revision-lifecycle";
 
-export type LegacyApprovalRouteKind = "numbering_approvals" | "bom_reviews" | "numbering_change_reviews";
+export type LegacyApprovalRouteKind = "numbering_approvals" | "numbering_change_reviews";
 
 export type LegacyApprovalSearchParams = Record<string, string | string[] | undefined>;
 
@@ -9,7 +9,6 @@ const allowedStatuses = new Set(["active", "pending", "needs_info", "apply_faile
 
 const routeConfig: Record<LegacyApprovalRouteKind, { domain: string; action?: string }> = {
   numbering_approvals: { domain: "numbering" },
-  bom_reviews: { domain: "bom" },
   numbering_change_reviews: { domain: "numbering", action: "numbering.drawing_revision_impact_review" }
 };
 

@@ -71,20 +71,6 @@ export function serializePublicShare(submission: SubmissionDetail, token: string
       sha256: file.sha256,
       size: file.file_size
     })),
-    bom: submission.bom
-      ? {
-          parent_revision: submission.bom.parent_revision,
-          status: submission.bom.status,
-          line_count: submission.bom.line_count,
-          lines: submission.bom.lines.map((line) => ({
-            line_no: line.line_no,
-            child_part_number: line.child_part_number,
-            child_revision: line.child_revision,
-            quantity: line.quantity,
-            source_filename: line.source_filename
-          }))
-        }
-      : null,
     approvals: submission.approvals.map((approval) => ({
       reviewer_name: approval.reviewer_name,
       decision: approval.decision,

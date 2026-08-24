@@ -264,7 +264,7 @@ try {
   record("TRF-003 candidate text is never workspace lookup authority", candidateLookupError === "TRANSFER_WORKSPACE_NOT_FOUND", { candidateLookupError });
 
   const readiness = await transferModule.buildTransferPackageReadiness(pkg.id, companyId);
-  record("TRF-005 readiness aggregates owner/rule/BOM/file facts with snapshot hash", readiness.ready && readiness.blockers.length === 0 && readiness.snapshot.workspaceSnapshots.length === 2 && readiness.snapshotHash.length === 64, { snapshotHash: readiness.snapshotHash });
+  record("TRF-005 readiness aggregates owner, rule, and file facts with snapshot hash", readiness.ready && readiness.blockers.length === 0 && readiness.snapshot.workspaceSnapshots.length === 2 && readiness.snapshotHash.length === 64, { snapshotHash: readiness.snapshotHash });
 
   const unnumbered = await createWorkspace("Unnumbered", false);
   let blockedPackage = await repository.createDraft({

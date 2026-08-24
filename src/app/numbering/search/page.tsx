@@ -1848,7 +1848,7 @@ function DetailTargetLifecyclePanel({ detail, target }: { detail: RootDetail; ta
         { label: "提醒", value: displayNumberingWarnings(detail.warnings).length }
       ]}
       blockers={[
-        detail.root.recordStatus === "Draft" ? "已領號但尚未建立送審單" : "需確認送審、BOM 與審核關卡狀態",
+        detail.root.recordStatus === "Draft" ? "已領號但尚未建立送審單" : "需確認送審與審核關卡狀態",
         detail.summary.primaryManufacturingCount === 0 ? "尚未找到製造基準關聯" : "製造基準關聯可在下方圖號區檢查",
         displayNumberingWarnings(detail.warnings).length > 0 ? `仍有 ${displayNumberingWarnings(detail.warnings).length} 則提醒未收斂` : "目前沒有未確認提醒"
       ]}

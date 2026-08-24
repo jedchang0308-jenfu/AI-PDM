@@ -28,7 +28,6 @@ export async function GET(request: Request) {
     parentDrawing: url.searchParams.get("parentDrawing") ?? undefined,
     childDrawingNumber: url.searchParams.get("childDrawingNumber") ?? undefined,
     childPartNumber: url.searchParams.get("childPartNumber") ?? undefined,
-    bomIssue: url.searchParams.get("bomIssue") ?? undefined,
     status
   };
   const hasFilters = Object.values(filters).some((value) => value?.trim());

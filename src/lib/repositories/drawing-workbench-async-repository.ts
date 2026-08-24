@@ -359,7 +359,6 @@ export class DrawingWorkbenchAsyncRepository {
              AND assessment.drawing_number_id = package.drawing_number_id
              AND assessment.revision = package.revision
              AND confirmation.action IN (
-               'confirm_bom_no_revision',
                'confirm_original_part_reuse',
                'approve_replacement_part_and_drawing_release'
              )

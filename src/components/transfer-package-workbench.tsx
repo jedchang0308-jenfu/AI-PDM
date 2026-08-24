@@ -725,7 +725,6 @@ function WorkbenchState({ state, error, onRetry }: { state: LoadState; error: st
 function adapterIcon(id: TransferPackageWorkbench["adapters"][number]["id"]) {
   if (id === "intake") return <FileArchive size={19} />;
   if (id === "drawing_part") return <Boxes size={19} />;
-  if (id === "bom") return <ClipboardList size={19} />;
   if (id === "attachments") return <Link2 size={19} />;
   return <ShieldAlert size={19} />;
 }

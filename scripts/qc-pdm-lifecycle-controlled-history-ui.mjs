@@ -105,7 +105,6 @@ function submissionDetailFixture(summary) {
     ...summary,
     files: [],
     references: [],
-    bom: null,
     active_lock: null,
     release_package: null,
     approvals: [],
@@ -211,30 +210,6 @@ function controlledHistoryDrawingEntry() {
   };
 }
 
-function controlledHistoryBomEntry() {
-  return {
-    id: "bom_release:bom-history-001",
-    entity_type: "bom_release",
-    target_id: "bom-history-001",
-    display_code: "P-QC-BOM-001",
-    secondary_code: "D-QC-BOM-001 / Rev A",
-    title: "正式 BOM 歷史件",
-    stage_label: "歷史",
-    result_label: "已作廢",
-    traceability_class: "controlled_history",
-    history_reason: "正式 BOM 已由新結構取代",
-    requested_by_name: "工程師 G",
-    reviewed_by_name: "研發主管 H",
-    requested_at: "2026-06-30T02:00:00.000Z",
-    decided_at: "2026-06-30T02:30:00.000Z",
-    history_at: "2026-06-30T02:30:00.000Z",
-    decision_reason: "新 BOM 已核准發布",
-    source_status: "Obsolete",
-    release_package_available: false,
-    actions: { delete: false, restore: false, obsolete: false }
-  };
-}
-
 function emptyStorageEvidence() {
   return {
     source: { available: false, error: null, evidenceMarkdownPath: null },
@@ -286,8 +261,8 @@ async function installApiFixture(page) {
     }
     if (pathName === "/api/lifecycle/controlled-history") {
       return jsonResponse(route, {
-        entries: [controlledHistoryEntry(historySubmission), controlledHistoryPartEntry(), controlledHistoryDrawingEntry(), controlledHistoryBomEntry()],
-        pagination: { limit: 50, offset: 0, total: 4, hasMore: false },
+        entries: [controlledHistoryEntry(historySubmission), controlledHistoryPartEntry(), controlledHistoryDrawingEntry()],
+        pagination: { limit: 50, offset: 0, total: 3, hasMore: false },
         pdmCompany: { companyId: "company-qc", source: "fixture" }
       });
     }
@@ -303,8 +278,6 @@ async function installApiFixture(page) {
     if (pathName === "/api/storage/evidence") {
       return jsonResponse(route, emptyStorageEvidence());
     }
-    if (pathName.endsWith("/bom/diff")) return jsonResponse(route, { diff: null });
-    if (pathName.includes("/where-used")) return jsonResponse(route, { whereUsed: [] });
     if (pathName.includes("/revisions")) return jsonResponse(route, { revisions: [] });
     if (pathName.endsWith("/ai-summary")) return jsonResponse(route, { summary: null });
     if (pathName.endsWith("/ai-risks")) return jsonResponse(route, { report: null });
@@ -398,7 +371,6 @@ async function runFixture(baseUrl, cookie) {
     record("controlled-history row shows formal drawing label", await panel.getByText("正式圖面", { exact: true }).isVisible());
     record("controlled-history row shows formal part label", await panel.getByText("正式料號", { exact: true }).isVisible());
     record("controlled-history row shows formal drawing-number label", await panel.getByText("正式圖號", { exact: true }).isVisible());
-    record("controlled-history row shows formal BOM label", await panel.getByText("正式 BOM", { exact: true }).isVisible());
     record("controlled-history row shows requester", await panel.getByText("工程師 A").isVisible());
     record("controlled-history row shows reviewer", await panel.getByText("研發主管 B").isVisible());
     record("controlled-history row shows reason", await panel.getByText("圖面已由新正式版取代").isVisible());
@@ -439,7 +411,6 @@ async function runFixture(baseUrl, cookie) {
     await mobilePanel.waitFor({ timeout: 15000 });
     await mobilePanel.evaluate((element) => element.setAttribute("open", ""));
     await mobilePanel.locator("[data-controlled-history-row='submission']", { hasText: "D-QC-HISTORY-001" }).waitFor({ timeout: 15000 });
-    await mobilePanel.locator("[data-controlled-history-row='bom_release']", { hasText: "P-QC-BOM-001" }).waitFor({ timeout: 15000 });
     await assertNoHorizontalOverflow(mobilePage, "mobile");
     await mobilePage.screenshot({ path: mobileScreenshotPath, fullPage: true });
     record("mobile controlled-history screenshot captured", true, mobileScreenshotPath);

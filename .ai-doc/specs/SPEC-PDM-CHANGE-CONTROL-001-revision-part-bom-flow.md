@@ -1,5 +1,7 @@
 # SPEC-PDM-CHANGE-CONTROL-001：圖號進版、料號替代與 BOM 影響管制
 
+> **2026-08-24 Retirement Amendment**：BOM 影響、reconfirmation 與相關 action 已由 `ADR-PDM-BOM-RETIREMENT-001` 取代並移除。本文只保留圖號進版、FFF 與料號替代之非 BOM 契約；所有 BOM 段落均為歷史資料，不得再作現行驗收權威。
+
 > 2026-07-13 Amendment：本文件的 FFF、replacement、BOM reconfirmation 與既有 implementation evidence 保留；候選號正式化、送審鎖定、回收與固定 7 天冷卻語意由 `ADR/SPEC-PDM-NUMBER-STATE-FLOW-001` 取代。只有正式發布後的 official number 永久不可重用。
 
 > 2026-08-10 Identity Amendment：`ADR-PDM-MATERIAL-IDENTITY-REVISION-001` 是「升 Rev 或換 Part Number」的跨模組 authority。料號代表物料身份且無 Revision；Drawing 與 BOM 各自獨立版控。FFF 之外，互換性、法規／品質管制或其他物料身份條件改變也必須建立新料號。

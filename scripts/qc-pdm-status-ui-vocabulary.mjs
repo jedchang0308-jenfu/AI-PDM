@@ -91,7 +91,6 @@ const requiredHeaderFiles = [
   "src/app/numbering/tasks/page.tsx",
   "src/app/numbering/impact/page.tsx",
   "src/app/numbering/reports/page.tsx",
-  "src/app/bom/workbench/page.tsx",
   "src/app/settings/page.tsx"
 ];
 
@@ -110,11 +109,6 @@ record("Report page does not use fileSync for job status help", !reportsPage.inc
 const settingsPage = read("src/app/settings/page.tsx");
 record("Settings lifecycle uses settingsLifecycle context", settingsPage.includes('context="settingsLifecycle"'));
 record("Settings page does not use workflow status help for settings lifecycle", !settingsPage.includes('context="workflow"'));
-
-for (const relativePath of ["src/app/bom/workbench/page.tsx"]) {
-  const source = read(relativePath);
-  record(`${relativePath} uses restorePolicy for restore status`, source.includes('context="restorePolicy"'));
-}
 
 const legacyApprovalsPage = read("src/app/numbering/approvals/page.tsx");
 const approvalWorkbenchPage = read("src/app/approvals/page.tsx");
@@ -185,10 +179,8 @@ const prohibitedVisiblePhrases = [
   "Released entries",
   "Missing evidence",
   "Not loaded",
-  "BOM Draft",
   "CAD Draft",
   "Pending items",
-  "Released BOM",
   "Storage Evidence",
   ">Release<",
   ">Draft<",

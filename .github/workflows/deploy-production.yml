@@ -247,8 +247,8 @@ jobs:
           const fs = require("node:fs");
           const report = JSON.parse(fs.readFileSync("output/production-release/migration-dry-run.json", "utf8"));
           if (report.mode !== "dry_run" || report.connectionAttempted !== false) throw new Error("PRODUCTION_MIGRATION_DRY_RUN_BOUNDARY_INVALID");
-          if (report.schemaMigrationCount !== 37) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
-          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/039_allow_recycled_candidate_drawing_codes.cloudsql.sql") {
+          if (report.schemaMigrationCount !== 38) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
+          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/047_remove_bom_module.cloudsql.sql") {
             throw new Error("PRODUCTION_MIGRATION_RANGE_INVALID");
           }
           NODE

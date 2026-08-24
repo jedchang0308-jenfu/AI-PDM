@@ -7,7 +7,7 @@ import { StatusBadge, StatusColumnHeader } from "@/components/status-help-popove
 import type { NotificationItem, NotificationSummary, SubmissionSummary } from "@/lib/types";
 
 export type ChatSource = {
-  type: "submission" | "metric" | "policy" | "file" | "bom" | "where_used";
+  type: "submission" | "metric" | "policy" | "file";
   label: string;
   detail: string;
 };

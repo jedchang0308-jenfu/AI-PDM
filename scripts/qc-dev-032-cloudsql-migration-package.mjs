@@ -36,9 +36,9 @@ try {
     "DEV032-CLOUDSQL-MIG-006 manifest is immutable, complete and non-authorizing",
     manifest.status === "proposal_only_not_approved_for_live_apply" &&
       manifest.executionBoundary.liveApplyAllowed === false &&
-      manifest.orderedSchemaMigrations.length === 37 &&
+      manifest.orderedSchemaMigrations.length === 38 &&
       manifest.orderedSchemaMigrations.at(0)?.output === "sql/001_initial_schema.cloudsql.sql" &&
-      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/039_allow_recycled_candidate_drawing_codes.cloudsql.sql" &&
+      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/047_remove_bom_module.cloudsql.sql" &&
       manifest.orderedSchemaMigrations.every((item) => item.outputSha256?.length === 64)
   );
   record("DEV032-CLOUDSQL-MIG-007 runner requires production-specific approval", runner.includes("DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED") && runner.includes("DEV032_CLOUDSQL_MIGRATION_APPROVAL") && runner.includes("DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED"));

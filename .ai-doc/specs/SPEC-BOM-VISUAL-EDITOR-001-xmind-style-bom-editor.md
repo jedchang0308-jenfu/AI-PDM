@@ -1,6 +1,8 @@
 # SPEC-BOM-VISUAL-EDITOR-001: XMind 式 BOM 圖像化編輯器
 
-狀態: Phase 1 Implemented / Phase 2 Local RD-QA-QC Complete / Human Confirmed / Production Release Gated
+> **Superseded 2026-08-24**：本規格已由 `ADR-PDM-BOM-RETIREMENT-001` 全面取代。現行產品不提供 BOM 圖像編輯器；本文只保留歷史追溯。
+
+狀態: Superseded / Historical only
 文件成熟度: Phase 2 `Local RD Implementation Complete / Focused QA-QC Passed`
 建立日: 2026-06-07
 最近更新: 2026-08-13

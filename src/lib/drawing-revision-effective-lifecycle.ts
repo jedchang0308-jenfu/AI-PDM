@@ -8,7 +8,6 @@ export type EffectiveDrawingRevisionLifecycleState =
   | "cancelled";
 
 export const LEGACY_DRAWING_REVIEW_TERMINAL_ACTIONS = [
-  "confirm_bom_no_revision",
   "confirm_original_part_reuse",
   "approve_replacement_part_and_drawing_release"
 ] as const;

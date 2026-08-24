@@ -178,10 +178,6 @@ async function run() {
 
     await page.locator(".engineering-context > summary").click();
     await page.locator(".engineering-context .revision-history").waitFor({ timeout: 15000 });
-    record("DDP-011 engineering expansion requests BOM diff", hasRequested(requestPaths, `/api/submissions/${primary.submissionId}/bom/diff`), requestPaths.join(", "));
-    record("DDP-012 engineering expansion requests where-used", hasRequested(requestPaths, "/where-used"), requestPaths.join(", "));
-    record("DDP-013 engineering expansion keeps BOM visible", await page.locator(".engineering-context .bom-list").isVisible());
-    record("DDP-014 engineering expansion keeps where-used visible", await page.locator(".engineering-context .where-used-list").isVisible());
     await page.locator("tbody tr", { hasText: secondary.drawingNumber }).first().click();
     await page.locator(".detail-title-stack", { hasText: secondary.drawingNumber }).waitFor({ timeout: 15000 });
     await page.locator(".engineering-context .revision-history .revision-item", { hasText: "版次 B" }).waitFor({ timeout: 15000 });
@@ -207,7 +203,7 @@ async function run() {
     await page.waitForTimeout(500);
     record("DDP-015 collaboration expansion requests AI summary lazily", hasRequested(requestPaths, `/api/submissions/${secondary.submissionId}/ai-summary`), requestPaths.join(", "));
     record("DDP-016 collaboration expansion keeps approve control visible", await page.getByRole("button", { name: /核准/ }).count().then((count) => count > 0));
-    record("DDP-017 review issues remain below engineering context", (await topOf(page, ".collaboration-review .issue-panel")) > (await topOf(page, ".engineering-context .where-used-list")));
+    record("DDP-017 review issues remain below engineering context", (await topOf(page, ".collaboration-review .issue-panel")) > (await topOf(page, ".engineering-context .revision-history")));
 
     await page.locator(".system-diagnostics > summary").click();
     await page.locator(".system-diagnostics .detail-row", { hasText: "送審 ID" }).waitFor({ timeout: 15000 });

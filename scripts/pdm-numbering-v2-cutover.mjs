@@ -47,8 +47,6 @@ const exactReferenceUpdates = [
   ["submission_snapshots", "source_part_number", "part"],
   ["file_references", "referenced_part_number", "part"],
   ["file_references", "referenced_drawing_number", "drawing"],
-  ["bom_lines", "child_part_number", "part"],
-  ["bom_lines_tree", "part_number", "part"],
   ["manufacturing_baseline_items", "drawing_number", "drawing"],
   ["drawing_revision_packages", "drawing_number", "drawing"],
   ["drawing_revision_fff_assessments", "detected_part_number", "part"],
@@ -62,8 +60,7 @@ const jsonReferenceUpdates = [
   ["numbering_notifications", "detail_json"],
   ["warning_events", "detail_json"],
   ["manufacturing_baselines", "snapshot_json"],
-  ["drawing_revision_packages", "snapshot_json"],
-  ["bom_release_snapshots", "line_snapshot_json"]
+  ["drawing_revision_packages", "snapshot_json"]
 ];
 
 function argValue(name, fallback) {

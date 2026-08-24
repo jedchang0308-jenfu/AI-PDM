@@ -244,41 +244,6 @@ export {
   type PartRootRecord
 } from "@/lib/repositories/numbering-repository";
 export {
-  createBomWorkbenchDraftFromSolidWorksXls,
-  createBomWorkbenchDraftFromAssembly,
-  approveBomWorkbenchReview,
-  BomReleaseGateError,
-  BomXlsImportError,
-  evaluateBomReleaseGate,
-  findPreviousBomSubmissionId,
-  getBomBySubmissionId,
-  getBomDiffBetweenSubmissions,
-  getBomImportJobById,
-  getBomReleaseSnapshotById,
-  getBomWorkbenchBySubmissionId,
-  getBomWorkbenchDraftDiff,
-  getBomWorkbenchDraftById,
-  getBomWorkbenchReviewById,
-  listPendingBomWorkbenchReviews,
-  listBomWorkbenchDraftsBySubmissionId,
-  listWhereUsed,
-  materializeBomDraftFromReferences,
-  rejectBomWorkbenchReview,
-  saveBomWorkbenchDraftTree,
-  setBomWorkbenchActiveDraft,
-  submitBomWorkbenchDraftReview,
-  type CreateBomWorkbenchDraftFromAssemblyInput,
-  type CreateBomWorkbenchDraftFromSolidWorksXlsInput,
-  type CreateBomWorkbenchDraftFromSolidWorksXlsResult,
-  type DecideBomWorkbenchReviewInput,
-  type BomWorkbenchDraftDiffResult,
-  type BomWorkbenchLineDiffChange,
-  type BomWorkbenchPendingReview,
-  type SaveBomWorkbenchDraftTreeInput,
-  type SetBomWorkbenchActiveDraftInput,
-  type SubmitBomWorkbenchDraftReviewInput
-} from "@/lib/repositories/bom-repository";
-export {
   createSubmissionRecord,
   getSubmission,
   listDesignReuseCandidates,
@@ -297,7 +262,6 @@ function initDatabase(database: SqliteDatabase) {
   database.exec("PRAGMA foreign_keys = ON;");
   ensurePreSchemaCompatibility(database);
   ensureDrawingRevisionLifecycleAuthorityPreSchema(database);
-  ensureBomMaterialIdentityPreSchema(database);
   const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
   database.exec(schema);
   ensureTransferPackagePhase1DSchema(database);
@@ -311,11 +275,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureSubmissionStoragePointerSchema(database);
   ensureSubmissionSnapshotAndAttemptSchema(database);
   ensureSubmissionLifecycleRequestSchema(database);
-  ensureBomReviewLifecycleSchema(database);
   ensureReviewConfirmationDecisionSchema(database);
-  ensureColumn(database, "bom_drafts", "editor_version", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn(database, "bom_drafts", "source_revision_package_id", "TEXT");
-  ensureColumn(database, "bom_release_snapshots", "source_revision_package_id", "TEXT");
   ensureSettingsSecretLifecycleSchema(database);
   ensureShared3dBaselineSchema(database);
   ensureSubmissionIndexes(database);
@@ -359,7 +319,6 @@ function ensureReviewConfirmationDecisionSchema(database: SqliteDatabase) {
         review_id TEXT NOT NULL,
         action TEXT NOT NULL CHECK (
           action IN (
-            'confirm_bom_no_revision',
             'confirm_original_part_reuse',
             'return_for_replacement_part',
             'request_more_information',
@@ -828,187 +787,6 @@ function ensurePreSchemaCompatibility(database: SqliteDatabase) {
   }
 }
 
-function ensureBomReviewLifecycleSchema(database: SqliteDatabase) {
-  ensureColumn(database, "bom_review_requests", "lifecycle_action", "TEXT NOT NULL DEFAULT 'release'");
-  database
-    .prepare("UPDATE bom_review_requests SET lifecycle_action = 'release' WHERE lifecycle_action IS NULL OR lifecycle_action = ''")
-    .run();
-}
-
-function ensureBomMaterialIdentityPreSchema(database: SqliteDatabase) {
-  const draftTable = database
-    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'bom_drafts'")
-    .get();
-  if (!draftTable) return;
-
-  const draftColumns = database.prepare("PRAGMA table_info(bom_drafts)").all() as Array<{ name: string; notnull: number }>;
-  const draftColumnNames = new Set(draftColumns.map((column) => column.name));
-  const legacyOwnerIsRequired = ["parent_item_id", "parent_submission_id", "parent_revision"].some(
-    (name) => draftColumns.find((column) => column.name === name)?.notnull === 1
-  );
-  if (draftColumnNames.has("owner_part_number_id") && !legacyOwnerIsRequired) return;
-
-  const selectDraftColumn = (name: string, fallback: string) => (draftColumnNames.has(name) ? name : fallback);
-  const importColumns = database.prepare("PRAGMA table_info(bom_import_jobs)").all() as Array<{ name: string }>;
-  const importColumnNames = new Set(importColumns.map((column) => column.name));
-  const snapshotColumns = database.prepare("PRAGMA table_info(bom_release_snapshots)").all() as Array<{ name: string }>;
-  const snapshotColumnNames = new Set(snapshotColumns.map((column) => column.name));
-
-  database.pragma("foreign_keys = OFF");
-  try {
-    database.exec("BEGIN IMMEDIATE");
-    database.exec(`
-      DROP TABLE IF EXISTS bom_drafts_material_identity_migration;
-      CREATE TABLE bom_drafts_material_identity_migration (
-        id TEXT PRIMARY KEY,
-        company_id TEXT,
-        owner_part_number_id TEXT,
-        bom_revision TEXT,
-        source_submission_id TEXT,
-        identity_authority TEXT NOT NULL DEFAULT 'legacy_submission_bound' CHECK (identity_authority IN ('canonical_part_number', 'legacy_submission_bound', 'manual_review')),
-        parent_item_id TEXT,
-        parent_submission_id TEXT,
-        parent_revision TEXT,
-        draft_name TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'PendingReview', 'Rejected', 'Released', 'Obsolete', 'Archived')),
-        source TEXT NOT NULL DEFAULT 'cad_reference' CHECK (source IN ('cad_reference', 'solidworks_xls', 'manual')),
-        is_active INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
-        line_count INTEGER NOT NULL DEFAULT 0,
-        review_attempt INTEGER NOT NULL DEFAULT 0,
-        created_by TEXT,
-        updated_by TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        FOREIGN KEY (company_id) REFERENCES companies(id),
-        FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-        FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-        FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
-        FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-        FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
-      );
-    `);
-    database.exec(`
-      INSERT INTO bom_drafts_material_identity_migration (
-        id, company_id, owner_part_number_id, bom_revision, source_submission_id, identity_authority,
-        parent_item_id, parent_submission_id, parent_revision, draft_name, status, source, is_active,
-        line_count, review_attempt, created_by, updated_by, created_at, updated_at
-      )
-      SELECT
-        id,
-        ${selectDraftColumn("company_id", "(SELECT i.company_id FROM items i WHERE i.id = bom_drafts.parent_item_id)")},
-        ${selectDraftColumn(
-          "owner_part_number_id",
-          "(SELECT pn.id FROM items i JOIN part_numbers pn ON pn.company_id = i.company_id AND upper(pn.part_number) = upper(i.part_number) WHERE i.id = bom_drafts.parent_item_id LIMIT 1)"
-        )},
-        ${selectDraftColumn("bom_revision", "parent_revision")},
-        ${selectDraftColumn("source_submission_id", "parent_submission_id")},
-        ${selectDraftColumn(
-          "identity_authority",
-          "CASE WHEN EXISTS (SELECT 1 FROM items i JOIN part_numbers pn ON pn.company_id = i.company_id AND upper(pn.part_number) = upper(i.part_number) WHERE i.id = bom_drafts.parent_item_id) THEN 'legacy_submission_bound' ELSE 'manual_review' END"
-        )},
-        parent_item_id, parent_submission_id, parent_revision, draft_name, status, source, is_active,
-        line_count, review_attempt, created_by, updated_by, created_at, updated_at
-      FROM bom_drafts;
-      DROP TABLE bom_drafts;
-      ALTER TABLE bom_drafts_material_identity_migration RENAME TO bom_drafts;
-    `);
-
-    if (importColumns.length > 0 && !importColumnNames.has("owner_part_number_id")) {
-      database.exec(`
-        DROP TABLE IF EXISTS bom_import_jobs_material_identity_migration;
-        CREATE TABLE bom_import_jobs_material_identity_migration (
-          id TEXT PRIMARY KEY,
-          bom_draft_id TEXT,
-          owner_part_number_id TEXT,
-          bom_revision TEXT,
-          source_submission_id TEXT,
-          parent_submission_id TEXT,
-          import_profile_id TEXT NOT NULL,
-          source_asset_id TEXT,
-          original_filename TEXT NOT NULL,
-          status TEXT NOT NULL DEFAULT 'Staged' CHECK (status IN ('Staged', 'Imported', 'Rejected', 'Failed')),
-          row_count INTEGER NOT NULL DEFAULT 0,
-          error_json TEXT,
-          created_by TEXT,
-          created_at TEXT NOT NULL DEFAULT (datetime('now')),
-          FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE SET NULL,
-          FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-          FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-          FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-          FOREIGN KEY (import_profile_id) REFERENCES bom_import_profiles(id),
-          FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-        );
-        INSERT INTO bom_import_jobs_material_identity_migration (
-          id, bom_draft_id, owner_part_number_id, bom_revision, source_submission_id, parent_submission_id,
-          import_profile_id, source_asset_id, original_filename, status, row_count, error_json, created_by, created_at
-        )
-        SELECT
-          j.id, j.bom_draft_id, d.owner_part_number_id, d.bom_revision, j.parent_submission_id, j.parent_submission_id,
-          j.import_profile_id, j.source_asset_id, j.original_filename, j.status, j.row_count, j.error_json, j.created_by, j.created_at
-        FROM bom_import_jobs j
-        LEFT JOIN bom_drafts d ON d.id = j.bom_draft_id;
-        DROP TABLE bom_import_jobs;
-        ALTER TABLE bom_import_jobs_material_identity_migration RENAME TO bom_import_jobs;
-      `);
-    }
-
-    if (snapshotColumns.length > 0 && !snapshotColumnNames.has("owner_part_number_id")) {
-      database.exec(`
-        DROP TABLE IF EXISTS bom_release_snapshots_material_identity_migration;
-        CREATE TABLE bom_release_snapshots_material_identity_migration (
-          id TEXT PRIMARY KEY,
-          bom_draft_id TEXT NOT NULL,
-          company_id TEXT,
-          owner_part_number_id TEXT,
-          bom_revision TEXT,
-          source_submission_id TEXT,
-          parent_item_id TEXT,
-          parent_submission_id TEXT,
-          parent_revision TEXT,
-          line_snapshot_json TEXT NOT NULL,
-          line_count INTEGER NOT NULL DEFAULT 0,
-          released_by TEXT NOT NULL,
-          released_at TEXT NOT NULL DEFAULT (datetime('now')),
-          obsolete_at TEXT,
-          obsolete_by TEXT,
-          FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id),
-          FOREIGN KEY (company_id) REFERENCES companies(id),
-          FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-          FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-          FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
-          FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-          FOREIGN KEY (released_by) REFERENCES users(id),
-          FOREIGN KEY (obsolete_by) REFERENCES users(id) ON DELETE SET NULL
-        );
-        INSERT INTO bom_release_snapshots_material_identity_migration (
-          id, bom_draft_id, company_id, owner_part_number_id, bom_revision, source_submission_id,
-          parent_item_id, parent_submission_id, parent_revision, line_snapshot_json, line_count,
-          released_by, released_at, obsolete_at, obsolete_by
-        )
-        SELECT
-          s.id, s.bom_draft_id, d.company_id, d.owner_part_number_id, d.bom_revision, s.parent_submission_id,
-          s.parent_item_id, s.parent_submission_id, s.parent_revision, s.line_snapshot_json, s.line_count,
-          s.released_by, s.released_at, s.obsolete_at, s.obsolete_by
-        FROM bom_release_snapshots s
-        LEFT JOIN bom_drafts d ON d.id = s.bom_draft_id;
-        DROP TABLE bom_release_snapshots;
-        ALTER TABLE bom_release_snapshots_material_identity_migration RENAME TO bom_release_snapshots;
-      `);
-    }
-    database.exec("COMMIT");
-  } catch (error) {
-    try {
-      database.exec("ROLLBACK");
-    } catch {
-      // Preserve the original migration error.
-    }
-    throw error;
-  } finally {
-    database.pragma("foreign_keys = ON");
-  }
-}
-
 function ensureSubmissionLifecycleRequestSchema(database: SqliteDatabase) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS submission_lifecycle_requests (
@@ -1472,7 +1250,6 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
         part_name TEXT NOT NULL,
         item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
         is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
-        bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
         custom_specification TEXT,
         record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
         universal_reason TEXT,
@@ -1492,11 +1269,11 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
       .prepare(
         `INSERT OR IGNORE INTO part_numbers_company_scope_migration (
            id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-           item_kind, is_universal, bom_usage_policy, custom_specification,
+           item_kind, is_universal, custom_specification,
            record_status, universal_reason, rule_version_id, created_by, created_at, updated_at
          )
          SELECT id, ${selectCompanyId}, part_root_id, part_number, sequence_no, sequence_code, part_name,
-                item_kind, is_universal, bom_usage_policy, custom_specification,
+                item_kind, is_universal, custom_specification,
                 CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
                 universal_reason, rule_version_id, created_by, created_at, updated_at
          FROM part_numbers`
@@ -1627,7 +1404,6 @@ function ensureProjectStatusRemovalSchema(database: SqliteDatabase) {
           part_name TEXT NOT NULL,
           item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
           is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
-          bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
           custom_specification TEXT,
           series_code TEXT,
           record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
@@ -1645,11 +1421,11 @@ function ensureProjectStatusRemovalSchema(database: SqliteDatabase) {
         );
         INSERT INTO part_numbers_project_status_removal (
           id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-          is_universal, bom_usage_policy, custom_specification, series_code, record_status, universal_reason,
+          is_universal, custom_specification, series_code, record_status, universal_reason,
           rule_version_id, created_by, created_at, updated_at
         )
         SELECT id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-               is_universal, bom_usage_policy, custom_specification, series_code,
+               is_universal, custom_specification, series_code,
                CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
                universal_reason, rule_version_id, created_by, created_at, updated_at
         FROM part_numbers;

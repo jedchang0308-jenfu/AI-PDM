@@ -267,7 +267,7 @@ const gates = [
     authenticatedEvidenceCurrent,
     historicalLevel4EvidencePath: sources.historicalLevel4.path,
     historicalLevel4SourceRevision: historicalLevel4.sourceRevision ?? null,
-    requiredChecks: ["authenticated-ui-session", "permissions-by-successful-official-numbering", "official-numbering", "optional-series-code", "detail-persistence", "file-cad-bom-fail-closed"]
+    requiredChecks: ["authenticated-ui-session", "permissions-by-successful-official-numbering", "official-numbering", "optional-series-code", "detail-persistence", "file-and-cad-fail-closed"]
   }, level4Ready ? [] : [blocker("AUTHENTICATED_LEVEL4_CURRENT_RELEASE_PENDING", "Authenticated Level 4 evidence must match the current source revision, Cloud Run revision and image digest; the retained hotfix evidence is historical only.")]),
   gate("A9-wave0-go-no-go", wave0Ready ? "passed" : "pending_human", {
     allowlistMode: wave0.allowlistMode ?? null,

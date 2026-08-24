@@ -81,7 +81,6 @@ record("DB-010 db.ts does not import better-sqlite3 directly", !contains(db, "fr
 for (const name of [
   "SubmissionRepository",
   "ReviewRepository",
-  "BomRepository",
   "ReleaseRepository",
   "SandboxRepository",
   "ItemLockRepository",

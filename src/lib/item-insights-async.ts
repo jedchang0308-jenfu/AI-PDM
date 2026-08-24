@@ -7,7 +7,3 @@ import {
 export async function listItemRevisionHistoryAsync(input: ListItemInsightInput) {
   return new AsyncItemInsightRepository(getAsyncDatabaseClient()).listItemRevisionHistory(input);
 }
-
-export async function listWhereUsedAsync(input: ListItemInsightInput) {
-  return new AsyncItemInsightRepository(getAsyncDatabaseClient()).listWhereUsed(input);
-}

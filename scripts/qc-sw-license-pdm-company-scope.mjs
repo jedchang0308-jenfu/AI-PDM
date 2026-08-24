@@ -66,22 +66,11 @@ try {
     "src/app/api/submissions/[id]/route.ts",
     "src/lib/file-response.ts",
     "src/app/api/submissions/[id]/release-package/route.ts",
-    "src/app/api/submissions/[id]/bom/route.ts",
-    "src/app/api/submissions/[id]/bom/export/route.ts",
-    "src/app/api/submissions/[id]/bom/diff/route.ts",
     "src/app/api/submissions/[id]/approve/route.ts",
     "src/app/api/submissions/[id]/reject/route.ts",
     "src/app/api/submissions/[id]/retry-upload/route.ts"
   ]) {
     assert.match(read(relativePath), /await canReadSubmissionAsync/, `${relativePath} must use company-aware submission read checks`);
-  }
-
-  for (const relativePath of [
-    "src/app/api/bom/workbench/route.ts",
-    "src/app/api/bom/drafts/from-assembly/route.ts",
-    "src/app/api/bom/releases/[releaseId]/export/route.ts"
-  ]) {
-    assert.match(read(relativePath), /await canReadBom(Draft|ReleasedSnapshot)Async/, `${relativePath} must use company-aware BOM read checks`);
   }
 
   console.log(
@@ -96,8 +85,7 @@ try {
           "search API company context",
           "metadata detect company context",
           "auth serialization without license key",
-          "direct submission read routes use company-aware permissions",
-          "BOM draft and release routes use company-aware permissions"
+          "direct submission read routes use company-aware permissions"
         ]
       },
       null,

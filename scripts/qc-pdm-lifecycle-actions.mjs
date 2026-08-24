@@ -31,14 +31,6 @@ const changeControlFacade = readRequired("src/lib/pdm-change-control.ts");
 const numberingAsyncRepository = readRequired("src/lib/repositories/numbering-async-repository.ts");
 const numberingRepository = readRequired("src/lib/repositories/numbering-repository.ts");
 const numberingAsyncFacade = readRequired("src/lib/numbering-async.ts");
-const bomWorkbenchRepository = readRequired("src/lib/repositories/bom-workbench-async-repository.ts");
-const bomWorkbenchFacade = readRequired("src/lib/bom-workbench-async.ts");
-const bomWorkbenchRoute = readRequired("src/app/api/bom/workbench/route.ts");
-const bomDraftDeleteRoute = readRequired("src/app/api/bom/drafts/[draftId]/delete/route.ts");
-const bomDraftRestoreRoute = readRequired("src/app/api/bom/drafts/[draftId]/restore/route.ts");
-const bomDraftObsoleteRoute = readRequired("src/app/api/bom/drafts/[draftId]/obsolete-request/route.ts");
-const bomWorkbenchPage = readRequired("src/app/bom/workbench/page.tsx");
-const bomReviewsPage = readRequired("src/app/bom/reviews/page.tsx");
 const dashboardPage = readRequired("src/components/dashboard.tsx");
 const submissionLifecycleRepository = readRequired("src/lib/repositories/submission-lifecycle-async-repository.ts");
 const submissionLifecycleFacade = readRequired("src/lib/submission-lifecycle-async.ts");
@@ -58,9 +50,7 @@ const responsiveCss = readRequired("src/app/styles/responsive.css");
 const packageJson = readProjectJson(root, "package.json");
 const uiQcScriptPath = "scripts/qc-pdm-lifecycle-actions-ui.mjs";
 const draftUiQcScriptPath = "scripts/qc-pdm-lifecycle-draft-ui.mjs";
-const bomDraftUiQcScriptPath = "scripts/qc-pdm-lifecycle-bom-draft-ui.mjs";
 const obsoleteQcScriptPath = "scripts/qc-pdm-lifecycle-obsolete.mjs";
-const bomObsoleteQcScriptPath = "scripts/qc-pdm-lifecycle-bom-obsolete.mjs";
 const submissionObsoleteQcScriptPath = "scripts/qc-pdm-lifecycle-submission-obsolete.mjs";
 const gitBoundaryQcScriptPath = "scripts/qc-pdm-lifecycle-actions-git-boundary.mjs";
 
@@ -96,12 +86,6 @@ for (const code of [
   "LIFE_DRAFT_CONTROLLED_BOUNDARY",
   "LIFE_DRAFT_ALREADY_RECYCLED",
   "LIFE_DRAFT_NUMBER_REUSED",
-  "LIFE_BOM_DRAFT_ALREADY_DELETED",
-  "LIFE_BOM_DRAFT_NOT_DELETED",
-  "LIFE_BOM_DRAFT_NOT_DELETABLE",
-  "LIFE_BOM_DRAFT_IN_REVIEW",
-  "LIFE_BOM_DRAFT_FORMAL",
-  "LIFE_BOM_DRAFT_CONTROLLED_HISTORY",
   "LIFE_FORMAL_DELETE_BLOCKED",
   "LIFE_OBSOLETE_ALREADY_REQUESTED",
   "LIFE_OBSOLETE_ALREADY_APPROVED",
@@ -115,16 +99,13 @@ for (const code of [
       asyncRepository.includes(code) ||
       response.includes(code) ||
       changeControlDomain.includes(code) ||
-      numberingAsyncRepository.includes(code) ||
-      bomWorkbenchRepository.includes(code),
+      numberingAsyncRepository.includes(code),
     `Lifecycle reason code is wired: ${code}`
   );
 }
 
 assert(policy.includes('"part_number_draft"'), "Lifecycle policy supports part-number draft entity type");
 assert(policy.includes("buildPartNumberDraftLifecyclePolicy"), "Lifecycle policy exposes part-number draft policy builder");
-assert(policy.includes('"bom_workbench_draft"'), "Lifecycle policy supports BOM workbench draft entity type");
-assert(policy.includes("buildBomWorkbenchDraftLifecyclePolicy"), "Lifecycle policy exposes BOM workbench draft policy builder");
 assert(policy.includes('"submission"'), "Lifecycle policy supports submission entity type");
 assert(policy.includes("buildSubmissionLifecyclePolicy"), "Lifecycle policy exposes submission lifecycle policy builder");
 assert(policy.includes('"numbering_part_number"'), "Lifecycle policy supports formal part-number entity type");
@@ -183,42 +164,6 @@ assert(partDraftRestoreRoute.includes("numbering.draft.obsolete"), "Part-number 
 assert(partDraftRestoreRoute.includes("restorePartNumberDraft"), "Part-number draft restore route calls restore service");
 assert(partDraftRestoreRoute.includes("getPartNumberDraftLifecyclePolicy"), "Part-number draft restore route returns lifecycle policy");
 
-assert(bomWorkbenchRepository.includes("SELECT_ASYNC_DELETED_BOM_WORKBENCH_DRAFTS_SQL"), "BOM workbench repository can list deleted drafts");
-assert(bomWorkbenchRepository.includes("status <> 'Archived'"), "BOM workbench work list hides archived drafts");
-assert(bomWorkbenchRepository.includes("ARCHIVE_ASYNC_BOM_WORKBENCH_DRAFT_SQL"), "BOM workbench repository can archive draft as deleted");
-assert(bomWorkbenchRepository.includes("RESTORE_ASYNC_BOM_WORKBENCH_DRAFT_SQL"), "BOM workbench repository can restore archived draft");
-assert(bomWorkbenchRepository.includes("BomWorkbenchDraftDeleted"), "BOM workbench delete writes audit event");
-assert(bomWorkbenchRepository.includes("BomWorkbenchDraftRestored"), "BOM workbench restore writes audit event");
-assert(bomWorkbenchRepository.includes('before.status !== "Draft"'), "BOM workbench delete only allows uncontrolled Draft status");
-assert(bomWorkbenchRepository.includes('before.status !== "Archived"'), "BOM workbench restore only allows archived deleted status");
-assert(bomWorkbenchRepository.includes("BomWorkbenchLifecycleAction"), "BOM workbench review model has lifecycle action type");
-assert(bomWorkbenchRepository.includes("requestObsoleteReview"), "BOM workbench repository exposes obsolete review request");
-assert(bomWorkbenchRepository.includes("SELECT_ASYNC_BOM_WORKBENCH_EXISTING_PENDING_OBSOLETE_REVIEW_SQL"), "BOM obsolete request blocks duplicate pending reviews");
-assert(bomWorkbenchRepository.includes("OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_RELEASE_SNAPSHOTS_SQL"), "BOM obsolete approval marks release snapshots obsolete");
-assert(bomWorkbenchRepository.includes("OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_SQL"), "BOM obsolete approval marks released draft obsolete");
-assert(bomWorkbenchRepository.includes("lifecycle.obsolete.requested"), "BOM obsolete request writes lifecycle audit");
-assert(bomWorkbenchRepository.includes("lifecycle.obsolete.approved"), "BOM obsolete approval writes lifecycle audit");
-assert(bomWorkbenchRepository.includes("lifecycle.obsolete.rejected"), "BOM obsolete rejection writes lifecycle audit");
-assert(bomWorkbenchRepository.includes("approve_obsolete"), "BOM obsolete approval writes edit event");
-assert(bomWorkbenchRepository.includes("reject_obsolete"), "BOM obsolete rejection writes edit event");
-assert(bomWorkbenchRepository.includes('lifecycleAction: "obsolete"'), "BOM obsolete requests are inserted with obsolete lifecycle action");
-assert(bomWorkbenchFacade.includes("listDeletedBomWorkbenchDraftsBySubmissionIdAsync"), "BOM workbench facade exports deleted draft list");
-assert(bomWorkbenchFacade.includes("deleteBomWorkbenchDraftAsync"), "BOM workbench facade exports draft delete");
-assert(bomWorkbenchFacade.includes("restoreBomWorkbenchDraftAsync"), "BOM workbench facade exports draft restore");
-assert(bomWorkbenchFacade.includes("requestBomWorkbenchObsoleteReviewAsync"), "BOM workbench facade exports obsolete review request");
-assert(bomWorkbenchRoute.includes('surface") === "deleted_data"'), "BOM workbench route exposes deleted-data surface");
-assert(bomWorkbenchRoute.includes("listDeletedBomWorkbenchDraftsBySubmissionIdAsync"), "BOM workbench route lists deleted drafts");
-assert(bomWorkbenchRoute.includes("buildBomWorkbenchDraftLifecyclePolicy"), "BOM workbench route returns lifecycle policy for deleted drafts");
-assert(bomDraftDeleteRoute.includes("canReadBomDraftAsync"), "BOM draft delete route enforces BOM draft permission");
-assert(bomDraftDeleteRoute.includes("deleteBomWorkbenchDraftAsync"), "BOM draft delete route calls lifecycle delete service");
-assert(bomDraftRestoreRoute.includes("canReadBomDraftAsync"), "BOM draft restore route enforces BOM draft permission");
-assert(bomDraftRestoreRoute.includes("restoreBomWorkbenchDraftAsync"), "BOM draft restore route calls lifecycle restore service");
-assert(bomDraftObsoleteRoute.includes("canReadBomDraftAsync"), "BOM obsolete request route enforces BOM draft permission");
-assert(bomDraftObsoleteRoute.includes("requestBomWorkbenchObsoleteReviewAsync"), "BOM obsolete request route calls obsolete review service");
-assert(bomDraftObsoleteRoute.includes("buildBomWorkbenchDraftLifecyclePolicy"), "BOM obsolete request route returns lifecycle policy");
-assert(bomDraftObsoleteRoute.includes("pendingObsoleteRequest: true"), "BOM obsolete request route returns review-stage policy after request");
-assert(dbSchema.includes("lifecycle_action TEXT NOT NULL DEFAULT 'release'"), "SQLite schema stores BOM review lifecycle action");
-assert(postgresInitialSchema.includes("lifecycle_action TEXT NOT NULL DEFAULT 'release'"), "Postgres initial schema stores BOM review lifecycle action");
 assert(dbSchema.includes("CREATE TABLE IF NOT EXISTS submission_lifecycle_requests"), "SQLite schema stores submission lifecycle requests");
 assert(postgresInitialSchema.includes("CREATE TABLE IF NOT EXISTS submission_lifecycle_requests"), "Postgres schema stores submission lifecycle requests");
 
@@ -273,38 +218,11 @@ assert(panel.includes("restoreState?.message"), "Attachment panel shows disabled
 assert(panel.includes("policy.detailTags.map"), "Attachment panel renders lifecycle detail tags");
 assert(!panel.includes("soft delete") && !panel.includes("hard delete") && !panel.includes("purge"), "Attachment panel does not expose forbidden backend delete terms");
 assert(!existsRequired("src/app/numbering/part-drafts/page.tsx"), "Retired part-number draft page stays physically absent");
-assert(numberStateWorkspace.includes("取消申請並釋出保留號碼"), "Owner workspace exposes candidate cancellation in user vocabulary");
+assert(numberStateWorkspace.includes("取消圖號申請"), "Owner workspace exposes candidate cancellation in user vocabulary");
 assert(numberStateWorkspace.includes('action === "cancel"'), "Owner workspace routes cancellation through the workspace action contract");
-assert(numberStateWorkspace.includes("歷史保留號碼 ${candidateCode}（已釋出）"), "Owner workspace displays released candidate history");
+assert(numberStateWorkspace.includes("申請已取消；編號不再繼續處理。"), "Owner workspace confirms candidate cancellation in user vocabulary");
 assert(!numberStateWorkspace.includes("surface=deleted_data"), "Owner workspace does not revive the legacy deleted-data workbench");
 assert(!numberStateWorkspace.includes("作廢草稿"), "Owner workspace does not use formal obsolete wording for candidate cancellation");
-assert(bomWorkbenchPage.includes("DeletedBomWorkbenchDraft"), "BOM workbench page models deleted drafts separately");
-assert(bomWorkbenchPage.includes("loadDeletedDrafts"), "BOM workbench page can load deleted-data surface");
-assert(bomWorkbenchPage.includes("surface=deleted_data"), "BOM workbench page loads deleted-data API surface");
-assert(bomWorkbenchPage.includes("deleteDraft"), "BOM workbench page exposes delete action handler");
-assert(bomWorkbenchPage.includes("restoreDeletedDraft"), "BOM workbench page exposes restore action handler");
-assert(bomWorkbenchPage.includes("/delete"), "BOM workbench page calls delete subresource route");
-assert(bomWorkbenchPage.includes("/restore"), "BOM workbench page calls restore subresource route");
-assert(!bomWorkbenchPage.includes("已刪除資料"), "BOM editor does not expose the deleted-data recovery surface");
-assert(bomWorkbenchPage.includes("draftStageLabel"), "BOM workbench maps backend draft statuses to lifecycle stage labels");
-assert(bomWorkbenchPage.includes("刪除"), "BOM workbench page uses delete label for working BOM drafts");
-assert(bomWorkbenchPage.includes("/obsolete-request"), "BOM workbench page can request formal obsolete review");
-assert(bomWorkbenchPage.includes('selectedDraft?.status === "Released"'), "BOM workbench page shows obsolete action only for released drafts");
-assert(bomWorkbenchPage.includes("作廢原因"), "BOM workbench page collects obsolete reason");
-assert(bomWorkbenchPage.includes("申請作廢"), "BOM workbench page uses formal obsolete action label");
-assert(
-  bomReviewsPage.includes("redirect(buildLegacyApprovalWorkbenchRedirect") && bomReviewsPage.includes('"bom_reviews"'),
-  "Legacy BOM review page redirects to approval workbench"
-);
-assert(
-  approvalLegacyRedirect.includes("bom_reviews") && approvalLegacyRedirect.includes('domain: "bom"'),
-  "Legacy BOM review redirect preserves BOM domain filter"
-);
-assert(
-  approvalWorkbenchPage.includes("bom.obsolete_review") && approvalWorkbenchPage.includes("BOM 作廢審核"),
-  "Approval workbench labels BOM obsolete reviews"
-);
-assert(!bomWorkbenchPage.includes("作廢草稿"), "BOM workbench page does not expose obsolete wording for draft delete");
 assert(submissionLifecycleRepository.includes("submission_lifecycle_requests"), "Submission lifecycle repository persists obsolete requests");
 assert(submissionLifecycleRepository.includes("requestObsoleteReview"), "Submission lifecycle repository exposes obsolete request service");
 assert(submissionLifecycleRepository.includes("approveObsoleteReview"), "Submission lifecycle repository exposes obsolete approval service");
@@ -335,12 +253,8 @@ assert(existsRequired(uiQcScriptPath), "Lifecycle UI fixture QC script exists");
 assert(packageJson.scripts["qc:pdm-lifecycle-actions-ui"] === "node scripts/qc-pdm-lifecycle-actions-ui.mjs", "package script qc:pdm-lifecycle-actions-ui is registered");
 assert(existsRequired(draftUiQcScriptPath), "Lifecycle draft UI fixture QC script exists");
 assert(packageJson.scripts["qc:pdm-lifecycle-draft-ui"] === "node scripts/qc-pdm-lifecycle-draft-ui.mjs", "package script qc:pdm-lifecycle-draft-ui is registered");
-assert(existsRequired(bomDraftUiQcScriptPath), "Lifecycle BOM draft UI fixture QC script exists");
-assert(packageJson.scripts["qc:pdm-lifecycle-bom-draft-ui"] === "node scripts/qc-pdm-lifecycle-bom-draft-ui.mjs", "package script qc:pdm-lifecycle-bom-draft-ui is registered");
 assert(existsRequired(obsoleteQcScriptPath), "Lifecycle obsolete approval QC script exists");
 assert(packageJson.scripts["qc:pdm-lifecycle-obsolete"] === "node scripts/qc-pdm-lifecycle-obsolete.mjs", "package script qc:pdm-lifecycle-obsolete is registered");
-assert(existsRequired(bomObsoleteQcScriptPath), "Lifecycle BOM obsolete flow QC script exists");
-assert(packageJson.scripts["qc:pdm-lifecycle-bom-obsolete"] === "node scripts/qc-pdm-lifecycle-bom-obsolete.mjs", "package script qc:pdm-lifecycle-bom-obsolete is registered");
 assert(existsRequired(submissionObsoleteQcScriptPath), "Lifecycle submission obsolete flow QC script exists");
 assert(packageJson.scripts["qc:pdm-lifecycle-submission-obsolete"] === "node scripts/qc-pdm-lifecycle-submission-obsolete.mjs", "package script qc:pdm-lifecycle-submission-obsolete is registered");
 assert(existsRequired(gitBoundaryQcScriptPath), "Lifecycle git-boundary QC script exists");

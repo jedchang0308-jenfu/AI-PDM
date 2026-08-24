@@ -16,7 +16,6 @@ import {
   Filter,
   GitBranch,
   GitPullRequestArrow,
-  ListTree,
   Lock,
   LogOut,
   MessageSquare,
@@ -41,10 +40,8 @@ import { dedupeNumberingDraftsByRoot } from "@/lib/dedupe-numbering-drafts";
 import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
 import type {
   ApprovalMatrixRequirement,
-  BomDiffResult,
   AiSubmissionSummary,
   AiRiskReport,
-  BomLine,
   ChangeRequest,
   ControlledHistoryEntry,
   DiscussionComment,
@@ -62,8 +59,7 @@ import type {
   SubmissionLifecycleRequest,
   SubmissionStatus,
   SubmissionSummary,
-  SupplierPortalResponse,
-  WhereUsedEntry
+  SupplierPortalResponse
 } from "@/lib/types";
 
 function formatWorkflowStatus(value: string) {
@@ -113,7 +109,6 @@ type FinderFilters = {
   parentDrawing: string;
   childDrawingNumber: string;
   childPartNumber: string;
-  bomIssue: "" | "unreleased" | "outdated";
 };
 
 type RecentDrawing = {
@@ -183,7 +178,6 @@ const emptyFinderFilters: FinderFilters = {
   parentDrawing: "",
   childDrawingNumber: "",
   childPartNumber: "",
-  bomIssue: ""
 };
 
 const finderFilterConfigs: Array<{
@@ -191,7 +185,7 @@ const finderFilterConfigs: Array<{
   label: string;
   param: string;
   type?: "text" | "select";
-  options?: Array<{ value: FinderFilters["bomIssue"]; label: string }>;
+  options?: Array<{ value: string; label: string }>;
 }> = [
   { key: "productLine", label: "產品線", param: "productLine" },
   { key: "customer", label: "客戶", param: "customer" },
@@ -203,17 +197,6 @@ const finderFilterConfigs: Array<{
   { key: "parentDrawing", label: "父組合圖", param: "parentDrawing" },
   { key: "childDrawingNumber", label: "子件圖號", param: "childDrawingNumber" },
   { key: "childPartNumber", label: "子件料號", param: "childPartNumber" },
-  {
-    key: "bomIssue",
-    label: "BOM 子件狀態",
-    param: "bomIssue",
-    type: "select",
-    options: [
-      { value: "", label: "全部" },
-      { value: "unreleased", label: "含未發布 / 缺件" },
-      { value: "outdated", label: "含舊版子件" }
-    ]
-  }
 ];
 
 const conditionFilters: ConditionFilterConfig[] = [
@@ -252,11 +235,9 @@ function getPlatformWorkbenchSections({
     currentUser.role === "Engineer"
       ? [
           { href: "/upload", label: "上傳送審", detail: "建立新的圖料送審", icon: UploadCloud },
-          { href: "/numbering/search?tab=reserved", label: "編號申請", detail: "先建立料號 / 圖號", icon: ClipboardList },
-          { href: "/bom/workbench", label: "BOM 工作台", detail: "建立或整理 BOM 草稿", icon: ListTree }
+          { href: "/numbering/search?tab=reserved", label: "編號申請", detail: "先建立料號 / 圖號", icon: ClipboardList }
         ]
       : [
-          { href: "/bom/reviews", label: "BOM 審核", detail: "處理審核中 BOM 差異", icon: ListTree },
           { href: "/numbering/approvals", label: "發行審核", detail: "審查發布條件", icon: GitPullRequestArrow },
           { href: "/numbering/reports", label: "圖號報表", detail: "檢視審核與稽核摘要", icon: FileText }
         ];
@@ -274,7 +255,6 @@ function getPlatformWorkbenchSections({
           detail: `${notificationSummary.critical} 高風險 / ${notificationSummary.warning} 注意`,
           icon: Bell
         },
-        { href: "/bom/reviews", label: "BOM 審核", detail: "主管與跨部門審核關卡", icon: ListTree },
         { href: "/numbering/approvals", label: "發行審核", detail: "發布與例外決策", icon: GitPullRequestArrow }
       ]
     },
@@ -290,7 +270,7 @@ function getPlatformWorkbenchSections({
     },
     {
       title: "我要追蹤",
-      description: "以物件為中心回到圖號、料號、BOM、影響範圍與近期活動。",
+      description: "以物件為中心回到圖號、料號、影響範圍與近期活動。",
       badge: `${recentDrawings.length} 最近 / ${favoriteDrawings.length} 關注`,
       icon: Search,
       links: [
@@ -306,7 +286,6 @@ function getPlatformWorkbenchSections({
       icon: Factory,
       links: [
         { href: "/handoff", label: "製造交接", detail: "已發布圖料與交接包", icon: Factory },
-        { href: "/bom/workbench", label: "BOM 工作台", detail: "BOM 正式版本／匯出", icon: ListTree },
         { href: "/numbering/reports", label: "報表輸出", detail: "跨角色狀態彙整", icon: FileText }
       ]
     },
@@ -330,7 +309,6 @@ const taskSeverityClass: Record<TaskSummarySeverity, string> = {
 const taskSourceIcons: Record<TaskSummarySource, LucideIcon> = {
   numbering_task: ClipboardList,
   notification: Bell,
-  bom_review: ListTree,
   handoff_readiness: Factory,
   storage_evidence: Archive,
   submission: FileText
@@ -406,7 +384,7 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
           { label: "圖號", value: firstDrawing ?? "-" },
           { label: "品名", value: firstDraft.displayName || firstDraft.coreName }
         ]}
-        blockers={["草稿已有號碼，但尚未形成審核中送審單", "未送審前不可作為正式 BOM、製造或採購交接資料"]}
+        blockers={["草稿已有號碼，但尚未形成審核中送審單", "未送審前不可作為正式製造或採購交接資料"]}
         nextStep="從這裡接續上傳送審；送出後才會進入審核者的待辦與發行流程。"
         primaryAction={{
           href: buildUploadPrefillHref({
@@ -467,8 +445,7 @@ function ControlledHistoryPanel({
   const entityLabels: Record<ControlledHistoryEntry["entity_type"], string> = {
     submission: "正式圖面",
     numbering_part_number: "料號",
-    numbering_drawing_number: "圖號",
-    bom_release: "正式 BOM"
+    numbering_drawing_number: "圖號"
   };
 
   return (
@@ -577,28 +554,6 @@ function parseFileRoles(submission: SubmissionSummary) {
   return new Set((submission.file_roles ?? "").split(",").filter(Boolean));
 }
 
-function getBomLineState(line: BomLine) {
-  if (!line.child_submission_id) return { className: "missing", label: "缺件" };
-  if (line.child_status !== "Released") return { className: "not-released", label: line.child_status ? formatStatusForUser(line.child_status, "submission") : "未發布" };
-  if (
-    line.child_latest_released_revision &&
-    line.child_submission_revision &&
-    line.child_latest_released_revision !== line.child_submission_revision
-  ) {
-    return { className: "outdated", label: `舊版；最新版 ${line.child_latest_released_revision}` };
-  }
-  return { className: "released", label: "已發布" };
-}
-
-function getWhereUsedState(entry: WhereUsedEntry) {
-  if (!entry.child_submission_id) return { className: "missing", label: "缺件" };
-  if (entry.child_status !== "Released") return { className: "not-released", label: entry.child_status ? formatStatusForUser(entry.child_status, "submission") : "未發布" };
-  if (entry.child_is_outdated && entry.child_latest_released_revision) {
-    return { className: "outdated", label: `受影響；最新版 ${entry.child_latest_released_revision}` };
-  }
-  return { className: "released", label: "已發布" };
-}
-
 function readStringList(key: string) {
   if (typeof window === "undefined") return [];
   try {
@@ -653,14 +608,9 @@ function normalizeFinderFilters(value: unknown): FinderFilters {
   return Object.fromEntries(
     finderFilterConfigs.map((filter) => {
       const rawValue = source[filter.key];
-      if (filter.key === "bomIssue") return [filter.key, isBomIssueFilter(rawValue) ? rawValue : ""];
       return [filter.key, typeof rawValue === "string" ? String(rawValue) : ""];
     })
   ) as FinderFilters;
-}
-
-function isBomIssueFilter(value: unknown): value is FinderFilters["bomIssue"] {
-  return value === "" || value === "unreleased" || value === "outdated";
 }
 
 function isSubmissionStatusOrAll(value: unknown): value is SubmissionStatus | "All" {
@@ -702,24 +652,6 @@ const sourceTypeLabels = {
   policy: "管理辦法",
   file: "檔案"
 } as const;
-
-const bomDiffLabels = {
-  added: "新增",
-  removed: "移除",
-  changed: "變更",
-  unchanged: "未變"
-} as const;
-
-function describeBomDiffLine(line: BomDiffResult["lines"][number]) {
-  const revisionChanged = (line.from_revision ?? "") !== (line.to_revision ?? "");
-  const quantityChanged = (line.from_quantity ?? "") !== (line.to_quantity ?? "");
-  if (line.change_type === "added") return "新增子件";
-  if (line.change_type === "removed") return "刪除子件";
-  if (revisionChanged && quantityChanged) return "版次與數量變更";
-  if (revisionChanged) return "版次變更";
-  if (quantityChanged) return "數量變更";
-  return "未變更";
-}
 
 const emptyNotificationSummary: NotificationSummary = {
   total: 0,
@@ -954,13 +886,10 @@ export function Dashboard() {
   const [detailResourcesLoaded, setDetailResourcesLoaded] = useState<Record<DetailResourceGroup, boolean>>({ ...emptyDetailResourceFlags });
   const [detailResourceLoading, setDetailResourceLoading] = useState<Record<DetailResourceGroup, boolean>>({ ...emptyDetailResourceFlags });
   const [revisionHistory, setRevisionHistory] = useState<ItemRevisionHistoryEntry[]>([]);
-  const [bomDiff, setBomDiff] = useState<BomDiffResult | null>(null);
-  const [bomDiffMessage, setBomDiffMessage] = useState("");
   const [aiSummary, setAiSummary] = useState<AiSubmissionSummary | null>(null);
   const [aiRiskReport, setAiRiskReport] = useState<AiRiskReport | null>(null);
   const [reuseCandidates, setReuseCandidates] = useState<DesignReuseCandidate[]>([]);
   const [duplicateGeometryCandidates, setDuplicateGeometryCandidates] = useState<DuplicateGeometryCandidate[]>([]);
-  const [whereUsed, setWhereUsed] = useState<WhereUsedEntry[]>([]);
   const [discussionComments, setDiscussionComments] = useState<DiscussionComment[]>([]);
   const [discussionBody, setDiscussionBody] = useState("");
   const [discussionFileId, setDiscussionFileId] = useState("");
@@ -1151,13 +1080,10 @@ export function Dashboard() {
 
   const resetDetailSideState = useCallback(() => {
     setRevisionHistory([]);
-    setBomDiff(null);
-    setBomDiffMessage("");
     setAiSummary(null);
     setAiRiskReport(null);
     setReuseCandidates([]);
     setDuplicateGeometryCandidates([]);
-    setWhereUsed([]);
     setDiscussionComments([]);
     setDiscussionBody("");
     setDiscussionFileId("");
@@ -1246,24 +1172,11 @@ export function Dashboard() {
     const encodedPartNumber = encodeURIComponent(detail.part_number);
     setDetailResourceLoading((current) => ({ ...current, engineering: true }));
     try {
-      const [diffData, whereUsedData, historyData] = await Promise.all([
-        fetch(`/api/submissions/${id}/bom/diff`)
-          .then(async (response) => {
-            const result = await response.json().catch(() => ({}));
-            if (detailRequestIdRef.current !== requestId) return null;
-            if (!response.ok) {
-              setBomDiffMessage(typeof result?.error === "string" ? result.error : "BOM diff 尚無可比較資料");
-              return null;
-            }
-            return result as { diff?: BomDiffResult | null };
-          })
-          .catch(() => null),
-        fetchResourceJson<{ whereUsed?: WhereUsedEntry[] }>(requestId, `/api/items/${encodedPartNumber}/where-used`),
-        fetchResourceJson<{ revisions?: ItemRevisionHistoryEntry[] }>(requestId, `/api/items/${encodedPartNumber}/revisions`)
-      ]);
+      const historyData = await fetchResourceJson<{ revisions?: ItemRevisionHistoryEntry[] }>(
+        requestId,
+        `/api/items/${encodedPartNumber}/revisions`
+      );
       if (detailRequestIdRef.current !== requestId) return;
-      setBomDiff(diffData?.diff ?? null);
-      setWhereUsed(whereUsedData?.whereUsed ?? []);
       setRevisionHistory(historyData?.revisions ?? []);
       setDetailResourcesLoaded((current) => ({ ...current, engineering: true }));
     } finally {
@@ -1454,8 +1367,7 @@ export function Dashboard() {
   }
 
   function updateFinderFilter(key: keyof FinderFilters, value: string) {
-    const nextValue = key === "bomIssue" ? (isBomIssueFilter(value) ? value : "") : value;
-    setFinderFilters((current) => ({ ...current, [key]: nextValue }));
+    setFinderFilters((current) => ({ ...current, [key]: value }));
     setSelectedId(null);
   }
 
@@ -2807,7 +2719,7 @@ export function Dashboard() {
               >
                 <summary>
                   <span>工程上下文</span>
-                  <small>變更原因、材質、版次、BOM、Where-used</small>
+                  <small>變更原因、材質、版次、CAD 引用</small>
                 </summary>
                 <div className="detail-section-body">
                   <div className="detail-row">
@@ -2878,186 +2790,6 @@ export function Dashboard() {
                           </div>
                         </div>
                       ))
-                    )}
-                  </div>
-                  <div className="bom-list">
-                    <div className="bom-header-row">
-                      <div className="section-label">工程 BOM</div>
-                      {detail.bom ? (
-                        <div className="bom-export-actions">
-                          <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/export?format=csv`} title="匯出 BOM CSV">
-                            <Download size={14} />
-                            CSV
-                          </a>
-                          <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/export?format=xls`} title="匯出 BOM Excel">
-                            <Download size={14} />
-                            Excel
-                          </a>
-                        </div>
-                      ) : null}
-                    </div>
-                    {!detail.bom ? (
-                      <small>目前沒有 BOM 草稿。現在請 RD 從組立件 CAD 引用或 BOM 工作台建立草稿；若此件不需要 BOM，請在審核說明中註明。</small>
-                    ) : detail.bom.lines.length === 0 ? (
-                      <small>BOM 草稿已建立但沒有子件行。現在請 RD 補齊子件，或由審核者確認此件不需要子件。</small>
-                    ) : (
-                      detail.bom.lines.map((line) => {
-                        const lineState = getBomLineState(line);
-                        const content = (
-                          <>
-                            <div className="bom-item-title">
-                              <strong>
-                                {line.line_no}. {line.child_part_number}
-                              </strong>
-                              <span className={`bom-line-state ${lineState.className}`}>{lineState.label}</span>
-                            </div>
-                            <div className="metadata-list">
-                              <span className="metadata-pair">
-                                <span className="metadata-label">版次</span>
-                                <span className="metadata-value">{line.child_revision ?? line.child_submission_revision ?? "-"}</span>
-                              </span>
-                              <span className="metadata-pair">
-                                <span className="metadata-label">數量</span>
-                                <span className="metadata-value">{line.quantity}</span>
-                              </span>
-                            </div>
-                            {line.child_part_name || line.child_drawing_number ? (
-                              <div className="metadata-list">
-                                <span className="metadata-pair">
-                                  <span className="metadata-label">品名</span>
-                                  <span className="metadata-value">{line.child_part_name ?? "-"}</span>
-                                </span>
-                                <span className="metadata-pair">
-                                  <span className="metadata-label">圖號</span>
-                                  <span className="metadata-value">{line.child_drawing_number ?? "-"}</span>
-                                </span>
-                              </div>
-                            ) : null}
-                            <small>
-                              <span className="metadata-label">來源</span> {line.source_filename ?? "沒有來源檔案"}
-                            </small>
-                          </>
-                        );
-                        return line.child_submission_id ? (
-                          <button
-                            className="bom-item bom-child-link"
-                            type="button"
-                            key={line.id}
-                            onClick={() => {
-                              openChildSubmission(line.child_submission_id).catch(console.error);
-                            }}
-                          >
-                            {content}
-                          </button>
-                        ) : (
-                          <div className="bom-item" key={line.id}>
-                            {content}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                  {bomDiff ? (
-                    <div className="bom-diff-list">
-                      <div className="section-label">BOM 差異</div>
-                      <div className="bom-diff-summary">
-                        <span className="metadata-list">
-                          <span className="metadata-pair">
-                            <span className="metadata-label">基準版次</span>
-                            <span className="metadata-value">{bomDiff.base_revision}</span>
-                          </span>
-                          <span className="metadata-pair">
-                            <span className="metadata-label">目標版次</span>
-                            <span className="metadata-value">{bomDiff.target_revision}</span>
-                          </span>
-                        </span>
-                        <strong>
-                          +{bomDiff.added_count} / -{bomDiff.removed_count} / Δ{bomDiff.changed_count} / ={bomDiff.unchanged_count}
-                        </strong>
-                      </div>
-                      <div className="bom-export-actions">
-                        <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/diff?format=csv`} title="匯出 BOM diff CSV">
-                          <Download size={14} />
-                          Diff CSV
-                        </a>
-                        <a className="secondary-button" href={`/api/submissions/${detail.id}/bom/diff?format=xls`} title="匯出 BOM diff Excel">
-                          <Download size={14} />
-                          Diff Excel
-                        </a>
-                      </div>
-                      {bomDiff.lines
-                        .filter((line) => line.change_type !== "unchanged")
-                        .map((line) => (
-                          <div className={`bom-diff-item ${line.change_type}`} key={`${line.change_type}-${line.key}`}>
-                            <strong className="identity-line">
-                              <span className="metadata-badge">{bomDiffLabels[line.change_type]}</span>
-                              <span className="identity-primary">{line.child_part_number}</span>
-                            </strong>
-                            <div className="metadata-list">
-                              <span className="metadata-pair">
-                                <span className="metadata-label">變更</span>
-                                <span className="metadata-value">{describeBomDiffLine(line)}</span>
-                              </span>
-                              <span className="metadata-pair">
-                                <span className="metadata-label">原版次/數量</span>
-                                <span className="metadata-value">
-                                  {line.from_revision ?? "-"} / {line.from_quantity ?? "-"}
-                                </span>
-                              </span>
-                              <span className="metadata-pair">
-                                <span className="metadata-label">新版次/數量</span>
-                                <span className="metadata-value">
-                                  {line.to_revision ?? "-"} / {line.to_quantity ?? "-"}
-                                </span>
-                              </span>
-                            </div>
-                            <small>
-                              <span className="metadata-label">來源</span> {line.from_source_filename ?? "-"} → {line.to_source_filename ?? "-"}
-                            </small>
-                          </div>
-                        ))}
-                    </div>
-                  ) : detail.bom ? (
-                    <div className="bom-diff-list">
-                      <div className="section-label">BOM 差異</div>
-                      <small>{detailResourcesLoaded.engineering ? bomDiffMessage || "尚無可比較的前一版 BOM。" : "展開後載入 BOM 差異。"}</small>
-                    </div>
-                  ) : null}
-                  <div className="where-used-list">
-                    <div className="section-label">使用處</div>
-                    {whereUsed.length === 0 ? (
-                      <small>{detailResourcesLoaded.engineering ? "目前沒有上層 BOM 使用此料號。" : "展開後載入上層使用處。"}</small>
-                    ) : (
-                      whereUsed.slice(0, 6).map((entry) => {
-                        const whereUsedState = getWhereUsedState(entry);
-                        return (
-                          <div className="where-used-item" key={`${entry.parent_submission_id}-${entry.bom_header_id}`}>
-                            <strong className="identity-line">
-                              <span className="identity-primary">{entry.parent_part_number}</span>
-                              <StatusBadge status={entry.parent_status} context="submission" />
-                            </strong>
-                            <div className="metadata-list">
-                              <span className="metadata-pair">
-                                <span className="metadata-label">上層圖號</span>
-                                <span className="metadata-value">{entry.parent_drawing_number}</span>
-                              </span>
-                              <span className="metadata-pair">
-                                <span className="metadata-label">上層版次</span>
-                                <span className="metadata-value">{entry.parent_revision}</span>
-                              </span>
-                              <span className="metadata-pair">
-                                <span className="metadata-label">數量</span>
-                                <span className="metadata-value">{entry.quantity}</span>
-                              </span>
-                              <span className="metadata-pair">
-                                <span className="metadata-label">子件版次</span>
-                                <span className="metadata-value">{entry.child_revision ?? "-"}</span>
-                              </span>
-                            </div>
-                            <span className={`bom-line-state ${whereUsedState.className}`}>{whereUsedState.label}</span>
-                          </div>
-                        );
-                      })
                     )}
                   </div>
                 </div>
@@ -4249,7 +3981,7 @@ export function Dashboard() {
               <NextStepState
                 eyebrow="物件脈絡"
                 title="請選擇一筆圖面資料查看明細"
-                body="明細會串接版次、BOM、影響範圍、交接包與協作紀錄；也可以先建立新送審。"
+                body="明細會串接版次、CAD 引用、影響範圍、交接包與協作紀錄；也可以先建立新送審。"
                 actions={[
                   { href: "/numbering/search", label: "圖料工作台", variant: "primary" },
                   { href: "/upload", label: "上傳送審" }

@@ -25,11 +25,6 @@ const approvalBatchesRoute = source("src/app/api/numbering/approval-batches/rout
 const approvalsPage = source("src/app/numbering/approvals/page.tsx");
 const approvalWorkbenchPage = source("src/app/approvals/page.tsx");
 const approvalLegacyRedirect = source("src/lib/approval-workbench-legacy-redirect.ts");
-const bomRepository = source("src/lib/repositories/bom-workbench-async-repository.ts");
-const bomFacade = source("src/lib/bom-workbench-async.ts");
-const bomObsoleteRoute = source("src/app/api/bom/drafts/[draftId]/obsolete-request/route.ts");
-const bomReviewsPage = source("src/app/bom/reviews/page.tsx");
-const bomWorkbenchPage = source("src/app/bom/workbench/page.tsx");
 const dashboardPage = source("src/components/dashboard.tsx");
 const submissionRepository = source("src/lib/repositories/submission-lifecycle-async-repository.ts");
 const submissionFacade = source("src/lib/submission-lifecycle-async.ts");
@@ -89,48 +84,6 @@ assert(approvalWorkbenchPage.includes("<h1>審核工作台"), "Approval workbenc
 assert(approvalWorkbenchPage.includes("料號作廢審核"), "Approval workbench labels part obsolete action");
 assert(approvalWorkbenchPage.includes("圖號作廢審核"), "Approval workbench labels drawing obsolete action");
 assert(approvalWorkbenchPage.includes("const actionFilters"), "Approval workbench exposes explicit action filters");
-
-assert(policy.includes('"bom_workbench_draft"'), "Lifecycle policy supports BOM workbench formal records");
-assert(policy.includes("buildBomWorkbenchDraftLifecyclePolicy"), "BOM lifecycle policy builder exists");
-assert(policy.includes("pendingObsoleteRequest?: boolean"), "BOM policy accepts pending obsolete state");
-assert(policy.includes('input.status === "Released" && input.pendingObsoleteRequest'), "BOM policy has released pending-obsolete branch");
-assert(policy.includes("LIFE_OBSOLETE_FORMAL_RECORD"), "BOM formal records expose obsolete-only lifecycle rule");
-assert(policy.includes("LIFE_OBSOLETE_CONTROLLED_HISTORY"), "BOM obsolete records use controlled-history lifecycle rule");
-
-assert(dbSchema.includes("lifecycle_action TEXT NOT NULL DEFAULT 'release'"), "SQLite schema stores BOM review lifecycle action");
-assert(postgresInitialSchema.includes("lifecycle_action TEXT NOT NULL DEFAULT 'release'"), "Postgres initial schema stores BOM review lifecycle action");
-assert(bomRepository.includes("BomWorkbenchLifecycleAction"), "BOM review model supports release and obsolete actions");
-assert(bomRepository.includes("requestObsoleteReview"), "BOM repository exposes obsolete request service");
-assert(bomRepository.includes("SELECT_ASYNC_BOM_WORKBENCH_EXISTING_PENDING_OBSOLETE_REVIEW_SQL"), "BOM repository blocks duplicate obsolete requests");
-assert(bomRepository.includes("OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_RELEASE_SNAPSHOTS_SQL"), "BOM approval marks release snapshots obsolete");
-assert(bomRepository.includes("OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_SQL"), "BOM approval marks released draft obsolete");
-assert(bomRepository.includes('lifecycleAction: "obsolete"'), "BOM obsolete requests enter the review queue with obsolete action type");
-assert(bomRepository.includes("lifecycle.obsolete.requested"), "BOM obsolete request writes lifecycle audit");
-assert(bomRepository.includes("lifecycle.obsolete.approved"), "BOM obsolete approval writes lifecycle audit");
-assert(bomRepository.includes("lifecycle.obsolete.rejected"), "BOM obsolete rejection writes lifecycle audit");
-assert(bomRepository.includes("approve_obsolete"), "BOM obsolete approval writes edit event");
-assert(bomRepository.includes("reject_obsolete"), "BOM obsolete rejection writes edit event");
-assert(bomFacade.includes("requestBomWorkbenchObsoleteReviewAsync"), "BOM facade exports obsolete request service");
-assert(bomObsoleteRoute.includes("canReadBomDraftAsync"), "BOM obsolete API enforces BOM draft access");
-assert(bomObsoleteRoute.includes("requestBomWorkbenchObsoleteReviewAsync"), "BOM obsolete API calls service");
-assert(bomObsoleteRoute.includes("buildBomWorkbenchDraftLifecyclePolicy"), "BOM obsolete API returns policy");
-assert(bomObsoleteRoute.includes("pendingObsoleteRequest: true"), "BOM obsolete API returns review-stage policy after request");
-assert(
-  bomReviewsPage.includes("redirect(buildLegacyApprovalWorkbenchRedirect") && bomReviewsPage.includes('"bom_reviews"'),
-  "Legacy BOM review route redirects to approval workbench"
-);
-assert(
-  approvalLegacyRedirect.includes("bom_reviews") && approvalLegacyRedirect.includes('domain: "bom"'),
-  "Legacy BOM review redirect preserves BOM domain filter"
-);
-assert(
-  approvalWorkbenchPage.includes("bom.obsolete_review") && approvalWorkbenchPage.includes("BOM 作廢審核"),
-  "Approval workbench labels BOM obsolete reviews"
-);
-assert(bomWorkbenchPage.includes("/obsolete-request"), "BOM workbench UI posts obsolete request");
-assert(bomWorkbenchPage.includes('selectedDraft?.status === "Released"'), "BOM workbench UI only exposes obsolete action on released drafts");
-assert(bomWorkbenchPage.includes("作廢原因"), "BOM workbench UI collects obsolete reason");
-assert(bomWorkbenchPage.includes("申請作廢"), "BOM workbench UI uses formal obsolete label");
 
 assert(policy.includes('"submission"'), "Lifecycle policy supports formal submission records");
 assert(policy.includes("buildSubmissionLifecyclePolicy"), "Submission lifecycle policy builder exists");

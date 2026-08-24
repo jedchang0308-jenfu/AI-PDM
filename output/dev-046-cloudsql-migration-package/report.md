@@ -1,6 +1,6 @@
 # DEV-046 Cloud SQL Migration Package Preflight
 
-Generated at: 2026-08-17T04:43:37.699Z
+Generated at: 2026-08-24T07:05:45.006Z
 Package version: dev-046-cloudsql-migration-package/v1
 Status: blocked_package_not_ready
 
@@ -21,14 +21,14 @@ Status: blocked_package_not_ready
 
 ## Findings
 
-- PostgreSQL SQL files scanned: 39
+- PostgreSQL SQL files scanned: 40
 - Supabase role-reference lines: 34
-- DDL review lines: 133
-- Blocking destructive lines: 7
+- DDL review lines: 154
+- Blocking destructive lines: 27
 - Admin bootstrap required: true
 - VPC-attached runner required: true
 - Candidate package status: proposal_generated_not_reviewed
-- Candidate schema files: 37
+- Candidate schema files: 38
 - Candidate excluded files: 2
 - Candidate remaining Supabase role references: 0
 - Candidate remaining RLS statements: 0

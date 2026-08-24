@@ -1,6 +1,8 @@
 # SPEC-BOM-WORKBENCH-001：BOM 工作台
 
-狀態：Implemented baseline / 2026-08-10 Amendment Local RD/QA/QC Passed / Production Release Gated
+> **Superseded 2026-08-24**：本規格已由 `ADR-PDM-BOM-RETIREMENT-001` 全面取代。現行產品不提供 BOM 功能；本文只保留歷史追溯，不得作為 implementation 或 release acceptance authority。
+
+狀態：Superseded / Historical only
 日期：2026-05-30
 關聯任務：`DEV-BOM-WORKBENCH-001`、`DEV-PDM-BOM-MODULE-ENTRY-001` / `DEV-060`
 適用模組：BOM 工作台、送審、BOM diff、Where-used、製造交接、採購匯出

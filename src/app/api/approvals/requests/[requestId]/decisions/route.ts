@@ -13,7 +13,6 @@ import {
   resolveNumberingCompanyContextAsync
 } from "@/lib/numbering-company-context";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
-import { BomFloatingTopicsUnresolvedError, BomReleaseGateError } from "@/lib/bom-workbench-async";
 import { decideTransferPackageReview } from "@/lib/transfer-package-phase1d";
 import { transferPhase1dErrorResponse } from "@/lib/transfer-package-phase1d-api";
 import { decideNumberingCandidateBundleReview } from "@/lib/number-lifecycle-simplification";
@@ -180,44 +179,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
     });
     return NextResponse.json({ request: result });
   } catch (error) {
-    if (error instanceof BomReleaseGateError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-          message: bomReleaseGateMessage(error.issues),
-          issues: error.issues
-        },
-        { status: 409 }
-      );
-    }
-    if (error instanceof BomFloatingTopicsUnresolvedError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-          message: `BOM 尚有 ${error.floatingTopicCount} 個未歸位項目，請駁回後完成歸位再重送。`,
-          floatingTopicCount: error.floatingTopicCount
-        },
-        { status: 409 }
-      );
-    }
     return approvalApiErrorResponse(error, "decision", request);
   }
-}
-
-function bomReleaseGateMessage(issues: BomReleaseGateError["issues"]) {
-  const first = issues[0];
-  const partNumber = first?.part_number?.trim();
-  const subject = partNumber ? `子件 ${partNumber}` : "BOM 子件";
-  const reason =
-    first?.code === "child_not_released"
-      ? "尚未發行"
-      : first?.code === "child_outdated_revision"
-        ? "不是最新已發行版次"
-        : first?.code === "missing_child_revision" || first?.code === "missing_child_item"
-          ? "找不到可供核准的正式版次"
-          : "未符合發行條件";
-  const remaining = issues.length > 1 ? `，另有 ${issues.length - 1} 項` : "";
-  return `BOM 尚無法核准：${subject} ${reason}${remaining}。請駁回後修正 BOM 再重送。`;
 }
 
 function safeDecode(value: string) {

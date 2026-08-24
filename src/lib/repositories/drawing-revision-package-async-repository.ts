@@ -118,7 +118,6 @@ export class AsyncDrawingRevisionPackageRepository {
                       WHERE fff.company_id = package.company_id
                         AND fff.submission_id = package.source_submission_id
                         AND rce.action IN (
-                          'confirm_bom_no_revision',
                           'confirm_original_part_reuse',
                           'approve_replacement_part_and_drawing_release'
                         )
@@ -797,7 +796,6 @@ export class AsyncDrawingRevisionPackageRepository {
                       WHERE fff.company_id = package.company_id
                         AND fff.submission_id = package.source_submission_id
                         AND rce.action IN (
-                          'confirm_bom_no_revision',
                           'confirm_original_part_reuse',
                           'approve_replacement_part_and_drawing_release'
                         )

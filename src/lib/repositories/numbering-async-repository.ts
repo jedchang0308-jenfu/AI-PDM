@@ -2241,10 +2241,6 @@ export const SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL = `
         OR new_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
         OR source_drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)) AS replacement_link_count,
     (SELECT COUNT(*)
-     FROM bom_reconfirmation_flags
-     WHERE old_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
-        OR new_part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)) AS bom_reconfirmation_count,
-    (SELECT COUNT(*)
      FROM file_assets
      WHERE (linked_entity_type = 'part_root' AND linked_entity_id = :rootId)
         OR (linked_entity_type = 'part_number' AND linked_entity_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId))
@@ -4425,7 +4421,6 @@ export class AsyncNumberingRepository {
         manufacturing_baseline_count: number;
         manufacturing_baseline_item_count: number;
         replacement_link_count: number;
-        bom_reconfirmation_count: number;
         file_asset_count: number;
       }>(SELECT_ASYNC_DRAFT_DELETE_DEPENDENCY_COUNTS_SQL, { rootId: rootRow.id });
       const controlledDependencyCount =
@@ -4434,8 +4429,7 @@ export class AsyncNumberingRepository {
         Number(dependencyCounts?.shared_model_count ?? 0) +
         Number(dependencyCounts?.manufacturing_baseline_count ?? 0) +
         Number(dependencyCounts?.manufacturing_baseline_item_count ?? 0) +
-        Number(dependencyCounts?.replacement_link_count ?? 0) +
-        Number(dependencyCounts?.bom_reconfirmation_count ?? 0);
+        Number(dependencyCounts?.replacement_link_count ?? 0);
       if (controlledDependencyCount > 0) throw new Error("NUMBERING_DRAFT_DELETE_HAS_CONTROLLED_REFERENCES");
 
       const deletedRoot = mapPartRoot(rootRow);
@@ -5375,7 +5369,7 @@ export class AsyncNumberingRepository {
           : [];
       const warnings = isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? [] : ["DRAWING_IS_NOT_PRIMARY_MA"];
       const requiredDocuments = impactedPartNumbers.length
-        ? ["2D manufacturing drawing", "3D CAD model", "Released PDF package", "BOM or where-used records", "Related SOP/WI or inspection documents"]
+        ? ["2D manufacturing drawing", "3D CAD model", "Released PDF package", "Related SOP/WI or inspection documents"]
         : [];
       if (input.applyInvalidation && !isManufacturingDrawingPurpose(drawingNumber.purposeCode)) throw new Error("MAIN_DRAWING_INVALIDATION_REQUIRES_MA_DRAWING");
       if (input.applyInvalidation) {

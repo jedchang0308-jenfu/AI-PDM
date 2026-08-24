@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { createAuditLog, getDb, getSubmission, materializeBomDraftFromReferences } from "@/lib/db";
+import { createAuditLog, getDb, getSubmission } from "@/lib/db";
 import type { FileReference, SandboxBranch, SubmissionFile } from "@/lib/types";
 
 function sandboxBranchSelectSql() {
@@ -287,9 +287,6 @@ export function createSandboxBranch(input: {
       )
       .run(branchId, source.id, sandboxSubmissionId, branchName, reason, input.userId, now, now);
 
-    if (source.references.some((reference) => reference.reference_type === "assembly_component")) {
-      materializeBomDraftFromReferences(sandboxSubmissionId);
-    }
   });
 
   createBranchTransaction();

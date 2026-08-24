@@ -1,7 +1,6 @@
 export type StatusDisplayContext =
   | "masterRecord"
   | "submission"
-  | "bomDraft"
   | "workflow"
   | "applicationStatus"
   | "approvalStatus"
@@ -121,15 +120,6 @@ const submissionStatuses: StatusDefinition[] = [
   { keys: ["ReleaseFailed"], label: "發行未完成", description: "正式發行未完成，需要主管或管理員處理。", tone: "critical", abnormal: true, actionable: true },
   { keys: ["Obsolete"], label: "已作廢", description: "此送審紀錄已被新版取代或不再使用。", tone: "critical", terminal: true },
   { keys: ["Cancelled"], label: "已取消", description: "送審流程已取消，不會繼續審核或發行。", tone: "neutral", terminal: true }
-];
-
-const bomDraftStatuses: StatusDefinition[] = [
-  { keys: ["Draft"], label: "草稿", description: "BOM 尚未送審，可以繼續編輯。", tone: "warning", actionable: true },
-  { keys: ["Rejected"], label: "已退回", description: "BOM 已退回，修正後可重新送審。", tone: "warning", actionable: true },
-  { keys: ["PendingReview"], label: "審核中", description: "BOM 已送出，等待審核結果。", tone: "warning" },
-  { keys: ["Released"], label: "已發布", description: "BOM 已審核通過並成為正式版本。", tone: "success", terminal: true },
-  { keys: ["Obsolete"], label: "已作廢", description: "此 BOM 不再作為日常使用版本。", tone: "critical", terminal: true },
-  { keys: ["Archived"], label: "歷史", description: "此 BOM 保留追溯，不在日常作業中使用。", tone: "neutral", terminal: true }
 ];
 
 const workflowStatuses: StatusDefinition[] = [
@@ -334,7 +324,6 @@ const notificationStatuses: StatusDefinition[] = [
 const contextDefinitions: Record<StatusDisplayContext, StatusDefinition[]> = {
   masterRecord: masterRecordStatuses,
   submission: submissionStatuses,
-  bomDraft: bomDraftStatuses,
   workflow: workflowStatuses,
   applicationStatus: applicationStatusStatuses,
   approvalStatus: approvalStatusStatuses,

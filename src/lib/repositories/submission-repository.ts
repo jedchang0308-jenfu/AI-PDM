@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import { createAuditLog, getDb } from "@/lib/db";
-import { getBomBySubmissionId, materializeBomDraftFromReferences } from "@/lib/repositories/bom-repository";
 import { findOrCreateItem } from "@/lib/repositories/item-repository";
 import { getActiveItemLock } from "@/lib/repositories/item-lock-repository";
 import { getReleasePackageBySubmissionId } from "@/lib/repositories/release-repository";
@@ -120,7 +119,6 @@ export function getSubmission(id: string): SubmissionDetail | null {
   const auditLogs = database
     .prepare("SELECT id, actor_id, action, detail_json, created_at FROM audit_logs WHERE submission_id = ? ORDER BY created_at DESC")
     .all(id) as SubmissionDetail["audit_logs"];
-  const bom = getBomBySubmissionId(id);
   const activeLock = getActiveItemLock(row.item_id);
   const releasePackage = getReleasePackageBySubmissionId(id) ?? null;
 
@@ -129,7 +127,6 @@ export function getSubmission(id: string): SubmissionDetail | null {
     files,
     part_scopes: partScopes,
     references,
-    bom,
     active_lock: activeLock,
     release_package: releasePackage,
     approvals,
@@ -150,7 +147,6 @@ export type SubmissionSearchFilters = {
   parentDrawing?: string;
   childDrawingNumber?: string;
   childPartNumber?: string;
-  bomIssue?: string;
 };
 
 export function searchSubmissions(input: {
@@ -211,73 +207,13 @@ export function searchSubmissions(input: {
   addLikeFilter(filters, values, "s.drawing_number", normalizedFilters.parentDrawing);
   if (normalizedFilters.childDrawingNumber) {
     const childDrawingLike = toLike(normalizedFilters.childDrawingNumber);
-    filters.push(`(
-      lower(r.referenced_drawing_number) LIKE ?
-      OR EXISTS (
-        SELECT 1
-        FROM bom_headers child_drawing_bh
-        JOIN bom_lines child_drawing_bl ON child_drawing_bl.bom_header_id = child_drawing_bh.id
-        JOIN items child_drawing_i ON upper(child_drawing_i.part_number) = upper(child_drawing_bl.child_part_number)
-        JOIN submissions child_drawing_s ON child_drawing_s.item_id = child_drawing_i.id
-        WHERE child_drawing_bh.parent_submission_id = s.id
-          AND (child_drawing_bl.child_revision IS NULL OR upper(child_drawing_s.revision) = upper(child_drawing_bl.child_revision))
-          AND lower(child_drawing_s.drawing_number) LIKE ?
-      )
-    )`);
-    values.push(childDrawingLike, childDrawingLike);
+    filters.push("lower(r.referenced_drawing_number) LIKE ?");
+    values.push(childDrawingLike);
   }
   if (normalizedFilters.childPartNumber) {
     const childLike = toLike(normalizedFilters.childPartNumber);
-    filters.push(`(
-      lower(r.referenced_part_number) LIKE ?
-      OR EXISTS (
-        SELECT 1
-        FROM bom_headers child_bh
-        JOIN bom_lines child_bl ON child_bl.bom_header_id = child_bh.id
-        WHERE child_bh.parent_submission_id = s.id
-          AND lower(child_bl.child_part_number) LIKE ?
-      )
-    )`);
-    values.push(childLike, childLike);
-  }
-  if (normalizedFilters.bomIssue === "unreleased") {
-    filters.push(`EXISTS (
-      SELECT 1
-      FROM bom_headers issue_bh
-      JOIN bom_lines issue_bl ON issue_bl.bom_header_id = issue_bh.id
-      LEFT JOIN items issue_i ON upper(issue_i.part_number) = upper(issue_bl.child_part_number)
-      LEFT JOIN submissions issue_s ON issue_s.id = (
-        SELECT cs.id
-        FROM submissions cs
-        WHERE cs.item_id = issue_i.id
-          AND (issue_bl.child_revision IS NULL OR upper(cs.revision) = upper(issue_bl.child_revision))
-        ORDER BY
-          CASE WHEN cs.status = 'Released' THEN 0 ELSE 1 END,
-          datetime(COALESCE(cs.released_at, cs.updated_at, cs.created_at)) DESC,
-          cs.rowid DESC
-        LIMIT 1
-      )
-      WHERE issue_bh.parent_submission_id = s.id
-        AND (issue_s.id IS NULL OR issue_s.status <> 'Released')
-    )`);
-  } else if (normalizedFilters.bomIssue === "outdated") {
-    filters.push(`EXISTS (
-      SELECT 1
-      FROM bom_headers issue_bh
-      JOIN bom_lines issue_bl ON issue_bl.bom_header_id = issue_bh.id
-      JOIN items issue_i ON upper(issue_i.part_number) = upper(issue_bl.child_part_number)
-      JOIN submissions latest_released ON latest_released.id = (
-        SELECT lr.id
-        FROM submissions lr
-        WHERE lr.item_id = issue_i.id
-          AND lr.status = 'Released'
-        ORDER BY datetime(COALESCE(lr.released_at, lr.updated_at, lr.created_at)) DESC, lr.rowid DESC
-        LIMIT 1
-      )
-      WHERE issue_bh.parent_submission_id = s.id
-        AND issue_bl.child_revision IS NOT NULL
-        AND upper(issue_bl.child_revision) <> upper(latest_released.revision)
-    )`);
+    filters.push("lower(r.referenced_part_number) LIKE ?");
+    values.push(childLike);
   }
 
   const whereSql = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
@@ -780,10 +716,6 @@ export function createSubmissionRecord(input: {
     action: "Submit",
     detail: { fileCount: input.files.length }
   });
-
-  if (references.some((reference) => reference.referenceType === "assembly_component")) {
-    materializeBomDraftFromReferences(submissionId);
-  }
 
   return submissionId;
 }

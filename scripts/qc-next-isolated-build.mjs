@@ -75,7 +75,8 @@ let exitCode = 1;
 try {
   await writeIsolatedTsconfig();
   exitCode = await new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [nextCli, "build"], {
+    const buildArgs = [nextCli, "build", ...(process.env.PDM_NEXT_BUILD_WEBPACK === "1" ? ["--webpack"] : [])];
+    const child = spawn(process.execPath, buildArgs, {
       cwd: root,
       env: { ...process.env, PDM_NEXT_DIST_DIR: distDirRelative, PDM_NEXT_TSCONFIG_PATH: tsconfigFile },
       stdio: "inherit"
