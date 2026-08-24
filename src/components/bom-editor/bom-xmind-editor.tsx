@@ -30,6 +30,7 @@ import {
   type BomEditorFloatingTopic,
   type BomEditorItemCandidate,
   type BomEditorLine,
+  type BomEditorSharedComponent,
   type BomEditorSnapshot,
   type BomEditorViewMode
 } from "@/components/bom-editor/bom-editor-types";
@@ -70,6 +71,7 @@ export function BomXmindEditor({
   onSetActiveDraft,
   onCloneDraft,
   onDeleteDraft,
+  onRestoreDraft,
   onReconfirmReplacementFlags,
   onRequestObsolete
 }: {
@@ -81,6 +83,7 @@ export function BomXmindEditor({
   onSetActiveDraft?: () => void;
   onCloneDraft?: () => void;
   onDeleteDraft?: () => void;
+  onRestoreDraft?: () => void;
   onReconfirmReplacementFlags?: () => Promise<void>;
   onRequestObsolete?: (reason: string) => Promise<void>;
 }) {
@@ -102,6 +105,9 @@ export function BomXmindEditor({
   const [reviewReason, setReviewReason] = useState("");
   const [obsoleteReason, setObsoleteReason] = useState("");
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [contextParentPartNumberId, setContextParentPartNumberId] = useState(
+    draft.context_parent_part_number_id ?? draft.applicable_parents?.[0]?.part_number_id ?? ""
+  );
   const [deletePrompt, setDeletePrompt] = useState<{ nodeId: string; label: string; branchCount: number } | null>(null);
   const [draftDeletePrompt, setDraftDeletePrompt] = useState(false);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<XmindBomFlowNode, Edge> | null>(null);
@@ -118,6 +124,7 @@ export function BomXmindEditor({
     setPicker(null);
     setContextMenu(null);
     setConflict(false);
+    setContextParentPartNumberId(draft.context_parent_part_number_id ?? draft.applicable_parents?.[0]?.part_number_id ?? "");
   }, [draft, draft.id, draft.editor_version]);
 
   useEffect(() => {
@@ -131,9 +138,13 @@ export function BomXmindEditor({
   const snapshot = currentBomEditorSnapshot(history);
   const dirty = isBomEditorHistoryDirty(history);
   const mutable = draft.status === "Draft" || draft.status === "Rejected";
+  const sharedDefinition = Boolean(draft.definition_id);
   const selectedNode = findEditorNode(snapshot, snapshot.selectedId);
+  const selectedComponent = snapshot.components.find((component) => component.node_id === snapshot.selectedId) ?? null;
   const selectedId = snapshot.selectedId;
   const usesCanonicalPartIdentity = draft.identity_authority === "canonical_part_number";
+  const usesSharedStructure = Boolean(draft.definition_id);
+  const unresolvedMappings = usesSharedStructure ? listUnresolvedMappings(snapshot.components, draft.applicable_parents ?? []) : [];
   const rootLabel = `${rootPartNumber} · BOM Rev ${draft.bom_revision ?? draft.parent_revision ?? "-"}`;
 
   const openPicker = (mode: PickerState["mode"], targetId: string | null = selectedId, position?: XYPosition) => {
@@ -184,17 +195,17 @@ export function BomXmindEditor({
     const id = makeEditorId();
     commit((current) => {
       if (mode === "floating") {
-        current.floatingTopics.push(makeFloatingGroup(draft.id, id, null, position ?? { x: 320, y: 220 }));
+        current.floatingTopics.push(makeFloatingGroup(draft.id, id, null, position ?? { x: 320, y: 220 }, usesSharedStructure));
       } else {
         const target = current.lines.find((line) => line.id === targetId);
         const floatingTarget = current.floatingTopics.find((topic) => topic.id === targetId);
         if (floatingTarget) {
           const parentId = mode === "subtopic" ? floatingTarget.id : floatingTarget.parent_floating_topic_id;
-          current.floatingTopics.push(makeFloatingGroup(draft.id, id, parentId, rootPositionForFloating(current.floatingTopics, floatingTarget)));
+          current.floatingTopics.push(makeFloatingGroup(draft.id, id, parentId, rootPositionForFloating(current.floatingTopics, floatingTarget), usesSharedStructure));
           current.floatingTopics = normalizeFloatingSequences(current.floatingTopics);
         } else {
           const parentId = mode === "subtopic" && target ? target.id : target?.parent_line_id ?? null;
-          current.lines.push(makeFormalGroup(draft.id, id, parentId));
+          current.lines.push(makeFormalGroup(draft.id, id, parentId, usesSharedStructure));
           current.lines = normalizeLineSequences(current.lines);
         }
       }
@@ -210,20 +221,21 @@ export function BomXmindEditor({
     const id = makeEditorId();
     commit((current) => {
       if (pickerState.mode === "floating") {
-        current.floatingTopics.push(makeFloatingItem(draft.id, id, null, pickerState.position ?? { x: 320, y: 220 }, item, !usesCanonicalPartIdentity));
+        current.floatingTopics.push(makeFloatingItem(draft.id, id, null, pickerState.position ?? { x: 320, y: 220 }, item, !usesCanonicalPartIdentity, usesSharedStructure));
       } else {
         const formalTarget = current.lines.find((line) => line.id === pickerState.targetId);
         const floatingTarget = current.floatingTopics.find((topic) => topic.id === pickerState.targetId);
         if (floatingTarget) {
           const parentId = pickerState.mode === "subtopic" ? floatingTarget.id : floatingTarget.parent_floating_topic_id;
-          current.floatingTopics.push(makeFloatingItem(draft.id, id, parentId, rootPositionForFloating(current.floatingTopics, floatingTarget), item, !usesCanonicalPartIdentity));
+          current.floatingTopics.push(makeFloatingItem(draft.id, id, parentId, rootPositionForFloating(current.floatingTopics, floatingTarget), item, !usesCanonicalPartIdentity, usesSharedStructure));
           current.floatingTopics = normalizeFloatingSequences(current.floatingTopics);
         } else {
           const parentId = pickerState.mode === "subtopic" && formalTarget ? formalTarget.id : formalTarget?.parent_line_id ?? null;
-          current.lines.push(makeFormalItem(draft.id, id, parentId, item, !usesCanonicalPartIdentity));
+          current.lines.push(makeFormalItem(draft.id, id, parentId, item, !usesCanonicalPartIdentity, usesSharedStructure));
           current.lines = normalizeLineSequences(current.lines);
         }
       }
+      if (usesSharedStructure) current.components.push(makeSharedComponent(id, pickerState.mode === "floating" || current.floatingTopics.some((topic) => topic.id === id) ? "floating" : "tree", item));
       current.selectedId = id;
       return current;
     });
@@ -238,7 +250,7 @@ export function BomXmindEditor({
       const line = current.lines.find((item) => item.id === selectedId);
       if (line) {
         const parentId = line.parent_line_id;
-        const group = makeFormalGroup(draft.id, id, parentId);
+        const group = makeFormalGroup(draft.id, id, parentId, usesSharedStructure);
         group.sequence_no = line.sequence_no;
         line.parent_line_id = id;
         line.sequence_no = 1;
@@ -248,7 +260,7 @@ export function BomXmindEditor({
         const topic = current.floatingTopics.find((item) => item.id === selectedId);
         if (!topic) return current;
         const parentId = topic.parent_floating_topic_id;
-        const group = makeFloatingGroup(draft.id, id, parentId, rootPositionForFloating(current.floatingTopics, topic));
+        const group = makeFloatingGroup(draft.id, id, parentId, rootPositionForFloating(current.floatingTopics, topic), usesSharedStructure);
         group.sequence_no = topic.sequence_no;
         topic.parent_floating_topic_id = id;
         topic.sequence_no = 1;
@@ -293,6 +305,19 @@ export function BomXmindEditor({
     });
   };
 
+  const updateSelectedComponent = (component: BomEditorSharedComponent) => {
+    commit((current) => {
+      current.components = current.components.map((entry) => entry.node_id === component.node_id ? component : entry);
+      const node = findEditorNode(current, component.node_id);
+      const primaryCandidate = component.child_candidates?.find((candidate) => candidate.part_number_id === component.child_part_number_ids[0]);
+      if (node?.node_type === "item" && primaryCandidate) {
+        node.part_number = primaryCandidate.part_number;
+        node.part_name = primaryCandidate.part_name;
+      }
+      return current;
+    });
+  };
+
   const moveSelected = (direction: -1 | 1) => {
     if (!selectedId) return;
     commit((current) => {
@@ -318,6 +343,7 @@ export function BomXmindEditor({
         for (const child of current.floatingTopics.filter((item) => item.parent_floating_topic_id === floating.id)) child.parent_floating_topic_id = floating.parent_floating_topic_id;
         current.floatingTopics = normalizeFloatingSequences(current.floatingTopics.filter((item) => item.id !== floating.id));
       }
+      current.components = current.components.filter((component) => component.node_id !== selectedId);
       current.selectedId = line?.parent_line_id ?? floating?.parent_floating_topic_id ?? null;
       return current;
     });
@@ -329,9 +355,11 @@ export function BomXmindEditor({
       if (current.lines.some((item) => item.id === nodeId)) {
         const ids = collectBranchIds(current.lines, nodeId, "parent_line_id");
         current.lines = normalizeLineSequences(current.lines.filter((item) => !ids.has(item.id)));
+        current.components = current.components.filter((component) => !ids.has(component.node_id));
       } else {
         const ids = collectBranchIds(current.floatingTopics, nodeId, "parent_floating_topic_id");
         current.floatingTopics = normalizeFloatingSequences(current.floatingTopics.filter((item) => !ids.has(item.id)));
+        current.components = current.components.filter((component) => !ids.has(component.node_id));
       }
       current.selectedId = null;
       return current;
@@ -405,7 +433,8 @@ export function BomXmindEditor({
           reason: "XMind-style BOM editor save",
           expectedEditorVersion: editorVersion,
           lines: snapshot.lines.map(toPatchLine),
-          floatingTopics: snapshot.floatingTopics.map(toPatchFloatingTopic)
+          floatingTopics: snapshot.floatingTopics.map(toPatchFloatingTopic),
+          components: usesSharedStructure ? snapshot.components.map(toPatchComponent) : undefined
         })
       });
       const body = (await response.json().catch(() => ({}))) as { draft?: BomEditorDraftLike; error?: string; message?: string };
@@ -481,7 +510,7 @@ export function BomXmindEditor({
   const hasOpenReconfirmationFlags = (draft.reconfirmation_flags?.length ?? 0) > 0;
 
   const submitReview = async () => {
-    if (!mutable || dirty || snapshot.floatingTopics.length > 0 || hasOpenReconfirmationFlags || !reviewReason.trim()) return;
+    if (!mutable || dirty || snapshot.floatingTopics.length > 0 || unresolvedMappings.length > 0 || hasOpenReconfirmationFlags || !reviewReason.trim()) return;
     setSaving(true);
     setError("");
     try {
@@ -611,8 +640,8 @@ export function BomXmindEditor({
           <dl><div><dt>主題／子主題</dt><dd>Enter／Tab</dd></div><div><dt>父主題</dt><dd>Ctrl+Enter</dd></div><div><dt>復原／重做</dt><dd>Ctrl+Z／Ctrl+Shift+Z</dd></div><div><dt>摺疊／專注</dt><dd>Ctrl+/／Ctrl+;</dd></div></dl>
           {mutable ? <div className="xmind-bom-review-action">
             <label><span>送審原因</span><input value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="簡述本次 BOM 變更" /></label>
-            {snapshot.floatingTopics.length > 0 ? <p role="status">尚有 {snapshot.floatingTopics.length} 個 Floating Topic 未歸位，暫時無法送審。</p> : dirty ? <p role="status">請先儲存本次變更，再送出審核。</p> : hasOpenReconfirmationFlags ? <p role="status">請先重新確認被取代料號，再送出審核。</p> : null}
-            <button type="button" disabled={!mutable || dirty || snapshot.floatingTopics.length > 0 || hasOpenReconfirmationFlags || !reviewReason.trim() || saving} onClick={() => void submitReview()}>送出審核</button>
+            {snapshot.floatingTopics.length > 0 ? <p role="status">尚有 {snapshot.floatingTopics.length} 個 Floating Topic 未歸位，暫時無法送審。</p> : unresolvedMappings.length > 0 ? <p role="status">尚有 {unresolvedMappings.length} 個適用料號對應未完成。</p> : dirty ? <p role="status">請先儲存本次變更，再送出審核。</p> : hasOpenReconfirmationFlags ? <p role="status">請先重新確認被取代料號，再送出審核。</p> : null}
+            <button type="button" disabled={!mutable || dirty || snapshot.floatingTopics.length > 0 || unresolvedMappings.length > 0 || hasOpenReconfirmationFlags || !reviewReason.trim() || saving} onClick={() => void submitReview()}>送出審核</button>
           </div> : null}
           {mutable && hasOpenReconfirmationFlags ? (
             <div className="xmind-bom-review-action" role="status">
@@ -624,8 +653,18 @@ export function BomXmindEditor({
           {draft.status === "Released" && draft.release_snapshot_id ? (
             <div className="xmind-bom-review-action" role="group" aria-label="正式 BOM 匯出">
               <strong>正式 BOM 匯出</strong>
-              <a className="secondary-button" href={`/api/bom/releases/${encodeURIComponent(draft.release_snapshot_id)}/export?format=csv`}>下載正式 CSV</a>
-              <a className="secondary-button" href={`/api/bom/releases/${encodeURIComponent(draft.release_snapshot_id)}/export?format=xlsx`}>下載正式 XLSX</a>
+              {sharedDefinition && (draft.applicable_parents?.length ?? 0) > 1 ? (
+                <label>
+                  <span>適用 Parent</span>
+                  <select value={contextParentPartNumberId} onChange={(event) => setContextParentPartNumberId(event.target.value)}>
+                    {draft.applicable_parents?.map((parent) => (
+                      <option key={parent.part_number_id} value={parent.part_number_id}>{parent.part_number} — {parent.part_name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <a className="secondary-button" href={releaseExportUrl(draft.release_snapshot_id, "csv", sharedDefinition ? contextParentPartNumberId : null)}>下載正式 CSV</a>
+              <a className="secondary-button" href={releaseExportUrl(draft.release_snapshot_id, "xlsx", sharedDefinition ? contextParentPartNumberId : null)}>下載正式 XLSX</a>
             </div>
           ) : null}
           {draft.status === "Released" && onRequestObsolete ? (
@@ -636,9 +675,10 @@ export function BomXmindEditor({
           ) : null}
           <div className="xmind-bom-more-actions" role="group" aria-label="BOM 操作">
             <button type="button" onClick={() => { setViewMode("map"); setMoreOpen(false); }}>導覽圖</button>
-            <button type="button" disabled={!onSetActiveDraft || draft.is_active === 1 || dirty || saving} onClick={() => { setMoreOpen(false); onSetActiveDraft?.(); }}>設為目前</button>
-            <button type="button" disabled={!onCloneDraft || dirty || saving} onClick={() => { setMoreOpen(false); onCloneDraft?.(); }}>複製草稿</button>
-            <button type="button" className="danger" disabled={!onDeleteDraft || draft.status !== "Draft" || dirty || saving} onClick={() => { setMoreOpen(false); setDraftDeletePrompt(true); }}>刪除草稿</button>
+            {!sharedDefinition ? <button type="button" disabled={!onSetActiveDraft || draft.is_active === 1 || dirty || saving} onClick={() => { setMoreOpen(false); onSetActiveDraft?.(); }}>設為目前</button> : null}
+            {!sharedDefinition || draft.status === "Released" ? <button type="button" disabled={!onCloneDraft || dirty || saving} onClick={() => { setMoreOpen(false); onCloneDraft?.(); }}>{sharedDefinition ? "建立下一版" : "複製草稿"}</button> : null}
+            {sharedDefinition && draft.status === "Archived" ? <button type="button" disabled={!onRestoreDraft || saving} onClick={() => { setMoreOpen(false); onRestoreDraft?.(); }}>恢復草稿</button> : null}
+            {draft.status !== "Archived" ? <button type="button" className="danger" disabled={!onDeleteDraft || draft.status !== "Draft" || dirty || saving} onClick={() => { setMoreOpen(false); setDraftDeletePrompt(true); }}>{sharedDefinition ? "封存草稿" : "刪除草稿"}</button> : null}
           </div>
         </div>
       ) : null}
@@ -711,10 +751,19 @@ export function BomXmindEditor({
               onPickItem={(item) => addItem(item, picker)}
               onCreateGroup={() => addGroup(picker.mode, picker.targetId, picker.position)}
               onClose={() => setPicker(null)}
+              canonicalParts={usesSharedStructure}
             />
           ) : null}
         </div>
-        {inspectorOpen ? <BomNodeInspector node={selectedNode} mutable={mutable} showLegacyRevision={!usesCanonicalPartIdentity} onCommit={updateSelected} /> : null}
+        {inspectorOpen ? <BomNodeInspector
+          node={selectedNode}
+          mutable={mutable}
+          showLegacyRevision={!usesCanonicalPartIdentity}
+          component={selectedComponent}
+          applicableParents={draft.applicable_parents ?? []}
+          onCommit={updateSelected}
+          onCommitComponent={updateSelectedComponent}
+        /> : null}
       </div>
 
       {contextMenu ? (
@@ -748,10 +797,10 @@ export function BomXmindEditor({
       {draftDeletePrompt ? (
         <div className="xmind-bom-confirm-backdrop" role="presentation" onPointerDown={() => setDraftDeletePrompt(false)}>
           <div className="xmind-bom-confirm" role="alertdialog" aria-modal="true" aria-labelledby="xmind-bom-draft-delete-title" onPointerDown={(event) => event.stopPropagation()}>
-            <h2 id="xmind-bom-draft-delete-title">刪除 BOM 草稿？</h2>
-            <p><strong>{draft.draft_name ?? "目前草稿"}</strong> 將移至已刪除資料區，現有 BOM 編輯內容也會一併封存。</p>
-            <small>若仍需使用，可由已刪除資料區還原；此操作不會刪除受控歷史。</small>
-            <div><button type="button" onClick={() => setDraftDeletePrompt(false)}>取消</button><button className="danger" type="button" onClick={() => { setDraftDeletePrompt(false); onDeleteDraft?.(); }}>確認刪除草稿</button></div>
+            <h2 id="xmind-bom-draft-delete-title">{sharedDefinition ? "封存 BOM 草稿？" : "刪除 BOM 草稿？"}</h2>
+            <p><strong>{draft.draft_name ?? "目前草稿"}</strong> 將移至封存狀態，現有 BOM 編輯內容與 Definition 關聯都會保留。</p>
+            <small>需要續作時可恢復；此操作不會刪除受控歷史。</small>
+            <div><button type="button" onClick={() => setDraftDeletePrompt(false)}>取消</button><button className="danger" type="button" onClick={() => { setDraftDeletePrompt(false); onDeleteDraft?.(); }}>{sharedDefinition ? "確認封存草稿" : "確認刪除草稿"}</button></div>
           </div>
         </div>
       ) : null}
@@ -776,6 +825,12 @@ function snapshotFromDraft(draft: BomEditorDraftLike): BomEditorSnapshot {
   return {
     lines: normalizeLineSequences((draft.lines ?? []).map((line) => ({ ...line }))),
     floatingTopics: normalizeFloatingSequences((draft.floating_topics ?? []).map((topic) => ({ ...topic }))),
+    components: (draft.components ?? []).map((component) => ({
+      ...component,
+      child_part_number_ids: [...component.child_part_number_ids],
+      child_candidates: component.child_candidates?.map((candidate) => ({ ...candidate })),
+      parent_selections: component.parent_selections.map((selection) => ({ ...selection }))
+    })),
     selectedId: draft.lines[0]?.id ?? draft.floating_topics?.[0]?.id ?? BOM_EDITOR_ROOT_ID,
     collapsedIds: [],
     focusBranchId: null
@@ -987,6 +1042,7 @@ function formalBranchToFloating(snapshot: BomEditorSnapshot, rootId: string, pos
   snapshot.lines = normalizeLineSequences(snapshot.lines.filter((line) => !branchIds.has(line.id)));
   snapshot.floatingTopics.push(...branch.map((line) => ({
     id: line.id,
+    logical_line_id: line.logical_line_id,
     bom_draft_id: line.bom_draft_id,
     parent_floating_topic_id: line.id === rootId ? null : line.parent_line_id,
     node_type: line.node_type,
@@ -1001,6 +1057,7 @@ function formalBranchToFloating(snapshot: BomEditorSnapshot, rootId: string, pos
     root_position_y: line.id === rootId ? position.y : 0,
     source: "manual" as const
   })));
+  snapshot.components = snapshot.components.map((component) => branchIds.has(component.node_id) ? { ...component, node_location: "floating" } : component);
   snapshot.floatingTopics = normalizeFloatingSequences(snapshot.floatingTopics);
   return snapshot;
 }
@@ -1012,6 +1069,7 @@ function floatingBranchToFormal(snapshot: BomEditorSnapshot, rootId: string, tar
   const parentId = !target ? null : zone === "child" ? target.id : target.parent_line_id;
   snapshot.lines.push(...branch.map((topic) => ({
     id: topic.id,
+    logical_line_id: topic.logical_line_id,
     bom_draft_id: topic.bom_draft_id,
     parent_line_id: topic.id === rootId ? parentId : topic.parent_floating_topic_id,
     node_type: topic.node_type,
@@ -1025,6 +1083,7 @@ function floatingBranchToFormal(snapshot: BomEditorSnapshot, rootId: string, tar
     source: "manual" as const,
     source_priority: 30
   })));
+  snapshot.components = snapshot.components.map((component) => branchIds.has(component.node_id) ? { ...component, node_location: "tree" } : component);
   snapshot.lines = normalizeLineSequences(snapshot.lines);
   return snapshot;
 }
@@ -1120,28 +1179,74 @@ function rootPositionForFloating(topics: BomEditorFloatingTopic[], topic: BomEdi
   return { x: current.root_position_x, y: current.root_position_y };
 }
 
-function makeFormalGroup(draftId: string, id: string, parentId: string | null): BomEditorLine {
-  return { id, bom_draft_id: draftId, parent_line_id: parentId, node_type: "group", item_id: null, part_number: null, revision: null, group_name: "新主題", quantity: null, sequence_no: 9999, source: "manual", source_priority: 30 };
+function makeFormalGroup(draftId: string, id: string, parentId: string | null, shared: boolean): BomEditorLine {
+  return { id, logical_line_id: shared ? id : null, bom_draft_id: draftId, parent_line_id: parentId, node_type: "group", item_id: null, part_number: null, revision: null, group_name: "新主題", quantity: null, sequence_no: 9999, source: "manual", source_priority: 30 };
 }
 
-function makeFormalItem(draftId: string, id: string, parentId: string | null, item: BomEditorItemCandidate, preserveLegacyRevision: boolean): BomEditorLine {
-  return { id, bom_draft_id: draftId, parent_line_id: parentId, node_type: "item", item_id: item.item_id, part_number: item.part_number, part_name: item.part_name, revision: preserveLegacyRevision ? item.revision || null : null, group_name: null, quantity: 1, sequence_no: 9999, source: "manual", source_priority: 30 };
+function makeFormalItem(draftId: string, id: string, parentId: string | null, item: BomEditorItemCandidate, preserveLegacyRevision: boolean, shared: boolean): BomEditorLine {
+  return { id, logical_line_id: shared ? id : null, bom_draft_id: draftId, parent_line_id: parentId, node_type: "item", item_id: item.item_id, part_number: item.part_number, part_name: item.part_name, revision: preserveLegacyRevision ? item.revision || null : null, group_name: null, quantity: 1, sequence_no: 9999, source: "manual", source_priority: 30 };
 }
 
-function makeFloatingGroup(draftId: string, id: string, parentId: string | null, position: XYPosition): BomEditorFloatingTopic {
-  return { id, bom_draft_id: draftId, parent_floating_topic_id: parentId, node_type: "group", item_id: null, part_number: null, revision: null, group_name: "Floating Topic", quantity: null, sequence_no: 9999, root_position_x: position.x, root_position_y: position.y, source: "manual" };
+function makeFloatingGroup(draftId: string, id: string, parentId: string | null, position: XYPosition, shared: boolean): BomEditorFloatingTopic {
+  return { id, logical_line_id: shared ? id : null, bom_draft_id: draftId, parent_floating_topic_id: parentId, node_type: "group", item_id: null, part_number: null, revision: null, group_name: "Floating Topic", quantity: null, sequence_no: 9999, root_position_x: position.x, root_position_y: position.y, source: "manual" };
 }
 
-function makeFloatingItem(draftId: string, id: string, parentId: string | null, position: XYPosition, item: BomEditorItemCandidate, preserveLegacyRevision: boolean): BomEditorFloatingTopic {
-  return { id, bom_draft_id: draftId, parent_floating_topic_id: parentId, node_type: "item", item_id: item.item_id, part_number: item.part_number, part_name: item.part_name, revision: preserveLegacyRevision ? item.revision || null : null, group_name: null, quantity: 1, sequence_no: 9999, root_position_x: position.x, root_position_y: position.y, source: "manual" };
+function makeFloatingItem(draftId: string, id: string, parentId: string | null, position: XYPosition, item: BomEditorItemCandidate, preserveLegacyRevision: boolean, shared: boolean): BomEditorFloatingTopic {
+  return { id, logical_line_id: shared ? id : null, bom_draft_id: draftId, parent_floating_topic_id: parentId, node_type: "item", item_id: item.item_id, part_number: item.part_number, part_name: item.part_name, revision: preserveLegacyRevision ? item.revision || null : null, group_name: null, quantity: 1, sequence_no: 9999, root_position_x: position.x, root_position_y: position.y, source: "manual" };
 }
 
 function toPatchLine(line: BomEditorLine) {
-  return { id: line.id, parentLineId: line.parent_line_id, nodeType: line.node_type, partNumber: line.part_number, revision: line.revision, groupName: line.group_name, quantity: line.quantity, sequenceNo: line.sequence_no };
+  return { id: line.id, logicalLineId: line.logical_line_id, parentLineId: line.parent_line_id, nodeType: line.node_type, partNumber: line.part_number, revision: line.revision, groupName: line.group_name, quantity: line.quantity, sequenceNo: line.sequence_no };
 }
 
 function toPatchFloatingTopic(topic: BomEditorFloatingTopic) {
-  return { id: topic.id, parentFloatingTopicId: topic.parent_floating_topic_id, nodeType: topic.node_type, partNumber: topic.part_number, revision: topic.revision, groupName: topic.group_name, quantity: topic.quantity, sequenceNo: topic.sequence_no, rootPositionX: topic.root_position_x, rootPositionY: topic.root_position_y };
+  return { id: topic.id, logicalLineId: topic.logical_line_id, parentFloatingTopicId: topic.parent_floating_topic_id, nodeType: topic.node_type, partNumber: topic.part_number, revision: topic.revision, groupName: topic.group_name, quantity: topic.quantity, sequenceNo: topic.sequence_no, rootPositionX: topic.root_position_x, rootPositionY: topic.root_position_y };
+}
+
+function makeSharedComponent(nodeId: string, nodeLocation: "tree" | "floating", item: BomEditorItemCandidate): BomEditorSharedComponent {
+  const partNumberId = item.part_number_id ?? item.id;
+  return {
+    node_id: nodeId,
+    logical_line_id: nodeId,
+    node_location: nodeLocation,
+    component_mode: "fixed",
+    child_part_root_id: item.part_root_id ?? "",
+    child_part_number_ids: [partNumberId],
+    child_candidates: [{
+      part_number_id: partNumberId,
+      part_number: item.part_number,
+      part_name: item.part_name,
+      part_root_id: item.part_root_id ?? ""
+    }],
+    parent_selections: []
+  };
+}
+
+function toPatchComponent(component: BomEditorSharedComponent) {
+  return {
+    nodeId: component.node_id,
+    logicalLineId: component.logical_line_id,
+    nodeLocation: component.node_location,
+    componentMode: component.component_mode,
+    childPartNumberIds: component.child_part_number_ids,
+    parentSelections: component.parent_selections.map((selection) => ({
+      parentPartNumberId: selection.parent_part_number_id,
+      childPartNumberId: selection.child_part_number_id
+    }))
+  };
+}
+
+function listUnresolvedMappings(components: BomEditorSharedComponent[], parents: NonNullable<BomEditorDraftLike["applicable_parents"]>) {
+  return components.flatMap((component) => component.component_mode === "by_parent"
+    ? parents.filter((parent) => !component.parent_selections.some((selection) => selection.parent_part_number_id === parent.part_number_id))
+      .map((parent) => ({ logicalLineId: component.logical_line_id, parentPartNumberId: parent.part_number_id }))
+    : []);
+}
+
+function releaseExportUrl(releaseSnapshotId: string, format: "csv" | "xlsx", parentPartNumberId: string | null) {
+  const params = new URLSearchParams({ format });
+  if (parentPartNumberId) params.set("parentPartNumberId", parentPartNumberId);
+  return `/api/bom/releases/${encodeURIComponent(releaseSnapshotId)}/export?${params.toString()}`;
 }
 
 function makeEditorId() {

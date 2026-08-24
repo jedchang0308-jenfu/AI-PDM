@@ -1,4 +1,5 @@
 import type { CanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
+import type { NumberingStructureType } from "@/lib/numbering-structure-type";
 
 export type CreateContent = "part" | "drawing" | "drawing_part";
 export type CreateScope = "new_root" | "existing_root";
@@ -6,6 +7,7 @@ export type CreatePurposeCode = "M" | "R";
 
 export type PartCreateFields = {
   itemKind: CanonicalNumberingItemKind;
+  structureType: NumberingStructureType;
   isUniversal: boolean;
   seriesCode?: string | null;
   customSpecification?: string | null;
@@ -33,9 +35,9 @@ export type CanonicalNumberingCreateIntent =
   | ({ scope: "new_root"; content: "part"; coreName: string } & PurchasedPartCreateFields)
   | ({ scope: "new_root"; content: "drawing_part"; coreName: string; purposeCode: "M"; referencePurpose?: null } & ManufacturedPartCreateFields)
   | ({ scope: "new_root"; content: "drawing_part"; coreName: string; purposeCode: "R"; referencePurpose: string } & PurchasedPartCreateFields)
-  | ({ scope: "existing_root"; content: "part" } & ExistingRootFields & PartCreateFields)
+  | ({ scope: "existing_root"; content: "part" } & ExistingRootFields)
   | ({ scope: "existing_root"; content: "drawing" } & ExistingRootFields & DrawingCreateFields)
-  | ({ scope: "existing_root"; content: "drawing_part" } & ExistingRootFields & PartCreateFields & DrawingCreateFields);
+  | ({ scope: "existing_root"; content: "drawing_part" } & ExistingRootFields & DrawingCreateFields);
 
 export type ProductNameSuggestionInput = {
   itemKind: CanonicalNumberingItemKind;
@@ -91,6 +93,7 @@ export type CreateErrorCode =
 function normalizedPartFields(intent: PartCreateFields): PartCreateFields {
   return {
     itemKind: intent.itemKind,
+    structureType: intent.structureType,
     isUniversal: intent.isUniversal,
     seriesCode: intent.itemKind === "manufactured" && !intent.isUniversal ? intent.seriesCode?.trim() || null : null,
     customSpecification: intent.customSpecification?.trim() || null,
@@ -141,12 +144,14 @@ export function normalizeCreateIntent(intent: CanonicalNumberingCreateIntent): C
     return { ...intent, ...existingFields, ...normalizedDrawingFields(intent) };
   }
   if (intent.content === "part") {
-    return { ...intent, ...existingFields, ...normalizedPartFields(intent) };
+    return { ...intent, ...existingFields };
   }
-  return { ...intent, ...existingFields, ...normalizedPartFields(intent), ...normalizedDrawingFields(intent) };
+  return { ...intent, ...existingFields, ...normalizedDrawingFields(intent) };
 }
 
 function validatePartFields(intent: PartCreateFields, errors: string[]) {
+  if (intent.structureType !== "single_part" && intent.structureType !== "assembly") errors.push("請選擇結構型態。");
+  if (intent.itemKind === "purchased" && intent.structureType === "assembly") errors.push("目前不支援外購組立件。");
   if (intent.seriesCode && intent.seriesCode.trim().length > 80) errors.push("系列代號不可超過 80 個字元。");
 }
 
@@ -173,7 +178,7 @@ export function validateCreateIntent(intent: CanonicalNumberingCreateIntent): st
     errors.push("請選擇圖料根號。");
   }
 
-  if (intent.content !== "drawing") validatePartFields(intent, errors);
+  if (intent.scope === "new_root") validatePartFields(intent, errors);
   if (intent.content !== "part") validateDrawingFields(intent, errors);
   return errors;
 }
@@ -181,6 +186,7 @@ export function validateCreateIntent(intent: CanonicalNumberingCreateIntent): st
 function partRequestBody(intent: PartCreateFields) {
   return {
     itemKind: intent.itemKind,
+    structureType: intent.structureType,
     isUniversal: intent.isUniversal,
     ...(intent.itemKind === "manufactured" && !intent.isUniversal && intent.seriesCode ? { seriesCode: intent.seriesCode } : {}),
     ...(intent.customSpecification ? { customSpecification: intent.customSpecification } : {}),
@@ -217,7 +223,7 @@ export function intentToRequest(intent: CanonicalNumberingCreateIntent) {
   if (normalized.content === "part") {
     return {
       endpoint: `/api/numbering/roots/${root}/parts`,
-      body: { ...partRequestBody(normalized), ...common },
+      body: common,
     } as const;
   }
   if (normalized.content === "drawing") {
@@ -228,7 +234,7 @@ export function intentToRequest(intent: CanonicalNumberingCreateIntent) {
   }
   return {
     endpoint: `/api/numbering/roots/${root}/drawing-part`,
-    body: { ...partRequestBody(normalized), ...drawingRequestBody(normalized), ...common, linkRelationType: "auto" },
+    body: { ...drawingRequestBody(normalized), ...common, linkRelationType: "auto" },
   } as const;
 }
 

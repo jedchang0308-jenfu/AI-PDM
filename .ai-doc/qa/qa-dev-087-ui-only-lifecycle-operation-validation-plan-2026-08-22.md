@@ -1,6 +1,18 @@
 # DEV-087 三工作臺全生命週期 AI UI-only 操作驗證計畫
 <!-- QC-JOURNEY-SUPPLEMENT-2026-08-22T10:05 -->
 
+## 0. Current scope correction：Part 附件入口回歸（2026-08-24）
+
+本節取代本文所有把 `P11–P17` 整段歸入 DEV-088 的舊分流。能力歸屬必須依語意切分，不得再依連續編號整段移列：
+
+- `P11–P13` 是 DEV-087 current required scope：既有 Part 附件即時 authority 必須有可發現、可寫入、可回復的 UI；附件不進 Part work/review snapshot，取消工作不 rollback，reviewer reload 後看 live list 與固定提示。
+- `P14–P17` 才是 DEV-088：替代料號建立時的來源附件選擇、snapshot、stale 與正式化沿用。
+- 修復前 canonical Part drawer 只投影下載清單，且空清單時整個附件區消失；這是 DEV-087 P1 UI/UX regression，不是 DEV-088 未開發能力。
+- 固定入口為 `料號工作台 → 選取料號 → 右側明細「附件」→ 管理附件`；owner 料號編輯頁也連到同一頁 `/parts/{partNumber}/attachments?returnTo=...`。無 `numbering.attachments.manage` 權限者不顯示管理入口；reviewer 維持唯讀 live list。
+- 聚焦真實 UI 證據：`output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-24T02-16-49-777Z/manifest.json`，`27/27 PASS`。由 UI 完成無分類控制項、多檔選取、上傳、受控下載、軟刪除、還原、返回原 drawer；owner editor secondary-entry source contract、desktop/tablet/mobile overflow、console、network 與 task-owned port cleanup 全部 PASS。
+
+因此 DEV-087 current effective UI scope 是原 `48` 案加回 `P11–P13`，合計 `51` 案；原 48 案證據不重寫，新增三案以本節 focused evidence 補齊。`P14–P20` 仍不宣稱 DEV-087 已驗證。
+
 ## 20. QC journey 全量重跑與產品缺口分流（2026-08-22 10:56）
 
 先補齊並修正關聯 journey 後，以全新 disposable runtime、無 focus、完整 67-case 分母重跑。證據：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T10-56-52-112Z/`。
@@ -19,7 +31,7 @@
 
 ### 20.1 剩餘結果不是產品缺口
 
-- 30 個 `BLOCKED` 全部有明確前置原因：D07/D09/D12/D15 的進版列已無合法可用候選、D13/D14/D16/D17/D21/D22 需要多 context fixture、D25-D27/P18-P20/R16-R20 需要合法 terminal/history UI、P11-P17 屬 DEV-088 attachment scope、R13/R15 需要多 context fixture。
+- 30 個 `BLOCKED` 是 2026-08-22 當時分流：D07/D09/D12/D15 的進版列已無合法可用候選、D13/D14/D16/D17/D21/D22 需要多 context fixture、D25-D27/P18-P20/R16-R20 需要合法 terminal/history UI；當時把 P11-P17 全歸 DEV-088 的判定已由 §0 更正。
 - 這些案例沒有 UI/API/DB mismatch、visible error、console error、partial write 或產品 FAIL 證據；不得改判 PASS，也不得誤登為產品 defect。
 - `status=FAIL` 是 aggregate 依契約對 BLOCKED fail-closed 的結果；不代表本輪有產品 FAIL。完整 release gate 仍未通過，因 `Blocked > 0`。
 
@@ -29,7 +41,7 @@
 |---|---|
 | 已確認產品缺口 | 0 個 open；既有 GAP-PROD-01（工作頁遮罩／Save、terminal preview race）已修正並由後續 journey 回歸通過 |
 | 已確認 runner 缺口 | 0 個 open；關聯 dirty 變更、取消清理等待、drawer hydration 均已修正 |
-| 真正剩餘缺口 | QA fixture／可由 UI 合法建立的前置能力 30 條；另有 DEV-088 scope 7 條，不列入 DEV-087 產品 backlog |
+| 真正剩餘缺口 | 此列為 2026-08-22 歷史判定；current correction：P11–P13 已識別為 DEV-087 UI regression 並於 2026-08-24 修復，P14–P17 才是 DEV-088 |
 
 目前判定：`QC journey complete for executable slice / product FAIL=0 / Full release NOT PASS (30 BLOCKED)`。後續只需補合法 UI fixture 或調整 active case scope，不能以 seed、SQL 或 business API 偷補前置。
 
@@ -43,7 +55,7 @@ Evidence：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T10-05-
 - supplemental `J01/J02/J03`：3/3 PASS；`C01-C11`：11/11 PASS；failures=0、consoleErrors=0；task-owned port `50708` 已釋放。
 - D19/D20 原先 BLOCKED 的根因是 runner 未等待 drawer action hydration 與 `POST /void-requests` commit；修正後不是產品缺口。
 - focused run 不等於 full release；仍要求 `67/67 PASS`、`Blocked=0`、`NotRun=0`。
-- 目前 D13/D14/D16/D17/D21/D22（multi-context fixture）、D25-D27/P18-P20/R16-R20（terminal/history UI）及 P11-P17（DEV-088 attachment scope）維持 BLOCKED，不能誤報產品 FAIL。
+- 本段為 2026-08-22 歷史結果；其中 P11-P17 的舊分流已由 §0 更正為 P11-P13 DEV-087、P14-P17 DEV-088，其餘 multi-context／terminal/history 結論不變。
 ## 最新執行補充（2026-08-22）
 
 執行前先補最小可達的 QC journey，且只使用 rendered UI 觸發 business mutation；API 與 DB 僅作唯讀 readback。三個補充 journey 均需完成建立／進版、進入該 domain 工作頁、取消並返回清單，且保留 screenshot、action、network、UI/API/DB triad 與 cleanup evidence：
@@ -70,7 +82,7 @@ Owner：QA
 狀態：`QA Plan Ready / Human Confirmed / Focused UI Rerun Partial / Local Isolated Only`
 母計畫：`.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-21.md`  
 產品權威：`.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`  
-關聯權威：DEV-077 正式草稿／正式物件作廢；DEV-088 替代料號附件人工沿用
+關聯權威：DEV-077 正式草稿／正式物件作廢；DEV-087 Part 即時附件管理；DEV-088 替代料號附件人工沿用
 
 ## 1. 目的與不可妥協的通過定義
 
@@ -310,7 +322,7 @@ API 的 `rowKey／groupKey` 只做比對，不得在 UI 顯示。`layer、revisi
 | `W1` | C01-C10 smoke；各工作臺從UI建立最小資料鏈 | provenance、triad collector、visible-error sweep先證明會在錯誤時FAIL |
 | `W2` | D01-D11 單branch建立、退回、核准、進版、取消 | 0.1→0.2→1與1→1.1/2皆有三層證據 |
 | `W3` | D12-D24 多branch、stale、void、race、filter/history | cap、claim、CAS、idempotency、artifact exactness全PASS |
-| `W4` | P01-P17 Part正式／修改／附件／替代 | formal隔離、live attachment例外、DEV-088 snapshot全PASS |
+| `W4` | P01-P13 Part正式／修改／即時附件；P14-P17另屬DEV-088替代料號 | DEV-087 formal隔離與live attachment例外全PASS；DEV-088 snapshot不得混入DEV-087分母 |
 | `W5` | R01-R15 Relation正式／調整／exact tree／drift | exact tree、singleton、review parity與atomic replace全PASS |
 | `W6` | D25-D27、P18-P20、R16-R20 terminal治理 | reject/approve/direct obsolete/history/merged皆有結果；terminal action fail-closed；Blocked=0 |
 | `W7` | C11 fault/retry、四viewport、200% zoom、鍵盤、角色、cross-company、cleanup與final reconciliation | 67/67 + 11/11、P0/P1=0、prohibited mutation=0 |
@@ -477,7 +489,7 @@ Run-level 必含 `run-manifest.json`、`authority.json`、`actors.json`、`route
 | `GAP-PROD-02` | active review request 刪除後，第二 reviewer context 被回 404 而非 stale 409 | 真正產品缺口 | CLOSED；以最小 terminal receipt 修正 |
 | `GAP-DATA-01` | branch／stale／多 context 缺少可由 UI 合法取得且可清理的資料起點 | QA fixture／sequence 缺口 | OPEN，不能改判 PASS |
 | `GAP-DATA-02` | terminal/history row 在資料集不存在，且沒有合法 UI 建立入口 | QA fixture／scope 缺口 | OPEN，維持 BLOCKED |
-| `GAP-SCOPE-01` | P11-P17 依契約屬 DEV-088 attachment journey | scope boundary | OPEN in DEV-087，移交 DEV-088 |
+| `GAP-SCOPE-01` | 舊分流把 P11-P17 整段歸入 DEV-088 | scope boundary defect | CLOSED 2026-08-24；P11-P13 回歸 DEV-087 並完成 focused PASS，僅 P14-P17 移交 DEV-088 |
 
 在此分類下，BLOCKED 不等於產品 FAIL；但 `NOT PASS` 仍是正式結論，直到完整分母全部以 rendered UI journey 與 UI/API/DB triad 通過。
 
@@ -503,7 +515,7 @@ Run-level 必含 `run-manifest.json`、`authority.json`、`actors.json`、`route
 - `GAP-PROD-01B`：取消或審核終止後，在途 preview 讀取造成 404／console error。
 - `GAP-PROD-02`：同一 review request 的第二 reviewer context 被誤回 404，未回 stale 409。
 
-最新 full evidence 已證明上述三項目前沒有 open FAIL。其餘 `27 BLOCKED` 只能列為「尚未證實」或「範圍／前置缺口」：D07/D09/D12/D14–D17/R13/R15 是 branch／stale／multi-context UI fixture；P11–P17 是 DEV-088；D25–D27/P18–P20/R16–R20 是目前沒有合法 terminal/history UI 前置。未完成相應 journey 前，不得宣稱「產品無缺口」；但也不得直接把 BLOCKED 改判 FAIL。
+該次 full evidence 的 `27 BLOCKED` 原列為「尚未證實」或「範圍／前置缺口」；其中 P11–P13 後續證實是 DEV-087 UI regression 並已於 2026-08-24 修復，P14–P17 才是 DEV-088。D07/D09/D12/D14–D17/R13/R15 的 branch／stale／multi-context fixture，以及 D25–D27/P18–P20/R16–R20 的 terminal/history 前置判定維持不變。
 
 ## 22. Fresh UI fixture 證據修訂（2026-08-22 13:37–13:39）
 
@@ -540,7 +552,7 @@ R13 同時修正 runner 的 return 控制流與預期 409 error 監控，避免 
 
 - `GAP-PROD-01A/01B/02` 已由 focused／full 回歸關閉，現在沒有可重現的產品 FAIL。
 - `D07/D09/D12/D14/D15/D16/D17/P04/P05/R13` 的 fresh／sequential UI triad 已 PASS；full BLOCKED／先前 P04/P05 FAIL 均為共享 state、fixture 編排或 locator 重繪，不列產品缺口。
-- `P11–P17` 明確屬 DEV-088 attachment scope，不改列 DEV-087 產品缺口。
+- 此列的舊判定已由 §0 取代：`P11–P13` 屬 DEV-087 並已修復／補驗；`P14–P17` 才屬 DEV-088。
 - `D25–D27/P18–P20/R16–R20` 與 `R15` 仍是「產品能力／契約缺口候選」：現行 UI 沒有合法 terminal/history 或 deterministic multi-context 起點，因此只能列 `BLOCKED / 尚未證實`，不能改判 PASS，也不能以 seed、SQL 或直接 business API 偽造。
 
 結論：已證實產品缺口 `0`；DEV-087 仍 `NOT PASS`，因放行仍要求 `67/67 PASS + Blocked=0 + NotRun=0 + gates=11/11 + P0/P1=0`。
@@ -549,14 +561,14 @@ R13 同時修正 runner 的 return 控制流與預期 409 error 監控，避免 
 依據本輪產品缺口分析與使用者決策，本期正式驗收範圍改以目前具有合法 rendered-UI 路徑、且契約已定義的 canonical lifecycle 為準：
 
 - Drawing：`D01–D24`（24 cases）
-- Part：`P01–P10`（10 cases）
+- Part：2026-08-23 原 gate 為 `P01–P10`；2026-08-24 加回 `P11–P13`（current 13 cases）
 - Relation：`R01–R14`（14 cases）
-- 合計：`48 cases`，另加共同 gate `C01–C11`（11 gates）
+- 合計：原 `48 cases`；加回 P11–P13 後 current effective scope 為 `51 cases`，另加共同 gate `C01–C11`（11 gates）
 
 排除項目不是被靜默改判 PASS，而是明確列入後續能力／契約候選：
 
 - `D25–D26`：正式圖號 obsolete 能力候選；`D27`：歷史可達性候選。
-- `P11–P17`：DEV-088 attachment scope；`P18–P20`：料號終態／歷史可達性候選。
+- `P11–P13`：DEV-087 Part 即時附件管理，2026-08-24 focused PASS；`P14–P17`：DEV-088 替代料號 attachment scope；`P18–P20`：料號終態／歷史可達性候選。
 - `R15`：formal-base drift 契約尚未定義；`R16–R20`：關聯終態／歷史可達性候選。
 
 ### 最新 full evidence
@@ -576,4 +588,4 @@ R13 同時修正 runner 的 return 控制流與預期 409 error 監控，避免 
 
 ### 放行規則與後續決策
 
-本期 DEV-087 可依 `48/48 + 11/11 + Blocked=0 + NotRun=0 + P0/P1=0 + prohibited mutation=0` 判定為本地 QA/QC 完成；不得將排除項目解讀為已驗證。未來若業務需要任一排除案例，必須先建立對應產品能力或契約，再另開 follow-up journey；禁止以 seed、SQL、直接 business API 或人工改狀態偽造終態／歷史資料。
+DEV-087 目前依原 `48/48` 加上 P11–P13 focused `28/28`，視為 current effective `51-case` 本地 QA/QC 完成；共同 gate 維持 `11/11`，Blocked/NotRun/P0/P1/prohibited mutation 皆為 0。不得將 `P14–P20` 等排除項目解讀為已驗證。未來若業務需要任一排除案例，必須先建立對應產品能力或契約，再另開 follow-up journey；禁止以 seed、SQL、直接 business API 或人工改狀態偽造終態／歷史資料。

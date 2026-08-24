@@ -10,9 +10,10 @@ type InlinePickerProps = {
   onPickItem: (item: BomEditorItemCandidate) => void;
   onCreateGroup: () => void;
   onClose: () => void;
+  canonicalParts?: boolean;
 };
 
-export function BomInlinePicker({ x, y, onPickItem, onCreateGroup, onClose }: InlinePickerProps) {
+export function BomInlinePicker({ x, y, onPickItem, onCreateGroup, onClose, canonicalParts = false }: InlinePickerProps) {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<BomEditorItemCandidate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,9 +30,9 @@ export function BomInlinePicker({ x, y, onPickItem, onCreateGroup, onClose }: In
     const timer = window.setTimeout(async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal });
-        const body = (await response.json().catch(() => ({}))) as { submissions?: BomEditorItemCandidate[] };
-        if (response.ok) setItems(body.submissions ?? []);
+        const response = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}${canonicalParts ? "&entity=part" : ""}`, { signal: controller.signal });
+        const body = (await response.json().catch(() => ({}))) as { submissions?: BomEditorItemCandidate[]; parts?: BomEditorItemCandidate[] };
+        if (response.ok) setItems(canonicalParts ? body.parts ?? [] : body.submissions ?? []);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -40,7 +41,7 @@ export function BomInlinePicker({ x, y, onPickItem, onCreateGroup, onClose }: In
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [canonicalParts, query]);
 
   return (
     <div className="xmind-bom-inline-picker" role="dialog" aria-label="插入主題" style={{ left: x, top: y }} onPointerDown={(event) => event.stopPropagation()}>

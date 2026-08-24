@@ -102,7 +102,7 @@ function findRoot(coreName) {
 }
 
 function findPart(partName, rootId) {
-  return dbRows("SELECT id, part_number, part_root_id, part_name, item_kind, series_code, is_universal, universal_reason, custom_specification, record_status FROM part_numbers WHERE company_id = :companyId AND part_root_id = :rootId AND part_name = :partName ORDER BY created_at DESC LIMIT 1", { companyId: "company-jenfu", rootId, partName })[0] ?? null;
+  return dbRows("SELECT id, part_number, part_root_id, part_name, item_kind, structure_type, series_code, is_universal, universal_reason, custom_specification, record_status FROM part_numbers WHERE company_id = :companyId AND part_root_id = :rootId AND part_name = :partName ORDER BY created_at DESC LIMIT 1", { companyId: "company-jenfu", rootId, partName })[0] ?? null;
 }
 
 function findDrawing(rootId, purposeCode, createdBy = "user-admin-local-quick") {
@@ -195,7 +195,6 @@ async function submitCreate(page, {
   serialIdentifier = "",
   brand = "",
   specificationModel = "",
-  existingSpecification = "",
   includeReferenceDrawing = false,
   referencePurpose = "",
   isUniversal = false,
@@ -232,7 +231,6 @@ async function submitCreate(page, {
     if (confirmedName) await page.getByLabel("確定品名", { exact: true }).fill(confirmedName);
   } else {
     await page.locator('.canonical-create-readonly').first().waitFor({ state: "visible", timeout: 30000 });
-    if (existingSpecification && await page.getByLabel("規格／特性（選填）", { exact: true }).count()) await page.getByLabel("規格／特性（選填）", { exact: true }).fill(existingSpecification);
   }
   if (purpose && await page.getByLabel("圖面用途").count()) await page.getByLabel("圖面用途").selectOption(purpose);
   if (referencePurpose && await page.getByLabel("參考圖用途", { exact: true }).count()) await page.getByLabel("參考圖用途", { exact: true }).fill(referencePurpose);
@@ -429,21 +427,24 @@ async function runRound(round) {
     const appendRoot = purchasedRoot;
     const rootCode = appendRoot?.root_code;
     check(`QA-093-006-r${round}`, Boolean(rootCode), "new root is available for existing-root context");
-    const appendPartName = `DEV093_UI_APPEND_PART_${suffix}`;
     const duplicateCallsBeforeAppend = responseLedger.filter((item) => item.url.includes("duplicate-check")).length;
     const appendPartPage = await createPage(context, "part", rootCode);
     check(`QA-093-086-ui-r${round}`, await appendPartPage.getByLabel("主要名詞", { exact: true }).count() === 0 && await appendPartPage.getByText("建議品名", { exact: true }).count() === 0, "existing root shows no naming builder");
-    await appendPartPage.getByText("沿用既有料件設定", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
-    const inheritedProfileText = await appendPartPage.locator('[aria-label="根號料件設定"]').innerText();
-    check(`QA-093-108-r${round}`, inheritedProfileText.includes("沿用既有料件設定") && await appendPartPage.locator("select").count() === 0 && await appendPartPage.locator('input[type="checkbox"]').count() === 0 && await appendPartPage.getByLabel("系列代號（選填）", { exact: true }).count() === 0 && await appendPartPage.getByLabel("規格／特性（選填）", { exact: true }).count() === 0 && appendPartPage.url().includes(`root=${encodeURIComponent(rootCode)}`), `existing root inherited profile=${inheritedProfileText}`);
+    await appendPartPage.locator(".canonical-create-number-list").waitFor({ state: "visible", timeout: 30000 });
+    const rootContextText = await appendPartPage.locator(".canonical-create-existing-root").innerText();
+    const hiddenProfileLabels = ["料件類型", "結構型態", "共用件", "系列代號（選填）", "規格／特性（選填）"];
+    check(`QA-093-108-r${round}`, rootContextText.includes(rootCode) && rootContextText.includes(purchasedName) && (await Promise.all(hiddenProfileLabels.map((label) => appendPartPage.getByLabel(label, { exact: true }).count()))).every((count) => count === 0) && await appendPartPage.getByText("將建立", { exact: true }).count() === 1 && appendPartPage.url().includes(`root=${encodeURIComponent(rootCode)}`), `existing root compact context=${rootContextText}`);
+    await appendPartPage.screenshot({ path: path.join(outputDir, `existing-root-compact-round-${round}.png`), fullPage: true });
     const beforeAppendPart = domainSnapshot();
-    const appendPartResult = await submitCreate(appendPartPage, { coreName: appendPartName, existingSpecification: "追加規格", label: `QA-093-021-r${round}` });
-    const appendPart = rootCode && appendRoot && dbRows("SELECT id, custom_specification, series_code, is_universal FROM part_numbers WHERE part_root_id = :rootId ORDER BY created_at DESC LIMIT 1", { rootId: appendRoot.id })[0];
+    const appendPartResult = await submitCreate(appendPartPage, { coreName: "", label: `QA-093-021-r${round}` });
+    const appendPart = rootCode && appendRoot && dbRows("SELECT id, item_kind, structure_type, custom_specification, series_code, is_universal FROM part_numbers WHERE part_root_id = :rootId ORDER BY created_at DESC LIMIT 1", { rootId: appendRoot.id })[0];
     const afterAppendPart = domainSnapshot();
     check(`QA-093-021-r${round}`, Boolean(appendPart && afterAppendPart.roots === beforeAppendPart.roots && afterAppendPart.parts === beforeAppendPart.parts + 1), `${appendPartResult.text}; href=${appendPartResult.href}`);
     check(`QA-093-096-append-r${round}`, isCanonicalInitialPartState(appendPart && partWorkbenchState(appendPart.id)), "appended part and part_formal workbench state commit atomically");
-    check(`QA-093-105-existing-r${round}`, appendPart?.custom_specification === purchasedPart?.custom_specification && appendPartResult.requestBodies[0]?.body?.customSpecification === purchasedPart?.custom_specification && appendPartResult.requestBodies[0]?.body?.isUniversal === Boolean(purchasedPart?.is_universal), `inherited db=${appendPart?.custom_specification}; source=${purchasedPart?.custom_specification}; request=${JSON.stringify(appendPartResult.requestBodies[0]?.body)}`);
-    check(`QA-093-109-r${round}`, appendPart?.custom_specification === purchasedPart?.custom_specification && appendPart?.series_code === purchasedPart?.series_code && appendPart?.is_universal === purchasedPart?.is_universal, `existing root profile source=${JSON.stringify({ isUniversal: purchasedPart?.is_universal, seriesCode: purchasedPart?.series_code, customSpecification: purchasedPart?.custom_specification })} append=${JSON.stringify(appendPart)}`);
+    const appendPartBody = appendPartResult.requestBodies[0]?.body ?? {};
+    const repeatedProfileKeys = ["itemKind", "structureType", "isUniversal", "seriesCode", "customSpecification"];
+    check(`QA-093-105-existing-r${round}`, appendPart?.custom_specification === purchasedPart?.custom_specification && repeatedProfileKeys.every((key) => !Object.hasOwn(appendPartBody, key)), `inherited db=${appendPart?.custom_specification}; source=${purchasedPart?.custom_specification}; request=${JSON.stringify(appendPartBody)}`);
+    check(`QA-093-109-r${round}`, appendPart?.item_kind === purchasedPart?.item_kind && appendPart?.structure_type === purchasedPart?.structure_type && appendPart?.custom_specification === purchasedPart?.custom_specification && appendPart?.series_code === purchasedPart?.series_code && appendPart?.is_universal === purchasedPart?.is_universal, `existing root profile source=${JSON.stringify({ itemKind: purchasedPart?.item_kind, structureType: purchasedPart?.structure_type, isUniversal: purchasedPart?.is_universal, seriesCode: purchasedPart?.series_code, customSpecification: purchasedPart?.custom_specification })} append=${JSON.stringify(appendPart)}`);
     check(`QA-093-086-network-r${round}`, responseLedger.filter((item) => item.url.includes("duplicate-check")).length === duplicateCallsBeforeAppend, "existing root issued no self-duplicate request");
     await appendPartPage.close();
 
@@ -456,7 +457,7 @@ async function runRound(round) {
     check(`QA-093-022-r${round}`, Boolean(appendDrawing && afterAppendDrawing.drawings === beforeAppendDrawing.drawings + 1), `${appendDrawingResult.text}; href=${appendDrawingResult.href}`);
     check(`QA-093-097-append-r${round}`, isCanonicalInitialDrawingState(appendDrawing && drawingInitialWorkState(appendDrawing.id)), "appended drawing and canonical 0.1 RD work commit atomically");
     const drawingBody = appendDrawingResult.requestBodies[0]?.body ?? {};
-    check(`QA-093-088-r${round}`, ["coreName", "itemKind", "isUniversal", "seriesCode", "universalReason", "customSpecification"].every((key) => !Object.hasOwn(drawingBody, key)), `drawing-only body=${JSON.stringify(drawingBody)}`);
+    check(`QA-093-088-r${round}`, ["coreName", "itemKind", "structureType", "isUniversal", "seriesCode", "universalReason", "customSpecification"].every((key) => !Object.hasOwn(drawingBody, key)), `drawing-only body=${JSON.stringify(drawingBody)}`);
     await appendDrawingPage.close();
 
     const appendBundlePage = await createPage(context, "part", rootCode);

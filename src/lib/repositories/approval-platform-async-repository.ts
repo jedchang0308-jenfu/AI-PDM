@@ -14,11 +14,14 @@ export type ApprovalPlatformStatus =
 export type ApprovalPlatformDecision = "approved" | "rejected" | "needs_info";
 export type ApprovalPlatformSource =
   | "platform"
+  | "bom_workbench"
   | "legacy_numbering"
   | "legacy_submission"
   | "legacy_bom"
   | "legacy_drawing_package"
   | "legacy_drawing_revision_review";
+
+export type LegacyApprovalPlatformSource = Exclude<ApprovalPlatformSource, "platform" | "bom_workbench">;
 
 export type ApprovalPlatformAction = {
   actionCode: string;
@@ -339,14 +342,23 @@ function isBeforeInboxCursor(item: ApprovalPlatformInboxItem, cursor: ApprovalPl
   return item.requestedAt > cursor.sortValue || (item.requestedAt === cursor.sortValue && item.rowKey < cursor.rowKey);
 }
 
-export function encodeLegacyApprovalId(source: Exclude<ApprovalPlatformSource, "platform">, legacyId: string) {
+export function encodeBomWorkbenchApprovalId(reviewId: string) {
+  return `bom_workbench:${reviewId}`;
+}
+
+export function decodeBomWorkbenchApprovalId(id: string): string | null {
+  const match = /^bom_workbench:(.+)$/u.exec(id);
+  return match?.[1] ?? null;
+}
+
+export function encodeLegacyApprovalId(source: LegacyApprovalPlatformSource, legacyId: string) {
   return `legacy:${source}:${legacyId}`;
 }
 
-export function decodeLegacyApprovalId(id: string): { source: Exclude<ApprovalPlatformSource, "platform">; legacyId: string } | null {
+export function decodeLegacyApprovalId(id: string): { source: LegacyApprovalPlatformSource; legacyId: string } | null {
   const match = /^legacy:(legacy_[a-z_]+):(.+)$/u.exec(id);
   if (!match) return null;
-  const source = match[1] as Exclude<ApprovalPlatformSource, "platform">;
+  const source = match[1] as LegacyApprovalPlatformSource;
   if (
     source !== "legacy_numbering" &&
     source !== "legacy_submission" &&
@@ -753,6 +765,8 @@ export class AsyncApprovalPlatformRepository {
   }
 
   async getRequestDetail(id: string, companyId = DEFAULT_COMPANY_ID): Promise<ApprovalPlatformRequestDetail | null> {
+    const bomReviewId = decodeBomWorkbenchApprovalId(id);
+    if (bomReviewId) return this.getLegacyDetail("legacy_bom", bomReviewId, companyId, "bom_workbench");
     const legacy = decodeLegacyApprovalId(id);
     if (legacy) return this.getLegacyDetail(legacy.source, legacy.legacyId, companyId);
     const row = await this.getNativeRequestRow(id);
@@ -1332,7 +1346,7 @@ export class AsyncApprovalPlatformRepository {
 
   private async listLegacyBomInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; query?: string; limit: number }) {
     const status = this.legacyStatusPredicate("rr.status", input.status);
-    const search = approvalSearchPredicate(input.query, [
+    const baseSearch = approvalSearchPredicate(input.query, [
       "rr.id",
       "rr.bom_draft_id",
       "rr.lifecycle_action",
@@ -1343,6 +1357,18 @@ export class AsyncApprovalPlatformRepository {
       "bd.bom_revision",
       "bd.parent_revision"
     ]);
+    const search = baseSearch.sql
+      ? {
+          ...baseSearch,
+          sql: `${baseSearch.sql.slice(0, -1)} OR EXISTS (
+            SELECT 1
+            FROM bom_draft_parent_bindings search_parent
+            JOIN part_numbers search_parent_number ON search_parent_number.id = search_parent.parent_part_number_id
+            WHERE search_parent.bom_draft_id = bd.id
+              AND LOWER(COALESCE(search_parent_number.part_number, '')) LIKE :queryLike ESCAPE '\\'
+          ))`
+        }
+      : baseSearch;
     const rows = await this.client.query<{
       id: string;
       bom_draft_id: string;
@@ -1357,6 +1383,8 @@ export class AsyncApprovalPlatformRepository {
       parent_part_number: string;
       parent_submission_id: string;
       display_revision: string;
+      review_schema_version: number | null;
+      parent_count: number;
     }>(
       `
       SELECT
@@ -1365,6 +1393,12 @@ export class AsyncApprovalPlatformRepository {
         bd.company_id,
         bd.draft_name,
         bd.parent_submission_id,
+        rr.review_schema_version,
+        (
+          SELECT COUNT(*)
+          FROM bom_draft_parent_bindings parent_binding
+          WHERE parent_binding.bom_draft_id = bd.id
+        ) AS parent_count,
         COALESCE(pn.part_number, i.part_number, '') AS parent_part_number,
         COALESCE(bd.bom_revision, bd.parent_revision, '-') AS display_revision
       FROM bom_review_requests rr
@@ -1380,31 +1414,44 @@ export class AsyncApprovalPlatformRepository {
     `,
       { companyId: input.companyId, limit: input.limit, ...status.params, ...search.params }
     );
-    return rows.map((row): ApprovalPlatformInboxItem => ({
-      rowKey: approvalPlatformInboxRowKey("legacy_bom", encodeLegacyApprovalId("legacy_bom", row.id)),
-      id: encodeLegacyApprovalId("legacy_bom", row.id),
-      source: "legacy_bom",
-      companyId: row.company_id ?? input.companyId,
-      actionCode: row.lifecycle_action === "obsolete" ? "bom.obsolete_review" : "bom.release_review",
-      actionTitle: row.lifecycle_action === "obsolete" ? "BOM 作廢審核" : "BOM 發行審核",
-      domainCode: "bom",
-      title: `${row.lifecycle_action === "obsolete" ? "BOM 作廢" : "BOM 發行"} - ${row.draft_name}`,
-      status: normalizeStatus(row.status),
-      reason: row.change_reason,
-      requestedBy: row.submitted_by,
-      requestedByName: row.requested_by_name,
-      requestedAt: row.submitted_at,
-      packageId: null,
-      packageCode: null,
-      packageStatus: null,
-      targetSummary: row.parent_part_number
-        ? `${row.parent_part_number} BOM Rev ${row.display_revision}`
-        : /\bBOM\s+Rev\b/i.test(row.draft_name)
-          ? row.draft_name
-          : `${row.draft_name} / BOM Rev ${row.display_revision}`,
-      impactSummary: row.lifecycle_action,
-      legacy: { table: "bom_review_requests", id: row.id }
-    }));
+    return rows.map((row): ApprovalPlatformInboxItem => {
+      const isSharedBom = Number(row.review_schema_version ?? 0) >= 2;
+      const source: ApprovalPlatformSource = isSharedBom ? "bom_workbench" : "legacy_bom";
+      const id = isSharedBom
+        ? encodeBomWorkbenchApprovalId(row.id)
+        : encodeLegacyApprovalId("legacy_bom", row.id);
+      return {
+        rowKey: approvalPlatformInboxRowKey(source, id),
+        id,
+        source,
+        companyId: row.company_id ?? input.companyId,
+        actionCode: row.lifecycle_action === "obsolete" ? "bom.obsolete_review" : "bom.release_review",
+        actionTitle: row.lifecycle_action === "obsolete" ? "BOM 作廢審核" : "BOM 發行審核",
+        domainCode: "bom",
+        title: `${row.lifecycle_action === "obsolete" ? "BOM 作廢" : "BOM 發行"} - ${row.draft_name}`,
+        status: normalizeStatus(row.status),
+        reason: row.change_reason,
+        requestedBy: row.submitted_by,
+        requestedByName: row.requested_by_name,
+        requestedAt: row.submitted_at,
+        packageId: null,
+        packageCode: null,
+        packageStatus: null,
+        targetSummary: row.parent_part_number
+          ? `${row.parent_part_number} BOM Rev ${row.display_revision}`
+          : /\bBOM\s+Rev\b/i.test(row.draft_name)
+            ? row.draft_name
+            : `${row.draft_name} / BOM Rev ${row.display_revision}`,
+        impactSummary: isSharedBom ? `${row.parent_count} Parent(s) / ${row.lifecycle_action}` : row.lifecycle_action,
+        legacy: { table: "bom_review_requests", id: row.id },
+        primaryTarget: {
+          type: isSharedBom ? "bom_definition" : "bom_draft",
+          targetId: row.bom_draft_id,
+          code: row.parent_part_number || null,
+          label: row.draft_name
+        }
+      };
+    });
   }
 
   private async listLegacyDrawingPackageInbox(input: { companyId: string; status?: "active" | "all" | ApprovalPlatformStatus; query?: string; limit: number }) {
@@ -1645,7 +1692,12 @@ export class AsyncApprovalPlatformRepository {
     });
   }
 
-  private async getLegacyDetail(source: Exclude<ApprovalPlatformSource, "platform">, legacyId: string, companyId: string) {
+  private async getLegacyDetail(
+    source: LegacyApprovalPlatformSource,
+    legacyId: string,
+    companyId: string,
+    canonicalSource?: "bom_workbench"
+  ) {
     const lists = {
       legacy_numbering: () => this.listLegacyNumberingInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
       legacy_submission: () => this.listLegacySubmissionInbox({ companyId, status: "all", query: legacyId, limit: 10 }),
@@ -1654,7 +1706,9 @@ export class AsyncApprovalPlatformRepository {
       legacy_drawing_revision_review: () =>
         this.listLegacyDrawingRevisionReviewInbox({ companyId, status: "all", query: legacyId, limit: 10 })
     };
-    const encoded = encodeLegacyApprovalId(source, legacyId);
+    const encoded = canonicalSource === "bom_workbench"
+      ? encodeBomWorkbenchApprovalId(legacyId)
+      : encodeLegacyApprovalId(source, legacyId);
     const base = (await lists[source]()).find((item) => item.id === encoded);
     if (!base) return null;
     const legacyNumberingPayload = source === "legacy_numbering"

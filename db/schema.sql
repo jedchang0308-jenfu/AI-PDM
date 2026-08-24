@@ -628,6 +628,8 @@ CREATE TABLE IF NOT EXISTS bom_lines (
 CREATE TABLE IF NOT EXISTS bom_drafts (
   id TEXT PRIMARY KEY,
   company_id TEXT,
+  definition_id TEXT,
+  base_release_snapshot_id TEXT,
   owner_part_number_id TEXT,
   bom_revision TEXT,
   source_submission_id TEXT,
@@ -647,6 +649,8 @@ CREATE TABLE IF NOT EXISTS bom_drafts (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (definition_id) REFERENCES bom_definitions(id),
+  FOREIGN KEY (base_release_snapshot_id) REFERENCES bom_release_snapshots(id) ON DELETE RESTRICT,
   FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
   FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
   FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
@@ -674,6 +678,7 @@ WHERE owner_part_number_id IS NOT NULL AND bom_revision IS NOT NULL AND status =
 CREATE TABLE IF NOT EXISTS bom_lines_tree (
   id TEXT PRIMARY KEY,
   bom_draft_id TEXT NOT NULL,
+  logical_line_id TEXT,
   parent_line_id TEXT,
   node_type TEXT NOT NULL CHECK (node_type IN ('item', 'group')),
   item_id TEXT,
@@ -705,6 +710,7 @@ CREATE TABLE IF NOT EXISTS bom_lines_tree (
 CREATE TABLE IF NOT EXISTS bom_draft_floating_topics (
   id TEXT PRIMARY KEY,
   bom_draft_id TEXT NOT NULL,
+  logical_line_id TEXT,
   parent_floating_topic_id TEXT,
   node_type TEXT NOT NULL CHECK (node_type IN ('item', 'group')),
   item_id TEXT,
@@ -756,6 +762,11 @@ CREATE TABLE IF NOT EXISTS bom_review_requests (
   decision_reason TEXT,
   submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
   reviewed_at TEXT,
+  review_schema_version INTEGER NOT NULL DEFAULT 1 CHECK (review_schema_version > 0),
+  definition_row_version INTEGER,
+  editor_version INTEGER,
+  review_snapshot_json TEXT,
+  review_snapshot_hash TEXT,
   FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
   FOREIGN KEY (submitted_by) REFERENCES users(id),
   FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
@@ -765,6 +776,7 @@ CREATE TABLE IF NOT EXISTS bom_release_snapshots (
   id TEXT PRIMARY KEY,
   bom_draft_id TEXT NOT NULL,
   company_id TEXT,
+  definition_id TEXT,
   owner_part_number_id TEXT,
   bom_revision TEXT,
   source_submission_id TEXT,
@@ -777,8 +789,14 @@ CREATE TABLE IF NOT EXISTS bom_release_snapshots (
   released_at TEXT NOT NULL DEFAULT (datetime('now')),
   obsolete_at TEXT,
   obsolete_by TEXT,
+  snapshot_schema_version INTEGER NOT NULL DEFAULT 1 CHECK (snapshot_schema_version > 0),
+  parent_snapshot_json TEXT,
+  mapping_snapshot_json TEXT,
+  resolved_projection_json TEXT,
+  snapshot_hash TEXT,
   FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id),
   FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (definition_id) REFERENCES bom_definitions(id),
   FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
   FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
   FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
@@ -1225,6 +1243,7 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   sequence_code TEXT NOT NULL,
   part_name TEXT NOT NULL,
   item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
+  structure_type TEXT NOT NULL DEFAULT 'single_part' CHECK (structure_type IN ('single_part', 'assembly', 'unclassified')),
   is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
   bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
   custom_specification TEXT,
@@ -1415,6 +1434,9 @@ CREATE TABLE IF NOT EXISTS bom_reconfirmation_flags (
   bom_draft_id TEXT NOT NULL,
   old_part_number_id TEXT NOT NULL,
   new_part_number_id TEXT NOT NULL,
+  logical_line_id TEXT,
+  parent_part_number_id TEXT,
+  reference_scope TEXT NOT NULL DEFAULT 'legacy_line' CHECK (reference_scope IN ('legacy_line', 'candidate', 'parent_selection')),
   reason TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   resolved_at TEXT,
@@ -1423,6 +1445,7 @@ CREATE TABLE IF NOT EXISTS bom_reconfirmation_flags (
   FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
   FOREIGN KEY (old_part_number_id) REFERENCES part_numbers(id),
   FOREIGN KEY (new_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (parent_part_number_id) REFERENCES part_numbers(id),
   FOREIGN KEY (resolved_by) REFERENCES users(id)
 );
 
@@ -4147,6 +4170,247 @@ CREATE TRIGGER IF NOT EXISTS trg_drawing_recognition_links_no_delete BEFORE DELE
 CREATE TRIGGER IF NOT EXISTS trg_pdm_engineering_evidence_no_update BEFORE UPDATE ON pdm_engineering_evidence BEGIN SELECT RAISE(ABORT, 'PDM_ENGINEERING_EVIDENCE_APPEND_ONLY'); END;
 CREATE TRIGGER IF NOT EXISTS trg_pdm_engineering_evidence_no_delete BEFORE DELETE ON pdm_engineering_evidence BEGIN SELECT RAISE(ABORT, 'PDM_ENGINEERING_EVIDENCE_APPEND_ONLY'); END;
 -- END DEV-068 drawing recognition schema.
+
+-- BEGIN DEV-096 shared assembly BOM authority.
+CREATE TABLE IF NOT EXISTS bom_definitions (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  part_root_id TEXT NOT NULL,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version > 0),
+  created_by TEXT,
+  updated_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (part_root_id) REFERENCES part_roots(id),
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_bom_definitions_company_root
+ON bom_definitions(company_id, part_root_id);
+
+CREATE TABLE IF NOT EXISTS bom_definition_parent_bindings (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  definition_id TEXT NOT NULL,
+  part_number_id TEXT NOT NULL,
+  bound_from_bom_revision TEXT NOT NULL,
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (definition_id) REFERENCES bom_definitions(id) ON DELETE CASCADE,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE (definition_id, part_number_id),
+  UNIQUE (part_number_id)
+);
+
+CREATE TABLE IF NOT EXISTS bom_draft_parent_bindings (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  bom_draft_id TEXT NOT NULL,
+  part_number_id TEXT NOT NULL,
+  selection_order INTEGER NOT NULL CHECK (selection_order >= 0),
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE (bom_draft_id, part_number_id),
+  UNIQUE (bom_draft_id, selection_order)
+);
+
+CREATE TABLE IF NOT EXISTS bom_draft_component_nodes (
+  bom_draft_id TEXT NOT NULL,
+  logical_line_id TEXT NOT NULL,
+  node_id TEXT NOT NULL,
+  node_location TEXT NOT NULL CHECK (node_location IN ('tree', 'floating')),
+  component_mode TEXT NOT NULL CHECK (component_mode IN ('fixed', 'by_parent')),
+  child_part_root_id TEXT NOT NULL,
+  created_by TEXT,
+  updated_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (bom_draft_id, logical_line_id),
+  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE CASCADE,
+  FOREIGN KEY (child_part_root_id) REFERENCES part_roots(id),
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE (bom_draft_id, node_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bom_draft_component_nodes_location
+ON bom_draft_component_nodes(bom_draft_id, node_location);
+
+CREATE TABLE IF NOT EXISTS bom_draft_component_candidates (
+  bom_draft_id TEXT NOT NULL,
+  logical_line_id TEXT NOT NULL,
+  child_part_number_id TEXT NOT NULL,
+  selection_order INTEGER NOT NULL CHECK (selection_order >= 0),
+  PRIMARY KEY (bom_draft_id, logical_line_id, child_part_number_id),
+  FOREIGN KEY (bom_draft_id, logical_line_id)
+    REFERENCES bom_draft_component_nodes(bom_draft_id, logical_line_id) ON DELETE CASCADE,
+  FOREIGN KEY (child_part_number_id) REFERENCES part_numbers(id),
+  UNIQUE (bom_draft_id, logical_line_id, selection_order)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bom_draft_candidates_child
+ON bom_draft_component_candidates(child_part_number_id, bom_draft_id, logical_line_id);
+
+CREATE TABLE IF NOT EXISTS bom_draft_parent_selections (
+  bom_draft_id TEXT NOT NULL,
+  logical_line_id TEXT NOT NULL,
+  parent_part_number_id TEXT NOT NULL,
+  child_part_number_id TEXT NOT NULL,
+  PRIMARY KEY (bom_draft_id, logical_line_id, parent_part_number_id),
+  FOREIGN KEY (bom_draft_id, parent_part_number_id)
+    REFERENCES bom_draft_parent_bindings(bom_draft_id, part_number_id) ON DELETE CASCADE,
+  FOREIGN KEY (bom_draft_id, logical_line_id, child_part_number_id)
+    REFERENCES bom_draft_component_candidates(bom_draft_id, logical_line_id, child_part_number_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS bom_release_parent_snapshots (
+  release_snapshot_id TEXT NOT NULL,
+  parent_part_number_id TEXT NOT NULL,
+  definition_id TEXT NOT NULL,
+  parent_part_number TEXT NOT NULL,
+  parent_part_name TEXT NOT NULL,
+  selection_order INTEGER NOT NULL CHECK (selection_order >= 0),
+  PRIMARY KEY (release_snapshot_id, parent_part_number_id),
+  FOREIGN KEY (release_snapshot_id) REFERENCES bom_release_snapshots(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_part_number_id) REFERENCES part_numbers(id) ON DELETE RESTRICT,
+  FOREIGN KEY (definition_id) REFERENCES bom_definitions(id),
+  UNIQUE (release_snapshot_id, selection_order)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bom_release_parent_part
+ON bom_release_parent_snapshots(parent_part_number_id, release_snapshot_id);
+CREATE INDEX IF NOT EXISTS idx_bom_release_parent_definition
+ON bom_release_parent_snapshots(definition_id, parent_part_number_id);
+
+CREATE TABLE IF NOT EXISTS bom_release_resolved_lines (
+  id TEXT PRIMARY KEY,
+  release_snapshot_id TEXT NOT NULL,
+  definition_id TEXT NOT NULL,
+  parent_part_number_id TEXT NOT NULL,
+  logical_line_id TEXT NOT NULL,
+  parent_logical_line_id TEXT,
+  node_type TEXT NOT NULL CHECK (node_type IN ('item', 'group')),
+  child_part_number_id TEXT,
+  child_part_number TEXT,
+  child_part_name TEXT,
+  group_name TEXT,
+  quantity REAL,
+  sequence_no INTEGER NOT NULL,
+  level INTEGER NOT NULL CHECK (level >= 0),
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source = 'manual'),
+  CHECK (
+    (node_type = 'item' AND child_part_number_id IS NOT NULL AND child_part_number IS NOT NULL AND quantity > 0)
+    OR (node_type = 'group' AND child_part_number_id IS NULL AND quantity IS NULL AND group_name IS NOT NULL)
+  ),
+  FOREIGN KEY (release_snapshot_id) REFERENCES bom_release_snapshots(id) ON DELETE CASCADE,
+  FOREIGN KEY (definition_id) REFERENCES bom_definitions(id),
+  FOREIGN KEY (release_snapshot_id, parent_part_number_id)
+    REFERENCES bom_release_parent_snapshots(release_snapshot_id, parent_part_number_id) ON DELETE CASCADE,
+  FOREIGN KEY (child_part_number_id) REFERENCES part_numbers(id),
+  UNIQUE (release_snapshot_id, parent_part_number_id, logical_line_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bom_release_resolved_child
+ON bom_release_resolved_lines(child_part_number_id, release_snapshot_id, parent_part_number_id);
+CREATE INDEX IF NOT EXISTS idx_bom_release_resolved_parent
+ON bom_release_resolved_lines(parent_part_number_id, release_snapshot_id, sequence_no);
+
+CREATE TABLE IF NOT EXISTS bom_shared_structure_migration_issues (
+  id TEXT PRIMARY KEY,
+  company_id TEXT,
+  bom_draft_id TEXT,
+  part_number_id TEXT,
+  issue_code TEXT NOT NULL CHECK (issue_code IN (
+    'definition_backfill_ambiguous', 'owner_missing', 'cross_company', 'revision_lineage_conflict',
+    'component_identity_ambiguous', 'logical_line_identity_conflict', 'review_snapshot_unavailable',
+    'release_projection_unavailable', 'duplicate_current_binding', 'open_revision_conflict'
+  )),
+  detail_json TEXT NOT NULL,
+  issue_status TEXT NOT NULL DEFAULT 'open' CHECK (issue_status IN ('open', 'resolved')),
+  resolved_by TEXT,
+  resolved_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL,
+  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE SET NULL,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE SET NULL,
+  FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_bom_shared_migration_issues
+ON bom_shared_structure_migration_issues(issue_status, issue_code, company_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_definition_revision
+ON bom_drafts(definition_id, upper(bom_revision))
+WHERE definition_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_definition_one_open
+ON bom_drafts(definition_id)
+WHERE definition_id IS NOT NULL AND status IN ('Draft', 'Rejected', 'PendingReview', 'Archived');
+CREATE INDEX IF NOT EXISTS idx_bom_drafts_definition_status
+ON bom_drafts(definition_id, status, updated_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_tree_logical_line
+ON bom_lines_tree(bom_draft_id, logical_line_id) WHERE logical_line_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_floating_logical_line
+ON bom_draft_floating_topics(bom_draft_id, logical_line_id) WHERE logical_line_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_review_shared_hash
+ON bom_review_requests(bom_draft_id, review_snapshot_hash)
+WHERE review_schema_version = 2 AND review_snapshot_hash IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_release_definition_revision
+ON bom_release_snapshots(definition_id, upper(bom_revision)) WHERE definition_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_bom_release_definition_latest
+ON bom_release_snapshots(definition_id, released_at DESC);
+
+CREATE TRIGGER IF NOT EXISTS trg_bom_review_shared_evidence_immutable
+BEFORE UPDATE ON bom_review_requests
+WHEN OLD.review_schema_version = 2 AND (
+  NEW.review_schema_version <> OLD.review_schema_version
+  OR NEW.definition_row_version IS NOT OLD.definition_row_version
+  OR NEW.editor_version IS NOT OLD.editor_version
+  OR NEW.review_snapshot_json IS NOT OLD.review_snapshot_json
+  OR NEW.review_snapshot_hash IS NOT OLD.review_snapshot_hash
+) BEGIN
+  SELECT RAISE(ABORT, 'DEV096_REVIEW_EVIDENCE_IMMUTABLE');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_bom_release_shared_evidence_immutable
+BEFORE UPDATE ON bom_release_snapshots
+WHEN OLD.snapshot_schema_version = 2 AND (
+  NEW.definition_id IS NOT OLD.definition_id
+  OR NEW.bom_revision IS NOT OLD.bom_revision
+  OR NEW.line_snapshot_json IS NOT OLD.line_snapshot_json
+  OR NEW.line_count <> OLD.line_count
+  OR NEW.snapshot_schema_version <> OLD.snapshot_schema_version
+  OR NEW.parent_snapshot_json IS NOT OLD.parent_snapshot_json
+  OR NEW.mapping_snapshot_json IS NOT OLD.mapping_snapshot_json
+  OR NEW.resolved_projection_json IS NOT OLD.resolved_projection_json
+  OR NEW.snapshot_hash IS NOT OLD.snapshot_hash
+) BEGIN
+  SELECT RAISE(ABORT, 'DEV096_RELEASE_EVIDENCE_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_bom_release_parent_snapshot_immutable_update
+BEFORE UPDATE ON bom_release_parent_snapshots BEGIN
+  SELECT RAISE(ABORT, 'DEV096_RELEASE_PARENT_SNAPSHOT_IMMUTABLE');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_bom_release_parent_snapshot_immutable_delete
+BEFORE DELETE ON bom_release_parent_snapshots BEGIN
+  SELECT RAISE(ABORT, 'DEV096_RELEASE_PARENT_SNAPSHOT_IMMUTABLE');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_bom_release_resolved_line_immutable_update
+BEFORE UPDATE ON bom_release_resolved_lines BEGIN
+  SELECT RAISE(ABORT, 'DEV096_RELEASE_RESOLVED_LINE_IMMUTABLE');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_bom_release_resolved_line_immutable_delete
+BEFORE DELETE ON bom_release_resolved_lines BEGIN
+  SELECT RAISE(ABORT, 'DEV096_RELEASE_RESOLVED_LINE_IMMUTABLE');
+END;
+-- END DEV-096 shared assembly BOM authority.
 
 -- BEGIN DEV-087 canonical workbench state authority.
 -- DEV-087 unapproved Drawing work cancellation may remove recognition work data.

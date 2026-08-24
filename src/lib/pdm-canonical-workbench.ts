@@ -14,6 +14,7 @@ import { isDrawingWorkbenchPreviewGalleryV1Enabled, isPartWorkbenchPreviewGaller
 import { resolvePartPreviewsAsync } from "@/lib/pdm-part-preview";
 import { PdmPartPreviewAsyncRepository } from "@/lib/repositories/pdm-part-preview-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
+import { resolveCanonicalPartBomContextAsync } from "@/lib/bom-create-context";
 
 type CanonicalPreviewSource = CanonicalPreviewSourceRow;
 
@@ -127,7 +128,13 @@ export class PdmCanonicalWorkbenchService {
       };
     }
     if (record.entityType === "part") {
-      if (!isPartWorkbenchPreviewGalleryV1Enabled()) return { kind: "part", ...base, relationMatrix: matrix };
+      const bomContext = await resolveCanonicalPartBomContextAsync({
+        client: this.client,
+        companyId: actor.companyId,
+        partNumberId: record.canonicalEntityId,
+        canMutate: actor.permissions.createWork || actor.permissions.updateWork
+      });
+      if (!isPartWorkbenchPreviewGalleryV1Enabled()) return { kind: "part", ...base, relationMatrix: matrix, bomContext };
       const [previewMap, setting] = await Promise.all([
         resolvePartPreviewsAsync(this.client, {
           companyId: actor.companyId,
@@ -141,6 +148,7 @@ export class PdmCanonicalWorkbenchService {
       return {
         kind: "part",
         ...base,
+        bomContext,
         relationMatrix: matrix,
         preview,
         previewSourceControl: {

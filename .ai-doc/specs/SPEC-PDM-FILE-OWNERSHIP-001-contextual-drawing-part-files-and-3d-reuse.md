@@ -2,6 +2,8 @@
 
 > 2026-08-22 DEV-084→DEV-088 Supersession：DEV-084為歷史ID，後續由DEV-088在DEV-087之後重新縮編；2026-08-20提出的附件快照沿用、獨立版本、自由維護、whole-part lease、五表模型與041 migration只保留為歷史設計，尚未取代本文件的現行料號附件authority與`numbering.attachments.manage`規則。DEV-087只直接定義Part附件不進修改案／審核／rollback的即時語意，沿用現行讀寫與permission authority。圖號受控版次檔、canonical content/hash integrity與圖／料分流authority維持不變。
 
+> 2026-08-24 DEV-065 Phase 2 RD Implementation Ready amendment（尚未實作）：Part custom preview image沿用 `file_assets` 與現行Part附件owner，`linked_entity_type='part_number'`、`linked_entity_id=Part id`、`document_category='part_preview_image'`；唯一active selection由 `part_preview_settings` 擁有，不由category、最近附件或檔名推斷。該category是dedicated preview route保留write kind，一般附件POST不得用它繞過PNG/JPEG decode與正規化。Active custom asset的generic soft-delete由DB trigger final guard固定409 block，使用者先明確reset／replace；reset／replace只移動setting pointer，不隱式刪檔，restore舊asset也不重新指定。Auto來源只連結direct primary manufacturing Drawing的canonical production exact 3D，不複製Drawing bytes。此amendment由 `ADR-PDM-PART-PREVIEW-AUTHORITY-001` 與DEV-065 SPEC §0.16治理；在Phase 2實作前不改變current attachment runtime。
+
 Status: `RD Implementation Ready / Human Confirmed / RD Not Started`
 Date: 2026-08-10
 Owner: Dev PM
@@ -18,6 +20,7 @@ Related authority:
 - `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001-single-page-lifecycle-workbench.md`
 - `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`
 - `.ai-doc/decisions/ADR-PDM-MATERIAL-IDENTITY-REVISION-001-part-number-vs-controlled-definition-revision.md`
+- `.ai-doc/decisions/ADR-PDM-PART-PREVIEW-AUTHORITY-001-part-setting-and-shared-projection.md`
 - `.ai-doc/specs/SPEC-PDM-PART-ATTACHMENT-REUSE-001-replacement-snapshot-and-part-lock.md`
 - `.ai-doc/decisions/ADR-PDM-PART-ATTACHMENT-REUSE-001-snapshot-reference-and-whole-part-lock.md`
 

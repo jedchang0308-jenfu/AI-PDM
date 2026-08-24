@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { NumberingStructureType, StoredPartStructureType } from "@/lib/numbering-structure-type";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { assertPdmReviewScopeWritableAsync, lockPdmEntityScopeAsync } from "@/lib/pdm-review-lock";
 import { buildApprovalRuleSummary, withPredictedApprovalControls } from "@/lib/approval-rule-summary";
@@ -175,6 +176,7 @@ type PartNumberRow = {
   sequence_code: string;
   part_name: string;
   item_kind: NumberingItemKind;
+  structure_type: StoredPartStructureType;
   is_universal: number;
   custom_specification: string | null;
   series_code: string | null;
@@ -186,6 +188,7 @@ type PartNumberRow = {
 
 type RootAppendPartProfile = {
   itemKind: NumberingItemKind;
+  structureType: StoredPartStructureType;
   isUniversal: boolean;
   seriesCode: string | null;
   customSpecification: string | null;
@@ -869,6 +872,7 @@ const SELECT_ASYNC_RECENT_DUPLICATE_CREATE_SQL = `
     AND r.rule_version_id = :ruleVersionId
     AND p.part_name = :partName
     AND p.item_kind = :itemKind
+    AND p.structure_type = :structureType
     AND p.record_status = :recordStatus
     AND p.rule_version_id = :ruleVersionId
     AND p.is_universal = :isUniversal
@@ -1484,11 +1488,11 @@ export const INSERT_ASYNC_PART_ROOT_SQL = `
 export const INSERT_ASYNC_PART_NUMBER_SQL = `
   INSERT INTO part_numbers (
     id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-    item_kind, is_universal, custom_specification, series_code, record_status, universal_reason,
+    item_kind, structure_type, is_universal, custom_specification, series_code, record_status, universal_reason,
     rule_version_id, created_by, created_at, updated_at
   ) VALUES (
     :id, :companyId, :partRootId, :partNumber, :sequenceNo, :sequenceCode, :partName,
-    :itemKind, :isUniversal, :customSpecification, :seriesCode, :recordStatus, :universalReason,
+    :itemKind, :structureType, :isUniversal, :customSpecification, :seriesCode, :recordStatus, :universalReason,
     :ruleVersionId, :createdBy, :createdAt, :updatedAt
   )
 `;
@@ -3171,6 +3175,7 @@ function mapPartNumber(row: PartNumberRow): PartNumberRecord {
     sequenceCode: row.sequence_code,
     partName: row.part_name,
     itemKind: row.item_kind,
+    structureType: row.structure_type ?? "single_part",
     isUniversal: row.is_universal === 1,
     customSpecification: row.custom_specification,
     seriesCode: row.series_code,
@@ -3792,6 +3797,7 @@ export class AsyncNumberingRepository {
     if (!firstPart) {
       return {
         itemKind: rootRow.item_kind,
+        structureType: "single_part",
         isUniversal: false,
         seriesCode: null,
         customSpecification: null
@@ -3799,6 +3805,7 @@ export class AsyncNumberingRepository {
     }
     return {
       itemKind: firstPart.item_kind,
+      structureType: firstPart.structure_type,
       isUniversal: firstPart.is_universal === 1,
       seriesCode: firstPart.series_code,
       customSpecification: firstPart.custom_specification
@@ -3863,12 +3870,17 @@ export class AsyncNumberingRepository {
       const recordStatus = input.recordStatus ?? "Draft";
       const ruleVersionId = input.ruleVersionId ?? DEFAULT_RULE_VERSION_ID;
       const isUniversal = input.isUniversal ?? false;
+      const structureType = input.structureType ?? "single_part";
+      if (input.itemKind === "purchased" && structureType === "assembly") {
+        throw new Error("PURCHASED_ASSEMBLY_NOT_SUPPORTED");
+      }
       const rootName = input.coreName.trim();
       const recentDuplicate = await this.findRecentDuplicateCreateInClient(client, {
         companyId,
         coreName: rootName,
         partName: rootName,
         itemKind: input.itemKind,
+        structureType,
         recordStatus,
         isUniversal,
         universalReason: input.universalReason,
@@ -3898,6 +3910,7 @@ export class AsyncNumberingRepository {
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
         itemKind: input.itemKind,
+        structureType,
         recordStatus,
         isUniversal,
         universalReason: input.universalReason,
@@ -3929,6 +3942,7 @@ export class AsyncNumberingRepository {
           partNumber: partNumber.partNumber,
           customSpecification: partNumber.customSpecification,
           seriesCode: partNumber.seriesCode,
+          structureType: partNumber.structureType,
           drawingNumber: drawingNumber?.drawingNumber ?? null,
           ruleVersionId
         }
@@ -4037,6 +4051,10 @@ export class AsyncNumberingRepository {
       if (isClosedRecordStatus(rootRow.record_status)) throw new Error(`ROOT_APPEND_LOCKED: ${rootRow.record_status}`);
       const inheritedPart = await this.getRootAppendPartProfile(client, rootRow);
       if (input.itemKind && input.itemKind !== inheritedPart.itemKind) throw new Error("PART_ROOT_ITEM_KIND_MISMATCH");
+      if (inheritedPart.structureType === "unclassified") throw new Error("PART_ROOT_STRUCTURE_TYPE_UNCLASSIFIED");
+      if (input.structureType && input.structureType !== inheritedPart.structureType) throw new Error("PART_ROOT_STRUCTURE_TYPE_MISMATCH");
+      const structureType = inheritedPart.structureType;
+      if (inheritedPart.itemKind === "purchased" && structureType === "assembly") throw new Error("PURCHASED_ASSEMBLY_NOT_SUPPORTED");
 
       const idempotencyKey = input.idempotencyKey?.trim();
       if (idempotencyKey) {
@@ -4067,6 +4085,7 @@ export class AsyncNumberingRepository {
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
         itemKind: inheritedPart.itemKind,
+        structureType,
         recordStatus: input.recordStatus ?? "Draft",
         isUniversal: inheritedPart.isUniversal,
         customSpecification: inheritedPart.customSpecification ?? undefined,
@@ -4109,6 +4128,7 @@ export class AsyncNumberingRepository {
           companyId,
           rootCode: root.rootCode,
           partNumber: partNumber.partNumber,
+          structureType: partNumber.structureType,
           linkedDrawingNumber: linkedDrawing?.drawingNumber ?? null,
           linkType,
           reason: reason || null,
@@ -4130,6 +4150,10 @@ export class AsyncNumberingRepository {
       if (isClosedRecordStatus(rootRow.record_status)) throw new Error(`ROOT_APPEND_LOCKED: ${rootRow.record_status}`);
       const inheritedPart = await this.getRootAppendPartProfile(client, rootRow);
       if (input.itemKind && input.itemKind !== inheritedPart.itemKind) throw new Error("PART_ROOT_ITEM_KIND_MISMATCH");
+      if (inheritedPart.structureType === "unclassified") throw new Error("PART_ROOT_STRUCTURE_TYPE_UNCLASSIFIED");
+      if (input.structureType && input.structureType !== inheritedPart.structureType) throw new Error("PART_ROOT_STRUCTURE_TYPE_MISMATCH");
+      const structureType = inheritedPart.structureType;
+      if (inheritedPart.itemKind === "purchased" && structureType === "assembly") throw new Error("PURCHASED_ASSEMBLY_NOT_SUPPORTED");
 
       const idempotencyKey = input.idempotencyKey?.trim();
       if (idempotencyKey) {
@@ -4179,6 +4203,7 @@ export class AsyncNumberingRepository {
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
         itemKind: inheritedPart.itemKind,
+        structureType,
         recordStatus,
         isUniversal: inheritedPart.isUniversal,
         customSpecification: inheritedPart.customSpecification ?? undefined,
@@ -4210,6 +4235,7 @@ export class AsyncNumberingRepository {
           rootCode: root.rootCode,
           drawingNumber: drawingNumber.drawingNumber,
           partNumber: partNumber.partNumber,
+          structureType: partNumber.structureType,
           purposeCode: drawingNumber.purposeCode,
           linkType,
           reason: reason || null,
@@ -4300,6 +4326,7 @@ export class AsyncNumberingRepository {
       universalReason: input.universalReason?.trim() ?? "",
       customSpecification: input.customSpecification?.trim() ?? "",
       seriesCode: normalizeSeriesCode(input.itemKind, Boolean(input.isUniversal), input.seriesCode) ?? "",
+      structureType: input.structureType ?? "single_part",
       createdBy: input.createdBy ?? null,
       notBefore,
       drawingRequested: input.drawingPurposeCode ? 1 : 0,
@@ -8148,6 +8175,7 @@ export class AsyncNumberingRepository {
     input: {
       partName: string;
       itemKind: NumberingItemKind;
+      structureType: NumberingStructureType;
       recordStatus: NumberingRecordStatus;
       isUniversal: boolean;
       universalReason?: string;
@@ -8177,6 +8205,7 @@ export class AsyncNumberingRepository {
       sequenceCode,
       partName: input.partName.trim(),
       itemKind: input.itemKind,
+      structureType: input.structureType,
       isUniversal: effectiveIsUniversal ? 1 : 0,
       customSpecification: input.customSpecification?.trim() || null,
       seriesCode,

@@ -90,6 +90,8 @@ type BomWorkbenchLine = {
 type BomWorkbenchDraftSummary = {
   id: string;
   company_id?: string | null;
+  definition_id?: string | null;
+  base_release_snapshot_id?: string | null;
   owner_part_number_id?: string | null;
   bom_revision?: string | null;
   source_submission_id?: string | null;
@@ -136,6 +138,20 @@ type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
   lines: BomWorkbenchLine[];
   floating_topics: BomDraftFloatingTopic[];
   reconfirmation_flags: BomReconfirmationFlag[];
+  applicable_parents?: Array<{ part_number_id: string; part_number: string; part_name: string; selection_order: number }>;
+  components?: Array<{
+    node_id: string;
+    logical_line_id: string;
+    node_location: "tree" | "floating";
+    component_mode: "fixed" | "by_parent";
+    child_part_root_id: string;
+    child_part_number_ids: string[];
+    child_candidates?: Array<{ part_number_id: string; part_number: string; part_name: string; part_root_id: string }>;
+    parent_selections: Array<{ parent_part_number_id: string; child_part_number_id: string }>;
+  }>;
+  unresolved_mappings?: Array<{ logical_line_id: string; parent_part_number_id: string }>;
+  context_parent_part_number_id?: string | null;
+  release_snapshot_id?: string | null;
 };
 
 type LifecycleActionState = {
@@ -332,11 +348,15 @@ export default function BomWorkbenchPage() {
   const loadDraft = useCallback(
     async (draftId: string) => {
       setMessage("");
+      const contextParentPartNumberId = new URLSearchParams(window.location.search).get("parentPartNumberId");
+      const contextQuery = contextParentPartNumberId
+        ? `?parentPartNumberId=${encodeURIComponent(contextParentPartNumberId)}`
+        : "";
       const body = await requestJson<{
         draft: BomWorkbenchDraftDetail;
         editorCapability?: { enabled?: boolean };
         accessCapability?: { releasedReadOnly?: boolean };
-      }>(`/api/bom/drafts/${draftId}`);
+      }>(`/api/bom/drafts/${draftId}${contextQuery}`);
       setEditorV2Enabled(Boolean(body.editorCapability?.enabled));
       setReleasedReadOnly(Boolean(body.accessCapability?.releasedReadOnly));
       if (!body.editorCapability?.enabled && (body.draft.floating_topics?.length ?? 0) > 0) {
@@ -435,8 +455,12 @@ export default function BomWorkbenchPage() {
       setError("");
       setMessage("");
       try {
+        const contextParentPartNumberId = new URLSearchParams(window.location.search).get("parentPartNumberId");
+        const contextQuery = contextParentPartNumberId
+          ? `&parentPartNumberId=${encodeURIComponent(contextParentPartNumberId)}`
+          : "";
         const body = await requestJson<{ workbench: BomWorkbenchSummary }>(
-          `/api/bom/workbench?draftId=${encodeURIComponent(draftId)}`
+          `/api/bom/workbench?draftId=${encodeURIComponent(draftId)}${contextQuery}`
         );
         if (!body.workbench) throw new Error("BOM 工作台資料不存在");
         setWorkbench(body.workbench);
@@ -454,7 +478,7 @@ export default function BomWorkbenchPage() {
             : null
         );
         await loadDraft(draftId);
-        const nextUrl = `/bom/workbench/${encodeURIComponent(draftId)}`;
+        const nextUrl = `/bom/workbench/${encodeURIComponent(draftId)}${contextParentPartNumberId ? `?parentPartNumberId=${encodeURIComponent(contextParentPartNumberId)}` : ""}`;
         if (`${window.location.pathname}${window.location.search}` !== nextUrl) router.replace(nextUrl);
       } catch (err) {
         setError(err instanceof Error ? err.message : "載入 BOM 工作台失敗");
@@ -852,6 +876,38 @@ export default function BomWorkbenchPage() {
     setLoading(true);
     setError("");
     try {
+      if (selectedDraft.definition_id) {
+        if (selectedDraft.status !== "Released") throw new Error("只有目前正式版可建立下一版");
+        const contextPartNumberId = selectedDraft.context_parent_part_number_id
+          ?? selectedDraft.applicable_parents?.[0]?.part_number_id
+          ?? "";
+        if (!contextPartNumberId) throw new Error("BOM_CONTEXT_PARENT_REQUIRED");
+        const candidates = await requestJson<{
+          baseReleaseSnapshotId: string | null;
+          suggestedBomRevision: string;
+          selectionEtag: string;
+          candidates: Array<{ partNumberId: string; selected: boolean }>;
+        }>(`/api/bom/applicability-candidates?contextPartNumberId=${encodeURIComponent(contextPartNumberId)}`);
+        const applicableParentPartNumberIds = candidates.candidates.filter((candidate) => candidate.selected).map((candidate) => candidate.partNumberId);
+        const created = await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts", {
+          method: "POST",
+          headers: {
+            "idempotency-key": crypto.randomUUID(),
+            "if-match": candidates.selectionEtag
+          },
+          body: JSON.stringify({
+            contextPartNumberId,
+            applicableParentPartNumberIds,
+            bomRevision: candidates.suggestedBomRevision,
+            source: "manual",
+            baseReleaseSnapshotId: candidates.baseReleaseSnapshotId
+          })
+        });
+        await loadWorkbenchByDraft(created.draft.id);
+        await loadBomRecords();
+        setMessage(`已建立 BOM Rev ${created.draft.bom_revision}，既有 logical line 與 mapping 已由正式基線延續`);
+        return;
+      }
       const nextRevision = nextCloneRevision(selectedDraft.bom_revision ?? selectedDraft.parent_revision);
       const clonedDraftName = `${workbench?.parent_part_number ?? selectedDraft.draft_name} BOM Rev ${nextRevision}`;
       const created = await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts", {
@@ -990,6 +1046,25 @@ export default function BomWorkbenchPage() {
     }
   }
 
+  async function restoreCurrentDraft() {
+    if (!selectedDraft || selectedDraft.status !== "Archived") return;
+    setLoading(true);
+    setError("");
+    try {
+      const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>(`/api/bom/drafts/${selectedDraft.id}/restore`, {
+        method: "POST",
+        body: JSON.stringify({ reason: "Restore shared BOM draft from workbench" })
+      });
+      await loadWorkbenchByDraft(body.draft.id);
+      await loadBomRecords();
+      setMessage("BOM 草稿已恢復");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "恢復 BOM 草稿失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <BomWorkbenchPresentation
       model={{
@@ -1053,6 +1128,7 @@ export default function BomWorkbenchPage() {
         addGroup,
         setActiveDraft,
         cloneDraft,
+        restoreCurrentDraft,
         deleteDraft,
         handleFlowDragOver,
         handleFlowDrop,
@@ -1136,6 +1212,7 @@ type BomWorkbenchPresentationProps = {
     addGroup: () => void;
     setActiveDraft: () => void;
     cloneDraft: () => void;
+    restoreCurrentDraft: () => void;
     deleteDraft: () => void;
     handleFlowDragOver: (event: ReactDragEvent<HTMLDivElement>) => void;
     handleFlowDrop: (event: ReactDragEvent<HTMLDivElement>) => void;
@@ -1209,6 +1286,7 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
     runSearch,
     setActiveDraft,
     cloneDraft,
+    restoreCurrentDraft,
     deleteDraft,
     handleFlowDragOver,
     handleFlowDrop,
@@ -1238,6 +1316,7 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
         onSetActiveDraft={releasedReadOnly ? undefined : setActiveDraft}
         onCloneDraft={releasedReadOnly ? undefined : cloneDraft}
         onDeleteDraft={releasedReadOnly ? undefined : deleteDraft}
+        onRestoreDraft={releasedReadOnly ? undefined : restoreCurrentDraft}
         onReconfirmReplacementFlags={releasedReadOnly ? undefined : reconfirmReplacementFlags}
         onRequestObsolete={releasedReadOnly ? undefined : requestObsolete}
       />
@@ -1427,14 +1506,14 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
                 <PackagePlus size={16} aria-hidden="true" />
                 插入料件
               </button>
-              <button className="secondary-button" type="button" onClick={setActiveDraft} disabled={!selectedDraft || selectedDraft.is_active === 1 || loading}>
+              {!selectedDraft?.definition_id ? <button className="secondary-button" type="button" onClick={setActiveDraft} disabled={!selectedDraft || selectedDraft.is_active === 1 || loading}>
                 <CheckCircle2 size={16} aria-hidden="true" />
                 設為目前草稿
-              </button>
-              <button className="secondary-button" type="button" onClick={cloneDraft} disabled={!selectedDraft || loading}>
+              </button> : null}
+              {(!selectedDraft?.definition_id || selectedDraft.status === "Released") ? <button className="secondary-button" type="button" onClick={cloneDraft} disabled={!selectedDraft || loading}>
                 <Copy size={16} aria-hidden="true" />
-                複製
-              </button>
+                {selectedDraft?.definition_id ? "建立下一版" : "複製"}
+              </button> : null}
               <button className="secondary-button" type="button" onClick={deleteDraft} disabled={!selectedDraft || selectedDraft.status !== "Draft" || dirty || loading}>
                 <Trash2 size={16} aria-hidden="true" />
                 刪除

@@ -12,6 +12,19 @@ Amends: `DEV-PDM-NUMBERING-004`, `DEV-PDM-SUBMISSION-GATE-001`, `DEV-PDM-LIFECYC
 >
 > Part cost change requests are retired from the current product scope by `ADR-PDM-PART-COST-RETIREMENT-001`. The approval platform must not expose, recreate or require a part-cost adapter, inbox item, table or migration. The remaining approval domains retain their existing authority.
 
+## 2026-08-23 DEV-090 Amendment - Relation review retirement
+
+Status: `RD Implementation Complete / Local QA-QC Complete / Production Gated`。
+
+DEV-090 activation後，新的Relation關聯矩陣變更由Drawing／Part drawer直接原子更新正式`drawing_part_links`，不建立review request、approval inbox item、decision、snapshot或async apply。此本機 activation與retirement gate已完成；正式PostgreSQL migration、zero-loss reconciliation與release仍 gated。以下是對本文件Relation-specific條款的`Intentional replacement`：
+
+- DEV-087 request descriptor、exact Relation tree review lock、Relation ownerHref、Relation readonly reviewer projection與Part/Relation approval formalization只對Drawing／Part繼續適用；Relation移出current approval domain。
+- `/approvals`不得顯示DEV-090 activation後的新Relation項目；既有completed Relation review trace／approved snapshot只作歷史證據，不恢復成inbox row。
+- active Relation review、applying或apply_failed在cutover前必須為0；不得自動核准、套用或丟棄。
+- Drawing、Part、BOM與其他approval domain契約不變。
+
+完整authority：`.ai-doc/specs/SPEC-PDM-INLINE-RELATION-MATRIX-001-direct-formal-edit.md`。現行runtime尚未改變。
+
 ## 2026-08-22 DEV-087 Target-State Amendment - PDM request decisions, readonly editor parity and attachment scope
 
 Status: `RD Implementation Ready (RD Supervisor Reviewed) / Human Confirmed / DEV-087 activation only`.

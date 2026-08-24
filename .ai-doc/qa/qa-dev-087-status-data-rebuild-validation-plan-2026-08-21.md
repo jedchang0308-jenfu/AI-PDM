@@ -1,18 +1,29 @@
 # DEV-087 三工作臺狀態資料重建驗證計畫
 
-Status: `QA Plan Strengthened / UI-only Lifecycle Child Plan Ready / Local Focused QA-QC PASS / Independent Full QA & Production Migration Pending / Stability & Efficiency First`
-Date: 2026-08-21; amended 2026-08-22
+Status: `Local QA-QC Restored by DEV-094 / Fresh Aggregate 16 of 16 PASS / CAPA Effective / Production Zero-Loss Rehearsal, Cutover & Release Gated`
+Date: 2026-08-21; amended 2026-08-24
 Owner: QA
-Related DEV: `DEV-087`
+Related DEV: `DEV-087`; CAPA children `DEV-092`, `DEV-094`
 Authority:
 
 - `.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`
 - `.ai-doc/decisions/ADR-PDM-STATUS-DATA-REBUILD-001-single-current-state-authority.md`
 - UI-only execution child contract：`.ai-doc/qa/qa-dev-087-ui-only-lifecycle-operation-validation-plan-2026-08-22.md`
+- Relation current contract／QA authority：`.ai-doc/specs/SPEC-PDM-INLINE-RELATION-MATRIX-001-direct-formal-edit.md`、`.ai-doc/qa/qa-dev-090-inline-relation-matrix-validation-plan-2026-08-23.md`
+
+### DEV-090 supersession boundary
+
+DEV-090 已完成本機 Relation retirement 與 inline matrix focused QA/QC；自此本計畫中所有 `Part/Relation single work`、Relation work／review／formalization、Relation list/detail、Relation query budget 與 Relation editor case 均為 `Historical / Superseded by DEV-090`，不得拿來阻擋或宣告現行 Relation 完成。現行 Relation 驗證只由 `.ai-doc/qa/qa-dev-090-inline-relation-matrix-validation-plan-2026-08-23.md` 定義：Drawing／Part drawer 讀寫同一 `drawing_part_links` 矩陣，單次儲存直接生效、不送審。DEV-087 本計畫仍負責 Drawing／Part lifecycle、正式資料零遺失、canonical file-read 與 legacy retirement；正式 Cloud SQL provider parity、兩次 restore rehearsal、zero-loss reconciliation 與 cutover 仍 gated。
+
+### 2026-08-24 DEV-092 CAPA 重開註記
+
+本機A0006-M01的3筆revision files、assets與physical bytes存在，但migrated current work的`drawing_revision_work_files=0`，使work API與workspace把corruption誤判成合法無檔；既有recognition session則屬`candidate_revision` context，不能直接替代current `drawing_revision` exact source set。2026-08-23的aggregate與QC結果保留為歷史基線，但當時fixture、migration、zero-loss與completion audit沒有驗證per-work file-set equality，因此目前結論改為`QA-QC Reopened`。
+
+DEV-092不重設整份QA分母，而是新增`QA-087-179..186`作P0 CAPA completion gate。2026-08-24 focused closure 已完成179／180／181／182／183／184／185／186，全部 PASS、Blocked=0、Not Run=0。production資料修復、Cloud SQL rehearsal、cutover、deploy與release仍不在本輪授權。
 
 ## 1. 目的與完成門檻
 
-驗證 DEV-087 不是只換 UI 文案，而是真的把三工作臺 current state 收斂成單一 read/write authority，並安全支援 Drawing 多 RD branch、Part/Relation single work、review/formalization/cancel retention 與 destructive legacy retirement。
+驗證 DEV-087 不是只換 UI 文案，而是真的把 Drawing／Part current state 收斂成單一 read/write authority，並安全支援 Drawing 多 RD branch、Part single work、canonical file-read 與 destructive legacy retirement；Relation current mutation 改由 DEV-090 inline matrix contract 驗證。
 
 完成門檻：
 
@@ -24,12 +35,13 @@ Authority:
 - 四 viewport browser、a11y、banned text、exact artifact no-fallback PASS。
 - production cutover 仍需獨立 deployment/release gate；local PASS 不構成正式資料操作授權。
 - 每個case都有可重現的precondition／steps／expected／actual／provider／artifact／commit，不接受只有綠燈總數的證據。
-- `QA-087-001..165`逐案有結果；`BLOCKED／NOT RUN／SKIPPED／FLAKY`一律不算PASS，重跑不得覆蓋首次失敗。
-- UI-only child contract 的67條三工作臺journey與11個UI／API／DB一致性hard gates全數PASS；business mutation只允許由AI操作真實UI觸發，API／DB只可唯讀取證。任一層不一致、缺證據、Blocked或Not Run都阻止完整QA結論。
+- 本機 canonical product scope 以已重訂的48條三工作臺journey、11個UI／API／DB一致性hard gates及 QA-087-166～170 為完成門檻；business mutation只允許由AI操作真實UI觸發，API／DB只可唯讀取證。任一層不一致、缺證據、Blocked或 Not Run 都阻止本機完成結論。
+- `QA-087-001..165`中屬 PostgreSQL rehearsal、SCALE-10K、soak、RTO、production cutover／restore 的 release-only case，仍須在正式遷移與 release gate 逐案產生證據；本機完成不得被誤解為這些 production case 已執行。所有重跑均不得覆蓋首次失敗。
 - P0 stability invariant保留最小negative-control，確認測試會在錯誤結果出現時失敗；本期不建立重型mutation或反作弊體系。
 - UI流程除功能斷言外，visible error、console error、failed response與資料合理性皆為hard gate；HTTP 200、頁面可開或有截圖不等於PASS。
 - active review結束後，必須跨request、receipt、outbox、audit/log、error payload與backup驗證最小留存，不能只查`pdm_review_traces`一張表。
 - `SCALE-10K`的API／browser latency、concurrent read/write、60分鐘soak、connection/worker backpressure與migration resource budget全數PASS；不得只用statement count宣稱效率合格。
+- DEV-092的最終結案要求`QA-087-179..186`全部PASS：全量migrated work exact file-set equality、composite receipt、negative control與A0006 rendered UI均已具備；本機 focused closure 不代表 production migration、cutover或release已執行。
 
 ### 1.1 QA判定原則
 
@@ -50,14 +62,28 @@ Authority:
 - `npm run qc:dev-087`：8/8 gate PASS；contract 25、repository 17、commands 39、migration 13、retirement 30、browser 46，另含`typecheck:app`與`build:isolated`，共170項focused assertions/checks。
 - browser manifest：`output/qa/dev-087/DEV087-2026-08-21T18-55-53-404Z/manifest.json`；46/46 PASS，port 61363 cleanup PASS。
 - 目前來源DB唯讀dry-run：`QUARANTINE`、`unresolved=44`；另辨識9筆exact未核准part-only draft與3筆exact legacy cancelled workspace可在未來取得正式授權後清理。本次未apply、未切authority、未DROP或刪physical file。
-- 2026-08-22 preservation decision `A`：來源DB重新盤點為44筆不可唯一映射的圖／料／根號新建包、9筆未核准part-only新建包及3筆legacy cancelled workspace，共56筆。採 `--retain-unmapped-legacy` 的本機保留策略後，`unresolvedBeforeResolution=56`、`retainedLegacy=56`、`unresolved=0`；原 legacy workspace graph、候選保留與事件資料筆數不變，canonical-only sandbox authority smoke、`PRAGMA integrity_check`與foreign-key reconciliation PASS。此結果仍是local migration evidence，不代表production cutover授權。
+- 2026-08-22 preservation decision `A` 已被 2026-08-23 最終政策取代；該證據只保留為演進歷史，不再是現行驗收基準。
 - 本快照只代表本機RD自驗與focused QA/QC，不代表`QA-087-001..165`逐案全部執行，也不取代獨立QA、PostgreSQL、SCALE-10K、60分鐘soak、RTO、production rehearsal與release gate。
 - 詳細實作與差距：`.ai-doc/qc/qc-dev-087-local-implementation-2026-08-22.md`。
+
+### 1.4 2026-08-23 canonical closure 快照
+
+- UI-only canonical lifecycle：`D01–D24 / P01–P10 / R01–R14 = 48/48 PASS`、`Blocked=0`、`NotRun=0`、`C01–C11=11/11`；證據 `output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T16-03-21-109Z/`。
+- QA-087-166～168：三工作臺實際拖曳抽屜、偏好隔離／reload、清單與抽屜鍵盤切換、URL／API／UI rowKey、drawer scroll reset 與 rapid switching 一致；最終 rendered UI 證據為 `109/109 PASS`（`output/qa/dev-087/DEV087-2026-08-23T10-10-07-854Z/manifest.json`），consoleErrors／failed responses=`0/0`，桌機／平板／手機均通過。首敗 manifests 原樣保留。
+- QA-087-169～170：candidate／work／released／history／drawing attachment／part attachment／approval evidence 統一由 `/api/pdm/file-assets/{fileAssetId}` 讀取；舊 binary GET route 已刪除，source/runtime caller=`0`、orphan relation=`0`、兩輪 fresh-session、A0006 3D/2D rendered UI、原檔／衍生檔 hash 與權限負向矩陣共 `193/193 PASS`。最終證據 `output/qa/dev-087-file-read-retirement/DEV087-file-read-2026-08-23T10-09-45-972Z/manifest.json` 與同目錄 `reconciliation.json`。
+- 最終 `npm run qc:dev-087` 為 `10/10 PASS`，包含 contract 31、repository 17、commands 39、migration 24、zero-loss 27、retirement 21、file-read 193、browser 109、typecheck 與 125-page isolated build；證據 `output/qa/dev-087-aggregate/DEV087-aggregate-2026-08-23T10-09-37-950Z/manifest.json`。獨立 retirement manifest 為 `output/qa/dev-087-retirement/DEV087-retirement-2026-08-23T10-09-45-379Z/manifest.json`。
+- 本節關閉 local canonical scope、local destructive cleanup 與 candidate compatibility read retirement；PostgreSQL／production migration、production destructive cleanup、deploy、release 仍需另行授權與 release evidence。
+
+### 1.5 2026-08-23 零遺失／本機清理新增 gate
+
+- 本機 destructive rehearsal 與主 DB apply 必須使用 `scripts/cleanup-dev-087-local-legacy.mjs`；只接受 SQLite、主路徑 `data/ai-pdm.sqlite`（fixture另需明示且限QA目錄）。本次結果：60個舊 workspace、56筆 quarantine 清為0；canonical hash不變；兩筆舊核准紀錄先轉成只含cycle/entity/time的trace，因此 trace總數由5增至7。
+- PostgreSQL 只使用 `scripts/migrate-dev-087-postgres.mjs`；converter拒絕 discard／retain flag，apply必須有exact source fingerprint mapping、所有 workspace/relation/candidate-file receipts、target rows與provider/commit/schema guard。`unresolved>0`必須BLOCKED。
+- production 必須在兩個獨立restore rehearsal中逐表驗證count、PK、FK、生命週期、審核次數／時間、檔案引用、原檔／preview hash。兩輪都PASS後仍需另行取得cutover授權；本機結果不能代替。
 
 ## 2. 測試環境與資料安全
 
 1. 優先使用 disposable SQLite 與 isolated PostgreSQL；不得連 production。
-2. destructive migration、legacy canceled deletion與 DROP 只可在 disposable clone／restore rehearsal 執行，直到使用者另行授權 production gate。
+2. 本機依2026-08-23政策先在副本演練，再清除主SQLite舊graph；不保留legacy備份。production destructive cleanup只可在兩次restore rehearsal、零unresolved與另行cutover授權後執行。
 3. 每次 run 保存 manifest：commit/tree hash、schema hash、fixture hash、provider、connection fingerprint redaction、before/after counts、reconciliation hash、test result、cleanup result。
 4. temporary runtime 必須登記 project/purpose/port/process tree/cleanup，完成後只停止 task-owned process並確認 port 釋放。
 5. QA fixture與oracle必須唯讀且run-scoped；case不得依執行順序共享已變動資料。randomized/property case固定保存seed並可單獨重播。
@@ -98,16 +124,18 @@ Authority:
 
 ## 4. Schema 與 Constraint Matrix
 
+本節中凡提到 Relation current row、Relation work、Relation review、Relation snapshot 或 Relation list/detail 的 case 均為 `Historical / Superseded by DEV-090`；現行矩陣直接編輯與 pair／primary／orphan guard 以 QA-DEV-090 為唯一 oracle。
+
 | ID | 驗證 |
 |---|---|
 | QA-087-001 | canonical state enum、nullable/check constraint符合SPEC，非法domain/layer/branch/revision組合被DB拒絕 |
 | QA-087-002 | 每drawing只有一列production；同branch只有一列RD current |
 | QA-087-003 | 同drawing最多3個open RD branches；第四個新branch由DB/server共同原子拒絕且無orphan claim/work/state |
-| QA-087-004 | Part/Relation各只有一列formal與一列work；第二work由constraint阻擋 |
+| QA-087-004 | Part只有一列formal與一列work；Relation work row已由DEV-090退役，現行只驗證正式矩陣唯一約束 |
 | QA-087-005 | `company+drawing+target_major+target_minor`跨branch全域唯一claim；production minor固定0、RD minor>=1且NOT NULL，NULL/前導零/浮點/非canonical label不能穿透唯一鍵 |
 | QA-087-006 | branch_id不可變；revision exact predecessor FK/reference可驗證，不依revision字串 |
 | QA-087-007 | minimal review trace沒有reviewer/outcome/comment/revision/content欄位；immutable guard有效 |
-| QA-087-008 | Part/Relation approved snapshot完整保存before/after，且不被current state更新覆寫 |
+| QA-087-008 | Part approved snapshot完整保存before/after；既有Relation snapshot僅作歷史唯讀資料，DEV-090不新增 |
 
 ## 5. Command、State Machine 與 Concurrency
 
@@ -125,7 +153,7 @@ Authority:
 | QA-087-018 | system success原子更新正式；Drawing minor只回idle不改production，production target才推進正式並歷史化來源branch |
 | QA-087-019 | known repair failure→system_admin，只能idempotent retry exact snapshot |
 | QA-087-020 | unsafe failure→blocked，舊正式保持且無command可誤寫 |
-| QA-087-021 | Relation drift拒絕approve command但review維持pending，不自動return/merge |
+| QA-087-021 | Historical only：Relation drift／review 行為由 DEV-090 direct matrix ETag／If-Match 與零partial-write case 取代 |
 
 ## 6. Drawing Branch、Revision 與 History
 
@@ -145,17 +173,19 @@ Authority:
 
 ## 7. Part／Relation 與 Attachment
 
+Part cases仍屬DEV-087 current scope；Relation cases `QA-087-037～040、066` 為歷史基線，現行矩陣編輯／一致性／concurrency／idempotency由QA-DEV-090驗證。
+
 | ID | 驗證 |
 |---|---|
 | QA-087-033 | Part正式值在核准前持續供生產；修改中不污染正式 |
 | QA-087-034 | P-FIRST只有修改中一列，沒有版本、歷史或假正式列 |
 | QA-087-035 | Part cancel/return/failure不改正式；approve原子更新且保存before/after |
 | QA-087-036 | Part attachment依DEV-087直接契約及現行附件authority即時變更，work cancel不rollback；reviewer看到live list與範圍提示，但附件不納入snapshot/active-review lock；Drawing file與Relation tree仍受鎖定；測試不得要求DEV-088 future tables、feature flag或whole-part lease |
-| QA-087-037 | Relation正式樹在核准前持續有效；調整中不污染正式 |
-| QA-087-038 | R-FIRST只有調整中一列，沒有root版本/歷史/共同檔案 |
-| QA-087-039 | Relation submit confirmation列出exact removal nodes；approve保存before/after |
-| QA-087-040 | Part/Relation第二create併發導向既有work，不產生duplicate work row |
-| QA-087-066 | 首次Part／Relation work取消後row移除，編號回收結果完全符合既有numbering authority且DEV-087不另改規則 |
+| QA-087-037 | Historical only：Relation正式樹／調整中由DEV-090 inline matrix直接儲存契約取代 |
+| QA-087-038 | Historical only：Relation不再產生current row，root identity只由編號搜尋辨識 |
+| QA-087-039 | Historical only：Relation不送審、不產生approved snapshot；現行以矩陣save的formal hash／ETag驗證 |
+| QA-087-040 | Part第二create併發導向既有work；Relation併發由DEV-090 root lock／If-Match／idempotency驗證 |
+| QA-087-066 | Part首次work取消依DEV-087 authority；Relation work取消已退役，清理與正式link hash由DEV-090 migration gate驗證 |
 
 ## 8. Filter、Pagination 與 Query Budget
 
@@ -187,7 +217,7 @@ Authority:
 |---|---|
 | QA-087-055 | 新未核准cancel刪work data/bindings/predecessor/unapproved identity/claim；既有minimal trace保留 |
 | QA-087-056 | shared physical object僅零引用時永久刪除；正式檔與Part live attachment不受影響，UI/API不宣稱可restore |
-| QA-087-057 | legacy canceled data含old review全部從target刪除且manifest可對帳，不轉minimal trace |
+| QA-087-057 | 本機 legacy cancelled／active workspace graph清除後為0；old review只保留cycle/entity/time minimal trace，canonical count／PK／FK／內容hash完全不變。正式環境同類來源逐筆有唯一target/mapping receipt，禁止捨棄或長期quarantine。 |
 | QA-087-058 | uniquely provable predecessor正確backfill；ambiguous不猜測，標source_unknown/quarantine |
 | QA-087-059 | cutover前所有quarantine已repair/confirmed source_unknown/explicit delete，unresolved=0 |
 | QA-087-060 | source/target count、identity/hash、branch/claim/snapshot/review與protected evidence reconciliation可重現 |
@@ -259,7 +289,7 @@ Authority:
 | QA-087-112 | DEV-087 submit只建立`pdm_work_review_requests` transient row；不寫`approval_platform_requests/decisions`；既有BOM/其他approval domain create/decide/history regression零變化 |
 | QA-087-113 | return同transaction新增一筆minimal trace、handling回owner並清除request/snapshot；approve後只在applying/apply_failed暫存，formalize success後清除；retry/double-click不重複trace |
 | QA-087-114 | `pdm_review_traces` schema與serialized backend query只有cycle/company/entity/time，DB trigger禁止update/delete；UI/API/DOM/a11y完全不呈現trace |
-| QA-087-115 | preservation migration只在明示`--retain-unmapped-legacy`時將56筆legacy quarantine標記`retained_legacy_source`；與discard flag互斥；authority切canonical-only後legacy source graph仍完整、unresolved=0且不進canonical list/query |
+| QA-087-115 | 本機cleanup只接受verified SQLite exact path/header；副本演練與主DB apply均證明60個workspace、56筆quarantine清為0、canonical hash不變。production converter拒絕retain/discard flag，`unresolved>0`或mapping／receipt／fingerprint不完整即BLOCKED。 |
 | QA-087-115 | list/detail response符合SPEC §9.1 allowlist，禁止欄位零命中；opaque row/cursor不含branch/source/predecessor語意；`view/history/workStatus/recordStatus/dataStatus/humanStatus/responsibilityStatus/viewerStatus/availabilityScope/lane/versionLane`回`410 WORKBENCH_FILTER_CONTRACT_RETIRED`，既有series/type/purpose business filter仍正確且進cursor hash |
 | QA-087-116 | §9.2所有command route強制auth/company/action/idempotency/If-Match/contract token，decision只接受approve/return；retired draft-workspace command在canonical_only回`410 WORKBENCH_COMMAND_CONTRACT_RETIRED`且無write |
 | QA-087-117 | create/edit/submit/cancel/void/decision route只呼叫domain service；constraint、permission、stale token與response-loss注入沒有partial multi-table write或client-side candidate authority |
@@ -502,10 +532,154 @@ Authority:
 
 ## 17. Release Gate
 
-即使 QA-087-001..165 全數本機／隔離 PASS，仍不得自動執行 production migration。正式切換另須：
+即使 QA-087-001..178 全數本機／隔離 PASS，仍不得自動執行 production migration。正式切換另須：
 
 1. 使用者明確授權高風險資料遷移與 release。
 2. deployment/release gate確認環境、DB備份目的地、maintenance window最大時長/RTO、old runtime/worker drain、owner與relational rollback責任；不得宣稱已刪physical bytes可restore。
 3. production read-only inventory/reconciliation預檢 PASS。
 4. 即時stop condition、same-window drop allowlist、90-day DB backup receipt及canonical-only後irreversible physical-GC allowlist就緒。
 5. cutover完成後authority control=`canonical_only`且綁定exact commit/schema/provider、production `npm run qc:dev-087:retirement` PASS、fixed-path summary/manifest complete；否則在流量開放前rollback至`legacy_only`並維持`Retirement Pending`，不得release或結案。
+## 18. 3D／2D 預覽恢復驗證（2026-08-23）
+
+本次為既有能力恢復，不新增檔案權威，也不改圖號獨立編輯器。三個工作臺的 full detail drawer 必須共用同一個 3D／2D preview slot contract：圖號維持既有行為；料號與圖料根號由代表圖的既有受控附件產生 preview slots。驗收採三方一致門檻：
+
+- 後端 detail response：`drawing.previews`、`part.previews`、`relation.previews` 各自都必須有固定 3D／2D 兩槽位，且 `mediaHref`／`downloadHref` 只能指向既有受保護附件或衍生預覽路徑。
+- 資料：代表圖附件的檔名、內容雜湊與 preview job／derivative 狀態一致；沒有附件時只能回傳 `missing`，不可產生虛假媒體連結。
+- UI：三個抽屜都必須呈現共用預覽元件；`ready` 顯示媒體，`queued`／`running`／`delayed`／`failed`／`unavailable`／`missing` 顯示對應人類可理解狀態，且不得出現 console error、4xx/5xx 或可見錯誤遮罩。
+
+固定驗證：`npm.cmd run typecheck:app`、`npm.cmd run qc:pdm-entity-detail-drawer`。drawer QC 已依 DEV-087 current canonical shell 重寫，舊 DEV-039 搜尋頁／owner drawer 斷言不再作為現行契約；最新 canonical drawer 18/18 與 search-target runtime PASS。瀏覽器驗證須分別開啟圖號、料號、圖料根號抽屜，核對前後端 payload 與畫面三方一致。
+
+## 19. 抽屜寬度偏好與清單鍵盤切換驗證（2026-08-23）
+
+本次恢復既有互動能力，不新增資料模型或工作流狀態。canonical 圖號、料號、圖料工作台沿用既有 `useRememberedDrawerWidth` 與 `useListKeyboardShortcuts`，各工作台使用原有的 localStorage key，避免偏好互相覆蓋。
+
+| Case | 驗收 |
+|---|---|
+| QA-087-166 | 開啟任一工作台明細，拖曳「調整明細欄寬度」控制點；抽屜寬度隨指標變化，且限制在既有最小寬度與 viewport 安全上限。重新整理後仍使用同一工作台、同一使用者偏好的寬度；換到其他工作台不得讀錯 key。 |
+| QA-087-167 | 清單取得焦點後，`ArrowUp`／`ArrowDown` 選取上一列／下一列，選取列有清楚視覺狀態；`Enter` 開啟選取列，`Escape` 關閉抽屜並將焦點回到清單。輸入框、下拉選單及可編輯元素內按鍵不得被攔截。 |
+| QA-087-168 | 抽屜開啟且焦點在抽屜控制項時，`ArrowUp`／`ArrowDown` 仍可切換上一筆／下一筆明細，且 URL、detail API、抽屜標題／內容三者指向同一 `rowKey`；快速連續切換不得留下可見錯誤或錯列資料。 |
+
+通過標準：三個工作台各完成 QA-087-166～168；前端 typecheck PASS；瀏覽器 console、可見錯誤、detail/list API 4xx/5xx 均為 0；不得以僅有 DOM 控制項或僅有 localStorage 值代替實際拖曳、鍵盤與前後端一致性證據。`qc:pdm-entity-detail-drawer` 必須驗證 current canonical shell 並 PASS，禁止用已被 DEV-087 取代的舊 UI 斷言製造永久基線紅燈。
+
+## 20. Canonical 附件預覽讀取回歸（2026-08-23）
+
+A0006-M01 暴露的問題不是附件遺失或預覽 worker 未產生，而是 canonical detail 已產生候選附件的受控 `readHref`，其候選檔案 GET route 卻被整併時誤標為 retired。修正不永久恢復舊路徑，而是讓 candidate／released／history／review 共用 `/api/pdm/file-assets/{fileAssetId}`，由 relation context 決定生命週期與審核範圍：
+
+| Case | 驗收 |
+|---|---|
+| QA-087-169 | 以 UI 登入後開啟 A0006-M01 研發版抽屜；detail response 的 3D／2D `mediaHref` 必須分別帶 `previewDerivative`／`preview=1` 並使用 canonical file-asset route，回應必須為 200，且 content type 分別為 `image/png`、`application/pdf`；UI 必須實際呈現 3D 圖像與 2D PDF iframe，不得出現「預覽尚未就緒」或可見錯誤。原始檔下載仍使用同一受保護 route；未登入、跨公司、錯誤 context／binding／asset 組合必須拒絕。 |
+
+實作邊界：只建立單一 canonical file-read GET（原檔與衍生預覽 bytes）；舊 candidate POST／PATCH／remove command 不得恢復。route 驗證登入、公司、context relation、binding、asset 未刪除與 review scope。通過標準為後端 HTTP status／content type、資料庫 source asset／derivative content hash、UI 媒體三方一致；若任何一方失敗，case FAIL，不得以只看到附件檔名視為通過。
+
+## 21. 檔案讀取權威收斂與 retirement 完成（2026-08-23）
+
+candidate 與 released 保留不同的業務關聯表（生命週期與審核範圍不同），但檔案本體、preview derivative、storage pointer 與權限判定已收斂到同一個 canonical file-read service／route。舊 `draft-workspaces/{workspace}/candidate-revisions/{revision}/files/{file}` GET 與 adapter 已刪除；同路徑的 command retirement 不受影響。
+
+retirement exit criteria 與結果：
+
+1. PASS：canonical detail／preview／download caller 全部由 canonical file-read contract 產生網址；source asset 只有一套 authority，candidate／released 只保留 relation context。
+2. PASS：candidate、released、review、history 四種 context 均完成 company／resource／review scope／original／derivative content-hash 正負矩陣；未恢復任何舊 command。
+3. PASS：兩輪獨立 fresh-session UI 與 API evidence 顯示 source caller=`0`、runtime old-route request=`0`、orphan file relation=`0`、console／request failure=`0`；reconciliation manifest 已完成，舊相容 route 與 adapter 已移除。
+
+| Case | 驗收 | 結果 |
+|---|---|---|
+| QA-087-170 | 執行 `npm.cmd run qc:dev-087:file-read-retirement`；舊 route source/runtime caller=0、route file 不存在、candidate/released relation orphan=0；兩輪 fresh-session 對 candidate／released／history／review 執行原檔、衍生檔、未登入、跨公司、錯 context／binding／asset／derivative矩陣，並由 rendered UI 驗證 A0006 3D/2D。任一不符即 FAIL，且 temporary runtime 必須關閉並確認 port 釋放。 | `PASS 100/100`；`output/qa/dev-087-file-read-retirement/DEV087-file-read-2026-08-23T06-50-26-534Z/manifest.json`；`reconciliation.json`；port `56585` released。 |
+
+已保留 retirement runner 的首輪失敗 manifests，不以重跑覆蓋。完成範圍是 candidate compatibility read path；系統內其他尚有合法 owner 的歷史 API 不因本案被誤稱全部退役。
+
+## 22. 新架構整併與零遺失遷移驗證（2026-08-23）
+
+| Case | 驗收 |
+|---|---|
+| QA-087-171 | 本機 cleanup 只接受 SQLite、exact `data/ai-pdm.sqlite` 或明示QA fixture；before/after canonical count、PK、FK與內容hash完全相同，60個legacy workspace與56筆quarantine清為0，清理不建立legacy備份。 |
+| QA-087-172 | PostgreSQL converter只接受`cloud_sql_postgres`，inventory／rehearsal／cutover模式分離；production discard／retain flag、provider／commit／schema／source fingerprint drift、缺mapping或缺receipt皆fail closed。 |
+| QA-087-173 | 兩個正式備份的獨立restore rehearsal逐表驗證source/target count、PK、FK、lifecycle、review count/time、file binding、source與preview hash；任一差異使release BLOCKED。 |
+| QA-087-174 | `PdmFileReadContext`所有candidate/work/released/history/drawing/part/review context共用單一路由、授權、storage pointer、derivative與byte pipeline；舊binary GET route檔案及runtime caller皆為0。 |
+| QA-087-175 | Drawing／Part／Relation detail為discriminated union且只接受`drawer_minimal／editor_full／review_readonly`；一般UI response、DOM與a11y不含raw status、workflow、package、baseline、source、predecessor或動態unknown欄位。 |
+| QA-087-176 | 三工作臺清單使用同一drawer mechanics及三個typed projection；圖號editor保持獨立，review使用同畫面唯讀。圖號／料號抽屜的直接關聯、圖料抽屜的關聯矩陣、預覽、歷史、鍵盤切換與寬度偏好完成UI/API/DB三方一致。 |
+| QA-087-177 | retirement gate掃描全部runtime/navigation/API/worker/script caller；負向注入任何舊route、workspace navigation、legacy import、old schema read或fallback時必須FAIL，移除後兩輪fresh-session PASS，caller=0、orphan=0。 |
+| QA-087-178 | 正式開放流量前固定要求`unresolved=0`、mapping清單為空、reconciliation=100%、UI/API/DB一致、caller=0、orphan=0、retirement PASS；任一失敗在開放流量前回復DB、app與authority control。 |
+
+## 23. DEV-092 遷移 Drawing work 檔案快照 CAPA（2026-08-24）
+
+目的：驗證converter不只建立Drawing work/state，也完整建立work-owned file snapshot；修復工具能安全處理既有migrated work；runtime能區分「合法零檔」與「snapshot損壞」；completion audit確實可阻止同類漏項再被標成完成。
+
+### 23.1 風險分層與驗證策略
+
+| 層次 | 失效模式 | 影響 | 主要控制／oracle |
+|---|---|---|---|
+| L1 資料事實 | revision files／assets存在，但work-file child rows為0或partial | work API回空，preview與recognition失去來源 | QA獨立從exact source revision計算ordered tuple set，不使用SUT target summary當expected |
+| L2 遷移機制 | converter漏建child rows；re-run以`ON CONFLICT DO NOTHING`掩蓋缺項 | 新舊資料不等價，completion false positive | dry-run／apply共用classifier、per-work composite receipt、第二次apply mutation=0 |
+| L3 runtime語意 | mismatch被當作正常empty，或UI直接fallback revision files | corruption不可見、雙authority再生 | work API stable anomaly；真空與異常雙fixture；禁止UI fallback |
+| L4 recognition lineage | 同圖號的`candidate_revision` session被誤當current work session | 使用錯來源或舊證據 | exact `context type + revision id + sorted source asset set`比對 |
+| L5 治理／防再發 | fixture沒有files，aggregate只看table count／FK | 已知缺陷仍被標PASS | negative injection同時擊穿migration、zero-loss、completion audit |
+
+風險等級：本機程式與disposable data=`Medium / P0`；主SQLite repair須dry-run後再apply；正式PostgreSQL資料修復／cutover=`High / Release Gated`。QA與QC使用不同run id、不同disposable DB與fresh process；不得改寫第一次FAIL artifacts。
+
+### 23.2 Cases
+
+| Case | Precondition／操作 | 獨立 Expected／Hard Gate | 狀態 |
+|---|---|---|---|
+| QA-087-179 | 對全量`proposed_payload.migrated=true`且由current canonical state指向的Drawing works做唯讀inventory；另固定重現A0006 current work。 | exact source revision只能由work payload／state唯一證明；逐work輸出source/target ordered tuples、hash與異常。修復前A0006 oracle必須能抓到`expected=3, actual=0`；任何ambiguous source、orphan、extra、partial或hash drift均列unresolved，不能被summary隱藏。 | Focused PASS；主SQLite dry-run `output/qa/dev-092-main-dry-run/manifest.json`，`unresolved=0`、identity hash stable；原始0-row事實保留於DEV-092 reopening evidence |
+| QA-087-180 | 以0／1／3個未移除revision files的SQLite fixture執行new conversion dry-run→apply→re-run。 | 每筆target tuple=`(source file id, source sort_order, asset content_hash)`；apply後expected=actual，第二次apply insert/update/delete=0，source rows/assets/bytes hash不變。合法0檔仍是0，不被誤判異常。 | PASS；`npm.cmd run qc:dev-092:work-file-snapshot`，21 checks，`output/qa/dev-092-work-file-snapshot/dev-092-work-files-Ae1bZJ/manifest.json` |
+| QA-087-181 | 對既有migrated work建立target empty、partial、complete三種狀態；注入source mutation、missing/deleted asset、duplicate、extra target、hash drift與cross-company/drawing。 | repair按work整組原子；可確定且完整才寫入。任一歧義／不一致須fail closed、unresolved>0、target before/after不變；移除異常後dry-run與apply才PASS。 | PASS；`qc:dev-092:work-file-snapshot` 已以獨立fixture覆蓋 missing/deleted source、source hash、extra target、target hash、duplicate ordinal與cross-company scope drift；各案均 exit 2 並保留 quarantine evidence。 |
+| QA-087-182 | 在PostgreSQL mirror／disposable provider執行0／1／3檔conversion、repair與re-run，檢視receipts。 | receipt逐work保存可重算的複合tuple／source fingerprint／before-after，不接受只看table count、通用single-key receipt或`ON CONFLICT DO NOTHING`。SQLite/PostgreSQL ordered set與manifest schema同構。 | PASS；disposable PostgreSQL 18 mirror 0／1／3-file、4 composite receipts、source fingerprint stable、target hash stable與target-drift fail-closed，`output/qa/dev-092-postgres/DEV092-postgres-2026-08-24T04-09-44-264Z/manifest.json`。正式 production仍為 Release Gate。 |
+| QA-087-183 | 對合法零檔、完整3檔與migrated mismatch work呼叫work service/API，並核對DB。 | 完整work只回work-owned exact files；合法零檔回正常empty；mismatch回stable anomaly code與safe message，不回空成功、不讀revision fallback、不洩漏internal source／SQL。 | PASS；`qc:dev-092:runtime-invariant` 2 checks，A0006 read exact 3、刪除一筆後 stable `DRAWING_WORK_FILE_SNAPSHOT_INVALID`／409 |
+| QA-087-184 | 建立相同drawing但不同`candidate_revision`／`drawing_revision` context或不同source set的recognition sessions，再開current work。 | 只有`drawing_revision + current revision id + exact sorted source asset set`全等才可載入；同圖號或revision文字相同不足以重用。修復後current 3 assets可建立／載入正確session，跨context lineage不自動合併。 | PASS；`qc:dev-092:recognition-context` 6 checks，exact revision context與3 assets source set；candidate context未被重用 |
+| QA-087-185 | 在fresh authenticated browser hard reload A0006 current workspace，查UI、work API、canonical file read、recognition request與DB；另開合法零檔及故意mismatch fixture。 | A0006 work API與UI顯示exact 3 files，2D／3D preview/download content type與hash正確，recognition source count=3，不再顯示假「尚無可辨識的檔案」；合法零檔維持empty，mismatch只顯示一項可行動錯誤。console、visible error、unexpected 4xx/5xx=0。 | PASS；isolated fresh-auth Playwright 17/17，A0006 revision files=3、PDF preview 200/application/pdf、recognition GET/POST、POST body exact revision context + 3 source assets、DB session exact context，`output/qa/dev-092-browser/DEV092-browser-2026-08-24T04-20-51-832Z/manifest.json`。 |
+| QA-087-186 | 在已PASS fixture刪除任一`drawing_revision_work_files` binding，再跑migration、zero-loss、DEV-087 aggregate與`qc:dev-task-completion-audit`；恢復後以fresh run重跑。 | 四個gate在注入後都必須FAIL並指出同一work/file-set mismatch，completion不得標PASS；恢復後才可PASS。manifest綁exact commit/schema/provider/source fingerprint，保留首敗與第二次PASS，不允許測試自動修正fixture。 | PASS（targeted）；negative missing-file exit 2／`work_file_snapshot_incomplete`、repair後re-run 0 mutation，`qc:dev-087:zero-loss` 29/29，manifest `output/qa/dev-087-zero-loss/DEV087-zero-loss-2026-08-24T02-55-14-796Z/manifest.json` |
+
+### 23.3 通過與結案條件
+
+1. 最終結案要求`QA-087-179..186 = 8/8 PASS`、Blocked=0、Not Run=0、P0/P1=0；2026-08-24 closure evidence 已滿足，DEV-087 可恢復 local PASS；production zero-loss rehearsal、cutover與release 仍獨立 gated。
+2. 全量active migrated Drawing works的exact tuple equality與hash reconciliation=100%，unresolved／ambiguous／orphan／extra／partial=0；A0006固定為3=3。
+3. 本機主SQLite若要apply，必須先保存唯讀inventory與dry-run，人工核對exact target後才執行；QA計畫本身不授權資料修改。physical bytes與source revision rows不得改變。
+4. 瀏覽器證據必須來自current work URL與fresh reload，且UI／API／DB／file bytes／recognition context五方一致；截圖、HTTP 200或附件檔名單獨都不是PASS。
+5. QC已用獨立oracle重算tuple集合並親自執行negative injection；不得直接採信RD aggregate或2026-08-23歷史PASS。DEV-092 implementation amendment與QA-087-181／182／185 closure evidence 均已補入本節與對應manifest。
+
+## 23. Part 附件 UI 入口回歸與 CAPA（2026-08-24）
+
+Spec Impact：`Compatible restoration`。本案恢復 DEV-087 已明定的 Part 附件獨立即時管理 UI，不新增 schema／migration／permission code／附件 authority，也不提前實作 DEV-088 的替代料號 attachment binding／snapshot／lease。
+
+### 23.1 根因
+
+依第一性原理，既有附件能力「可用」至少要同時具備 `authority + 可發現入口 + 可寫入表面 + 結果回饋 + 可回復操作`。修復前只有 API／storage authority 與 drawer read projection，故不能因後端存在就判定功能可用。
+
+| 層級 | 根因 |
+|---|---|
+| 直接層 | canonical Part drawer 取代舊畫面時只保留附件讀取清單，未掛回 mutation entry；`files.length=0` 時又把整個附件區隱藏。 |
+| 流程層 | DEV-087 completion/QC 驗證了 attachment live-list 語意與 API authority，卻沒有把「具權限者可從正式產品 UI 進入上傳」設為不可省略的 release assertion。 |
+| 治理層 | UI-only scope 依連續編號把 `P11–P17` 整段移到 DEV-088，忽略 `P11–P13` 是 DEV-087 immediate attachment，`P14–P17` 才是 DEV-088 replacement attachment。 |
+
+### 23.2 CA／PA 與責任追溯
+
+| 類型 | 措施 | Owner | 驗證 |
+|---|---|---|---|
+| CA | Part drawer 的附件區永遠顯示；有 `numbering.attachments.manage` 時顯示「管理附件」，進入 `/parts/{partNumber}/attachments?returnTo=...`。 | RD | `QA-087-036A` 空／非空附件皆有 section；權限入口正確 |
+| CA | 獨立管理頁移除人工分類欄位，提供多檔選取與逐檔進度，沿用既有 POST API；未帶分類時沿用 server fallback。 | RD | `QA-087-036B` 真實 UI 上傳 201，檔案 readback 一致 |
+| CA | 目前附件提供 canonical protected download、soft-delete 與 deleted-data restore。 | RD | `QA-087-036C` download href、DELETE、restore 與 active/deleted list 一致 |
+| CA | owner 料號編輯頁連到同一管理頁；有未儲存欄位時先警示。reviewer 只看 live list 與固定排除提示。 | RD+QA | `QA-087-036D/E` owner/reviewer 權限與 snapshot 邊界 |
+| PA | scope 固定拆成 `P11–P13 = DEV-087`、`P14–P17 = DEV-088`；禁止按 case range 整段移列。 | PM+QA | UI-only 計畫 §0 與 fresh-session 文件檢查 |
+| PA | completion audit 對任何 preserved mutation authority 加入「discoverable writable surface」斷言；空清單不得移除主要入口。 | PM+QC | focused browser + source contract + multi-viewport UI QC |
+
+### 23.3 UI/UX acceptance 與 evidence
+
+固定主入口：`左側料號工作台 → 點選料號 → 右側明細「附件」→ 管理附件`。不在每列放 upload icon、不新增全域 sidebar 附件模組、不使用巢狀 modal/drawer。獨立頁直接提供完整寬度 dropzone，不顯示人工分類欄位；上傳按鈕放在上傳卡片內，避免固定 footer 遮住 deleted-data 區。
+
+聚焦 runner：`npm run qc:dev-087:part-attachments`。最終 evidence `output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-24T02-16-49-777Z/manifest.json` 為 `27/27 PASS`，涵蓋入口、權限、無分類控制項、多檔、upload、download、delete、restore、returnTo、owner editor secondary-entry source contract、desktop/tablet/mobile overflow、console/network 與 runtime cleanup。分類移除後分母同步減少一項；先前 `28/28` evidence 仍原樣保留作為歷史實作證據。首次等待條件失敗 evidence `DEV087-PART-ATTACHMENTS-2026-08-24T01-52-27-952Z`、`DEV087-PART-ATTACHMENTS-2026-08-24T01-53-12-979Z` 原樣保留；其根因是測試在資料載入完成前檢查表單，修正等待條件後重跑 PASS，未放寬產品斷言。
+
+CAPA effectiveness：`PASS`。同一 fresh disposable fixture 已由 rendered UI 完成「drawer 入口 → 上傳 → 受控下載 → 軟刪除 → 還原 → 返回原 drawer」，且手機畫面沒有固定 action dock 遮蔽內容。Production migration／deploy／release 仍維持 DEV-087 原 gate，未因本案自動執行。
+
+## 24. DEV-094 SQLite Migration Integrity CAPA Closure（2026-08-24）
+
+### 24.1 Reopening cause
+
+DEV-092 focused closure後，主SQLite唯讀inventory另確認正式`part_roots`／`part_numbers`為0，兩張company-scope migration table各保留3筆候選，global FK violations=15。A0002／A0005因此出現「清單state存在、detail root不存在」；舊DEV-087 browser在source assertion前seed A0002並清orphan links，不能作目前資料完整性證據。
+
+### 24.2 Added gates and result
+
+新增DEV-094 `QA-094-001..012`作為DEV-087 completion amendment，固定驗證主DB exact recovery/no-op、failure rollback、candidate fail-close、2／5／11 process初始化、live/stale lock、isolated build main invariant、orphan detail局部降級、affected rendered UI及pre-seed source guard。執行結果PASS=12、FAIL=0、Blocked=0、Not Run=0、P0/P1 open=0。
+
+Fresh aggregate `output/qa/dev-087-aggregate/DEV087-aggregate-2026-08-24T05-53-07-065Z/manifest.json`為16/16 PASS，包含DEV-094 focused/browser、DEV-087 contract/repository/commands/migration/browser、DEV-092 gates、zero-loss、retirement、file-read retirement、typecheck與isolated build。affected browser `output/qa/dev-087/DEV087-2026-08-24T05-55-12-088Z/manifest.json`為91/91 PASS，且`sourceInvariantCheckedBeforeMutation=true`、runtime dist removed=true。
+
+Current QA disposition=`Local QA-QC Restored / CAPA Effective`。主DB recovery manifests與獨立QC見`.ai-doc/qc/qc-dev-094-sqlite-migration-integrity-capa-2026-08-24.md`；production仍未連線、遷移、部署或release。

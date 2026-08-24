@@ -1,12 +1,12 @@
 # SPEC-PDM-PART-ATTACHMENT-REUSE-001：替代料號附件快照沿用與料號級排他鎖
 
-Status: `RD Implementation Ready / Human Confirmed / RD Not Started / Local First / Production Release Gated`
+Status: `Historical / Superseded by DEV-088 Planning / RD Not Eligible / Not Executable`
 Date: 2026-08-20
 Owner: Dev PM
-Related DEV: `DEV-084` / `DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-001`
+Historical DEV: `DEV-084` / `DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-001`; successor: `DEV-088` / `DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-002`
 Risk: High for implementation because this changes part-attachment authorization, ownership representation and every part write's concurrency boundary
 Related ADR: `.ai-doc/decisions/ADR-PDM-PART-ATTACHMENT-REUSE-001-snapshot-reference-and-whole-part-lock.md`
-Execution boundary: RD may implement the local Phase 1A-1E package defined below. This document does not authorize production data migration, deploy, release, commit, PR or destructive content cleanup.
+Execution boundary: No RD implementation is authorized from this historical package. The former Phase 1A-1E package is retained only as design input. Successor DEV-088 may be re-scoped only after DEV-087 local implementation and independent QA/QC complete; DEV-084 never reopens and neither task is part of DEV-087.
 
 Related authority:
 
@@ -17,7 +17,9 @@ Related authority:
 
 ## 0. Authority、Spec Impact 與成熟度
 
-本 SPEC 是替代料號附件選擇、料號附件獨立版本、料號附件自由維護，以及料號級排他鎖的產品與技術邊界 authority。
+2026-08-22 execution supersession：本SPEC不再是可直接派工的implementation authority。只保留「替代料號建立時，來源有效料號附件預設全選、可取消或新增，圖號檔案不進清單」的未來產品意圖。原本綁在一起的附件沿用、content/binding/version平台、permission改寫、所有生命週期自由維護與whole-owner lease必須在重新啟動時拆分或明確取捨。
+
+DEV-087直接擁有「Part附件沿用現行authority、獨立即時生效、不進Part work/review snapshot/lock/rollback」契約；不依賴本SPEC的041、五表、feature flag、replacement snapshot或lease。下文自§5起的exact schema/API/phase/QA內容均為歷史設計輸入，除非未來經新決策重新確認，不得直接實作。
 
 Spec Impact 分類為 `Intentional replacement + compatible preservation`：
 
@@ -26,7 +28,7 @@ Spec Impact 分類為 `Intentional replacement + compatible preservation`：
 - 相容保留 `SPEC-PDM-CHANGE-CONTROL-001` 的替代料號草稿、正式化、替代關聯與既有發行審核；本 SPEC 不移除料號／圖面本身的受控流程，只是不增加附件專屬審核。
 - 相容保留 `ADR-PDM-MATERIAL-IDENTITY-REVISION-001` 的 Part Number 無 Revision 與舊資料不可被新身份靜默改寫規則。附件 metadata 中既有 `revision` 欄位不得被解讀為料號版次。
 
-本文件已完成 `RD Implementation Ready` 收斂：exact schema/index/migration、part-write consumer 分類、API wire、lease 時序、content ingestion／failure recovery、file/test inventory、分期及 QA plan均已固定。RD 可由 Phase 1A 開始本機實作；任何 production migration、feature enable、deploy或release仍需另行授權。
+2026-08-20曾完成一版`RD Implementation Ready`收斂，但已被2026-08-22的延後／縮編決策撤銷執行資格。exact schema/index/migration、part-write consumer、API wire、lease、content ingestion、file/test inventory、phase與QA只能供未來評估，不代表已核准方向或可由Phase 1A開始。
 
 ## 1. 問題與成功狀態
 
@@ -112,7 +114,7 @@ flowchart LR
 
 ## 5. Domain Contract 與不變量
 
-以下 logical contract 已凍結為對應的實體 table；API仍以owner／attachment語意呈現，不暴露內部table名稱：
+以下 logical contract 是2026-08-20歷史方案曾凍結的設計，不是目前可實作table contract；未來縮編後只有被新契約重新採用的部分才生效：
 
 | Logical object | 最小責任 |
 |---|---|
@@ -124,7 +126,7 @@ flowchart LR
 
 ### 5.1 Exact SQLite／Cloud SQL Schema
 
-權威檔案為本機新建schema `db/schema.sql`、既有SQLite升級／backfill `src/lib/db.ts#ensurePartAttachmentReuseSchema`，以及Cloud SQL migration `db/postgres/041_part_attachment_reuse_and_edit_leases.sql`。不得建立或鏡像到`supabase/`；`db/postgres/README.md`已宣告Cloud SQL PostgreSQL為唯一production migration authority。
+歷史方案曾指定本機schema `db/schema.sql`、SQLite升級／backfill `src/lib/db.ts#ensurePartAttachmentReuseSchema`與Cloud SQL migration `db/postgres/041_part_attachment_reuse_and_edit_leases.sql`；這些檔案目前不得因本SPEC而建立。041僅保留編號，未來重新核准時仍須重新檢查provider與migration契約。
 
 | Table | Exact columns／constraints | Exact indexes／用途 |
 |---|---|---|
@@ -214,7 +216,7 @@ flowchart LR
 7. Review／release／obsolete等controlled command不持有user token，但在其既有transaction中lock相同canonical owner row並呼叫`assertNoActivePartEditLeaseAsync`；有人編輯時回conflict，不得繞過人類lease。新建尚不存在的part不需預先lease，draft→formal promotion仍在同一release transaction完成。
 8. Lease逾時後，原holder的舊token即使稍後送達也必須被fencing拒絕；第二位使用者可持續讀取／下載，第一層只顯示一次最小充分的「由某人編輯中」，所有write controls disabled。
 
-現行`item_locks`保持submission/item checkout authority，不修改、不搬資料、不重用。DEV-084新增`part_edit_leases`，避免把8小時submission lock語意混入formal part／replacement draft。
+現行`item_locks`保持submission/item checkout authority，不修改、不搬資料、不重用。歷史DEV-084方案原擬新增`part_edit_leases`；DEV-088不自動繼承此提案，現階段不得建立或把它視為DEV-087依賴。
 
 ### 8.3 Part-write Consumer Classification
 
@@ -367,19 +369,19 @@ RD／QA evidence至少覆蓋：
 - Legacy migration無法保留attachment ID／download compatibility、deleted state、content integrity或已存在的受控引用。
 - Exact inventory發現本DEV會改變Part Number identity、Drawing/BOM revision、release approval或production data deletion。
 
-## 14. RD Readiness 與 Governance Result
+## 14. Deferred／Rescope Governance Result
 
-P0/P1 human decision gap為0，RD可由Phase 1A開始。若whole-part lease需要技術拆派，可在同一`DEV-084`下建立不計交付的子開發點；不得另開平行產品DEV或把lease、migration、replacement snapshot任一項移出本交付。
+DEV-084已由DEV-088接替且永久不重開。過去P0/P1 decision gap=0只對應已撤銷執行資格的大包方案；DEV-088必須在DEV-087本機RD／QA／QC完成後重新確認最小產品scope，並決定附件沿用、內容模型、權限、版本／還原與whole-part lease哪些是同一期必要內容。不得直接沿用Phase 1A。
 
 Spec Governance結果：
 
-- Spec Impact：`Intentional replacement + compatible preservation`。
-- ADR required and created：snapshot reference與whole-part lease具有跨模組、難回復及外部行為影響。
-- Human decision gap：0；engineering choices已凍結，偏離schema/API/lease/consumer inventory需先回Dev PM修訂本SPEC／ADR。
+- Spec Impact：`Intentional execution supersession`；現行file ownership、permission與part attachment routes繼續有效。
+- ADR：既有ADR降為歷史選項；未來scope重新確認後再判定哪些長期決策需要Accepted ADR。
+- Human decision gap：未重新盤點；過去engineering choices不再視為凍結契約。
 - Deferred high-impact scope：physical content garbage collection為`Future Phase Captured / Not Requested`；需要正式資料刪除時重新進入release/data deletion gate。
-- Current execution boundary：`RD Implementation Ready / Local implementation authorized / Production migration and release not authorized`。
+- Current execution boundary：`Deferred / No local implementation / No migration or feature work / Not part of DEV-087`。
 
-## 15. Exact File／Function Inventory
+## 15. Historical Exact File／Function Inventory（非派工依據）
 
 ### 15.1 Create
 
@@ -431,7 +433,7 @@ Spec Governance結果：
 5. Existing replacement release transaction在`createReleasedPartNumberFromDraft`後、draft status轉released及`part_replacement_links`前，將該draft所有bindings的owner由`part_number_draft_id`原子promotion為`part_number_id`。這是同一target lineage promotion，不是搬移source old-part owner；binding/version/origin IDs不變。
 6. Formalization若發現draft binding/current content不完整、active duplicate constraint衝突或integrity非verified，整個replacement release fail closed；不得先發行part再補附件。
 
-## 17. Phase、Feature Flag 與 Commands
+## 17. Historical Phase、Feature Flag 與 Commands（非派工依據）
 
 | Phase | RD output | Gate |
 |---|---|---|
@@ -460,8 +462,8 @@ Evidence固定寫入`output/qa/dev-084-part-attachment-reuse/{runId}/manifest.js
 
 ## 18. Migration／Rollback／Release Gate
 
-- 041為additive migration；不得drop／rewrite legacy`file_assets`、`item_locks`或Drawing tables。Production apply需另行授權並走`db/postgres/README.md`的Cloud SQL package／guard；Supabase不是target。
+- 041目前只有編號保留，migration檔尚未獲准建立；下列additive migration／feature rollout規則只在未來重新核准相同資料模型時才重新生效。不得drop／rewrite legacy`file_assets`、`item_locks`或Drawing tables。
 - `PDM_PART_ATTACHMENT_REUSE_V1`預設off。Release順序固定為：R1 additive migration＋兼容read adapter（flag off）→ shadow/backfill evidence與read parity → R2 same binary/config enable指定company → observation window。不得先開flag再補migration。
 - Feature rollback只關flag並保留binding read adapter；已建立bindings仍可讀／下載。啟用後不得rollback到pre-DEV-084 binary，除非另有經QA的forward-compatible reader。
 - Migration rollback不drop新tables；採forward fix。任何需要physical delete、cross-company merge或回寫legacy owner的rollback都屬destructive data action，必須另開資料刪除／release gate。
-- 本DEV文件升級不等於production authorization；RD完成也只能標記local implementation，直到獨立QA/QC與release owner接受evidence。
+- 本DEV目前不授權local或production實作；只有重新縮編並至少回到`RD Contract Ready`後，才能重新制定migration、QA/QC與release boundary。

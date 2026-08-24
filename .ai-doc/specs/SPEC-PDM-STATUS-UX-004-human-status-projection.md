@@ -227,7 +227,7 @@ type AvailabilityScopeProjection = {
 |---|---|
 | `Obsolete` / `Merged` | 已作廢／已合併，terminal |
 | `MainDrawingInvalid` | 主圖失效，action_required |
-| manufactured / outsourced / custom 且無 primary manufacturing drawing | 缺製造圖，action_required |
+| manufactured 且無 primary manufacturing drawing | 缺製造圖，action_required |
 | `Rejected` / `NeedInfo` | 待修正，action_required |
 | `PendingReview` / `PendingAdminConfirm` | 待審核，waiting |
 | `Draft` | 準備中，waiting |

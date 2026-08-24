@@ -1,10 +1,12 @@
 # ADR-PDM-PART-ATTACHMENT-REUSE-001：料號附件獨立快照參照與整料號排他鎖
 
-Status: Accepted / Human Confirmed / RD Implementation Authority / RD Not Started
+Status: Historical Decision Options / Superseded by DEV-088 Planning / Not Implementation Authority
 Date: 2026-08-20
 Owner: Dev PM
-Related DEV: `DEV-084` / `DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-001`
+Historical DEV: `DEV-084` / `DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-001`; successor: `DEV-088` / `DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-002`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-PART-ATTACHMENT-REUSE-001-replacement-snapshot-and-part-lock.md`
+
+> 2026-08-22 Execution Supersession：保留「替代料號附件由使用者預設全選、可取消／新增，且不混入Drawing受控檔」的產品意圖；撤銷本ADR作為五表attachment platform、permission取消、所有生命週期自由維護與whole-part lease的現行實作authority。DEV-084成為歷史ID，後續由DEV-088在DEV-087本機RD／QA／QC完成後重新縮編；這些選項不得自動繼承或直接派工。DEV-087沿用現行附件authority，並自行定義Part附件不進work/review/rollback；不依賴本ADR。
 
 ## Context
 
@@ -34,7 +36,7 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-PART-ATTACHMENT-REUSE-001-replacement-snap
 | 只鎖attachment區塊 | Rejected | 料號欄位與附件仍可由不同使用者同時改，不能提供使用者要求的單一編輯責任。 |
 | persisted part/draft的whole-owner exclusive lease，其他人唯讀 | Accepted | 對使用者最易理解，能讓所有part write共享同一concurrency boundary；expiry與fencing避免永久鎖及stale write。 |
 
-## Decision
+## Historical Decision Set（2026-08-22起非執行契約）
 
 1. 替代料號流程採「預設全選、使用者取消／新增」；系統不提供適用性分類、風險判斷或至少一件的限制。
 2. 沿用是一次性snapshot。目標建立自己的`PartAttachmentBinding`與不可變`PartAttachmentVersion`，內容參照既有或新建的immutable canonical content；不搬移來源owner、不複製相同bytes、不建立後續同步。
@@ -67,7 +69,7 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-PART-ATTACHMENT-REUSE-001-replacement-snap
 - 刪除不做確認以換取效率，安全性依賴relation-level soft delete、history restore與禁止physical content deletion。
 - Replacement draft與正式化之間需要穩定lineage，確保snapshot不會在release時重新讀取來源。
 
-## Compatibility And Migration Impact
+## Historical Compatibility And Migration Impact（尚未生效）
 
 - `SPEC-PDM-FILE-OWNERSHIP-001`的Drawing/Revision authority、canonical content與hash完整性規則維持；其料號附件「只有新增」與`numbering.attachments.manage`規則由本ADR/SPEC有意取代。
 - Legacy `file_assets.linked_entity_type/id` part rows保留且不改owner；new model不得以改寫owner或複製bytes模擬共享。Backfill以legacy asset ID作binding ID，有hash duplicate映射same-company canonical content，無hash標記`legacy_unverified`。
@@ -75,7 +77,7 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-PART-ATTACHMENT-REUSE-001-replacement-snap
 - 既有soft-deleted attachment與audit不可丟失；restore migration必須能解析確切content+metadata version，無法證明者進manual review而非猜測。
 - 現行`item_locks`只作歷史行為參考並保持不變；`part_edit_leases`才是formal part／replacement draft authority。
 
-## Implementation Consequence Amendment
+## Historical Implementation Consequence Amendment（非派工依據）
 
 - Exact wire、schema、consumer ledger、phase與QA authority在related SPEC §5～18及`.ai-doc/qa/qa-dev-084-part-attachment-reuse-and-lock-validation-plan-2026-08-20.md`。
 - Feature flag固定`PDM_PART_ATTACHMENT_REUSE_V1`、預設off。Production採additive migration＋兼容reader先行，再按company enable；啟用後不得rollback到不理解binding model的pre-DEV-084 binary。
@@ -84,7 +86,7 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-PART-ATTACHMENT-REUSE-001-replacement-snap
 
 ## Amended Authorities
 
-本ADR有意修訂：
+本ADR曾提議修訂下列authority，但2026-08-22後尚未生效；現行authority繼續有效，直到未來新契約明確取代：
 
 - `.ai-doc/decisions/ADR-PDM-FILE-OWNERSHIP-001-contextual-files-and-3d-content-reuse.md`：part attachment從single-owner asset row延伸為independent binding/version；Drawing authority不變。
 - `.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part-files-and-3d-reuse.md`：part attachment write surface、permission與lifecycle規則。

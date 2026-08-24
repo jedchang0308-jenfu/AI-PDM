@@ -61,13 +61,12 @@ function comparableLineMap(lines: BomWorkbenchLine[]) {
   const sorted = [...lines].sort((a, b) => a.sequence_no - b.sequence_no);
 
   for (const line of sorted) {
-    const baseKey =
-      line.node_type === "group"
-        ? `group:${(line.group_name ?? "").trim().toUpperCase()}`
-        : `item:${(line.part_number ?? "").trim().toUpperCase()}`;
-    const count = (occurrence.get(baseKey) ?? 0) + 1;
-    occurrence.set(baseKey, count);
-    const key = `${baseKey}#${count}`;
+    const semanticKey = line.node_type === "group"
+      ? `group:${(line.group_name ?? "").trim().toUpperCase()}`
+      : `item:${(line.part_number ?? "").trim().toUpperCase()}`;
+    const count = (occurrence.get(semanticKey) ?? 0) + 1;
+    occurrence.set(semanticKey, count);
+    const key = line.logical_line_id ? `logical:${line.logical_line_id}` : `${semanticKey}#${count}`;
     const parentPath = buildParentPath(line, byId);
     comparable.set(key, {
       key,

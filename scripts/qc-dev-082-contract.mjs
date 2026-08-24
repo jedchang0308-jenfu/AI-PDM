@@ -284,6 +284,9 @@ assert.match(globalStyles, /\.dev079-evidence-magnifier-viewport\s*\{[\s\S]*bord
 assert.match(globalStyles, /\.dev079-evidence-magnifier::after\s*\{\s*display:\s*none/u, "magnifier handle/green frame must be removed");
 assert.match(recognitionPanel, /onFocus=\{\(\) => selectEvidence\(group\.observations\)\}/u, "recognized fields must remain the evidence-location entrypoint");
 assert.match(recognitionPanel, /onEvidenceSelect\(\{[\s\S]*pageNumber:[\s\S]*geometry:[\s\S]*locatable:/u, "recognition panel must emit the complete evidence contract");
+assert.match(recognitionPanel, /function recognitionExceptionHelp/u, "exception status must provide contextual help");
+assert.match(recognitionPanel, /尚未連結正式料號主檔；「需處理」表示料號關係尚未建立，不代表 OCR 辨識錯誤/u, "part-number help must distinguish ownership from OCR accuracy");
+assert.match(recognitionPanel, /<TextHint title=\{exceptionHelp\} className="dev079-recognition-exception-hint">/u, "exception status must open the accessible hover and focus tooltip");
 assert.match(canonicalDrawingWorkspace, /onEvidenceSelect=\{locateRecognitionEvidence\}/u, "canonical drawing workspace must consume recognition evidence selection");
 assert.match(canonicalDrawingWorkspace, /recognition-sessions\/\$\{encodeURIComponent\(evidenceSessionId\)\}\/sources\/\$\{encodeURIComponent\(evidenceSourceId\)\}\/content/u, "canonical workspace must load the exact controlled evidence PDF source");
 assert.match(canonicalDrawingWorkspace, /pageNumber,[\s\S]*focusRegion,[\s\S]*openInNewTab: true/u, "canonical workspace must pass the exact page and normalized focus region to the existing preview surface");
@@ -320,7 +323,8 @@ const report = {
     responsiveLensBounds: true,
     boundedMagnifierRecovery: true,
     exactMaterialTextEvidence: true,
-    canonicalWorkspaceEvidenceBridge: true
+    canonicalWorkspaceEvidenceBridge: true,
+    contextualExceptionTooltip: true
   },
   cases: Object.fromEntries([
     ["OCR-082-001", "adapter plan recognizes only PDF content, SolidWorks native metadata and filename-only attachments"],
@@ -341,7 +345,8 @@ const report = {
     ["OCR-082-041", "定位 UI has one borderless yellow highlighter and one yellow-ring magnifier without green/double frames"],
     ["OCR-082-042", "desktop/tablet/phone lens bounds remain 200/168/140px and stay within paper without overflow or stale overlays"],
     ["OCR-082-043", "crop canvas, cache, cancellation, failure fallback and render timing are bounded and observable"],
-    ["OCR-082-044", "A0002 material evidence keeps exact 不鏽鋼SUS304 text readable at backing scale >= 2.5"]
+    ["OCR-082-044", "A0002 material evidence keeps exact 不鏽鋼SUS304 text readable at backing scale >= 2.5"],
+    ["OCR-082-045", "exception status opens an accessible hover/focus/click tooltip that distinguishes unresolved part-number ownership from OCR accuracy"]
   ].map(([id, evidence]) => [id, { result: "PASS", evidence }])),
   completedAt: new Date().toISOString()
 };

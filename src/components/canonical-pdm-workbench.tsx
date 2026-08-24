@@ -15,6 +15,7 @@ import { PdmWorkbenchLayoutSwitch } from "@/components/pdm-workbench-layout-swit
 import { CanonicalEntityPreviewGallery } from "@/components/canonical-pdm-preview-gallery";
 import { CanonicalPreviewPanel } from "@/components/canonical-preview-panel";
 import { PartPreviewSourceControl } from "@/components/part-preview-source-control";
+import { PartBomContext } from "@/components/part-bom-context";
 import { CanonicalNumberingCreateAction } from "@/components/canonical-numbering-create-action";
 import { DRAWING_LAYOUT_STORAGE_KEY, PART_LAYOUT_STORAGE_KEY, normalizeCanonicalWorkbenchLayout, type CanonicalPreviewProjection, type CanonicalWorkbenchLayout } from "@/lib/pdm-canonical-preview";
 import type { PartPreviewMutationResult } from "@/lib/pdm-part-preview";
@@ -318,6 +319,7 @@ function Drawer({ detail, loading, error, width, canManageAttachments, onStartRe
         control={presentation.previewSourceControl}
         onCommitted={(result) => onPartPreviewCommitted(detail.data.row, result)}
       /> : null}
+      {presentation.kind === "part" ? <PartBomContext context={presentation.bomContext} partNumberId={detail.data.row.entityId} partNumber={detail.data.row.code} /> : null}
       {presentation.kind === "part" ? <section data-section="part-attachments"><div className="canonical-drawer-section-heading"><h3>附件</h3>{canManageAttachments ? <button type="button" className="secondary-button" onClick={() => onManageAttachments(detail.data.row)}>管理附件</button> : null}</div>{presentation.files.length ? <ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul> : <p className="canonical-empty">尚無附件</p>}</section> : presentation.files.length ? <section><h3>圖面檔案</h3><ul className="canonical-record-list">{presentation.files.map((file) => <li className="canonical-record canonical-file-record" key={file.id}><span className="canonical-file-name">{file.name}</span><a className="canonical-file-download" href={file.downloadHref} download={file.name} aria-label={`下載 ${file.name}`} title={`下載 ${file.name}`}><Download size={15} aria-hidden="true" /><span>下載</span></a></li>)}</ul></section> : null}
       {presentation.kind === "drawing" || presentation.kind === "part" ? <>
         <RelationMatrixEditor

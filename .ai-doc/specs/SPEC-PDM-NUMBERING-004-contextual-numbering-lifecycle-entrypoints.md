@@ -1,5 +1,7 @@
 # SPEC-PDM-NUMBERING-004 - Contextual numbering and lifecycle entrypoints
 
+> **2026-08-24 DEV-093 target supersession**：本文件保留既有root append domain capability、append policy、duplicate／concurrency、obsolete lifecycle與歷史證據；`新增圖號／新增料號／同時新增`三個平行人類入口及任何舊create modal／request入口，改由`SPEC-PDM-CANONICAL-NUMBER-CREATION-001`的單一`建立編號`、`/numbering/create` progressive flow與typed intent取代。新流程只呼叫canonical record/root append API，不得恢復draft workspace、candidate reservation、舊狀態投影、fallback或雙寫。相衝突處以DEV-093為準。
+
 > 2026-08-18 DEV-077 Amendment：root detail drawer 對已配置 official number 的 Draft／NeedInfo bundle 不再提供 `刪除草稿`，改為 `作廢草稿編號`；eligible bundle免正式審核轉 `Obsolete` 且永久不回收。Active／Released或需正式責任鏈者仍走 `申請圖料根號作廢`與aggregate approval。本 amendment取代本文件Root Detail Drawer及Draft root cleanup的舊delete contract。
 
 Status: Implemented / local verification passed for Phase 1-3; Phase 4 release not authorized

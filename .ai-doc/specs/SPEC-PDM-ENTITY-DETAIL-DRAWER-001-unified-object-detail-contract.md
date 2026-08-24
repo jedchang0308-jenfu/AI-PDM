@@ -11,6 +11,19 @@ Extends: `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout
 Extends: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-RELATION-VIEW-001-root-drawing-part-relation-list.md`
 Extends: `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-entrypoints.md`
 
+## 2026-08-23 DEV-090 Amendment - Drawer 關聯矩陣直接正式編輯
+
+Status: `RD Implementation Complete / Local QA-QC Complete / Production Gated`。
+
+DEV-090 activation後，Drawing／Part drawer以`關聯矩陣`取代`直接關聯`，並在該段提供server-authorized `編輯關聯`、三態cell、`儲存／取消`。這是對DEV-083「Part／Relation drawer全面zero-write、所有Relation mutation導向full-page workspace」的窄幅`Intentional replacement`：
+
+- 只有root-level關聯矩陣可在Drawing／Part drawer寫入；Drawing revision內容、Part主資料、附件、history、review與其他drawer section仍遵守既有唯讀／full-page owner契約。
+- direct edit不建立通用drawer command bus；Relation projection擁有typed state與`PATCH /api/pdm/relations/[rootId]/matrix`，shared drawer只提供geometry、dirty guard、focus與action placement。
+- 儲存前變更只在browser memory；一次儲存原子更新正式`drawing_part_links`，不autosave、不建立Relation work／review或專用workspace。
+- Relation list/drawer與專用Relation workspace已在本機DEV-090 replacement／migration／retirement gate後移除；正式環境仍須完成provider-aware migration與zero-loss cutover gate。
+
+完整authority：`.ai-doc/specs/SPEC-PDM-INLINE-RELATION-MATRIX-001-direct-formal-edit.md`；ADR：`.ai-doc/decisions/ADR-PDM-RELATION-EDITING-001-direct-formal-authority.md`。
+
 ## 2026-08-22 DEV-087 Target-State Amendment - 極簡唯讀抽屜與受控狀態動作
 
 Status: `RD Implementation Ready (RD Supervisor Reviewed) / Human Confirmed / DEV-087 activation only`.
@@ -19,9 +32,9 @@ Status: `RD Implementation Ready (RD Supervisor Reviewed) / Human Confirmed / DE
 
 ### 固定資訊與章節
 
-三domain drawer固定順序：`主識別／品名／處理狀態` → `主要內容／預覽` → `直接關聯` → `受阻資訊（條件式）` → `歷史版次（Drawing only）` → `動作區`。
+Drawing／Part drawer固定順序：`主識別／品名／處理狀態` → `主要內容／預覽` → `關聯矩陣` → `直接關聯` → `受阻資訊（條件式）` → `歷史版次（Drawing only）` → `動作區`；不再存在獨立Relation drawer。
 
-- Drawing顯示exact revision、2D/3D、受控檔、直接關聯與歷史版次。Part沒有版次／歷史；Relation沒有root版次／歷史／共同檔案。
+- Drawing顯示exact revision、2D/3D、受控檔、關聯矩陣、直接關聯與歷史版次。Part沒有版次／歷史，顯示關聯矩陣與直接關聯；root不再有獨立drawer、版本／歷史／共同檔案或直接關聯區。
 - 可見處理文字只可為`負責人處理／審核負責人處理／系統處理／系統管理員處理／受阻`，正常留空；不得依viewer改成你我他或姓名。
 - `system_admin`只顯示`請系統管理員處理`；`blocked`只顯示一項人類原因。兩者都沒有恢復／處理假CTA。
 - branch/source/predecessor、raw status、package/baseline/workflow/approval、人名與日期不進drawer、DOM accessible name、tooltip或popover。

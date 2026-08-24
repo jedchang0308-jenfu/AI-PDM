@@ -7,6 +7,8 @@ Owner：Dev PM
 關聯規格：`SPEC-PDM-CHANGE-CONTROL-001`、`SPEC-BOM-WORKBENCH-001`  
 決策來源：使用者於 HCS 引導模式明確確認
 
+> 2026-08-24 Limited Amendment：`ADR-PDM-BOM-STRUCTURE-SHARING-001` 有限修訂本文件的單一 owner 語意。結構相同的變體 Part Numbers可共用一份 BOM tree／Revision／Released Snapshot，但每個 Part仍必須有明確適用綁定與可確定投影；結構不同時仍須建立或 fork獨立BOM。本文件其餘 Part Number無版次、Drawing／BOM獨立版控與Released不可變規則不變。
+
 ## 1. Context
 
 既有系統部分 schema、API 與 UI 使用 `parent_revision`、`child_revision`、`items.current_revision` 等名稱，且 BOM 草稿由 `submissionId` 建立。這些實作容易把圖面送審版次、BOM 版次與料號身份混為同一個概念，造成下列治理風險：
@@ -28,10 +30,10 @@ Owner：Dev PM
 
 1. `Part Number` MUST 是公司範圍內穩定且無版次的物料身份。
 2. `Drawing Revision` MUST 隸屬受控圖面定義，不得存成 Part Number Revision。
-3. `BOM Revision` MUST 隸屬指定 owner Part Number 的產品結構定義，且與 Drawing Revision 獨立。
+3. `BOM Revision` MUST 隸屬stable BOM Definition；Definition再明確綁定一個或多個適用 owner Part Numbers，且與 Drawing Revision獨立。不得以圖料根號或任一顏色Part隱含擁有。
 4. 同一物料身份的變更 MUST 保留原料號，只提升實際改變的受控定義版次；Drawing 與 BOM 不得因另一方升版而自動同步升版。
 5. 一旦 FFF、互換性、法規／品質管制或其他已核准的物料身份條件改變，MUST 建立新 Part Number；不得以「舊料號升版」代替。
-6. 新 Part Number MUST 擁有自己的 BOM 定義；可以複製舊 BOM 作為新草稿起點，但兩者必須是不同 owner identity 下的不同受控記錄。
+6. 新 Part Number MUST 擁有明確的 BOM適用綁定與可確定投影。結構相同的變體可以共用受控BOM；結構不同時必須建立或fork獨立BOM，不得借共用關係靜默改寫其他料號。
 7. Released Drawing、Released BOM 與舊料號歷史 MUST 保持不可被新定義靜默改寫。
 
 ### 2.2 判斷表
@@ -41,7 +43,7 @@ Owner：Dev PM
 | 標註、文字、非身份性的圖面定義修正，產品結構不變 | 維持 | 提升 | 維持；留下「無 BOM 影響」確認 |
 | 數量、階層或組成改變，但 owner 物料身份仍相同 | 維持 | 只有圖面定義受影響時才提升 | 提升 |
 | Drawing 與 BOM 都有實質定義變更，但物料身份不變 | 維持 | 各自提升 | 各自提升；兩者版次不要求相同 |
-| FFF、互換性、法規／品質管制或其他物料身份條件改變 | 建立新料號 | 為新身份建立／關聯適當受控圖面定義 | 為新料號建立自己的 BOM |
+| FFF、互換性、法規／品質管制或其他物料身份條件改變 | 建立新料號 | 為新身份建立／關聯適當受控圖面定義 | 為新料號建立或明確綁定適用 BOM；結構不同時必須獨立／fork |
 
 是否改變物料身份屬人類受控判定。AI、匯入器、CAD extractor 或單純欄位差異不得自行成為換號 authority；它們只能提供證據、風險提示與候選建議。
 
@@ -80,7 +82,7 @@ Owner：Dev PM
 ## 5. Compatibility And Migration Authority
 
 1. Canonical Part Number identity 是 `part_numbers.id`；`items.id` 與 `submissions.item_id` 只保留 legacy/runtime compatibility，不得成為新 BOM owner authority。
-2. 新 BOM 寫入必須使用 `owner_part_number_id` 與獨立 `bom_revision`；CAD/Drawing 來源另存 nullable `source_submission_id`。
+2. 新 BOM 寫入必須使用stable BOM Definition、獨立`bom_revision`與explicit applicable Part bindings。Legacy `owner_part_number_id`可暫作migration／compatibility anchor，但不得再單獨成為create、revision、permission、release、export或where-used authority；CAD/Drawing來源也不得成為owner。
 3. 現有 `parent_revision = submissions.revision` 不得被持續解讀為料號版次。Migration 可在 company + part number 唯一且歷史序列無衝突時，將舊值一次性採認為初始 BOM revision，但必須保留原 `source_submission_id`、原 drawing revision 與 migration audit reason。
 4. 缺少 canonical Part Number、同 owner/revision 衝突或無法證明序列的舊資料 MUST 進入 `manual_review`，不得猜測、覆寫、刪除或宣稱完成。
 5. Legacy `bom_lines_tree.revision` / `bom_lines.child_revision` 新寫入 MUST 為 null；移除欄位前須先證明所有 reader/export/diff 已改讀獨立受控定義參照。
@@ -110,8 +112,7 @@ Owner：Dev PM
 以下任一情況為 P0/P1 readiness blocker：
 
 - 新資料模型仍以 submission/drawing revision 作為 BOM revision authority。
-- 建立 BOM 時沒有 canonical owner Part Number。
+- 建立 BOM 時沒有stable BOM Definition、至少一個canonical applicable Part binding與可確定的context Part。
 - 換號與升版可由 AI/匯入器自動裁決且沒有 human confirmation。
 - Released BOM、舊料號或 Where-used 被背景程序直接改寫。
 - UI 或 export 把任何 `revision` 呈現為 Part Number Revision。
-

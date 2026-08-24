@@ -131,6 +131,21 @@ function isContained(inner, outer, tolerance = 1.5) {
     && inner.y + inner.height <= outer.y + outer.height + tolerance;
 }
 
+async function restoreTextFileWithRetry(filePath, content) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      fs.writeFileSync(filePath, content, "utf8");
+      if (fs.readFileSync(filePath, "utf8") === content) return;
+      lastError = new Error(`restored content mismatch: ${filePath}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+  }
+  throw lastError ?? new Error(`unable to restore file: ${filePath}`);
+}
+
 async function locatePdfEvidence(page, fixture, viewport) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(`${baseUrl}${fixture.workUrl}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
@@ -147,16 +162,28 @@ async function locatePdfEvidence(page, fixture, viewport) {
   await page.getByRole("tab", { name: "智慧辨識", exact: true }).click();
   await page.locator('[data-dev079-recognition="embedded"]').waitFor({ state: "visible", timeout: 30_000 });
   if (viewport.name === "desktop-1440x900") {
-    const exceptionLabel = page.locator(".dev079-recognition-field-signals .is-exception").first();
+    const exceptionLabel = page.locator('[data-recognition-field-key="part_number"] .dev079-recognition-field-signals .is-exception').first();
     await exceptionLabel.waitFor({ state: "visible", timeout: 30_000 });
     const exceptionSemantics = await exceptionLabel.evaluate((element) => ({
       tagName: element.tagName,
       insideButton: Boolean(element.closest("button")),
-      tabIndex: element.tabIndex
+      triggerTabIndex: element.closest("button")?.tabIndex ?? -1
     }));
-    requireCheck("legacy exception status remains plain non-interactive text", exceptionSemantics.tagName === "SMALL" && !exceptionSemantics.insideButton && exceptionSemantics.tabIndex === -1, JSON.stringify(exceptionSemantics));
+    requireCheck("part-number exception status has an accessible trigger", exceptionSemantics.tagName === "SMALL" && exceptionSemantics.insideButton && exceptionSemantics.triggerTabIndex === 0, JSON.stringify(exceptionSemantics));
     await exceptionLabel.hover();
-    requireCheck("legacy exception status does not open a hover tooltip", await page.locator(".ui-hint-popover").count() === 0);
+    const exceptionTooltip = page.getByRole("tooltip");
+    await exceptionTooltip.waitFor({ state: "visible", timeout: 5_000 });
+    const exceptionHelp = await exceptionTooltip.textContent() ?? "";
+    requireCheck("part-number hover tooltip distinguishes ownership from OCR accuracy", exceptionHelp.includes("尚未連結正式料號主檔") && exceptionHelp.includes("不代表 OCR 辨識錯誤"), exceptionHelp);
+    await page.screenshot({ path: path.join(outputDir, "desktop-1440x900-exception-tooltip.png"), fullPage: true });
+    await page.mouse.move(8, 8);
+    await exceptionTooltip.waitFor({ state: "hidden", timeout: 5_000 });
+    const exceptionTrigger = exceptionLabel.locator("xpath=ancestor::button");
+    await exceptionTrigger.focus();
+    await exceptionTooltip.waitFor({ state: "visible", timeout: 5_000 });
+    requireCheck("part-number tooltip also opens from keyboard focus", await exceptionTrigger.getAttribute("aria-describedby") === await exceptionTooltip.getAttribute("id"));
+    await page.keyboard.press("Escape");
+    await exceptionTooltip.waitFor({ state: "hidden", timeout: 5_000 });
   }
   const pdfButton = page.getByRole("button", { name: "PDF圖面", exact: true }).first();
   await pdfButton.waitFor({ state: "visible", timeout: 30_000 });
@@ -351,8 +378,8 @@ try {
     : { removed: true, path: null, error: null };
   record("temporary runtime dist removed", runtimeCleanup.removed, JSON.stringify(runtimeCleanup));
   try {
-    fs.writeFileSync(nextEnvPath, nextEnvSnapshot, "utf8");
-    record("Next generated declarations restored", fs.readFileSync(nextEnvPath, "utf8") === nextEnvSnapshot, nextEnvPath);
+    await restoreTextFileWithRetry(nextEnvPath, nextEnvSnapshot);
+    record("Next generated declarations restored", true, nextEnvPath);
   } catch (error) {
     record("Next generated declarations restored", false, error instanceof Error ? error.message : String(error));
   }

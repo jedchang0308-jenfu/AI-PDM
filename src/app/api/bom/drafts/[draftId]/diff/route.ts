@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
 import { canReadBomDraftRecordAsync } from "@/lib/bom-create-context";
 import { getBomWorkbenchDraftByIdAsync, getBomWorkbenchDraftDiffAsync } from "@/lib/bom-workbench-async";
+import { authorizeSharedBomHttpAsync } from "@/lib/bom-shared-http";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ draf
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
   }
 
-  if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
+  if (draft.definition_id) {
+    const access = await authorizeSharedBomHttpAsync({
+      user: auth.user,
+      draftId,
+      capability: draft.status === "Released" || draft.status === "Obsolete" ? "released_projection_read" : "draft_evidence_read"
+    });
+    if (access.response) return access.response;
+  } else if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
 
   return NextResponse.json({ diff: await getBomWorkbenchDraftDiffAsync(draftId) });
 }

@@ -289,6 +289,7 @@ function initDatabase(database: SqliteDatabase) {
   database.exec("PRAGMA foreign_keys = ON;");
   ensurePreSchemaCompatibility(database);
   ensureDrawingRevisionLifecycleAuthorityPreSchema(database);
+  ensureDev096SharedAssemblyBomPreSchema(database);
   const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
   database.exec(schema);
   ensureTransferPackagePhase1DSchema(database);
@@ -325,6 +326,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureDev087CanonicalWorkbenchSchema(database);
   ensureDev065PartPreviewSchema(database);
   ensureDev090InlineRelationMatrixSchema(database);
+  ensureDev096SharedAssemblyBomSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
@@ -1987,6 +1989,52 @@ export function ensureDev090InlineRelationMatrixSchema(database: SqliteDatabase)
     if (tableExists("pdm_workbench_state_authority_control")) database.exec("UPDATE pdm_workbench_state_authority_control SET mode = 'canonical_only', schema_hash = 'dev090-v1', row_version = row_version + 1, switched_at = datetime('now') WHERE id = 1");
     database.exec("COMMIT");
   } catch (error) { database.exec("ROLLBACK"); throw error; }
+}
+
+function ensureDev096SharedAssemblyBomPreSchema(database: SqliteDatabase) {
+  const tableExists = (table: string) => Boolean(
+    database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table)
+  );
+  if (tableExists("part_numbers")) {
+    ensureColumn(database, "part_numbers", "structure_type", "TEXT NOT NULL DEFAULT 'single_part' CHECK (structure_type IN ('single_part','assembly','unclassified'))");
+  }
+  if (tableExists("bom_drafts")) {
+    ensureColumn(database, "bom_drafts", "definition_id", "TEXT");
+    ensureColumn(database, "bom_drafts", "base_release_snapshot_id", "TEXT");
+  }
+  if (tableExists("bom_lines_tree")) ensureColumn(database, "bom_lines_tree", "logical_line_id", "TEXT");
+  if (tableExists("bom_draft_floating_topics")) ensureColumn(database, "bom_draft_floating_topics", "logical_line_id", "TEXT");
+  if (tableExists("bom_review_requests")) {
+    ensureColumn(database, "bom_review_requests", "review_schema_version", "INTEGER NOT NULL DEFAULT 1 CHECK (review_schema_version > 0)");
+    ensureColumn(database, "bom_review_requests", "definition_row_version", "INTEGER");
+    ensureColumn(database, "bom_review_requests", "editor_version", "INTEGER");
+    ensureColumn(database, "bom_review_requests", "review_snapshot_json", "TEXT");
+    ensureColumn(database, "bom_review_requests", "review_snapshot_hash", "TEXT");
+  }
+  if (tableExists("bom_release_snapshots")) {
+    ensureColumn(database, "bom_release_snapshots", "definition_id", "TEXT");
+    ensureColumn(database, "bom_release_snapshots", "snapshot_schema_version", "INTEGER NOT NULL DEFAULT 1 CHECK (snapshot_schema_version > 0)");
+    ensureColumn(database, "bom_release_snapshots", "parent_snapshot_json", "TEXT");
+    ensureColumn(database, "bom_release_snapshots", "mapping_snapshot_json", "TEXT");
+    ensureColumn(database, "bom_release_snapshots", "resolved_projection_json", "TEXT");
+    ensureColumn(database, "bom_release_snapshots", "snapshot_hash", "TEXT");
+  }
+  if (tableExists("bom_reconfirmation_flags")) {
+    ensureColumn(database, "bom_reconfirmation_flags", "logical_line_id", "TEXT");
+    ensureColumn(database, "bom_reconfirmation_flags", "parent_part_number_id", "TEXT");
+    ensureColumn(database, "bom_reconfirmation_flags", "reference_scope", "TEXT NOT NULL DEFAULT 'legacy_line' CHECK (reference_scope IN ('legacy_line','candidate','parent_selection'))");
+  }
+}
+
+export function ensureDev096SharedAssemblyBomSchema(database: SqliteDatabase) {
+  ensureDev096SharedAssemblyBomPreSchema(database);
+  const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
+  const marker = "-- BEGIN DEV-096 shared assembly BOM authority.";
+  const endMarker = "-- END DEV-096 shared assembly BOM authority.";
+  const start = schema.indexOf(marker);
+  const end = schema.indexOf(endMarker);
+  if (start < 0 || end < start) throw new Error("DEV096_SQLITE_SCHEMA_MARKER_MISSING");
+  database.exec(schema.slice(start, end + endMarker.length));
 }
 
 export function ensureDev088ReplacementAttachmentSchema(database: SqliteDatabase) {

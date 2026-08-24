@@ -68,8 +68,8 @@ function prepareStandaloneAssets(root) {
   if (fs.existsSync(publicSource)) fs.cpSync(publicSource, publicTarget, { recursive: true, force: true });
 }
 
-export async function waitForNextAppReady(baseUrl, getOutput) {
-  const deadline = Date.now() + 30000;
+export async function waitForNextAppReady(baseUrl, getOutput, timeoutMs = 30000) {
+  const deadline = Date.now() + timeoutMs;
   let lastError = "";
   while (Date.now() < deadline) {
     const controller = new AbortController();

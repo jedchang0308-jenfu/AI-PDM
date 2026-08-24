@@ -1,14 +1,16 @@
 # SPEC-BOM-WORKBENCH-001：BOM 工作台
 
-狀態：Implemented baseline / 2026-08-10 Amendment Local RD/QA/QC Passed / Production Release Gated
+狀態：Generic editor／review／release baseline / DEV-060 create contract retired / DEV-096 current create authority RD Implementation Ready
 日期：2026-05-30
 關聯任務：`DEV-BOM-WORKBENCH-001`、`DEV-PDM-BOM-MODULE-ENTRY-001` / `DEV-060`
 適用模組：BOM 工作台、送審、BOM diff、Where-used、製造交接、採購匯出
 
 > 2026-08-10 Amendment：本文件所有「料號版次／子件版次／同料號同版次」舊語意，均由
 > `ADR-PDM-MATERIAL-IDENTITY-REVISION-001` 修訂。Part Number 是無版次的物料身份；Drawing 與 BOM
-> 是各自獨立版控的受控工程定義。第 17 節是 `DEV-060` 的現行 RD Implementation Contract；與前文衝突時以
-> ADR 與第 17 節為準。既有 implementation evidence 保留為 legacy baseline；DEV-060 canonical model 已於本機完成，live migration／production release尚未執行。
+> 是各自獨立版控的受控工程定義。第17節曾是`DEV-060`的RD Implementation Contract，現已由DEV-095退役，
+> 只保留legacy implementation evidence；不得再作current建立、ownership或source authority。
+
+> 2026-08-24 Current Authority Amendment：DEV-060的建立入口、CAD／XLS source及assembly auto-writer已由DEV-095退役。新組立件建立、stable BOM Definition／logical line、one-open Revision、初版／下一版同writer、多Parent applicability、component candidate／exact mapping、schema-v2 review／release evidence、完整archive／restore／obsolete lifecycle及exact-parent export/where-used以`SPEC-PDM-ASSEMBLY-BOM-REBUILD-001`與`ADR-PDM-BOM-STRUCTURE-SHARING-001`為準，且已達RD Implementation Ready。本文件只保留不衝突的generic editor／review／release基線；第17節的single `owner_part_number_id` write authority、manual set-active、所有`/bom/new`與三來源建立段落均屬歷史，不得實作成DEV-096相容分支。
 
 ## 1. 問題定義
 
@@ -433,7 +435,9 @@ BOM_ASM-001_BOM-Rev1_20260530.csv
 - `#decisiontrees`：來源衝突採 `manual > xls > cad_reference`。
 - `#testability`：每個狀態與權限都可由 API/UI 測試驗證。
 
-## 17. 2026-08-10 Amendment：DEV-060 建立入口 RD Implementation Contract
+## 17. Historical：2026-08-10 DEV-060 建立入口 RD Implementation Contract（已由DEV-095退役）
+
+本節只供migration與歷史追溯。Current create／ownership／applicability／release consumer contract固定讀`SPEC-PDM-ASSEMBLY-BOM-REBUILD-001`；不得執行本節`/bom/new`、三來源、single owner或CAD/XLS writer條款。
 
 ### 17.1 Human Decision Brief
 

@@ -1,6 +1,8 @@
 # DEV-087 UI-only 全生命週期 QC 執行報告
 <!-- QC-JOURNEY-SUPPLEMENT-2026-08-22T10:05 -->
 
+> **目前適用的範圍更正（2026-08-24）**：本報告早期將 `P11–P17` 全數歸入 DEV-088 的敘述已由 §28 取代。現行判定為 `P11–P13` 屬 DEV-087 且已完成 Part 附件 UI 回歸，`P14–P17` 的替代料號附件快照才屬 DEV-088；閱讀歷史段落時應以本更正與 §28 為準。
+
 ## 15. 最新全量 QC journey 結果與產品缺口分流（2026-08-22 10:56）
 
 完整 67-case 無 focus run：`DEV087-ui-only-2026-08-22T10-56-52-112Z`；evidence root：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T10-56-52-112Z/`。
@@ -475,3 +477,42 @@ R13 的 runner 控制流與預期 409 監控已補正；這兩案在 full run �
 | Contract gap candidate | `R15` | 先定義 formal-base drift 契約，再建立 follow-up QA |
 
 本期未發現可重現的 open product FAIL。C11 曾因主 runtime 與 fault child 同時爭用 `next-env.d.ts` 出現一次環境性失敗；runner 已改為先清理主 runtime，再執行 fault child，最新 aggregate 的 `system_admin` 與 `blocked` 均 PASS。故本期 QC 結論為 `PASS / Local QA-QC Complete / Production Release Gated`，但不延伸宣稱後續候選已完成。
+
+## 27. QA-087-166～170 與 candidate file-read retirement closure（2026-08-23）
+
+本節補齊 canonical scope 完成後新增的三工作臺互動、A0006 預覽與舊 candidate read path 退役。既有48/48 lifecycle evidence 不重跑、不改寫，新增案例採獨立 disposable DB、fresh process 與真實 rendered UI。
+
+| 範圍 | 最終證據 | 結果 |
+|---|---|---|
+| canonical lifecycle | `output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T16-03-21-109Z/` | `48/48 PASS`、`C01–C11=11/11`、Blocked/NotRun/FAIL=`0/0/0` |
+| QA-087-166～168 抽屜／鍵盤（完整 aggregate） | `output/qa/dev-087/DEV087-2026-08-23T06-51-18-167Z/manifest.json` | `103/103 PASS`；三工作臺實際 pointer drag、localStorage key 隔離、reload、ArrowUp/Down、Enter、Escape、drawer switching、URL/API/UI rowKey一致；console/network=`0/0`；port 65420 released |
+| QA-087-166～168 post-aggregate exact delta | `output/qa/dev-087/DEV087-2026-08-23T07-03-21-181Z/manifest.json` | `109/109 PASS`；在上述矩陣再加入三工作臺 row 切換時 drawer body 實際捲動歸零；console/network=`0/0`；port 52712 released。exact-delta 後 typecheck 與 127 頁 isolated build 亦 PASS，不倒填為前一輪 aggregate 結果。 |
+| QA-087-169～170 file-read／預覽／retirement | `output/qa/dev-087-file-read-retirement/DEV087-file-read-2026-08-23T06-50-26-534Z/manifest.json`、同目錄 `reconciliation.json` | `100/100 PASS`；source/runtime caller=0、old route file absent、candidate/released orphan=0、兩輪 fresh-session、四 context 原檔與 derivative hash、權限負向矩陣、A0006 3D/2D rendered UI；console/network=`0/0`；port 56585 released |
+
+### 首敗保留與根因處理
+
+- 抽屜互動首輪發現 Escape 關閉後焦點未回清單，已在 canonical workbench 關閉流程補回 list focus；後續三工作臺均 PASS。
+- aggregate cold-start 曾發現使用者進入智慧辨識後立即取消時，自動建立辨識 session 的 POST 仍在飛行，revision 先刪除後回 404。元件現於來源切換／unmount abort 未完成的 auto-load/start request；冷啟動重跑不再出現 404，且取消後 recognition session／revision claim orphan=0。
+- commands runner 首輪沿用取消前的 production rowVersion，造成 contract token 正確拒絕；runner 改為取消後重新讀取 canonical production row，再產生 targets/token。產品的 stale-token fail-closed 規則未被放寬。
+- retirement runner 原硬編碼15條 retired route；舊 candidate GET 真正刪除後應為14，已同步更新 exact count。這是 retirement 結果的契約更新，不是把失敗改寫為成功。
+- 所有上述 FAIL manifest 原樣保留，PASS 重跑使用新的 run id。`qc:pdm-entity-detail-drawer` 已移除被 DEV-087 取代的 DEV-039 搜尋頁／owner drawer 靜態斷言，改驗 current canonical 三工作臺 shell；最新 18/18 與 search-target runtime PASS，不再存在永久基線紅燈。
+
+最終 `npm.cmd run qc:dev-087` aggregate 為 `9/9 PASS`：contract、repository、commands、migration、兩套 retirement、browser、typecheck 與127頁 isolated build 全部通過。
+
+QC disposition：`DEV-087 Local Canonical QA-QC Complete / Candidate File-read Retirement Complete / Production Migration & Release Gated`。本結論不宣稱 PostgreSQL rehearsal、SCALE-10K、60分鐘 soak、RTO、正式 migration／restore／deploy／release 已執行，也不宣稱系統內所有仍有合法 owner 的歷史 API 全部退役。
+
+## 28. Part 附件 scope correction 與回歸封口（2026-08-24）
+
+本節修正本報告 §25–§27 將 `P11–P17` 整段移出 DEV-087 的錯誤分流。依母 SPEC 與 QA-087-036，`P11–P13` 的 Part 附件即時新增／刪除、review live list、work cancel 不 rollback 均屬 DEV-087；`P14–P17` 的替代料號 attachment snapshot 才屬 DEV-088。
+
+QC 重新檢查產品後確認：API／storage authority 仍在，但 canonical Part drawer 在空附件時移除整區，且沒有任何 upload/manage 入口。此為 P1 UI/UX regression。RD 已恢復 drawer 與 owner editor 入口，並新增專用管理頁；不變更 schema、migration、permission code 或 attachment authority。
+
+最新 focused evidence：`output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-24T02-16-49-777Z/manifest.json`，`27/27 PASS`；前一版分類欄位存在時的 `28/28` 僅保留為歷史證據。真實 rendered UI 完成：
+
+- `料號工作台 → A0002-P01 drawer → 附件 → 管理附件`，空／非空 attachment section 都存在，authorized actor 才有管理入口。
+- 無分類控制項、多檔 dropzone、POST 201、canonical protected download。
+- soft-delete、deleted-data restore、返回原 drawer 的 `detail` query 保留。
+- desktop/tablet/mobile 無水平溢位；手機 upload action 位於卡片內，不遮蔽 deleted-data；console/network failure 為 0。
+- owner editor secondary-entry source contract PASS；task-owned port `55441` 已釋放；disposable DB/repository 已清理，正式資料未異動。
+
+因此 current effective lifecycle scope 為原 `48` 案加回 `P11–P13`，合計 `51` 案；本地 QC 維持 PASS，production migration／cutover／deploy／release 仍受原 gate 約束。CAPA 與 CA/PA traceability 見母 QA 計畫 §23。

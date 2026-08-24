@@ -1,5 +1,11 @@
 # SPEC-PDM-NUMBER-STATE-FLOW-001：圖料號、草稿、狀態與技術移轉入口整合功能規格
 
+> **2026-08-24 DEV-093 create-flow target supersession**：本文件保留正式identity、Drawing/Part lifecycle、審核／發布 evidence、技術移轉與缺主要製造圖 hard rule；一般使用者的「建立編號」不再建立或顯示draft workspace、candidate reservation、candidate publication或舊狀態投影。current create authority改為`SPEC-PDM-CANONICAL-NUMBER-CREATION-001`：單一`/numbering/create`頁以typed intent呼叫canonical `/api/numbering/records`與root append APIs，preview唯讀且不保留號。衝突處以DEV-093為準；舊資料條款只作歷史／遷移證據，不得恢復為runtime authority。
+
+> **2026-08-24 DEV-093 naming-guidance corrective amendment**：最新 Human Decision 要求保留完整品名建議器，且系列代號必須自動加入適用的依圖製作件建議品名。系列代號仍以獨立 `seriesCode` metadata 持久化，但同一輸入同時參與`[主要名詞]_[系列代號]_[特性]_[流水識別]`組合；此決策取代本文所有「系列代號不得加入建議／確定品名」條款。現行 UI 以`主要名詞`取代誤導的完整`品名`輸入，建議品名可套用到唯一`確定品名`／`coreName` authority；外購標準件維持`[主要名詞]_[品牌]_[規格/型號]`。
+
+> **2026-08-24 item-kind consolidation**：本文件中的舊料件 enum（委外／共用／自訂）只可作歷史資料轉換來源；現行人類標籤只有`依圖製作件|外購標準件`，底層 item kind 僅 `manufactured|purchased`，共用性由 `isUniversal`／`universalReason` 表達。依圖製作件包含廠內與委外依圖加工。正式料件與變更控制草稿分別依 `db/postgres/044_canonical_item_kind_two_values.sql`、`db/postgres/045_part_number_draft_item_type_two_values.sql`，不得把舊 enum 或 compatibility code 重新暴露於 UI。
+
 狀態：`Phase 1A-1D Local QC Passed / DEV-062 Amendment Local QA-QC Passed / DEV-067 Local RD Implemented / Local QA-QC Passed / Release Gate Required`
 建立日期：2026-07-13
 Owner：Dev PM
@@ -479,11 +485,11 @@ Capability parity hard gate：legacy `/parts?tab=drafts` 能完成的 Part candi
 - 既有圖料根號模式先搜尋並鎖定圖料根號，不得誤建新圖料根號。
 - 儲存前要明示結果是未領號草稿、候選號草稿或正式發布流程的哪一種。
 - 建立完成後回到原圖料脈絡，展開並高亮新項目。
-- Phase 1E修復範圍內，建立表單必須保留公司管理辦法的品名引導能力：使用者先填核心名詞與其他資訊，系統依料件類型產生可套用的建議品名，使用者可微調後形成`確定品名`；建議欄位不得變成阻擋性欄位。
+- Phase 1E修復範圍內，建立表單必須保留公司管理辦法的品名引導能力：使用者先填`主要名詞`與其他資訊，系統依料件類型產生可套用的建議品名，使用者可微調後形成`確定品名`；建議欄位不得變成阻擋性欄位。
 - `確定品名`是人類溝通與系統篩選名稱，不要求唯一；它作為圖料主題名稱與同一草稿下料號預設品名。唯一性只由圖號、料號與正式發布authority保證。
-- 建議品名模板必須依管理辦法保留三種型態，段落以半形底線`_`串接：外購件`[核心名詞]_[品牌]_[規格/型號]`；自製/發包/客製件`[核心名詞]_[特性]_[流水識別]`；共用件追加`共用`範圍標示。品牌、特性與流水識別仍可選填。自製非共用件的`系列代號`改為獨立 metadata 欄位：可先自創、正式發行前再修正、必須持久化到料號草稿/正式料號，但不得自動寫入`確定品名`或建議品名。
+- 建議品名模板依兩種基礎料件類型呈現，段落以半形底線`_`串接：外購標準件`[主要名詞]_[品牌]_[規格/型號]`；依圖製作件`[主要名詞]_[系列代號]_[特性]_[流水識別]`。共用性不另造料件類型，僅以獨立 `isUniversal`／`universalReason` 設定；品牌、規格／型號、系列、特性與流水識別仍可選填。系列代號是獨立 metadata 欄位，必須持久化到料號草稿／正式料號，且同一值必須自動加入適用的依圖製作件建議品名；外購標準件或共用件不顯示／送出系列代號。
 - 相似品名查重只作提醒與引導改用既有圖料根號，不得阻擋使用者建立新圖料根號。
-- 圖號需求不得由「共用件」推導，也不讓一般使用者在建立草稿時判斷「是否須製程管制」。建立表單只保留`包含圖號草稿`作為可見控制：外購件預設不建圖號，自製/發包/客製預設建圖號，共用件不參與圖號預設判斷；使用者仍可手動覆寫。
+- 圖號需求不得由「共用件」推導，也不讓一般使用者在建立草稿時判斷「是否須製程管制」。建立表單只保留`包含圖號草稿`作為可見控制：外購標準件預設不建圖號，依圖製作件預設建圖號，共用性不參與圖號預設判斷；使用者仍可手動覆寫。
 - 本規格維持既有v3編碼、M/R用途碼與候選號/正式發布邊界；Phase 1E不得導入`000`萬用料號或改回`P-0001-001 / D-0001-MA1`格式。
 
 #### 6.2.1 建立模式與責任矩陣
@@ -1788,23 +1794,23 @@ Human decisions：
 - `000`萬用料號先不落地。
 - 維持現行M/R用途碼設計，不改回MA/OT。
 - 品名查重不得阻擋建立，只能提醒可能重複並建議沿用既有圖料根號；品名不要求唯一，唯一性由圖號/料號承擔。
-- 確定品名取代使用者可見的`圖料根號名稱`。內部欄位可沿用`coreName`/root語意，但一般表單必須把核心名詞視為品名第一段，而不是完整圖料根號名稱。
-- 系列代號維持選填，作為自製非共用件的獨立分類 metadata，不自動併入建議品名或`確定品名`；自製非共用件可先自創，正式發行前再改正式名。
+- 確定品名取代使用者可見的`圖料根號名稱`。內部欄位可沿用`coreName`/root語意，但一般表單必須把主要名詞視為品名第一段，而不是完整圖料根號名稱。
+- 系列代號維持選填，作為依圖製作非共用件的獨立分類 metadata；同一值自動併入建議品名，套用後成為`確定品名`的一個人類可讀段落。使用者仍可微調確定品名，系列 metadata不得因此被反向解析或改寫。
 
 Task list：
 
-- [x] `DEV-048-1E-01`：建立品名建議器，依料件類型顯示核心名詞、品牌、規格/型號、特性與流水識別欄位，產生可套用建議品名；自製非共用件另顯示獨立`系列代號`欄位並持久化到料號資料；使用者可保留自由輸入/覆寫`確定品名`。
-- [x] `DEV-048-1E-02`：圖號需求引導改為只保留`包含圖號草稿`；外購預設不建圖號，自製/發包/客製預設建圖號，共用件不參與圖號判斷，且不得硬擋使用者覆寫。
+- [x] `DEV-048-1E-01`：建立品名建議器，依料件類型顯示主要名詞、品牌、規格/型號、特性與流水識別欄位，產生可套用建議品名；依圖製作非共用件另顯示獨立`系列代號`欄位，該值同時加入建議品名並持久化到料號資料；使用者可保留自由輸入/覆寫`確定品名`。
+- [x] `DEV-048-1E-02`（歷史基線，2026-08-24 由 DEV-093 取代分類語意）：圖號需求引導改為只保留`包含圖號草稿`；外購標準件預設不建圖號，依圖製作件預設建圖號，共用性不參與圖號判斷，且不得硬擋使用者覆寫。
 - [x] `DEV-048-1E-03`：duplicate-check UI改為warning-only；server仍可回相似資料，但create modal與submit不可因`duplicateResult.blocked`停止。
 - [x] `DEV-048-1E-04`：focused QC補靜態與瀏覽器檢查，確保品名建議、圖號預設與warning-only查重不再回歸。
 - [ ] `DEV-048-1E-05`：保存一圖多料號/既有圖號新增料號變體為後續1E slice；需先定義draft relation contract，不得呼叫舊正式寫入API繞過草稿/候選/發布邊界。
 
 Acceptance / QC evidence：
 
-- `qc:pdm-number-state-flow-request-equivalence` 覆蓋 Phase 1E UI契約：建議品名欄位存在、半形底線串接、確定品名、獨立系列代號欄位、圖號需求引導存在、duplicate warning-only、不含v3/用途碼/000變更。
+- `qc:pdm-number-state-flow-request-equivalence` 覆蓋 Phase 1E UI契約：主要名詞與建議品名欄位存在、半形底線串接、依圖製作件建議品名包含系列代號、確定品名、獨立系列 metadata、圖號需求引導存在、duplicate warning-only、不含v3/用途碼/000變更。
 - TypeScript、source lint、Phase 1B focused regression與至少一個本機browser DOM check通過。
 - Browser evidence確認`/numbering/search?create=numbering`或等效create surface可以看到建議品名與`包含圖號草稿`引導，不顯示`須製程管制`或共用件圖號說明，且查重提醒不使儲存草稿按鈕disabled。
-- 2026-07-15 evidence：`qc:pdm-number-state-flow-request-equivalence` 10/10、`qc:pdm-number-state-flow-phase1b` 14/14、`qc:pdm-numbering-contextual-entrypoints` 46/46、`qc:pdm-number-state-flow-contract` 19/19、`qc:pdm-number-state-flow-runtime` 7/7、`qc:pdm-number-state-flow-http` 21/21、TypeScript、lint、`dev:local:check`、本機Admin session browser smoke 1440/390通過。早期 browser smoke 曾驗證建議品名`腳架測試121150_JF_100L_白鐵_A`、建立草稿201、候選號200、取消回收200、正式主檔計數不變；最新契約已將`系列代號`調整為獨立 metadata，不再要求自動寫入`確定品名`。截圖在`output/playwright/number-state-phase1e/`。
+- 2026-07-15 evidence：`qc:pdm-number-state-flow-request-equivalence` 10/10、`qc:pdm-number-state-flow-phase1b` 14/14、`qc:pdm-numbering-contextual-entrypoints` 46/46、`qc:pdm-number-state-flow-contract` 19/19、`qc:pdm-number-state-flow-runtime` 7/7、`qc:pdm-number-state-flow-http` 21/21、TypeScript、lint、`dev:local:check`、本機Admin session browser smoke 1440/390通過。早期 browser smoke 曾驗證包含系列代號的建議品名`腳架測試121150_JF_100L_白鐵_A`；其 workspace／候選號 evidence只作歷史追溯。2026-08-24 DEV-093 naming-guidance corrective amendment重新確認系列代號既是獨立 metadata，也必須加入適用建議品名。截圖在`output/playwright/number-state-phase1e/`。
 
 Stop conditions：需要新增schema、保存後新增/刪除typed item、支援既有official drawing連到新draft part、改編碼格式、導入`000`萬用料號、改用途碼、live provider、正式資料或release時停止並回PM重定範圍。
 

@@ -113,6 +113,7 @@ export async function createNumberingRecordAsync(input: CreateNumberingRecordInp
     payload: {
       coreName: input.coreName,
       itemKind: input.itemKind,
+      structureType: input.structureType ?? "single_part",
       seriesCode: input.seriesCode?.trim() || null,
       drawingPurposeCode: input.drawingPurposeCode ?? null
     }
@@ -128,6 +129,7 @@ export async function createNumberingRecordAsync(input: CreateNumberingRecordInp
       payload: {
         rootCode: result.root.rootCode,
         partNumber: result.partNumber.partNumber,
+        structureType: result.partNumber.structureType,
         seriesCode: result.partNumber.seriesCode,
         drawingNumber: result.drawingNumber?.drawingNumber ?? null
       }
@@ -285,7 +287,7 @@ export async function addPartNumberToRootAsync(
     commandName: "pdm.numbering.append_part",
     idempotencyKey: commandMetadata.idempotencyKey,
     actor: commandMetadata.actor,
-    payload: { rootCode: input.rootCode, itemKind: input.itemKind ?? null, seriesCode: input.seriesCode?.trim() || null }
+    payload: { rootCode: input.rootCode, itemKind: input.itemKind ?? null, structureType: input.structureType ?? null, seriesCode: input.seriesCode?.trim() || null }
   });
   const executed = await executePdmCommandWithOutbox({
     client,
@@ -302,6 +304,7 @@ export async function addPartNumberToRootAsync(
       payload: {
         rootCode: result.root.rootCode,
         partNumber: result.partNumber.partNumber,
+        structureType: result.partNumber.structureType,
         seriesCode: result.partNumber.seriesCode,
         linkedDrawingNumber: result.linkedDrawing?.drawingNumber ?? null,
         linkType: result.linkType
@@ -326,7 +329,7 @@ export async function addDrawingAndPartToRootAsync(
     commandName: "pdm.numbering.append_drawing_part",
     idempotencyKey: commandMetadata.idempotencyKey,
     actor: commandMetadata.actor,
-    payload: { rootCode: input.rootCode, purposeCode: input.purposeCode, itemKind: input.itemKind ?? null, seriesCode: input.seriesCode?.trim() || null }
+    payload: { rootCode: input.rootCode, purposeCode: input.purposeCode, itemKind: input.itemKind ?? null, structureType: input.structureType ?? null, seriesCode: input.seriesCode?.trim() || null }
   });
   const executed = await executePdmCommandWithOutbox({
     client,
@@ -344,6 +347,7 @@ export async function addDrawingAndPartToRootAsync(
         rootCode: result.root.rootCode,
         drawingNumber: result.drawingNumber.drawingNumber,
         partNumber: result.partNumber.partNumber,
+        structureType: result.partNumber.structureType,
         seriesCode: result.partNumber.seriesCode,
         linkType: result.linkType
       }

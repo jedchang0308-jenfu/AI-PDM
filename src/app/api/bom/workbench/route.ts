@@ -11,6 +11,7 @@ import { buildBomWorkbenchDraftLifecyclePolicy } from "@/lib/pdm-lifecycle-polic
 import { canReadBomDraftAsync } from "@/lib/permissions";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 import { bomXmindEditorV2ClientStatus } from "@/lib/bom-editor-feature";
+import { authorizeSharedBomHttpAsync } from "@/lib/bom-shared-http";
 
 export const runtime = "nodejs";
 
@@ -21,10 +22,19 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const draftId = url.searchParams.get("draftId")?.trim();
   if (draftId) {
-    const draft = await getBomWorkbenchDraftByIdAsync(draftId);
+    const contextParentPartNumberId = url.searchParams.get("parentPartNumberId")?.trim() || null;
+    const draft = await getBomWorkbenchDraftByIdAsync(draftId, contextParentPartNumberId);
     if (!draft) return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
-    if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
-    return NextResponse.json({ workbench: await getBomWorkbenchByDraftIdAsync(draftId), editorCapability: bomXmindEditorV2ClientStatus() });
+    if (draft.definition_id) {
+      const access = await authorizeSharedBomHttpAsync({
+        user: auth.user,
+        draftId,
+        capability: draft.status === "Released" || draft.status === "Obsolete" ? "released_projection_read" : "draft_evidence_read",
+        exactParentPartNumberId: contextParentPartNumberId
+      });
+      if (access.response) return access.response;
+    } else if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
+    return NextResponse.json({ workbench: await getBomWorkbenchByDraftIdAsync(draftId, contextParentPartNumberId), editorCapability: bomXmindEditorV2ClientStatus() });
   }
   const submissionId = url.searchParams.get("submissionId")?.trim();
   if (!submissionId) {

@@ -29,6 +29,7 @@ const detailProjection = read("src/lib/pdm-canonical-workbench.ts");
 const drawingPartRoute = read("src/app/api/numbering/drawings/[drawingNumber]/parts/route.ts");
 const rootPartsRoute = read("src/app/api/numbering/roots/[rootCode]/parts/route.ts");
 const rootDrawingPartRoute = read("src/app/api/numbering/roots/[rootCode]/drawing-part/route.ts");
+const appendPolicyRoute = read("src/app/api/numbering/roots/[rootCode]/append-policy/route.ts");
 const numberingRepository = read("src/lib/repositories/numbering-repository.ts");
 const asyncNumberingRepository = read("src/lib/repositories/numbering-async-repository.ts");
 check("QA-093-008", ["建立新圖料", "加到既有圖料", "預估號碼", "duplicate-check", "Idempotency-Key"].every((value) => form.includes(value)), "progressive UI has required validation and retry elements");
@@ -81,6 +82,7 @@ const normalizedUniversal = normalizeCreateIntent({
   content: "drawing_part",
   coreName: "馬達_JF",
   itemKind: "manufactured",
+  structureType: "single_part",
   isUniversal: true,
   seriesCode: "JF",
   purposeCode: "M",
@@ -90,6 +92,7 @@ const newManufacturedRequest = intentToRequest({
   content: "drawing_part",
   coreName: manufacturedName,
   itemKind: "manufactured",
+  structureType: "single_part",
   isUniversal: false,
   seriesCode: "JF",
   customSpecification: "伺服 400W",
@@ -100,6 +103,7 @@ const newPurchasedPartRequest = intentToRequest({
   content: "part",
   coreName: purchasedName,
   itemKind: "purchased",
+  structureType: "single_part",
   isUniversal: false,
   customSpecification: "1HP 4P 220VAC",
 });
@@ -108,6 +112,7 @@ const newPurchasedReferenceRequest = intentToRequest({
   content: "drawing_part",
   coreName: purchasedName,
   itemKind: "purchased",
+  structureType: "single_part",
   isUniversal: false,
   customSpecification: "VFD-E",
   purposeCode: "R",
@@ -128,22 +133,25 @@ const drawingOnlyRequest = intentToRequest({
   purposeCode: "M",
 });
 const drawingOnlyKeys = Object.keys(drawingOnlyRequest.body);
-const forbiddenDrawingKeys = ["coreName", "itemKind", "isUniversal", "seriesCode", "universalReason", "customSpecification"];
+const existingPartRequest = intentToRequest({ scope: "existing_root", content: "part", rootCode: "A0002" });
+const existingDrawingPartRequest = intentToRequest({ scope: "existing_root", content: "drawing_part", rootCode: "A0002", purposeCode: "M" });
+const forbiddenDrawingKeys = ["coreName", "itemKind", "structureType", "isUniversal", "seriesCode", "universalReason", "customSpecification"];
+const forbiddenExistingProfileKeys = ["itemKind", "structureType", "isUniversal", "seriesCode", "customSpecification"];
 check("QA-093-086", !form.includes("partName: coreName") && form.includes('scope !== "new_root"') && !Object.hasOwn(drawingOnlyRequest.body, "coreName"), "existing-root flow does not run name authority or self-duplicate input");
 check("QA-093-087", form.includes("canShowDetails") && form.indexOf('scope === "existing_root" ? <section') < form.indexOf("{canShowDetails ? <>"), "unknown-root flow locks root before revealing content");
 check("QA-093-088", forbiddenDrawingKeys.every((key) => !drawingOnlyKeys.includes(key)), `drawing-only keys=${drawingOnlyKeys.join(",")}`);
-check("QA-093-089", Object.keys(newManufacturedRequest.body).every((key) => ["coreName", "itemKind", "seriesCode", "isUniversal", "customSpecification", "drawingRequested", "drawingPurposeCode", "drawingPurposeDescription"].includes(key)) && !Object.hasOwn(newManufacturedRequest.body, "universalReason"), "new-root request obeys its discriminated allowlist without a shared reason");
+check("QA-093-089", Object.keys(newManufacturedRequest.body).every((key) => ["coreName", "itemKind", "structureType", "seriesCode", "isUniversal", "customSpecification", "drawingRequested", "drawingPurposeCode", "drawingPurposeDescription"].includes(key)) && !Object.hasOwn(newManufacturedRequest.body, "universalReason"), "new-root request obeys its discriminated allowlist without a shared reason");
 check("QA-093-090", ["aria-invalid", "canonical-create-field-error", "focus()", "fieldErrors"].every((value) => form.includes(value)), "inline errors are associated and focus the first invalid field");
 check("QA-093-091", form.includes("預估暫時無法取得") && form.includes("setPreviewRetry"), "preview error is distinct and retryable");
-check("QA-093-092", form.includes('policyState.status !== "ready"') && form.includes("setPolicyRetry"), "unknown append policy fails closed and is retryable");
+check("QA-093-092", form.includes('policyState.status === "loading"') && form.includes('policyState.status === "error"') && form.includes("setPolicyRetry"), "unknown append policy fails closed and is retryable");
 check("QA-093-093", form.match(/new AbortController\(\)/gu)?.length >= 5 && form.match(/controller\.abort\(\)/gu)?.length >= 5, "root, series, policy, preview and duplicate reads cancel stale requests");
 const css = read("src/app/globals.css");
 check("QA-093-094", css.includes('input:not([type="checkbox"]):not([type="radio"])') && css.includes(".canonical-create-checkbox input") && css.includes("width: 18px"), "shared checkbox keeps native control dimensions across viewports");
 check("QA-093-098", form.indexOf("<span>料件類型</span>") < form.indexOf("<span>主要名詞</span>") && form.indexOf("<span>主要名詞</span>") < form.lastIndexOf("<span>規格／特性（選填）</span>") && form.lastIndexOf("<span>規格／特性（選填）</span>") < form.indexOf("canonical-create-suggestion") && suggestCanonicalProductName({ itemKind: "manufactured", primaryNoun: "", seriesCode: "JF" }) === "", "part conditions precede naming and the unified specification precedes the suggestion");
 check("QA-093-099", form.indexOf("canonical-create-duplicate") > form.indexOf("canonical-create-suggestion") && form.indexOf("canonical-create-duplicate") < form.indexOf("canonical-create-confirmed-name"), "duplicate result is adjacent to the suggestion before the confirmed name decision");
-const invalidManufacturedPart = validateCreateIntent({ scope: "new_root", content: "part", coreName: "加工座", itemKind: "manufactured", isUniversal: false });
-const invalidManufacturedReference = validateCreateIntent({ scope: "new_root", content: "drawing_part", coreName: "加工座", itemKind: "manufactured", isUniversal: false, purposeCode: "R", referencePurpose: "錯誤用途" });
-const invalidPurchasedManufacturing = validateCreateIntent({ scope: "new_root", content: "drawing_part", coreName: "標準馬達", itemKind: "purchased", isUniversal: false, purposeCode: "M", referencePurpose: "" });
+const invalidManufacturedPart = validateCreateIntent({ scope: "new_root", content: "part", coreName: "加工座", itemKind: "manufactured", structureType: "single_part", isUniversal: false });
+const invalidManufacturedReference = validateCreateIntent({ scope: "new_root", content: "drawing_part", coreName: "加工座", itemKind: "manufactured", structureType: "single_part", isUniversal: false, purposeCode: "R", referencePurpose: "錯誤用途" });
+const invalidPurchasedManufacturing = validateCreateIntent({ scope: "new_root", content: "drawing_part", coreName: "標準馬達", itemKind: "purchased", structureType: "single_part", isUniversal: false, purposeCode: "M", referencePurpose: "" });
 check("QA-093-100", form.includes('scope === "existing_root" ? <fieldset>') && form.includes("resolvedContent") && form.includes("resolvedPurposeCode"), "new-root UI derives content while existing-root keeps the explicit chooser");
 check("QA-093-101", invalidManufacturedPart.some((message) => message.includes("同時建立製造圖")) && invalidManufacturedReference.some((message) => message.includes("製造圖 M")) && invalidPurchasedManufacturing.some((message) => message.includes("參考圖 R")), "typed contract rejects every invalid new-root item-kind/content combination");
 check("QA-093-102", newManufacturedRequest.body.drawingRequested === true && newManufacturedRequest.body.drawingPurposeCode === "M" && newPurchasedPartRequest.body.drawingRequested === false && newPurchasedReferenceRequest.body.drawingRequested === true && newPurchasedReferenceRequest.body.drawingPurposeCode === "R", "new-root requests map manufactured to M bundle, purchased to part, and optional purchased reference to R bundle");
@@ -152,9 +160,10 @@ check("QA-093-104", form.includes("同時建立參考圖 R") && form.includes('r
 check("QA-093-105", !form.includes("<span>自訂規格（選填）</span>") && !form.includes("<span>特性（選填）</span>") && !form.includes("nameFeature") && !form.includes("nameSpecificationModel") && form.includes('feature: itemKind === "manufactured" ? customSpecification') && form.includes('specificationModel: itemKind === "purchased" ? customSpecification') && newManufacturedRequest.body.customSpecification === "伺服 400W" && newPurchasedPartRequest.body.customSpecification === "1HP 4P 220VAC", "one visible specification value drives both suggestion and persisted customSpecification");
 check("QA-093-106", !form.includes("共用原因") && !form.includes("universalReason") && !routes.includes("universalReason is required"), "shared checkbox no longer exposes or requires a reason");
 check("QA-093-107", !changeWorkspace.includes("共用原因") && !changeWorkspace.includes("universalReason") && !partChangeRepository.includes("共用件必須填寫共用原因") && !detailProjection.includes('field("universalReason"') && !drawingPartRoute.includes("universalReason is required"), "part change workspace, detail projection and drawing-linked append route also remove shared reason semantics");
-check("QA-093-108", form.includes("料件設定（沿用根號）") && form.includes("policy?.inheritedPart") && rootPartsRoute.includes("body.itemKind !== undefined || body.item_kind !== undefined") && rootDrawingPartRoute.includes("body.itemKind !== undefined || body.item_kind !== undefined") && numberingRepository.includes("PART_ROOT_ITEM_KIND_MISMATCH") && asyncNumberingRepository.includes("PART_ROOT_ITEM_KIND_MISMATCH"), "existing-root part creation presents one inherited root profile instead of editable part settings");
-check("QA-093-109", form.includes("setIsUniversal(body.inheritedPart.isUniversal)") && form.includes("setSeriesCode(body.inheritedPart.seriesCode ?? \"\")") && form.includes("setCustomSpecification(body.inheritedPart.customSpecification ?? \"\")") && asyncNumberingRepository.includes("getRootAppendPartProfile") && asyncNumberingRepository.includes("isUniversal: inheritedPart.isUniversal") && asyncNumberingRepository.includes("customSpecification: inheritedPart.customSpecification ?? undefined") && asyncNumberingRepository.includes("seriesCode: inheritedPart.seriesCode ?? undefined"), "existing-root append inherits shared, series, and specification settings from the first canonical part and writes the server profile");
-check("QA-093-095", checks.filter((item) => /^QA-093-(?:0(?:7[3-9]|8[0-9]|9[0-4]|98|99)|10[0-8])$/u.test(item.id)).every((item) => item.ok), "corrective gate independently requires every restored naming/disclosure, derivation, single-source specification, reason-free shared checkbox and inherited root item-kind capability");
+check("QA-093-108", form.includes('hasPart && scope === "new_root"') && !form.includes("料件設定（沿用根號）") && forbiddenExistingProfileKeys.every((key) => !Object.hasOwn(existingPartRequest.body, key) && !Object.hasOwn(existingDrawingPartRequest.body, key)), "existing-root UI and command omit all repeated part-profile settings");
+check("QA-093-109", appendPolicyRoute.includes("structureType: detail.partNumbers[0].structureType") && asyncNumberingRepository.includes("getRootAppendPartProfile") && asyncNumberingRepository.includes("structureType: inheritedPart.structureType") && asyncNumberingRepository.includes("isUniversal: inheritedPart.isUniversal") && asyncNumberingRepository.includes("customSpecification: inheritedPart.customSpecification ?? undefined") && asyncNumberingRepository.includes("seriesCode: inheritedPart.seriesCode ?? undefined") && asyncNumberingRepository.includes("PART_ROOT_STRUCTURE_TYPE_MISMATCH") && rootPartsRoute.includes("rawStructureType !== undefined") && rootDrawingPartRoute.includes("rawStructureType !== undefined"), "server inherits the complete canonical root part profile and only validates explicitly supplied compatibility fields");
+check("QA-093-110", appendPolicyRoute.includes('profileBlocked: inheritedPart.structureType === "unclassified"') && form.includes("policy?.profileBlocked") && form.includes("此圖料根號的料件資料不完整，請系統管理員處理。") && asyncNumberingRepository.includes("PART_ROOT_STRUCTURE_TYPE_UNCLASSIFIED"), "unclassified legacy profile fails closed before append and exposes one actionable human message");
+check("QA-093-095", checks.filter((item) => /^QA-093-(?:0(?:7[3-9]|8[0-9]|9[0-4]|98|99)|10[0-9]|110)$/u.test(item.id)).every((item) => item.ok), "corrective gate independently requires naming/disclosure, derivation, single-source specification, reason-free shared checkbox and quiet existing-root inheritance");
 const failed = checks.filter((item) => !item.ok);
 console.log(JSON.stringify({ task: "DEV-093", passed: failed.length === 0, checks }, null, 2));
 if (failed.length) process.exitCode = 1;

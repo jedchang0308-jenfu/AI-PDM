@@ -16,6 +16,7 @@ import {
   type TransferPackageActor,
   type TransferPackageRecord
 } from "@/lib/repositories/transfer-package-async-repository";
+import { AsyncBomWorkbenchRepository } from "@/lib/repositories/bom-workbench-async-repository";
 
 export type TransferReadinessBlocker = {
   code: string;
@@ -166,7 +167,7 @@ function authorityFacts(
   };
 }
 
-async function officialItemSnapshot(
+export async function officialItemSnapshot(
   client: AsyncDatabaseClient,
   companyId: string,
   item: TransferPackageRecord["items"][number]
@@ -262,7 +263,29 @@ async function officialItemSnapshot(
            SELECT candidate.id
              FROM bom_release_snapshots candidate
             WHERE candidate.company_id = part.company_id
-              AND candidate.owner_part_number_id = part.id
+              AND (
+                (
+                  candidate.snapshot_schema_version = 2
+                  AND candidate.obsolete_at IS NULL
+                  AND EXISTS (
+                    SELECT 1 FROM bom_release_parent_snapshots parent_snapshot
+                    WHERE parent_snapshot.release_snapshot_id = candidate.id
+                      AND parent_snapshot.parent_part_number_id = part.id
+                  )
+                )
+                OR (
+                  candidate.snapshot_schema_version = 1
+                  AND candidate.owner_part_number_id = part.id
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM bom_definition_parent_bindings definition_binding
+                    JOIN bom_release_snapshots shared_snapshot
+                      ON shared_snapshot.definition_id = definition_binding.definition_id
+                     AND shared_snapshot.snapshot_schema_version = 2
+                    WHERE definition_binding.part_number_id = part.id
+                  )
+                )
+              )
             ORDER BY candidate.released_at DESC, candidate.id DESC
             LIMIT 1
          )
@@ -270,6 +293,9 @@ async function officialItemSnapshot(
     { entityId: item.entityId, companyId }
   );
   if (!row) return null;
+  if (row.current_version_id) {
+    await new AsyncBomWorkbenchRepository(client).getReleaseSnapshotById(row.current_version_id);
+  }
   return {
     itemId: item.id,
     entityType: item.entityType,

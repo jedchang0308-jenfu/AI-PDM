@@ -12,8 +12,8 @@ export async function getBomWorkbenchBySubmissionIdAsync(submissionId: string) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).getWorkbenchBySubmissionId(submissionId);
 }
 
-export async function getBomWorkbenchByDraftIdAsync(draftId: string) {
-  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).getWorkbenchByDraftId(draftId);
+export async function getBomWorkbenchByDraftIdAsync(draftId: string, contextParentPartNumberId?: string | null) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).getWorkbenchByDraftId(draftId, contextParentPartNumberId);
 }
 
 export async function listBomWorkbenchDraftsBySubmissionIdAsync(submissionId: string) {
@@ -25,6 +25,7 @@ export async function listBomWorkbenchRecordsAsync(input: {
   query?: string;
   status?: "" | "Draft" | "PendingReview" | "Rejected" | "Released" | "Obsolete" | "Archived";
   limit?: number;
+  cursor?: { updatedAt: string; definitionKey: string; revisionNumber: number; draftId: string } | null;
 }) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).listWorkbenchRecords(input);
 }
@@ -33,8 +34,8 @@ export async function listDeletedBomWorkbenchDraftsBySubmissionIdAsync(submissio
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).listDeletedDraftsBySubmissionId(submissionId);
 }
 
-export async function getBomWorkbenchDraftByIdAsync(draftId: string) {
-  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).getDraftById(draftId);
+export async function getBomWorkbenchDraftByIdAsync(draftId: string, contextParentPartNumberId?: string | null) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).getDraftById(draftId, contextParentPartNumberId);
 }
 
 export async function getBomWorkbenchDraftDiffAsync(draftId: string) {
@@ -48,6 +49,7 @@ export async function saveBomWorkbenchDraftTreeAsync(input: {
   expectedEditorVersion: number;
   lines: Array<{
     id?: string;
+    logicalLineId?: string;
     parentLineId?: string | null;
     nodeType: "item" | "group";
     partNumber?: string | null;
@@ -58,6 +60,7 @@ export async function saveBomWorkbenchDraftTreeAsync(input: {
   }>;
   floatingTopics: Array<{
     id?: string;
+    logicalLineId?: string;
     parentFloatingTopicId?: string | null;
     nodeType: "item" | "group";
     partNumber?: string | null;
@@ -68,8 +71,31 @@ export async function saveBomWorkbenchDraftTreeAsync(input: {
     rootPositionX?: number | null;
     rootPositionY?: number | null;
   }>;
+  components?: Array<{
+    nodeId: string;
+    logicalLineId: string;
+    nodeLocation: "tree" | "floating";
+    componentMode: "fixed" | "by_parent";
+    childPartNumberIds: string[];
+    parentSelections: Array<{ parentPartNumberId: string; childPartNumberId: string }>;
+  }>;
 }) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).saveDraftTree(input);
+}
+
+export async function createSharedBomDraftAsync(input: {
+  companyId: string;
+  contextPartNumberId: string;
+  applicableParentPartNumberIds: string[];
+  bomRevision: string;
+  source: "manual";
+  baseReleaseSnapshotId: string | null;
+  actorId: string;
+  idempotencyKey: string;
+  requestFingerprint: string;
+  selectionEtag: string;
+}) {
+  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).createSharedDraft(input);
 }
 
 export async function createCanonicalBomDraftAsync(input: {

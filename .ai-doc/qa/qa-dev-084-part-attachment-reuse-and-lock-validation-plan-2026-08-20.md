@@ -1,11 +1,13 @@
 # QA-DEV-084：替代料號附件沿用、獨立版本與整料號鎖驗證計畫
 
-Status: `QA Plan Ready / RD Implementation Ready / RD Not Started / Independent QA Not Started / Production Release Gated`
+Status: `Dormant Historical QA Plan / Superseded by DEV-088 Planning / Not Executable`
 Date: 2026-08-20
 Owner: QA
-Related DEV: `DEV-084` / `DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-001`
+Historical DEV: `DEV-084` / `DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-001`; successor: `DEV-088` / `DEV-PDM-REPLACEMENT-PART-ATTACHMENT-REUSE-002`
 Authority: `.ai-doc/specs/SPEC-PDM-PART-ATTACHMENT-REUSE-001-replacement-snapshot-and-part-lock.md`
 ADR: `.ai-doc/decisions/ADR-PDM-PART-ATTACHMENT-REUSE-001-snapshot-reference-and-whole-part-lock.md`
+
+> 2026-08-22 Execution Supersession：DEV-084已成為歷史ID，後續由DEV-088在DEV-087本機RD／QA／QC完成後重新縮編。本QA-084-01～40只保留為歷史風險與案例庫，不是DEV-087前置、不得建立runner或執行migration／fixture／browser gate。DEV-088新scope核准後只能挑選仍適用案例並重建當期QA計畫；未被新契約採用的舊case不得阻塞交付。
 
 ## 1. QA Objective
 
@@ -149,9 +151,9 @@ Evidence不得包含raw lease token、credential、signed URL、private storage 
 
 ## 7. Entry／Exit／Stop Conditions
 
-Entry：Phase 1A schema/feature flag存在、fixture可獨立建立、dirty ledger已記錄、QA runner不會碰共享DB／storage。Phase 1C前QA-084-01～08必須PASS；Phase 1D前QA-084-27～34必須PASS。
+Entry：目前關閉。只有DEV-088在DEV-087本機RD／QA／QC完成後重新縮編、文件重新達到相應成熟度且RD已交付新scope實作，QA才能重新定義entry；不得以歷史Phase 1A schema/feature flag作為自動啟動條件。
 
-Exit：QA-084-01～40全部有當次evidence；SQLite與approved PostgreSQL concurrency均PASS；typecheck、affected lint、isolated build及required regressions無未歸因P0/P1；temporary runtime/fixture/storage cleanup完成。這只足以標記local QA完成，不自動授權production。
+Exit：未定義。QA-084-01～40不得直接作為未來必跑清單；新scope核准時重建與風險相稱的exit criteria。
 
 立即停止並回Dev PM：
 

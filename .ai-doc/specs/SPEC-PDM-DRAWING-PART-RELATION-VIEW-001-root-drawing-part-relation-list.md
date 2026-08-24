@@ -1,5 +1,7 @@
 # SPEC-PDM-DRAWING-PART-RELATION-VIEW-001 - 圖料工作台圖料根號-圖號-料號關係視圖
 
+> **2026-08-23 DEV-090 supersession（RD Implementation Complete / Local QA-QC Complete / Production Gated）**：使用者決定退役圖料工作台與Relation work/review，改由Drawing／Part drawer顯示同一root-level正式矩陣並原位直接編輯，一次儲存後原子更新`drawing_part_links`。DEV-090 已在本機完成 activation、SQLite cleanup與retirement gate；本文件的root-centric list、formal/work row、Relation drawer、workspace、review、health/action owner與`/numbering/search` Relation workbench契約均為歷史基線，由`SPEC-PDM-INLINE-RELATION-MATRIX-001-direct-formal-edit.md`取代；root identity、matrix軸／cell語意、same-root/company與正式link authority保留。正式PostgreSQL provider parity、zero-loss rehearsal、cutover與release仍須另行完成。
+
 > 2026-08-06 Amendment：`SPEC-PDM-STATUS-UX-004` 取代本文件 root/drawing/part row 的多狀態 badge
 > 呈現。counts 與用途可保留，但每列只顯示一個 human status；「草稿確認」退役。圖／料節點開啟
 > owner module 共用 overlay drawer，不建立圖料工作台專用的第二套明細內容。
@@ -13,7 +15,7 @@ Extends: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-WORKBENCH-001-data-flow-security.m
 Extends: `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md`
 Related QA: `.ai-doc/qa/qa-pdm-drawing-part-relation-view-validation-plan-2026-07-07.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
 
-> **2026-08-22 DEV-087 target supersession**：圖料根號沒有revision/branch；新target只顯示`正式關聯`0/1與專用`調整中`0/1，current handling只來自DEV-087 canonical state。保留relation tree/matrix、直接關聯、exact target與shared mechanics；舊root production/RD lane、legacy workspace overlay與human-status adapter在activation時拆除，不做fallback。新決策優先。
+> **2026-08-23 DEV-089 UI amendment（Historical / Superseded）**：圖料根號沒有revision/branch；當時的`正式關聯`／`調整中`列與current handling只作歷史基線。現行由DEV-090定義：圖料根號不再是workbench owner surface，矩陣只嵌入Drawing／Part drawer，不顯示直接關聯、不建立調整中資料或fallback。新決策優先。
 
 > **2026-08-20 DEV-086 root production／RD lane target amendment（RD Implementation Ready / Not Implemented）**
 >
@@ -717,7 +719,7 @@ Normative rules:
 2. List and detail MUST call the same candidate projector. The tree, matrix, relationship health, blockers and drawer MUST therefore agree on drawing/part identities and relation pairs.
 3. A candidate relationship can be complete as a draft fact without being production-effective. The UI MUST distinguish `關係已建立（尚未生效）` from missing/ambiguous relationships and MUST NOT label a complete restored candidate as `關係待處理`.
 4. Candidate drawing/part identities MUST open the owning candidate workspace (or render as non-navigation identity). They MUST NOT manufacture a formal owner route before publication.
-5. Every draft part whose item kind is `manufactured`, `outsourced` or `custom` MUST have exactly one `primary_manufacturing` relation to a manufacturing-purpose draft drawing. Missing, duplicate, reference-only, orphan or cross-workspace/company facts fail closed.
+5. Every draft part whose item kind is `manufactured` MUST have exactly one `primary_manufacturing` relation to a manufacturing-purpose draft drawing. Purchased parts do not require that relation solely because of item classification. Missing, duplicate, reference-only, orphan or cross-workspace/company facts fail closed.
 6. Cancelled candidate workspaces are excluded by default and are included only when `history=include`. History/view/human-status filters MUST be applied before keyset cursor and limit so filtered rows cannot create a false empty page.
 7. Restored-data acceptance requires read-only reconciliation of workspace lifecycle, child ownership, relation pairs and deterministic count/hash parity across DB, API, tree and matrix. Navigation and verification MUST preserve the before/after DB hash.
 8. Migration UX is automatic: a user MUST NOT be required to reselect, re-save or recreate a deterministic relationship solely because data moved from the former production shape to candidate-first architecture.

@@ -18,6 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
   return NextResponse.json({
     partNumber: decodedPartNumber,
     whereUsed: await listWhereUsedAsync({
+      companyId: auth.user.company_id,
       partNumber: decodedPartNumber,
       submittedBy: scopedSubmittedBy(auth.user)
     })

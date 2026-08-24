@@ -1,13 +1,17 @@
 # ADR-PDM-STATUS-DATA-REBUILD-001：單一 current-state authority 與 Drawing 多研發分支
 
-Status: `Accepted (RD Supervisor Reviewed) / Human Confirmed / RD Implementation Ready / Implementation Not Started / Production Release Gated`
-Date: 2026-08-22
+Status: `Accepted / Local Implemented / Production Zero-Loss Rehearsal & Release Gated`
+Date: 2026-08-22; amended 2026-08-23
 Owner: Dev PM
 Related DEV: `DEV-087` / `DEV-PDM-STATUS-DATA-REBUILD-001`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`
 Related QA: `.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-21.md`
 
 ## 1. Context
+
+2026-08-23 最終資料政策：正式 PostgreSQL 零捨棄、零 unresolved、逐筆唯一 mapping；本機 SQLite 可刪除所有舊 workspace graph 與56筆 quarantine，但 canonical hash 必須不變。此決策取代本 ADR 任何 `retained_legacy_source` 或 production discard 描述；legacy 只可在遷移窗短暫存在，完成後前端、API、table read、projector 與 fallback 全部退役。
+
+2026-08-23 DEV-090 supersession（RD Implementation Complete / Local QA-QC Complete / Production Gated）：使用者已決定在Drawing／Part drawer直接編輯root-level關聯矩陣，儲存後立即更新正式Relation，不建立Relation work或review。DEV-090 已完成本機實作、SQLite cleanup與retirement gate；正式 PostgreSQL provider parity、zero-loss rehearsal、cutover與release仍 gated。本ADR中`Part/Relation=正式＋work`、`relation_change_works`、Relation transient review／approval與Relation工作台 owner surface 均由`.ai-doc/decisions/ADR-PDM-RELATION-EDITING-001-direct-formal-authority.md`取代；Drawing、多branch、Part work/review、單一current authority及正式資料零遺失政策不變。
 
 三工作臺目前由多套 DB 狀態、lifecycle、approval、human/viewer/responsibility/availability projector 與 lane resolver共同拼出 current state。UI 即使減字，底層仍可能對同一資料得出矛盾結論。
 
@@ -35,9 +39,9 @@ Rejected。無法同時呈現平行 branch 的 latest work；aggregate conflict 
 
 Rejected。清單會變成歷史總表；同 branch 的舊 revision 會干擾目前工作，無法維持極簡人類語意。
 
-### D. 單一 canonical current-state authority；Drawing=production 0/1＋最多三個 open branch latest，Part/Relation=正式 0/1＋work 0/1
+### D. 單一 canonical current-state authority；Drawing=production 0/1＋最多三個 open branch latest，Part=正式 0/1＋work 0/1，Relation=正式矩陣
 
-Chosen。它把 current row identity、處理責任、分支 latest 與正式效力放在一個 server-owned read/write model，同時讓 branch history、approved evidence 與 attachment 保持各 domain authority。
+Chosen。它把 Drawing／Part current row identity、處理責任、分支 latest 與正式效力放在一個 server-owned read/write model；Relation 不再建立 current row，改由 `drawing_part_links` 與 inline matrix authority 維持正式關聯。
 
 ### E. 長期 dual read/write，逐步淘汰舊狀態
 
@@ -47,9 +51,9 @@ Rejected。會永久保留兩套真相與 fallback。只允許離線 shadow conv
 
 Rejected。舊 workspace 同時承載不同 domain、不同生命週期與 legacy projector 語意，若繼續映射，乾淨重建仍會依賴舊混合 authority，無法建立可由 DB constraint 驗證的單一 current work。
 
-### G. 三 domain 各建專用 work table
+### G. Drawing／Part 各建專用 work table；Relation direct formal edit
 
-Chosen。新增 `drawing_revision_works`、`part_change_works`、`relation_change_works`，分別保存 Drawing revision work、Part change work、Relation change work；legacy workspace 只作遷移來源，不再是新 runtime authority。
+Chosen。新增 `drawing_revision_works`、`part_change_works` 保存 Drawing revision work 與 Part change work；Relation 改由 DEV-090 的 inline matrix direct formal edit 處理，`relation_change_works` 只作 migration source，activation 後退役。legacy workspace 只作遷移來源，不再是新 runtime authority。
 
 ### G2. 將 DEV-087 decision 直接寫入既有 `approval_platform_decisions`
 
@@ -75,13 +79,13 @@ Rejected。實體檔案在零有效引用且通過 canonical-only gate 後永久
 2. Drawing production 唯一鍵是 `company+drawing+production`；Drawing RD 唯一鍵是 `company+drawing+branch_id`。同一 `company+drawing` 最多三個 open RD branches；`pdm_workbench_aggregates` 的 stable lock row 在 PostgreSQL `FOR UPDATE`／SQLite write transaction 內原子維護 `open_branch_count=0..3`，第四個新 branch 必須拒絕。
 3. 每個 Drawing branch 使用不可變 hidden `branch_id`，每個 revision 綁 exact predecessor revision ID；不從 revision code 或時間猜測。
 4. target revision 由 `company+drawing+revision` 全域唯一 claim 原子保留；版次以`M`／`M.n`tuple由server計算，不做decimal/client運算。production可建立下一production或下一RD；RD可續minor，且base仍current時才可推進下一production。未核准取消釋放claim，核准後永久不可重用。
-5. 新增 `drawing_revision_works`、`part_change_works`、`relation_change_works` 作為三 domain 的 current work authority；不得以 `numbering_draft_workspaces` 或其他 legacy mixed workspace 直接承擔新 runtime authority。Part／Relation 不建立 branch 或 revision，各 entity 只允許一份 current work；Drawing 每 branch 只允許一份 current work。
+5. 新增 `drawing_revision_works`、`part_change_works` 作為 Drawing／Part 的 current work authority；Relation 不建立 branch、revision或current work，正式關聯唯一由 `drawing_part_links` 維護。`relation_change_works` 不得被新 runtime 讀寫；不得以 `numbering_draft_workspaces` 或其他 legacy mixed workspace 直接承擔新 runtime authority。
 6. canonical handling 只有 `none|owner|review_owner|system|system_admin|blocked`，直接映射固定角色文案。
 7. 核准後自動正式化。async/failed path 只重試 exact approved snapshot，舊正式持續有效。
-8. DEV-087 Drawing／Part／Relation request 的 review UI 只有核准／退回修改；其他 approval domain 維持既有 decision。reviewer 經 canonical request route 使用編輯者相同 components/data/layout 的 fully-readonly editor。
+8. DEV-087 Drawing／Part request 的 review UI 只有核准／退回修改；Relation 新流程不建立 request或review，儲存矩陣即正式生效。其他 approval domain 維持既有 decision。Drawing／Part reviewer 經 canonical request route 使用編輯者相同 components/data/layout 的 fully-readonly editor。
 9. minimal review trace 只保存 review_cycle identity、entity reference 與 decision time，用於追溯審了幾次及時間點；不進一般 UI。
-10. Drawing approved revision 保存完整 controlled evidence；Part／Relation approved change 保存完整 before/after snapshot；未核准 canceled work 依 retention contract刪除。
-11. Part attachments 的獨立即時生效由DEV-087直接決定並沿用現行附件authority，不進Part work/review snapshot/active-review lock/rollback；Drawing controlled file與Relation exact tree仍受review lock與snapshot治理。排在後續的DEV-088替代料號附件沿用、附件平台重建、權限改寫與whole-part lease不屬本ADR execution boundary。
+10. Drawing approved revision 保存完整 controlled evidence；Part approved change 保存完整 before/after snapshot；既有 Relation approved snapshot 只作歷史唯讀證據，DEV-090 新儲存不產生 snapshot；未核准 canceled work 依 retention contract刪除。
+11. Part attachments 的獨立即時生效由DEV-087直接決定並沿用現行附件authority，不進Part work/review snapshot/active-review lock/rollback；Drawing controlled file維持既有review lock與snapshot治理。Relation 矩陣依 DEV-090 直接正式更新，不建立 Relation review lock 或 snapshot。排在後續的DEV-088替代料號附件沿用、附件平台重建、權限改寫與whole-part lease不屬本ADR execution boundary。
 12. 延續既有 non-owner edit scope：owner 可編輯自己的 work；具 `hasPdmNonOwnerEditScope` 且通過 action permission 的同公司使用者可編輯非本人 work；manufacturing 無編輯權；reviewer 只可由 exact request route 進唯讀審核頁。不得把 clean rebuild 誤改成 owner-only。
 13. 本期實作 Drawing branch `申請作廢`。只允許 open、idle、latest approved RD 且無 active work 的 branch 送審；退回後恢復 idle open，核准並完成 system formalize 後 branch 轉歷史 closed、從 current list 移除、原子遞減 `open_branch_count`，且不得 reopen。已核准 identity、minimal review trace 與 controlled artifact 保留。
 14. 未核准實體檔案在 refcount=0 且 canonical-only gate 通過後永久刪除，不提供備份回復功能。舊 current-state authority則在 external write freeze、old runtime/worker drain、DB/schema/binding backup+restore drill、shadow reconciliation、singleton authority fencing、single-authority smoke與retirement gate後，於同一maintenance window drop；開放流量前失敗以RPO=0 relational rollback，不保留read-only observation period。
@@ -131,17 +135,17 @@ branch/source/predecessor、package/baseline/workflow/approval/raw status、人�
 
 - 新系統未核准 canceled work 的 work data、work bindings、unapproved revision identity/predecessor/claim；零有效引用且 canonical-only gate 通過後才永久刪除 physical bytes。physical bytes 不提供備份回復或 UI 復原入口。
 - return或formalize success後的DEV-087 request/snapshot與transport payload；terminal receipt/outbox只允許主SPEC §3.4定義的safe technical projection，reviewer／decision／comment／content不得從旁路保留。
-- 【已被 2026-08-22 Human decision A 取代】legacy cancelled source（含 legacy review data）保留於 backend quarantine，標記 `retained_legacy_source`；不轉入新 minimal trace、不進 canonical current state。除非另有明確授權與獨立 destructive gate，不得刪除。
+- legacy cancelled source不成為永久資料層：正式環境逐筆轉換審核次數／時間、關聯與檔案引用後刪除old current-state payload；本機在canonical hash不變的清理證據下直接刪除舊graph。
 - 通過 cutover gate 後的舊 current-state tables/fields/projectors/filter/fallback。
 
 ## 7. Migration Decision
 
 採 `external-write freeze／old runtime drain → DB/schema/binding backup+restore drill → offline shadow conversion → full reconciliation → authority-control fenced cutover → allowlisted smoke → same-window old-authority drop → canonical-only re-gate → reopen traffic`。
 
-- ambiguous/unmapped data 禁止猜測，進 quarantine。
+- ambiguous/unmapped data 禁止猜測，進阻擋清單；正式環境只有取得唯一人工mapping並完成receipt後才可清空。
 - predecessor 只有唯一可證明才 backfill；否則 hidden `source_unknown`，經人工確認可算 resolved。
 - cutover 要求 unresolved=0。
-- 2026-08-22 Human decision `A`（local preservation）：既有無法唯一映射的 legacy `new_bundle` 與 legacy cancelled workspace 全部保留，不刪除、不補假的 `0.1`、不拆成多個 current work。migration 以 `--retain-unmapped-legacy` 明示將 quarantine resolution 設為 `retained_legacy_source`，並以 `unresolvedBeforeResolution` 與 source/target reconciliation 證明 cutover 前已處理；保留 rows 只作 legacy source evidence，不得被三工作臺或任何 canonical current-state query 使用。此 flag 與 `--discard-unapproved-part-only-drafts` 互斥。
+- 2026-08-23 最終決策：正式 converter 禁止 `--retain-unmapped-legacy` 與任何 discard flag；`unresolved=0`、人工mapping清單為空、source/target reconciliation=100%才可排cutover。本機舊資料不要求保存，清理後canonical count／PK／FK／內容hash必須完全不變。
 - 不設舊表唯讀觀察期，不設永久 dual read/write。
 - rollback 依完整 DB/schema/binding backup、authority control 與 exact application version 共同 restore；若 restore drill 未通過，禁止 drop。對外寫入在開放前維持 freeze，目標 RPO=0；若偵測未核准外部寫入，禁止自動 restore 並交人類對帳。此 rollback 不承諾回復已符合永久刪除條件的 physical bytes，因此 physical GC 必須延後至 canonical-only gate 後。
 
@@ -187,7 +191,7 @@ DEV-086 在 DEV-087 尚未啟用前仍是現行 runtime baseline，不能因本 
 - pagination/query 必須支援每group最多四列（1 production+3 RD），並在0/1/3 branches維持常數query budget。
 - same-window drop 的 relational rollback 依賴 restore drill，maintenance window 與 release gate 是 P0。
 - 未核准 physical bytes 在安全門檻後永久刪除且無回復功能，refcount、approved-artifact guard 與 canonical-only gate 是 P0。
-- legacy cancelled/audit source 目前採保留策略；若未來另行核准 cleanup，仍須使用明確 allowlist migration，不得手動散刪。
+- production converter與兩次restore rehearsal仍待正式環境執行；在完成前production migration/release維持BLOCKED。local old graph已依明確allowlist清除，不得重新引入相容讀取。
 
 ## 10. Re-entry Triggers
 

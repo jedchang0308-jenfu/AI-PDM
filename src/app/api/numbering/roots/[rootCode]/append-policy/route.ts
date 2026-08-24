@@ -30,12 +30,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
   const inheritedPart = detail.partNumbers[0]
     ? {
         itemKind: detail.partNumbers[0].itemKind,
+        structureType: detail.partNumbers[0].structureType,
         isUniversal: detail.partNumbers[0].isUniversal,
         seriesCode: detail.partNumbers[0].seriesCode,
         customSpecification: detail.partNumbers[0].customSpecification
       }
     : {
         itemKind: detail.root.itemKind,
+        structureType: "single_part",
         isUniversal: false,
         seriesCode: null,
         customSpecification: null
@@ -46,6 +48,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
     inheritedPart,
     counts: detail.summary,
     locked,
+    profileBlocked: inheritedPart.structureType === "unclassified",
     reasonRequired,
     nextNumbers: {
       part: manufacturingPreview.part,

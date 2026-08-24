@@ -1,7 +1,10 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { SharedBomError } from "@/lib/bom-shared-structure";
+import { AsyncBomWorkbenchRepository } from "@/lib/repositories/bom-workbench-async-repository";
 import type { ItemRevisionHistoryEntry, WhereUsedEntry } from "@/lib/types";
 
 export type ListItemInsightInput = {
+  companyId: string;
   partNumber: string;
   submittedBy?: string;
 };
@@ -31,6 +34,7 @@ export const SELECT_ASYNC_ITEM_REVISION_HISTORY_SQL = `
   JOIN items i ON i.id = COALESCE(scope.item_id, s.item_id)
   JOIN users u ON u.id = s.submitted_by
   WHERE i.part_number = :partNumber
+    AND s.company_id = :companyId
     AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)
   ORDER BY s.created_at DESC, s.revision DESC
 `;
@@ -91,8 +95,54 @@ export const SELECT_ASYNC_WHERE_USED_SQL = `
     LIMIT 1
   )
   WHERE lower(l.child_part_number) = lower(:partNumber)
+    AND s.company_id = :companyId
     AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)
   ORDER BY child_is_outdated DESC, COALESCE(s.released_at, s.updated_at, s.created_at) DESC, s.id DESC
+`;
+
+export const SELECT_ASYNC_SHARED_WHERE_USED_SQL = `
+  SELECT
+    '' AS parent_submission_id,
+    COALESCE((SELECT item.id FROM items item WHERE item.company_id = snapshot.company_id AND upper(item.part_number) = upper(parent.parent_part_number) ORDER BY item.id LIMIT 1), parent.parent_part_number_id) AS parent_item_id,
+    parent.parent_part_number,
+    parent.parent_part_name,
+    COALESCE((
+      SELECT drawing.drawing_number
+      FROM drawing_part_links link JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id
+      WHERE link.part_number_id = parent.parent_part_number_id AND link.link_type = 'primary_manufacturing'
+        AND drawing.company_id = snapshot.company_id AND drawing.purpose_code = 'M'
+      ORDER BY drawing.id LIMIT 1
+    ), '') AS parent_drawing_number,
+    snapshot.bom_revision AS parent_revision,
+    'Released' AS parent_status,
+    snapshot.released_by AS parent_submitted_by,
+    COALESCE(releaser.display_name, '') AS parent_submitted_by_name,
+    snapshot.id AS bom_header_id,
+    'Released' AS bom_status,
+    resolved.child_part_number,
+    NULL AS child_revision,
+    NULL AS child_submission_id,
+    NULL AS child_drawing_number,
+    NULL AS child_status,
+    NULL AS child_latest_released_revision,
+    0 AS child_is_outdated,
+    resolved.quantity,
+    NULL AS source_filename,
+    snapshot.released_at AS parent_created_at,
+    snapshot.released_at AS parent_released_at
+  FROM bom_release_resolved_lines resolved
+  JOIN bom_release_snapshots snapshot ON snapshot.id = resolved.release_snapshot_id
+  JOIN bom_release_parent_snapshots parent
+    ON parent.release_snapshot_id = resolved.release_snapshot_id
+   AND parent.parent_part_number_id = resolved.parent_part_number_id
+  LEFT JOIN users releaser ON releaser.id = snapshot.released_by
+  WHERE snapshot.snapshot_schema_version = 2
+    AND snapshot.obsolete_at IS NULL
+    AND snapshot.company_id = :companyId
+    AND resolved.node_type = 'item'
+    AND lower(resolved.child_part_number) = lower(:partNumber)
+    AND (:submittedBy IS NULL OR snapshot.released_by = :submittedBy)
+  ORDER BY snapshot.released_at DESC, parent.parent_part_number, resolved.sequence_no
 `;
 
 export class AsyncItemInsightRepository {
@@ -106,9 +156,37 @@ export class AsyncItemInsightRepository {
   }
 
   async listWhereUsed(input: ListItemInsightInput): Promise<WhereUsedEntry[]> {
-    return this.client.query<WhereUsedEntry>(SELECT_ASYNC_WHERE_USED_SQL, {
+    const params = {
+      companyId: input.companyId,
       partNumber: input.partNumber.trim(),
       submittedBy: input.submittedBy ?? null
-    });
+    };
+    const corrupt = await this.client.queryOne<{ id: string }>(`
+      SELECT snapshot.id
+      FROM bom_release_snapshots snapshot
+      WHERE snapshot.snapshot_schema_version = 2
+        AND snapshot.obsolete_at IS NULL
+        AND snapshot.company_id = :companyId
+        AND (
+          snapshot.definition_id IS NULL
+          OR snapshot.parent_snapshot_json IS NULL
+          OR snapshot.mapping_snapshot_json IS NULL
+          OR snapshot.resolved_projection_json IS NULL
+          OR snapshot.snapshot_hash IS NULL
+          OR (SELECT COUNT(*) FROM bom_release_parent_snapshots parent WHERE parent.release_snapshot_id = snapshot.id) = 0
+          OR (SELECT COUNT(*) FROM bom_release_resolved_lines resolved WHERE resolved.release_snapshot_id = snapshot.id)
+             <> snapshot.line_count * (SELECT COUNT(*) FROM bom_release_parent_snapshots parent WHERE parent.release_snapshot_id = snapshot.id)
+        )
+      LIMIT 1
+    `, params);
+    if (corrupt) throw new SharedBomError("BOM_RELEASE_SNAPSHOT_INVALID", 409);
+    const [shared, legacy] = await Promise.all([
+      this.client.query<WhereUsedEntry>(SELECT_ASYNC_SHARED_WHERE_USED_SQL, params),
+      this.client.query<WhereUsedEntry>(SELECT_ASYNC_WHERE_USED_SQL, params)
+    ]);
+    const sharedSnapshotIds = [...new Set(shared.map((entry) => entry.bom_header_id))];
+    const releaseRepository = new AsyncBomWorkbenchRepository(this.client);
+    for (const snapshotId of sharedSnapshotIds) await releaseRepository.getReleaseSnapshotById(snapshotId);
+    return [...shared, ...legacy];
   }
 }

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 import type { CanonicalPreviewProjection } from "@/lib/pdm-canonical-preview";
+import type { StoredPartStructureType } from "@/lib/numbering-structure-type";
 import { PDM_WORKBENCH_FILTER_NONE_TOKEN } from "@/lib/pdm-workbench-filter-selection";
 
 export const DEV087_CONTRACT_VERSION = "dev087-canonical-workbench-v2" as const;
@@ -119,12 +120,26 @@ export type CanonicalDrawingDetailPresentation = CanonicalLinkedDetailBase & {
 };
 export type CanonicalPartDetailPresentation = CanonicalLinkedDetailBase & {
   kind: "part";
+  bomContext: CanonicalPartBomContext;
   preview?: CanonicalPreviewProjection;
   previewSourceControl?: {
     settingRowVersion: number;
     canManage: boolean;
     disabledReason: string | null;
   };
+};
+
+export type CanonicalPartBomContext = {
+  structureType: StoredPartStructureType;
+  eligibility: "ineligible" | "eligible" | "blocked";
+  action: "create_bom" | "open_bom" | "none";
+  definitionId: string | null;
+  draftId: string | null;
+  releaseSnapshotId: string | null;
+  bomRevision: string | null;
+  status: "Draft" | "PendingReview" | "Rejected" | "Released" | "Archived" | "Obsolete" | null;
+  applicableParentCount: number;
+  blocker: { code: string; message: string } | null;
 };
 export type CanonicalWorkbenchDetailPresentation =
   | CanonicalDrawingDetailPresentation

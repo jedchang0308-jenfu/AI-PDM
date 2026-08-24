@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { NumberingStructureType, StoredPartStructureType } from "@/lib/numbering-structure-type";
 import { getDb } from "@/lib/db";
 import type { SqliteDatabase } from "@/lib/db-provider";
 import { buildApprovalRuleSummary, withPredictedApprovalControls } from "@/lib/approval-rule-summary";
@@ -66,6 +67,7 @@ export type PartNumberRecord = {
   sequenceCode: string;
   partName: string;
   itemKind: NumberingItemKind;
+  structureType: StoredPartStructureType;
   isUniversal: boolean;
   customSpecification: string | null;
   seriesCode: string | null;
@@ -302,6 +304,7 @@ export type CreateNumberingRecordInput = {
   coreName: string;
   partName?: string;
   itemKind: NumberingItemKind;
+  structureType?: NumberingStructureType;
   recordStatus?: NumberingRecordStatus;
   isUniversal?: boolean;
   universalReason?: string;
@@ -319,6 +322,7 @@ export type AddPartNumberInput = {
   rootCode: string;
   partName?: string;
   itemKind?: NumberingItemKind;
+  structureType?: NumberingStructureType;
   recordStatus?: NumberingRecordStatus;
   isUniversal?: boolean;
   universalReason?: string;
@@ -355,6 +359,7 @@ export type AddDrawingAndPartToRootInput = {
   purposeDescription?: string;
   partName?: string;
   itemKind?: NumberingItemKind;
+  structureType?: NumberingStructureType;
   recordStatus?: NumberingRecordStatus;
   isUniversal?: boolean;
   universalReason?: string;
@@ -1243,6 +1248,7 @@ type PartNumberRow = {
   sequence_code: string;
   part_name: string;
   item_kind: NumberingItemKind;
+  structure_type?: StoredPartStructureType;
   is_universal: number;
   custom_specification: string | null;
   series_code: string | null;
@@ -1841,6 +1847,7 @@ function mapPartNumber(row: PartNumberRow): PartNumberRecord {
     sequenceCode: row.sequence_code,
     partName: row.part_name,
     itemKind: row.item_kind,
+    structureType: row.structure_type ?? "single_part",
     isUniversal: row.is_universal === 1,
     customSpecification: row.custom_specification,
     seriesCode: row.series_code,

@@ -137,7 +137,7 @@ Create or seed these controlled fixtures:
 | 預留號已進入受控邊界仍被回收 | Controlled-boundary predicate incomplete | 料號重用造成追溯失效 | API recycle rejection test | P0 | `TC-DRAFT-006` |
 | 已發行 BOM 被自動替換 | BOM update automation too aggressive | 受控 BOM 被未授權修改 | DB before/after comparison | P0 | `TC-BOM-002` |
 | 未發行 BOM 草稿未標記重新確認 | Replacement event did not propagate | 新 BOM 可能帶入已被取代料號 | BOM draft list and submit test | P1 | `TC-BOM-001` |
-| 外購件/標準件被要求上傳圖面 | Item-type gate over-applied | 低摩擦流程被破壞 | Purchased/standard submission tests | P1 | `TC-DRAFT-003`, `TC-DRAFT-004` |
+| 外購標準件被要求上傳圖面 | Item-type gate over-applied | 低摩擦流程被破壞 | Purchased-standard submission test | P1 | `TC-DRAFT-003` |
 | 一般使用者看到回收歷史標記 | Audit data leaks into normal UI | 使用者困惑、增加心理負擔 | Normal user UI check | P2 | `TC-DRAFT-008` |
 | UI 訊息太多導致 RD 看不懂下一步 | Form combines too many rules on main screen | 誤判或放棄流程 | 5-second CTA/disabled reason check | P1 | UI manual review and viewport checks |
 | 審核者確認動作沒有留痕 | Audit event omitted | ISO/QMS 證據不足 | DB/audit query | P0 | `TC-AUDIT-001`, `TC-AUDIT-002` |
@@ -234,11 +234,11 @@ Evidence:
 - UI evidence of blocked submit and generated draft.
 - API/DB evidence showing same drawing number and new part number.
 
-### TC-REV-FFF-004 Self-Made Replacement Requires Drawing
+### TC-REV-FFF-004 Drawing-Made Replacement Requires Drawing
 
 Steps:
 
-1. Create a replacement part draft with item type `自製件`.
+1. Create a replacement part draft with item type `依圖製作件`.
 2. Attempt to submit without uploading a new drawing.
 3. Upload a drawing whose read part number matches the new part number.
 4. Submit.
@@ -257,7 +257,7 @@ Evidence:
 
 Steps:
 
-1. Create a confirmed-impact self-made replacement part.
+1. Create a confirmed-impact drawing-made replacement part.
 2. Upload a drawing whose read part number differs from the new part number.
 3. Manually correct the read value to an incorrect value and try submit.
 4. Correct it to the new part number and submit.
@@ -309,11 +309,11 @@ Evidence:
 
 - UI/API status inventory.
 
-### TC-DRAFT-003 Purchased Part Low-Friction Review
+### TC-DRAFT-003 Purchased Standard Part Low-Friction Review
 
 Steps:
 
-1. Create replacement draft with item type `外購件`.
+1. Create replacement draft with item type `外購標準件`.
 2. Leave RD reason and attachment empty if fields exist.
 3. Submit for review.
 
@@ -326,13 +326,17 @@ Evidence:
 
 - Submit success and review UI screenshot.
 
-### TC-DRAFT-004 Standard Part Low-Friction Review
+### TC-DRAFT-004 Retired Item Types Are Rejected
 
-Repeat `TC-DRAFT-003` for item type `標準件`.
+Steps:
+
+1. Open every current replacement-item editor and inspect the item-type selector.
+2. Attempt direct API writes using retired `standard`, `outsourced`, `shared`, and `custom` item types.
 
 Expected:
 
-- Same as purchased part.
+- UI exposes only `依圖製作件` and `外購標準件`.
+- Backend rejects every retired item type; no draft or formal record is created.
 
 ### TC-DRAFT-005 Same Source Multiple Drafts Warning
 

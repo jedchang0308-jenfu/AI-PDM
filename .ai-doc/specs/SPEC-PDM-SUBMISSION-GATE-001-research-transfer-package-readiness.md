@@ -174,7 +174,7 @@ Rule matrix dimensions:
 | case type | canonical Phase 1 codes `development_case`, `design_change_case`; legacy/future labels must normalize before rule evaluation and must not create a second enum |
 | item type | root, drawing, part, BOM, package attachment |
 | drawing purpose | manufacturing, reference |
-| part kind | manufactured, purchased, outsourced, shared, custom |
+| part kind | manufactured, purchased; shared is an independent universal flag |
 | phase | EVT, DVT, PVT, Release, ECR |
 | risk flag | customer spec, safety/quality critical, interface dimension, material/process change, cost impact |
 | field | material, surface treatment, standard cost, drawing attachment, BOM membership, inspection item |
@@ -275,14 +275,14 @@ BOM / relationship required:
 Cost / procurement required:
 
 - standard cost for transfer-relevant parts
-- supplier/process owner for purchased or outsourced items
+- supplier/process owner for purchased items
 - pending cost requests must be resolved before technical-transfer submit
 - any non-applicable or warning-only cost case must come from the versioned rule matrix, not from an ad hoc transfer exception
 
 Quality / manufacturing required:
 
 - QA/QC inspection item or acceptance standard for critical characteristics
-- manufacturing note, process owner or transfer instruction for in-house/outsourced parts
+- manufacturing note, process owner or transfer instruction for in-house parts
 - known risk flags and mitigation notes
 
 ## 6. UI / UX Contract

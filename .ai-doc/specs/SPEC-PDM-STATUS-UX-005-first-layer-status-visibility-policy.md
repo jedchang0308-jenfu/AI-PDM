@@ -123,6 +123,7 @@ Route wrapper不得自行建立第三套說明：`/approvals/[requestId]`繼承`
 - 多個例外依 `critical/security > blocking/error > action_required/warning > informational`排序。
 - 最高嚴重度例外顯示具體名稱；其餘聚合為同一控制的 `另有 N 項`。若沒有單一代表項，顯示 `N 項需處理`。
 - popover／drawer 必須列出全部例外、原因、負責角色、是否自動完成與可發現的下一步。
+- `drawingRecognition` 的欄位級 `conflict`／`blocked` 例外標籤可用 hover、focus 與 click 開啟最小 tooltip；料號 `blocked` 文案必須區分「已辨識到料號文字」與「尚未連結正式料號主檔」，不得暗示為 OCR 辨識錯誤。
 - 不得為了維持「一個例外」而漏掉會導致錯誤發布、錯誤製造、資料外洩或不可逆動作的警示；若兩個 critical 例外無法安全聚合，停止並回 Dev PM。
 
 ## 7. Canonical examples

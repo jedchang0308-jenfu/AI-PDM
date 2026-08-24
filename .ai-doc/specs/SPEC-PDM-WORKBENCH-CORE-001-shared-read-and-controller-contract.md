@@ -7,9 +7,11 @@ Related DEV: `DEV-062`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; 
 Related ADR: `.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`; `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
 Related QA: `.ai-doc/qa/qa-dev-062-unified-part-relation-workbench-validation-plan-2026-08-10.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`; `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md` (`APW-001..028`); `.ai-doc/qa/qa-dev-083-part-relation-readonly-drawer-fullpage-workspace-validation-plan-2026-08-20.md`; `.ai-doc/qa/qa-dev-085-workbench-multiselect-filter-validation-plan-2026-08-20.md`
 
-本規格只治理跨模組「機制」，不重複定義 Part／Relation 產品行為。料號單頁行為以 `SPEC-PDM-NUMBER-STATE-FLOW-001` 的 DEV-062 amendment 為準；圖料單頁行為以 `SPEC-PDM-DRAWING-PART-RELATION-VIEW-001` 的 DEV-062 amendment 為準。
+本規格只治理跨模組「機制」，不重複定義 Part／Relation 產品行為。料號單頁行為以 `SPEC-PDM-NUMBER-STATE-FLOW-001` 的 DEV-062 amendment 為準；Relation current behavior 以 `SPEC-PDM-INLINE-RELATION-MATRIX-001-direct-formal-edit.md` 為準，舊圖料工作台文件僅作歷史來源。
 
-> **2026-08-22 DEV-087 target supersession**：保留shared mechanics、server composition、group pagination、signed cursor與domain adapter邊界；取代DEV-086「最多雙列／production+單一RD lane」與舊status/filter/current-work adapter。Drawing group改為production 0/1＋open branch latest RD 0..3，Part／Relation為formal 0/1＋work 0/1。新決策優先，舊adapter/query/cursor interpretation能拆即拆，不得提供canonical→legacy fallback。
+> **2026-08-23 DEV-090 supersession（RD Implementation Complete / Local QA-QC Complete / Production Gated）**：DEV-090 已在本機退役Relation list adapter、Relation filter/controller/location、Relation drawer owner與專用workspace/review導航；Drawing／Part list的shared mechanics不變。Drawing／Part drawer的關聯矩陣edit mode是Relation domain-owned typed projection與direct mutation，不得進Core成為cross-domain command bus。Core仍只治理drawer geometry、selection、keyboard、focus、safe return、single overflow與action placement；完整契約見`SPEC-PDM-INLINE-RELATION-MATRIX-001-direct-formal-edit.md`。正式provider parity、zero-loss migration與release仍 gated。
+
+> **2026-08-22 DEV-087 target supersession**：保留shared mechanics、server composition、group pagination、signed cursor與domain adapter邊界；取代DEV-086「最多雙列／production+單一RD lane」與舊status/filter/current-work adapter。Drawing group改為production 0/1＋open branch latest RD 0..3，Part為formal 0/1＋work 0/1；Relation current workbench由DEV-090取代為正式矩陣projection。新決策優先，舊adapter/query/cursor interpretation能拆即拆，不得提供canonical→legacy fallback。
 
 > **2026-08-20 DEV-086 group／lane target amendment（RD Implementation Ready / Not Implemented）**
 >

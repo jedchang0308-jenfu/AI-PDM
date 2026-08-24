@@ -282,16 +282,15 @@ Show:
   - `選擇既有替代料號草稿`
   - `例外：人工指定新料號`
 - Item type:
-  - 自製件
-  - 外購件
-  - 標準件
+  - 依圖製作件
+  - 外購標準件
 - Drawing part-number read value.
 - RD corrected read value.
 
 Default v1 behavior:
 
 - `系統建立替代料號草稿` uses existing part-number draft reservation service.
-- For self-made item, drawing part-number match is required before confirmed-impact submit.
+- For a drawing-made item, drawing part-number match is required before confirmed-impact submit.
 - Manual read/corrected value is acceptable evidence when CAD adapter is unavailable.
 
 ### 5.6 Step 5: 預覽送出

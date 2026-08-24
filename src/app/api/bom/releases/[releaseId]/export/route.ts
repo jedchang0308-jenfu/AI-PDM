@@ -1,8 +1,11 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
 import { canReadBomReleaseSnapshotRecordAsync } from "@/lib/bom-create-context";
+import { buildSharedReleaseExportFilename, buildSharedReleaseExportRows } from "@/lib/bom-release-export";
 import { getBomReleaseSnapshotByIdAsync } from "@/lib/bom-workbench-async";
 import type { BomReleaseSnapshotDetail, BomWorkbenchLine } from "@/lib/types";
+import { authorizeSharedBomHttpAsync } from "@/lib/bom-shared-http";
 
 export const runtime = "nodejs";
 
@@ -31,7 +34,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ rele
     return NextResponse.json({ error: "BOM release snapshot not found" }, { status: 404 });
   }
 
-  if (!(await canReadBomReleaseSnapshotRecordAsync(auth.user, snapshot))) return forbidden();
+  if (snapshot.definition_id) {
+    const access = await authorizeSharedBomHttpAsync({
+      user: auth.user,
+      snapshotId: releaseId,
+      capability: "released_projection_read",
+      exactParentPartNumberId: new URL(request.url).searchParams.get("parentPartNumberId")?.trim() || null
+    });
+    if (access.response) return access.response;
+  } else if (!(await canReadBomReleaseSnapshotRecordAsync(auth.user, snapshot))) return forbidden();
 
   const url = new URL(request.url);
   const format = parseFormat(url.searchParams.get("format"));
@@ -39,8 +50,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ rele
     return NextResponse.json({ error: "BOM_EXPORT_FORMAT_UNSUPPORTED" }, { status: 400 });
   }
 
-  const rows = buildReleaseRows(snapshot);
-  const filename = buildExportFilename(snapshot, format);
+  const shared = Number(snapshot.snapshot_schema_version ?? 1) === 2;
+  let selectedParentPartNumberId: string | null = null;
+  if (shared) {
+    if (!snapshot.applicable_parents?.length || !snapshot.resolved_lines || !snapshot.snapshot_hash) {
+      return sharedError("BOM_RELEASE_PROJECTION_AMBIGUOUS", 409);
+    }
+    selectedParentPartNumberId = url.searchParams.get("parentPartNumberId")?.trim() || null;
+    if (!selectedParentPartNumberId && snapshot.applicable_parents.length > 1) return sharedError("BOM_RELEASE_PARENT_REQUIRED", 422);
+    selectedParentPartNumberId ??= snapshot.applicable_parents[0]?.part_number_id ?? null;
+    if (!snapshot.applicable_parents.some((parent) => parent.part_number_id === selectedParentPartNumberId)) {
+      return sharedError("BOM_RELEASE_PARENT_NOT_APPLICABLE", 404);
+    }
+  }
+
+  const rows = shared ? buildSharedReleaseExportRows(snapshot, selectedParentPartNumberId!) : buildReleaseRows(snapshot);
+  const filename = shared ? buildSharedReleaseExportFilename(snapshot, selectedParentPartNumberId!, format) : buildExportFilename(snapshot, format);
   if (format === "xlsx") {
     return new Response(buildXlsxWorkbook(rows), {
       headers: {
@@ -126,6 +151,15 @@ function buildExportFilename(snapshot: BomReleaseSnapshotDetail, format: ExportF
   const stamp = normalizeDateStamp(snapshot.released_at);
   const bomRevision = snapshot.bom_revision || snapshot.parent_revision;
   return `BOM_${sanitizeFilename(snapshot.parent_part_number)}_Rev${sanitizeFilename(bomRevision)}_${stamp}.${format}`;
+}
+
+function sharedError(code: string, status: number) {
+  const message = code === "BOM_RELEASE_PARENT_REQUIRED"
+    ? "共用 BOM 匯出必須指定適用料號"
+    : code === "BOM_RELEASE_PARENT_NOT_APPLICABLE"
+      ? "指定料號不屬於此 BOM 發行版"
+      : "BOM 發行投影資料不完整";
+  return NextResponse.json({ error: code, message, details: {}, correlationId: crypto.randomUUID() }, { status });
 }
 
 function normalizeDateStamp(value: string) {

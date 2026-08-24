@@ -255,6 +255,9 @@ type PartNumberIdentityRow = {
 
 type BomDraftReferenceRow = {
   bom_draft_id: string;
+  logical_line_id: string | null;
+  parent_part_number_id: string | null;
+  reference_scope: "legacy_line" | "candidate" | "parent_selection";
 };
 
 type DrawingRevisionFffAssessmentRow = {
@@ -1583,22 +1586,37 @@ export class PdmChangeControlDomainService {
   private async createBomReconfirmationFlags(companyId: string, oldPart: PartNumberIdentityRow, newPartNumberId: string) {
     const rows = await this.client.query<BomDraftReferenceRow>(
       `
-      SELECT DISTINCT bd.id AS bom_draft_id
+      SELECT DISTINCT bd.id AS bom_draft_id,
+             blt.logical_line_id,
+             NULL AS parent_part_number_id,
+             'legacy_line' AS reference_scope
       FROM bom_drafts bd
       JOIN bom_lines_tree blt ON blt.bom_draft_id = bd.id
-      JOIN items i ON i.id = bd.parent_item_id
-      WHERE i.company_id = :companyId
+      LEFT JOIN items legacy_owner ON legacy_owner.id = bd.parent_item_id
+      WHERE COALESCE(bd.company_id, legacy_owner.company_id) = :companyId
         AND bd.status IN ('Draft', 'PendingReview', 'Rejected')
         AND blt.part_number = :oldPartNumber
-        AND NOT EXISTS (
-          SELECT 1
-          FROM bom_reconfirmation_flags brf
-          WHERE brf.company_id = :companyId
-            AND brf.bom_draft_id = bd.id
-            AND brf.old_part_number_id = :oldPartNumberId
-            AND brf.new_part_number_id = :newPartNumberId
-            AND brf.resolved_at IS NULL
-        )
+        AND bd.definition_id IS NULL
+      UNION ALL
+      SELECT DISTINCT bd.id AS bom_draft_id,
+             candidate.logical_line_id,
+             NULL AS parent_part_number_id,
+             'candidate' AS reference_scope
+      FROM bom_drafts bd
+      JOIN bom_draft_component_candidates candidate ON candidate.bom_draft_id = bd.id
+      WHERE bd.company_id = :companyId
+        AND bd.status IN ('Draft', 'PendingReview', 'Rejected')
+        AND candidate.child_part_number_id = :oldPartNumberId
+      UNION ALL
+      SELECT DISTINCT bd.id AS bom_draft_id,
+             selection.logical_line_id,
+             selection.parent_part_number_id,
+             'parent_selection' AS reference_scope
+      FROM bom_drafts bd
+      JOIN bom_draft_parent_selections selection ON selection.bom_draft_id = bd.id
+      WHERE bd.company_id = :companyId
+        AND bd.status IN ('Draft', 'PendingReview', 'Rejected')
+        AND selection.child_part_number_id = :oldPartNumberId
       `,
       { companyId, oldPartNumber: oldPart.part_number, oldPartNumberId: oldPart.id, newPartNumberId }
     );
@@ -1607,9 +1625,21 @@ export class PdmChangeControlDomainService {
       await this.client.execute(
         `
         INSERT INTO bom_reconfirmation_flags (
-          id, company_id, bom_draft_id, old_part_number_id, new_part_number_id, reason, created_at
-        ) VALUES (
-          :id, :companyId, :bomDraftId, :oldPartNumberId, :newPartNumberId, :reason, :createdAt
+          id, company_id, bom_draft_id, old_part_number_id, new_part_number_id,
+          logical_line_id, parent_part_number_id, reference_scope, reason, created_at
+        ) SELECT
+          :id, :companyId, :bomDraftId, :oldPartNumberId, :newPartNumberId,
+          :logicalLineId, :parentPartNumberId, :referenceScope, :reason, :createdAt
+        WHERE NOT EXISTS (
+          SELECT 1 FROM bom_reconfirmation_flags existing
+          WHERE existing.company_id = :companyId
+            AND existing.bom_draft_id = :bomDraftId
+            AND existing.old_part_number_id = :oldPartNumberId
+            AND existing.new_part_number_id = :newPartNumberId
+            AND COALESCE(existing.logical_line_id, '') = COALESCE(:logicalLineId, '')
+            AND COALESCE(existing.parent_part_number_id, '') = COALESCE(:parentPartNumberId, '')
+            AND existing.reference_scope = :referenceScope
+            AND existing.resolved_at IS NULL
         )
         `,
         {
@@ -1618,6 +1648,9 @@ export class PdmChangeControlDomainService {
           bomDraftId: row.bom_draft_id,
           oldPartNumberId: oldPart.id,
           newPartNumberId,
+          logicalLineId: row.logical_line_id,
+          parentPartNumberId: row.parent_part_number_id,
+          referenceScope: row.reference_scope,
           reason: "replacement_part_released",
           createdAt: now
         }
@@ -1674,6 +1707,32 @@ export class PdmChangeControlDomainService {
   }
 
   private async hasBomReference(companyId: string, partNumber: string) {
+    const sharedBom = await this.client.queryOne<CountRow>(
+      `
+      SELECT COUNT(*) AS count
+      FROM part_numbers child
+      WHERE child.company_id = :companyId
+        AND child.part_number = :partNumber
+        AND (
+          EXISTS (
+            SELECT 1 FROM bom_draft_component_candidates candidate
+            JOIN bom_drafts draft ON draft.id = candidate.bom_draft_id
+            WHERE candidate.child_part_number_id = child.id
+              AND draft.company_id = child.company_id
+              AND draft.status IN ('Draft', 'PendingReview', 'Rejected', 'Archived')
+          )
+          OR EXISTS (
+            SELECT 1 FROM bom_release_resolved_lines resolved
+            JOIN bom_release_snapshots snapshot ON snapshot.id = resolved.release_snapshot_id
+            WHERE resolved.child_part_number_id = child.id
+              AND snapshot.company_id = child.company_id
+          )
+        )
+      `,
+      { companyId, partNumber }
+    );
+    if (countValue(sharedBom) > 0) return true;
+
     const releasedBom = await this.client.queryOne<CountRow>(
       `
       SELECT COUNT(*) AS count

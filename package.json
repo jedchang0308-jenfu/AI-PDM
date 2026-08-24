@@ -8,6 +8,16 @@
     "npm": ">=11 <12"
   },
   "scripts": {
+    "migrate:dev-096:dry-run": "node scripts/migrate-dev-096-shared-assembly-bom.mjs --mode=dry-run",
+    "migrate:dev-096:apply": "node scripts/migrate-dev-096-shared-assembly-bom.mjs --mode=apply",
+    "migrate:dev-096:postgres": "node scripts/migrate-dev-096-shared-assembly-bom.mjs --provider=postgres --mode=rehearsal",
+    "qc:dev-096:contract": "node scripts/qc-dev-096-contract.mjs",
+    "qc:dev-096:repository": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-096-repository.mjs",
+    "qc:dev-096:migration": "node scripts/qc-dev-096-migration.mjs",
+    "qc:dev-096:mutation": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-096-mutation.ts",
+    "qc:dev-096:consumers": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-096-consumers.mjs",
+    "qc:dev-096:browser": "node scripts/qc-dev-096-browser.mjs",
+    "qc:dev-096": "node scripts/qc-dev-096-aggregate.mjs",
     "migrate:dev-094:root-recovery": "node scripts/migrate-dev-094-root-recovery.mjs",
     "qc:dev-094:capa": "node scripts/qc-dev-094-capa.mjs",
     "qc:dev-094:browser": "node scripts/qc-dev-094-browser.mjs",

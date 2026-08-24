@@ -169,6 +169,8 @@ export type BomWorkbenchNodeType = "item" | "group";
 export type BomWorkbenchDraftSummary = {
   id: string;
   company_id: string | null;
+  definition_id?: string | null;
+  base_release_snapshot_id?: string | null;
   owner_part_number_id: string | null;
   bom_revision: string | null;
   source_submission_id: string | null;
@@ -192,6 +194,15 @@ export type BomWorkbenchDraftSummary = {
 export type BomWorkbenchListRecord = BomWorkbenchDraftSummary & {
   parent_part_number: string;
   parent_part_name: string;
+  definitionId?: string | null;
+  draftId?: string;
+  releaseSnapshotId?: string | null;
+  bomRevision?: string;
+  applicableParentCount?: number;
+  applicableParents?: Array<{ partNumberId: string; partNumber: string; name: string }>;
+  unresolvedMappingCount?: number;
+  baseReleaseSnapshotId?: string | null;
+  updatedAt?: string;
 };
 
 export type BomReconfirmationFlag = {
@@ -210,6 +221,7 @@ export type BomReconfirmationFlag = {
 export type BomWorkbenchLine = {
   id: string;
   bom_draft_id: string;
+  logical_line_id?: string | null;
   parent_line_id: string | null;
   node_type: BomWorkbenchNodeType;
   item_id: string | null;
@@ -232,6 +244,7 @@ export type BomWorkbenchLine = {
 export type BomDraftFloatingTopic = {
   id: string;
   bom_draft_id: string;
+  logical_line_id?: string | null;
   parent_floating_topic_id: string | null;
   node_type: BomWorkbenchNodeType;
   item_id: string | null;
@@ -254,6 +267,10 @@ export type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
   lines: BomWorkbenchLine[];
   floating_topics: BomDraftFloatingTopic[];
   reconfirmation_flags: BomReconfirmationFlag[];
+  applicable_parents?: BomApplicableParent[];
+  components?: BomSharedComponent[];
+  unresolved_mappings?: BomUnresolvedMapping[];
+  context_parent_part_number_id?: string | null;
   release_snapshot_id?: string | null;
   latest_review?: {
     id: string;
@@ -264,6 +281,29 @@ export type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
     submitted_at: string;
     reviewed_at: string | null;
   } | null;
+};
+
+export type BomApplicableParent = {
+  part_number_id: string;
+  part_number: string;
+  part_name: string;
+  selection_order: number;
+};
+
+export type BomSharedComponent = {
+  node_id: string;
+  logical_line_id: string;
+  node_location: "tree" | "floating";
+  component_mode: "fixed" | "by_parent";
+  child_part_root_id: string;
+  child_part_number_ids: string[];
+  child_candidates?: Array<{ part_number_id: string; part_number: string; part_name: string; part_root_id: string }>;
+  parent_selections: Array<{ parent_part_number_id: string; child_part_number_id: string }>;
+};
+
+export type BomUnresolvedMapping = {
+  logical_line_id: string;
+  parent_part_number_id: string;
 };
 
 export type BomWorkbenchSummary = {
@@ -298,6 +338,30 @@ export type BomReleaseSnapshotDetail = {
   id: string;
   bom_draft_id: string;
   company_id: string | null;
+  definition_id?: string | null;
+  snapshot_schema_version?: number;
+  parent_snapshot_json?: string | null;
+  mapping_snapshot_json?: string | null;
+  resolved_projection_json?: string | null;
+  snapshot_hash?: string | null;
+  applicable_parents?: BomApplicableParent[];
+  resolved_lines?: Array<{
+    id: string;
+    release_snapshot_id: string;
+    definition_id: string;
+    parent_part_number_id: string;
+    logical_line_id: string;
+    parent_logical_line_id: string | null;
+    node_type: BomWorkbenchNodeType;
+    child_part_number_id: string | null;
+    child_part_number: string | null;
+    child_part_name: string | null;
+    group_name: string | null;
+    quantity: number | null;
+    sequence_no: number;
+    level: number;
+    source: BomWorkbenchSource;
+  }>;
   owner_part_number_id: string | null;
   bom_revision: string | null;
   source_submission_id: string | null;
