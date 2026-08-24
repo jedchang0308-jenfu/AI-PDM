@@ -8,7 +8,7 @@ import {
   BomCreateIdempotencyConflictError,
   BomDraftEditorVersionConflictError
 } from "@/lib/repositories/bom-workbench-async-repository";
-import { fixture, seedDev096Fixture } from "./dev096-qc-fixture.mjs";
+import { fixture, seedDev096Fixture, seedDev096PostgresFixture } from "./dev096-qc-fixture.mjs";
 
 type Check = { cases: number[]; label: string; pass: boolean; detail: unknown };
 const checks: Check[] = [];
@@ -25,8 +25,8 @@ async function check(cases: number[], label: string, fn: () => Promise<unknown>)
   catch (error) { const detail = errorDetail(error); checks.push({ cases, label, pass: false, detail }); console.error(`FAIL ${label}: ${JSON.stringify(detail)}`); throw error; }
 }
 
-const fixtureLedger = seedDev096Fixture();
 const client = getAsyncDatabaseClient();
+const fixtureLedger = client.kind === "postgres" ? await seedDev096PostgresFixture(client) : seedDev096Fixture();
 const repository = new AsyncBomWorkbenchRepository(client, () => "2026-08-24T02:00:00.000Z");
 const logicalLineId = "55555555-5555-4555-8555-555555555555";
 let firstDraftId = "";
@@ -144,7 +144,9 @@ try {
     catch { immutable = true; }
     if (!immutable) throw new Error("release evidence mutable");
     const outbox = await client.queryOne<{ count: number }>("SELECT COUNT(*) AS count FROM platform_outbox_events");
-    const audit = await client.queryOne<{ count: number }>("SELECT COUNT(*) AS count FROM audit_logs WHERE detail_json LIKE :needle", { needle: `%${definitionId}%` });
+    const audit = await client.queryOne<{ count: number }>(client.kind === "postgres"
+      ? "SELECT COUNT(*) AS count FROM audit_logs WHERE detail_json::text LIKE :needle"
+      : "SELECT COUNT(*) AS count FROM audit_logs WHERE detail_json LIKE :needle", { needle: `%${definitionId}%` });
     if (Number(outbox?.count) !== 0 || Number(audit?.count) < 3) throw new Error(JSON.stringify({ outbox, audit }));
     return { snapshotId: firstSnapshotId, snapshotHash: snapshot.snapshot_hash, resolved: [...byParent] };
   });
@@ -215,7 +217,13 @@ try {
   });
 
   await check([51, 60, 80], "all mutations remain company-scoped, FK-clean and outbox-free", async () => {
-    const foreignKeys = await client.query<{ table: string }>("PRAGMA foreign_key_check");
+    const foreignKeys = client.kind === "postgres" ? [] : await client.query<{ table: string }>("PRAGMA foreign_key_check");
+    const postgresOrphans = client.kind === "postgres" ? await client.queryOne<{ count: number }>(`
+      SELECT COUNT(*) AS count FROM bom_draft_parent_bindings binding
+      LEFT JOIN bom_drafts draft ON draft.id=binding.bom_draft_id
+      LEFT JOIN part_numbers part ON part.id=binding.part_number_id
+      WHERE draft.id IS NULL OR part.id IS NULL
+    `) : { count: 0 };
     const crossCompany = await client.queryOne<{ count: number }>(`
       SELECT COUNT(*) AS count FROM bom_definition_parent_bindings binding
       JOIN part_numbers part ON part.id = binding.part_number_id
@@ -223,8 +231,8 @@ try {
       WHERE binding.company_id <> part.company_id OR binding.company_id <> definition.company_id
     `);
     const outbox = await client.queryOne<{ count: number }>("SELECT COUNT(*) AS count FROM platform_outbox_events");
-    if (foreignKeys.length || Number(crossCompany?.count) || Number(outbox?.count)) throw new Error(JSON.stringify({ foreignKeys, crossCompany, outbox }));
-    return { foreignKeyViolations: 0, crossCompany: 0, outbox: 0 };
+    if (foreignKeys.length || Number(postgresOrphans?.count) || Number(crossCompany?.count) || Number(outbox?.count)) throw new Error(JSON.stringify({ foreignKeys, postgresOrphans, crossCompany, outbox }));
+    return { foreignKeyViolations: 0, postgresOrphans: 0, crossCompany: 0, outbox: 0 };
   });
 } catch (error) {
   firstFailure = JSON.stringify(errorDetail(error));
@@ -233,10 +241,10 @@ try {
 }
 
 const failed = checks.filter((item) => !item.pass);
-const result = { runner: "mutation", status: failed.length || firstFailure ? "FAIL" : "PASS", firstFailure, checks, fixtureLedger, ids: { definitionId, firstDraftId, firstSnapshotId, nextDraftId, nextSnapshotId }, cases: [...new Set(checks.filter((item) => item.pass).flatMap((item) => item.cases))].sort((a, b) => a - b) };
+const result = { runner: client.kind === "postgres" ? "postgres-mutation" : "mutation", provider: client.kind, status: failed.length || firstFailure ? "FAIL" : "PASS", firstFailure, checks, fixtureLedger, ids: { definitionId, firstDraftId, firstSnapshotId, nextDraftId, nextSnapshotId }, cases: [...new Set(checks.filter((item) => item.pass).flatMap((item) => item.cases))].sort((a, b) => a - b) };
 if (process.env.DEV096_EVIDENCE_DIR) {
   fs.mkdirSync(process.env.DEV096_EVIDENCE_DIR, { recursive: true });
-  fs.writeFileSync(path.join(process.env.DEV096_EVIDENCE_DIR, "mutation.json"), `${JSON.stringify(result, null, 2)}\n`);
+  fs.writeFileSync(path.join(process.env.DEV096_EVIDENCE_DIR, process.env.DEV096_MUTATION_EVIDENCE_FILE?.trim() || "mutation.json"), `${JSON.stringify(result, null, 2)}\n`);
 }
 console.log(JSON.stringify({ runner: result.runner, status: result.status, passed: checks.length - failed.length, total: checks.length }));
 if (failed.length || firstFailure) process.exitCode = 1;

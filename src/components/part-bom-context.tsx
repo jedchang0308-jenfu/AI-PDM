@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { CanonicalPartBomContext } from "@/lib/pdm-canonical-workbench-contract";
 
 type Candidate = {
@@ -29,6 +30,7 @@ export function PartBomContext({ context, partNumberId, partNumber }: {
   partNumberId: string;
   partNumber: string;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [contract, setContract] = useState<CandidateContract | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -44,7 +46,7 @@ export function PartBomContext({ context, partNumberId, partNumber }: {
   if (context.action === "none" && !context.blocker) return null;
 
   const openExisting = () => {
-    if (context.draftId) window.location.assign(`/bom/workbench/${encodeURIComponent(context.draftId)}?parentPartNumberId=${encodeURIComponent(partNumberId)}`);
+    if (context.draftId) router.push(`/bom/workbench/${encodeURIComponent(context.draftId)}?parentPartNumberId=${encodeURIComponent(partNumberId)}`);
   };
   const beginCreate = async () => {
     setOpen(true); setLoading(true); setError("");
@@ -74,7 +76,7 @@ export function PartBomContext({ context, partNumberId, partNumber }: {
       });
       const body = await response.json() as { workbenchUrl?: string; error?: string; message?: string };
       if (!response.ok || !body.workbenchUrl) throw new Error(body.message || body.error || "建立 BOM 失敗");
-      window.location.assign(body.workbenchUrl);
+      router.push(body.workbenchUrl);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "建立 BOM 失敗"); }
     finally { setSaving(false); }
   };
@@ -87,7 +89,7 @@ export function PartBomContext({ context, partNumberId, partNumber }: {
     {context.blocker ? <p className="canonical-error" role="alert" data-bom-blocker={context.blocker.code}>{context.blocker.message}</p> : context.bomRevision ? <p className="part-bom-context-summary">Rev {context.bomRevision} · {statusLabel(context.status)} · {context.applicableParentCount} 個適用料號</p> : null}
     {open ? <div className="canonical-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
       <div ref={dialogRef} className="canonical-modal part-bom-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={(event) => {
-        if (event.key === "Escape") { close(); return; }
+        if (event.key === "Escape") { event.stopPropagation(); close(); return; }
         if (event.key !== "Tab") return;
         const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])") ?? [])]
           .filter((element) => !element.hasAttribute("hidden"));

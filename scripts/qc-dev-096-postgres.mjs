@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { spawnSync } from "node:child_process";
 import { Client } from "pg";
 import { convertLegacySharedBomPostgres } from "./dev096-postgres-converter.mjs";
 
@@ -155,6 +156,37 @@ try {
     const ids = sources.map((source) => deterministicUuid(source.includes("line") ? "logical-line" : "definition", source));
     if (new Set(ids).size !== ids.length || ids.some((id) => !/^[0-9a-f-]{36}$/u.test(id))) throw new Error("deterministic ID oracle invalid");
     return { sources, ids };
+  });
+
+  await check([19, 20, 21, 28, 32, 35, 38, 39, 40, 46, 54, 55, 57, 60, 76, 77, 78, 80, 87], "actual Async BOM repository mutation journey passes on disposable PostgreSQL", async () => {
+    const evidenceDir = process.env.DEV096_EVIDENCE_DIR ?? path.join(workspace, "output", "qa", "dev-096-postgres");
+    const child = spawnSync(process.execPath, [
+      "--experimental-transform-types",
+      "--experimental-loader",
+      "./scripts/qc-ts-path-loader.mjs",
+      "scripts/qc-dev-096-mutation.ts"
+    ], {
+      cwd: workspace,
+      env: {
+        ...process.env,
+        PDM_DB_PROVIDER: "postgres",
+        PDM_POSTGRES_URL: dsn,
+        PDM_POSTGRES_MAX_CONNECTIONS: "8",
+        PDM_ASSEMBLY_SHARED_BOM_V1: "true",
+        PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "true",
+        PDM_BOM_XMIND_EDITOR_V2_ENABLED: "true",
+        DEV096_EVIDENCE_DIR: evidenceDir,
+        DEV096_MUTATION_EVIDENCE_FILE: "postgres-mutation.json"
+      },
+      encoding: "utf8",
+      maxBuffer: 20 * 1024 * 1024
+    });
+    process.stdout.write(child.stdout ?? "");
+    process.stderr.write(child.stderr ?? "");
+    if (child.status !== 0) throw new Error(`POSTGRES_REPOSITORY_MUTATION_FAILED:${child.status}`);
+    const evidence = JSON.parse(fs.readFileSync(path.join(evidenceDir, "postgres-mutation.json"), "utf8"));
+    if (evidence.status !== "PASS" || evidence.provider !== "postgres") throw new Error(`POSTGRES_REPOSITORY_EVIDENCE_INVALID:${JSON.stringify(evidence)}`);
+    return { runner: evidence.runner, checks: evidence.checks.length, cases: evidence.cases };
   });
 } finally {
   await client.end();

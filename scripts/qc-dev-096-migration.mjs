@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
@@ -273,8 +274,14 @@ function requiredTaskPath(name) {
 
 function assertTaskBoundary(target, forbidden) {
   if (samePath(target, forbidden)) throw new Error(`DEV096_PRIMARY_PATH_FORBIDDEN: ${target}`);
-  const relative = path.relative(workspace, target);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`DEV096_TASK_PATH_OUTSIDE_WORKSPACE: ${target}`);
+  const workspaceRelative = path.relative(workspace, target);
+  const insideWorkspace = !workspaceRelative.startsWith("..") && !path.isAbsolute(workspaceRelative);
+  const tempRelative = path.relative(path.resolve(os.tmpdir()), target);
+  const tempNamespace = tempRelative.split(path.sep)[0] ?? "";
+  const insideTaskTemp = !tempRelative.startsWith("..")
+    && !path.isAbsolute(tempRelative)
+    && tempNamespace.startsWith("ai-pdm-dev096-");
+  if (!insideWorkspace && !insideTaskTemp) throw new Error(`DEV096_TASK_PATH_OUTSIDE_APPROVED_BOUNDARY: ${target}`);
 }
 
 function deterministicUuid(entityKind, stableSourceId) {

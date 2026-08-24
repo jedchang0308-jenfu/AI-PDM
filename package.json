@@ -15,6 +15,7 @@
     "qc:dev-096:repository": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-096-repository.mjs",
     "qc:dev-096:migration": "node scripts/qc-dev-096-migration.mjs",
     "qc:dev-096:mutation": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-096-mutation.ts",
+    "qc:dev-096:faults": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-096-faults.ts",
     "qc:dev-096:consumers": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-096-consumers.mjs",
     "qc:dev-096:browser": "node scripts/qc-dev-096-browser.mjs",
     "qc:dev-096": "node scripts/qc-dev-096-aggregate.mjs",

@@ -51,6 +51,8 @@ try {
   if (!run("repository", ["--experimental-transform-types", "--experimental-loader", "./scripts/qc-ts-path-loader.mjs", "scripts/qc-dev-096-repository.mjs"], repositoryEnv)) throw new Error("repository failed");
   const mutationEnv = isolated("mutation");
   if (!run("mutation", ["--experimental-transform-types", "--experimental-loader", "./scripts/qc-ts-path-loader.mjs", "scripts/qc-dev-096-mutation.ts"], mutationEnv)) throw new Error("mutation failed");
+  const faultsEnv = isolated("faults");
+  if (!run("faults", ["--experimental-transform-types", "--experimental-loader", "./scripts/qc-ts-path-loader.mjs", "scripts/qc-dev-096-faults.ts"], faultsEnv)) throw new Error("fault matrix failed");
   const consumerEnv = isolated("consumers");
   if (!run("consumers", ["--experimental-transform-types", "--experimental-loader", "./scripts/qc-ts-path-loader.mjs", "scripts/qc-dev-096-consumers.mjs"], consumerEnv)) throw new Error("consumers failed");
 
@@ -75,7 +77,7 @@ try {
   firstFailure = error instanceof Error ? error.message : String(error);
 }
 
-const evidenceFiles = ["contract.json", "repository.json", "mutation.json", "consumers.json", "postgres.json"]
+const evidenceFiles = ["contract.json", "repository.json", "mutation.json", "postgres-mutation.json", "faults.json", "consumers.json", "postgres.json"]
   .map((name) => path.join(evidenceRoot, name))
   .concat(path.join(evidenceRoot, "migration", "migration.json"), path.join(evidenceRoot, "browser", "browser.json"));
 const evidence = evidenceFiles.filter(fs.existsSync).map((file) => JSON.parse(fs.readFileSync(file, "utf8")));

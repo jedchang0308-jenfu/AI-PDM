@@ -175,10 +175,11 @@ async function login(context) {
   check("QA-093-000", response.status() === 200, `quick login status=${response.status()}`);
 }
 
-async function createPage(context, from, rootCode = "") {
+async function createPage(context, from, rootCode = "", viewport = null) {
   const params = new URLSearchParams({ from });
   if (rootCode) params.set("root", rootCode);
   const page = await context.newPage();
+  if (viewport) await page.setViewportSize(viewport);
   monitor(page, `${from}:${rootCode || "new"}`);
   await page.goto(`${baseUrl}/numbering/create?${params.toString()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.getByRole("heading", { name: "建立編號", exact: true }).first().waitFor({ state: "visible", timeout: 30000 });
@@ -263,16 +264,16 @@ async function runRound(round) {
   try {
     const beforeInvalidMatrix = domainSnapshot();
     const invalidMatrix = [
-      { label: "manufactured-part", body: { coreName: `INVALID_M_PART_${suffix}`, itemKind: "manufactured", drawingRequested: false } },
-      { label: "manufactured-reference", body: { coreName: `INVALID_M_R_${suffix}`, itemKind: "manufactured", drawingRequested: true, drawingPurposeCode: "R", drawingPurposeDescription: "不合法組合" } },
-      { label: "purchased-manufacturing", body: { coreName: `INVALID_P_M_${suffix}`, itemKind: "purchased", drawingRequested: true, drawingPurposeCode: "M" } },
+      { label: "manufactured-part", body: { coreName: `INVALID_M_PART_${suffix}`, itemKind: "manufactured", structureType: "single_part", drawingRequested: false } },
+      { label: "manufactured-reference", body: { coreName: `INVALID_M_R_${suffix}`, itemKind: "manufactured", structureType: "single_part", drawingRequested: true, drawingPurposeCode: "R", drawingPurposeDescription: "不合法組合" } },
+      { label: "purchased-manufacturing", body: { coreName: `INVALID_P_M_${suffix}`, itemKind: "purchased", structureType: "single_part", drawingRequested: true, drawingPurposeCode: "M" } },
     ];
     for (const invalid of invalidMatrix) {
       const response = await context.request.post(`${baseUrl}/api/numbering/records`, {
         data: invalid.body,
         headers: { "Idempotency-Key": `qa-093-invalid-${invalid.label}-${suffix}` },
       });
-      check(`QA-093-103-${invalid.label}-r${round}`, response.status() === 400, `status=${response.status()} body=${await response.text()}`);
+      check(`QA-093-103-${invalid.label}-r${round}`, response.status() === 422, `status=${response.status()} body=${await response.text()}`);
     }
     check(`QA-093-103-delta-r${round}`, JSON.stringify(domainSnapshot()) === JSON.stringify(beforeInvalidMatrix), "invalid new-root combinations leave every canonical count unchanged");
 
@@ -479,6 +480,16 @@ async function runRound(round) {
       check("QA-093-094-narrow", Boolean(narrowCheckbox && narrowCheckbox.width <= 24 && narrowCheckbox.height <= 24 && createPageBox && createPageBox.width <= 320), `checkbox=${JSON.stringify(narrowCheckbox)} page=${JSON.stringify(createPageBox)}`);
       await narrowPage.screenshot({ path: path.join(outputDir, "new-root-naming-320px.png"), fullPage: true });
       await narrowPage.close();
+
+      const narrowExistingPage = await createPage(context, "part", rootCode, { width: 320, height: 800 });
+      await narrowExistingPage.locator(".canonical-create-number-list").waitFor({ state: "visible", timeout: 30000 });
+      const narrowExistingMetrics = await narrowExistingPage.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      check("QA-093-108-narrow", narrowExistingMetrics.scrollWidth <= narrowExistingMetrics.clientWidth && await narrowExistingPage.getByRole("button", { name: "建立編號", exact: true }).count() === 1 && await narrowExistingPage.getByLabel("料號", { exact: true }).count() === 1 && await narrowExistingPage.getByLabel("圖號", { exact: true }).count() === 1 && await narrowExistingPage.getByLabel("圖號與料號", { exact: true }).count() === 1, `existing-root narrow=${JSON.stringify(narrowExistingMetrics)}`);
+      await narrowExistingPage.screenshot({ path: path.join(outputDir, "existing-root-compact-320px.png"), fullPage: true });
+      await narrowExistingPage.close();
     }
   } finally {
     await context.close();
@@ -537,4 +548,5 @@ try {
   if (app) await stopNextApp(app.child).catch(() => undefined);
   restoreEnvironment();
   fs.rmSync(tempRoot, { recursive: true, force: true });
+  if (port !== null) fs.rmSync(path.join(root, ".tmp", `qc-dev093-browser-${port}`), { recursive: true, force: true });
 }

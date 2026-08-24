@@ -20,9 +20,9 @@ Authority：`.ai-doc/specs/SPEC-PDM-CANONICAL-NUMBER-CREATION-001-unified-contex
 
 本次 new-root derivation corrective 追加驗收：新圖料不得顯示手動`建立內容`；依圖製作件固定建立 M 圖＋料號，外購標準件預設只建立料號，勾選`同時建立參考圖 R`才建立 R 圖＋料號。client intent與server必須共同阻擋所有不合法組合；既有 root追加選項不變。
 
-本次 single-source specification corrective追加驗收：UI不得同時出現`自訂規格`與`特性`。依圖製作件只顯示`規格／特性`，外購標準件只顯示`規格／型號`；同一輸入必須同時出現在建議品名、request `customSpecification`與DB `part_numbers.custom_specification`。existing-root新增Part同樣只保留一個規格輸入；drawing-only payload不得帶入。
+本次 single-source specification corrective追加驗收：new-root UI不得同時出現`自訂規格`與`特性`。依圖製作件只顯示`規格／特性`，外購標準件只顯示`規格／型號`；同一輸入必須同時出現在建議品名、request `customSpecification`與DB `part_numbers.custom_specification`。existing-root與drawing-only均不顯示或傳送規格。
 
-本次 existing-root item-kind／part-profile corrective 追加驗收：同一圖料根號下追加料號或圖號與料號時，料件類型、共用件、系列代號、規格／特性（或規格／型號）均由 root context 帶入並以單一唯讀狀態呈現；不再讓使用者重新設定。server 必須以根號第一筆 canonical 料號的 profile 為權威，缺少料號時回退至 root item kind 與空白屬性，明確類型不一致則 fail closed；追加寫入不得接受 client 改寫這四項。
+本次 existing-root quiet append corrective追加驗收：同一圖料根號下追加料號或圖號與料號時，`itemKind/structureType/isUniversal/seriesCode/customSpecification`不進UI、唯讀狀態列或canonical request。server以根號第一筆canonical Part為五項profile權威，缺少Part時採`root itemKind + single_part + false + null + null`，`unclassified`或相容payload明示不一致時fail closed。
 
 首重：
 
@@ -119,13 +119,14 @@ Authority：`.ai-doc/specs/SPEC-PDM-CANONICAL-NUMBER-CREATION-001-unified-contex
 | QA-093-100 | new-root manufactured推導 | 無`建立內容`控制；選依圖製作件後preview、request、DB與UI均為M圖＋料號，Drawing初始為0.1 |
 | QA-093-101 | new-root purchased預設 | 選外購標準件且不勾參考圖時，preview、request與DB只有root＋part，Drawing delta=0 |
 | QA-093-102 | new-root purchased參考圖 | 勾`同時建立參考圖 R`後才顯示參考用途；request與DB建立R圖＋料號且relation=reference |
-| QA-093-103 | 前後端負向矩陣 | manufactured part-only、manufactured R、purchased M在client validation與server route均400／fail closed且DB delta=0 |
+| QA-093-103 | 前後端負向矩陣 | manufactured part-only、manufactured R、purchased M在client validation與server route均422／fail closed且DB delta=0 |
 | QA-093-104 | existing-root回歸 | 既有root仍可選part／drawing／drawing_part與M／R，不受new-root推導規則誤傷 |
-| QA-093-105 | 單一規格來源 | manufactured、purchased與existing-root每個畫面都只有一個規格輸入；建議品名、request與DB值相同，舊`自訂規格`／獨立`特性`欄位不存在 |
+| QA-093-105 | 單一規格來源 | new-root manufactured／purchased每個畫面只有一個規格輸入，建議品名、request與DB值相同；existing-root不顯示或傳送規格，DB值由server繼承root profile |
 | QA-093-106 | 共用件無原因 | 共用件只勾選即可建立；UI、typed request與canonical新寫入不得出現或要求`universalReason` |
 | QA-093-107 | 全 canonical surface 無原因 | Part 編輯／審核、Part detail projection與圖號關聯追加路徑均不再顯示、要求或寫入共用原因 |
-| QA-093-108 | existing-root 類型沿用 | 同一根號追加Part時不顯示料件類型 select，顯示`料件設定（沿用根號）`；request／DB與根號`item_kind`一致，mismatch append command被拒絕 |
-| QA-093-109 | existing-root 四項 profile 沿用 | 同一根號追加Part或圖號與料號時，不顯示料件類型、共用件、系列代號、規格／特性（或規格／型號）的可編輯控制；append-policy、request與DB的四項設定均等於根號既有profile，server override不可被client值繞過 |
+| QA-093-108 | existing-root quiet append UI | 只顯示root code/name、三種建立內容、必要M/R欄、必要追加原因、單行「將建立」與一個主要動作；不得顯示五項profile控制或「沿用設定」狀態列 |
+| QA-093-109 | existing-root 五項 profile 繼承 | Part／Drawing＋Part request不帶`itemKind/structureType/isUniversal/seriesCode/customSpecification`；DB五項均等於root第一筆canonical Part，server仍拒絕明示不一致的相容payload |
+| QA-093-110 | 異常 profile fail closed | `structureType=unclassified`時append-policy回`profileBlocked=true`；UI只提示請系統管理員處理且停用提交，repository拒絕寫入，DB delta=0 |
 
 ## 5. Core UI Journeys
 
@@ -150,6 +151,8 @@ Authority：`.ai-doc/specs/SPEC-PDM-CANONICAL-NUMBER-CREATION-001-unified-contex
 | QA-093-022 | Part drawer → add drawing | 建立 | drawing +1，M/R正確 |
 | QA-093-023 | Part drawer → add drawing_part | 建立 | drawing/part/link +1 |
 | QA-093-024 | Search → existing root → add part | 建立 | 選定root的exact delta |
+
+共同UI gate：每條existing-root journey都不得出現料件類型、結構型態、共用件、系列代號、規格／特性或命名／查重區；Part-producing request不得帶入五項profile，建立後以DB readback證明server繼承。
 | QA-093-025 | Search → existing root → add M drawing_part | 建立 | formal matrix立即可見新cell |
 | QA-093-026 | R drawing append | 建立 | relation=reference，不是primary |
 | QA-093-027 | 需要 append reason | 輸入原因後建立 | receipt/audit含原因，UI不顯示技術摘要 |
@@ -295,18 +298,18 @@ PASS必須同時滿足：
 
 ## 16. Execution Evidence（2026-08-24）
 
-> **CAPA結案判定**：舊16/16 contract只保留為假陽性歷史基線；目前完成判定採新版行為／payload gate、retirement gate及兩輪fresh-session rendered-browser evidence；QA-093-096／097鎖住identity與canonical初始state必須同交易可見，QA-093-098鎖住料件條件必須先於品名且不得產生半成品建議，QA-093-099鎖住查重結果必須鄰近建議品名，QA-093-100..104鎖住new-root推導、非法組合fail closed及existing-root回歸，QA-093-105鎖住UI、建議品名、request與DB不得再有兩份規格來源，QA-093-106／107鎖住所有 canonical surface 不再需要、顯示或寫入共用原因，QA-093-108／109鎖住existing-root追加Part不得重設根號四項料件profile且mismatch fail closed。
+> **CAPA結案判定**：舊16/16 contract只保留為假陽性歷史基線；目前完成判定採新版行為／payload gate、retirement gate及兩輪fresh-session rendered-browser evidence；QA-093-096／097鎖住identity與canonical初始state必須同交易可見，QA-093-098鎖住料件條件必須先於品名且不得產生半成品建議，QA-093-099鎖住查重結果必須鄰近建議品名，QA-093-100..104鎖住new-root推導、非法組合fail closed及existing-root回歸，QA-093-105鎖住new-root單一規格來源與existing-root零規格輸入，QA-093-106／107鎖住所有canonical surface不再需要、顯示或寫入共用原因，QA-093-108～110鎖住existing-root quiet append、五項profile後端繼承與異常資料fail closed。
 
 | Evidence | 結果 | 範圍 |
 |---|---|---|
 | `npm run typecheck:app` | PASS | app type contract |
-| `npm run qc:dev-093:contract` | PASS | QA-093-001..016、073..109；typed behavior、new-root推導、非法組合、existing-root回歸、條件先行、查重鄰近呈現、命名公式、payload allowlist、全 canonical surface 無原因共用件、existing-root四項料件profile沿用、錯誤重試、stale response、two-value item kind與044/045 gate |
+| `npm run qc:dev-093:contract` | PASS | QA-093-001..016、073..110；typed behavior、new-root推導、非法組合、existing-root quiet append、條件先行、查重鄰近呈現、命名公式、payload allowlist、五項profile繼承與異常profile fail closed |
 | `npm run qc:dev-093:retirement` | PASS | legacy helper已移除、active `src` caller scan=0 |
-| `npm run qc:dev-093:browser` | PASS | disposable SQLite + 真實 Chromium；兩輪 fresh session、六種合法業務UI mutation、manufactured固定M＋part、purchased part-only／R＋part progressive disclosure、existing-root三種追加與四項根號料件profile唯讀沿用、共用件只勾選建立、三種非法組合400且DB delta=0、DB/API/UI/state reconciliation、單一規格來源UI→request→DB equality、Part formal與Drawing 0.1原子初始狀態、double-submit exactly-once、M primary／R reference link、preview/reservation stability、network/console/page error sweep；latest run `DEV093-2026-08-24T11-51-41-869Z` |
-| `npm run qc:dev-093` | PASS | behavior contract、retirement、兩輪browser aggregate；115 checks、response 577、legacy caller 0、console/page/failed request 0 |
+| `npm run qc:dev-093:browser` | PASS | disposable SQLite + 真實 Chromium；兩輪 fresh session、六種合法業務UI mutation、existing-root三種追加、五項root profile後端繼承、request零重複欄、單一主要動作、桌面與320px零水平溢位、三種非法組合422且DB delta=0、DB/API/UI/state reconciliation、double-submit exactly-once、legacy network caller=0；latest run `DEV093-2026-08-24T16-38-47-636Z` |
+| `npm run qc:dev-093` | PASS | behavior contract、retirement、兩輪browser aggregate；116 browser checks、response 601、legacy caller 0、console/page/failed request 0 |
 | `npx eslint <DEV-093 affected files>` | PASS | DEV-093 受影響 source／runner |
-| `npm run build:isolated` | PASS | 最新 Next.js production build 122/122；主資料庫雜湊 `8539356d11543c057f6902904c95557e89ef28708971dd4a9e82ec1b46248ca8` 不變，task-owned暫存runtime已清除 |
+| `npm run build:isolated` | PASS | 最新 Next.js production build 123/123；主資料庫雜湊 `d78214d8b91871ab4fafb7cc8418addb03b8af61ae552e180e9c8d20564e4e7a` 不變，task-owned暫存runtime已清除 |
 
-最新 runner 證據位於 `output/qa/dev-093/DEV093-2026-08-24T11-51-41-869Z/`（`manifest.json`、`data-reconciliation.json`、`network.json`及同層desktop／320px screenshots）。兩輪fresh session共115項check全數通過、response 577、failed request／console error／page error／legacy caller皆為0；共用件只勾選即可建立，existing-root追加Part不提供料件類型、共用件、系列代號、規格／特性（或規格／型號）控制，沿用根號既有profile，DB為`is_universal=1`且`universal_reason=null`，request不含`universalReason`。資料由roots `4→14`、parts `4→18`、drawings `4→16`、links `3→13`、part formal states `4→18`、initial Drawing works `3→15`，candidate／recovery維持0。本機corrective scope可標示 RD Complete與focused QA-QC PASS；這不授權正式PostgreSQL migration、production資料寫入、deploy或release。
+最新 runner 證據位於 `output/qa/dev-093/DEV093-2026-08-24T16-38-47-636Z/`（`manifest.json`、`data-reconciliation.json`、`network.json`、desktop及320px screenshots）。兩輪fresh session共116項check全數通過、response 601、failed request／console error／page error／legacy caller皆為0；existing-root不提供`itemKind/structureType/isUniversal/seriesCode/customSpecification`控制，request也不傳五項欄位，DB逐項等於來源canonical Part。資料由roots `4→14`、parts `4→18`、drawings `4→16`、links `3→13`、part formal states `4→18`、initial Drawing works `3→15`，candidate／recovery維持0。本機corrective scope可標示 RD Complete與focused QA-QC PASS；這不授權正式PostgreSQL migration、production資料寫入、deploy或release。
 
 本次修正的缺陷：root allocation 與 read-only preview 現在同時排除既有正式根號及非 cancelled 的 canonical `drawings` 投影；drawing allocation 亦會避開既有 `drawing_numbers`／canonical projection collision，避免舊投影造成新建號在同步階段撞唯一鍵。

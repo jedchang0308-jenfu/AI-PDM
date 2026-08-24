@@ -1013,12 +1013,49 @@ export const APPROVE_ASYNC_BOM_WORKBENCH_REVIEW_SQL = `
   WHERE id = :reviewId
 `;
 
+export type BomWorkbenchTransactionCheckpoint =
+  | "after_definition"
+  | "after_definition_binding"
+  | "after_draft"
+  | "after_draft_binding_n"
+  | "after_clone_line"
+  | "after_create_effect"
+  | "before_commit"
+  | "after_old_graph_delete"
+  | "after_tree_insert"
+  | "after_component_node"
+  | "after_candidate"
+  | "after_parent_selection"
+  | "before_editor_cas"
+  | "after_validation"
+  | "after_review_insert"
+  | "before_draft_status"
+  | "after_snapshot_header"
+  | "after_parent_snapshot"
+  | "after_resolved_line"
+  | "after_hash"
+  | "after_prior_obsolete"
+  | "before_review_approved"
+  | "after_state_cas"
+  | "after_flag_update"
+  | "after_audit";
+
+export type BomWorkbenchTransactionCheckpointHandler = (
+  point: BomWorkbenchTransactionCheckpoint,
+  context: Readonly<Record<string, unknown>>
+) => void | Promise<void>;
+
 export class AsyncBomWorkbenchRepository {
   constructor(
     private readonly client: AsyncDatabaseClient,
     private readonly clock: () => string = () => new Date().toISOString(),
-    private readonly idFactory: () => string = () => crypto.randomUUID()
+    private readonly idFactory: () => string = () => crypto.randomUUID(),
+    private readonly checkpointHandler?: BomWorkbenchTransactionCheckpointHandler
   ) {}
+
+  private async checkpoint(point: BomWorkbenchTransactionCheckpoint, context: Readonly<Record<string, unknown>> = {}) {
+    await this.checkpointHandler?.(point, context);
+  }
 
   async getWorkbenchBySubmissionId(submissionId: string): Promise<BomWorkbenchSummary | null> {
     const parent = await this.client.queryOne<BomWorkbenchParentRow>(SELECT_ASYNC_BOM_WORKBENCH_PARENT_SQL, { submissionId });
@@ -1354,6 +1391,7 @@ export class AsyncBomWorkbenchRepository {
           INSERT INTO bom_definitions (id, company_id, part_root_id, row_version, created_by, updated_by, created_at, updated_at)
           VALUES (:id, :companyId, :rootId, 1, :actorId, :actorId, :createdAt, :updatedAt)
         `, { id: definitionId, companyId: input.companyId, rootId: context.part_root_id, actorId: input.actorId, createdAt: now, updatedAt: now });
+        await this.checkpoint("after_definition", { definitionId, draftId });
       } else {
         const definition = await client.queryOne<{ company_id: string; part_root_id: string }>(`
           SELECT company_id, part_root_id FROM bom_definitions WHERE id = :definitionId ${client.kind === "postgres" ? "FOR UPDATE" : ""}
@@ -1384,6 +1422,7 @@ export class AsyncBomWorkbenchRepository {
             VALUES (:id, :companyId, :definitionId, :parentId, :revision, :actorId, :createdAt)
           `, { id: this.idFactory(), companyId: input.companyId, definitionId, parentId, revision, actorId: input.actorId, createdAt: now });
           definitionChanged = true;
+          await this.checkpoint("after_definition_binding", { definitionId, draftId, parentId });
         }
       }
       if (definitionChanged && candidates.definitionId) {
@@ -1409,12 +1448,14 @@ export class AsyncBomWorkbenchRepository {
         draftName: `${context.root_code} BOM Rev ${revision}`, editorVersion: input.baseReleaseSnapshotId ? 1 : 0,
         actorId: input.actorId, createdAt: now, updatedAt: now
       });
+      await this.checkpoint("after_draft", { definitionId, draftId });
       for (const [selectionOrder, parentId] of selectedParentIds.entries()) {
         await client.execute(`
           INSERT INTO bom_draft_parent_bindings
             (id, company_id, bom_draft_id, part_number_id, selection_order, created_by, created_at)
           VALUES (:id, :companyId, :draftId, :parentId, :selectionOrder, :actorId, :createdAt)
         `, { id: this.idFactory(), companyId: input.companyId, draftId, parentId, selectionOrder, actorId: input.actorId, createdAt: now });
+        await this.checkpoint("after_draft_binding_n", { definitionId, draftId, parentId, selectionOrder });
       }
 
       let clonedLineCount = 0;
@@ -1448,6 +1489,8 @@ export class AsyncBomWorkbenchRepository {
         idempotencyKey: input.idempotencyKey, requestFingerprint: input.requestFingerprint,
         draftId, outcomeJson: JSON.stringify({ definitionId, draftId, bomRevision: revision, parentPartNumberIds: selectedParentIds }), createdAt: now
       });
+      await this.checkpoint("after_create_effect", { definitionId, draftId });
+      await this.checkpoint("before_commit", { command: "create", definitionId, draftId });
       return { draftId, replayed: false, definitionId };
     };
 
@@ -1523,6 +1566,7 @@ export class AsyncBomWorkbenchRepository {
         source: "manual", sourcePriority: BOM_WORKBENCH_SOURCE_PRIORITY.manual, sourceRefId: null, sourceFilename: null,
         createdBy: input.actorId, updatedBy: input.actorId, createdAt: input.now, updatedAt: input.now
       });
+      await this.checkpoint("after_clone_line", { draftId: input.draftId, logicalLineId: line.logical_line_id });
     }
     for (const component of components) {
       const newNodeId = nodeIdMap.get(component.node_id);
@@ -1789,6 +1833,7 @@ export class AsyncBomWorkbenchRepository {
       await client.execute(DELETE_ASYNC_BOM_DRAFT_FLOATING_TOPICS_SQL, {
         draftId: input.draftId
       });
+      await this.checkpoint("after_old_graph_delete", { draftId: input.draftId });
 
       for (const line of normalizedLines) {
         const childItem =
@@ -1819,6 +1864,7 @@ export class AsyncBomWorkbenchRepository {
           updatedAt: now
         });
       }
+      await this.checkpoint("after_tree_insert", { draftId: input.draftId, lineCount: normalizedLines.length });
 
       for (const topic of normalizedFloatingTopics) {
         const childItem =
@@ -1868,17 +1914,20 @@ export class AsyncBomWorkbenchRepository {
             nodeLocation: component.nodeLocation, componentMode: component.componentMode,
             childRootId: [...roots][0], actorId: input.actorId, createdAt: now, updatedAt: now
           });
+          await this.checkpoint("after_component_node", { draftId: input.draftId, logicalLineId: component.logicalLineId });
           for (const [selectionOrder, childPartNumberId] of component.childPartNumberIds.entries()) {
             await client.execute(`
               INSERT INTO bom_draft_component_candidates (bom_draft_id, logical_line_id, child_part_number_id, selection_order)
               VALUES (:draftId, :logicalLineId, :childPartNumberId, :selectionOrder)
             `, { draftId: input.draftId, logicalLineId: component.logicalLineId, childPartNumberId, selectionOrder });
+            await this.checkpoint("after_candidate", { draftId: input.draftId, logicalLineId: component.logicalLineId, childPartNumberId });
           }
           for (const selection of component.parentSelections) {
             await client.execute(`
               INSERT INTO bom_draft_parent_selections (bom_draft_id, logical_line_id, parent_part_number_id, child_part_number_id)
               VALUES (:draftId, :logicalLineId, :parentPartNumberId, :childPartNumberId)
             `, { draftId: input.draftId, logicalLineId: component.logicalLineId, parentPartNumberId: selection.parentPartNumberId, childPartNumberId: selection.childPartNumberId });
+            await this.checkpoint("after_parent_selection", { draftId: input.draftId, logicalLineId: component.logicalLineId, parentPartNumberId: selection.parentPartNumberId });
           }
         }
         await client.execute(`
@@ -1903,6 +1952,7 @@ export class AsyncBomWorkbenchRepository {
         });
       }
 
+      await this.checkpoint("before_editor_cas", { draftId: input.draftId, expectedEditorVersion: input.expectedEditorVersion });
       await client.execute(UPDATE_ASYNC_BOM_WORKBENCH_DRAFT_AFTER_SAVE_SQL, {
         draftId: input.draftId,
         source: "manual",
@@ -1953,6 +2003,8 @@ export class AsyncBomWorkbenchRepository {
         }),
         createdAt: now
       });
+      await this.checkpoint("after_audit", { command: "save", draftId: input.draftId });
+      await this.checkpoint("before_commit", { command: "save", draftId: input.draftId });
     };
 
     await this.client.transaction(save);
@@ -1996,12 +2048,24 @@ export class AsyncBomWorkbenchRepository {
 
     const childIds = normalizeStableIds(input.components.flatMap((component) => component.childPartNumberIds), SHARED_BOM_LIMITS.nodes * SHARED_BOM_LIMITS.candidatesPerLine);
     const childRows = childIds.length ? await input.client.query<{
-      id: string; company_id: string; part_root_id: string; record_status: string;
+      id: string; company_id: string; part_root_id: string; item_kind: string; record_status: string; has_primary_m: number | string;
     }>(`
-      SELECT id, company_id, part_root_id, record_status FROM part_numbers
-      WHERE id IN (${childIds.map((_, index) => `:child${index}`).join(",")})
+      SELECT part.id, part.company_id, part.part_root_id, part.item_kind, part.record_status,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM drawing_part_links link
+          JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id
+          WHERE link.part_number_id = part.id
+            AND link.link_type = 'primary_manufacturing'
+            AND drawing.record_status IN ('Active','Released')
+        ) THEN 1 ELSE 0 END AS has_primary_m
+      FROM part_numbers part
+      WHERE part.id IN (${childIds.map((_, index) => `:child${index}`).join(",")})
     `, Object.fromEntries(childIds.map((childId, index) => [`child${index}`, childId]))) : [];
-    if (childRows.length !== childIds.length || childRows.some((row) => row.company_id !== input.draft.company_id || ["Obsolete", "Merged", "MainDrawingInvalid"].includes(row.record_status))) {
+    if (childRows.length !== childIds.length || childRows.some((row) =>
+      row.company_id !== input.draft.company_id
+      || !["Active", "Released"].includes(row.record_status)
+      || (row.item_kind === "manufactured" && numberValue(row.has_primary_m) !== 1)
+    )) {
       throw new SharedBomError("BOM_COMPONENT_CHILD_SCOPE_INVALID", 422);
     }
     const childById = new Map(childRows.map((row) => [row.id, row]));
@@ -2032,12 +2096,24 @@ export class AsyncBomWorkbenchRepository {
     const componentByLogicalId = new Map(draft.components.map((component) => [component.logical_line_id, component]));
     const childIds = normalizeStableIds(draft.components.flatMap((component) => component.child_part_number_ids), SHARED_BOM_LIMITS.nodes * SHARED_BOM_LIMITS.candidatesPerLine);
     const children = childIds.length ? await client.query<{
-      id: string; company_id: string; part_number: string; part_name: string; record_status: string;
+      id: string; company_id: string; part_number: string; part_name: string; item_kind: string; record_status: string; has_primary_m: number | string;
     }>(`
-      SELECT id, company_id, part_number, part_name, record_status FROM part_numbers
-      WHERE id IN (${childIds.map((_, index) => `:child${index}`).join(",")})
+      SELECT part.id, part.company_id, part.part_number, part.part_name, part.item_kind, part.record_status,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM drawing_part_links link
+          JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id
+          WHERE link.part_number_id = part.id
+            AND link.link_type = 'primary_manufacturing'
+            AND drawing.record_status IN ('Active','Released')
+        ) THEN 1 ELSE 0 END AS has_primary_m
+      FROM part_numbers part
+      WHERE part.id IN (${childIds.map((_, index) => `:child${index}`).join(",")})
     `, Object.fromEntries(childIds.map((childId, index) => [`child${index}`, childId]))) : [];
-    if (children.length !== childIds.length || children.some((child) => child.company_id !== draft.company_id || ["Obsolete", "Merged", "MainDrawingInvalid"].includes(child.record_status))) {
+    if (children.length !== childIds.length || children.some((child) =>
+      child.company_id !== draft.company_id
+      || !["Active", "Released"].includes(child.record_status)
+      || (child.item_kind === "manufactured" && numberValue(child.has_primary_m) !== 1)
+    )) {
       throw new SharedBomError("BOM_COMPONENT_CHILD_SCOPE_INVALID", 409);
     }
     const childById = new Map(children.map((child) => [child.id, child]));
@@ -2205,12 +2281,9 @@ export class AsyncBomWorkbenchRepository {
           || numberValue(locked.row_version) !== definitionRowVersion) {
           throw new SharedBomError("BOM_REVIEW_SNAPSHOT_STALE", 409);
         }
+        await this.buildSharedEvidence(draft, client);
       }
-      await client.execute(SUBMIT_ASYNC_BOM_WORKBENCH_DRAFT_REVIEW_SQL, {
-        draftId: input.draftId,
-        updatedBy: input.actorId,
-        updatedAt: now
-      });
+      await this.checkpoint("after_validation", { command: "submit", draftId: input.draftId, reviewId });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_REVIEW_SQL, {
         id: reviewId,
         draftId: input.draftId,
@@ -2237,6 +2310,13 @@ export class AsyncBomWorkbenchRepository {
           reviewSnapshotHash: reviewSnapshot.hash
         });
       }
+      await this.checkpoint("after_review_insert", { command: "submit", draftId: input.draftId, reviewId });
+      await this.checkpoint("before_draft_status", { command: "submit", draftId: input.draftId, reviewId });
+      await client.execute(SUBMIT_ASYNC_BOM_WORKBENCH_DRAFT_REVIEW_SQL, {
+        draftId: input.draftId,
+        updatedBy: input.actorId,
+        updatedAt: now
+      });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
         id: this.idFactory(),
         draftId: input.draftId,
@@ -2247,6 +2327,8 @@ export class AsyncBomWorkbenchRepository {
         reason: changeReason,
         createdAt: now
       });
+      await this.checkpoint("after_audit", { command: "submit", draftId: input.draftId, reviewId });
+      await this.checkpoint("before_commit", { command: "submit", draftId: input.draftId, reviewId });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
         submissionId: auditSubmissionId(draft),
@@ -2306,6 +2388,7 @@ export class AsyncBomWorkbenchRepository {
         changeReason: reason,
         submittedAt: now
       });
+      await this.checkpoint("after_state_cas", { command: "obsolete_request", draftId: input.draftId, reviewId });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
         id: this.idFactory(),
         draftId: input.draftId,
@@ -2331,6 +2414,8 @@ export class AsyncBomWorkbenchRepository {
         }),
         createdAt: now
       });
+      await this.checkpoint("after_audit", { command: "obsolete_request", draftId: input.draftId, reviewId });
+      await this.checkpoint("before_commit", { command: "obsolete_request", draftId: input.draftId, reviewId });
     };
 
     await this.client.transaction(requestObsolete, { serializable: Boolean(draft.definition_id) });
@@ -2352,6 +2437,7 @@ export class AsyncBomWorkbenchRepository {
         resolvedAt: now,
         resolvedBy: input.actorId
       });
+      await this.checkpoint("after_flag_update", { command: "reconfirm", draftId: input.draftId });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
         id: this.idFactory(),
         draftId: input.draftId,
@@ -2374,6 +2460,8 @@ export class AsyncBomWorkbenchRepository {
         }),
         createdAt: now
       });
+      await this.checkpoint("after_audit", { command: "reconfirm", draftId: input.draftId });
+      await this.checkpoint("before_commit", { command: "reconfirm", draftId: input.draftId });
     };
 
     await this.client.transaction(confirm, { serializable: Boolean(draft.definition_id) });
@@ -2570,6 +2658,7 @@ export class AsyncBomWorkbenchRepository {
         UPDATE bom_drafts SET status = 'Obsolete', is_active = 0, updated_by = :actorId, updated_at = :updatedAt
         WHERE definition_id = :definitionId AND status = 'Released'
       `, { definitionId: draft.definition_id, actorId: command.actorId, updatedAt: now });
+      await this.checkpoint("after_prior_obsolete", { command: "approve", draftId: draft.id, reviewId: review.id, snapshotId });
       await client.execute(`
         INSERT INTO bom_release_snapshots (
           id, bom_draft_id, company_id, definition_id, owner_part_number_id, bom_revision,
@@ -2597,12 +2686,14 @@ export class AsyncBomWorkbenchRepository {
         resolvedProjectionJson: resolvedProjection.json,
         snapshotHash: snapshotEvidence.hash
       });
+      await this.checkpoint("after_snapshot_header", { command: "approve", draftId: draft.id, reviewId: review.id, snapshotId });
       for (const parent of evidence.parents) {
         await client.execute(`
           INSERT INTO bom_release_parent_snapshots
             (release_snapshot_id, parent_part_number_id, definition_id, parent_part_number, parent_part_name, selection_order)
           VALUES (:snapshotId, :parentPartNumberId, :definitionId, :partNumber, :partName, :selectionOrder)
         `, { snapshotId, parentPartNumberId: parent.part_number_id, definitionId: draft.definition_id, partNumber: parent.part_number, partName: parent.part_name, selectionOrder: parent.selection_order });
+        await this.checkpoint("after_parent_snapshot", { command: "approve", snapshotId, parentPartNumberId: parent.part_number_id });
       }
       for (const projection of evidence.resolved) {
         for (const line of projection.lines) {
@@ -2624,9 +2715,12 @@ export class AsyncBomWorkbenchRepository {
             childPartName: line.childPartName, groupName: line.groupName, quantity: line.quantity,
             sequenceNo: line.sequenceNo, level: line.level
           });
+          await this.checkpoint("after_resolved_line", { command: "approve", snapshotId, parentPartNumberId: projection.parentPartNumberId, logicalLineId: line.logicalLineId });
         }
       }
+      await this.checkpoint("after_hash", { command: "approve", snapshotId, snapshotHash: snapshotEvidence.hash });
       await client.execute(RELEASE_ASYNC_BOM_WORKBENCH_DRAFT_SQL, { draftId: draft.id, updatedBy: command.actorId, updatedAt: now });
+      await this.checkpoint("before_review_approved", { command: "approve", draftId: draft.id, reviewId: review.id, snapshotId });
       await client.execute(APPROVE_ASYNC_BOM_WORKBENCH_REVIEW_SQL, {
         reviewId: review.id, reviewedBy: command.actorId, decisionReason: decisionReason || null, reviewedAt: now
       });
@@ -2646,6 +2740,8 @@ export class AsyncBomWorkbenchRepository {
         }),
         createdAt: now
       });
+      await this.checkpoint("after_audit", { command: "approve", draftId: draft.id, reviewId: review.id, snapshotId });
+      await this.checkpoint("before_commit", { command: "approve", draftId: draft.id, reviewId: review.id, snapshotId });
     };
     await this.client.transaction(approve, { serializable: true });
     return { review: await this.getReviewById(review.id), draft: await this.getDraftById(draft.id), snapshotId };
@@ -2686,6 +2782,7 @@ export class AsyncBomWorkbenchRepository {
             updatedAt: now
           });
         }
+        await this.checkpoint("after_state_cas", { command: "obsolete_approve", draftId: draft.id, reviewId: input.reviewId });
         await client.execute(APPROVE_ASYNC_BOM_WORKBENCH_REVIEW_SQL, {
           reviewId: input.reviewId,
           reviewedBy: input.actorId,
@@ -2717,6 +2814,8 @@ export class AsyncBomWorkbenchRepository {
           }),
           createdAt: now
         });
+        await this.checkpoint("after_audit", { command: "obsolete_approve", draftId: draft.id, reviewId: input.reviewId });
+        await this.checkpoint("before_commit", { command: "obsolete_approve", draftId: draft.id, reviewId: input.reviewId });
       };
 
       await this.client.transaction(approveObsolete, { serializable: Boolean(draft.definition_id) });
@@ -2908,6 +3007,7 @@ export class AsyncBomWorkbenchRepository {
         updatedBy: input.actorId,
         updatedAt: now
       });
+      await this.checkpoint("after_state_cas", { command: "archive", draftId: input.draftId });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
         id: this.idFactory(),
         draftId: input.draftId,
@@ -2933,6 +3033,8 @@ export class AsyncBomWorkbenchRepository {
         }),
         createdAt: now
       });
+      await this.checkpoint("after_audit", { command: "archive", draftId: input.draftId });
+      await this.checkpoint("before_commit", { command: "archive", draftId: input.draftId });
     };
 
     await this.client.transaction(archive, { serializable: Boolean(before.definition_id) });
@@ -2976,6 +3078,7 @@ export class AsyncBomWorkbenchRepository {
           updatedAt: now
         });
       }
+      await this.checkpoint("after_state_cas", { command: "restore", draftId: input.draftId });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
         id: this.idFactory(),
         draftId: input.draftId,
@@ -3001,6 +3104,8 @@ export class AsyncBomWorkbenchRepository {
         }),
         createdAt: now
       });
+      await this.checkpoint("after_audit", { command: "restore", draftId: input.draftId });
+      await this.checkpoint("before_commit", { command: "restore", draftId: input.draftId });
     };
 
     await this.client.transaction(restore, { serializable: Boolean(before.definition_id) });

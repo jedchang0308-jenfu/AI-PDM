@@ -303,7 +303,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
   }
 
   const access = await resolveAccess(request, context, reviewRequestId);
-  if (access.response || !access.actorId || !access.companyId) return access.response;
+  if (access.response) return access.response;
+  if (!access.actorId || !access.companyId) {
+    return jsonError("READ_ACCESS_REQUIRED", "沒有讀取權限。", 403);
+  }
   const { fileAssetId: rawFileAssetId } = await params;
   const fileAssetId = decodeURIComponent(rawFileAssetId);
   const client = getAsyncDatabaseClient();

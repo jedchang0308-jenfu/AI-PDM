@@ -179,7 +179,7 @@ type NameSuggestionDraft = {
 - `建議品名`唯讀即時更新，提供一個就地次要動作`套用建議品名`；套用只覆寫`確定品名`。
 - `確定品名`可由使用者再微調，最大 300 字；提交時映射為唯一 `coreName`，並由既有 domain 同步為同根料號預設品名。
 - 規格只有一個可見來源。依圖製作件標示`規格／特性（選填）`，外購標準件標示`規格／型號（選填）`；該值在建議品名中分別映射為`feature`或`specificationModel`，提交時同時映射為既有`customSpecification`。不得另顯示`自訂規格`、另維護`nameFeature`／`nameSpecificationModel`狀態，或讓品名與主資料規格互相矛盾。
-- existing-root追加料號／圖號與料號時沒有品名建議器；根號既有四項料件profile唯讀沿用，只顯示`料件設定（沿用根號）`狀態，不再要求使用者重選或輸入；drawing-only不顯示也不得送出Part欄位。
+- existing-root追加料號／圖號與料號時沒有品名建議器，也不顯示或送出任何料件profile欄位／唯讀狀態列；server直接繼承root canonical Part。drawing-only同樣不得送出Part欄位。
 - 相似品名查重只在 `new_root` 執行。組合中先檢查最新建議品名；確定品名被套用或手動修改後改查最終確定品名。命中只警示並列出最多五筆候選的編號、品名與相似度，不阻擋建立；service 失敗顯示`暫時無法查重`與`重新查重`。
 - `existing_root` 是使用者明確沿用既有圖料，不顯示建議器、不執行品名查重，也不把 root 自身判為重複。
 
@@ -458,7 +458,7 @@ client不得把非 2xx一律顯示成「系統切換中」。錯誤訊息必須�
 ### Phase 093-G：New-root content derivation
 
 - 移除新圖料的`建立內容`選擇，改由料件類型與外購參考圖 checkbox推導 typed intent。
-- client contract與server route共同阻擋 manufactured part-only、manufactured R及purchased M。
+- client contract與server route共同阻擋 manufactured part-only、manufactured R及purchased M；server依目前validation contract回422。
 - 以 rendered UI驗證 manufactured M bundle、purchased part-only與purchased R bundle三條新圖料路徑。
 
 Gate：QA-093-100..104與兩輪 fresh-session UI／DB／API reconciliation全部通過。
@@ -520,12 +520,13 @@ Gate：QA-093-108～110、兩輪fresh-session existing-root UI無五項重複設
 - 已完成 Phase 093-A～093-C 的本機實作：typed intent、canonical preview helper／route、`/numbering/create` progressive form、header／search／drawer安全導向入口、既有 root append adapter與 M/R relation guard。
 - `CanonicalNumberingCreateAction` 已不再持有 modal、local mutation或 legacy query auto-open；drawer context action沿用關聯矩陣 dirty-navigation guard。
 - `append-policy` 已切換至 `src/lib/numbering-preview.ts`；舊 `src/lib/number-candidate-preview.ts` 已在 caller=0後移除。canonical preview不讀取 `number_candidate_reservations`，不寫 sequence、reservation、audit或outbox。
-- focused evidence：`npm run typecheck:app` PASS；`npm run qc:dev-093:contract`行為gate PASS（含QA-093-100..109）；`npm run qc:dev-093:retirement` PASS（active src caller=0）；affected ESLint PASS；`npm run build:isolated` 122/122 PASS且主資料庫雜湊不變；`npm run qc:dev-093` aggregate PASS（disposable SQLite + 真實 Chromium，兩輪 fresh session、六種合法業務mutation、共用件只勾選建立、existing-root四項料件profile唯讀沿用、三種非法組合400且DB delta=0、DB/API/UI/workbench-state reconciliation、single-source specification UI→request→DB equality、double-submit exactly-once、M primary／R reference relation、preview/reservation stability、legacy caller=0、network/console/page error sweep）。最新 evidence 位於 `output/qa/dev-093/DEV093-2026-08-24T11-51-41-869Z/`；115項check全數通過、response 577，且共用件DB為`is_universal=1`、`universal_reason=null`、request不含`universalReason`。資料由roots `4→14`、parts `4→18`、drawings `4→16`、links `3→13`、part formal states `4→18`、initial Drawing works `3→15`，candidate／recovery維持0。
+- focused evidence：`npm run typecheck:app` PASS；`npm run qc:dev-093:contract`行為gate PASS（含QA-093-100..110）；`npm run qc:dev-093:retirement` PASS（active src caller=0）；affected ESLint PASS；`npm run build:isolated` 123/123 PASS且主資料庫雜湊不變；`npm run qc:dev-093` aggregate PASS（disposable SQLite + 真實 Chromium，兩輪 fresh session、六種合法業務mutation、existing-root quiet append五項profile後端繼承、三種非法組合422且DB delta=0、DB/API/UI/workbench-state reconciliation、double-submit exactly-once、desktop／320px、legacy caller=0、network/console/page error sweep）。最新 evidence 位於 `output/qa/dev-093/DEV093-2026-08-24T16-38-47-636Z/`；116項browser check全數通過、response 601。資料由roots `4→14`、parts `4→18`、drawings `4→16`、links `3→13`、part formal states `4→18`、initial Drawing works `3→15`，candidate／recovery維持0。
 - allocator repair：root allocation與new-root preview會排除正式根號及非`cancelled`的canonical `drawings` projection；drawing allocation會避開既有`drawing_numbers`與active canonical projection collision，避免舊投影在正式同步階段造成唯一鍵衝突。
 - item-kind consolidation：canonical form／change work／numbering APIs 現在只接受 `manufactured|purchased` compatibility codes，人類標籤固定為`依圖製作件|外購標準件`；`outsourced|custom`確定映射至`manufactured`，舊`shared`因缺少基礎分類語意不得猜測，須先由 provider-aware converter 明確分類並保留`isUniversal=true`。fresh schema、`044`正式料件 migration與`045`change-control draft migration已補上，正式套用仍須通過 unresolved=0、100% reconciliation與release gate。
 - Phase 093-E已完成：typed discriminated union、兩類命名公式、系列清單／自創、條件先行再命名、無主要名詞不產生半成品建議、建議套用、確定品名、5筆相似候選、field allowlist、AbortController stale-response防護、fail-closed policy與正常尺寸共用件checkbox均落地。
 - Phase 093-F已完成：新建Part同交易建立`part_formal`；新建Drawing同交易建立canonical`0.1` RD owner work。2026-08-24兩輪fresh-session browser run已證明UI建號後可立即在對應工作臺看到actual identity與`研發版 0.1`，且沒有legacy caller、reservation mutation、console/page/network error。
 - Phase 093-G已完成：新圖料UI不再顯示冗餘`建立內容`；manufactured固定送出M圖＋料號，purchased預設料號且只有勾選參考圖後才送出R圖＋用途。typed contract與server route共同fail closed，existing-root三種追加選項回歸通過。
-- Phase 093-H已完成：新圖料與existing-root新增Part均只有一個規格輸入；依圖製作件顯示`規格／特性`、外購標準件顯示`規格／型號`。同一值已在兩輪fresh session中證明同步驅動建議品名、request `customSpecification`與DB `part_numbers.custom_specification`；drawing-only payload仍不帶入。
+- Phase 093-H已完成：新圖料只有一個規格輸入；依圖製作件顯示`規格／特性`、外購標準件顯示`規格／型號`。同一值已在兩輪fresh session中證明同步驅動建議品名、request `customSpecification`與DB `part_numbers.custom_specification`；existing-root與drawing-only payload均不帶入。
 - Phase 093-I已完成：共用件改為純勾選，不再顯示或要求`共用原因`；canonical create 的 UI、typed intent、request與新增資料均不含`universalReason`。既有`universal_reason`欄位暫保為歷史資料相容，未執行破壞性schema刪除。
+- Phase 093-J～L已完成：existing-root只顯示根號、建立內容、必要M／R欄、必要追加原因、單行「將建立」及一個主要動作；五項Part profile不進UI與canonical request，server在transaction內完整繼承。`unclassified`以UI提示＋repository雙層fail closed；desktop與320px rendered evidence均通過且無水平溢位。
 - 本機corrective scope已完成並通過focused QA/QC；父canonical command既有permission／company／idempotency／concurrency guard維持不變。正式PostgreSQL migration rehearsal、production data reconciliation、deploy與release不包含在本完成判定，仍須獨立授權。

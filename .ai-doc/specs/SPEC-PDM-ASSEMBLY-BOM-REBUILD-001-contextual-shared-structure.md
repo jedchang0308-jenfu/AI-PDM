@@ -1,6 +1,6 @@
 # SPEC-PDM-ASSEMBLY-BOM-REBUILD-001：組立件情境式共用 BOM 重建
 
-狀態：RD Implementation Ready / Human Confirmed / Local Implementation Eligible / RD Not Started / Production Release Gated
+狀態：RD Implementation Complete / Human Confirmed / Local QA-QC Complete / Production Migration & Release Gated
 
 DEV：`DEV-096`
 
@@ -154,8 +154,9 @@ structureType: "single_part" | "assembly"
 ### 5.2 Existing-root
 
 - 只新增Drawing時不輸入structure type。
-- 新增Part或Drawing＋Part時，structure type必填；item kind繼承root既有規則，structure type不從檔案或同root其他Part靜默推導。
-- UI可以在同root active Parts結構型態一致時預選，但提交payload仍必須明示；server以新Part輸入為authority。
+- 新增Part或Drawing＋Part時，使用者不重複設定structure type；canonical UI與request均省略此欄，server在交易內從同root第一筆canonical Part繼承。根號尚無Part時固定採`single_part`安全預設，若要建立assembly必須先由受控Part change flow調整。
+- 同一root的structure type不由檔案推導，也不由新增畫面的client輸入改寫；Part Number仍是authority。相容client若明示structure type，只能作一致性assertion，不一致時以`PART_ROOT_STRUCTURE_TYPE_MISMATCH`拒絕。
+- root既有Part為`unclassified`時不得猜測；append-policy標示blocked，UI提示請系統管理員處理，repository以`PART_ROOT_STRUCTURE_TYPE_UNCLASSIFIED`拒絕且zero write。
 - 既有Part改`single_part ↔ assembly`不走建號command；必須進入現有Part change work／review。若有current／released BOM applicability，改回single_part必須fail closed，直到受控obsolete／detach完成。
 
 ### 5.3 Migration classification
@@ -655,8 +656,8 @@ schema version 2 hash輸入固定為：
 ### 17.1 Numbering
 
 - 新增`src/lib/numbering-structure-type.ts`，export `NumberingStructureType = "single_part" | "assembly"`、parser、options及label；禁止把值塞入`numbering-item-kind.ts`形成混合enum。
-- `CanonicalNumberingCreateIntent`、`CreateNumberingRecordInput`、`AddPartNumberInput`、`AddDrawingAndPartToRootInput`新增`structureType`。New-root及existing-root的Part-producing command為required；drawing-only DTO不得有此欄。
-- `POST /api/numbering/records`、`POST /api/numbering/roots/[rootCode]/parts`、`POST /api/numbering/roots/[rootCode]/drawing-part`及目前相容`drawings/[drawingNumber]/parts` route都需parse／驗證／傳遞；preview回傳`structureType`與預估Part output。
+- `CanonicalNumberingCreateIntent`、`CreateNumberingRecordInput`新增required `structureType`供new-root使用；`AddPartNumberInput`、`AddDrawingAndPartToRootInput`保留optional compatibility assertion，canonical existing-root request省略；drawing-only DTO不得有此欄。
+- `POST /api/numbering/records`必須parse／驗證／傳遞；`POST /api/numbering/roots/[rootCode]/parts`、`POST /api/numbering/roots/[rootCode]/drawing-part`及目前相容`drawings/[drawingNumber]/parts`只在client明示時驗證一致性，實際寫入值由server root profile決定；preview回傳new-root `structureType`與預估Part output。
 - repository INSERT、receipt、audit payload與idempotency fingerprint必須包含structure type。`purchased+assembly`在取得sequence／建立root之前即422，DB delta=0。
 
 ### 17.2 Part detail
@@ -1062,4 +1063,4 @@ Drawing drawer永遠沒有create按鈕；可先透過既有圖料矩陣選到exa
 5. list/diff cardinality、no-N+1 query budget、payload bounds、Part drawer／dialog／workbench完整UI state。
 6. provider-specific additive DDL方式及不依賴crosswalk的deterministic migration IDs。
 
-以上條款與前文衝突時，以§23～28較具體條款為Current Phase實作authority。Human decision gaps仍為0；QA分母同步擴充為88 cases。狀態維持`RD Implementation Ready / Local Implementation Eligible / RD Not Started / Production Release Gated`，不代表產品已實作或允許正式migration／activation／release。
+以上條款與前文衝突時，以§23～28較具體條款為Current Phase實作authority。Human decision gaps仍為0；QA分母為88 cases。096-A～E已完成本機實作與隔離QA/QC，fresh aggregate 88/88 PASS、P0/P1=0、Blocked=0、Not Run=0；此完成狀態不授權正式migration、feature activation、deploy或release。

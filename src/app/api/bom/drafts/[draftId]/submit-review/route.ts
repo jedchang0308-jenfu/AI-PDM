@@ -4,6 +4,7 @@ import { canEditBomDraftRecordAsync } from "@/lib/bom-create-context";
 import { BomFloatingTopicsUnresolvedError, getBomWorkbenchDraftByIdAsync, submitBomWorkbenchDraftReviewAsync } from "@/lib/bom-workbench-async";
 import { isAssemblySharedBomV1Enabled } from "@/lib/assembly-bom-feature";
 import { authorizeSharedBomHttpAsync, sharedBomHttpError } from "@/lib/bom-shared-http";
+import { SharedBomError } from "@/lib/bom-shared-structure";
 
 export const runtime = "nodejs";
 
@@ -43,6 +44,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
         },
         { status: 409 }
       );
+    }
+    if (error instanceof SharedBomError) {
+      return sharedBomHttpError(error.code, error.status, error.details);
     }
     return NextResponse.json({ error: error instanceof Error ? error.message : "BOM_REVIEW_SUBMIT_FAILED" }, { status: 400 });
   }

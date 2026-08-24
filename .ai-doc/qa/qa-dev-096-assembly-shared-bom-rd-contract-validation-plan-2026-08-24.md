@@ -1,6 +1,8 @@
 # QA DEV-096：組立件情境式共用 BOM 驗證計畫
 
-狀態：QA Plan Ready / RD Implementation Ready / Not Executed / Production Release Gated
+狀態：Local QA-QC Executed / 88 of 88 PASS / P0-P1 0 / Production Release Gated
+
+執行結論：096-A～E在task-owned隔離環境完成。最終fresh aggregate為`output/qa/dev-096-aggregate/DEV096-2026-08-24T17-00-05-541Z/`；88/88 PASS、Blocked=0、Not Run=0。SQLite與disposable PostgreSQL均執行實際repository mutation；42個named fault checkpoint、四viewport Chromium、consumer exact projection、provider migration parity、typecheck與primary invariant皆通過。正式migration、feature activation、deploy與release未執行。
 
 對應：`.ai-doc/specs/SPEC-PDM-ASSEMBLY-BOM-REBUILD-001-contextual-shared-structure.md`
 
@@ -31,9 +33,9 @@ Out of scope：`.SLDASM` parser、CAD proposal、purchased assembly、cross-root
 | QA-096-002 | manufactured＋assembly new-root | Part＋M＋primary relation＋assembly同transaction |
 | QA-096-003 | purchased＋single_part，無／有R | 沿用DEV-093合法結果；BOM action=0 |
 | QA-096-004 | purchased＋assembly | 422；sequence/root/Part/Drawing/link delta=0 |
-| QA-096-005 | missing／invalid structureType | 422；zero write |
+| QA-096-005 | new-root missing／invalid structureType | 422；zero write |
 | QA-096-006 | create idempotency replay／same key different structure | exact replay／409 conflict；不重複建號 |
-| QA-096-007 | existing-root add Part／Drawing＋Part | structureType明示且server保存；drawing-only不要求 |
+| QA-096-007 | existing-root add Part／Drawing＋Part | UI／canonical request不顯示也不傳structureType；server繼承root canonical Part，unclassified阻擋，drawing-only不受影響 |
 | QA-096-008 | existing Part single→assembly／assembly→single | 只走Part change work；current BOM存在時assembly→single被阻擋 |
 | QA-096-009 | Part detail server action matrix | single／unclassified／inactive none；assembly create/open；anomaly blocked |
 | QA-096-010 | Drawing drawer | 所有情境BOM action=0；可由matrix選到exact Part |

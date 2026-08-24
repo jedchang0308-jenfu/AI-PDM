@@ -3789,8 +3789,19 @@ export class AsyncNumberingRepository {
   constructor(
     private readonly client: AsyncDatabaseClient,
     private readonly clock: () => string = () => new Date().toISOString(),
-    private readonly idFactory: () => string = () => crypto.randomUUID()
+    private readonly idFactory: () => string = () => crypto.randomUUID(),
+    private readonly transactionCheckpoint?: (
+      point: "before_sequence" | "after_root" | "after_part" | "after_drawing" | "after_relation",
+      context: Readonly<Record<string, unknown>>
+    ) => void | Promise<void>
   ) {}
+
+  private async checkpoint(
+    point: "before_sequence" | "after_root" | "after_part" | "after_drawing" | "after_relation",
+    context: Readonly<Record<string, unknown>> = {}
+  ) {
+    await this.transactionCheckpoint?.(point, context);
+  }
 
   private async getRootAppendPartProfile(client: AsyncDatabaseClient, rootRow: PartRootRow): Promise<RootAppendPartProfile> {
     const firstPart = await client.queryOne<PartNumberRow>(SELECT_ASYNC_FIRST_PART_NUMBER_FOR_ROOT_SQL, { rootId: rootRow.id });
@@ -3899,6 +3910,7 @@ export class AsyncNumberingRepository {
         return recentDuplicate;
       }
 
+      await this.checkpoint("before_sequence", { command: "createNumberingRecord", companyId });
       const root = await this.insertPartRoot(client, {
         coreName: rootName,
         companyId,
@@ -3907,6 +3919,7 @@ export class AsyncNumberingRepository {
         ruleVersionId,
         createdBy: input.createdBy
       });
+      await this.checkpoint("after_root", { command: "createNumberingRecord", rootId: root.id });
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
         itemKind: input.itemKind,
@@ -3919,6 +3932,7 @@ export class AsyncNumberingRepository {
         ruleVersionId,
         createdBy: input.createdBy
       });
+      await this.checkpoint("after_part", { command: "createNumberingRecord", rootId: root.id, partNumberId: partNumber.id });
       const drawingNumber = input.drawingPurposeCode
         ? await this.insertDrawingNumber(client, root, {
             purposeCode: input.drawingPurposeCode,
@@ -3929,9 +3943,11 @@ export class AsyncNumberingRepository {
           })
         : null;
 
+      await this.checkpoint("after_drawing", { command: "createNumberingRecord", rootId: root.id, drawingNumberId: drawingNumber?.id ?? null });
       if (drawingNumber) {
         await this.linkDrawingToPart(client, { drawing: drawingNumber, part: partNumber, createdBy: input.createdBy });
       }
+      await this.checkpoint("after_relation", { command: "createNumberingRecord", rootId: root.id, drawingNumberId: drawingNumber?.id ?? null, partNumberId: partNumber.id });
 
       await this.insertAudit(client, {
         actorId: input.createdBy,

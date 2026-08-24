@@ -10,6 +10,7 @@ import {
 } from "@/lib/bom-workbench-async";
 import { isAssemblySharedBomV1Enabled } from "@/lib/assembly-bom-feature";
 import { sharedBomHttpError } from "@/lib/bom-shared-http";
+import { SharedBomError } from "@/lib/bom-shared-structure";
 
 export const runtime = "nodejs";
 
@@ -70,6 +71,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ rev
         { error: error.message, floatingTopicCount: error.floatingTopicCount },
         { status: 409 }
       );
+    }
+    if (error instanceof SharedBomError) {
+      return sharedBomHttpError(error.code, error.status, error.details);
     }
     return NextResponse.json({ error: error instanceof Error ? error.message : "BOM_REVIEW_APPROVE_FAILED" }, { status: 400 });
   }
