@@ -1,6 +1,13 @@
 import type { LifecycleActionPolicy, LifecycleDetailTag } from "@/lib/pdm-lifecycle-policy";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
+import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
+import {
+  applyReplacementAttachmentSnapshotAsync,
+  promoteReplacementPartAttachmentsAsync,
+  ReplacementAttachmentSnapshotError,
+  type ReplacementAttachmentSnapshotInput
+} from "@/lib/replacement-part-attachments";
 import { NUMBERING_RULE_V2_ID, NUMBERING_RULE_V3_ID, parseNumberingIdentity } from "./numbering-identity.ts";
 
 function parseCompactPartNumber(value: string): { rootCode: string; sequenceCode: string; ruleVersionId: string } | null {
@@ -22,7 +29,12 @@ export interface PdmChangeControlDatabaseClient {
 }
 
 export type PartNumberDraftType = "new_part" | "replacement_part" | "drawing_revision_generated";
-export type PartNumberDraftItemType = "self_made" | "purchased" | "standard";
+/**
+ * Legacy change-control drafts now use the same two human-facing base kinds
+ * as canonical numbering. Shared-ness is a separate part attribute, never a
+ * draft item type.
+ */
+export type PartNumberDraftItemType = "self_made" | "purchased";
 export type PartNumberDraftStatus = "draft" | "pending_review" | "released" | "needs_reconfirmation" | "voided";
 export type DrawingRevisionFffState = "no_impact" | "suspected_impact" | "confirmed_impact";
 export type DrawingRevisionFffOutcome = "no_impact" | "suspected_impact" | "confirmed_impact";
@@ -101,6 +113,7 @@ export type ReservePartNumberDraftInput = {
   sourceRevision?: string | null;
   useType?: string | null;
   departmentId?: string | null;
+  attachmentSnapshot?: ReplacementAttachmentSnapshotInput | null;
   actor: PdmChangeControlActorContext;
 };
 
@@ -148,6 +161,7 @@ export type SubmitDrawingRevisionFffAssessmentInput = {
   replacementItemType?: PartNumberDraftItemType;
   detectedPartNumber?: string | null;
   correctedPartNumber?: string | null;
+  attachmentSnapshot?: ReplacementAttachmentSnapshotInput | null;
   actor: PdmChangeControlActorContext;
 };
 
@@ -283,6 +297,13 @@ export class PdmChangeControlError extends Error {
   }
 }
 
+function rethrowReplacementAttachmentError(error: unknown): never {
+  if (error instanceof ReplacementAttachmentSnapshotError) {
+    throw new PdmChangeControlError(error.code, error.message);
+  }
+  throw error;
+}
+
 function normalizeCompanyId(actor: PdmChangeControlActorContext) {
   return actor.companyId?.trim() || DEFAULT_COMPANY_ID;
 }
@@ -293,13 +314,27 @@ function normalizeRequiredText(value: string, code: string) {
   return normalized;
 }
 
+function normalizeDraftItemType(value: unknown): PartNumberDraftItemType {
+  // Existing local rows may still carry the retired `standard` value until
+  // the formal migration runs. `self_made` is now a compatibility code for
+  // the human category "依圖製作件"; `purchased` means "外購標準件".
+  // Production migration 045 remains fail-closed for unknown data.
+  return String(value ?? "").trim() === "self_made" ? "self_made" : "purchased";
+}
+
+function requireDraftItemType(value: unknown): PartNumberDraftItemType {
+  const normalized = String(value ?? "").trim();
+  if (normalized === "self_made" || normalized === "purchased") return normalized;
+  throw new PdmChangeControlError("invalid_part_number_draft_item_type", "Only self_made or purchased is supported");
+}
+
 function mapDraft(row: PartNumberDraftRow): PartNumberDraftRecord {
   return {
     id: row.id,
     companyId: row.company_id,
     reservedPartNumber: row.reserved_part_number,
     draftType: row.draft_type,
-    itemType: row.item_type,
+    itemType: normalizeDraftItemType(row.item_type),
     status: row.status,
     sourcePartNumberId: row.source_part_number_id,
     sourceDrawingNumberId: row.source_drawing_number_id,
@@ -375,8 +410,7 @@ function fffOutcome(states: DrawingRevisionFffState[]): DrawingRevisionFffOutcom
 
 function itemKindForDraftItemType(itemType: PartNumberDraftItemType) {
   if (itemType === "self_made") return "manufactured";
-  if (itemType === "purchased") return "purchased";
-  return "custom";
+  return "purchased";
 }
 
 function buildPartNumberDraftLifecyclePolicyFromDomain(input: {
@@ -557,6 +591,21 @@ export class PdmChangeControlDomainService {
     const now = this.clock();
     const draftId = this.idFactory();
     const reservedPartNumber = normalizeRequiredText(input.reservedPartNumber, "reserved_part_number_required");
+    const itemType = requireDraftItemType(input.itemType);
+    const replacementDraft = input.draftType === "replacement_part" || input.draftType === "drawing_revision_generated";
+    const sourcePartNumberId = input.sourcePartNumberId?.trim() || null;
+    if (replacementDraft && !sourcePartNumberId) {
+      throw new PdmChangeControlError("replacement_attachment_source_required");
+    }
+    if (replacementDraft && !input.attachmentSnapshot) {
+      throw new PdmChangeControlError("REPLACEMENT_ATTACHMENT_SNAPSHOT_REQUIRED");
+    }
+    if (!replacementDraft && input.attachmentSnapshot) {
+      throw new PdmChangeControlError("REPLACEMENT_ATTACHMENT_SNAPSHOT_NOT_APPLICABLE");
+    }
+    if (input.attachmentSnapshot && input.attachmentSnapshot.sourcePartNumberId !== sourcePartNumberId) {
+      throw new PdmChangeControlError("REPLACEMENT_ATTACHMENT_SOURCE_MISMATCH");
+    }
     await this.assertReservedNumberAvailable(companyId, reservedPartNumber);
     await this.client.execute(
       `
@@ -575,8 +624,8 @@ export class PdmChangeControlDomainService {
         companyId,
         reservedPartNumber,
         draftType: input.draftType,
-        itemType: input.itemType,
-        sourcePartNumberId: input.sourcePartNumberId ?? null,
+        itemType,
+        sourcePartNumberId,
         sourceDrawingNumberId: input.sourceDrawingNumberId ?? null,
         sourceRevision: input.sourceRevision?.trim() || null,
         useType: input.useType?.trim() || null,
@@ -592,8 +641,21 @@ export class PdmChangeControlDomainService {
       eventType: "draft_created",
       actorUserId: input.actor.userId,
       occurredAt: now,
-      metadata: { reservedPartNumber, draftType: input.draftType, itemType: input.itemType }
+      metadata: { reservedPartNumber, draftType: input.draftType, itemType }
     });
+    if (input.attachmentSnapshot) {
+      try {
+        await applyReplacementAttachmentSnapshotAsync({
+          client: this.client as unknown as AsyncDatabaseClient,
+          companyId,
+          draftId,
+          actorUserId: input.actor.userId,
+          snapshot: input.attachmentSnapshot
+        });
+      } catch (error) {
+        rethrowReplacementAttachmentError(error);
+      }
+    }
     return this.requireDraft(draftId, companyId);
   }
 
@@ -608,7 +670,7 @@ export class PdmChangeControlDomainService {
       });
     }
 
-    const nextItemType = input.itemType ?? draft.itemType;
+    const nextItemType = input.itemType === undefined ? draft.itemType : requireDraftItemType(input.itemType);
     const nextSourcePartNumberId = input.sourcePartNumberId !== undefined ? input.sourcePartNumberId : draft.sourcePartNumberId;
     const nextSourceDrawingNumberId = input.sourceDrawingNumberId !== undefined ? input.sourceDrawingNumberId : draft.sourceDrawingNumberId;
     const nextSourceRevision = input.sourceRevision !== undefined ? input.sourceRevision?.trim() || null : draft.sourceRevision;
@@ -662,6 +724,12 @@ export class PdmChangeControlDomainService {
   }
 
   async submitDrawingRevisionFffAssessment(input: SubmitDrawingRevisionFffAssessmentInput): Promise<SubmitDrawingRevisionFffAssessmentResult> {
+    return this.runReleaseTransaction((service) => service.submitDrawingRevisionFffAssessmentInTransaction(input));
+  }
+
+  private async submitDrawingRevisionFffAssessmentInTransaction(
+    input: SubmitDrawingRevisionFffAssessmentInput
+  ): Promise<SubmitDrawingRevisionFffAssessmentResult> {
     const companyId = normalizeCompanyId(input.actor);
     await this.requireDrawing(input.drawingNumberId, companyId);
     const revision = normalizeRequiredText(input.revision, "revision_required");
@@ -680,27 +748,52 @@ export class PdmChangeControlDomainService {
       if (!comparedPartNumber) {
         throw new PdmChangeControlError("drawing_part_number_read_required");
       }
+      if (!input.currentPartNumberId) {
+        throw new PdmChangeControlError("replacement_attachment_source_required");
+      }
+      if (!input.attachmentSnapshot) {
+        throw new PdmChangeControlError("REPLACEMENT_ATTACHMENT_SNAPSHOT_REQUIRED");
+      }
+      if (input.attachmentSnapshot.sourcePartNumberId !== input.currentPartNumberId) {
+        throw new PdmChangeControlError("REPLACEMENT_ATTACHMENT_SOURCE_MISMATCH");
+      }
       if (comparedPartNumber !== replacementReservedPartNumber) {
         throw new PdmChangeControlError("drawing_part_number_mismatch", "Drawing part number must match replacement part number", {
           expectedPartNumber: replacementReservedPartNumber,
           actualPartNumber: comparedPartNumber
         });
       }
-      replacementDraft =
-        (await this.findReusableDrawingRevisionReplacementDraft(companyId, {
+      const reusableDraft = await this.findReusableDrawingRevisionReplacementDraft(companyId, {
           reservedPartNumber: replacementReservedPartNumber,
           drawingNumberId: input.drawingNumberId,
           revision
-        })) ??
+        });
+      replacementDraft = reusableDraft ??
         (await this.reservePartNumberDraft({
           reservedPartNumber: replacementReservedPartNumber,
           draftType: "drawing_revision_generated",
           itemType: input.replacementItemType ?? "self_made",
-          sourcePartNumberId: input.currentPartNumberId ?? null,
+          sourcePartNumberId: input.currentPartNumberId,
           sourceDrawingNumberId: input.drawingNumberId,
           sourceRevision: revision,
+          attachmentSnapshot: input.attachmentSnapshot,
           actor: input.actor
         }));
+      if (reusableDraft) {
+        try {
+          await applyReplacementAttachmentSnapshotAsync({
+            client: this.client as unknown as AsyncDatabaseClient,
+            companyId,
+            draftId: reusableDraft.id,
+            actorUserId: input.actor.userId,
+            snapshot: input.attachmentSnapshot
+          });
+        } catch (error) {
+          rethrowReplacementAttachmentError(error);
+        }
+      }
+    } else if (input.attachmentSnapshot) {
+      throw new PdmChangeControlError("REPLACEMENT_ATTACHMENT_SNAPSHOT_NOT_APPLICABLE");
     }
 
     const duplicate = await this.findDuplicateActiveFffAssessment(companyId, {
@@ -832,6 +925,17 @@ export class PdmChangeControlDomainService {
         input.actor.userId,
         oldPart.part_name
       );
+      try {
+        await promoteReplacementPartAttachmentsAsync({
+          client: this.client as unknown as AsyncDatabaseClient,
+          companyId,
+          draftId: replacementDraft.id,
+          partNumberId: replacementPartNumberId,
+          actorUserId: input.actor.userId
+        });
+      } catch (error) {
+        rethrowReplacementAttachmentError(error);
+      }
       await this.client.execute(
         `
         UPDATE part_number_drafts
@@ -1453,30 +1557,18 @@ export class PdmChangeControlDomainService {
     partNumberId: string;
     actorUserId: string;
   }) {
-    await this.client.execute(
-      `
-      INSERT INTO drawing_part_links (
-        id, drawing_number_id, part_number_id, link_type, created_by, created_at
-      )
-      SELECT
-        :id,
-        drawing.id,
-        :partNumberId,
-        CASE WHEN drawing.purpose_code IN ('M', 'MA') THEN 'primary_manufacturing' ELSE 'reference' END,
-        :actorUserId,
-        :createdAt
-      FROM drawing_numbers drawing
-      WHERE drawing.id = :drawingNumberId
-        AND drawing.company_id = :companyId
-        AND NOT EXISTS (
-          SELECT 1
-          FROM drawing_part_links link
-          WHERE link.drawing_number_id = drawing.id
-            AND link.part_number_id = :partNumberId
-        )
-      `,
-      { ...input, id: this.idFactory(), createdAt: this.clock() }
+    const drawing = await this.client.queryOne<{ purpose_code: string }>(
+      `SELECT purpose_code FROM drawing_numbers WHERE id = :drawingNumberId AND company_id = :companyId LIMIT 1`,
+      input
     );
+    if (!drawing) throw new PdmChangeControlError("source_drawing_not_found", `Source drawing not found: ${input.drawingNumberId}`);
+    await new RelationFormalAuthorityRepository(this.client).upsertPairInClient(this.client, {
+      companyId: input.companyId,
+      drawingNumberId: input.drawingNumberId,
+      partNumberId: input.partNumberId,
+      relationType: ["M", "MA"].includes(drawing.purpose_code) ? "manufacturing_basis" : "reference",
+      actorId: input.actorUserId
+    });
   }
 
   private async requireFormalPartById(companyId: string, partNumberId: string) {

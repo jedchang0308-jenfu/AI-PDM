@@ -52,7 +52,7 @@ try {
   const db = new Database(dbPath, { readonly: true });
   try {
     const authority = db.prepare(`SELECT mode, expected_commit, schema_hash FROM pdm_workbench_state_authority_control WHERE id = 1`).get();
-    assert.deepEqual(authority, { mode: "canonical_only", expected_commit: "local-dev", schema_hash: "dev087-v1" });
+    assert.deepEqual(authority, { mode: "canonical_only", expected_commit: "local-dev", schema_hash: "dev090-v1" });
     assert.equal(db.prepare(`SELECT COUNT(*) n FROM canonical_workbench_states WHERE entity_type = 'drawing'`).get().n, 2);
     assert.equal(db.prepare(`SELECT COUNT(*) n FROM drawing_rd_branches`).get().n, 1);
     assert.equal(db.prepare(`SELECT COUNT(*) n FROM drawing_revision_claims`).get().n, 1);
@@ -63,7 +63,44 @@ try {
   } finally {
     db.close();
   }
-  pass("migration", 13);
+  const preserveDbPath = path.join(tempRoot, "preserve.sqlite");
+  const preserveFixture = createFixtureDatabase({ filename: preserveDbPath, canonical: false });
+  const preserveRule = preserveFixture.prepare(`SELECT id FROM numbering_rule_versions ORDER BY id LIMIT 1`).get();
+  assert.ok(preserveRule?.id, "preserve fixture numbering rule");
+  preserveFixture.prepare(`INSERT INTO numbering_draft_workspaces
+    (id, company_id, draft_mode, lifecycle_status, owner_id, created_by)
+    VALUES ('workspace-dev087-retained-bundle', @company, 'new_bundle', 'active', @owner, @owner)`).run({ company: ids.company, owner: ids.owner });
+  preserveFixture.prepare(`INSERT INTO numbering_draft_roots
+    (id, company_id, workspace_id, core_name, item_kind, rule_version_id)
+    VALUES ('draft-root-dev087-retained-bundle', @company, 'workspace-dev087-retained-bundle', 'Retained bundle', 'manufactured', @rule)`).run({ company: ids.company, rule: preserveRule.id });
+  preserveFixture.prepare(`INSERT INTO numbering_draft_parts
+    (id, company_id, workspace_id, root_draft_id, part_name, item_kind)
+    VALUES ('draft-part-dev087-retained-bundle', @company, 'workspace-dev087-retained-bundle', 'draft-root-dev087-retained-bundle', 'Retained bundle', 'manufactured')`).run({ company: ids.company });
+  preserveFixture.prepare(`INSERT INTO numbering_draft_drawings
+    (id, company_id, workspace_id, root_draft_id, purpose_code, purpose_description, is_primary_manufacturing)
+    VALUES ('draft-drawing-dev087-retained-bundle', @company, 'workspace-dev087-retained-bundle', 'draft-root-dev087-retained-bundle', 'M', 'Retained bundle drawing', 1)`).run({ company: ids.company });
+  preserveFixture.prepare(`INSERT INTO numbering_draft_relations
+    (id, company_id, workspace_id, drawing_draft_id, part_draft_id, link_type, is_primary)
+    VALUES ('draft-relation-dev087-retained-bundle', @company, 'workspace-dev087-retained-bundle', 'draft-drawing-dev087-retained-bundle', 'draft-part-dev087-retained-bundle', 'primary_manufacturing', 1)`).run({ company: ids.company });
+  preserveFixture.close();
+  const preserveOutput = path.join(tempRoot, "preserve");
+  const preserveRun = spawnSync(process.execPath, ["scripts/migrate-dev-087-canonical-workbench.mjs", `--db=${preserveDbPath}`, "--apply", "--confirm-disposable-dev-087", "--retain-unmapped-legacy", "--switch-canonical-only", "--expected-commit=local-dev", `--output-dir=${preserveOutput}`], { cwd: process.cwd(), encoding: "utf8" });
+  assert.equal(preserveRun.status, 0, `preserve: ${preserveRun.stderr || preserveRun.stdout}`);
+  const preserveManifest = JSON.parse(fs.readFileSync(path.join(preserveOutput, "manifest.json"), "utf8"));
+  assert.equal(preserveManifest.unresolvedBeforeResolution, 1, "preserve unresolved before resolution");
+  assert.equal(preserveManifest.unresolved, 0, "preserve unresolved after resolution");
+  assert.equal(preserveManifest.cleanup.retainedLegacy, 1, "preserve retained legacy count");
+  const preservedDb = new Database(preserveDbPath, { readonly: true });
+  try {
+    assert.deepEqual(preservedDb.prepare(`SELECT mode, expected_commit, schema_hash FROM pdm_workbench_state_authority_control WHERE id = 1`).get(), { mode: "canonical_only", expected_commit: "local-dev", schema_hash: "dev090-v1" });
+    assert.equal(preservedDb.prepare(`SELECT COUNT(*) n FROM numbering_draft_workspaces WHERE id = 'workspace-dev087-retained-bundle'`).get().n, 1, "retained legacy workspace stays intact");
+    assert.equal(preservedDb.prepare(`SELECT COUNT(*) n FROM pdm_workbench_migration_quarantine WHERE resolution = 'retained_legacy_source'`).get().n, 1, "retained resolution recorded");
+    assert.equal(preservedDb.prepare(`SELECT COUNT(*) n FROM pdm_workbench_migration_quarantine WHERE resolution IS NULL`).get().n, 0, "no unresolved quarantine remains");
+    assert.equal(preservedDb.pragma("foreign_key_check").length, 0, "preserved fixture foreign keys");
+  } finally {
+    preservedDb.close();
+  }
+  pass("migration", 24);
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }

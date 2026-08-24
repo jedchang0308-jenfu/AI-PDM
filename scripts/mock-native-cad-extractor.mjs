@@ -39,7 +39,7 @@ if (args.kind === "metadata") {
           referencedPartNumber: "P-QC-EXT-CHILD-001",
           referencedDrawingNumber: "QC-EXT-CHILD-001",
           referencedRevision: "A",
-          referenceType: "assembly_component",
+          referenceType: "unknown",
           quantity: 3,
           extractionMethod: "mock_external_extractor",
           confidence: "high"

@@ -3,10 +3,9 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { addPartNumberToRootAsync, searchNumberingRecordsAsync } from "@/lib/numbering-async";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import type { NumberingItemKind } from "@/lib/repositories/numbering-repository";
+import { parseCanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
 
 export const runtime = "nodejs";
-
-const itemKinds = new Set(["purchased", "manufactured", "outsourced", "shared", "custom"]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
   const body = await request.json().catch(() => ({}));
@@ -28,8 +27,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   const match = matches.find((item) => item.drawingNumber === decodedDrawingNumber || item.displayCode === decodedDrawingNumber);
   if (!match) return NextResponse.json({ error: `DRAWING_NUMBER_NOT_FOUND: ${decodedDrawingNumber}` }, { status: 404 });
 
-  const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
+  const rawItemKind = body.itemKind ?? body.item_kind;
+  const itemKind = parseCanonicalNumberingItemKind(rawItemKind) as NumberingItemKind | undefined;
   const seriesCode = String(body.seriesCode ?? body.series_code ?? "").trim();
+  const isUniversal = Boolean(body.isUniversal ?? body.is_universal);
+  if ((body.itemKind !== undefined || body.item_kind !== undefined) && !itemKind) return NextResponse.json({ error: "itemKind must be manufactured or purchased" }, { status: 400 });
   if (seriesCode.length > 80) return NextResponse.json({ error: "seriesCode must be 80 characters or fewer" }, { status: 400 });
 
   try {
@@ -37,6 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
       companyId: companyResult.company.companyId,
       rootCode: match.rootCode,
       itemKind,
+      isUniversal,
       customSpecification: String(body.customSpecification ?? body.custom_specification ?? "").trim(),
       seriesCode,
       reason: String(body.reason ?? "").trim(),
@@ -52,9 +55,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
     const status = message.includes("NOT_FOUND") ? 404 : message.includes("MISMATCH") || message.includes("LOCKED") ? 409 : 422;
     return NextResponse.json({ error: message }, { status });
   }
-}
-
-function normalizeEnum(value: unknown, allowed: Set<string>) {
-  const text = String(value ?? "").trim();
-  return allowed.has(text) ? text : undefined;
 }

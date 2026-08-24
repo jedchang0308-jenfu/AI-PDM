@@ -30,13 +30,11 @@ export type StatusScopeId =
   | "handoffWorkbench"
   | "transferPackageWorkbench"
   | "reportCenter"
-  | "taskCenter"
   | "impactWorkbench"
   | "settingsCenter"
   | "accountList"
   | "invitationList"
   | "revisionSubmission"
-  | "bomCreate"
   | "drawingRecognition";
 
 export type StatusAxisDefinition = {
@@ -182,8 +180,8 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
   numberingSearch: {
     id: "numberingSearch",
     route: "/numbering/search",
-    section: "圖料工作台",
-    title: "圖料工作台資料範圍",
+    section: "編號搜尋",
+    title: "編號搜尋資料範圍",
     description: "查詢結果分開呈現資料狀態、關聯與提醒。",
     axes: ["dataStatus", "approvalStatus", "publicationStatus", "reminderStatus"],
     contexts: ["masterRecord", "approvalStatus", "publicationStatus", "reminderStatus"],
@@ -289,16 +287,6 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     contexts: ["jobStatus", "fileStatus", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
-  taskCenter: {
-    id: "taskCenter",
-    route: "/numbering/tasks",
-    section: "待辦中心",
-    title: "待辦資料範圍",
-    description: "待辦、通知與來源資料狀態分開顯示，避免把草稿當成任務狀態。",
-    axes: ["taskStatus", "dataStatus", "reminderStatus"],
-    contexts: ["task", "notification", "masterRecord", "reminderStatus"],
-    ownerEvidence: INVENTORY_EVIDENCE
-  },
   impactWorkbench: {
     id: "impactWorkbench",
     route: "/numbering/impact",
@@ -347,16 +335,6 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     description: "新版圖面、附件、審核與替代料號申請分開判讀。",
     axes: ["applicationStatus", "fileStatus", "approvalStatus", "readinessStatus", "reminderStatus"],
     contexts: ["applicationStatus", "fileStatus", "approvalStatus", "readinessStatus", "reminderStatus"],
-    ownerEvidence: INVENTORY_EVIDENCE
-  },
-  bomCreate: {
-    id: "bomCreate",
-    route: "/bom/new",
-    section: "BOM 建立",
-    title: "BOM 建立資料範圍",
-    description: "BOM 建立流程將主資料、檔案、準備度與送審條件分開說明。",
-    axes: ["dataStatus", "fileStatus", "readinessStatus", "approvalStatus"],
-    contexts: ["masterRecord", "bomDraft", "fileStatus", "readinessStatus", "approvalStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   drawingRecognition: {

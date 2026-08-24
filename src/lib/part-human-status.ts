@@ -2,7 +2,7 @@ import type { HumanStatusProjection } from "@/lib/human-status-projection";
 import { createHumanStatus } from "@/lib/human-status-projection";
 import type { NumberingRecordStatus, PartModuleListRecord } from "@/lib/repositories/numbering-repository";
 
-const MANUFACTURING_ITEM_KINDS = new Set(["manufactured", "outsourced", "custom"]);
+const MANUFACTURING_ITEM_KINDS = new Set(["manufactured"]);
 
 type PartHumanStatusSource = Pick<PartModuleListRecord, "recordStatus" | "itemKind" | "primaryDrawingNumber"> & {
   hasManufacturingDrawing?: boolean;

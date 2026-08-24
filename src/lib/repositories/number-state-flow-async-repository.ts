@@ -25,13 +25,14 @@ import {
   type NumberingCandidateRevisionRecord
 } from "@/lib/number-lifecycle-simplification";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
+import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
 import { assertPdmReviewScopeWritableAsync, lockPdmDraftWorkspaceScopeAsync } from "@/lib/pdm-review-lock";
 
 export const MAX_CANDIDATE_ALLOCATION_ATTEMPTS = 3;
 
 export type NumberingDraftMode = "new_bundle" | "append_drawing" | "append_part" | "append_drawing_part";
 export type NumberingDraftLifecycle = "active" | "cancelled" | "published";
-export type NumberingDraftItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
+export type NumberingDraftItemKind = "purchased" | "manufactured";
 export type NumberCandidateItemType = "root" | "part" | "drawing";
 export type NumberCandidateState = "active" | "review_locked" | "approved_locked" | "promoted" | "recycled";
 export type NumberingDraftPurposeCode = "MA" | "OT" | "M" | "R";
@@ -2569,21 +2570,14 @@ export class AsyncNumberStateFlowRepository {
       if (!drawingNumberId || !partNumberId) throw new Error("DRAFT_RELATION_TARGET_MISSING");
       const relationId = `drawing-part-link-${relation.id}`;
       this.approvalFaultInjector?.("before_relation_insert");
-      await this.client.execute(
-        `INSERT INTO drawing_part_links (
-           id, drawing_number_id, part_number_id, link_type, created_by, created_at
-         ) VALUES (
-           :id, :drawingNumberId, :partNumberId, :linkType, :createdBy, :createdAt
-         )`,
-        {
-          id: relationId,
-          drawingNumberId,
-          partNumberId,
-          linkType: relation.linkType,
-          createdBy: input.actorId,
-          createdAt: now
-        }
-      );
+       await new RelationFormalAuthorityRepository(this.client).upsertPairInClient(this.client, {
+         companyId: input.companyId,
+         drawingNumberId,
+         partNumberId,
+         relationType: relation.linkType === "primary_manufacturing" ? "manufacturing_basis" : "reference",
+         actorId: input.actorId,
+         id: relationId
+       });
       relationIds.push(relationId);
     }
     if (sourceContext.sourceDrawing && workspace.sourceLinkType) {
@@ -2592,21 +2586,14 @@ export class AsyncNumberStateFlowRepository {
         if (!partNumberId) throw new Error("DRAFT_RELATION_TARGET_MISSING");
         const relationId = `drawing-part-link-source-${workspace.id}-${part.id}`;
         this.approvalFaultInjector?.("before_relation_insert");
-        await this.client.execute(
-          `INSERT INTO drawing_part_links (
-             id, drawing_number_id, part_number_id, link_type, created_by, created_at
-           ) VALUES (
-             :id, :drawingNumberId, :partNumberId, :linkType, :createdBy, :createdAt
-           )`,
-          {
-            id: relationId,
-            drawingNumberId: sourceContext.sourceDrawing.id,
-            partNumberId,
-            linkType: workspace.sourceLinkType,
-            createdBy: input.actorId,
-            createdAt: now
-          }
-        );
+         await new RelationFormalAuthorityRepository(this.client).upsertPairInClient(this.client, {
+           companyId: input.companyId,
+           drawingNumberId: sourceContext.sourceDrawing.id,
+           partNumberId,
+           relationType: workspace.sourceLinkType === "primary_manufacturing" ? "manufacturing_basis" : "reference",
+           actorId: input.actorId,
+           id: relationId
+         });
         relationIds.push(relationId);
       }
     }
@@ -2616,21 +2603,14 @@ export class AsyncNumberStateFlowRepository {
         if (!drawingNumberId) throw new Error("DRAFT_RELATION_TARGET_MISSING");
         const relationId = `drawing-part-link-source-${workspace.id}-${drawing.id}`;
         this.approvalFaultInjector?.("before_relation_insert");
-        await this.client.execute(
-          `INSERT INTO drawing_part_links (
-             id, drawing_number_id, part_number_id, link_type, created_by, created_at
-           ) VALUES (
-             :id, :drawingNumberId, :partNumberId, :linkType, :createdBy, :createdAt
-           )`,
-          {
-            id: relationId,
-            drawingNumberId,
-            partNumberId: sourceContext.sourcePart.id,
-            linkType: workspace.sourceLinkType,
-            createdBy: input.actorId,
-            createdAt: now
-          }
-        );
+         await new RelationFormalAuthorityRepository(this.client).upsertPairInClient(this.client, {
+           companyId: input.companyId,
+           drawingNumberId,
+           partNumberId: sourceContext.sourcePart.id,
+           relationType: workspace.sourceLinkType === "primary_manufacturing" ? "manufacturing_basis" : "reference",
+           actorId: input.actorId,
+           id: relationId
+         });
         relationIds.push(relationId);
       }
     }

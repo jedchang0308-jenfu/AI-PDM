@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { sanitizeDrawingRevisionWorkPayload } from "@/lib/drawing-revision-work-payload";
 import { issueCanonicalWorkbenchContract } from "@/lib/pdm-workbench-authority-control";
 import { dev087RouteError, resolveDev087RouteActor } from "@/lib/pdm-dev087-route";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
@@ -20,7 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
           : [];
     } else if (item.entityType === "part") {
       identity = await client.queryOne(`SELECT part_number AS code, part_name AS name FROM part_numbers WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: access.actor.companyId });
-      attachments = await client.query(`SELECT asset.id, asset.file_name, asset.display_name, asset.mime_type, asset.file_size FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id = :entityId AND asset.deleted_at IS NULL ORDER BY asset.created_at DESC, asset.id DESC`, { entityId: item.canonicalEntityId });
+      attachments = await client.query(`SELECT asset.id, asset.file_name, asset.display_name, asset.document_category, asset.mime_type, asset.file_size FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id = :entityId AND asset.deleted_at IS NULL ORDER BY asset.created_at DESC, asset.id DESC`, { entityId: item.canonicalEntityId });
     } else {
       identity = await client.queryOne(`SELECT root_code AS code, core_name AS name FROM part_roots WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: access.actor.companyId });
       const [drawings, parts] = await Promise.all([
@@ -30,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
     }
     const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: access.actor.companyId, actorId: access.actor.id });
     const reviewPayload = item.requestKind === "drawing_revision"
-      ? ((item.snapshotPayload as { payload?: unknown })?.payload ?? {})
+      ? sanitizeDrawingRevisionWorkPayload((item.snapshotPayload as { payload?: unknown })?.payload)
       : item.requestKind === "drawing_rd_void"
         ? { revision: (item.snapshotPayload as { revision?: unknown })?.revision ?? "" }
         : item.snapshotPayload;

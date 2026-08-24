@@ -36,12 +36,13 @@ $DocumentManagerPreviewWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-document-
 $DocumentManagerPreviewWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-document-manager-preview-worker.err.log"
 $DocumentManagerPreviewWorkerScript = Join-Path $ProjectRoot "scripts\run-solidworks-document-manager-preview-worker.mjs"
 $env:PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 = "true"
+$env:PDM_PART_PREVIEW_V1 = "true"
 $env:PDM_WORKBENCH_PRODUCTION_RD_LANES_V1 = "true"
 $HealthChecks = @(
   @{ Path = "/"; Expected = @(200, 301, 302, 307, 308) },
   @{ Path = "/login"; Expected = @(200, 301, 302, 307, 308) },
   @{ Path = "/api/auth/me"; Expected = @(200, 401) },
-  @{ Path = "/api/numbering/state-flow/status"; Expected = @(200); RequireUnifiedPartRelationWorkbench = $true }
+  @{ Path = "/api/numbering/state-flow/status"; Expected = @(200); RequireUnifiedPartRelationWorkbench = $true; RequirePartPreview = $true }
 )
 
 function Ensure-RuntimeDir {
@@ -414,17 +415,21 @@ function Test-LocalHttpHealth {
 
     $expected = @($check.Expected)
     $routeHealthy = $expected -contains $statusCode
-    if ($routeHealthy -and $check.RequireUnifiedPartRelationWorkbench) {
+    if ($routeHealthy -and ($check.RequireUnifiedPartRelationWorkbench -or $check.RequirePartPreview)) {
       try {
         $featureStatus = $responseContent | ConvertFrom-Json
-        $routeHealthy = $featureStatus.partRelationWorkbench.enabled -eq $true
-        if (-not $routeHealthy) {
+        if ($check.RequireUnifiedPartRelationWorkbench -and $featureStatus.partRelationWorkbench.enabled -ne $true) {
+          $routeHealthy = $false
           $errorText = "DEV-062 unified Part/Relation workbench is not enabled on the fixed local runtime."
+        }
+        elseif ($check.RequirePartPreview -and $featureStatus.partPreview.enabled -ne $true) {
+          $routeHealthy = $false
+          $errorText = "DEV-065 Part preview is not enabled on the fixed local runtime."
         }
       }
       catch {
         $routeHealthy = $false
-        $errorText = "DEV-062 feature status response is not valid JSON. $($_.Exception.Message)"
+        $errorText = "Local feature status response is not valid JSON. $($_.Exception.Message)"
       }
     }
     if ($routeHealthy) {

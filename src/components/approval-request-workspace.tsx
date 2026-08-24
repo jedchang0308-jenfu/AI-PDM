@@ -3,13 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, FileText, LoaderCircle, RefreshCcw, ShieldCheck, XCircle } from "lucide-react";
-import { DrawingProjection } from "@/components/drawing-projection";
 import { CanonicalChangeWorkspace } from "@/components/canonical-change-workspace";
-import { PartProjection } from "@/components/part-projection";
-import { RelationProjection } from "@/components/relation-projection";
 import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
-import { resolvePdmApprovalOwnerContext } from "@/lib/pdm-approval-owner-route";
-import type { PdmEntityDetailResponse } from "@/lib/pdm-entity-detail-contract";
 
 type ApprovalDecision = "approved" | "rejected" | "needs_info";
 type ApprovalTarget = { id: string; role: string; type: string; targetId: string; code: string | null; label: string; status: string | null; snapshot: Record<string, unknown> };
@@ -45,13 +40,12 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
   const searchParams = useSearchParams();
   const returnTo = normalizePdmApprovalReturnTo(searchParams.get("returnTo"));
   const [request, setRequest] = useState<ApprovalRequest | null>(null);
-  const [projection, setProjection] = useState<PdmEntityDetailResponse | null>(null);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<ApprovalDecision | "retry" | "reload" | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [canonicalEntityType, setCanonicalEntityType] = useState<"drawing" | "part" | "relation" | null>(null);
+  const [canonicalEntityType, setCanonicalEntityType] = useState<"drawing" | "part" | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,6 +55,7 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
       if (canonicalResponse.ok) {
         const canonicalBody = await canonicalResponse.json() as { data?: { entityType?: "drawing" | "part" | "relation" } };
         if (!canonicalBody.data?.entityType) throw new Error("審核明細缺少資料類型。");
+        if (canonicalBody.data.entityType === "relation") throw new Error("此歷史關聯審核已退役，請使用稽核紀錄查閱。");
         setCanonicalEntityType(canonicalBody.data.entityType);
         return;
       }
@@ -73,11 +68,6 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
       if (!response.ok) throw new Error(apiMessage(body, response.status === 410 ? "此審核已完成，不需再處理。" : "審核明細目前無法載入。"));
       const nextRequest = body.request as ApprovalRequest;
       setRequest(nextRequest);
-      const ownerContext = resolvePdmApprovalOwnerContext({ actionCode: nextRequest.actionCode, primaryTarget: nextRequest.primaryTarget });
-      if (!ownerContext) throw new Error("此審核案件缺少有效的 PDM 對象資訊。");
-      const detailResponse = await fetch(`/api/pdm/entity-details/${encodeURIComponent(ownerContext.entityKey)}?surface=${encodeURIComponent(ownerContext.surface)}&reviewRequestId=${encodeURIComponent(requestId)}&returnTo=${encodeURIComponent(returnTo)}`, { cache: "no-store" });
-      if (!detailResponse.ok) throw new Error("審核對象目前無法載入，請重新整理。");
-      setProjection(await detailResponse.json() as PdmEntityDetailResponse);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "審核明細目前無法載入。 ");
     } finally {
@@ -131,10 +121,6 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
   }
 
   const isOpen = request?.status === "pending" || request?.status === "needs_info";
-  const projectionFull = projection?.projections.drawing?.level === "full" ? projection.projections.drawing : null;
-  const partProjection = projection?.projections.part;
-  const relationProjection = projection?.projections.relation;
-
   if (canonicalEntityType) return <CanonicalChangeWorkspace entityType={canonicalEntityType} reviewRequestId={requestId} returnTo={returnTo} />;
   if (loading) return <main className="dev079-workspace-loading" role="status"><LoaderCircle className="spin" size={20} />正在載入審核工作區...</main>;
   if (!request) return <main className="dev079-workspace-state"><h1>審核工作區</h1><p role="alert">{error || "找不到這筆審核。"}</p><button className="secondary-button" type="button" onClick={() => void load()}>重新載入</button></main>;
@@ -155,7 +141,7 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
           {isOpen ? <section className="dev079-card dev079-decision-card"><label><span>決策備註</span><textarea value={comment} onChange={(event) => setComment(event.target.value)} rows={4} placeholder="補充核准、退回或要求補資料的原因（選填）" /></label><div className="dev079-decision-actions"><button className="secondary-button" type="button" disabled={Boolean(busy)} onClick={() => void decide("needs_info")}><FileText size={15} />{decisionLabel("needs_info")}</button><button className="danger-button" type="button" disabled={Boolean(busy)} onClick={() => void decide("rejected")}><XCircle size={15} />{decisionLabel("rejected")}</button><button className="primary-button" type="button" disabled={Boolean(busy)} onClick={() => void decide("approved")}><ShieldCheck size={15} />{decisionLabel("approved")}</button></div></section> : null}
           {request.status === "apply_failed" ? <section className="dev079-card dev079-decision-card"><p>{request.applyError || "正式化套用失敗，請確認後重試。"}</p><button className="secondary-button" type="button" disabled={Boolean(busy)} onClick={() => void retryApply()}><RefreshCcw size={15} />重試正式化</button></section> : null}
         </section>
-        <aside className="dev079-workspace-preview" aria-label="審核對象唯讀預覽"><div className="dev079-sticky-panel"><div className="dev079-section-heading"><div><span className="eyebrow">唯讀預覽</span><h2>審核對象資料</h2></div><span className="dev079-readonly-tag">不可在此編輯</span></div>{projectionFull ? <DrawingProjection projection={projectionFull} returnTo={returnTo} showStatusBadge={false} showMaintenancePanel={false} /> : partProjection ? <PartProjection projection={partProjection} showStatusBadge={false} /> : relationProjection ? <RelationProjection projection={relationProjection} /> : <p className="dev079-preview-fallback">此審核沒有可呈現的 PDM 預覽，請以左側證據與影響範圍為準。</p>}</div></aside>
+        <aside className="dev079-workspace-preview" aria-label="審核說明"><div className="dev079-sticky-panel"><div className="dev079-section-heading"><div><span className="eyebrow">審核說明</span><h2>非 PDM 審核</h2></div></div><p className="dev079-preview-fallback">此案件不屬於 Drawing／Part／Relation canonical work；請依左側審核證據與影響範圍決策。</p></div></aside>
       </div>
     </main>
   );

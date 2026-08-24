@@ -8,6 +8,7 @@ import { NextStepState } from "@/components/next-step-state";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import { WorkflowStrip } from "@/components/workflow-strip";
 import { displayDrawingPurposeLabel } from "@/lib/numbering-identity";
+import { canonicalNumberingItemKindLabel } from "@/lib/numbering-item-kind";
 import { formatStatusForUser } from "@/lib/status-display";
 
 type LoadState = "idle" | "ready" | "unauthorized" | "forbidden" | "error";
@@ -16,7 +17,7 @@ type PartNumber = {
   id: string;
   partNumber: string;
   partName: string;
-  itemKind: "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
+  itemKind: "purchased" | "manufactured";
   recordStatus:
     | "Draft"
     | "NeedInfo"
@@ -66,7 +67,7 @@ export default function NumberingImpactPage() {
   }, []);
 
   const backHref = returnTo || "/numbering/search";
-  const backLabel = returnTo ? "返回圖號" : "回圖料工作台";
+  const backLabel = returnTo ? "返回圖號" : "回編號搜尋";
 
   async function analyze(applyInvalidation = false) {
     setBusy(applyInvalidation ? "apply" : "analyze");
@@ -119,10 +120,9 @@ export default function NumberingImpactPage() {
       <WorkflowStrip
         title="製造圖影響分析"
         description="作廢或變更前先確認父子圖、BOM 與待辦影響，再決定是否套用。"
-        steps={["查詢", "影響分析", "確認作廢", "待辦", "交接"]}
+        steps={["查詢", "影響分析", "確認作廢", "交接"]}
         currentStep="影響分析"
         actions={[
-          { href: "/numbering/tasks", label: "看影響待辦", variant: "primary" },
           { href: backHref, label: backLabel }
         ]}
       />
@@ -199,8 +199,7 @@ function ImpactResult({
           title="尚未產生製造圖作廢影響分析"
           body="輸入製造圖圖號與作廢原因後先分析影響範圍；確認後才可套用失效。"
           actions={[
-            { href: backHref, label: backLabel, variant: "primary" },
-            { href: "/numbering/tasks", label: "看待辦" }
+            { href: backHref, label: backLabel, variant: "primary" }
           ]}
         />
       </section>
@@ -236,7 +235,7 @@ function ImpactResult({
               compact
               eyebrow="沒有關聯"
               title="目前沒有主要製造圖關聯料號"
-              body="可回圖料工作台確認製造圖關聯，或改查另一張製造圖。"
+              body="可回圖號或料號工作台確認製造圖關聯，或改查另一張製造圖。"
               actions={[{ href: backHref, label: backLabel, variant: "primary" }]}
             />
           ) : (
@@ -300,10 +299,9 @@ function ImpactResult({
             compact
             eyebrow="完成"
             title="製造圖作廢已完成"
-            body="下一步回待辦確認進版文件，或到交接頁確認已發布資料不再被誤用。"
+            body="下一步到交接頁確認已發布資料不再被誤用。"
             actions={[
               { href: backHref, label: backLabel, variant: "primary" },
-              { href: "/numbering/tasks", label: "看待辦" },
               { href: "/handoff", label: "看交接" }
             ]}
           />
@@ -356,15 +354,8 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
-function kindLabel(kind: PartNumber["itemKind"]) {
-  const labels: Record<PartNumber["itemKind"], string> = {
-    purchased: "外購",
-    manufactured: "自製",
-    outsourced: "發包",
-    shared: "共用",
-    custom: "客製"
-  };
-  return labels[kind] ?? kind;
+function kindLabel(kind: string) {
+  return canonicalNumberingItemKindLabel(kind);
 }
 
 const mutedTextStyle = { color: "var(--muted)" };

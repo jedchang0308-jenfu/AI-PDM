@@ -97,7 +97,7 @@ export function projectNumberingRootStatus(
     detail.drawingNumbers.filter((drawing) => drawing.purposeCode === "M" || drawing.purposeCode === "MA").map((drawing) => drawing.id)
   );
   const hasMissingManufacturingDrawing = detail.partNumbers.some((part) => {
-    if (!["manufactured", "outsourced", "custom"].includes(part.itemKind)) return false;
+    if (part.itemKind !== "manufactured") return false;
     return !detail.links.some((link) => link.partNumberId === part.id && link.linkType === "primary_manufacturing" && manufacturingDrawingIds.has(link.drawingNumberId));
   });
   const relationshipHealth: DrawingPartRelationHealth = detail.summary.hasMainDrawingInvalid

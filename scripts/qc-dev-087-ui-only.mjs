@@ -286,6 +286,12 @@ async function startDrawingWork(page, definition, candidateKind = "rd") {
 }
 
 async function editAndSaveWork(page, definition) {
+  if (definition.entity === "drawing") {
+    const retiredFields = page.locator("label").filter({ hasText: /^(?:標題|說明)$/u });
+    if (await retiredFields.count() !== 0) throw new Error("RETIRED_DRAWING_WORK_FIELDS_VISIBLE");
+    if (await page.getByRole("button", { name: "儲存", exact: true }).count() !== 0) throw new Error("RETIRED_DRAWING_WORK_SAVE_VISIBLE");
+    return "drawing-fields-retired";
+  }
   if (definition.entity === "relation") {
     const removeButton = page.getByRole("button", { name: "移除此關聯", exact: true }).first();
     const existingRelationText = await page.locator(".canonical-relation-row").first().innerText().catch(() => "");
@@ -308,17 +314,17 @@ async function editAndSaveWork(page, definition) {
     if (await addButton.count() === 0) throw journeyBlocked("NO_RELATION_UI_ADD_CONTROL");
     await addButton.click();
   } else {
-    const field = page.locator("label").filter({ hasText: definition.entity === "drawing" ? "標題" : "品名" }).locator("input").first();
+    const field = page.locator("label").filter({ hasText: "品名" }).locator("input").first();
     if (await field.count() === 0) throw journeyBlocked(`NO_${definition.entity.toUpperCase()}_UI_EDIT_FIELD`);
     await field.waitFor({ state: "visible", timeout: 30_000 });
-    // A newly created work intentionally starts with an empty title/name.
+    // A newly created Part work can start with an empty name.
     // Wait only for the editable control to be hydrated; a non-empty source
     // value is not a legal precondition for the UI journey.
-    await page.waitForFunction((entity) => [...document.querySelectorAll("label")].some((label) => {
-      if (!label.textContent?.includes(entity === "drawing" ? "標題" : "品名")) return false;
+    await page.waitForFunction(() => [...document.querySelectorAll("label")].some((label) => {
+      if (!label.textContent?.includes("品名")) return false;
       const input = label.querySelector("input");
       return Boolean(input && !input.disabled);
-    }), definition.entity, { timeout: 30_000 });
+    }), null, { timeout: 30_000 });
     const current = await field.inputValue();
     const nextValue = current.includes(" DEV087 UI journey") ? `${current} QC2` : `${current || definition.entity} DEV087 UI journey`;
     await field.fill(nextValue);
@@ -385,7 +391,7 @@ async function editAndSaveWork(page, definition) {
       break;
     }
     if (attempt < 3) {
-      const liveField = page.locator("label").filter({ hasText: definition.entity === "drawing" ? "標題" : "品名" }).locator("input").first();
+      const liveField = page.locator("label").filter({ hasText: "品名" }).locator("input").first();
       if (await liveField.count() > 0 && await liveField.isEnabled().catch(() => false)) {
         const currentValue = await liveField.inputValue().catch(() => "");
         await liveField.fill(`${currentValue} `);
@@ -399,6 +405,7 @@ async function editAndSaveWork(page, definition) {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
   await page.getByRole("button", { name: "取消本次工作", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  return "save-reload";
 }
 
 async function submitWork(page) {
@@ -863,7 +870,7 @@ async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
         const started = await startDrawingWork(page, spec, candidateKind);
         actions.push({ kind: "create", candidate: started.label, candidateKind });
         if ([6, 7, 8, 9, 15].includes(operation)) {
-          await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+          actions.push({ kind: await editAndSaveWork(page, spec) });
           await submitWork(page); actions.push({ kind: "submit" });
           const reviewRowText = candidateKind === "production" ? started.label.replace("量產版", "研發版") : started.label;
           const review = await reviewSubmittedWork(reviewerContext, spec, reviewRowText, "approve");
@@ -889,13 +896,13 @@ async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
         actions.push({ kind: "create" });
       }
       if (isReview) {
-        await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+        actions.push({ kind: await editAndSaveWork(page, spec) });
         await submitWork(page); actions.push({ kind: "submit" });
         const review = await reviewSubmittedWork(reviewerContext, spec, "修改中", operation === 8 ? "approve" : "reject");
         actions.push(...review.actions);
         if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "part review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
       } else if (isSave) {
-        await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+        actions.push({ kind: await editAndSaveWork(page, spec) });
         await cancelWork(page, spec.route); actions.push({ kind: "cancel-after-save" });
       } else if (isCancel) {
         await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
@@ -918,13 +925,13 @@ async function runExtendedLifecycleJourney(context, reviewerContext, spec) {
           actions.push({ kind: "create" });
         }
         if (isReview) {
-          await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+          actions.push({ kind: await editAndSaveWork(page, spec) });
           await submitWork(page); actions.push({ kind: "submit" });
           const review = await reviewSubmittedWork(reviewerContext, spec, "調整中", operation === 12 ? "approve" : "reject");
           actions.push(...review.actions);
           if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "relation review journey failed"), { journeyBlocked: review.status === "BLOCKED" });
         } else if (isSave) {
-          await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" });
+          actions.push({ kind: await editAndSaveWork(page, spec) });
           await cancelWork(page, spec.route); actions.push({ kind: "cancel-after-save" });
         } else {
           await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
@@ -966,8 +973,7 @@ async function runLifecycleJourney(context, reviewerContext, spec) {
         : await startDrawingWork(page, spec, "rd");
       actions.push({ kind: "create", candidate: started.label });
       if (isSave || isReviewReject || isReviewApprove) {
-        await editAndSaveWork(page, spec);
-        actions.push({ kind: "save-reload" });
+        actions.push({ kind: await editAndSaveWork(page, spec) });
       }
       if (isReviewReject || isReviewApprove) {
         await submitWork(page); actions.push({ kind: "submit" });
@@ -993,7 +999,7 @@ async function runLifecycleJourney(context, reviewerContext, spec) {
           }
         }
       } else if (isSave) {
-        await cancelWork(page, spec.route); actions.push({ kind: "cancel-after-save" });
+        await cancelWork(page, spec.route); actions.push({ kind: "cancel-after-field-retirement-check" });
       } else {
         await cancelWork(page, spec.route); actions.push({ kind: "cancel" });
       }
@@ -1012,7 +1018,7 @@ async function runLifecycleJourney(context, reviewerContext, spec) {
         await startCanonicalWork(page, spec, rowText, spec.family === "P" ? "建立修改" : "建立調整");
         actions.push({ kind: "create" });
       }
-      if (isSave || isReviewReject || isReviewApprove) { await editAndSaveWork(page, spec); actions.push({ kind: "save-reload" }); }
+      if (isSave || isReviewReject || isReviewApprove) actions.push({ kind: await editAndSaveWork(page, spec) });
       if (isReviewReject || isReviewApprove) {
         await submitWork(page); actions.push({ kind: "submit" });
         const review = await reviewSubmittedWork(reviewerContext, spec, spec.family === "P" ? "修改中" : "調整中", isReviewApprove ? "approve" : "reject");
@@ -1245,7 +1251,7 @@ try {
   const migration = spawnSync(process.execPath, [path.join(root, "scripts", "migrate-dev-087-canonical-workbench.mjs"), `--db=${fixtureDb}`, "--apply", "--confirm-disposable-dev-087", "--discard-unapproved-part-only-drafts", `--output-dir=${path.join(tempRoot, "migration")}`], { cwd: root, encoding: "utf8" });
   addCheck("isolated migration applied or safely quarantined", migration.status === 0 || migration.status === 2, migration.stdout?.slice(-2000));
   const fixture = new Database(fixtureDb);
-  fixture.prepare("UPDATE pdm_workbench_state_authority_control SET mode='canonical_only', expected_commit='local-dev', schema_hash='dev087-v1', row_version=row_version+1").run();
+  fixture.prepare("UPDATE pdm_workbench_state_authority_control SET mode='canonical_only', expected_commit='local-dev', schema_hash='dev090-v1', row_version=row_version+1").run();
   const mergedCount = fixture.prepare("SELECT COUNT(*) AS count FROM drawings WHERE lifecycle_state = 'merged'").get().count;
   fixture.close();
   writeJson(path.join(evidenceRoot, "authority.json"), { devId: "DEV-087", commit: spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim(), mode: "canonical_only", provider: "sqlite", mergedHistoryRows: Number(mergedCount) });
@@ -1344,7 +1350,7 @@ writeJson(path.join(evidenceRoot, "run-manifest.json"), manifest);
 writeJson(path.join(evidenceRoot, "coverage.json"), manifest.coverage);
 writeJson(path.join(evidenceRoot, "prohibited-mutation-audit.json"), { directBusinessApiWrites: 0, directDbWrites: 0, uiInitiatedBusinessWritesOnly: true });
 writeJson(path.join(evidenceRoot, "cleanup-ledger.json"), { status: "task-owned runtime removed", port, tempRootRemoved: true });
-writeJson(path.join(evidenceRoot, "schema-manifest.json"), { authority: "canonical_workbench_states", provider: "sqlite", schemaHash: "dev087-v1", readback: "readonly" });
+writeJson(path.join(evidenceRoot, "schema-manifest.json"), { authority: "canonical_workbench_states", provider: "sqlite", schemaHash: "dev090-v1", readback: "readonly" });
 writeJson(path.join(evidenceRoot, "file-manifest.json"), { repository: "isolated disposable copy", attachments: "not mutated", credentials: "not recorded" });
 writeText(path.join(evidenceRoot, "defects.md"), `# DEV-087 full UI-only defects\n\n- Supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}.\n- Lifecycle journeys: ${manifest.lifecycleJourneys.map((journey) => `${journey.caseId}=${journey.status}`).join(", ") || "none"}.\n- Excluded follow-up cases: ${manifest.denominator.excluded.join(", ")}.\n- Fixture has no legal existing Merged/history UI row: ${manifest.mergedHistoryRows}.\n- ${manifest.coverage.blocked}/${manifest.denominator.total} lifecycle cases remain blocked in the current canonical scope; no seed, SQL business mutation, or direct API mutation was used.\n- Any lifecycle journey marked FAIL is a candidate product gap; BLOCKED remains a test precondition gap until a legal UI path is added.\n`);
 writeText(path.join(evidenceRoot, "summary.md"), `# DEV-087 full UI-only run\n\n- status: ${manifest.status}\n- coverage: ${manifest.coverage.pass}/${manifest.denominator.total} PASS, ${manifest.coverage.blocked} BLOCKED, ${manifest.coverage.fail} FAIL\n- gates: ${manifest.gates.pass}/${manifest.gates.total} PASS\n- infrastructure checks: ${manifest.infrastructure.pass}/${manifest.infrastructure.total} PASS\n- supplemental journeys: ${manifest.supplementalJourneys.map((journey) => `${journey.id}=${journey.status}`).join(", ") || "none"}\n- lifecycle journeys: ${manifest.lifecycleJourneys.map((journey) => `${journey.caseId}=${journey.status}`).join(", ") || "none"}\n- excluded follow-up cases: ${manifest.denominator.excluded.join(", ")}\n- merged history rows: ${manifest.mergedHistoryRows}\n\nA lifecycle case counts as PASS only after its rendered UI journey and the UI/API/DB triad agree. Excluded cases remain explicit follow-up scope and are not silently counted.\n`);

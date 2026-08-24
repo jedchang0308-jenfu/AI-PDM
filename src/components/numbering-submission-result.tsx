@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { DrawingDetailSummary } from "@/components/drawing-detail-content";
+import { pdmFileReadHref } from "@/lib/pdm-file-read-contract";
 
 export type NumberingSubmissionResultFile = {
   id: string;
@@ -36,6 +37,10 @@ function fileStatusLabel(file: NumberingSubmissionResultFile) {
   const kind = file.isPrimary ? "主要受控檔" : "受控附件";
   const verification = file.publicationEvidenceId ? "已完成驗證" : "需要先驗證，才能送審";
   return `${kind} · ${verification}`;
+}
+
+function approvalEvidenceHref(requestId: string, fileAssetId: string) {
+  return pdmFileReadHref({ fileAssetId, context: "approval_evidence", contextId: requestId, bindingId: fileAssetId });
 }
 
 export function NumberingSubmissionResult({
@@ -126,7 +131,7 @@ export function NumberingSubmissionResultFileList({
               <>
                 <a
                   className="numbering-submission-result-link"
-                  href={`/api/approvals/requests/${encodeURIComponent(requestId)}/evidence/${encodeURIComponent(file.sourceFileAssetId)}?preview=1`}
+                  href={`${approvalEvidenceHref(requestId, file.sourceFileAssetId)}&preview=1`}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -134,7 +139,7 @@ export function NumberingSubmissionResultFileList({
                 </a>
                 <a
                   className="numbering-submission-result-link"
-                  href={`/api/approvals/requests/${encodeURIComponent(requestId)}/evidence/${encodeURIComponent(file.sourceFileAssetId)}?download=1`}
+                  href={approvalEvidenceHref(requestId, file.sourceFileAssetId)}
                   target="_blank"
                   rel="noreferrer"
                 >

@@ -378,10 +378,9 @@ function DepartmentPanel({ page }: { page: DepartmentPage | null }) {
         compact
         eyebrow="不用處理"
         title="此分頁目前尚無資料"
-        body="目前沒有可彙整的部門資料。若要追查來源，請回圖料工作台或待辦清單確認是否有未結項目。"
+        body="目前沒有可彙整的部門資料；若要追查來源，請回編號搜尋。"
         actions={[
-          { href: "/numbering/search", label: "回圖料工作台", variant: "primary" },
-          { href: "/numbering/tasks", label: "查看待辦" }
+          { href: "/numbering/search", label: "回編號搜尋", variant: "primary" }
         ]}
       />
     );
@@ -411,10 +410,9 @@ function ProjectBuckets({ buckets }: { buckets: ProjectBucket[] }) {
         compact
         eyebrow="不用處理"
         title="目前沒有專案待辦資料"
-        body="專案沒有未結待辦時不需要處理。若你在找特定圖號或料號，請回圖料工作台重新查詢。"
+        body="目前沒有未結項目。若你在找特定圖號或料號，請回編號搜尋重新查詢。"
         actions={[
-          { href: "/numbering/search", label: "回圖料工作台", variant: "primary" },
-          { href: "/numbering/tasks", label: "查看待辦" }
+          { href: "/numbering/search", label: "回編號搜尋", variant: "primary" }
         ]}
       />
     );
@@ -573,7 +571,7 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
       <div className="empty">
         <ShieldAlert size={22} aria-hidden="true" />
         <h2>報表暫時無法讀取</h2>
-        <p>{message} 現在請重試；若仍失敗，請回待辦或圖料工作台確認來源資料，或請 Admin 協助。</p>
+        <p>{message} 現在請重試；若仍失敗，請回待辦或編號搜尋確認來源資料，或請 Admin 協助。</p>
         <div className="empty-actions">
           <button className="secondary-button" type="button" onClick={onRetry}>
             <RotateCcw size={16} />

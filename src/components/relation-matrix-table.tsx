@@ -1,7 +1,14 @@
 "use client";
 
-import type { RelationMatrixCell } from "@/lib/relation-workbench";
 import { SearchHighlight } from "@/components/search-highlight";
+
+export type RelationMatrixCell = {
+  drawingNumberId?: string;
+  partNumberId?: string;
+  drawingNumber: string;
+  partNumber: string;
+  relationType: "manufacturing_basis" | "reference" | null;
+};
 
 export type RelationMatrixIdentity = {
   id: string;
@@ -16,6 +23,8 @@ type RelationMatrixTableProps = {
   query?: string;
   onOpenDrawing?: (drawingNumber: string) => void;
   onOpenPart?: (partNumber: string) => void;
+  editable?: boolean;
+  onChange?: (change: { drawingNumberId: string; partNumberId: string; relationType: RelationMatrixCell["relationType"] | null }) => void;
 };
 
 export function RelationMatrixTable({
@@ -25,13 +34,15 @@ export function RelationMatrixTable({
   matrix,
   query = "",
   onOpenDrawing,
-  onOpenPart
+  onOpenPart,
+  editable = false,
+  onChange
 }: RelationMatrixTableProps) {
   if (drawings.length === 0 || parts.length === 0) return <div className="pdm-relation-empty-line">目前沒有可顯示的關係矩陣。</div>;
 
   const cellByPair = new Map(matrix.map((cell) => [`${cell.partNumber}:${cell.drawingNumber}`, cell]));
   const identity = (number: string, onOpen: (() => void) | undefined) => onOpen ? (
-    <button className="pdm-relation-matrix-identity" type="button" onClick={onOpen}>
+    <button className="pdm-relation-matrix-identity" type="button" aria-label={number} onClick={onOpen}>
       <SearchHighlight value={number} query={query} />
     </button>
   ) : (
@@ -43,7 +54,10 @@ export function RelationMatrixTable({
       <table className="pdm-relation-matrix">
         <thead>
           <tr>
-            <th className="sticky-col">料號＼圖號</th>
+            <th className="sticky-col pdm-relation-axis-header">
+              <span className="pdm-relation-axis-drawing">圖號</span>
+              <span className="pdm-relation-axis-part">料號</span>
+            </th>
             {drawings.map((drawing) => <th key={drawing.id}>{identity(drawing.number, onOpenDrawing ? () => onOpenDrawing(drawing.number) : undefined)}</th>)}
           </tr>
         </thead>
@@ -53,7 +67,9 @@ export function RelationMatrixTable({
               <th className="sticky-col">{identity(part.number, onOpenPart ? () => onOpenPart(part.number) : undefined)}</th>
               {drawings.map((drawing) => {
                 const cell = cellByPair.get(`${part.number}:${drawing.number}`);
-                return <td key={drawing.id}><span className={`pdm-relation-cell is-${cell?.relationType ?? "not_applicable"}`}>{cellLabel(cell)}</span></td>;
+                const label = cellLabel(cell);
+                const cellLabelText = `${part.number} 與 ${drawing.number}：${label}`;
+                return <td key={drawing.id} className={`relation-${cell?.relationType ?? "none"}`} aria-label={cellLabelText}>{editable ? <button type="button" className="pdm-relation-matrix-cell-button" aria-label={`${cellLabelText}，點擊切換`} onClick={() => onChange?.({ drawingNumberId: drawing.id, partNumberId: part.id, relationType: nextRelationType(cell?.relationType) })}>{label}</button> : label}</td>;
               })}
             </tr>
           ))}
@@ -64,10 +80,13 @@ export function RelationMatrixTable({
 }
 
 function cellLabel(cell: RelationMatrixCell | undefined) {
-  if (!cell || cell.relationType === "not_applicable") return "—";
+  if (!cell) return "—";
   if (cell.relationType === "manufacturing_basis") return "製造";
-  if (cell.relationType === "reference") return "參考";
-  if (cell.relationType === "required_missing") return "缺必要";
-  if (cell.relationType === "blocked") return "阻擋";
-  return "待判定";
+  return "參考";
+}
+
+function nextRelationType(value: RelationMatrixCell["relationType"] | undefined): RelationMatrixCell["relationType"] | null {
+  if (!value) return "manufacturing_basis";
+  if (value === "manufacturing_basis") return "reference";
+  return null;
 }

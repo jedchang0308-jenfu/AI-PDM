@@ -43,7 +43,7 @@ export function createFixtureDatabase(options = {}) {
   insert(db, `INSERT INTO canonical_workbench_states (id, company_id, entity_type, canonical_entity_id, data_layer, branch_id, revision_id) VALUES (@id, @company, 'drawing', @entity, 'drawing_rd', @branch, @revision)`, { id: ids.stateRd, company: ids.company, entity: ids.drawing, branch: ids.branch, revision: ids.rdRevision });
   insert(db, `INSERT INTO canonical_workbench_states (id, company_id, entity_type, canonical_entity_id, data_layer) VALUES (@id, @company, 'part', @entity, 'part_formal')`, { id: ids.statePart, company: ids.company, entity: ids.part });
   insert(db, `INSERT INTO canonical_workbench_states (id, company_id, entity_type, canonical_entity_id, data_layer) VALUES (@id, @company, 'relation', @entity, 'relation_formal')`, { id: ids.stateRelation, company: ids.company, entity: ids.root });
-  db.prepare(`UPDATE pdm_workbench_state_authority_control SET mode = 'canonical_only', expected_commit = 'local-dev', schema_hash = 'dev087-v1', row_version = row_version + 1`).run();
+  db.prepare(`UPDATE pdm_workbench_state_authority_control SET mode = 'canonical_only', expected_commit = 'local-dev', schema_hash = 'dev090-v1', row_version = row_version + 1`).run();
   assert.equal(db.pragma("foreign_key_check").length, 0, "fixture foreign keys");
   return db;
 }

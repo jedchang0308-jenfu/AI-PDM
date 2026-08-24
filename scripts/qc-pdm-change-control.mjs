@@ -33,7 +33,6 @@ const bomSubmitReviewRouteSource = readProjectFile(root, "src/app/api/bom/drafts
 const bomReconfirmReplacementRouteSource = readProjectFile(root, "src/app/api/bom/drafts/[draftId]/reconfirm-replacements/route.ts");
 const bomWorkbenchPageSource = readProjectFile(root, "src/app/bom/workbench/page.tsx");
 const drawingSubmissionWorkbenchSource = readProjectFile(root, "src/lib/drawing-submission-workbench.ts");
-const numberStateWorkspaceSource = readProjectFile(root, "src/components/number-state-workspace.tsx");
 const drawingRevisionPageSource = readProjectFile(root, "src/app/numbering/revisions/page.tsx");
 const masterAttachmentPanelSource = readProjectFile(root, "src/components/master-attachment-panel.tsx");
 const revisionPackageSource = readProjectFile(root, "src/lib/revision-package.ts");
@@ -413,6 +412,20 @@ function eventTypes(database, draftId) {
 const { PdmChangeControlDomainService } = await import(
   pathToFileURL(path.join(root, "src", "lib", "pdm-change-control-domain.ts")).href
 );
+const { listReplacementAttachmentCandidatesAsync } = await import(
+  pathToFileURL(path.join(root, "src", "lib", "replacement-part-attachments.ts")).href
+);
+
+async function emptyReplacementAttachmentSnapshot(client, sourcePartNumberId) {
+  const candidates = await listReplacementAttachmentCandidatesAsync({ client, companyId, sourcePartNumberId });
+  if (!candidates) throw new Error(`Replacement attachment source not found: ${sourcePartNumberId}`);
+  return {
+    sourcePartNumberId,
+    sourceToken: candidates.sourceToken,
+    selectedAttachmentIds: [],
+    newAttachments: []
+  };
+}
 
 record("CHG-SRC-001 schema defines part_number_drafts", schema.includes("CREATE TABLE IF NOT EXISTS part_number_drafts"), "db/schema.sql");
 record("CHG-SRC-002 schema defines part_number_events", schema.includes("CREATE TABLE IF NOT EXISTS part_number_events"), "db/schema.sql");
@@ -452,7 +465,8 @@ record("CHG-SRC-006 domain service carries required reason codes", [
 record("CHG-SRC-007 wrapper uses async DB provider", wrapperSource.includes("getAsyncDatabaseClient"), "pdm-change-control.ts");
 record(
   "CHG-SRC-008 package exposes qc:pdm-change-control",
-  packageJson.scripts?.["qc:pdm-change-control"] === "node --experimental-strip-types scripts/qc-pdm-change-control.mjs",
+  packageJson.scripts?.["qc:pdm-change-control"] ===
+    "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-pdm-change-control.mjs",
   "package.json"
 );
 record(
@@ -480,13 +494,16 @@ record(
   "src/app/api/numbering/part-number-drafts"
 );
 record(
-  "CHG-SRC-010 retired draft page is absent and owner workspace owns cancellation",
+  "CHG-SRC-010 retired draft page is absent and canonical workbench owns current mutations",
   !projectFileExists(root, "src/app/numbering/part-drafts/page.tsx") &&
     !sidebarSource.includes('href: "/numbering/part-drafts"') &&
-    numberStateWorkspaceSource.includes("取消申請並釋出保留號碼") &&
-    numberStateWorkspaceSource.includes('action === "cancel"') &&
+    projectFileExists(root, "src/lib/pdm-canonical-command.ts") &&
+    projectFileExists(root, "src/app/api/parts/workbench/route.ts") &&
+    projectFileExists(root, "src/app/api/numbering/drawings/workbench/route.ts") &&
+    projectFileExists(root, "src/app/api/numbering/relations/route.ts") &&
+    serviceSource.includes("voidPartNumberDraft") &&
     navPermissionSource.includes('"/numbering/part-drafts": "numbering.tasks"'),
-  "DEV-048 owner workspace and compatibility permission mapping"
+  "DEV-087 canonical mutation authority with compatibility permission mapping"
 );
 record("CHG-SRC-011 reconfirm event type is allowed by schema", schema.includes("'draft_reconfirmed'"), "db/schema.sql");
 record(
@@ -602,7 +619,7 @@ try {
 
   const firstDraft = await service.reservePartNumberDraft({
     reservedPartNumber: "P-QC-CHG-001",
-    draftType: "replacement_part",
+    draftType: "new_part",
     itemType: "self_made",
     actor: engineer
   });
@@ -651,7 +668,7 @@ try {
     "CHG-GUARD-001A candidate-workspace reservation blocks replacement draft reuse",
     () => service.reservePartNumberDraft({
       reservedPartNumber: "P-QC-CHG-CROSS-001",
-      draftType: "replacement_part",
+      draftType: "new_part",
       itemType: "self_made",
       actor: engineer
     }),
@@ -767,10 +784,13 @@ try {
     JSON.stringify({ submitted, submittedBoundary })
   );
 
+  const selfMadeSourcePart = seedFormalPart(database, "P-QC-CHG-003-SOURCE");
   const selfMadeDraft = await service.reservePartNumberDraft({
     reservedPartNumber: "P-QC-CHG-003",
     draftType: "replacement_part",
     itemType: "self_made",
+    sourcePartNumberId: selfMadeSourcePart.partId,
+    attachmentSnapshot: await emptyReplacementAttachmentSnapshot(client, selfMadeSourcePart.partId),
     actor: engineer
   });
   await expectReject(
@@ -808,7 +828,9 @@ try {
     reservedPartNumber: "P-QC-CHG-005",
     draftType: "drawing_revision_generated",
     itemType: "self_made",
+    sourcePartNumberId: selfMadeSourcePart.partId,
     sourceDrawingNumberId: drawing.drawingId,
+    attachmentSnapshot: await emptyReplacementAttachmentSnapshot(client, selfMadeSourcePart.partId),
     actor: engineer
   });
   const drawingBoundary = await service.getPartNumberControlBoundary(drawingBoundaryDraft.id, engineer);
@@ -833,6 +855,8 @@ try {
     reservedPartNumber: "P-QC-OLD-001-DRAFT",
     draftType: "replacement_part",
     itemType: "purchased",
+    sourcePartNumberId: oldPart.partId,
+    attachmentSnapshot: await emptyReplacementAttachmentSnapshot(client, oldPart.partId),
     actor: engineer
   });
   database
@@ -854,6 +878,7 @@ try {
     draftType: "replacement_part",
     itemType: "purchased",
     sourcePartNumberId: sameSourcePart.partId,
+    attachmentSnapshot: await emptyReplacementAttachmentSnapshot(client, sameSourcePart.partId),
     actor: engineer
   });
   const sameSourceB = await service.reservePartNumberDraft({
@@ -861,6 +886,7 @@ try {
     draftType: "replacement_part",
     itemType: "standard",
     sourcePartNumberId: sameSourcePart.partId,
+    attachmentSnapshot: await emptyReplacementAttachmentSnapshot(client, sameSourcePart.partId),
     actor: engineer
   });
   const listedDrafts = await service.listPartNumberDrafts({ actor: engineer, status: "all" });
@@ -885,6 +911,7 @@ try {
   );
 
   const revisionDrawing = seedDrawing(database, "D-QC-REV-MA1");
+  const revisionSourcePart = seedFormalPart(database, "P-QC-REV-SOURCE");
   const noImpact = await service.submitDrawingRevisionFffAssessment({
     drawingNumberId: revisionDrawing.drawingId,
     revision: "0.1",
@@ -921,6 +948,7 @@ try {
       }),
     "replacement_part_number_required"
   );
+  const revisionSourceAttachmentSnapshot = await emptyReplacementAttachmentSnapshot(client, revisionSourcePart.partId);
   await expectReject(
     "CHG-FFF-003 drawing part-number mismatch blocks confirmed impact",
     () =>
@@ -933,6 +961,8 @@ try {
         reasonCategory: "尺寸 / 公差修正",
         replacementReservedPartNumber: "P-QC-REV-NEW",
         detectedPartNumber: "P-QC-REV-OTHER",
+        currentPartNumberId: revisionSourcePart.partId,
+        attachmentSnapshot: revisionSourceAttachmentSnapshot,
         actor: engineer
       }),
     "drawing_part_number_mismatch"
@@ -948,6 +978,8 @@ try {
     replacementReservedPartNumber: "P-QC-REV-NEW",
     detectedPartNumber: "P-QC-REV-OCR",
     correctedPartNumber: "P-QC-REV-NEW",
+    currentPartNumberId: revisionSourcePart.partId,
+    attachmentSnapshot: revisionSourceAttachmentSnapshot,
     actor: engineer
   });
   const drawingCountAfterReplacement = database.prepare("SELECT COUNT(*) AS count FROM drawing_numbers WHERE company_id = ?").get(companyId).count;
@@ -1026,6 +1058,7 @@ try {
     currentPartNumberId: releaseOldPart.partId,
     replacementReservedPartNumber: "90001-P01",
     detectedPartNumber: "90001-P01",
+    attachmentSnapshot: await emptyReplacementAttachmentSnapshot(client, releaseOldPart.partId),
     actor: engineer
   });
   const releaseResult = await service.applyDrawingRevisionReviewAction({
@@ -1189,6 +1222,7 @@ try {
     currentPartNumberId: rollbackOldPart.partId,
     replacementReservedPartNumber: "90002-P01",
     detectedPartNumber: "90002-P01",
+    attachmentSnapshot: await emptyReplacementAttachmentSnapshot(client, rollbackOldPart.partId),
     actor: engineer
   });
   seedFormalPart(database, "90002-P01");

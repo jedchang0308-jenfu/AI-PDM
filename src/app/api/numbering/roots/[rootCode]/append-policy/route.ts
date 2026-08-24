@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
-import { previewAppendNumbersAsync } from "@/lib/number-candidate-preview";
+import { previewAppendNumbersAsync } from "@/lib/numbering-preview";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { getNumberingRootDetailAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
@@ -27,9 +27,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
     (status) => status === "Active" || status === "Released" || status === "MainDrawingInvalid"
   );
   const locked = ["Obsolete", "Merged"].includes(detail.root.recordStatus);
+  const inheritedPart = detail.partNumbers[0]
+    ? {
+        itemKind: detail.partNumbers[0].itemKind,
+        isUniversal: detail.partNumbers[0].isUniversal,
+        seriesCode: detail.partNumbers[0].seriesCode,
+        customSpecification: detail.partNumbers[0].customSpecification
+      }
+    : {
+        itemKind: detail.root.itemKind,
+        isUniversal: false,
+        seriesCode: null,
+        customSpecification: null
+      };
 
   return NextResponse.json({
     root: detail.root,
+    inheritedPart,
     counts: detail.summary,
     locked,
     reasonRequired,

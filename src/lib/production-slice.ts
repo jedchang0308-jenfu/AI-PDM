@@ -1,4 +1,3 @@
-import { isNumberStateFlowV1Enabled } from "@/lib/number-state-flow-feature";
 
 export const OFFICIAL_NUMBERING_DRAFT_SLICE = "official-numbering-draft";
 export const PRODUCTION_SLICE_UNOPENED_CODE = "feature_not_open_in_production_slice";
@@ -83,12 +82,6 @@ const numberingLifecycleApiMutationMatchers: Array<{ method: string; pattern: Re
   { method: "POST", pattern: /^\/api\/approvals\/requests\/[^/]+\/apply$/, gate: "formal-obsolete" }
 ];
 
-const numberStateFlowApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
-  { method: "POST", pattern: /^\/api\/numbering\/draft-workspaces$/ },
-  { method: "PATCH", pattern: /^\/api\/numbering\/draft-workspaces\/[^/]+$/ },
-  { method: "POST", pattern: /^\/api\/numbering\/draft-workspaces\/[^/]+\/(candidate-numbers|cancel)$/ }
-];
-
 export function getProductionSliceState(env: EnvLike = process.env): ProductionSliceState {
   const localFullFunctionValidation =
     String(env.NODE_ENV ?? "").trim() === "development" &&
@@ -171,9 +164,6 @@ export function isProductionSliceAllowedApiMutation(method: string, pathname: st
     (item) => item.method === normalizedMethod && item.pattern.test(normalizedPath)
   );
   if (lifecycleMatcher) return isProductionNumberingLifecycleGateOpen(lifecycleMatcher.gate, env);
-  if (isNumberStateFlowV1Enabled(env) && numberStateFlowApiMutationMatchers.some((item) => item.method === normalizedMethod && item.pattern.test(normalizedPath))) {
-    return true;
-  }
   return sliceAllowedApiMutationMatchers.some((item) => item.method === normalizedMethod && item.pattern.test(normalizedPath));
 }
 

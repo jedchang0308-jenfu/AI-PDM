@@ -5,17 +5,28 @@ import { buildPdmChangeControlActor, pdmChangeControlErrorResponse } from "@/lib
 import { submitDrawingRevisionFffAssessment, type DrawingRevisionFffState, type PartNumberDraftItemType } from "@/lib/pdm-change-control";
 import { PdmChangeControlError } from "@/lib/pdm-change-control-domain";
 import { requireResolvedDrawingRevisionContext } from "@/lib/drawing-revision-workbench";
+import {
+  parseReplacementAttachmentCommand,
+  prepareReplacementAttachmentCommand,
+  replacementAttachmentSnapshotFromBody
+} from "@/lib/replacement-part-attachments";
 
 export const runtime = "nodejs";
 
 const fffStates = new Set(["no_impact", "suspected_impact", "confirmed_impact"]);
-const itemTypes = new Set(["self_made", "purchased", "standard"]);
+const itemTypes = new Set(["self_made", "purchased"]);
 
 export async function POST(request: Request) {
   const auth = await requireNumberingActionAsync(request, "numbering.draft.update");
   if (auth.response) return auth.response;
 
-  const body = await request.json().catch(() => ({}));
+  let parsed;
+  try {
+    parsed = await parseReplacementAttachmentCommand(request);
+  } catch (error) {
+    return pdmChangeControlErrorResponse(error, "Invalid replacement attachment command");
+  }
+  const body = parsed.body;
   const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
   if (companyResult.response) return companyResult.response;
 
@@ -38,6 +49,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    const prepared = await prepareReplacementAttachmentCommand(parsed, companyResult.company.companyCode);
+    const attachmentSnapshot = replacementAttachmentSnapshotFromBody(body, prepared.preparedNewAttachments);
     const actor = buildPdmChangeControlActor(auth, companyResult.company.companyId);
     const resolved = await requireResolvedDrawingRevisionContext({
       companyId: companyResult.company.companyId,
@@ -78,6 +91,7 @@ export async function POST(request: Request) {
       replacementItemType: normalizeEnum(body.replacementItemType ?? body.replacement_item_type, itemTypes) as PartNumberDraftItemType | undefined,
       detectedPartNumber: nullableText(body.detectedPartNumber ?? body.detected_part_number),
       correctedPartNumber: nullableText(body.correctedPartNumber ?? body.corrected_part_number),
+      attachmentSnapshot,
       actor
     });
     return NextResponse.json({ ...result, pdmCompany: companyResult.company }, { status: 201 });

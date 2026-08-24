@@ -5,6 +5,13 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const distDir = process.env.PDM_NEXT_DIST_DIR?.trim() || ".next";
+const outputFileTracingExcludes = [
+  "./data/**/*",
+  "./output/**/*",
+  "./backups/**/*",
+  "./tmp/**/*",
+  "./.tmp/**/*"
+];
 
 // Keep every temporary Next runtime from rewriting the canonical TypeScript configs.
 function ensureIsolatedNextTsconfig(customDistDir) {
@@ -77,8 +84,8 @@ const nextConfig = {
     ];
   },
   outputFileTracingExcludes: {
-    "/*": ["./data/**/*"],
-    "/api/*": ["./data/**/*"]
+    "/*": outputFileTracingExcludes,
+    "/api/*": outputFileTracingExcludes
   },
   outputFileTracingIncludes: {
     "/*": [

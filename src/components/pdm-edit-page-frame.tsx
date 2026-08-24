@@ -12,6 +12,7 @@ export function PdmEditPageFrame({
   eyebrow,
   title,
   subtitle,
+  headingLayout = "stacked",
   status,
   identity,
   children,
@@ -25,6 +26,7 @@ export function PdmEditPageFrame({
   eyebrow: string;
   title: string;
   subtitle?: string;
+  headingLayout?: "stacked" | "inline" | "breadcrumb";
   status: PdmEditPageStatus;
   identity?: ReactNode;
   children?: ReactNode;
@@ -42,7 +44,19 @@ export function PdmEditPageFrame({
     <main className="pdm-edit-page" data-pdm-edit-page="true">
       <header className="pdm-edit-page-header">
         <button className="icon-button" type="button" onClick={goBack} aria-label="返回上一個工作清單"><ArrowLeft size={18} /></button>
-        <div className="pdm-edit-page-heading"><span className="eyebrow">{eyebrow}</span><h1>{title}</h1>{subtitle ? <p>{subtitle}</p> : null}</div>
+        <div className={`pdm-edit-page-heading${headingLayout === "inline" ? " is-inline" : headingLayout === "breadcrumb" ? " is-breadcrumb" : ""}`}>
+          {headingLayout === "breadcrumb" ? (
+            <nav className="pdm-edit-page-breadcrumb" aria-label="目前位置">
+              <ol>
+                <li><span>{eyebrow}</span></li>
+                {subtitle ? <li><span>{subtitle}</span></li> : null}
+                <li aria-current="page"><h1>{title}</h1></li>
+              </ol>
+            </nav>
+          ) : (
+            <><span className="eyebrow">{eyebrow}</span><h1>{title}</h1>{subtitle ? <p>{subtitle}</p> : null}</>
+          )}
+        </div>
         <div className="pdm-edit-page-identity">{identity}</div>
       </header>
       {notice ? <div className="pdm-edit-page-notice" role="status">{notice}</div> : null}

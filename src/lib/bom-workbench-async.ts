@@ -5,8 +5,7 @@ export {
   BomDraftEditorVersionConflictError,
   BomFloatingTopicsUnresolvedError,
   BomReleaseGateError,
-  BomRevisionConflictError,
-  BomXlsImportError
+  BomRevisionConflictError
 } from "@/lib/repositories/bom-workbench-async-repository";
 
 export async function getBomWorkbenchBySubmissionIdAsync(submissionId: string) {
@@ -73,61 +72,19 @@ export async function saveBomWorkbenchDraftTreeAsync(input: {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).saveDraftTree(input);
 }
 
-export async function createBomWorkbenchDraftFromAssemblyAsync(input: {
-  submissionId: string;
-  actorId: string | null;
-  draftName?: string;
-  setActive?: boolean;
-}) {
-  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).createDraftFromAssembly(input);
-}
-
-export async function createBomWorkbenchDraftFromSolidWorksXlsAsync(input: {
-  submissionId: string;
-  actorId: string | null;
-  draftName?: string;
-  setActive?: boolean;
-  originalFilename: string;
-  fileBuffer: Buffer;
-  contentType?: string | null;
-  profileName?: string;
-  profileVersion?: string;
-}) {
-  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).createDraftFromSolidWorksXls(input);
-}
-
 export async function createCanonicalBomDraftAsync(input: {
   companyId: string;
   ownerPartNumberId: string;
   ownerPartNumber: string;
   legacyItemId: string | null;
   bomRevision: string;
-  source: "manual" | "cad_reference";
-  sourceSubmissionId?: string | null;
-  sourceRevisionPackageId?: string | null;
+  source: "manual";
   actorId: string;
   idempotencyKey: string;
   requestFingerprint: string;
   draftName?: string;
 }) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).createCanonicalDraft(input);
-}
-
-export async function createCanonicalBomDraftFromSolidWorksXlsAsync(input: {
-  companyId: string;
-  ownerPartNumberId: string;
-  ownerPartNumber: string;
-  legacyItemId: string | null;
-  bomRevision: string;
-  actorId: string;
-  idempotencyKey: string;
-  requestFingerprint: string;
-  draftName?: string;
-  originalFilename: string;
-  fileBuffer: Buffer;
-  contentType?: string | null;
-}) {
-  return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).createCanonicalDraftFromSolidWorksXls(input);
 }
 
 export async function getBomReleaseSnapshotByIdAsync(snapshotId: string) {

@@ -11,11 +11,16 @@ import {
   type PartNumberDraftStatus,
   type PartNumberDraftType
 } from "@/lib/pdm-change-control";
+import {
+  parseReplacementAttachmentCommand,
+  prepareReplacementAttachmentCommand,
+  replacementAttachmentSnapshotFromBody
+} from "@/lib/replacement-part-attachments";
 
 export const runtime = "nodejs";
 
 const draftTypes = new Set(["new_part", "replacement_part", "drawing_revision_generated"]);
-const itemTypes = new Set(["self_made", "purchased", "standard"]);
+const itemTypes = new Set(["self_made", "purchased"]);
 const statuses = new Set(["draft", "pending_review", "released", "needs_reconfirmation", "voided", "all"]);
 
 export async function GET(request: Request) {
@@ -61,7 +66,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}));
+  const preliminaryAuth = await requireNumberingActionAsync(request, "numbering.draft.update");
+  if (preliminaryAuth.response) return preliminaryAuth.response;
+
+  let parsed;
+  try {
+    parsed = await parseReplacementAttachmentCommand(request);
+  } catch (error) {
+    return pdmChangeControlErrorResponse(error, "Invalid replacement attachment command");
+  }
+  const body = parsed.body;
   const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.draft.update", body });
   if (access.response) return access.response;
 
@@ -77,6 +91,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    const prepared = await prepareReplacementAttachmentCommand(parsed, access.company.companyCode);
+    const attachmentSnapshot = replacementAttachmentSnapshotFromBody(body, prepared.preparedNewAttachments);
     const actor = {
       userId: access.actor.pdmUserId,
       companyId: access.actor.organizationId,
@@ -92,6 +108,7 @@ export async function POST(request: Request) {
       sourceRevision: nullableText(body.sourceRevision ?? body.source_revision),
       useType: nullableText(body.useType ?? body.use_type),
       departmentId: nullableText(body.departmentId ?? body.department_id),
+      attachmentSnapshot,
       actor
     }, access.metadata);
     return NextResponse.json({ draft, pdmCompany: access.company }, { status: 201 });

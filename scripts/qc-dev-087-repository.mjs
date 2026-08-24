@@ -20,15 +20,26 @@ statements = 0;
 const drawing = await service.list(new URL("http://local/api?query=A0002-M01"), "drawing", actor);
 assert.equal(drawing.data.groups.length, 1);
 assert.deepEqual(drawing.data.groups[0].rows.map((row) => row.layerLabel), ["量產版 1", "研發版 1.1"]);
+assert.deepEqual(drawing.data.groups[0].rows.map((row) => row.dataStateLabel), ["可使用", "可使用"]);
+assert.deepEqual(drawing.data.groups[0].rows.map((row) => row.handlingLabel), ["無須處理", "無須處理"]);
 assert.equal(drawing.data.groups[0].rows[0].actions[0].label, "進版");
 assert(statements <= 12, `drawing list query budget exceeded: ${statements}`);
 const rdOnly = await service.list(new URL("http://local/api?layer=rd"), "drawing", actor);
 assert.deepEqual(rdOnly.data.groups[0].rows.map((row) => row.layer), ["rd"]);
+const availableOnly = await service.list(new URL("http://local/api?stage=available"), "drawing", actor);
+assert.equal(availableOnly.data.totalRows, 2);
 const otherCompany = await service.list(new URL("http://local/api"), "drawing", { ...actor, companyId: ids.otherCompany });
 assert.equal(otherCompany.data.totalRows, 0);
 const detail = await service.detail(drawing.data.groups[0].rows[0].rowKey, "drawing", actor);
 assert.equal(detail.data.row.code, "A0002-M01");
-assert(Array.isArray(detail.data.history));
+assert.equal(detail.data.presentation.kind, "drawing");
+assert(Array.isArray(detail.data.presentation.history));
+assert(detail.data.presentation.history.some((item) => item.revision === "1"));
+assert(detail.data.presentation.history.some((item) => item.revision === "1.1"));
+
+// Relation workbench rows were retired by DEV-090; its direct formal matrix
+// contract is verified by the DEV-090 focused suite rather than this Drawing/
+// Part canonical workbench regression.
 
 const partList = await service.list(new URL("http://local/api"), "part", actor);
 const partRow = partList.data.groups[0].rows[0];
@@ -42,7 +53,10 @@ const replay = await partService.create(ids.part, commandActor, context);
 assert.deepEqual(replay, created);
 assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM part_change_works`).get().n, 1);
 assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM canonical_workbench_states WHERE data_layer = 'part_work'`).get().n, 1);
+const editingOnly = await service.list(new URL("http://local/api?stage=editing"), "part", actor);
+assert.equal(editingOnly.data.totalRows, 1);
+assert.equal(editingOnly.data.groups[0].rows[0].dataStateLabel, "編輯中");
 await assert.rejects(() => partService.create(ids.part, commandActor, { ...context, idempotencyKey: "dev087-part-create-2" }), (error) => error.code === "WORKBENCH_ACTIVE_WORK_EXISTS" || error.code === "WORKBENCH_ROW_VERSION_CONFLICT");
 assert.equal(db.pragma("foreign_key_check").length, 0);
 db.close();
-pass("repository", 17);
+pass("repository", 34);

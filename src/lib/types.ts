@@ -111,7 +111,7 @@ export type FileReference = {
   referenced_part_number: string | null;
   referenced_drawing_number: string | null;
   referenced_revision: string | null;
-  reference_type: "assembly_component" | "drawing_model" | "derived" | "unknown";
+  reference_type: "drawing_model" | "derived" | "unknown";
   quantity: number;
   extraction_method: string;
   confidence: "high" | "medium" | "low";
@@ -146,7 +146,7 @@ export type BomHeader = {
   parent_submission_id: string;
   parent_revision: string;
   status: "Draft" | "ReleasedSnapshot";
-  source: "cad_references" | "manual" | "imported";
+  source: "manual" | "imported";
   line_count: number;
   created_at: string;
   updated_at: string;
@@ -163,7 +163,7 @@ export type BomDetail = BomHeader & {
 };
 
 export type BomWorkbenchDraftStatus = "Draft" | "PendingReview" | "Rejected" | "Released" | "Obsolete" | "Archived";
-export type BomWorkbenchSource = "cad_reference" | "solidworks_xls" | "manual";
+export type BomWorkbenchSource = "manual";
 export type BomWorkbenchNodeType = "item" | "group";
 
 export type BomWorkbenchDraftSummary = {
@@ -172,7 +172,6 @@ export type BomWorkbenchDraftSummary = {
   owner_part_number_id: string | null;
   bom_revision: string | null;
   source_submission_id: string | null;
-  source_revision_package_id?: string | null;
   identity_authority: "canonical_part_number" | "legacy_submission_bound" | "manual_review";
   parent_item_id: string;
   parent_submission_id: string;
@@ -267,35 +266,6 @@ export type BomWorkbenchDraftDetail = BomWorkbenchDraftSummary & {
   } | null;
 };
 
-export type BomImportJobStatus = "Staged" | "Imported" | "Rejected" | "Failed";
-
-export type BomImportProfile = {
-  id: string;
-  profile_name: string;
-  source_type: "solidworks_xls";
-  version: string;
-  mapping_json: string;
-  is_active: number;
-  created_at: string;
-};
-
-export type BomImportJob = {
-  id: string;
-  bom_draft_id: string | null;
-  owner_part_number_id: string | null;
-  bom_revision: string | null;
-  source_submission_id: string | null;
-  parent_submission_id: string;
-  import_profile_id: string;
-  source_asset_id: string | null;
-  original_filename: string;
-  status: BomImportJobStatus;
-  row_count: number;
-  error_json: string | null;
-  created_by: string | null;
-  created_at: string;
-};
-
 export type BomWorkbenchSummary = {
   parent_submission_id: string;
   parent_item_id: string;
@@ -331,7 +301,6 @@ export type BomReleaseSnapshotDetail = {
   owner_part_number_id: string | null;
   bom_revision: string | null;
   source_submission_id: string | null;
-  source_revision_package_id?: string | null;
   parent_item_id: string;
   parent_submission_id: string;
   parent_revision: string;

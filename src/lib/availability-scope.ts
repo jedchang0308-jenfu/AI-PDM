@@ -11,7 +11,7 @@ export type AvailabilityScopeProjection = {
   summary: string;
 };
 
-const manufacturingItemKinds = new Set(["manufactured", "outsourced", "custom"]);
+const manufacturingItemKinds = new Set(["manufactured"]);
 
 function scope(
   value: AvailabilityScope,

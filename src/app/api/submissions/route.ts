@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   return NextResponse.json(
     {
       error: "GENERIC_SUBMISSION_RETIRED",
-      message: "通用上傳送審已退役。請從圖料工作台完成主資料與附件確認後送審，不可在送審階段補填主資料。"
+      message: "通用上傳送審已退役。請從圖號／料號工作台完成主資料與附件確認後送審，不可在送審階段補填主資料。"
     },
     { status: 410 }
   );
@@ -156,8 +156,8 @@ function isFileRole(value: string): value is FileRole {
   return ["sldprt", "sldasm", "slddrw", "pdf", "dwg", "other"].includes(value);
 }
 
-function isReferenceType(value: string): value is "assembly_component" | "drawing_model" | "derived" | "unknown" {
-  return ["assembly_component", "drawing_model", "derived", "unknown"].includes(value);
+function isReferenceType(value: string): value is "drawing_model" | "derived" | "unknown" {
+  return ["drawing_model", "derived", "unknown"].includes(value);
 }
 
 function isConfidence(value: string): value is "high" | "medium" | "low" {

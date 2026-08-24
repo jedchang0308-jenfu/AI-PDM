@@ -5,10 +5,14 @@ import Database from "better-sqlite3";
 
 const args = new Set(process.argv.slice(2));
 const apply = args.has("--apply");
+const repairWorkFiles = args.has("--repair-work-files");
 const switchCanonical = args.has("--switch-canonical-only");
 const discardUnapprovedPartOnlyDrafts = args.has("--discard-unapproved-part-only-drafts");
+const retainUnmappedLegacy = args.has("--retain-unmapped-legacy");
 const confirmedDisposable = args.has("--confirm-disposable-dev-087") || process.env.PDM_DEV087_MIGRATION_AUTHORIZED === "1";
 if (apply && !confirmedDisposable) throw new Error("DEV087_APPLY_REQUIRES_DISPOSABLE_OR_AUTHORIZED_CONFIRMATION");
+if (retainUnmappedLegacy && apply && !confirmedDisposable) throw new Error("DEV087_RETAIN_LEGACY_REQUIRES_EXPLICIT_CONFIRMATION");
+if (retainUnmappedLegacy && discardUnapprovedPartOnlyDrafts) throw new Error("DEV087_RETAIN_LEGACY_CANNOT_DISCARD_LEGACY_DRAFTS");
 if (switchCanonical && !apply) throw new Error("DEV087_CANONICAL_SWITCH_REQUIRES_APPLY");
 
 function option(name) {
@@ -19,7 +23,7 @@ function option(name) {
 const dataDir = path.resolve(process.env.PDM_DATA_DIR?.trim() || "data");
 const dbPath = path.resolve(option("--db") || path.join(dataDir, "ai-pdm.sqlite"));
 const expectedCommit = option("--expected-commit") || process.env.PDM_BUILD_COMMIT?.trim() || "local-dev";
-const schemaHash = "dev087-v1";
+const schemaHash = "dev090-v1";
 
 function stableId(namespace, ...values) {
   const hex = crypto.createHash("sha256").update([namespace, ...values].join("\u001f")).digest("hex");
@@ -54,20 +58,21 @@ const db = new Database(dbPath, apply ? undefined : { readonly: true, fileMustEx
 db.pragma("foreign_keys=ON");
 
 const plan = {
-  version: 1,
+  version: 2,
   devId: "DEV-087",
   provider: "sqlite",
   dbPath,
   mode: apply ? "apply" : "dry-run",
   expectedCommit,
   schemaHash,
-  source: { drawings: 0, revisions: 0, parts: 0, roots: 0, activeWorkspaces: 0, cancelledWorkspaces: 0 },
-  target: { aggregates: 0, states: 0, branches: 0, claims: 0, drawingWorks: 0, partWorks: 0, relationWorks: 0, reviewTraces: 0 },
-  cleanup: { discardUnapprovedPartOnlyDrafts, legacyCancelled: 0, unapprovedPartOnlyDrafts: 0 },
+  source: { drawings: 0, revisions: 0, parts: 0, roots: 0, activeWorkspaces: 0, cancelledWorkspaces: 0, migratedDrawingWorks: 0, expectedDrawingWorkFiles: 0, existingDrawingWorkFiles: 0 },
+  target: { aggregates: 0, states: 0, branches: 0, claims: 0, drawingWorks: 0, drawingWorkFiles: 0, partWorks: 0, relationWorks: 0, reviewTraces: 0 },
+  cleanup: { discardUnapprovedPartOnlyDrafts, retainUnmappedLegacy, legacyCancelled: 0, unapprovedPartOnlyDrafts: 0, retainedLegacy: 0 },
   quarantine: [],
   operations: [],
   identityHash: "",
-  unresolved: 0
+  unresolved: 0,
+  workFileRepair: { requested: repairWorkFiles, plannedRows: 0, completedRows: 0 }
 };
 
 const drawings = db.prepare("SELECT id, company_id, COALESCE(drawing_number, '') AS code, part_root_id, owner_id, created_by, workspace_id FROM drawings WHERE lifecycle_state NOT IN ('cancelled', 'obsolete', 'merged') ORDER BY company_id, id").all();
@@ -80,7 +85,18 @@ const activeWorkspaces = tableExists(db, "numbering_draft_workspaces")
 const cancelledWorkspaces = tableExists(db, "numbering_draft_workspaces")
   ? db.prepare("SELECT id, company_id FROM numbering_draft_workspaces WHERE lifecycle_status = 'cancelled' ORDER BY company_id, id").all()
   : [];
-plan.source = { drawings: drawings.length, revisions: revisions.length, parts: parts.length, roots: roots.length, activeWorkspaces: activeWorkspaces.length, cancelledWorkspaces: cancelledWorkspaces.length };
+plan.source = { ...plan.source, drawings: drawings.length, revisions: revisions.length, parts: parts.length, roots: roots.length, activeWorkspaces: activeWorkspaces.length, cancelledWorkspaces: cancelledWorkspaces.length };
+
+const revisionFileRowsByRevision = new Map();
+if (tableExists(db, "drawing_revision_files") && tableExists(db, "file_assets")) {
+  const revisionFileRows = db.prepare(`SELECT file.id AS file_id, file.company_id, revision.drawing_id, file.drawing_revision_id,
+      file.source_file_asset_id, file.sort_order, file.removed_at, asset.id AS asset_id, asset.content_hash, asset.deleted_at
+    FROM drawing_revision_files file
+    JOIN drawing_revisions revision ON revision.id = file.drawing_revision_id AND revision.company_id = file.company_id
+    LEFT JOIN file_assets asset ON asset.id = file.source_file_asset_id
+    ORDER BY file.company_id, file.drawing_revision_id, file.sort_order, file.id`).all();
+  for (const row of revisionFileRows) revisionFileRowsByRevision.set(row.drawing_revision_id, [...(revisionFileRowsByRevision.get(row.drawing_revision_id) ?? []), row]);
+}
 
 const revisionsByDrawing = new Map();
 for (const revision of revisions) revisionsByDrawing.set(revision.drawing_id, [...(revisionsByDrawing.get(revision.drawing_id) ?? []), revision]);
@@ -94,6 +110,13 @@ const approvalRequests = tableExists(db, "approval_platform_requests")
   : [];
 const approvalDecisions = tableExists(db, "approval_platform_decisions")
   ? db.prepare("SELECT id, request_id, decision, decided_at FROM approval_platform_decisions ORDER BY decided_at, id").all()
+  : [];
+const legacyPackageApprovals = tableExists(db, "drawing_revision_package_review_approvals")
+  ? db.prepare(`SELECT approval.approval_request_id, approval.company_id, approval.candidate_revision_id,
+        approval.approved_at, revision.drawing_id
+      FROM drawing_revision_package_review_approvals approval
+      JOIN drawing_revisions revision ON revision.source_candidate_revision_id = approval.candidate_revision_id
+      ORDER BY approval.company_id, approval.approved_at, approval.approval_request_id`).all()
   : [];
 const decisionsByRequest = new Map();
 for (const decision of approvalDecisions) decisionsByRequest.set(decision.request_id, [...(decisionsByRequest.get(decision.request_id) ?? []), decision]);
@@ -110,6 +133,14 @@ for (const request of approvalRequests) {
 const operations = [];
 const convertedDrawingWorkspaces = new Set();
 function add(table, row) { operations.push({ table, row }); }
+function addWorkFileSnapshotOperation(work, source) {
+  operations.push({
+    kind: "insert_work_file_snapshot",
+    table: "drawing_revision_work_files",
+    row: { work_id: work.id, file_binding_id: source.file_id, ordinal: Number(source.sort_order), content_hash: source.content_hash },
+    source: { companyId: work.company_id, drawingId: work.drawing_id, revisionId: work.revision_id, fileBindingId: source.file_id, fileAssetId: source.source_file_asset_id }
+  });
+}
 function quarantine(sourceKind, sourceIdentity, companyId, reasonCode, evidence) {
   plan.quarantine.push({ sourceKind, sourceIdentity, companyId, reasonCode, evidence });
 }
@@ -117,6 +148,27 @@ function quarantine(sourceKind, sourceIdentity, companyId, reasonCode, evidence)
 function countWhere(table, column, value) {
   if (!tableExists(db, table)) return 0;
   return Number(db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE ${column} = ?`).get(value).count);
+}
+
+function validateSourceRevisionFiles(work, rows) {
+  const ordinals = new Set();
+  for (const row of rows) {
+    if (row.company_id !== work.company_id || row.drawing_id !== work.drawing_id || row.drawing_revision_id !== work.revision_id) return { reasonCode: "work_file_source_scope_mismatch", row };
+    if (row.removed_at !== null || !row.asset_id || row.deleted_at !== null || !row.content_hash) return { reasonCode: "work_file_source_asset_missing_or_deleted", row };
+    if (ordinals.has(Number(row.sort_order))) return { reasonCode: "work_file_duplicate_ordinal", row };
+    ordinals.add(Number(row.sort_order));
+  }
+  return null;
+}
+
+function parseMigratedWorkPayload(work) {
+  try {
+    const payload = typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload;
+    if (!payload || typeof payload !== "object" || payload.migrated !== true) return null;
+    return payload;
+  } catch {
+    return { migrated: true, invalid: true };
+  }
 }
 
 function legacyWorkspaceEvidence(workspace) {
@@ -183,6 +235,23 @@ function isDisposableUnapprovedPartOnly(workspace, evidence) {
     && evidence.controlledNoteRows === 0 && evidence.engineeringEvidenceRows === 0 && evidence.candidateFileRows === 0;
 }
 
+const existingMigratedWorkIds = new Set();
+const existingWorkFileRowsByWork = new Map();
+if (tableExists(db, "drawing_revision_works")) {
+  const migratedWorks = db.prepare("SELECT id, company_id, drawing_id, proposed_payload FROM drawing_revision_works ORDER BY company_id, id").all();
+  for (const work of migratedWorks) {
+    const payload = parseMigratedWorkPayload(work);
+    if (!payload || !work.drawing_id || !payload.revisionId) continue;
+    existingMigratedWorkIds.add(work.id);
+    if (tableExists(db, "drawing_revision_work_files")) {
+      existingWorkFileRowsByWork.set(work.id, db.prepare("SELECT work_id, file_binding_id, ordinal, content_hash FROM drawing_revision_work_files WHERE work_id = ? ORDER BY ordinal, file_binding_id").all(work.id));
+    }
+  }
+}
+plan.source.migratedDrawingWorks = existingMigratedWorkIds.size;
+plan.source.expectedDrawingWorkFiles = [...revisionFileRowsByRevision.values()].reduce((sum, rows) => sum + rows.length, 0);
+plan.source.existingDrawingWorkFiles = [...existingWorkFileRowsByWork.values()].reduce((sum, rows) => sum + rows.length, 0);
+
 for (const drawing of drawings) {
   const aggregateId = stableId("dev087-aggregate", drawing.company_id, "drawing", drawing.id);
   const all = revisionsByDrawing.get(drawing.id) ?? [];
@@ -236,6 +305,59 @@ for (const drawing of drawings) {
       continue;
     }
     const predecessor = production && production.tuple.major === entry.tuple.major ? production.row.id : null;
+    const sourceWork = { id: stableId("dev087-drawing-work", drawing.company_id, stableId("dev087-branch", drawing.company_id, drawing.id, entry.row.id)), company_id: drawing.company_id, drawing_id: drawing.id, revision_id: entry.row.id };
+    const sourceFiles = revisionFileRowsByRevision.get(entry.row.id) ?? [];
+    if (workId) {
+      const sourceIssue = validateSourceRevisionFiles(sourceWork, sourceFiles);
+      if (sourceIssue) {
+        quarantine("drawing_revision_work_files", entry.row.id, entry.row.company_id, sourceIssue.reasonCode, { revisionId: entry.row.id, file: sourceIssue.row });
+        continue;
+      }
+      const existingRows = existingWorkFileRowsByWork.get(workId) ?? null;
+      if (existingRows) {
+        const expectedByBinding = new Map(sourceFiles.map((sourceFile) => [sourceFile.file_id, sourceFile]));
+        const existingByBinding = new Map(existingRows.map((row) => [row.file_binding_id, row]));
+        const missing = sourceFiles.filter((sourceFile) => {
+          const existing = existingByBinding.get(sourceFile.file_id);
+          return !existing || Number(existing.ordinal) !== Number(sourceFile.sort_order) || existing.content_hash !== sourceFile.content_hash;
+        });
+        const extra = existingRows.filter((row) => !expectedByBinding.has(row.file_binding_id));
+        const duplicateBindings = existingRows.filter((row, index) => existingRows.findIndex((candidate) => candidate.file_binding_id === row.file_binding_id) !== index);
+        const duplicateOrdinals = existingRows.filter((row, index) => existingRows.findIndex((candidate) => Number(candidate.ordinal) === Number(row.ordinal)) !== index);
+        const targetDrift = existingRows.filter((row) => {
+          const expected = expectedByBinding.get(row.file_binding_id);
+          return expected && (Number(row.ordinal) !== Number(expected.sort_order) || row.content_hash !== expected.content_hash);
+        });
+        if (extra.length > 0 || duplicateBindings.length > 0 || duplicateOrdinals.length > 0 || targetDrift.length > 0) {
+          quarantine("drawing_revision_work_files", workId, entry.row.company_id, "work_file_snapshot_target_drift", {
+            workId,
+            expectedCount: sourceFiles.length,
+            existingCount: existingRows.length,
+            extra: extra.map((row) => row.file_binding_id),
+            duplicateBindings: duplicateBindings.map((row) => row.file_binding_id),
+            duplicateOrdinals: duplicateOrdinals.map((row) => row.ordinal),
+            targetDrift: targetDrift.map((row) => row.file_binding_id)
+          });
+          continue;
+        }
+        if (missing.length > 0 || existingRows.length !== sourceFiles.length) {
+          if (!repairWorkFiles) {
+            quarantine("drawing_revision_work_files", workId, entry.row.company_id, "work_file_snapshot_incomplete", {
+              workId,
+              expectedCount: sourceFiles.length,
+              existingCount: existingRows.length,
+              missing: missing.map((sourceFile) => sourceFile.file_id),
+              extra: []
+            });
+            continue;
+          }
+          for (const sourceFile of missing) {
+            addWorkFileSnapshotOperation(sourceWork, sourceFile);
+            plan.workFileRepair.plannedRows += 1;
+          }
+        }
+      }
+    }
     add("drawing_rd_branches", {
       id: branchId, company_id: drawing.company_id, drawing_id: drawing.id,
       base_production_revision_id: production?.row.id ?? null, latest_approved_revision_id: approved ? entry.row.id : null,
@@ -246,11 +368,16 @@ for (const drawing of drawings) {
       target_major: entry.tuple.major, target_minor: entry.tuple.minor, target_label: entry.tuple.label,
       predecessor_revision_id: predecessor, claim_state: approved ? "approved" : "work"
     });
-    if (workId) add("drawing_revision_works", {
-      id: workId, company_id: drawing.company_id, drawing_id: drawing.id, branch_id: branchId, target_claim_id: claimId,
+    if (workId) {
+      add("drawing_revision_works", {
+        id: workId, company_id: drawing.company_id, drawing_id: drawing.id, branch_id: branchId, target_claim_id: claimId,
       owner_user_id: ownerId, proposed_payload: JSON.stringify({ drawingId: drawing.id, revisionId: entry.row.id, migrated: true }),
       base_hash: stableHash({ predecessor, revisionId: entry.row.id }), row_version: Number(entry.row.row_version || 1)
-    });
+      });
+      if (!existingWorkFileRowsByWork.has(workId)) {
+        for (const sourceFile of sourceFiles) addWorkFileSnapshotOperation(sourceWork, sourceFile);
+      }
+    }
     add("canonical_workbench_states", {
       id: stableId("dev087-state", drawing.company_id, "drawing_rd", branchId), company_id: drawing.company_id,
       entity_type: "drawing", canonical_entity_id: drawing.id, data_layer: "drawing_rd", branch_id: branchId,
@@ -277,6 +404,16 @@ for (const drawing of drawings) {
     });
   }
 }
+
+// The canonical trace intentionally keeps only the number and time of
+// completed reviews. Package/snapshot/workflow payloads are not retained.
+for (const approval of legacyPackageApprovals) add("pdm_review_traces", {
+  review_cycle_id: stableId("dev087-package-review-trace", approval.company_id, approval.approval_request_id),
+  company_id: approval.company_id,
+  entity_type: "drawing",
+  canonical_entity_id: approval.drawing_id,
+  decision_at: approval.approved_at
+});
 
 for (const part of parts) {
   add("pdm_workbench_aggregates", { id: stableId("dev087-aggregate", part.company_id, "part", part.id), company_id: part.company_id, entity_type: "part", canonical_entity_id: part.id, open_branch_count: 0, row_version: 1 });
@@ -310,19 +447,23 @@ for (const workspace of cancelledWorkspaces) {
     && evidence.approvalReservationRows === 0 && evidence.approvalTargetRows === 0 && evidence.legacyApprovalLinkRows === 0
     && evidence.linkedAssetRows === 0 && evidence.drawingRevisionRows === 0 && evidence.recognitionRows === 0
     && evidence.controlledNoteRows === 0 && evidence.engineeringEvidenceRows === 0 && evidence.candidateFileRows === 0;
-  if (safeCancelled) {
+  if (safeCancelled && !retainUnmappedLegacy) {
     plan.operations.push({ kind: "delete_legacy_workspace_graph", table: "numbering_draft_workspaces", sourceIdentity: workspace.id, companyId: workspace.company_id, expectedLifecycle: "cancelled", evidence });
     plan.cleanup.legacyCancelled += 1;
   } else {
-    quarantine("numbering_draft_workspace", workspace.id, workspace.company_id, "legacy_cancelled_cleanup_not_safe", evidence);
+    quarantine("numbering_draft_workspace", workspace.id, workspace.company_id, safeCancelled ? "legacy_cancelled_retained" : "legacy_cancelled_cleanup_not_safe", evidence);
   }
 }
 
+const legacyResolution = retainUnmappedLegacy ? "retained_legacy_source" : null;
+const legacyResolvedAt = retainUnmappedLegacy ? new Date().toISOString() : null;
 for (const item of plan.quarantine) add("pdm_workbench_migration_quarantine", {
   id: stableId("dev087-quarantine", item.sourceKind, item.sourceIdentity), company_id: item.companyId,
   source_kind: item.sourceKind, source_identity: item.sourceIdentity, reason_code: item.reasonCode,
-  evidence_payload: JSON.stringify(item.evidence), resolution: null, resolved_at: null
+  evidence_payload: JSON.stringify(item.evidence), resolution: legacyResolution, resolved_at: legacyResolvedAt
 });
+
+if (retainUnmappedLegacy) plan.cleanup.retainedLegacy = plan.quarantine.length;
 
 plan.target = {
   aggregates: operations.filter((entry) => entry.table === "pdm_workbench_aggregates").length,
@@ -330,12 +471,18 @@ plan.target = {
   branches: operations.filter((entry) => entry.table === "drawing_rd_branches").length,
   claims: operations.filter((entry) => entry.table === "drawing_revision_claims").length,
   drawingWorks: operations.filter((entry) => entry.table === "drawing_revision_works").length,
+  drawingWorkFiles: operations.filter((entry) => entry.table === "drawing_revision_work_files").length,
   partWorks: operations.filter((entry) => entry.table === "part_change_works").length,
   relationWorks: operations.filter((entry) => entry.table === "relation_change_works").length,
   reviewTraces: operations.filter((entry) => entry.table === "pdm_review_traces").length
 };
-plan.unresolved = plan.quarantine.length;
-plan.identityHash = stableHash(operations.map((entry) => ({ table: entry.table, id: entry.row.id })).sort((a, b) => `${a.table}:${a.id}`.localeCompare(`${b.table}:${b.id}`)));
+plan.unresolved = retainUnmappedLegacy ? 0 : plan.quarantine.length;
+plan.unresolvedBeforeResolution = plan.quarantine.length;
+plan.identityHash = stableHash(operations.map((entry) => ({
+  table: entry.table,
+  kind: entry.kind ?? null,
+  identity: entry.row?.id ?? `${entry.row?.work_id ?? ""}:${entry.row?.file_binding_id ?? ""}`
+})).sort((a, b) => `${a.table}:${a.identity}:${a.kind ?? ""}`.localeCompare(`${b.table}:${b.identity}:${b.kind ?? ""}`)));
 
 function insertOperation(database, operation) {
   if (operation.kind === "delete_legacy_workspace_graph") {
@@ -352,6 +499,25 @@ function insertOperation(database, operation) {
     database.prepare("DELETE FROM number_candidate_reservations WHERE workspace_id = :sourceIdentity AND company_id = :companyId").run(operation);
     const deleted = database.prepare("DELETE FROM numbering_draft_workspaces WHERE id = :sourceIdentity AND company_id = :companyId AND lifecycle_status = :expectedLifecycle").run(operation);
     if (deleted.changes !== 1) throw new Error(`DEV087_LEGACY_CLEANUP_INCOMPLETE:${operation.sourceIdentity}`);
+    return;
+  }
+  if (operation.kind === "insert_work_file_snapshot") {
+    const source = database.prepare(`SELECT file.id AS file_binding_id, file.company_id, revision.drawing_id, file.drawing_revision_id,
+        file.source_file_asset_id, file.sort_order, file.removed_at, asset.id AS asset_id, asset.content_hash, asset.deleted_at
+      FROM drawing_revision_files file
+      JOIN drawing_revisions revision ON revision.id = file.drawing_revision_id AND revision.company_id = file.company_id
+      LEFT JOIN file_assets asset ON asset.id = file.source_file_asset_id
+      WHERE file.id = :fileBindingId AND file.company_id = :companyId`).get(operation.source);
+    if (!source || source.drawing_id !== operation.source.drawingId || source.drawing_revision_id !== operation.source.revisionId
+      || source.removed_at !== null || !source.asset_id || source.deleted_at !== null || !source.content_hash
+      || source.content_hash !== operation.row.content_hash || Number(source.sort_order) !== Number(operation.row.ordinal)) {
+      throw new Error(`DEV092_WORK_FILE_SOURCE_DRIFT:${operation.row.work_id}:${operation.row.file_binding_id}`);
+    }
+    const existing = database.prepare("SELECT work_id, file_binding_id, ordinal, content_hash FROM drawing_revision_work_files WHERE work_id = :work_id AND file_binding_id = :file_binding_id").get(operation.row);
+    if (existing && (Number(existing.ordinal) !== Number(operation.row.ordinal) || existing.content_hash !== operation.row.content_hash)) {
+      throw new Error(`DEV092_WORK_FILE_TARGET_DRIFT:${operation.row.work_id}:${operation.row.file_binding_id}`);
+    }
+    database.prepare("INSERT OR IGNORE INTO drawing_revision_work_files (work_id, file_binding_id, ordinal, content_hash) VALUES (:work_id, :file_binding_id, :ordinal, :content_hash)").run(operation.row);
     return;
   }
   if (!operation.row) throw new Error(`DEV087_UNKNOWN_MIGRATION_OPERATION:${operation.kind ?? "missing_row"}`);
@@ -388,7 +554,7 @@ if (apply) {
     }
   })();
   const targetCounts = {};
-  for (const table of ["pdm_workbench_aggregates", "canonical_workbench_states", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works", "part_change_works", "relation_change_works", "pdm_review_traces", "pdm_workbench_migration_quarantine"]) {
+  for (const table of ["pdm_workbench_aggregates", "canonical_workbench_states", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works", "drawing_revision_work_files", "part_change_works", "relation_change_works", "pdm_review_traces", "pdm_workbench_migration_quarantine"]) {
     targetCounts[table] = db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count;
   }
   plan.appliedTargetCounts = targetCounts;

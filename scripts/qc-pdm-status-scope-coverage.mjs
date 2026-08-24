@@ -90,7 +90,6 @@ const requiredScopes = {
   handoffWorkbench: "src/app/handoff/page.tsx",
   transferPackageWorkbench: "src/components/transfer-package-workbench.tsx",
   reportCenter: "src/app/numbering/reports/page.tsx",
-  taskCenter: "src/app/numbering/tasks/page.tsx",
   impactWorkbench: "src/app/numbering/impact/page.tsx",
   settingsCenter: "src/app/settings/page.tsx",
   accountList: "src/app/settings/accounts/page.tsx",

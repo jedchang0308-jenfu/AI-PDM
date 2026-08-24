@@ -5,10 +5,6 @@ export async function getBomBySubmissionIdAsync(submissionId: string) {
   return new AsyncBomRepository(getAsyncDatabaseClient()).getBomBySubmissionId(submissionId);
 }
 
-export async function materializeBomDraftFromReferencesAsync(submissionId: string) {
-  return new AsyncBomRepository(getAsyncDatabaseClient()).materializeBomDraftFromReferences(submissionId);
-}
-
 export async function findPreviousBomSubmissionIdAsync(targetSubmissionId: string) {
   return new AsyncBomRepository(getAsyncDatabaseClient()).findPreviousBomSubmissionId(targetSubmissionId);
 }

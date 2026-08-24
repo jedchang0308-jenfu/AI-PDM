@@ -1,6 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
-import { getBomBySubmissionIdAsync, materializeBomDraftFromReferencesAsync } from "@/lib/bom-async";
+import { getBomBySubmissionIdAsync } from "@/lib/bom-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 
@@ -18,12 +18,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
 
   const url = new URL(request.url);
-  const materialize = url.searchParams.get("materialize") === "1";
-  const bom = materialize ? await materializeBomDraftFromReferencesAsync(id) : await getBomBySubmissionIdAsync(id);
+  if (url.searchParams.get("materialize") === "1") {
+    return NextResponse.json({ error: "BOM_MATERIALIZATION_RETIRED" }, { status: 422 });
+  }
+  const bom = await getBomBySubmissionIdAsync(id);
 
   return NextResponse.json({
     submissionId: id,
-    materialized: materialize,
     bom
   });
 }

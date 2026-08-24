@@ -23,16 +23,17 @@ const sharedWorkbenchList = read("src/components/pdm-workbench-list.tsx");
 const sharedWorkbenchController = read("src/components/use-pdm-workbench-controller.ts");
 const sharedListKeyboard = read("src/components/use-list-keyboard-shortcuts.ts");
 const numberStateWorkspace = read("src/components/number-state-workspace.tsx");
+const canonicalWorkbench = read("src/components/canonical-pdm-workbench.tsx");
 const sharedPreview = read("src/components/drawing-detail-preview.tsx");
-const candidateFileRoute = read("src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/[fileId]/route.ts");
+const candidateFileRoute = read("src/app/api/pdm/file-assets/[fileAssetId]/route.ts");
 const approvalPage = read("src/app/approvals/page.tsx");
 const searchPage = read("src/app/numbering/search/page.tsx");
 const css = read("src/app/globals.css");
 
-record("DEV053-UI-001 enabled experience is one workbench without visible tabs",
-  has(component, ["<h1>圖號工作台</h1>", "搜尋圖號工作、確認目前工作狀態，並執行唯一下一步。", "drawing-workbench-table"]) &&
-  !component.includes("NumberStateModuleTabs") && !component.includes('role="tab"') &&
-  page.includes("if (workbenchEnabled) return <DrawingWorkbench />;"));
+record("DEV053-UI-001 current experience is one canonical workbench without visible tabs",
+  has(page, ['import { CanonicalPdmWorkbench }', '<CanonicalPdmWorkbench entityType="drawing"']) &&
+  has(canonicalWorkbench, ['title: "圖號工作台"', 'className="canonical-table-wrap"', "config.layerOptions"]) &&
+  !canonicalWorkbench.includes("NumberStateModuleTabs") && !canonicalWorkbench.includes('role="tab"'));
 record("DEV053-UI-002 table exposes four scan columns with part number separated from name",
   has(component, ['key: "code"', 'key: "name"', 'header: "品名"', 'key: "part"', 'header: "料號"', 'key: "status"', 'header: "工作狀態"']) &&
   (component.includes('header: "圖號"') || component.includes('header: <NumberSortHeader label="圖號"')) &&
@@ -62,9 +63,10 @@ record("DEV053-UI-006 error, empty, busy and accessibility states are visible",
 record("DEV053-UI-007 contextual add operations enter candidate workflow when enabled",
   has(contextual, ["drawingWorkbenchEnabled", "建立圖號工作", "建立料號工作", "/api/numbering/draft-workspaces", "candidate:"]) &&
   has(contextual, ["新增同根圖號", "新增同圖料號"]));
-record("DEV053-UI-008 old direct-master behavior remains only behind flag-off branch",
-  has(contextual, ["if (drawingWorkbenchEnabled)", "/api/numbering/roots/", "sourceEntrypoint"]) &&
-  page.includes("NumberStateModuleTabs module=\"drawings\"") && page.includes("NumberStateWorkspaceWorkbench module=\"drawings\""));
+record("DEV053-UI-008 old direct-master page branch is no longer reachable",
+  has(page, ['import { CanonicalPdmWorkbench }', '<CanonicalPdmWorkbench entityType="drawing"']) &&
+  !page.includes("NumberStateModuleTabs") && !page.includes("NumberStateWorkspaceWorkbench") &&
+  !page.includes("DrawingWorkbench"));
 record("DEV053-UI-009 responsive rules cover desktop, 1024 and mobile card layout",
   has(css, [
     ".drawing-workbench-filter-grid",

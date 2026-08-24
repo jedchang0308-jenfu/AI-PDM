@@ -1,19 +1,31 @@
 import crypto from "node:crypto";
+import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
+import type { CanonicalPreviewProjection } from "@/lib/pdm-canonical-preview";
+import { PDM_WORKBENCH_FILTER_NONE_TOKEN } from "@/lib/pdm-workbench-filter-selection";
 
-export const DEV087_CONTRACT_VERSION = "dev087-canonical-workbench-v1" as const;
+export const DEV087_CONTRACT_VERSION = "dev087-canonical-workbench-v2" as const;
 export const DEV087_SCHEMA_HASH = "dev087-v1" as const;
+/**
+ * DEV-090 is the first canonical-workbench runtime after the Relation current
+ * projection was retired.  The authority row is intentionally advanced to a
+ * new hash so an old build cannot mint command tokens against the new schema.
+ */
+export const DEV090_SCHEMA_HASH = "dev090-v1" as const;
 
-export type WorkbenchEntityType = "drawing" | "part" | "relation";
+export type WorkbenchEntityType = "drawing" | "part";
+/** Historical review/audit rows may still name Relation; they are not a
+ * current workbench domain and must never appear in a current projection. */
+export type HistoricalWorkbenchEntityType = WorkbenchEntityType | "relation";
 export type CanonicalDataLayer =
   | "drawing_production"
   | "drawing_rd"
   | "part_formal"
-  | "part_work"
-  | "relation_formal"
-  | "relation_work";
+  | "part_work";
+export type HistoricalCanonicalDataLayer = CanonicalDataLayer | "relation_formal" | "relation_work";
 export type CanonicalLayer = "production" | "rd" | "formal" | "work";
 export type CanonicalHandling = "none" | "owner" | "review_owner" | "system" | "system_admin" | "blocked";
-export type CanonicalActionKey = "advance" | "edit" | "review" | "create_change" | "void_rd";
+export type CanonicalDataState = "editing" | "reviewing" | "publishing" | "available";
+export type CanonicalActionKey = "advance" | "edit" | "review" | "create_change" | "void_rd" | "edit_relation_matrix";
 export type CanonicalWorkbenchAction = { key: CanonicalActionKey; label: string; href?: string };
 
 export type CanonicalWorkbenchRowDto = {
@@ -25,8 +37,10 @@ export type CanonicalWorkbenchRowDto = {
   layer: CanonicalLayer;
   layerLabel: string;
   revision: string | null;
+  dataState: CanonicalDataState;
+  dataStateLabel: "編輯中" | "審核中" | "發布中" | "可使用";
   handling: CanonicalHandling;
-  handlingLabel: "" | "負責人處理" | "審核負責人處理" | "系統處理" | "系統管理員處理" | "受阻";
+  handlingLabel: "無須處理" | "負責人處理" | "審核負責人處理" | "系統處理" | "系統管理員處理" | "受阻";
   blockerReason: string | null;
   detailHref: string;
   rowVersion: number;
@@ -40,28 +54,104 @@ export type CanonicalWorkbenchListDto = {
     nextCursor: string | null;
     totalGroups: number;
     totalRows: number;
+    /** Enabled Drawing/Part preview projection. Keys are exactly the visible cw rows. */
+    previewByRowKey?: Record<string, CanonicalPreviewProjection>;
   };
   meta: { contractToken: string; correlationId: string };
 };
-export type CanonicalWorkbenchDetailDto<TContent = unknown> = {
+export type CanonicalDetailSurface = "drawer_minimal" | "editor_full" | "review_readonly";
+export type CanonicalDetailField = { key: string; label: string; value: string };
+export type CanonicalDetailFile = {
+  id: string;
+  name: string;
+  role: string | null;
+  downloadHref: string;
+};
+export type CanonicalDirectRelation = {
+  id: string;
+  primary: string;
+  secondary: string | null;
+};
+export type CanonicalDrawingHistory = {
+  id: string;
+  revision: string;
+  layerLabel: "量產版" | "研發版";
+};
+export type CanonicalRelationMatrixIdentity = {
+  id: string;
+  number: string;
+};
+export type CanonicalRelationMatrixCell = {
+  drawingNumberId: string;
+  partNumberId: string;
+  drawingNumber: string;
+  partNumber: string;
+  relationType: "manufacturing_basis" | "reference";
+};
+export type CanonicalRelationMatrixProjection = {
+  rootId: string;
+  rootCode: string;
+  matrixEtag: string;
+  drawings: CanonicalRelationMatrixIdentity[];
+  parts: CanonicalRelationMatrixIdentity[];
+  cells: CanonicalRelationMatrixCell[];
+  issue?: {
+    code: "WORKBENCH_RELATION_SCOPE_INVALID";
+    message: string;
+  };
+};
+
+type CanonicalDetailBase = {
+  surface: CanonicalDetailSurface;
+  fields: CanonicalDetailField[];
+  files: CanonicalDetailFile[];
+};
+
+type CanonicalLinkedDetailBase = CanonicalDetailBase & {
+  relationMatrix: CanonicalRelationMatrixProjection;
+};
+
+export type CanonicalDrawingDetailPresentation = CanonicalLinkedDetailBase & {
+  kind: "drawing";
+  preview: CanonicalPreviewProjection;
+  previews: [DrawingPreviewSlotModel, DrawingPreviewSlotModel];
+  history: CanonicalDrawingHistory[];
+};
+export type CanonicalPartDetailPresentation = CanonicalLinkedDetailBase & {
+  kind: "part";
+  preview?: CanonicalPreviewProjection;
+  previewSourceControl?: {
+    settingRowVersion: number;
+    canManage: boolean;
+    disabledReason: string | null;
+  };
+};
+export type CanonicalWorkbenchDetailPresentation =
+  | CanonicalDrawingDetailPresentation
+  | CanonicalPartDetailPresentation;
+
+export type CanonicalWorkbenchDetailDto = {
   data: {
     row: CanonicalWorkbenchRowDto;
-    content: TContent;
-    history: unknown[];
-    relations: unknown[];
-    attachments?: unknown[];
-    reviewScope?: "excluded_live";
+    presentation: CanonicalWorkbenchDetailPresentation;
   };
   meta: { contractToken: string; correlationId: string };
 };
 
 export const CANONICAL_HANDLING_LABELS: Record<CanonicalHandling, CanonicalWorkbenchRowDto["handlingLabel"]> = {
-  none: "",
+  none: "無須處理",
   owner: "負責人處理",
   review_owner: "審核負責人處理",
   system: "系統處理",
   system_admin: "系統管理員處理",
   blocked: "受阻"
+};
+
+export const CANONICAL_DATA_STATE_LABELS: Record<CanonicalDataState, CanonicalWorkbenchRowDto["dataStateLabel"]> = {
+  editing: "編輯中",
+  reviewing: "審核中",
+  publishing: "發布中",
+  available: "可使用"
 };
 
 export const RETIRED_WORKBENCH_QUERY_KEYS = new Set([
@@ -97,6 +187,7 @@ export const BANNED_CANONICAL_DTO_FIELDS = new Set([
 export type CanonicalWorkbenchQuery = {
   query: string;
   layers: CanonicalLayer[];
+  dataStates: CanonicalDataState[];
   handling: CanonicalHandling[];
   sort: "asc" | "desc";
   cursor: string | null;
@@ -111,6 +202,8 @@ export type CanonicalWorkbenchErrorCode =
   | "WORKBENCH_ACTIVE_WORK_EXISTS"
   | "WORKBENCH_REVIEW_REQUEST_STALE"
   | "WORKBENCH_SNAPSHOT_DRIFT"
+  | "WORKBENCH_RELATION_SCOPE_INVALID"
+  | "DRAWING_WORK_FILE_SNAPSHOT_INVALID"
   | "WORKBENCH_AUTHORITY_MISMATCH"
   | "DRAWING_RD_BRANCH_LIMIT_REACHED"
   | "DRAWING_TARGET_REVISION_CLAIMED"
@@ -118,6 +211,7 @@ export type CanonicalWorkbenchErrorCode =
   | "DRAWING_RD_VOID_NOT_ALLOWED"
   | "DRAWING_RD_VOID_ALREADY_PENDING"
   | "DEV087_DECISION_NOT_ALLOWED"
+  | "PART_PREVIEW_ACTIVE_ASSET"
   | "IDEMPOTENCY_KEY_REUSED"
   | "WORKBENCH_BAD_REQUEST";
 
@@ -125,7 +219,7 @@ export class CanonicalWorkbenchError extends Error {
   constructor(
     readonly code: CanonicalWorkbenchErrorCode,
     message: string,
-    readonly status: 400 | 403 | 404 | 409 | 410 | 422 | 503,
+    readonly status: 400 | 403 | 404 | 409 | 410 | 413 | 422 | 503,
     readonly correlationId: string = crypto.randomUUID()
   ) {
     super(message);
@@ -135,9 +229,9 @@ export class CanonicalWorkbenchError extends Error {
 
 const domainLayers: Record<WorkbenchEntityType, readonly CanonicalLayer[]> = {
   drawing: ["production", "rd"],
-  part: ["formal", "work"],
-  relation: ["formal", "work"]
+  part: ["formal", "work"]
 };
+const dataStateValues = new Set<CanonicalDataState>(["editing", "reviewing", "publishing", "available"]);
 const handlingValues = new Set<CanonicalHandling>(["none", "owner", "review_owner", "system", "system_admin", "blocked"]);
 
 export function normalizeCanonicalWorkbenchQuery(url: URL, domain: WorkbenchEntityType): CanonicalWorkbenchQuery {
@@ -148,11 +242,21 @@ export function normalizeCanonicalWorkbenchQuery(url: URL, domain: WorkbenchEnti
   }
   const allowedLayers = new Set(domainLayers[domain]);
   const layerInputs = url.searchParams.getAll("layer").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
+  const dataStateInputs = url.searchParams.getAll("stage").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
   const handlingInputs = url.searchParams.getAll("handling").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
-  if (layerInputs.some((value) => !allowedLayers.has(value as CanonicalLayer))) {
+  const hasNoLayers = layerInputs.length === 1 && layerInputs[0] === PDM_WORKBENCH_FILTER_NONE_TOKEN;
+  const hasNoDataStates = dataStateInputs.length === 1 && dataStateInputs[0] === PDM_WORKBENCH_FILTER_NONE_TOKEN;
+  const hasNoHandling = handlingInputs.length === 1 && handlingInputs[0] === PDM_WORKBENCH_FILTER_NONE_TOKEN;
+  const hasInvalidLayerNone = layerInputs.includes(PDM_WORKBENCH_FILTER_NONE_TOKEN) && !hasNoLayers;
+  const hasInvalidDataStateNone = dataStateInputs.includes(PDM_WORKBENCH_FILTER_NONE_TOKEN) && !hasNoDataStates;
+  const hasInvalidHandlingNone = handlingInputs.includes(PDM_WORKBENCH_FILTER_NONE_TOKEN) && !hasNoHandling;
+  if (hasInvalidLayerNone || (!hasNoLayers && layerInputs.some((value) => !allowedLayers.has(value as CanonicalLayer)))) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "資料層篩選條件無效", 400);
   }
-  if (handlingInputs.some((value) => !handlingValues.has(value as CanonicalHandling))) {
+  if (hasInvalidDataStateNone || (!hasNoDataStates && dataStateInputs.some((value) => !dataStateValues.has(value as CanonicalDataState)))) {
+    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "資料狀態篩選條件無效", 400);
+  }
+  if (hasInvalidHandlingNone || (!hasNoHandling && handlingInputs.some((value) => !handlingValues.has(value as CanonicalHandling)))) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "處理狀態篩選條件無效", 400);
   }
   const sort = url.searchParams.get("sort") === "desc" ? "desc" : "asc";
@@ -162,28 +266,28 @@ export function normalizeCanonicalWorkbenchQuery(url: URL, domain: WorkbenchEnti
   }
   return {
     query: url.searchParams.get("query")?.trim() ?? "",
-    layers: layerInputs.length ? [...new Set(layerInputs as CanonicalLayer[])] : [...domainLayers[domain]],
-    handling: handlingInputs.length ? [...new Set(handlingInputs as CanonicalHandling[])] : [...handlingValues],
+    layers: hasNoLayers ? [] : layerInputs.length ? [...new Set(layerInputs as CanonicalLayer[])] : [...domainLayers[domain]],
+    dataStates: hasNoDataStates ? [] : dataStateInputs.length ? [...new Set(dataStateInputs as CanonicalDataState[])] : [...dataStateValues],
+    handling: hasNoHandling ? [] : handlingInputs.length ? [...new Set(handlingInputs as CanonicalHandling[])] : [...handlingValues],
     sort,
     cursor: url.searchParams.get("cursor")?.trim() || null,
     limit: parsedLimit
   };
 }
 
-export function canonicalDataLayerToLayer(dataLayer: CanonicalDataLayer): CanonicalLayer {
+export function canonicalDataLayerToLayer(dataLayer: HistoricalCanonicalDataLayer): CanonicalLayer {
   if (dataLayer === "drawing_production") return "production";
   if (dataLayer === "drawing_rd") return "rd";
   if (dataLayer.endsWith("_formal")) return "formal";
   return "work";
 }
 
-export function canonicalLayerLabel(input: { dataLayer: CanonicalDataLayer; revision: string | null }): string {
+export function canonicalLayerLabel(input: { dataLayer: HistoricalCanonicalDataLayer; revision: string | null }): string {
   if (input.dataLayer === "drawing_production") return `量產版 ${input.revision ?? ""}`.trim();
   if (input.dataLayer === "drawing_rd") return `研發版 ${input.revision ?? ""}`.trim();
   if (input.dataLayer === "part_formal") return "正式資料";
   if (input.dataLayer === "part_work") return "修改中";
-  if (input.dataLayer === "relation_formal") return "正式關聯";
-  return "調整中";
+  return "";
 }
 
 export function canonicalRowKey(id: string) {

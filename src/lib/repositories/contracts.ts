@@ -2,7 +2,6 @@ import type {
   ApprovalMatrixRequirement,
   BomDetail,
   BomDiffResult,
-  BomImportJob,
   BomReleaseSnapshotDetail,
   BomWorkbenchDraftDetail,
   BomWorkbenchSummary,
@@ -96,18 +95,6 @@ export interface ReviewRepository {
 
 export interface BomRepository {
   getBySubmissionId(submissionId: string): BomDetail | null;
-  materializeDraftFromReferences(submissionId: string): BomDetail | null;
-  createWorkbenchDraftFromAssembly(input: { submissionId: string; actorId: string | null; draftName?: string; setActive?: boolean }): BomWorkbenchDraftDetail | null;
-  createWorkbenchDraftFromSolidWorksXls(input: {
-    submissionId: string;
-    actorId: string | null;
-    draftName?: string;
-    setActive?: boolean;
-    originalFilename: string;
-    fileBuffer: Uint8Array;
-    contentType?: string | null;
-  }): { draft: BomWorkbenchDraftDetail; importJob: BomImportJob } | null;
-  getImportJobById(importJobId: string): BomImportJob | null;
   saveWorkbenchDraftTree(input: {
     draftId: string;
     actorId: string | null;

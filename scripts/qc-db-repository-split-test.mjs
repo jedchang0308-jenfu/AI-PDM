@@ -121,7 +121,6 @@ for (const symbol of [
   "submissionRevisionExists",
   "findOrCreateItem",
   "getBomBySubmissionId",
-  "materializeBomDraftFromReferences",
   "findPreviousBomSubmissionId",
   "getBomDiffBetweenSubmissions",
   "listWhereUsed",

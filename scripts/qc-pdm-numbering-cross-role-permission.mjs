@@ -237,7 +237,7 @@ try {
     {
       coreName: `QC cross-role denied ${unique}`,
       partName: `QC cross-role denied ${unique}`,
-      itemKind: "manufactured",
+      itemKind: "purchased",
       drawingRequested: false
     },
     403
@@ -265,7 +265,7 @@ try {
     {
       coreName: `QC cross-role grant ${unique}`,
       partName: `QC cross-role grant ${unique}`,
-      itemKind: "manufactured",
+      itemKind: "purchased",
       drawingRequested: false
     },
     201

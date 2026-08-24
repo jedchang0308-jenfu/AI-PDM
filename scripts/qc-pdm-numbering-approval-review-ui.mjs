@@ -27,7 +27,7 @@ const candidateRevisionEditor = read("src/components/numbering-candidate-revisio
 const masterAttachmentPanel = read("src/components/master-attachment-panel.tsx");
 const approvalPlatformRepository = read("src/lib/repositories/approval-platform-async-repository.ts");
 const approvalEvidenceRoute = read("src/app/api/approvals/requests/[requestId]/evidence/[fileId]/route.ts");
-const candidatePreviewRoute = read("src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/[fileId]/route.ts");
+const candidatePreviewRoute = read("src/app/api/pdm/file-assets/[fileAssetId]/route.ts");
 const approvalPlatformQc = read("scripts/qc-pdm-approval-platform.mjs");
 const packageJson = JSON.parse(read("package.json"));
 

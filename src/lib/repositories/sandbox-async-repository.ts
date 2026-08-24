@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
-import { AsyncBomRepository } from "@/lib/repositories/bom-async-repository";
 import { AsyncSubmissionListRepository } from "@/lib/repositories/submission-list-async-repository";
 import type { FileReference, SandboxBranch, SubmissionDetail, SubmissionFile } from "@/lib/types";
 
@@ -278,9 +277,6 @@ export class AsyncSandboxRepository {
         updatedAt: now
       });
 
-      if (source.references.some((reference) => reference.reference_type === "assembly_component")) {
-        await new AsyncBomRepository(client, this.clock, this.idFactory).materializeBomDraftFromReferences(sandboxSubmissionId);
-      }
     };
 
     if (this.client.kind === "postgres") {

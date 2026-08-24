@@ -89,7 +89,7 @@ async function createSubmission(cookie, prefix, productLine, childPartNumber) {
         sourceFileRole: "sldasm",
         referencedFilename: `${childPartNumber}.sldprt`,
         referencedPartNumber: childPartNumber,
-        referenceType: "assembly_component",
+        referenceType: "unknown",
         quantity: 2,
         extractionMethod: "qc_custom_finder",
         confidence: "high"

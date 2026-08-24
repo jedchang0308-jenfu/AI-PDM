@@ -573,6 +573,8 @@ const allowedAttachmentExtensions = new Set([
   "xlsx",
   "csv",
   "txt",
+  "html",
+  "htm",
   "zip",
   "png",
   "jpg",
@@ -1089,6 +1091,7 @@ function inferMimeType(filename: string) {
   if (ext === "dxf") return "image/vnd.dxf";
   if (ext === "csv") return "text/csv";
   if (ext === "txt") return "text/plain";
+  if (ext === "html" || ext === "htm") return "text/html";
   if (ext === "png") return "image/png";
   if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
   if (ext === "zip") return "application/zip";

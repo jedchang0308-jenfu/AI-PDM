@@ -10,14 +10,15 @@ export async function resolveDev087RouteActor(request: Request, page: "numbering
   if (auth.response) return { response: auth.response, actor: null };
   const company = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
   if (company.response) return { response: company.response, actor: null };
-  const [create, update, submit, cancel, decide, obsolete, draftUpdate] = await Promise.all([
+  const [create, update, submit, cancel, decide, obsolete, draftUpdate, manageAttachments] = await Promise.all([
     canUserUseNumberingActionAsync(auth.user, "numbering.workspace.create"),
     canUserUseNumberingActionAsync(auth.user, "numbering.workspace.update"),
     canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.submit"),
     canUserUseNumberingActionAsync(auth.user, "numbering.workspace.cancel"),
     canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.decide"),
     canUserUseNumberingActionAsync(auth.user, "numbering.draft.obsolete"),
-    canUserUseNumberingActionAsync(auth.user, "numbering.draft.update")
+    canUserUseNumberingActionAsync(auth.user, "numbering.draft.update"),
+    canUserUseNumberingActionAsync(auth.user, "numbering.attachments.manage")
   ]);
   return {
     response: null,
@@ -31,8 +32,30 @@ export async function resolveDev087RouteActor(request: Request, page: "numbering
         submit: submit.allowed,
         cancel: cancel.allowed,
         decide: decide.allowed,
-        obsolete: obsolete.allowed
+        obsolete: obsolete.allowed,
+        manageAttachments: manageAttachments.allowed
       }
+    }
+  };
+}
+
+/** DEV-090 page-neutral matrix read/edit guard. A matrix is shown from both
+ * Drawing and Part drawers, so neither workbench page may become the hidden
+ * authority for access. */
+export async function resolveRelationMatrixActor(request: Request) {
+  let auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
+  if (auth.response?.status === 403) auth = await requireNumberingPageAsync(request, "numbering.search");
+  if (auth.response) return { response: auth.response, actor: null };
+  const company = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
+  if (company.response) return { response: company.response, actor: null };
+  const update = await canUserUseNumberingActionAsync(auth.user, "numbering.workspace.update");
+  return {
+    response: null,
+    actor: {
+      id: auth.user.id,
+      companyId: company.company.companyId,
+      canEditNonOwned: hasPdmNonOwnerEditScope({ role: auth.user.role }),
+      canEditMatrix: update.allowed
     }
   };
 }
@@ -48,7 +71,8 @@ export function canonicalActorFromRoute(actor: NonNullable<Awaited<ReturnType<ty
       submitWork: actor.permissions.submit,
       cancelWork: actor.permissions.cancel,
       decideReview: actor.permissions.decide,
-      obsoleteDrawing: actor.permissions.obsolete
+      obsoleteDrawing: actor.permissions.obsolete,
+      manageAttachments: actor.permissions.manageAttachments
     }
   };
 }

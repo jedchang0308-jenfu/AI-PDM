@@ -474,7 +474,7 @@ export class AsyncSubmissionStatusRepository {
           return {
             allowed: false,
             code: "SUBMISSION_RELEASE_MASTER_SCOPE_INVALID",
-            message: `送審範圍料號 ${scope.part_number} 的圖料關係已變更，不能核准或發布；請回圖料工作台確認關係後重新送審。`,
+            message: `送審範圍料號 ${scope.part_number} 的圖料關係已變更，不能核准或發布；請回圖號或料號工作台確認關係後重新送審。`,
             recovery_href: `/numbering/search?query=${encodeURIComponent(drawing.root_code)}`,
             terminal_entities: []
           };
@@ -885,16 +885,16 @@ export class AsyncSubmissionStatusRepository {
       return { part: primaryLinks[0], resolution: "primary_manufacturing" };
     }
     if (primaryLinks.length > 1) {
-      throw new Error("主資料狀態同步失敗：此圖號有多個主料號關聯，不能標記為已發布。請先在圖料工作台確認主料號。");
+      throw new Error("主資料狀態同步失敗：此圖號有多個主料號關聯，不能標記為已發布。請先在圖號或料號工作台確認主料號。");
     }
     if (links.length === 1) {
       return { part: links[0], resolution: "single_link_fallback" };
     }
     if (links.length === 0) {
-      throw new Error("主資料狀態同步失敗：此圖號尚未關聯主料號，不能標記為已發布。請先在圖料工作台建立圖料關聯。");
+      throw new Error("主資料狀態同步失敗：此圖號尚未關聯主料號，不能標記為已發布。請先在圖號或料號工作台建立圖料關聯。");
     }
 
-    throw new Error("主資料狀態同步失敗：此圖號有多個料號關聯但沒有指定主料號，不能標記為已發布。請先在圖料工作台確認主料號。");
+    throw new Error("主資料狀態同步失敗：此圖號有多個料號關聯但沒有指定主料號，不能標記為已發布。請先在圖號或料號工作台確認主料號。");
   }
 }
 

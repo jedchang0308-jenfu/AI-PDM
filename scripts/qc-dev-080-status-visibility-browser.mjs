@@ -21,8 +21,7 @@ const defaultRoutes = [
   "/numbering/drawings",
   "/numbering/search",
   "/approvals",
-  "/bom/new",
-  "/numbering/tasks",
+  "/bom/workbench",
   "/settings/accounts",
   "/settings/account-invitations"
 ];

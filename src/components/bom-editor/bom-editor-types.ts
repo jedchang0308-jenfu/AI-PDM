@@ -2,7 +2,7 @@ export type BomEditorViewMode = "map" | "outliner";
 export type BomDropZone = "before" | "child" | "after";
 
 export type BomEditorNodeType = "item" | "group";
-export type BomEditorSource = "cad_reference" | "solidworks_xls" | "manual";
+export type BomEditorSource = "manual";
 
 export type BomEditorLine = {
   id: string;

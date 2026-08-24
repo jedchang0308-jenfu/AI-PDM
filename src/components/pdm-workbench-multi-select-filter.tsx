@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import type { PdmWorkbenchFilterSelection } from "@/lib/pdm-workbench-contract";
 import { canonicalizePdmWorkbenchFilterSelection } from "@/lib/pdm-workbench-filter-selection";
 
@@ -105,7 +105,7 @@ export function PdmWorkbenchMultiSelectFilter<T extends string>({ label, value, 
       </div>
       {searchable ? <label className="pdm-workbench-multi-select-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜尋選項" aria-label={`${label}選項搜尋`} /></label> : null}
       <div className="pdm-workbench-multi-select-options" role="group" aria-label={`${label}選項`}>
-        <label className="pdm-workbench-multi-select-option is-all"><input ref={allRef} type="checkbox" checked={allChecked} aria-checked={allIndeterminate ? "mixed" : allChecked} onChange={toggleAll} disabled={options.length === 0} /><span>（全選）</span></label>
+        <label className="pdm-workbench-multi-select-option is-all"><input ref={allRef} type="checkbox" checked={allChecked} aria-checked={allIndeterminate ? "mixed" : allChecked} onChange={toggleAll} disabled={options.length === 0} /><span>全部</span></label>
         {visibleOptions.map((option, index) => <label className="pdm-workbench-multi-select-option" key={option.value}><input id={`${optionId}-${index}`} type="checkbox" checked={selectedValues.includes(option.value)} onChange={() => toggleOption(option)} /><span>{option.label}</span></label>)}
         {visibleOptions.length === 0 ? <p className="pdm-workbench-multi-select-empty">沒有符合的選項</p> : null}
       </div>

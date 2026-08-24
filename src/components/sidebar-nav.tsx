@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Bell,
   Boxes,
   ChevronLeft,
   ChevronRight,
@@ -15,7 +14,6 @@ import {
   GitPullRequestArrow,
   KeyRound,
   ListTree,
-  ListPlus,
   LogIn,
   Menu,
   PackageSearch,
@@ -32,6 +30,7 @@ type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  navGlyph?: "圖" | "料";
   exact?: boolean;
   badge?: "approvalPending";
 };
@@ -54,24 +53,22 @@ type SidebarUser = {
 
 const navSections: NavSection[] = [
   {
-    label: "工作台",
+    label: "",
     items: [
       { href: "/", label: "工作台", icon: ClipboardCheck, exact: true },
-      { href: "/numbering/tasks", label: "我的待辦", icon: Bell }
     ]
   },
   {
     label: "圖料管理",
     items: [
-      { href: "/numbering/search", label: "圖料工作台", icon: Search },
-      { href: "/numbering/drawings", label: "圖號工作台", icon: FileText },
-      { href: "/parts", label: "料號工作台", icon: PackageSearch },
+      { href: "/numbering/search", label: "編號搜尋", icon: Search },
+      { href: "/numbering/drawings", label: "圖號工作台", icon: FileText, navGlyph: "圖" },
+      { href: "/parts", label: "料號工作台", icon: PackageSearch, navGlyph: "料" },
     ]
   },
   {
     label: "BOM",
     items: [
-      { href: "/bom/new", label: "建立 BOM", icon: ListPlus },
       { href: "/bom/workbench", label: "BOM 工作台", icon: ListTree }
     ]
   },
@@ -275,7 +272,7 @@ export function SidebarNav() {
 
           return (
             <div className="nav-section" key={section.label}>
-              <span className="nav-section-label">{section.label}</span>
+              {section.label ? <span className="nav-section-label">{section.label}</span> : null}
               <div className="nav-section-items">
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
@@ -305,7 +302,7 @@ export function SidebarNav() {
                       title={itemTitle}
                       key={item.href}
                     >
-                      <Icon size={18} aria-hidden="true" />
+                      {item.navGlyph ? <span className="nav-item-glyph" aria-hidden="true">{item.navGlyph}</span> : <Icon size={18} aria-hidden="true" />}
                       <span className="nav-link-label">{label}</span>
                       {signedInEntry ? <span className="nav-account-status">已登入</span> : null}
                       {unopened ? <span className="nav-unopened-badge">未開放</span> : null}

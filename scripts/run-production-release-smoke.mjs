@@ -80,7 +80,7 @@ async function run(argv = process.argv.slice(2)) {
     return { status: response.status, configured: body.configured, active: body.active, mode: body.mode, noStore: /no-store/iu.test(response.headers.get("cache-control") ?? "") };
   });
 
-  for (const apiPath of ["/api/numbering/permissions", "/api/numbering/draft-workspaces"]) {
+  for (const apiPath of ["/api/numbering/permissions", "/api/numbering/drawings/workbench", "/api/parts/workbench"]) {
     await check(`${args.kind} protected GET ${apiPath}`, (value) => value.status === 401 && value.noStore, async () => {
       const response = await request(`${args.baseUrl}${apiPath}`);
       return { status: response.status, noStore: /no-store/iu.test(response.headers.get("cache-control") ?? "") };

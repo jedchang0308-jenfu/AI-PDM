@@ -30,6 +30,8 @@ import { evaluateHardApprovalRules as evaluateHardApprovalRulesShared } from "@/
 import { lowestAvailableSequence } from "@/lib/numbering-sequence-utils";
 import { buildNumberingPartRootLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
+import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
+import { dev087RequestHash } from "@/lib/pdm-canonical-command";
 import type {
   ApprovalHardRule,
   ApprovalRuleEvaluation,
@@ -180,6 +182,13 @@ type PartNumberRow = {
   universal_reason: string | null;
   rule_version_id: string;
   updated_at?: string;
+};
+
+type RootAppendPartProfile = {
+  itemKind: NumberingItemKind;
+  isUniversal: boolean;
+  seriesCode: string | null;
+  customSpecification: string | null;
 };
 
 type PartNumberMasterDataRow = PartNumberRow & {
@@ -732,7 +741,7 @@ const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
   },
   {
     code: "PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF",
-    message: "Technical transfer or release of manufactured, outsourced, and custom items requires a primary manufacturing drawing.",
+    message: "Technical transfer or release of drawing-made items requires a primary manufacturing drawing.",
     requiresApproval: true,
     blocksUsage: true,
     blocksRelease: true,
@@ -1430,6 +1439,14 @@ export const SELECT_ASYNC_ROOT_CODES_BY_COMPANY_SQL = `
   ORDER BY root_code ASC
 `;
 
+export const SELECT_ASYNC_ACTIVE_DRAWING_CODES_BY_COMPANY_SQL = `
+  SELECT drawing_number
+  FROM drawings
+  WHERE company_id = :companyId
+    AND drawing_number IS NOT NULL
+    AND lifecycle_state <> 'cancelled'
+`;
+
 export const SELECT_ASYNC_AUDIT_DETAILS_WITH_ROOT_CODES_SQL = `
   SELECT detail_json
   FROM audit_logs
@@ -1486,11 +1503,6 @@ export const INSERT_ASYNC_DRAWING_NUMBER_SQL = `
     :isPrimaryManufacturing, :recordStatus, :ruleVersionId,
     :createdBy, :createdAt, :updatedAt
   )
-`;
-
-export const INSERT_ASYNC_DRAWING_PART_LINK_SQL = `
-  INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_by, created_at)
-  VALUES (:id, :drawingNumberId, :partNumberId, :linkType, :createdBy, :createdAt)
 `;
 
 export const SELECT_ASYNC_PART_ROOTS_FOR_DUPLICATE_SIMILARITY_SQL = `
@@ -1753,55 +1765,10 @@ export const SELECT_ASYNC_PRIMARY_MANUFACTURING_DRAWING_FOR_PART_SQL = `
   LIMIT 1
 `;
 
-export const UPDATE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_TO_REFERENCE_SQL = `
-  UPDATE drawing_part_links
-  SET link_type = 'reference'
-  WHERE part_number_id = :partNumberId
-    AND link_type = 'primary_manufacturing'
-    AND drawing_number_id <> :drawingNumberId
-`;
-
-export const DELETE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_WITH_REFERENCE_SQL = `
-  DELETE FROM drawing_part_links
-  WHERE part_number_id = :partNumberId
-    AND link_type = 'primary_manufacturing'
-    AND drawing_number_id <> :drawingNumberId
-    AND EXISTS (
-      SELECT 1
-      FROM drawing_part_links r
-      WHERE r.part_number_id = drawing_part_links.part_number_id
-        AND r.drawing_number_id = drawing_part_links.drawing_number_id
-        AND r.link_type = 'reference'
-    )
-`;
-
-export const DELETE_ASYNC_DRAWING_PART_LINK_BY_ID_SQL = `
-  DELETE FROM drawing_part_links
-  WHERE id = :linkId
-`;
-
-export const DELETE_ASYNC_DRAWING_PART_LINKS_FOR_PAIR_SQL = `
-  DELETE FROM drawing_part_links
-  WHERE drawing_number_id = :drawingNumberId
-    AND part_number_id = :partNumberId
-`;
-
 export const DELETE_ASYNC_SAME_DRAWING_VARIANTS_FOR_PAIR_SQL = `
   DELETE FROM same_drawing_variants
   WHERE drawing_number_id = :drawingNumberId
     AND part_number_id = :partNumberId
-`;
-
-export const UPDATE_ASYNC_DRAWING_PART_LINK_TO_REFERENCE_SQL = `
-  UPDATE drawing_part_links
-  SET link_type = 'reference'
-  WHERE id = :linkId
-`;
-
-export const UPDATE_ASYNC_DRAWING_PART_LINK_TO_PRIMARY_SQL = `
-  UPDATE drawing_part_links
-  SET link_type = 'primary_manufacturing'
-  WHERE id = :linkId
 `;
 
 export const UPDATE_ASYNC_MAIN_DRAWING_RESTORE_PART_SQL = `
@@ -2328,12 +2295,6 @@ export const DELETE_ASYNC_DRAFT_SAME_DRAWING_VARIANTS_SQL = `
      OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
 `;
 
-export const DELETE_ASYNC_DRAFT_DRAWING_PART_LINKS_SQL = `
-  DELETE FROM drawing_part_links
-  WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = :rootId)
-     OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
-`;
-
 export const DELETE_ASYNC_DRAFT_PART_VARIANT_ATTRIBUTES_SQL = `
   DELETE FROM part_variant_attributes
   WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = :rootId)
@@ -2789,16 +2750,9 @@ function formatDrawingSequence(value: number, ruleVersionId = DEFAULT_RULE_VERSI
   return formatDrawingSequenceForRule(value, ruleVersionId);
 }
 
-function requireUniversalReason(itemKind: NumberingItemKind, isUniversal: boolean, universalReason: string | undefined) {
-  if ((itemKind === "shared" || isUniversal) && !universalReason?.trim()) {
-    throw new Error("UNIVERSAL_PART_REASON_REQUIRED");
-  }
-}
-
 function requireCustomSpecification(itemKind: NumberingItemKind, customSpecification: string | undefined) {
-  if (itemKind === "custom" && !customSpecification?.trim()) {
-    throw new Error("CUSTOM_SPECIFICATION_REQUIRED");
-  }
+  void itemKind;
+  void customSpecification;
 }
 
 function normalizePurposeDescription(purposeCode: DrawingPurposeCode, description: string | undefined) {
@@ -2943,7 +2897,7 @@ function approvalRuleMatches(row: ApprovalRuleRow, input: EvaluateApprovalRuleIn
 
 function partRequiresPrimaryManufacturingDrawing(partNumber: PartNumberRecord) {
   if (partNumber.isUniversal) return false;
-  return ["manufactured", "outsourced", "custom"].includes(partNumber.itemKind);
+  return partNumber.itemKind === "manufactured";
 }
 
 function escapeLikeLiteral(query: string) {
@@ -3833,6 +3787,24 @@ export class AsyncNumberingRepository {
     private readonly idFactory: () => string = () => crypto.randomUUID()
   ) {}
 
+  private async getRootAppendPartProfile(client: AsyncDatabaseClient, rootRow: PartRootRow): Promise<RootAppendPartProfile> {
+    const firstPart = await client.queryOne<PartNumberRow>(SELECT_ASYNC_FIRST_PART_NUMBER_FOR_ROOT_SQL, { rootId: rootRow.id });
+    if (!firstPart) {
+      return {
+        itemKind: rootRow.item_kind,
+        isUniversal: false,
+        seriesCode: null,
+        customSpecification: null
+      };
+    }
+    return {
+      itemKind: firstPart.item_kind,
+      isUniversal: firstPart.is_universal === 1,
+      seriesCode: firstPart.series_code,
+      customSpecification: firstPart.custom_specification
+    };
+  }
+
   private async ensureNumberingRuleVersionSeeds(client: AsyncDatabaseClient = this.client) {
     const now = this.clock();
     for (const seed of NUMBERING_RULE_VERSION_SEEDS) {
@@ -3907,7 +3879,13 @@ export class AsyncNumberingRepository {
         ruleVersionId,
         createdBy: input.createdBy
       });
-      if (recentDuplicate) return recentDuplicate;
+      if (recentDuplicate) {
+        await this.ensureCanonicalPartWorkbenchState(client, recentDuplicate.partNumber);
+        if (recentDuplicate.drawingNumber) {
+          await this.ensureCanonicalDrawingWorkbenchState(client, recentDuplicate.drawingNumber, input.createdBy);
+        }
+        return recentDuplicate;
+      }
 
       const root = await this.insertPartRoot(client, {
         coreName: rootName,
@@ -3984,7 +3962,9 @@ export class AsyncNumberingRepository {
             companyId
           });
           if (recentRow && recentRow.part_root_id === rootRow.id) {
-            return { root: mapPartRoot(rootRow), drawingNumber: mapDrawingNumber(recentRow), linkedPart: null, linkType: null, reusedFromIdempotency: true };
+            const drawingNumber = mapDrawingNumber(recentRow);
+            await this.ensureCanonicalDrawingWorkbenchState(client, drawingNumber, input.createdBy);
+            return { root: mapPartRoot(rootRow), drawingNumber, linkedPart: null, linkType: null, reusedFromIdempotency: true };
           }
         }
       }
@@ -4018,13 +3998,12 @@ export class AsyncNumberingRepository {
         }
         linkType = linkRelationType === "reference" || !isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? "reference" : "primary_manufacturing";
         linkedPart = mapPartNumber(partRow);
-        await client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
-          id: this.idFactory(),
+        await new RelationFormalAuthorityRepository(client).upsertPairInClient(client, {
+          companyId,
           drawingNumberId: drawingNumber.id,
           partNumberId: linkedPart.id,
-          linkType,
-          createdBy: input.createdBy ?? null,
-          createdAt: this.clock()
+          relationType: linkType === "primary_manufacturing" ? "manufacturing_basis" : "reference",
+          actorId: input.createdBy ?? null
         });
       }
 
@@ -4056,6 +4035,8 @@ export class AsyncNumberingRepository {
       const rootRow = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
       if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode}`);
       if (isClosedRecordStatus(rootRow.record_status)) throw new Error(`ROOT_APPEND_LOCKED: ${rootRow.record_status}`);
+      const inheritedPart = await this.getRootAppendPartProfile(client, rootRow);
+      if (input.itemKind && input.itemKind !== inheritedPart.itemKind) throw new Error("PART_ROOT_ITEM_KIND_MISMATCH");
 
       const idempotencyKey = input.idempotencyKey?.trim();
       if (idempotencyKey) {
@@ -4071,7 +4052,9 @@ export class AsyncNumberingRepository {
             companyId
           });
           if (recentRow && recentRow.part_root_id === rootRow.id) {
-            return { root: mapPartRoot(rootRow), partNumber: mapPartNumber(recentRow), linkedDrawing: null, linkType: null, reusedFromIdempotency: true };
+            const partNumber = mapPartNumber(recentRow);
+            await this.ensureCanonicalPartWorkbenchState(client, partNumber);
+            return { root: mapPartRoot(rootRow), partNumber, linkedDrawing: null, linkType: null, reusedFromIdempotency: true };
           }
         }
       }
@@ -4083,12 +4066,11 @@ export class AsyncNumberingRepository {
       const root = mapPartRoot(rootRow);
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
-        itemKind: input.itemKind ?? root.itemKind,
+        itemKind: inheritedPart.itemKind,
         recordStatus: input.recordStatus ?? "Draft",
-        isUniversal: input.isUniversal ?? false,
-        universalReason: input.universalReason,
-        customSpecification: input.customSpecification,
-        seriesCode: input.seriesCode,
+        isUniversal: inheritedPart.isUniversal,
+        customSpecification: inheritedPart.customSpecification ?? undefined,
+        seriesCode: inheritedPart.seriesCode ?? undefined,
         ruleVersionId: input.ruleVersionId ?? root.ruleVersionId,
         createdBy: input.createdBy
       });
@@ -4109,13 +4091,12 @@ export class AsyncNumberingRepository {
           throw new Error("PRIMARY_RELATION_REQUIRES_MANUFACTURING_DRAWING");
         }
         linkType = linkRelationType === "reference" || !isManufacturingDrawingPurpose(drawing.purposeCode) ? "reference" : "primary_manufacturing";
-        await client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
-          id: this.idFactory(),
+        await new RelationFormalAuthorityRepository(client).upsertPairInClient(client, {
+          companyId,
           drawingNumberId: drawing.id,
           partNumberId: partNumber.id,
-          linkType,
-          createdBy: input.createdBy ?? null,
-          createdAt: this.clock()
+          relationType: linkType === "primary_manufacturing" ? "manufacturing_basis" : "reference",
+          actorId: input.createdBy ?? null
         });
         linkedDrawing = drawing;
       }
@@ -4147,6 +4128,8 @@ export class AsyncNumberingRepository {
       const rootRow = await client.queryOne<PartRootRow>(SELECT_ASYNC_PART_ROOT_BY_CODE_IN_COMPANY_SQL, { rootCode, companyId });
       if (!rootRow) throw new Error(`PART_ROOT_NOT_FOUND: ${rootCode}`);
       if (isClosedRecordStatus(rootRow.record_status)) throw new Error(`ROOT_APPEND_LOCKED: ${rootRow.record_status}`);
+      const inheritedPart = await this.getRootAppendPartProfile(client, rootRow);
+      if (input.itemKind && input.itemKind !== inheritedPart.itemKind) throw new Error("PART_ROOT_ITEM_KIND_MISMATCH");
 
       const idempotencyKey = input.idempotencyKey?.trim();
       if (idempotencyKey) {
@@ -4164,10 +4147,14 @@ export class AsyncNumberingRepository {
           ]);
           const recentLinkType = String(recent?.linkType ?? "") as "primary_manufacturing" | "reference";
           if (drawingRow && partRow && drawingRow.part_root_id === rootRow.id && partRow.part_root_id === rootRow.id && (recentLinkType === "primary_manufacturing" || recentLinkType === "reference")) {
+            const drawingNumber = mapDrawingNumber(drawingRow);
+            const partNumber = mapPartNumber(partRow);
+            await this.ensureCanonicalDrawingWorkbenchState(client, drawingNumber, input.createdBy);
+            await this.ensureCanonicalPartWorkbenchState(client, partNumber);
             return {
               root: mapPartRoot(rootRow),
-              drawingNumber: mapDrawingNumber(drawingRow),
-              partNumber: mapPartNumber(partRow),
+              drawingNumber,
+              partNumber,
               linkType: recentLinkType,
               reusedFromIdempotency: true
             };
@@ -4191,12 +4178,11 @@ export class AsyncNumberingRepository {
       });
       const partNumber = await this.insertPartNumber(client, root, {
         partName: root.coreName,
-        itemKind: input.itemKind ?? root.itemKind,
+        itemKind: inheritedPart.itemKind,
         recordStatus,
-        isUniversal: input.isUniversal ?? false,
-        universalReason: input.universalReason,
-        customSpecification: input.customSpecification,
-        seriesCode: input.seriesCode,
+        isUniversal: inheritedPart.isUniversal,
+        customSpecification: inheritedPart.customSpecification ?? undefined,
+        seriesCode: inheritedPart.seriesCode ?? undefined,
         ruleVersionId,
         createdBy: input.createdBy
       });
@@ -4207,13 +4193,12 @@ export class AsyncNumberingRepository {
       }
       const linkType: "primary_manufacturing" | "reference" =
         relationType === "reference" || !isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? "reference" : "primary_manufacturing";
-      await client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
-        id: this.idFactory(),
+      await new RelationFormalAuthorityRepository(client).upsertPairInClient(client, {
+        companyId,
         drawingNumberId: drawingNumber.id,
         partNumberId: partNumber.id,
-        linkType,
-        createdBy: input.createdBy ?? null,
-        createdAt: this.clock()
+        relationType: linkType === "primary_manufacturing" ? "manufacturing_basis" : "reference",
+        actorId: input.createdBy ?? null
       });
 
       await this.insertAudit(client, {
@@ -4314,7 +4299,7 @@ export class AsyncNumberingRepository {
       isUniversal: input.isUniversal ? 1 : 0,
       universalReason: input.universalReason?.trim() ?? "",
       customSpecification: input.customSpecification?.trim() ?? "",
-      seriesCode: normalizeSeriesCode(input.itemKind, input.itemKind === "shared" || input.isUniversal, input.seriesCode) ?? "",
+      seriesCode: normalizeSeriesCode(input.itemKind, Boolean(input.isUniversal), input.seriesCode) ?? "",
       createdBy: input.createdBy ?? null,
       notBefore,
       drawingRequested: input.drawingPurposeCode ? 1 : 0,
@@ -4507,7 +4492,7 @@ export class AsyncNumberingRepository {
       await client.execute(UPDATE_ASYNC_DRAFT_PART_NUMBER_DRAFT_SOURCES_NULL_SQL, { rootId: rootRow.id, updatedAt: now });
       await client.execute(DELETE_ASYNC_DRAFT_DRAWING_FFF_SQL, { rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_SAME_DRAWING_VARIANTS_SQL, { rootId: rootRow.id });
-      await client.execute(DELETE_ASYNC_DRAFT_DRAWING_PART_LINKS_SQL, { rootId: rootRow.id });
+      await new RelationFormalAuthorityRepository(client).removeRootLinksInClient(client, { companyId, rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_PART_VARIANT_ATTRIBUTES_SQL, { rootId: rootRow.id });
       for (const drawing of drawingRows) {
         await client.execute(
@@ -4951,7 +4936,7 @@ export class AsyncNumberingRepository {
         actionCodes,
         pagePermissionCodes: [...NUMBERING_PAGE_PERMISSION_CODES],
         recordStatuses: ["Draft", "NeedInfo", "Active", "PendingReview", "Released", "Obsolete", "Merged", "PendingAdminConfirm", "MainDrawingInvalid"],
-        itemKinds: ["manufactured", "outsourced", "purchased", "custom", "universal"],
+        itemKinds: ["manufactured", "purchased"],
         riskFlags: [
           "duplicate_code",
           "multiple_primary_ma",
@@ -7423,34 +7408,13 @@ export class AsyncNumberingRepository {
       if (replacementDrawingNumber) {
         const replacementRow = await this.validateReplacementManufacturingDrawing(client, partRow, replacementDrawingNumber);
         replacementDrawing = mapDrawingNumber(replacementRow);
-        await client.execute(UPDATE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_TO_REFERENCE_SQL, {
-          partNumberId: partRow.id,
-          drawingNumberId: replacementRow.id
-        });
-        const primaryReplacementLink = await client.queryOne<{ id: string }>(SELECT_ASYNC_DRAWING_PART_LINK_BY_TYPE_SQL, {
+        await new RelationFormalAuthorityRepository(client).upsertPairInClient(client, {
+          companyId,
           drawingNumberId: replacementRow.id,
           partNumberId: partRow.id,
-          linkType: "primary_manufacturing"
+          relationType: "manufacturing_basis",
+          actorId
         });
-        if (!primaryReplacementLink) {
-          const referenceReplacementLink = await client.queryOne<{ id: string }>(SELECT_ASYNC_DRAWING_PART_LINK_BY_TYPE_SQL, {
-            drawingNumberId: replacementRow.id,
-            partNumberId: partRow.id,
-            linkType: "reference"
-          });
-          if (referenceReplacementLink) {
-            await client.execute(UPDATE_ASYNC_DRAWING_PART_LINK_TO_PRIMARY_SQL, { linkId: referenceReplacementLink.id });
-          } else {
-            await client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
-              id: this.idFactory(),
-              drawingNumberId: replacementRow.id,
-              partNumberId: partRow.id,
-              linkType: "primary_manufacturing",
-              createdBy: actorId,
-              createdAt: now
-            });
-          }
-        }
       } else if (!(await this.getPrimaryManufacturingDrawingForPart(client, partRow.id))) {
         throw new Error("MAIN_DRAWING_RESTORE_REQUIRES_ACTIVE_MA_DRAWING");
       }
@@ -7763,54 +7727,12 @@ export class AsyncNumberingRepository {
     const part = mapPartNumber(partRow);
     const beforeRows = await this.listDrawingPartLinksForPair(client, drawing.id, part.id);
 
-    const primaryPair = () =>
-      client.queryOne<{ id: string }>(SELECT_ASYNC_PRIMARY_LINK_FOR_PAIR_SQL, {
-        drawingNumberId: drawing.id,
-        partNumberId: part.id
-      });
-    const referencePair = () =>
-      client.queryOne<{ id: string }>(SELECT_ASYNC_REFERENCE_LINK_FOR_PAIR_SQL, {
-        drawingNumberId: drawing.id,
-        partNumberId: part.id
-      });
-    const insertLink = (linkType: NumberingLinkRecord["linkType"]) =>
-      client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
-        id: this.idFactory(),
-        drawingNumberId: drawing.id,
-        partNumberId: part.id,
-        linkType,
-        createdBy: input.actorId ?? null,
-        createdAt: this.clock()
-      });
-
+    const authority = new RelationFormalAuthorityRepository(client);
     if (input.operation === "link") {
-      const linkType: NumberingLinkRecord["linkType"] = isManufacturingDrawingPurpose(drawing.purposeCode) ? "primary_manufacturing" : "reference";
-      const [primary, reference] = await Promise.all([primaryPair(), referencePair()]);
-      if (linkType === "primary_manufacturing") {
-        await client.execute(DELETE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_WITH_REFERENCE_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
-        await client.execute(UPDATE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_TO_REFERENCE_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
-        if (primary && reference) {
-          await client.execute(DELETE_ASYNC_DRAWING_PART_LINK_BY_ID_SQL, { linkId: reference.id });
-        } else if (reference) {
-          await client.execute(UPDATE_ASYNC_DRAWING_PART_LINK_TO_PRIMARY_SQL, { linkId: reference.id });
-        } else if (!primary) {
-          await insertLink(linkType);
-        }
-      } else if (!reference) {
-        await insertLink(linkType);
-      }
+      await authority.upsertPairInClient(client, { companyId, drawingNumberId: drawing.id, partNumberId: part.id, relationType: isManufacturingDrawingPurpose(drawing.purposeCode) ? "manufacturing_basis" : "reference", actorId: input.actorId ?? null });
     } else if (input.operation === "set_primary") {
       if (!isManufacturingDrawingPurpose(drawing.purposeCode)) throw new Error("PRIMARY_RELATION_REQUIRES_MANUFACTURING_DRAWING");
-      const [primary, reference] = await Promise.all([primaryPair(), referencePair()]);
-      await client.execute(DELETE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_WITH_REFERENCE_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
-      await client.execute(UPDATE_ASYNC_OTHER_PRIMARY_DRAWING_LINKS_TO_REFERENCE_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
-      if (primary && reference) {
-        await client.execute(DELETE_ASYNC_DRAWING_PART_LINK_BY_ID_SQL, { linkId: reference.id });
-      } else if (reference) {
-        await client.execute(UPDATE_ASYNC_DRAWING_PART_LINK_TO_PRIMARY_SQL, { linkId: reference.id });
-      } else if (!primary) {
-        await insertLink("primary_manufacturing");
-      }
+      await authority.upsertPairInClient(client, { companyId, drawingNumberId: drawing.id, partNumberId: part.id, relationType: "manufacturing_basis", actorId: input.actorId ?? null });
       const primaryUpdatedAt = this.clock();
       await client.execute(
         `UPDATE drawing_numbers
@@ -7828,17 +7750,10 @@ export class AsyncNumberingRepository {
         await unifiedDrawingRepository.synchronizeFormalDrawing({ drawingNumberId: rootDrawing.id, companyId });
       }
     } else if (input.operation === "set_reference") {
-      const [primary, reference] = await Promise.all([primaryPair(), referencePair()]);
-      if (primary && reference) {
-        await client.execute(DELETE_ASYNC_DRAWING_PART_LINK_BY_ID_SQL, { linkId: primary.id });
-      } else if (primary) {
-        await client.execute(UPDATE_ASYNC_DRAWING_PART_LINK_TO_REFERENCE_SQL, { linkId: primary.id });
-      } else if (!reference) {
-        await insertLink("reference");
-      }
+      await authority.upsertPairInClient(client, { companyId, drawingNumberId: drawing.id, partNumberId: part.id, relationType: "reference", actorId: input.actorId ?? null });
     } else if (input.operation === "remove") {
       await client.execute(DELETE_ASYNC_SAME_DRAWING_VARIANTS_FOR_PAIR_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
-      await client.execute(DELETE_ASYNC_DRAWING_PART_LINKS_FOR_PAIR_SQL, { drawingNumberId: drawing.id, partNumberId: part.id });
+      await authority.removePairInClient(client, { companyId, drawingNumberId: drawing.id, partNumberId: part.id });
     } else {
       throw new Error("RELATION_MAINTENANCE_OPERATION_UNSUPPORTED");
     }
@@ -7909,12 +7824,22 @@ export class AsyncNumberingRepository {
   }
 
   private async selectV3ReservedRootCodes(client: AsyncDatabaseClient, companyId: string): Promise<string[]> {
-    const [masterRows, auditRows] = await Promise.all([
+    const [masterRows, drawingRows, auditRows] = await Promise.all([
       client.query<{ root_code: string }>(SELECT_ASYNC_ROOT_CODES_BY_COMPANY_SQL, { companyId }),
+      client.query<{ drawing_number: string }>(SELECT_ASYNC_ACTIVE_DRAWING_CODES_BY_COMPANY_SQL, { companyId }),
       client.query<{ detail_json: string }>(SELECT_ASYNC_AUDIT_DETAILS_WITH_ROOT_CODES_SQL)
     ]);
+    const drawingRootCodes = drawingRows.flatMap((row) => {
+      const value = String(row.drawing_number ?? '').trim().toUpperCase();
+      const match = /^(?:D-)?([A-Z][0-9]{4})-(?:M|R)[0-9]{1,2}$/u.exec(value);
+      return match ? [match[1]] : [];
+    });
     return Array.from(
-      new Set([...masterRows.map((row) => row.root_code), ...auditRows.flatMap((row) => extractAuditRootCodesFromJson(row.detail_json, companyId))])
+      new Set([
+        ...masterRows.map((row) => row.root_code),
+        ...drawingRootCodes,
+        ...auditRows.flatMap((row) => extractAuditRootCodesFromJson(row.detail_json, companyId))
+      ])
     );
   }
 
@@ -8232,8 +8157,7 @@ export class AsyncNumberingRepository {
       createdBy?: string | null;
     }
   ): Promise<PartNumberRecord> {
-    const effectiveIsUniversal = input.itemKind === "shared" || input.isUniversal;
-    requireUniversalReason(input.itemKind, effectiveIsUniversal, input.universalReason);
+    const effectiveIsUniversal = Boolean(input.isUniversal);
     requireCustomSpecification(input.itemKind, input.customSpecification);
     const seriesCode = normalizeSeriesCode(input.itemKind, effectiveIsUniversal, input.seriesCode);
     const sequenceNo =
@@ -8265,7 +8189,9 @@ export class AsyncNumberingRepository {
     });
     const row = await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { partNumber, companyId: root.companyId });
     if (!row) throw new Error(`PART_NUMBER_NOT_FOUND: ${partNumber}`);
-    return mapPartNumber(row);
+    const record = mapPartNumber(row);
+    await this.ensureCanonicalPartWorkbenchState(client, record);
+    return record;
   }
 
   private async insertDrawingNumber(
@@ -8281,9 +8207,26 @@ export class AsyncNumberingRepository {
   ): Promise<DrawingNumberRecord> {
     assertPurposeAllowedForRule(input.purposeCode, input.ruleVersionId);
     const purposeDescription = normalizePurposeDescription(input.purposeCode, input.purposeDescription);
-    const sequenceNo = await this.allocateSequence(client, root.companyId, `${root.companyId}:drawing:${root.rootCode}:${input.purposeCode}`);
-    const sequenceCode = formatDrawingSequence(sequenceNo, input.ruleVersionId);
-    const drawingNumber = formatDrawingNumberForRule(root.rootCode, input.purposeCode, sequenceCode, input.ruleVersionId);
+    const sequenceKey = `${root.companyId}:drawing:${root.rootCode}:${input.purposeCode}`;
+    let sequenceNo = await this.allocateSequence(client, root.companyId, sequenceKey);
+    let sequenceCode = formatDrawingSequence(sequenceNo, input.ruleVersionId);
+    let drawingNumber = formatDrawingNumberForRule(root.rootCode, input.purposeCode, sequenceCode, input.ruleVersionId);
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const [formalConflict, projectionConflict] = await Promise.all([
+        client.queryOne<{ id: string }>(
+          "SELECT id FROM drawing_numbers WHERE company_id = :companyId AND drawing_number = :drawingNumber LIMIT 1",
+          { companyId: root.companyId, drawingNumber }
+        ),
+        client.queryOne<{ id: string }>(
+          "SELECT id FROM drawings WHERE company_id = :companyId AND drawing_number = :drawingNumber AND lifecycle_state <> 'cancelled' LIMIT 1",
+          { companyId: root.companyId, drawingNumber }
+        )
+      ]);
+      if (!formalConflict && !projectionConflict) break;
+      sequenceNo = await this.allocateSequence(client, root.companyId, sequenceKey);
+      sequenceCode = formatDrawingSequence(sequenceNo, input.ruleVersionId);
+      drawingNumber = formatDrawingNumberForRule(root.rootCode, input.purposeCode, sequenceCode, input.ruleVersionId);
+    }
     const id = this.idFactory();
     const now = this.clock();
     const existingPrimary = isManufacturingDrawingPurpose(input.purposeCode)
@@ -8311,24 +8254,135 @@ export class AsyncNumberingRepository {
     });
     const row = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, { drawingNumber, companyId: root.companyId });
     if (!row) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${drawingNumber}`);
-    await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
+    const drawing = await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
       drawingNumberId: row.id,
       companyId: root.companyId
     });
-    return mapDrawingNumber(row);
+    if (!drawing) throw new Error(`DRAWING_PROJECTION_NOT_FOUND: ${drawingNumber}`);
+    const record = mapDrawingNumber(row);
+    await this.ensureCanonicalDrawingWorkbenchState(client, record, input.createdBy, drawing.id);
+    return record;
+  }
+
+  private async ensureCanonicalPartWorkbenchState(client: AsyncDatabaseClient, part: PartNumberRecord): Promise<void> {
+    await client.execute(
+      `INSERT INTO pdm_workbench_aggregates
+         (id, company_id, entity_type, canonical_entity_id, open_branch_count, row_version)
+       VALUES (:aggregateId, :companyId, 'part', :partId, 0, 1)
+       ON CONFLICT DO NOTHING`,
+      { aggregateId: this.idFactory(), companyId: part.companyId, partId: part.id }
+    );
+    await client.execute(
+      `INSERT INTO canonical_workbench_states
+         (id, company_id, entity_type, canonical_entity_id, data_layer, branch_id, revision_id, work_id, handling, row_version)
+       VALUES (:stateId, :companyId, 'part', :partId, 'part_formal', NULL, NULL, NULL, 'none', 1)
+       ON CONFLICT DO NOTHING`,
+      { stateId: this.idFactory(), companyId: part.companyId, partId: part.id }
+    );
+  }
+
+  private async ensureCanonicalDrawingWorkbenchState(
+    client: AsyncDatabaseClient,
+    drawingNumber: DrawingNumberRecord,
+    actorId?: string | null,
+    knownDrawingId?: string
+  ): Promise<void> {
+    const drawing = knownDrawingId
+      ? { id: knownDrawingId }
+      : await client.queryOne<{ id: string }>(
+          `SELECT id FROM drawings
+           WHERE company_id = :companyId AND formal_drawing_number_id = :drawingNumberId
+           LIMIT 1${client.kind === "postgres" ? " FOR UPDATE" : ""}`,
+          { companyId: drawingNumber.companyId, drawingNumberId: drawingNumber.id }
+        );
+    if (!drawing) throw new Error(`DRAWING_PROJECTION_NOT_FOUND: ${drawingNumber.drawingNumber}`);
+
+    const existingState = await client.queryOne<{ id: string }>(
+      `SELECT id FROM canonical_workbench_states
+       WHERE company_id = :companyId AND entity_type = 'drawing' AND canonical_entity_id = :drawingId
+       LIMIT 1${client.kind === "postgres" ? " FOR UPDATE" : ""}`,
+      { companyId: drawingNumber.companyId, drawingId: drawing.id }
+    );
+    if (existingState) return;
+    if (!actorId) throw new Error("NUMBERING_ACTOR_REQUIRED_FOR_INITIAL_DRAWING_WORK");
+
+    const aggregateId = this.idFactory();
+    const branchId = this.idFactory();
+    const claimId = this.idFactory();
+    const revisionId = this.idFactory();
+    const workId = this.idFactory();
+    await client.execute(
+      `INSERT INTO pdm_workbench_aggregates
+         (id, company_id, entity_type, canonical_entity_id, open_branch_count, row_version)
+       VALUES (:aggregateId, :companyId, 'drawing', :drawingId, 1, 1)
+       ON CONFLICT DO NOTHING`,
+      { aggregateId, companyId: drawingNumber.companyId, drawingId: drawing.id }
+    );
+    await client.execute(
+      `UPDATE pdm_workbench_aggregates
+       SET open_branch_count = 1, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE company_id = :companyId AND entity_type = 'drawing' AND canonical_entity_id = :drawingId
+         AND open_branch_count = 0`,
+      { companyId: drawingNumber.companyId, drawingId: drawing.id }
+    );
+    await client.execute(
+      `INSERT INTO drawing_rd_branches
+         (id, company_id, drawing_id, base_production_revision_id, latest_approved_revision_id, status, row_version)
+       VALUES (:branchId, :companyId, :drawingId, NULL, NULL, 'open', 1)`,
+      { branchId, companyId: drawingNumber.companyId, drawingId: drawing.id }
+    );
+    await client.execute(
+      `INSERT INTO drawing_revision_claims
+         (id, company_id, drawing_id, branch_id, target_major, target_minor, target_label, predecessor_revision_id, claim_state)
+       VALUES (:claimId, :companyId, :drawingId, :branchId, 0, 1, '0.1', NULL, 'work')`,
+      { claimId, companyId: drawingNumber.companyId, drawingId: drawing.id, branchId }
+    );
+    await client.execute(
+      `INSERT INTO drawing_revisions
+         (id, company_id, drawing_id, revision, lifecycle_state, policy_snapshot_json, row_version, created_by, updated_by)
+       VALUES (:revisionId, :companyId, :drawingId, '0.1', 'preparing', '{}', 1, :actorId, :actorId)`,
+      { revisionId, companyId: drawingNumber.companyId, drawingId: drawing.id, actorId }
+    );
+    await client.execute(
+      `INSERT INTO drawing_revision_works
+         (id, company_id, drawing_id, branch_id, target_claim_id, owner_user_id, proposed_payload, base_hash, row_version)
+       VALUES (:workId, :companyId, :drawingId, :branchId, :claimId, :actorId, :payload, :baseHash, 1)`,
+      {
+        workId,
+        companyId: drawingNumber.companyId,
+        drawingId: drawing.id,
+        branchId,
+        claimId,
+        actorId,
+        payload: JSON.stringify({ recognitionNotes: "" }),
+        baseHash: dev087RequestHash({ predecessorRevisionId: null })
+      }
+    );
+    await client.execute(
+      `INSERT INTO canonical_workbench_states
+         (id, company_id, entity_type, canonical_entity_id, data_layer, branch_id, revision_id, work_id, handling, row_version)
+       VALUES (:stateId, :companyId, 'drawing', :drawingId, 'drawing_rd', :branchId, :revisionId, :workId, 'owner', 1)`,
+      {
+        stateId: this.idFactory(),
+        companyId: drawingNumber.companyId,
+        drawingId: drawing.id,
+        branchId,
+        revisionId,
+        workId
+      }
+    );
   }
 
   private async linkDrawingToPart(
     client: AsyncDatabaseClient,
     input: { drawing: DrawingNumberRecord; part: PartNumberRecord; createdBy?: string | null }
   ): Promise<void> {
-    await client.execute(INSERT_ASYNC_DRAWING_PART_LINK_SQL, {
-      id: this.idFactory(),
+    await new RelationFormalAuthorityRepository(client).upsertPairInClient(client, {
+      companyId: input.drawing.companyId,
       drawingNumberId: input.drawing.id,
       partNumberId: input.part.id,
-      linkType: isManufacturingDrawingPurpose(input.drawing.purposeCode) ? "primary_manufacturing" : "reference",
-      createdBy: input.createdBy ?? null,
-      createdAt: this.clock()
+      relationType: isManufacturingDrawingPurpose(input.drawing.purposeCode) ? "manufacturing_basis" : "reference",
+      actorId: input.createdBy ?? null
     });
   }
 

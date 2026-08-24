@@ -1,12 +1,12 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import { CanonicalWorkbenchError, type WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
+import { CanonicalWorkbenchError, type HistoricalWorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
 
 export type PdmWorkReviewRequestRecord = {
   id: string;
   companyId: string;
   requestKind: "drawing_revision" | "drawing_rd_void" | "part_change" | "relation_change";
-  entityType: WorkbenchEntityType;
+  entityType: HistoricalWorkbenchEntityType;
   canonicalEntityId: string;
   workId: string | null;
   branchId: string | null;
@@ -17,9 +17,14 @@ export type PdmWorkReviewRequestRecord = {
   requestStatus: "pending" | "applying" | "apply_failed";
   rowVersion: number;
 };
+export type PdmWorkReviewTerminalReceipt = {
+  requestId: string;
+  companyId: string;
+  decidedAt: string;
+};
 type ReviewRow = {
   id: string; company_id: string; request_kind: PdmWorkReviewRequestRecord["requestKind"];
-  entity_type: WorkbenchEntityType; canonical_entity_id: string; work_id: string | null; branch_id: string | null;
+  entity_type: HistoricalWorkbenchEntityType; canonical_entity_id: string; work_id: string | null; branch_id: string | null;
   reviewer_user_id: string; review_cycle_id: string; snapshot_payload: string | unknown; snapshot_hash: string;
   request_status: PdmWorkReviewRequestRecord["requestStatus"]; row_version: number;
 };
@@ -57,7 +62,7 @@ export class PdmWorkReviewAsyncRepository {
   }
 
   async create(tx: AsyncDatabaseClient, input: {
-    companyId: string; requestKind: PdmWorkReviewRequestRecord["requestKind"]; entityType: WorkbenchEntityType;
+    companyId: string; requestKind: PdmWorkReviewRequestRecord["requestKind"]; entityType: HistoricalWorkbenchEntityType;
     canonicalEntityId: string; workId?: string | null; branchId?: string | null; reviewerUserId: string;
     snapshotPayload: unknown; snapshotHash: string;
   }) {
@@ -90,6 +95,23 @@ export class PdmWorkReviewAsyncRepository {
     await tx.execute(
       `INSERT INTO pdm_review_traces (review_cycle_id, company_id, entity_type, canonical_entity_id, decision_at)
        VALUES (:reviewCycleId, :companyId, :entityType, :canonicalEntityId, CURRENT_TIMESTAMP)`, request
+    );
+  }
+
+  async getTerminalReceipt(tx: AsyncDatabaseClient, input: { companyId: string; requestId: string }) {
+    return tx.queryOne<PdmWorkReviewTerminalReceipt>(
+      `SELECT request_id AS requestId, company_id AS companyId, decided_at AS decidedAt
+       FROM pdm_work_review_terminal_receipts
+       WHERE request_id = :requestId AND company_id = :companyId`,
+      input
+    );
+  }
+
+  async recordTerminalReceipt(tx: AsyncDatabaseClient, request: PdmWorkReviewRequestRecord) {
+    await tx.execute(
+      `INSERT INTO pdm_work_review_terminal_receipts (request_id, company_id, decided_at)
+       VALUES (:id, :companyId, CURRENT_TIMESTAMP)`,
+      request
     );
   }
 }

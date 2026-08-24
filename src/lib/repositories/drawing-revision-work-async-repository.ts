@@ -69,7 +69,7 @@ export class DrawingRevisionWorkAsyncRepository {
   }
 
   async readWork(client: AsyncDatabaseClient, companyId: string, workId: string, lock = false) {
-    return client.queryOne<DrawingWorkRow>(
+    const work = await client.queryOne<DrawingWorkRow>(
       `SELECT work.id, work.company_id, work.drawing_id, work.branch_id, work.target_claim_id, work.owner_user_id,
               work.proposed_payload, work.base_hash, work.row_version, claim.target_major, claim.target_minor,
               claim.target_label, claim.predecessor_revision_id, state.revision_id, state.handling
@@ -79,6 +79,76 @@ export class DrawingRevisionWorkAsyncRepository {
        WHERE work.id = :workId AND work.company_id = :companyId${lock && client.kind === "postgres" ? " FOR UPDATE OF work, claim, state" : ""}`,
       { companyId, workId }
     );
+    if (work) await this.assertWorkFileSnapshot(client, work);
+    return work;
+  }
+
+  async assertWorkFileSnapshot(client: AsyncDatabaseClient, work: Pick<DrawingWorkRow, "id" | "company_id" | "drawing_id" | "revision_id" | "proposed_payload">) {
+    let payload: Record<string, unknown> | null = null;
+    try {
+      payload = (typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload) as Record<string, unknown> | null;
+    } catch {
+      payload = null;
+    }
+    if (!payload || payload.migrated !== true) return;
+    if ((payload.drawingId && payload.drawingId !== work.drawing_id) || (payload.revisionId && payload.revisionId !== work.revision_id)) {
+      throw new CanonicalWorkbenchError("DRAWING_WORK_FILE_SNAPSHOT_INVALID", "圖面工作檔案快照需要修復，請交由系統管理員處理", 409);
+    }
+    const sourceRows = await client.query<{
+      id: string; company_id: string; drawing_id: string; drawing_revision_id: string; source_file_asset_id: string;
+      sort_order: number; removed_at: string | null; asset_id: string | null; content_hash: string | null; deleted_at: string | null;
+    }>(
+      `SELECT file.id, file.company_id, revision.drawing_id, file.drawing_revision_id, file.source_file_asset_id,
+              file.sort_order, file.removed_at, asset.id AS asset_id, asset.content_hash, asset.deleted_at
+       FROM drawing_revision_files file
+       JOIN drawing_revisions revision ON revision.id = file.drawing_revision_id AND revision.company_id = file.company_id
+       LEFT JOIN file_assets asset ON asset.id = file.source_file_asset_id
+       WHERE file.company_id = :companyId AND revision.drawing_id = :drawingId AND file.drawing_revision_id = :revisionId
+       ORDER BY file.sort_order, file.id`,
+      { companyId: work.company_id, drawingId: work.drawing_id, revisionId: work.revision_id }
+    );
+    const actualRows = await client.query<{
+      work_id: string; file_binding_id: string; ordinal: number; content_hash: string | null;
+      company_id: string; drawing_id: string; drawing_revision_id: string; source_file_asset_id: string | null;
+      removed_at: string | null; asset_id: string | null; asset_content_hash: string | null; deleted_at: string | null;
+    }>(
+      `SELECT binding.work_id, binding.file_binding_id, binding.ordinal, binding.content_hash,
+              file.company_id, revision.drawing_id, file.drawing_revision_id, file.source_file_asset_id,
+              file.removed_at, asset.id AS asset_id, asset.content_hash AS asset_content_hash, asset.deleted_at
+       FROM drawing_revision_work_files binding
+       LEFT JOIN drawing_revision_files file ON file.id = binding.file_binding_id
+       LEFT JOIN drawing_revisions revision ON revision.id = file.drawing_revision_id AND revision.company_id = file.company_id
+       LEFT JOIN file_assets asset ON asset.id = file.source_file_asset_id
+       WHERE binding.work_id = :workId
+       ORDER BY binding.ordinal, binding.file_binding_id`,
+      { workId: work.id }
+    );
+    const expected = sourceRows.filter((row) => row.removed_at === null && Boolean(row.asset_id) && row.deleted_at === null && Boolean(row.content_hash));
+    const expectedByBinding = new Map(expected.map((row) => [row.id, row]));
+    const actualByBinding = new Map<string, typeof actualRows[number]>();
+    const anomalies: string[] = [];
+    for (const row of sourceRows) {
+      if (row.removed_at !== null || !row.asset_id || row.deleted_at !== null || !row.content_hash) anomalies.push("source_asset_invalid");
+    }
+    for (const row of actualRows) {
+      if (actualByBinding.has(row.file_binding_id)) anomalies.push("duplicate_binding");
+      actualByBinding.set(row.file_binding_id, row);
+      if (row.company_id !== work.company_id || row.drawing_id !== work.drawing_id || row.drawing_revision_id !== work.revision_id) anomalies.push("scope_mismatch");
+      if (!row.asset_id || row.removed_at !== null || row.deleted_at !== null || !row.asset_content_hash) anomalies.push("target_asset_invalid");
+      if (row.asset_content_hash && row.content_hash !== row.asset_content_hash) anomalies.push("content_hash_mismatch");
+    }
+    if (actualRows.length !== expected.length) anomalies.push("count_mismatch");
+    const ordinals = new Set<number>();
+    for (const source of expected) {
+      const actual = actualByBinding.get(source.id);
+      if (!actual) { anomalies.push("missing_binding"); continue; }
+      if (Number(actual.ordinal) !== Number(source.sort_order)) anomalies.push("ordinal_mismatch");
+      if (actual.content_hash !== source.content_hash) anomalies.push("content_hash_mismatch");
+      if (ordinals.has(Number(actual.ordinal))) anomalies.push("duplicate_ordinal");
+      ordinals.add(Number(actual.ordinal));
+    }
+    for (const actual of actualRows) if (!expectedByBinding.has(actual.file_binding_id)) anomalies.push("extra_binding");
+    if (anomalies.length > 0) throw new CanonicalWorkbenchError("DRAWING_WORK_FILE_SNAPSHOT_INVALID", "圖面工作檔案快照需要修復，請交由系統管理員處理", 409);
   }
 
   async create(tx: AsyncDatabaseClient, input: { companyId: string; sourceRowId: string; ownerUserId: string; expectedRowVersion: number; target: RevisionTuple }) {
@@ -127,7 +197,7 @@ export class DrawingRevisionWorkAsyncRepository {
     }
     const revisionId = crypto.randomUUID();
     await tx.execute(`INSERT INTO drawing_revisions (id, company_id, drawing_id, revision, lifecycle_state, policy_snapshot_json, row_version, created_by, updated_by) VALUES (:id, :companyId, :drawingId, :revision, 'preparing', '{}', 1, :actorId, :actorId)`, { id: revisionId, companyId: input.companyId, drawingId: source.drawing_id, revision: input.target.label, actorId: input.ownerUserId });
-    const workId = crypto.randomUUID(); const payload = { title: "", description: "", recognitionNotes: "" };
+    const workId = crypto.randomUUID(); const payload = { recognitionNotes: "" };
     await tx.execute(`INSERT INTO drawing_revision_works (id, company_id, drawing_id, branch_id, target_claim_id, owner_user_id, proposed_payload, base_hash, row_version) VALUES (:id, :companyId, :drawingId, :branchId, :claimId, :ownerUserId, :payload, :baseHash, 1)`, { id: workId, companyId: input.companyId, drawingId: source.drawing_id, branchId, claimId, ownerUserId: input.ownerUserId, payload: JSON.stringify(payload), baseHash: dev087RequestHash({ predecessorRevisionId: source.revision_id }) });
     await tx.execute(`INSERT INTO drawing_revision_work_files (work_id, file_binding_id, ordinal, content_hash)
       SELECT :workId, file.id, file.sort_order, COALESCE(asset.content_hash, 'unhashed:' || file.id)

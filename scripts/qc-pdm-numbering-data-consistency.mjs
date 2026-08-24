@@ -303,17 +303,15 @@ try {
 
   const overrideCase = await request(
     "POST",
-    "/api/numbering/records",
+    `/api/numbering/roots/${encodeURIComponent(restoreCase.root.rootCode)}/parts`,
     adminCookie,
     {
-      coreName: `QC data consistency override ${unique}`,
-      partName: `QC missing MA override part ${unique}`,
       itemKind: "manufactured",
-      drawingRequested: false
+      linkRelationType: "none",
+      sourceEntrypoint: "qc_existing_root_missing_ma"
     },
     201
   );
-  created.rootCodes.push(overrideCase.root.rootCode);
   const overrideApproval = await request(
     "POST",
     "/api/numbering/approval-requests",
@@ -324,7 +322,7 @@ try {
       entityId: overrideCase.partNumber.id,
       reason: `QC missing MA override ${unique}`,
       payload: {
-        rootCode: overrideCase.root.rootCode,
+        rootCode: restoreCase.root.rootCode,
         partNumber: overrideCase.partNumber.partNumber,
         overrideTypes: ["missing_primary_ma"],
         riskFlags: ["has_override", "missing_primary_ma"]

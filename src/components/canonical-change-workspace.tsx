@@ -1,17 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Plus, Save, Send, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Download, Save, Send, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { CanonicalDrawingChangeWorkspace } from "@/components/canonical-drawing-change-workspace";
 import { PdmEditPageFrame } from "@/components/pdm-edit-page-frame";
 import type { WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
+import { pdmFileReadHref } from "@/lib/pdm-file-read-contract";
+import { CANONICAL_NUMBERING_ITEM_KIND_OPTIONS, projectCanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
 
-type LinkRow = { drawingNumberId: string; partNumberId: string; linkType: "primary_manufacturing" | "reference" };
 type Option = { id: string; code: string; name?: string };
 type WorkspacePayload = {
   entityType: WorkbenchEntityType; entityId: string; workId: string | null; revision?: string;
-  requestKind?: "drawing_revision" | "drawing_rd_void" | "part_change" | "relation_change";
+  requestKind?: "drawing_revision" | "drawing_rd_void" | "part_change";
   rowVersion: number; payload: Record<string, unknown>; readonly: boolean;
   identity?: { code?: string; name?: string; purpose_code?: string; purpose_description?: string } | null;
   options?: { drawings?: Option[]; parts?: Option[] }; files?: unknown[]; attachments?: unknown[];
@@ -25,6 +26,7 @@ function apiMessage(body: unknown, fallback: string) {
 }
 function text(value: unknown) { return typeof value === "string" ? value : ""; }
 function bool(value: unknown) { return Boolean(value); }
+function visibleItemKind(value: unknown) { return projectCanonicalNumberingItemKind(value) ?? ""; }
 
 type CanonicalChangeWorkspaceProps = {
   entityType?: WorkbenchEntityType; entityId?: string; workId?: string | null; reviewRequestId?: string; returnTo?: string | null;
@@ -47,16 +49,14 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [drawingChoice, setDrawingChoice] = useState("");
-  const [partChoice, setPartChoice] = useState("");
-  const [linkType, setLinkType] = useState<LinkRow["linkType"]>("reference");
+  const [canManageAttachments, setCanManageAttachments] = useState(false);
   const domain = data?.entityType ?? entityType;
-  const safeReturn = returnTo || (domain === "drawing" ? "/numbering/drawings" : domain === "part" ? "/parts" : domain === "relation" ? "/numbering/search" : "/approvals");
+  const safeReturn = returnTo || (domain === "drawing" ? "/numbering/drawings" : "/parts");
 
   const endpoint = useMemo(() => {
     if (reviewRequestId) return `/api/pdm/review-requests/${encodeURIComponent(reviewRequestId)}`;
     if (!workId || !entityType) return null;
-    return entityType === "drawing" ? `/api/pdm/drawing-revision-works/${encodeURIComponent(workId)}` : entityType === "part" ? `/api/pdm/part-change-works/${encodeURIComponent(workId)}` : `/api/pdm/relation-change-works/${encodeURIComponent(workId)}`;
+    return entityType === "drawing" ? `/api/pdm/drawing-revision-works/${encodeURIComponent(workId)}` : `/api/pdm/part-change-works/${encodeURIComponent(workId)}`;
   }, [entityType, reviewRequestId, workId]);
 
   const load = useCallback(async () => {
@@ -66,16 +66,28 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
     if (response.status === 403) { setStatus("restricted"); return; }
     if (response.status === 404) { setStatus("not_found"); return; }
     if (!response.ok) { setError(apiMessage(body, "工作資料目前無法載入。")); setStatus("error"); return; }
-    const result = body as ResponseShape; setData(result.data); setPayload(result.data.payload ?? {}); setSavedPayload(result.data.payload ?? {}); setToken(result.meta.contractToken); setStatus("ready");
-    setDrawingChoice(result.data.options?.drawings?.[0]?.id ?? ""); setPartChoice(result.data.options?.parts?.[0]?.id ?? "");
+    const result = body as ResponseShape;
+    const nextPayload = result.data.entityType === "part"
+      ? { ...(result.data.payload ?? {}), itemKind: visibleItemKind(result.data.payload?.itemKind) }
+      : result.data.payload ?? {};
+    setData(result.data); setPayload(nextPayload); setSavedPayload(nextPayload); setToken(result.meta.contractToken); setStatus("ready");
   }, [endpoint]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (data?.entityType !== "part" || data.readonly) { setCanManageAttachments(false); return; }
+    const controller = new AbortController();
+    void fetch("/api/numbering/permissions", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => response.ok ? await response.json() as { actions?: Record<string, boolean> } : null)
+      .then((body) => setCanManageAttachments(body?.actions?.["numbering.attachments.manage"] === true))
+      .catch((permissionError) => { if (!(permissionError instanceof Error && permissionError.name === "AbortError")) setCanManageAttachments(false); });
+    return () => controller.abort();
+  }, [data?.entityType, data?.readonly]);
 
   const commandHeaders = useCallback(() => ({ "content-type": "application/json", "if-match": `\"${data?.rowVersion ?? 0}\"`, "idempotency-key": crypto.randomUUID(), "x-pdm-workbench-contract": token }), [data?.rowVersion, token]);
   async function ownerCommand(kind: "save" | "submit" | "cancel") {
     if (!data?.workId || !domain || busy) return;
     if (kind === "cancel" && !window.confirm("確定取消這次尚未核准的工作資料？")) return;
-    const base = domain === "drawing" ? `/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId)}` : domain === "part" ? `/api/pdm/part-change-works/${encodeURIComponent(data.workId)}` : `/api/pdm/relation-change-works/${encodeURIComponent(data.workId)}`;
+    const base = domain === "drawing" ? `/api/pdm/drawing-revision-works/${encodeURIComponent(data.workId)}` : `/api/pdm/part-change-works/${encodeURIComponent(data.workId)}`;
     const url = kind === "save" ? base : `${base}/${kind}`; const method = kind === "save" ? "PATCH" : "POST";
     setBusy(true); setError("");
     const response = await fetch(url, { method, headers: commandHeaders(), body: kind === "save" ? JSON.stringify(payload) : "{}" }); const body = await response.json().catch(() => null); setBusy(false);
@@ -92,17 +104,15 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
   }
 
   function updateField(key: string, value: unknown) { setPayload((current) => ({ ...current, [key]: value })); }
-  const links = Array.isArray(payload.links) ? payload.links as LinkRow[] : [];
-  const drawingMap = new Map((data?.options?.drawings ?? []).map((option) => [option.id, option]));
-  const partMap = new Map((data?.options?.parts ?? []).map((option) => [option.id, option]));
-  function addLink() {
-    if (!drawingChoice || !partChoice || data?.readonly) return;
-    const next = { drawingNumberId: drawingChoice, partNumberId: partChoice, linkType };
-    if (links.some((row) => row.drawingNumberId === next.drawingNumberId && row.partNumberId === next.partNumberId && row.linkType === next.linkType)) return;
-    updateField("links", [...links, next]);
-  }
   const isDirty = !data?.readonly && JSON.stringify(payload) !== JSON.stringify(savedPayload);
   const title = data?.identity?.code || (data?.entityType === "drawing" && data.revision ? `研發版 ${data.revision}` : entityId || "工作資料");
+  function manageAttachments() {
+    const partNumber = data?.identity?.code;
+    if (!partNumber) return;
+    if (isDirty && !window.confirm("料號資料尚未儲存。前往附件管理會捨棄這些欄位變更，確定繼續嗎？")) return;
+    const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    router.push(`/parts/${encodeURIComponent(partNumber)}/attachments?returnTo=${encodeURIComponent(currentLocation)}`);
+  }
 
   const actionDock = status === "ready" && data ? data.readonly ? <>
     <button className="secondary-button" type="button" disabled={busy} onClick={() => void decide("return_for_correction")}><XCircle size={15} />退回修改</button>
@@ -118,26 +128,17 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
     {status === "ready" && data?.entityType === "part" ? <>
       <section className="pdm-edit-page-card"><h2>料號資料</h2><div className="pdm-master-field-grid">
         <label><span>品名</span><input value={text(payload.partName)} disabled={data.readonly} onChange={(event) => updateField("partName", event.target.value)} /></label>
-        <label><span>類型</span><select value={text(payload.itemKind)} disabled={data.readonly} onChange={(event) => updateField("itemKind", event.target.value)}><option value="purchased">採購</option><option value="manufactured">自製</option><option value="outsourced">委外</option><option value="shared">共用</option><option value="custom">自訂</option></select></label>
+        <label><span>料件類型</span><select value={visibleItemKind(payload.itemKind)} disabled={data.readonly} onChange={(event) => updateField("itemKind", event.target.value)}>{visibleItemKind(payload.itemKind) ? null : <option value="" disabled>待分類</option>}{CANONICAL_NUMBERING_ITEM_KIND_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
         <label><span>規格</span><input value={text(payload.customSpecification)} disabled={data.readonly} onChange={(event) => updateField("customSpecification", event.target.value || null)} /></label>
         <label><span>BOM 使用規則</span><select value={text(payload.bomUsagePolicy)} disabled={data.readonly} onChange={(event) => updateField("bomUsagePolicy", event.target.value)}><option value="undecided">未決定</option><option value="not_required">不需要</option><option value="available">可使用</option><option value="restricted">受限</option><option value="obsolete">停用</option></select></label>
-        <label><span>共用料</span><input type="checkbox" checked={bool(payload.isUniversal)} disabled={data.readonly} onChange={(event) => updateField("isUniversal", event.target.checked)} /></label>
-        <label><span>共用原因</span><input value={text(payload.universalReason)} disabled={data.readonly} onChange={(event) => updateField("universalReason", event.target.value || null)} /></label>
+        <label><span>共用件</span><input type="checkbox" checked={bool(payload.isUniversal)} disabled={data.readonly} onChange={(event) => updateField("isUniversal", event.target.checked)} /></label>
       </div></section>
-      <section className="pdm-edit-page-card"><h2>附件</h2>{data.readonly ? <p className="canonical-note">附件獨立維護，不屬於本次資料核准。</p> : null}<SimpleFiles records={data.attachments} /></section>
+      <section className="pdm-edit-page-card"><div className="pdm-edit-page-card-heading"><div><h2>附件</h2>{data.readonly ? <p className="canonical-note">附件獨立維護，不屬於本次資料核准；此處顯示目前最新附件。</p> : null}</div>{!data.readonly && canManageAttachments && data.identity?.code ? <button className="secondary-button" type="button" onClick={manageAttachments}>管理附件</button> : null}</div><SimpleFiles records={data.attachments} attachmentContext={{ entityId: data.entityId, reviewRequestId }} /></section>
     </> : null}
-    {status === "ready" && data?.entityType === "drawing" ? <>
-      {data.requestKind === "drawing_rd_void" ? <section className="pdm-edit-page-card"><h2>研發版作廢申請</h2><p>核准後，研發版 {text(payload.revision)} 將不再有效，這一系列研發版會從目前清單移除，且無法復原。</p></section> : <section className="pdm-edit-page-card"><h2>圖面資料</h2><div className="pdm-master-field-grid"><label><span>標題</span><input value={text(payload.title)} disabled={data.readonly} onChange={(event) => updateField("title", event.target.value)} /></label><label><span>說明</span><input value={text(payload.description)} disabled={data.readonly} onChange={(event) => updateField("description", event.target.value)} /></label><label><span>智慧辨識備註</span><textarea rows={4} value={text(payload.recognitionNotes)} disabled={data.readonly} onChange={(event) => updateField("recognitionNotes", event.target.value)} /></label></div></section>}
-      <section className="pdm-edit-page-card"><h2>受控圖面檔案</h2><SimpleFiles records={data.files} /></section>
-    </> : null}
-    {status === "ready" && data?.entityType === "relation" ? <section className="pdm-edit-page-card"><h2>直接關聯</h2>
-      {!data.readonly ? <div className="canonical-link-builder"><label><span>圖號</span><select value={drawingChoice} onChange={(event) => setDrawingChoice(event.target.value)}>{(data.options?.drawings ?? []).map((option) => <option key={option.id} value={option.id}>{option.code}</option>)}</select></label><label><span>料號</span><select value={partChoice} onChange={(event) => setPartChoice(event.target.value)}>{(data.options?.parts ?? []).map((option) => <option key={option.id} value={option.id}>{option.code} · {option.name}</option>)}</select></label><label><span>關聯</span><select value={linkType} onChange={(event) => setLinkType(event.target.value as LinkRow["linkType"])}><option value="primary_manufacturing">主要製造圖</option><option value="reference">參考</option></select></label><button type="button" className="secondary-button" onClick={addLink}><Plus size={15} />新增</button></div> : null}
-      <div className="canonical-record-list">{links.map((row, index) => <div className="canonical-relation-row" key={`${row.drawingNumberId}:${row.partNumberId}:${row.linkType}`}><span><strong>{drawingMap.get(row.drawingNumberId)?.code ?? "圖號"}</strong> → {partMap.get(row.partNumberId)?.code ?? "料號"}</span><span>{row.linkType === "primary_manufacturing" ? "主要製造圖" : "參考"}</span>{!data.readonly ? <button type="button" className="icon-button" aria-label="移除此關聯" onClick={() => updateField("links", links.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15} /></button> : null}</div>)}</div>
-    </section> : null}
   </PdmEditPageFrame>;
 }
 
-function SimpleFiles({ records }: { records?: unknown[] }) {
+function SimpleFiles({ records, attachmentContext }: { records?: unknown[]; attachmentContext?: { entityId: string; reviewRequestId?: string } }) {
   if (!records?.length) return <p className="canonical-empty">目前沒有檔案</p>;
-  return <ul className="canonical-file-list">{records.map((record, index) => { const row = record as Record<string, unknown>; return <li key={String(row.id ?? index)}><strong>{text(row.display_name) || text(row.file_name) || "檔案"}</strong><span>{text(row.role) || text(row.mime_type)}</span></li>; })}</ul>;
+  return <ul className="canonical-file-list">{records.map((record, index) => { const row = record as Record<string, unknown>; const id = String(row.id ?? ""); const fileName = text(row.file_name) || "檔案"; const href = attachmentContext && id ? pdmFileReadHref({ fileAssetId: id, context: "part_attachment", contextId: attachmentContext.entityId, bindingId: id, reviewRequestId: attachmentContext.reviewRequestId }) : null; const metadata = text(row.role) || text(row.mime_type); return <li key={id || String(index)}><div><strong>{text(row.display_name) || fileName}</strong><span>{metadata}</span></div>{href ? <a className="canonical-file-download" href={href} download={fileName} aria-label={`下載 ${fileName}`}><Download size={15} aria-hidden="true" />下載</a> : null}</li>; })}</ul>;
 }

@@ -3,7 +3,6 @@ import { createAsyncDatabaseClient } from "../src/lib/db-async-provider.ts";
 import { PdmCanonicalWorkbenchService } from "../src/lib/pdm-canonical-workbench.ts";
 import { PartChangeWorkService } from "../src/lib/part-change-work.ts";
 import { DrawingRevisionWorkService } from "../src/lib/drawing-revision-work.ts";
-import { RelationChangeWorkService } from "../src/lib/relation-change-work.ts";
 import { DrawingRecognitionAsyncRepository } from "../src/lib/repositories/drawing-recognition-async-repository.ts";
 
 const db = createFixtureDatabase();
@@ -63,9 +62,12 @@ assert.equal(db.prepare(`SELECT open_branch_count FROM pdm_workbench_aggregates 
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM drawing_revision_claims WHERE target_label = '1.2'`).get().n, 0, "unapproved revision claim is reusable");
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM drawing_recognition_sessions WHERE drawing_revision_id = ?`).get(cancelledWorkRevisionId).n, 0, "cancel removes unapproved recognition work data");
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM drawing_revisions WHERE id = ?`).get(cancelledWorkRevisionId).n, 0, "cancel removes the unapproved revision identity");
-const refreshedTargets = await drawingService.targets(ids.drawing, production.rowKey, owner);
+const refreshedDrawingList = await workbench.list(new URL("http://local"), "drawing", ownerView);
+const refreshedProduction = refreshedDrawingList.data.groups[0].rows.find((row) => row.layer === "production");
+assert(refreshedProduction);
+const refreshedTargets = await drawingService.targets(ids.drawing, refreshedProduction.rowKey, owner);
 const reusableTarget = refreshedTargets.data.candidates.find((candidate) => candidate.kind === "rd");
-const approvedWork = await drawingService.create(ids.drawing, { sourceRowKey: production.rowKey, candidateToken: reusableTarget.candidateToken }, owner, { idempotencyKey: "drawing-create-approved", contractToken: refreshedTargets.meta.contractToken, expectedRowVersion: production.rowVersion });
+const approvedWork = await drawingService.create(ids.drawing, { sourceRowKey: refreshedProduction.rowKey, candidateToken: reusableTarget.candidateToken }, owner, { idempotencyKey: "drawing-create-approved", contractToken: refreshedTargets.meta.contractToken, expectedRowVersion: refreshedProduction.rowVersion });
 const approvedWorkRevisionId = db.prepare(`SELECT revision_id FROM canonical_workbench_states WHERE work_id = ?`).get(approvedWork.workId).revision_id;
 db.prepare(`INSERT INTO drawing_revision_work_files (work_id, file_binding_id, ordinal, content_hash)
   VALUES (@workId, 'revision-file-dev087-source', 0, 'dev087-file-content-hash')`).run({ workId: approvedWork.workId });
@@ -83,19 +85,6 @@ assert.equal(db.prepare(`SELECT handling FROM canonical_workbench_states WHERE b
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM canonical_workbench_states WHERE entity_type = 'drawing'`).get().n, 3);
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM drawing_revision_files WHERE drawing_revision_id = ? AND source_file_asset_id = 'asset-dev087-controlled'`).get(approvedWorkRevisionId).n, 1, "approved revision retains the work-bound controlled file");
 
-const relationService = new RelationChangeWorkService(client);
-const relationList = await workbench.list(new URL("http://local"), "relation", ownerView);
-const relationFormal = relationList.data.groups[0].rows[0];
-const relationWork = await relationService.create(ids.root, owner, { idempotencyKey: "relation-create", contractToken: relationList.meta.contractToken, expectedRowVersion: relationFormal.rowVersion });
-assert.equal(relationWork.tree.links.length, 1);
-const relationUpdate = await relationService.update(relationWork.workId, { links: [{ drawingNumberId: ids.drawingNumber, partNumberId: ids.part, linkType: "reference" }] }, owner, { idempotencyKey: "relation-update", contractToken: relationList.meta.contractToken, expectedRowVersion: relationWork.rowVersion });
-const relationSubmit = await relationService.submit(relationWork.workId, owner, { idempotencyKey: "relation-submit", contractToken: relationList.meta.contractToken, expectedRowVersion: relationUpdate.rowVersion });
-await assert.rejects(() => relationService.update(relationWork.workId, relationUpdate.tree, owner, { idempotencyKey: "relation-update-after-submit", contractToken: relationList.meta.contractToken, expectedRowVersion: relationUpdate.rowVersion }), (error) => error.code === "WORKBENCH_ROW_VERSION_CONFLICT");
-const reviewerRelationList = await workbench.list(new URL("http://local"), "relation", reviewerView);
-await relationService.decide(relationSubmit.requestId, "approve", reviewer, { idempotencyKey: "relation-approve", contractToken: reviewerRelationList.meta.contractToken, expectedRowVersion: relationSubmit.rowVersion });
-assert.equal(db.prepare(`SELECT link_type FROM drawing_part_links WHERE drawing_number_id = ? AND part_number_id = ?`).get(ids.drawingNumber, ids.part).link_type, "reference");
-assert.equal(db.prepare(`SELECT COUNT(*) n FROM relation_approved_change_snapshots`).get().n, 1);
-assert.equal(db.prepare(`SELECT COUNT(*) n FROM relation_change_works`).get().n, 0);
 assert.equal(db.pragma("foreign_key_check").length, 0);
 db.close();
-pass("commands", 39);
+pass("commands", 30);

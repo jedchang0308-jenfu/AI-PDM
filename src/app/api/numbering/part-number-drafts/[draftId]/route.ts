@@ -6,7 +6,7 @@ import { updatePartNumberDraft, type PartNumberDraftItemType } from "@/lib/pdm-c
 
 export const runtime = "nodejs";
 
-const itemTypes = new Set(["self_made", "purchased", "standard"]);
+const itemTypes = new Set(["self_made", "purchased"]);
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ draftId: string }> }) {
   const auth = await requireNumberingActionAsync(request, "numbering.draft.update");

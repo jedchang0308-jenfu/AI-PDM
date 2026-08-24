@@ -14,7 +14,7 @@ import { getMasterAttachmentUploadPolicy } from "@/lib/storage-upload-policy";
 
 export type MasterAttachmentEntityType = "drawing_number" | "part_number";
 export type DrawingAttachmentCategory = "cad_3d" | "intermediate" | "drawing_2d" | "dwg" | "pdf" | "other";
-export type PartAttachmentCategory = "cad_3d" | "intermediate" | "catalog" | "spec_sheet" | "supplier_doc" | "test_report" | "other";
+export type PartAttachmentCategory = "cad_3d" | "intermediate" | "catalog" | "spec_sheet" | "supplier_doc" | "test_report" | "part_preview_image" | "other";
 export type MasterAttachmentCategory = DrawingAttachmentCategory | PartAttachmentCategory;
 export type MasterAttachmentDriveStatus = "none" | "uploading" | "uploaded" | "failed";
 export type MasterAttachmentPreviewJobStatus = "queued" | "running" | "succeeded" | "failed" | "skipped" | "cancelled";
@@ -172,6 +172,8 @@ const allowedAttachmentExtensions = new Set([
   "xlsx",
   "csv",
   "txt",
+  "html",
+  "htm",
   "zip",
   "png",
   "jpg",
@@ -669,6 +671,7 @@ function inferMimeType(filename: string) {
   if (ext === "dxf") return "image/vnd.dxf";
   if (ext === "csv") return "text/csv";
   if (ext === "txt") return "text/plain";
+  if (ext === "html" || ext === "htm") return "text/html";
   if (ext === "png") return "image/png";
   if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
   if (ext === "zip") return "application/zip";

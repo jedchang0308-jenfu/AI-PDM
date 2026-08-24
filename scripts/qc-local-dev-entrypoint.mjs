@@ -28,6 +28,7 @@ function assertNotIncludes(label, content, needles) {
 const packageJson = JSON.parse(read("package.json"));
 const scripts = packageJson.scripts ?? {};
 const launcher = read("scripts/start-localhost-3000.ps1");
+const stateFlowStatusRoute = read("src/app/api/numbering/state-flow/status/route.ts");
 const cleanNext = read("scripts/clean-next.mjs");
 const nextConfig = read("next.config.mjs");
 const workspaceTsconfig = JSON.parse(read("tsconfig.json"));
@@ -89,6 +90,7 @@ assertIncludes("Next tsconfig", JSON.stringify(nextTsconfig), [
 
 assertIncludes("managed launcher", launcher, [
   "Test-LocalHttpHealth",
+  '$env:PDM_PART_PREVIEW_V1 = "true"',
   '$BindHost = "127.0.0.1"',
   '$PublicHost = "localhost"',
   '$Url = "http://${PublicHost}:$Port/"',
@@ -97,6 +99,9 @@ assertIncludes("managed launcher", launcher, [
   "@{ Path = \"/\"; Expected = @(200, 301, 302, 307, 308) }",
   "@{ Path = \"/login\"; Expected = @(200, 301, 302, 307, 308) }",
   "@{ Path = \"/api/auth/me\"; Expected = @(200, 401) }",
+  "RequirePartPreview = $true",
+  "$featureStatus.partPreview.enabled -ne $true",
+  "DEV-065 Part preview is not enabled on the fixed local runtime.",
   "Invoke-WebRequest",
   "Write-Host \"Local URL: $Url\"",
   "RedirectStandardOutput",
@@ -124,6 +129,11 @@ assertIncludes("managed launcher", launcher, [
   "$StopForeignProcess",
   "npm.cmd",
   "dev:server"
+]);
+
+assertIncludes("local feature status route", stateFlowStatusRoute, [
+  "partPreviewV1ClientStatus",
+  "partPreview: partPreviewV1ClientStatus()"
 ]);
 
 assertNotIncludes("managed launcher", launcher, [

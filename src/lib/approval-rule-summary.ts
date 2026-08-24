@@ -83,15 +83,8 @@ export function approvalRecordStatusLabel(value: string | null | undefined) {
 }
 
 export function approvalItemKindLabel(value: string | null | undefined) {
-  const labels: Record<string, string> = {
-    manufactured: "自製件",
-    outsourced: "委外件",
-    purchased: "採購件",
-    custom: "客製件",
-    universal: "通用件"
-  };
   const normalized = value?.trim() ?? "";
-  return labels[normalized] ?? (normalized ? "自訂料件" : null);
+  return normalized ? canonicalNumberingItemKindLabel(normalized) : null;
 }
 
 export function approvalRiskFlagLabel(value: string | null | undefined) {
@@ -165,15 +158,8 @@ function approvalRecordStatusUserPhrase(value: string | null | undefined) {
 }
 
 function approvalItemKindUserPhrase(value: string | null | undefined) {
-  const labels: Record<string, string> = {
-    manufactured: "自製件",
-    outsourced: "委外件",
-    purchased: "採購件",
-    custom: "客製件",
-    universal: "通用件"
-  };
   const normalized = value?.trim() ?? "";
-  return labels[normalized] ?? approvalItemKindLabel(normalized);
+  return normalized ? canonicalNumberingItemKindLabel(normalized) : null;
 }
 
 function approvalRiskUserPhrase(value: string | null | undefined) {
@@ -218,3 +204,4 @@ export function buildApprovalRuleSummary(rule: ApprovalRuleSummaryInput) {
   const predictedRule = withPredictedApprovalControls(rule);
   return `情境：${buildRuleSituation(predictedRule)}。處理：${buildRuleOutcome(predictedRule)}。`;
 }
+import { canonicalNumberingItemKindLabel } from "@/lib/numbering-item-kind";

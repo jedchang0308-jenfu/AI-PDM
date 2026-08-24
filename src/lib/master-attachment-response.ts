@@ -18,6 +18,7 @@ export function buildMasterAttachmentFileResponse(input: {
 }
 
 export function masterAttachmentStatusFromError(message: string) {
+  if (message.includes("PART_PREVIEW_ACTIVE_ASSET")) return 409;
   if (message.includes("LIFE_PERMISSION_DENIED")) return 403;
   if (message.includes("LIFE_UNSUPPORTED_ENTITY")) return 400;
   if (message.includes("LIFE_ATTACHMENT_NOT_DELETED")) return 409;

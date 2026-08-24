@@ -267,6 +267,7 @@ export function DrawingRecognitionWorkspacePanel({
   const [notice, setNotice] = useState("");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const loadedSourceContextRef = useRef<string | null>(null);
+  const latestLoadAbortRef = useRef<AbortController | null>(null);
   const sourceKey = useMemo(() => [...sourceAssetIds].filter(Boolean).sort().join("|"), [sourceAssetIds]);
   const stableSourceAssetIds = useMemo(() => sourceKey ? sourceKey.split("|") : [], [sourceKey]);
   const visibleCandidates = useMemo(() => session?.candidates.filter((candidate) => !isHiddenCandidate(candidate)) ?? [], [session]);
@@ -370,10 +371,16 @@ export function DrawingRecognitionWorkspacePanel({
   }, [setProjection]);
 
   const loadLatest = useCallback(async () => {
+    latestLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    latestLoadAbortRef.current = controller;
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/numbering/drawings/${encodeURIComponent(drawingNumber)}/recognition-session`, { cache: "no-store" });
+      const response = await fetch(`/api/numbering/drawings/${encodeURIComponent(drawingNumber)}/recognition-session`, {
+        cache: "no-store",
+        signal: controller.signal
+      });
       const body = await response.json().catch(() => ({}));
       if (response.status === 403) {
         setRestricted(true);
@@ -395,7 +402,8 @@ export function DrawingRecognitionWorkspacePanel({
         const startResponse = await fetch("/api/numbering/recognition-sessions", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ sourceContextType, sourceContextId, sourceAssetIds: stableSourceAssetIds })
+          body: JSON.stringify({ sourceContextType, sourceContextId, sourceAssetIds: stableSourceAssetIds }),
+          signal: controller.signal
         });
         const startBody = await startResponse.json().catch(() => ({}));
         if (startResponse.status === 403) {
@@ -409,9 +417,13 @@ export function DrawingRecognitionWorkspacePanel({
         setSession(null);
       }
     } catch (cause) {
+      if (controller.signal.aborted) return;
       setError(cause instanceof Error ? cause.message : "辨識狀態目前無法載入。");
     } finally {
-      setLoading(false);
+      if (latestLoadAbortRef.current === controller) {
+        latestLoadAbortRef.current = null;
+        setLoading(false);
+      }
     }
   }, [disabled, drawingNumber, loadSession, sourceContextId, sourceContextType, stableSourceAssetIds]);
 
@@ -420,7 +432,11 @@ export function DrawingRecognitionWorkspacePanel({
     if (loadedSourceContextRef.current === loadKey) return;
     loadedSourceContextRef.current = loadKey;
     void loadLatest();
+    return () => {
+      if (loadedSourceContextRef.current === loadKey) loadedSourceContextRef.current = null;
+    };
   }, [loadLatest, sourceContextId, sourceContextType, sourceKey]);
+  useEffect(() => () => latestLoadAbortRef.current?.abort(), []);
   useEffect(() => { onDirtyChange?.(hasDraftChanges); }, [hasDraftChanges, onDirtyChange]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   useEffect(() => {

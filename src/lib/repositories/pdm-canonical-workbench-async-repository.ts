@@ -1,23 +1,25 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import type { CanonicalDataLayer, CanonicalHandling, CanonicalLayer, CanonicalWorkbenchQuery, WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
+import type { CanonicalDataLayer, CanonicalDataState, CanonicalHandling, CanonicalLayer, CanonicalWorkbenchQuery, HistoricalCanonicalDataLayer, HistoricalWorkbenchEntityType, WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
 import { CanonicalWorkbenchError, canonicalGroupKey } from "@/lib/pdm-canonical-workbench-contract";
 import type { CanonicalWorkbenchStateRecord } from "@/lib/pdm-canonical-workbench-state";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
+import type { CanonicalPreviewDerivativeJobRow, CanonicalPreviewSourceRow } from "@/lib/pdm-canonical-preview";
 
 type IdentityRow = { aggregate_id: string; entity_id: string; code: string };
 type StateRow = {
   id: string;
   aggregate_id: string;
   company_id: string;
-  entity_type: WorkbenchEntityType;
+  entity_type: HistoricalWorkbenchEntityType;
   canonical_entity_id: string;
   code: string;
   name: string;
-  data_layer: CanonicalDataLayer;
+  data_layer: HistoricalCanonicalDataLayer;
   branch_id: string | null;
   revision_id: string | null;
   revision: string | null;
+  data_state: CanonicalDataState;
   work_id: string | null;
   work_owner_id: string | null;
   review_request_id: string | null;
@@ -30,11 +32,57 @@ type StateRow = {
   updated_at: string | Date;
 };
 
+type PreviewSourceDbRow = {
+  row_id: string;
+  revision_id: string;
+  data_layer: "drawing_production" | "drawing_rd";
+  review_request_id: string | null;
+  binding_id: string;
+  asset_id: string;
+  role: string;
+  display_name: string;
+  file_name: string;
+  file_ext: string;
+  mime_type: string | null;
+  content_hash: string | null;
+  is_primary: number | boolean;
+  sort_order: number | string;
+};
+
+type PreviewDerivativeJobDbRow = {
+  record_kind: "derivative" | "job";
+  id: string | null;
+  source_file_asset_id: string;
+  source_content_hash: string;
+  derivative_kind: string | null;
+  storage_key: string | null;
+  mime_type: string | null;
+  generator_profile: string | null;
+  generator_version: string | null;
+  status: string;
+  created_at: string | null;
+  last_heartbeat_at: string | null;
+};
+
 const dataLayers: Record<WorkbenchEntityType, Record<CanonicalLayer, CanonicalDataLayer | null>> = {
   drawing: { production: "drawing_production", rd: "drawing_rd", formal: null, work: null },
   part: { production: null, rd: null, formal: "part_formal", work: "part_work" },
-  relation: { production: null, rd: null, formal: "relation_formal", work: "relation_work" }
 };
+
+const canonicalDataStateSql = `CASE
+  WHEN state.data_layer IN ('drawing_production', 'part_formal') THEN 'available'
+  WHEN EXISTS (
+    SELECT 1
+      FROM pdm_work_review_requests state_request
+     WHERE state_request.company_id = state.company_id
+       AND state_request.request_kind = 'drawing_rd_void'
+       AND state_request.branch_id = state.branch_id
+  ) THEN 'available'
+  WHEN state.handling = 'owner' THEN 'editing'
+  WHEN state.handling = 'review_owner' THEN 'reviewing'
+  WHEN state.handling IN ('system', 'system_admin', 'blocked') THEN 'publishing'
+  ELSE 'available'
+END`;
 
 function namedList(prefix: string, values: readonly string[]) {
   const params: Record<string, string> = {};
@@ -58,6 +106,7 @@ function filterHash(input: { companyId: string; entityType: WorkbenchEntityType;
     entityType: input.entityType,
     query: input.query.query,
     layers: [...input.query.layers].sort(),
+    dataStates: [...input.query.dataStates].sort(),
     handling: [...input.query.handling].sort(),
     sort: input.query.sort
   })).digest("hex");
@@ -104,13 +153,7 @@ function domainSql(entityType: WorkbenchEntityType) {
     revisionJoin: "LEFT JOIN drawing_revisions revision ON 1 = 0",
     branchJoin: "LEFT JOIN drawing_rd_branches branch ON 1 = 0"
   };
-  return {
-    table: "part_roots", alias: "entity", code: "entity.root_code", name: "entity.core_name", joins: "",
-    workOwner: "relation_work.owner_user_id",
-    workJoin: "LEFT JOIN relation_change_works relation_work ON relation_work.id = state.work_id AND relation_work.company_id = state.company_id",
-    revisionJoin: "LEFT JOIN drawing_revisions revision ON 1 = 0",
-    branchJoin: "LEFT JOIN drawing_rd_branches branch ON 1 = 0"
-  };
+  throw new CanonicalWorkbenchError("WORKBENCH_COMMAND_CONTRACT_RETIRED", "此工作台已退役，請使用編號搜尋", 410);
 }
 
 function toRecord(row: StateRow): CanonicalWorkbenchStateRecord {
@@ -126,6 +169,7 @@ function toRecord(row: StateRow): CanonicalWorkbenchStateRecord {
     branchId: row.branch_id,
     revisionId: row.revision_id,
     revision: row.revision,
+    dataState: row.data_state,
     workId: row.work_id,
     workOwnerId: row.work_owner_id,
     reviewRequestId: row.review_request_id,
@@ -143,10 +187,17 @@ export class PdmCanonicalWorkbenchAsyncRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
   async list(input: { companyId: string; entityType: WorkbenchEntityType; query: CanonicalWorkbenchQuery }) {
-    return withPdmWorkbenchReadSnapshot(this.client, async (client) => {
+    return withPdmWorkbenchReadSnapshot(this.client, (client) => this.listWithinSnapshot(client, input));
+  }
+
+  async listWithinSnapshot(
+    client: AsyncDatabaseClient,
+    input: { companyId: string; entityType: WorkbenchEntityType; query: CanonicalWorkbenchQuery }
+  ) {
       const domain = domainSql(input.entityType);
       const layerValues = input.query.layers.map((layer) => dataLayers[input.entityType][layer]).filter((value): value is CanonicalDataLayer => Boolean(value));
       const layerList = namedList("layer", layerValues);
+      const dataStateList = namedList("stage", input.query.dataStates);
       const handlingList = namedList("handling", input.query.handling);
       const hash = filterHash(input);
       const cursor = decodeCursor(input.query.cursor, hash);
@@ -163,11 +214,13 @@ export class PdmCanonicalWorkbenchAsyncRepository {
         cursorCode: cursor?.code ?? "",
         cursorEntityId: cursor?.entityId ?? "",
         ...layerList.params,
+        ...dataStateList.params,
         ...handlingList.params
       };
-      if (!layerValues.length || !input.query.handling.length) return { groups: [], nextCursor: null, totalGroups: 0, totalRows: 0 };
+      if (!layerValues.length || !input.query.dataStates.length || !input.query.handling.length) return { groups: [], nextCursor: null, totalGroups: 0, totalRows: 0, previewSources: [], previewDerivativeJobs: [] };
       const match = `state.company_id = :companyId AND state.entity_type = :entityType
         AND state.data_layer IN (${layerList.sql}) AND state.handling IN (${handlingList.sql})
+        AND ${canonicalDataStateSql} IN (${dataStateList.sql})
         AND (:hasQuery = 0 OR LOWER(${domain.code}) LIKE :queryPattern OR LOWER(${domain.name}) LIKE :queryPattern)`;
       const identities = await client.query<IdentityRow>(
         `SELECT aggregate.id AS aggregate_id, entity.id AS entity_id, ${domain.code} AS code
@@ -183,12 +236,12 @@ export class PdmCanonicalWorkbenchAsyncRepository {
         { ...commonParams, pageLimit: input.query.limit + 1 }
       );
       const page = identities.slice(0, input.query.limit);
-      if (!page.length) return { groups: [], nextCursor: null, totalGroups: 0, totalRows: 0 };
+      if (!page.length) return { groups: [], nextCursor: null, totalGroups: 0, totalRows: 0, previewSources: [], previewDerivativeJobs: [] };
       const entityList = namedList("entityId", page.map((row) => row.entity_id));
       const rows = await client.query<StateRow>(
         `SELECT state.id, aggregate.id AS aggregate_id, state.company_id, state.entity_type, state.canonical_entity_id,
                 ${domain.code} AS code, ${domain.name} AS name, state.data_layer, state.branch_id, state.revision_id,
-                revision.revision, state.work_id, ${domain.workOwner} AS work_owner_id,
+                revision.revision, ${canonicalDataStateSql} AS data_state, state.work_id, ${domain.workOwner} AS work_owner_id,
                 request.id AS review_request_id, request.reviewer_user_id, state.handling, state.blocker_reason,
                 state.row_version, aggregate.open_branch_count, branch.status AS branch_status, state.updated_at
            FROM canonical_workbench_states state
@@ -202,6 +255,84 @@ export class PdmCanonicalWorkbenchAsyncRepository {
           ORDER BY ${domain.code} ${direction}, entity.id ${direction}, state.updated_at DESC, state.id`,
         { ...commonParams, ...entityList.params }
       );
+      let previewSources: CanonicalPreviewSourceRow[] = [];
+      let previewDerivativeJobs: CanonicalPreviewDerivativeJobRow[] = [];
+      if (input.entityType === "drawing" && rows.length) {
+        const rowList = namedList("previewRow", rows.map((row) => row.id));
+        const sources = await client.query<PreviewSourceDbRow>(
+          `SELECT state.id AS row_id, state.revision_id, state.data_layer,
+                  (SELECT request.id FROM pdm_work_review_requests request
+                    WHERE request.company_id = state.company_id
+                      AND (request.work_id = state.work_id OR (request.request_kind = 'drawing_rd_void' AND request.branch_id = state.branch_id))
+                    ORDER BY request.created_at DESC, request.id DESC LIMIT 1) AS review_request_id,
+                  binding.id AS binding_id, asset.id AS asset_id, binding.role, binding.display_name,
+                  asset.file_name, asset.file_ext, asset.mime_type, asset.content_hash,
+                  binding.is_primary, binding.sort_order
+             FROM canonical_workbench_states state
+             JOIN drawing_revision_files binding
+               ON binding.company_id = state.company_id
+              AND binding.drawing_revision_id = state.revision_id
+              AND binding.removed_at IS NULL
+             JOIN file_assets asset
+               ON asset.id = binding.source_file_asset_id
+              AND asset.deleted_at IS NULL
+            WHERE state.company_id = :companyId
+              AND state.entity_type = 'drawing'
+              AND state.id IN (${rowList.sql})
+            ORDER BY state.id, binding.is_primary DESC, binding.sort_order, binding.id`,
+          { companyId: input.companyId, ...rowList.params }
+        );
+        previewSources = sources.map((row) => ({
+          rowId: row.row_id,
+          revisionId: row.revision_id,
+          dataLayer: row.data_layer,
+          reviewRequestId: row.review_request_id,
+          bindingId: row.binding_id,
+          assetId: row.asset_id,
+          role: row.role,
+          displayName: row.display_name,
+          fileName: row.file_name,
+          fileExt: row.file_ext,
+          mimeType: row.mime_type ?? "",
+          contentHash: row.content_hash ?? "",
+          isPrimary: row.is_primary,
+          sortOrder: row.sort_order
+        }));
+        const assetIds = [...new Set(previewSources.map((row) => row.assetId))];
+        if (assetIds.length) {
+          const assetList = namedList("previewAsset", assetIds);
+          const derivativeJobs = await client.query<PreviewDerivativeJobDbRow>(
+            `SELECT 'derivative' AS record_kind, id, source_file_asset_id, source_content_hash,
+                    derivative_kind, storage_key, mime_type, generator_profile, generator_version,
+                    status, created_at, NULL AS last_heartbeat_at
+               FROM file_derivatives
+              WHERE company_id = :companyId AND source_file_asset_id IN (${assetList.sql})
+             UNION ALL
+             SELECT 'job' AS record_kind, NULL AS id, source_file_asset_id, source_content_hash,
+                    NULL AS derivative_kind, NULL AS storage_key, NULL AS mime_type,
+                    NULL AS generator_profile, NULL AS generator_version, status, NULL AS created_at,
+                    COALESCE(locked_at, updated_at) AS last_heartbeat_at
+               FROM preview_jobs
+              WHERE company_id = :companyId AND source_file_asset_id IN (${assetList.sql})
+              ORDER BY source_file_asset_id, created_at DESC, last_heartbeat_at DESC`,
+            { companyId: input.companyId, ...assetList.params }
+          );
+          previewDerivativeJobs = derivativeJobs.map((row) => ({
+            recordKind: row.record_kind,
+            id: row.id,
+            sourceFileAssetId: row.source_file_asset_id,
+            sourceContentHash: row.source_content_hash,
+            derivativeKind: row.derivative_kind,
+            storageKey: row.storage_key,
+            mimeType: row.mime_type,
+            generatorProfile: row.generator_profile,
+            generatorVersion: row.generator_version,
+            status: row.status,
+            createdAt: row.created_at,
+            lastHeartbeatAt: row.last_heartbeat_at
+          }));
+        }
+      }
       const count = await client.queryOne<{ total_groups: number | string; total_rows: number | string }>(
         `SELECT COUNT(DISTINCT state.canonical_entity_id) AS total_groups, COUNT(*) AS total_rows
            FROM canonical_workbench_states state
@@ -221,21 +352,23 @@ export class PdmCanonicalWorkbenchAsyncRepository {
         groups,
         nextCursor: identities.length > input.query.limit && last ? encodeCursor({ version: 1, filterHash: hash, code: last.code, entityId: last.entity_id }) : null,
         totalGroups: Number(count?.total_groups ?? 0),
-        totalRows: Number(count?.total_rows ?? 0)
+        totalRows: Number(count?.total_rows ?? 0),
+        previewSources,
+        previewDerivativeJobs
       };
-    });
   }
 
   async getByRowId(input: { companyId: string; rowId: string }): Promise<CanonicalWorkbenchStateRecord | null> {
-    const state = await this.client.queryOne<{ entity_type: WorkbenchEntityType }>(
+    const state = await this.client.queryOne<{ entity_type: HistoricalWorkbenchEntityType }>(
       `SELECT entity_type FROM canonical_workbench_states WHERE id = :rowId AND company_id = :companyId`, input
     );
     if (!state) return null;
+    if (state.entity_type === "relation") return null;
     const domain = domainSql(state.entity_type);
     const row = await this.client.queryOne<StateRow>(
       `SELECT state.id, aggregate.id AS aggregate_id, state.company_id, state.entity_type, state.canonical_entity_id,
               ${domain.code} AS code, ${domain.name} AS name, state.data_layer, state.branch_id, state.revision_id,
-              revision.revision, state.work_id, ${domain.workOwner} AS work_owner_id,
+              revision.revision, ${canonicalDataStateSql} AS data_state, state.work_id, ${domain.workOwner} AS work_owner_id,
               request.id AS review_request_id, request.reviewer_user_id, state.handling, state.blocker_reason,
               state.row_version, aggregate.open_branch_count, branch.status AS branch_status, state.updated_at
        FROM canonical_workbench_states state

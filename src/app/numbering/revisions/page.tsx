@@ -21,7 +21,7 @@ import {
 import { compareRevisionCodes } from "@/lib/revision-policy";
 
 type FffState = "no_impact" | "suspected_impact" | "confirmed_impact";
-type ItemType = "self_made" | "purchased" | "standard";
+type ItemType = "self_made" | "purchased";
 type ResolveStatus = "no_input" | "not_found" | "ambiguous_query" | "resolved" | "resolved_with_missing_part" | "multiple_primary_parts";
 type LookupKind = "query" | "drawingNumber" | "drawingNumberId" | "partNumber";
 type RevisionWorkflowIntent = "rd_workspace" | "design_change_workspace" | "release_area";
@@ -148,6 +148,27 @@ type PendingRevisionUploadFile = {
   role: RevisionPackageFileRole;
 };
 
+type ReplacementAttachmentCandidate = {
+  id: string;
+  fileName: string;
+  displayName: string;
+  documentCategory: string;
+  fileSize: number;
+  updatedAt: string;
+};
+
+type ReplacementAttachmentCandidateResponse = {
+  sourcePartNumberId: string;
+  sourcePartNumber: string;
+  sourceToken: string;
+  candidates: ReplacementAttachmentCandidate[];
+};
+
+type PendingReplacementAttachmentFile = {
+  clientKey: string;
+  file: File;
+};
+
 const fffOptions: { value: FffState; label: string }[] = [
   { value: "no_impact", label: "無影響" },
   { value: "suspected_impact", label: "疑似影響" },
@@ -219,18 +240,48 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
   const [pendingUploadFiles, setPendingUploadFiles] = useState<PendingRevisionUploadFile[]>([]);
   const [packageRoleByAttachmentId, setPackageRoleByAttachmentId] = useState<Record<string, RevisionPackageFileRole>>({});
   const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [replacementAttachmentSource, setReplacementAttachmentSource] = useState<ReplacementAttachmentCandidateResponse | null>(null);
+  const [selectedReplacementAttachmentIds, setSelectedReplacementAttachmentIds] = useState<string[]>([]);
+  const [pendingReplacementAttachmentFiles, setPendingReplacementAttachmentFiles] = useState<PendingReplacementAttachmentFile[]>([]);
+  const [replacementAttachmentLoading, setReplacementAttachmentLoading] = useState(false);
+  const [replacementAttachmentError, setReplacementAttachmentError] = useState("");
+  const [replacementAttachmentReloadKey, setReplacementAttachmentReloadKey] = useState(0);
   const revisionManuallyEditedRef = useRef(Boolean(initialRevisionValue));
   const revisionIntentLockedRef = useRef(Boolean(initialRevisionValue));
   const initialRevisionPrefillRef = useRef(initialRevisionValue);
   const uploadSectionRef = useRef<HTMLElement | null>(null);
   const submissionSectionRef = useRef<HTMLElement | null>(null);
   const initialFocusAppliedRef = useRef(false);
+  const replacementAttachmentSourcePartIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const initialIds = new Set(initialAttachmentIdValues);
     const attachmentsDirty = selectedAttachmentIds.length !== initialIds.size || selectedAttachmentIds.some((id) => !initialIds.has(id));
-    onDirtyChange?.(revisionManuallyEditedRef.current || pendingUploadFiles.length > 0 || attachmentsDirty || Boolean(note.trim()));
-  }, [initialAttachmentIdValues, note, onDirtyChange, pendingUploadFiles.length, selectedAttachmentIds]);
+    const replacementAttachmentsDirty = Boolean(
+      replacementAttachmentSource &&
+      (
+        pendingReplacementAttachmentFiles.length > 0 ||
+        selectedReplacementAttachmentIds.length !== replacementAttachmentSource.candidates.length ||
+        selectedReplacementAttachmentIds.some((id) => !replacementAttachmentSource.candidates.some((candidate) => candidate.id === id))
+      )
+    );
+    onDirtyChange?.(
+      revisionManuallyEditedRef.current ||
+      pendingUploadFiles.length > 0 ||
+      attachmentsDirty ||
+      replacementAttachmentsDirty ||
+      Boolean(note.trim())
+    );
+  }, [
+    initialAttachmentIdValues,
+    note,
+    onDirtyChange,
+    pendingReplacementAttachmentFiles.length,
+    pendingUploadFiles.length,
+    replacementAttachmentSource,
+    selectedAttachmentIds,
+    selectedReplacementAttachmentIds
+  ]);
 
   const outcome = useMemo(() => {
     if ([formState, fitState, functionState].includes("confirmed_impact")) return "confirmed_impact";
@@ -260,6 +311,56 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
   const selectedCurrentPart = selectedParts[0] ?? resolved?.selectedPrimaryPart ?? null;
   const primaryPartSelectionRequired = Boolean(resolved?.primaryParts.length && selectedParts.length === 0);
   const multiPartReplacementUnsupported = replacementRequired && selectedParts.length > 1;
+
+  useEffect(() => {
+    const sourcePart = replacementRequired && selectedParts.length === 1 ? selectedCurrentPart : null;
+    if (!sourcePart) {
+      replacementAttachmentSourcePartIdRef.current = null;
+      setReplacementAttachmentSource(null);
+      setSelectedReplacementAttachmentIds([]);
+      setPendingReplacementAttachmentFiles([]);
+      setReplacementAttachmentLoading(false);
+      setReplacementAttachmentError("");
+      return;
+    }
+
+    const sourceChanged = replacementAttachmentSourcePartIdRef.current !== sourcePart.id;
+    replacementAttachmentSourcePartIdRef.current = sourcePart.id;
+    if (sourceChanged) {
+      setReplacementAttachmentSource(null);
+      setSelectedReplacementAttachmentIds([]);
+      setPendingReplacementAttachmentFiles([]);
+    }
+    setReplacementAttachmentLoading(true);
+    setReplacementAttachmentError("");
+    const controller = new AbortController();
+
+    void fetch(`/api/parts/${encodeURIComponent(sourcePart.partNumber)}/replacement-attachment-candidates`, {
+      signal: controller.signal,
+      cache: "no-store"
+    })
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(humanError(String(body.error ?? "replacement_attachment_candidates_failed"), body.details, body.message));
+        return body as ReplacementAttachmentCandidateResponse;
+      })
+      .then((nextSource) => {
+        if (controller.signal.aborted) return;
+        setReplacementAttachmentSource(nextSource);
+        setSelectedReplacementAttachmentIds(nextSource.candidates.map((candidate) => candidate.id));
+      })
+      .catch((loadError) => {
+        if (controller.signal.aborted) return;
+        if (sourceChanged) setReplacementAttachmentSource(null);
+        setReplacementAttachmentError(loadError instanceof Error ? loadError.message : "料號附件讀取失敗，請重新載入。 ");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setReplacementAttachmentLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [replacementAttachmentReloadKey, replacementRequired, selectedCurrentPart, selectedParts.length]);
+
   const selectedPackageFiles = useMemo(
     () =>
       classifyRevisionPackageFiles(
@@ -358,7 +459,13 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
     !selectedRevisionMismatch &&
     !mismatch &&
     changeDescriptionIssues.length === 0 &&
-    (!replacementRequired || (Boolean(replacementReservedPartNumber.trim()) && Boolean(comparedPartNumber)));
+    (!replacementRequired || (
+      Boolean(replacementReservedPartNumber.trim()) &&
+      Boolean(comparedPartNumber) &&
+      Boolean(replacementAttachmentSource) &&
+      !replacementAttachmentLoading &&
+      !replacementAttachmentError
+    ));
 
   useEffect(() => {
     if (initialLookup.value) void resolveDrawing(initialLookup.value, initialLookup.kind);
@@ -598,6 +705,33 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
     setPendingUploadFiles((current) => current.filter((item) => item.key !== key));
   }
 
+  function toggleReplacementAttachment(attachmentId: string, checked: boolean) {
+    setSelectedReplacementAttachmentIds((current) =>
+      checked
+        ? Array.from(new Set([...current, attachmentId]))
+        : current.filter((id) => id !== attachmentId)
+    );
+  }
+
+  function addPendingReplacementAttachmentFiles(files: File[]) {
+    setPendingReplacementAttachmentFiles((current) => {
+      const next = [...current];
+      const existing = new Set(current.map((item) => `${item.file.name}:${item.file.size}:${item.file.lastModified}`));
+      for (const file of files) {
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
+        if (existing.has(key)) continue;
+        existing.add(key);
+        next.push({ clientKey: newSubmissionIdempotencyKey(), file });
+      }
+      return next;
+    });
+    setReplacementAttachmentError("");
+  }
+
+  function removePendingReplacementAttachmentFile(clientKey: string) {
+    setPendingReplacementAttachmentFiles((current) => current.filter((item) => item.clientKey !== clientKey));
+  }
+
   function updateAttachmentPackageRole(attachmentId: string, role: RevisionPackageFileRole) {
     setPackageRoleByAttachmentId((current) => ({ ...current, [attachmentId]: role }));
   }
@@ -630,37 +764,73 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
     setLifecycleNext(null);
     const attachmentIdsForSubmission = uniqueIds(selectedAttachmentIdsRef.current);
     const attachmentsForSubmission = submissionContext.attachments.filter((attachment) => attachmentIdsForSubmission.includes(attachment.id));
+    const attachmentSnapshot = replacementRequired && replacementAttachmentSource
+      ? {
+          sourcePartNumberId: replacementAttachmentSource.sourcePartNumberId,
+          sourceToken: replacementAttachmentSource.sourceToken,
+          selectedAttachmentIds: selectedReplacementAttachmentIds,
+          newItems: pendingReplacementAttachmentFiles.map((item, ordinal) => ({
+            clientKey: item.clientKey,
+            ordinal,
+            displayName: item.file.name,
+            description: "",
+            documentCategory: "other"
+          }))
+        }
+      : null;
+    const command = {
+      drawingNumber: resolved.drawing.drawingNumber,
+      revision,
+      workflowIntent: submissionContext.revisionPolicySuggestion?.workflowIntent ?? submissionContext.suggestedRevision.workflowIntent ?? workflowIntent,
+      revisionPolicySuggestion: submissionContext.revisionPolicySuggestion,
+      revisionOverrideReason: note.trim() || null,
+      selectedAttachmentIds: attachmentIdsForSubmission,
+      packageFileRoles: attachmentsForSubmission.map((attachment) => ({
+        attachmentId: attachment.id,
+        role: packageRoleForAttachment(attachment, packageRoleByAttachmentId)
+      })),
+      reasonCategory,
+      formState,
+      fitState,
+      functionState,
+      replacementReservedPartNumber: replacementReservedPartNumber.trim() || null,
+      replacementItemType,
+      detectedPartNumber: detectedPartNumber.trim() || null,
+      correctedPartNumber: correctedPartNumber.trim() || null,
+      currentPartNumberId: selectedCurrentPart?.id ?? null,
+      partNumberIds: selectedParts.map((part) => part.id),
+      note: note.trim() || null,
+      attachmentSnapshot,
+      idempotencyKey: newSubmissionIdempotencyKey()
+    };
+    let requestBody: BodyInit;
+    let requestHeaders: HeadersInit | undefined;
+    if (pendingReplacementAttachmentFiles.length > 0) {
+      const form = new FormData();
+      form.append("command", JSON.stringify(command));
+      for (const item of pendingReplacementAttachmentFiles) {
+        form.append(`part_attachment_file:${item.clientKey}`, item.file, item.file.name);
+      }
+      requestBody = form;
+    } else {
+      requestHeaders = { "content-type": "application/json" };
+      requestBody = JSON.stringify(command);
+    }
     const response = await fetch("/api/numbering/drawing-revisions/submissions", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        drawingNumber: resolved.drawing.drawingNumber,
-        revision,
-        workflowIntent: submissionContext.revisionPolicySuggestion?.workflowIntent ?? submissionContext.suggestedRevision.workflowIntent ?? workflowIntent,
-        revisionPolicySuggestion: submissionContext.revisionPolicySuggestion,
-        revisionOverrideReason: note.trim() || null,
-        selectedAttachmentIds: attachmentIdsForSubmission,
-        packageFileRoles: attachmentsForSubmission.map((attachment) => ({
-          attachmentId: attachment.id,
-          role: packageRoleForAttachment(attachment, packageRoleByAttachmentId)
-        })),
-        reasonCategory,
-        formState,
-        fitState,
-        functionState,
-        replacementReservedPartNumber: replacementReservedPartNumber.trim() || null,
-        replacementItemType,
-        detectedPartNumber: detectedPartNumber.trim() || null,
-        correctedPartNumber: correctedPartNumber.trim() || null,
-        currentPartNumberId: selectedCurrentPart?.id ?? null,
-        partNumberIds: selectedParts.map((part) => part.id),
-        note: note.trim() || null,
-        idempotencyKey: newSubmissionIdempotencyKey()
-      })
+      headers: requestHeaders,
+      body: requestBody
     });
     setBusy("idle");
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (body.error === "SOURCE_ATTACHMENTS_STALE") {
+        const staleMessage = "來源料號附件已更新。你目前的選擇與新檔仍保留，請重新載入附件後再送審。";
+        setReplacementAttachmentError(staleMessage);
+        setError(staleMessage);
+        setErrorGuidance(null);
+        return;
+      }
       const cancellationNote = body.submissionCancelled ? "未完整建立的送審已自動取消；請修正資料後重送。" : "";
       const nextError = buildSubmissionErrorGuidance(body.error ?? body.code ?? "drawing_revision_submit_failed", body.details, body.message, cancellationNote);
       setError(nextError.title);
@@ -1176,9 +1346,8 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
             <label style={fieldStyle}>
               <span style={fieldLabelStyle}>料件類型</span>
               <select className="dropdown-select" value={replacementItemType} onChange={(event) => setReplacementItemType(event.target.value as ItemType)}>
-                <option value="self_made">自製件</option>
-                <option value="purchased">採購件</option>
-                <option value="standard">標準件</option>
+                <option value="self_made">依圖製作件</option>
+                <option value="purchased">外購標準件</option>
               </select>
             </label>
             <label style={fieldStyle}>
@@ -1190,6 +1359,90 @@ export function DrawingRevisionWorkbench({ initialDrawingNumber, initialRevision
               <input className="text-input" value={correctedPartNumber} onChange={(event) => setCorrectedPartNumber(event.target.value)} />
             </label>
           </div>
+          {!multiPartReplacementUnsupported && selectedCurrentPart ? (
+            <div style={replacementAttachmentSectionStyle}>
+              <div style={replacementAttachmentHeadingStyle}>
+                <div style={fieldStyle}>
+                  <strong>料號附件</strong>
+                  <span style={mutedTextStyle}>預設帶入目前附件；可取消，也可加入新檔。</span>
+                </div>
+                <label className="secondary-button" style={replacementAttachmentUploadStyle}>
+                  加入新檔
+                  <input
+                    type="file"
+                    multiple
+                    hidden
+                    disabled={!replacementAttachmentSource || replacementAttachmentLoading || Boolean(replacementAttachmentError)}
+                    onChange={(event) => {
+                      addPendingReplacementAttachmentFiles(Array.from(event.target.files ?? []));
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+
+              {replacementAttachmentLoading ? (
+                <p style={hintTextStyle}><Loader2 size={16} />正在讀取料號附件。</p>
+              ) : null}
+              {replacementAttachmentError ? (
+                <div style={replacementAttachmentErrorStyle} role="alert">
+                  <span>{replacementAttachmentError}</span>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => setReplacementAttachmentReloadKey((value) => value + 1)}
+                  >
+                    重新載入附件
+                  </button>
+                </div>
+              ) : null}
+              {!replacementAttachmentLoading && !replacementAttachmentError && replacementAttachmentSource?.candidates.length === 0 ? (
+                <p style={mutedTextStyle}>目前沒有可帶入的料號附件。</p>
+              ) : null}
+
+              {replacementAttachmentSource?.candidates.length ? (
+                <div style={replacementAttachmentListStyle}>
+                  {replacementAttachmentSource.candidates.map((candidate) => (
+                    <label key={candidate.id} style={replacementAttachmentRowStyle}>
+                      <input
+                        type="checkbox"
+                        checked={selectedReplacementAttachmentIds.includes(candidate.id)}
+                        disabled={replacementAttachmentLoading || busy === "submitting"}
+                        onChange={(event) => toggleReplacementAttachment(candidate.id, event.target.checked)}
+                      />
+                      <span style={attachmentInfoStyle}>
+                        <strong>{candidate.displayName || candidate.fileName}</strong>
+                        <span style={mutedTextStyle}>
+                          {candidate.fileName} · {documentCategoryLabel(candidate.documentCategory)} · {formatBytes(candidate.fileSize)}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+
+              {pendingReplacementAttachmentFiles.length > 0 ? (
+                <div style={replacementAttachmentListStyle}>
+                  {pendingReplacementAttachmentFiles.map((item) => (
+                    <div key={item.clientKey} style={replacementAttachmentNewRowStyle}>
+                      <span style={attachmentInfoStyle}>
+                        <strong>{item.file.name}</strong>
+                        <span style={mutedTextStyle}>{formatBytes(item.file.size)}</span>
+                      </span>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        disabled={busy === "submitting"}
+                        onClick={() => removePendingReplacementAttachmentFile(item.clientKey)}
+                      >
+                        移除
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {mismatch ? <p style={errorTextStyle}>新版圖面料號與替代料號不一致，不能送出。</p> : null}
         </section>
       ) : null}
@@ -1408,6 +1661,19 @@ function humanError(code: string, details?: unknown, fallbackMessage?: string) {
       return fallbackMessage || "確認影響時，多個舊料號不能共用一個替代料號。";
     case "replacement_part_number_required":
       return "確認影響時必須填替代料號草稿。";
+    case "source_part_not_found":
+    case "replacement_attachment_source_required":
+      return "找不到唯一的來源料號，請先確認本次影響料號。";
+    case "replacement_attachment_candidates_failed":
+      return fallbackMessage || "料號附件讀取失敗，請重新載入。";
+    case "REPLACEMENT_ATTACHMENT_SNAPSHOT_REQUIRED":
+      return "料號附件尚未載入完成，請重新載入後再送審。";
+    case "SOURCE_ATTACHMENTS_STALE":
+      return "來源料號附件已更新，請重新載入附件後再送審。";
+    case "REPLACEMENT_ATTACHMENT_FILE_INVALID":
+      return "新加入的料號附件無法讀取，請移除後重新選擇。";
+    case "REPLACEMENT_ATTACHMENT_FILE_TOO_LARGE":
+      return "新加入的料號附件超過允許大小，請改選較小的檔案。";
     case "drawing_part_number_read_required":
       return "確認影響時必須填新版圖面讀取料號或 RD 修正讀值。";
     case "drawing_part_number_mismatch":
@@ -1767,6 +2033,54 @@ const formGridStyle: CSSProperties = {
   gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
   gap: "0.8rem",
   alignItems: "end"
+};
+const replacementAttachmentSectionStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.65rem",
+  borderTop: "1px solid #e2e8f0",
+  marginTop: "1rem",
+  paddingTop: "0.9rem"
+};
+const replacementAttachmentHeadingStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  gap: "0.65rem"
+};
+const replacementAttachmentUploadStyle: CSSProperties = {
+  cursor: "pointer"
+};
+const replacementAttachmentListStyle: CSSProperties = {
+  display: "grid",
+  gap: "0.45rem"
+};
+const replacementAttachmentRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "auto minmax(0, 1fr)",
+  alignItems: "center",
+  gap: "0.65rem",
+  borderBottom: "1px solid #e2e8f0",
+  cursor: "pointer",
+  padding: "0.55rem 0"
+};
+const replacementAttachmentNewRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) auto",
+  alignItems: "center",
+  gap: "0.65rem",
+  borderBottom: "1px solid #e2e8f0",
+  padding: "0.55rem 0"
+};
+const replacementAttachmentErrorStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  gap: "0.65rem",
+  color: "#b91c1c",
+  fontSize: "0.88rem",
+  fontWeight: 700
 };
 const fffGridStyle: CSSProperties = {
   display: "grid",

@@ -315,10 +315,6 @@ async function inspectA0005CrossPage(page) {
   }
   assert.ok(drawerText.includes("0.10"), `${label}: detail must show the current revision 0.10`);
   assert.ok(!drawerText.includes("待你處理"), `${label}: detail must not show a phantom current-user task`);
-  await page.goto(`${baseUrl}/numbering/tasks?status=open`, { waitUntil: "domcontentloaded", timeout: 30000 });
-  await page.waitForTimeout(1200);
-  const taskText = await page.locator("body").innerText();
-  assert.ok(!taskText.includes("A0005-M01"), `${label}: open task center must exclude terminal A0005-M01`);
   await page.goto(`${baseUrl}/approvals?status=active`, { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.waitForTimeout(1200);
   const approvalText = await page.locator("body").innerText();

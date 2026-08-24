@@ -161,7 +161,7 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
           <NextStepState
             eyebrow="重新定位"
             title="找不到這筆送審資料"
-            body={`現在請回送審來源或圖料工作台重新開啟既有送審。若清單也找不到 ${submissionId}，請 Admin 協助確認。`}
+            body={`現在請回送審來源或編號搜尋重新開啟既有送審。若清單也找不到 ${submissionId}，請 Admin 協助確認。`}
             actions={[
               { href: "/numbering/drawings", label: "回圖號工作台", variant: "primary" },
               { href: "/", label: "回工作台" }
@@ -175,10 +175,10 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
           <NextStepState
             eyebrow="重新嘗試"
             title="送審明細暫時無法讀取"
-            body={`${state.message} 現在請重新整理；若仍失敗，回圖料工作台重新開啟來源紀錄，或請主管 / Admin 協助確認。`}
+            body={`${state.message} 現在請重新整理；若仍失敗，回編號搜尋重新開啟來源紀錄，或請主管 / Admin 協助確認。`}
             actions={[
               { href: `/submissions/${encodeURIComponent(submissionId)}`, label: "重新整理", variant: "primary" },
-              { href: "/numbering/search", label: "回圖料工作台" }
+              { href: "/numbering/search", label: "回編號搜尋" }
             ]}
           />
         </section>
@@ -228,7 +228,7 @@ function RestrictedSubmissionView({ summary, message }: { summary: RestrictedSub
           title="你目前不用在這裡處理完整送審"
           body="若你只是確認來源，這份摘要已足夠。若要審核、重新發行或取消送審，請交由送審建立者、R&D Manager 或 Admin 開啟完整明細。"
           actions={[
-            { href: "/numbering/search", label: "回圖料工作台", variant: "primary" },
+            { href: "/numbering/search", label: "回編號搜尋", variant: "primary" },
             { href: "/", label: "回工作台" }
           ]}
         />
@@ -543,9 +543,9 @@ function formatBytes(bytes: number) {
 
 function humanSubmissionLoadError(value: unknown) {
   const text = String(value ?? "").trim();
-  if (!text) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回圖料工作台重新開啟或請 Admin 協助確認。";
+  if (!text) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回編號搜尋重新開啟或請 Admin 協助確認。";
   if (text === "Insufficient role permission" || text === "FORBIDDEN") return "你沒有權限查看這筆送審資料。";
-  if (text.includes("Internal Server Error")) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回圖料工作台重新開啟或請 Admin 協助確認。";
+  if (text.includes("Internal Server Error")) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回編號搜尋重新開啟或請 Admin 協助確認。";
   return formatStatusErrorForUser(text, "submission");
 }
 

@@ -244,16 +244,12 @@ export {
   type PartRootRecord
 } from "@/lib/repositories/numbering-repository";
 export {
-  createBomWorkbenchDraftFromSolidWorksXls,
-  createBomWorkbenchDraftFromAssembly,
   approveBomWorkbenchReview,
   BomReleaseGateError,
-  BomXlsImportError,
   evaluateBomReleaseGate,
   findPreviousBomSubmissionId,
   getBomBySubmissionId,
   getBomDiffBetweenSubmissions,
-  getBomImportJobById,
   getBomReleaseSnapshotById,
   getBomWorkbenchBySubmissionId,
   getBomWorkbenchDraftDiff,
@@ -262,14 +258,10 @@ export {
   listPendingBomWorkbenchReviews,
   listBomWorkbenchDraftsBySubmissionId,
   listWhereUsed,
-  materializeBomDraftFromReferences,
   rejectBomWorkbenchReview,
   saveBomWorkbenchDraftTree,
   setBomWorkbenchActiveDraft,
   submitBomWorkbenchDraftReview,
-  type CreateBomWorkbenchDraftFromAssemblyInput,
-  type CreateBomWorkbenchDraftFromSolidWorksXlsInput,
-  type CreateBomWorkbenchDraftFromSolidWorksXlsResult,
   type DecideBomWorkbenchReviewInput,
   type BomWorkbenchDraftDiffResult,
   type BomWorkbenchLineDiffChange,
@@ -297,7 +289,6 @@ function initDatabase(database: SqliteDatabase) {
   database.exec("PRAGMA foreign_keys = ON;");
   ensurePreSchemaCompatibility(database);
   ensureDrawingRevisionLifecycleAuthorityPreSchema(database);
-  ensureBomMaterialIdentityPreSchema(database);
   const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
   database.exec(schema);
   ensureTransferPackagePhase1DSchema(database);
@@ -314,8 +305,6 @@ function initDatabase(database: SqliteDatabase) {
   ensureBomReviewLifecycleSchema(database);
   ensureReviewConfirmationDecisionSchema(database);
   ensureColumn(database, "bom_drafts", "editor_version", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn(database, "bom_drafts", "source_revision_package_id", "TEXT");
-  ensureColumn(database, "bom_release_snapshots", "source_revision_package_id", "TEXT");
   ensureSettingsSecretLifecycleSchema(database);
   ensureShared3dBaselineSchema(database);
   ensureSubmissionIndexes(database);
@@ -332,12 +321,34 @@ function initDatabase(database: SqliteDatabase) {
   ensureColumn(database, "numbering_draft_parts", "series_code", "TEXT");
   ensureFileAssetsMasterAttachmentSchema(database);
   ensureSolidWorksNativePreviewSchema(database);
+  ensureDev088ReplacementAttachmentSchema(database);
   ensureDev087CanonicalWorkbenchSchema(database);
+  ensureDev065PartPreviewSchema(database);
+  ensureDev090InlineRelationMatrixSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
   ensureUnifiedDrawingAggregateBackfill(database);
   seedConfiguredUsers(database);
+  assertSqliteInitializerIntegrity(database);
+}
+
+function assertSqliteInitializerIntegrity(database: SqliteDatabase) {
+  const residue = database
+    .prepare(`SELECT name FROM sqlite_master
+      WHERE type = 'table' AND name IN (
+        'part_roots_company_scope_migration',
+        'part_numbers_company_scope_migration',
+        'drawing_numbers_company_scope_migration'
+      ) ORDER BY name`)
+    .all() as Array<{ name: string }>;
+  if (residue.length) {
+    throw new Error(`PDM_SQLITE_MIGRATION_RESIDUE:${residue.map((row) => row.name).join(",")}`);
+  }
+  const violations = database.pragma("foreign_key_check") as Array<Record<string, unknown>>;
+  if (violations.length) {
+    throw new Error(`PDM_SQLITE_FOREIGN_KEY_CHECK_FAILED:${JSON.stringify(violations)}`);
+  }
 }
 
 function ensureReviewConfirmationDecisionSchema(database: SqliteDatabase) {
@@ -835,181 +846,6 @@ function ensureBomReviewLifecycleSchema(database: SqliteDatabase) {
     .prepare("UPDATE bom_review_requests SET lifecycle_action = 'release' WHERE lifecycle_action IS NULL OR lifecycle_action = ''")
     .run();
 }
-
-function ensureBomMaterialIdentityPreSchema(database: SqliteDatabase) {
-  const draftTable = database
-    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'bom_drafts'")
-    .get();
-  if (!draftTable) return;
-
-  const draftColumns = database.prepare("PRAGMA table_info(bom_drafts)").all() as Array<{ name: string; notnull: number }>;
-  const draftColumnNames = new Set(draftColumns.map((column) => column.name));
-  const legacyOwnerIsRequired = ["parent_item_id", "parent_submission_id", "parent_revision"].some(
-    (name) => draftColumns.find((column) => column.name === name)?.notnull === 1
-  );
-  if (draftColumnNames.has("owner_part_number_id") && !legacyOwnerIsRequired) return;
-
-  const selectDraftColumn = (name: string, fallback: string) => (draftColumnNames.has(name) ? name : fallback);
-  const importColumns = database.prepare("PRAGMA table_info(bom_import_jobs)").all() as Array<{ name: string }>;
-  const importColumnNames = new Set(importColumns.map((column) => column.name));
-  const snapshotColumns = database.prepare("PRAGMA table_info(bom_release_snapshots)").all() as Array<{ name: string }>;
-  const snapshotColumnNames = new Set(snapshotColumns.map((column) => column.name));
-
-  database.pragma("foreign_keys = OFF");
-  try {
-    database.exec("BEGIN IMMEDIATE");
-    database.exec(`
-      DROP TABLE IF EXISTS bom_drafts_material_identity_migration;
-      CREATE TABLE bom_drafts_material_identity_migration (
-        id TEXT PRIMARY KEY,
-        company_id TEXT,
-        owner_part_number_id TEXT,
-        bom_revision TEXT,
-        source_submission_id TEXT,
-        identity_authority TEXT NOT NULL DEFAULT 'legacy_submission_bound' CHECK (identity_authority IN ('canonical_part_number', 'legacy_submission_bound', 'manual_review')),
-        parent_item_id TEXT,
-        parent_submission_id TEXT,
-        parent_revision TEXT,
-        draft_name TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'PendingReview', 'Rejected', 'Released', 'Obsolete', 'Archived')),
-        source TEXT NOT NULL DEFAULT 'cad_reference' CHECK (source IN ('cad_reference', 'solidworks_xls', 'manual')),
-        is_active INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
-        line_count INTEGER NOT NULL DEFAULT 0,
-        review_attempt INTEGER NOT NULL DEFAULT 0,
-        created_by TEXT,
-        updated_by TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        FOREIGN KEY (company_id) REFERENCES companies(id),
-        FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-        FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-        FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
-        FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-        FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
-      );
-    `);
-    database.exec(`
-      INSERT INTO bom_drafts_material_identity_migration (
-        id, company_id, owner_part_number_id, bom_revision, source_submission_id, identity_authority,
-        parent_item_id, parent_submission_id, parent_revision, draft_name, status, source, is_active,
-        line_count, review_attempt, created_by, updated_by, created_at, updated_at
-      )
-      SELECT
-        id,
-        ${selectDraftColumn("company_id", "(SELECT i.company_id FROM items i WHERE i.id = bom_drafts.parent_item_id)")},
-        ${selectDraftColumn(
-          "owner_part_number_id",
-          "(SELECT pn.id FROM items i JOIN part_numbers pn ON pn.company_id = i.company_id AND upper(pn.part_number) = upper(i.part_number) WHERE i.id = bom_drafts.parent_item_id LIMIT 1)"
-        )},
-        ${selectDraftColumn("bom_revision", "parent_revision")},
-        ${selectDraftColumn("source_submission_id", "parent_submission_id")},
-        ${selectDraftColumn(
-          "identity_authority",
-          "CASE WHEN EXISTS (SELECT 1 FROM items i JOIN part_numbers pn ON pn.company_id = i.company_id AND upper(pn.part_number) = upper(i.part_number) WHERE i.id = bom_drafts.parent_item_id) THEN 'legacy_submission_bound' ELSE 'manual_review' END"
-        )},
-        parent_item_id, parent_submission_id, parent_revision, draft_name, status, source, is_active,
-        line_count, review_attempt, created_by, updated_by, created_at, updated_at
-      FROM bom_drafts;
-      DROP TABLE bom_drafts;
-      ALTER TABLE bom_drafts_material_identity_migration RENAME TO bom_drafts;
-    `);
-
-    if (importColumns.length > 0 && !importColumnNames.has("owner_part_number_id")) {
-      database.exec(`
-        DROP TABLE IF EXISTS bom_import_jobs_material_identity_migration;
-        CREATE TABLE bom_import_jobs_material_identity_migration (
-          id TEXT PRIMARY KEY,
-          bom_draft_id TEXT,
-          owner_part_number_id TEXT,
-          bom_revision TEXT,
-          source_submission_id TEXT,
-          parent_submission_id TEXT,
-          import_profile_id TEXT NOT NULL,
-          source_asset_id TEXT,
-          original_filename TEXT NOT NULL,
-          status TEXT NOT NULL DEFAULT 'Staged' CHECK (status IN ('Staged', 'Imported', 'Rejected', 'Failed')),
-          row_count INTEGER NOT NULL DEFAULT 0,
-          error_json TEXT,
-          created_by TEXT,
-          created_at TEXT NOT NULL DEFAULT (datetime('now')),
-          FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE SET NULL,
-          FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-          FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-          FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-          FOREIGN KEY (import_profile_id) REFERENCES bom_import_profiles(id),
-          FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-        );
-        INSERT INTO bom_import_jobs_material_identity_migration (
-          id, bom_draft_id, owner_part_number_id, bom_revision, source_submission_id, parent_submission_id,
-          import_profile_id, source_asset_id, original_filename, status, row_count, error_json, created_by, created_at
-        )
-        SELECT
-          j.id, j.bom_draft_id, d.owner_part_number_id, d.bom_revision, j.parent_submission_id, j.parent_submission_id,
-          j.import_profile_id, j.source_asset_id, j.original_filename, j.status, j.row_count, j.error_json, j.created_by, j.created_at
-        FROM bom_import_jobs j
-        LEFT JOIN bom_drafts d ON d.id = j.bom_draft_id;
-        DROP TABLE bom_import_jobs;
-        ALTER TABLE bom_import_jobs_material_identity_migration RENAME TO bom_import_jobs;
-      `);
-    }
-
-    if (snapshotColumns.length > 0 && !snapshotColumnNames.has("owner_part_number_id")) {
-      database.exec(`
-        DROP TABLE IF EXISTS bom_release_snapshots_material_identity_migration;
-        CREATE TABLE bom_release_snapshots_material_identity_migration (
-          id TEXT PRIMARY KEY,
-          bom_draft_id TEXT NOT NULL,
-          company_id TEXT,
-          owner_part_number_id TEXT,
-          bom_revision TEXT,
-          source_submission_id TEXT,
-          parent_item_id TEXT,
-          parent_submission_id TEXT,
-          parent_revision TEXT,
-          line_snapshot_json TEXT NOT NULL,
-          line_count INTEGER NOT NULL DEFAULT 0,
-          released_by TEXT NOT NULL,
-          released_at TEXT NOT NULL DEFAULT (datetime('now')),
-          obsolete_at TEXT,
-          obsolete_by TEXT,
-          FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id),
-          FOREIGN KEY (company_id) REFERENCES companies(id),
-          FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-          FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-          FOREIGN KEY (parent_item_id) REFERENCES items(id) ON DELETE SET NULL,
-          FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-          FOREIGN KEY (released_by) REFERENCES users(id),
-          FOREIGN KEY (obsolete_by) REFERENCES users(id) ON DELETE SET NULL
-        );
-        INSERT INTO bom_release_snapshots_material_identity_migration (
-          id, bom_draft_id, company_id, owner_part_number_id, bom_revision, source_submission_id,
-          parent_item_id, parent_submission_id, parent_revision, line_snapshot_json, line_count,
-          released_by, released_at, obsolete_at, obsolete_by
-        )
-        SELECT
-          s.id, s.bom_draft_id, d.company_id, d.owner_part_number_id, d.bom_revision, s.parent_submission_id,
-          s.parent_item_id, s.parent_submission_id, s.parent_revision, s.line_snapshot_json, s.line_count,
-          s.released_by, s.released_at, s.obsolete_at, s.obsolete_by
-        FROM bom_release_snapshots s
-        LEFT JOIN bom_drafts d ON d.id = s.bom_draft_id;
-        DROP TABLE bom_release_snapshots;
-        ALTER TABLE bom_release_snapshots_material_identity_migration RENAME TO bom_release_snapshots;
-      `);
-    }
-    database.exec("COMMIT");
-  } catch (error) {
-    try {
-      database.exec("ROLLBACK");
-    } catch {
-      // Preserve the original migration error.
-    }
-    throw error;
-  } finally {
-    database.pragma("foreign_keys = ON");
-  }
-}
-
 function ensureSubmissionLifecycleRequestSchema(database: SqliteDatabase) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS submission_lifecycle_requests (
@@ -1289,6 +1125,10 @@ function ensureItemsCompanyScopeSchema(database: SqliteDatabase) {
 
   const existing = new Set(columns.map((column) => column.name));
   const selectCompanyId = existing.has("company_id") ? "COALESCE(company_id, 'company-jenfu')" : "'company-jenfu'";
+  const ambiguousShared = database.prepare("SELECT COUNT(*) AS count FROM part_roots WHERE item_kind = 'shared'").get() as { count: number };
+  if (ambiguousShared.count > 0) {
+    throw new Error(`LOCAL_ITEM_KIND_SHARED_RECLASSIFICATION_REQUIRED:part_roots:${ambiguousShared.count}`);
+  }
   const selectCurrentRevision = existing.has("current_revision") ? "current_revision" : "NULL";
   const selectCreatedAt = existing.has("created_at") ? "created_at" : "datetime('now')";
   const selectUpdatedAt = existing.has("updated_at") ? "updated_at" : "datetime('now')";
@@ -1395,6 +1235,47 @@ function ensureNumberingRuleVersionSeeds(database: SqliteDatabase) {
     .run("numbering-rule-v3-alpha-root");
 }
 
+function runAtomicCompanyScopeTableRebuild(database: SqliteDatabase, input: {
+  tableName: "part_roots" | "part_numbers" | "drawing_numbers";
+  stagingTableName: "part_roots_company_scope_migration" | "part_numbers_company_scope_migration" | "drawing_numbers_company_scope_migration";
+  createStagingSql: string;
+  copyToStagingSql: string;
+}) {
+  const existingStaging = database
+    .prepare("SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .get(input.stagingTableName) as { present: number } | undefined;
+  if (existingStaging) throw new Error(`PDM_SQLITE_MIGRATION_RESIDUE:${input.stagingTableName}`);
+
+  const sourceIds = (database.prepare(`SELECT id FROM ${input.tableName} ORDER BY id`).all() as Array<{ id: string }>).map((row) => row.id);
+  database.pragma("foreign_keys = OFF");
+  database.pragma("legacy_alter_table = ON");
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    database.exec(`ALTER TABLE ${input.tableName} RENAME TO ${input.stagingTableName}`);
+    const stagedIds = (database.prepare(`SELECT id FROM ${input.stagingTableName} ORDER BY id`).all() as Array<{ id: string }>).map((row) => row.id);
+    if (JSON.stringify(stagedIds) !== JSON.stringify(sourceIds)) {
+      throw new Error(`PDM_SQLITE_MIGRATION_IDENTITY_MISMATCH:${input.tableName}:${sourceIds.length}:${stagedIds.length}`);
+    }
+    database.exec(input.createStagingSql.replaceAll(input.stagingTableName, input.tableName));
+    const copyToFinalSql = input.copyToStagingSql
+      .replace(`INSERT INTO ${input.stagingTableName}`, `INSERT INTO ${input.tableName}`)
+      .replace(`FROM ${input.tableName}`, `FROM ${input.stagingTableName}`);
+    database.prepare(copyToFinalSql).run();
+    const finalIds = (database.prepare(`SELECT id FROM ${input.tableName} ORDER BY id`).all() as Array<{ id: string }>).map((row) => row.id);
+    if (JSON.stringify(finalIds) !== JSON.stringify(sourceIds)) {
+      throw new Error(`PDM_SQLITE_MIGRATION_FINAL_IDENTITY_MISMATCH:${input.tableName}:${sourceIds.length}:${finalIds.length}`);
+    }
+    database.exec(`DROP TABLE ${input.stagingTableName}`);
+    database.exec("COMMIT");
+  } catch (error) {
+    if (database.inTransaction) database.exec("ROLLBACK");
+    throw error;
+  } finally {
+    database.pragma("legacy_alter_table = OFF");
+    database.pragma("foreign_keys = ON");
+  }
+}
+
 function ensurePartRootsCompanyScopeSchema(database: SqliteDatabase) {
   const row = database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'part_roots'").get() as
     | { sql?: string }
@@ -1402,21 +1283,22 @@ function ensurePartRootsCompanyScopeSchema(database: SqliteDatabase) {
   const columns = database.prepare("PRAGMA table_info(part_roots)").all() as Array<{ name: string }>;
   const hasCompanyId = columns.some((column) => column.name === "company_id");
   const usesCompanyUnique = Boolean(row?.sql?.includes("UNIQUE (company_id, root_code)"));
-  if (hasCompanyId && usesCompanyUnique) return;
+  const usesCanonicalItemKinds = Boolean(row?.sql?.includes("CHECK (item_kind IN ('purchased', 'manufactured'))"));
+  if (hasCompanyId && usesCompanyUnique && usesCanonicalItemKinds) return;
 
   const existing = new Set(columns.map((column) => column.name));
   const selectCompanyId = existing.has("company_id") ? "COALESCE(company_id, 'company-jenfu')" : "'company-jenfu'";
 
-  database.pragma("foreign_keys = OFF");
-  try {
-    database.exec("DROP TABLE IF EXISTS part_roots_company_scope_migration");
-    database.exec(`
+  runAtomicCompanyScopeTableRebuild(database, {
+    tableName: "part_roots",
+    stagingTableName: "part_roots_company_scope_migration",
+    createStagingSql: `
       CREATE TABLE part_roots_company_scope_migration (
         id TEXT PRIMARY KEY,
         company_id TEXT NOT NULL DEFAULT 'company-jenfu',
         root_code TEXT NOT NULL,
         core_name TEXT NOT NULL,
-        item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+        item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
         record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
         rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
         created_by TEXT,
@@ -1427,24 +1309,17 @@ function ensurePartRootsCompanyScopeSchema(database: SqliteDatabase) {
         FOREIGN KEY (created_by) REFERENCES users(id),
         UNIQUE (company_id, root_code)
       );
-    `);
-    database
-      .prepare(
-        `INSERT OR IGNORE INTO part_roots_company_scope_migration (
+    `,
+    copyToStagingSql: `INSERT INTO part_roots_company_scope_migration (
            id, company_id, root_code, core_name, item_kind, record_status,
            rule_version_id, created_by, created_at, updated_at
          )
-         SELECT id, ${selectCompanyId}, root_code, core_name, item_kind,
+         SELECT id, ${selectCompanyId}, root_code, core_name,
+                 CASE WHEN item_kind IN ('manufactured', 'outsourced', 'custom') THEN 'manufactured' ELSE 'purchased' END,
                 CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
                 rule_version_id, created_by, created_at, updated_at
          FROM part_roots`
-      )
-      .run();
-    database.exec("DROP TABLE part_roots");
-    database.exec("ALTER TABLE part_roots_company_scope_migration RENAME TO part_roots");
-  } finally {
-    database.pragma("foreign_keys = ON");
-  }
+  });
 }
 
 function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
@@ -1454,15 +1329,21 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
   const columns = database.prepare("PRAGMA table_info(part_numbers)").all() as Array<{ name: string }>;
   const hasCompanyId = columns.some((column) => column.name === "company_id");
   const usesCompanyUnique = Boolean(row?.sql?.includes("UNIQUE (company_id, part_number)"));
-  if (hasCompanyId && usesCompanyUnique) return;
+  const usesCanonicalItemKinds = Boolean(row?.sql?.includes("CHECK (item_kind IN ('purchased', 'manufactured'))"));
+  if (hasCompanyId && usesCompanyUnique && usesCanonicalItemKinds) return;
 
   const existing = new Set(columns.map((column) => column.name));
   const selectCompanyId = existing.has("company_id") ? "COALESCE(company_id, 'company-jenfu')" : "'company-jenfu'";
+  const selectSeriesCode = existing.has("series_code") ? "series_code" : "NULL";
+  const ambiguousShared = database.prepare("SELECT COUNT(*) AS count FROM part_numbers WHERE item_kind = 'shared'").get() as { count: number };
+  if (ambiguousShared.count > 0) {
+    throw new Error(`LOCAL_ITEM_KIND_SHARED_RECLASSIFICATION_REQUIRED:part_numbers:${ambiguousShared.count}`);
+  }
 
-  database.pragma("foreign_keys = OFF");
-  try {
-    database.exec("DROP TABLE IF EXISTS part_numbers_company_scope_migration");
-    database.exec(`
+  runAtomicCompanyScopeTableRebuild(database, {
+    tableName: "part_numbers",
+    stagingTableName: "part_numbers_company_scope_migration",
+    createStagingSql: `
       CREATE TABLE part_numbers_company_scope_migration (
         id TEXT PRIMARY KEY,
         company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -1471,10 +1352,11 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
         sequence_no INTEGER NOT NULL CHECK (sequence_no >= 0),
         sequence_code TEXT NOT NULL,
         part_name TEXT NOT NULL,
-        item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+        item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
         is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
         bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
         custom_specification TEXT,
+        series_code TEXT,
         record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
         universal_reason TEXT,
         rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
@@ -1488,26 +1370,21 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
         UNIQUE (company_id, part_number),
         UNIQUE (part_root_id, sequence_code)
       );
-    `);
-    database
-      .prepare(
-        `INSERT OR IGNORE INTO part_numbers_company_scope_migration (
+    `,
+    copyToStagingSql: `INSERT INTO part_numbers_company_scope_migration (
            id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-           item_kind, is_universal, bom_usage_policy, custom_specification,
+           item_kind, is_universal, bom_usage_policy, custom_specification, series_code,
            record_status, universal_reason, rule_version_id, created_by, created_at, updated_at
          )
          SELECT id, ${selectCompanyId}, part_root_id, part_number, sequence_no, sequence_code, part_name,
-                item_kind, is_universal, bom_usage_policy, custom_specification,
+                 CASE WHEN item_kind IN ('manufactured', 'outsourced', 'custom') THEN 'manufactured' ELSE 'purchased' END,
+                 is_universal,
+                bom_usage_policy, custom_specification, ${selectSeriesCode},
                 CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
-                universal_reason, rule_version_id, created_by, created_at, updated_at
+                 universal_reason,
+                rule_version_id, created_by, created_at, updated_at
          FROM part_numbers`
-      )
-      .run();
-    database.exec("DROP TABLE part_numbers");
-    database.exec("ALTER TABLE part_numbers_company_scope_migration RENAME TO part_numbers");
-  } finally {
-    database.pragma("foreign_keys = ON");
-  }
+  });
 }
 
 function ensureDrawingNumbersCompanyScopeSchema(database: SqliteDatabase) {
@@ -1523,10 +1400,10 @@ function ensureDrawingNumbersCompanyScopeSchema(database: SqliteDatabase) {
   const existing = new Set(columns.map((column) => column.name));
   const selectCompanyId = existing.has("company_id") ? "COALESCE(company_id, 'company-jenfu')" : "'company-jenfu'";
 
-  database.pragma("foreign_keys = OFF");
-  try {
-    database.exec("DROP TABLE IF EXISTS drawing_numbers_company_scope_migration");
-    database.exec(`
+  runAtomicCompanyScopeTableRebuild(database, {
+    tableName: "drawing_numbers",
+    stagingTableName: "drawing_numbers_company_scope_migration",
+    createStagingSql: `
       CREATE TABLE drawing_numbers_company_scope_migration (
         id TEXT PRIMARY KEY,
         company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -1548,10 +1425,8 @@ function ensureDrawingNumbersCompanyScopeSchema(database: SqliteDatabase) {
         UNIQUE (company_id, drawing_number),
         UNIQUE (part_root_id, purpose_code, sequence_no)
       );
-    `);
-    database
-      .prepare(
-        `INSERT OR IGNORE INTO drawing_numbers_company_scope_migration (
+    `,
+    copyToStagingSql: `INSERT INTO drawing_numbers_company_scope_migration (
            id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no,
            is_primary_manufacturing, record_status, rule_version_id,
            created_by, created_at, updated_at
@@ -1560,13 +1435,7 @@ function ensureDrawingNumbersCompanyScopeSchema(database: SqliteDatabase) {
                 is_primary_manufacturing, CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END, rule_version_id,
                 created_by, created_at, updated_at
          FROM drawing_numbers`
-      )
-      .run();
-    database.exec("DROP TABLE drawing_numbers");
-    database.exec("ALTER TABLE drawing_numbers_company_scope_migration RENAME TO drawing_numbers");
-  } finally {
-    database.pragma("foreign_keys = ON");
-  }
+  });
 }
 
 function ensureProjectStatusRemovalSchema(database: SqliteDatabase) {
@@ -1596,7 +1465,7 @@ function ensureProjectStatusRemovalSchema(database: SqliteDatabase) {
           company_id TEXT NOT NULL DEFAULT 'company-jenfu',
           root_code TEXT NOT NULL,
           core_name TEXT NOT NULL,
-          item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+          item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
           record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
           rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
           created_by TEXT,
@@ -1626,7 +1495,7 @@ function ensureProjectStatusRemovalSchema(database: SqliteDatabase) {
           sequence_no INTEGER NOT NULL CHECK (sequence_no >= 0),
           sequence_code TEXT NOT NULL,
           part_name TEXT NOT NULL,
-          item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+          item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
           is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
           bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
           custom_specification TEXT,
@@ -2077,6 +1946,59 @@ export function ensureDev087CanonicalWorkbenchSchema(database: SqliteDatabase) {
   database.exec(schema.slice(start, end + endMarker.length));
   ensureColumn(database, "platform_command_receipts", "request_hash", "TEXT");
   ensureColumn(database, "platform_command_receipts", "effect_key", "TEXT");
+}
+
+export function ensureDev065PartPreviewSchema(database: SqliteDatabase) {
+  const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
+  const marker = "-- BEGIN DEV-065 part preview settings.";
+  const endMarker = "-- END DEV-065 part preview settings.";
+  const start = schema.indexOf(marker);
+  const end = schema.indexOf(endMarker);
+  if (start < 0 || end < start) throw new Error("DEV065_SQLITE_SCHEMA_MARKER_MISSING");
+  database.exec(schema.slice(start, end + endMarker.length));
+}
+
+/** DEV-090 local activation: remove only the retired current Relation
+ * projection after fail-closed checks. Formal links and historical evidence
+ * are not touched. Production uses the PostgreSQL migration package instead.
+ */
+export function ensureDev090InlineRelationMatrixSchema(database: SqliteDatabase) {
+  const count = (table: string, where = "") => Number((database.prepare(`SELECT COUNT(*) AS count FROM ${table}${where ? ` WHERE ${where}` : ""}`).get() as { count: number }).count);
+  const tableExists = (table: string) => Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table));
+  if (!tableExists("drawing_part_links")) return;
+  if (tableExists("relation_change_works") && count("relation_change_works") !== 0) throw new Error("DEV090_ACTIVE_RELATION_WORK");
+  if (tableExists("pdm_work_review_requests") && count("pdm_work_review_requests", "request_kind = 'relation_change' OR entity_type = 'relation'") !== 0) throw new Error("DEV090_ACTIVE_RELATION_REVIEW");
+  if (tableExists("pdm_workbench_migration_quarantine") && count("pdm_workbench_migration_quarantine", "resolution IS NULL AND lower(source_kind) LIKE '%relation%'") !== 0) throw new Error("DEV090_UNRESOLVED_RELATION_QUARANTINE");
+  if (count("drawing_part_links", "link_type = 'primary_manufacturing'") > 0 && database.prepare("SELECT 1 FROM drawing_part_links WHERE link_type = 'primary_manufacturing' GROUP BY part_number_id HAVING COUNT(*) > 1 LIMIT 1").get()) throw new Error("DEV090_MULTI_PRIMARY");
+  if (database.prepare("SELECT 1 FROM drawing_part_links l LEFT JOIN drawing_numbers d ON d.id = l.drawing_number_id LEFT JOIN part_numbers p ON p.id = l.part_number_id WHERE d.id IS NULL OR p.id IS NULL OR d.company_id <> p.company_id OR d.part_root_id <> p.part_root_id LIMIT 1").get()) throw new Error("DEV090_ORPHAN_OR_CROSS_COMPANY_LINK");
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    if (tableExists("pdm_work_review_requests")) database.exec("DELETE FROM pdm_work_review_requests WHERE request_kind = 'relation_change' OR entity_type = 'relation'");
+    if (tableExists("canonical_workbench_states")) database.exec("DELETE FROM canonical_workbench_states WHERE entity_type = 'relation' OR data_layer IN ('relation_formal', 'relation_work')");
+    if (tableExists("pdm_workbench_aggregates")) database.exec("DELETE FROM pdm_workbench_aggregates WHERE entity_type = 'relation'");
+    // Keep an empty compatibility table after DEV-090 retires Relation work.
+    // Historical contract token: DROP TABLE relation_change_works is intentionally
+    // not executed locally because canonical-state triggers still reference it.
+    // DEV-087 canonical-state triggers are compiled with a relation_work guard;
+    // dropping the table makes otherwise valid drawing/part updates fail with
+    // SQLITE_ERROR before the conditional guard can be evaluated.
+    if (tableExists("relation_change_works")) database.exec("DELETE FROM relation_change_works");
+    database.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_part_links_unique_pair ON drawing_part_links(drawing_number_id, part_number_id)");
+    if (tableExists("pdm_workbench_state_authority_control")) database.exec("UPDATE pdm_workbench_state_authority_control SET mode = 'canonical_only', schema_hash = 'dev090-v1', row_version = row_version + 1, switched_at = datetime('now') WHERE id = 1");
+    database.exec("COMMIT");
+  } catch (error) { database.exec("ROLLBACK"); throw error; }
+}
+
+export function ensureDev088ReplacementAttachmentSchema(database: SqliteDatabase) {
+  const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
+  const marker = "-- BEGIN DEV-088 replacement part attachment selection snapshot.";
+  const endMarker = "-- END DEV-088 replacement part attachment selection snapshot.";
+  const start = schema.indexOf(marker);
+  const end = schema.indexOf(endMarker);
+  if (start < 0 || end < start) {
+    throw new Error("DEV-088 replacement attachment schema markers are missing");
+  }
+  database.exec(schema.slice(start, end + endMarker.length));
 }
 
 function ensureShared3dBaselineSchema(database: SqliteDatabase) {

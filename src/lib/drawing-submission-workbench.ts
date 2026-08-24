@@ -255,7 +255,7 @@ type AttachmentRow = {
 
 const eligibleSubmissionExtensions = new Set(["slddrw", "sldprt", "sldasm", "pdf", "dwg", "dxf", "step", "stp", "iges", "igs", "igf", "x_t", "x_b", "sat", "stl", "jt"]);
 const blockedDrawingStatuses = new Set(["Obsolete", "Merged", "MainDrawingInvalid"]);
-const submittablePrimaryPartKinds = new Set(["manufactured", "outsourced", "custom"]);
+const submittablePrimaryPartKinds = new Set(["manufactured"]);
 const snapshotRulesVersion = "drawing_part_submission_v1.2026-07-01";
 const activeSubmissionStatusSql = "'Pending', 'Releasing'";
 const sameRevisionInProgressMessage = "此圖號版次正在送審或發行中，請先查看既有送審或聯絡負責人。";
@@ -484,7 +484,7 @@ export async function resolveRootSubmissionReadiness(input: {
       blockers: [
         makeSubmissionBlocker({
           code: "missing_primary_drawing",
-          message: "此圖料根號尚未指定主要圖號，請先在圖料工作台設定主圖。",
+          message: "此圖料根號尚未指定主要圖號，請先在圖號工作台設定主圖。",
           recoveryHref: `/numbering/search?query=${encodeURIComponent(root.root_code)}`
         })
       ]

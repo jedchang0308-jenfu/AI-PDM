@@ -107,7 +107,7 @@ export type NumberingDraftRelationReadinessInput = {
   sourceDrawingNumberId: string | null;
   sourcePartNumberId: string | null;
   sourceLinkType: "primary_manufacturing" | "reference" | null;
-  parts: Array<{ id: string; itemKind: "purchased" | "manufactured" | "outsourced" | "shared" | "custom" }>;
+  parts: Array<{ id: string; itemKind: "purchased" | "manufactured" }>;
   drawings: Array<{ id: string; purposeCode: "MA" | "OT" | "M" | "R" }>;
   relations: Array<{
     id: string;
@@ -136,7 +136,7 @@ export type NumberingDraftRelationReadiness = {
   issues: NumberingDraftRelationReadinessIssue[];
 };
 
-const manufacturingDraftItemKinds = new Set(["manufactured", "outsourced", "custom"]);
+const manufacturingDraftItemKinds = new Set(["manufactured"]);
 
 function isManufacturingDraftPurpose(purposeCode: NumberingDraftRelationReadinessInput["drawings"][number]["purposeCode"]) {
   return purposeCode === "M" || purposeCode === "MA";

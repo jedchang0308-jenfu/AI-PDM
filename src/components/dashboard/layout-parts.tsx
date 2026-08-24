@@ -59,10 +59,9 @@ export function NotificationDropdown({
             compact
             eyebrow="通知"
             title="目前沒有待處理通知"
-            body="可先回待辦中心查看已處理項目，或從圖料工作台追蹤特定物件。"
+            body="可從編號搜尋追蹤特定物件。"
             actions={[
-              { href: "/numbering/tasks", label: "待辦中心", variant: "primary" },
-              { href: "/numbering/search", label: "查圖料" }
+              { href: "/numbering/search", label: "查圖料", variant: "primary" }
             ]}
           />
         ) : (

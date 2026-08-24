@@ -13,7 +13,13 @@ export function dev087RequestHash(value: unknown) {
 
 type ReceiptRow = { command_status: "processing" | "completed"; response_json: string | Record<string, unknown>; request_hash: string | null };
 
-export async function replayDev087TerminalReceipt<T>(client: AsyncDatabaseClient, input: {
+function commandName(command: string, namespace: "canonical" | "dev087") {
+  const normalized = command.trim();
+  if (!normalized) throw new Error("CANONICAL_COMMAND_NAME_REQUIRED");
+  return namespace === "dev087" ? `dev087:${normalized}` : normalized;
+}
+
+export async function replayCanonicalTerminalReceipt<T>(client: AsyncDatabaseClient, input: {
   companyId: string;
   command: string;
   idempotencyKey: string;
@@ -21,10 +27,11 @@ export async function replayDev087TerminalReceipt<T>(client: AsyncDatabaseClient
   correlationId: string;
 }): Promise<T | null> {
   if (!input.idempotencyKey.trim() || input.idempotencyKey.length > 200) return null;
+  const canonicalName = commandName(input.command, "canonical");
   const row = await client.queryOne<ReceiptRow>(
     `SELECT command_status, response_json, request_hash FROM platform_command_receipts
       WHERE company_id = :companyId AND command_name = :commandName AND idempotency_key = :idempotencyKey`,
-    { companyId: input.companyId, commandName: `dev087:${input.command}`, idempotencyKey: input.idempotencyKey }
+    { companyId: input.companyId, commandName: canonicalName, idempotencyKey: input.idempotencyKey }
   );
   if (!row) return null;
   if (row.request_hash !== dev087RequestHash(input.request)) {
@@ -36,7 +43,17 @@ export async function replayDev087TerminalReceipt<T>(client: AsyncDatabaseClient
   return (typeof row.response_json === "string" ? JSON.parse(row.response_json) : row.response_json) as T;
 }
 
-export async function runDev087IdempotentCommand<T>(client: AsyncDatabaseClient, input: {
+export async function replayDev087TerminalReceipt<T>(client: AsyncDatabaseClient, input: {
+  companyId: string;
+  command: string;
+  idempotencyKey: string;
+  request: unknown;
+  correlationId: string;
+}): Promise<T | null> {
+  return replayCanonicalTerminalReceipt(client, { ...input, command: commandName(input.command, "dev087") });
+}
+
+export async function runCanonicalIdempotentCommand<T>(client: AsyncDatabaseClient, input: {
   companyId: string;
   actorId: string;
   command: string;
@@ -49,14 +66,14 @@ export async function runDev087IdempotentCommand<T>(client: AsyncDatabaseClient,
   if (!input.idempotencyKey.trim() || input.idempotencyKey.length > 200) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "缺少有效的 Idempotency-Key", 400, input.correlationId);
   }
-  const commandName = `dev087:${input.command}`;
+  const persistedCommandName = commandName(input.command, "canonical");
   const requestHash = dev087RequestHash(input.request);
   return client.transaction(async (tx) => {
     const lock = tx.kind === "postgres" ? " FOR UPDATE" : "";
     const existing = await tx.queryOne<ReceiptRow>(
       `SELECT command_status, response_json, request_hash FROM platform_command_receipts
         WHERE company_id = :companyId AND command_name = :commandName AND idempotency_key = :idempotencyKey${lock}`,
-      { companyId: input.companyId, commandName, idempotencyKey: input.idempotencyKey }
+      { companyId: input.companyId, commandName: persistedCommandName, idempotencyKey: input.idempotencyKey }
     );
     if (existing) {
       if (existing.request_hash !== requestHash) throw new CanonicalWorkbenchError("IDEMPOTENCY_KEY_REUSED", "本次操作未執行", 422, input.correlationId);
@@ -91,8 +108,8 @@ export async function runDev087IdempotentCommand<T>(client: AsyncDatabaseClient,
          :organizationId, :correlationId, 'processing', '{}', :requestHash, :effectKey
        )`,
       {
-        id: receiptId, companyId: input.companyId, commandName, idempotencyKey: input.idempotencyKey,
-        actorId: input.actorId, organizationId: mapping.platform_organization_id, correlationId: input.correlationId,
+        id: receiptId, companyId: input.companyId, commandName: persistedCommandName, idempotencyKey: input.idempotencyKey,
+         actorId: input.actorId, organizationId: mapping.platform_organization_id, correlationId: input.correlationId,
         requestHash, effectKey: input.effectKey
       }
     );
@@ -106,4 +123,17 @@ export async function runDev087IdempotentCommand<T>(client: AsyncDatabaseClient,
     );
     return response;
   }, { serializable: true });
+}
+
+export async function runDev087IdempotentCommand<T>(client: AsyncDatabaseClient, input: {
+  companyId: string;
+  actorId: string;
+  command: string;
+  idempotencyKey: string;
+  request: unknown;
+  effectKey: string;
+  correlationId: string;
+  terminalReview?: boolean;
+}, execute: (tx: AsyncDatabaseClient) => Promise<T>): Promise<T> {
+  return runCanonicalIdempotentCommand(client, { ...input, command: commandName(input.command, "dev087") }, execute);
 }

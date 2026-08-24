@@ -5,6 +5,7 @@ import {
   type PdmCommandMetadata
 } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
+import { replacementAttachmentSelectionFingerprint } from "@/lib/replacement-part-attachments";
 import {
   PdmChangeControlDomainService,
   type ApplyDrawingRevisionReviewActionInput,
@@ -59,7 +60,10 @@ export async function reservePartNumberDraft(input: ReservePartNumberDraftInput,
     payload: {
       reservedPartNumber: input.reservedPartNumber,
       draftType: input.draftType,
-      itemType: input.itemType
+      itemType: input.itemType,
+      attachmentSelectionFingerprint: input.attachmentSnapshot
+        ? replacementAttachmentSelectionFingerprint(input.attachmentSnapshot)
+        : null
     }
   });
   const executed = await executePdmCommandWithOutbox({

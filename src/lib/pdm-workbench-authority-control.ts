@@ -2,7 +2,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   CanonicalWorkbenchError,
   createCanonicalContractToken,
-  DEV087_SCHEMA_HASH,
+  DEV090_SCHEMA_HASH,
   verifyCanonicalContractToken
 } from "@/lib/pdm-canonical-workbench-contract";
 
@@ -48,7 +48,7 @@ export function runtimeCommit() {
 export async function assertCanonicalWorkbenchAuthority(client: AsyncDatabaseClient) {
   const control = await readWorkbenchAuthorityControl(client);
   if (
-    control.mode !== "canonical_only" || control.schemaHash !== DEV087_SCHEMA_HASH ||
+    control.mode !== "canonical_only" || control.schemaHash !== DEV090_SCHEMA_HASH ||
     !control.expectedCommit || control.expectedCommit !== runtimeCommit()
   ) {
     throw new CanonicalWorkbenchError("WORKBENCH_AUTHORITY_MISMATCH", "系統切換中，請稍後再試", 503);
@@ -115,7 +115,7 @@ export async function switchWorkbenchAuthority(client: AsyncDatabaseClient, inpu
       {
         toMode: input.toMode,
         expectedCommit: input.expectedCommit.trim(),
-        schemaHash: input.schemaHash ?? DEV087_SCHEMA_HASH,
+        schemaHash: input.schemaHash ?? DEV090_SCHEMA_HASH,
         expectedRowVersion: input.expectedRowVersion
       }
     );

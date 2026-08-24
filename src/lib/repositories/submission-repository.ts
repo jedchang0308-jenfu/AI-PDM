@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { createAuditLog, getDb } from "@/lib/db";
-import { getBomBySubmissionId, materializeBomDraftFromReferences } from "@/lib/repositories/bom-repository";
+import { getBomBySubmissionId } from "@/lib/repositories/bom-repository";
 import { findOrCreateItem } from "@/lib/repositories/item-repository";
 import { getActiveItemLock } from "@/lib/repositories/item-lock-repository";
 import { getReleasePackageBySubmissionId } from "@/lib/repositories/release-repository";
@@ -780,10 +780,6 @@ export function createSubmissionRecord(input: {
     action: "Submit",
     detail: { fileCount: input.files.length }
   });
-
-  if (references.some((reference) => reference.referenceType === "assembly_component")) {
-    materializeBomDraftFromReferences(submissionId);
-  }
 
   return submissionId;
 }

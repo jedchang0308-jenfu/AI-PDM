@@ -127,35 +127,6 @@ export const INSERT_ASYNC_FILE_REFERENCE_SQL = `
   )
 `;
 
-export const UPSERT_ASYNC_SUBMISSION_BOM_HEADER_SQL = `
-  INSERT INTO bom_headers (
-    id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count, created_at, updated_at
-  ) VALUES (
-    :id, :parentItemId, :parentSubmissionId, :parentRevision, 'Draft', 'cad_references', :lineCount, :now, :now
-  )
-  ON CONFLICT(parent_submission_id) DO UPDATE SET
-    parent_revision = excluded.parent_revision,
-    source = excluded.source,
-    line_count = excluded.line_count,
-    updated_at = excluded.updated_at
-  RETURNING id, parent_submission_id, line_count
-`;
-
-export const DELETE_ASYNC_SUBMISSION_BOM_LINES_SQL = `
-  DELETE FROM bom_lines
-  WHERE bom_header_id = :bomHeaderId
-`;
-
-export const INSERT_ASYNC_SUBMISSION_BOM_LINE_SQL = `
-  INSERT INTO bom_lines (
-    id, bom_header_id, line_no, child_part_number, child_revision, quantity,
-    source_file_id, source_reference_id, source_filename, created_at
-  ) VALUES (
-    :id, :bomHeaderId, :lineNo, :childPartNumber, :childRevision, :quantity,
-    :sourceFileId, :sourceReferenceId, :sourceFilename, :now
-  )
-`;
-
 export const INSERT_ASYNC_SUBMISSION_WRITE_AUDIT_LOG_SQL = `
   INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at)
   VALUES (:id, :submissionId, :actorId, :action, :detailJson, :createdAt)
@@ -544,76 +515,11 @@ export class AsyncSubmissionWriteRepository {
         now
       });
 
-      if (references.some((reference) => reference.referenceType === "assembly_component")) {
-        await this.materializeBomFromReferences(client, {
-          submissionId,
-          itemId: item.id,
-          revision: input.revision,
-          actorId: null,
-          references,
-          now
-        });
-      }
     };
 
     await this.client.transaction(create);
 
     return submissionId;
-  }
-
-  private async materializeBomFromReferences(
-    client: AsyncDatabaseClient,
-    input: {
-      submissionId: string;
-      itemId: string;
-      revision: string;
-      actorId: string | null;
-      references: PreparedFileReference[];
-      now: string;
-    }
-  ) {
-    const bomReferences = input.references
-      .filter(
-        (reference) =>
-          reference.referenceType === "assembly_component" &&
-          Boolean(reference.referencedPartNumber?.trim())
-      )
-      .sort(compareBomReferences);
-
-    const header = await client.queryOne<{ id: string }>(UPSERT_ASYNC_SUBMISSION_BOM_HEADER_SQL, {
-      id: this.idFactory(),
-      parentItemId: input.itemId,
-      parentSubmissionId: input.submissionId,
-      parentRevision: input.revision,
-      lineCount: bomReferences.length,
-      now: input.now
-    });
-    if (!header) throw new Error("Failed to materialize BOM header");
-
-    await client.execute(DELETE_ASYNC_SUBMISSION_BOM_LINES_SQL, { bomHeaderId: header.id });
-
-    for (const [index, reference] of bomReferences.entries()) {
-      await client.execute(INSERT_ASYNC_SUBMISSION_BOM_LINE_SQL, {
-        id: this.idFactory(),
-        bomHeaderId: header.id,
-        lineNo: index + 1,
-        childPartNumber: reference.referencedPartNumber?.trim() ?? "",
-        childRevision: reference.referencedRevision ?? null,
-        quantity: reference.quantity,
-        sourceFileId: reference.sourceFileId,
-        sourceReferenceId: reference.id,
-        sourceFilename: reference.sourceFilename,
-        now: input.now
-      });
-    }
-
-    await this.insertAudit(client, {
-      submissionId: input.submissionId,
-      actorId: input.actorId,
-      action: "BomDraftMaterialized",
-      detail: { source: "file_references", lineCount: bomReferences.length },
-      now: input.now
-    });
   }
 
   private async insertAudit(
@@ -683,12 +589,4 @@ function sortJsonValue(value: unknown): unknown {
       result[key] = sortJsonValue(record[key]);
       return result;
     }, {});
-}
-
-function compareBomReferences(left: PreparedFileReference, right: PreparedFileReference) {
-  return (
-    left.sourceFilename.localeCompare(right.sourceFilename) ||
-    String(left.referencedPartNumber ?? "").localeCompare(String(right.referencedPartNumber ?? "")) ||
-    left.referencedFilename.localeCompare(right.referencedFilename)
-  );
 }

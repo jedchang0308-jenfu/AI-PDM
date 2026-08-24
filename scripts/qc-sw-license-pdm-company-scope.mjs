@@ -78,10 +78,10 @@ try {
 
   for (const relativePath of [
     "src/app/api/bom/workbench/route.ts",
-    "src/app/api/bom/drafts/from-assembly/route.ts",
+    "src/app/api/bom/drafts/route.ts",
     "src/app/api/bom/releases/[releaseId]/export/route.ts"
   ]) {
-    assert.match(read(relativePath), /await canReadBom(Draft|ReleasedSnapshot)Async/, `${relativePath} must use company-aware BOM read checks`);
+    assert.match(read(relativePath), /await can(Read|Manage)Bom(Draft|ReleasedSnapshot)(Record)?Async/, `${relativePath} must use company-aware BOM read checks`);
   }
 
   console.log(

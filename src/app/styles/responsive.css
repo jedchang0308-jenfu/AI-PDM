@@ -261,12 +261,6 @@
   }
 }
 
-@media (max-width: 1180px) {
-  .bom-workbench-layout {
-    grid-template-columns: minmax(230px, 0.66fr) minmax(0, 1.34fr);
-  }
-}
-
 @media (max-width: 820px) {
   .bom-workbench-header {
     align-items: stretch;

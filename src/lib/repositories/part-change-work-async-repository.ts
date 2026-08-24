@@ -5,17 +5,16 @@ import { dev087RequestHash } from "@/lib/pdm-canonical-command";
 
 export type PartChangePayload = {
   partName: string;
-  itemKind: "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
+  itemKind: "purchased" | "manufactured";
   customSpecification: string | null;
   isUniversal: boolean;
   bomUsagePolicy: "undecided" | "not_required" | "available" | "restricted" | "obsolete";
-  universalReason: string | null;
 };
 
 type PartRow = {
   id: string; company_id: string; part_name: string; item_kind: PartChangePayload["itemKind"];
   custom_specification: string | null; is_universal: number | boolean; bom_usage_policy: PartChangePayload["bomUsagePolicy"];
-  universal_reason: string | null; updated_at: string | Date;
+  updated_at: string | Date;
 };
 type WorkRow = { id: string; company_id: string; part_id: string; owner_user_id: string; proposed_payload: string | PartChangePayload; base_hash: string; row_version: number };
 
@@ -23,9 +22,9 @@ export function validatePartChangePayload(value: unknown): PartChangePayload {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料格式無效", 400);
   const candidate = value as Record<string, unknown>;
   if ("attachments" in candidate || "attachmentIds" in candidate) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "附件獨立維護，不屬於本次資料修改", 422);
-  const allowed = new Set(["partName", "itemKind", "customSpecification", "isUniversal", "bomUsagePolicy", "universalReason"]);
+  const allowed = new Set(["partName", "itemKind", "customSpecification", "isUniversal", "bomUsagePolicy"]);
   if (Object.keys(candidate).some((key) => !allowed.has(key))) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料包含不支援的欄位", 422);
-  const itemKinds = new Set(["purchased", "manufactured", "outsourced", "shared", "custom"]);
+  const itemKinds = new Set(["purchased", "manufactured"]);
   const bomPolicies = new Set(["undecided", "not_required", "available", "restricted", "obsolete"]);
   if (typeof candidate.partName !== "string" || !candidate.partName.trim() || !itemKinds.has(String(candidate.itemKind)) || typeof candidate.isUniversal !== "boolean" || !bomPolicies.has(String(candidate.bomUsagePolicy))) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料未通過欄位驗證", 422);
@@ -34,14 +33,14 @@ export function validatePartChangePayload(value: unknown): PartChangePayload {
   return {
     partName: candidate.partName.trim(), itemKind: candidate.itemKind as PartChangePayload["itemKind"],
     customSpecification: nullable(candidate.customSpecification), isUniversal: candidate.isUniversal,
-    bomUsagePolicy: candidate.bomUsagePolicy as PartChangePayload["bomUsagePolicy"], universalReason: nullable(candidate.universalReason)
+    bomUsagePolicy: candidate.bomUsagePolicy as PartChangePayload["bomUsagePolicy"]
   };
 }
 
 function rowPayload(row: PartRow): PartChangePayload {
   return {
     partName: row.part_name, itemKind: row.item_kind, customSpecification: row.custom_specification,
-    isUniversal: Boolean(row.is_universal), bomUsagePolicy: row.bom_usage_policy, universalReason: row.universal_reason
+    isUniversal: Boolean(row.is_universal), bomUsagePolicy: row.bom_usage_policy
   };
 }
 function parsePayload(value: string | PartChangePayload) { return validatePartChangePayload(typeof value === "string" ? JSON.parse(value) : value); }
@@ -51,7 +50,7 @@ export class PartChangeWorkAsyncRepository {
 
   async readPart(client: AsyncDatabaseClient, companyId: string, partId: string, lock = false) {
     return client.queryOne<PartRow>(
-      `SELECT id, company_id, part_name, item_kind, custom_specification, is_universal, bom_usage_policy, universal_reason, updated_at
+      `SELECT id, company_id, part_name, item_kind, custom_specification, is_universal, bom_usage_policy, updated_at
        FROM part_numbers WHERE id = :partId AND company_id = :companyId${lock && client.kind === "postgres" ? " FOR UPDATE" : ""}`,
       { companyId, partId }
     );
@@ -136,7 +135,7 @@ export class PartChangeWorkAsyncRepository {
     );
     await tx.execute(
       `UPDATE part_numbers SET part_name = :partName, item_kind = :itemKind, custom_specification = :customSpecification,
-         is_universal = :isUniversal, bom_usage_policy = :bomUsagePolicy, universal_reason = :universalReason, updated_at = CURRENT_TIMESTAMP
+         is_universal = :isUniversal, bom_usage_policy = :bomUsagePolicy, updated_at = CURRENT_TIMESTAMP
        WHERE id = :partId AND company_id = :companyId`,
       { companyId: input.companyId, partId: input.work.part_id, ...after, isUniversal: after.isUniversal ? 1 : 0 }
     );

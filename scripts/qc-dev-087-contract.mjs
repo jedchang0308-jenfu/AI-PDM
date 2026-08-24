@@ -1,5 +1,5 @@
 import { assert, createFixtureDatabase, expectSqlFailure, pass, read } from "./qc-dev-087-fixtures.mjs";
-import { assertCanonicalDtoHasNoRetiredFields, canonicalLayerLabel, normalizeCanonicalWorkbenchQuery } from "../src/lib/pdm-canonical-workbench-contract.ts";
+import { assertCanonicalDtoHasNoRetiredFields, canonicalLayerLabel, CANONICAL_DATA_STATE_LABELS, normalizeCanonicalWorkbenchQuery } from "../src/lib/pdm-canonical-workbench-contract.ts";
 import { dev087FaultHandling, dev087FaultReason } from "../src/lib/pdm-work-review.ts";
 import { buildNumberingPartRootLifecyclePolicy } from "../src/lib/pdm-lifecycle-policy.ts";
 
@@ -10,8 +10,11 @@ expectedTables.forEach((table) => assert(actual.has(table), `missing ${table}`))
 assert.equal(canonicalLayerLabel({ dataLayer: "drawing_production", revision: "1" }), "量產版 1");
 assert.equal(canonicalLayerLabel({ dataLayer: "drawing_rd", revision: "1.1" }), "研發版 1.1");
 assert.equal(canonicalLayerLabel({ dataLayer: "part_formal", revision: null }), "正式資料");
-assert.equal(canonicalLayerLabel({ dataLayer: "relation_work", revision: null }), "調整中");
+assert.equal(canonicalLayerLabel({ dataLayer: "relation_work", revision: null }), "");
 assert.equal(normalizeCanonicalWorkbenchQuery(new URL("http://local/?layer=rd&handling=owner"), "drawing").layers[0], "rd");
+assert.deepEqual(normalizeCanonicalWorkbenchQuery(new URL("http://local/?stage=editing,available"), "drawing").dataStates, ["editing", "available"]);
+assert.equal(CANONICAL_DATA_STATE_LABELS.publishing, "發布中");
+assert.throws(() => normalizeCanonicalWorkbenchQuery(new URL("http://local/?stage=unknown"), "drawing"), (error) => error.code === "WORKBENCH_BAD_REQUEST" && error.status === 400);
 assert.throws(() => normalizeCanonicalWorkbenchQuery(new URL("http://local/?view=all"), "drawing"), (error) => error.code === "WORKBENCH_FILTER_CONTRACT_RETIRED" && error.status === 410);
 assert.throws(() => assertCanonicalDtoHasNoRetiredFields({ data: { humanStatus: "x" } }), /DEV087_RETIRED_DTO_FIELD/);
 expectSqlFailure(() => db.prepare(`INSERT INTO drawing_revision_claims (id, company_id, drawing_id, branch_id, target_major, target_minor, target_label) VALUES ('bad-claim', 'company-dev087-a', 'drawing-dev087-a0002', 'branch-dev087-a0002-1', 1, 2, '01.2')`).run(), /DEV087_REVISION_TUPLE_NOT_CANONICAL/);
@@ -27,4 +30,4 @@ assert.equal(activeRootPolicy.action, "none");
 assert.equal(activeRootPolicy.reasonCode, "LIFE_ACTIVE_CANONICAL_WORK");
 assert.equal(activeRootPolicy.availability, "inert");
 db.close();
-pass("contract", expectedTables.length + 17);
+pass("contract", expectedTables.length + 20);

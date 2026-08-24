@@ -213,6 +213,16 @@ CREATE TABLE IF NOT EXISTS pdm_review_traces (
   decision_at TIMESTAMPTZ NOT NULL
 );
 
+-- Minimal terminal receipt used only to make an already-open reviewer tab
+-- deterministic after the active request is removed.
+CREATE TABLE IF NOT EXISTS pdm_work_review_terminal_receipts (
+  request_id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE RESTRICT,
+  decided_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pdm_work_review_terminal_receipts_company_time
+  ON pdm_work_review_terminal_receipts(company_id, decided_at);
+
 CREATE TABLE IF NOT EXISTS part_approved_change_snapshots (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE RESTRICT,
@@ -249,59 +259,47 @@ CREATE TABLE IF NOT EXISTS pdm_workbench_migration_quarantine (
 CREATE OR REPLACE FUNCTION dev087_guard_company_reference() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
-  IF TG_TABLE_NAME = 'drawing_rd_branches' AND (
-    NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id)
-    OR (NEW.base_production_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.base_production_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id))
-    OR (NEW.latest_approved_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.latest_approved_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id))
-  ) THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'drawing_revision_claims' AND NOT EXISTS (
-    SELECT 1 FROM drawings d JOIN drawing_rd_branches b ON b.id = NEW.branch_id
-    WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id
-      AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id
-  ) THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'drawing_revision_claims' AND NEW.predecessor_revision_id IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.predecessor_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id
-  ) THEN RAISE EXCEPTION 'DEV087_PREDECESSOR_REFERENCE_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'drawing_revision_works' AND NOT EXISTS (
-    SELECT 1 FROM drawing_rd_branches b JOIN drawing_revision_claims c ON c.id = NEW.target_claim_id
-    WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id
-      AND c.company_id = NEW.company_id AND c.drawing_id = NEW.drawing_id AND c.branch_id = NEW.branch_id
-  ) THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'drawing_revision_works' AND NOT EXISTS (
-    SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id
-  ) THEN RAISE EXCEPTION 'DEV087_OWNER_COMPANY_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'part_change_works' AND NOT EXISTS (
-    SELECT 1 FROM part_numbers p WHERE p.id = NEW.part_id AND p.company_id = NEW.company_id
-  ) THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'part_change_works' AND NOT EXISTS (
-    SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id
-  ) THEN RAISE EXCEPTION 'DEV087_OWNER_COMPANY_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'relation_change_works' AND NOT EXISTS (
-    SELECT 1 FROM part_roots r WHERE r.id = NEW.root_id AND r.company_id = NEW.company_id
-  ) THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'relation_change_works' AND NOT EXISTS (
-    SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id
-  ) THEN RAISE EXCEPTION 'DEV087_OWNER_COMPANY_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'canonical_workbench_states' AND (
-    (NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id))
-    OR (NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id))
-    OR (NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id))
-  ) THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'canonical_workbench_states' AND NEW.entity_type = 'drawing' AND (
-    NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.canonical_entity_id)
-    OR (NEW.branch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_rd_branches b WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.canonical_entity_id))
-  ) THEN RAISE EXCEPTION 'DEV087_DRAWING_REFERENCE_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'canonical_workbench_states' AND NEW.work_id IS NOT NULL AND (
-    (NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id))
-    OR (NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id))
-    OR (NEW.data_layer = 'relation_work' AND NOT EXISTS (SELECT 1 FROM relation_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.root_id = NEW.canonical_entity_id))
-  ) THEN RAISE EXCEPTION 'DEV087_WORK_REFERENCE_MISMATCH'; END IF;
-  IF TG_TABLE_NAME = 'pdm_work_review_requests' AND (
-    NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.reviewer_user_id AND u.company_id = NEW.company_id)
-    OR (NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id))
-    OR (NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id))
-    OR (NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id))
-  ) THEN RAISE EXCEPTION 'DEV087_REVIEW_REFERENCE_MISMATCH'; END IF;
+  IF TG_TABLE_NAME = 'drawing_rd_branches' THEN
+    IF NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id)
+      OR (NEW.base_production_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.base_production_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id))
+      OR (NEW.latest_approved_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.latest_approved_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id))
+    THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
+  ELSIF TG_TABLE_NAME = 'drawing_revision_claims' THEN
+    IF NOT EXISTS (SELECT 1 FROM drawings d JOIN drawing_rd_branches b ON b.id = NEW.branch_id WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id)
+    THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
+    IF NEW.predecessor_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.predecessor_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id)
+    THEN RAISE EXCEPTION 'DEV087_PREDECESSOR_REFERENCE_MISMATCH'; END IF;
+  ELSIF TG_TABLE_NAME = 'drawing_revision_works' THEN
+    IF NOT EXISTS (SELECT 1 FROM drawing_rd_branches b JOIN drawing_revision_claims c ON c.id = NEW.target_claim_id WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id AND c.company_id = NEW.company_id AND c.drawing_id = NEW.drawing_id AND c.branch_id = NEW.branch_id)
+    THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE EXCEPTION 'DEV087_OWNER_COMPANY_MISMATCH'; END IF;
+  ELSIF TG_TABLE_NAME = 'part_change_works' THEN
+    IF NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.part_id AND p.company_id = NEW.company_id)
+    THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE EXCEPTION 'DEV087_OWNER_COMPANY_MISMATCH'; END IF;
+  ELSIF TG_TABLE_NAME = 'relation_change_works' THEN
+    IF NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.root_id AND r.company_id = NEW.company_id)
+    THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
+    THEN RAISE EXCEPTION 'DEV087_OWNER_COMPANY_MISMATCH'; END IF;
+  ELSIF TG_TABLE_NAME = 'canonical_workbench_states' THEN
+    IF (NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id))
+      OR (NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id))
+      OR (NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id))
+    THEN RAISE EXCEPTION 'DEV087_COMPANY_REFERENCE_MISMATCH'; END IF;
+    IF NEW.entity_type = 'drawing' AND (NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.canonical_entity_id) OR (NEW.branch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_rd_branches b WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.canonical_entity_id)))
+    THEN RAISE EXCEPTION 'DEV087_DRAWING_REFERENCE_MISMATCH'; END IF;
+    IF NEW.work_id IS NOT NULL AND ((NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id)) OR (NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id)) OR (NEW.data_layer = 'relation_work' AND NOT EXISTS (SELECT 1 FROM relation_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.root_id = NEW.canonical_entity_id)))
+    THEN RAISE EXCEPTION 'DEV087_WORK_REFERENCE_MISMATCH'; END IF;
+  ELSIF TG_TABLE_NAME = 'pdm_work_review_requests' THEN
+    IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.reviewer_user_id AND u.company_id = NEW.company_id)
+      OR (NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id))
+      OR (NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id))
+      OR (NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id))
+    THEN RAISE EXCEPTION 'DEV087_REVIEW_REFERENCE_MISMATCH'; END IF;
+  END IF;
   RETURN NEW;
 END;
 $$;
@@ -350,6 +348,9 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_pdm_review_traces_immutable ON pdm_review_traces;
 CREATE TRIGGER trg_pdm_review_traces_immutable BEFORE UPDATE OR DELETE ON pdm_review_traces
+FOR EACH ROW EXECUTE FUNCTION dev087_forbid_immutable_mutation();
+DROP TRIGGER IF EXISTS trg_pdm_work_review_terminal_receipts_immutable ON pdm_work_review_terminal_receipts;
+CREATE TRIGGER trg_pdm_work_review_terminal_receipts_immutable BEFORE UPDATE OR DELETE ON pdm_work_review_terminal_receipts
 FOR EACH ROW EXECUTE FUNCTION dev087_forbid_immutable_mutation();
 DROP TRIGGER IF EXISTS trg_part_approved_snapshots_immutable ON part_approved_change_snapshots;
 CREATE TRIGGER trg_part_approved_snapshots_immutable BEFORE UPDATE OR DELETE ON part_approved_change_snapshots

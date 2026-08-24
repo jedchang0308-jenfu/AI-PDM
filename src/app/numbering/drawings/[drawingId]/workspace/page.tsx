@@ -1,6 +1,5 @@
-import { Suspense } from "react";
-import { DrawingOwnerWorkspace } from "@/components/drawing-owner-workspace";
 import { CanonicalChangeWorkspace } from "@/components/canonical-change-workspace";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +9,5 @@ export default async function DrawingOwnerWorkspacePage({ params, searchParams }
   const value = (key: string) => typeof query[key] === "string" ? query[key] as string : null;
   const workId = value("workId");
   if (workId) return <CanonicalChangeWorkspace entityType="drawing" entityId={decodeURIComponent(drawingId)} workId={workId} returnTo={value("returnTo")} />;
-  return (
-    <Suspense fallback={<main className="dev079-workspace-loading" role="status">正在載入圖號工作區...</main>}>
-      <DrawingOwnerWorkspace drawingId={decodeURIComponent(drawingId)} />
-    </Suspense>
-  );
+  redirect(`/numbering/drawings?query=${encodeURIComponent(decodeURIComponent(drawingId))}`);
 }

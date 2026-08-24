@@ -47,11 +47,9 @@ check("RECOG-scope-help", recognitionReview.includes('StatusScopeHelp scope="dra
 const bomCreate = read("src/components/bom-create-workflow.tsx");
 const accounts = read("src/app/settings/accounts/page.tsx");
 const invitations = read("src/app/settings/account-invitations/page.tsx");
-const tasks = read("src/app/numbering/tasks/page.tsx");
 const publicShare = read("src/app/share/[token]/page.tsx");
 check("SURFACE-bom-scope", bomCreate.includes('StatusScopeHelp scope="bomCreate"') && bomCreate.includes('getStatusDisplay(draft.status, "bomDraft")'));
 check("SURFACE-admin-scopes", accounts.includes('StatusScopeHelp scope="accountList"') && invitations.includes('StatusScopeHelp scope="invitationList"'));
-check("SURFACE-task-marker-accessibility", tasks.includes("StatusSignalGroup") && !tasks.includes("title={marker.detail"));
 check("SURFACE-public-safe-status", publicShare.includes('getStatusDisplay(value, "workflow").label') && !publicShare.includes("labels[value] ?? value"));
 check("SURFACE-drawing-exception-group", read("src/app/numbering/drawings/page.tsx").includes("StatusSignalGroup") && read("src/components/part-detail-content.tsx").includes("缺製造圖"));
 check("SURFACE-relation-exception-group", read("src/components/relation-workbench.tsx").includes("exceptionSignals"));

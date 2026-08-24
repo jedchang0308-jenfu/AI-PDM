@@ -1,13 +1,8 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 import { diffBomWorkbenchLines as diffBomWorkbenchLinesShared } from "@/lib/bom-workbench-diff";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { parseRevisionCode } from "@/lib/revision-policy";
-import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage-upload-policy";
 import type {
-  BomImportJob,
-  BomImportProfile,
   BomDraftFloatingTopic,
   BomReconfirmationFlag,
   BomReleaseSnapshotDetail,
@@ -16,8 +11,7 @@ import type {
   BomWorkbenchListRecord,
   BomWorkbenchDraftSummary,
   BomWorkbenchLine,
-  BomWorkbenchSummary,
-  FileReference
+  BomWorkbenchSummary
 } from "@/lib/types";
 
 type BomWorkbenchParentRow = Omit<BomWorkbenchSummary, "drafts" | "active_draft">;
@@ -200,60 +194,22 @@ export type SaveAsyncBomWorkbenchDraftTreeInput = {
   }>;
 };
 
-export type CreateAsyncBomWorkbenchDraftFromAssemblyInput = {
-  submissionId: string;
-  actorId: string | null;
-  draftName?: string;
-  setActive?: boolean;
-};
-
-export type CreateAsyncBomWorkbenchDraftFromSolidWorksXlsInput = {
-  submissionId: string;
-  actorId: string | null;
-  draftName?: string;
-  setActive?: boolean;
-  originalFilename: string;
-  fileBuffer: Buffer;
-  contentType?: string | null;
-  profileName?: string;
-  profileVersion?: string;
-};
-
-export type CreateAsyncBomWorkbenchDraftFromSolidWorksXlsResult = {
-  draft: BomWorkbenchDraftDetail;
-  importJob: BomImportJob;
-};
-
 export type CreateCanonicalBomDraftInput = {
   companyId: string;
   ownerPartNumberId: string;
   ownerPartNumber: string;
   legacyItemId: string | null;
   bomRevision: string;
-  source: "manual" | "cad_reference";
-  sourceSubmissionId?: string | null;
-  sourceRevisionPackageId?: string | null;
+  source: "manual";
   actorId: string;
   idempotencyKey: string;
   requestFingerprint: string;
   draftName?: string;
 };
 
-export type CreateCanonicalBomDraftFromSolidWorksXlsInput = Omit<
-  CreateCanonicalBomDraftInput,
-  "source" | "sourceSubmissionId" | "sourceRevisionPackageId"
-> & {
-  originalFilename: string;
-  fileBuffer: Buffer;
-  contentType?: string | null;
-  profileName?: string;
-  profileVersion?: string;
-};
-
 export type CreateCanonicalBomDraftResult = {
   draft: BomWorkbenchDraftDetail;
   replayed: boolean;
-  importJob?: BomImportJob;
 };
 
 export class BomCreateIdempotencyConflictError extends Error {
@@ -267,29 +223,6 @@ export class BomRevisionConflictError extends Error {
     super(code);
   }
 }
-
-type AssemblyDraftLine = {
-  childPartNumber: string;
-  childRevision: string | null;
-  quantity: number;
-  sourceReferenceId: string | null;
-  sourceFilename: string | null;
-};
-
-type SolidWorksBomImportLine = {
-  childPartNumber: string;
-  childRevision: string | null;
-  quantity: number;
-  sourceReferenceId: string;
-  rowNumbers: number[];
-};
-
-type SolidWorksBomParseResult = {
-  format: "delimited" | "html" | "spreadsheetml";
-  rawRowCount: number;
-  lines: SolidWorksBomImportLine[];
-  warnings: string[];
-};
 
 type AsyncBomReleaseGateSubmissionRow = {
   item_id: string;
@@ -326,35 +259,8 @@ type NormalizedFloatingTopic = {
 };
 
 const BOM_WORKBENCH_SOURCE_PRIORITY = {
-  cad_reference: 10,
-  solidworks_xls: 20,
   manual: 30
 } as const;
-
-const SOLIDWORKS_BOM_IMPORT_PROFILE_NAME = "solidworks_bom_default";
-const SOLIDWORKS_BOM_IMPORT_PROFILE_VERSION = "v1";
-const BOM_IMPORT_ROW_YIELD_INTERVAL = 250;
-const BOM_IMPORT_CHARACTER_YIELD_INTERVAL = 16 * 1024;
-const BOM_IMPORT_DELIMITER_SAMPLE_CHARACTERS = 64 * 1024;
-
-const SOLIDWORKS_BOM_IMPORT_PROFILE_MAPPING = {
-  acceptedFormats: ["tsv", "csv", "excel_html", "spreadsheetml_xml"],
-  columns: {
-    partNumber: ["part number", "part no", "part no.", "partno", "part_number", "component", "component part number"],
-    revision: ["revision", "rev", "rev.", "version"],
-    quantity: ["quantity", "qty", "qty.", "q'ty"],
-    description: ["description", "desc", "part name", "name"]
-  }
-} as const;
-
-export class BomXlsImportError extends Error {
-  constructor(
-    public readonly code: string,
-    message?: string
-  ) {
-    super(message ?? code);
-  }
-}
 
 export class BomReleaseGateError extends Error {
   issues: BomReleaseGateIssue[];
@@ -588,34 +494,14 @@ export const SELECT_ASYNC_BOM_WORKBENCH_ITEM_BY_PART_NUMBER_SQL = `
   LIMIT 1
 `;
 
-export const SELECT_ASYNC_BOM_WORKBENCH_ASSEMBLY_REFERENCES_SQL = `
-  SELECT *
-  FROM file_references
-  WHERE submission_id = :submissionId
-    AND reference_type = 'assembly_component'
-    AND referenced_part_number IS NOT NULL
-    AND trim(referenced_part_number) <> ''
-  ORDER BY source_filename ASC, referenced_part_number ASC, referenced_revision ASC, referenced_filename ASC
-`;
-
-export const INSERT_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
-  INSERT INTO bom_drafts (
-    id, parent_item_id, parent_submission_id, parent_revision, draft_name, status, source,
-    is_active, line_count, review_attempt, created_by, updated_by, created_at, updated_at
-  ) VALUES (
-    :id, :parentItemId, :parentSubmissionId, :parentRevision, :draftName, :status, :source,
-    :isActive, :lineCount, :reviewAttempt, :createdBy, :updatedBy, :createdAt, :updatedAt
-  )
-`;
-
 export const INSERT_ASYNC_CANONICAL_BOM_DRAFT_SQL = `
   INSERT INTO bom_drafts (
-    id, company_id, owner_part_number_id, bom_revision, source_submission_id, source_revision_package_id, identity_authority,
+    id, company_id, owner_part_number_id, bom_revision, identity_authority,
     parent_item_id, parent_submission_id, parent_revision, draft_name, status, source,
     is_active, line_count, review_attempt, created_by, updated_by, created_at, updated_at
   ) VALUES (
-    :id, :companyId, :ownerPartNumberId, :bomRevision, :sourceSubmissionId, :sourceRevisionPackageId, 'canonical_part_number',
-    :parentItemId, :parentSubmissionId, NULL, :draftName, 'Draft', :source,
+    :id, :companyId, :ownerPartNumberId, :bomRevision, 'canonical_part_number',
+    :parentItemId, NULL, NULL, :draftName, 'Draft', :source,
     1, :lineCount, 0, :createdBy, :updatedBy, :createdAt, :updatedAt
   )
 `;
@@ -667,61 +553,6 @@ export const INSERT_ASYNC_BOM_DRAFT_FLOATING_TOPIC_SQL = `
     :id, :draftId, :parentFloatingTopicId, :nodeType, :itemId, :partNumber, :revision, :groupName,
     :quantity, :sequenceNo, :rootPositionX, :rootPositionY, 'manual',
     :createdBy, :updatedBy, :createdAt, :updatedAt
-  )
-`;
-
-export const SELECT_ASYNC_BOM_IMPORT_PROFILE_SQL = `
-  SELECT *
-  FROM bom_import_profiles
-  WHERE profile_name = :profileName
-    AND version = :version
-`;
-
-export const UPDATE_ASYNC_BOM_IMPORT_PROFILE_SQL = `
-  UPDATE bom_import_profiles
-  SET mapping_json = :mappingJson,
-      is_active = 1
-  WHERE id = :id
-`;
-
-export const INSERT_ASYNC_BOM_IMPORT_PROFILE_SQL = `
-  INSERT INTO bom_import_profiles (id, profile_name, source_type, version, mapping_json, is_active, created_at)
-  VALUES (:id, :profileName, :sourceType, :version, :mappingJson, :isActive, :createdAt)
-`;
-
-export const SELECT_ASYNC_BOM_IMPORT_JOB_SQL = `
-  SELECT *
-  FROM bom_import_jobs
-  WHERE id = :importJobId
-`;
-
-export const INSERT_ASYNC_BOM_IMPORT_JOB_SQL = `
-  INSERT INTO bom_import_jobs (
-    id, bom_draft_id, parent_submission_id, import_profile_id, source_asset_id, original_filename,
-    status, row_count, error_json, created_by, created_at
-  ) VALUES (
-    :id, :draftId, :parentSubmissionId, :importProfileId, :sourceAssetId, :originalFilename,
-    :status, :rowCount, :errorJson, :createdBy, :createdAt
-  )
-`;
-
-export const INSERT_ASYNC_CANONICAL_BOM_IMPORT_JOB_SQL = `
-  INSERT INTO bom_import_jobs (
-    id, bom_draft_id, owner_part_number_id, bom_revision, source_submission_id, parent_submission_id,
-    import_profile_id, source_asset_id, original_filename, status, row_count, error_json, created_by, created_at
-  ) VALUES (
-    :id, :draftId, :ownerPartNumberId, :bomRevision, NULL, NULL,
-    :importProfileId, :sourceAssetId, :originalFilename, :status, :rowCount, :errorJson, :createdBy, :createdAt
-  )
-`;
-
-export const INSERT_ASYNC_FILE_ASSET_SQL = `
-  INSERT INTO file_assets (
-    id, storage_provider, original_path, storage_key, file_name, file_ext, file_size,
-    content_hash, hash_algorithm, linked_entity_type, linked_entity_id, revision, sync_status, created_at, updated_at
-  ) VALUES (
-    :id, :storageProvider, :originalPath, :storageKey, :fileName, :fileExt, :fileSize,
-    :contentHash, :hashAlgorithm, :linkedEntityType, :linkedEntityId, :revision, :syncStatus, :createdAt, :updatedAt
   )
 `;
 
@@ -1009,11 +840,11 @@ export const OBSOLETE_ASYNC_BOM_WORKBENCH_DRAFT_SQL = `
 
 export const INSERT_ASYNC_BOM_WORKBENCH_RELEASE_SNAPSHOT_SQL = `
   INSERT INTO bom_release_snapshots (
-    id, bom_draft_id, company_id, owner_part_number_id, bom_revision, source_submission_id, source_revision_package_id,
+    id, bom_draft_id, company_id, owner_part_number_id, bom_revision, source_submission_id,
     parent_item_id, parent_submission_id, parent_revision,
     line_snapshot_json, line_count, released_by, released_at
   ) VALUES (
-    :id, :draftId, :companyId, :ownerPartNumberId, :bomRevision, :sourceSubmissionId, :sourceRevisionPackageId,
+    :id, :draftId, :companyId, :ownerPartNumberId, :bomRevision, :sourceSubmissionId,
     :parentItemId, :parentSubmissionId, :parentRevision,
     :lineSnapshotJson, :lineCount, :releasedBy, :releasedAt
   )
@@ -1178,17 +1009,6 @@ export class AsyncBomWorkbenchRepository {
     const replay = await this.getCanonicalCreateReplay(input);
     if (replay) return replay;
     await this.assertCanonicalRevisionAvailable(input);
-    if (input.source === "cad_reference" && !input.sourceSubmissionId && !input.sourceRevisionPackageId) {
-      throw new Error("BOM_CAD_SOURCE_SUBMISSION_REQUIRED");
-    }
-    if (input.sourceSubmissionId && input.sourceRevisionPackageId) throw new Error("BOM_CAD_SOURCE_AMBIGUOUS");
-
-    const references = input.sourceSubmissionId
-      ? await this.client.query<FileReference>(SELECT_ASYNC_BOM_WORKBENCH_ASSEMBLY_REFERENCES_SQL, {
-          submissionId: input.sourceSubmissionId
-        })
-      : [];
-    const lines = input.source === "cad_reference" ? mergeAssemblyReferences(references) : [];
     const now = this.clock();
     const draftId = this.idFactory();
     const draftName = input.draftName?.trim() || `${input.ownerPartNumber} BOM Rev ${input.bomRevision}`;
@@ -1208,74 +1028,42 @@ export class AsyncBomWorkbenchRepository {
         companyId: input.companyId,
         ownerPartNumberId: input.ownerPartNumberId,
         bomRevision: input.bomRevision,
-        sourceSubmissionId: input.sourceSubmissionId ?? null,
-        sourceRevisionPackageId: input.sourceRevisionPackageId ?? null,
         parentItemId: input.legacyItemId,
-        parentSubmissionId: input.sourceSubmissionId ?? null,
         draftName,
         source: input.source,
-        lineCount: lines.length,
+        lineCount: 0,
         createdBy: input.actorId,
         updatedBy: input.actorId,
         createdAt: now,
         updatedAt: now
       });
 
-      for (const [index, line] of lines.entries()) {
-        const childItem = await client.queryOne<{ id: string }>(
-          `SELECT id FROM items WHERE company_id = :companyId AND upper(part_number) = upper(:partNumber) LIMIT 1`,
-          { companyId: input.companyId, partNumber: line.childPartNumber }
-        );
-        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_DRAFT_LINE_SQL, {
-          id: this.idFactory(),
-          draftId,
-          parentLineId: null,
-          nodeType: "item",
-          itemId: childItem?.id ?? null,
-          partNumber: line.childPartNumber,
-          revision: null,
-          groupName: null,
-          quantity: line.quantity,
-          sequenceNo: index + 1,
-          source: input.source,
-          sourcePriority: BOM_WORKBENCH_SOURCE_PRIORITY[input.source],
-          sourceRefId: line.sourceReferenceId,
-          sourceFilename: line.sourceFilename,
-          createdBy: input.actorId,
-          updatedBy: input.actorId,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
         id: this.idFactory(),
         draftId,
         actorId: input.actorId,
-        eventType: input.source === "cad_reference" ? "create_from_assembly" : "create_manual",
+        eventType: "create_manual",
         beforeJson: null,
         afterJson: JSON.stringify({
           draftId,
           ownerPartNumberId: input.ownerPartNumberId,
           bomRevision: input.bomRevision,
           source: input.source,
-          sourceRevisionPackageId: input.sourceRevisionPackageId ?? null,
-          lineCount: lines.length
+          lineCount: 0
         }),
         reason: "Create canonical material-owned BOM draft",
         createdAt: now
       });
       await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
         id: this.idFactory(),
-        submissionId: input.sourceSubmissionId ?? null,
+        submissionId: null,
         actorId: input.actorId,
         action: "CanonicalBomDraftCreated",
         detailJson: JSON.stringify({
           draftId,
           ownerPartNumberId: input.ownerPartNumberId,
           bomRevision: input.bomRevision,
-          source: input.source,
-          sourceRevisionPackageId: input.sourceRevisionPackageId ?? null
+          source: input.source
         }),
         createdAt: now
       });
@@ -1305,172 +1093,6 @@ export class AsyncBomWorkbenchRepository {
     return { draft, replayed: result.replayed };
   }
 
-  async createCanonicalDraftFromSolidWorksXls(
-    input: CreateCanonicalBomDraftFromSolidWorksXlsInput
-  ): Promise<CreateCanonicalBomDraftResult> {
-    const replay = await this.getCanonicalCreateReplay(input);
-    if (replay) return replay;
-    await this.assertCanonicalRevisionAvailable(input);
-
-    const originalFilename = sanitizeFilename(input.originalFilename || "solidworks-bom.xls");
-    if (input.fileBuffer.byteLength === 0) throw new BomXlsImportError("BOM_XLS_EMPTY_FILE");
-    const uploadValidation = validateStorageUploadFile(
-      { name: originalFilename, size: input.fileBuffer.byteLength },
-      getStorageUploadPolicy()
-    );
-    if (!uploadValidation.ok) throw new BomXlsImportError("BOM_XLS_FILE_TOO_LARGE");
-    const parsed = await parseSolidWorksBomImport(input.fileBuffer);
-    const now = this.clock();
-    const draftId = this.idFactory();
-    const importJobId = this.idFactory();
-    const asset = await saveBomImportOriginalFile({
-      importJobId,
-      originalFilename,
-      fileBuffer: input.fileBuffer,
-      parentSubmissionId: input.ownerPartNumberId,
-      now
-    });
-    const draftName = input.draftName?.trim() || `${input.ownerPartNumber} BOM Rev ${input.bomRevision}`;
-
-    const create = async (client: AsyncDatabaseClient) => {
-      const concurrentReplay = await this.getCanonicalCreateReplay(input, client);
-      if (concurrentReplay) return { draftId: concurrentReplay.draft.id, replayed: true, importJobId: null as string | null };
-      await this.assertCanonicalRevisionAvailable(input, client);
-      const profile = await this.ensureSolidWorksBomImportProfile(client, {
-        profileName: input.profileName,
-        profileVersion: input.profileVersion,
-        now
-      });
-      await client.execute(DEACTIVATE_ASYNC_CANONICAL_BOM_ACTIVE_DRAFTS_SQL, {
-        ownerPartNumberId: input.ownerPartNumberId,
-        bomRevision: input.bomRevision,
-        updatedAt: now
-      });
-      await client.execute(INSERT_ASYNC_CANONICAL_BOM_DRAFT_SQL, {
-        id: draftId,
-        companyId: input.companyId,
-        ownerPartNumberId: input.ownerPartNumberId,
-        bomRevision: input.bomRevision,
-        sourceSubmissionId: null,
-        parentItemId: input.legacyItemId,
-        parentSubmissionId: null,
-        draftName,
-        source: "solidworks_xls",
-        lineCount: parsed.lines.length,
-        createdBy: input.actorId,
-        updatedBy: input.actorId,
-        createdAt: now,
-        updatedAt: now
-      });
-      await client.execute(INSERT_ASYNC_FILE_ASSET_SQL, {
-        id: asset.id,
-        storageProvider: "external",
-        originalPath: asset.localPath,
-        storageKey: asset.storageKey,
-        fileName: originalFilename,
-        fileExt: path.extname(originalFilename).replace(".", "").toLowerCase(),
-        fileSize: input.fileBuffer.byteLength,
-        contentHash: asset.sha256,
-        hashAlgorithm: "SHA-256",
-        linkedEntityType: "bom_import_job",
-        linkedEntityId: importJobId,
-        revision: input.bomRevision,
-        syncStatus: "local_only",
-        createdAt: now,
-        updatedAt: now
-      });
-      for (const [index, line] of parsed.lines.entries()) {
-        const childItem = await client.queryOne<{ id: string }>(
-          `SELECT id FROM items WHERE company_id = :companyId AND upper(part_number) = upper(:partNumber) LIMIT 1`,
-          { companyId: input.companyId, partNumber: line.childPartNumber }
-        );
-        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_DRAFT_LINE_SQL, {
-          id: this.idFactory(),
-          draftId,
-          parentLineId: null,
-          nodeType: "item",
-          itemId: childItem?.id ?? null,
-          partNumber: line.childPartNumber,
-          revision: null,
-          groupName: null,
-          quantity: line.quantity,
-          sequenceNo: index + 1,
-          source: "solidworks_xls",
-          sourcePriority: BOM_WORKBENCH_SOURCE_PRIORITY.solidworks_xls,
-          sourceRefId: line.sourceReferenceId,
-          sourceFilename: originalFilename,
-          createdBy: input.actorId,
-          updatedBy: input.actorId,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-      await client.execute(INSERT_ASYNC_CANONICAL_BOM_IMPORT_JOB_SQL, {
-        id: importJobId,
-        draftId,
-        ownerPartNumberId: input.ownerPartNumberId,
-        bomRevision: input.bomRevision,
-        importProfileId: profile.id,
-        sourceAssetId: asset.id,
-        originalFilename,
-        status: "Imported",
-        rowCount: parsed.rawRowCount,
-        errorJson: JSON.stringify({ format: parsed.format, sha256: asset.sha256, warnings: parsed.warnings }),
-        createdBy: input.actorId,
-        createdAt: now
-      });
-      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
-        id: this.idFactory(),
-        draftId,
-        actorId: input.actorId,
-        eventType: "import_solidworks_xls",
-        beforeJson: null,
-        afterJson: JSON.stringify({ draftId, importJobId, ownerPartNumberId: input.ownerPartNumberId, bomRevision: input.bomRevision }),
-        reason: "Import canonical material-owned BOM draft from SolidWorks XLS",
-        createdAt: now
-      });
-      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
-        id: this.idFactory(),
-        submissionId: null,
-        actorId: input.actorId,
-        action: "CanonicalBomDraftImported",
-        detailJson: JSON.stringify({ draftId, importJobId, ownerPartNumberId: input.ownerPartNumberId, bomRevision: input.bomRevision }),
-        createdAt: now
-      });
-      await client.execute(INSERT_ASYNC_BOM_CREATE_EFFECT_SQL, {
-        id: this.idFactory(),
-        companyId: input.companyId,
-        actorId: input.actorId,
-        idempotencyKey: input.idempotencyKey,
-        requestFingerprint: input.requestFingerprint,
-        draftId,
-        outcomeJson: JSON.stringify({ draftId, importJobId, source: "solidworks_xls" }),
-        createdAt: now
-      });
-      return { draftId, replayed: false, importJobId };
-    };
-
-    let result: { draftId: string; replayed: boolean; importJobId: string | null };
-    try {
-      result = await this.client.transaction(create);
-    } catch (error) {
-      await removeBomImportOriginalFile(asset);
-      const replayAfterConcurrentCommit = await this.getCanonicalCreateReplay(input);
-      if (replayAfterConcurrentCommit) return replayAfterConcurrentCommit;
-      throw error;
-    }
-    if (result.replayed) await removeBomImportOriginalFile(asset);
-    const draft = await this.getDraftById(result.draftId);
-    if (!draft) throw new Error("BOM_CREATE_RESULT_NOT_FOUND");
-    const importJob = result.importJobId
-      ? await this.client.queryOne<BomImportJob>(SELECT_ASYNC_BOM_IMPORT_JOB_SQL, { importJobId: result.importJobId })
-      : await this.client.queryOne<BomImportJob>(
-          `SELECT * FROM bom_import_jobs WHERE bom_draft_id = :draftId ORDER BY created_at DESC, id DESC LIMIT 1`,
-          { draftId: result.draftId }
-        );
-    return { draft, replayed: result.replayed, importJob: importJob ? coerceImportJob(importJob) : undefined };
-  }
-
   private async getCanonicalCreateReplay(
     input: Pick<CreateCanonicalBomDraftInput, "companyId" | "actorId" | "idempotencyKey" | "requestFingerprint">,
     client: AsyncDatabaseClient = this.client
@@ -1484,11 +1106,7 @@ export class AsyncBomWorkbenchRepository {
     if (effect.request_fingerprint !== input.requestFingerprint) throw new BomCreateIdempotencyConflictError();
     const draft = await this.getDraftById(effect.draft_id);
     if (!draft) throw new Error("BOM_CREATE_EFFECT_DRAFT_NOT_FOUND");
-    const importJob = await client.queryOne<BomImportJob>(
-      `SELECT * FROM bom_import_jobs WHERE bom_draft_id = :draftId ORDER BY created_at DESC, id DESC LIMIT 1`,
-      { draftId: effect.draft_id }
-    );
-    return { draft, replayed: true, importJob: importJob ? coerceImportJob(importJob) : undefined };
+    return { draft, replayed: true };
   }
 
   private async assertCanonicalRevisionAvailable(
@@ -1527,307 +1145,6 @@ export class AsyncBomWorkbenchRepository {
         .map((entry) => entry.parsed.major)
     );
     if (requested.major <= latestReleasedMajor) throw new BomRevisionConflictError("BOM_REVISION_NOT_FORWARD");
-  }
-
-  async createDraftFromAssembly(input: CreateAsyncBomWorkbenchDraftFromAssemblyInput): Promise<BomWorkbenchDraftDetail | null> {
-    const parent = await this.client.queryOne<BomWorkbenchParentRow>(SELECT_ASYNC_BOM_WORKBENCH_PARENT_SQL, {
-      submissionId: input.submissionId
-    });
-    if (!parent) return null;
-
-    const references = await this.client.query<FileReference>(SELECT_ASYNC_BOM_WORKBENCH_ASSEMBLY_REFERENCES_SQL, {
-      submissionId: input.submissionId
-    });
-    const now = this.clock();
-    const draftId = this.idFactory();
-    const draftName = input.draftName?.trim() || `Assembly Draft ${now.slice(0, 10)}`;
-    const lines = mergeAssemblyReferences(references);
-    const setActive = input.setActive ?? true;
-
-    const create = async (client: AsyncDatabaseClient) => {
-      if (setActive) {
-        await client.execute(DEACTIVATE_ASYNC_BOM_WORKBENCH_ACTIVE_DRAFTS_SQL, {
-          parentItemId: parent.parent_item_id,
-          parentRevision: parent.parent_revision,
-          updatedAt: now
-        });
-      }
-
-      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_DRAFT_SQL, {
-        id: draftId,
-        parentItemId: parent.parent_item_id,
-        parentSubmissionId: parent.parent_submission_id,
-        parentRevision: parent.parent_revision,
-        draftName,
-        status: "Draft",
-        source: "cad_reference",
-        isActive: setActive ? 1 : 0,
-        lineCount: lines.length,
-        reviewAttempt: 0,
-        createdBy: input.actorId,
-        updatedBy: input.actorId,
-        createdAt: now,
-        updatedAt: now
-      });
-
-      for (const [index, line] of lines.entries()) {
-        const childItem = await client.queryOne<{ id: string }>(SELECT_ASYNC_BOM_WORKBENCH_ITEM_BY_PART_NUMBER_SQL, {
-          partNumber: line.childPartNumber
-        });
-        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_DRAFT_LINE_SQL, {
-          id: this.idFactory(),
-          draftId,
-          parentLineId: null,
-          nodeType: "item",
-          itemId: childItem?.id ?? null,
-          partNumber: line.childPartNumber,
-          revision: line.childRevision,
-          groupName: null,
-          quantity: line.quantity,
-          sequenceNo: index + 1,
-          source: "cad_reference",
-          sourcePriority: BOM_WORKBENCH_SOURCE_PRIORITY.cad_reference,
-          sourceRefId: line.sourceReferenceId,
-          sourceFilename: line.sourceFilename,
-          createdBy: input.actorId,
-          updatedBy: input.actorId,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-
-      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
-        id: this.idFactory(),
-        draftId,
-        actorId: input.actorId,
-        eventType: "create_from_assembly",
-        beforeJson: null,
-        afterJson: JSON.stringify({ draftId, lineCount: lines.length, sourceReferenceCount: references.length, setActive }),
-        reason: "Create BOM workbench draft from assembly references",
-        createdAt: now
-      });
-      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
-        id: this.idFactory(),
-        submissionId: input.submissionId,
-        actorId: input.actorId,
-        action: "BomWorkbenchDraftCreated",
-        detailJson: JSON.stringify({
-          draftId,
-          source: "cad_reference",
-          lineCount: lines.length,
-          sourceReferenceCount: references.length,
-          setActive
-        }),
-        createdAt: now
-      });
-    };
-
-    if (this.client.kind === "postgres") {
-      await this.client.transaction(create);
-    } else {
-      await create(this.client);
-    }
-
-    return this.getDraftById(draftId);
-  }
-
-  async createDraftFromSolidWorksXls(
-    input: CreateAsyncBomWorkbenchDraftFromSolidWorksXlsInput
-  ): Promise<CreateAsyncBomWorkbenchDraftFromSolidWorksXlsResult | null> {
-    const parent = await this.client.queryOne<BomWorkbenchParentRow>(SELECT_ASYNC_BOM_WORKBENCH_PARENT_SQL, {
-      submissionId: input.submissionId
-    });
-    if (!parent) return null;
-
-    const originalFilename = sanitizeFilename(input.originalFilename || "solidworks-bom.xls");
-    if (input.fileBuffer.byteLength === 0) throw new BomXlsImportError("BOM_XLS_EMPTY_FILE");
-    const uploadValidation = validateStorageUploadFile(
-      { name: originalFilename, size: input.fileBuffer.byteLength },
-      getStorageUploadPolicy()
-    );
-    if (!uploadValidation.ok) {
-      throw new BomXlsImportError(
-        "BOM_XLS_FILE_TOO_LARGE",
-        `BOM import file exceeds the configured upload limit of ${uploadValidation.maxUploadFileBytes} bytes.`
-      );
-    }
-
-    const parsed = await parseSolidWorksBomImport(input.fileBuffer);
-    const now = this.clock();
-    const draftId = this.idFactory();
-    const importJobId = this.idFactory();
-    const asset = await saveBomImportOriginalFile({
-      importJobId,
-      originalFilename,
-      fileBuffer: input.fileBuffer,
-      parentSubmissionId: parent.parent_submission_id,
-      now
-    });
-    await yieldToEventLoop();
-    const draftName = input.draftName?.trim() || `SolidWorks XLS ${now.slice(0, 10)}`;
-    const setActive = input.setActive ?? true;
-
-    const create = async (client: AsyncDatabaseClient) => {
-      const profile = await this.ensureSolidWorksBomImportProfile(client, {
-        profileName: input.profileName,
-        profileVersion: input.profileVersion,
-        now
-      });
-
-      if (setActive) {
-        await client.execute(DEACTIVATE_ASYNC_BOM_WORKBENCH_ACTIVE_DRAFTS_SQL, {
-          parentItemId: parent.parent_item_id,
-          parentRevision: parent.parent_revision,
-          updatedAt: now
-        });
-      }
-
-      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_DRAFT_SQL, {
-        id: draftId,
-        parentItemId: parent.parent_item_id,
-        parentSubmissionId: parent.parent_submission_id,
-        parentRevision: parent.parent_revision,
-        draftName,
-        status: "Draft",
-        source: "solidworks_xls",
-        isActive: setActive ? 1 : 0,
-        lineCount: parsed.lines.length,
-        reviewAttempt: 0,
-        createdBy: input.actorId,
-        updatedBy: input.actorId,
-        createdAt: now,
-        updatedAt: now
-      });
-
-      await client.execute(INSERT_ASYNC_FILE_ASSET_SQL, {
-        id: asset.id,
-        storageProvider: "external",
-        originalPath: asset.localPath,
-        storageKey: asset.storageKey,
-        fileName: originalFilename,
-        fileExt: path.extname(originalFilename).replace(".", "").toLowerCase(),
-        fileSize: input.fileBuffer.byteLength,
-        contentHash: asset.sha256,
-        hashAlgorithm: "SHA-256",
-        linkedEntityType: "bom_import_job",
-        linkedEntityId: importJobId,
-        revision: parent.parent_revision,
-        syncStatus: "local_only",
-        createdAt: now,
-        updatedAt: now
-      });
-      if (client.kind === "postgres") await yieldToEventLoop();
-
-      for (const [index, line] of parsed.lines.entries()) {
-        if (client.kind === "postgres" && index > 0 && index % BOM_IMPORT_ROW_YIELD_INTERVAL === 0) await yieldToEventLoop();
-        const childItem = await client.queryOne<{ id: string }>(SELECT_ASYNC_BOM_WORKBENCH_ITEM_BY_PART_NUMBER_SQL, {
-          partNumber: line.childPartNumber
-        });
-        await client.execute(INSERT_ASYNC_BOM_WORKBENCH_DRAFT_LINE_SQL, {
-          id: this.idFactory(),
-          draftId,
-          parentLineId: null,
-          nodeType: "item",
-          itemId: childItem?.id ?? null,
-          partNumber: line.childPartNumber,
-          revision: line.childRevision,
-          groupName: null,
-          quantity: line.quantity,
-          sequenceNo: index + 1,
-          source: "solidworks_xls",
-          sourcePriority: BOM_WORKBENCH_SOURCE_PRIORITY.solidworks_xls,
-          sourceRefId: line.sourceReferenceId,
-          sourceFilename: originalFilename,
-          createdBy: input.actorId,
-          updatedBy: input.actorId,
-          createdAt: now,
-          updatedAt: now
-        });
-        if (client.kind === "postgres" && ((index + 1) % BOM_IMPORT_ROW_YIELD_INTERVAL === 0 || index === parsed.lines.length - 1)) {
-          await yieldToEventLoop();
-        }
-      }
-
-      await client.execute(INSERT_ASYNC_BOM_IMPORT_JOB_SQL, {
-        id: importJobId,
-        draftId,
-        parentSubmissionId: parent.parent_submission_id,
-        importProfileId: profile.id,
-        sourceAssetId: asset.id,
-        originalFilename,
-        status: "Imported",
-        rowCount: parsed.rawRowCount,
-        errorJson: JSON.stringify({
-          format: parsed.format,
-          sha256: asset.sha256,
-          storageKey: asset.storageKey,
-          transformedLineCount: parsed.lines.length,
-          warnings: parsed.warnings
-        }),
-        createdBy: input.actorId,
-        createdAt: now
-      });
-      if (client.kind === "postgres") await yieldToEventLoop();
-
-      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_EDIT_EVENT_SQL, {
-        id: this.idFactory(),
-        draftId,
-        actorId: input.actorId,
-        eventType: "import_solidworks_xls",
-        beforeJson: null,
-        afterJson: JSON.stringify({
-          draftId,
-          importJobId,
-          originalFilename,
-          sourceAssetId: asset.id,
-          profileName: profile.profile_name,
-          profileVersion: profile.version,
-          rawRowCount: parsed.rawRowCount,
-          lineCount: parsed.lines.length,
-          setActive
-        }),
-        reason: "Import BOM workbench draft from SolidWorks BOM XLS",
-        createdAt: now
-      });
-      if (client.kind === "postgres") await yieldToEventLoop();
-
-      await client.execute(INSERT_ASYNC_BOM_WORKBENCH_AUDIT_LOG_SQL, {
-        id: this.idFactory(),
-        submissionId: input.submissionId,
-        actorId: input.actorId,
-        action: "BomWorkbenchDraftImported",
-        detailJson: JSON.stringify({
-          draftId,
-          importJobId,
-          source: "solidworks_xls",
-          originalFilename,
-          sourceAssetId: asset.id,
-          profileName: profile.profile_name,
-          profileVersion: profile.version,
-          rawRowCount: parsed.rawRowCount,
-          lineCount: parsed.lines.length,
-          setActive
-        }),
-        createdAt: now
-      });
-    };
-
-    try {
-      await this.client.transaction(create);
-    } catch (error) {
-      try {
-        await removeBomImportOriginalFile(asset);
-      } catch (compensationError) {
-        throw new AggregateError([error, compensationError], "BOM_XLS_IMPORT_COMPENSATION_FAILED");
-      }
-      throw error;
-    }
-    await yieldToEventLoop();
-
-    const draft = await this.getDraftById(draftId);
-    const importJob = await this.client.queryOne<BomImportJob>(SELECT_ASYNC_BOM_IMPORT_JOB_SQL, { importJobId });
-    if (!draft || !importJob) throw new Error("BOM_XLS_IMPORT_RESULT_NOT_FOUND");
-    return { draft, importJob: coerceImportJob(importJob) };
   }
 
   async listPendingReviews(): Promise<BomWorkbenchPendingReview[]> {
@@ -2395,7 +1712,6 @@ export class AsyncBomWorkbenchRepository {
         ownerPartNumberId: draft.owner_part_number_id,
         bomRevision: draft.bom_revision,
         sourceSubmissionId: draft.source_submission_id,
-        sourceRevisionPackageId: draft.source_revision_package_id ?? null,
         parentItemId: draft.parent_item_id || null,
         parentSubmissionId: draft.source_submission_id || draft.parent_submission_id || null,
         parentRevision: draft.identity_authority === "canonical_part_number" ? null : draft.parent_revision,
@@ -2845,56 +2161,6 @@ export class AsyncBomWorkbenchRepository {
       sequenceNo
     };
   }
-
-  private async ensureSolidWorksBomImportProfile(
-    client: AsyncDatabaseClient,
-    input: { profileName?: string; profileVersion?: string; now: string }
-  ): Promise<BomImportProfile> {
-    const profileName = input.profileName?.trim() || SOLIDWORKS_BOM_IMPORT_PROFILE_NAME;
-    const version = input.profileVersion?.trim() || SOLIDWORKS_BOM_IMPORT_PROFILE_VERSION;
-    const mappingJson = JSON.stringify(SOLIDWORKS_BOM_IMPORT_PROFILE_MAPPING);
-    const existing = await client.queryOne<BomImportProfile>(SELECT_ASYNC_BOM_IMPORT_PROFILE_SQL, {
-      profileName,
-      version
-    });
-    if (existing) {
-      if (existing.mapping_json !== mappingJson || numberValue(existing.is_active) !== 1) {
-        await client.execute(UPDATE_ASYNC_BOM_IMPORT_PROFILE_SQL, {
-          id: existing.id,
-          mappingJson
-        });
-        return {
-          ...existing,
-          mapping_json: mappingJson,
-          is_active: 1
-        };
-      }
-      return {
-        ...existing,
-        is_active: numberValue(existing.is_active)
-      };
-    }
-
-    const profile: BomImportProfile = {
-      id: this.idFactory(),
-      profile_name: profileName,
-      source_type: "solidworks_xls",
-      version,
-      mapping_json: mappingJson,
-      is_active: 1,
-      created_at: input.now
-    };
-    await client.execute(INSERT_ASYNC_BOM_IMPORT_PROFILE_SQL, {
-      id: profile.id,
-      profileName: profile.profile_name,
-      sourceType: profile.source_type,
-      version: profile.version,
-      mappingJson: profile.mapping_json,
-      isActive: profile.is_active,
-      createdAt: profile.created_at
-    });
-    return profile;
-  }
 }
 
 function numberValue(value: unknown): number {
@@ -2946,13 +2212,6 @@ function coerceFloatingTopic(row: BomDraftFloatingTopic): BomDraftFloatingTopic 
   };
 }
 
-function coerceImportJob(row: BomImportJob): BomImportJob {
-  return {
-    ...row,
-    row_count: numberValue(row.row_count)
-  };
-}
-
 function auditSubmissionId(draft: BomWorkbenchDraftSummary) {
   return draft.source_submission_id || draft.parent_submission_id || null;
 }
@@ -2985,405 +2244,6 @@ function parseReleaseSnapshot(row: AsyncBomReleaseSnapshotRow): BomReleaseSnapsh
     line_count: numberValue(snapshot.line_count),
     lines
   };
-}
-
-function mergeAssemblyReferences(references: FileReference[]): AssemblyDraftLine[] {
-  const byKey = new Map<string, AssemblyDraftLine>();
-  for (const reference of references) {
-    const childPartNumber = reference.referenced_part_number?.trim();
-    if (!childPartNumber) continue;
-    const childRevision = reference.referenced_revision?.trim() || null;
-    const key = `${childPartNumber.toUpperCase()}::${(childRevision ?? "").toUpperCase()}`;
-    const existing = byKey.get(key);
-    if (existing) {
-      existing.quantity += Number(reference.quantity || 1);
-      continue;
-    }
-    byKey.set(key, {
-      childPartNumber,
-      childRevision,
-      quantity: Number(reference.quantity || 1),
-      sourceReferenceId: reference.id,
-      sourceFilename: reference.source_filename
-    });
-  }
-  return Array.from(byKey.values());
-}
-
-async function saveBomImportOriginalFile(input: {
-  importJobId: string;
-  originalFilename: string;
-  fileBuffer: Buffer;
-  parentSubmissionId: string;
-  now: string;
-}) {
-  const repositoryDir = getRepositoryDir();
-  const date = input.now.slice(0, 10).split("-");
-  const targetDir = path.join(repositoryDir, "bom-imports", date[0] ?? "unknown", date[1] ?? "unknown", input.importJobId);
-  const resolvedTargetDir = path.resolve(targetDir);
-  const localPath = path.resolve(resolvedTargetDir, input.originalFilename);
-  if (path.dirname(localPath) !== resolvedTargetDir) throw new BomXlsImportError("BOM_XLS_FILENAME_INVALID");
-  const sha256 = crypto.createHash("sha256").update(input.fileBuffer).digest("hex");
-
-  const temporaryPath = path.join(resolvedTargetDir, `.${crypto.randomUUID()}.tmp`);
-  let ownsTargetDirectory = false;
-  try {
-    await fs.promises.mkdir(path.dirname(resolvedTargetDir), { recursive: true });
-    await fs.promises.mkdir(resolvedTargetDir);
-    ownsTargetDirectory = true;
-    await fs.promises.writeFile(temporaryPath, input.fileBuffer, { flag: "wx" });
-    await fs.promises.rename(temporaryPath, localPath);
-  } catch (error) {
-    const cleanupErrors = await cleanupBomImportPaths({
-      localPath,
-      temporaryPath,
-      targetDir: ownsTargetDirectory ? resolvedTargetDir : null
-    });
-    if (cleanupErrors.length > 0) {
-      throw new AggregateError([error, ...cleanupErrors], "BOM_XLS_FILE_PERSISTENCE_COMPENSATION_FAILED");
-    }
-    throw error;
-  }
-
-  const storageKey = path.relative(repositoryDir, localPath).replaceAll(path.sep, "/");
-  return {
-    id: crypto.randomUUID(),
-    localPath,
-    targetDir: resolvedTargetDir,
-    storageKey,
-    sha256,
-    parentSubmissionId: input.parentSubmissionId
-  };
-}
-
-async function removeBomImportOriginalFile(asset: { localPath: string; targetDir: string }) {
-  const cleanupErrors = await cleanupBomImportPaths({ localPath: asset.localPath, targetDir: asset.targetDir });
-  if (cleanupErrors.length > 0) throw new AggregateError(cleanupErrors, "BOM_XLS_FILE_COMPENSATION_FAILED");
-}
-
-async function cleanupBomImportPaths(input: { localPath: string; temporaryPath?: string; targetDir: string | null }) {
-  const errors: unknown[] = [];
-  for (const filePath of [input.temporaryPath, input.localPath]) {
-    if (!filePath) continue;
-    try {
-      await fs.promises.rm(filePath, { force: true });
-    } catch (error) {
-      errors.push(error);
-    }
-  }
-  if (input.targetDir) {
-    try {
-      await fs.promises.rmdir(input.targetDir);
-    } catch (error) {
-      if (!isNodeErrorWithCode(error, "ENOENT")) errors.push(error);
-    }
-  }
-  return errors;
-}
-
-function isNodeErrorWithCode(error: unknown, code: string): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error && error.code === code;
-}
-
-async function parseSolidWorksBomImport(fileBuffer: Buffer): Promise<SolidWorksBomParseResult> {
-  rejectUnsupportedBinaryXls(fileBuffer);
-  const text = decodeImportBuffer(fileBuffer).trim();
-  if (!text) throw new BomXlsImportError("BOM_XLS_EMPTY_FILE");
-  await yieldToEventLoop();
-
-  const lower = text.slice(0, 1000).toLowerCase();
-  if (lower.includes("<html") || lower.includes("<table") || lower.includes("<tr")) {
-    const rows = extractHtmlTableRows(text);
-    await yieldToEventLoop();
-    return parseStructuredBomRows(rows, "html");
-  }
-  if (lower.includes("<workbook") || lower.includes("<worksheet") || lower.includes("<row")) {
-    const rows = extractSpreadsheetMlRows(text);
-    await yieldToEventLoop();
-    return parseStructuredBomRows(rows, "spreadsheetml");
-  }
-  const parsed = await parseStructuredBomRows(await parseDelimitedRows(text), "delimited");
-  await yieldToEventLoop();
-  return parsed;
-}
-
-function rejectUnsupportedBinaryXls(fileBuffer: Buffer) {
-  const isOleBinary =
-    fileBuffer.length >= 8 &&
-    fileBuffer[0] === 0xd0 &&
-    fileBuffer[1] === 0xcf &&
-    fileBuffer[2] === 0x11 &&
-    fileBuffer[3] === 0xe0 &&
-    fileBuffer[4] === 0xa1 &&
-    fileBuffer[5] === 0xb1 &&
-    fileBuffer[6] === 0x1a &&
-    fileBuffer[7] === 0xe1;
-  const sample = fileBuffer.subarray(0, Math.min(fileBuffer.length, 4096));
-  const nullByteCount = sample.filter((value) => value === 0).length;
-  const oddNullByteCount = sample.filter((value, index) => index % 2 === 1 && value === 0).length;
-  const isUtf16LeText =
-    (fileBuffer.length >= 2 && fileBuffer[0] === 0xff && fileBuffer[1] === 0xfe) || oddNullByteCount > sample.length / 4;
-  if (isOleBinary || (!isUtf16LeText && nullByteCount > sample.length * 0.1)) {
-    throw new BomXlsImportError(
-      "BOM_XLS_BINARY_UNSUPPORTED",
-      "Binary .xls is not supported by the first SolidWorks BOM import profile. Export SolidWorks BOM as tab-delimited, CSV, Excel HTML, or SpreadsheetML."
-    );
-  }
-}
-
-function decodeImportBuffer(fileBuffer: Buffer) {
-  if (fileBuffer.length >= 2 && fileBuffer[0] === 0xff && fileBuffer[1] === 0xfe) return fileBuffer.subarray(2).toString("utf16le");
-  if (fileBuffer.length >= 3 && fileBuffer[0] === 0xef && fileBuffer[1] === 0xbb && fileBuffer[2] === 0xbf) return fileBuffer.subarray(3).toString("utf8");
-
-  const sample = fileBuffer.subarray(0, Math.min(fileBuffer.length, 200));
-  const oddNulls = sample.filter((value, index) => index % 2 === 1 && value === 0).length;
-  if (oddNulls > sample.length / 4) return fileBuffer.toString("utf16le");
-  return fileBuffer.toString("utf8");
-}
-
-async function parseStructuredBomRows(
-  rows: string[][],
-  format: SolidWorksBomParseResult["format"]
-): Promise<SolidWorksBomParseResult> {
-  const normalizedRows: string[][] = [];
-  for (const [index, row] of rows.entries()) {
-    const normalizedRow = row.map((cell) => normalizeCell(cell));
-    if (normalizedRow.some(Boolean)) normalizedRows.push(normalizedRow);
-    if ((index + 1) % BOM_IMPORT_ROW_YIELD_INTERVAL === 0) await yieldToEventLoop();
-  }
-  const headerIndex = findHeaderRowIndex(normalizedRows);
-  if (headerIndex < 0) throw new BomXlsImportError("BOM_XLS_HEADER_NOT_FOUND");
-
-  const headers = normalizedRows[headerIndex];
-  const partNumberIndex = findColumnIndex(headers, SOLIDWORKS_BOM_IMPORT_PROFILE_MAPPING.columns.partNumber);
-  const quantityIndex = findColumnIndex(headers, SOLIDWORKS_BOM_IMPORT_PROFILE_MAPPING.columns.quantity);
-  const revisionIndex = findColumnIndex(headers, SOLIDWORKS_BOM_IMPORT_PROFILE_MAPPING.columns.revision);
-  if (partNumberIndex < 0) throw new BomXlsImportError("BOM_XLS_PART_NUMBER_COLUMN_REQUIRED");
-  if (quantityIndex < 0) throw new BomXlsImportError("BOM_XLS_QUANTITY_COLUMN_REQUIRED");
-
-  const warnings: string[] = [];
-  const parsedLines: Array<{
-    childPartNumber: string;
-    childRevision: string | null;
-    quantity: number;
-    rowNumber: number;
-  }> = [];
-
-  for (let index = headerIndex + 1; index < normalizedRows.length; index += 1) {
-    const row = normalizedRows[index];
-    const rowNumber = index + 1;
-    const childPartNumber = row[partNumberIndex]?.trim();
-    if (!childPartNumber) continue;
-
-    const quantity = parseQuantity(row[quantityIndex]);
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      throw new BomXlsImportError("BOM_XLS_INVALID_QUANTITY", `Invalid quantity at row ${rowNumber}`);
-    }
-
-    parsedLines.push({
-      childPartNumber,
-      childRevision: revisionIndex >= 0 ? normalizeRevision(row[revisionIndex]) : null,
-      quantity,
-      rowNumber
-    });
-    if ((index - headerIndex) % BOM_IMPORT_ROW_YIELD_INTERVAL === 0) await yieldToEventLoop();
-  }
-
-  if (parsedLines.length === 0) throw new BomXlsImportError("BOM_XLS_NO_LINES");
-  const lines = await mergeSolidWorksBomRows(parsedLines);
-  if (lines.length < parsedLines.length) warnings.push("duplicate_part_revision_rows_merged");
-
-  return {
-    format,
-    rawRowCount: parsedLines.length,
-    lines,
-    warnings
-  };
-}
-
-function findHeaderRowIndex(rows: string[][]) {
-  return rows.findIndex((row) => {
-    const hasPartNumber = findColumnIndex(row, SOLIDWORKS_BOM_IMPORT_PROFILE_MAPPING.columns.partNumber) >= 0;
-    const hasQuantity = findColumnIndex(row, SOLIDWORKS_BOM_IMPORT_PROFILE_MAPPING.columns.quantity) >= 0;
-    return hasPartNumber && hasQuantity;
-  });
-}
-
-function findColumnIndex(headers: string[], aliases: readonly string[]) {
-  const aliasSet = new Set(aliases.map((alias) => normalizeHeader(alias)));
-  return headers.findIndex((header) => aliasSet.has(normalizeHeader(header)));
-}
-
-function normalizeHeader(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_\-./\\]+/g, " ")
-    .replace(/:/g, "")
-    .trim();
-}
-
-function normalizeCell(value: string) {
-  return value.replace(/\uFEFF/g, "").replace(/\u00A0/g, " ").trim();
-}
-
-function normalizeRevision(value: string | undefined) {
-  const revision = value?.trim();
-  if (!revision || revision === "-" || revision.toLowerCase() === "n/a") return null;
-  return revision;
-}
-
-function parseQuantity(value: string | undefined) {
-  const normalized = value?.trim().replace(/,/g, "") ?? "";
-  const match = normalized.match(/^-?\d+(?:\.\d+)?/);
-  return match ? Number(match[0]) : Number.NaN;
-}
-
-async function mergeSolidWorksBomRows(
-  rows: Array<{ childPartNumber: string; childRevision: string | null; quantity: number; rowNumber: number }>
-): Promise<SolidWorksBomImportLine[]> {
-  const byKey = new Map<string, SolidWorksBomImportLine>();
-  for (const [index, row] of rows.entries()) {
-    const key = `${row.childPartNumber.toUpperCase()}::${(row.childRevision ?? "").toUpperCase()}`;
-    const existing = byKey.get(key);
-    if (existing) {
-      existing.quantity += row.quantity;
-      existing.rowNumbers.push(row.rowNumber);
-      existing.sourceReferenceId = `solidworks_rows:${existing.rowNumbers.join(",")}`;
-    } else {
-      byKey.set(key, {
-        childPartNumber: row.childPartNumber,
-        childRevision: row.childRevision,
-        quantity: row.quantity,
-        rowNumbers: [row.rowNumber],
-        sourceReferenceId: `solidworks_rows:${row.rowNumber}`
-      });
-    }
-    if ((index + 1) % BOM_IMPORT_ROW_YIELD_INTERVAL === 0) await yieldToEventLoop();
-  }
-  return Array.from(byKey.values());
-}
-
-async function parseDelimitedRows(text: string) {
-  if (!text) return [];
-  const delimiter = detectDelimiter(text);
-  const rows: string[][] = [];
-  let cells: string[] = [];
-  let cellParts: string[] = [];
-  let segmentStart = 0;
-  let inQuotes = false;
-  let rowHasContent = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    if (index > 0 && index % BOM_IMPORT_CHARACTER_YIELD_INTERVAL === 0) await yieldToEventLoop();
-    const char = text[index];
-    const nextChar = text[index + 1];
-    if (!rowHasContent && char.trim()) rowHasContent = true;
-    if (char === '"' && inQuotes && nextChar === '"') {
-      cellParts.push(text.slice(segmentStart, index), '"');
-      index += 1;
-      segmentStart = index + 1;
-      continue;
-    }
-    if (char === '"') {
-      cellParts.push(text.slice(segmentStart, index));
-      inQuotes = !inQuotes;
-      segmentStart = index + 1;
-      continue;
-    }
-    if (char === delimiter && !inQuotes) {
-      cellParts.push(text.slice(segmentStart, index));
-      cells.push(cellParts.join(""));
-      cellParts = [];
-      segmentStart = index + 1;
-      continue;
-    }
-    if (char === "\r" || char === "\n") {
-      cellParts.push(text.slice(segmentStart, index));
-      cells.push(cellParts.join(""));
-      if (rowHasContent) rows.push(cells);
-      cells = [];
-      cellParts = [];
-      inQuotes = false;
-      if (char === "\r" && nextChar === "\n") index += 1;
-      segmentStart = index + 1;
-      rowHasContent = false;
-    }
-  }
-  cellParts.push(text.slice(segmentStart));
-  cells.push(cellParts.join(""));
-  if (rowHasContent) rows.push(cells);
-  return rows;
-}
-
-function detectDelimiter(text: string) {
-  const candidates = ["\t", ",", ";"];
-  const counts = new Map(candidates.map((delimiter) => [delimiter, 0]));
-  let lineCount = 1;
-  const sampleLength = Math.min(text.length, BOM_IMPORT_DELIMITER_SAMPLE_CHARACTERS);
-  for (let index = 0; index < sampleLength && lineCount <= 5; index += 1) {
-    const char = text[index];
-    if (counts.has(char)) counts.set(char, (counts.get(char) ?? 0) + 1);
-    if (char === "\n") lineCount += 1;
-  }
-  return candidates
-    .map((delimiter) => ({ delimiter, count: counts.get(delimiter) ?? 0 }))
-    .sort((a, b) => b.count - a.count)[0]?.delimiter ?? "\t";
-}
-
-function yieldToEventLoop() {
-  return new Promise<void>((resolve) => setImmediate(resolve));
-}
-
-function extractHtmlTableRows(text: string) {
-  const rows: string[][] = [];
-  for (const rowMatch of text.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
-    const cells: string[] = [];
-    for (const cellMatch of rowMatch[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)) {
-      cells.push(decodeHtmlText(cellMatch[1]));
-    }
-    if (cells.length > 0) rows.push(cells);
-  }
-  return rows;
-}
-
-function extractSpreadsheetMlRows(text: string) {
-  const rows: string[][] = [];
-  for (const rowMatch of text.matchAll(/<Row\b[^>]*>([\s\S]*?)<\/Row>/gi)) {
-    const cells: string[] = [];
-    for (const cellMatch of rowMatch[1].matchAll(/<Cell\b[^>]*>([\s\S]*?)<\/Cell>/gi)) {
-      const dataMatch = cellMatch[1].match(/<Data\b[^>]*>([\s\S]*?)<\/Data>/i);
-      cells.push(decodeHtmlText(dataMatch?.[1] ?? cellMatch[1]));
-    }
-    if (cells.length > 0) rows.push(cells);
-  }
-  return rows;
-}
-
-function decodeHtmlText(value: string) {
-  return value
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&#(\d+);/g, (_match, code) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_match, code) => String.fromCharCode(Number.parseInt(code, 16)));
-}
-
-function sanitizeFilename(filename: string) {
-  const sanitized = filename.replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_").trim();
-  if (!sanitized || sanitized === "." || sanitized === "..") return "solidworks-bom.xls";
-  return sanitized;
-}
-
-function getRepositoryDir() {
-  const configured = process.env.PDM_REPOSITORY_DIR?.trim();
-  if (!configured) return path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "repository");
-  return path.isAbsolute(configured) ? configured : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
 }
 
 function mergeDuplicateSiblingItems(lines: NormalizedWorkbenchTreeLine[]) {

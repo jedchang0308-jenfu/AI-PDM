@@ -45,7 +45,6 @@ const approvalLegacyRedirectSource = read("src/lib/approval-workbench-legacy-red
 const numberingSearchPageSource = read("src/app/numbering/search/page.tsx");
 const numberingDrawingsPageSource = read("src/app/numbering/drawings/page.tsx");
 const numberingImpactPageSource = read("src/app/numbering/impact/page.tsx");
-const numberingTaskCenterPageSource = read("src/app/numbering/tasks/page.tsx");
 const numberingReportCenterPageSource = read("src/app/numbering/reports/page.tsx");
 const sidebarNavSource = read("src/components/sidebar-nav.tsx");
 const packageJson = readJson("package.json");
@@ -764,19 +763,9 @@ record(
   "settings/page.tsx"
 );
 record(
-  "NUM-UI numbering task center renders tasks and notifications",
-  numberingTaskCenterPageSource.includes("待辦中心") && numberingTaskCenterPageSource.includes("通知中心"),
-  "numbering/tasks/page.tsx"
-);
-record(
-  "NUM-UI numbering task center blocks non-dismissible notification action",
-  numberingTaskCenterPageSource.includes("!notification.dismissible") && numberingTaskCenterPageSource.includes("待處理或阻擋通知不可直接關閉"),
-  "numbering/tasks/page.tsx"
-);
-record(
-  "NUM-UI numbering task center renders shared attention markers",
-  numberingTaskCenterPageSource.includes("MarkerList") && numberingTaskCenterPageSource.includes("proxy_submission") && numberingTaskCenterPageSource.includes("impact_scope"),
-  "numbering/tasks/page.tsx"
+  "NUM-UI standalone numbering task center is retired",
+  !sidebarNavSource.includes('href: "/numbering/tasks"'),
+  "sidebar-nav.tsx"
 );
 record(
   "NUM-UI DEV-048 owner workspace renders create flow",
@@ -874,8 +863,8 @@ record(
   "numbering/reports/page.tsx"
 );
 record(
-  "NUM-UI sidebar links numbering task center",
-  sidebarNavSource.includes("/numbering/tasks") && (sidebarNavSource.includes("圖號待辦") || sidebarNavSource.includes("我的待辦")),
+  "NUM-UI sidebar removes standalone numbering task center",
+  !sidebarNavSource.includes("/numbering/tasks") && !sidebarNavSource.includes("我的待辦"),
   "sidebar-nav.tsx"
 );
 record(

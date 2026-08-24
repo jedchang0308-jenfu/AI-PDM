@@ -5,6 +5,7 @@ import {
   unifiedDrawingWorkbenchV1ClientStatus,
   unifiedPartRelationWorkbenchV1ClientStatus,
   workbenchPreviewGalleryClientStatus,
+  partPreviewV1ClientStatus,
   pdmEntityDetailClientStatus,
   drawingRecognitionClientStatus,
   pdmWorkbenchProductionRdLanesV1ClientStatus
@@ -19,6 +20,7 @@ export async function GET() {
     drawingWorkbench: unifiedDrawingWorkbenchV1ClientStatus(),
     partRelationWorkbench: unifiedPartRelationWorkbenchV1ClientStatus(),
     previewGallery: workbenchPreviewGalleryClientStatus(),
+    partPreview: partPreviewV1ClientStatus(),
     entityDetail: pdmEntityDetailClientStatus(),
     drawingRecognition: drawingRecognitionClientStatus(),
     productionRdLanes: pdmWorkbenchProductionRdLanesV1ClientStatus()

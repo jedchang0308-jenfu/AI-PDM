@@ -31,8 +31,9 @@ import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib
 import { evaluateHardApprovalRules as evaluateHardApprovalRulesShared } from "@/lib/numbering-hard-approval-rules";
 import { lowestAvailableSequence } from "@/lib/numbering-sequence-utils";
 import { compareNumberCodes, DEFAULT_NUMBER_SORT_DIRECTION, type NumberSortDirection } from "@/lib/number-sort";
+import { RelationFormalAuthoritySyncRepository } from "@/lib/repositories/relation-formal-authority-sync-repository";
 
-export type NumberingItemKind = "purchased" | "manufactured" | "outsourced" | "shared" | "custom";
+export type NumberingItemKind = "purchased" | "manufactured";
 export type NumberingRecordStatus =
   | "Draft"
   | "NeedInfo"
@@ -1686,7 +1687,7 @@ const NUMBERING_HARD_RULE_CATALOG: NumberingApprovalHardRuleCatalogItem[] = [
   },
   {
     code: "PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF",
-    message: "Technical transfer or release of manufactured, outsourced, and custom items requires a primary manufacturing drawing.",
+    message: "Technical transfer or release of drawing-made items requires a primary manufacturing drawing.",
     requiresApproval: true,
     blocksUsage: true,
     blocksRelease: true,
@@ -2785,16 +2786,9 @@ function allocateRootSequence(database: SqliteDatabase, ruleVersionId: string) {
   return sequenceNo;
 }
 
-function requireUniversalReason(itemKind: NumberingItemKind, isUniversal: boolean, universalReason: string | undefined) {
-  if ((itemKind === "shared" || isUniversal) && !universalReason?.trim()) {
-    throw new Error("UNIVERSAL_PART_REASON_REQUIRED");
-  }
-}
-
 function requireCustomSpecification(itemKind: NumberingItemKind, customSpecification: string | undefined) {
-  if (itemKind === "custom" && !customSpecification?.trim()) {
-    throw new Error("CUSTOM_SPECIFICATION_REQUIRED");
-  }
+  void itemKind;
+  void customSpecification;
 }
 
 function normalizeSeriesCode(itemKind: NumberingItemKind, isUniversal: boolean, seriesCode: string | undefined) {
@@ -2986,7 +2980,7 @@ function listPrimaryManufacturingPartsByDrawing(database: SqliteDatabase, drawin
 
 function partRequiresPrimaryManufacturingDrawing(partNumber: PartNumberRecord) {
   if (partNumber.isUniversal) return false;
-  return ["manufactured", "outsourced", "custom"].includes(partNumber.itemKind);
+  return partNumber.itemKind === "manufactured";
 }
 
 function normalizeComparable(value: string | undefined) {
@@ -3200,8 +3194,7 @@ function insertPartNumber(
     createdBy?: string | null;
   }
 ) {
-  const effectiveIsUniversal = input.itemKind === "shared" || input.isUniversal;
-  requireUniversalReason(input.itemKind, effectiveIsUniversal, input.universalReason);
+  const effectiveIsUniversal = Boolean(input.isUniversal);
   requireCustomSpecification(input.itemKind, input.customSpecification);
   const seriesCode = normalizeSeriesCode(input.itemKind, effectiveIsUniversal, input.seriesCode);
   const sequenceNo = effectiveIsUniversal && !isCompactNumberingRule(input.ruleVersionId) ? 0 : allocateSequence(database, `part:${root.rootCode}`);
@@ -3291,21 +3284,13 @@ function linkDrawingToPart(
   database: SqliteDatabase,
   input: { drawing: DrawingNumberRecord; part: PartNumberRecord; createdBy?: string | null }
 ) {
-  database
-    .prepare(
-      `
-      INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_by, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `
-    )
-    .run(
-      crypto.randomUUID(),
-      input.drawing.id,
-      input.part.id,
-      isManufacturingDrawingPurpose(input.drawing.purposeCode) ? "primary_manufacturing" : "reference",
-      input.createdBy ?? null,
-      new Date().toISOString()
-    );
+  new RelationFormalAuthoritySyncRepository(database).upsertPair({
+    companyId: input.drawing.companyId,
+    drawingNumberId: input.drawing.id,
+    partNumberId: input.part.id,
+    relationType: isManufacturingDrawingPurpose(input.drawing.purposeCode) ? "manufacturing_basis" : "reference",
+    actorId: input.createdBy ?? null
+  });
 }
 
 function linkPartNumberToDrawingInDatabase(
@@ -4627,7 +4612,7 @@ export function listNumberingAdminMatrix(): NumberingAdminMatrixRecord {
       actionCodes,
       pagePermissionCodes: [...NUMBERING_PAGE_PERMISSION_CODES],
       recordStatuses: ["Draft", "NeedInfo", "Active", "PendingReview", "Released", "Obsolete", "Merged", "PendingAdminConfirm", "MainDrawingInvalid"],
-      itemKinds: ["manufactured", "outsourced", "purchased", "custom", "universal"],
+      itemKinds: ["manufactured", "purchased"],
       riskFlags: [
         "duplicate_code",
         "multiple_primary_ma",
@@ -5392,42 +5377,13 @@ function applyApprovedNumberingRequest(database: SqliteDatabase, request: Number
     if (replacementDrawingNumber) {
       const replacementRow = validateReplacementManufacturingDrawing(database, partRow, replacementDrawingNumber);
       replacementDrawing = mapDrawingNumber(replacementRow);
-      database
-        .prepare(
-          `
-          UPDATE drawing_part_links
-          SET link_type = 'reference'
-          WHERE part_number_id = ?
-            AND link_type = 'primary_manufacturing'
-            AND drawing_number_id <> ?
-        `
-        )
-        .run(partRow.id, replacementRow.id);
-
-      const primaryReplacementLink = database
-        .prepare(
-          "SELECT id FROM drawing_part_links WHERE drawing_number_id = ? AND part_number_id = ? AND link_type = 'primary_manufacturing' LIMIT 1"
-        )
-        .get(replacementRow.id, partRow.id) as { id: string } | undefined;
-
-      if (!primaryReplacementLink) {
-        const referenceReplacementLink = database
-          .prepare("SELECT id FROM drawing_part_links WHERE drawing_number_id = ? AND part_number_id = ? AND link_type = 'reference' LIMIT 1")
-          .get(replacementRow.id, partRow.id) as { id: string } | undefined;
-
-        if (referenceReplacementLink) {
-          database.prepare("UPDATE drawing_part_links SET link_type = 'primary_manufacturing' WHERE id = ?").run(referenceReplacementLink.id);
-        } else {
-          database
-            .prepare(
-              `
-              INSERT INTO drawing_part_links (id, drawing_number_id, part_number_id, link_type, created_by, created_at)
-              VALUES (?, ?, ?, 'primary_manufacturing', ?, ?)
-            `
-            )
-            .run(crypto.randomUUID(), replacementRow.id, partRow.id, actorId, now);
-        }
-      }
+      new RelationFormalAuthoritySyncRepository(database).upsertPair({
+        companyId: replacementRow.company_id ?? partRow.company_id ?? "company-jenfu",
+        drawingNumberId: replacementRow.id,
+        partNumberId: partRow.id,
+        relationType: "manufacturing_basis",
+        actorId
+      });
     } else if (!getPrimaryManufacturingDrawingForPart(database, partRow.id)) {
       throw new Error("MAIN_DRAWING_RESTORE_REQUIRES_ACTIVE_MA_DRAWING");
     }
@@ -6625,6 +6581,7 @@ export function addPartNumberToRoot(input: AddPartNumberInput) {
       throw new Error(`PART_ROOT_NOT_FOUND: ${input.rootCode}`);
     }
     const root = mapPartRoot(rootRow);
+    if (input.itemKind && input.itemKind !== root.itemKind) throw new Error("PART_ROOT_ITEM_KIND_MISMATCH");
     const partNumber = insertPartNumber(database, root, {
       partName: root.coreName,
       itemKind: input.itemKind ?? root.itemKind,
@@ -6877,7 +6834,7 @@ export function deleteDraftNumberingRecord(input: DeleteDraftNumberingRecordInpu
       .run(params);
     database.prepare("DELETE FROM drawing_revision_fff_assessments WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId)").run(params);
     database.prepare("DELETE FROM same_drawing_variants WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId) OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
-    database.prepare("DELETE FROM drawing_part_links WHERE drawing_number_id IN (SELECT id FROM drawing_numbers WHERE part_root_id = @rootId) OR part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
+    new RelationFormalAuthoritySyncRepository(database).removeRootLinks({ companyId: rootRow.company_id ?? "company-jenfu", rootId: rootRow.id });
     database.prepare("DELETE FROM part_variant_attributes WHERE part_number_id IN (SELECT id FROM part_numbers WHERE part_root_id = @rootId)").run(params);
     database.prepare("DELETE FROM drawing_numbers WHERE part_root_id = @rootId").run(params);
     database.prepare("DELETE FROM part_numbers WHERE part_root_id = @rootId").run(params);

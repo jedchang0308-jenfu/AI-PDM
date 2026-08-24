@@ -239,12 +239,10 @@ type WorkbenchSection = {
 
 function getPlatformWorkbenchSections({
   currentUser,
-  notificationSummary,
   recentDrawings,
   favoriteDrawings
 }: {
   currentUser: CurrentUser;
-  notificationSummary: NotificationSummary;
   recentDrawings: RecentDrawing[];
   favoriteDrawings: RecentDrawing[];
 }): WorkbenchSection[] {
@@ -263,17 +261,11 @@ function getPlatformWorkbenchSections({
 
   return [
     {
-      title: "我的待辦",
-      description: "集中處理審核、通知與阻塞，不必先判斷功能位置。",
-      badge: `${notificationSummary.total} 通知`,
-      icon: Bell,
+      title: "審核與發行",
+      description: "集中進入 BOM 審核與圖面發行審核流程。",
+      badge: "流程",
+      icon: GitPullRequestArrow,
       links: [
-        {
-          href: "/numbering/tasks",
-          label: "待辦中心",
-          detail: `${notificationSummary.critical} 高風險 / ${notificationSummary.warning} 注意`,
-          icon: Bell
-        },
         { href: "/bom/reviews", label: "BOM 審核", detail: "主管與跨部門審核關卡", icon: ListTree },
         { href: "/numbering/approvals", label: "發行審核", detail: "發布與例外決策", icon: GitPullRequestArrow }
       ]
@@ -294,7 +286,7 @@ function getPlatformWorkbenchSections({
       badge: `${recentDrawings.length} 最近 / ${favoriteDrawings.length} 關注`,
       icon: Search,
       links: [
-        { href: "/numbering/search", label: "圖料工作台", detail: "圖號、料號、同圖多料號", icon: Search },
+        { href: "/numbering/search", label: "編號搜尋", detail: "圖號、料號、圖料根號", icon: Search },
         { href: "/numbering/impact", label: "製造圖影響分析", detail: "作廢前先看影響", icon: ShieldAlert },
         { href: "/numbering/reports", label: "圖號報表", detail: "匯出、稽核、月報", icon: FileText }
       ]
@@ -407,7 +399,7 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
           { label: "品名", value: firstDraft.displayName || firstDraft.coreName }
         ]}
         blockers={["草稿已有號碼，但尚未形成審核中送審單", "未送審前不可作為正式 BOM、製造或採購交接資料"]}
-        nextStep="從這裡接續上傳送審；送出後才會進入審核者的待辦與發行流程。"
+        nextStep="從這裡接續上傳送審；送出後會進入審核與發行流程。"
         primaryAction={{
           href: buildUploadPrefillHref({
             rootCode: firstDraft.rootCode,
@@ -418,7 +410,6 @@ function NumberingDraftWorkbench({ drafts }: { drafts: NumberingDraftRecord[] })
           label: "接續送審"
         }}
         secondaryActions={[
-          { href: "/numbering/tasks", label: "看全部草稿" },
           { href: `/numbering/search?query=${encodeURIComponent(firstDraft.rootCode)}`, label: "開圖料根號明細" }
         ]}
       />
@@ -2217,7 +2208,6 @@ export function Dashboard() {
 
   const platformWorkbenchSections = getPlatformWorkbenchSections({
     currentUser,
-    notificationSummary,
     recentDrawings,
     favoriteDrawings
   });
@@ -4251,7 +4241,7 @@ export function Dashboard() {
                 title="請選擇一筆圖面資料查看明細"
                 body="明細會串接版次、BOM、影響範圍、交接包與協作紀錄；也可以先建立新送審。"
                 actions={[
-                  { href: "/numbering/search", label: "圖料工作台", variant: "primary" },
+                  { href: "/numbering/search", label: "編號搜尋", variant: "primary" },
                   { href: "/upload", label: "上傳送審" }
                 ]}
               />

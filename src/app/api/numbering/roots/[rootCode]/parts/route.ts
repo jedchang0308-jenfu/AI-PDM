@@ -3,10 +3,10 @@ import { addPartNumberToRootAsync } from "@/lib/numbering-async";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import type { NumberingItemKind } from "@/lib/repositories/numbering-repository";
+import { parseCanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
 
 export const runtime = "nodejs";
 
-const itemKinds = new Set(["purchased", "manufactured", "outsourced", "shared", "custom"]);
 const linkTypes = new Set(["auto", "primary_manufacturing", "reference", "none"]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ rootCode: string }> }) {
@@ -23,15 +23,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
 
   const { rootCode } = await params;
 
-  const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
+  const rawItemKind = body.itemKind ?? body.item_kind;
+  const itemKind = parseCanonicalNumberingItemKind(rawItemKind) as NumberingItemKind | undefined;
   const customSpecification = String(body.customSpecification ?? body.custom_specification ?? "").trim();
   const seriesCode = String(body.seriesCode ?? body.series_code ?? "").trim();
-  const isUniversal = itemKind === "shared" || Boolean(body.isUniversal ?? body.is_universal);
-  const universalReason = String(body.universalReason ?? body.universal_reason ?? "").trim();
+  const isUniversal = Boolean(body.isUniversal ?? body.is_universal);
   const errors: string[] = [];
-  if (itemKind === "custom" && !customSpecification) errors.push("customSpecification is required for custom items");
+  if ((body.itemKind !== undefined || body.item_kind !== undefined) && !itemKind) errors.push("itemKind must be manufactured or purchased");
   if (seriesCode.length > 80) errors.push("seriesCode must be 80 characters or fewer");
-  if (isUniversal && !universalReason) errors.push("universalReason is required for shared/universal items");
   if (errors.length > 0) return NextResponse.json({ error: "Invalid contextual part request", details: errors }, { status: 400 });
 
   try {
@@ -42,7 +41,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
       customSpecification,
       seriesCode,
       isUniversal,
-      universalReason,
       reason: String(body.reason ?? "").trim(),
       sourceEntrypoint: String(body.sourceEntrypoint ?? body.source_entrypoint ?? "root_drawer").trim(),
       idempotencyKey: access.metadata.idempotencyKey,

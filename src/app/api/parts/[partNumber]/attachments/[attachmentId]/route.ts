@@ -1,56 +1,13 @@
 import { NextResponse } from "next/server";
 import {
   getMasterAttachmentAsync,
-  getMasterAttachmentBytesAsync,
-  getMasterAttachmentPreviewDerivativeBytesAsync,
   softDeleteMasterAttachmentAsync,
   syncMasterAttachmentToDriveAsync
 } from "@/lib/master-attachments-async";
-import { buildMasterAttachmentFileResponse, masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
-import { contentDispositionHeader } from "@/lib/file-response";
-import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
-
-export async function GET(request: Request, { params }: { params: Promise<{ partNumber: string; attachmentId: string }> }) {
-  const auth = await requireNumberingPageAsync(request, "numbering.search");
-  if (auth.response) return auth.response;
-
-  const { partNumber, attachmentId } = await params;
-  try {
-    const searchParams = new URL(request.url).searchParams;
-    const derivativeId = searchParams.get("previewDerivative");
-    if (derivativeId) {
-      const derivative = await getMasterAttachmentPreviewDerivativeBytesAsync({
-        entityType: "part_number",
-        entityCode: decodeURIComponent(partNumber),
-        attachmentId,
-        derivativeId
-      });
-      if (!derivative) return NextResponse.json({ error: "PREVIEW_DERIVATIVE_NOT_FOUND" }, { status: 404 });
-      return new Response(new Uint8Array(derivative.bytes), {
-        headers: {
-          "content-type": derivative.mimeType,
-          "content-length": String(derivative.bytes.byteLength),
-          "content-disposition": contentDispositionHeader("inline", derivative.fileName),
-          "x-content-type-options": "nosniff",
-          "cache-control": "private, no-store"
-        }
-      });
-    }
-    const result = await getMasterAttachmentBytesAsync({
-      entityType: "part_number",
-      entityCode: decodeURIComponent(partNumber),
-      attachmentId
-    });
-    if (!result) return NextResponse.json({ error: "MASTER_ATTACHMENT_NOT_FOUND" }, { status: 404 });
-    const disposition = searchParams.get("preview") === "1" ? "inline" : "attachment";
-    return buildMasterAttachmentFileResponse({ ...result, disposition });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "MASTER_ATTACHMENT_DOWNLOAD_FAILED";
-    return NextResponse.json({ error: message }, { status: masterAttachmentStatusFromError(message) });
-  }
-}
 
 export async function POST(request: Request, { params }: { params: Promise<{ partNumber: string; attachmentId: string }> }) {
   const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
@@ -89,6 +46,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
     return NextResponse.json({ deleted: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "MASTER_ATTACHMENT_DELETE_FAILED";
+    if (message.includes("PART_PREVIEW_ACTIVE_ASSET")) {
+      return NextResponse.json({
+        error: {
+          code: "PART_PREVIEW_ACTIVE_ASSET",
+          message: "請先恢復使用主要製造圖或更換預覽圖"
+        }
+      }, { status: 409 });
+    }
     return NextResponse.json({ error: message }, { status: masterAttachmentStatusFromError(message) });
   }
 }

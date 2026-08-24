@@ -107,3 +107,21 @@ export async function stopNextApp(child) {
   child.kill("SIGKILL");
   await Promise.race([waitForExit(), delay(1000)]);
 }
+
+export function removeTaskOwnedWorkspaceTempDir(root, targetDir) {
+  const workspaceTempRoot = path.resolve(root, ".tmp");
+  const resolvedTarget = path.resolve(root, targetDir);
+  if (!resolvedTarget.startsWith(`${workspaceTempRoot}${path.sep}`)) {
+    return { removed: false, path: resolvedTarget, error: "unsafe-path" };
+  }
+  try {
+    fs.rmSync(resolvedTarget, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 });
+    return { removed: !fs.existsSync(resolvedTarget), path: resolvedTarget, error: null };
+  } catch (error) {
+    return {
+      removed: false,
+      path: resolvedTarget,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}

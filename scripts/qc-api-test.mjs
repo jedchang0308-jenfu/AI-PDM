@@ -148,33 +148,34 @@ function getStorageAccessAudits(submissionId) {
   }
 }
 
-function seedAssemblyReferences(submissionId, children) {
+function seedManualBom(submissionId, children) {
   const db = new Database(dbPath);
   const sourceFile = db.prepare("SELECT id, original_filename, file_role FROM submission_files WHERE submission_id = ? LIMIT 1").get(submissionId);
+  const submission = db.prepare("SELECT item_id, revision FROM submissions WHERE id = ?").get(submissionId);
   const now = new Date().toISOString();
+  const headerId = crypto.randomUUID();
+  db.prepare(
+    `INSERT INTO bom_headers (
+      id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, 'Draft', 'manual', ?, ?, ?)`
+  ).run(headerId, submission.item_id, submissionId, submission.revision, children.length, now, now);
   const insert = db.prepare(
-    `INSERT INTO file_references (
-      id, submission_id, source_file_id, source_filename, source_file_role,
-      referenced_filename, referenced_part_number, referenced_drawing_number,
-      referenced_revision, reference_type, quantity, extraction_method, confidence, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO bom_lines (
+      id, bom_header_id, line_no, child_part_number, child_revision, quantity,
+      source_file_id, source_reference_id, source_filename, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`
   );
 
-  for (const child of children) {
+  for (const [index, child] of children.entries()) {
     insert.run(
       crypto.randomUUID(),
-      submissionId,
+      headerId,
+      index + 1,
+      child.partNumber,
+      child.revision ?? null,
+      child.quantity ?? 1,
       sourceFile?.id ?? null,
       sourceFile?.original_filename ?? "assembly.sldasm",
-      sourceFile?.file_role ?? "sldasm",
-      child.filename,
-      child.partNumber,
-      child.drawingNumber ?? child.partNumber,
-      child.revision ?? null,
-      "assembly_component",
-      child.quantity ?? 1,
-      "qc_seed",
-      "high",
       now
     );
   }
@@ -467,15 +468,13 @@ async function createDisposableSubmissionFixture({ data, files, cookie, cadRefer
       );
     }
 
-    const bomReferences = preparedReferences.filter(
-      (reference) => reference.referenceType === "assembly_component" && String(reference.referencedPartNumber ?? "").trim() !== ""
-    );
+    const bomReferences = preparedReferences.filter((reference) => String(reference.referencedPartNumber ?? "").trim() !== "");
     if (bomReferences.length > 0) {
       const bomHeaderId = crypto.randomUUID();
       db.prepare(
         `INSERT INTO bom_headers (
           id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, 'Draft', 'cad_references', ?, ?, ?)`
+        ) VALUES (?, ?, ?, ?, 'Draft', 'manual', ?, ?, ?)`
       ).run(bomHeaderId, item.id, submissionId, data.revision, bomReferences.length, now, now);
       const insertBomLine = db.prepare(
         `INSERT INTO bom_lines (
@@ -498,8 +497,8 @@ async function createDisposableSubmissionFixture({ data, files, cookie, cadRefer
         );
       });
       db.prepare(
-        "INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (?, ?, NULL, 'BomDraftMaterialized', ?, ?)"
-      ).run(crypto.randomUUID(), submissionId, JSON.stringify({ source: "file_references", lineCount: bomReferences.length }), now);
+        "INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (?, ?, NULL, 'ManualBomFixtureCreated', ?, ?)"
+      ).run(crypto.randomUUID(), submissionId, JSON.stringify({ source: "manual_fixture", lineCount: bomReferences.length }), now);
     }
 
     db.prepare(
@@ -608,7 +607,7 @@ nativeMetadataForm.append(
     [
       Buffer.from(
         'mock solidworks bytes\nAI_PDM_METADATA:{"drawing_number":"QC-NATIVE-001","part_number":"P-QC-NATIVE-001","part_name":"Native Adapter Part","revision":"B","material":"SKD11","surface_finish":"Nitrided","document_type":"Part"}'
-          + '\nAI_PDM_REFERENCES:[{"referencedFilename":"QC-NATIVE-CHILD-001.sldprt","referencedPartNumber":"P-QC-NATIVE-CHILD-001","referencedDrawingNumber":"QC-NATIVE-CHILD-001","referencedRevision":"A","referenceType":"assembly_component","quantity":2,"extractionMethod":"embedded_native_reference","confidence":"high"}]'
+          + '\nAI_PDM_REFERENCES:[{"referencedFilename":"QC-NATIVE-CHILD-001.sldprt","referencedPartNumber":"P-QC-NATIVE-CHILD-001","referencedDrawingNumber":"QC-NATIVE-CHILD-001","referencedRevision":"A","referenceType":"unknown","quantity":2,"extractionMethod":"embedded_native_reference","confidence":"high"}]'
       )
     ],
     "QC-NATIVE-FALLBACK-RevA.sldasm",
@@ -1612,7 +1611,7 @@ const bomSubmission = await postSubmissionWithFile(
 );
 results.push(await expectStatus("BOM setup assembly submission returns 201", bomSubmission.status, 201));
 
-seedAssemblyReferences(bomSubmission.body.submissionId, [
+  seedManualBom(bomSubmission.body.submissionId, [
   { filename: `QC-BOM-CHILD-1-${bomToken}.sldprt`, partNumber: `P-QC-BOM-C1-${bomToken}`, revision: "A", quantity: 2 },
   { filename: `QC-BOM-CHILD-2-${bomToken}.sldprt`, partNumber: `P-QC-BOM-C2-${bomToken}`, revision: "B", quantity: 4 }
 ]);
@@ -1624,17 +1623,24 @@ const engineerBomResponse = await fetch(`${baseUrl}/api/submissions/${bomSubmiss
   headers: { cookie: engineerCookie }
 });
 const engineerBomBody = await engineerBomResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOM-002 Engineer can materialize own BOM", engineerBomResponse.status, 200));
-results.push(await expectStatus("BOM-003 BOM header is Draft", engineerBomBody.bom?.status, "Draft"));
-results.push(await expectStatus("BOM-004 BOM contains two lines", engineerBomBody.bom?.lines?.length, 2));
-results.push(await expectStatus("BOM-005 BOM preserves child quantity", engineerBomBody.bom?.lines?.[0]?.quantity, 2));
-results.push(await expectStatus("BOM-006 BOM exposes parent part number", engineerBomBody.bom?.parent_part_number, bomSubmission.data.part_number));
+results.push(await expectStatus("BOM-002 retired materialize query returns 422", engineerBomResponse.status, 422));
+results.push(await expectStatus("BOM-003 retired materialize query has stable error", engineerBomBody.error, "BOM_MATERIALIZATION_RETIRED"));
+
+const engineerBomReadResponse = await fetch(`${baseUrl}/api/submissions/${bomSubmission.body.submissionId}/bom`, {
+  headers: { cookie: engineerCookie }
+});
+const engineerBomReadBody = await engineerBomReadResponse.json().catch(() => ({}));
+results.push(await expectStatus("BOM-004 Engineer can read manual BOM", engineerBomReadResponse.status, 200));
+results.push(await expectStatus("BOM-005 BOM header is Draft", engineerBomReadBody.bom?.status, "Draft"));
+results.push(await expectStatus("BOM-006 BOM contains two lines", engineerBomReadBody.bom?.lines?.length, 2));
+results.push(await expectStatus("BOM-006A BOM preserves child quantity", engineerBomReadBody.bom?.lines?.[0]?.quantity, 2));
+results.push(await expectStatus("BOM-006B BOM exposes parent part number", engineerBomReadBody.bom?.parent_part_number, bomSubmission.data.part_number));
 
 const managerBomResponse = await fetch(`${baseUrl}/api/submissions/${bomSubmission.body.submissionId}/bom`, {
   headers: { cookie: managerCookie }
 });
 const managerBomBody = await managerBomResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOM-007 Manager can read materialized BOM", managerBomResponse.status, 200));
+results.push(await expectStatus("BOM-007 Manager can read manual BOM", managerBomResponse.status, 200));
 results.push(await expectStatus("BOM-008 BOM read returns existing lines", managerBomBody.bom?.lines?.length, 2));
 
 const otherBomAsEngineer = await fetch(`${baseUrl}/api/submissions/${otherEngineerSubmission.body.submissionId}/bom`, {
@@ -1725,7 +1731,7 @@ const autoBomSubmission = await postSubmissionWithFile(
       referencedPartNumber: `P-QC-BOM-AUTO-C1-${autoBomToken}`,
       referencedDrawingNumber: `D-QC-BOM-AUTO-C1-${autoBomToken}`,
       referencedRevision: "C",
-      referenceType: "assembly_component",
+      referenceType: "unknown",
       quantity: 3,
       extractionMethod: "qc_payload",
       confidence: "high"
@@ -1738,15 +1744,15 @@ const autoBomResponse = await fetch(`${baseUrl}/api/submissions/${autoBomSubmiss
   headers: { cookie: engineerCookie }
 });
 const autoBomBody = await autoBomResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOM-010 submission auto creates BOM draft from references", autoBomResponse.status, 200));
-results.push(await expectStatus("BOM-011 auto BOM contains one line", autoBomBody.bom?.lines?.length, 1));
-results.push(await expectStatus("BOM-012 auto BOM preserves uploaded reference quantity", autoBomBody.bom?.lines?.[0]?.quantity, 3));
+results.push(await expectStatus("BOM-010 manual fixture BOM is readable", autoBomResponse.status, 200));
+results.push(await expectStatus("BOM-011 manual fixture BOM contains one line", autoBomBody.bom?.lines?.length, 1));
+results.push(await expectStatus("BOM-012 manual fixture BOM preserves quantity", autoBomBody.bom?.lines?.[0]?.quantity, 3));
 
 const autoBomDetailResponse = await fetch(`${baseUrl}/api/submissions/${autoBomSubmission.body.submissionId}`, {
   headers: { cookie: engineerCookie }
 });
 const autoBomDetailBody = await autoBomDetailResponse.json().catch(() => ({}));
-results.push(await expectStatus("BOM-013 submission detail exposes auto BOM", autoBomDetailBody.submission?.bom?.lines?.length, 1));
+results.push(await expectStatus("BOM-013 submission detail exposes manual BOM", autoBomDetailBody.submission?.bom?.lines?.length, 1));
 
 const bomDiffToken = `${Date.now().toString().slice(-6)}-${Math.random().toString(16).slice(2, 6)}`;
 const bomDiffPartNumber = `P-QC-BOMDIFF-${bomDiffToken}`;
@@ -1770,7 +1776,7 @@ const bomDiffBaseSubmission = await postSubmissionWithFile(
       referencedPartNumber: `P-QC-BOMDIFF-C1-${bomDiffToken}`,
       referencedDrawingNumber: `D-QC-BOMDIFF-C1-${bomDiffToken}`,
       referencedRevision: "A",
-      referenceType: "assembly_component",
+      referenceType: "unknown",
       quantity: 1,
       extractionMethod: "qc_payload",
       confidence: "high"
@@ -1782,7 +1788,7 @@ const bomDiffBaseSubmission = await postSubmissionWithFile(
       referencedPartNumber: `P-QC-BOMDIFF-C2-${bomDiffToken}`,
       referencedDrawingNumber: `D-QC-BOMDIFF-C2-${bomDiffToken}`,
       referencedRevision: "A",
-      referenceType: "assembly_component",
+      referenceType: "unknown",
       quantity: 2,
       extractionMethod: "qc_payload",
       confidence: "high"
@@ -1794,7 +1800,7 @@ const bomDiffBaseSubmission = await postSubmissionWithFile(
       referencedPartNumber: `P-QC-BOMDIFF-C4-${bomDiffToken}`,
       referencedDrawingNumber: `D-QC-BOMDIFF-C4-${bomDiffToken}`,
       referencedRevision: "A",
-      referenceType: "assembly_component",
+      referenceType: "unknown",
       quantity: 4,
       extractionMethod: "qc_payload",
       confidence: "high"
@@ -1820,7 +1826,7 @@ const bomDiffTargetSubmission = await postSubmissionWithFile(
       referencedPartNumber: `P-QC-BOMDIFF-C1-${bomDiffToken}`,
       referencedDrawingNumber: `D-QC-BOMDIFF-C1-${bomDiffToken}`,
       referencedRevision: "A",
-      referenceType: "assembly_component",
+      referenceType: "unknown",
       quantity: 1,
       extractionMethod: "qc_payload",
       confidence: "high"
@@ -1832,7 +1838,7 @@ const bomDiffTargetSubmission = await postSubmissionWithFile(
       referencedPartNumber: `P-QC-BOMDIFF-C2-${bomDiffToken}`,
       referencedDrawingNumber: `D-QC-BOMDIFF-C2-${bomDiffToken}`,
       referencedRevision: "A",
-      referenceType: "assembly_component",
+      referenceType: "unknown",
       quantity: 5,
       extractionMethod: "qc_payload",
       confidence: "high"
@@ -1844,7 +1850,7 @@ const bomDiffTargetSubmission = await postSubmissionWithFile(
       referencedPartNumber: `P-QC-BOMDIFF-C3-${bomDiffToken}`,
       referencedDrawingNumber: `D-QC-BOMDIFF-C3-${bomDiffToken}`,
       referencedRevision: "A",
-      referenceType: "assembly_component",
+      referenceType: "unknown",
       quantity: 1,
       extractionMethod: "qc_payload",
       confidence: "high"
@@ -1871,7 +1877,7 @@ const aiImpactParentSubmission = await postSubmissionWithFile(
       referencedPartNumber: bomDiffPartNumber,
       referencedDrawingNumber: bomDiffDrawingNumber,
       referencedRevision: "B",
-      referenceType: "assembly_component",
+      referenceType: "unknown",
       quantity: 1,
       extractionMethod: "qc_payload",
       confidence: "high"
@@ -1898,7 +1904,7 @@ const aiImpactParent2Submission = await postSubmissionWithFile(
       referencedPartNumber: bomDiffPartNumber,
       referencedDrawingNumber: bomDiffDrawingNumber,
       referencedRevision: "B",
-      referenceType: "assembly_component",
+      referenceType: "unknown",
       quantity: 2,
       extractionMethod: "qc_payload",
       confidence: "high"

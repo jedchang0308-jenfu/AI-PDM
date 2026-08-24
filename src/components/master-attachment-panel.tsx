@@ -8,6 +8,7 @@ import { FileDropzone } from "@/components/file-dropzone";
 import { formatBytes } from "@/lib/format-file-size";
 import { compareRevisionCodes, suggestRevisionCode, type RevisionLifecycleStage } from "@/lib/revision-policy";
 import { formatStatusErrorForUser } from "@/lib/status-display";
+import { pdmFileReadHref } from "@/lib/pdm-file-read-contract";
 
 type AttachmentEntityType = "drawing_number" | "part_number";
 type DriveStatus = "none" | "uploading" | "uploaded" | "failed";
@@ -62,6 +63,8 @@ type PreviewJob = {
 
 type MasterAttachment = {
   id: string;
+  entityType: AttachmentEntityType;
+  entityId: string;
   documentCategory: string;
   displayName: string;
   description: string;
@@ -315,9 +318,15 @@ export function MasterAttachmentPanel({
       .sort(sortMasterAttachments);
   }, [attachments, authorityMode, entityType]);
   const currentAttachments = attachmentSections.current;
+  // In a controlled summary the formal package is not always present in the
+  // legacy attachment grouping (for example while the current work package
+  // is the only visible package). The compact list already applies the same
+  // current-package selection rule, so use it as the preview source instead
+  // of silently dropping the 3D/2D boards.
+  const previewSourceAttachments = currentAttachments.length > 0 ? currentAttachments : compactControlledListAttachments;
   const drawingPreviewSlots = useMemo(
-    () => (entityType === "drawing_number" ? buildDrawingPreviewSlots(currentAttachments) : []),
-    [currentAttachments, entityType]
+    () => (entityType === "drawing_number" ? buildDrawingPreviewSlots(previewSourceAttachments) : []),
+    [entityType, previewSourceAttachments]
   );
   const historyRevisionGroups = useMemo(() => groupHistoryAttachmentsByRevision(attachmentSections.history), [attachmentSections.history]);
   const currentReleasedRevisionPackageId = useMemo(
@@ -656,7 +665,7 @@ export function MasterAttachmentPanel({
   }
 
   function renderAttachmentRow(attachment: MasterAttachment, options?: { forceHistory?: boolean; compact?: boolean; minimal?: boolean }) {
-    const downloadUrl = `${baseUrl}/${encodeURIComponent(attachment.id)}`;
+    const downloadUrl = canonicalAttachmentReadHref(attachment);
     const submissionState = attachmentSubmissionState(attachment, options);
     const traceSubmissionId = attachment.sourceSubmissionId || attachment.revisionPackageSourceSubmissionId;
     const isSupplement = isApprovedSupplementAttachment(attachment);
@@ -781,7 +790,7 @@ export function MasterAttachmentPanel({
   function buildPreviewCard(slot: DrawingPreviewSlot, options?: { includeDownload?: boolean }): DrawingDetailPreviewCard {
     const attachment = slot.attachment;
     const includeDownload = options?.includeDownload ?? true;
-    const downloadUrl = attachment ? `${baseUrl}/${encodeURIComponent(attachment.id)}` : "";
+    const downloadUrl = attachment ? canonicalAttachmentReadHref(attachment) : "";
     const derivative = attachment ? findReadyPreviewDerivative(attachment, slot.kind) : null;
     const previewMode = derivative ? derivativePreviewMode(derivative) : attachment ? attachmentPreviewMode(attachment) : "none";
     const previewUrl = attachment ? previewUrlForAttachment(attachment, downloadUrl, previewMode, derivative) : "";
@@ -1321,6 +1330,7 @@ function AttachmentDisclosure({
 }
 
 function categoryLabel(value: string) {
+  if (value === "part_preview_image") return "料號預覽圖";
   return [...drawingCategories, ...partCategories].find((item) => item.value === value)?.label ?? value;
 }
 
@@ -1428,6 +1438,15 @@ function attachmentPreviewMode(attachment: MasterAttachment): "pdf" | "image" | 
   if (isImageAttachment(attachment)) return "image";
   if (attachment.gdriveFileId && attachment.gdriveStatus === "uploaded") return "drive";
   return "none";
+}
+
+function canonicalAttachmentReadHref(attachment: MasterAttachment) {
+  return pdmFileReadHref({
+    fileAssetId: attachment.id,
+    context: attachment.entityType === "drawing_number" ? "drawing_attachment" : "part_attachment",
+    contextId: attachment.entityId,
+    bindingId: attachment.id
+  });
 }
 
 function previewUrlForAttachment(attachment: MasterAttachment, downloadUrl: string, mode: "pdf" | "image" | "drive" | "none", derivative?: PreviewDerivative | null) {

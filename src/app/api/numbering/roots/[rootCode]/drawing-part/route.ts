@@ -3,10 +3,10 @@ import { addDrawingAndPartToRootAsync } from "@/lib/numbering-async";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import type { DrawingPurposeCode, NumberingItemKind } from "@/lib/repositories/numbering-repository";
+import { parseCanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
 
 export const runtime = "nodejs";
 
-const itemKinds = new Set(["purchased", "manufactured", "outsourced", "shared", "custom"]);
 const purposeCodes = new Set(["M", "R"]);
 const linkTypes = new Set(["auto", "primary_manufacturing", "reference"]);
 
@@ -23,19 +23,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
     | DrawingPurposeCode
     | undefined;
   const purposeDescription = String(body.purposeDescription ?? body.purpose_description ?? body.drawingPurposeDescription ?? body.drawing_purpose_description ?? "").trim();
-  const itemKind = normalizeEnum(body.itemKind ?? body.item_kind, itemKinds) as NumberingItemKind | undefined;
+  const rawItemKind = body.itemKind ?? body.item_kind;
+  const itemKind = parseCanonicalNumberingItemKind(rawItemKind) as NumberingItemKind | undefined;
   const customSpecification = String(body.customSpecification ?? body.custom_specification ?? "").trim();
   const seriesCode = String(body.seriesCode ?? body.series_code ?? "").trim();
-  const isUniversal = itemKind === "shared" || Boolean(body.isUniversal ?? body.is_universal);
-  const universalReason = String(body.universalReason ?? body.universal_reason ?? "").trim();
+  const isUniversal = Boolean(body.isUniversal ?? body.is_universal);
   const linkRelationType = normalizeEnum(body.linkRelationType ?? body.link_relation_type ?? "auto", linkTypes) as "auto" | "primary_manufacturing" | "reference" | undefined;
 
   const errors: string[] = [];
   if (!purposeCode) errors.push("purposeCode must be M or R");
   if (purposeCode === "R" && !purposeDescription) errors.push("purposeDescription is required for reference drawings");
-  if (itemKind === "custom" && !customSpecification) errors.push("customSpecification is required for custom items");
+  if ((body.itemKind !== undefined || body.item_kind !== undefined) && !itemKind) errors.push("itemKind must be manufactured or purchased");
   if (seriesCode.length > 80) errors.push("seriesCode must be 80 characters or fewer");
-  if (isUniversal && !universalReason) errors.push("universalReason is required for shared/universal items");
   if (!linkRelationType) errors.push("linkRelationType is invalid");
   if (errors.length > 0 || !purposeCode || !linkRelationType) {
     return NextResponse.json({ error: "Invalid contextual drawing and part request", details: errors }, { status: 400 });
@@ -51,7 +50,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
       customSpecification,
       seriesCode,
       isUniversal,
-      universalReason,
       reason: String(body.reason ?? "").trim(),
       sourceEntrypoint: String(body.sourceEntrypoint ?? body.source_entrypoint ?? "numbering_request_append").trim(),
       idempotencyKey: access.metadata.idempotencyKey,

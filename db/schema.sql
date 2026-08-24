@@ -585,7 +585,7 @@ CREATE TABLE IF NOT EXISTS file_references (
   referenced_part_number TEXT,
   referenced_drawing_number TEXT,
   referenced_revision TEXT,
-  reference_type TEXT NOT NULL CHECK (reference_type IN ('assembly_component', 'drawing_model', 'derived', 'unknown')),
+  reference_type TEXT NOT NULL CHECK (reference_type IN ('drawing_model', 'derived', 'unknown')),
   quantity REAL NOT NULL DEFAULT 1,
   extraction_method TEXT NOT NULL,
   confidence TEXT NOT NULL CHECK (confidence IN ('high', 'medium', 'low')),
@@ -600,7 +600,7 @@ CREATE TABLE IF NOT EXISTS bom_headers (
   parent_submission_id TEXT NOT NULL UNIQUE,
   parent_revision TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'ReleasedSnapshot')),
-  source TEXT NOT NULL DEFAULT 'cad_references' CHECK (source IN ('cad_references', 'manual', 'imported')),
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'imported')),
   line_count INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -631,14 +631,13 @@ CREATE TABLE IF NOT EXISTS bom_drafts (
   owner_part_number_id TEXT,
   bom_revision TEXT,
   source_submission_id TEXT,
-  source_revision_package_id TEXT,
-  identity_authority TEXT NOT NULL DEFAULT 'legacy_submission_bound' CHECK (identity_authority IN ('canonical_part_number', 'legacy_submission_bound', 'manual_review')),
+  identity_authority TEXT NOT NULL DEFAULT 'canonical_part_number' CHECK (identity_authority IN ('canonical_part_number', 'legacy_submission_bound', 'manual_review')),
   parent_item_id TEXT,
   parent_submission_id TEXT,
   parent_revision TEXT,
   draft_name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'PendingReview', 'Rejected', 'Released', 'Obsolete', 'Archived')),
-  source TEXT NOT NULL DEFAULT 'cad_reference' CHECK (source IN ('cad_reference', 'solidworks_xls', 'manual')),
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual')),
   is_active INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
   line_count INTEGER NOT NULL DEFAULT 0,
   review_attempt INTEGER NOT NULL DEFAULT 0,
@@ -683,8 +682,8 @@ CREATE TABLE IF NOT EXISTS bom_lines_tree (
   group_name TEXT,
   quantity REAL CHECK (quantity IS NULL OR quantity > 0),
   sequence_no INTEGER NOT NULL,
-  source TEXT NOT NULL DEFAULT 'cad_reference' CHECK (source IN ('cad_reference', 'solidworks_xls', 'manual')),
-  source_priority INTEGER NOT NULL DEFAULT 10,
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual')),
+  source_priority INTEGER NOT NULL DEFAULT 30,
   source_ref_id TEXT,
   source_filename TEXT,
   created_by TEXT,
@@ -716,7 +715,7 @@ CREATE TABLE IF NOT EXISTS bom_draft_floating_topics (
   sequence_no INTEGER NOT NULL,
   root_position_x REAL NOT NULL DEFAULT 0,
   root_position_y REAL NOT NULL DEFAULT 0,
-  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('cad_reference', 'solidworks_xls', 'manual')),
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual')),
   created_by TEXT,
   updated_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -731,40 +730,6 @@ CREATE TABLE IF NOT EXISTS bom_draft_floating_topics (
   FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS bom_import_profiles (
-  id TEXT PRIMARY KEY,
-  profile_name TEXT NOT NULL,
-  source_type TEXT NOT NULL DEFAULT 'solidworks_xls' CHECK (source_type IN ('solidworks_xls')),
-  version TEXT NOT NULL,
-  mapping_json TEXT NOT NULL,
-  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (profile_name, version)
-);
-
-CREATE TABLE IF NOT EXISTS bom_import_jobs (
-  id TEXT PRIMARY KEY,
-  bom_draft_id TEXT,
-  owner_part_number_id TEXT,
-  bom_revision TEXT,
-  source_submission_id TEXT,
-  parent_submission_id TEXT,
-  import_profile_id TEXT NOT NULL,
-  source_asset_id TEXT,
-  original_filename TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'Staged' CHECK (status IN ('Staged', 'Imported', 'Rejected', 'Failed')),
-  row_count INTEGER NOT NULL DEFAULT 0,
-  error_json TEXT,
-  created_by TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (bom_draft_id) REFERENCES bom_drafts(id) ON DELETE SET NULL,
-  FOREIGN KEY (owner_part_number_id) REFERENCES part_numbers(id),
-  FOREIGN KEY (source_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-  FOREIGN KEY (parent_submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
-  FOREIGN KEY (import_profile_id) REFERENCES bom_import_profiles(id),
-  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS bom_edit_events (
@@ -803,7 +768,6 @@ CREATE TABLE IF NOT EXISTS bom_release_snapshots (
   owner_part_number_id TEXT,
   bom_revision TEXT,
   source_submission_id TEXT,
-  source_revision_package_id TEXT,
   parent_item_id TEXT,
   parent_submission_id TEXT,
   parent_revision TEXT,
@@ -1240,7 +1204,7 @@ CREATE TABLE IF NOT EXISTS part_roots (
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   root_code TEXT NOT NULL,
   core_name TEXT NOT NULL,
-  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
   rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
@@ -1260,7 +1224,7 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   sequence_no INTEGER NOT NULL CHECK (sequence_no >= 0),
   sequence_code TEXT NOT NULL,
   part_name TEXT NOT NULL,
-  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
   bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
   custom_specification TEXT,
@@ -1306,7 +1270,7 @@ CREATE TABLE IF NOT EXISTS part_number_drafts (
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   reserved_part_number TEXT NOT NULL,
   draft_type TEXT NOT NULL CHECK (draft_type IN ('new_part', 'replacement_part', 'drawing_revision_generated')),
-  item_type TEXT NOT NULL CHECK (item_type IN ('self_made', 'purchased', 'standard')),
+  item_type TEXT NOT NULL CHECK (item_type IN ('self_made', 'purchased')),
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation', 'voided')),
   source_part_number_id TEXT,
   source_drawing_number_id TEXT,
@@ -1482,6 +1446,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_part_links_primary_per_part
 ON drawing_part_links(part_number_id)
 WHERE link_type = 'primary_manufacturing';
 
+-- DEV-090: one formal relation per drawing/part pair. Existing installations
+-- must pass the provider-aware migration before this index is created.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_part_links_unique_pair
+ON drawing_part_links(drawing_number_id, part_number_id);
+
 CREATE TABLE IF NOT EXISTS numbering_draft_workspaces (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL,
@@ -1611,7 +1580,7 @@ CREATE TABLE IF NOT EXISTS numbering_draft_roots (
   company_id TEXT NOT NULL,
   workspace_id TEXT NOT NULL UNIQUE,
   core_name TEXT NOT NULL,
-  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   rule_version_id TEXT NOT NULL,
   candidate_reservation_id TEXT UNIQUE,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -1629,7 +1598,7 @@ CREATE TABLE IF NOT EXISTS numbering_draft_parts (
   root_draft_id TEXT,
   source_root_id TEXT,
   part_name TEXT NOT NULL,
-  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
   universal_reason TEXT,
   custom_specification TEXT,
@@ -2605,6 +2574,136 @@ CREATE TABLE IF NOT EXISTS file_assets (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- BEGIN DEV-065 part preview settings.
+CREATE TABLE IF NOT EXISTS part_preview_settings (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  part_number_id TEXT NOT NULL,
+  source_mode TEXT NOT NULL CHECK (source_mode IN ('auto', 'custom_image')),
+  file_asset_id TEXT,
+  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+  created_by TEXT,
+  updated_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+  FOREIGN KEY (part_number_id) REFERENCES part_numbers(id) ON DELETE CASCADE,
+  FOREIGN KEY (file_asset_id) REFERENCES file_assets(id) ON DELETE RESTRICT,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE (company_id, part_number_id),
+  CHECK (
+    (source_mode = 'auto' AND file_asset_id IS NULL)
+    OR (source_mode = 'custom_image' AND file_asset_id IS NOT NULL)
+  )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_part_preview_settings_active_asset
+  ON part_preview_settings(file_asset_id)
+  WHERE source_mode = 'custom_image' AND file_asset_id IS NOT NULL;
+
+CREATE TRIGGER IF NOT EXISTS trg_dev065_part_preview_settings_validate_insert
+BEFORE INSERT ON part_preview_settings
+BEGIN
+  SELECT CASE WHEN NOT EXISTS (
+    SELECT 1 FROM part_numbers part
+    WHERE part.id = NEW.part_number_id AND part.company_id = NEW.company_id
+  ) THEN RAISE(ABORT, 'PART_PREVIEW_PART_SCOPE_INVALID') END;
+  SELECT CASE WHEN NEW.source_mode = 'custom_image' AND NOT EXISTS (
+    SELECT 1 FROM file_assets asset
+    WHERE asset.id = NEW.file_asset_id
+      AND asset.linked_entity_type = 'part_number'
+      AND asset.linked_entity_id = NEW.part_number_id
+      AND asset.document_category = 'part_preview_image'
+      AND asset.deleted_at IS NULL
+  ) THEN RAISE(ABORT, 'PART_PREVIEW_ASSET_INVALID') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_dev065_part_preview_settings_validate_update
+BEFORE UPDATE ON part_preview_settings
+BEGIN
+  SELECT CASE WHEN NOT EXISTS (
+    SELECT 1 FROM part_numbers part
+    WHERE part.id = NEW.part_number_id AND part.company_id = NEW.company_id
+  ) THEN RAISE(ABORT, 'PART_PREVIEW_PART_SCOPE_INVALID') END;
+  SELECT CASE WHEN NEW.source_mode = 'custom_image' AND NOT EXISTS (
+    SELECT 1 FROM file_assets asset
+    WHERE asset.id = NEW.file_asset_id
+      AND asset.linked_entity_type = 'part_number'
+      AND asset.linked_entity_id = NEW.part_number_id
+      AND asset.document_category = 'part_preview_image'
+      AND asset.deleted_at IS NULL
+  ) THEN RAISE(ABORT, 'PART_PREVIEW_ASSET_INVALID') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_dev065_file_asset_active_preview_delete
+BEFORE UPDATE OF deleted_at ON file_assets
+WHEN OLD.deleted_at IS NULL
+  AND NEW.deleted_at IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM part_preview_settings setting
+    WHERE setting.source_mode = 'custom_image'
+      AND setting.file_asset_id = OLD.id
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'PART_PREVIEW_ACTIVE_ASSET');
+END;
+-- END DEV-065 part preview settings.
+
+-- BEGIN DEV-088 replacement part attachment selection snapshot.
+CREATE TABLE IF NOT EXISTS part_attachment_reuse_snapshots (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  part_number_draft_id TEXT NOT NULL,
+  source_part_number_id TEXT NOT NULL,
+  source_token TEXT NOT NULL,
+  selection_fingerprint TEXT NOT NULL,
+  candidate_count INTEGER NOT NULL CHECK (candidate_count >= 0),
+  selected_count INTEGER NOT NULL CHECK (selected_count >= 0),
+  new_count INTEGER NOT NULL CHECK (new_count >= 0),
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (part_number_draft_id) REFERENCES part_number_drafts(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_part_number_id) REFERENCES part_numbers(id),
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE (part_number_draft_id),
+  UNIQUE (company_id, part_number_draft_id, selection_fingerprint)
+);
+
+CREATE INDEX IF NOT EXISTS idx_part_attachment_reuse_snapshots_source
+ON part_attachment_reuse_snapshots(company_id, source_part_number_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS part_attachment_reuse_origins (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  snapshot_id TEXT NOT NULL,
+  target_file_asset_id TEXT NOT NULL,
+  origin_kind TEXT NOT NULL CHECK (origin_kind IN ('inherited', 'new')),
+  origin_key TEXT NOT NULL,
+  source_file_asset_id TEXT,
+  created_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  FOREIGN KEY (snapshot_id) REFERENCES part_attachment_reuse_snapshots(id) ON DELETE CASCADE,
+  FOREIGN KEY (target_file_asset_id) REFERENCES file_assets(id) ON DELETE RESTRICT,
+  FOREIGN KEY (source_file_asset_id) REFERENCES file_assets(id) ON DELETE RESTRICT,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  CHECK (
+    (origin_kind = 'inherited' AND source_file_asset_id IS NOT NULL)
+    OR (origin_kind = 'new' AND source_file_asset_id IS NULL)
+  ),
+  UNIQUE (snapshot_id, origin_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_part_attachment_reuse_origins_target
+ON part_attachment_reuse_origins(company_id, target_file_asset_id);
+
+CREATE INDEX IF NOT EXISTS idx_part_attachment_reuse_origins_source
+ON part_attachment_reuse_origins(company_id, source_file_asset_id)
+WHERE source_file_asset_id IS NOT NULL;
+-- END DEV-088 replacement part attachment selection snapshot.
+
 CREATE TABLE IF NOT EXISTS preview_jobs (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
@@ -3381,7 +3480,6 @@ CREATE INDEX IF NOT EXISTS idx_bom_lines_tree_draft_parent ON bom_lines_tree(bom
 CREATE INDEX IF NOT EXISTS idx_bom_lines_tree_part_revision ON bom_lines_tree(part_number, revision);
 CREATE INDEX IF NOT EXISTS idx_bom_draft_floating_topics_draft_parent
 ON bom_draft_floating_topics(bom_draft_id, parent_floating_topic_id, sequence_no);
-CREATE INDEX IF NOT EXISTS idx_bom_import_jobs_parent_submission_id ON bom_import_jobs(parent_submission_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bom_edit_events_draft_id ON bom_edit_events(bom_draft_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bom_review_requests_draft_status ON bom_review_requests(bom_draft_id, status);
 CREATE INDEX IF NOT EXISTS idx_bom_release_snapshots_parent_item_revision ON bom_release_snapshots(parent_item_id, parent_revision, released_at DESC);
@@ -4328,6 +4426,19 @@ CREATE TABLE IF NOT EXISTS pdm_review_traces (
   decision_at TEXT NOT NULL,
   FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT
 );
+
+-- Minimal terminal receipt kept only so a second reviewer tab receives a
+-- deterministic stale response after the active request is removed.
+CREATE TABLE IF NOT EXISTS pdm_work_review_terminal_receipts (
+  request_id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  decided_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_pdm_work_review_terminal_receipts_company_time
+  ON pdm_work_review_terminal_receipts(company_id, decided_at);
+CREATE TRIGGER IF NOT EXISTS trg_pdm_work_review_terminal_receipts_no_update BEFORE UPDATE ON pdm_work_review_terminal_receipts BEGIN SELECT RAISE(ABORT, 'DEV087_REVIEW_RECEIPT_IMMUTABLE'); END;
+CREATE TRIGGER IF NOT EXISTS trg_pdm_work_review_terminal_receipts_no_delete BEFORE DELETE ON pdm_work_review_terminal_receipts BEGIN SELECT RAISE(ABORT, 'DEV087_REVIEW_RECEIPT_IMMUTABLE'); END;
 
 CREATE TABLE IF NOT EXISTS part_approved_change_snapshots (
   id TEXT PRIMARY KEY,

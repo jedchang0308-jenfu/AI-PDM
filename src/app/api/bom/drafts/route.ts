@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { requireAuthAsync } from "@/lib/auth-async";
-import { canCreateBomDraftAsync, canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAsync } from "@/lib/bom-create-context";
+import { canReadBomDraftRecordAsync, resolveBomOwnerAccessContextAsync } from "@/lib/bom-create-context";
 import {
   BomCreateIdempotencyConflictError,
   BomRevisionConflictError,
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
   const ownerPartNumberId = textValue(body.ownerPartNumberId);
   const bomRevision = textValue(body.bomRevision);
-  const source = body.source === "cad_reference" ? "cad_reference" : body.source === "manual" ? "manual" : null;
+  const source = body.source === "manual" ? "manual" : null;
   const sourceSubmissionId = textValue(body.sourceSubmissionId) || null;
   const sourceRevisionPackageId = textValue(body.sourceRevisionPackageId) || null;
   const idempotencyKey = request.headers.get("idempotency-key")?.trim() || textValue(body.idempotencyKey);
@@ -83,27 +83,16 @@ export async function POST(request: Request) {
   }
   const revisionError = validateRevisionCode(bomRevision, { lifecycleStage: "release_area" });
   if (revisionError) return NextResponse.json({ error: revisionError }, { status: 422 });
-  if (source === "cad_reference" && !sourceSubmissionId && !sourceRevisionPackageId) {
-    return NextResponse.json({ error: "BOM_CAD_SOURCE_SUBMISSION_REQUIRED" }, { status: 422 });
-  }
-  if (source === "cad_reference" && sourceSubmissionId && sourceRevisionPackageId) {
-    return NextResponse.json({ error: "BOM_CAD_SOURCE_AMBIGUOUS" }, { status: 422 });
-  }
-  if (source === "manual" && (sourceSubmissionId || sourceRevisionPackageId)) {
+  if (sourceSubmissionId || sourceRevisionPackageId) {
     return NextResponse.json({ error: "BOM_MANUAL_SOURCE_SUBMISSION_FORBIDDEN" }, { status: 422 });
   }
   const accessInput = {
     user: auth.user,
     companyId: companyResult.company.companyId,
-    ownerPartNumberId,
-    sourceSubmissionId,
-    sourceRevisionPackageId
+    ownerPartNumberId
   };
   const owner = await resolveBomOwnerAccessContextAsync(accessInput);
   if (!owner) return NextResponse.json({ error: "BOM_CREATE_FORBIDDEN" }, { status: 403 });
-  if (source === "cad_reference" && !(await canCreateBomDraftAsync(accessInput))) {
-    return NextResponse.json({ error: "BOM_OWNER_SOURCE_MISMATCH" }, { status: 409 });
-  }
 
   const requestFingerprint = crypto
     .createHash("sha256")
@@ -112,8 +101,6 @@ export async function POST(request: Request) {
         ownerPartNumberId,
         bomRevision,
         source,
-        sourceSubmissionId,
-        sourceRevisionPackageId,
         draftName: textValue(body.draftName)
       })
     )
@@ -126,8 +113,6 @@ export async function POST(request: Request) {
       legacyItemId: owner.legacyItemId,
       bomRevision,
       source,
-      sourceSubmissionId,
-      sourceRevisionPackageId,
       actorId: auth.user.id,
       idempotencyKey,
       requestFingerprint,

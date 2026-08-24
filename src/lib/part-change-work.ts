@@ -33,10 +33,13 @@ export class PartChangeWorkService {
     if (!work) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "修改資料不存在", 404);
     assertEditor(actor, work.owner_user_id);
     const payload = typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload;
-    const attachments = await this.client.query(`SELECT asset.id, asset.file_name, asset.display_name, asset.mime_type, asset.file_size
-      FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id = :partId AND asset.deleted_at IS NULL
-      ORDER BY asset.created_at DESC, asset.id DESC`, { partId: work.part_id });
-    return { data: { entityType: "part" as const, entityId: work.part_id, workId: work.id, rowVersion: Number(work.row_version), payload, attachments, readonly: false }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.id }), correlationId: crypto.randomUUID() } };
+    const [identity, attachments] = await Promise.all([
+      this.client.queryOne(`SELECT part_number AS code, part_name AS name FROM part_numbers WHERE id = :partId AND company_id = :companyId`, { partId: work.part_id, companyId: actor.companyId }),
+      this.client.query(`SELECT asset.id, asset.file_name, asset.display_name, asset.document_category, asset.mime_type, asset.file_size
+        FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id = :partId AND asset.deleted_at IS NULL
+        ORDER BY asset.created_at DESC, asset.id DESC`, { partId: work.part_id })
+    ]);
+    return { data: { entityType: "part" as const, entityId: work.part_id, workId: work.id, rowVersion: Number(work.row_version), payload, identity, attachments, readonly: false }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.id }), correlationId: crypto.randomUUID() } };
   }
 
   async create(partId: string, actor: PartChangeActor, context: CommandContext) {

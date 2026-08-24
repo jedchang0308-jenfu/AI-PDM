@@ -6,7 +6,6 @@ import {
   getApprovalPlatformRequestDetailForCompanyAsync
 } from "@/lib/approval-platform";
 import { approvalApiErrorResponse } from "@/lib/approval-api-error";
-import { decideNumberingCandidateReview, NumberStateFlowError } from "@/lib/number-state-flow";
 import { validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
 import {
   requestedNumberingCompanyCodeFromRequest,
@@ -16,8 +15,6 @@ import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-con
 import { BomFloatingTopicsUnresolvedError, BomReleaseGateError } from "@/lib/bom-workbench-async";
 import { decideTransferPackageReview } from "@/lib/transfer-package-phase1d";
 import { transferPhase1dErrorResponse } from "@/lib/transfer-package-phase1d-api";
-import { decideNumberingCandidateBundleReview } from "@/lib/number-lifecycle-simplification";
-import { numberStateFlowErrorResponse } from "@/lib/number-state-flow-api";
 import {
   decideDrawingRevisionLifecycle,
   drawingRevisionLifecycleErrorPayload
@@ -80,59 +77,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
   }
 
   if (detail.actionCode === "numbering.candidate_bundle_review") {
-    const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");
-    const invalid = validateNumberStateMutationRequest({ request, idempotencyKey, requireIdempotency: true });
-    if (invalid) return invalid;
-    const access = await requireNumberingPlatformCommandAsync(request, {
-      action: "numbering.candidate.review.decide",
-      body: body as Record<string, unknown>
-    });
-    if (access.response || !access.metadata || !access.actor) return access.response;
-    if (detail.companyId !== access.actor.organizationId) {
-      return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
-    }
-    try {
-      const result = await decideNumberingCandidateBundleReview({
-        metadata: access.metadata,
-        requestId: decodedRequestId,
-        decision,
-        comment: nullableText(body.comment ?? body.decisionReason ?? body.decision_reason)
-      });
-      const updated = await getApprovalPlatformRequestDetailAsync(decodedRequestId);
-      return NextResponse.json({ request: updated, ...result });
-    } catch (error) {
-      return numberStateFlowErrorResponse(error, "Candidate bundle review decision failed.");
-    }
+    return NextResponse.json({ error: "WORKBENCH_COMMAND_CONTRACT_RETIRED", message: "舊候選審核命令已退役。" }, { status: 410 });
   }
 
   if (detail.actionCode === "numbering.candidate_publication_review") {
-    const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");
-    const invalid = validateNumberStateMutationRequest({ request, idempotencyKey, requireIdempotency: true });
-    if (invalid) return invalid;
-    const access = await requireNumberingPlatformCommandAsync(request, {
-      action: "numbering.candidate.review.decide",
-      body: body as Record<string, unknown>
-    });
-    if (access.response || !access.metadata || !access.actor) return access.response;
-    if (detail.companyId !== access.actor.organizationId) {
-      return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
-    }
-    try {
-      await decideNumberingCandidateReview({
-        metadata: access.metadata,
-        requestId: decodedRequestId,
-        decision,
-        comment: nullableText(body.comment ?? body.decisionReason ?? body.decision_reason)
-      });
-      const updated = await getApprovalPlatformRequestDetailAsync(decodedRequestId);
-      if (!updated) return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
-      return NextResponse.json({ request: updated });
-    } catch (error) {
-      if (error instanceof NumberStateFlowError) {
-        return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-      }
-      return approvalApiErrorResponse(error, "decision", request);
-    }
+    return NextResponse.json({ error: "WORKBENCH_COMMAND_CONTRACT_RETIRED", message: "舊候選發布審核命令已退役。" }, { status: 410 });
   }
 
   if (detail.actionCode === "numbering.drawing_revision_lifecycle_review") {

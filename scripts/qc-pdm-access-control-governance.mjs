@@ -219,7 +219,7 @@ async function assertSettingsUi(browser, cookie, viewportName, viewport) {
       `${viewportName} 規則矩陣使用中文管理語言`,
       ruleSummaryValues.some((summary) => summary.includes("確認沒有主要製造圖仍要發行")) &&
         ruleSummaryValues.some((summary) => summary.includes("正式發行")) &&
-        rolesPanelText.includes("自製件") &&
+        rolesPanelText.includes("依圖製作件") &&
         rolesPanelText.includes("待審核") &&
         rolesPanelText.includes("編號不可重複"),
       `${ruleSummaryValues.join(" / ")}\n${rolesPanelText.slice(0, 1200)}`
@@ -273,7 +273,7 @@ async function assertSettingsUi(browser, cookie, viewportName, viewport) {
       actionOptions.join(" / ")
     );
     const itemOptions = await page.locator('[data-testid="approval-rule-item-kind"]').first().evaluate((select) => Array.from(select.options).map((option) => option.textContent?.trim() ?? ""));
-    record(`${viewportName} 料件下拉選單使用中文選項`, itemOptions.includes("自製件") && itemOptions.includes("委外件") && !itemOptions.includes("manufactured"), itemOptions.join(" / "));
+    record(`${viewportName} 料件下拉選單使用中文選項`, itemOptions.includes("依圖製作件") && itemOptions.includes("外購標準件") && !itemOptions.includes("自製件") && !itemOptions.includes("委外件") && !itemOptions.includes("manufactured"), itemOptions.join(" / "));
     const riskOptions = await page.locator('[data-testid="approval-rule-risk"]').first().evaluate((select) => Array.from(select.options).map((option) => option.textContent?.trim() ?? ""));
     record(
       `${viewportName} 風險下拉選單使用中文選項`,

@@ -172,7 +172,7 @@ function seedIndexedRows(db) {
     `P-IDX-CHILD-${token}`,
     `D-IDX-CHILD-${token}`,
     "A",
-    "assembly_component",
+    "unknown",
     1,
     "qc_index",
     "high",
@@ -180,7 +180,7 @@ function seedIndexedRows(db) {
   );
   db.prepare(
     "INSERT OR IGNORE INTO bom_headers (id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run(bomHeaderId, itemId, submissionId, "A", "Draft", "cad_references", 1, now, now);
+  ).run(bomHeaderId, itemId, submissionId, "A", "Draft", "manual", 1, now, now);
   db.prepare(
     "INSERT OR IGNORE INTO bom_lines (id, bom_header_id, line_no, child_part_number, child_revision, quantity, source_file_id, source_reference_id, source_filename, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(`bom-line-idx-${token}`, bomHeaderId, 1, `P-IDX-CHILD-${token}`, "A", 1, fileId, referenceId, `IDX-${token}.sldasm`, now);

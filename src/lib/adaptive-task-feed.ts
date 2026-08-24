@@ -115,7 +115,7 @@ export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary
           signal: "system_exception",
           severity: "critical",
           roleAffinity: ["R&D Manager", "Admin", "PM", "QA/QC"],
-          href: "/numbering/tasks",
+          href: "/",
           primaryActionLabel: "查看通知",
           evidence: "notification summary",
           updatedAt: input.notifications[0]?.created_at ?? null
@@ -182,7 +182,7 @@ export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary
           signal: "draft",
           severity: "warning",
           roleAffinity: ["Engineer", "PM"],
-          href: "/numbering/tasks",
+          href: "/upload",
           primaryActionLabel: "補齊送審",
           evidence: "numbering drafts",
           updatedAt: null
@@ -248,8 +248,8 @@ export function buildAdaptiveTaskFeed(input: AdaptiveTaskFeedInput): TaskSummary
           signal: "none",
           severity: "success",
           roleAffinity: [input.role],
-          href: input.role === "Engineer" ? "/upload" : "/numbering/tasks",
-          primaryActionLabel: input.role === "Engineer" ? "建立送審" : "查看待辦",
+          href: input.role === "Engineer" ? "/upload" : "/",
+          primaryActionLabel: input.role === "Engineer" ? "建立送審" : "回工作台",
           evidence: "empty adaptive feed fallback",
           updatedAt: null
         },

@@ -227,6 +227,9 @@ const worker = read("scripts/run-drawing-recognition-worker.mjs");
 const contentRoute = read("src/app/api/numbering/recognition-sessions/[sessionId]/sources/[sourceId]/content/route.ts");
 const completionRoute = read("src/app/api/numbering/recognition-sessions/[sessionId]/client-adapter-results/route.ts");
 const orchestrator = read("src/components/drawing-recognition-pdf-ocr.tsx");
+const recognitionPanel = read("src/components/drawing-recognition-workspace-panel.tsx");
+const canonicalDrawingWorkspace = read("src/components/canonical-drawing-change-workspace.tsx");
+const canonicalPreviewMedia = read("src/components/canonical-preview-media.tsx");
 const browserOcr = read("src/lib/browser-pdf-ocr.ts");
 const pdfViewport = read("src/components/pdf-page-viewport.tsx");
 const globalStyles = read("src/app/globals.css");
@@ -279,6 +282,16 @@ assert.match(pdfViewport, /dataset\.renderElapsedMs = Math\.max/u, "magnifier re
 assert.match(globalStyles, /\.dev079-evidence-highlighter\s*\{[\s\S]*border:\s*0/u, "highlighter must not have an extra border");
 assert.match(globalStyles, /\.dev079-evidence-magnifier-viewport\s*\{[\s\S]*border:\s*3px solid #f1cc14/u, "magnifier must use one yellow ring");
 assert.match(globalStyles, /\.dev079-evidence-magnifier::after\s*\{\s*display:\s*none/u, "magnifier handle/green frame must be removed");
+assert.match(recognitionPanel, /onFocus=\{\(\) => selectEvidence\(group\.observations\)\}/u, "recognized fields must remain the evidence-location entrypoint");
+assert.match(recognitionPanel, /onEvidenceSelect\(\{[\s\S]*pageNumber:[\s\S]*geometry:[\s\S]*locatable:/u, "recognition panel must emit the complete evidence contract");
+assert.match(canonicalDrawingWorkspace, /onEvidenceSelect=\{locateRecognitionEvidence\}/u, "canonical drawing workspace must consume recognition evidence selection");
+assert.match(canonicalDrawingWorkspace, /recognition-sessions\/\$\{encodeURIComponent\(evidenceSessionId\)\}\/sources\/\$\{encodeURIComponent\(evidenceSourceId\)\}\/content/u, "canonical workspace must load the exact controlled evidence PDF source");
+assert.match(canonicalDrawingWorkspace, /pageNumber,[\s\S]*focusRegion,[\s\S]*openInNewTab: true/u, "canonical workspace must pass the exact page and normalized focus region to the existing preview surface");
+assert.match(canonicalDrawingWorkspace, /restorePreviewBeforeEvidence[\s\S]*setVisualKind\(evidenceOriginKind\)/u, "leaving evidence mode must restore the original preview kind");
+assert.match(canonicalDrawingWorkspace, /onDirtyChange=\{setRecognitionDirty\}/u, "canonical workspace must keep unsaved recognition changes guarded");
+assert.match(canonicalDrawingWorkspace, /disabled=\{busy \|\| recognitionDirty\}/u, "submission must remain blocked while recognition review changes are unsaved");
+assert.doesNotMatch(canonicalDrawingWorkspace, /dev079-clear-evidence|>返回原圖面<\/button>/u, "evidence restore must not add a second navigation control");
+assert.match(canonicalPreviewMedia, /PdfPageViewport[\s\S]*pageNumber=\{media\.pageNumber \?\? 1\}[\s\S]*focusRegion=\{media\.focusRegion\}/u, "canonical preview media must render location on the same PDF.js page surface");
 
 const report = {
   dev: "DEV-082",
@@ -306,7 +319,8 @@ const report = {
     singleYellowRing: true,
     responsiveLensBounds: true,
     boundedMagnifierRecovery: true,
-    exactMaterialTextEvidence: true
+    exactMaterialTextEvidence: true,
+    canonicalWorkspaceEvidenceBridge: true
   },
   cases: Object.fromEntries([
     ["OCR-082-001", "adapter plan recognizes only PDF content, SolidWorks native metadata and filename-only attachments"],

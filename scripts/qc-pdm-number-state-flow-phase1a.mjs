@@ -181,7 +181,7 @@ try {
 }
 
 const repositorySource = read("src/lib/repositories/number-state-flow-async-repository.ts");
-const previewSource = read("src/lib/number-candidate-preview.ts");
+const previewSource = read("src/lib/numbering-preview.ts");
 const serviceSource = read("src/lib/number-state-flow.ts");
 const apiSource = [
   read("src/lib/number-state-flow-api.ts"),
@@ -230,8 +230,9 @@ record(
   "api",
   "NSF-NUM-retired-code",
   repositorySource.includes("reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted', 'recycled')") &&
-    previewSource.includes("reservation_state IN ('active', 'review_locked', 'approved_locked', 'promoted', 'recycled')"),
-  "allocator and preview must retain recycled candidate codes as historical identifiers"
+    previewSource.includes("numbering_recovery_reservations") &&
+    !previewSource.includes("number_candidate_reservations"),
+  "canonical preview must use recovery reservations only; candidate reservations are retired"
 );
 record(
   "api",

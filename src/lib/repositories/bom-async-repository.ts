@@ -1,8 +1,6 @@
-import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { buildBomSubmissionDiff } from "@/lib/bom-submission-diff";
-import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
-import type { BomDetail, BomDiffResult, FileReference, SubmissionSummary } from "@/lib/types";
+import type { BomDetail, BomDiffResult, SubmissionSummary } from "@/lib/types";
 
 type BomHeaderRow = Omit<BomDetail, "lines">;
 
@@ -76,40 +74,6 @@ export const SELECT_ASYNC_BOM_SUBMISSION_SQL = `
   WHERE id = :submissionId
 `;
 
-export const SELECT_ASYNC_ASSEMBLY_FILE_REFERENCES_SQL = `
-  SELECT *
-  FROM file_references
-  WHERE submission_id = :submissionId
-    AND reference_type = 'assembly_component'
-    AND referenced_part_number IS NOT NULL
-    AND trim(referenced_part_number) <> ''
-  ORDER BY source_filename, referenced_part_number, referenced_filename
-`;
-
-export const UPSERT_ASYNC_BOM_HEADER_SQL = `
-  INSERT INTO bom_headers (
-    id, parent_item_id, parent_submission_id, parent_revision, status, source, line_count, created_at, updated_at
-  ) VALUES (:id, :parentItemId, :parentSubmissionId, :parentRevision, :status, :source, :lineCount, :now, :now)
-  ON CONFLICT(parent_submission_id) DO UPDATE SET
-    parent_revision = excluded.parent_revision,
-    source = excluded.source,
-    line_count = excluded.line_count,
-    updated_at = excluded.updated_at
-`;
-
-export const DELETE_ASYNC_BOM_LINES_SQL = `
-  DELETE FROM bom_lines
-  WHERE bom_header_id = :bomHeaderId
-`;
-
-export const INSERT_ASYNC_BOM_LINE_SQL = `
-  INSERT INTO bom_lines (
-    id, bom_header_id, line_no, child_part_number, child_revision, quantity,
-    source_file_id, source_reference_id, source_filename, created_at
-  ) VALUES (:id, :bomHeaderId, :lineNo, :childPartNumber, :childRevision, :quantity,
-    :sourceFileId, :sourceReferenceId, :sourceFilename, :createdAt)
-`;
-
 export const SELECT_ASYNC_PREVIOUS_BOM_SUBMISSIONS_SQL = `
   SELECT s.id
   FROM submissions s
@@ -119,11 +83,7 @@ export const SELECT_ASYNC_PREVIOUS_BOM_SUBMISSIONS_SQL = `
 `;
 
 export class AsyncBomRepository {
-  constructor(
-    private readonly client: AsyncDatabaseClient,
-    private readonly clock: () => string = () => new Date().toISOString(),
-    private readonly idFactory: () => string = () => crypto.randomUUID()
-  ) {}
+  constructor(private readonly client: AsyncDatabaseClient) {}
 
   async getBomBySubmissionId(submissionId: string): Promise<BomDetail | null> {
     const header = await this.client.queryOne<BomHeaderRow>(SELECT_ASYNC_BOM_HEADER_SQL, { submissionId });
@@ -142,52 +102,6 @@ export class AsyncBomRepository {
         quantity: Number(line.quantity)
       }))
     };
-  }
-
-  async materializeBomDraftFromReferences(submissionId: string): Promise<BomDetail | null> {
-    const submission = await this.getBomSubmission(submissionId);
-    if (!submission) return null;
-
-    const now = this.clock();
-    const references = await this.client.query<FileReference>(SELECT_ASYNC_ASSEMBLY_FILE_REFERENCES_SQL, { submissionId });
-    const existing = await this.getBomBySubmissionId(submissionId);
-    const targetHeaderId = existing?.id ?? this.idFactory();
-
-    await this.client.execute(UPSERT_ASYNC_BOM_HEADER_SQL, {
-      id: targetHeaderId,
-      parentItemId: submission.item_id,
-      parentSubmissionId: submission.id,
-      parentRevision: submission.revision,
-      status: submission.status === "Released" ? "ReleasedSnapshot" : "Draft",
-      source: "cad_references",
-      lineCount: references.length,
-      now
-    });
-    await this.client.execute(DELETE_ASYNC_BOM_LINES_SQL, { bomHeaderId: targetHeaderId });
-
-    for (const [index, reference] of references.entries()) {
-      await this.client.execute(INSERT_ASYNC_BOM_LINE_SQL, {
-        id: this.idFactory(),
-        bomHeaderId: targetHeaderId,
-        lineNo: index + 1,
-        childPartNumber: reference.referenced_part_number,
-        childRevision: reference.referenced_revision,
-        quantity: Number(reference.quantity),
-        sourceFileId: reference.source_file_id,
-        sourceReferenceId: reference.id,
-        sourceFilename: reference.source_filename,
-        createdAt: now
-      });
-    }
-
-    await new AsyncAuditRepository(this.client, this.clock, this.idFactory).createAuditLog({
-      submissionId,
-      actorId: null,
-      action: "BomDraftMaterialized",
-      detail: { source: "file_references", lineCount: references.length }
-    });
-
-    return this.getBomBySubmissionId(submissionId);
   }
 
   async findPreviousBomSubmissionId(targetSubmissionId: string): Promise<string | null> {

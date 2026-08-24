@@ -99,7 +99,7 @@ async function assertEngineerRecordCreate(cookie, expectedStatus) {
     body: JSON.stringify({
       coreName: "QC permission denied probe",
       partName: "QC permission denied probe",
-      itemKind: "manufactured",
+      itemKind: "purchased",
       drawingRequested: false
     })
   });

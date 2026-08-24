@@ -16,10 +16,10 @@ import {
 import { NumberingSubmissionResult, type NumberingSubmissionResultCandidate } from "@/components/numbering-submission-result";
 import { DrawingDetailPreview } from "@/components/drawing-detail-preview";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
-import { isPdmOwnerApprovalAction, resolvePdmApprovalOwnerContext } from "@/lib/pdm-approval-owner-route";
-import { UnifiedPdmEntityDetailDrawer } from "@/components/unified-pdm-entity-detail-drawer";
+import { isPdmOwnerApprovalAction } from "@/lib/pdm-approval-owner-route";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { getStatusDisplay } from "@/lib/status-display";
+import { pdmFileReadHref } from "@/lib/pdm-file-read-contract";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "needs_info" | "cancelled" | "apply_failed" | "applied";
@@ -156,8 +156,6 @@ const domainText: Record<string, string> = {
   bom: "BOM",
   drawing_package: "圖面包"
 };
-type FeatureStatusResponse = { entityDetail?: { enabled?: boolean } };
-
 const legacyRedirectMessages: Record<string, string> = {
   numbering_approvals: "已從舊的發行審核入口轉到審核工作台；目前已套用圖料審核篩選。",
   bom_reviews: "已從舊的 BOM 審核入口轉到審核工作台；目前已套用 BOM 篩選。",
@@ -174,8 +172,6 @@ export default function ApprovalPlatformPage() {
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [unifiedEntityDetailEnabled, setUnifiedEntityDetailEnabled] = useState<boolean | null>(null);
-  const [unifiedDetailRequestId, setUnifiedDetailRequestId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const initialQuery: ApprovalWorkbenchQuery = { status: "active", domain: "all", action: "all", query: "", limit: 100 };
   const handleUnauthorized = useCallback(() => setState("unauthorized"), []);
@@ -232,15 +228,6 @@ export default function ApprovalPlatformPage() {
     setLegacyRedirectMessage(readLegacyRedirectMessage());
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/numbering/state-flow/status", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() as Promise<FeatureStatusResponse> : null)
-      .then((status) => { if (!cancelled) setUnifiedEntityDetailEnabled(status?.entityDetail?.enabled === true); })
-      .catch(() => { if (!cancelled) setUnifiedEntityDetailEnabled(false); });
-    return () => { cancelled = true; };
-  }, []);
-
   const visibleActionFilters = useMemo(
     () =>
       actionFilters.filter(
@@ -250,20 +237,8 @@ export default function ApprovalPlatformPage() {
   );
   const showInboxAction = useMemo(() => new Set(items.map((item) => item.actionCode)).size > 1, [items]);
   const selectedItem = items.find((item) => item.id === selectedId) ?? null;
-  const selectedOwnerContext = selectedItem ? resolvePdmApprovalOwnerContext(selectedItem) : null;
   const selectedIsPdmOwner = Boolean(selectedItem && isPdmOwnerApprovalAction(selectedItem.actionCode));
-  const selectedIsHistoricalPdmReview = Boolean(
-    selectedItem
-      && selectedIsPdmOwner
-      && selectedItem.status !== "pending"
-      && selectedItem.status !== "apply_failed"
-  );
-  const legacyDetailFallback = APPROVAL_DETAIL_DRAWER_ENABLED && (
-    selectedIsHistoricalPdmReview
-      ||
-    (unifiedEntityDetailEnabled !== true && Boolean(selectedItem && !selectedIsPdmOwner))
-      || (unifiedEntityDetailEnabled === true && Boolean(selectedItem && !selectedItem.ownerHref && !selectedIsPdmOwner))
-  );
+  const legacyDetailFallback = APPROVAL_DETAIL_DRAWER_ENABLED && Boolean(selectedItem && !selectedIsPdmOwner);
   const loadInbox = useCallback(async (options?: { preserveFeedback?: boolean }) => {
     setBusy("reload");
     setError("");
@@ -302,11 +277,6 @@ export default function ApprovalPlatformPage() {
       setState("ready");
     }
   }, [controllerError, initialized, loading, state]);
-
-  useEffect(() => {
-    const requestId = readInitialTextParam("requestId");
-    if (initialized && requestId && selectedId === requestId) setUnifiedDetailRequestId(requestId);
-  }, [initialized, selectedId]);
 
   useEffect(() => {
     if (!legacyDetailFallback) return;
@@ -409,7 +379,6 @@ export default function ApprovalPlatformPage() {
 
   function closeDetail() {
     closeControllerDetail();
-    setUnifiedDetailRequestId(null);
     setDetail(null);
     setComment("");
     setMessage("");
@@ -418,26 +387,17 @@ export default function ApprovalPlatformPage() {
   }
 
   const openApprovalRow = useCallback((item: ApprovalInboxItem) => {
-    const ownerContext = resolvePdmApprovalOwnerContext(item);
-    const historicalPdmReview = isPdmOwnerApprovalAction(item.actionCode)
-      && item.status !== "pending"
-      && item.status !== "apply_failed";
-    if (historicalPdmReview && APPROVAL_DETAIL_DRAWER_ENABLED) {
-      setUnifiedDetailRequestId(null);
-      void openControllerDetail(item.id);
-      return;
-    }
-    if (unifiedEntityDetailEnabled !== false && ownerContext) {
-      setUnifiedDetailRequestId(item.id);
-      void openControllerDetail(item.id);
-      return;
-    }
     if (isPdmOwnerApprovalAction(item.actionCode)) {
-      setError("此審核案目前無法對應原工作台資料，已停止開啟，請由 PDM Admin 修正送審目標。");
+      if (item.status !== "pending" && item.status !== "apply_failed") {
+        setError("此審核已結束；目前工作臺不呈現終態審核內容。");
+        return;
+      }
+      const returnTo = approvalDrawerReturnTo();
+      window.location.assign(`/approvals/${encodeURIComponent(item.id)}?returnTo=${encodeURIComponent(returnTo)}`);
       return;
     }
     if (APPROVAL_DETAIL_DRAWER_ENABLED) void openControllerDetail(item.id);
-  }, [openControllerDetail, unifiedEntityDetailEnabled]);
+  }, [openControllerDetail]);
   const listKeyboard = useListKeyboardShortcuts({
     items,
     selectedKey: selectedId,
@@ -451,7 +411,7 @@ export default function ApprovalPlatformPage() {
     },
     onOpenDetail: openApprovalRow,
     onCloseDetail: closeDetail,
-    isDetailOpen: Boolean((legacyDetailFallback && detail) || (unifiedDetailRequestId && unifiedDetailRequestId === selectedId))
+    isDetailOpen: Boolean(legacyDetailFallback && detail)
   });
 
   return (
@@ -566,18 +526,6 @@ export default function ApprovalPlatformPage() {
           <PdmWorkbenchPagination pageIndex={pageIndex} hasPreviousPage={Boolean(previousCursor)} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
         </section>
         {legacyDetailFallback && detail ? <ApprovalDetailDrawer detail={detail} busy={busy} comment={comment} message={message} error={error} drawerWidth={drawerWidth} onStartResize={startDrawerResize} onClose={closeDetail} onCommentChange={setComment} onDecide={decide} onRetryCleanup={retryCleanup} onRetryApply={retryApply} /> : null}
-        {!legacyDetailFallback && unifiedEntityDetailEnabled && unifiedDetailRequestId === selectedItem?.id && selectedItem && selectedOwnerContext ? (
-          <UnifiedPdmEntityDetailDrawer
-            open
-            entityKey={selectedOwnerContext.entityKey}
-            surface={selectedOwnerContext.surface}
-            reviewRequestId={selectedItem.id}
-            width={drawerWidth}
-            returnTo={approvalDrawerReturnTo()}
-            onStartResize={startDrawerResize}
-            onClose={closeDetail}
-          />
-        ) : null}
       </div>
     </div>
   );
@@ -752,14 +700,15 @@ function ApprovalDrawingPreview({ detail, candidates }: { detail: ApprovalDetail
   const files = candidates.flatMap((candidate) => candidate.files);
   const threeD = files.find((file) => file.role === "cad_3d");
   const twoD = files.find((file) => ["drawing_2d", "pdf", "dwg_dxf"].includes(file.role));
+  const evidenceHref = (fileAssetId: string) => pdmFileReadHref({ fileAssetId, context: "approval_evidence", contextId: requestId!, bindingId: fileAssetId });
   const fileActions = (file: typeof threeD) => file && requestId && file.sourceFileAssetId ? (
     <>
-      <a className="numbering-submission-result-link" href={`/api/approvals/requests/${encodeURIComponent(requestId)}/evidence/${encodeURIComponent(file.sourceFileAssetId)}?preview=1`} target="_blank" rel="noreferrer">預覽</a>
-      <a className="numbering-submission-result-link" href={`/api/approvals/requests/${encodeURIComponent(requestId)}/evidence/${encodeURIComponent(file.sourceFileAssetId)}?download=1`} target="_blank" rel="noreferrer">下載</a>
+      <a className="numbering-submission-result-link" href={`${evidenceHref(file.sourceFileAssetId)}&preview=1`} target="_blank" rel="noreferrer">預覽</a>
+      <a className="numbering-submission-result-link" href={evidenceHref(file.sourceFileAssetId)} target="_blank" rel="noreferrer">下載</a>
     </>
   ) : null;
   const fileMedia = (file: typeof threeD) => file && requestId && file.sourceFileAssetId ? {
-    href: `/api/approvals/requests/${encodeURIComponent(requestId)}/evidence/${encodeURIComponent(file.sourceFileAssetId)}?preview=1`,
+    href: `${evidenceHref(file.sourceFileAssetId)}&preview=1`,
     mode: file.role === "cad_3d" ? "image" as const : "document" as const,
     title: `${file.displayName || "附件"} 預覽`
   } : undefined;

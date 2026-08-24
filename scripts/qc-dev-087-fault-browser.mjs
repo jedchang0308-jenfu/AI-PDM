@@ -99,7 +99,7 @@ try {
   ], { cwd: root, encoding: "utf8" });
   check("isolated migration applied or safely quarantined", migration.status === 0 || migration.status === 2, `${migration.stdout}\n${migration.stderr}`);
   const fixture = new Database(fixtureDb);
-  fixture.prepare("UPDATE pdm_workbench_state_authority_control SET mode='canonical_only', expected_commit='local-dev', schema_hash='dev087-v1', row_version=row_version+1").run();
+  fixture.prepare("UPDATE pdm_workbench_state_authority_control SET mode='canonical_only', expected_commit='local-dev', schema_hash='dev090-v1', row_version=row_version+1").run();
   const baseline = fixture.prepare("SELECT revision_id AS production_revision_id FROM canonical_workbench_states WHERE canonical_entity_id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877' AND data_layer = 'drawing_production'").get();
   check("isolated fixture has A0002 production and RD rows", fixture.prepare("SELECT COUNT(*) AS count FROM canonical_workbench_states state JOIN drawings drawing ON drawing.id = state.canonical_entity_id WHERE drawing.drawing_number='A0002-M01' AND state.data_layer IN ('drawing_production', 'drawing_rd')").get().count >= 2);
   fixture.close();

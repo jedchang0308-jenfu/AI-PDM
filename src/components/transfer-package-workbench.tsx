@@ -376,7 +376,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
         <WorkbenchTopbar title="建立技轉包" subtitle="先建立案件，再逐步補齊技轉資料。" />
         {error ? <InlineMessage kind="error" message={error} /> : null}
         {context?.sourceRequested && !context.sourceResolved ? (
-          <InlineMessage kind="error" message="找不到帶入的來源圖料；請回圖料工作台重新選擇。" />
+          <InlineMessage kind="error" message="找不到帶入的來源圖料；請回編號搜尋重新選擇。" />
         ) : null}
         <section className="panel transfer-form-panel">
           <div className="panel-header">
@@ -403,7 +403,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
             disabled={Boolean(busy)}
           />
           <div className="transfer-primary-actions">
-            <Link className="secondary-button" href="/numbering/search">回圖料工作台</Link>
+          <Link className="secondary-button" href="/numbering/search">回編號搜尋</Link>
             <button
               className="primary-button"
               type="button"
@@ -666,7 +666,7 @@ export function TransferPackageWorkbenchShell(props: Props) {
 }
 
 function WorkbenchTopbar({ title, subtitle, actions }: { title: string; subtitle: string; actions?: ReactNode }) {
-  return <div className="topbar transfer-topbar"><div><h1>{title} <StatusScopeHelp scope="transferPackageWorkbench" /></h1><p>{subtitle}</p></div><div className="transfer-topbar-actions">{actions}<Link className="secondary-button" href="/numbering/tasks"><ClipboardList size={16} />回待辦中心</Link></div></div>;
+  return <div className="topbar transfer-topbar"><div><h1>{title} <StatusScopeHelp scope="transferPackageWorkbench" /></h1><p>{subtitle}</p></div><div className="transfer-topbar-actions">{actions}<Link className="secondary-button" href="/handoff"><ClipboardList size={16} />回技術移轉</Link></div></div>;
 }
 
 function HeaderFields(props: {
@@ -717,8 +717,8 @@ function StatusPill({ status }: { status: TransferPackageWorkbench["adapters"][n
 function WorkbenchState({ state, error, onRetry }: { state: LoadState; error: string; onRetry: () => Promise<void> }) {
   if (state === "loading") return <section className="panel transfer-state"><Loader2 className="spin" size={22} /><h1>讀取技轉包</h1><p>正在取得案件資料。</p></section>;
   if (state === "unauthorized") return <section className="panel transfer-state"><ShieldAlert size={22} /><h1>請先登入</h1><p>登入後才能建立或查看技轉包。</p><Link className="primary-button" href="/login">前往登入</Link></section>;
-  if (state === "forbidden") return <section className="panel transfer-state"><ShieldAlert size={22} /><h1>無法存取技轉包</h1><p>目前帳號沒有此公司或 RD 技轉權限。</p><Link className="secondary-button" href="/numbering/tasks">回待辦中心</Link></section>;
-  if (state === "not_found") return <section className="panel transfer-state"><FolderKanban size={22} /><h1>找不到技轉包</h1><p>資料可能已變更，請回待辦中心重新進入。</p><Link className="primary-button" href="/numbering/tasks">回待辦中心</Link></section>;
+  if (state === "forbidden") return <section className="panel transfer-state"><ShieldAlert size={22} /><h1>無法存取技轉包</h1><p>目前帳號沒有此公司或 RD 技轉權限。</p><Link className="secondary-button" href="/handoff">回技術移轉</Link></section>;
+  if (state === "not_found") return <section className="panel transfer-state"><FolderKanban size={22} /><h1>找不到技轉包</h1><p>資料可能已變更，請回技術移轉重新進入。</p><Link className="primary-button" href="/handoff">回技術移轉</Link></section>;
   return <section className="panel transfer-state"><AlertTriangle size={22} /><h1>技轉包讀取失敗</h1><p>{error || "請稍後重試。"}</p><button className="secondary-button" type="button" onClick={() => void onRetry()}><RefreshCw size={16} />重試</button></section>;
 }
 

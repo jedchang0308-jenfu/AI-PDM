@@ -14,7 +14,6 @@ const approvals = read("src/app/approvals/page.tsx");
 const workbench = read("src/components/drawing-workbench.tsx");
 const workbenchService = read("src/lib/drawing-workbench.ts");
 const workbenchRepository = read("src/lib/repositories/drawing-workbench-async-repository.ts");
-const tasksPage = read("src/app/numbering/tasks/page.tsx");
 const numberingRepository = read("src/lib/repositories/numbering-async-repository.ts");
 
 record("DEV053-H-UI-001 native submit keeps the user on the shared revision page",
@@ -87,7 +86,7 @@ record("DEV053-H-UI-009 my tasks are projected and cannot be manually completed"
     "drawing_revision_lifecycle_reviewers",
     "reviewer.reviewer_id = :actorId",
     'taskType: "drawing_revision_lifecycle_review"'
-  ]) && has(tasksPage, ['task.taskType === "drawing_revision_lifecycle_review" ? null', "查看"]));
+  ]) && !fs.existsSync(path.join(root, "src/app/numbering/tasks/page.tsx")));
 
 record("DEV053-H-UI-010 correction reason is visible on the shared workbench",
   has(revisions, [

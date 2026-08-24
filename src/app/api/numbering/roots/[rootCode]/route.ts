@@ -3,7 +3,7 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { getNumberingRootDetailAsync } from "@/lib/numbering-async";
 import { projectEffectiveRelationRecordStatus, projectNumberingRootStatus } from "@/lib/drawing-part-relation-status";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
-import { projectDrawingRecordHumanStatus } from "@/lib/drawing-workbench-status";
+import { projectDrawingRecordHumanStatus } from "@/lib/drawing-record-status";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { projectRoleResponsibilityStatusPair } from "@/lib/responsibility-status-projection";
 import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";

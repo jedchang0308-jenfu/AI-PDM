@@ -115,10 +115,10 @@ function legacyEvaluateHardApprovalRules(input, riskFlags) {
       exportMarker: true
     });
   }
-  if (riskFlags.has("missing_primary_ma") && ["manufactured", "outsourced", "custom"].includes(input.itemKind ?? "")) {
+  if (riskFlags.has("missing_primary_ma") && input.itemKind === "manufactured") {
     addHardRule({
       code: "PRIMARY_MA_REQUIRED_FOR_CONTROLLED_HANDOFF",
-      message: "Technical transfer or release of manufactured, outsourced, and custom items requires a primary manufacturing drawing.",
+      message: "Technical transfer or release of drawing-made items requires a primary manufacturing drawing.",
       requiresApproval: true,
       blocksUsage: true,
       blocksRelease: true,
@@ -173,7 +173,7 @@ const cases = [
   },
   {
     name: "released document alternate blocker",
-    input: { actionCode: "numbering.release", itemKind: "custom" },
+    input: { actionCode: "numbering.release", itemKind: "manufactured" },
     riskFlags: new Set(["released_document_blocker"])
   },
   {

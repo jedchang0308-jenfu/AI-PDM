@@ -4,7 +4,7 @@ import { createDrawingSourceSubmission, DrawingSubmissionWorkbenchError } from "
 import { markDrawingRevisionPackageCancelledForSubmissionAsync } from "@/lib/drawing-revision-packages-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
-import { buildPdmChangeControlActor } from "@/lib/pdm-change-control-api";
+import { buildPdmChangeControlActor, pdmChangeControlErrorResponse } from "@/lib/pdm-change-control-api";
 import {
   PdmChangeControlError,
   submitDrawingRevisionFffAssessment,
@@ -21,11 +21,16 @@ import {
   isDrawingRevisionLifecycleEnforced,
   submitDrawingRevisionLifecycle
 } from "@/lib/drawing-revision-lifecycle";
+import {
+  parseReplacementAttachmentCommand,
+  prepareReplacementAttachmentCommand,
+  replacementAttachmentSnapshotFromBody
+} from "@/lib/replacement-part-attachments";
 
 export const runtime = "nodejs";
 
 const fffStates = new Set(["no_impact", "suspected_impact", "confirmed_impact"]);
-const itemTypes = new Set(["self_made", "purchased", "standard"]);
+const itemTypes = new Set(["self_made", "purchased"]);
 
 export async function POST(request: Request) {
   const auth = await requireNumberingActionAsync(request, "numbering.draft.update");
@@ -37,7 +42,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  let parsed;
+  try {
+    parsed = await parseReplacementAttachmentCommand(request);
+  } catch (error) {
+    return pdmChangeControlErrorResponse(error, "Invalid replacement attachment command");
+  }
+  const body = parsed.body;
   const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
   if (companyResult.response) return companyResult.response;
 
@@ -80,6 +91,15 @@ export async function POST(request: Request) {
   }
 
   if (isDrawingRevisionLifecycleEnforced()) {
+    if (body.attachmentSnapshot !== undefined || body.attachment_snapshot !== undefined) {
+      return NextResponse.json(
+        {
+          error: "REPLACEMENT_ATTACHMENT_SNAPSHOT_LIFECYCLE_UNAVAILABLE",
+          message: "目前的圖面生命週期尚未建立替代料號草稿，不能接收料號附件選擇。"
+        },
+        { status: 409 }
+      );
+    }
     try {
       const lifecycle = await submitDrawingRevisionLifecycle({
         company: companyResult.company,
@@ -120,6 +140,14 @@ export async function POST(request: Request) {
     }
   }
 
+  let attachmentSnapshot;
+  try {
+    const prepared = await prepareReplacementAttachmentCommand(parsed, companyResult.company.companyCode);
+    attachmentSnapshot = replacementAttachmentSnapshotFromBody(body, prepared.preparedNewAttachments);
+  } catch (error) {
+    return pdmChangeControlErrorResponse(error, "Invalid replacement attachment command");
+  }
+
   try {
     const submissionResult = await createDrawingSourceSubmission({
       company: companyResult.company,
@@ -155,6 +183,7 @@ export async function POST(request: Request) {
         replacementItemType: normalizeEnum(body.replacementItemType ?? body.replacement_item_type, itemTypes) as PartNumberDraftItemType | undefined,
         detectedPartNumber: nullableText(body.detectedPartNumber ?? body.detected_part_number),
         correctedPartNumber: nullableText(body.correctedPartNumber ?? body.corrected_part_number),
+        attachmentSnapshot,
         actor
       });
 
@@ -272,6 +301,7 @@ function drawingRevisionFffErrorResponse(error: unknown, cancelledSubmissionId: 
 }
 
 function statusForPdmChangeControlError(code: string) {
+  if (code === "SOURCE_ATTACHMENTS_STALE" || code.endsWith("_CONFLICT") || code.endsWith("_MISMATCH")) return 409;
   if (code.includes("not_found")) return 404;
   if (code.includes("forbidden")) return 403;
   if (code.includes("optimistic_lock_conflict")) return 409;

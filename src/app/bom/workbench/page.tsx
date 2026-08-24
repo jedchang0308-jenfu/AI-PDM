@@ -22,8 +22,7 @@ import {
   Search,
   Send,
   Trash2,
-  Undo2,
-  UploadCloud
+  Undo2
 } from "lucide-react";
 import {
   Background,
@@ -41,7 +40,6 @@ import {
   type XYPosition
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { FileDropzone } from "@/components/file-dropzone";
 import { NextStepState } from "@/components/next-step-state";
 import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
 import { SearchHighlight } from "@/components/search-highlight";
@@ -63,7 +61,7 @@ type SubmissionSummary = {
   updated_at?: string;
 };
 
-type BomWorkbenchSource = "cad_reference" | "solidworks_xls" | "manual";
+type BomWorkbenchSource = "manual";
 type BomWorkbenchNodeType = "item" | "group";
 type BomWorkbenchDraftStatus = "Draft" | "PendingReview" | "Rejected" | "Released" | "Obsolete" | "Archived";
 
@@ -207,8 +205,6 @@ const FLOW_NODE_HEIGHT = 88;
 const FLOW_COLUMN_GAP = 280;
 const FLOW_ROW_GAP = 118;
 const SOURCE_LABELS: Record<BomWorkbenchSource, string> = {
-  cad_reference: "CAD 參考",
-  solidworks_xls: "SolidWorks XLS",
   manual: "手動"
 };
 const bomNodeTypes = {
@@ -257,7 +253,6 @@ export default function BomWorkbenchPage() {
   const [compareDraft, setCompareDraft] = useState<BomWorkbenchDraftDetail | null>(null);
   const [reviewReason, setReviewReason] = useState("");
   const [obsoleteReason, setObsoleteReason] = useState("");
-  const [xlsText, setXlsText] = useState("");
   const [draggedSubmissionId, setDraggedSubmissionId] = useState<string | null>(null);
   const [history, setHistory] = useState<BomWorkbenchLine[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -751,66 +746,6 @@ export default function BomWorkbenchPage() {
     event.dataTransfer.setData("text/plain", submissionId);
   }
 
-  async function createCadDraft() {
-    if (!selectedSubmission) return;
-    setLoading(true);
-    setError("");
-    try {
-      const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts/from-assembly", {
-        method: "POST",
-        body: JSON.stringify({ submissionId: selectedSubmission.id, draftName: "CAD 參考草稿", setActive: true })
-      });
-      await loadWorkbench(selectedSubmission.id, body.draft.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "CAD 草稿建立失敗");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function importXlsFile(file: File) {
-    if (!selectedSubmission) return;
-    setLoading(true);
-    setError("");
-    try {
-      const form = new FormData();
-      form.set("submissionId", selectedSubmission.id);
-      form.set("draftName", `XLS Import ${new Date().toISOString().slice(0, 10)}`);
-      form.set("setActive", "true");
-      form.set("file", file);
-      const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts/import-xls", { method: "POST", body: form });
-      await loadWorkbench(selectedSubmission.id, body.draft.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "XLS 匯入失敗");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function importXlsText() {
-    if (!selectedSubmission || !xlsText.trim()) return;
-    setLoading(true);
-    setError("");
-    try {
-      const body = await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts/import-xls", {
-        method: "POST",
-        body: JSON.stringify({
-          submissionId: selectedSubmission.id,
-          draftName: "XLS 貼上草稿",
-          setActive: true,
-          originalFilename: "pasted-solidworks-bom.xls",
-          content: xlsText
-        })
-      });
-      setXlsText("");
-      await loadWorkbench(selectedSubmission.id, body.draft.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "貼上 XLS 內容匯入失敗");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function saveDraft() {
     if (!selectedDraft) return;
     setLoading(true);
@@ -919,27 +854,16 @@ export default function BomWorkbenchPage() {
     try {
       const nextRevision = nextCloneRevision(selectedDraft.bom_revision ?? selectedDraft.parent_revision);
       const clonedDraftName = `${workbench?.parent_part_number ?? selectedDraft.draft_name} BOM Rev ${nextRevision}`;
-      const created = selectedSubmission
-        ? await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts/from-assembly", {
-            method: "POST",
-            headers: { "idempotency-key": crypto.randomUUID() },
-            body: JSON.stringify({
-              submissionId: selectedSubmission.id,
-              bomRevision: nextRevision,
-              draftName: clonedDraftName,
-              setActive: false
-            })
-          })
-        : await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts", {
-            method: "POST",
-            headers: { "idempotency-key": crypto.randomUUID() },
-            body: JSON.stringify({
-              ownerPartNumberId: selectedDraft.owner_part_number_id,
-              bomRevision: nextRevision,
-              source: "manual",
-              draftName: clonedDraftName
-            })
-          });
+      const created = await requestJson<{ draft: BomWorkbenchDraftDetail }>("/api/bom/drafts", {
+        method: "POST",
+        headers: { "idempotency-key": crypto.randomUUID() },
+        body: JSON.stringify({
+          ownerPartNumberId: selectedDraft.owner_part_number_id,
+          bomRevision: nextRevision,
+          source: "manual",
+          draftName: clonedDraftName
+        })
+      });
       const idMap = new Map(selectedDraft.lines.map((line) => [line.id, makeId()]));
       const clonedLines = selectedDraft.lines.map((line) => ({
         ...toPatchLine(line),
@@ -1096,7 +1020,6 @@ export default function BomWorkbenchPage() {
         isInsertItemOpen,
         drawerWidth,
         selectedLine,
-        xlsText,
         reviewReason,
         obsoleteReason,
         compareDraftId,
@@ -1114,7 +1037,6 @@ export default function BomWorkbenchPage() {
         setMessage,
         setIsDetailOpen,
         setIsInsertItemOpen,
-        setXlsText,
         setReviewReason,
         setObsoleteReason,
         runSearch,
@@ -1124,8 +1046,6 @@ export default function BomWorkbenchPage() {
         loadBomRecords,
         startSubmissionDrag,
         addSubmissionAsLine,
-        createCadDraft,
-        importXlsFile,
         loadDeletedDrafts,
         restoreDeletedDraft,
         saveDraft,
@@ -1144,7 +1064,6 @@ export default function BomWorkbenchPage() {
         outdentLine,
         deleteLine,
         updateLine,
-        importXlsText,
         reconfirmReplacementFlags,
         submitReview,
         requestObsolete,
@@ -1184,7 +1103,6 @@ type BomWorkbenchPresentationProps = {
     isInsertItemOpen: boolean;
     drawerWidth: number;
     selectedLine: BomWorkbenchLine | null;
-    xlsText: string;
     reviewReason: string;
     obsoleteReason: string;
     compareDraftId: string;
@@ -1202,7 +1120,6 @@ type BomWorkbenchPresentationProps = {
     setMessage: (value: string) => void;
     setIsDetailOpen: (value: boolean) => void;
     setIsInsertItemOpen: (value: boolean) => void;
-    setXlsText: (value: string) => void;
     setReviewReason: (value: string) => void;
     setObsoleteReason: (value: string) => void;
     runSearch: () => void;
@@ -1212,8 +1129,6 @@ type BomWorkbenchPresentationProps = {
     loadBomRecords: () => void;
     startSubmissionDrag: (event: ReactDragEvent<Element>, submissionId: string) => void;
     addSubmissionAsLine: (submission: SubmissionSummary, parentLineId?: string | null) => void;
-    createCadDraft: () => void;
-    importXlsFile: (file: File) => void;
     loadDeletedDrafts: () => void;
     restoreDeletedDraft: (deleted: DeletedBomWorkbenchDraft) => void;
     saveDraft: () => void;
@@ -1232,7 +1147,6 @@ type BomWorkbenchPresentationProps = {
     outdentLine: (lineId: string) => void;
     deleteLine: (lineId: string) => void;
     updateLine: (lineId: string, patch: Partial<BomWorkbenchLine>) => void;
-    importXlsText: () => void;
     reconfirmReplacementFlags: () => Promise<void>;
     submitReview: () => void;
     requestObsolete: (reasonOverride?: string) => Promise<void>;
@@ -1267,7 +1181,6 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
     isInsertItemOpen,
     drawerWidth,
     selectedLine,
-    xlsText,
     reviewReason,
     obsoleteReason,
     compareDraftId,
@@ -1284,14 +1197,11 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
     setMessage,
     setIsDetailOpen,
     setIsInsertItemOpen,
-    setXlsText,
     setReviewReason,
     setObsoleteReason,
     loadWorkbenchByDraft,
     loadRecentSubmissions,
     loadBomRecords,
-    createCadDraft,
-    importXlsFile,
     saveDraft,
     restoreHistory,
     addGroup,
@@ -1310,7 +1220,6 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
     outdentLine,
     deleteLine,
     updateLine,
-    importXlsText,
     reconfirmReplacementFlags,
     submitReview,
     requestObsolete,
@@ -1426,7 +1335,6 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
                 <RotateCcw size={16} aria-hidden="true" />
                 重新整理
               </button>
-              <a className="secondary-button" href="/bom/new">建立 BOM</a>
             </div>
 
             <PdmWorkbenchList
@@ -1440,7 +1348,7 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
               rowAriaKeyShortcuts="Enter Space"
               loading={bomListLoading}
               loadingState={<div className="empty">正在載入 BOM 清單...</div>}
-              emptyState={<div className="empty"><strong>目前沒有符合條件的 BOM</strong><p>請調整搜尋或狀態條件，或建立一份 BOM。</p></div>}
+              emptyState={<div className="empty"><strong>目前沒有符合條件的 BOM</strong><p>請調整搜尋或狀態條件。</p></div>}
               onRowKeyDown={(event, draft) => {
                 if (event.key !== "Enter" && event.key !== " ") return;
                 event.preventDefault();
@@ -1577,7 +1485,6 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
                       eyebrow="尚未選擇 BOM"
                       title="先從上方 BOM 清單選擇要續作的項目"
                       body="草稿、審核中與已發布 BOM 都在同一份清單，依狀態標示。"
-                      actions={[{ href: "/bom/new", label: "建立 BOM", variant: "primary" }]}
                     />
                   )}
                 </div>
@@ -1752,17 +1659,6 @@ function BomWorkbenchPresentation({ model, actions }: BomWorkbenchPresentationPr
                   ]}
                 />
               )}
-
-              <div className="bom-xls-paste">
-                <label className="bom-field">
-                  <span>貼上 SolidWorks BOM XLS / TSV</span>
-                  <textarea value={xlsText} onChange={(event) => setXlsText(event.target.value)} placeholder={"ITEM NO.\tPART NUMBER\tQTY\n1\tP-1001\t2"} />
-                </label>
-                <button className="secondary-button" type="button" onClick={importXlsText} disabled={!selectedSubmission || !xlsText.trim() || loading}>
-                  <UploadCloud size={16} aria-hidden="true" />
-                  匯入貼上內容
-                </button>
-              </div>
 
               {isMutable ? (
                 <div className="bom-review-box">

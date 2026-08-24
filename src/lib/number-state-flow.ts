@@ -20,7 +20,7 @@ export { NumberStateFlowError };
 export type { NumberStateActor };
 
 const draftModes = new Set<NumberingDraftMode>(["new_bundle", "append_drawing", "append_part", "append_drawing_part"]);
-const itemKinds = new Set<NumberingDraftItemKind>(["purchased", "manufactured", "outsourced", "shared", "custom"]);
+const itemKinds = new Set<NumberingDraftItemKind>(["purchased", "manufactured"]);
 const purposeCodes = new Set<NumberingDraftPurposeCode>(ACTIVE_DRAWING_PURPOSE_CODES);
 const lifecycleStatuses = new Set<NumberingDraftLifecycle>(["active", "cancelled", "published"]);
 const safeIdempotencyKey = /^[A-Za-z0-9._:/-]{1,200}$/u;
@@ -232,14 +232,11 @@ function normalizedCreateData(body: Record<string, unknown>, actor: PlatformActo
     partByClientKey.set(clientKey, id);
     const kind = itemKind(part.itemKind ?? part.item_kind);
     const customSpecification = text(part.customSpecification ?? part.custom_specification, 2000) || null;
-    const isUniversal = kind === "shared" || boolean(part.isUniversal ?? part.is_universal);
+    const isUniversal = boolean(part.isUniversal ?? part.is_universal);
     const universalReason = text(part.universalReason ?? part.universal_reason, 1000) || null;
     const seriesCode = kind === "manufactured" && !isUniversal
       ? optionalSeriesCode(part.seriesCode ?? part.series_code)
       : null;
-    if (kind === "custom" && !customSpecification) {
-      throw new NumberStateFlowError("numbering_custom_specification_required", "Custom parts require a specification.", 400);
-    }
     return {
       id,
       partName: requiredText(part.partName ?? part.part_name, "partName", 300),
@@ -463,7 +460,7 @@ function normalizePatchBody(body: Record<string, unknown>) {
     result.parts = body.parts.map((raw) => {
       const part = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
       const kind = itemKind(part.itemKind ?? part.item_kind);
-      const isUniversal = kind === "shared" || boolean(part.isUniversal ?? part.is_universal);
+      const isUniversal = boolean(part.isUniversal ?? part.is_universal);
       const universalReason = text(part.universalReason ?? part.universal_reason, 1000) || null;
       return {
         id: requiredText(part.id, "part.id", 200),

@@ -13,7 +13,7 @@ export type CadReferenceCandidate = {
   referencedPartNumber?: string;
   referencedDrawingNumber?: string;
   referencedRevision?: string;
-  referenceType: "assembly_component" | "drawing_model" | "derived" | "unknown";
+  referenceType: "drawing_model" | "derived" | "unknown";
   quantity: number;
   extractionMethod: string;
   confidence: "high" | "medium" | "low";
@@ -154,7 +154,7 @@ function fileRoleFromName(filename: string): FileRole {
 }
 
 function isReferenceType(value: string): value is CadReferenceCandidate["referenceType"] {
-  return value === "assembly_component" || value === "drawing_model" || value === "derived" || value === "unknown";
+  return value === "drawing_model" || value === "derived" || value === "unknown";
 }
 
 function isConfidence(value: string): value is CadReferenceCandidate["confidence"] {

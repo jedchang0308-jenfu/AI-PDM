@@ -7,7 +7,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const scope = read("src/lib/pdm-review-scope.ts");
 const service = read("src/lib/pdm-entity-detail.ts");
 const mediaRoutes = [
-  "src/app/api/numbering/draft-workspaces/[id]/candidate-revisions/[revisionId]/files/[fileId]/route.ts",
+  "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
   "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/route.ts",
   "src/app/api/numbering/drawing-revision-packages/[packageId]/files/[fileId]/route.ts"
 ].map(read);

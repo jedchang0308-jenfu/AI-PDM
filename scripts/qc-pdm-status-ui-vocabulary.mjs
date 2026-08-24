@@ -88,7 +88,6 @@ const requiredHeaderFiles = [
   "src/components/dashboard.tsx",
   "src/app/numbering/drawings/page.tsx",
   "src/app/parts/page.tsx",
-  "src/app/numbering/tasks/page.tsx",
   "src/app/numbering/impact/page.tsx",
   "src/app/numbering/reports/page.tsx",
   "src/app/bom/workbench/page.tsx",
@@ -98,10 +97,6 @@ const requiredHeaderFiles = [
 for (const relativePath of requiredHeaderFiles) {
   record(`${relativePath} uses unified status column help`, read(relativePath).includes("StatusColumnHeader"));
 }
-
-const taskCenter = read("src/app/numbering/tasks/page.tsx");
-record("Task center uses task-specific status help", taskCenter.includes('StatusColumnHeader context="task"'));
-record("Task center notification read/handled column is not generic workflow help", !taskCenter.includes('StatusColumnHeader context="notification"'));
 
 const reportsPage = read("src/app/numbering/reports/page.tsx");
 record("Report jobs use jobStatus context", reportsPage.includes('context="jobStatus"'));

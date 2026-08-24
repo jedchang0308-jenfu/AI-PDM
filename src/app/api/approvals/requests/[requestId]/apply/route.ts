@@ -2,19 +2,14 @@ import { NextResponse } from "next/server";
 import { requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
 import {
   applyApprovalPlatformRequestAsync,
-  getApprovalPlatformRequestDetailAsync,
   getApprovalPlatformRequestDetailForCompanyAsync
 } from "@/lib/approval-platform";
 import { approvalApiErrorResponse } from "@/lib/approval-api-error";
-import { NumberStateFlowError, retryNumberingCandidateReviewApply } from "@/lib/number-state-flow";
 import { validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
 import {
   requestedNumberingCompanyCodeFromRequest,
   resolveNumberingCompanyContextAsync
 } from "@/lib/numbering-company-context";
-import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
-import { retryNumberingCandidateBundleApply } from "@/lib/number-lifecycle-simplification";
-import { numberStateFlowErrorResponse } from "@/lib/number-state-flow-api";
 import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
 
 export const runtime = "nodejs";
@@ -44,48 +39,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
   }
 
   if (detail.actionCode === "numbering.candidate_bundle_review") {
-    const invalid = validateNumberStateMutationRequest({
-      request,
-      idempotencyKey: request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
-      requireIdempotency: true
-    });
-    if (invalid) return invalid;
-    const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.candidate.review.decide", body: {} });
-    if (access.response || !access.metadata || !access.actor) return access.response;
-    if (detail.companyId !== access.actor.organizationId) {
-      return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
-    }
-    try {
-      const result = await retryNumberingCandidateBundleApply({ metadata: access.metadata, requestId: decodedRequestId });
-      const updated = await getApprovalPlatformRequestDetailAsync(decodedRequestId);
-      return NextResponse.json({ request: updated, ...result });
-    } catch (error) {
-      return numberStateFlowErrorResponse(error, "Candidate bundle formalization retry failed.");
-    }
+    return NextResponse.json({ error: "WORKBENCH_COMMAND_CONTRACT_RETIRED", message: "舊候選正式化命令已退役。" }, { status: 410 });
   }
 
   if (detail.actionCode === "numbering.candidate_publication_review") {
-    const invalid = validateNumberStateMutationRequest({
-      request,
-      idempotencyKey: request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
-      requireIdempotency: true
-    });
-    if (invalid) return invalid;
-    const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.candidate.review.decide", body: {} });
-    if (access.response || !access.metadata || !access.actor) return access.response;
-    if (detail.companyId !== access.actor.organizationId) {
-      return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
-    }
-    try {
-      await retryNumberingCandidateReviewApply({ metadata: access.metadata, requestId: decodedRequestId });
-      const updated = await getApprovalPlatformRequestDetailAsync(decodedRequestId);
-      return NextResponse.json({ request: updated });
-    } catch (error) {
-      if (error instanceof NumberStateFlowError) {
-        return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-      }
-      return approvalApiErrorResponse(error, "apply", request);
-    }
+    return NextResponse.json({ error: "WORKBENCH_COMMAND_CONTRACT_RETIRED", message: "舊候選發布正式化命令已退役。" }, { status: 410 });
   }
 
   const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);

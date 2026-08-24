@@ -3,6 +3,7 @@ export const NUMBER_LIFECYCLE_V2_FLAG = "PDM_NUMBER_LIFECYCLE_V2";
 export const UNIFIED_DRAWING_WORKBENCH_V1_FLAG = "PDM_UNIFIED_DRAWING_WORKBENCH_V1";
 export const UNIFIED_PART_RELATION_WORKBENCH_V1_FLAG = "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1";
 export const WORKBENCH_PREVIEW_GALLERY_V1_FLAG = "PDM_WORKBENCH_PREVIEW_GALLERY_V1";
+export const PART_PREVIEW_V1_FLAG = "PDM_PART_PREVIEW_V1";
 export const DRAWING_REVISION_LIFECYCLE_MODE_FLAG = "PDM_DRAWING_REVISION_LIFECYCLE_MODE";
 export const UNIFIED_ENTITY_DETAIL_V1_FLAG = "PDM_UNIFIED_ENTITY_DETAIL_V1";
 export const DRAWING_RECOGNITION_V1_FLAG = "PDM_DRAWING_RECOGNITION_V1";
@@ -88,7 +89,20 @@ export function isDrawingWorkbenchPreviewGalleryV1Enabled(env: EnvLike = process
 }
 
 export function isPartWorkbenchPreviewGalleryV1Enabled(env: EnvLike = process.env) {
-  return isTruthyFlag(env[WORKBENCH_PREVIEW_GALLERY_V1_FLAG]) && isUnifiedPartRelationWorkbenchV1Enabled(env);
+  return isTruthyFlag(env[PART_PREVIEW_V1_FLAG])
+    && isTruthyFlag(env[WORKBENCH_PREVIEW_GALLERY_V1_FLAG])
+    && isUnifiedPartRelationWorkbenchV1Enabled(env);
+}
+
+export function partPreviewV1ClientStatus(env: EnvLike = process.env) {
+  const requested = isTruthyFlag(env[PART_PREVIEW_V1_FLAG]);
+  return {
+    requested,
+    enabled: requested && isPartWorkbenchPreviewGalleryV1Enabled(env),
+    flag: PART_PREVIEW_V1_FLAG,
+    dependencies: [WORKBENCH_PREVIEW_GALLERY_V1_FLAG, UNIFIED_PART_RELATION_WORKBENCH_V1_FLAG],
+    phase: "DEV-065-P2"
+  };
 }
 
 export function isPdmWorkbenchProductionRdLanesV1Enabled(env: EnvLike = process.env) {

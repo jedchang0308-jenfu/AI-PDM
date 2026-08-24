@@ -236,17 +236,17 @@ function RetiredGenericUploadPage() {
       <div className="topbar">
         <div>
           <h1>上傳送審已退役</h1>
-          <p>送審不再接受空白表單補主資料；請先在圖料工作台完成圖號、料號、材質、表面處理與附件後再送審。</p>
+          <p>送審不再接受空白表單補主資料；請先在圖號／料號工作台完成圖號、料號、材質、表面處理與附件後再送審。</p>
         </div>
       </div>
       <section className="panel">
         <div className="empty">
           <AlertTriangle size={28} aria-hidden="true" />
           <h2>請從受控主資料送審</h2>
-          <p>圖號或料號資料缺漏時，應回圖號工作台或圖料工作台修正，送審頁只負責確認與建立審核中流程。</p>
+          <p>圖號或料號資料缺漏時，應回圖號工作台或料號工作台修正，送審頁只負責確認與建立審核中流程。</p>
           <div className="next-step-inline-actions">
             <Link className="primary-button" href="/numbering/search">
-              前往圖料工作台
+              前往編號搜尋
             </Link>
             <Link className="secondary-button" href="/numbering/drawings">
               前往圖號工作台
@@ -462,12 +462,11 @@ function GenericUploadPage() {
 
       <WorkflowStrip
         title="送審流程"
-        description="先確認圖料號，再補檔案與 PDM 屬性，送出後進入待辦與審核。"
+        description="先確認圖料號，再補檔案與 PDM 屬性，送出後進入審核流程。"
         steps={["編號申請", "上傳送審", "審核", "發布", "交接"]}
         currentStep="上傳送審"
         actions={[
-          { href: "/numbering/search?tab=reserved", label: "先建立編號" },
-          { href: "/numbering/tasks", label: "看待辦", variant: "primary" }
+          { href: "/numbering/search?tab=reserved", label: "先建立編號" }
         ]}
       />
 
@@ -494,7 +493,7 @@ function GenericUploadPage() {
           ]}
           blockers={missingRequiredMetadata.length > 0 ? missingRequiredMetadata.map((field) => `尚缺 ${fieldLabels[field]}`) : ["欄位已帶入，仍需確認檔案與變更原因"]}
           nextStep="補齊必要欄位與送審檔案後送出，送審單會進入審核中並交由審核者處理。"
-          secondaryActions={[{ href: prefillContext.rootCode ? `/numbering/search?query=${encodeURIComponent(prefillContext.rootCode)}` : "/numbering/search", label: "回圖料根號明細" }]}
+          secondaryActions={[{ href: prefillContext.rootCode ? `/numbering/search?query=${encodeURIComponent(prefillContext.rootCode)}` : "/numbering/search", label: "回編號搜尋" }]}
         />
       ) : null}
 
@@ -678,8 +677,8 @@ function GenericUploadPage() {
                     <>
                       <span className="diagnostic-value">送審 ID {message.submissionId}</span>
                       <div className="next-step-inline-actions">
-                        <Link className="primary-button" href="/numbering/tasks">
-                          看待辦
+                        <Link className="primary-button" href={`/submissions/${encodeURIComponent(message.submissionId)}`}>
+                          查看送審
                         </Link>
                         <Link className="secondary-button" href="/">
                           回工作台
@@ -1136,8 +1135,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
         steps={["圖號主資料", "圖面送審", "審核", "發行", "交接"]}
         currentStep="圖面送審"
         actions={[
-          { href: "/numbering/drawings", label: "回圖號工作台" },
-          { href: "/numbering/tasks", label: "看待辦", variant: "primary" }
+          { href: "/numbering/drawings", label: "回圖號工作台" }
         ]}
       />
 
@@ -1480,9 +1478,6 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
                     <div className="next-step-inline-actions">
                       <Link className="primary-button" href={`/submissions/${encodeURIComponent(message.submissionId)}`}>
                         查看送審
-                      </Link>
-                      <Link className="primary-button" href="/numbering/tasks">
-                        看待辦
                       </Link>
                       <Link className="secondary-button" href="/numbering/drawings">
                         回圖號工作台
