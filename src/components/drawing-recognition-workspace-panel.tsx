@@ -6,7 +6,6 @@ import {
   useDrawingRecognitionBrowserOcr,
   type DrawingRecognitionBrowserOcrSession
 } from "@/components/drawing-recognition-pdf-ocr";
-import { TextHint } from "@/components/compact-hints";
 import { getStatusDisplay } from "@/lib/status-display";
 
 export type DrawingRecognitionEvidence = {
@@ -553,9 +552,6 @@ export function DrawingRecognitionWorkspacePanel({
                         const exception = ["conflict", "blocked"].includes(group.reviewState)
                           ? getStatusDisplay(group.reviewState, "recognitionReviewStatus").label
                           : null;
-                        const exceptionHelp = group.reviewState === "conflict"
-                          ? `辨識結果與目前系統正式值不同。系統正式值：${group.currentFormalValue ?? "尚無"}。請人工確認後再儲存。`
-                          : "此欄位需要人工確認後才能完成核對。";
                         const crossScopeConflict = group.reviewGroups.length > 1 && group.distinctValues.length > 1;
                         const updateDrafts = (candidateIds: string[], value: string) => {
                           setNotice("");
@@ -597,7 +593,7 @@ export function DrawingRecognitionWorkspacePanel({
                             data-review-group-count={group.reviewGroups.length}
                             data-observation-count={group.observations.length}
                           >
-                            <header><strong>{group.fieldLabel}</strong><span className="dev079-recognition-field-signals">{modified ? <small className="is-modified">已修改</small> : null}{exception ? <TextHint title={exceptionHelp} className="dev079-recognition-exception-hint"><small className="is-exception">{exception}</small></TextHint> : null}</span></header>
+                            <header><strong>{group.fieldLabel}</strong><span className="dev079-recognition-field-signals">{modified ? <small className="is-modified">已修改</small> : null}{exception ? <small className="is-exception">{exception}</small> : null}</span></header>
                             {group.distinctValues.length > 1 ? <div className="dev079-recognition-conflict" role="status">{crossScopeConflict ? "不同適用範圍辨識出不同值，請逐項核對。" : `跨來源候選：${group.distinctValues.join(" ／ ")}；請人工選定唯一值`}</div> : null}
                             {crossScopeConflict ? (
                               <div className="dev079-recognition-scope-rows">

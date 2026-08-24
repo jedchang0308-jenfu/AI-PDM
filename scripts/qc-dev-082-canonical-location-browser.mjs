@@ -146,6 +146,18 @@ async function locatePdfEvidence(page, fixture, viewport) {
   requireCheck(`${viewport.name}: original preview starts on 3D`, await page.getByRole("tab", { name: /3D 模型/u }).getAttribute("aria-selected") === "true");
   await page.getByRole("tab", { name: "智慧辨識", exact: true }).click();
   await page.locator('[data-dev079-recognition="embedded"]').waitFor({ state: "visible", timeout: 30_000 });
+  if (viewport.name === "desktop-1440x900") {
+    const exceptionLabel = page.locator(".dev079-recognition-field-signals .is-exception").first();
+    await exceptionLabel.waitFor({ state: "visible", timeout: 30_000 });
+    const exceptionSemantics = await exceptionLabel.evaluate((element) => ({
+      tagName: element.tagName,
+      insideButton: Boolean(element.closest("button")),
+      tabIndex: element.tabIndex
+    }));
+    requireCheck("legacy exception status remains plain non-interactive text", exceptionSemantics.tagName === "SMALL" && !exceptionSemantics.insideButton && exceptionSemantics.tabIndex === -1, JSON.stringify(exceptionSemantics));
+    await exceptionLabel.hover();
+    requireCheck("legacy exception status does not open a hover tooltip", await page.locator(".ui-hint-popover").count() === 0);
+  }
   const pdfButton = page.getByRole("button", { name: "PDF圖面", exact: true }).first();
   await pdfButton.waitFor({ state: "visible", timeout: 30_000 });
   const sourceId = await pdfButton.getAttribute("data-evidence-source-id");
