@@ -3,6 +3,8 @@ import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 import type { CanonicalPreviewProjection } from "@/lib/pdm-canonical-preview";
 import type { StoredPartStructureType } from "@/lib/numbering-structure-type";
 import { PDM_WORKBENCH_FILTER_NONE_TOKEN } from "@/lib/pdm-workbench-filter-selection";
+import type { DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
+import { ACTIVE_DRAWING_PURPOSE_CODES } from "@/lib/numbering-identity";
 
 export const DEV087_CONTRACT_VERSION = "dev087-canonical-workbench-v2" as const;
 export const DEV087_SCHEMA_HASH = "dev087-v1" as const;
@@ -26,7 +28,7 @@ export type HistoricalCanonicalDataLayer = CanonicalDataLayer | "relation_formal
 export type CanonicalLayer = "production" | "rd" | "formal" | "work";
 export type CanonicalHandling = "none" | "owner" | "review_owner" | "system" | "system_admin" | "blocked";
 export type CanonicalDataState = "editing" | "reviewing" | "publishing" | "available";
-export type CanonicalActionKey = "advance" | "edit" | "review" | "create_change" | "void_rd" | "edit_relation_matrix";
+export type CanonicalActionKey = "advance" | "restart_from_current_production" | "edit" | "review" | "create_change" | "void_rd" | "request_obsolete" | "edit_relation_matrix";
 export type CanonicalWorkbenchAction = { key: CanonicalActionKey; label: string; href?: string };
 
 export type CanonicalWorkbenchRowDto = {
@@ -45,7 +47,19 @@ export type CanonicalWorkbenchRowDto = {
   blockerReason: string | null;
   detailHref: string;
   rowVersion: number;
+  basisState: DrawingRevisionBasisState | null;
   actions: CanonicalWorkbenchAction[];
+};
+
+export type DrawingRevisionInteraction = {
+  mode: "owner_edit" | "owner_stale_cleanup" | "review_decide" | "review_stale_cleanup";
+  basisState: DrawingRevisionBasisState;
+  canMutateContent: boolean;
+  canSubmit: boolean;
+  canCancel: boolean;
+  canApprove: boolean;
+  canReturn: boolean;
+  reasonCode: "DRAWING_PRODUCTION_BASE_STALE" | "DRAWING_FORMALIZATION_PENDING" | null;
 };
 
 export type CanonicalWorkbenchGroupDto = { groupKey: string; rows: CanonicalWorkbenchRowDto[] };
@@ -53,6 +67,7 @@ export type CanonicalWorkbenchListDto = {
   data: {
     groups: CanonicalWorkbenchGroupDto[];
     nextCursor: string | null;
+    previousCursor: string | null;
     totalGroups: number;
     totalRows: number;
     /** Enabled Drawing/Part preview projection. Keys are exactly the visible cw rows. */
@@ -62,6 +77,23 @@ export type CanonicalWorkbenchListDto = {
 };
 export type CanonicalDetailSurface = "drawer_minimal" | "editor_full" | "review_readonly";
 export type CanonicalDetailField = { key: string; label: string; value: string };
+export type CanonicalDetailDisclosure = { label: string; value: string };
+/**
+ * Read-only formalized recognition data.  The primary row intentionally only
+ * carries field/value; provenance and scope stay behind the UI disclosure.
+ */
+export type CanonicalDetailReadModelRow = {
+  key: string;
+  label: string;
+  value: string;
+  details: CanonicalDetailDisclosure[];
+};
+export type CanonicalDetailRecognitionProjection = {
+  partAttributes: CanonicalDetailReadModelRow[];
+  revisionMetadata: CanonicalDetailReadModelRow[];
+  controlledNotes: CanonicalDetailReadModelRow[];
+  engineeringEvidence: CanonicalDetailReadModelRow[];
+};
 export type CanonicalDetailFile = {
   id: string;
   name: string;
@@ -75,12 +107,14 @@ export type CanonicalDirectRelation = {
 };
 export type CanonicalDrawingHistory = {
   id: string;
+  drawingId: string;
   revision: string;
   layerLabel: "量產版" | "研發版";
 };
 export type CanonicalRelationMatrixIdentity = {
   id: string;
   number: string;
+  detailHref: string | null;
 };
 export type CanonicalRelationMatrixCell = {
   drawingNumberId: string;
@@ -106,6 +140,7 @@ type CanonicalDetailBase = {
   surface: CanonicalDetailSurface;
   fields: CanonicalDetailField[];
   files: CanonicalDetailFile[];
+  recognition: CanonicalDetailRecognitionProjection;
 };
 
 type CanonicalLinkedDetailBase = CanonicalDetailBase & {
@@ -199,13 +234,22 @@ export const BANNED_CANONICAL_DTO_FIELDS = new Set([
   "reviewerName"
 ]);
 
+export type CanonicalWorkbenchSortField = "code" | "name";
+
 export type CanonicalWorkbenchQuery = {
   query: string;
   layers: CanonicalLayer[];
   dataStates: CanonicalDataState[];
   handling: CanonicalHandling[];
+  purposes: string[];
+  series: string[];
+  itemKinds: string[];
+  materials: string[];
+  colors: string[];
+  sortBy: CanonicalWorkbenchSortField;
   sort: "asc" | "desc";
   cursor: string | null;
+  cursorDirection: "after" | "before";
   limit: number;
 };
 
@@ -216,13 +260,36 @@ export type CanonicalWorkbenchErrorCode =
   | "WORKBENCH_CONTRACT_EXPIRED"
   | "WORKBENCH_ACTIVE_WORK_EXISTS"
   | "WORKBENCH_REVIEW_REQUEST_STALE"
+  | "WORKBENCH_REVIEW_PACKAGE_INVALID"
+  | "WORKBENCH_REVIEW_PACKAGE_INTEGRITY_FAILED"
+  | "WORKBENCH_RECOGNITION_BASIS_INCOMPLETE"
+  | "WORKBENCH_RECOGNITION_OWNER_UNRESOLVED"
+  | "REVIEW_PACKAGE_LIMIT_EXCEEDED"
   | "WORKBENCH_SNAPSHOT_DRIFT"
   | "WORKBENCH_RELATION_SCOPE_INVALID"
   | "DRAWING_WORK_FILE_SNAPSHOT_INVALID"
+  | "DRAWING_REVISION_FILE_REQUIRED"
+  | "DRAWING_REVISION_FILE_ROLE_INVALID"
+  | "DRAWING_REVISION_FILE_NOT_FOUND"
+  | "DRAWING_REVISION_FILE_PRIMARY_LOCKED"
+  | "DRAWING_REVISION_FILE_TOO_LARGE"
+  | "DRAWING_2D_REQUIRED"
+  | "DRAWING_3D_REQUIRED"
+  | "DRAWING_2D_PRIMARY_REQUIRED"
+  | "DRAWING_3D_PRIMARY_REQUIRED"
+  | "DRAWING_ROLE_EXTENSION_MISMATCH"
   | "WORKBENCH_AUTHORITY_MISMATCH"
   | "DRAWING_RD_BRANCH_LIMIT_REACHED"
   | "DRAWING_TARGET_REVISION_CLAIMED"
   | "DRAWING_PRODUCTION_BASE_STALE"
+  | "DRAWING_FORMALIZATION_PENDING"
+  | "DRAWING_REVISION_BASIS_INVALID"
+  | "DRAWING_MANUAL_MINOR_INVALID"
+  | "DRAWING_MANUAL_MINOR_NOT_FORWARD"
+  | "DRAWING_MANUAL_MINOR_CROSS_MAJOR"
+  | "DRAWING_FFF_NOT_APPLICABLE"
+  | "DRAWING_FFF_INCOMPLETE"
+  | "DRAWING_CHANGE_IMPACT_SNAPSHOT_STALE"
   | "DRAWING_RD_VOID_NOT_ALLOWED"
   | "DRAWING_RD_VOID_ALREADY_PENDING"
   | "DEV087_DECISION_NOT_ALLOWED"
@@ -259,6 +326,8 @@ export function normalizeCanonicalWorkbenchQuery(url: URL, domain: WorkbenchEnti
   const layerInputs = url.searchParams.getAll("layer").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
   const dataStateInputs = url.searchParams.getAll("stage").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
   const handlingInputs = url.searchParams.getAll("handling").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
+  const repeated = (key: string) => [...new Set(url.searchParams.getAll(key).flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean))].slice(0, 50);
+  const purposeInputs = repeated("purpose");
   const hasNoLayers = layerInputs.length === 1 && layerInputs[0] === PDM_WORKBENCH_FILTER_NONE_TOKEN;
   const hasNoDataStates = dataStateInputs.length === 1 && dataStateInputs[0] === PDM_WORKBENCH_FILTER_NONE_TOKEN;
   const hasNoHandling = handlingInputs.length === 1 && handlingInputs[0] === PDM_WORKBENCH_FILTER_NONE_TOKEN;
@@ -274,7 +343,19 @@ export function normalizeCanonicalWorkbenchQuery(url: URL, domain: WorkbenchEnti
   if (hasInvalidHandlingNone || (!hasNoHandling && handlingInputs.some((value) => !handlingValues.has(value as CanonicalHandling)))) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "處理狀態篩選條件無效", 400);
   }
+  const hasNoPurposes = purposeInputs.length === 1 && purposeInputs[0] === PDM_WORKBENCH_FILTER_NONE_TOKEN;
+  const allowedPurposes = new Set<string>(ACTIVE_DRAWING_PURPOSE_CODES);
+  if ((domain !== "drawing" && purposeInputs.length > 0)
+    || (purposeInputs.includes(PDM_WORKBENCH_FILTER_NONE_TOKEN) && !hasNoPurposes)
+    || (!hasNoPurposes && purposeInputs.some((value) => !allowedPurposes.has(value)))) {
+    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "圖面用途篩選條件無效", 400);
+  }
+  const sortByInput = url.searchParams.get("sortBy")?.trim() || "code";
+  if (sortByInput !== "code" && sortByInput !== "name") throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "排序欄位無效", 400);
+  const sortBy: CanonicalWorkbenchSortField = sortByInput;
   const sort = url.searchParams.get("sort") === "desc" ? "desc" : "asc";
+  const cursorDirectionInput = url.searchParams.get("direction")?.trim() || "after";
+  if (cursorDirectionInput !== "after" && cursorDirectionInput !== "before") throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "換頁方向無效", 400);
   const parsedLimit = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
   if (!Number.isFinite(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "每頁筆數必須介於 1 到 100", 400);
@@ -284,8 +365,15 @@ export function normalizeCanonicalWorkbenchQuery(url: URL, domain: WorkbenchEnti
     layers: hasNoLayers ? [] : layerInputs.length ? [...new Set(layerInputs as CanonicalLayer[])] : [...domainLayers[domain]],
     dataStates: hasNoDataStates ? [] : dataStateInputs.length ? [...new Set(dataStateInputs as CanonicalDataState[])] : [...dataStateValues],
     handling: hasNoHandling ? [] : handlingInputs.length ? [...new Set(handlingInputs as CanonicalHandling[])] : [...handlingValues],
+    purposes: domain === "drawing" ? purposeInputs : [],
+    series: repeated("series"),
+    itemKinds: domain === "part" ? repeated("itemKind") : [],
+    materials: domain === "part" ? repeated("material") : [],
+    colors: domain === "part" ? repeated("color") : [],
+    sortBy,
     sort,
     cursor: url.searchParams.get("cursor")?.trim() || null,
+    cursorDirection: cursorDirectionInput,
     limit: parsedLimit
   };
 }

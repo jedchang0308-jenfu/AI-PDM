@@ -12,6 +12,7 @@ export type CanonicalPreviewMediaModel = {
   pageNumber?: number | null;
   openInNewTab?: boolean;
   focusRegion?: PdfPageFocusRegion;
+  renderPdfPage?: boolean;
 };
 
 const retryIntervalMs = 2_000;
@@ -40,6 +41,7 @@ export function CanonicalPreviewMedia({
   const [resolvedMode, setResolvedMode] = useState<CanonicalPreviewMediaModel["mode"] | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "waiting" | "ready" | "failed">("loading");
   const [retryToken, setRetryToken] = useState(0);
+  const renderDocumentAsPdfPage = media.mode === "document" && Boolean(media.renderPdfPage || media.focusRegion);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +69,7 @@ export function CanonicalPreviewMedia({
         if (cancelled) return;
         const nextMode = media.mode === "document" && blob.type.toLowerCase().startsWith("image/") ? "image" : media.mode;
         setResolvedMode(nextMode);
-        if (nextMode === "document" && media.focusRegion) {
+        if (nextMode === "document" && renderDocumentAsPdfPage) {
           setPdfBytes(await blob.arrayBuffer());
         } else {
           nextObjectUrl = URL.createObjectURL(blob);
@@ -84,10 +86,10 @@ export function CanonicalPreviewMedia({
       if (retryTimer) clearTimeout(retryTimer);
       if (nextObjectUrl) URL.revokeObjectURL(nextObjectUrl);
     };
-  }, [media.focusRegion, media.href, media.mode, retryToken]);
+  }, [media.href, media.mode, renderDocumentAsPdfPage, retryToken]);
 
   let rendered: ReactNode = null;
-  if (loadState === "ready" && resolvedMode === "document" && pdfBytes && media.focusRegion) {
+  if (loadState === "ready" && resolvedMode === "document" && pdfBytes && renderDocumentAsPdfPage) {
     rendered = <PdfPageViewport bytes={pdfBytes} pageNumber={media.pageNumber ?? 1} title={media.title} sourceKey={media.href} focusRegion={media.focusRegion} />;
   } else if (loadState === "ready" && objectUrl) {
     rendered = resolvedMode === "image"

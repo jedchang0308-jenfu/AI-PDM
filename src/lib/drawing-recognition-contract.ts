@@ -29,6 +29,24 @@ export type DrawingRecognitionReviewState = "proposed" | "accepted" | "corrected
 export type DrawingRecognitionDecisionAction = "accept" | "correct" | "map" | "create_field" | "reassign" | "set_baseline" | "not_applicable" | "ignore" | "defer" | "restore";
 export type DrawingRecognitionSourceContextType = "candidate_revision" | "revision_package" | "drawing_revision" | "drawing_number";
 
+export function isDrawingRecognitionDraftPopulationContext(sourceContextType: DrawingRecognitionSourceContextType) {
+  return sourceContextType === "candidate_revision" || sourceContextType === "drawing_revision";
+}
+
+export function initialDrawingRecognitionReviewState(input: {
+  sourceContextType: DrawingRecognitionSourceContextType;
+  explicitlyMissingValue: boolean;
+  proposedOwnerResolution?: "resolved" | "ambiguous" | "missing";
+  hasUsableFormalValue: boolean;
+  formalValueDiffers: boolean;
+}): Extract<DrawingRecognitionReviewState, "proposed" | "conflict" | "blocked"> {
+  if (input.explicitlyMissingValue || input.proposedOwnerResolution === "ambiguous" || input.proposedOwnerResolution === "missing") {
+    return "blocked";
+  }
+  if (isDrawingRecognitionDraftPopulationContext(input.sourceContextType)) return "proposed";
+  return input.hasUsableFormalValue && input.formalValueDiffers ? "conflict" : "proposed";
+}
+
 export type DrawingRecognitionObservationInput = {
   rawText: string;
   rawValue?: string | null;

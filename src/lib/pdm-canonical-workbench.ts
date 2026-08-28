@@ -1,14 +1,14 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
-import { assertCanonicalDtoHasNoRetiredFields, CanonicalWorkbenchError, normalizeCanonicalWorkbenchQuery, parseCanonicalRowKey, type CanonicalDetailField, type CanonicalDetailFile, type CanonicalDrawingHistory, type CanonicalRelationMatrixProjection, type CanonicalWorkbenchDetailDto, type CanonicalWorkbenchDetailPresentation, type CanonicalWorkbenchListDto, type WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
+import { assertCanonicalDtoHasNoRetiredFields, CanonicalWorkbenchError, normalizeCanonicalWorkbenchQuery, parseCanonicalRowKey, type CanonicalDetailDisclosure, type CanonicalDetailField, type CanonicalDetailFile, type CanonicalDetailRecognitionProjection, type CanonicalDetailReadModelRow, type CanonicalDrawingHistory, type CanonicalRelationMatrixProjection, type CanonicalWorkbenchDetailDto, type CanonicalWorkbenchDetailPresentation, type CanonicalWorkbenchListDto, type WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
 import { projectCanonicalWorkbenchRow, sortCanonicalGroupRows, type CanonicalWorkbenchActor, type CanonicalWorkbenchStateRecord } from "@/lib/pdm-canonical-workbench-state";
 import { issueCanonicalWorkbenchContract } from "@/lib/pdm-workbench-authority-control";
 import { PdmCanonicalWorkbenchAsyncRepository } from "@/lib/repositories/pdm-canonical-workbench-async-repository";
 import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
 import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 import { pdmFileReadHref } from "@/lib/pdm-file-read-contract";
-import { buildCanonicalDrawingPreviewMap, resolveCanonicalDrawingPreview, selectCanonicalThreeDSource, type CanonicalPreviewProjection, type CanonicalPreviewSourceRow } from "@/lib/pdm-canonical-preview";
+import { buildCanonicalDrawingPreviewMap, resolveCanonicalDrawingPreview, selectCanonicalThreeDSource, selectCanonicalTwoDSource, type CanonicalPreviewProjection, type CanonicalPreviewSourceRow } from "@/lib/pdm-canonical-preview";
 import { canonicalNumberingItemKindLabel } from "@/lib/numbering-item-kind";
 import { isDrawingWorkbenchPreviewGalleryV1Enabled, isPartWorkbenchPreviewGalleryV1Enabled } from "@/lib/number-state-flow-feature";
 import { resolvePartPreviewsAsync } from "@/lib/pdm-part-preview";
@@ -73,6 +73,7 @@ export class PdmCanonicalWorkbenchService {
       data: {
         groups: result.groups.map((group) => ({ groupKey: group.groupKey, rows: sortCanonicalGroupRows(group.rows).map((row) => projectCanonicalWorkbenchRow(row, actor)) })),
         nextCursor: result.nextCursor,
+        previousCursor: result.previousCursor,
         totalGroups: result.totalGroups,
         totalRows: result.totalRows,
         ...(previewByRowKey !== undefined ? { previewByRowKey } : {})
@@ -107,12 +108,13 @@ export class PdmCanonicalWorkbenchService {
   }
 
   private async presentation(record: CanonicalWorkbenchStateRecord & { entityType: WorkbenchEntityType }, actor: CanonicalWorkbenchActor): Promise<CanonicalWorkbenchDetailPresentation> {
-    const [fields, files, matrix] = await Promise.all([
+    const [fields, files, matrix, recognition] = await Promise.all([
       this.fields(record.entityType, actor.companyId, record.canonicalEntityId),
       this.files(record, actor.companyId),
-      this.matrixForRecord(record, actor.companyId)
+      this.matrixForRecord(record, actor.companyId),
+      this.recognitionProjection(record, actor.companyId)
     ]);
-    const base = { surface: "drawer_minimal" as const, fields, files };
+    const base = { surface: "drawer_minimal" as const, fields, files, recognition };
     if (record.entityType === "drawing") {
       const [history, previews] = await Promise.all([
         this.drawingHistory(actor.companyId, record.canonicalEntityId),
@@ -228,7 +230,7 @@ export class PdmCanonicalWorkbenchService {
       : "drawing_revision" as const;
     return [
       canonicalPreviewSlot("three-d", "3D 模型", pickPreviewSource(sources, "three-d"), derivatives, jobs, readContext, record.reviewRequestId),
-      canonicalPreviewSlot("two-d", "2D 圖面", pickPreviewSource(sources, "two-d"), derivatives, jobs, readContext, record.reviewRequestId)
+      canonicalPreviewSlot("two-d", "2D 圖面", pickPreviewSource(sources, "two-d", derivatives), derivatives, jobs, readContext, record.reviewRequestId)
     ];
   }
 
@@ -297,6 +299,154 @@ export class PdmCanonicalWorkbenchService {
     throw new CanonicalWorkbenchError("WORKBENCH_COMMAND_CONTRACT_RETIRED", "此工作台已退役，請使用編號搜尋", 410);
   }
 
+  /**
+   * Formalized recognition values are a read-only projection of the existing
+   * PDM tables.  It deliberately does not expose raw OCR or decision payloads;
+   * the disclosure rows retain only the traceability needed by the drawer.
+   */
+  private async recognitionProjection(record: CanonicalWorkbenchStateRecord & { entityType: WorkbenchEntityType }, companyId: string): Promise<CanonicalDetailRecognitionProjection> {
+    if (record.entityType === "part") {
+      const [partAttributes, controlledNotes, engineeringEvidence] = await Promise.all([
+        this.partAttributeRows(companyId, record.canonicalEntityId),
+        this.controlledNoteRows(companyId, { partNumberId: record.canonicalEntityId }),
+        this.engineeringEvidenceRows(companyId, { partNumberId: record.canonicalEntityId })
+      ]);
+      return { partAttributes, revisionMetadata: [], controlledNotes, engineeringEvidence };
+    }
+    const [revisionMetadata, controlledNotes, engineeringEvidence] = await Promise.all([
+      record.revisionId ? this.revisionMetadataRows(companyId, record.revisionId) : Promise.resolve([]),
+      this.controlledNoteRows(companyId, { drawingId: record.canonicalEntityId, drawingRevisionId: record.revisionId }),
+      this.engineeringEvidenceRows(companyId, { drawingId: record.canonicalEntityId, drawingRevisionId: record.revisionId })
+    ]);
+    return { partAttributes: [], revisionMetadata, controlledNotes, engineeringEvidence };
+  }
+
+  private async partAttributeRows(companyId: string, partNumberId: string): Promise<CanonicalDetailReadModelRow[]> {
+    const rows = await this.client.query<Record<string, unknown>>(`SELECT definition.stable_key, definition.display_label,
+        value.applicability_state, value.value_text, value.unit_text, value.updated_at,
+        value.last_formalization_event_id, event.created_at AS formalized_at
+      FROM pdm_part_attribute_values value
+      JOIN pdm_attribute_definitions definition ON definition.id = value.attribute_definition_id
+      LEFT JOIN drawing_recognition_formalization_events event ON event.id = value.last_formalization_event_id AND event.company_id = value.company_id
+      WHERE value.company_id = :companyId AND value.part_number_id = :partNumberId
+      ORDER BY definition.display_label, definition.stable_key`, { companyId, partNumberId });
+    const formalKeys = new Set<string>();
+    const formal = rows.flatMap((row) => {
+      const key = textValue(row.stable_key);
+      if (!key) return [];
+      formalKeys.add(key);
+      const notApplicable = textValue(row.applicability_state) === "not_applicable";
+      const value = notApplicable ? "不適用" : textValue(row.value_text);
+      if (!value) return [];
+      const details = detailTrace({
+        scope: notApplicable ? "不適用" : "適用",
+        source: row.last_formalization_event_id ? "智慧辨識正式化" : "PDM 屬性",
+        updatedAt: row.formalized_at ?? row.updated_at,
+        eventId: row.last_formalization_event_id
+      });
+      const unit = textValue(row.unit_text);
+      return [{ key, label: textValue(row.display_label) || key, value: unit ? `${value} ${unit}` : value, details }];
+    });
+    const legacy = await this.client.queryOne<Record<string, unknown>>(`SELECT attributes.material_label, attributes.color_label,
+        attributes.surface_treatment, attributes.variant_note, attributes.updated_at
+      FROM part_variant_attributes attributes
+      JOIN part_numbers part ON part.id = attributes.part_number_id AND part.company_id = :companyId
+      WHERE attributes.part_number_id = :partNumberId`, { companyId, partNumberId });
+    const legacyDefinitions: Array<{ key: string; label: string; column: string }> = [
+      { key: "material", label: "材質", column: "material_label" },
+      { key: "color", label: "顏色", column: "color_label" },
+      { key: "surface_treatment", label: "表面處理", column: "surface_treatment" },
+      { key: "variant_note", label: "變體備註", column: "variant_note" }
+    ];
+    const legacyRows = legacy ? legacyDefinitions.flatMap(({ key, label, column }) => {
+      if (formalKeys.has(key)) return [];
+      const value = textValue(legacy[column]);
+      return value ? [{ key, label, value, details: detailTrace({ source: "既有料件屬性", updatedAt: legacy.updated_at }) }] : [];
+    }) : [];
+    return [...formal, ...legacyRows];
+  }
+
+  private async revisionMetadataRows(companyId: string, drawingRevisionId: string): Promise<CanonicalDetailReadModelRow[]> {
+    const rows = await this.client.query<Record<string, unknown>>(`SELECT metadata_key, value_text, updated_at,
+        last_formalization_event_id, event.created_at AS formalized_at
+      FROM pdm_drawing_revision_metadata_values metadata
+      LEFT JOIN drawing_recognition_formalization_events event ON event.id = metadata.last_formalization_event_id AND event.company_id = metadata.company_id
+      WHERE metadata.company_id = :companyId AND metadata.drawing_revision_id = :drawingRevisionId
+      ORDER BY CASE metadata.metadata_key
+        WHEN 'unit' THEN 1 WHEN 'scale' THEN 2 WHEN 'projection_method' THEN 3
+        WHEN 'drawn_date' THEN 4 WHEN 'reviewed_date' THEN 5 ELSE 99 END`, { companyId, drawingRevisionId });
+    const labels: Record<string, string> = {
+      unit: "單位", scale: "比例", projection_method: "投影法", drawn_date: "製圖日期", reviewed_date: "審查日期"
+    };
+    return rows.flatMap((row) => {
+      const key = textValue(row.metadata_key);
+      const value = textValue(row.value_text);
+      return key && value ? [{
+        key,
+        label: labels[key] || key,
+        value,
+        details: detailTrace({
+          source: row.last_formalization_event_id ? "智慧辨識正式化" : "PDM 版次資料",
+          updatedAt: row.formalized_at ?? row.updated_at,
+          eventId: row.last_formalization_event_id
+        })
+      }] : [];
+    });
+  }
+
+  private async controlledNoteRows(companyId: string, owner: { partNumberId?: string; drawingId?: string; drawingRevisionId?: string | null }): Promise<CanonicalDetailReadModelRow[]> {
+    const ownerParams = { companyId, partNumberId: owner.partNumberId ?? "", drawingId: owner.drawingId ?? "", drawingRevisionId: owner.drawingRevisionId ?? "" };
+    const rows = await this.client.query<Record<string, unknown>>(`SELECT id, note_text, applicability_scope, updated_at, last_formalization_event_id
+      FROM pdm_controlled_notes
+      WHERE company_id = :companyId AND status = 'active'
+        AND ((:partNumberId <> '' AND part_number_id = :partNumberId)
+          OR (:drawingId <> '' AND drawing_id = :drawingId)
+          OR (:drawingRevisionId <> '' AND drawing_revision_id = :drawingRevisionId))
+      ORDER BY updated_at DESC, id DESC`, ownerParams);
+    return rows.flatMap((row, index) => {
+      const value = textValue(row.note_text);
+      return value ? [{
+        key: textValue(row.id) || `note-${index + 1}`,
+        label: "受控註記",
+        value,
+        details: detailTrace({
+          scope: textValue(row.applicability_scope) || "整體",
+          source: "智慧辨識正式化",
+          updatedAt: row.updated_at,
+          eventId: row.last_formalization_event_id
+        })
+      }] : [];
+    });
+  }
+
+  private async engineeringEvidenceRows(companyId: string, owner: { partNumberId?: string; drawingId?: string; drawingRevisionId?: string | null }): Promise<CanonicalDetailReadModelRow[]> {
+    const ownerParams = { companyId, partNumberId: owner.partNumberId ?? "", drawingId: owner.drawingId ?? "", drawingRevisionId: owner.drawingRevisionId ?? "" };
+    const rows = await this.client.query<Record<string, unknown>>(`SELECT id, evidence_type, summary, page_number, sheet_name,
+        configuration_name, created_at, session_id, candidate_id, observation_id
+      FROM pdm_engineering_evidence
+      WHERE company_id = :companyId
+        AND ((:partNumberId <> '' AND part_number_id = :partNumberId)
+          OR (:drawingId <> '' AND drawing_id = :drawingId)
+          OR (:drawingRevisionId <> '' AND drawing_revision_id = :drawingRevisionId))
+      ORDER BY created_at DESC, id DESC`, ownerParams);
+    return rows.flatMap((row, index) => {
+      const value = textValue(row.summary);
+      if (!value) return [];
+      const details = [
+        disclosure("來源", "辨識證據"),
+        disclosure("類型", textValue(row.evidence_type)),
+        disclosure("頁碼", row.page_number),
+        disclosure("圖紙名稱", row.sheet_name),
+        disclosure("組態", row.configuration_name),
+        disclosure("建立時間", row.created_at),
+        disclosure("辨識工作階段", row.session_id),
+        disclosure("候選項目", row.candidate_id),
+        disclosure("觀察紀錄", row.observation_id)
+      ].filter((entry): entry is CanonicalDetailDisclosure => Boolean(entry));
+      return [{ key: textValue(row.id) || `evidence-${index + 1}`, label: "辨識證據", value, details }];
+    });
+  }
+
   private async files(record: CanonicalWorkbenchStateRecord, companyId: string): Promise<CanonicalDetailFile[]> {
     if (record.entityType === "drawing" && record.revisionId) {
       const rows = await this.client.query<Record<string, unknown>>(`SELECT file.id, file.role, file.display_name, asset.id AS asset_id, asset.file_name
@@ -322,7 +472,7 @@ export class PdmCanonicalWorkbenchService {
   }
 
   private async drawingHistory(companyId: string, drawingId: string): Promise<CanonicalDrawingHistory[]> {
-    const rows = await this.client.query<Record<string, unknown>>(`SELECT revision.id, revision.revision, CASE WHEN revision.lifecycle_state = 'released' THEN 'production' ELSE 'rd' END AS layer
+    const rows = await this.client.query<Record<string, unknown>>(`SELECT revision.id, revision.drawing_id, revision.revision, CASE WHEN revision.lifecycle_state = 'released' THEN 'production' ELSE 'rd' END AS layer
       FROM drawing_revisions revision
       WHERE revision.company_id = :companyId AND revision.drawing_id = :drawingId
         AND (
@@ -335,7 +485,7 @@ export class PdmCanonicalWorkbenchService {
           )
         )
       ORDER BY COALESCE(revision.controlled_at, revision.released_at, revision.updated_at) DESC, revision.id DESC`, { companyId, drawingId });
-    return rows.map((row) => ({ id: String(row.id), revision: textValue(row.revision), layerLabel: row.layer === "production" ? "量產版" : "研發版" }));
+    return rows.map((row) => ({ id: String(row.id), drawingId: String(row.drawing_id), revision: textValue(row.revision), layerLabel: row.layer === "production" ? "量產版" : "研發版" }));
   }
 
 }
@@ -353,6 +503,20 @@ function field(key: string, label: string, value: unknown): CanonicalDetailField
 
 function compactFields(fields: Array<CanonicalDetailField | null>): CanonicalDetailField[] {
   return fields.filter((entry): entry is CanonicalDetailField => Boolean(entry));
+}
+
+function disclosure(label: string, value: unknown): CanonicalDetailDisclosure | null {
+  const normalized = textValue(value);
+  return normalized ? { label, value: normalized } : null;
+}
+
+function detailTrace(input: { scope?: unknown; source?: unknown; updatedAt?: unknown; eventId?: unknown }): CanonicalDetailDisclosure[] {
+  return [
+    disclosure("適用範圍", input.scope),
+    disclosure("來源", input.source),
+    disclosure("更新時間", input.updatedAt),
+    disclosure("正式化事件", input.eventId)
+  ].filter((entry): entry is CanonicalDetailDisclosure => Boolean(entry));
 }
 
 function drawingProjectionFromSlot(record: CanonicalWorkbenchStateRecord, slot: DrawingPreviewSlotModel): CanonicalPreviewProjection {
@@ -377,13 +541,9 @@ function emptyPreviewSlots(): [DrawingPreviewSlotModel, DrawingPreviewSlotModel]
   ];
 }
 
-const twoDExtensions = new Set(["slddrw", "pdf", "dwg", "dxf", "png", "jpg", "jpeg", "webp"]);
-
-function pickPreviewSource(sources: CanonicalPreviewSource[], kind: "three-d" | "two-d") {
+function pickPreviewSource(sources: CanonicalPreviewSource[], kind: "three-d" | "two-d", derivatives: CanonicalPreviewDerivative[] = []) {
   if (kind === "three-d") return selectCanonicalThreeDSource(sources, sources[0]?.revisionId ?? "");
-  const extensions = twoDExtensions;
-  const roles = ["drawing_2d", "drawing", "primary_drawing"];
-  return sources.find((source) => roles.includes(source.role)) ?? sources.find((source) => extensions.has(source.fileExt)) ?? null;
+  return selectCanonicalTwoDSource(sources, sources[0]?.revisionId ?? "", derivatives);
 }
 
 function canonicalPreviewSlot(

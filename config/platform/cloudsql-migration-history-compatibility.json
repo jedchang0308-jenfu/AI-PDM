@@ -25,6 +25,42 @@
       "historicalManifestCommit": "69a8c1da0c694079940988edbde8c74211f62d19",
       "historicalAppliedAt": "2026-07-15T18:03:18.770Z",
       "reason": "Production applied the same reviewed baseline as staging before the 001 clean-room baseline refactor. The live ledger checksum, historical manifest output and raw Git source hash were reverified on 2026-08-17; accept only this checksum so reviewed forward migrations can resume without rewriting production history."
+    },
+    {
+      "targetProjectId": "jenfu-ai-pdm-prod",
+      "version": "012",
+      "acceptedExistingChecksums": [
+        "275a0d501314bf9c8b09651b2eee448d6ff4f16944777c75d5922d51441bae11"
+      ],
+      "historicalSourceSha256": "394683bcf1acbcb09a73d53a9d6ab184a3f313d8a8729a485f84a8231a40dd88",
+      "historicalOutputSha256": "275a0d501314bf9c8b09651b2eee448d6ff4f16944777c75d5922d51441bae11",
+      "historicalManifestCommit": "36d1f598",
+      "historicalAppliedAt": "2026-07-15T18:03:18.770Z",
+      "reason": "Production applied the original five-value draft item-kind contract. The current 012 source is narrowed to the canonical two values; forward migration 044 performs that reviewed narrowing, so the immutable production 012 checksum is accepted instead of rewriting history."
+    },
+    {
+      "targetProjectId": "jenfu-ai-pdm-prod",
+      "version": "027",
+      "acceptedExistingChecksums": [
+        "5736286935a42e9df57493fe4b397f540c6f519ea48344bf51fec2928aae16e8"
+      ],
+      "historicalSourceSha256": "d6a34e44fd310f921c3df68a93da8f9605425f2b813b6073a5e307460ca6b4c5",
+      "historicalOutputSha256": "5736286935a42e9df57493fe4b397f540c6f519ea48344bf51fec2928aae16e8",
+      "historicalManifestCommit": "72fed58d",
+      "historicalAppliedAt": "2026-08-17T13:29:05.951Z",
+      "reason": "Production applied the reviewed Google Secret Manager provider list before Windows DPAPI was added to the same source file. Forward migration 049 replaces the provider check and adds the secure activation tables, so accept only the verified immutable production checksum."
+    },
+    {
+      "targetProjectId": "jenfu-ai-pdm-prod",
+      "version": "047",
+      "acceptedExistingChecksums": [
+        "1e3b9ab54421c3296d8f385f788b057b837e15cc6e7a7f1a8d9932a726a316f2"
+      ],
+      "historicalSourceSha256": "c18c284da2a2b25adc6fc1c34501c7317d2ebbe0a44eb16d6d04075e2e53c450",
+      "historicalOutputSha256": "1e3b9ab54421c3296d8f385f788b057b837e15cc6e7a7f1a8d9932a726a316f2",
+      "historicalManifestCommit": "d9c84367",
+      "historicalAppliedAt": "2026-08-24T11:02:17.741Z",
+      "reason": "Production applied the reviewed historical full BOM retirement from the production release branch before the shared-BOM branch was reconciled. Preserve that immutable ledger row; the current 047 source is a fresh-install no-op bridge and 048 reconstructs the required manual/shared BOM foundation without restoring retired CAD/XLS data."
     }
   ]
 }

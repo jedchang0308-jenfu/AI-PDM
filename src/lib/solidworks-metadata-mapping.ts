@@ -10,6 +10,7 @@ import {
   type DrawingRecognitionConfidence,
   type DrawingRecognitionObservationInput
 } from "./drawing-recognition-contract.ts";
+import { resolveRecognitionPartOwner } from "./drawing-recognition-part-owner.ts";
 
 export type NativeMetadataProperty = {
   scope?: string | null;
@@ -94,30 +95,33 @@ function valueOf(property: NativeMetadataProperty) {
   return linkedOrRaw;
 }
 
-function uniquePart(parts: NativeMetadataMappingContext["targetContext"]["parts"], predicate: (part: NativeMetadataMappingContext["targetContext"]["parts"][number]) => boolean) {
-  const matches = parts.filter(predicate);
-  return matches.length === 1 ? matches[0] : null;
-}
-
 function resolvePartOwner(input: NativeMetadataMappingContext, scope: string, anchor: string | null) {
-  const parts = input.targetContext.parts;
-  const normalizedAnchor = normalizeRecognitionValue(anchor ?? "");
-  if (normalizedAnchor) {
-    const exact = uniquePart(parts, (part) => normalizeRecognitionValue(part.partNumber) === normalizedAnchor);
-    if (exact) return { part: exact, confidence: "high" as DrawingRecognitionConfidence, resolution: "resolved" as const };
+  const resolution = resolveRecognitionPartOwner({
+    targets: input.targetContext.parts.map((part) => ({
+      id: part.id,
+      partNumber: part.partNumber,
+      recordStatus: part.recordStatus,
+      source: "context" as const
+    })),
+    anchorPartNumber: anchor,
+    configurationName: scope.startsWith("configuration:") ? scope.slice("configuration:".length) : null,
+    allowUnanchored: ["sldprt", "sldasm"].includes(extension(input.fileExt))
+  });
+  if (resolution.kind !== "resolved") {
+    return {
+      part: null,
+      confidence: "unknown" as DrawingRecognitionConfidence,
+      resolution: resolution.kind === "ambiguous" ? "ambiguous" as const : "missing" as const
+    };
   }
-  if (scope.startsWith("configuration:")) {
-    const configName = normalizeRecognitionValue(scope.slice("configuration:".length));
-    const full = uniquePart(parts, (part) => normalizeRecognitionValue(part.partNumber) === configName);
-    if (full) return { part: full, confidence: "medium" as DrawingRecognitionConfidence, resolution: "resolved" as const };
-    const suffix = uniquePart(parts, (part) => normalizeRecognitionValue(part.partNumber).toLowerCase().endsWith(configName.toLowerCase()));
-    if (suffix) return { part: suffix, confidence: "medium" as DrawingRecognitionConfidence, resolution: "resolved" as const };
-  }
-  if (extension(input.fileExt) === "sldprt") {
-    const only = uniquePart(parts, () => true);
-    if (only) return { part: only, confidence: "medium" as DrawingRecognitionConfidence, resolution: "resolved" as const };
-  }
-  return { part: null, confidence: "unknown" as DrawingRecognitionConfidence, resolution: "ambiguous" as const };
+  const part = input.targetContext.parts.find((candidate) => candidate.id === resolution.ownerId)
+    ?? input.targetContext.parts.find((candidate) => normalizeRecognitionValue(candidate.partNumber).toLocaleUpperCase("en-US") === resolution.logicalPartNumber)
+    ?? null;
+  return {
+    part,
+    confidence: anchor ? "high" as DrawingRecognitionConfidence : "medium" as DrawingRecognitionConfidence,
+    resolution: part ? "resolved" as const : "missing" as const
+  };
 }
 
 function mappedObservation(input: NativeMetadataMappingContext, property: NativeMetadataProperty, entry: AliasEntry | null, anchorByScope: Map<string, string>, index: number): DrawingRecognitionObservationInput {

@@ -5,6 +5,7 @@ import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-con
 import type { NumberingItemKind } from "@/lib/repositories/numbering-repository";
 import { parseCanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
 import { parseNumberingStructureType } from "@/lib/numbering-structure-type";
+import { canonicalNumberingCreateApiError } from "@/lib/canonical-numbering-create-error";
 
 export const runtime = "nodejs";
 
@@ -40,7 +41,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
   const errors: string[] = [];
   if ((body.itemKind !== undefined || body.item_kind !== undefined) && !itemKind) errors.push("itemKind must be manufactured or purchased");
   if (rawStructureType !== undefined && !structureType) errors.push("structureType must be single_part or assembly");
-  if (itemKind === "purchased" && structureType === "assembly") errors.push("purchased assembly is not supported");
   if ((seriesCode?.length ?? 0) > 80) errors.push("seriesCode must be 80 characters or fewer");
   if (errors.length > 0) return NextResponse.json({ error: "Invalid contextual part request", details: errors }, { status: 422 });
 
@@ -62,19 +62,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
     }, access.metadata);
     return NextResponse.json({ ...result, pdmCompany: access.company }, { status: result.reusedFromIdempotency ? 200 : 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to add part number";
-    return NextResponse.json({ error: message }, { status: errorStatus(message) });
+    const failure = canonicalNumberingCreateApiError(error);
+    return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }
 
 function normalizeEnum(value: unknown, allowed: Set<string>) {
   const text = String(value ?? "").trim();
   return allowed.has(text) ? text : undefined;
-}
-
-function errorStatus(message: string) {
-  if (message.includes("NOT_FOUND")) return 404;
-  if (message.includes("MISMATCH") || message.includes("LOCKED") || message.includes("REQUIRED_FOR_FORMAL")) return 409;
-  if (message.includes("INVALID") || message.includes("REQUIRED")) return 400;
-  return 422;
 }

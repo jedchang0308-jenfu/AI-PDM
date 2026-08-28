@@ -11,7 +11,6 @@ import {
   ClipboardCheck,
   Factory,
   FileText,
-  GitPullRequestArrow,
   KeyRound,
   ListTree,
   LogIn,
@@ -19,7 +18,6 @@ import {
   PackageSearch,
   Search,
   Settings,
-  ShieldAlert,
   UserCog,
   X,
 } from "lucide-react";
@@ -75,16 +73,13 @@ const navSections: NavSection[] = [
   {
     label: "變更 / 審核",
     items: [
-      { href: "/numbering/revisions", label: "圖面進版", icon: GitPullRequestArrow },
-      { href: "/approvals", label: "審核工作台", icon: CircleCheckBig, badge: "approvalPending" },
-      { href: "/numbering/impact", label: "製造圖影響分析", icon: ShieldAlert }
+      { href: "/approvals", label: "審核工作台", icon: CircleCheckBig, badge: "approvalPending" }
     ]
   },
   {
     label: "發行 / 交接",
     items: [
-      { href: "/technical-transfer", label: "技術移轉", icon: Factory },
-      { href: "/numbering/reports", label: "圖號報表", icon: FileText }
+      { href: "/technical-transfer", label: "技術移轉", icon: Factory }
     ]
   },
   {

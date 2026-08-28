@@ -7,6 +7,8 @@ import { issueCanonicalWorkbenchContract, verifyCanonicalWorkbenchCommandContrac
 import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
 import { PartChangeWorkAsyncRepository, validatePartChangePayload, type PartChangePayload } from "@/lib/repositories/part-change-work-async-repository";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
+import { buildReviewPackage, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
+import { parseReviewPackageSnapshot } from "@/lib/pdm-review-package-contract";
 
 export type PartChangeActor = {
   id: string; companyId: string; canEditNonOwned: boolean;
@@ -82,7 +84,12 @@ export class PartChangeWorkService {
       const reviewRepository = new PdmWorkReviewAsyncRepository(tx);
       const reviewerUserId = await reviewRepository.selectReviewer(tx, { companyId: actor.companyId, ownerUserId: locked.owner_user_id });
       const snapshotPayload = typeof locked.proposed_payload === "string" ? JSON.parse(locked.proposed_payload) as PartChangePayload : locked.proposed_payload;
-      const request = await reviewRepository.create(tx, { companyId: actor.companyId, requestKind: "part_change", entityType: "part", canonicalEntityId: locked.part_id, workId, reviewerUserId, snapshotPayload, snapshotHash: dev087RequestHash(snapshotPayload) });
+      const legacySnapshotHash = dev087RequestHash(snapshotPayload);
+      const packageEnabled = reviewPackageV2WriteEnabled();
+      const packagePayload = packageEnabled
+        ? await buildReviewPackage(tx, { companyId: actor.companyId, requestKind: "part_change", entityType: "part", canonicalEntityId: locked.part_id, workId, branchId: null, decisionBasis: { hash: legacySnapshotHash, payload: snapshotPayload } })
+        : snapshotPayload;
+      const request = await reviewRepository.create(tx, { companyId: actor.companyId, requestKind: "part_change", entityType: "part", canonicalEntityId: locked.part_id, workId, reviewerUserId, snapshotPayload: packagePayload, snapshotHash: "packageHash" in packagePayload ? packagePayload.packageHash : legacySnapshotHash });
       await tx.execute(`UPDATE canonical_workbench_states SET handling = 'review_owner', row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND work_id = :workId AND handling = 'owner'`, { companyId: actor.companyId, workId });
       return { requestId: request.id, reviewCycleId: request.reviewCycleId, rowVersion: request.rowVersion };
     });
@@ -120,6 +127,9 @@ export class PartChangeWorkService {
     }, async (tx) => {
       const locked = await reviewRepository.get(tx, { companyId: actor.companyId, requestId }, true);
       if (!locked || locked.reviewerUserId !== actor.id || locked.requestStatus !== "pending" || locked.rowVersion !== context.expectedRowVersion) throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_REQUEST_STALE", "重新開啟目前審核項目", 409);
+      const parsedPackage = parseReviewPackageSnapshot(locked.snapshotPayload);
+      if (parsedPackage.kind === "invalid") throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409);
+      const verifiedPackage = parsedPackage.kind === "v2" ? verifyReviewPackageIntegrity(locked.snapshotPayload, locked.snapshotHash) : null;
       if (decision === "return_for_correction") return returnDev087WorkForCorrection(tx, locked);
       await beginDev087Approval(tx, locked);
       const faultHandling = dev087FaultHandling();
@@ -129,8 +139,10 @@ export class PartChangeWorkService {
       if (!locked.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
       const workRepository = new PartChangeWorkAsyncRepository(tx);
       const work = await workRepository.readWork(tx, actor.companyId, locked.workId, true);
-      if (!work || dev087RequestHash(typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload) !== locked.snapshotHash) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
+      const expectedHash = verifiedPackage?.decisionBasis.hash ?? locked.snapshotHash;
+      if (!work || dev087RequestHash(typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload) !== expectedHash) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
       await workRepository.formalize(tx, { companyId: actor.companyId, work, reviewCycleId: locked.reviewCycleId });
+      await reviewRepository.recordTerminalReceipt(tx, locked);
       await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked);
       return { acknowledged: true };
     });

@@ -17,7 +17,7 @@ type AdapterResultRow = {
 type HealthSource = { id: string; fileName: string };
 
 const diagnosticMessages: Record<string, { message: string; retryable: boolean }> = {
-  native_metadata_not_configured: { message: "尚未啟用 SolidWorks 屬性讀取器；目前只顯示其他可用辨識結果。", retryable: false },
+  native_metadata_not_configured: { message: "此批辨識執行時未取得 SolidWorks 屬性資料；若設定已啟用，請重新辨識。", retryable: false },
   native_metadata_license_missing: { message: "SolidWorks 屬性讀取器尚未取得可用授權；目前只顯示其他可用辨識結果。", retryable: false },
   native_metadata_source_content_unavailable: { message: "SolidWorks 屬性讀取器暫時無法取得來源檔；可保留其他辨識結果並重新辨識。", retryable: true },
   native_metadata_hash_mismatch: { message: "來源檔內容已變更，SolidWorks 屬性結果未採用；請重新辨識。", retryable: true },

@@ -31,6 +31,14 @@ type MagnifierCropCacheEntry = {
   coverageRatio: number;
 };
 
+type RenderedPdfPage = {
+  pdfPage: PDFPageProxy;
+  safePageNumber: number;
+  fitScale: number;
+  cssWidth: number;
+  cssHeight: number;
+};
+
 function renderingWasCancelled(error: unknown) {
   return error instanceof Error && error.name === "RenderingCancelledException";
 }
@@ -274,7 +282,12 @@ export function PdfPageViewport({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const magnifierRef = useRef<HTMLSpanElement>(null);
   const magnifierCanvasRef = useRef<HTMLCanvasElement>(null);
+  const renderedPageRef = useRef<RenderedPdfPage | null>(null);
+  const magnifierRenderTaskRef = useRef<RenderTask | null>(null);
+  const magnifierSequenceRef = useRef(0);
+  const magnifierCacheRef = useRef(new Map<string, MagnifierCropCacheEntry>());
   const [renderState, setRenderState] = useState<"loading" | "ready" | "failed">("loading");
+  const [renderVersion, setRenderVersion] = useState(0);
   const [magnifierError, setMagnifierError] = useState(false);
 
   useEffect(() => {
@@ -285,9 +298,8 @@ export function PdfPageViewport({
     let pdfDocument: PDFDocumentProxy | null = null;
     let pdfPage: PDFPageProxy | null = null;
     let renderTask: RenderTask | null = null;
-    let magnifierRenderTask: RenderTask | null = null;
     let observer: ResizeObserver | null = null;
-    const magnifierCache = new Map<string, MagnifierCropCacheEntry>();
+    const magnifierCache = magnifierCacheRef.current;
 
     async function start() {
       const pdfjs = await import("pdfjs-dist");
@@ -316,7 +328,9 @@ export function PdfPageViewport({
         const viewport = pdfPage.getViewport({ scale: fitScale * pixelRatio });
 
         renderTask?.cancel();
-        magnifierRenderTask?.cancel();
+        magnifierSequenceRef.current += 1;
+        magnifierRenderTaskRef.current?.cancel();
+        magnifierRenderTaskRef.current = null;
         pageElement.style.width = `${cssWidth}px`;
         pageElement.style.height = `${cssHeight}px`;
         canvas.style.width = `${cssWidth}px`;
@@ -331,115 +345,9 @@ export function PdfPageViewport({
         try {
           await renderTask.promise;
           if (disposed || currentSequence !== renderSequence) return;
-          const magnifier = magnifierRef.current;
-          const magnifierCanvas = magnifierCanvasRef.current;
-          if (focusRegion && magnifier && magnifierCanvas) {
-            const region = normalizedPageRect({ pageWidth: cssWidth, pageHeight: cssHeight, region: focusRegion });
-            const lensSize = lensSizeForViewport(cssWidth, cssHeight);
-            const position = magnifierPosition({ pageWidth: cssWidth, pageHeight: cssHeight, region, size: lensSize });
-            const plan = buildMagnifierPlan({ pageWidth: cssWidth, pageHeight: cssHeight, region, lensSize });
-            const outputScale = Math.min(MAGNIFIER_MAX_RESOLUTION, Math.max(MAGNIFIER_MIN_RESOLUTION, window.devicePixelRatio || 1));
-            const magnifierStartedAt = performance.now();
-            const lensPixelSize = Math.max(1, Math.round(lensSize * outputScale));
-            const cropRectInBaseUnits = {
-              left: plan.cropRect.left / fitScale,
-              top: plan.cropRect.top / fitScale,
-              width: plan.cropRect.width / fitScale,
-              height: plan.cropRect.height / fitScale
-            };
-            const key = cacheKeyFor({
-              sourceKey: sourceKey ?? title,
-              pageNumber: safePageNumber,
-              cropRect: cropRectInBaseUnits,
-              outputScale
-            });
-
-            magnifier.style.left = `${position.left}px`;
-            magnifier.style.top = `${position.top}px`;
-            magnifier.style.width = `${lensSize}px`;
-            magnifier.style.height = `${lensSize}px`;
-            magnifier.dataset.magnifierState = "loading";
-            magnifier.dataset.resolutionMode = "pending";
-            magnifier.dataset.coverageRatio = plan.coverageRatio.toFixed(3);
-            magnifier.dataset.effectiveZoom = plan.effectiveZoom.toFixed(3);
-            magnifier.dataset.backingScale = outputScale.toFixed(2);
-            magnifier.dataset.targetRect = JSON.stringify(plan.targetRect);
-            magnifier.dataset.cropRect = JSON.stringify(cropRectInBaseUnits);
-            magnifier.dataset.cacheState = "miss";
-            magnifier.dataset.lruSize = String(magnifierCache.size);
-            magnifier.dataset.renderElapsedMs = "0";
-            setMagnifierError(false);
-            magnifierCanvas.width = lensPixelSize;
-            magnifierCanvas.height = lensPixelSize;
-            const magnifierContext = magnifierCanvas.getContext("2d", { alpha: false });
-            if (!magnifierContext) throw new Error("pdf_magnifier_canvas_unavailable");
-            magnifierContext.fillStyle = "#ffffff";
-            magnifierContext.fillRect(0, 0, lensPixelSize, lensPixelSize);
-
-            let cropEntry = magnifierCache.get(key);
-            if (cropEntry) {
-              magnifierCache.delete(key);
-              magnifierCache.set(key, cropEntry);
-              magnifier.dataset.cacheState = "hit";
-            } else {
-              const cropCanvas = document.createElement("canvas");
-              cropCanvas.width = Math.max(1, Math.min(1024, Math.ceil(cropRectInBaseUnits.width * outputScale)));
-              cropCanvas.height = Math.max(1, Math.min(1024, Math.ceil(cropRectInBaseUnits.height * outputScale)));
-              const cropContext = cropCanvas.getContext("2d", { alpha: false });
-              if (!cropContext) throw new Error("pdf_magnifier_crop_canvas_unavailable");
-              cropContext.fillStyle = "#ffffff";
-              cropContext.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
-              const cropViewport = pdfPage.getViewport({
-                scale: outputScale,
-                offsetX: -cropRectInBaseUnits.left * outputScale,
-                offsetY: -cropRectInBaseUnits.top * outputScale
-              });
-              magnifierRenderTask = pdfPage.render({ canvas: cropCanvas, canvasContext: cropContext, viewport: cropViewport });
-              try {
-                await magnifierRenderTask.promise;
-              } catch (error) {
-                cropCanvas.width = 0;
-                cropCanvas.height = 0;
-                if (renderingWasCancelled(error)) throw error;
-                magnifier.dataset.magnifierState = "failed";
-                magnifier.dataset.resolutionMode = "fallback";
-                setMagnifierError(true);
-                setRenderState("ready");
-                return;
-              } finally {
-                magnifierRenderTask = null;
-              }
-              cropEntry = {
-                canvas: cropCanvas,
-                cropRect: cropRectInBaseUnits,
-                outputScale,
-                effectiveZoom: plan.effectiveZoom,
-                coverageRatio: plan.coverageRatio
-              };
-              magnifierCache.set(key, cropEntry);
-              while (magnifierCache.size > MAGNIFIER_CACHE_LIMIT) {
-                const oldestKey = magnifierCache.keys().next().value;
-                if (!oldestKey) break;
-                const oldest = magnifierCache.get(oldestKey);
-                magnifierCache.delete(oldestKey);
-                if (oldest) {
-                  oldest.canvas.width = 0;
-                  oldest.canvas.height = 0;
-                }
-              }
-            }
-            if (disposed || currentSequence !== renderSequence || !cropEntry) return;
-            magnifierContext.imageSmoothingEnabled = false;
-            magnifierContext.drawImage(cropEntry.canvas, 0, 0, lensPixelSize, lensPixelSize);
-            magnifier.dataset.magnifierState = "ready";
-            magnifier.dataset.resolutionMode = "pdf_high_res_crop";
-            magnifier.dataset.coverageRatio = cropEntry.coverageRatio.toFixed(3);
-            magnifier.dataset.effectiveZoom = cropEntry.effectiveZoom.toFixed(3);
-            magnifier.dataset.backingScale = cropEntry.outputScale.toFixed(2);
-            magnifier.dataset.lruSize = String(magnifierCache.size);
-            magnifier.dataset.renderElapsedMs = Math.max(0, performance.now() - magnifierStartedAt).toFixed(1);
-          }
+          renderedPageRef.current = { pdfPage, safePageNumber, fitScale, cssWidth, cssHeight };
           setRenderState("ready");
+          setRenderVersion((version) => version + 1);
         } catch (error) {
           if (!renderingWasCancelled(error)) throw error;
         }
@@ -456,6 +364,11 @@ export function PdfPageViewport({
       scheduleRender();
     }
 
+    renderedPageRef.current = null;
+    magnifierSequenceRef.current += 1;
+    magnifierRenderTaskRef.current?.cancel();
+    magnifierRenderTaskRef.current = null;
+    clearMagnifierCache(magnifierCache);
     setRenderState("loading");
     void start().catch(() => {
       if (!disposed) setRenderState("failed");
@@ -466,13 +379,154 @@ export function PdfPageViewport({
       window.cancelAnimationFrame(scheduledFrame);
       observer?.disconnect();
       renderTask?.cancel();
-      magnifierRenderTask?.cancel();
+      magnifierSequenceRef.current += 1;
+      magnifierRenderTaskRef.current?.cancel();
+      magnifierRenderTaskRef.current = null;
+      renderedPageRef.current = null;
       clearMagnifierCache(magnifierCache);
       pdfPage?.cleanup();
       void pdfDocument?.cleanup().catch(() => undefined);
       void loadingTask?.destroy().catch(() => undefined);
     };
-  }, [bytes, focusRegion, pageNumber, sourceKey, title]);
+  }, [bytes, pageNumber]);
+
+  useEffect(() => {
+    const renderedPage = renderedPageRef.current;
+    const magnifier = magnifierRef.current;
+    const magnifierCanvas = magnifierCanvasRef.current;
+    const sequence = ++magnifierSequenceRef.current;
+    let disposed = false;
+
+    magnifierRenderTaskRef.current?.cancel();
+    magnifierRenderTaskRef.current = null;
+    setMagnifierError(false);
+    if (!focusRegion || renderState !== "ready" || !renderedPage || !magnifier || !magnifierCanvas) return;
+    const activeRenderedPage = renderedPage;
+    const activeFocusRegion = focusRegion;
+    const activeMagnifier = magnifier;
+    const activeMagnifierCanvas = magnifierCanvas;
+
+    async function renderMagnifier() {
+      const { pdfPage, safePageNumber, fitScale, cssWidth, cssHeight } = activeRenderedPage;
+      const region = normalizedPageRect({ pageWidth: cssWidth, pageHeight: cssHeight, region: activeFocusRegion });
+      const lensSize = lensSizeForViewport(cssWidth, cssHeight);
+      const position = magnifierPosition({ pageWidth: cssWidth, pageHeight: cssHeight, region, size: lensSize });
+      const plan = buildMagnifierPlan({ pageWidth: cssWidth, pageHeight: cssHeight, region, lensSize });
+      const outputScale = Math.min(MAGNIFIER_MAX_RESOLUTION, Math.max(MAGNIFIER_MIN_RESOLUTION, window.devicePixelRatio || 1));
+      const magnifierStartedAt = performance.now();
+      const lensPixelSize = Math.max(1, Math.round(lensSize * outputScale));
+      const cropRectInBaseUnits = {
+        left: plan.cropRect.left / fitScale,
+        top: plan.cropRect.top / fitScale,
+        width: plan.cropRect.width / fitScale,
+        height: plan.cropRect.height / fitScale
+      };
+      const key = cacheKeyFor({
+        sourceKey: sourceKey ?? title,
+        pageNumber: safePageNumber,
+        cropRect: cropRectInBaseUnits,
+        outputScale
+      });
+      const magnifierCache = magnifierCacheRef.current;
+
+      activeMagnifier.style.left = `${position.left}px`;
+      activeMagnifier.style.top = `${position.top}px`;
+      activeMagnifier.style.width = `${lensSize}px`;
+      activeMagnifier.style.height = `${lensSize}px`;
+      activeMagnifier.dataset.magnifierState = "loading";
+      activeMagnifier.dataset.resolutionMode = "pending";
+      activeMagnifier.dataset.coverageRatio = plan.coverageRatio.toFixed(3);
+      activeMagnifier.dataset.effectiveZoom = plan.effectiveZoom.toFixed(3);
+      activeMagnifier.dataset.backingScale = outputScale.toFixed(2);
+      activeMagnifier.dataset.targetRect = JSON.stringify(plan.targetRect);
+      activeMagnifier.dataset.cropRect = JSON.stringify(cropRectInBaseUnits);
+      activeMagnifier.dataset.cacheState = "miss";
+      activeMagnifier.dataset.lruSize = String(magnifierCache.size);
+      activeMagnifier.dataset.renderElapsedMs = "0";
+
+      let cropEntry = magnifierCache.get(key);
+      if (cropEntry) {
+        magnifierCache.delete(key);
+        magnifierCache.set(key, cropEntry);
+        activeMagnifier.dataset.cacheState = "hit";
+      } else {
+        const cropCanvas = document.createElement("canvas");
+        cropCanvas.width = Math.max(1, Math.min(1024, Math.ceil(cropRectInBaseUnits.width * outputScale)));
+        cropCanvas.height = Math.max(1, Math.min(1024, Math.ceil(cropRectInBaseUnits.height * outputScale)));
+        const cropContext = cropCanvas.getContext("2d", { alpha: false });
+        if (!cropContext) throw new Error("pdf_magnifier_crop_canvas_unavailable");
+        cropContext.fillStyle = "#ffffff";
+        cropContext.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+        const cropViewport = pdfPage.getViewport({
+          scale: outputScale,
+          offsetX: -cropRectInBaseUnits.left * outputScale,
+          offsetY: -cropRectInBaseUnits.top * outputScale
+        });
+        const task = pdfPage.render({ canvas: cropCanvas, canvasContext: cropContext, viewport: cropViewport });
+        magnifierRenderTaskRef.current = task;
+        try {
+          await task.promise;
+        } catch (error) {
+          cropCanvas.width = 0;
+          cropCanvas.height = 0;
+          if (renderingWasCancelled(error)) return;
+          throw error;
+        } finally {
+          if (magnifierRenderTaskRef.current === task) magnifierRenderTaskRef.current = null;
+        }
+        cropEntry = {
+          canvas: cropCanvas,
+          cropRect: cropRectInBaseUnits,
+          outputScale,
+          effectiveZoom: plan.effectiveZoom,
+          coverageRatio: plan.coverageRatio
+        };
+        magnifierCache.set(key, cropEntry);
+        while (magnifierCache.size > MAGNIFIER_CACHE_LIMIT) {
+          const oldestKey = magnifierCache.keys().next().value;
+          if (!oldestKey) break;
+          const oldest = magnifierCache.get(oldestKey);
+          magnifierCache.delete(oldestKey);
+          if (oldest) {
+            oldest.canvas.width = 0;
+            oldest.canvas.height = 0;
+          }
+        }
+      }
+
+      if (disposed || sequence !== magnifierSequenceRef.current || !cropEntry) return;
+      activeMagnifierCanvas.width = lensPixelSize;
+      activeMagnifierCanvas.height = lensPixelSize;
+      const magnifierContext = activeMagnifierCanvas.getContext("2d", { alpha: false });
+      if (!magnifierContext) throw new Error("pdf_magnifier_canvas_unavailable");
+      magnifierContext.fillStyle = "#ffffff";
+      magnifierContext.fillRect(0, 0, lensPixelSize, lensPixelSize);
+      magnifierContext.imageSmoothingEnabled = false;
+      magnifierContext.drawImage(cropEntry.canvas, 0, 0, lensPixelSize, lensPixelSize);
+      activeMagnifier.dataset.magnifierState = "ready";
+      activeMagnifier.dataset.resolutionMode = "pdf_high_res_crop";
+      activeMagnifier.dataset.coverageRatio = cropEntry.coverageRatio.toFixed(3);
+      activeMagnifier.dataset.effectiveZoom = cropEntry.effectiveZoom.toFixed(3);
+      activeMagnifier.dataset.backingScale = cropEntry.outputScale.toFixed(2);
+      activeMagnifier.dataset.lruSize = String(magnifierCache.size);
+      activeMagnifier.dataset.renderElapsedMs = Math.max(0, performance.now() - magnifierStartedAt).toFixed(1);
+    }
+
+    void renderMagnifier().catch((error) => {
+      if (disposed || sequence !== magnifierSequenceRef.current || renderingWasCancelled(error)) return;
+      activeMagnifier.dataset.magnifierState = "failed";
+      activeMagnifier.dataset.resolutionMode = "fallback";
+      setMagnifierError(true);
+    });
+
+    return () => {
+      disposed = true;
+      if (sequence !== magnifierSequenceRef.current) return;
+      magnifierSequenceRef.current += 1;
+      magnifierRenderTaskRef.current?.cancel();
+      magnifierRenderTaskRef.current = null;
+    };
+  }, [focusRegion, renderState, renderVersion, sourceKey, title]);
 
   const focusStyle = focusRegion ? {
     left: `${focusRegion.x * 100}%`,

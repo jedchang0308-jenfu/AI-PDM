@@ -43,9 +43,10 @@ export class PdmWorkReviewAsyncRepository {
 
   async selectReviewer(tx: AsyncDatabaseClient, input: { companyId: string; ownerUserId: string }) {
     const rows = await tx.query<{ id: string; priority: number }>(
-      `SELECT DISTINCT u.id,
-          CASE WHEN r.role_code = 'rd_manager' THEN 0 WHEN r.role_code = 'pdm_admin' THEN 1
-               WHEN u.role = 'R&D Manager' THEN 2 WHEN u.role = 'Admin' THEN 3 ELSE 4 END AS priority
+      `SELECT u.id,
+          MIN(CASE WHEN r.role_code = 'rd_manager' THEN 0 WHEN r.role_code = 'pdm_admin' THEN 1
+               WHEN u.role = 'R&D Manager' THEN 2 WHEN u.role = 'Admin' THEN 3 ELSE 4 END) AS priority,
+          MAX(CASE WHEN u.id = :ownerUserId THEN 1 ELSE 0 END) AS owner_priority
        FROM users u
        LEFT JOIN user_company_memberships membership ON membership.user_id = u.id AND membership.company_id = :companyId
        LEFT JOIN user_role_assignments assignment ON assignment.user_id = u.id AND assignment.revoked_at IS NULL
@@ -53,7 +54,8 @@ export class PdmWorkReviewAsyncRepository {
        WHERE u.account_status = 'active' AND u.system_role_enabled = 1
          AND (u.company_id = :companyId OR membership.company_id = :companyId)
          AND (u.role IN ('R&D Manager', 'Admin') OR r.role_code IN ('rd_manager', 'pdm_admin'))
-       ORDER BY priority, CASE WHEN u.id = :ownerUserId THEN 1 ELSE 0 END, u.id`,
+       GROUP BY u.id
+       ORDER BY priority, owner_priority, u.id`,
       input
     );
     const reviewer = rows[0]?.id;

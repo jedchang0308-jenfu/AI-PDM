@@ -29,12 +29,9 @@ export type StatusScopeId =
   | "bomWorkbench"
   | "handoffWorkbench"
   | "transferPackageWorkbench"
-  | "reportCenter"
-  | "impactWorkbench"
   | "settingsCenter"
   | "accountList"
   | "invitationList"
-  | "revisionSubmission"
   | "drawingRecognition";
 
 export type StatusAxisDefinition = {
@@ -277,26 +274,6 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     contexts: ["bomDraft", "readinessStatus", "approvalStatus", "publicationStatus", "restorePolicy"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
-  reportCenter: {
-    id: "reportCenter",
-    route: "/numbering/reports",
-    section: "報表工作",
-    title: "報表工作資料範圍",
-    description: "報表工作狀態與檔案可用性分開呈現。",
-    axes: ["taskStatus", "fileStatus", "reminderStatus"],
-    contexts: ["jobStatus", "fileStatus", "reminderStatus"],
-    ownerEvidence: INVENTORY_EVIDENCE
-  },
-  impactWorkbench: {
-    id: "impactWorkbench",
-    route: "/numbering/impact",
-    section: "影響分析",
-    title: "影響分析資料範圍",
-    description: "影響分析以資料狀態與關聯準備度為主，提醒另行列出。",
-    axes: ["dataStatus", "readinessStatus", "reminderStatus"],
-    contexts: ["masterRecord", "readinessStatus", "reminderStatus"],
-    ownerEvidence: INVENTORY_EVIDENCE
-  },
   settingsCenter: {
     id: "settingsCenter",
     route: "/settings",
@@ -325,16 +302,6 @@ export const STATUS_SCOPE_REGISTRY: Record<StatusScopeId, StatusScopeDefinition>
     description: "邀請能否被接受與帳號建立後的狀態分開說明。",
     axes: ["invitationStatus", "accountStatus", "reminderStatus"],
     contexts: ["invitationStatus", "accountStatus", "reminderStatus"],
-    ownerEvidence: INVENTORY_EVIDENCE
-  },
-  revisionSubmission: {
-    id: "revisionSubmission",
-    route: "/numbering/revisions",
-    section: "新版圖面送審",
-    title: "版次送審資料範圍",
-    description: "新版圖面、附件、審核與替代料號申請分開判讀。",
-    axes: ["applicationStatus", "fileStatus", "approvalStatus", "readinessStatus", "reminderStatus"],
-    contexts: ["applicationStatus", "fileStatus", "approvalStatus", "readinessStatus", "reminderStatus"],
     ownerEvidence: INVENTORY_EVIDENCE
   },
   drawingRecognition: {

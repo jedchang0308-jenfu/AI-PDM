@@ -22,7 +22,9 @@ export async function POST(request: Request) {
 
   const coreName = String(body.coreName ?? body.core_name ?? "").trim();
   const itemKind = parseCanonicalNumberingItemKind(body.itemKind ?? body.item_kind) as NumberingItemKind | undefined;
-  const structureType = parseNumberingStructureType(body.structureType ?? body.structure_type);
+  const rawStructureType = body.structureType ?? body.structure_type;
+  const structureType = parseNumberingStructureType(rawStructureType);
+  const effectiveStructureType = structureType ?? "unclassified";
   const drawingPurposeCode = normalizeEnum(body.drawingPurposeCode ?? body.drawing_purpose_code, purposeCodes) as DrawingPurposeCode | undefined;
   const customSpecification = String(body.customSpecification ?? body.custom_specification ?? "").trim();
   const seriesCode = String(body.seriesCode ?? body.series_code ?? "").trim();
@@ -31,18 +33,17 @@ export async function POST(request: Request) {
   const errors: string[] = [];
   if (!coreName) errors.push("coreName is required");
   if (!itemKind) errors.push("itemKind is required");
-  if (!structureType) errors.push("structureType is required");
+  if (rawStructureType !== undefined && !structureType) errors.push("structureType must be single_part or assembly");
   if (seriesCode.length > 80) errors.push("seriesCode must be 80 characters or fewer");
   if (drawingRequested && !drawingPurposeCode) errors.push("drawingPurposeCode is required when drawingRequested is true");
   if (itemKind === "manufactured" && !drawingRequested) errors.push("manufactured new roots require a manufacturing drawing");
   if (itemKind === "manufactured" && drawingRequested && drawingPurposeCode !== "M") errors.push("manufactured new roots require drawingPurposeCode M");
   if (itemKind === "purchased" && drawingRequested && drawingPurposeCode !== "R") errors.push("purchased new roots may only add drawingPurposeCode R");
-  if (itemKind === "purchased" && structureType === "assembly") errors.push("purchased assembly is not supported");
   if (drawingRequested && drawingPurposeCode === "R" && !String(body.drawingPurposeDescription ?? body.drawing_purpose_description ?? "").trim()) {
     errors.push("drawingPurposeDescription is required for reference drawings");
   }
 
-  if (errors.length > 0 || !itemKind || !structureType) {
+  if (errors.length > 0 || !itemKind) {
     return NextResponse.json({ error: "Invalid numbering record request", details: errors }, { status: 422 });
   }
 
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
       companyId: access.company.companyId,
       coreName,
       itemKind,
-      structureType,
+      structureType: effectiveStructureType,
       isUniversal,
       customSpecification,
       seriesCode,

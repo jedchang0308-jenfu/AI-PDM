@@ -39,6 +39,7 @@ type DrawingDetailPreviewProps = {
   showTabs?: boolean;
   showCardHeader?: boolean;
   showFileName?: boolean;
+  headerActions?: ReactNode;
   layout?: "grid" | "tabs";
   activeKind?: DrawingDetailPreviewKind;
   defaultActiveKind?: DrawingDetailPreviewKind;
@@ -76,6 +77,7 @@ export function DrawingDetailPreview({
   showTabs = true,
   showCardHeader = true,
   showFileName = true,
+  headerActions,
   layout = "grid",
   activeKind,
   defaultActiveKind = "two-d",
@@ -93,6 +95,7 @@ export function DrawingDetailPreview({
     showTabs={showTabs}
     showCardHeader={showCardHeader}
     showFileName={showFileName}
+    headerActions={headerActions}
     layout={layout}
     activeKey={activeKind}
     defaultActiveKey={defaultActiveKind}

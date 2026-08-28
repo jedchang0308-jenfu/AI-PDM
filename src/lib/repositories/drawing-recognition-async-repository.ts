@@ -6,6 +6,7 @@ import {
   canonicalizeRecognitionSemantics,
   canonicalizeRecognitionValue,
   DrawingRecognitionError,
+  initialDrawingRecognitionReviewState,
   isExplicitNotApplicable,
   normalizeRecognitionValue,
   parseJsonValue,
@@ -26,6 +27,13 @@ import {
 } from "@/lib/drawing-recognition-adapters";
 import { projectNativeMetadataHealth } from "@/lib/drawing-recognition-diagnostics";
 import { DRAWING_OCR_POLICY } from "@/lib/drawing-ocr-priority-policy";
+import {
+  proposedOwnerResolution,
+  resolveRecognitionPartOwner,
+  type RecognitionPartOwnerResolution,
+  type RecognitionPartOwnerTarget
+} from "@/lib/drawing-recognition-part-owner";
+import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-revision-work-async-repository";
 
 type SessionRow = {
   id: string;
@@ -162,6 +170,7 @@ export type RecognitionSessionProjection = ReturnType<typeof mapSession> & {
     diagnostics: string[];
     requiredOutcomes: Array<{ fieldKey: string; fieldLabel: string; outcome: "pending" | "found" | "conflict" | "not_found"; distinctValueCount: number; overflow: boolean }>;
   }>;
+  partOwnerTargets: RecognitionPartOwnerTarget[];
 };
 
 export type RecognitionReviewGroup = {
@@ -383,6 +392,66 @@ function projectPdfOcrSources(
 export class DrawingRecognitionAsyncRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
+  private async listPartOwnerTargets(client: AsyncDatabaseClient, session: SessionRow): Promise<RecognitionPartOwnerTarget[]> {
+    if (!session.drawing_id) return [];
+    const rows = await client.query<{
+      id: string;
+      part_number: string;
+      record_status: string;
+      owner_source: "formal" | "draft";
+    }>(
+      `SELECT part.id, part.part_number, part.record_status, 'formal' AS owner_source
+       FROM drawings drawing
+       JOIN drawing_part_links link ON link.drawing_number_id = drawing.formal_drawing_number_id
+       JOIN part_numbers part ON part.id = link.part_number_id
+       WHERE drawing.id = :drawingId AND drawing.company_id = :companyId AND part.company_id = :companyId
+       UNION ALL
+       SELECT draft.id, reservation.candidate_code AS part_number, 'Draft' AS record_status, 'draft' AS owner_source
+       FROM drawings drawing
+       JOIN numbering_draft_parts draft ON draft.workspace_id = drawing.workspace_id AND draft.company_id = drawing.company_id
+       JOIN number_candidate_reservations reservation ON reservation.id = draft.candidate_reservation_id
+         AND reservation.company_id = drawing.company_id AND reservation.reservation_state = 'active'
+       WHERE drawing.id = :drawingId AND drawing.company_id = :companyId`,
+      { drawingId: session.drawing_id, companyId: session.company_id }
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      partNumber: row.part_number,
+      recordStatus: row.record_status,
+      source: row.owner_source
+    }));
+  }
+
+  private resolvePartOwner(
+    targets: RecognitionPartOwnerTarget[],
+    input: { suppliedOwnerId?: string | null; anchorPartNumber?: string | null; configurationName?: string | null; allowUnanchored?: boolean }
+  ) {
+    return resolveRecognitionPartOwner({ targets, ...input });
+  }
+
+  private partOwnerError(resolution: RecognitionPartOwnerResolution, ownerId: string | null | undefined): DrawingRecognitionError {
+    if (resolution.kind === "ambiguous") {
+      return new DrawingRecognitionError("RECOGNITION_PART_OWNER_AMBIGUOUS", "此圖面工作有多個可能料號，請指定正確料號後再繼續。", 422);
+    }
+    if (!ownerId) {
+      return new DrawingRecognitionError("RECOGNITION_PART_OWNER_REQUIRED", "此欄位尚未指定料號歸屬；請先完成歸屬，或改為延後／忽略。", 422);
+    }
+    return new DrawingRecognitionError("RECOGNITION_PART_OWNER_INVALID", "指定料號不屬於此圖面工作、公司不符或已失效。", 422);
+  }
+
+  private async assertDrawingRevisionWorkBasis(client: AsyncDatabaseClient, input: { companyId: string; drawingRevisionId: string | null; allowEvidence: boolean }) {
+    if (!input.drawingRevisionId) return;
+    const work = await client.queryOne<{ id: string; company_id: string; drawing_id: string; branch_id: string }>(
+      `SELECT work.id, work.company_id, work.drawing_id, work.branch_id
+       FROM drawing_revision_works work
+       JOIN canonical_workbench_states state ON state.work_id = work.id AND state.company_id = work.company_id
+       WHERE work.company_id = :companyId AND state.revision_id = :drawingRevisionId AND state.entity_type = 'drawing'
+       LIMIT 1`, input
+    );
+    if (!work) return;
+    await new DrawingRevisionWorkAsyncRepository(client).assertWorkMutationBasis(client, work, { cleanup: input.allowEvidence });
+  }
+
   private async effectiveConflictCount(sessionId: string) {
     const conflict = await this.client.queryOne<{ count: number | string }>(
       `SELECT COUNT(*) AS count FROM drawing_recognition_candidates
@@ -407,6 +476,7 @@ export class DrawingRecognitionAsyncRepository {
       const repository = new DrawingRecognitionAsyncRepository(client);
       const scope = await repository.resolveContextScope(input.companyId, input.sourceContextType, input.sourceContextId);
       if (!scope) throw new DrawingRecognitionError("RECOGNITION_CONTEXT_NOT_FOUND", "找不到可辨識的圖面來源。", 404);
+      if (input.sourceContextType === "drawing_revision") await repository.assertDrawingRevisionWorkBasis(client, { companyId: input.companyId, drawingRevisionId: input.drawingRevisionId ?? scope.drawing_revision_id, allowEvidence: false });
       const available = await repository.listContextSources(input.companyId, input.sourceContextType, input.sourceContextId);
       const requested = new Set((input.sourceAssetIds ?? []).filter(Boolean));
       const sources = requested.size > 0 ? available.filter((source) => requested.has(source.file_asset_id)) : available;
@@ -543,6 +613,7 @@ export class DrawingRecognitionAsyncRepository {
        ORDER BY completed_at DESC, id DESC`,
       { sessionId, companyId }
     );
+    const partOwnerTargets = await this.listPartOwnerTargets(this.client, session);
     const byCandidate = new Map<string, ObservationRow[]>();
     for (const observation of observations) {
       const list = byCandidate.get(observation.candidate_id) ?? [];
@@ -573,7 +644,8 @@ export class DrawingRecognitionAsyncRepository {
         contentHash: sources.find((item) => item.id === source.sourceId)?.content_hash ?? "",
         adapterCode: BROWSER_PDF_OCR_ADAPTER_CODE
       })),
-      pdfOcrSources
+      pdfOcrSources,
+      partOwnerTargets
     };
   }
 
@@ -804,6 +876,7 @@ export class DrawingRecognitionAsyncRepository {
       let warningCount = 0;
       let successfulResults = 0;
       const timestamp = now();
+      const partOwnerTargets = await this.listPartOwnerTargets(client, session);
       for (const result of input.results) {
         const source = sourceById.get(result.sourceId);
         if (!source) throw new DrawingRecognitionError("RECOGNITION_RESULT_SOURCE_INVALID", "辨識結果來源不在工作範圍內。", 400);
@@ -868,8 +941,19 @@ export class DrawingRecognitionAsyncRepository {
           const candidateNormalizedValue = canonicalizeRecognitionValue(fieldKey, normalizedValue);
           const candidateProposedValue = explicitlyMissingValue ? null : canonicalizeRecognitionValue(fieldKey, rawValue ?? rawText);
           const ownerType = initialSemantics.ownerType ?? inferOwnerType(category, fieldKey);
-          const ownerId = initialSemantics.ownerId ?? inferOwnerId(category, fieldKey, session);
-          const groupKey = sha256Canonical({ category, fieldKey, normalizedValue: candidateNormalizedValue, ownerType, ownerId });
+          const partResolution = ownerType === "part_number"
+            ? this.resolvePartOwner(partOwnerTargets, {
+                suppliedOwnerId: initialSemantics.ownerId,
+                anchorPartNumber: fieldKey === "part_number" ? candidateNormalizedValue : null,
+                configurationName: raw.configurationName,
+                allowUnanchored: true
+              })
+            : null;
+          const ownerId = ownerType === "part_number"
+            ? partResolution?.kind === "resolved" ? partResolution.ownerId : null
+            : initialSemantics.ownerId ?? inferOwnerId(category, fieldKey, session);
+          const applicabilityScope = boundedText(raw.applicabilityScope, 120, "overall") || "overall";
+          const groupKey = sha256Canonical({ category, fieldKey, normalizedValue: candidateNormalizedValue, applicabilityScope, ownerType, ownerId });
           const existingCandidate = await client.queryOne<{ id: string }>(
             `SELECT id FROM drawing_recognition_candidates
              WHERE session_id = :sessionId AND company_id = :companyId AND group_key = :groupKey
@@ -903,12 +987,18 @@ export class DrawingRecognitionAsyncRepository {
             {
               id: candidateId, sessionId: session.id, companyId: session.company_id, category, fieldKey, fieldLabel,
               rawValue, proposedValue: candidateProposedValue, normalizedValue: candidateNormalizedValue, ownerType, ownerId,
-              applicabilityScope: boundedText(raw.applicabilityScope, 120, "overall") || "overall",
+              applicabilityScope,
               variantStatus: explicitlyMissingValue ? "unrecognized" : !hasUsableFormalValue ? "added" : currentValue === candidateNormalizedValue ? "same" : isExplicitNotApplicable(candidateNormalizedValue) ? "explicit_not_applicable" : "changed",
               confidenceBand: parseRecognitionConfidence(raw.confidenceBand),
-              reviewState: explicitlyMissingValue || raw.proposedOwnerResolution === "ambiguous" || raw.proposedOwnerResolution === "missing"
-                ? "blocked"
-                : hasUsableFormalValue && currentValue !== candidateNormalizedValue ? "conflict" : "proposed",
+              reviewState: initialDrawingRecognitionReviewState({
+                sourceContextType: session.source_context_type,
+                explicitlyMissingValue,
+                proposedOwnerResolution: ownerType === "part_number"
+                  ? partResolution ? proposedOwnerResolution(partResolution) : "missing"
+                  : raw.proposedOwnerResolution,
+                hasUsableFormalValue,
+                formalValueDiffers: currentValue !== candidateNormalizedValue
+              }),
               currentFormalValue: currentValue, currentFormalFingerprint: current.fingerprint, groupKey, sortOrder: observationCount, timestamp
             }
           );
@@ -968,6 +1058,9 @@ export class DrawingRecognitionAsyncRepository {
       throw new DrawingRecognitionError("RECOGNITION_OBSERVATION_LIMIT", "單一 PDF 辨識結果超過限制。", 400);
     }
     return this.client.transaction(async (client) => {
+      const sessionSnapshot = await client.queryOne<SessionRow>(`SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId`, { sessionId: input.sessionId, companyId: input.companyId });
+      if (!sessionSnapshot) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+      await new DrawingRecognitionAsyncRepository(client).assertDrawingRevisionWorkBasis(client, { companyId: input.companyId, drawingRevisionId: sessionSnapshot.drawing_revision_id, allowEvidence: true });
       const lock = client.kind === "postgres" ? " FOR UPDATE" : "";
       const session = await client.queryOne<SessionRow>(
         `SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId${lock}`,
@@ -1029,6 +1122,7 @@ export class DrawingRecognitionAsyncRepository {
       }
 
       const timestamp = now();
+      const partOwnerTargets = await this.listPartOwnerTargets(client, session);
       const adapterResultId = `recognition-adapter-${crypto.randomUUID()}`;
       const diagnostics = [`result_fingerprint:${resultFingerprint}`, ...safeDiagnostics];
       await client.execute(
@@ -1102,8 +1196,19 @@ export class DrawingRecognitionAsyncRepository {
         const candidateNormalizedValue = canonicalizeRecognitionValue(fieldKey, normalizedValue);
         const candidateProposedValue = canonicalizeRecognitionValue(fieldKey, rawValue);
         const ownerType = initialSemantics.ownerType ?? inferOwnerType(category, fieldKey);
-        const ownerId = initialSemantics.ownerId ?? inferOwnerId(category, fieldKey, session);
-        const groupKey = sha256Canonical({ category, fieldKey, normalizedValue: candidateNormalizedValue, ownerType, ownerId });
+        const partResolution = ownerType === "part_number"
+          ? this.resolvePartOwner(partOwnerTargets, {
+              suppliedOwnerId: initialSemantics.ownerId,
+              anchorPartNumber: fieldKey === "part_number" ? candidateNormalizedValue : null,
+              configurationName: raw.configurationName,
+              allowUnanchored: true
+            })
+          : null;
+        const ownerId = ownerType === "part_number"
+          ? partResolution?.kind === "resolved" ? partResolution.ownerId : null
+          : initialSemantics.ownerId ?? inferOwnerId(category, fieldKey, session);
+        const applicabilityScope = boundedText(raw.applicabilityScope, 120, "overall") || "overall";
+        const groupKey = sha256Canonical({ category, fieldKey, normalizedValue: candidateNormalizedValue, applicabilityScope, ownerType, ownerId });
         const existingCandidate = await client.queryOne<{ id: string }>(
           `SELECT id FROM drawing_recognition_candidates
            WHERE session_id = :sessionId AND company_id = :companyId AND group_key = :groupKey
@@ -1144,10 +1249,16 @@ export class DrawingRecognitionAsyncRepository {
             normalizedValue: candidateNormalizedValue,
             ownerType,
             ownerId,
-            applicabilityScope: boundedText(raw.applicabilityScope, 120, "overall") || "overall",
+            applicabilityScope,
             variantStatus: !hasUsableFormalValue ? "added" : currentValue === candidateNormalizedValue ? "same" : isExplicitNotApplicable(candidateNormalizedValue) ? "explicit_not_applicable" : "changed",
             confidenceBand: parseRecognitionConfidence(raw.confidenceBand),
-            reviewState: hasUsableFormalValue && currentValue !== candidateNormalizedValue ? "conflict" : "proposed",
+            reviewState: initialDrawingRecognitionReviewState({
+              sourceContextType: session.source_context_type,
+              explicitlyMissingValue: false,
+              proposedOwnerResolution: ownerType === "part_number" && partResolution ? proposedOwnerResolution(partResolution) : undefined,
+              hasUsableFormalValue,
+              formalValueDiffers: currentValue !== candidateNormalizedValue
+            }),
             currentFormalValue: currentValue,
             currentFormalFingerprint: current.fingerprint,
             groupKey,
@@ -1211,6 +1322,9 @@ export class DrawingRecognitionAsyncRepository {
   async saveDecisions(input: { sessionId: string; companyId: string; actorId: string; expectedRowVersion: number; decisions: DrawingRecognitionDecisionInput[] }) {
     if (input.decisions.length === 0 || input.decisions.length > 100) throw new DrawingRecognitionError("RECOGNITION_DECISION_BATCH_INVALID", "請提供 1 到 100 筆審核決策。", 400);
     return this.client.transaction(async (client) => {
+      const sessionSnapshot = await client.queryOne<SessionRow>(`SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId`, { sessionId: input.sessionId, companyId: input.companyId });
+      if (!sessionSnapshot) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+      await new DrawingRecognitionAsyncRepository(client).assertDrawingRevisionWorkBasis(client, { companyId: input.companyId, drawingRevisionId: sessionSnapshot.drawing_revision_id, allowEvidence: false });
       const lock = client.kind === "postgres" ? " FOR UPDATE" : "";
       const session = await client.queryOne<SessionRow>(
         `SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId${lock}`,
@@ -1222,6 +1336,7 @@ export class DrawingRecognitionAsyncRepository {
       }
       if (Number(session.row_version) !== input.expectedRowVersion) throw new DrawingRecognitionError("RECOGNITION_SESSION_STALE", "辨識內容已被更新，請重新載入。", 409);
       const timestamp = now();
+      const partOwnerTargets = await this.listPartOwnerTargets(client, session);
       for (const decision of input.decisions) {
         const candidate = await client.queryOne<CandidateRow>(
           "SELECT * FROM drawing_recognition_candidates WHERE id = :candidateId AND session_id = :sessionId AND company_id = :companyId",
@@ -1232,6 +1347,23 @@ export class DrawingRecognitionAsyncRepository {
         const update = decisionUpdate(candidate, decision);
         if ((decision.action === "ignore" || decision.action === "not_applicable") && !boundedText(decision.reason, 500)) {
           throw new DrawingRecognitionError("RECOGNITION_DECISION_REASON_REQUIRED", "忽略或不適用需要填寫原因。", 400);
+        }
+        if (["accepted", "corrected", "mapped"].includes(update.reviewState)
+          && update.ownerType === "part_number" && Boolean(update.proposedValue?.trim())) {
+          if (!update.ownerId) {
+            const missingOwnerResolution = this.resolvePartOwner(partOwnerTargets, {
+              anchorPartNumber: update.fieldKey === "part_number" ? update.proposedValue : null,
+              allowUnanchored: true
+            });
+            throw this.partOwnerError(missingOwnerResolution, null);
+          }
+          const resolution = this.resolvePartOwner(partOwnerTargets, {
+            suppliedOwnerId: update.ownerId,
+            anchorPartNumber: update.fieldKey === "part_number" ? update.proposedValue : null,
+            allowUnanchored: false
+          });
+          if (resolution.kind !== "resolved") throw this.partOwnerError(resolution, update.ownerId);
+          update.ownerId = resolution.ownerId;
         }
         await client.execute(
           `INSERT INTO drawing_recognition_decisions (
@@ -1290,6 +1422,7 @@ export class DrawingRecognitionAsyncRepository {
       `SELECT * FROM drawing_recognition_candidates WHERE session_id = :sessionId AND company_id = :companyId ORDER BY ${candidateOrder}`,
       { sessionId: session.id, companyId: session.company_id }
     );
+    const partOwnerTargets = await this.listPartOwnerTargets(this.client, session);
     if (input.lockTargets && this.client.kind === "postgres") {
       const targets = [...new Map(candidates
         .filter((candidate) => ["accepted", "corrected", "mapped"].includes(candidate.review_state))
@@ -1313,7 +1446,27 @@ export class DrawingRecognitionAsyncRepository {
       }
       const fieldKey = candidate.field_key ?? "";
       const ownerType = candidate.proposed_owner_type ?? "";
-      const ownerId = candidate.proposed_owner_id ?? "";
+      let ownerId = candidate.proposed_owner_id ?? "";
+      if (ownerType === "part_number" && Boolean(candidate.proposed_value?.trim())) {
+        if (!ownerId) {
+          const missingOwnerResolution = this.resolvePartOwner(partOwnerTargets, {
+            anchorPartNumber: fieldKey === "part_number" ? candidate.proposed_value : null,
+            allowUnanchored: true
+          });
+          blockers.push({ candidateId: candidate.id, reason: missingOwnerResolution.kind === "ambiguous" ? "part_owner_ambiguous" : "part_owner_required" });
+          continue;
+        }
+        const resolution = this.resolvePartOwner(partOwnerTargets, {
+          suppliedOwnerId: ownerId,
+          anchorPartNumber: fieldKey === "part_number" ? candidate.proposed_value : null,
+          allowUnanchored: false
+        });
+        if (resolution.kind !== "resolved") {
+          blockers.push({ candidateId: candidate.id, reason: resolution.kind === "ambiguous" ? "part_owner_ambiguous" : "part_owner_invalid" });
+          continue;
+        }
+        ownerId = resolution.ownerId;
+      }
       if (candidate.variant_status === "explicit_not_applicable" && (!fieldKey || !ownerType || !ownerId)) {
         exclusions.push({ candidateId: candidate.id, reason: "explicit_not_applicable_no_target" });
         continue;
@@ -1378,6 +1531,9 @@ export class DrawingRecognitionAsyncRepository {
     expectedImpactFingerprint: string;
     requirePostReleaseReason?: string | null;
   }) {
+    const sessionSnapshot = await this.client.queryOne<SessionRow>(`SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId`, { sessionId: input.sessionId, companyId: input.companyId });
+    if (!sessionSnapshot) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+    await this.assertDrawingRevisionWorkBasis(this.client, { companyId: input.companyId, drawingRevisionId: sessionSnapshot.drawing_revision_id, allowEvidence: false });
     const impact = await this.calculateImpact({
       sessionId: input.sessionId, companyId: input.companyId, expectedRowVersion: input.expectedRowVersion, lockTargets: true
     });

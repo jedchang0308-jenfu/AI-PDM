@@ -15,9 +15,11 @@ export async function GET(request: Request) {
   const content = url.searchParams.get("content") === "drawing_part" ? "drawing_part" : url.searchParams.get("content") === "part" ? "part" : "";
   const purpose = url.searchParams.get("purposeCode");
   const purposeCode: NumberPreviewPurposeCode = purpose === "R" ? "R" : "M";
-  const structureType = parseNumberingStructureType(url.searchParams.get("structureType"));
+  const rawStructureType = url.searchParams.get("structureType");
+  const structureType = parseNumberingStructureType(rawStructureType);
+  const effectiveStructureType = structureType ?? "unclassified";
   if (!content) return NextResponse.json({ error: "content must be part or drawing_part" }, { status: 400 });
-  if (!structureType) return NextResponse.json({ error: "structureType is required" }, { status: 422 });
+  if (rawStructureType !== null && !structureType) return NextResponse.json({ error: "structureType must be single_part or assembly" }, { status: 422 });
   const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
   if (companyResult.response) return companyResult.response;
   try {
@@ -26,7 +28,9 @@ export async function GET(request: Request) {
       estimated: true,
       observedAt: new Date().toISOString(),
       content,
-      structureType,
+      structureType: effectiveStructureType,
+      effectiveStructureType,
+      structureInitializationSource: "deferred_default",
       purposeCode: content === "part" ? null : purposeCode,
       nextNumbers: {
         root: result.root,

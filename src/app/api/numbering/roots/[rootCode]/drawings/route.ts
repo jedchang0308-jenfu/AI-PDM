@@ -3,6 +3,7 @@ import { addDrawingNumberToRootAsync } from "@/lib/numbering-async";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import type { DrawingPurposeCode } from "@/lib/repositories/numbering-repository";
+import { canonicalNumberingCreateApiError } from "@/lib/canonical-numbering-create-error";
 
 export const runtime = "nodejs";
 
@@ -52,19 +53,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
     }, access.metadata);
     return NextResponse.json({ ...result, pdmCompany: access.company }, { status: result.reusedFromIdempotency ? 200 : 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to add drawing number";
-    return NextResponse.json({ error: message }, { status: errorStatus(message) });
+    const failure = canonicalNumberingCreateApiError(error);
+    return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }
 
 function normalizeEnum(value: unknown, allowed: Set<string>) {
   const text = String(value ?? "").trim();
   return allowed.has(text) ? text : undefined;
-}
-
-function errorStatus(message: string) {
-  if (message.includes("NOT_FOUND")) return 404;
-  if (message.includes("MISMATCH") || message.includes("LOCKED") || message.includes("REQUIRED_FOR_FORMAL")) return 409;
-  if (message.includes("INVALID") || message.includes("REQUIRED")) return 400;
-  return 422;
 }

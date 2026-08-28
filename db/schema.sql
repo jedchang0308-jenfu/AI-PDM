@@ -2249,7 +2249,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'page', 'numbering.search', 1),
     ('system_admin', 'page', 'numbering.drawings.view', 1),
     ('system_admin', 'page', 'numbering.approvals', 1),
-    ('system_admin', 'page', 'numbering.impact', 1),
     ('system_admin', 'page', 'numbering.tasks', 1),
     ('system_admin', 'page', 'numbering.reports', 1),
     ('system_admin', 'page', 'settings.admin_matrix', 1),
@@ -2260,8 +2259,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('system_admin', 'action', 'numbering.approval.batch.create', 1),
     ('system_admin', 'action', 'numbering.approval.batch.decide', 1),
     ('system_admin', 'action', 'numbering.approval.batch.resubmit', 1),
-    ('system_admin', 'action', 'numbering.impact.analyze', 1),
-    ('system_admin', 'action', 'numbering.impact.apply', 1),
     ('system_admin', 'action', 'numbering.export.create', 1),
     ('system_admin', 'action', 'numbering.audit_report.generate', 1),
     ('system_admin', 'action', 'numbering.task.update', 1),
@@ -2289,7 +2286,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'page', 'numbering.search', 1),
     ('pdm_admin', 'page', 'numbering.drawings.view', 1),
     ('pdm_admin', 'page', 'numbering.approvals', 1),
-    ('pdm_admin', 'page', 'numbering.impact', 1),
     ('pdm_admin', 'page', 'numbering.tasks', 1),
     ('pdm_admin', 'page', 'numbering.reports', 1),
     ('pdm_admin', 'page', 'settings.admin_matrix', 1),
@@ -2300,8 +2296,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('pdm_admin', 'action', 'numbering.approval.batch.create', 1),
     ('pdm_admin', 'action', 'numbering.approval.batch.decide', 1),
     ('pdm_admin', 'action', 'numbering.approval.batch.resubmit', 1),
-    ('pdm_admin', 'action', 'numbering.impact.analyze', 1),
-    ('pdm_admin', 'action', 'numbering.impact.apply', 1),
     ('pdm_admin', 'action', 'numbering.export.create', 1),
     ('pdm_admin', 'action', 'numbering.audit_report.generate', 1),
     ('pdm_admin', 'action', 'numbering.task.update', 1),
@@ -2329,7 +2323,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd_manager', 'page', 'numbering.search', 1),
     ('rd_manager', 'page', 'numbering.drawings.view', 1),
     ('rd_manager', 'page', 'numbering.approvals', 1),
-    ('rd_manager', 'page', 'numbering.impact', 1),
     ('rd_manager', 'page', 'numbering.tasks', 1),
     ('rd_manager', 'page', 'numbering.reports', 1),
     ('rd_manager', 'action', 'numbering.create', 1),
@@ -2339,8 +2332,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd_manager', 'action', 'numbering.approval.batch.create', 1),
     ('rd_manager', 'action', 'numbering.approval.batch.decide', 1),
     ('rd_manager', 'action', 'numbering.approval.batch.resubmit', 1),
-    ('rd_manager', 'action', 'numbering.impact.analyze', 1),
-    ('rd_manager', 'action', 'numbering.impact.apply', 1),
     ('rd_manager', 'action', 'numbering.export.create', 1),
     ('rd_manager', 'action', 'numbering.task.update', 1),
     ('rd_manager', 'action', 'numbering.notification.update', 1),
@@ -2356,7 +2347,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd', 'page', 'numbering.request', 1),
     ('rd', 'page', 'numbering.search', 1),
     ('rd', 'page', 'numbering.drawings.view', 1),
-    ('rd', 'page', 'numbering.impact', 1),
     ('rd', 'page', 'numbering.tasks', 1),
     ('rd', 'action', 'numbering.create', 1),
     ('rd', 'action', 'numbering.duplicate_check', 1),
@@ -2366,7 +2356,6 @@ WITH default_role_permissions(role_code, permission_kind, permission_code, allow
     ('rd', 'action', 'numbering.approval.request', 1),
     ('rd', 'action', 'numbering.approval.batch.create', 1),
     ('rd', 'action', 'numbering.approval.batch.resubmit', 1),
-    ('rd', 'action', 'numbering.impact.analyze', 1),
     ('rd', 'action', 'numbering.task.update', 1),
     ('rd', 'action', 'numbering.notification.update', 1),
     ('rd', 'action', 'numbering.attachments.manage', 1),
@@ -3950,6 +3939,99 @@ CREATE TABLE IF NOT EXISTS drawing_recognition_candidates (
   FOREIGN KEY (session_id) REFERENCES drawing_recognition_sessions(id) ON DELETE RESTRICT,
   FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT
 );
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_recognition_part_owner_insert
+BEFORE INSERT ON drawing_recognition_candidates
+WHEN NEW.proposed_owner_type = 'part_number'
+  AND NEW.review_state IN ('accepted', 'corrected', 'mapped')
+  AND TRIM(COALESCE(NEW.proposed_value, '')) <> ''
+  AND (
+    TRIM(COALESCE(NEW.proposed_owner_id, '')) = ''
+    OR NOT (
+      EXISTS (
+        SELECT 1
+        FROM drawing_recognition_sessions session
+        JOIN drawings drawing ON drawing.id = session.drawing_id AND drawing.company_id = session.company_id
+        JOIN drawing_part_links link ON link.drawing_number_id = drawing.formal_drawing_number_id
+        JOIN part_numbers part ON part.id = link.part_number_id AND part.company_id = session.company_id
+        WHERE session.id = NEW.session_id AND session.company_id = NEW.company_id
+          AND part.id = NEW.proposed_owner_id
+          AND part.record_status NOT IN ('Obsolete', 'Merged', 'MainDrawingInvalid')
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM drawing_recognition_sessions session
+        JOIN drawings drawing ON drawing.id = session.drawing_id AND drawing.company_id = session.company_id
+        JOIN numbering_draft_parts draft ON draft.id = NEW.proposed_owner_id
+          AND draft.workspace_id = drawing.workspace_id AND draft.company_id = session.company_id
+        JOIN number_candidate_reservations reservation ON reservation.id = draft.candidate_reservation_id
+          AND reservation.company_id = session.company_id AND reservation.reservation_state = 'active'
+        WHERE session.id = NEW.session_id AND session.company_id = NEW.company_id
+      )
+    )
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'RECOGNITION_PART_OWNER_INVARIANT');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_recognition_part_owner_update
+BEFORE UPDATE ON drawing_recognition_candidates
+WHEN NEW.proposed_owner_type = 'part_number'
+  AND NEW.review_state IN ('accepted', 'corrected', 'mapped')
+  AND TRIM(COALESCE(NEW.proposed_value, '')) <> ''
+  AND (
+    TRIM(COALESCE(NEW.proposed_owner_id, '')) = ''
+    OR NOT (
+      EXISTS (
+        SELECT 1
+        FROM drawing_recognition_sessions session
+        JOIN drawings drawing ON drawing.id = session.drawing_id AND drawing.company_id = session.company_id
+        JOIN drawing_part_links link ON link.drawing_number_id = drawing.formal_drawing_number_id
+        JOIN part_numbers part ON part.id = link.part_number_id AND part.company_id = session.company_id
+        WHERE session.id = NEW.session_id AND session.company_id = NEW.company_id
+          AND part.id = NEW.proposed_owner_id
+          AND part.record_status NOT IN ('Obsolete', 'Merged', 'MainDrawingInvalid')
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM drawing_recognition_sessions session
+        JOIN drawings drawing ON drawing.id = session.drawing_id AND drawing.company_id = session.company_id
+        JOIN numbering_draft_parts draft ON draft.id = NEW.proposed_owner_id
+          AND draft.workspace_id = drawing.workspace_id AND draft.company_id = session.company_id
+        JOIN number_candidate_reservations reservation ON reservation.id = draft.candidate_reservation_id
+          AND reservation.company_id = session.company_id AND reservation.reservation_state = 'active'
+        WHERE session.id = NEW.session_id AND session.company_id = NEW.company_id
+      )
+    )
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'RECOGNITION_PART_OWNER_INVARIANT');
+END;
+
+CREATE TABLE IF NOT EXISTS drawing_recognition_owner_reconciliations (
+  id TEXT PRIMARY KEY,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  provider_kind TEXT NOT NULL CHECK (provider_kind IN ('sqlite', 'postgres')),
+  plan_hash TEXT NOT NULL,
+  target_fingerprint_before TEXT NOT NULL,
+  target_fingerprint_after TEXT NOT NULL,
+  request_fingerprint_before TEXT NOT NULL,
+  request_fingerprint_after TEXT NOT NULL,
+  manifest_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_recognition_owner_reconciliations_no_update
+BEFORE UPDATE ON drawing_recognition_owner_reconciliations
+BEGIN
+  SELECT RAISE(ABORT, 'drawing_recognition_owner_reconciliations_append_only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_drawing_recognition_owner_reconciliations_no_delete
+BEFORE DELETE ON drawing_recognition_owner_reconciliations
+BEGIN
+  SELECT RAISE(ABORT, 'drawing_recognition_owner_reconciliations_append_only');
+END;
 
 CREATE TABLE IF NOT EXISTS drawing_recognition_candidate_observations (
   candidate_id TEXT NOT NULL,

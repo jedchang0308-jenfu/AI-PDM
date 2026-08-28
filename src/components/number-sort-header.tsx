@@ -10,28 +10,33 @@ function directionLabel(direction: NumberSortDirection) {
 export function NumberSortHeader({
   label,
   direction,
+  active = true,
   onToggle,
   className = ""
 }: {
   label: string;
   direction: NumberSortDirection;
+  active?: boolean;
   onToggle: () => void;
   className?: string;
 }) {
   const currentDirection = directionLabel(direction);
   const nextDirection = directionLabel(direction === "asc" ? "desc" : "asc");
   const Icon = direction === "asc" ? ArrowUp : ArrowDown;
+  const accessibleLabel = active
+    ? `${label}排序，目前${currentDirection}，點擊切換為${nextDirection}`
+    : `${label}排序，點擊改為遞增`;
 
   return (
     <button
       className={`number-sort-header ${className}`.trim()}
       type="button"
-      aria-label={`${label}排序，目前${currentDirection}，點擊切換為${nextDirection}`}
-      title={`${label}排序：目前${currentDirection}，點擊切換為${nextDirection}`}
+      aria-label={accessibleLabel}
+      title={accessibleLabel}
       onClick={onToggle}
     >
       <span>{label}</span>
-      <Icon className="number-sort-header-icon" size={14} strokeWidth={2.5} aria-hidden="true" />
+      {active ? <Icon className="number-sort-header-icon" size={14} strokeWidth={2.5} aria-hidden="true" /> : null}
     </button>
   );
 }

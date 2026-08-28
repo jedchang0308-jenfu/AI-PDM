@@ -113,6 +113,16 @@ resource "google_cloud_run_v2_service" "pdm" {
       }
 
       env {
+        name  = "PDM_DRAWING_RECOGNITION_V1"
+        value = "true"
+      }
+
+      env {
+        name  = "PDM_REVIEW_PACKAGE_V2_WRITE"
+        value = "true"
+      }
+
+      env {
         name  = "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1"
         value = "true"
       }

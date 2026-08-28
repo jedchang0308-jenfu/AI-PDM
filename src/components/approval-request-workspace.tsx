@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, FileText, LoaderCircle, RefreshCcw, ShieldCheck, XCircle } from "lucide-react";
 import { CanonicalChangeWorkspace } from "@/components/canonical-change-workspace";
+import { CanonicalReviewPackageWorkspace, type CanonicalReviewPackageShell } from "@/components/canonical-review-package-workspace";
 import { normalizePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
 
 type ApprovalDecision = "approved" | "rejected" | "needs_info";
@@ -46,6 +47,8 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [canonicalEntityType, setCanonicalEntityType] = useState<"drawing" | "part" | null>(null);
+  const [canonicalReviewShell, setCanonicalReviewShell] = useState<CanonicalReviewPackageShell | null>(null);
+  const [canonicalReviewToken, setCanonicalReviewToken] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,9 +56,15 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
     try {
       const canonicalResponse = await fetch(`/api/pdm/review-requests/${encodeURIComponent(requestId)}`, { cache: "no-store" });
       if (canonicalResponse.ok) {
-        const canonicalBody = await canonicalResponse.json() as { data?: { entityType?: "drawing" | "part" | "relation" } };
+        const canonicalBody = await canonicalResponse.json() as { data?: { entityType?: "drawing" | "part" | "relation"; schemaVersion?: string } } & { meta?: { contractToken?: string } };
         if (!canonicalBody.data?.entityType) throw new Error("審核明細缺少資料類型。");
         if (canonicalBody.data.entityType === "relation") throw new Error("此歷史關聯審核已退役，請使用稽核紀錄查閱。");
+        if (canonicalBody.data.schemaVersion === "pdm-review-package-v2") {
+          setCanonicalReviewShell(canonicalBody.data as unknown as CanonicalReviewPackageShell);
+          setCanonicalReviewToken(canonicalBody.meta?.contractToken ?? "");
+          setCanonicalEntityType(null);
+          return;
+        }
         setCanonicalEntityType(canonicalBody.data.entityType);
         return;
       }
@@ -73,7 +82,7 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [requestId, returnTo]);
+  }, [requestId]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -121,6 +130,7 @@ export function ApprovalRequestWorkspace({ requestId }: { requestId: string }) {
   }
 
   const isOpen = request?.status === "pending" || request?.status === "needs_info";
+  if (canonicalReviewShell) return <CanonicalReviewPackageWorkspace requestId={requestId} returnTo={returnTo} initialShell={canonicalReviewShell} initialContractToken={canonicalReviewToken} />;
   if (canonicalEntityType) return <CanonicalChangeWorkspace entityType={canonicalEntityType} reviewRequestId={requestId} returnTo={returnTo} />;
   if (loading) return <main className="dev079-workspace-loading" role="status"><LoaderCircle className="spin" size={20} />正在載入審核工作區...</main>;
   if (!request) return <main className="dev079-workspace-state"><h1>審核工作區</h1><p role="alert">{error || "找不到這筆審核。"}</p><button className="secondary-button" type="button" onClick={() => void load()}>重新載入</button></main>;

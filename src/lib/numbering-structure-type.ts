@@ -23,3 +23,11 @@ export function numberingStructureTypeLabel(value: StoredPartStructureType) {
   if (value === "unclassified") return "未分類";
   return "單一零件";
 }
+
+/** Exact Part authority helper used by existing-root append and UI policy. */
+export function consensusStoredPartStructureType(values: readonly unknown[]): StoredPartStructureType {
+  if (values.length === 0) return "unclassified";
+  const parsed = values.map(parseStoredPartStructureType);
+  if (parsed.some((value, index) => values[index] !== "single_part" && values[index] !== "assembly")) return "unclassified";
+  return parsed.every((value) => value === parsed[0]) ? parsed[0] : "unclassified";
+}

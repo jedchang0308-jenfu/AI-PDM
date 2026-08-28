@@ -108,7 +108,6 @@ export {
 export {
   addDrawingNumberToRoot,
   addPartNumberToRoot,
-  analyzeMainDrawingObsolescence,
   applyNumberingRuleTemplate,
   checkNumberingDuplicates,
   checkNumberingPermission,
@@ -177,7 +176,6 @@ export {
   type ListNumberingExportJobsInput,
   type MarkOverdueDraftNumberingInput,
   type MarkOverdueDraftNumberingResult,
-  type MainDrawingImpactInput,
   type PartModuleDetailRecord,
   type PartModuleListInput,
   type PartModuleListRecord,
@@ -292,6 +290,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureDev096SharedAssemblyBomPreSchema(database);
   const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
   database.exec(schema);
+  ensureStandaloneManufacturingImpactRetirement(database);
   ensureTransferPackagePhase1DSchema(database);
   ensureCompanyScopeSchema(database);
   ensureNumberingCompanyScopeSchema(database);
@@ -333,6 +332,33 @@ function initDatabase(database: SqliteDatabase) {
   ensureUnifiedDrawingAggregateBackfill(database);
   seedConfiguredUsers(database);
   assertSqliteInitializerIntegrity(database);
+}
+
+export function ensureStandaloneManufacturingImpactRetirement(database: SqliteDatabase) {
+  const migrationVersion = "pdm-standalone-manufacturing-impact-retirement-v1";
+  const applied = database
+    .prepare("SELECT version FROM pdm_local_data_migrations WHERE version = ?")
+    .get(migrationVersion) as { version: string } | undefined;
+  if (applied) return;
+
+  database.transaction(() => {
+    const removedPermissionCount = database
+      .prepare(
+        `DELETE FROM role_permissions
+         WHERE permission_code IN ('numbering.impact', 'numbering.impact.analyze', 'numbering.impact.apply')`
+      )
+      .run().changes;
+    database
+      .prepare("INSERT INTO pdm_local_data_migrations (version, detail_json) VALUES (?, ?)")
+      .run(
+        migrationVersion,
+        JSON.stringify({
+          source: "standalone manufacturing impact feature retirement",
+          removedPermissionCount,
+          preservedCapabilities: ["formal obsolete dependency snapshot", "drawing revision F/F/F impact"]
+        })
+      );
+  })();
 }
 
 function assertSqliteInitializerIntegrity(database: SqliteDatabase) {

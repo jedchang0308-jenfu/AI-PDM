@@ -7,7 +7,12 @@ export type CreatePurposeCode = "M" | "R";
 
 export type PartCreateFields = {
   itemKind: CanonicalNumberingItemKind;
-  structureType: NumberingStructureType;
+  /**
+   * Structure is deliberately deferred for new roots.  The exact Part can be
+   * classified later from the existing Part drawer; omitting this field makes
+   * the request initialize the persisted value as `unclassified`.
+   */
+  structureType?: NumberingStructureType;
   isUniversal: boolean;
   seriesCode?: string | null;
   customSpecification?: string | null;
@@ -150,8 +155,6 @@ export function normalizeCreateIntent(intent: CanonicalNumberingCreateIntent): C
 }
 
 function validatePartFields(intent: PartCreateFields, errors: string[]) {
-  if (intent.structureType !== "single_part" && intent.structureType !== "assembly") errors.push("請選擇結構型態。");
-  if (intent.itemKind === "purchased" && intent.structureType === "assembly") errors.push("目前不支援外購組立件。");
   if (intent.seriesCode && intent.seriesCode.trim().length > 80) errors.push("系列代號不可超過 80 個字元。");
 }
 
@@ -186,7 +189,7 @@ export function validateCreateIntent(intent: CanonicalNumberingCreateIntent): st
 function partRequestBody(intent: PartCreateFields) {
   return {
     itemKind: intent.itemKind,
-    structureType: intent.structureType,
+    ...(intent.structureType ? { structureType: intent.structureType } : {}),
     isUniversal: intent.isUniversal,
     ...(intent.itemKind === "manufactured" && !intent.isUniversal && intent.seriesCode ? { seriesCode: intent.seriesCode } : {}),
     ...(intent.customSpecification ? { customSpecification: intent.customSpecification } : {}),
@@ -247,7 +250,7 @@ export function normalizeCreateError(status: number, body: unknown): { code: Cre
   if (status === 409) {
     if (/IDEMPOTENCY/u.test(message)) return { code: "idempotency_conflict", message: "同一操作的內容不同，請重新整理後再試。" };
     if (/LOCKED|OBSOLETE|MERGED/u.test(message)) return { code: "root_locked", message: "此圖料根號目前不可追加。" };
-    if (/DUPLICATE|UNIQUE/u.test(message)) return { code: "numbering_duplicate", message: "相同編號或資料已存在，請重新確認。" };
+    if (/DUPLICATE|UNIQUE|NUMBERING_ALLOCATION_CONFLICT/u.test(message)) return { code: "numbering_duplicate", message: "號碼剛被其他操作使用，請重新取得預估後再試。" };
     return { code: "concurrency_conflict", message: "資料剛被更新，請重新取得預估後再提交。" };
   }
   if (status >= 500) return { code: "service_unavailable", message: "服務暫時無法使用，請保留輸入後再試。" };

@@ -1,4 +1,6 @@
 -- DEV-035: UI-only secure activation, native probe jobs, and worker capability acknowledgement.
+-- Version 049 is intentional: production version 038 is permanently occupied
+-- by 038_bom_controlled_cad_source.
 -- Additive migration. Existing references and lifecycle history are preserved.
 
 ALTER TABLE public.secret_references

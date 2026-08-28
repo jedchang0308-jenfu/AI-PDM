@@ -1530,10 +1530,10 @@ export class PdmChangeControlDomainService {
       `
       INSERT INTO part_numbers (
         id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-        item_kind, is_universal, record_status, rule_version_id, created_by, created_at, updated_at
+        item_kind, structure_type, is_universal, record_status, rule_version_id, created_by, created_at, updated_at
       ) VALUES (
         :id, :companyId, :partRootId, :partNumber, :sequenceNo, :sequenceCode, :partName,
-        :itemKind, 0, 'Released', :ruleVersionId, :createdBy, :createdAt, :updatedAt
+        :itemKind, :structureType, 0, 'Released', :ruleVersionId, :createdBy, :createdAt, :updatedAt
       )
       `,
       {
@@ -1545,6 +1545,7 @@ export class PdmChangeControlDomainService {
         sequenceCode: identity.sequenceCode,
         partName: sourcePartName.trim() || partNumber,
         itemKind: itemKindForDraftItemType(draft.itemType),
+        structureType: "unclassified",
         ruleVersionId: identity.ruleVersionId,
         createdBy: actorUserId,
         createdAt: now,

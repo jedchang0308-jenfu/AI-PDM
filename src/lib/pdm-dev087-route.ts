@@ -72,6 +72,7 @@ export function canonicalActorFromRoute(actor: NonNullable<Awaited<ReturnType<ty
       cancelWork: actor.permissions.cancel,
       decideReview: actor.permissions.decide,
       obsoleteDrawing: actor.permissions.obsolete,
+      obsoleteFormal: actor.permissions.obsolete,
       manageAttachments: actor.permissions.manageAttachments
     }
   };

@@ -115,11 +115,10 @@ export default function ManufacturingHandoffPage() {
       <WorkflowStrip
         title="交接流程"
         description="只取已發布圖料與交接包，讓製造、採購與外部協作使用一致版本。"
-        steps={["已發布", "交接包", "製造取用", "報表", "稽核"]}
+        steps={["已發布", "交接包", "製造取用", "稽核"]}
         currentStep="交接包"
         actions={[
-          { href: "/numbering/reports", label: "看報表", variant: "primary" },
-          { href: "/numbering/search", label: "查圖料" }
+          { href: "/numbering/search", label: "查圖料", variant: "primary" }
         ]}
       />
 
@@ -206,8 +205,7 @@ export default function ManufacturingHandoffPage() {
                   title={query ? "目前沒有符合條件的已發布交接資料" : "目前沒有可交接的已發布資料"}
                   body={query ? "請調整搜尋條件，或回編號搜尋確認圖號、料號與發行狀態。" : "完成圖號審核與 BOM 發行後，交接包會出現在這裡供製造端下載。"}
                   actions={[
-                    { href: "/numbering/search", label: "回編號搜尋", variant: "primary" },
-                    { href: "/numbering/reports", label: "看報表" }
+                    { href: "/numbering/search", label: "回編號搜尋", variant: "primary" }
                   ]}
                 />
               </div>

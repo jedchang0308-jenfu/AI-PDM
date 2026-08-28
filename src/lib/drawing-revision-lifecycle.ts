@@ -431,9 +431,7 @@ function lifecycleResult(
     displayStatus: state.displayStatus,
     primaryAction: state.primaryAction,
     secondaryActions: [],
-    canonicalHref: projection.lifecycleState === "preparing" || projection.lifecycleState === "correction_required"
-      ? `/numbering/revisions?drawingNumber=${encodeURIComponent(projection.drawingNumber)}&revision=${encodeURIComponent(projection.revision)}`
-      : latestHref,
+    canonicalHref: latestHref,
     correctionReason: projection.correctionReason,
     cleanupPending,
     idempotentReplay

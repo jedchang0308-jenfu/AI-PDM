@@ -54,7 +54,14 @@ export type CanonicalWorkbenchLayout = "list" | "preview";
 
 const THREE_D_EXTENSIONS = new Set(["sldprt", "sldasm", "step", "stp", "iges", "igs", "x_t", "x_b", "sat", "stl", "jt"]);
 const READY_DERIVATIVE_KINDS = new Set(["model_preview_png", "thumbnail_png"]);
+const TWO_D_EXTENSIONS = new Set(["slddrw", "pdf", "dwg", "dxf", "png", "jpg", "jpeg", "webp"]);
+const TWO_D_ROLES = ["drawing_2d", "drawing", "primary_drawing"] as const;
+const READY_TWO_D_DERIVATIVE_KINDS = new Set(["drawing_pdf", "sheet_png", "thumbnail_png"]);
 const PREVIEW_HEARTBEAT_STALE_AFTER_MS = 30_000;
+
+type CanonicalTwoDDerivativeReference = Pick<CanonicalPreviewDerivativeJobRow,
+  "sourceFileAssetId" | "sourceContentHash" | "derivativeKind" | "mimeType" | "generatorProfile" | "generatorVersion"
+> & { status?: string };
 
 export function normalizeCanonicalWorkbenchLayout(value: string | null | undefined): CanonicalWorkbenchLayout | null {
   return value === "list" || value === "preview" ? value : null;
@@ -64,6 +71,19 @@ export function selectCanonicalThreeDSource(rows: readonly CanonicalPreviewSourc
   return rows
     .filter((row) => row.revisionId === revisionId && isThreeDSource(row))
     .sort((left, right) => sourcePriority(left) - sourcePriority(right)
+      || Number(right.isPrimary) - Number(left.isPrimary)
+      || Number(left.sortOrder) - Number(right.sortOrder)
+      || left.bindingId.localeCompare(right.bindingId))[0] ?? null;
+}
+
+export function selectCanonicalTwoDSource(
+  rows: readonly CanonicalPreviewSourceRow[],
+  revisionId: string,
+  derivatives: readonly CanonicalTwoDDerivativeReference[] = []
+) {
+  return rows
+    .filter((row) => row.revisionId === revisionId && (TWO_D_ROLES.includes(row.role as (typeof TWO_D_ROLES)[number]) || TWO_D_EXTENSIONS.has(row.fileExt)))
+    .sort((left, right) => twoDSourcePriority(left, derivatives) - twoDSourcePriority(right, derivatives)
       || Number(right.isPrimary) - Number(left.isPrimary)
       || Number(left.sortOrder) - Number(right.sortOrder)
       || left.bindingId.localeCompare(right.bindingId))[0] ?? null;
@@ -181,7 +201,22 @@ function sourcePriority(row: CanonicalPreviewSourceRow) {
   return 3;
 }
 
-function isFakePreview(row: CanonicalPreviewDerivativeJobRow) {
+function twoDSourcePriority(
+  source: CanonicalPreviewSourceRow,
+  derivatives: readonly CanonicalTwoDDerivativeReference[]
+) {
+  const hasCurrentDerivative = derivatives.some((derivative) => derivative.sourceFileAssetId === source.assetId
+    && derivative.sourceContentHash === source.contentHash
+    && (derivative.status === undefined || derivative.status === "ready")
+    && READY_TWO_D_DERIVATIVE_KINDS.has(derivative.derivativeKind ?? "")
+    && !isFakePreview(derivative));
+  if (hasCurrentDerivative) return 0;
+  if (source.fileExt === "pdf" && source.mimeType === "application/pdf") return 1;
+  const rolePriority = TWO_D_ROLES.indexOf(source.role as (typeof TWO_D_ROLES)[number]);
+  return rolePriority >= 0 ? rolePriority + 2 : 5;
+}
+
+function isFakePreview(row: Pick<CanonicalPreviewDerivativeJobRow, "generatorProfile" | "generatorVersion">) {
   return row.generatorProfile === "fake_preview_worker" || row.generatorVersion === "fake-local-pipeline";
 }
 

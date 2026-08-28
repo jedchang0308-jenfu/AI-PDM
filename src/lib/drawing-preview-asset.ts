@@ -53,7 +53,7 @@ export async function resolveDrawingPreviewAsync(
              generator_profile, generator_version
       FROM file_derivatives
       WHERE source_file_asset_id = :sourceFileAssetId
-        AND (:derivativeId IS NULL OR id = :derivativeId)
+        AND id = COALESCE(:derivativeId, id)
         AND status = 'ready'
         AND derivative_kind IN ('model_preview_png', 'thumbnail_png', 'drawing_pdf', 'sheet_png')
         AND (:allowFake = 1 OR NOT (generator_profile = 'fake_preview_worker' AND generator_version = 'fake-local-pipeline'))

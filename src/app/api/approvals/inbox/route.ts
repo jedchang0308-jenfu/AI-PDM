@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireRoleAsync } from "@/lib/auth-async";
 import { listApprovalPlatformInboxAsync } from "@/lib/approval-platform";
 import type { ApprovalPlatformInboxCursor, ApprovalPlatformStatus } from "@/lib/repositories/approval-platform-async-repository";
-import { isPdmEntityDetailV1Enabled } from "@/lib/number-state-flow-feature";
 import { isSafePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
 import { buildPdmApprovalOwnerHref } from "@/lib/pdm-approval-owner-route";
 import { decodePdmWorkbenchCursor, encodePdmWorkbenchCursor, pdmWorkbenchFilterHash, PdmWorkbenchCursorError } from "@/lib/pdm-workbench-cursor";
@@ -75,7 +74,10 @@ export async function GET(request: Request) {
   });
   const requestedReturnTo = url.searchParams.get("returnTo") ?? "";
   const returnTo = isSafePdmApprovalReturnTo(requestedReturnTo) ? requestedReturnTo : buildApprovalReturnTo(url);
-  const ownerItems = isPdmEntityDetailV1Enabled() ? page.items.map((item) => ({ ...item, ownerHref: buildPdmApprovalOwnerHref(item, returnTo) ?? undefined })) : page.items;
+  const ownerItems = page.items.map((item) => ({
+    ...item,
+    ownerHref: buildPdmApprovalOwnerHref(item, returnTo) ?? undefined
+  }));
   const pageIndex = cursorPageIndex ?? normalizePageIndex(url.searchParams.get("page"));
 
   return NextResponse.json({

@@ -34,13 +34,14 @@ type NativeMetadataHealth = {
   affectedSources: Array<{ sourceId: string; fileName: string; status: string }>;
 };
 
-function NativeMetadataHealthBanner({ health }: { health: NativeMetadataHealth | null | undefined }) {
+function NativeMetadataHealthBanner({ health, onRetry, retryDisabled = false }: { health: NativeMetadataHealth | null | undefined; onRetry?: () => void; retryDisabled?: boolean }) {
   if (!health || health.state === "ready") return null;
   const isError = health.state === "failed";
   const affected = health.affectedSources.map((source) => source.fileName).filter(Boolean);
+  const showRetry = Boolean(onRetry && ["partial", "unavailable", "failed"].includes(health.state));
   return <div className={`drawing-recognition-adapter-health is-${health.state}`} role={isError ? "alert" : "status"}>
     {isError ? <AlertTriangle size={16} aria-hidden="true" /> : <RefreshCcw size={16} aria-hidden="true" />}
-    <div><strong>{health.state === "empty" ? "SolidWorks 屬性讀取已完成" : health.state === "partial" ? "SolidWorks 屬性讀取部分完成" : health.state === "unavailable" ? "尚未啟用 SolidWorks 屬性讀取器" : "SolidWorks 屬性讀取失敗"}</strong><span>{health.message}</span>{affected.length > 0 ? <small>受影響來源：{affected.join("、")}</small> : null}</div>
+    <div><strong>{health.state === "empty" ? "SolidWorks 屬性讀取已完成" : health.state === "partial" ? "SolidWorks 屬性讀取部分完成" : health.state === "unavailable" ? "此批未使用 SolidWorks 屬性讀取器" : "SolidWorks 屬性讀取失敗"}</strong><span>{health.message}</span>{affected.length > 0 ? <small>受影響來源：{affected.join("、")}</small> : null}{showRetry ? <button type="button" className="link-button" disabled={retryDisabled} onClick={onRetry}><RefreshCcw size={14} />重新辨識</button> : null}</div>
   </div>;
 }
 type Impact = {
@@ -63,6 +64,13 @@ const categoryOptions = sections.map((section) => ({ value: section.key, label: 
 function candidateReviewLabel(candidate: Candidate) {
   if (candidate.reviewState === "corrected" && candidate.variantStatus === "explicit_not_applicable") return "不適用";
   return getStatusDisplay(candidate.reviewState, "recognitionReviewStatus").label;
+}
+
+function requiresPartOwner(candidate: Candidate, draft?: Draft) {
+  const ownerType = draft?.ownerType || candidate.proposedOwnerType;
+  const ownerId = draft?.ownerId || candidate.proposedOwnerId;
+  const value = draft?.value ?? candidate.proposedValue;
+  return ownerType === "part_number" && !ownerId && Boolean(value?.trim());
 }
 
 function messageFrom(body: unknown, fallback: string) {
@@ -142,6 +150,7 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
     onNotice: setNotice
   });
   const hasPdfOcrSources = (session?.pdfOcrSources?.length ?? 0) > 0;
+  const nativeRecoveryAvailable = ["partial", "unavailable", "failed"].includes(session?.adapterHealth?.nativeMetadata?.state ?? "");
 
   const load = useCallback(async () => {
     setError("");
@@ -226,7 +235,10 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
 
   async function acceptSection(category: string) {
     if (!session) return;
-    const decisions = session.candidates.filter((candidate) => candidate.fieldKey !== "source_file_stem" && candidate.category === category && ["proposed", "conflict", "blocked"].includes(candidate.reviewState)).map((candidate) => ({ candidateId: candidate.id, action: "accept" }));
+    const decisions = session.candidates
+      .filter((candidate) => candidate.fieldKey !== "source_file_stem" && candidate.category === category && ["proposed", "conflict", "blocked"].includes(candidate.reviewState))
+      .filter((candidate) => !requiresPartOwner(candidate, drafts[candidate.id]))
+      .map((candidate) => ({ candidateId: candidate.id, action: "accept" }));
     await saveDecisions(decisions, `已接受「${sections.find((section) => section.key === category)?.title ?? category}」的辨識值。`);
   }
 
@@ -296,22 +308,24 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
       {error ? <div className="drawing-recognition-alert is-error" role="alert"><AlertTriangle size={16} />{error}</div> : null}
       {notice ? <div className="drawing-recognition-alert is-success" role="status"><Check size={16} />{notice}</div> : null}
       {session.errorSummary ? <div className="drawing-recognition-alert is-error" role="alert"><AlertTriangle size={16} />{session.errorSummary}</div> : null}
-      <NativeMetadataHealthBanner health={session.adapterHealth?.nativeMetadata} />
+      <NativeMetadataHealthBanner health={session.adapterHealth?.nativeMetadata} onRetry={() => void rerun()} retryDisabled={busy || Boolean(pdfOcr.activity) || ["queued", "extracting"].includes(session.status)} />
       <DrawingRecognitionPdfOcrStatus session={session} activity={pdfOcr.activity} pendingFailure={pdfOcr.pendingFailure} onRetryPending={pdfOcr.retryPending} onRerun={() => void rerun()} />
 
       {sections.map((section) => {
         const candidates = session.candidates.filter((candidate) => candidate.category === section.key && candidate.fieldKey !== "source_file_stem");
         return (
           <section id={`recognition-${section.key}`} key={section.key} className="drawing-recognition-section">
-            <div className="drawing-recognition-section-heading"><h2>{section.title}</h2>{candidates.some((candidate) => ["proposed", "conflict", "blocked"].includes(candidate.reviewState)) ? <button type="button" className="secondary-button" disabled={busy} onClick={() => void acceptSection(section.key)}><Check size={15} />接受此區辨識值</button> : null}</div>
+            <div className="drawing-recognition-section-heading"><h2>{section.title}</h2>{candidates.some((candidate) => ["proposed", "conflict", "blocked"].includes(candidate.reviewState) && !requiresPartOwner(candidate, drafts[candidate.id])) ? <button type="button" className="secondary-button" disabled={busy} onClick={() => void acceptSection(section.key)}><Check size={15} />接受此區辨識值</button> : null}</div>
             {section.key === "part_attribute" && session.baseline.length > 0 ? <div className="drawing-recognition-baseline"><strong>系統推定料號基準</strong>{session.baseline.map((item) => <span key={item.fieldKey}>{item.fieldLabel}：{item.value}<small>{item.support}/{item.partCount} 個料號一致</small></span>)}</div> : null}
             {candidates.length === 0 ? <div className="drawing-recognition-empty">此來源檔未辨識到這一類資料。</div> : <div className="drawing-recognition-candidate-list">{candidates.map((candidate) => {
               const draft = drafts[candidate.id] ?? candidateDraft(candidate);
               const baseline = candidate.fieldKey ? baselineByField.get(candidate.fieldKey) : null;
               const variantLabel = section.key === "part_attribute" && baseline ? (candidate.proposedValue === baseline.value ? "同基準" : `變體：基準為 ${baseline.value}`) : null;
-              return <article className={`drawing-recognition-candidate is-${candidate.reviewState}${candidate.variantStatus === "explicit_not_applicable" ? " is-not-applicable" : ""}`} key={candidate.id}>
-                <div className="drawing-recognition-candidate-main"><div className="drawing-recognition-candidate-title"><strong>{candidate.fieldLabel}</strong><span>{candidateReviewLabel(candidate)}</span>{variantLabel ? <small>{variantLabel}</small> : null}</div><div className="drawing-recognition-values"><label>辨識／修正值<input value={draft.value} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, value: event.target.value } }))} /></label><div><span>系統正式值</span><strong>{candidate.currentFormalValue ?? "尚無"}</strong></div></div>
-                  <details className="drawing-recognition-mapping"><summary>欄位與歸屬設定</summary><div><label>分類<select value={draft.category} onChange={(event) => { const category = event.target.value; const owner = recognitionOwnerDefaults(category, session); setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, category, ...(owner ?? {}) } })); }}>{categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label>欄位代碼<input value={draft.fieldKey} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, fieldKey: event.target.value } }))} /></label><label>顯示名稱<input value={draft.fieldLabel} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, fieldLabel: event.target.value } }))} /></label><label>歸屬類型<input value={draft.ownerType} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, ownerType: event.target.value } }))} /></label><label>歸屬 ID<input value={draft.ownerId} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, ownerId: event.target.value } }))} /></label></div></details>
+              const ownerRequired = requiresPartOwner(candidate, draft);
+              const ownerErrorId = `recognition-owner-error-${candidate.id}`;
+              return <article className={`drawing-recognition-candidate is-${candidate.reviewState}${candidate.variantStatus === "explicit_not_applicable" ? " is-not-applicable" : ""}${ownerRequired ? " is-owner-required" : ""}`} data-owner-required={ownerRequired ? "true" : undefined} key={candidate.id}>
+                <div className="drawing-recognition-candidate-main"><div className="drawing-recognition-candidate-title"><strong>{candidate.fieldLabel}</strong><span>{candidateReviewLabel(candidate)}</span>{ownerRequired ? <small className="drawing-recognition-owner-required"><AlertTriangle size={13} aria-hidden="true" />需指定料號</small> : null}{variantLabel ? <small>{variantLabel}</small> : null}</div>{ownerRequired ? <p id={ownerErrorId} className="drawing-recognition-field-error" role="alert"><AlertTriangle size={15} aria-hidden="true" />尚未指定料號歸屬；請在下方「歸屬 ID」完成設定，或選擇延後／忽略。</p> : null}<div className="drawing-recognition-values"><label>辨識／修正值<input value={draft.value} aria-describedby={ownerRequired ? ownerErrorId : undefined} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, value: event.target.value } }))} /></label><div><span>系統正式值</span><strong>{candidate.currentFormalValue ?? "尚無"}</strong></div></div>
+                  <details className="drawing-recognition-mapping" open={ownerRequired || undefined}><summary>欄位與歸屬設定</summary><div><label>分類<select value={draft.category} onChange={(event) => { const category = event.target.value; const owner = recognitionOwnerDefaults(category, session); setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, category, ...(owner ?? {}) } })); }}>{categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label>欄位代碼<input value={draft.fieldKey} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, fieldKey: event.target.value } }))} /></label><label>顯示名稱<input value={draft.fieldLabel} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, fieldLabel: event.target.value } }))} /></label><label>歸屬類型<input value={draft.ownerType} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, ownerType: event.target.value } }))} /></label><label className={ownerRequired ? "is-error" : undefined}>歸屬 ID<input value={draft.ownerId} aria-invalid={ownerRequired || undefined} aria-describedby={ownerRequired ? ownerErrorId : undefined} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, ownerId: event.target.value } }))} /></label></div></details>
                 </div>
                 <aside className="drawing-recognition-candidate-side"><div><span>可信度</span><strong>{candidate.confidenceBand}</strong></div><div><span>適用範圍</span><strong>{candidate.applicabilityScope}</strong></div>{bestObservation(candidate, session) ? <button type="button" className="link-button" onClick={() => void openEvidence(bestObservation(candidate, session)!.id)}><FileSearch size={14} />查看來源證據</button> : null}<label className="drawing-recognition-reason">忽略／不適用原因<input value={draft.reason} onChange={(event) => setDrafts((current) => ({ ...current, [candidate.id]: { ...draft, reason: event.target.value } }))} /></label><div className="drawing-recognition-row-actions"><button type="button" className="primary-button" disabled={busy} onClick={() => void saveDecisions([{ candidateId: candidate.id, action: candidate.category === "unclassified" ? "map" : "accept" }], "已接受這筆辨識值。")}>接受</button><button type="button" className="secondary-button" disabled={busy} onClick={() => void saveCandidate(candidate, candidate.category === "unclassified" ? "map" : "correct")}><Save size={14} />套用修正</button><button type="button" className="secondary-button" disabled={busy} onClick={() => void saveCandidate(candidate, "map")}>歸類／建立欄位</button><button type="button" className="secondary-button" disabled={busy || !draft.reason.trim()} onClick={() => void saveCandidate(candidate, "not_applicable")}>不適用</button><button type="button" className="secondary-button" disabled={busy || !draft.reason.trim()} onClick={() => void saveCandidate(candidate, "ignore")}>忽略</button><button type="button" className="secondary-button" disabled={busy} onClick={() => void saveCandidate(candidate, "defer")}>延後</button>{!["proposed", "conflict", "blocked"].includes(candidate.reviewState) ? <button type="button" className="secondary-button" disabled={busy} onClick={() => void saveDecisions([{ candidateId: candidate.id, action: "restore" }], "已恢復為待核對狀態。")}>恢復待核對</button> : null}</div></aside>
               </article>;
@@ -320,7 +334,7 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
         );
       })}
 
-      <footer className="drawing-recognition-footer"><div><strong>{session.status === "formalized" ? "這批結果已正式寫入" : session.status === "extraction_failed" ? "辨識失敗，請更換來源檔或重新辨識" : ["queued", "extracting"].includes(session.status) ? "辨識處理中" : pdfOcrBlocksFormalization ? "PDF 辨識尚未成功完成；辨識結果暫不可正式寫入" : pendingCount > 0 ? `尚有 ${pendingCount} 筆需要核對` : "所有必要候選已核對"}</strong><span>確認寫入內容會列出每個欄位的寫入前後值，不會直接修改資料。</span></div><div>{!hasPdfOcrSources ? <button type="button" className="secondary-button" disabled={busy || Boolean(pdfOcr.activity) || ["queued", "extracting"].includes(session.status)} onClick={() => void rerun()}><RefreshCcw size={15} />重新辨識</button> : null}<button ref={impactTriggerRef} type="button" className="primary-button" disabled={busy || pdfOcrBlocksFormalization || pendingCount > 0 || session.status === "formalized" || ["queued", "extracting", "extraction_failed", "cancelled"].includes(session.status)} onClick={() => void previewImpact()}><ChevronRight size={15} />確認寫入內容</button></div></footer>
+      <footer className="drawing-recognition-footer"><div><strong>{session.status === "formalized" ? "這批結果已正式寫入" : session.status === "extraction_failed" ? "辨識失敗，請更換來源檔或重新辨識" : ["queued", "extracting"].includes(session.status) ? "辨識處理中" : pdfOcrBlocksFormalization ? "PDF 辨識尚未成功完成；辨識結果暫不可正式寫入" : pendingCount > 0 ? `尚有 ${pendingCount} 筆需要核對` : "所有必要候選已核對"}</strong><span>確認寫入內容會列出每個欄位的寫入前後值，不會直接修改資料。</span></div><div>{!hasPdfOcrSources && !nativeRecoveryAvailable ? <button type="button" className="secondary-button" disabled={busy || Boolean(pdfOcr.activity) || ["queued", "extracting"].includes(session.status)} onClick={() => void rerun()}><RefreshCcw size={15} />重新辨識</button> : null}<button ref={impactTriggerRef} type="button" className="primary-button" disabled={busy || pdfOcrBlocksFormalization || pendingCount > 0 || session.status === "formalized" || ["queued", "extracting", "extraction_failed", "cancelled"].includes(session.status)} onClick={() => void previewImpact()}><ChevronRight size={15} />確認寫入內容</button></div></footer>
 
       {impact ? <div className="drawing-recognition-modal-backdrop" role="presentation"><div ref={modalRef} className="drawing-recognition-modal" role="dialog" aria-modal="true" aria-labelledby="recognition-impact-title" tabIndex={-1}><div className="drawing-recognition-modal-heading"><div><h2 id="recognition-impact-title">正式寫入影響預覽</h2><p>這一步仍未寫入；請核對目標、欄位與前後值。</p></div><button type="button" className="icon-button" aria-label="關閉預覽" onClick={() => setImpact(null)}><X size={18} /></button></div><div className="drawing-recognition-impact-counts"><span>將新增／更新 <strong>{impact.changes.length}</strong> 筆</span><span>不寫入 <strong>{impact.exclusions.length}</strong> 筆</span><span>阻擋 <strong>{impact.blockers.length}</strong> 筆</span></div><div className="drawing-recognition-impact-table"><table><thead><tr><th>目標</th><th>欄位</th><th>寫入前</th><th>寫入後</th></tr></thead><tbody>{impact.changes.map((change) => {
          const target = impactTarget(change, candidateById.get(change.candidateId));

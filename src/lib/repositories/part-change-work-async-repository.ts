@@ -9,12 +9,19 @@ export type PartChangePayload = {
   customSpecification: string | null;
   isUniversal: boolean;
   bomUsagePolicy: "undecided" | "not_required" | "available" | "restricted" | "obsolete";
+  materialCode: string | null;
+  materialLabel: string | null;
+  colorCode: string | null;
+  colorLabel: string | null;
+  surfaceTreatment: string | null;
+  variantNote: string | null;
 };
 
 type PartRow = {
   id: string; company_id: string; part_name: string; item_kind: PartChangePayload["itemKind"];
   custom_specification: string | null; is_universal: number | boolean; bom_usage_policy: PartChangePayload["bomUsagePolicy"];
   updated_at: string | Date;
+  material_code: string | null; material_label: string | null; color_code: string | null; color_label: string | null; surface_treatment: string | null; variant_note: string | null;
 };
 type WorkRow = { id: string; company_id: string; part_id: string; owner_user_id: string; proposed_payload: string | PartChangePayload; base_hash: string; row_version: number };
 
@@ -22,7 +29,7 @@ export function validatePartChangePayload(value: unknown): PartChangePayload {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料格式無效", 400);
   const candidate = value as Record<string, unknown>;
   if ("attachments" in candidate || "attachmentIds" in candidate) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "附件獨立維護，不屬於本次資料修改", 422);
-  const allowed = new Set(["partName", "itemKind", "customSpecification", "isUniversal", "bomUsagePolicy"]);
+  const allowed = new Set(["partName", "itemKind", "customSpecification", "isUniversal", "bomUsagePolicy", "materialCode", "materialLabel", "colorCode", "colorLabel", "surfaceTreatment", "variantNote"]);
   if (Object.keys(candidate).some((key) => !allowed.has(key))) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料包含不支援的欄位", 422);
   const itemKinds = new Set(["purchased", "manufactured"]);
   const bomPolicies = new Set(["undecided", "not_required", "available", "restricted", "obsolete"]);
@@ -33,14 +40,19 @@ export function validatePartChangePayload(value: unknown): PartChangePayload {
   return {
     partName: candidate.partName.trim(), itemKind: candidate.itemKind as PartChangePayload["itemKind"],
     customSpecification: nullable(candidate.customSpecification), isUniversal: candidate.isUniversal,
-    bomUsagePolicy: candidate.bomUsagePolicy as PartChangePayload["bomUsagePolicy"]
+    bomUsagePolicy: candidate.bomUsagePolicy as PartChangePayload["bomUsagePolicy"],
+    materialCode: nullable(candidate.materialCode), materialLabel: nullable(candidate.materialLabel),
+    colorCode: nullable(candidate.colorCode), colorLabel: nullable(candidate.colorLabel),
+    surfaceTreatment: nullable(candidate.surfaceTreatment), variantNote: nullable(candidate.variantNote)
   };
 }
 
 function rowPayload(row: PartRow): PartChangePayload {
   return {
     partName: row.part_name, itemKind: row.item_kind, customSpecification: row.custom_specification,
-    isUniversal: Boolean(row.is_universal), bomUsagePolicy: row.bom_usage_policy
+    isUniversal: Boolean(row.is_universal), bomUsagePolicy: row.bom_usage_policy,
+    materialCode: row.material_code, materialLabel: row.material_label, colorCode: row.color_code,
+    colorLabel: row.color_label, surfaceTreatment: row.surface_treatment, variantNote: row.variant_note
   };
 }
 function parsePayload(value: string | PartChangePayload) { return validatePartChangePayload(typeof value === "string" ? JSON.parse(value) : value); }
@@ -50,8 +62,11 @@ export class PartChangeWorkAsyncRepository {
 
   async readPart(client: AsyncDatabaseClient, companyId: string, partId: string, lock = false) {
     return client.queryOne<PartRow>(
-      `SELECT id, company_id, part_name, item_kind, custom_specification, is_universal, bom_usage_policy, updated_at
-       FROM part_numbers WHERE id = :partId AND company_id = :companyId${lock && client.kind === "postgres" ? " FOR UPDATE" : ""}`,
+      `SELECT part.id, part.company_id, part.part_name, part.item_kind, part.custom_specification, part.is_universal, part.bom_usage_policy, part.updated_at,
+              attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label, attributes.surface_treatment, attributes.variant_note
+       FROM part_numbers part
+       LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id
+       WHERE part.id = :partId AND part.company_id = :companyId${lock && client.kind === "postgres" ? " FOR UPDATE OF part" : ""}`,
       { companyId, partId }
     );
   }
@@ -138,6 +153,14 @@ export class PartChangeWorkAsyncRepository {
          is_universal = :isUniversal, bom_usage_policy = :bomUsagePolicy, updated_at = CURRENT_TIMESTAMP
        WHERE id = :partId AND company_id = :companyId`,
       { companyId: input.companyId, partId: input.work.part_id, ...after, isUniversal: after.isUniversal ? 1 : 0 }
+    );
+    await tx.execute(
+      `INSERT INTO part_variant_attributes (id, part_number_id, material_code, material_label, color_code, color_label, surface_treatment, variant_note, updated_by)
+       VALUES (:id, :partId, :materialCode, :materialLabel, :colorCode, :colorLabel, :surfaceTreatment, :variantNote, :updatedBy)
+       ON CONFLICT (part_number_id) DO UPDATE SET material_code = excluded.material_code, material_label = excluded.material_label,
+         color_code = excluded.color_code, color_label = excluded.color_label, surface_treatment = excluded.surface_treatment,
+         variant_note = excluded.variant_note, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
+      { id: crypto.randomUUID(), partId: input.work.part_id, updatedBy: input.work.owner_user_id, ...after }
     );
     await tx.execute(`DELETE FROM canonical_workbench_states WHERE company_id = :companyId AND work_id = :workId`, { companyId: input.companyId, workId: input.work.id });
     await tx.execute(`DELETE FROM part_change_works WHERE company_id = :companyId AND id = :workId`, { companyId: input.companyId, workId: input.work.id });

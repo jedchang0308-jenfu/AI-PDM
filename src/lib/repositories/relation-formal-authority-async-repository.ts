@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import { CanonicalWorkbenchError, type CanonicalRelationMatrixCell, type CanonicalRelationMatrixProjection } from "@/lib/pdm-canonical-workbench-contract";
+import { canonicalRowKey, CanonicalWorkbenchError, type CanonicalRelationMatrixCell, type CanonicalRelationMatrixProjection } from "@/lib/pdm-canonical-workbench-contract";
 import { replayCanonicalTerminalReceipt, runCanonicalIdempotentCommand } from "@/lib/pdm-canonical-command";
 
 type RelationAuthorityClient = Pick<AsyncDatabaseClient, "kind" | "query" | "queryOne" | "execute"> & {
@@ -19,7 +19,7 @@ export type FormalRelationLinkInput = {
   relationType: "manufacturing_basis" | "reference";
 };
 
-type AxisRow = { kind: "drawing" | "part"; id: string; number: string; root_id: string };
+type AxisRow = { kind: "drawing" | "part"; id: string; number: string; root_id: string; navigation_row_id: string | null };
 type LinkRow = { drawing_number_id: string; part_number_id: string; link_type: "primary_manufacturing" | "reference" };
 
 function canonicalMatrixJson(input: {
@@ -32,8 +32,8 @@ function canonicalMatrixJson(input: {
   return JSON.stringify({
     rootId: input.rootId,
     rootCode: input.rootCode,
-    drawings: input.drawings,
-    parts: input.parts,
+    drawings: input.drawings.map((item) => ({ id: item.id, number: item.number })),
+    parts: input.parts.map((item) => ({ id: item.id, number: item.number })),
     cells: input.cells.map((cell) => ({ drawingNumberId: cell.drawingNumberId, partNumberId: cell.partNumberId, relationType: cell.relationType }))
   });
 }
@@ -233,11 +233,35 @@ export class RelationFormalAuthorityRepository {
   private async readMatrix(client: RelationAuthorityClient, input: { companyId: string; rootId: string }): Promise<CanonicalRelationMatrixProjection> {
     const root = await client.queryOne<{ id: string; root_code: string }>(`SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId`, input);
     if (!root) throw new CanonicalWorkbenchError("WORKBENCH_RELATION_SCOPE_INVALID", "圖料關聯資料不完整，請聯絡系統管理員", 409);
-    const axes = await client.query<AxisRow>(`SELECT 'drawing' AS kind, id, drawing_number AS number, part_root_id AS root_id FROM drawing_numbers WHERE company_id = :companyId AND part_root_id = :rootId
-      UNION ALL SELECT 'part' AS kind, id, part_number AS number, part_root_id AS root_id FROM part_numbers WHERE company_id = :companyId AND part_root_id = :rootId
+    const axes = await client.query<AxisRow>(`SELECT 'drawing' AS kind, drawing_number.id, drawing_number.drawing_number AS number, drawing_number.part_root_id AS root_id,
+        (SELECT state.id
+           FROM canonical_workbench_states state
+           JOIN drawings drawing ON drawing.id = state.canonical_entity_id AND drawing.company_id = state.company_id
+          WHERE state.company_id = :companyId AND state.entity_type = 'drawing' AND drawing.formal_drawing_number_id = drawing_number.id
+          ORDER BY CASE WHEN state.data_layer = 'drawing_production' THEN 0 ELSE 1 END,
+                   CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END,
+                   state.updated_at, state.id
+          LIMIT 1) AS navigation_row_id
+      FROM drawing_numbers drawing_number WHERE drawing_number.company_id = :companyId AND drawing_number.part_root_id = :rootId
+      UNION ALL SELECT 'part' AS kind, part_number.id, part_number.part_number AS number, part_number.part_root_id AS root_id,
+        (SELECT state.id
+           FROM canonical_workbench_states state
+          WHERE state.company_id = :companyId AND state.entity_type = 'part' AND state.canonical_entity_id = part_number.id
+          ORDER BY CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END,
+                   state.updated_at, state.id
+          LIMIT 1) AS navigation_row_id
+      FROM part_numbers part_number WHERE part_number.company_id = :companyId AND part_number.part_root_id = :rootId
       ORDER BY kind, number, id`, input);
-    const drawings = axes.filter((row) => row.kind === "drawing").map((row) => ({ id: row.id, number: row.number }));
-    const parts = axes.filter((row) => row.kind === "part").map((row) => ({ id: row.id, number: row.number }));
+    const drawings = axes.filter((row) => row.kind === "drawing").map((row) => ({
+      id: row.id,
+      number: row.number,
+      detailHref: row.navigation_row_id ? `/numbering/drawings?detail=${encodeURIComponent(canonicalRowKey(row.navigation_row_id))}` : null
+    }));
+    const parts = axes.filter((row) => row.kind === "part").map((row) => ({
+      id: row.id,
+      number: row.number,
+      detailHref: row.navigation_row_id ? `/parts?detail=${encodeURIComponent(canonicalRowKey(row.navigation_row_id))}` : null
+    }));
     const links = await client.query<LinkRow>(`SELECT link.drawing_number_id, link.part_number_id, link.link_type
       FROM drawing_part_links link
       JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id AND drawing.company_id = :companyId AND drawing.part_root_id = :rootId

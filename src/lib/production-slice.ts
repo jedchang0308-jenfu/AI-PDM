@@ -61,6 +61,8 @@ const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }
   { method: "POST", pattern: /^\/api\/numbering\/roots\/[^/]+\/drawing-part$/ },
   { method: "POST", pattern: /^\/api\/numbering\/part-number-drafts$/ },
   { method: "PATCH", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+$/ },
+  { method: "PATCH", pattern: /^\/api\/numbering\/tasks\/[^/]+$/ },
+  { method: "POST", pattern: /^\/api\/numbering\/notifications\/[^/]+\/(?:read|handled)$/ },
   { method: "POST", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+\/void$/ },
   { method: "POST", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+\/recycle$/ },
   { method: "PATCH", pattern: /^\/api\/numbering\/admin\/matrix$/ },

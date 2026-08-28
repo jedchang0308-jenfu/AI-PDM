@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, RefreshCw, Search, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
 import { PdmWorkbenchList } from "@/components/pdm-workbench-list";
 import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
@@ -123,6 +124,9 @@ const actionFilters = [
   { value: "numbering.same_drawing_variant_after_release", label: "同圖多料號審核" },
   { value: "numbering.drawing_revision_impact_review", label: "圖面進版影響審核" },
   { value: "numbering.drawing_revision_lifecycle_review", label: "圖面進版審核" },
+  { value: "numbering.pdm_drawing_revision_review", label: "圖面研發版審核" },
+  { value: "numbering.pdm_drawing_rd_void_review", label: "圖面研發版作廢審核" },
+  { value: "numbering.pdm_part_change_review", label: "料號變更審核" },
   { value: "numbering.main_drawing_restore", label: "主圖恢復審核" },
   { value: "numbering.candidate_bundle_review", label: "圖料與首版整包審核" },
   { value: "numbering.obsolete_part_number", label: "料號作廢審核" },
@@ -165,6 +169,7 @@ const legacyRedirectMessages: Record<string, string> = {
 const APPROVAL_DETAIL_DRAWER_ENABLED = true;
 
 export default function ApprovalPlatformPage() {
+  const router = useRouter();
   const [state, setState] = useState<LoadState>("loading");
   const [legacyRedirectMessage, setLegacyRedirectMessage] = useState<string | null>(null);
   const [detail, setDetail] = useState<ApprovalDetail | null>(null);
@@ -392,12 +397,18 @@ export default function ApprovalPlatformPage() {
         setError("此審核已結束；目前工作臺不呈現終態審核內容。");
         return;
       }
-      const returnTo = approvalDrawerReturnTo();
-      window.location.assign(`/approvals/${encodeURIComponent(item.id)}?returnTo=${encodeURIComponent(returnTo)}`);
+      if (!item.ownerHref) {
+        setError("審核目的地尚未建立，請重新整理清單後再試。");
+        return;
+      }
+      const returnTo = approvalDrawerReturnTo(item.id);
+      const ownerUrl = new URL(item.ownerHref, window.location.origin);
+      ownerUrl.searchParams.set("returnTo", returnTo);
+      router.push(`${ownerUrl.pathname}${ownerUrl.search}`);
       return;
     }
     if (APPROVAL_DETAIL_DRAWER_ENABLED) void openControllerDetail(item.id);
-  }, [openControllerDetail]);
+  }, [openControllerDetail, router]);
   const listKeyboard = useListKeyboardShortcuts({
     items,
     selectedKey: selectedId,
@@ -1095,6 +1106,7 @@ function buildApprovalWorkbenchListUrl(query: ApprovalWorkbenchQuery, cursor: st
   if (query.domain !== "all") params.set("domain", query.domain);
   if (query.action !== "all") params.set("action", query.action);
   if (cursor) params.set("cursor", cursor);
+  if (typeof window !== "undefined") params.set("returnTo", approvalDrawerReturnTo());
   return `/api/approvals/inbox?${params.toString()}`;
 }
 
@@ -1174,10 +1186,11 @@ function clearApprovalDetailQuery() {
   window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
 }
 
-function approvalDrawerReturnTo() {
+function approvalDrawerReturnTo(selectedRequestId?: string) {
   if (typeof window === "undefined") return "/approvals";
   const params = new URLSearchParams(window.location.search);
-  params.delete("requestId");
+  if (selectedRequestId) params.set("requestId", selectedRequestId);
+  else params.delete("requestId");
   params.delete("drawing");
   const query = params.toString();
   return `${window.location.pathname}${query ? `?${query}` : ""}`;

@@ -63,7 +63,7 @@ export function CanonicalEntityPreviewGallery({
       const sourceIdentity = preview.sourceDrawingNumber
         ? `${preview.sourceLabel}，${preview.sourceDrawingNumber}${preview.sourceRevision ? `，${preview.sourceRevision}` : ""}`
         : preview.sourceLabel;
-      const accessibleName = [row.code, row.name, sourceIdentity, row.layerLabel, row.dataStateLabel, row.handlingLabel, accessibleState].filter(Boolean).join("，");
+      const accessibleName = [row.code, row.name, sourceIdentity, row.layerLabel, row.handlingLabel, accessibleState].filter(Boolean).join("，");
       return <button
         key={row.rowKey}
         ref={(node) => { if (node) cardRefs.current.set(row.rowKey, node); else cardRefs.current.delete(row.rowKey); }}
@@ -94,7 +94,7 @@ export function CanonicalEntityPreviewGallery({
           <span className="canonical-preview-card-heading"><strong>{row.code}</strong><span className="canonical-preview-kind">{preview.sourceType === "custom_image" ? "圖片" : "3D"}</span></span>
           <span className="canonical-preview-card-name">{row.name || "—"}</span>
           <span className="canonical-preview-card-source">{preview.sourceLabel}{preview.sourceDrawingNumber && preview.sourceDrawingNumber !== row.code ? ` · ${preview.sourceDrawingNumber}${preview.sourceRevision ? ` · ${preview.sourceRevision}` : ""}` : ""}</span>
-          <span className="canonical-preview-card-meta"><span className={`canonical-layer is-${row.layer}`}>{row.layerLabel}</span><span className={`canonical-data-state is-${row.dataState}`}>{row.dataStateLabel}</span><span className={`canonical-handling is-${row.handling}`}>{row.handlingLabel}</span></span>
+          <span className="canonical-preview-card-meta"><span className={`canonical-layer is-${row.layer}`}>{row.layerLabel}</span><span className={`canonical-handling is-${row.handling}`}>{row.handlingLabel}</span></span>
         </span>
       </button>;
     })}

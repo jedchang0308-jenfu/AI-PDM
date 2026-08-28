@@ -35,9 +35,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
     {
       error: {
         code: "DRAWING_REFERENCE_UPLOAD_RETIRED",
-        message: "圖號一般附件上傳已退役；請從圖面進版工作台上傳 2D 原始檔與 3D CAD。"
+        message: "圖號一般附件上傳已退役；請從圖號工作台開啟該圖號的進版工作，上傳 2D 原始檔與 3D CAD。"
       },
-      canonicalHref: `/numbering/revisions?drawingNumber=${encodeURIComponent(decodeURIComponent(drawingNumber))}`
+      canonicalHref: `/numbering/drawings?query=${encodeURIComponent(decodeURIComponent(drawingNumber))}`
     },
     { status: 410 }
   );

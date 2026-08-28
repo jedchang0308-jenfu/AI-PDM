@@ -4,6 +4,7 @@ import { previewAppendNumbersAsync } from "@/lib/numbering-preview";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { getNumberingRootDetailAsync } from "@/lib/numbering-async";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { consensusStoredPartStructureType } from "@/lib/numbering-structure-type";
 
 export const runtime = "nodejs";
 
@@ -27,28 +28,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ root
     (status) => status === "Active" || status === "Released" || status === "MainDrawingInvalid"
   );
   const locked = ["Obsolete", "Merged"].includes(detail.root.recordStatus);
-  const inheritedPart = detail.partNumbers[0]
-    ? {
-        itemKind: detail.partNumbers[0].itemKind,
-        structureType: detail.partNumbers[0].structureType,
-        isUniversal: detail.partNumbers[0].isUniversal,
-        seriesCode: detail.partNumbers[0].seriesCode,
-        customSpecification: detail.partNumbers[0].customSpecification
-      }
-    : {
-        itemKind: detail.root.itemKind,
-        structureType: "single_part",
-        isUniversal: false,
-        seriesCode: null,
-        customSpecification: null
-      };
+  const currentParts = detail.partNumbers.filter((part) => !["Obsolete", "Merged"].includes(part.recordStatus));
+  const firstPart = currentParts[0];
+  const structureType = consensusStoredPartStructureType(currentParts.map((part) => part.structureType));
+  const inheritedPart = firstPart
+    ? { itemKind: firstPart.itemKind, structureType, isUniversal: firstPart.isUniversal, seriesCode: firstPart.seriesCode, customSpecification: firstPart.customSpecification }
+    : { itemKind: detail.root.itemKind, structureType: "unclassified" as const, isUniversal: false, seriesCode: null, customSpecification: null };
 
   return NextResponse.json({
     root: detail.root,
     inheritedPart,
     counts: detail.summary,
     locked,
-    profileBlocked: inheritedPart.structureType === "unclassified",
+    profileBlocked: false,
     reasonRequired,
     nextNumbers: {
       part: manufacturingPreview.part,

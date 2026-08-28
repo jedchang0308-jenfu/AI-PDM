@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { NumberingStructureType, StoredPartStructureType } from "@/lib/numbering-structure-type";
+import { consensusStoredPartStructureType, type NumberingStructureType, type StoredPartStructureType } from "@/lib/numbering-structure-type";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { assertPdmReviewScopeWritableAsync, lockPdmEntityScopeAsync } from "@/lib/pdm-review-lock";
 import { buildApprovalRuleSummary, withPredictedApprovalControls } from "@/lib/approval-rule-summary";
@@ -23,6 +23,7 @@ import {
   isV3DrawingNumber,
   isV3PartNumber,
   isV3RootCode,
+  parseNumberingIdentity,
   rootCodeToV3Ordinal
 } from "@/lib/numbering-identity";
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
@@ -33,6 +34,8 @@ import { buildNumberingPartRootLifecyclePolicy } from "@/lib/pdm-lifecycle-polic
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
+import { sortTaskCenterTasks } from "@/lib/numbering-task-center-contract";
+import { getFormalObsoleteImpactAsync } from "@/lib/numbering-obsolete-impact";
 import type {
   ApprovalHardRule,
   ApprovalRuleEvaluation,
@@ -62,8 +65,6 @@ import type {
   ListNumberingNotificationsInput,
   ListNumberingExportJobsInput,
   ListNumberingTasksInput,
-  MainDrawingImpactAnalysis,
-  MainDrawingImpactInput,
   MarkOverdueDraftNumberingInput,
   MarkOverdueDraftNumberingResult,
   MatchedApprovalRule,
@@ -477,7 +478,7 @@ type ApprovalRequestRow = {
   entity_id: string;
   request_status: NumberingApprovalStatus;
   reason: string;
-  payload_json: string;
+  payload_json: string | Record<string, unknown>;
   requested_by: string;
   requested_at: string;
 };
@@ -2152,6 +2153,14 @@ export const UPDATE_ASYNC_PART_NUMBER_DRAFT_SQL = `
   WHERE id = :partNumberId
 `;
 
+export const SELECT_ASYNC_CURRENT_PART_NUMBERS_FOR_ROOT_SQL = `
+  SELECT *
+  FROM part_numbers
+  WHERE part_root_id = :rootId
+    AND record_status NOT IN ('Obsolete', 'Merged')
+  ORDER BY sequence_no ASC, part_number ASC
+`;
+
 export const UPDATE_ASYNC_ROOT_PART_NAMES_SQL = `
   UPDATE part_numbers
   SET part_name = :partName,
@@ -2781,7 +2790,11 @@ function assertDraftMutableStatus(status: NumberingRecordStatus, label: string) 
   }
 }
 
-function parseJsonDetail(value: string) {
+function parseJsonDetail(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value !== "string") return {};
   try {
     return JSON.parse(value || "{}") as Record<string, unknown>;
   } catch {
@@ -3804,19 +3817,21 @@ export class AsyncNumberingRepository {
   }
 
   private async getRootAppendPartProfile(client: AsyncDatabaseClient, rootRow: PartRootRow): Promise<RootAppendPartProfile> {
-    const firstPart = await client.queryOne<PartNumberRow>(SELECT_ASYNC_FIRST_PART_NUMBER_FOR_ROOT_SQL, { rootId: rootRow.id });
+    const currentParts = await client.query<PartNumberRow>(SELECT_ASYNC_CURRENT_PART_NUMBERS_FOR_ROOT_SQL, { rootId: rootRow.id });
+    const firstPart = currentParts[0];
     if (!firstPart) {
       return {
         itemKind: rootRow.item_kind,
-        structureType: "single_part",
+        structureType: "unclassified",
         isUniversal: false,
         seriesCode: null,
         customSpecification: null
       };
     }
+    const structureType = consensusStoredPartStructureType(currentParts.map((part) => part.structure_type));
     return {
       itemKind: firstPart.item_kind,
-      structureType: firstPart.structure_type,
+      structureType,
       isUniversal: firstPart.is_universal === 1,
       seriesCode: firstPart.series_code,
       customSpecification: firstPart.custom_specification
@@ -3881,10 +3896,7 @@ export class AsyncNumberingRepository {
       const recordStatus = input.recordStatus ?? "Draft";
       const ruleVersionId = input.ruleVersionId ?? DEFAULT_RULE_VERSION_ID;
       const isUniversal = input.isUniversal ?? false;
-      const structureType = input.structureType ?? "single_part";
-      if (input.itemKind === "purchased" && structureType === "assembly") {
-        throw new Error("PURCHASED_ASSEMBLY_NOT_SUPPORTED");
-      }
+      const structureType = input.structureType ?? "unclassified";
       const rootName = input.coreName.trim();
       const recentDuplicate = await this.findRecentDuplicateCreateInClient(client, {
         companyId,
@@ -4067,10 +4079,8 @@ export class AsyncNumberingRepository {
       if (isClosedRecordStatus(rootRow.record_status)) throw new Error(`ROOT_APPEND_LOCKED: ${rootRow.record_status}`);
       const inheritedPart = await this.getRootAppendPartProfile(client, rootRow);
       if (input.itemKind && input.itemKind !== inheritedPart.itemKind) throw new Error("PART_ROOT_ITEM_KIND_MISMATCH");
-      if (inheritedPart.structureType === "unclassified") throw new Error("PART_ROOT_STRUCTURE_TYPE_UNCLASSIFIED");
-      if (input.structureType && input.structureType !== inheritedPart.structureType) throw new Error("PART_ROOT_STRUCTURE_TYPE_MISMATCH");
+      if (input.structureType && (inheritedPart.structureType === "unclassified" || input.structureType !== inheritedPart.structureType)) throw new Error("PART_ROOT_STRUCTURE_TYPE_MISMATCH");
       const structureType = inheritedPart.structureType;
-      if (inheritedPart.itemKind === "purchased" && structureType === "assembly") throw new Error("PURCHASED_ASSEMBLY_NOT_SUPPORTED");
 
       const idempotencyKey = input.idempotencyKey?.trim();
       if (idempotencyKey) {
@@ -4166,10 +4176,8 @@ export class AsyncNumberingRepository {
       if (isClosedRecordStatus(rootRow.record_status)) throw new Error(`ROOT_APPEND_LOCKED: ${rootRow.record_status}`);
       const inheritedPart = await this.getRootAppendPartProfile(client, rootRow);
       if (input.itemKind && input.itemKind !== inheritedPart.itemKind) throw new Error("PART_ROOT_ITEM_KIND_MISMATCH");
-      if (inheritedPart.structureType === "unclassified") throw new Error("PART_ROOT_STRUCTURE_TYPE_UNCLASSIFIED");
-      if (input.structureType && input.structureType !== inheritedPart.structureType) throw new Error("PART_ROOT_STRUCTURE_TYPE_MISMATCH");
+      if (input.structureType && (inheritedPart.structureType === "unclassified" || input.structureType !== inheritedPart.structureType)) throw new Error("PART_ROOT_STRUCTURE_TYPE_MISMATCH");
       const structureType = inheritedPart.structureType;
-      if (inheritedPart.itemKind === "purchased" && structureType === "assembly") throw new Error("PURCHASED_ASSEMBLY_NOT_SUPPORTED");
 
       const idempotencyKey = input.idempotencyKey?.trim();
       if (idempotencyKey) {
@@ -4342,7 +4350,7 @@ export class AsyncNumberingRepository {
       universalReason: input.universalReason?.trim() ?? "",
       customSpecification: input.customSpecification?.trim() ?? "",
       seriesCode: normalizeSeriesCode(input.itemKind, Boolean(input.isUniversal), input.seriesCode) ?? "",
-      structureType: input.structureType ?? "single_part",
+      structureType: input.structureType ?? "unclassified",
       createdBy: input.createdBy ?? null,
       notBefore,
       drawingRequested: input.drawingPurposeCode ? 1 : 0,
@@ -4622,6 +4630,16 @@ export class AsyncNumberingRepository {
       });
       if (activeCanonicalActivityCount > 0) throw new Error("LIFE_ACTIVE_CANONICAL_WORK");
 
+      const currentImpact = await getFormalObsoleteImpactAsync({
+        companyId,
+        entityType: input.entityType,
+        entityId: entityRow.id,
+        client
+      });
+      if (!input.impactFingerprint?.trim() || currentImpact.fingerprint !== input.impactFingerprint.trim()) {
+        throw new Error("LIFE_OBSOLETE_SNAPSHOT_STALE");
+      }
+
       const pending = await client.queryOne<{ id: string }>(SELECT_ASYNC_PENDING_OBSOLETE_APPROVAL_SQL, {
         companyId,
         entityType: input.entityType,
@@ -4644,6 +4662,8 @@ export class AsyncNumberingRepository {
           partNumber: input.entityType === "part_number" ? resolvedEntityCode : undefined,
           drawingNumber: input.entityType === "drawing_number" ? resolvedEntityCode : undefined,
           previousRecordStatus: entityRow.record_status,
+          impactFingerprint: currentImpact.fingerprint,
+          impactDependencies: currentImpact.dependencies,
           projectCode: projectCode ?? null
         }
       });
@@ -4729,8 +4749,7 @@ export class AsyncNumberingRepository {
 
   async decideNumberingApproval(input: DecideNumberingApprovalInput): Promise<NumberingApprovalRecord> {
     const run = async (client: AsyncDatabaseClient) => this.decideNumberingApprovalInClient(client, input);
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
+    return this.client.transaction(run);
   }
 
   async getNumberingApprovalBatch(batchId: string, companyId: string = DEFAULT_COMPANY_ID): Promise<NumberingApprovalBatchRecord | null> {
@@ -5444,53 +5463,6 @@ export class AsyncNumberingRepository {
     return this.evaluateNumberingGateInClient(this.client, input);
   }
 
-  async analyzeMainDrawingObsolescence(input: MainDrawingImpactInput): Promise<MainDrawingImpactAnalysis> {
-    const run = async (client: AsyncDatabaseClient) => {
-      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
-      const drawingRow = await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_NUMBER_IN_COMPANY_SQL, {
-        drawingNumber: input.drawingNumber,
-        companyId
-      });
-      if (!drawingRow) throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${input.drawingNumber}`);
-      const drawingNumber = mapDrawingNumber(drawingRow);
-      const impactedPartNumbers =
-        isManufacturingDrawingPurpose(drawingNumber.purposeCode)
-          ? (await client.query<PartNumberRow>(SELECT_ASYNC_PRIMARY_PARTS_BY_DRAWING_SQL, { drawingNumberId: drawingNumber.id })).map(mapPartNumber)
-          : [];
-      const warnings = isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? [] : ["DRAWING_IS_NOT_PRIMARY_MA"];
-      const requiredDocuments = impactedPartNumbers.length
-        ? ["2D manufacturing drawing", "3D CAD model", "Released PDF package", "BOM or where-used records", "Related SOP/WI or inspection documents"]
-        : [];
-      if (input.applyInvalidation && !isManufacturingDrawingPurpose(drawingNumber.purposeCode)) throw new Error("MAIN_DRAWING_INVALIDATION_REQUIRES_MA_DRAWING");
-      if (input.applyInvalidation) {
-        const now = this.clock();
-        await client.execute(UPDATE_ASYNC_MAIN_DRAWING_OBSOLETE_SQL, { drawingNumberId: drawingNumber.id, updatedAt: now });
-        await new UnifiedDrawingAsyncRepository(client).synchronizeFormalDrawing({
-          drawingNumberId: drawingNumber.id,
-          companyId
-        });
-        for (const partNumber of impactedPartNumbers) {
-          await client.execute(UPDATE_ASYNC_PART_MAIN_DRAWING_INVALID_SQL, { partNumberId: partNumber.id, updatedAt: now });
-          await client.execute(UPDATE_ASYNC_ROOT_MAIN_DRAWING_INVALID_SQL, { rootId: partNumber.partRootId, updatedAt: now });
-        }
-      }
-      await this.insertAudit(client, {
-        actorId: input.createdBy,
-        action: input.applyInvalidation ? "numbering.main_drawing.invalidate" : "numbering.main_drawing.impact_analysis",
-        detail: {
-          drawingNumber: drawingNumber.drawingNumber,
-          applied: Boolean(input.applyInvalidation),
-          impactedPartNumbers: impactedPartNumbers.map((partNumber) => partNumber.partNumber),
-          requiredDocuments,
-          reason: input.reason?.trim() || null
-        }
-      });
-      return { drawingNumber, applied: Boolean(input.applyInvalidation), impactedPartNumbers, requiredDocuments, warnings };
-    };
-    if (this.client.kind === "postgres") return this.client.transaction(run);
-    return run(this.client);
-  }
-
   async linkPartNumberToDrawing(input: LinkPartNumberToDrawingInput) {
     const run = async (client: AsyncDatabaseClient) => this.linkPartNumberToDrawingInClient(client, input);
     if (this.client.kind === "postgres") return this.client.transaction(run);
@@ -5589,9 +5561,7 @@ export class AsyncNumberingRepository {
       createdAt: task.requested_at,
       handledAt: null
     }));
-    return [...projected, ...stored]
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-      .slice(0, 100);
+    return sortTaskCenterTasks([...projected, ...stored]).slice(0, 100);
   }
 
   async updateNumberingTaskStatus(input: UpdateNumberingTaskStatusInput): Promise<NumberingTaskRecord> {
@@ -7265,6 +7235,14 @@ export class AsyncNumberingRepository {
     }
 
     if (request.actionCode === "obsolete_part_number") {
+      const expectedImpactFingerprint = String(request.payload.impactFingerprint ?? "").trim();
+      const currentImpact = await getFormalObsoleteImpactAsync({
+        companyId,
+        entityType: "part_number",
+        entityId: request.entityId,
+        client
+      });
+      if (!expectedImpactFingerprint || currentImpact.fingerprint !== expectedImpactFingerprint) throw new Error("LIFE_OBSOLETE_SNAPSHOT_STALE");
       const partNumberFromPayload = String(request.payload.partNumber ?? request.payload.entityCode ?? "").trim();
       const partRow =
         (await client.queryOne<PartNumberRow>(SELECT_ASYNC_PART_NUMBER_BY_ID_SQL, { partNumberId: request.entityId })) ??
@@ -7297,6 +7275,14 @@ export class AsyncNumberingRepository {
     }
 
     if (request.actionCode === "obsolete_ma_drawing") {
+      const expectedImpactFingerprint = String(request.payload.impactFingerprint ?? "").trim();
+      const currentImpact = await getFormalObsoleteImpactAsync({
+        companyId,
+        entityType: "drawing_number",
+        entityId: request.entityId,
+        client
+      });
+      if (!expectedImpactFingerprint || currentImpact.fingerprint !== expectedImpactFingerprint) throw new Error("LIFE_OBSOLETE_SNAPSHOT_STALE");
       const drawingNumberFromPayload = String(request.payload.drawingNumber ?? request.payload.entityCode ?? "").trim();
       const drawingRow =
         (await client.queryOne<DrawingNumberRow>(SELECT_ASYNC_DRAWING_NUMBER_BY_ID_SQL, { drawingNumberId: request.entityId })) ??
@@ -7901,6 +7887,60 @@ export class AsyncNumberingRepository {
     return Number(row.next_value);
   }
 
+  private async allocateAvailablePartSequence(
+    client: AsyncDatabaseClient,
+    root: PartRootRecord,
+    ruleVersionId: string
+  ): Promise<number> {
+    const sequenceKey = `${root.companyId}:part:${root.rootCode}`;
+    const now = this.clock();
+    await client.execute(
+      `INSERT INTO numbering_sequences (sequence_key, company_id, next_value, updated_at)
+       VALUES (:sequenceKey, :companyId, 1, :updatedAt)
+       ON CONFLICT(sequence_key) DO NOTHING`,
+      { sequenceKey, companyId: root.companyId, updatedAt: now }
+    );
+    await client.queryOne<{ next_value: number }>(
+      `SELECT next_value FROM numbering_sequences
+       WHERE sequence_key = :sequenceKey${client.kind === "postgres" ? " FOR UPDATE" : ""}`,
+      { sequenceKey }
+    );
+
+    const [officialRows, recoveryRows] = await Promise.all([
+      client.query<{ code: string; sequence_no: number }>(
+        "SELECT part_number AS code, sequence_no FROM part_numbers WHERE company_id = :companyId AND part_root_id = :rootId",
+        { companyId: root.companyId, rootId: root.id }
+      ),
+      client.query<{ code: string }>(
+        `SELECT number_value AS code FROM numbering_recovery_reservations
+         WHERE company_id = :companyId AND number_kind = 'part' AND reservation_status = 'reserved'`,
+        { companyId: root.companyId }
+      )
+    ]);
+    const used = officialRows.map((row) => {
+      const explicitSequence = Number(row.sequence_no);
+      if (Number.isInteger(explicitSequence) && explicitSequence > 0) return explicitSequence;
+      const identity = parseNumberingIdentity(row.code);
+      return identity.kind === "part" && identity.rootCode === root.rootCode
+        ? Number.parseInt(identity.sequenceCode ?? "", 10)
+        : 0;
+    }).concat(recoveryRows.map((row) => {
+      const identity = parseNumberingIdentity(row.code);
+      return identity.kind === "part" && identity.rootCode === root.rootCode
+        ? Number.parseInt(identity.sequenceCode ?? "", 10)
+        : 0;
+    }));
+    const sequenceNo = lowestAvailableSequence(used, isCompactNumberingRule(ruleVersionId) ? 99 : 999, "PART");
+    await client.execute(
+      `UPDATE numbering_sequences
+       SET next_value = CASE WHEN next_value < :nextValue THEN :nextValue ELSE next_value END,
+           updated_at = :updatedAt
+       WHERE sequence_key = :sequenceKey`,
+      { sequenceKey, nextValue: sequenceNo + 1, updatedAt: now }
+    );
+    return sequenceNo;
+  }
+
   private async allocateRootSequence(client: AsyncDatabaseClient, input: { companyId: string; ruleVersionId: string }): Promise<number> {
     if (input.ruleVersionId !== NUMBERING_RULE_V2_ID && input.ruleVersionId !== NUMBERING_RULE_V3_ID) {
       return this.allocateSequence(client, input.companyId, `${input.companyId}:part_root`);
@@ -8191,7 +8231,7 @@ export class AsyncNumberingRepository {
     input: {
       partName: string;
       itemKind: NumberingItemKind;
-      structureType: NumberingStructureType;
+      structureType: StoredPartStructureType;
       recordStatus: NumberingRecordStatus;
       isUniversal: boolean;
       universalReason?: string;
@@ -8207,7 +8247,7 @@ export class AsyncNumberingRepository {
     const sequenceNo =
       effectiveIsUniversal && !isCompactNumberingRule(input.ruleVersionId)
         ? 0
-        : await this.allocateSequence(client, root.companyId, `${root.companyId}:part:${root.rootCode}`);
+        : await this.allocateAvailablePartSequence(client, root, input.ruleVersionId);
     const sequenceCode = formatPartSequence(sequenceNo, input.ruleVersionId);
     const partNumber = formatPartNumberForRule(root.rootCode, sequenceCode, input.ruleVersionId);
     const id = this.idFactory();

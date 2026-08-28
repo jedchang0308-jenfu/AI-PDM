@@ -30,12 +30,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
 
   const rawItemKind = body.itemKind ?? body.item_kind;
   const itemKind = parseCanonicalNumberingItemKind(rawItemKind) as NumberingItemKind | undefined;
-  const structureType = parseNumberingStructureType(body.structureType ?? body.structure_type);
+  const rawStructureType = body.structureType ?? body.structure_type;
+  const structureType = parseNumberingStructureType(rawStructureType);
   const seriesCode = String(body.seriesCode ?? body.series_code ?? "").trim();
   const isUniversal = Boolean(body.isUniversal ?? body.is_universal);
   if ((body.itemKind !== undefined || body.item_kind !== undefined) && !itemKind) return NextResponse.json({ error: "itemKind must be manufactured or purchased" }, { status: 400 });
-  if (!structureType) return NextResponse.json({ error: "structureType must be single_part or assembly" }, { status: 422 });
-  if (itemKind === "purchased" && structureType === "assembly") return NextResponse.json({ error: "purchased assembly is not supported" }, { status: 422 });
+  if (rawStructureType !== undefined && !structureType) return NextResponse.json({ error: "structureType must be single_part or assembly" }, { status: 422 });
   if (seriesCode.length > 80) return NextResponse.json({ error: "seriesCode must be 80 characters or fewer" }, { status: 400 });
 
   try {

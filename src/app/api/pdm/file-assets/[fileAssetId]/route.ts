@@ -11,6 +11,8 @@ import type { PdmEntityKey } from "@/lib/pdm-entity-detail-contract";
 import { PdmReviewScopeError, resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
 import { enqueuePreviewJobForSourceAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
 import { resolveDev087RouteActor } from "@/lib/pdm-dev087-route";
+import { parseReviewPackageSnapshot, reviewPackageTargetKey } from "@/lib/pdm-review-package-contract";
+import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 
 export const runtime = "nodejs";
 
@@ -155,6 +157,36 @@ async function resolveSource(input: {
       input
     );
   }
+  if (input.context === "review_package") {
+    const drawingSource = await input.client.queryOne<CanonicalFileSource>(
+      `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
+              asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
+              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
+              revision.company_id, 'drawing_revision' AS linked_entity_type,
+              :contextId AS linked_entity_id, NULL AS workspace_id,
+              revision.drawing_id AS drawing_number_id, drawing.part_root_id,
+              NULL AS source_submission_id, NULL AS owner_user_id, NULL AS work_id
+         FROM drawing_revision_files file
+         JOIN drawing_revisions revision ON revision.id = file.drawing_revision_id
+         JOIN drawings drawing ON drawing.id = revision.drawing_id
+         JOIN file_assets asset ON asset.id = file.source_file_asset_id
+        WHERE file.id = :bindingId AND asset.id = :fileAssetId
+          AND revision.company_id = :companyId`, input
+    );
+    if (drawingSource) return drawingSource;
+    return input.client.queryOne<CanonicalFileSource>(
+      `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
+              asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
+              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
+              part.company_id, 'part_number' AS linked_entity_type,
+              part.id AS linked_entity_id, NULL AS workspace_id, NULL AS drawing_number_id,
+              part.part_root_id, NULL AS source_submission_id, NULL AS owner_user_id, NULL AS work_id
+         FROM file_assets asset JOIN part_numbers part ON part.id = asset.linked_entity_id
+        WHERE asset.id = :fileAssetId AND asset.id = :bindingId
+          AND asset.linked_entity_type = 'part_number' AND part.id = :contextId
+          AND part.company_id = :companyId`, input
+    );
+  }
   if (input.context === "drawing_attachment" || input.context === "part_attachment") {
     const entityType = input.context === "drawing_attachment" ? "drawing_number" : "part_number";
     const entityTable = input.context === "drawing_attachment" ? "drawing_numbers" : "part_numbers";
@@ -213,18 +245,58 @@ async function verifyReviewScope(input: {
   source: CanonicalFileSource;
   context: PdmFileReadContext;
   contextId: string;
+  bindingId: string;
   reviewRequestId: string;
   companyId: string;
   actorId: string;
 }) {
   if (input.context === "candidate_revision") {
-    if (!input.source.work_id) return null;
-    return input.client.queryOne<{ id: string }>(
-      `SELECT id FROM pdm_work_review_requests
-        WHERE id=:requestId AND company_id=:companyId AND work_id=:workId
+    const review = await input.client.queryOne<{
+      id: string;
+      request_kind: string;
+      canonical_entity_id: string;
+      work_id: string | null;
+      snapshot_payload: string | Record<string, unknown>;
+      snapshot_hash: string;
+    }>(
+      `SELECT id, request_kind, canonical_entity_id, work_id, snapshot_payload, snapshot_hash
+         FROM pdm_work_review_requests
+        WHERE id=:requestId AND company_id=:companyId
           AND reviewer_user_id=:actorId AND request_status='pending'`,
-      { requestId: input.reviewRequestId, companyId: input.companyId, workId: input.source.work_id, actorId: input.actorId }
+      { requestId: input.reviewRequestId, companyId: input.companyId, actorId: input.actorId }
     );
+    if (!review) return null;
+    if (review.request_kind === "drawing_revision") {
+      return input.source.work_id && review.work_id === input.source.work_id ? { id: review.id } : null;
+    }
+    if (review.request_kind !== "drawing_rd_void"
+      || review.work_id !== null
+      || review.canonical_entity_id !== input.source.drawing_number_id) return null;
+
+    let snapshotPayload: unknown = review.snapshot_payload;
+    if (typeof snapshotPayload === "string") {
+      try { snapshotPayload = JSON.parse(snapshotPayload) as unknown; } catch { return null; }
+    }
+    const parsedSnapshot = parseReviewPackageSnapshot(snapshotPayload);
+    if (parsedSnapshot.kind === "invalid") return null;
+    if (parsedSnapshot.kind === "v2") {
+      let packageValue;
+      try { packageValue = verifyReviewPackageIntegrity(snapshotPayload, review.snapshot_hash); } catch { return null; }
+      if (packageValue.requestKind !== "drawing_rd_void" || packageValue.decisionBasis.revisionId !== input.contextId) return null;
+      const target = packageValue.targets.find((candidate) => candidate.scope === "submitted"
+        && candidate.workspace.kind === "drawing"
+        && candidate.workspace.entityId === review.canonical_entity_id
+        && candidate.workspace.revisionId === input.contextId);
+      const file = target?.workspace.files.find((candidate) => candidate.bindingId === input.bindingId
+        && candidate.sourceFileAssetId === input.source.id
+        && (!candidate.contentHash || candidate.contentHash === input.source.content_hash));
+      return file ? { id: review.id } : null;
+    }
+    if (!snapshotPayload || typeof snapshotPayload !== "object" || Array.isArray(snapshotPayload)) return null;
+    const legacy = snapshotPayload as Record<string, unknown>;
+    return legacy.drawingId === review.canonical_entity_id && legacy.revisionId === input.contextId
+      ? { id: review.id }
+      : null;
   }
   if (input.context === "drawing_revision_work") {
     return input.client.queryOne<{ id: string }>(
@@ -233,6 +305,24 @@ async function verifyReviewScope(input: {
           AND reviewer_user_id = :actorId AND request_status = 'pending'`,
       { requestId: input.reviewRequestId, companyId: input.companyId, workId: input.contextId, actorId: input.actorId }
     );
+  }
+  if (input.context === "review_package") {
+    const review = await input.client.queryOne<{ snapshot_payload: string | Record<string, unknown>; snapshot_hash: string }>(
+      `SELECT snapshot_payload, snapshot_hash FROM pdm_work_review_requests
+       WHERE id = :reviewRequestId AND company_id = :companyId AND reviewer_user_id = :actorId AND request_status IN ('pending', 'applying')`,
+      input
+    );
+    if (!review) return null;
+    try {
+      const snapshotPayload = typeof review.snapshot_payload === "string" ? JSON.parse(review.snapshot_payload) as unknown : review.snapshot_payload;
+      const packageValue = verifyReviewPackageIntegrity(snapshotPayload, review.snapshot_hash);
+      const target = packageValue.targets.find((candidate) => candidate.targetKey === reviewPackageTargetKey("drawing", input.source.linked_entity_id))
+        ?? packageValue.targets.find((candidate) => candidate.targetKey === reviewPackageTargetKey("part", input.source.linked_entity_id));
+      if (!target) return null;
+      const file = [...target.workspace.files, ...target.workspace.attachments].find((candidate) => candidate.bindingId === input.bindingId && candidate.sourceFileAssetId === input.source.id);
+      if (!file || (file.contentHash && file.contentHash !== input.source.content_hash)) return null;
+      return { id: input.reviewRequestId };
+    } catch { return null; }
   }
   if (input.context === "approval_evidence") return { id: input.reviewRequestId };
   const linkedParts = input.source.drawing_number_id
@@ -361,6 +451,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
         source,
         context,
         contextId,
+        bindingId,
         reviewRequestId,
         companyId: access.companyId,
         actorId: access.actorId

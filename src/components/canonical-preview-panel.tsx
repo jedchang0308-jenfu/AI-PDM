@@ -42,6 +42,7 @@ export function CanonicalPreviewPanel({
   showTabs = true,
   showCardHeader = true,
   showFileName = true,
+  headerActions,
   layout = "grid",
   activeKey,
   defaultActiveKey,
@@ -58,6 +59,7 @@ export function CanonicalPreviewPanel({
   showTabs?: boolean;
   showCardHeader?: boolean;
   showFileName?: boolean;
+  headerActions?: ReactNode;
   layout?: "grid" | "tabs" | "single";
   activeKey?: string;
   defaultActiveKey?: string;
@@ -79,9 +81,10 @@ export function CanonicalPreviewPanel({
     data-component="canonical-preview-panel"
     data-preview-layout={layout}
   >
-    {showHeader ? <div className={`drawing-preview-board-header${title === null ? " is-meta-only" : ""}`}>
-      {title !== null ? <h3>{title}</h3> : null}
-      {showMeta ? <strong>{meta ?? `${availableCount} 類`}</strong> : null}
+    {showHeader || headerActions ? <div className={`drawing-preview-board-header${title === null ? " is-meta-only" : ""}${headerActions && !showHeader ? " is-actions-only" : ""}`}>
+      {showHeader && title !== null ? <h3>{title}</h3> : null}
+      {showHeader && showMeta ? <strong>{meta ?? `${availableCount} 類`}</strong> : null}
+      {headerActions ? <div className="drawing-preview-board-actions">{headerActions}</div> : null}
     </div> : null}
     {tabbed && showTabs ? <div className="drawing-preview-tabs" role="tablist" aria-label="預覽類型">
       {cards.map((card) => <button key={card.key} type="button" role="tab" aria-selected={card.key === selectedKey} className={card.key === selectedKey ? "is-active" : ""} onClick={() => select(card.key)}>

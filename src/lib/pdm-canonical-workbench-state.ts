@@ -7,6 +7,7 @@ import type {
   CanonicalWorkbenchRowDto,
   HistoricalWorkbenchEntityType
 } from "@/lib/pdm-canonical-workbench-contract";
+import type { DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
 import {
   CANONICAL_DATA_STATE_LABELS,
   CANONICAL_HANDLING_LABELS,
@@ -37,6 +38,10 @@ export type CanonicalWorkbenchStateRecord = {
   rowVersion: number;
   openBranchCount: number;
   branchStatus: "open" | "historical" | null;
+  baseProductionRevisionId: string | null;
+  currentProductionRevisionId: string | null;
+  currentProductionRowId: string | null;
+  basisState: DrawingRevisionBasisState | null;
   updatedAt: string;
 };
 
@@ -51,6 +56,7 @@ export type CanonicalWorkbenchActor = {
     cancelWork: boolean;
     decideReview: boolean;
     obsoleteDrawing: boolean;
+    obsoleteFormal?: boolean;
     manageAttachments?: boolean;
   };
 };
@@ -86,14 +92,25 @@ export function resolveCanonicalWorkbenchActions(record: CanonicalWorkbenchState
   }
   if (record.handling !== "none") return [];
   if (record.dataLayer === "drawing_production" && actor.permissions.createWork) {
-    return record.openBranchCount >= 3 ? (matrixEdit ? [matrixEdit] : []) : [action("advance", "進版", `/api/pdm/drawings/${encodeURIComponent(record.canonicalEntityId)}/revision-targets?sourceRowKey=${encodeURIComponent(canonicalRowKey(record.id))}`), ...(matrixEdit ? [matrixEdit] : [])];
+    const actions = record.openBranchCount >= 3
+      ? []
+      : [action("advance", "進版", `/api/pdm/drawings/${encodeURIComponent(record.canonicalEntityId)}/revision-targets?sourceRowKey=${encodeURIComponent(canonicalRowKey(record.id))}`)];
+    if (actor.permissions.obsoleteFormal && !record.workId) actions.push(action("request_obsolete", "申請作廢"));
+    return [...actions, ...(matrixEdit ? [matrixEdit] : [])];
   }
   if (record.dataLayer === "drawing_rd" && actor.permissions.createWork && record.branchStatus === "open") {
-    const actions = [action("advance", "進版", `/api/pdm/drawings/${encodeURIComponent(record.canonicalEntityId)}/revision-targets?sourceRowKey=${encodeURIComponent(canonicalRowKey(record.id))}`)];
+    const targetsHref = `/api/pdm/drawings/${encodeURIComponent(record.canonicalEntityId)}/revision-targets?sourceRowKey=${encodeURIComponent(canonicalRowKey(record.id))}`;
+    const actions = record.basisState === "stale"
+      ? (record.currentProductionRowId ? [action("restart_from_current_production", "從目前量產版建立新工作", `/api/pdm/drawings/${encodeURIComponent(record.canonicalEntityId)}/revision-targets?sourceRowKey=${encodeURIComponent(canonicalRowKey(record.currentProductionRowId))}`)] : [])
+      : [action("advance", "進版", targetsHref)];
     if (actor.permissions.obsoleteDrawing && !record.workId && record.branchId) actions.push(action("void_rd", "申請作廢", `/api/pdm/drawing-rd-branches/${encodeURIComponent(record.branchId)}/void-requests`));
     return [...actions, ...(matrixEdit ? [matrixEdit] : [])];
   }
-  if (record.dataLayer === "part_formal" && actor.permissions.createWork) return [action("create_change", "建立修改", `/api/pdm/parts/${encodeURIComponent(record.canonicalEntityId)}/change-works`), ...(matrixEdit ? [matrixEdit] : [])];
+  if (record.dataLayer === "part_formal" && actor.permissions.createWork) {
+    const actions = [action("create_change", "建立修改", `/api/pdm/parts/${encodeURIComponent(record.canonicalEntityId)}/change-works`)];
+    if (actor.permissions.obsoleteFormal && !record.workId) actions.push(action("request_obsolete", "申請作廢"));
+    return [...actions, ...(matrixEdit ? [matrixEdit] : [])];
+  }
   return [];
 }
 
@@ -119,6 +136,7 @@ export function projectCanonicalWorkbenchRow(record: CanonicalWorkbenchStateReco
     blockerReason,
     detailHref,
     rowVersion: record.rowVersion,
+    basisState: record.entityType === "drawing" ? record.basisState : null,
     actions: resolveCanonicalWorkbenchActions(record, actor)
   };
 }

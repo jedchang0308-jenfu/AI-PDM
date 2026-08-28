@@ -2039,8 +2039,8 @@ function buildBlockers(input: {
     blockers.push(makeSubmissionBlocker({
       code: "multiple_primary_parts",
       message: "此圖號同時服務多個料號。請至少選擇一個本次要一起進版的料號。",
-      recoveryHref: `/numbering/revisions?drawingNumber=${encodeURIComponent(input.drawing.drawing_number)}`,
-      recoveryLabel: "選擇本次進版料號"
+      recoveryHref,
+      recoveryLabel: "回圖號工作台處理進版料號"
     }));
   }
   if (blockedDrawingStatuses.has(input.drawing.record_status)) {
@@ -2103,10 +2103,10 @@ function buildBlockers(input: {
     blockers.push(makeSubmissionBlocker({
       code: blocker.code,
       message: input.targetRevision
-        ? `${blocker.message} 請在圖面進版工作台上傳版次 ${input.targetRevision} 的新檔。`
+        ? `${blocker.message} 請在圖號工作台開啟該圖號的進版工作，並上傳版次 ${input.targetRevision} 的新檔。`
         : blocker.message,
-      recoveryHref: `/numbering/revisions?drawingNumber=${encodeURIComponent(input.drawing.drawing_number)}&revision=${encodeURIComponent(input.targetRevision)}`,
-      recoveryLabel: "開啟圖面進版"
+      recoveryHref,
+      recoveryLabel: "開啟圖號工作台"
     }));
   }
   if (input.existingSubmission) {

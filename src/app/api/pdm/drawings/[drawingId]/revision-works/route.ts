@@ -3,5 +3,5 @@ import { dev087CommandContext, dev087Json, dev087RouteError, dev087Success, reso
 export const runtime = "nodejs";
 export async function POST(request: Request, { params }: { params: Promise<{ drawingId: string }> }) {
   const access = await resolveDev087RouteActor(request, "numbering.drawings.view"); if (access.response || !access.actor) return access.response;
-  try { const { drawingId } = await params; const body = await dev087Json(request); const result = await new DrawingRevisionWorkService().create(drawingId, { sourceRowKey: String(body.sourceRowKey ?? ""), candidateToken: String(body.candidateToken ?? "") }, access.actor, dev087CommandContext(request)); return dev087Success(result); } catch (error) { return dev087RouteError(error); }
+  try { const { drawingId } = await params; const body = await dev087Json(request); const result = await new DrawingRevisionWorkService().create(drawingId, body, access.actor, dev087CommandContext(request)); return dev087Success(result); } catch (error) { return dev087RouteError(error); }
 }

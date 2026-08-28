@@ -7,6 +7,8 @@ ALTER TABLE part_numbers ADD COLUMN IF NOT EXISTS structure_type TEXT NOT NULL D
 ALTER TABLE part_numbers DROP CONSTRAINT IF EXISTS part_numbers_structure_type_check;
 ALTER TABLE part_numbers ADD CONSTRAINT part_numbers_structure_type_check
   CHECK (structure_type IN ('single_part', 'assembly', 'unclassified'));
+ALTER TABLE part_numbers ADD COLUMN IF NOT EXISTS bom_usage_policy TEXT NOT NULL DEFAULT 'undecided'
+  CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete'));
 
 CREATE TABLE IF NOT EXISTS bom_definitions (
   id TEXT PRIMARY KEY,
@@ -19,6 +21,248 @@ CREATE TABLE IF NOT EXISTS bom_definitions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_bom_definitions_company_root ON bom_definitions(company_id, part_root_id);
+
+-- Production applied the historical full BOM retirement under version 047.
+-- Recreate the current manual/shared BOM foundation without restoring retired
+-- CAD/XLS intake data. CREATE TABLE IF NOT EXISTS keeps fresh/current schemas
+-- byte-compatible while repairing the verified production schema gap.
+CREATE TABLE IF NOT EXISTS bom_headers (
+  id TEXT PRIMARY KEY,
+  parent_item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  parent_submission_id TEXT NOT NULL UNIQUE REFERENCES submissions(id) ON DELETE CASCADE,
+  parent_revision TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'ReleasedSnapshot')),
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'imported')),
+  line_count INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS bom_lines (
+  id TEXT PRIMARY KEY,
+  bom_header_id TEXT NOT NULL REFERENCES bom_headers(id) ON DELETE CASCADE,
+  line_no INTEGER NOT NULL,
+  child_part_number TEXT NOT NULL,
+  child_revision TEXT,
+  quantity DOUBLE PRECISION NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  source_file_id TEXT REFERENCES submission_files(id) ON DELETE SET NULL,
+  source_reference_id TEXT REFERENCES file_references(id) ON DELETE SET NULL,
+  source_filename TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (bom_header_id, line_no)
+);
+
+CREATE TABLE IF NOT EXISTS bom_drafts (
+  id TEXT PRIMARY KEY,
+  company_id TEXT REFERENCES companies(id),
+  owner_part_number_id TEXT REFERENCES part_numbers(id),
+  bom_revision TEXT,
+  source_submission_id TEXT REFERENCES submissions(id) ON DELETE SET NULL,
+  identity_authority TEXT NOT NULL DEFAULT 'canonical_part_number'
+    CHECK (identity_authority IN ('canonical_part_number', 'legacy_submission_bound', 'manual_review')),
+  parent_item_id TEXT REFERENCES items(id) ON DELETE SET NULL,
+  parent_submission_id TEXT REFERENCES submissions(id) ON DELETE SET NULL,
+  parent_revision TEXT,
+  draft_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Draft'
+    CHECK (status IN ('Draft', 'PendingReview', 'Rejected', 'Released', 'Obsolete', 'Archived')),
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source = 'manual'),
+  is_active INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
+  line_count INTEGER NOT NULL DEFAULT 0,
+  review_attempt INTEGER NOT NULL DEFAULT 0,
+  editor_version INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS bom_lines_tree (
+  id TEXT PRIMARY KEY,
+  bom_draft_id TEXT NOT NULL REFERENCES bom_drafts(id) ON DELETE CASCADE,
+  parent_line_id TEXT REFERENCES bom_lines_tree(id) ON DELETE CASCADE,
+  node_type TEXT NOT NULL CHECK (node_type IN ('item', 'group')),
+  item_id TEXT REFERENCES items(id) ON DELETE SET NULL,
+  part_number TEXT,
+  revision TEXT,
+  group_name TEXT,
+  quantity DOUBLE PRECISION CHECK (quantity IS NULL OR quantity > 0),
+  sequence_no INTEGER NOT NULL,
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source = 'manual'),
+  source_priority INTEGER NOT NULL DEFAULT 30,
+  source_ref_id TEXT,
+  source_filename TEXT,
+  created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (
+    (node_type = 'item' AND part_number IS NOT NULL AND trim(part_number) <> '' AND quantity IS NOT NULL)
+    OR (node_type = 'group' AND group_name IS NOT NULL AND trim(group_name) <> '' AND quantity IS NULL)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS bom_draft_floating_topics (
+  id TEXT PRIMARY KEY,
+  bom_draft_id TEXT NOT NULL REFERENCES bom_drafts(id) ON DELETE CASCADE,
+  parent_floating_topic_id TEXT REFERENCES bom_draft_floating_topics(id) ON DELETE CASCADE,
+  node_type TEXT NOT NULL CHECK (node_type IN ('item', 'group')),
+  item_id TEXT REFERENCES items(id) ON DELETE SET NULL,
+  part_number TEXT,
+  revision TEXT,
+  group_name TEXT,
+  quantity DOUBLE PRECISION CHECK (quantity IS NULL OR quantity > 0),
+  sequence_no INTEGER NOT NULL,
+  root_position_x DOUBLE PRECISION NOT NULL DEFAULT 0,
+  root_position_y DOUBLE PRECISION NOT NULL DEFAULT 0,
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source = 'manual'),
+  created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (
+    (node_type = 'item' AND part_number IS NOT NULL AND trim(part_number) <> '' AND quantity IS NOT NULL)
+    OR (node_type = 'group' AND group_name IS NOT NULL AND trim(group_name) <> '' AND quantity IS NULL)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS bom_edit_events (
+  id TEXT PRIMARY KEY,
+  bom_draft_id TEXT NOT NULL REFERENCES bom_drafts(id) ON DELETE CASCADE,
+  actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  event_type TEXT NOT NULL,
+  before_json TEXT,
+  after_json TEXT,
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS bom_review_requests (
+  id TEXT PRIMARY KEY,
+  bom_draft_id TEXT NOT NULL REFERENCES bom_drafts(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'PendingReview'
+    CHECK (status IN ('PendingReview', 'Approved', 'Rejected', 'Cancelled')),
+  lifecycle_action TEXT NOT NULL DEFAULT 'release' CHECK (lifecycle_action IN ('release', 'obsolete')),
+  submitted_by TEXT NOT NULL REFERENCES users(id),
+  reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  change_reason TEXT NOT NULL,
+  decision_reason TEXT,
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reviewed_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS bom_release_snapshots (
+  id TEXT PRIMARY KEY,
+  bom_draft_id TEXT NOT NULL REFERENCES bom_drafts(id),
+  company_id TEXT REFERENCES companies(id),
+  owner_part_number_id TEXT REFERENCES part_numbers(id),
+  bom_revision TEXT,
+  source_submission_id TEXT REFERENCES submissions(id) ON DELETE SET NULL,
+  parent_item_id TEXT REFERENCES items(id) ON DELETE SET NULL,
+  parent_submission_id TEXT REFERENCES submissions(id) ON DELETE SET NULL,
+  parent_revision TEXT,
+  line_snapshot_json TEXT NOT NULL,
+  line_count INTEGER NOT NULL DEFAULT 0,
+  released_by TEXT NOT NULL REFERENCES users(id),
+  released_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  obsolete_at TIMESTAMPTZ,
+  obsolete_by TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS bom_create_effects (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL REFERENCES companies(id),
+  actor_id TEXT NOT NULL REFERENCES users(id),
+  idempotency_key TEXT NOT NULL,
+  request_fingerprint TEXT NOT NULL,
+  draft_id TEXT NOT NULL REFERENCES bom_drafts(id),
+  outcome_json TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (company_id, actor_id, idempotency_key)
+);
+
+CREATE TABLE IF NOT EXISTS bom_reconfirmation_flags (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL DEFAULT 'company-jenfu' REFERENCES companies(id),
+  bom_draft_id TEXT NOT NULL REFERENCES bom_drafts(id) ON DELETE CASCADE,
+  old_part_number_id TEXT NOT NULL REFERENCES part_numbers(id),
+  new_part_number_id TEXT NOT NULL REFERENCES part_numbers(id),
+  reason TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_at TIMESTAMPTZ,
+  resolved_by TEXT REFERENCES users(id)
+);
+
+-- Retire only the obsolete CAD/XLS intake. This is intentionally safe when the
+-- historical production 047 already removed every BOM table and row.
+DELETE FROM bom_create_effects effect
+USING bom_drafts draft
+WHERE effect.draft_id = draft.id
+  AND draft.source IN ('cad_reference', 'solidworks_xls');
+DELETE FROM bom_release_snapshots snapshot
+USING bom_drafts draft
+WHERE snapshot.bom_draft_id = draft.id
+  AND draft.source IN ('cad_reference', 'solidworks_xls');
+DELETE FROM bom_drafts WHERE source IN ('cad_reference', 'solidworks_xls');
+DELETE FROM bom_headers WHERE source = 'cad_references';
+DELETE FROM file_references WHERE reference_type = 'assembly_component';
+
+DROP INDEX IF EXISTS idx_bom_import_jobs_parent_submission_id;
+DROP TABLE IF EXISTS bom_import_jobs;
+DROP TABLE IF EXISTS bom_import_profiles;
+
+ALTER TABLE bom_drafts DROP CONSTRAINT IF EXISTS bom_drafts_source_revision_package_fk;
+ALTER TABLE bom_drafts DROP COLUMN IF EXISTS source_revision_package_id;
+ALTER TABLE bom_release_snapshots DROP COLUMN IF EXISTS source_revision_package_id;
+
+ALTER TABLE file_references DROP CONSTRAINT IF EXISTS file_references_reference_type_check;
+ALTER TABLE file_references ADD CONSTRAINT file_references_reference_type_check
+  CHECK (reference_type IN ('drawing_model', 'derived', 'unknown'));
+ALTER TABLE bom_headers DROP CONSTRAINT IF EXISTS bom_headers_source_check;
+ALTER TABLE bom_headers ALTER COLUMN source SET DEFAULT 'manual';
+ALTER TABLE bom_headers ADD CONSTRAINT bom_headers_source_check CHECK (source IN ('manual', 'imported'));
+ALTER TABLE bom_drafts DROP CONSTRAINT IF EXISTS bom_drafts_source_check;
+ALTER TABLE bom_drafts ALTER COLUMN source SET DEFAULT 'manual';
+ALTER TABLE bom_drafts ALTER COLUMN identity_authority SET DEFAULT 'canonical_part_number';
+ALTER TABLE bom_drafts ADD CONSTRAINT bom_drafts_source_check CHECK (source = 'manual');
+UPDATE bom_lines_tree SET source = 'manual', source_priority = 30
+WHERE source <> 'manual' OR source_priority <> 30;
+ALTER TABLE bom_lines_tree DROP CONSTRAINT IF EXISTS bom_lines_tree_source_check;
+ALTER TABLE bom_lines_tree ALTER COLUMN source SET DEFAULT 'manual';
+ALTER TABLE bom_lines_tree ALTER COLUMN source_priority SET DEFAULT 30;
+ALTER TABLE bom_lines_tree ADD CONSTRAINT bom_lines_tree_source_check CHECK (source = 'manual');
+UPDATE bom_draft_floating_topics SET source = 'manual' WHERE source <> 'manual';
+ALTER TABLE bom_draft_floating_topics DROP CONSTRAINT IF EXISTS bom_draft_floating_topics_source_check;
+ALTER TABLE bom_draft_floating_topics ALTER COLUMN source SET DEFAULT 'manual';
+ALTER TABLE bom_draft_floating_topics ADD CONSTRAINT bom_draft_floating_topics_source_check CHECK (source = 'manual');
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_one_active
+  ON bom_drafts(parent_item_id, parent_revision) WHERE is_active = 1 AND status IN ('Draft', 'Rejected');
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_one_pending_review
+  ON bom_drafts(parent_item_id, parent_revision) WHERE status = 'PendingReview';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_canonical_one_active
+  ON bom_drafts(owner_part_number_id, bom_revision)
+  WHERE owner_part_number_id IS NOT NULL AND bom_revision IS NOT NULL AND is_active = 1 AND status IN ('Draft', 'Rejected');
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_drafts_canonical_one_pending_review
+  ON bom_drafts(owner_part_number_id, bom_revision)
+  WHERE owner_part_number_id IS NOT NULL AND bom_revision IS NOT NULL AND status = 'PendingReview';
+CREATE INDEX IF NOT EXISTS idx_bom_headers_parent_item_id ON bom_headers(parent_item_id);
+CREATE INDEX IF NOT EXISTS idx_bom_headers_parent_submission_id ON bom_headers(parent_submission_id);
+CREATE INDEX IF NOT EXISTS idx_bom_lines_header_id ON bom_lines(bom_header_id);
+CREATE INDEX IF NOT EXISTS idx_bom_lines_child_part_number ON bom_lines(child_part_number);
+CREATE INDEX IF NOT EXISTS idx_bom_lines_child_part_revision ON bom_lines(child_part_number, child_revision);
+CREATE INDEX IF NOT EXISTS idx_bom_drafts_parent_submission_id ON bom_drafts(parent_submission_id, status, is_active);
+CREATE INDEX IF NOT EXISTS idx_bom_drafts_parent_item_revision ON bom_drafts(parent_item_id, parent_revision, status);
+CREATE INDEX IF NOT EXISTS idx_bom_lines_tree_draft_parent ON bom_lines_tree(bom_draft_id, parent_line_id, sequence_no);
+CREATE INDEX IF NOT EXISTS idx_bom_lines_tree_part_revision ON bom_lines_tree(part_number, revision);
+CREATE INDEX IF NOT EXISTS idx_bom_draft_floating_topics_draft_parent
+  ON bom_draft_floating_topics(bom_draft_id, parent_floating_topic_id, sequence_no);
+CREATE INDEX IF NOT EXISTS idx_bom_edit_events_draft_id ON bom_edit_events(bom_draft_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bom_review_requests_draft_status ON bom_review_requests(bom_draft_id, status);
+CREATE INDEX IF NOT EXISTS idx_bom_release_snapshots_parent_item_revision
+  ON bom_release_snapshots(parent_item_id, parent_revision, released_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bom_reconfirmation_flags_open
+  ON bom_reconfirmation_flags(company_id, bom_draft_id, resolved_at);
 
 ALTER TABLE bom_drafts ADD COLUMN IF NOT EXISTS definition_id TEXT REFERENCES bom_definitions(id);
 ALTER TABLE bom_drafts ADD COLUMN IF NOT EXISTS base_release_snapshot_id TEXT;

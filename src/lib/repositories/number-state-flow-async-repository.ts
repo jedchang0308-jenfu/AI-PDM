@@ -2490,11 +2490,11 @@ export class AsyncNumberStateFlowRepository {
       await this.client.execute(
         `INSERT INTO part_numbers (
            id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-           item_kind, is_universal, custom_specification, series_code, record_status,
+           item_kind, structure_type, is_universal, custom_specification, series_code, record_status,
            universal_reason, rule_version_id, created_by, created_at, updated_at
          ) VALUES (
            :id, :companyId, :partRootId, :partNumber, :sequenceNo, :sequenceCode, :partName,
-           :itemKind, :isUniversal, :customSpecification, :seriesCode, 'Active',
+           :itemKind, :structureType, :isUniversal, :customSpecification, :seriesCode, 'Active',
            :universalReason, :ruleVersionId, :createdBy, :createdAt, :updatedAt
          )`,
         {
@@ -2506,6 +2506,7 @@ export class AsyncNumberStateFlowRepository {
           sequenceCode: formatPartSequenceForRule(Number(reservation.sequence_no), ruleVersionId),
           partName: part.partName,
           itemKind: part.itemKind,
+          structureType: "unclassified",
           isUniversal: part.isUniversal ? 1 : 0,
           universalReason: part.universalReason,
           customSpecification: part.customSpecification,

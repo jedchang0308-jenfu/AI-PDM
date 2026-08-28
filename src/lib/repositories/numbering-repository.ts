@@ -304,7 +304,7 @@ export type CreateNumberingRecordInput = {
   coreName: string;
   partName?: string;
   itemKind: NumberingItemKind;
-  structureType?: NumberingStructureType;
+  structureType?: StoredPartStructureType;
   recordStatus?: NumberingRecordStatus;
   isUniversal?: boolean;
   universalReason?: string;
@@ -322,7 +322,7 @@ export type AddPartNumberInput = {
   rootCode: string;
   partName?: string;
   itemKind?: NumberingItemKind;
-  structureType?: NumberingStructureType;
+  structureType?: StoredPartStructureType;
   recordStatus?: NumberingRecordStatus;
   isUniversal?: boolean;
   universalReason?: string;
@@ -359,7 +359,7 @@ export type AddDrawingAndPartToRootInput = {
   purposeDescription?: string;
   partName?: string;
   itemKind?: NumberingItemKind;
-  structureType?: NumberingStructureType;
+  structureType?: StoredPartStructureType;
   recordStatus?: NumberingRecordStatus;
   isUniversal?: boolean;
   universalReason?: string;
@@ -784,22 +784,6 @@ export type RevokeNumberingUserRoleAssignmentInput = {
   reason?: string | null;
 };
 
-export type MainDrawingImpactInput = {
-  companyId?: string;
-  drawingNumber: string;
-  reason?: string;
-  applyInvalidation?: boolean;
-  createdBy?: string | null;
-};
-
-export type MainDrawingImpactAnalysis = {
-  drawingNumber: DrawingNumberRecord;
-  applied: boolean;
-  impactedPartNumbers: PartNumberRecord[];
-  requiredDocuments: string[];
-  warnings: string[];
-};
-
 export type DuplicateCheckInput = {
   companyId?: string;
   rootCode?: string;
@@ -921,6 +905,8 @@ export type RequestNumberingObsoleteApprovalInput = {
   requestedBy: string;
   projectCode?: string;
   idempotencyKey?: string;
+  impactFingerprint: string;
+  impactDependencies: Array<{ kind: string; id: string; code: string; disposition: string }>;
 };
 
 export type NumberingObsoleteApprovalResult = {
@@ -3192,6 +3178,7 @@ function insertPartNumber(
   input: {
     partName: string;
     itemKind: NumberingItemKind;
+    structureType?: StoredPartStructureType;
     recordStatus: NumberingRecordStatus;
     isUniversal: boolean;
     universalReason?: string;
@@ -3214,9 +3201,9 @@ function insertPartNumber(
       `
       INSERT INTO part_numbers (
         id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-        item_kind, is_universal, custom_specification, series_code, record_status, universal_reason,
+        item_kind, structure_type, is_universal, custom_specification, series_code, record_status, universal_reason,
         rule_version_id, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
@@ -3227,6 +3214,7 @@ function insertPartNumber(
       sequenceCode,
       input.partName.trim(),
       input.itemKind,
+      input.structureType ?? "unclassified",
       effectiveIsUniversal ? 1 : 0,
       input.customSpecification?.trim() || null,
       seriesCode,
@@ -5565,68 +5553,6 @@ function markRootClosedIfNoOpenParts(database: SqliteDatabase, rootId: string, s
   }
 }
 
-export function analyzeMainDrawingObsolescence(input: MainDrawingImpactInput): MainDrawingImpactAnalysis {
-  const database = getDb();
-  return database.transaction(() => {
-    const drawingRow = selectDrawingNumberByNumber(database, input.drawingNumber);
-    if (!drawingRow) {
-      throw new Error(`DRAWING_NUMBER_NOT_FOUND: ${input.drawingNumber}`);
-    }
-    const drawingNumber = mapDrawingNumber(drawingRow);
-    const impactedPartNumbers =
-      isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? listPrimaryManufacturingPartsByDrawing(database, drawingNumber.id) : [];
-    const warnings = isManufacturingDrawingPurpose(drawingNumber.purposeCode) ? [] : ["DRAWING_IS_NOT_PRIMARY_MA"];
-    const requiredDocuments = impactedPartNumbers.length
-      ? [
-          "2D manufacturing drawing",
-          "3D CAD model",
-          "Released PDF package",
-          "BOM or where-used records",
-          "Related SOP/WI or inspection documents"
-        ]
-      : [];
-
-    if (input.applyInvalidation && !isManufacturingDrawingPurpose(drawingNumber.purposeCode)) {
-      throw new Error("MAIN_DRAWING_INVALIDATION_REQUIRES_MA_DRAWING");
-    }
-
-    if (input.applyInvalidation) {
-      const now = new Date().toISOString();
-      database
-        .prepare("UPDATE drawing_numbers SET record_status = 'Obsolete', updated_at = ? WHERE id = ?")
-        .run(now, drawingNumber.id);
-      for (const partNumber of impactedPartNumbers) {
-        database
-          .prepare("UPDATE part_numbers SET record_status = 'MainDrawingInvalid', updated_at = ? WHERE id = ?")
-          .run(now, partNumber.id);
-        database
-          .prepare("UPDATE part_roots SET record_status = 'MainDrawingInvalid', updated_at = ? WHERE id = ?")
-          .run(now, partNumber.partRootId);
-      }
-    }
-
-    insertAudit(database, {
-      actorId: input.createdBy,
-      action: input.applyInvalidation ? "numbering.main_drawing.invalidate" : "numbering.main_drawing.impact_analysis",
-      detail: {
-        drawingNumber: drawingNumber.drawingNumber,
-        applied: Boolean(input.applyInvalidation),
-        impactedPartNumbers: impactedPartNumbers.map((partNumber) => partNumber.partNumber),
-        requiredDocuments,
-        reason: input.reason?.trim() || null
-      }
-    });
-
-    return {
-      drawingNumber,
-      applied: Boolean(input.applyInvalidation),
-      impactedPartNumbers,
-      requiredDocuments,
-      warnings
-    };
-  })();
-}
-
 export function checkNumberingDuplicates(input: DuplicateCheckInput): DuplicateCheckResult {
   const database = getDb();
   return database.transaction(() => {
@@ -6539,6 +6465,7 @@ export function createNumberingRecord(input: CreateNumberingRecordInput) {
     const partNumber = insertPartNumber(database, root, {
       partName: root.coreName,
       itemKind: input.itemKind,
+      structureType: input.structureType,
       recordStatus,
       isUniversal,
       universalReason: input.universalReason,
@@ -6592,6 +6519,7 @@ export function addPartNumberToRoot(input: AddPartNumberInput) {
     const partNumber = insertPartNumber(database, root, {
       partName: root.coreName,
       itemKind: input.itemKind ?? root.itemKind,
+      structureType: input.structureType,
       recordStatus: input.recordStatus ?? "Draft",
       isUniversal,
       universalReason: input.universalReason,

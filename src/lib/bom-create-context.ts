@@ -337,8 +337,11 @@ export async function resolveCanonicalPartBomContextAsync(input: {
     blocker: null,
     ...overrides
   });
-  if (!part || structureType !== "assembly" || part.item_kind !== "manufactured"
-    || ["Obsolete", "Merged", "MainDrawingInvalid"].includes(part.record_status)) return empty();
+  if (!part || structureType !== "assembly" || ["Obsolete", "Merged", "MainDrawingInvalid"].includes(part.record_status)) return empty();
+  if (part.item_kind === "purchased") return empty({
+    eligibility: "ineligible",
+    blocker: { code: "BOM_PURCHASED_ASSEMBLY_NOT_APPLICABLE", message: "外購組立件目前不適用製造 BOM" }
+  });
   if (!Boolean(part.has_primary_m)) return empty({
     eligibility: "blocked",
     blocker: { code: "BOM_ASSEMBLY_REQUIRES_M_DRAWING", message: "組立件必須具有主要製造圖 M" }

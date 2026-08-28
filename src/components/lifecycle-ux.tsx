@@ -149,12 +149,12 @@ const lifecycleStages: LifecycleStage[] = [
     title: "ECR / 改版 / 廢止",
     controlDimension: "變更管制",
     owner: "研發工程師／主管／系統管理員",
-    state: "影響分析 / 已作廢",
-    intent: "從既有料件啟動變更前，先看上層 BOM、圖面、供應商與交接影響。",
+    state: "改版 / 作廢申請",
+    intent: "從既有圖號啟動改版或正式作廢申請，並在提交時確認相依範圍。",
     risk: "未確認影響範圍就改版或廢止，會造成製造端拿錯版或缺文件。",
     doneSignal: "新版已發布後舊版轉已作廢；廢止與合併都有審核與稽核紀錄。",
-    href: "/numbering/impact",
-    cta: "分析影響",
+    href: "/numbering/drawings",
+    cta: "開啟圖號工作台",
     icon: Search
   }
 ];

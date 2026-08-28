@@ -15,13 +15,14 @@ export type ApprovalPlatformDecision = "approved" | "rejected" | "needs_info";
 export type ApprovalPlatformSource =
   | "platform"
   | "bom_workbench"
+  | "pdm_work_review"
   | "legacy_numbering"
   | "legacy_submission"
   | "legacy_bom"
   | "legacy_drawing_package"
   | "legacy_drawing_revision_review";
 
-export type LegacyApprovalPlatformSource = Exclude<ApprovalPlatformSource, "platform" | "bom_workbench">;
+export type LegacyApprovalPlatformSource = Exclude<ApprovalPlatformSource, "platform" | "bom_workbench" | "pdm_work_review">;
 
 export type ApprovalPlatformAction = {
   actionCode: string;
@@ -223,6 +224,29 @@ type EventRow = {
 type DrawingRevisionFffState = "no_impact" | "suspected_impact" | "confirmed_impact";
 type DrawingRevisionFffOutcome = "no_impact" | "suspected_impact" | "confirmed_impact";
 
+type PdmWorkReviewRequestKind = "drawing_revision" | "drawing_rd_void" | "part_change";
+
+type PdmWorkReviewInboxRow = {
+  id: string;
+  company_id: string;
+  request_kind: PdmWorkReviewRequestKind;
+  entity_type: "drawing" | "part";
+  canonical_entity_id: string;
+  reviewer_user_id: string;
+  requested_at: string;
+  requested_by: string | null;
+  requested_by_name: string | null;
+  target_code: string | null;
+  target_name: string | null;
+  revision: string | null;
+};
+
+const PDM_WORK_REVIEW_ACTIONS: Record<PdmWorkReviewRequestKind, { actionCode: string; actionTitle: string }> = {
+  drawing_revision: { actionCode: "numbering.pdm_drawing_revision_review", actionTitle: "圖面研發版審核" },
+  drawing_rd_void: { actionCode: "numbering.pdm_drawing_rd_void_review", actionTitle: "圖面研發版作廢審核" },
+  part_change: { actionCode: "numbering.pdm_part_change_review", actionTitle: "料號變更審核" }
+};
+
 const DEFAULT_COMPANY_ID = "company-jenfu";
 
 type ApprovalPlatformInboxFilter = {
@@ -270,6 +294,7 @@ function matchesInboxFilter(item: ApprovalPlatformInboxItem, input: ApprovalPlat
   if (allowedActionCodes?.length && !allowedActionCodes.some((value) => value === item.actionCode || value.replace(/^numbering\./u, "") === item.actionCode.replace(/^numbering\./u, ""))) return false;
   if (query) {
     const searchable = [
+      item.id,
       item.targetSummary,
       item.title,
       item.actionTitle,
@@ -726,15 +751,29 @@ export class AsyncApprovalPlatformRepository {
     const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
     const limit = Math.max(1, Math.min(input.limit ?? 100, 500));
     const sourceLimit = Math.min(500, Math.max(limit + 1, 100));
-    const [nativeItems, numbering, submission, bom, supplement, drawingRevisionReviews] = await Promise.all([
+    const [nativeItems, pdmWorkReviews, numbering, submission, bom, supplement, drawingRevisionReviews] = await Promise.all([
       this.listNativeInbox({ companyId, actorId: input.actorId, status: input.status, query: input.query, limit: sourceLimit }),
+      this.listPdmWorkReviewInbox({
+        companyId,
+        actorId: input.actorId,
+        status: input.status,
+        domainCode: input.domainCode,
+        actionCode: input.actionCode,
+        allowedActionCodes: input.allowedActionCodes,
+        query: input.query,
+        cursor: input.cursor,
+        // Canonical review cursor/count must not be clipped by the generic
+        // per-source prefetch floor. The public inbox contract is capped at
+        // 500 rows, so fetch that bounded window after actor/filter pushdown.
+        limit: 500
+      }),
       this.listLegacyNumberingInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
       this.listLegacySubmissionInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
       this.listLegacyBomInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
       this.listLegacyDrawingPackageInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
       this.listLegacyDrawingRevisionReviewInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit })
     ]);
-    const sorted = [...nativeItems, ...numbering, ...submission, ...bom, ...supplement, ...drawingRevisionReviews]
+    const sorted = [...nativeItems, ...pdmWorkReviews, ...numbering, ...submission, ...bom, ...supplement, ...drawingRevisionReviews]
       .filter((item) => matchesInboxFilter(item, input))
       .sort(compareInboxItems);
     const cursor = input.cursor ?? null;
@@ -1050,6 +1089,155 @@ export class AsyncApprovalPlatformRepository {
     return items;
   }
 
+  private async listPdmWorkReviewInbox(input: {
+    companyId: string;
+    actorId?: string;
+    status?: "active" | "all" | ApprovalPlatformStatus;
+    domainCode?: string;
+    actionCode?: string;
+    allowedActionCodes?: string[];
+    query?: string;
+    cursor?: ApprovalPlatformInboxCursor | null;
+    limit: number;
+  }): Promise<ApprovalPlatformInboxItem[]> {
+    if (!input.actorId) return [];
+    if (input.domainCode?.trim() && input.domainCode.trim() !== "numbering") return [];
+    if (input.status && !["active", "all", "pending"].includes(input.status)) return [];
+
+    const requestedAction = input.actionCode?.trim();
+    const allowedActions = input.allowedActionCodes?.map((value) => value.trim()).filter(Boolean);
+    const requestKinds = (Object.entries(PDM_WORK_REVIEW_ACTIONS) as Array<[
+      PdmWorkReviewRequestKind,
+      (typeof PDM_WORK_REVIEW_ACTIONS)[PdmWorkReviewRequestKind]
+    ]>)
+      .filter(([, action]) => !requestedAction || action.actionCode === requestedAction)
+      .filter(([, action]) => !allowedActions?.length || allowedActions.some((value) => value === action.actionCode || value.replace(/^numbering\./u, "") === action.actionCode.replace(/^numbering\./u, "")))
+      .map(([kind]) => kind);
+    if (!requestKinds.length) return [];
+
+    const kindParams = Object.fromEntries(requestKinds.map((kind, index) => [`pdmRequestKind${index}`, kind]));
+    const search = approvalSearchPredicate(input.query, [
+      "review.id",
+      "review.request_kind",
+      "review.canonical_entity_id",
+      "drawing.drawing_number",
+      "drawing.purpose_description",
+      "part.part_number",
+      "part.part_name",
+      "requester.display_name",
+      "revision.revision"
+    ]);
+    const cursor = input.cursor;
+    const cursorSql = cursor
+      ? cursor.direction === "before"
+        ? `AND (review.created_at > :pdmCursorSortValue OR (review.created_at = :pdmCursorSortValue AND (:pdmRowKeyPrefix || review.id) < :pdmCursorRowKey))`
+        : `AND (review.created_at < :pdmCursorSortValue OR (review.created_at = :pdmCursorSortValue AND (:pdmRowKeyPrefix || review.id) > :pdmCursorRowKey))`
+      : "";
+    const order = cursor?.direction === "before" ? "ASC, review.id DESC" : "DESC, review.id ASC";
+    const rows = await this.client.query<PdmWorkReviewInboxRow>(
+      `
+      SELECT
+        review.id,
+        review.company_id,
+        review.request_kind,
+        review.entity_type,
+        review.canonical_entity_id,
+        review.reviewer_user_id,
+        CAST(review.created_at AS TEXT) AS requested_at,
+        COALESCE(drawing_work.owner_user_id, part_work.owner_user_id, drawing.owner_id, drawing.created_by, part.created_by) AS requested_by,
+        requester.display_name AS requested_by_name,
+        COALESCE(drawing.drawing_number, part.part_number) AS target_code,
+        COALESCE(drawing.purpose_description, part.part_name) AS target_name,
+        revision.revision
+      FROM pdm_work_review_requests review
+      LEFT JOIN drawings drawing
+        ON review.entity_type = 'drawing'
+       AND drawing.id = review.canonical_entity_id
+       AND drawing.company_id = review.company_id
+      LEFT JOIN part_numbers part
+        ON review.entity_type = 'part'
+       AND part.id = review.canonical_entity_id
+       AND part.company_id = review.company_id
+      LEFT JOIN drawing_revision_works drawing_work
+        ON review.request_kind = 'drawing_revision'
+       AND drawing_work.id = review.work_id
+       AND drawing_work.company_id = review.company_id
+      LEFT JOIN part_change_works part_work
+        ON review.request_kind = 'part_change'
+       AND part_work.id = review.work_id
+       AND part_work.company_id = review.company_id
+      LEFT JOIN drawing_revisions revision
+        ON revision.id = (
+          SELECT state.revision_id
+          FROM canonical_workbench_states state
+          WHERE state.company_id = review.company_id
+            AND state.entity_type = 'drawing'
+            AND state.canonical_entity_id = review.canonical_entity_id
+            AND (
+              (review.work_id IS NOT NULL AND state.work_id = review.work_id)
+              OR (review.request_kind = 'drawing_rd_void' AND state.branch_id = review.branch_id)
+            )
+          ORDER BY state.updated_at DESC, state.id DESC
+          LIMIT 1
+        )
+       AND revision.company_id = review.company_id
+      LEFT JOIN users requester
+        ON requester.id = COALESCE(drawing_work.owner_user_id, part_work.owner_user_id, drawing.owner_id, drawing.created_by, part.created_by)
+      WHERE review.company_id = :companyId
+        AND review.reviewer_user_id = :actorId
+        AND review.request_status = 'pending'
+        AND review.request_kind IN (${requestKinds.map((_, index) => `:pdmRequestKind${index}`).join(", ")})
+        AND review.entity_type IN ('drawing', 'part')
+        ${search.sql}
+        ${cursorSql}
+      ORDER BY review.created_at ${order}
+      LIMIT :limit
+    `,
+      {
+        companyId: input.companyId,
+        actorId: input.actorId,
+        limit: input.limit,
+        ...kindParams,
+        ...search.params,
+        ...(cursor ? { pdmCursorSortValue: cursor.sortValue, pdmCursorRowKey: cursor.rowKey, pdmRowKeyPrefix: "approval:pdm_work_review:" } : {})
+      }
+    );
+
+    return rows.map((row) => {
+      const action = PDM_WORK_REVIEW_ACTIONS[row.request_kind];
+      const code = row.target_code ?? row.canonical_entity_id;
+      const revisionLabel = row.entity_type === "drawing" && row.revision ? `研發版 ${row.revision}` : null;
+      const targetSummary = [code, revisionLabel ?? row.target_name].filter(Boolean).join(" / ");
+      return {
+        rowKey: approvalPlatformInboxRowKey("pdm_work_review", row.id),
+        id: row.id,
+        source: "pdm_work_review",
+        companyId: row.company_id,
+        actionCode: action.actionCode,
+        actionTitle: action.actionTitle,
+        domainCode: "numbering",
+        title: `${action.actionTitle} - ${targetSummary}`,
+        status: "pending",
+        reason: "等待審核負責人處理",
+        requestedBy: row.requested_by,
+        requestedByName: row.requested_by_name,
+        requestedAt: row.requested_at,
+        packageId: null,
+        packageCode: null,
+        packageStatus: null,
+        targetSummary,
+        impactSummary: null,
+        legacy: null,
+        primaryTarget: {
+          type: row.entity_type,
+          targetId: row.canonical_entity_id,
+          code: row.target_code,
+          label: targetSummary
+        }
+      };
+    });
+  }
+
   private statusWhereClause(column: string, status: "active" | "all" | ApprovalPlatformStatus = "active") {
     if (status === "all") return { sql: "", params: {} };
     if (status === "active") return { sql: `AND ${column} IN ('pending', 'needs_info', 'apply_failed')`, params: {} };
@@ -1363,7 +1551,7 @@ export class AsyncApprovalPlatformRepository {
           sql: `${baseSearch.sql.slice(0, -1)} OR EXISTS (
             SELECT 1
             FROM bom_draft_parent_bindings search_parent
-            JOIN part_numbers search_parent_number ON search_parent_number.id = search_parent.parent_part_number_id
+            JOIN part_numbers search_parent_number ON search_parent_number.id = search_parent.part_number_id
             WHERE search_parent.bom_draft_id = bd.id
               AND LOWER(COALESCE(search_parent_number.part_number, '')) LIKE :queryLike ESCAPE '\\'
           ))`

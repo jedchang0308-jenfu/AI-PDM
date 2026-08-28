@@ -1379,13 +1379,7 @@ export function DrawingSourceSubmissionWorkbench({ drawingNumber }: { drawingNum
                                         className="primary-button"
                                         href={`/numbering/drawings?query=${encodeURIComponent(context.drawing.drawingNumber)}`}
                                       >
-                                        回圖號工作台
-                                      </Link>
-                                      <Link
-                                        className="secondary-button"
-                                        href={`/numbering/revisions?drawingNumber=${encodeURIComponent(context.drawing.drawingNumber)}`}
-                                      >
-                                        建立新版次
+                                        回圖號工作台建立新版次
                                       </Link>
                                     </>
                                   ) : null}

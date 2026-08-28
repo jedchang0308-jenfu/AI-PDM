@@ -1,9 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Edit3, FileText, RefreshCcw, Save, ShieldCheck, X } from "lucide-react";
+import { Edit3, FileText, Save, ShieldCheck, X } from "lucide-react";
 
 type PolicyResponse = {
   content: string;
@@ -25,31 +25,29 @@ export default function PolicyPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [metaOpen, setMetaOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const dirty = policy ? draft !== policy.content : false;
+  const updatedAt = policy?.updatedAt;
   const updatedAtLabel = useMemo(() => {
-    if (!policy?.updatedAt) return "尚無更新時間";
+    if (!updatedAt) return "尚無更新時間";
     return new Intl.DateTimeFormat("zh-TW", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit"
-    }).format(new Date(policy.updatedAt));
-  }, [policy?.updatedAt]);
+    }).format(new Date(updatedAt));
+  }, [updatedAt]);
   const documentVersionLabel = useMemo(() => {
     const status = policy?.content.match(/^狀態[:：]\s*(.+)$/m)?.[1]?.trim();
     const version = policy?.content.match(/^版本[:：]\s*(.+)$/m)?.[1]?.trim();
     return [status, version].filter(Boolean).join(" / ") || "PDM 使用者管理辦法";
   }, [policy?.content]);
 
-  useEffect(() => {
-    loadPolicy().catch(console.error);
-  }, []);
-
-  async function loadPolicy() {
+  const loadPolicy = useCallback(async () => {
     setLoading(true);
     setError("");
     setMessage("");
@@ -73,7 +71,11 @@ export default function PolicyPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    void loadPolicy();
+  }, [loadPolicy]);
 
   async function savePolicy() {
     if (!policy?.canEdit || saving || !dirty) return;
@@ -118,10 +120,43 @@ export default function PolicyPage() {
           <p>查閱各角色在新產品開發、版次、技術移轉與設計變更中的作業規則。</p>
         </div>
         <div className="actions">
-          <button className="secondary-button" type="button" onClick={() => loadPolicy().catch(console.error)} disabled={loading || saving} title="重新整理">
-            <RefreshCcw size={16} aria-hidden="true" />
-            重新整理
-          </button>
+          <div className="policy-meta-menu">
+            <button
+              className="secondary-button policy-meta-button"
+              type="button"
+              onClick={() => setMetaOpen((open) => !open)}
+              disabled={loading || !policy}
+              aria-expanded={metaOpen}
+              aria-controls="policy-meta-popover"
+              title="查看文件資訊"
+            >
+              <FileText size={16} aria-hidden="true" />
+              文件資訊
+            </button>
+            {metaOpen && policy ? (
+              <div id="policy-meta-popover" className="policy-meta-popover" aria-label="文件資訊">
+                <strong>文件資訊</strong>
+                <div className="policy-meta-list">
+                  <div>
+                    <span>文件版本</span>
+                    <strong>{documentVersionLabel}</strong>
+                  </div>
+                  <div>
+                    <span>更新時間</span>
+                    <strong>{updatedAtLabel}</strong>
+                  </div>
+                  <div>
+                    <span>目前權限</span>
+                    <strong>{policy.canEdit ? "Admin 可編輯" : "唯讀"}</strong>
+                  </div>
+                  <div className="policy-permission-note">
+                    <ShieldCheck size={16} aria-hidden="true" />
+                    <span>{policy.canEdit ? "你可以編輯並儲存管理辦法。" : "只有系統管理員可以編輯管理辦法。"}</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
           {policy?.canEdit && !editing ? (
             <button className="primary-button" type="button" onClick={() => setEditing(true)} title="編輯管理辦法">
               <Edit3 size={16} aria-hidden="true" />
@@ -155,63 +190,33 @@ export default function PolicyPage() {
         </div>
       ) : null}
 
-      <section className="policy-page-grid">
-        <aside className="panel policy-meta-panel" aria-label="管理辦法狀態">
-          <div className="panel-header">
-            <div>
-              <h2>文件資訊</h2>
-              <p>目前版本、權限與更新時間。</p>
-            </div>
-            <FileText size={18} aria-hidden="true" />
+      <section className="panel policy-content-panel" aria-label="管理辦法內容">
+        <div className="panel-header">
+          <div>
+            <h2>{editing ? "編輯管理辦法" : "管理辦法內容"}</h2>
+            <p>{editing ? "儲存後會更新所有使用者看到的管理辦法。" : "小版次用於研發或設計變更作業，大版次才是已發布資料。"}</p>
           </div>
-          <div className="policy-meta-list">
-            <div>
-              <span>文件版本</span>
-              <strong>{documentVersionLabel}</strong>
-            </div>
-            <div>
-              <span>更新時間</span>
-              <strong>{updatedAtLabel}</strong>
-            </div>
-            <div>
-              <span>目前權限</span>
-              <strong>{policy?.canEdit ? "Admin 可編輯" : "唯讀"}</strong>
-            </div>
-            <div className="policy-permission-note">
-              <ShieldCheck size={16} aria-hidden="true" />
-              <span>{policy?.canEdit ? "你可以編輯並儲存管理辦法。" : "只有系統管理員可以編輯管理辦法。"}</span>
-            </div>
-          </div>
-        </aside>
+          {policy?.userRole ? <span className="metadata-badge">目前角色 {policy.userRole}</span> : null}
+        </div>
 
-        <section className="panel policy-content-panel" aria-label="管理辦法內容">
-          <div className="panel-header">
-            <div>
-              <h2>{editing ? "編輯管理辦法" : "管理辦法內容"}</h2>
-              <p>{editing ? "儲存後會更新所有使用者看到的管理辦法。" : "小版次用於研發或設計變更作業，大版次才是已發布資料。"}</p>
+        {loading ? (
+          <div className="policy-loading">正在讀取管理辦法。</div>
+        ) : editing ? (
+          <div className="policy-editor">
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              aria-label="管理辦法 Markdown 編輯區"
+              spellCheck={false}
+            />
+            <div className="policy-editor-footer">
+              <span>{dirty ? "有尚未儲存的變更" : "目前內容已同步"}</span>
+              <span>{draft.length.toLocaleString("zh-TW")} 字元</span>
             </div>
-            {policy?.userRole ? <span className="metadata-badge">目前角色 {policy.userRole}</span> : null}
           </div>
-
-          {loading ? (
-            <div className="policy-loading">正在讀取管理辦法。</div>
-          ) : editing ? (
-            <div className="policy-editor">
-              <textarea
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                aria-label="管理辦法 Markdown 編輯區"
-                spellCheck={false}
-              />
-              <div className="policy-editor-footer">
-                <span>{dirty ? "有尚未儲存的變更" : "目前內容已同步"}</span>
-                <span>{draft.length.toLocaleString("zh-TW")} 字元</span>
-              </div>
-            </div>
-          ) : (
-            <PolicyMarkdown content={policy?.content ?? ""} />
-          )}
-        </section>
+        ) : (
+          <PolicyMarkdown content={policy?.content ?? ""} />
+        )}
       </section>
     </section>
   );

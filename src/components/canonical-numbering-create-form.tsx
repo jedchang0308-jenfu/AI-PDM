@@ -16,7 +16,7 @@ import {
   CANONICAL_NUMBERING_ITEM_KIND_OPTIONS,
   type CanonicalNumberingItemKind,
 } from "@/lib/numbering-item-kind";
-import { NUMBERING_STRUCTURE_TYPE_OPTIONS, type NumberingStructureType } from "@/lib/numbering-structure-type";
+import type { NumberingStructureType } from "@/lib/numbering-structure-type";
 
 type RootResult = {
   entityType: "part_root";
@@ -32,7 +32,6 @@ type Preview = {
   observedAt: string;
   content: CreateContent;
   purposeCode: CreatePurposeCode | null;
-  structureType?: NumberingStructureType;
   nextNumbers?: { root?: string | null; part?: string | null; drawing?: string | null };
   root?: string | null;
   part?: string | null;
@@ -122,7 +121,6 @@ export function CanonicalNumberingCreateForm({
   const [nameSerialIdentifier, setNameSerialIdentifier] = useState("");
   const [confirmedName, setConfirmedName] = useState("");
   const [itemKind, setItemKind] = useState<CanonicalNumberingItemKind>("manufactured");
-  const [structureType, setStructureType] = useState<NumberingStructureType>("single_part");
   const [includeReferenceDrawing, setIncludeReferenceDrawing] = useState(false);
   const [isUniversal, setIsUniversal] = useState(false);
   const [seriesCode, setSeriesCode] = useState("");
@@ -173,7 +171,6 @@ export function CanonicalNumberingCreateForm({
   const intent = useMemo<CanonicalNumberingCreateIntent>(() => {
     const partFields = {
       itemKind,
-      structureType,
       isUniversal,
       seriesCode: activeSeriesCode,
       customSpecification,
@@ -208,7 +205,7 @@ export function CanonicalNumberingCreateForm({
     if (content === "drawing") return { scope, content, ...existingFields, ...drawingFields };
     if (content === "drawing_part") return { scope, content, ...existingFields, ...drawingFields };
     return { scope, content, ...existingFields };
-  }, [activeSeriesCode, appendReason, confirmedName, content, customSpecification, includeReferenceDrawing, isUniversal, itemKind, referencePurpose, resolvedPurposeCode, rootCode, scope, structureType]);
+  }, [activeSeriesCode, appendReason, confirmedName, content, customSpecification, includeReferenceDrawing, isUniversal, itemKind, referencePurpose, resolvedPurposeCode, rootCode, scope]);
 
   useEffect(() => {
     if (scope !== "existing_root" || rootCode || rootQuery.trim().length < 2) {
@@ -307,7 +304,6 @@ export function CanonicalNumberingCreateForm({
       try {
         const params = new URLSearchParams({ content: resolvedContent === "drawing_part" ? "drawing_part" : "part" });
         if (resolvedContent === "drawing_part") params.set("purposeCode", resolvedPurposeCode);
-        params.set("structureType", structureType);
         const response = await fetch(`/api/numbering/records/preview?${params.toString()}`, { cache: "no-store", signal: controller.signal });
         const body = await response.json() as Preview;
         if (!response.ok) throw new Error("預估暫時無法取得；實際號碼仍只會在建立時配置。");
@@ -321,7 +317,7 @@ export function CanonicalNumberingCreateForm({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [previewRetry, resolvedContent, resolvedPurposeCode, scope, structureType]);
+  }, [previewRetry, resolvedContent, resolvedPurposeCode, scope]);
 
   const duplicateTarget = scope === "new_root" ? (confirmedName.trim() || suggestedName.trim()) : "";
   useEffect(() => {
@@ -377,7 +373,6 @@ export function CanonicalNumberingCreateForm({
   const showExistingPolicyState = scope === "existing_root" && (
     Boolean(policy?.reasonRequired)
     || Boolean(policy?.locked)
-    || Boolean(policy?.profileBlocked)
     || policyState.status === "loading"
     || policyState.status === "error"
   );
@@ -543,12 +538,10 @@ export function CanonicalNumberingCreateForm({
             <label><span>料件類型</span><select value={itemKind} onChange={(event) => {
               const next = event.target.value as CanonicalNumberingItemKind;
               setItemKind(next);
-              if (next === "purchased") setStructureType("single_part");
               setIncludeReferenceDrawing(false);
               setReferencePurpose("");
               clearFieldError("referencePurpose");
             }}>{CANONICAL_NUMBERING_ITEM_KIND_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-            <label><span>結構型態</span><select value={structureType} onChange={(event) => setStructureType(event.target.value as NumberingStructureType)}>{NUMBERING_STRUCTURE_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value} disabled={itemKind === "purchased" && option.value === "assembly"}>{option.label}</option>)}</select></label>
             <label className="canonical-create-checkbox"><input type="checkbox" checked={isUniversal} onChange={(event) => setIsUniversal(event.target.checked)} /><span>共用件</span></label>
             {itemKind === "purchased" ? <label className="canonical-create-checkbox"><input type="checkbox" checked={includeReferenceDrawing} onChange={(event) => {
               setIncludeReferenceDrawing(event.target.checked);
@@ -608,7 +601,6 @@ export function CanonicalNumberingCreateForm({
         {showExistingPolicyState ? <section className="canonical-create-section canonical-create-existing-policy">
           {policy?.reasonRequired ? <label><span>追加原因</span><input ref={appendReasonRef} value={appendReason} onChange={(event) => { setAppendReason(event.target.value); clearFieldError("appendReason"); }} maxLength={300} required aria-invalid={Boolean(fieldErrors.appendReason)} aria-describedby={describedBy(`${inputId}-append-error`, fieldErrors.appendReason)} /><InlineError id={`${inputId}-append-error`} message={fieldErrors.appendReason} /></label> : null}
           {policy?.locked ? <p className="canonical-create-error" role="alert">此圖料根號已鎖定，無法追加。</p> : null}
-          {policy?.profileBlocked ? <p className="canonical-create-error" role="alert">此圖料根號的料件資料不完整，請系統管理員處理。</p> : null}
           {policyState.status === "loading" ? <p className="canonical-create-help" role="status">正在取得追加限制…</p> : null}
           {policyState.status === "error" ? <p className="canonical-create-inline-state" role="alert">{policyState.message}<button type="button" className="link-button" onClick={() => setPolicyRetry((value) => value + 1)}>重試</button></p> : null}
         </section> : null}
@@ -623,7 +615,7 @@ export function CanonicalNumberingCreateForm({
       {error ? <p className="canonical-create-error" role="alert">{error}</p> : null}
       <footer className="canonical-create-footer">
         <a className="secondary-button" href={returnTo || "/numbering/search"}>取消</a>
-        <button className="primary-button" type="submit" disabled={busy || !canShowDetails || Boolean(policy?.locked) || Boolean(policy?.profileBlocked)}>{busy ? "建立中…" : "建立編號"}</button>
+        <button className="primary-button" type="submit" disabled={busy || !canShowDetails || Boolean(policy?.locked)}>{busy ? "建立中…" : "建立編號"}</button>
       </footer>
     </form>
   </main>;

@@ -35,8 +35,6 @@ import type {
   MarkOverdueDraftNumberingInput,
   MarkOverdueDraftNumberingResult,
   MonthlyAuditReportRecord,
-  MainDrawingImpactAnalysis,
-  MainDrawingImpactInput,
   NumberingApprovalBatchRecord,
   NumberingApprovalRecord,
   NumberingApprovalReviewBatchRecord,
@@ -113,7 +111,7 @@ export async function createNumberingRecordAsync(input: CreateNumberingRecordInp
     payload: {
       coreName: input.coreName,
       itemKind: input.itemKind,
-      structureType: input.structureType ?? "single_part",
+      structureType: input.structureType ?? "unclassified",
       seriesCode: input.seriesCode?.trim() || null,
       drawingPurposeCode: input.drawingPurposeCode ?? null
     }
@@ -534,12 +532,6 @@ export async function evaluateNumberingGateAsync(input: EvaluateNumberingGateInp
   const client = getAsyncDatabaseClient();
   const repository = new AsyncNumberingRepository(client);
   return repository.evaluateNumberingGate(input);
-}
-
-export async function analyzeMainDrawingObsolescenceAsync(input: MainDrawingImpactInput): Promise<MainDrawingImpactAnalysis> {
-  const client = getAsyncDatabaseClient();
-  const repository = new AsyncNumberingRepository(client);
-  return repository.analyzeMainDrawingObsolescence(input);
 }
 
 export async function linkPartNumberToDrawingAsync(input: LinkPartNumberToDrawingInput) {

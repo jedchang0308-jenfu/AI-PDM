@@ -23,7 +23,6 @@ import {
   RefreshCcw,
   Search,
   Share2,
-  ShieldAlert,
   Unlock,
   UploadCloud,
   X,
@@ -255,8 +254,7 @@ function getPlatformWorkbenchSections({
         ]
       : [
           { href: "/bom/reviews", label: "BOM 審核", detail: "處理審核中 BOM 差異", icon: ListTree },
-          { href: "/numbering/approvals", label: "發行審核", detail: "審查發布條件", icon: GitPullRequestArrow },
-          { href: "/numbering/reports", label: "圖號報表", detail: "檢視審核與稽核摘要", icon: FileText }
+          { href: "/numbering/approvals", label: "發行審核", detail: "審查發布條件", icon: GitPullRequestArrow }
         ];
 
   return [
@@ -286,9 +284,7 @@ function getPlatformWorkbenchSections({
       badge: `${recentDrawings.length} 最近 / ${favoriteDrawings.length} 關注`,
       icon: Search,
       links: [
-        { href: "/numbering/search", label: "編號搜尋", detail: "圖號、料號、圖料根號", icon: Search },
-        { href: "/numbering/impact", label: "製造圖影響分析", detail: "作廢前先看影響", icon: ShieldAlert },
-        { href: "/numbering/reports", label: "圖號報表", detail: "匯出、稽核、月報", icon: FileText }
+        { href: "/numbering/search", label: "編號搜尋", detail: "圖號、料號、圖料根號", icon: Search }
       ]
     },
     {
@@ -298,8 +294,7 @@ function getPlatformWorkbenchSections({
       icon: Factory,
       links: [
         { href: "/handoff", label: "製造交接", detail: "已發布圖料與交接包", icon: Factory },
-        { href: "/bom/workbench", label: "BOM 工作台", detail: "BOM 正式版本／匯出", icon: ListTree },
-        { href: "/numbering/reports", label: "報表輸出", detail: "跨角色狀態彙整", icon: FileText }
+        { href: "/bom/workbench", label: "BOM 工作台", detail: "BOM 正式版本／匯出", icon: ListTree }
       ]
     },
     {

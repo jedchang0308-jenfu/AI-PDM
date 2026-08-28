@@ -3,6 +3,7 @@ export const PDM_FILE_READ_CONTEXTS = [
   "drawing_revision",
   "drawing_revision_work",
   "drawing_revision_package",
+  "review_package",
   "drawing_attachment",
   "part_attachment",
   "approval_evidence"

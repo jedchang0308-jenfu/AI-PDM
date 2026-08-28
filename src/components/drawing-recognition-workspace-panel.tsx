@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, LoaderCircle, RefreshCcw, Save, ScanSearch } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, LoaderCircle, RefreshCcw, Save, ScanSearch } from "lucide-react";
 import {
   useDrawingRecognitionBrowserOcr,
   type DrawingRecognitionBrowserOcrSession
 } from "@/components/drawing-recognition-pdf-ocr";
 import { TextHint } from "@/components/compact-hints";
 import { getStatusDisplay } from "@/lib/status-display";
+import type { DrawingRecognitionReviewProjection, RecognitionReviewField } from "@/lib/drawing-recognition-review-projection";
 
 export type DrawingRecognitionEvidence = {
   sessionId: string | null;
@@ -67,6 +68,9 @@ type DisplayReviewGroup = Omit<ReviewGroup, "ownerId" | "primaryCandidateId" | "
   primaryCandidateId: string;
   memberCandidateIds: string[];
   observations: ReviewGroup["observations"];
+  ownerResolution?: "not_required" | "resolved" | "unresolved" | "ambiguous" | "invalid";
+  effectiveOwnerId?: string | null;
+  blockingReason?: "part_owner_required" | "part_owner_ambiguous" | "part_owner_invalid" | null;
 };
 
 type BatchDecision = {
@@ -94,6 +98,7 @@ type Session = DrawingRecognitionBrowserOcrSession & {
   sources: Array<{ id: string; fileName: string; sourceRole: string }>;
   candidates: Candidate[];
   reviewGroups?: ReviewGroup[];
+  reviewFields?: RecognitionReviewField[];
 };
 
 type NativeMetadataHealth = {
@@ -104,14 +109,28 @@ type NativeMetadataHealth = {
   affectedSources: Array<{ sourceId: string; fileName: string; status: string }>;
 };
 
-function NativeMetadataHealthBanner({ health }: { health: NativeMetadataHealth | null | undefined }) {
+function NativeMetadataHealthBanner({
+  health,
+  onRetry,
+  retryDisabled = false
+}: {
+  health: NativeMetadataHealth | null | undefined;
+  onRetry?: () => void;
+  retryDisabled?: boolean;
+}) {
   if (!health || health.state === "ready") return null;
   const isError = health.state === "failed";
   const affected = health.affectedSources.map((source) => source.fileName).filter(Boolean);
+  const showRetry = Boolean(onRetry && ["partial", "unavailable", "failed"].includes(health.state));
   return (
     <div className={`dev079-recognition-adapter-health is-${health.state}`} role={isError ? "alert" : "status"}>
       {isError ? <AlertTriangle size={15} aria-hidden="true" /> : <ScanSearch size={15} aria-hidden="true" />}
-      <div><strong>{health.state === "empty" ? "SolidWorks 屬性讀取已完成" : health.state === "partial" ? "SolidWorks 屬性讀取部分完成" : health.state === "unavailable" ? "尚未啟用 SolidWorks 屬性讀取器" : "SolidWorks 屬性讀取失敗"}</strong><span>{health.message}</span>{affected.length > 0 ? <small>受影響來源：{affected.join("、")}</small> : null}</div>
+      <div>
+        <strong>{health.state === "empty" ? "SolidWorks 屬性讀取已完成" : health.state === "partial" ? "SolidWorks 屬性讀取部分完成" : health.state === "unavailable" ? "此批未使用 SolidWorks 屬性讀取器" : "SolidWorks 屬性讀取失敗"}</strong>
+        <span>{health.message}</span>
+        {affected.length > 0 ? <small>受影響來源：{affected.join("、")}</small> : null}
+        {showRetry ? <button type="button" className="link-button" disabled={retryDisabled} title={retryDisabled ? "請先儲存或還原目前修改" : undefined} onClick={onRetry}><RefreshCcw size={14} />重新辨識</button> : null}
+      </div>
     </div>
   );
 }
@@ -143,6 +162,12 @@ function isHiddenCandidate(candidate: Candidate) {
 
 function isPendingReview(candidate: Candidate) {
   return ["proposed", "conflict", "blocked"].includes(candidate.reviewState);
+}
+
+function requiresPartOwner(candidate: Candidate) {
+  return candidate.proposedOwnerType === "part_number"
+    && !candidate.proposedOwnerId
+    && Boolean(candidate.proposedValue?.trim());
 }
 
 function isNormalizedPageGeometry(value: Record<string, unknown> | null) {
@@ -251,11 +276,35 @@ function recognitionExceptionHelp(group: Pick<DisplayReviewGroup, "fieldKey" | "
   return "已辨識到候選值，但尚缺必要核對或歸屬；「需處理」不代表 OCR 辨識錯誤。";
 }
 
+function immutableSessionFromProjection(projection: DrawingRecognitionReviewProjection): Session {
+  const mapObservation = (observation: DrawingRecognitionReviewProjection["candidateDecisions"][number]["observations"][number]): Observation => ({
+    ...observation,
+    sessionId: projection.session.id,
+    fileName: observation.sourceFileName,
+    locatable: isNormalizedPageGeometry(observation.geometry)
+  });
+  return {
+    ...projection.session,
+    sources: projection.sources.map((source) => ({ ...source })),
+    candidates: projection.candidateDecisions.map((candidate) => ({ ...candidate, observations: candidate.observations.map(mapObservation) })),
+    reviewGroups: projection.fields.flatMap((field) => field.scopes.map((scope) => ({ ...scope, observations: scope.observations.map(mapObservation) }))),
+    reviewFields: projection.fields.map((field) => ({
+      ...field,
+      observations: field.observations.map(mapObservation),
+      scopes: field.scopes.map((scope) => ({ ...scope, observations: scope.observations.map(mapObservation) }))
+    })),
+    baseline: [],
+    pendingClientAdapters: [],
+    pdfOcrSources: []
+  } as unknown as Session;
+}
+
 export function DrawingRecognitionWorkspacePanel({
   drawingNumber,
   sourceContextType,
   sourceContextId,
   sourceAssetIds,
+  snapshotProjection,
   disabled = false,
   onEvidenceSelect,
   onDirtyChange
@@ -264,18 +313,21 @@ export function DrawingRecognitionWorkspacePanel({
   sourceContextType: "candidate_revision" | "drawing_revision" | "drawing_number";
   sourceContextId: string;
   sourceAssetIds: string[];
+  snapshotProjection?: DrawingRecognitionReviewProjection | null;
   disabled?: boolean;
   onEvidenceSelect?: (evidence: DrawingRecognitionEvidence) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const snapshotMode = snapshotProjection !== undefined;
+  const immutableSession = useMemo(() => snapshotProjection ? immutableSessionFromProjection(snapshotProjection) : null, [snapshotProjection]);
+  const [session, setSession] = useState<Session | null>(() => immutableSession);
+  const [loading, setLoading] = useState(!snapshotMode);
   const [busy, setBusy] = useState(false);
   const [restricted, setRestricted] = useState(false);
   const [featureEnabled, setFeatureEnabled] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, string>>(() => Object.fromEntries((immutableSession?.candidates ?? []).map((candidate) => [candidate.id, candidate.proposedValue ?? ""])));
   const loadedSourceContextRef = useRef<string | null>(null);
   const latestLoadAbortRef = useRef<AbortController | null>(null);
   const sourceKey = useMemo(() => [...sourceAssetIds].filter(Boolean).sort().join("|"), [sourceAssetIds]);
@@ -299,16 +351,19 @@ export function DrawingRecognitionWorkspacePanel({
       observations: candidate.observations
     }));
   }, [session, visibleCandidates]);
-  const displayReviewGroups = useMemo(() => coalesceReviewGroupsForDisplay(visibleReviewGroups, visibleCandidates), [visibleCandidates, visibleReviewGroups]);
+  const displayReviewGroups = useMemo(() => session?.reviewFields?.length
+    ? session.reviewFields.filter((field) => !isHiddenCandidate({ fieldKey: field.fieldKey } as Candidate)).map((field) => ({ ...field, reviewGroups: field.scopes as unknown as ReviewGroup[] })) as unknown as DisplayReviewGroup[]
+    : coalesceReviewGroupsForDisplay(visibleReviewGroups, visibleCandidates), [session, visibleCandidates, visibleReviewGroups]);
   const hasDraftChanges = useMemo(() => visibleCandidates.some((candidate) => (drafts[candidate.id] ?? "") !== (candidate.proposedValue ?? "")), [drafts, visibleCandidates]);
+  const hasUnresolvedPartOwner = useMemo(() => displayReviewGroups.some((group) => Boolean(group.blockingReason)) || visibleCandidates.some(requiresPartOwner), [displayReviewGroups, visibleCandidates]);
   const hasDecisionsToSave = visibleReviewGroups.some((group) => {
     const modified = group.memberCandidateIds.some((id) => {
       const candidate = visibleCandidates.find((item) => item.id === id);
-      return candidate && (drafts[id] ?? candidate.proposedValue ?? "") !== (candidate.proposedValue ?? "");
+      return candidate && !requiresPartOwner(candidate) && (drafts[id] ?? candidate.proposedValue ?? "") !== (candidate.proposedValue ?? "");
     });
     return modified || (group.conflictState === "none" && group.memberCandidateIds.some((id) => {
       const candidate = visibleCandidates.find((item) => item.id === id);
-      return candidate ? isPendingReview(candidate) : false;
+      return candidate ? !requiresPartOwner(candidate) && isPendingReview(candidate) : false;
     }));
   });
 
@@ -322,8 +377,16 @@ export function DrawingRecognitionWorkspacePanel({
     setDrafts((current) => Object.fromEntries(next.candidates.map((candidate) => [candidate.id, current[candidate.id] ?? candidate.proposedValue ?? ""])));
   }, []);
 
+  useEffect(() => {
+    if (!snapshotMode) return;
+    setSession(immutableSession);
+    setDrafts(Object.fromEntries((immutableSession?.candidates ?? []).map((candidate) => [candidate.id, candidate.proposedValue ?? ""])));
+    setLoading(false);
+    setError("");
+  }, [immutableSession, snapshotMode]);
+
   useDrawingRecognitionBrowserOcr({
-    session,
+    session: snapshotMode ? null : session,
     onProjection: mergeProjection,
     onError: setError,
     onNotice: setNotice
@@ -438,6 +501,7 @@ export function DrawingRecognitionWorkspacePanel({
   }, [disabled, drawingNumber, loadSession, sourceContextId, sourceContextType, stableSourceAssetIds]);
 
   useEffect(() => {
+    if (snapshotMode) return;
     const loadKey = `${sourceContextType}:${sourceContextId}:${sourceKey}`;
     if (loadedSourceContextRef.current === loadKey) return;
     loadedSourceContextRef.current = loadKey;
@@ -445,20 +509,21 @@ export function DrawingRecognitionWorkspacePanel({
     return () => {
       if (loadedSourceContextRef.current === loadKey) loadedSourceContextRef.current = null;
     };
-  }, [loadLatest, sourceContextId, sourceContextType, sourceKey]);
+  }, [loadLatest, snapshotMode, sourceContextId, sourceContextType, sourceKey]);
   useEffect(() => () => latestLoadAbortRef.current?.abort(), []);
   useEffect(() => { onDirtyChange?.(hasDraftChanges); }, [hasDraftChanges, onDirtyChange]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   useEffect(() => {
-    if (!session || !["queued", "extracting"].includes(session.status)) return;
+    if (snapshotMode || !session || !["queued", "extracting"].includes(session.status)) return;
     const timer = window.setInterval(() => void loadSession(session.id, true), 2_500);
     return () => window.clearInterval(timer);
-  }, [loadSession, session]);
+  }, [loadSession, session, snapshotMode]);
 
   async function saveAllDecisions() {
     if (!session || disabled || busy) return;
     const decisions = visibleReviewGroups.reduce<BatchDecision[]>((result, group) => {
-      const members = group.memberCandidateIds.map((id) => visibleCandidates.find((candidate) => candidate.id === id)).filter((candidate): candidate is Candidate => Boolean(candidate));
+      const allMembers = group.memberCandidateIds.map((id) => visibleCandidates.find((candidate) => candidate.id === id)).filter((candidate): candidate is Candidate => Boolean(candidate));
+      const members = allMembers.filter((candidate) => !requiresPartOwner(candidate));
       const primary = members.find((candidate) => candidate.id === group.primaryCandidateId) ?? members[0];
       if (!primary) return result;
       const primaryValue = drafts[primary.id] ?? primary.proposedValue ?? "";
@@ -466,7 +531,7 @@ export function DrawingRecognitionWorkspacePanel({
       if (group.conflictState === "conflict") {
         if (!primaryModified) return result;
         result.push({ candidateId: primary.id, action: "correct", value: primaryValue, fieldKey: primary.fieldKey, fieldLabel: primary.fieldLabel, category: primary.category, ownerType: primary.proposedOwnerType, ownerId: primary.proposedOwnerId });
-        for (const candidate of members.filter((item) => item.id !== primary.id)) result.push({ candidateId: candidate.id, action: "ignore", reason: "已由人工核對此跨來源 review group" });
+        for (const candidate of allMembers.filter((item) => item.id !== primary.id)) result.push({ candidateId: candidate.id, action: "ignore", reason: "已由人工核對此跨來源 review group" });
         return result;
       }
       for (const candidate of members) {
@@ -494,9 +559,29 @@ export function DrawingRecognitionWorkspacePanel({
         return;
       }
       setProjection(body.session as Session);
-      setNotice("全部核對結果已儲存。");
+      setNotice("");
     } catch {
       setError("全部核對結果儲存失敗；目前修改仍保留在畫面上。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rerunNativeMetadata() {
+    if (!session || disabled || busy || hasDraftChanges || ["queued", "extracting"].includes(session.status)) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/numbering/recognition-sessions/${encodeURIComponent(session.id)}/reruns`, {
+        method: "POST",
+        headers: { "idempotency-key": `recognition-rerun:${crypto.randomUUID()}` }
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.session?.id) throw new Error(messageFrom(body, "重新辨識建立失敗。"));
+      await loadSession(String(body.session.id), true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "重新辨識建立失敗。");
     } finally {
       setBusy(false);
     }
@@ -526,9 +611,11 @@ export function DrawingRecognitionWorkspacePanel({
   }
 
   const recognitionProcessing = Boolean(session && ["queued", "extracting"].includes(session.status));
+  const recognitionSaved = Boolean(!snapshotMode && session && !busy && !hasDraftChanges && !hasDecisionsToSave && !hasUnresolvedPartOwner && !session.errorSummary);
 
   return (
-    <div className="dev079-recognition-panel" data-dev079-recognition="embedded">
+    <div className="dev079-recognition-panel" data-dev079-recognition={snapshotMode ? "immutable-review" : "embedded"}>
+      {snapshotMode && session ? <div className="canonical-note" role="status"><strong>辨識送審快照</strong><span>投影 {snapshotProjection?.projectionHash.slice(0, 12)} · {session.sources.length} 個來源</span></div> : null}
       {restricted ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>目前無辨識核對權限</strong><span>不影響既有版次權限或送審資格。</span></div> : null}
       {!restricted && !featureEnabled ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>智慧辨識尚未啟用</strong><span>版次與檔案功能仍可正常使用。</span></div> : null}
       {!restricted && featureEnabled && loading ? <div className="dev079-recognition-state"><LoaderCircle className="spin" size={18} />正在讀取辨識結果…</div> : null}
@@ -544,7 +631,11 @@ export function DrawingRecognitionWorkspacePanel({
       {session && !recognitionProcessing ? (
         <>
           {session.errorSummary ? <div className="dev079-recognition-alert is-error" role="alert"><AlertTriangle size={15} />{session.errorSummary}</div> : null}
-          <NativeMetadataHealthBanner health={session.adapterHealth?.nativeMetadata} />
+          <NativeMetadataHealthBanner
+            health={session.adapterHealth?.nativeMetadata}
+            onRetry={disabled ? undefined : () => void rerunNativeMetadata()}
+            retryDisabled={busy || hasDraftChanges}
+          />
           {visibleCandidates.length > 0 ? (
             <>
               <div className="dev079-recognition-sections">
@@ -560,10 +651,15 @@ export function DrawingRecognitionWorkspacePanel({
                           const member = visibleCandidates.find((item) => item.id === id);
                           return member && (drafts[id] ?? member.proposedValue ?? "") !== (member.proposedValue ?? "");
                         });
+                        const unresolvedPartOwner = Boolean(group.blockingReason) || group.memberCandidateIds.some((id) => {
+                          const member = visibleCandidates.find((item) => item.id === id);
+                          return Boolean(member && requiresPartOwner(member));
+                        });
                         const exception = ["conflict", "blocked"].includes(group.reviewState)
                           ? getStatusDisplay(group.reviewState, "recognitionReviewStatus").label
                           : null;
                         const exceptionHelp = exception ? recognitionExceptionHelp(group) : null;
+                        const ownerErrorId = `recognition-owner-error-${candidate.id}`;
                         const crossScopeConflict = group.reviewGroups.length > 1 && group.distinctValues.length > 1;
                         const updateDrafts = (candidateIds: string[], value: string) => {
                           setNotice("");
@@ -600,12 +696,15 @@ export function DrawingRecognitionWorkspacePanel({
                         return (
                           <article
                             key={group.id}
-                            className={`dev079-recognition-candidate is-${group.reviewState}${modified ? " is-modified" : ""}`}
+                            className={`dev079-recognition-candidate is-${group.reviewState}${modified ? " is-modified" : ""}${unresolvedPartOwner ? " is-owner-required" : ""}`}
                             data-recognition-field-key={group.fieldKey ?? ""}
                             data-review-group-count={group.reviewGroups.length}
                             data-observation-count={group.observations.length}
+                            data-owner-required={unresolvedPartOwner ? "true" : undefined}
+                            data-owner-resolution={group.ownerResolution}
                           >
-                            <header><strong>{group.fieldLabel}</strong><span className="dev079-recognition-field-signals">{modified ? <small className="is-modified">已修改</small> : null}{exception && exceptionHelp ? <TextHint title={exceptionHelp} className="dev079-recognition-exception-hint"><small className="is-exception">{exception}</small></TextHint> : null}</span></header>
+                            <header><strong>{group.fieldLabel}</strong><span className="dev079-recognition-field-signals">{modified ? <small className="is-modified">已修改</small> : null}{unresolvedPartOwner ? <small className="is-owner-required"><AlertTriangle size={12} aria-hidden="true" />需指定料號</small> : exception && exceptionHelp ? <TextHint title={exceptionHelp} className="dev079-recognition-exception-hint"><small className="is-exception">{exception}</small></TextHint> : null}</span></header>
+                            {unresolvedPartOwner ? <p id={ownerErrorId} className="dev079-recognition-field-error" role="alert"><AlertTriangle size={14} aria-hidden="true" />尚未指定料號歸屬；系統無法唯一判定，此欄位不會納入批次儲存，其他版次操作不受影響。</p> : null}
                             {group.distinctValues.length > 1 ? <div className="dev079-recognition-conflict" role="status">{crossScopeConflict ? "不同適用範圍辨識出不同值，請逐項核對。" : `跨來源候選：${group.distinctValues.join(" ／ ")}；請人工選定唯一值`}</div> : null}
                             {crossScopeConflict ? (
                               <div className="dev079-recognition-scope-rows">
@@ -621,7 +720,7 @@ export function DrawingRecognitionWorkspacePanel({
                                     <div key={reviewGroup.id} className="dev079-recognition-scope-row">
                                       <small>{reviewScope}</small>
                                       <label>
-                                        <input aria-label={`${group.fieldLabel}－${reviewScope}辨識／修正值${reviewModified ? "，已修改" : ""}`} value={drafts[reviewCandidate.id] ?? ""} readOnly={disabled || busy} onFocus={() => selectEvidence(reviewGroup.observations)} onChange={(event) => updateDrafts(reviewGroup.memberCandidateIds, event.target.value)} />
+                                        <input aria-label={`${group.fieldLabel}－${reviewScope}辨識／修正值${reviewModified ? "，已修改" : ""}`} aria-invalid={requiresPartOwner(reviewCandidate) || undefined} aria-describedby={requiresPartOwner(reviewCandidate) ? ownerErrorId : undefined} value={drafts[reviewCandidate.id] ?? ""} readOnly={disabled || busy || requiresPartOwner(reviewCandidate)} onFocus={() => selectEvidence(reviewGroup.observations)} onChange={(event) => updateDrafts(reviewGroup.memberCandidateIds, event.target.value)} />
                                       </label>
                                       {renderEvidenceSources(reviewGroup)}
                                     </div>
@@ -631,7 +730,7 @@ export function DrawingRecognitionWorkspacePanel({
                             ) : (
                               <div className="dev079-recognition-value-row">
                                 <label>
-                                  <input aria-label={`${group.fieldLabel}辨識／修正值${modified ? "，已修改" : ""}`} value={drafts[candidate.id] ?? ""} readOnly={disabled || busy} data-merged-candidate-count={group.memberCandidateIds.length} onFocus={() => selectEvidence(group.observations)} onChange={(event) => updateDrafts(group.memberCandidateIds, event.target.value)} />
+                                  <input aria-label={`${group.fieldLabel}辨識／修正值${modified ? "，已修改" : ""}`} aria-invalid={unresolvedPartOwner || undefined} aria-describedby={unresolvedPartOwner ? ownerErrorId : undefined} value={drafts[candidate.id] ?? ""} readOnly={disabled || busy || unresolvedPartOwner} data-merged-candidate-count={group.memberCandidateIds.length} onFocus={() => selectEvidence(group.observations)} onChange={(event) => updateDrafts(group.memberCandidateIds, event.target.value)} />
                                 </label>
                                 {renderEvidenceSources(group)}
                               </div>
@@ -643,7 +742,17 @@ export function DrawingRecognitionWorkspacePanel({
                   );
                 })}
               </div>
-              {!disabled ? <button type="button" className="primary-button dev079-recognition-save-all" disabled={busy || !hasDecisionsToSave} onClick={() => void saveAllDecisions()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />}{hasDecisionsToSave ? "完成核對並儲存" : "核對結果已儲存"}</button> : null}
+              {recognitionSaved ? (
+                <div className="dev079-recognition-save-status" role="status" aria-live="polite">
+                  <CheckCircle2 size={19} aria-hidden="true" />
+                  <div><strong>已儲存</strong><span>核對結果已同步至系統</span></div>
+                </div>
+              ) : !disabled && (busy || hasDecisionsToSave) ? (
+                <button type="button" className="primary-button dev079-recognition-save-all" disabled={busy || !hasDecisionsToSave} onClick={() => void saveAllDecisions()}>
+                  {busy ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />}
+                  {busy ? "處理中…" : "儲存核對結果"}
+                </button>
+              ) : null}
             </>
           ) : !session.errorSummary ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>沒有可供核對的辨識結果</strong></div> : null}
         </>

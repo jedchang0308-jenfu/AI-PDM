@@ -29,11 +29,13 @@ export async function recordDev087Fault(
   request: PdmWorkReviewRequestRecord,
   handling: Dev087FaultHandling
 ) {
+  const repository = new PdmWorkReviewAsyncRepository(tx);
   await tx.execute(
     `UPDATE canonical_workbench_states SET handling = :handling, blocker_reason = :reason, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
      WHERE company_id = :companyId AND work_id = :workId`,
     { ...request, handling, reason: handling === "blocked" ? dev087FaultReason(handling) : null }
   );
+  await repository.recordTerminalReceipt(tx, request);
   await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, request);
   return { acknowledged: true };
 }
@@ -52,6 +54,7 @@ export async function returnDev087WorkForCorrection(tx: AsyncDatabaseClient, req
     `UPDATE canonical_workbench_states SET handling = 'owner', row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
      WHERE company_id = :companyId AND work_id = :workId AND handling = 'review_owner'`, request
   );
+  await repository.recordTerminalReceipt(tx, request);
   await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, request);
   return { acknowledged: true };
 }

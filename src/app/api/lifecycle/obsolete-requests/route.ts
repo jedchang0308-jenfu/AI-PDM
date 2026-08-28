@@ -6,6 +6,7 @@ import { buildNumberingFormalRecordLifecyclePolicy } from "@/lib/pdm-lifecycle-p
 import { isProductionNumberingLifecycleGateOpen, productionSliceDeniedPayload, isProductionSliceEnforced } from "@/lib/production-slice";
 import { validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
 import type { RequestNumberingObsoleteApprovalInput } from "@/lib/repositories/numbering-repository";
+import { getFormalObsoleteImpactAsync } from "@/lib/numbering-obsolete-impact";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,7 @@ function errorStatus(message: string) {
     message.includes("LIFE_ROOT_MIXED_OR_TERMINAL") ||
     message.includes("LIFE_ACTIVE_CANONICAL_WORK") ||
     message.includes("ROOT_OBSOLETE_SNAPSHOT_STALE") ||
+    message.includes("LIFE_OBSOLETE_SNAPSHOT_STALE") ||
     message.includes("MISMATCH")
   ) {
     return 409;
@@ -101,6 +103,16 @@ export async function POST(request: Request) {
       );
     }
 
+    const requestedImpactFingerprint = String(body.impactFingerprint ?? body.impact_fingerprint ?? "").trim();
+    if (!requestedImpactFingerprint) throw new Error("LIFE_OBSOLETE_FINGERPRINT_REQUIRED");
+    const impact = await getFormalObsoleteImpactAsync({
+      companyId: companyResult.company.companyId,
+      entityType,
+      entityId: String(body.entityId ?? body.entity_id ?? "").trim() || null,
+      entityCode: String(body.entityCode ?? body.entity_code ?? body.partNumber ?? body.part_number ?? body.drawingNumber ?? body.drawing_number ?? "").trim() || null
+    });
+    if (impact.fingerprint !== requestedImpactFingerprint) throw new Error("LIFE_OBSOLETE_SNAPSHOT_STALE");
+
     const result = await requestNumberingObsoleteApprovalAsync({
       companyId: companyResult.company.companyId,
       entityType,
@@ -109,7 +121,9 @@ export async function POST(request: Request) {
       reason,
       requestedBy: auth.user.id,
       projectCode: String(body.projectCode ?? body.project_code ?? "").trim() || undefined,
-      idempotencyKey: idempotencyKey?.trim()
+      idempotencyKey: idempotencyKey?.trim(),
+      impactFingerprint: impact.fingerprint,
+      impactDependencies: impact.dependencies
     });
     const policy = buildNumberingFormalRecordLifecyclePolicy({
       entityType: result.entity.entityType === "part_number" ? "numbering_part_number" : "numbering_drawing_number",

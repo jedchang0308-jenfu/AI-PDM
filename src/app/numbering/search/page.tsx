@@ -28,7 +28,7 @@ export default function NumberingSearchPage() {
     }, 180);
     return () => window.clearTimeout(timer);
   }, [query]);
-  return <main className="canonical-workbench numbering-identity-search">
+  return <div className="canonical-workbench numbering-identity-search">
     <header className="canonical-workbench-header"><h1>編號搜尋</h1><div className="canonical-workbench-header-actions"><CanonicalNumberingCreateAction surface="search" /></div></header>
     <section className="canonical-toolbar" aria-label="編號搜尋"><label className="canonical-search" htmlFor={inputId}><span>搜尋圖號、料號或圖料根號</span><input id={inputId} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="輸入編號" /></label></section>
     {loading ? <p role="status">搜尋中…</p> : null}
@@ -37,5 +37,5 @@ export default function NumberingSearchPage() {
       {!loading && !results.length && query.trim() ? <tr><td colSpan={4} className="canonical-empty">沒有符合條件的編號</td></tr> : null}
       {results.map((result) => <tr key={`${result.entityType}:${result.entityId}`}><td><a href={result.entityType === "part_number" ? `/parts?query=${encodeURIComponent(result.displayCode)}` : `/numbering/drawings?query=${encodeURIComponent(result.displayCode)}`}>{result.displayCode}</a></td><td>{result.displayName || "—"}</td><td>{result.rootCode}</td><td>{result.recordStatus}</td></tr>)}
     </tbody></table></section>
-  </main>;
+  </div>;
 }
