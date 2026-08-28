@@ -1,0 +1,91 @@
+{
+  "runner": "postgres",
+  "provider": "postgres",
+  "runId": "DEV100-postgres-2026-08-28T20-38-56-570Z",
+  "status": "PASS",
+  "productionWrites": false,
+  "checks": [
+    {
+      "id": "QA-100-013-A",
+      "label": "restored PostgreSQL fixture is foreign-key clean",
+      "status": "PASS",
+      "detail": {
+        "copiedRows": 315,
+        "violations": 0
+      }
+    },
+    {
+      "id": "QA-100-013-B",
+      "label": "PostgreSQL same-role and different-role transition matrix is immediately readable",
+      "status": "PASS",
+      "detail": {
+        "active": [
+          "B.SLDASM",
+          "B.SLDDRW",
+          "A.pdf"
+        ],
+        "tombstones": [
+          "A.SLDPRT",
+          "A.SLDASM",
+          "A.SLDDRW"
+        ],
+        "rowVersion": 7
+      }
+    },
+    {
+      "id": "QA-100-013-C",
+      "label": "PostgreSQL named checkpoint fault matrix fully rolls back",
+      "status": "PASS",
+      "detail": {
+        "points": [
+          "before_tombstone",
+          "after_binding_switch",
+          "before_row_version",
+          "before_readback"
+        ],
+        "result": "full rollback"
+      }
+    },
+    {
+      "id": "QA-100-013-D",
+      "label": "PostgreSQL response-loss replay and stale controls are exactly-once",
+      "status": "PASS",
+      "detail": {
+        "replayRowVersion": 8,
+        "duplicateReplacement": 0,
+        "staleStatus": 409
+      }
+    },
+    {
+      "id": "QA-100-013-E",
+      "label": "PostgreSQL active-deleted, missing-binding, hash and ordinal corruption stay fail-closed",
+      "status": "PASS",
+      "detail": {
+        "negatives": [
+          "active_deleted",
+          "missing_binding",
+          "hash",
+          "ordinal"
+        ],
+        "status": 409,
+        "restored": true
+      }
+    },
+    {
+      "id": "QA-100-013-F",
+      "label": "PostgreSQL final DB and physical hashes reconcile",
+      "status": "PASS",
+      "detail": {
+        "files": 7,
+        "foreignKeys": 0,
+        "provider": "postgres"
+      }
+    }
+  ],
+  "firstFailure": null,
+  "cleanup": {
+    "taskRootRemoved": true,
+    "portReleased": true,
+    "port": 54428
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "authority": "canonical_workbench_states",
+  "provider": "sqlite",
+  "schemaHash": "dev090-v1",
+  "readback": "readonly"
+}

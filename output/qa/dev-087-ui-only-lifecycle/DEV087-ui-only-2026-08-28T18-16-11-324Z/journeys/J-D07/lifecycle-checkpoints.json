@@ -1,0 +1,217 @@
+{
+  "created": {
+    "drawingCode": "A0060-M01",
+    "exists": true,
+    "aggregate": {
+      "open_branch_count": 1,
+      "row_version": 1
+    },
+    "rows": [
+      {
+        "data_layer": "drawing_rd",
+        "handling": "owner",
+        "work_id": "71024f36-de99-4978-9dbe-65ca44282618",
+        "row_version": 1,
+        "revision": "0.1",
+        "lifecycle_state": "preparing",
+        "branch_status": "open",
+        "closed_reason": null,
+        "base_production_revision_id": null
+      }
+    ],
+    "branches": [
+      {
+        "id": "ae13bca5-048f-4f0e-a993-50675dc07359",
+        "status": "open",
+        "closed_reason": null,
+        "base_production_revision": null,
+        "latest_approved_revision": null
+      }
+    ],
+    "claims": [
+      {
+        "target_label": "0.1",
+        "claim_state": "work",
+        "predecessor_revision_id": null
+      }
+    ],
+    "revisions": [
+      {
+        "revision": "0.1",
+        "lifecycle_state": "preparing",
+        "row_version": 1,
+        "controlled": 0,
+        "released": 0,
+        "cancelled": 0
+      }
+    ],
+    "works": [
+      {
+        "id": "71024f36-de99-4978-9dbe-65ca44282618",
+        "row_version": 1,
+        "target_label": "0.1",
+        "handling": "owner",
+        "file_count": 0
+      }
+    ],
+    "files": [],
+    "reviewRequests": []
+  },
+  "approved01": {
+    "drawingCode": "A0060-M01",
+    "exists": true,
+    "aggregate": {
+      "open_branch_count": 1,
+      "row_version": 1
+    },
+    "rows": [
+      {
+        "data_layer": "drawing_rd",
+        "handling": "none",
+        "work_id": null,
+        "row_version": 6,
+        "revision": "0.1",
+        "lifecycle_state": "rd_controlled",
+        "branch_status": "open",
+        "closed_reason": null,
+        "base_production_revision_id": null
+      }
+    ],
+    "branches": [
+      {
+        "id": "ae13bca5-048f-4f0e-a993-50675dc07359",
+        "status": "open",
+        "closed_reason": null,
+        "base_production_revision": null,
+        "latest_approved_revision": "0.1"
+      }
+    ],
+    "claims": [
+      {
+        "target_label": "0.1",
+        "claim_state": "approved",
+        "predecessor_revision_id": null
+      }
+    ],
+    "revisions": [
+      {
+        "revision": "0.1",
+        "lifecycle_state": "rd_controlled",
+        "row_version": 1,
+        "controlled": 1,
+        "released": 0,
+        "cancelled": 0
+      }
+    ],
+    "works": [],
+    "files": [
+      {
+        "revision": "0.1",
+        "file_name": "DEV087-QA.SLDDRW",
+        "role": "drawing_2d",
+        "is_primary": 1,
+        "removed": 0
+      },
+      {
+        "revision": "0.1",
+        "file_name": "DEV087-QA.SLDPRT",
+        "role": "cad_3d",
+        "is_primary": 1,
+        "removed": 0
+      }
+    ],
+    "reviewRequests": []
+  },
+  "final": {
+    "drawingCode": "A0060-M01",
+    "exists": true,
+    "aggregate": {
+      "open_branch_count": 0,
+      "row_version": 2
+    },
+    "rows": [
+      {
+        "data_layer": "drawing_production",
+        "handling": "none",
+        "work_id": null,
+        "row_version": 1,
+        "revision": "1",
+        "lifecycle_state": "released",
+        "branch_status": null,
+        "closed_reason": null,
+        "base_production_revision_id": null
+      }
+    ],
+    "branches": [
+      {
+        "id": "ae13bca5-048f-4f0e-a993-50675dc07359",
+        "status": "historical",
+        "closed_reason": "production_promoted",
+        "base_production_revision": null,
+        "latest_approved_revision": "0.1"
+      }
+    ],
+    "claims": [
+      {
+        "target_label": "0.1",
+        "claim_state": "approved",
+        "predecessor_revision_id": null
+      },
+      {
+        "target_label": "1",
+        "claim_state": "approved",
+        "predecessor_revision_id": "1a05d4f6-2ecc-4685-99b5-50f55708cf3c"
+      }
+    ],
+    "revisions": [
+      {
+        "revision": "0.1",
+        "lifecycle_state": "rd_controlled",
+        "row_version": 1,
+        "controlled": 1,
+        "released": 0,
+        "cancelled": 0
+      },
+      {
+        "revision": "1",
+        "lifecycle_state": "released",
+        "row_version": 1,
+        "controlled": 1,
+        "released": 1,
+        "cancelled": 0
+      }
+    ],
+    "works": [],
+    "files": [
+      {
+        "revision": "0.1",
+        "file_name": "DEV087-QA.SLDDRW",
+        "role": "drawing_2d",
+        "is_primary": 1,
+        "removed": 0
+      },
+      {
+        "revision": "0.1",
+        "file_name": "DEV087-QA.SLDPRT",
+        "role": "cad_3d",
+        "is_primary": 1,
+        "removed": 0
+      },
+      {
+        "revision": "1",
+        "file_name": "DEV087-QA-RESUBMIT.SLDDRW",
+        "role": "drawing_2d",
+        "is_primary": 1,
+        "removed": 0
+      },
+      {
+        "revision": "1",
+        "file_name": "DEV087-QA-RESUBMIT.SLDPRT",
+        "role": "cad_3d",
+        "is_primary": 1,
+        "removed": 0
+      }
+    ],
+    "reviewRequests": []
+  }
+}

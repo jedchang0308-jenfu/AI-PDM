@@ -69,7 +69,8 @@ function errorCode(error) {
 }
 
 try {
-  const primarySource = new Database(path.join(root, "data", "ai-pdm.sqlite"), { readonly: true, fileMustExist: true });
+  const primaryPath = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
+  const primarySource = new Database(primaryPath, { readonly: true, fileMustExist: true });
   await primarySource.backup(databasePath);
   primarySource.close();
 

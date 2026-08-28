@@ -1,0 +1,3111 @@
+{
+  "schemaVersion": 1,
+  "devId": "DEV-101",
+  "runId": "DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z",
+  "parentRunId": "DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z",
+  "runner": "qc-dev-101-independent-data",
+  "independentQc": true,
+  "source": {
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "branch": "codex/dev-032-release-integration",
+    "dirtyBoundaryHash": "9772acd6f569332d770d9585716973343c2620f357ac57fc9758edbf313fc4e2"
+  },
+  "environment": {
+    "provider": "sqlite",
+    "dataScope": "task-owned-isolated",
+    "dataDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev101-independent-data-fC9SKR\\data",
+    "repositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev101-independent-data-fC9SKR\\data\\repository"
+  },
+  "registryHash": "5c710c7b3987d1394c00ca34cacd5f3da8eaa2d82b450e12a298171c8018ac5b",
+  "runnerHash": "1fab0ede479f1b46913e14dd1fb54c10d3e2bed432784fe1d06bc38a41ae6098",
+  "caseResults": [
+    {
+      "caseId": "QA-101-001",
+      "result": "PASS",
+      "assertionIds": [
+        "PARSER-MATRIX-EXACT",
+        "INVALID-CODE-STABLE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "parserResults": [
+          {
+            "name": "valid-v2",
+            "expected": "v2",
+            "actual": "v2"
+          },
+          {
+            "name": "legacy-drawing",
+            "expected": "legacy",
+            "actual": "legacy"
+          },
+          {
+            "name": "legacy-part",
+            "expected": "legacy",
+            "actual": "legacy"
+          },
+          {
+            "name": "null",
+            "expected": "legacy",
+            "actual": "legacy"
+          },
+          {
+            "name": "array",
+            "expected": "legacy",
+            "actual": "legacy"
+          },
+          {
+            "name": "unknown-schema",
+            "expected": "invalid",
+            "actual": "invalid"
+          },
+          {
+            "name": "extra-field",
+            "expected": "invalid",
+            "actual": "invalid"
+          },
+          {
+            "name": "missing-field",
+            "expected": "invalid",
+            "actual": "invalid"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "QA-101-002",
+      "result": "PASS",
+      "assertionIds": [
+        "OUTER-HASH-INDEPENDENT",
+        "AXIS-TARGET-BIJECTION",
+        "PRIMARY-SUBMITTED",
+        "STABLE-SORTING",
+        "INNER-HASHES-INDEPENDENT",
+        "SQLITE-SNAPSHOT-ROUNDTRIP"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "sourceRequestId": "dev101-independent-source-request-49ac8e97-f67b-466d-8456-e8bb809c4fb1",
+        "fixtureRequestId": "dev101-independent-request-f1af4fdf-1634-4baf-8743-554d11f0e942",
+        "root": {
+          "id": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+          "code": "A0002"
+        },
+        "targetKeys": [
+          "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+          "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+          "part:part-number-593efe73-6225-42a7-9507-c63602b73169"
+        ],
+        "axisKeys": [
+          "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+          "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+          "part:part-number-593efe73-6225-42a7-9507-c63602b73169"
+        ],
+        "packageHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092",
+        "persistedHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092"
+      }
+    },
+    {
+      "caseId": "QA-101-003",
+      "result": "PASS",
+      "assertionIds": [
+        "EXISTING-ONE-SUBMITTED",
+        "CONTEXT-NOT-SCOPE",
+        "MULTI-TWO-SUBMITTED",
+        "MULTI-PRIMARY-IN-SCOPE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "submitted": [
+          "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877"
+        ],
+        "context": [
+          "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+          "part:part-number-593efe73-6225-42a7-9507-c63602b73169"
+        ],
+        "multiKind": "v2"
+      }
+    },
+    {
+      "caseId": "QA-101-004",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTEXT-DRAWING-REVISION-DRIFT-SEPARATE",
+        "CONTEXT-PART-IDENTITY-DRIFT-SEPARATE",
+        "CONTEXT-RELATION-DRIFT-SEPARATE",
+        "CONTEXT-ATTACHMENT-DRIFT-SEPARATE",
+        "PACKAGE-JSON-AND-HASH-IMMUTABLE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "snapshot": {
+          "drawingRevisionId": "dev101-independent-context-revision-89c1ed46-97cd-4fbd-bf9d-9e4788f0fa97",
+          "partName": "本體_BS_右_Xx5",
+          "relationType": "reference",
+          "attachmentIds": [
+            "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc"
+          ]
+        },
+        "current": {
+          "drawingRevisionId": "dev101-independent-context-revision-151473ef-8b15-444b-b7a7-100fe483e989",
+          "partName": "本體_BS_右_Xx5 [QA context drift]",
+          "attachmentIds": [
+            "dev101-independent-part-asset-41f7c007-1113-4215-ace7-b695efab8e42"
+          ]
+        },
+        "packageHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092",
+        "persistedHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092"
+      }
+    },
+    {
+      "caseId": "QA-101-005",
+      "result": "PASS",
+      "assertionIds": [
+        "ENVELOPE-TAMPER-REJECTED",
+        "PRIMARY-BASIS-TAMPER-REJECTED",
+        "CONTEXT-DRIFT-NOT-BASIS-DRIFT",
+        "INTEGRITY-MUTANTS-ZERO-EFFECT"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "envelopeMutantCode": "WORKBENCH_REVIEW_PACKAGE_INTEGRITY_FAILED",
+        "basisMutantCode": "WORKBENCH_REVIEW_PACKAGE_INTEGRITY_FAILED",
+        "originalAfterContextDriftCode": null,
+        "packageHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092",
+        "decisionBasisHash": "a291a45d0f58100a9acba73328710805de51651c553ea7133c8c018c98e0e942",
+        "contextTarget": "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+        "effectBefore": {
+          "approvedSnapshots": 0,
+          "traces": 1,
+          "receipts": 1
+        },
+        "effectAfter": {
+          "approvedSnapshots": 0,
+          "traces": 1,
+          "receipts": 1
+        }
+      }
+    },
+    {
+      "caseId": "QA-101-006",
+      "result": "PASS",
+      "assertionIds": [
+        "FLAG-OFF-WRITES-V1",
+        "FLAG-ON-WRITES-V2",
+        "FLAG-OFF-READS-EXISTING-V2",
+        "V1-READ-REMAINS-LEGACY",
+        "WRITER-COMMANDS-PERSIST-ONE-REQUEST"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "writerFlagReadback": false,
+        "v1": {
+          "requestId": "9ab56e3c-687a-45a0-96cb-720135b870d5",
+          "workId": "a5c540b3-88a0-475b-b6fa-aa42110add55",
+          "schema": "legacy",
+          "hash": "26dd930553e02b77aadc7c210027f9795bd5d0e6d82b94a9adbf6e0beaa3a702"
+        },
+        "v2": {
+          "requestId": "6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+          "workId": "13be6f2c-a1aa-4ad2-83ab-38aca1c45ea0",
+          "schema": "v2",
+          "hash": "2982db9c5732896e636e3a6860b73efea077c02cf47b81b880ee69c0b21776f7"
+        }
+      }
+    },
+    {
+      "caseId": "QA-101-007",
+      "result": "PASS",
+      "assertionIds": [
+        "INVALID-MEMBERSHIP-FAIL-CLOSED",
+        "INVALID-MEMBERSHIP-ZERO-REQUEST-DELTA",
+        "SOURCE-REQUEST-STILL-IMMUTABLE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "invalidMatrix": [
+          {
+            "name": "duplicate-target",
+            "result": {
+              "kind": "invalid",
+              "code": "WORKBENCH_REVIEW_PACKAGE_INVALID",
+              "reason": "membership"
+            }
+          },
+          {
+            "name": "missing-primary",
+            "result": {
+              "kind": "invalid",
+              "code": "WORKBENCH_REVIEW_PACKAGE_INVALID",
+              "reason": "membership"
+            }
+          },
+          {
+            "name": "cross-root-axis",
+            "result": {
+              "kind": "invalid",
+              "code": "WORKBENCH_REVIEW_PACKAGE_INVALID",
+              "reason": "axis-membership"
+            }
+          }
+        ],
+        "requestCountBefore": 5,
+        "requestCountAfter": 5
+      }
+    },
+    {
+      "caseId": "QA-101-008",
+      "result": "PASS",
+      "assertionIds": [
+        "SUBMITTED-ATTACHMENT-IN-SNAPSHOT",
+        "SOFT-DELETE-DOES-NOT-REWRITE-PACKAGE",
+        "CURRENT-ONLY-ASSET-NOT-LIVE-FILLED",
+        "SUBMITTED-OBJECT-BYTES-STILL-EXACT",
+        "BASIS-HASH-STABLE-AFTER-ATTACHMENT-DRIFT"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "submittedAttachmentSnapshot": {
+          "id": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+          "bindingId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+          "sourceFileAssetId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+          "fileName": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc.txt",
+          "displayName": "DEV-101 submitted Part attachment",
+          "role": "other",
+          "mimeType": "text/plain",
+          "fileSize": 34,
+          "contentHash": "66796baad42943f8d8d3270dd8d7663d8f353cf1b5b58c87ce9386751a7f72c2",
+          "isPrimary": false,
+          "currentRevisionUpload": false,
+          "ordinal": 0
+        },
+        "submittedPartAttachment": {
+          "id": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+          "bindingId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+          "partId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "storageKey": "dev101-independent/dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc.txt",
+          "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev101-independent-data-fC9SKR\\data\\repository\\dev101-independent\\dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc.txt",
+          "contentHash": "66796baad42943f8d8d3270dd8d7663d8f353cf1b5b58c87ce9386751a7f72c2",
+          "bytes": 34,
+          "displayName": "DEV-101 submitted Part attachment"
+        },
+        "currentPartAttachment": {
+          "id": "dev101-independent-part-asset-41f7c007-1113-4215-ace7-b695efab8e42",
+          "bindingId": "dev101-independent-part-asset-41f7c007-1113-4215-ace7-b695efab8e42",
+          "partId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "storageKey": "dev101-independent/dev101-independent-part-asset-41f7c007-1113-4215-ace7-b695efab8e42.txt",
+          "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev101-independent-data-fC9SKR\\data\\repository\\dev101-independent\\dev101-independent-part-asset-41f7c007-1113-4215-ace7-b695efab8e42.txt",
+          "contentHash": "66af34ed7b60d9f58404fd8a6a4dbaed515f9baad81d560b31cbb0ceb97529bc",
+          "bytes": 37,
+          "displayName": "DEV-101 current-only Part attachment"
+        },
+        "persistedHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092",
+        "packageHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092"
+      }
+    },
+    {
+      "caseId": "QA-101-009",
+      "result": "PASS",
+      "assertionIds": [
+        "NAMED-CHECKPOINTS-INJECTED",
+        "REQUESTS-ROLL-BACK",
+        "HANDLING-AND-VERSION-ROLL-BACK"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "rollbackMatrix": [
+          {
+            "requestKind": "drawing_revision",
+            "checkpoint": "after_request_insert",
+            "injected": "INJECTED:after_request_insert",
+            "requestDelta": 0,
+            "beforeState": {
+              "handling": "none",
+              "row_version": 1
+            },
+            "afterState": {
+              "handling": "none",
+              "row_version": 1
+            }
+          },
+          {
+            "requestKind": "drawing_rd_void",
+            "checkpoint": "after_handling_update",
+            "injected": "INJECTED:after_handling_update",
+            "requestDelta": 0,
+            "beforeState": {
+              "handling": "none",
+              "row_version": 1
+            },
+            "afterState": {
+              "handling": "none",
+              "row_version": 1
+            }
+          },
+          {
+            "requestKind": "part_change",
+            "checkpoint": "before_commit",
+            "injected": "INJECTED:before_commit",
+            "requestDelta": 0,
+            "beforeState": {
+              "handling": "none",
+              "row_version": 1
+            },
+            "afterState": {
+              "handling": "none",
+              "row_version": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "QA-101-010",
+      "result": "PASS",
+      "assertionIds": [
+        "TWO-CALLS-SAME-RECEIPT",
+        "EXACTLY-ONE-TRACE-AND-TERMINAL",
+        "REQUEST-LEVEL-TERMINAL",
+        "SECOND-KEY-NO-SECOND-EFFECT"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "terminalKey": "dev101-independent-terminal-7a446927-9f2c-4db9-abb5-c6b4a63b415d",
+        "firstTerminal": {
+          "acknowledged": true
+        },
+        "replayTerminal": {
+          "acknowledged": true
+        },
+        "terminalCountsBefore": {
+          "traces": 0,
+          "receipts": 0
+        },
+        "terminalCountsAfter": {
+          "traces": 1,
+          "receipts": 1,
+          "activeRequests": 0,
+          "ownerState": "owner"
+        },
+        "terminalNewKeyError": {
+          "code": "WORKBENCH_BAD_REQUEST",
+          "status": 404
+        }
+      }
+    },
+    {
+      "caseId": "QA-101-011",
+      "result": "PASS",
+      "assertionIds": [
+        "BOUNDARY-COUNTS-EXACT",
+        "BOUNDARY-PARSER-AND-INTEGRITY-PASS",
+        "THREE-OVER-LIMITS-REJECTED",
+        "LIMIT-FAILURES-ZERO-REQUEST-DELTA"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "boundary": {
+          "targets": 200,
+          "cells": 2500,
+          "bytes": 7999900,
+          "packageHash": "a5be075e9a6ba9face7089a419168da8c7d57881ca18ff68249339b4c875aec6",
+          "parser": "v2",
+          "integrityCode": null
+        },
+        "overLimits": [
+          {
+            "kind": "targets",
+            "count": 201,
+            "parser": "invalid",
+            "reason": "limit"
+          },
+          {
+            "kind": "cells",
+            "count": 2501,
+            "parser": "invalid",
+            "reason": "limit"
+          },
+          {
+            "kind": "bytes",
+            "count": 8000100,
+            "parser": "invalid",
+            "reason": "limit"
+          }
+        ],
+        "requestCountBefore": 4,
+        "requestCountAfter": 4
+      }
+    },
+    {
+      "caseId": "QA-101-012",
+      "result": "PASS",
+      "assertionIds": [
+        "BUILDER-1-20-200-EXACT-TARGETS",
+        "BUILDER-QUERY-BUDGET",
+        "BUILDER-NON-LINEAR",
+        "SHELL-ONE-REQUEST-ROW",
+        "ACTIVE-TARGET-READ-BUDGET",
+        "ACTIVE-TARGET-NO-MULTI-HYDRATION"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "builderBudgets": [
+          {
+            "totalTargets": 1,
+            "actualTargets": 1,
+            "queryCount": 10,
+            "elapsedMs": 1.8347999999998592,
+            "queries": [
+              {
+                "method": "queryOne",
+                "sql": "SELECT part_root_id AS root_id FROM drawings WHERE company_id = :companyId AND id = :entityId",
+                "paramKeys": [
+                  "companyId",
+                  "entityId",
+                  "entityType"
+                ]
+              },
+              {
+                "method": "queryOne",
+                "sql": "SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "queryOne",
+                "sql": "SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT 'drawing' AS kind, drawing_number.id, drawing_number.drawing_number AS number, drawing_number.part_root_id AS root_id, (SELECT state.id FROM canonical_workbench_states state JOIN drawings drawing ON drawing.id = state.canonical_entity_id AND drawing.company_id = state.company_id WHERE state.company_id = :companyId AND state.entity_type = 'drawing' AND drawing.formal_drawing_number_id = drawing_number.id ORDER BY CASE WHEN state.data_layer = 'drawing_production' THEN 0 ELSE 1 END, CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END, state.updated_at, state.id LIMIT 1) AS navigation_row_id FROM drawing_numbers drawing_number WHERE drawing_number.company_id = :companyId AND drawing_number.part_root_id = :rootId UNION ALL SELECT 'part' AS kind, part_number.id, part_number.part_number AS number, part_number.part_root_id AS root_id, (SELECT state.id FROM canonical_workbench_states state WHERE state.company_id = :companyId AND state.entity_type = 'part' AND state.canonical_entity_id = part_number.id ORDER BY CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END, state.updated_at, state.id LIMIT 1) AS navigation_row_id FROM part_numbers part_number WHERE part_number.company_id = :companyId AND part_number.part_root_id = :rootId ORDER BY kind, number, id",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT link.drawing_number_id, link.part_number_id, link.link_type FROM drawing_part_links link JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id AND drawing.company_id = :companyId AND drawing.part_root_id = :rootId JOIN part_numbers part ON part.id = link.part_number_id AND part.company_id = :companyId AND part.part_root_id = :rootId ORDER BY link.drawing_number_id, link.part_number_id, link.link_type",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT id, formal_drawing_number_id FROM drawings WHERE company_id = :companyId AND formal_drawing_number_id IN (:drawingNumber0) ORDER BY formal_drawing_number_id, updated_at DESC, id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "drawingNumber0"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT id, drawing_number, purpose_code, purpose_description FROM drawings WHERE company_id = :companyId AND id IN (:drawing0)",
+                "paramKeys": [
+                  "companyId",
+                  "drawing0"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT id, drawing_id, revision, policy_snapshot_json FROM drawing_revisions WHERE company_id = :companyId AND drawing_id IN (:drawing0) ORDER BY drawing_id, updated_at DESC, id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "drawing0"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT file.id, file.id AS binding_id, file.drawing_revision_id, file.source_file_asset_id, asset.file_name, file.display_name, file.role, asset.mime_type, asset.file_size, asset.content_hash, file.is_primary, 0 AS current_revision_upload FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE file.company_id = :companyId AND file.drawing_revision_id IN (:revision0) AND file.removed_at IS NULL AND asset.deleted_at IS NULL ORDER BY file.drawing_revision_id, file.sort_order, file.id",
+                "paramKeys": [
+                  "companyId",
+                  "revision0"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT * FROM drawing_recognition_sessions WHERE company_id = :companyId AND source_context_type = 'drawing_revision' AND drawing_id IN (:recognitionDrawing0) AND drawing_revision_id IN (:recognitionRevision0) AND source_context_id IN (:recognitionRevision0) ORDER BY created_at DESC, id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "recognitionDrawing0",
+                  "recognitionRevision0"
+                ]
+              }
+            ]
+          },
+          {
+            "totalTargets": 20,
+            "actualTargets": 20,
+            "queryCount": 12,
+            "elapsedMs": 5.478900000000067,
+            "queries": [
+              {
+                "method": "queryOne",
+                "sql": "SELECT part_root_id AS root_id FROM drawings WHERE company_id = :companyId AND id = :entityId",
+                "paramKeys": [
+                  "companyId",
+                  "entityId",
+                  "entityType"
+                ]
+              },
+              {
+                "method": "queryOne",
+                "sql": "SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "queryOne",
+                "sql": "SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT 'drawing' AS kind, drawing_number.id, drawing_number.drawing_number AS number, drawing_number.part_root_id AS root_id, (SELECT state.id FROM canonical_workbench_states state JOIN drawings drawing ON drawing.id = state.canonical_entity_id AND drawing.company_id = state.company_id WHERE state.company_id = :companyId AND state.entity_type = 'drawing' AND drawing.formal_drawing_number_id = drawing_number.id ORDER BY CASE WHEN state.data_layer = 'drawing_production' THEN 0 ELSE 1 END, CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END, state.updated_at, state.id LIMIT 1) AS navigation_row_id FROM drawing_numbers drawing_number WHERE drawing_number.company_id = :companyId AND drawing_number.part_root_id = :rootId UNION ALL SELECT 'part' AS kind, part_number.id, part_number.part_number AS number, part_number.part_root_id AS root_id, (SELECT state.id FROM canonical_workbench_states state WHERE state.company_id = :companyId AND state.entity_type = 'part' AND state.canonical_entity_id = part_number.id ORDER BY CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END, state.updated_at, state.id LIMIT 1) AS navigation_row_id FROM part_numbers part_number WHERE part_number.company_id = :companyId AND part_number.part_root_id = :rootId ORDER BY kind, number, id",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT link.drawing_number_id, link.part_number_id, link.link_type FROM drawing_part_links link JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id AND drawing.company_id = :companyId AND drawing.part_root_id = :rootId JOIN part_numbers part ON part.id = link.part_number_id AND part.company_id = :companyId AND part.part_root_id = :rootId ORDER BY link.drawing_number_id, link.part_number_id, link.link_type",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT id, formal_drawing_number_id FROM drawings WHERE company_id = :companyId AND formal_drawing_number_id IN (:drawingNumber0, :drawingNumber1, :drawingNumber2, :drawingNumber3) ORDER BY formal_drawing_number_id, updated_at DESC, id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "drawingNumber0",
+                  "drawingNumber1",
+                  "drawingNumber2",
+                  "drawingNumber3"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT id, drawing_number, purpose_code, purpose_description FROM drawings WHERE company_id = :companyId AND id IN (:drawing0, :drawing1, :drawing2, :drawing3)",
+                "paramKeys": [
+                  "companyId",
+                  "drawing0",
+                  "drawing1",
+                  "drawing2",
+                  "drawing3"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT id, drawing_id, revision, policy_snapshot_json FROM drawing_revisions WHERE company_id = :companyId AND drawing_id IN (:drawing0, :drawing1, :drawing2, :drawing3) ORDER BY drawing_id, updated_at DESC, id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "drawing0",
+                  "drawing1",
+                  "drawing2",
+                  "drawing3"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT part.id, part.part_number, part.part_name, part.item_kind, part.custom_specification, part.is_universal, attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label, attributes.surface_treatment, attributes.variant_note FROM part_numbers part LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id WHERE part.company_id = :companyId AND part.id IN (:part0, :part1, :part2, :part3, :part4, :part5, :part6, :part7, :part8, :part9, :part10, :part11, :part12, :part13, :part14, :part15)",
+                "paramKeys": [
+                  "companyId",
+                  "part0",
+                  "part1",
+                  "part10",
+                  "part11",
+                  "part12",
+                  "part13",
+                  "part14",
+                  "part15",
+                  "part2",
+                  "part3",
+                  "part4",
+                  "part5",
+                  "part6",
+                  "part7",
+                  "part8",
+                  "part9"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT asset.id, asset.id AS binding_id, asset.id AS source_file_asset_id, asset.linked_entity_id, asset.file_name, asset.display_name, asset.document_category AS role, asset.mime_type, asset.file_size, asset.content_hash, 0 AS is_primary, 0 AS current_revision_upload FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id IN (:part0, :part1, :part2, :part3, :part4, :part5, :part6, :part7, :part8, :part9, :part10, :part11, :part12, :part13, :part14, :part15) AND asset.deleted_at IS NULL ORDER BY asset.linked_entity_id, asset.created_at DESC, asset.id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "part0",
+                  "part1",
+                  "part10",
+                  "part11",
+                  "part12",
+                  "part13",
+                  "part14",
+                  "part15",
+                  "part2",
+                  "part3",
+                  "part4",
+                  "part5",
+                  "part6",
+                  "part7",
+                  "part8",
+                  "part9"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT file.id, file.id AS binding_id, file.drawing_revision_id, file.source_file_asset_id, asset.file_name, file.display_name, file.role, asset.mime_type, asset.file_size, asset.content_hash, file.is_primary, 0 AS current_revision_upload FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE file.company_id = :companyId AND file.drawing_revision_id IN (:revision0, :revision1, :revision2, :revision3) AND file.removed_at IS NULL AND asset.deleted_at IS NULL ORDER BY file.drawing_revision_id, file.sort_order, file.id",
+                "paramKeys": [
+                  "companyId",
+                  "revision0",
+                  "revision1",
+                  "revision2",
+                  "revision3"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT * FROM drawing_recognition_sessions WHERE company_id = :companyId AND source_context_type = 'drawing_revision' AND drawing_id IN (:recognitionDrawing0, :recognitionDrawing1, :recognitionDrawing2, :recognitionDrawing3) AND drawing_revision_id IN (:recognitionRevision0, :recognitionRevision1, :recognitionRevision2, :recognitionRevision3) AND source_context_id IN (:recognitionRevision0, :recognitionRevision1, :recognitionRevision2, :recognitionRevision3) ORDER BY created_at DESC, id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "recognitionDrawing0",
+                  "recognitionDrawing1",
+                  "recognitionDrawing2",
+                  "recognitionDrawing3",
+                  "recognitionRevision0",
+                  "recognitionRevision1",
+                  "recognitionRevision2",
+                  "recognitionRevision3"
+                ]
+              }
+            ]
+          },
+          {
+            "totalTargets": 200,
+            "actualTargets": 200,
+            "queryCount": 12,
+            "elapsedMs": 30.81510000000003,
+            "queries": [
+              {
+                "method": "queryOne",
+                "sql": "SELECT part_root_id AS root_id FROM drawings WHERE company_id = :companyId AND id = :entityId",
+                "paramKeys": [
+                  "companyId",
+                  "entityId",
+                  "entityType"
+                ]
+              },
+              {
+                "method": "queryOne",
+                "sql": "SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "queryOne",
+                "sql": "SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT 'drawing' AS kind, drawing_number.id, drawing_number.drawing_number AS number, drawing_number.part_root_id AS root_id, (SELECT state.id FROM canonical_workbench_states state JOIN drawings drawing ON drawing.id = state.canonical_entity_id AND drawing.company_id = state.company_id WHERE state.company_id = :companyId AND state.entity_type = 'drawing' AND drawing.formal_drawing_number_id = drawing_number.id ORDER BY CASE WHEN state.data_layer = 'drawing_production' THEN 0 ELSE 1 END, CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END, state.updated_at, state.id LIMIT 1) AS navigation_row_id FROM drawing_numbers drawing_number WHERE drawing_number.company_id = :companyId AND drawing_number.part_root_id = :rootId UNION ALL SELECT 'part' AS kind, part_number.id, part_number.part_number AS number, part_number.part_root_id AS root_id, (SELECT state.id FROM canonical_workbench_states state WHERE state.company_id = :companyId AND state.entity_type = 'part' AND state.canonical_entity_id = part_number.id ORDER BY CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END, state.updated_at, state.id LIMIT 1) AS navigation_row_id FROM part_numbers part_number WHERE part_number.company_id = :companyId AND part_number.part_root_id = :rootId ORDER BY kind, number, id",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT link.drawing_number_id, link.part_number_id, link.link_type FROM drawing_part_links link JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id AND drawing.company_id = :companyId AND drawing.part_root_id = :rootId JOIN part_numbers part ON part.id = link.part_number_id AND part.company_id = :companyId AND part.part_root_id = :rootId ORDER BY link.drawing_number_id, link.part_number_id, link.link_type",
+                "paramKeys": [
+                  "companyId",
+                  "rootId"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT id, formal_drawing_number_id FROM drawings WHERE company_id = :companyId AND formal_drawing_number_id IN (:drawingNumber0, :drawingNumber1, :drawingNumber2, :drawingNumber3, :drawingNumber4, :drawingNumber5, :drawingNumber6, :drawingNumber7, :drawingNumber8, :drawingNumber9, :drawingNumber10, :drawingNumber11) ORDER BY formal_drawing_number_id, updated_at DESC, id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "drawingNumber0",
+                  "drawingNumber1",
+                  "drawingNumber10",
+                  "drawingNumber11",
+                  "drawingNumber2",
+                  "drawingNumber3",
+                  "drawingNumber4",
+                  "drawingNumber5",
+                  "drawingNumber6",
+                  "drawingNumber7",
+                  "drawingNumber8",
+                  "drawingNumber9"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT id, drawing_number, purpose_code, purpose_description FROM drawings WHERE company_id = :companyId AND id IN (:drawing0, :drawing1, :drawing2, :drawing3, :drawing4, :drawing5, :drawing6, :drawing7, :drawing8, :drawing9, :drawing10, :drawing11)",
+                "paramKeys": [
+                  "companyId",
+                  "drawing0",
+                  "drawing1",
+                  "drawing10",
+                  "drawing11",
+                  "drawing2",
+                  "drawing3",
+                  "drawing4",
+                  "drawing5",
+                  "drawing6",
+                  "drawing7",
+                  "drawing8",
+                  "drawing9"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT id, drawing_id, revision, policy_snapshot_json FROM drawing_revisions WHERE company_id = :companyId AND drawing_id IN (:drawing0, :drawing1, :drawing2, :drawing3, :drawing4, :drawing5, :drawing6, :drawing7, :drawing8, :drawing9, :drawing10, :drawing11) ORDER BY drawing_id, updated_at DESC, id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "drawing0",
+                  "drawing1",
+                  "drawing10",
+                  "drawing11",
+                  "drawing2",
+                  "drawing3",
+                  "drawing4",
+                  "drawing5",
+                  "drawing6",
+                  "drawing7",
+                  "drawing8",
+                  "drawing9"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT part.id, part.part_number, part.part_name, part.item_kind, part.custom_specification, part.is_universal, attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label, attributes.surface_treatment, attributes.variant_note FROM part_numbers part LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id WHERE part.company_id = :companyId AND part.id IN (:part0, :part1, :part2, :part3, :part4, :part5, :part6, :part7, :part8, :part9, :part10, :part11, :part12, :part13, :part14, :part15, :part16, :part17, :part18, :part19, :part20, :part21, :part22, :part23, :part24, :part25, :part26, :part27, :part28, :part29, :part30, :part31, :part32, :part33, :part34, :part35, :part36, :part37, :part38, :part39, :part40, :part41, :part42, :part43, :part44, :part45, :part46, :part47, :part48, :part49, :part50, :part51, :part52, :part53, :part54, :part55, :part56, :part57, :part58, :part59, :part60, :part61, :part62, :part63, :part64, :part65, :part66, :part67, :part68, :part69, :part70, :part71, :part72, :part73, :part74, :part75, :part76, :part77, :part78, :part79, :part80, :part81, :part82, :part83, :part84, :part85, :part86, :part87, :part88, :part89, :part90, :part91, :part92, :part93, :part94, :part95, :part96, :part97, :part98, :part99, :part100, :part101, :part102, :part103, :part104, :part105, :part106, :part107, :part108, :part109, :part110, :part111, :part112, :part113, :part114, :part115, :part116, :part117, :part118, :part119, :part120, :part121, :part122, :part123, :part124, :part125, :part126, :part127, :part128, :part129, :part130, :part131, :part132, :part133, :part134, :part135, :part136, :part137, :part138, :part139, :part140, :part141, :part142, :part143, :part144, :part145, :part146, :part147, :part148, :part149, :part150, :part151, :part152, :part153, :part154, :part155, :part156, :part157, :part158, :part159, :part160, :part161, :part162, :part163, :part164, :part165, :part166, :part167, :part168, :part169, :part170, :part171, :part172, :part173, :part174, :part175, :part176, :part177, :part178, :part179, :part180, :part181, :part182, :part183, :part184, :part185, :part186, :part187)",
+                "paramKeys": [
+                  "companyId",
+                  "part0",
+                  "part1",
+                  "part10",
+                  "part100",
+                  "part101",
+                  "part102",
+                  "part103",
+                  "part104",
+                  "part105",
+                  "part106",
+                  "part107",
+                  "part108",
+                  "part109",
+                  "part11",
+                  "part110",
+                  "part111",
+                  "part112",
+                  "part113",
+                  "part114",
+                  "part115",
+                  "part116",
+                  "part117",
+                  "part118",
+                  "part119",
+                  "part12",
+                  "part120",
+                  "part121",
+                  "part122",
+                  "part123",
+                  "part124",
+                  "part125",
+                  "part126",
+                  "part127",
+                  "part128",
+                  "part129",
+                  "part13",
+                  "part130",
+                  "part131",
+                  "part132",
+                  "part133",
+                  "part134",
+                  "part135",
+                  "part136",
+                  "part137",
+                  "part138",
+                  "part139",
+                  "part14",
+                  "part140",
+                  "part141",
+                  "part142",
+                  "part143",
+                  "part144",
+                  "part145",
+                  "part146",
+                  "part147",
+                  "part148",
+                  "part149",
+                  "part15",
+                  "part150",
+                  "part151",
+                  "part152",
+                  "part153",
+                  "part154",
+                  "part155",
+                  "part156",
+                  "part157",
+                  "part158",
+                  "part159",
+                  "part16",
+                  "part160",
+                  "part161",
+                  "part162",
+                  "part163",
+                  "part164",
+                  "part165",
+                  "part166",
+                  "part167",
+                  "part168",
+                  "part169",
+                  "part17",
+                  "part170",
+                  "part171",
+                  "part172",
+                  "part173",
+                  "part174",
+                  "part175",
+                  "part176",
+                  "part177",
+                  "part178",
+                  "part179",
+                  "part18",
+                  "part180",
+                  "part181",
+                  "part182",
+                  "part183",
+                  "part184",
+                  "part185",
+                  "part186",
+                  "part187",
+                  "part19",
+                  "part2",
+                  "part20",
+                  "part21",
+                  "part22",
+                  "part23",
+                  "part24",
+                  "part25",
+                  "part26",
+                  "part27",
+                  "part28",
+                  "part29",
+                  "part3",
+                  "part30",
+                  "part31",
+                  "part32",
+                  "part33",
+                  "part34",
+                  "part35",
+                  "part36",
+                  "part37",
+                  "part38",
+                  "part39",
+                  "part4",
+                  "part40",
+                  "part41",
+                  "part42",
+                  "part43",
+                  "part44",
+                  "part45",
+                  "part46",
+                  "part47",
+                  "part48",
+                  "part49",
+                  "part5",
+                  "part50",
+                  "part51",
+                  "part52",
+                  "part53",
+                  "part54",
+                  "part55",
+                  "part56",
+                  "part57",
+                  "part58",
+                  "part59",
+                  "part6",
+                  "part60",
+                  "part61",
+                  "part62",
+                  "part63",
+                  "part64",
+                  "part65",
+                  "part66",
+                  "part67",
+                  "part68",
+                  "part69",
+                  "part7",
+                  "part70",
+                  "part71",
+                  "part72",
+                  "part73",
+                  "part74",
+                  "part75",
+                  "part76",
+                  "part77",
+                  "part78",
+                  "part79",
+                  "part8",
+                  "part80",
+                  "part81",
+                  "part82",
+                  "part83",
+                  "part84",
+                  "part85",
+                  "part86",
+                  "part87",
+                  "part88",
+                  "part89",
+                  "part9",
+                  "part90",
+                  "part91",
+                  "part92",
+                  "part93",
+                  "part94",
+                  "part95",
+                  "part96",
+                  "part97",
+                  "part98",
+                  "part99"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT asset.id, asset.id AS binding_id, asset.id AS source_file_asset_id, asset.linked_entity_id, asset.file_name, asset.display_name, asset.document_category AS role, asset.mime_type, asset.file_size, asset.content_hash, 0 AS is_primary, 0 AS current_revision_upload FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id IN (:part0, :part1, :part2, :part3, :part4, :part5, :part6, :part7, :part8, :part9, :part10, :part11, :part12, :part13, :part14, :part15, :part16, :part17, :part18, :part19, :part20, :part21, :part22, :part23, :part24, :part25, :part26, :part27, :part28, :part29, :part30, :part31, :part32, :part33, :part34, :part35, :part36, :part37, :part38, :part39, :part40, :part41, :part42, :part43, :part44, :part45, :part46, :part47, :part48, :part49, :part50, :part51, :part52, :part53, :part54, :part55, :part56, :part57, :part58, :part59, :part60, :part61, :part62, :part63, :part64, :part65, :part66, :part67, :part68, :part69, :part70, :part71, :part72, :part73, :part74, :part75, :part76, :part77, :part78, :part79, :part80, :part81, :part82, :part83, :part84, :part85, :part86, :part87, :part88, :part89, :part90, :part91, :part92, :part93, :part94, :part95, :part96, :part97, :part98, :part99, :part100, :part101, :part102, :part103, :part104, :part105, :part106, :part107, :part108, :part109, :part110, :part111, :part112, :part113, :part114, :part115, :part116, :part117, :part118, :part119, :part120, :part121, :part122, :part123, :part124, :part125, :part126, :part127, :part128, :part129, :part130, :part131, :part132, :part133, :part134, :part135, :part136, :part137, :part138, :part139, :part140, :part141, :part142, :part143, :part144, :part145, :part146, :part147, :part148, :part149, :part150, :part151, :part152, :part153, :part154, :part155, :part156, :part157, :part158, :part159, :part160, :part161, :part162, :part163, :part164, :part165, :part166, :part167, :part168, :part169, :part170, :part171, :part172, :part173, :part174, :part175, :part176, :part177, :part178, :part179, :part180, :part181, :part182, :part183, :part184, :part185, :part186, :part187) AND asset.deleted_at IS NULL ORDER BY asset.linked_entity_id, asset.created_at DESC, asset.id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "part0",
+                  "part1",
+                  "part10",
+                  "part100",
+                  "part101",
+                  "part102",
+                  "part103",
+                  "part104",
+                  "part105",
+                  "part106",
+                  "part107",
+                  "part108",
+                  "part109",
+                  "part11",
+                  "part110",
+                  "part111",
+                  "part112",
+                  "part113",
+                  "part114",
+                  "part115",
+                  "part116",
+                  "part117",
+                  "part118",
+                  "part119",
+                  "part12",
+                  "part120",
+                  "part121",
+                  "part122",
+                  "part123",
+                  "part124",
+                  "part125",
+                  "part126",
+                  "part127",
+                  "part128",
+                  "part129",
+                  "part13",
+                  "part130",
+                  "part131",
+                  "part132",
+                  "part133",
+                  "part134",
+                  "part135",
+                  "part136",
+                  "part137",
+                  "part138",
+                  "part139",
+                  "part14",
+                  "part140",
+                  "part141",
+                  "part142",
+                  "part143",
+                  "part144",
+                  "part145",
+                  "part146",
+                  "part147",
+                  "part148",
+                  "part149",
+                  "part15",
+                  "part150",
+                  "part151",
+                  "part152",
+                  "part153",
+                  "part154",
+                  "part155",
+                  "part156",
+                  "part157",
+                  "part158",
+                  "part159",
+                  "part16",
+                  "part160",
+                  "part161",
+                  "part162",
+                  "part163",
+                  "part164",
+                  "part165",
+                  "part166",
+                  "part167",
+                  "part168",
+                  "part169",
+                  "part17",
+                  "part170",
+                  "part171",
+                  "part172",
+                  "part173",
+                  "part174",
+                  "part175",
+                  "part176",
+                  "part177",
+                  "part178",
+                  "part179",
+                  "part18",
+                  "part180",
+                  "part181",
+                  "part182",
+                  "part183",
+                  "part184",
+                  "part185",
+                  "part186",
+                  "part187",
+                  "part19",
+                  "part2",
+                  "part20",
+                  "part21",
+                  "part22",
+                  "part23",
+                  "part24",
+                  "part25",
+                  "part26",
+                  "part27",
+                  "part28",
+                  "part29",
+                  "part3",
+                  "part30",
+                  "part31",
+                  "part32",
+                  "part33",
+                  "part34",
+                  "part35",
+                  "part36",
+                  "part37",
+                  "part38",
+                  "part39",
+                  "part4",
+                  "part40",
+                  "part41",
+                  "part42",
+                  "part43",
+                  "part44",
+                  "part45",
+                  "part46",
+                  "part47",
+                  "part48",
+                  "part49",
+                  "part5",
+                  "part50",
+                  "part51",
+                  "part52",
+                  "part53",
+                  "part54",
+                  "part55",
+                  "part56",
+                  "part57",
+                  "part58",
+                  "part59",
+                  "part6",
+                  "part60",
+                  "part61",
+                  "part62",
+                  "part63",
+                  "part64",
+                  "part65",
+                  "part66",
+                  "part67",
+                  "part68",
+                  "part69",
+                  "part7",
+                  "part70",
+                  "part71",
+                  "part72",
+                  "part73",
+                  "part74",
+                  "part75",
+                  "part76",
+                  "part77",
+                  "part78",
+                  "part79",
+                  "part8",
+                  "part80",
+                  "part81",
+                  "part82",
+                  "part83",
+                  "part84",
+                  "part85",
+                  "part86",
+                  "part87",
+                  "part88",
+                  "part89",
+                  "part9",
+                  "part90",
+                  "part91",
+                  "part92",
+                  "part93",
+                  "part94",
+                  "part95",
+                  "part96",
+                  "part97",
+                  "part98",
+                  "part99"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT file.id, file.id AS binding_id, file.drawing_revision_id, file.source_file_asset_id, asset.file_name, file.display_name, file.role, asset.mime_type, asset.file_size, asset.content_hash, file.is_primary, 0 AS current_revision_upload FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE file.company_id = :companyId AND file.drawing_revision_id IN (:revision0, :revision1, :revision2, :revision3, :revision4, :revision5, :revision6, :revision7, :revision8, :revision9, :revision10, :revision11) AND file.removed_at IS NULL AND asset.deleted_at IS NULL ORDER BY file.drawing_revision_id, file.sort_order, file.id",
+                "paramKeys": [
+                  "companyId",
+                  "revision0",
+                  "revision1",
+                  "revision10",
+                  "revision11",
+                  "revision2",
+                  "revision3",
+                  "revision4",
+                  "revision5",
+                  "revision6",
+                  "revision7",
+                  "revision8",
+                  "revision9"
+                ]
+              },
+              {
+                "method": "query",
+                "sql": "SELECT * FROM drawing_recognition_sessions WHERE company_id = :companyId AND source_context_type = 'drawing_revision' AND drawing_id IN (:recognitionDrawing0, :recognitionDrawing1, :recognitionDrawing2, :recognitionDrawing3, :recognitionDrawing4, :recognitionDrawing5, :recognitionDrawing6, :recognitionDrawing7, :recognitionDrawing8, :recognitionDrawing9, :recognitionDrawing10, :recognitionDrawing11) AND drawing_revision_id IN (:recognitionRevision0, :recognitionRevision1, :recognitionRevision2, :recognitionRevision3, :recognitionRevision4, :recognitionRevision5, :recognitionRevision6, :recognitionRevision7, :recognitionRevision8, :recognitionRevision9, :recognitionRevision10, :recognitionRevision11) AND source_context_id IN (:recognitionRevision0, :recognitionRevision1, :recognitionRevision2, :recognitionRevision3, :recognitionRevision4, :recognitionRevision5, :recognitionRevision6, :recognitionRevision7, :recognitionRevision8, :recognitionRevision9, :recognitionRevision10, :recognitionRevision11) ORDER BY created_at DESC, id DESC",
+                "paramKeys": [
+                  "companyId",
+                  "recognitionDrawing0",
+                  "recognitionDrawing1",
+                  "recognitionDrawing10",
+                  "recognitionDrawing11",
+                  "recognitionDrawing2",
+                  "recognitionDrawing3",
+                  "recognitionDrawing4",
+                  "recognitionDrawing5",
+                  "recognitionDrawing6",
+                  "recognitionDrawing7",
+                  "recognitionDrawing8",
+                  "recognitionDrawing9",
+                  "recognitionRevision0",
+                  "recognitionRevision1",
+                  "recognitionRevision10",
+                  "recognitionRevision11",
+                  "recognitionRevision2",
+                  "recognitionRevision3",
+                  "recognitionRevision4",
+                  "recognitionRevision5",
+                  "recognitionRevision6",
+                  "recognitionRevision7",
+                  "recognitionRevision8",
+                  "recognitionRevision9"
+                ]
+              }
+            ]
+          }
+        ],
+        "shell": {
+          "queryCount": 1,
+          "queries": [
+            {
+              "method": "queryOne",
+              "sql": "SELECT id, company_id, request_kind, entity_type, canonical_entity_id, work_id, branch_id, reviewer_user_id, review_cycle_id, snapshot_payload, snapshot_hash, request_status, row_version FROM pdm_work_review_requests WHERE id = :requestId AND company_id = :companyId",
+              "paramKeys": [
+                "companyId",
+                "requestId"
+              ]
+            }
+          ]
+        },
+        "drawingTarget": {
+          "queryCount": 4,
+          "queries": [
+            {
+              "method": "queryOne",
+              "sql": "SELECT id, drawing_number, purpose_code, purpose_description, part_root_id FROM drawings WHERE id = :drawingId AND company_id = :companyId",
+              "paramKeys": [
+                "companyId",
+                "drawingId",
+                "primary"
+              ]
+            },
+            {
+              "method": "queryOne",
+              "sql": "SELECT id, revision, policy_snapshot_json FROM drawing_revisions WHERE company_id = :companyId AND drawing_id = :drawingId ORDER BY updated_at DESC, id DESC LIMIT 1",
+              "paramKeys": [
+                "companyId",
+                "drawingId",
+                "primary"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT file.id, file.id AS binding_id, file.source_file_asset_id, asset.file_name, file.display_name, file.role, asset.mime_type, asset.file_size, asset.content_hash, file.is_primary, 0 AS current_revision_upload FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE file.company_id = :companyId AND file.drawing_revision_id = :revisionId AND file.removed_at IS NULL AND asset.deleted_at IS NULL ORDER BY file.sort_order, file.id",
+              "paramKeys": [
+                "companyId",
+                "drawingId",
+                "revisionId",
+                "workId"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT * FROM drawing_recognition_sessions WHERE company_id = :companyId AND source_context_type = 'drawing_revision' AND drawing_id IN (:recognitionDrawing0) AND drawing_revision_id IN (:recognitionRevision0) AND source_context_id IN (:recognitionRevision0) ORDER BY created_at DESC, id DESC",
+              "paramKeys": [
+                "companyId",
+                "recognitionDrawing0",
+                "recognitionRevision0"
+              ]
+            }
+          ]
+        },
+        "partTarget": {
+          "queryCount": 2,
+          "queries": [
+            {
+              "method": "queryOne",
+              "sql": "SELECT part.id, part.part_number, part.part_name, part.item_kind, part.custom_specification, part.is_universal, attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label, attributes.surface_treatment, attributes.variant_note FROM part_numbers part LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id WHERE part.id = :partId AND part.company_id = :companyId",
+              "paramKeys": [
+                "companyId",
+                "partId",
+                "primary"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT asset.id, asset.id AS binding_id, asset.id AS source_file_asset_id, asset.file_name, asset.display_name, asset.document_category AS role, asset.mime_type, asset.file_size, asset.content_hash, 0 AS is_primary, 0 AS current_revision_upload FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id = :partId AND asset.deleted_at IS NULL ORDER BY asset.created_at DESC, asset.id DESC",
+              "paramKeys": [
+                "companyId",
+                "partId"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "QA-101-013",
+      "result": "PASS",
+      "assertionIds": [
+        "DERIVATIVE-SOURCE-FIXTURE",
+        "WRONG-SOURCE-HASH-NOT-VISIBLE",
+        "MATCHING-SOURCE-HASH-READY",
+        "DERIVATIVE-DOES-NOT-REWRITE-SNAPSHOT"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "source3d": {
+          "id": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+          "bindingId": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+          "sourceFileAssetId": "FA-9f069b7f-66a4-4676-b774-97a01ebfaf51",
+          "fileName": "A0002.SLDPRT",
+          "displayName": "A0002.SLDPRT",
+          "role": "cad_3d",
+          "mimeType": "application/octet-stream",
+          "fileSize": 495749,
+          "contentHash": "15cd458b983e4dddd0836555dfa8eac0f4d3ac87c056403d4279ebbf3d3ec7f4",
+          "isPrimary": true,
+          "currentRevisionUpload": true,
+          "ordinal": 2
+        },
+        "sourceState": {
+          "id": "755bcfb7-35ba-4593-a636-48d5509e19f5"
+        },
+        "wrongState": {
+          "kind": "three-d",
+          "title": "3D 模型",
+          "fileName": "A0002.SLDPRT",
+          "state": "missing",
+          "stateTitle": "無可用預覽",
+          "stateText": "目前沒有可預覽的 3D 檔案。",
+          "mediaHref": null,
+          "downloadHref": "/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=53eb60d6-f56a-4181-b133-85bd46c5c54d&reviewRequestId=dev101-independent-source-request-49ac8e97-f67b-466d-8456-e8bb809c4fb1",
+          "retryCommandRef": null
+        },
+        "correctState": {
+          "kind": "three-d",
+          "title": "3D 模型",
+          "fileName": "A0002.SLDPRT",
+          "state": "ready",
+          "stateTitle": "預覽已就緒",
+          "stateText": "可直接開啟預覽。",
+          "mediaHref": "/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=53eb60d6-f56a-4181-b133-85bd46c5c54d&reviewRequestId=dev101-independent-source-request-49ac8e97-f67b-466d-8456-e8bb809c4fb1&previewDerivative=dev101-correct-derivative-0e72a988-36f0-4a19-be95-c47724a4f2ae",
+          "downloadHref": "/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=53eb60d6-f56a-4181-b133-85bd46c5c54d&reviewRequestId=dev101-independent-source-request-49ac8e97-f67b-466d-8456-e8bb809c4fb1",
+          "retryCommandRef": null
+        },
+        "wrongDerivativeId": "dev101-wrong-derivative-70c67329-7c87-4f8a-a96a-c1df5163df07",
+        "correctDerivativeId": "dev101-correct-derivative-0e72a988-36f0-4a19-be95-c47724a4f2ae"
+      }
+    },
+    {
+      "caseId": "QA-101-014",
+      "result": "PASS",
+      "assertionIds": [
+        "MULTI-HAS-TWO-SUBMITTED-TARGETS",
+        "EXTRA-TARGET-BODY-REJECTED",
+        "REQUEST-LEVEL-BODIES-ONLY",
+        "NO-PER-TARGET-DECISION-TABLE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "submittedTargets": [
+          "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+          "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67"
+        ],
+        "targetDecisionTables": [],
+        "decisionBodyMatrix": [
+          {
+            "body": {
+              "decision": "approve"
+            },
+            "accepted": true,
+            "actual": {
+              "accepted": true,
+              "value": "approve"
+            }
+          },
+          {
+            "body": {
+              "decision": "return_for_correction"
+            },
+            "accepted": true,
+            "actual": {
+              "accepted": true,
+              "value": "return_for_correction"
+            }
+          },
+          {
+            "body": {},
+            "accepted": false,
+            "actual": {
+              "accepted": false,
+              "code": "DEV087_DECISION_NOT_ALLOWED"
+            }
+          },
+          {
+            "body": {
+              "decision": "approve",
+              "target": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877"
+            },
+            "accepted": false,
+            "actual": {
+              "accepted": false,
+              "code": "DEV087_DECISION_NOT_ALLOWED"
+            }
+          },
+          {
+            "body": {
+              "decision": "reject"
+            },
+            "accepted": false,
+            "actual": {
+              "accepted": false,
+              "code": "DEV087_DECISION_NOT_ALLOWED"
+            }
+          },
+          {
+            "body": {
+              "decision": "needs_info"
+            },
+            "accepted": false,
+            "actual": {
+              "accepted": false,
+              "code": "DEV087_DECISION_NOT_ALLOWED"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "QA-101-015",
+      "result": "PASS",
+      "assertionIds": [
+        "PENDING-READ-WAS-VALID",
+        "TERMINAL-SHELL-STALE",
+        "TERMINAL-RECEIPT-EXISTS",
+        "TERMINAL-FACTS-REMOVED",
+        "SECOND-EFFECT-REJECTED"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "requestId": "6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+        "pending": true,
+        "terminalCountsAfter": {
+          "traces": 1,
+          "receipts": 1,
+          "activeRequests": 0,
+          "ownerState": "owner"
+        },
+        "terminalNewKeyError": {
+          "code": "WORKBENCH_BAD_REQUEST",
+          "status": 404
+        }
+      }
+    },
+    {
+      "caseId": "QA-101-016",
+      "result": "PASS",
+      "assertionIds": [
+        "EXACT-REVIEWER-AUTHORIZED",
+        "OTHER-ACTORS-FAIL-CLOSED",
+        "OTHER-ACTORS-INBOX-ZERO-FACT",
+        "AUTHORIZATION-CHECK-ZERO-WRITE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "reviewerId": "user-manager-demo",
+        "otherActorAuthorization": [
+          {
+            "actorId": "user-engineer-demo",
+            "authorized": false
+          },
+          {
+            "actorId": "user-viewer-demo",
+            "authorized": false
+          },
+          {
+            "actorId": "foreign-user",
+            "authorized": false
+          }
+        ],
+        "otherInboxIds": []
+      }
+    },
+    {
+      "caseId": "QA-101-017",
+      "result": "PASS",
+      "assertionIds": [
+        "EXACT-TARGET-FOUND",
+        "MUTATED-TARGETS-NOT-FOUND",
+        "SHELL-PRIMARY-STILL-EXACT",
+        "CROSS-REQUEST-TARGET-NOT-LIVE-FILLED"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "targetRouteMatrix": [
+          {
+            "name": "exact",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "found": true
+          },
+          {
+            "name": "wrong-type",
+            "entityType": "part",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "found": false
+          },
+          {
+            "name": "foreign-id",
+            "entityType": "drawing",
+            "entityId": "foreign-target",
+            "found": false
+          },
+          {
+            "name": "bad-encoded-id",
+            "entityType": "drawing",
+            "entityId": "%2F..%2F",
+            "found": false
+          }
+        ],
+        "primaryTargetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+        "crossRequestTargetKey": "part:cross-request-50a656e1-4488-49c0-85a9-f394232c441d"
+      }
+    },
+    {
+      "caseId": "QA-101-018",
+      "result": "PASS",
+      "assertionIds": [
+        "STRICT-DECISION-BODY-MATRIX",
+        "BAD-CONTRACT-REJECTED",
+        "STALE-ROW-VERSION-REJECTED",
+        "INVALID-DECISIONS-ZERO-EFFECT"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "decisionBodyMatrix": [
+          {
+            "body": {
+              "decision": "approve"
+            },
+            "accepted": true,
+            "actual": {
+              "accepted": true,
+              "value": "approve"
+            }
+          },
+          {
+            "body": {
+              "decision": "return_for_correction"
+            },
+            "accepted": true,
+            "actual": {
+              "accepted": true,
+              "value": "return_for_correction"
+            }
+          },
+          {
+            "body": {},
+            "accepted": false,
+            "actual": {
+              "accepted": false,
+              "code": "DEV087_DECISION_NOT_ALLOWED"
+            }
+          },
+          {
+            "body": {
+              "decision": "approve",
+              "target": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877"
+            },
+            "accepted": false,
+            "actual": {
+              "accepted": false,
+              "code": "DEV087_DECISION_NOT_ALLOWED"
+            }
+          },
+          {
+            "body": {
+              "decision": "reject"
+            },
+            "accepted": false,
+            "actual": {
+              "accepted": false,
+              "code": "DEV087_DECISION_NOT_ALLOWED"
+            }
+          },
+          {
+            "body": {
+              "decision": "needs_info"
+            },
+            "accepted": false,
+            "actual": {
+              "accepted": false,
+              "code": "DEV087_DECISION_NOT_ALLOWED"
+            }
+          }
+        ],
+        "badTokenError": {
+          "code": "WORKBENCH_CONTRACT_EXPIRED",
+          "status": 409
+        },
+        "staleVersionError": {
+          "code": "WORKBENCH_REVIEW_REQUEST_STALE",
+          "status": 409
+        },
+        "effectBefore": {
+          "traces": 1,
+          "receipts": 1,
+          "requests": 5
+        },
+        "effectAfter": {
+          "traces": 1,
+          "receipts": 1,
+          "requests": 5
+        }
+      }
+    },
+    {
+      "caseId": "QA-101-019",
+      "result": "PASS",
+      "assertionIds": [
+        "EXACT-ACTIVE-MEMBERSHIP",
+        "WRONG-MEMBERSHIP-MATRIX-FAILS",
+        "SUBMITTED-BYTES-HASH-EXACT",
+        "CURRENT-REPLACEMENT-NOT-SUBSTITUTE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "exactTargetKey": "part:part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "exactAttachment": {
+          "id": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+          "bindingId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+          "sourceFileAssetId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+          "fileName": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc.txt",
+          "displayName": "DEV-101 submitted Part attachment",
+          "role": "other",
+          "mimeType": "text/plain",
+          "fileSize": 34,
+          "contentHash": "66796baad42943f8d8d3270dd8d7663d8f353cf1b5b58c87ce9386751a7f72c2",
+          "isPrimary": false,
+          "currentRevisionUpload": false,
+          "ordinal": 0
+        },
+        "fileMembershipMatrix": [
+          {
+            "name": "exact",
+            "pass": true
+          },
+          {
+            "name": "wrong-request",
+            "pass": false
+          },
+          {
+            "name": "wrong-target",
+            "pass": false
+          },
+          {
+            "name": "wrong-binding",
+            "pass": false
+          },
+          {
+            "name": "wrong-asset",
+            "pass": false
+          },
+          {
+            "name": "wrong-hash",
+            "pass": false
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "QA-101-032",
+      "result": "PASS",
+      "assertionIds": [
+        "LARGE-MATRIX-BUILD-WITHIN-QUERY-BUDGET",
+        "LARGE-MATRIX-BUILD-WITHIN-TIME-BUDGET",
+        "ACTIVE-TARGET-ONLY-READ-BUDGET",
+        "SHELL-NO-TARGET-WATERFALL",
+        "CANONICAL-TARGET-COUNT-STABLE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "largeBudget": {
+          "totalTargets": 200,
+          "actualTargets": 200,
+          "queryCount": 12,
+          "elapsedMs": 30.81510000000003,
+          "queries": [
+            {
+              "method": "queryOne",
+              "sql": "SELECT part_root_id AS root_id FROM drawings WHERE company_id = :companyId AND id = :entityId",
+              "paramKeys": [
+                "companyId",
+                "entityId",
+                "entityType"
+              ]
+            },
+            {
+              "method": "queryOne",
+              "sql": "SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId",
+              "paramKeys": [
+                "companyId",
+                "rootId"
+              ]
+            },
+            {
+              "method": "queryOne",
+              "sql": "SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId",
+              "paramKeys": [
+                "companyId",
+                "rootId"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT 'drawing' AS kind, drawing_number.id, drawing_number.drawing_number AS number, drawing_number.part_root_id AS root_id, (SELECT state.id FROM canonical_workbench_states state JOIN drawings drawing ON drawing.id = state.canonical_entity_id AND drawing.company_id = state.company_id WHERE state.company_id = :companyId AND state.entity_type = 'drawing' AND drawing.formal_drawing_number_id = drawing_number.id ORDER BY CASE WHEN state.data_layer = 'drawing_production' THEN 0 ELSE 1 END, CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END, state.updated_at, state.id LIMIT 1) AS navigation_row_id FROM drawing_numbers drawing_number WHERE drawing_number.company_id = :companyId AND drawing_number.part_root_id = :rootId UNION ALL SELECT 'part' AS kind, part_number.id, part_number.part_number AS number, part_number.part_root_id AS root_id, (SELECT state.id FROM canonical_workbench_states state WHERE state.company_id = :companyId AND state.entity_type = 'part' AND state.canonical_entity_id = part_number.id ORDER BY CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END, state.updated_at, state.id LIMIT 1) AS navigation_row_id FROM part_numbers part_number WHERE part_number.company_id = :companyId AND part_number.part_root_id = :rootId ORDER BY kind, number, id",
+              "paramKeys": [
+                "companyId",
+                "rootId"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT link.drawing_number_id, link.part_number_id, link.link_type FROM drawing_part_links link JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id AND drawing.company_id = :companyId AND drawing.part_root_id = :rootId JOIN part_numbers part ON part.id = link.part_number_id AND part.company_id = :companyId AND part.part_root_id = :rootId ORDER BY link.drawing_number_id, link.part_number_id, link.link_type",
+              "paramKeys": [
+                "companyId",
+                "rootId"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT id, formal_drawing_number_id FROM drawings WHERE company_id = :companyId AND formal_drawing_number_id IN (:drawingNumber0, :drawingNumber1, :drawingNumber2, :drawingNumber3, :drawingNumber4, :drawingNumber5, :drawingNumber6, :drawingNumber7, :drawingNumber8, :drawingNumber9, :drawingNumber10, :drawingNumber11) ORDER BY formal_drawing_number_id, updated_at DESC, id DESC",
+              "paramKeys": [
+                "companyId",
+                "drawingNumber0",
+                "drawingNumber1",
+                "drawingNumber10",
+                "drawingNumber11",
+                "drawingNumber2",
+                "drawingNumber3",
+                "drawingNumber4",
+                "drawingNumber5",
+                "drawingNumber6",
+                "drawingNumber7",
+                "drawingNumber8",
+                "drawingNumber9"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT id, drawing_number, purpose_code, purpose_description FROM drawings WHERE company_id = :companyId AND id IN (:drawing0, :drawing1, :drawing2, :drawing3, :drawing4, :drawing5, :drawing6, :drawing7, :drawing8, :drawing9, :drawing10, :drawing11)",
+              "paramKeys": [
+                "companyId",
+                "drawing0",
+                "drawing1",
+                "drawing10",
+                "drawing11",
+                "drawing2",
+                "drawing3",
+                "drawing4",
+                "drawing5",
+                "drawing6",
+                "drawing7",
+                "drawing8",
+                "drawing9"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT id, drawing_id, revision, policy_snapshot_json FROM drawing_revisions WHERE company_id = :companyId AND drawing_id IN (:drawing0, :drawing1, :drawing2, :drawing3, :drawing4, :drawing5, :drawing6, :drawing7, :drawing8, :drawing9, :drawing10, :drawing11) ORDER BY drawing_id, updated_at DESC, id DESC",
+              "paramKeys": [
+                "companyId",
+                "drawing0",
+                "drawing1",
+                "drawing10",
+                "drawing11",
+                "drawing2",
+                "drawing3",
+                "drawing4",
+                "drawing5",
+                "drawing6",
+                "drawing7",
+                "drawing8",
+                "drawing9"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT part.id, part.part_number, part.part_name, part.item_kind, part.custom_specification, part.is_universal, attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label, attributes.surface_treatment, attributes.variant_note FROM part_numbers part LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id WHERE part.company_id = :companyId AND part.id IN (:part0, :part1, :part2, :part3, :part4, :part5, :part6, :part7, :part8, :part9, :part10, :part11, :part12, :part13, :part14, :part15, :part16, :part17, :part18, :part19, :part20, :part21, :part22, :part23, :part24, :part25, :part26, :part27, :part28, :part29, :part30, :part31, :part32, :part33, :part34, :part35, :part36, :part37, :part38, :part39, :part40, :part41, :part42, :part43, :part44, :part45, :part46, :part47, :part48, :part49, :part50, :part51, :part52, :part53, :part54, :part55, :part56, :part57, :part58, :part59, :part60, :part61, :part62, :part63, :part64, :part65, :part66, :part67, :part68, :part69, :part70, :part71, :part72, :part73, :part74, :part75, :part76, :part77, :part78, :part79, :part80, :part81, :part82, :part83, :part84, :part85, :part86, :part87, :part88, :part89, :part90, :part91, :part92, :part93, :part94, :part95, :part96, :part97, :part98, :part99, :part100, :part101, :part102, :part103, :part104, :part105, :part106, :part107, :part108, :part109, :part110, :part111, :part112, :part113, :part114, :part115, :part116, :part117, :part118, :part119, :part120, :part121, :part122, :part123, :part124, :part125, :part126, :part127, :part128, :part129, :part130, :part131, :part132, :part133, :part134, :part135, :part136, :part137, :part138, :part139, :part140, :part141, :part142, :part143, :part144, :part145, :part146, :part147, :part148, :part149, :part150, :part151, :part152, :part153, :part154, :part155, :part156, :part157, :part158, :part159, :part160, :part161, :part162, :part163, :part164, :part165, :part166, :part167, :part168, :part169, :part170, :part171, :part172, :part173, :part174, :part175, :part176, :part177, :part178, :part179, :part180, :part181, :part182, :part183, :part184, :part185, :part186, :part187)",
+              "paramKeys": [
+                "companyId",
+                "part0",
+                "part1",
+                "part10",
+                "part100",
+                "part101",
+                "part102",
+                "part103",
+                "part104",
+                "part105",
+                "part106",
+                "part107",
+                "part108",
+                "part109",
+                "part11",
+                "part110",
+                "part111",
+                "part112",
+                "part113",
+                "part114",
+                "part115",
+                "part116",
+                "part117",
+                "part118",
+                "part119",
+                "part12",
+                "part120",
+                "part121",
+                "part122",
+                "part123",
+                "part124",
+                "part125",
+                "part126",
+                "part127",
+                "part128",
+                "part129",
+                "part13",
+                "part130",
+                "part131",
+                "part132",
+                "part133",
+                "part134",
+                "part135",
+                "part136",
+                "part137",
+                "part138",
+                "part139",
+                "part14",
+                "part140",
+                "part141",
+                "part142",
+                "part143",
+                "part144",
+                "part145",
+                "part146",
+                "part147",
+                "part148",
+                "part149",
+                "part15",
+                "part150",
+                "part151",
+                "part152",
+                "part153",
+                "part154",
+                "part155",
+                "part156",
+                "part157",
+                "part158",
+                "part159",
+                "part16",
+                "part160",
+                "part161",
+                "part162",
+                "part163",
+                "part164",
+                "part165",
+                "part166",
+                "part167",
+                "part168",
+                "part169",
+                "part17",
+                "part170",
+                "part171",
+                "part172",
+                "part173",
+                "part174",
+                "part175",
+                "part176",
+                "part177",
+                "part178",
+                "part179",
+                "part18",
+                "part180",
+                "part181",
+                "part182",
+                "part183",
+                "part184",
+                "part185",
+                "part186",
+                "part187",
+                "part19",
+                "part2",
+                "part20",
+                "part21",
+                "part22",
+                "part23",
+                "part24",
+                "part25",
+                "part26",
+                "part27",
+                "part28",
+                "part29",
+                "part3",
+                "part30",
+                "part31",
+                "part32",
+                "part33",
+                "part34",
+                "part35",
+                "part36",
+                "part37",
+                "part38",
+                "part39",
+                "part4",
+                "part40",
+                "part41",
+                "part42",
+                "part43",
+                "part44",
+                "part45",
+                "part46",
+                "part47",
+                "part48",
+                "part49",
+                "part5",
+                "part50",
+                "part51",
+                "part52",
+                "part53",
+                "part54",
+                "part55",
+                "part56",
+                "part57",
+                "part58",
+                "part59",
+                "part6",
+                "part60",
+                "part61",
+                "part62",
+                "part63",
+                "part64",
+                "part65",
+                "part66",
+                "part67",
+                "part68",
+                "part69",
+                "part7",
+                "part70",
+                "part71",
+                "part72",
+                "part73",
+                "part74",
+                "part75",
+                "part76",
+                "part77",
+                "part78",
+                "part79",
+                "part8",
+                "part80",
+                "part81",
+                "part82",
+                "part83",
+                "part84",
+                "part85",
+                "part86",
+                "part87",
+                "part88",
+                "part89",
+                "part9",
+                "part90",
+                "part91",
+                "part92",
+                "part93",
+                "part94",
+                "part95",
+                "part96",
+                "part97",
+                "part98",
+                "part99"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT asset.id, asset.id AS binding_id, asset.id AS source_file_asset_id, asset.linked_entity_id, asset.file_name, asset.display_name, asset.document_category AS role, asset.mime_type, asset.file_size, asset.content_hash, 0 AS is_primary, 0 AS current_revision_upload FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id IN (:part0, :part1, :part2, :part3, :part4, :part5, :part6, :part7, :part8, :part9, :part10, :part11, :part12, :part13, :part14, :part15, :part16, :part17, :part18, :part19, :part20, :part21, :part22, :part23, :part24, :part25, :part26, :part27, :part28, :part29, :part30, :part31, :part32, :part33, :part34, :part35, :part36, :part37, :part38, :part39, :part40, :part41, :part42, :part43, :part44, :part45, :part46, :part47, :part48, :part49, :part50, :part51, :part52, :part53, :part54, :part55, :part56, :part57, :part58, :part59, :part60, :part61, :part62, :part63, :part64, :part65, :part66, :part67, :part68, :part69, :part70, :part71, :part72, :part73, :part74, :part75, :part76, :part77, :part78, :part79, :part80, :part81, :part82, :part83, :part84, :part85, :part86, :part87, :part88, :part89, :part90, :part91, :part92, :part93, :part94, :part95, :part96, :part97, :part98, :part99, :part100, :part101, :part102, :part103, :part104, :part105, :part106, :part107, :part108, :part109, :part110, :part111, :part112, :part113, :part114, :part115, :part116, :part117, :part118, :part119, :part120, :part121, :part122, :part123, :part124, :part125, :part126, :part127, :part128, :part129, :part130, :part131, :part132, :part133, :part134, :part135, :part136, :part137, :part138, :part139, :part140, :part141, :part142, :part143, :part144, :part145, :part146, :part147, :part148, :part149, :part150, :part151, :part152, :part153, :part154, :part155, :part156, :part157, :part158, :part159, :part160, :part161, :part162, :part163, :part164, :part165, :part166, :part167, :part168, :part169, :part170, :part171, :part172, :part173, :part174, :part175, :part176, :part177, :part178, :part179, :part180, :part181, :part182, :part183, :part184, :part185, :part186, :part187) AND asset.deleted_at IS NULL ORDER BY asset.linked_entity_id, asset.created_at DESC, asset.id DESC",
+              "paramKeys": [
+                "companyId",
+                "part0",
+                "part1",
+                "part10",
+                "part100",
+                "part101",
+                "part102",
+                "part103",
+                "part104",
+                "part105",
+                "part106",
+                "part107",
+                "part108",
+                "part109",
+                "part11",
+                "part110",
+                "part111",
+                "part112",
+                "part113",
+                "part114",
+                "part115",
+                "part116",
+                "part117",
+                "part118",
+                "part119",
+                "part12",
+                "part120",
+                "part121",
+                "part122",
+                "part123",
+                "part124",
+                "part125",
+                "part126",
+                "part127",
+                "part128",
+                "part129",
+                "part13",
+                "part130",
+                "part131",
+                "part132",
+                "part133",
+                "part134",
+                "part135",
+                "part136",
+                "part137",
+                "part138",
+                "part139",
+                "part14",
+                "part140",
+                "part141",
+                "part142",
+                "part143",
+                "part144",
+                "part145",
+                "part146",
+                "part147",
+                "part148",
+                "part149",
+                "part15",
+                "part150",
+                "part151",
+                "part152",
+                "part153",
+                "part154",
+                "part155",
+                "part156",
+                "part157",
+                "part158",
+                "part159",
+                "part16",
+                "part160",
+                "part161",
+                "part162",
+                "part163",
+                "part164",
+                "part165",
+                "part166",
+                "part167",
+                "part168",
+                "part169",
+                "part17",
+                "part170",
+                "part171",
+                "part172",
+                "part173",
+                "part174",
+                "part175",
+                "part176",
+                "part177",
+                "part178",
+                "part179",
+                "part18",
+                "part180",
+                "part181",
+                "part182",
+                "part183",
+                "part184",
+                "part185",
+                "part186",
+                "part187",
+                "part19",
+                "part2",
+                "part20",
+                "part21",
+                "part22",
+                "part23",
+                "part24",
+                "part25",
+                "part26",
+                "part27",
+                "part28",
+                "part29",
+                "part3",
+                "part30",
+                "part31",
+                "part32",
+                "part33",
+                "part34",
+                "part35",
+                "part36",
+                "part37",
+                "part38",
+                "part39",
+                "part4",
+                "part40",
+                "part41",
+                "part42",
+                "part43",
+                "part44",
+                "part45",
+                "part46",
+                "part47",
+                "part48",
+                "part49",
+                "part5",
+                "part50",
+                "part51",
+                "part52",
+                "part53",
+                "part54",
+                "part55",
+                "part56",
+                "part57",
+                "part58",
+                "part59",
+                "part6",
+                "part60",
+                "part61",
+                "part62",
+                "part63",
+                "part64",
+                "part65",
+                "part66",
+                "part67",
+                "part68",
+                "part69",
+                "part7",
+                "part70",
+                "part71",
+                "part72",
+                "part73",
+                "part74",
+                "part75",
+                "part76",
+                "part77",
+                "part78",
+                "part79",
+                "part8",
+                "part80",
+                "part81",
+                "part82",
+                "part83",
+                "part84",
+                "part85",
+                "part86",
+                "part87",
+                "part88",
+                "part89",
+                "part9",
+                "part90",
+                "part91",
+                "part92",
+                "part93",
+                "part94",
+                "part95",
+                "part96",
+                "part97",
+                "part98",
+                "part99"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT file.id, file.id AS binding_id, file.drawing_revision_id, file.source_file_asset_id, asset.file_name, file.display_name, file.role, asset.mime_type, asset.file_size, asset.content_hash, file.is_primary, 0 AS current_revision_upload FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE file.company_id = :companyId AND file.drawing_revision_id IN (:revision0, :revision1, :revision2, :revision3, :revision4, :revision5, :revision6, :revision7, :revision8, :revision9, :revision10, :revision11) AND file.removed_at IS NULL AND asset.deleted_at IS NULL ORDER BY file.drawing_revision_id, file.sort_order, file.id",
+              "paramKeys": [
+                "companyId",
+                "revision0",
+                "revision1",
+                "revision10",
+                "revision11",
+                "revision2",
+                "revision3",
+                "revision4",
+                "revision5",
+                "revision6",
+                "revision7",
+                "revision8",
+                "revision9"
+              ]
+            },
+            {
+              "method": "query",
+              "sql": "SELECT * FROM drawing_recognition_sessions WHERE company_id = :companyId AND source_context_type = 'drawing_revision' AND drawing_id IN (:recognitionDrawing0, :recognitionDrawing1, :recognitionDrawing2, :recognitionDrawing3, :recognitionDrawing4, :recognitionDrawing5, :recognitionDrawing6, :recognitionDrawing7, :recognitionDrawing8, :recognitionDrawing9, :recognitionDrawing10, :recognitionDrawing11) AND drawing_revision_id IN (:recognitionRevision0, :recognitionRevision1, :recognitionRevision2, :recognitionRevision3, :recognitionRevision4, :recognitionRevision5, :recognitionRevision6, :recognitionRevision7, :recognitionRevision8, :recognitionRevision9, :recognitionRevision10, :recognitionRevision11) AND source_context_id IN (:recognitionRevision0, :recognitionRevision1, :recognitionRevision2, :recognitionRevision3, :recognitionRevision4, :recognitionRevision5, :recognitionRevision6, :recognitionRevision7, :recognitionRevision8, :recognitionRevision9, :recognitionRevision10, :recognitionRevision11) ORDER BY created_at DESC, id DESC",
+              "paramKeys": [
+                "companyId",
+                "recognitionDrawing0",
+                "recognitionDrawing1",
+                "recognitionDrawing10",
+                "recognitionDrawing11",
+                "recognitionDrawing2",
+                "recognitionDrawing3",
+                "recognitionDrawing4",
+                "recognitionDrawing5",
+                "recognitionDrawing6",
+                "recognitionDrawing7",
+                "recognitionDrawing8",
+                "recognitionDrawing9",
+                "recognitionRevision0",
+                "recognitionRevision1",
+                "recognitionRevision10",
+                "recognitionRevision11",
+                "recognitionRevision2",
+                "recognitionRevision3",
+                "recognitionRevision4",
+                "recognitionRevision5",
+                "recognitionRevision6",
+                "recognitionRevision7",
+                "recognitionRevision8",
+                "recognitionRevision9"
+              ]
+            }
+          ]
+        },
+        "shellQueryCount": 1,
+        "drawingQueryCount": 4,
+        "partQueryCount": 2,
+        "multiTargetParameterShape": false
+      }
+    },
+    {
+      "caseId": "QA-101-037",
+      "result": "PASS",
+      "assertionIds": [
+        "V1-V2-NORMAL-INBOX-ROWS",
+        "INBOX-SUMMARY-MATCHES-ROWS",
+        "ROW-FACTS-DISTINGUISHABLE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "writerRows": [
+          {
+            "rowKey": "approval:pdm_work_review:6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+            "id": "6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+            "source": "pdm_work_review",
+            "companyId": "company-jenfu",
+            "actionCode": "numbering.pdm_part_change_review",
+            "actionTitle": "料號變更審核",
+            "domainCode": "numbering",
+            "title": "料號變更審核 - A0059-P01 / 固定架_BS_700_A",
+            "status": "pending",
+            "reason": "等待審核負責人處理",
+            "requestedBy": "user-engineer-demo",
+            "requestedByName": "Demo Engineer",
+            "requestedAt": "2026-08-28 21:24:20",
+            "packageId": null,
+            "packageCode": null,
+            "packageStatus": null,
+            "targetSummary": "A0059-P01 / 固定架_BS_700_A",
+            "impactSummary": null,
+            "legacy": null,
+            "primaryTarget": {
+              "type": "part",
+              "targetId": "5404e592-7995-49f9-831b-d1f83bbd1891",
+              "code": "A0059-P01",
+              "label": "A0059-P01 / 固定架_BS_700_A"
+            }
+          },
+          {
+            "rowKey": "approval:pdm_work_review:9ab56e3c-687a-45a0-96cb-720135b870d5",
+            "id": "9ab56e3c-687a-45a0-96cb-720135b870d5",
+            "source": "pdm_work_review",
+            "companyId": "company-jenfu",
+            "actionCode": "numbering.pdm_part_change_review",
+            "actionTitle": "料號變更審核",
+            "domainCode": "numbering",
+            "title": "料號變更審核 - A0001-P01 / DEV-032 hotfix production acceptance 20260716140505",
+            "status": "pending",
+            "reason": "等待審核負責人處理",
+            "requestedBy": "user-engineer-demo",
+            "requestedByName": "Demo Engineer",
+            "requestedAt": "2026-08-28 21:24:20",
+            "packageId": null,
+            "packageCode": null,
+            "packageStatus": null,
+            "targetSummary": "A0001-P01 / DEV-032 hotfix production acceptance 20260716140505",
+            "impactSummary": null,
+            "legacy": null,
+            "primaryTarget": {
+              "type": "part",
+              "targetId": "0a81c6e6-089c-4881-926c-819ff141734c",
+              "code": "A0001-P01",
+              "label": "A0001-P01 / DEV-032 hotfix production acceptance 20260716140505"
+            }
+          }
+        ],
+        "summary": {
+          "total": 2,
+          "pending": 2,
+          "needsInfo": 0,
+          "applyFailed": 0
+        }
+      }
+    },
+    {
+      "caseId": "QA-101-038",
+      "result": "PASS",
+      "assertionIds": [
+        "EXACT-REVIEWER-ONLY",
+        "APPLYING-EXCLUDED",
+        "SEARCH-BEFORE-LIMIT",
+        "CURSOR-STABLE-NO-DUPLICATE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "exactIds": [
+          "6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+          "9ab56e3c-687a-45a0-96cb-720135b870d5"
+        ],
+        "otherIds": [],
+        "searchIds": [
+          "6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d"
+        ],
+        "cursorIds": [
+          "approval:pdm_work_review:6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+          "approval:pdm_work_review:9ab56e3c-687a-45a0-96cb-720135b870d5"
+        ]
+      }
+    },
+    {
+      "caseId": "QA-101-039",
+      "result": "PASS",
+      "assertionIds": [
+        "POSTCONDITION-NOT-PRESEEDED",
+        "OWNER-COMMAND-PERSISTED-V2",
+        "REVIEWER-NORMAL-INBOX-DISCOVERY"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "workId": "13be6f2c-a1aa-4ad2-83ab-38aca1c45ea0",
+        "requestId": "6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+        "partNumber": "A0059-P01",
+        "inboxRow": {
+          "rowKey": "approval:pdm_work_review:6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+          "id": "6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+          "source": "pdm_work_review",
+          "companyId": "company-jenfu",
+          "actionCode": "numbering.pdm_part_change_review",
+          "actionTitle": "料號變更審核",
+          "domainCode": "numbering",
+          "title": "料號變更審核 - A0059-P01 / 固定架_BS_700_A",
+          "status": "pending",
+          "reason": "等待審核負責人處理",
+          "requestedBy": "user-engineer-demo",
+          "requestedByName": "Demo Engineer",
+          "requestedAt": "2026-08-28 21:24:20",
+          "packageId": null,
+          "packageCode": null,
+          "packageStatus": null,
+          "targetSummary": "A0059-P01 / 固定架_BS_700_A",
+          "impactSummary": null,
+          "legacy": null,
+          "primaryTarget": {
+            "type": "part",
+            "targetId": "5404e592-7995-49f9-831b-d1f83bbd1891",
+            "code": "A0059-P01",
+            "label": "A0059-P01 / 固定架_BS_700_A"
+          }
+        }
+      }
+    },
+    {
+      "caseId": "QA-101-040",
+      "result": "PASS",
+      "assertionIds": [
+        "LEGACY-NORMAL-INBOX-DISCOVERY",
+        "LEGACY-COMPATIBILITY-READER",
+        "LEGACY-NO-BACKFILL",
+        "LEGACY-NOT-V2-MATRIX"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "requestId": "9ab56e3c-687a-45a0-96cb-720135b870d5",
+        "schema": "legacy",
+        "hash": "26dd930553e02b77aadc7c210027f9795bd5d0e6d82b94a9adbf6e0beaa3a702"
+      }
+    },
+    {
+      "caseId": "QA-101-043",
+      "result": "PASS",
+      "assertionIds": [
+        "FULL-PROJECTION-SCHEMA",
+        "EXACT-SESSION-TUPLE",
+        "UNIQUE-PART-OWNER",
+        "EVIDENCE-MEMBERSHIP",
+        "INNER-PROJECTION-HASH-INDEPENDENT",
+        "OUTER-INCLUDES-PROJECTION"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "session": {
+          "id": "dev101-independent-session-3bd0d654-d99e-423a-a29e-fc6b56097dd5",
+          "sourceContextType": "drawing_revision",
+          "sourceContextId": "c076f20b-21d0-4061-a9bf-148060995162",
+          "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+          "drawingRevisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+          "sourceSetFingerprint": "independent:cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659",
+          "status": "review_ready",
+          "rowVersion": 1,
+          "warningCount": 0,
+          "conflictCount": 0,
+          "unclassifiedCount": 0,
+          "errorCode": null,
+          "errorSummary": null,
+          "createdAt": "2098-08-27T00:00:00.000Z",
+          "updatedAt": "2098-08-27T00:00:00.000Z",
+          "formalizedAt": null
+        },
+        "sourceIds": [
+          "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd"
+        ],
+        "candidateIds": [
+          "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+          "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+        ],
+        "ownerFields": [
+          {
+            "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+            "category": "part_attribute",
+            "fieldKey": "custom_specification",
+            "fieldLabel": "自訂規格",
+            "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+            "memberCandidateIds": [
+              "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+            ],
+            "distinctValues": [
+              "QA-SPEC"
+            ],
+            "conflictState": "none",
+            "reviewState": "accepted",
+            "proposedValue": "QA-SPEC",
+            "currentFormalValue": null,
+            "observations": [
+              {
+                "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                "sourceRole": "drawing_2d",
+                "rawText": "料號規格：A0002-P01",
+                "rawValue": "QA-SPEC",
+                "normalizedValue": "QA-SPEC",
+                "locationKind": "page_region",
+                "pageNumber": 1,
+                "sheetName": null,
+                "configurationName": null,
+                "geometry": {
+                  "coordinateSpace": "normalized_page",
+                  "origin": "top_left",
+                  "x": 0.2,
+                  "y": 0.2,
+                  "width": 0.3,
+                  "height": 0.08
+                },
+                "confidenceBand": "high",
+                "extractorCode": "dev101.independent.v1",
+                "extractorVersion": "1",
+                "capturedAt": "2098-08-27T00:00:00.000Z"
+              }
+            ],
+            "scopes": [
+              {
+                "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+                "category": "part_attribute",
+                "fieldKey": "custom_specification",
+                "fieldLabel": "自訂規格",
+                "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                "memberCandidateIds": [
+                  "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+                ],
+                "distinctValues": [
+                  "QA-SPEC"
+                ],
+                "conflictState": "none",
+                "reviewState": "accepted",
+                "proposedValue": "QA-SPEC",
+                "currentFormalValue": null,
+                "observations": [
+                  {
+                    "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                    "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                    "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                    "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                    "sourceRole": "drawing_2d",
+                    "rawText": "料號規格：A0002-P01",
+                    "rawValue": "QA-SPEC",
+                    "normalizedValue": "QA-SPEC",
+                    "locationKind": "page_region",
+                    "pageNumber": 1,
+                    "sheetName": null,
+                    "configurationName": null,
+                    "geometry": {
+                      "coordinateSpace": "normalized_page",
+                      "origin": "top_left",
+                      "x": 0.2,
+                      "y": 0.2,
+                      "width": 0.3,
+                      "height": 0.08
+                    },
+                    "confidenceBand": "high",
+                    "extractorCode": "dev101.independent.v1",
+                    "extractorVersion": "1",
+                    "capturedAt": "2098-08-27T00:00:00.000Z"
+                  }
+                ]
+              }
+            ],
+            "ownerResolution": "resolved",
+            "effectiveOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "blockingReason": null
+          }
+        ],
+        "observationIds": [
+          "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+          "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e"
+        ],
+        "projectionHash": "5a4f478979ae6cccdd9d475a3e60dda567c4123bcc94788cc760e017f86d079e",
+        "packageHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092"
+      }
+    },
+    {
+      "caseId": "QA-101-044",
+      "result": "PASS",
+      "assertionIds": [
+        "EDITOR-PACKAGE-SESSION-CANONICAL-PARITY",
+        "EDITOR-PACKAGE-SOURCE-CANONICAL-PARITY",
+        "EDITOR-PACKAGE-CANDIDATE-EVIDENCE-PARITY",
+        "PACKAGE-PROJECTION-HASH-INDEPENDENT",
+        "EDITOR-PROJECTION-READ-ZERO-WRITE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "sessionHash": "f5311210fa651f0727270fc93ea6c683e9de5338ae239c12e016165b697a450d",
+        "packageSessionHash": "f5311210fa651f0727270fc93ea6c683e9de5338ae239c12e016165b697a450d",
+        "sourceHash": "e82deb26047f0a2e8f4b34445040b8a534a97e5c4bdbea929f0c8c750ccfc382",
+        "packageSourceHash": "e82deb26047f0a2e8f4b34445040b8a534a97e5c4bdbea929f0c8c750ccfc382",
+        "candidateHash": "79244f3404cd32e74e28528dfb094357a5d35a7bbed5a39ff2ada3efff0c4c26",
+        "packageCandidateHash": "79244f3404cd32e74e28528dfb094357a5d35a7bbed5a39ff2ada3efff0c4c26",
+        "beforeFingerprint": "d0f9bdaff4d704cdb55b1b4c6e29d4cbe6588de6fb9d0edc3b7b5bb37a3d85c5",
+        "afterFingerprint": "d0f9bdaff4d704cdb55b1b4c6e29d4cbe6588de6fb9d0edc3b7b5bb37a3d85c5"
+      }
+    },
+    {
+      "caseId": "QA-101-045",
+      "result": "PASS",
+      "assertionIds": [
+        "EXACT-REVISION-SESSION-STABLE",
+        "PROJECTION-CANONICAL-STABLE",
+        "INNER-HASH-STABLE"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "exactSessionId": "dev101-independent-session-3bd0d654-d99e-423a-a29e-fc6b56097dd5",
+        "newerSessionId": "dev101-independent-latest-leak-92139091-1606-4312-8771-4b8a9165e2a2",
+        "rebuiltSessionId": "dev101-independent-session-3bd0d654-d99e-423a-a29e-fc6b56097dd5",
+        "beforeProjectionHash": "5a4f478979ae6cccdd9d475a3e60dda567c4123bcc94788cc760e017f86d079e",
+        "afterProjectionHash": "5a4f478979ae6cccdd9d475a3e60dda567c4123bcc94788cc760e017f86d079e"
+      }
+    },
+    {
+      "caseId": "QA-101-046",
+      "result": "PASS",
+      "assertionIds": [
+        "UNRESOLVED-FAIL-CLOSED",
+        "AMBIGUOUS-FAIL-CLOSED",
+        "LEGACY-META-INCOMPLETE",
+        "INVALID-OWNER-INDEPENDENTLY-ABSENT",
+        "INVALID-OWNER-FAIL-CLOSED",
+        "INVALID-OWNER-ZERO-FORMAL-EFFECT"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "unresolvedCode": "WORKBENCH_RECOGNITION_OWNER_UNRESOLVED",
+        "ambiguousCode": "WORKBENCH_RECOGNITION_OWNER_UNRESOLVED",
+        "legacyCode": "WORKBENCH_RECOGNITION_BASIS_INCOMPLETE",
+        "invalidOwner": {
+          "effectiveOwnerId": "missing-owner-61a80d39-f832-42e0-9e8e-0e0122ee7829",
+          "ownerResolution": null,
+          "blockingReason": null,
+          "exists": false,
+          "fixtureCode": "RECOGNITION_PART_OWNER_INVARIANT",
+          "approveGateCode": null,
+          "effectBefore": {
+            "approvedSnapshots": 0,
+            "reviewTraces": 2,
+            "terminalReceipts": 2
+          },
+          "effectAfter": {
+            "approvedSnapshots": 0,
+            "reviewTraces": 2,
+            "terminalReceipts": 2
+          }
+        }
+      }
+    },
+    {
+      "caseId": "QA-101-048",
+      "result": "PASS",
+      "assertionIds": [
+        "SQLITE-JSON-ROUNDTRIP-CANONICAL",
+        "NESTED-MUTANT-INDEPENDENT-OUTER-VALID",
+        "INNER-HASH-MUTANT-REJECTED"
+      ],
+      "firstFailurePointer": null,
+      "detail": {
+        "provider": "sqlite",
+        "packageHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092",
+        "roundTripHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092",
+        "mutantPackageHash": "30bd7f01a86623d0146ad94d0abee6ce3d4e6126eecc19298f17a87f063ed0bd",
+        "unchangedProjectionHash": "5a4f478979ae6cccdd9d475a3e60dda567c4123bcc94788cc760e017f86d079e",
+        "actualCode": "WORKBENCH_REVIEW_PACKAGE_INTEGRITY_FAILED"
+      }
+    }
+  ],
+  "caseEvidence": {
+    "QA-101-001": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-002": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-003": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-004": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-005": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-006": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-007": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-008": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-009": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-010": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-011": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-012": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-013": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-014": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-015": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-016": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-017": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-018": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-019": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-032": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-037": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-038": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-039": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-040": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-043": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-044": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-045": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-046": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    },
+    "QA-101-048": {
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json"
+      ]
+    }
+  },
+  "artifacts": [
+    {
+      "path": "output/qa/dev-101-independent-data/DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z/data-evidence.json",
+      "sha256": "520d0c73e22cde9fe6113ce5db30a63f5b5cbead4d810aa10627a8c937f69f58",
+      "caseIds": [
+        "QA-101-001",
+        "QA-101-002",
+        "QA-101-003",
+        "QA-101-004",
+        "QA-101-005",
+        "QA-101-006",
+        "QA-101-007",
+        "QA-101-008",
+        "QA-101-009",
+        "QA-101-010",
+        "QA-101-011",
+        "QA-101-012",
+        "QA-101-013",
+        "QA-101-014",
+        "QA-101-015",
+        "QA-101-016",
+        "QA-101-017",
+        "QA-101-018",
+        "QA-101-019",
+        "QA-101-032",
+        "QA-101-037",
+        "QA-101-038",
+        "QA-101-039",
+        "QA-101-040",
+        "QA-101-043",
+        "QA-101-044",
+        "QA-101-045",
+        "QA-101-046",
+        "QA-101-048"
+      ],
+      "evidenceTypes": [
+        "primitive_json",
+        "independent_oracle",
+        "mutation_ledger",
+        "raw_database",
+        "primary_invariant",
+        "cleanup_receipt"
+      ]
+    }
+  ],
+  "prohibitedOracleImports": [],
+  "primaryInvariant": {
+    "before": "f865991398be498c5525641e0459861dc9f3908b49acfff0fb041a228b387326",
+    "after": "f865991398be498c5525641e0459861dc9f3908b49acfff0fb041a228b387326",
+    "unchanged": true
+  },
+  "cleanupReceipt": {
+    "complete": true,
+    "portsReleased": true,
+    "processesStopped": true,
+    "tempRemoved": true
+  },
+  "visibleErrorAudit": {
+    "required": false,
+    "consoleErrors": 0,
+    "pageErrors": 0,
+    "requestFailures": 0,
+    "unexpectedRequestFailures": 0,
+    "visibleErrorCount": 0
+  },
+  "denominator": {
+    "expected": 29,
+    "pass": 29,
+    "fail": 0,
+    "blocked": 0,
+    "notRun": 0
+  },
+  "result": "PASS",
+  "firstFailure": null,
+  "productionWrites": false,
+  "completedAt": "2026-08-28T21:24:21.307Z"
+}

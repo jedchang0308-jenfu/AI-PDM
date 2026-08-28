@@ -1,0 +1,46 @@
+{
+  "id": "J-D16",
+  "caseId": "D16",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create-promotion-work",
+      "candidate": "量產版 2"
+    },
+    {
+      "kind": "drawing-fields-retired"
+    },
+    {
+      "kind": "submit-promotion"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 1,
+      "scope": "promotion"
+    },
+    {
+      "kind": "decision",
+      "decision": "approve",
+      "readonlyInputs": 4,
+      "scope": "promotion"
+    },
+    {
+      "kind": "assert",
+      "target": "stale-branch-freeze-and-restart",
+      "observed": {
+        "noStaleTargets": true,
+        "recoveryText": "這個研發分支的量產基準已更新，不能沿用舊分支進版。\n從目前量產版建立新工作",
+        "recoveredLabels": [
+          "量產版 3",
+          "研發版 2.1"
+        ]
+      }
+    }
+  ],
+  "startedAt": "2026-08-28T18:23:50.489Z",
+  "finishedAt": "2026-08-28T18:23:55.070Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

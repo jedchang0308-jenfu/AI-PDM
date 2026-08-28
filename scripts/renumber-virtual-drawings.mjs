@@ -213,10 +213,6 @@ function collectExternalReferencePlan(db) {
     return byPart.get(oldPartNumber);
   }
 
-  for (const row of db.prepare("SELECT DISTINCT child_part_number FROM bom_lines").all()) {
-    ensurePart(row.child_part_number);
-  }
-
   for (const row of db.prepare("SELECT DISTINCT referenced_part_number, referenced_drawing_number FROM file_references").all()) {
     const partMapping = ensurePart(row.referenced_part_number);
     if (partMapping && isNonstandardRefDrawing(row.referenced_drawing_number)) {
@@ -386,7 +382,6 @@ function collectPlan(db) {
 function applyPlan(db, plan) {
   const updateItem = db.prepare("UPDATE items SET part_number = ?, part_name = ?, current_revision = ?, updated_at = ? WHERE id = ?");
   const updateSubmission = db.prepare("UPDATE submissions SET drawing_number = ?, revision = ?, updated_at = ? WHERE id = ?");
-  const updateBomLine = db.prepare("UPDATE bom_lines SET child_part_number = ?, child_revision = ? WHERE id = ?");
   const updateFileReference = db.prepare(
     "UPDATE file_references SET source_filename = ?, referenced_filename = ?, referenced_part_number = ?, referenced_drawing_number = ?, referenced_revision = ? WHERE id = ?"
   );
@@ -437,20 +432,6 @@ function applyPlan(db, plan) {
       }
     }
 
-    for (const row of db.prepare("SELECT id, child_part_number, child_revision FROM bom_lines").all()) {
-      const partMapping = plan.maps.byOldPart.get(row.child_part_number);
-      const revisionMapping = row.child_revision
-        ? plan.maps.byOldPartRevision.get(`${row.child_part_number}\u0000${row.child_revision}`)
-        : null;
-      if (partMapping || revisionMapping) {
-        updateBomLine.run(
-          partMapping?.newPartNumber ?? row.child_part_number,
-          revisionMapping?.newRevision ?? row.child_revision,
-          row.id
-        );
-      }
-    }
-
     for (const row of db.prepare("SELECT * FROM file_references").all()) {
       const partMapping = row.referenced_part_number ? plan.maps.byOldPart.get(row.referenced_part_number) : null;
       const drawingMapping = row.referenced_drawing_number ? plan.maps.byOldDrawing.get(row.referenced_drawing_number) : null;
@@ -488,36 +469,11 @@ function applyPlan(db, plan) {
 }
 
 function applyExternalReferencePlan(db, externalPlan) {
-  const updateBomLine = db.prepare("UPDATE bom_lines SET child_part_number = ?, child_revision = ?, source_filename = ? WHERE id = ?");
   const updateFileReference = db.prepare(
     "UPDATE file_references SET source_filename = ?, referenced_filename = ?, referenced_part_number = ?, referenced_drawing_number = ?, referenced_revision = ? WHERE id = ?"
   );
 
   const transaction = db.transaction(() => {
-    const bomRows = db
-      .prepare(
-        `
-        SELECT bl.id, bl.child_part_number, bl.child_revision, bl.source_filename, sf.original_filename AS current_source_filename
-        FROM bom_lines bl
-        JOIN submission_files sf ON sf.id = bl.source_file_id
-        `
-      )
-      .all();
-
-    for (const row of bomRows) {
-      const partMapping = externalPlan.byPart.get(row.child_part_number);
-      const newChildPartNumber = partMapping?.newPartNumber ?? row.child_part_number;
-      const newChildRevision = partMapping ? normalizeRevision(row.child_revision) : row.child_revision;
-      const newSourceFilename = row.current_source_filename ?? row.source_filename;
-      if (
-        newChildPartNumber !== row.child_part_number ||
-        newChildRevision !== row.child_revision ||
-        newSourceFilename !== row.source_filename
-      ) {
-        updateBomLine.run(newChildPartNumber, newChildRevision, newSourceFilename, row.id);
-      }
-    }
-
     const refRows = db
       .prepare(
         `
@@ -576,10 +532,8 @@ function postCheck(db) {
         SUM(CASE WHEN i.part_number GLOB 'P-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9]' THEN 0 ELSE 1 END) AS nonstandard_parts,
         COUNT(DISTINCT i.part_number) AS distinct_parts,
         COUNT(DISTINCT i.id) AS distinct_items,
-        (SELECT COUNT(*) FROM bom_lines WHERE child_part_number NOT GLOB 'P-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9]') AS nonstandard_bom_child_parts,
         (SELECT COUNT(*) FROM file_references WHERE referenced_part_number IS NOT NULL AND referenced_part_number != '' AND referenced_part_number NOT GLOB 'P-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9]') AS nonstandard_reference_parts,
         (SELECT COUNT(*) FROM file_references WHERE referenced_drawing_number IS NOT NULL AND referenced_drawing_number != '' AND referenced_drawing_number NOT GLOB 'D-[0-9][0-9][0-9][0-9]-MA[0-9]' AND referenced_drawing_number NOT GLOB 'D-[0-9][0-9][0-9][0-9]-OT[0-9]') AS nonstandard_reference_drawings,
-        (SELECT COUNT(*) FROM bom_lines bl JOIN submission_files sf ON sf.id = bl.source_file_id WHERE bl.source_filename != sf.original_filename) AS bom_source_filename_mismatch,
         (SELECT COUNT(*) FROM file_references fr JOIN submission_files sf ON sf.id = fr.source_file_id WHERE fr.source_filename != sf.original_filename) AS reference_source_filename_mismatch
       FROM submissions s
       JOIN items i ON i.id = s.item_id
@@ -651,10 +605,8 @@ try {
     check &&
     (checkResult.nonstandard_drawings !== 0 ||
       checkResult.nonstandard_parts !== 0 ||
-      checkResult.nonstandard_bom_child_parts !== 0 ||
       checkResult.nonstandard_reference_parts !== 0 ||
       checkResult.nonstandard_reference_drawings !== 0 ||
-      checkResult.bom_source_filename_mismatch !== 0 ||
       checkResult.reference_source_filename_mismatch !== 0)
   ) {
     process.exitCode = 1;

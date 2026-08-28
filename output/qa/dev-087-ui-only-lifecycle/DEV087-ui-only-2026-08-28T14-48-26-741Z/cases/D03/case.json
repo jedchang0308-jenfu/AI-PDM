@@ -1,0 +1,41 @@
+{
+  "id": "D03",
+  "family": "D",
+  "title": "0.1 編輯儲存 reload",
+  "status": "PASS",
+  "reason": "",
+  "startedAt": "2026-08-28T14:49:25.359Z",
+  "finishedAt": "2026-08-28T14:49:27.118Z",
+  "expected": {
+    "ui": "canonical workbench list",
+    "mutation": "full lifecycle journey"
+  },
+  "actual": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": [
+      "A0060-M01DEV087 D03 44826741Z研發版 0.1編輯中負責人處理"
+    ],
+    "apiStatus": 200,
+    "apiBodyHash": 1264,
+    "dbRows": 1
+  },
+  "evidence": {
+    "actions": "actions.jsonl",
+    "network": "network.jsonl",
+    "triad": "triad-diff/list.json"
+  }
+}

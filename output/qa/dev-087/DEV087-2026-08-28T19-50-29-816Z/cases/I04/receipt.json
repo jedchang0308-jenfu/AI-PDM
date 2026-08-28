@@ -1,0 +1,883 @@
+{
+  "caseId": "I04",
+  "result": "PASS",
+  "assertionIds": [
+    "I04:INLINE_EDIT_NO_ROUTE_OR_WRITE"
+  ],
+  "renderedUiActions": [
+    "click 編輯關聯"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "activeRole": "body",
+    "activeText": "AI PDM工作台圖料管理編號搜尋圖圖號工作台料料號工作台變更 / 審核審核工作台發行 / 交接技術移轉管理管理辦法我的帳號安全帳號與權限系統設定Demo Admin已登入圖號工作台建立編號搜尋版本全部處理全部用途全部系列全部編號品名版本資料狀態處理A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理量產版 1無須處理A0002-M01本體_BS_右_Xx5目前資料圖號A0002-M01圖面用途M3D 模型無可用預覽目前沒有可預覽的 3D 檔案。A0002.SLDPRT2D 圖面A0002-M01.pdf圖面檔案A0002-M01.pdf下載A0002-M01.SLDDRW下載A0002.SLDPRT下載關聯矩陣建立編號圖號料號A0002-M01A0002-R99A0002-P01製造參考A0002-P02——A0002-P03——A0002-P04——A0002-P05——A0002-P06——A0002-P07——A0002-P08——A0002-P09——A0002-P10——A0002-P11——A0002-P12——A0002-P13——A0002-P14——A0002-P15——A0002-P16——A0002-P17——A0002-P18——A0002-P19——A0002-P20——A0002-P21——A0002-P22——A0002-P23——A0002-P24——A0002-P25——A0002-P26——A0002-P27——A0002-P28——A0002-P29——A0002-P30——A0002-P31——A0002-P32——A0002-P33——A0002-P34——A0002-P35——A0002-P36——A0002-P37——A0002-P38——A0002-P39——A0002-P40——A0002-P41——A0002-P42——A0002-P43——A0002-P44——A0002-P45——A0002-P46——A0002-P47——儲存關聯取消歷史版次清單研發版 1.1開啟指定版次量產版 1開啟指定版次研發版 0.1開啟指定版次進版申請作廢self.__next_r=\"ugrDi2mYC7SYbzjtM5MV5\";if(document.cookie.indexOf('next-instant-navigation-testing=')>-1){self.__next_instant_test=fetch(location.pathname+'?_rsc=xhdorIanPcIpYSsE',{credentials:'same-origin',headers:{'rsc':'1','next-router-prefetch':'1','next-router-segment-prefetch':'/_full'}})}(self.__next_f=self.__next_f||[]).push([0])self.__next_f.push([1,\"7:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"SegmentViewNode\\\"]\\n9:\\\"$Sreact.fragment\\\"\\n1b:I[\\\"(app-pages-browser)/./src/components/sidebar-nav.tsx\\\",[\\\"app/layout\\\",\\\"static/chunks/app/layout.js\\\"],\\\"SidebarNav\\\"]\\n1e:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/layout-router.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"\\\"]\\n20:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/render-from-template-context.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"\\\"]\\n3a:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/client-page.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"ClientPageRoot\\\"]\\n3b:I[\\\"(app-pages-browser)/./src/app/numbering/drawings/page.tsx\\\",[\\\"app/numbering/drawings/page\\\",\\\"static/chunks/app/numbering/drawings/page.js\\\"],\\\"default\\\"]\\n41:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/framework/boundary-components.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"OutletBoundary\\\"]\\n43:\\\"$Sreact.suspense\\\"\\n51:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/framework/boundary-components.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"ViewportBoundary\\\"]\\n5b:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/framework/boundary-components.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"MetadataBoundary\\\"]\\n61:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/builtin/global-error.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"default\\\",1]\\n:HL[\\\"/_next/static/css/app/layout.css?v=1787946802752\\\",\\\"style\\\"]\\n1:D\\\"$4\\\"\\n1:D\\\"$2\\\"\\n1:D\\\"$5\\\"\\n1:null\\nb:D\\\"$15\\\"\\nb:D\\\"$c\\\"\\nb:D\\\"$17\\\"\\n22:D\\\"$24\\\"\\n22:D\\\"$23\\\"\\n22:D\\\"$26\\\"\\n22:D\\\"$25\\\"\\n22:D\\\"$27\\\"\\n22:[[\\\"$\\\",\\\"title\\\",null,{\\\"children\\\":\\\"404: This page could not be found.\\\"},\\\"$25\\\",\\\"$28\\\",1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":{\\\"fontFamily\\\":\\\"system-ui,\\\\\\\"Segoe UI\\\\\\\",Roboto,Helvetica,Arial,sans-serif,\\\\\\\"Apple Color Emoji\\\\\\\",\\\\\\\"Segoe UI Emoji\\\\\\\"\\\",\\\"height\\\":\\\"100vh\\\",\\\"textAlign\\\":\\\"center\\\",\\\"display\\\":\\\"flex\\\",\\\"flexDirection\\\":\\\"column\\\",\\\"alignItems\\\":\\\"center\\\",\\\"justifyContent\\\":\\\"center\\\"},\\\"children\\\":[\\\"$\\\",\\\"div\\\",null,{\\\"children\\\":[[\\\"$\\\",\\\"style\\\",null,{\\\"dangerouslySetInnerHTML\\\":{\\\"__html\\\":\\\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\\\"}},\\\"$25\\\",\\\"$2b\\\",1],[\\\"$\\\",\\\"h1\\\",null,{\\\"className\\\":\\\"next-error-h1\\\",\\\"style\\\":{\\\"display\\\":\\\"inline-block\\\",\\\"margin\\\":\\\"0 20px 0 0\\\",\\\"padding\\\":\\\"0 23px 0 0\\\",\\\"fontSize\\\":24,\\\"fontWeight\\\":500,\\\"verticalAlign\\\":\\\"top\\\",\\\"lineHeight\\\":\\\"49px\\\"},\\\"children\\\":404},\\\"$25\\\",\\\"$2c\\\",1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":{\\\"display\\\":\\\"inline-block\\\"},\\\"children\\\":[\\\"$\\\",\\\"h2\\\",null,{\\\"style\\\":{\\\"fontSize\\\":14,\\\"fontWeight\\\":400,\\\"lineHeight\\\":\\\"49px\\\",\\\"margin\\\":0},\\\"children\\\":\\\"This page could not be found.\\\"},\\\"$25\\\",\\\"$2e\\\",1]},\\\"$25\\\",\\\"$2d\\\",1]]},\\\"$25\\\",\\\"$2a\\\",1]},\\\"$25\\\",\\\"$29\\\",1]]\\nb:[\\\"$\\\",\\\"html\\\",null,{\\\"lang\\\":\\\"zh-Hant\\\",\\\"children\\\":[\\\"$\\\",\\\"body\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"div\\\",null,{\\\"className\\\":\\\"app-shell\\\",\\\"children\\\":[[\\\"$\\\",\\\"$L1b\\\",null,{},\\\"$c\\\",\\\"$1a\\\",1],[\\\"$\\\",\\\"main\\\",null,{\\\"className\\\":\\\"main\\\",\\\"children\\\":[\\\"$\\\",\\\"$L1e\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L20\\\",null,{},null,\\\"$1f\\\",1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":[\\\"$\\\",\\\"$L7\\\",\\\"c-not-found\\\",{\\\"type\\\":\\\"not-found\\\",\\\"pagePath\\\":\\\"__next_builtin__not-found.js\\\",\\\"children\\\":[\\\"$22\\\",[]]},null,\\\"$21\\\",0],\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\",\\\"segmentViewBoundaries\\\":[[\\\"$\\\",\\\"$L7\\\",null,{\\\"type\\\":\\\"boundary:not-found\\\",\\\"pagePath\\\":\\\"__next_builtin__not-found.js@boundary\\\"},null,\\\"$2f\\\",1],\\\"$undefined\\\",\\\"$undefined\\\",[\\\"$\\\",\\\"$L7\\\",null,{\\\"type\\\":\\\"boundary:global-error\\\",\\\"pagePath\\\":\\\"__next_builtin__global-error.js\\\"},null,\\\"$30\\\",1]]},null,\\\"$1d\\\",1]},\\\"$c\\\",\\\"$1c\\\",1]]},\\\"$c\\\",\\\"$19\\\",1]},\\\"$c\\\",\\\"$18\\\",1]},\\\"$c\\\",\\\"$16\\\",1]\\n3c:D\\\"$3e\\\"\\n3c:D\\\"$3d\\\"\\n3c:D\\\"$40\\\"\\n3c:[\\\"$\\\",\\\"$L41\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"$43\\\",null,{\\\"name\\\":\\\"Next.MetadataOutlet\\\",\\\"children\\\":\\\"$@44\\\"},\\\"$3d\\\",\\\"$42\\\",1]},\\\"$3d\\\",\\\"$3f\\\",1]\\n45:X\\n47:D\\\"$4a\\\"\\n47:D\\\"$48\\\"\\n47:D\\\"$4b\\\"\\n47:null\\n4c:D\\\"$4e\\\"\\n4c:D\\\"$4d\\\"\\n4c:D\\\"$50\\\"\\n52:D\\\"$54\\\"\\n52:D\\\"$53\\\"\\n4c:[\\\"$\\\",\\\"$L51\\\",null,{\\\"children\\\":\\\"$L52\\\"},\\\"$4d\\\",\\\"$4f\\\",1]\\n55:D\\\"$57\\\"\\n55:D\\\"$56\\\"\\n55:D\\\"$59\\\"\\n5d:D\\\"$5f\\\"\\n5d:D\\\"$5e\\\"\\n55:[\\\"$\\\",\\\"div\\\",null,{\\\"hidden\\\":true,\\\"children\\\":[\\\"$\\\",\\\"$L5b\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"$43\\\",null,{\\\"name\\\":\\\"Next.Metadata\\\",\\\"children\\\":\\\"$L5d\\\"},\\\"$56\\\",\\\"$5c\\\",1]},\\\"$56\\\",\\\"$5a\\\",1]},\\\"$56\\\",\\\"$58\\\",1]\\n60:[]\\n0:{\\\"P\\\":\\\"$1\\\",\\\"c\\\":[\\\"\\\",\\\"numbering\\\",\\\"drawings?query=A0002-M01\\\"],\\\"q\\\":\\\"?query=A0002-M01\\\",\\\"i\\\":true,\\\"f\\\":[[[\\\"\\\",{\\\"children\\\":[\\\"numbering\\\",{\\\"children\\\":[\\\"drawings\\\",{\\\"children\\\":[\\\"__PAGE__?{\\\\\\\"query\\\\\\\":\\\\\\\"A0002-M01\\\\\\\"}\\\",{},\\\"$undefined\\\",\\\"$undefined\\\",4096]},\\\"$undefined\\\",\\\"$undefined\\\",4096]},\\\"$undefined\\\",\\\"$undefined\\\",4096]},\\\"$undefined\\\",\\\"$undefined\\\",4112],[[\\\"$\\\",\\\"$L7\\\",\\\"layout\\\",{\\\"type\\\":\\\"layout\\\",\\\"pagePath\\\":\\\"layout.tsx\\\",\\\"children\\\":[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[[[\\\"$\\\",\\\"link\\\",\\\"0\\\",{\\\"rel\\\":\\\"stylesheet\\\",\\\"href\\\":\\\"/_next/static/css/app/layout.css?v=1787946802752\\\",\\\"precedence\\\":\\\"next_static/css/app/layout.css\\\",\\\"crossOrigin\\\":\\\"$undefined\\\",\\\"nonce\\\":\\\"$undefined\\\"},null,\\\"$a\\\",0]],\\\"$b\\\"]},null,\\\"$8\\\",1]},null,\\\"$6\\\",0],{\\\"children\\\":[[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[null,[\\\"$\\\",\\\"$L1e\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L20\\\",null,{},null,\\\"$33\\\",1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":\\\"$undefined\\\",\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\",\\\"segmentViewBoundaries\\\":[\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\"]},null,\\\"$32\\\",1]]},null,\\\"$31\\\",0],{\\\"children\\\":[[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[null,[\\\"$\\\",\\\"$L1e\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L20\\\",null,{},null,\\\"$36\\\",1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":\\\"$undefined\\\",\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\",\\\"segmentViewBoundaries\\\":[\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\"]},null,\\\"$35\\\",1]]},null,\\\"$34\\\",0],{\\\"children\\\":[[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[[\\\"$\\\",\\\"$L7\\\",\\\"c-page\\\",{\\\"type\\\":\\\"page\\\",\\\"pagePath\\\":\\\"numbering/drawings/page.tsx\\\",\\\"children\\\":[\\\"$\\\",\\\"$L3a\\\",null,{\\\"Component\\\":\\\"$3b\\\",\\\"serverProvidedParams\\\":{\\\"searchParams\\\":{\\\"query\\\":\\\"A0002-M01\\\"},\\\"params\\\":{},\\\"promises\\\":null}},null,\\\"$39\\\",1]},null,\\\"$38\\\",1],null,\\\"$3c\\\"]},null,\\\"$37\\\",0],{},null,false,null]},null,false,\\\"$45\\\"]},null,false,\\\"$45\\\"]},null,false,null],[\\\"$\\\",\\\"$9\\\",\\\"h\\\",{\\\"children\\\":[\\\"$47\\\",\\\"$4c\\\",\\\"$55\\\",null]},null,\\\"$46\\\",0],false]],\\\"m\\\":\\\"$W60\\\",\\\"G\\\":[\\\"$61\\\",[\\\"$\\\",\\\"$L7\\\",\\\"ge-svn\\\",{\\\"type\\\":\\\"global-error\\\",\\\"pagePath\\\":\\\"__next_builtin__global-error.js\\\",\\\"children\\\":[]},null,\\\"$62\\\",0]],\\\"S\\\":false,\\\"h\\\":null,\\\"r\\\":\\\"$undefined\\\",\\\"s\\\":\\\"$undefined\\\",\\\"a\\\":\\\"$undefined\\\",\\\"l\\\":\\\"$undefined\\\",\\\"p\\\":\\\"$undefined\\\",\\\"d\\\":\\\"$undefined\\\",\\\"b\\\":\\\"development\\\"}\\n45:C\\n52:D\\\"$63\\\"\\n52:[[\\\"$\\\",\\\"meta\\\",\\\"0\\\",{\\\"charSet\\\":\\\"utf-8\\\"},\\\"$3d\\\",\\\"$64\\\",0],[\\\"$\\\",\\\"meta\\\",\\\"1\\\",{\\\"name\\\":\\\"viewport\\\",\\\"content\\\":\\\"width=device-width, initial-scale=1\\\"},\\\"$3d\\\",\\\"$65\\\",0]]\\n6c:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/metadata/generate/icon-mark.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"IconMark\\\"]\\n44:D\\\"$66\\\"\\n44:null\\n5d:D\\\"$67\\\"\\n5d:[[\\\"$\\\",\\\"title\\\",\\\"0\\\",{\\\"children\\\":\\\"AI PDM\\\"},\\\"$3d\\\",\\\"$68\\\",0],[\\\"$\\\",\\\"meta\\\",\\\"1\\\",{\\\"name\\\":\\\"description\\\",\\\"content\\\":\\\"SolidWorks AI 圖面資料管理系統\\\"},\\\"$3d\\\",\\\"$69\\\",0],[\\\"$\\\",\\\"link\\\",\\\"2\\\",{\\\"rel\\\":\\\"icon\\\",\\\"href\\\":\\\"/icon.svg\\\"},\\\"$3d\\\",\\\"$6a\\\",0],[\\\"$\\\",\\\"$L6c\\\",\\\"3\\\",{},\\\"$3d\\\",\\\"$6b\\\",0]]\\n\"])"
+  },
+  "apiReadback": {
+    "detail": {
+      "status": 200,
+      "body": {
+        "data": {
+          "row": {
+            "rowKey": "cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "name": "本體_BS_右_Xx5",
+            "layer": "production",
+            "layerLabel": "量產版 1",
+            "revision": "1",
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+            "rowVersion": 2,
+            "basisState": "current",
+            "actions": [
+              {
+                "key": "advance",
+                "label": "進版",
+                "href": "/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7"
+              },
+              {
+                "key": "request_obsolete",
+                "label": "申請作廢"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          },
+          "presentation": {
+            "kind": "drawing",
+            "surface": "drawer_minimal",
+            "fields": [
+              {
+                "key": "code",
+                "label": "圖號",
+                "value": "A0002-M01"
+              },
+              {
+                "key": "purpose",
+                "label": "圖面用途",
+                "value": "M"
+              }
+            ],
+            "files": [
+              {
+                "id": "qa-dev087-browser-production-revision-file-1",
+                "name": "A0002-M01.pdf",
+                "role": "pdf",
+                "downloadHref": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=qa-dev087-browser-production-revision&bindingId=qa-dev087-browser-production-revision-file-1"
+              },
+              {
+                "id": "qa-dev087-browser-production-revision-file-2",
+                "name": "A0002-M01.SLDDRW",
+                "role": "drawing_2d",
+                "downloadHref": "/api/pdm/file-assets/FA-94e7d949-2d0b-4c4e-b106-831dde533b76?context=drawing_revision&contextId=qa-dev087-browser-production-revision&bindingId=qa-dev087-browser-production-revision-file-2"
+              },
+              {
+                "id": "qa-dev087-browser-production-revision-file-3",
+                "name": "A0002.SLDPRT",
+                "role": "cad_3d",
+                "downloadHref": "/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=drawing_revision&contextId=qa-dev087-browser-production-revision&bindingId=qa-dev087-browser-production-revision-file-3"
+              }
+            ],
+            "recognition": {
+              "partAttributes": [],
+              "revisionMetadata": [],
+              "controlledNotes": [],
+              "engineeringEvidence": []
+            },
+            "relationMatrix": {
+              "rootId": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+              "rootCode": "A0002",
+              "drawings": [
+                {
+                  "id": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+                  "number": "A0002-M01",
+                  "detailHref": "/numbering/drawings?detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7"
+                },
+                {
+                  "id": "87000000-0000-4000-8000-000000000001",
+                  "number": "A0002-R99",
+                  "detailHref": "/numbering/drawings?detail=cw_87000000-0000-4000-8000-000000000009"
+                }
+              ],
+              "parts": [
+                {
+                  "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                  "number": "A0002-P01",
+                  "detailHref": "/parts?detail=cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062"
+                },
+                {
+                  "id": "qa-dev087-functional-a0002-p02",
+                  "number": "A0002-P02",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-functional-a0002-p02"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p03",
+                  "number": "A0002-P03",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p03"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p04",
+                  "number": "A0002-P04",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p04"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p05",
+                  "number": "A0002-P05",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p05"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p06",
+                  "number": "A0002-P06",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p06"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p07",
+                  "number": "A0002-P07",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p07"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p08",
+                  "number": "A0002-P08",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p08"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p09",
+                  "number": "A0002-P09",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p09"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p10",
+                  "number": "A0002-P10",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p10"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p11",
+                  "number": "A0002-P11",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p11"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p12",
+                  "number": "A0002-P12",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p12"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p13",
+                  "number": "A0002-P13",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p13"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p14",
+                  "number": "A0002-P14",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p14"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p15",
+                  "number": "A0002-P15",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p15"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p16",
+                  "number": "A0002-P16",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p16"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p17",
+                  "number": "A0002-P17",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p17"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p18",
+                  "number": "A0002-P18",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p18"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p19",
+                  "number": "A0002-P19",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p19"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p20",
+                  "number": "A0002-P20",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p20"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p21",
+                  "number": "A0002-P21",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p21"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p22",
+                  "number": "A0002-P22",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p22"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p23",
+                  "number": "A0002-P23",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p23"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p24",
+                  "number": "A0002-P24",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p24"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p25",
+                  "number": "A0002-P25",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p25"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p26",
+                  "number": "A0002-P26",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p26"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p27",
+                  "number": "A0002-P27",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p27"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p28",
+                  "number": "A0002-P28",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p28"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p29",
+                  "number": "A0002-P29",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p29"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p30",
+                  "number": "A0002-P30",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p30"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p31",
+                  "number": "A0002-P31",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p31"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p32",
+                  "number": "A0002-P32",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p32"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p33",
+                  "number": "A0002-P33",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p33"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p34",
+                  "number": "A0002-P34",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p34"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p35",
+                  "number": "A0002-P35",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p35"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p36",
+                  "number": "A0002-P36",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p36"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p37",
+                  "number": "A0002-P37",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p37"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p38",
+                  "number": "A0002-P38",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p38"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p39",
+                  "number": "A0002-P39",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p39"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p40",
+                  "number": "A0002-P40",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p40"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p41",
+                  "number": "A0002-P41",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p41"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p42",
+                  "number": "A0002-P42",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p42"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p43",
+                  "number": "A0002-P43",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p43"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p44",
+                  "number": "A0002-P44",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p44"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p45",
+                  "number": "A0002-P45",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p45"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p46",
+                  "number": "A0002-P46",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p46"
+                },
+                {
+                  "id": "qa-dev087-pagination-a0002-p47",
+                  "number": "A0002-P47",
+                  "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p47"
+                }
+              ],
+              "cells": [
+                {
+                  "drawingNumberId": "87000000-0000-4000-8000-000000000001",
+                  "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                  "drawingNumber": "A0002-R99",
+                  "partNumber": "A0002-P01",
+                  "relationType": "reference"
+                },
+                {
+                  "drawingNumberId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+                  "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                  "drawingNumber": "A0002-M01",
+                  "partNumber": "A0002-P01",
+                  "relationType": "manufacturing_basis"
+                }
+              ],
+              "matrixEtag": "36b0902e8b13cbb3522b4fb36ceead3dd1bec84f4957774df72b390f0444772c"
+            },
+            "history": [
+              {
+                "id": "qa-dev087-browser-rd-revision",
+                "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+                "revision": "1.1",
+                "layerLabel": "研發版"
+              },
+              {
+                "id": "qa-dev087-browser-production-revision",
+                "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+                "revision": "1",
+                "layerLabel": "量產版"
+              },
+              {
+                "id": "c076f20b-21d0-4061-a9bf-148060995162",
+                "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+                "revision": "0.1",
+                "layerLabel": "研發版"
+              }
+            ],
+            "previews": [
+              {
+                "kind": "three-d",
+                "title": "3D 模型",
+                "fileName": "A0002.SLDPRT",
+                "state": "missing",
+                "stateTitle": "無可用預覽",
+                "stateText": "目前沒有可預覽的 3D 檔案。",
+                "mediaHref": null,
+                "downloadHref": "/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=drawing_revision&contextId=qa-dev087-browser-production-revision&bindingId=qa-dev087-browser-production-revision-file-3",
+                "retryCommandRef": null
+              },
+              {
+                "kind": "two-d",
+                "title": "2D 圖面",
+                "fileName": "A0002-M01.pdf",
+                "state": "ready",
+                "stateTitle": "PDF 預覽已就緒",
+                "stateText": "直接使用受控 PDF 原檔顯示。",
+                "mediaHref": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=qa-dev087-browser-production-revision&bindingId=qa-dev087-browser-production-revision-file-1&preview=1",
+                "downloadHref": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=qa-dev087-browser-production-revision&bindingId=qa-dev087-browser-production-revision-file-1",
+                "retryCommandRef": null
+              }
+            ],
+            "preview": {
+              "state": "missing",
+              "media": null,
+              "sourceType": "primary_manufacturing_drawing",
+              "sourceLabel": "3D 模型",
+              "sourceDrawingNumber": "A0002-M01",
+              "sourceRevision": "1",
+              "alt": "A0002-M01 3D 預覽圖"
+            }
+          }
+        },
+        "meta": {
+          "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0NjgwNDYyNX0.uy77hEU_QvSLI5CtkTd7IFmVLms8k0w98IdMsdz0Fqc",
+          "correlationId": "8755849e-d433-4893-af5c-44963c969882"
+        }
+      }
+    },
+    "mutationRequests": 0
+  },
+  "dbReadback": {
+    "before": {
+      "root": {
+        "id": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+        "company_id": "company-jenfu",
+        "root_code": "A0002"
+      },
+      "drawings": [
+        {
+          "id": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "number": "A0002-M01"
+        },
+        {
+          "id": "87000000-0000-4000-8000-000000000001",
+          "number": "A0002-R99"
+        }
+      ],
+      "parts": [
+        {
+          "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "number": "A0002-P01"
+        },
+        {
+          "id": "qa-dev087-functional-a0002-p02",
+          "number": "A0002-P02"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p03",
+          "number": "A0002-P03"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p04",
+          "number": "A0002-P04"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p05",
+          "number": "A0002-P05"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p06",
+          "number": "A0002-P06"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p07",
+          "number": "A0002-P07"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p08",
+          "number": "A0002-P08"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p09",
+          "number": "A0002-P09"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p10",
+          "number": "A0002-P10"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p11",
+          "number": "A0002-P11"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p12",
+          "number": "A0002-P12"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p13",
+          "number": "A0002-P13"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p14",
+          "number": "A0002-P14"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p15",
+          "number": "A0002-P15"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p16",
+          "number": "A0002-P16"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p17",
+          "number": "A0002-P17"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p18",
+          "number": "A0002-P18"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p19",
+          "number": "A0002-P19"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p20",
+          "number": "A0002-P20"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p21",
+          "number": "A0002-P21"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p22",
+          "number": "A0002-P22"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p23",
+          "number": "A0002-P23"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p24",
+          "number": "A0002-P24"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p25",
+          "number": "A0002-P25"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p26",
+          "number": "A0002-P26"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p27",
+          "number": "A0002-P27"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p28",
+          "number": "A0002-P28"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p29",
+          "number": "A0002-P29"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p30",
+          "number": "A0002-P30"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p31",
+          "number": "A0002-P31"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p32",
+          "number": "A0002-P32"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p33",
+          "number": "A0002-P33"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p34",
+          "number": "A0002-P34"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p35",
+          "number": "A0002-P35"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p36",
+          "number": "A0002-P36"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p37",
+          "number": "A0002-P37"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p38",
+          "number": "A0002-P38"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p39",
+          "number": "A0002-P39"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p40",
+          "number": "A0002-P40"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p41",
+          "number": "A0002-P41"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p42",
+          "number": "A0002-P42"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p43",
+          "number": "A0002-P43"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p44",
+          "number": "A0002-P44"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p45",
+          "number": "A0002-P45"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p46",
+          "number": "A0002-P46"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p47",
+          "number": "A0002-P47"
+        }
+      ],
+      "links": [
+        {
+          "drawingNumberId": "87000000-0000-4000-8000-000000000001",
+          "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "storageLinkType": "reference",
+          "relationType": "reference"
+        },
+        {
+          "drawingNumberId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "storageLinkType": "primary_manufacturing",
+          "relationType": "manufacturing_basis"
+        }
+      ],
+      "hash": "19227e25cdf2f2f552997cb21d8755f17ff9fc8aa21408aafe9a9433f59c6815"
+    },
+    "after": {
+      "root": {
+        "id": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+        "company_id": "company-jenfu",
+        "root_code": "A0002"
+      },
+      "drawings": [
+        {
+          "id": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "number": "A0002-M01"
+        },
+        {
+          "id": "87000000-0000-4000-8000-000000000001",
+          "number": "A0002-R99"
+        }
+      ],
+      "parts": [
+        {
+          "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "number": "A0002-P01"
+        },
+        {
+          "id": "qa-dev087-functional-a0002-p02",
+          "number": "A0002-P02"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p03",
+          "number": "A0002-P03"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p04",
+          "number": "A0002-P04"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p05",
+          "number": "A0002-P05"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p06",
+          "number": "A0002-P06"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p07",
+          "number": "A0002-P07"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p08",
+          "number": "A0002-P08"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p09",
+          "number": "A0002-P09"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p10",
+          "number": "A0002-P10"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p11",
+          "number": "A0002-P11"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p12",
+          "number": "A0002-P12"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p13",
+          "number": "A0002-P13"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p14",
+          "number": "A0002-P14"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p15",
+          "number": "A0002-P15"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p16",
+          "number": "A0002-P16"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p17",
+          "number": "A0002-P17"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p18",
+          "number": "A0002-P18"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p19",
+          "number": "A0002-P19"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p20",
+          "number": "A0002-P20"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p21",
+          "number": "A0002-P21"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p22",
+          "number": "A0002-P22"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p23",
+          "number": "A0002-P23"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p24",
+          "number": "A0002-P24"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p25",
+          "number": "A0002-P25"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p26",
+          "number": "A0002-P26"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p27",
+          "number": "A0002-P27"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p28",
+          "number": "A0002-P28"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p29",
+          "number": "A0002-P29"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p30",
+          "number": "A0002-P30"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p31",
+          "number": "A0002-P31"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p32",
+          "number": "A0002-P32"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p33",
+          "number": "A0002-P33"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p34",
+          "number": "A0002-P34"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p35",
+          "number": "A0002-P35"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p36",
+          "number": "A0002-P36"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p37",
+          "number": "A0002-P37"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p38",
+          "number": "A0002-P38"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p39",
+          "number": "A0002-P39"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p40",
+          "number": "A0002-P40"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p41",
+          "number": "A0002-P41"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p42",
+          "number": "A0002-P42"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p43",
+          "number": "A0002-P43"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p44",
+          "number": "A0002-P44"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p45",
+          "number": "A0002-P45"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p46",
+          "number": "A0002-P46"
+        },
+        {
+          "id": "qa-dev087-pagination-a0002-p47",
+          "number": "A0002-P47"
+        }
+      ],
+      "links": [
+        {
+          "drawingNumberId": "87000000-0000-4000-8000-000000000001",
+          "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "storageLinkType": "reference",
+          "relationType": "reference"
+        },
+        {
+          "drawingNumberId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "storageLinkType": "primary_manufacturing",
+          "relationType": "manufacturing_basis"
+        }
+      ],
+      "hash": "19227e25cdf2f2f552997cb21d8755f17ff9fc8aa21408aafe9a9433f59c6815"
+    }
+  },
+  "visibleErrorSweep": {
+    "expected": null,
+    "actual": []
+  },
+  "mutationLedger": [],
+  "screenshot": "output/qa/dev-087/DEV087-2026-08-28T19-50-29-816Z/cases/I04/I04.png",
+  "source": "fresh task-owned DEV-087 isolated browser runtime"
+}

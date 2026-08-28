@@ -1,0 +1,126 @@
+{
+  "runner": "primary-dry-run",
+  "runId": "DEV100-primary-dry-run-2026-08-28T19-19-53-802Z",
+  "status": "PASS",
+  "readOnly": true,
+  "productionWrites": false,
+  "applyCount": 0,
+  "checks": [
+    {
+      "id": "QA-100-001-A",
+      "label": "primary A0044 is either the fingerprint-gated pre-repair state or a complete coherent repair",
+      "status": "PASS",
+      "detail": {
+        "disposition": "already_repaired",
+        "workId": "c65d1134-44d1-49d1-a689-74d83e75174a",
+        "revision": "0.1",
+        "active": [
+          "A0044.SLDASM",
+          "A0044-M01.pdf",
+          "A0044-M01.SLDDRW"
+        ],
+        "tombstone": "A0043.SLDASM",
+        "reason": "drawing_revision_work_file_replaced"
+      }
+    },
+    {
+      "id": "QA-100-001-B",
+      "label": "all inventoried A0044 file bytes exist and match DB SHA-256",
+      "status": "PASS",
+      "detail": [
+        {
+          "fileBindingId": "700d2882-f76b-4632-996d-ae2ae76555ba",
+          "assetId": "FA-a4e10f3a-f6c2-4bcc-a45f-e710379cdbe2",
+          "fileName": "A0044.SLDASM",
+          "physicalPath": "C:\\VIBE CODING\\AI_PDM\\data\\repository\\drawing-revision-works\\company-jenfu\\c65d1134-44d1-49d1-a689-74d83e75174a\\FA-a4e10f3a-f6c2-4bcc-a45f-e710379cdbe2-A0044.SLDASM",
+          "exists": true,
+          "sha256": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d",
+          "dbHash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d",
+          "matches": true
+        },
+        {
+          "fileBindingId": "19f5d6f3-c0fc-4fd4-a9c2-12f8808dc45d",
+          "assetId": "FA-f495a913-708d-4056-8709-dea66cde16df",
+          "fileName": "A0043.SLDASM",
+          "physicalPath": "C:\\VIBE CODING\\AI_PDM\\data\\repository\\drawing-revision-works\\company-jenfu\\c65d1134-44d1-49d1-a689-74d83e75174a\\FA-f495a913-708d-4056-8709-dea66cde16df-A0043.SLDASM",
+          "exists": true,
+          "sha256": "f5dae2a4c02502571a77b3e909de33daa33d7296fdb63245e3662f8f5c387204",
+          "dbHash": "f5dae2a4c02502571a77b3e909de33daa33d7296fdb63245e3662f8f5c387204",
+          "matches": true
+        },
+        {
+          "fileBindingId": "339db49a-327f-47ad-8ad2-8158eff61374",
+          "assetId": "FA-e33ff864-ab79-4034-a924-63444e0126fe",
+          "fileName": "A0044.SLDASM",
+          "physicalPath": "C:\\VIBE CODING\\AI_PDM\\data\\repository\\drawing-revision-works\\company-jenfu\\c65d1134-44d1-49d1-a689-74d83e75174a\\FA-a4e10f3a-f6c2-4bcc-a45f-e710379cdbe2-A0044.SLDASM",
+          "exists": true,
+          "sha256": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d",
+          "dbHash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d",
+          "matches": true
+        },
+        {
+          "fileBindingId": "ae153003-49f0-4a84-8a07-8d5b3bde7c38",
+          "assetId": "FA-b55b509c-9a47-4aa8-843d-755a8c8132d6",
+          "fileName": "A0044-M01.pdf",
+          "physicalPath": "C:\\VIBE CODING\\AI_PDM\\data\\repository\\drawing-revision-works\\company-jenfu\\c65d1134-44d1-49d1-a689-74d83e75174a\\FA-b55b509c-9a47-4aa8-843d-755a8c8132d6-A0044-M01.pdf",
+          "exists": true,
+          "sha256": "cc4aad9db48beb540633ebe1902417b28d01067c049130113b1026c56a8bfe74",
+          "dbHash": "cc4aad9db48beb540633ebe1902417b28d01067c049130113b1026c56a8bfe74",
+          "matches": true
+        },
+        {
+          "fileBindingId": "0fa364c6-3c80-4843-8012-359f7722f7eb",
+          "assetId": "FA-c9d19369-3b2e-47eb-8aeb-2475109864a1",
+          "fileName": "A0044-M01.SLDDRW",
+          "physicalPath": "C:\\VIBE CODING\\AI_PDM\\data\\repository\\drawing-revision-works\\company-jenfu\\c65d1134-44d1-49d1-a689-74d83e75174a\\FA-c9d19369-3b2e-47eb-8aeb-2475109864a1-A0044-M01.SLDDRW",
+          "exists": true,
+          "sha256": "1ab890d11e876d3995a339205b982209fd5413e76016f581da7fc21a20451a00",
+          "dbHash": "1ab890d11e876d3995a339205b982209fd5413e76016f581da7fc21a20451a00",
+          "matches": true
+        }
+      ]
+    },
+    {
+      "id": "QA-100-001-C",
+      "label": "original rendered failure evidence records the pre-fix GET 409",
+      "status": "PASS",
+      "detail": {
+        "sourcePath": "C:\\Users\\user\\AppData\\Local\\Temp\\codex-clipboard-a2ee3d29-61f7-4dd7-a925-90e1f99a7c60.png",
+        "retainedPath": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-100\\DEV100-2026-08-28T19-18-52-852Z\\primary-dry-run\\original-a0044-get-409.png",
+        "sha256": "d486491566f658b332400ebf8d4426b020f927416ed125c4b82cf51f64e082cb",
+        "observed": "browser console GET /api/pdm/drawing-revision-works/... 409 Conflict and repair banner"
+      }
+    },
+    {
+      "id": "QA-100-017",
+      "label": "primary repair disposition is fingerprint-gated, read-only and zero-apply",
+      "status": "PASS",
+      "detail": {
+        "sourceFingerprint": "5c5716ae32b12ba4d1c63c4d737aecf1de1d4fb27c1c74a3a4b5276975a93658",
+        "disposition": "already_repaired",
+        "selections": [],
+        "applyCount": 0,
+        "active": [
+          "A0044.SLDASM",
+          "A0044-M01.pdf",
+          "A0044-M01.SLDDRW"
+        ]
+      }
+    },
+    {
+      "id": "QA-100-017-READONLY",
+      "label": "primary schema, identities, root references, residue and FK remain unchanged",
+      "status": "PASS",
+      "detail": {
+        "before": "f8b565e4b1cf673c8f3e132d8b01866fb072d27e4d2870e28566f8dbd2832b27",
+        "after": "f8b565e4b1cf673c8f3e132d8b01866fb072d27e4d2870e28566f8dbd2832b27",
+        "foreignKeys": 0
+      }
+    }
+  ],
+  "firstFailure": null,
+  "invariant": {
+    "before": "f8b565e4b1cf673c8f3e132d8b01866fb072d27e4d2870e28566f8dbd2832b27",
+    "after": "f8b565e4b1cf673c8f3e132d8b01866fb072d27e4d2870e28566f8dbd2832b27"
+  }
+}

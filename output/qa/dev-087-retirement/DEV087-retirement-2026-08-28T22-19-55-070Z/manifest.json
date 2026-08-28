@@ -1,0 +1,177 @@
+{
+  "devId": "DEV-087",
+  "runId": "DEV087-retirement-2026-08-28T22-19-55-070Z",
+  "generatedAt": "2026-08-28T22:19:55.071Z",
+  "scope": "local-canonical-workbench",
+  "provider": "sqlite-local",
+  "transitionMode": "canonical_only",
+  "productionConnected": false,
+  "productionMigrationExecuted": false,
+  "commit": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+  "inventoryPath": ".ai-doc/qa/dev-087-old-authority-inventory.json",
+  "inventoryHash": "5bf8aa9f9f8fcbc5301244ef37cf289f7e506c3b063ad3f3cfb58dd377dec417",
+  "schemaFiles": [
+    "db/schema.sql",
+    "db/postgres/042_status_data_rebuild.sql"
+  ],
+  "schemaHash": "d03fa685d3e8b0200e0e2037c694d6e878131445c29794cf2ab54937b1890dc9",
+  "scannedFiles": 647,
+  "scanHash": "20b74ee5e9df23380b8ea285aacae74ee89b04fa5db195f8583436b531184967",
+  "callerCount": 0,
+  "remainingDraftRoutes": 0,
+  "removedRuntimeFiles": [
+    "src/app/numbering/workspaces/[workspaceId]/page.tsx",
+    "src/components/drawing-workbench.tsx",
+    "src/components/part-workbench.tsx",
+    "src/components/relation-workbench.tsx",
+    "src/components/number-state-workspace.tsx",
+    "src/components/numbering-workspace-editor.tsx",
+    "src/lib/drawing-workbench.ts",
+    "src/lib/part-workbench.ts",
+    "src/lib/relation-workbench.ts",
+    "src/lib/pdm-workbench-lane.ts",
+    "src/lib/repositories/drawing-workbench-async-repository.ts",
+    "src/lib/repositories/part-workbench-async-repository.ts",
+    "src/lib/repositories/relation-workbench-async-repository.ts",
+    "src/app/api/pdm/drawing-revision-works/[workId]/files/[fileId]/route.ts",
+    "src/app/api/numbering/drawing-revision-packages/[packageId]/files/[fileId]/route.ts",
+    "src/app/api/approvals/requests/[requestId]/evidence/[fileId]/route.ts",
+    "src/app/api/pdm/entity-details/[entityKey]/route.ts",
+    "src/components/unified-pdm-entity-detail-drawer.tsx",
+    "src/lib/pdm-entity-detail.ts",
+    "src/lib/repositories/pdm-entity-detail-async-repository.ts",
+    "src/components/part-workspace-editor.tsx",
+    "src/components/relation-workspace-editor.tsx"
+  ],
+  "preservedOutOfScope": [
+    "public-share-download",
+    "bom-and-package-export",
+    "recognition-worker-internal-source-read"
+  ],
+  "localCleanupEvidence": "output/qa/dev-087-local-cleanup/main-apply/manifest.json",
+  "checks": [
+    {
+      "name": "runtime-navigation-api-worker-caller=0",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "retired-runtime-files-absent",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "retired-draft-routes-absent",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "src/app/numbering/drawings/page.tsx:canonical-entry",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "src/components/part-detail-content.tsx:canonical-entry",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "src/app/numbering/search/page.tsx:direct-identity-search-entry",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "typed-detail-discriminated-union",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "typed-detail-no-unknown-array",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "client-no-dynamic-scalar-renderer",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "single-file-read-context-matrix",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical-detail-has-no-legacy-schema-read",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical-preview-uses-revision-assets",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing-work-retired-fields-absent-from-ui",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing-work-retired-fields-sanitized",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing-work-retired-fields-absent-from-new-payload",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/route.ts:mutations-retained",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/route.ts:binary-get-retired",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts:mutations-retained",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts:binary-get-retired",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "negative-control-baseline",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "negative-control-old-api-rejected",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "negative-control-old-import-rejected",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "negative-control-old-entity-detail-rejected",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "negative-control-old-schema-read-rejected",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "status": "PASS",
+  "passed": 24,
+  "failed": 0
+}

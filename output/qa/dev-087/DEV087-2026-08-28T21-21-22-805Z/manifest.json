@@ -1,0 +1,90 @@
+{
+  "devId": "DEV-087",
+  "runId": "DEV087-2026-08-28T21-21-22-805Z",
+  "parentRunId": null,
+  "status": "FAIL",
+  "port": null,
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087\\DEV087-2026-08-28T21-21-22-805Z",
+  "sourceInvariantCheckedBeforeMutation": false,
+  "primaryInvariant": {
+    "before": {
+      "schemaHash": "52f1ae6b82423d1fe97bb4ac3c8dba27af3156ee2aa27b96a3f5d9c102d9a331",
+      "canonicalIdentityHash": "23046f9b725ae24b7ecc04bd4572b58edb81a9ecef1a4319f615a1ca5ebbb5ab",
+      "counts": {
+        "roots": 0,
+        "parts": 0,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 50,
+        "drawings": 50,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 207
+    },
+    "after": {
+      "schemaHash": "52f1ae6b82423d1fe97bb4ac3c8dba27af3156ee2aa27b96a3f5d9c102d9a331",
+      "canonicalIdentityHash": "23046f9b725ae24b7ecc04bd4572b58edb81a9ecef1a4319f615a1ca5ebbb5ab",
+      "counts": {
+        "roots": 0,
+        "parts": 0,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 50,
+        "drawings": 50,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 207
+    },
+    "unchanged": true
+  },
+  "fixtureMutationLedger": [],
+  "caseReceipts": [],
+  "functionalCaseReceipts": [],
+  "matrixMutationRequests": [],
+  "total": 5,
+  "passed": 2,
+  "failed": 3,
+  "checks": [
+    {
+      "name": "primary source invariant before fixture",
+      "pass": false,
+      "detail": "{\"schemaHash\":\"52f1ae6b82423d1fe97bb4ac3c8dba27af3156ee2aa27b96a3f5d9c102d9a331\",\"canonicalIdentityHash\":\"23046f9b725ae24b7ecc04bd4572b58edb81a9ecef1a4319f615a1ca5ebbb5ab\",\"counts\":{\"roots\":0,\"parts\":0,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":50,\"drawings\":50,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":207}"
+    },
+    {
+      "name": "browser execution",
+      "pass": false,
+      "detail": "Error: primary source invariant before fixture: {\"schemaHash\":\"52f1ae6b82423d1fe97bb4ac3c8dba27af3156ee2aa27b96a3f5d9c102d9a331\",\"canonicalIdentityHash\":\"23046f9b725ae24b7ecc04bd4572b58edb81a9ecef1a4319f615a1ca5ebbb5ab\",\"counts\":{\"roots\":0,\"parts\":0,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":50,\"drawings\":50,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":207}\n    at check (file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-087-browser.mjs:58:20)\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-087-browser.mjs:1170:3\n    at ModuleJob.run (node:internal/modules/esm/module_job:413:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:660:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+    },
+    {
+      "name": "temporary runtime dist removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":null,\"notCreated\":true,\"error\":null}"
+    },
+    {
+      "name": "next-env restored after task runtime",
+      "pass": true,
+      "detail": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\next-env.d.ts"
+    },
+    {
+      "name": "primary source invariant unchanged after runtime",
+      "pass": false,
+      "detail": "{\"primaryBefore\":{\"schemaHash\":\"52f1ae6b82423d1fe97bb4ac3c8dba27af3156ee2aa27b96a3f5d9c102d9a331\",\"canonicalIdentityHash\":\"23046f9b725ae24b7ecc04bd4572b58edb81a9ecef1a4319f615a1ca5ebbb5ab\",\"counts\":{\"roots\":0,\"parts\":0,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":50,\"drawings\":50,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":207},\"primaryAfter\":{\"schemaHash\":\"52f1ae6b82423d1fe97bb4ac3c8dba27af3156ee2aa27b96a3f5d9c102d9a331\",\"canonicalIdentityHash\":\"23046f9b725ae24b7ecc04bd4572b58edb81a9ecef1a4319f615a1ca5ebbb5ab\",\"counts\":{\"roots\":0,\"parts\":0,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":50,\"drawings\":50,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":207}}"
+    }
+  ],
+  "consoleErrors": [],
+  "failures": []
+}

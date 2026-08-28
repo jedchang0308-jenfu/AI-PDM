@@ -37,8 +37,8 @@ function seedCandidate(database, suffix, options = {}) {
   database.prepare(`
     INSERT INTO part_numbers (
       id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-      item_kind, is_universal, bom_usage_policy, record_status
-    ) VALUES (:id, 'company-jenfu', :rootId, :partNumber, 1, '01', :name, 'manufactured', 0, 'not_required', 'Active')
+      item_kind, is_universal, record_status
+    ) VALUES (:id, 'company-jenfu', :rootId, :partNumber, 1, '01', :name, 'manufactured', 0, 'Active')
   `).run({ id: partId, rootId, partNumber, name: `Part ${suffix}` });
   database.prepare(`
     INSERT INTO drawing_numbers (

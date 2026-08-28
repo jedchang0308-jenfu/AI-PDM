@@ -1,0 +1,76 @@
+{
+  "devId": "DEV-092",
+  "status": "PASS",
+  "sourceFileCount": 3,
+  "workId": "8f926012-792b-49b4-a266-ece5df594ca2",
+  "negativeControl": {
+    "exitCode": 2,
+    "reasonCode": "work_file_snapshot_incomplete",
+    "targetDriftExitCode": 2,
+    "targetDriftReasonCode": "work_file_snapshot_target_drift"
+  },
+  "driftMatrix": [
+    {
+      "name": "source-asset-deleted",
+      "exitCode": 2,
+      "reasonCode": "work_file_source_asset_missing_or_deleted",
+      "manifest": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-source-asset-deleted\\manifest.json"
+    },
+    {
+      "name": "source-binding-removed",
+      "exitCode": 2,
+      "reasonCode": "work_file_source_asset_missing_or_deleted",
+      "manifest": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-source-binding-removed\\manifest.json"
+    },
+    {
+      "name": "source-content-hash-drift",
+      "exitCode": 2,
+      "reasonCode": "work_file_snapshot_target_drift",
+      "manifest": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-source-content-hash-drift\\manifest.json"
+    },
+    {
+      "name": "target-extra-binding",
+      "exitCode": 2,
+      "reasonCode": "work_file_snapshot_target_drift",
+      "manifest": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-target-extra-binding\\manifest.json"
+    },
+    {
+      "name": "target-hash-drift",
+      "exitCode": 2,
+      "reasonCode": "work_file_snapshot_target_drift",
+      "manifest": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-target-hash-drift\\manifest.json"
+    },
+    {
+      "name": "target-duplicate-ordinal",
+      "exitCode": 2,
+      "reasonCode": "work_file_snapshot_target_drift",
+      "manifest": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-target-duplicate-ordinal\\manifest.json"
+    },
+    {
+      "name": "source-cross-company",
+      "exitCode": 2,
+      "reasonCode": "work_file_source_scope_mismatch",
+      "manifest": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-source-cross-company\\manifest.json"
+    }
+  ],
+  "repair": {
+    "plannedRows": 1,
+    "finalCount": 3
+  },
+  "manifests": [
+    "first-apply",
+    "second-apply",
+    "negative-missing-file",
+    "repair-dry-run",
+    "repair-apply",
+    "repair-idempotent",
+    "negative-target-drift",
+    "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-source-asset-deleted\\manifest.json",
+    "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-source-binding-removed\\manifest.json",
+    "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-source-content-hash-drift\\manifest.json",
+    "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-target-extra-binding\\manifest.json",
+    "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-target-hash-drift\\manifest.json",
+    "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-target-duplicate-ordinal\\manifest.json",
+    "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-092-work-file-snapshot\\dev-092-work-files-kUDhTM\\matrix-source-cross-company\\manifest.json"
+  ]
+}

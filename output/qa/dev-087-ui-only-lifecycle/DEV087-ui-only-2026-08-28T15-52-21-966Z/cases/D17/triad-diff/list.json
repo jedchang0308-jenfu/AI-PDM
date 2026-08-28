@@ -1,0 +1,49 @@
+{
+  "diff": [
+    "api-status-mismatch",
+    "api-db-row-mismatch"
+  ],
+  "ui": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": []
+  },
+  "api": {
+    "status": 400,
+    "rows": []
+  },
+  "db": {
+    "rows": [
+      {
+        "code": "A0002-M01",
+        "name": "本體_BS_右_Xx5",
+        "layer": "量產版 1",
+        "revision": "1",
+        "handling": "none",
+        "blockerReason": ""
+      },
+      {
+        "code": "A0002-M01",
+        "name": "本體_BS_右_Xx5",
+        "layer": "研發版 1.1",
+        "revision": "1.1",
+        "handling": "none",
+        "blockerReason": ""
+      }
+    ]
+  },
+  "uiMissing": []
+}

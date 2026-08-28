@@ -12,7 +12,6 @@ import {
   Factory,
   FileText,
   KeyRound,
-  ListTree,
   LogIn,
   Menu,
   PackageSearch,
@@ -62,12 +61,6 @@ const navSections: NavSection[] = [
       { href: "/numbering/search", label: "編號搜尋", icon: Search },
       { href: "/numbering/drawings", label: "圖號工作台", icon: FileText, navGlyph: "圖" },
       { href: "/parts", label: "料號工作台", icon: PackageSearch, navGlyph: "料" },
-    ]
-  },
-  {
-    label: "BOM",
-    items: [
-      { href: "/bom/workbench", label: "BOM 工作台", icon: ListTree }
     ]
   },
   {

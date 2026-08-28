@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "reportType": "dev-046-cloudsql-migration-runner-package-preflight",
+  "dev": "DEV-046",
+  "phase": "Phase-2B-staging-migration-runner-preflight",
+  "packageVersion": "dev-046-cloudsql-migration-runner-package/v1",
+  "generatedAt": "2026-08-28T22:27:22.731Z",
+  "target": {
+    "projectId": "jenfu-ai-pdm-stg-361825",
+    "region": "asia-east1",
+    "cloudSqlInstance": "ai-pdm-stg-postgres",
+    "connectionName": "jenfu-ai-pdm-stg-361825:asia-east1:ai-pdm-stg-postgres",
+    "databaseName": "ai_pdm",
+    "privateIpOnly": true,
+    "privateIpObserved": "10.4.0.3"
+  },
+  "executionBoundary": {
+    "localOnly": true,
+    "outputOnly": true,
+    "noCredentialLookupPerformed": true,
+    "noCloudSqlConnectionAttempted": true,
+    "noSqlApplied": true,
+    "noTerraformAction": true,
+    "noGcloudMutation": true,
+    "noPsqlCommand": true,
+    "noCloudRunJobActionPerformedByThisCommand": true,
+    "cloudRunJobCreatedByReviewedApply": false,
+    "noCloudRunJobExecution": false,
+    "liveExecutionAllowed": false
+  },
+  "liveExecutionEvidence": {
+    "path": "output/dev-046-live-migration/execution-summary.json",
+    "present": false,
+    "status": "not-present",
+    "approved": false,
+    "evidenceManifestSha256": null,
+    "currentManifestSha256": "c0a44686a1ea9b52ac8097eadb6bf8fed81413fb98c175352d2f9afe42026980",
+    "evidenceSchemaMigrationCount": null,
+    "currentSchemaMigrationCount": 49,
+    "matchesCurrentPackage": false,
+    "liveMigrationCompleted": false,
+    "idempotenceVerified": false,
+    "jobRestoredToDryRun": false,
+    "runtimeSmokeExecuted": true,
+    "runtimeSmokeBoundToCurrentPackage": false
+  },
+  "migrationPackage": {
+    "manifestPath": "output/dev-046-cloudsql-migration-package/cloudsql-migration-manifest.json",
+    "manifestPresent": true,
+    "manifestSha256": "c0a44686a1ea9b52ac8097eadb6bf8fed81413fb98c175352d2f9afe42026980",
+    "status": "proposal_only_not_approved_for_live_apply",
+    "packageVersion": "dev-046-cloudsql-migration-package/v1",
+    "orderedSchemaMigrationCount": 49,
+    "supportFileCount": 2,
+    "excludedFileCount": 2,
+    "liveApplyAllowed": false,
+    "requiresVpcAttachedRunner": true,
+    "requiresReviewedAdminBootstrap": true
+  },
+  "servicePattern": {
+    "runtimeTfSha256": "40e347c0385a9d06c6cf7a27b89d2d1f8c1aab5fb08d79d6a5680272d7a8f5c5",
+    "cloudRunServicePresent": true,
+    "defaultUrlPolicyConditional": true,
+    "ingressPolicyConditional": true,
+    "firebaseHostingGatewayEnabledInTfvarsExample": true,
+    "vpcAccessPresent": true,
+    "cloudSqlProxyPrivateIamPresent": true
+  },
+  "identity": {
+    "servicesIamSha256": "561d41e003f49a45ff96dc362020b8b2681c1741b32fc181f46c9c78a4b00968",
+    "databaseTfSha256": "f4cf252af28adca4dbdb302bf8b987b18a2892ffea9a184f152c50ec1ac2507a",
+    "runtimeServiceAccountPresent": true,
+    "migrationServiceAccountPresent": true,
+    "runtimeIamDbUserPresent": true,
+    "migrationIamDbUserPresent": true,
+    "runtimeAndMigrationSeparated": true
+  },
+  "terraformRunnerIac": {
+    "runnerTfSha256": "c2e07e7b0d6f563d1adbbe53dd6fd304530e74d880d64a7a2bb2ab5fa72a3d5c",
+    "cloudRunJobPresent": true,
+    "cloudRunJobApplyExecuted": true,
+    "cloudRunJobApplyVerified": false,
+    "cloudRunJobApplySummaryPath": "output/dev-046-migration-runner-plan/apply-summary.json",
+    "cloudRunJobExecutionRequested": true,
+    "cloudRunJobExecuted": true,
+    "runnerUsesMigrationServiceAccount": true,
+    "runnerHasCloudSqlProxyPattern": true,
+    "runnerReviewGuardPresent": true,
+    "runnerDryRunOnly": true,
+    "runnerLiveApprovalEnvAbsent": true,
+    "defaultDisabledInTfvarsExample": true,
+    "reviewedOnly": true,
+    "liveApplyAllowed": false
+  },
+  "runtimeImage": {
+    "dockerfileSha256": "10843c4410fff35537ff418315cb96e8e8f1d0ebe3cfabfefd06b98b0b775d6b",
+    "copiesNextStandalone": true,
+    "copiesNextStatic": true,
+    "copiesScripts": true,
+    "copiesInfra": true,
+    "copiesSourceLib": true,
+    "copiesOutputMigrationPackage": false,
+    "copiesMigrationAssets": true,
+    "webServerCommandOnly": true,
+    "migrationCapable": true
+  },
+  "applicationMigrationExecutor": {
+    "present": true,
+    "singletonPrimitivePresent": true,
+    "singletonPrimitiveIsLibraryOnly": false
+  },
+  "readiness": {
+    "status": "blocked_runner_not_ready",
+    "readyForLiveMigration": false,
+    "liveMigrationCompleted": false,
+    "topLevelBlockerCoveredBy": "STAGING_CLOUD_SQL_MIGRATION_PACKAGE_NOT_READY",
+    "blockers": [
+      "STAGING_CLOUD_RUN_JOB_APPLY_EVIDENCE_MISSING",
+      "STAGING_CLOUD_RUN_JOB_EXECUTION_UNAPPROVED",
+      "STAGING_ADMIN_BOOTSTRAP_PATH_NOT_APPROVED"
+    ]
+  },
+  "requiredNextWork": [
+    "Review the proposal-only Cloud SQL migration manifest and candidate SQL before any live apply.",
+    "Keep the created Cloud Run Job unexecuted until admin bootstrap and live migration approvals are separately granted.",
+    "Approve a separate admin bootstrap path before role/grant bootstrap SQL is executed.",
+    "Only after runner review, execute staging migration, runtime smoke and principal mapping evidence in order."
+  ],
+  "notes": [
+    "The existing web Cloud Run service image is intentionally web-runtime focused and should not be treated as a migration runner.",
+    "This runner preflight is a child gate under STAGING_CLOUD_SQL_MIGRATION_PACKAGE_NOT_READY; it does not add a fifth top-level live blocker.",
+    "The Cloud Run Job has been created from the reviewed saved plan, but has not been executed.",
+    "Private-IP-only Cloud SQL makes direct local apply inappropriate unless an approved VPC-attached execution path exists."
+  ]
+}

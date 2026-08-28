@@ -102,7 +102,7 @@ function normalizePart(row) {
   return {
     id: row.id, company_id: row.company_id, part_root_id: row.part_root_id, part_number: row.part_number,
     sequence_no: row.sequence_no, sequence_code: row.sequence_code, part_name: row.part_name, item_kind: row.item_kind,
-    is_universal: row.is_universal, bom_usage_policy: row.bom_usage_policy, custom_specification: row.custom_specification,
+    is_universal: row.is_universal, custom_specification: row.custom_specification,
     series_code: row.series_code ?? null, record_status: row.record_status, universal_reason: row.universal_reason,
     rule_version_id: row.rule_version_id, created_by: row.created_by, created_at: row.created_at, updated_at: row.updated_at
   };
@@ -214,10 +214,10 @@ function applyRecovery(database, before) {
     if (injectedFailure === "after-roots") throw new Error("DEV094_INJECTED_FAILURE_AFTER_ROOTS");
     database.exec(`INSERT INTO part_numbers (
       id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-      is_universal, bom_usage_policy, custom_specification, series_code, record_status, universal_reason,
+      is_universal, custom_specification, series_code, record_status, universal_reason,
       rule_version_id, created_by, created_at, updated_at
     ) SELECT id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-      is_universal, bom_usage_policy, custom_specification, NULL, record_status, universal_reason,
+      is_universal, custom_specification, NULL, record_status, universal_reason,
       rule_version_id, created_by, created_at, updated_at
       FROM part_numbers_company_scope_migration ORDER BY id`);
     if (injectedFailure === "after-parts") throw new Error("DEV094_INJECTED_FAILURE_AFTER_PARTS");

@@ -1,0 +1,52 @@
+{
+  "data": {
+    "groups": [
+      {
+        "groupKey": "cg_50f70dce-ae91-46da-b5c3-710dab7904c5",
+        "rows": [
+          {
+            "rowKey": "cw_caf2eceb-adb2-4f7b-8dcb-2b317bc9255c",
+            "entityType": "drawing",
+            "entityId": "drawing-formal-7dbdde2e-123b-4c85-b96a-e7358ecc01d7",
+            "code": "A0060-M01",
+            "name": "DEV087 D07 04931949Z",
+            "layer": "production",
+            "layerLabel": "量產版 1",
+            "revision": "1",
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_caf2eceb-adb2-4f7b-8dcb-2b317bc9255c",
+            "rowVersion": 1,
+            "basisState": "current",
+            "actions": [
+              {
+                "key": "advance",
+                "label": "進版",
+                "href": "/api/pdm/drawings/drawing-formal-7dbdde2e-123b-4c85-b96a-e7358ecc01d7/revision-targets?sourceRowKey=cw_caf2eceb-adb2-4f7b-8dcb-2b317bc9255c"
+              },
+              {
+                "key": "request_obsolete",
+                "label": "申請作廢"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "nextCursor": null,
+    "previousCursor": null,
+    "totalGroups": 1,
+    "totalRows": 1
+  },
+  "meta": {
+    "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk1MDI2Mjg4M30._wqVhLp0et9bcGccZ8tQcYRQmQpFPthx8muus-RONJA",
+    "correlationId": "8004dc0f-555c-452f-9bf3-bba68f06caeb"
+  }
+}

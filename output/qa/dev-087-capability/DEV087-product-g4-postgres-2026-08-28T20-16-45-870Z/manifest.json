@@ -1,0 +1,3621 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z",
+  "parentRunId": "DEV087-G4-recheck-20260829T0421+0800",
+  "gateStage": "product",
+  "runner": "qc-dev-087-g4-postgres-evidence",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "c3e9f291572ce8fce580b9efddf1ac97ef14e3452657459b066f43f8909ec6a9"
+  },
+  "environment": {
+    "provider": "postgresql",
+    "dataScope": "task_owned_isolated_postgresql_snapshot",
+    "baseUrl": "http://127.0.0.1:58662"
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "c36e3f7cf0b88f061336688bc2e0348a219092bd225efb76d6ca58202d65621c",
+  "caseResults": [],
+  "caseEvidence": {},
+  "childManifests": [
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/restore-receipt.json",
+      "sha256": "660b653989de6952e2399f327d2cebe1b75e28dd4307f0a40a65faac11fe81a2",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/postgres-server.log",
+      "sha256": "3474a8d67306840f55fa3c4280ca67657d9cbc4d2c0f6b30771d633447a7cbb2",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing-postgresql-lifecycle.png",
+      "sha256": "031a84ebe8b187407ff2f81f5f600fbe732f3a83d88db3d95064c04d817a32cc",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-1024x768.aria.txt",
+      "sha256": "585826762f51a48761b50d0d73e6392a420ca4b6dc48c04147331b6f0dcb8990",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-1024x768.png",
+      "sha256": "101e44f3bd53b488065e5320d6a89cf539ee0eeab11e61abfe0092a79f3420ee",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-1440x900.aria.txt",
+      "sha256": "5d834d8a7a518cd6d633ed49d27b43fe4952e1dc6f532efc1183c9ab50559078",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-1440x900.png",
+      "sha256": "5d69f445820f0dfd7467f5436f4ee1fb54bd87a4556815fd198949b8ca13ff0c",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-320x800.aria.txt",
+      "sha256": "5d834d8a7a518cd6d633ed49d27b43fe4952e1dc6f532efc1183c9ab50559078",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-320x800.png",
+      "sha256": "e87f3d9e20e41f3087e74bd0656ac070655a5d074308e41ea93a346f533a310e",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-390x844.aria.txt",
+      "sha256": "585826762f51a48761b50d0d73e6392a420ca4b6dc48c04147331b6f0dcb8990",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-390x844.png",
+      "sha256": "729a7a21e4cf5abcb732331364c365bbf3c214cf727b2329fa35c18b25430620",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-1024x768.aria.txt",
+      "sha256": "44d86cbb661f549209777d163e8c2535c468f38284f55c303f2d12271e602704",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-1024x768.png",
+      "sha256": "6b561b8795a691be7516bc5484bde800f432e812bf2519daa130d98095c2ad2e",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-1440x900.aria.txt",
+      "sha256": "44d86cbb661f549209777d163e8c2535c468f38284f55c303f2d12271e602704",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-1440x900.png",
+      "sha256": "3da790119007652580365f40ee8833f28fa0308373b5816c5f3e59d1a4c43dc3",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-320x800.aria.txt",
+      "sha256": "33dcd70fd9f228d15f1695039517fc2b1e2a827245144806539061a127c76cc3",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-320x800.png",
+      "sha256": "639486f193362f11d6fd289fa7854b776a34ac63aee482dd34afb5874f08bda1",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-390x844.aria.txt",
+      "sha256": "33dcd70fd9f228d15f1695039517fc2b1e2a827245144806539061a127c76cc3",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-390x844.png",
+      "sha256": "e0953b3ab121bf00773591c7ec596528f98283f8eb4aa765a211171e92fb82d2",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-1024x768.aria.txt",
+      "sha256": "083d9b78aa1f41b90a410a1864e4536ae454734e26273d681e413fc910eebc82",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-1024x768.png",
+      "sha256": "9223b604eceebe005948b769a8b7391e8946008a299c4a31342028065db5e934",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-1440x900.aria.txt",
+      "sha256": "083d9b78aa1f41b90a410a1864e4536ae454734e26273d681e413fc910eebc82",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-1440x900.png",
+      "sha256": "72d04b3f4e7b82039819191c703a34e69701d2f0a8f8ff80f79c896d4d00ad6d",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-320x800.aria.txt",
+      "sha256": "80ab7e93986cb4a9bd6fd33f7747feb105b57829274f240b45e9bd09fa83fd07",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-320x800.png",
+      "sha256": "a9919751dadefd97e5a21270592d75ef703d03c0fa1564b48958cc120c43c42f",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-390x844.aria.txt",
+      "sha256": "80ab7e93986cb4a9bd6fd33f7747feb105b57829274f240b45e9bd09fa83fd07",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-390x844.png",
+      "sha256": "1266e1df21b2ea67798ecfa05aa2de148b0fe760dd26fce80744c4fc3099c434",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-1024x768.aria.txt",
+      "sha256": "083d9b78aa1f41b90a410a1864e4536ae454734e26273d681e413fc910eebc82",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-1024x768.png",
+      "sha256": "9efa48fd9d4b37d332060670d18dc68ca4637c1108a082c8a559b6541f7306b0",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-1440x900.aria.txt",
+      "sha256": "083d9b78aa1f41b90a410a1864e4536ae454734e26273d681e413fc910eebc82",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-1440x900.png",
+      "sha256": "e14e7e7a7006b0feb4135573df7b77b58f11bd0a48c60d9ba02c54fd5269d831",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-320x800.aria.txt",
+      "sha256": "80ab7e93986cb4a9bd6fd33f7747feb105b57829274f240b45e9bd09fa83fd07",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-320x800.png",
+      "sha256": "c230b2b8a33bffb0d20b424b68c0bcb97593cac2dd87b0de190c5464e5e98671",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-390x844.aria.txt",
+      "sha256": "80ab7e93986cb4a9bd6fd33f7747feb105b57829274f240b45e9bd09fa83fd07",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-390x844.png",
+      "sha256": "1266e1df21b2ea67798ecfa05aa2de148b0fe760dd26fce80744c4fc3099c434",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-1024x768.aria.txt",
+      "sha256": "f5946bf68f9b0c47ed517cf1927aa5a3c79127426696c92b5f68239c95773442",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-1024x768.png",
+      "sha256": "727f488626e0be8ace15def3f414f9bb931f09ef7249f255b8b377d23b0c543f",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-1440x900.aria.txt",
+      "sha256": "7fa13a0248d9628e9c79e83224ba8b7db77e0c52a6cec50aec2acfc8576b2fe0",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-1440x900.png",
+      "sha256": "0e1cff421c8a9878d226b4070acd61e046201dab8de61664a9cfdbb51be9604c",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-320x800.aria.txt",
+      "sha256": "7fa13a0248d9628e9c79e83224ba8b7db77e0c52a6cec50aec2acfc8576b2fe0",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-320x800.png",
+      "sha256": "c7e9a326fb07c786e4495e101afc3895927eedc3b838f5689b101769db6acb79",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-390x844.aria.txt",
+      "sha256": "f5946bf68f9b0c47ed517cf1927aa5a3c79127426696c92b5f68239c95773442",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-390x844.png",
+      "sha256": "3f1a3dbaddc96d1cb85e2773fc10ab6088c9ca2a4f068877fb71cf3cf2acf0d2",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-1024x768.aria.txt",
+      "sha256": "373ac3aa123971012b8eea36afbb5a969e7a1d6108f50a6722e0c0e6ac0b1fec",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-1024x768.png",
+      "sha256": "8f18983837a9ad6dc9375921bfe4275bc99fbac423890aaa00bd522e1fbd0a83",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-1440x900.aria.txt",
+      "sha256": "373ac3aa123971012b8eea36afbb5a969e7a1d6108f50a6722e0c0e6ac0b1fec",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-1440x900.png",
+      "sha256": "78279cabee94ab025e91d8de7571f03999f4a63e48382e7ae530ccd4ea4b2e4d",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-320x800.aria.txt",
+      "sha256": "373ac3aa123971012b8eea36afbb5a969e7a1d6108f50a6722e0c0e6ac0b1fec",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-320x800.png",
+      "sha256": "cab28fc4271b1d7e660198738bfac936fd82abfa5f494d30e1101515179dd7e1",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-390x844.aria.txt",
+      "sha256": "373ac3aa123971012b8eea36afbb5a969e7a1d6108f50a6722e0c0e6ac0b1fec",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-390x844.png",
+      "sha256": "6a338ee10a5bb40ea219b285d430a27e1700da0967a8f12166ed6f801299b007",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-1024x768.aria.txt",
+      "sha256": "59cad36805c5b9f2572d5900d30587bf3cb0f3ee3ec90cc2cf5f320bae89bf37",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-1024x768.png",
+      "sha256": "afa1464aabe5dd17e8652eac6db1ee7117edf027da237f6d431dbf9609518784",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-1440x900.aria.txt",
+      "sha256": "59cad36805c5b9f2572d5900d30587bf3cb0f3ee3ec90cc2cf5f320bae89bf37",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-1440x900.png",
+      "sha256": "712bff769062a254d26579340d7e29277badfacb9dc8b42f36368538442a7b56",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-320x800.aria.txt",
+      "sha256": "59cad36805c5b9f2572d5900d30587bf3cb0f3ee3ec90cc2cf5f320bae89bf37",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-320x800.png",
+      "sha256": "8bff611ee690b403b4fdc14c8a5c8f7984ce0b1e22e67946dfb7a5ee00753c33",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-390x844.aria.txt",
+      "sha256": "59cad36805c5b9f2572d5900d30587bf3cb0f3ee3ec90cc2cf5f320bae89bf37",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-390x844.png",
+      "sha256": "797fcceeb294d29d01883895402107f4b13aa43d3e7b4c1e2356e5eaf64185b9",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-1024x768.aria.txt",
+      "sha256": "585826762f51a48761b50d0d73e6392a420ca4b6dc48c04147331b6f0dcb8990",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-1024x768.png",
+      "sha256": "101e44f3bd53b488065e5320d6a89cf539ee0eeab11e61abfe0092a79f3420ee",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-1440x900.aria.txt",
+      "sha256": "585826762f51a48761b50d0d73e6392a420ca4b6dc48c04147331b6f0dcb8990",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-1440x900.png",
+      "sha256": "75850216ffdff5cb1b79bc5cdd1d4dce22b5a882d6bc1867768dfb60da6ffc03",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-320x800.aria.txt",
+      "sha256": "585826762f51a48761b50d0d73e6392a420ca4b6dc48c04147331b6f0dcb8990",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-320x800.png",
+      "sha256": "adbb1faae13c1c73eb4c9bdea2f3727eb753c326692680be75d504a8cf14c073",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-390x844.aria.txt",
+      "sha256": "585826762f51a48761b50d0d73e6392a420ca4b6dc48c04147331b6f0dcb8990",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-390x844.png",
+      "sha256": "729a7a21e4cf5abcb732331364c365bbf3c214cf727b2329fa35c18b25430620",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    }
+  ],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "pass",
+    "delta": 0,
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "byteHashObservation": {
+      "before": "45f0021031df231f3f346c70be7cdf469f03c24a0a721164eae167c3ee448958",
+      "after": null,
+      "unchanged": false,
+      "enforcement": "informational_only_concurrent_primary_runtime_may_write_nonprotected_rows"
+    }
+  },
+  "firstFailure": {
+    "code": "page.waitForResponse: Timeout 30000ms exceeded while waiting for event \"response\"",
+    "caseId": "QA-087-225",
+    "pointer": "checks"
+  },
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskOwnedRuntime": true,
+    "portsReleased": true,
+    "ports": {
+      "postgresql": {
+        "port": 58663,
+        "released": true
+      },
+      "next": {
+        "port": 58662,
+        "released": true
+      }
+    },
+    "runtimeProjectCleanupReceipt": {
+      "removed": true,
+      "path": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\.tmp\\qc-dev087-g4-runtime-project-58662",
+      "error": null
+    },
+    "tempRootRemoved": true
+  },
+  "result": "FAIL",
+  "errorCode": "page.waitForResponse: Timeout 30000ms exceeded while waiting for event \"response\"",
+  "assertions": [
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "[]"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "[]"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"drawingWork\":{\"workId\":\"27107f64-bc75-43e0-bc39-67bb36b95347\",\"entityId\":\"drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864\",\"url\":\"/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=27107f64-bc75-43e0-bc39-67bb36b95347\"},\"partWork\":{\"workId\":\"dd66a612-a895-44be-a231-607ec751b46f\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"url\":\"/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=dd66a612-a895-44be-a231-607ec751b46f\"}}"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "work_files/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "work_files/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "matrix_navigation/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "matrix_navigation/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "workbench_discovery/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "workbench_discovery/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/1024x768 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/1024x768 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/1024x768 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/1024x768 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/1024x768 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/1024x768 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/1024x768 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/1024x768 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/1024x768 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/1024x768 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "work_files/1024x768 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "work_files/1024x768 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "matrix_navigation/1024x768 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "matrix_navigation/1024x768 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "workbench_discovery/1024x768 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "workbench_discovery/1024x768 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/390x844 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/390x844 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/390x844 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/390x844 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/390x844 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/390x844 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/390x844 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/390x844 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/390x844 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/390x844 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "work_files/390x844 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "work_files/390x844 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "matrix_navigation/390x844 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "matrix_navigation/390x844 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "workbench_discovery/390x844 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "workbench_discovery/390x844 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/320x800 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/320x800 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/320x800 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/320x800 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/320x800 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/320x800 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/320x800 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/320x800 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/320x800 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/320x800 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "work_files/320x800 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "work_files/320x800 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "matrix_navigation/320x800 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "matrix_navigation/320x800 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "workbench_discovery/320x800 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "workbench_discovery/320x800 accessibility/focus"
+    },
+    {
+      "caseId": "QA-087-227",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-227"
+      ],
+      "firstFailurePointer": null,
+      "detail": "javascript_url:{\"observed\":{\"blocked\":true,\"status\":200,\"notificationId\":\"qa-dev087-g4-javascript_url\",\"actionUrl\":\"javascript:alert(1)\",\"resolution\":{\"allowed\":false,\"reason\":\"invalid_url\"}},\"before\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0},\"after\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0}}"
+    },
+    {
+      "caseId": "QA-087-227",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-227"
+      ],
+      "firstFailurePointer": null,
+      "detail": "protocol_relative_url:{\"observed\":{\"blocked\":true,\"status\":200,\"notificationId\":\"qa-dev087-g4-protocol_relative_url\",\"actionUrl\":\"//evil.example/redirect\",\"resolution\":{\"allowed\":false,\"reason\":\"invalid_url\"}},\"before\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0},\"after\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0}}"
+    },
+    {
+      "caseId": "QA-087-227",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-227"
+      ],
+      "firstFailurePointer": null,
+      "detail": "encoded_external_origin:{\"observed\":{\"blocked\":true,\"status\":200,\"notificationId\":\"qa-dev087-g4-encoded_external_origin\",\"actionUrl\":\"https://%65vil.example/redirect\",\"resolution\":{\"allowed\":false,\"reason\":\"external_origin\"}},\"before\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0},\"after\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0}}"
+    },
+    {
+      "caseId": "QA-087-227",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-227"
+      ],
+      "firstFailurePointer": null,
+      "detail": "path_confusion:{\"observed\":{\"blocked\":true,\"status\":200,\"notificationId\":\"qa-dev087-g4-path_confusion\",\"actionUrl\":\"/parts-evil/redirect\",\"resolution\":{\"allowed\":false,\"reason\":\"path_not_allowed\"}},\"before\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0},\"after\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0}}"
+    },
+    {
+      "caseId": "QA-087-227",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-227"
+      ],
+      "firstFailurePointer": null,
+      "detail": "wrong_company:{\"observed\":{\"blocked\":true,\"status\":200,\"leaksIdentity\":false,\"bodySha256\":\"1eee2a2a524f2056b3672277c123ef1db4efbba850f00cc12e9d1162b6348ded\"},\"before\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0},\"after\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0}}"
+    },
+    {
+      "caseId": "QA-087-227",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-227"
+      ],
+      "firstFailurePointer": null,
+      "detail": "wrong_work:{\"observed\":{\"blocked\":true,\"renderedMessage\":\"圖面工作資料不存在\",\"identity\":\"qa-dev087-g4-wrong-work\"},\"before\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0},\"after\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0}}"
+    },
+    {
+      "caseId": "QA-087-227",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-227"
+      ],
+      "firstFailurePointer": null,
+      "detail": "wrong_revision:{\"observed\":{\"blocked\":true,\"status\":404,\"identity\":\"qa-dev087-g4-wrong-revision\",\"renderedMessage\":\"圖號工作台\\n建立編號\\n搜尋\\n版本\\n全部\\n處理\\n全部\\n用途\\n全部\\n系列\\n全部\\n編號\\n\\t\\n品名\\n\\t版本\\t資料狀態\\t處理\\nA0002-M01\\t本體_BS_右_Xx5\\t量產版 1\\t可使用\\t無須處理\\n量產版 1\\n無須處理\\nA0002-M01\\n\\n本體_BS_右_Xx5\\n\\n目前資料\\n圖號\\nA0002-M01\\n圖面用途\\nM\\n3D 模型\\n無可用預覽\\n目前沒有可預覽的 3D 檔案。\\nA0002.SLDPRT\\n2D 圖面\\n預覽尚未就緒\\n可重新整理預覽。\\n重新整理預覽\\nA0002-M01.pdf\\n圖面檔案\\nA0002-M01.pdf\\n下載\\nA0002-M01.SLDDRW\\n下載\\nA0002.SLDPRT\\n下載\\n關聯矩陣\\n編輯關聯\\n建立編號\\n圖號\\n料號\\n\\t\\nA0002-M01\\n\\n\\nA0002-P01\\n\\t製造\\n\\nA0002-P02\\n\\t—\\n\\nA0002-P03\\n\\t—\\n\\nA0002-P04\\n\\t—\\n\\nA0002-P05\\n\\t—\\n\\nA0002-P06\\n\\t—\\n\\nA0002-P07\\n\\t—\\n\\nA0002-P08\\n\\t—\\n\\nA0002-P09\\n\\t—\\n\\nA0002-P10\\n\\t—\\n\\nA0002-P11\\n\\t—\\n\\nA0002-P12\\n\\t—\\n\\nA0002-P13\\n\\t—\\n\\nA0002-P14\\n\\t—\\n\\nA0002-P15\\n\\t—\\n\\nA0002-P16\\n\\t—\\n\\nA0002-P17\\n\\t—\\n\\nA0002-P18\\n\\t—\\n\\nA0002-P19\\n\\t—\\n\\nA0002-P20\\n\\t—\\n\\nA0002-P21\\n\\t—\\n\\nA0002-P22\\n\\t—\\n\\nA0002-P23\\n\\t—\\n\\nA0002-P24\\n\\t—\\n\\nA0002-P25\\n\\t—\\n\\nA0002-P26\\n\\t—\\n\\nA0002-P27\\n\\t—\\n\\nA0002-P28\\n\\t—\\n\\nA0002-P29\\n\\t—\\n\\nA0002-P30\\n\\t—\\n\\nA0002-P31\\n\\t—\\n\\nA0002-P32\\n\\t—\\n\\nA0002-P33\\n\\t—\\n\\nA0002-P34\\n\\t—\\n\\nA0002-P35\\n\\t—\\n\\nA0002-P36\\n\\t—\\n\\nA0002-P37\\n\\t—\\n\\nA0002-P38\\n\\t—\\n\\nA0002-P39\\n\\t—\\n\\nA0002-P40\\n\\t—\\n\\nA0002-P41\\n\\t—\\n\\nA0002-P42\\n\\t—\\n\\nA0002-P43\\n\\t—\\n\\nA0002-P44\\n\\t—\\n\\nA0002-P45\\n\\t—\\n\\nA0002-P46\\n\\t—\\n\\nA0002-P47\\n\\t—\\n歷史版次明細\\n返回版\"},\"before\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0},\"after\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0}}"
+    },
+    {
+      "caseId": "QA-087-227",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-227"
+      ],
+      "firstFailurePointer": null,
+      "detail": "wrong_task:{\"observed\":{\"blocked\":true,\"listStatus\":200,\"status\":404,\"body\":{\"error\":\"NUMBERING_TASK_NOT_FOUND: qa-dev087-g4-stale-task\"}},\"before\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0},\"after\":{\"command_receipts\":140,\"audit_logs\":831,\"approval_requests\":0,\"work_reviews\":0}}"
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-216"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"firstPageIds\":[\"A0001-P01\",\"A0002-P01\",\"A0002-P01\",\"A0002-P02\",\"A0002-P03\",\"A0002-P04\",\"A0002-P05\",\"A0002-P06\",\"A0002-P07\",\"A0002-P08\",\"A0002-P09\",\"A0002-P10\",\"A0002-P11\",\"A0002-P12\",\"A0002-P13\",\"A0002-P14\",\"A0002-P15\",\"A0002-P16\",\"A0002-P17\",\"A0002-P18\",\"A0002-P19\",\"A0002-P20\",\"A0002-P21\",\"A0002-P22\",\"A0002-P23\",\"A0002-P24\",\"A0002-P25\",\"A0002-P26\",\"A0002-P27\",\"A0002-P28\",\"A0002-P29\",\"A0002-P30\",\"A0002-P31\",\"A0002-P32\",\"A0002-P33\",\"A0002-P34\",\"A0002-P35\",\"A0002-P36\",\"A0002-P37\",\"A0002-P38\",\"A0002-P39\",\"A0002-P40\",\"A0002-P41\",\"A0002-P42\",\"A0002-P43\",\"A0002-P44\",\"A0002-P45\",\"A0002-P46\",\"A0002-P47\",\"A0003-P01\",\"A0004-P01\",\"A0005-P01\",\"A0006-P01\",\"A0007-P01\",\"A0008-P01\",\"A0009-P01\",\"A0010-P01\",\"A0011-P01\",\"A0012-P01\",\"A0013-P01\",\"A0014-P01\",\"A0015-P01\",\"A0016-P01\",\"A0017-P01\",\"A0018-P01\",\"A0019-P01\",\"A0020-P01\",\"A0021-P01\",\"A0022-P01\",\"A0023-P01\",\"A0024-P01\",\"A0025-P01\",\"A0026-P01\",\"A0027-P01\",\"A0028-P01\",\"A0029-P01\",\"A0030-P01\",\"A0031-P01\",\"A0032-P01\",\"A0033-P01\",\"A0034-P01\",\"A0035-P01\",\"A0036-P01\",\"A0037-P01\",\"A0038-P01\",\"A0039-P01\",\"A0040-P01\",\"A0041-P01\",\"A0042-P01\",\"A0043-P01\",\"A0044-P01\",\"A0045-P01\",\"A0046-P01\",\"A0047-P01\",\"A0048-P01\",\"A0049-P01\",\"A0050-P01\",\"A0051-P01\",\"A0052-P01\",\"A0053-P01\",\"A0054-P01\"],\"secondPageIds\":[\"A0055-P01\",\"A0056-P01\",\"A0057-P01\",\"A0058-P01\",\"A0059-P01\"],\"returnedFirstPageIds\":[\"A0001-P01\",\"A0002-P01\",\"A0002-P01\",\"A0002-P02\",\"A0002-P03\",\"A0002-P04\",\"A0002-P05\",\"A0002-P06\",\"A0002-P07\",\"A0002-P08\",\"A0002-P09\",\"A0002-P10\",\"A0002-P11\",\"A0002-P12\",\"A0002-P13\",\"A0002-P14\",\"A0002-P15\",\"A0002-P16\",\"A0002-P17\",\"A0002-P18\",\"A0002-P19\",\"A0002-P20\",\"A0002-P21\",\"A0002-P22\",\"A0002-P23\",\"A0002-P24\",\"A0002-P25\",\"A0002-P26\",\"A0002-P27\",\"A0002-P28\",\"A0002-P29\",\"A0002-P30\",\"A0002-P31\",\"A0002-P32\",\"A0002-P33\",\"A0002-P34\",\"A0002-P35\",\"A0002-P36\",\"A0002-P37\",\"A0002-P38\",\"A0002-P39\",\"A0002-P40\",\"A0002-P41\",\"A0002-P42\",\"A0002-P43\",\"A0002-P44\",\"A0002-P45\",\"A0002-P46\",\"A0002-P47\",\"A0003-P01\",\"A0004-P01\",\"A0005-P01\",\"A0006-P01\",\"A0007-P01\",\"A0008-P01\",\"A0009-P01\",\"A0010-P01\",\"A0011-P01\",\"A0012-P01\",\"A0013-P01\",\"A0014-P01\",\"A0015-P01\",\"A0016-P01\",\"A0017-P01\",\"A0018-P01\",\"A0019-P01\",\"A0020-P01\",\"A0021-P01\",\"A0022-P01\",\"A0023-P01\",\"A0024-P01\",\"A0025-P01\",\"A0026-P01\",\"A0027-P01\",\"A0028-P01\",\"A0029-P01\",\"A0030-P01\",\"A0031-P01\",\"A0032-P01\",\"A0033-P01\",\"A0034-P01\",\"A0035-P01\",\"A0036-P01\",\"A0037-P01\",\"A0038-P01\",\"A0039-P01\",\"A0040-P01\",\"A0041-P01\",\"A0042-P01\",\"A0043-P01\",\"A0044-P01\",\"A0045-P01\",\"A0046-P01\",\"A0047-P01\",\"A0048-P01\",\"A0049-P01\",\"A0050-P01\",\"A0051-P01\",\"A0052-P01\",\"A0053-P01\",\"A0054-P01\"]}"
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-210"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"primaryLocks\":2,\"primaryUiLocks\":[{\"displayName\":\"DEV087-G4.SLDDRW\",\"rowCount\":1,\"removeActionCount\":0,\"lockLabelCount\":1},{\"displayName\":\"DEV087-G4.SLDPRT\",\"rowCount\":1,\"removeActionCount\":0,\"lockLabelCount\":1}]}"
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-192"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing submit=200:{\"data\":{\"requestId\":\"cbe2fda9-8077-4353-b9ca-a94c6620e472\",\"reviewCycleId\":\"75a160d5-b4a8-40a9-b408-9681d25c7c0f\",\"rowVersion\":1},\"meta\":{\"correlationId\":\"87183364-982c-47bc-b8dd-f5a388b820c1\"}}"
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-192"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing return=200"
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-192"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"returnedFff\":[\"no_impact\",\"suspected_impact\",\"confirmed_impact\"],\"returnedReplacement\":\"A0001-P01\"}"
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-205"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part save=200:{\"data\":{\"workId\":\"dd66a612-a895-44be-a231-607ec751b46f\",\"rowVersion\":2,\"payload\":{\"partName\":\"本體_BS_右_Xx5\",\"itemKind\":\"manufactured\",\"customSpecification\":null,\"isUniversal\":false,\"materialCode\":null,\"materialLabel\":\"SUS 304 G4\",\"colorCode\":null,\"colorLabel\":\"Black G4\",\"surfaceTreatment\":\"BA G4\",\"variantNote\":\"DEV087 PostgreSQL return snapshot\"}},\"meta\":{\"correlationId\":\"e7d0f641-0be3-4ad6-97c1-a9f02bacd68e\"}}"
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-205"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part submit=200:{\"data\":{\"requestId\":\"c93cf527-ced8-49f7-b8e4-8fffadd24592\",\"reviewCycleId\":\"6e6ee985-1273-4df2-84d0-2355b25a2687\",\"rowVersion\":1},\"meta\":{\"correlationId\":\"f5ffe728-748e-4d98-b1ec-ccc45c693a72\"}}"
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-205"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part return=200"
+    },
+    {
+      "caseId": "QA-087-199",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-199"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"status\":201,\"requestBody\":{\"approvalRequest\":{\"id\":\"a64a0c50-17ec-4501-afe2-c52ccdeb6a0d\",\"actionCode\":\"obsolete_ma_drawing\",\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 G4 PostgreSQL QA-087-199\",\"payload\":{\"entityCode\":\"A0002-M01\",\"projectCode\":null,\"drawingNumber\":\"A0002-M01\",\"lifecycleAction\":\"obsolete\",\"impactFingerprint\":\"fd5dcafebef0bc0cf133181169f9fb02d9665b20f8b30c7b25d28aeaa5bd1332\",\"impactDependencies\":[{\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"kind\":\"controlled_file\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"kind\":\"controlled_file\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"kind\":\"controlled_file\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"id\":\"qa-dev087-g4-production-file-1\",\"code\":\"A0002-M01.pdf\",\"kind\":\"controlled_file\",\"disposition\":\"pdf:qa-dev087-g4-production-revision\"},{\"id\":\"qa-dev087-g4-production-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"kind\":\"controlled_file\",\"disposition\":\"drawing_2d:qa-dev087-g4-production-revision\"},{\"id\":\"qa-dev087-g4-production-file-3\",\"code\":\"A0002.SLDPRT\",\"kind\":\"controlled_file\",\"disposition\":\"cad_3d:qa-dev087-g4-production-revision\"},{\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"kind\":\"controlled_revision\",\"disposition\":\"rd_controlled\"},{\"id\":\"qa-dev087-g4-production-revision\",\"code\":\"1\",\"kind\":\"controlled_revision\",\"disposition\":\"released\"},{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"kind\":\"part_relation\",\"disposition\":\"primary_manufacturing\"}],\"previousRecordStatus\":\"Released\"},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T20:21:23.612Z\"},\"approvalBatch\":{\"id\":\"27fd40ac-64e0-44bb-ace4-6d9e585e9edb\",\"batchCode\":\"NB-MTDED3CD-1\",\"projectCode\":null,\"actionCode\":\"obsolete_ma_drawing\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T20:21:23.629Z\",\"items\":[{\"id\":\"78bb128a-f926-4cd6-9a76-625cb58a3f9c\",\"batchId\":\"27fd40ac-64e0-44bb-ace4-6d9e585e9edb\",\"approvalRequestId\":\"a64a0c50-17ec-4501-afe2-c52ccdeb6a0d\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"entityCode\":\"A0002-M01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_ma_drawing\"},\"policy\":{\"entityType\":\"numbering_drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}}"
+    }
+  ],
+  "failures": [
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-drawing_history-1440x900",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-drawing_history-1440x900",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-matrix_navigation-1440x900",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-matrix_navigation-1440x900",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-formal_obsolete-1024x768",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-formal_obsolete-1024x768",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-drawing_history-1024x768",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-drawing_history-1024x768",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-matrix_navigation-1024x768",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-matrix_navigation-1024x768",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-formal_obsolete-390x844",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-formal_obsolete-390x844",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-drawing_history-390x844",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-drawing_history-390x844",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-matrix_navigation-390x844",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-matrix_navigation-390x844",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-formal_obsolete-320x800",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-formal_obsolete-320x800",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-drawing_history-320x800",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-drawing_history-320x800",
+      "detail": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "caseId": "QG-087-PROVIDER",
+      "kind": "runner",
+      "detail": "page.waitForResponse: Timeout 30000ms exceeded while waiting for event \"response\""
+    }
+  ],
+  "mutationLedger": [
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "PATCH /api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347",
+      "idempotencyKey": "3a01be21-e715-407b-8b23-8a6293d9af3b",
+      "correlationId": "7bfb84ab-d194-47dc-a98d-eda07049f906",
+      "serverRoute": "/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347",
+      "dbWriter": "dev087:drawing.update:drawing-work:27107f64-bc75-43e0-bc39-67bb36b95347:update",
+      "commandReceiptId": "362a30f9-83bd-4f2e-83d7-e6fcb885e34b",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:20:11.798Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files",
+      "idempotencyKey": "655dd085-d271-454f-ad47-f9d6d426ed6c",
+      "correlationId": "71197c3e-52e8-441e-a980-1b818290a5af",
+      "serverRoute": "/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files",
+      "dbWriter": "dev087:drawing.file.upload:drawing-work:27107f64-bc75-43e0-bc39-67bb36b95347:file:drawing_2d",
+      "commandReceiptId": "c9fb107f-896d-4b09-b545-077ba165a9ff",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:20:14.937Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files",
+      "idempotencyKey": "057b9620-724f-41a0-84b4-e5c398df3256",
+      "correlationId": "6ff5b48e-820b-41d5-bc33-34c1652f6049",
+      "serverRoute": "/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files",
+      "dbWriter": "dev087:drawing.file.upload:drawing-work:27107f64-bc75-43e0-bc39-67bb36b95347:file:cad_3d",
+      "commandReceiptId": "c4dcb8e1-a92b-456f-b1a8-e9a2e5882f09",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:20:15.116Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files",
+      "idempotencyKey": "eb7579ac-4253-4d32-ba70-d37fd2038e65",
+      "correlationId": "7f6c3825-8808-484e-a7a6-64eccb689a7a",
+      "serverRoute": "/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files",
+      "dbWriter": "dev087:drawing.file.upload:drawing-work:27107f64-bc75-43e0-bc39-67bb36b95347:file:pdf",
+      "commandReceiptId": "4ff398ff-3a2e-42e2-9e2b-825e23dd3eb4",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:20:15.305Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "DELETE /api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files/009d2dd6-ed34-417b-a537-342a0eba2520",
+      "idempotencyKey": "9b65c624-91b1-457a-bbf0-2831c544e037",
+      "correlationId": "05434b08-4572-4b30-87db-cf982e6a4e9f",
+      "serverRoute": "/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files/009d2dd6-ed34-417b-a537-342a0eba2520",
+      "dbWriter": "dev087:drawing.file.remove:drawing-work:27107f64-bc75-43e0-bc39-67bb36b95347:file-remove:009d2dd6-ed34-417b-a537-342a0eba2520",
+      "commandReceiptId": "fbaaf604-8d99-4767-80e4-751512f72e81",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:20:19.831Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/submit",
+      "idempotencyKey": "5f2dc661-64e5-4f9f-ae8f-4718c3533ecf",
+      "correlationId": "cf39c691-80ff-44f6-b652-0547798d97e1",
+      "serverRoute": "/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/submit",
+      "dbWriter": "dev087:drawing.submit:drawing-work:27107f64-bc75-43e0-bc39-67bb36b95347:review",
+      "commandReceiptId": "70609132-40a0-46b4-95ea-a5fb34587b02",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:20:23.322Z"
+    },
+    {
+      "uiAction": "drawing-review-return",
+      "networkInitiator": "POST /api/pdm/review-requests/cbe2fda9-8077-4353-b9ca-a94c6620e472/decisions",
+      "idempotencyKey": "098cf67c-5174-4282-857d-fa3910da62a9",
+      "correlationId": "5bf95342-1613-4d6b-b78d-e7b91f74bc85",
+      "serverRoute": "/api/pdm/review-requests/cbe2fda9-8077-4353-b9ca-a94c6620e472/decisions",
+      "dbWriter": "dev087:review.decision:review:75a160d5-b4a8-40a9-b408-9681d25c7c0f",
+      "commandReceiptId": "47304ddd-aca1-4a58-9318-c361d87dc4d6",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:20:46.854Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/cancel",
+      "idempotencyKey": "633f6fbc-0eaa-480d-9ed9-19fcf376ef91",
+      "correlationId": "0d045aff-7e4e-4a2f-ad73-3a722400d081",
+      "serverRoute": "/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/cancel",
+      "dbWriter": "dev087:drawing.cancel:drawing-work:27107f64-bc75-43e0-bc39-67bb36b95347:cancel",
+      "commandReceiptId": "415fdd64-ba02-4167-8916-901bc2fca55d",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:20:54.524Z"
+    },
+    {
+      "uiAction": "part-lifecycle",
+      "networkInitiator": "PATCH /api/pdm/part-change-works/dd66a612-a895-44be-a231-607ec751b46f",
+      "idempotencyKey": "87a01274-7b0e-4400-9f94-d5e5e8445588",
+      "correlationId": "e78fb986-8e66-4b9f-ab52-3b4becf12521",
+      "serverRoute": "/api/pdm/part-change-works/dd66a612-a895-44be-a231-607ec751b46f",
+      "dbWriter": "dev087:part.update:part-work:dd66a612-a895-44be-a231-607ec751b46f:update",
+      "commandReceiptId": "190bbdf9-8b93-4406-86cf-7e82efa436d2",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:21:01.129Z"
+    },
+    {
+      "uiAction": "part-lifecycle",
+      "networkInitiator": "POST /api/pdm/part-change-works/dd66a612-a895-44be-a231-607ec751b46f/submit",
+      "idempotencyKey": "c4a2416c-742b-4577-9211-2d629015918c",
+      "correlationId": "bc0a023a-de7c-4f30-84a4-e32a16fc75f5",
+      "serverRoute": "/api/pdm/part-change-works/dd66a612-a895-44be-a231-607ec751b46f/submit",
+      "dbWriter": "dev087:part.submit:part-work:dd66a612-a895-44be-a231-607ec751b46f:review",
+      "commandReceiptId": "ac2cd7cf-072e-43fc-82c6-4c77d516210f",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:21:03.939Z"
+    },
+    {
+      "uiAction": "part-review-return",
+      "networkInitiator": "POST /api/pdm/review-requests/c93cf527-ced8-49f7-b8e4-8fffadd24592/decisions",
+      "idempotencyKey": "d947343b-131f-4cdc-b84c-2c3962b3306e",
+      "correlationId": "57cdb158-2798-4c3c-abff-060d41b6323d",
+      "serverRoute": "/api/pdm/review-requests/c93cf527-ced8-49f7-b8e4-8fffadd24592/decisions",
+      "dbWriter": "dev087:review.decision:review:6e6ee985-1273-4df2-84d0-2355b25a2687",
+      "commandReceiptId": "0dbb3972-4e4e-4039-bdf0-b047b0c7cc34",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:21:11.499Z"
+    },
+    {
+      "uiAction": "part-lifecycle",
+      "networkInitiator": "POST /api/pdm/part-change-works/dd66a612-a895-44be-a231-607ec751b46f/cancel",
+      "idempotencyKey": "bcc0efb4-409e-4e3c-838f-bd6f230793e8",
+      "correlationId": "763e4ed0-1b3e-4072-81c2-bcd287957c3a",
+      "serverRoute": "/api/pdm/part-change-works/dd66a612-a895-44be-a231-607ec751b46f/cancel",
+      "dbWriter": "dev087:part.cancel:part-work:dd66a612-a895-44be-a231-607ec751b46f:cancel",
+      "commandReceiptId": "bbdb364d-8a0e-408b-94b8-f7ff2f8e8fb4",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:21:16.167Z"
+    }
+  ],
+  "providerReceipts": [],
+  "fixtureMutationLedger": [
+    {
+      "action": "prepare-g4-postgresql-fixture",
+      "scope": "task_owned_isolated_postgresql_fixture",
+      "identities": [
+        "A0001-M01",
+        "A0001-P01",
+        "A0002-M01",
+        "A0002-P01",
+        "A0002-P02..P47",
+        "qa-dev087-g4-*"
+      ],
+      "purpose": "isolated FFF revision, formal obsolete, pagination, unsafe action URL, and stale task journeys",
+      "targetTableGuards": {
+        "preserved": true,
+        "names": [
+          "trg_dev087_canonical_state_company_guard",
+          "trg_dev087_branch_company_guard",
+          "trg_dev087_claim_company_guard",
+          "trg_drawing_revision_claims_approved_immutable",
+          "trg_dev087_drawing_work_company_guard",
+          "trg_dev087_part_work_company_guard",
+          "trg_dev087_review_request_company_guard",
+          "trg_dev087_review_request_identity"
+        ]
+      }
+    },
+    {
+      "table": "numbering_task_items",
+      "operation": "delete-after-exact-read",
+      "id": "qa-dev087-g4-stale-task",
+      "scope": "task_owned_isolated_postgresql_fault_fixture",
+      "reason": "wrong task identity API fail-closed journey after standalone page retirement"
+    }
+  ],
+  "negativeEvidence": [
+    {
+      "kind": "javascript_url",
+      "result": "PASS",
+      "zeroWrite": true,
+      "before": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "after": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "observed": {
+        "blocked": true,
+        "status": 200,
+        "notificationId": "qa-dev087-g4-javascript_url",
+        "actionUrl": "javascript:alert(1)",
+        "resolution": {
+          "allowed": false,
+          "reason": "invalid_url"
+        }
+      }
+    },
+    {
+      "kind": "protocol_relative_url",
+      "result": "PASS",
+      "zeroWrite": true,
+      "before": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "after": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "observed": {
+        "blocked": true,
+        "status": 200,
+        "notificationId": "qa-dev087-g4-protocol_relative_url",
+        "actionUrl": "//evil.example/redirect",
+        "resolution": {
+          "allowed": false,
+          "reason": "invalid_url"
+        }
+      }
+    },
+    {
+      "kind": "encoded_external_origin",
+      "result": "PASS",
+      "zeroWrite": true,
+      "before": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "after": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "observed": {
+        "blocked": true,
+        "status": 200,
+        "notificationId": "qa-dev087-g4-encoded_external_origin",
+        "actionUrl": "https://%65vil.example/redirect",
+        "resolution": {
+          "allowed": false,
+          "reason": "external_origin"
+        }
+      }
+    },
+    {
+      "kind": "path_confusion",
+      "result": "PASS",
+      "zeroWrite": true,
+      "before": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "after": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "observed": {
+        "blocked": true,
+        "status": 200,
+        "notificationId": "qa-dev087-g4-path_confusion",
+        "actionUrl": "/parts-evil/redirect",
+        "resolution": {
+          "allowed": false,
+          "reason": "path_not_allowed"
+        }
+      }
+    },
+    {
+      "kind": "wrong_company",
+      "result": "PASS",
+      "zeroWrite": true,
+      "before": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "after": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "observed": {
+        "blocked": true,
+        "status": 200,
+        "leaksIdentity": false,
+        "bodySha256": "1eee2a2a524f2056b3672277c123ef1db4efbba850f00cc12e9d1162b6348ded"
+      }
+    },
+    {
+      "kind": "wrong_work",
+      "result": "PASS",
+      "zeroWrite": true,
+      "before": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "after": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "observed": {
+        "blocked": true,
+        "renderedMessage": "圖面工作資料不存在",
+        "identity": "qa-dev087-g4-wrong-work"
+      }
+    },
+    {
+      "kind": "wrong_revision",
+      "result": "PASS",
+      "zeroWrite": true,
+      "before": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "after": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "observed": {
+        "blocked": true,
+        "status": 404,
+        "identity": "qa-dev087-g4-wrong-revision",
+        "renderedMessage": "圖號工作台\n建立編號\n搜尋\n版本\n全部\n處理\n全部\n用途\n全部\n系列\n全部\n編號\n\t\n品名\n\t版本\t資料狀態\t處理\nA0002-M01\t本體_BS_右_Xx5\t量產版 1\t可使用\t無須處理\n量產版 1\n無須處理\nA0002-M01\n\n本體_BS_右_Xx5\n\n目前資料\n圖號\nA0002-M01\n圖面用途\nM\n3D 模型\n無可用預覽\n目前沒有可預覽的 3D 檔案。\nA0002.SLDPRT\n2D 圖面\n預覽尚未就緒\n可重新整理預覽。\n重新整理預覽\nA0002-M01.pdf\n圖面檔案\nA0002-M01.pdf\n下載\nA0002-M01.SLDDRW\n下載\nA0002.SLDPRT\n下載\n關聯矩陣\n編輯關聯\n建立編號\n圖號\n料號\n\t\nA0002-M01\n\n\nA0002-P01\n\t製造\n\nA0002-P02\n\t—\n\nA0002-P03\n\t—\n\nA0002-P04\n\t—\n\nA0002-P05\n\t—\n\nA0002-P06\n\t—\n\nA0002-P07\n\t—\n\nA0002-P08\n\t—\n\nA0002-P09\n\t—\n\nA0002-P10\n\t—\n\nA0002-P11\n\t—\n\nA0002-P12\n\t—\n\nA0002-P13\n\t—\n\nA0002-P14\n\t—\n\nA0002-P15\n\t—\n\nA0002-P16\n\t—\n\nA0002-P17\n\t—\n\nA0002-P18\n\t—\n\nA0002-P19\n\t—\n\nA0002-P20\n\t—\n\nA0002-P21\n\t—\n\nA0002-P22\n\t—\n\nA0002-P23\n\t—\n\nA0002-P24\n\t—\n\nA0002-P25\n\t—\n\nA0002-P26\n\t—\n\nA0002-P27\n\t—\n\nA0002-P28\n\t—\n\nA0002-P29\n\t—\n\nA0002-P30\n\t—\n\nA0002-P31\n\t—\n\nA0002-P32\n\t—\n\nA0002-P33\n\t—\n\nA0002-P34\n\t—\n\nA0002-P35\n\t—\n\nA0002-P36\n\t—\n\nA0002-P37\n\t—\n\nA0002-P38\n\t—\n\nA0002-P39\n\t—\n\nA0002-P40\n\t—\n\nA0002-P41\n\t—\n\nA0002-P42\n\t—\n\nA0002-P43\n\t—\n\nA0002-P44\n\t—\n\nA0002-P45\n\t—\n\nA0002-P46\n\t—\n\nA0002-P47\n\t—\n歷史版次明細\n返回版"
+      }
+    },
+    {
+      "kind": "wrong_task",
+      "result": "PASS",
+      "zeroWrite": true,
+      "before": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "after": {
+        "command_receipts": 140,
+        "audit_logs": 831,
+        "approval_requests": 0,
+        "work_reviews": 0
+      },
+      "observed": {
+        "blocked": true,
+        "listStatus": 200,
+        "status": 404,
+        "body": {
+          "error": "NUMBERING_TASK_NOT_FOUND: qa-dev087-g4-stale-task"
+        }
+      }
+    }
+  ],
+  "visibleEvidence": [
+    {
+      "family": "drawing_change",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "task_retirement",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "formal_obsolete",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "調整明細欄寬度",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "part_variant",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1425,
+        "clientWidth": 1425,
+        "bodyHeight": 924,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "drawing_history",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "返回版次清單",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "work_files",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "matrix_navigation",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "調整明細欄寬度",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "workbench_discovery",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "drawing_change",
+      "viewport": "1024x768",
+      "geometry": {
+        "width": 1024,
+        "height": 768,
+        "scrollWidth": 1024,
+        "clientWidth": 1024,
+        "bodyHeight": 768,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-1024x768.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-1024x768.png",
+      "headed": false
+    },
+    {
+      "family": "task_retirement",
+      "viewport": "1024x768",
+      "geometry": {
+        "width": 1024,
+        "height": 768,
+        "scrollWidth": 1024,
+        "clientWidth": 1024,
+        "bodyHeight": 768,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-1024x768.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-1024x768.png",
+      "headed": false
+    },
+    {
+      "family": "formal_obsolete",
+      "viewport": "1024x768",
+      "geometry": {
+        "width": 1024,
+        "height": 768,
+        "scrollWidth": 1024,
+        "clientWidth": 1024,
+        "bodyHeight": 768,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "調整明細欄寬度",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-1024x768.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-1024x768.png",
+      "headed": false
+    },
+    {
+      "family": "part_variant",
+      "viewport": "1024x768",
+      "geometry": {
+        "width": 1024,
+        "height": 768,
+        "scrollWidth": 1024,
+        "clientWidth": 1024,
+        "bodyHeight": 792,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-1024x768.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-1024x768.png",
+      "headed": false
+    },
+    {
+      "family": "drawing_history",
+      "viewport": "1024x768",
+      "geometry": {
+        "width": 1024,
+        "height": 768,
+        "scrollWidth": 1024,
+        "clientWidth": 1024,
+        "bodyHeight": 768,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "返回版次清單",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-1024x768.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-1024x768.png",
+      "headed": false
+    },
+    {
+      "family": "work_files",
+      "viewport": "1024x768",
+      "geometry": {
+        "width": 1024,
+        "height": 768,
+        "scrollWidth": 1024,
+        "clientWidth": 1024,
+        "bodyHeight": 768,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-1024x768.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-1024x768.png",
+      "headed": false
+    },
+    {
+      "family": "matrix_navigation",
+      "viewport": "1024x768",
+      "geometry": {
+        "width": 1024,
+        "height": 768,
+        "scrollWidth": 1024,
+        "clientWidth": 1024,
+        "bodyHeight": 768,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "調整明細欄寬度",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-1024x768.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-1024x768.png",
+      "headed": false
+    },
+    {
+      "family": "workbench_discovery",
+      "viewport": "1024x768",
+      "geometry": {
+        "width": 1024,
+        "height": 768,
+        "scrollWidth": 1024,
+        "clientWidth": 1024,
+        "bodyHeight": 768,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-1024x768.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-1024x768.png",
+      "headed": false
+    },
+    {
+      "family": "drawing_change",
+      "viewport": "390x844",
+      "geometry": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 375,
+        "clientWidth": 375,
+        "bodyHeight": 1752,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-390x844.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-390x844.png",
+      "headed": true
+    },
+    {
+      "family": "task_retirement",
+      "viewport": "390x844",
+      "geometry": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyHeight": 844,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-390x844.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-390x844.png",
+      "headed": true
+    },
+    {
+      "family": "formal_obsolete",
+      "viewport": "390x844",
+      "geometry": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyHeight": 844,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "關閉明細",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-390x844.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-390x844.png",
+      "headed": true
+    },
+    {
+      "family": "part_variant",
+      "viewport": "390x844",
+      "geometry": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 375,
+        "clientWidth": 375,
+        "bodyHeight": 1215,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-390x844.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-390x844.png",
+      "headed": true
+    },
+    {
+      "family": "drawing_history",
+      "viewport": "390x844",
+      "geometry": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyHeight": 844,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "返回版次清單",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-390x844.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-390x844.png",
+      "headed": true
+    },
+    {
+      "family": "work_files",
+      "viewport": "390x844",
+      "geometry": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 375,
+        "clientWidth": 375,
+        "bodyHeight": 1752,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-390x844.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-390x844.png",
+      "headed": true
+    },
+    {
+      "family": "matrix_navigation",
+      "viewport": "390x844",
+      "geometry": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyHeight": 844,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "關閉明細",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-390x844.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-390x844.png",
+      "headed": true
+    },
+    {
+      "family": "workbench_discovery",
+      "viewport": "390x844",
+      "geometry": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "bodyHeight": 844,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-390x844.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-390x844.png",
+      "headed": true
+    },
+    {
+      "family": "drawing_change",
+      "viewport": "320x800",
+      "geometry": {
+        "width": 320,
+        "height": 800,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "bodyHeight": 1757,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-320x800.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_change-320x800.png",
+      "headed": false
+    },
+    {
+      "family": "task_retirement",
+      "viewport": "320x800",
+      "geometry": {
+        "width": 320,
+        "height": 800,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "bodyHeight": 800,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-320x800.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/task_retirement-320x800.png",
+      "headed": false
+    },
+    {
+      "family": "formal_obsolete",
+      "viewport": "320x800",
+      "geometry": {
+        "width": 320,
+        "height": 800,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "bodyHeight": 800,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "關閉明細",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-320x800.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/formal_obsolete-320x800.png",
+      "headed": false
+    },
+    {
+      "family": "part_variant",
+      "viewport": "320x800",
+      "geometry": {
+        "width": 320,
+        "height": 800,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "bodyHeight": 1212,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-320x800.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/part_variant-320x800.png",
+      "headed": false
+    },
+    {
+      "family": "drawing_history",
+      "viewport": "320x800",
+      "geometry": {
+        "width": 320,
+        "height": 800,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "bodyHeight": 800,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "返回版次清單",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-320x800.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/drawing_history-320x800.png",
+      "headed": false
+    },
+    {
+      "family": "work_files",
+      "viewport": "320x800",
+      "geometry": {
+        "width": 320,
+        "height": 800,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "bodyHeight": 1779,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-320x800.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/work_files-320x800.png",
+      "headed": false
+    },
+    {
+      "family": "matrix_navigation",
+      "viewport": "320x800",
+      "geometry": {
+        "width": 320,
+        "height": 800,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "bodyHeight": 800,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "關閉明細",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-320x800.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/matrix_navigation-320x800.png",
+      "headed": false
+    },
+    {
+      "family": "workbench_discovery",
+      "viewport": "320x800",
+      "geometry": {
+        "width": 320,
+        "height": 800,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "bodyHeight": 800,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "展開主導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-320x800.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-16-45-870Z/screenshots/workbench_discovery-320x800.png",
+      "headed": false
+    }
+  ],
+  "assistiveTechnologyEvidence": [],
+  "qualityGateResults": [
+    {
+      "gateId": "QG-087-PROVIDER",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "page.waitForResponse: Timeout 30000ms exceeded while waiting for event \"response\""
+      }
+    },
+    {
+      "gateId": "QG-087-SECURITY",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "page.waitForResponse: Timeout 30000ms exceeded while waiting for event \"response\""
+      }
+    },
+    {
+      "gateId": "QG-087-UI",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "page.waitForResponse: Timeout 30000ms exceeded while waiting for event \"response\""
+      }
+    }
+  ],
+  "postgresCaseReceipts": [
+    {
+      "caseId": "QA-087-216",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5255",
+      "isolation": "repeatable read",
+      "evidence": {
+        "firstPageIds": [
+          "A0001-P01",
+          "A0002-P01",
+          "A0002-P01",
+          "A0002-P02",
+          "A0002-P03",
+          "A0002-P04",
+          "A0002-P05",
+          "A0002-P06",
+          "A0002-P07",
+          "A0002-P08",
+          "A0002-P09",
+          "A0002-P10",
+          "A0002-P11",
+          "A0002-P12",
+          "A0002-P13",
+          "A0002-P14",
+          "A0002-P15",
+          "A0002-P16",
+          "A0002-P17",
+          "A0002-P18",
+          "A0002-P19",
+          "A0002-P20",
+          "A0002-P21",
+          "A0002-P22",
+          "A0002-P23",
+          "A0002-P24",
+          "A0002-P25",
+          "A0002-P26",
+          "A0002-P27",
+          "A0002-P28",
+          "A0002-P29",
+          "A0002-P30",
+          "A0002-P31",
+          "A0002-P32",
+          "A0002-P33",
+          "A0002-P34",
+          "A0002-P35",
+          "A0002-P36",
+          "A0002-P37",
+          "A0002-P38",
+          "A0002-P39",
+          "A0002-P40",
+          "A0002-P41",
+          "A0002-P42",
+          "A0002-P43",
+          "A0002-P44",
+          "A0002-P45",
+          "A0002-P46",
+          "A0002-P47",
+          "A0003-P01",
+          "A0004-P01",
+          "A0005-P01",
+          "A0006-P01",
+          "A0007-P01",
+          "A0008-P01",
+          "A0009-P01",
+          "A0010-P01",
+          "A0011-P01",
+          "A0012-P01",
+          "A0013-P01",
+          "A0014-P01",
+          "A0015-P01",
+          "A0016-P01",
+          "A0017-P01",
+          "A0018-P01",
+          "A0019-P01",
+          "A0020-P01",
+          "A0021-P01",
+          "A0022-P01",
+          "A0023-P01",
+          "A0024-P01",
+          "A0025-P01",
+          "A0026-P01",
+          "A0027-P01",
+          "A0028-P01",
+          "A0029-P01",
+          "A0030-P01",
+          "A0031-P01",
+          "A0032-P01",
+          "A0033-P01",
+          "A0034-P01",
+          "A0035-P01",
+          "A0036-P01",
+          "A0037-P01",
+          "A0038-P01",
+          "A0039-P01",
+          "A0040-P01",
+          "A0041-P01",
+          "A0042-P01",
+          "A0043-P01",
+          "A0044-P01",
+          "A0045-P01",
+          "A0046-P01",
+          "A0047-P01",
+          "A0048-P01",
+          "A0049-P01",
+          "A0050-P01",
+          "A0051-P01",
+          "A0052-P01",
+          "A0053-P01",
+          "A0054-P01"
+        ],
+        "secondPageIds": [
+          "A0055-P01",
+          "A0056-P01",
+          "A0057-P01",
+          "A0058-P01",
+          "A0059-P01"
+        ],
+        "returnedFirstPageIds": [
+          "A0001-P01",
+          "A0002-P01",
+          "A0002-P01",
+          "A0002-P02",
+          "A0002-P03",
+          "A0002-P04",
+          "A0002-P05",
+          "A0002-P06",
+          "A0002-P07",
+          "A0002-P08",
+          "A0002-P09",
+          "A0002-P10",
+          "A0002-P11",
+          "A0002-P12",
+          "A0002-P13",
+          "A0002-P14",
+          "A0002-P15",
+          "A0002-P16",
+          "A0002-P17",
+          "A0002-P18",
+          "A0002-P19",
+          "A0002-P20",
+          "A0002-P21",
+          "A0002-P22",
+          "A0002-P23",
+          "A0002-P24",
+          "A0002-P25",
+          "A0002-P26",
+          "A0002-P27",
+          "A0002-P28",
+          "A0002-P29",
+          "A0002-P30",
+          "A0002-P31",
+          "A0002-P32",
+          "A0002-P33",
+          "A0002-P34",
+          "A0002-P35",
+          "A0002-P36",
+          "A0002-P37",
+          "A0002-P38",
+          "A0002-P39",
+          "A0002-P40",
+          "A0002-P41",
+          "A0002-P42",
+          "A0002-P43",
+          "A0002-P44",
+          "A0002-P45",
+          "A0002-P46",
+          "A0002-P47",
+          "A0003-P01",
+          "A0004-P01",
+          "A0005-P01",
+          "A0006-P01",
+          "A0007-P01",
+          "A0008-P01",
+          "A0009-P01",
+          "A0010-P01",
+          "A0011-P01",
+          "A0012-P01",
+          "A0013-P01",
+          "A0014-P01",
+          "A0015-P01",
+          "A0016-P01",
+          "A0017-P01",
+          "A0018-P01",
+          "A0019-P01",
+          "A0020-P01",
+          "A0021-P01",
+          "A0022-P01",
+          "A0023-P01",
+          "A0024-P01",
+          "A0025-P01",
+          "A0026-P01",
+          "A0027-P01",
+          "A0028-P01",
+          "A0029-P01",
+          "A0030-P01",
+          "A0031-P01",
+          "A0032-P01",
+          "A0033-P01",
+          "A0034-P01",
+          "A0035-P01",
+          "A0036-P01",
+          "A0037-P01",
+          "A0038-P01",
+          "A0039-P01",
+          "A0040-P01",
+          "A0041-P01",
+          "A0042-P01",
+          "A0043-P01",
+          "A0044-P01",
+          "A0045-P01",
+          "A0046-P01",
+          "A0047-P01",
+          "A0048-P01",
+          "A0049-P01",
+          "A0050-P01",
+          "A0051-P01",
+          "A0052-P01",
+          "A0053-P01",
+          "A0054-P01"
+        ]
+      },
+      "readback": {
+        "count": 105,
+        "renderedRowCount": 106,
+        "pagedUniqueCount": 105
+      }
+    },
+    {
+      "caseId": "QA-087-192",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5279",
+      "isolation": "repeatable read",
+      "evidence": {
+        "submitStatus": 200,
+        "returnStatus": 200,
+        "workId": "27107f64-bc75-43e0-bc39-67bb36b95347",
+        "reviewRequestId": "cbe2fda9-8077-4353-b9ca-a94c6620e472"
+      },
+      "readback": {
+        "proposed_payload": {
+          "changeImpact": {
+            "note": "DEV087 G4 PostgreSQL exact snapshot",
+            "outcome": "confirmed_impact",
+            "fitState": "suspected_impact",
+            "formState": "no_impact",
+            "replacement": {
+              "itemType": "self_made",
+              "attachmentSnapshot": null,
+              "detectedPartNumber": null,
+              "reservedPartNumber": "A0001-P01",
+              "sourcePartNumberId": "0a81c6e6-089c-4881-926c-819ff141734c",
+              "correctedPartNumber": null
+            },
+            "functionState": "confirmed_impact",
+            "schemaVersion": 2,
+            "reasonCategory": "function_change",
+            "affectedPartNumberIds": [
+              "0a81c6e6-089c-4881-926c-819ff141734c"
+            ],
+            "affectedPartFingerprint": "01e42b653ffd1becee14c19b12dfed9c0ea1be1f6f544723938377d58dc477cc"
+          },
+          "recognitionNotes": ""
+        },
+        "row_version": 6
+      }
+    },
+    {
+      "caseId": "QA-087-210",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5280",
+      "isolation": "repeatable read",
+      "evidence": {
+        "workId": "27107f64-bc75-43e0-bc39-67bb36b95347",
+        "primaryLocks": 2,
+        "primaryUiLocks": [
+          {
+            "displayName": "DEV087-G4.SLDDRW",
+            "rowCount": 1,
+            "removeActionCount": 0,
+            "lockLabelCount": 1
+          },
+          {
+            "displayName": "DEV087-G4.SLDPRT",
+            "rowCount": 1,
+            "removeActionCount": 0,
+            "lockLabelCount": 1
+          }
+        ],
+        "removedSupplement": true
+      },
+      "readback": [
+        {
+          "role": "drawing_2d",
+          "is_primary": 1,
+          "display_name": "DEV087-G4.SLDDRW"
+        },
+        {
+          "role": "cad_3d",
+          "is_primary": 1,
+          "display_name": "DEV087-G4.SLDPRT"
+        }
+      ]
+    },
+    {
+      "caseId": "QA-087-205",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5297",
+      "isolation": "repeatable read",
+      "evidence": {
+        "saveStatus": 200,
+        "submitStatus": 200,
+        "returnStatus": 200,
+        "workId": "dd66a612-a895-44be-a231-607ec751b46f"
+      },
+      "readback": {
+        "proposed_payload": {
+          "itemKind": "manufactured",
+          "partName": "本體_BS_右_Xx5",
+          "colorCode": null,
+          "colorLabel": "Black G4",
+          "isUniversal": false,
+          "variantNote": "DEV087 PostgreSQL return snapshot",
+          "materialCode": null,
+          "materialLabel": "SUS 304 G4",
+          "surfaceTreatment": "BA G4",
+          "customSpecification": null
+        },
+        "row_version": 2
+      }
+    }
+  ],
+  "networkEvents": [
+    {
+      "at": "2026-08-28T20:17:37.391Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"Admin\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:17:38.074Z"
+    },
+    {
+      "at": "2026-08-28T20:17:53.308Z",
+      "label": "formal-drawing-revision-create",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/revision-works",
+      "sameOrigin": true,
+      "postData": "{\"sourceRowKey\":\"cw_87000000-0000-4000-8000-000000000101\",\"selectionMode\":\"recommended\",\"candidateToken\":\"eyJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJkcmF3aW5nSWQiOiJkcmF3aW5nLWZvcm1hbC04Mjk4MzA2Yi0yNTc1LTQyYTktOWRlNC04ZWRmNDRhOWI4NjQiLCJzb3VyY2VSb3dJZCI6Ijg3MDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDEwMSIsInNvdXJjZVJvd1ZlcnNpb24iOjEsImJhc2lzU3RhdGUiOiJjdXJyZW50IiwidGFyZ2V0Ijp7Im1ham9yIjoxLCJtaW5vciI6MSwibGFiZWwiOiIxLjEifSwidmVyc2lvbiI6MiwiZXhwaXJlc0F0IjoxNzg3OTQ4ODcyODczfQ.EfzGmFLcAhq11TEtQdswS9ehyWjGmDzInfljrmrfY-0\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/numbering/drawings?query=A0001-M01&detail=cw_87000000-0000-4000-8000-000000000101",
+        "idempotency-key": "fd3316e7-73fe-4b05-9639-21c132357c0e",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODI3Mjg3M30.A9MCPPL738dpMK-An1dUz7b3_uMVN5h4t690jR7S-DE",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:17:55.109Z"
+    },
+    {
+      "at": "2026-08-28T20:18:06.587Z",
+      "label": "resolve-A0002-P01",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/change-works",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/parts?query=A0002-P01&detail=cw_87000000-0000-4000-8000-000000000002",
+        "idempotency-key": "85e3b615-a257-47a2-968b-7a02cef2580a",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODI4NjIzMn0.zLSj4BmlNrGVZcT21moY0-073Pse7DZcCXAT23aIUO4",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:18:08.450Z"
+    },
+    {
+      "at": "2026-08-28T20:18:11.857Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"Admin\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:18:11.947Z"
+    },
+    {
+      "at": "2026-08-28T20:18:52.492Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"Admin\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"148\", \"HeadlessChrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:18:52.545Z"
+    },
+    {
+      "at": "2026-08-28T20:19:09.810Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"Admin\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:19:09.843Z"
+    },
+    {
+      "at": "2026-08-28T20:19:29.222Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"Admin\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"148\", \"HeadlessChrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:19:29.243Z"
+    },
+    {
+      "at": "2026-08-28T20:20:11.687Z",
+      "label": "drawing-lifecycle",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:58662/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347",
+      "sameOrigin": true,
+      "postData": "{\"changeImpact\":{\"schemaVersion\":2,\"affectedPartNumberIds\":[\"0a81c6e6-089c-4881-926c-819ff141734c\"],\"affectedPartFingerprint\":\"01e42b653ffd1becee14c19b12dfed9c0ea1be1f6f544723938377d58dc477cc\",\"formState\":\"no_impact\",\"fitState\":\"suspected_impact\",\"functionState\":\"confirmed_impact\",\"outcome\":null,\"reasonCategory\":\"function_change\",\"note\":\"DEV087 G4 PostgreSQL exact snapshot\",\"replacement\":{\"sourcePartNumberId\":\"0a81c6e6-089c-4881-926c-819ff141734c\",\"itemType\":\"self_made\",\"reservedPartNumber\":\"A0001-P01\"}},\"recognitionNotes\":\"\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=27107f64-bc75-43e0-bc39-67bb36b95347",
+        "idempotency-key": "3a01be21-e715-407b-8b23-8a6293d9af3b",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQxMDgzNn0.Yamo8nr3-7Yztfnyue2JHr3VDUL5KYtXcDIN1FVd-_Y",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:20:11.841Z"
+    },
+    {
+      "at": "2026-08-28T20:20:11.847Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files",
+      "sameOrigin": true,
+      "postData": null,
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=27107f64-bc75-43e0-bc39-67bb36b95347",
+        "idempotency-key": "655dd085-d271-454f-ad47-f9d6d426ed6c",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"2\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQxMDgzNn0.Yamo8nr3-7Yztfnyue2JHr3VDUL5KYtXcDIN1FVd-_Y",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "multipart/form-data; boundary=----WebKitFormBoundarysFtsJoMB4G9jAyDk"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:20:15.006Z"
+    },
+    {
+      "at": "2026-08-28T20:20:15.006Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files",
+      "sameOrigin": true,
+      "postData": null,
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=27107f64-bc75-43e0-bc39-67bb36b95347",
+        "idempotency-key": "057b9620-724f-41a0-84b4-e5c398df3256",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"3\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQxMDgzNn0.Yamo8nr3-7Yztfnyue2JHr3VDUL5KYtXcDIN1FVd-_Y",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "multipart/form-data; boundary=----WebKitFormBoundaryWezH7cK2IWvv9JtR"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:20:15.199Z"
+    },
+    {
+      "at": "2026-08-28T20:20:15.199Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files",
+      "sameOrigin": true,
+      "postData": null,
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=27107f64-bc75-43e0-bc39-67bb36b95347",
+        "idempotency-key": "eb7579ac-4253-4d32-ba70-d37fd2038e65",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"4\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQxMDgzNn0.Yamo8nr3-7Yztfnyue2JHr3VDUL5KYtXcDIN1FVd-_Y",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "multipart/form-data; boundary=----WebKitFormBoundarybT6tqvCqtQn5Ul4V"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:20:15.366Z"
+    },
+    {
+      "at": "2026-08-28T20:20:15.700Z",
+      "label": "drawing-lifecycle",
+      "method": "DELETE",
+      "url": "http://127.0.0.1:58662/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/files/009d2dd6-ed34-417b-a537-342a0eba2520",
+      "sameOrigin": true,
+      "postData": null,
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=27107f64-bc75-43e0-bc39-67bb36b95347",
+        "idempotency-key": "9b65c624-91b1-457a-bbf0-2831c544e037",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"5\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQxNTQ4N30._bB7hs5l-7hjPOmGcDdDMdCnhxbqx5aV8W2p4rXW9cY",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:20:19.887Z"
+    },
+    {
+      "at": "2026-08-28T20:20:20.216Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/submit",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=27107f64-bc75-43e0-bc39-67bb36b95347",
+        "idempotency-key": "5f2dc661-64e5-4f9f-ae8f-4718c3533ecf",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"6\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQyMDA3Mn0.M9WVnjadmLZdlyBZ9ERRDKPqGDijAYMNUOQKtJMy2Gc",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:20:23.396Z"
+    },
+    {
+      "at": "2026-08-28T20:20:25.714Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"R&D Manager\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:20:25.811Z"
+    },
+    {
+      "at": "2026-08-28T20:20:43.859Z",
+      "label": "drawing-review-return",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/review-requests/cbe2fda9-8077-4353-b9ca-a94c6620e472/decisions",
+      "sameOrigin": true,
+      "postData": "{\"decision\":\"return_for_correction\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/approvals/cbe2fda9-8077-4353-b9ca-a94c6620e472",
+        "idempotency-key": "098cf67c-5174-4282-857d-fa3910da62a9",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItbWFuYWdlci1kZW1vIiwic2NoZW1hSGFzaCI6ImRldjA5MC12MSIsImV4cGVjdGVkQ29tbWl0IjoibG9jYWwtZGV2IiwibW9kZSI6ImNhbm9uaWNhbF9vbmx5IiwiaXNzdWVkQXQiOjE3ODc5NDg0NDM0NjF9.RJe9lHKnA2YXkQ3OW1xsgqPF2aVWxTgNt3ReAzGk7Z4",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:20:46.924Z"
+    },
+    {
+      "at": "2026-08-28T20:20:51.765Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/drawing-revision-works/27107f64-bc75-43e0-bc39-67bb36b95347/cancel",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=27107f64-bc75-43e0-bc39-67bb36b95347",
+        "idempotency-key": "633f6fbc-0eaa-480d-9ed9-19fcf376ef91",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"6\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQ1MTMzNH0.09Pta7vR5BCGcvWpvXs-DK63ZGafkUhjX8U6yrokb4w",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:20:54.607Z"
+    },
+    {
+      "at": "2026-08-28T20:21:01.078Z",
+      "label": "part-lifecycle",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:58662/api/pdm/part-change-works/dd66a612-a895-44be-a231-607ec751b46f",
+      "sameOrigin": true,
+      "postData": "{\"itemKind\":\"manufactured\",\"partName\":\"本體_BS_右_Xx5\",\"colorCode\":null,\"colorLabel\":\"Black G4\",\"isUniversal\":false,\"variantNote\":\"DEV087 PostgreSQL return snapshot\",\"materialCode\":null,\"materialLabel\":\"SUS 304 G4\",\"surfaceTreatment\":\"BA G4\",\"customSpecification\":null}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=dd66a612-a895-44be-a231-607ec751b46f",
+        "idempotency-key": "87a01274-7b0e-4400-9f94-d5e5e8445588",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQ2MDMyMX0.FdC5NdqPilO5CWBd9CVXAlatUPg8Z7OBcBAvEXh_FGg",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:21:01.161Z"
+    },
+    {
+      "at": "2026-08-28T20:21:01.292Z",
+      "label": "part-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/part-change-works/dd66a612-a895-44be-a231-607ec751b46f/submit",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=dd66a612-a895-44be-a231-607ec751b46f",
+        "idempotency-key": "c4a2416c-742b-4577-9211-2d629015918c",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"2\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQ2MTIyMX0.bf0WB3VppD-TW_DIRm-GF3ppOnGIqEXDfqrCBxGMIJM",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:21:03.983Z"
+    },
+    {
+      "at": "2026-08-28T20:21:06.895Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"R&D Manager\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:21:06.967Z"
+    },
+    {
+      "at": "2026-08-28T20:21:11.415Z",
+      "label": "part-review-return",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/review-requests/c93cf527-ced8-49f7-b8e4-8fffadd24592/decisions",
+      "sameOrigin": true,
+      "postData": "{\"decision\":\"return_for_correction\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/approvals/c93cf527-ced8-49f7-b8e4-8fffadd24592",
+        "idempotency-key": "d947343b-131f-4cdc-b84c-2c3962b3306e",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItbWFuYWdlci1kZW1vIiwic2NoZW1hSGFzaCI6ImRldjA5MC12MSIsImV4cGVjdGVkQ29tbWl0IjoibG9jYWwtZGV2IiwibW9kZSI6ImNhbm9uaWNhbF9vbmx5IiwiaXNzdWVkQXQiOjE3ODc5NDg0NzEwNzd9.hCJdf2KqOjrl3hN5BAUreuLZ-xcqyWzdp01tYBGa01Q",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:21:11.515Z"
+    },
+    {
+      "at": "2026-08-28T20:21:13.934Z",
+      "label": "part-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/pdm/part-change-works/dd66a612-a895-44be-a231-607ec751b46f/cancel",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=dd66a612-a895-44be-a231-607ec751b46f",
+        "idempotency-key": "bcc0efb4-409e-4e3c-838f-bd6f230793e8",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"2\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0ODQ3MzM5Nn0.TMhDkctPf_lYz8lVhR9jNuiLBaJH5PzH8jeaVhvFfho",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:21:16.187Z"
+    },
+    {
+      "at": "2026-08-28T20:21:22.399Z",
+      "label": "formal-obsolete-drawing-owner",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/lifecycle/obsolete-requests",
+      "sameOrigin": true,
+      "postData": "{\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"entityCode\":\"A0002-M01\",\"impactFingerprint\":\"fd5dcafebef0bc0cf133181169f9fb02d9665b20f8b30c7b25d28aeaa5bd1332\",\"reason\":\"DEV087 G4 PostgreSQL QA-087-199\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/numbering/drawings?query=A0002-M01&detail=cw_87000000-0000-4000-8000-000000000001",
+        "idempotency-key": "bb532c48-d052-440e-bb21-fb0953c1c9c0",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+      },
+      "responseStatus": 201,
+      "responseAt": "2026-08-28T20:21:23.651Z"
+    },
+    {
+      "at": "2026-08-28T20:21:25.269Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:58662/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"R&D Manager\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:58662/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:21:25.308Z"
+    }
+  ]
+}

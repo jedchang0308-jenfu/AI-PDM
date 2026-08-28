@@ -1,0 +1,130 @@
+{
+  "devId": "DEV-092",
+  "runId": "DEV092-browser-2026-08-28T21-30-54-727Z",
+  "status": "FAIL",
+  "port": 65010,
+  "targetCode": "A0006-M01",
+  "total": 10,
+  "passed": 9,
+  "failed": 1,
+  "checks": [
+    {
+      "name": "primary source invariant safe before fixture",
+      "pass": true,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "name": "unmodified fixture snapshot matches primary invariant",
+      "pass": true,
+      "detail": "{\"primaryBefore\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"fixtureSourceSnapshot\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    },
+    {
+      "name": "browser fixture canonical three-file work exists",
+      "pass": true,
+      "detail": "{\"id\":\"9e9ae372-eec5-4f3f-a2e2-1e8035933404\",\"drawing_id\":\"drawing-draft-drawing-58f3b735-a3fe-4c3b-87be-f2e23a15bebe\",\"revision_id\":\"f717dd6b-311a-49f9-ace6-a31630ee56ba\",\"drawing_number\":\"A0006-M01\"}"
+    },
+    {
+      "name": "browser fixture has exact three work-file snapshots",
+      "pass": true,
+      "detail": "3"
+    },
+    {
+      "name": "browser fixture has no reusable current-context session",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser execution",
+      "pass": false,
+      "detail": "App did not become ready: fetch failed\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:65010\n- Network:       http://127.0.0.1:65010\n✓ Ready in 666ms\n✓ Running next.config.mjs took 28ms\n\n-----\n\u001b[1m\u001b[31mFATAL\u001b[39m\u001b[0m: An unexpected Turbopack error occurred. A panic log has been written to C:\\Users\\user\\AppData\\Local\\Temp\\next-panic-f7a44f825a8c80dcc8e1a676df802608.log.\n\nTo help make Turbopack better, report this error by clicking here: https://bugs.nextjs.org/search?category=turbopack-error-report&title=Turbopack%20Error%3A%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev092-browser-runtime-project-65010%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root&body=Turbopack%20version%3A%20%60d73f5622%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ASymlink%20%5Bproject%5D%2F.tmp%2Fqc-dev092-browser-runtime-project-65010%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%0ADebug%20info%3A%0A-%20Execution%20of%20get_entrypoints_with_issues_operation%20failed%0A-%20Execution%20of%20EntrypointsOperation%3A%3Anew%20failed%0A-%20Execution%20of%20Project%3A%3Aentrypoints_with_app_route_filter%20failed%0A-%20Execution%20of%20AppProject%3A%3Aroutes_with_filter%20failed%0A-%20Execution%20of%20directory_tree_to_entrypoints_internal%20failed%0A-%20Execution%20of%20directory_tree_to_loader_tree%20failed%0A-%20Execution%20of%20try_get_next_package%20failed%0A-%20Execution%20of%20resolve%20failed%0A-%20Execution%20of%20resolve_internal%20failed%0A-%20Execution%20of%20find_package%20failed%0A-%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev092-browser-runtime-project-65010%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace\n-----\n\nError [TurbopackInternalError]: Symlink [project]/.tmp/qc-dev092-browser-runtime-project-65010/node_modules is invalid, it points out of the filesystem root\n\nDebug info:\n- Execution of get_entrypoints_with_issues_operation failed\n- Execution of EntrypointsOperation::new failed\n- Execution of Project::entrypoints_with_app_route_filter failed\n- Execution of AppProject::routes_with_filter failed\n- Execution of directory_tree_to_entrypoints_internal failed\n- Execution of directory_tree_to_loader_tree failed\n- Execution of try_get_next_package failed\n- Execution of resolve failed\n- Execution of resolve_internal failed\n- Execution of find_package failed\n- Symlink [project]/.tmp/qc-dev092-browser-runtime-project-65010/node_modules is invalid, it points out of the filesystem root\n    at ignore-listed frames {\n  location: undefined\n}\n\u001b[?25h\n\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:65010\n- Network:       http://127.0.0.1:65010\n✓ Ready in 666ms\n✓ Running next.config.mjs took 28ms\n\n-----\n\u001b[1m\u001b[31mFATAL\u001b[39m\u001b[0m: An unexpected Turbopack error occurred. A panic log has been written to C:\\Users\\user\\AppData\\Local\\Temp\\next-panic-f7a44f825a8c80dcc8e1a676df802608.log.\n\nTo help make Turbopack better, report this error by clicking here: https://bugs.nextjs.org/search?category=turbopack-error-report&title=Turbopack%20Error%3A%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev092-browser-runtime-project-65010%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root&body=Turbopack%20version%3A%20%60d73f5622%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ASymlink%20%5Bproject%5D%2F.tmp%2Fqc-dev092-browser-runtime-project-65010%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%0ADebug%20info%3A%0A-%20Execution%20of%20get_entrypoints_with_issues_operation%20failed%0A-%20Execution%20of%20EntrypointsOperation%3A%3Anew%20failed%0A-%20Execution%20of%20Project%3A%3Aentrypoints_with_app_route_filter%20failed%0A-%20Execution%20of%20AppProject%3A%3Aroutes_with_filter%20failed%0A-%20Execution%20of%20directory_tree_to_entrypoints_internal%20failed%0A-%20Execution%20of%20directory_tree_to_loader_tree%20failed%0A-%20Execution%20of%20try_get_next_package%20failed%0A-%20Execution%20of%20resolve%20failed%0A-%20Execution%20of%20resolve_internal%20failed%0A-%20Execution%20of%20find_package%20failed%0A-%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev092-browser-runtime-project-65010%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace\n-----\n\nError [TurbopackInternalError]: Symlink [project]/.tmp/qc-dev092-browser-runtime-project-65010/node_modules is invalid, it points out of the filesystem root\n\nDebug info:\n- Execution of get_entrypoints_with_issues_operation failed\n- Execution of EntrypointsOperation::new failed\n- Execution of Project::entrypoints_with_app_route_filter failed\n- Execution of AppProject::routes_with_filter failed\n- Execution of directory_tree_to_entrypoints_internal failed\n- Execution of directory_tree_to_loader_tree failed\n- Execution of try_get_next_package failed\n- Execution of resolve failed\n- Execution of resolve_internal failed\n- Execution of find_package failed\n- Symlink [project]/.tmp/qc-dev092-browser-runtime-project-65010/node_modules is invalid, it points out of the filesystem root\n    at ignore-listed frames {\n  location: undefined\n}\n\u001b[?25h\n"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=65010"
+    },
+    {
+      "name": "temporary runtime project removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev092-browser-runtime-project-65010\",\"error\":null}"
+    },
+    {
+      "name": "temporary data and repository removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev092-browser-bsH8gV\",\"error\":null}"
+    },
+    {
+      "name": "primary source invariant unchanged after runtime",
+      "pass": true,
+      "detail": "{\"before\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"after\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    }
+  ],
+  "failures": [],
+  "fixtureMutationLedger": [
+    {
+      "action": "set-owner-handling-for-recognition",
+      "workId": "9e9ae372-eec5-4f3f-a2e2-1e8035933404",
+      "drawingNumber": "A0006-M01",
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "retire-reusable-current-context-sessions",
+      "revisionId": "f717dd6b-311a-49f9-ace6-a31630ee56ba",
+      "scope": "disposable fixture only"
+    }
+  ],
+  "primaryInvariant": {
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "unchanged": true
+  },
+  "cleanupReceipt": {
+    "temp": {
+      "removed": true,
+      "path": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev092-browser-bsH8gV",
+      "error": null
+    },
+    "runtimeProjectRemoved": true,
+    "portReleased": true
+  }
+}

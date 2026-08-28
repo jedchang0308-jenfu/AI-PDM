@@ -1,0 +1,31 @@
+{
+  "id": "J-P04",
+  "caseId": "P04",
+  "family": "P",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create"
+    },
+    {
+      "kind": "save-reload"
+    },
+    {
+      "kind": "submit"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 1
+    },
+    {
+      "kind": "decision",
+      "decision": "reject",
+      "readonlyInputs": 8
+    }
+  ],
+  "startedAt": "2026-08-28T17:30:09.844Z",
+  "finishedAt": "2026-08-28T17:30:19.521Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

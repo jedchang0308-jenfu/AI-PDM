@@ -186,17 +186,17 @@ async function readDrawingTarget(client: AsyncDatabaseClient, input: { companyId
 async function readPartTarget(client: AsyncDatabaseClient, input: { companyId: string; partId: string; primary?: Pick<BuildInput, "companyId" | "workId"> }) : Promise<ReviewPackageWorkspaceSnapshot | null> {
   const row = await client.queryOne<{
     id: string; part_number: string; part_name: string; item_kind: string; custom_specification: string | null;
-    is_universal: number | boolean; bom_usage_policy: string; material_code: string | null; material_label: string | null;
+    is_universal: number | boolean; material_code: string | null; material_label: string | null;
     color_code: string | null; color_label: string | null; surface_treatment: string | null; variant_note: string | null;
   }>(`SELECT part.id, part.part_number, part.part_name, part.item_kind, part.custom_specification, part.is_universal,
-      part.bom_usage_policy, attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label,
+      attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label,
       attributes.surface_treatment, attributes.variant_note
     FROM part_numbers part LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id
     WHERE part.id = :partId AND part.company_id = :companyId`, input);
   if (!row) return null;
   const baselinePayload: PartChangePayload = {
     partName: row.part_name, itemKind: row.item_kind as PartChangePayload["itemKind"], customSpecification: row.custom_specification,
-    isUniversal: bool(row.is_universal), bomUsagePolicy: row.bom_usage_policy as PartChangePayload["bomUsagePolicy"],
+    isUniversal: bool(row.is_universal),
     materialCode: row.material_code, materialLabel: row.material_label, colorCode: row.color_code, colorLabel: row.color_label,
     surfaceTreatment: row.surface_treatment, variantNote: row.variant_note
   };
@@ -343,7 +343,7 @@ async function readDrawingTargetsBatch(client: AsyncDatabaseClient, input: { com
 
 type PartBatchRow = {
   id: string; part_number: string; part_name: string; item_kind: string; custom_specification: string | null;
-  is_universal: number | boolean; bom_usage_policy: string; material_code: string | null; material_label: string | null;
+  is_universal: number | boolean; material_code: string | null; material_label: string | null;
   color_code: string | null; color_label: string | null; surface_treatment: string | null; variant_note: string | null;
 };
 
@@ -353,7 +353,7 @@ async function readPartTargetsBatch(client: AsyncDatabaseClient, input: { compan
   const params = inParams("part", ids, { companyId: input.companyId });
   const [parts, attachments, work] = await Promise.all([
     client.query<PartBatchRow>(`SELECT part.id, part.part_number, part.part_name, part.item_kind, part.custom_specification, part.is_universal,
-        part.bom_usage_policy, attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label,
+        attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label,
         attributes.surface_treatment, attributes.variant_note
       FROM part_numbers part LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id
       WHERE part.company_id = :companyId AND part.id IN (${inClause("part", ids)})`, params),
@@ -381,7 +381,7 @@ async function readPartTargetsBatch(client: AsyncDatabaseClient, input: { compan
     if (!row) throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包缺少料號對象", 409);
     const baselinePayload: PartChangePayload = {
       partName: row.part_name, itemKind: row.item_kind as PartChangePayload["itemKind"], customSpecification: row.custom_specification,
-      isUniversal: bool(row.is_universal), bomUsagePolicy: row.bom_usage_policy as PartChangePayload["bomUsagePolicy"],
+      isUniversal: bool(row.is_universal),
       materialCode: row.material_code, materialLabel: row.material_label, colorCode: row.color_code, colorLabel: row.color_label,
       surfaceTreatment: row.surface_treatment, variantNote: row.variant_note
     };

@@ -1,0 +1,21 @@
+{
+  "id": "J-P03",
+  "caseId": "P03",
+  "family": "P",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create"
+    },
+    {
+      "kind": "save-reload"
+    },
+    {
+      "kind": "cancel"
+    }
+  ],
+  "startedAt": "2026-08-28T18:03:26.204Z",
+  "finishedAt": "2026-08-28T18:03:32.109Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

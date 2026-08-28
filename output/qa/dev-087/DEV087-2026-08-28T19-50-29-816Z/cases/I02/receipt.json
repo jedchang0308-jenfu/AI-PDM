@@ -1,0 +1,254 @@
+{
+  "caseId": "I02",
+  "result": "PASS",
+  "assertionIds": [
+    "I02:LAYER_SWITCH_PRESERVES_MATRIX_AUTHORITY"
+  ],
+  "renderedUiActions": [
+    "open production row",
+    "switch to RD row"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "activeRole": "button",
+    "activeText": "A0002-M01"
+  },
+  "apiReadback": {
+    "productionStatus": 200,
+    "rdStatus": 200,
+    "productionHash": "cc597a4a2c69c584c79a669e03af40d588a48042856544c62c86e21d92e562cc",
+    "rdHash": "cc597a4a2c69c584c79a669e03af40d588a48042856544c62c86e21d92e562cc"
+  },
+  "dbReadback": {
+    "root": {
+      "id": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+      "company_id": "company-jenfu",
+      "root_code": "A0002"
+    },
+    "drawings": [
+      {
+        "id": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+        "number": "A0002-M01"
+      },
+      {
+        "id": "87000000-0000-4000-8000-000000000001",
+        "number": "A0002-R99"
+      }
+    ],
+    "parts": [
+      {
+        "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "number": "A0002-P01"
+      },
+      {
+        "id": "qa-dev087-functional-a0002-p02",
+        "number": "A0002-P02"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p03",
+        "number": "A0002-P03"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p04",
+        "number": "A0002-P04"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p05",
+        "number": "A0002-P05"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p06",
+        "number": "A0002-P06"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p07",
+        "number": "A0002-P07"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p08",
+        "number": "A0002-P08"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p09",
+        "number": "A0002-P09"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p10",
+        "number": "A0002-P10"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p11",
+        "number": "A0002-P11"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p12",
+        "number": "A0002-P12"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p13",
+        "number": "A0002-P13"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p14",
+        "number": "A0002-P14"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p15",
+        "number": "A0002-P15"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p16",
+        "number": "A0002-P16"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p17",
+        "number": "A0002-P17"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p18",
+        "number": "A0002-P18"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p19",
+        "number": "A0002-P19"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p20",
+        "number": "A0002-P20"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p21",
+        "number": "A0002-P21"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p22",
+        "number": "A0002-P22"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p23",
+        "number": "A0002-P23"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p24",
+        "number": "A0002-P24"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p25",
+        "number": "A0002-P25"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p26",
+        "number": "A0002-P26"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p27",
+        "number": "A0002-P27"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p28",
+        "number": "A0002-P28"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p29",
+        "number": "A0002-P29"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p30",
+        "number": "A0002-P30"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p31",
+        "number": "A0002-P31"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p32",
+        "number": "A0002-P32"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p33",
+        "number": "A0002-P33"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p34",
+        "number": "A0002-P34"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p35",
+        "number": "A0002-P35"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p36",
+        "number": "A0002-P36"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p37",
+        "number": "A0002-P37"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p38",
+        "number": "A0002-P38"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p39",
+        "number": "A0002-P39"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p40",
+        "number": "A0002-P40"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p41",
+        "number": "A0002-P41"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p42",
+        "number": "A0002-P42"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p43",
+        "number": "A0002-P43"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p44",
+        "number": "A0002-P44"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p45",
+        "number": "A0002-P45"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p46",
+        "number": "A0002-P46"
+      },
+      {
+        "id": "qa-dev087-pagination-a0002-p47",
+        "number": "A0002-P47"
+      }
+    ],
+    "links": [
+      {
+        "drawingNumberId": "87000000-0000-4000-8000-000000000001",
+        "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "storageLinkType": "reference",
+        "relationType": "reference"
+      },
+      {
+        "drawingNumberId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+        "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "storageLinkType": "primary_manufacturing",
+        "relationType": "manufacturing_basis"
+      }
+    ],
+    "hash": "19227e25cdf2f2f552997cb21d8755f17ff9fc8aa21408aafe9a9433f59c6815"
+  },
+  "visibleErrorSweep": {
+    "expected": null,
+    "actual": []
+  },
+  "mutationLedger": [],
+  "screenshot": "output/qa/dev-087/DEV087-2026-08-28T19-50-29-816Z/cases/I02/I02.png",
+  "source": "fresh task-owned DEV-087 isolated browser runtime"
+}

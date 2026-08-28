@@ -1,0 +1,20 @@
+{
+  "id": "J-D21",
+  "caseId": "D21",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "assert",
+      "target": "void-request-singleton",
+      "observed": [
+        409,
+        200
+      ]
+    }
+  ],
+  "startedAt": "2026-08-28T18:29:16.690Z",
+  "finishedAt": "2026-08-28T18:29:18.793Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

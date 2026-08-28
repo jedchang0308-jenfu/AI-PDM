@@ -1,0 +1,43 @@
+{
+  "id": "D24",
+  "family": "D",
+  "title": "圖號搜尋篩選與歷史",
+  "status": "PASS",
+  "reason": "",
+  "startedAt": "2026-08-28T18:33:11.004Z",
+  "finishedAt": "2026-08-28T18:33:12.346Z",
+  "expected": {
+    "ui": "canonical workbench list",
+    "mutation": "filter/readback"
+  },
+  "actual": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": [
+      "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+      "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理",
+      "A0002-M01↳本體_BS_右_Xx5研發版 1.2可使用無須處理"
+    ],
+    "apiStatus": 200,
+    "apiBodyHash": 3002,
+    "dbRows": 3
+  },
+  "evidence": {
+    "actions": "actions.jsonl",
+    "network": "network.jsonl",
+    "triad": "triad-diff/list.json"
+  }
+}

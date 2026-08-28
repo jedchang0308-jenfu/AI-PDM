@@ -7,7 +7,7 @@ import { SearchHighlight } from "@/components/search-highlight";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { getStatusDisplay } from "@/lib/status-display";
 import AccountInvitationsPage from "../account-invitations/page";
-import { ApprovalMatrixSettings } from "../page";
+import { ApprovalMatrixSettings } from "@/components/settings-screen";
 
 type AccountStatus = "active" | "suspended" | "expired" | "offboarded";
 type IdentityStatus = "active" | "disabled";

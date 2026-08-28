@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-g4-postgres-2026-08-28T20-12-30-175Z",
+  "parentRunId": null,
+  "gateStage": "product",
+  "runner": "qc-dev-087-g4-postgres-evidence",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "74e3b9e962672e46bfe6c33082c2cba2dbd7a9e89dac9e0464715f050fc1b6e2"
+  },
+  "environment": {
+    "provider": "postgresql",
+    "dataScope": "task_owned_isolated_postgresql_snapshot",
+    "baseUrl": ""
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "49b1e74c239e6a84f64376c193b803293e26935c7f0ac1d0cac381716ce9dba0",
+  "caseResults": [],
+  "caseEvidence": {},
+  "childManifests": [],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "fail",
+    "delta": 1,
+    "before": null,
+    "after": null,
+    "byteHashObservation": {
+      "before": null,
+      "after": null,
+      "unchanged": false,
+      "enforcement": "informational_only_concurrent_primary_runtime_may_write_nonprotected_rows"
+    }
+  },
+  "firstFailure": {
+    "code": "AGGREGATE_RUN_ID_REQUIRED",
+    "caseId": "QA-087-225",
+    "pointer": "checks"
+  },
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskOwnedRuntime": true,
+    "portsReleased": true,
+    "ports": {
+      "postgresql": {
+        "port": null,
+        "released": true
+      },
+      "next": {
+        "port": null,
+        "released": true
+      }
+    },
+    "runtimeProjectCleanupReceipt": {
+      "removed": true,
+      "path": null,
+      "error": null
+    },
+    "tempRootRemoved": true
+  },
+  "result": "FAIL",
+  "errorCode": "AGGREGATE_RUN_ID_REQUIRED",
+  "assertions": [],
+  "failures": [
+    {
+      "caseId": "QG-087-PROVIDER",
+      "kind": "runner",
+      "detail": "AGGREGATE_RUN_ID_REQUIRED"
+    }
+  ],
+  "mutationLedger": [],
+  "providerReceipts": [],
+  "fixtureMutationLedger": [],
+  "negativeEvidence": [],
+  "visibleEvidence": [],
+  "assistiveTechnologyEvidence": [],
+  "qualityGateResults": [
+    {
+      "gateId": "QG-087-PROVIDER",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "AGGREGATE_RUN_ID_REQUIRED"
+      }
+    },
+    {
+      "gateId": "QG-087-SECURITY",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "AGGREGATE_RUN_ID_REQUIRED"
+      }
+    },
+    {
+      "gateId": "QG-087-UI",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "AGGREGATE_RUN_ID_REQUIRED"
+      }
+    }
+  ],
+  "postgresCaseReceipts": [],
+  "networkEvents": []
+}

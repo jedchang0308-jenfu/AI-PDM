@@ -1,0 +1,33 @@
+{
+  "id": "J-D08",
+  "caseId": "D08",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create",
+      "candidate": "研發版 1.2",
+      "candidateKind": "rd"
+    },
+    {
+      "kind": "drawing-fields-retired"
+    },
+    {
+      "kind": "submit"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 2
+    },
+    {
+      "kind": "decision",
+      "decision": "approve",
+      "readonlyInputs": 4
+    }
+  ],
+  "startedAt": "2026-08-28T19:43:30.936Z",
+  "finishedAt": "2026-08-28T19:44:29.808Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

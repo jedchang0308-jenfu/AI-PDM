@@ -1,0 +1,107 @@
+{
+  "runner": "browser",
+  "runId": "DEV100-browser-2026-08-28T14-16-00-819Z",
+  "status": "FAIL",
+  "headed": true,
+  "port": 60936,
+  "productionWrites": false,
+  "startupAttempts": [
+    {
+      "attempt": 1,
+      "result": "PASS",
+      "error": null
+    }
+  ],
+  "checks": [
+    {
+      "name": "primary foreign keys are clean before browser runtime",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "name": "primary root references are clean before browser runtime",
+      "status": "PASS",
+      "detail": {
+        "parts": 0,
+        "drawings": 0
+      }
+    },
+    {
+      "name": "isolated primary backup resolves the affected A0044-M01 work",
+      "status": "PASS",
+      "detail": {
+        "work_id": "c65d1134-44d1-49d1-a689-74d83e75174a",
+        "drawing_id": "drawing-draft-drawing-cbebc7d7-3ea2-4137-bc71-c63cb51a9ac8",
+        "owner_user_id": "production-user-0003",
+        "revision_id": "7402c558-341d-47dd-aecc-148ba69f80d3"
+      }
+    },
+    {
+      "name": "isolated A0044 precondition is a legal zero-active migrated work",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "task-owned runtime project starts exactly once",
+      "status": "PASS",
+      "detail": [
+        {
+          "attempt": 1,
+          "result": "PASS",
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "browser execution",
+      "status": "FAIL",
+      "detail": "locator.waitFor: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-workspace-kind=\"drawing-revision-work\"]') to be visible\u001b[22m\n\n    at C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\scripts\\qc-dev-100-browser.mjs:252:71"
+    },
+    {
+      "name": "task-owned browser runtime port released",
+      "status": "PASS",
+      "detail": {
+        "port": 60936
+      }
+    },
+    {
+      "name": "task-owned Next runtime project removed",
+      "status": "PASS",
+      "detail": {
+        "removed": true,
+        "path": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\.tmp\\qc-dev100-browser-runtime-project-0b00dfad-c732-4257-92f2-c4126e7a66f7",
+        "error": null
+      }
+    },
+    {
+      "name": "task-owned browser fixture removed",
+      "status": "PASS",
+      "detail": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev100-browser-V6A8gd"
+    },
+    {
+      "name": "primary schema, identities, root refs, residue and FK unchanged",
+      "status": "PASS",
+      "detail": {
+        "before": "456e4d497276734020c3a692b3a0123fbaa5867258c296382cd7370b73af82d7",
+        "after": "456e4d497276734020c3a692b3a0123fbaa5867258c296382cd7370b73af82d7"
+      }
+    }
+  ],
+  "failures": [
+    {
+      "kind": "http",
+      "status": 500,
+      "url": "http://127.0.0.1:60936/numbering/drawings/drawing-draft-drawing-cbebc7d7-3ea2-4137-bc71-c63cb51a9ac8/workspace?workId=c65d1134-44d1-49d1-a689-74d83e75174a&returnTo=%2Fnumbering%2Fdrawings"
+    },
+    {
+      "kind": "pageerror",
+      "message": "Module build failed: UnhandledSchemeError: Reading from \"node:crypto\" is not handled by plugins (Unhandled scheme).\nWebpack supports \"data:\" and \"file:\" URIs by default.\nYou may need an additional plugin to handle \"node:\" URIs."
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "node:crypto\nModule build failed: UnhandledSchemeError: Reading from \"node:crypto\" is not handled by plugins (Unhandled scheme).\nWebpack supports \"data:\" and \"file:\" URIs by default.\nYou may need an additional plugin to handle \"node:\" URIs.",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "screenshots": []
+}

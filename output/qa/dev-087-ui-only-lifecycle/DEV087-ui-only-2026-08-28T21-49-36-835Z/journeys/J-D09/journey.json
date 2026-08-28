@@ -1,0 +1,33 @@
+{
+  "id": "J-D09",
+  "caseId": "D09",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create",
+      "candidate": "量產版 2",
+      "candidateKind": "production"
+    },
+    {
+      "kind": "drawing-fields-retired"
+    },
+    {
+      "kind": "submit"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 1
+    },
+    {
+      "kind": "decision",
+      "decision": "approve",
+      "readonlyInputs": 4
+    }
+  ],
+  "startedAt": "2026-08-28T21:49:57.712Z",
+  "finishedAt": "2026-08-28T21:50:46.801Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

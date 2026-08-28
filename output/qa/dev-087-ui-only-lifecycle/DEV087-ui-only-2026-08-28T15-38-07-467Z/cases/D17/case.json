@@ -1,0 +1,42 @@
+{
+  "id": "D17",
+  "family": "D",
+  "title": "stale token 阻擋量產且 zero write",
+  "status": "FAIL",
+  "reason": "STALE_PRODUCTION_UI_DID_NOT_SUBMIT:{\"beforeSubmitState\":{\"connected\":true,\"checkedTargets\":[\"production\"],\"checkedModes\":[\"recommended\"],\"createButtons\":[{\"disabled\":false,\"text\":\"建立進版工作\"}],\"alerts\":[],\"statuses\":[]},\"committedState\":{\"connected\":false},\"afterAttemptState\":{\"connected\":false},\"url\":\"http://127.0.0.1:53442/numbering/drawings?query=A0002-M01&detail=cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9\",\"cause\":\"locator.click: Timeout 10000ms exceeded.\\nCall log:\\n\\u001b[2m  - waiting for getByRole('dialog', { name: '建立進版工作' }).getByRole('button', { name: '建立進版工作', exact: true })\\u001b[22m\\n\"}",
+  "startedAt": "2026-08-28T15:39:36.348Z",
+  "finishedAt": "2026-08-28T15:39:37.834Z",
+  "expected": {
+    "ui": "canonical workbench list",
+    "mutation": "full lifecycle journey"
+  },
+  "actual": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": [
+      "A0002-M01本體_BS_右_Xx5量產版 2可使用無須處理",
+      "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+    ],
+    "apiStatus": 200,
+    "apiBodyHash": 2194,
+    "dbRows": 2
+  },
+  "evidence": {
+    "actions": "actions.jsonl",
+    "network": "network.jsonl",
+    "triad": "triad-diff/list.json"
+  }
+}

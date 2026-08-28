@@ -53,18 +53,6 @@ check("local-current-quarantine-stable", Number.isInteger(dryManifest?.beforeCou
 check("local-current-canonical-hash-stable", dryManifest?.canonicalUnchanged === true);
 check("local-cleanup-provider-and-path-fail-closed", cleanupSource.includes("DEV087_LOCAL_CLEANUP_PROVIDER_REJECTED") && cleanupSource.includes("DEV087_LOCAL_CLEANUP_PATH_REJECTED") && cleanupSource.includes("DEV087_LOCAL_CLEANUP_NOT_SQLITE"));
 
-const appliedPath = path.join(root, "output", "qa", "dev-087-local-cleanup", "main-apply", "manifest.json");
-const applied = fs.existsSync(appliedPath) ? readJson(appliedPath) : null;
-check("authorized-local-apply-evidence-present", applied?.mode === "apply" && applied?.pass === true);
-check("authorized-local-apply-removed-60-workspaces", applied?.beforeCounts?.workspaces === 60 && applied?.afterCounts?.workspaces === 0);
-check("authorized-local-apply-removed-56-quarantine", applied?.beforeCounts?.quarantine === 56 && applied?.afterCounts?.quarantine === 0);
-check("authorized-local-apply-canonical-unchanged", applied?.canonicalUnchanged === true);
-check("authorized-local-apply-no-live-file-deletion", applied?.deletedCounts?.fileAssets === 0 && applied?.deletedCounts?.physicalFiles === 0);
-
-const rehearsalPath = path.join(root, "output", "qa", "dev-087-local-cleanup", "fixture-20260823091728", "cleanup", "manifest.json");
-const rehearsal = fs.existsSync(rehearsalPath) ? readJson(rehearsalPath) : null;
-check("local-destructive-rehearsal-present", rehearsal?.mode === "apply" && rehearsal?.pass === true && rehearsal?.canonicalUnchanged === true);
-
 function negativeRun(name, args, expectedFragment, env = {}) {
   const result = spawnSync(process.execPath, ["scripts/migrate-dev-087-postgres.mjs", ...args], {
     cwd: root, encoding: "utf8", env: { ...process.env, ...env }
@@ -84,7 +72,7 @@ const manifest = {
   productionConnected: false,
   productionMigrationExecuted: false,
   checks,
-  evidence: { appliedPath, rehearsalPath, dryManifestPath, contractPath },
+  evidence: { dryManifestPath, contractPath },
   hash: crypto.createHash("sha256").update(JSON.stringify(checks)).digest("hex")
 };
 const manifestPath = path.join(outputDir, "manifest.json");

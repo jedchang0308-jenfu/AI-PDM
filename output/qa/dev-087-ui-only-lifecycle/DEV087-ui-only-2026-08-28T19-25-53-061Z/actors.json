@@ -1,0 +1,5 @@
+{
+  "login": "UI quick login only",
+  "mutation": "Playwright rendered UI only",
+  "readback": "GET/API + readonly SQLite"
+}

@@ -1,0 +1,107 @@
+{
+  "id": "J-D04",
+  "caseId": "D04",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "drawingCode": "A0060-M01",
+  "actions": [
+    {
+      "kind": "create-numbering-record",
+      "drawingCode": "A0060-M01",
+      "endpoint": "/api/numbering/records",
+      "status": 201
+    },
+    {
+      "kind": "assert",
+      "target": "first-revision-owner-row",
+      "observed": "A0060-M01\tDEV087 D04 04443045Z\t研發版 0.1\t編輯中\t負責人處理"
+    },
+    {
+      "kind": "assert-db",
+      "target": "atomic-first-0.1",
+      "observed": {
+        "drawingCode": "A0060-M01",
+        "exists": true,
+        "aggregate": {
+          "open_branch_count": 1,
+          "row_version": 1
+        },
+        "rows": [
+          {
+            "data_layer": "drawing_rd",
+            "handling": "owner",
+            "work_id": "db9c153c-af18-41fb-84f4-01759098aae3",
+            "row_version": 1,
+            "revision": "0.1",
+            "lifecycle_state": "preparing",
+            "branch_status": "open",
+            "closed_reason": null,
+            "base_production_revision_id": null
+          }
+        ],
+        "branches": [
+          {
+            "id": "3ce13729-6cf6-410d-94aa-e72898d95ccd",
+            "status": "open",
+            "closed_reason": null,
+            "base_production_revision": null,
+            "latest_approved_revision": null
+          }
+        ],
+        "claims": [
+          {
+            "target_label": "0.1",
+            "claim_state": "work",
+            "predecessor_revision_id": null
+          }
+        ],
+        "revisions": [
+          {
+            "revision": "0.1",
+            "lifecycle_state": "preparing",
+            "row_version": 1,
+            "controlled": 0,
+            "released": 0,
+            "cancelled": 0
+          }
+        ],
+        "works": [
+          {
+            "id": "db9c153c-af18-41fb-84f4-01759098aae3",
+            "row_version": 1,
+            "target_label": "0.1",
+            "handling": "owner",
+            "file_count": 0
+          }
+        ],
+        "files": [],
+        "reviewRequests": []
+      }
+    },
+    {
+      "kind": "continue",
+      "revision": "0.1"
+    },
+    {
+      "kind": "submit",
+      "revision": "0.1"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 2,
+      "scope": "0.1-return"
+    },
+    {
+      "kind": "decision",
+      "decision": "reject",
+      "readonlyInputs": 0,
+      "scope": "0.1-return"
+    }
+  ],
+  "checkpoints": "lifecycle-checkpoints.json",
+  "startedAt": "2026-08-28T20:45:04.136Z",
+  "finishedAt": "2026-08-28T20:46:02.823Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

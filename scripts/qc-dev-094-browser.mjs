@@ -103,7 +103,9 @@ try {
   };
   await source.backup(databasePath);
   source.close();
-  const sourceRepository = path.join(root, "data", "repository");
+  const sourceRepository = path.resolve(
+    process.env.PDM_PRIMARY_REPOSITORY_DIR?.trim() || path.join(root, "data", "repository")
+  );
   if (fs.existsSync(sourceRepository)) fs.cpSync(sourceRepository, repositoryDir, { recursive: true, force: true });
 
   const baseline = new Database(databasePath, { readonly: true, fileMustExist: true });
@@ -119,7 +121,8 @@ try {
     NODE_ENV: "development", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: dataDir,
     PDM_REPOSITORY_DIR: repositoryDir, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub",
     PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "",
-    PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: path.relative(root, runtimeDistDir), PDM_PUBLIC_BASE_URL: baseUrl
+    PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: path.relative(root, runtimeDistDir), PDM_PUBLIC_BASE_URL: baseUrl,
+    QC_NEXT_USE_WEBPACK: "1"
   });
   fs.writeFileSync(nextEnvPath, "/// <reference types=\"next\" />\n/// <reference types=\"next/image-types/global\" />\n\n// DEV-094 disposable browser runtime\n", "utf8");
   console.log(`QC DEV-094 runtime: project=${root}; purpose=repaired-root and orphan-detail browser QC; port=${port}; owner=current QC process tree; dataDir=${dataDir}; repositoryDir=${repositoryDir}; cleanup=after assertions`);

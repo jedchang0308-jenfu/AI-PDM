@@ -453,7 +453,6 @@ if (backfillActiveNumberingIdentities) {
       item_kind: part.item_kind,
       structure_type: "single_part",
       is_universal: part.is_universal ? 1 : 0,
-      bom_usage_policy: "undecided",
       custom_specification: part.custom_specification ?? null,
       series_code: part.series_code ?? null,
       record_status: "Draft",

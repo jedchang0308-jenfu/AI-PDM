@@ -1,0 +1,172 @@
+{
+  "devId": "DEV-087",
+  "provider": "sqlite",
+  "dbPath": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\data\\ai-pdm.sqlite",
+  "mode": "dry-run",
+  "exactPrimaryPath": true,
+  "beforeCounts": {
+    "workspaces": 60,
+    "draftRoots": 60,
+    "draftParts": 60,
+    "draftDrawings": 51,
+    "candidateRevisions": 0,
+    "quarantine": 12,
+    "candidateFileAssets": 0
+  },
+  "afterCounts": {
+    "workspaces": 60,
+    "quarantine": 12
+  },
+  "beforeCanonical": {
+    "part_roots": {
+      "count": 59,
+      "hash": "bce6918c267bcd7a262493223e0efc16fc4d262a09e9990e709f70438e298135"
+    },
+    "part_numbers": {
+      "count": 59,
+      "hash": "ca436afc4d3f3ecfb6a5b65a2af4f705eb11a63261cb8ed67ee369cfb12db784"
+    },
+    "drawing_numbers": {
+      "count": 50,
+      "hash": "a5f57995640bd6ef05c6343d46950a887e09e67c12f6b65b02d314ca9ac750e9"
+    },
+    "drawing_part_links": {
+      "count": 50,
+      "hash": "b9735ef52b30c933bf2b68c3d4b4f396f4373863a282889cfebd13336a41d23b"
+    },
+    "drawings": {
+      "count": 53,
+      "hash": "8f4103627c9072d24a3de13628b887f543300da028e492a695d1a7764e95ef3e"
+    },
+    "drawing_revisions": {
+      "count": 50,
+      "hash": "c0d09008c8b7da08c1a2c8a3e06e1df94bb6c0957c07c369908f346b8bf903b0"
+    },
+    "drawing_revision_files": {
+      "count": 11,
+      "hash": "381db98a474e58fd2a00242d77a873f32c4c8231437f9c11346d7ae5d8319cae"
+    },
+    "pdm_workbench_aggregates": {
+      "count": 109,
+      "hash": "499924a113ef7c321fe5a00189af18a711a0c8548575f7952db64880961dc0b8"
+    },
+    "drawing_rd_branches": {
+      "count": 50,
+      "hash": "ed56a43e70e2aa142fada3e740fce0fd16b5ae7ebd29190ba99af8b8d03ea16f"
+    },
+    "drawing_revision_claims": {
+      "count": 50,
+      "hash": "fb2f4959b6d1b738d6aee1df836a8c82567bf6a6e16ed94967423718385f51ad"
+    },
+    "drawing_revision_works": {
+      "count": 49,
+      "hash": "7ebb438c62a3e17e1d358b4a15279c50a381956c1caa8bcca8bfea312f1cc186"
+    },
+    "drawing_revision_work_files": {
+      "count": 6,
+      "hash": "68425fdad4218c8106d3ff3f2a8756c504b097bdf786a046f9fedfaac98d1f5e"
+    },
+    "part_change_works": {
+      "count": 57,
+      "hash": "9b70c69625618eb72bd01bac25494b73198e7c5e0bdaba1e1fb7bb6f64795f71"
+    },
+    "relation_change_works": {
+      "count": 0,
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "canonical_workbench_states": {
+      "count": 109,
+      "hash": "2346d49935debba1e27591c54fbbb1194c1b0584465d825a4fd17180e88ee226"
+    },
+    "pdm_work_review_requests": {
+      "count": 0,
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "pdm_review_traces": {
+      "count": 1,
+      "hash": "1b6a312ecd82c6f7f1d2e3769ddba7bf4f6b6d97e39d3da5e66d54c9d393005f"
+    },
+    "file_assets": {
+      "count": 11,
+      "hash": "ec21ba02ce11bf7a5ed9d1023cf9b4b0afb7172ffa7639effb3390a757d20077"
+    }
+  },
+  "afterCanonical": {
+    "part_roots": {
+      "count": 59,
+      "hash": "bce6918c267bcd7a262493223e0efc16fc4d262a09e9990e709f70438e298135"
+    },
+    "part_numbers": {
+      "count": 59,
+      "hash": "ca436afc4d3f3ecfb6a5b65a2af4f705eb11a63261cb8ed67ee369cfb12db784"
+    },
+    "drawing_numbers": {
+      "count": 50,
+      "hash": "a5f57995640bd6ef05c6343d46950a887e09e67c12f6b65b02d314ca9ac750e9"
+    },
+    "drawing_part_links": {
+      "count": 50,
+      "hash": "b9735ef52b30c933bf2b68c3d4b4f396f4373863a282889cfebd13336a41d23b"
+    },
+    "drawings": {
+      "count": 53,
+      "hash": "8f4103627c9072d24a3de13628b887f543300da028e492a695d1a7764e95ef3e"
+    },
+    "drawing_revisions": {
+      "count": 50,
+      "hash": "c0d09008c8b7da08c1a2c8a3e06e1df94bb6c0957c07c369908f346b8bf903b0"
+    },
+    "drawing_revision_files": {
+      "count": 11,
+      "hash": "381db98a474e58fd2a00242d77a873f32c4c8231437f9c11346d7ae5d8319cae"
+    },
+    "pdm_workbench_aggregates": {
+      "count": 109,
+      "hash": "499924a113ef7c321fe5a00189af18a711a0c8548575f7952db64880961dc0b8"
+    },
+    "drawing_rd_branches": {
+      "count": 50,
+      "hash": "ed56a43e70e2aa142fada3e740fce0fd16b5ae7ebd29190ba99af8b8d03ea16f"
+    },
+    "drawing_revision_claims": {
+      "count": 50,
+      "hash": "fb2f4959b6d1b738d6aee1df836a8c82567bf6a6e16ed94967423718385f51ad"
+    },
+    "drawing_revision_works": {
+      "count": 49,
+      "hash": "7ebb438c62a3e17e1d358b4a15279c50a381956c1caa8bcca8bfea312f1cc186"
+    },
+    "drawing_revision_work_files": {
+      "count": 6,
+      "hash": "68425fdad4218c8106d3ff3f2a8756c504b097bdf786a046f9fedfaac98d1f5e"
+    },
+    "part_change_works": {
+      "count": 57,
+      "hash": "9b70c69625618eb72bd01bac25494b73198e7c5e0bdaba1e1fb7bb6f64795f71"
+    },
+    "relation_change_works": {
+      "count": 0,
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "canonical_workbench_states": {
+      "count": 109,
+      "hash": "2346d49935debba1e27591c54fbbb1194c1b0584465d825a4fd17180e88ee226"
+    },
+    "pdm_work_review_requests": {
+      "count": 0,
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "pdm_review_traces": {
+      "count": 1,
+      "hash": "1b6a312ecd82c6f7f1d2e3769ddba7bf4f6b6d97e39d3da5e66d54c9d393005f"
+    },
+    "file_assets": {
+      "count": 11,
+      "hash": "ec21ba02ce11bf7a5ed9d1023cf9b4b0afb7172ffa7639effb3390a757d20077"
+    }
+  },
+  "canonicalUnchanged": true,
+  "deletedCounts": {},
+  "physicalDeletePlan": [],
+  "pass": true
+}

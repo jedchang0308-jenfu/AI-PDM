@@ -26,10 +26,10 @@ const dataDir = path.join(taskRoot, "data");
 const repositoryDir = path.join(taskRoot, "repository");
 const dbPath = path.join(dataDir, "ai-pdm.sqlite");
 const runtimeProjectRoot = path.join(root, ".tmp", `qc-dev100-browser-runtime-project-${crypto.randomUUID()}`);
-const primaryDbPath = path.join(root, "data", "ai-pdm.sqlite");
-const primaryRepositoryDir = path.join(root, "data", "repository");
+const primaryDbPath = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
+const primaryRepositoryDir = path.resolve(process.env.PDM_PRIMARY_REPOSITORY_DIR?.trim() || path.join(root, "data", "repository"));
 const originalEnv = new Map();
-const envNames = ["NODE_ENV", "PDM_AUTH_MODE", "PDM_DB_PROVIDER", "PDM_DATA_DIR", "PDM_REPOSITORY_DIR", "PDM_BUILD_COMMIT", "PDM_RELEASE_MODE", "PDM_LOCAL_FULL_FUNCTION_VALIDATION", "PDM_ENABLE_LOCAL_QUICK_LOGIN", "PDM_PRODUCTION_SLICE_MODE", "PDM_POSTGRES_URL", "DATABASE_URL", "PDM_NEXT_DIST_DIR", "PDM_NEXT_TSCONFIG_PATH", "PDM_PUBLIC_BASE_URL"];
+const envNames = ["NODE_ENV", "PDM_AUTH_MODE", "PDM_DB_PROVIDER", "PDM_DATA_DIR", "PDM_REPOSITORY_DIR", "PDM_BUILD_COMMIT", "PDM_RELEASE_MODE", "PDM_LOCAL_FULL_FUNCTION_VALIDATION", "PDM_ENABLE_LOCAL_QUICK_LOGIN", "PDM_PRODUCTION_SLICE_MODE", "PDM_POSTGRES_URL", "DATABASE_URL", "PDM_NEXT_DIST_DIR", "PDM_NEXT_TSCONFIG_PATH", "PDM_PUBLIC_BASE_URL", "QC_NEXT_USE_WEBPACK"];
 for (const name of envNames) originalEnv.set(name, process.env[name]);
 
 const installedChrome = [
@@ -215,6 +215,7 @@ try {
     PDM_PRODUCTION_SLICE_MODE: "",
     PDM_POSTGRES_URL: "",
     DATABASE_URL: "",
+    QC_NEXT_USE_WEBPACK: "1",
     PDM_NEXT_DIST_DIR: path.relative(runtimeProjectRoot, runtimeDistDir),
     PDM_PUBLIC_BASE_URL: baseUrl
   });

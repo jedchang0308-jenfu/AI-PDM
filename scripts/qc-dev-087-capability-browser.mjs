@@ -88,9 +88,35 @@ function requireFile(filePath, code) {
   return resolved;
 }
 
-function uiManifestForAttempt(startedAt) {
+function manifestRunIdFromStdout(stdout, code) {
+  if (code === "BROWSER_ATTEMPT") {
+    const markerMatches = [...String(stdout ?? "").matchAll(/^DEV087_BROWSER_MANIFEST=(.+)$/gmu)];
+    if (markerMatches.length !== 1) throw new Error(`${code}_STDOUT_MANIFEST_MARKER_CARDINALITY:count=${markerMatches.length}`);
+    const manifestPath = path.resolve(markerMatches[0][1].trim());
+    const expectedRoot = path.resolve(root, "output", "qa", "dev-087");
+    if (!manifestPath.startsWith(expectedRoot + path.sep) || path.basename(manifestPath) !== "manifest.json") {
+      throw new Error(`${code}_STDOUT_MANIFEST_PATH_INVALID:${manifestPath}`);
+    }
+    const parsed = readJson(manifestPath);
+    if (!parsed.runId) throw new Error(`${code}_STDOUT_MANIFEST_RUN_ID_MISSING`);
+    return parsed.runId;
+  }
+  const match = String(stdout ?? "").match(/\{\s*"devId":\s*"DEV-087"[\s\S]*\}\s*$/u);
+  if (!match) throw new Error(`${code}_STDOUT_MANIFEST_MISSING`);
+  try {
+    const parsed = JSON.parse(match[0]);
+    if (!parsed.runId) throw new Error("runId missing");
+    return parsed.runId;
+  } catch (error) {
+    throw new Error(`${code}_STDOUT_MANIFEST_INVALID:${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function uiManifestForAttempt(startedAt, stdout) {
+  const stdoutRunId = manifestRunIdFromStdout(stdout, "UI_ATTEMPT");
   const candidates = scanManifests(path.join(root, "output", "qa", "dev-087-ui-only-lifecycle"), "run-manifest.json")
-    .filter((item) => item.parsed.parentRunId === runId
+    .filter((item) => item.parsed.runId === stdoutRunId
+      && item.parsed.parentRunId === runId
       && item.parsed.denominator?.total === 34
       && (item.parsed.cases?.length === 34
         || item.parsed.checks?.some((check) => check.name === "full runner execution"))
@@ -105,15 +131,27 @@ function uiInfrastructureOnlyFailure(ui, resultStatus) {
   const cleanup = readJson(path.join(evidenceDir, "cleanup-ledger.json"));
   const primary = readJson(path.join(evidenceDir, "primary-invariant.json"));
   const consoleErrors = ui.parsed.consoleErrors ?? [];
+  const failedCases = (ui.parsed.cases ?? []).filter((item) => item.status !== "PASS");
+  const failures = ui.parsed.failures ?? [];
+  const failedChecks = (ui.parsed.checks ?? []).filter((item) => item.pass !== true);
+  const failedCaseId = failedCases[0]?.id ?? null;
+  const expectedFailedChecks = failedCaseId
+    ? [`J-${failedCaseId}`, ...Array.from({ length: 10 }, (_, index) => `C${String(index + 1).padStart(2, "0")}`)]
+    : [];
   return resultStatus !== 0
     && ui.parsed.status === "FAIL"
     && ui.parsed.cases?.length === 34
-    && ui.parsed.cases.every((item) => item.status === "PASS")
-    && ui.parsed.gates?.fail === 0
-    && ui.parsed.infrastructure?.fail === 0
-    && (ui.parsed.failures?.length ?? 0) === 0
+    && failedCases.length === 1
+    && failures.length === 1
+    && failures[0]?.caseId === failedCaseId
+    && failures[0]?.kind === "journey"
+    && /Timeout \d+ms exceeded\./u.test(String(failures[0]?.message ?? ""))
+    && exactRoster(failedChecks.map((item) => item.name), expectedFailedChecks)
+    && ui.parsed.gates?.fail === 10
+    && ui.parsed.infrastructure?.fail === 1
     && consoleErrors.length > 0
-    && consoleErrors.every((item) => /ERR_(?:NO_BUFFER_SPACE|NETWORK_CHANGED)/u.test(String(item.message ?? "")))
+    && consoleErrors.every((item) => item.caseId === failedCaseId
+      && /ERR_(?:NO_BUFFER_SPACE|NETWORK_CHANGED)/u.test(String(item.message ?? "")))
     && cleanup.status === "task-owned runtime removed"
     && cleanup.tempRootRemoved === true
     && cleanup.runtimeProjectRemoved === true
@@ -123,9 +161,11 @@ function uiInfrastructureOnlyFailure(ui, resultStatus) {
     && safeJson(sourceInfo(root)) === safeJson(sourceAtStart);
 }
 
-function browserManifestForAttempt(startedAt) {
+function browserManifestForAttempt(startedAt, stdout) {
+  const stdoutRunId = manifestRunIdFromStdout(stdout, "BROWSER_ATTEMPT");
   const candidates = scanManifests(path.join(root, "output", "qa", "dev-087"), "manifest.json")
-    .filter((item) => item.parsed.parentRunId === runId
+    .filter((item) => item.parsed.runId === stdoutRunId
+      && item.parsed.parentRunId === runId
       && Array.isArray(item.parsed.functionalCaseReceipts)
       && item.parsed.functionalCaseReceipts.length === 25
       && fs.statSync(item.path).mtimeMs >= startedAt - 2_000)
@@ -136,6 +176,7 @@ function browserManifestForAttempt(startedAt) {
 
 function browserInfrastructureOnlyFailure(browser, resultStatus) {
   const manifest = browser.parsed;
+  const total = Number(manifest.total);
   const failedChecks = (manifest.checks ?? []).filter((item) => item.pass !== true);
   const failures = manifest.failures ?? [];
   const exactSocketError = /^net::ERR_(?:NO_BUFFER_SPACE|NETWORK_CHANGED)$/u;
@@ -145,8 +186,9 @@ function browserInfrastructureOnlyFailure(browser, resultStatus) {
     && (manifest.checks ?? []).some((item) => item.name === "next-env restored after task runtime" && item.pass === true);
   return resultStatus !== 0
     && manifest.status === "FAIL"
-    && manifest.total === 132
-    && manifest.passed === 131
+    && Number.isInteger(total)
+    && total > 0
+    && manifest.passed === total - 1
     && manifest.failed === 1
     && failedChecks.length === 1
     && failedChecks[0]?.name === "browser execution"
@@ -169,7 +211,7 @@ async function runUiChildWithInfrastructureRetry() {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const startedAt = Date.now();
     const { result, logPath } = spawnChild("ui-only", "qc-dev-087-ui-only.mjs", `ui-only.attempt-${attempt}`);
-    const ui = uiManifestForAttempt(startedAt);
+    const ui = uiManifestForAttempt(startedAt, result.stdout);
     const retryEligible = uiInfrastructureOnlyFailure(ui, result.status);
     attempts.push({
       attempt,
@@ -202,7 +244,7 @@ async function runBrowserChildWithInfrastructureRetry() {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const startedAt = Date.now();
     const { result, logPath } = spawnChild("browser", "qc-dev-087-browser.mjs", `browser.attempt-${attempt}`);
-    const browser = browserManifestForAttempt(startedAt);
+    const browser = browserManifestForAttempt(startedAt, result.stdout);
     const retryEligible = browserInfrastructureOnlyFailure(browser, result.status);
     attempts.push({
       attempt,

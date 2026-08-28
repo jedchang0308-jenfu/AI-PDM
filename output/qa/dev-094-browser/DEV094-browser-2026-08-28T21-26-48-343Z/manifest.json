@@ -1,0 +1,184 @@
+{
+  "devId": "DEV-094",
+  "capaId": "CAPA-PDM-2026-08-24-001",
+  "runId": "DEV094-browser-2026-08-28T21-26-48-343Z",
+  "generatedAt": "2026-08-28T21:27:24.945Z",
+  "status": "FAIL",
+  "port": 62843,
+  "total": 27,
+  "passed": 26,
+  "failed": 1,
+  "checks": [
+    {
+      "name": "browser fixture preserves source root and part counts",
+      "pass": true,
+      "detail": "{\"expectedSourceCounts\":{\"roots\":59,\"parts\":59}}"
+    },
+    {
+      "name": "browser fixture starts FK-clean",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0002-M01 expected row count",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "A0002-M01/研發版 0.1 basic detail remains readable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0002-M01/研發版 0.1 relation matrix healthy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0002-M01/研發版 0.1 no fatal detail error",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0003-M01 expected row count",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "A0003-M01/研發版 0.1 basic detail remains readable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0003-M01/研發版 0.1 relation matrix healthy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0003-M01/研發版 0.1 no fatal detail error",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0005-M01 expected row count",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "A0005-M01/研發版 0.1 basic detail remains readable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0005-M01/研發版 0.1 relation matrix healthy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0005-M01/研發版 0.1 no fatal detail error",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0006-M01 expected row count",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "A0006-M01/研發版 0.1 basic detail remains readable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0006-M01/研發版 0.1 relation matrix healthy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0006-M01/研發版 0.1 no fatal detail error",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "negative fixture removes exactly one root after runtime initialization",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "orphan detail keeps basic fields visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "orphan detail shows stable local anomaly",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "orphan detail does not mislabel corruption as normal unscoped empty",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "orphan detail disables root-dependent matrix actions",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "orphan detail API remains 200 with stable anomaly",
+      "pass": true,
+      "detail": "{\"status\":200,\"body\":{\"data\":{\"row\":{\"rowKey\":\"cw_755bcfb7-35ba-4593-a636-48d5509e19f5\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"available\",\"dataStateLabel\":\"可使用\",\"handling\":\"none\",\"handlingLabel\":\"無須處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_755bcfb7-35ba-4593-a636-48d5509e19f5\",\"rowVersion\":7,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"advance\",\"label\":\"進版\",\"href\":\"/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_755bcfb7-35ba-4593-a636-48d5509e19f5\"},{\"key\":\"void_rd\",\"label\":\"申請作廢\",\"href\":\"/api/pdm/drawing-rd-branches/f5eaef74-aa92-412d-a936-d6949d0fe0a3/void-requests\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]},\"presentation\":{\"kind\":\"drawing\",\"surface\":\"drawer_minimal\",\"fields\":[{\"key\":\"code\",\"label\":\"圖號\",\"value\":\"A0002-M01\"},{\"key\":\"purpose\",\"label\":\"圖面用途\",\"value\":\"M\"}],\"files\":[{\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"name\":\"A0002-M01.pdf\",\"role\":\"pdf\",\"downloadHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c\"},{\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"name\":\"A0002-M01.SLDDRW\",\"role\":\"drawing_2d\",\"downloadHref\":\"/api/pdm/file-assets/FA-94e7d949-2d0b-4c4e-b106-831dde533b76?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=9d264a7a-9ace-4556-8abb-a93f892cfa8f\"},{\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"name\":\"A0002.SLDPRT\",\"role\":\"cad_3d\",\"downloadHref\":\"/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=53eb60d6-f56a-4181-b133-85bd46c5c54d\"}],\"recognition\":{\"partAttributes\":[],\"revisionMetadata\":[],\"controlledNotes\":[],\"engineeringEvidence\":[]},\"relationMatrix\":{\"rootId\":\"\",\"rootCode\":\"\",\"matrixEtag\":\"d7bf48c6201f485a2de0be46bae6610257054b58745d598bc0d2bfdf6a2ddacc\",\"drawings\":[],\"parts\":[],\"cells\":[],\"issue\":{\"code\":\"WORKBENCH_RELATION_SCOPE_INVALID\",\"message\":\"圖料關聯資料不完整，請聯絡系統管理員\"}},\"history\":[{\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"drawingId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"revision\":\"0.1\",\"layerLabel\":\"研發版\"}],\"previews\":[{\"kind\":\"three-d\",\"title\":\"3D 模型\",\"fileName\":\"A0002.SLDPRT\",\"state\":\"missing\",\"stateTitle\":\"無可用預覽\",\"stateText\":\"目前沒有可預覽的 3D 檔案。\",\"mediaHref\":null,\"downloadHref\":\"/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"retryCommandRef\":null},{\"kind\":\"two-d\",\"title\":\"2D 圖面\",\"fileName\":\"A0002-M01.pdf\",\"state\":\"ready\",\"stateTitle\":\"PDF 預覽已就緒\",\"stateText\":\"直接使用受控 PDF 原檔顯示。\",\"mediaHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1\",\"downloadHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"retryCommandRef\":null}],\"preview\":{\"state\":\"missing\",\"media\":null,\"sourceType\":\"primary_manufacturing_drawing\",\"sourceLabel\":\"3D 模型\",\"sourceDrawingNumber\":\"A0002-M01\",\"sourceRevision\":\"0.1\",\"alt\":\"A0002-M01 3D 預覽圖\"}}},\"meta\":{\"contractToken\":\"eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk1MjQ0MzIzNX0.-LJUG6tFKPXxgzbdjNxmUXV8dZTcsEvODa3zj-8Odec\",\"correlationId\":\"49181a02-6a28-4dcf-935f-41576c398ac6\"}}}"
+    },
+    {
+      "name": "browser console errors absent",
+      "pass": false,
+      "detail": "[\"Failed to load resource: the server responded with a status of 503 (Service Unavailable)\",\"Failed to load resource: the server responded with a status of 503 (Service Unavailable)\",\"Failed to load resource: the server responded with a status of 503 (Service Unavailable)\",\"Failed to load resource: the server responded with a status of 503 (Service Unavailable)\"]"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=62843"
+    },
+    {
+      "name": "temporary runtime dist removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev094-browser-62843\",\"error\":null}"
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  ],
+  "failures": [
+    {
+      "kind": "http",
+      "status": 503,
+      "url": "http://127.0.0.1:62843/api/pdm/file-assets/FA-128f63e7-091e-4304-b60f-45ab132db86b?context=candidate_revision&contextId=f717dd6b-311a-49f9-ace6-a31630ee56ba&bindingId=926c1377-f8f4-499c-8351-3d6acbb6a026&preview=1"
+    },
+    {
+      "kind": "http",
+      "status": 503,
+      "url": "http://127.0.0.1:62843/api/pdm/file-assets/FA-128f63e7-091e-4304-b60f-45ab132db86b?context=candidate_revision&contextId=f717dd6b-311a-49f9-ace6-a31630ee56ba&bindingId=926c1377-f8f4-499c-8351-3d6acbb6a026&preview=1"
+    },
+    {
+      "kind": "http",
+      "status": 503,
+      "url": "http://127.0.0.1:62843/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1"
+    },
+    {
+      "kind": "http",
+      "status": 503,
+      "url": "http://127.0.0.1:62843/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1"
+    },
+    {
+      "kind": "execution",
+      "message": "browser console errors absent:[\"Failed to load resource: the server responded with a status of 503 (Service Unavailable)\",\"Failed to load resource: the server responded with a status of 503 (Service Unavailable)\",\"Failed to load resource: the server responded with a status of 503 (Service Unavailable)\",\"Failed to load resource: the server responded with a status of 503 (Service Unavailable)\"]",
+      "runtime": "▲ Next.js 16.3.0 (webpack)\n- Local:         http://127.0.0.1:62843\n- Network:       http://127.0.0.1:62843\n✓ Ready in 742ms\n✓ Running next.config.mjs took 35ms\n  Using tsconfig file: .tmp/next-tsconfig/27275ef8053d8cf5.json\n⚠ The \"middleware\" file convention is deprecated. Please use \"proxy\" instead.\n\n  To migrate automatically, run:\n  npx @next/codemod@canary middleware-to-proxy .\n\n  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy\n\n○ Compiling /login ...\n GET /login 200 in 5.1s (next.js: 4.8s, proxy.ts: 149ms, application-code: 219ms)\n GET /login 200 in 77ms (next.js: 7ms, proxy.ts: 8ms, application-code: 63ms)\n GET /api/auth/mode 200 in 1912ms (next.js: 1765ms, proxy.ts: 16ms, application-code: 131ms)\n GET /api/auth/mode 200 in 22ms (next.js: 4ms, proxy.ts: 9ms, application-code: 9ms)\n POST /api/auth/local-quick-login 200 in 803ms (next.js: 368ms, proxy.ts: 11ms, application-code: 424ms)\n GET / 200 in 513ms (next.js: 386ms, proxy.ts: 12ms, application-code: 116ms)\n⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload\n GET /numbering/drawings?query=A0002-M01 200 in 1403ms (next.js: 1214ms, proxy.ts: 7ms, application-code: 182ms)\n GET /api/production-slice/status 200 in 3.0s (next.js: 2.2s, proxy.ts: 11ms, application-code: 810ms)\n GET /api/auth/me 200 in 3.0s (next.js: 2.2s, proxy.ts: 11ms, application-code: 811ms)\n GET /api/auth/me 200 in 3.0s (next.js: 2.2s, proxy.ts: 25ms, application-code: 811ms)\n GET /api/numbering/series-codes 200 in 3.0s (next.js: 2.2s, proxy.ts: 25ms, application-code: 811ms)\n GET /api/numbering/permissions 200 in 3.0s (next.js: 2.2s, proxy.ts: 11ms, application-code: 812ms)\n GET /api/numbering/drawings/workbench?limit=100&query=A0002-M01&sort=asc 200 in 2.7s (next.js: 1902ms, proxy.ts: 11ms, application-code: 811ms)\n GET /api/production-slice/status 200 in 32ms (next.js: 6ms, proxy.ts: 16ms, application-code: 10ms)\n GET /api/numbering/permissions 200 in 123ms (next.js: 20ms, proxy.ts: 17ms, application-code: 86ms)\n GET /api/approvals/inbox?status=pending&limit=100 200 in 2.1s (next.js: 1334ms, proxy.ts: 34ms, application-code: 757ms)\n GET /api/numbering/drawings/workbench/cw_755bcfb7-35ba-4593-a636-48d5509e19f5 200 in 2.9s (next.js: 2.9s, proxy.ts: 9ms, application-code: 49ms)\n GET /numbering/drawings?query=A0003-M01 200 in 995ms (next.js: 829ms, proxy.ts: 10ms, application-code: 156ms)\n GET /api/production-slice/status 200 in 84ms (next.js: 18ms, proxy.ts: 42ms, application-code: 24ms)\n GET /api/numbering/permissions 200 in 1049ms (next.js: 106ms, proxy.ts: 42ms, application-code: 901ms)\n GET /api/auth/me 200 in 1088ms (next.js: 1025ms, proxy.ts: 42ms, application-code: 21ms)\n GET /api/auth/me 200 in 1227ms (next.js: 1181ms, proxy.ts: 33ms, application-code: 13ms)\n GET /api/numbering/series-codes 200 in 1265ms (next.js: 1221ms, proxy.ts: 33ms, application-code: 12ms)\n GET /api/numbering/drawings/workbench?limit=100&query=A0003-M01&sort=asc 200 in 74ms (next.js: 18ms, proxy.ts: 11ms, application-code: 45ms)\n GET /api/production-slice/status 200 in 88ms (next.js: 67ms, proxy.ts: 11ms, application-code: 10ms)\n GET /api/numbering/permissions 200 in 143ms (next.js: 81ms, proxy.ts: 11ms, application-code: 51ms)\n GET /api/approvals/inbox?status=pending&limit=100 200 in 128ms (next.js: 53ms, proxy.ts: 27ms, application-code: 48ms)\n GET /api/numbering/drawings/workbench/cw_1b986f0d-98e4-4dc5-a672-0bd8ff3a18aa 200 in 249ms (next.js: 44ms, proxy.ts: 121ms, application-code: 84ms)\n GET /numbering/drawings?query=A0005-M01 200 in 63ms (next.js: 5ms, proxy.ts: 6ms, application-code: 52ms)\n GET /api/production-slice/status 200 in 44ms (next.js: 15ms, proxy.ts: 16ms, application-code: 13ms)\n GET /api/numbering/permissions 200 in 98ms (next.js: 33ms, proxy.ts: 16ms, application-code: 49ms)\n GET /api/auth/me 200 in 117ms (next.js: 87ms, proxy.ts: 16ms, application-code: 14ms)\n GET /api/auth/me 200 in 135ms (next.js: 9ms, proxy.ts: 111ms, application-code: 15ms)\n GET /api/numbering/series-codes 200 in 145ms (next.js: 26ms, proxy.ts: 106ms, application-code: 13ms)\n GET /api/numbering/permissions 200 in 126ms (next.js: 4ms, proxy.ts: 47ms, application-code: 75ms)\n GET /api/production-slice/status 200 in 144ms (next.js: 84ms, proxy.ts: 47ms, application-code: 13ms)\n GET /api/approvals/inbox?status=pending&limit=100 200 in 33ms (next.js: 4ms, proxy.ts: 13ms, application-code: 17ms)\n GET /api/numbering/drawings/workbench?limit=100&query=A0005-M01&sort=asc 200 in 40ms (next.js: 6ms, proxy.ts: 8ms, application-code: 25ms)\n GET /api/numbering/drawings/workbench/cw_30a9ec12-428c-4810-aa2b-22750506d70e 200 in 72ms (next.js: 27ms, proxy.ts: 10ms, application-code: 34ms)\n GET /numbering/drawings?query=A0006-M01 200 in 66ms (next.js: 4ms, proxy.ts: 6ms, application-code: 56ms)\n GET /api/production-slice/status 200 in 47ms (next.js: 14ms, proxy.ts: 18ms, application-code: 15ms)\n GET /api/numbering/permissions 200 in 103ms (next.js: 34ms, proxy.ts: 18ms, application-code: 52ms)\n GET /api/auth/me 200 in 123ms (next.js: 89ms, proxy.ts: 18ms, application-code: 16ms)\n GET /api/auth/me 200 in 141ms (next.js: 10ms, proxy.ts: 115ms, application-code: 16ms)\n GET /api/numbering/series-codes 200 in 149ms (next.js: 28ms, proxy.ts: 111ms, application-code: 10ms)\n GET /api/numbering/permissions 200 in 99ms (next.js: 5ms, proxy.ts: 46ms, application-code: 48ms)\n GET /api/production-slice/status 200 in 115ms (next.js: 57ms, proxy.ts: 46ms, application-code: 12ms)\n GET /api/approvals/inbox?status=pending&limit=100 200 in 29ms (next.js: 4ms, proxy.ts: 8ms, application-code: 17ms)\n GET /api/numbering/drawings/workbench?limit=100&query=A0006-M01&sort=asc 200 in 35ms (next.js: 5ms, proxy.ts: 8ms, application-code: 22ms)\n GET /api/numbering/drawings/workbench/cw_1c4f1a65-5b0a-477a-ad0f-b2e1fd721339 200 in 64ms (next.js: 24ms, proxy.ts: 9ms, application-code: 30ms)\n GET /api/pdm/file-assets/FA-128f63e7-091e-4304-b60f-45ab132db86b?context=candidate_revision&contextId=f717dd6b-311a-49f9-ace6-a31630ee56ba&bindingId=926c1377-f8f4-499c-8351-3d6acbb6a026&preview=1 503 in 92ms (next.js: 40ms, proxy.ts: 11ms, application-code: 41ms)\n GET /api/pdm/file-assets/FA-128f63e7-091e-4304-b60f-45ab132db86b?context=candidate_revision&contextId=f717dd6b-311a-49f9-ace6-a31630ee56ba&bindingId=926c1377-f8f4-499c-8351-3d6acbb6a026&preview=1 503 in 94ms (next.js: 63ms, proxy.ts: 11ms, application-code: 20ms)\n GET /numbering/drawings?query=A0002-M01 200 in 115ms (next.js: 6ms, proxy.ts: 9ms, application-code: 100ms)\n GET /api/production-slice/status 200 in 43ms (next.js: 14ms, proxy.ts: 17ms, application-code: 12ms)\n GET /api/numbering/permissions 200 in 137ms (next.js: 31ms, proxy.ts: 17ms, application-code: 89ms)\n GET /api/auth/me 200 in 167ms (next.js: 128ms, proxy.ts: 17ms, application-code: 22ms)\n GET /api/auth/me 200 in 193ms (next.js: 9ms, proxy.ts: 162ms, application-code: 22ms)\n GET /api/numbering/series-codes 200 in 212ms (next.js: 36ms, proxy.ts: 162ms, application-code: 15ms)\n GET /api/numbering/permissions 200 in 153ms (next.js: 11ms, proxy.ts: 62ms, application-code: 81ms)\n GET /api/production-slice/status 200 in 169ms (next.js: 96ms, proxy.ts: 62ms, application-code: 12ms)\n GET /api/numbering/drawings/workbench?limit=100&query=A0002-M01&sort=asc 200 in 38ms (next.js: 4ms, proxy.ts: 9ms, application-code: 24ms)\n GET /api/approvals/inbox?status=pending&limit=100 200 in 59ms (next.js: 33ms, proxy.ts: 9ms, application-code: 17ms)\n GET /api/numbering/drawings/workbench/cw_755bcfb7-35ba-4593-a636-48d5509e19f5 200 in 56ms (next.js: 20ms, proxy.ts: 7ms, application-code: 29ms)\n GET /api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1 503 in 69ms (next.js: 26ms, proxy.ts: 12ms, application-code: 31ms)\n GET /api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1 503 in 71ms (next.js: 43ms, proxy.ts: 12ms, application-code: 17ms)\n GET /api/numbering/drawings/workbench/cw_755bcfb7-35ba-4593-a636-48d5509e19f5 200 in 38ms (next.js: 7ms, proxy.ts: 7ms, application-code: 23ms)\n"
+    }
+  ],
+  "cleanupStatus": "removed",
+  "productionConnected": false,
+  "productionMutation": false
+}

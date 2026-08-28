@@ -409,11 +409,11 @@ function seedScaleRoot(database, request, totalTargets, ledger) {
       const id = `dev101-scale-part-${totalTargets}-${index}-${crypto.randomUUID()}`;
       const code = `${rootCode}-P${String(index + 1).padStart(3, "0")}`;
       database.prepare(`INSERT INTO part_numbers
-        (id,company_id,part_root_id,part_number,sequence_no,sequence_code,part_name,item_kind,structure_type,is_universal,bom_usage_policy,
+        (id,company_id,part_root_id,part_number,sequence_no,sequence_code,part_name,item_kind,structure_type,is_universal,
          custom_specification,series_code,record_status,universal_reason,rule_version_id,created_by,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         id, request.company_id, rootId, code, index + 1, String(index + 1).padStart(3, "0"), `Scale Part ${index + 1}`,
-        basePart.item_kind, basePart.structure_type, basePart.is_universal, basePart.bom_usage_policy, basePart.custom_specification,
+        basePart.item_kind, basePart.structure_type, basePart.is_universal, basePart.custom_specification,
         basePart.series_code, "Draft", null, basePart.rule_version_id, basePart.created_by, createdAt, createdAt
       );
       partIds.push(id);

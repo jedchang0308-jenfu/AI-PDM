@@ -12,7 +12,6 @@ import {
   parseJsonValue,
   parseRecognitionCategory,
   parseRecognitionConfidence,
-  sha256Canonical,
   type DrawingRecognitionAdapterCompletion,
   type DrawingRecognitionClientAdapterCompletion,
   type DrawingRecognitionCategory,
@@ -20,6 +19,7 @@ import {
   type DrawingRecognitionImpactChange,
   type DrawingRecognitionSourceContextType
 } from "@/lib/drawing-recognition-contract";
+import { sha256Canonical } from "@/lib/drawing-recognition-hash";
 import {
   BROWSER_PDF_OCR_ADAPTER_CODE,
   drawingRecognitionAdapterPlanForSource,

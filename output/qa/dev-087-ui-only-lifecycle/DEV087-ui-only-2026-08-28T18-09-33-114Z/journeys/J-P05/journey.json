@@ -1,0 +1,31 @@
+{
+  "id": "J-P05",
+  "caseId": "P05",
+  "family": "P",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "continue"
+    },
+    {
+      "kind": "save-reload"
+    },
+    {
+      "kind": "submit"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 1
+    },
+    {
+      "kind": "decision",
+      "decision": "approve",
+      "readonlyInputs": 8
+    }
+  ],
+  "startedAt": "2026-08-28T18:32:20.862Z",
+  "finishedAt": "2026-08-28T18:32:29.410Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

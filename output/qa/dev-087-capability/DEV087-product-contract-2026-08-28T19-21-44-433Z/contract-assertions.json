@@ -1,0 +1,66 @@
+{
+  "runner": "qc-dev-087-capability-contract",
+  "baseContractExitCode": 0,
+  "assertions": [
+    {
+      "caseId": "QA-087-187",
+      "assertionId": "CONTRACT_CANONICAL_DRAWING_ADVANCE",
+      "result": "PASS",
+      "evidence": "src/components/canonical-pdm-workbench.tsx"
+    },
+    {
+      "caseId": "QA-087-191",
+      "assertionId": "CONTRACT_LEGACY_DRAWING_ROUTE_REMOVED",
+      "result": "PASS",
+      "evidence": "deleted legacy page/sidebar and zero current hrefs; retired mutation route remains 410"
+    },
+    {
+      "caseId": "QA-087-193",
+      "assertionId": "CONTRACT_TASK_CENTER_PAGE_REMOVED_BACKEND_RETAINED",
+      "result": "PASS",
+      "evidence": "standalone page/component/navigation removed; permission-protected task API retained"
+    },
+    {
+      "caseId": "QA-087-202",
+      "assertionId": "CONTRACT_DIRECT_INVALIDATION_RETIRED",
+      "result": "PASS",
+      "evidence": "retired standalone page/API + formal obsolete impact route"
+    },
+    {
+      "caseId": "QA-087-206",
+      "assertionId": "CONTRACT_DIRECT_VARIANT_WRITE_RETIRED",
+      "result": "PASS",
+      "evidence": "src/app/api/parts/[partNumber]/variant/route.ts"
+    },
+    {
+      "caseId": "QA-087-207",
+      "assertionId": "CONTRACT_EXACT_HISTORY_REVISION",
+      "result": "PASS",
+      "evidence": "history row -> URL-preserved exact revision/file binding"
+    },
+    {
+      "caseId": "QA-087-209",
+      "assertionId": "CONTRACT_EXACT_WORK_FILE_READ",
+      "result": "PASS",
+      "evidence": "canonical workbench exact file-read projection"
+    },
+    {
+      "caseId": "QA-087-212",
+      "assertionId": "CONTRACT_MATRIX_IDENTITY_NAVIGATION",
+      "result": "PASS",
+      "evidence": "exact matrix identity href plus callbacks and dirty navigation guard"
+    },
+    {
+      "caseId": "QA-087-214",
+      "assertionId": "CONTRACT_BIDIRECTIONAL_CURSOR",
+      "result": "PASS",
+      "evidence": "canonical server bidirectional cursor plus shared controller"
+    },
+    {
+      "caseId": "QA-087-218",
+      "assertionId": "CONTRACT_AGGREGATE_REGISTRY_FAIL_CLOSED",
+      "result": "PASS",
+      "evidence": "aggregate registry consumption and completion candidate gate"
+    }
+  ]
+}

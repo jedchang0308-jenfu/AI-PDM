@@ -1,0 +1,131 @@
+{
+  "callers": {
+    "callers": [],
+    "callerCount": 0,
+    "oldRouteExists": false
+  },
+  "reconciliation": {
+    "revisionOrphans": 0,
+    "packageOrphans": 0,
+    "workOrphans": 0,
+    "attachmentOrphans": 0,
+    "attachmentOrphanRows": [],
+    "total": 0
+  },
+  "facts": {
+    "candidate": {
+      "context": "candidate_revision",
+      "contextId": "c076f20b-21d0-4061-a9bf-148060995162",
+      "bindingId": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+      "fileAssetId": "FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+      "fileName": "A0002-M01.pdf",
+      "mimeType": "application/pdf",
+      "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+      "derivativeId": null,
+      "derivativeMimeType": null,
+      "derivativeContentHash": null
+    },
+    "candidateReview": {
+      "context": "drawing_revision_work",
+      "contextId": "c65d1134-44d1-49d1-a689-74d83e75174a",
+      "bindingId": "339db49a-327f-47ad-8ad2-8158eff61374",
+      "fileAssetId": "FA-e33ff864-ab79-4034-a924-63444e0126fe",
+      "fileName": "A0044.SLDASM",
+      "mimeType": "application/octet-stream",
+      "contentHash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d",
+      "derivativeId": "4c7f409a-0d5c-428b-8fae-3945559c85c9",
+      "derivativeMimeType": "image/png",
+      "derivativeContentHash": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f",
+      "reviewRequestId": "qa-dev087-review-request"
+    },
+    "released": {
+      "context": "drawing_revision",
+      "contextId": "c076f20b-21d0-4061-a9bf-148060995162",
+      "bindingId": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+      "fileAssetId": "FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+      "fileName": "A0002-M01.pdf",
+      "mimeType": "application/pdf",
+      "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+      "revision": "0.1",
+      "status": "rd_controlled",
+      "derivativeId": null,
+      "derivativeMimeType": null,
+      "derivativeContentHash": null
+    },
+    "history": {
+      "context": "drawing_revision",
+      "contextId": "c076f20b-21d0-4061-a9bf-148060995162",
+      "bindingId": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+      "fileAssetId": "FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+      "fileName": "A0002-M01.pdf",
+      "mimeType": "application/pdf",
+      "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+      "revision": "0.1",
+      "status": "rd_controlled",
+      "derivativeId": null,
+      "derivativeMimeType": null,
+      "derivativeContentHash": null
+    },
+    "work": {
+      "context": "drawing_revision_work",
+      "contextId": "c65d1134-44d1-49d1-a689-74d83e75174a",
+      "bindingId": "339db49a-327f-47ad-8ad2-8158eff61374",
+      "fileAssetId": "FA-e33ff864-ab79-4034-a924-63444e0126fe",
+      "fileName": "A0044.SLDASM",
+      "mimeType": "application/octet-stream",
+      "contentHash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d",
+      "derivativeId": "4c7f409a-0d5c-428b-8fae-3945559c85c9",
+      "derivativeMimeType": "image/png",
+      "derivativeContentHash": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f"
+    },
+    "revisionPackage": {
+      "context": "drawing_revision_package",
+      "contextId": "qa-dev087-file-read-package",
+      "bindingId": "qa-dev087-file-read-package-file",
+      "fileAssetId": "FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+      "fileName": "A0002-M01.pdf",
+      "mimeType": "application/pdf",
+      "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+      "derivativeId": null,
+      "derivativeMimeType": null,
+      "derivativeContentHash": null
+    },
+    "drawingAttachment": {
+      "context": "drawing_attachment",
+      "contextId": "qa-dev087-file-read-drawing",
+      "bindingId": "qa-dev087-drawing-asset",
+      "fileAssetId": "qa-dev087-drawing-asset",
+      "fileName": "A0002-M01.pdf",
+      "mimeType": "application/pdf",
+      "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+      "derivativeId": null,
+      "derivativeMimeType": null,
+      "derivativeContentHash": null
+    },
+    "partAttachment": {
+      "context": "part_attachment",
+      "contextId": "0a81c6e6-089c-4881-926c-819ff141734c",
+      "bindingId": "qa-dev087-part-asset",
+      "fileAssetId": "qa-dev087-part-asset",
+      "fileName": "A0002-M01.pdf",
+      "mimeType": "application/pdf",
+      "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+      "derivativeId": null,
+      "derivativeMimeType": null,
+      "derivativeContentHash": null
+    },
+    "approvalEvidence": {
+      "context": "approval_evidence",
+      "contextId": "qa-dev087-approval-evidence",
+      "bindingId": "FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+      "fileAssetId": "FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+      "fileName": "A0002-M01.pdf",
+      "mimeType": "application/pdf",
+      "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+      "derivativeId": null,
+      "derivativeMimeType": null,
+      "derivativeContentHash": null,
+      "crossCompanyContextId": "qa-dev087-cross-company-approval"
+    }
+  }
+}

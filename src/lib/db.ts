@@ -242,33 +242,6 @@ export {
   type PartRootRecord
 } from "@/lib/repositories/numbering-repository";
 export {
-  approveBomWorkbenchReview,
-  BomReleaseGateError,
-  evaluateBomReleaseGate,
-  findPreviousBomSubmissionId,
-  getBomBySubmissionId,
-  getBomDiffBetweenSubmissions,
-  getBomReleaseSnapshotById,
-  getBomWorkbenchBySubmissionId,
-  getBomWorkbenchDraftDiff,
-  getBomWorkbenchDraftById,
-  getBomWorkbenchReviewById,
-  listPendingBomWorkbenchReviews,
-  listBomWorkbenchDraftsBySubmissionId,
-  listWhereUsed,
-  rejectBomWorkbenchReview,
-  saveBomWorkbenchDraftTree,
-  setBomWorkbenchActiveDraft,
-  submitBomWorkbenchDraftReview,
-  type DecideBomWorkbenchReviewInput,
-  type BomWorkbenchDraftDiffResult,
-  type BomWorkbenchLineDiffChange,
-  type BomWorkbenchPendingReview,
-  type SaveBomWorkbenchDraftTreeInput,
-  type SetBomWorkbenchActiveDraftInput,
-  type SubmitBomWorkbenchDraftReviewInput
-} from "@/lib/repositories/bom-repository";
-export {
   createSubmissionRecord,
   getSubmission,
   listDesignReuseCandidates,
@@ -287,7 +260,6 @@ function initDatabase(database: SqliteDatabase) {
   database.exec("PRAGMA foreign_keys = ON;");
   ensurePreSchemaCompatibility(database);
   ensureDrawingRevisionLifecycleAuthorityPreSchema(database);
-  ensureDev096SharedAssemblyBomPreSchema(database);
   const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
   database.exec(schema);
   ensureStandaloneManufacturingImpactRetirement(database);
@@ -302,9 +274,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureSubmissionStoragePointerSchema(database);
   ensureSubmissionSnapshotAndAttemptSchema(database);
   ensureSubmissionLifecycleRequestSchema(database);
-  ensureBomReviewLifecycleSchema(database);
   ensureReviewConfirmationDecisionSchema(database);
-  ensureColumn(database, "bom_drafts", "editor_version", "INTEGER NOT NULL DEFAULT 0");
   ensureSettingsSecretLifecycleSchema(database);
   ensureShared3dBaselineSchema(database);
   ensureSubmissionIndexes(database);
@@ -325,7 +295,6 @@ function initDatabase(database: SqliteDatabase) {
   ensureDev087CanonicalWorkbenchSchema(database);
   ensureDev065PartPreviewSchema(database);
   ensureDev090InlineRelationMatrixSchema(database);
-  ensureDev096SharedAssemblyBomSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
@@ -399,7 +368,6 @@ function ensureReviewConfirmationDecisionSchema(database: SqliteDatabase) {
         review_id TEXT NOT NULL,
         action TEXT NOT NULL CHECK (
           action IN (
-            'confirm_bom_no_revision',
             'confirm_original_part_reuse',
             'return_for_replacement_part',
             'request_more_information',
@@ -868,12 +836,6 @@ function ensurePreSchemaCompatibility(database: SqliteDatabase) {
   }
 }
 
-function ensureBomReviewLifecycleSchema(database: SqliteDatabase) {
-  ensureColumn(database, "bom_review_requests", "lifecycle_action", "TEXT NOT NULL DEFAULT 'release'");
-  database
-    .prepare("UPDATE bom_review_requests SET lifecycle_action = 'release' WHERE lifecycle_action IS NULL OR lifecycle_action = ''")
-    .run();
-}
 function ensureSubmissionLifecycleRequestSchema(database: SqliteDatabase) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS submission_lifecycle_requests (
@@ -1382,7 +1344,6 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
         part_name TEXT NOT NULL,
         item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
         is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
-        bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
         custom_specification TEXT,
         series_code TEXT,
         record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
@@ -1401,13 +1362,13 @@ function ensurePartNumbersCompanyScopeSchema(database: SqliteDatabase) {
     `,
     copyToStagingSql: `INSERT INTO part_numbers_company_scope_migration (
            id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-           item_kind, is_universal, bom_usage_policy, custom_specification, series_code,
+           item_kind, is_universal, custom_specification, series_code,
            record_status, universal_reason, rule_version_id, created_by, created_at, updated_at
          )
          SELECT id, ${selectCompanyId}, part_root_id, part_number, sequence_no, sequence_code, part_name,
                  CASE WHEN item_kind IN ('manufactured', 'outsourced', 'custom') THEN 'manufactured' ELSE 'purchased' END,
                  is_universal,
-                bom_usage_policy, custom_specification, ${selectSeriesCode},
+                custom_specification, ${selectSeriesCode},
                 CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
                  universal_reason,
                 rule_version_id, created_by, created_at, updated_at
@@ -1525,7 +1486,6 @@ function ensureProjectStatusRemovalSchema(database: SqliteDatabase) {
           part_name TEXT NOT NULL,
           item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
           is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
-          bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
           custom_specification TEXT,
           series_code TEXT,
           record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
@@ -1543,11 +1503,11 @@ function ensureProjectStatusRemovalSchema(database: SqliteDatabase) {
         );
         INSERT INTO part_numbers_project_status_removal (
           id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-          is_universal, bom_usage_policy, custom_specification, series_code, record_status, universal_reason,
+          is_universal, custom_specification, series_code, record_status, universal_reason,
           rule_version_id, created_by, created_at, updated_at
         )
         SELECT id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-               is_universal, bom_usage_policy, custom_specification, series_code,
+               is_universal, custom_specification, series_code,
                CASE WHEN record_status = 'EVTDisabled' THEN 'Obsolete' ELSE record_status END,
                universal_reason, rule_version_id, created_by, created_at, updated_at
         FROM part_numbers;
@@ -2015,52 +1975,6 @@ export function ensureDev090InlineRelationMatrixSchema(database: SqliteDatabase)
     if (tableExists("pdm_workbench_state_authority_control")) database.exec("UPDATE pdm_workbench_state_authority_control SET mode = 'canonical_only', schema_hash = 'dev090-v1', row_version = row_version + 1, switched_at = datetime('now') WHERE id = 1");
     database.exec("COMMIT");
   } catch (error) { database.exec("ROLLBACK"); throw error; }
-}
-
-function ensureDev096SharedAssemblyBomPreSchema(database: SqliteDatabase) {
-  const tableExists = (table: string) => Boolean(
-    database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table)
-  );
-  if (tableExists("part_numbers")) {
-    ensureColumn(database, "part_numbers", "structure_type", "TEXT NOT NULL DEFAULT 'single_part' CHECK (structure_type IN ('single_part','assembly','unclassified'))");
-  }
-  if (tableExists("bom_drafts")) {
-    ensureColumn(database, "bom_drafts", "definition_id", "TEXT");
-    ensureColumn(database, "bom_drafts", "base_release_snapshot_id", "TEXT");
-  }
-  if (tableExists("bom_lines_tree")) ensureColumn(database, "bom_lines_tree", "logical_line_id", "TEXT");
-  if (tableExists("bom_draft_floating_topics")) ensureColumn(database, "bom_draft_floating_topics", "logical_line_id", "TEXT");
-  if (tableExists("bom_review_requests")) {
-    ensureColumn(database, "bom_review_requests", "review_schema_version", "INTEGER NOT NULL DEFAULT 1 CHECK (review_schema_version > 0)");
-    ensureColumn(database, "bom_review_requests", "definition_row_version", "INTEGER");
-    ensureColumn(database, "bom_review_requests", "editor_version", "INTEGER");
-    ensureColumn(database, "bom_review_requests", "review_snapshot_json", "TEXT");
-    ensureColumn(database, "bom_review_requests", "review_snapshot_hash", "TEXT");
-  }
-  if (tableExists("bom_release_snapshots")) {
-    ensureColumn(database, "bom_release_snapshots", "definition_id", "TEXT");
-    ensureColumn(database, "bom_release_snapshots", "snapshot_schema_version", "INTEGER NOT NULL DEFAULT 1 CHECK (snapshot_schema_version > 0)");
-    ensureColumn(database, "bom_release_snapshots", "parent_snapshot_json", "TEXT");
-    ensureColumn(database, "bom_release_snapshots", "mapping_snapshot_json", "TEXT");
-    ensureColumn(database, "bom_release_snapshots", "resolved_projection_json", "TEXT");
-    ensureColumn(database, "bom_release_snapshots", "snapshot_hash", "TEXT");
-  }
-  if (tableExists("bom_reconfirmation_flags")) {
-    ensureColumn(database, "bom_reconfirmation_flags", "logical_line_id", "TEXT");
-    ensureColumn(database, "bom_reconfirmation_flags", "parent_part_number_id", "TEXT");
-    ensureColumn(database, "bom_reconfirmation_flags", "reference_scope", "TEXT NOT NULL DEFAULT 'legacy_line' CHECK (reference_scope IN ('legacy_line','candidate','parent_selection'))");
-  }
-}
-
-export function ensureDev096SharedAssemblyBomSchema(database: SqliteDatabase) {
-  ensureDev096SharedAssemblyBomPreSchema(database);
-  const schema = fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8");
-  const marker = "-- BEGIN DEV-096 shared assembly BOM authority.";
-  const endMarker = "-- END DEV-096 shared assembly BOM authority.";
-  const start = schema.indexOf(marker);
-  const end = schema.indexOf(endMarker);
-  if (start < 0 || end < start) throw new Error("DEV096_SQLITE_SCHEMA_MARKER_MISSING");
-  database.exec(schema.slice(start, end + endMarker.length));
 }
 
 export function ensureDev088ReplacementAttachmentSchema(database: SqliteDatabase) {

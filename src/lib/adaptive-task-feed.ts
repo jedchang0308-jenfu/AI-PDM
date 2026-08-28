@@ -1,7 +1,7 @@
 import type { NotificationItem, NotificationSummary, SubmissionStatus, SubmissionSummary } from "@/lib/types";
 
 export type TaskSummaryRole = "Engineer" | "R&D Manager" | "Admin" | "QA/QC" | "PM" | "Manufacturing" | "Procurement" | "Supplier";
-export type TaskSummarySource = "numbering_task" | "notification" | "bom_review" | "handoff_readiness" | "storage_evidence" | "submission";
+export type TaskSummarySource = "numbering_task" | "notification" | "handoff_readiness" | "storage_evidence" | "submission";
 export type TaskSummarySignal = "overdue" | "blocked" | "risk" | "review" | "handoff" | "system_exception" | "draft" | "none";
 export type TaskSummarySeverity = "critical" | "warning" | "info" | "success";
 

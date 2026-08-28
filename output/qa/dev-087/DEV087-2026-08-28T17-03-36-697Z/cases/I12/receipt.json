@@ -1,0 +1,134 @@
+{
+  "caseId": "I12",
+  "result": "PASS",
+  "assertionIds": [
+    "I12:SINGLE_AXIS_NO_INVALID_RELATION_MUTATION"
+  ],
+  "renderedUiActions": [
+    "open single-axis Part A0010-P01"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "activeRole": "button",
+    "activeText": "A0010-P01"
+  },
+  "apiReadback": {
+    "detail": {
+      "status": 200,
+      "body": {
+        "data": {
+          "row": {
+            "rowKey": "cw_b11a3b0a-2908-4986-ac19-e81f2ba7800d",
+            "entityType": "part",
+            "entityId": "part-number-2b560978-4ca6-44b1-9f41-672ea67bc7a3",
+            "code": "A0010-P01",
+            "name": "外六角螺絲_3/8-16WTx30L",
+            "layer": "formal",
+            "layerLabel": "正式資料",
+            "revision": null,
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/parts?detail=cw_b11a3b0a-2908-4986-ac19-e81f2ba7800d",
+            "rowVersion": 1,
+            "basisState": null,
+            "actions": [
+              {
+                "key": "create_change",
+                "label": "建立修改",
+                "href": "/api/pdm/parts/part-number-2b560978-4ca6-44b1-9f41-672ea67bc7a3/change-works"
+              },
+              {
+                "key": "request_obsolete",
+                "label": "申請作廢"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          },
+          "presentation": {
+            "kind": "part",
+            "surface": "drawer_minimal",
+            "fields": [
+              {
+                "key": "code",
+                "label": "料號",
+                "value": "A0010-P01"
+              },
+              {
+                "key": "name",
+                "label": "品名",
+                "value": "外六角螺絲_3/8-16WTx30L"
+              },
+              {
+                "key": "kind",
+                "label": "料件類型",
+                "value": "外購標準件"
+              },
+              {
+                "key": "universal",
+                "label": "共用件",
+                "value": "否"
+              }
+            ],
+            "files": [],
+            "recognition": {
+              "partAttributes": [],
+              "revisionMetadata": [],
+              "controlledNotes": [],
+              "engineeringEvidence": []
+            },
+            "relationMatrix": {
+              "rootId": "part-root-2eaefc21-5704-4fd4-b60f-84f5c40faf15",
+              "rootCode": "A0010",
+              "drawings": [],
+              "parts": [
+                {
+                  "id": "part-number-2b560978-4ca6-44b1-9f41-672ea67bc7a3",
+                  "number": "A0010-P01",
+                  "detailHref": "/parts?detail=cw_b11a3b0a-2908-4986-ac19-e81f2ba7800d"
+                }
+              ],
+              "cells": [],
+              "matrixEtag": "9d8aefdd318f066c972a7ef1977ceb9524fed543c126f3e50b173627a2ca4401"
+            }
+          }
+        },
+        "meta": {
+          "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4NzkzNjgwMDE3OH0.VD89ZjXwJJ4FyQohWR4PFSl_YoTZ1S2FUFRrWoLMVt4",
+          "correlationId": "a11b5c25-2af1-4ecd-9fc0-aae109cb4bdd"
+        }
+      }
+    }
+  },
+  "dbReadback": {
+    "root": {
+      "id": "part-root-2eaefc21-5704-4fd4-b60f-84f5c40faf15",
+      "company_id": "company-jenfu",
+      "root_code": "A0010"
+    },
+    "drawings": [],
+    "parts": [
+      {
+        "id": "part-number-2b560978-4ca6-44b1-9f41-672ea67bc7a3",
+        "number": "A0010-P01"
+      }
+    ],
+    "links": [],
+    "hash": "f6fc499c30995d285d173cc03f8577152c31078d36ca47593827402635a51494"
+  },
+  "visibleErrorSweep": {
+    "expected": null,
+    "actual": []
+  },
+  "mutationLedger": [],
+  "screenshot": "output/qa/dev-087/DEV087-2026-08-28T17-03-36-697Z/cases/I12/I12.png",
+  "source": "fresh task-owned DEV-087 isolated browser runtime"
+}

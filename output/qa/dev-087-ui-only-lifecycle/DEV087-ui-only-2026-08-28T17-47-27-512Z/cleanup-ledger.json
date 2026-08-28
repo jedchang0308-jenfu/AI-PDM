@@ -1,0 +1,17 @@
+{
+  "status": "task-owned runtime removed",
+  "port": 57138,
+  "tempRootRemoved": true,
+  "runtimeProjectRemoved": true,
+  "tempCleanupReceipt": {
+    "removed": true,
+    "path": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-ui-only-o5CLmA",
+    "error": null,
+    "attempts": 1
+  },
+  "runtimeProjectCleanupReceipt": {
+    "removed": true,
+    "path": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\.tmp\\qc-dev087-runtime-project-57138",
+    "error": null
+  }
+}

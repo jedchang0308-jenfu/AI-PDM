@@ -148,8 +148,8 @@ function seedRootWithoutDrawing(caseId) {
     `
     INSERT INTO part_numbers (
       id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-      is_universal, bom_usage_policy, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, 'manufactured', 0, 'available', 'Draft', 'numbering-rule-v1', ?, ?, ?)
+      is_universal, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, 'manufactured', 0, 'Draft', 'numbering-rule-v1', ?, ?, ?)
     `
   ).run(partId, rootId, partNumber, partName, roles.engineer.id, time, time);
   fixtureLedger.push({ caseId, rootCode, partNumber, drawingNumber: null, type: "root_without_drawing" });
@@ -184,8 +184,8 @@ function seedDrawingFixture(caseId, options = {}) {
     `
     INSERT INTO part_numbers (
       id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind,
-      is_universal, bom_usage_policy, record_status, rule_version_id, created_by, created_at, updated_at
-    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, ?, 0, 'available', ?, 'numbering-rule-v1', ?, ?, ?)
+      is_universal, record_status, rule_version_id, created_by, created_at, updated_at
+    ) VALUES (?, 'company-jenfu', ?, ?, 1, '001', ?, ?, 0, ?, 'numbering-rule-v1', ?, ?, ?)
     `
   ).run(
     partId,

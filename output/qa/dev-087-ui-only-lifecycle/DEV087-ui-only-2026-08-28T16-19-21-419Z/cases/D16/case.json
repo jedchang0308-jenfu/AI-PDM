@@ -1,0 +1,41 @@
+{
+  "id": "D16",
+  "family": "D",
+  "title": "stale branch 凍結並可從目前量產版重啟",
+  "status": "FAIL",
+  "reason": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.pdm-entity-detail-drawer').last().getByRole('button', { name: '進版', exact: true }).first()\u001b[22m\n",
+  "startedAt": "2026-08-28T16:21:37.247Z",
+  "finishedAt": "2026-08-28T16:21:38.687Z",
+  "expected": {
+    "ui": "canonical workbench list",
+    "mutation": "full lifecycle journey"
+  },
+  "actual": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": [
+      "A0002-M01本體_BS_右_Xx5量產版 2可使用無須處理"
+    ],
+    "apiStatus": 200,
+    "apiBodyHash": 1324,
+    "dbRows": 1
+  },
+  "evidence": {
+    "actions": "actions.jsonl",
+    "network": "network.jsonl",
+    "triad": "triad-diff/list.json"
+  }
+}

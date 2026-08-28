@@ -1,0 +1,13 @@
+{
+  "data": {
+    "groups": [],
+    "nextCursor": null,
+    "previousCursor": null,
+    "totalGroups": 0,
+    "totalRows": 0
+  },
+  "meta": {
+    "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0NTAxMjcxMH0.mrtr3m7bEUfytGDrYxlRD2hwlLpl4PERufSCObp4ZxY",
+    "correlationId": "31813d59-a279-412e-b76c-3746d3cfa52f"
+  }
+}

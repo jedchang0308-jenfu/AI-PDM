@@ -143,8 +143,10 @@ try {
     "039_allow_recycled_candidate_drawing_codes.sql",
     "042_status_data_rebuild.sql",
     "043_inline_relation_matrix.sql",
-    "048_shared_assembly_bom.sql",
-    "049_solidworks_credential_ui_activation.sql"
+    "047_remove_bom_module.sql",
+    "048_solidworks_credential_ui_activation.sql",
+    "049_retire_standalone_manufacturing_impact.sql",
+    "051_part_structure_type_authority.sql"
   ]) await client.query(fs.readFileSync(path.join(root, "db", "postgres", file), "utf8"));
   sourceDatabase = new Database(sourceDbPath, { readonly: true, fileMustExist: true });
   await restoreSnapshot(sourceDatabase, client);
@@ -158,8 +160,8 @@ try {
       AND session.id=(SELECT latest.id FROM drawing_recognition_sessions latest
         WHERE latest.drawing_id=drawing.id AND latest.status='review_ready' ORDER BY latest.created_at DESC,latest.id DESC LIMIT 1)`);
   assert.ok((legacySeed.rowCount ?? 0) >= 3, "canonical PostgreSQL fixture must expose at least three accepted Part-owned candidates");
-  await client.query(fs.readFileSync(path.join(root, "db", "postgres", "051_drawing_recognition_part_owner_invariant.sql"), "utf8"));
-  await client.query(fs.readFileSync(path.join(root, "db", "postgres", "051_drawing_recognition_part_owner_invariant.sql"), "utf8"));
+  await client.query(fs.readFileSync(path.join(root, "db", "postgres", "050_drawing_recognition_part_owner_invariant.sql"), "utf8"));
+  await client.query(fs.readFileSync(path.join(root, "db", "postgres", "050_drawing_recognition_part_owner_invariant.sql"), "utf8"));
 
   const dryRun = runReconciliation("dry-run", connectionString, { label: "postgres" });
   assert.equal(dryRun.status, "READ_ONLY_COMPLETE");

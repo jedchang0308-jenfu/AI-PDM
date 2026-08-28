@@ -1,6 +1,8 @@
 # QA DEV-096：組立件情境式共用 BOM 驗證計畫
 
-狀態：Local QA-QC Executed / 88 of 88 PASS / P0-P1 0 / Production Release Gated
+> **Superseded 2026-08-28**：對應功能已由DEV-095硬退役；88案只作歷史證據，不得納入current regression或release gate。
+
+狀態：Historical Evidence Only / Superseded by DEV-095
 
 執行結論：096-A～E在task-owned隔離環境完成。最終fresh aggregate為`output/qa/dev-096-aggregate/DEV096-2026-08-24T17-00-05-541Z/`；88/88 PASS、Blocked=0、Not Run=0。SQLite與disposable PostgreSQL均執行實際repository mutation；42個named fault checkpoint、四viewport Chromium、consumer exact projection、provider migration parity、typecheck與primary invariant皆通過。正式migration、feature activation、deploy與release未執行。
 

@@ -132,11 +132,11 @@ function seedTransferPackages() {
   )`).run(now, now);
   db.prepare(`INSERT INTO part_numbers (
     id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name,
-    item_kind, is_universal, bom_usage_policy, custom_specification,
+    item_kind, is_universal, custom_specification,
     record_status, universal_reason, rule_version_id, created_by, created_at, updated_at
   ) VALUES (
     'ui-published-part', 'company-jenfu', 'ui-published-root', 'UI-PUBLISHED-PART-001',
-    1, '001', 'Published browser fixture part', 'manufactured', 0, 'not_required',
+    1, '001', 'Published browser fixture part', 'manufactured', 0,
     NULL, 'Active', NULL, 'numbering-rule-v3-alpha-root',
     'phase1d-ui-admin', ?, ?
   )`).run(now, now);

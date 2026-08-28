@@ -1,6 +1,6 @@
 # ADR-PDM-BOM-STRUCTURE-SHARING-001：結構相同的變體料號共用 BOM
 
-狀態：Accepted / Human Confirmed / 2026-08-24
+狀態：Historical / Superseded by ADR-PDM-BOM-RETIREMENT-001 / 2026-08-28
 
 關聯 DEV：`DEV-096`
 

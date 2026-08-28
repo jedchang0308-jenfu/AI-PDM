@@ -1,0 +1,18 @@
+{
+  "status": "task-owned runtime removed",
+  "port": null,
+  "tempRootRemoved": true,
+  "runtimeProjectRemoved": true,
+  "tempCleanupReceipt": {
+    "removed": true,
+    "path": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-ui-only-crlZzZ",
+    "error": null,
+    "attempts": 1
+  },
+  "runtimeProjectCleanupReceipt": {
+    "removed": true,
+    "path": null,
+    "notCreated": true,
+    "error": null
+  }
+}

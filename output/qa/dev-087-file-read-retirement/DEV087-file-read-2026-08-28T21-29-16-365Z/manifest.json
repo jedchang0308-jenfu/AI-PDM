@@ -1,0 +1,30 @@
+{
+  "devId": "DEV-087",
+  "qaCases": [
+    "QA-087-169",
+    "QA-087-170"
+  ],
+  "runId": "DEV087-file-read-2026-08-28T21-29-16-365Z",
+  "status": "FAIL",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087-file-read-retirement\\DEV087-file-read-2026-08-28T21-29-16-365Z",
+  "total": 2,
+  "passed": 0,
+  "failed": 2,
+  "checks": [
+    {
+      "name": "file-read retirement execution",
+      "pass": false,
+      "detail": "Error: ENOENT: no such file or directory, lstat 'C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\data\\repository'\n    at cpSyncFn (node:internal/fs/cp/cp-sync:56:13)\n    at Object.cpSync (node:fs:3147:3)\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-087-file-read-retirement.mjs:529:6"
+    },
+    {
+      "name": "temporary runtime dist removed",
+      "pass": false,
+      "detail": "{\"removed\":false,\"path\":null,\"error\":\"runtime-not-started\"}"
+    }
+  ],
+  "consoleErrors": [],
+  "requestFailures": [],
+  "oldRouteRequests": [],
+  "canonicalFileRequests": [],
+  "roundEvidence": []
+}

@@ -1,0 +1,2 @@
+{"at":"2026-08-28T18:22:28.618Z","kind":"navigate","target":"/numbering/drawings?query=A0002-M01","accessibleName":"branch 推進 production"}
+{"at":"2026-08-28T18:22:29.899Z","kind":"readback","before":{"route":"/numbering/drawings?query=A0002-M01"},"after":{"headers":["編號","品名","版本","資料狀態","處理"],"toolbar":["搜尋","版本","處理","用途","系列","排序"],"rows":["A0002-M01本體_BS_右_Xx5量產版 2可使用無須處理","A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"],"apiStatus":200,"apiBodyHash":2194,"dbRows":2}}

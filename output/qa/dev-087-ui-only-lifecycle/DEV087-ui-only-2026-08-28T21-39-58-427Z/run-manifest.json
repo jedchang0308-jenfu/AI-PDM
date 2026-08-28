@@ -1,0 +1,238 @@
+{
+  "devId": "DEV-087",
+  "runId": "DEV087-ui-only-2026-08-28T21-39-58-427Z",
+  "parentRunId": "DEV087-product-browser-2026-08-28T21-39-10-826Z",
+  "status": "FAIL",
+  "denominator": {
+    "drawing": 24,
+    "part": 10,
+    "inlineMatrix": 0,
+    "total": 34,
+    "excluded": [
+      "D25",
+      "D26",
+      "D27",
+      "P11",
+      "P12",
+      "P13",
+      "P14",
+      "P15",
+      "P16",
+      "P17",
+      "P18",
+      "P19",
+      "P20"
+    ],
+    "delegated": {
+      "partAttachments": [
+        "P11",
+        "P12",
+        "P13"
+      ],
+      "inlineMatrix": [
+        "I01",
+        "I02",
+        "I03",
+        "I04",
+        "I05",
+        "I06",
+        "I07",
+        "I08",
+        "I09",
+        "I10",
+        "I11",
+        "I12",
+        "I13",
+        "I14"
+      ]
+    }
+  },
+  "coverage": {
+    "total": 1,
+    "pass": 1,
+    "blocked": 0,
+    "fail": 0,
+    "notRun": 33
+  },
+  "gates": {
+    "total": 11,
+    "pass": 11,
+    "fail": 0
+  },
+  "infrastructure": {
+    "total": 11,
+    "pass": 11,
+    "fail": 0
+  },
+  "cases": [
+    {
+      "id": "D02",
+      "family": "D",
+      "title": "第一份 0.1 工作取消",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T21:40:49.206Z",
+      "finishedAt": "2026-08-28T21:40:50.786Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "沒有符合條件的資料"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 498,
+        "dbRows": 0
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "primary source invariant before fixture",
+      "pass": true,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "name": "unmodified fixture source invariant before mutation",
+      "pass": true,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "name": "isolated migration applied with explicit retained-legacy resolution",
+      "pass": true,
+      "detail": "{\"status\":0,\"stdout\":\"{\\n  \\\"status\\\": \\\"PASS\\\",\\n  \\\"apply\\\": true,\\n  \\\"switchCanonical\\\": true,\\n  \\\"unresolved\\\": 0,\\n  \\\"identityHash\\\": \\\"b71fc88953bd98c4aceca06e85f698496e0b6a332b68e0f1891cff5379ede6f1\\\",\\n  \\\"manifestPath\\\": \\\"C:\\\\\\\\Users\\\\\\\\user\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\ai-pdm-dev087-ui-only-a802d2\\\\\\\\migration\\\\\\\\manifest.json\\\"\\n}\\n\",\"stderr\":\"\",\"sourceAuthorityMode\":\"canonical_only\"}"
+    },
+    {
+      "name": "fault profile immutable source snapshot prepared",
+      "pass": true,
+      "detail": "{\"database\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-ui-only-a802d2\\\\fault-profile-source\\\\ai-pdm.sqlite\",\"repository\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-ui-only-a802d2\\\\fault-profile-source\\\\repository\",\"invariant\":{\"schemaHash\":\"11ee6c93610afa4ecc2e387d1eafc4f78baab89d644704b79e113c0c956600b9\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":13,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    },
+    {
+      "name": "task-owned runtime project prepared",
+      "pass": true,
+      "detail": "{\"root\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-runtime-project-51645\",\"sourceSnapshot\":\"task-owned copy of src/public/db/config plus config files\",\"dependencyRuntime\":\"junction to workspace node_modules (read-only dependency use)\",\"generatedDeclarations\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-runtime-project-51645\\\\next-env.d.ts\"}"
+    },
+    {
+      "name": "J-D02",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T21-39-58-427Z\\journeys\\J-D02\\journey.json"
+    },
+    {
+      "name": "C01",
+      "pass": true,
+      "detail": "authority 與 provider 啟動檢查"
+    },
+    {
+      "name": "C02",
+      "pass": true,
+      "detail": "UI mutation provenance"
+    },
+    {
+      "name": "C03",
+      "pass": true,
+      "detail": "原子性與 zero partial write"
+    },
+    {
+      "name": "C04",
+      "pass": true,
+      "detail": "idempotency 與 stale guard"
+    },
+    {
+      "name": "C05",
+      "pass": true,
+      "detail": "UI/API/DB triad readback"
+    },
+    {
+      "name": "C06",
+      "pass": true,
+      "detail": "cleanup ledger"
+    },
+    {
+      "name": "C07",
+      "pass": true,
+      "detail": "禁止技術欄位出現在 UI"
+    },
+    {
+      "name": "C08",
+      "pass": true,
+      "detail": "搜尋與 layer/handling filter"
+    },
+    {
+      "name": "C09",
+      "pass": true,
+      "detail": "審核頁同畫面唯讀"
+    },
+    {
+      "name": "C10",
+      "pass": true,
+      "detail": "viewport、keyboard、error sweep"
+    },
+    {
+      "name": "C11",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=51645"
+    },
+    {
+      "name": "temporary data/repository root removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-ui-only-a802d2\",\"error\":null,\"attempts\":1}"
+    },
+    {
+      "name": "Next generated declarations isolated from source project",
+      "pass": true,
+      "detail": "{\"isolated\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-runtime-project-51645\\\\next-env.d.ts\"}"
+    },
+    {
+      "name": "temporary runtime project removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-runtime-project-51645\",\"error\":null}"
+    },
+    {
+      "name": "primary source invariant unchanged after runtime",
+      "pass": true,
+      "detail": "{\"before\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"after\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    }
+  ],
+  "supplementalJourneys": [],
+  "lifecycleJourneys": [
+    {
+      "id": "J-D02",
+      "caseId": "D02",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T21-39-58-427Z\\journeys\\J-D02\\journey.json"
+    }
+  ],
+  "failures": [],
+  "consoleErrors": [],
+  "expectedHttpEvents": [],
+  "networkEvents": 281,
+  "mergedHistoryRows": 0,
+  "evidenceRoot": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T21-39-58-427Z"
+}

@@ -18,8 +18,8 @@ const screenshotDir = path.join(outputDir, "screenshots");
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev087-browser-"));
 const fixtureDataDir = path.join(tempRoot, "data");
 const fixtureDb = path.join(fixtureDataDir, "ai-pdm.sqlite");
-const sourceDb = path.resolve(process.env.PDM_QC_SOURCE_DB?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
-const sourceRepository = path.resolve(process.env.PDM_QC_SOURCE_REPOSITORY?.trim() || path.join(root, "data", "repository"));
+const sourceDb = path.resolve(process.env.PDM_QC_SOURCE_DB?.trim() || process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
+const sourceRepository = path.resolve(process.env.PDM_QC_SOURCE_REPOSITORY?.trim() || process.env.PDM_PRIMARY_REPOSITORY_DIR?.trim() || path.join(root, "data", "repository"));
 const fixtureRepository = path.join(fixtureDataDir, "repository");
 const drawingUpload2d = path.join(tempRoot, "DEV087-FUNCTIONAL.SLDDRW");
 const drawingUpload3d = path.join(tempRoot, "DEV087-FUNCTIONAL.SLDPRT");
@@ -709,8 +709,10 @@ async function verifyFormalObsoleteDecision(ownerContext, input) {
   await login(reviewerContext, "研發主管");
   const reviewer = await reviewerContext.newPage();
   monitor(reviewer, `${input.caseId}-formal-obsolete-review`);
+  const initialInboxResponsePromise = reviewer.waitForResponse((response) => response.url().includes("/api/approvals/inbox?") && response.url().includes("status=active") && response.status() === 200, { timeout: 30_000 });
   await reviewer.goto(`${baseUrl}/approvals?status=active`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await reviewer.getByRole("heading", { name: /審核工作台/u }).waitFor({ state: "visible", timeout: 30_000 });
+  await initialInboxResponsePromise;
   const search = reviewer.getByLabel("搜尋圖號、料號、品名或送審者", { exact: true });
   const inboxResponsePromise = reviewer.waitForResponse((response) => response.url().includes("/api/approvals/inbox?") && response.url().includes(`query=${encodeURIComponent(input.code)}`) && response.status() === 200, { timeout: 30_000 });
   await search.fill(input.code);
@@ -1208,7 +1210,7 @@ try {
   fs.mkdirSync(nextEnvTypesDir, { recursive: true });
   await writeNextEnvWithRetry(`/// <reference types="next" />\n/// <reference types="next/image-types/global" />\nimport "./.tmp/qc-dev087-browser-${port}/dev/types/routes.d.ts";\nimport "./.tmp/qc-dev087-browser-${port}/dev/types/root-params.d.ts";\n\n// NOTE: This file should not be edited\n// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.\n`);
   Object.assign(process.env, {
-    NODE_ENV: "development", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: fixtureDataDir,
+    NODE_ENV: "development", QC_NEXT_USE_WEBPACK: "1", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: fixtureDataDir,
     PDM_REPOSITORY_DIR: fixtureRepository, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub",
     PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "", PDM_REVIEW_PACKAGE_V2_WRITE: "true",
     PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: path.relative(root, runtimeDistDir), PDM_PUBLIC_BASE_URL: baseUrl

@@ -15,8 +15,6 @@ const existsRequired = (relativePath) => projectFileExists(root, relativePath);
 
 const controlledHistoryRoutePath = "src/app/api/lifecycle/controlled-history/route.ts";
 const controlledHistoryRoute = readRequired(controlledHistoryRoutePath);
-const bomWorkbenchAsync = readRequired("src/lib/bom-workbench-async.ts");
-const bomWorkbenchRepository = readRequired("src/lib/repositories/bom-workbench-async-repository.ts");
 const submissionsRoute = readRequired("src/app/api/submissions/route.ts");
 const searchRoute = readRequired("src/app/api/search/route.ts");
 const submissionListRepository = readRequired("src/lib/repositories/submission-list-async-repository.ts");
@@ -36,7 +34,7 @@ const packageJson = readProjectJson(root, "package.json");
 
 assert(existsRequired(controlledHistoryRoutePath), "Controlled-history route exists");
 assert(types.includes("export type ControlledHistoryEntry"), "Controlled-history type is exported");
-assert(types.includes('"numbering_part_number"') && types.includes('"numbering_drawing_number"') && types.includes('"bom_release"'), "Controlled-history type supports cross-entity history");
+assert(types.includes('"numbering_part_number"') && types.includes('"numbering_drawing_number"'), "Controlled-history type supports cross-entity history");
 assert(types.includes('traceability_class: "controlled_history"'), "Controlled-history entry is traceability-classed");
 assert(types.includes("delete: false") && types.includes("restore: false") && types.includes("obsolete: false"), "Controlled-history actions are immutable in the type contract");
 assert(types.includes("SubmissionReleaseActionability") && types.includes("release_actionability?"), "Submission detail exposes terminal-master release actionability");
@@ -50,20 +48,10 @@ assert(controlledHistoryRoute.includes("getSubmissionAsync"), "Controlled-histor
 assert(controlledHistoryRoute.includes("lifecycle_requests"), "Controlled-history route includes lifecycle request evidence");
 assert(controlledHistoryRoute.includes("listNumberingApprovalBatchesAsync"), "Controlled-history route aggregates numbering obsolete approvals");
 assert(controlledHistoryRoute.includes("obsolete_part_number") && controlledHistoryRoute.includes("obsolete_ma_drawing"), "Controlled-history route includes formal part/drawing obsolete approvals");
-assert(controlledHistoryRoute.includes("listObsoleteBomWorkbenchHistoryAsync"), "Controlled-history route aggregates formal BOM obsolete history");
 assert(controlledHistoryRoute.includes("compareControlledHistoryEntries"), "Controlled-history route sorts unified history by lifecycle time");
 assert(controlledHistoryRoute.includes('stage_label: "歷史"'), "Controlled-history route maps entries to 歷史 stage");
 assert(controlledHistoryRoute.includes('result_label: "已作廢"'), "Controlled-history route maps entries to 已作廢 result");
 assert(controlledHistoryRoute.includes("delete: false") && controlledHistoryRoute.includes("restore: false"), "Controlled-history route disables delete and restore actions");
-assert(bomWorkbenchAsync.includes("listObsoleteBomWorkbenchHistoryAsync"), "BOM async facade exposes obsolete history helper");
-assert(bomWorkbenchRepository.includes("SELECT_ASYNC_BOM_WORKBENCH_OBSOLETE_HISTORY_SQL"), "BOM repository has controlled-history SQL");
-assert(
-  bomWorkbenchRepository.includes("COALESCE(d.company_id, s.company_id) = :companyId") ||
-    bomWorkbenchRepository.includes("s.company_id = :companyId"),
-  "BOM controlled-history SQL is company scoped through canonical draft ownership with legacy submission fallback"
-);
-assert(bomWorkbenchRepository.includes("COALESCE(rr.lifecycle_action, 'release') = 'obsolete'"), "BOM controlled-history SQL only uses obsolete lifecycle reviews");
-
 assert(submissionListRepository.includes("includeHistory?: boolean"), "Submission list/search supports explicit history inclusion");
 assert((submissionListRepository.match(/s\.status <> 'Obsolete'/g) ?? []).length >= 2, "Daily list/search repository excludes Obsolete by default");
 assert(
@@ -85,8 +73,7 @@ assert(dashboard.includes("查看追溯"), "Controlled-history UI exposes tracea
 assert(
   dashboard.includes('submission: "正式圖面"') &&
     dashboard.includes('numbering_part_number: "料號"') &&
-    dashboard.includes('numbering_drawing_number: "圖號"') &&
-    dashboard.includes('bom_release: "正式 BOM"'),
+    dashboard.includes('numbering_drawing_number: "圖號"'),
   "Controlled-history UI labels cross-entity history with current simple PDM nouns"
 );
 assert(dashboard.includes('entry.entity_type === "submission"'), "Controlled-history UI only opens submission detail when detail route exists");
@@ -97,14 +84,13 @@ assert(dashboard.includes("openControlledHistoryEntry"), "Dashboard can open con
 assert(dashboard.includes("controlledHistoryEntries.some"), "Dashboard keeps selected history detail open even outside daily list");
 assert(
   dashboard.includes('submissionTerminalReadOnly') &&
-    dashboard.includes('SUBMISSION_RELEASE_TERMINAL_MASTER') &&
-    dashboard.includes("正式圖料已結束，這筆送審只供追溯") &&
+    dashboard.includes('release_actionability?.recovery_href') &&
     dashboard.includes("返回圖料歷史"),
   "Dashboard projects terminal-master submissions as traceability-only"
 );
 assert(
-  submissionDetailPage.includes("terminalMasterReadOnly") &&
-    submissionDetailPage.includes("!terminalMasterReadOnly && canManageRelease") &&
+  submissionDetailPage.includes("terminalLifecycleReadOnly") &&
+    submissionDetailPage.includes("!terminalLifecycleReadOnly && canManageRelease") &&
     submissionDetailPage.includes("返回圖料歷史"),
   "Full submission detail removes approval and cancellation from terminal-master history"
 );

@@ -1,0 +1,53 @@
+{
+  "data": {
+    "groups": [
+      {
+        "groupKey": "cg_3c66099a-30e0-4186-9d8b-f62a20ce8818",
+        "rows": [
+          {
+            "rowKey": "cw_cffd91cb-4e47-429f-a57d-223ac671b80b",
+            "entityType": "drawing",
+            "entityId": "drawing-formal-a97d7268-6a26-4d83-8aa9-fbde65bf6ecf",
+            "code": "A0060-M01",
+            "name": "DEV087 D06 14448495Z",
+            "layer": "rd",
+            "layerLabel": "研發版 0.2",
+            "revision": "0.2",
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_cffd91cb-4e47-429f-a57d-223ac671b80b",
+            "rowVersion": 13,
+            "basisState": "preproduction",
+            "actions": [
+              {
+                "key": "advance",
+                "label": "進版",
+                "href": "/api/pdm/drawings/drawing-formal-a97d7268-6a26-4d83-8aa9-fbde65bf6ecf/revision-targets?sourceRowKey=cw_cffd91cb-4e47-429f-a57d-223ac671b80b"
+              },
+              {
+                "key": "void_rd",
+                "label": "申請作廢",
+                "href": "/api/pdm/drawing-rd-branches/6ad289aa-0862-4b00-a917-8531b56b36bc/void-requests"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "nextCursor": null,
+    "previousCursor": null,
+    "totalGroups": 1,
+    "totalRows": 1
+  },
+  "meta": {
+    "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk1MzU4OTI4N30.PFT0K6lSr0ybTSNJokYZDtjhJZh-A4qkjl_j562cG0o",
+    "correlationId": "af118faf-dd64-46b6-8f03-5b7edbc9700e"
+  }
+}

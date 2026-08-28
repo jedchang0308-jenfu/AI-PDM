@@ -23,7 +23,7 @@ export type TransferPackageBlocker = {
 };
 
 export type TransferPackageAdapter = {
-  id: "intake" | "drawing_part" | "bom" | "attachments" | "approval";
+  id: "intake" | "drawing_part" | "attachments" | "approval";
   label: string;
   status: "not_started" | "blocked" | "ready" | "not_applicable" | "unavailable";
   message: string;
@@ -340,17 +340,6 @@ function buildWorkbench(record: TransferPackageRecord): TransferPackageWorkbench
       ownerModule: "技轉包",
       actionLabel: null,
       actionHref: null
-    },
-    {
-      id: "bom",
-      label: "BOM",
-      status: record.items.length ? "not_started" : "blocked",
-      message: record.items.length ? "請到既有 BOM 工作台維護；此處只顯示入口。" : "先加入案件範圍。",
-      ownerModule: "BOM 工作台",
-      actionLabel: record.items.length ? "前往 BOM" : null,
-      actionHref: record.items.length
-        ? `/bom/workbench?transferPackageId=${encodeURIComponent(record.id)}&returnTo=${encodeURIComponent(`${returnPath}?section=modules&blocker=bom`)}`
-        : null
     },
     {
       id: "attachments",

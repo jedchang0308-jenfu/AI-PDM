@@ -1,0 +1,20 @@
+{
+  "id": "J-D11",
+  "caseId": "D11",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create",
+      "candidate": "研發版 1.2",
+      "candidateKind": "rd"
+    },
+    {
+      "kind": "cancel"
+    }
+  ],
+  "startedAt": "2026-08-28T18:02:54.438Z",
+  "finishedAt": "2026-08-28T18:02:58.790Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS secret_references (
   kind TEXT NOT NULL,
   provider TEXT NOT NULL,
   display_name TEXT NOT NULL,
-  vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'google_secret_manager', 'supabase_vault')),
+  vault_provider TEXT NOT NULL DEFAULT 'local_test_double' CHECK (vault_provider IN ('local_test_double', 'windows_dpapi', 'google_secret_manager', 'supabase_vault')),
   vault_secret_id TEXT NOT NULL,
   masked_hint TEXT NOT NULL,
   fingerprint TEXT NOT NULL,
@@ -889,6 +889,42 @@ CREATE TABLE IF NOT EXISTS setting_activation_events (
   FOREIGN KEY (actor_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS settings_secret_probe_jobs (
+  id TEXT PRIMARY KEY,
+  secret_reference_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'passed', 'failed', 'blocked', 'expired')),
+  locked_by TEXT,
+  locked_at TIMESTAMPTZ,
+  heartbeat_at TIMESTAMPTZ,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  max_attempts INTEGER NOT NULL DEFAULT 2,
+  result_code TEXT,
+  reader_version TEXT,
+  created_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (secret_reference_id) REFERENCES secret_references(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS worker_capability_heartbeats (
+  worker_id TEXT NOT NULL,
+  worker_kind TEXT NOT NULL,
+  capability_code TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('ready', 'blocked', 'degraded')),
+  applied_secret_kind TEXT,
+  applied_secret_version INTEGER,
+  applied_secret_fingerprint TEXT,
+  reader_version TEXT,
+  issue_code TEXT,
+  last_applied_at TIMESTAMPTZ,
+  last_seen_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (worker_id, capability_code)
+);
+
 CREATE TABLE IF NOT EXISTS submission_files (
   id TEXT PRIMARY KEY,
   submission_id TEXT NOT NULL,
@@ -1181,7 +1217,7 @@ CREATE TABLE IF NOT EXISTS part_roots (
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   root_code TEXT NOT NULL,
   core_name TEXT NOT NULL,
-  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   record_status TEXT NOT NULL DEFAULT 'Draft' CHECK (record_status IN ('Draft', 'NeedInfo', 'Active', 'PendingReview', 'Released', 'Rejected', 'Obsolete', 'Merged', 'PendingAdminConfirm', 'MainDrawingInvalid')),
   rule_version_id TEXT NOT NULL DEFAULT 'numbering-rule-v3-alpha-root',
   created_by TEXT,
@@ -1470,7 +1506,7 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   sequence_no INTEGER NOT NULL CHECK (sequence_no >= 0),
   sequence_code TEXT NOT NULL,
   part_name TEXT NOT NULL,
-  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
   bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
   custom_specification TEXT,
@@ -1665,7 +1701,7 @@ CREATE TABLE IF NOT EXISTS part_number_drafts (
   company_id TEXT NOT NULL DEFAULT 'company-jenfu',
   reserved_part_number TEXT NOT NULL,
   draft_type TEXT NOT NULL CHECK (draft_type IN ('new_part', 'replacement_part', 'drawing_revision_generated')),
-  item_type TEXT NOT NULL CHECK (item_type IN ('self_made', 'purchased', 'standard')),
+  item_type TEXT NOT NULL CHECK (item_type IN ('self_made', 'purchased')),
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_review', 'released', 'needs_reconfirmation', 'voided')),
   source_part_number_id TEXT,
   source_drawing_number_id TEXT,
@@ -2261,7 +2297,7 @@ CREATE TABLE IF NOT EXISTS numbering_draft_roots (
   company_id TEXT NOT NULL,
   workspace_id TEXT NOT NULL UNIQUE,
   core_name TEXT NOT NULL,
-  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   rule_version_id TEXT NOT NULL,
   candidate_reservation_id TEXT UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -2361,7 +2397,7 @@ CREATE TABLE IF NOT EXISTS numbering_draft_parts (
   root_draft_id TEXT,
   source_root_id TEXT,
   part_name TEXT NOT NULL,
-  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured', 'outsourced', 'shared', 'custom')),
+  item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
   universal_reason TEXT,
   custom_specification TEXT,
@@ -2864,7 +2900,7 @@ CREATE TABLE IF NOT EXISTS pdm_controlled_notes (
   FOREIGN KEY (last_formalization_event_id) REFERENCES drawing_recognition_formalization_events(id) ON DELETE RESTRICT,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
   FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE RESTRICT,
-  CHECK ((part_number_id IS NOT NULL) + (drawing_id IS NOT NULL) + (drawing_revision_id IS NOT NULL) = 1)
+  CHECK (((part_number_id IS NOT NULL)::int + (drawing_id IS NOT NULL)::int + (drawing_revision_id IS NOT NULL)::int) = 1)
 );
 
 CREATE TABLE IF NOT EXISTS drawing_recognition_formalization_links (
@@ -2944,7 +2980,7 @@ CREATE TABLE IF NOT EXISTS pdm_engineering_evidence (
   FOREIGN KEY (session_id) REFERENCES drawing_recognition_sessions(id) ON DELETE RESTRICT,
   FOREIGN KEY (candidate_id) REFERENCES drawing_recognition_candidates(id) ON DELETE RESTRICT,
   FOREIGN KEY (observation_id) REFERENCES drawing_recognition_observations(id) ON DELETE RESTRICT,
-  CHECK ((part_number_id IS NOT NULL) + (drawing_id IS NOT NULL) + (drawing_revision_id IS NOT NULL) = 1)
+  CHECK (((part_number_id IS NOT NULL)::int + (drawing_id IS NOT NULL)::int + (drawing_revision_id IS NOT NULL)::int) = 1)
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_identities_login
@@ -3163,6 +3199,11 @@ ON secret_references(kind)
 WHERE lifecycle_status = 'active';
 CREATE INDEX IF NOT EXISTS idx_setting_test_runs_secret ON setting_test_runs(secret_reference_id, tested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_setting_activation_events_secret ON setting_activation_events(secret_reference_id, event_at DESC);
+CREATE INDEX IF NOT EXISTS idx_settings_secret_probe_jobs_claim ON settings_secret_probe_jobs(status, updated_at ASC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_settings_secret_probe_jobs_active ON settings_secret_probe_jobs(secret_reference_id)
+  WHERE status IN ('pending', 'running');
+CREATE INDEX IF NOT EXISTS idx_settings_secret_probe_jobs_reference ON settings_secret_probe_jobs(secret_reference_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_worker_capability_heartbeats_capability ON worker_capability_heartbeats(capability_code, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_part_roots_status ON part_roots(record_status);
 CREATE INDEX IF NOT EXISTS idx_part_numbers_root_id ON part_numbers(part_root_id);
 CREATE INDEX IF NOT EXISTS idx_part_numbers_status ON part_numbers(record_status);
@@ -3652,4 +3693,4 @@ CREATE TRIGGER trg_pdm_controlled_notes_updated_at
 BEFORE UPDATE ON pdm_controlled_notes
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- CLOUDSQL_REMOVED_TRANSACTION_WRAPPER_SOURCE_LINE:3651
+-- CLOUDSQL_REMOVED_TRANSACTION_WRAPPER_SOURCE_LINE:3692

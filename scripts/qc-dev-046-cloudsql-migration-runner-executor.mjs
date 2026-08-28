@@ -3,7 +3,8 @@
 import { spawnSync } from "node:child_process";
 import {
   DEV046_CLOUDSQL_MIGRATION_APPROVAL,
-  buildDev046CloudSqlMigrationRunPlan
+  buildDev046CloudSqlMigrationRunPlan,
+  requireLiveExecutionApproval
 } from "./run-dev-046-cloudsql-migrations.mjs";
 import { readProjectFile } from "./qc-project-file-utils.mjs";
 
@@ -38,6 +39,19 @@ try {
     PDM_CLOUD_SQL_DATABASE: plan.target.databaseName,
     PDM_CLOUD_SQL_USER: plan.target.migrationIamDatabaseUser
   });
+  const productionPlan = buildDev046CloudSqlMigrationRunPlan("output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json");
+  const productionApproval = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED";
+  const restoreConnectionName = "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-restore-qc-123456";
+  const restoreEnv = {
+    DEV032_CLOUDSQL_MIGRATION_APPROVAL: productionApproval,
+    DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED: productionApproval,
+    DEV032_CLOUDSQL_TARGET_MODE: "isolated_restore",
+    DEV032_PRODUCTION_SOURCE_DATABASE_MUTATION_ALLOWED: "false",
+    PDM_DB_PROVIDER: "cloud_sql_postgres",
+    PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME: restoreConnectionName,
+    PDM_CLOUD_SQL_DATABASE: productionPlan.target.databaseName,
+    PDM_CLOUD_SQL_USER: productionPlan.target.migrationIamDatabaseUser
+  };
 
   record(
     "DEV046-CLOUDSQL-EXEC-001 run plan loads reviewed proposal package",
@@ -107,6 +121,41 @@ try {
     "DEV046-CLOUDSQL-EXEC-010 approval constant is exact and discoverable",
     DEV046_CLOUDSQL_MIGRATION_APPROVAL === "DEV-046-STAGING-CLOUDSQL-MIGRATION-APPROVED" &&
       dryRunPayload.explicitApprovalRequired === DEV046_CLOUDSQL_MIGRATION_APPROVAL
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-011 production isolated restore target is explicitly allowed",
+    (() => {
+      requireLiveExecutionApproval(productionPlan, restoreEnv);
+      return true;
+    })()
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-012 isolated restore mode rejects the production source",
+    (() => {
+      try {
+        requireLiveExecutionApproval(productionPlan, {
+          ...restoreEnv,
+          PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME: productionPlan.target.connectionName
+        });
+        return false;
+      } catch (error) {
+        return error instanceof Error && error.message === "PDM_CLOUD_SQL_ISOLATED_RESTORE_TARGET_REQUIRED";
+      }
+    })()
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-013 isolated restore mode requires an explicit source-mutation denial",
+    (() => {
+      try {
+        requireLiveExecutionApproval(productionPlan, {
+          ...restoreEnv,
+          DEV032_PRODUCTION_SOURCE_DATABASE_MUTATION_ALLOWED: "true"
+        });
+        return false;
+      } catch (error) {
+        return error instanceof Error && error.message === "PRODUCTION_SOURCE_DATABASE_MUTATION_GUARD_MISSING";
+      }
+    })()
   );
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));

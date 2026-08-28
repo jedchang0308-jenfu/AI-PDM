@@ -1,0 +1,81 @@
+{
+  "sourceInvariantPassed": true,
+  "mutations": [
+    {
+      "action": "seed-A0002-revision",
+      "id": "qa-dev087-ui-production-revision",
+      "revision": "1",
+      "lifecycleState": "released",
+      "sourceRevisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "seed-A0002-revision",
+      "id": "qa-dev087-ui-rd-revision",
+      "revision": "1.1",
+      "lifecycleState": "rd_controlled",
+      "sourceRevisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "clear-preexisting-canonical-target-residue",
+      "tables": [
+        "pdm_review_traces",
+        "pdm_work_review_requests",
+        "drawing_revision_work_files",
+        "canonical_workbench_states",
+        "drawing_revision_works",
+        "drawing_revision_claims",
+        "drawing_rd_branches",
+        "pdm_workbench_aggregates",
+        "part_change_works",
+        "relation_change_works",
+        "pdm_workbench_migration_quarantine"
+      ],
+      "targetTableGuards": {
+        "preserved": true,
+        "names": [
+          "trg_canonical_workbench_states_company_guard",
+          "trg_canonical_workbench_states_company_update_guard",
+          "trg_canonical_workbench_states_drawing_reference_guard",
+          "trg_canonical_workbench_states_drawing_reference_update_guard",
+          "trg_canonical_workbench_states_work_guard",
+          "trg_canonical_workbench_states_work_update_guard",
+          "trg_drawing_rd_branches_company_guard",
+          "trg_drawing_rd_branches_company_update_guard",
+          "trg_drawing_revision_claims_approved_no_delete",
+          "trg_drawing_revision_claims_approved_no_update",
+          "trg_drawing_revision_claims_company_guard",
+          "trg_drawing_revision_claims_company_update_guard",
+          "trg_drawing_revision_works_company_guard",
+          "trg_drawing_revision_works_company_update_guard",
+          "trg_part_change_works_company_guard",
+          "trg_part_change_works_company_update_guard",
+          "trg_pdm_review_requests_company_guard",
+          "trg_pdm_review_requests_identity_immutable",
+          "trg_pdm_review_traces_no_delete",
+          "trg_pdm_review_traces_no_update",
+          "trg_relation_change_works_company_guard",
+          "trg_relation_change_works_company_update_guard"
+        ]
+      },
+      "scope": "disposable fixture only before product runtime"
+    },
+    {
+      "action": "resolve-unmapped-legacy-as-retained",
+      "source": "migration manifest",
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "create-rendered-ui-upload-fixtures",
+      "files": [
+        "DEV087-QA.SLDDRW",
+        "DEV087-QA.SLDPRT",
+        "DEV087-QA-RESUBMIT.SLDDRW",
+        "DEV087-QA-RESUBMIT.SLDPRT"
+      ],
+      "scope": "disposable fixture only"
+    }
+  ],
+  "journeyBusinessWrites": "rendered UI only"
+}

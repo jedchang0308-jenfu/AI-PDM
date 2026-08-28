@@ -1,0 +1,422 @@
+{
+  "devId": "DEV-087",
+  "runId": "DEV087-2026-08-28T17-01-29-669Z",
+  "parentRunId": null,
+  "status": "FAIL",
+  "port": 50403,
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087\\DEV087-2026-08-28T17-01-29-669Z",
+  "sourceInvariantCheckedBeforeMutation": true,
+  "primaryInvariant": {
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "unchanged": true
+  },
+  "fixtureMutationLedger": [
+    {
+      "action": "seed-A0002-production-and-rd-revisions",
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "prepare-valid-formal-obsolete-fixture",
+      "identities": [
+        "A0002-M01",
+        "A0002-P01"
+      ],
+      "statuses": {
+        "drawingNumber": "Released",
+        "partNumber": "Released",
+        "canonicalDrawing": "released"
+      },
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "clear-preexisting-canonical-target-residue",
+      "tables": [
+        "pdm_review_traces",
+        "pdm_work_review_requests",
+        "drawing_revision_work_files",
+        "canonical_workbench_states",
+        "drawing_revision_works",
+        "drawing_revision_claims",
+        "drawing_rd_branches",
+        "pdm_workbench_aggregates",
+        "part_change_works",
+        "relation_change_works",
+        "pdm_workbench_migration_quarantine"
+      ],
+      "targetTableGuards": {
+        "preserved": true,
+        "names": [
+          "trg_canonical_workbench_states_company_guard",
+          "trg_canonical_workbench_states_company_update_guard",
+          "trg_canonical_workbench_states_drawing_reference_guard",
+          "trg_canonical_workbench_states_drawing_reference_update_guard",
+          "trg_canonical_workbench_states_work_guard",
+          "trg_canonical_workbench_states_work_update_guard",
+          "trg_drawing_rd_branches_company_guard",
+          "trg_drawing_rd_branches_company_update_guard",
+          "trg_drawing_revision_claims_approved_no_delete",
+          "trg_drawing_revision_claims_approved_no_update",
+          "trg_drawing_revision_claims_company_guard",
+          "trg_drawing_revision_claims_company_update_guard",
+          "trg_drawing_revision_works_company_guard",
+          "trg_drawing_revision_works_company_update_guard",
+          "trg_part_change_works_company_guard",
+          "trg_part_change_works_company_update_guard",
+          "trg_pdm_review_requests_company_guard",
+          "trg_pdm_review_requests_identity_immutable",
+          "trg_pdm_review_traces_no_delete",
+          "trg_pdm_review_traces_no_update",
+          "trg_relation_change_works_company_guard",
+          "trg_relation_change_works_company_update_guard"
+        ]
+      },
+      "scope": "disposable fixture only before product runtime"
+    },
+    {
+      "action": "prepare-inline-matrix-read-fixtures",
+      "roots": [
+        "A0999",
+        "A0003",
+        "A0010"
+      ],
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "migrate-dev-087-canonical-workbench",
+      "status": 0,
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "set-disposable-authority-control",
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "seed-functional-browser-part-task-notification-pagination-fixtures",
+      "ids": [
+        "A0002-P02",
+        "A0002-P03..P47",
+        "A0002-R99 initial 0.1 work",
+        "qa-dev087-browser-task-*",
+        "qa-dev087-browser-notification-*"
+      ],
+      "scope": "disposable fixture only after canonical migration"
+    }
+  ],
+  "caseReceipts": [],
+  "functionalCaseReceipts": [
+    {
+      "caseId": "QA-087-198",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T17-01-29-669Z/cases/QA-087-198/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T17-01-29-669Z/cases/QA-087-198/QA-087-198.png"
+    },
+    {
+      "caseId": "QA-087-200",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T17-01-29-669Z/cases/QA-087-200/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T17-01-29-669Z/cases/QA-087-200/QA-087-200.png"
+    },
+    {
+      "caseId": "QA-087-201",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T17-01-29-669Z/cases/QA-087-201/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T17-01-29-669Z/cases/QA-087-201/QA-087-201.png"
+    },
+    {
+      "caseId": "QA-087-199",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T17-01-29-669Z/cases/QA-087-199/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T17-01-29-669Z/cases/QA-087-199/QA-087-199.png"
+    }
+  ],
+  "matrixMutationRequests": [],
+  "total": 49,
+  "passed": 47,
+  "failed": 2,
+  "checks": [
+    {
+      "name": "primary source invariant before fixture",
+      "pass": true,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "name": "source snapshot root and part masters exist before fixture mutation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "source snapshot foreign keys clean before fixture mutation",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "source snapshot has no company-scope migration residue before fixture mutation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "source snapshot root references resolve before fixture mutation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "SQLite backup is an exact protected source snapshot before mutation",
+      "pass": true,
+      "detail": "{\"primaryBefore\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"fixtureSnapshot\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    },
+    {
+      "name": "browser fixture has A0002 canonical drawing revision source",
+      "pass": true,
+      "detail": "{\"drawing\":{\"id\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"company_id\":\"company-jenfu\",\"created_by\":\"production-user-0003\"},\"baseRevision\":{\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"company_id\":\"company-jenfu\",\"drawing_id\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"revision\":\"0.1\",\"lifecycle_state\":\"rd_controlled\",\"policy_snapshot_json\":\"{\\\"policyVersion\\\":\\\"dev098-bounded-manual-minor-v1\\\"}\",\"override_reason\":null,\"row_version\":1,\"approval_request_id\":null,\"review_snapshot_hash\":null,\"source_candidate_revision_id\":null,\"source_revision_package_id\":null,\"created_by\":\"production-user-0003\",\"created_at\":\"2026-07-22T01:06:46.814Z\",\"updated_by\":\"production-user-0003\",\"updated_at\":\"2026-08-27 15:32:00\",\"submitted_at\":null,\"controlled_at\":\"2026-08-27 15:32:00\",\"released_at\":null,\"superseded_at\":null,\"cancelled_at\":null}}"
+    },
+    {
+      "name": "browser fixture has A0003 two-axis matrix source",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser fixture has A0010 single-axis source",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser fixture remains FK-clean after target residue preparation",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "isolated migration applied or safely quarantined",
+      "pass": true,
+      "detail": "{\n  \"status\": \"PASS\",\n  \"apply\": true,\n  \"switchCanonical\": true,\n  \"unresolved\": 0,\n  \"identityHash\": \"a59168bd158892cf50b31549c54f70bb2a7a31e9223cb66efa2bdac5f1c942b8\",\n  \"manifestPath\": \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-browser-z458dq\\\\migration\\\\manifest.json\"\n}\n\n"
+    },
+    {
+      "name": "browser fixture has A0002 root and source Part for functional cases",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "fixture remains FK-clean after declared mutations",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "isolated fixture has A0002 production and RD rows",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "系統管理員 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:50403/"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-198 exact formal row is visible",
+      "pass": true,
+      "detail": "A0002-M01"
+    },
+    {
+      "name": "QA-087-198 formal obsolete request accepted from rendered modal",
+      "pass": true,
+      "detail": "{\"approvalRequest\":{\"id\":\"e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\",\"actionCode\":\"obsolete_ma_drawing\",\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 QA-087-198 rendered formal obsolete rejected\",\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T17:01:56.682Z\"},\"approvalBatch\":{\"id\":\"d1a93651-a87b-4c6b-9e48-30dae0b5b28a\",\"batchCode\":\"NB-MTD78LL7-1\",\"projectCode\":null,\"actionCode\":\"obsolete_ma_drawing\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T17:01:56.683Z\",\"items\":[{\"id\":\"38e46d51-4606-431a-8c9d-66e8d2e003e1\",\"batchId\":\"d1a93651-a87b-4c6b-9e48-30dae0b5b28a\",\"approvalRequestId\":\"e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"entityCode\":\"A0002-M01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_ma_drawing\"},\"policy\":{\"entityType\":\"numbering_drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}"
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:50403/"
+    },
+    {
+      "name": "QA-087-198 reviewer inbox contains the exact created request",
+      "pass": true,
+      "detail": "{\"expectedInboxId\":\"legacy:legacy_numbering:e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\",\"inboxIds\":[\"legacy:legacy_numbering:e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\"]}"
+    },
+    {
+      "name": "QA-087-198 formal obsolete decision has exact terminal readback",
+      "pass": true,
+      "detail": "{\"decisionBody\":{\"request\":{\"rowKey\":\"approval:legacy_numbering:legacy:legacy_numbering:e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\",\"id\":\"legacy:legacy_numbering:e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\",\"source\":\"legacy_numbering\",\"companyId\":\"company-jenfu\",\"actionCode\":\"numbering.obsolete_ma_drawing\",\"actionTitle\":\"圖號作廢審核\",\"domainCode\":\"numbering\",\"title\":\"圖號作廢審核 - A0002-M01\",\"status\":\"rejected\",\"reason\":\"DEV087 QA-087-198 rendered formal obsolete rejected\",\"requestedBy\":\"user-admin-local-quick\",\"requestedByName\":\"Demo Admin\",\"requestedAt\":\"2026-08-28T17:01:56.682Z\",\"packageId\":\"legacy:legacy_numbering:d1a93651-a87b-4c6b-9e48-30dae0b5b28a\",\"packageCode\":\"NB-MTD78LL7-1\",\"packageStatus\":\"pending\",\"targetSummary\":\"A0002-M01\",\"impactSummary\":\"Released\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\"},\"primaryTarget\":{\"type\":\"drawing_number\",\"targetId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"label\":\"\"},\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null},\"targets\":[{\"id\":\"legacy:legacy_numbering:e8e3ff21-b65c-4797-8bd7-9cbde0923dcb:target\",\"role\":\"primary\",\"type\":\"drawing_number\",\"targetId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"label\":\"\",\"status\":\"rejected\",\"snapshot\":{\"legacy\":{\"table\":\"approval_requests\",\"id\":\"e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\"}}}],\"impactSnapshots\":[{\"id\":\"legacy:legacy_numbering:e8e3ff21-b65c-4797-8bd7-9cbde0923dcb:impact\",\"snapshotHash\":\"170a8ab93e365e91e6770e2769ee14da3ce8d66ca5d77b0128da30c780a01eeb\",\"snapshot\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null,\"targetSummary\":\"A0002-M01\",\"impactSummary\":\"Released\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\"}},\"capturedBy\":\"user-admin-local-quick\",\"capturedAt\":\"2026-08-28T17:01:56.682Z\"}],\"decisions\":[{\"id\":\"36a3960e-edf5-4ade-85f1-2b10610bacde\",\"requestId\":\"legacy:legacy_numbering:e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\",\"approverRole\":\"R&D Manager\",\"approverId\":\"user-manager-demo\",\"approverName\":\"R&D Manager\",\"decision\":\"rejected\",\"comment\":null,\"decidedAt\":\"2026-08-28T17:02:12.452Z\"}],\"events\":[],\"applyStatus\":null,\"applyAttempts\":null,\"applyError\":null}},\"dbReadback\":{\"row\":{\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"company_id\":\"company-jenfu\",\"code\":\"A0002-M01\",\"record_status\":\"Released\",\"updated_at\":\"2026-08-28 17:01:30\"},\"requests\":[{\"id\":\"e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\",\"action_code\":\"obsolete_ma_drawing\",\"request_status\":\"rejected\",\"payload_json\":\"{\\\"lifecycleAction\\\":\\\"obsolete\\\",\\\"entityCode\\\":\\\"A0002-M01\\\",\\\"drawingNumber\\\":\\\"A0002-M01\\\",\\\"previousRecordStatus\\\":\\\"Released\\\",\\\"impactFingerprint\\\":\\\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\\\",\\\"impactDependencies\\\":[{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"4a2511e1-3182-448f-a54e-4614afa2cd4c\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"53eb60d6-f56a-4181-b133-85bd46c5c54d\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-1\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-2\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-3\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-1\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-2\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-3\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"c076f20b-21d0-4061-a9bf-148060995162\\\",\\\"code\\\":\\\"0.1\\\",\\\"disposition\\\":\\\"rd_controlled\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision\\\",\\\"code\\\":\\\"1\\\",\\\"disposition\\\":\\\"released\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision\\\",\\\"code\\\":\\\"1.1\\\",\\\"disposition\\\":\\\"rd_controlled\\\"},{\\\"kind\\\":\\\"part_relation\\\",\\\"id\\\":\\\"part-number-593efe73-6225-42a7-9507-c63602b73169\\\",\\\"code\\\":\\\"A0002-P01\\\",\\\"disposition\\\":\\\"primary_manufacturing\\\"}],\\\"projectCode\\\":null}\",\"resolved_by\":\"user-manager-demo\",\"resolved_at\":\"2026-08-28T17:02:12.452Z\"}],\"decisions\":[{\"request_id\":\"e8e3ff21-b65c-4797-8bd7-9cbde0923dcb\",\"decision\":\"rejected\",\"approver_id\":\"user-manager-demo\",\"comment\":null}]},\"expectedStatus\":\"Released\"}"
+    },
+    {
+      "name": "QA-087-198 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-200 exact formal row is visible",
+      "pass": true,
+      "detail": "A0002-P01"
+    },
+    {
+      "name": "QA-087-200 formal obsolete request accepted from rendered modal",
+      "pass": true,
+      "detail": "{\"approvalRequest\":{\"id\":\"082afc23-3046-4735-9579-3666f920d94b\",\"actionCode\":\"obsolete_part_number\",\"entityType\":\"part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 QA-087-200 rendered formal obsolete rejected\",\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T17:02:19.968Z\"},\"approvalBatch\":{\"id\":\"d574ecc8-38c6-430f-bb79-87b908276c34\",\"batchCode\":\"NB-MTD793K1-1\",\"projectCode\":null,\"actionCode\":\"obsolete_part_number\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T17:02:19.969Z\",\"items\":[{\"id\":\"4ef97ba5-208e-459d-b18c-c2cca3f62fa5\",\"batchId\":\"d574ecc8-38c6-430f-bb79-87b908276c34\",\"approvalRequestId\":\"082afc23-3046-4735-9579-3666f920d94b\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"entityCode\":\"A0002-P01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_part_number\"},\"policy\":{\"entityType\":\"numbering_part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}"
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:50403/"
+    },
+    {
+      "name": "QA-087-200 reviewer inbox contains the exact created request",
+      "pass": true,
+      "detail": "{\"expectedInboxId\":\"legacy:legacy_numbering:082afc23-3046-4735-9579-3666f920d94b\",\"inboxIds\":[\"legacy:legacy_numbering:082afc23-3046-4735-9579-3666f920d94b\"]}"
+    },
+    {
+      "name": "QA-087-200 formal obsolete decision has exact terminal readback",
+      "pass": true,
+      "detail": "{\"decisionBody\":{\"request\":{\"rowKey\":\"approval:legacy_numbering:legacy:legacy_numbering:082afc23-3046-4735-9579-3666f920d94b\",\"id\":\"legacy:legacy_numbering:082afc23-3046-4735-9579-3666f920d94b\",\"source\":\"legacy_numbering\",\"companyId\":\"company-jenfu\",\"actionCode\":\"numbering.obsolete_part_number\",\"actionTitle\":\"料號作廢審核\",\"domainCode\":\"numbering\",\"title\":\"料號作廢審核 - A0002-P01\",\"status\":\"rejected\",\"reason\":\"DEV087 QA-087-200 rendered formal obsolete rejected\",\"requestedBy\":\"user-admin-local-quick\",\"requestedByName\":\"Demo Admin\",\"requestedAt\":\"2026-08-28T17:02:19.968Z\",\"packageId\":\"legacy:legacy_numbering:d574ecc8-38c6-430f-bb79-87b908276c34\",\"packageCode\":\"NB-MTD793K1-1\",\"packageStatus\":\"pending\",\"targetSummary\":\"A0002-P01\",\"impactSummary\":\"Released\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"082afc23-3046-4735-9579-3666f920d94b\"},\"primaryTarget\":{\"type\":\"part_number\",\"targetId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"label\":\"本體_BS_右_Xx5\"},\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null},\"targets\":[{\"id\":\"legacy:legacy_numbering:082afc23-3046-4735-9579-3666f920d94b:target\",\"role\":\"primary\",\"type\":\"part_number\",\"targetId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"label\":\"本體_BS_右_Xx5\",\"status\":\"rejected\",\"snapshot\":{\"legacy\":{\"table\":\"approval_requests\",\"id\":\"082afc23-3046-4735-9579-3666f920d94b\"}}}],\"impactSnapshots\":[{\"id\":\"legacy:legacy_numbering:082afc23-3046-4735-9579-3666f920d94b:impact\",\"snapshotHash\":\"c2508780e0f22147c58dda27b78f33bc181258a9e51c399326ebc540a984519b\",\"snapshot\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null,\"targetSummary\":\"A0002-P01\",\"impactSummary\":\"Released\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"082afc23-3046-4735-9579-3666f920d94b\"}},\"capturedBy\":\"user-admin-local-quick\",\"capturedAt\":\"2026-08-28T17:02:19.968Z\"}],\"decisions\":[{\"id\":\"8c079ff8-b6e7-49df-89fa-6eb7fed20066\",\"requestId\":\"legacy:legacy_numbering:082afc23-3046-4735-9579-3666f920d94b\",\"approverRole\":\"R&D Manager\",\"approverId\":\"user-manager-demo\",\"approverName\":\"R&D Manager\",\"decision\":\"rejected\",\"comment\":null,\"decidedAt\":\"2026-08-28T17:02:24.402Z\"}],\"events\":[],\"applyStatus\":null,\"applyAttempts\":null,\"applyError\":null}},\"dbReadback\":{\"row\":{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"company_id\":\"company-jenfu\",\"code\":\"A0002-P01\",\"record_status\":\"Released\",\"updated_at\":\"2026-08-28 17:01:30\"},\"requests\":[{\"id\":\"082afc23-3046-4735-9579-3666f920d94b\",\"action_code\":\"obsolete_part_number\",\"request_status\":\"rejected\",\"payload_json\":\"{\\\"lifecycleAction\\\":\\\"obsolete\\\",\\\"entityCode\\\":\\\"A0002-P01\\\",\\\"partNumber\\\":\\\"A0002-P01\\\",\\\"previousRecordStatus\\\":\\\"Released\\\",\\\"impactFingerprint\\\":\\\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\\\",\\\"impactDependencies\\\":[{\\\"kind\\\":\\\"drawing_relation\\\",\\\"id\\\":\\\"87000000-0000-4000-8000-000000000001\\\",\\\"code\\\":\\\"A0002-R99\\\",\\\"disposition\\\":\\\"reference:Draft\\\"},{\\\"kind\\\":\\\"drawing_relation\\\",\\\"id\\\":\\\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\\\",\\\"code\\\":\\\"A0002-M01\\\",\\\"disposition\\\":\\\"primary_manufacturing:Released\\\"}],\\\"projectCode\\\":null}\",\"resolved_by\":\"user-manager-demo\",\"resolved_at\":\"2026-08-28T17:02:24.402Z\"}],\"decisions\":[{\"request_id\":\"082afc23-3046-4735-9579-3666f920d94b\",\"decision\":\"rejected\",\"approver_id\":\"user-manager-demo\",\"comment\":null}]},\"expectedStatus\":\"Released\"}"
+    },
+    {
+      "name": "QA-087-200 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-201 exact formal row is visible",
+      "pass": true,
+      "detail": "A0002-P01"
+    },
+    {
+      "name": "QA-087-201 formal obsolete request accepted from rendered modal",
+      "pass": true,
+      "detail": "{\"approvalRequest\":{\"id\":\"24e492c7-c66d-435c-88ca-52af5ae298a9\",\"actionCode\":\"obsolete_part_number\",\"entityType\":\"part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 QA-087-201 rendered formal obsolete approved\",\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T17:02:26.343Z\"},\"approvalBatch\":{\"id\":\"943a1a95-5051-4c0b-86b2-b3440aa3357a\",\"batchCode\":\"NB-MTD798H4-1\",\"projectCode\":null,\"actionCode\":\"obsolete_part_number\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T17:02:26.344Z\",\"items\":[{\"id\":\"32b337e9-67d4-488b-be24-512ee21151ec\",\"batchId\":\"943a1a95-5051-4c0b-86b2-b3440aa3357a\",\"approvalRequestId\":\"24e492c7-c66d-435c-88ca-52af5ae298a9\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"entityCode\":\"A0002-P01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_part_number\"},\"policy\":{\"entityType\":\"numbering_part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}"
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:50403/"
+    },
+    {
+      "name": "QA-087-201 reviewer inbox contains the exact created request",
+      "pass": true,
+      "detail": "{\"expectedInboxId\":\"legacy:legacy_numbering:24e492c7-c66d-435c-88ca-52af5ae298a9\",\"inboxIds\":[\"legacy:legacy_numbering:24e492c7-c66d-435c-88ca-52af5ae298a9\"]}"
+    },
+    {
+      "name": "QA-087-201 formal obsolete decision has exact terminal readback",
+      "pass": true,
+      "detail": "{\"decisionBody\":{\"request\":{\"rowKey\":\"approval:legacy_numbering:legacy:legacy_numbering:24e492c7-c66d-435c-88ca-52af5ae298a9\",\"id\":\"legacy:legacy_numbering:24e492c7-c66d-435c-88ca-52af5ae298a9\",\"source\":\"legacy_numbering\",\"companyId\":\"company-jenfu\",\"actionCode\":\"numbering.obsolete_part_number\",\"actionTitle\":\"料號作廢審核\",\"domainCode\":\"numbering\",\"title\":\"料號作廢審核 - A0002-P01\",\"status\":\"approved\",\"reason\":\"DEV087 QA-087-201 rendered formal obsolete approved\",\"requestedBy\":\"user-admin-local-quick\",\"requestedByName\":\"Demo Admin\",\"requestedAt\":\"2026-08-28T17:02:26.343Z\",\"packageId\":\"legacy:legacy_numbering:943a1a95-5051-4c0b-86b2-b3440aa3357a\",\"packageCode\":\"NB-MTD798H4-1\",\"packageStatus\":\"pending\",\"targetSummary\":\"A0002-P01\",\"impactSummary\":\"Obsolete\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"24e492c7-c66d-435c-88ca-52af5ae298a9\"},\"primaryTarget\":{\"type\":\"part_number\",\"targetId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"label\":\"本體_BS_右_Xx5\"},\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null},\"targets\":[{\"id\":\"legacy:legacy_numbering:24e492c7-c66d-435c-88ca-52af5ae298a9:target\",\"role\":\"primary\",\"type\":\"part_number\",\"targetId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"label\":\"本體_BS_右_Xx5\",\"status\":\"approved\",\"snapshot\":{\"legacy\":{\"table\":\"approval_requests\",\"id\":\"24e492c7-c66d-435c-88ca-52af5ae298a9\"}}}],\"impactSnapshots\":[{\"id\":\"legacy:legacy_numbering:24e492c7-c66d-435c-88ca-52af5ae298a9:impact\",\"snapshotHash\":\"35c56d66bdfa4354ec622d671506c883e8f1248ba9f34eb7e9af809c68e3484a\",\"snapshot\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null,\"targetSummary\":\"A0002-P01\",\"impactSummary\":\"Obsolete\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"24e492c7-c66d-435c-88ca-52af5ae298a9\"}},\"capturedBy\":\"user-admin-local-quick\",\"capturedAt\":\"2026-08-28T17:02:26.343Z\"}],\"decisions\":[{\"id\":\"c0229d9f-3dc1-44b3-910b-e4046c77dd72\",\"requestId\":\"legacy:legacy_numbering:24e492c7-c66d-435c-88ca-52af5ae298a9\",\"approverRole\":\"R&D Manager\",\"approverId\":\"user-manager-demo\",\"approverName\":\"R&D Manager\",\"decision\":\"approved\",\"comment\":null,\"decidedAt\":\"2026-08-28T17:02:30.751Z\"}],\"events\":[],\"applyStatus\":null,\"applyAttempts\":null,\"applyError\":null}},\"dbReadback\":{\"row\":{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"company_id\":\"company-jenfu\",\"code\":\"A0002-P01\",\"record_status\":\"Obsolete\",\"updated_at\":\"2026-08-28T17:02:30.754Z\"},\"requests\":[{\"id\":\"24e492c7-c66d-435c-88ca-52af5ae298a9\",\"action_code\":\"obsolete_part_number\",\"request_status\":\"approved\",\"payload_json\":\"{\\\"lifecycleAction\\\":\\\"obsolete\\\",\\\"entityCode\\\":\\\"A0002-P01\\\",\\\"partNumber\\\":\\\"A0002-P01\\\",\\\"previousRecordStatus\\\":\\\"Released\\\",\\\"impactFingerprint\\\":\\\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\\\",\\\"impactDependencies\\\":[{\\\"kind\\\":\\\"drawing_relation\\\",\\\"id\\\":\\\"87000000-0000-4000-8000-000000000001\\\",\\\"code\\\":\\\"A0002-R99\\\",\\\"disposition\\\":\\\"reference:Draft\\\"},{\\\"kind\\\":\\\"drawing_relation\\\",\\\"id\\\":\\\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\\\",\\\"code\\\":\\\"A0002-M01\\\",\\\"disposition\\\":\\\"primary_manufacturing:Released\\\"}],\\\"projectCode\\\":null}\",\"resolved_by\":\"user-manager-demo\",\"resolved_at\":\"2026-08-28T17:02:30.751Z\"}],\"decisions\":[{\"request_id\":\"24e492c7-c66d-435c-88ca-52af5ae298a9\",\"decision\":\"approved\",\"approver_id\":\"user-manager-demo\",\"comment\":null}]},\"expectedStatus\":\"Obsolete\"}"
+    },
+    {
+      "name": "QA-087-201 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-199 exact formal row is visible",
+      "pass": true,
+      "detail": "A0002-M01"
+    },
+    {
+      "name": "QA-087-199 formal obsolete request accepted from rendered modal",
+      "pass": true,
+      "detail": "{\"approvalRequest\":{\"id\":\"2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\",\"actionCode\":\"obsolete_ma_drawing\",\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 QA-087-199 rendered formal obsolete approved\",\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T17:02:33.036Z\"},\"approvalBatch\":{\"id\":\"9ef82e54-dc90-4e6b-a01a-b4fb27cbd14c\",\"batchCode\":\"NB-MTD79DN1-1\",\"projectCode\":null,\"actionCode\":\"obsolete_ma_drawing\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T17:02:33.037Z\",\"items\":[{\"id\":\"f263f29e-7b82-4cb5-ab3e-830642266b89\",\"batchId\":\"9ef82e54-dc90-4e6b-a01a-b4fb27cbd14c\",\"approvalRequestId\":\"2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"entityCode\":\"A0002-M01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_ma_drawing\"},\"policy\":{\"entityType\":\"numbering_drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}"
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:50403/"
+    },
+    {
+      "name": "QA-087-199 reviewer inbox contains the exact created request",
+      "pass": true,
+      "detail": "{\"expectedInboxId\":\"legacy:legacy_numbering:2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\",\"inboxIds\":[\"legacy:legacy_numbering:2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\"]}"
+    },
+    {
+      "name": "QA-087-199 formal obsolete decision has exact terminal readback",
+      "pass": true,
+      "detail": "{\"decisionBody\":{\"request\":{\"rowKey\":\"approval:legacy_numbering:legacy:legacy_numbering:2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\",\"id\":\"legacy:legacy_numbering:2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\",\"source\":\"legacy_numbering\",\"companyId\":\"company-jenfu\",\"actionCode\":\"numbering.obsolete_ma_drawing\",\"actionTitle\":\"圖號作廢審核\",\"domainCode\":\"numbering\",\"title\":\"圖號作廢審核 - A0002-M01\",\"status\":\"approved\",\"reason\":\"DEV087 QA-087-199 rendered formal obsolete approved\",\"requestedBy\":\"user-admin-local-quick\",\"requestedByName\":\"Demo Admin\",\"requestedAt\":\"2026-08-28T17:02:33.036Z\",\"packageId\":\"legacy:legacy_numbering:9ef82e54-dc90-4e6b-a01a-b4fb27cbd14c\",\"packageCode\":\"NB-MTD79DN1-1\",\"packageStatus\":\"pending\",\"targetSummary\":\"A0002-M01\",\"impactSummary\":\"Obsolete\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\"},\"primaryTarget\":{\"type\":\"drawing_number\",\"targetId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"label\":\"\"},\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null},\"targets\":[{\"id\":\"legacy:legacy_numbering:2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70:target\",\"role\":\"primary\",\"type\":\"drawing_number\",\"targetId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"label\":\"\",\"status\":\"approved\",\"snapshot\":{\"legacy\":{\"table\":\"approval_requests\",\"id\":\"2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\"}}}],\"impactSnapshots\":[{\"id\":\"legacy:legacy_numbering:2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70:impact\",\"snapshotHash\":\"9ae91d871573d342fd0d566417a95f5bf1d8cc704b5e91d0893449813b7dbce7\",\"snapshot\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null,\"targetSummary\":\"A0002-M01\",\"impactSummary\":\"Obsolete\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\"}},\"capturedBy\":\"user-admin-local-quick\",\"capturedAt\":\"2026-08-28T17:02:33.036Z\"}],\"decisions\":[{\"id\":\"1ce8f5c8-f896-445a-80cf-fe1c01f65044\",\"requestId\":\"legacy:legacy_numbering:2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\",\"approverRole\":\"R&D Manager\",\"approverId\":\"user-manager-demo\",\"approverName\":\"R&D Manager\",\"decision\":\"approved\",\"comment\":null,\"decidedAt\":\"2026-08-28T17:02:37.494Z\"}],\"events\":[],\"applyStatus\":null,\"applyAttempts\":null,\"applyError\":null}},\"dbReadback\":{\"row\":{\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"company_id\":\"company-jenfu\",\"code\":\"A0002-M01\",\"record_status\":\"Obsolete\",\"updated_at\":\"2026-08-28T17:02:37.497Z\"},\"requests\":[{\"id\":\"2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\",\"action_code\":\"obsolete_ma_drawing\",\"request_status\":\"approved\",\"payload_json\":\"{\\\"lifecycleAction\\\":\\\"obsolete\\\",\\\"entityCode\\\":\\\"A0002-M01\\\",\\\"drawingNumber\\\":\\\"A0002-M01\\\",\\\"previousRecordStatus\\\":\\\"Released\\\",\\\"impactFingerprint\\\":\\\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\\\",\\\"impactDependencies\\\":[{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"4a2511e1-3182-448f-a54e-4614afa2cd4c\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"53eb60d6-f56a-4181-b133-85bd46c5c54d\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-1\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-2\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-3\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-1\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-2\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-3\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"c076f20b-21d0-4061-a9bf-148060995162\\\",\\\"code\\\":\\\"0.1\\\",\\\"disposition\\\":\\\"rd_controlled\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision\\\",\\\"code\\\":\\\"1\\\",\\\"disposition\\\":\\\"released\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision\\\",\\\"code\\\":\\\"1.1\\\",\\\"disposition\\\":\\\"rd_controlled\\\"},{\\\"kind\\\":\\\"part_relation\\\",\\\"id\\\":\\\"part-number-593efe73-6225-42a7-9507-c63602b73169\\\",\\\"code\\\":\\\"A0002-P01\\\",\\\"disposition\\\":\\\"primary_manufacturing\\\"}],\\\"projectCode\\\":null}\",\"resolved_by\":\"user-manager-demo\",\"resolved_at\":\"2026-08-28T17:02:37.494Z\"}],\"decisions\":[{\"request_id\":\"2c9d5c53-f2cd-4beb-bb31-6f3c5e7bbf70\",\"decision\":\"approved\",\"approver_id\":\"user-manager-demo\",\"comment\":null}]},\"expectedStatus\":\"Obsolete\"}"
+    },
+    {
+      "name": "QA-087-199 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "functional browser emits exact 25-case roster once",
+      "pass": false,
+      "detail": "{\"expectedFunctionalCaseIds\":[\"QA-087-187\",\"QA-087-188\",\"QA-087-189\",\"QA-087-190\",\"QA-087-191\",\"QA-087-192\",\"QA-087-193\",\"QA-087-198\",\"QA-087-199\",\"QA-087-200\",\"QA-087-201\",\"QA-087-203\",\"QA-087-204\",\"QA-087-205\",\"QA-087-207\",\"QA-087-208\",\"QA-087-209\",\"QA-087-210\",\"QA-087-211\",\"QA-087-212\",\"QA-087-213\",\"QA-087-214\",\"QA-087-215\",\"QA-087-216\",\"QA-087-217\"],\"actualFunctionalCaseIds\":[\"QA-087-198\",\"QA-087-199\",\"QA-087-200\",\"QA-087-201\"]}"
+    },
+    {
+      "name": "browser execution",
+      "pass": false,
+      "detail": "Error: functional browser emits exact 25-case roster once: {\"expectedFunctionalCaseIds\":[\"QA-087-187\",\"QA-087-188\",\"QA-087-189\",\"QA-087-190\",\"QA-087-191\",\"QA-087-192\",\"QA-087-193\",\"QA-087-198\",\"QA-087-199\",\"QA-087-200\",\"QA-087-201\",\"QA-087-203\",\"QA-087-204\",\"QA-087-205\",\"QA-087-207\",\"QA-087-208\",\"QA-087-209\",\"QA-087-210\",\"QA-087-211\",\"QA-087-212\",\"QA-087-213\",\"QA-087-214\",\"QA-087-215\",\"QA-087-216\",\"QA-087-217\"],\"actualFunctionalCaseIds\":[\"QA-087-198\",\"QA-087-199\",\"QA-087-200\",\"QA-087-201\"]}\n    at check (file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-087-browser.mjs:58:20)\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-087-browser.mjs:1661:3"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=50403"
+    },
+    {
+      "name": "temporary runtime dist removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-browser-50403\",\"error\":null}"
+    },
+    {
+      "name": "next-env restored after task runtime",
+      "pass": true,
+      "detail": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\next-env.d.ts"
+    },
+    {
+      "name": "primary source invariant unchanged after runtime",
+      "pass": true,
+      "detail": "{\"primaryBefore\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"primaryAfter\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    }
+  ],
+  "consoleErrors": [],
+  "failures": []
+}

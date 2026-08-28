@@ -281,7 +281,6 @@ async function inspectCandidate(client: AsyncDatabaseClient, rows: CandidateRow[
     ["markup_dependency", "SELECT COUNT(*) AS count FROM pdf_markups WHERE submission_id = :submissionId"],
     ["change_request_dependency", "SELECT COUNT(*) AS count FROM change_requests WHERE submission_id = :submissionId"],
     ["sandbox_dependency", "SELECT COUNT(*) AS count FROM sandbox_branches WHERE source_submission_id = :submissionId OR sandbox_submission_id = :submissionId"],
-    ["bom_dependency", "SELECT COUNT(*) AS count FROM bom_drafts WHERE parent_submission_id = :submissionId"],
     ["supplement_dependency", "SELECT COUNT(*) AS count FROM drawing_revision_package_supplements WHERE package_id = :packageId"]
   ] as const;
   for (const [code, sql] of dependencyChecks) {

@@ -1,0 +1,118 @@
+{
+  "created": {
+    "drawingCode": "A0060-M01",
+    "exists": true,
+    "aggregate": {
+      "open_branch_count": 1,
+      "row_version": 1
+    },
+    "rows": [
+      {
+        "data_layer": "drawing_rd",
+        "handling": "owner",
+        "work_id": "c9a3bce1-b84a-4414-b931-1ead7378464f",
+        "row_version": 1,
+        "revision": "0.1",
+        "lifecycle_state": "preparing",
+        "branch_status": "open",
+        "closed_reason": null,
+        "base_production_revision_id": null
+      }
+    ],
+    "branches": [
+      {
+        "id": "0971af68-93af-490d-a6cd-446067172f7d",
+        "status": "open",
+        "closed_reason": null,
+        "base_production_revision": null,
+        "latest_approved_revision": null
+      }
+    ],
+    "claims": [
+      {
+        "target_label": "0.1",
+        "claim_state": "work",
+        "predecessor_revision_id": null
+      }
+    ],
+    "revisions": [
+      {
+        "revision": "0.1",
+        "lifecycle_state": "preparing",
+        "row_version": 1,
+        "controlled": 0,
+        "released": 0,
+        "cancelled": 0
+      }
+    ],
+    "works": [
+      {
+        "id": "c9a3bce1-b84a-4414-b931-1ead7378464f",
+        "row_version": 1,
+        "target_label": "0.1",
+        "handling": "owner",
+        "file_count": 0
+      }
+    ],
+    "files": [],
+    "reviewRequests": []
+  },
+  "final": {
+    "drawingCode": "A0060-M01",
+    "exists": true,
+    "aggregate": {
+      "open_branch_count": 1,
+      "row_version": 1
+    },
+    "rows": [
+      {
+        "data_layer": "drawing_rd",
+        "handling": "owner",
+        "work_id": "c9a3bce1-b84a-4414-b931-1ead7378464f",
+        "row_version": 1,
+        "revision": "0.1",
+        "lifecycle_state": "preparing",
+        "branch_status": "open",
+        "closed_reason": null,
+        "base_production_revision_id": null
+      }
+    ],
+    "branches": [
+      {
+        "id": "0971af68-93af-490d-a6cd-446067172f7d",
+        "status": "open",
+        "closed_reason": null,
+        "base_production_revision": null,
+        "latest_approved_revision": null
+      }
+    ],
+    "claims": [
+      {
+        "target_label": "0.1",
+        "claim_state": "work",
+        "predecessor_revision_id": null
+      }
+    ],
+    "revisions": [
+      {
+        "revision": "0.1",
+        "lifecycle_state": "preparing",
+        "row_version": 1,
+        "controlled": 0,
+        "released": 0,
+        "cancelled": 0
+      }
+    ],
+    "works": [
+      {
+        "id": "c9a3bce1-b84a-4414-b931-1ead7378464f",
+        "row_version": 1,
+        "target_label": "0.1",
+        "handling": "owner",
+        "file_count": 0
+      }
+    ],
+    "files": [],
+    "reviewRequests": []
+  }
+}

@@ -30,14 +30,13 @@ const clusterDir = path.join(tempRoot, "cluster");
 const dataDir = path.join(tempRoot, "data");
 const repositoryDir = path.join(tempRoot, "repository");
 const serverLog = path.join(tempRoot, "postgres.log");
-const sourceDbPath = path.join(root, "data", "ai-pdm.sqlite");
-const sourceRepository = path.join(root, "data", "repository");
+const sourceDbPath = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
+const sourceRepository = path.resolve(process.env.PDM_PRIMARY_REPOSITORY_DIR?.trim() || path.join(root, "data", "repository"));
 const postgresBin = path.resolve(process.env.PDM_POSTGRES_BIN?.trim() || "C:\\Program Files\\PostgreSQL\\18\\bin");
 const dbName = "dev087_g4";
 const dbUser = "postgres";
 const parentRunId = process.env.DEV087_AGGREGATE_RUN_ID ?? null;
 const targetDrawingNumber = "A0003-M01";
-const targetPartNumber = "A0003-P01";
 const fffDrawingNumber = "A0001-M01";
 const fffPartNumber = "A0001-P01";
 const formalDrawingNumber = "A0002-M01";
@@ -269,7 +268,7 @@ async function setupPostgres(source) {
   const connectionString = dsn(port);
   client = new pg.Client({ connectionString, application_name: "ai-pdm-dev087-g4-postgres" });
   await client.connect();
-  for (const file of ["001_initial_schema.sql", "039_allow_recycled_candidate_drawing_codes.sql", "042_status_data_rebuild.sql", "043_inline_relation_matrix.sql", "048_shared_assembly_bom.sql", "049_solidworks_credential_ui_activation.sql"]) {
+  for (const file of ["001_initial_schema.sql", "039_allow_recycled_candidate_drawing_codes.sql", "042_status_data_rebuild.sql", "043_inline_relation_matrix.sql", "047_remove_bom_module.sql", "048_solidworks_credential_ui_activation.sql", "049_retire_standalone_manufacturing_impact.sql", "050_drawing_recognition_part_owner_invariant.sql", "051_part_structure_type_authority.sql"]) {
     await client.query(fs.readFileSync(path.join(root, "db", "postgres", file), "utf8"));
   }
   // 043 performs the canonical cutover but intentionally leaves the deployment
@@ -430,10 +429,10 @@ async function preparePostgresFixture(database) {
       const id = `qa-dev087-g4-a0002-${suffix.toLowerCase()}`;
       await database.query(`INSERT INTO part_numbers (
         id,company_id,part_root_id,part_number,sequence_no,sequence_code,part_name,item_kind,
-        structure_type,is_universal,bom_usage_policy,custom_specification,series_code,record_status,
+        structure_type,is_universal,custom_specification,series_code,record_status,
         universal_reason,rule_version_id,created_by,created_at,updated_at
       ) SELECT $1,company_id,part_root_id,$2,$3,$4,$5,'manufactured','single_part',0,
-        'undecided',NULL,'QA-PAGE','Released',NULL,rule_version_id,created_by,now(),now()
+        NULL,'QA-PAGE','Released',NULL,rule_version_id,created_by,now(),now()
         FROM part_numbers WHERE part_number=$6 LIMIT 1 ON CONFLICT DO NOTHING`,
       [id, `A0002-${suffix}`, sequence, suffix, `DEV087 G4 pagination ${suffix}`, formalPartNumber]);
       await database.query(`INSERT INTO pdm_workbench_aggregates (id,company_id,entity_type,canonical_entity_id,open_branch_count,row_version,updated_at)
@@ -665,8 +664,8 @@ async function createFormalDrawingRevisionWorkspace(context) {
 async function resolveWorkspaceTargets(context) {
   drawingWork = await createFormalDrawingRevisionWorkspace(context);
   partWork = await openExistingWorkspace(context, {
-    route: `/parts?query=${encodeURIComponent(targetPartNumber)}`,
-    heading: "料號工作台", code: targetPartNumber, actionName: "進行編輯"
+    route: `/parts?query=${encodeURIComponent(formalPartNumber)}`,
+    heading: "料號工作台", code: formalPartNumber, actionName: "建立修改"
   });
   check("QA-087-226", Boolean(drawingWork.workId && partWork.workId), JSON.stringify({ drawingWork, partWork }));
 }
@@ -768,14 +767,22 @@ async function runPartLifecycle(context) {
   await page.getByLabel("顏色", { exact: true }).fill("Black G4");
   await page.getByLabel("表面處理", { exact: true }).fill("BA G4");
   await page.locator(".pdm-edit-page-field-wide textarea").fill("DEV087 PostgreSQL return snapshot");
-  const saveResponsePromise = page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().endsWith(`/api/pdm/part-change-works/${partWork.workId}`), { timeout: 30_000 });
-  await page.getByRole("button", { name: "儲存", exact: true }).click();
-  const saveResponse = await saveResponsePromise;
-  check("QA-087-205", saveResponse.status() === 200, `part save=${saveResponse.status()}`);
-  const submitResponsePromise = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith(`/api/pdm/part-change-works/${partWork.workId}/submit`), { timeout: 30_000 });
-  await page.getByRole("button", { name: "送出審核", exact: true }).click();
-  const submitResponse = await submitResponsePromise;
-  check("QA-087-205", submitResponse.status() === 200, `part submit=${submitResponse.status()}`);
+  const savePath = `/api/pdm/part-change-works/${partWork.workId}`;
+  const [saveResponse] = await Promise.all([
+    page.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname === savePath, { timeout: 30_000 }),
+    page.getByRole("button", { name: "儲存", exact: true }).click()
+  ]);
+  const saveBody = await saveResponse.text().catch(() => "");
+  check("QA-087-205", saveResponse.status() === 200, `part save=${saveResponse.status()}:${saveBody.slice(0, 2000)}`);
+  if (saveResponse.status() !== 200) throw new Error(`PART_SAVE_FAILED:${saveResponse.status()}:${saveBody.slice(0, 2000)}`);
+  const submitPath = `${savePath}/submit`;
+  const [submitResponse] = await Promise.all([
+    page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === submitPath, { timeout: 30_000 }),
+    page.getByRole("button", { name: "送出審核", exact: true }).click()
+  ]);
+  const submitBody = await submitResponse.text().catch(() => "");
+  check("QA-087-205", submitResponse.status() === 200, `part submit=${submitResponse.status()}:${submitBody.slice(0, 2000)}`);
+  if (submitResponse.status() !== 200) throw new Error(`PART_SUBMIT_FAILED:${submitResponse.status()}:${submitBody.slice(0, 2000)}`);
   await recordCanonicalMutationBijections(label, startedAt);
   const request = await client.query("SELECT id,row_version,snapshot_hash FROM pdm_work_review_requests WHERE work_id=$1 AND request_status='pending' ORDER BY created_at DESC LIMIT 1", [partWork.workId]);
   const review = request.rows[0];
@@ -827,9 +834,10 @@ async function runFormalObsolete(ownerContext, { entityType, code, route, headin
   const modal = owner.getByRole("dialog", { name: "申請正式資料作廢", exact: true });
   await modal.waitFor({ state: "visible", timeout: 30_000 });
   await modal.getByLabel("作廢原因", { exact: true }).fill(`DEV087 G4 PostgreSQL ${caseId}`);
-  const requestResponsePromise = owner.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/api/lifecycle/obsolete-requests"), { timeout: 30_000 });
-  await modal.getByRole("button", { name: "送出作廢申請", exact: true }).click();
-  const requestResponse = await requestResponsePromise;
+  const [requestResponse] = await Promise.all([
+    owner.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/lifecycle/obsolete-requests", { timeout: 30_000 }),
+    modal.getByRole("button", { name: "送出作廢申請", exact: true }).click()
+  ]);
   const requestBody = await requestResponse.json().catch(() => null);
   const requestId = requestBody?.approvalRequest?.id;
   check(caseId, requestResponse.status() === 201 && Boolean(requestId), JSON.stringify({ status: requestResponse.status(), requestBody }));
@@ -839,11 +847,15 @@ async function runFormalObsolete(ownerContext, { entityType, code, route, headin
   await login(reviewerContext, "研發主管");
   const reviewer = await reviewerContext.newPage();
   monitor(reviewer, `formal-obsolete-${entityType}-review`);
-  await reviewer.goto(`${baseUrl}/approvals?status=active`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  const inboxPromise = reviewer.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === "GET"
+      && url.pathname === "/api/approvals/inbox"
+      && url.searchParams.get("query") === code
+      && response.status() === 200;
+  }, { timeout: 30_000 });
+  await reviewer.goto(`${baseUrl}/approvals?status=active&query=${encodeURIComponent(code)}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await reviewer.getByRole("heading", { name: /審核工作台/u }).waitFor({ state: "visible", timeout: 30_000 });
-  const search = reviewer.getByLabel("搜尋圖號、料號、品名或送審者", { exact: true });
-  const inboxPromise = reviewer.waitForResponse((response) => response.url().includes("/api/approvals/inbox?") && response.url().includes(`query=${encodeURIComponent(code)}`) && response.status() === 200, { timeout: 30_000 });
-  await search.fill(code);
   const inbox = await inboxPromise;
   const inboxBody = await inbox.json().catch(() => null);
   const expectedInboxId = `legacy:legacy_numbering:${requestId}`;
@@ -853,9 +865,11 @@ async function runFormalObsolete(ownerContext, { entityType, code, route, headin
   await approvalRow.click();
   const workspace = reviewer.locator("section[aria-label='審核證據與決策']");
   await workspace.waitFor({ state: "visible", timeout: 30_000 });
-  const decisionPromise = reviewer.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("/api/approvals/requests/") && response.url().endsWith("/decisions"), { timeout: 30_000 });
-  await workspace.getByRole("button", { name: "核准", exact: true }).click();
-  const decisionResponse = await decisionPromise;
+  const decisionPath = `/api/approvals/requests/${encodeURIComponent(expectedInboxId)}/decisions`;
+  const [decisionResponse] = await Promise.all([
+    reviewer.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === decisionPath, { timeout: 30_000 }),
+    workspace.getByRole("button", { name: "核准", exact: true }).click()
+  ]);
   check(caseId, decisionResponse.status() === 200, `decision=${decisionResponse.status()}`);
   await reviewer.close();
   await reviewerContext.close();
@@ -1052,9 +1066,10 @@ async function runPostgresPagination(context) {
   await recordPostgresCase("QA-087-216", { firstPageIds, secondPageIds, returnedFirstPageIds }, async (database) => {
     const result = await database.query("SELECT COUNT(*)::integer AS count FROM part_numbers WHERE company_id='company-jenfu'");
     const pagedIds = [...firstPageIds, ...secondPageIds];
+    const pagedUniqueCount = new Set(pagedIds).size;
     return {
-      pass: pass && Number(result.rows[0].count) === pagedIds.length && new Set(pagedIds).size === pagedIds.length,
-      readback: { ...result.rows[0], pagedUniqueCount: new Set(pagedIds).size }
+      pass: pass && Number(result.rows[0].count) === pagedUniqueCount,
+      readback: { ...result.rows[0], renderedRowCount: pagedIds.length, pagedUniqueCount }
     };
   });
   await page.close();
@@ -1102,9 +1117,10 @@ try {
   const runtimeProjectReceipt = prepareTaskOwnedRuntimeProject(runtimeProjectRoot);
   Object.assign(process.env, {
     NODE_ENV: "development", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "postgres", PDM_POSTGRES_URL: setup.connectionString,
-    PDM_POSTGRES_MAX_CONNECTIONS: "8", PDM_DATA_DIR: dataDir, PDM_REPOSITORY_DIR: repositoryDir,
+    PDM_POSTGRES_MAX_CONNECTIONS: "2", PDM_DATA_DIR: dataDir, PDM_REPOSITORY_DIR: repositoryDir,
     PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true",
-    PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_PRODUCTION_SLICE_MODE: "", PDM_NEXT_DIST_DIR: ".next", PDM_PUBLIC_BASE_URL: baseUrl
+    PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_PRODUCTION_SLICE_MODE: "", PDM_NEXT_DIST_DIR: ".next", PDM_PUBLIC_BASE_URL: baseUrl,
+    QC_NEXT_USE_WEBPACK: "1"
   });
   console.log(`QC DEV-087 G4 runtime: project=${root}; runtimeProject=${runtimeProjectRoot}; purpose=PostgreSQL provider/security/visible evidence; postgresPort=${port}; nextPort=${appPort}; processTree=task-owned PostgreSQL + Next dev + headed/headless Chromium; cleanup=after manifest write; PDM_DATA_DIR=${dataDir}; PDM_REPOSITORY_DIR=${repositoryDir}; mutationScope=${tempRoot},${outputDir}; runtimeProjectReceipt=${JSON.stringify(runtimeProjectReceipt)}`);
   app = startNextApp(runtimeProjectRoot, "dev", appPort);

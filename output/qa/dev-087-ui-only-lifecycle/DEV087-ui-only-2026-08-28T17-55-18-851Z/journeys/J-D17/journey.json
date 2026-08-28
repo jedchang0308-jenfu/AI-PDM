@@ -1,0 +1,45 @@
+{
+  "id": "J-D17",
+  "caseId": "D17",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create-promotion-work",
+      "candidate": "量產版 2"
+    },
+    {
+      "kind": "drawing-fields-retired"
+    },
+    {
+      "kind": "submit-promotion"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 1,
+      "scope": "promotion"
+    },
+    {
+      "kind": "decision",
+      "decision": "approve",
+      "readonlyInputs": 4,
+      "scope": "promotion"
+    },
+    {
+      "kind": "assert",
+      "target": "stale-production-token",
+      "candidate": "量產版 2",
+      "observed": {
+        "status": 409,
+        "code": "DRAWING_PRODUCTION_BASE_STALE",
+        "zeroWrite": true,
+        "visibleError": "量產基準已更新，請重新取得可用版次"
+      }
+    }
+  ],
+  "startedAt": "2026-08-28T17:56:37.976Z",
+  "finishedAt": "2026-08-28T17:56:42.785Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

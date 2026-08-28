@@ -1,0 +1,2 @@
+{"at":"2026-08-28T21:07:36.732Z","kind":"navigate","target":"/parts?query=A0002-P01","accessibleName":"料號生命週期 P06"}
+{"at":"2026-08-28T21:07:38.302Z","kind":"readback","before":{"route":"/parts?query=A0002-P01"},"after":{"headers":["編號","品名","版本","資料狀態","處理"],"toolbar":["搜尋","資料","處理","料件類型","系列","材質","顏色","排序"],"rows":["A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理","A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"],"apiStatus":200,"apiBodyHash":1924,"dbRows":2}}

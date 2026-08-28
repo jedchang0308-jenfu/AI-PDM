@@ -35,11 +35,9 @@ try {
   const localProviderQc = readRequired("scripts/qc-file-storage-local-provider-regression.mjs");
 
   record("STORAGE-ROLE-ACCESS-001 package script is registered", packageJson.scripts?.["qc:file-storage-role-access"] === "node scripts/qc-file-storage-role-access.mjs");
-  record("STORAGE-ROLE-ACCESS-002 Manufacturing and Procurement are released-only roles", includesAll(permissions, ['user.role === "Manufacturing"', 'user.role === "Procurement"', "isBomReleasedOnlyRole"]));
-  record("STORAGE-ROLE-ACCESS-003 released-only roles can read only Released submissions", permissions.includes('if (isBomReleasedOnlyRole(user)) return submission.status === "Released";'));
+  record("STORAGE-ROLE-ACCESS-002 Manufacturing and Procurement are released-only roles", includesAll(permissions, ['user.role === "Manufacturing"', 'user.role === "Procurement"', "isReleasedSubmissionOnlyRole"]));
+  record("STORAGE-ROLE-ACCESS-003 released-only roles can read only Released submissions", permissions.includes('if (isReleasedSubmissionOnlyRole(user)) return submission.status === "Released";'));
   record("STORAGE-ROLE-ACCESS-004 Engineers remain scoped to own submissions", permissions.includes('return user.role !== "Engineer" || submission.submitted_by === user.id;'));
-  record("STORAGE-ROLE-ACCESS-005 BOM draft remains blocked for released-only roles", permissions.includes("return !isBomReleasedOnlyRole(user) && canReadSubmission(user, submission);"));
-
   record("STORAGE-ROLE-ACCESS-006 submission file lookup uses async canReadSubmission guard", includesAll(fileResponse, ["getSubmissionAsync(submissionId)", "canReadSubmissionAsync(user, submission)", 'NextResponse.json({ error: "Forbidden" }, { status: 403 })']));
   record("STORAGE-ROLE-ACCESS-007 submission file route authenticates before file lookup", ordered(submissionFileRoute, "requireAuthAsync(request)", "getStoredSubmissionFile(id, mode.fileId, auth.user)"));
   record("STORAGE-ROLE-ACCESS-008 submission file route audits only after authorization and file read", ordered(submissionFileRoute, "getStoredSubmissionFile(id, mode.fileId, auth.user)", "await auditStorageAccess"));

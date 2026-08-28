@@ -1,0 +1,56 @@
+{
+  "sourceFingerprint": "5c5716ae32b12ba4d1c63c4d737aecf1de1d4fb27c1c74a3a4b5276975a93658",
+  "gate": {
+    "repairRequired": false,
+    "repairDisposition": "already_repaired",
+    "humanSelection": null,
+    "allowedSelections": [],
+    "applyCount": 0,
+    "stopIfFingerprintChanges": true,
+    "productionApplyAuthorized": false
+  },
+  "backupMetadata": {
+    "requiredBeforeApply": true,
+    "sourceDatabase": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite",
+    "sourceDatabaseSize": 6242304,
+    "sourceDatabaseModifiedAt": "2026-08-28T14:26:11.650Z",
+    "sourceRepository": "C:\\VIBE CODING\\AI_PDM\\data\\repository",
+    "logicalFingerprint": "5c5716ae32b12ba4d1c63c4d737aecf1de1d4fb27c1c74a3a4b5276975a93658",
+    "recommendedDatabaseBackup": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite.pre-dev100-<timestamp>.bak",
+    "recommendedRepositoryBackup": "C:\\VIBE CODING\\AI_PDM\\data\\repository.pre-dev100-<timestamp>"
+  },
+  "plans": {},
+  "resolvedState": {
+    "active": [
+      {
+        "fileBindingId": "339db49a-327f-47ad-8ad2-8158eff61374",
+        "assetId": "FA-e33ff864-ab79-4034-a924-63444e0126fe",
+        "fileName": "A0044.SLDASM",
+        "role": "cad_3d",
+        "ordinal": 0,
+        "hash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+      },
+      {
+        "fileBindingId": "ae153003-49f0-4a84-8a07-8d5b3bde7c38",
+        "assetId": "FA-b55b509c-9a47-4aa8-843d-755a8c8132d6",
+        "fileName": "A0044-M01.pdf",
+        "role": "pdf",
+        "ordinal": 1,
+        "hash": "cc4aad9db48beb540633ebe1902417b28d01067c049130113b1026c56a8bfe74"
+      },
+      {
+        "fileBindingId": "0fa364c6-3c80-4843-8012-359f7722f7eb",
+        "assetId": "FA-c9d19369-3b2e-47eb-8aeb-2475109864a1",
+        "fileName": "A0044-M01.SLDDRW",
+        "role": "drawing_2d",
+        "ordinal": 2,
+        "hash": "1ab890d11e876d3995a339205b982209fd5413e76016f581da7fc21a20451a00"
+      }
+    ],
+    "retiredA0043": {
+      "fileBindingId": "19f5d6f3-c0fc-4fd4-a9c2-12f8808dc45d",
+      "assetId": "FA-f495a913-708d-4056-8709-dea66cde16df",
+      "reason": "drawing_revision_work_file_replaced"
+    }
+  }
+}

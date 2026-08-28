@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-negative-2026-08-28T22-12-55-597Z",
+  "parentRunId": "DEV087-aggregate-2026-08-28T21-35-25-884Z",
+  "gateStage": "product",
+  "runner": "qc-dev-087-capability-negative",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "a991e63ac3101c45314794489e5c2cb2cf517adfe7a22f587fe38befa083505f"
+  },
+  "environment": {
+    "provider": "sqlite",
+    "dataScope": "task_owned_file_and_in_memory_fault_fixtures",
+    "baseUrl": null
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "8c76284fe05c1064f3625ce101a946feaa829af94c17f336315239fca79b5f9d",
+  "caseResults": [
+    {
+      "caseId": "QA-087-202",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_DIRECT_DRAWING_INVALIDATION_410_ZERO_WRITE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-206",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_DIRECT_PART_VARIANT_410_ZERO_WRITE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-208",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_HISTORY_DELETED_ASSET_NO_FALLBACK"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_PRIMARY_WORK_FILE_REMOVE_ZERO_WRITE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_CURSOR_SIGNATURE_FILTER_VERSION_ANCHOR"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-218",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_EIGHT_FAMILY_ROSTER_REMOVAL_FAILS"
+      ],
+      "firstFailurePointer": null
+    }
+  ],
+  "caseEvidence": {
+    "QA-087-202": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-206": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-208": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-210": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-216": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-218": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-probe-output.txt"
+      ]
+    }
+  },
+  "childManifests": [
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-coverage.json",
+      "sha256": "08a78733154c2eab6812f34ee9ddba6c9cc9efb5261931a075c70ab3f237bad9",
+      "runner": "qc-dev-087-capability-negative",
+      "caseIds": [
+        "QA-087-202",
+        "QA-087-206",
+        "QA-087-208",
+        "QA-087-210",
+        "QA-087-216",
+        "QA-087-218"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/negative-probe-output.txt",
+      "sha256": "9afe0863ff87091167ecdd2c98c618d3145c4404351b5224d0c9f1988b9f738e",
+      "runner": "qc-dev-087-capability-negative",
+      "caseIds": [
+        "QA-087-202",
+        "QA-087-206",
+        "QA-087-208",
+        "QA-087-210",
+        "QA-087-216",
+        "QA-087-218"
+      ],
+      "result": "PASS"
+    }
+  ],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "pass",
+    "delta": 0
+  },
+  "firstFailure": null,
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskOwnedRuntime": false,
+    "portsReleased": true
+  },
+  "result": "PASS",
+  "errorCode": null
+}

@@ -1,0 +1,620 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z",
+  "parentRunId": "DEV087-g4-repair-verification-3",
+  "gateStage": "product",
+  "runner": "qc-dev-087-g4-postgres-evidence",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "99b652ade20ddf64f0b987bf24a925b68efac885df6b914968e7f8c22406c139"
+  },
+  "environment": {
+    "provider": "postgresql",
+    "dataScope": "task_owned_isolated_postgresql_snapshot",
+    "baseUrl": "http://127.0.0.1:65483"
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "550543638480e4fd7fa742a14835a339a6acde0a172ea31ae70eac0b1922f066",
+  "caseResults": [],
+  "caseEvidence": {},
+  "childManifests": [
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/restore-receipt.json",
+      "sha256": "be9b716c55843ce4d4e40b74e79cf302084aff425d5d84c7959a9ca25f307a96",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/postgres-server.log",
+      "sha256": "9bf9b263cbed78ebe2a5f87c8a27c9868fbbb3733e0390a3cb25baff8faa389e",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/drawing_change-1440x900.aria.txt",
+      "sha256": "5d834d8a7a518cd6d633ed49d27b43fe4952e1dc6f532efc1183c9ab50559078",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/drawing_change-1440x900.png",
+      "sha256": "5d69f445820f0dfd7467f5436f4ee1fb54bd87a4556815fd198949b8ca13ff0c",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/drawing_history-1440x900.aria.txt",
+      "sha256": "f9c4d56636b5dfb624b6c3c9bea66c46fefcdabd29a310c7024e1d59d2c440d0",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/drawing_history-1440x900.png",
+      "sha256": "3da790119007652580365f40ee8833f28fa0308373b5816c5f3e59d1a4c43dc3",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/formal_obsolete-1440x900.aria.txt",
+      "sha256": "083d9b78aa1f41b90a410a1864e4536ae454734e26273d681e413fc910eebc82",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/formal_obsolete-1440x900.png",
+      "sha256": "72d04b3f4e7b82039819191c703a34e69701d2f0a8f8ff80f79c896d4d00ad6d",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/part_variant-1440x900.aria.txt",
+      "sha256": "95eeffa77fd47262ebcf333534e928db4dedb4c66788f60ebb4ff0562985beb6",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/part_variant-1440x900.png",
+      "sha256": "65ef8cc2971723a79b6219b76dd407156a8d36b0bb91e8b8882b7c2bdbdf32a2",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/task_retirement-1440x900.aria.txt",
+      "sha256": "373ac3aa123971012b8eea36afbb5a969e7a1d6108f50a6722e0c0e6ac0b1fec",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/task_retirement-1440x900.png",
+      "sha256": "78279cabee94ab025e91d8de7571f03999f4a63e48382e7ae530ccd4ea4b2e4d",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    }
+  ],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "pass",
+    "delta": 0,
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "byteHashObservation": {
+      "before": "d4075e99d9144c9f2673415e7f16d5e5799c485472262f743b55dd4955f9dd54",
+      "after": null,
+      "unchanged": false,
+      "enforcement": "informational_only_concurrent_primary_runtime_may_write_nonprotected_rows"
+    }
+  },
+  "firstFailure": {
+    "code": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-workspace-kind=\"drawing-revision-work\"]') to be visible\u001b[22m\n",
+    "caseId": "QA-087-225",
+    "pointer": "checks"
+  },
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskOwnedRuntime": true,
+    "portsReleased": true,
+    "ports": {
+      "postgresql": {
+        "port": 65484,
+        "released": true
+      },
+      "next": {
+        "port": 65483,
+        "released": true
+      }
+    },
+    "runtimeProjectCleanupReceipt": {
+      "removed": true,
+      "path": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\.tmp\\qc-dev087-g4-runtime-project-65483",
+      "error": null
+    },
+    "tempRootRemoved": true
+  },
+  "result": "FAIL",
+  "errorCode": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-workspace-kind=\"drawing-revision-work\"]') to be visible\u001b[22m\n",
+  "assertions": [
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "[]"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "[]"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"drawingWork\":{\"workId\":\"d637ca5a-c657-4ea9-93a2-efb4263ec07b\",\"entityId\":\"drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864\",\"url\":\"/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=d637ca5a-c657-4ea9-93a2-efb4263ec07b\"},\"partWork\":{\"workId\":\"2e3d52fe-3e04-4212-a0e5-640e50856a5d\",\"entityId\":\"part-number-51436633-4a7f-4709-9a06-f642e9d65e57\",\"url\":\"/parts/part-number-51436633-4a7f-4709-9a06-f642e9d65e57/workspace?workId=2e3d52fe-3e04-4212-a0e5-640e50856a5d\"}}"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_change/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "task_retirement/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "formal_obsolete/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part_variant/1440x900 accessibility/focus"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/1440x900 horizontal overflow"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing_history/1440x900 accessibility/focus"
+    }
+  ],
+  "failures": [
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-work_files-1440x900",
+      "detail": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-work_files-1440x900",
+      "detail": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "caseId": "QA-087-228",
+      "kind": "console",
+      "label": "visible-work_files-1440x900",
+      "detail": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "caseId": "QG-087-PROVIDER",
+      "kind": "runner",
+      "detail": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-workspace-kind=\"drawing-revision-work\"]') to be visible\u001b[22m\n"
+    }
+  ],
+  "mutationLedger": [],
+  "providerReceipts": [],
+  "fixtureMutationLedger": [
+    {
+      "action": "prepare-g4-postgresql-fixture",
+      "scope": "task_owned_isolated_postgresql_fixture",
+      "identities": [
+        "A0001-M01",
+        "A0001-P01",
+        "A0002-M01",
+        "A0002-P01",
+        "A0002-P02..P47",
+        "qa-dev087-g4-*"
+      ],
+      "purpose": "isolated FFF revision, formal obsolete, pagination, unsafe action URL, and stale task journeys",
+      "targetTableGuards": {
+        "preserved": true,
+        "names": [
+          "trg_dev087_canonical_state_company_guard",
+          "trg_dev087_branch_company_guard",
+          "trg_dev087_claim_company_guard",
+          "trg_drawing_revision_claims_approved_immutable",
+          "trg_dev087_drawing_work_company_guard",
+          "trg_dev087_part_work_company_guard",
+          "trg_dev087_review_request_company_guard",
+          "trg_dev087_review_request_identity"
+        ]
+      }
+    }
+  ],
+  "negativeEvidence": [],
+  "visibleEvidence": [
+    {
+      "family": "drawing_change",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/drawing_change-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/drawing_change-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "task_retirement",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/task_retirement-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/task_retirement-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "formal_obsolete",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "調整明細欄寬度",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/formal_obsolete-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/formal_obsolete-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "part_variant",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1425,
+        "clientWidth": 1425,
+        "bodyHeight": 924,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "收合左側導覽",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/part_variant-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/part_variant-1440x900.png",
+      "headed": true
+    },
+    {
+      "family": "drawing_history",
+      "viewport": "1440x900",
+      "geometry": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "bodyHeight": 900,
+        "overflow": 0
+      },
+      "focus": {
+        "tag": "button",
+        "role": null,
+        "label": "返回版次清單",
+        "focusable": true
+      },
+      "accessibilityTree": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/drawing_history-1440x900.aria.txt",
+      "screenshot": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-00-57-732Z/screenshots/drawing_history-1440x900.png",
+      "headed": true
+    }
+  ],
+  "assistiveTechnologyEvidence": [],
+  "qualityGateResults": [
+    {
+      "gateId": "QG-087-PROVIDER",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-workspace-kind=\"drawing-revision-work\"]') to be visible\u001b[22m\n"
+      }
+    },
+    {
+      "gateId": "QG-087-SECURITY",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-workspace-kind=\"drawing-revision-work\"]') to be visible\u001b[22m\n"
+      }
+    },
+    {
+      "gateId": "QG-087-UI",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-workspace-kind=\"drawing-revision-work\"]') to be visible\u001b[22m\n"
+      }
+    }
+  ],
+  "postgresCaseReceipts": [],
+  "networkEvents": [
+    {
+      "at": "2026-08-28T20:01:23.385Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:65483/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"Admin\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:65483/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:01:24.010Z"
+    },
+    {
+      "at": "2026-08-28T20:01:42.087Z",
+      "label": "formal-drawing-revision-create",
+      "method": "POST",
+      "url": "http://127.0.0.1:65483/api/pdm/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/revision-works",
+      "sameOrigin": true,
+      "postData": "{\"sourceRowKey\":\"cw_87000000-0000-4000-8000-000000000101\",\"selectionMode\":\"recommended\",\"candidateToken\":\"eyJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJkcmF3aW5nSWQiOiJkcmF3aW5nLWZvcm1hbC04Mjk4MzA2Yi0yNTc1LTQyYTktOWRlNC04ZWRmNDRhOWI4NjQiLCJzb3VyY2VSb3dJZCI6Ijg3MDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDEwMSIsInNvdXJjZVJvd1ZlcnNpb24iOjEsImJhc2lzU3RhdGUiOiJjdXJyZW50IiwidGFyZ2V0Ijp7Im1ham9yIjoxLCJtaW5vciI6MSwibGFiZWwiOiIxLjEifSwidmVyc2lvbiI6MiwiZXhwaXJlc0F0IjoxNzg3OTQ3OTAxNzUzfQ.IrbhLqWoh6wRKN-nB7HzFxyfKEjOSdSWxoTXM992Pxo\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:65483/numbering/drawings?query=A0001-M01&detail=cw_87000000-0000-4000-8000-000000000101",
+        "idempotency-key": "ce852a8e-f20c-43d5-9d45-f08f069756f2",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0NzMwMTc1M30.urOtFINZS7NoUyF616reG4xDJBAnkHNIF4eVIbk9hKI",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:01:44.337Z"
+    },
+    {
+      "at": "2026-08-28T20:02:02.766Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:65483/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"Admin\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:65483/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:02:02.897Z"
+    }
+  ]
+}

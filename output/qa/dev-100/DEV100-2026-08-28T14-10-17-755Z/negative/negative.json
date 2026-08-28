@@ -1,0 +1,86 @@
+{
+  "runner": "negative",
+  "runId": "DEV100-negative-2026-08-28T14-10-33-291Z",
+  "status": "PASS",
+  "productionWrites": false,
+  "checks": [
+    {
+      "label": "active asset missing",
+      "status": "PASS",
+      "detail": [
+        "source_asset_invalid"
+      ]
+    },
+    {
+      "label": "active asset deleted",
+      "status": "PASS",
+      "detail": [
+        "active_source_asset_deleted",
+        "target_asset_invalid"
+      ]
+    },
+    {
+      "label": "missing binding",
+      "status": "PASS",
+      "detail": [
+        "count_mismatch",
+        "missing_binding"
+      ]
+    },
+    {
+      "label": "extra binding",
+      "status": "PASS",
+      "detail": [
+        "count_mismatch",
+        "extra_binding"
+      ]
+    },
+    {
+      "label": "hash drift",
+      "status": "PASS",
+      "detail": [
+        "content_hash_mismatch"
+      ]
+    },
+    {
+      "label": "scope drift",
+      "status": "PASS",
+      "detail": [
+        "scope_mismatch"
+      ]
+    },
+    {
+      "label": "ordinal drift",
+      "status": "PASS",
+      "detail": [
+        "ordinal_mismatch"
+      ]
+    },
+    {
+      "label": "allowlisted replacement tombstone remains legal",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "label": "DEV-097 rejects missing DEV-100 child",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "label": "DEV-097 rejects wrong parent run",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "label": "DEV-097 rejects stale DEV-100 source",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "label": "DEV-097 rejects self-labelled PASS with failed child",
+      "status": "PASS",
+      "detail": null
+    }
+  ],
+  "firstFailure": null
+}

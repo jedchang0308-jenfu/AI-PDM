@@ -1,0 +1,34 @@
+{
+  "id": "J-D16",
+  "caseId": "D16",
+  "family": "D",
+  "status": "FAIL",
+  "reason": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.pdm-entity-detail-drawer').last().getByRole('button', { name: '進版', exact: true }).first()\u001b[22m\n",
+  "actions": [
+    {
+      "kind": "create-promotion-work",
+      "candidate": "量產版 2"
+    },
+    {
+      "kind": "drawing-fields-retired"
+    },
+    {
+      "kind": "submit-promotion"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 2,
+      "scope": "promotion"
+    },
+    {
+      "kind": "decision",
+      "decision": "approve",
+      "readonlyInputs": 4,
+      "scope": "promotion"
+    }
+  ],
+  "startedAt": "2026-08-28T16:19:42.152Z",
+  "finishedAt": "2026-08-28T16:21:37.172Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

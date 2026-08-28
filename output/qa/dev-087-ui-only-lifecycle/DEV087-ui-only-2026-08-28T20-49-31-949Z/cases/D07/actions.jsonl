@@ -1,0 +1,2 @@
+{"at":"2026-08-28T20:51:01.361Z","kind":"navigate","target":"/numbering/drawings?query=A0060-M01","accessibleName":"研發版進量產版 1"}
+{"at":"2026-08-28T20:51:02.971Z","kind":"readback","before":{"route":"/numbering/drawings?query=A0060-M01"},"after":{"headers":["編號","品名","版本","資料狀態","處理"],"toolbar":["搜尋","版本","處理","用途","系列","排序"],"rows":["A0060-M01DEV087 D07 04931949Z量產版 1可使用無須處理"],"apiStatus":200,"apiBodyHash":1319,"dbRows":1}}

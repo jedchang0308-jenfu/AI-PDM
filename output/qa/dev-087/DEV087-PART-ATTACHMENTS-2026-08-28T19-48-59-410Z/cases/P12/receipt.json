@@ -1,0 +1,181 @@
+{
+  "caseId": "P12",
+  "result": "PASS",
+  "assertionIds": [
+    "P12:REVIEW_LIVE_ATTACHMENT_EXCLUDED_FROM_SNAPSHOT"
+  ],
+  "renderedUiActions": [
+    "送出審核",
+    "另一合法 UI context 維護附件",
+    "reviewer reload/open",
+    "退回修改"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "apiReadback": {
+    "submit": 200,
+    "upload": 201,
+    "decision": 200
+  },
+  "dbReadback": {
+    "submitted": {
+      "part": {
+        "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "part_number": "A0002-P01",
+        "record_status": "Draft"
+      },
+      "attachments": [
+        {
+          "id": "40b12c9d-f819-4a86-888e-cf480122c8b8",
+          "file_name": "part-attachment-DEV087-PART-ATTACHMENTS-2026-08-28T19-48-59-410Z.html",
+          "content_hash": "0a76e67be8b1b57df9aad83b3dd374ebb153cd19731a128220f34dce02b72e6e",
+          "deleted_at": null
+        }
+      ],
+      "works": [
+        {
+          "id": "44198457-e6c8-4aa4-85c9-099834406667",
+          "part_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "owner_user_id": "user-admin-local-quick",
+          "proposed_payload": "{\"partName\":\"本體_BS_右_Xx5\",\"itemKind\":\"manufactured\",\"customSpecification\":null,\"isUniversal\":false,\"materialCode\":null,\"materialLabel\":null,\"colorCode\":null,\"colorLabel\":null,\"surfaceTreatment\":null,\"variantNote\":null}",
+          "base_hash": "af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa",
+          "base_formal_row_version": 1,
+          "row_version": 1
+        }
+      ],
+      "requests": [
+        {
+          "id": "9275b332-7981-4f88-a4d9-c01b6b1a6f72",
+          "work_id": "44198457-e6c8-4aa4-85c9-099834406667",
+          "reviewer_user_id": "user-manager-demo",
+          "snapshot_payload": "{\"partName\":\"本體_BS_右_Xx5\",\"itemKind\":\"manufactured\",\"customSpecification\":null,\"isUniversal\":false,\"materialCode\":null,\"materialLabel\":null,\"colorCode\":null,\"colorLabel\":null,\"surfaceTreatment\":null,\"variantNote\":null}",
+          "snapshot_hash": "af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa",
+          "request_status": "pending",
+          "row_version": 1
+        }
+      ],
+      "states": [
+        {
+          "data_layer": "part_formal",
+          "handling": "none",
+          "work_id": null,
+          "row_version": 1
+        },
+        {
+          "data_layer": "part_work",
+          "handling": "review_owner",
+          "work_id": "44198457-e6c8-4aa4-85c9-099834406667",
+          "row_version": 2
+        }
+      ]
+    },
+    "afterMaintenance": {
+      "part": {
+        "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "part_number": "A0002-P01",
+        "record_status": "Draft"
+      },
+      "attachments": [
+        {
+          "id": "40b12c9d-f819-4a86-888e-cf480122c8b8",
+          "file_name": "part-attachment-DEV087-PART-ATTACHMENTS-2026-08-28T19-48-59-410Z.html",
+          "content_hash": "0a76e67be8b1b57df9aad83b3dd374ebb153cd19731a128220f34dce02b72e6e",
+          "deleted_at": null
+        },
+        {
+          "id": "1a086ab3-af80-4d7e-9637-cfb01ed3aa2f",
+          "file_name": "part-review-live-DEV087-PART-ATTACHMENTS-2026-08-28T19-48-59-410Z.html",
+          "content_hash": "017df8a51dcf4bcaa2de0d75b42423f0ebd1efd4f80709d5fca7031d18a7975b",
+          "deleted_at": null
+        }
+      ],
+      "works": [
+        {
+          "id": "44198457-e6c8-4aa4-85c9-099834406667",
+          "part_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "owner_user_id": "user-admin-local-quick",
+          "proposed_payload": "{\"partName\":\"本體_BS_右_Xx5\",\"itemKind\":\"manufactured\",\"customSpecification\":null,\"isUniversal\":false,\"materialCode\":null,\"materialLabel\":null,\"colorCode\":null,\"colorLabel\":null,\"surfaceTreatment\":null,\"variantNote\":null}",
+          "base_hash": "af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa",
+          "base_formal_row_version": 1,
+          "row_version": 1
+        }
+      ],
+      "requests": [
+        {
+          "id": "9275b332-7981-4f88-a4d9-c01b6b1a6f72",
+          "work_id": "44198457-e6c8-4aa4-85c9-099834406667",
+          "reviewer_user_id": "user-manager-demo",
+          "snapshot_payload": "{\"partName\":\"本體_BS_右_Xx5\",\"itemKind\":\"manufactured\",\"customSpecification\":null,\"isUniversal\":false,\"materialCode\":null,\"materialLabel\":null,\"colorCode\":null,\"colorLabel\":null,\"surfaceTreatment\":null,\"variantNote\":null}",
+          "snapshot_hash": "af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa",
+          "request_status": "pending",
+          "row_version": 1
+        }
+      ],
+      "states": [
+        {
+          "data_layer": "part_formal",
+          "handling": "none",
+          "work_id": null,
+          "row_version": 1
+        },
+        {
+          "data_layer": "part_work",
+          "handling": "review_owner",
+          "work_id": "44198457-e6c8-4aa4-85c9-099834406667",
+          "row_version": 2
+        }
+      ]
+    },
+    "afterReview": {
+      "part": {
+        "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "part_number": "A0002-P01",
+        "record_status": "Draft"
+      },
+      "attachments": [
+        {
+          "id": "40b12c9d-f819-4a86-888e-cf480122c8b8",
+          "file_name": "part-attachment-DEV087-PART-ATTACHMENTS-2026-08-28T19-48-59-410Z.html",
+          "content_hash": "0a76e67be8b1b57df9aad83b3dd374ebb153cd19731a128220f34dce02b72e6e",
+          "deleted_at": null
+        },
+        {
+          "id": "1a086ab3-af80-4d7e-9637-cfb01ed3aa2f",
+          "file_name": "part-review-live-DEV087-PART-ATTACHMENTS-2026-08-28T19-48-59-410Z.html",
+          "content_hash": "017df8a51dcf4bcaa2de0d75b42423f0ebd1efd4f80709d5fca7031d18a7975b",
+          "deleted_at": null
+        }
+      ],
+      "works": [
+        {
+          "id": "44198457-e6c8-4aa4-85c9-099834406667",
+          "part_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "owner_user_id": "user-admin-local-quick",
+          "proposed_payload": "{\"partName\":\"本體_BS_右_Xx5\",\"itemKind\":\"manufactured\",\"customSpecification\":null,\"isUniversal\":false,\"materialCode\":null,\"materialLabel\":null,\"colorCode\":null,\"colorLabel\":null,\"surfaceTreatment\":null,\"variantNote\":null}",
+          "base_hash": "af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa",
+          "base_formal_row_version": 1,
+          "row_version": 1
+        }
+      ],
+      "requests": [],
+      "states": [
+        {
+          "data_layer": "part_formal",
+          "handling": "none",
+          "work_id": null,
+          "row_version": 1
+        },
+        {
+          "data_layer": "part_work",
+          "handling": "owner",
+          "work_id": "44198457-e6c8-4aa4-85c9-099834406667",
+          "row_version": 3
+        }
+      ]
+    }
+  },
+  "visibleErrorSweep": [],
+  "screenshot": "output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-28T19-48-59-410Z/screenshots/desktop-p12-reviewer-live-attachment.png"
+}

@@ -1,0 +1,53 @@
+{
+  "data": {
+    "groups": [
+      {
+        "groupKey": "cg_c724b519-a7bf-452f-86a9-f129df8d95bc",
+        "rows": [
+          {
+            "rowKey": "cw_9124c478-75b5-4699-8ce6-07a596878eaf",
+            "entityType": "drawing",
+            "entityId": "drawing-formal-58e6089b-3f76-4552-985d-65cd74a82dce",
+            "code": "A0060-M01",
+            "name": "DEV087 D05 62806299Z",
+            "layer": "rd",
+            "layerLabel": "研發版 0.1",
+            "revision": "0.1",
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_9124c478-75b5-4699-8ce6-07a596878eaf",
+            "rowVersion": 10,
+            "basisState": "preproduction",
+            "actions": [
+              {
+                "key": "advance",
+                "label": "進版",
+                "href": "/api/pdm/drawings/drawing-formal-58e6089b-3f76-4552-985d-65cd74a82dce/revision-targets?sourceRowKey=cw_9124c478-75b5-4699-8ce6-07a596878eaf"
+              },
+              {
+                "key": "void_rd",
+                "label": "申請作廢",
+                "href": "/api/pdm/drawing-rd-branches/592d6f04-fd1b-4266-aba8-0dfab939e0dc/void-requests"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "nextCursor": null,
+    "previousCursor": null,
+    "totalGroups": 1,
+    "totalRows": 1
+  },
+  "meta": {
+    "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4NzkzNDU1OTEwMH0.6IoKCZnJO6XkpuUqa7I9Sp7tfsbw-ZDeb-uQWJ-jzA8",
+    "correlationId": "2649c38b-03a8-4639-a5fa-bed19a6ced61"
+  }
+}

@@ -25,7 +25,7 @@ const artifacts = new Map();
 let firstFailure = null;
 
 function protectedPrimarySnapshot() {
-  const dbPath = path.join(root, "data", "ai-pdm.sqlite");
+  const dbPath = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
   const db = new Database(dbPath, { readonly: true, fileMustExist: true });
   db.pragma("query_only = ON");
   try {

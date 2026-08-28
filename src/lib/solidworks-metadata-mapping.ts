@@ -4,12 +4,12 @@ import path from "node:path";
 import {
   normalizeRecognitionKey,
   normalizeRecognitionValue,
-  sha256Canonical,
   type DrawingRecognitionAdapterCompletion,
   type DrawingRecognitionCategory,
   type DrawingRecognitionConfidence,
   type DrawingRecognitionObservationInput
 } from "./drawing-recognition-contract.ts";
+import { sha256Canonical } from "./drawing-recognition-hash.ts";
 import { resolveRecognitionPartOwner } from "./drawing-recognition-part-owner.ts";
 
 export type NativeMetadataProperty = {

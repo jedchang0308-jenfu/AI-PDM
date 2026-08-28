@@ -1,0 +1,81 @@
+{
+  "data": {
+    "groups": [
+      {
+        "groupKey": "cg_078ca01e-87c8-4c05-a216-b91e19752220",
+        "rows": [
+          {
+            "rowKey": "cw_98563624-9e3b-4b4a-9cb4-e4b5c623ec46",
+            "entityType": "part",
+            "entityId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "code": "A0002-P01",
+            "name": "本體_BS_右_Xx5 DEV087 UI journey QC2 QC2",
+            "layer": "work",
+            "layerLabel": "修改中",
+            "revision": null,
+            "dataState": "editing",
+            "dataStateLabel": "編輯中",
+            "handling": "owner",
+            "handlingLabel": "負責人處理",
+            "blockerReason": null,
+            "detailHref": "/parts?detail=cw_98563624-9e3b-4b4a-9cb4-e4b5c623ec46",
+            "rowVersion": 4,
+            "basisState": null,
+            "actions": [
+              {
+                "key": "edit",
+                "label": "進行編輯",
+                "href": "/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=fe4db8d8-ad3c-4cee-a4a9-24b360697509"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          },
+          {
+            "rowKey": "cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062",
+            "entityType": "part",
+            "entityId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "code": "A0002-P01",
+            "name": "本體_BS_右_Xx5 DEV087 UI journey QC2 QC2",
+            "layer": "formal",
+            "layerLabel": "正式資料",
+            "revision": null,
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/parts?detail=cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062",
+            "rowVersion": 3,
+            "basisState": null,
+            "actions": [
+              {
+                "key": "create_change",
+                "label": "建立修改",
+                "href": "/api/pdm/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/change-works"
+              },
+              {
+                "key": "request_obsolete",
+                "label": "申請作廢"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "nextCursor": null,
+    "previousCursor": null,
+    "totalGroups": 1,
+    "totalRows": 2
+  },
+  "meta": {
+    "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0MTk5NDkwN30.eAcNd9zJiL3zyuTKdQleH0ar0e_3uWyL0ODolcq_TPc",
+    "correlationId": "7ae9d699-e317-49fa-8a9a-919724977fe9"
+  }
+}

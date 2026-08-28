@@ -138,8 +138,11 @@ async function runPostgresOwnerResolutionCheck(input) {
       "039_allow_recycled_candidate_drawing_codes.sql",
       "042_status_data_rebuild.sql",
       "043_inline_relation_matrix.sql",
-      "048_shared_assembly_bom.sql",
-      "049_solidworks_credential_ui_activation.sql"
+      "047_remove_bom_module.sql",
+      "048_solidworks_credential_ui_activation.sql",
+      "049_retire_standalone_manufacturing_impact.sql",
+      "050_drawing_recognition_part_owner_invariant.sql",
+      "051_part_structure_type_authority.sql"
     ]) {
       await postgresClient.query(fs.readFileSync(path.join(root, "db", "postgres", file), "utf8"));
     }

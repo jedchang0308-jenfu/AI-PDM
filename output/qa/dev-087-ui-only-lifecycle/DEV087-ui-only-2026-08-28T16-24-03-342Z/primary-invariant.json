@@ -1,0 +1,45 @@
+{
+  "before": {
+    "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+    "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+    "counts": {
+      "roots": 59,
+      "parts": 59,
+      "drawingNumbers": 50,
+      "drawings": 53
+    },
+    "migrationResidue": {
+      "total": 12,
+      "unresolved": 0
+    },
+    "rootReferenceViolations": {
+      "parts": 0,
+      "drawingNumbers": 0,
+      "drawings": 0,
+      "formalDrawingNumbers": 0
+    },
+    "foreignKeyViolations": 0
+  },
+  "after": {
+    "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+    "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+    "counts": {
+      "roots": 59,
+      "parts": 59,
+      "drawingNumbers": 50,
+      "drawings": 53
+    },
+    "migrationResidue": {
+      "total": 12,
+      "unresolved": 0
+    },
+    "rootReferenceViolations": {
+      "parts": 0,
+      "drawingNumbers": 0,
+      "drawings": 0,
+      "formalDrawingNumbers": 0
+    },
+    "foreignKeyViolations": 0
+  },
+  "unchanged": true
+}

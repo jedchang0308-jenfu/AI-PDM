@@ -17,7 +17,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
 
   return NextResponse.json({
     revisions: await listItemRevisionHistoryAsync({
-      companyId: auth.user.company_id,
       partNumber: decodedPartNumber,
       submittedBy: scopedSubmittedBy(auth.user)
     })

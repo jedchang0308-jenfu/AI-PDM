@@ -1,0 +1,75 @@
+{
+  "created": {
+    "drawingCode": "A0060-M01",
+    "exists": true,
+    "aggregate": {
+      "open_branch_count": 1,
+      "row_version": 1
+    },
+    "rows": [
+      {
+        "data_layer": "drawing_rd",
+        "handling": "owner",
+        "work_id": "e97b1cf3-5832-4d77-8ab1-27bf9da2b6b5",
+        "row_version": 1,
+        "revision": "0.1",
+        "lifecycle_state": "preparing",
+        "branch_status": "open",
+        "closed_reason": null,
+        "base_production_revision_id": null
+      }
+    ],
+    "branches": [
+      {
+        "id": "b4f960ff-f536-464b-ad2b-4613b7644f05",
+        "status": "open",
+        "closed_reason": null,
+        "base_production_revision": null,
+        "latest_approved_revision": null
+      }
+    ],
+    "claims": [
+      {
+        "target_label": "0.1",
+        "claim_state": "work",
+        "predecessor_revision_id": null
+      }
+    ],
+    "revisions": [
+      {
+        "revision": "0.1",
+        "lifecycle_state": "preparing",
+        "row_version": 1,
+        "controlled": 0,
+        "released": 0,
+        "cancelled": 0
+      }
+    ],
+    "works": [
+      {
+        "id": "e97b1cf3-5832-4d77-8ab1-27bf9da2b6b5",
+        "row_version": 1,
+        "target_label": "0.1",
+        "handling": "owner",
+        "file_count": 0
+      }
+    ],
+    "files": [],
+    "reviewRequests": []
+  },
+  "final": {
+    "drawingCode": "A0060-M01",
+    "exists": true,
+    "aggregate": {
+      "open_branch_count": 0,
+      "row_version": 2
+    },
+    "rows": [],
+    "branches": [],
+    "claims": [],
+    "revisions": [],
+    "works": [],
+    "files": [],
+    "reviewRequests": []
+  }
+}

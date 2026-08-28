@@ -1,0 +1,21 @@
+{
+  "runId": "DEV083-MUT-20260828T212413Z-032b381e",
+  "generatedAt": "2026-08-28T21:24:13.404Z",
+  "result": "failed",
+  "scope": "isolated SQLite + disposable Chromium mutation runner",
+  "results": [
+    {
+      "id": "DEV-083 mutation runner",
+      "passed": false,
+      "detail": {
+        "error": "active candidate with verified primary files is required",
+        "stack": "AssertionError [ERR_ASSERTION]: active candidate with verified primary files is required\n    at configure (file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-083-mutation.mjs:144:10)\n    at main (file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-083-mutation.mjs:560:13)\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-083-mutation.mjs:572:63\n    at ModuleJob.run (node:internal/modules/esm/module_job:413:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:660:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+        "serverTail": ""
+      }
+    }
+  ],
+  "mutations": [],
+  "browserErrors": [],
+  "failedResponses": [],
+  "cleanupStatus": "removed"
+}

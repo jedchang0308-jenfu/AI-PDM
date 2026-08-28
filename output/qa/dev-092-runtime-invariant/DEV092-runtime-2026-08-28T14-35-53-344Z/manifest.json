@@ -1,0 +1,16 @@
+{
+  "devId": "DEV-092",
+  "status": "PASS",
+  "checks": 2,
+  "workId": "8f926012-792b-49b4-a266-ece5df594ca2",
+  "fixture": "isolated-canonical-work-file-snapshot",
+  "fullSnapshotCount": 3,
+  "negativeCode": "DRAWING_WORK_FILE_SNAPSHOT_INVALID",
+  "negativeStatus": 409,
+  "primaryDataMutation": false,
+  "cleanup": {
+    "tempRoot": "C:\\Users\\user\\AppData\\Local\\Temp\\dev-092-runtime-yjHCSY",
+    "repositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\dev-092-runtime-yjHCSY\\repository",
+    "status": "removed"
+  }
+}

@@ -176,7 +176,7 @@ async function main() {
   run(path.join(postgresBin, "createdb.exe"), ["-h", "127.0.0.1", "-p", String(pgPort), "-U", "postgres", dbName]);
   controlClient = new pg.Client({ connectionString: dsnFor(pgPort), application_name: "ai-pdm-dev100-postgres-control" });
   await controlClient.connect();
-  for (const file of ["001_initial_schema.sql", "039_allow_recycled_candidate_drawing_codes.sql", "042_status_data_rebuild.sql", "043_inline_relation_matrix.sql", "048_shared_assembly_bom.sql", "049_solidworks_credential_ui_activation.sql"]) {
+  for (const file of ["001_initial_schema.sql", "039_allow_recycled_candidate_drawing_codes.sql", "042_status_data_rebuild.sql", "043_inline_relation_matrix.sql", "047_remove_bom_module.sql", "048_solidworks_credential_ui_activation.sql", "049_retire_standalone_manufacturing_impact.sql", "050_drawing_recognition_part_owner_invariant.sql", "051_part_structure_type_authority.sql"]) {
     await controlClient.query(fs.readFileSync(path.join(root, "db", "postgres", file), "utf8"));
   }
   await controlClient.query("UPDATE pdm_workbench_state_authority_control SET expected_commit='local-dev',schema_hash='dev100-v1' WHERE id=1");

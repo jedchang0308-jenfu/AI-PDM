@@ -1,0 +1,42 @@
+{
+  "id": "D01",
+  "family": "D",
+  "title": "無量產資料建立第一份 0.1 工作",
+  "status": "FAIL",
+  "reason": "page.waitForResponse: Timeout 30000ms exceeded while waiting for event \"response\"",
+  "startedAt": "2026-08-28T14:44:27.128Z",
+  "finishedAt": "2026-08-28T14:44:35.901Z",
+  "expected": {
+    "ui": "canonical workbench list",
+    "mutation": "full lifecycle journey"
+  },
+  "actual": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": [
+      "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+      "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+    ],
+    "apiStatus": 200,
+    "apiBodyHash": 2163,
+    "dbRows": 2
+  },
+  "evidence": {
+    "actions": "actions.jsonl",
+    "network": "network.jsonl",
+    "triad": "triad-diff/list.json"
+  }
+}

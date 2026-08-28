@@ -1,0 +1,1866 @@
+{
+  "devId": "DEV-087",
+  "runId": "DEV087-2026-08-28T22-08-25-653Z",
+  "parentRunId": "DEV087-product-browser-2026-08-28T21-39-10-826Z",
+  "status": "PASS",
+  "port": 56509,
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087\\DEV087-2026-08-28T22-08-25-653Z",
+  "sourceInvariantCheckedBeforeMutation": true,
+  "primaryInvariant": {
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "unchanged": true
+  },
+  "fixtureMutationLedger": [
+    {
+      "action": "seed-A0002-production-and-rd-revisions",
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "prepare-valid-formal-obsolete-fixture",
+      "identities": [
+        "A0002-M01",
+        "A0002-P01"
+      ],
+      "statuses": {
+        "drawingNumber": "Released",
+        "partNumber": "Released",
+        "canonicalDrawing": "released"
+      },
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "clear-preexisting-canonical-target-residue",
+      "tables": [
+        "pdm_review_traces",
+        "pdm_work_review_requests",
+        "drawing_revision_work_files",
+        "canonical_workbench_states",
+        "drawing_revision_works",
+        "drawing_revision_claims",
+        "drawing_rd_branches",
+        "pdm_workbench_aggregates",
+        "part_change_works",
+        "relation_change_works",
+        "pdm_workbench_migration_quarantine"
+      ],
+      "targetTableGuards": {
+        "preserved": true,
+        "names": [
+          "trg_canonical_workbench_states_company_guard",
+          "trg_canonical_workbench_states_company_update_guard",
+          "trg_canonical_workbench_states_drawing_reference_guard",
+          "trg_canonical_workbench_states_drawing_reference_update_guard",
+          "trg_canonical_workbench_states_work_guard",
+          "trg_canonical_workbench_states_work_update_guard",
+          "trg_drawing_rd_branches_company_guard",
+          "trg_drawing_rd_branches_company_update_guard",
+          "trg_drawing_revision_claims_approved_no_delete",
+          "trg_drawing_revision_claims_approved_no_update",
+          "trg_drawing_revision_claims_company_guard",
+          "trg_drawing_revision_claims_company_update_guard",
+          "trg_drawing_revision_works_company_guard",
+          "trg_drawing_revision_works_company_update_guard",
+          "trg_part_change_works_company_guard",
+          "trg_part_change_works_company_update_guard",
+          "trg_pdm_review_requests_company_guard",
+          "trg_pdm_review_requests_identity_immutable",
+          "trg_pdm_review_traces_no_delete",
+          "trg_pdm_review_traces_no_update",
+          "trg_relation_change_works_company_guard",
+          "trg_relation_change_works_company_update_guard"
+        ]
+      },
+      "scope": "disposable fixture only before product runtime"
+    },
+    {
+      "action": "prepare-inline-matrix-read-fixtures",
+      "roots": [
+        "A0999",
+        "A0003",
+        "A0010"
+      ],
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "migrate-dev-087-canonical-workbench",
+      "status": 0,
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "set-disposable-authority-control",
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "seed-functional-browser-part-task-notification-pagination-fixtures",
+      "ids": [
+        "A0002-P02",
+        "A0002-P03..P47",
+        "A0002-R99 initial 0.1 work",
+        "qa-dev087-browser-task-*",
+        "qa-dev087-browser-notification-*"
+      ],
+      "scope": "disposable fixture only after canonical migration"
+    }
+  ],
+  "caseReceipts": [
+    {
+      "caseId": "I01",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I01/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I01/I01.png"
+    },
+    {
+      "caseId": "I02",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I02/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I02/I02.png"
+    },
+    {
+      "caseId": "I03",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I03/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I03/I03.png"
+    },
+    {
+      "caseId": "I04",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I04/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I04/I04.png"
+    },
+    {
+      "caseId": "I05",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I05/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I05/I05.png"
+    },
+    {
+      "caseId": "I06",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I06/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I06/I06.png"
+    },
+    {
+      "caseId": "I07",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I07/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I07/I07.png"
+    },
+    {
+      "caseId": "I08",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I08/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I08/I08.png"
+    },
+    {
+      "caseId": "I09",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I09/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I09/I09.png"
+    },
+    {
+      "caseId": "I10",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I10/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I10/I10.png"
+    },
+    {
+      "caseId": "I11",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I11/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I11/I11.png"
+    },
+    {
+      "caseId": "I12",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I12/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I12/I12.png"
+    },
+    {
+      "caseId": "I13",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I13/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I13/I13.png"
+    },
+    {
+      "caseId": "I14",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I14/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/I14/I14.png"
+    }
+  ],
+  "functionalCaseReceipts": [
+    {
+      "caseId": "QA-087-207",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-207/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-207/QA-087-207.png"
+    },
+    {
+      "caseId": "QA-087-208",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-208/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-208/QA-087-208.png"
+    },
+    {
+      "caseId": "QA-087-187",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-187/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-187/QA-087-187.png"
+    },
+    {
+      "caseId": "QA-087-188",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-188/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-188/QA-087-188.png"
+    },
+    {
+      "caseId": "QA-087-190",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-190/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-190/QA-087-190.png"
+    },
+    {
+      "caseId": "QA-087-209",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-209/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-209/QA-087-209.png"
+    },
+    {
+      "caseId": "QA-087-210",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-210/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-210/QA-087-210.png"
+    },
+    {
+      "caseId": "QA-087-189",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-189/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-189/QA-087-189.png"
+    },
+    {
+      "caseId": "QA-087-211",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-211/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-211/QA-087-211.png"
+    },
+    {
+      "caseId": "QA-087-191",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-191/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-191/QA-087-191.png"
+    },
+    {
+      "caseId": "QA-087-192",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-192/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-192/QA-087-192.png"
+    },
+    {
+      "caseId": "QA-087-214",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-214/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-214/QA-087-214.png"
+    },
+    {
+      "caseId": "QA-087-215",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-215/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-215/QA-087-215.png"
+    },
+    {
+      "caseId": "QA-087-216",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-216/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-216/QA-087-216.png"
+    },
+    {
+      "caseId": "QA-087-193",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-193/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-193/QA-087-193.png"
+    },
+    {
+      "caseId": "QA-087-217",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-217/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-217/QA-087-217.png"
+    },
+    {
+      "caseId": "QA-087-203",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-203/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-203/QA-087-203.png"
+    },
+    {
+      "caseId": "QA-087-204",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-204/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-204/QA-087-204.png"
+    },
+    {
+      "caseId": "QA-087-205",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-205/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-205/QA-087-205.png"
+    },
+    {
+      "caseId": "QA-087-213",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-213/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-213/QA-087-213.png"
+    },
+    {
+      "caseId": "QA-087-212",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-212/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-212/QA-087-212.png"
+    },
+    {
+      "caseId": "QA-087-198",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-198/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-198/QA-087-198.png"
+    },
+    {
+      "caseId": "QA-087-200",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-200/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-200/QA-087-200.png"
+    },
+    {
+      "caseId": "QA-087-201",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-201/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-201/QA-087-201.png"
+    },
+    {
+      "caseId": "QA-087-199",
+      "receipt": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-199/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-2026-08-28T22-08-25-653Z/cases/QA-087-199/QA-087-199.png"
+    }
+  ],
+  "matrixMutationRequests": [
+    {
+      "label": "圖號工作台",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:56509/api/pdm/relations/part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd/matrix",
+      "postData": "{\"changes\":[{\"drawingNumberId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"partNumberId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"relationType\":\"reference\"}]}",
+      "at": "2026-08-28T22:11:40.383Z"
+    },
+    {
+      "label": "圖號工作台",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:56509/api/pdm/relations/part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd/matrix",
+      "postData": "{\"changes\":[{\"drawingNumberId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"partNumberId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"relationType\":\"manufacturing_basis\"}]}",
+      "at": "2026-08-28T22:11:43.495Z"
+    },
+    {
+      "label": "圖號工作台",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:56509/api/pdm/relations/part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd/matrix",
+      "postData": "{\"changes\":[{\"drawingNumberId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"partNumberId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"relationType\":\"reference\"}]}",
+      "at": "2026-08-28T22:11:47.780Z"
+    },
+    {
+      "label": "圖號工作台",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:56509/api/pdm/relations/part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd/matrix",
+      "postData": "{\"changes\":[{\"drawingNumberId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"partNumberId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"relationType\":\"reference\"}]}",
+      "at": "2026-08-28T22:11:47.996Z"
+    },
+    {
+      "label": "圖號工作台",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:56509/api/pdm/relations/part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd/matrix",
+      "postData": "{\"changes\":[{\"drawingNumberId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"partNumberId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"relationType\":\"manufacturing_basis\"}]}",
+      "at": "2026-08-28T22:11:48.559Z"
+    },
+    {
+      "label": "圖號工作台",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:56509/api/pdm/relations/part-root-6645d98f-dde9-43cd-9314-bb88a7eaa9a8/matrix",
+      "postData": "{\"changes\":[{\"drawingNumberId\":\"drawing-number-5411a96a-1e85-480f-8651-19c56ae3a53e\",\"partNumberId\":\"part-number-51436633-4a7f-4709-9a06-f642e9d65e57\",\"relationType\":\"manufacturing_basis\"}]}",
+      "at": "2026-08-28T22:11:55.221Z"
+    }
+  ],
+  "total": 294,
+  "passed": 294,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "primary source invariant before fixture",
+      "pass": true,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "name": "source snapshot root and part masters exist before fixture mutation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "source snapshot foreign keys clean before fixture mutation",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "source snapshot has no company-scope migration residue before fixture mutation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "source snapshot root references resolve before fixture mutation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "SQLite backup is an exact protected source snapshot before mutation",
+      "pass": true,
+      "detail": "{\"primaryBefore\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"fixtureSnapshot\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    },
+    {
+      "name": "browser fixture has A0002 canonical drawing revision source",
+      "pass": true,
+      "detail": "{\"drawing\":{\"id\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"company_id\":\"company-jenfu\",\"created_by\":\"production-user-0003\"},\"baseRevision\":{\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"company_id\":\"company-jenfu\",\"drawing_id\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"revision\":\"0.1\",\"lifecycle_state\":\"rd_controlled\",\"policy_snapshot_json\":\"{\\\"policyVersion\\\":\\\"dev098-bounded-manual-minor-v1\\\"}\",\"override_reason\":null,\"row_version\":1,\"approval_request_id\":null,\"review_snapshot_hash\":null,\"source_candidate_revision_id\":null,\"source_revision_package_id\":null,\"created_by\":\"production-user-0003\",\"created_at\":\"2026-07-22T01:06:46.814Z\",\"updated_by\":\"production-user-0003\",\"updated_at\":\"2026-08-27 15:32:00\",\"submitted_at\":null,\"controlled_at\":\"2026-08-27 15:32:00\",\"released_at\":null,\"superseded_at\":null,\"cancelled_at\":null}}"
+    },
+    {
+      "name": "browser fixture has A0003 two-axis matrix source",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser fixture has A0010 single-axis source",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser fixture remains FK-clean after target residue preparation",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "isolated migration applied or safely quarantined",
+      "pass": true,
+      "detail": "{\n  \"status\": \"PASS\",\n  \"apply\": true,\n  \"switchCanonical\": true,\n  \"unresolved\": 0,\n  \"identityHash\": \"a59168bd158892cf50b31549c54f70bb2a7a31e9223cb66efa2bdac5f1c942b8\",\n  \"manifestPath\": \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-browser-nus8Gt\\\\migration\\\\manifest.json\"\n}\n\n"
+    },
+    {
+      "name": "browser fixture has A0002 root and source Part for functional cases",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "fixture remains FK-clean after declared mutations",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "isolated fixture has A0002 production and RD rows",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "系統管理員 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing/desktop five-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"版本\",\"資料狀態\",\"處理\"]"
+    },
+    {
+      "name": "drawing/desktop only domain filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"版本\",\"處理\",\"用途\",\"系列\"]"
+    },
+    {
+      "name": "drawing/desktop old filters absent",
+      "pass": true,
+      "detail": "搜尋\n版本\n全部\n處理\n全部\n用途\n全部\n系列\n全部"
+    },
+    {
+      "name": "drawing/desktop no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop production and RD visible together",
+      "pass": true,
+      "detail": "[\"A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理\",\"A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理\"]"
+    },
+    {
+      "name": "drawing/desktop has consecutive rows for keyboard QC",
+      "pass": true,
+      "detail": "2"
+    },
+    {
+      "name": "drawing/desktop editable input keeps ArrowDown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop ArrowDown selects first row",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop second ArrowDown selects next row",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop ArrowUp selects previous row",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop Enter opens selected detail",
+      "pass": true,
+      "detail": "cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7"
+    },
+    {
+      "name": "drawing/desktop reads its own remembered width",
+      "pass": true,
+      "detail": "510 != 510"
+    },
+    {
+      "name": "drawing/desktop resize handle is measurable",
+      "pass": true,
+      "detail": "{\"x\":923,\"y\":13,\"width\":18,\"height\":874}"
+    },
+    {
+      "name": "drawing/desktop actual drag changes drawer width",
+      "pass": true,
+      "detail": "510 -> 607"
+    },
+    {
+      "name": "drawing/desktop drag persists measured width",
+      "pass": true,
+      "detail": "607 != 607"
+    },
+    {
+      "name": "drawing/desktop does not overwrite pdm-part-detail-drawer-width",
+      "pass": true,
+      "detail": "560 != 560"
+    },
+    {
+      "name": "drawing/desktop does not overwrite pdm-search-detail-drawer-width",
+      "pass": true,
+      "detail": "610 != 610"
+    },
+    {
+      "name": "drawing/desktop remembered width survives reload",
+      "pass": true,
+      "detail": "607 != 607"
+    },
+    {
+      "name": "drawing/desktop drawer scroll fixture reaches a non-zero position",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop drawer ArrowDown changes rowKey",
+      "pass": true,
+      "detail": "cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7 -> cw_abbd6161-03e3-481f-aade-d6c4ab12240f"
+    },
+    {
+      "name": "drawing/desktop drawer ArrowDown selects second row",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop row switching resets drawer scroll",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop switched detail API 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "drawing/desktop URL/API/selected row stay aligned",
+      "pass": true,
+      "detail": "{\"secondKey\":\"cw_abbd6161-03e3-481f-aade-d6c4ab12240f\",\"apiKey\":\"cw_abbd6161-03e3-481f-aade-d6c4ab12240f\",\"secondCode\":\"A0002-M01\",\"apiCode\":\"A0002-M01\",\"drawerCode\":\"A0002-M01\",\"secondLayer\":\"研發版 1.1\",\"apiLayer\":\"研發版 1.1\",\"drawerLayer\":\"研發版 1.1\"}"
+    },
+    {
+      "name": "drawing/desktop rapid switching leaves final selected row aligned",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/desktop Escape returns focus to list",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing drawer has history",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-207 exact selected history identity is rendered",
+      "pass": true,
+      "detail": "{\"historyButtonText\":\"研發版 1.1\\n開啟指定版次\",\"historyRevisionId\":\"qa-dev087-browser-rd-revision\",\"historyDrawingId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"historyApi\":{\"status\":200,\"body\":{\"data\":{\"drawingId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"revisionId\":\"qa-dev087-browser-rd-revision\",\"identity\":{\"code\":\"A0002-M01\",\"purpose\":\"M\",\"purposeDescription\":\"\"},\"revision\":{\"revision\":\"1.1\",\"lifecycleState\":\"rd_controlled\"},\"files\":[{\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"role\":\"pdf\",\"displayName\":\"A0002-M01.pdf\",\"description\":\"圖面進版受控原始檔\",\"isPrimary\":false,\"fileName\":\"A0002-M01.pdf\",\"mimeType\":\"application/pdf\",\"fileSize\":209798,\"contentHash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\",\"downloadHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=qa-dev087-browser-rd-revision&bindingId=qa-dev087-browser-rd-revision-file-1\"},{\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"role\":\"drawing_2d\",\"displayName\":\"A0002-M01.SLDDRW\",\"description\":\"圖面進版受控原始檔\",\"isPrimary\":true,\"fileName\":\"A0002-M01.SLDDRW\",\"mimeType\":\"application/octet-stream\",\"fileSize\":295934,\"contentHash\":\"e6646cb4be002c7213b3c75cccf5c6aad97fddb11aa8a36e400b0fe1dd32a6ad\",\"downloadHref\":\"/api/pdm/file-assets/FA-94e7d949-2d0b-4c4e-b106-831dde533b76?context=drawing_revision&contextId=qa-dev087-browser-rd-revision&bindingId=qa-dev087-browser-rd-revision-file-2\"},{\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"role\":\"cad_3d\",\"displayName\":\"A0002.SLDPRT\",\"description\":\"圖面進版受控原始檔\",\"isPrimary\":true,\"fileName\":\"A0002.SLDPRT\",\"mimeType\":\"application/octet-stream\",\"fileSize\":495749,\"contentHash\":\"15cd458b983e4dddd0836555dfa8eac0f4d3ac87c056403d4279ebbf3d3ec7f4\",\"downloadHref\":\"/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=drawing_revision&contextId=qa-dev087-browser-rd-revision&bindingId=qa-dev087-browser-rd-revision-file-3\"}]},\"meta\":{\"readOnly\":true}}},\"historyDb\":{\"id\":\"qa-dev087-browser-rd-revision\",\"drawing_id\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"revision\":\"1.1\",\"lifecycle_state\":\"rd_controlled\"}}"
+    },
+    {
+      "name": "QA-087-207 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-208 missing history revision fails closed without file fallback",
+      "pass": true,
+      "detail": "指定版次不存在"
+    },
+    {
+      "name": "QA-087-208 expected visible error present",
+      "pass": true,
+      "detail": "[\"指定版次不存在\"]"
+    },
+    {
+      "name": "QA-087-187 first revision renders neutral related Parts and no FFF controls",
+      "pass": true,
+      "detail": "{\"initialWorkId\":\"87000000-0000-4000-8000-000000000008\",\"initialWorkApi\":{\"status\":200,\"body\":{\"data\":{\"entityType\":\"drawing\",\"entityId\":\"87000000-0000-4000-8000-000000000003\",\"workId\":\"87000000-0000-4000-8000-000000000008\",\"revisionId\":\"87000000-0000-4000-8000-000000000007\",\"revision\":\"0.1\",\"rowVersion\":1,\"payload\":{\"recognitionNotes\":\"\"},\"identity\":{\"code\":\"A0002-R99\",\"purpose_code\":\"R\",\"purpose_description\":\"DEV087 首版參考圖\"},\"files\":[],\"changeImpactRequired\":false,\"relatedParts\":[{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"name\":\"本體_BS_右_Xx5\"}],\"affectedParts\":[],\"readonly\":false,\"interaction\":{\"mode\":\"owner_edit\",\"basisState\":\"preproduction\",\"canMutateContent\":true,\"canSubmit\":true,\"canCancel\":true,\"canApprove\":false,\"canReturn\":false,\"reasonCode\":null}},\"meta\":{\"contractToken\":\"eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk1NDk1NDI0Nn0.kB8R8IKNV95qVOQCiEYfcMa0rWfQT8nbHUh4pIE4MkY\",\"correlationId\":\"84a7b66c-c070-4c01-964a-a179cdb01164\"}}},\"initialRelatedUi\":[\"A0002-P01\"]}"
+    },
+    {
+      "name": "QA-087-187 direct first-revision FFF PATCH is rejected with zero write",
+      "pass": true,
+      "detail": "{\"initialForbidden\":{\"status\":422,\"body\":{\"error\":{\"code\":\"DRAWING_FFF_NOT_APPLICABLE\",\"message\":\"首版工作不可寫入 FFF 判定\",\"correlationId\":\"9cfb6319-3396-43d2-b621-098e74a6044d\"}}},\"initialDbBefore\":{\"proposed_payload\":\"{\\\"recognitionNotes\\\":\\\"\\\"}\",\"row_version\":1,\"predecessor_revision_id\":null},\"initialDbAfter\":{\"proposed_payload\":\"{\\\"recognitionNotes\\\":\\\"\\\"}\",\"row_version\":1,\"predecessor_revision_id\":null}}"
+    },
+    {
+      "name": "QA-087-187 canonical 進版 creates one exact current Drawing work",
+      "pass": true,
+      "detail": "{\"functionalWorkId\":\"d9ca2cc3-d226-4a29-a626-083b52f4edc1\",\"workApiBefore\":{\"status\":200,\"body\":{\"data\":{\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"workId\":\"d9ca2cc3-d226-4a29-a626-083b52f4edc1\",\"revisionId\":\"a99da020-041a-4b0f-a060-0796da9fef47\",\"revision\":\"1.2\",\"rowVersion\":1,\"payload\":{\"recognitionNotes\":\"\",\"changeImpact\":{\"schemaVersion\":2,\"affectedPartNumberIds\":[\"part-number-593efe73-6225-42a7-9507-c63602b73169\"],\"affectedPartFingerprint\":\"74834fc87e39d515f79fb65337183b775ced8d5c4560dee3727889e9262d1e44\",\"formState\":null,\"fitState\":null,\"functionState\":null,\"outcome\":null,\"reasonCategory\":null,\"note\":null,\"replacement\":null}},\"identity\":{\"code\":\"A0002-M01\",\"purpose_code\":\"M\",\"purpose_description\":\"\"},\"files\":[{\"id\":\"qa-dev087-browser-production-revision-file-1\",\"source_file_asset_id\":\"FA-17a5c09b-a36f-4475-93e9-845a3c0a1881\",\"display_name\":\"A0002-M01.pdf\",\"role\":\"pdf\",\"drawing_revision_id\":\"qa-dev087-browser-production-revision\",\"is_primary\":0,\"file_name\":\"A0002-M01.pdf\",\"file_ext\":\"pdf\",\"mime_type\":\"application/pdf\",\"file_size\":209798,\"current_revision_upload\":0},{\"id\":\"qa-dev087-browser-production-revision-file-2\",\"source_file_asset_id\":\"FA-94e7d949-2d0b-4c4e-b106-831dde533b76\",\"display_name\":\"A0002-M01.SLDDRW\",\"role\":\"drawing_2d\",\"drawing_revision_id\":\"qa-dev087-browser-production-revision\",\"is_primary\":1,\"file_name\":\"A0002-M01.SLDDRW\",\"file_ext\":\"slddrw\",\"mime_type\":\"application/octet-stream\",\"file_size\":295934,\"current_revision_upload\":0},{\"id\":\"qa-dev087-browser-production-revision-file-3\",\"source_file_asset_id\":\"FA-9f069b7f-66a4-4676-b774-97a01ebfaf51\",\"display_name\":\"A0002.SLDPRT\",\"role\":\"cad_3d\",\"drawing_revision_id\":\"qa-dev087-browser-production-revision\",\"is_primary\":1,\"file_name\":\"A0002.SLDPRT\",\"file_ext\":\"sldprt\",\"mime_type\":\"application/octet-stream\",\"file_size\":495749,\"current_revision_upload\":0}],\"changeImpactRequired\":true,\"relatedParts\":[{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"name\":\"本體_BS_右_Xx5\"}],\"affectedParts\":[{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"name\":\"本體_BS_右_Xx5\"}],\"readonly\":false,\"interaction\":{\"mode\":\"owner_edit\",\"basisState\":\"current\",\"canMutateContent\":true,\"canSubmit\":true,\"canCancel\":true,\"canApprove\":false,\"canReturn\":false,\"reasonCode\":null}},\"meta\":{\"contractToken\":\"eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk1NDk2MjIyMH0.zqaCogm-6afE248B49nQ4PPHtp24WKNFFlfTn2ane4Q\",\"correlationId\":\"7f3fb35d-9f51-47a2-b57c-187308169316\"}}},\"workDbBefore\":{\"currentWork\":{\"id\":\"d9ca2cc3-d226-4a29-a626-083b52f4edc1\",\"drawing_id\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"branch_id\":\"38ee8e81-29f4-4621-96a9-7af9be6e7ceb\",\"target_claim_id\":\"04549196-fb00-45a6-b2e9-3521dabe1cf7\",\"proposed_payload\":\"{\\\"recognitionNotes\\\":\\\"\\\",\\\"changeImpact\\\":{\\\"schemaVersion\\\":2,\\\"affectedPartNumberIds\\\":[\\\"part-number-593efe73-6225-42a7-9507-c63602b73169\\\"],\\\"affectedPartFingerprint\\\":\\\"74834fc87e39d515f79fb65337183b775ced8d5c4560dee3727889e9262d1e44\\\",\\\"formState\\\":null,\\\"fitState\\\":null,\\\"functionState\\\":null,\\\"reasonCategory\\\":null,\\\"note\\\":null,\\\"replacement\\\":null}}\",\"row_version\":1},\"currentWorkCount\":1}}"
+    },
+    {
+      "name": "QA-087-187 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing editor keeps dedicated file and recognition sections",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing recognition uses the work revision context",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing owner editor remains mutable before submit",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-188 affected Part identities match rendered UI API and DB",
+      "pass": true,
+      "detail": "{\"affectedUi\":[\"A0002-P01\"],\"affectedApi\":[\"A0002-P01\"],\"affectedDb\":[\"A0002-P01\"]}"
+    },
+    {
+      "name": "QA-087-188 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-189 later revision starts with all three FFF axes unassessed",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-189 all three rendered FFF outcomes are independently selected",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-190 confirmed impact renders replacement identity controls",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-190 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-209 owner sees exact protected work-file downloads",
+      "pass": true,
+      "detail": "[\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision_work&contextId=d9ca2cc3-d226-4a29-a626-083b52f4edc1&bindingId=qa-dev087-browser-production-revision-file-1\",\"/api/pdm/file-assets/FA-d6693550-52bb-4bb4-8c28-62d0650ba437?context=drawing_revision_work&contextId=d9ca2cc3-d226-4a29-a626-083b52f4edc1&bindingId=eefe92aa-7983-416f-b311-56680339cdf9\",\"/api/pdm/file-assets/FA-b8166556-7c78-45a8-85cb-911a18f5bd34?context=drawing_revision_work&contextId=d9ca2cc3-d226-4a29-a626-083b52f4edc1&bindingId=e2ed58b7-3ab7-4f36-b79c-dc72815fb018\"]"
+    },
+    {
+      "name": "QA-087-209 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-210 primary files are visibly locked from removal",
+      "pass": true,
+      "detail": "{\"primaryLocks\":2,\"primaryRemoveButtons\":0}"
+    },
+    {
+      "name": "QA-087-210 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-211 multi-file upload exposes per-file terminal progress",
+      "pass": true,
+      "detail": "[\"DEV087-FUNCTIONAL.SLDDRW上傳完成\",\"DEV087-FUNCTIONAL.SLDPRT上傳完成\"]"
+    },
+    {
+      "name": "QA-087-189 rendered submit persists exact FFF snapshot",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-191 canonical workbench exposes one current review authority",
+      "pass": true,
+      "detail": "[{\"rowKey\":\"cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"production\",\"layerLabel\":\"量產版 1\",\"revision\":\"1\",\"dataState\":\"available\",\"dataStateLabel\":\"可使用\",\"handling\":\"none\",\"handlingLabel\":\"無須處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7\",\"rowVersion\":2,\"basisState\":\"current\",\"actions\":[{\"key\":\"advance\",\"label\":\"進版\",\"href\":\"/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7\"},{\"key\":\"request_obsolete\",\"label\":\"申請作廢\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]},{\"rowKey\":\"cw_0aef7d45-f2ba-4d71-9fd2-95717535d69b\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 1.2\",\"revision\":\"1.2\",\"dataState\":\"reviewing\",\"dataStateLabel\":\"審核中\",\"handling\":\"review_owner\",\"handlingLabel\":\"審核負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_0aef7d45-f2ba-4d71-9fd2-95717535d69b\",\"rowVersion\":5,\"basisState\":\"current\",\"actions\":[{\"key\":\"review\",\"label\":\"前往審核\",\"href\":\"/approvals/a671bfe4-c3dd-4a59-8a70-85c2e6fa19e8\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]},{\"rowKey\":\"cw_abbd6161-03e3-481f-aade-d6c4ab12240f\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 1.1\",\"revision\":\"1.1\",\"dataState\":\"available\",\"dataStateLabel\":\"可使用\",\"handling\":\"none\",\"handlingLabel\":\"無須處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_abbd6161-03e3-481f-aade-d6c4ab12240f\",\"rowVersion\":1,\"basisState\":\"current\",\"actions\":[{\"key\":\"advance\",\"label\":\"進版\",\"href\":\"/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_abbd6161-03e3-481f-aade-d6c4ab12240f\"},{\"key\":\"void_rd\",\"label\":\"申請作廢\",\"href\":\"/api/pdm/drawing-rd-branches/56c7b631-bf81-41cc-a8cc-00411043a6e3/void-requests\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]"
+    },
+    {
+      "name": "reviewer shared Drawing workspace is visibly laid out",
+      "pass": true,
+      "detail": "{\"display\":\"flex\",\"visibility\":\"visible\",\"opacity\":\"1\",\"width\":1200,\"height\":640,\"parents\":[{\"tag\":\"MAIN\",\"className\":\"dev079-workspace canonical-review-package\",\"display\":\"flex\",\"visibility\":\"visible\",\"width\":1200,\"height\":900},{\"tag\":\"MAIN\",\"className\":\"main\",\"display\":\"block\",\"visibility\":\"visible\",\"width\":1200,\"height\":900},{\"tag\":\"DIV\",\"className\":\"app-shell\",\"display\":\"grid\",\"visibility\":\"visible\",\"width\":1440,\"height\":900},{\"tag\":\"BODY\",\"className\":\"\",\"display\":\"block\",\"visibility\":\"visible\",\"width\":1440,\"height\":900},{\"tag\":\"HTML\",\"className\":\"\",\"display\":\"block\",\"visibility\":\"visible\",\"width\":1440,\"height\":900}]}"
+    },
+    {
+      "name": "QA-087-189 reviewer sees exact submitted FFF snapshot",
+      "pass": true,
+      "detail": "{\"reviewerFff\":[{\"value\":\"no_impact\",\"disabled\":true},{\"value\":\"suspected_impact\",\"disabled\":true},{\"value\":\"confirmed_impact\",\"disabled\":true}],\"reviewerReplacement\":\"A0002-P02\"}"
+    },
+    {
+      "name": "QA-087-189 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-211 reviewer work-file set is readonly",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-211 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-191 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-192 reviewer return succeeds through rendered UI",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-192 returned owner work preserves exact FFF snapshot",
+      "pass": true,
+      "detail": "[\"no_impact\",\"suspected_impact\",\"confirmed_impact\"]"
+    },
+    {
+      "name": "QA-087-192 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing layer filter applies directly",
+      "pass": true,
+      "detail": "[\"研發版 0.1\",\"研發版 1.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\",\"研發版 0.1\"]"
+    },
+    {
+      "name": "QA-087-214 Drawing search filter and sort are reflected in URL and API",
+      "pass": true,
+      "detail": "{\"status\":200,\"body\":{\"data\":{\"groups\":[{\"groupKey\":\"cg_080e621a-a851-4ac7-ae57-fc434ee80e8c\",\"rows\":[{\"rowKey\":\"cw_ad3b02c6-aa7d-40de-ad35-1e0153c2aec3\",\"entityType\":\"drawing\",\"entityId\":\"drawing-formal-05baab83-609b-4393-9904-348178558e4a\",\"code\":\"A0059-M01\",\"name\":\"固定架_BS_700_A\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_ad3b02c6-aa7d-40de-ad35-1e0153c2aec3\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-formal-05baab83-609b-4393-9904-348178558e4a/workspace?workId=923a7d6c-f5c8-49a6-ac3a-06373fd1458b\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_b1a677d4-8324-4028-ab60-1cd9fc2f5369\",\"rows\":[{\"rowKey\":\"cw_c20b113c-b447-4cc4-a49f-4c1dfcaf6ab4\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-62f78ded-8c68-4be5-916b-bc02ad7cd48f\",\"code\":\"A0058-M01\",\"name\":\"攔污柵_BS_機械式_3x5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_c20b113c-b447-4cc4-a49f-4c1dfcaf6ab4\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-62f78ded-8c68-4be5-916b-bc02ad7cd48f/workspace?workId=03de3241-1963-4cb9-a8f4-82d92581f816\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_188de720-3044-4427-a212-80fc0d6c7184\",\"rows\":[{\"rowKey\":\"cw_11c977c5-f05f-4d5c-aa4c-a906739aab48\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-882c0d76-2f75-4218-bafa-d588451bf21c\",\"code\":\"A0057-M01\",\"name\":\"角鐵_BS_30x30x2t_276L\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_11c977c5-f05f-4d5c-aa4c-a906739aab48\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-882c0d76-2f75-4218-bafa-d588451bf21c/workspace?workId=0b3f0aaf-44db-4da0-a87b-8c9f89f0c737\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_795b12cb-7584-464d-ace7-42d56e8216fa\",\"rows\":[{\"rowKey\":\"cw_88d520a3-06c9-4276-a13e-b800148203f5\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-41879ec2-a9ce-4269-a892-8ac5435ee731\",\"code\":\"A0056-M01\",\"name\":\"檔水板_BS_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_88d520a3-06c9-4276-a13e-b800148203f5\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-41879ec2-a9ce-4269-a892-8ac5435ee731/workspace?workId=454eeb35-01d5-4e9e-afc4-70b834b247f5\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_6bf4bfd3-65ef-474f-af86-5371c5e33038\",\"rows\":[{\"rowKey\":\"cw_c152b818-fe28-4f84-a20d-0beacc6e2050\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-4c45d734-fb7d-4df1-8466-abc3e07b0612\",\"code\":\"A0055-M01\",\"name\":\"鍊條支撐架_BS_3x5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_c152b818-fe28-4f84-a20d-0beacc6e2050\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-4c45d734-fb7d-4df1-8466-abc3e07b0612/workspace?workId=3b94d602-1d41-4f9e-ae5b-3920dab54670\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_0de893b6-89db-402c-a233-ae59dd633668\",\"rows\":[{\"rowKey\":\"cw_f708662e-e8ce-43cd-a4bf-d069cb8c395c\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-6ce15039-a91a-4956-9442-f5db2adf6333\",\"code\":\"A0054-M01\",\"name\":\"從動軸組_BS_3xX\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_f708662e-e8ce-43cd-a4bf-d069cb8c395c\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-6ce15039-a91a-4956-9442-f5db2adf6333/workspace?workId=e70cbc91-63f3-47cb-a0d1-56cc84c04618\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_61f9cec7-89cb-4d57-a1df-1503f9ef74d6\",\"rows\":[{\"rowKey\":\"cw_f32309a5-2bb7-4997-a366-8318036b044a\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-ba7c67c5-e4d4-4a9d-b32d-26c795e954e6\",\"code\":\"A0053-M01\",\"name\":\"主動軸組_BS_3xX\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_f32309a5-2bb7-4997-a366-8318036b044a\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-ba7c67c5-e4d4-4a9d-b32d-26c795e954e6/workspace?workId=73234afc-4361-4269-a07e-6a055dfc3934\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_02daae4e-76f5-42eb-a891-13d2fb9e50ef\",\"rows\":[{\"rowKey\":\"cw_e97b16ec-c07b-462b-ada6-c2d78ff963bb\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-e23ab699-a921-407f-921b-683a5007b9c2\",\"code\":\"A0052-M01\",\"name\":\"腳架組_BS_3x5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_e97b16ec-c07b-462b-ada6-c2d78ff963bb\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-e23ab699-a921-407f-921b-683a5007b9c2/workspace?workId=509f39b0-a5f8-4e5a-acb1-04893cf287be\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_842e8384-40bb-4b70-a4da-208a07c6e345\",\"rows\":[{\"rowKey\":\"cw_d2ccd83f-d83d-445e-ad3a-55d972c94a87\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-287e6847-8ec0-45e1-b8d3-59856d8fe365\",\"code\":\"A0051-M01\",\"name\":\"腳架_BS_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_d2ccd83f-d83d-445e-ad3a-55d972c94a87\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-287e6847-8ec0-45e1-b8d3-59856d8fe365/workspace?workId=69938e71-b039-4030-a370-2867c82b0801\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_7a8e1ac8-de26-488b-ab0d-f7f812fe0768\",\"rows\":[{\"rowKey\":\"cw_cb2a5536-4407-46f4-a3c4-db944e54caa2\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-b8b8d229-d2a8-430b-94e2-200501676841\",\"code\":\"A0050-M01\",\"name\":\"電控箱支架_BS_左\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_cb2a5536-4407-46f4-a3c4-db944e54caa2\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-b8b8d229-d2a8-430b-94e2-200501676841/workspace?workId=8b7229a4-978b-4d35-abce-8f804c53c838\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_f692bc91-093b-4f40-a109-3f5403727f7f\",\"rows\":[{\"rowKey\":\"cw_dc5d66a7-b7d3-4e51-a7db-79ecc646a500\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-dd63f19d-34af-4db9-8d5d-3e19ea0f9695\",\"code\":\"A0049-M01\",\"name\":\"電控箱支架_BS_右\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_dc5d66a7-b7d3-4e51-a7db-79ecc646a500\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-dd63f19d-34af-4db9-8d5d-3e19ea0f9695/workspace?workId=3ea7a2d7-e9cf-4642-a9a9-9523f3c4252f\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_e45def2c-cabe-4500-af62-f9c45a62a777\",\"rows\":[{\"rowKey\":\"cw_9b52113e-5a8c-46f9-af74-354be478237c\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-e08f2c13-84e4-40d1-9a6d-97e410740f0d\",\"code\":\"A0048-M01\",\"name\":\"拉板組_BS\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_9b52113e-5a8c-46f9-af74-354be478237c\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-e08f2c13-84e4-40d1-9a6d-97e410740f0d/workspace?workId=71221908-fc02-4ce1-aee0-cd688fc02262\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_97d16f12-7b76-4f9f-acb4-52853cf0e686\",\"rows\":[{\"rowKey\":\"cw_ef7780ba-6e76-439b-ae0f-5c32c641c491\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-ba599f83-d410-4300-84dd-1652bbe1c980\",\"code\":\"A0047-M01\",\"name\":\"耙爪_BS_塑膠\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_ef7780ba-6e76-439b-ae0f-5c32c641c491\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-ba599f83-d410-4300-84dd-1652bbe1c980/workspace?workId=17cedcc8-1208-4365-a102-3d840755f25d\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_c381f80d-55e1-4967-a50b-abbb145d362b\",\"rows\":[{\"rowKey\":\"cw_0c10f6a6-2cc7-47cd-a7da-d7c7786a67bc\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-c570a22f-35dc-4037-985e-9903b2287bb6\",\"code\":\"A0046-M01\",\"name\":\"柵條_BS_Xx5_塑膠\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_0c10f6a6-2cc7-47cd-a7da-d7c7786a67bc\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-c570a22f-35dc-4037-985e-9903b2287bb6/workspace?workId=fd3daa67-62f1-4fdf-acaa-413b5341576b\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_8dfb1aa2-f4b3-40c1-af58-e830ebe05823\",\"rows\":[{\"rowKey\":\"cw_1931dcf5-e4ff-404b-a6eb-600e40e05694\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-d920dc7a-f896-4c09-8fd8-00cd22ecb672\",\"code\":\"A0045-M01\",\"name\":\"連板組_BS\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_1931dcf5-e4ff-404b-a6eb-600e40e05694\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-d920dc7a-f896-4c09-8fd8-00cd22ecb672/workspace?workId=aa47ab9e-4796-4c6d-a71d-d8a84306d1aa\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_cd193f63-9b75-4ae5-a15c-d869903815b1\",\"rows\":[{\"rowKey\":\"cw_6f69669c-7efb-4e72-afa8-64d1902152ed\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-e79f7dd9-8e67-4f30-8a63-b0d8d814f591\",\"code\":\"A0043-M01\",\"name\":\"本體組_BS_Xx5_左\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_6f69669c-7efb-4e72-afa8-64d1902152ed\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-e79f7dd9-8e67-4f30-8a63-b0d8d814f591/workspace?workId=38a4a03e-16c2-41a7-a357-b577e15ad556\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_7eeca6ff-b85f-40db-a9af-13e384d78ed2\",\"rows\":[{\"rowKey\":\"cw_8e1a7473-82d5-4715-a8c5-4e7f6af58af9\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-bd6d8699-c9fb-4971-bf6c-5dcf5cbe7d66\",\"code\":\"A0042-M01\",\"name\":\"本體組_BS_Xx5_右\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_8e1a7473-82d5-4715-a8c5-4e7f6af58af9\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-bd6d8699-c9fb-4971-bf6c-5dcf5cbe7d66/workspace?workId=a22acb13-04dd-440f-ab55-98f090c099e9\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_c2257627-c7af-4d6a-a0ab-acc9af43dde4\",\"rows\":[{\"rowKey\":\"cw_9d5d18b0-1380-4666-a001-f6fcd8fd4822\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-247f2f90-0e2b-4c74-ac09-0f592055cd4b\",\"code\":\"A0041-M01\",\"name\":\"導渣板組_BS_左\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_9d5d18b0-1380-4666-a001-f6fcd8fd4822\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-247f2f90-0e2b-4c74-ac09-0f592055cd4b/workspace?workId=b4706a1b-59a1-4a06-a58e-0b7b929c29e7\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_3398cbc0-e85b-42ce-a47c-ad160c07a368\",\"rows\":[{\"rowKey\":\"cw_ee0d96c6-3e00-4768-ab1f-77967168b28c\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-b4b1c665-46df-4af6-af4e-4f9b05945467\",\"code\":\"A0040-M01\",\"name\":\"導渣板組_BS_右\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_ee0d96c6-3e00-4768-ab1f-77967168b28c\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-b4b1c665-46df-4af6-af4e-4f9b05945467/workspace?workId=fdeb7746-7e69-4c4f-ae6d-caf85917863a\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_649dc8f4-e8ff-4e84-ab58-c528904e3f2b\",\"rows\":[{\"rowKey\":\"cw_47fbf39b-7884-4569-a7aa-f4d30fe4e65b\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-3f7a5246-8b96-458e-aee6-02fb5c29fb5f\",\"code\":\"A0039-M01\",\"name\":\"耙爪座_BS_3x5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_47fbf39b-7884-4569-a7aa-f4d30fe4e65b\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-3f7a5246-8b96-458e-aee6-02fb5c29fb5f/workspace?workId=f6116f73-c4ab-421e-a06c-b8e97c32df41\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_e955cbbb-46d6-4790-aa37-39bade94ced9\",\"rows\":[{\"rowKey\":\"cw_6d1dd410-b19e-4231-aef6-9a75ccebf0d9\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-22d3f0c9-722c-4437-b24c-5c01a844be77\",\"code\":\"A0038-M01\",\"name\":\"方管_BS_32x32x2.1t_231L\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_6d1dd410-b19e-4231-aef6-9a75ccebf0d9\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-22d3f0c9-722c-4437-b24c-5c01a844be77/workspace?workId=59789a10-71c1-4f1e-a3f9-14a9d8a395f4\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_8acb49ed-fe06-463a-ac18-f68528f6dcd7\",\"rows\":[{\"rowKey\":\"cw_abc5bd5c-f94a-4b80-a8f2-f56269025090\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-72b80dc7-c3c6-4fae-b086-c87282adccf2\",\"code\":\"A0037-M01\",\"name\":\"連桿_BS_φ16_215L_5/16\\\"_18NC_12L\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_abc5bd5c-f94a-4b80-a8f2-f56269025090\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-72b80dc7-c3c6-4fae-b086-c87282adccf2/workspace?workId=4e0c6e4f-0db7-42af-a489-baaa6cb6cd0e\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_549afa57-feb5-452b-a257-ea04b5bb2d16\",\"rows\":[{\"rowKey\":\"cw_47a7f799-735e-4f44-a48a-c6a96879c973\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-4fe6be16-445c-4686-a15d-ba37cfd2f869\",\"code\":\"A0036-R01\",\"name\":\"鍊條活目_RS60\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_47a7f799-735e-4f44-a48a-c6a96879c973\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-4fe6be16-445c-4686-a15d-ba37cfd2f869/workspace?workId=21822c50-744d-4682-a323-c672cb3726ee\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_1ff99e53-ad98-4e6b-ac63-395219eefd08\",\"rows\":[{\"rowKey\":\"cw_5978b587-11a2-452e-a901-3ab10a21b148\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-f5129027-6296-43f1-ad73-a106681d10d3\",\"code\":\"A0032-M01\",\"name\":\"壓板_BS_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_5978b587-11a2-452e-a901-3ab10a21b148\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-f5129027-6296-43f1-ad73-a106681d10d3/workspace?workId=385ac889-98e1-48f7-aa74-9662f8a10dea\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_d13bae13-d919-4a31-af1a-d5de5ec9dba3\",\"rows\":[{\"rowKey\":\"cw_0865b085-1777-4c92-a333-e2bd6194b9ff\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-30834795-6330-4a74-a5f5-3e62a28fa7ce\",\"code\":\"A0031-M01\",\"name\":\"圓棒_BS_φ12x570L\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_0865b085-1777-4c92-a333-e2bd6194b9ff\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-30834795-6330-4a74-a5f5-3e62a28fa7ce/workspace?workId=30ede9b7-6438-454f-af36-0db4bc9f2b77\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_afd15661-db66-4702-a14c-6c4c6f3dbcfe\",\"rows\":[{\"rowKey\":\"cw_1408f82b-c3e7-4cff-a68e-d383fd7cdebd\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cf83459b-5785-4f0e-bc47-69f5d078a976\",\"code\":\"A0030-M01\",\"name\":\"從動軸_BS_3xX\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_1408f82b-c3e7-4cff-a68e-d383fd7cdebd\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-cf83459b-5785-4f0e-bc47-69f5d078a976/workspace?workId=114bfc42-15b6-48a5-ada2-effcd5198854\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_02c64f09-6c3f-4470-aba0-79162bc1188a\",\"rows\":[{\"rowKey\":\"cw_506848d8-09c9-41d4-adcd-125541af111f\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-75e1ddc4-04a9-4571-a2b7-96ae61ba8262\",\"code\":\"A0029-M01\",\"name\":\"主動軸_BS_3x5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_506848d8-09c9-41d4-adcd-125541af111f\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-75e1ddc4-04a9-4571-a2b7-96ae61ba8262/workspace?workId=d192c0bb-e775-423e-aec9-a2b4111eab90\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_1689810b-e308-4abc-a96c-09377fac1323\",\"rows\":[{\"rowKey\":\"cw_f011debe-89a7-4733-a728-f0ddc6e00063\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-4cdbad6e-74d1-4fe4-88bf-18052cd7b933\",\"code\":\"A0028-M01\",\"name\":\"導板_BS_3xX\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_f011debe-89a7-4733-a728-f0ddc6e00063\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-4cdbad6e-74d1-4fe4-88bf-18052cd7b933/workspace?workId=514c1ed1-8cdf-4667-a766-39d78c0b7834\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_7b4cc033-a4c9-4007-a755-3273be3725c1\",\"rows\":[{\"rowKey\":\"cw_15366801-b81b-4ce7-a86d-b74751784b98\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-acd3dee3-feba-4e04-ab63-cfb2e06a0341\",\"code\":\"A0027-M01\",\"name\":\"連板_BS\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_15366801-b81b-4ce7-a86d-b74751784b98\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-acd3dee3-feba-4e04-ab63-cfb2e06a0341/workspace?workId=4c4ca12b-f11b-440e-a040-5d0a4e551d7e\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_5ade2510-b0d5-4731-a7fe-ca1972bd8f3a\",\"rows\":[{\"rowKey\":\"cw_a5f32c6f-7a00-4258-a0da-587abce4a242\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-937620cf-3b61-4256-b4e6-b40a898ee0b3\",\"code\":\"A0026-M01\",\"name\":\"方管_BS_32x32x2.1tx588.8L\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_a5f32c6f-7a00-4258-a0da-587abce4a242\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-937620cf-3b61-4256-b4e6-b40a898ee0b3/workspace?workId=684075c3-c181-4b12-a77f-f0d9eb3a3a25\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_be2270a3-5636-4bfa-a45a-28f557e8349d\",\"rows\":[{\"rowKey\":\"cw_ebad060d-ff25-44b8-a9d1-7ad6b3032f68\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-650a881b-c8ac-4187-ab10-4f5968a3d09d\",\"code\":\"A0025-M01\",\"name\":\"方管_BS_32x32x2.1tx500L\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_ebad060d-ff25-44b8-a9d1-7ad6b3032f68\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-650a881b-c8ac-4187-ab10-4f5968a3d09d/workspace?workId=a03f0170-3f24-45d4-aae2-729f4adc9306\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_74dff9cb-a6f3-49a1-a869-717dc715135e\",\"rows\":[{\"rowKey\":\"cw_ff9dfbdf-46e4-433b-a84d-3d3bd00deb8a\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-fbee421f-176b-4f64-b402-df3c764d5bba\",\"code\":\"A0024-M01\",\"name\":\"方管_BS_32x32x2.1tx432L\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_ff9dfbdf-46e4-433b-a84d-3d3bd00deb8a\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-fbee421f-176b-4f64-b402-df3c764d5bba/workspace?workId=e71ddb12-b8ba-4cef-a127-0d7a3a3f7d21\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_07a5d14b-5e7c-4dc7-afda-6051f256ba0d\",\"rows\":[{\"rowKey\":\"cw_67c65a5c-2260-43d7-a309-4953552a549b\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-6df45714-f8ff-419e-9140-7629434286dc\",\"code\":\"A0023-M01\",\"name\":\"角鐵_BS_馬達支架_左\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_67c65a5c-2260-43d7-a309-4953552a549b\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-6df45714-f8ff-419e-9140-7629434286dc/workspace?workId=1d1be949-24df-4790-ab54-327226b17f1e\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_668663ff-9d68-41ec-aea3-0d111312e897\",\"rows\":[{\"rowKey\":\"cw_0b7f39c5-a716-4258-a683-7625864a5039\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-5881f779-3a86-4486-85ff-4e707057f95d\",\"code\":\"A0022-M01\",\"name\":\"角鐵_BS_馬達支架_右\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_0b7f39c5-a716-4258-a683-7625864a5039\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-5881f779-3a86-4486-85ff-4e707057f95d/workspace?workId=d0a4ce52-70a5-4406-a56f-c95f17799242\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_a9dcd843-4d85-4381-a291-094b0e34279d\",\"rows\":[{\"rowKey\":\"cw_5d366816-d4d0-4cf5-a294-3bade5856595\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-c1d5b588-58dc-4295-8b2f-23b8af619333\",\"code\":\"A0021-M01\",\"name\":\"墊片_BS_馬達支架\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_5d366816-d4d0-4cf5-a294-3bade5856595\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-c1d5b588-58dc-4295-8b2f-23b8af619333/workspace?workId=174881c1-e22c-467b-a63c-8315d7682fa0\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_ba473f9c-3e3d-4c18-a4f1-aea7501c7b1e\",\"rows\":[{\"rowKey\":\"cw_84946bc4-96f5-48a5-ad41-72428f2ef2f4\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-6652cb73-c15c-4c99-b8ba-e157607163b5\",\"code\":\"A0020-M01\",\"name\":\"腳架墊片_BS_下_B\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_84946bc4-96f5-48a5-ad41-72428f2ef2f4\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-6652cb73-c15c-4c99-b8ba-e157607163b5/workspace?workId=1a290352-3143-4256-abd7-e8d290076bd7\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_63ce185d-8e6d-4a79-aa89-9de12397dfac\",\"rows\":[{\"rowKey\":\"cw_8cdc8ad3-3661-4a0e-afe4-8fd895a7b47e\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-932636ce-42c1-4a7a-9905-52fd54656c15\",\"code\":\"A0019-M01\",\"name\":\"腳架墊片_BS_下_A\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_8cdc8ad3-3661-4a0e-afe4-8fd895a7b47e\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-932636ce-42c1-4a7a-9905-52fd54656c15/workspace?workId=06cae351-1cd5-493c-aa9a-31f8cf95a6a3\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_fb22b117-872a-4600-a307-45f8b2f8bf93\",\"rows\":[{\"rowKey\":\"cw_3e2a248a-062f-4e28-a067-74148a80a5ef\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-f544dee6-0614-49ee-9302-275d6d76d4ac\",\"code\":\"A0018-M01\",\"name\":\"腳架墊片_BS_上\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_3e2a248a-062f-4e28-a067-74148a80a5ef\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-f544dee6-0614-49ee-9302-275d6d76d4ac/workspace?workId=433f1082-bccc-4558-aff0-198ae230f0b5\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_d7d6de91-2d63-43ee-aa4d-77bc7164dcb1\",\"rows\":[{\"rowKey\":\"cw_95bf2fd8-ade0-457c-a4c8-fbb9ed204c2c\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-ceb8ab2f-d810-4eb0-9bc4-5b328a268a00\",\"code\":\"A0016-M01\",\"name\":\"軸承管_BS\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_95bf2fd8-ade0-457c-a4c8-fbb9ed204c2c\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-ceb8ab2f-d810-4eb0-9bc4-5b328a268a00/workspace?workId=d34ae9b3-692e-4bb8-a606-7838f53cf0f5\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_e2fee344-61ff-4129-ad0a-e901ed2596ac\",\"rows\":[{\"rowKey\":\"cw_bc3189df-c20f-4d22-a311-e4c2f5a7e538\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-39ee9f56-4b4e-4056-8525-551268e94698\",\"code\":\"A0015-M01\",\"name\":\"法蘭板_BS\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_bc3189df-c20f-4d22-a311-e4c2f5a7e538\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-39ee9f56-4b4e-4056-8525-551268e94698/workspace?workId=22f60901-ecbc-4135-a7cb-55774281d745\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_e5560be4-d6de-4c94-ace5-e59af343e293\",\"rows\":[{\"rowKey\":\"cw_2b7be643-2f90-4ed6-a3f4-e89a170d0913\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-b647756e-24a1-4391-860c-b6f5a0aec0f6\",\"code\":\"A0009-R01\",\"name\":\"拉板用螺桿_BS_5/16\\\"x18NCx75L\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_2b7be643-2f90-4ed6-a3f4-e89a170d0913\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-b647756e-24a1-4391-860c-b6f5a0aec0f6/workspace?workId=0281b2e6-e716-4914-a749-4f12abab3475\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_fb810b6e-41f9-4f59-a453-8b2b6d426657\",\"rows\":[{\"rowKey\":\"cw_b12de14c-f3fa-439c-af5c-6c35bbe42c24\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-e69615d4-c2d4-45e1-b4be-9f19a419c6d9\",\"code\":\"A0008-M01\",\"name\":\"拉板_BS\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_b12de14c-f3fa-439c-af5c-6c35bbe42c24\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-e69615d4-c2d4-45e1-b4be-9f19a419c6d9/workspace?workId=9b7e38fd-e6a3-4c74-ab13-01b54a8c4645\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_9385f4b1-689a-4dda-aec3-b1376b29d2f7\",\"rows\":[{\"rowKey\":\"cw_d431bb9e-35d0-4232-a278-6fe1f46cef89\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-2b3e139e-aeb8-476f-90c1-0ea4ef49ca5b\",\"code\":\"A0007-M01\",\"name\":\"柵條固定板_BS_左\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_d431bb9e-35d0-4232-a278-6fe1f46cef89\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-2b3e139e-aeb8-476f-90c1-0ea4ef49ca5b/workspace?workId=f9e8152c-c48b-4d5c-a911-04a0090f188c\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_16f6be9f-e992-4942-a113-2adcd4b23d7f\",\"rows\":[{\"rowKey\":\"cw_1c4f1a65-5b0a-477a-ad0f-b2e1fd721339\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-58f3b735-a3fe-4c3b-87be-f2e23a15bebe\",\"code\":\"A0006-M01\",\"name\":\"柵條固定板_BS_右\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_1c4f1a65-5b0a-477a-ad0f-b2e1fd721339\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-58f3b735-a3fe-4c3b-87be-f2e23a15bebe/workspace?workId=9e9ae372-eec5-4f3f-a2e2-1e8035933404\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_4ae5a73c-2cde-46ac-a470-914bcf08d3fd\",\"rows\":[{\"rowKey\":\"cw_30a9ec12-428c-4810-aa2b-22750506d70e\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-05b1e1c0-f4e7-4fea-ad4e-37224c08a603\",\"code\":\"A0005-M01\",\"name\":\"導渣板_BS\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_30a9ec12-428c-4810-aa2b-22750506d70e\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-05b1e1c0-f4e7-4fea-ad4e-37224c08a603/workspace?workId=f7d3082e-7fc8-4848-a5e4-6a1d91677e4f\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_b0d4b99b-33b9-4ad9-acfc-4b5c28cb2606\",\"rows\":[{\"rowKey\":\"cw_10f0cf1b-b186-4e29-afa4-78415e3bc0ca\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-4ee20fd6-9d6f-435b-ab68-a71cedc15c11\",\"code\":\"A0004-M01\",\"name\":\"本體_BS_左_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_10f0cf1b-b186-4e29-afa4-78415e3bc0ca\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-4ee20fd6-9d6f-435b-ab68-a71cedc15c11/workspace?workId=da24c671-3cb0-4d30-a2ad-a49e255a6a83\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_adf3e58e-0786-4ce8-a8e7-1d0132991d2f\",\"rows\":[{\"rowKey\":\"cw_1b986f0d-98e4-4dc5-a672-0bd8ff3a18aa\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-96cedc17-1625-4c07-bcd2-4a49c3fff9d5\",\"code\":\"A0003-M01\",\"name\":\"本體_右_xX5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_1b986f0d-98e4-4dc5-a672-0bd8ff3a18aa\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-draft-drawing-96cedc17-1625-4c07-bcd2-4a49c3fff9d5/workspace?workId=2672c8e8-c2d5-4eb7-acc5-3025f47d89b9\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_87000000-0000-4000-8000-000000000004\",\"rows\":[{\"rowKey\":\"cw_87000000-0000-4000-8000-000000000009\",\"entityType\":\"drawing\",\"entityId\":\"87000000-0000-4000-8000-000000000003\",\"code\":\"A0002-R99\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_87000000-0000-4000-8000-000000000009\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/87000000-0000-4000-8000-000000000003/workspace?workId=87000000-0000-4000-8000-000000000008\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_889cfa51-e1f8-4b21-a91a-aad4a58c67a4\",\"rows\":[{\"rowKey\":\"cw_abbd6161-03e3-481f-aade-d6c4ab12240f\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 1.1\",\"revision\":\"1.1\",\"dataState\":\"available\",\"dataStateLabel\":\"可使用\",\"handling\":\"none\",\"handlingLabel\":\"無須處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_abbd6161-03e3-481f-aade-d6c4ab12240f\",\"rowVersion\":1,\"basisState\":\"current\",\"actions\":[{\"key\":\"advance\",\"label\":\"進版\",\"href\":\"/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_abbd6161-03e3-481f-aade-d6c4ab12240f\"},{\"key\":\"void_rd\",\"label\":\"申請作廢\",\"href\":\"/api/pdm/drawing-rd-branches/56c7b631-bf81-41cc-a8cc-00411043a6e3/void-requests\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]},{\"groupKey\":\"cg_368f0c49-2be7-441e-a2c8-c8b0de6d84e4\",\"rows\":[{\"rowKey\":\"cw_4671ae6f-ed3c-4f27-a1f8-5c6c92404747\",\"entityType\":\"drawing\",\"entityId\":\"drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864\",\"code\":\"A0001-M01\",\"name\":\"DEV-032 hotfix production acceptance 20260716140505\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"editing\",\"dataStateLabel\":\"編輯中\",\"handling\":\"owner\",\"handlingLabel\":\"負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_4671ae6f-ed3c-4f27-a1f8-5c6c92404747\",\"rowVersion\":1,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"edit\",\"label\":\"進行編輯\",\"href\":\"/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=eaddc347-5f90-417b-ab83-aff89e08acf1\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]}],\"nextCursor\":null,\"previousCursor\":null,\"totalGroups\":50,\"totalRows\":50},\"meta\":{\"contractToken\":\"eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk1NDk5OTMwN30.25Q1y0yNxdIouTd74mLPFPSgLhWRJVttclmPsUn_YIo\",\"correlationId\":\"aa76055c-93f4-4f3a-9e97-0c8384426346\"}},\"url\":\"http://127.0.0.1:56509/numbering/drawings?layer=rd&sort=desc\"}"
+    },
+    {
+      "name": "QA-087-214 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "part/desktop five-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"版本\",\"資料狀態\",\"處理\"]"
+    },
+    {
+      "name": "part/desktop only domain filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"資料\",\"處理\",\"料件類型\",\"系列\",\"材質\",\"顏色\"]"
+    },
+    {
+      "name": "part/desktop old filters absent",
+      "pass": true,
+      "detail": "搜尋\n資料\n全部\n處理\n全部\n料件類型\n全部\n系列\n全部\n材質\n顏色"
+    },
+    {
+      "name": "part/desktop no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part formal row has no revision",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part/desktop has consecutive rows for keyboard QC",
+      "pass": true,
+      "detail": "55"
+    },
+    {
+      "name": "part/desktop editable input keeps ArrowDown",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part/desktop ArrowDown selects first row",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part/desktop second ArrowDown selects next row",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part/desktop ArrowUp selects previous row",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part/desktop Enter opens selected detail",
+      "pass": true,
+      "detail": "cw_8604a438-de47-41a3-af98-3adad9d8d9f8"
+    },
+    {
+      "name": "part/desktop reads its own remembered width",
+      "pass": true,
+      "detail": "560 != 560"
+    },
+    {
+      "name": "part/desktop resize handle is measurable",
+      "pass": true,
+      "detail": "{\"x\":873,\"y\":13,\"width\":18,\"height\":874}"
+    },
+    {
+      "name": "part/desktop actual drag changes drawer width",
+      "pass": true,
+      "detail": "560 -> 657"
+    },
+    {
+      "name": "part/desktop drag persists measured width",
+      "pass": true,
+      "detail": "657 != 657"
+    },
+    {
+      "name": "part/desktop does not overwrite pdm-drawing-detail-drawer-width",
+      "pass": true,
+      "detail": "607 != 607"
+    },
+    {
+      "name": "part/desktop does not overwrite pdm-search-detail-drawer-width",
+      "pass": true,
+      "detail": "610 != 610"
+    },
+    {
+      "name": "part/desktop remembered width survives reload",
+      "pass": true,
+      "detail": "657 != 657"
+    },
+    {
+      "name": "part/desktop drawer scroll fixture reaches a non-zero position",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part/desktop drawer ArrowDown changes rowKey",
+      "pass": true,
+      "detail": "cw_8604a438-de47-41a3-af98-3adad9d8d9f8 -> cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062"
+    },
+    {
+      "name": "part/desktop drawer ArrowDown selects second row",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part/desktop row switching resets drawer scroll",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part/desktop switched detail API 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "part/desktop URL/API/selected row stay aligned",
+      "pass": true,
+      "detail": "{\"secondKey\":\"cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062\",\"apiKey\":\"cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062\",\"secondCode\":\"A0002-P01\",\"apiCode\":\"A0002-P01\",\"drawerCode\":\"A0002-P01\",\"secondLayer\":\"正式資料\",\"apiLayer\":\"正式資料\",\"drawerLayer\":\"正式資料\"}"
+    },
+    {
+      "name": "part/desktop rapid switching leaves final selected row aligned",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "part/desktop Escape returns focus to list",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-215 Part search material color and sort match exact fixture",
+      "pass": true,
+      "detail": "{\"partDiscoveryRows\":[\"A0002-P02DEV087 replacement Part正式資料可使用無須處理\"],\"partDiscoveryApi\":{\"status\":200,\"body\":{\"data\":{\"groups\":[{\"groupKey\":\"cg_aggregate-qa-dev087-functional-a0002-p02\",\"rows\":[{\"rowKey\":\"cw_state-qa-dev087-functional-a0002-p02\",\"entityType\":\"part\",\"entityId\":\"qa-dev087-functional-a0002-p02\",\"code\":\"A0002-P02\",\"name\":\"DEV087 replacement Part\",\"layer\":\"formal\",\"layerLabel\":\"正式資料\",\"revision\":null,\"dataState\":\"available\",\"dataStateLabel\":\"可使用\",\"handling\":\"none\",\"handlingLabel\":\"無須處理\",\"blockerReason\":null,\"detailHref\":\"/parts?detail=cw_state-qa-dev087-functional-a0002-p02\",\"rowVersion\":1,\"basisState\":null,\"actions\":[{\"key\":\"create_change\",\"label\":\"建立修改\",\"href\":\"/api/pdm/parts/qa-dev087-functional-a0002-p02/change-works\"},{\"key\":\"request_obsolete\",\"label\":\"申請作廢\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]}],\"nextCursor\":null,\"previousCursor\":null,\"totalGroups\":1,\"totalRows\":1},\"meta\":{\"contractToken\":\"eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk1NTAxNDk4NX0.P5GsP1mxZ2uDbCz8Ac0Uu2sCV_L1ONXTeBHtsUw07iY\",\"correlationId\":\"1bbdb209-a19e-44ad-8a46-e8fd069d4914\"}},\"url\":\"http://127.0.0.1:56509/parts?query=A0002-P02&material=SUS+304&color=Black&sort=desc\"}}"
+    },
+    {
+      "name": "QA-087-215 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-216 seeded browser fixture exposes real next cursor",
+      "pass": true,
+      "detail": "100"
+    },
+    {
+      "name": "QA-087-216 forward and backward cursor have no gap duplicate or identity drift",
+      "pass": true,
+      "detail": "{\"firstPageIds\":[\"A0001-P01\",\"A0002-P01\",\"A0002-P02\",\"A0002-P03\",\"A0002-P04\",\"A0002-P05\",\"A0002-P06\",\"A0002-P07\",\"A0002-P08\",\"A0002-P09\",\"A0002-P10\",\"A0002-P11\",\"A0002-P12\",\"A0002-P13\",\"A0002-P14\",\"A0002-P15\",\"A0002-P16\",\"A0002-P17\",\"A0002-P18\",\"A0002-P19\",\"A0002-P20\",\"A0002-P21\",\"A0002-P22\",\"A0002-P23\",\"A0002-P24\",\"A0002-P25\",\"A0002-P26\",\"A0002-P27\",\"A0002-P28\",\"A0002-P29\",\"A0002-P30\",\"A0002-P31\",\"A0002-P32\",\"A0002-P33\",\"A0002-P34\",\"A0002-P35\",\"A0002-P36\",\"A0002-P37\",\"A0002-P38\",\"A0002-P39\",\"A0002-P40\",\"A0002-P41\",\"A0002-P42\",\"A0002-P43\",\"A0002-P44\",\"A0002-P45\",\"A0002-P46\",\"A0002-P47\",\"A0003-P01\",\"A0004-P01\",\"A0005-P01\",\"A0006-P01\",\"A0007-P01\",\"A0008-P01\",\"A0009-P01\",\"A0010-P01\",\"A0011-P01\",\"A0012-P01\",\"A0013-P01\",\"A0014-P01\",\"A0015-P01\",\"A0016-P01\",\"A0017-P01\",\"A0018-P01\",\"A0019-P01\",\"A0020-P01\",\"A0021-P01\",\"A0022-P01\",\"A0023-P01\",\"A0024-P01\",\"A0025-P01\",\"A0026-P01\",\"A0027-P01\",\"A0028-P01\",\"A0029-P01\",\"A0030-P01\",\"A0031-P01\",\"A0032-P01\",\"A0033-P01\",\"A0034-P01\",\"A0035-P01\",\"A0036-P01\",\"A0037-P01\",\"A0038-P01\",\"A0039-P01\",\"A0040-P01\",\"A0041-P01\",\"A0042-P01\",\"A0043-P01\",\"A0044-P01\",\"A0045-P01\",\"A0046-P01\",\"A0047-P01\",\"A0048-P01\",\"A0049-P01\",\"A0050-P01\",\"A0051-P01\",\"A0052-P01\",\"A0053-P01\",\"A0054-P01\"],\"secondPageIds\":[\"A0055-P01\",\"A0056-P01\",\"A0057-P01\",\"A0058-P01\",\"A0059-P01\"],\"returnedFirstPageIds\":[\"A0001-P01\",\"A0002-P01\",\"A0002-P02\",\"A0002-P03\",\"A0002-P04\",\"A0002-P05\",\"A0002-P06\",\"A0002-P07\",\"A0002-P08\",\"A0002-P09\",\"A0002-P10\",\"A0002-P11\",\"A0002-P12\",\"A0002-P13\",\"A0002-P14\",\"A0002-P15\",\"A0002-P16\",\"A0002-P17\",\"A0002-P18\",\"A0002-P19\",\"A0002-P20\",\"A0002-P21\",\"A0002-P22\",\"A0002-P23\",\"A0002-P24\",\"A0002-P25\",\"A0002-P26\",\"A0002-P27\",\"A0002-P28\",\"A0002-P29\",\"A0002-P30\",\"A0002-P31\",\"A0002-P32\",\"A0002-P33\",\"A0002-P34\",\"A0002-P35\",\"A0002-P36\",\"A0002-P37\",\"A0002-P38\",\"A0002-P39\",\"A0002-P40\",\"A0002-P41\",\"A0002-P42\",\"A0002-P43\",\"A0002-P44\",\"A0002-P45\",\"A0002-P46\",\"A0002-P47\",\"A0003-P01\",\"A0004-P01\",\"A0005-P01\",\"A0006-P01\",\"A0007-P01\",\"A0008-P01\",\"A0009-P01\",\"A0010-P01\",\"A0011-P01\",\"A0012-P01\",\"A0013-P01\",\"A0014-P01\",\"A0015-P01\",\"A0016-P01\",\"A0017-P01\",\"A0018-P01\",\"A0019-P01\",\"A0020-P01\",\"A0021-P01\",\"A0022-P01\",\"A0023-P01\",\"A0024-P01\",\"A0025-P01\",\"A0026-P01\",\"A0027-P01\",\"A0028-P01\",\"A0029-P01\",\"A0030-P01\",\"A0031-P01\",\"A0032-P01\",\"A0033-P01\",\"A0034-P01\",\"A0035-P01\",\"A0036-P01\",\"A0037-P01\",\"A0038-P01\",\"A0039-P01\",\"A0040-P01\",\"A0041-P01\",\"A0042-P01\",\"A0043-P01\",\"A0044-P01\",\"A0045-P01\",\"A0046-P01\",\"A0047-P01\",\"A0048-P01\",\"A0049-P01\",\"A0050-P01\",\"A0051-P01\",\"A0052-P01\",\"A0053-P01\",\"A0054-P01\"]}"
+    },
+    {
+      "name": "QA-087-216 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "編號搜尋 four-column identity list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"圖料根號\",\"資料狀態\"]"
+    },
+    {
+      "name": "編號搜尋 exposes A0002 drawing and part identities",
+      "pass": true,
+      "detail": "A0001\tDEV-032 hotfix production acceptance 20260716140505\tA0001\tDraft\nA0001-M01\tDEV-032 production hotfix Level 4 smoke manufacturing drawing\tA0001\tDraft\nA0002\t本體_BS_右_Xx5\tA0002\tDraft\nA0002-M01\t—\tA0002\tReleased\nA0002-P01\t本體_BS_右_Xx5\tA0002\tReleased\nA0002-P02\tDEV087 replacement Part\tA0002\tReleased\nA0002-P03\tDEV087 pagination P03\tA0002\tReleased\nA0002-P04\tDEV087 pagination P04\tA0002\tReleased\nA0002-P05\tDEV087 pagination P05\tA0002\tReleased\nA0002-P06\tDEV087 pagination P06\tA0002\tReleased\nA0002-P07\tDEV087 pagination P07\tA0002\tReleased\nA0002-P08\tDEV087 pagination P08\tA0002\tReleased\nA0002-P09\tDEV087 pagination P09\tA0002\tReleased\nA0002-P10\tDEV087 pagination P10\tA0002\tReleased\nA0002-P11\tDEV087 pagination P11\tA0002\tReleased\nA0002-P12\tDEV087 pagination P12\tA0002\tReleased\nA0002-P13\tDEV087 pagination P13\tA0002\tReleased\nA0002-P14\tDEV087 pagination P14\tA0002\tReleased\nA0002-P15\tDEV087 pagination P15\tA0002\tReleased\nA0002-P16\tDEV087 pagination P16\tA0002\tReleased\nA0002-P17\tDEV087 pagination P17\tA0002\tReleased\nA0002-P18\tDEV087 pagination P18\tA0002\tReleased\nA0002-P19\tDEV087 pagination P19\tA0002\tReleased\nA0002-P20\tDEV087 pagination P20\tA0002\tReleased\nA0002-P21\tDEV087 pagination P21\tA0002\tReleased\nA0002-P22\tDEV087 pagination P22\tA0002\tReleased\nA0002-P23\tDEV087 pagination P23\tA0002\tReleased\nA0002-P24\tDEV087 pagination P24\tA0002\tReleased\nA0002-P25\tDEV087 pagination P25\tA0002\tReleased\nA0002-P26\tDEV087 pagination P26\tA0002\tReleased\nA0002-P27\tDEV087 pagination P27\tA0002\tReleased\nA0002-P28\tDEV087 pagination P28\tA0002\tReleased\nA0002-P29\tDEV087 pagination P29\tA0002\tReleased\nA0002-P30\tDEV087 pagination P30\tA0002\tReleased\nA0002-P31\tDEV087 pagination P31\tA0002\tReleased\nA0002-P32\tDEV087 pagination P32\tA0002\tReleased\nA0002-P33\tDEV087 pagination P33\tA0002\tReleased\nA0002-P34\tDEV087 pagination P34\tA0002\tReleased\nA0002-P35\tDEV087 pagination P35\tA0002\tReleased\nA0002-P36\tDEV087 pagination P36\tA0002\tReleased\nA0002-P37\tDEV087 pagination P37\tA0002\tReleased\nA0002-P38\tDEV087 pagination P38\tA0002\tReleased\nA0002-P39\tDEV087 pagination P39\tA0002\tReleased\nA0002-P40\tDEV087 pagination P40\tA0002\tReleased\nA0002-P41\tDEV087 pagination P41\tA0002\tReleased\nA0002-P42\tDEV087 pagination P42\tA0002\tReleased\nA0002-P43\tDEV087 pagination P43\tA0002\tReleased\nA0002-P44\tDEV087 pagination P44\tA0002\tReleased\nA0002-P45\tDEV087 pagination P45\tA0002\tReleased\nA0002-P46\tDEV087 pagination P46\tA0002\tReleased"
+    },
+    {
+      "name": "編號搜尋 query narrows to A0002",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "retired query is explicit",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-193 task center page and formal entry are retired",
+      "pass": true,
+      "detail": "{\"sidebarTaskLink\":0,\"dashboardTaskLink\":0,\"status\":404,\"taskHeading\":0}"
+    },
+    {
+      "name": "QA-087-193 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "系統管理員 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing/tablet five-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"版本\",\"資料狀態\",\"處理\"]"
+    },
+    {
+      "name": "drawing/tablet only domain filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"版本\",\"處理\",\"用途\",\"系列\"]"
+    },
+    {
+      "name": "drawing/tablet old filters absent",
+      "pass": true,
+      "detail": "搜尋\n版本\n全部\n處理\n全部\n用途\n全部\n系列\n全部"
+    },
+    {
+      "name": "drawing/tablet no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/tablet production and RD visible together",
+      "pass": true,
+      "detail": "[\"A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理\",\"A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理\"]"
+    },
+    {
+      "name": "系統管理員 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing/portrait-tablet five-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"版本\",\"資料狀態\",\"處理\"]"
+    },
+    {
+      "name": "drawing/portrait-tablet only domain filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"版本\",\"處理\",\"用途\",\"系列\"]"
+    },
+    {
+      "name": "drawing/portrait-tablet old filters absent",
+      "pass": true,
+      "detail": "搜尋\n版本\n全部\n處理\n全部\n用途\n全部\n系列\n全部"
+    },
+    {
+      "name": "drawing/portrait-tablet no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/portrait-tablet production and RD visible together",
+      "pass": true,
+      "detail": "[\"A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理\",\"A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理\"]"
+    },
+    {
+      "name": "系統管理員 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing/mobile five-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"版本\",\"資料狀態\",\"處理\"]"
+    },
+    {
+      "name": "drawing/mobile only domain filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"版本\",\"處理\",\"用途\",\"系列\"]"
+    },
+    {
+      "name": "drawing/mobile old filters absent",
+      "pass": true,
+      "detail": "搜尋\n版本\n全部\n處理\n全部\n用途\n全部\n系列\n全部"
+    },
+    {
+      "name": "drawing/mobile no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/mobile production and RD visible together",
+      "pass": true,
+      "detail": "[\"A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理\",\"A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理\"]"
+    },
+    {
+      "name": "系統管理員 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing/small-mobile five-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"版本\",\"資料狀態\",\"處理\"]"
+    },
+    {
+      "name": "drawing/small-mobile only domain filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"版本\",\"處理\",\"用途\",\"系列\"]"
+    },
+    {
+      "name": "drawing/small-mobile old filters absent",
+      "pass": true,
+      "detail": "搜尋\n版本\n全部\n處理\n全部\n用途\n全部\n系列\n全部"
+    },
+    {
+      "name": "drawing/small-mobile no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/small-mobile production and RD visible together",
+      "pass": true,
+      "detail": "[\"A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理\",\"A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理\"]"
+    },
+    {
+      "name": "QA-087-217 320x800 rendered workbench has no overflow or visible error",
+      "pass": true,
+      "detail": "{\"width\":320,\"height\":800,\"scrollWidth\":320,\"clientWidth\":320,\"activeElement\":\"BODY\",\"productAlertCount\":0}"
+    },
+    {
+      "name": "QA-087-217 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "系統管理員 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "drawing/zoom-200 five-column list",
+      "pass": true,
+      "detail": "[\"編號\",\"品名\",\"版本\",\"資料狀態\",\"處理\"]"
+    },
+    {
+      "name": "drawing/zoom-200 only domain filters",
+      "pass": true,
+      "detail": "[\"搜尋\",\"版本\",\"處理\",\"用途\",\"系列\"]"
+    },
+    {
+      "name": "drawing/zoom-200 old filters absent",
+      "pass": true,
+      "detail": "搜尋\n版本\n全部\n處理\n全部\n用途\n全部\n系列\n全部"
+    },
+    {
+      "name": "drawing/zoom-200 no page horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "drawing/zoom-200 production and RD visible together",
+      "pass": true,
+      "detail": "[\"A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理\",\"A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理\"]"
+    },
+    {
+      "name": "系統管理員 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "A0002-M01 row is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/api/numbering/drawings/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/numbering/drawings?query=A0002-M01&detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7"
+    },
+    {
+      "name": "I01 drawing matrix projection exists",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I01 drawing has one matrix and no direct relation block",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "A0002-P01 row is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/api/parts/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/parts?query=A0002-P01&detail=cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062"
+    },
+    {
+      "name": "I01 Drawing and Part use identical matrix projection",
+      "pass": true,
+      "detail": "{\"drawing\":\"cc597a4a2c69c584c79a669e03af40d588a48042856544c62c86e21d92e562cc\",\"part\":\"cc597a4a2c69c584c79a669e03af40d588a48042856544c62c86e21d92e562cc\"}"
+    },
+    {
+      "name": "I01 DB formal links match projected cells",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I01 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "I02 production and RD rows exist",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/api/numbering/drawings/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/numbering/drawings?query=A0002-M01&detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7"
+    },
+    {
+      "name": "/api/numbering/drawings/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/numbering/drawings?query=A0002-M01&detail=cw_abbd6161-03e3-481f-aade-d6c4ab12240f"
+    },
+    {
+      "name": "I02 production and RD rows keep same root matrix",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I02 matrix does not expose source layer",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I02 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "A0002-P01 row is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I03 Part create-change enters canonical owner workspace",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-203 Part variant fields persist across UI reload and API DB readback",
+      "pass": true,
+      "detail": "{\"partVariantUi\":{\"materialLabel\":\"SUS 304\",\"colorLabel\":\"Black\",\"surfaceTreatment\":\"BA\",\"variantNote\":\"DEV087 browser variant snapshot\"},\"partVariantApi\":{\"status\":200,\"body\":{\"data\":{\"entityType\":\"part\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"workId\":\"fb70300f-abf4-4850-a550-cc14139d6cfc\",\"rowVersion\":2,\"payload\":{\"partName\":\"本體_BS_右_Xx5\",\"itemKind\":\"manufactured\",\"customSpecification\":null,\"isUniversal\":false,\"materialCode\":null,\"materialLabel\":\"SUS 304\",\"colorCode\":null,\"colorLabel\":\"Black\",\"surfaceTreatment\":\"BA\",\"variantNote\":\"DEV087 browser variant snapshot\"},\"identity\":{\"code\":\"A0002-P01\",\"name\":\"本體_BS_右_Xx5\"},\"attachments\":[],\"readonly\":false},\"meta\":{\"contractToken\":\"eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk1NTA3MDc3Nn0.FFgAjr0CavYSp1XIIMhNr7inVx3wCZt9WsB9lAR6e0E\",\"correlationId\":\"600fc444-af6e-427e-88a9-b51e164e1a71\"}}},\"partVariantDb\":{\"id\":\"fb70300f-abf4-4850-a550-cc14139d6cfc\",\"part_id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"proposed_payload\":\"{\\\"partName\\\":\\\"本體_BS_右_Xx5\\\",\\\"itemKind\\\":\\\"manufactured\\\",\\\"customSpecification\\\":null,\\\"isUniversal\\\":false,\\\"materialCode\\\":null,\\\"materialLabel\\\":\\\"SUS 304\\\",\\\"colorCode\\\":null,\\\"colorLabel\\\":\\\"Black\\\",\\\"surfaceTreatment\\\":\\\"BA\\\",\\\"variantNote\\\":\\\"DEV087 browser variant snapshot\\\"}\",\"row_version\":2}}"
+    },
+    {
+      "name": "QA-087-203 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "I03 Part formal and work rows are both rendered",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/api/parts/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/parts?query=A0002-P01&detail=cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062"
+    },
+    {
+      "name": "/api/parts/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/parts?query=A0002-P01&detail=cw_a25a0093-c436-4f34-9152-657fdbee1948"
+    },
+    {
+      "name": "I03 formal/work Part rows use identical formal matrix",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I03 Part work creates no Relation work/task/review",
+      "pass": true,
+      "detail": "{\"before\":{\"relationChangeWorks\":0,\"workReviewRequests\":0,\"numberingTasks\":0,\"numberingNotifications\":2},\"after\":{\"relationChangeWorks\":0,\"workReviewRequests\":0,\"numberingTasks\":0,\"numberingNotifications\":2}}"
+    },
+    {
+      "name": "I03 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-204 Part variant work submits through rendered UI",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-204 Part reviewer action resolves exact submitted work",
+      "pass": true,
+      "detail": "[{\"rowKey\":\"cw_a25a0093-c436-4f34-9152-657fdbee1948\",\"entityType\":\"part\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"work\",\"layerLabel\":\"修改中\",\"revision\":null,\"dataState\":\"reviewing\",\"dataStateLabel\":\"審核中\",\"handling\":\"review_owner\",\"handlingLabel\":\"審核負責人處理\",\"blockerReason\":null,\"detailHref\":\"/parts?detail=cw_a25a0093-c436-4f34-9152-657fdbee1948\",\"rowVersion\":3,\"basisState\":null,\"actions\":[{\"key\":\"review\",\"label\":\"前往審核\",\"href\":\"/approvals/5e5913e8-73fd-4045-a853-9685d7c30ab6\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]},{\"rowKey\":\"cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062\",\"entityType\":\"part\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"formal\",\"layerLabel\":\"正式資料\",\"revision\":null,\"dataState\":\"available\",\"dataStateLabel\":\"可使用\",\"handling\":\"none\",\"handlingLabel\":\"無須處理\",\"blockerReason\":null,\"detailHref\":\"/parts?detail=cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062\",\"rowVersion\":1,\"basisState\":null,\"actions\":[{\"key\":\"create_change\",\"label\":\"建立修改\",\"href\":\"/api/pdm/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/change-works\"},{\"key\":\"request_obsolete\",\"label\":\"申請作廢\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]"
+    },
+    {
+      "name": "QA-087-204 reviewer sees exact readonly Part variant snapshot",
+      "pass": true,
+      "detail": "{\"reviewerVariantUi\":{\"materialLabel\":\"SUS 304\",\"colorLabel\":\"Black\",\"surfaceTreatment\":\"BA\",\"variantNote\":\"DEV087 browser variant snapshot\"},\"reviewerVariantDisabled\":[true,true,true,true]}"
+    },
+    {
+      "name": "QA-087-204 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-205 Part reviewer return succeeds",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-205 returned Part work preserves variant fields",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "QA-087-205 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "A0002-M01 row is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I04 edit stays in drawer",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I04 entering edit emits no mutation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/api/numbering/drawings/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/numbering/drawings?query=A0002-M01&detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7"
+    },
+    {
+      "name": "I04 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "I05 keyboard exposes three distinguishable states",
+      "pass": true,
+      "detail": "[\"製造\",\"參考\",\"—\"]"
+    },
+    {
+      "name": "I05 states have accessible cell names",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I05 draft cycling emits no mutation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I05 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "I06 draft is dirty before cancel",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I06 cancel returns to view mode",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I06 cancel leaves formal links and write count unchanged",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I06 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "I07 close/switch/navigation all guard dirty draft",
+      "pass": true,
+      "detail": "{\"closeGuard\":\"關聯矩陣尚未儲存，確定要離開並捨棄變更嗎？\",\"switchGuard\":\"關聯矩陣尚未儲存，確定要離開並捨棄變更嗎？\",\"identityGuard\":\"關聯矩陣尚未儲存，確定要離開並捨棄變更嗎？\"}"
+    },
+    {
+      "name": "I07 staying preserves draft and zero-write",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I07 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-213 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "I08 single PATCH succeeds",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I08 formal relation changes exactly once",
+      "pass": true,
+      "detail": "{\"before\":{\"root\":{\"id\":\"part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd\",\"company_id\":\"company-jenfu\",\"root_code\":\"A0002\"},\"drawings\":[{\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"number\":\"A0002-M01\"},{\"id\":\"87000000-0000-4000-8000-000000000001\",\"number\":\"A0002-R99\"}],\"parts\":[{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"number\":\"A0002-P01\"},{\"id\":\"qa-dev087-functional-a0002-p02\",\"number\":\"A0002-P02\"},{\"id\":\"qa-dev087-pagination-a0002-p03\",\"number\":\"A0002-P03\"},{\"id\":\"qa-dev087-pagination-a0002-p04\",\"number\":\"A0002-P04\"},{\"id\":\"qa-dev087-pagination-a0002-p05\",\"number\":\"A0002-P05\"},{\"id\":\"qa-dev087-pagination-a0002-p06\",\"number\":\"A0002-P06\"},{\"id\":\"qa-dev087-pagination-a0002-p07\",\"number\":\"A0002-P07\"},{\"id\":\"qa-dev087-pagination-a0002-p08\",\"number\":\"A0002-P08\"},{\"id\":\"qa-dev087-pagination-a0002-p09\",\"number\":\"A0002-P09\"},{\"id\":\"qa-dev087-pagination-a0002-p10\",\"number\":\"A0002-P10\"},{\"id\":\"qa-dev087-pagination-a0002-p11\",\"number\":\"A0002-P11\"},{\"id\":\"qa-dev087-pagination-a0002-p12\",\"number\":\"A0002-P12\"},{\"id\":\"qa-dev087-pagination-a0002-p13\",\"number\":\"A0002-P13\"},{\"id\":\"qa-dev087-pagination-a0002-p14\",\"number\":\"A0002-P14\"},{\"id\":\"qa-dev087-pagination-a0002-p15\",\"number\":\"A0002-P15\"},{\"id\":\"qa-dev087-pagination-a0002-p16\",\"number\":\"A0002-P16\"},{\"id\":\"qa-dev087-pagination-a0002-p17\",\"number\":\"A0002-P17\"},{\"id\":\"qa-dev087-pagination-a0002-p18\",\"number\":\"A0002-P18\"},{\"id\":\"qa-dev087-pagination-a0002-p19\",\"number\":\"A0002-P19\"},{\"id\":\"qa-dev087-pagination-a0002-p20\",\"number\":\"A0002-P20\"},{\"id\":\"qa-dev087-pagination-a0002-p21\",\"number\":\"A0002-P21\"},{\"id\":\"qa-dev087-pagination-a0002-p22\",\"number\":\"A0002-P22\"},{\"id\":\"qa-dev087-pagination-a0002-p23\",\"number\":\"A0002-P23\"},{\"id\":\"qa-dev087-pagination-a0002-p24\",\"number\":\"A0002-P24\"},{\"id\":\"qa-dev087-pagination-a0002-p25\",\"number\":\"A0002-P25\"},{\"id\":\"qa-dev087-pagination-a0002-p26\",\"number\":\"A0002-P26\"},{\"id\":\"qa-dev087-pagination-a0002-p27\",\"number\":\"A0002-P27\"},{\"id\":\"qa-dev087-pagination-a0002-p28\",\"number\":\"A0002-P28\"},{\"id\":\"qa-dev087-pagination-a0002-p29\",\"number\":\"A0002-P29\"},{\"id\":\"qa-dev087-pagination-a0002-p30\",\"number\":\"A0002-P30\"},{\"id\":\"qa-dev087-pagination-a0002-p31\",\"number\":\"A0002-P31\"},{\"id\":\"qa-dev087-pagination-a0002-p32\",\"number\":\"A0002-P32\"},{\"id\":\"qa-dev087-pagination-a0002-p33\",\"number\":\"A0002-P33\"},{\"id\":\"qa-dev087-pagination-a0002-p34\",\"number\":\"A0002-P34\"},{\"id\":\"qa-dev087-pagination-a0002-p35\",\"number\":\"A0002-P35\"},{\"id\":\"qa-dev087-pagination-a0002-p36\",\"number\":\"A0002-P36\"},{\"id\":\"qa-dev087-pagination-a0002-p37\",\"number\":\"A0002-P37\"},{\"id\":\"qa-dev087-pagination-a0002-p38\",\"number\":\"A0002-P38\"},{\"id\":\"qa-dev087-pagination-a0002-p39\",\"number\":\"A0002-P39\"},{\"id\":\"qa-dev087-pagination-a0002-p40\",\"number\":\"A0002-P40\"},{\"id\":\"qa-dev087-pagination-a0002-p41\",\"number\":\"A0002-P41\"},{\"id\":\"qa-dev087-pagination-a0002-p42\",\"number\":\"A0002-P42\"},{\"id\":\"qa-dev087-pagination-a0002-p43\",\"number\":\"A0002-P43\"},{\"id\":\"qa-dev087-pagination-a0002-p44\",\"number\":\"A0002-P44\"},{\"id\":\"qa-dev087-pagination-a0002-p45\",\"number\":\"A0002-P45\"},{\"id\":\"qa-dev087-pagination-a0002-p46\",\"number\":\"A0002-P46\"},{\"id\":\"qa-dev087-pagination-a0002-p47\",\"number\":\"A0002-P47\"}],\"links\":[{\"drawingNumberId\":\"87000000-0000-4000-8000-000000000001\",\"partNumberId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"storageLinkType\":\"reference\",\"relationType\":\"reference\"},{\"drawingNumberId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"partNumberId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"storageLinkType\":\"primary_manufacturing\",\"relationType\":\"manufacturing_basis\"}],\"hash\":\"19227e25cdf2f2f552997cb21d8755f17ff9fc8aa21408aafe9a9433f59c6815\"},\"after\":{\"root\":{\"id\":\"part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd\",\"company_id\":\"company-jenfu\",\"root_code\":\"A0002\"},\"drawings\":[{\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"number\":\"A0002-M01\"},{\"id\":\"87000000-0000-4000-8000-000000000001\",\"number\":\"A0002-R99\"}],\"parts\":[{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"number\":\"A0002-P01\"},{\"id\":\"qa-dev087-functional-a0002-p02\",\"number\":\"A0002-P02\"},{\"id\":\"qa-dev087-pagination-a0002-p03\",\"number\":\"A0002-P03\"},{\"id\":\"qa-dev087-pagination-a0002-p04\",\"number\":\"A0002-P04\"},{\"id\":\"qa-dev087-pagination-a0002-p05\",\"number\":\"A0002-P05\"},{\"id\":\"qa-dev087-pagination-a0002-p06\",\"number\":\"A0002-P06\"},{\"id\":\"qa-dev087-pagination-a0002-p07\",\"number\":\"A0002-P07\"},{\"id\":\"qa-dev087-pagination-a0002-p08\",\"number\":\"A0002-P08\"},{\"id\":\"qa-dev087-pagination-a0002-p09\",\"number\":\"A0002-P09\"},{\"id\":\"qa-dev087-pagination-a0002-p10\",\"number\":\"A0002-P10\"},{\"id\":\"qa-dev087-pagination-a0002-p11\",\"number\":\"A0002-P11\"},{\"id\":\"qa-dev087-pagination-a0002-p12\",\"number\":\"A0002-P12\"},{\"id\":\"qa-dev087-pagination-a0002-p13\",\"number\":\"A0002-P13\"},{\"id\":\"qa-dev087-pagination-a0002-p14\",\"number\":\"A0002-P14\"},{\"id\":\"qa-dev087-pagination-a0002-p15\",\"number\":\"A0002-P15\"},{\"id\":\"qa-dev087-pagination-a0002-p16\",\"number\":\"A0002-P16\"},{\"id\":\"qa-dev087-pagination-a0002-p17\",\"number\":\"A0002-P17\"},{\"id\":\"qa-dev087-pagination-a0002-p18\",\"number\":\"A0002-P18\"},{\"id\":\"qa-dev087-pagination-a0002-p19\",\"number\":\"A0002-P19\"},{\"id\":\"qa-dev087-pagination-a0002-p20\",\"number\":\"A0002-P20\"},{\"id\":\"qa-dev087-pagination-a0002-p21\",\"number\":\"A0002-P21\"},{\"id\":\"qa-dev087-pagination-a0002-p22\",\"number\":\"A0002-P22\"},{\"id\":\"qa-dev087-pagination-a0002-p23\",\"number\":\"A0002-P23\"},{\"id\":\"qa-dev087-pagination-a0002-p24\",\"number\":\"A0002-P24\"},{\"id\":\"qa-dev087-pagination-a0002-p25\",\"number\":\"A0002-P25\"},{\"id\":\"qa-dev087-pagination-a0002-p26\",\"number\":\"A0002-P26\"},{\"id\":\"qa-dev087-pagination-a0002-p27\",\"number\":\"A0002-P27\"},{\"id\":\"qa-dev087-pagination-a0002-p28\",\"number\":\"A0002-P28\"},{\"id\":\"qa-dev087-pagination-a0002-p29\",\"number\":\"A0002-P29\"},{\"id\":\"qa-dev087-pagination-a0002-p30\",\"number\":\"A0002-P30\"},{\"id\":\"qa-dev087-pagination-a0002-p31\",\"number\":\"A0002-P31\"},{\"id\":\"qa-dev087-pagination-a0002-p32\",\"number\":\"A0002-P32\"},{\"id\":\"qa-dev087-pagination-a0002-p33\",\"number\":\"A0002-P33\"},{\"id\":\"qa-dev087-pagination-a0002-p34\",\"number\":\"A0002-P34\"},{\"id\":\"qa-dev087-pagination-a0002-p35\",\"number\":\"A0002-P35\"},{\"id\":\"qa-dev087-pagination-a0002-p36\",\"number\":\"A0002-P36\"},{\"id\":\"qa-dev087-pagination-a0002-p37\",\"number\":\"A0002-P37\"},{\"id\":\"qa-dev087-pagination-a0002-p38\",\"number\":\"A0002-P38\"},{\"id\":\"qa-dev087-pagination-a0002-p39\",\"number\":\"A0002-P39\"},{\"id\":\"qa-dev087-pagination-a0002-p40\",\"number\":\"A0002-P40\"},{\"id\":\"qa-dev087-pagination-a0002-p41\",\"number\":\"A0002-P41\"},{\"id\":\"qa-dev087-pagination-a0002-p42\",\"number\":\"A0002-P42\"},{\"id\":\"qa-dev087-pagination-a0002-p43\",\"number\":\"A0002-P43\"},{\"id\":\"qa-dev087-pagination-a0002-p44\",\"number\":\"A0002-P44\"},{\"id\":\"qa-dev087-pagination-a0002-p45\",\"number\":\"A0002-P45\"},{\"id\":\"qa-dev087-pagination-a0002-p46\",\"number\":\"A0002-P46\"},{\"id\":\"qa-dev087-pagination-a0002-p47\",\"number\":\"A0002-P47\"}],\"links\":[{\"drawingNumberId\":\"87000000-0000-4000-8000-000000000001\",\"partNumberId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"storageLinkType\":\"reference\",\"relationType\":\"reference\"},{\"drawingNumberId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"partNumberId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"storageLinkType\":\"reference\",\"relationType\":\"reference\"}],\"hash\":\"4036d4ebb7f88243b00b896b8f3c99d2c6951e8256eec22611d22e510a775557\"},\"requests\":[{\"label\":\"圖號工作台\",\"method\":\"PATCH\",\"url\":\"http://127.0.0.1:56509/api/pdm/relations/part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd/matrix\",\"postData\":\"{\\\"changes\\\":[{\\\"drawingNumberId\\\":\\\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\\\",\\\"partNumberId\\\":\\\"part-number-593efe73-6225-42a7-9507-c63602b73169\\\",\\\"relationType\\\":\\\"reference\\\"}]}\",\"at\":\"2026-08-28T22:11:40.383Z\"}]}"
+    },
+    {
+      "name": "/api/numbering/drawings/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/numbering/drawings?query=A0002-M01&detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7"
+    },
+    {
+      "name": "I08 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "I08 UI cleanup restores original formal matrix",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "A0002-M01 row is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "A0002-M01 row is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I09 both tabs hold independently dirty drafts",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I09 first tab commits",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I09 stale tab fails closed",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I09 failed draft is preserved",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I09 error receives keyboard focus",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I09 stale failure adds no partial write",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I09 expected visible error present",
+      "pass": true,
+      "detail": "[\"關聯矩陣已被其他人修改，請重新整理\"]"
+    },
+    {
+      "name": "I09 UI cleanup restores original matrix",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I10 root-only identity is minimal",
+      "pass": true,
+      "detail": "{\"rootMatrixRequests\":[],\"rootSearchText\":\"編號搜尋\\n建立編號\\n搜尋圖號、料號或圖料根號\\n編號\\t品名\\t圖料根號\\t資料狀態\\nA0999\\tDEV087 root-only fixture\\tA0999\\tDraft\"}"
+    },
+    {
+      "name": "I10 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "A0003-M01 row is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I11 blank matrix has two axes and zero links",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I11 blank cell begins empty",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I11 first formal link saves directly",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I11 direct save creates no Relation task/review",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/api/numbering/drawings/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/numbering/drawings?query=A0003-M01&detail=cw_1b986f0d-98e4-4dc5-a672-0bd8ff3a18aa"
+    },
+    {
+      "name": "I11 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "I12 single-axis Part identity exists",
+      "pass": true,
+      "detail": "{\"root\":{\"id\":\"part-root-2eaefc21-5704-4fd4-b60f-84f5c40faf15\",\"company_id\":\"company-jenfu\",\"root_code\":\"A0010\"},\"drawings\":[],\"parts\":[{\"id\":\"part-number-2b560978-4ca6-44b1-9f41-672ea67bc7a3\",\"number\":\"A0010-P01\"}],\"links\":[],\"hash\":\"f6fc499c30995d285d173cc03f8577152c31078d36ca47593827402635a51494\"}"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "A0010-P01 row is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I12 single-axis matrix has no invalid mutation controls",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "/api/parts/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/parts?query=A0010-P01&detail=cw_b11a3b0a-2908-4986-ac19-e81f2ba7800d"
+    },
+    {
+      "name": "I12 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "A0002-P01 row is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I13 identity navigation never enters Relation workbench",
+      "pass": true,
+      "detail": "{\"finalUrl\":\"http://127.0.0.1:56509/parts?query=A0002-P01&detail=cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062\",\"finalPartDrawerCount\":1}"
+    },
+    {
+      "name": "/api/parts/workbench detail key exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/parts?query=A0002-P01&detail=cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062"
+    },
+    {
+      "name": "I13 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-212 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "I14 sidebar has no retired Relation workbench copy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I14 legacy Relation query does not become a current workbench",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I14 retirement navigation creates no Relation work/task/review",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I14 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-198 exact formal row is visible",
+      "pass": true,
+      "detail": "A0002-M01"
+    },
+    {
+      "name": "QA-087-198 formal obsolete request accepted from rendered modal",
+      "pass": true,
+      "detail": "{\"approvalRequest\":{\"id\":\"97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\",\"actionCode\":\"obsolete_ma_drawing\",\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 QA-087-198 rendered formal obsolete rejected\",\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T22:12:11.806Z\"},\"approvalBatch\":{\"id\":\"dc169898-fb29-43f4-8719-05404fee0dd3\",\"batchCode\":\"NB-MTDIBL45-1\",\"projectCode\":null,\"actionCode\":\"obsolete_ma_drawing\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T22:12:11.813Z\",\"items\":[{\"id\":\"2e8cfbd7-4e76-4922-9e26-fbe5fd7aad2c\",\"batchId\":\"dc169898-fb29-43f4-8719-05404fee0dd3\",\"approvalRequestId\":\"97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"entityCode\":\"A0002-M01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_ma_drawing\"},\"policy\":{\"entityType\":\"numbering_drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}"
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "QA-087-198 reviewer inbox contains the exact created request",
+      "pass": true,
+      "detail": "{\"expectedInboxId\":\"legacy:legacy_numbering:97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\",\"inboxIds\":[\"legacy:legacy_numbering:97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\"]}"
+    },
+    {
+      "name": "QA-087-198 formal obsolete decision has exact terminal readback",
+      "pass": true,
+      "detail": "{\"decisionBody\":{\"request\":{\"rowKey\":\"approval:legacy_numbering:legacy:legacy_numbering:97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\",\"id\":\"legacy:legacy_numbering:97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\",\"source\":\"legacy_numbering\",\"companyId\":\"company-jenfu\",\"actionCode\":\"numbering.obsolete_ma_drawing\",\"actionTitle\":\"圖號作廢審核\",\"domainCode\":\"numbering\",\"title\":\"圖號作廢審核 - A0002-M01\",\"status\":\"rejected\",\"reason\":\"DEV087 QA-087-198 rendered formal obsolete rejected\",\"requestedBy\":\"user-admin-local-quick\",\"requestedByName\":\"Demo Admin\",\"requestedAt\":\"2026-08-28T22:12:11.806Z\",\"packageId\":\"legacy:legacy_numbering:dc169898-fb29-43f4-8719-05404fee0dd3\",\"packageCode\":\"NB-MTDIBL45-1\",\"packageStatus\":\"pending\",\"targetSummary\":\"A0002-M01\",\"impactSummary\":\"Released\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\"},\"primaryTarget\":{\"type\":\"drawing_number\",\"targetId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"label\":\"\"},\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null},\"targets\":[{\"id\":\"legacy:legacy_numbering:97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0:target\",\"role\":\"primary\",\"type\":\"drawing_number\",\"targetId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"label\":\"\",\"status\":\"rejected\",\"snapshot\":{\"legacy\":{\"table\":\"approval_requests\",\"id\":\"97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\"}}}],\"impactSnapshots\":[{\"id\":\"legacy:legacy_numbering:97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0:impact\",\"snapshotHash\":\"5934cee0e973a7c355096e315ed743db566c62e7125a766c4acf297c040c826f\",\"snapshot\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null,\"targetSummary\":\"A0002-M01\",\"impactSummary\":\"Released\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\"}},\"capturedBy\":\"user-admin-local-quick\",\"capturedAt\":\"2026-08-28T22:12:11.806Z\"}],\"decisions\":[{\"id\":\"a1577998-3f68-4d87-a250-2d469c51aeb2\",\"requestId\":\"legacy:legacy_numbering:97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\",\"approverRole\":\"R&D Manager\",\"approverId\":\"user-manager-demo\",\"approverName\":\"R&D Manager\",\"decision\":\"rejected\",\"comment\":null,\"decidedAt\":\"2026-08-28T22:12:23.553Z\"}],\"events\":[],\"applyStatus\":null,\"applyAttempts\":null,\"applyError\":null}},\"dbReadback\":{\"row\":{\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"company_id\":\"company-jenfu\",\"code\":\"A0002-M01\",\"record_status\":\"Released\",\"updated_at\":\"2026-08-28 22:08:26\"},\"requests\":[{\"id\":\"97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\",\"action_code\":\"obsolete_ma_drawing\",\"request_status\":\"rejected\",\"payload_json\":\"{\\\"lifecycleAction\\\":\\\"obsolete\\\",\\\"entityCode\\\":\\\"A0002-M01\\\",\\\"drawingNumber\\\":\\\"A0002-M01\\\",\\\"previousRecordStatus\\\":\\\"Released\\\",\\\"impactFingerprint\\\":\\\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\\\",\\\"impactDependencies\\\":[{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"4a2511e1-3182-448f-a54e-4614afa2cd4c\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"53eb60d6-f56a-4181-b133-85bd46c5c54d\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-1\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-2\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-3\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-1\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-2\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-3\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"c076f20b-21d0-4061-a9bf-148060995162\\\",\\\"code\\\":\\\"0.1\\\",\\\"disposition\\\":\\\"rd_controlled\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision\\\",\\\"code\\\":\\\"1\\\",\\\"disposition\\\":\\\"released\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision\\\",\\\"code\\\":\\\"1.1\\\",\\\"disposition\\\":\\\"rd_controlled\\\"},{\\\"kind\\\":\\\"part_relation\\\",\\\"id\\\":\\\"part-number-593efe73-6225-42a7-9507-c63602b73169\\\",\\\"code\\\":\\\"A0002-P01\\\",\\\"disposition\\\":\\\"primary_manufacturing\\\"}],\\\"projectCode\\\":null}\",\"resolved_by\":\"user-manager-demo\",\"resolved_at\":\"2026-08-28T22:12:23.553Z\"}],\"decisions\":[{\"request_id\":\"97ae1c98-04f2-4ee3-9e1b-d3a1cc52c5b0\",\"decision\":\"rejected\",\"approver_id\":\"user-manager-demo\",\"comment\":null}]},\"expectedStatus\":\"Released\"}"
+    },
+    {
+      "name": "QA-087-198 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-200 exact formal row is visible",
+      "pass": true,
+      "detail": "A0002-P01"
+    },
+    {
+      "name": "QA-087-200 formal obsolete request accepted from rendered modal",
+      "pass": true,
+      "detail": "{\"approvalRequest\":{\"id\":\"9c59dd4c-28e7-489b-b39d-434d2db16788\",\"actionCode\":\"obsolete_part_number\",\"entityType\":\"part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 QA-087-200 rendered formal obsolete rejected\",\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T22:12:25.941Z\"},\"approvalBatch\":{\"id\":\"ebcb33f0-38e1-4457-8f19-72deae757538\",\"batchCode\":\"NB-MTDIBW0N-1\",\"projectCode\":null,\"actionCode\":\"obsolete_part_number\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T22:12:25.943Z\",\"items\":[{\"id\":\"d4bcb431-62ad-4cc6-84db-4b51f47752c8\",\"batchId\":\"ebcb33f0-38e1-4457-8f19-72deae757538\",\"approvalRequestId\":\"9c59dd4c-28e7-489b-b39d-434d2db16788\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"entityCode\":\"A0002-P01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_part_number\"},\"policy\":{\"entityType\":\"numbering_part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}"
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "QA-087-200 reviewer inbox contains the exact created request",
+      "pass": true,
+      "detail": "{\"expectedInboxId\":\"legacy:legacy_numbering:9c59dd4c-28e7-489b-b39d-434d2db16788\",\"inboxIds\":[\"legacy:legacy_numbering:9c59dd4c-28e7-489b-b39d-434d2db16788\"]}"
+    },
+    {
+      "name": "QA-087-200 formal obsolete decision has exact terminal readback",
+      "pass": true,
+      "detail": "{\"decisionBody\":{\"request\":{\"rowKey\":\"approval:legacy_numbering:legacy:legacy_numbering:9c59dd4c-28e7-489b-b39d-434d2db16788\",\"id\":\"legacy:legacy_numbering:9c59dd4c-28e7-489b-b39d-434d2db16788\",\"source\":\"legacy_numbering\",\"companyId\":\"company-jenfu\",\"actionCode\":\"numbering.obsolete_part_number\",\"actionTitle\":\"料號作廢審核\",\"domainCode\":\"numbering\",\"title\":\"料號作廢審核 - A0002-P01\",\"status\":\"rejected\",\"reason\":\"DEV087 QA-087-200 rendered formal obsolete rejected\",\"requestedBy\":\"user-admin-local-quick\",\"requestedByName\":\"Demo Admin\",\"requestedAt\":\"2026-08-28T22:12:25.941Z\",\"packageId\":\"legacy:legacy_numbering:ebcb33f0-38e1-4457-8f19-72deae757538\",\"packageCode\":\"NB-MTDIBW0N-1\",\"packageStatus\":\"pending\",\"targetSummary\":\"A0002-P01\",\"impactSummary\":\"Released\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"9c59dd4c-28e7-489b-b39d-434d2db16788\"},\"primaryTarget\":{\"type\":\"part_number\",\"targetId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"label\":\"本體_BS_右_Xx5\"},\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null},\"targets\":[{\"id\":\"legacy:legacy_numbering:9c59dd4c-28e7-489b-b39d-434d2db16788:target\",\"role\":\"primary\",\"type\":\"part_number\",\"targetId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"label\":\"本體_BS_右_Xx5\",\"status\":\"rejected\",\"snapshot\":{\"legacy\":{\"table\":\"approval_requests\",\"id\":\"9c59dd4c-28e7-489b-b39d-434d2db16788\"}}}],\"impactSnapshots\":[{\"id\":\"legacy:legacy_numbering:9c59dd4c-28e7-489b-b39d-434d2db16788:impact\",\"snapshotHash\":\"5fc997d3a1e2b4ceedc63f1cc7e04bcde505e1266affcf01b60b6b9eb816f7de\",\"snapshot\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null,\"targetSummary\":\"A0002-P01\",\"impactSummary\":\"Released\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"9c59dd4c-28e7-489b-b39d-434d2db16788\"}},\"capturedBy\":\"user-admin-local-quick\",\"capturedAt\":\"2026-08-28T22:12:25.941Z\"}],\"decisions\":[{\"id\":\"f531a48d-8f53-4564-a584-0861fc793b48\",\"requestId\":\"legacy:legacy_numbering:9c59dd4c-28e7-489b-b39d-434d2db16788\",\"approverRole\":\"R&D Manager\",\"approverId\":\"user-manager-demo\",\"approverName\":\"R&D Manager\",\"decision\":\"rejected\",\"comment\":null,\"decidedAt\":\"2026-08-28T22:12:30.459Z\"}],\"events\":[],\"applyStatus\":null,\"applyAttempts\":null,\"applyError\":null}},\"dbReadback\":{\"row\":{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"company_id\":\"company-jenfu\",\"code\":\"A0002-P01\",\"record_status\":\"Released\",\"updated_at\":\"2026-08-28 22:08:26\"},\"requests\":[{\"id\":\"9c59dd4c-28e7-489b-b39d-434d2db16788\",\"action_code\":\"obsolete_part_number\",\"request_status\":\"rejected\",\"payload_json\":\"{\\\"lifecycleAction\\\":\\\"obsolete\\\",\\\"entityCode\\\":\\\"A0002-P01\\\",\\\"partNumber\\\":\\\"A0002-P01\\\",\\\"previousRecordStatus\\\":\\\"Released\\\",\\\"impactFingerprint\\\":\\\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\\\",\\\"impactDependencies\\\":[{\\\"kind\\\":\\\"drawing_relation\\\",\\\"id\\\":\\\"87000000-0000-4000-8000-000000000001\\\",\\\"code\\\":\\\"A0002-R99\\\",\\\"disposition\\\":\\\"reference:Draft\\\"},{\\\"kind\\\":\\\"drawing_relation\\\",\\\"id\\\":\\\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\\\",\\\"code\\\":\\\"A0002-M01\\\",\\\"disposition\\\":\\\"primary_manufacturing:Released\\\"}],\\\"projectCode\\\":null}\",\"resolved_by\":\"user-manager-demo\",\"resolved_at\":\"2026-08-28T22:12:30.459Z\"}],\"decisions\":[{\"request_id\":\"9c59dd4c-28e7-489b-b39d-434d2db16788\",\"decision\":\"rejected\",\"approver_id\":\"user-manager-demo\",\"comment\":null}]},\"expectedStatus\":\"Released\"}"
+    },
+    {
+      "name": "QA-087-200 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "料號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-201 exact formal row is visible",
+      "pass": true,
+      "detail": "A0002-P01"
+    },
+    {
+      "name": "QA-087-201 formal obsolete request accepted from rendered modal",
+      "pass": true,
+      "detail": "{\"approvalRequest\":{\"id\":\"d5cdc7fe-b4d9-48be-a0d2-036aba84600d\",\"actionCode\":\"obsolete_part_number\",\"entityType\":\"part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 QA-087-201 rendered formal obsolete approved\",\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T22:12:32.641Z\"},\"approvalBatch\":{\"id\":\"7fe104c7-c96f-4357-ab42-98932c8e9546\",\"batchCode\":\"NB-MTDIC16Q-1\",\"projectCode\":null,\"actionCode\":\"obsolete_part_number\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T22:12:32.642Z\",\"items\":[{\"id\":\"e7823809-bfee-4a07-b212-6dbb0fd87cee\",\"batchId\":\"7fe104c7-c96f-4357-ab42-98932c8e9546\",\"approvalRequestId\":\"d5cdc7fe-b4d9-48be-a0d2-036aba84600d\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"entityCode\":\"A0002-P01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_part_number\"},\"policy\":{\"entityType\":\"numbering_part_number\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}"
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "QA-087-201 reviewer inbox contains the exact created request",
+      "pass": true,
+      "detail": "{\"expectedInboxId\":\"legacy:legacy_numbering:d5cdc7fe-b4d9-48be-a0d2-036aba84600d\",\"inboxIds\":[\"legacy:legacy_numbering:d5cdc7fe-b4d9-48be-a0d2-036aba84600d\"]}"
+    },
+    {
+      "name": "QA-087-201 formal obsolete decision has exact terminal readback",
+      "pass": true,
+      "detail": "{\"decisionBody\":{\"request\":{\"rowKey\":\"approval:legacy_numbering:legacy:legacy_numbering:d5cdc7fe-b4d9-48be-a0d2-036aba84600d\",\"id\":\"legacy:legacy_numbering:d5cdc7fe-b4d9-48be-a0d2-036aba84600d\",\"source\":\"legacy_numbering\",\"companyId\":\"company-jenfu\",\"actionCode\":\"numbering.obsolete_part_number\",\"actionTitle\":\"料號作廢審核\",\"domainCode\":\"numbering\",\"title\":\"料號作廢審核 - A0002-P01\",\"status\":\"approved\",\"reason\":\"DEV087 QA-087-201 rendered formal obsolete approved\",\"requestedBy\":\"user-admin-local-quick\",\"requestedByName\":\"Demo Admin\",\"requestedAt\":\"2026-08-28T22:12:32.641Z\",\"packageId\":\"legacy:legacy_numbering:7fe104c7-c96f-4357-ab42-98932c8e9546\",\"packageCode\":\"NB-MTDIC16Q-1\",\"packageStatus\":\"pending\",\"targetSummary\":\"A0002-P01\",\"impactSummary\":\"Obsolete\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"d5cdc7fe-b4d9-48be-a0d2-036aba84600d\"},\"primaryTarget\":{\"type\":\"part_number\",\"targetId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"label\":\"本體_BS_右_Xx5\"},\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null},\"targets\":[{\"id\":\"legacy:legacy_numbering:d5cdc7fe-b4d9-48be-a0d2-036aba84600d:target\",\"role\":\"primary\",\"type\":\"part_number\",\"targetId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"label\":\"本體_BS_右_Xx5\",\"status\":\"approved\",\"snapshot\":{\"legacy\":{\"table\":\"approval_requests\",\"id\":\"d5cdc7fe-b4d9-48be-a0d2-036aba84600d\"}}}],\"impactSnapshots\":[{\"id\":\"legacy:legacy_numbering:d5cdc7fe-b4d9-48be-a0d2-036aba84600d:impact\",\"snapshotHash\":\"cf0c4ab379f718ca83f5e4a61aa6982f473a494b9f42a21272b6d9b3d33625b3\",\"snapshot\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-P01\",\"partNumber\":\"A0002-P01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\",\"impactDependencies\":[{\"kind\":\"drawing_relation\",\"id\":\"87000000-0000-4000-8000-000000000001\",\"code\":\"A0002-R99\",\"disposition\":\"reference:Draft\"},{\"kind\":\"drawing_relation\",\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"disposition\":\"primary_manufacturing:Released\"}],\"projectCode\":null,\"targetSummary\":\"A0002-P01\",\"impactSummary\":\"Obsolete\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"d5cdc7fe-b4d9-48be-a0d2-036aba84600d\"}},\"capturedBy\":\"user-admin-local-quick\",\"capturedAt\":\"2026-08-28T22:12:32.641Z\"}],\"decisions\":[{\"id\":\"927b6a78-1379-46f3-989e-da471ae68dc5\",\"requestId\":\"legacy:legacy_numbering:d5cdc7fe-b4d9-48be-a0d2-036aba84600d\",\"approverRole\":\"R&D Manager\",\"approverId\":\"user-manager-demo\",\"approverName\":\"R&D Manager\",\"decision\":\"approved\",\"comment\":null,\"decidedAt\":\"2026-08-28T22:12:37.079Z\"}],\"events\":[],\"applyStatus\":null,\"applyAttempts\":null,\"applyError\":null}},\"dbReadback\":{\"row\":{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"company_id\":\"company-jenfu\",\"code\":\"A0002-P01\",\"record_status\":\"Obsolete\",\"updated_at\":\"2026-08-28T22:12:37.082Z\"},\"requests\":[{\"id\":\"d5cdc7fe-b4d9-48be-a0d2-036aba84600d\",\"action_code\":\"obsolete_part_number\",\"request_status\":\"approved\",\"payload_json\":\"{\\\"lifecycleAction\\\":\\\"obsolete\\\",\\\"entityCode\\\":\\\"A0002-P01\\\",\\\"partNumber\\\":\\\"A0002-P01\\\",\\\"previousRecordStatus\\\":\\\"Released\\\",\\\"impactFingerprint\\\":\\\"c9a9ff36aa6a5c1f2b2c34dd3bdfb86662c9aef800bab0243e1c42a8515f2008\\\",\\\"impactDependencies\\\":[{\\\"kind\\\":\\\"drawing_relation\\\",\\\"id\\\":\\\"87000000-0000-4000-8000-000000000001\\\",\\\"code\\\":\\\"A0002-R99\\\",\\\"disposition\\\":\\\"reference:Draft\\\"},{\\\"kind\\\":\\\"drawing_relation\\\",\\\"id\\\":\\\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\\\",\\\"code\\\":\\\"A0002-M01\\\",\\\"disposition\\\":\\\"primary_manufacturing:Released\\\"}],\\\"projectCode\\\":null}\",\"resolved_by\":\"user-manager-demo\",\"resolved_at\":\"2026-08-28T22:12:37.079Z\"}],\"decisions\":[{\"request_id\":\"d5cdc7fe-b4d9-48be-a0d2-036aba84600d\",\"decision\":\"approved\",\"approver_id\":\"user-manager-demo\",\"comment\":null}]},\"expectedStatus\":\"Obsolete\"}"
+    },
+    {
+      "name": "QA-087-201 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "圖號工作台 loads without visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "QA-087-199 exact formal row is visible",
+      "pass": true,
+      "detail": "A0002-M01"
+    },
+    {
+      "name": "QA-087-199 formal obsolete request accepted from rendered modal",
+      "pass": true,
+      "detail": "{\"approvalRequest\":{\"id\":\"d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\",\"actionCode\":\"obsolete_ma_drawing\",\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 QA-087-199 rendered formal obsolete approved\",\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T22:12:39.479Z\"},\"approvalBatch\":{\"id\":\"0eabb992-1628-43fb-9129-0a20f8b643b6\",\"batchCode\":\"NB-MTDIC6GO-1\",\"projectCode\":null,\"actionCode\":\"obsolete_ma_drawing\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T22:12:39.480Z\",\"items\":[{\"id\":\"6abb1b9a-f7a5-409e-aa81-321fc7da5446\",\"batchId\":\"0eabb992-1628-43fb-9129-0a20f8b643b6\",\"approvalRequestId\":\"d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"entityCode\":\"A0002-M01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_ma_drawing\"},\"policy\":{\"entityType\":\"numbering_drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}"
+    },
+    {
+      "name": "研發主管 login via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:56509/"
+    },
+    {
+      "name": "QA-087-199 reviewer inbox contains the exact created request",
+      "pass": true,
+      "detail": "{\"expectedInboxId\":\"legacy:legacy_numbering:d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\",\"inboxIds\":[\"legacy:legacy_numbering:d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\"]}"
+    },
+    {
+      "name": "QA-087-199 formal obsolete decision has exact terminal readback",
+      "pass": true,
+      "detail": "{\"decisionBody\":{\"request\":{\"rowKey\":\"approval:legacy_numbering:legacy:legacy_numbering:d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\",\"id\":\"legacy:legacy_numbering:d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\",\"source\":\"legacy_numbering\",\"companyId\":\"company-jenfu\",\"actionCode\":\"numbering.obsolete_ma_drawing\",\"actionTitle\":\"圖號作廢審核\",\"domainCode\":\"numbering\",\"title\":\"圖號作廢審核 - A0002-M01\",\"status\":\"approved\",\"reason\":\"DEV087 QA-087-199 rendered formal obsolete approved\",\"requestedBy\":\"user-admin-local-quick\",\"requestedByName\":\"Demo Admin\",\"requestedAt\":\"2026-08-28T22:12:39.479Z\",\"packageId\":\"legacy:legacy_numbering:0eabb992-1628-43fb-9129-0a20f8b643b6\",\"packageCode\":\"NB-MTDIC6GO-1\",\"packageStatus\":\"pending\",\"targetSummary\":\"A0002-M01\",\"impactSummary\":\"Obsolete\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\"},\"primaryTarget\":{\"type\":\"drawing_number\",\"targetId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"label\":\"\"},\"payload\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null},\"targets\":[{\"id\":\"legacy:legacy_numbering:d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2:target\",\"role\":\"primary\",\"type\":\"drawing_number\",\"targetId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"code\":\"A0002-M01\",\"label\":\"\",\"status\":\"approved\",\"snapshot\":{\"legacy\":{\"table\":\"approval_requests\",\"id\":\"d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\"}}}],\"impactSnapshots\":[{\"id\":\"legacy:legacy_numbering:d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2:impact\",\"snapshotHash\":\"5d342f43624ba9ede3f5284dade6c65bd653630e6256884273f9baad2746cb5d\",\"snapshot\":{\"lifecycleAction\":\"obsolete\",\"entityCode\":\"A0002-M01\",\"drawingNumber\":\"A0002-M01\",\"previousRecordStatus\":\"Released\",\"impactFingerprint\":\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\",\"impactDependencies\":[{\"kind\":\"controlled_file\",\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-production-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-production-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-1\",\"code\":\"A0002-M01.pdf\",\"disposition\":\"pdf:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"disposition\":\"drawing_2d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_file\",\"id\":\"qa-dev087-browser-rd-revision-file-3\",\"code\":\"A0002.SLDPRT\",\"disposition\":\"cad_3d:qa-dev087-browser-rd-revision\"},{\"kind\":\"controlled_revision\",\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-production-revision\",\"code\":\"1\",\"disposition\":\"released\"},{\"kind\":\"controlled_revision\",\"id\":\"qa-dev087-browser-rd-revision\",\"code\":\"1.1\",\"disposition\":\"rd_controlled\"},{\"kind\":\"part_relation\",\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"disposition\":\"primary_manufacturing\"}],\"projectCode\":null,\"targetSummary\":\"A0002-M01\",\"impactSummary\":\"Obsolete\",\"legacy\":{\"table\":\"approval_requests\",\"id\":\"d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\"}},\"capturedBy\":\"user-admin-local-quick\",\"capturedAt\":\"2026-08-28T22:12:39.479Z\"}],\"decisions\":[{\"id\":\"00113d61-1375-45f5-a056-dbc703da5d6a\",\"requestId\":\"legacy:legacy_numbering:d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\",\"approverRole\":\"R&D Manager\",\"approverId\":\"user-manager-demo\",\"approverName\":\"R&D Manager\",\"decision\":\"approved\",\"comment\":null,\"decidedAt\":\"2026-08-28T22:12:44.390Z\"}],\"events\":[],\"applyStatus\":null,\"applyAttempts\":null,\"applyError\":null}},\"dbReadback\":{\"row\":{\"id\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"company_id\":\"company-jenfu\",\"code\":\"A0002-M01\",\"record_status\":\"Obsolete\",\"updated_at\":\"2026-08-28T22:12:44.394Z\"},\"requests\":[{\"id\":\"d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\",\"action_code\":\"obsolete_ma_drawing\",\"request_status\":\"approved\",\"payload_json\":\"{\\\"lifecycleAction\\\":\\\"obsolete\\\",\\\"entityCode\\\":\\\"A0002-M01\\\",\\\"drawingNumber\\\":\\\"A0002-M01\\\",\\\"previousRecordStatus\\\":\\\"Released\\\",\\\"impactFingerprint\\\":\\\"d4444d57cf252e898fb9cc086612c8abaa26a56a930999d99503c4cc0ac11bfd\\\",\\\"impactDependencies\\\":[{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"4a2511e1-3182-448f-a54e-4614afa2cd4c\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"53eb60d6-f56a-4181-b133-85bd46c5c54d\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-1\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-2\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision-file-3\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:qa-dev087-browser-production-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-1\\\",\\\"code\\\":\\\"A0002-M01.pdf\\\",\\\"disposition\\\":\\\"pdf:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-2\\\",\\\"code\\\":\\\"A0002-M01.SLDDRW\\\",\\\"disposition\\\":\\\"drawing_2d:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_file\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision-file-3\\\",\\\"code\\\":\\\"A0002.SLDPRT\\\",\\\"disposition\\\":\\\"cad_3d:qa-dev087-browser-rd-revision\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"c076f20b-21d0-4061-a9bf-148060995162\\\",\\\"code\\\":\\\"0.1\\\",\\\"disposition\\\":\\\"rd_controlled\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"qa-dev087-browser-production-revision\\\",\\\"code\\\":\\\"1\\\",\\\"disposition\\\":\\\"released\\\"},{\\\"kind\\\":\\\"controlled_revision\\\",\\\"id\\\":\\\"qa-dev087-browser-rd-revision\\\",\\\"code\\\":\\\"1.1\\\",\\\"disposition\\\":\\\"rd_controlled\\\"},{\\\"kind\\\":\\\"part_relation\\\",\\\"id\\\":\\\"part-number-593efe73-6225-42a7-9507-c63602b73169\\\",\\\"code\\\":\\\"A0002-P01\\\",\\\"disposition\\\":\\\"primary_manufacturing\\\"}],\\\"projectCode\\\":null}\",\"resolved_by\":\"user-manager-demo\",\"resolved_at\":\"2026-08-28T22:12:44.390Z\"}],\"decisions\":[{\"request_id\":\"d99d2d1f-11d3-4dd1-94b4-69bdfa5128f2\",\"decision\":\"approved\",\"approver_id\":\"user-manager-demo\",\"comment\":null}]},\"expectedStatus\":\"Obsolete\"}"
+    },
+    {
+      "name": "QA-087-199 visible error sweep clean",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "functional browser emits exact 25-case roster once",
+      "pass": true,
+      "detail": "{\"expectedFunctionalCaseIds\":[\"QA-087-187\",\"QA-087-188\",\"QA-087-189\",\"QA-087-190\",\"QA-087-191\",\"QA-087-192\",\"QA-087-193\",\"QA-087-198\",\"QA-087-199\",\"QA-087-200\",\"QA-087-201\",\"QA-087-203\",\"QA-087-204\",\"QA-087-205\",\"QA-087-207\",\"QA-087-208\",\"QA-087-209\",\"QA-087-210\",\"QA-087-211\",\"QA-087-212\",\"QA-087-213\",\"QA-087-214\",\"QA-087-215\",\"QA-087-216\",\"QA-087-217\"],\"actualFunctionalCaseIds\":[\"QA-087-187\",\"QA-087-188\",\"QA-087-189\",\"QA-087-190\",\"QA-087-191\",\"QA-087-192\",\"QA-087-193\",\"QA-087-198\",\"QA-087-199\",\"QA-087-200\",\"QA-087-201\",\"QA-087-203\",\"QA-087-204\",\"QA-087-205\",\"QA-087-207\",\"QA-087-208\",\"QA-087-209\",\"QA-087-210\",\"QA-087-211\",\"QA-087-212\",\"QA-087-213\",\"QA-087-214\",\"QA-087-215\",\"QA-087-216\",\"QA-087-217\"]}"
+    },
+    {
+      "name": "cancelled editor leaves no orphan recognition session",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "cancelled editor releases target revision claim",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser has no console errors",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "browser has no page/network failures",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=56509"
+    },
+    {
+      "name": "temporary runtime dist removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-browser-56509\",\"error\":null}"
+    },
+    {
+      "name": "next-env restored after task runtime",
+      "pass": true,
+      "detail": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\next-env.d.ts"
+    },
+    {
+      "name": "primary source invariant unchanged after runtime",
+      "pass": true,
+      "detail": "{\"primaryBefore\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"primaryAfter\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    }
+  ],
+  "consoleErrors": [],
+  "failures": []
+}

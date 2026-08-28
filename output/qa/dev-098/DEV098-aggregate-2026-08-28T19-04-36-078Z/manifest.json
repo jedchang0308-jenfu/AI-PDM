@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 1,
+  "devId": "DEV-098",
+  "suite": "aggregate",
+  "runner": "aggregate",
+  "runId": "DEV098-aggregate-2026-08-28T19-04-36-078Z",
+  "generatedAt": "2026-08-28T19:06:40.270Z",
+  "status": "FAIL",
+  "completionCandidate": false,
+  "fixedCaseIds": [
+    "QA-098-001",
+    "QA-098-002",
+    "QA-098-003",
+    "QA-098-004",
+    "QA-098-005",
+    "QA-098-006",
+    "QA-098-007",
+    "QA-098-008",
+    "QA-098-009",
+    "QA-098-010",
+    "QA-098-011",
+    "QA-098-012",
+    "QA-098-013",
+    "QA-098-014",
+    "QA-098-015",
+    "QA-098-016",
+    "QA-098-017",
+    "QA-098-018",
+    "QA-098-019",
+    "QA-098-020",
+    "QA-098-021",
+    "QA-098-022",
+    "QA-098-023",
+    "QA-098-024",
+    "QA-098-025",
+    "QA-098-026",
+    "QA-098-027",
+    "QA-098-028",
+    "QA-098-029",
+    "QA-098-030",
+    "QA-098-031"
+  ],
+  "expected": 31,
+  "executed": 31,
+  "passed": 28,
+  "currentDenominator": {
+    "expected": 31,
+    "pass": 28,
+    "fail": 3,
+    "blocked": 0,
+    "notRun": 0
+  },
+  "caseResults": [
+    {
+      "id": "QA-098-001",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/contract/manifest.json"
+    },
+    {
+      "id": "QA-098-002",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/contract/manifest.json"
+    },
+    {
+      "id": "QA-098-003",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/contract/manifest.json"
+    },
+    {
+      "id": "QA-098-004",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/contract/manifest.json"
+    },
+    {
+      "id": "QA-098-005",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/contract/manifest.json"
+    },
+    {
+      "id": "QA-098-006",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-007",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-008",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-009",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-010",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-011",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-012",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-013",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-014",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-015",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-016",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-017",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json"
+    },
+    {
+      "id": "QA-098-018",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json"
+    },
+    {
+      "id": "QA-098-019",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json"
+    },
+    {
+      "id": "QA-098-020",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json"
+    },
+    {
+      "id": "QA-098-021",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json"
+    },
+    {
+      "id": "QA-098-022",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json"
+    },
+    {
+      "id": "QA-098-023",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json"
+    },
+    {
+      "id": "QA-098-024",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json"
+    },
+    {
+      "id": "QA-098-025",
+      "status": "FAIL",
+      "evidence": [
+        "typecheck:app",
+        "qc:dev-087:commands",
+        "qc:dev-087:contract"
+      ]
+    },
+    {
+      "id": "QA-098-026",
+      "status": "FAIL",
+      "evidence": "aggregate-final-gate"
+    },
+    {
+      "id": "QA-098-027",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-028",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-029",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json"
+    },
+    {
+      "id": "QA-098-030",
+      "status": "PASS",
+      "evidence": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json"
+    },
+    {
+      "id": "QA-098-031",
+      "status": "FAIL",
+      "evidence": null
+    }
+  ],
+  "commands": [
+    {
+      "script": "qc:dev-098:contract",
+      "status": "PASS",
+      "exitCode": 0,
+      "startedAt": "2026-08-28T19:04:36.316Z",
+      "completedAt": "2026-08-28T19:04:37.489Z",
+      "log": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/logs/01-qc-dev-098-contract.log",
+      "outputSha256": "eeeb6017e50ca3d1219b00d26dae8900d2a7515d5b09a4a8c204c169763d57dc"
+    },
+    {
+      "script": "qc:dev-098:repository",
+      "status": "PASS",
+      "exitCode": 0,
+      "startedAt": "2026-08-28T19:04:37.492Z",
+      "completedAt": "2026-08-28T19:04:39.202Z",
+      "log": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/logs/02-qc-dev-098-repository.log",
+      "outputSha256": "931cf3771300c97458ecb04773f91d604a2623086fdbf4d19289438adcc799c4"
+    },
+    {
+      "script": "typecheck:app",
+      "status": "PASS",
+      "exitCode": 0,
+      "startedAt": "2026-08-28T19:04:39.204Z",
+      "completedAt": "2026-08-28T19:04:51.785Z",
+      "log": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/logs/03-typecheck-app.log",
+      "outputSha256": "d6b9becea135553c38235c1abc9a68eb40424d8fe332335aca88ad02e2e923a6"
+    },
+    {
+      "script": "qc:dev-098:browser",
+      "status": "PASS",
+      "exitCode": 0,
+      "startedAt": "2026-08-28T19:04:51.785Z",
+      "completedAt": "2026-08-28T19:06:24.662Z",
+      "log": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/logs/04-qc-dev-098-browser.log",
+      "outputSha256": "4b6e4af6c1985b4f10365c9fa492688b89150640def2b69a49bd2e8216af5422"
+    },
+    {
+      "script": "qc:dev-098:postgres",
+      "status": "FAIL",
+      "exitCode": 1,
+      "startedAt": "2026-08-28T19:06:24.666Z",
+      "completedAt": "2026-08-28T19:06:40.040Z",
+      "log": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/logs/05-qc-dev-098-postgres.log",
+      "outputSha256": "bdb27956a8fd011990e89e9b233fa83e853ff69a2727027b54d0c76f41691496"
+    }
+  ],
+  "childManifests": [
+    {
+      "runner": "contract",
+      "runId": "DEV098-contract-2026-08-28T19-04-37-449Z",
+      "path": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/contract/manifest.json",
+      "sha256": "5d379e6c3dd0aa9a52c1f4ae9786feb3dac6cd37bbb63bd94461f37a2d3fe064",
+      "status": "PASS",
+      "caseIds": [
+        "QA-098-001",
+        "QA-098-002",
+        "QA-098-003",
+        "QA-098-004",
+        "QA-098-005"
+      ]
+    },
+    {
+      "runner": "repository",
+      "runId": "DEV098-repository-2026-08-28T19-04-39-157Z",
+      "path": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/repository/manifest.json",
+      "sha256": "7beca34e1eae5f2d308fa8f46c0d83c2e7eb71bf459323f18e2f2bfc081d89bb",
+      "status": "PASS",
+      "caseIds": [
+        "QA-098-006",
+        "QA-098-007",
+        "QA-098-008",
+        "QA-098-009",
+        "QA-098-010",
+        "QA-098-011",
+        "QA-098-012",
+        "QA-098-013",
+        "QA-098-014",
+        "QA-098-015",
+        "QA-098-016",
+        "QA-098-027",
+        "QA-098-028",
+        "QA-098-030"
+      ]
+    },
+    {
+      "runner": "browser",
+      "runId": "DEV098-browser-2026-08-28T19-04-52-545Z",
+      "path": "output/qa/dev-098/DEV098-aggregate-2026-08-28T19-04-36-078Z/children/browser/manifest.json",
+      "sha256": "ab774260b3bed1dd42bad02ff99986e9371721e8075a4fd8f25f41e05efa5291",
+      "status": "PASS",
+      "caseIds": [
+        "QA-098-017",
+        "QA-098-018",
+        "QA-098-019",
+        "QA-098-020",
+        "QA-098-021",
+        "QA-098-022",
+        "QA-098-023",
+        "QA-098-024",
+        "QA-098-029"
+      ]
+    }
+  ],
+  "sourceBoundary": {
+    "files": [
+      {
+        "path": "src/lib/drawing-revision-target-contract.ts",
+        "exists": true,
+        "sha256": "c901c2369bc953f308b80e7a400bcde283ce8abf701f8b78c3e55037db8c7594"
+      },
+      {
+        "path": "src/lib/drawing-revision-target-token.server.ts",
+        "exists": true,
+        "sha256": "e1032dbdcc930333af6f8323327c47c3d7c42985ce87ccce7fd41d4751c4864e"
+      },
+      {
+        "path": "src/lib/drawing-revision-lifecycle-policy.ts",
+        "exists": true,
+        "sha256": "125bee032c38e8d8754e9c4c9e3229782fb547bc3a9af1a3243d23dc029d37d3"
+      },
+      {
+        "path": "src/lib/drawing-revision-work.ts",
+        "exists": true,
+        "sha256": "53610ae0905b089c913c168e301edfe82c134a514d0decc3cd54e06d5ca1ebd5"
+      },
+      {
+        "path": "src/lib/drawing-revision-work-file.ts",
+        "exists": true,
+        "sha256": "141e2d2fce773a1b1680598f0dc99ae1bee47aee6e9257712ced95d55b8e92fe"
+      },
+      {
+        "path": "src/lib/repositories/drawing-revision-work-async-repository.ts",
+        "exists": true,
+        "sha256": "92d455b5f5c09736ce11a31483a19c4b300a2a1836a9a0bf4235862a8c68f079"
+      },
+      {
+        "path": "src/lib/drawing-recognition.ts",
+        "exists": true,
+        "sha256": "90574aaf6030505e9771dd3ec55154807946a4372a7ccbc9db6f2817c074e45a"
+      },
+      {
+        "path": "src/app/api/pdm/drawings/[drawingId]/revision-works/route.ts",
+        "exists": true,
+        "sha256": "71216a9dbf22825479d07d25a56abda884507d0f6294cb559a27c39f2e343773"
+      },
+      {
+        "path": "src/app/api/pdm/drawings/[drawingId]/revision-targets/route.ts",
+        "exists": true,
+        "sha256": "9d25b7cd92cffdb3b35f8c78c4580f2760bc11dd1f2d33f3387c9d58e4866e57"
+      },
+      {
+        "path": "src/app/api/pdm/review-requests/[requestId]/route.ts",
+        "exists": true,
+        "sha256": "c3aea2a44573298659e5359095bc5560f7cde9ab7df4d86f08add19dc13bf890"
+      },
+      {
+        "path": "src/lib/pdm-canonical-workbench-contract.ts",
+        "exists": true,
+        "sha256": "3843b5a8ed92544924f2837474715fabdf337fc3bc750f2b3712d55cb9340f51"
+      },
+      {
+        "path": "src/lib/repositories/pdm-canonical-workbench-async-repository.ts",
+        "exists": true,
+        "sha256": "cb21cc9c55cc65cc3c574abdadad3603a0e177fc28a791eade40267143696502"
+      },
+      {
+        "path": "src/lib/pdm-canonical-workbench-state.ts",
+        "exists": true,
+        "sha256": "60e12787d1b2e93320efd829faaef2c799f3d8a569c8318b09490b47d2570e9a"
+      },
+      {
+        "path": "src/components/canonical-pdm-workbench.tsx",
+        "exists": true,
+        "sha256": "4290032ec41a5d43498d0a156a474ea68f5927af7b730feab83a203485b36dea"
+      },
+      {
+        "path": "src/components/canonical-drawing-change-workspace.tsx",
+        "exists": true,
+        "sha256": "ceb09b0b8450fb7c9e8e13aba363dc3799b98a7e1d1741f93b44e0c9260a0dfa"
+      },
+      {
+        "path": "src/app/globals.css",
+        "exists": true,
+        "sha256": "22d746def890bc7ba6a40254dfe15138e4eb6ed7a0c675cbcf04228622641816"
+      },
+      {
+        "path": "scripts/qc-dev-087-commands.mjs",
+        "exists": true,
+        "sha256": "e8356cd82fba36a033e51e59d97ae488aa8864534d8d61a2787679f5dc8b19ae"
+      },
+      {
+        "path": "scripts/qc-dev-087-ui-only.mjs",
+        "exists": true,
+        "sha256": "155f4dc824c27c3162cea7ed52ed55936fde58756e343c585cdd8f9ebb87fd9f"
+      },
+      {
+        "path": "scripts/qc-dev-098-contract.mjs",
+        "exists": true,
+        "sha256": "341f7e0b7f9a1578910718d0c5d39c8ab1d261129a23ae5281f5dbeeeae784d8"
+      },
+      {
+        "path": "scripts/qc-dev-098-repository.mjs",
+        "exists": true,
+        "sha256": "cf1891d7026cc0d95c351d0f5e09592611c61799f9d0491d3a460bbbf41acb93"
+      },
+      {
+        "path": "scripts/qc-dev-098-browser.mjs",
+        "exists": true,
+        "sha256": "3273f1a4afe523d8ca18ed65ac560139f994074b3e1db93e962a6fb71a58c72e"
+      },
+      {
+        "path": "scripts/qc-dev-098-postgres.mjs",
+        "exists": true,
+        "sha256": "c0595caf32eaa170d037fb704a644a2c6c4ebbd61d0dd364498cc8e52cc5a66e"
+      },
+      {
+        "path": "scripts/qc-dev-098-aggregate.mjs",
+        "exists": true,
+        "sha256": "957224527ac54bb79557626adf6d501a0eb69ee6bcdb9ad2e9bf339ffde46943"
+      },
+      {
+        "path": "package.json",
+        "exists": true,
+        "sha256": "c5c81c47006a96f8f039fd1f83622e350b9c078c2e9a6c797e2015922bfc790f"
+      }
+    ],
+    "before": "08bdc4bf72af988127550634dacffaf2aeb0dba8ec704470a21eb79fc0885fa5",
+    "after": "08bdc4bf72af988127550634dacffaf2aeb0dba8ec704470a21eb79fc0885fa5",
+    "unchanged": true
+  },
+  "schemaBoundary": {
+    "classification": "none",
+    "dev098OwnedSchemaFiles": [],
+    "before": "e7dc17d8df6aa07b4bb87b96f270e70af842ea63d351ef0c5991139e271bd03b",
+    "after": "e7dc17d8df6aa07b4bb87b96f270e70af842ea63d351ef0c5991139e271bd03b",
+    "unchanged": true
+  },
+  "primaryInvariant": {
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "unchanged": true
+  },
+  "cleanup": {
+    "status": "PASS",
+    "residue": []
+  },
+  "defects": {
+    "p0": 0,
+    "p1": 1
+  },
+  "productionWrites": false,
+  "productionMigrationExecuted": false,
+  "productionDeployExecuted": false,
+  "firstFailure": "qc:dev-098:postgres:exit=1"
+}

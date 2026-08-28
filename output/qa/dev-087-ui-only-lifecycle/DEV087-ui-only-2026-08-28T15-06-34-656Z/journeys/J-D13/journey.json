@@ -1,0 +1,17 @@
+{
+  "id": "J-D13",
+  "caseId": "D13",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "assert",
+      "target": "max-3-branches",
+      "observed": "advance-hidden-at-cap"
+    }
+  ],
+  "startedAt": "2026-08-28T15:07:35.158Z",
+  "finishedAt": "2026-08-28T15:07:42.281Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

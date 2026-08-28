@@ -1,0 +1,1658 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-browser-2026-08-28T14-43-29-644Z",
+  "parentRunId": null,
+  "gateStage": "product",
+  "runner": "qc-dev-087-capability-browser",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "4bdd27712b97b399347f819ecfdb2822be0cce1b4cdd4289fd3dbedb837286db"
+  },
+  "environment": {
+    "provider": "sqlite",
+    "dataScope": "fresh task-owned isolated browser fixtures",
+    "baseUrl": null
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "3ce108cc422d441d12368740682b15d17a5828cf488d40299f31d99bdc98c007",
+  "caseResults": [
+    {
+      "caseId": "D01",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D01"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D02",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D02"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D03",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D03"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D04",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D04"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D05",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D05"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D06",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D06"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D07",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D07"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D08",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D08"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D09",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D09"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D10",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D10"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D11",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D11"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D12",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D12"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D13",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D13"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D14",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D14"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D15",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D15"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D16",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D16"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D17",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D17"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D18",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D18"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D19",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D19"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D20",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D20"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D21",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D21"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D22",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D22"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D23",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D23"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "D24",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "D24"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P01",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P01"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P02",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P02"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P03",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P03"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P04",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P04"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P05",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P05"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P06",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P06"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P07",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P07"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P08",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P08"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P09",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P09"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P10",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P10"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P11",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P11"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P12",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P12"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "P13",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "P13"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I01",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I01"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I02",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I02"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I03",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I03"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I04",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I04"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I05",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I05"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I06",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I06"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I07",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I07"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I08",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I08"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I09",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I09"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I10",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I10"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I11",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I11"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I12",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I12"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I13",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I13"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "I14",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "I14"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C01",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C01"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C02",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C02"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C03",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C03"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C04",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C04"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C05",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C05"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C06",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C06"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C07",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C07"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C08",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C08"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C09",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C09"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C10",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C10"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "C11",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "C11"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-187",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-187"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-188",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-188"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-189",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-189"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-190",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-190"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-191",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-191"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-192"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-193",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-193"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-198",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-198"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-199",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-199"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-200",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-200"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-201",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-201"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-203",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-203"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-204",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-204"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-205"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-207",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-207"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-208",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-208"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-209",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-209"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-210"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-211",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-211"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-212",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-212"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-213",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-213"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-214",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-214"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-215",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-215"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-216"
+      ],
+      "firstFailurePointer": "child-logs"
+    },
+    {
+      "caseId": "QA-087-217",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-217"
+      ],
+      "firstFailurePointer": "child-logs"
+    }
+  ],
+  "caseEvidence": {
+    "D01": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D02": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D03": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D04": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D05": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D06": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D07": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D08": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D09": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D10": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D11": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D12": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D13": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D14": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D15": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D16": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D17": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D18": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D19": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D20": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D21": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D22": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D23": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "D24": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P01": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P02": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P03": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P04": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P05": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P06": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P07": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P08": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P09": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P10": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P11": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P12": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "P13": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I01": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I02": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I03": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I04": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I05": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I06": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I07": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I08": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I09": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I10": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I11": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I12": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I13": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "I14": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C01": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C02": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C03": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C04": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C05": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C06": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C07": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C08": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C09": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C10": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "C11": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-187": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-188": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-189": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-190": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-191": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-192": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-193": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-198": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-199": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-200": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-201": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-203": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-204": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-205": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-207": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-208": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-209": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-210": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-211": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-212": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-213": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-214": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-215": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-216": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    },
+    "QA-087-217": {
+      "evidenceTypes": [
+        "rendered_ui_action",
+        "viewport",
+        "api_db_readback",
+        "visible_error_sweep",
+        "artifact_hash"
+      ],
+      "artifactPaths": []
+    }
+  },
+  "childManifests": [],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "unchanged",
+    "delta": 0,
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    }
+  },
+  "firstFailure": {
+    "code": "CHILD_RUN_FAILED:ui-only:exit=1:retryEligible=false:log=output\\qa\\dev-087-capability\\DEV087-product-browser-2026-08-28T14-43-29-644Z\\child-logs\\ui-only.attempt-1.log",
+    "caseId": "D01",
+    "pointer": "child-logs"
+  },
+  "cleanupReceipt": {
+    "status": "failed_or_incomplete",
+    "taskOwnedRuntime": true,
+    "portsReleased": false
+  },
+  "result": "FAIL",
+  "errorCode": "CHILD_RUN_FAILED:ui-only:exit=1:retryEligible=false:log=output\\qa\\dev-087-capability\\DEV087-product-browser-2026-08-28T14-43-29-644Z\\child-logs\\ui-only.attempt-1.log"
+}

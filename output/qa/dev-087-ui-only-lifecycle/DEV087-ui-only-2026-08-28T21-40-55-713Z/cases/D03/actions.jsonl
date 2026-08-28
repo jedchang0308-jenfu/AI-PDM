@@ -1,0 +1,2 @@
+{"at":"2026-08-28T21:41:49.552Z","kind":"navigate","target":"/numbering/drawings?query=A0060-M01","accessibleName":"0.1 編輯儲存 reload"}
+{"at":"2026-08-28T21:41:51.191Z","kind":"readback","before":{"route":"/numbering/drawings?query=A0060-M01"},"after":{"headers":["編號","品名","版本","資料狀態","處理"],"toolbar":["搜尋","版本","處理","用途","系列","排序"],"rows":["A0060-M01DEV087 D03 14055713Z研發版 0.1編輯中負責人處理"],"apiStatus":200,"apiBodyHash":1264,"dbRows":1}}

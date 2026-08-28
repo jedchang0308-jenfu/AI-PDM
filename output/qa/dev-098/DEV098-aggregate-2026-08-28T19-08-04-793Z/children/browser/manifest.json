@@ -1,0 +1,588 @@
+{
+  "schemaVersion": 1,
+  "devId": "DEV-098",
+  "suite": "browser",
+  "runner": "browser",
+  "runId": "DEV098-browser-2026-08-28T19-08-21-332Z",
+  "generatedAt": "2026-08-28T19:09:52.995Z",
+  "status": "PASS",
+  "fixedCaseIds": [
+    "QA-098-017",
+    "QA-098-018",
+    "QA-098-019",
+    "QA-098-020",
+    "QA-098-021",
+    "QA-098-022",
+    "QA-098-023",
+    "QA-098-024",
+    "QA-098-029"
+  ],
+  "expected": 9,
+  "executed": 9,
+  "passed": 9,
+  "firstFailure": null,
+  "productionWrites": false,
+  "dataBoundary": {
+    "provider": "sqlite",
+    "PDM_DATA_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev098-browser-ngoz0r\\data",
+    "PDM_REPOSITORY_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev098-browser-ngoz0r\\repository",
+    "primaryBefore": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "primaryAfter": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "primaryUnchanged": true
+  },
+  "cleanup": {
+    "taskRootRemoved": true,
+    "runtimeProjectRemoved": true,
+    "portReleased": true,
+    "port": 55229
+  },
+  "telemetry": {
+    "unexpectedConsoleErrors": [],
+    "pageErrors": [],
+    "unexpectedRequestFailures": [],
+    "unexpectedHttp": [],
+    "expectedHttp": [
+      {
+        "method": "POST",
+        "pathSuffix": "/revision-works",
+        "status": 422,
+        "reason": "deliberate malformed minor"
+      },
+      {
+        "method": "POST",
+        "pathSuffix": "/revision-works",
+        "status": 403,
+        "reason": "viewer direct mutation"
+      },
+      {
+        "method": "POST",
+        "pathSuffix": "/revision-works",
+        "status": 409,
+        "reason": "foreign-company direct mutation"
+      }
+    ],
+    "expectedConsoleErrors": [
+      {
+        "label": "owner-main",
+        "message": "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)"
+      },
+      {
+        "label": "viewer",
+        "message": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      },
+      {
+        "label": "foreign-company",
+        "message": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+      }
+    ],
+    "expectedRequestFailures": [
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=zecX05NyeLzLDlT0",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/bcb692da-6d9d-483d-9a55-38c2e4650342",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=KbjjvA4bZ0GkB3fU",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=zecX05NyeLzLDlT0",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/3d9cba0b-16c7-442e-96b5-c0df083d5d96",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/2a5886d7-5fb9-4363-ae15-b2fc2d46a9c9",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "viewer",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=zecX05NyeLzLDlT0",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "viewer",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=KbjjvA4bZ0GkB3fU",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "viewer",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/bd9f939b-eca7-4318-826e-7bfc773ccbf0",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "foreign-company",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=zecX05NyeLzLDlT0",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-race",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=zecX05NyeLzLDlT0",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-race",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=KbjjvA4bZ0GkB3fU",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-race",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/8734bbf0-03ae-4787-8323-456d4ebaec9a",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=zecX05NyeLzLDlT0",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=KbjjvA4bZ0GkB3fU",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/cfe5b505-5c3b-4b04-85a9-ab98396d6192",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/5f4d8d8d-17f7-4586-892a-8608f0f7c987",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "review-production",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=zecX05NyeLzLDlT0",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "review-production",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=KbjjvA4bZ0GkB3fU",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "review-production",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/166de96b-4a70-4017-ab01-7b97bbf62aca",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/api/pdm/file-assets/FA-888ec7bb-351f-434e-a4ff-fcee22adc7bb?context=drawing_revision_work&contextId=58b60d75-373a-4401-bfe3-164261b58161&bindingId=50476ab6-b6e6-450e-974c-33d4c97137f9&preview=1",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=zecX05NyeLzLDlT0",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:55229/technical-transfer?_rsc=KbjjvA4bZ0GkB3fU",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/3ee72bb5-c9ee-44ee-a7e7-4ac284ecd794",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:55229/7ebca570-fdd8-47c1-9edf-fea0411217ec",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      }
+    ]
+  },
+  "caseResults": [
+    {
+      "id": "QA-098-017",
+      "title": "list, drawer and compact default-recommended modal have one primary action and radio zero-write",
+      "status": "PASS",
+      "detail": {
+        "defaultMode": true,
+        "primaryCount": 1,
+        "beforeAfterEqual": true
+      }
+    },
+    {
+      "id": "QA-098-018",
+      "title": "manual 1.7 request shape and persisted predecessor are exact",
+      "status": "PASS",
+      "detail": {
+        "request": {
+          "sourceRowKey": "cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "selectionMode": "manual_minor",
+          "requestedMinor": 7
+        },
+        "work": {
+          "id": "a4b8967b-980b-4c16-9a9b-afcebd886bc3",
+          "row_version": 1,
+          "target_label": "1.7",
+          "predecessor_revision_id": "qa-dev098-ui-production-revision",
+          "claim_state": "work"
+        }
+      }
+    },
+    {
+      "id": "QA-098-019",
+      "title": "manual invalid inputs and malformed server request remain visible with zero partial write",
+      "status": "PASS",
+      "detail": {
+        "values": [
+          "05",
+          "",
+          "0",
+          "2147483648"
+        ],
+        "directStatus": 422,
+        "serverAlert": "自訂小版次格式無效",
+        "modalPreserved": true,
+        "drawerPreserved": true,
+        "onlyPost": "deliberate malformed request"
+      }
+    },
+    {
+      "id": "QA-098-020",
+      "title": "initially stale row exposes proactive restart and loads current-production targets directly",
+      "status": "PASS",
+      "detail": {
+        "action": "從目前量產版建立新工作",
+        "targetsGets": 1,
+        "previewBefore": {
+          "box": {
+            "x": 259,
+            "y": 161.796875,
+            "width": 1162,
+            "height": 356.25
+          },
+          "scrollX": 0,
+          "scrollY": 0
+        },
+        "previewAfter": {
+          "sameNode": true,
+          "box": {
+            "x": 259,
+            "y": 161.796875,
+            "width": 1162,
+            "height": 356.25
+          },
+          "scrollX": 0,
+          "scrollY": 0
+        }
+      }
+    },
+    {
+      "id": "QA-098-021",
+      "title": "recovery creates 2.1 strictly from current production without stale payload merge",
+      "status": "PASS",
+      "detail": {
+        "request": {
+          "sourceRowKey": "cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "selectionMode": "recommended",
+          "candidateToken": "eyJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItZW5naW5lZXItZGVtbyIsImRyYXdpbmdJZCI6ImRyYXdpbmctZHJhZnQtZHJhd2luZy1jYzcxODdiOC0xZWM0LTQ5MzYtOTFkYS00NzcxZjFiOGE4NzciLCJzb3VyY2VSb3dJZCI6IjQ0NmY1YzlhLTRiNTUtNDE5Ny1hMTg1LWNmZGM5NmMyYjhiNyIsInNvdXJjZVJvd1ZlcnNpb24iOjQsImJhc2lzU3RhdGUiOiJjdXJyZW50IiwidGFyZ2V0Ijp7Im1ham9yIjoyLCJtaW5vciI6MSwibGFiZWwiOiIyLjEifSwidmVyc2lvbiI6MiwiZXhwaXJlc0F0IjoxNzg3OTQ0NzkwNTAyfQ.s2Ue8hL7YnPgqAuOM-mH_xe-b-v2TEQNcwCYa2zVSpM"
+        },
+        "work": {
+          "id": "7d051ae3-2ca8-4922-aa5f-b918c2f2bd15",
+          "row_version": 1,
+          "target_label": "2.1",
+          "predecessor_revision_id": "5bb652bc-1f2a-4dd8-8f65-a0abdbc92220",
+          "claim_state": "work"
+        },
+        "production": {
+          "row_id": "446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "row_version": 5,
+          "revision_id": "5bb652bc-1f2a-4dd8-8f65-a0abdbc92220",
+          "revision": "2"
+        }
+      }
+    },
+    {
+      "id": "QA-098-022",
+      "title": "production candidate changes the production basis only after exact reviewer approval",
+      "status": "PASS",
+      "detail": {
+        "wording": "採用為量產版",
+        "before": {
+          "row_id": "446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "row_version": 2,
+          "revision_id": "qa-dev098-ui-production-revision",
+          "revision": "1"
+        },
+        "afterSubmit": {
+          "row_id": "446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "row_version": 3,
+          "revision_id": "qa-dev098-ui-production-revision",
+          "revision": "1"
+        },
+        "afterApprove": {
+          "row_id": "446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "row_version": 4,
+          "revision_id": "5bb652bc-1f2a-4dd8-8f65-a0abdbc92220",
+          "revision": "2"
+        }
+      }
+    },
+    {
+      "id": "QA-098-023",
+      "title": "viewer and foreign-company mutation paths are fail-closed without disclosure or write",
+      "status": "PASS",
+      "detail": {
+        "viewer": {
+          "status": 403,
+          "body": {
+            "error": {
+              "code": "WORKBENCH_BAD_REQUEST",
+              "message": "無權限執行此操作",
+              "correlationId": "a746deb0-24ec-417e-b372-8e1d3e452781"
+            }
+          }
+        },
+        "foreign": {
+          "status": 409,
+          "body": {
+            "error": {
+              "code": "WORKBENCH_CONTRACT_EXPIRED",
+              "message": "重新整理以使用新版本",
+              "correlationId": "aea8f5b8-9a76-44bb-b303-dbb625f03ef7"
+            }
+          }
+        },
+        "zeroWrite": true
+      }
+    },
+    {
+      "id": "QA-098-024",
+      "title": "responsive geometry, keyboard focus trap and clean interaction telemetry",
+      "status": "PASS",
+      "detail": {
+        "viewports": [
+          {
+            "viewport": {
+              "width": 1440,
+              "height": 900
+            },
+            "body": {
+              "scrollWidth": 1440,
+              "clientWidth": 1440
+            },
+            "modal": {
+              "left": 460,
+              "right": 980,
+              "top": 215.5,
+              "bottom": 684.5,
+              "width": 520,
+              "height": 469
+            },
+            "primary": {
+              "scrollWidth": 120,
+              "clientWidth": 120
+            },
+            "screenshot": "output\\qa\\dev-098\\DEV098-aggregate-2026-08-28T19-08-04-793Z\\children\\browser\\screenshots\\QA-098-024-1440.png"
+          },
+          {
+            "viewport": {
+              "width": 1024,
+              "height": 768
+            },
+            "body": {
+              "scrollWidth": 1024,
+              "clientWidth": 1024
+            },
+            "modal": {
+              "left": 252,
+              "right": 772,
+              "top": 149.5,
+              "bottom": 618.5,
+              "width": 520,
+              "height": 469
+            },
+            "primary": {
+              "scrollWidth": 120,
+              "clientWidth": 120
+            },
+            "screenshot": "output\\qa\\dev-098\\DEV098-aggregate-2026-08-28T19-08-04-793Z\\children\\browser\\screenshots\\QA-098-024-1024.png"
+          },
+          {
+            "viewport": {
+              "width": 390,
+              "height": 844
+            },
+            "body": {
+              "scrollWidth": 390,
+              "clientWidth": 390
+            },
+            "modal": {
+              "left": 16,
+              "right": 374,
+              "top": 179,
+              "bottom": 665,
+              "width": 358,
+              "height": 486
+            },
+            "primary": {
+              "scrollWidth": 120,
+              "clientWidth": 120
+            },
+            "screenshot": "output\\qa\\dev-098\\DEV098-aggregate-2026-08-28T19-08-04-793Z\\children\\browser\\screenshots\\QA-098-024-390.png"
+          }
+        ],
+        "focusTrap": true
+      }
+    },
+    {
+      "id": "QA-098-029",
+      "title": "post-load production-basis race switches the existing dialog to recovery without remounting preview",
+      "status": "PASS",
+      "detail": {
+        "targetsGets": 2,
+        "recovery": "這個研發分支的量產基準已更新，不能沿用舊分支進版。\n從目前量產版建立新工作",
+        "previewBefore": {
+          "box": {
+            "x": 259,
+            "y": 161.796875,
+            "width": 1162,
+            "height": 356.25
+          },
+          "scrollX": 0,
+          "scrollY": 0
+        },
+        "previewAfter": {
+          "sameNode": true,
+          "box": {
+            "x": 259,
+            "y": 161.796875,
+            "width": 1162,
+            "height": 356.25
+          },
+          "scrollX": 0,
+          "scrollY": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 # QC DEV-095：舊組合件工作流退役本機執行紀錄
 
-狀態：Local QA-QC PASS / Production Migration & Release Gated
+> **Superseded 2026-08-28**：本PASS只描述部分退役歷史版本，不是current BOM硬退役release evidence。
+
+狀態：Historical Evidence Only / Superseded
 
 日期：2026-08-24
 

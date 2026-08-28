@@ -1,0 +1,15 @@
+{
+  "policy": "One fresh retry is allowed only for an otherwise-clean, fully-cleaned ERR_NO_BUFFER_SPACE or ERR_NETWORK_CHANGED infrastructure failure; both attempts remain evidence.",
+  "attempts": [
+    {
+      "attempt": 1,
+      "exitCode": 1,
+      "runId": "DEV087-ui-only-2026-08-28T14-46-27-812Z",
+      "status": "FAIL",
+      "log": "output/qa/dev-087-capability/DEV087-product-browser-2026-08-28T14-46-25-892Z/child-logs/ui-only.attempt-1.log",
+      "manifest": "output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-28T14-46-27-812Z/run-manifest.json",
+      "consoleErrors": [],
+      "retryEligible": false
+    }
+  ]
+}

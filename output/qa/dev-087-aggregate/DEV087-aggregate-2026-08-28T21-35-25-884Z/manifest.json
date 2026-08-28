@@ -1,0 +1,1506 @@
+{
+  "schemaVersion": 2,
+  "devId": "DEV-087",
+  "historicalSupportingDevId": "DEV-097",
+  "runId": "DEV087-aggregate-2026-08-28T21-35-25-884Z",
+  "generatedAt": "2026-08-28T22:22:23.300Z",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "a991e63ac3101c45314794489e5c2cb2cf517adfe7a22f587fe38befa083505f"
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "productionConnected": false,
+  "productionMigrationExecuted": false,
+  "status": "PASS",
+  "completionCandidate": true,
+  "errorCode": null,
+  "commandPlan": [
+    "qc:dev-100",
+    "qc:dev-087:capability-contract",
+    "qc:dev-087:capability-repository",
+    "qc:dev-087:capability-browser",
+    "qc:dev-087:capability-negative",
+    "qc:dev-087:g4-product-postgres",
+    "qc:dev-094:capa",
+    "qc:dev-094:browser",
+    "qc:dev-087:contract",
+    "qc:dev-087:repository",
+    "qc:dev-087:commands",
+    "qc:dev-087:migration",
+    "qc:dev-092:work-file-snapshot",
+    "qc:dev-092:runtime-invariant",
+    "qc:dev-092:recognition-context",
+    "qc:dev-092:browser",
+    "qc:dev-087:zero-loss",
+    "qc:dev-087:retirement",
+    "qc:dev-087:file-read-retirement",
+    "typecheck:app",
+    "build:isolated"
+  ],
+  "executed": 21,
+  "results": [
+    {
+      "script": "qc:dev-100",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:capability-contract",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:capability-repository",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:capability-browser",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:capability-negative",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:g4-product-postgres",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-094:capa",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-094:browser",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-28T22:17:51.944Z",
+          "finishedAt": "2026-08-28T22:18:33.006Z",
+          "status": "PASS",
+          "exitCode": 0,
+          "error": null,
+          "manifestCardinality": 1,
+          "manifest": {
+            "path": "output/qa/dev-094-browser/DEV094-browser-2026-08-28T22-17-52-752Z/manifest.json",
+            "sha256": "7b62dc44f1a90e5ebcc5696db7a21f242c3c2ad0e9f74b5bac9d3c29fb058da5",
+            "status": "PASS"
+          },
+          "stdout": {
+            "path": "output/qa/dev-087-aggregate/DEV087-aggregate-2026-08-28T21-35-25-884Z/regression-attempts/qc-dev-094-browser-attempt-1.stdout.log",
+            "sha256": "b62f2c3f389003d54e08504521609157192dc15dc88a20e3d1c0bb1d1cfd8867"
+          },
+          "stderr": {
+            "path": "output/qa/dev-087-aggregate/DEV087-aggregate-2026-08-28T21-35-25-884Z/regression-attempts/qc-dev-094-browser-attempt-1.stderr.log",
+            "sha256": "0445f1f5c307ae2a3ec19dc9f2e59d67b6a42a6930a92d609e0e6dfc71aeb81d"
+          },
+          "primaryProtectedUnchanged": true,
+          "sourceUnchanged": true,
+          "retryEligible": false
+        }
+      ],
+      "attemptLedger": "output/qa/dev-087-aggregate/DEV087-aggregate-2026-08-28T21-35-25-884Z/regression-attempts/qc-dev-094-browser.json"
+    },
+    {
+      "script": "qc:dev-087:contract",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:repository",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:commands",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:migration",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-092:work-file-snapshot",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-092:runtime-invariant",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-092:recognition-context",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-092:browser",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:zero-loss",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:retirement",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "qc:dev-087:file-read-retirement",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "typecheck:app",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "build:isolated",
+      "status": "PASS",
+      "exitCode": 0,
+      "error": null
+    }
+  ],
+  "currentDenominator": {
+    "expected": 94,
+    "pass": 94,
+    "blocked": 0,
+    "notRun": 0,
+    "fail": 0
+  },
+  "caseResults": [
+    {
+      "caseId": "D01",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D02",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D03",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D04",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D05",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D06",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D07",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D08",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D09",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D10",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D11",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D12",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D13",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D14",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D15",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D16",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D17",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D18",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D19",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D20",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D21",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D22",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D23",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "D24",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P01",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P02",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P03",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P04",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P05",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P06",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P07",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P08",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P09",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P10",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P11",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P12",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "P13",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I01",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I02",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I03",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I04",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I05",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I06",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I07",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I08",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I09",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I10",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I11",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I12",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I13",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "I14",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C01",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C02",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C03",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C04",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C05",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C06",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C07",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C08",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C09",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C10",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "C11",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-187",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-188",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-189",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-190",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-191",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-193",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-194",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository"
+      ]
+    },
+    {
+      "caseId": "QA-087-195",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository"
+      ]
+    },
+    {
+      "caseId": "QA-087-196",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository"
+      ]
+    },
+    {
+      "caseId": "QA-087-197",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository"
+      ]
+    },
+    {
+      "caseId": "QA-087-198",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-199",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-200",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-201",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-202",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-negative"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-negative"
+      ]
+    },
+    {
+      "caseId": "QA-087-203",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-204",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-206",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-negative"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-negative"
+      ]
+    },
+    {
+      "caseId": "QA-087-207",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-208",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser",
+        "qc-dev-087-capability-negative"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser",
+        "qc-dev-087-capability-negative"
+      ]
+    },
+    {
+      "caseId": "QA-087-209",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser",
+        "qc-dev-087-capability-negative"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser",
+        "qc-dev-087-capability-negative"
+      ]
+    },
+    {
+      "caseId": "QA-087-211",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-212",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-213",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-214",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-215",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser",
+        "qc-dev-087-capability-negative"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-repository",
+        "qc-dev-087-capability-browser",
+        "qc-dev-087-capability-negative"
+      ]
+    },
+    {
+      "caseId": "QA-087-217",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-browser"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-browser"
+      ]
+    },
+    {
+      "caseId": "QA-087-218",
+      "result": "PASS",
+      "requiredRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-negative"
+      ],
+      "passedRunners": [
+        "qc-dev-087-capability-contract",
+        "qc-dev-087-capability-negative"
+      ]
+    }
+  ],
+  "qualityGates": {
+    "expected": 3,
+    "pass": 3,
+    "fail": 0,
+    "notRun": 0,
+    "results": [
+      {
+        "gateId": "QG-087-PROVIDER",
+        "result": "PASS",
+        "detail": {
+          "primaryUnchanged": true,
+          "successfulMutationReceipts": 12,
+          "requiredPostgresCases": 6,
+          "passedPostgresCases": 6
+        }
+      },
+      {
+        "gateId": "QG-087-SECURITY",
+        "result": "PASS",
+        "detail": {
+          "requiredZeroWriteNegatives": 8,
+          "passedZeroWriteNegatives": 8
+        }
+      },
+      {
+        "gateId": "QG-087-UI",
+        "result": "PASS",
+        "detail": {
+          "requiredFamilyViewports": 32,
+          "capturedFamilyViewports": 32,
+          "headedViewports": [
+            "1440x900",
+            "390x844"
+          ],
+          "assistiveTechnology": "optional"
+        }
+      }
+    ]
+  },
+  "childManifests": [
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-browser-2026-08-28T21-39-10-826Z/manifest.json",
+      "sha256": "0323c8e4de092705a580fdcf021ea8662421f457d6fcb0392a11a76079c8baff",
+      "runner": "qc-dev-087-capability-browser",
+      "caseIds": [
+        "D01",
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06",
+        "D07",
+        "D08",
+        "D09",
+        "D10",
+        "D11",
+        "D12",
+        "D13",
+        "D14",
+        "D15",
+        "D16",
+        "D17",
+        "D18",
+        "D19",
+        "D20",
+        "D21",
+        "D22",
+        "D23",
+        "D24",
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09",
+        "P10",
+        "P11",
+        "P12",
+        "P13",
+        "I01",
+        "I02",
+        "I03",
+        "I04",
+        "I05",
+        "I06",
+        "I07",
+        "I08",
+        "I09",
+        "I10",
+        "I11",
+        "I12",
+        "I13",
+        "I14",
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "C06",
+        "C07",
+        "C08",
+        "C09",
+        "C10",
+        "C11",
+        "QA-087-187",
+        "QA-087-188",
+        "QA-087-189",
+        "QA-087-190",
+        "QA-087-191",
+        "QA-087-192",
+        "QA-087-193",
+        "QA-087-198",
+        "QA-087-199",
+        "QA-087-200",
+        "QA-087-201",
+        "QA-087-203",
+        "QA-087-204",
+        "QA-087-205",
+        "QA-087-207",
+        "QA-087-208",
+        "QA-087-209",
+        "QA-087-210",
+        "QA-087-211",
+        "QA-087-212",
+        "QA-087-213",
+        "QA-087-214",
+        "QA-087-215",
+        "QA-087-216",
+        "QA-087-217"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/manifest.json",
+      "sha256": "72042f80fe6ae575392be83405da526795bcded19bd3e1a9094ff253c0ffd979",
+      "runner": "qc-dev-087-capability-contract",
+      "caseIds": [
+        "QA-087-187",
+        "QA-087-191",
+        "QA-087-193",
+        "QA-087-202",
+        "QA-087-206",
+        "QA-087-207",
+        "QA-087-209",
+        "QA-087-212",
+        "QA-087-214",
+        "QA-087-218"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T22-12-59-713Z/manifest.json",
+      "sha256": "e762d8ad976fd2be5836fc67e4ca97a1f3195c30de41af3149f7735a90a04705",
+      "runner": "qc-dev-087-g4-postgres-evidence",
+      "caseIds": [],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-negative-2026-08-28T22-12-55-597Z/manifest.json",
+      "sha256": "bcea1c7271836017662a6c8a5de145b5b5bbaa53ff460e2002008ab354175b43",
+      "runner": "qc-dev-087-capability-negative",
+      "caseIds": [
+        "QA-087-202",
+        "QA-087-206",
+        "QA-087-208",
+        "QA-087-210",
+        "QA-087-216",
+        "QA-087-218"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T21-39-03-734Z/manifest.json",
+      "sha256": "3c39b9982952d9ea6b62d16e8ddcc9953d51f07975e7854f2477fbc9eaca3c92",
+      "runner": "qc-dev-087-capability-repository",
+      "caseIds": [
+        "QA-087-188",
+        "QA-087-189",
+        "QA-087-190",
+        "QA-087-191",
+        "QA-087-192",
+        "QA-087-194",
+        "QA-087-195",
+        "QA-087-196",
+        "QA-087-197",
+        "QA-087-198",
+        "QA-087-199",
+        "QA-087-200",
+        "QA-087-201",
+        "QA-087-202",
+        "QA-087-203",
+        "QA-087-204",
+        "QA-087-205",
+        "QA-087-206",
+        "QA-087-208",
+        "QA-087-209",
+        "QA-087-210",
+        "QA-087-211",
+        "QA-087-214",
+        "QA-087-215",
+        "QA-087-216"
+      ],
+      "result": "PASS"
+    }
+  ],
+  "dev100Validation": {
+    "status": "PASS",
+    "errorCode": null
+  },
+  "dev100ChildManifest": {
+    "path": "output/qa/dev-100/DEV100-2026-08-28T21-35-28-587Z/manifest.json",
+    "sha256": "b827c850d9741fbf9c7705de222870734bf6d8bfa7fe97b3238d248a39621f89",
+    "runner": "qc-dev-100-aggregate",
+    "caseIds": [
+      "QA-100-001",
+      "QA-100-002",
+      "QA-100-003",
+      "QA-100-004",
+      "QA-100-005",
+      "QA-100-006",
+      "QA-100-007",
+      "QA-100-008",
+      "QA-100-009",
+      "QA-100-010",
+      "QA-100-011",
+      "QA-100-012",
+      "QA-100-013",
+      "QA-100-014",
+      "QA-100-015",
+      "QA-100-016",
+      "QA-100-017",
+      "QA-100-018"
+    ],
+    "result": "PASS"
+  },
+  "primaryInvariant": {
+    "before": {
+      "status": "captured",
+      "databasePath": "data/ai-pdm.sqlite",
+      "rawHash": "45f0021031df231f3f346c70be7cdf469f03c24a0a721164eae167c3ee448958",
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "foreignKeyViolations": 0,
+      "rootReferenceViolations": {
+        "partNumbers": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "partRoots": 59,
+      "partNumbers": 59,
+      "drawings": 53,
+      "canonicalStates": 109,
+      "migrationResidue": {
+        "totalQuarantine": 12,
+        "unresolvedQuarantine": 0
+      }
+    },
+    "after": {
+      "status": "captured",
+      "databasePath": "data/ai-pdm.sqlite",
+      "rawHash": "45f0021031df231f3f346c70be7cdf469f03c24a0a721164eae167c3ee448958",
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "foreignKeyViolations": 0,
+      "rootReferenceViolations": {
+        "partNumbers": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "partRoots": 59,
+      "partNumbers": 59,
+      "drawings": 53,
+      "canonicalStates": 109,
+      "migrationResidue": {
+        "totalQuarantine": 12,
+        "unresolvedQuarantine": 0
+      }
+    },
+    "unchanged": true,
+    "rawHashUnchanged": true,
+    "rawHashDisposition": "unchanged"
+  }
+}

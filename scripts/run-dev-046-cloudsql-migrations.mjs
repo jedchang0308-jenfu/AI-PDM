@@ -14,6 +14,8 @@ const root = process.cwd();
 const defaultManifestPath = "output/dev-046-cloudsql-migration-package/cloudsql-migration-manifest.json";
 const productionManifestPath = "output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json";
 const DEV032_CLOUDSQL_MIGRATION_APPROVAL = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED";
+const DEV032_ISOLATED_RESTORE_TARGET_PATTERN =
+  /^jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-restore-[a-z0-9-]{6,40}$/u;
 
 function projectPath(relativePath) {
   return path.join(root, ...relativePath.split("/"));
@@ -88,30 +90,39 @@ export function buildDev046CloudSqlMigrationRunPlan(manifestPath = defaultManife
   };
 }
 
-function requireLiveExecutionApproval(plan) {
+export function requireLiveExecutionApproval(plan, env = process.env) {
   const production = plan.target.projectId === "jenfu-ai-pdm-prod";
   const requiredApproval = production ? DEV032_CLOUDSQL_MIGRATION_APPROVAL : DEV046_CLOUDSQL_MIGRATION_APPROVAL;
-  const suppliedApproval = production ? process.env.DEV032_CLOUDSQL_MIGRATION_APPROVAL : process.env.DEV046_CLOUDSQL_MIGRATION_APPROVAL;
-  const suppliedBootstrap = production ? process.env.DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED : process.env.DEV046_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED;
+  const suppliedApproval = production ? env.DEV032_CLOUDSQL_MIGRATION_APPROVAL : env.DEV046_CLOUDSQL_MIGRATION_APPROVAL;
+  const suppliedBootstrap = production ? env.DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED : env.DEV046_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED;
   if (suppliedApproval !== requiredApproval) {
     throw new Error("LIVE_MIGRATION_APPROVAL_MISSING");
   }
   if (suppliedBootstrap !== requiredApproval) {
     throw new Error("ADMIN_BOOTSTRAP_CONFIRMATION_MISSING");
   }
-  if (process.env.PDM_DB_PROVIDER !== "cloud_sql_postgres") throw new Error("PDM_DB_PROVIDER_MUST_BE_CLOUD_SQL_POSTGRES");
-  if ((process.env.PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME ?? "") !== plan.target.connectionName) {
+  if (env.PDM_DB_PROVIDER !== "cloud_sql_postgres") throw new Error("PDM_DB_PROVIDER_MUST_BE_CLOUD_SQL_POSTGRES");
+  const connectionName = env.PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME ?? "";
+  const isolatedRestore = production && env.DEV032_CLOUDSQL_TARGET_MODE === "isolated_restore";
+  if (isolatedRestore) {
+    if (env.DEV032_PRODUCTION_SOURCE_DATABASE_MUTATION_ALLOWED !== "false") {
+      throw new Error("PRODUCTION_SOURCE_DATABASE_MUTATION_GUARD_MISSING");
+    }
+    if (!DEV032_ISOLATED_RESTORE_TARGET_PATTERN.test(connectionName) || connectionName === plan.target.connectionName) {
+      throw new Error("PDM_CLOUD_SQL_ISOLATED_RESTORE_TARGET_REQUIRED");
+    }
+  } else if (connectionName !== plan.target.connectionName) {
     throw new Error("PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME_MISMATCH");
   }
-  if ((process.env.PDM_CLOUD_SQL_HOST ?? "127.0.0.1") !== "127.0.0.1") throw new Error("CLOUD_SQL_PROXY_LOCALHOST_REQUIRED");
-  if ((process.env.PDM_CLOUD_SQL_DATABASE ?? "ai_pdm") !== plan.target.databaseName) throw new Error("PDM_CLOUD_SQL_DATABASE_MISMATCH");
-  if ((process.env.PDM_CLOUD_SQL_USER ?? "") !== plan.target.migrationIamDatabaseUser) {
+  if ((env.PDM_CLOUD_SQL_HOST ?? "127.0.0.1") !== "127.0.0.1") throw new Error("CLOUD_SQL_PROXY_LOCALHOST_REQUIRED");
+  if ((env.PDM_CLOUD_SQL_DATABASE ?? "ai_pdm") !== plan.target.databaseName) throw new Error("PDM_CLOUD_SQL_DATABASE_MISMATCH");
+  if ((env.PDM_CLOUD_SQL_USER ?? "") !== plan.target.migrationIamDatabaseUser) {
     throw new Error("PDM_CLOUD_SQL_USER_MUST_BE_MIGRATION_IAM_USER");
   }
-  if (process.env.PDM_POSTGRES_URL?.trim() || process.env.PDM_POSTGRES_ADMIN_URL?.trim() || process.env.PDM_CLOUD_SQL_PASSWORD?.trim()) {
+  if (env.PDM_POSTGRES_URL?.trim() || env.PDM_POSTGRES_ADMIN_URL?.trim() || env.PDM_CLOUD_SQL_PASSWORD?.trim()) {
     throw new Error("STATIC_DATABASE_SECRET_FORBIDDEN");
   }
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) throw new Error("SERVICE_ACCOUNT_KEY_FILE_FORBIDDEN");
+  if (env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) throw new Error("SERVICE_ACCOUNT_KEY_FILE_FORBIDDEN");
 }
 
 function connectionConfigFromEnv(plan) {

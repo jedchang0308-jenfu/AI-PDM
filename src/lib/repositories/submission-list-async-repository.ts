@@ -7,7 +7,6 @@ import {
 } from "@/lib/revision-package";
 import { scoreDesignReuseCandidate as scoreDesignReuseCandidateShared } from "@/lib/submission-similarity";
 import type {
-  BomDetail,
   DesignReuseCandidate,
   DuplicateGeometryCandidate,
   FileReference,
@@ -41,7 +40,6 @@ export type SubmissionSearchFiltersAsync = {
   parentDrawing?: string;
   childDrawingNumber?: string;
   childPartNumber?: string;
-  bomIssue?: string;
 };
 
 export type SearchSubmissionsAsyncInput = {
@@ -88,8 +86,6 @@ const reuseScoringDependencies = {
   sameText,
   filenameOverlap
 };
-
-type BomHeaderRow = Omit<BomDetail, "lines">;
 
 export const SELECT_ASYNC_SUBMISSION_SUMMARIES_SQLITE = `
   SELECT
@@ -363,7 +359,6 @@ export const SELECT_ASYNC_SUBMISSION_REVISION_PACKAGE_STATUS_SQL = `
              WHERE fff.company_id = p.company_id
                AND fff.submission_id = p.source_submission_id
                AND rce.action IN (
-                 'confirm_bom_no_revision',
                  'confirm_original_part_reuse',
                  'approve_replacement_part_and_drawing_release'
                )
@@ -635,65 +630,6 @@ export const SELECT_ASYNC_SUBMISSION_RELEASE_PACKAGE_SQL = `
   WHERE submission_id = :id
 `;
 
-export const SELECT_ASYNC_SUBMISSION_BOM_HEADER_SQL = `
-  SELECT
-    h.*,
-    i.part_number AS parent_part_number,
-    i.part_name AS parent_part_name,
-    s.drawing_number AS parent_drawing_number,
-    s.material AS parent_material,
-    s.surface_finish AS parent_surface_finish,
-    s.status AS parent_status
-  FROM bom_headers h
-  JOIN items i ON i.id = h.parent_item_id
-  JOIN submissions s ON s.id = h.parent_submission_id
-  WHERE h.parent_submission_id = :id
-`;
-
-export const SELECT_ASYNC_SUBMISSION_BOM_LINES_SQL = `
-  SELECT
-    l.*,
-    child_i.part_name AS child_part_name,
-    child_s.id AS child_submission_id,
-    child_s.drawing_number AS child_drawing_number,
-    child_s.material AS child_material,
-    child_s.surface_finish AS child_surface_finish,
-    child_s.revision AS child_submission_revision,
-    child_s.status AS child_status,
-    latest_any.revision AS child_latest_revision,
-    latest_released.revision AS child_latest_released_revision
-  FROM bom_lines l
-  LEFT JOIN items child_i ON upper(child_i.part_number) = upper(l.child_part_number)
-  LEFT JOIN submissions child_s ON child_s.id = (
-    SELECT cs.id
-    FROM submissions cs
-    WHERE cs.item_id = child_i.id
-      AND (l.child_revision IS NULL OR upper(cs.revision) = upper(l.child_revision))
-    ORDER BY
-      CASE WHEN cs.status = 'Released' THEN 0 ELSE 1 END,
-      COALESCE(cs.released_at, cs.updated_at, cs.created_at) DESC,
-      cs.id DESC
-    LIMIT 1
-  )
-  LEFT JOIN submissions latest_any ON latest_any.id = (
-    SELECT la.id
-    FROM submissions la
-    WHERE la.item_id = child_i.id
-    ORDER BY COALESCE(la.released_at, la.updated_at, la.created_at) DESC, la.id DESC
-    LIMIT 1
-  )
-  LEFT JOIN submissions latest_released ON latest_released.id = (
-    SELECT lr.id
-    FROM submissions lr
-    WHERE lr.item_id = child_i.id
-      AND lr.status = 'Released'
-    ORDER BY COALESCE(lr.released_at, lr.updated_at, lr.created_at) DESC, lr.id DESC
-    LIMIT 1
-  )
-  WHERE l.bom_header_id = :bomHeaderId
-  ORDER BY l.line_no ASC
-`;
-
 export class AsyncSubmissionListRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
@@ -735,7 +671,7 @@ export class AsyncSubmissionListRepository {
     const row = await this.client.queryOne<SubmissionDetailRow>(SELECT_ASYNC_SUBMISSION_DETAIL_SQL, { id });
     if (!row) return null;
 
-    const [files, partScopes, references, approvals, auditLogs, lifecycleRequests, activeLock, releasePackage, bom, snapshot, revisionPackageStatus] = await Promise.all([
+    const [files, partScopes, references, approvals, auditLogs, lifecycleRequests, activeLock, releasePackage, snapshot, revisionPackageStatus] = await Promise.all([
       this.client.query<SubmissionFile>(SELECT_ASYNC_SUBMISSION_FILES_SQL, { id }),
       this.client.query<SubmissionPartScope>(SELECT_ASYNC_SUBMISSION_PART_SCOPES_SQL, { id }),
       this.client.query<FileReference>(SELECT_ASYNC_SUBMISSION_REFERENCES_SQL, { id }),
@@ -747,7 +683,6 @@ export class AsyncSubmissionListRepository {
         now: new Date().toISOString()
       }),
       this.client.queryOne<ReleasePackage>(SELECT_ASYNC_SUBMISSION_RELEASE_PACKAGE_SQL, { id }),
-      this.getSubmissionBom(id),
       this.client.queryOne<SubmissionSnapshotRow>(SELECT_ASYNC_SUBMISSION_SNAPSHOT_SQL, { id }),
       this.client.queryOne<SubmissionRevisionPackageStatusRow>(SELECT_ASYNC_SUBMISSION_REVISION_PACKAGE_STATUS_SQL, { id })
     ]);
@@ -763,7 +698,6 @@ export class AsyncSubmissionListRepository {
       part_scopes: partScopes,
       references: references.map(normalizeFileReference),
       revision_package: buildSubmissionRevisionPackage(snapshot, normalizedFiles, row, revisionPackageStatus?.effective_status ?? null),
-      bom,
       active_lock: activeLock,
       release_package: releasePackage,
       approvals: approvals.map(normalizeApproval),
@@ -829,24 +763,6 @@ export class AsyncSubmissionListRepository {
     return candidates.slice(0, Math.min(Math.max(input.limit ?? 6, 1), 20));
   }
 
-  private async getSubmissionBom(id: string): Promise<BomDetail | null> {
-    const header = await this.client.queryOne<BomHeaderRow>(SELECT_ASYNC_SUBMISSION_BOM_HEADER_SQL, { id });
-    if (!header) return null;
-
-    const lines = await this.client.query<BomDetail["lines"][number]>(SELECT_ASYNC_SUBMISSION_BOM_LINES_SQL, {
-      bomHeaderId: header.id
-    });
-
-    return {
-      ...header,
-      line_count: Number(header.line_count ?? lines.length),
-      lines: lines.map((line) => ({
-        ...line,
-        line_no: Number(line.line_no),
-        quantity: Number(line.quantity)
-      }))
-    };
-  }
 }
 
 function normalizeSubmissionSummaryRow(row: SubmissionSummaryRow): SubmissionSummary {
@@ -1241,79 +1157,13 @@ function buildSearchWhere(input: SearchSubmissionsAsyncInput, normalizedFilters:
   addLikeFilter(filters, params, "s.drawing_number", "parentDrawingLike", normalizedFilters.parentDrawing);
 
   if (normalizedFilters.childDrawingNumber) {
-    filters.push(`(
-      lower(r.referenced_drawing_number) LIKE :childDrawingLike
-      OR EXISTS (
-        SELECT 1
-        FROM bom_headers child_drawing_bh
-        JOIN bom_lines child_drawing_bl ON child_drawing_bl.bom_header_id = child_drawing_bh.id
-        JOIN items child_drawing_i ON upper(child_drawing_i.part_number) = upper(child_drawing_bl.child_part_number)
-        JOIN submissions child_drawing_s ON child_drawing_s.item_id = child_drawing_i.id
-        WHERE child_drawing_bh.parent_submission_id = s.id
-          AND child_drawing_i.company_id = s.company_id
-          AND (child_drawing_bl.child_revision IS NULL OR upper(child_drawing_s.revision) = upper(child_drawing_bl.child_revision))
-          AND child_drawing_s.company_id = s.company_id
-          AND lower(child_drawing_s.drawing_number) LIKE :childDrawingLike
-      )
-    )`);
+    filters.push("lower(r.referenced_drawing_number) LIKE :childDrawingLike");
     params.childDrawingLike = toLike(normalizedFilters.childDrawingNumber);
   }
 
   if (normalizedFilters.childPartNumber) {
-    filters.push(`(
-      lower(r.referenced_part_number) LIKE :childPartLike
-      OR EXISTS (
-        SELECT 1
-        FROM bom_headers child_bh
-        JOIN bom_lines child_bl ON child_bl.bom_header_id = child_bh.id
-        WHERE child_bh.parent_submission_id = s.id
-          AND lower(child_bl.child_part_number) LIKE :childPartLike
-      )
-    )`);
+    filters.push("lower(r.referenced_part_number) LIKE :childPartLike");
     params.childPartLike = toLike(normalizedFilters.childPartNumber);
-  }
-
-  if (normalizedFilters.bomIssue === "unreleased") {
-    filters.push(`EXISTS (
-      SELECT 1
-      FROM bom_headers issue_bh
-      JOIN bom_lines issue_bl ON issue_bl.bom_header_id = issue_bh.id
-      LEFT JOIN items issue_i ON upper(issue_i.part_number) = upper(issue_bl.child_part_number)
-      LEFT JOIN submissions issue_s ON issue_s.id = (
-        SELECT cs.id
-        FROM submissions cs
-        WHERE cs.item_id = issue_i.id
-          AND (issue_bl.child_revision IS NULL OR upper(cs.revision) = upper(issue_bl.child_revision))
-        ORDER BY
-          CASE WHEN cs.status = 'Released' THEN 0 ELSE 1 END,
-          COALESCE(cs.released_at, cs.updated_at, cs.created_at) DESC,
-          cs.id DESC
-        LIMIT 1
-      )
-        WHERE issue_bh.parent_submission_id = s.id
-          AND issue_i.company_id = s.company_id
-          AND (issue_s.id IS NULL OR issue_s.status <> 'Released')
-    )`);
-  } else if (normalizedFilters.bomIssue === "outdated") {
-    filters.push(`EXISTS (
-      SELECT 1
-      FROM bom_headers issue_bh
-      JOIN bom_lines issue_bl ON issue_bl.bom_header_id = issue_bh.id
-      JOIN items issue_i ON upper(issue_i.part_number) = upper(issue_bl.child_part_number)
-      JOIN submissions latest_released ON latest_released.id = (
-        SELECT lr.id
-        FROM submissions lr
-        WHERE lr.item_id = issue_i.id
-          AND lr.company_id = s.company_id
-          AND lr.status = 'Released'
-        ORDER BY COALESCE(lr.released_at, lr.updated_at, lr.created_at) DESC, lr.id DESC
-        LIMIT 1
-      )
-      WHERE issue_bh.parent_submission_id = s.id
-        AND issue_i.company_id = s.company_id
-        AND issue_bl.child_revision IS NOT NULL
-        AND upper(issue_bl.child_revision) <> upper(latest_released.revision)
-    )`);
   }
 
   return {

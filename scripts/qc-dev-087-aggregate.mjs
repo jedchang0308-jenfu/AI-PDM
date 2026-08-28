@@ -47,7 +47,7 @@ const regressionScripts = [
 ];
 
 function primarySnapshot() {
-  const databasePath = path.join(root, "data", "ai-pdm.sqlite");
+  const databasePath = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
   if (!fs.existsSync(databasePath)) return { status: "missing", databasePath, rawHash: null };
   const db = new Database(databasePath, { readonly: true, fileMustExist: true });
   try {

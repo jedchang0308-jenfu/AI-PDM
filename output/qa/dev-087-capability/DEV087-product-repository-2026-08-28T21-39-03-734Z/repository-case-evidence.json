@@ -1,0 +1,1162 @@
+{
+  "schemaVersion": 1,
+  "taskOwnedEnvironment": {
+    "taskRoot": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-repository-NN8eru",
+    "dataDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-repository-NN8eru\\data",
+    "repositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-repository-NN8eru\\repository",
+    "port": null,
+    "runtime": false
+  },
+  "results": [
+    {
+      "caseId": "QA-087-188",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_AFFECTED_PART_SET_MATCHES_INDEPENDENT_ORACLE"
+      ],
+      "pass": true,
+      "oracle": {
+        "companyId": "company-dev087-a",
+        "drawingId": "drawing-dev087-a0002",
+        "revisionId": "revision-dev087-a0002-1",
+        "partIds": [
+          "part-dev087-a0002"
+        ],
+        "relationTuples": [
+          [
+            "company-dev087-a",
+            "drawing-dev087-a0002",
+            "revision-dev087-a0002-1",
+            "part-dev087-a0002",
+            "primary_manufacturing"
+          ]
+        ],
+        "fingerprint": "4dd77c379a7620cab238f851b51e9459a33fe714d621f1583c95b4d738ca09fc",
+        "initial": {
+          "changeImpactRequired": false,
+          "relatedPartIds": [
+            "part-dev087-a0002"
+          ],
+          "affectedPartIds": [],
+          "forbiddenCode": "DRAWING_FFF_NOT_APPLICABLE"
+        }
+      },
+      "actual": {
+        "affectedPartNumberIds": [
+          "part-dev087-a0002"
+        ],
+        "affectedPartFingerprint": "aafc10ecb2729af59e5519917ca810a70fa11ed65f7cd1545ed2d890b00de29d",
+        "initial": {
+          "changeImpactRequired": false,
+          "relatedParts": [
+            {
+              "id": "part-dev087-a0002",
+              "code": "A0002-P01",
+              "name": "本體_BS_右_Xx5"
+            }
+          ],
+          "affectedParts": [],
+          "payload": {
+            "recognitionNotes": ""
+          },
+          "forbiddenCode": "DRAWING_FFF_NOT_APPLICABLE",
+          "zeroWrite": true,
+          "normalizedStoredPayload": {
+            "recognitionNotes": "legal initial edit"
+          }
+        }
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "workId": "47764aae-aa02-419f-825e-0eca77cddcfa",
+        "relationCount": 1
+      }
+    },
+    {
+      "caseId": "QA-087-189",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_FFF_THREE_OUTCOMES_PERSIST_EXACTLY"
+      ],
+      "pass": true,
+      "oracle": {
+        "initialStates": [
+          null,
+          null,
+          null
+        ],
+        "incompleteCode": "DRAWING_FFF_INCOMPLETE",
+        "expectedOutcomes": [
+          "no_impact",
+          "suspected_impact",
+          "confirmed_impact"
+        ]
+      },
+      "actual": {
+        "initialChangeImpact": {
+          "schemaVersion": 2,
+          "affectedPartNumberIds": [
+            "part-dev087-a0002"
+          ],
+          "affectedPartFingerprint": "5cc4df0b6676bf514fb7e1dba5bb5d23032236fab53328154646fc66a1d2c566",
+          "formState": null,
+          "fitState": null,
+          "functionState": null,
+          "outcome": null,
+          "reasonCategory": null,
+          "note": null,
+          "replacement": null
+        },
+        "incompleteCode": "DRAWING_FFF_INCOMPLETE",
+        "actualOutcomes": [
+          "no_impact",
+          "suspected_impact",
+          "confirmed_impact"
+        ],
+        "storedChangeImpact": {
+          "schemaVersion": 2,
+          "affectedPartNumberIds": [
+            "part-dev087-a0002"
+          ],
+          "affectedPartFingerprint": "5cc4df0b6676bf514fb7e1dba5bb5d23032236fab53328154646fc66a1d2c566",
+          "formState": "confirmed_impact",
+          "fitState": "no_impact",
+          "functionState": "no_impact",
+          "outcome": "confirmed_impact",
+          "reasonCategory": "form_change",
+          "note": "confirmed",
+          "replacement": {
+            "sourcePartNumberId": "part-dev087-a0002",
+            "reservedPartNumber": "A0002-P02",
+            "itemType": "self_made",
+            "detectedPartNumber": null,
+            "correctedPartNumber": null,
+            "attachmentSnapshot": null
+          }
+        }
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "workId": "d5c63dd9-59df-4ce5-819b-e43926a69479",
+        "finalRowVersion": 4
+      }
+    },
+    {
+      "caseId": "QA-087-190",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_REPLACEMENT_RELATION_APPROVE_ONCE_CANCEL_ZERO_RESIDUE"
+      ],
+      "pass": true,
+      "oracle": {
+        "approveLinkCount": 1,
+        "cancelLinkCount": 0
+      },
+      "actual": {
+        "approvedLink": {
+          "old_part_number_id": "part-dev087-a0002",
+          "new_part_number_id": "part-qa190-replacement",
+          "source_drawing_number_id": "drawing-number-dev087-a0002",
+          "source_revision": "1.2",
+          "reason_category": "form_change",
+          "fff_summary_json": "{\"schemaVersion\":2,\"formState\":\"confirmed_impact\",\"fitState\":\"no_impact\",\"functionState\":\"no_impact\",\"outcome\":\"confirmed_impact\",\"note\":\"qa190\",\"affectedPartNumberIds\":[\"part-dev087-a0002\"],\"affectedPartFingerprint\":\"1249257966bf50a7ca41037369620ebf299ce9f546d3c96623043fe49970c063\"}"
+        },
+        "cancelResidue": {
+          "works": 0,
+          "links": 0
+        },
+        "decision": {
+          "acknowledged": true
+        },
+        "replay": {
+          "acknowledged": true
+        }
+      },
+      "providerReceipt": {
+        "approved": {
+          "provider": "sqlite",
+          "databaseScope": "task_owned_in_memory",
+          "foreignKeyViolations": 0,
+          "replacementLinkCount": 1
+        },
+        "cancelled": {
+          "provider": "sqlite",
+          "databaseScope": "task_owned_in_memory",
+          "foreignKeyViolations": 0,
+          "works": 0,
+          "links": 0
+        }
+      }
+    },
+    {
+      "caseId": "QA-087-191",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_SINGLE_CURRENT_DRAWING_WRITER_NO_LEGACY_ROWS"
+      ],
+      "pass": true,
+      "oracle": {
+        "currentWriterRows": 1,
+        "legacyDelta": 0
+      },
+      "actual": {
+        "before": {
+          "submissions": 0,
+          "fff": 0
+        },
+        "after": {
+          "currentWorks": 1,
+          "currentStates": 1,
+          "submissions": 0,
+          "fff": 0
+        }
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "currentWorks": 1,
+        "currentStates": 1,
+        "submissions": 0,
+        "fff": 0
+      }
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_DRAWING_REVIEW_SNAPSHOT_STABLE_APPROVE_EXACTLY_ONCE"
+      ],
+      "pass": true,
+      "oracle": {
+        "traceCount": 1,
+        "pendingCount": 0,
+        "controlledRevisionCount": 1,
+        "snapshotOutcome": "confirmed_impact"
+      },
+      "actual": {
+        "traces": 1,
+        "pending": 0,
+        "revisions": 1,
+        "policyChangeImpact": {
+          "schemaVersion": 2,
+          "affectedPartNumberIds": [
+            "part-dev087-a0002"
+          ],
+          "affectedPartFingerprint": "dfe1bf6de249a4d709b5e2124019546ca3fb708ac1b7a446fa3179116b17ec4f",
+          "formState": "confirmed_impact",
+          "fitState": "no_impact",
+          "functionState": "no_impact",
+          "outcome": "confirmed_impact",
+          "reasonCategory": "form_change",
+          "note": "qa192",
+          "replacement": {
+            "sourcePartNumberId": "part-dev087-a0002",
+            "reservedPartNumber": "A0002-P02",
+            "itemType": "self_made",
+            "detectedPartNumber": null,
+            "correctedPartNumber": null,
+            "attachmentSnapshot": null
+          }
+        },
+        "decision": {
+          "acknowledged": true
+        },
+        "replay": {
+          "acknowledged": true
+        }
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "traces": 1,
+        "pending": 0,
+        "revisions": 1
+      }
+    },
+    {
+      "caseId": "QA-087-194",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_TASK_ORDER_RISK_DUE_CREATED_ID"
+      ],
+      "pass": true,
+      "oracle": {
+        "expected": [
+          "task-critical-early",
+          "task-critical-late",
+          "task-warning",
+          "task-info"
+        ]
+      },
+      "actual": {
+        "order": [
+          "task-critical-early",
+          "task-critical-late",
+          "task-warning",
+          "task-info"
+        ]
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "rowCount": 4
+      }
+    },
+    {
+      "caseId": "QA-087-195",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_TASK_ACTION_EXACT_IDENTITY_AND_SAFE_ROUTE"
+      ],
+      "pass": true,
+      "oracle": {
+        "entityId": "part-dev087-a0002",
+        "allowedPrefix": "/parts",
+        "disallowedPrefix": "/api/admin"
+      },
+      "actual": {
+        "row": {
+          "id": "task-qa195",
+          "companyId": "company-dev087-a",
+          "taskType": "manual",
+          "entityType": "part_number",
+          "entityId": "part-dev087-a0002",
+          "title": "task-qa195",
+          "message": "task-qa195",
+          "riskLevel": "critical",
+          "taskStatus": "open",
+          "assignedTo": "user-dev087-reviewer",
+          "assignedRole": null,
+          "projectCode": null,
+          "actionUrl": "/parts?detail=cw_10000000-0000-4000-8000-000000000003",
+          "detail": {
+            "dueAt": "2026-08-27T00:00:00.000Z"
+          },
+          "markers": [],
+          "createdAt": "2026-08-26T01:00:00.000Z",
+          "handledAt": null
+        },
+        "resolved": {
+          "allowed": true,
+          "href": "/parts?detail=cw_10000000-0000-4000-8000-000000000003"
+        },
+        "wrong": {
+          "allowed": false,
+          "reason": "path_not_allowed"
+        }
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "taskId": "task-qa195"
+      }
+    },
+    {
+      "caseId": "QA-087-196",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_NOTIFICATION_READ_HANDLED_COUNTS_MATCH"
+      ],
+      "pass": true,
+      "oracle": {
+        "first": "notification-critical",
+        "readHandledIds": [
+          "notification-critical"
+        ]
+      },
+      "actual": {
+        "projectedOrder": [
+          "notification-critical",
+          "notification-info"
+        ],
+        "readHandledIds": [
+          "notification-critical"
+        ],
+        "dbRow": {
+          "read_at": "2026-08-28T21:39:06.719Z",
+          "handled_at": "2026-08-28T21:39:06.719Z"
+        }
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "readHandledCount": 1
+      }
+    },
+    {
+      "caseId": "QA-087-197",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_EMPTY_IS_DISTINCT_FROM_PROVIDER_FAILURE"
+      ],
+      "pass": true,
+      "oracle": {
+        "emptyResult": [],
+        "failureMustPropagate": "QA197_PROVIDER_FAILURE"
+      },
+      "actual": {
+        "emptyCount": 0,
+        "failure": "QA197_PROVIDER_FAILURE"
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "emptyCount": 0
+      }
+    },
+    {
+      "caseId": "QA-087-198",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_DRAWING_OBSOLETE_REJECT_PRESERVES_FORMAL"
+      ],
+      "pass": true,
+      "oracle": {
+        "formalStatus": "Released",
+        "requestStatus": "rejected",
+        "impact": {
+          "entityType": "drawing_number",
+          "entityCode": "A0002-M01",
+          "status": "Released",
+          "dependencyTuples": [
+            [
+              "controlled_revision",
+              "revision-dev087-a0002-1-1",
+              "1.1",
+              "rd_controlled"
+            ],
+            [
+              "controlled_revision",
+              "revision-dev087-a0002-1",
+              "1",
+              "released"
+            ],
+            [
+              "part_relation",
+              "part-dev087-a0002",
+              "A0002-P01",
+              "primary_manufacturing"
+            ]
+          ],
+          "fingerprint": "ec2dd3e17602e0ddd0e67cc217d8b26d3c70765eb92b0bda81e476c16e9ef01e"
+        }
+      },
+      "actual": {
+        "entityStatus": "Released",
+        "requestStatus": "rejected",
+        "snapshot": {
+          "lifecycleAction": "obsolete",
+          "entityCode": "A0002-M01",
+          "drawingNumber": "A0002-M01",
+          "previousRecordStatus": "Released",
+          "impactFingerprint": "ac7009fce12d2f1879ddb48ed24afd1f936dda6d34a375691e28f16d366d50f2",
+          "impactDependencies": [
+            {
+              "kind": "controlled_revision",
+              "id": "revision-dev087-a0002-1",
+              "code": "1",
+              "disposition": "released"
+            },
+            {
+              "kind": "controlled_revision",
+              "id": "revision-dev087-a0002-1-1",
+              "code": "1.1",
+              "disposition": "rd_controlled"
+            },
+            {
+              "kind": "part_relation",
+              "id": "part-dev087-a0002",
+              "code": "A0002-P01",
+              "disposition": "primary_manufacturing"
+            }
+          ],
+          "projectCode": null
+        },
+        "decisionCount": 1
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "approvalRequestId": "qa198-1",
+        "entityStatus": "Released"
+      }
+    },
+    {
+      "caseId": "QA-087-199",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_DRAWING_OBSOLETE_APPROVE_ATOMIC_AND_REPLAY_BLOCKED"
+      ],
+      "pass": true,
+      "oracle": {
+        "drawingStatus": "Obsolete",
+        "impactedPartStatus": "MainDrawingInvalid",
+        "decisionCount": 1
+      },
+      "actual": {
+        "drawingStatus": "Obsolete",
+        "partStatus": "MainDrawingInvalid",
+        "decisionCount": 1,
+        "replay": "APPROVAL_REQUEST_ALREADY_RESOLVED: approved"
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "approvalRequestId": "qa199-1",
+        "entityStatus": "Obsolete"
+      }
+    },
+    {
+      "caseId": "QA-087-200",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_OBSOLETE_REJECT_PRESERVES_RELATIONS"
+      ],
+      "pass": true,
+      "oracle": {
+        "partStatus": "Released",
+        "relationCount": 1
+      },
+      "actual": {
+        "partStatus": "Released",
+        "requestStatus": "rejected",
+        "relationCount": 1
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "approvalRequestId": "qa200-1",
+        "entityStatus": "Released"
+      }
+    },
+    {
+      "caseId": "QA-087-201",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_OBSOLETE_REVALIDATES_FINGERPRINT_ZERO_WRITE_ON_STALE"
+      ],
+      "pass": true,
+      "oracle": {
+        "staleFailure": "LIFE_OBSOLETE_SNAPSHOT_STALE",
+        "staleDelta": 0,
+        "approvedStatus": "Obsolete"
+      },
+      "actual": {
+        "staleFailure": "LIFE_OBSOLETE_SNAPSHOT_STALE",
+        "staleDelta": 0,
+        "approvalStatus": "pending",
+        "stalePartStatus": "Released",
+        "approvedStatus": "Obsolete"
+      },
+      "providerReceipt": {
+        "stale": {
+          "provider": "sqlite",
+          "databaseScope": "task_owned_in_memory",
+          "foreignKeyViolations": 0,
+          "failure": "LIFE_OBSOLETE_SNAPSHOT_STALE",
+          "approvalStatus": "pending",
+          "partStatus": "Released"
+        },
+        "approved": {
+          "provider": "sqlite",
+          "databaseScope": "task_owned_in_memory",
+          "foreignKeyViolations": 0,
+          "approvalRequestId": "qa201-approved-1",
+          "entityStatus": "Obsolete"
+        }
+      }
+    },
+    {
+      "caseId": "QA-087-203",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_VARIANT_FOUR_FIELDS_SAVE_AND_RELOAD"
+      ],
+      "pass": true,
+      "oracle": {
+        "saved": {
+          "materialCode": "SUS304",
+          "colorCode": "BK",
+          "surfaceTreatment": "BA",
+          "variantNote": "DEV087-qa203"
+        },
+        "formalDeltaBeforeApproval": 0
+      },
+      "actual": {
+        "reloaded": {
+          "materialCode": "SUS304",
+          "colorCode": "BK",
+          "surfaceTreatment": "BA",
+          "variantNote": "DEV087-qa203"
+        },
+        "formalAttributeRows": 0
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "workId": "c8b63398-fb80-43b3-a226-ceae7fd9c0e3",
+        "rowVersion": 2
+      }
+    },
+    {
+      "caseId": "QA-087-204",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_REVIEW_USES_EXACT_SUBMIT_SNAPSHOT"
+      ],
+      "pass": true,
+      "oracle": {
+        "snapshotVariantNote": "DEV087-qa204",
+        "lateMutationFailure": "WORKBENCH_ROW_VERSION_CONFLICT",
+        "lateMutationDelta": 0
+      },
+      "actual": {
+        "snapshot": {
+          "schemaVersion": "pdm-review-package-v2",
+          "submittedAt": "2026-08-28T21:39:07.033Z",
+          "requestKind": "part_change",
+          "primaryTargetKey": "part:part-dev087-a0002",
+          "root": {
+            "id": "root-dev087-a0002",
+            "code": "A0002"
+          },
+          "decisionBasis": {
+            "version": 1,
+            "kind": "part_change_work",
+            "hash": "27eb7be2693948a447a5215727fbd5d45037020c4c4f62c85e03cc9e795c3842",
+            "payload": {
+              "partName": "本體_BS_右_Xx5_qa204",
+              "itemKind": "manufactured",
+              "customSpecification": null,
+              "isUniversal": false,
+              "materialCode": "SUS304",
+              "materialLabel": "SUS 304",
+              "colorCode": "BK",
+              "colorLabel": "Black",
+              "surfaceTreatment": "BA",
+              "variantNote": "DEV087-qa204"
+            },
+            "revisionId": null,
+            "claimId": null
+          },
+          "matrix": {
+            "rootId": "root-dev087-a0002",
+            "rootCode": "A0002",
+            "drawings": [
+              {
+                "axisId": "drawing-number-dev087-a0002",
+                "targetKey": "drawing:drawing-dev087-a0002",
+                "code": "A0002-M01",
+                "revision": "1.1"
+              }
+            ],
+            "parts": [
+              {
+                "axisId": "part-dev087-a0002",
+                "targetKey": "part:part-dev087-a0002",
+                "code": "A0002-P01",
+                "revision": null
+              }
+            ],
+            "cells": [
+              {
+                "drawingNumberId": "drawing-number-dev087-a0002",
+                "partNumberId": "part-dev087-a0002",
+                "drawingNumber": "A0002-M01",
+                "partNumber": "A0002-P01",
+                "relationType": "manufacturing_basis"
+              }
+            ],
+            "evidenceHash": "7744b5050c53a9b2e42c7952b8fc9e451b4494d861df9eb7e68cdf76b3871701"
+          },
+          "targets": [
+            {
+              "targetKey": "drawing:drawing-dev087-a0002",
+              "axisId": "drawing-number-dev087-a0002",
+              "scope": "context_only",
+              "markers": {
+                "submitted": false,
+                "change": null,
+                "risk": null
+              },
+              "evidenceHash": "8c116883c662d07bfc43d1c067d3991c42c0f95cbe9e07b1b9d5318c638ea466",
+              "workspace": {
+                "kind": "drawing",
+                "entityId": "drawing-dev087-a0002",
+                "identity": {
+                  "code": "A0002-M01",
+                  "name": "製造圖",
+                  "revision": "1.1",
+                  "purposeCode": "M",
+                  "purposeDescription": "製造圖"
+                },
+                "revisionId": "revision-dev087-a0002-1-1",
+                "payload": {},
+                "baselinePayload": {},
+                "changeImpactRequired": false,
+                "relatedParts": [],
+                "affectedParts": [],
+                "files": [],
+                "attachments": [],
+                "recognition": null
+              }
+            },
+            {
+              "targetKey": "part:part-dev087-a0002",
+              "axisId": "part-dev087-a0002",
+              "scope": "submitted",
+              "markers": {
+                "submitted": true,
+                "change": {
+                  "kind": "field",
+                  "paths": [
+                    "colorCode",
+                    "colorLabel",
+                    "materialCode",
+                    "materialLabel",
+                    "partName",
+                    "surfaceTreatment",
+                    "variantNote"
+                  ]
+                },
+                "risk": null
+              },
+              "evidenceHash": "9744f4a87e9d1bac884967b86a068a8a8d3c8155e4546909bf642ed93423101a",
+              "workspace": {
+                "kind": "part",
+                "entityId": "part-dev087-a0002",
+                "identity": {
+                  "code": "A0002-P01",
+                  "name": "本體_BS_右_Xx5",
+                  "revision": null,
+                  "purposeCode": null,
+                  "purposeDescription": null
+                },
+                "revisionId": null,
+                "payload": {
+                  "partName": "本體_BS_右_Xx5_qa204",
+                  "itemKind": "manufactured",
+                  "customSpecification": null,
+                  "isUniversal": false,
+                  "materialCode": "SUS304",
+                  "materialLabel": "SUS 304",
+                  "colorCode": "BK",
+                  "colorLabel": "Black",
+                  "surfaceTreatment": "BA",
+                  "variantNote": "DEV087-qa204"
+                },
+                "baselinePayload": {
+                  "partName": "本體_BS_右_Xx5",
+                  "itemKind": "manufactured",
+                  "customSpecification": null,
+                  "isUniversal": false,
+                  "materialCode": null,
+                  "materialLabel": null,
+                  "colorCode": null,
+                  "colorLabel": null,
+                  "surfaceTreatment": null,
+                  "variantNote": null
+                },
+                "files": [],
+                "attachments": [],
+                "recognition": null
+              }
+            }
+          ],
+          "packageHash": "0b2a676eb7867226e17cdb687aa96b0d3e5086bc162b906b86e6e74e020ad0d2"
+        },
+        "submittedTarget": {
+          "partName": "本體_BS_右_Xx5_qa204",
+          "itemKind": "manufactured",
+          "customSpecification": null,
+          "isUniversal": false,
+          "materialCode": "SUS304",
+          "materialLabel": "SUS 304",
+          "colorCode": "BK",
+          "colorLabel": "Black",
+          "surfaceTreatment": "BA",
+          "variantNote": "DEV087-qa204"
+        },
+        "snapshotHash": "0b2a676eb7867226e17cdb687aa96b0d3e5086bc162b906b86e6e74e020ad0d2",
+        "mutationFailure": "WORKBENCH_ROW_VERSION_CONFLICT",
+        "delta": 0
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "requestId": "a6ccd350-b5f7-42d1-b877-479317dba016",
+        "snapshotHash": "0b2a676eb7867226e17cdb687aa96b0d3e5086bc162b906b86e6e74e020ad0d2"
+      }
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_VARIANT_CANCEL_RETURN_APPROVE_AND_STALE"
+      ],
+      "pass": true,
+      "oracle": {
+        "approved": {
+          "material_code": "SUS304",
+          "color_code": "BK",
+          "surface_treatment": "BA",
+          "variant_note": "DEV087-qa205-approved"
+        },
+        "cancelFormalDelta": 0,
+        "returnFormalDelta": 0,
+        "staleDelta": 0
+      },
+      "actual": {
+        "approvedActual": {
+          "material_code": "SUS304",
+          "color_code": "BK",
+          "surface_treatment": "BA",
+          "variant_note": "DEV087-qa205-approved"
+        },
+        "staleFailure": "WORKBENCH_BAD_REQUEST",
+        "staleDelta": 0,
+        "cancelFormal": 0,
+        "returnFacts": {
+          "formalAttributes": 0,
+          "workCount": 1,
+          "handling": "owner"
+        }
+      },
+      "providerReceipt": {
+        "approve": {
+          "provider": "sqlite",
+          "databaseScope": "task_owned_in_memory",
+          "foreignKeyViolations": 0,
+          "staleFailure": "WORKBENCH_BAD_REQUEST"
+        },
+        "cancel": {
+          "provider": "sqlite",
+          "databaseScope": "task_owned_in_memory",
+          "foreignKeyViolations": 0,
+          "formalAttributeRows": 0
+        },
+        "returned": {
+          "provider": "sqlite",
+          "databaseScope": "task_owned_in_memory",
+          "foreignKeyViolations": 0,
+          "formalAttributes": 0,
+          "workCount": 1,
+          "handling": "owner"
+        }
+      }
+    },
+    {
+      "caseId": "QA-087-208",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_HISTORY_EXACT_REVISION_BINDING_AND_HASH"
+      ],
+      "pass": true,
+      "oracle": {
+        "revisionId": "revision-dev087-a0002-1-1",
+        "bindingId": "binding-qa208-ok",
+        "contentHash": "qa208-content-hash",
+        "href": "/api/pdm/file-assets/asset-qa208-ok?context=drawing_revision&contextId=revision-dev087-a0002-1-1&bindingId=binding-qa208-ok"
+      },
+      "actual": {
+        "revisionId": "revision-dev087-a0002-1-1",
+        "file": {
+          "id": "binding-qa208-ok",
+          "role": "drawing_2d",
+          "displayName": "RD exact history",
+          "description": "",
+          "isPrimary": true,
+          "fileName": "A0002-M01-RD.SLDDRW",
+          "mimeType": "application/octet-stream",
+          "fileSize": 12,
+          "contentHash": "qa208-content-hash",
+          "downloadHref": "/api/pdm/file-assets/asset-qa208-ok?context=drawing_revision&contextId=revision-dev087-a0002-1-1&bindingId=binding-qa208-ok"
+        },
+        "readOnly": true
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "revisionId": "revision-dev087-a0002-1-1",
+        "fileCount": 1
+      }
+    },
+    {
+      "caseId": "QA-087-209",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_WORK_FILE_BINDING_EXACT_WORK_AND_ASSET"
+      ],
+      "pass": true,
+      "oracle": {
+        "workId": "d1c434af-6a3b-4b20-b1e1-b1e8dab96597",
+        "revisionId": "667f55ba-34ee-4f7b-b731-b0fce651c055",
+        "bindingId": "723acb84-9c70-4f90-bb53-2ebf116cfb37",
+        "expectedHref": "/api/pdm/file-assets/FA-efd910aa-326b-46d1-8567-c4ec67c5c799?context=drawing_revision_work&contextId=d1c434af-6a3b-4b20-b1e1-b1e8dab96597&bindingId=723acb84-9c70-4f90-bb53-2ebf116cfb37"
+      },
+      "actual": {
+        "file": {
+          "id": "723acb84-9c70-4f90-bb53-2ebf116cfb37",
+          "source_file_asset_id": "FA-efd910aa-326b-46d1-8567-c4ec67c5c799",
+          "display_name": "A0002-M01-note.pdf",
+          "role": "pdf",
+          "drawing_revision_id": "667f55ba-34ee-4f7b-b731-b0fce651c055",
+          "is_primary": 0,
+          "file_name": "A0002-M01-note.pdf",
+          "file_ext": "pdf",
+          "mime_type": "application/pdf",
+          "file_size": 15,
+          "current_revision_upload": 1
+        },
+        "tuple": {
+          "work_id": "d1c434af-6a3b-4b20-b1e1-b1e8dab96597",
+          "file_binding_id": "723acb84-9c70-4f90-bb53-2ebf116cfb37",
+          "content_hash": "07a74f1a40972cd6a71fe4537ad5bbc05269ac78297fb3b455151b0d971ef8e7",
+          "drawing_revision_id": "667f55ba-34ee-4f7b-b731-b0fce651c055",
+          "source_file_asset_id": "FA-efd910aa-326b-46d1-8567-c4ec67c5c799",
+          "asset_hash": "07a74f1a40972cd6a71fe4537ad5bbc05269ac78297fb3b455151b0d971ef8e7"
+        },
+        "expectedHref": "/api/pdm/file-assets/FA-efd910aa-326b-46d1-8567-c4ec67c5c799?context=drawing_revision_work&contextId=d1c434af-6a3b-4b20-b1e1-b1e8dab96597&bindingId=723acb84-9c70-4f90-bb53-2ebf116cfb37"
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "workId": "d1c434af-6a3b-4b20-b1e1-b1e8dab96597",
+        "bindingId": "723acb84-9c70-4f90-bb53-2ebf116cfb37"
+      }
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_NONPRIMARY_WORK_FILE_REMOVE_READBACK_AND_REPLAY"
+      ],
+      "pass": true,
+      "oracle": {
+        "membership": 0,
+        "tombstonedBinding": 1,
+        "tombstonedAsset": 1,
+        "replaySame": true
+      },
+      "actual": {
+        "removed": {
+          "workId": "7839ebc6-5830-431a-b704-7906c89ac2e7",
+          "fileBindingId": "b86cf5fb-ed93-4dc5-a506-56ead4e73ae4",
+          "rowVersion": 3,
+          "removed": true
+        },
+        "replay": {
+          "workId": "7839ebc6-5830-431a-b704-7906c89ac2e7",
+          "fileBindingId": "b86cf5fb-ed93-4dc5-a506-56ead4e73ae4",
+          "rowVersion": 3,
+          "removed": true
+        },
+        "facts": {
+          "membership": 0,
+          "tombstoned_binding": 1,
+          "tombstoned_asset": 1
+        }
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "membership": 0,
+        "tombstoned_binding": 1,
+        "tombstoned_asset": 1
+      }
+    },
+    {
+      "caseId": "QA-087-211",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_MULTI_FILE_TERMINALS_AND_PARTIAL_FAILURE_NO_WRITE"
+      ],
+      "pass": true,
+      "oracle": {
+        "roles": [
+          "cad_3d",
+          "drawing_2d",
+          "pdf"
+        ],
+        "invalidFailure": "DRAWING_REVISION_FILE_ROLE_INVALID",
+        "invalidDelta": 0
+      },
+      "actual": {
+        "roles": [
+          "cad_3d",
+          "drawing_2d",
+          "pdf"
+        ],
+        "invalidFailure": "DRAWING_REVISION_FILE_ROLE_INVALID",
+        "invalidDelta": 0,
+        "readonly": false,
+        "uploaded": [
+          {
+            "id": "57587a00-5460-498c-b3e3-9abb9c8d3b69",
+            "sourceFileAssetId": "FA-446b3d86-3ac6-4585-b447-56406e06796b",
+            "role": "drawing_2d",
+            "displayName": "A0002-M01.SLDDRW"
+          },
+          {
+            "id": "d7787e3f-f9f5-4871-9543-dfe2425d5cbb",
+            "sourceFileAssetId": "FA-56104781-edfb-4de8-b105-eb1bfe551561",
+            "role": "cad_3d",
+            "displayName": "A0002-M01.SLDASM"
+          },
+          {
+            "id": "354ad2e8-07ae-45fc-b83d-7e2c8a5c9fe8",
+            "sourceFileAssetId": "FA-000ccf4c-7e4f-4d86-a2b5-fea744c4bb29",
+            "role": "pdf",
+            "displayName": "A0002-M01.pdf"
+          }
+        ]
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "fileCount": 3,
+        "invalidFailure": "DRAWING_REVISION_FILE_ROLE_INVALID"
+      }
+    },
+    {
+      "caseId": "QA-087-214",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_DRAWING_FILTERS_PRECEDE_BIDIRECTIONAL_PAGINATION"
+      ],
+      "pass": true,
+      "oracle": {
+        "purposeSqlIds": [
+          "drawing-qa214-r01"
+        ],
+        "filteredCodes": [
+          "A0002-R01"
+        ],
+        "backReturnsFirst": true,
+        "noDuplicateAdjacentPages": true,
+        "purposeCursorMismatch": "WORKBENCH_BAD_REQUEST"
+      },
+      "actual": {
+        "purposeActualIds": [
+          "drawing-qa214-r01"
+        ],
+        "filteredCodes": [
+          "A0002-R01"
+        ],
+        "page1Code": "A0002-M01",
+        "page2Code": "A0002-OT01",
+        "backCode": "A0002-M01",
+        "purposeCursorMismatch": "WORKBENCH_BAD_REQUEST",
+        "cursors": {
+          "next": true,
+          "previous": true
+        }
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "totalGroups": 3
+      }
+    },
+    {
+      "caseId": "QA-087-215",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_FILTER_AND_SEMANTICS_MATCH_SQL_ORACLE"
+      ],
+      "pass": true,
+      "oracle": {
+        "sqlIds": [
+          "part-qa214-p02"
+        ],
+        "semantics": "AND_across_dimensions_OR_within_code_label"
+      },
+      "actual": {
+        "actualIds": [
+          "part-qa214-p02"
+        ]
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "resultCount": 1
+      }
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_CURSOR_FORWARD_BACKWARD_NO_GAP_DUPLICATE"
+      ],
+      "pass": true,
+      "oracle": {
+        "rows": [
+          {
+            "id": "part-dev087-a0002",
+            "groupKey": "part-dev087-a0002",
+            "code": "A0002-P01"
+          },
+          {
+            "id": "part-qa214-p02",
+            "groupKey": "part-qa214-p02",
+            "code": "A0002-P02"
+          },
+          {
+            "id": "part-qa214-p03",
+            "groupKey": "part-qa214-p03",
+            "code": "A0002-P03"
+          }
+        ],
+        "nextAnchor": "part-qa214-p03",
+        "previousAnchor": "part-dev087-a0002",
+        "hasNext": false,
+        "hasPrevious": false,
+        "filterFingerprint": "9e992b2e169419f34c205a284d4a5cb51928a7f95b96db04f775ea4cdbfdc6c2"
+      },
+      "actual": {
+        "codes": [
+          "A0002-P01",
+          "A0002-P02",
+          "A0002-P03"
+        ],
+        "backCode": "A0002-P01",
+        "cursors": {
+          "firstNext": true,
+          "secondNext": true,
+          "secondPrevious": true
+        }
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory",
+        "foreignKeyViolations": 0,
+        "totalGroups": 3
+      }
+    }
+  ],
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskRootRemoved": true
+  }
+}

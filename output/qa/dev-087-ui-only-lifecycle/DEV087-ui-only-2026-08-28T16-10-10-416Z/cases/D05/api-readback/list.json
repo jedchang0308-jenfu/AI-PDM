@@ -1,0 +1,53 @@
+{
+  "data": {
+    "groups": [
+      {
+        "groupKey": "cg_eca9e3d7-f31a-4894-943f-0d91525fe743",
+        "rows": [
+          {
+            "rowKey": "cw_716cf1a1-8101-46e7-a64f-bf53a135892f",
+            "entityType": "drawing",
+            "entityId": "drawing-formal-db885836-a643-49a4-ba96-dfcce158cd27",
+            "code": "A0060-M01",
+            "name": "DEV087 D05 61010416Z",
+            "layer": "rd",
+            "layerLabel": "研發版 0.1",
+            "revision": "0.1",
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_716cf1a1-8101-46e7-a64f-bf53a135892f",
+            "rowVersion": 10,
+            "basisState": "preproduction",
+            "actions": [
+              {
+                "key": "advance",
+                "label": "進版",
+                "href": "/api/pdm/drawings/drawing-formal-db885836-a643-49a4-ba96-dfcce158cd27/revision-targets?sourceRowKey=cw_716cf1a1-8101-46e7-a64f-bf53a135892f"
+              },
+              {
+                "key": "void_rd",
+                "label": "申請作廢",
+                "href": "/api/pdm/drawing-rd-branches/1d665ac0-8777-4525-aeb6-ea1bb85c0fc9/void-requests"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "nextCursor": null,
+    "previousCursor": null,
+    "totalGroups": 1,
+    "totalRows": 1
+  },
+  "meta": {
+    "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4NzkzMzQ4MzYzN30.fPfXlHc4_-XuNZW6zm3NsPwT11RBkAxJLydJbEjXq4k",
+    "correlationId": "85b55e58-b6b4-49d3-a3d3-47d595f6d3c9"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "J-P08",
+  "caseId": "P08",
+  "family": "P",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create"
+    },
+    {
+      "kind": "save-reload"
+    },
+    {
+      "kind": "submit"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 1
+    },
+    {
+      "kind": "decision",
+      "decision": "approve",
+      "readonlyInputs": 8
+    }
+  ],
+  "startedAt": "2026-08-28T18:04:24.967Z",
+  "finishedAt": "2026-08-28T18:04:34.305Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

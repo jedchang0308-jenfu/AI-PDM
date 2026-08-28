@@ -1,0 +1,54 @@
+{
+  "runner": "browser",
+  "runId": "DEV100-browser-2026-08-28T14-20-07-125Z",
+  "status": "FAIL",
+  "headed": true,
+  "port": null,
+  "productionWrites": false,
+  "startupAttempts": [],
+  "checks": [
+    {
+      "name": "primary foreign keys are clean before browser runtime",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "name": "primary root references are clean before browser runtime",
+      "status": "PASS",
+      "detail": {
+        "parts": 0,
+        "drawings": 0
+      }
+    },
+    {
+      "name": "browser execution",
+      "status": "FAIL",
+      "detail": "Error: EEXIST: file already exists, symlink 'C:\\VIBE CODING\\AI_PDM\\data\\repository' -> 'C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev100-browser-UbOskv\\repository'\n    at symlinkSync (node:fs:1879:11)\n    at onLink (node:internal/fs/cp/cp-sync:205:14)\n    at getStats (node:internal/fs/cp/cp-sync:74:12)\n    at cpSyncFn (node:internal/fs/cp/cp-sync:58:10)\n    at Object.cpSync (node:fs:3147:3)\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-100-browser.mjs:174:47"
+    },
+    {
+      "name": "task-owned Next runtime project removed",
+      "status": "PASS",
+      "detail": {
+        "removed": true,
+        "path": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\.tmp\\qc-dev100-browser-runtime-project-d19db3b1-3072-484c-9651-5fedcf59385f",
+        "error": null
+      }
+    },
+    {
+      "name": "task-owned browser fixture removed",
+      "status": "PASS",
+      "detail": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev100-browser-UbOskv"
+    },
+    {
+      "name": "primary schema, identities, root refs, residue and FK unchanged",
+      "status": "PASS",
+      "detail": {
+        "before": "456e4d497276734020c3a692b3a0123fbaa5867258c296382cd7370b73af82d7",
+        "after": "456e4d497276734020c3a692b3a0123fbaa5867258c296382cd7370b73af82d7"
+      }
+    }
+  ],
+  "failures": [],
+  "consoleErrors": [],
+  "screenshots": []
+}

@@ -1,0 +1,91 @@
+{
+  "caseId": "QA-087-215",
+  "result": "PASS",
+  "assertionIds": [
+    "QA-087-215:PART_SEARCH_MATERIAL_COLOR_SORT_MATCH_DB"
+  ],
+  "renderedUiActions": [
+    "search A0002-P02",
+    "filter 材質 SUS 304",
+    "filter 顏色 Black",
+    "toggle 編號 sort"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "activeRole": "button",
+    "activeText": "編號"
+  },
+  "apiReadback": {
+    "status": 200,
+    "body": {
+      "data": {
+        "groups": [
+          {
+            "groupKey": "cg_aggregate-qa-dev087-functional-a0002-p02",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-functional-a0002-p02",
+                "entityType": "part",
+                "entityId": "qa-dev087-functional-a0002-p02",
+                "code": "A0002-P02",
+                "name": "DEV087 replacement Part",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-functional-a0002-p02",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-functional-a0002-p02/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "nextCursor": null,
+        "previousCursor": null,
+        "totalGroups": 1,
+        "totalRows": 1
+      },
+      "meta": {
+        "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0NjczMTQwOH0.MdNI1PkBQoE6E8AzgNjAltJHZBRmD-Ma5ZhbYPuAOhc",
+        "correlationId": "0f1aa5e8-cf03-4732-b5d5-e35adfce0c36"
+      }
+    },
+    "url": "http://127.0.0.1:51455/parts?query=A0002-P02&material=SUS+304&color=Black&sort=desc"
+  },
+  "dbReadback": {
+    "part_number": "A0002-P02",
+    "item_kind": "manufactured",
+    "series_code": "BS",
+    "material_label": "SUS 304",
+    "color_label": "Black"
+  },
+  "visibleErrorSweep": {
+    "expected": null,
+    "actual": []
+  },
+  "mutationLedger": [],
+  "screenshot": "output/qa/dev-087/DEV087-2026-08-28T19-50-29-816Z/cases/QA-087-215/QA-087-215.png",
+  "source": "fresh task-owned DEV-087 isolated functional browser runtime"
+}

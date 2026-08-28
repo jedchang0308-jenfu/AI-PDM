@@ -1,6 +1,8 @@
 # QA DEV-099：結構型態延後分類與 BOM Readiness 驗證計畫
 
-狀態：`QA Plan Ready / RD Implementation Complete / Full Aggregate QA 48/48 / Production Release Gated`
+> **Superseded 2026-08-28**：BOM readiness與Part結構分類功能已由DEV-095退役；48案只作歷史證據，不得執行為current acceptance。
+
+狀態：`Historical Evidence Only / Superseded by DEV-095`
 
 日期：2026-08-26
 

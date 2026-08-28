@@ -25,7 +25,7 @@ for (const signal of ["overdue", "blocked", "risk", "review", "handoff", "system
   assert(feed.includes(signal), `adaptive task feed scores signal ${signal}`);
 }
 
-for (const source of ["numbering_task", "notification", "bom_review", "handoff_readiness", "storage_evidence", "submission"]) {
+for (const source of ["numbering_task", "notification", "handoff_readiness", "storage_evidence", "submission"]) {
   assert(feed.includes(source), `adaptive task feed supports source ${source}`);
 }
 

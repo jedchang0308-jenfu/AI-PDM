@@ -1,0 +1,120 @@
+{
+  "data": {
+    "groups": [
+      {
+        "groupKey": "cg_889cfa51-e1f8-4b21-a91a-aad4a58c67a4",
+        "rows": [
+          {
+            "rowKey": "cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "name": "本體_BS_右_Xx5",
+            "layer": "production",
+            "layerLabel": "量產版 1",
+            "revision": "1",
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+            "rowVersion": 5,
+            "basisState": "current",
+            "actions": [
+              {
+                "key": "advance",
+                "label": "進版",
+                "href": "/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7"
+              },
+              {
+                "key": "request_obsolete",
+                "label": "申請作廢"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          },
+          {
+            "rowKey": "cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "name": "本體_BS_右_Xx5",
+            "layer": "rd",
+            "layerLabel": "研發版 1.1",
+            "revision": "1.1",
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9",
+            "rowVersion": 1,
+            "basisState": "current",
+            "actions": [
+              {
+                "key": "advance",
+                "label": "進版",
+                "href": "/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9"
+              },
+              {
+                "key": "void_rd",
+                "label": "申請作廢",
+                "href": "/api/pdm/drawing-rd-branches/f8743c5f-3220-49e6-a859-8dc301755b0d/void-requests"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          },
+          {
+            "rowKey": "cw_52e4a14e-00e3-4ee9-878e-c0c27279ce9a",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "name": "本體_BS_右_Xx5",
+            "layer": "rd",
+            "layerLabel": "研發版 1.2",
+            "revision": "1.2",
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_52e4a14e-00e3-4ee9-878e-c0c27279ce9a",
+            "rowVersion": 7,
+            "basisState": "current",
+            "actions": [
+              {
+                "key": "advance",
+                "label": "進版",
+                "href": "/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_52e4a14e-00e3-4ee9-878e-c0c27279ce9a"
+              },
+              {
+                "key": "void_rd",
+                "label": "申請作廢",
+                "href": "/api/pdm/drawing-rd-branches/2e993ab6-f7b4-4561-aa10-0e28f016e21b/void-requests"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "nextCursor": null,
+    "previousCursor": null,
+    "totalGroups": 1,
+    "totalRows": 3
+  },
+  "meta": {
+    "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4NzkzNTY4NzQ2MH0.4jtsMie-HvsNiWR9L7ycDl3hyiLRSjE85x7TLdFeETU",
+    "correlationId": "5bb96cd0-7b7f-4f56-8b05-bfbdd8753a81"
+  }
+}

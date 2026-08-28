@@ -59,7 +59,7 @@ function createRecoveryFixture(databasePath) {
         FROM part_roots;
       CREATE TABLE part_numbers_company_scope_migration AS
         SELECT id, company_id, part_root_id, part_number, sequence_no, sequence_code,
-          part_name, item_kind, is_universal, bom_usage_policy, custom_specification,
+          part_name, item_kind, is_universal, custom_specification,
           record_status, universal_reason, rule_version_id, created_by, created_at, updated_at
         FROM part_numbers;
       DELETE FROM part_numbers;
@@ -129,8 +129,8 @@ async function createLegacyTemplate(templateDir) {
       (id,company_id,root_code,core_name,item_kind,record_status,rule_version_id,created_by,created_at,updated_at)
       VALUES ('dev094-root','company-jenfu','Z0094','DEV094 legacy root','outsourced','Active','numbering-rule-v3-alpha-root',NULL,'2026-08-24T00:00:00.000Z','2026-08-24T00:00:00.000Z')`).run();
     database.prepare(`INSERT INTO part_numbers
-      (id,company_id,part_root_id,part_number,sequence_no,sequence_code,part_name,item_kind,is_universal,bom_usage_policy,custom_specification,series_code,record_status,universal_reason,rule_version_id,created_by,created_at,updated_at)
-      VALUES ('dev094-part','company-jenfu','dev094-root','Z0094-P01',1,'01','DEV094 legacy part','custom',0,'undecided',NULL,'SER','Active',NULL,'numbering-rule-v3-alpha-root',NULL,'2026-08-24T00:00:00.000Z','2026-08-24T00:00:00.000Z')`).run();
+      (id,company_id,part_root_id,part_number,sequence_no,sequence_code,part_name,item_kind,is_universal,custom_specification,series_code,record_status,universal_reason,rule_version_id,created_by,created_at,updated_at)
+      VALUES ('dev094-part','company-jenfu','dev094-root','Z0094-P01',1,'01','DEV094 legacy part','custom',0,NULL,'SER','Active',NULL,'numbering-rule-v3-alpha-root',NULL,'2026-08-24T00:00:00.000Z','2026-08-24T00:00:00.000Z')`).run();
     database.exec("COMMIT");
   } catch (error) {
     if (database.inTransaction) database.exec("ROLLBACK");

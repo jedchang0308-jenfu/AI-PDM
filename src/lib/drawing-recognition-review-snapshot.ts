@@ -6,8 +6,8 @@ import {
   canonicalizeRecognitionSemantics,
   canonicalizeRecognitionValue,
   parseJsonValue,
-  sha256Canonical
 } from "@/lib/drawing-recognition-contract";
+import { sha256Canonical } from "@/lib/drawing-recognition-hash";
 import {
   DRAWING_RECOGNITION_REVIEW_PROJECTION_SCHEMA,
   projectDrawingRecognitionReviewFields,

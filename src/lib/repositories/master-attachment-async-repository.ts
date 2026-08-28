@@ -122,7 +122,6 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
           WHERE fff.company_id = p.company_id
             AND fff.submission_id = p.source_submission_id
             AND rce.action IN (
-              'confirm_bom_no_revision',
               'confirm_original_part_reuse',
               'approve_replacement_part_and_drawing_release'
             )
@@ -164,7 +163,6 @@ export const SELECT_ASYNC_MASTER_ATTACHMENTS_SQL = `
           WHERE fff.company_id = p.company_id
             AND fff.submission_id = p.source_submission_id
             AND rce.action IN (
-              'confirm_bom_no_revision',
               'confirm_original_part_reuse',
               'approve_replacement_part_and_drawing_release'
             )
@@ -301,7 +299,6 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
           WHERE fff.company_id = p.company_id
             AND fff.submission_id = p.source_submission_id
             AND rce.action IN (
-              'confirm_bom_no_revision',
               'confirm_original_part_reuse',
               'approve_replacement_part_and_drawing_release'
             )
@@ -343,7 +340,6 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_SQL = `
           WHERE fff.company_id = p.company_id
             AND fff.submission_id = p.source_submission_id
             AND rce.action IN (
-              'confirm_bom_no_revision',
               'confirm_original_part_reuse',
               'approve_replacement_part_and_drawing_release'
             )

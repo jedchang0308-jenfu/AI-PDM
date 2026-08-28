@@ -1,0 +1,134 @@
+{
+  "data": {
+    "groups": [
+      {
+        "groupKey": "cg_889cfa51-e1f8-4b21-a91a-aad4a58c67a4",
+        "rows": [
+          {
+            "rowKey": "cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "name": "本體_BS_右_Xx5",
+            "layer": "production",
+            "layerLabel": "量產版 1",
+            "revision": "1",
+            "dataState": "available",
+            "dataStateLabel": "可使用",
+            "handling": "none",
+            "handlingLabel": "無須處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+            "rowVersion": 3,
+            "basisState": "current",
+            "actions": [
+              {
+                "key": "request_obsolete",
+                "label": "申請作廢"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          },
+          {
+            "rowKey": "cw_06324148-72a7-4873-a031-6ff1ac8589f7",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "name": "本體_BS_右_Xx5",
+            "layer": "rd",
+            "layerLabel": "研發版 1.2",
+            "revision": "1.2",
+            "dataState": "editing",
+            "dataStateLabel": "編輯中",
+            "handling": "owner",
+            "handlingLabel": "負責人處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_06324148-72a7-4873-a031-6ff1ac8589f7",
+            "rowVersion": 1,
+            "basisState": "current",
+            "actions": [
+              {
+                "key": "edit",
+                "label": "進行編輯",
+                "href": "/numbering/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/workspace?workId=3efb8111-8c9c-4a7e-a576-5c23874e0d25"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          },
+          {
+            "rowKey": "cw_8c4dc837-3b9c-4732-96c3-f17ef29d6255",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "name": "本體_BS_右_Xx5",
+            "layer": "rd",
+            "layerLabel": "研發版 1.3",
+            "revision": "1.3",
+            "dataState": "editing",
+            "dataStateLabel": "編輯中",
+            "handling": "owner",
+            "handlingLabel": "負責人處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_8c4dc837-3b9c-4732-96c3-f17ef29d6255",
+            "rowVersion": 1,
+            "basisState": "current",
+            "actions": [
+              {
+                "key": "edit",
+                "label": "進行編輯",
+                "href": "/numbering/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/workspace?workId=e298a6b0-15ec-4655-afc9-a3ae38ae94e1"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          },
+          {
+            "rowKey": "cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "name": "本體_BS_右_Xx5",
+            "layer": "rd",
+            "layerLabel": "研發版 1.4",
+            "revision": "1.4",
+            "dataState": "editing",
+            "dataStateLabel": "編輯中",
+            "handling": "owner",
+            "handlingLabel": "負責人處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9",
+            "rowVersion": 2,
+            "basisState": "current",
+            "actions": [
+              {
+                "key": "edit",
+                "label": "進行編輯",
+                "href": "/numbering/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/workspace?workId=b11dc93f-6746-4b86-b568-f39a50e76e59"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "nextCursor": null,
+    "previousCursor": null,
+    "totalGroups": 1,
+    "totalRows": 4
+  },
+  "meta": {
+    "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4NzkyOTY2NTUwNn0.32jpRmALDy_czrtWB0B6nQSRq-UY0KKV1ZoIPi-jJKM",
+    "correlationId": "f6429e0a-e6e0-424f-85f5-0128320d511c"
+  }
+}

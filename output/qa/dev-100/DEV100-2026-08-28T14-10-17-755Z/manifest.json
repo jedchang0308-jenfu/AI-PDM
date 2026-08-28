@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 1,
+  "runner": "qc-dev-100-aggregate",
+  "devId": "DEV-100",
+  "runId": "DEV100-2026-08-28T14-10-17-755Z",
+  "parentRunId": "DEV087-aggregate-2026-08-28T14-10-14-745Z",
+  "generatedAt": "2026-08-28T14:11:21.247Z",
+  "status": "FAIL",
+  "completionCandidate": false,
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "cdfbb930289767c3fdca41745d3d4f64677b023c4e355a508d7c9714053fe33b"
+  },
+  "sourceUnchanged": true,
+  "implementationArtifacts": [
+    {
+      "path": "src/lib/drawing-work-file-snapshot-invariant.ts",
+      "sha256": "2d09fdc9cf38072dadf44b82c26b011e42636c8c5d65bd1b9f6c31aa36ce57e9"
+    },
+    {
+      "path": "src/lib/repositories/drawing-revision-work-async-repository.ts",
+      "sha256": "92d455b5f5c09736ce11a31483a19c4b300a2a1836a9a0bf4235862a8c68f079"
+    },
+    {
+      "path": "src/lib/drawing-revision-work-file.ts",
+      "sha256": "141e2d2fce773a1b1680598f0dc99ae1bee47aee6e9257712ced95d55b8e92fe"
+    },
+    {
+      "path": "src/lib/drawing-revision-work.ts",
+      "sha256": "53610ae0905b089c913c168e301edfe82c134a514d0decc3cd54e06d5ca1ebd5"
+    },
+    {
+      "path": "src/components/canonical-drawing-change-workspace.tsx",
+      "sha256": "ceb09b0b8450fb7c9e8e13aba363dc3799b98a7e1d1741f93b44e0c9260a0dfa"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "22d746def890bc7ba6a40254dfe15138e4eb6ed7a0c675cbcf04228622641816"
+    },
+    {
+      "path": "db/postgres/043_inline_relation_matrix.sql",
+      "sha256": "9fffda2c684be440115a0a3e83fcd4f57248340f12077971fd210c9f9cac634e"
+    },
+    {
+      "path": "scripts/dev-100-evidence-lib.mjs",
+      "sha256": "b0d4c4129b71659057dda6f0e1504ff24f7c34e3d65069516b969da7f50a8ee3"
+    },
+    {
+      "path": "scripts/qc-dev-087-qa-integrity.mjs",
+      "sha256": "c469f21916a5a007d6552a05d59a8b9438126f582c270aa5e2941e611e7209e7"
+    },
+    {
+      "path": "scripts/qc-dev-087-aggregate.mjs",
+      "sha256": "9033f67338af6e03c0b0526a90d46f7a257cfd6ababaf45a3d4f6934f0f93cbd"
+    }
+  ],
+  "commands": [
+    {
+      "name": "qc:dev-100:contract",
+      "status": "PASS",
+      "exitCode": 0,
+      "startedAt": "2026-08-28T14:10:19.260Z",
+      "completedAt": "2026-08-28T14:10:19.506Z",
+      "log": "output/qa/dev-100/DEV100-2026-08-28T14-10-17-755Z/logs/01-qc-dev-100-contract.log"
+    },
+    {
+      "name": "qc:dev-100:repository",
+      "status": "PASS",
+      "exitCode": 0,
+      "startedAt": "2026-08-28T14:10:19.509Z",
+      "completedAt": "2026-08-28T14:10:32.693Z",
+      "log": "output/qa/dev-100/DEV100-2026-08-28T14-10-17-755Z/logs/02-qc-dev-100-repository.log"
+    },
+    {
+      "name": "qc:dev-100:negative",
+      "status": "PASS",
+      "exitCode": 0,
+      "startedAt": "2026-08-28T14:10:32.696Z",
+      "completedAt": "2026-08-28T14:10:33.355Z",
+      "log": "output/qa/dev-100/DEV100-2026-08-28T14-10-17-755Z/logs/03-qc-dev-100-negative.log"
+    },
+    {
+      "name": "qc:dev-100:postgres",
+      "status": "FAIL",
+      "exitCode": 1,
+      "startedAt": "2026-08-28T14:10:33.360Z",
+      "completedAt": "2026-08-28T14:11:16.372Z",
+      "log": "output/qa/dev-100/DEV100-2026-08-28T14-10-17-755Z/logs/04-qc-dev-100-postgres.log"
+    }
+  ],
+  "artifactResults": [
+    {
+      "runner": "contract",
+      "status": "PASS",
+      "path": "output/qa/dev-100/DEV100-2026-08-28T14-10-17-755Z/contract/contract.json",
+      "sha256": "f34d26bc13752ede42510ffba0c26db0efd08a9d32da7727b8c3253cd2a0a4db",
+      "runId": "DEV100-contract-2026-08-28T14-10-19-460Z"
+    },
+    {
+      "runner": "repository",
+      "status": "PASS",
+      "path": "output/qa/dev-100/DEV100-2026-08-28T14-10-17-755Z/repository/repository.json",
+      "sha256": "555a9bbc0baf81a7609416305da13f0a1e8854a8181cc76f4329327915d74784",
+      "runId": "DEV100-repository-2026-08-28T14-10-26-043Z"
+    },
+    {
+      "runner": "negative",
+      "status": "PASS",
+      "path": "output/qa/dev-100/DEV100-2026-08-28T14-10-17-755Z/negative/negative.json",
+      "sha256": "e509ba87a4cd705b50c2aac6b3940f8ba6c82be283c5e804e21c42b760a8b790",
+      "runId": "DEV100-negative-2026-08-28T14-10-33-291Z"
+    },
+    {
+      "runner": "postgres",
+      "status": "FAIL",
+      "path": "output/qa/dev-100/DEV100-2026-08-28T14-10-17-755Z/postgres/postgres.json",
+      "sha256": "4f8807df353d035ae13a1300bedac7462f02f3b38e4937bfb9f0cf12925b4ac9",
+      "runId": null
+    },
+    {
+      "runner": "browser",
+      "status": "NOT_RUN",
+      "path": null,
+      "sha256": null,
+      "runId": null
+    },
+    {
+      "runner": "primary-dry-run",
+      "status": "NOT_RUN",
+      "path": null,
+      "sha256": null,
+      "runId": null
+    }
+  ],
+  "currentDenominator": {
+    "expected": 18,
+    "pass": 12,
+    "blocked": 0,
+    "notRun": 0,
+    "fail": 6
+  },
+  "caseResults": [
+    {
+      "caseId": "QA-100-001",
+      "result": "FAIL",
+      "evidenceRunners": [
+        "primary-dry-run"
+      ]
+    },
+    {
+      "caseId": "QA-100-002",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-003",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-004",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-005",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-006",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-007",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-008",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-009",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-010",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-011",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-012",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository"
+      ]
+    },
+    {
+      "caseId": "QA-100-013",
+      "result": "FAIL",
+      "evidenceRunners": [
+        "postgres"
+      ]
+    },
+    {
+      "caseId": "QA-100-014",
+      "result": "FAIL",
+      "evidenceRunners": [
+        "browser"
+      ]
+    },
+    {
+      "caseId": "QA-100-015",
+      "result": "FAIL",
+      "evidenceRunners": [
+        "browser"
+      ]
+    },
+    {
+      "caseId": "QA-100-016",
+      "result": "PASS",
+      "evidenceRunners": [
+        "repository",
+        "negative"
+      ]
+    },
+    {
+      "caseId": "QA-100-017",
+      "result": "FAIL",
+      "evidenceRunners": [
+        "primary-dry-run"
+      ]
+    },
+    {
+      "caseId": "QA-100-018",
+      "result": "FAIL",
+      "evidenceRunners": [
+        "qc-dev-100-aggregate"
+      ]
+    }
+  ],
+  "defects": {
+    "p0": 0,
+    "p1": 1
+  },
+  "primaryInvariant": {
+    "before": "587cada4f8699d0b18ac29aec64495e8ed34f188474c4e6b2367a899d85cac16",
+    "after": "587cada4f8699d0b18ac29aec64495e8ed34f188474c4e6b2367a899d85cac16",
+    "unchanged": true,
+    "foreignKeys": 0,
+    "rootReferences": {
+      "parts": 0,
+      "drawingNumbers": 0,
+      "drawings": 0,
+      "formalNumbers": 0
+    }
+  },
+  "cleanup": {
+    "removed": [],
+    "retained": [],
+    "complete": true
+  },
+  "productionWrites": false,
+  "productionMigrationExecuted": false,
+  "productionDeployExecuted": false,
+  "a0044DataRepair": {
+    "status": "Human-Gated",
+    "applyCount": 0
+  },
+  "firstFailure": "qc:dev-100:postgres:exit=1"
+}

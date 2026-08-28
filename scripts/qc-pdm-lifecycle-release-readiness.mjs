@@ -26,9 +26,7 @@ const requiredPackageScripts = [
   "qc:pdm-lifecycle-actions-ui",
   "qc:pdm-lifecycle-draft-ui",
   "qc:pdm-lifecycle-import-ui",
-  "qc:pdm-lifecycle-bom-draft-ui",
   "qc:pdm-lifecycle-obsolete",
-  "qc:pdm-lifecycle-bom-obsolete",
   "qc:pdm-lifecycle-submission-obsolete",
   "qc:pdm-lifecycle-controlled-history",
   "qc:pdm-lifecycle-controlled-history-ui",
@@ -46,9 +44,7 @@ const requiredEvidenceFiles = [
   "scripts/qc-pdm-lifecycle-actions-ui.mjs",
   "scripts/qc-pdm-lifecycle-draft-ui.mjs",
   "scripts/qc-pdm-lifecycle-import-ui.mjs",
-  "scripts/qc-pdm-lifecycle-bom-draft-ui.mjs",
   "scripts/qc-pdm-lifecycle-obsolete.mjs",
-  "scripts/qc-pdm-lifecycle-bom-obsolete.mjs",
   "scripts/qc-pdm-lifecycle-submission-obsolete.mjs",
   "scripts/qc-pdm-lifecycle-controlled-history.mjs",
   "scripts/qc-pdm-lifecycle-controlled-history-ui.mjs",
@@ -73,7 +69,6 @@ assert(devTask.includes("Phase 5 unified controlled-history UI/API slice is impl
 assert(devTask.includes("Phase 6 local/staging release readiness"), "dev_task records Phase 6 release-readiness scope");
 assert(devTask.includes("production/Supabase production exclusion"), "dev_task preserves production and Supabase production exclusion");
 assert(devTask.includes("User has authorized scoped Git/index cleanup"), "dev_task records Git cleanup authorization");
-assert(devTask.includes("released submissions, formal part numbers, formal drawing numbers, and released BOM"), "dev_task records unified controlled-history scope");
 assert(devTask.includes("npm.cmd run qc:pdm-lifecycle-controlled-history` 56/56"), "dev_task records controlled-history static QC result");
 assert(devTask.includes("npm.cmd run qc:pdm-lifecycle-controlled-history-ui` 30/30"), "dev_task records controlled-history UI QC result");
 assert(devTask.includes("npm.cmd run qc:pdm-lifecycle-submission-obsolete` 20/20"), "dev_task records dynamic submission obsolete/history QC result");

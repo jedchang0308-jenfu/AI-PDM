@@ -1,0 +1,17 @@
+{
+  "id": "J-D18",
+  "caseId": "D18",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "click",
+      "target": "作廢",
+      "result": "dismiss"
+    }
+  ],
+  "startedAt": "2026-08-28T17:57:07.489Z",
+  "finishedAt": "2026-08-28T17:57:18.529Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

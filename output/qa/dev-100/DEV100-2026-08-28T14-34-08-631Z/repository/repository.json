@@ -1,0 +1,160 @@
+{
+  "runner": "repository",
+  "provider": "sqlite",
+  "runId": "DEV100-repository-2026-08-28T14-34-10-504Z",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "QA-100-002",
+      "label": "migrated SLDASM to SLDASM replacement is immediately readable",
+      "status": "PASS",
+      "detail": {
+        "rowVersion": 3,
+        "active": [
+          "B.SLDASM"
+        ],
+        "tombstones": [
+          "A.SLDASM"
+        ]
+      }
+    },
+    {
+      "id": "QA-100-003",
+      "label": "migrated SLDPRT to SLDASM shares cad_3d last-wins authority",
+      "status": "PASS",
+      "detail": {
+        "active": [
+          "B.SLDASM"
+        ]
+      }
+    },
+    {
+      "id": "QA-100-004",
+      "label": "SLDDRW replacement leaves 3D and PDF bindings intact",
+      "status": "PASS",
+      "detail": {
+        "active": [
+          "A.SLDPRT",
+          "A.pdf",
+          "B.SLDDRW"
+        ]
+      }
+    },
+    {
+      "id": "QA-100-005",
+      "label": "different-role uploads coexist with correct ordered hashes",
+      "status": "PASS",
+      "detail": {
+        "roles": [
+          "drawing_2d",
+          "cad_3d",
+          "pdf"
+        ]
+      }
+    },
+    {
+      "id": "QA-100-006",
+      "label": "zero, one, non-primary remove and primary lock remain legal",
+      "status": "PASS",
+      "detail": {
+        "legalStates": [
+          0,
+          1,
+          0,
+          1
+        ],
+        "primaryRemove": 409
+      }
+    },
+    {
+      "id": "QA-100-007",
+      "label": "active missing and active deleted assets fail closed without mutation",
+      "status": "PASS",
+      "detail": {
+        "injected": [
+          "active_asset_missing",
+          "active_asset_deleted"
+        ],
+        "status": 409
+      }
+    },
+    {
+      "id": "QA-100-008",
+      "label": "missing and extra work bindings fail closed",
+      "status": "PASS",
+      "detail": {
+        "injected": [
+          "missing_binding",
+          "extra_binding"
+        ],
+        "status": 409
+      }
+    },
+    {
+      "id": "QA-100-009",
+      "label": "hash, scope, revision and ordinal drifts are independently detected",
+      "status": "PASS",
+      "detail": {
+        "injected": [
+          "hash",
+          "ordinal",
+          "revision",
+          "company",
+          "drawing"
+        ],
+        "status": 409
+      }
+    },
+    {
+      "id": "QA-100-010",
+      "label": "all named upload checkpoints rollback atomically",
+      "status": "PASS",
+      "detail": {
+        "points": [
+          "before_tombstone",
+          "after_binding_switch",
+          "before_row_version",
+          "before_readback"
+        ],
+        "result": "full rollback"
+      }
+    },
+    {
+      "id": "QA-100-011",
+      "label": "response-loss replay is exactly-once and stale controls reject",
+      "status": "PASS",
+      "detail": {
+        "replayRowVersion": 3,
+        "active": "B.SLDASM",
+        "duplicateReplacement": 0
+      }
+    },
+    {
+      "id": "QA-100-012",
+      "label": "SQLite full matrix, new-work behavior, FK and identity gates pass",
+      "status": "PASS",
+      "detail": {
+        "provider": "sqlite",
+        "previousCases": 10,
+        "foreignKeys": 0,
+        "canonicalIdentity": "unchanged"
+      }
+    },
+    {
+      "id": "QA-100-016",
+      "label": "old-validator and skip-all-deleted mutants are killed",
+      "status": "PASS",
+      "detail": {
+        "oldValidatorMutant": "KILLED",
+        "skipAllDeletedMutant": "KILLED"
+      }
+    }
+  ],
+  "firstFailure": null,
+  "productionWrites": false,
+  "cleanup": {
+    "taskRoot": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev100-repository-FJ0h3Z",
+    "removed": true,
+    "ports": []
+  }
+}

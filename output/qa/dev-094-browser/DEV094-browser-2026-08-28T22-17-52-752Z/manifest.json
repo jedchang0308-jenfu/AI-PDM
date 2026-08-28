@@ -1,0 +1,158 @@
+{
+  "devId": "DEV-094",
+  "capaId": "CAPA-PDM-2026-08-24-001",
+  "runId": "DEV094-browser-2026-08-28T22-17-52-752Z",
+  "generatedAt": "2026-08-28T22:18:27.959Z",
+  "status": "PASS",
+  "port": 49494,
+  "total": 28,
+  "passed": 28,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "browser fixture preserves source root and part counts",
+      "pass": true,
+      "detail": "{\"expectedSourceCounts\":{\"roots\":59,\"parts\":59}}"
+    },
+    {
+      "name": "browser fixture starts FK-clean",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0002-M01 expected row count",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "A0002-M01/研發版 0.1 basic detail remains readable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0002-M01/研發版 0.1 relation matrix healthy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0002-M01/研發版 0.1 no fatal detail error",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0003-M01 expected row count",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "A0003-M01/研發版 0.1 basic detail remains readable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0003-M01/研發版 0.1 relation matrix healthy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0003-M01/研發版 0.1 no fatal detail error",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0005-M01 expected row count",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "A0005-M01/研發版 0.1 basic detail remains readable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0005-M01/研發版 0.1 relation matrix healthy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0005-M01/研發版 0.1 no fatal detail error",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0006-M01 expected row count",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "A0006-M01/研發版 0.1 basic detail remains readable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0006-M01/研發版 0.1 relation matrix healthy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A0006-M01/研發版 0.1 no fatal detail error",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "negative fixture removes exactly one root after runtime initialization",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "orphan detail keeps basic fields visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "orphan detail shows stable local anomaly",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "orphan detail does not mislabel corruption as normal unscoped empty",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "orphan detail disables root-dependent matrix actions",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "orphan detail API remains 200 with stable anomaly",
+      "pass": true,
+      "detail": "{\"status\":200,\"body\":{\"data\":{\"row\":{\"rowKey\":\"cw_755bcfb7-35ba-4593-a636-48d5509e19f5\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"\",\"layer\":\"rd\",\"layerLabel\":\"研發版 0.1\",\"revision\":\"0.1\",\"dataState\":\"available\",\"dataStateLabel\":\"可使用\",\"handling\":\"none\",\"handlingLabel\":\"無須處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_755bcfb7-35ba-4593-a636-48d5509e19f5\",\"rowVersion\":7,\"basisState\":\"preproduction\",\"actions\":[{\"key\":\"advance\",\"label\":\"進版\",\"href\":\"/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_755bcfb7-35ba-4593-a636-48d5509e19f5\"},{\"key\":\"void_rd\",\"label\":\"申請作廢\",\"href\":\"/api/pdm/drawing-rd-branches/f5eaef74-aa92-412d-a936-d6949d0fe0a3/void-requests\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]},\"presentation\":{\"kind\":\"drawing\",\"surface\":\"drawer_minimal\",\"fields\":[{\"key\":\"code\",\"label\":\"圖號\",\"value\":\"A0002-M01\"},{\"key\":\"purpose\",\"label\":\"圖面用途\",\"value\":\"M\"}],\"files\":[{\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"name\":\"A0002-M01.pdf\",\"role\":\"pdf\",\"downloadHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c\"},{\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"name\":\"A0002-M01.SLDDRW\",\"role\":\"drawing_2d\",\"downloadHref\":\"/api/pdm/file-assets/FA-94e7d949-2d0b-4c4e-b106-831dde533b76?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=9d264a7a-9ace-4556-8abb-a93f892cfa8f\"},{\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"name\":\"A0002.SLDPRT\",\"role\":\"cad_3d\",\"downloadHref\":\"/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=53eb60d6-f56a-4181-b133-85bd46c5c54d\"}],\"recognition\":{\"partAttributes\":[],\"revisionMetadata\":[],\"controlledNotes\":[],\"engineeringEvidence\":[]},\"relationMatrix\":{\"rootId\":\"\",\"rootCode\":\"\",\"matrixEtag\":\"d7bf48c6201f485a2de0be46bae6610257054b58745d598bc0d2bfdf6a2ddacc\",\"drawings\":[],\"parts\":[],\"cells\":[],\"issue\":{\"code\":\"WORKBENCH_RELATION_SCOPE_INVALID\",\"message\":\"圖料關聯資料不完整，請聯絡系統管理員\"}},\"history\":[{\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"drawingId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"revision\":\"0.1\",\"layerLabel\":\"研發版\"}],\"previews\":[{\"kind\":\"three-d\",\"title\":\"3D 模型\",\"fileName\":\"A0002.SLDPRT\",\"state\":\"missing\",\"stateTitle\":\"無可用預覽\",\"stateText\":\"目前沒有可預覽的 3D 檔案。\",\"mediaHref\":null,\"downloadHref\":\"/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"retryCommandRef\":null},{\"kind\":\"two-d\",\"title\":\"2D 圖面\",\"fileName\":\"A0002-M01.pdf\",\"state\":\"ready\",\"stateTitle\":\"PDF 預覽已就緒\",\"stateText\":\"直接使用受控 PDF 原檔顯示。\",\"mediaHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1\",\"downloadHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"retryCommandRef\":null}],\"preview\":{\"state\":\"missing\",\"media\":null,\"sourceType\":\"primary_manufacturing_drawing\",\"sourceLabel\":\"3D 模型\",\"sourceDrawingNumber\":\"A0002-M01\",\"sourceRevision\":\"0.1\",\"alt\":\"A0002-M01 3D 預覽圖\"}}},\"meta\":{\"contractToken\":\"eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk1NTUwNjA1OH0.BzNese6T5Z5NqHn0900qiKuZJhEBh3O8QhOJd1wXI50\",\"correlationId\":\"288a7799-7117-4186-9c08-3cda47aa2d3e\"}}}"
+    },
+    {
+      "name": "browser console errors absent",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "browser page/network failures absent",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=49494"
+    },
+    {
+      "name": "temporary runtime dist removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev094-browser-49494\",\"error\":null}"
+    }
+  ],
+  "consoleErrors": [],
+  "failures": [],
+  "cleanupStatus": "removed",
+  "productionConnected": false,
+  "productionMutation": false
+}

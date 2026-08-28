@@ -1,0 +1,24 @@
+{
+  "id": "J-D12",
+  "caseId": "D12",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create-branch",
+      "label": "研發版 1.2"
+    },
+    {
+      "kind": "create-branch",
+      "label": "研發版 1.3"
+    },
+    {
+      "kind": "create-branch",
+      "label": "研發版 1.4"
+    }
+  ],
+  "startedAt": "2026-08-28T16:14:46.570Z",
+  "finishedAt": "2026-08-28T16:15:20.696Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

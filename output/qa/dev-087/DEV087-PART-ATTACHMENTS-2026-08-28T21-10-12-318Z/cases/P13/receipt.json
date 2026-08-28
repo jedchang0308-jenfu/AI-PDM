@@ -1,0 +1,101 @@
+{
+  "caseId": "P13",
+  "result": "PASS",
+  "assertionIds": [
+    "P13:CANCEL_WORK_PRESERVES_LIVE_ATTACHMENTS"
+  ],
+  "renderedUiActions": [
+    "進行編輯",
+    "取消本次工作",
+    "重開附件頁"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "apiReadback": {
+    "cancel": 200
+  },
+  "dbReadback": {
+    "before": {
+      "part": {
+        "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "part_number": "A0002-P01",
+        "record_status": "Draft"
+      },
+      "attachments": [
+        {
+          "id": "8307d02d-0110-4b5c-854d-0fcbd245b51b",
+          "file_name": "part-attachment-DEV087-PART-ATTACHMENTS-2026-08-28T21-10-12-318Z.html",
+          "content_hash": "87788f7d5d596c9428f7a17c22704fadfb6eef6432995f43322fab03aef47864",
+          "deleted_at": null
+        },
+        {
+          "id": "56ca73d8-b7c5-4f01-a39d-81beb051e9d1",
+          "file_name": "part-review-live-DEV087-PART-ATTACHMENTS-2026-08-28T21-10-12-318Z.html",
+          "content_hash": "38e5af50e857915a467087a76abad7ea1b8bbc11fe58a064b71db185e3120f3d",
+          "deleted_at": null
+        }
+      ],
+      "works": [
+        {
+          "id": "39404bc8-0a60-40cd-9fc4-dec61387c267",
+          "part_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "owner_user_id": "user-admin-local-quick",
+          "proposed_payload": "{\"partName\":\"本體_BS_右_Xx5\",\"itemKind\":\"manufactured\",\"customSpecification\":null,\"isUniversal\":false,\"materialCode\":null,\"materialLabel\":null,\"colorCode\":null,\"colorLabel\":null,\"surfaceTreatment\":null,\"variantNote\":null}",
+          "base_hash": "af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa",
+          "base_formal_row_version": 1,
+          "row_version": 1
+        }
+      ],
+      "requests": [],
+      "states": [
+        {
+          "data_layer": "part_formal",
+          "handling": "none",
+          "work_id": null,
+          "row_version": 1
+        },
+        {
+          "data_layer": "part_work",
+          "handling": "owner",
+          "work_id": "39404bc8-0a60-40cd-9fc4-dec61387c267",
+          "row_version": 3
+        }
+      ]
+    },
+    "after": {
+      "part": {
+        "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "part_number": "A0002-P01",
+        "record_status": "Draft"
+      },
+      "attachments": [
+        {
+          "id": "8307d02d-0110-4b5c-854d-0fcbd245b51b",
+          "file_name": "part-attachment-DEV087-PART-ATTACHMENTS-2026-08-28T21-10-12-318Z.html",
+          "content_hash": "87788f7d5d596c9428f7a17c22704fadfb6eef6432995f43322fab03aef47864",
+          "deleted_at": null
+        },
+        {
+          "id": "56ca73d8-b7c5-4f01-a39d-81beb051e9d1",
+          "file_name": "part-review-live-DEV087-PART-ATTACHMENTS-2026-08-28T21-10-12-318Z.html",
+          "content_hash": "38e5af50e857915a467087a76abad7ea1b8bbc11fe58a064b71db185e3120f3d",
+          "deleted_at": null
+        }
+      ],
+      "works": [],
+      "requests": [],
+      "states": [
+        {
+          "data_layer": "part_formal",
+          "handling": "none",
+          "work_id": null,
+          "row_version": 1
+        }
+      ]
+    }
+  },
+  "visibleErrorSweep": [],
+  "screenshot": "output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-28T21-10-12-318Z/screenshots/desktop-p13-after-cancel-attachments.png"
+}

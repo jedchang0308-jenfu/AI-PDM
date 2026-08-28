@@ -1,0 +1,41 @@
+{
+  "id": "D05",
+  "family": "D",
+  "title": "0.1 重送核准",
+  "status": "PASS",
+  "reason": "",
+  "startedAt": "2026-08-28T17:45:48.244Z",
+  "finishedAt": "2026-08-28T17:45:49.910Z",
+  "expected": {
+    "ui": "canonical workbench list",
+    "mutation": "full lifecycle journey"
+  },
+  "actual": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": [
+      "A0060-M01DEV087 D05 74435972Z研發版 0.1可使用無須處理"
+    ],
+    "apiStatus": 200,
+    "apiBodyHash": 1402,
+    "dbRows": 1
+  },
+  "evidence": {
+    "actions": "actions.jsonl",
+    "network": "network.jsonl",
+    "triad": "triad-diff/list.json"
+  }
+}

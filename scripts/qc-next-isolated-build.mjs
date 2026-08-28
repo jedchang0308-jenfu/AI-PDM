@@ -82,7 +82,10 @@ try {
   prepareRuntimeProject();
   const nextCli = path.join(runtimeRoot, "node_modules", "next", "dist", "bin", "next");
   exitCode = await new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [nextCli, "build"], {
+    // The task-owned runtime intentionally links the workspace dependency tree.
+    // Next 16 Turbopack rejects that isolated junction, while the documented
+    // Webpack build mode supports it and still produces the production artifact.
+    const child = spawn(process.execPath, [nextCli, "build", "--webpack"], {
       cwd: runtimeRoot,
       env: {
         ...process.env,

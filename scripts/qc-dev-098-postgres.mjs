@@ -30,16 +30,17 @@ const clusterDir = path.join(taskRoot, "cluster");
 const postgresLog = path.join(taskRoot, "postgres.log");
 const postgresBin = path.resolve(process.env.PDM_POSTGRES_BIN?.trim() || "C:\\Program Files\\PostgreSQL\\18\\bin");
 const dbName = `dev098_${crypto.randomUUID().replaceAll("-", "").slice(0, 18)}`;
-const primaryPath = path.join(root, "data", "ai-pdm.sqlite");
+const primaryPath = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
 const migrations = [
   "001_initial_schema.sql",
   "039_allow_recycled_candidate_drawing_codes.sql",
   "042_status_data_rebuild.sql",
   "043_inline_relation_matrix.sql",
-  "048_shared_assembly_bom.sql",
-  "049_solidworks_credential_ui_activation.sql",
-  "050_retire_standalone_manufacturing_impact.sql",
-  "051_drawing_recognition_part_owner_invariant.sql"
+  "047_remove_bom_module.sql",
+  "048_solidworks_credential_ui_activation.sql",
+  "049_retire_standalone_manufacturing_impact.sql",
+  "050_drawing_recognition_part_owner_invariant.sql",
+  "051_part_structure_type_authority.sql"
 ];
 
 const checks = [];

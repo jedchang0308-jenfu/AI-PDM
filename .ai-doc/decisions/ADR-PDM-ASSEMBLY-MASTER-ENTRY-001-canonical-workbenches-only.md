@@ -1,6 +1,8 @@
 # ADR-PDM-ASSEMBLY-MASTER-ENTRY-001：組立件沿用圖號／料號工作臺
 
-狀態：Accepted / Human Confirmed / 2026-08-24
+狀態：Historical / Superseded in BOM scope by ADR-PDM-BOM-RETIREMENT-001 / 2026-08-28
+
+> Drawing／Part canonical入口決策仍可作非BOM identity原則；任何未來在該入口恢復BOM的內容均已退役，須另立新DEV／ADR。
 
 ## Context
 

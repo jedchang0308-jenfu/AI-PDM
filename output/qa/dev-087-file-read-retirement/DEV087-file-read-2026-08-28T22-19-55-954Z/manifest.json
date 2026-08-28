@@ -1,0 +1,1119 @@
+{
+  "devId": "DEV-087",
+  "qaCases": [
+    "QA-087-169",
+    "QA-087-170"
+  ],
+  "runId": "DEV087-file-read-2026-08-28T22-19-55-954Z",
+  "status": "PASS",
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087-file-read-retirement\\DEV087-file-read-2026-08-28T22-19-55-954Z",
+  "total": 173,
+  "passed": 173,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "part attachment source fixture exists",
+      "pass": true,
+      "detail": "{\"id\":\"FA-17a5c09b-a36f-4475-93e9-845a3c0a1881\",\"storage_provider\":\"local_repository\",\"original_path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\data\\\\repository\\\\candidate-revisions\\\\company-jenfu\\\\NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7\\\\NCRF-13d1f15d-9c13-4bee-bda8-479c7f66c0a5-A0002-M01.pdf\",\"storage_bucket\":null,\"storage_key\":\"candidate-revisions/company-jenfu/NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7/NCRF-13d1f15d-9c13-4bee-bda8-479c7f66c0a5-A0002-M01.pdf\",\"storage_generation\":null,\"storage_metageneration\":null,\"file_name\":\"A0002-M01.pdf\",\"file_ext\":\"pdf\",\"mime_type\":\"application/pdf\",\"file_size\":209798,\"content_hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\",\"hash_algorithm\":\"SHA-256\",\"linked_entity_type\":\"drawing_revision\",\"linked_entity_id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"document_category\":\"pdf\",\"display_name\":\"A0002-M01.pdf\",\"description\":\"圖面進版受控原始檔\",\"revision\":\"0.1\",\"uploaded_by\":\"user-manager-demo\",\"deleted_at\":null,\"deleted_by\":null,\"deleted_reason\":null,\"gdrive_file_id\":null,\"gdrive_status\":\"none\",\"gdrive_error\":null,\"gdrive_synced_at\":null,\"sync_status\":\"local_only\",\"created_at\":\"2026-08-25 07:04:32\",\"updated_at\":\"2026-08-25 07:04:32\"}"
+    },
+    {
+      "name": "part attachment target fixture exists",
+      "pass": true,
+      "detail": "{\"id\":\"0a81c6e6-089c-4881-926c-819ff141734c\",\"partRootId\":\"13a80f7e-bbeb-4da6-9e3a-ca1e21cafce1\"}"
+    },
+    {
+      "name": "drawing attachment target fixture exists",
+      "pass": true,
+      "detail": "{\"id\":\"qa-dev087-file-read-drawing\"}"
+    },
+    {
+      "name": "drawing work binding fixture exists",
+      "pass": true,
+      "detail": "{\"workId\":\"c65d1134-44d1-49d1-a689-74d83e75174a\",\"fileBindingId\":\"339db49a-327f-47ad-8ad2-8158eff61374\",\"fileAssetId\":\"FA-e33ff864-ab79-4034-a924-63444e0126fe\",\"ordinal\":0,\"contentHash\":\"bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d\",\"branchId\":\"f2a89d7e-d6a8-4373-a468-218159768671\",\"drawingId\":\"drawing-draft-drawing-cbebc7d7-3ea2-4137-bc71-c63cb51a9ac8\"}"
+    },
+    {
+      "name": "candidate fixture exists",
+      "pass": true,
+      "detail": "{\"context\":\"candidate_revision\",\"contextId\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"bindingId\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"fileAssetId\":\"FA-17a5c09b-a36f-4475-93e9-845a3c0a1881\",\"fileName\":\"A0002-M01.pdf\",\"mimeType\":\"application/pdf\",\"contentHash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\",\"derivativeId\":null,\"derivativeMimeType\":null,\"derivativeContentHash\":null}"
+    },
+    {
+      "name": "released revision fixture exists",
+      "pass": true,
+      "detail": "{\"context\":\"drawing_revision\",\"contextId\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"bindingId\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"fileAssetId\":\"FA-17a5c09b-a36f-4475-93e9-845a3c0a1881\",\"fileName\":\"A0002-M01.pdf\",\"mimeType\":\"application/pdf\",\"contentHash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\",\"revision\":\"0.1\",\"status\":\"rd_controlled\",\"derivativeId\":null,\"derivativeMimeType\":null,\"derivativeContentHash\":null}"
+    },
+    {
+      "name": "history fixture exists",
+      "pass": true,
+      "detail": "{\"context\":\"drawing_revision\",\"contextId\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"bindingId\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"fileAssetId\":\"FA-17a5c09b-a36f-4475-93e9-845a3c0a1881\",\"fileName\":\"A0002-M01.pdf\",\"mimeType\":\"application/pdf\",\"contentHash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\",\"revision\":\"0.1\",\"status\":\"rd_controlled\",\"derivativeId\":null,\"derivativeMimeType\":null,\"derivativeContentHash\":null}"
+    },
+    {
+      "name": "work fixture exists",
+      "pass": true,
+      "detail": "{\"context\":\"drawing_revision_work\",\"contextId\":\"c65d1134-44d1-49d1-a689-74d83e75174a\",\"bindingId\":\"339db49a-327f-47ad-8ad2-8158eff61374\",\"fileAssetId\":\"FA-e33ff864-ab79-4034-a924-63444e0126fe\",\"fileName\":\"A0044.SLDASM\",\"mimeType\":\"application/octet-stream\",\"contentHash\":\"bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d\",\"derivativeId\":\"4c7f409a-0d5c-428b-8fae-3945559c85c9\",\"derivativeMimeType\":\"image/png\",\"derivativeContentHash\":\"b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f\"}"
+    },
+    {
+      "name": "revision package fixture exists",
+      "pass": true,
+      "detail": "{\"context\":\"drawing_revision_package\",\"contextId\":\"qa-dev087-file-read-package\",\"bindingId\":\"qa-dev087-file-read-package-file\",\"fileAssetId\":\"FA-17a5c09b-a36f-4475-93e9-845a3c0a1881\",\"fileName\":\"A0002-M01.pdf\",\"mimeType\":\"application/pdf\",\"contentHash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\",\"derivativeId\":null,\"derivativeMimeType\":null,\"derivativeContentHash\":null}"
+    },
+    {
+      "name": "drawing attachment fixture exists",
+      "pass": true,
+      "detail": "{\"context\":\"drawing_attachment\",\"contextId\":\"qa-dev087-file-read-drawing\",\"bindingId\":\"qa-dev087-drawing-asset\",\"fileAssetId\":\"qa-dev087-drawing-asset\",\"fileName\":\"A0002-M01.pdf\",\"mimeType\":\"application/pdf\",\"contentHash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\",\"derivativeId\":null,\"derivativeMimeType\":null,\"derivativeContentHash\":null}"
+    },
+    {
+      "name": "part attachment fixture exists",
+      "pass": true,
+      "detail": "{\"context\":\"part_attachment\",\"contextId\":\"0a81c6e6-089c-4881-926c-819ff141734c\",\"bindingId\":\"qa-dev087-part-asset\",\"fileAssetId\":\"qa-dev087-part-asset\",\"fileName\":\"A0002-M01.pdf\",\"mimeType\":\"application/pdf\",\"contentHash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\",\"derivativeId\":null,\"derivativeMimeType\":null,\"derivativeContentHash\":null}"
+    },
+    {
+      "name": "approval evidence fixture exists",
+      "pass": true,
+      "detail": "{\"context\":\"approval_evidence\",\"contextId\":\"qa-dev087-approval-evidence\",\"bindingId\":\"FA-17a5c09b-a36f-4475-93e9-845a3c0a1881\",\"fileAssetId\":\"FA-17a5c09b-a36f-4475-93e9-845a3c0a1881\",\"fileName\":\"A0002-M01.pdf\",\"mimeType\":\"application/pdf\",\"contentHash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\",\"derivativeId\":null,\"derivativeMimeType\":null,\"derivativeContentHash\":null}"
+    },
+    {
+      "name": "retired candidate read route caller=0",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "retired candidate read route file removed",
+      "pass": true,
+      "detail": "false"
+    },
+    {
+      "name": "candidate/released orphan relation=0",
+      "pass": true,
+      "detail": "{\"revisionOrphans\":0,\"packageOrphans\":0,\"workOrphans\":0,\"attachmentOrphans\":0,\"attachmentOrphanRows\":[],\"total\":0}"
+    },
+    {
+      "name": "fresh-session-1/candidate original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-1/candidate original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-1/candidate unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-1/candidate cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/candidate wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/candidate wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/candidate wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/candidateReview original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/octet-stream\",\"length\":120909,\"hash\":\"bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d\"}"
+    },
+    {
+      "name": "fresh-session-1/candidateReview original hash",
+      "pass": true,
+      "detail": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d != bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+    },
+    {
+      "name": "fresh-session-1/candidateReview unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-1/candidateReview cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/candidateReview wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/candidateReview wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/candidateReview wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/candidateReview wrong review scope denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/candidateReview derivative 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"image/png\",\"length\":66201,\"hash\":\"b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f\"}"
+    },
+    {
+      "name": "fresh-session-1/candidateReview derivative hash",
+      "pass": true,
+      "detail": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f != b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f"
+    },
+    {
+      "name": "fresh-session-1/candidateReview wrong derivative never exposes bytes",
+      "pass": true,
+      "detail": "202"
+    },
+    {
+      "name": "fresh-session-1/released original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-1/released original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-1/released unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-1/released cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/released wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/released wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/released wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/history original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-1/history original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-1/history unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-1/history cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/history wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/history wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/history wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/work original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/octet-stream\",\"length\":120909,\"hash\":\"bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d\"}"
+    },
+    {
+      "name": "fresh-session-1/work original hash",
+      "pass": true,
+      "detail": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d != bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+    },
+    {
+      "name": "fresh-session-1/work unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-1/work cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/work wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/work wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/work wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/work derivative 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"image/png\",\"length\":66201,\"hash\":\"b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f\"}"
+    },
+    {
+      "name": "fresh-session-1/work derivative hash",
+      "pass": true,
+      "detail": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f != b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f"
+    },
+    {
+      "name": "fresh-session-1/work wrong derivative never exposes bytes",
+      "pass": true,
+      "detail": "202"
+    },
+    {
+      "name": "fresh-session-1/revisionPackage original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-1/revisionPackage original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-1/revisionPackage unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-1/revisionPackage cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/revisionPackage wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/revisionPackage wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/revisionPackage wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/drawingAttachment original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-1/drawingAttachment original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-1/drawingAttachment unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-1/drawingAttachment cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/drawingAttachment wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/drawingAttachment wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/drawingAttachment wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/partAttachment original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-1/partAttachment original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-1/partAttachment unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-1/partAttachment cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/partAttachment wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/partAttachment wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/partAttachment wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/approvalEvidence original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-1/approvalEvidence original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-1/approvalEvidence unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-1/approvalEvidence cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/approvalEvidence wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/approvalEvidence wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/approvalEvidence wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-1/UI renders two canonical preview cards",
+      "pass": true,
+      "detail": "2"
+    },
+    {
+      "name": "fresh-session-1/UI detail API 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "fresh-session-1/UI exposes two canonical preview slots",
+      "pass": true,
+      "detail": "[{\"kind\":\"three-d\",\"title\":\"3D 模型\",\"fileName\":\"A0002.SLDPRT\",\"state\":\"missing\",\"stateTitle\":\"無可用預覽\",\"stateText\":\"目前沒有可預覽的 3D 檔案。\",\"mediaHref\":null,\"downloadHref\":\"/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"retryCommandRef\":null},{\"kind\":\"two-d\",\"title\":\"2D 圖面\",\"fileName\":\"A0002-M01.pdf\",\"state\":\"ready\",\"stateTitle\":\"PDF 預覽已就緒\",\"stateText\":\"直接使用受控 PDF 原檔顯示。\",\"mediaHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1\",\"downloadHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"retryCommandRef\":null}]"
+    },
+    {
+      "name": "fresh-session-1/UI media uses canonical route",
+      "pass": true,
+      "detail": "[\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1\"]"
+    },
+    {
+      "name": "fresh-session-1/UI has no retired candidate route",
+      "pass": true,
+      "detail": "[\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1\"]"
+    },
+    {
+      "name": "fresh-session-1/UI has no visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "fresh-session-2/candidate original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-2/candidate original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-2/candidate unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-2/candidate cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/candidate wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/candidate wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/candidate wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/candidateReview original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/octet-stream\",\"length\":120909,\"hash\":\"bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d\"}"
+    },
+    {
+      "name": "fresh-session-2/candidateReview original hash",
+      "pass": true,
+      "detail": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d != bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+    },
+    {
+      "name": "fresh-session-2/candidateReview unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-2/candidateReview cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/candidateReview wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/candidateReview wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/candidateReview wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/candidateReview wrong review scope denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/candidateReview derivative 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"image/png\",\"length\":66201,\"hash\":\"b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f\"}"
+    },
+    {
+      "name": "fresh-session-2/candidateReview derivative hash",
+      "pass": true,
+      "detail": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f != b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f"
+    },
+    {
+      "name": "fresh-session-2/candidateReview wrong derivative never exposes bytes",
+      "pass": true,
+      "detail": "202"
+    },
+    {
+      "name": "fresh-session-2/released original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-2/released original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-2/released unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-2/released cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/released wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/released wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/released wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/history original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-2/history original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-2/history unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-2/history cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/history wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/history wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/history wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/work original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/octet-stream\",\"length\":120909,\"hash\":\"bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d\"}"
+    },
+    {
+      "name": "fresh-session-2/work original hash",
+      "pass": true,
+      "detail": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d != bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+    },
+    {
+      "name": "fresh-session-2/work unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-2/work cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/work wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/work wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/work wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/work derivative 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"image/png\",\"length\":66201,\"hash\":\"b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f\"}"
+    },
+    {
+      "name": "fresh-session-2/work derivative hash",
+      "pass": true,
+      "detail": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f != b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f"
+    },
+    {
+      "name": "fresh-session-2/work wrong derivative never exposes bytes",
+      "pass": true,
+      "detail": "202"
+    },
+    {
+      "name": "fresh-session-2/revisionPackage original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-2/revisionPackage original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-2/revisionPackage unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-2/revisionPackage cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/revisionPackage wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/revisionPackage wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/revisionPackage wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/drawingAttachment original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-2/drawingAttachment original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-2/drawingAttachment unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-2/drawingAttachment cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/drawingAttachment wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/drawingAttachment wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/drawingAttachment wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/partAttachment original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-2/partAttachment original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-2/partAttachment unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-2/partAttachment cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/partAttachment wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/partAttachment wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/partAttachment wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/approvalEvidence original 200",
+      "pass": true,
+      "detail": "{\"status\":200,\"contentType\":\"application/pdf\",\"length\":209798,\"hash\":\"ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee\"}"
+    },
+    {
+      "name": "fresh-session-2/approvalEvidence original hash",
+      "pass": true,
+      "detail": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee != ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+    },
+    {
+      "name": "fresh-session-2/approvalEvidence unauthenticated denied",
+      "pass": true,
+      "detail": "401"
+    },
+    {
+      "name": "fresh-session-2/approvalEvidence cross-company denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/approvalEvidence wrong context denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/approvalEvidence wrong binding denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/approvalEvidence wrong asset denied",
+      "pass": true,
+      "detail": "404"
+    },
+    {
+      "name": "fresh-session-2/UI renders two canonical preview cards",
+      "pass": true,
+      "detail": "2"
+    },
+    {
+      "name": "fresh-session-2/UI detail API 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "fresh-session-2/UI exposes two canonical preview slots",
+      "pass": true,
+      "detail": "[{\"kind\":\"three-d\",\"title\":\"3D 模型\",\"fileName\":\"A0002.SLDPRT\",\"state\":\"missing\",\"stateTitle\":\"無可用預覽\",\"stateText\":\"目前沒有可預覽的 3D 檔案。\",\"mediaHref\":null,\"downloadHref\":\"/api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"retryCommandRef\":null},{\"kind\":\"two-d\",\"title\":\"2D 圖面\",\"fileName\":\"A0002-M01.pdf\",\"state\":\"ready\",\"stateTitle\":\"PDF 預覽已就緒\",\"stateText\":\"直接使用受控 PDF 原檔顯示。\",\"mediaHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1\",\"downloadHref\":\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"retryCommandRef\":null}]"
+    },
+    {
+      "name": "fresh-session-2/UI media uses canonical route",
+      "pass": true,
+      "detail": "[\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1\"]"
+    },
+    {
+      "name": "fresh-session-2/UI has no retired candidate route",
+      "pass": true,
+      "detail": "[\"/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1\"]"
+    },
+    {
+      "name": "fresh-session-2/UI has no visible error",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "two independent fresh-session rounds complete",
+      "pass": true,
+      "detail": "2"
+    },
+    {
+      "name": "runtime old-route caller=0",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "browser console errors=0",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "browser request failures=0",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=63275"
+    },
+    {
+      "name": "temporary runtime dist removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-file-read-63275\",\"error\":null}"
+    }
+  ],
+  "consoleErrors": [],
+  "requestFailures": [],
+  "oldRouteRequests": [],
+  "canonicalFileRequests": [
+    {
+      "round": "fresh-session-1",
+      "url": "http://127.0.0.1:63275/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1"
+    },
+    {
+      "round": "fresh-session-1",
+      "url": "http://127.0.0.1:63275/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1"
+    },
+    {
+      "round": "fresh-session-2",
+      "url": "http://127.0.0.1:63275/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1"
+    },
+    {
+      "round": "fresh-session-2",
+      "url": "http://127.0.0.1:63275/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1"
+    }
+  ],
+  "roundEvidence": [
+    {
+      "round": "fresh-session-1",
+      "api": {
+        "candidate": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "candidateReview": {
+          "href": "/api/pdm/file-assets/FA-e33ff864-ab79-4034-a924-63444e0126fe?context=drawing_revision_work&contextId=c65d1134-44d1-49d1-a689-74d83e75174a&bindingId=339db49a-327f-47ad-8ad2-8158eff61374&reviewRequestId=qa-dev087-review-request",
+          "original": {
+            "status": 200,
+            "contentType": "application/octet-stream",
+            "length": 120909,
+            "hash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+          },
+          "derivative": {
+            "status": 200,
+            "contentType": "image/png",
+            "length": 66201,
+            "hash": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f"
+          }
+        },
+        "released": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "history": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "work": {
+          "href": "/api/pdm/file-assets/FA-e33ff864-ab79-4034-a924-63444e0126fe?context=drawing_revision_work&contextId=c65d1134-44d1-49d1-a689-74d83e75174a&bindingId=339db49a-327f-47ad-8ad2-8158eff61374",
+          "original": {
+            "status": 200,
+            "contentType": "application/octet-stream",
+            "length": 120909,
+            "hash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+          },
+          "derivative": {
+            "status": 200,
+            "contentType": "image/png",
+            "length": 66201,
+            "hash": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f"
+          }
+        },
+        "revisionPackage": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision_package&contextId=qa-dev087-file-read-package&bindingId=qa-dev087-file-read-package-file",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "drawingAttachment": {
+          "href": "/api/pdm/file-assets/qa-dev087-drawing-asset?context=drawing_attachment&contextId=qa-dev087-file-read-drawing&bindingId=qa-dev087-drawing-asset",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "partAttachment": {
+          "href": "/api/pdm/file-assets/qa-dev087-part-asset?context=part_attachment&contextId=0a81c6e6-089c-4881-926c-819ff141734c&bindingId=qa-dev087-part-asset",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "approvalEvidence": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=approval_evidence&contextId=qa-dev087-approval-evidence&bindingId=FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        }
+      },
+      "mediaUrls": [
+        "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1"
+      ]
+    },
+    {
+      "round": "fresh-session-2",
+      "api": {
+        "candidate": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "candidateReview": {
+          "href": "/api/pdm/file-assets/FA-e33ff864-ab79-4034-a924-63444e0126fe?context=drawing_revision_work&contextId=c65d1134-44d1-49d1-a689-74d83e75174a&bindingId=339db49a-327f-47ad-8ad2-8158eff61374&reviewRequestId=qa-dev087-review-request",
+          "original": {
+            "status": 200,
+            "contentType": "application/octet-stream",
+            "length": 120909,
+            "hash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+          },
+          "derivative": {
+            "status": 200,
+            "contentType": "image/png",
+            "length": 66201,
+            "hash": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f"
+          }
+        },
+        "released": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "history": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "work": {
+          "href": "/api/pdm/file-assets/FA-e33ff864-ab79-4034-a924-63444e0126fe?context=drawing_revision_work&contextId=c65d1134-44d1-49d1-a689-74d83e75174a&bindingId=339db49a-327f-47ad-8ad2-8158eff61374",
+          "original": {
+            "status": 200,
+            "contentType": "application/octet-stream",
+            "length": 120909,
+            "hash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+          },
+          "derivative": {
+            "status": 200,
+            "contentType": "image/png",
+            "length": 66201,
+            "hash": "b6ee36859d87569aad172eff8fac75c9a5aac5c56b7618c1ab10202bbf23b39f"
+          }
+        },
+        "revisionPackage": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision_package&contextId=qa-dev087-file-read-package&bindingId=qa-dev087-file-read-package-file",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "drawingAttachment": {
+          "href": "/api/pdm/file-assets/qa-dev087-drawing-asset?context=drawing_attachment&contextId=qa-dev087-file-read-drawing&bindingId=qa-dev087-drawing-asset",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "partAttachment": {
+          "href": "/api/pdm/file-assets/qa-dev087-part-asset?context=part_attachment&contextId=0a81c6e6-089c-4881-926c-819ff141734c&bindingId=qa-dev087-part-asset",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        },
+        "approvalEvidence": {
+          "href": "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=approval_evidence&contextId=qa-dev087-approval-evidence&bindingId=FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+          "original": {
+            "status": 200,
+            "contentType": "application/pdf",
+            "length": 209798,
+            "hash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee"
+          },
+          "derivative": null
+        }
+      },
+      "mediaUrls": [
+        "/api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=candidate_revision&contextId=c076f20b-21d0-4061-a9bf-148060995162&bindingId=4a2511e1-3182-448f-a54e-4614afa2cd4c&preview=1"
+      ]
+    }
+  ]
+}

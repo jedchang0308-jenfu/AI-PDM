@@ -16,7 +16,6 @@ import {
   type TransferPackageActor,
   type TransferPackageRecord
 } from "@/lib/repositories/transfer-package-async-repository";
-import { AsyncBomWorkbenchRepository } from "@/lib/repositories/bom-workbench-async-repository";
 
 export type TransferReadinessBlocker = {
   code: string;
@@ -230,7 +229,6 @@ export async function officialItemSnapshot(
     updated_at: string;
     part_name: string;
     item_kind: string;
-    bom_usage_policy: string;
     custom_specification: string | null;
     series_code: string | null;
     attribute_updated_at: string | null;
@@ -240,62 +238,20 @@ export async function officialItemSnapshot(
     color_label: string | null;
     surface_treatment: string | null;
     variant_note: string | null;
-    current_version_id: string | null;
-    current_version: string | null;
-    current_version_status: string | null;
-    current_version_at: string | null;
   }>(
     `SELECT part.record_status, part.updated_at,
-            part.part_name, part.item_kind, part.bom_usage_policy,
+            part.part_name, part.item_kind,
             part.custom_specification, part.series_code,
             attributes.updated_at AS attribute_updated_at,
             attributes.material_code, attributes.material_label,
             attributes.color_code, attributes.color_label,
-            attributes.surface_treatment, attributes.variant_note,
-            snapshot.id AS current_version_id,
-            snapshot.bom_revision AS current_version,
-            CASE WHEN snapshot.obsolete_at IS NULL THEN 'Released' ELSE 'Obsolete' END AS current_version_status,
-            COALESCE(snapshot.obsolete_at, snapshot.released_at) AS current_version_at
+            attributes.surface_treatment, attributes.variant_note
        FROM part_numbers part
        LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id
-       LEFT JOIN bom_release_snapshots snapshot
-         ON snapshot.id = (
-           SELECT candidate.id
-             FROM bom_release_snapshots candidate
-            WHERE candidate.company_id = part.company_id
-              AND (
-                (
-                  candidate.snapshot_schema_version = 2
-                  AND candidate.obsolete_at IS NULL
-                  AND EXISTS (
-                    SELECT 1 FROM bom_release_parent_snapshots parent_snapshot
-                    WHERE parent_snapshot.release_snapshot_id = candidate.id
-                      AND parent_snapshot.parent_part_number_id = part.id
-                  )
-                )
-                OR (
-                  candidate.snapshot_schema_version = 1
-                  AND candidate.owner_part_number_id = part.id
-                  AND NOT EXISTS (
-                    SELECT 1
-                    FROM bom_definition_parent_bindings definition_binding
-                    JOIN bom_release_snapshots shared_snapshot
-                      ON shared_snapshot.definition_id = definition_binding.definition_id
-                     AND shared_snapshot.snapshot_schema_version = 2
-                    WHERE definition_binding.part_number_id = part.id
-                  )
-                )
-              )
-            ORDER BY candidate.released_at DESC, candidate.id DESC
-            LIMIT 1
-         )
       WHERE part.id = :entityId AND part.company_id = :companyId`,
     { entityId: item.entityId, companyId }
   );
   if (!row) return null;
-  if (row.current_version_id) {
-    await new AsyncBomWorkbenchRepository(client).getReleaseSnapshotById(row.current_version_id);
-  }
   return {
     itemId: item.id,
     entityType: item.entityType,
@@ -307,7 +263,6 @@ export async function officialItemSnapshot(
       recordStatus: row.record_status,
       partName: row.part_name,
       itemKind: row.item_kind,
-      bomUsagePolicy: row.bom_usage_policy,
       customSpecification: row.custom_specification,
       seriesCode: row.series_code,
       materialCode: row.material_code,
@@ -317,10 +272,10 @@ export async function officialItemSnapshot(
       surfaceTreatment: row.surface_treatment,
       variantNote: row.variant_note
     })),
-    currentControlledVersionId: row.current_version_id,
-    currentControlledVersion: row.current_version,
-    currentControlledVersionStatus: row.current_version_status,
-    currentControlledVersionAt: row.current_version_at
+    currentControlledVersionId: null,
+    currentControlledVersion: null,
+    currentControlledVersionStatus: null,
+    currentControlledVersionAt: null
   };
 }
 
@@ -442,12 +397,12 @@ export async function buildTransferPackageReadiness(
     }
     if (!hasRequiredRelations(workspace)) {
       blockers.push(blocker({
-        code: "transfer_bom_relation_required",
+        code: "transfer_drawing_part_relation_required",
         message: "含圖面與料件的草稿尚未建立完整關聯。",
         ownerRole: "RD",
-        ownerModule: "BOM 工作台",
+        ownerModule: "圖料草稿",
         actionLabel: "補齊圖料關聯",
-        actionHref: `/bom/workbench?workspaceId=${encodeURIComponent(workspace.id)}`,
+        actionHref: `/parts?tab=drafts&workspace=${encodeURIComponent(workspace.id)}`,
         workspaceId: workspace.id
       }));
     }

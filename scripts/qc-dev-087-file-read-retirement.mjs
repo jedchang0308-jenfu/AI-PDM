@@ -16,6 +16,8 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev087-file-read-
 const fixtureDataDir = path.join(tempRoot, "data");
 const fixtureDb = path.join(fixtureDataDir, "ai-pdm.sqlite");
 const fixtureRepository = path.join(fixtureDataDir, "repository");
+const sourceDb = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
+const sourceRepository = path.resolve(process.env.PDM_PRIMARY_REPOSITORY_DIR?.trim() || path.join(root, "data", "repository"));
 const checks = [];
 const consoleErrors = [];
 const requestFailures = [];
@@ -518,8 +520,13 @@ async function verifyUiSession(context, round) {
 try {
   fs.mkdirSync(fixtureDataDir, { recursive: true });
   fs.mkdirSync(screenshotDir, { recursive: true });
-  fs.copyFileSync(path.join(root, "data", "ai-pdm.sqlite"), fixtureDb);
-  fs.cpSync(path.join(root, "data", "repository"), fixtureRepository, { recursive: true, force: true });
+  const sourceSnapshot = new Database(sourceDb, { readonly: true, fileMustExist: true });
+  try {
+    await sourceSnapshot.backup(fixtureDb);
+  } finally {
+    sourceSnapshot.close();
+  }
+  fs.cpSync(sourceRepository, fixtureRepository, { recursive: true, force: true });
 
   const fixture = new Database(fixtureDb);
   seedCanonicalContextFixtures(fixture);
@@ -548,7 +555,8 @@ try {
     PDM_POSTGRES_URL: "",
     DATABASE_URL: "",
     PDM_NEXT_DIST_DIR: path.relative(root, runtimeDistDir),
-    PDM_PUBLIC_BASE_URL: baseUrl
+    PDM_PUBLIC_BASE_URL: baseUrl,
+    QC_NEXT_USE_WEBPACK: "1"
   });
   console.log(`QC DEV-087 runtime: project=${root}; purpose=canonical file-read retirement gate; port=${port}; owner=current QC process tree; cleanup=after two fresh-session rounds`);
   app = startNextApp(root, "dev", port);

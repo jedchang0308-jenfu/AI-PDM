@@ -1,0 +1,11 @@
+{
+  "id": "J-D17",
+  "caseId": "D17",
+  "family": "D",
+  "status": "BLOCKED",
+  "reason": "NO_LEGAL_UI_ROW:研發版 1.1",
+  "actions": [],
+  "startedAt": "2026-08-28T15:53:39.739Z",
+  "finishedAt": "2026-08-28T15:53:41.154Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

@@ -1,12 +1,4 @@
-import {
-  findPreviousBomSubmissionId,
-  getBomDiffBetweenSubmissions,
-  getDashboardMetrics,
-  getSubmission,
-  listSubmissions,
-  listWhereUsed,
-  type DbUser
-} from "@/lib/db";
+import { getDashboardMetrics, getSubmission, listSubmissions, type DbUser } from "@/lib/db";
 import { canReadSubmission, scopedSubmittedBy } from "@/lib/permissions";
 import { searchPdmPolicy } from "@/lib/pdm-policy-rag";
 
@@ -28,7 +20,7 @@ export function parseExplicitToolRequest(message: string) {
 }
 
 export type AiSource = {
-  type: "submission" | "metric" | "policy" | "file" | "bom" | "where_used";
+  type: "submission" | "metric" | "policy" | "file";
   label: string;
   detail: string;
 };
@@ -112,38 +104,14 @@ export function executeAiTool(input: {
         sources: []
       };
     }
-    const previousBomSubmissionId = findPreviousBomSubmissionId(submission.id);
-    const bomDiff = previousBomSubmissionId
-      ? getBomDiffBetweenSubmissions({ baseSubmissionId: previousBomSubmissionId, targetSubmissionId: submission.id })
-      : null;
-    const whereUsed = listWhereUsed({ partNumber: submission.part_number, submittedBy });
     const fileRoles = new Set(submission.files.map((file) => file.file_role));
     const missingHandoffFiles = [
       fileRoles.has("pdf") ? null : "缺 PDF",
       fileRoles.has("dwg") ? null : "缺 DWG"
     ].filter((value): value is string => Boolean(value));
     const impactLines = [
-      submission.bom ? `Engineering BOM ${submission.bom.line_count} 行` : "Engineering BOM 尚未建立",
-      bomDiff
-        ? `BOM diff：新增 ${bomDiff.added_count}，移除 ${bomDiff.removed_count}，變更 ${bomDiff.changed_count}，未變 ${bomDiff.unchanged_count}`
-        : "BOM diff：沒有可比較的前版 BOM",
-      `Where-used：此料號目前被 ${whereUsed.length} 個上層 BOM 使用`,
       missingHandoffFiles.length > 0 ? `缺漏檔案提示：${missingHandoffFiles.join("、")}` : "缺漏檔案提示：PDF/DWG 皆已提供"
     ];
-    const bomDiffSources: AiSource[] = bomDiff
-      ? [
-          {
-            type: "bom",
-            label: "BOM diff",
-            detail: `${bomDiff.base_submission_id} Rev ${bomDiff.base_revision} -> ${bomDiff.target_submission_id} Rev ${bomDiff.target_revision}`
-          }
-        ]
-      : [];
-    const whereUsedSources: AiSource[] = whereUsed.slice(0, 5).map((entry) => ({
-      type: "where_used",
-      label: entry.parent_submission_id,
-      detail: `${entry.parent_part_number} Rev ${entry.parent_revision} uses ${entry.child_part_number} qty ${entry.quantity}`
-    }));
 
     return {
       text: [
@@ -165,9 +133,7 @@ export function executeAiTool(input: {
           type: "file" as const,
           label: file.original_filename,
           detail: `${file.file_role.toUpperCase()} ${file.local_path}`
-        })),
-        ...bomDiffSources,
-        ...whereUsedSources
+        }))
       ]
     };
   }

@@ -1,0 +1,399 @@
+{
+  "devId": "DEV-087",
+  "scope": "part-attachments",
+  "runId": "DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z",
+  "parentRunId": "DEV087-product-browser-2026-08-28T18-09-31-285Z",
+  "status": "PASS",
+  "port": 65060,
+  "outputDir": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087\\DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z",
+  "sourceInvariantCheckedBeforeMutation": true,
+  "primaryInvariant": {
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "unchanged": true
+  },
+  "fixtureMutationLedger": [
+    {
+      "action": "clear-preexisting-canonical-target-residue",
+      "tables": [
+        "pdm_review_traces",
+        "pdm_work_review_requests",
+        "drawing_revision_work_files",
+        "canonical_workbench_states",
+        "drawing_revision_works",
+        "drawing_revision_claims",
+        "drawing_rd_branches",
+        "pdm_workbench_aggregates",
+        "part_change_works",
+        "relation_change_works",
+        "pdm_workbench_migration_quarantine"
+      ],
+      "targetTableGuards": {
+        "preserved": true,
+        "names": [
+          "trg_canonical_workbench_states_company_guard",
+          "trg_canonical_workbench_states_company_update_guard",
+          "trg_canonical_workbench_states_drawing_reference_guard",
+          "trg_canonical_workbench_states_drawing_reference_update_guard",
+          "trg_canonical_workbench_states_work_guard",
+          "trg_canonical_workbench_states_work_update_guard",
+          "trg_drawing_rd_branches_company_guard",
+          "trg_drawing_rd_branches_company_update_guard",
+          "trg_drawing_revision_claims_approved_no_delete",
+          "trg_drawing_revision_claims_approved_no_update",
+          "trg_drawing_revision_claims_company_guard",
+          "trg_drawing_revision_claims_company_update_guard",
+          "trg_drawing_revision_works_company_guard",
+          "trg_drawing_revision_works_company_update_guard",
+          "trg_part_change_works_company_guard",
+          "trg_part_change_works_company_update_guard",
+          "trg_pdm_review_requests_company_guard",
+          "trg_pdm_review_requests_identity_immutable",
+          "trg_pdm_review_traces_no_delete",
+          "trg_pdm_review_traces_no_update",
+          "trg_relation_change_works_company_guard",
+          "trg_relation_change_works_company_update_guard"
+        ]
+      },
+      "scope": "task-owned fixture only after protected source snapshot before product runtime"
+    },
+    {
+      "action": "migrate-dev-087-canonical-workbench",
+      "status": 0,
+      "scope": "task-owned fixture only"
+    },
+    {
+      "action": "normalize-fixture-authority-control",
+      "scope": "task-owned fixture only"
+    }
+  ],
+  "caseReceipts": [
+    {
+      "caseId": "P11",
+      "receipt": "output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z/cases/P11/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z/screenshots/desktop-p11-owner-attachment.png"
+    },
+    {
+      "caseId": "P12",
+      "receipt": "output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z/cases/P12/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z/screenshots/desktop-p12-reviewer-live-attachment.png"
+    },
+    {
+      "caseId": "P13",
+      "receipt": "output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z/cases/P13/receipt.json",
+      "screenshot": "output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z/screenshots/desktop-p13-after-cancel-attachments.png"
+    }
+  ],
+  "cleanupReceipt": {
+    "tempCleanupReceipt": {
+      "removed": true,
+      "path": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-part-attachments-3U0WqA",
+      "error": null,
+      "attempts": 1
+    },
+    "runtimeCleanupReceipt": {
+      "removed": true,
+      "path": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\.tmp\\qc-dev087-part-attachments-65060",
+      "error": null
+    },
+    "portsReleased": true
+  },
+  "mutationPolicy": "fixture setup is declared and task-owned; attachment business writes use rendered UI; API/DB are readback only",
+  "total": 50,
+  "passed": 50,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "primary source invariant before fixture",
+      "pass": true,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "name": "SQLite backup is an exact protected source snapshot before mutation",
+      "pass": true,
+      "detail": "{\"primaryBefore\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"fixtureSourceSnapshot\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    },
+    {
+      "name": "fixture target guards have restorable SQL",
+      "pass": true,
+      "detail": "[{\"name\":\"trg_canonical_workbench_states_company_guard\",\"sql\":\"CREATE TRIGGER trg_canonical_workbench_states_company_guard\\nBEFORE INSERT ON canonical_workbench_states BEGIN\\n  SELECT CASE\\n    WHEN NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')\\n    WHEN NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')\\n    WHEN NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')\\n  END;\\nEND\"},{\"name\":\"trg_canonical_workbench_states_company_update_guard\",\"sql\":\"CREATE TRIGGER trg_canonical_workbench_states_company_update_guard\\nBEFORE UPDATE OF company_id, entity_type, canonical_entity_id ON canonical_workbench_states BEGIN\\n  SELECT CASE\\n    WHEN NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')\\n    WHEN NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')\\n    WHEN NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')\\n  END;\\nEND\"},{\"name\":\"trg_canonical_workbench_states_drawing_reference_guard\",\"sql\":\"CREATE TRIGGER trg_canonical_workbench_states_drawing_reference_guard\\nBEFORE INSERT ON canonical_workbench_states WHEN NEW.entity_type = 'drawing' BEGIN\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.canonical_entity_id)\\n    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;\\n  SELECT CASE WHEN NEW.branch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_rd_branches b WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.canonical_entity_id)\\n    THEN RAISE(ABORT, 'DEV087_BRANCH_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_canonical_workbench_states_drawing_reference_update_guard\",\"sql\":\"CREATE TRIGGER trg_canonical_workbench_states_drawing_reference_update_guard\\nBEFORE UPDATE OF company_id, canonical_entity_id, revision_id, branch_id ON canonical_workbench_states WHEN NEW.entity_type = 'drawing' BEGIN\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.canonical_entity_id)\\n    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;\\n  SELECT CASE WHEN NEW.branch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_rd_branches b WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.canonical_entity_id)\\n    THEN RAISE(ABORT, 'DEV087_BRANCH_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_canonical_workbench_states_work_guard\",\"sql\":\"CREATE TRIGGER trg_canonical_workbench_states_work_guard\\nBEFORE INSERT ON canonical_workbench_states WHEN NEW.work_id IS NOT NULL BEGIN\\n  SELECT CASE\\n    WHEN NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')\\n    WHEN NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')\\n    WHEN NEW.data_layer = 'relation_work' AND NOT EXISTS (SELECT 1 FROM relation_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.root_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')\\n  END;\\nEND\"},{\"name\":\"trg_canonical_workbench_states_work_update_guard\",\"sql\":\"CREATE TRIGGER trg_canonical_workbench_states_work_update_guard\\nBEFORE UPDATE OF company_id, data_layer, canonical_entity_id, work_id ON canonical_workbench_states WHEN NEW.work_id IS NOT NULL BEGIN\\n  SELECT CASE\\n    WHEN NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')\\n    WHEN NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')\\n    WHEN NEW.data_layer = 'relation_work' AND NOT EXISTS (SELECT 1 FROM relation_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.root_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')\\n  END;\\nEND\"},{\"name\":\"trg_drawing_rd_branches_company_guard\",\"sql\":\"CREATE TRIGGER trg_drawing_rd_branches_company_guard\\nBEFORE INSERT ON drawing_rd_branches BEGIN\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id)\\n    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\n  SELECT CASE WHEN NEW.base_production_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.base_production_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id)\\n    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;\\n  SELECT CASE WHEN NEW.latest_approved_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.latest_approved_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id)\\n    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_drawing_rd_branches_company_update_guard\",\"sql\":\"CREATE TRIGGER trg_drawing_rd_branches_company_update_guard\\nBEFORE UPDATE OF company_id, drawing_id, base_production_revision_id, latest_approved_revision_id ON drawing_rd_branches BEGIN\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id)\\n    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\n  SELECT CASE WHEN NEW.base_production_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.base_production_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id)\\n    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;\\n  SELECT CASE WHEN NEW.latest_approved_revision_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.latest_approved_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id)\\n    THEN RAISE(ABORT, 'DEV087_REVISION_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_drawing_revision_claims_approved_no_delete\",\"sql\":\"CREATE TRIGGER trg_drawing_revision_claims_approved_no_delete\\nBEFORE DELETE ON drawing_revision_claims WHEN OLD.claim_state = 'approved' BEGIN SELECT RAISE(ABORT, 'DEV087_APPROVED_CLAIM_IMMUTABLE'); END\"},{\"name\":\"trg_drawing_revision_claims_approved_no_update\",\"sql\":\"CREATE TRIGGER trg_drawing_revision_claims_approved_no_update\\nBEFORE UPDATE ON drawing_revision_claims WHEN OLD.claim_state = 'approved' BEGIN SELECT RAISE(ABORT, 'DEV087_APPROVED_CLAIM_IMMUTABLE'); END\"},{\"name\":\"trg_drawing_revision_claims_company_guard\",\"sql\":\"CREATE TRIGGER trg_drawing_revision_claims_company_guard\\nBEFORE INSERT ON drawing_revision_claims BEGIN\\n  SELECT CASE WHEN NOT EXISTS (\\n    SELECT 1 FROM drawings d JOIN drawing_rd_branches b ON b.id = NEW.branch_id\\n    WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id\\n      AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id\\n  ) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\n  SELECT CASE WHEN NEW.target_label <> CASE WHEN NEW.target_minor = 0 THEN CAST(NEW.target_major AS TEXT) ELSE CAST(NEW.target_major AS TEXT) || '.' || CAST(NEW.target_minor AS TEXT) END\\n    THEN RAISE(ABORT, 'DEV087_REVISION_TUPLE_NOT_CANONICAL') END;\\n  SELECT CASE WHEN NEW.predecessor_revision_id IS NOT NULL AND NOT EXISTS (\\n    SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.predecessor_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id\\n  ) THEN RAISE(ABORT, 'DEV087_PREDECESSOR_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_drawing_revision_claims_company_update_guard\",\"sql\":\"CREATE TRIGGER trg_drawing_revision_claims_company_update_guard\\nBEFORE UPDATE OF company_id, drawing_id, branch_id, target_major, target_minor, target_label, predecessor_revision_id ON drawing_revision_claims BEGIN\\n  SELECT CASE WHEN NOT EXISTS (\\n    SELECT 1 FROM drawings d JOIN drawing_rd_branches b ON b.id = NEW.branch_id\\n    WHERE d.id = NEW.drawing_id AND d.company_id = NEW.company_id\\n      AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id\\n  ) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\n  SELECT CASE WHEN NEW.target_label <> CASE WHEN NEW.target_minor = 0 THEN CAST(NEW.target_major AS TEXT) ELSE CAST(NEW.target_major AS TEXT) || '.' || CAST(NEW.target_minor AS TEXT) END\\n    THEN RAISE(ABORT, 'DEV087_REVISION_TUPLE_NOT_CANONICAL') END;\\n  SELECT CASE WHEN NEW.predecessor_revision_id IS NOT NULL AND NOT EXISTS (\\n    SELECT 1 FROM drawing_revisions r WHERE r.id = NEW.predecessor_revision_id AND r.company_id = NEW.company_id AND r.drawing_id = NEW.drawing_id\\n  ) THEN RAISE(ABORT, 'DEV087_PREDECESSOR_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_drawing_revision_works_company_guard\",\"sql\":\"CREATE TRIGGER trg_drawing_revision_works_company_guard\\nBEFORE INSERT ON drawing_revision_works BEGIN\\n  SELECT CASE WHEN NOT EXISTS (\\n    SELECT 1 FROM drawing_rd_branches b JOIN drawing_revision_claims c ON c.id = NEW.target_claim_id\\n    WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id\\n      AND c.company_id = NEW.company_id AND c.drawing_id = NEW.drawing_id AND c.branch_id = NEW.branch_id\\n  ) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)\\n    THEN RAISE(ABORT, 'DEV087_OWNER_COMPANY_MISMATCH') END;\\nEND\"},{\"name\":\"trg_drawing_revision_works_company_update_guard\",\"sql\":\"CREATE TRIGGER trg_drawing_revision_works_company_update_guard\\nBEFORE UPDATE OF company_id, drawing_id, branch_id, target_claim_id, owner_user_id ON drawing_revision_works BEGIN\\n  SELECT CASE WHEN NOT EXISTS (\\n    SELECT 1 FROM drawing_rd_branches b JOIN drawing_revision_claims c ON c.id = NEW.target_claim_id\\n    WHERE b.id = NEW.branch_id AND b.company_id = NEW.company_id AND b.drawing_id = NEW.drawing_id\\n      AND c.company_id = NEW.company_id AND c.drawing_id = NEW.drawing_id AND c.branch_id = NEW.branch_id\\n  ) OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)\\n    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_part_change_works_company_guard\",\"sql\":\"CREATE TRIGGER trg_part_change_works_company_guard\\nBEFORE INSERT ON part_change_works BEGIN\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.part_id AND p.company_id = NEW.company_id)\\n      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)\\n    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_part_change_works_company_update_guard\",\"sql\":\"CREATE TRIGGER trg_part_change_works_company_update_guard\\nBEFORE UPDATE OF company_id, part_id, owner_user_id ON part_change_works BEGIN\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.part_id AND p.company_id = NEW.company_id)\\n      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)\\n    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_pdm_review_requests_company_guard\",\"sql\":\"CREATE TRIGGER trg_pdm_review_requests_company_guard\\nBEFORE INSERT ON pdm_work_review_requests BEGIN\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.reviewer_user_id AND u.company_id = NEW.company_id)\\n    THEN RAISE(ABORT, 'DEV087_REVIEWER_COMPANY_MISMATCH') END;\\n  SELECT CASE\\n    WHEN NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')\\n    WHEN NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')\\n    WHEN NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')\\n  END;\\nEND\"},{\"name\":\"trg_pdm_review_requests_identity_immutable\",\"sql\":\"CREATE TRIGGER trg_pdm_review_requests_identity_immutable\\nBEFORE UPDATE OF company_id, request_kind, entity_type, canonical_entity_id, work_id, branch_id, reviewer_user_id, review_cycle_id, snapshot_payload, snapshot_hash ON pdm_work_review_requests\\nBEGIN SELECT RAISE(ABORT, 'DEV087_REVIEW_REQUEST_IDENTITY_IMMUTABLE'); END\"},{\"name\":\"trg_pdm_review_traces_no_delete\",\"sql\":\"CREATE TRIGGER trg_pdm_review_traces_no_delete BEFORE DELETE ON pdm_review_traces BEGIN SELECT RAISE(ABORT, 'DEV087_REVIEW_TRACE_IMMUTABLE'); END\"},{\"name\":\"trg_pdm_review_traces_no_update\",\"sql\":\"CREATE TRIGGER trg_pdm_review_traces_no_update BEFORE UPDATE ON pdm_review_traces BEGIN SELECT RAISE(ABORT, 'DEV087_REVIEW_TRACE_IMMUTABLE'); END\"},{\"name\":\"trg_relation_change_works_company_guard\",\"sql\":\"CREATE TRIGGER trg_relation_change_works_company_guard\\nBEFORE INSERT ON relation_change_works BEGIN\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.root_id AND r.company_id = NEW.company_id)\\n      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)\\n    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\nEND\"},{\"name\":\"trg_relation_change_works_company_update_guard\",\"sql\":\"CREATE TRIGGER trg_relation_change_works_company_update_guard\\nBEFORE UPDATE OF company_id, root_id, owner_user_id ON relation_change_works BEGIN\\n  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.root_id AND r.company_id = NEW.company_id)\\n      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)\\n    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;\\nEND\"}]"
+    },
+    {
+      "name": "fixture target guards restored before product runtime",
+      "pass": true,
+      "detail": "{\"expectedGuardNames\":[\"trg_canonical_workbench_states_company_guard\",\"trg_canonical_workbench_states_company_update_guard\",\"trg_canonical_workbench_states_drawing_reference_guard\",\"trg_canonical_workbench_states_drawing_reference_update_guard\",\"trg_canonical_workbench_states_work_guard\",\"trg_canonical_workbench_states_work_update_guard\",\"trg_drawing_rd_branches_company_guard\",\"trg_drawing_rd_branches_company_update_guard\",\"trg_drawing_revision_claims_approved_no_delete\",\"trg_drawing_revision_claims_approved_no_update\",\"trg_drawing_revision_claims_company_guard\",\"trg_drawing_revision_claims_company_update_guard\",\"trg_drawing_revision_works_company_guard\",\"trg_drawing_revision_works_company_update_guard\",\"trg_part_change_works_company_guard\",\"trg_part_change_works_company_update_guard\",\"trg_pdm_review_requests_company_guard\",\"trg_pdm_review_requests_identity_immutable\",\"trg_pdm_review_traces_no_delete\",\"trg_pdm_review_traces_no_update\",\"trg_relation_change_works_company_guard\",\"trg_relation_change_works_company_update_guard\"],\"restoredGuardNames\":[\"trg_canonical_workbench_states_company_guard\",\"trg_canonical_workbench_states_company_update_guard\",\"trg_canonical_workbench_states_drawing_reference_guard\",\"trg_canonical_workbench_states_drawing_reference_update_guard\",\"trg_canonical_workbench_states_work_guard\",\"trg_canonical_workbench_states_work_update_guard\",\"trg_drawing_rd_branches_company_guard\",\"trg_drawing_rd_branches_company_update_guard\",\"trg_drawing_revision_claims_approved_no_delete\",\"trg_drawing_revision_claims_approved_no_update\",\"trg_drawing_revision_claims_company_guard\",\"trg_drawing_revision_claims_company_update_guard\",\"trg_drawing_revision_works_company_guard\",\"trg_drawing_revision_works_company_update_guard\",\"trg_part_change_works_company_guard\",\"trg_part_change_works_company_update_guard\",\"trg_pdm_review_requests_company_guard\",\"trg_pdm_review_requests_identity_immutable\",\"trg_pdm_review_traces_no_delete\",\"trg_pdm_review_traces_no_update\",\"trg_relation_change_works_company_guard\",\"trg_relation_change_works_company_update_guard\"]}"
+    },
+    {
+      "name": "isolated fixture remains foreign-key clean after derived-target reset",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "isolated migration completed without unresolved quarantine",
+      "pass": true,
+      "detail": "{\n  \"status\": \"PASS\",\n  \"apply\": true,\n  \"switchCanonical\": false,\n  \"unresolved\": 0,\n  \"identityHash\": \"f7182fcf9f4c2138b4a6102d1d2165e4609298f4addcd4939bd62ea451dc9212\",\n  \"manifestPath\": \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-part-attachments-3U0WqA\\\\migration\\\\manifest.json\"\n}\n\n"
+    },
+    {
+      "name": "part owner editor keeps secondary attachment manager entry contract",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "fixture contains target part",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "fixture remains foreign-key clean after declared setup mutations",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "local 系統管理員 login",
+      "pass": true,
+      "detail": "http://127.0.0.1:65060/"
+    },
+    {
+      "name": "P11 owner creates Part change work through rendered UI",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "P11 owner work identity exists",
+      "pass": true,
+      "detail": "http://127.0.0.1:65060/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=98831b16-b9d2-4c5c-9b1a-c80c1a231849"
+    },
+    {
+      "name": "P11 fixture has exactly one active Part work",
+      "pass": true,
+      "detail": "{\"part\":{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"part_number\":\"A0002-P01\",\"record_status\":\"Draft\"},\"attachments\":[],\"works\":[{\"id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"part_id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"owner_user_id\":\"user-admin-local-quick\",\"proposed_payload\":\"{\\\"partName\\\":\\\"本體_BS_右_Xx5\\\",\\\"itemKind\\\":\\\"manufactured\\\",\\\"customSpecification\\\":null,\\\"isUniversal\\\":false,\\\"materialCode\\\":null,\\\"materialLabel\\\":null,\\\"colorCode\\\":null,\\\"colorLabel\\\":null,\\\"surfaceTreatment\\\":null,\\\"variantNote\\\":null}\",\"base_hash\":\"af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa\",\"base_formal_row_version\":1,\"row_version\":1}],\"requests\":[],\"states\":[{\"data_layer\":\"part_formal\",\"handling\":\"none\",\"work_id\":null,\"row_version\":1},{\"data_layer\":\"part_work\",\"handling\":\"owner\",\"work_id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"row_version\":1}]}"
+    },
+    {
+      "name": "desktop: upload has no category control",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: dropzone supports multiple files",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: deleted-data restore area exists",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop: no horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "upload enables after file selection",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "download uses protected file route",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "soft-delete and restore returns attachment to active list",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "P11 attachment CRUD does not mutate Part work payload or row version",
+      "pass": true,
+      "detail": "{\"workBefore\":{\"id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"part_id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"owner_user_id\":\"user-admin-local-quick\",\"proposed_payload\":\"{\\\"partName\\\":\\\"本體_BS_右_Xx5\\\",\\\"itemKind\\\":\\\"manufactured\\\",\\\"customSpecification\\\":null,\\\"isUniversal\\\":false,\\\"materialCode\\\":null,\\\"materialLabel\\\":null,\\\"colorCode\\\":null,\\\"colorLabel\\\":null,\\\"surfaceTreatment\\\":null,\\\"variantNote\\\":null}\",\"base_hash\":\"af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa\",\"base_formal_row_version\":1,\"row_version\":1},\"workAfterP11\":{\"id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"part_id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"owner_user_id\":\"user-admin-local-quick\",\"proposed_payload\":\"{\\\"partName\\\":\\\"本體_BS_右_Xx5\\\",\\\"itemKind\\\":\\\"manufactured\\\",\\\"customSpecification\\\":null,\\\"isUniversal\\\":false,\\\"materialCode\\\":null,\\\"materialLabel\\\":null,\\\"colorCode\\\":null,\\\"colorLabel\\\":null,\\\"surfaceTreatment\\\":null,\\\"variantNote\\\":null}\",\"base_hash\":\"af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa\",\"base_formal_row_version\":1,\"row_version\":1}}"
+    },
+    {
+      "name": "P11 live attachment remains active after add-delete-restore",
+      "pass": true,
+      "detail": "[{\"id\":\"153af080-4323-4dea-883a-a5d871137491\",\"file_name\":\"part-attachment-DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z.html\",\"content_hash\":\"3bdc1e89d49dbf0d348d5448ec6e1296d18e64b9a7a906645d6284754c11e880\",\"deleted_at\":null}]"
+    },
+    {
+      "name": "P12 owner submits Part work through rendered UI",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "P12 review request exists with stable snapshot",
+      "pass": true,
+      "detail": "[{\"id\":\"33f381f7-fd75-472f-a55b-306d4de741e5\",\"work_id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"reviewer_user_id\":\"user-manager-demo\",\"snapshot_payload\":\"{\\\"partName\\\":\\\"本體_BS_右_Xx5\\\",\\\"itemKind\\\":\\\"manufactured\\\",\\\"customSpecification\\\":null,\\\"isUniversal\\\":false,\\\"materialCode\\\":null,\\\"materialLabel\\\":null,\\\"colorCode\\\":null,\\\"colorLabel\\\":null,\\\"surfaceTreatment\\\":null,\\\"variantNote\\\":null}\",\"snapshot_hash\":\"af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa\",\"request_status\":\"pending\",\"row_version\":1}]"
+    },
+    {
+      "name": "local 系統管理員 login",
+      "pass": true,
+      "detail": "http://127.0.0.1:65060/"
+    },
+    {
+      "name": "P12 legal maintenance context uploads through rendered UI",
+      "pass": true,
+      "detail": "status=201"
+    },
+    {
+      "name": "P12 attachment change does not alter request snapshot/hash/row version",
+      "pass": true,
+      "detail": "{\"before\":{\"id\":\"33f381f7-fd75-472f-a55b-306d4de741e5\",\"work_id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"reviewer_user_id\":\"user-manager-demo\",\"snapshot_payload\":\"{\\\"partName\\\":\\\"本體_BS_右_Xx5\\\",\\\"itemKind\\\":\\\"manufactured\\\",\\\"customSpecification\\\":null,\\\"isUniversal\\\":false,\\\"materialCode\\\":null,\\\"materialLabel\\\":null,\\\"colorCode\\\":null,\\\"colorLabel\\\":null,\\\"surfaceTreatment\\\":null,\\\"variantNote\\\":null}\",\"snapshot_hash\":\"af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa\",\"request_status\":\"pending\",\"row_version\":1},\"after\":[{\"id\":\"33f381f7-fd75-472f-a55b-306d4de741e5\",\"work_id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"reviewer_user_id\":\"user-manager-demo\",\"snapshot_payload\":\"{\\\"partName\\\":\\\"本體_BS_右_Xx5\\\",\\\"itemKind\\\":\\\"manufactured\\\",\\\"customSpecification\\\":null,\\\"isUniversal\\\":false,\\\"materialCode\\\":null,\\\"materialLabel\\\":null,\\\"colorCode\\\":null,\\\"colorLabel\\\":null,\\\"surfaceTreatment\\\":null,\\\"variantNote\\\":null}\",\"snapshot_hash\":\"af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa\",\"request_status\":\"pending\",\"row_version\":1}]}"
+    },
+    {
+      "name": "local 研發主管 login",
+      "pass": true,
+      "detail": "http://127.0.0.1:65060/"
+    },
+    {
+      "name": "P12 reviewer sees same fields readonly",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "P12 reviewer returns work through rendered UI",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "P12 returned review preserves work and live attachments",
+      "pass": true,
+      "detail": "{\"part\":{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"part_number\":\"A0002-P01\",\"record_status\":\"Draft\"},\"attachments\":[{\"id\":\"153af080-4323-4dea-883a-a5d871137491\",\"file_name\":\"part-attachment-DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z.html\",\"content_hash\":\"3bdc1e89d49dbf0d348d5448ec6e1296d18e64b9a7a906645d6284754c11e880\",\"deleted_at\":null},{\"id\":\"8189ed52-c349-4f53-a15f-0107c255b68a\",\"file_name\":\"part-review-live-DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z.html\",\"content_hash\":\"baf71ecabbcc75a8e3280c2e9e9c226796d59b9ed5f870921179ac2503856c56\",\"deleted_at\":null}],\"works\":[{\"id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"part_id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"owner_user_id\":\"user-admin-local-quick\",\"proposed_payload\":\"{\\\"partName\\\":\\\"本體_BS_右_Xx5\\\",\\\"itemKind\\\":\\\"manufactured\\\",\\\"customSpecification\\\":null,\\\"isUniversal\\\":false,\\\"materialCode\\\":null,\\\"materialLabel\\\":null,\\\"colorCode\\\":null,\\\"colorLabel\\\":null,\\\"surfaceTreatment\\\":null,\\\"variantNote\\\":null}\",\"base_hash\":\"af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa\",\"base_formal_row_version\":1,\"row_version\":1}],\"requests\":[],\"states\":[{\"data_layer\":\"part_formal\",\"handling\":\"none\",\"work_id\":null,\"row_version\":1},{\"data_layer\":\"part_work\",\"handling\":\"owner\",\"work_id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"row_version\":3}]}"
+    },
+    {
+      "name": "P13 owner cancels Part work through rendered UI",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "P13 cancel removes only work state and preserves exact live attachment set",
+      "pass": true,
+      "detail": "{\"beforeCancel\":{\"part\":{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"part_number\":\"A0002-P01\",\"record_status\":\"Draft\"},\"attachments\":[{\"id\":\"153af080-4323-4dea-883a-a5d871137491\",\"file_name\":\"part-attachment-DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z.html\",\"content_hash\":\"3bdc1e89d49dbf0d348d5448ec6e1296d18e64b9a7a906645d6284754c11e880\",\"deleted_at\":null},{\"id\":\"8189ed52-c349-4f53-a15f-0107c255b68a\",\"file_name\":\"part-review-live-DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z.html\",\"content_hash\":\"baf71ecabbcc75a8e3280c2e9e9c226796d59b9ed5f870921179ac2503856c56\",\"deleted_at\":null}],\"works\":[{\"id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"part_id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"owner_user_id\":\"user-admin-local-quick\",\"proposed_payload\":\"{\\\"partName\\\":\\\"本體_BS_右_Xx5\\\",\\\"itemKind\\\":\\\"manufactured\\\",\\\"customSpecification\\\":null,\\\"isUniversal\\\":false,\\\"materialCode\\\":null,\\\"materialLabel\\\":null,\\\"colorCode\\\":null,\\\"colorLabel\\\":null,\\\"surfaceTreatment\\\":null,\\\"variantNote\\\":null}\",\"base_hash\":\"af29a5d0159ee6f99c4546666ca7d751f50964ae222d0494e4774981e56e7aaa\",\"base_formal_row_version\":1,\"row_version\":1}],\"requests\":[],\"states\":[{\"data_layer\":\"part_formal\",\"handling\":\"none\",\"work_id\":null,\"row_version\":1},{\"data_layer\":\"part_work\",\"handling\":\"owner\",\"work_id\":\"98831b16-b9d2-4c5c-9b1a-c80c1a231849\",\"row_version\":3}]},\"afterCancel\":{\"part\":{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"part_number\":\"A0002-P01\",\"record_status\":\"Draft\"},\"attachments\":[{\"id\":\"153af080-4323-4dea-883a-a5d871137491\",\"file_name\":\"part-attachment-DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z.html\",\"content_hash\":\"3bdc1e89d49dbf0d348d5448ec6e1296d18e64b9a7a906645d6284754c11e880\",\"deleted_at\":null},{\"id\":\"8189ed52-c349-4f53-a15f-0107c255b68a\",\"file_name\":\"part-review-live-DEV087-PART-ATTACHMENTS-2026-08-28T18-35-47-653Z.html\",\"content_hash\":\"baf71ecabbcc75a8e3280c2e9e9c226796d59b9ed5f870921179ac2503856c56\",\"deleted_at\":null}],\"works\":[],\"requests\":[],\"states\":[{\"data_layer\":\"part_formal\",\"handling\":\"none\",\"work_id\":null,\"row_version\":1}]}}"
+    },
+    {
+      "name": "local 系統管理員 login",
+      "pass": true,
+      "detail": "http://127.0.0.1:65060/"
+    },
+    {
+      "name": "tablet: upload has no category control",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "tablet: dropzone supports multiple files",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "tablet: deleted-data restore area exists",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "tablet: no horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "local 系統管理員 login",
+      "pass": true,
+      "detail": "http://127.0.0.1:65060/"
+    },
+    {
+      "name": "mobile: upload has no category control",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile: dropzone supports multiple files",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile: deleted-data restore area exists",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile: no horizontal overflow",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "browser has no console errors",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "browser has no page/network failures",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=65060"
+    },
+    {
+      "name": "temporary runtime dist removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-part-attachments-65060\",\"error\":null}"
+    },
+    {
+      "name": "next-env restored after task runtime",
+      "pass": true,
+      "detail": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\next-env.d.ts"
+    },
+    {
+      "name": "temporary data/repository root removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-part-attachments-3U0WqA\",\"error\":null,\"attempts\":1}"
+    },
+    {
+      "name": "primary source invariant unchanged after runtime",
+      "pass": true,
+      "detail": "{\"primaryBefore\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"primaryAfter\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    }
+  ],
+  "consoleErrors": [],
+  "failures": []
+}

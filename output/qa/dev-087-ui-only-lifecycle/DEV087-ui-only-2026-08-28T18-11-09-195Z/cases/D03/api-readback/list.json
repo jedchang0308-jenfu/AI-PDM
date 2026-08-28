@@ -1,0 +1,48 @@
+{
+  "data": {
+    "groups": [
+      {
+        "groupKey": "cg_ce814393-dcc9-4f1b-9869-eefdca35db40",
+        "rows": [
+          {
+            "rowKey": "cw_e566a958-2ebf-482e-9ee2-ec9ee5d1dc25",
+            "entityType": "drawing",
+            "entityId": "drawing-formal-109f8bed-ca3c-458f-9478-04e564a3e166",
+            "code": "A0060-M01",
+            "name": "DEV087 D03 81109195Z",
+            "layer": "rd",
+            "layerLabel": "研發版 0.1",
+            "revision": "0.1",
+            "dataState": "editing",
+            "dataStateLabel": "編輯中",
+            "handling": "owner",
+            "handlingLabel": "負責人處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_e566a958-2ebf-482e-9ee2-ec9ee5d1dc25",
+            "rowVersion": 3,
+            "basisState": "preproduction",
+            "actions": [
+              {
+                "key": "edit",
+                "label": "進行編輯",
+                "href": "/numbering/drawings/drawing-formal-109f8bed-ca3c-458f-9478-04e564a3e166/workspace?workId=75133ad8-5fe8-469b-8f43-df42459dc8ea"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "nextCursor": null,
+    "previousCursor": null,
+    "totalGroups": 1,
+    "totalRows": 1
+  },
+  "meta": {
+    "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0MDcyNTQ1OH0.CYpMk6lb1DkqJN0zpro9_zN7et4rYM4B9YafPNbtW68",
+    "correlationId": "ad8a25b4-d66f-4ab8-99ce-f7fb0b12f9be"
+  }
+}

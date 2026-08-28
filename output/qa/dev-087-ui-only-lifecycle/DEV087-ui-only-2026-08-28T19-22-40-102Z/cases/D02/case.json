@@ -1,0 +1,41 @@
+{
+  "id": "D02",
+  "family": "D",
+  "title": "第一份 0.1 工作取消",
+  "status": "PASS",
+  "reason": "",
+  "startedAt": "2026-08-28T19:23:31.200Z",
+  "finishedAt": "2026-08-28T19:23:32.795Z",
+  "expected": {
+    "ui": "canonical workbench list",
+    "mutation": "full lifecycle journey"
+  },
+  "actual": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": [
+      "沒有符合條件的資料"
+    ],
+    "apiStatus": 200,
+    "apiBodyHash": 498,
+    "dbRows": 0
+  },
+  "evidence": {
+    "actions": "actions.jsonl",
+    "network": "network.jsonl",
+    "triad": "triad-diff/list.json"
+  }
+}

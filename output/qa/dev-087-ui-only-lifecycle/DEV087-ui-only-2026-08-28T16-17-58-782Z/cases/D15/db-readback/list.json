@@ -1,0 +1,28 @@
+{
+  "readOnly": true,
+  "entity": "drawing",
+  "rows": [
+    {
+      "code": "A0002-M01",
+      "name": "本體_BS_右_Xx5",
+      "data_layer": "drawing_production",
+      "handling": "none",
+      "blocker_reason": null,
+      "work_id": null,
+      "revision_id": "c77acaaf-2d7f-4d2c-aebf-8d1a0b799ae8",
+      "revision": "2",
+      "layer": "量產版 2"
+    },
+    {
+      "code": "A0002-M01",
+      "name": "本體_BS_右_Xx5",
+      "data_layer": "drawing_rd",
+      "handling": "none",
+      "blocker_reason": null,
+      "work_id": null,
+      "revision_id": "qa-dev087-ui-rd-revision",
+      "revision": "1.1",
+      "layer": "研發版 1.1"
+    }
+  ]
+}

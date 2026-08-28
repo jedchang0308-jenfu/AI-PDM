@@ -1,0 +1,5 @@
+{
+  "login": "task-owned signed QA session for isolated production-runtime D17",
+  "mutation": "Playwright rendered UI only",
+  "readback": "GET/API + readonly SQLite"
+}

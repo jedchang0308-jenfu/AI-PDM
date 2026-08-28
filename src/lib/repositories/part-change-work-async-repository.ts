@@ -8,7 +8,6 @@ export type PartChangePayload = {
   itemKind: "purchased" | "manufactured";
   customSpecification: string | null;
   isUniversal: boolean;
-  bomUsagePolicy: "undecided" | "not_required" | "available" | "restricted" | "obsolete";
   materialCode: string | null;
   materialLabel: string | null;
   colorCode: string | null;
@@ -19,7 +18,7 @@ export type PartChangePayload = {
 
 type PartRow = {
   id: string; company_id: string; part_name: string; item_kind: PartChangePayload["itemKind"];
-  custom_specification: string | null; is_universal: number | boolean; bom_usage_policy: PartChangePayload["bomUsagePolicy"];
+  custom_specification: string | null; is_universal: number | boolean;
   updated_at: string | Date;
   material_code: string | null; material_label: string | null; color_code: string | null; color_label: string | null; surface_treatment: string | null; variant_note: string | null;
 };
@@ -29,18 +28,16 @@ export function validatePartChangePayload(value: unknown): PartChangePayload {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料格式無效", 400);
   const candidate = value as Record<string, unknown>;
   if ("attachments" in candidate || "attachmentIds" in candidate) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "附件獨立維護，不屬於本次資料修改", 422);
-  const allowed = new Set(["partName", "itemKind", "customSpecification", "isUniversal", "bomUsagePolicy", "materialCode", "materialLabel", "colorCode", "colorLabel", "surfaceTreatment", "variantNote"]);
+  const allowed = new Set(["partName", "itemKind", "customSpecification", "isUniversal", "materialCode", "materialLabel", "colorCode", "colorLabel", "surfaceTreatment", "variantNote"]);
   if (Object.keys(candidate).some((key) => !allowed.has(key))) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料包含不支援的欄位", 422);
   const itemKinds = new Set(["purchased", "manufactured"]);
-  const bomPolicies = new Set(["undecided", "not_required", "available", "restricted", "obsolete"]);
-  if (typeof candidate.partName !== "string" || !candidate.partName.trim() || !itemKinds.has(String(candidate.itemKind)) || typeof candidate.isUniversal !== "boolean" || !bomPolicies.has(String(candidate.bomUsagePolicy))) {
+  if (typeof candidate.partName !== "string" || !candidate.partName.trim() || !itemKinds.has(String(candidate.itemKind)) || typeof candidate.isUniversal !== "boolean") {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料未通過欄位驗證", 422);
   }
   const nullable = (entry: unknown) => entry === null || entry === undefined ? null : typeof entry === "string" ? entry.trim() || null : null;
   return {
     partName: candidate.partName.trim(), itemKind: candidate.itemKind as PartChangePayload["itemKind"],
     customSpecification: nullable(candidate.customSpecification), isUniversal: candidate.isUniversal,
-    bomUsagePolicy: candidate.bomUsagePolicy as PartChangePayload["bomUsagePolicy"],
     materialCode: nullable(candidate.materialCode), materialLabel: nullable(candidate.materialLabel),
     colorCode: nullable(candidate.colorCode), colorLabel: nullable(candidate.colorLabel),
     surfaceTreatment: nullable(candidate.surfaceTreatment), variantNote: nullable(candidate.variantNote)
@@ -50,7 +47,7 @@ export function validatePartChangePayload(value: unknown): PartChangePayload {
 function rowPayload(row: PartRow): PartChangePayload {
   return {
     partName: row.part_name, itemKind: row.item_kind, customSpecification: row.custom_specification,
-    isUniversal: Boolean(row.is_universal), bomUsagePolicy: row.bom_usage_policy,
+    isUniversal: Boolean(row.is_universal),
     materialCode: row.material_code, materialLabel: row.material_label, colorCode: row.color_code,
     colorLabel: row.color_label, surfaceTreatment: row.surface_treatment, variantNote: row.variant_note
   };
@@ -62,7 +59,7 @@ export class PartChangeWorkAsyncRepository {
 
   async readPart(client: AsyncDatabaseClient, companyId: string, partId: string, lock = false) {
     return client.queryOne<PartRow>(
-      `SELECT part.id, part.company_id, part.part_name, part.item_kind, part.custom_specification, part.is_universal, part.bom_usage_policy, part.updated_at,
+      `SELECT part.id, part.company_id, part.part_name, part.item_kind, part.custom_specification, part.is_universal, part.updated_at,
               attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label, attributes.surface_treatment, attributes.variant_note
        FROM part_numbers part
        LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id
@@ -150,7 +147,7 @@ export class PartChangeWorkAsyncRepository {
     );
     await tx.execute(
       `UPDATE part_numbers SET part_name = :partName, item_kind = :itemKind, custom_specification = :customSpecification,
-         is_universal = :isUniversal, bom_usage_policy = :bomUsagePolicy, updated_at = CURRENT_TIMESTAMP
+         is_universal = :isUniversal, updated_at = CURRENT_TIMESTAMP
        WHERE id = :partId AND company_id = :companyId`,
       { companyId: input.companyId, partId: input.work.part_id, ...after, isUniversal: after.isUniversal ? 1 : 0 }
     );

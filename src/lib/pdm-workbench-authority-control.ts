@@ -1,10 +1,12 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   CanonicalWorkbenchError,
-  createCanonicalContractToken,
-  DEV090_SCHEMA_HASH,
-  verifyCanonicalContractToken
+  DEV090_SCHEMA_HASH
 } from "@/lib/pdm-canonical-workbench-contract";
+import {
+  createCanonicalContractToken,
+  verifyCanonicalContractToken
+} from "@/lib/pdm-canonical-contract-token.server";
 
 export type WorkbenchAuthorityMode = "legacy_only" | "shadow_compare" | "cutover_window" | "canonical_only";
 export type WorkbenchAuthorityControl = {

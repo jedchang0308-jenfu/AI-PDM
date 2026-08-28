@@ -1,6 +1,6 @@
 # ADR-PDM-PART-STRUCTURE-CLASSIFICATION-001：結構分類延後且由 Exact Part 持有
 
-狀態：`Accepted / Human Confirmed / Implemented / Local QA-QC Complete / 2026-08-26`
+狀態：`Historical / Superseded by ADR-PDM-BOM-RETIREMENT-001 / 2026-08-28`
 
 關聯 DEV：`DEV-099`
 

@@ -1,0 +1,459 @@
+{
+  "schemaVersion": 1,
+  "devId": "DEV-098",
+  "suite": "repository",
+  "runId": "DEV098-repository-2026-08-28T18-42-54-236Z",
+  "generatedAt": "2026-08-28T18:42:54.238Z",
+  "status": "PASS",
+  "fixedCaseIds": [
+    "QA-098-006",
+    "QA-098-007",
+    "QA-098-008",
+    "QA-098-009",
+    "QA-098-010",
+    "QA-098-011",
+    "QA-098-012",
+    "QA-098-013",
+    "QA-098-014",
+    "QA-098-015",
+    "QA-098-016",
+    "QA-098-027",
+    "QA-098-028",
+    "QA-098-030"
+  ],
+  "expected": 14,
+  "executed": 14,
+  "passed": 14,
+  "firstFailure": null,
+  "dataBoundary": {
+    "provider": "sqlite",
+    "fixtures": "per-case in-memory",
+    "primaryMutation": false
+  },
+  "cleanup": {
+    "temporaryDatabaseFiles": 0,
+    "ports": [],
+    "status": "PASS"
+  },
+  "caseResults": [
+    {
+      "id": "QA-098-006",
+      "title": "production source creates first branch and complete transactional row set",
+      "status": "PASS",
+      "evidence": {
+        "beforeAfter": {
+          "before": {
+            "drawing_rd_branches": 0,
+            "drawing_revision_claims": 0,
+            "drawing_revisions": 2,
+            "drawing_revision_works": 0,
+            "drawing_revision_work_files": 0,
+            "canonical_workbench_states": 1,
+            "pdm_workbench_aggregates": 1
+          },
+          "after": {
+            "drawing_rd_branches": 1,
+            "drawing_revision_claims": 1,
+            "drawing_revisions": 3,
+            "drawing_revision_works": 1,
+            "drawing_revision_work_files": 0,
+            "canonical_workbench_states": 2,
+            "pdm_workbench_aggregates": 1
+          }
+        },
+        "created": {
+          "workId": "cf4fbe53-9ae0-4568-9c50-180cff639f71",
+          "branchId": "36d4927e-df30-4990-899a-bae4969204db",
+          "revisionId": "ae85dbc3-eae0-4ebf-8cd1-94468c99ed0f",
+          "revision": "1.1",
+          "rowVersion": 1
+        },
+        "rows": {
+          "target_label": "1.1",
+          "predecessor_revision_id": "revision-dev087-a0002-1",
+          "work_id": "cf4fbe53-9ae0-4568-9c50-180cff639f71",
+          "handling": "owner",
+          "base_production_revision_id": "revision-dev087-a0002-1"
+        }
+      }
+    },
+    {
+      "id": "QA-098-007",
+      "title": "manual minor may skip forward but cannot author the major",
+      "status": "PASS",
+      "evidence": {
+        "normalizedRequest": {
+          "selectionMode": "manual_minor",
+          "requestedMinor": 5
+        },
+        "claim": {
+          "target_major": 1,
+          "target_minor": 5,
+          "target_label": "1.5",
+          "predecessor_revision_id": "revision-dev087-a0002-1-1"
+        }
+      }
+    },
+    {
+      "id": "QA-098-008",
+      "title": "not-forward and occupied manual targets fail with zero business writes",
+      "status": "PASS",
+      "evidence": {
+        "failures": [
+          {
+            "minor": 1,
+            "code": "DRAWING_MANUAL_MINOR_NOT_FORWARD",
+            "status": 422
+          },
+          {
+            "minor": 2,
+            "code": "DRAWING_MANUAL_MINOR_NOT_FORWARD",
+            "status": 422
+          },
+          {
+            "minor": 4,
+            "code": "DRAWING_TARGET_REVISION_CLAIMED",
+            "status": 409
+          }
+        ]
+      }
+    },
+    {
+      "id": "QA-098-009",
+      "title": "two actors claiming one tuple produce exactly one winner",
+      "status": "PASS",
+      "evidence": {
+        "receipts": [
+          {
+            "actor": 0,
+            "status": "winner",
+            "result": {
+              "workId": "afb8f490-ebd6-4ca7-a416-6637f28c2f55",
+              "branchId": "6ae6b7c8-5bea-4aa1-9259-778cbe533c8f",
+              "revisionId": "eca7c566-98a6-4ba7-8e82-91c116d5cfbe",
+              "revision": "1.7",
+              "rowVersion": 1
+            }
+          },
+          {
+            "actor": 1,
+            "status": "loser",
+            "code": "WORKBENCH_ROW_VERSION_CONFLICT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "QA-098-010",
+      "title": "fourth branch is rejected by the locked aggregate cap",
+      "status": "PASS",
+      "evidence": {
+        "beforeAfter": {
+          "before": {
+            "drawing_rd_branches": 0,
+            "drawing_revision_claims": 0,
+            "drawing_revisions": 2,
+            "drawing_revision_works": 0,
+            "drawing_revision_work_files": 0,
+            "canonical_workbench_states": 1,
+            "pdm_workbench_aggregates": 1
+          },
+          "after": {
+            "drawing_rd_branches": 0,
+            "drawing_revision_claims": 0,
+            "drawing_revisions": 2,
+            "drawing_revision_works": 0,
+            "drawing_revision_work_files": 0,
+            "canonical_workbench_states": 1,
+            "pdm_workbench_aggregates": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "QA-098-011",
+      "title": "stale branch exposes no candidate and rejects recommended/manual writes",
+      "status": "PASS",
+      "evidence": {
+        "recommended": {
+          "basisState": "stale",
+          "candidates": [],
+          "beforeAfter": {
+            "before": {
+              "drawing_rd_branches": 2,
+              "drawing_revision_claims": 2,
+              "drawing_revisions": 4,
+              "drawing_revision_works": 0,
+              "drawing_revision_work_files": 0,
+              "canonical_workbench_states": 3,
+              "pdm_workbench_aggregates": 1
+            },
+            "after": {
+              "drawing_rd_branches": 2,
+              "drawing_revision_claims": 2,
+              "drawing_revisions": 4,
+              "drawing_revision_works": 0,
+              "drawing_revision_work_files": 0,
+              "canonical_workbench_states": 3,
+              "pdm_workbench_aggregates": 1
+            }
+          }
+        },
+        "manual_minor": {
+          "basisState": "stale",
+          "candidates": [],
+          "beforeAfter": {
+            "before": {
+              "drawing_rd_branches": 2,
+              "drawing_revision_claims": 2,
+              "drawing_revisions": 4,
+              "drawing_revision_works": 0,
+              "drawing_revision_work_files": 0,
+              "canonical_workbench_states": 3,
+              "pdm_workbench_aggregates": 1
+            },
+            "after": {
+              "drawing_rd_branches": 2,
+              "drawing_revision_claims": 2,
+              "drawing_revisions": 4,
+              "drawing_revision_works": 0,
+              "drawing_revision_work_files": 0,
+              "canonical_workbench_states": 3,
+              "pdm_workbench_aggregates": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "QA-098-012",
+      "title": "old source version and basis race fail closed without retargeting",
+      "status": "PASS",
+      "evidence": {
+        "orderedLedger": [
+          {
+            "action": "advance-source-row-version"
+          },
+          {
+            "action": "old-request",
+            "code": "WORKBENCH_ROW_VERSION_CONFLICT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "QA-098-013",
+      "title": "idempotent replay returns one work and changed request is rejected",
+      "status": "PASS",
+      "evidence": {
+        "receipts": {
+          "first": {
+            "workId": "a63c79f5-87df-4233-9b68-912306fc3e00",
+            "branchId": "8d577e53-6bf4-4b28-8d34-8553d1867903",
+            "revisionId": "cd23fd6a-a17b-41f5-a5b9-5f25f841e891",
+            "revision": "1.7",
+            "rowVersion": 1
+          },
+          "replay": {
+            "workId": "a63c79f5-87df-4233-9b68-912306fc3e00",
+            "branchId": "8d577e53-6bf4-4b28-8d34-8553d1867903",
+            "revisionId": "cd23fd6a-a17b-41f5-a5b9-5f25f841e891",
+            "revision": "1.7",
+            "rowVersion": 1
+          },
+          "changedRequest": "IDEMPOTENCY_KEY_REUSED"
+        }
+      }
+    },
+    {
+      "id": "QA-098-014",
+      "title": "named write checkpoints roll back the complete transaction",
+      "status": "PASS",
+      "evidence": {
+        "faultMatrix": [
+          {
+            "checkpoint": "INSERT INTO drawing_revision_claims",
+            "rollback": true,
+            "beforeAfterEqual": true
+          },
+          {
+            "checkpoint": "INSERT INTO drawing_revisions",
+            "rollback": true,
+            "beforeAfterEqual": true
+          },
+          {
+            "checkpoint": "INSERT INTO drawing_revision_work_files",
+            "rollback": true,
+            "beforeAfterEqual": true
+          },
+          {
+            "checkpoint": "INSERT INTO canonical_workbench_states",
+            "rollback": true,
+            "beforeAfterEqual": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "QA-098-015",
+      "title": "typed target policy survives formalization while legacy policy is not invented",
+      "status": "PASS",
+      "evidence": {
+        "typed": {
+          "beforePolicy": {
+            "schemaVersion": 1,
+            "revisionTargetPolicy": {
+              "policyId": "PDM-DRAWING-REVISION-BRANCH-LIFECYCLE-001",
+              "policyVersion": 1,
+              "selectionMode": "manual_minor",
+              "sourceRowId": "10000000-0000-4000-8000-000000000001",
+              "sourceRowVersion": 1,
+              "sourceRevisionId": "revision-dev087-a0002-1",
+              "sourceBaseProductionRevisionId": null,
+              "currentProductionRevisionId": "revision-dev087-a0002-1",
+              "predecessorRevisionId": "revision-dev087-a0002-1",
+              "resolvedMajor": 1,
+              "requestedMinor": 7,
+              "resolvedMinor": 7,
+              "resolvedLabel": "1.7"
+            }
+          },
+          "afterPolicy": {
+            "schemaVersion": 1,
+            "revisionTargetPolicy": {
+              "policyId": "PDM-DRAWING-REVISION-BRANCH-LIFECYCLE-001",
+              "policyVersion": 1,
+              "selectionMode": "manual_minor",
+              "sourceRowId": "10000000-0000-4000-8000-000000000001",
+              "sourceRowVersion": 1,
+              "sourceRevisionId": "revision-dev087-a0002-1",
+              "sourceBaseProductionRevisionId": null,
+              "currentProductionRevisionId": "revision-dev087-a0002-1",
+              "predecessorRevisionId": "revision-dev087-a0002-1",
+              "resolvedMajor": 1,
+              "requestedMinor": 7,
+              "resolvedMinor": 7,
+              "resolvedLabel": "1.7"
+            },
+            "changeImpact": {
+              "schemaVersion": 2,
+              "affectedPartNumberIds": [
+                "part-dev087-a0002"
+              ],
+              "affectedPartFingerprint": "e7e99f880117d677693cd6169e54ce734656b4d9cb9ab0f2da8d6a7086a82b15",
+              "formState": "no_impact",
+              "fitState": "no_impact",
+              "functionState": "no_impact",
+              "outcome": "no_impact",
+              "reasonCategory": "no_impact_confirmed",
+              "note": null,
+              "replacement": null
+            }
+          }
+        },
+        "legacy": {
+          "beforePolicy": {},
+          "afterPolicy": {
+            "changeImpact": {
+              "schemaVersion": 2,
+              "affectedPartNumberIds": [
+                "part-dev087-a0002"
+              ],
+              "affectedPartFingerprint": "c6e2a74efe8dabc1e87a3972e84905616dca3107cf378ffb9fb38fdba8001325",
+              "formState": "no_impact",
+              "fitState": "no_impact",
+              "functionState": "no_impact",
+              "outcome": "no_impact",
+              "reasonCategory": "no_impact_confirmed",
+              "note": null,
+              "replacement": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "QA-098-016",
+      "title": "minor, major, cancel, immutable claim, and pending formalization converge correctly",
+      "status": "PASS",
+      "evidence": {
+        "minor": {
+          "lifecycle": "rd_controlled",
+          "productionRevisionId": "revision-dev087-a0002-1",
+          "approvedClaimImmutable": true
+        },
+        "major": {
+          "productionRevisionId": "de132ac6-86a4-4b33-8a8c-d83e226326f4",
+          "branchStatus": "historical"
+        },
+        "cancel": {
+          "claimReleased": true
+        },
+        "blocked": {
+          "code": "DRAWING_FORMALIZATION_PENDING",
+          "productionUnchanged": true
+        }
+      }
+    },
+    {
+      "id": "QA-098-027",
+      "title": "stale in-flight work becomes read-only, rejects mutation, and still permits cleanup cancel",
+      "status": "PASS",
+      "evidence": {
+        "ledger": {
+          "mutationCode": "DRAWING_PRODUCTION_BASE_STALE",
+          "contentPreserved": true,
+          "cancelSucceeded": true,
+          "approvedMilestonePreserved": true
+        }
+      }
+    },
+    {
+      "id": "QA-098-028",
+      "title": "pending-review stale work cannot formalize, may return to owner, then cancel",
+      "status": "PASS",
+      "evidence": {
+        "orderedLedger": [
+          {
+            "operation": "approve/formalize",
+            "code": "DRAWING_PRODUCTION_BASE_STALE",
+            "zeroFormalize": true
+          },
+          {
+            "operation": "return",
+            "handling": "owner",
+            "readonly": true
+          },
+          {
+            "operation": "cancel",
+            "status": "PASS"
+          }
+        ]
+      }
+    },
+    {
+      "id": "QA-098-030",
+      "title": "pre-production supports 0.x milestone and creates the first production only on major approval",
+      "status": "PASS",
+      "evidence": {
+        "ledger": {
+          "initialBasis": {
+            "base": null,
+            "current": null,
+            "revision": "0.1"
+          },
+          "minor": {
+            "revision": "0.3",
+            "lifecycle": "rd_controlled",
+            "productionRows": 0
+          },
+          "major": {
+            "revision_id": "b3fd1963-451c-4708-a753-fd800dde5710",
+            "revision": "1",
+            "lifecycle_state": "released"
+          }
+        }
+      }
+    }
+  ]
+}

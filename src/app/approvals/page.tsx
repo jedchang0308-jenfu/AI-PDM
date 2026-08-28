@@ -111,7 +111,6 @@ const statusFilters = [
 const domainFilters = [
   { value: "all", label: "全部" },
   { value: "numbering", label: "圖料" },
-  { value: "bom", label: "BOM" },
   { value: "submission", label: "送審" },
   { value: "drawing_package", label: "圖面包" },
   { value: "platform", label: "平台" }
@@ -133,8 +132,6 @@ const actionFilters = [
   { value: "numbering.obsolete_ma_drawing", label: "圖號作廢審核" },
   { value: "numbering.obsolete_part_root", label: "圖料根號作廢審核" },
   { value: "submission.obsolete", label: "送審單作廢審核" },
-  { value: "bom.release_review", label: "BOM 發行審核" },
-  { value: "bom.obsolete_review", label: "BOM 作廢審核" },
   { value: "drawing_package.supplement_review", label: "圖面補件審核" }
 ] as const;
 
@@ -157,12 +154,10 @@ const domainText: Record<string, string> = {
   platform: "平台",
   numbering: "圖料",
   submission: "送審",
-  bom: "BOM",
   drawing_package: "圖面包"
 };
 const legacyRedirectMessages: Record<string, string> = {
   numbering_approvals: "已從舊的發行審核入口轉到審核工作台；目前已套用圖料審核篩選。",
-  bom_reviews: "已從舊的 BOM 審核入口轉到審核工作台；目前已套用 BOM 篩選。",
   numbering_change_reviews: "已從舊的圖面進版影響審核入口轉到審核工作台；目前已套用圖面進版影響審核篩選。"
 };
 

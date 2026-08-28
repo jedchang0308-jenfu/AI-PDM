@@ -1,10 +1,5 @@
 import type {
   ApprovalMatrixRequirement,
-  BomDetail,
-  BomDiffResult,
-  BomReleaseSnapshotDetail,
-  BomWorkbenchDraftDetail,
-  BomWorkbenchSummary,
   ChangeRequest,
   DiscussionComment,
   ItemLock,
@@ -17,8 +12,7 @@ import type {
   SandboxBranch,
   SubmissionDetail,
   SubmissionSummary,
-  SupplierPortalResponse,
-  WhereUsedEntry
+  SupplierPortalResponse
 } from "@/lib/types";
 
 export type SubmissionListOptions = {
@@ -40,7 +34,6 @@ export type SubmissionSearchFilters = {
   parentDrawing?: string;
   childDrawingNumber?: string;
   childPartNumber?: string;
-  bomIssue?: string;
 };
 
 export type SubmissionSearchInput = {
@@ -93,35 +86,6 @@ export interface ReviewRepository {
   listPdfMarkups(submissionId: string): PdfMarkup[];
 }
 
-export interface BomRepository {
-  getBySubmissionId(submissionId: string): BomDetail | null;
-  saveWorkbenchDraftTree(input: {
-    draftId: string;
-    actorId: string | null;
-    reason?: string;
-    lines: Array<{
-      id?: string;
-      parentLineId?: string | null;
-      nodeType: "item" | "group";
-      partNumber?: string | null;
-      revision?: string | null;
-      groupName?: string | null;
-      quantity?: number | null;
-      sequenceNo?: number | null;
-    }>;
-  }): BomWorkbenchDraftDetail | null;
-  setWorkbenchActiveDraft(input: { draftId: string; actorId: string | null }): BomWorkbenchDraftDetail | null;
-  submitWorkbenchDraftReview(input: { draftId: string; actorId: string; changeReason: string }): unknown;
-  approveWorkbenchReview(input: { reviewId: string; actorId: string; decisionReason?: string }): unknown;
-  rejectWorkbenchReview(input: { reviewId: string; actorId: string; decisionReason?: string }): unknown;
-  getWorkbenchBySubmissionId(submissionId: string): BomWorkbenchSummary | null;
-  getWorkbenchDraftById(draftId: string): BomWorkbenchDraftDetail | null;
-  getReleaseSnapshotById(snapshotId: string): BomReleaseSnapshotDetail | null;
-  findPreviousSubmissionId(targetSubmissionId: string): string | null;
-  diff(input: { baseSubmissionId: string; targetSubmissionId: string }): BomDiffResult | null;
-  whereUsed(input: { partNumber: string; submittedBy?: string }): WhereUsedEntry[];
-}
-
 export interface ReleaseRepository {
   getPackageBySubmissionId(submissionId: string): ReleasePackage | null;
   upsertPackage(input: { submissionId: string; releasedBy: string; packagePath: string; fileCount: number }): ReleasePackage;
@@ -154,7 +118,6 @@ export interface SystemRepository {
 export interface RepositorySet {
   submissions: SubmissionRepository;
   reviews: ReviewRepository;
-  bom: BomRepository;
   release: ReleaseRepository;
   sandbox: SandboxRepository;
   itemLocks: ItemLockRepository;

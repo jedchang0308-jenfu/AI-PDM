@@ -1,0 +1,44 @@
+{
+  "href": "http://127.0.0.1:58161/numbering/drawings?query=A0002-M01&detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+  "rows": [
+    {
+      "text": "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+      "actions": [
+        "A0002-M01"
+      ]
+    },
+    {
+      "text": "A0002-M01↳本體_BS_右_Xx5研發版 1.2編輯中負責人處理",
+      "actions": [
+        "A0002-M01"
+      ]
+    },
+    {
+      "text": "A0002-M01↳本體_BS_右_Xx5研發版 1.3編輯中負責人處理",
+      "actions": [
+        "A0002-M01"
+      ]
+    },
+    {
+      "text": "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理",
+      "actions": [
+        "A0002-M01"
+      ]
+    }
+  ],
+  "me": null,
+  "dialogSnapshots": [
+    {
+      "index": -1,
+      "rowText": "量產版 1",
+      "actions": [
+        "申請作廢"
+      ]
+    },
+    {
+      "index": 0,
+      "rowText": "A0002-M01\t本體_BS_右_Xx5\t量產版 1\t可使用\t無須處理",
+      "actions": []
+    }
+  ]
+}

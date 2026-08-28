@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-g4-postgres-2026-08-28T19-58-46-348Z",
+  "parentRunId": "DEV087-g4-repair-verification-2",
+  "gateStage": "product",
+  "runner": "qc-dev-087-g4-postgres-evidence",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "78c6aa25290a04a473de8db056dbe603a1bb16f84503b3d85374af1c82104e65"
+  },
+  "environment": {
+    "provider": "postgresql",
+    "dataScope": "task_owned_isolated_postgresql_snapshot",
+    "baseUrl": "http://127.0.0.1:56456"
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "a5eb464acd634889a2a63824c301e76d0d6337de91cf647c30172dfe8e04a0c6",
+  "caseResults": [],
+  "caseEvidence": {},
+  "childManifests": [
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T19-58-46-348Z/restore-receipt.json",
+      "sha256": "d918340328b2d4efe28dd68a8e2728754014825bb41506439e2e843abb7257bb",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T19-58-46-348Z/postgres-server.log",
+      "sha256": "69f98d05ca6c2a33a87e790cf26cf6f4dfefffc07a9a5b03397d6b572a34346c",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    }
+  ],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "pass",
+    "delta": 0,
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "byteHashObservation": {
+      "before": "c33a23384faf360a5b1f2d4b9cfc24dc9642b9f10e64a4835339902f71f2f70d",
+      "after": null,
+      "unchanged": false,
+      "enforcement": "informational_only_concurrent_primary_runtime_may_write_nonprotected_rows"
+    }
+  },
+  "firstFailure": {
+    "code": "App did not become ready: fetch failed\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:56456\n- Network:       http://127.0.0.1:56456\n✓ Ready in 843ms\n✓ Running next.config.mjs took 33ms\n\n-----\n\u001b[1m\u001b[31mFATAL\u001b[39m\u001b[0m: An unexpected Turbopack error occurred. A panic log has been written to C:\\Users\\user\\AppData\\Local\\Temp\\next-panic-dc72205f98c30a0d90f3324b0986105b.log.\n\nTo help make Turbopack better, report this error by clicking here: https://bugs.nextjs.org/search?category=turbopack-error-report&title=Turbopack%20Error%3A%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root&body=Turbopack%20version%3A%20%60d73f5622%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ASymlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%0ADebug%20info%3A%0A-%20Execution%20of%20get_entrypoints_with_issues_operation%20failed%0A-%20Execution%20of%20EntrypointsOperation%3A%3Anew%20failed%0A-%20Execution%20of%20Project%3A%3Aentrypoints_with_app_route_filter%20failed%0A-%20Execution%20of%20AppProject%3A%3Aroutes_with_filter%20failed%0A-%20Execution%20of%20directory_tree_to_entrypoints_internal%20failed%0A-%20Execution%20of%20directory_tree_to_loader_tree%20failed%0A-%20Execution%20of%20try_get_next_package%20failed%0A-%20Execution%20of%20resolve%20failed%0A-%20Execution%20of%20resolve_internal%20failed%0A-%20Execution%20of%20find_package%20failed%0A-%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace\n-----\n\nError [TurbopackInternalError]: Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n\nDebug info:\n- Execution of get_entrypoints_with_issues_operation failed\n- Execution of EntrypointsOperation::new failed\n- Execution of Project::entrypoints_with_app_route_filter failed\n- Execution of AppProject::routes_with_filter failed\n- Execution of directory_tree_to_entrypoints_internal failed\n- Execution of directory_tree_to_loader_tree failed\n- Execution of try_get_next_package failed\n- Execution of resolve failed\n- Execution of resolve_internal failed\n- Execution of find_package failed\n- Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n    at ignore-listed frames {\n  location: undefined\n}\n\u001b[?25h\n",
+    "caseId": "QA-087-225",
+    "pointer": "checks"
+  },
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskOwnedRuntime": true,
+    "portsReleased": true,
+    "ports": {
+      "postgresql": {
+        "port": 56457,
+        "released": true
+      },
+      "next": {
+        "port": 56456,
+        "released": true
+      }
+    },
+    "runtimeProjectCleanupReceipt": {
+      "removed": true,
+      "path": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\.tmp\\qc-dev087-g4-runtime-project-56456",
+      "error": null
+    },
+    "tempRootRemoved": true
+  },
+  "result": "FAIL",
+  "errorCode": "App did not become ready: fetch failed\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:56456\n- Network:       http://127.0.0.1:56456\n✓ Ready in 843ms\n✓ Running next.config.mjs took 33ms\n\n-----\n\u001b[1m\u001b[31mFATAL\u001b[39m\u001b[0m: An unexpected Turbopack error occurred. A panic log has been written to C:\\Users\\user\\AppData\\Local\\Temp\\next-panic-dc72205f98c30a0d90f3324b0986105b.log.\n\nTo help make Turbopack better, report this error by clicking here: https://bugs.nextjs.org/search?category=turbopack-error-report&title=Turbopack%20Error%3A%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root&body=Turbopack%20version%3A%20%60d73f5622%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ASymlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%0ADebug%20info%3A%0A-%20Execution%20of%20get_entrypoints_with_issues_operation%20failed%0A-%20Execution%20of%20EntrypointsOperation%3A%3Anew%20failed%0A-%20Execution%20of%20Project%3A%3Aentrypoints_with_app_route_filter%20failed%0A-%20Execution%20of%20AppProject%3A%3Aroutes_with_filter%20failed%0A-%20Execution%20of%20directory_tree_to_entrypoints_internal%20failed%0A-%20Execution%20of%20directory_tree_to_loader_tree%20failed%0A-%20Execution%20of%20try_get_next_package%20failed%0A-%20Execution%20of%20resolve%20failed%0A-%20Execution%20of%20resolve_internal%20failed%0A-%20Execution%20of%20find_package%20failed%0A-%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace\n-----\n\nError [TurbopackInternalError]: Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n\nDebug info:\n- Execution of get_entrypoints_with_issues_operation failed\n- Execution of EntrypointsOperation::new failed\n- Execution of Project::entrypoints_with_app_route_filter failed\n- Execution of AppProject::routes_with_filter failed\n- Execution of directory_tree_to_entrypoints_internal failed\n- Execution of directory_tree_to_loader_tree failed\n- Execution of try_get_next_package failed\n- Execution of resolve failed\n- Execution of resolve_internal failed\n- Execution of find_package failed\n- Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n    at ignore-listed frames {\n  location: undefined\n}\n\u001b[?25h\n",
+  "assertions": [
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "[]"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "[]"
+    }
+  ],
+  "failures": [
+    {
+      "caseId": "QG-087-PROVIDER",
+      "kind": "runner",
+      "detail": "App did not become ready: fetch failed\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:56456\n- Network:       http://127.0.0.1:56456\n✓ Ready in 843ms\n✓ Running next.config.mjs took 33ms\n\n-----\n\u001b[1m\u001b[31mFATAL\u001b[39m\u001b[0m: An unexpected Turbopack error occurred. A panic log has been written to C:\\Users\\user\\AppData\\Local\\Temp\\next-panic-dc72205f98c30a0d90f3324b0986105b.log.\n\nTo help make Turbopack better, report this error by clicking here: https://bugs.nextjs.org/search?category=turbopack-error-report&title=Turbopack%20Error%3A%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root&body=Turbopack%20version%3A%20%60d73f5622%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ASymlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%0ADebug%20info%3A%0A-%20Execution%20of%20get_entrypoints_with_issues_operation%20failed%0A-%20Execution%20of%20EntrypointsOperation%3A%3Anew%20failed%0A-%20Execution%20of%20Project%3A%3Aentrypoints_with_app_route_filter%20failed%0A-%20Execution%20of%20AppProject%3A%3Aroutes_with_filter%20failed%0A-%20Execution%20of%20directory_tree_to_entrypoints_internal%20failed%0A-%20Execution%20of%20directory_tree_to_loader_tree%20failed%0A-%20Execution%20of%20try_get_next_package%20failed%0A-%20Execution%20of%20resolve%20failed%0A-%20Execution%20of%20resolve_internal%20failed%0A-%20Execution%20of%20find_package%20failed%0A-%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace\n-----\n\nError [TurbopackInternalError]: Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n\nDebug info:\n- Execution of get_entrypoints_with_issues_operation failed\n- Execution of EntrypointsOperation::new failed\n- Execution of Project::entrypoints_with_app_route_filter failed\n- Execution of AppProject::routes_with_filter failed\n- Execution of directory_tree_to_entrypoints_internal failed\n- Execution of directory_tree_to_loader_tree failed\n- Execution of try_get_next_package failed\n- Execution of resolve failed\n- Execution of resolve_internal failed\n- Execution of find_package failed\n- Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n    at ignore-listed frames {\n  location: undefined\n}\n\u001b[?25h\n"
+    }
+  ],
+  "mutationLedger": [],
+  "providerReceipts": [],
+  "fixtureMutationLedger": [
+    {
+      "action": "prepare-g4-postgresql-fixture",
+      "scope": "task_owned_isolated_postgresql_fixture",
+      "identities": [
+        "A0001-M01",
+        "A0001-P01",
+        "A0002-M01",
+        "A0002-P01",
+        "A0002-P02..P47",
+        "qa-dev087-g4-*"
+      ],
+      "purpose": "isolated FFF revision, formal obsolete, pagination, unsafe action URL, and stale task journeys",
+      "targetTableGuards": {
+        "preserved": true,
+        "names": [
+          "trg_dev087_canonical_state_company_guard",
+          "trg_dev087_branch_company_guard",
+          "trg_dev087_claim_company_guard",
+          "trg_drawing_revision_claims_approved_immutable",
+          "trg_dev087_drawing_work_company_guard",
+          "trg_dev087_part_work_company_guard",
+          "trg_dev087_review_request_company_guard",
+          "trg_dev087_review_request_identity"
+        ]
+      }
+    }
+  ],
+  "negativeEvidence": [],
+  "visibleEvidence": [],
+  "assistiveTechnologyEvidence": [],
+  "qualityGateResults": [
+    {
+      "gateId": "QG-087-PROVIDER",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "App did not become ready: fetch failed\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:56456\n- Network:       http://127.0.0.1:56456\n✓ Ready in 843ms\n✓ Running next.config.mjs took 33ms\n\n-----\n\u001b[1m\u001b[31mFATAL\u001b[39m\u001b[0m: An unexpected Turbopack error occurred. A panic log has been written to C:\\Users\\user\\AppData\\Local\\Temp\\next-panic-dc72205f98c30a0d90f3324b0986105b.log.\n\nTo help make Turbopack better, report this error by clicking here: https://bugs.nextjs.org/search?category=turbopack-error-report&title=Turbopack%20Error%3A%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root&body=Turbopack%20version%3A%20%60d73f5622%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ASymlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%0ADebug%20info%3A%0A-%20Execution%20of%20get_entrypoints_with_issues_operation%20failed%0A-%20Execution%20of%20EntrypointsOperation%3A%3Anew%20failed%0A-%20Execution%20of%20Project%3A%3Aentrypoints_with_app_route_filter%20failed%0A-%20Execution%20of%20AppProject%3A%3Aroutes_with_filter%20failed%0A-%20Execution%20of%20directory_tree_to_entrypoints_internal%20failed%0A-%20Execution%20of%20directory_tree_to_loader_tree%20failed%0A-%20Execution%20of%20try_get_next_package%20failed%0A-%20Execution%20of%20resolve%20failed%0A-%20Execution%20of%20resolve_internal%20failed%0A-%20Execution%20of%20find_package%20failed%0A-%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace\n-----\n\nError [TurbopackInternalError]: Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n\nDebug info:\n- Execution of get_entrypoints_with_issues_operation failed\n- Execution of EntrypointsOperation::new failed\n- Execution of Project::entrypoints_with_app_route_filter failed\n- Execution of AppProject::routes_with_filter failed\n- Execution of directory_tree_to_entrypoints_internal failed\n- Execution of directory_tree_to_loader_tree failed\n- Execution of try_get_next_package failed\n- Execution of resolve failed\n- Execution of resolve_internal failed\n- Execution of find_package failed\n- Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n    at ignore-listed frames {\n  location: undefined\n}\n\u001b[?25h\n"
+      }
+    },
+    {
+      "gateId": "QG-087-SECURITY",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "App did not become ready: fetch failed\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:56456\n- Network:       http://127.0.0.1:56456\n✓ Ready in 843ms\n✓ Running next.config.mjs took 33ms\n\n-----\n\u001b[1m\u001b[31mFATAL\u001b[39m\u001b[0m: An unexpected Turbopack error occurred. A panic log has been written to C:\\Users\\user\\AppData\\Local\\Temp\\next-panic-dc72205f98c30a0d90f3324b0986105b.log.\n\nTo help make Turbopack better, report this error by clicking here: https://bugs.nextjs.org/search?category=turbopack-error-report&title=Turbopack%20Error%3A%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root&body=Turbopack%20version%3A%20%60d73f5622%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ASymlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%0ADebug%20info%3A%0A-%20Execution%20of%20get_entrypoints_with_issues_operation%20failed%0A-%20Execution%20of%20EntrypointsOperation%3A%3Anew%20failed%0A-%20Execution%20of%20Project%3A%3Aentrypoints_with_app_route_filter%20failed%0A-%20Execution%20of%20AppProject%3A%3Aroutes_with_filter%20failed%0A-%20Execution%20of%20directory_tree_to_entrypoints_internal%20failed%0A-%20Execution%20of%20directory_tree_to_loader_tree%20failed%0A-%20Execution%20of%20try_get_next_package%20failed%0A-%20Execution%20of%20resolve%20failed%0A-%20Execution%20of%20resolve_internal%20failed%0A-%20Execution%20of%20find_package%20failed%0A-%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace\n-----\n\nError [TurbopackInternalError]: Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n\nDebug info:\n- Execution of get_entrypoints_with_issues_operation failed\n- Execution of EntrypointsOperation::new failed\n- Execution of Project::entrypoints_with_app_route_filter failed\n- Execution of AppProject::routes_with_filter failed\n- Execution of directory_tree_to_entrypoints_internal failed\n- Execution of directory_tree_to_loader_tree failed\n- Execution of try_get_next_package failed\n- Execution of resolve failed\n- Execution of resolve_internal failed\n- Execution of find_package failed\n- Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n    at ignore-listed frames {\n  location: undefined\n}\n\u001b[?25h\n"
+      }
+    },
+    {
+      "gateId": "QG-087-UI",
+      "result": "FAIL",
+      "detail": {
+        "runnerError": "App did not become ready: fetch failed\n▲ Next.js 16.3.0 (Turbopack)\n- Local:         http://127.0.0.1:56456\n- Network:       http://127.0.0.1:56456\n✓ Ready in 843ms\n✓ Running next.config.mjs took 33ms\n\n-----\n\u001b[1m\u001b[31mFATAL\u001b[39m\u001b[0m: An unexpected Turbopack error occurred. A panic log has been written to C:\\Users\\user\\AppData\\Local\\Temp\\next-panic-dc72205f98c30a0d90f3324b0986105b.log.\n\nTo help make Turbopack better, report this error by clicking here: https://bugs.nextjs.org/search?category=turbopack-error-report&title=Turbopack%20Error%3A%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root&body=Turbopack%20version%3A%20%60d73f5622%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ASymlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%0ADebug%20info%3A%0A-%20Execution%20of%20get_entrypoints_with_issues_operation%20failed%0A-%20Execution%20of%20EntrypointsOperation%3A%3Anew%20failed%0A-%20Execution%20of%20Project%3A%3Aentrypoints_with_app_route_filter%20failed%0A-%20Execution%20of%20AppProject%3A%3Aroutes_with_filter%20failed%0A-%20Execution%20of%20directory_tree_to_entrypoints_internal%20failed%0A-%20Execution%20of%20directory_tree_to_loader_tree%20failed%0A-%20Execution%20of%20try_get_next_package%20failed%0A-%20Execution%20of%20resolve%20failed%0A-%20Execution%20of%20resolve_internal%20failed%0A-%20Execution%20of%20find_package%20failed%0A-%20Symlink%20%5Bproject%5D%2F.tmp%2Fqc-dev087-g4-runtime-project-56456%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace\n-----\n\nError [TurbopackInternalError]: Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n\nDebug info:\n- Execution of get_entrypoints_with_issues_operation failed\n- Execution of EntrypointsOperation::new failed\n- Execution of Project::entrypoints_with_app_route_filter failed\n- Execution of AppProject::routes_with_filter failed\n- Execution of directory_tree_to_entrypoints_internal failed\n- Execution of directory_tree_to_loader_tree failed\n- Execution of try_get_next_package failed\n- Execution of resolve failed\n- Execution of resolve_internal failed\n- Execution of find_package failed\n- Symlink [project]/.tmp/qc-dev087-g4-runtime-project-56456/node_modules is invalid, it points out of the filesystem root\n    at ignore-listed frames {\n  location: undefined\n}\n\u001b[?25h\n"
+      }
+    }
+  ],
+  "postgresCaseReceipts": [],
+  "networkEvents": []
+}

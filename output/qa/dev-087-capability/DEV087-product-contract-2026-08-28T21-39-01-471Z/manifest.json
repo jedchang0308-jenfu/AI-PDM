@@ -1,0 +1,335 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-contract-2026-08-28T21-39-01-471Z",
+  "parentRunId": "DEV087-aggregate-2026-08-28T21-35-25-884Z",
+  "gateStage": "product",
+  "runner": "qc-dev-087-capability-contract",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "a991e63ac3101c45314794489e5c2cb2cf517adfe7a22f587fe38befa083505f"
+  },
+  "environment": {
+    "provider": "source_contract",
+    "dataScope": "read_only_source_and_in_memory_contract_fixture",
+    "baseUrl": null
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "ac4cc14fee6516fad759d203e4dd4265d97b41b2159d9cba0386b5415c0ed09f",
+  "caseResults": [
+    {
+      "caseId": "QA-087-187",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_CANONICAL_DRAWING_ADVANCE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-191",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_LEGACY_DRAWING_ROUTE_REMOVED"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-193",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_TASK_CENTER_PAGE_REMOVED_BACKEND_RETAINED"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-202",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_DIRECT_INVALIDATION_RETIRED"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-206",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_DIRECT_VARIANT_WRITE_RETIRED"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-207",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_EXACT_HISTORY_REVISION"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-209",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_EXACT_WORK_FILE_READ"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-212",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_MATRIX_IDENTITY_NAVIGATION"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-214",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_BIDIRECTIONAL_CURSOR"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-218",
+      "result": "PASS",
+      "assertionIds": [
+        "CONTRACT_AGGREGATE_REGISTRY_FAIL_CLOSED"
+      ],
+      "firstFailurePointer": null
+    }
+  ],
+  "caseEvidence": {
+    "QA-087-187": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    },
+    "QA-087-191": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    },
+    "QA-087-193": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    },
+    "QA-087-202": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    },
+    "QA-087-206": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    },
+    "QA-087-207": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    },
+    "QA-087-209": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    },
+    "QA-087-212": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    },
+    "QA-087-214": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    },
+    "QA-087-218": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "source_fingerprint",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+        "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json"
+      ]
+    }
+  },
+  "childManifests": [
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/base-contract-output.txt",
+      "sha256": "ba965cc33bf574eb0355bb6e8f51aaa825c17d7b5ae217407768b7913aac8a06",
+      "runner": "qc-dev-087-contract",
+      "caseIds": [
+        "QA-087-187",
+        "QA-087-191",
+        "QA-087-193",
+        "QA-087-202",
+        "QA-087-206",
+        "QA-087-207",
+        "QA-087-209",
+        "QA-087-212",
+        "QA-087-214",
+        "QA-087-218"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-contract-2026-08-28T21-39-01-471Z/contract-assertions.json",
+      "sha256": "4ce9314e1a47130f505cad453250fea73a5c71450012f361cc1ef268058c7cb8",
+      "runner": "qc-dev-087-capability-contract",
+      "caseIds": [
+        "QA-087-187",
+        "QA-087-191",
+        "QA-087-193",
+        "QA-087-202",
+        "QA-087-206",
+        "QA-087-207",
+        "QA-087-209",
+        "QA-087-212",
+        "QA-087-214",
+        "QA-087-218"
+      ],
+      "result": "PASS"
+    }
+  ],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "not_applicable",
+    "delta": 0
+  },
+  "firstFailure": null,
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskOwnedRuntime": false,
+    "portsReleased": true
+  },
+  "result": "PASS",
+  "errorCode": null,
+  "assertions": [
+    {
+      "caseId": "QA-087-187",
+      "assertionId": "CONTRACT_CANONICAL_DRAWING_ADVANCE",
+      "result": "PASS",
+      "evidence": "src/components/canonical-pdm-workbench.tsx"
+    },
+    {
+      "caseId": "QA-087-191",
+      "assertionId": "CONTRACT_LEGACY_DRAWING_ROUTE_REMOVED",
+      "result": "PASS",
+      "evidence": "deleted legacy page/sidebar and zero current hrefs; retired mutation route remains 410"
+    },
+    {
+      "caseId": "QA-087-193",
+      "assertionId": "CONTRACT_TASK_CENTER_PAGE_REMOVED_BACKEND_RETAINED",
+      "result": "PASS",
+      "evidence": "standalone page/component/navigation removed; permission-protected task API retained"
+    },
+    {
+      "caseId": "QA-087-202",
+      "assertionId": "CONTRACT_DIRECT_INVALIDATION_RETIRED",
+      "result": "PASS",
+      "evidence": "retired standalone page/API + formal obsolete impact route"
+    },
+    {
+      "caseId": "QA-087-206",
+      "assertionId": "CONTRACT_DIRECT_VARIANT_WRITE_RETIRED",
+      "result": "PASS",
+      "evidence": "src/app/api/parts/[partNumber]/variant/route.ts"
+    },
+    {
+      "caseId": "QA-087-207",
+      "assertionId": "CONTRACT_EXACT_HISTORY_REVISION",
+      "result": "PASS",
+      "evidence": "history row -> URL-preserved exact revision/file binding"
+    },
+    {
+      "caseId": "QA-087-209",
+      "assertionId": "CONTRACT_EXACT_WORK_FILE_READ",
+      "result": "PASS",
+      "evidence": "canonical workbench exact file-read projection"
+    },
+    {
+      "caseId": "QA-087-212",
+      "assertionId": "CONTRACT_MATRIX_IDENTITY_NAVIGATION",
+      "result": "PASS",
+      "evidence": "exact matrix identity href plus callbacks and dirty navigation guard"
+    },
+    {
+      "caseId": "QA-087-214",
+      "assertionId": "CONTRACT_BIDIRECTIONAL_CURSOR",
+      "result": "PASS",
+      "evidence": "canonical server bidirectional cursor plus shared controller"
+    },
+    {
+      "caseId": "QA-087-218",
+      "assertionId": "CONTRACT_AGGREGATE_REGISTRY_FAIL_CLOSED",
+      "result": "PASS",
+      "evidence": "aggregate registry consumption and completion candidate gate"
+    }
+  ]
+}

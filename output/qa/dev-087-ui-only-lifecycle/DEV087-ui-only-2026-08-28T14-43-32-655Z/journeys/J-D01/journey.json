@@ -1,0 +1,13 @@
+{
+  "id": "J-D01",
+  "caseId": "D01",
+  "family": "D",
+  "status": "FAIL",
+  "reason": "page.waitForResponse: Timeout 30000ms exceeded while waiting for event \"response\"",
+  "drawingCode": "A0002-M01",
+  "actions": [],
+  "checkpoints": "lifecycle-checkpoints.json",
+  "startedAt": "2026-08-28T14:43:55.958Z",
+  "finishedAt": "2026-08-28T14:44:27.008Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

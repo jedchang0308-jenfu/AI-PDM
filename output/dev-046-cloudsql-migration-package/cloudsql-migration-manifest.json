@@ -42,9 +42,9 @@
       "output": "sql/001_initial_schema.cloudsql.sql",
       "version": "001",
       "name": "001_initial_schema",
-      "sourceSha256": "9d5286380b037bea2bd59430b2ec12921ea40f40064199dc2cb6c65c41821c98",
-      "outputSha256": "11abba7051c99cd22779c95832464dab73b76dcb64889c6a2c1be1b90f5a2454",
-      "bytes": 172347,
+      "sourceSha256": "41b7c617d6d642785b24d4c1742617254c65b6aaebdb0f030f6d5abacfd1c9df",
+      "outputSha256": "1f5d56b0bdd5690759dc8d1a8154e542b2bed564aca244cf8fa33cd82ba265d6",
+      "bytes": 174076,
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
@@ -171,9 +171,9 @@
       "output": "sql/012_number_state_flow_phase1a.cloudsql.sql",
       "version": "012",
       "name": "012_number_state_flow_phase1a",
-      "sourceSha256": "394683bcf1acbcb09a73d53a9d6ab184a3f313d8a8729a485f84a8231a40dd88",
-      "outputSha256": "275a0d501314bf9c8b09651b2eee448d6ff4f16944777c75d5922d51441bae11",
-      "bytes": 12566,
+      "sourceSha256": "e9e5645fa73ad0e930e13858a9e284d5ecb5e7e8bbc3ecf09a6325709f4dfcd2",
+      "outputSha256": "8588d71d49186f7fcb2f0089692251edc0ae40c5b027646b061760eac8e0f476",
+      "bytes": 12498,
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 14,
@@ -381,9 +381,9 @@
       "output": "sql/027_settings_secret_google_secret_manager.cloudsql.sql",
       "version": "027",
       "name": "027_settings_secret_google_secret_manager",
-      "sourceSha256": "d6a34e44fd310f921c3df68a93da8f9605425f2b813b6073a5e307460ca6b4c5",
-      "outputSha256": "5736286935a42e9df57493fe4b397f540c6f519ea48344bf51fec2928aae16e8",
-      "bytes": 1311,
+      "sourceSha256": "fefb964d38ecb65433a2776599323289560f4990d60d347d460baa5acf222e41",
+      "outputSha256": "8920db2a015c2fd9033f568e42ceffbd8d89bdfd6ce06cdcb9d2801d848e4631",
+      "bytes": 1328,
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
@@ -557,6 +557,174 @@
         "removedRlsStatements": 0,
         "rewrittenSupabaseRoleReferences": 0
       }
+    },
+    {
+      "source": "db/postgres/040_supervisor_workflow_authority.sql",
+      "output": "sql/040_supervisor_workflow_authority.cloudsql.sql",
+      "version": "040",
+      "name": "040_supervisor_workflow_authority",
+      "sourceSha256": "296ea1548ee0180998a3d42a5da8a5ec916b83f2e1b432b0ecdd5296503a5862",
+      "outputSha256": "85deae5718515ae4365928850a1ee512f09d713496afe6df2ac5cc88897508af",
+      "bytes": 1107,
+      "transformations": {
+        "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/041_part_attachment_reuse_snapshot.sql",
+      "output": "sql/041_part_attachment_reuse_snapshot.cloudsql.sql",
+      "version": "041",
+      "name": "041_part_attachment_reuse_snapshot",
+      "sourceSha256": "e7369d3cb3f101dd60142117d3af1d42508fad6ff8a3f037820969d91095661b",
+      "outputSha256": "62ee9d02eaffc88d8e0faa2c05d039bec2968c27bc89a4b26cd7df4a728dc21c",
+      "bytes": 2332,
+      "transformations": {
+        "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/042_status_data_rebuild.sql",
+      "output": "sql/042_status_data_rebuild.cloudsql.sql",
+      "version": "042",
+      "name": "042_status_data_rebuild",
+      "sourceSha256": "a80c12abb3b12320e99fbb95c8cc5776f2122b2d8b768b569f40a9be4e927189",
+      "outputSha256": "9c0904ce1b1afe410932512c6608f6266347dec19a4679adb782e795f9c8683a",
+      "bytes": 23397,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/043_inline_relation_matrix.sql",
+      "output": "sql/043_inline_relation_matrix.cloudsql.sql",
+      "version": "043",
+      "name": "043_inline_relation_matrix",
+      "sourceSha256": "9fffda2c684be440115a0a3e83fcd4f57248340f12077971fd210c9f9cac634e",
+      "outputSha256": "8cabbb28aafa15204582417da59e763e66e9a2be702a89d468e04354c2150587",
+      "bytes": 12025,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/044_canonical_item_kind_two_values.sql",
+      "output": "sql/044_canonical_item_kind_two_values.cloudsql.sql",
+      "version": "044",
+      "name": "044_canonical_item_kind_two_values",
+      "sourceSha256": "134855b215419edd59126123964540500ea8d7f43a4568c926783aa779a25051",
+      "outputSha256": "87e6fd35e1418375692fd9b701283f8a3b684d888e7a9995b81a15626bc5980a",
+      "bytes": 4130,
+      "transformations": {
+        "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/045_part_number_draft_item_type_two_values.sql",
+      "output": "sql/045_part_number_draft_item_type_two_values.cloudsql.sql",
+      "version": "045",
+      "name": "045_part_number_draft_item_type_two_values",
+      "sourceSha256": "efd6b876976ae9f019090e2089c281a158b8b4808af0f6e9e848749c7e6eb318",
+      "outputSha256": "5605d3e4c2cbd5c777543cf68791f72326e0f2e6af01d2d12ec40549a9b82c9f",
+      "bytes": 1340,
+      "transformations": {
+        "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/046_part_preview_settings.sql",
+      "output": "sql/046_part_preview_settings.cloudsql.sql",
+      "version": "046",
+      "name": "046_part_preview_settings",
+      "sourceSha256": "db4ff6f09715d2064b13e5f430beb436d352fce3f7970de7345fb6cecafd853c",
+      "outputSha256": "ff31950f699cdaf448afc754a25acdf0575afa2b8ae814e83a8577edca55b3f3",
+      "bytes": 3183,
+      "transformations": {
+        "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/047_remove_bom_module.sql",
+      "output": "sql/047_remove_bom_module.cloudsql.sql",
+      "version": "047",
+      "name": "047_remove_bom_module",
+      "sourceSha256": "c18c284da2a2b25adc6fc1c34501c7317d2ebbe0a44eb16d6d04075e2e53c450",
+      "outputSha256": "1e3b9ab54421c3296d8f385f788b057b837e15cc6e7a7f1a8d9932a726a316f2",
+      "bytes": 2371,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/048_solidworks_credential_ui_activation.sql",
+      "output": "sql/048_solidworks_credential_ui_activation.cloudsql.sql",
+      "version": "048",
+      "name": "048_solidworks_credential_ui_activation",
+      "sourceSha256": "5d86dbea2122841a31e07cc6d81c27f4cb6bfd0e72e319720019a959db45ef68",
+      "outputSha256": "5871eee45fd2e3719900721ccb813ce24d0027b4dfcd79150f2315b872ca99f1",
+      "bytes": 2680,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/049_retire_standalone_manufacturing_impact.sql",
+      "output": "sql/049_retire_standalone_manufacturing_impact.cloudsql.sql",
+      "version": "049",
+      "name": "049_retire_standalone_manufacturing_impact",
+      "sourceSha256": "7bc454a455521ada5693f20c0ecbf6626ee434e21884e737b2a760d9403656db",
+      "outputSha256": "ab45b6ec802dbf9cf74754e2ddcaedbf2e407580c436ce145c395e44e8a3d7ff",
+      "bytes": 569,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/050_drawing_recognition_part_owner_invariant.sql",
+      "output": "sql/050_drawing_recognition_part_owner_invariant.cloudsql.sql",
+      "version": "050",
+      "name": "050_drawing_recognition_part_owner_invariant",
+      "sourceSha256": "a950aedcfdbe2e19c58763e717a8b5ac0d87c7f0f8a1b0e1243da9ba88557728",
+      "outputSha256": "2747049f0efbc19896e6bd7184770d4e62b6356cc9d9f10dc68ecb0bb5d516f7",
+      "bytes": 3785,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/051_part_structure_type_authority.sql",
+      "output": "sql/051_part_structure_type_authority.cloudsql.sql",
+      "version": "051",
+      "name": "051_part_structure_type_authority",
+      "sourceSha256": "a73e9bd2a06a97fe84cfea66efce15f5610368b70d1a883002f3f61a53ba35d8",
+      "outputSha256": "6c344a3345cd4cd6d82f86b34855032af6d8b859a81bc36f70249f113e7faa53",
+      "bytes": 786,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
     }
   ],
   "migrationHistoryCompatibility": {
@@ -581,7 +749,7 @@
       "file": "db/postgres/002_supabase_rls_plan.sql",
       "reason": "supabase_rls_baseline_excluded_for_cloud_sql_bff_runtime",
       "detail": "Cloud SQL runtime uses private server-side BFF access and database grants; the Supabase RLS/Data API baseline would force RLS without Cloud SQL runtime policies.",
-      "sourceSha256": "2700006ae8730651a736d5d8eb6d186fe32923ea423c0325c4b97d8cc4d5f924"
+      "sourceSha256": "bc50c4aa70e2e9449768c5bc73f5b71ca42373c59c4b1d0b6f6e76504c144f68"
     },
     {
       "file": "db/postgres/011_gcs_pointer_numbering_continuity.sql",
@@ -591,7 +759,7 @@
     }
   ],
   "transformations": {
-    "removedTransactionWrappers": 52,
+    "removedTransactionWrappers": 62,
     "removedRlsStatements": 70,
     "rewrittenSupabaseRoleReferences": 32,
     "remainingSupabaseRoleReferences": 0,

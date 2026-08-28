@@ -1,0 +1,2030 @@
+{
+  "devId": "DEV-087",
+  "runId": "DEV087-ui-only-2026-08-28T17-40-35-036Z",
+  "parentRunId": "DEV087-product-browser-2026-08-28T17-40-33-407Z",
+  "status": "FAIL",
+  "denominator": {
+    "drawing": 24,
+    "part": 10,
+    "inlineMatrix": 0,
+    "total": 34,
+    "excluded": [
+      "D25",
+      "D26",
+      "D27",
+      "P11",
+      "P12",
+      "P13",
+      "P14",
+      "P15",
+      "P16",
+      "P17",
+      "P18",
+      "P19",
+      "P20"
+    ],
+    "delegated": {
+      "partAttachments": [
+        "P11",
+        "P12",
+        "P13"
+      ],
+      "inlineMatrix": [
+        "I01",
+        "I02",
+        "I03",
+        "I04",
+        "I05",
+        "I06",
+        "I07",
+        "I08",
+        "I09",
+        "I10",
+        "I11",
+        "I12",
+        "I13",
+        "I14"
+      ]
+    }
+  },
+  "coverage": {
+    "total": 34,
+    "pass": 33,
+    "blocked": 0,
+    "fail": 1,
+    "notRun": 0
+  },
+  "gates": {
+    "total": 11,
+    "pass": 1,
+    "fail": 10
+  },
+  "infrastructure": {
+    "total": 42,
+    "pass": 41,
+    "fail": 1
+  },
+  "cases": [
+    {
+      "id": "D01",
+      "family": "D",
+      "title": "無量產資料建立第一份 0.1 工作",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:41:11.296Z",
+      "finishedAt": "2026-08-28T17:41:12.841Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0060-M01DEV087 D01 74036575Z研發版 0.1編輯中負責人處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1264,
+        "dbRows": 1
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D02",
+      "family": "D",
+      "title": "第一份 0.1 工作取消",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:42:06.021Z",
+      "finishedAt": "2026-08-28T17:42:07.589Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "沒有符合條件的資料"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 498,
+        "dbRows": 0
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D03",
+      "family": "D",
+      "title": "0.1 編輯儲存 reload",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:43:04.530Z",
+      "finishedAt": "2026-08-28T17:43:06.294Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0060-M01DEV087 D03 74212466Z研發版 0.1編輯中負責人處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1264,
+        "dbRows": 1
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D04",
+      "family": "D",
+      "title": "0.1 送審退回",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:44:28.716Z",
+      "finishedAt": "2026-08-28T17:44:31.100Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0060-M01DEV087 D04 74311132Z研發版 0.1編輯中負責人處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1264,
+        "dbRows": 1
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D05",
+      "family": "D",
+      "title": "0.1 重送核准",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:45:48.244Z",
+      "finishedAt": "2026-08-28T17:45:49.910Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0060-M01DEV087 D05 74435972Z研發版 0.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1402,
+        "dbRows": 1
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D06",
+      "family": "D",
+      "title": "0.1 進版 0.2",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:47:20.493Z",
+      "finishedAt": "2026-08-28T17:47:22.641Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0060-M01DEV087 D06 74554801Z研發版 0.2可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1402,
+        "dbRows": 1
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D07",
+      "family": "D",
+      "title": "研發版進量產版 1",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:49:04.034Z",
+      "finishedAt": "2026-08-28T17:49:05.618Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0060-M01DEV087 D07 74727512Z量產版 1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1319,
+        "dbRows": 1
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D12",
+      "family": "D",
+      "title": "建立三個 open branches",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:50:10.835Z",
+      "finishedAt": "2026-08-28T17:50:12.474Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.2編輯中負責人處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.3編輯中負責人處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.4編輯中負責人處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 3243,
+        "dbRows": 4
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D13",
+      "family": "D",
+      "title": "第四 branch 拒絕",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:50:12.541Z",
+      "finishedAt": "2026-08-28T17:50:13.881Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.2編輯中負責人處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.3編輯中負責人處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.4編輯中負責人處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 3243,
+        "dbRows": 4
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D09",
+      "family": "D",
+      "title": "量產版 1 建立量產版 2",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:51:24.285Z",
+      "finishedAt": "2026-08-28T17:51:25.517Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 2可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2194,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D14",
+      "family": "D",
+      "title": "同 target claim 競合",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:52:23.670Z",
+      "finishedAt": "2026-08-28T17:52:24.995Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2163,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D15",
+      "family": "D",
+      "title": "branch 推進 production",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:53:47.010Z",
+      "finishedAt": "2026-08-28T17:53:48.347Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 2可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2194,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D16",
+      "family": "D",
+      "title": "stale branch 凍結並可從目前量產版重啟",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:55:14.332Z",
+      "finishedAt": "2026-08-28T17:55:14.945Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 2可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2194,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D17",
+      "family": "D",
+      "title": "stale token 阻擋量產且 zero write",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:56:42.852Z",
+      "finishedAt": "2026-08-28T17:56:43.407Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 2可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2194,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D18",
+      "family": "D",
+      "title": "作廢 modal 取消",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:57:18.616Z",
+      "finishedAt": "2026-08-28T17:57:20.037Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2163,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D19",
+      "family": "D",
+      "title": "作廢申請退回",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:58:15.886Z",
+      "finishedAt": "2026-08-28T17:58:17.260Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2163,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D20",
+      "family": "D",
+      "title": "作廢申請核准",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T17:59:13.605Z",
+      "finishedAt": "2026-08-28T17:59:14.936Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1324,
+        "dbRows": 1
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D21",
+      "family": "D",
+      "title": "進版與作廢競合",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:00:42.631Z",
+      "finishedAt": "2026-08-28T18:00:43.213Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1324,
+        "dbRows": 1
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D22",
+      "family": "D",
+      "title": "reviewer 決策競合",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:00:43.273Z",
+      "finishedAt": "2026-08-28T18:00:43.841Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1324,
+        "dbRows": 1
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D08",
+      "family": "D",
+      "title": "量產版 1 建立研發版 1.1",
+      "status": "FAIL",
+      "reason": "page.waitForFunction: Timeout 45000ms exceeded.",
+      "startedAt": "2026-08-28T18:04:49.243Z",
+      "finishedAt": "2026-08-28T18:04:50.825Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2163,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D10",
+      "family": "D",
+      "title": "approved branch 建下一版後取消",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:04:50.882Z",
+      "finishedAt": "2026-08-28T18:04:52.168Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2163,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D11",
+      "family": "D",
+      "title": "新 branch 第一份工作取消",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:04:52.241Z",
+      "finishedAt": "2026-08-28T18:04:53.492Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2163,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D23",
+      "family": "D",
+      "title": "快速連點與 reload",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:04:53.559Z",
+      "finishedAt": "2026-08-28T18:04:54.816Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2163,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "D24",
+      "family": "D",
+      "title": "圖號搜尋篩選與歷史",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:04:54.883Z",
+      "finishedAt": "2026-08-28T18:04:56.152Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "filter/readback"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "版本",
+          "處理",
+          "用途",
+          "系列",
+          "排序"
+        ],
+        "rows": [
+          "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理",
+          "A0002-M01↳本體_BS_右_Xx5研發版 1.1可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 2163,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P01",
+      "family": "P",
+      "title": "料號生命週期 P01",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:04:56.215Z",
+      "finishedAt": "2026-08-28T18:04:57.585Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P02",
+      "family": "P",
+      "title": "料號生命週期 P02",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:04:57.646Z",
+      "finishedAt": "2026-08-28T18:04:59.074Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P03",
+      "family": "P",
+      "title": "料號生命週期 P03",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:04:59.145Z",
+      "finishedAt": "2026-08-28T18:05:00.586Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P04",
+      "family": "P",
+      "title": "料號生命週期 P04",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:05:00.665Z",
+      "finishedAt": "2026-08-28T18:05:02.063Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P05",
+      "family": "P",
+      "title": "料號生命週期 P05",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:05:02.163Z",
+      "finishedAt": "2026-08-28T18:05:03.651Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P06",
+      "family": "P",
+      "title": "料號生命週期 P06",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:05:03.718Z",
+      "finishedAt": "2026-08-28T18:05:06.122Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P07",
+      "family": "P",
+      "title": "料號生命週期 P07",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:05:06.234Z",
+      "finishedAt": "2026-08-28T18:05:08.538Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P08",
+      "family": "P",
+      "title": "料號生命週期 P08",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:05:08.603Z",
+      "finishedAt": "2026-08-28T18:05:09.954Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P09",
+      "family": "P",
+      "title": "料號生命週期 P09",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:05:10.046Z",
+      "finishedAt": "2026-08-28T18:05:11.519Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    },
+    {
+      "id": "P10",
+      "family": "P",
+      "title": "料號生命週期 P10",
+      "status": "PASS",
+      "reason": "",
+      "startedAt": "2026-08-28T18:05:11.584Z",
+      "finishedAt": "2026-08-28T18:05:13.021Z",
+      "expected": {
+        "ui": "canonical workbench list",
+        "mutation": "full lifecycle journey"
+      },
+      "actual": {
+        "headers": [
+          "編號",
+          "品名",
+          "版本",
+          "資料狀態",
+          "處理"
+        ],
+        "toolbar": [
+          "搜尋",
+          "資料",
+          "處理",
+          "料件類型",
+          "系列",
+          "材質",
+          "顏色",
+          "排序"
+        ],
+        "rows": [
+          "A0002-P01本體_BS_右_Xx5 DEV087 UI journey QC2 QC2修改中編輯中負責人處理",
+          "A0002-P01↳本體_BS_右_Xx5 DEV087 UI journey QC2 QC2正式資料可使用無須處理"
+        ],
+        "apiStatus": 200,
+        "apiBodyHash": 1924,
+        "dbRows": 2
+      },
+      "evidence": {
+        "actions": "actions.jsonl",
+        "network": "network.jsonl",
+        "triad": "triad-diff/list.json"
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "primary source invariant before fixture",
+      "pass": true,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "name": "unmodified fixture source invariant before mutation",
+      "pass": true,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "name": "isolated migration applied with explicit retained-legacy resolution",
+      "pass": true,
+      "detail": "{\"status\":0,\"stdout\":\"{\\n  \\\"status\\\": \\\"PASS\\\",\\n  \\\"apply\\\": true,\\n  \\\"switchCanonical\\\": true,\\n  \\\"unresolved\\\": 0,\\n  \\\"identityHash\\\": \\\"b71fc88953bd98c4aceca06e85f698496e0b6a332b68e0f1891cff5379ede6f1\\\",\\n  \\\"manifestPath\\\": \\\"C:\\\\\\\\Users\\\\\\\\user\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\ai-pdm-dev087-ui-only-9udMfq\\\\\\\\migration\\\\\\\\manifest.json\\\"\\n}\\n\",\"stderr\":\"\",\"sourceAuthorityMode\":\"canonical_only\"}"
+    },
+    {
+      "name": "fault profile immutable source snapshot prepared",
+      "pass": true,
+      "detail": "{\"database\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-ui-only-9udMfq\\\\fault-profile-source\\\\ai-pdm.sqlite\",\"repository\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-ui-only-9udMfq\\\\fault-profile-source\\\\repository\",\"invariant\":{\"schemaHash\":\"11ee6c93610afa4ecc2e387d1eafc4f78baab89d644704b79e113c0c956600b9\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":13,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    },
+    {
+      "name": "isolated UI journey D01",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-40-36-575Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-40-36-575Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-40-36-575Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-40-36-575Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D02",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-41-17-667Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-41-17-667Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-41-17-667Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-41-17-667Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D03",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-42-12-466Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-42-12-466Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-42-12-466Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-42-12-466Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D04",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-43-11-132Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-43-11-132Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-43-11-132Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-43-11-132Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D05",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-44-35-972Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-44-35-972Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-44-35-972Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-44-35-972Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D06",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-45-54-801Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-45-54-801Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-45-54-801Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-45-54-801Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D07",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-47-27-512Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-47-27-512Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-47-27-512Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-47-27-512Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D12+D13",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-49-10-530Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-49-10-530Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-49-10-530Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-49-10-530Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D09",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-50-18-802Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-50-18-802Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-50-18-802Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-50-18-802Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D14",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-51-30-403Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-51-30-403Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-51-30-403Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-51-30-403Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D15",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-52-29-912Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-52-29-912Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-52-29-912Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-52-29-912Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D16",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-53-53-274Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-53-53-274Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-53-53-274Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-53-53-274Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D17",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-55-18-851Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-55-18-851Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-55-18-851Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-55-18-851Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D18",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-56-47-182Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-56-47-182Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-56-47-182Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-56-47-182Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D19",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-57-25-005Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-57-25-005Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-57-25-005Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-57-25-005Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D20",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-58-22-118Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-58-22-118Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-58-22-118Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-58-22-118Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated UI journey D21+D22",
+      "pass": true,
+      "detail": "{\"child\":\"DEV087-ui-only-2026-08-28T17-59-19-772Z\",\"evidence\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-59-19-772Z\",\"attempts\":[{\"attempt\":1,\"runId\":\"DEV087-ui-only-2026-08-28T17-59-19-772Z\",\"evidenceRoot\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-ui-only-lifecycle\\\\DEV087-ui-only-2026-08-28T17-59-19-772Z\",\"exitCode\":1,\"pass\":true,\"infrastructureExhaustion\":false,\"consoleErrors\":[],\"failures\":[]}]}"
+    },
+    {
+      "name": "isolated lifecycle runtimes quiesced before parent UI",
+      "pass": true,
+      "detail": "children=17;waitMs=30000"
+    },
+    {
+      "name": "task-owned runtime project prepared",
+      "pass": true,
+      "detail": "{\"root\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-runtime-project-63802\",\"sourceSnapshot\":\"task-owned copy of src/public/db/config plus config files\",\"dependencyRuntime\":\"junction to workspace node_modules (read-only dependency use)\",\"generatedDeclarations\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-runtime-project-63802\\\\next-env.d.ts\"}"
+    },
+    {
+      "name": "J-D08",
+      "pass": false,
+      "detail": "page.waitForFunction: Timeout 45000ms exceeded."
+    },
+    {
+      "name": "J-D10",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-D10\\journey.json"
+    },
+    {
+      "name": "J-D11",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-D11\\journey.json"
+    },
+    {
+      "name": "J-D23",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-D23\\journey.json"
+    },
+    {
+      "name": "J-P01",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P01\\journey.json"
+    },
+    {
+      "name": "J-P02",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P02\\journey.json"
+    },
+    {
+      "name": "J-P03",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P03\\journey.json"
+    },
+    {
+      "name": "J-P04",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P04\\journey.json"
+    },
+    {
+      "name": "J-P05",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P05\\journey.json"
+    },
+    {
+      "name": "J-P06",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P06\\journey.json"
+    },
+    {
+      "name": "J-P07",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P07\\journey.json"
+    },
+    {
+      "name": "J-P08",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P08\\journey.json"
+    },
+    {
+      "name": "J-P09",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P09\\journey.json"
+    },
+    {
+      "name": "J-P10",
+      "pass": true,
+      "detail": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P10\\journey.json"
+    },
+    {
+      "name": "C01",
+      "pass": false,
+      "detail": "authority 與 provider 啟動檢查"
+    },
+    {
+      "name": "C02",
+      "pass": false,
+      "detail": "UI mutation provenance"
+    },
+    {
+      "name": "C03",
+      "pass": false,
+      "detail": "原子性與 zero partial write"
+    },
+    {
+      "name": "C04",
+      "pass": false,
+      "detail": "idempotency 與 stale guard"
+    },
+    {
+      "name": "C05",
+      "pass": false,
+      "detail": "UI/API/DB triad readback"
+    },
+    {
+      "name": "C06",
+      "pass": false,
+      "detail": "cleanup ledger"
+    },
+    {
+      "name": "C07",
+      "pass": false,
+      "detail": "禁止技術欄位出現在 UI"
+    },
+    {
+      "name": "C08",
+      "pass": false,
+      "detail": "搜尋與 layer/handling filter"
+    },
+    {
+      "name": "C09",
+      "pass": false,
+      "detail": "審核頁同畫面唯讀"
+    },
+    {
+      "name": "C10",
+      "pass": false,
+      "detail": "viewport、keyboard、error sweep"
+    },
+    {
+      "name": "C11",
+      "pass": true,
+      "detail": "[{\"profile\":\"system_admin\",\"status\":\"PASS\"},{\"profile\":\"blocked\",\"status\":\"PASS\"}]"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=63802"
+    },
+    {
+      "name": "temporary data/repository root removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-ui-only-9udMfq\",\"error\":null,\"attempts\":1}"
+    },
+    {
+      "name": "Next generated declarations isolated from source project",
+      "pass": true,
+      "detail": "{\"isolated\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-runtime-project-63802\\\\next-env.d.ts\"}"
+    },
+    {
+      "name": "temporary runtime project removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-runtime-project-63802\",\"error\":null}"
+    },
+    {
+      "name": "primary source invariant unchanged after runtime",
+      "pass": true,
+      "detail": "{\"before\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"after\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    }
+  ],
+  "supplementalJourneys": [],
+  "lifecycleJourneys": [
+    {
+      "id": "J-D01",
+      "caseId": "D01",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-36-575Z\\journeys\\J-D01\\journey.json"
+    },
+    {
+      "id": "J-D02",
+      "caseId": "D02",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-41-17-667Z\\journeys\\J-D02\\journey.json"
+    },
+    {
+      "id": "J-D03",
+      "caseId": "D03",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-42-12-466Z\\journeys\\J-D03\\journey.json"
+    },
+    {
+      "id": "J-D04",
+      "caseId": "D04",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-43-11-132Z\\journeys\\J-D04\\journey.json"
+    },
+    {
+      "id": "J-D05",
+      "caseId": "D05",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-44-35-972Z\\journeys\\J-D05\\journey.json"
+    },
+    {
+      "id": "J-D06",
+      "caseId": "D06",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-45-54-801Z\\journeys\\J-D06\\journey.json"
+    },
+    {
+      "id": "J-D07",
+      "caseId": "D07",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-47-27-512Z\\journeys\\J-D07\\journey.json"
+    },
+    {
+      "id": "J-D12",
+      "caseId": "D12",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-49-10-530Z\\journeys\\J-D12\\journey.json"
+    },
+    {
+      "id": "J-D13",
+      "caseId": "D13",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-49-10-530Z\\journeys\\J-D13\\journey.json"
+    },
+    {
+      "id": "J-D09",
+      "caseId": "D09",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-50-18-802Z\\journeys\\J-D09\\journey.json"
+    },
+    {
+      "id": "J-D14",
+      "caseId": "D14",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-51-30-403Z\\journeys\\J-D14\\journey.json"
+    },
+    {
+      "id": "J-D15",
+      "caseId": "D15",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-52-29-912Z\\journeys\\J-D15\\journey.json"
+    },
+    {
+      "id": "J-D16",
+      "caseId": "D16",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-53-53-274Z\\journeys\\J-D16\\journey.json"
+    },
+    {
+      "id": "J-D17",
+      "caseId": "D17",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-55-18-851Z\\journeys\\J-D17\\journey.json"
+    },
+    {
+      "id": "J-D18",
+      "caseId": "D18",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-56-47-182Z\\journeys\\J-D18\\journey.json"
+    },
+    {
+      "id": "J-D19",
+      "caseId": "D19",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-57-25-005Z\\journeys\\J-D19\\journey.json"
+    },
+    {
+      "id": "J-D20",
+      "caseId": "D20",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-58-22-118Z\\journeys\\J-D20\\journey.json"
+    },
+    {
+      "id": "J-D21",
+      "caseId": "D21",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-59-19-772Z\\journeys\\J-D21\\journey.json"
+    },
+    {
+      "id": "J-D22",
+      "caseId": "D22",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-59-19-772Z\\journeys\\J-D22\\journey.json"
+    },
+    {
+      "id": "J-D08",
+      "caseId": "D08",
+      "status": "FAIL",
+      "reason": "page.waitForFunction: Timeout 45000ms exceeded.",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-D08\\journey.json"
+    },
+    {
+      "id": "J-D10",
+      "caseId": "D10",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-D10\\journey.json"
+    },
+    {
+      "id": "J-D11",
+      "caseId": "D11",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-D11\\journey.json"
+    },
+    {
+      "id": "J-D23",
+      "caseId": "D23",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-D23\\journey.json"
+    },
+    {
+      "id": "J-P01",
+      "caseId": "P01",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P01\\journey.json"
+    },
+    {
+      "id": "J-P02",
+      "caseId": "P02",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P02\\journey.json"
+    },
+    {
+      "id": "J-P03",
+      "caseId": "P03",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P03\\journey.json"
+    },
+    {
+      "id": "J-P04",
+      "caseId": "P04",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P04\\journey.json"
+    },
+    {
+      "id": "J-P05",
+      "caseId": "P05",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P05\\journey.json"
+    },
+    {
+      "id": "J-P06",
+      "caseId": "P06",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P06\\journey.json"
+    },
+    {
+      "id": "J-P07",
+      "caseId": "P07",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P07\\journey.json"
+    },
+    {
+      "id": "J-P08",
+      "caseId": "P08",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P08\\journey.json"
+    },
+    {
+      "id": "J-P09",
+      "caseId": "P09",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P09\\journey.json"
+    },
+    {
+      "id": "J-P10",
+      "caseId": "P10",
+      "status": "PASS",
+      "reason": "",
+      "evidence": "output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z\\journeys\\J-P10\\journey.json"
+    }
+  ],
+  "failures": [
+    {
+      "caseId": "D08",
+      "kind": "journey",
+      "message": "page.waitForFunction: Timeout 45000ms exceeded."
+    }
+  ],
+  "consoleErrors": [
+    {
+      "label": "J-D08",
+      "message": "Failed to load resource: net::ERR_NO_BUFFER_SPACE",
+      "caseId": "D08"
+    }
+  ],
+  "expectedHttpEvents": [],
+  "networkEvents": 2882,
+  "mergedHistoryRows": 0,
+  "evidenceRoot": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087-ui-only-lifecycle\\DEV087-ui-only-2026-08-28T17-40-35-036Z"
+}

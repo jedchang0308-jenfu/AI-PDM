@@ -1,0 +1,37 @@
+{
+  "id": "J-D22",
+  "caseId": "D22",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "assert",
+      "target": "review-decision-singleton",
+      "observed": [
+        409,
+        200
+      ],
+      "responseBodies": [
+        {
+          "error": {
+            "code": "WORKBENCH_REVIEW_REQUEST_STALE",
+            "message": "重新開啟目前審核項目",
+            "correlationId": "a0ebdbbd-fcf9-4ef6-8ad3-a262b1b86770"
+          }
+        },
+        {
+          "data": {
+            "acknowledged": true
+          },
+          "meta": {
+            "correlationId": "d4cdb4ae-79c3-47b0-91c2-b266b497b8de"
+          }
+        }
+      ]
+    }
+  ],
+  "startedAt": "2026-08-28T17:27:30.170Z",
+  "finishedAt": "2026-08-28T17:27:32.501Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

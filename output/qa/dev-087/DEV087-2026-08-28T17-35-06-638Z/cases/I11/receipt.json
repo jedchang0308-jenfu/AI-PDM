@@ -1,0 +1,219 @@
+{
+  "caseId": "I11",
+  "result": "PASS",
+  "assertionIds": [
+    "I11:BLANK_MATRIX_FIRST_LINK_DIRECT_FORMAL",
+    "I11:NO_TASK_REVIEW"
+  ],
+  "renderedUiActions": [
+    "open blank matrix",
+    "click empty cell",
+    "click 儲存關聯"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "activeRole": "body",
+    "activeText": "AI PDM工作台圖料管理編號搜尋圖圖號工作台料料號工作台變更 / 審核審核工作台發行 / 交接技術移轉管理管理辦法我的帳號安全帳號與權限系統設定Demo Admin已登入圖號工作台建立編號搜尋版本全部處理全部用途全部系列全部編號品名版本資料狀態處理A0003-M01本體_右_xX5研發版 0.1編輯中負責人處理研發版 0.1負責人處理A0003-M01本體_右_xX5目前資料圖號A0003-M01圖面用途M3D 模型無可用預覽目前沒有可預覽的 3D 檔案。尚無正式檔案2D 圖面無可用預覽目前沒有可預覽的 2D 檔案。尚無正式檔案關聯矩陣編輯關聯建立編號圖號料號A0003-M01A0003-P01製造歷史版次清單目前沒有歷史版次進行編輯self.__next_r=\"eC0YCnFIE1pAJfIz-RwM8\";if(document.cookie.indexOf('next-instant-navigation-testing=')>-1){self.__next_instant_test=fetch(location.pathname+'?_rsc=xhdorIanPcIpYSsE',{credentials:'same-origin',headers:{'rsc':'1','next-router-prefetch':'1','next-router-segment-prefetch':'/_full'}})}(self.__next_f=self.__next_f||[]).push([0])self.__next_f.push([1,\"7:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"SegmentViewNode\\\"]\\n9:\\\"$Sreact.fragment\\\"\\n1b:I[\\\"(app-pages-browser)/./src/components/sidebar-nav.tsx\\\",[\\\"app/layout\\\",\\\"static/chunks/app/layout.js\\\"],\\\"SidebarNav\\\"]\\n1e:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/layout-router.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"\\\"]\\n20:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/render-from-template-context.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"\\\"]\\n3a:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/client-page.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"ClientPageRoot\\\"]\\n3b:I[\\\"(app-pages-browser)/./src/app/numbering/drawings/page.tsx\\\",[\\\"app/numbering/drawings/page\\\",\\\"static/chunks/app/numbering/drawings/page.js\\\"],\\\"default\\\"]\\n41:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/framework/boundary-components.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"OutletBoundary\\\"]\\n43:\\\"$Sreact.suspense\\\"\\n51:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/framework/boundary-components.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"ViewportBoundary\\\"]\\n5b:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/framework/boundary-components.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"MetadataBoundary\\\"]\\n61:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/builtin/global-error.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"default\\\",1]\\n:HL[\\\"/_next/static/css/app/layout.css?v=1787938690475\\\",\\\"style\\\"]\\n1:D\\\"$4\\\"\\n1:D\\\"$2\\\"\\n1:D\\\"$5\\\"\\n1:null\\nb:D\\\"$15\\\"\\nb:D\\\"$c\\\"\\nb:D\\\"$17\\\"\\n22:D\\\"$24\\\"\\n22:D\\\"$23\\\"\\n22:D\\\"$26\\\"\\n22:D\\\"$25\\\"\\n22:D\\\"$27\\\"\\n22:[[\\\"$\\\",\\\"title\\\",null,{\\\"children\\\":\\\"404: This page could not be found.\\\"},\\\"$25\\\",\\\"$28\\\",1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":{\\\"fontFamily\\\":\\\"system-ui,\\\\\\\"Segoe UI\\\\\\\",Roboto,Helvetica,Arial,sans-serif,\\\\\\\"Apple Color Emoji\\\\\\\",\\\\\\\"Segoe UI Emoji\\\\\\\"\\\",\\\"height\\\":\\\"100vh\\\",\\\"textAlign\\\":\\\"center\\\",\\\"display\\\":\\\"flex\\\",\\\"flexDirection\\\":\\\"column\\\",\\\"alignItems\\\":\\\"center\\\",\\\"justifyContent\\\":\\\"center\\\"},\\\"children\\\":[\\\"$\\\",\\\"div\\\",null,{\\\"children\\\":[[\\\"$\\\",\\\"style\\\",null,{\\\"dangerouslySetInnerHTML\\\":{\\\"__html\\\":\\\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\\\"}},\\\"$25\\\",\\\"$2b\\\",1],[\\\"$\\\",\\\"h1\\\",null,{\\\"className\\\":\\\"next-error-h1\\\",\\\"style\\\":{\\\"display\\\":\\\"inline-block\\\",\\\"margin\\\":\\\"0 20px 0 0\\\",\\\"padding\\\":\\\"0 23px 0 0\\\",\\\"fontSize\\\":24,\\\"fontWeight\\\":500,\\\"verticalAlign\\\":\\\"top\\\",\\\"lineHeight\\\":\\\"49px\\\"},\\\"children\\\":404},\\\"$25\\\",\\\"$2c\\\",1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":{\\\"display\\\":\\\"inline-block\\\"},\\\"children\\\":[\\\"$\\\",\\\"h2\\\",null,{\\\"style\\\":{\\\"fontSize\\\":14,\\\"fontWeight\\\":400,\\\"lineHeight\\\":\\\"49px\\\",\\\"margin\\\":0},\\\"children\\\":\\\"This page could not be found.\\\"},\\\"$25\\\",\\\"$2e\\\",1]},\\\"$25\\\",\\\"$2d\\\",1]]},\\\"$25\\\",\\\"$2a\\\",1]},\\\"$25\\\",\\\"$29\\\",1]]\\nb:[\\\"$\\\",\\\"html\\\",null,{\\\"lang\\\":\\\"zh-Hant\\\",\\\"children\\\":[\\\"$\\\",\\\"body\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"div\\\",null,{\\\"className\\\":\\\"app-shell\\\",\\\"children\\\":[[\\\"$\\\",\\\"$L1b\\\",null,{},\\\"$c\\\",\\\"$1a\\\",1],[\\\"$\\\",\\\"main\\\",null,{\\\"className\\\":\\\"main\\\",\\\"children\\\":[\\\"$\\\",\\\"$L1e\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L20\\\",null,{},null,\\\"$1f\\\",1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":[\\\"$\\\",\\\"$L7\\\",\\\"c-not-found\\\",{\\\"type\\\":\\\"not-found\\\",\\\"pagePath\\\":\\\"__next_builtin__not-found.js\\\",\\\"children\\\":[\\\"$22\\\",[]]},null,\\\"$21\\\",0],\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\",\\\"segmentViewBoundaries\\\":[[\\\"$\\\",\\\"$L7\\\",null,{\\\"type\\\":\\\"boundary:not-found\\\",\\\"pagePath\\\":\\\"__next_builtin__not-found.js@boundary\\\"},null,\\\"$2f\\\",1],\\\"$undefined\\\",\\\"$undefined\\\",[\\\"$\\\",\\\"$L7\\\",null,{\\\"type\\\":\\\"boundary:global-error\\\",\\\"pagePath\\\":\\\"__next_builtin__global-error.js\\\"},null,\\\"$30\\\",1]]},null,\\\"$1d\\\",1]},\\\"$c\\\",\\\"$1c\\\",1]]},\\\"$c\\\",\\\"$19\\\",1]},\\\"$c\\\",\\\"$18\\\",1]},\\\"$c\\\",\\\"$16\\\",1]\\n3c:D\\\"$3e\\\"\\n3c:D\\\"$3d\\\"\\n3c:D\\\"$40\\\"\\n3c:[\\\"$\\\",\\\"$L41\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"$43\\\",null,{\\\"name\\\":\\\"Next.MetadataOutlet\\\",\\\"children\\\":\\\"$@44\\\"},\\\"$3d\\\",\\\"$42\\\",1]},\\\"$3d\\\",\\\"$3f\\\",1]\\n45:X\\n47:D\\\"$4a\\\"\\n47:D\\\"$48\\\"\\n47:D\\\"$4b\\\"\\n47:null\\n4c:D\\\"$4e\\\"\\n4c:D\\\"$4d\\\"\\n4c:D\\\"$50\\\"\\n52:D\\\"$54\\\"\\n52:D\\\"$53\\\"\\n4c:[\\\"$\\\",\\\"$L51\\\",null,{\\\"children\\\":\\\"$L52\\\"},\\\"$4d\\\",\\\"$4f\\\",1]\\n55:D\\\"$57\\\"\\n55:D\\\"$56\\\"\\n55:D\\\"$59\\\"\\n5d:D\\\"$5f\\\"\\n5d:D\\\"$5e\\\"\\n55:[\\\"$\\\",\\\"div\\\",null,{\\\"hidden\\\":true,\\\"children\\\":[\\\"$\\\",\\\"$L5b\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"$43\\\",null,{\\\"name\\\":\\\"Next.Metadata\\\",\\\"children\\\":\\\"$L5d\\\"},\\\"$56\\\",\\\"$5c\\\",1]},\\\"$56\\\",\\\"$5a\\\",1]},\\\"$56\\\",\\\"$58\\\",1]\\n60:[]\\n0:{\\\"P\\\":\\\"$1\\\",\\\"c\\\":[\\\"\\\",\\\"numbering\\\",\\\"drawings?query=A0003-M01\\\"],\\\"q\\\":\\\"?query=A0003-M01\\\",\\\"i\\\":true,\\\"f\\\":[[[\\\"\\\",{\\\"children\\\":[\\\"numbering\\\",{\\\"children\\\":[\\\"drawings\\\",{\\\"children\\\":[\\\"__PAGE__?{\\\\\\\"query\\\\\\\":\\\\\\\"A0003-M01\\\\\\\"}\\\",{},\\\"$undefined\\\",\\\"$undefined\\\",4096]},\\\"$undefined\\\",\\\"$undefined\\\",4096]},\\\"$undefined\\\",\\\"$undefined\\\",4096]},\\\"$undefined\\\",\\\"$undefined\\\",4112],[[\\\"$\\\",\\\"$L7\\\",\\\"layout\\\",{\\\"type\\\":\\\"layout\\\",\\\"pagePath\\\":\\\"layout.tsx\\\",\\\"children\\\":[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[[[\\\"$\\\",\\\"link\\\",\\\"0\\\",{\\\"rel\\\":\\\"stylesheet\\\",\\\"href\\\":\\\"/_next/static/css/app/layout.css?v=1787938690475\\\",\\\"precedence\\\":\\\"next_static/css/app/layout.css\\\",\\\"crossOrigin\\\":\\\"$undefined\\\",\\\"nonce\\\":\\\"$undefined\\\"},null,\\\"$a\\\",0]],\\\"$b\\\"]},null,\\\"$8\\\",1]},null,\\\"$6\\\",0],{\\\"children\\\":[[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[null,[\\\"$\\\",\\\"$L1e\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L20\\\",null,{},null,\\\"$33\\\",1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":\\\"$undefined\\\",\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\",\\\"segmentViewBoundaries\\\":[\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\"]},null,\\\"$32\\\",1]]},null,\\\"$31\\\",0],{\\\"children\\\":[[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[null,[\\\"$\\\",\\\"$L1e\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L20\\\",null,{},null,\\\"$36\\\",1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":\\\"$undefined\\\",\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\",\\\"segmentViewBoundaries\\\":[\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\"]},null,\\\"$35\\\",1]]},null,\\\"$34\\\",0],{\\\"children\\\":[[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[[\\\"$\\\",\\\"$L7\\\",\\\"c-page\\\",{\\\"type\\\":\\\"page\\\",\\\"pagePath\\\":\\\"numbering/drawings/page.tsx\\\",\\\"children\\\":[\\\"$\\\",\\\"$L3a\\\",null,{\\\"Component\\\":\\\"$3b\\\",\\\"serverProvidedParams\\\":{\\\"searchParams\\\":{\\\"query\\\":\\\"A0003-M01\\\"},\\\"params\\\":{},\\\"promises\\\":null}},null,\\\"$39\\\",1]},null,\\\"$38\\\",1],null,\\\"$3c\\\"]},null,\\\"$37\\\",0],{},null,false,null]},null,false,\\\"$45\\\"]},null,false,\\\"$45\\\"]},null,false,null],[\\\"$\\\",\\\"$9\\\",\\\"h\\\",{\\\"children\\\":[\\\"$47\\\",\\\"$4c\\\",\\\"$55\\\",null]},null,\\\"$46\\\",0],false]],\\\"m\\\":\\\"$W60\\\",\\\"G\\\":[\\\"$61\\\",[\\\"$\\\",\\\"$L7\\\",\\\"ge-svn\\\",{\\\"type\\\":\\\"global-error\\\",\\\"pagePath\\\":\\\"__next_builtin__global-error.js\\\",\\\"children\\\":[]},null,\\\"$62\\\",0]],\\\"S\\\":false,\\\"h\\\":null,\\\"r\\\":\\\"$undefined\\\",\\\"s\\\":\\\"$undefined\\\",\\\"a\\\":\\\"$undefined\\\",\\\"l\\\":\\\"$undefined\\\",\\\"p\\\":\\\"$undefined\\\",\\\"d\\\":\\\"$undefined\\\",\\\"b\\\":\\\"development\\\"}\\n45:C\\n52:D\\\"$63\\\"\\n52:[[\\\"$\\\",\\\"meta\\\",\\\"0\\\",{\\\"charSet\\\":\\\"utf-8\\\"},\\\"$3d\\\",\\\"$64\\\",0],[\\\"$\\\",\\\"meta\\\",\\\"1\\\",{\\\"name\\\":\\\"viewport\\\",\\\"content\\\":\\\"width=device-width, initial-scale=1\\\"},\\\"$3d\\\",\\\"$65\\\",0]]\\n6c:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/metadata/generate/icon-mark.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"IconMark\\\"]\\n44:D\\\"$66\\\"\\n44:null\\n5d:D\\\"$67\\\"\\n5d:[[\\\"$\\\",\\\"title\\\",\\\"0\\\",{\\\"children\\\":\\\"AI PDM\\\"},\\\"$3d\\\",\\\"$68\\\",0],[\\\"$\\\",\\\"meta\\\",\\\"1\\\",{\\\"name\\\":\\\"description\\\",\\\"content\\\":\\\"SolidWorks AI 圖面資料管理系統\\\"},\\\"$3d\\\",\\\"$69\\\",0],[\\\"$\\\",\\\"link\\\",\\\"2\\\",{\\\"rel\\\":\\\"icon\\\",\\\"href\\\":\\\"/icon.svg\\\"},\\\"$3d\\\",\\\"$6a\\\",0],[\\\"$\\\",\\\"$L6c\\\",\\\"3\\\",{},\\\"$3d\\\",\\\"$6b\\\",0]]\\n\"])"
+  },
+  "apiReadback": {
+    "patchStatus": 200,
+    "detail": {
+      "status": 200,
+      "body": {
+        "data": {
+          "row": {
+            "rowKey": "cw_1b986f0d-98e4-4dc5-a672-0bd8ff3a18aa",
+            "entityType": "drawing",
+            "entityId": "drawing-draft-drawing-96cedc17-1625-4c07-bcd2-4a49c3fff9d5",
+            "code": "A0003-M01",
+            "name": "本體_右_xX5",
+            "layer": "rd",
+            "layerLabel": "研發版 0.1",
+            "revision": "0.1",
+            "dataState": "editing",
+            "dataStateLabel": "編輯中",
+            "handling": "owner",
+            "handlingLabel": "負責人處理",
+            "blockerReason": null,
+            "detailHref": "/numbering/drawings?detail=cw_1b986f0d-98e4-4dc5-a672-0bd8ff3a18aa",
+            "rowVersion": 1,
+            "basisState": "preproduction",
+            "actions": [
+              {
+                "key": "edit",
+                "label": "進行編輯",
+                "href": "/numbering/drawings/drawing-draft-drawing-96cedc17-1625-4c07-bcd2-4a49c3fff9d5/workspace?workId=2672c8e8-c2d5-4eb7-acc5-3025f47d89b9"
+              },
+              {
+                "key": "edit_relation_matrix",
+                "label": "編輯關聯矩陣"
+              }
+            ]
+          },
+          "presentation": {
+            "kind": "drawing",
+            "surface": "drawer_minimal",
+            "fields": [
+              {
+                "key": "code",
+                "label": "圖號",
+                "value": "A0003-M01"
+              },
+              {
+                "key": "purpose",
+                "label": "圖面用途",
+                "value": "M"
+              }
+            ],
+            "files": [],
+            "recognition": {
+              "partAttributes": [],
+              "revisionMetadata": [],
+              "controlledNotes": [],
+              "engineeringEvidence": []
+            },
+            "relationMatrix": {
+              "rootId": "part-root-6645d98f-dde9-43cd-9314-bb88a7eaa9a8",
+              "rootCode": "A0003",
+              "drawings": [
+                {
+                  "id": "drawing-number-5411a96a-1e85-480f-8651-19c56ae3a53e",
+                  "number": "A0003-M01",
+                  "detailHref": "/numbering/drawings?detail=cw_1b986f0d-98e4-4dc5-a672-0bd8ff3a18aa"
+                }
+              ],
+              "parts": [
+                {
+                  "id": "part-number-51436633-4a7f-4709-9a06-f642e9d65e57",
+                  "number": "A0003-P01",
+                  "detailHref": "/parts?detail=cw_2e509bc2-8a6c-44d1-a462-c4eab46a0066"
+                }
+              ],
+              "cells": [
+                {
+                  "drawingNumberId": "drawing-number-5411a96a-1e85-480f-8651-19c56ae3a53e",
+                  "partNumberId": "part-number-51436633-4a7f-4709-9a06-f642e9d65e57",
+                  "drawingNumber": "A0003-M01",
+                  "partNumber": "A0003-P01",
+                  "relationType": "manufacturing_basis"
+                }
+              ],
+              "matrixEtag": "36fc8324e7692036bc597b8388a261616d1d3ab94c9d974613848fe8f5cba008"
+            },
+            "history": [],
+            "previews": [
+              {
+                "kind": "three-d",
+                "title": "3D 模型",
+                "fileName": null,
+                "state": "missing",
+                "stateTitle": "無可用預覽",
+                "stateText": "目前沒有可預覽的 3D 檔案。",
+                "mediaHref": null,
+                "downloadHref": null,
+                "retryCommandRef": null
+              },
+              {
+                "kind": "two-d",
+                "title": "2D 圖面",
+                "fileName": null,
+                "state": "missing",
+                "stateTitle": "無可用預覽",
+                "stateText": "目前沒有可預覽的 2D 檔案。",
+                "mediaHref": null,
+                "downloadHref": null,
+                "retryCommandRef": null
+              }
+            ],
+            "preview": {
+              "state": "missing",
+              "media": null,
+              "sourceType": "primary_manufacturing_drawing",
+              "sourceLabel": "3D 模型",
+              "sourceDrawingNumber": "A0003-M01",
+              "sourceRevision": "0.1",
+              "alt": "A0003-M01 3D 預覽圖"
+            }
+          }
+        },
+        "meta": {
+          "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4NzkzODY5MjIzMH0.nXvVFhkuxgJ3iS2plgE0R5l8cjZQY0N3pN8gUaMFUg4",
+          "correlationId": "ce97f43c-164e-4f14-8878-ac3278c743e2"
+        }
+      }
+    }
+  },
+  "dbReadback": {
+    "before": {
+      "root": {
+        "id": "part-root-6645d98f-dde9-43cd-9314-bb88a7eaa9a8",
+        "company_id": "company-jenfu",
+        "root_code": "A0003"
+      },
+      "drawings": [
+        {
+          "id": "drawing-number-5411a96a-1e85-480f-8651-19c56ae3a53e",
+          "number": "A0003-M01"
+        }
+      ],
+      "parts": [
+        {
+          "id": "part-number-51436633-4a7f-4709-9a06-f642e9d65e57",
+          "number": "A0003-P01"
+        }
+      ],
+      "links": [],
+      "hash": "16a170e54fe4772dc44ecf35fe41e4d4f8fe047753b8d50e915479563002ac43"
+    },
+    "after": {
+      "root": {
+        "id": "part-root-6645d98f-dde9-43cd-9314-bb88a7eaa9a8",
+        "company_id": "company-jenfu",
+        "root_code": "A0003"
+      },
+      "drawings": [
+        {
+          "id": "drawing-number-5411a96a-1e85-480f-8651-19c56ae3a53e",
+          "number": "A0003-M01"
+        }
+      ],
+      "parts": [
+        {
+          "id": "part-number-51436633-4a7f-4709-9a06-f642e9d65e57",
+          "number": "A0003-P01"
+        }
+      ],
+      "links": [
+        {
+          "drawingNumberId": "drawing-number-5411a96a-1e85-480f-8651-19c56ae3a53e",
+          "partNumberId": "part-number-51436633-4a7f-4709-9a06-f642e9d65e57",
+          "storageLinkType": "primary_manufacturing",
+          "relationType": "manufacturing_basis"
+        }
+      ],
+      "hash": "f44be19a83d6b426820015892b2098721443be2f0e07056032571af561eec40e"
+    },
+    "sideEffectsBefore": {
+      "relationChangeWorks": 0,
+      "workReviewRequests": 0,
+      "numberingTasks": 0,
+      "numberingNotifications": 2
+    },
+    "sideEffectsAfter": {
+      "relationChangeWorks": 0,
+      "workReviewRequests": 0,
+      "numberingTasks": 0,
+      "numberingNotifications": 2
+    }
+  },
+  "visibleErrorSweep": {
+    "expected": null,
+    "actual": []
+  },
+  "mutationLedger": [],
+  "screenshot": "output/qa/dev-087/DEV087-2026-08-28T17-35-06-638Z/cases/I11/I11.png",
+  "source": "fresh task-owned DEV-087 isolated browser runtime"
+}

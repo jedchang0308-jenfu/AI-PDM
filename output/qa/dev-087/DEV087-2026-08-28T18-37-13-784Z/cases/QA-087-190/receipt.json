@@ -1,0 +1,40 @@
+{
+  "caseId": "QA-087-190",
+  "result": "PASS",
+  "assertionIds": [
+    "QA-087-190:REPLACEMENT_IDENTITY_RENDERED_FOR_CONFIRMED_IMPACT"
+  ],
+  "renderedUiActions": [
+    "enter replacement Part A0002-P02",
+    "select self-made item type"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "activeRole": "input",
+    "activeText": ""
+  },
+  "apiReadback": {
+    "sourcePartCodes": [
+      "A0002-P01"
+    ],
+    "replacementPartCode": "A0002-P02"
+  },
+  "dbReadback": {
+    "replacementPart": {
+      "id": "qa-dev087-functional-a0002-p02",
+      "part_number": "A0002-P02",
+      "part_root_id": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+      "company_id": "company-jenfu"
+    }
+  },
+  "visibleErrorSweep": {
+    "expected": null,
+    "actual": []
+  },
+  "mutationLedger": [],
+  "screenshot": "output/qa/dev-087/DEV087-2026-08-28T18-37-13-784Z/cases/QA-087-190/QA-087-190.png",
+  "source": "fresh task-owned DEV-087 isolated functional browser runtime"
+}

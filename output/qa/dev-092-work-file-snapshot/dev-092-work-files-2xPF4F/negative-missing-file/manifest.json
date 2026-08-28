@@ -1,0 +1,90 @@
+{
+  "version": 2,
+  "devId": "DEV-087",
+  "provider": "sqlite",
+  "dbPath": "C:\\Users\\user\\AppData\\Local\\Temp\\dev-092-work-files-2xPF4F\\fixture.sqlite",
+  "mode": "dry-run",
+  "expectedCommit": "local-dev",
+  "schemaHash": "dev090-v1",
+  "source": {
+    "drawings": 1,
+    "revisions": 2,
+    "parts": 1,
+    "roots": 1,
+    "activeWorkspaces": 0,
+    "cancelledWorkspaces": 0,
+    "recoverableSoftArchivedWorkspaces": 0,
+    "migratedDrawingWorks": 1,
+    "expectedDrawingWorkFiles": 3,
+    "existingDrawingWorkFiles": 2
+  },
+  "target": {
+    "aggregates": 2,
+    "states": 2,
+    "branches": 0,
+    "claims": 0,
+    "initialRevisions": 0,
+    "drawingWorks": 0,
+    "drawingWorkFiles": 0,
+    "partWorks": 0,
+    "relationWorks": 0,
+    "reviewTraces": 1,
+    "partRoots": 0,
+    "partNumbers": 0,
+    "drawingNumbers": 0,
+    "drawingPartLinks": 0,
+    "drawingIdentityBindings": 0
+  },
+  "initialRevisionBackfill": {
+    "requested": false,
+    "revision": "0.1",
+    "plannedRows": 0,
+    "verifiedExistingRows": 0,
+    "rejectedRows": 0
+  },
+  "activeNumberingBackfill": {
+    "requested": false,
+    "eligibleWorkspaces": 0,
+    "drawingBundles": 0,
+    "partOnlyBundles": 0,
+    "recoveredSoftArchivedWorkspaces": 0,
+    "rejectedWorkspaces": 0
+  },
+  "cleanup": {
+    "discardUnapprovedPartOnlyDrafts": false,
+    "retainUnmappedLegacy": false,
+    "softArchiveUnapprovedPartOnlyDrafts": false,
+    "preserveCancelledLegacyHistory": false,
+    "legacyCancelled": 0,
+    "preservedCancelledHistory": 0,
+    "unapprovedPartOnlyDrafts": 0,
+    "softArchivedPartOnlyDrafts": 0,
+    "retainedLegacy": 0
+  },
+  "quarantine": [
+    {
+      "sourceKind": "drawing_revision_work_files",
+      "sourceIdentity": "8f926012-792b-49b4-a266-ece5df594ca2",
+      "companyId": "company-dev087-a",
+      "reasonCode": "work_file_snapshot_incomplete",
+      "evidence": {
+        "workId": "8f926012-792b-49b4-a266-ece5df594ca2",
+        "expectedCount": 3,
+        "existingCount": 2,
+        "missing": [
+          "binding-dev092-2"
+        ],
+        "extra": []
+      }
+    }
+  ],
+  "operations": [],
+  "identityHash": "78d5aa4b4f1d3b75802fb114c800e2f946dd14c8f99fdabfbe1f661f9b50b6b6",
+  "unresolved": 1,
+  "workFileRepair": {
+    "requested": false,
+    "plannedRows": 0,
+    "completedRows": 0
+  },
+  "unresolvedBeforeResolution": 1
+}

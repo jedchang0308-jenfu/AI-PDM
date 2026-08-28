@@ -56,7 +56,11 @@ assert(
 );
 const capabilityBrowserRunner = read("scripts/qc-dev-087-capability-browser.mjs");
 assert(
-  capabilityBrowserRunner.includes('consoleErrors.every((item) => /ERR_(?:NO_BUFFER_SPACE|NETWORK_CHANGED)/u.test(String(item.message ?? "")))')
+  capabilityBrowserRunner.includes('failures[0]?.caseId === failedCaseId')
+    && capabilityBrowserRunner.includes('failures[0]?.kind === "journey"')
+    && capabilityBrowserRunner.includes('exactRoster(failedChecks.map((item) => item.name), expectedFailedChecks)')
+    && capabilityBrowserRunner.includes('consoleErrors.every((item) => item.caseId === failedCaseId')
+    && capabilityBrowserRunner.includes('/ERR_(?:NO_BUFFER_SPACE|NETWORK_CHANGED)/u.test(String(item.message ?? ""))')
     && capabilityBrowserRunner.includes("cleanup.status === \"task-owned runtime removed\"")
     && capabilityBrowserRunner.includes("cleanup.tempRootRemoved === true")
     && capabilityBrowserRunner.includes("cleanup.runtimeProjectRemoved === true")
@@ -69,11 +73,14 @@ assert(
 assert(
   capabilityBrowserRunner.includes("browserInfrastructureOnlyFailure")
     && capabilityBrowserRunner.includes('const exactSocketError = /^net::ERR_(?:NO_BUFFER_SPACE|NETWORK_CHANGED)$/u')
-    && capabilityBrowserRunner.includes('manifest.total === 132')
-    && capabilityBrowserRunner.includes('manifest.passed === 131')
+    && capabilityBrowserRunner.includes('const exactExecutionError = /^(?:page\\.(?:goto|reload)|locator\\.|browserType\\.|request\\.).*net::ERR_(?:NO_BUFFER_SPACE|NETWORK_CHANGED)/su')
+    && capabilityBrowserRunner.includes('Number.isInteger(total)')
+    && capabilityBrowserRunner.includes('total > 0')
+    && capabilityBrowserRunner.includes('manifest.passed === total - 1')
     && capabilityBrowserRunner.includes('manifest.failed === 1')
     && capabilityBrowserRunner.includes('failedChecks[0]?.name === "browser execution"')
     && capabilityBrowserRunner.includes('failures[0]?.kind === "requestfailed"')
+    && capabilityBrowserRunner.includes('(manifest.consoleErrors?.length ?? 0) === 0')
     && capabilityBrowserRunner.includes('item.name === "temporary runtime port released" && item.pass === true')
     && capabilityBrowserRunner.includes('item.name === "temporary runtime dist removed" && item.pass === true')
     && capabilityBrowserRunner.includes('item.name === "next-env restored after task runtime" && item.pass === true')

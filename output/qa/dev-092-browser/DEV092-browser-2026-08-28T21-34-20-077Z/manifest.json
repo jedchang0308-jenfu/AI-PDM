@@ -1,0 +1,185 @@
+{
+  "devId": "DEV-092",
+  "runId": "DEV092-browser-2026-08-28T21-34-20-077Z",
+  "status": "PASS",
+  "port": 60983,
+  "targetCode": "A0006-M01",
+  "total": 21,
+  "passed": 21,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "primary source invariant safe before fixture",
+      "pass": true,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "name": "unmodified fixture snapshot matches primary invariant",
+      "pass": true,
+      "detail": "{\"primaryBefore\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"fixtureSourceSnapshot\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    },
+    {
+      "name": "browser fixture canonical three-file work exists",
+      "pass": true,
+      "detail": "{\"id\":\"9e9ae372-eec5-4f3f-a2e2-1e8035933404\",\"drawing_id\":\"drawing-draft-drawing-58f3b735-a3fe-4c3b-87be-f2e23a15bebe\",\"revision_id\":\"f717dd6b-311a-49f9-ace6-a31630ee56ba\",\"drawing_number\":\"A0006-M01\"}"
+    },
+    {
+      "name": "browser fixture has exact three work-file snapshots",
+      "pass": true,
+      "detail": "3"
+    },
+    {
+      "name": "browser fixture has no reusable current-context session",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "fresh browser authenticated via rendered UI",
+      "pass": true,
+      "detail": "http://127.0.0.1:60983/"
+    },
+    {
+      "name": "browser UI lists three controlled files",
+      "pass": true,
+      "detail": "3"
+    },
+    {
+      "name": "browser UI lists exact canonical files",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical PDF preview returns 200",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "canonical PDF preview content type is PDF",
+      "pass": true,
+      "detail": "application/pdf"
+    },
+    {
+      "name": "recognition latest-session request emitted",
+      "pass": true,
+      "detail": "200"
+    },
+    {
+      "name": "recognition create request emitted",
+      "pass": true,
+      "detail": "201"
+    },
+    {
+      "name": "recognition request uses drawing_revision context",
+      "pass": true,
+      "detail": "{\"sourceContextType\":\"drawing_revision\",\"sourceContextId\":\"f717dd6b-311a-49f9-ace6-a31630ee56ba\"}"
+    },
+    {
+      "name": "recognition request carries exact three assets",
+      "pass": true,
+      "detail": "{\"actual\":[\"FA-128f63e7-091e-4304-b60f-45ab132db86b\",\"FA-60a01b75-ea5e-4804-85f0-53e6834885ce\",\"FA-6923f95f-79cd-4ea8-b0f2-9da5c2f6e99e\"],\"expected\":[\"FA-128f63e7-091e-4304-b60f-45ab132db86b\",\"FA-60a01b75-ea5e-4804-85f0-53e6834885ce\",\"FA-6923f95f-79cd-4ea8-b0f2-9da5c2f6e99e\"]}"
+    },
+    {
+      "name": "recognition panel does not show false empty-source state",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "recognition DB session has exact current context",
+      "pass": true,
+      "detail": "{\"id\":\"recognition-e7c40bbe-9a05-487f-a01d-680102712c3d\",\"source_context_type\":\"drawing_revision\",\"source_context_id\":\"f717dd6b-311a-49f9-ace6-a31630ee56ba\"}"
+    },
+    {
+      "name": "recognition DB session has exact three source assets",
+      "pass": true,
+      "detail": "{\"sessionSources\":[\"FA-128f63e7-091e-4304-b60f-45ab132db86b\",\"FA-60a01b75-ea5e-4804-85f0-53e6834885ce\",\"FA-6923f95f-79cd-4ea8-b0f2-9da5c2f6e99e\"],\"expectedAssets\":[\"FA-128f63e7-091e-4304-b60f-45ab132db86b\",\"FA-60a01b75-ea5e-4804-85f0-53e6834885ce\",\"FA-6923f95f-79cd-4ea8-b0f2-9da5c2f6e99e\"]}"
+    },
+    {
+      "name": "temporary runtime port released",
+      "pass": true,
+      "detail": "port=60983"
+    },
+    {
+      "name": "temporary runtime project removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev092-browser-runtime-project-60983\",\"error\":null}"
+    },
+    {
+      "name": "temporary data and repository removed",
+      "pass": true,
+      "detail": "{\"removed\":true,\"path\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev092-browser-IwR8M8\",\"error\":null}"
+    },
+    {
+      "name": "primary source invariant unchanged after runtime",
+      "pass": true,
+      "detail": "{\"before\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0},\"after\":{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}}"
+    }
+  ],
+  "failures": [],
+  "fixtureMutationLedger": [
+    {
+      "action": "set-owner-handling-for-recognition",
+      "workId": "9e9ae372-eec5-4f3f-a2e2-1e8035933404",
+      "drawingNumber": "A0006-M01",
+      "scope": "disposable fixture only"
+    },
+    {
+      "action": "retire-reusable-current-context-sessions",
+      "revisionId": "f717dd6b-311a-49f9-ace6-a31630ee56ba",
+      "scope": "disposable fixture only"
+    }
+  ],
+  "primaryInvariant": {
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "unchanged": true
+  },
+  "cleanupReceipt": {
+    "temp": {
+      "removed": true,
+      "path": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev092-browser-IwR8M8",
+      "error": null
+    },
+    "runtimeProjectRemoved": true,
+    "portReleased": true
+  }
+}

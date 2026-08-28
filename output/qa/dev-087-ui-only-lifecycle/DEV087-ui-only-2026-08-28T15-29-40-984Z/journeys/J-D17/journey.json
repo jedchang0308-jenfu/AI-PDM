@@ -1,0 +1,34 @@
+{
+  "id": "J-D17",
+  "caseId": "D17",
+  "family": "D",
+  "status": "FAIL",
+  "reason": "locator.evaluate: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('dialog', { name: '建立進版工作' })\u001b[22m\n",
+  "actions": [
+    {
+      "kind": "create-promotion-work",
+      "candidate": "量產版 2"
+    },
+    {
+      "kind": "drawing-fields-retired"
+    },
+    {
+      "kind": "submit-promotion"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 1,
+      "scope": "promotion"
+    },
+    {
+      "kind": "decision",
+      "decision": "approve",
+      "readonlyInputs": 4,
+      "scope": "promotion"
+    }
+  ],
+  "startedAt": "2026-08-28T15:30:02.566Z",
+  "finishedAt": "2026-08-28T15:31:35.475Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

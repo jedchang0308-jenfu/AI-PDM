@@ -1,0 +1,235 @@
+{
+  "runner": "browser",
+  "runId": "DEV100-browser-2026-08-28T14-18-17-298Z",
+  "status": "FAIL",
+  "headed": true,
+  "port": 51453,
+  "productionWrites": false,
+  "startupAttempts": [
+    {
+      "attempt": 1,
+      "result": "PASS",
+      "error": null
+    }
+  ],
+  "checks": [
+    {
+      "name": "primary foreign keys are clean before browser runtime",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "name": "primary root references are clean before browser runtime",
+      "status": "PASS",
+      "detail": {
+        "parts": 0,
+        "drawings": 0
+      }
+    },
+    {
+      "name": "isolated primary backup resolves the affected A0044-M01 work",
+      "status": "PASS",
+      "detail": {
+        "work_id": "c65d1134-44d1-49d1-a689-74d83e75174a",
+        "drawing_id": "drawing-draft-drawing-cbebc7d7-3ea2-4137-bc71-c63cb51a9ac8",
+        "owner_user_id": "production-user-0003",
+        "revision_id": "7402c558-341d-47dd-aecc-148ba69f80d3"
+      }
+    },
+    {
+      "name": "isolated A0044 precondition is a legal zero-active migrated work",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "task-owned runtime project starts exactly once",
+      "status": "PASS",
+      "detail": [
+        {
+          "attempt": 1,
+          "result": "PASS",
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "exact filename replacement warning is visible before upload",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "all three file POSTs return success",
+      "status": "PASS",
+      "detail": [
+        {
+          "status": 200,
+          "url": "http://127.0.0.1:51453/api/pdm/drawing-revision-works/c65d1134-44d1-49d1-a689-74d83e75174a/files"
+        },
+        {
+          "status": 200,
+          "url": "http://127.0.0.1:51453/api/pdm/drawing-revision-works/c65d1134-44d1-49d1-a689-74d83e75174a/files"
+        },
+        {
+          "status": 200,
+          "url": "http://127.0.0.1:51453/api/pdm/drawing-revision-works/c65d1134-44d1-49d1-a689-74d83e75174a/files"
+        }
+      ]
+    },
+    {
+      "name": "active UI list contains only last 3D primary plus PDF",
+      "status": "PASS",
+      "detail": "A0043.SLDASM\n3D 模型 · 本版次\n下載\n主要檔案\nA0044-M01.pdf\nPDF 圖面 · 本版次\n下載\n移除"
+    },
+    {
+      "name": "successful sequence has no visible error",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "name": "desktop workspace has no horizontal overflow",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "DB active set is exactly A0043 plus PDF",
+      "status": "PASS",
+      "detail": [
+        {
+          "ordinal": 0,
+          "id": "94f5a60a-f1a7-4e81-af01-d94b371a0ab3",
+          "asset_id": "FA-d1872339-c37f-4d70-9453-d2202934fe75",
+          "file_name": "A0043.SLDASM",
+          "role": "cad_3d",
+          "storage_key": "drawing-revision-works/company-jenfu/c65d1134-44d1-49d1-a689-74d83e75174a/FA-d1872339-c37f-4d70-9453-d2202934fe75-A0043.SLDASM",
+          "content_hash": "da655cc0b363fbba47c6ddd683579997fe51fb5b467b145df010453b161252fc"
+        },
+        {
+          "ordinal": 1,
+          "id": "a47ab469-3281-4034-93d1-304c47bfe981",
+          "asset_id": "FA-b1429b85-c73b-47cd-a0cb-2372912b3937",
+          "file_name": "A0044-M01.pdf",
+          "role": "pdf",
+          "storage_key": "drawing-revision-works/company-jenfu/c65d1134-44d1-49d1-a689-74d83e75174a/FA-b1429b85-c73b-47cd-a0cb-2372912b3937-A0044-M01.pdf",
+          "content_hash": "c6a0c681e11de387f68d2b7b78b2614b61f0a4019377fd0dabfdfce76fb3a362"
+        }
+      ]
+    },
+    {
+      "name": "A0044 is an auditable replacement tombstone",
+      "status": "PASS",
+      "detail": [
+        {
+          "id": "700d2882-f76b-4632-996d-ae2ae76555ba",
+          "asset_id": "FA-a4e10f3a-f6c2-4bcc-a45f-e710379cdbe2",
+          "file_name": "A0044.SLDASM",
+          "role": "cad_3d",
+          "removed_by": "user-manager-demo",
+          "deleted_by": "user-manager-demo",
+          "deleted_reason": "drawing_revision_work_file_replaced",
+          "storage_key": "drawing-revision-works/company-jenfu/c65d1134-44d1-49d1-a689-74d83e75174a/FA-a4e10f3a-f6c2-4bcc-a45f-e710379cdbe2-A0044.SLDASM",
+          "content_hash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+        },
+        {
+          "id": "ae153003-49f0-4a84-8a07-8d5b3bde7c38",
+          "asset_id": "FA-b55b509c-9a47-4aa8-843d-755a8c8132d6",
+          "file_name": "A0044-M01.pdf",
+          "role": "pdf",
+          "removed_by": "production-user-0003",
+          "deleted_by": "production-user-0003",
+          "deleted_reason": "drawing_revision_work_file_replaced",
+          "storage_key": "drawing-revision-works/company-jenfu/c65d1134-44d1-49d1-a689-74d83e75174a/FA-b55b509c-9a47-4aa8-843d-755a8c8132d6-A0044-M01.pdf",
+          "content_hash": "cc4aad9db48beb540633ebe1902417b28d01067c049130113b1026c56a8bfe74"
+        },
+        {
+          "id": "19f5d6f3-c0fc-4fd4-a9c2-12f8808dc45d",
+          "asset_id": "FA-f495a913-708d-4056-8709-dea66cde16df",
+          "file_name": "A0043.SLDASM",
+          "role": "cad_3d",
+          "removed_by": "user-manager-demo",
+          "deleted_by": "user-manager-demo",
+          "deleted_reason": "drawing_revision_work_file_replaced",
+          "storage_key": "drawing-revision-works/company-jenfu/c65d1134-44d1-49d1-a689-74d83e75174a/FA-f495a913-708d-4056-8709-dea66cde16df-A0043.SLDASM",
+          "content_hash": "f5dae2a4c02502571a77b3e909de33daa33d7296fdb63245e3662f8f5c387204"
+        },
+        {
+          "id": "339db49a-327f-47ad-8ad2-8158eff61374",
+          "asset_id": "FA-e33ff864-ab79-4034-a924-63444e0126fe",
+          "file_name": "A0044.SLDASM",
+          "role": "cad_3d",
+          "removed_by": "production-user-0003",
+          "deleted_by": "production-user-0003",
+          "deleted_reason": "drawing_revision_work_file_replaced",
+          "storage_key": "drawing-revision-works/company-jenfu/c65d1134-44d1-49d1-a689-74d83e75174a/FA-a4e10f3a-f6c2-4bcc-a45f-e710379cdbe2-A0044.SLDASM",
+          "content_hash": "bacfd1f20fe221a0abdbbdabbe590bba01ab8dd40039c7e9b5f712fde3d26d8d"
+        },
+        {
+          "id": "0fa364c6-3c80-4843-8012-359f7722f7eb",
+          "asset_id": "FA-c9d19369-3b2e-47eb-8aeb-2475109864a1",
+          "file_name": "A0044-M01.SLDDRW",
+          "role": "drawing_2d",
+          "removed_by": "production-user-0003",
+          "deleted_by": "production-user-0003",
+          "deleted_reason": "drawing_revision_work_file_replaced",
+          "storage_key": "drawing-revision-works/company-jenfu/c65d1134-44d1-49d1-a689-74d83e75174a/FA-c9d19369-3b2e-47eb-8aeb-2475109864a1-A0044-M01.SLDDRW",
+          "content_hash": "1ab890d11e876d3995a339205b982209fd5413e76016f581da7fc21a20451a00"
+        },
+        {
+          "id": "2c5e66f5-ac73-4b11-9b22-11490833c2f4",
+          "asset_id": "FA-ec7090ff-20e4-42ea-aa7c-50e6f5b702c9",
+          "file_name": "A0044.SLDASM",
+          "role": "cad_3d",
+          "removed_by": "user-admin-local-quick",
+          "deleted_by": "user-admin-local-quick",
+          "deleted_reason": "drawing_revision_work_file_replaced",
+          "storage_key": "drawing-revision-works/company-jenfu/c65d1134-44d1-49d1-a689-74d83e75174a/FA-ec7090ff-20e4-42ea-aa7c-50e6f5b702c9-A0044.SLDASM",
+          "content_hash": "e92ec9a569aab59c8559ab70669f017d71dcadaac2abafda71475f9b6626cdf5"
+        }
+      ]
+    },
+    {
+      "name": "isolated upload DB foreign keys remain clean",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "name": "browser execution",
+      "status": "FAIL",
+      "detail": "AssertionError [ERR_ASSERTION]: A0044.SLDASM bytes exist\n\nfalse !== true\n\n    at assertPhysical (file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-100-browser.mjs:158:12)\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-100-browser.mjs:283:3"
+    },
+    {
+      "name": "task-owned browser runtime port released",
+      "status": "PASS",
+      "detail": {
+        "port": 51453
+      }
+    },
+    {
+      "name": "task-owned Next runtime project removed",
+      "status": "PASS",
+      "detail": {
+        "removed": true,
+        "path": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\.tmp\\qc-dev100-browser-runtime-project-c928a404-cef5-490c-a5aa-28f34321b153",
+        "error": null
+      }
+    },
+    {
+      "name": "task-owned browser fixture removed",
+      "status": "PASS",
+      "detail": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev100-browser-JYQMQy"
+    },
+    {
+      "name": "primary schema, identities, root refs, residue and FK unchanged",
+      "status": "PASS",
+      "detail": {
+        "before": "456e4d497276734020c3a692b3a0123fbaa5867258c296382cd7370b73af82d7",
+        "after": "456e4d497276734020c3a692b3a0123fbaa5867258c296382cd7370b73af82d7"
+      }
+    }
+  ],
+  "failures": [],
+  "consoleErrors": [],
+  "screenshots": [
+    "01-exact-replacement-warning-desktop.png",
+    "02-active-a0043-plus-pdf-desktop.png"
+  ]
+}

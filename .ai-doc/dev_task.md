@@ -38,7 +38,7 @@ Owner：Dev PM
 - `DEV-005` Phase 1 本地切片已完成；技轉包 Phase 3 已依使用者決策抽成 `○ DEV-041`。`DEV-041` Phase 3A-0 已於 2026-07-13 完成本機實作與 QA；Phase 3A-1 之後仍須明確提出實作需求並逐階段進入。
 - `DEV-044` Phase 1-3 已完成本機 RD/QA/QC：server-derived command boundary、transactional receipt/outbox、provider-neutral principal/organization mapping 與 collision tooling 均已落地；原 Supabase Auth provider 目標已由 `DEV-046` 的 Firebase Auth / Identity Platform 決策取代，既有 provider-neutral evidence 仍有效，production cutover 仍未授權，ProJED 未修改。
 - `DEV-045` Phase 1、Phase 2 本機切片與 Phase 3A 工號登入別名 local slice 已完成本機 RD/QA/QC：包含「帳號與權限」單一管理入口、帳號生命週期、identity 狀態、session revoke、provider-managed recovery handoff、self-service session/device visibility、角色時間區間 UI 與 permission-path enforcement。Phase 3B provider rollout、production、Firebase Auth / Identity Platform live provider、MFA 與 release 仍未授權。
-- `DEV-046` Phase 1A-1E、Phase 2A staging IaC、Phase 2B local application slices 與 Phase 2B staging authentication activation 均已完成。`HD-10-1 / 1A` 採單區 staging、Regional-HA production，production IaC 保守估算 USD 210；staging 與 production 均依使用者決策採 Firebase Hosting 預設網址，DNS 延後，ProJED 未修改。2026-07-16 `DEV-032` Gate A/B/C 已完成：`jenfu-ai-pdm-prod` Paid Billing、Firebase/Identity Platform、Cloud SQL Regional HA、private VPC、Cloud Run、IAM、monitoring、regional logs、TWD 9,600 budget、Admin principal、18 migrations、pre-canary reconciliation 與 HD-8-4 separate-target restore reconciliation均通過；2026-08-28 Gate C2另以目前49筆migration候選在獨立private restore target完成apply、立即冪等重跑、reconciliation、production source零修改與cleanup receipt，restore target已刪除，不要求退役資源持續在線。production entrypoint為`https://jenfu-ai-pdm-prod.web.app`，無GCS file authority，Terraform no-drift。Gate D只剩目前exact release artifact的authenticated Level 4，Gate E仍待final 3-5位named-user canary。
+- `DEV-046` Phase 1A-1E、Phase 2A staging IaC、Phase 2B local application slices 與 Phase 2B staging authentication activation 均已完成。`HD-10-1 / 1A` 採單區 staging、Regional-HA production，production IaC 保守估算 USD 210；staging 與 production 均依使用者決策採 Firebase Hosting 預設網址，DNS 延後，ProJED 未修改。2026-07-16 `DEV-032` Gate A/B/C 已完成：`jenfu-ai-pdm-prod` Paid Billing、Firebase/Identity Platform、Cloud SQL Regional HA、private VPC、Cloud Run、IAM、monitoring、regional logs、TWD 9,600 budget、Admin principal、18 migrations、pre-canary reconciliation 與 HD-8-4 separate-target restore reconciliation均通過。2026-08-28 的49筆migration Gate C2只對當時候選有效；本次整合已改為48筆、以047硬退役BOM並線性化至050，因此新exact commit必須另做C2，不得沿用舊證據。production entrypoint為`https://jenfu-ai-pdm-prod.web.app`，無GCS file authority，Terraform no-drift。current exact artifact尚待C2與authenticated Level 4；Gate E具名canary已由使用者明確豁免，必須記為waived而非PASS。
 - 2026-07-15 Workspace pilot access staging deploy：使用者決定公司 Google Workspace 使用者不再由 AI_PDM 首次登入要求 Authenticator/TOTP enrollment，且暫不要求 Workspace 管理端先強制 2-Step Verification。staging 已以 dirty working tree explicit approval 部署 image `sha256:c677ab0822328944c304afc17877963f611f010c972400fed838ce5153d1818c` 至 Cloud Run revision `ai-pdm-stg-00007-cam`，100% traffic；runtime env 為 `PDM_TRUST_GOOGLE_WORKSPACE_MFA=false`、`PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED=true`、`PDM_GOOGLE_WORKSPACE_DOMAINS=jenfu.com.tw`。post-deploy smoke 通過 `/login`、`/api/auth/mode`、未登入 `/api/numbering/permissions` 401，且登入頁無 Authenticator/TOTP enrollment 可見文案；rollback target 為 `ai-pdm-stg-00005-4xp`。
 - 2026-07-15 privacy acknowledgement staging hotfix：修正 Firebase Hosting -> Cloud Run rewrite 後，Google 登入告知流程未穩定帶入工作階段而使 `/privacy/acknowledgement` 顯示「確認工作階段已失效」的問題。根因是 Firebase Hosting 只會把名為 `__session` 的 cookie 轉送至 Cloud Run，原本的 `pdm_session` 不會進入後端 request。變更包含 pending cookie `SameSite=Lax`、登入交換/告知 API fetch 明確 `credentials: "same-origin"`、登入交換遇到 `privacy_ack_required` 改為 HTTP 200 body-code handoff、以 `NextResponse.cookies.set()` 同時寫入 `__session` 與 `pdm_session`，後端讀 session 時優先讀 `__session` 並保留 `pdm_session` 供未來 ALB/custom domain 相容；未確認個資告知前，受保護 BFF API 仍由 privacy gate 回 428 fail-closed。staging 已部署 image `sha256:702abf5ecd72e6b5878a3727c769f26cc3a426af29857308dfd6366b3255e35a` 至 Cloud Run revision `ai-pdm-stg-00013-vev`，100% traffic；驗證通過 privacy QC 20/20、Phase 2B QC 15/15、employee login alias QC 21/21、TypeScript、isolated build、本地容器與 staging smoke。後續真人 Google acknowledgement flow 重測已通過；rollback target 為 `ai-pdm-stg-00011-bot`，再上一版 rollback target 為 `ai-pdm-stg-00009-lab`。
 - 2026-07-15 dashboard PostgreSQL compatibility staging hotfix：人類已確認 `jedchang0308@jenfu.com.tw` 可經 Firebase Hosting 預設網址登入並進入 AI PDM 主控台；登入後發現 dashboard 啟動 API `/api/submissions`、`/api/lifecycle/controlled-history`、`/api/notifications`、`/api/approvals/inbox` 出現 500。Cloud Run stderr 定位為 Postgres nullable parameter type inference `42P08` 與 notification aggregate `GROUP BY` 相容性問題；已補 `submission-list` 與 `dashboard` nullable filter cast，並補 `notification` pending-review GROUP BY。驗證通過 TypeScript、isolated build、DEV-046 privacy QC 20/20、Phase 2B QC 15/15、employee login alias QC 21/21、candidate `/login`、`/api/auth/mode`、未登入 privacy API 401 與正式 staging 相同 smoke。staging 已部署 image `sha256:9a6ba6dd1d2c6e2266ee477e4014c4378d36e95107990f30c3bf2dd29b34138b` 至 Cloud Run revision `ai-pdm-stg-00015-tim`，100% traffic；production 未觸碰，rollback target 為 `ai-pdm-stg-00013-vev`。
@@ -48,13 +48,9 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 新開發契約：`○ DEV-104` BOM 工作台 V2 受控產品結構與精簡編輯重構。
-  - 狀態：`RD Implementation Ready / Human Confirmed 01A-02A-03A-04B-05A-06A / Local RD Eligible / RD Not Started / Production Release Gated`。
-  - 目標：將 BOM 工作台收斂為「受控 EBOM 結構從草稿到正式快照」，以桌機階層表／Outliner、差異、
-    Release Gate 與精確 Parent 投影為主體；Map 降為選配檢視，Floating Topic 保留為收合的進階 Draft staging。
-  - 權威邊界：`SPEC-BOM-WORKBENCH-001` §18已是RD implementation authority；保留DEV-095／096的exact Part入口、stable Definition、Revision、shared applicability、exact mapping、immutable review／release evidence與Released projection。
-  - 已確認：Map只讀並將修改導回Outliner；parity後同DEV移除legacy editor；104-A～D aggregate QA/QC通過後一次切換，不保留V3 route或可寫fallback。桌機完整編輯，tablet／phone只讀／審核／匯出。
-  - 執行邊界：文件已可交RD，但本輪未要求產品實作；不修改產品、schema、API、權限、資料、runtime、部署或release。
+- 已退役，不得派工：`× DEV-096`、`× DEV-099`、`× DEV-104`。
+  - 狀態：`Historical / Superseded by DEV-095 BOM Hard Retirement / Do Not Restore`。
+  - 邊界：其產品程式、migration、feature flag與專用QA/QC入口已移除；既有文件與證據只供歷史追溯，不得作current acceptance或release authority。未來如重新需要產品結構，須以新DEV／SPEC／schema重新立項。
 
 - 本機已完成、待 release gate：`DEV-101` 審核工作臺共用圖號／料號完整工作區。
   - 狀態：`Local RD Implemented / Independent QA-QC Complete / Fixed QA 48 of 48 PASS / Production Release Gated`。
@@ -116,31 +112,9 @@ Owner：Dev PM
   - 證據：`npm.cmd run qc:dev-090:contract` 25/25、`npm.cmd run typecheck:app`、isolated headed browser 四 viewport；確認「編輯關聯」位於「＋建立編號」左側、矩陣區沒有常駐 helper、儲存／取消仍可用、無可見 console error／alert、horizontal overflow=0；換頁時僅有預期的可取消重複請求 abort。
   - 計入交付：是（降低關聯編輯尋找成本並移除無法支持判斷的常駐文字；正式環境 release 仍另走既有 gate）。
 
-- 本輪完成交付點：`DEV-099` 結構型態延後分類與 BOM readiness 解耦。
-  - 狀態：`RD Implementation Complete / Human Confirmed / Full Aggregate QA 48/48 / Typecheck + Lint + Isolated Build PASS / Production Release Gated`。
-  - Current Phase：new-root建號不再選結構型態並明確建立`unclassified`；existing-root只在全體
-    current Parts具有單一共識時初始化新Part，否則同樣unclassified且不阻擋。exact Part drawer是唯一
-    分類入口，可複選同root顏色／規格變體並all-or-nothing套用。
-  - BOM邊界：只有assembly顯示BOM區；manufactured＋primary M才可建立／開啟製造BOM。
-    purchased assembly可分類但沒有Current Phase製造BOM動作。
-  - 本機驗收：099-A～E與固定48-case aggregate已完成；contract 48/48、SQLite repository 7/7、headed browser
-    37/37、PostgreSQL 7/7、DEV-093／096回歸與primary invariant均PASS。完整證據為
-    `output/qa/dev-099/DEV099-2026-08-26T09-03-03-967Z/manifest.json`。
-  - 下一步：若要進入正式環境，另行取得備份、provider migration rehearsal、activation、deploy、release與
-    production smoke授權；本 DEV 不自動推進 release。
-  - 禁止：不新增sidebar／組立件頁、schema／migration、root-level自動分類、CAD／檔名自動寫入、
-    production migration／deploy／release。
-
-- 本輪完成：`DEV-096` 組立件情境式共用 BOM 重建。
-  - 狀態：`RD Implementation Complete / Human Confirmed / Local QA-QC Complete / Production Migration & Release Gated`。
-  - Current Phase：Part Number持有structure type；只有manufactured assembly＋primary M的Part drawer顯示唯一BOM action。stable BOM Definition承接多Parent applicability、logical line與exact Parent-to-Child mapping，沿用generic review／release但改為per-parent deterministic snapshot。
-  - 已完成：exact九表authority、stable logical line、schema-v2 review/release evidence、SQLite initializer、PostgreSQL 048、default-off flag、初版／下一版同writer、one-open Revision、archive／restore／whole obsolete lifecycle、Definition權限與structured error、完整API/DTO、transaction/failure recovery、consumer收斂，以及096-A～E與QA-096-001..088完整gate；`.SLDASM` parser及Released Parent移除／detach／fork仍為Future Phase。
-  - 本機證據：fresh aggregate 88/88 PASS，SQLite與實際PostgreSQL repository mutation皆PASS；42個named fault checkpoint、四viewport真實瀏覽器、typecheck、affected ESLint與123/123 isolated production build均PASS。primary SQLite SHA-256前後固定為`f717739e8b165d4ea6a621133a14f7a7ea898c990f5c366efa85f82b662b8ec8`。
-  - 下一步：正式環境仍須另行授權PostgreSQL migration rehearsal／apply、feature activation、deploy、release與production smoke；目前不得由本機完成狀態推定授權。
-
 - 唯一 P0 launch-moving 任務：`DEV-032` ERP 平台 production release work package。
-  - 當前子關卡：`DEV-032 Gate D` 目前exact release artifact的authenticated Level 4 production smoke；Hosting/OAuth、principal bootstrap、pre-canary reconciliation、HD-8-4 historical continuity及49筆current candidate Gate C2皆已完成，Gate C2 restore target已依成本與cleanup契約刪除。
-  - 後續順序：完成 Google 互動登入 -> authenticated privacy/permissions/領號/草稿/重登/file fail-closed smoke -> `Gate E` named-user canary。
+  - 當前子關卡：先完成本次48筆migration與BOM硬退役的exact commit／image，再只對獨立restore target重做Gate C2；通過後才可執行authenticated Level 4。舊49筆候選的restore rehearsal不得替代新exact artifact。
+  - 後續順序：Gate C2 exact restore rehearsal -> zero-traffic candidate -> authenticated privacy/permissions/領號/草稿/重登/file fail-closed smoke -> Gate E以使用者明確waiver記錄後做go/no-go；不得把waiver記為canary PASS。
   - 整併來源：`DEV-030` 轉為 032B/032C database 子關卡；`DEV-031` 轉為 032C data-continuity QC 子關卡；兩者保留來源 ID，不再獨立派工。
   - release scope：`DEV-040` 領號／草稿、`DEV-042/043/045` 身分與帳號治理、`DEV-048` 圖料號／草稿入口；GCS file workflow、CAD、BOM 與完整 PDM 不在第一版。
   - PDM admission gate：目前第一版 scope 不含 DEV-052／DEV-064；未來任何 release 若要啟用 `PDM_NUMBER_LIFECYCLE_V2` 或套用 canonical Drawing adoption，必須先完成舊 reservation ID 全量 source/adoption reconciliation、backup/PITR、flag-off readback與read-only canary。unmapped／duplicate／renumbered任一非0，或cutover freeze期間source hash changed非0，一律不得activation。
@@ -938,7 +912,8 @@ Owner：Dev PM
   - 執行邊界：未新增schema／migration，未修改正式資料、未stage／commit／merge／PR／deploy／release；正式使用仍隨DEV-087 production cutover/release gate。
   - 計入交付：是；本機功能與focused QA/QC完成，production交付未完成。
 
-- ✓ DEV-095 [交付點] [RD Implementation Complete / Human Confirmed / Local QA-QC PASS] [P1] [Intentional Replacement / Production Migration & Release Gated] 舊組合件建立工作流與資料 authority 退役
+- ◐ DEV-095 [退役點] [BOM Hard Retirement Integrated / Focused QC PASS / Isolated Build Pending] [P0] [Production Execution Authorized and Release-Gated] BOM 模組硬刪除
+  - **Current authority amendment 2026-08-28**：本項已由「只退役舊組合件入口」擴大為全BOM模組硬刪除；下列舊範圍、manual BOM保留與舊驗收文字只作歷史，不得恢復runtime或驗證項目。現行唯一權威為`ADR-PDM-BOM-RETIREMENT-001`、新QA/QC與PostgreSQL 047。
   - 摘要：拆除DEV-060獨立`/bom/new`、已偵測組合件、CAD／XLS來源、`from-assembly`與assembly reference自動產生BOM，讓組立件回到既有Drawing／Part identity；本輪不建立替代入口或新組立流程。
   - 來源 ID：`DEV-PDM-ASSEMBLY-LEGACY-WORKFLOW-RETIREMENT-001`
   - 父任務／關聯：Intentional-replace `DEV-060`；保留`DEV-061`檔案authority、`DEV-087/093` canonical workbench/identity、generic BOM review/release與`DEV-041`技轉包。
@@ -952,7 +927,8 @@ Owner：Dev PM
   - 執行邊界：只在task-owned isolated data/repository執行mutation。主要SQLite、正式Cloud SQL、stage／commit／merge／PR、deploy與release均未執行；existing port 3000 runtime未被停止或重啟。
   - 計入交付：是（舊authority本機退役與QA/QC完成）；否（新組立流程與production migration/release）。
 
-- ✓ DEV-096 [交付點] [RD Implementation Complete / Human Confirmed / Local QA-QC Complete] [P1] [Local Complete / Production Migration & Release Gated] 組立件情境式共用 BOM 重建
+- × DEV-096 [交付點] [Historical / Superseded by DEV-095 BOM Hard Retirement] [P1] [Do Not Restore] 組立件情境式共用 BOM 重建
+  - **Retirement amendment 2026-08-28**：產品、schema/migration、flag與專用驗證均已移除；以下內容只保留歷史追溯，不是current implementation或release authority。
   - 摘要：在既有統一建立編號、Drawing／Part工作臺內重建組立件BOM，不恢復獨立入口。只有明確`結構型態=組立件`的exact Part context顯示`建立 BOM／開啟 BOM`；同root顏色變體可複選適用Parent Parts並共用一份BOM Revision／Snapshot。
   - 來源 ID：`DEV-PDM-ASSEMBLY-BOM-REBUILD-001`
   - 父任務／關聯：父交付點`DEV-095`；延續`DEV-093` canonical統一建號、`DEV-061` Drawing Revision檔案authority、`DEV-087/090` canonical identity／relation與generic BOM edit／review／release。
@@ -971,7 +947,8 @@ Owner：Dev PM
   - 下一步：正式環境需先做備份邊界、兩次獨立PostgreSQL rehearsal與zero-loss reconciliation，再另行取得migration／activation／deploy／release授權。若要求purchased assembly、Released Parent移除、partial obsolete、cross-root sharing或detach／fork，先重新進入產品決策。
   - 計入交付：是（Current Phase RD實作與本機QA/QC完成）；否（production migration、activation、deploy與release）。
 
-- ✓ DEV-099 [交付點] [RD Implementation Complete / Human Confirmed / Local QA-QC Complete] [P1] [Full Aggregate QA 48/48 / Production Release Gated] 結構型態延後分類與 BOM readiness 解耦
+- × DEV-099 [交付點] [Historical / Superseded by DEV-095 BOM Hard Retirement] [P1] [Do Not Restore] 結構型態延後分類與 BOM readiness 解耦
+  - **Retirement amendment 2026-08-28**：BOM readiness、Part結構分類UI與其專用驗證均已移除；以下內容只保留歷史追溯。
   - 摘要：把建立圖料identity、exact Part結構分類與製造BOM readiness拆成三層。建號不再要求過早
     選單一零件／組立件；`unclassified`是合法暫態，之後只在既有料號抽屜設定，不建立新入口。
   - 來源 ID：`DEV-PDM-DEFERRED-STRUCTURE-CLASSIFICATION-001`
@@ -1526,7 +1503,8 @@ Owner：Dev PM
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ○ DEV-104 [交付點] [RD Implementation Ready / Human Confirmed 01A-02A-03A-04B-05A-06A] [P1] [Local RD Eligible / RD Not Started / Production Release Gated] BOM 工作台 V2 受控產品結構與精簡編輯重構
+- × DEV-104 [交付點] [Historical Planning Only / Superseded by DEV-095 BOM Hard Retirement] [P1] [Do Not Implement or Restore] BOM 工作台 V2 受控產品結構與精簡編輯重構
+  - **Retirement amendment 2026-08-28**：本計畫及固定48-case驗證分母已退役；以下內容只供決策歷史追溯，不得派工、實作或作current acceptance authority。
   - 變更紀錄：2026-08-28 建立`Brief Ready`，確認`HD-104-01=A`、`02=A`、`03=A`後升級`RD Contract Ready`；
     同日使用者再確認`HD-104-04=B`、`05=A`、`06=A`，補齊exact file plan、command／state、legacy retirement、
     flag compatibility、failure recovery、fixture與固定48-case runner，升級為`RD Implementation Ready`。本輪仍未要求產品實作。

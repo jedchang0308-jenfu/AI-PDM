@@ -1,0 +1,27 @@
+{
+  "id": "J-D19",
+  "caseId": "D19",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "click",
+      "target": "作廢",
+      "result": "submitted"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 1
+    },
+    {
+      "kind": "decision",
+      "decision": "reject",
+      "readonlyInputs": 0
+    }
+  ],
+  "startedAt": "2026-08-28T21:00:09.710Z",
+  "finishedAt": "2026-08-28T21:00:42.941Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

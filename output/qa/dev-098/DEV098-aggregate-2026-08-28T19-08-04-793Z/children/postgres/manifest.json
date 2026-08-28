@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "devId": "DEV-098",
+  "suite": "postgres",
+  "runner": "postgres",
+  "provider": "postgres",
+  "runId": "DEV098-postgres-2026-08-28T19-09-55-528Z",
+  "generatedAt": "2026-08-28T19:10:10.962Z",
+  "status": "PASS",
+  "fixedCaseIds": [
+    "QA-098-031"
+  ],
+  "expected": 1,
+  "executed": 1,
+  "passed": 1,
+  "productionWrites": false,
+  "dataBoundary": {
+    "PDM_DATA_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev098-postgres-JGuHz9\\data",
+    "PDM_REPOSITORY_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev098-postgres-JGuHz9\\repository",
+    "mutationScope": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev098-postgres-JGuHz9",
+    "primaryBefore": {
+      "hash": "c39cad4e3f935ead5dc1dd2d55c4a36bea3d5d21901a04eaff38723fffaebf51",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "foreignKeys": [],
+      "residue": [
+        {
+          "name": "bom_shared_structure_migration_issues"
+        },
+        {
+          "name": "pdm_local_data_migrations"
+        },
+        {
+          "name": "pdm_workbench_migration_quarantine"
+        }
+      ]
+    },
+    "primaryAfter": {
+      "hash": "c39cad4e3f935ead5dc1dd2d55c4a36bea3d5d21901a04eaff38723fffaebf51",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "foreignKeys": [],
+      "residue": [
+        {
+          "name": "bom_shared_structure_migration_issues"
+        },
+        {
+          "name": "pdm_local_data_migrations"
+        },
+        {
+          "name": "pdm_workbench_migration_quarantine"
+        }
+      ]
+    },
+    "primaryUnchanged": true
+  },
+  "schema": {
+    "migrations": [
+      "001_initial_schema.sql",
+      "039_allow_recycled_candidate_drawing_codes.sql",
+      "042_status_data_rebuild.sql",
+      "043_inline_relation_matrix.sql",
+      "047_remove_bom_module.sql",
+      "048_solidworks_credential_ui_activation.sql",
+      "049_retire_standalone_manufacturing_impact.sql",
+      "050_drawing_recognition_part_owner_invariant.sql"
+    ],
+    "hash": "369901440221922461d1d9fc2414d7e25efc5f96ea43895083791178705b1c24"
+  },
+  "checks": [
+    {
+      "id": "QA-098-031",
+      "label": "schema, lock source, SQLite mirror and production-source setup",
+      "status": "PASS",
+      "detail": {
+        "copiedRows": 308,
+        "migrationHash": "f8ae9d794f1063659f37bf056004dd06b36604f63b3234b271179e224b09aadb",
+        "lockOrder": [
+          "aggregate",
+          "production",
+          "source",
+          "branch"
+        ],
+        "sqlite": [
+          {
+            "status": "winner",
+            "workId": "d97c10a3-431a-4542-a1dc-b3b0e8b5e40a"
+          },
+          {
+            "status": "loser",
+            "code": "WORKBENCH_ROW_VERSION_CONFLICT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "QA-098-031",
+      "label": "same-target two-actor race has exactly one winner",
+      "status": "PASS",
+      "detail": {
+        "receipts": [
+          {
+            "actor": 0,
+            "status": "winner",
+            "workId": "3edc8796-29ba-49b6-a14c-265dbd38e468"
+          },
+          {
+            "actor": 1,
+            "status": "loser",
+            "code": "WORKBENCH_ROW_VERSION_CONFLICT"
+          }
+        ],
+        "claimCount": 1
+      }
+    },
+    {
+      "id": "QA-098-031",
+      "label": "minor versus major approval is serialized and stale loser writes nothing",
+      "status": "PASS",
+      "detail": {
+        "winner": {
+          "drawingId": "drawing-dev087-a0002",
+          "revisionId": "a8a8aedc-00e7-469f-811b-063122f20eba",
+          "revision": "2"
+        },
+        "loser": {
+          "code": "DRAWING_PRODUCTION_BASE_STALE"
+        },
+        "production": {
+          "revision": "2",
+          "revision_id": "a8a8aedc-00e7-469f-811b-063122f20eba"
+        }
+      }
+    },
+    {
+      "id": "QA-098-031",
+      "label": "file upload observes the new production basis before storage or DB mutation",
+      "status": "PASS",
+      "detail": {
+        "winner": {
+          "drawingId": "drawing-dev087-a0002",
+          "revisionId": "77aa3ee8-3b60-45f1-af9a-c983c8685f0a",
+          "revision": "3"
+        },
+        "loser": {
+          "code": "DRAWING_PRODUCTION_BASE_STALE"
+        },
+        "before": {
+          "files": 0,
+          "assets": 0,
+          "storage": 0
+        },
+        "after": {
+          "files": 0,
+          "assets": 0,
+          "storage": 0
+        }
+      }
+    },
+    {
+      "id": "QA-098-031",
+      "label": "recognition session observes the new production basis before session mutation",
+      "status": "PASS",
+      "detail": {
+        "winner": {
+          "drawingId": "drawing-dev087-a0002",
+          "revisionId": "a8454d9d-a062-413d-a886-dc907794d1ef",
+          "revision": "4"
+        },
+        "loser": {
+          "code": "DRAWING_PRODUCTION_BASE_STALE"
+        },
+        "sessionCounts": {
+          "before": 0,
+          "after": 0
+        }
+      }
+    },
+    {
+      "id": "QA-098-031",
+      "label": "final PostgreSQL integrity and authoritative production state",
+      "status": "PASS",
+      "detail": {
+        "foreignKeys": 0,
+        "productionRows": [
+          {
+            "revision": "4",
+            "handling": "none",
+            "work_id": null
+          }
+        ],
+        "provider": "postgres"
+      }
+    }
+  ],
+  "timingLedger": [
+    {
+      "label": "schema, lock source, SQLite mirror and production-source setup",
+      "elapsedMs": 528,
+      "status": "PASS"
+    },
+    {
+      "label": "same-target two-actor race has exactly one winner",
+      "elapsedMs": 92,
+      "status": "PASS"
+    },
+    {
+      "label": "minor-major",
+      "aggregateLockedAtMs": 0,
+      "contenderStartedAtMs": 2,
+      "releasedAtMs": 292,
+      "totalMs": 292
+    },
+    {
+      "label": "minor versus major approval is serialized and stale loser writes nothing",
+      "elapsedMs": 344,
+      "status": "PASS"
+    },
+    {
+      "label": "file-major",
+      "aggregateLockedAtMs": 0,
+      "contenderStartedAtMs": 2,
+      "releasedAtMs": 278,
+      "totalMs": 278
+    },
+    {
+      "label": "file upload observes the new production basis before storage or DB mutation",
+      "elapsedMs": 321,
+      "status": "PASS"
+    },
+    {
+      "label": "recognition-major",
+      "aggregateLockedAtMs": 0,
+      "contenderStartedAtMs": 2,
+      "releasedAtMs": 283,
+      "totalMs": 283
+    },
+    {
+      "label": "recognition session observes the new production basis before session mutation",
+      "elapsedMs": 336,
+      "status": "PASS"
+    },
+    {
+      "label": "final PostgreSQL integrity and authoritative production state",
+      "elapsedMs": 136,
+      "status": "PASS"
+    }
+  ],
+  "firstFailure": null,
+  "cleanup": {
+    "taskRootRemoved": true,
+    "portReleased": true,
+    "port": 59683
+  }
+}

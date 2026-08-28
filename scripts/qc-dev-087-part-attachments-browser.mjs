@@ -17,8 +17,8 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev087-part-attac
 const fixtureDataDir = path.join(tempRoot, "data");
 const fixtureDb = path.join(fixtureDataDir, "ai-pdm.sqlite");
 const fixtureRepository = path.join(fixtureDataDir, "repository");
-const sourceDb = path.resolve(process.env.PDM_QC_SOURCE_DB?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
-const sourceRepository = path.resolve(process.env.PDM_QC_SOURCE_REPOSITORY?.trim() || path.join(root, "data", "repository"));
+const sourceDb = path.resolve(process.env.PDM_QC_SOURCE_DB?.trim() || process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
+const sourceRepository = path.resolve(process.env.PDM_QC_SOURCE_REPOSITORY?.trim() || process.env.PDM_PRIMARY_REPOSITORY_DIR?.trim() || path.join(root, "data", "repository"));
 const checks = [];
 const failures = [];
 const consoleErrors = [];
@@ -391,7 +391,7 @@ try {
   port = await getFreePort();
   baseUrl = `http://127.0.0.1:${port}`;
   Object.assign(process.env, {
-    NODE_ENV: "development", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: fixtureDataDir,
+    NODE_ENV: "development", QC_NEXT_USE_WEBPACK: "1", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: fixtureDataDir,
     PDM_REPOSITORY_DIR: fixtureRepository, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub",
     PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "",
     PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: `.tmp/qc-dev087-part-attachments-${port}`, PDM_PUBLIC_BASE_URL: baseUrl

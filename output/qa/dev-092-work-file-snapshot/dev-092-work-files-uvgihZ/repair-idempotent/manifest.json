@@ -1,0 +1,96 @@
+{
+  "version": 2,
+  "devId": "DEV-087",
+  "provider": "sqlite",
+  "dbPath": "C:\\Users\\user\\AppData\\Local\\Temp\\dev-092-work-files-uvgihZ\\fixture.sqlite",
+  "mode": "apply",
+  "expectedCommit": "local-dev",
+  "schemaHash": "dev090-v1",
+  "source": {
+    "drawings": 1,
+    "revisions": 2,
+    "parts": 1,
+    "roots": 1,
+    "activeWorkspaces": 0,
+    "cancelledWorkspaces": 0,
+    "recoverableSoftArchivedWorkspaces": 0,
+    "migratedDrawingWorks": 1,
+    "expectedDrawingWorkFiles": 3,
+    "existingDrawingWorkFiles": 3
+  },
+  "target": {
+    "aggregates": 2,
+    "states": 3,
+    "branches": 1,
+    "claims": 1,
+    "initialRevisions": 0,
+    "drawingWorks": 1,
+    "drawingWorkFiles": 0,
+    "partWorks": 0,
+    "relationWorks": 0,
+    "reviewTraces": 1,
+    "partRoots": 0,
+    "partNumbers": 0,
+    "drawingNumbers": 0,
+    "drawingPartLinks": 0,
+    "drawingIdentityBindings": 0
+  },
+  "initialRevisionBackfill": {
+    "requested": false,
+    "revision": "0.1",
+    "plannedRows": 0,
+    "verifiedExistingRows": 0,
+    "rejectedRows": 0
+  },
+  "activeNumberingBackfill": {
+    "requested": false,
+    "eligibleWorkspaces": 0,
+    "drawingBundles": 0,
+    "partOnlyBundles": 0,
+    "recoveredSoftArchivedWorkspaces": 0,
+    "rejectedWorkspaces": 0
+  },
+  "cleanup": {
+    "discardUnapprovedPartOnlyDrafts": false,
+    "retainUnmappedLegacy": false,
+    "softArchiveUnapprovedPartOnlyDrafts": false,
+    "preserveCancelledLegacyHistory": false,
+    "legacyCancelled": 0,
+    "preservedCancelledHistory": 0,
+    "unapprovedPartOnlyDrafts": 0,
+    "softArchivedPartOnlyDrafts": 0,
+    "retainedLegacy": 0
+  },
+  "quarantine": [],
+  "operations": [],
+  "identityHash": "7e4fc0ab5bda900726b67691abd7fdea27faf7c2741fd2cf219c543dbbf2a9b8",
+  "unresolved": 0,
+  "workFileRepair": {
+    "requested": true,
+    "plannedRows": 0,
+    "completedRows": 0
+  },
+  "unresolvedBeforeResolution": 0,
+  "appliedTargetCounts": {
+    "part_roots": 1,
+    "part_numbers": 1,
+    "drawing_numbers": 1,
+    "drawing_part_links": 1,
+    "pdm_workbench_aggregates": 2,
+    "canonical_workbench_states": 3,
+    "drawing_rd_branches": 1,
+    "drawing_revision_claims": 1,
+    "drawing_revision_works": 1,
+    "drawing_revision_work_files": 3,
+    "part_change_works": 0,
+    "relation_change_works": 0,
+    "pdm_review_traces": 1,
+    "pdm_workbench_migration_quarantine": 0
+  },
+  "authority": {
+    "mode": "canonical_only",
+    "expected_commit": "local-dev",
+    "schema_hash": "dev090-v1",
+    "row_version": 5
+  }
+}

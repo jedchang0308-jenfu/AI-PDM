@@ -1,0 +1,11 @@
+{
+  "id": "J-D21",
+  "caseId": "D21",
+  "family": "D",
+  "status": "FAIL",
+  "reason": "VOID_REQUEST_NOT_SINGLETON",
+  "actions": [],
+  "startedAt": "2026-08-28T16:01:55.975Z",
+  "finishedAt": "2026-08-28T16:02:24.501Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

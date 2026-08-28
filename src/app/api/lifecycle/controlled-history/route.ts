@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAuthAsync } from "@/lib/auth-async";
-import { listObsoleteBomWorkbenchHistoryAsync } from "@/lib/bom-workbench-async";
 import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from "@/lib/company-context";
 import { listNumberingApprovalBatchesAsync } from "@/lib/numbering-async";
 import { scopedSubmittedBy } from "@/lib/permissions";
 import { rewriteNumberingHumanText } from "@/lib/numbering-vocabulary";
-import type { BomWorkbenchObsoleteHistoryRecord } from "@/lib/repositories/bom-workbench-async-repository";
 import type { NumberingApprovalReviewRequestRecord } from "@/lib/repositories/numbering-repository";
 import { getSubmissionAsync, listSubmissionsAsync } from "@/lib/submissions-async";
 import type { ControlledHistoryEntry, SubmissionLifecycleRequest, SubmissionSummary } from "@/lib/types";
@@ -24,7 +22,7 @@ export async function GET(request: Request) {
   const offset = parsePageOffset(url.searchParams.get("offset"));
   const sourceFetchLimit = limit + offset + 1;
   const submittedBy = scopedSubmittedBy(auth.user);
-  const [submissionRows, numberingBatches, bomRows] = await Promise.all([
+  const [submissionRows, numberingBatches] = await Promise.all([
     listSubmissionsAsync({
       status: "Obsolete",
       submittedBy,
@@ -37,10 +35,6 @@ export async function GET(request: Request) {
       companyId: companyResult.company.companyId,
       status: "approved",
       actionCodes: ["obsolete_part_number", "obsolete_ma_drawing"],
-      limit: sourceFetchLimit
-    }),
-    listObsoleteBomWorkbenchHistoryAsync({
-      companyId: companyResult.company.companyId,
       limit: sourceFetchLimit
     })
   ]);
@@ -57,8 +51,7 @@ export async function GET(request: Request) {
       .filter((request) => request.requestStatus === "approved")
       .map(buildNumberingControlledHistoryEntry)
   );
-  const bomEntries = bomRows.map(buildBomControlledHistoryEntry);
-  const allEntries = [...submissionEntries, ...numberingEntries, ...bomEntries].sort(compareControlledHistoryEntries);
+  const allEntries = [...submissionEntries, ...numberingEntries].sort(compareControlledHistoryEntries);
   const entries = allEntries.slice(offset, offset + limit);
 
   return NextResponse.json({
@@ -137,34 +130,6 @@ function buildNumberingControlledHistoryEntry(request: NumberingApprovalReviewRe
     history_at: approvedDecision?.decidedAt ?? request.requestedAt,
     decision_reason: approvedDecision?.comment ? rewriteNumberingHumanText(approvedDecision.comment) : null,
     source_status: request.entitySummary.recordStatus ?? "Obsolete",
-    release_package_available: false,
-    actions: {
-      delete: false,
-      restore: false,
-      obsolete: false
-    }
-  };
-}
-
-function buildBomControlledHistoryEntry(row: BomWorkbenchObsoleteHistoryRecord): ControlledHistoryEntry {
-  return {
-    id: `bom_release:${row.bom_draft_id}`,
-    entity_type: "bom_release",
-    target_id: row.bom_draft_id,
-    display_code: row.parent_part_number,
-    secondary_code: `${row.parent_drawing_number} / Rev ${row.parent_revision}`,
-    title: row.draft_name || `${row.parent_part_name} BOM`,
-    stage_label: "歷史",
-    result_label: "已作廢",
-    traceability_class: "controlled_history",
-    history_reason: row.change_reason ?? "此正式 BOM 已完成作廢審核。",
-    requested_by_name: row.submitted_by_name,
-    reviewed_by_name: row.reviewed_by_name,
-    requested_at: row.submitted_at,
-    decided_at: row.reviewed_at,
-    history_at: row.obsolete_at ?? row.reviewed_at ?? row.released_at,
-    decision_reason: row.decision_reason,
-    source_status: row.draft_status,
     release_package_available: false,
     actions: {
       delete: false,

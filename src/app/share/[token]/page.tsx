@@ -39,18 +39,6 @@ type PublicShareData = {
     sha256: string;
     size: number;
   }>;
-  bom: {
-    parent_revision: string;
-    status: string;
-    line_count: number;
-    lines: Array<{
-      line_no: number;
-      child_part_number: string;
-      child_revision: string | null;
-      quantity: number;
-      source_filename: string | null;
-    }>;
-  } | null;
   approvals: Array<{
     reviewer_name: string;
     decision: string;
@@ -311,40 +299,6 @@ export default function PublicSharePage({ params }: { params: Promise<{ token: s
           </div>
         </div>
 
-        <div className="panel public-share-panel">
-          <span className="section-label">BOM</span>
-          {data.bom ? (
-            <div className="public-share-list">
-              <Info label="BOM 狀態" value={getStatusDisplay(data.bom.status, "bomDraft").label} />
-              {data.bom.lines.map((line) => (
-                <div className="public-share-list-item" key={`${line.line_no}-${line.child_part_number}`}>
-                  <div className="identity-line">
-                    <span className="metadata-badge">#{line.line_no}</span>
-                    <strong className="identity-primary">{line.child_part_number}</strong>
-                  </div>
-                  <div className="metadata-list">
-                    <span className="metadata-pair">
-                      <span className="metadata-label">版次</span>
-                      <span className="metadata-value">{line.child_revision ?? "-"}</span>
-                    </span>
-                    <span className="metadata-pair">
-                      <span className="metadata-label">數量</span>
-                      <span className="metadata-value">{line.quantity}</span>
-                    </span>
-                  </div>
-                  {line.source_filename ? (
-                    <details className="integrity-details">
-                      <summary>來源資訊</summary>
-                      <span className="diagnostic-value">來源檔案 {line.source_filename}</span>
-                    </details>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <small>目前沒有 BOM 快照。</small>
-          )}
-        </div>
       </section>
 
       <section className="panel public-share-panel">

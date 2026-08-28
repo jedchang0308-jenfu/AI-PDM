@@ -167,7 +167,7 @@ try {
   const dsn = `postgresql://postgres@127.0.0.1:${port}/${dbName}`;
   control = new pg.Client({ connectionString: dsn, application_name: "ai-pdm-dev101-postgres-control" });
   await control.connect();
-  for (const migration of ["001_initial_schema.sql", "039_allow_recycled_candidate_drawing_codes.sql", "042_status_data_rebuild.sql", "043_inline_relation_matrix.sql", "048_shared_assembly_bom.sql", "049_solidworks_credential_ui_activation.sql"]) {
+  for (const migration of ["001_initial_schema.sql", "039_allow_recycled_candidate_drawing_codes.sql", "042_status_data_rebuild.sql", "043_inline_relation_matrix.sql", "047_remove_bom_module.sql", "048_solidworks_credential_ui_activation.sql", "049_retire_standalone_manufacturing_impact.sql", "050_drawing_recognition_part_owner_invariant.sql", "051_part_structure_type_authority.sql"]) {
     await control.query(fs.readFileSync(path.join(root, "db", "postgres", migration), "utf8"));
   }
   await control.query("UPDATE pdm_workbench_state_authority_control SET expected_commit='local-dev', schema_hash='dev090-v1' WHERE id=1");

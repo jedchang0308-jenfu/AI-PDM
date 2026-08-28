@@ -1,0 +1,87 @@
+{
+  "id": "J-D01",
+  "caseId": "D01",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "drawingCode": "A0060-M01",
+  "actions": [
+    {
+      "kind": "create-numbering-record",
+      "drawingCode": "A0060-M01",
+      "endpoint": "/api/numbering/records",
+      "status": 201
+    },
+    {
+      "kind": "assert",
+      "target": "first-revision-owner-row",
+      "observed": "A0060-M01\tDEV087 D01 13914470Z\t研發版 0.1\t編輯中\t負責人處理"
+    },
+    {
+      "kind": "assert-db",
+      "target": "atomic-first-0.1",
+      "observed": {
+        "drawingCode": "A0060-M01",
+        "exists": true,
+        "aggregate": {
+          "open_branch_count": 1,
+          "row_version": 1
+        },
+        "rows": [
+          {
+            "data_layer": "drawing_rd",
+            "handling": "owner",
+            "work_id": "b0f67cf5-152a-47ac-8636-28ab22538ad7",
+            "row_version": 1,
+            "revision": "0.1",
+            "lifecycle_state": "preparing",
+            "branch_status": "open",
+            "closed_reason": null,
+            "base_production_revision_id": null
+          }
+        ],
+        "branches": [
+          {
+            "id": "6f9eeafd-2ac1-40e7-8968-301e573932f9",
+            "status": "open",
+            "closed_reason": null,
+            "base_production_revision": null,
+            "latest_approved_revision": null
+          }
+        ],
+        "claims": [
+          {
+            "target_label": "0.1",
+            "claim_state": "work",
+            "predecessor_revision_id": null
+          }
+        ],
+        "revisions": [
+          {
+            "revision": "0.1",
+            "lifecycle_state": "preparing",
+            "row_version": 1,
+            "controlled": 0,
+            "released": 0,
+            "cancelled": 0
+          }
+        ],
+        "works": [
+          {
+            "id": "b0f67cf5-152a-47ac-8636-28ab22538ad7",
+            "row_version": 1,
+            "target_label": "0.1",
+            "handling": "owner",
+            "file_count": 0
+          }
+        ],
+        "files": [],
+        "reviewRequests": []
+      }
+    }
+  ],
+  "checkpoints": "lifecycle-checkpoints.json",
+  "startedAt": "2026-08-28T21:39:35.256Z",
+  "finishedAt": "2026-08-28T21:39:51.713Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

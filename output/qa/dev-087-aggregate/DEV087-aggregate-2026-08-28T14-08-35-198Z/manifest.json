@@ -1,0 +1,671 @@
+{
+  "schemaVersion": 2,
+  "devId": "DEV-087",
+  "historicalSupportingDevId": "DEV-097",
+  "runId": "DEV087-aggregate-2026-08-28T14-08-35-198Z",
+  "generatedAt": "2026-08-28T14:08:39.511Z",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "cdfbb930289767c3fdca41745d3d4f64677b023c4e355a508d7c9714053fe33b"
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "productionConnected": false,
+  "productionMigrationExecuted": false,
+  "status": "FAIL",
+  "completionCandidate": false,
+  "errorCode": "PRIMARY_INVARIANT_CHANGED",
+  "commandPlan": [
+    "qc:dev-100",
+    "qc:dev-087:capability-contract",
+    "qc:dev-087:capability-repository",
+    "qc:dev-087:capability-browser",
+    "qc:dev-087:capability-negative",
+    "qc:dev-087:g4-product-postgres",
+    "qc:dev-094:capa",
+    "qc:dev-094:browser",
+    "qc:dev-087:contract",
+    "qc:dev-087:repository",
+    "qc:dev-087:commands",
+    "qc:dev-087:migration",
+    "qc:dev-092:work-file-snapshot",
+    "qc:dev-092:runtime-invariant",
+    "qc:dev-092:recognition-context",
+    "qc:dev-092:browser",
+    "qc:dev-087:zero-loss",
+    "qc:dev-087:retirement",
+    "qc:dev-087:file-read-retirement",
+    "typecheck:app",
+    "build:isolated"
+  ],
+  "executed": 1,
+  "results": [
+    {
+      "script": "qc:dev-100",
+      "status": "FAIL",
+      "exitCode": 1,
+      "error": null
+    }
+  ],
+  "currentDenominator": {
+    "expected": 94,
+    "pass": 0,
+    "blocked": 0,
+    "notRun": 94,
+    "fail": 0
+  },
+  "caseResults": [
+    {
+      "caseId": "D01",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D02",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D03",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D04",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D05",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D06",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D07",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D08",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D09",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D10",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D11",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D12",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D13",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D14",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D15",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D16",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D17",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D18",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D19",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D20",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D21",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D22",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D23",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "D24",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P01",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P02",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P03",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P04",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P05",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P06",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P07",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P08",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P09",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P10",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P11",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P12",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "P13",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I01",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I02",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I03",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I04",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I05",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I06",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I07",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I08",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I09",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I10",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I11",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I12",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I13",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "I14",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C01",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C02",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C03",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C04",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C05",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C06",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C07",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C08",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C09",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C10",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "C11",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-187",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-188",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-189",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-190",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-191",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-193",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-194",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-195",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-196",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-197",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-198",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-199",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-200",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-201",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-202",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-203",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-204",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-206",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-207",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-208",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-209",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-211",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-212",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-213",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-214",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-215",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-217",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    },
+    {
+      "caseId": "QA-087-218",
+      "result": "NOT_RUN",
+      "requiredRunners": [],
+      "passedRunners": []
+    }
+  ],
+  "qualityGates": {
+    "expected": 3,
+    "pass": 0,
+    "fail": 0,
+    "notRun": 3,
+    "results": [
+      {
+        "gateId": "QG-087-PROVIDER",
+        "result": "NOT_RUN",
+        "detail": {}
+      },
+      {
+        "gateId": "QG-087-SECURITY",
+        "result": "NOT_RUN",
+        "detail": {}
+      },
+      {
+        "gateId": "QG-087-UI",
+        "result": "NOT_RUN",
+        "detail": {}
+      }
+    ]
+  },
+  "childManifests": [],
+  "dev100Validation": {
+    "status": "NOT_RUN",
+    "errorCode": null
+  },
+  "dev100ChildManifest": null,
+  "primaryInvariant": {
+    "before": {
+      "status": "missing",
+      "databasePath": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\data\\ai-pdm.sqlite",
+      "rawHash": null
+    },
+    "after": {
+      "status": "missing",
+      "databasePath": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\data\\ai-pdm.sqlite",
+      "rawHash": null
+    },
+    "unchanged": true,
+    "rawHashUnchanged": true,
+    "rawHashDisposition": "unchanged"
+  }
+}

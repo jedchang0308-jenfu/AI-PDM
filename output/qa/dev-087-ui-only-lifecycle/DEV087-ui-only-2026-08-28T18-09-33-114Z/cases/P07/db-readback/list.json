@@ -1,0 +1,28 @@
+{
+  "readOnly": true,
+  "entity": "part",
+  "rows": [
+    {
+      "code": "A0002-P01",
+      "name": "本體_BS_右_Xx5 DEV087 UI journey QC2 QC2",
+      "data_layer": "part_formal",
+      "handling": "none",
+      "blocker_reason": null,
+      "work_id": null,
+      "revision_id": null,
+      "revision": null,
+      "layer": "正式資料"
+    },
+    {
+      "code": "A0002-P01",
+      "name": "本體_BS_右_Xx5 DEV087 UI journey QC2 QC2",
+      "data_layer": "part_work",
+      "handling": "owner",
+      "blocker_reason": null,
+      "work_id": "fe4db8d8-ad3c-4cee-a4a9-24b360697509",
+      "revision_id": null,
+      "revision": null,
+      "layer": "修改中"
+    }
+  ]
+}

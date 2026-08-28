@@ -1,0 +1,22 @@
+{
+  "id": "J-D17",
+  "caseId": "D17",
+  "family": "D",
+  "status": "BLOCKED",
+  "reason": "NO_PRE_PROMOTION_PRODUCTION_TARGET",
+  "actions": [
+    {
+      "kind": "create-promotion-work",
+      "candidate": "量產版 2"
+    },
+    {
+      "kind": "drawing-fields-retired"
+    },
+    {
+      "kind": "submit-promotion"
+    }
+  ],
+  "startedAt": "2026-08-28T15:25:17.838Z",
+  "finishedAt": "2026-08-28T15:25:58.008Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

@@ -1,0 +1,34 @@
+- main:
+  - button "返回上一個工作清單":
+    - img
+  - text: 料號編輯
+  - heading "A0003-P01" [level=1]
+  - paragraph: 本體_右_xX5
+  - heading "料號資料" [level=2]
+  - text: 品名
+  - textbox "品名": 本體_右_xX5
+  - text: 料件類型
+  - combobox "料件類型":
+    - option "依圖製作件" [selected]
+    - option "外購標準件"
+  - text: 規格
+  - textbox "規格"
+  - text: 材質
+  - textbox "材質"
+  - text: 顏色
+  - textbox "顏色"
+  - text: 表面處理
+  - textbox "表面處理"
+  - text: 變體備註
+  - textbox "變體備註"
+  - text: 共用件
+  - checkbox "共用件"
+  - heading "附件" [level=2]
+  - paragraph: 目前沒有檔案
+  - button "取消本次工作"
+  - button "儲存" [disabled]:
+    - img
+    - text: 儲存
+  - button "送出審核":
+    - img
+    - text: 送出審核

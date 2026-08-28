@@ -1,0 +1,24 @@
+{
+  "devId": "DEV-092",
+  "status": "PASS",
+  "checks": 6,
+  "fixture": "isolated-canonical-work-file-snapshot",
+  "sourceContextType": "drawing_revision",
+  "sourceContextId": "revision-dev087-a0002-1-1",
+  "sourceAssetIds": [
+    "asset-dev092-recognition-1",
+    "asset-dev092-recognition-2",
+    "asset-dev092-recognition-3"
+  ],
+  "projectionSourceAssetIds": [
+    "asset-dev092-recognition-1",
+    "asset-dev092-recognition-2",
+    "asset-dev092-recognition-3"
+  ],
+  "primaryDataMutation": false,
+  "cleanup": {
+    "tempRoot": "C:\\Users\\user\\AppData\\Local\\Temp\\dev-092-recognition-xDCL4h",
+    "repositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\dev-092-recognition-xDCL4h\\repository",
+    "status": "removed"
+  }
+}

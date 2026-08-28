@@ -1,0 +1,21 @@
+{
+  "id": "J-D14",
+  "caseId": "D14",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "assert",
+      "target": "target-claim-single-winner",
+      "observed": [
+        200,
+        409
+      ],
+      "candidate": "研發版 1.2\n建立研發版工作"
+    }
+  ],
+  "startedAt": "2026-08-28T18:20:31.665Z",
+  "finishedAt": "2026-08-28T18:21:05.496Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

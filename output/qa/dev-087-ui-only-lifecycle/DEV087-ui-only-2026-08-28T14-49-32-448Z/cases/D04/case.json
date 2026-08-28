@@ -1,0 +1,41 @@
+{
+  "id": "D04",
+  "family": "D",
+  "title": "0.1 送審退回",
+  "status": "FAIL",
+  "reason": "page.waitForURL: Timeout 30000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n  navigated to \"http://127.0.0.1:65002/numbering/drawings?query=A0060-M01&detail=cw_d35e94dd-950c-4565-a002-bace766654cd\"\n  navigated to \"http://127.0.0.1:65002/numbering/drawings?query=A0060-M01&detail=cw_d35e94dd-950c-4565-a002-bace766654cd\"\n  navigated to \"http://127.0.0.1:65002/numbering/drawings?query=A0060-M01&detail=cw_d35e94dd-950c-4565-a002-bace766654cd\"\n  navigated to \"http://127.0.0.1:65002/numbering/drawings?query=A0060-M01&detail=cw_d35e94dd-950c-4565-a002-bace766654cd\"\n============================================================",
+  "startedAt": "2026-08-28T14:51:14.943Z",
+  "finishedAt": "2026-08-28T14:51:16.410Z",
+  "expected": {
+    "ui": "canonical workbench list",
+    "mutation": "full lifecycle journey"
+  },
+  "actual": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": [
+      "A0060-M01DEV087 D04 44932448Z研發版 0.1審核中審核負責人處理"
+    ],
+    "apiStatus": 200,
+    "apiBodyHash": 1063,
+    "dbRows": 1
+  },
+  "evidence": {
+    "actions": "actions.jsonl",
+    "network": "network.jsonl",
+    "triad": "triad-diff/list.json"
+  }
+}

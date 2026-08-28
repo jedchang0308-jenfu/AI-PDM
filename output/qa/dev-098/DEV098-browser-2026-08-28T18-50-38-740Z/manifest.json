@@ -1,0 +1,617 @@
+{
+  "schemaVersion": 1,
+  "devId": "DEV-098",
+  "suite": "browser",
+  "runner": "browser",
+  "runId": "DEV098-browser-2026-08-28T18-50-38-740Z",
+  "generatedAt": "2026-08-28T18:52:09.060Z",
+  "status": "FAIL",
+  "fixedCaseIds": [
+    "QA-098-017",
+    "QA-098-018",
+    "QA-098-019",
+    "QA-098-020",
+    "QA-098-021",
+    "QA-098-022",
+    "QA-098-023",
+    "QA-098-024",
+    "QA-098-029"
+  ],
+  "expected": 9,
+  "executed": 6,
+  "passed": 5,
+  "firstFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n\n    at runBrowserCases (file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-098-browser.mjs:510:12)\n    at async file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-098-browser.mjs:672:3",
+  "productionWrites": false,
+  "dataBoundary": {
+    "provider": "sqlite",
+    "PDM_DATA_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev098-browser-I91yo6\\data",
+    "PDM_REPOSITORY_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev098-browser-I91yo6\\repository",
+    "primaryBefore": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "primaryAfter": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "primaryUnchanged": true
+  },
+  "cleanup": {
+    "taskRootRemoved": true,
+    "runtimeProjectRemoved": true,
+    "portReleased": true,
+    "port": 62005
+  },
+  "telemetry": {
+    "unexpectedConsoleErrors": [],
+    "pageErrors": [],
+    "unexpectedRequestFailures": [
+      {
+        "label": "login-工程師",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/_next/static/webpack/04e084596f27b08d.webpack.hot-update.json",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/_next/static/chunks/main-app.js?v=1787943102910",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      }
+    ],
+    "unexpectedHttp": [],
+    "expectedHttp": [
+      {
+        "method": "POST",
+        "pathSuffix": "/revision-works",
+        "status": 422,
+        "reason": "deliberate malformed minor"
+      },
+      {
+        "method": "POST",
+        "pathSuffix": "/revision-works",
+        "status": 403,
+        "reason": "viewer direct mutation"
+      },
+      {
+        "method": "POST",
+        "pathSuffix": "/revision-works",
+        "status": 409,
+        "reason": "foreign-company direct mutation"
+      }
+    ],
+    "expectedConsoleErrors": [
+      {
+        "label": "owner-main",
+        "message": "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)"
+      },
+      {
+        "label": "viewer",
+        "message": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      },
+      {
+        "label": "foreign-company",
+        "message": "Failed to load resource: the server responded with a status of 409 (Conflict)"
+      }
+    ],
+    "expectedRequestFailures": [
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:62005/aef3c28e-ca50-46b1-b14d-513d66aceaa2",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:62005/4f7b1976-e63b-4964-ab4f-0154911576e8",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/pdm/drawing-revision-works/427b874b-d4e5-4fbd-9047-ff8dcda52dd3",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/drawings/A0002-M01/recognition-session",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/drawings/A0002-M01/recognition-session",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "viewer",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "viewer",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:62005/6bcc6888-b262-4200-9be3-23e38a0d7226",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "foreign-company",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-race",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-race",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:62005/55dccd1a-79da-45c5-8c82-feace573ac35",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:62005/707904ad-fe61-44db-b5e8-e9fb16b82058",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/pdm/drawing-revision-works/53b51064-bf9a-4334-9052-c518021d0094",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/drawings/A0002-M01/recognition-session",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/drawings/A0002-M01/recognition-session",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:62005/23c6410f-5efe-40a1-a1e2-c5354fde82fe",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/drawings/A0002-M01/recognition-session",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/drawings/A0002-M01/recognition-session",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/pdm/file-assets/FA-6aaae849-cdf4-4bdd-b4fd-34a8c25b57ec?context=drawing_revision_work&contextId=53b51064-bf9a-4334-9052-c518021d0094&bindingId=e8d370b6-199f-4923-8959-26abcdc8af38&preview=1",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/pdm/file-assets/FA-6aaae849-cdf4-4bdd-b4fd-34a8c25b57ec?context=drawing_revision_work&contextId=53b51064-bf9a-4334-9052-c518021d0094&bindingId=e8d370b6-199f-4923-8959-26abcdc8af38&preview=1",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "review-production",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-main",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-race",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/series-codes",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "review-production",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/pdm/review-requests/e1b3f703-feb7-4eb7-892f-095e469addc5",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "owner-race",
+        "method": "GET",
+        "url": "blob:http://127.0.0.1:62005/b198a8ff-bc3d-4bb8-9623-152f62ba7340",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "review-production",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/drawings/A0002-M01/recognition-session",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      },
+      {
+        "label": "review-production",
+        "method": "GET",
+        "url": "http://127.0.0.1:62005/api/numbering/drawings/A0002-M01/recognition-session",
+        "failure": {
+          "errorText": "net::ERR_ABORTED"
+        }
+      }
+    ]
+  },
+  "caseResults": [
+    {
+      "id": "QA-098-017",
+      "title": "list, drawer and compact default-recommended modal have one primary action and radio zero-write",
+      "status": "PASS",
+      "detail": {
+        "defaultMode": true,
+        "primaryCount": 1,
+        "beforeAfterEqual": true
+      }
+    },
+    {
+      "id": "QA-098-018",
+      "title": "manual 1.7 request shape and persisted predecessor are exact",
+      "status": "PASS",
+      "detail": {
+        "request": {
+          "sourceRowKey": "cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "selectionMode": "manual_minor",
+          "requestedMinor": 7
+        },
+        "work": {
+          "id": "427b874b-d4e5-4fbd-9047-ff8dcda52dd3",
+          "row_version": 1,
+          "target_label": "1.7",
+          "predecessor_revision_id": "qa-dev098-ui-production-revision",
+          "claim_state": "work"
+        }
+      }
+    },
+    {
+      "id": "QA-098-019",
+      "title": "manual invalid inputs and malformed server request remain visible with zero partial write",
+      "status": "PASS",
+      "detail": {
+        "values": [
+          "05",
+          "",
+          "0",
+          "2147483648"
+        ],
+        "directStatus": 422,
+        "serverAlert": "自訂小版次格式無效",
+        "modalPreserved": true,
+        "drawerPreserved": true,
+        "onlyPost": "deliberate malformed request"
+      }
+    },
+    {
+      "id": "QA-098-020",
+      "title": "not executed",
+      "status": "FAIL",
+      "detail": null
+    },
+    {
+      "id": "QA-098-021",
+      "title": "not executed",
+      "status": "FAIL",
+      "detail": null
+    },
+    {
+      "id": "QA-098-022",
+      "title": "production candidate changes the production basis only after exact reviewer approval",
+      "status": "PASS",
+      "detail": {
+        "wording": "採用為量產版",
+        "before": {
+          "row_id": "446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "row_version": 2,
+          "revision_id": "qa-dev098-ui-production-revision",
+          "revision": "1"
+        },
+        "afterSubmit": {
+          "row_id": "446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "row_version": 3,
+          "revision_id": "qa-dev098-ui-production-revision",
+          "revision": "1"
+        },
+        "afterApprove": {
+          "row_id": "446f5c9a-4b55-4197-a185-cfdc96c2b8b7",
+          "row_version": 4,
+          "revision_id": "392bd848-69df-4438-a228-b8d6e2c848ef",
+          "revision": "2"
+        }
+      }
+    },
+    {
+      "id": "QA-098-023",
+      "title": "viewer and foreign-company mutation paths are fail-closed without disclosure or write",
+      "status": "PASS",
+      "detail": {
+        "viewer": {
+          "status": 403,
+          "body": {
+            "error": {
+              "code": "WORKBENCH_BAD_REQUEST",
+              "message": "無權限執行此操作",
+              "correlationId": "e2a05566-024e-4179-a99e-30aeb21bed04"
+            }
+          }
+        },
+        "foreign": {
+          "status": 409,
+          "body": {
+            "error": {
+              "code": "WORKBENCH_CONTRACT_EXPIRED",
+              "message": "重新整理以使用新版本",
+              "correlationId": "170f6212-2d18-4bf5-8669-6a076191c139"
+            }
+          }
+        },
+        "zeroWrite": true
+      }
+    },
+    {
+      "id": "QA-098-024",
+      "title": "responsive geometry, keyboard focus trap and clean interaction telemetry",
+      "status": "FAIL",
+      "detail": {
+        "viewports": [
+          {
+            "viewport": {
+              "width": 1440,
+              "height": 900
+            },
+            "body": {
+              "scrollWidth": 1440,
+              "clientWidth": 1440
+            },
+            "modal": {
+              "left": 460,
+              "right": 980,
+              "top": 215.5,
+              "bottom": 684.5,
+              "width": 520,
+              "height": 469
+            },
+            "primary": {
+              "scrollWidth": 120,
+              "clientWidth": 120
+            },
+            "screenshot": "output\\qa\\dev-098\\DEV098-browser-2026-08-28T18-50-38-740Z\\screenshots\\QA-098-024-1440.png"
+          },
+          {
+            "viewport": {
+              "width": 1024,
+              "height": 768
+            },
+            "body": {
+              "scrollWidth": 1024,
+              "clientWidth": 1024
+            },
+            "modal": {
+              "left": 252,
+              "right": 772,
+              "top": 149.5,
+              "bottom": 618.5,
+              "width": 520,
+              "height": 469
+            },
+            "primary": {
+              "scrollWidth": 120,
+              "clientWidth": 120
+            },
+            "screenshot": "output\\qa\\dev-098\\DEV098-browser-2026-08-28T18-50-38-740Z\\screenshots\\QA-098-024-1024.png"
+          },
+          {
+            "viewport": {
+              "width": 390,
+              "height": 844
+            },
+            "body": {
+              "scrollWidth": 390,
+              "clientWidth": 390
+            },
+            "modal": {
+              "left": 16,
+              "right": 374,
+              "top": 179,
+              "bottom": 665,
+              "width": 358,
+              "height": 486
+            },
+            "primary": {
+              "scrollWidth": 120,
+              "clientWidth": 120
+            },
+            "screenshot": "output\\qa\\dev-098\\DEV098-browser-2026-08-28T18-50-38-740Z\\screenshots\\QA-098-024-390.png"
+          }
+        ],
+        "focusTrap": true,
+        "telemetry": {
+          "unexpectedConsoleErrors": [],
+          "pageErrors": [],
+          "unexpectedRequestFailures": [
+            {
+              "label": "login-工程師",
+              "method": "GET",
+              "url": "http://127.0.0.1:62005/_next/static/webpack/04e084596f27b08d.webpack.hot-update.json",
+              "failure": {
+                "errorText": "net::ERR_ABORTED"
+              }
+            },
+            {
+              "label": "owner-main",
+              "method": "GET",
+              "url": "http://127.0.0.1:62005/_next/static/chunks/main-app.js?v=1787943102910",
+              "failure": {
+                "errorText": "net::ERR_ABORTED"
+              }
+            }
+          ],
+          "unexpectedHttp": []
+        }
+      }
+    },
+    {
+      "id": "QA-098-029",
+      "title": "not executed",
+      "status": "FAIL",
+      "detail": null
+    }
+  ]
+}

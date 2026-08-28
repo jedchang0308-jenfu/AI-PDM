@@ -160,45 +160,6 @@ function collectSourceRecords(db) {
     ),
     ...allOrEmpty(
       db,
-      "bom_review_requests",
-      `
-      SELECT
-        rr.id,
-        rr.status,
-        rr.lifecycle_action,
-        rr.submitted_by,
-        rr.reviewed_by,
-        rr.submitted_at,
-        rr.reviewed_at,
-        rr.change_reason,
-        sub.company_id,
-        bd.draft_name,
-        bd.parent_revision
-      FROM bom_review_requests rr
-      JOIN bom_drafts bd ON bd.id = rr.bom_draft_id
-      JOIN submissions sub ON sub.id = bd.parent_submission_id
-      ORDER BY rr.submitted_at, rr.id
-    `
-    ).map((row) =>
-      sourceRecord(
-        "bom_review_requests",
-        row.id,
-        row.lifecycle_action === "obsolete" ? "bom.obsolete_review" : "bom.release_review",
-        row.status,
-        row.submitted_at,
-        `${row.draft_name} / ${row.parent_revision}`,
-        { lifecycleAction: row.lifecycle_action },
-        {
-          companyId: row.company_id,
-          requestedBy: row.submitted_by,
-          resolvedBy: row.reviewed_by,
-          resolvedAt: row.reviewed_at,
-          reason: row.change_reason
-        }
-      )
-    ),
-    ...allOrEmpty(
-      db,
       "drawing_revision_package_supplements",
       `
       SELECT
@@ -270,7 +231,6 @@ function buildReport(db, options = {}) {
     statusInventory: {
       approval_requests: countByStatus(db, "approval_requests", "request_status"),
       submission_lifecycle_requests: countByStatus(db, "submission_lifecycle_requests", "request_status"),
-      bom_review_requests: countByStatus(db, "bom_review_requests", "status"),
       drawing_revision_package_supplements: countByStatus(db, "drawing_revision_package_supplements", "status")
     },
     byTable: Object.fromEntries(byTable),
@@ -584,7 +544,6 @@ try {
   if (qcMode) {
     if (report.mutation !== "none") throw new Error("Dry run mutated data");
     if (!Object.prototype.hasOwnProperty.call(report.statusInventory, "approval_requests")) throw new Error("approval_requests inventory missing");
-    if (!Object.prototype.hasOwnProperty.call(report.statusInventory, "bom_review_requests")) throw new Error("BOM inventory missing");
     runApplySelfTest();
   }
   console.log(

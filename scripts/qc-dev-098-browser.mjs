@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -23,8 +24,8 @@ const fixtureDbPath = path.join(dataDir, "ai-pdm.sqlite");
 const upload2d = path.join(uploadDir, "DEV098-QA.SLDDRW");
 const upload3d = path.join(uploadDir, "DEV098-QA.SLDPRT");
 const companyId = "company-jenfu";
-const primaryDbPath = path.join(root, "data", "ai-pdm.sqlite");
-const primaryRepositoryDir = path.join(root, "data", "repository");
+const primaryDbPath = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
+const primaryRepositoryDir = path.resolve(process.env.PDM_PRIMARY_REPOSITORY_DIR?.trim() || path.join(root, "data", "repository"));
 const fixedCaseIds = [...Array.from({ length: 8 }, (_, index) => `QA-098-${String(index + 17).padStart(3, "0")}`), "QA-098-029"];
 const results = new Map();
 const network = [];
@@ -52,7 +53,7 @@ function writeJson(file, value) {
 }
 
 function primarySnapshot() {
-  const command = spawnSync(process.execPath, [path.join(root, "scripts", "dev-087-primary-snapshot.mjs"), `--db=${path.join(root, "data", "ai-pdm.sqlite")}`], { cwd: root, encoding: "utf8" });
+  const command = spawnSync(process.execPath, [path.join(root, "scripts", "dev-087-primary-snapshot.mjs"), `--db=${primaryDbPath}`], { cwd: root, encoding: "utf8" });
   if (command.status !== 0) throw new Error(`PRIMARY_SNAPSHOT_FAILED:${command.stderr || command.stdout}`);
   return JSON.parse(command.stdout.trim());
 }
@@ -185,14 +186,33 @@ function monitor(page, label) {
   page.on("response", (response) => network.push({ label, status: response.status(), method: response.request().method(), url: response.url() }));
 }
 
-async function login(context, roleLabel) {
-  const page = await context.newPage();
-  monitor(page, `login-${roleLabel}`);
-  await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-  await page.getByRole("heading", { name: "AI PDM 登入", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
-  await page.getByRole("button", { name: `以${roleLabel}角色快速登入`, exact: true }).click();
-  await page.waitForURL((url) => !url.pathname.endsWith("/login"), { timeout: 30_000 });
-  await page.close();
+async function installTaskOwnedQaSession(context, roleLabel) {
+  const emailByRoleLabel = {
+    "系統管理員": "admin@example.com",
+    "工程師": "engineer@example.com",
+    "研發主管": "manager@example.com",
+    "製造": "manufacturing@example.com"
+  };
+  const email = emailByRoleLabel[roleLabel];
+  if (!email) throw new Error(`DEV098_TASK_OWNED_QA_SESSION_ROLE_UNSUPPORTED:${roleLabel}`);
+  const database = new Database(fixtureDbPath, { readonly: true, fileMustExist: true });
+  let user;
+  try {
+    user = database.prepare("SELECT id,role,account_status,system_role_enabled FROM users WHERE lower(email)=lower(?) LIMIT 1").get(email);
+  } finally {
+    database.close();
+  }
+  if (!user || user.account_status !== "active" || Number(user.system_role_enabled) !== 1) {
+    throw new Error(`DEV098_TASK_OWNED_QA_SESSION_USER_UNAVAILABLE:${roleLabel}`);
+  }
+  const payload = Buffer.from(JSON.stringify({ userId: user.id, createdAt: Date.now(), sessionId: crypto.randomUUID() })).toString("base64url");
+  const secret = process.env.PDM_AUTH_SECRET || "dev-only-change-before-production";
+  const signature = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
+  await context.addCookies([{ name: "pdm_session", value: `${payload}.${signature}`, url: baseUrl, httpOnly: true, sameSite: "Lax" }]);
+  const verification = await context.request.get(`${baseUrl}/api/auth/me`);
+  if (!verification.ok()) throw new Error(`DEV098_TASK_OWNED_QA_SESSION_VERIFY_HTTP_${verification.status()}:${roleLabel}`);
+  const body = await verification.json().catch(() => null);
+  if (body?.user?.role !== user.role) throw new Error(`DEV098_TASK_OWNED_QA_SESSION_ROLE_MISMATCH:${safeJson({ expected: user.role, actual: body?.user?.role })}`);
 }
 
 async function waitForList(page) {
@@ -395,6 +415,7 @@ async function runBrowserCases(ownerContext, raceOwnerContext, reviewerContext, 
     }, null, { timeout: 10_000 });
     await page.keyboard.press("Escape");
     await opened.modal.waitFor({ state: "detached", timeout: 10_000 });
+    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === "進版", null, { timeout: 10_000 });
     assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), "進版");
 
     const manual = await openAdvance(page, "量產版 1");
@@ -619,8 +640,10 @@ try {
   runtimeProjectRoot = path.join(root, ".tmp", `qc-dev098-runtime-project-${port}`);
   prepareRuntimeProject(runtimeProjectRoot);
   Object.assign(process.env, {
-    NODE_ENV: "development",
+    NODE_ENV: "production",
+    QC_NEXT_USE_WEBPACK: "1",
     PDM_AUTH_MODE: "local",
+    PDM_AUTH_SECRET: "dev098-task-owned-production-runtime-secret-v1",
     PDM_DB_PROVIDER: "sqlite",
     PDM_DATA_DIR: dataDir,
     PDM_REPOSITORY_DIR: repositoryDir,
@@ -644,14 +667,18 @@ try {
     runtimeProject: runtimeProjectRoot,
     purpose: "DEV-098 QA-098-017..024 and QA-098-029 rendered browser verification",
     port,
-    owningProcessTree: "qc-dev-098-browser -> task-owned Next dev + Chromium",
+    owningProcessTree: "qc-dev-098-browser -> task-owned Next webpack build/start + Chromium",
     cleanupCondition: "browser closed, Next tree stopped, port released, task data and runtime project removed",
     PDM_DATA_DIR: dataDir,
     PDM_REPOSITORY_DIR: repositoryDir,
     mutationScope: taskRoot
   } }));
 
-  app = startNextApp(runtimeProjectRoot, "dev", port);
+  console.log(`QC DEV-098 isolated build: project=${runtimeProjectRoot}; purpose=multi-page DOM stability without dev HMR; port=none; processTree=task-owned Next build; cleanup=after evidence write; PDM_DATA_DIR=${dataDir}; PDM_REPOSITORY_DIR=${repositoryDir}; mutationScope=isolated fixture only`);
+  const nextCli = path.join(runtimeProjectRoot, "node_modules", "next", "dist", "bin", "next");
+  const build = spawnSync(process.execPath, [nextCli, "build", "--webpack"], { cwd: runtimeProjectRoot, env: process.env, stdio: "inherit" });
+  if (build.status !== 0) throw new Error(`DEV098_PRODUCTION_RUNTIME_BUILD_FAILED:${build.status}`);
+  app = startNextApp(runtimeProjectRoot, "start", port);
   await waitForNextAppReady(baseUrl, app.getOutput, 120_000);
   browser = await chromium.launch({ headless: true });
   const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -659,11 +686,11 @@ try {
   const reviewerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const viewerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const adminContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  await login(ownerContext, "工程師");
-  await login(raceOwnerContext, "工程師");
-  await login(reviewerContext, "研發主管");
-  await login(viewerContext, "製造");
-  await login(adminContext, "系統管理員");
+  await installTaskOwnedQaSession(ownerContext, "工程師");
+  await installTaskOwnedQaSession(raceOwnerContext, "工程師");
+  await installTaskOwnedQaSession(reviewerContext, "研發主管");
+  await installTaskOwnedQaSession(viewerContext, "製造");
+  await installTaskOwnedQaSession(adminContext, "系統管理員");
   await runBrowserCases(ownerContext, raceOwnerContext, reviewerContext, viewerContext, adminContext);
   await Promise.all([ownerContext.close(), raceOwnerContext.close(), reviewerContext.close(), viewerContext.close(), adminContext.close()]);
 } catch (error) {
@@ -682,7 +709,12 @@ const unexpectedConsoleErrors = consoleErrors.filter((entry) => !expectedConsole
 const expectedRequestFailures = requestFailures.filter((entry) => {
   if (entry.failure?.errorText !== "net::ERR_ABORTED") return false;
   if (entry.url.startsWith("blob:")) return true;
-  const pathname = new URL(entry.url).pathname;
+  const requestUrl = new URL(entry.url);
+  const pathname = requestUrl.pathname;
+  const expectedRscNavigationCancel = entry.method === "GET"
+    && requestUrl.searchParams.has("_rsc")
+    && (pathname === "/technical-transfer" || /^\/numbering\/drawings\/[^/]+\/workspace$/u.test(pathname));
+  if (expectedRscNavigationCancel) return true;
   return pathname === "/api/numbering/series-codes"
     || pathname.startsWith("/api/pdm/drawing-revision-works/")
     || pathname.startsWith("/api/pdm/review-requests/")

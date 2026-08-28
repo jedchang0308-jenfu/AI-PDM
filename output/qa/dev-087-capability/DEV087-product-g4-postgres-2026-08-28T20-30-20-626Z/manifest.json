@@ -1,0 +1,1412 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-g4-postgres-2026-08-28T20-30-20-626Z",
+  "parentRunId": "DEV087-G4-business-recheck-20260829T0437+0800",
+  "gateStage": "product",
+  "runner": "qc-dev-087-g4-postgres-evidence",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "d4d495ac6f25d007657622fedbac386797cc45c4a6044805f1d7bbd8b793fda8"
+  },
+  "environment": {
+    "provider": "postgresql",
+    "dataScope": "task_owned_isolated_postgresql_snapshot",
+    "baseUrl": "http://127.0.0.1:53332"
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "81a68b7239102dcbbd0eb6d87fed7b3332d3e2694e65211ff9c8aaf103ccba81",
+  "caseResults": [],
+  "caseEvidence": {},
+  "childManifests": [
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-30-20-626Z/restore-receipt.json",
+      "sha256": "660b653989de6952e2399f327d2cebe1b75e28dd4307f0a40a65faac11fe81a2",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-30-20-626Z/postgres-server.log",
+      "sha256": "a66d015a18a4bf99e0cf0ce2fcc9ef3feefe31c5996825fde489c4064dc9b46c",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-28T20-30-20-626Z/screenshots/drawing-postgresql-lifecycle.png",
+      "sha256": "031a84ebe8b187407ff2f81f5f600fbe732f3a83d88db3d95064c04d817a32cc",
+      "runner": "quality-gate-artifact",
+      "caseIds": [
+        "QG-087-PROVIDER",
+        "QG-087-SECURITY",
+        "QG-087-UI"
+      ],
+      "result": "FAIL"
+    }
+  ],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "pass",
+    "delta": 0,
+    "before": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "after": {
+      "schemaHash": "0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568",
+      "canonicalIdentityHash": "ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawingNumbers": 50,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "total": 12,
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawingNumbers": 0,
+        "drawings": 0,
+        "formalDrawingNumbers": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "byteHashObservation": {
+      "before": "45f0021031df231f3f346c70be7cdf469f03c24a0a721164eae167c3ee448958",
+      "after": "45f0021031df231f3f346c70be7cdf469f03c24a0a721164eae167c3ee448958",
+      "unchanged": true,
+      "enforcement": "informational_only_concurrent_primary_runtime_may_write_nonprotected_rows"
+    }
+  },
+  "firstFailure": {
+    "code": "G4_PRODUCT_EVIDENCE_INCOMPLETE",
+    "caseId": "QG-087-SECURITY",
+    "pointer": "checks"
+  },
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskOwnedRuntime": true,
+    "portsReleased": true,
+    "ports": {
+      "postgresql": {
+        "port": 53333,
+        "released": true
+      },
+      "next": {
+        "port": 53332,
+        "released": true
+      }
+    },
+    "runtimeProjectCleanupReceipt": {
+      "removed": true,
+      "path": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\.tmp\\qc-dev087-g4-runtime-project-53332",
+      "error": null
+    },
+    "tempRootRemoved": true
+  },
+  "result": "FAIL",
+  "errorCode": "G4_PRODUCT_EVIDENCE_INCOMPLETE",
+  "assertions": [
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"schemaHash\":\"0cd6cc0bf7f52fe3b70166faeda5e7fba57ed3bedeca21a08aa7f3387ec70568\",\"canonicalIdentityHash\":\"ba12f2a530b980ceba19250a6c4e5729b270d22a5cdab8a15cede9433f784141\",\"counts\":{\"roots\":59,\"parts\":59,\"drawingNumbers\":50,\"drawings\":53},\"migrationResidue\":{\"total\":12,\"unresolved\":0},\"rootReferenceViolations\":{\"parts\":0,\"drawingNumbers\":0,\"drawings\":0,\"formalDrawingNumbers\":0},\"foreignKeyViolations\":0}"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "[]"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "[]"
+    },
+    {
+      "caseId": "QA-087-226",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-226"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"drawingWork\":{\"workId\":\"f6439963-39ce-4eb9-a420-fbae1a6dec00\",\"entityId\":\"drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864\",\"url\":\"/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=f6439963-39ce-4eb9-a420-fbae1a6dec00\"},\"partWork\":{\"workId\":\"8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba\",\"entityId\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"url\":\"/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba\"}}"
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-216"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"firstPageIds\":[\"A0001-P01\",\"A0002-P01\",\"A0002-P01\",\"A0002-P02\",\"A0002-P03\",\"A0002-P04\",\"A0002-P05\",\"A0002-P06\",\"A0002-P07\",\"A0002-P08\",\"A0002-P09\",\"A0002-P10\",\"A0002-P11\",\"A0002-P12\",\"A0002-P13\",\"A0002-P14\",\"A0002-P15\",\"A0002-P16\",\"A0002-P17\",\"A0002-P18\",\"A0002-P19\",\"A0002-P20\",\"A0002-P21\",\"A0002-P22\",\"A0002-P23\",\"A0002-P24\",\"A0002-P25\",\"A0002-P26\",\"A0002-P27\",\"A0002-P28\",\"A0002-P29\",\"A0002-P30\",\"A0002-P31\",\"A0002-P32\",\"A0002-P33\",\"A0002-P34\",\"A0002-P35\",\"A0002-P36\",\"A0002-P37\",\"A0002-P38\",\"A0002-P39\",\"A0002-P40\",\"A0002-P41\",\"A0002-P42\",\"A0002-P43\",\"A0002-P44\",\"A0002-P45\",\"A0002-P46\",\"A0002-P47\",\"A0003-P01\",\"A0004-P01\",\"A0005-P01\",\"A0006-P01\",\"A0007-P01\",\"A0008-P01\",\"A0009-P01\",\"A0010-P01\",\"A0011-P01\",\"A0012-P01\",\"A0013-P01\",\"A0014-P01\",\"A0015-P01\",\"A0016-P01\",\"A0017-P01\",\"A0018-P01\",\"A0019-P01\",\"A0020-P01\",\"A0021-P01\",\"A0022-P01\",\"A0023-P01\",\"A0024-P01\",\"A0025-P01\",\"A0026-P01\",\"A0027-P01\",\"A0028-P01\",\"A0029-P01\",\"A0030-P01\",\"A0031-P01\",\"A0032-P01\",\"A0033-P01\",\"A0034-P01\",\"A0035-P01\",\"A0036-P01\",\"A0037-P01\",\"A0038-P01\",\"A0039-P01\",\"A0040-P01\",\"A0041-P01\",\"A0042-P01\",\"A0043-P01\",\"A0044-P01\",\"A0045-P01\",\"A0046-P01\",\"A0047-P01\",\"A0048-P01\",\"A0049-P01\",\"A0050-P01\",\"A0051-P01\",\"A0052-P01\",\"A0053-P01\",\"A0054-P01\"],\"secondPageIds\":[\"A0055-P01\",\"A0056-P01\",\"A0057-P01\",\"A0058-P01\",\"A0059-P01\"],\"returnedFirstPageIds\":[\"A0001-P01\",\"A0002-P01\",\"A0002-P01\",\"A0002-P02\",\"A0002-P03\",\"A0002-P04\",\"A0002-P05\",\"A0002-P06\",\"A0002-P07\",\"A0002-P08\",\"A0002-P09\",\"A0002-P10\",\"A0002-P11\",\"A0002-P12\",\"A0002-P13\",\"A0002-P14\",\"A0002-P15\",\"A0002-P16\",\"A0002-P17\",\"A0002-P18\",\"A0002-P19\",\"A0002-P20\",\"A0002-P21\",\"A0002-P22\",\"A0002-P23\",\"A0002-P24\",\"A0002-P25\",\"A0002-P26\",\"A0002-P27\",\"A0002-P28\",\"A0002-P29\",\"A0002-P30\",\"A0002-P31\",\"A0002-P32\",\"A0002-P33\",\"A0002-P34\",\"A0002-P35\",\"A0002-P36\",\"A0002-P37\",\"A0002-P38\",\"A0002-P39\",\"A0002-P40\",\"A0002-P41\",\"A0002-P42\",\"A0002-P43\",\"A0002-P44\",\"A0002-P45\",\"A0002-P46\",\"A0002-P47\",\"A0003-P01\",\"A0004-P01\",\"A0005-P01\",\"A0006-P01\",\"A0007-P01\",\"A0008-P01\",\"A0009-P01\",\"A0010-P01\",\"A0011-P01\",\"A0012-P01\",\"A0013-P01\",\"A0014-P01\",\"A0015-P01\",\"A0016-P01\",\"A0017-P01\",\"A0018-P01\",\"A0019-P01\",\"A0020-P01\",\"A0021-P01\",\"A0022-P01\",\"A0023-P01\",\"A0024-P01\",\"A0025-P01\",\"A0026-P01\",\"A0027-P01\",\"A0028-P01\",\"A0029-P01\",\"A0030-P01\",\"A0031-P01\",\"A0032-P01\",\"A0033-P01\",\"A0034-P01\",\"A0035-P01\",\"A0036-P01\",\"A0037-P01\",\"A0038-P01\",\"A0039-P01\",\"A0040-P01\",\"A0041-P01\",\"A0042-P01\",\"A0043-P01\",\"A0044-P01\",\"A0045-P01\",\"A0046-P01\",\"A0047-P01\",\"A0048-P01\",\"A0049-P01\",\"A0050-P01\",\"A0051-P01\",\"A0052-P01\",\"A0053-P01\",\"A0054-P01\"]}"
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-210"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"primaryLocks\":2,\"primaryUiLocks\":[{\"displayName\":\"DEV087-G4.SLDDRW\",\"rowCount\":1,\"removeActionCount\":0,\"lockLabelCount\":1},{\"displayName\":\"DEV087-G4.SLDPRT\",\"rowCount\":1,\"removeActionCount\":0,\"lockLabelCount\":1}]}"
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-192"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing submit=200:{\"data\":{\"requestId\":\"709edda8-fbc1-40cd-9a46-ab7d64b53f02\",\"reviewCycleId\":\"fa5c54c9-8375-4c5a-bb1b-bf5a7a647754\",\"rowVersion\":1},\"meta\":{\"correlationId\":\"f9a7e210-fca9-4bac-a5b3-6dbee09c3e0d\"}}"
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-192"
+      ],
+      "firstFailurePointer": null,
+      "detail": "drawing return=200"
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-192"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"returnedFff\":[\"no_impact\",\"suspected_impact\",\"confirmed_impact\"],\"returnedReplacement\":\"A0001-P01\"}"
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-205"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part save=200:{\"data\":{\"workId\":\"8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba\",\"rowVersion\":2,\"payload\":{\"partName\":\"本體_BS_右_Xx5\",\"itemKind\":\"manufactured\",\"customSpecification\":null,\"isUniversal\":false,\"materialCode\":null,\"materialLabel\":\"SUS 304 G4\",\"colorCode\":null,\"colorLabel\":\"Black G4\",\"surfaceTreatment\":\"BA G4\",\"variantNote\":\"DEV087 PostgreSQL return snapshot\"}},\"meta\":{\"correlationId\":\"e4614629-8f58-42c0-af2e-4cb0bae1cdcb\"}}"
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-205"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part submit=200:{\"data\":{\"requestId\":\"e876757c-f225-4b70-b0b6-4016b952aeb0\",\"reviewCycleId\":\"51522774-7b43-4d0e-b81c-587f25382f7c\",\"rowVersion\":1},\"meta\":{\"correlationId\":\"449c4965-bf0b-4c0d-beda-7efe8c7df2db\"}}"
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-205"
+      ],
+      "firstFailurePointer": null,
+      "detail": "part return=200"
+    },
+    {
+      "caseId": "QA-087-199",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-199"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"status\":201,\"requestBody\":{\"approvalRequest\":{\"id\":\"fcb753e8-1f12-4819-a88f-64ea0d60ed4f\",\"actionCode\":\"obsolete_ma_drawing\",\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 G4 PostgreSQL QA-087-199\",\"payload\":{\"entityCode\":\"A0002-M01\",\"projectCode\":null,\"drawingNumber\":\"A0002-M01\",\"lifecycleAction\":\"obsolete\",\"impactFingerprint\":\"fd5dcafebef0bc0cf133181169f9fb02d9665b20f8b30c7b25d28aeaa5bd1332\",\"impactDependencies\":[{\"id\":\"4a2511e1-3182-448f-a54e-4614afa2cd4c\",\"code\":\"A0002-M01.pdf\",\"kind\":\"controlled_file\",\"disposition\":\"pdf:c076f20b-21d0-4061-a9bf-148060995162\"},{\"id\":\"53eb60d6-f56a-4181-b133-85bd46c5c54d\",\"code\":\"A0002.SLDPRT\",\"kind\":\"controlled_file\",\"disposition\":\"cad_3d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"id\":\"9d264a7a-9ace-4556-8abb-a93f892cfa8f\",\"code\":\"A0002-M01.SLDDRW\",\"kind\":\"controlled_file\",\"disposition\":\"drawing_2d:c076f20b-21d0-4061-a9bf-148060995162\"},{\"id\":\"qa-dev087-g4-production-file-1\",\"code\":\"A0002-M01.pdf\",\"kind\":\"controlled_file\",\"disposition\":\"pdf:qa-dev087-g4-production-revision\"},{\"id\":\"qa-dev087-g4-production-file-2\",\"code\":\"A0002-M01.SLDDRW\",\"kind\":\"controlled_file\",\"disposition\":\"drawing_2d:qa-dev087-g4-production-revision\"},{\"id\":\"qa-dev087-g4-production-file-3\",\"code\":\"A0002.SLDPRT\",\"kind\":\"controlled_file\",\"disposition\":\"cad_3d:qa-dev087-g4-production-revision\"},{\"id\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"code\":\"0.1\",\"kind\":\"controlled_revision\",\"disposition\":\"rd_controlled\"},{\"id\":\"qa-dev087-g4-production-revision\",\"code\":\"1\",\"kind\":\"controlled_revision\",\"disposition\":\"released\"},{\"id\":\"part-number-593efe73-6225-42a7-9507-c63602b73169\",\"code\":\"A0002-P01\",\"kind\":\"part_relation\",\"disposition\":\"primary_manufacturing\"}],\"previousRecordStatus\":\"Released\"},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T20:32:42.957Z\"},\"approvalBatch\":{\"id\":\"d4a53f64-7d6c-4d7e-b8ab-7ed23003d430\",\"batchCode\":\"NB-MTDERNJ5-1\",\"projectCode\":null,\"actionCode\":\"obsolete_ma_drawing\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T20:32:42.977Z\",\"items\":[{\"id\":\"f32a3063-da88-4649-abf1-283d47134e9f\",\"batchId\":\"d4a53f64-7d6c-4d7e-b8ab-7ed23003d430\",\"approvalRequestId\":\"fcb753e8-1f12-4819-a88f-64ea0d60ed4f\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"entityCode\":\"A0002-M01\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_ma_drawing\"},\"policy\":{\"entityType\":\"numbering_drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}}"
+    },
+    {
+      "caseId": "QA-087-199",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-199"
+      ],
+      "firstFailurePointer": null,
+      "detail": "decision=200"
+    },
+    {
+      "caseId": "QA-087-201",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-201"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"status\":201,\"requestBody\":{\"approvalRequest\":{\"id\":\"8be8a1c1-c244-42d4-b555-d261ec5fc7af\",\"actionCode\":\"obsolete_part_number\",\"entityType\":\"part_number\",\"entityId\":\"qa-dev087-g4-a0002-p47\",\"requestStatus\":\"pending\",\"reason\":\"DEV087 G4 PostgreSQL QA-087-201\",\"payload\":{\"entityCode\":\"A0002-P47\",\"partNumber\":\"A0002-P47\",\"projectCode\":null,\"lifecycleAction\":\"obsolete\",\"impactFingerprint\":\"b1acd5671984bbd143e210c125cd22ddaa861a8f9bdde31f2204f7bfa9f06d72\",\"impactDependencies\":[],\"previousRecordStatus\":\"Released\"},\"requestedBy\":\"user-admin-local-quick\",\"requestedAt\":\"2026-08-28T20:33:07.531Z\"},\"approvalBatch\":{\"id\":\"6ad18df0-e5b3-4f1d-a5dc-c32b60abf2ed\",\"batchCode\":\"NB-MTDES6HP-1\",\"projectCode\":null,\"actionCode\":\"obsolete_part_number\",\"batchStatus\":\"pending\",\"submittedBy\":\"user-admin-local-quick\",\"submittedAt\":\"2026-08-28T20:33:07.549Z\",\"items\":[{\"id\":\"93b1cbc1-3e79-4e97-b16a-d8e4fa25d5ed\",\"batchId\":\"6ad18df0-e5b3-4f1d-a5dc-c32b60abf2ed\",\"approvalRequestId\":\"8be8a1c1-c244-42d4-b555-d261ec5fc7af\",\"itemStatus\":\"pending\",\"resubmittedFromItemId\":null}]},\"entity\":{\"entityType\":\"part_number\",\"entityId\":\"qa-dev087-g4-a0002-p47\",\"entityCode\":\"A0002-P47\",\"recordStatus\":\"Released\",\"actionCode\":\"obsolete_part_number\"},\"policy\":{\"entityType\":\"numbering_part_number\",\"entityId\":\"qa-dev087-g4-a0002-p47\",\"visibleStage\":\"in_review\",\"stageLabel\":\"審核中\",\"uiSurface\":\"work_list\",\"traceabilityClass\":\"working\",\"detailTags\":[\"需審核\"],\"actions\":{\"delete\":{\"allowed\":false,\"reasonCode\":\"LIFE_FORMAL_DELETE_BLOCKED\",\"message\":\"正式資料不能直接刪除。\"},\"restore\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_NOT_DELETED\",\"message\":\"正式資料不使用已刪除資料還原。\"},\"obsolete\":{\"allowed\":false,\"reasonCode\":\"LIFE_OBSOLETE_ALREADY_REQUESTED\",\"message\":\"此正式資料已有作廢審核中申請。\",\"requiresApproval\":true}}},\"pdmCompany\":{\"companyId\":\"company-jenfu\",\"companyCode\":\"JENFU\",\"displayName\":\"鉦富\"}}}"
+    },
+    {
+      "caseId": "QA-087-201",
+      "result": "PASS",
+      "assertionIds": [
+        "QA-087-201"
+      ],
+      "firstFailurePointer": null,
+      "detail": "decision=200"
+    },
+    {
+      "caseId": "QG-087-PROVIDER",
+      "result": "PASS",
+      "assertionIds": [
+        "QG-087-PROVIDER"
+      ],
+      "firstFailurePointer": null,
+      "detail": "{\"primaryUnchanged\":true,\"successfulMutationReceipts\":12,\"requiredPostgresCases\":6,\"passedPostgresCases\":6}"
+    },
+    {
+      "caseId": "QG-087-SECURITY",
+      "result": "FAIL",
+      "assertionIds": [
+        "QG-087-SECURITY"
+      ],
+      "firstFailurePointer": "{\"requiredZeroWriteNegatives\":8,\"passedZeroWriteNegatives\":0}",
+      "detail": "{\"requiredZeroWriteNegatives\":8,\"passedZeroWriteNegatives\":0}"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "result": "FAIL",
+      "assertionIds": [
+        "QG-087-UI"
+      ],
+      "firstFailurePointer": "{\"requiredFamilyViewports\":32,\"capturedFamilyViewports\":0,\"headedViewports\":[\"1440x900\",\"390x844\"],\"assistiveTechnology\":\"optional\"}",
+      "detail": "{\"requiredFamilyViewports\":32,\"capturedFamilyViewports\":0,\"headedViewports\":[\"1440x900\",\"390x844\"],\"assistiveTechnology\":\"optional\"}"
+    }
+  ],
+  "failures": [
+    {
+      "caseId": "QG-087-SECURITY",
+      "detail": "{\"requiredZeroWriteNegatives\":8,\"passedZeroWriteNegatives\":0}"
+    },
+    {
+      "caseId": "QG-087-UI",
+      "detail": "{\"requiredFamilyViewports\":32,\"capturedFamilyViewports\":0,\"headedViewports\":[\"1440x900\",\"390x844\"],\"assistiveTechnology\":\"optional\"}"
+    }
+  ],
+  "mutationLedger": [
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "PATCH /api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00",
+      "idempotencyKey": "dfa9176f-04e0-4c2e-be41-d2aa150d1a89",
+      "correlationId": "fab97111-3fe8-45a6-8e05-2527d79bca71",
+      "serverRoute": "/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00",
+      "dbWriter": "dev087:drawing.update:drawing-work:f6439963-39ce-4eb9-a420-fbae1a6dec00:update",
+      "commandReceiptId": "df6d5b1e-410d-4a8c-9dd3-988fae76b7f5",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:31:34.486Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files",
+      "idempotencyKey": "242d67fe-414a-4145-81a2-1b274911ada8",
+      "correlationId": "aac22638-2d76-458d-aa86-761cd91a5c82",
+      "serverRoute": "/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files",
+      "dbWriter": "dev087:drawing.file.upload:drawing-work:f6439963-39ce-4eb9-a420-fbae1a6dec00:file:drawing_2d",
+      "commandReceiptId": "e045e69a-1112-4a6e-870f-422eba8b7f8b",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:31:37.044Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files",
+      "idempotencyKey": "72a7a4d8-790c-42e3-8c05-26321295e029",
+      "correlationId": "72155a08-57ae-4a80-b0a3-1dd5d2091aa7",
+      "serverRoute": "/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files",
+      "dbWriter": "dev087:drawing.file.upload:drawing-work:f6439963-39ce-4eb9-a420-fbae1a6dec00:file:cad_3d",
+      "commandReceiptId": "457f9e9e-241a-4fe9-bef7-b716caadc304",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:31:37.444Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files",
+      "idempotencyKey": "009a6be6-dcfa-4f40-94cc-acd0e7714484",
+      "correlationId": "33115ee9-9a75-42ba-8cad-822eba6304ef",
+      "serverRoute": "/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files",
+      "dbWriter": "dev087:drawing.file.upload:drawing-work:f6439963-39ce-4eb9-a420-fbae1a6dec00:file:pdf",
+      "commandReceiptId": "3519a1fb-a1c6-4feb-9b5d-23b5f671ac48",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:31:37.700Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "DELETE /api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files/8715b4ae-1550-49b2-b785-e4249595b96d",
+      "idempotencyKey": "eaa3f9d4-4d2b-434f-83b0-61a77fa00922",
+      "correlationId": "38e11855-addf-4cf2-9313-5a886b619814",
+      "serverRoute": "/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files/8715b4ae-1550-49b2-b785-e4249595b96d",
+      "dbWriter": "dev087:drawing.file.remove:drawing-work:f6439963-39ce-4eb9-a420-fbae1a6dec00:file-remove:8715b4ae-1550-49b2-b785-e4249595b96d",
+      "commandReceiptId": "384a367f-d763-4f9c-945d-c8edaf03120d",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:31:42.436Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/submit",
+      "idempotencyKey": "3ba4f754-4ebf-4f77-8726-e548a6d57852",
+      "correlationId": "329b1a45-798f-464e-bb5f-49e7c4328d32",
+      "serverRoute": "/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/submit",
+      "dbWriter": "dev087:drawing.submit:drawing-work:f6439963-39ce-4eb9-a420-fbae1a6dec00:review",
+      "commandReceiptId": "3bbbec7a-4526-46d8-bbc9-2c5f57bbc847",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:31:46.162Z"
+    },
+    {
+      "uiAction": "drawing-review-return",
+      "networkInitiator": "POST /api/pdm/review-requests/709edda8-fbc1-40cd-9a46-ab7d64b53f02/decisions",
+      "idempotencyKey": "dd526d54-243c-465d-86bb-6dffa7ea8592",
+      "correlationId": "4c778bd3-360c-4ec4-9b55-389b254fe335",
+      "serverRoute": "/api/pdm/review-requests/709edda8-fbc1-40cd-9a46-ab7d64b53f02/decisions",
+      "dbWriter": "dev087:review.decision:review:fa5c54c9-8375-4c5a-bb1b-bf5a7a647754",
+      "commandReceiptId": "eb889b03-b55e-4086-8eb7-d641d591d9c9",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:32:05.120Z"
+    },
+    {
+      "uiAction": "drawing-lifecycle",
+      "networkInitiator": "POST /api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/cancel",
+      "idempotencyKey": "88e804e1-bcc0-4930-b4c2-85d20a06497f",
+      "correlationId": "5137b7eb-bdcf-4bca-b347-50499b729055",
+      "serverRoute": "/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/cancel",
+      "dbWriter": "dev087:drawing.cancel:drawing-work:f6439963-39ce-4eb9-a420-fbae1a6dec00:cancel",
+      "commandReceiptId": "f5a7c268-a51c-444f-aa42-9bb960a3b402",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:32:12.434Z"
+    },
+    {
+      "uiAction": "part-lifecycle",
+      "networkInitiator": "PATCH /api/pdm/part-change-works/8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba",
+      "idempotencyKey": "0dc01d87-da7b-446f-a5d8-427d35b98759",
+      "correlationId": "da0e300e-411c-47dd-bc36-cb08bb4560a1",
+      "serverRoute": "/api/pdm/part-change-works/8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba",
+      "dbWriter": "dev087:part.update:part-work:8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba:update",
+      "commandReceiptId": "912a2b06-f840-4dc7-b7cd-8f5a545b6737",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:32:18.016Z"
+    },
+    {
+      "uiAction": "part-lifecycle",
+      "networkInitiator": "POST /api/pdm/part-change-works/8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba/submit",
+      "idempotencyKey": "01aa61b5-87e9-44db-8cfe-2c2cdd857809",
+      "correlationId": "453e61c7-71a8-429e-9374-1a23afbfcd63",
+      "serverRoute": "/api/pdm/part-change-works/8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba/submit",
+      "dbWriter": "dev087:part.submit:part-work:8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba:review",
+      "commandReceiptId": "584fdddd-8bb3-40b1-82ea-4ede31d39981",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:32:20.833Z"
+    },
+    {
+      "uiAction": "part-review-return",
+      "networkInitiator": "POST /api/pdm/review-requests/e876757c-f225-4b70-b0b6-4016b952aeb0/decisions",
+      "idempotencyKey": "90f069b3-3d99-47c1-be61-9c6b23985a4e",
+      "correlationId": "0b662c50-9d4d-4c1b-a9e5-286f76c0d7b1",
+      "serverRoute": "/api/pdm/review-requests/e876757c-f225-4b70-b0b6-4016b952aeb0/decisions",
+      "dbWriter": "dev087:review.decision:review:51522774-7b43-4d0e-b81c-587f25382f7c",
+      "commandReceiptId": "06408c17-7cdb-4223-a608-94a78c6d6528",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:32:27.094Z"
+    },
+    {
+      "uiAction": "part-lifecycle",
+      "networkInitiator": "POST /api/pdm/part-change-works/8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba/cancel",
+      "idempotencyKey": "11f248d8-1351-4a23-b524-c9e35a89cd39",
+      "correlationId": "f34caabe-c7ae-447d-b33d-af4e445b8bd2",
+      "serverRoute": "/api/pdm/part-change-works/8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba/cancel",
+      "dbWriter": "dev087:part.cancel:part-work:8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba:cancel",
+      "commandReceiptId": "7488123c-785d-4ef6-807f-f23b10cd36a2",
+      "successfulWrite": true,
+      "responseStatus": 200,
+      "completedAt": "2026-08-28T20:32:33.460Z"
+    }
+  ],
+  "providerReceipts": [],
+  "fixtureMutationLedger": [
+    {
+      "action": "prepare-g4-postgresql-fixture",
+      "scope": "task_owned_isolated_postgresql_fixture",
+      "identities": [
+        "A0001-M01",
+        "A0001-P01",
+        "A0002-M01",
+        "A0002-P01",
+        "A0002-P02..P47",
+        "qa-dev087-g4-*"
+      ],
+      "purpose": "isolated FFF revision, formal obsolete, pagination, unsafe action URL, and stale task journeys",
+      "targetTableGuards": {
+        "preserved": true,
+        "names": [
+          "trg_dev087_canonical_state_company_guard",
+          "trg_dev087_branch_company_guard",
+          "trg_dev087_claim_company_guard",
+          "trg_drawing_revision_claims_approved_immutable",
+          "trg_dev087_drawing_work_company_guard",
+          "trg_dev087_part_work_company_guard",
+          "trg_dev087_review_request_company_guard",
+          "trg_dev087_review_request_identity"
+        ]
+      }
+    }
+  ],
+  "negativeEvidence": [],
+  "visibleEvidence": [],
+  "assistiveTechnologyEvidence": [
+    {
+      "actual": false,
+      "result": "OPTIONAL_NOT_RUN",
+      "technology": null,
+      "reason": "Trusted-solo completion uses rendered accessibility, keyboard, focus, geometry and visible-error evidence; an actual assistive-technology run is optional."
+    }
+  ],
+  "qualityGateResults": [
+    {
+      "gateId": "QG-087-PROVIDER",
+      "result": "PASS",
+      "detail": {
+        "primaryUnchanged": true,
+        "successfulMutationReceipts": 12,
+        "requiredPostgresCases": 6,
+        "passedPostgresCases": 6
+      }
+    },
+    {
+      "gateId": "QG-087-SECURITY",
+      "result": "FAIL",
+      "detail": {
+        "requiredZeroWriteNegatives": 8,
+        "passedZeroWriteNegatives": 0
+      }
+    },
+    {
+      "gateId": "QG-087-UI",
+      "result": "FAIL",
+      "detail": {
+        "requiredFamilyViewports": 32,
+        "capturedFamilyViewports": 0,
+        "headedViewports": [
+          "1440x900",
+          "390x844"
+        ],
+        "assistiveTechnology": "optional"
+      }
+    }
+  ],
+  "postgresCaseReceipts": [
+    {
+      "caseId": "QA-087-216",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5135",
+      "isolation": "repeatable read",
+      "evidence": {
+        "firstPageIds": [
+          "A0001-P01",
+          "A0002-P01",
+          "A0002-P01",
+          "A0002-P02",
+          "A0002-P03",
+          "A0002-P04",
+          "A0002-P05",
+          "A0002-P06",
+          "A0002-P07",
+          "A0002-P08",
+          "A0002-P09",
+          "A0002-P10",
+          "A0002-P11",
+          "A0002-P12",
+          "A0002-P13",
+          "A0002-P14",
+          "A0002-P15",
+          "A0002-P16",
+          "A0002-P17",
+          "A0002-P18",
+          "A0002-P19",
+          "A0002-P20",
+          "A0002-P21",
+          "A0002-P22",
+          "A0002-P23",
+          "A0002-P24",
+          "A0002-P25",
+          "A0002-P26",
+          "A0002-P27",
+          "A0002-P28",
+          "A0002-P29",
+          "A0002-P30",
+          "A0002-P31",
+          "A0002-P32",
+          "A0002-P33",
+          "A0002-P34",
+          "A0002-P35",
+          "A0002-P36",
+          "A0002-P37",
+          "A0002-P38",
+          "A0002-P39",
+          "A0002-P40",
+          "A0002-P41",
+          "A0002-P42",
+          "A0002-P43",
+          "A0002-P44",
+          "A0002-P45",
+          "A0002-P46",
+          "A0002-P47",
+          "A0003-P01",
+          "A0004-P01",
+          "A0005-P01",
+          "A0006-P01",
+          "A0007-P01",
+          "A0008-P01",
+          "A0009-P01",
+          "A0010-P01",
+          "A0011-P01",
+          "A0012-P01",
+          "A0013-P01",
+          "A0014-P01",
+          "A0015-P01",
+          "A0016-P01",
+          "A0017-P01",
+          "A0018-P01",
+          "A0019-P01",
+          "A0020-P01",
+          "A0021-P01",
+          "A0022-P01",
+          "A0023-P01",
+          "A0024-P01",
+          "A0025-P01",
+          "A0026-P01",
+          "A0027-P01",
+          "A0028-P01",
+          "A0029-P01",
+          "A0030-P01",
+          "A0031-P01",
+          "A0032-P01",
+          "A0033-P01",
+          "A0034-P01",
+          "A0035-P01",
+          "A0036-P01",
+          "A0037-P01",
+          "A0038-P01",
+          "A0039-P01",
+          "A0040-P01",
+          "A0041-P01",
+          "A0042-P01",
+          "A0043-P01",
+          "A0044-P01",
+          "A0045-P01",
+          "A0046-P01",
+          "A0047-P01",
+          "A0048-P01",
+          "A0049-P01",
+          "A0050-P01",
+          "A0051-P01",
+          "A0052-P01",
+          "A0053-P01",
+          "A0054-P01"
+        ],
+        "secondPageIds": [
+          "A0055-P01",
+          "A0056-P01",
+          "A0057-P01",
+          "A0058-P01",
+          "A0059-P01"
+        ],
+        "returnedFirstPageIds": [
+          "A0001-P01",
+          "A0002-P01",
+          "A0002-P01",
+          "A0002-P02",
+          "A0002-P03",
+          "A0002-P04",
+          "A0002-P05",
+          "A0002-P06",
+          "A0002-P07",
+          "A0002-P08",
+          "A0002-P09",
+          "A0002-P10",
+          "A0002-P11",
+          "A0002-P12",
+          "A0002-P13",
+          "A0002-P14",
+          "A0002-P15",
+          "A0002-P16",
+          "A0002-P17",
+          "A0002-P18",
+          "A0002-P19",
+          "A0002-P20",
+          "A0002-P21",
+          "A0002-P22",
+          "A0002-P23",
+          "A0002-P24",
+          "A0002-P25",
+          "A0002-P26",
+          "A0002-P27",
+          "A0002-P28",
+          "A0002-P29",
+          "A0002-P30",
+          "A0002-P31",
+          "A0002-P32",
+          "A0002-P33",
+          "A0002-P34",
+          "A0002-P35",
+          "A0002-P36",
+          "A0002-P37",
+          "A0002-P38",
+          "A0002-P39",
+          "A0002-P40",
+          "A0002-P41",
+          "A0002-P42",
+          "A0002-P43",
+          "A0002-P44",
+          "A0002-P45",
+          "A0002-P46",
+          "A0002-P47",
+          "A0003-P01",
+          "A0004-P01",
+          "A0005-P01",
+          "A0006-P01",
+          "A0007-P01",
+          "A0008-P01",
+          "A0009-P01",
+          "A0010-P01",
+          "A0011-P01",
+          "A0012-P01",
+          "A0013-P01",
+          "A0014-P01",
+          "A0015-P01",
+          "A0016-P01",
+          "A0017-P01",
+          "A0018-P01",
+          "A0019-P01",
+          "A0020-P01",
+          "A0021-P01",
+          "A0022-P01",
+          "A0023-P01",
+          "A0024-P01",
+          "A0025-P01",
+          "A0026-P01",
+          "A0027-P01",
+          "A0028-P01",
+          "A0029-P01",
+          "A0030-P01",
+          "A0031-P01",
+          "A0032-P01",
+          "A0033-P01",
+          "A0034-P01",
+          "A0035-P01",
+          "A0036-P01",
+          "A0037-P01",
+          "A0038-P01",
+          "A0039-P01",
+          "A0040-P01",
+          "A0041-P01",
+          "A0042-P01",
+          "A0043-P01",
+          "A0044-P01",
+          "A0045-P01",
+          "A0046-P01",
+          "A0047-P01",
+          "A0048-P01",
+          "A0049-P01",
+          "A0050-P01",
+          "A0051-P01",
+          "A0052-P01",
+          "A0053-P01",
+          "A0054-P01"
+        ]
+      },
+      "readback": {
+        "count": 105,
+        "renderedRowCount": 106,
+        "pagedUniqueCount": 105
+      }
+    },
+    {
+      "caseId": "QA-087-192",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5170",
+      "isolation": "repeatable read",
+      "evidence": {
+        "submitStatus": 200,
+        "returnStatus": 200,
+        "workId": "f6439963-39ce-4eb9-a420-fbae1a6dec00",
+        "reviewRequestId": "709edda8-fbc1-40cd-9a46-ab7d64b53f02"
+      },
+      "readback": {
+        "proposed_payload": {
+          "changeImpact": {
+            "note": "DEV087 G4 PostgreSQL exact snapshot",
+            "outcome": "confirmed_impact",
+            "fitState": "suspected_impact",
+            "formState": "no_impact",
+            "replacement": {
+              "itemType": "self_made",
+              "attachmentSnapshot": null,
+              "detectedPartNumber": null,
+              "reservedPartNumber": "A0001-P01",
+              "sourcePartNumberId": "0a81c6e6-089c-4881-926c-819ff141734c",
+              "correctedPartNumber": null
+            },
+            "functionState": "confirmed_impact",
+            "schemaVersion": 2,
+            "reasonCategory": "function_change",
+            "affectedPartNumberIds": [
+              "0a81c6e6-089c-4881-926c-819ff141734c"
+            ],
+            "affectedPartFingerprint": "5e32aea1a1e7cb2499e01fe4f55b81b921277bb91fd0e37630ba621c91fce9d8"
+          },
+          "recognitionNotes": ""
+        },
+        "row_version": 6
+      }
+    },
+    {
+      "caseId": "QA-087-210",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5171",
+      "isolation": "repeatable read",
+      "evidence": {
+        "workId": "f6439963-39ce-4eb9-a420-fbae1a6dec00",
+        "primaryLocks": 2,
+        "primaryUiLocks": [
+          {
+            "displayName": "DEV087-G4.SLDDRW",
+            "rowCount": 1,
+            "removeActionCount": 0,
+            "lockLabelCount": 1
+          },
+          {
+            "displayName": "DEV087-G4.SLDPRT",
+            "rowCount": 1,
+            "removeActionCount": 0,
+            "lockLabelCount": 1
+          }
+        ],
+        "removedSupplement": true
+      },
+      "readback": [
+        {
+          "role": "drawing_2d",
+          "is_primary": 1,
+          "display_name": "DEV087-G4.SLDDRW"
+        },
+        {
+          "role": "cad_3d",
+          "is_primary": 1,
+          "display_name": "DEV087-G4.SLDPRT"
+        }
+      ]
+    },
+    {
+      "caseId": "QA-087-205",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5224",
+      "isolation": "repeatable read",
+      "evidence": {
+        "saveStatus": 200,
+        "submitStatus": 200,
+        "returnStatus": 200,
+        "workId": "8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba"
+      },
+      "readback": {
+        "proposed_payload": {
+          "itemKind": "manufactured",
+          "partName": "本體_BS_右_Xx5",
+          "colorCode": null,
+          "colorLabel": "Black G4",
+          "isUniversal": false,
+          "variantNote": "DEV087 PostgreSQL return snapshot",
+          "materialCode": null,
+          "materialLabel": "SUS 304 G4",
+          "surfaceTreatment": "BA G4",
+          "customSpecification": null
+        },
+        "row_version": 2
+      }
+    },
+    {
+      "caseId": "QA-087-199",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5235",
+      "isolation": "repeatable read",
+      "evidence": {
+        "entityType": "drawing",
+        "code": "A0002-M01",
+        "requestId": "fcb753e8-1f12-4819-a88f-64ea0d60ed4f",
+        "requestStatus": 201,
+        "decisionStatus": 200
+      },
+      "readback": {
+        "terminal": {
+          "id": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "record_status": "Obsolete",
+          "updated_at": "2026-08-28T20:33:00.414Z"
+        },
+        "request": {
+          "id": "fcb753e8-1f12-4819-a88f-64ea0d60ed4f",
+          "request_status": "approved",
+          "resolved_by": "user-manager-demo",
+          "resolved_at": "2026-08-28T20:33:00.415Z"
+        },
+        "decisions": [
+          {
+            "decision": "approved",
+            "approver_id": "user-manager-demo",
+            "decided_at": "2026-08-28T20:33:00.415Z"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "QA-087-201",
+      "provider": "postgresql",
+      "result": "PASS",
+      "transactionId": "5245",
+      "isolation": "repeatable read",
+      "evidence": {
+        "entityType": "part",
+        "code": "A0002-P47",
+        "requestId": "8be8a1c1-c244-42d4-b555-d261ec5fc7af",
+        "requestStatus": 201,
+        "decisionStatus": 200
+      },
+      "readback": {
+        "terminal": {
+          "id": "qa-dev087-g4-a0002-p47",
+          "record_status": "Obsolete",
+          "updated_at": "2026-08-28T20:33:13.051Z"
+        },
+        "request": {
+          "id": "8be8a1c1-c244-42d4-b555-d261ec5fc7af",
+          "request_status": "approved",
+          "resolved_by": "user-manager-demo",
+          "resolved_at": "2026-08-28T20:33:13.051Z"
+        },
+        "decisions": [
+          {
+            "decision": "approved",
+            "approver_id": "user-manager-demo",
+            "decided_at": "2026-08-28T20:33:13.051Z"
+          }
+        ]
+      }
+    }
+  ],
+  "networkEvents": [
+    {
+      "at": "2026-08-28T20:30:48.680Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"Admin\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:30:49.354Z"
+    },
+    {
+      "at": "2026-08-28T20:31:03.477Z",
+      "label": "formal-drawing-revision-create",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/revision-works",
+      "sameOrigin": true,
+      "postData": "{\"sourceRowKey\":\"cw_87000000-0000-4000-8000-000000000101\",\"selectionMode\":\"recommended\",\"candidateToken\":\"eyJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJkcmF3aW5nSWQiOiJkcmF3aW5nLWZvcm1hbC04Mjk4MzA2Yi0yNTc1LTQyYTktOWRlNC04ZWRmNDRhOWI4NjQiLCJzb3VyY2VSb3dJZCI6Ijg3MDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDEwMSIsInNvdXJjZVJvd1ZlcnNpb24iOjEsImJhc2lzU3RhdGUiOiJjdXJyZW50IiwidGFyZ2V0Ijp7Im1ham9yIjoxLCJtaW5vciI6MSwibGFiZWwiOiIxLjEifSwidmVyc2lvbiI6MiwiZXhwaXJlc0F0IjoxNzg3OTQ5NjYzMzE1fQ.MAb6CkOZTTPszkilGxQ44G90EkCG1XeddQ-E38Cmx0g\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/numbering/drawings?query=A0001-M01&detail=cw_87000000-0000-4000-8000-000000000101",
+        "idempotency-key": "17f26702-a2fc-4f6e-97c3-2ce0b6edfa30",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTA2MzMxNH0.QwAcCGDZdxhP3Zq1n5T7Lns_1x-XyPL4T6unnDoEkrQ",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:31:05.185Z"
+    },
+    {
+      "at": "2026-08-28T20:31:19.036Z",
+      "label": "resolve-A0002-P01",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/change-works",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/parts?query=A0002-P01&detail=cw_87000000-0000-4000-8000-000000000002",
+        "idempotency-key": "f6b0b0f7-bdf8-4d01-8f14-4f73057a5959",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTA3ODQ4OH0.wNLFbOqv98yz_g97sY1ObHvH0uBZzexegVXVRR6PCgE",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:31:22.246Z"
+    },
+    {
+      "at": "2026-08-28T20:31:33.075Z",
+      "label": "drawing-lifecycle",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:53332/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00",
+      "sameOrigin": true,
+      "postData": "{\"changeImpact\":{\"schemaVersion\":2,\"affectedPartNumberIds\":[\"0a81c6e6-089c-4881-926c-819ff141734c\"],\"affectedPartFingerprint\":\"5e32aea1a1e7cb2499e01fe4f55b81b921277bb91fd0e37630ba621c91fce9d8\",\"formState\":\"no_impact\",\"fitState\":\"suspected_impact\",\"functionState\":\"confirmed_impact\",\"outcome\":null,\"reasonCategory\":\"function_change\",\"note\":\"DEV087 G4 PostgreSQL exact snapshot\",\"replacement\":{\"sourcePartNumberId\":\"0a81c6e6-089c-4881-926c-819ff141734c\",\"itemType\":\"self_made\",\"reservedPartNumber\":\"A0001-P01\"}},\"recognitionNotes\":\"\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=f6439963-39ce-4eb9-a420-fbae1a6dec00",
+        "idempotency-key": "dfa9176f-04e0-4c2e-be41-d2aa150d1a89",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTA5MjI5NH0.DO7MfaPiSxkkTX_1HqprM9TO5rJUw3LoK_tHAOGW4SI",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:31:34.533Z"
+    },
+    {
+      "at": "2026-08-28T20:31:34.539Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files",
+      "sameOrigin": true,
+      "postData": null,
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=f6439963-39ce-4eb9-a420-fbae1a6dec00",
+        "idempotency-key": "242d67fe-414a-4145-81a2-1b274911ada8",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"2\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTA5MjI5NH0.DO7MfaPiSxkkTX_1HqprM9TO5rJUw3LoK_tHAOGW4SI",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "multipart/form-data; boundary=----WebKitFormBoundaryPzMCNEymBuTk7Vlj"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:31:37.333Z"
+    },
+    {
+      "at": "2026-08-28T20:31:37.333Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files",
+      "sameOrigin": true,
+      "postData": null,
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=f6439963-39ce-4eb9-a420-fbae1a6dec00",
+        "idempotency-key": "72a7a4d8-790c-42e3-8c05-26321295e029",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"3\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTA5MjI5NH0.DO7MfaPiSxkkTX_1HqprM9TO5rJUw3LoK_tHAOGW4SI",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "multipart/form-data; boundary=----WebKitFormBoundaryl8MBsIMHW5prp1fO"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:31:37.650Z"
+    },
+    {
+      "at": "2026-08-28T20:31:37.650Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files",
+      "sameOrigin": true,
+      "postData": null,
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=f6439963-39ce-4eb9-a420-fbae1a6dec00",
+        "idempotency-key": "009a6be6-dcfa-4f40-94cc-acd0e7714484",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"4\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTA5MjI5NH0.DO7MfaPiSxkkTX_1HqprM9TO5rJUw3LoK_tHAOGW4SI",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "multipart/form-data; boundary=----WebKitFormBoundaryGmspufX2vXcCVqtP"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:31:37.900Z"
+    },
+    {
+      "at": "2026-08-28T20:31:38.217Z",
+      "label": "drawing-lifecycle",
+      "method": "DELETE",
+      "url": "http://127.0.0.1:53332/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/files/8715b4ae-1550-49b2-b785-e4249595b96d",
+      "sameOrigin": true,
+      "postData": null,
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=f6439963-39ce-4eb9-a420-fbae1a6dec00",
+        "idempotency-key": "eaa3f9d4-4d2b-434f-83b0-61a77fa00922",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"5\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTA5ODAyNH0.V23PmQ6p8y-UoUEf1FmGzcxB6ZrmbAwldIkUh7qjvKc",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:31:42.506Z"
+    },
+    {
+      "at": "2026-08-28T20:31:42.745Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/submit",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=f6439963-39ce-4eb9-a420-fbae1a6dec00",
+        "idempotency-key": "3ba4f754-4ebf-4f77-8726-e548a6d57852",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"6\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTEwMjYwOX0.HW1chfxtvieANn3kzryXwMyQs0vSyrsCGut1d_PDM9I",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:31:46.258Z"
+    },
+    {
+      "at": "2026-08-28T20:31:48.632Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"R&D Manager\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:31:48.729Z"
+    },
+    {
+      "at": "2026-08-28T20:32:02.382Z",
+      "label": "drawing-review-return",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/review-requests/709edda8-fbc1-40cd-9a46-ab7d64b53f02/decisions",
+      "sameOrigin": true,
+      "postData": "{\"decision\":\"return_for_correction\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/approvals/709edda8-fbc1-40cd-9a46-ab7d64b53f02",
+        "idempotency-key": "dd526d54-243c-465d-86bb-6dffa7ea8592",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItbWFuYWdlci1kZW1vIiwic2NoZW1hSGFzaCI6ImRldjA5MC12MSIsImV4cGVjdGVkQ29tbWl0IjoibG9jYWwtZGV2IiwibW9kZSI6ImNhbm9uaWNhbF9vbmx5IiwiaXNzdWVkQXQiOjE3ODc5NDkxMjE5NDJ9.4eupd7klPCv6jETOLm8T4lZud6J4wlfqvRE1oWPWxmo",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:32:05.183Z"
+    },
+    {
+      "at": "2026-08-28T20:32:09.663Z",
+      "label": "drawing-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/drawing-revision-works/f6439963-39ce-4eb9-a420-fbae1a6dec00/cancel",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=f6439963-39ce-4eb9-a420-fbae1a6dec00",
+        "idempotency-key": "88e804e1-bcc0-4930-b4c2-85d20a06497f",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"6\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTEyOTM3MH0.DEnOxSc-GJQOw-JhU6A_RBPj2EPT2ts6L1gvObqoQbU",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:32:12.506Z"
+    },
+    {
+      "at": "2026-08-28T20:32:17.960Z",
+      "label": "part-lifecycle",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:53332/api/pdm/part-change-works/8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba",
+      "sameOrigin": true,
+      "postData": "{\"itemKind\":\"manufactured\",\"partName\":\"本體_BS_右_Xx5\",\"colorCode\":null,\"colorLabel\":\"Black G4\",\"isUniversal\":false,\"variantNote\":\"DEV087 PostgreSQL return snapshot\",\"materialCode\":null,\"materialLabel\":\"SUS 304 G4\",\"surfaceTreatment\":\"BA G4\",\"customSpecification\":null}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba",
+        "idempotency-key": "0dc01d87-da7b-446f-a5d8-427d35b98759",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTEzNzYyNH0._CuOEJ08_HdQ10RfC8VYnPQ_u0g2O3GOH1SjudVr-1k",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:32:18.037Z"
+    },
+    {
+      "at": "2026-08-28T20:32:18.165Z",
+      "label": "part-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/part-change-works/8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba/submit",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba",
+        "idempotency-key": "01aa61b5-87e9-44db-8cfe-2c2cdd857809",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"2\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTEzODA4N30.J9RlarSieOHn_vwsqOexv9IAxdixM9f9CPpLlA4KAUk",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:32:20.876Z"
+    },
+    {
+      "at": "2026-08-28T20:32:23.221Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"R&D Manager\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:32:23.271Z"
+    },
+    {
+      "at": "2026-08-28T20:32:26.972Z",
+      "label": "part-review-return",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/review-requests/e876757c-f225-4b70-b0b6-4016b952aeb0/decisions",
+      "sameOrigin": true,
+      "postData": "{\"decision\":\"return_for_correction\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/approvals/e876757c-f225-4b70-b0b6-4016b952aeb0",
+        "idempotency-key": "90f069b3-3d99-47c1-be61-9c6b23985a4e",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"1\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItbWFuYWdlci1kZW1vIiwic2NoZW1hSGFzaCI6ImRldjA5MC12MSIsImV4cGVjdGVkQ29tbWl0IjoibG9jYWwtZGV2IiwibW9kZSI6ImNhbm9uaWNhbF9vbmx5IiwiaXNzdWVkQXQiOjE3ODc5NDkxNDY1NjB9.FZkqtAc5J_dH18qS0BE0SkVN_Ro0vm3IxZ4P7lowdUI",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:32:27.120Z"
+    },
+    {
+      "at": "2026-08-28T20:32:29.878Z",
+      "label": "part-lifecycle",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/pdm/part-change-works/8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba/cancel",
+      "sameOrigin": true,
+      "postData": "{}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/workspace?workId=8a1bff13-36c5-4ec5-ad2b-2171e61ac9ba",
+        "idempotency-key": "11f248d8-1351-4a23-b524-c9e35a89cd39",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "if-match": "\"2\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-pdm-workbench-contract": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4Nzk0OTE0OTU2Mn0.Z1VgkiLbdO7VMEIyTKdxlecjdJjD2P1grQ0mfhdxLo4",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "content-type": "application/json"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:32:33.497Z"
+    },
+    {
+      "at": "2026-08-28T20:32:41.264Z",
+      "label": "formal-obsolete-drawing-owner",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/lifecycle/obsolete-requests",
+      "sameOrigin": true,
+      "postData": "{\"entityType\":\"drawing_number\",\"entityId\":\"drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c\",\"entityCode\":\"A0002-M01\",\"impactFingerprint\":\"fd5dcafebef0bc0cf133181169f9fb02d9665b20f8b30c7b25d28aeaa5bd1332\",\"reason\":\"DEV087 G4 PostgreSQL QA-087-199\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/numbering/drawings?query=A0002-M01&detail=cw_87000000-0000-4000-8000-000000000001",
+        "idempotency-key": "ecbfbe93-0a53-4abb-8deb-87a5e1324577",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+      },
+      "responseStatus": 201,
+      "responseAt": "2026-08-28T20:32:43.000Z"
+    },
+    {
+      "at": "2026-08-28T20:32:47.088Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"R&D Manager\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:32:47.184Z"
+    },
+    {
+      "at": "2026-08-28T20:32:57.335Z",
+      "label": "formal-obsolete-drawing-review",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/approvals/requests/legacy%3Alegacy_numbering%3Afcb753e8-1f12-4819-a88f-64ea0d60ed4f/decisions",
+      "sameOrigin": true,
+      "postData": "{\"decision\":\"approved\",\"comment\":\"\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/approvals/legacy%3Alegacy_numbering%3Afcb753e8-1f12-4819-a88f-64ea0d60ed4f?returnTo=%2Fapprovals%3Fstatus%3Dactive%26query%3DA0002-M01%26requestId%3Dlegacy%253Alegacy_numbering%253Afcb753e8-1f12-4819-a88f-64ea0d60ed4f",
+        "idempotency-key": "dev079:approval:legacy:legacy_numbering:fcb753e8-1f12-4819-a88f-64ea0d60ed4f:approved:effab508-5654-4558-a08c-5d7101e989a0",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:33:00.584Z"
+    },
+    {
+      "at": "2026-08-28T20:33:07.152Z",
+      "label": "formal-obsolete-part-owner",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/lifecycle/obsolete-requests",
+      "sameOrigin": true,
+      "postData": "{\"entityType\":\"part_number\",\"entityId\":\"qa-dev087-g4-a0002-p47\",\"entityCode\":\"A0002-P47\",\"impactFingerprint\":\"b1acd5671984bbd143e210c125cd22ddaa861a8f9bdde31f2204f7bfa9f06d72\",\"reason\":\"DEV087 G4 PostgreSQL QA-087-201\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/parts?query=A0002-P47&detail=cw_87000000-0000-4000-8000-000000000049",
+        "idempotency-key": "e9590752-224e-4461-8050-dac06d510ca9",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+      },
+      "responseStatus": 201,
+      "responseAt": "2026-08-28T20:33:07.583Z"
+    },
+    {
+      "at": "2026-08-28T20:33:09.687Z",
+      "label": "login",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/auth/local-quick-login",
+      "sameOrigin": true,
+      "postData": "{\"role\":\"R&D Manager\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/login",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:33:09.734Z"
+    },
+    {
+      "at": "2026-08-28T20:33:12.921Z",
+      "label": "formal-obsolete-part-review",
+      "method": "POST",
+      "url": "http://127.0.0.1:53332/api/approvals/requests/legacy%3Alegacy_numbering%3A8be8a1c1-c244-42d4-b555-d261ec5fc7af/decisions",
+      "sameOrigin": true,
+      "postData": "{\"decision\":\"approved\",\"comment\":\"\"}",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "http://127.0.0.1:53332/approvals/legacy%3Alegacy_numbering%3A8be8a1c1-c244-42d4-b555-d261ec5fc7af?returnTo=%2Fapprovals%3Fstatus%3Dactive%26query%3DA0002-P47%26requestId%3Dlegacy%253Alegacy_numbering%253A8be8a1c1-c244-42d4-b555-d261ec5fc7af",
+        "idempotency-key": "dev079:approval:legacy:legacy_numbering:8be8a1c1-c244-42d4-b555-d261ec5fc7af:approved:a1133ce4-4fad-4764-bc84-dc2df2cd124c",
+        "sec-ch-ua": "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+      },
+      "responseStatus": 200,
+      "responseAt": "2026-08-28T20:33:13.096Z"
+    }
+  ]
+}

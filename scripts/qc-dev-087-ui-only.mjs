@@ -15,6 +15,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
@@ -36,8 +37,8 @@ const drawingUpload2d = path.join(fixtureUploadDir, "DEV087-QA.SLDDRW");
 const drawingUpload3d = path.join(fixtureUploadDir, "DEV087-QA.SLDPRT");
 const drawingResubmit2d = path.join(fixtureUploadDir, "DEV087-QA-RESUBMIT.SLDDRW");
 const drawingResubmit3d = path.join(fixtureUploadDir, "DEV087-QA-RESUBMIT.SLDPRT");
-const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
-const sourceRepository = path.join(root, "data", "repository");
+const sourceDb = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
+const sourceRepository = path.resolve(process.env.PDM_PRIMARY_REPOSITORY_DIR?.trim() || path.join(root, "data", "repository"));
 const fixtureRepository = path.join(fixtureDataDir, "repository");
 const checks = [];
 const cases = [];
@@ -51,6 +52,11 @@ const fixtureMutationLedger = [];
 const lifecycleJourneyByCase = new Map();
 const lifecycleFocus = new Set(String(process.env.QC_DEV087_LIFECYCLE_FOCUS ?? "").split(",").map((value) => value.trim()).filter(Boolean));
 const fastFocus = process.env.QC_DEV087_FAST_FOCUS === "1" && lifecycleFocus.size > 0;
+const stableRuntimeCaseIds = new Set(["D16", "D17", "D21", "D22"]);
+const usesProductionRuntime = process.env.QC_DEV087_ISOLATED_CHILD === "1"
+  && lifecycleFocus.size > 0
+  && [...lifecycleFocus].every((caseId) => stableRuntimeCaseIds.has(caseId));
+const stableRuntimeCaseLabel = [...lifecycleFocus].sort().join("+");
 let browser = null;
 let app = null;
 let port = null;
@@ -450,6 +456,10 @@ async function createInitialDrawingThroughUi(page, definition, actions) {
   const uniqueName = `DEV087 ${definition.id} ${runId.slice(-12)}`.replace(/[^A-Za-z0-9 ]/gu, "");
   await page.goto(`${baseUrl}/numbering/create?from=drawing`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.getByRole("heading", { name: "建立編號", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  // The heading is server-rendered and can become visible before the client
+  // form has hydrated.  The preview is populated by a client-side effect, so
+  // its rendered value is the deterministic readiness signal for safe input.
+  await page.locator(".canonical-create-number-list").waitFor({ state: "visible", timeout: 30_000 });
   await page.getByLabel("主要名詞", { exact: true }).fill(uniqueName);
   await page.getByLabel("確定品名", { exact: true }).fill(uniqueName);
   const createButton = page.getByRole("button", { name: "建立編號", exact: true });
@@ -741,15 +751,30 @@ async function cleanupActiveWork(page, definition) {
   }
 }
 
-async function reviewSubmittedWork(context, definition, rowText, decision) {
+async function navigateToCanonicalReview(page, definition, rowText) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const { action } = await openCanonicalAction(page, definition, rowText, "前往審核");
+    await action.click();
+    try {
+      await page.waitForURL((url) => url.pathname.startsWith("/approvals/"), { timeout: 15_000 });
+      return attempt;
+    } catch (error) {
+      if (attempt === 2) throw error;
+      // In webpack dev mode the first visit can compile the dynamic approval
+      // route and trigger a full refresh back to the source drawer.  Retry the
+      // rendered navigation once after that route has been warmed.
+    }
+  }
+  throw new Error("REVIEW_NAVIGATION_RETRY_STATE_UNREACHABLE");
+}
+
+async function reviewSubmittedWork(context, definition, rowText, decision, options = {}) {
   const page = await context.newPage();
   monitor(page, `review-${definition.id}`, definition.id);
   const actions = [];
   try {
-    const { dialog, action } = await openCanonicalAction(page, definition, rowText, "前往審核");
-    actions.push({ kind: "click", target: "前往審核" });
-    await action.click();
-    await page.waitForURL((url) => url.pathname.startsWith("/approvals/"), { timeout: 30_000 });
+    const navigationAttempts = await navigateToCanonicalReview(page, definition, rowText);
+    actions.push({ kind: "click", target: "前往審核", navigationAttempts });
     await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
     // Generic canonical review pages render the shell before the contract
     // payload arrives.  Read-only evidence must be collected only after the
@@ -800,6 +825,7 @@ async function reviewSubmittedWork(context, definition, rowText, decision) {
       });
       throw new Error(`UI_REVIEW_DECISION_HTTP_${decisionResponse.status()}:${safeJson(decisionBody)}`);
     }
+    if (options.onDecisionCommitted) await options.onDecisionCommitted({ response: decisionResponse, body: decisionBody });
     await page.waitForURL((url) => url.pathname === "/approvals" || url.pathname === new URL(definition.route, baseUrl).pathname, { timeout: 30_000 });
     actions.push({ kind: "decision", decision, readonlyInputs });
     return { status: "PASS", actions };
@@ -828,9 +854,7 @@ async function openFirstVoidableDrawing(page) {
 }
 
 async function openDrawingReviewDecision(page, spec, decisionLabel = "核准") {
-  const opened = await openCanonicalAction(page, spec, "研發版", "前往審核");
-  await opened.action.click();
-  await page.waitForURL((url) => url.pathname.startsWith("/approvals/"), { timeout: 30_000 });
+  await navigateToCanonicalReview(page, spec, "研發版");
   await page.locator("[data-pdm-edit-page='true'], .dev079-workspace").first().waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(".pdm-edit-page-body, .dev079-workspace-grid, .canonical-error[role='alert']").first().waitFor({ state: "visible", timeout: 30_000 });
   const decision = page.getByRole("button", { name: decisionLabel, exact: true }).first();
@@ -941,13 +965,13 @@ function assertInitialDrawingCheckpoint(checkpoint, expected) {
   }
 }
 
-async function promoteProductionThroughUi(page, reviewerContext, spec, actions) {
+async function promoteProductionThroughUi(page, reviewerContext, spec, actions, options = {}) {
   const started = await startDrawingWork(page, spec, "production");
   actions.push({ kind: "create-promotion-work", candidate: started.label });
   actions.push({ kind: await editAndSaveWork(page, spec) });
   await submitWork(page);
   actions.push({ kind: "submit-promotion" });
-  const review = await reviewSubmittedWork(reviewerContext, spec, started.label.replace("量產版", "研發版"), "approve");
+  const review = await reviewSubmittedWork(reviewerContext, spec, started.label.replace("量產版", "研發版"), "approve", options);
   actions.push(...review.actions.map((action) => ({ ...action, scope: "promotion" })));
   if (review.status !== "PASS") throw Object.assign(new Error(review.reason || "stale setup promotion failed"), { journeyBlocked: review.status === "BLOCKED" });
   return started.label;
@@ -1113,18 +1137,46 @@ async function runDrawingMultiContextJourney(context, reviewerContext, spec, ope
         if (await oldProductionTarget.count() === 0) throw journeyBlocked("NO_PRE_PROMOTION_PRODUCTION_TARGET");
         const targetLabel = (await oldProductionTarget.innerText()).trim();
         await oldProductionTarget.click();
-        await promoteProductionThroughUi(page, reviewerContext, spec, actions);
-        const beforeRejectedCreate = readDrawingMutationSnapshot();
-        const responsePromise = stale.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("/revision-works"), { timeout: 15_000 });
-        await staleModal.getByRole("button", { name: "建立進版工作", exact: true }).click();
-        const response = await responsePromise;
-        const body = await response.json().catch(() => null);
-        const afterRejectedCreate = readDrawingMutationSnapshot();
-        if (response.status() !== 409) throw new Error(`STALE_PRODUCTION_TOKEN_NOT_REJECTED:${response.status()}`);
-        if (safeJson(beforeRejectedCreate) !== safeJson(afterRejectedCreate)) throw new Error(`STALE_PRODUCTION_TOKEN_PARTIAL_WRITE:${safeJson({ beforeRejectedCreate, afterRejectedCreate })}`);
-        const visibleError = await stale.locator(".canonical-revision-modal .canonical-error[role='alert']").innerText().catch(() => "");
-        if (!visibleError.includes("量產基準已更新")) throw new Error(`STALE_PRODUCTION_RECOVERY_MESSAGE_MISSING:${visibleError}`);
-        actions.push({ kind: "assert", target: "stale-production-token", candidate: targetLabel.split(/\r?\n/u)[0], observed: { status: response.status(), code: body?.error?.code ?? body?.code ?? null, zeroWrite: true, visibleError } });
+        const createButton = staleModal.getByRole("button", { name: "建立進版工作", exact: true });
+        const readStaleModalState = async () => staleModal.evaluate((modal) => ({
+          connected: modal.isConnected,
+          checkedTargets: [...modal.querySelectorAll("input[name='revision-target']:checked")].map((input) => input.value),
+          checkedModes: [...modal.querySelectorAll("input[name='revision-selection-mode']:checked")].map((input) => input.value),
+          createButtons: [...modal.querySelectorAll("button")].filter((button) => button.textContent?.trim() === "建立進版工作").map((button) => ({ disabled: button.disabled, text: button.textContent?.trim() })),
+          alerts: [...modal.querySelectorAll("[role='alert']")].map((node) => node.textContent?.trim()).filter(Boolean),
+          statuses: [...modal.querySelectorAll("[role='status']")].map((node) => node.textContent?.trim()).filter(Boolean)
+        }));
+        const beforeSubmitState = await readStaleModalState();
+        let staleOutcome = null;
+        await promoteProductionThroughUi(page, reviewerContext, spec, actions, {
+          onDecisionCommitted: async () => {
+            const beforeRejectedCreate = readDrawingMutationSnapshot();
+            const committedModalCount = await staleModal.count();
+            const committedState = committedModalCount > 0 ? await readStaleModalState() : { connected: false };
+            let response;
+            try {
+              [response] = await Promise.all([
+                stale.waitForResponse((candidateResponse) => candidateResponse.request().method() === "POST" && candidateResponse.url().includes("/revision-works"), { timeout: 15_000 }),
+                createButton.click({ timeout: 10_000 })
+              ]);
+            } catch (error) {
+              const afterAttemptCount = await staleModal.count();
+              const afterAttemptState = afterAttemptCount > 0 ? await readStaleModalState() : { connected: false };
+              throw new Error(`STALE_PRODUCTION_UI_DID_NOT_SUBMIT:${safeJson({ beforeSubmitState, committedState, afterAttemptState, url: stale.url(), cause: error instanceof Error ? error.message : String(error) })}`);
+            }
+            const body = await response.json().catch(() => null);
+            const afterRejectedCreate = readDrawingMutationSnapshot();
+            if (response.status() !== 409) throw new Error(`STALE_PRODUCTION_TOKEN_NOT_REJECTED:${response.status()}`);
+            if (safeJson(beforeRejectedCreate) !== safeJson(afterRejectedCreate)) throw new Error(`STALE_PRODUCTION_TOKEN_PARTIAL_WRITE:${safeJson({ beforeRejectedCreate, afterRejectedCreate })}`);
+            const visibleAlert = stale.locator(".canonical-revision-modal .canonical-error[role='alert']");
+            await visibleAlert.waitFor({ state: "visible", timeout: 5_000 });
+            const visibleError = await visibleAlert.innerText();
+            if (!visibleError.includes("量產基準已更新")) throw new Error(`STALE_PRODUCTION_RECOVERY_MESSAGE_MISSING:${visibleError}`);
+            staleOutcome = { status: response.status(), code: body?.error?.code ?? body?.code ?? null, zeroWrite: true, visibleError };
+          }
+        });
+        if (!staleOutcome) throw new Error(`STALE_PRODUCTION_UI_DID_NOT_SUBMIT:${safeJson({ beforeSubmitState, url: stale.url() })}`);
+        actions.push({ kind: "assert", target: "stale-production-token", candidate: targetLabel.split(/\r?\n/u)[0], observed: staleOutcome });
       } else {
         await promoteProductionThroughUi(page, reviewerContext, spec, actions);
         await staleAdvance.click();
@@ -1686,6 +1738,33 @@ async function login(context, roleLabel = "系統管理員") {
   await page.close();
 }
 
+async function installTaskOwnedQaSession(context, roleLabel) {
+  const emailByRoleLabel = {
+    "系統管理員": "admin@example.com",
+    "研發主管": "manager@example.com"
+  };
+  const email = emailByRoleLabel[roleLabel];
+  if (!email) throw new Error(`TASK_OWNED_QA_SESSION_ROLE_UNSUPPORTED:${roleLabel}`);
+  const database = new Database(fixtureDb, { readonly: true, fileMustExist: true });
+  let user;
+  try {
+    user = database.prepare("SELECT id, role, account_status, system_role_enabled FROM users WHERE lower(email)=lower(?) LIMIT 1").get(email);
+  } finally {
+    database.close();
+  }
+  if (!user || user.account_status !== "active" || Number(user.system_role_enabled) !== 1) {
+    throw new Error(`TASK_OWNED_QA_SESSION_USER_UNAVAILABLE:${roleLabel}`);
+  }
+  const payload = Buffer.from(JSON.stringify({ userId: user.id, createdAt: Date.now(), sessionId: crypto.randomUUID() })).toString("base64url");
+  const secret = process.env.PDM_AUTH_SECRET || "dev-only-change-before-production";
+  const signature = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
+  await context.addCookies([{ name: "pdm_session", value: `${payload}.${signature}`, url: baseUrl, httpOnly: true, sameSite: "Lax" }]);
+  const verification = await context.request.get(`${baseUrl}/api/auth/me`);
+  if (!verification.ok()) throw new Error(`TASK_OWNED_QA_SESSION_VERIFY_HTTP_${verification.status()}:${roleLabel}`);
+  const body = await verification.json().catch(() => null);
+  if (body?.user?.role !== user.role) throw new Error(`TASK_OWNED_QA_SESSION_ROLE_MISMATCH:${safeJson({ expected: user.role, actual: body?.user?.role })}`);
+}
+
 async function readOnlyDbSnapshot(entity) {
   const db = new Database(fixtureDb, { readonly: true });
   try {
@@ -1922,7 +2001,7 @@ try {
   fs.writeFileSync(drawingResubmit3d, "DEV-087 disposable changed 3D model fixture\n", "utf8");
   fixtureMutationLedger.push({ action: "create-rendered-ui-upload-fixtures", files: [drawingUpload2d, drawingUpload3d, drawingResubmit2d, drawingResubmit3d].map((file) => path.basename(file)), scope: "disposable fixture only" });
   writeJson(path.join(evidenceRoot, "authority.json"), { devId: "DEV-087", commit: spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim(), mode: "canonical_only", provider: "sqlite", mergedHistoryRows: Number(mergedCount) });
-  writeJson(path.join(evidenceRoot, "actors.json"), { login: "UI quick login only", mutation: "Playwright rendered UI only", readback: "GET/API + readonly SQLite" });
+  writeJson(path.join(evidenceRoot, "actors.json"), { login: usesProductionRuntime ? `task-owned signed QA session for isolated production-runtime ${stableRuntimeCaseLabel}` : "UI quick login only", mutation: "Playwright rendered UI only", readback: "GET/API + readonly SQLite" });
   writeJson(path.join(evidenceRoot, "route-inventory.json"), { drawing: "/numbering/drawings", part: "/parts", retiredRelationReplacement: "I01-I14 inline matrix child" });
   // These cases require mutually independent lifecycle starting states. Run
   // their disposable children before the parent Next process starts so no two
@@ -1940,12 +2019,24 @@ try {
   runtimeProjectRoot = path.join(root, ".tmp", `qc-dev087-runtime-project-${port}`);
   const runtimeProjectReceipt = prepareTaskOwnedRuntimeProject(runtimeProjectRoot);
   addCheck("task-owned runtime project prepared", true, safeJson(runtimeProjectReceipt));
-  Object.assign(process.env, { NODE_ENV: "development", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: fixtureDataDir, PDM_REPOSITORY_DIR: fixtureRepository, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "", PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: ".next", PDM_NEXT_TSCONFIG_PATH: "tsconfig.next.json", PDM_PUBLIC_BASE_URL: baseUrl });
-  console.log(`QC DEV-087 full UI-only runtime: project=${root}; runtimeProject=${runtimeProjectRoot}; purpose=${lifecycleDenominator}-case lifecycle preflight; port=${port}; processTree=task-owned Next dev + Playwright; cleanup=after evidence write; PDM_DATA_DIR=${fixtureDataDir}; PDM_REPOSITORY_DIR=${fixtureRepository}; mutationScope=isolated fixture only; primaryData=read-only fingerprint gate; generatedFiles=runtime project only`);
-  app = startNextApp(runtimeProjectRoot, "dev", port); await waitForNextAppReady(baseUrl, app.getOutput); browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } }); monitor(context.pages()[0] ?? await context.newPage(), "context"); await login(context, "系統管理員");
+  Object.assign(process.env, { NODE_ENV: "development", QC_NEXT_USE_WEBPACK: "1", PDM_AUTH_MODE: "local", ...(usesProductionRuntime ? { PDM_AUTH_SECRET: "dev087-task-owned-production-runtime-secret-v1" } : {}), PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: fixtureDataDir, PDM_REPOSITORY_DIR: fixtureRepository, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "", PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: ".next", PDM_NEXT_TSCONFIG_PATH: "tsconfig.next.json", PDM_PUBLIC_BASE_URL: baseUrl });
+  if (usesProductionRuntime) {
+    process.env.NODE_ENV = "production";
+    console.log(`QC DEV-087 ${stableRuntimeCaseLabel} isolated build: project=${runtimeProjectRoot}; purpose=multi-page concurrency validation without dev HMR; port=none; processTree=task-owned Next build; cleanup=after evidence write; PDM_DATA_DIR=${fixtureDataDir}; PDM_REPOSITORY_DIR=${fixtureRepository}; mutationScope=isolated fixture only`);
+    const nextCli = path.join(runtimeProjectRoot, "node_modules", "next", "dist", "bin", "next");
+    const build = spawnSync(process.execPath, [nextCli, "build", "--webpack"], { cwd: runtimeProjectRoot, env: process.env, stdio: "inherit" });
+    addCheck(`${stableRuntimeCaseLabel} task-owned production runtime built`, build.status === 0, `status=${build.status}`);
+    if (build.status !== 0) throw new Error(`${stableRuntimeCaseLabel}_PRODUCTION_RUNTIME_BUILD_FAILED:${build.status}`);
+  }
+  const runtimeMode = usesProductionRuntime ? "start" : "dev";
+  console.log(`QC DEV-087 full UI-only runtime: project=${root}; runtimeProject=${runtimeProjectRoot}; purpose=${lifecycleDenominator}-case lifecycle preflight; port=${port}; processTree=task-owned Next ${runtimeMode} + Playwright; cleanup=after evidence write; PDM_DATA_DIR=${fixtureDataDir}; PDM_REPOSITORY_DIR=${fixtureRepository}; mutationScope=isolated fixture only; primaryData=read-only fingerprint gate; generatedFiles=runtime project only`);
+  app = startNextApp(runtimeProjectRoot, runtimeMode, port); await waitForNextAppReady(baseUrl, app.getOutput); browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } }); monitor(context.pages()[0] ?? await context.newPage(), "context");
+  if (usesProductionRuntime) await installTaskOwnedQaSession(context, "系統管理員");
+  else await login(context, "系統管理員");
   const reviewerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  await login(reviewerContext, "研發主管");
+  if (usesProductionRuntime) await installTaskOwnedQaSession(reviewerContext, "研發主管");
+  else await login(reviewerContext, "研發主管");
   if (process.env.QC_DEV087_INCLUDE_SUPPLEMENTAL === "1" && process.env.QC_DEV087_SKIP_SUPPLEMENTAL !== "1") await runSupplementalJourneys(context);
   supplementalJourneys.forEach((journey) => addCheck(journey.id, journey.status !== "FAIL", journey.reason || journey.evidence));
   // Run every lifecycle case through a named UI journey.  A journey may finish

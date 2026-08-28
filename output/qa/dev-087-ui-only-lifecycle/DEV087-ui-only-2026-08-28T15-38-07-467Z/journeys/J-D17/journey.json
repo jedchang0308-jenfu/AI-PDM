@@ -1,0 +1,28 @@
+{
+  "id": "J-D17",
+  "caseId": "D17",
+  "family": "D",
+  "status": "FAIL",
+  "reason": "STALE_PRODUCTION_UI_DID_NOT_SUBMIT:{\"beforeSubmitState\":{\"connected\":true,\"checkedTargets\":[\"production\"],\"checkedModes\":[\"recommended\"],\"createButtons\":[{\"disabled\":false,\"text\":\"建立進版工作\"}],\"alerts\":[],\"statuses\":[]},\"committedState\":{\"connected\":false},\"afterAttemptState\":{\"connected\":false},\"url\":\"http://127.0.0.1:53442/numbering/drawings?query=A0002-M01&detail=cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9\",\"cause\":\"locator.click: Timeout 10000ms exceeded.\\nCall log:\\n\\u001b[2m  - waiting for getByRole('dialog', { name: '建立進版工作' }).getByRole('button', { name: '建立進版工作', exact: true })\\u001b[22m\\n\"}",
+  "actions": [
+    {
+      "kind": "create-promotion-work",
+      "candidate": "量產版 2"
+    },
+    {
+      "kind": "drawing-fields-retired"
+    },
+    {
+      "kind": "submit-promotion"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 1,
+      "scope": "promotion"
+    }
+  ],
+  "startedAt": "2026-08-28T15:38:27.935Z",
+  "finishedAt": "2026-08-28T15:39:36.261Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

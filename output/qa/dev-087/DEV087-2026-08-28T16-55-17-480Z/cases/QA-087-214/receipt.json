@@ -1,0 +1,1760 @@
+{
+  "caseId": "QA-087-214",
+  "result": "PASS",
+  "assertionIds": [
+    "QA-087-214:DRAWING_SEARCH_FILTER_SORT_PRECEDE_PAGE"
+  ],
+  "renderedUiActions": [
+    "search exact Drawing identity",
+    "apply rendered RD layer filter",
+    "toggle 編號 sort"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "activeRole": "button",
+    "activeText": "編號"
+  },
+  "apiReadback": {
+    "status": 200,
+    "body": {
+      "data": {
+        "groups": [
+          {
+            "groupKey": "cg_080e621a-a851-4ac7-ae57-fc434ee80e8c",
+            "rows": [
+              {
+                "rowKey": "cw_ad3b02c6-aa7d-40de-ad35-1e0153c2aec3",
+                "entityType": "drawing",
+                "entityId": "drawing-formal-05baab83-609b-4393-9904-348178558e4a",
+                "code": "A0059-M01",
+                "name": "固定架_BS_700_A",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_ad3b02c6-aa7d-40de-ad35-1e0153c2aec3",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-formal-05baab83-609b-4393-9904-348178558e4a/workspace?workId=923a7d6c-f5c8-49a6-ac3a-06373fd1458b"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_b1a677d4-8324-4028-ab60-1cd9fc2f5369",
+            "rows": [
+              {
+                "rowKey": "cw_c20b113c-b447-4cc4-a49f-4c1dfcaf6ab4",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-62f78ded-8c68-4be5-916b-bc02ad7cd48f",
+                "code": "A0058-M01",
+                "name": "攔污柵_BS_機械式_3x5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_c20b113c-b447-4cc4-a49f-4c1dfcaf6ab4",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-62f78ded-8c68-4be5-916b-bc02ad7cd48f/workspace?workId=03de3241-1963-4cb9-a8f4-82d92581f816"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_188de720-3044-4427-a212-80fc0d6c7184",
+            "rows": [
+              {
+                "rowKey": "cw_11c977c5-f05f-4d5c-aa4c-a906739aab48",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-882c0d76-2f75-4218-bafa-d588451bf21c",
+                "code": "A0057-M01",
+                "name": "角鐵_BS_30x30x2t_276L",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_11c977c5-f05f-4d5c-aa4c-a906739aab48",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-882c0d76-2f75-4218-bafa-d588451bf21c/workspace?workId=0b3f0aaf-44db-4da0-a87b-8c9f89f0c737"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_795b12cb-7584-464d-ace7-42d56e8216fa",
+            "rows": [
+              {
+                "rowKey": "cw_88d520a3-06c9-4276-a13e-b800148203f5",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-41879ec2-a9ce-4269-a892-8ac5435ee731",
+                "code": "A0056-M01",
+                "name": "檔水板_BS_Xx5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_88d520a3-06c9-4276-a13e-b800148203f5",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-41879ec2-a9ce-4269-a892-8ac5435ee731/workspace?workId=454eeb35-01d5-4e9e-afc4-70b834b247f5"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_6bf4bfd3-65ef-474f-af86-5371c5e33038",
+            "rows": [
+              {
+                "rowKey": "cw_c152b818-fe28-4f84-a20d-0beacc6e2050",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-4c45d734-fb7d-4df1-8466-abc3e07b0612",
+                "code": "A0055-M01",
+                "name": "鍊條支撐架_BS_3x5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_c152b818-fe28-4f84-a20d-0beacc6e2050",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-4c45d734-fb7d-4df1-8466-abc3e07b0612/workspace?workId=3b94d602-1d41-4f9e-ae5b-3920dab54670"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_0de893b6-89db-402c-a233-ae59dd633668",
+            "rows": [
+              {
+                "rowKey": "cw_f708662e-e8ce-43cd-a4bf-d069cb8c395c",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-6ce15039-a91a-4956-9442-f5db2adf6333",
+                "code": "A0054-M01",
+                "name": "從動軸組_BS_3xX",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_f708662e-e8ce-43cd-a4bf-d069cb8c395c",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-6ce15039-a91a-4956-9442-f5db2adf6333/workspace?workId=e70cbc91-63f3-47cb-a0d1-56cc84c04618"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_61f9cec7-89cb-4d57-a1df-1503f9ef74d6",
+            "rows": [
+              {
+                "rowKey": "cw_f32309a5-2bb7-4997-a366-8318036b044a",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-ba7c67c5-e4d4-4a9d-b32d-26c795e954e6",
+                "code": "A0053-M01",
+                "name": "主動軸組_BS_3xX",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_f32309a5-2bb7-4997-a366-8318036b044a",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-ba7c67c5-e4d4-4a9d-b32d-26c795e954e6/workspace?workId=73234afc-4361-4269-a07e-6a055dfc3934"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_02daae4e-76f5-42eb-a891-13d2fb9e50ef",
+            "rows": [
+              {
+                "rowKey": "cw_e97b16ec-c07b-462b-ada6-c2d78ff963bb",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-e23ab699-a921-407f-921b-683a5007b9c2",
+                "code": "A0052-M01",
+                "name": "腳架組_BS_3x5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_e97b16ec-c07b-462b-ada6-c2d78ff963bb",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-e23ab699-a921-407f-921b-683a5007b9c2/workspace?workId=509f39b0-a5f8-4e5a-acb1-04893cf287be"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_842e8384-40bb-4b70-a4da-208a07c6e345",
+            "rows": [
+              {
+                "rowKey": "cw_d2ccd83f-d83d-445e-ad3a-55d972c94a87",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-287e6847-8ec0-45e1-b8d3-59856d8fe365",
+                "code": "A0051-M01",
+                "name": "腳架_BS_Xx5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_d2ccd83f-d83d-445e-ad3a-55d972c94a87",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-287e6847-8ec0-45e1-b8d3-59856d8fe365/workspace?workId=69938e71-b039-4030-a370-2867c82b0801"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_7a8e1ac8-de26-488b-ab0d-f7f812fe0768",
+            "rows": [
+              {
+                "rowKey": "cw_cb2a5536-4407-46f4-a3c4-db944e54caa2",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-b8b8d229-d2a8-430b-94e2-200501676841",
+                "code": "A0050-M01",
+                "name": "電控箱支架_BS_左",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_cb2a5536-4407-46f4-a3c4-db944e54caa2",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-b8b8d229-d2a8-430b-94e2-200501676841/workspace?workId=8b7229a4-978b-4d35-abce-8f804c53c838"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_f692bc91-093b-4f40-a109-3f5403727f7f",
+            "rows": [
+              {
+                "rowKey": "cw_dc5d66a7-b7d3-4e51-a7db-79ecc646a500",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-dd63f19d-34af-4db9-8d5d-3e19ea0f9695",
+                "code": "A0049-M01",
+                "name": "電控箱支架_BS_右",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_dc5d66a7-b7d3-4e51-a7db-79ecc646a500",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-dd63f19d-34af-4db9-8d5d-3e19ea0f9695/workspace?workId=3ea7a2d7-e9cf-4642-a9a9-9523f3c4252f"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_e45def2c-cabe-4500-af62-f9c45a62a777",
+            "rows": [
+              {
+                "rowKey": "cw_9b52113e-5a8c-46f9-af74-354be478237c",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-e08f2c13-84e4-40d1-9a6d-97e410740f0d",
+                "code": "A0048-M01",
+                "name": "拉板組_BS",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_9b52113e-5a8c-46f9-af74-354be478237c",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-e08f2c13-84e4-40d1-9a6d-97e410740f0d/workspace?workId=71221908-fc02-4ce1-aee0-cd688fc02262"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_97d16f12-7b76-4f9f-acb4-52853cf0e686",
+            "rows": [
+              {
+                "rowKey": "cw_ef7780ba-6e76-439b-ae0f-5c32c641c491",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-ba599f83-d410-4300-84dd-1652bbe1c980",
+                "code": "A0047-M01",
+                "name": "耙爪_BS_塑膠",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_ef7780ba-6e76-439b-ae0f-5c32c641c491",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-ba599f83-d410-4300-84dd-1652bbe1c980/workspace?workId=17cedcc8-1208-4365-a102-3d840755f25d"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_c381f80d-55e1-4967-a50b-abbb145d362b",
+            "rows": [
+              {
+                "rowKey": "cw_0c10f6a6-2cc7-47cd-a7da-d7c7786a67bc",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-c570a22f-35dc-4037-985e-9903b2287bb6",
+                "code": "A0046-M01",
+                "name": "柵條_BS_Xx5_塑膠",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_0c10f6a6-2cc7-47cd-a7da-d7c7786a67bc",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-c570a22f-35dc-4037-985e-9903b2287bb6/workspace?workId=fd3daa67-62f1-4fdf-acaa-413b5341576b"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_8dfb1aa2-f4b3-40c1-af58-e830ebe05823",
+            "rows": [
+              {
+                "rowKey": "cw_1931dcf5-e4ff-404b-a6eb-600e40e05694",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-d920dc7a-f896-4c09-8fd8-00cd22ecb672",
+                "code": "A0045-M01",
+                "name": "連板組_BS",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_1931dcf5-e4ff-404b-a6eb-600e40e05694",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-d920dc7a-f896-4c09-8fd8-00cd22ecb672/workspace?workId=aa47ab9e-4796-4c6d-a71d-d8a84306d1aa"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_cd193f63-9b75-4ae5-a15c-d869903815b1",
+            "rows": [
+              {
+                "rowKey": "cw_6f69669c-7efb-4e72-afa8-64d1902152ed",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-e79f7dd9-8e67-4f30-8a63-b0d8d814f591",
+                "code": "A0043-M01",
+                "name": "本體組_BS_Xx5_左",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_6f69669c-7efb-4e72-afa8-64d1902152ed",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-e79f7dd9-8e67-4f30-8a63-b0d8d814f591/workspace?workId=38a4a03e-16c2-41a7-a357-b577e15ad556"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_7eeca6ff-b85f-40db-a9af-13e384d78ed2",
+            "rows": [
+              {
+                "rowKey": "cw_8e1a7473-82d5-4715-a8c5-4e7f6af58af9",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-bd6d8699-c9fb-4971-bf6c-5dcf5cbe7d66",
+                "code": "A0042-M01",
+                "name": "本體組_BS_Xx5_右",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_8e1a7473-82d5-4715-a8c5-4e7f6af58af9",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-bd6d8699-c9fb-4971-bf6c-5dcf5cbe7d66/workspace?workId=a22acb13-04dd-440f-ab55-98f090c099e9"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_c2257627-c7af-4d6a-a0ab-acc9af43dde4",
+            "rows": [
+              {
+                "rowKey": "cw_9d5d18b0-1380-4666-a001-f6fcd8fd4822",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-247f2f90-0e2b-4c74-ac09-0f592055cd4b",
+                "code": "A0041-M01",
+                "name": "導渣板組_BS_左",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_9d5d18b0-1380-4666-a001-f6fcd8fd4822",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-247f2f90-0e2b-4c74-ac09-0f592055cd4b/workspace?workId=b4706a1b-59a1-4a06-a58e-0b7b929c29e7"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_3398cbc0-e85b-42ce-a47c-ad160c07a368",
+            "rows": [
+              {
+                "rowKey": "cw_ee0d96c6-3e00-4768-ab1f-77967168b28c",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-b4b1c665-46df-4af6-af4e-4f9b05945467",
+                "code": "A0040-M01",
+                "name": "導渣板組_BS_右",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_ee0d96c6-3e00-4768-ab1f-77967168b28c",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-b4b1c665-46df-4af6-af4e-4f9b05945467/workspace?workId=fdeb7746-7e69-4c4f-ae6d-caf85917863a"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_649dc8f4-e8ff-4e84-ab58-c528904e3f2b",
+            "rows": [
+              {
+                "rowKey": "cw_47fbf39b-7884-4569-a7aa-f4d30fe4e65b",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-3f7a5246-8b96-458e-aee6-02fb5c29fb5f",
+                "code": "A0039-M01",
+                "name": "耙爪座_BS_3x5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_47fbf39b-7884-4569-a7aa-f4d30fe4e65b",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-3f7a5246-8b96-458e-aee6-02fb5c29fb5f/workspace?workId=f6116f73-c4ab-421e-a06c-b8e97c32df41"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_e955cbbb-46d6-4790-aa37-39bade94ced9",
+            "rows": [
+              {
+                "rowKey": "cw_6d1dd410-b19e-4231-aef6-9a75ccebf0d9",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-22d3f0c9-722c-4437-b24c-5c01a844be77",
+                "code": "A0038-M01",
+                "name": "方管_BS_32x32x2.1t_231L",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_6d1dd410-b19e-4231-aef6-9a75ccebf0d9",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-22d3f0c9-722c-4437-b24c-5c01a844be77/workspace?workId=59789a10-71c1-4f1e-a3f9-14a9d8a395f4"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_8acb49ed-fe06-463a-ac18-f68528f6dcd7",
+            "rows": [
+              {
+                "rowKey": "cw_abc5bd5c-f94a-4b80-a8f2-f56269025090",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-72b80dc7-c3c6-4fae-b086-c87282adccf2",
+                "code": "A0037-M01",
+                "name": "連桿_BS_φ16_215L_5/16\"_18NC_12L",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_abc5bd5c-f94a-4b80-a8f2-f56269025090",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-72b80dc7-c3c6-4fae-b086-c87282adccf2/workspace?workId=4e0c6e4f-0db7-42af-a489-baaa6cb6cd0e"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_549afa57-feb5-452b-a257-ea04b5bb2d16",
+            "rows": [
+              {
+                "rowKey": "cw_47a7f799-735e-4f44-a48a-c6a96879c973",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-4fe6be16-445c-4686-a15d-ba37cfd2f869",
+                "code": "A0036-R01",
+                "name": "鍊條活目_RS60",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_47a7f799-735e-4f44-a48a-c6a96879c973",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-4fe6be16-445c-4686-a15d-ba37cfd2f869/workspace?workId=21822c50-744d-4682-a323-c672cb3726ee"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_1ff99e53-ad98-4e6b-ac63-395219eefd08",
+            "rows": [
+              {
+                "rowKey": "cw_5978b587-11a2-452e-a901-3ab10a21b148",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-f5129027-6296-43f1-ad73-a106681d10d3",
+                "code": "A0032-M01",
+                "name": "壓板_BS_Xx5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_5978b587-11a2-452e-a901-3ab10a21b148",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-f5129027-6296-43f1-ad73-a106681d10d3/workspace?workId=385ac889-98e1-48f7-aa74-9662f8a10dea"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_d13bae13-d919-4a31-af1a-d5de5ec9dba3",
+            "rows": [
+              {
+                "rowKey": "cw_0865b085-1777-4c92-a333-e2bd6194b9ff",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-30834795-6330-4a74-a5f5-3e62a28fa7ce",
+                "code": "A0031-M01",
+                "name": "圓棒_BS_φ12x570L",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_0865b085-1777-4c92-a333-e2bd6194b9ff",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-30834795-6330-4a74-a5f5-3e62a28fa7ce/workspace?workId=30ede9b7-6438-454f-af36-0db4bc9f2b77"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_afd15661-db66-4702-a14c-6c4c6f3dbcfe",
+            "rows": [
+              {
+                "rowKey": "cw_1408f82b-c3e7-4cff-a68e-d383fd7cdebd",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-cf83459b-5785-4f0e-bc47-69f5d078a976",
+                "code": "A0030-M01",
+                "name": "從動軸_BS_3xX",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_1408f82b-c3e7-4cff-a68e-d383fd7cdebd",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-cf83459b-5785-4f0e-bc47-69f5d078a976/workspace?workId=114bfc42-15b6-48a5-ada2-effcd5198854"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_02c64f09-6c3f-4470-aba0-79162bc1188a",
+            "rows": [
+              {
+                "rowKey": "cw_506848d8-09c9-41d4-adcd-125541af111f",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-75e1ddc4-04a9-4571-a2b7-96ae61ba8262",
+                "code": "A0029-M01",
+                "name": "主動軸_BS_3x5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_506848d8-09c9-41d4-adcd-125541af111f",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-75e1ddc4-04a9-4571-a2b7-96ae61ba8262/workspace?workId=d192c0bb-e775-423e-aec9-a2b4111eab90"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_1689810b-e308-4abc-a96c-09377fac1323",
+            "rows": [
+              {
+                "rowKey": "cw_f011debe-89a7-4733-a728-f0ddc6e00063",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-4cdbad6e-74d1-4fe4-88bf-18052cd7b933",
+                "code": "A0028-M01",
+                "name": "導板_BS_3xX",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_f011debe-89a7-4733-a728-f0ddc6e00063",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-4cdbad6e-74d1-4fe4-88bf-18052cd7b933/workspace?workId=514c1ed1-8cdf-4667-a766-39d78c0b7834"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_7b4cc033-a4c9-4007-a755-3273be3725c1",
+            "rows": [
+              {
+                "rowKey": "cw_15366801-b81b-4ce7-a86d-b74751784b98",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-acd3dee3-feba-4e04-ab63-cfb2e06a0341",
+                "code": "A0027-M01",
+                "name": "連板_BS",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_15366801-b81b-4ce7-a86d-b74751784b98",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-acd3dee3-feba-4e04-ab63-cfb2e06a0341/workspace?workId=4c4ca12b-f11b-440e-a040-5d0a4e551d7e"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_5ade2510-b0d5-4731-a7fe-ca1972bd8f3a",
+            "rows": [
+              {
+                "rowKey": "cw_a5f32c6f-7a00-4258-a0da-587abce4a242",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-937620cf-3b61-4256-b4e6-b40a898ee0b3",
+                "code": "A0026-M01",
+                "name": "方管_BS_32x32x2.1tx588.8L",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_a5f32c6f-7a00-4258-a0da-587abce4a242",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-937620cf-3b61-4256-b4e6-b40a898ee0b3/workspace?workId=684075c3-c181-4b12-a77f-f0d9eb3a3a25"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_be2270a3-5636-4bfa-a45a-28f557e8349d",
+            "rows": [
+              {
+                "rowKey": "cw_ebad060d-ff25-44b8-a9d1-7ad6b3032f68",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-650a881b-c8ac-4187-ab10-4f5968a3d09d",
+                "code": "A0025-M01",
+                "name": "方管_BS_32x32x2.1tx500L",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_ebad060d-ff25-44b8-a9d1-7ad6b3032f68",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-650a881b-c8ac-4187-ab10-4f5968a3d09d/workspace?workId=a03f0170-3f24-45d4-aae2-729f4adc9306"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_74dff9cb-a6f3-49a1-a869-717dc715135e",
+            "rows": [
+              {
+                "rowKey": "cw_ff9dfbdf-46e4-433b-a84d-3d3bd00deb8a",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-fbee421f-176b-4f64-b402-df3c764d5bba",
+                "code": "A0024-M01",
+                "name": "方管_BS_32x32x2.1tx432L",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_ff9dfbdf-46e4-433b-a84d-3d3bd00deb8a",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-fbee421f-176b-4f64-b402-df3c764d5bba/workspace?workId=e71ddb12-b8ba-4cef-a127-0d7a3a3f7d21"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_07a5d14b-5e7c-4dc7-afda-6051f256ba0d",
+            "rows": [
+              {
+                "rowKey": "cw_67c65a5c-2260-43d7-a309-4953552a549b",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-6df45714-f8ff-419e-9140-7629434286dc",
+                "code": "A0023-M01",
+                "name": "角鐵_BS_馬達支架_左",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_67c65a5c-2260-43d7-a309-4953552a549b",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-6df45714-f8ff-419e-9140-7629434286dc/workspace?workId=1d1be949-24df-4790-ab54-327226b17f1e"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_668663ff-9d68-41ec-aea3-0d111312e897",
+            "rows": [
+              {
+                "rowKey": "cw_0b7f39c5-a716-4258-a683-7625864a5039",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-5881f779-3a86-4486-85ff-4e707057f95d",
+                "code": "A0022-M01",
+                "name": "角鐵_BS_馬達支架_右",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_0b7f39c5-a716-4258-a683-7625864a5039",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-5881f779-3a86-4486-85ff-4e707057f95d/workspace?workId=d0a4ce52-70a5-4406-a56f-c95f17799242"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_a9dcd843-4d85-4381-a291-094b0e34279d",
+            "rows": [
+              {
+                "rowKey": "cw_5d366816-d4d0-4cf5-a294-3bade5856595",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-c1d5b588-58dc-4295-8b2f-23b8af619333",
+                "code": "A0021-M01",
+                "name": "墊片_BS_馬達支架",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_5d366816-d4d0-4cf5-a294-3bade5856595",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-c1d5b588-58dc-4295-8b2f-23b8af619333/workspace?workId=174881c1-e22c-467b-a63c-8315d7682fa0"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_ba473f9c-3e3d-4c18-a4f1-aea7501c7b1e",
+            "rows": [
+              {
+                "rowKey": "cw_84946bc4-96f5-48a5-ad41-72428f2ef2f4",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-6652cb73-c15c-4c99-b8ba-e157607163b5",
+                "code": "A0020-M01",
+                "name": "腳架墊片_BS_下_B",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_84946bc4-96f5-48a5-ad41-72428f2ef2f4",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-6652cb73-c15c-4c99-b8ba-e157607163b5/workspace?workId=1a290352-3143-4256-abd7-e8d290076bd7"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_63ce185d-8e6d-4a79-aa89-9de12397dfac",
+            "rows": [
+              {
+                "rowKey": "cw_8cdc8ad3-3661-4a0e-afe4-8fd895a7b47e",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-932636ce-42c1-4a7a-9905-52fd54656c15",
+                "code": "A0019-M01",
+                "name": "腳架墊片_BS_下_A",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_8cdc8ad3-3661-4a0e-afe4-8fd895a7b47e",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-932636ce-42c1-4a7a-9905-52fd54656c15/workspace?workId=06cae351-1cd5-493c-aa9a-31f8cf95a6a3"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_fb22b117-872a-4600-a307-45f8b2f8bf93",
+            "rows": [
+              {
+                "rowKey": "cw_3e2a248a-062f-4e28-a067-74148a80a5ef",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-f544dee6-0614-49ee-9302-275d6d76d4ac",
+                "code": "A0018-M01",
+                "name": "腳架墊片_BS_上",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_3e2a248a-062f-4e28-a067-74148a80a5ef",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-f544dee6-0614-49ee-9302-275d6d76d4ac/workspace?workId=433f1082-bccc-4558-aff0-198ae230f0b5"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_d7d6de91-2d63-43ee-aa4d-77bc7164dcb1",
+            "rows": [
+              {
+                "rowKey": "cw_95bf2fd8-ade0-457c-a4c8-fbb9ed204c2c",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-ceb8ab2f-d810-4eb0-9bc4-5b328a268a00",
+                "code": "A0016-M01",
+                "name": "軸承管_BS",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_95bf2fd8-ade0-457c-a4c8-fbb9ed204c2c",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-ceb8ab2f-d810-4eb0-9bc4-5b328a268a00/workspace?workId=d34ae9b3-692e-4bb8-a606-7838f53cf0f5"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_e2fee344-61ff-4129-ad0a-e901ed2596ac",
+            "rows": [
+              {
+                "rowKey": "cw_bc3189df-c20f-4d22-a311-e4c2f5a7e538",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-39ee9f56-4b4e-4056-8525-551268e94698",
+                "code": "A0015-M01",
+                "name": "法蘭板_BS",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_bc3189df-c20f-4d22-a311-e4c2f5a7e538",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-39ee9f56-4b4e-4056-8525-551268e94698/workspace?workId=22f60901-ecbc-4135-a7cb-55774281d745"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_e5560be4-d6de-4c94-ace5-e59af343e293",
+            "rows": [
+              {
+                "rowKey": "cw_2b7be643-2f90-4ed6-a3f4-e89a170d0913",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-b647756e-24a1-4391-860c-b6f5a0aec0f6",
+                "code": "A0009-R01",
+                "name": "拉板用螺桿_BS_5/16\"x18NCx75L",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_2b7be643-2f90-4ed6-a3f4-e89a170d0913",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-b647756e-24a1-4391-860c-b6f5a0aec0f6/workspace?workId=0281b2e6-e716-4914-a749-4f12abab3475"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_fb810b6e-41f9-4f59-a453-8b2b6d426657",
+            "rows": [
+              {
+                "rowKey": "cw_b12de14c-f3fa-439c-af5c-6c35bbe42c24",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-e69615d4-c2d4-45e1-b4be-9f19a419c6d9",
+                "code": "A0008-M01",
+                "name": "拉板_BS",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_b12de14c-f3fa-439c-af5c-6c35bbe42c24",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-e69615d4-c2d4-45e1-b4be-9f19a419c6d9/workspace?workId=9b7e38fd-e6a3-4c74-ab13-01b54a8c4645"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_9385f4b1-689a-4dda-aec3-b1376b29d2f7",
+            "rows": [
+              {
+                "rowKey": "cw_d431bb9e-35d0-4232-a278-6fe1f46cef89",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-2b3e139e-aeb8-476f-90c1-0ea4ef49ca5b",
+                "code": "A0007-M01",
+                "name": "柵條固定板_BS_左",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_d431bb9e-35d0-4232-a278-6fe1f46cef89",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-2b3e139e-aeb8-476f-90c1-0ea4ef49ca5b/workspace?workId=f9e8152c-c48b-4d5c-a911-04a0090f188c"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_16f6be9f-e992-4942-a113-2adcd4b23d7f",
+            "rows": [
+              {
+                "rowKey": "cw_1c4f1a65-5b0a-477a-ad0f-b2e1fd721339",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-58f3b735-a3fe-4c3b-87be-f2e23a15bebe",
+                "code": "A0006-M01",
+                "name": "柵條固定板_BS_右",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_1c4f1a65-5b0a-477a-ad0f-b2e1fd721339",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-58f3b735-a3fe-4c3b-87be-f2e23a15bebe/workspace?workId=9e9ae372-eec5-4f3f-a2e2-1e8035933404"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_4ae5a73c-2cde-46ac-a470-914bcf08d3fd",
+            "rows": [
+              {
+                "rowKey": "cw_30a9ec12-428c-4810-aa2b-22750506d70e",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-05b1e1c0-f4e7-4fea-ad4e-37224c08a603",
+                "code": "A0005-M01",
+                "name": "導渣板_BS",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_30a9ec12-428c-4810-aa2b-22750506d70e",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-05b1e1c0-f4e7-4fea-ad4e-37224c08a603/workspace?workId=f7d3082e-7fc8-4848-a5e4-6a1d91677e4f"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_b0d4b99b-33b9-4ad9-acfc-4b5c28cb2606",
+            "rows": [
+              {
+                "rowKey": "cw_10f0cf1b-b186-4e29-afa4-78415e3bc0ca",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-4ee20fd6-9d6f-435b-ab68-a71cedc15c11",
+                "code": "A0004-M01",
+                "name": "本體_BS_左_Xx5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_10f0cf1b-b186-4e29-afa4-78415e3bc0ca",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-4ee20fd6-9d6f-435b-ab68-a71cedc15c11/workspace?workId=da24c671-3cb0-4d30-a2ad-a49e255a6a83"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_adf3e58e-0786-4ce8-a8e7-1d0132991d2f",
+            "rows": [
+              {
+                "rowKey": "cw_1b986f0d-98e4-4dc5-a672-0bd8ff3a18aa",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-96cedc17-1625-4c07-bcd2-4a49c3fff9d5",
+                "code": "A0003-M01",
+                "name": "本體_右_xX5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_1b986f0d-98e4-4dc5-a672-0bd8ff3a18aa",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-draft-drawing-96cedc17-1625-4c07-bcd2-4a49c3fff9d5/workspace?workId=2672c8e8-c2d5-4eb7-acc5-3025f47d89b9"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_87000000-0000-4000-8000-000000000004",
+            "rows": [
+              {
+                "rowKey": "cw_87000000-0000-4000-8000-000000000009",
+                "entityType": "drawing",
+                "entityId": "87000000-0000-4000-8000-000000000003",
+                "code": "A0002-R99",
+                "name": "本體_BS_右_Xx5",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_87000000-0000-4000-8000-000000000009",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/87000000-0000-4000-8000-000000000003/workspace?workId=87000000-0000-4000-8000-000000000008"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_889cfa51-e1f8-4b21-a91a-aad4a58c67a4",
+            "rows": [
+              {
+                "rowKey": "cw_abbd6161-03e3-481f-aade-d6c4ab12240f",
+                "entityType": "drawing",
+                "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+                "code": "A0002-M01",
+                "name": "本體_BS_右_Xx5",
+                "layer": "rd",
+                "layerLabel": "研發版 1.1",
+                "revision": "1.1",
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_abbd6161-03e3-481f-aade-d6c4ab12240f",
+                "rowVersion": 1,
+                "basisState": "current",
+                "actions": [
+                  {
+                    "key": "advance",
+                    "label": "進版",
+                    "href": "/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_abbd6161-03e3-481f-aade-d6c4ab12240f"
+                  },
+                  {
+                    "key": "void_rd",
+                    "label": "申請作廢",
+                    "href": "/api/pdm/drawing-rd-branches/56c7b631-bf81-41cc-a8cc-00411043a6e3/void-requests"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_368f0c49-2be7-441e-a2c8-c8b0de6d84e4",
+            "rows": [
+              {
+                "rowKey": "cw_4671ae6f-ed3c-4f27-a1f8-5c6c92404747",
+                "entityType": "drawing",
+                "entityId": "drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864",
+                "code": "A0001-M01",
+                "name": "DEV-032 hotfix production acceptance 20260716140505",
+                "layer": "rd",
+                "layerLabel": "研發版 0.1",
+                "revision": "0.1",
+                "dataState": "editing",
+                "dataStateLabel": "編輯中",
+                "handling": "owner",
+                "handlingLabel": "負責人處理",
+                "blockerReason": null,
+                "detailHref": "/numbering/drawings?detail=cw_4671ae6f-ed3c-4f27-a1f8-5c6c92404747",
+                "rowVersion": 1,
+                "basisState": "preproduction",
+                "actions": [
+                  {
+                    "key": "edit",
+                    "label": "進行編輯",
+                    "href": "/numbering/drawings/drawing-formal-8298306b-2575-42a9-9de4-8edf44a9b864/workspace?workId=eaddc347-5f90-417b-ab83-aff89e08acf1"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "nextCursor": null,
+        "previousCursor": null,
+        "totalGroups": 50,
+        "totalRows": 50
+      },
+      "meta": {
+        "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4NzkzNjIwNjg3MH0.DGY6tHbBMNvcNfipRqETEu1iYvCdfMebO4oEQIPrbdc",
+        "correlationId": "7a803337-54be-417e-af2b-d8125c626e9b"
+      }
+    },
+    "url": "http://127.0.0.1:55067/numbering/drawings?layer=rd&sort=desc"
+  },
+  "dbReadback": [
+    {
+      "drawing_number": "A0002-M01",
+      "purpose_code": "M"
+    },
+    {
+      "drawing_number": "A0002-M01",
+      "purpose_code": "M"
+    }
+  ],
+  "visibleErrorSweep": {
+    "expected": null,
+    "actual": []
+  },
+  "mutationLedger": [],
+  "screenshot": "output/qa/dev-087/DEV087-2026-08-28T16-55-17-480Z/cases/QA-087-214/QA-087-214.png",
+  "source": "fresh task-owned DEV-087 isolated functional browser runtime"
+}

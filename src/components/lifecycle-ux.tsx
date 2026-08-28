@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   Factory,
   GitPullRequestArrow,
-  ListTree,
   PackagePlus,
   Search,
   UploadCloud,
@@ -15,7 +14,7 @@ import {
 } from "lucide-react";
 import { PageHelpDrawerButton, type SecondaryHelpContent } from "@/components/secondary-help";
 
-export type LifecycleStageId = "numbering" | "submission" | "review" | "bom" | "gate" | "handoff" | "ecr";
+export type LifecycleStageId = "numbering" | "submission" | "review" | "gate" | "handoff" | "ecr";
 
 type LifecycleStageBase = {
   id: LifecycleStageId;
@@ -73,7 +72,7 @@ const lifecycleStages: LifecycleStage[] = [
     owner: "研發工程師",
     state: "草稿 / 可作業",
     intent: "確認要開發的是新料件、共用件或既有料件延伸，先避免重複建號。",
-    risk: "重複料號、缺主要製造圖、品名或分類不清會讓後續 BOM 與交接失準。",
+    risk: "重複料號、缺主要製造圖、品名或分類不清會讓後續交接失準。",
     doneSignal: "料號、圖號與基本屬性已建立，下一步可送設計資料。",
     href: "/numbering/search?tab=reserved",
     cta: "建立編號",
@@ -106,27 +105,14 @@ const lifecycleStages: LifecycleStage[] = [
     icon: ClipboardCheck
   },
   {
-    id: "bom",
-    title: "BOM 建立與審核",
-    qualityStage: "研發階段",
-    owner: "研發工程師／主管",
-    state: "草稿 / 審核中 / 已發布",
-    intent: "從 CAD reference、SolidWorks XLS 或手動資料建立可追溯的階層 BOM。",
-    risk: "缺子件、子件未放行、數量/階層錯誤會直接影響採購與製造版本。",
-    doneSignal: "BOM 草稿審核通過後形成正式快照，可供 where-used 與交接使用。",
-    href: "/bom/workbench",
-    cta: "整理 BOM",
-    icon: ListTree
-  },
-  {
     id: "gate",
     title: "技術移轉關卡",
     qualityStage: "技術移轉",
     owner: "研發工程師／主管／系統管理員",
     state: "可處理 / 例外核准 / 阻擋",
-    intent: "集中確認圖料、BOM 與必要證據是否足以移交下游使用。",
+    intent: "集中確認圖料與必要證據是否足以移交下游使用。",
     risk: "缺製造圖、缺審核、資料不完整或例外未核准時不可完成移轉。",
-    doneSignal: "移轉判定更新圖料與 BOM 使用限制，必要時產生審核批次。",
+    doneSignal: "移轉判定更新圖料使用限制，必要時產生審核批次。",
     href: "/technical-transfer",
     cta: "檢查移轉條件",
     icon: GitPullRequestArrow
@@ -488,10 +474,10 @@ function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
     },
     Active: {
       label: "可接續開發",
-      description: "物件已啟用，但仍需依品質流程完成送審、BOM 或技術移轉檢查。",
-      nextStep: "建立送審、BOM 草稿，或檢查技術移轉所需證據。",
+      description: "物件已啟用，但仍需依品質流程完成送審或技術移轉檢查。",
+      nextStep: "建立送審，或檢查技術移轉所需證據。",
       tone: "neutral",
-      defaultBlockers: ["需確認是否已有最新 submission 與 BOM 狀態"]
+      defaultBlockers: ["需確認是否已有最新 submission 狀態"]
     },
     PendingReview: {
       label: "審核中",
@@ -502,10 +488,10 @@ function describeObjectLifecycleStatus(status: ObjectLifecycleStatus) {
     },
     Released: {
       label: "已發布",
-      description: "此物件可作為正式工程資料來源，後續仍需確認交接包與 BOM 正式版本。",
-      nextStep: "進入製造交接、BOM 已發布快照或 ECR 影響分析。",
+      description: "此物件可作為正式工程資料來源，後續仍需確認交接包。",
+      nextStep: "進入製造交接或 ECR 影響分析。",
       tone: "success",
-      defaultBlockers: ["確認交接包、SHA256 與 released BOM 是否完整"]
+      defaultBlockers: ["確認交接包與 SHA256 是否完整"]
     },
     Rejected: {
       label: "已退回",

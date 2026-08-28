@@ -542,7 +542,6 @@ export class AsyncSubmissionWriteRepository {
     });
   }
 }
-
 function buildSubmissionSnapshotJson(
   base: Record<string, unknown>,
   generated: {

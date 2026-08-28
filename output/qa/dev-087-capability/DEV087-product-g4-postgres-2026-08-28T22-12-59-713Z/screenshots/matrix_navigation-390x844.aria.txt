@@ -1,0 +1,296 @@
+- main:
+  - heading "圖號工作台" [level=1]
+  - link "建立編號":
+    - /url: /numbering/create?from=drawing
+  - region "清單篩選":
+    - text: 搜尋
+    - textbox "搜尋":
+      - /placeholder: 搜尋圖號、品名或料號
+      - text: A0002-M01
+    - text: 版本
+    - button "全部":
+      - text: 全部
+      - img
+    - text: 處理
+    - button "全部":
+      - text: 全部
+      - img
+    - text: 用途
+    - button "全部":
+      - text: 全部
+      - img
+    - text: 系列
+    - button "全部":
+      - text: 全部
+      - img
+  - region "工作台資料清單":
+    - table:
+      - rowgroup:
+        - row "編號排序，目前遞增，點擊切換為遞減 品名排序，點擊改為遞增 版本 資料狀態 處理":
+          - columnheader "編號排序，目前遞增，點擊切換為遞減":
+            - button "編號排序，目前遞增，點擊切換為遞減": 編號
+          - columnheader "品名排序，點擊改為遞增":
+            - button "品名排序，點擊改為遞增": 品名
+          - columnheader "版本"
+          - columnheader "資料狀態"
+          - columnheader "處理"
+      - rowgroup:
+        - row "A0002-M01 本體_BS_右_Xx5 量產版 1 可使用 無須處理" [selected]:
+          - cell "A0002-M01":
+            - button "A0002-M01"
+          - cell "本體_BS_右_Xx5"
+          - cell "量產版 1"
+          - cell "可使用"
+          - cell "無須處理"
+  - complementary "A0002-M01":
+    - text: 量產版 1 無須處理
+    - heading "A0002-M01" [level=2]
+    - paragraph: 本體_BS_右_Xx5
+    - button "關閉明細":
+      - img
+    - heading "目前資料" [level=3]
+    - term: 圖號
+    - definition: A0002-M01
+    - term: 圖面用途
+    - definition: M
+    - region "預覽":
+      - article:
+        - strong: 3D 模型
+        - strong: 無可用預覽
+        - text: 目前沒有可預覽的 3D 檔案。
+        - strong: A0002.SLDPRT
+      - article:
+        - strong: 2D 圖面
+        - link "2D 圖面，點擊開啟預覽":
+          - /url: /api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=qa-dev087-g4-production-revision&bindingId=qa-dev087-g4-production-file-1&preview=1#navpanes=0
+          - iframe
+        - strong: A0002-M01.pdf
+    - heading "圖面檔案" [level=3]
+    - list:
+      - listitem:
+        - text: A0002-M01.pdf
+        - link "下載 A0002-M01.pdf":
+          - /url: /api/pdm/file-assets/FA-17a5c09b-a36f-4475-93e9-845a3c0a1881?context=drawing_revision&contextId=qa-dev087-g4-production-revision&bindingId=qa-dev087-g4-production-file-1
+          - text: 下載
+      - listitem:
+        - text: A0002-M01.SLDDRW
+        - link "下載 A0002-M01.SLDDRW":
+          - /url: /api/pdm/file-assets/FA-94e7d949-2d0b-4c4e-b106-831dde533b76?context=drawing_revision&contextId=qa-dev087-g4-production-revision&bindingId=qa-dev087-g4-production-file-2
+          - text: 下載
+      - listitem:
+        - text: A0002.SLDPRT
+        - link "下載 A0002.SLDPRT":
+          - /url: /api/pdm/file-assets/FA-9f069b7f-66a4-4676-b774-97a01ebfaf51?context=drawing_revision&contextId=qa-dev087-g4-production-revision&bindingId=qa-dev087-g4-production-file-3
+          - text: 下載
+    - heading "關聯矩陣" [level=3]
+    - button "編輯關聯"
+    - link "建立編號":
+      - /url: /numbering/create?from=drawing&root=A0002&returnTo=%2Fnumbering%2Fdrawings%3Fquery%3DA0002-M01%26detail%3Dcw_87000000-0000-4000-8000-000000000001
+    - region "A0002 圖料關係矩陣":
+      - table:
+        - rowgroup:
+          - row "圖號 料號 A0002-M01":
+            - columnheader "圖號 料號"
+            - columnheader "A0002-M01":
+              - button "A0002-M01"
+        - rowgroup:
+          - row "A0002-P01 A0002-P01 與 A0002-M01：製造":
+            - rowheader "A0002-P01":
+              - button "A0002-P01"
+            - cell "A0002-P01 與 A0002-M01：製造": 製造
+          - row "A0002-P02 A0002-P02 與 A0002-M01：—":
+            - rowheader "A0002-P02":
+              - button "A0002-P02"
+            - cell "A0002-P02 與 A0002-M01：—": —
+          - row "A0002-P03 A0002-P03 與 A0002-M01：—":
+            - rowheader "A0002-P03":
+              - button "A0002-P03"
+            - cell "A0002-P03 與 A0002-M01：—": —
+          - row "A0002-P04 A0002-P04 與 A0002-M01：—":
+            - rowheader "A0002-P04":
+              - button "A0002-P04"
+            - cell "A0002-P04 與 A0002-M01：—": —
+          - row "A0002-P05 A0002-P05 與 A0002-M01：—":
+            - rowheader "A0002-P05":
+              - button "A0002-P05"
+            - cell "A0002-P05 與 A0002-M01：—": —
+          - row "A0002-P06 A0002-P06 與 A0002-M01：—":
+            - rowheader "A0002-P06":
+              - button "A0002-P06"
+            - cell "A0002-P06 與 A0002-M01：—": —
+          - row "A0002-P07 A0002-P07 與 A0002-M01：—":
+            - rowheader "A0002-P07":
+              - button "A0002-P07"
+            - cell "A0002-P07 與 A0002-M01：—": —
+          - row "A0002-P08 A0002-P08 與 A0002-M01：—":
+            - rowheader "A0002-P08":
+              - button "A0002-P08"
+            - cell "A0002-P08 與 A0002-M01：—": —
+          - row "A0002-P09 A0002-P09 與 A0002-M01：—":
+            - rowheader "A0002-P09":
+              - button "A0002-P09"
+            - cell "A0002-P09 與 A0002-M01：—": —
+          - row "A0002-P10 A0002-P10 與 A0002-M01：—":
+            - rowheader "A0002-P10":
+              - button "A0002-P10"
+            - cell "A0002-P10 與 A0002-M01：—": —
+          - row "A0002-P11 A0002-P11 與 A0002-M01：—":
+            - rowheader "A0002-P11":
+              - button "A0002-P11"
+            - cell "A0002-P11 與 A0002-M01：—": —
+          - row "A0002-P12 A0002-P12 與 A0002-M01：—":
+            - rowheader "A0002-P12":
+              - button "A0002-P12"
+            - cell "A0002-P12 與 A0002-M01：—": —
+          - row "A0002-P13 A0002-P13 與 A0002-M01：—":
+            - rowheader "A0002-P13":
+              - button "A0002-P13"
+            - cell "A0002-P13 與 A0002-M01：—": —
+          - row "A0002-P14 A0002-P14 與 A0002-M01：—":
+            - rowheader "A0002-P14":
+              - button "A0002-P14"
+            - cell "A0002-P14 與 A0002-M01：—": —
+          - row "A0002-P15 A0002-P15 與 A0002-M01：—":
+            - rowheader "A0002-P15":
+              - button "A0002-P15"
+            - cell "A0002-P15 與 A0002-M01：—": —
+          - row "A0002-P16 A0002-P16 與 A0002-M01：—":
+            - rowheader "A0002-P16":
+              - button "A0002-P16"
+            - cell "A0002-P16 與 A0002-M01：—": —
+          - row "A0002-P17 A0002-P17 與 A0002-M01：—":
+            - rowheader "A0002-P17":
+              - button "A0002-P17"
+            - cell "A0002-P17 與 A0002-M01：—": —
+          - row "A0002-P18 A0002-P18 與 A0002-M01：—":
+            - rowheader "A0002-P18":
+              - button "A0002-P18"
+            - cell "A0002-P18 與 A0002-M01：—": —
+          - row "A0002-P19 A0002-P19 與 A0002-M01：—":
+            - rowheader "A0002-P19":
+              - button "A0002-P19"
+            - cell "A0002-P19 與 A0002-M01：—": —
+          - row "A0002-P20 A0002-P20 與 A0002-M01：—":
+            - rowheader "A0002-P20":
+              - button "A0002-P20"
+            - cell "A0002-P20 與 A0002-M01：—": —
+          - row "A0002-P21 A0002-P21 與 A0002-M01：—":
+            - rowheader "A0002-P21":
+              - button "A0002-P21"
+            - cell "A0002-P21 與 A0002-M01：—": —
+          - row "A0002-P22 A0002-P22 與 A0002-M01：—":
+            - rowheader "A0002-P22":
+              - button "A0002-P22"
+            - cell "A0002-P22 與 A0002-M01：—": —
+          - row "A0002-P23 A0002-P23 與 A0002-M01：—":
+            - rowheader "A0002-P23":
+              - button "A0002-P23"
+            - cell "A0002-P23 與 A0002-M01：—": —
+          - row "A0002-P24 A0002-P24 與 A0002-M01：—":
+            - rowheader "A0002-P24":
+              - button "A0002-P24"
+            - cell "A0002-P24 與 A0002-M01：—": —
+          - row "A0002-P25 A0002-P25 與 A0002-M01：—":
+            - rowheader "A0002-P25":
+              - button "A0002-P25"
+            - cell "A0002-P25 與 A0002-M01：—": —
+          - row "A0002-P26 A0002-P26 與 A0002-M01：—":
+            - rowheader "A0002-P26":
+              - button "A0002-P26"
+            - cell "A0002-P26 與 A0002-M01：—": —
+          - row "A0002-P27 A0002-P27 與 A0002-M01：—":
+            - rowheader "A0002-P27":
+              - button "A0002-P27"
+            - cell "A0002-P27 與 A0002-M01：—": —
+          - row "A0002-P28 A0002-P28 與 A0002-M01：—":
+            - rowheader "A0002-P28":
+              - button "A0002-P28"
+            - cell "A0002-P28 與 A0002-M01：—": —
+          - row "A0002-P29 A0002-P29 與 A0002-M01：—":
+            - rowheader "A0002-P29":
+              - button "A0002-P29"
+            - cell "A0002-P29 與 A0002-M01：—": —
+          - row "A0002-P30 A0002-P30 與 A0002-M01：—":
+            - rowheader "A0002-P30":
+              - button "A0002-P30"
+            - cell "A0002-P30 與 A0002-M01：—": —
+          - row "A0002-P31 A0002-P31 與 A0002-M01：—":
+            - rowheader "A0002-P31":
+              - button "A0002-P31"
+            - cell "A0002-P31 與 A0002-M01：—": —
+          - row "A0002-P32 A0002-P32 與 A0002-M01：—":
+            - rowheader "A0002-P32":
+              - button "A0002-P32"
+            - cell "A0002-P32 與 A0002-M01：—": —
+          - row "A0002-P33 A0002-P33 與 A0002-M01：—":
+            - rowheader "A0002-P33":
+              - button "A0002-P33"
+            - cell "A0002-P33 與 A0002-M01：—": —
+          - row "A0002-P34 A0002-P34 與 A0002-M01：—":
+            - rowheader "A0002-P34":
+              - button "A0002-P34"
+            - cell "A0002-P34 與 A0002-M01：—": —
+          - row "A0002-P35 A0002-P35 與 A0002-M01：—":
+            - rowheader "A0002-P35":
+              - button "A0002-P35"
+            - cell "A0002-P35 與 A0002-M01：—": —
+          - row "A0002-P36 A0002-P36 與 A0002-M01：—":
+            - rowheader "A0002-P36":
+              - button "A0002-P36"
+            - cell "A0002-P36 與 A0002-M01：—": —
+          - row "A0002-P37 A0002-P37 與 A0002-M01：—":
+            - rowheader "A0002-P37":
+              - button "A0002-P37"
+            - cell "A0002-P37 與 A0002-M01：—": —
+          - row "A0002-P38 A0002-P38 與 A0002-M01：—":
+            - rowheader "A0002-P38":
+              - button "A0002-P38"
+            - cell "A0002-P38 與 A0002-M01：—": —
+          - row "A0002-P39 A0002-P39 與 A0002-M01：—":
+            - rowheader "A0002-P39":
+              - button "A0002-P39"
+            - cell "A0002-P39 與 A0002-M01：—": —
+          - row "A0002-P40 A0002-P40 與 A0002-M01：—":
+            - rowheader "A0002-P40":
+              - button "A0002-P40"
+            - cell "A0002-P40 與 A0002-M01：—": —
+          - row "A0002-P41 A0002-P41 與 A0002-M01：—":
+            - rowheader "A0002-P41":
+              - button "A0002-P41"
+            - cell "A0002-P41 與 A0002-M01：—": —
+          - row "A0002-P42 A0002-P42 與 A0002-M01：—":
+            - rowheader "A0002-P42":
+              - button "A0002-P42"
+            - cell "A0002-P42 與 A0002-M01：—": —
+          - row "A0002-P43 A0002-P43 與 A0002-M01：—":
+            - rowheader "A0002-P43":
+              - button "A0002-P43"
+            - cell "A0002-P43 與 A0002-M01：—": —
+          - row "A0002-P44 A0002-P44 與 A0002-M01：—":
+            - rowheader "A0002-P44":
+              - button "A0002-P44"
+            - cell "A0002-P44 與 A0002-M01：—": —
+          - row "A0002-P45 A0002-P45 與 A0002-M01：—":
+            - rowheader "A0002-P45":
+              - button "A0002-P45"
+            - cell "A0002-P45 與 A0002-M01：—": —
+          - row "A0002-P46 A0002-P46 與 A0002-M01：—":
+            - rowheader "A0002-P46":
+              - button "A0002-P46"
+            - cell "A0002-P46 與 A0002-M01：—": —
+          - row "A0002-P47 A0002-P47 與 A0002-M01：—":
+            - rowheader "A0002-P47":
+              - button "A0002-P47"
+            - cell "A0002-P47 與 A0002-M01：—": —
+    - heading "歷史版次清單" [level=3]
+    - list:
+      - listitem:
+        - button "量產版 1 開啟指定版次":
+          - strong: 量產版 1
+          - text: 開啟指定版次
+      - listitem:
+        - button "研發版 0.1 開啟指定版次":
+          - strong: 研發版 0.1
+          - text: 開啟指定版次
+    - button "進版"
+    - button "申請作廢"

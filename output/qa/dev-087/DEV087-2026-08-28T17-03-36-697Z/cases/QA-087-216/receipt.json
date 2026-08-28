@@ -1,0 +1,3959 @@
+{
+  "caseId": "QA-087-216",
+  "result": "PASS",
+  "assertionIds": [
+    "QA-087-216:FORWARD_BACK_CURSOR_NO_GAP_DUPLICATE"
+  ],
+  "renderedUiActions": [
+    "open first 100-group page",
+    "click 下一頁",
+    "capture identities",
+    "click 上一頁",
+    "compare exact first page identities"
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "activeRole": "body",
+    "activeText": "AI PDM工作台圖料管理編號搜尋圖圖號工作台料料號工作台變更 / 審核審核工作台發行 / 交接技術移轉管理管理辦法我的帳號安全帳號與權限系統設定Demo Admin已登入料號工作台建立編號搜尋資料全部處理全部料件類型全部系列全部材質顏色編號品名版本資料狀態處理A0001-P01DEV-032 hotfix production acceptance 20260716140505正式資料可使用無須處理A0002-P01本體_BS_右_Xx5正式資料可使用無須處理A0002-P02DEV087 replacement Part正式資料可使用無須處理A0002-P03DEV087 pagination P03正式資料可使用無須處理A0002-P04DEV087 pagination P04正式資料可使用無須處理A0002-P05DEV087 pagination P05正式資料可使用無須處理A0002-P06DEV087 pagination P06正式資料可使用無須處理A0002-P07DEV087 pagination P07正式資料可使用無須處理A0002-P08DEV087 pagination P08正式資料可使用無須處理A0002-P09DEV087 pagination P09正式資料可使用無須處理A0002-P10DEV087 pagination P10正式資料可使用無須處理A0002-P11DEV087 pagination P11正式資料可使用無須處理A0002-P12DEV087 pagination P12正式資料可使用無須處理A0002-P13DEV087 pagination P13正式資料可使用無須處理A0002-P14DEV087 pagination P14正式資料可使用無須處理A0002-P15DEV087 pagination P15正式資料可使用無須處理A0002-P16DEV087 pagination P16正式資料可使用無須處理A0002-P17DEV087 pagination P17正式資料可使用無須處理A0002-P18DEV087 pagination P18正式資料可使用無須處理A0002-P19DEV087 pagination P19正式資料可使用無須處理A0002-P20DEV087 pagination P20正式資料可使用無須處理A0002-P21DEV087 pagination P21正式資料可使用無須處理A0002-P22DEV087 pagination P22正式資料可使用無須處理A0002-P23DEV087 pagination P23正式資料可使用無須處理A0002-P24DEV087 pagination P24正式資料可使用無須處理A0002-P25DEV087 pagination P25正式資料可使用無須處理A0002-P26DEV087 pagination P26正式資料可使用無須處理A0002-P27DEV087 pagination P27正式資料可使用無須處理A0002-P28DEV087 pagination P28正式資料可使用無須處理A0002-P29DEV087 pagination P29正式資料可使用無須處理A0002-P30DEV087 pagination P30正式資料可使用無須處理A0002-P31DEV087 pagination P31正式資料可使用無須處理A0002-P32DEV087 pagination P32正式資料可使用無須處理A0002-P33DEV087 pagination P33正式資料可使用無須處理A0002-P34DEV087 pagination P34正式資料可使用無須處理A0002-P35DEV087 pagination P35正式資料可使用無須處理A0002-P36DEV087 pagination P36正式資料可使用無須處理A0002-P37DEV087 pagination P37正式資料可使用無須處理A0002-P38DEV087 pagination P38正式資料可使用無須處理A0002-P39DEV087 pagination P39正式資料可使用無須處理A0002-P40DEV087 pagination P40正式資料可使用無須處理A0002-P41DEV087 pagination P41正式資料可使用無須處理A0002-P42DEV087 pagination P42正式資料可使用無須處理A0002-P43DEV087 pagination P43正式資料可使用無須處理A0002-P44DEV087 pagination P44正式資料可使用無須處理A0002-P45DEV087 pagination P45正式資料可使用無須處理A0002-P46DEV087 pagination P46正式資料可使用無須處理A0002-P47DEV087 pagination P47正式資料可使用無須處理A0003-P01本體_右_xX5正式資料可使用無須處理A0004-P01本體_BS_左_Xx5正式資料可使用無須處理A0005-P01導渣板_BS正式資料可使用無須處理A0006-P01柵條固定板_BS_右正式資料可使用無須處理A0007-P01柵條固定板_BS_左正式資料可使用無須處理A0008-P01拉板_BS正式資料可使用無須處理A0009-P01拉板用螺桿_BS_5/16\"x18NCx75L正式資料可使用無須處理A0010-P01外六角螺絲_3/8-16WTx30L正式資料可使用無須處理A0011-P01馬達_CM091G60SBF_220V正式資料可使用無須處理A0012-P01齒輪箱_1/4HP_減速比1:25正式資料可使用無須處理A0013-P01減速機_減速比1:5_框號50_內孔25正式資料可使用無須處理A0014-P01軸承座_SSUCF205正式資料可使用無須處理A0015-P01法蘭板_BS正式資料可使用無須處理A0016-P01軸承管_BS正式資料可使用無須處理A0017-P01軸套_MSM-3035-20正式資料可使用無須處理A0018-P01腳架墊片_BS_上正式資料可使用無須處理A0019-P01腳架墊片_BS_下_A正式資料可使用無須處理A0020-P01腳架墊片_BS_下_B正式資料可使用無須處理A0021-P01墊片_BS_馬達支架正式資料可使用無須處理A0022-P01角鐵_BS_馬達支架_右正式資料可使用無須處理A0023-P01角鐵_BS_馬達支架_左正式資料可使用無須處理A0024-P01方管_BS_32x32x2.1tx432L正式資料可使用無須處理A0025-P01方管_BS_32x32x2.1tx500L正式資料可使用無須處理A0026-P01方管_BS_32x32x2.1tx588.8L正式資料可使用無須處理A0027-P01連板_BS正式資料可使用無須處理A0028-P01導板_BS_3xX正式資料可使用無須處理A0029-P01主動軸_BS_3x5正式資料可使用無須處理A0030-P01從動軸_BS_3xX正式資料可使用無須處理A0031-P01圓棒_BS_φ12x570L正式資料可使用無須處理A0032-P01壓板_BS_Xx5正式資料可使用無須處理A0033-P01鏈輪_RA-60_A型正式資料可使用無須處理A0034-P01鍊條_RS60_21目正式資料可使用無須處理A0035-P01鍊條_RS60_23目正式資料可使用無須處理A0036-P01鍊條活目_RS60正式資料可使用無須處理A0037-P01連桿_BS_φ16_215L_5/16\"_18NC_12L正式資料可使用無須處理A0038-P01方管_BS_32x32x2.1t_231L正式資料可使用無須處理A0039-P01耙爪座_BS_3x5正式資料可使用無須處理A0040-P01導渣板組_BS_右正式資料可使用無須處理A0041-P01導渣板組_BS_左正式資料可使用無須處理A0042-P01本體組_BS_Xx5_右正式資料可使用無須處理A0043-P01本體組_BS_Xx5_左正式資料可使用無須處理A0044-P01軸承座_BS正式資料可使用無須處理A0045-P01連板組_BS正式資料可使用無須處理A0046-P01柵條_BS_Xx5_塑膠正式資料可使用無須處理A0047-P01耙爪_BS_塑膠正式資料可使用無須處理A0048-P01拉板組_BS正式資料可使用無須處理A0049-P01電控箱支架_BS_右正式資料可使用無須處理A0050-P01電控箱支架_BS_左正式資料可使用無須處理A0051-P01腳架_BS_Xx5正式資料可使用無須處理A0052-P01腳架組_BS_3x5正式資料可使用無須處理A0053-P01主動軸組_BS_3xX正式資料可使用無須處理A0054-P01從動軸組_BS_3xX正式資料可使用無須處理上一頁第 1 頁下一頁self.__next_r=\"OlRGDrh_AEQ2fzPp8lK2p\";if(document.cookie.indexOf('next-instant-navigation-testing=')>-1){self.__next_instant_test=fetch(location.pathname+'?_rsc=xhdorIanPcIpYSsE',{credentials:'same-origin',headers:{'rsc':'1','next-router-prefetch':'1','next-router-segment-prefetch':'/_full'}})}(self.__next_f=self.__next_f||[]).push([0])self.__next_f.push([1,\"7:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"SegmentViewNode\\\"]\\n9:\\\"$Sreact.fragment\\\"\\n1b:I[\\\"(app-pages-browser)/./src/components/sidebar-nav.tsx\\\",[\\\"app/layout\\\",\\\"static/chunks/app/layout.js\\\"],\\\"SidebarNav\\\"]\\n1e:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/layout-router.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"\\\"]\\n20:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/render-from-template-context.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"\\\"]\\n37:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/client-page.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"ClientPageRoot\\\"]\\n38:I[\\\"(app-pages-browser)/./src/app/parts/page.tsx\\\",[\\\"app/parts/page\\\",\\\"static/chunks/app/parts/page.js\\\"],\\\"default\\\"]\\n3e:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/framework/boundary-components.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"OutletBoundary\\\"]\\n40:\\\"$Sreact.suspense\\\"\\n4e:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/framework/boundary-components.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"ViewportBoundary\\\"]\\n58:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/framework/boundary-components.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"MetadataBoundary\\\"]\\n5e:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/client/components/builtin/global-error.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"default\\\",1]\\n:HL[\\\"/_next/static/css/app/layout.css?v=1787936713195\\\",\\\"style\\\"]\\n1:D\\\"$4\\\"\\n1:D\\\"$2\\\"\\n1:D\\\"$5\\\"\\n1:null\\nb:D\\\"$15\\\"\\nb:D\\\"$c\\\"\\nb:D\\\"$17\\\"\\n22:D\\\"$24\\\"\\n22:D\\\"$23\\\"\\n22:D\\\"$26\\\"\\n22:D\\\"$25\\\"\\n22:D\\\"$27\\\"\\n22:[[\\\"$\\\",\\\"title\\\",null,{\\\"children\\\":\\\"404: This page could not be found.\\\"},\\\"$25\\\",\\\"$28\\\",1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":{\\\"fontFamily\\\":\\\"system-ui,\\\\\\\"Segoe UI\\\\\\\",Roboto,Helvetica,Arial,sans-serif,\\\\\\\"Apple Color Emoji\\\\\\\",\\\\\\\"Segoe UI Emoji\\\\\\\"\\\",\\\"height\\\":\\\"100vh\\\",\\\"textAlign\\\":\\\"center\\\",\\\"display\\\":\\\"flex\\\",\\\"flexDirection\\\":\\\"column\\\",\\\"alignItems\\\":\\\"center\\\",\\\"justifyContent\\\":\\\"center\\\"},\\\"children\\\":[\\\"$\\\",\\\"div\\\",null,{\\\"children\\\":[[\\\"$\\\",\\\"style\\\",null,{\\\"dangerouslySetInnerHTML\\\":{\\\"__html\\\":\\\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\\\"}},\\\"$25\\\",\\\"$2b\\\",1],[\\\"$\\\",\\\"h1\\\",null,{\\\"className\\\":\\\"next-error-h1\\\",\\\"style\\\":{\\\"display\\\":\\\"inline-block\\\",\\\"margin\\\":\\\"0 20px 0 0\\\",\\\"padding\\\":\\\"0 23px 0 0\\\",\\\"fontSize\\\":24,\\\"fontWeight\\\":500,\\\"verticalAlign\\\":\\\"top\\\",\\\"lineHeight\\\":\\\"49px\\\"},\\\"children\\\":404},\\\"$25\\\",\\\"$2c\\\",1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":{\\\"display\\\":\\\"inline-block\\\"},\\\"children\\\":[\\\"$\\\",\\\"h2\\\",null,{\\\"style\\\":{\\\"fontSize\\\":14,\\\"fontWeight\\\":400,\\\"lineHeight\\\":\\\"49px\\\",\\\"margin\\\":0},\\\"children\\\":\\\"This page could not be found.\\\"},\\\"$25\\\",\\\"$2e\\\",1]},\\\"$25\\\",\\\"$2d\\\",1]]},\\\"$25\\\",\\\"$2a\\\",1]},\\\"$25\\\",\\\"$29\\\",1]]\\nb:[\\\"$\\\",\\\"html\\\",null,{\\\"lang\\\":\\\"zh-Hant\\\",\\\"children\\\":[\\\"$\\\",\\\"body\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"div\\\",null,{\\\"className\\\":\\\"app-shell\\\",\\\"children\\\":[[\\\"$\\\",\\\"$L1b\\\",null,{},\\\"$c\\\",\\\"$1a\\\",1],[\\\"$\\\",\\\"main\\\",null,{\\\"className\\\":\\\"main\\\",\\\"children\\\":[\\\"$\\\",\\\"$L1e\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L20\\\",null,{},null,\\\"$1f\\\",1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":[\\\"$\\\",\\\"$L7\\\",\\\"c-not-found\\\",{\\\"type\\\":\\\"not-found\\\",\\\"pagePath\\\":\\\"__next_builtin__not-found.js\\\",\\\"children\\\":[\\\"$22\\\",[]]},null,\\\"$21\\\",0],\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\",\\\"segmentViewBoundaries\\\":[[\\\"$\\\",\\\"$L7\\\",null,{\\\"type\\\":\\\"boundary:not-found\\\",\\\"pagePath\\\":\\\"__next_builtin__not-found.js@boundary\\\"},null,\\\"$2f\\\",1],\\\"$undefined\\\",\\\"$undefined\\\",[\\\"$\\\",\\\"$L7\\\",null,{\\\"type\\\":\\\"boundary:global-error\\\",\\\"pagePath\\\":\\\"__next_builtin__global-error.js\\\"},null,\\\"$30\\\",1]]},null,\\\"$1d\\\",1]},\\\"$c\\\",\\\"$1c\\\",1]]},\\\"$c\\\",\\\"$19\\\",1]},\\\"$c\\\",\\\"$18\\\",1]},\\\"$c\\\",\\\"$16\\\",1]\\n39:D\\\"$3b\\\"\\n39:D\\\"$3a\\\"\\n39:D\\\"$3d\\\"\\n39:[\\\"$\\\",\\\"$L3e\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"$40\\\",null,{\\\"name\\\":\\\"Next.MetadataOutlet\\\",\\\"children\\\":\\\"$@41\\\"},\\\"$3a\\\",\\\"$3f\\\",1]},\\\"$3a\\\",\\\"$3c\\\",1]\\n42:X\\n44:D\\\"$47\\\"\\n44:D\\\"$45\\\"\\n44:D\\\"$48\\\"\\n44:null\\n49:D\\\"$4b\\\"\\n49:D\\\"$4a\\\"\\n49:D\\\"$4d\\\"\\n4f:D\\\"$51\\\"\\n4f:D\\\"$50\\\"\\n49:[\\\"$\\\",\\\"$L4e\\\",null,{\\\"children\\\":\\\"$L4f\\\"},\\\"$4a\\\",\\\"$4c\\\",1]\\n52:D\\\"$54\\\"\\n52:D\\\"$53\\\"\\n52:D\\\"$56\\\"\\n5a:D\\\"$5c\\\"\\n5a:D\\\"$5b\\\"\\n52:[\\\"$\\\",\\\"div\\\",null,{\\\"hidden\\\":true,\\\"children\\\":[\\\"$\\\",\\\"$L58\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"$40\\\",null,{\\\"name\\\":\\\"Next.Metadata\\\",\\\"children\\\":\\\"$L5a\\\"},\\\"$53\\\",\\\"$59\\\",1]},\\\"$53\\\",\\\"$57\\\",1]},\\\"$53\\\",\\\"$55\\\",1]\\n5d:[]\\n0:{\\\"P\\\":\\\"$1\\\",\\\"c\\\":[\\\"\\\",\\\"parts\\\"],\\\"q\\\":\\\"\\\",\\\"i\\\":true,\\\"f\\\":[[[\\\"\\\",{\\\"children\\\":[\\\"parts\\\",{\\\"children\\\":[\\\"__PAGE__\\\",{},\\\"$undefined\\\",\\\"$undefined\\\",4096]},\\\"$undefined\\\",\\\"$undefined\\\",4096]},\\\"$undefined\\\",\\\"$undefined\\\",4112],[[\\\"$\\\",\\\"$L7\\\",\\\"layout\\\",{\\\"type\\\":\\\"layout\\\",\\\"pagePath\\\":\\\"layout.tsx\\\",\\\"children\\\":[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[[[\\\"$\\\",\\\"link\\\",\\\"0\\\",{\\\"rel\\\":\\\"stylesheet\\\",\\\"href\\\":\\\"/_next/static/css/app/layout.css?v=1787936713195\\\",\\\"precedence\\\":\\\"next_static/css/app/layout.css\\\",\\\"crossOrigin\\\":\\\"$undefined\\\",\\\"nonce\\\":\\\"$undefined\\\"},null,\\\"$a\\\",0]],\\\"$b\\\"]},null,\\\"$8\\\",1]},null,\\\"$6\\\",0],{\\\"children\\\":[[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[null,[\\\"$\\\",\\\"$L1e\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L20\\\",null,{},null,\\\"$33\\\",1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":\\\"$undefined\\\",\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\",\\\"segmentViewBoundaries\\\":[\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\",\\\"$undefined\\\"]},null,\\\"$32\\\",1]]},null,\\\"$31\\\",0],{\\\"children\\\":[[\\\"$\\\",\\\"$9\\\",\\\"c\\\",{\\\"children\\\":[[\\\"$\\\",\\\"$L7\\\",\\\"c-page\\\",{\\\"type\\\":\\\"page\\\",\\\"pagePath\\\":\\\"parts/page.tsx\\\",\\\"children\\\":[\\\"$\\\",\\\"$L37\\\",null,{\\\"Component\\\":\\\"$38\\\",\\\"serverProvidedParams\\\":{\\\"searchParams\\\":{},\\\"params\\\":{},\\\"promises\\\":null}},null,\\\"$36\\\",1]},null,\\\"$35\\\",1],null,\\\"$39\\\"]},null,\\\"$34\\\",0],{},null,false,null]},null,false,\\\"$42\\\"]},null,false,null],[\\\"$\\\",\\\"$9\\\",\\\"h\\\",{\\\"children\\\":[\\\"$44\\\",\\\"$49\\\",\\\"$52\\\",null]},null,\\\"$43\\\",0],false]],\\\"m\\\":\\\"$W5d\\\",\\\"G\\\":[\\\"$5e\\\",[\\\"$\\\",\\\"$L7\\\",\\\"ge-svn\\\",{\\\"type\\\":\\\"global-error\\\",\\\"pagePath\\\":\\\"__next_builtin__global-error.js\\\",\\\"children\\\":[]},null,\\\"$5f\\\",0]],\\\"S\\\":false,\\\"h\\\":null,\\\"r\\\":\\\"$undefined\\\",\\\"s\\\":\\\"$undefined\\\",\\\"a\\\":\\\"$undefined\\\",\\\"l\\\":\\\"$undefined\\\",\\\"p\\\":\\\"$undefined\\\",\\\"d\\\":\\\"$undefined\\\",\\\"b\\\":\\\"development\\\"}\\n42:C\\n4f:D\\\"$60\\\"\\n4f:[[\\\"$\\\",\\\"meta\\\",\\\"0\\\",{\\\"charSet\\\":\\\"utf-8\\\"},\\\"$3a\\\",\\\"$61\\\",0],[\\\"$\\\",\\\"meta\\\",\\\"1\\\",{\\\"name\\\":\\\"viewport\\\",\\\"content\\\":\\\"width=device-width, initial-scale=1\\\"},\\\"$3a\\\",\\\"$62\\\",0]]\\n69:I[\\\"(app-pages-browser)/../../../node_modules/next/dist/lib/metadata/generate/icon-mark.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"IconMark\\\"]\\n41:D\\\"$63\\\"\\n41:null\\n5a:D\\\"$64\\\"\\n5a:[[\\\"$\\\",\\\"title\\\",\\\"0\\\",{\\\"children\\\":\\\"AI PDM\\\"},\\\"$3a\\\",\\\"$65\\\",0],[\\\"$\\\",\\\"meta\\\",\\\"1\\\",{\\\"name\\\":\\\"description\\\",\\\"content\\\":\\\"SolidWorks AI 圖面資料管理系統\\\"},\\\"$3a\\\",\\\"$66\\\",0],[\\\"$\\\",\\\"link\\\",\\\"2\\\",{\\\"rel\\\":\\\"icon\\\",\\\"href\\\":\\\"/icon.svg\\\"},\\\"$3a\\\",\\\"$67\\\",0],[\\\"$\\\",\\\"$L69\\\",\\\"3\\\",{},\\\"$3a\\\",\\\"$68\\\",0]]\\n\"])"
+  },
+  "apiReadback": {
+    "status": 200,
+    "body": {
+      "data": {
+        "groups": [
+          {
+            "groupKey": "cg_726818c4-ad64-4b9d-ab47-d6406bcd504d",
+            "rows": [
+              {
+                "rowKey": "cw_8604a438-de47-41a3-af98-3adad9d8d9f8",
+                "entityType": "part",
+                "entityId": "0a81c6e6-089c-4881-926c-819ff141734c",
+                "code": "A0001-P01",
+                "name": "DEV-032 hotfix production acceptance 20260716140505",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_8604a438-de47-41a3-af98-3adad9d8d9f8",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/0a81c6e6-089c-4881-926c-819ff141734c/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_078ca01e-87c8-4c05-a216-b91e19752220",
+            "rows": [
+              {
+                "rowKey": "cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062",
+                "entityType": "part",
+                "entityId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                "code": "A0002-P01",
+                "name": "本體_BS_右_Xx5",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_ff4a0613-38a5-4fef-a8f8-fa4ad9702062",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-593efe73-6225-42a7-9507-c63602b73169/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-functional-a0002-p02",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-functional-a0002-p02",
+                "entityType": "part",
+                "entityId": "qa-dev087-functional-a0002-p02",
+                "code": "A0002-P02",
+                "name": "DEV087 replacement Part",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-functional-a0002-p02",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-functional-a0002-p02/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p03",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p03",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p03",
+                "code": "A0002-P03",
+                "name": "DEV087 pagination P03",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p03",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p03/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p04",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p04",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p04",
+                "code": "A0002-P04",
+                "name": "DEV087 pagination P04",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p04",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p04/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p05",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p05",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p05",
+                "code": "A0002-P05",
+                "name": "DEV087 pagination P05",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p05",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p05/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p06",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p06",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p06",
+                "code": "A0002-P06",
+                "name": "DEV087 pagination P06",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p06",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p06/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p07",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p07",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p07",
+                "code": "A0002-P07",
+                "name": "DEV087 pagination P07",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p07",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p07/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p08",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p08",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p08",
+                "code": "A0002-P08",
+                "name": "DEV087 pagination P08",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p08",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p08/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p09",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p09",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p09",
+                "code": "A0002-P09",
+                "name": "DEV087 pagination P09",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p09",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p09/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p10",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p10",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p10",
+                "code": "A0002-P10",
+                "name": "DEV087 pagination P10",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p10",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p10/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p11",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p11",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p11",
+                "code": "A0002-P11",
+                "name": "DEV087 pagination P11",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p11",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p11/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p12",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p12",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p12",
+                "code": "A0002-P12",
+                "name": "DEV087 pagination P12",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p12",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p12/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p13",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p13",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p13",
+                "code": "A0002-P13",
+                "name": "DEV087 pagination P13",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p13",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p13/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p14",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p14",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p14",
+                "code": "A0002-P14",
+                "name": "DEV087 pagination P14",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p14",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p14/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p15",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p15",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p15",
+                "code": "A0002-P15",
+                "name": "DEV087 pagination P15",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p15",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p15/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p16",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p16",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p16",
+                "code": "A0002-P16",
+                "name": "DEV087 pagination P16",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p16",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p16/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p17",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p17",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p17",
+                "code": "A0002-P17",
+                "name": "DEV087 pagination P17",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p17",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p17/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p18",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p18",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p18",
+                "code": "A0002-P18",
+                "name": "DEV087 pagination P18",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p18",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p18/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p19",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p19",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p19",
+                "code": "A0002-P19",
+                "name": "DEV087 pagination P19",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p19",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p19/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p20",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p20",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p20",
+                "code": "A0002-P20",
+                "name": "DEV087 pagination P20",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p20",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p20/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p21",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p21",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p21",
+                "code": "A0002-P21",
+                "name": "DEV087 pagination P21",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p21",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p21/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p22",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p22",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p22",
+                "code": "A0002-P22",
+                "name": "DEV087 pagination P22",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p22",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p22/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p23",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p23",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p23",
+                "code": "A0002-P23",
+                "name": "DEV087 pagination P23",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p23",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p23/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p24",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p24",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p24",
+                "code": "A0002-P24",
+                "name": "DEV087 pagination P24",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p24",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p24/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p25",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p25",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p25",
+                "code": "A0002-P25",
+                "name": "DEV087 pagination P25",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p25",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p25/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p26",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p26",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p26",
+                "code": "A0002-P26",
+                "name": "DEV087 pagination P26",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p26",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p26/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p27",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p27",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p27",
+                "code": "A0002-P27",
+                "name": "DEV087 pagination P27",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p27",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p27/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p28",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p28",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p28",
+                "code": "A0002-P28",
+                "name": "DEV087 pagination P28",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p28",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p28/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p29",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p29",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p29",
+                "code": "A0002-P29",
+                "name": "DEV087 pagination P29",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p29",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p29/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p30",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p30",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p30",
+                "code": "A0002-P30",
+                "name": "DEV087 pagination P30",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p30",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p30/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p31",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p31",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p31",
+                "code": "A0002-P31",
+                "name": "DEV087 pagination P31",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p31",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p31/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p32",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p32",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p32",
+                "code": "A0002-P32",
+                "name": "DEV087 pagination P32",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p32",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p32/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p33",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p33",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p33",
+                "code": "A0002-P33",
+                "name": "DEV087 pagination P33",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p33",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p33/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p34",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p34",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p34",
+                "code": "A0002-P34",
+                "name": "DEV087 pagination P34",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p34",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p34/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p35",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p35",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p35",
+                "code": "A0002-P35",
+                "name": "DEV087 pagination P35",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p35",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p35/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p36",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p36",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p36",
+                "code": "A0002-P36",
+                "name": "DEV087 pagination P36",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p36",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p36/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p37",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p37",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p37",
+                "code": "A0002-P37",
+                "name": "DEV087 pagination P37",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p37",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p37/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p38",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p38",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p38",
+                "code": "A0002-P38",
+                "name": "DEV087 pagination P38",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p38",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p38/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p39",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p39",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p39",
+                "code": "A0002-P39",
+                "name": "DEV087 pagination P39",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p39",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p39/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p40",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p40",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p40",
+                "code": "A0002-P40",
+                "name": "DEV087 pagination P40",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p40",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p40/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p41",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p41",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p41",
+                "code": "A0002-P41",
+                "name": "DEV087 pagination P41",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p41",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p41/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p42",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p42",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p42",
+                "code": "A0002-P42",
+                "name": "DEV087 pagination P42",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p42",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p42/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p43",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p43",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p43",
+                "code": "A0002-P43",
+                "name": "DEV087 pagination P43",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p43",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p43/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p44",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p44",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p44",
+                "code": "A0002-P44",
+                "name": "DEV087 pagination P44",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p44",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p44/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p45",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p45",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p45",
+                "code": "A0002-P45",
+                "name": "DEV087 pagination P45",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p45",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p45/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p46",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p46",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p46",
+                "code": "A0002-P46",
+                "name": "DEV087 pagination P46",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p46",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p46/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_aggregate-qa-dev087-pagination-a0002-p47",
+            "rows": [
+              {
+                "rowKey": "cw_state-qa-dev087-pagination-a0002-p47",
+                "entityType": "part",
+                "entityId": "qa-dev087-pagination-a0002-p47",
+                "code": "A0002-P47",
+                "name": "DEV087 pagination P47",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_state-qa-dev087-pagination-a0002-p47",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/qa-dev087-pagination-a0002-p47/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_5143adc8-7249-43cc-aa2d-53e55a1f1657",
+            "rows": [
+              {
+                "rowKey": "cw_2e509bc2-8a6c-44d1-a462-c4eab46a0066",
+                "entityType": "part",
+                "entityId": "part-number-51436633-4a7f-4709-9a06-f642e9d65e57",
+                "code": "A0003-P01",
+                "name": "本體_右_xX5",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_2e509bc2-8a6c-44d1-a462-c4eab46a0066",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-51436633-4a7f-4709-9a06-f642e9d65e57/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_1f52795b-6ffc-4a96-a49e-b52d4c529c85",
+            "rows": [
+              {
+                "rowKey": "cw_2dd02fd5-36eb-4519-a0e9-2677405f23e5",
+                "entityType": "part",
+                "entityId": "part-number-b0a2b288-3a0d-4b79-ad46-4a1098e5d954",
+                "code": "A0004-P01",
+                "name": "本體_BS_左_Xx5",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_2dd02fd5-36eb-4519-a0e9-2677405f23e5",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-b0a2b288-3a0d-4b79-ad46-4a1098e5d954/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_98028160-0ba6-4497-a404-bb18ba3baaf9",
+            "rows": [
+              {
+                "rowKey": "cw_86db9e63-65a0-426e-a269-7beceb0632b5",
+                "entityType": "part",
+                "entityId": "part-number-fa941e25-3156-4dc8-a6e3-6995e5ec0b9a",
+                "code": "A0005-P01",
+                "name": "導渣板_BS",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_86db9e63-65a0-426e-a269-7beceb0632b5",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-fa941e25-3156-4dc8-a6e3-6995e5ec0b9a/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_99248243-eb50-4de2-ad84-7420a366292e",
+            "rows": [
+              {
+                "rowKey": "cw_efd5afe2-7ae7-4dcb-acde-419081b2179b",
+                "entityType": "part",
+                "entityId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+                "code": "A0006-P01",
+                "name": "柵條固定板_BS_右",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_efd5afe2-7ae7-4dcb-acde-419081b2179b",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-05e491aa-5811-4c03-94e6-48bde3ca2601/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_f8f3cfd2-b8d0-4ed1-aa61-94f4070bbe7b",
+            "rows": [
+              {
+                "rowKey": "cw_dfc0cb3d-8fd1-410f-abed-64f472b738c5",
+                "entityType": "part",
+                "entityId": "part-number-46390888-bd17-454d-b33c-824ed1802bee",
+                "code": "A0007-P01",
+                "name": "柵條固定板_BS_左",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_dfc0cb3d-8fd1-410f-abed-64f472b738c5",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-46390888-bd17-454d-b33c-824ed1802bee/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_91754020-5dd3-4c65-a02e-92373bfdb85a",
+            "rows": [
+              {
+                "rowKey": "cw_5629bd11-179e-494e-aebd-9ac48214d451",
+                "entityType": "part",
+                "entityId": "part-number-8aa401bb-2b30-4319-b716-689d82f9f70e",
+                "code": "A0008-P01",
+                "name": "拉板_BS",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_5629bd11-179e-494e-aebd-9ac48214d451",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-8aa401bb-2b30-4319-b716-689d82f9f70e/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_501ece24-fc68-434e-a4e8-c6d3508fa705",
+            "rows": [
+              {
+                "rowKey": "cw_6a8f9499-458e-46bc-a94d-a90a89f66582",
+                "entityType": "part",
+                "entityId": "part-number-1c795067-d306-4f90-af48-7ad54c469a8f",
+                "code": "A0009-P01",
+                "name": "拉板用螺桿_BS_5/16\"x18NCx75L",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_6a8f9499-458e-46bc-a94d-a90a89f66582",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-1c795067-d306-4f90-af48-7ad54c469a8f/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_e1f0da44-c93b-4262-acb2-322f044c9324",
+            "rows": [
+              {
+                "rowKey": "cw_b11a3b0a-2908-4986-ac19-e81f2ba7800d",
+                "entityType": "part",
+                "entityId": "part-number-2b560978-4ca6-44b1-9f41-672ea67bc7a3",
+                "code": "A0010-P01",
+                "name": "外六角螺絲_3/8-16WTx30L",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_b11a3b0a-2908-4986-ac19-e81f2ba7800d",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-2b560978-4ca6-44b1-9f41-672ea67bc7a3/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_4e7b9f5a-2860-48a3-a21a-0c1fd11516ae",
+            "rows": [
+              {
+                "rowKey": "cw_70cee821-1724-4062-a139-2fa1330a0e2c",
+                "entityType": "part",
+                "entityId": "part-number-7aac66c3-0ea6-42bc-be5a-b667cfe9900f",
+                "code": "A0011-P01",
+                "name": "馬達_CM091G60SBF_220V",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_70cee821-1724-4062-a139-2fa1330a0e2c",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-7aac66c3-0ea6-42bc-be5a-b667cfe9900f/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_b0f90629-5262-4386-a592-a06323ed721a",
+            "rows": [
+              {
+                "rowKey": "cw_9b4b4b4c-119b-4708-ac62-99630fd34392",
+                "entityType": "part",
+                "entityId": "part-number-42e4c060-6259-4341-850e-43814ec5eeaa",
+                "code": "A0012-P01",
+                "name": "齒輪箱_1/4HP_減速比1:25",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_9b4b4b4c-119b-4708-ac62-99630fd34392",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-42e4c060-6259-4341-850e-43814ec5eeaa/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_4d01bb01-fabd-4638-a8db-5ec5e8fe11e2",
+            "rows": [
+              {
+                "rowKey": "cw_3a71a4df-16d1-4b1f-a014-4bc63ba72dbe",
+                "entityType": "part",
+                "entityId": "part-number-b848b260-7f21-4051-a428-88639fb6478d",
+                "code": "A0013-P01",
+                "name": "減速機_減速比1:5_框號50_內孔25",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_3a71a4df-16d1-4b1f-a014-4bc63ba72dbe",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-b848b260-7f21-4051-a428-88639fb6478d/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_c54b56af-88a5-4d75-a465-ea20f0855856",
+            "rows": [
+              {
+                "rowKey": "cw_265f772b-155c-4cc6-a68b-70fb818968ee",
+                "entityType": "part",
+                "entityId": "part-number-68b9e055-be89-4c0a-ae14-9118b072d035",
+                "code": "A0014-P01",
+                "name": "軸承座_SSUCF205",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_265f772b-155c-4cc6-a68b-70fb818968ee",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-68b9e055-be89-4c0a-ae14-9118b072d035/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_c765f366-2c71-42c1-a37f-08e597417221",
+            "rows": [
+              {
+                "rowKey": "cw_398de8e2-fcc8-428e-a11a-33db3cfa7c33",
+                "entityType": "part",
+                "entityId": "part-number-b6703ef4-b2b7-42f5-b8c1-c8ede4df14b0",
+                "code": "A0015-P01",
+                "name": "法蘭板_BS",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_398de8e2-fcc8-428e-a11a-33db3cfa7c33",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-b6703ef4-b2b7-42f5-b8c1-c8ede4df14b0/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_04aac8f3-dce4-4ad6-a787-7328b1ccb3bf",
+            "rows": [
+              {
+                "rowKey": "cw_6df9e41c-1222-48c9-ada3-51d13a939d4c",
+                "entityType": "part",
+                "entityId": "part-number-70289ce8-9fc9-4265-ad23-163fb8ea82b1",
+                "code": "A0016-P01",
+                "name": "軸承管_BS",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_6df9e41c-1222-48c9-ada3-51d13a939d4c",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-70289ce8-9fc9-4265-ad23-163fb8ea82b1/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_7c747cc1-91ca-405a-a370-895390231b0b",
+            "rows": [
+              {
+                "rowKey": "cw_7c269e78-83c8-4f58-a660-726e9a37f334",
+                "entityType": "part",
+                "entityId": "part-number-24e43e9a-65b4-44fc-aeea-491208a49d6c",
+                "code": "A0017-P01",
+                "name": "軸套_MSM-3035-20",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_7c269e78-83c8-4f58-a660-726e9a37f334",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-24e43e9a-65b4-44fc-aeea-491208a49d6c/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_6b288831-5cf4-45c8-a249-8643ac1dfcd7",
+            "rows": [
+              {
+                "rowKey": "cw_d14cf357-c172-4c53-ad9e-aeef37a7e9b4",
+                "entityType": "part",
+                "entityId": "part-number-e6288123-252d-42c1-ad5d-d8145167d0f9",
+                "code": "A0018-P01",
+                "name": "腳架墊片_BS_上",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_d14cf357-c172-4c53-ad9e-aeef37a7e9b4",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-e6288123-252d-42c1-ad5d-d8145167d0f9/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_6f417c12-dd99-4919-a348-02f9d456db56",
+            "rows": [
+              {
+                "rowKey": "cw_5fce4e2b-3faf-4bbb-a9e5-06ebffd52d69",
+                "entityType": "part",
+                "entityId": "part-number-d0453884-7a4a-4721-b4c1-93f7ccd06384",
+                "code": "A0019-P01",
+                "name": "腳架墊片_BS_下_A",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_5fce4e2b-3faf-4bbb-a9e5-06ebffd52d69",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-d0453884-7a4a-4721-b4c1-93f7ccd06384/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_b7108e1f-286d-4d97-ad72-d993f1c38e15",
+            "rows": [
+              {
+                "rowKey": "cw_247b8957-8f58-442b-a27a-6c0ef34e7a49",
+                "entityType": "part",
+                "entityId": "part-number-f317aa4f-6529-4318-ac4c-639e97be0ab4",
+                "code": "A0020-P01",
+                "name": "腳架墊片_BS_下_B",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_247b8957-8f58-442b-a27a-6c0ef34e7a49",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-f317aa4f-6529-4318-ac4c-639e97be0ab4/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_127a240e-0747-43a0-a6bd-66934d8156f9",
+            "rows": [
+              {
+                "rowKey": "cw_b63d9ea8-5927-4bd5-aab5-81491f73c791",
+                "entityType": "part",
+                "entityId": "part-number-783d9f57-d65f-4088-b36a-e8eee13f231f",
+                "code": "A0021-P01",
+                "name": "墊片_BS_馬達支架",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_b63d9ea8-5927-4bd5-aab5-81491f73c791",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-783d9f57-d65f-4088-b36a-e8eee13f231f/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_237a294b-d3b9-4459-aabf-78f693bde8b5",
+            "rows": [
+              {
+                "rowKey": "cw_ef8c5203-3054-4dbf-a2f6-87f24235cbc3",
+                "entityType": "part",
+                "entityId": "part-number-9c4d9468-f040-4efa-afff-eb4c01a45571",
+                "code": "A0022-P01",
+                "name": "角鐵_BS_馬達支架_右",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_ef8c5203-3054-4dbf-a2f6-87f24235cbc3",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-9c4d9468-f040-4efa-afff-eb4c01a45571/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_573e2982-df52-470a-a895-fe460460416b",
+            "rows": [
+              {
+                "rowKey": "cw_baa0887b-3017-4009-a461-60907bb48dff",
+                "entityType": "part",
+                "entityId": "part-number-99e01f2d-11b2-4d3d-84fe-54cbafed33c5",
+                "code": "A0023-P01",
+                "name": "角鐵_BS_馬達支架_左",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_baa0887b-3017-4009-a461-60907bb48dff",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-99e01f2d-11b2-4d3d-84fe-54cbafed33c5/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_6ced1f2c-eb4c-4a23-a1f5-44ecbb69c982",
+            "rows": [
+              {
+                "rowKey": "cw_ab61192c-d7fc-4bba-a8a7-25e77a43c844",
+                "entityType": "part",
+                "entityId": "part-number-c6fd84d5-57de-4c71-938d-d40d3986ff05",
+                "code": "A0024-P01",
+                "name": "方管_BS_32x32x2.1tx432L",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_ab61192c-d7fc-4bba-a8a7-25e77a43c844",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-c6fd84d5-57de-4c71-938d-d40d3986ff05/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_1acfa11f-48ae-438a-ac79-f2889f1f5654",
+            "rows": [
+              {
+                "rowKey": "cw_d7570e66-22c4-41db-aed0-b1c4da826749",
+                "entityType": "part",
+                "entityId": "part-number-98f5d3db-0ee0-4fad-ae88-a3157fbddb8c",
+                "code": "A0025-P01",
+                "name": "方管_BS_32x32x2.1tx500L",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_d7570e66-22c4-41db-aed0-b1c4da826749",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-98f5d3db-0ee0-4fad-ae88-a3157fbddb8c/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_d19d7ad5-2746-4076-ad3f-fd0d8fd522e8",
+            "rows": [
+              {
+                "rowKey": "cw_10a6ca9f-4923-4e85-a2f5-7bb6fdfb405f",
+                "entityType": "part",
+                "entityId": "part-number-030e7ad3-d7d5-4be5-b5d4-5f8e76e9a217",
+                "code": "A0026-P01",
+                "name": "方管_BS_32x32x2.1tx588.8L",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_10a6ca9f-4923-4e85-a2f5-7bb6fdfb405f",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-030e7ad3-d7d5-4be5-b5d4-5f8e76e9a217/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_14ebbf5b-2edd-4fea-a672-eade1c70f6f5",
+            "rows": [
+              {
+                "rowKey": "cw_9b7b5f4b-0fd2-446e-ada1-89f7d4a1911e",
+                "entityType": "part",
+                "entityId": "part-number-cd75c419-0fff-4f91-ac08-184cade7e018",
+                "code": "A0027-P01",
+                "name": "連板_BS",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_9b7b5f4b-0fd2-446e-ada1-89f7d4a1911e",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-cd75c419-0fff-4f91-ac08-184cade7e018/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_53669bbf-4b7c-407a-a83d-af3471cfc84e",
+            "rows": [
+              {
+                "rowKey": "cw_ecf0497e-5084-406c-a106-b37bec644982",
+                "entityType": "part",
+                "entityId": "part-number-e1396a67-97bd-48f3-a8c4-0fe9eeb5c44e",
+                "code": "A0028-P01",
+                "name": "導板_BS_3xX",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_ecf0497e-5084-406c-a106-b37bec644982",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-e1396a67-97bd-48f3-a8c4-0fe9eeb5c44e/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_ba3bb7ca-228d-4860-a028-ffb69abeea9d",
+            "rows": [
+              {
+                "rowKey": "cw_28f90c3d-1eb3-484f-a3b7-dd2544bebbfe",
+                "entityType": "part",
+                "entityId": "part-number-9a79e9d5-616a-4a57-a2e9-114fdc4b17ac",
+                "code": "A0029-P01",
+                "name": "主動軸_BS_3x5",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_28f90c3d-1eb3-484f-a3b7-dd2544bebbfe",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-9a79e9d5-616a-4a57-a2e9-114fdc4b17ac/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_a017fd46-a0f4-4c38-a3bd-cb4498bd012f",
+            "rows": [
+              {
+                "rowKey": "cw_1e9c4fc9-7ccb-45da-af10-b593de97ae07",
+                "entityType": "part",
+                "entityId": "part-number-d8bc1d44-ac0a-4b7e-b628-331c2df7abca",
+                "code": "A0030-P01",
+                "name": "從動軸_BS_3xX",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_1e9c4fc9-7ccb-45da-af10-b593de97ae07",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-d8bc1d44-ac0a-4b7e-b628-331c2df7abca/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_648b8d08-b75c-4460-a7c4-17ad917cf5e2",
+            "rows": [
+              {
+                "rowKey": "cw_3f98031d-e898-4bee-a1cf-6382d21f4c6f",
+                "entityType": "part",
+                "entityId": "part-number-ce821bdd-c656-4e32-8729-84aa2d4c83a5",
+                "code": "A0031-P01",
+                "name": "圓棒_BS_φ12x570L",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_3f98031d-e898-4bee-a1cf-6382d21f4c6f",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-ce821bdd-c656-4e32-8729-84aa2d4c83a5/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_1dc8a1de-7686-4b35-abe0-a47fa2fedf77",
+            "rows": [
+              {
+                "rowKey": "cw_e42d8e5a-228c-47f0-ab0c-56dc9ee5fbb7",
+                "entityType": "part",
+                "entityId": "part-number-c388896e-ca9e-4126-b3ce-3fa92a77cff7",
+                "code": "A0032-P01",
+                "name": "壓板_BS_Xx5",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_e42d8e5a-228c-47f0-ab0c-56dc9ee5fbb7",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-c388896e-ca9e-4126-b3ce-3fa92a77cff7/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_5720245a-de6b-4f7c-a740-c3334bf167f9",
+            "rows": [
+              {
+                "rowKey": "cw_91b06531-e669-42ef-abfb-e968ae73d381",
+                "entityType": "part",
+                "entityId": "part-number-202d51c6-cbeb-4c14-819e-9e4f4b128295",
+                "code": "A0033-P01",
+                "name": "鏈輪_RA-60_A型",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_91b06531-e669-42ef-abfb-e968ae73d381",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-202d51c6-cbeb-4c14-819e-9e4f4b128295/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_2caa3fb8-232f-43fc-af75-cfd1e5b0aa60",
+            "rows": [
+              {
+                "rowKey": "cw_5c051035-8553-4ea7-a70b-53536eacec9d",
+                "entityType": "part",
+                "entityId": "part-number-5da82be6-aa44-44ff-b1a0-6a9daa619d2a",
+                "code": "A0034-P01",
+                "name": "鍊條_RS60_21目",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_5c051035-8553-4ea7-a70b-53536eacec9d",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-5da82be6-aa44-44ff-b1a0-6a9daa619d2a/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_60507d19-30e0-478e-a343-250537a2e5b3",
+            "rows": [
+              {
+                "rowKey": "cw_afd5ed05-4cb5-40c9-ab51-6600fd90d72f",
+                "entityType": "part",
+                "entityId": "part-number-9b53bd13-30b5-4172-9f41-c56385802ae2",
+                "code": "A0035-P01",
+                "name": "鍊條_RS60_23目",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_afd5ed05-4cb5-40c9-ab51-6600fd90d72f",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-9b53bd13-30b5-4172-9f41-c56385802ae2/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_7053d15c-932c-4fde-ab9a-66cd0b0f9a23",
+            "rows": [
+              {
+                "rowKey": "cw_371ec314-17b0-49ad-afd3-8356ed3b7f8e",
+                "entityType": "part",
+                "entityId": "part-number-2ea91e97-0ac0-4bf1-9182-36c5445d7d6d",
+                "code": "A0036-P01",
+                "name": "鍊條活目_RS60",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_371ec314-17b0-49ad-afd3-8356ed3b7f8e",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-2ea91e97-0ac0-4bf1-9182-36c5445d7d6d/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_9a7395d8-b915-4fcc-a231-53ce32fc7915",
+            "rows": [
+              {
+                "rowKey": "cw_500819c5-70ae-4547-aa48-7886d8e9440a",
+                "entityType": "part",
+                "entityId": "part-number-acb02c4e-e9b1-448c-bc24-37440a6a0412",
+                "code": "A0037-P01",
+                "name": "連桿_BS_φ16_215L_5/16\"_18NC_12L",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_500819c5-70ae-4547-aa48-7886d8e9440a",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-acb02c4e-e9b1-448c-bc24-37440a6a0412/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_8f814352-aa42-4fd0-a888-4994c208625e",
+            "rows": [
+              {
+                "rowKey": "cw_08a5cd93-fc6a-454a-a64c-574b3b10dd3d",
+                "entityType": "part",
+                "entityId": "part-number-97fc2890-4919-45bd-8ac1-69a4231a71f3",
+                "code": "A0038-P01",
+                "name": "方管_BS_32x32x2.1t_231L",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_08a5cd93-fc6a-454a-a64c-574b3b10dd3d",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-97fc2890-4919-45bd-8ac1-69a4231a71f3/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_4da38fa8-e538-485d-a859-935b94d953cb",
+            "rows": [
+              {
+                "rowKey": "cw_7fcd90e1-cae6-41e2-af3a-7ede9ea7c007",
+                "entityType": "part",
+                "entityId": "part-number-56d3bd6a-fd32-4190-b53f-9dfa78b73cb3",
+                "code": "A0039-P01",
+                "name": "耙爪座_BS_3x5",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_7fcd90e1-cae6-41e2-af3a-7ede9ea7c007",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-56d3bd6a-fd32-4190-b53f-9dfa78b73cb3/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_1a3d097d-1480-46ed-ae74-d4fc1bc4f683",
+            "rows": [
+              {
+                "rowKey": "cw_30458ea5-1364-4a39-a4bb-b9ea318b8d9a",
+                "entityType": "part",
+                "entityId": "part-number-f452b92a-57ef-48f3-88a4-cf50a5e56f74",
+                "code": "A0040-P01",
+                "name": "導渣板組_BS_右",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_30458ea5-1364-4a39-a4bb-b9ea318b8d9a",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-f452b92a-57ef-48f3-88a4-cf50a5e56f74/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_b6f0652d-5d3d-494e-a033-4e62bbd292c9",
+            "rows": [
+              {
+                "rowKey": "cw_f9fb24a4-5ef2-475c-ab63-3139ffe31cc6",
+                "entityType": "part",
+                "entityId": "part-number-4daca10d-f49b-4b77-b313-4ea3d937449b",
+                "code": "A0041-P01",
+                "name": "導渣板組_BS_左",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_f9fb24a4-5ef2-475c-ab63-3139ffe31cc6",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-4daca10d-f49b-4b77-b313-4ea3d937449b/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_669d9a96-0f84-4f04-af7c-22a164f1e588",
+            "rows": [
+              {
+                "rowKey": "cw_ac69e80e-ab98-4b0e-a184-236aa0cc66d3",
+                "entityType": "part",
+                "entityId": "part-number-52c2cd21-6167-4a02-ae3f-bfdf7d4772cb",
+                "code": "A0042-P01",
+                "name": "本體組_BS_Xx5_右",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_ac69e80e-ab98-4b0e-a184-236aa0cc66d3",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-52c2cd21-6167-4a02-ae3f-bfdf7d4772cb/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_3b6751c5-1511-435a-a64d-87a6de81135d",
+            "rows": [
+              {
+                "rowKey": "cw_19f485ff-dee2-4f82-a605-53ab4f01ad7f",
+                "entityType": "part",
+                "entityId": "part-number-2f9e4dac-f47f-45c8-8c95-eb0643d40f48",
+                "code": "A0043-P01",
+                "name": "本體組_BS_Xx5_左",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_19f485ff-dee2-4f82-a605-53ab4f01ad7f",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-2f9e4dac-f47f-45c8-8c95-eb0643d40f48/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_3feb5063-6674-409a-a4dd-118b05163ee7",
+            "rows": [
+              {
+                "rowKey": "cw_07d8fc5c-f254-48b6-a36d-6a718ece5aa3",
+                "entityType": "part",
+                "entityId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+                "code": "A0044-P01",
+                "name": "軸承座_BS",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_07d8fc5c-f254-48b6-a36d-6a718ece5aa3",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_4c472cfd-fba4-4734-a004-f150368d9b06",
+            "rows": [
+              {
+                "rowKey": "cw_37cac37e-3950-4718-a96e-240d7adadb5b",
+                "entityType": "part",
+                "entityId": "part-number-7a72672c-5dcc-43bc-97a9-08d6570d6f7f",
+                "code": "A0045-P01",
+                "name": "連板組_BS",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_37cac37e-3950-4718-a96e-240d7adadb5b",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-7a72672c-5dcc-43bc-97a9-08d6570d6f7f/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_2427c918-a1a7-4e43-a4d4-bd334c9a47d3",
+            "rows": [
+              {
+                "rowKey": "cw_2168c816-8ef9-4f38-a87f-c54f26d67451",
+                "entityType": "part",
+                "entityId": "part-number-23feb8f3-b664-4108-9194-876b8d3aaf78",
+                "code": "A0046-P01",
+                "name": "柵條_BS_Xx5_塑膠",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_2168c816-8ef9-4f38-a87f-c54f26d67451",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-23feb8f3-b664-4108-9194-876b8d3aaf78/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_d63db01c-c6ef-46c1-a184-3cfeac8f0633",
+            "rows": [
+              {
+                "rowKey": "cw_d882f69d-3843-4d1a-a9b1-d7163aecc99e",
+                "entityType": "part",
+                "entityId": "part-number-b1ac2620-5c55-46d8-9a12-07560cdf29ce",
+                "code": "A0047-P01",
+                "name": "耙爪_BS_塑膠",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_d882f69d-3843-4d1a-a9b1-d7163aecc99e",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-b1ac2620-5c55-46d8-9a12-07560cdf29ce/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_ca1ff527-de70-44c8-af1a-754cfce209a9",
+            "rows": [
+              {
+                "rowKey": "cw_a005749c-17e4-47f9-a612-474de393d3fa",
+                "entityType": "part",
+                "entityId": "part-number-b2c7504a-fb25-4cae-8cb0-f35d1c6c124f",
+                "code": "A0048-P01",
+                "name": "拉板組_BS",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_a005749c-17e4-47f9-a612-474de393d3fa",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-b2c7504a-fb25-4cae-8cb0-f35d1c6c124f/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_97b4ce2f-5b17-4e9d-a3df-eae8a54f09a5",
+            "rows": [
+              {
+                "rowKey": "cw_95d558df-8d50-4f3b-a3ba-9d47a5daaa1d",
+                "entityType": "part",
+                "entityId": "part-number-08b1eb1a-8bc9-4a79-bc51-c7a1133e19cd",
+                "code": "A0049-P01",
+                "name": "電控箱支架_BS_右",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_95d558df-8d50-4f3b-a3ba-9d47a5daaa1d",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-08b1eb1a-8bc9-4a79-bc51-c7a1133e19cd/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_f74a2560-d948-42d7-a977-f89186960397",
+            "rows": [
+              {
+                "rowKey": "cw_d08bf6a6-6c41-4738-a6a1-1d96999dbff0",
+                "entityType": "part",
+                "entityId": "part-number-cb248f89-fda2-4621-b513-615f8b0ccc08",
+                "code": "A0050-P01",
+                "name": "電控箱支架_BS_左",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_d08bf6a6-6c41-4738-a6a1-1d96999dbff0",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-cb248f89-fda2-4621-b513-615f8b0ccc08/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_52fac60d-1db7-41d9-ac48-f528e57a5f6e",
+            "rows": [
+              {
+                "rowKey": "cw_fd8b3f5a-8f7d-40bf-ae5c-8ab09455e004",
+                "entityType": "part",
+                "entityId": "part-number-e22b7a67-c3f5-45c9-96f3-1725b6e7eaa3",
+                "code": "A0051-P01",
+                "name": "腳架_BS_Xx5",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_fd8b3f5a-8f7d-40bf-ae5c-8ab09455e004",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-e22b7a67-c3f5-45c9-96f3-1725b6e7eaa3/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_18bfda2a-c5c2-4c54-a97b-7a9b7a599533",
+            "rows": [
+              {
+                "rowKey": "cw_57d7adb6-4110-4793-a0e7-ec993d174f6d",
+                "entityType": "part",
+                "entityId": "part-number-1877adc0-cdd0-40e5-8e34-6bf5072938ae",
+                "code": "A0052-P01",
+                "name": "腳架組_BS_3x5",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_57d7adb6-4110-4793-a0e7-ec993d174f6d",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-1877adc0-cdd0-40e5-8e34-6bf5072938ae/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_4c25669c-08b6-4321-a6b9-f15c07817bb8",
+            "rows": [
+              {
+                "rowKey": "cw_bd41c13b-a6ff-4340-ab86-fa0869c5ab91",
+                "entityType": "part",
+                "entityId": "part-number-e0ef1e98-a079-471a-b2de-a832088a3387",
+                "code": "A0053-P01",
+                "name": "主動軸組_BS_3xX",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_bd41c13b-a6ff-4340-ab86-fa0869c5ab91",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-e0ef1e98-a079-471a-b2de-a832088a3387/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "groupKey": "cg_b33eb377-c900-4519-a284-e5c8c788464c",
+            "rows": [
+              {
+                "rowKey": "cw_787b6e0f-f195-4aa8-aba1-93a0274bcdb3",
+                "entityType": "part",
+                "entityId": "part-number-6c8519f9-d38a-448f-a795-1793dffe85d6",
+                "code": "A0054-P01",
+                "name": "從動軸組_BS_3xX",
+                "layer": "formal",
+                "layerLabel": "正式資料",
+                "revision": null,
+                "dataState": "available",
+                "dataStateLabel": "可使用",
+                "handling": "none",
+                "handlingLabel": "無須處理",
+                "blockerReason": null,
+                "detailHref": "/parts?detail=cw_787b6e0f-f195-4aa8-aba1-93a0274bcdb3",
+                "rowVersion": 1,
+                "basisState": null,
+                "actions": [
+                  {
+                    "key": "create_change",
+                    "label": "建立修改",
+                    "href": "/api/pdm/parts/part-number-6c8519f9-d38a-448f-a795-1793dffe85d6/change-works"
+                  },
+                  {
+                    "key": "request_obsolete",
+                    "label": "申請作廢"
+                  },
+                  {
+                    "key": "edit_relation_matrix",
+                    "label": "編輯關聯矩陣"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "nextCursor": "eyJ2ZXJzaW9uIjozLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiZW50aXR5VHlwZSI6InBhcnQiLCJmaWx0ZXJIYXNoIjoiMmVhNjM3ZDE4ZmNmZTRmZDUzZDYyYTI1MjFjN2JhZTc2OWRlNmE1ODEyNzVlY2VlZTAzNDgxZjljODU3YWM0NSIsInNvcnRCeSI6ImNvZGUiLCJzb3J0IjoiYXNjIiwiZGlyZWN0aW9uIjoiYWZ0ZXIiLCJzb3J0VmFsdWUiOiJBMDA1NC1QMDEiLCJjb2RlIjoiQTAwNTQtUDAxIiwiZW50aXR5SWQiOiJwYXJ0LW51bWJlci02Yzg1MTlmOS1kMzhhLTQ0OGYtYTc5NS0xNzkzZGZmZTg1ZDYifQ.7GqhLO3-C8CHnlf0ebXc_xbcYTrdAkTPus9uIRHtHWk",
+        "previousCursor": null,
+        "totalGroups": 105,
+        "totalRows": 105
+      },
+      "meta": {
+        "contractToken": "eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItYWRtaW4tbG9jYWwtcXVpY2siLCJzY2hlbWFIYXNoIjoiZGV2MDkwLXYxIiwiZXhwZWN0ZWRDb21taXQiOiJsb2NhbC1kZXYiLCJtb2RlIjoiY2Fub25pY2FsX29ubHkiLCJpc3N1ZWRBdCI6MTc4NzkzNjcxNTAxMX0.4Pt6bt8OkIFjJrs2uMCJn4AMBshkHqZUU7Cx5VFUixU",
+        "correlationId": "f0c14030-8978-442a-b7dc-35254ec0d634"
+      }
+    },
+    "url": "http://127.0.0.1:60793/parts?cursor=eyJ2ZXJzaW9uIjozLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiZW50aXR5VHlwZSI6InBhcnQiLCJmaWx0ZXJIYXNoIjoiMmVhNjM3ZDE4ZmNmZTRmZDUzZDYyYTI1MjFjN2JhZTc2OWRlNmE1ODEyNzVlY2VlZTAzNDgxZjljODU3YWM0NSIsInNvcnRCeSI6ImNvZGUiLCJzb3J0IjoiYXNjIiwiZGlyZWN0aW9uIjoiYmVmb3JlIiwic29ydFZhbHVlIjoiQTAwNTUtUDAxIiwiY29kZSI6IkEwMDU1LVAwMSIsImVudGl0eUlkIjoicGFydC1udW1iZXItMDJmMTU1MzMtM2FjNC00NjY3LWJlZTgtZGVjYTkzNzM5MmI2In0.8yPf0vnqFBTfo2x8_KqFVgXx33KbN8q87NI96iHloEM&direction=before"
+  },
+  "dbReadback": {
+    "formalPartCount": 105,
+    "firstPageIds": [
+      "A0001-P01",
+      "A0002-P01",
+      "A0002-P02",
+      "A0002-P03",
+      "A0002-P04",
+      "A0002-P05",
+      "A0002-P06",
+      "A0002-P07",
+      "A0002-P08",
+      "A0002-P09",
+      "A0002-P10",
+      "A0002-P11",
+      "A0002-P12",
+      "A0002-P13",
+      "A0002-P14",
+      "A0002-P15",
+      "A0002-P16",
+      "A0002-P17",
+      "A0002-P18",
+      "A0002-P19",
+      "A0002-P20",
+      "A0002-P21",
+      "A0002-P22",
+      "A0002-P23",
+      "A0002-P24",
+      "A0002-P25",
+      "A0002-P26",
+      "A0002-P27",
+      "A0002-P28",
+      "A0002-P29",
+      "A0002-P30",
+      "A0002-P31",
+      "A0002-P32",
+      "A0002-P33",
+      "A0002-P34",
+      "A0002-P35",
+      "A0002-P36",
+      "A0002-P37",
+      "A0002-P38",
+      "A0002-P39",
+      "A0002-P40",
+      "A0002-P41",
+      "A0002-P42",
+      "A0002-P43",
+      "A0002-P44",
+      "A0002-P45",
+      "A0002-P46",
+      "A0002-P47",
+      "A0003-P01",
+      "A0004-P01",
+      "A0005-P01",
+      "A0006-P01",
+      "A0007-P01",
+      "A0008-P01",
+      "A0009-P01",
+      "A0010-P01",
+      "A0011-P01",
+      "A0012-P01",
+      "A0013-P01",
+      "A0014-P01",
+      "A0015-P01",
+      "A0016-P01",
+      "A0017-P01",
+      "A0018-P01",
+      "A0019-P01",
+      "A0020-P01",
+      "A0021-P01",
+      "A0022-P01",
+      "A0023-P01",
+      "A0024-P01",
+      "A0025-P01",
+      "A0026-P01",
+      "A0027-P01",
+      "A0028-P01",
+      "A0029-P01",
+      "A0030-P01",
+      "A0031-P01",
+      "A0032-P01",
+      "A0033-P01",
+      "A0034-P01",
+      "A0035-P01",
+      "A0036-P01",
+      "A0037-P01",
+      "A0038-P01",
+      "A0039-P01",
+      "A0040-P01",
+      "A0041-P01",
+      "A0042-P01",
+      "A0043-P01",
+      "A0044-P01",
+      "A0045-P01",
+      "A0046-P01",
+      "A0047-P01",
+      "A0048-P01",
+      "A0049-P01",
+      "A0050-P01",
+      "A0051-P01",
+      "A0052-P01",
+      "A0053-P01",
+      "A0054-P01"
+    ],
+    "secondPageIds": [
+      "A0055-P01",
+      "A0056-P01",
+      "A0057-P01",
+      "A0058-P01",
+      "A0059-P01"
+    ]
+  },
+  "visibleErrorSweep": {
+    "expected": null,
+    "actual": []
+  },
+  "mutationLedger": [],
+  "screenshot": "output/qa/dev-087/DEV087-2026-08-28T17-03-36-697Z/cases/QA-087-216/QA-087-216.png",
+  "source": "fresh task-owned DEV-087 isolated functional browser runtime"
+}

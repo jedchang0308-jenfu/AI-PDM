@@ -1,7 +1,5 @@
-import crypto from "node:crypto";
 import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 import type { CanonicalPreviewProjection } from "@/lib/pdm-canonical-preview";
-import type { StoredPartStructureType } from "@/lib/numbering-structure-type";
 import { PDM_WORKBENCH_FILTER_NONE_TOKEN } from "@/lib/pdm-workbench-filter-selection";
 import type { DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
 import { ACTIVE_DRAWING_PURPOSE_CODES } from "@/lib/numbering-identity";
@@ -155,26 +153,12 @@ export type CanonicalDrawingDetailPresentation = CanonicalLinkedDetailBase & {
 };
 export type CanonicalPartDetailPresentation = CanonicalLinkedDetailBase & {
   kind: "part";
-  bomContext: CanonicalPartBomContext;
   preview?: CanonicalPreviewProjection;
   previewSourceControl?: {
     settingRowVersion: number;
     canManage: boolean;
     disabledReason: string | null;
   };
-};
-
-export type CanonicalPartBomContext = {
-  structureType: StoredPartStructureType;
-  eligibility: "ineligible" | "eligible" | "blocked";
-  action: "create_bom" | "open_bom" | "none";
-  definitionId: string | null;
-  draftId: string | null;
-  releaseSnapshotId: string | null;
-  bomRevision: string | null;
-  status: "Draft" | "PendingReview" | "Rejected" | "Released" | "Archived" | "Obsolete" | null;
-  applicableParentCount: number;
-  blocker: { code: string; message: string } | null;
 };
 export type CanonicalWorkbenchDetailPresentation =
   | CanonicalDrawingDetailPresentation
@@ -302,7 +286,7 @@ export class CanonicalWorkbenchError extends Error {
     readonly code: CanonicalWorkbenchErrorCode,
     message: string,
     readonly status: 400 | 403 | 404 | 409 | 410 | 413 | 422 | 503,
-    readonly correlationId: string = crypto.randomUUID()
+    readonly correlationId: string = globalThis.crypto.randomUUID()
   ) {
     super(message);
     this.name = "CanonicalWorkbenchError";
@@ -402,61 +386,6 @@ export function canonicalGroupKey(id: string) {
 export function parseCanonicalRowKey(value: string) {
   if (!/^cw_[0-9a-f-]{36}$/iu.test(value)) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "工作列識別已失效", 404);
   return value.slice(3);
-}
-
-function secret() {
-  const configured = process.env.PDM_WORKBENCH_CONTRACT_SECRET?.trim() || process.env.PDM_AUTH_SECRET?.trim() || process.env.AUTH_SECRET?.trim();
-  if (configured) return configured;
-  if (process.env.NODE_ENV === "production") throw new Error("PDM_WORKBENCH_CONTRACT_SECRET_REQUIRED");
-  return "local-only-dev087-contract-secret";
-}
-
-export type CanonicalContractTokenPayload = {
-  version: typeof DEV087_CONTRACT_VERSION;
-  companyId: string;
-  actorId: string;
-  schemaHash: string;
-  expectedCommit: string;
-  mode: "canonical_only";
-  issuedAt: number;
-};
-
-export function createCanonicalContractToken(input: Omit<CanonicalContractTokenPayload, "version" | "issuedAt" | "mode">) {
-  const payload: CanonicalContractTokenPayload = { version: DEV087_CONTRACT_VERSION, ...input, mode: "canonical_only", issuedAt: Date.now() };
-  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  const signature = crypto.createHmac("sha256", secret()).update(encoded).digest("base64url");
-  return `${encoded}.${signature}`;
-}
-
-export function verifyCanonicalContractToken(value: string | null | undefined, expected: {
-  companyId: string;
-  actorId: string;
-  schemaHash: string;
-  expectedCommit: string;
-  maxAgeMs?: number;
-}) {
-  const [encoded, supplied, extra] = value?.split(".") ?? [];
-  if (!encoded || !supplied || extra) throw new CanonicalWorkbenchError("WORKBENCH_CONTRACT_EXPIRED", "重新整理以使用新版本", 409);
-  const signature = crypto.createHmac("sha256", secret()).update(encoded).digest("base64url");
-  if (signature.length !== supplied.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(supplied))) {
-    throw new CanonicalWorkbenchError("WORKBENCH_CONTRACT_EXPIRED", "重新整理以使用新版本", 409);
-  }
-  let payload: CanonicalContractTokenPayload;
-  try {
-    payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as CanonicalContractTokenPayload;
-  } catch {
-    throw new CanonicalWorkbenchError("WORKBENCH_CONTRACT_EXPIRED", "重新整理以使用新版本", 409);
-  }
-  const maxAgeMs = expected.maxAgeMs ?? 15 * 60_000;
-  if (
-    payload.version !== DEV087_CONTRACT_VERSION || payload.mode !== "canonical_only" ||
-    payload.companyId !== expected.companyId || payload.actorId !== expected.actorId ||
-    payload.schemaHash !== expected.schemaHash || payload.expectedCommit !== expected.expectedCommit ||
-    !Number.isFinite(payload.issuedAt) || payload.issuedAt > Date.now() + 60_000 || Date.now() - payload.issuedAt > maxAgeMs
-  ) {
-    throw new CanonicalWorkbenchError("WORKBENCH_CONTRACT_EXPIRED", "重新整理以使用新版本", 409);
-  }
-  return payload;
 }
 
 export function canonicalErrorEnvelope(error: unknown) {

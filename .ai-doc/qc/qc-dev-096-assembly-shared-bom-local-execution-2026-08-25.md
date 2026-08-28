@@ -1,6 +1,8 @@
 # DEV-096 組立件情境式共用 BOM 本機執行報告
 
-狀態：PASS / Local RD and QA-QC Complete / Production Migration and Release Gated
+> **Superseded 2026-08-28**：對應功能已由DEV-095硬退役；本PASS只描述退役前歷史版本，不是current release evidence。
+
+狀態：Historical Evidence Only / Superseded by DEV-095
 
 ## 結論
 

@@ -1,0 +1,17 @@
+{
+  "readOnly": true,
+  "entity": "drawing",
+  "rows": [
+    {
+      "code": "A0060-M01",
+      "name": "DEV087 D01 04157083Z",
+      "data_layer": "drawing_rd",
+      "handling": "owner",
+      "blocker_reason": null,
+      "work_id": "c9a3bce1-b84a-4414-b931-1ead7378464f",
+      "revision_id": "b6f44c4e-19d2-4fc6-98bf-5dcdcbbdc511",
+      "revision": "0.1",
+      "layer": "研發版 0.1"
+    }
+  ]
+}

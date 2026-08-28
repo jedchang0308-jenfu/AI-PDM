@@ -1,0 +1,846 @@
+{
+  "devId": "DEV-090",
+  "provider": "sqlite",
+  "mode": "inventory",
+  "dbPath": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\data\\ai-pdm.sqlite",
+  "before": {
+    "links": {
+      "count": 50,
+      "rows": [
+        {
+          "id": "104163dd-45bd-4a8e-8816-f1a1fafb1f99",
+          "drawing_number_id": "05baab83-609b-4393-9904-348178558e4a",
+          "part_number_id": "5404e592-7995-49f9-831b-d1f83bbd1891",
+          "link_type": "primary_manufacturing",
+          "created_by": "user-manager-demo",
+          "created_at": "2026-08-25 06:15:21"
+        },
+        {
+          "id": "731e1c73-c6e0-4e79-99da-d0f5d33cc0fb",
+          "drawing_number_id": "8298306b-2575-42a9-9de4-8edf44a9b864",
+          "part_number_id": "0a81c6e6-089c-4881-926c-819ff141734c",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0002",
+          "created_at": "2026-07-16T06:05:16.683Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-917db6ed-2320-47e9-a5bd-f114ac06fa61",
+          "drawing_number_id": "drawing-number-00fb254b-1045-4573-a43b-f7ffb433af56",
+          "part_number_id": "part-number-c6fd84d5-57de-4c71-938d-d40d3986ff05",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:25:48.403Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-48f0de67-25bd-4b77-af93-a7fc2b48e6f7",
+          "drawing_number_id": "drawing-number-0fb4066b-5313-4779-b6d2-840c4e9655aa",
+          "part_number_id": "part-number-b6703ef4-b2b7-42f5-b8c1-c8ede4df14b0",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T03:44:23.427Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-4e2c7b6b-1368-485d-96f7-703e1ba3cc2a",
+          "drawing_number_id": "drawing-number-15348498-ea55-4049-840f-f1aeaba2c3fa",
+          "part_number_id": "part-number-e1396a67-97bd-48f3-a8c4-0fe9eeb5c44e",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:14:32.167Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-39c72655-7754-4c7d-a9c0-72ff61e8349c",
+          "drawing_number_id": "drawing-number-211940c0-222f-45f4-991f-eef8ed719922",
+          "part_number_id": "part-number-2f9e4dac-f47f-45c8-8c95-eb0643d40f48",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:56:57.929Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-11fcc545-fc20-4919-90e7-24a767bef878",
+          "drawing_number_id": "drawing-number-25c7f113-809b-4e76-a479-b9db473dc257",
+          "part_number_id": "part-number-99e01f2d-11b2-4d3d-84fe-54cbafed33c5",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:02:48.928Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-36189bd4-5b15-479b-94fc-64def7152423",
+          "drawing_number_id": "drawing-number-25fcd3fc-d56f-43eb-9071-f75b8828557b",
+          "part_number_id": "part-number-d8bc1d44-ac0a-4b7e-b628-331c2df7abca",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:22:08.227Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-3d2c188d-0539-464e-bc92-6465c118a7e2",
+          "drawing_number_id": "drawing-number-2a5935f0-6c49-4a61-860c-1d490d05728a",
+          "part_number_id": "part-number-4daca10d-f49b-4b77-b313-4ea3d937449b",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:23:54.250Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-23b55b03-6c32-4db3-a5c8-d38066a30413",
+          "drawing_number_id": "drawing-number-3c962ca9-6f79-4c31-9cfd-079058f759e6",
+          "part_number_id": "part-number-98f5d3db-0ee0-4fad-ae88-a3157fbddb8c",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:37:47.033Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-91f26164-2a2b-4b55-b09d-a57688eb5d42",
+          "drawing_number_id": "drawing-number-45c2bd58-076f-4612-931f-4d9a1d78a048",
+          "part_number_id": "part-number-9a79e9d5-616a-4a57-a2e9-114fdc4b17ac",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:19:10.521Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-ec940de8-b7f8-4c44-9a5e-6e045b264964",
+          "drawing_number_id": "drawing-number-4bde5a17-9122-43ac-b7e2-3bd60ad822d5",
+          "part_number_id": "part-number-f452b92a-57ef-48f3-88a4-cf50a5e56f74",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:19:17.078Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-38e1eb5c-92c9-4262-9eb5-21c066158507",
+          "drawing_number_id": "drawing-number-4c104aca-5ef3-4479-9408-1aa97f0a010c",
+          "part_number_id": "part-number-8aa401bb-2b30-4319-b716-689d82f9f70e",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T01:54:33.557Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-9af344e9-c04b-4dff-a505-6ae4ce308c45",
+          "drawing_number_id": "drawing-number-4d914a44-d254-4311-9c42-5277b588cdd0",
+          "part_number_id": "part-number-52c2cd21-6167-4a02-ae3f-bfdf7d4772cb",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:47:15.150Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-fbae3996-06c4-4331-bbbf-c74ddd24a6b7",
+          "drawing_number_id": "drawing-number-50015263-3ff6-4d46-a941-26dcc36ebc48",
+          "part_number_id": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T02:03:35.095Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-743c7c6f-fa8e-4ef5-83d3-579573923917",
+          "drawing_number_id": "drawing-number-50cb8190-d152-4513-bde3-7c7c9875e67b",
+          "part_number_id": "part-number-cb248f89-fda2-4621-b513-615f8b0ccc08",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T07:58:03.020Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-9a577c26-a32e-4cba-82fe-f2cc46e107c0",
+          "drawing_number_id": "drawing-number-5411a96a-1e85-480f-8651-19c56ae3a53e",
+          "part_number_id": "part-number-51436633-4a7f-4709-9a06-f642e9d65e57",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0002",
+          "created_at": "2026-07-17T09:37:11.560Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-2be247a9-998b-4632-9e67-352204f2b5d0",
+          "drawing_number_id": "drawing-number-5aa3fd8b-5d9e-4ac2-acec-1e0139001129",
+          "part_number_id": "part-number-cd75c419-0fff-4f91-ac08-184cade7e018",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:46:03.300Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-ad523cf9-0860-4a88-bd39-978f9259c74d",
+          "drawing_number_id": "drawing-number-62ec6af6-febd-4516-8f55-61b7d643ab0a",
+          "part_number_id": "part-number-fa941e25-3156-4dc8-a6e3-6995e5ec0b9a",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T01:08:24.681Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-effbba7a-e269-42fc-b13a-0557d6e16f6b",
+          "drawing_number_id": "drawing-number-658ecb7c-f488-498d-a3b8-570e9ec14916",
+          "part_number_id": "part-number-783d9f57-d65f-4088-b36a-e8eee13f231f",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T06:06:41.837Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-3d6e1d91-4940-425e-98cd-16ea4d90a6eb",
+          "drawing_number_id": "drawing-number-67eada56-c67d-4190-ad05-573e9073d731",
+          "part_number_id": "part-number-08b1eb1a-8bc9-4a79-bc51-c7a1133e19cd",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T07:50:32.691Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-51bc88f0-41f9-46f0-9afd-e2b326d07ce1",
+          "drawing_number_id": "drawing-number-6e3a9b56-8184-49fa-8ee9-7e34bd6d66f6",
+          "part_number_id": "part-number-1c795067-d306-4f90-af48-7ad54c469a8f",
+          "link_type": "reference",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T02:10:02.425Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-851d2912-67a2-4003-8436-67d21af323ad",
+          "drawing_number_id": "drawing-number-75531d63-5a66-4254-abca-ca153a272e5c",
+          "part_number_id": "part-number-2ea91e97-0ac0-4bf1-9182-36c5445d7d6d",
+          "link_type": "reference",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-04T08:44:41.295Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-193120a5-2857-42d7-9e45-d84814af5d8c",
+          "drawing_number_id": "drawing-number-785e30f0-cf21-4aca-85b1-4eae90d78d57",
+          "part_number_id": "part-number-97fc2890-4919-45bd-8ac1-69a4231a71f3",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:01:41.311Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-461ea102-4283-4148-969f-3af30603c998",
+          "drawing_number_id": "drawing-number-792a8c5f-32bd-4195-8040-4f9d2205e57c",
+          "part_number_id": "part-number-e6288123-252d-42c1-ad5d-d8145167d0f9",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T05:25:55.965Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-d294f71f-b43f-4c66-8d19-bb3e3f6a906d",
+          "drawing_number_id": "drawing-number-822ca913-731f-4e08-a68a-3055702f2dc5",
+          "part_number_id": "part-number-f317aa4f-6529-4318-ac4c-639e97be0ab4",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T05:53:21.828Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-f96c77a8-53f6-43e9-ba10-9503cf1e54f4",
+          "drawing_number_id": "drawing-number-8dbc4519-2ffa-412c-84a8-901f698ab046",
+          "part_number_id": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T03:47:21.328Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-c61f42af-6f65-4b3c-bf67-ffa9ebc321a9",
+          "drawing_number_id": "drawing-number-92cf1663-da4e-4046-84c7-0ae5228c8706",
+          "part_number_id": "part-number-e0ef1e98-a079-471a-b2de-a832088a3387",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T01:52:57.851Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-f18d96b4-1379-48c7-bf25-f3be223e9c52",
+          "drawing_number_id": "drawing-number-93890dad-e3d2-417a-9de7-5a124d78e386",
+          "part_number_id": "part-number-d0453884-7a4a-4721-b4c1-93f7ccd06384",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T05:51:37.135Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-54b07389-26ea-4797-a24b-fdd7c2075c0b",
+          "drawing_number_id": "drawing-number-9ef3ba1b-039a-4f2c-8d3b-adb089929ad4",
+          "part_number_id": "part-number-9c4d9468-f040-4efa-afff-eb4c01a45571",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T06:50:25.303Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-0dbf2e53-c238-4926-9aaa-77a9e6ef7622",
+          "drawing_number_id": "drawing-number-bee42c6a-89dc-43e5-9eb3-ca1d7dabf170",
+          "part_number_id": "part-number-7a72672c-5dcc-43bc-97a9-08d6570d6f7f",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T03:07:51.396Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-96e7d04a-a091-4605-ab41-71266f2ebc0a",
+          "drawing_number_id": "drawing-number-ce823108-79e9-4ac4-899f-0a00f6137233",
+          "part_number_id": "part-number-acb02c4e-e9b1-448c-bc24-37440a6a0412",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T00:56:42.831Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-d6f7ce0c-0791-4bd1-a645-c98d07969857",
+          "drawing_number_id": "drawing-number-d30a61be-7c10-4b9d-9419-f15468a99b33",
+          "part_number_id": "part-number-02f15533-3ac4-4667-bee8-deca937392b6",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T02:01:24.248Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-87c3a3e9-794b-49d4-ad0c-066c89116f4c",
+          "drawing_number_id": "drawing-number-d30f6061-69c1-449e-aacd-a0349ac45fcc",
+          "part_number_id": "part-number-1877adc0-cdd0-40e5-8e34-6bf5072938ae",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T01:11:41.959Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-24949773-c117-4e89-83a0-965e036d6016",
+          "drawing_number_id": "drawing-number-d43718e8-0ce2-4e43-a435-ae59e786da4c",
+          "part_number_id": "part-number-e22b7a67-c3f5-45c9-96f3-1725b6e7eaa3",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T01:01:34.751Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-78a7b5a3-f383-4f0a-a600-1f316861ddc4",
+          "drawing_number_id": "drawing-number-d5d59412-ac44-4d73-8604-6c9a7ee43877",
+          "part_number_id": "part-number-b1ac2620-5c55-46d8-9a12-07560cdf29ce",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T07:39:04.382Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-7e66eed5-3357-4d70-9516-cc15a1a2a005",
+          "drawing_number_id": "drawing-number-d9174818-2a2e-48fe-a943-72bce580dcb9",
+          "part_number_id": "part-number-b2c7504a-fb25-4cae-8cb0-f35d1c6c124f",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T07:41:57.537Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-c77d5500-1d2b-4daf-b769-24c4ce6a8c28",
+          "drawing_number_id": "drawing-number-d9204a5b-ffb2-48b2-b68a-210afc825e04",
+          "part_number_id": "part-number-56d3bd6a-fd32-4190-b53f-9dfa78b73cb3",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:06:53.596Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-5ded72e4-b005-403a-8b5d-2f041fb0ff53",
+          "drawing_number_id": "drawing-number-da4db264-ae5a-4263-b5aa-bd35bd1e514d",
+          "part_number_id": "part-number-806dca1d-bcee-49e5-8895-57c83e9503ea",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T02:13:37.653Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-d160b430-89a9-41eb-b6df-dcadab1a4bee",
+          "drawing_number_id": "drawing-number-dc794667-b157-4c4f-81d1-2a5a5da48596",
+          "part_number_id": "part-number-70289ce8-9fc9-4265-ad23-163fb8ea82b1",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T03:55:42.738Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-c228d981-18ee-4bdf-bbc8-236a9194e3dd",
+          "drawing_number_id": "drawing-number-dccc81c9-18f1-407c-b023-245bc2ac6f10",
+          "part_number_id": "part-number-030e7ad3-d7d5-4be5-b5d4-5f8e76e9a217",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:38:37.383Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-aa297c95-d8ba-4347-ae70-c38cf66679c9",
+          "drawing_number_id": "drawing-number-dcd4d373-e554-45be-8206-c1cba2e6a829",
+          "part_number_id": "part-number-23feb8f3-b664-4108-9194-876b8d3aaf78",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T03:14:36.500Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-2ba6ee4d-35be-4cfe-9228-99e2a4b09b93",
+          "drawing_number_id": "drawing-number-debca7b4-5a1e-4a2c-a642-a46e6c846730",
+          "part_number_id": "part-number-97a0c0bf-e542-4571-86b5-8ba70ebc03d9",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T02:18:20.589Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-b346eba1-38b0-475e-91da-c1b5b447e718",
+          "drawing_number_id": "drawing-number-df111487-6e9a-41d2-8e11-7fab8948dfcf",
+          "part_number_id": "part-number-b0a2b288-3a0d-4b79-ad46-4a1098e5d954",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T01:07:33.652Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-f1a32351-f734-421c-b1df-d33c081843aa",
+          "drawing_number_id": "drawing-number-e23b5200-a853-4f9b-9aa4-69ba76dca9f8",
+          "part_number_id": "part-number-72fc9667-2f3f-4759-ada1-b38010209982",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T02:21:40.727Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-2df6db22-2bdb-4b7a-9e4a-9e405294d24b",
+          "drawing_number_id": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "part_number_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T01:06:46.814Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-f5194b2d-8e79-435b-b3db-c63bac4604b4",
+          "drawing_number_id": "drawing-number-f9e8647b-a5b3-46ca-b8d5-8e11ac0391b8",
+          "part_number_id": "part-number-c388896e-ca9e-4126-b3ce-3fa92a77cff7",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:52:53.437Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-b03283da-c486-4a8a-b020-a637cd0152bc",
+          "drawing_number_id": "drawing-number-facb14e4-3999-4118-8c64-18fac90c1ff0",
+          "part_number_id": "part-number-46390888-bd17-454d-b33c-824ed1802bee",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T05:07:10.567Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-e5f9c506-5b0f-4d43-855e-c935c442636e",
+          "drawing_number_id": "drawing-number-fbf10a56-60bd-44e4-b78f-e35e548ed5ad",
+          "part_number_id": "part-number-ce821bdd-c656-4e32-8729-84aa2d4c83a5",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:45:39.744Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-499a4859-0d27-4e87-b7ef-04b895269ad4",
+          "drawing_number_id": "drawing-number-fe77b404-b14f-46a8-b996-03032ac32bde",
+          "part_number_id": "part-number-6c8519f9-d38a-448f-a795-1793dffe85d6",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T01:55:51.182Z"
+        }
+      ],
+      "hash": "fe6e75ed685290dcf5ebac5d3ca318b37a572cf5e80fae52fc894522db26d537"
+    },
+    "preflight": {
+      "duplicates": [],
+      "multiPrimary": [],
+      "orphan": [],
+      "activeRelationWork": 0,
+      "activeRelationReview": 0,
+      "relationState": 0,
+      "relationAggregate": 0,
+      "unresolvedQuarantine": 0,
+      "unresolved": 0
+    }
+  },
+  "after": {
+    "links": {
+      "count": 50,
+      "rows": [
+        {
+          "id": "104163dd-45bd-4a8e-8816-f1a1fafb1f99",
+          "drawing_number_id": "05baab83-609b-4393-9904-348178558e4a",
+          "part_number_id": "5404e592-7995-49f9-831b-d1f83bbd1891",
+          "link_type": "primary_manufacturing",
+          "created_by": "user-manager-demo",
+          "created_at": "2026-08-25 06:15:21"
+        },
+        {
+          "id": "731e1c73-c6e0-4e79-99da-d0f5d33cc0fb",
+          "drawing_number_id": "8298306b-2575-42a9-9de4-8edf44a9b864",
+          "part_number_id": "0a81c6e6-089c-4881-926c-819ff141734c",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0002",
+          "created_at": "2026-07-16T06:05:16.683Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-917db6ed-2320-47e9-a5bd-f114ac06fa61",
+          "drawing_number_id": "drawing-number-00fb254b-1045-4573-a43b-f7ffb433af56",
+          "part_number_id": "part-number-c6fd84d5-57de-4c71-938d-d40d3986ff05",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:25:48.403Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-48f0de67-25bd-4b77-af93-a7fc2b48e6f7",
+          "drawing_number_id": "drawing-number-0fb4066b-5313-4779-b6d2-840c4e9655aa",
+          "part_number_id": "part-number-b6703ef4-b2b7-42f5-b8c1-c8ede4df14b0",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T03:44:23.427Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-4e2c7b6b-1368-485d-96f7-703e1ba3cc2a",
+          "drawing_number_id": "drawing-number-15348498-ea55-4049-840f-f1aeaba2c3fa",
+          "part_number_id": "part-number-e1396a67-97bd-48f3-a8c4-0fe9eeb5c44e",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:14:32.167Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-39c72655-7754-4c7d-a9c0-72ff61e8349c",
+          "drawing_number_id": "drawing-number-211940c0-222f-45f4-991f-eef8ed719922",
+          "part_number_id": "part-number-2f9e4dac-f47f-45c8-8c95-eb0643d40f48",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:56:57.929Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-11fcc545-fc20-4919-90e7-24a767bef878",
+          "drawing_number_id": "drawing-number-25c7f113-809b-4e76-a479-b9db473dc257",
+          "part_number_id": "part-number-99e01f2d-11b2-4d3d-84fe-54cbafed33c5",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:02:48.928Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-36189bd4-5b15-479b-94fc-64def7152423",
+          "drawing_number_id": "drawing-number-25fcd3fc-d56f-43eb-9071-f75b8828557b",
+          "part_number_id": "part-number-d8bc1d44-ac0a-4b7e-b628-331c2df7abca",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:22:08.227Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-3d2c188d-0539-464e-bc92-6465c118a7e2",
+          "drawing_number_id": "drawing-number-2a5935f0-6c49-4a61-860c-1d490d05728a",
+          "part_number_id": "part-number-4daca10d-f49b-4b77-b313-4ea3d937449b",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:23:54.250Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-23b55b03-6c32-4db3-a5c8-d38066a30413",
+          "drawing_number_id": "drawing-number-3c962ca9-6f79-4c31-9cfd-079058f759e6",
+          "part_number_id": "part-number-98f5d3db-0ee0-4fad-ae88-a3157fbddb8c",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:37:47.033Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-91f26164-2a2b-4b55-b09d-a57688eb5d42",
+          "drawing_number_id": "drawing-number-45c2bd58-076f-4612-931f-4d9a1d78a048",
+          "part_number_id": "part-number-9a79e9d5-616a-4a57-a2e9-114fdc4b17ac",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:19:10.521Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-ec940de8-b7f8-4c44-9a5e-6e045b264964",
+          "drawing_number_id": "drawing-number-4bde5a17-9122-43ac-b7e2-3bd60ad822d5",
+          "part_number_id": "part-number-f452b92a-57ef-48f3-88a4-cf50a5e56f74",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:19:17.078Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-38e1eb5c-92c9-4262-9eb5-21c066158507",
+          "drawing_number_id": "drawing-number-4c104aca-5ef3-4479-9408-1aa97f0a010c",
+          "part_number_id": "part-number-8aa401bb-2b30-4319-b716-689d82f9f70e",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T01:54:33.557Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-9af344e9-c04b-4dff-a505-6ae4ce308c45",
+          "drawing_number_id": "drawing-number-4d914a44-d254-4311-9c42-5277b588cdd0",
+          "part_number_id": "part-number-52c2cd21-6167-4a02-ae3f-bfdf7d4772cb",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:47:15.150Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-fbae3996-06c4-4331-bbbf-c74ddd24a6b7",
+          "drawing_number_id": "drawing-number-50015263-3ff6-4d46-a941-26dcc36ebc48",
+          "part_number_id": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T02:03:35.095Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-743c7c6f-fa8e-4ef5-83d3-579573923917",
+          "drawing_number_id": "drawing-number-50cb8190-d152-4513-bde3-7c7c9875e67b",
+          "part_number_id": "part-number-cb248f89-fda2-4621-b513-615f8b0ccc08",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T07:58:03.020Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-9a577c26-a32e-4cba-82fe-f2cc46e107c0",
+          "drawing_number_id": "drawing-number-5411a96a-1e85-480f-8651-19c56ae3a53e",
+          "part_number_id": "part-number-51436633-4a7f-4709-9a06-f642e9d65e57",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0002",
+          "created_at": "2026-07-17T09:37:11.560Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-2be247a9-998b-4632-9e67-352204f2b5d0",
+          "drawing_number_id": "drawing-number-5aa3fd8b-5d9e-4ac2-acec-1e0139001129",
+          "part_number_id": "part-number-cd75c419-0fff-4f91-ac08-184cade7e018",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:46:03.300Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-ad523cf9-0860-4a88-bd39-978f9259c74d",
+          "drawing_number_id": "drawing-number-62ec6af6-febd-4516-8f55-61b7d643ab0a",
+          "part_number_id": "part-number-fa941e25-3156-4dc8-a6e3-6995e5ec0b9a",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T01:08:24.681Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-effbba7a-e269-42fc-b13a-0557d6e16f6b",
+          "drawing_number_id": "drawing-number-658ecb7c-f488-498d-a3b8-570e9ec14916",
+          "part_number_id": "part-number-783d9f57-d65f-4088-b36a-e8eee13f231f",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T06:06:41.837Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-3d6e1d91-4940-425e-98cd-16ea4d90a6eb",
+          "drawing_number_id": "drawing-number-67eada56-c67d-4190-ad05-573e9073d731",
+          "part_number_id": "part-number-08b1eb1a-8bc9-4a79-bc51-c7a1133e19cd",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T07:50:32.691Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-51bc88f0-41f9-46f0-9afd-e2b326d07ce1",
+          "drawing_number_id": "drawing-number-6e3a9b56-8184-49fa-8ee9-7e34bd6d66f6",
+          "part_number_id": "part-number-1c795067-d306-4f90-af48-7ad54c469a8f",
+          "link_type": "reference",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T02:10:02.425Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-851d2912-67a2-4003-8436-67d21af323ad",
+          "drawing_number_id": "drawing-number-75531d63-5a66-4254-abca-ca153a272e5c",
+          "part_number_id": "part-number-2ea91e97-0ac0-4bf1-9182-36c5445d7d6d",
+          "link_type": "reference",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-04T08:44:41.295Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-193120a5-2857-42d7-9e45-d84814af5d8c",
+          "drawing_number_id": "drawing-number-785e30f0-cf21-4aca-85b1-4eae90d78d57",
+          "part_number_id": "part-number-97fc2890-4919-45bd-8ac1-69a4231a71f3",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:01:41.311Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-461ea102-4283-4148-969f-3af30603c998",
+          "drawing_number_id": "drawing-number-792a8c5f-32bd-4195-8040-4f9d2205e57c",
+          "part_number_id": "part-number-e6288123-252d-42c1-ad5d-d8145167d0f9",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T05:25:55.965Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-d294f71f-b43f-4c66-8d19-bb3e3f6a906d",
+          "drawing_number_id": "drawing-number-822ca913-731f-4e08-a68a-3055702f2dc5",
+          "part_number_id": "part-number-f317aa4f-6529-4318-ac4c-639e97be0ab4",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T05:53:21.828Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-f96c77a8-53f6-43e9-ba10-9503cf1e54f4",
+          "drawing_number_id": "drawing-number-8dbc4519-2ffa-412c-84a8-901f698ab046",
+          "part_number_id": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T03:47:21.328Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-c61f42af-6f65-4b3c-bf67-ffa9ebc321a9",
+          "drawing_number_id": "drawing-number-92cf1663-da4e-4046-84c7-0ae5228c8706",
+          "part_number_id": "part-number-e0ef1e98-a079-471a-b2de-a832088a3387",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T01:52:57.851Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-f18d96b4-1379-48c7-bf25-f3be223e9c52",
+          "drawing_number_id": "drawing-number-93890dad-e3d2-417a-9de7-5a124d78e386",
+          "part_number_id": "part-number-d0453884-7a4a-4721-b4c1-93f7ccd06384",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T05:51:37.135Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-54b07389-26ea-4797-a24b-fdd7c2075c0b",
+          "drawing_number_id": "drawing-number-9ef3ba1b-039a-4f2c-8d3b-adb089929ad4",
+          "part_number_id": "part-number-9c4d9468-f040-4efa-afff-eb4c01a45571",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T06:50:25.303Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-0dbf2e53-c238-4926-9aaa-77a9e6ef7622",
+          "drawing_number_id": "drawing-number-bee42c6a-89dc-43e5-9eb3-ca1d7dabf170",
+          "part_number_id": "part-number-7a72672c-5dcc-43bc-97a9-08d6570d6f7f",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T03:07:51.396Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-96e7d04a-a091-4605-ab41-71266f2ebc0a",
+          "drawing_number_id": "drawing-number-ce823108-79e9-4ac4-899f-0a00f6137233",
+          "part_number_id": "part-number-acb02c4e-e9b1-448c-bc24-37440a6a0412",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T00:56:42.831Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-d6f7ce0c-0791-4bd1-a645-c98d07969857",
+          "drawing_number_id": "drawing-number-d30a61be-7c10-4b9d-9419-f15468a99b33",
+          "part_number_id": "part-number-02f15533-3ac4-4667-bee8-deca937392b6",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T02:01:24.248Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-87c3a3e9-794b-49d4-ad0c-066c89116f4c",
+          "drawing_number_id": "drawing-number-d30f6061-69c1-449e-aacd-a0349ac45fcc",
+          "part_number_id": "part-number-1877adc0-cdd0-40e5-8e34-6bf5072938ae",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T01:11:41.959Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-24949773-c117-4e89-83a0-965e036d6016",
+          "drawing_number_id": "drawing-number-d43718e8-0ce2-4e43-a435-ae59e786da4c",
+          "part_number_id": "part-number-e22b7a67-c3f5-45c9-96f3-1725b6e7eaa3",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T01:01:34.751Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-78a7b5a3-f383-4f0a-a600-1f316861ddc4",
+          "drawing_number_id": "drawing-number-d5d59412-ac44-4d73-8604-6c9a7ee43877",
+          "part_number_id": "part-number-b1ac2620-5c55-46d8-9a12-07560cdf29ce",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T07:39:04.382Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-7e66eed5-3357-4d70-9516-cc15a1a2a005",
+          "drawing_number_id": "drawing-number-d9174818-2a2e-48fe-a943-72bce580dcb9",
+          "part_number_id": "part-number-b2c7504a-fb25-4cae-8cb0-f35d1c6c124f",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T07:41:57.537Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-c77d5500-1d2b-4daf-b769-24c4ce6a8c28",
+          "drawing_number_id": "drawing-number-d9204a5b-ffb2-48b2-b68a-210afc825e04",
+          "part_number_id": "part-number-56d3bd6a-fd32-4190-b53f-9dfa78b73cb3",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T01:06:53.596Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-5ded72e4-b005-403a-8b5d-2f041fb0ff53",
+          "drawing_number_id": "drawing-number-da4db264-ae5a-4263-b5aa-bd35bd1e514d",
+          "part_number_id": "part-number-806dca1d-bcee-49e5-8895-57c83e9503ea",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T02:13:37.653Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-d160b430-89a9-41eb-b6df-dcadab1a4bee",
+          "drawing_number_id": "drawing-number-dc794667-b157-4c4f-81d1-2a5a5da48596",
+          "part_number_id": "part-number-70289ce8-9fc9-4265-ad23-163fb8ea82b1",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T03:55:42.738Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-c228d981-18ee-4bdf-bbc8-236a9194e3dd",
+          "drawing_number_id": "drawing-number-dccc81c9-18f1-407c-b023-245bc2ac6f10",
+          "part_number_id": "part-number-030e7ad3-d7d5-4be5-b5d4-5f8e76e9a217",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T07:38:37.383Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-aa297c95-d8ba-4347-ae70-c38cf66679c9",
+          "drawing_number_id": "drawing-number-dcd4d373-e554-45be-8206-c1cba2e6a829",
+          "part_number_id": "part-number-23feb8f3-b664-4108-9194-876b8d3aaf78",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-05T03:14:36.500Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-2ba6ee4d-35be-4cfe-9228-99e2a4b09b93",
+          "drawing_number_id": "drawing-number-debca7b4-5a1e-4a2c-a642-a46e6c846730",
+          "part_number_id": "part-number-97a0c0bf-e542-4571-86b5-8ba70ebc03d9",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T02:18:20.589Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-b346eba1-38b0-475e-91da-c1b5b447e718",
+          "drawing_number_id": "drawing-number-df111487-6e9a-41d2-8e11-7fab8948dfcf",
+          "part_number_id": "part-number-b0a2b288-3a0d-4b79-ad46-4a1098e5d954",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T01:07:33.652Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-f1a32351-f734-421c-b1df-d33c081843aa",
+          "drawing_number_id": "drawing-number-e23b5200-a853-4f9b-9aa4-69ba76dca9f8",
+          "part_number_id": "part-number-72fc9667-2f3f-4759-ada1-b38010209982",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T02:21:40.727Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-2df6db22-2bdb-4b7a-9e4a-9e405294d24b",
+          "drawing_number_id": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "part_number_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T01:06:46.814Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-f5194b2d-8e79-435b-b3db-c63bac4604b4",
+          "drawing_number_id": "drawing-number-f9e8647b-a5b3-46ca-b8d5-8e11ac0391b8",
+          "part_number_id": "part-number-c388896e-ca9e-4126-b3ce-3fa92a77cff7",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:52:53.437Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-b03283da-c486-4a8a-b020-a637cd0152bc",
+          "drawing_number_id": "drawing-number-facb14e4-3999-4118-8c64-18fac90c1ff0",
+          "part_number_id": "part-number-46390888-bd17-454d-b33c-824ed1802bee",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-22T05:07:10.567Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-e5f9c506-5b0f-4d43-855e-c935c442636e",
+          "drawing_number_id": "drawing-number-fbf10a56-60bd-44e4-b78f-e35e548ed5ad",
+          "part_number_id": "part-number-ce821bdd-c656-4e32-8729-84aa2d4c83a5",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-07-31T08:45:39.744Z"
+        },
+        {
+          "id": "drawing-part-link-draft-relation-499a4859-0d27-4e87-b7ef-04b895269ad4",
+          "drawing_number_id": "drawing-number-fe77b404-b14f-46a8-b996-03032ac32bde",
+          "part_number_id": "part-number-6c8519f9-d38a-448f-a795-1793dffe85d6",
+          "link_type": "primary_manufacturing",
+          "created_by": "production-user-0003",
+          "created_at": "2026-08-06T01:55:51.182Z"
+        }
+      ],
+      "hash": "fe6e75ed685290dcf5ebac5d3ca318b37a572cf5e80fae52fc894522db26d537"
+    },
+    "preflight": {
+      "duplicates": [],
+      "multiPrimary": [],
+      "orphan": [],
+      "activeRelationWork": 0,
+      "activeRelationReview": 0,
+      "relationState": 0,
+      "relationAggregate": 0,
+      "unresolvedQuarantine": 0,
+      "unresolved": 0
+    }
+  },
+  "sourceTargetReconciliation": true,
+  "status": "PASS"
+}

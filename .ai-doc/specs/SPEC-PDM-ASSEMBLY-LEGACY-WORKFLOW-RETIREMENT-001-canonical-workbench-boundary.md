@@ -1,6 +1,8 @@
 # SPEC-PDM-ASSEMBLY-LEGACY-WORKFLOW-RETIREMENT-001
 
-狀態：RD Implementation Complete / Human Confirmed / Local QA-QC PASS / Production Migration & Release Gated
+> **Superseded 2026-08-28**：本規格原先保留generic BOM；該保留已被DEV-095全模組硬退役取代。本文只作歷史追溯。
+
+狀態：Historical / Superseded by ADR-PDM-BOM-RETIREMENT-001
 
 DEV：`DEV-095`
 

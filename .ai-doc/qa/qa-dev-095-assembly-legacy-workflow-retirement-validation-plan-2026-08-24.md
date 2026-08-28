@@ -1,6 +1,8 @@
 # QA DEV-095：舊組合件工作流退役驗證計畫
 
-狀態：Executed / Local QA-QC PASS / Production Migration & Release Gated
+> **Superseded 2026-08-28**：本計畫驗證的「保留generic BOM」邊界已失效；current驗證只看`qa-dev-095-bom-retirement-validation-plan-2026-08-24.md`。
+
+狀態：Historical Evidence Only / Superseded
 
 Authority：`SPEC-PDM-ASSEMBLY-LEGACY-WORKFLOW-RETIREMENT-001`
 

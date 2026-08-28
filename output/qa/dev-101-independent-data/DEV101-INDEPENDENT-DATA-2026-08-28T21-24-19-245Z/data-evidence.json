@@ -1,0 +1,2304 @@
+{
+  "devId": "DEV-101",
+  "runId": "DEV101-INDEPENDENT-DATA-2026-08-28T21-24-19-245Z",
+  "evidenceClass": "INDEPENDENT_DATA_PRIMITIVES",
+  "implementedCaseIds": [
+    "QA-101-001",
+    "QA-101-002",
+    "QA-101-003",
+    "QA-101-004",
+    "QA-101-005",
+    "QA-101-006",
+    "QA-101-007",
+    "QA-101-008",
+    "QA-101-009",
+    "QA-101-010",
+    "QA-101-011",
+    "QA-101-012",
+    "QA-101-013",
+    "QA-101-014",
+    "QA-101-015",
+    "QA-101-016",
+    "QA-101-017",
+    "QA-101-018",
+    "QA-101-019",
+    "QA-101-032",
+    "QA-101-037",
+    "QA-101-038",
+    "QA-101-039",
+    "QA-101-040",
+    "QA-101-043",
+    "QA-101-044",
+    "QA-101-045",
+    "QA-101-046",
+    "QA-101-048"
+  ],
+  "independentCanonicalOracle": {
+    "module": "scripts/dev-101-evidence-lib.mjs",
+    "packageHashFromSutImported": false,
+    "markerHelperImported": false,
+    "diffHelperImported": false
+  },
+  "mutationLedger": [
+    {
+      "method": "FIXTURE",
+      "tables": [
+        "drawing_revision_works",
+        "drawing_revision_work_files",
+        "canonical_workbench_states",
+        "pdm_work_review_requests"
+      ],
+      "id": "dev101-independent-source-request-49ac8e97-f67b-466d-8456-e8bb809c4fb1",
+      "workId": "dev101-independent-source-work-69e193d3-16bd-4b62-b0cb-2b4eabeb66ed",
+      "purpose": "task-owned canonical A0002 pending drawing source request because primary request history is intentionally empty",
+      "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+      "revisionId": "c076f20b-21d0-4061-a9bf-148060995162"
+    },
+    {
+      "method": "FIXTURE",
+      "purpose": "exact revision recognition projection with one valid Part owner",
+      "sessionId": "dev101-independent-session-3bd0d654-d99e-423a-a29e-fc6b56097dd5",
+      "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+      "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+      "ownerPartId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "sourceAssetId": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477",
+      "contentHash": "cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659"
+    },
+    {
+      "method": "FIXTURE",
+      "table": "file_assets",
+      "purpose": "Part attachment snapshot oracle",
+      "id": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+      "bindingId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+      "partId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "storageKey": "dev101-independent/dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc.txt",
+      "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev101-independent-data-fC9SKR\\data\\repository\\dev101-independent\\dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc.txt",
+      "contentHash": "66796baad42943f8d8d3270dd8d7663d8f353cf1b5b58c87ce9386751a7f72c2",
+      "bytes": 34,
+      "displayName": "DEV-101 submitted Part attachment"
+    },
+    {
+      "method": "FIXTURE",
+      "purpose": "second same-root context Drawing and Relation drift oracle",
+      "drawingNumberId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+      "drawingId": "dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+      "revisionId": "dev101-independent-context-revision-89c1ed46-97cd-4fbd-bf9d-9e4788f0fa97",
+      "linkId": "dev101-independent-context-link-7975791f-d84b-4e86-b1ba-47cde5f5a3a8",
+      "drawingNumber": "A0002-R01-QA",
+      "rootId": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+      "partId": "part-number-593efe73-6225-42a7-9507-c63602b73169"
+    },
+    {
+      "method": "FIXTURE",
+      "table": "pdm_work_review_requests",
+      "id": "dev101-independent-request-f1af4fdf-1634-4baf-8743-554d11f0e942",
+      "purpose": "insert separate contract fixture for independent SQLite round-trip oracle; source request stays immutable",
+      "workId": "dev101-independent-work-8c770a44-5c47-472d-b704-9703ffb9e107",
+      "schema": "pdm-review-package-v2"
+    },
+    {
+      "method": "COMMAND",
+      "command": "part.create+part.submit",
+      "workId": "a5c540b3-88a0-475b-b6fa-aa42110add55",
+      "requestId": "9ab56e3c-687a-45a0-96cb-720135b870d5",
+      "partId": "0a81c6e6-089c-4881-926c-819ff141734c",
+      "writerFlag": false,
+      "beforeRequestCount": 0,
+      "afterRequestCount": 1
+    },
+    {
+      "method": "COMMAND",
+      "command": "part.create+part.submit",
+      "workId": "13be6f2c-a1aa-4ad2-83ab-38aca1c45ea0",
+      "requestId": "6659aa23-bb68-4b15-a3f4-fb0dfd39aa1d",
+      "partId": "5404e592-7995-49f9-831b-d1f83bbd1891",
+      "writerFlag": true,
+      "beforeRequestCount": 0,
+      "afterRequestCount": 1
+    },
+    {
+      "method": "FIXTURE",
+      "table": "pdm_work_review_requests",
+      "id": "dev101-independent-applying-1b2da5cd-f82f-4eb9-b468-148d1c6f8521",
+      "purpose": "non-actionable applying inbox exclusion oracle"
+    },
+    {
+      "method": "FAULT_FIXTURE",
+      "purpose": "context-only current data drift",
+      "targetKey": "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+      "before": "Independent context drawing"
+    },
+    {
+      "method": "FAULT_FIXTURE",
+      "table": "file_assets",
+      "id": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+      "purpose": "post-submit soft delete and rename"
+    },
+    {
+      "method": "FIXTURE",
+      "table": "file_assets",
+      "purpose": "Part attachment snapshot oracle",
+      "id": "dev101-independent-part-asset-41f7c007-1113-4215-ace7-b695efab8e42",
+      "bindingId": "dev101-independent-part-asset-41f7c007-1113-4215-ace7-b695efab8e42",
+      "partId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "storageKey": "dev101-independent/dev101-independent-part-asset-41f7c007-1113-4215-ace7-b695efab8e42.txt",
+      "localPath": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev101-independent-data-fC9SKR\\data\\repository\\dev101-independent\\dev101-independent-part-asset-41f7c007-1113-4215-ace7-b695efab8e42.txt",
+      "contentHash": "66af34ed7b60d9f58404fd8a6a4dbaed515f9baad81d560b31cbb0ceb97529bc",
+      "bytes": 37,
+      "displayName": "DEV-101 current-only Part attachment"
+    },
+    {
+      "method": "FIXTURE",
+      "tables": [
+        "file_derivatives"
+      ],
+      "sourceFileAssetId": "FA-9f069b7f-66a4-4676-b774-97a01ebfaf51",
+      "wrongDerivativeId": "dev101-wrong-derivative-70c67329-7c87-4f8a-a96a-c1df5163df07",
+      "correctDerivativeId": "dev101-correct-derivative-0e72a988-36f0-4a19-be95-c47724a4f2ae",
+      "purpose": "source-hash derivative readiness oracle"
+    },
+    {
+      "method": "FIXTURE",
+      "purpose": "builder query-budget scale root",
+      "totalTargets": 1,
+      "rootId": "dev101-scale-root-1-40f22c11-b74e-4cac-b2f0-8f6bae919021",
+      "drawingCount": 1,
+      "partCount": 0
+    },
+    {
+      "method": "FIXTURE",
+      "purpose": "builder query-budget scale root",
+      "totalTargets": 20,
+      "rootId": "dev101-scale-root-20-5ee44445-8738-4792-83d7-017119194423",
+      "drawingCount": 4,
+      "partCount": 16
+    },
+    {
+      "method": "FIXTURE",
+      "purpose": "builder query-budget scale root",
+      "totalTargets": 200,
+      "rootId": "dev101-scale-root-200-31e0bd43-9d19-4f4f-ae74-3c532e60f9ac",
+      "drawingCount": 12,
+      "partCount": 188
+    },
+    {
+      "method": "FIXTURE",
+      "table": "pdm_work_review_requests",
+      "id": "dev101-query-budget-request-d1837dc7-c75e-4599-bafa-7ec61f027a85",
+      "purpose": "200-target shell query budget"
+    },
+    {
+      "method": "FAULT_FIXTURE",
+      "purpose": "post-submit context Drawing revision, Part identity and Relation drift",
+      "drawingId": "dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+      "revisionId": "dev101-independent-context-revision-151473ef-8b15-444b-b7a7-100fe483e989",
+      "partId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "relationLinkId": "dev101-independent-context-link-7975791f-d84b-4e86-b1ba-47cde5f5a3a8"
+    },
+    {
+      "method": "FIXTURE",
+      "purpose": "newer different-context recognition session must not leak",
+      "sessionId": "dev101-independent-latest-leak-92139091-1606-4312-8771-4b8a9165e2a2",
+      "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+      "drawingRevisionId": null,
+      "sourceContextType": "drawing_number"
+    }
+  ],
+  "rawEvidence": {
+    "preflight": {
+      "masterCounts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "brokenRootReferences": {
+        "parts": 0,
+        "drawings": 0
+      },
+      "residue": [
+        {
+          "name": "bom_shared_structure_migration_issues"
+        },
+        {
+          "name": "pdm_local_data_migrations"
+        },
+        {
+          "name": "pdm_workbench_migration_quarantine"
+        }
+      ],
+      "foreignKeys": []
+    },
+    "request": {
+      "id": "dev101-independent-source-request-49ac8e97-f67b-466d-8456-e8bb809c4fb1",
+      "company_id": "company-jenfu",
+      "request_kind": "drawing_revision",
+      "entity_type": "drawing",
+      "canonical_entity_id": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+      "work_id": "dev101-independent-source-work-69e193d3-16bd-4b62-b0cb-2b4eabeb66ed",
+      "branch_id": "f5eaef74-aa92-412d-a936-d6949d0fe0a3",
+      "snapshot_payload": "{\"payload\":{\"policyVersion\":\"dev098-bounded-manual-minor-v1\"},\"revisionId\":\"c076f20b-21d0-4061-a9bf-148060995162\",\"claimId\":\"e3ddb90f-270a-462e-ac6b-c8acce53b725\"}",
+      "snapshot_hash": "a291a45d0f58100a9acba73328710805de51651c553ea7133c8c018c98e0e942",
+      "request_status": "pending",
+      "row_version": 1,
+      "legacySnapshot": {
+        "payload": {
+          "policyVersion": "dev098-bounded-manual-minor-v1"
+        },
+        "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+        "claimId": "e3ddb90f-270a-462e-ac6b-c8acce53b725"
+      }
+    },
+    "package": {
+      "schemaVersion": "pdm-review-package-v2",
+      "submittedAt": "2026-08-28T21:24:20.234Z",
+      "requestKind": "drawing_revision",
+      "primaryTargetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+      "root": {
+        "id": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+        "code": "A0002"
+      },
+      "decisionBasis": {
+        "version": 1,
+        "kind": "drawing_revision_work",
+        "hash": "a291a45d0f58100a9acba73328710805de51651c553ea7133c8c018c98e0e942",
+        "payload": {
+          "policyVersion": "dev098-bounded-manual-minor-v1"
+        },
+        "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+        "claimId": "e3ddb90f-270a-462e-ac6b-c8acce53b725"
+      },
+      "matrix": {
+        "rootId": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+        "rootCode": "A0002",
+        "drawings": [
+          {
+            "axisId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+            "targetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "revision": "0.1"
+          },
+          {
+            "axisId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+            "targetKey": "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+            "code": "A0002-R01-QA",
+            "revision": "A"
+          }
+        ],
+        "parts": [
+          {
+            "axisId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "targetKey": "part:part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "code": "A0002-P01",
+            "revision": null
+          }
+        ],
+        "cells": [
+          {
+            "drawingNumberId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+            "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "drawingNumber": "A0002-R01-QA",
+            "partNumber": "A0002-P01",
+            "relationType": "reference"
+          },
+          {
+            "drawingNumberId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+            "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "drawingNumber": "A0002-M01",
+            "partNumber": "A0002-P01",
+            "relationType": "manufacturing_basis"
+          }
+        ],
+        "evidenceHash": "379b617a9936cf1479e9ce46cac9a50e21ddd137fe567f6ad1689f3d7d1d9cec"
+      },
+      "targets": [
+        {
+          "targetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+          "axisId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "scope": "submitted",
+          "markers": {
+            "submitted": true,
+            "change": {
+              "kind": "file",
+              "paths": [
+                "files"
+              ]
+            },
+            "risk": null
+          },
+          "evidenceHash": "b865bfc30894c36be28295a0ef11265d3c4fa0a5610fcad98952477586d3495a",
+          "workspace": {
+            "kind": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "identity": {
+              "code": "A0002-M01",
+              "name": "",
+              "revision": "0.1",
+              "purposeCode": "M",
+              "purposeDescription": ""
+            },
+            "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+            "payload": {
+              "policyVersion": "dev098-bounded-manual-minor-v1"
+            },
+            "baselinePayload": {
+              "policyVersion": "dev098-bounded-manual-minor-v1"
+            },
+            "changeImpactRequired": false,
+            "relatedParts": [
+              {
+                "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                "code": "A0002-P01",
+                "name": "本體_BS_右_Xx5"
+              }
+            ],
+            "affectedParts": [],
+            "files": [
+              {
+                "id": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+                "bindingId": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+                "sourceFileAssetId": "FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+                "fileName": "A0002-M01.pdf",
+                "displayName": "A0002-M01.pdf",
+                "role": "pdf",
+                "mimeType": "application/pdf",
+                "fileSize": 209798,
+                "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+                "isPrimary": false,
+                "currentRevisionUpload": true,
+                "ordinal": 0
+              },
+              {
+                "id": "9d264a7a-9ace-4556-8abb-a93f892cfa8f",
+                "bindingId": "9d264a7a-9ace-4556-8abb-a93f892cfa8f",
+                "sourceFileAssetId": "FA-94e7d949-2d0b-4c4e-b106-831dde533b76",
+                "fileName": "A0002-M01.SLDDRW",
+                "displayName": "A0002-M01.SLDDRW",
+                "role": "drawing_2d",
+                "mimeType": "application/octet-stream",
+                "fileSize": 295934,
+                "contentHash": "e6646cb4be002c7213b3c75cccf5c6aad97fddb11aa8a36e400b0fe1dd32a6ad",
+                "isPrimary": true,
+                "currentRevisionUpload": true,
+                "ordinal": 1
+              },
+              {
+                "id": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+                "bindingId": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+                "sourceFileAssetId": "FA-9f069b7f-66a4-4676-b774-97a01ebfaf51",
+                "fileName": "A0002.SLDPRT",
+                "displayName": "A0002.SLDPRT",
+                "role": "cad_3d",
+                "mimeType": "application/octet-stream",
+                "fileSize": 495749,
+                "contentHash": "15cd458b983e4dddd0836555dfa8eac0f4d3ac87c056403d4279ebbf3d3ec7f4",
+                "isPrimary": true,
+                "currentRevisionUpload": true,
+                "ordinal": 2
+              }
+            ],
+            "attachments": [],
+            "recognition": {
+              "schemaVersion": "pdm-recognition-review-projection-v1",
+              "session": {
+                "id": "dev101-independent-session-3bd0d654-d99e-423a-a29e-fc6b56097dd5",
+                "sourceContextType": "drawing_revision",
+                "sourceContextId": "c076f20b-21d0-4061-a9bf-148060995162",
+                "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+                "drawingRevisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+                "sourceSetFingerprint": "independent:cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659",
+                "status": "review_ready",
+                "rowVersion": 1,
+                "warningCount": 0,
+                "conflictCount": 0,
+                "unclassifiedCount": 0,
+                "errorCode": null,
+                "errorSummary": null,
+                "createdAt": "2098-08-27T00:00:00.000Z",
+                "updatedAt": "2098-08-27T00:00:00.000Z",
+                "formalizedAt": null
+              },
+              "sources": [
+                {
+                  "id": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                  "fileAssetId": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477",
+                  "contentHash": "cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659",
+                  "storageGeneration": null,
+                  "fileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                  "fileExt": ".txt",
+                  "mimeType": "text/plain",
+                  "fileSize": 39,
+                  "sourceRole": "drawing_2d",
+                  "sortOrder": 0,
+                  "adapterPlan": [
+                    "dev101.independent.v1"
+                  ]
+                }
+              ],
+              "candidateDecisions": [
+                {
+                  "id": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                  "category": "drawing_revision",
+                  "fieldKey": "drawn_by_name",
+                  "fieldLabel": "製圖者",
+                  "proposedValue": "Independent QA",
+                  "normalizedValue": "Independent QA",
+                  "proposedOwnerType": null,
+                  "proposedOwnerId": null,
+                  "applicabilityScope": "overall",
+                  "confidenceBand": "high",
+                  "reviewState": "accepted",
+                  "currentFormalValue": null,
+                  "rowVersion": 1,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                      "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "製圖者：Independent QA",
+                      "rawValue": "Independent QA",
+                      "normalizedValue": "Independent QA",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.1,
+                        "y": 0.1,
+                        "width": 0.2,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ]
+                },
+                {
+                  "id": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                  "category": "part_attribute",
+                  "fieldKey": "custom_specification",
+                  "fieldLabel": "自訂規格",
+                  "proposedValue": "QA-SPEC",
+                  "normalizedValue": "QA-SPEC",
+                  "proposedOwnerType": "part_number",
+                  "proposedOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                  "applicabilityScope": "overall",
+                  "confidenceBand": "high",
+                  "reviewState": "accepted",
+                  "currentFormalValue": null,
+                  "rowVersion": 1,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                      "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "料號規格：A0002-P01",
+                      "rawValue": "QA-SPEC",
+                      "normalizedValue": "QA-SPEC",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.2,
+                        "y": 0.2,
+                        "width": 0.3,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ]
+                }
+              ],
+              "fields": [
+                {
+                  "id": "9bb1cd4d97ac006e3aa6c4cb18bc5602210a6075e4ef29631769b83ef55f232d",
+                  "category": "drawing_revision",
+                  "fieldKey": "drawn_by_name",
+                  "fieldLabel": "製圖者",
+                  "primaryCandidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                  "memberCandidateIds": [
+                    "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a"
+                  ],
+                  "distinctValues": [
+                    "Independent QA"
+                  ],
+                  "conflictState": "none",
+                  "reviewState": "accepted",
+                  "proposedValue": "Independent QA",
+                  "currentFormalValue": null,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                      "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "製圖者：Independent QA",
+                      "rawValue": "Independent QA",
+                      "normalizedValue": "Independent QA",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.1,
+                        "y": 0.1,
+                        "width": 0.2,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ],
+                  "scopes": [
+                    {
+                      "id": "9bb1cd4d97ac006e3aa6c4cb18bc5602210a6075e4ef29631769b83ef55f232d",
+                      "category": "drawing_revision",
+                      "fieldKey": "drawn_by_name",
+                      "fieldLabel": "製圖者",
+                      "primaryCandidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                      "memberCandidateIds": [
+                        "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a"
+                      ],
+                      "distinctValues": [
+                        "Independent QA"
+                      ],
+                      "conflictState": "none",
+                      "reviewState": "accepted",
+                      "proposedValue": "Independent QA",
+                      "currentFormalValue": null,
+                      "observations": [
+                        {
+                          "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                          "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                          "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                          "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                          "sourceRole": "drawing_2d",
+                          "rawText": "製圖者：Independent QA",
+                          "rawValue": "Independent QA",
+                          "normalizedValue": "Independent QA",
+                          "locationKind": "page_region",
+                          "pageNumber": 1,
+                          "sheetName": null,
+                          "configurationName": null,
+                          "geometry": {
+                            "coordinateSpace": "normalized_page",
+                            "origin": "top_left",
+                            "x": 0.1,
+                            "y": 0.1,
+                            "width": 0.2,
+                            "height": 0.08
+                          },
+                          "confidenceBand": "high",
+                          "extractorCode": "dev101.independent.v1",
+                          "extractorVersion": "1",
+                          "capturedAt": "2098-08-27T00:00:00.000Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "ownerResolution": "not_required",
+                  "effectiveOwnerId": null,
+                  "blockingReason": null
+                },
+                {
+                  "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+                  "category": "part_attribute",
+                  "fieldKey": "custom_specification",
+                  "fieldLabel": "自訂規格",
+                  "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                  "memberCandidateIds": [
+                    "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+                  ],
+                  "distinctValues": [
+                    "QA-SPEC"
+                  ],
+                  "conflictState": "none",
+                  "reviewState": "accepted",
+                  "proposedValue": "QA-SPEC",
+                  "currentFormalValue": null,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                      "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "料號規格：A0002-P01",
+                      "rawValue": "QA-SPEC",
+                      "normalizedValue": "QA-SPEC",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.2,
+                        "y": 0.2,
+                        "width": 0.3,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ],
+                  "scopes": [
+                    {
+                      "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+                      "category": "part_attribute",
+                      "fieldKey": "custom_specification",
+                      "fieldLabel": "自訂規格",
+                      "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                      "memberCandidateIds": [
+                        "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+                      ],
+                      "distinctValues": [
+                        "QA-SPEC"
+                      ],
+                      "conflictState": "none",
+                      "reviewState": "accepted",
+                      "proposedValue": "QA-SPEC",
+                      "currentFormalValue": null,
+                      "observations": [
+                        {
+                          "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                          "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                          "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                          "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                          "sourceRole": "drawing_2d",
+                          "rawText": "料號規格：A0002-P01",
+                          "rawValue": "QA-SPEC",
+                          "normalizedValue": "QA-SPEC",
+                          "locationKind": "page_region",
+                          "pageNumber": 1,
+                          "sheetName": null,
+                          "configurationName": null,
+                          "geometry": {
+                            "coordinateSpace": "normalized_page",
+                            "origin": "top_left",
+                            "x": 0.2,
+                            "y": 0.2,
+                            "width": 0.3,
+                            "height": 0.08
+                          },
+                          "confidenceBand": "high",
+                          "extractorCode": "dev101.independent.v1",
+                          "extractorVersion": "1",
+                          "capturedAt": "2098-08-27T00:00:00.000Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "ownerResolution": "resolved",
+                  "effectiveOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                  "blockingReason": null
+                }
+              ],
+              "projectionHash": "5a4f478979ae6cccdd9d475a3e60dda567c4123bcc94788cc760e017f86d079e"
+            }
+          }
+        },
+        {
+          "targetKey": "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+          "axisId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+          "scope": "context_only",
+          "markers": {
+            "submitted": false,
+            "change": null,
+            "risk": null
+          },
+          "evidenceHash": "b47f0cdbcef977fd58acbecebb9d9c77340f01f451f8d9b51acfc0c48844cd17",
+          "workspace": {
+            "kind": "drawing",
+            "entityId": "dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+            "identity": {
+              "code": "A0002-R01-QA",
+              "name": "Independent context drawing",
+              "revision": "A",
+              "purposeCode": "R",
+              "purposeDescription": "Independent context drawing"
+            },
+            "revisionId": "dev101-independent-context-revision-89c1ed46-97cd-4fbd-bf9d-9e4788f0fa97",
+            "payload": {},
+            "baselinePayload": {},
+            "changeImpactRequired": false,
+            "relatedParts": [],
+            "affectedParts": [],
+            "files": [],
+            "attachments": [],
+            "recognition": null
+          }
+        },
+        {
+          "targetKey": "part:part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "axisId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "scope": "context_only",
+          "markers": {
+            "submitted": false,
+            "change": null,
+            "risk": null
+          },
+          "evidenceHash": "0f3c8caa99b04f98e6221ffe00a599b72bc5499719af73b1f74419ac4a7acbf2",
+          "workspace": {
+            "kind": "part",
+            "entityId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "identity": {
+              "code": "A0002-P01",
+              "name": "本體_BS_右_Xx5",
+              "revision": null,
+              "purposeCode": null,
+              "purposeDescription": null
+            },
+            "revisionId": null,
+            "payload": {
+              "partName": "本體_BS_右_Xx5",
+              "itemKind": "manufactured",
+              "customSpecification": null,
+              "isUniversal": false,
+              "materialCode": null,
+              "materialLabel": null,
+              "colorCode": null,
+              "colorLabel": null,
+              "surfaceTreatment": null,
+              "variantNote": null
+            },
+            "baselinePayload": {
+              "partName": "本體_BS_右_Xx5",
+              "itemKind": "manufactured",
+              "customSpecification": null,
+              "isUniversal": false,
+              "materialCode": null,
+              "materialLabel": null,
+              "colorCode": null,
+              "colorLabel": null,
+              "surfaceTreatment": null,
+              "variantNote": null
+            },
+            "files": [],
+            "attachments": [
+              {
+                "id": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+                "bindingId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+                "sourceFileAssetId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+                "fileName": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc.txt",
+                "displayName": "DEV-101 submitted Part attachment",
+                "role": "other",
+                "mimeType": "text/plain",
+                "fileSize": 34,
+                "contentHash": "66796baad42943f8d8d3270dd8d7663d8f353cf1b5b58c87ce9386751a7f72c2",
+                "isPrimary": false,
+                "currentRevisionUpload": false,
+                "ordinal": 0
+              }
+            ],
+            "recognition": null
+          }
+        }
+      ],
+      "packageHash": "f885df3600dc48da9bddd35f9bae7a238d03ab27acf6309297fba0f7bff3c092"
+    },
+    "multiPackage": {
+      "schemaVersion": "pdm-review-package-v2",
+      "submittedAt": "2026-08-28T21:24:20.234Z",
+      "requestKind": "drawing_revision",
+      "primaryTargetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+      "root": {
+        "id": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+        "code": "A0002"
+      },
+      "decisionBasis": {
+        "version": 1,
+        "kind": "drawing_revision_work",
+        "hash": "a291a45d0f58100a9acba73328710805de51651c553ea7133c8c018c98e0e942",
+        "payload": {
+          "policyVersion": "dev098-bounded-manual-minor-v1"
+        },
+        "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+        "claimId": "e3ddb90f-270a-462e-ac6b-c8acce53b725"
+      },
+      "matrix": {
+        "rootId": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+        "rootCode": "A0002",
+        "drawings": [
+          {
+            "axisId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+            "targetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "revision": "0.1"
+          },
+          {
+            "axisId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+            "targetKey": "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+            "code": "A0002-R01-QA",
+            "revision": "A"
+          }
+        ],
+        "parts": [
+          {
+            "axisId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "targetKey": "part:part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "code": "A0002-P01",
+            "revision": null
+          }
+        ],
+        "cells": [
+          {
+            "drawingNumberId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+            "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "drawingNumber": "A0002-R01-QA",
+            "partNumber": "A0002-P01",
+            "relationType": "reference"
+          },
+          {
+            "drawingNumberId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+            "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "drawingNumber": "A0002-M01",
+            "partNumber": "A0002-P01",
+            "relationType": "manufacturing_basis"
+          }
+        ],
+        "evidenceHash": "379b617a9936cf1479e9ce46cac9a50e21ddd137fe567f6ad1689f3d7d1d9cec"
+      },
+      "targets": [
+        {
+          "targetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+          "axisId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "scope": "submitted",
+          "markers": {
+            "submitted": true,
+            "change": {
+              "kind": "file",
+              "paths": [
+                "files"
+              ]
+            },
+            "risk": null
+          },
+          "evidenceHash": "b865bfc30894c36be28295a0ef11265d3c4fa0a5610fcad98952477586d3495a",
+          "workspace": {
+            "kind": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "identity": {
+              "code": "A0002-M01",
+              "name": "",
+              "revision": "0.1",
+              "purposeCode": "M",
+              "purposeDescription": ""
+            },
+            "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+            "payload": {
+              "policyVersion": "dev098-bounded-manual-minor-v1"
+            },
+            "baselinePayload": {
+              "policyVersion": "dev098-bounded-manual-minor-v1"
+            },
+            "changeImpactRequired": false,
+            "relatedParts": [
+              {
+                "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                "code": "A0002-P01",
+                "name": "本體_BS_右_Xx5"
+              }
+            ],
+            "affectedParts": [],
+            "files": [
+              {
+                "id": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+                "bindingId": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+                "sourceFileAssetId": "FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+                "fileName": "A0002-M01.pdf",
+                "displayName": "A0002-M01.pdf",
+                "role": "pdf",
+                "mimeType": "application/pdf",
+                "fileSize": 209798,
+                "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+                "isPrimary": false,
+                "currentRevisionUpload": true,
+                "ordinal": 0
+              },
+              {
+                "id": "9d264a7a-9ace-4556-8abb-a93f892cfa8f",
+                "bindingId": "9d264a7a-9ace-4556-8abb-a93f892cfa8f",
+                "sourceFileAssetId": "FA-94e7d949-2d0b-4c4e-b106-831dde533b76",
+                "fileName": "A0002-M01.SLDDRW",
+                "displayName": "A0002-M01.SLDDRW",
+                "role": "drawing_2d",
+                "mimeType": "application/octet-stream",
+                "fileSize": 295934,
+                "contentHash": "e6646cb4be002c7213b3c75cccf5c6aad97fddb11aa8a36e400b0fe1dd32a6ad",
+                "isPrimary": true,
+                "currentRevisionUpload": true,
+                "ordinal": 1
+              },
+              {
+                "id": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+                "bindingId": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+                "sourceFileAssetId": "FA-9f069b7f-66a4-4676-b774-97a01ebfaf51",
+                "fileName": "A0002.SLDPRT",
+                "displayName": "A0002.SLDPRT",
+                "role": "cad_3d",
+                "mimeType": "application/octet-stream",
+                "fileSize": 495749,
+                "contentHash": "15cd458b983e4dddd0836555dfa8eac0f4d3ac87c056403d4279ebbf3d3ec7f4",
+                "isPrimary": true,
+                "currentRevisionUpload": true,
+                "ordinal": 2
+              }
+            ],
+            "attachments": [],
+            "recognition": {
+              "schemaVersion": "pdm-recognition-review-projection-v1",
+              "session": {
+                "id": "dev101-independent-session-3bd0d654-d99e-423a-a29e-fc6b56097dd5",
+                "sourceContextType": "drawing_revision",
+                "sourceContextId": "c076f20b-21d0-4061-a9bf-148060995162",
+                "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+                "drawingRevisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+                "sourceSetFingerprint": "independent:cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659",
+                "status": "review_ready",
+                "rowVersion": 1,
+                "warningCount": 0,
+                "conflictCount": 0,
+                "unclassifiedCount": 0,
+                "errorCode": null,
+                "errorSummary": null,
+                "createdAt": "2098-08-27T00:00:00.000Z",
+                "updatedAt": "2098-08-27T00:00:00.000Z",
+                "formalizedAt": null
+              },
+              "sources": [
+                {
+                  "id": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                  "fileAssetId": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477",
+                  "contentHash": "cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659",
+                  "storageGeneration": null,
+                  "fileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                  "fileExt": ".txt",
+                  "mimeType": "text/plain",
+                  "fileSize": 39,
+                  "sourceRole": "drawing_2d",
+                  "sortOrder": 0,
+                  "adapterPlan": [
+                    "dev101.independent.v1"
+                  ]
+                }
+              ],
+              "candidateDecisions": [
+                {
+                  "id": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                  "category": "drawing_revision",
+                  "fieldKey": "drawn_by_name",
+                  "fieldLabel": "製圖者",
+                  "proposedValue": "Independent QA",
+                  "normalizedValue": "Independent QA",
+                  "proposedOwnerType": null,
+                  "proposedOwnerId": null,
+                  "applicabilityScope": "overall",
+                  "confidenceBand": "high",
+                  "reviewState": "accepted",
+                  "currentFormalValue": null,
+                  "rowVersion": 1,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                      "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "製圖者：Independent QA",
+                      "rawValue": "Independent QA",
+                      "normalizedValue": "Independent QA",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.1,
+                        "y": 0.1,
+                        "width": 0.2,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ]
+                },
+                {
+                  "id": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                  "category": "part_attribute",
+                  "fieldKey": "custom_specification",
+                  "fieldLabel": "自訂規格",
+                  "proposedValue": "QA-SPEC",
+                  "normalizedValue": "QA-SPEC",
+                  "proposedOwnerType": "part_number",
+                  "proposedOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                  "applicabilityScope": "overall",
+                  "confidenceBand": "high",
+                  "reviewState": "accepted",
+                  "currentFormalValue": null,
+                  "rowVersion": 1,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                      "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "料號規格：A0002-P01",
+                      "rawValue": "QA-SPEC",
+                      "normalizedValue": "QA-SPEC",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.2,
+                        "y": 0.2,
+                        "width": 0.3,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ]
+                }
+              ],
+              "fields": [
+                {
+                  "id": "9bb1cd4d97ac006e3aa6c4cb18bc5602210a6075e4ef29631769b83ef55f232d",
+                  "category": "drawing_revision",
+                  "fieldKey": "drawn_by_name",
+                  "fieldLabel": "製圖者",
+                  "primaryCandidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                  "memberCandidateIds": [
+                    "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a"
+                  ],
+                  "distinctValues": [
+                    "Independent QA"
+                  ],
+                  "conflictState": "none",
+                  "reviewState": "accepted",
+                  "proposedValue": "Independent QA",
+                  "currentFormalValue": null,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                      "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "製圖者：Independent QA",
+                      "rawValue": "Independent QA",
+                      "normalizedValue": "Independent QA",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.1,
+                        "y": 0.1,
+                        "width": 0.2,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ],
+                  "scopes": [
+                    {
+                      "id": "9bb1cd4d97ac006e3aa6c4cb18bc5602210a6075e4ef29631769b83ef55f232d",
+                      "category": "drawing_revision",
+                      "fieldKey": "drawn_by_name",
+                      "fieldLabel": "製圖者",
+                      "primaryCandidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                      "memberCandidateIds": [
+                        "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a"
+                      ],
+                      "distinctValues": [
+                        "Independent QA"
+                      ],
+                      "conflictState": "none",
+                      "reviewState": "accepted",
+                      "proposedValue": "Independent QA",
+                      "currentFormalValue": null,
+                      "observations": [
+                        {
+                          "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                          "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                          "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                          "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                          "sourceRole": "drawing_2d",
+                          "rawText": "製圖者：Independent QA",
+                          "rawValue": "Independent QA",
+                          "normalizedValue": "Independent QA",
+                          "locationKind": "page_region",
+                          "pageNumber": 1,
+                          "sheetName": null,
+                          "configurationName": null,
+                          "geometry": {
+                            "coordinateSpace": "normalized_page",
+                            "origin": "top_left",
+                            "x": 0.1,
+                            "y": 0.1,
+                            "width": 0.2,
+                            "height": 0.08
+                          },
+                          "confidenceBand": "high",
+                          "extractorCode": "dev101.independent.v1",
+                          "extractorVersion": "1",
+                          "capturedAt": "2098-08-27T00:00:00.000Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "ownerResolution": "not_required",
+                  "effectiveOwnerId": null,
+                  "blockingReason": null
+                },
+                {
+                  "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+                  "category": "part_attribute",
+                  "fieldKey": "custom_specification",
+                  "fieldLabel": "自訂規格",
+                  "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                  "memberCandidateIds": [
+                    "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+                  ],
+                  "distinctValues": [
+                    "QA-SPEC"
+                  ],
+                  "conflictState": "none",
+                  "reviewState": "accepted",
+                  "proposedValue": "QA-SPEC",
+                  "currentFormalValue": null,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                      "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "料號規格：A0002-P01",
+                      "rawValue": "QA-SPEC",
+                      "normalizedValue": "QA-SPEC",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.2,
+                        "y": 0.2,
+                        "width": 0.3,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ],
+                  "scopes": [
+                    {
+                      "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+                      "category": "part_attribute",
+                      "fieldKey": "custom_specification",
+                      "fieldLabel": "自訂規格",
+                      "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                      "memberCandidateIds": [
+                        "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+                      ],
+                      "distinctValues": [
+                        "QA-SPEC"
+                      ],
+                      "conflictState": "none",
+                      "reviewState": "accepted",
+                      "proposedValue": "QA-SPEC",
+                      "currentFormalValue": null,
+                      "observations": [
+                        {
+                          "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                          "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                          "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                          "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                          "sourceRole": "drawing_2d",
+                          "rawText": "料號規格：A0002-P01",
+                          "rawValue": "QA-SPEC",
+                          "normalizedValue": "QA-SPEC",
+                          "locationKind": "page_region",
+                          "pageNumber": 1,
+                          "sheetName": null,
+                          "configurationName": null,
+                          "geometry": {
+                            "coordinateSpace": "normalized_page",
+                            "origin": "top_left",
+                            "x": 0.2,
+                            "y": 0.2,
+                            "width": 0.3,
+                            "height": 0.08
+                          },
+                          "confidenceBand": "high",
+                          "extractorCode": "dev101.independent.v1",
+                          "extractorVersion": "1",
+                          "capturedAt": "2098-08-27T00:00:00.000Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "ownerResolution": "resolved",
+                  "effectiveOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                  "blockingReason": null
+                }
+              ],
+              "projectionHash": "5a4f478979ae6cccdd9d475a3e60dda567c4123bcc94788cc760e017f86d079e"
+            }
+          }
+        },
+        {
+          "targetKey": "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+          "axisId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+          "scope": "submitted",
+          "markers": {
+            "submitted": true,
+            "change": null,
+            "risk": null
+          },
+          "evidenceHash": "b47f0cdbcef977fd58acbecebb9d9c77340f01f451f8d9b51acfc0c48844cd17",
+          "workspace": {
+            "kind": "drawing",
+            "entityId": "dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+            "identity": {
+              "code": "A0002-R01-QA",
+              "name": "Independent context drawing",
+              "revision": "A",
+              "purposeCode": "R",
+              "purposeDescription": "Independent context drawing"
+            },
+            "revisionId": "dev101-independent-context-revision-89c1ed46-97cd-4fbd-bf9d-9e4788f0fa97",
+            "payload": {},
+            "baselinePayload": {},
+            "changeImpactRequired": false,
+            "relatedParts": [],
+            "affectedParts": [],
+            "files": [],
+            "attachments": [],
+            "recognition": null
+          }
+        },
+        {
+          "targetKey": "part:part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "axisId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "scope": "context_only",
+          "markers": {
+            "submitted": false,
+            "change": null,
+            "risk": null
+          },
+          "evidenceHash": "0f3c8caa99b04f98e6221ffe00a599b72bc5499719af73b1f74419ac4a7acbf2",
+          "workspace": {
+            "kind": "part",
+            "entityId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "identity": {
+              "code": "A0002-P01",
+              "name": "本體_BS_右_Xx5",
+              "revision": null,
+              "purposeCode": null,
+              "purposeDescription": null
+            },
+            "revisionId": null,
+            "payload": {
+              "partName": "本體_BS_右_Xx5",
+              "itemKind": "manufactured",
+              "customSpecification": null,
+              "isUniversal": false,
+              "materialCode": null,
+              "materialLabel": null,
+              "colorCode": null,
+              "colorLabel": null,
+              "surfaceTreatment": null,
+              "variantNote": null
+            },
+            "baselinePayload": {
+              "partName": "本體_BS_右_Xx5",
+              "itemKind": "manufactured",
+              "customSpecification": null,
+              "isUniversal": false,
+              "materialCode": null,
+              "materialLabel": null,
+              "colorCode": null,
+              "colorLabel": null,
+              "surfaceTreatment": null,
+              "variantNote": null
+            },
+            "files": [],
+            "attachments": [
+              {
+                "id": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+                "bindingId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+                "sourceFileAssetId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+                "fileName": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc.txt",
+                "displayName": "DEV-101 submitted Part attachment",
+                "role": "other",
+                "mimeType": "text/plain",
+                "fileSize": 34,
+                "contentHash": "66796baad42943f8d8d3270dd8d7663d8f353cf1b5b58c87ce9386751a7f72c2",
+                "isPrimary": false,
+                "currentRevisionUpload": false,
+                "ordinal": 0
+              }
+            ],
+            "recognition": null
+          }
+        }
+      ],
+      "packageHash": "e9bc595661a2e6d1816940da1abb458a8ec454279b05644fd87fda5c595157b4"
+    },
+    "rebuiltRecognition": {
+      "schemaVersion": "pdm-recognition-review-projection-v1",
+      "session": {
+        "id": "dev101-independent-session-3bd0d654-d99e-423a-a29e-fc6b56097dd5",
+        "sourceContextType": "drawing_revision",
+        "sourceContextId": "c076f20b-21d0-4061-a9bf-148060995162",
+        "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+        "drawingRevisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+        "sourceSetFingerprint": "independent:cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659",
+        "status": "review_ready",
+        "rowVersion": 1,
+        "warningCount": 0,
+        "conflictCount": 0,
+        "unclassifiedCount": 0,
+        "errorCode": null,
+        "errorSummary": null,
+        "createdAt": "2098-08-27T00:00:00.000Z",
+        "updatedAt": "2098-08-27T00:00:00.000Z",
+        "formalizedAt": null
+      },
+      "sources": [
+        {
+          "id": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+          "fileAssetId": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477",
+          "contentHash": "cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659",
+          "storageGeneration": null,
+          "fileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+          "fileExt": ".txt",
+          "mimeType": "text/plain",
+          "fileSize": 39,
+          "sourceRole": "drawing_2d",
+          "sortOrder": 0,
+          "adapterPlan": [
+            "dev101.independent.v1"
+          ]
+        }
+      ],
+      "candidateDecisions": [
+        {
+          "id": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+          "category": "drawing_revision",
+          "fieldKey": "drawn_by_name",
+          "fieldLabel": "製圖者",
+          "proposedValue": "Independent QA",
+          "normalizedValue": "Independent QA",
+          "proposedOwnerType": null,
+          "proposedOwnerId": null,
+          "applicabilityScope": "overall",
+          "confidenceBand": "high",
+          "reviewState": "accepted",
+          "currentFormalValue": null,
+          "rowVersion": 1,
+          "observations": [
+            {
+              "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+              "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+              "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+              "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+              "sourceRole": "drawing_2d",
+              "rawText": "製圖者：Independent QA",
+              "rawValue": "Independent QA",
+              "normalizedValue": "Independent QA",
+              "locationKind": "page_region",
+              "pageNumber": 1,
+              "sheetName": null,
+              "configurationName": null,
+              "geometry": {
+                "coordinateSpace": "normalized_page",
+                "origin": "top_left",
+                "x": 0.1,
+                "y": 0.1,
+                "width": 0.2,
+                "height": 0.08
+              },
+              "confidenceBand": "high",
+              "extractorCode": "dev101.independent.v1",
+              "extractorVersion": "1",
+              "capturedAt": "2098-08-27T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+          "category": "part_attribute",
+          "fieldKey": "custom_specification",
+          "fieldLabel": "自訂規格",
+          "proposedValue": "QA-SPEC",
+          "normalizedValue": "QA-SPEC",
+          "proposedOwnerType": "part_number",
+          "proposedOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "applicabilityScope": "overall",
+          "confidenceBand": "high",
+          "reviewState": "accepted",
+          "currentFormalValue": null,
+          "rowVersion": 1,
+          "observations": [
+            {
+              "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+              "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+              "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+              "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+              "sourceRole": "drawing_2d",
+              "rawText": "料號規格：A0002-P01",
+              "rawValue": "QA-SPEC",
+              "normalizedValue": "QA-SPEC",
+              "locationKind": "page_region",
+              "pageNumber": 1,
+              "sheetName": null,
+              "configurationName": null,
+              "geometry": {
+                "coordinateSpace": "normalized_page",
+                "origin": "top_left",
+                "x": 0.2,
+                "y": 0.2,
+                "width": 0.3,
+                "height": 0.08
+              },
+              "confidenceBand": "high",
+              "extractorCode": "dev101.independent.v1",
+              "extractorVersion": "1",
+              "capturedAt": "2098-08-27T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "fields": [
+        {
+          "id": "9bb1cd4d97ac006e3aa6c4cb18bc5602210a6075e4ef29631769b83ef55f232d",
+          "category": "drawing_revision",
+          "fieldKey": "drawn_by_name",
+          "fieldLabel": "製圖者",
+          "primaryCandidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+          "memberCandidateIds": [
+            "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a"
+          ],
+          "distinctValues": [
+            "Independent QA"
+          ],
+          "conflictState": "none",
+          "reviewState": "accepted",
+          "proposedValue": "Independent QA",
+          "currentFormalValue": null,
+          "observations": [
+            {
+              "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+              "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+              "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+              "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+              "sourceRole": "drawing_2d",
+              "rawText": "製圖者：Independent QA",
+              "rawValue": "Independent QA",
+              "normalizedValue": "Independent QA",
+              "locationKind": "page_region",
+              "pageNumber": 1,
+              "sheetName": null,
+              "configurationName": null,
+              "geometry": {
+                "coordinateSpace": "normalized_page",
+                "origin": "top_left",
+                "x": 0.1,
+                "y": 0.1,
+                "width": 0.2,
+                "height": 0.08
+              },
+              "confidenceBand": "high",
+              "extractorCode": "dev101.independent.v1",
+              "extractorVersion": "1",
+              "capturedAt": "2098-08-27T00:00:00.000Z"
+            }
+          ],
+          "scopes": [
+            {
+              "id": "9bb1cd4d97ac006e3aa6c4cb18bc5602210a6075e4ef29631769b83ef55f232d",
+              "category": "drawing_revision",
+              "fieldKey": "drawn_by_name",
+              "fieldLabel": "製圖者",
+              "primaryCandidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+              "memberCandidateIds": [
+                "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a"
+              ],
+              "distinctValues": [
+                "Independent QA"
+              ],
+              "conflictState": "none",
+              "reviewState": "accepted",
+              "proposedValue": "Independent QA",
+              "currentFormalValue": null,
+              "observations": [
+                {
+                  "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                  "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                  "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                  "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                  "sourceRole": "drawing_2d",
+                  "rawText": "製圖者：Independent QA",
+                  "rawValue": "Independent QA",
+                  "normalizedValue": "Independent QA",
+                  "locationKind": "page_region",
+                  "pageNumber": 1,
+                  "sheetName": null,
+                  "configurationName": null,
+                  "geometry": {
+                    "coordinateSpace": "normalized_page",
+                    "origin": "top_left",
+                    "x": 0.1,
+                    "y": 0.1,
+                    "width": 0.2,
+                    "height": 0.08
+                  },
+                  "confidenceBand": "high",
+                  "extractorCode": "dev101.independent.v1",
+                  "extractorVersion": "1",
+                  "capturedAt": "2098-08-27T00:00:00.000Z"
+                }
+              ]
+            }
+          ],
+          "ownerResolution": "not_required",
+          "effectiveOwnerId": null,
+          "blockingReason": null
+        },
+        {
+          "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+          "category": "part_attribute",
+          "fieldKey": "custom_specification",
+          "fieldLabel": "自訂規格",
+          "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+          "memberCandidateIds": [
+            "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+          ],
+          "distinctValues": [
+            "QA-SPEC"
+          ],
+          "conflictState": "none",
+          "reviewState": "accepted",
+          "proposedValue": "QA-SPEC",
+          "currentFormalValue": null,
+          "observations": [
+            {
+              "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+              "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+              "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+              "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+              "sourceRole": "drawing_2d",
+              "rawText": "料號規格：A0002-P01",
+              "rawValue": "QA-SPEC",
+              "normalizedValue": "QA-SPEC",
+              "locationKind": "page_region",
+              "pageNumber": 1,
+              "sheetName": null,
+              "configurationName": null,
+              "geometry": {
+                "coordinateSpace": "normalized_page",
+                "origin": "top_left",
+                "x": 0.2,
+                "y": 0.2,
+                "width": 0.3,
+                "height": 0.08
+              },
+              "confidenceBand": "high",
+              "extractorCode": "dev101.independent.v1",
+              "extractorVersion": "1",
+              "capturedAt": "2098-08-27T00:00:00.000Z"
+            }
+          ],
+          "scopes": [
+            {
+              "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+              "category": "part_attribute",
+              "fieldKey": "custom_specification",
+              "fieldLabel": "自訂規格",
+              "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+              "memberCandidateIds": [
+                "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+              ],
+              "distinctValues": [
+                "QA-SPEC"
+              ],
+              "conflictState": "none",
+              "reviewState": "accepted",
+              "proposedValue": "QA-SPEC",
+              "currentFormalValue": null,
+              "observations": [
+                {
+                  "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                  "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                  "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                  "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                  "sourceRole": "drawing_2d",
+                  "rawText": "料號規格：A0002-P01",
+                  "rawValue": "QA-SPEC",
+                  "normalizedValue": "QA-SPEC",
+                  "locationKind": "page_region",
+                  "pageNumber": 1,
+                  "sheetName": null,
+                  "configurationName": null,
+                  "geometry": {
+                    "coordinateSpace": "normalized_page",
+                    "origin": "top_left",
+                    "x": 0.2,
+                    "y": 0.2,
+                    "width": 0.3,
+                    "height": 0.08
+                  },
+                  "confidenceBand": "high",
+                  "extractorCode": "dev101.independent.v1",
+                  "extractorVersion": "1",
+                  "capturedAt": "2098-08-27T00:00:00.000Z"
+                }
+              ]
+            }
+          ],
+          "ownerResolution": "resolved",
+          "effectiveOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "blockingReason": null
+        }
+      ],
+      "projectionHash": "5a4f478979ae6cccdd9d475a3e60dda567c4123bcc94788cc760e017f86d079e"
+    },
+    "projectionMutant": {
+      "schemaVersion": "pdm-review-package-v2",
+      "submittedAt": "2026-08-28T21:24:20.234Z",
+      "requestKind": "drawing_revision",
+      "primaryTargetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+      "root": {
+        "id": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+        "code": "A0002"
+      },
+      "decisionBasis": {
+        "version": 1,
+        "kind": "drawing_revision_work",
+        "hash": "a291a45d0f58100a9acba73328710805de51651c553ea7133c8c018c98e0e942",
+        "payload": {
+          "policyVersion": "dev098-bounded-manual-minor-v1"
+        },
+        "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+        "claimId": "e3ddb90f-270a-462e-ac6b-c8acce53b725"
+      },
+      "matrix": {
+        "rootId": "part-root-33e1c960-d327-4f9b-9cc6-b41bf93321fd",
+        "rootCode": "A0002",
+        "drawings": [
+          {
+            "axisId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+            "targetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "code": "A0002-M01",
+            "revision": "0.1"
+          },
+          {
+            "axisId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+            "targetKey": "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+            "code": "A0002-R01-QA",
+            "revision": "A"
+          }
+        ],
+        "parts": [
+          {
+            "axisId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "targetKey": "part:part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "code": "A0002-P01",
+            "revision": null
+          }
+        ],
+        "cells": [
+          {
+            "drawingNumberId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+            "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "drawingNumber": "A0002-R01-QA",
+            "partNumber": "A0002-P01",
+            "relationType": "reference"
+          },
+          {
+            "drawingNumberId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+            "partNumberId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "drawingNumber": "A0002-M01",
+            "partNumber": "A0002-P01",
+            "relationType": "manufacturing_basis"
+          }
+        ],
+        "evidenceHash": "379b617a9936cf1479e9ce46cac9a50e21ddd137fe567f6ad1689f3d7d1d9cec"
+      },
+      "targets": [
+        {
+          "targetKey": "drawing:drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+          "axisId": "drawing-number-f38497c0-c149-4888-9758-13a8c5c9b56c",
+          "scope": "submitted",
+          "markers": {
+            "submitted": true,
+            "change": {
+              "kind": "file",
+              "paths": [
+                "files"
+              ]
+            },
+            "risk": null
+          },
+          "evidenceHash": "98b52ae472e0577ec680a04f1b68f236233ca519604ba8e56ff7d1544bb3e447",
+          "workspace": {
+            "kind": "drawing",
+            "entityId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+            "identity": {
+              "code": "A0002-M01",
+              "name": "",
+              "revision": "0.1",
+              "purposeCode": "M",
+              "purposeDescription": ""
+            },
+            "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+            "payload": {
+              "policyVersion": "dev098-bounded-manual-minor-v1"
+            },
+            "baselinePayload": {
+              "policyVersion": "dev098-bounded-manual-minor-v1"
+            },
+            "changeImpactRequired": false,
+            "relatedParts": [
+              {
+                "id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                "code": "A0002-P01",
+                "name": "本體_BS_右_Xx5"
+              }
+            ],
+            "affectedParts": [],
+            "files": [
+              {
+                "id": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+                "bindingId": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+                "sourceFileAssetId": "FA-17a5c09b-a36f-4475-93e9-845a3c0a1881",
+                "fileName": "A0002-M01.pdf",
+                "displayName": "A0002-M01.pdf",
+                "role": "pdf",
+                "mimeType": "application/pdf",
+                "fileSize": 209798,
+                "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+                "isPrimary": false,
+                "currentRevisionUpload": true,
+                "ordinal": 0
+              },
+              {
+                "id": "9d264a7a-9ace-4556-8abb-a93f892cfa8f",
+                "bindingId": "9d264a7a-9ace-4556-8abb-a93f892cfa8f",
+                "sourceFileAssetId": "FA-94e7d949-2d0b-4c4e-b106-831dde533b76",
+                "fileName": "A0002-M01.SLDDRW",
+                "displayName": "A0002-M01.SLDDRW",
+                "role": "drawing_2d",
+                "mimeType": "application/octet-stream",
+                "fileSize": 295934,
+                "contentHash": "e6646cb4be002c7213b3c75cccf5c6aad97fddb11aa8a36e400b0fe1dd32a6ad",
+                "isPrimary": true,
+                "currentRevisionUpload": true,
+                "ordinal": 1
+              },
+              {
+                "id": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+                "bindingId": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+                "sourceFileAssetId": "FA-9f069b7f-66a4-4676-b774-97a01ebfaf51",
+                "fileName": "A0002.SLDPRT",
+                "displayName": "A0002.SLDPRT",
+                "role": "cad_3d",
+                "mimeType": "application/octet-stream",
+                "fileSize": 495749,
+                "contentHash": "15cd458b983e4dddd0836555dfa8eac0f4d3ac87c056403d4279ebbf3d3ec7f4",
+                "isPrimary": true,
+                "currentRevisionUpload": true,
+                "ordinal": 2
+              }
+            ],
+            "attachments": [],
+            "recognition": {
+              "schemaVersion": "pdm-recognition-review-projection-v1",
+              "session": {
+                "id": "dev101-independent-session-3bd0d654-d99e-423a-a29e-fc6b56097dd5",
+                "sourceContextType": "drawing_revision",
+                "sourceContextId": "c076f20b-21d0-4061-a9bf-148060995162",
+                "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+                "drawingRevisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+                "sourceSetFingerprint": "independent:cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659",
+                "status": "tampered-nested-recognition",
+                "rowVersion": 1,
+                "warningCount": 0,
+                "conflictCount": 0,
+                "unclassifiedCount": 0,
+                "errorCode": null,
+                "errorSummary": null,
+                "createdAt": "2098-08-27T00:00:00.000Z",
+                "updatedAt": "2098-08-27T00:00:00.000Z",
+                "formalizedAt": null
+              },
+              "sources": [
+                {
+                  "id": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                  "fileAssetId": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477",
+                  "contentHash": "cde497a9b485b7e03443bc87fa4f26f6d3c24de6b69213268e5414c0ccce0659",
+                  "storageGeneration": null,
+                  "fileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                  "fileExt": ".txt",
+                  "mimeType": "text/plain",
+                  "fileSize": 39,
+                  "sourceRole": "drawing_2d",
+                  "sortOrder": 0,
+                  "adapterPlan": [
+                    "dev101.independent.v1"
+                  ]
+                }
+              ],
+              "candidateDecisions": [
+                {
+                  "id": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                  "category": "drawing_revision",
+                  "fieldKey": "drawn_by_name",
+                  "fieldLabel": "製圖者",
+                  "proposedValue": "Independent QA",
+                  "normalizedValue": "Independent QA",
+                  "proposedOwnerType": null,
+                  "proposedOwnerId": null,
+                  "applicabilityScope": "overall",
+                  "confidenceBand": "high",
+                  "reviewState": "accepted",
+                  "currentFormalValue": null,
+                  "rowVersion": 1,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                      "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "製圖者：Independent QA",
+                      "rawValue": "Independent QA",
+                      "normalizedValue": "Independent QA",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.1,
+                        "y": 0.1,
+                        "width": 0.2,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ]
+                },
+                {
+                  "id": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                  "category": "part_attribute",
+                  "fieldKey": "custom_specification",
+                  "fieldLabel": "自訂規格",
+                  "proposedValue": "QA-SPEC",
+                  "normalizedValue": "QA-SPEC",
+                  "proposedOwnerType": "part_number",
+                  "proposedOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                  "applicabilityScope": "overall",
+                  "confidenceBand": "high",
+                  "reviewState": "accepted",
+                  "currentFormalValue": null,
+                  "rowVersion": 1,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                      "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "料號規格：A0002-P01",
+                      "rawValue": "QA-SPEC",
+                      "normalizedValue": "QA-SPEC",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.2,
+                        "y": 0.2,
+                        "width": 0.3,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ]
+                }
+              ],
+              "fields": [
+                {
+                  "id": "9bb1cd4d97ac006e3aa6c4cb18bc5602210a6075e4ef29631769b83ef55f232d",
+                  "category": "drawing_revision",
+                  "fieldKey": "drawn_by_name",
+                  "fieldLabel": "製圖者",
+                  "primaryCandidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                  "memberCandidateIds": [
+                    "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a"
+                  ],
+                  "distinctValues": [
+                    "Independent QA"
+                  ],
+                  "conflictState": "none",
+                  "reviewState": "accepted",
+                  "proposedValue": "Independent QA",
+                  "currentFormalValue": null,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                      "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "製圖者：Independent QA",
+                      "rawValue": "Independent QA",
+                      "normalizedValue": "Independent QA",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.1,
+                        "y": 0.1,
+                        "width": 0.2,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ],
+                  "scopes": [
+                    {
+                      "id": "9bb1cd4d97ac006e3aa6c4cb18bc5602210a6075e4ef29631769b83ef55f232d",
+                      "category": "drawing_revision",
+                      "fieldKey": "drawn_by_name",
+                      "fieldLabel": "製圖者",
+                      "primaryCandidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                      "memberCandidateIds": [
+                        "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a"
+                      ],
+                      "distinctValues": [
+                        "Independent QA"
+                      ],
+                      "conflictState": "none",
+                      "reviewState": "accepted",
+                      "proposedValue": "Independent QA",
+                      "currentFormalValue": null,
+                      "observations": [
+                        {
+                          "id": "dev101-independent-observation-drawing-b5e6396c-9549-42bb-91f8-549808d11b0e",
+                          "candidateId": "dev101-independent-candidate-drawing-ba0d1b62-aa82-4e1f-ae8c-d8b10427bb3a",
+                          "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                          "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                          "sourceRole": "drawing_2d",
+                          "rawText": "製圖者：Independent QA",
+                          "rawValue": "Independent QA",
+                          "normalizedValue": "Independent QA",
+                          "locationKind": "page_region",
+                          "pageNumber": 1,
+                          "sheetName": null,
+                          "configurationName": null,
+                          "geometry": {
+                            "coordinateSpace": "normalized_page",
+                            "origin": "top_left",
+                            "x": 0.1,
+                            "y": 0.1,
+                            "width": 0.2,
+                            "height": 0.08
+                          },
+                          "confidenceBand": "high",
+                          "extractorCode": "dev101.independent.v1",
+                          "extractorVersion": "1",
+                          "capturedAt": "2098-08-27T00:00:00.000Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "ownerResolution": "not_required",
+                  "effectiveOwnerId": null,
+                  "blockingReason": null
+                },
+                {
+                  "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+                  "category": "part_attribute",
+                  "fieldKey": "custom_specification",
+                  "fieldLabel": "自訂規格",
+                  "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                  "memberCandidateIds": [
+                    "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+                  ],
+                  "distinctValues": [
+                    "QA-SPEC"
+                  ],
+                  "conflictState": "none",
+                  "reviewState": "accepted",
+                  "proposedValue": "QA-SPEC",
+                  "currentFormalValue": null,
+                  "observations": [
+                    {
+                      "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                      "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                      "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                      "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                      "sourceRole": "drawing_2d",
+                      "rawText": "料號規格：A0002-P01",
+                      "rawValue": "QA-SPEC",
+                      "normalizedValue": "QA-SPEC",
+                      "locationKind": "page_region",
+                      "pageNumber": 1,
+                      "sheetName": null,
+                      "configurationName": null,
+                      "geometry": {
+                        "coordinateSpace": "normalized_page",
+                        "origin": "top_left",
+                        "x": 0.2,
+                        "y": 0.2,
+                        "width": 0.3,
+                        "height": 0.08
+                      },
+                      "confidenceBand": "high",
+                      "extractorCode": "dev101.independent.v1",
+                      "extractorVersion": "1",
+                      "capturedAt": "2098-08-27T00:00:00.000Z"
+                    }
+                  ],
+                  "scopes": [
+                    {
+                      "id": "ac564b9023bd0f8b372f5ce92a0ee282abe458f86fd224fbbbf7336fcca69cab",
+                      "category": "part_attribute",
+                      "fieldKey": "custom_specification",
+                      "fieldLabel": "自訂規格",
+                      "primaryCandidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                      "memberCandidateIds": [
+                        "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255"
+                      ],
+                      "distinctValues": [
+                        "QA-SPEC"
+                      ],
+                      "conflictState": "none",
+                      "reviewState": "accepted",
+                      "proposedValue": "QA-SPEC",
+                      "currentFormalValue": null,
+                      "observations": [
+                        {
+                          "id": "dev101-independent-observation-part-73900d33-0c2d-4d3e-a420-9508293c8a7e",
+                          "candidateId": "dev101-independent-candidate-part-05ff1b39-7e3f-4fe4-bbee-00a68e98a255",
+                          "sourceId": "dev101-independent-rec-source-73bb622c-64d9-4d6e-8995-94553610b2dd",
+                          "sourceFileName": "dev101-independent-source-64ddac64-f123-453b-9d75-5789ea112477.txt",
+                          "sourceRole": "drawing_2d",
+                          "rawText": "料號規格：A0002-P01",
+                          "rawValue": "QA-SPEC",
+                          "normalizedValue": "QA-SPEC",
+                          "locationKind": "page_region",
+                          "pageNumber": 1,
+                          "sheetName": null,
+                          "configurationName": null,
+                          "geometry": {
+                            "coordinateSpace": "normalized_page",
+                            "origin": "top_left",
+                            "x": 0.2,
+                            "y": 0.2,
+                            "width": 0.3,
+                            "height": 0.08
+                          },
+                          "confidenceBand": "high",
+                          "extractorCode": "dev101.independent.v1",
+                          "extractorVersion": "1",
+                          "capturedAt": "2098-08-27T00:00:00.000Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "ownerResolution": "resolved",
+                  "effectiveOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+                  "blockingReason": null
+                }
+              ],
+              "projectionHash": "5a4f478979ae6cccdd9d475a3e60dda567c4123bcc94788cc760e017f86d079e"
+            }
+          }
+        },
+        {
+          "targetKey": "drawing:dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+          "axisId": "dev101-independent-drawing-number-6f167dd3-083d-45a2-82ef-440e2cfe6c75",
+          "scope": "context_only",
+          "markers": {
+            "submitted": false,
+            "change": null,
+            "risk": null
+          },
+          "evidenceHash": "b47f0cdbcef977fd58acbecebb9d9c77340f01f451f8d9b51acfc0c48844cd17",
+          "workspace": {
+            "kind": "drawing",
+            "entityId": "dev101-independent-context-drawing-6638d24f-a70e-4997-8c10-b127515a5d67",
+            "identity": {
+              "code": "A0002-R01-QA",
+              "name": "Independent context drawing",
+              "revision": "A",
+              "purposeCode": "R",
+              "purposeDescription": "Independent context drawing"
+            },
+            "revisionId": "dev101-independent-context-revision-89c1ed46-97cd-4fbd-bf9d-9e4788f0fa97",
+            "payload": {},
+            "baselinePayload": {},
+            "changeImpactRequired": false,
+            "relatedParts": [],
+            "affectedParts": [],
+            "files": [],
+            "attachments": [],
+            "recognition": null
+          }
+        },
+        {
+          "targetKey": "part:part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "axisId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+          "scope": "context_only",
+          "markers": {
+            "submitted": false,
+            "change": null,
+            "risk": null
+          },
+          "evidenceHash": "0f3c8caa99b04f98e6221ffe00a599b72bc5499719af73b1f74419ac4a7acbf2",
+          "workspace": {
+            "kind": "part",
+            "entityId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+            "identity": {
+              "code": "A0002-P01",
+              "name": "本體_BS_右_Xx5",
+              "revision": null,
+              "purposeCode": null,
+              "purposeDescription": null
+            },
+            "revisionId": null,
+            "payload": {
+              "partName": "本體_BS_右_Xx5",
+              "itemKind": "manufactured",
+              "customSpecification": null,
+              "isUniversal": false,
+              "materialCode": null,
+              "materialLabel": null,
+              "colorCode": null,
+              "colorLabel": null,
+              "surfaceTreatment": null,
+              "variantNote": null
+            },
+            "baselinePayload": {
+              "partName": "本體_BS_右_Xx5",
+              "itemKind": "manufactured",
+              "customSpecification": null,
+              "isUniversal": false,
+              "materialCode": null,
+              "materialLabel": null,
+              "colorCode": null,
+              "colorLabel": null,
+              "surfaceTreatment": null,
+              "variantNote": null
+            },
+            "files": [],
+            "attachments": [
+              {
+                "id": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+                "bindingId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+                "sourceFileAssetId": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc",
+                "fileName": "dev101-independent-part-asset-949ef719-d52b-40c8-9c09-8f04c4b0f0cc.txt",
+                "displayName": "DEV-101 submitted Part attachment",
+                "role": "other",
+                "mimeType": "text/plain",
+                "fileSize": 34,
+                "contentHash": "66796baad42943f8d8d3270dd8d7663d8f353cf1b5b58c87ce9386751a7f72c2",
+                "isPrimary": false,
+                "currentRevisionUpload": false,
+                "ordinal": 0
+              }
+            ],
+            "recognition": null
+          }
+        }
+      ],
+      "packageHash": "30bd7f01a86623d0146ad94d0abee6ce3d4e6126eecc19298f17a87f063ed0bd"
+    },
+    "invalidOwnerProjection": null,
+    "taskForeignKeys": []
+  },
+  "primaryInvariant": {
+    "before": "f865991398be498c5525641e0459861dc9f3908b49acfff0fb041a228b387326",
+    "after": "f865991398be498c5525641e0459861dc9f3908b49acfff0fb041a228b387326",
+    "unchanged": true
+  },
+  "sourceInvariant": {
+    "before": {
+      "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+      "branch": "codex/dev-032-release-integration",
+      "dirtyBoundaryHash": "9772acd6f569332d770d9585716973343c2620f357ac57fc9758edbf313fc4e2"
+    },
+    "after": {
+      "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+      "branch": "codex/dev-032-release-integration",
+      "dirtyBoundaryHash": "9772acd6f569332d770d9585716973343c2620f357ac57fc9758edbf313fc4e2"
+    },
+    "unchanged": true
+  },
+  "cleanupReceipt": {
+    "complete": true,
+    "portsReleased": true,
+    "processesStopped": true,
+    "tempRemoved": true
+  }
+}

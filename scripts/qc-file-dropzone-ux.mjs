@@ -12,7 +12,6 @@ function assert(condition, message, detail = "") {
 
 const dropzone = readProjectFile(root, "src/components/file-dropzone.tsx");
 const uploadPage = readProjectFile(root, "src/app/upload/page.tsx");
-const bomWorkbench = readProjectFile(root, "src/app/bom/workbench/page.tsx");
 const masterAttachmentPanel = readProjectFile(root, "src/components/master-attachment-panel.tsx");
 const css = readProjectFile(root, "src/app/globals.css");
 const packageJson = readProjectJson(root, "package.json");
@@ -27,11 +26,6 @@ assert(dropzone.includes("disabled") && dropzone.includes("onReject"), "FileDrop
 assert(uploadPage.includes("FileDropzone"), "Upload page uses FileDropzone");
 assert(uploadPage.includes("multiple") && uploadPage.includes("handleFiles(selected)"), "Upload page keeps multiple file flow");
 assert(!uploadPage.includes("setDragOver"), "Upload page no longer owns duplicate drag state");
-
-assert(bomWorkbench.includes("FileDropzone"), "BOM workbench uses FileDropzone");
-assert(bomWorkbench.includes('accept=".xls,.xlsx,.csv,.tsv,.txt,.html"'), "BOM dropzone limits spreadsheet-like files");
-assert(bomWorkbench.includes("single_file_only") && bomWorkbench.includes("BOM XLS 匯入一次只能選擇一個檔案"), "BOM dropzone rejects multi-file drops");
-assert(!bomWorkbench.includes("fileInputRef"), "BOM workbench removed hidden file input ref");
 
 assert(masterAttachmentPanel.includes("FileDropzone"), "Master attachment panel uses FileDropzone");
 assert(masterAttachmentPanel.includes("selectedFile={file}"), "Master attachment panel shows selected single file");

@@ -1,0 +1,41 @@
+{
+  "runner": "contract",
+  "runId": "DEV100-contract-2026-08-28T14-34-09-789Z",
+  "status": "PASS",
+  "productionWrites": false,
+  "checks": [
+    {
+      "label": "active and auditable tombstone rules are separate",
+      "status": "PASS"
+    },
+    {
+      "label": "repository applies the canonical invariant to migrated and new work",
+      "status": "PASS"
+    },
+    {
+      "label": "upload and remove execute post-write snapshot gate before return",
+      "status": "PASS"
+    },
+    {
+      "label": "workspace clears stale state and renders bounded 409 recovery",
+      "status": "PASS"
+    },
+    {
+      "label": "same-batch primary warning exposes exact filename order",
+      "status": "PASS"
+    },
+    {
+      "label": "single existing Drawing workspace remains the only DEV-100 entry",
+      "status": "PASS"
+    },
+    {
+      "label": "PostgreSQL Relation retirement leaves a valid Drawing/Part reference guard",
+      "status": "PASS"
+    },
+    {
+      "label": "DEV-100 authority and fixed 18-case QA roster remain present",
+      "status": "PASS"
+    }
+  ],
+  "firstFailure": null
+}

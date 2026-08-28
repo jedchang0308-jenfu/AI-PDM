@@ -1,0 +1,44 @@
+- main:
+  - heading "圖號工作台" [level=1]
+  - link "建立編號":
+    - /url: /numbering/create?from=drawing
+  - region "清單篩選":
+    - text: 搜尋
+    - textbox "搜尋":
+      - /placeholder: 搜尋圖號、品名或料號
+      - text: A0002-M01
+    - text: 版本
+    - button "全部":
+      - text: 全部
+      - img
+    - text: 處理
+    - button "全部":
+      - text: 全部
+      - img
+    - text: 用途
+    - button "全部":
+      - text: 全部
+      - img
+    - text: 系列
+    - button "全部":
+      - text: 全部
+      - img
+  - region "工作台資料清單":
+    - table:
+      - rowgroup:
+        - row "編號排序，目前遞增，點擊切換為遞減 品名排序，點擊改為遞增 版本 資料狀態 處理":
+          - columnheader "編號排序，目前遞增，點擊切換為遞減":
+            - button "編號排序，目前遞增，點擊切換為遞減": 編號
+          - columnheader "品名排序，點擊改為遞增":
+            - button "品名排序，點擊改為遞增": 品名
+          - columnheader "版本"
+          - columnheader "資料狀態"
+          - columnheader "處理"
+      - rowgroup:
+        - row "A0002-M01 本體_BS_右_Xx5 量產版 1 可使用 無須處理":
+          - cell "A0002-M01":
+            - button "A0002-M01"
+          - cell "本體_BS_右_Xx5"
+          - cell "量產版 1"
+          - cell "可使用"
+          - cell "無須處理"

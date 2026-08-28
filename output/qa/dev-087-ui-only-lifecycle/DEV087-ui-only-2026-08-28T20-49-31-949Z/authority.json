@@ -1,0 +1,7 @@
+{
+  "devId": "DEV-087",
+  "commit": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+  "mode": "canonical_only",
+  "provider": "sqlite",
+  "mergedHistoryRows": 0
+}

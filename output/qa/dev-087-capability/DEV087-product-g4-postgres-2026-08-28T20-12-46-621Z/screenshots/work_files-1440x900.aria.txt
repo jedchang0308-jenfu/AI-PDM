@@ -1,0 +1,63 @@
+- main:
+  - button "返回圖號清單":
+    - img
+  - text: 研發版 1.1
+  - heading "A0001-M01" [level=1]
+  - region "圖面主視覺":
+    - region "預覽":
+      - tablist "預覽類型":
+        - tab "3D 模型 尚無檔案"
+        - tab "2D 圖面 尚無檔案" [selected]
+      - tabpanel:
+        - strong: 尚無檔案
+        - text: 目前工作資料沒有這類檔案。
+  - complementary "版次、檔案與智慧辨識":
+    - region "版次與檔案":
+      - heading "版次與檔案" [level=2]
+      - strong: 拖放圖面檔案，或按一下選取
+      - text: 可一次選取多檔；同類 2D／3D 主檔會以最後上傳的檔案取代。
+      - button "拖放圖面檔案，或按一下選取 可一次選取多檔；同類 2D／3D 主檔會以最後上傳的檔案取代。"
+      - button "上傳所選檔案" [disabled]:
+        - img
+        - text: 上傳所選檔案
+      - status:
+        - img
+        - text: 送審前須重新上傳本版次主檔：.SLDDRW ＋ .SLDPRT／.SLDASM
+      - paragraph: 尚無檔案，請先上傳本版次的 2D 與 3D 主檔。
+    - region "FFF／變更影響":
+      - heading "FFF／變更影響" [level=2]
+      - paragraph: 判定範圍如下；這些料號尚未因此被視為已確認受影響。
+      - list "判定範圍":
+        - listitem:
+          - strong: A0001-P01
+          - text: DEV-032 hotfix production acceptance 20260716140505
+      - text: Form
+      - combobox "Form":
+        - option "請判定" [selected]
+        - option "相容"
+        - option "條件相容"
+        - option "不相容"
+      - text: Fit
+      - combobox "Fit":
+        - option "請判定" [selected]
+        - option "相容"
+        - option "條件相容"
+        - option "不相容"
+      - text: Function
+      - combobox "Function":
+        - option "請判定" [selected]
+        - option "相容"
+        - option "條件相容"
+        - option "不相容"
+      - text: 判定備註
+      - textbox "判定備註"
+      - status: 請完成三軸判定，以及適用的原因與替代料號。
+    - region "智慧辨識":
+      - heading "智慧辨識" [level=2]
+      - img
+      - text: 正在讀取辨識結果…
+    - button "取消本次工作"
+    - button "送出審核" [disabled]:
+      - img
+      - text: 送出審核
+    - button "返回圖號清單"

@@ -1,0 +1,33 @@
+{
+  "id": "J-D15",
+  "caseId": "D15",
+  "family": "D",
+  "status": "PASS",
+  "reason": "",
+  "actions": [
+    {
+      "kind": "create",
+      "candidate": "量產版 2",
+      "candidateKind": "production"
+    },
+    {
+      "kind": "drawing-fields-retired"
+    },
+    {
+      "kind": "submit"
+    },
+    {
+      "kind": "click",
+      "target": "前往審核",
+      "navigationAttempts": 2
+    },
+    {
+      "kind": "decision",
+      "decision": "approve",
+      "readonlyInputs": 4
+    }
+  ],
+  "startedAt": "2026-08-28T20:55:04.706Z",
+  "finishedAt": "2026-08-28T20:56:02.939Z",
+  "mutationPolicy": "rendered UI clicks and typing only; API/DB readback only"
+}

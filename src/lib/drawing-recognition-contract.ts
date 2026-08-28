@@ -1,5 +1,3 @@
-import crypto from "node:crypto";
-import { canonicalJsonStringify } from "./canonical-json.ts";
 
 export const DRAWING_RECOGNITION_CATEGORIES = [
   "identity_relation",
@@ -128,10 +126,6 @@ export class DrawingRecognitionError extends Error {
 
 export function drawingRecognitionErrorStatus(error: unknown) {
   return error instanceof DrawingRecognitionError ? error.status : 500;
-}
-
-export function sha256Canonical(value: unknown) {
-  return crypto.createHash("sha256").update(canonicalJsonStringify(value)).digest("hex");
 }
 
 export function normalizeRecognitionKey(value: unknown) {

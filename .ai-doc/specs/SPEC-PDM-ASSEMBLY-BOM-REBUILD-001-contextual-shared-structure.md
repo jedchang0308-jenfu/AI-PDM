@@ -1,6 +1,8 @@
 # SPEC-PDM-ASSEMBLY-BOM-REBUILD-001：組立件情境式共用 BOM 重建
 
-狀態：RD Implementation Complete / Human Confirmed / Local QA-QC Complete / Production Migration & Release Gated
+> **Superseded 2026-08-28**：DEV-095 已硬退役全部 BOM runtime、schema 與驗證入口。本文只保留歷史追溯，不得作為現行實作、migration 或 release authority。
+
+狀態：Historical / Superseded by DEV-095 / Do Not Restore
 
 DEV：`DEV-096`
 

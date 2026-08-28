@@ -1,0 +1,5 @@
+{
+  "directBusinessApiWrites": 0,
+  "directDbWrites": 0,
+  "uiInitiatedBusinessWritesOnly": true
+}

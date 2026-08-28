@@ -1,0 +1,170 @@
+{
+  "exitCode": 0,
+  "manifest": {
+    "devId": "DEV-087",
+    "runId": "DEV087-fault-system_admin-2026-08-28T18-33-28-914Z",
+    "parentRunId": "DEV087-product-browser-2026-08-28T18-09-31-285Z",
+    "profile": "system_admin",
+    "status": "PASS",
+    "port": 60046,
+    "outputDir": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087\\DEV087-fault-system_admin-2026-08-28T18-33-28-914Z",
+    "total": 27,
+    "passed": 27,
+    "failed": 0,
+    "checks": [
+      {
+        "name": "task-owned fault upload fixtures prepared",
+        "pass": true,
+        "detail": "[\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-fault-vzZ1de\\\\uploads\\\\DEV087-FAULT-QA.SLDDRW\",\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-fault-vzZ1de\\\\uploads\\\\DEV087-FAULT-QA.SLDPRT\"]"
+      },
+      {
+        "name": "prepared canonical source verified without second migration",
+        "pass": true,
+        "detail": "{\"requiredTables\":[\"canonical_workbench_states\",\"pdm_workbench_aggregates\",\"pdm_workbench_state_authority_control\",\"pdm_workbench_migration_quarantine\"],\"presentTables\":[\"pdm_workbench_state_authority_control\",\"pdm_workbench_aggregates\",\"canonical_workbench_states\",\"pdm_workbench_migration_quarantine\"],\"authority\":{\"mode\":\"canonical_only\",\"expected_commit\":\"local-dev\",\"schema_hash\":\"dev090-v1\"},\"unresolved\":0,\"foreignKeys\":[]}"
+      },
+      {
+        "name": "isolated fixture has A0002 production and RD rows",
+        "pass": true,
+        "detail": ""
+      },
+      {
+        "name": "系統管理員 login via rendered UI",
+        "pass": true,
+        "detail": "http://127.0.0.1:60046/"
+      },
+      {
+        "name": "production row visible for UI fault journey",
+        "pass": true,
+        "detail": ""
+      },
+      {
+        "name": "fault UI offers expected RD 1.2 candidate",
+        "pass": true,
+        "detail": "研發版 1.2\n建立研發版工作"
+      },
+      {
+        "name": "fault RD 1.2 work created through rendered UI",
+        "pass": true,
+        "detail": "{\"data\":{\"workId\":\"71481e3b-b528-40cf-99a7-5bb5ad02894a\",\"branchId\":\"2fa5cc6b-8027-4364-8027-7332f2ac06f5\",\"revisionId\":\"fd5b214a-97a5-48c8-b4d5-6922bb476e39\",\"revision\":\"1.2\",\"rowVersion\":1},\"meta\":{\"correlationId\":\"11e95085-5d06-42df-9d8b-62ebbf4f1fe3\"}}"
+      },
+      {
+        "name": "fault owner workspace exposes rendered file upload",
+        "pass": true,
+        "detail": ""
+      },
+      {
+        "name": "fault owner upload action is rendered and enabled",
+        "pass": true,
+        "detail": ""
+      },
+      {
+        "name": "fault drawing prerequisites uploaded through rendered UI",
+        "pass": true,
+        "detail": "{\"failedUploads\":[],\"successfulUploads\":[\"DEV087-FAULT-QA.SLDDRW上傳完成\",\"DEV087-FAULT-QA.SLDPRT上傳完成\"]}"
+      },
+      {
+        "name": "fault owner sees three required FFF axes",
+        "pass": true,
+        "detail": "count=3"
+      },
+      {
+        "name": "owner editor is rendered before review",
+        "pass": true,
+        "detail": ""
+      },
+      {
+        "name": "研發主管 login via rendered UI",
+        "pass": true,
+        "detail": "http://127.0.0.1:60046/"
+      },
+      {
+        "name": "review request appears in read-only workbench readback",
+        "pass": true,
+        "detail": "{\"data\":{\"groups\":[{\"groupKey\":\"cg_889cfa51-e1f8-4b21-a91a-aad4a58c67a4\",\"rows\":[{\"rowKey\":\"cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"production\",\"layerLabel\":\"量產版 1\",\"revision\":\"1\",\"dataState\":\"available\",\"dataStateLabel\":\"可使用\",\"handling\":\"none\",\"handlingLabel\":\"無須處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7\",\"rowVersion\":2,\"basisState\":\"current\",\"actions\":[{\"key\":\"advance\",\"label\":\"進版\",\"href\":\"/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_446f5c9a-4b55-4197-a185-cfdc96c2b8b7\"},{\"key\":\"request_obsolete\",\"label\":\"申請作廢\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]},{\"rowKey\":\"cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 1.2\",\"revision\":\"1.2\",\"dataState\":\"reviewing\",\"dataStateLabel\":\"審核中\",\"handling\":\"review_owner\",\"handlingLabel\":\"審核負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\",\"rowVersion\":5,\"basisState\":\"current\",\"actions\":[{\"key\":\"review\",\"label\":\"前往審核\",\"href\":\"/approvals/9407cff6-18c8-48d5-b36d-e592792a2908\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]},{\"rowKey\":\"cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 1.1\",\"revision\":\"1.1\",\"dataState\":\"available\",\"dataStateLabel\":\"可使用\",\"handling\":\"none\",\"handlingLabel\":\"無須處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9\",\"rowVersion\":1,\"basisState\":\"current\",\"actions\":[{\"key\":\"advance\",\"label\":\"進版\",\"href\":\"/api/pdm/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/revision-targets?sourceRowKey=cw_7320c40c-e7ec-47f9-a2cc-cb0f4105f9e9\"},{\"key\":\"void_rd\",\"label\":\"申請作廢\",\"href\":\"/api/pdm/drawing-rd-branches/f8743c5f-3220-49e6-a859-8dc301755b0d/void-requests\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}]}],\"nextCursor\":null,\"previousCursor\":null,\"totalGroups\":1,\"totalRows\":3},\"meta\":{\"contractToken\":\"eyJ2ZXJzaW9uIjoiZGV2MDg3LWNhbm9uaWNhbC13b3JrYmVuY2gtdjIiLCJjb21wYW55SWQiOiJjb21wYW55LWplbmZ1IiwiYWN0b3JJZCI6InVzZXItbWFuYWdlci1kZW1vIiwic2NoZW1hSGFzaCI6ImRldjA5MC12MSIsImV4cGVjdGVkQ29tbWl0IjoibG9jYWwtZGV2IiwibW9kZSI6ImNhbm9uaWNhbF9vbmx5IiwiaXNzdWVkQXQiOjE3ODc5NDIwNjA1NDJ9.wbywbUdCkbfiQY4jbA09-EetdFE56us7bK8q3PAV5d4\",\"correlationId\":\"d021588b-f267-4de1-990c-0d8ecce4b615\"}}"
+      },
+      {
+        "name": "review row has a UI review action",
+        "pass": true,
+        "detail": "{\"rowKey\":\"cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 1.2\",\"revision\":\"1.2\",\"dataState\":\"reviewing\",\"dataStateLabel\":\"審核中\",\"handling\":\"review_owner\",\"handlingLabel\":\"審核負責人處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\",\"rowVersion\":5,\"basisState\":\"current\",\"actions\":[{\"key\":\"review\",\"label\":\"前往審核\",\"href\":\"/approvals/9407cff6-18c8-48d5-b36d-e592792a2908\"},{\"key\":\"edit_relation_matrix\",\"label\":\"編輯關聯矩陣\"}]}"
+      },
+      {
+        "name": "fault review editor loaded without terminal error",
+        "pass": true,
+        "detail": ""
+      },
+      {
+        "name": "reviewer sees the same drawing editor in read-only mode",
+        "pass": true,
+        "detail": "{\"readonlyNotice\":1,\"filesSectionHeading\":1,\"readonlyControls\":4}"
+      },
+      {
+        "name": "reviewer approve action is rendered and enabled",
+        "pass": true,
+        "detail": ""
+      },
+      {
+        "name": "review decision request accepted",
+        "pass": true,
+        "detail": "{\"data\":{\"acknowledged\":true},\"meta\":{\"correlationId\":\"b41e85e4-9fd0-4961-bb28-547b427d9978\"}}"
+      },
+      {
+        "name": "canonical UI row exposes selected fault handling",
+        "pass": true,
+        "detail": "{\"rowKey\":\"cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\",\"entityType\":\"drawing\",\"entityId\":\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\",\"code\":\"A0002-M01\",\"name\":\"本體_BS_右_Xx5\",\"layer\":\"rd\",\"layerLabel\":\"研發版 1.2\",\"revision\":\"1.2\",\"dataState\":\"publishing\",\"dataStateLabel\":\"發布中\",\"handling\":\"system_admin\",\"handlingLabel\":\"系統管理員處理\",\"blockerReason\":null,\"detailHref\":\"/numbering/drawings?detail=cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\",\"rowVersion\":7,\"basisState\":\"current\",\"actions\":[]}"
+      },
+      {
+        "name": "fault review request is no longer actionable",
+        "pass": true,
+        "detail": "[]"
+      },
+      {
+        "name": "database canonical state matches UI fault handling",
+        "pass": true,
+        "detail": "{\"work_id\":\"71481e3b-b528-40cf-99a7-5bb5ad02894a\",\"handling\":\"system_admin\",\"blocker_reason\":null}"
+      },
+      {
+        "name": "database has no actionable review request after terminal fault",
+        "pass": true,
+        "detail": "{\"count\":0}"
+      },
+      {
+        "name": "formal drawing data was not changed by fault path",
+        "pass": true,
+        "detail": "{\"baseline\":{\"production_revision_id\":\"qa-dev087-ui-production-revision\"},\"after\":{\"production_revision_id\":\"qa-dev087-ui-production-revision\"}}"
+      },
+      {
+        "name": "temporary runtime port released",
+        "pass": true,
+        "detail": "port=60046"
+      },
+      {
+        "name": "temporary data/repository root removed",
+        "pass": true,
+        "detail": "{\"removed\":true,\"path\":\"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\ai-pdm-dev087-fault-vzZ1de\",\"attempts\":1,\"error\":null}"
+      },
+      {
+        "name": "temporary runtime project removed",
+        "pass": true,
+        "detail": "{\"removed\":true,\"path\":\"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\.tmp\\\\qc-dev087-fault-runtime-project-60046\",\"error\":null}"
+      }
+    ],
+    "failures": [],
+    "fixtureMutationLedger": [
+      {
+        "action": "create-rendered-ui-upload-fixtures",
+        "files": [
+          "DEV087-FAULT-QA.SLDDRW",
+          "DEV087-FAULT-QA.SLDPRT"
+        ],
+        "scope": "disposable fixture only"
+      },
+      {
+        "action": "normalize-fixture-authority-control",
+        "scope": "disposable fixture only"
+      }
+    ],
+    "mutationPolicy": "test setup only in task-owned fixture; business writes through rendered UI; API/DB readback only"
+  },
+  "stdoutTail": "me\": \"review row has a UI review action\",\n      \"pass\": true,\n      \"detail\": \"{\\\"rowKey\\\":\\\"cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\\\",\\\"entityType\\\":\\\"drawing\\\",\\\"entityId\\\":\\\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\\\",\\\"code\\\":\\\"A0002-M01\\\",\\\"name\\\":\\\"本體_BS_右_Xx5\\\",\\\"layer\\\":\\\"rd\\\",\\\"layerLabel\\\":\\\"研發版 1.2\\\",\\\"revision\\\":\\\"1.2\\\",\\\"dataState\\\":\\\"reviewing\\\",\\\"dataStateLabel\\\":\\\"審核中\\\",\\\"handling\\\":\\\"review_owner\\\",\\\"handlingLabel\\\":\\\"審核負責人處理\\\",\\\"blockerReason\\\":null,\\\"detailHref\\\":\\\"/numbering/drawings?detail=cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\\\",\\\"rowVersion\\\":5,\\\"basisState\\\":\\\"current\\\",\\\"actions\\\":[{\\\"key\\\":\\\"review\\\",\\\"label\\\":\\\"前往審核\\\",\\\"href\\\":\\\"/approvals/9407cff6-18c8-48d5-b36d-e592792a2908\\\"},{\\\"key\\\":\\\"edit_relation_matrix\\\",\\\"label\\\":\\\"編輯關聯矩陣\\\"}]}\"\n    },\n    {\n      \"name\": \"fault review editor loaded without terminal error\",\n      \"pass\": true,\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"reviewer sees the same drawing editor in read-only mode\",\n      \"pass\": true,\n      \"detail\": \"{\\\"readonlyNotice\\\":1,\\\"filesSectionHeading\\\":1,\\\"readonlyControls\\\":4}\"\n    },\n    {\n      \"name\": \"reviewer approve action is rendered and enabled\",\n      \"pass\": true,\n      \"detail\": \"\"\n    },\n    {\n      \"name\": \"review decision request accepted\",\n      \"pass\": true,\n      \"detail\": \"{\\\"data\\\":{\\\"acknowledged\\\":true},\\\"meta\\\":{\\\"correlationId\\\":\\\"b41e85e4-9fd0-4961-bb28-547b427d9978\\\"}}\"\n    },\n    {\n      \"name\": \"canonical UI row exposes selected fault handling\",\n      \"pass\": true,\n      \"detail\": \"{\\\"rowKey\\\":\\\"cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\\\",\\\"entityType\\\":\\\"drawing\\\",\\\"entityId\\\":\\\"drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877\\\",\\\"code\\\":\\\"A0002-M01\\\",\\\"name\\\":\\\"本體_BS_右_Xx5\\\",\\\"layer\\\":\\\"rd\\\",\\\"layerLabel\\\":\\\"研發版 1.2\\\",\\\"revision\\\":\\\"1.2\\\",\\\"dataState\\\":\\\"publishing\\\",\\\"dataStateLabel\\\":\\\"發布中\\\",\\\"handling\\\":\\\"system_admin\\\",\\\"handlingLabel\\\":\\\"系統管理員處理\\\",\\\"blockerReason\\\":null,\\\"detailHref\\\":\\\"/numbering/drawings?detail=cw_bbdffe99-ed9d-465c-8d50-df9ea6fd5c53\\\",\\\"rowVersion\\\":7,\\\"basisState\\\":\\\"current\\\",\\\"actions\\\":[]}\"\n    },\n    {\n      \"name\": \"fault review request is no longer actionable\",\n      \"pass\": true,\n      \"detail\": \"[]\"\n    },\n    {\n      \"name\": \"database canonical state matches UI fault handling\",\n      \"pass\": true,\n      \"detail\": \"{\\\"work_id\\\":\\\"71481e3b-b528-40cf-99a7-5bb5ad02894a\\\",\\\"handling\\\":\\\"system_admin\\\",\\\"blocker_reason\\\":null}\"\n    },\n    {\n      \"name\": \"database has no actionable review request after terminal fault\",\n      \"pass\": true,\n      \"detail\": \"{\\\"count\\\":0}\"\n    },\n    {\n      \"name\": \"formal drawing data was not changed by fault path\",\n      \"pass\": true,\n      \"detail\": \"{\\\"baseline\\\":{\\\"production_revision_id\\\":\\\"qa-dev087-ui-production-revision\\\"},\\\"after\\\":{\\\"production_revision_id\\\":\\\"qa-dev087-ui-production-revision\\\"}}\"\n    },\n    {\n      \"name\": \"temporary runtime port released\",\n      \"pass\": true,\n      \"detail\": \"port=60046\"\n    },\n    {\n      \"name\": \"temporary data/repository root removed\",\n      \"pass\": true,\n      \"detail\": \"{\\\"removed\\\":true,\\\"path\\\":\\\"C:\\\\\\\\Users\\\\\\\\user\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\ai-pdm-dev087-fault-vzZ1de\\\",\\\"attempts\\\":1,\\\"error\\\":null}\"\n    },\n    {\n      \"name\": \"temporary runtime project removed\",\n      \"pass\": true,\n      \"detail\": \"{\\\"removed\\\":true,\\\"path\\\":\\\"C:\\\\\\\\VIBE CODING\\\\\\\\AI_PDM\\\\\\\\.worktrees\\\\\\\\AI_PDM\\\\\\\\DEV-032-release-integration\\\\\\\\.tmp\\\\\\\\qc-dev087-fault-runtime-project-60046\\\",\\\"error\\\":null}\"\n    }\n  ],\n  \"failures\": [],\n  \"fixtureMutationLedger\": [\n    {\n      \"action\": \"create-rendered-ui-upload-fixtures\",\n      \"files\": [\n        \"DEV087-FAULT-QA.SLDDRW\",\n        \"DEV087-FAULT-QA.SLDPRT\"\n      ],\n      \"scope\": \"disposable fixture only\"\n    },\n    {\n      \"action\": \"normalize-fixture-authority-control\",\n      \"scope\": \"disposable fixture only\"\n    }\n  ],\n  \"mutationPolicy\": \"test setup only in task-owned fixture; business writes through rendered UI; API/DB readback only\"\n}\n",
+  "stderrTail": "⚠ The \"middleware\" file convention is deprecated. Please use \"proxy\" instead.\n\n  To migrate automatically, run:\n  npx @next/codemod@canary middleware-to-proxy .\n\n  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy\n"
+}

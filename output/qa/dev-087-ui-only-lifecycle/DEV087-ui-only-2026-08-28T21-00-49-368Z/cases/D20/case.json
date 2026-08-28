@@ -1,0 +1,41 @@
+{
+  "id": "D20",
+  "family": "D",
+  "title": "作廢申請核准",
+  "status": "PASS",
+  "reason": "",
+  "startedAt": "2026-08-28T21:01:44.359Z",
+  "finishedAt": "2026-08-28T21:01:45.842Z",
+  "expected": {
+    "ui": "canonical workbench list",
+    "mutation": "full lifecycle journey"
+  },
+  "actual": {
+    "headers": [
+      "編號",
+      "品名",
+      "版本",
+      "資料狀態",
+      "處理"
+    ],
+    "toolbar": [
+      "搜尋",
+      "版本",
+      "處理",
+      "用途",
+      "系列",
+      "排序"
+    ],
+    "rows": [
+      "A0002-M01本體_BS_右_Xx5量產版 1可使用無須處理"
+    ],
+    "apiStatus": 200,
+    "apiBodyHash": 1324,
+    "dbRows": 1
+  },
+  "evidence": {
+    "actions": "actions.jsonl",
+    "network": "network.jsonl",
+    "triad": "triad-diff/list.json"
+  }
+}

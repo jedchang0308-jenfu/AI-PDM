@@ -1,0 +1,50 @@
+{
+  "readOnly": true,
+  "entity": "drawing",
+  "rows": [
+    {
+      "code": "A0002-M01",
+      "name": "本體_BS_右_Xx5",
+      "data_layer": "drawing_production",
+      "handling": "none",
+      "blocker_reason": null,
+      "work_id": null,
+      "revision_id": "qa-dev087-ui-production-revision",
+      "revision": "1",
+      "layer": "量產版 1"
+    },
+    {
+      "code": "A0002-M01",
+      "name": "本體_BS_右_Xx5",
+      "data_layer": "drawing_rd",
+      "handling": "owner",
+      "blocker_reason": null,
+      "work_id": "b11dc93f-6746-4b86-b568-f39a50e76e59",
+      "revision_id": "25c1dd61-56e9-4a70-adb1-76ed8ba1d261",
+      "revision": "1.4",
+      "layer": "研發版 1.4"
+    },
+    {
+      "code": "A0002-M01",
+      "name": "本體_BS_右_Xx5",
+      "data_layer": "drawing_rd",
+      "handling": "owner",
+      "blocker_reason": null,
+      "work_id": "e298a6b0-15ec-4655-afc9-a3ae38ae94e1",
+      "revision_id": "e9503493-7728-4164-9a84-f241dcc3b0cf",
+      "revision": "1.3",
+      "layer": "研發版 1.3"
+    },
+    {
+      "code": "A0002-M01",
+      "name": "本體_BS_右_Xx5",
+      "data_layer": "drawing_rd",
+      "handling": "owner",
+      "blocker_reason": null,
+      "work_id": "3efb8111-8c9c-4a7e-a576-5c23874e0d25",
+      "revision_id": "ea153137-71c1-4351-9c3d-4a78d9806f9b",
+      "revision": "1.2",
+      "layer": "研發版 1.2"
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "version": 2,
+  "devId": "DEV-087",
+  "provider": "sqlite",
+  "dbPath": "C:\\Users\\user\\AppData\\Local\\Temp\\dev-092-work-files-uvgihZ\\source-cross-company.sqlite",
+  "mode": "dry-run",
+  "expectedCommit": "local-dev",
+  "schemaHash": "dev090-v1",
+  "source": {
+    "drawings": 1,
+    "revisions": 2,
+    "parts": 1,
+    "roots": 1,
+    "activeWorkspaces": 0,
+    "cancelledWorkspaces": 0,
+    "recoverableSoftArchivedWorkspaces": 0,
+    "migratedDrawingWorks": 1,
+    "expectedDrawingWorkFiles": 3,
+    "existingDrawingWorkFiles": 3
+  },
+  "target": {
+    "aggregates": 2,
+    "states": 2,
+    "branches": 0,
+    "claims": 0,
+    "initialRevisions": 0,
+    "drawingWorks": 0,
+    "drawingWorkFiles": 0,
+    "partWorks": 0,
+    "relationWorks": 0,
+    "reviewTraces": 1,
+    "partRoots": 0,
+    "partNumbers": 0,
+    "drawingNumbers": 0,
+    "drawingPartLinks": 0,
+    "drawingIdentityBindings": 0
+  },
+  "initialRevisionBackfill": {
+    "requested": false,
+    "revision": "0.1",
+    "plannedRows": 0,
+    "verifiedExistingRows": 0,
+    "rejectedRows": 0
+  },
+  "activeNumberingBackfill": {
+    "requested": false,
+    "eligibleWorkspaces": 0,
+    "drawingBundles": 0,
+    "partOnlyBundles": 0,
+    "recoveredSoftArchivedWorkspaces": 0,
+    "rejectedWorkspaces": 0
+  },
+  "cleanup": {
+    "discardUnapprovedPartOnlyDrafts": false,
+    "retainUnmappedLegacy": false,
+    "softArchiveUnapprovedPartOnlyDrafts": false,
+    "preserveCancelledLegacyHistory": false,
+    "legacyCancelled": 0,
+    "preservedCancelledHistory": 0,
+    "unapprovedPartOnlyDrafts": 0,
+    "softArchivedPartOnlyDrafts": 0,
+    "retainedLegacy": 0
+  },
+  "quarantine": [
+    {
+      "sourceKind": "drawing_revision_work_files",
+      "sourceIdentity": "revision-dev087-a0002-1-1",
+      "companyId": "company-dev087-b",
+      "reasonCode": "work_file_source_scope_mismatch",
+      "evidence": {
+        "revisionId": "revision-dev087-a0002-1-1",
+        "file": {
+          "file_id": "binding-dev092-1",
+          "company_id": "company-dev087-b",
+          "drawing_id": "drawing-dev087-a0002",
+          "drawing_revision_id": "revision-dev087-a0002-1-1",
+          "source_file_asset_id": "asset-dev092-1",
+          "sort_order": 0,
+          "removed_at": null,
+          "asset_id": "asset-dev092-1",
+          "content_hash": "hash-dev092-1",
+          "deleted_at": null
+        }
+      }
+    }
+  ],
+  "operations": [],
+  "identityHash": "f47caa89f977ef83535d011ef3a24b61f61a26ac9e24458db3efc0c147fa5c23",
+  "unresolved": 1,
+  "workFileRepair": {
+    "requested": false,
+    "plannedRows": 0,
+    "completedRows": 0
+  },
+  "unresolvedBeforeResolution": 1
+}

@@ -1,6 +1,8 @@
 # SPEC-PDM-DEFERRED-STRUCTURE-CLASSIFICATION-001：結構型態延後分類與 BOM Readiness 解耦
 
-狀態：`RD Implementation Complete / Human Confirmed / Local QA-QC Complete / Production Release Gated`
+> **Superseded 2026-08-28**：DEV-095 已退役 BOM readiness 與 Part 結構分類功能。本文只保留歷史追溯，不得作為現行實作或驗收 authority。
+
+狀態：`Historical / Superseded by DEV-095 / Do Not Restore`
 
 日期：2026-08-26
 

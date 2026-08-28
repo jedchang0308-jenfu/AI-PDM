@@ -39,14 +39,12 @@ export type PartNumberDraftStatus = "draft" | "pending_review" | "released" | "n
 export type DrawingRevisionFffState = "no_impact" | "suspected_impact" | "confirmed_impact";
 export type DrawingRevisionFffOutcome = "no_impact" | "suspected_impact" | "confirmed_impact";
 export type DrawingRevisionReviewAction =
-  | "confirm_bom_no_revision"
   | "confirm_original_part_reuse"
   | "return_for_replacement_part"
   | "request_more_information"
   | "approve_replacement_part_and_drawing_release";
 
 export type PartNumberControlBoundaryReason =
-  | "referenced_by_bom"
   | "referenced_by_replacement_link"
   | "drawing_uploaded_to_pdm"
   | "submitted_for_review"
@@ -203,7 +201,6 @@ export type ApplyDrawingRevisionReviewActionResult = {
   assessment: DrawingRevisionFffAssessmentRecord;
   replacementDraft: PartNumberDraftRecord | null;
   replacementPartNumberId: string | null;
-  bomReconfirmationFlagCount: number;
 };
 
 export type DrawingRevisionReviewListItem = DrawingRevisionFffAssessmentRecord & {
@@ -251,13 +248,6 @@ type PartNumberIdentityRow = {
   id: string;
   part_number: string;
   part_name: string;
-};
-
-type BomDraftReferenceRow = {
-  bom_draft_id: string;
-  logical_line_id: string | null;
-  parent_part_number_id: string | null;
-  reference_scope: "legacy_line" | "candidate" | "parent_selection";
 };
 
 type DrawingRevisionFffAssessmentRow = {
@@ -911,7 +901,6 @@ export class PdmChangeControlDomainService {
 
     let replacementDraft: PartNumberDraftRecord | null = null;
     let replacementPartNumberId: string | null = null;
-    let bomReconfirmationFlagCount = 0;
 
     if (input.action === "approve_replacement_part_and_drawing_release") {
       if (!assessment.replacementPartNumberDraftId) {
@@ -982,7 +971,6 @@ export class PdmChangeControlDomainService {
         partNumberId: replacementPartNumberId,
         actorUserId: input.actor.userId
       });
-      bomReconfirmationFlagCount = await this.createBomReconfirmationFlags(companyId, oldPart, replacementPartNumberId);
       replacementDraft = await this.requireDraft(replacementDraft.id, companyId);
     }
 
@@ -992,7 +980,7 @@ export class PdmChangeControlDomainService {
       action: input.action,
       reviewerUserId: input.actor.userId,
       result: input.result?.trim() || input.action,
-      metadata: { outcome, replacementPartNumberId, bomReconfirmationFlagCount }
+      metadata: { outcome, replacementPartNumberId }
     });
 
     // Keep the canonical Drawing/Revision projection in the same transaction as
@@ -1009,8 +997,7 @@ export class PdmChangeControlDomainService {
       outcome,
       assessment,
       replacementDraft,
-      replacementPartNumberId,
-      bomReconfirmationFlagCount
+      replacementPartNumberId
     };
   }
 
@@ -1021,7 +1008,6 @@ export class PdmChangeControlDomainService {
     const formalPartId = await this.getFormalPartId(companyId, draft.reservedPartNumber);
 
     if (formalPartId) reasons.push("formal_part_exists");
-    if (await this.hasBomReference(companyId, draft.reservedPartNumber)) reasons.push("referenced_by_bom");
     if (formalPartId && (await this.hasReplacementLinkReference(companyId, formalPartId))) reasons.push("referenced_by_replacement_link");
     if (await this.hasPdmDrawingUpload(companyId, draft)) reasons.push("drawing_uploaded_to_pdm");
     if (draft.status === "pending_review" || draft.status === "released" || (await this.hasReviewReference(companyId, draft.id))) {
@@ -1472,8 +1458,8 @@ export class PdmChangeControlDomainService {
 
   private assertReviewActionMatchesOutcome(action: DrawingRevisionReviewAction, outcome: DrawingRevisionFffOutcome) {
     if (action === "return_for_replacement_part" || action === "request_more_information") return;
-    if (outcome === "no_impact" && action !== "confirm_bom_no_revision") {
-      throw new PdmChangeControlError("review_action_mismatch", "No-impact FFF requires BOM no-revision confirmation", { outcome, action });
+    if (outcome === "no_impact" && action !== "confirm_original_part_reuse") {
+      throw new PdmChangeControlError("review_action_mismatch", "No-impact FFF requires original-part reuse confirmation", { outcome, action });
     }
     if (outcome === "suspected_impact" && action !== "confirm_original_part_reuse") {
       throw new PdmChangeControlError("review_action_mismatch", "Suspected-impact FFF requires reuse confirmation or return", { outcome, action });
@@ -1584,82 +1570,6 @@ export class PdmChangeControlDomainService {
     return row;
   }
 
-  private async createBomReconfirmationFlags(companyId: string, oldPart: PartNumberIdentityRow, newPartNumberId: string) {
-    const rows = await this.client.query<BomDraftReferenceRow>(
-      `
-      SELECT DISTINCT bd.id AS bom_draft_id,
-             blt.logical_line_id,
-             NULL AS parent_part_number_id,
-             'legacy_line' AS reference_scope
-      FROM bom_drafts bd
-      JOIN bom_lines_tree blt ON blt.bom_draft_id = bd.id
-      LEFT JOIN items legacy_owner ON legacy_owner.id = bd.parent_item_id
-      WHERE COALESCE(bd.company_id, legacy_owner.company_id) = :companyId
-        AND bd.status IN ('Draft', 'PendingReview', 'Rejected')
-        AND blt.part_number = :oldPartNumber
-        AND bd.definition_id IS NULL
-      UNION ALL
-      SELECT DISTINCT bd.id AS bom_draft_id,
-             candidate.logical_line_id,
-             NULL AS parent_part_number_id,
-             'candidate' AS reference_scope
-      FROM bom_drafts bd
-      JOIN bom_draft_component_candidates candidate ON candidate.bom_draft_id = bd.id
-      WHERE bd.company_id = :companyId
-        AND bd.status IN ('Draft', 'PendingReview', 'Rejected')
-        AND candidate.child_part_number_id = :oldPartNumberId
-      UNION ALL
-      SELECT DISTINCT bd.id AS bom_draft_id,
-             selection.logical_line_id,
-             selection.parent_part_number_id,
-             'parent_selection' AS reference_scope
-      FROM bom_drafts bd
-      JOIN bom_draft_parent_selections selection ON selection.bom_draft_id = bd.id
-      WHERE bd.company_id = :companyId
-        AND bd.status IN ('Draft', 'PendingReview', 'Rejected')
-        AND selection.child_part_number_id = :oldPartNumberId
-      `,
-      { companyId, oldPartNumber: oldPart.part_number, oldPartNumberId: oldPart.id, newPartNumberId }
-    );
-    const now = this.clock();
-    for (const row of rows) {
-      await this.client.execute(
-        `
-        INSERT INTO bom_reconfirmation_flags (
-          id, company_id, bom_draft_id, old_part_number_id, new_part_number_id,
-          logical_line_id, parent_part_number_id, reference_scope, reason, created_at
-        ) SELECT
-          :id, :companyId, :bomDraftId, :oldPartNumberId, :newPartNumberId,
-          :logicalLineId, :parentPartNumberId, :referenceScope, :reason, :createdAt
-        WHERE NOT EXISTS (
-          SELECT 1 FROM bom_reconfirmation_flags existing
-          WHERE existing.company_id = :companyId
-            AND existing.bom_draft_id = :bomDraftId
-            AND existing.old_part_number_id = :oldPartNumberId
-            AND existing.new_part_number_id = :newPartNumberId
-            AND COALESCE(existing.logical_line_id, '') = COALESCE(:logicalLineId, '')
-            AND COALESCE(existing.parent_part_number_id, '') = COALESCE(:parentPartNumberId, '')
-            AND existing.reference_scope = :referenceScope
-            AND existing.resolved_at IS NULL
-        )
-        `,
-        {
-          id: this.idFactory(),
-          companyId,
-          bomDraftId: row.bom_draft_id,
-          oldPartNumberId: oldPart.id,
-          newPartNumberId,
-          logicalLineId: row.logical_line_id,
-          parentPartNumberId: row.parent_part_number_id,
-          referenceScope: row.reference_scope,
-          reason: "replacement_part_released",
-          createdAt: now
-        }
-      );
-    }
-    return rows.length;
-  }
-
   private async insertReviewConfirmationEvent(input: {
     companyId: string;
     reviewId: string;
@@ -1705,60 +1615,6 @@ export class PdmChangeControlDomainService {
       await this.client.execute("ROLLBACK");
       throw error;
     }
-  }
-
-  private async hasBomReference(companyId: string, partNumber: string) {
-    const sharedBom = await this.client.queryOne<CountRow>(
-      `
-      SELECT COUNT(*) AS count
-      FROM part_numbers child
-      WHERE child.company_id = :companyId
-        AND child.part_number = :partNumber
-        AND (
-          EXISTS (
-            SELECT 1 FROM bom_draft_component_candidates candidate
-            JOIN bom_drafts draft ON draft.id = candidate.bom_draft_id
-            WHERE candidate.child_part_number_id = child.id
-              AND draft.company_id = child.company_id
-              AND draft.status IN ('Draft', 'PendingReview', 'Rejected', 'Archived')
-          )
-          OR EXISTS (
-            SELECT 1 FROM bom_release_resolved_lines resolved
-            JOIN bom_release_snapshots snapshot ON snapshot.id = resolved.release_snapshot_id
-            WHERE resolved.child_part_number_id = child.id
-              AND snapshot.company_id = child.company_id
-          )
-        )
-      `,
-      { companyId, partNumber }
-    );
-    if (countValue(sharedBom) > 0) return true;
-
-    const releasedBom = await this.client.queryOne<CountRow>(
-      `
-      SELECT COUNT(*) AS count
-      FROM bom_lines bl
-      JOIN bom_headers bh ON bh.id = bl.bom_header_id
-      JOIN items i ON i.id = bh.parent_item_id
-      WHERE i.company_id = :companyId
-        AND bl.child_part_number = :partNumber
-      `,
-      { companyId, partNumber }
-    );
-    if (countValue(releasedBom) > 0) return true;
-
-    const draftBom = await this.client.queryOne<CountRow>(
-      `
-      SELECT COUNT(*) AS count
-      FROM bom_lines_tree blt
-      JOIN bom_drafts bd ON bd.id = blt.bom_draft_id
-      JOIN items i ON i.id = bd.parent_item_id
-      WHERE i.company_id = :companyId
-        AND blt.part_number = :partNumber
-      `,
-      { companyId, partNumber }
-    );
-    return countValue(draftBom) > 0;
   }
 
   private async hasReplacementLinkReference(companyId: string, partNumberId: string) {

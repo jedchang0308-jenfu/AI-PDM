@@ -1,0 +1,695 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-repository-2026-08-28T19-21-46-515Z",
+  "parentRunId": "DEV087-aggregate-2026-08-28T19-18-50-325Z",
+  "gateStage": "product",
+  "runner": "qc-dev-087-capability-repository",
+  "source": {
+    "repository": "DEV-032-release-integration",
+    "branch": "codex/dev-032-release-integration",
+    "head": "91de270c3a644dfbcbee49ed255b3c18e13df9dd",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "737d15ac2481278845ffbb25e62d352296896a6b56abec2325e7631701ab9bea"
+  },
+  "environment": {
+    "provider": "sqlite",
+    "dataScope": "task_owned_in_memory_and_file_fixtures",
+    "baseUrl": null
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "d2c7549643e039154d4128b728aeafd1b9b825e131c752a32b64be18cee631db",
+  "caseResults": [
+    {
+      "caseId": "QA-087-188",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_AFFECTED_PART_SET_MATCHES_INDEPENDENT_ORACLE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-189",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_FFF_THREE_OUTCOMES_PERSIST_EXACTLY"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-190",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_REPLACEMENT_RELATION_APPROVE_ONCE_CANCEL_ZERO_RESIDUE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-191",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_SINGLE_CURRENT_DRAWING_WRITER_NO_LEGACY_ROWS"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-192",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_DRAWING_REVIEW_SNAPSHOT_STABLE_APPROVE_EXACTLY_ONCE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-194",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_TASK_ORDER_RISK_DUE_CREATED_ID"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-195",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_TASK_ACTION_EXACT_IDENTITY_AND_SAFE_ROUTE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-196",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_NOTIFICATION_READ_HANDLED_COUNTS_MATCH"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-197",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_EMPTY_IS_DISTINCT_FROM_PROVIDER_FAILURE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-198",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_DRAWING_OBSOLETE_REJECT_PRESERVES_FORMAL"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-199",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_DRAWING_OBSOLETE_APPROVE_ATOMIC_AND_REPLAY_BLOCKED"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-200",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_OBSOLETE_REJECT_PRESERVES_RELATIONS"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-201",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_OBSOLETE_REVALIDATES_FINGERPRINT_ZERO_WRITE_ON_STALE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-202",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_DIRECT_DRAWING_INVALIDATION_410_ZERO_WRITE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-203",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_VARIANT_FOUR_FIELDS_SAVE_AND_RELOAD"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-204",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_REVIEW_USES_EXACT_SUBMIT_SNAPSHOT"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-205",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_VARIANT_CANCEL_RETURN_APPROVE_AND_STALE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-206",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_DIRECT_PART_VARIANT_410_ZERO_WRITE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-208",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_HISTORY_EXACT_REVISION_BINDING_AND_HASH"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-209",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_WORK_FILE_BINDING_EXACT_WORK_AND_ASSET"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_NONPRIMARY_WORK_FILE_REMOVE_READBACK_AND_REPLAY"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-211",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_MULTI_FILE_TERMINALS_AND_PARTIAL_FAILURE_NO_WRITE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-214",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_DRAWING_FILTERS_PRECEDE_BIDIRECTIONAL_PAGINATION"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-215",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_PART_FILTER_AND_SEMANTICS_MATCH_SQL_ORACLE"
+      ],
+      "firstFailurePointer": null
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "PASS",
+      "assertionIds": [
+        "REPOSITORY_CURSOR_FORWARD_BACKWARD_NO_GAP_DUPLICATE"
+      ],
+      "firstFailurePointer": null
+    }
+  ],
+  "caseEvidence": {
+    "QA-087-188": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-189": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-190": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-191": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-192": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-194": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-195": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-196": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-197": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-198": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-199": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-200": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-201": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-202": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-negative-overlap.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-negative-overlap-output.txt"
+      ]
+    },
+    "QA-087-203": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-204": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-205": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-206": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-negative-overlap.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-negative-overlap-output.txt"
+      ]
+    },
+    "QA-087-208": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-209": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-210": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-211": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-214": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-215": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    },
+    "QA-087-216": {
+      "evidenceTypes": [
+        "case_specific_assertion",
+        "provider_receipt",
+        "fact_oracle",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+        "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt"
+      ]
+    }
+  },
+  "childManifests": [
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-baseline-output.txt",
+      "sha256": "d33ff114f74c744d4809dffab8f0aac16c8671fa83b0ef6f05b10d2831041b77",
+      "runner": "qc-dev-087-repository",
+      "caseIds": [
+        "QA-087-188",
+        "QA-087-189",
+        "QA-087-190",
+        "QA-087-191",
+        "QA-087-192",
+        "QA-087-194",
+        "QA-087-195",
+        "QA-087-196",
+        "QA-087-197",
+        "QA-087-198",
+        "QA-087-199",
+        "QA-087-200",
+        "QA-087-201",
+        "QA-087-202",
+        "QA-087-203",
+        "QA-087-204",
+        "QA-087-205",
+        "QA-087-206",
+        "QA-087-208",
+        "QA-087-209",
+        "QA-087-210",
+        "QA-087-211",
+        "QA-087-214",
+        "QA-087-215",
+        "QA-087-216"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/commands-baseline-output.txt",
+      "sha256": "ade78a8be86283a86763c8a4576c53127a060a919190dc5f849ca6ded33e039a",
+      "runner": "qc-dev-087-commands",
+      "caseIds": [
+        "QA-087-188",
+        "QA-087-189",
+        "QA-087-190",
+        "QA-087-191",
+        "QA-087-192",
+        "QA-087-194",
+        "QA-087-195",
+        "QA-087-196",
+        "QA-087-197",
+        "QA-087-198",
+        "QA-087-199",
+        "QA-087-200",
+        "QA-087-201",
+        "QA-087-202",
+        "QA-087-203",
+        "QA-087-204",
+        "QA-087-205",
+        "QA-087-206",
+        "QA-087-208",
+        "QA-087-209",
+        "QA-087-210",
+        "QA-087-211",
+        "QA-087-214",
+        "QA-087-215",
+        "QA-087-216"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-evidence.json",
+      "sha256": "b7190579eec101369e8e5c80e8dcb7836d49047afbac541c4b3e8261fe7562f4",
+      "runner": "qc-dev-087-capability-repository",
+      "caseIds": [
+        "QA-087-188",
+        "QA-087-189",
+        "QA-087-190",
+        "QA-087-191",
+        "QA-087-192",
+        "QA-087-194",
+        "QA-087-195",
+        "QA-087-196",
+        "QA-087-197",
+        "QA-087-198",
+        "QA-087-199",
+        "QA-087-200",
+        "QA-087-201",
+        "QA-087-203",
+        "QA-087-204",
+        "QA-087-205",
+        "QA-087-208",
+        "QA-087-209",
+        "QA-087-210",
+        "QA-087-211",
+        "QA-087-214",
+        "QA-087-215",
+        "QA-087-216"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-negative-overlap.json",
+      "sha256": "93a8e200236d3d956d85e7b0f3f815ec88300c41ed9b626c9bde8aaa65b982c2",
+      "runner": "qc-dev-087-capability-repository",
+      "caseIds": [
+        "QA-087-202",
+        "QA-087-206"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-case-probe-output.txt",
+      "sha256": "956b4dfdd0abfb03f987dd196cd9850828920be00e28b3a746aabb46ac4acac8",
+      "runner": "qc-dev-087-capability-repository",
+      "caseIds": [
+        "QA-087-188",
+        "QA-087-189",
+        "QA-087-190",
+        "QA-087-191",
+        "QA-087-192",
+        "QA-087-194",
+        "QA-087-195",
+        "QA-087-196",
+        "QA-087-197",
+        "QA-087-198",
+        "QA-087-199",
+        "QA-087-200",
+        "QA-087-201",
+        "QA-087-203",
+        "QA-087-204",
+        "QA-087-205",
+        "QA-087-208",
+        "QA-087-209",
+        "QA-087-210",
+        "QA-087-211",
+        "QA-087-214",
+        "QA-087-215",
+        "QA-087-216"
+      ],
+      "result": "PASS"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-repository-2026-08-28T19-21-46-515Z/repository-negative-overlap-output.txt",
+      "sha256": "db2d8733350014fee121463f608df75434bca2a24a1a87dc9728313fca89e2be",
+      "runner": "qc-dev-087-capability-repository",
+      "caseIds": [
+        "QA-087-202",
+        "QA-087-206"
+      ],
+      "result": "PASS"
+    }
+  ],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "pass",
+    "delta": 0
+  },
+  "firstFailure": null,
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskOwnedRuntime": false,
+    "portsReleased": true
+  },
+  "result": "PASS",
+  "errorCode": null
+}

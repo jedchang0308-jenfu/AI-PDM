@@ -1,0 +1,17 @@
+{
+  "readOnly": true,
+  "entity": "drawing",
+  "rows": [
+    {
+      "code": "A0002-M01",
+      "name": "本體_BS_右_Xx5",
+      "data_layer": "drawing_production",
+      "handling": "none",
+      "blocker_reason": null,
+      "work_id": null,
+      "revision_id": "97679ea9-9049-4258-a52c-8beaf68e2bdb",
+      "revision": "2",
+      "layer": "量產版 2"
+    }
+  ]
+}

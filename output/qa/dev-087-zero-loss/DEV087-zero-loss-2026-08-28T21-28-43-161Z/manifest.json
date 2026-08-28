@@ -1,0 +1,176 @@
+{
+  "devId": "DEV-087",
+  "runId": "DEV087-zero-loss-2026-08-28T21-28-43-161Z",
+  "status": "FAIL",
+  "productionConnected": false,
+  "productionMigrationExecuted": false,
+  "checks": [
+    {
+      "name": "postgres-contract-command-pass",
+      "pass": true,
+      "detail": "{\n  \"status\": \"PASS\",\n  \"mappingVersion\": 3,\n  \"acceptedMappingVersions\": [\n    2,\n    3\n  ],\n  \"providerRequired\": \"cloud_sql_postgres\",\n  \"modes\": [\n    \"inventory\",\n    \"rehearsal\",\n    \"cutover\"\n  ],\n  \"productionDiscardAllowed\": false,\n  \"mappingRequiredForApply\": true,\n  \"rowHashReceiptsRequired\": true,\n  \"fileHashReceiptsRequired\": true,\n  \"sourceUpdateHashReceiptsRequired\": true,\n  \"canonicalIdentityBackfillTables\": [\n    \"drawing_revisions\",\n    \"part_roots\",\n    \"part_numbers\",\n    \"drawing_numbers\",\n    \"drawing_part_links\"\n  ],\n  \"compositeWorkFileRowsField\": \"drawingWorkFiles\",\n  \"compositeWorkFileReceiptsRequired\": true,\n  \"allowedTargetTables\": [\n    \"drawing_revisions\",\n    \"part_roots\",\n    \"part_numbers\",\n    \"drawing_numbers\",\n    \"drawing_part_links\",\n    \"pdm_workbench_aggregates\",\n    \"drawing_rd_branches\",\n    \"drawing_revision_claims\",\n    \"drawing_revision_works\",\n    \"drawing_revision_work_files\",\n    \"part_change_works\",\n    \"relation_change_works\",\n    \"canonical_workbench_states\",\n    \"pdm_work_review_requests\",\n    \"pdm_review_traces\",\n    \"pdm_workbench_migration_quarantine\"\n  ]\n}\n"
+    },
+    {
+      "name": "postgres-provider-cloud-sql-only",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-mapping-v3-backward-compatible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-canonical-identity-backfill-contract",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-source-update-hash-receipts",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-row-and-file-hash-receipts",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-production-discard-forbidden",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-rehearsal-isolated-restore-gate",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-cutover-explicit-authorization-gate",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-source-fingerprint-drift-gate",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-planned-target-hash-verification",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-target-row-hash-verification",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-file-and-preview-hash-verification",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-composite-work-file-receipts",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "sqlite-work-file-repair-negative-control",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "postgres-foreign-key-validation",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "local-cleanup-dry-run-command-pass",
+      "pass": true,
+      "detail": "{\n  \"status\": \"PASS\",\n  \"mode\": \"dry-run\",\n  \"beforeCounts\": {\n    \"workspaces\": 60,\n    \"draftRoots\": 60,\n    \"draftParts\": 60,\n    \"draftDrawings\": 51,\n    \"candidateRevisions\": 0,\n    \"quarantine\": 12,\n    \"candidateFileAssets\": 0\n  },\n  \"afterCounts\": {\n    \"workspaces\": 60,\n    \"quarantine\": 12\n  },\n  \"canonicalUnchanged\": true,\n  \"manifestPath\": \"C:\\\\VIBE CODING\\\\AI_PDM\\\\.worktrees\\\\AI_PDM\\\\DEV-032-release-integration\\\\output\\\\qa\\\\dev-087-zero-loss\\\\DEV087-zero-loss-2026-08-28T21-28-43-161Z\\\\local-dry-run\\\\manifest.json\"\n}\n"
+    },
+    {
+      "name": "local-cleanup-exact-primary-sqlite",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "local-current-legacy-workspaces-stable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "local-current-quarantine-stable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "local-current-canonical-hash-stable",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "local-cleanup-provider-and-path-fail-closed",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "authorized-local-apply-evidence-present",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "name": "authorized-local-apply-removed-60-workspaces",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "name": "authorized-local-apply-removed-56-quarantine",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "name": "authorized-local-apply-canonical-unchanged",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "name": "authorized-local-apply-no-live-file-deletion",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "name": "local-destructive-rehearsal-present",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "name": "negative-production-discard-flag",
+      "pass": true,
+      "detail": "file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/migrate-dev-087-postgres.mjs:20\r\nif (argv.some((value) => value.includes(\"discard\") || value.includes(\"retain-unmapped\") || value.includes(\"retained_legacy_source\"))) throw new Error(\"DEV087_PRODUCTION_DISCARD_OR_RETAIN_FLAG_FORBIDDEN\");\r\n                                                                                                                                            ^\r\n\r\nError: DEV087_PRODUCTION_DISCARD_OR_RETAIN_FLAG_FORBIDDEN\r\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/migrate-dev-087-postgres.mjs:20:141\r\n    at ModuleJob.run (node:internal/modules/esm/module_job:413:25)\r\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:660:26)\r\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\r\n\r\nNode.js v24.12.0\r\n"
+    },
+    {
+      "name": "negative-production-retain-flag",
+      "pass": true,
+      "detail": "file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/migrate-dev-087-postgres.mjs:20\r\nif (argv.some((value) => value.includes(\"discard\") || value.includes(\"retain-unmapped\") || value.includes(\"retained_legacy_source\"))) throw new Error(\"DEV087_PRODUCTION_DISCARD_OR_RETAIN_FLAG_FORBIDDEN\");\r\n                                                                                                                                            ^\r\n\r\nError: DEV087_PRODUCTION_DISCARD_OR_RETAIN_FLAG_FORBIDDEN\r\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/migrate-dev-087-postgres.mjs:20:141\r\n    at ModuleJob.run (node:internal/modules/esm/module_job:413:25)\r\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:660:26)\r\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\r\n\r\nNode.js v24.12.0\r\n"
+    },
+    {
+      "name": "negative-rehearsal-without-restore-proof",
+      "pass": true,
+      "detail": "file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/migrate-dev-087-postgres.mjs:25\r\nif (apply && mode === \"rehearsal\" && process.env.PDM_DEV087_ISOLATED_RESTORE !== \"1\") throw new Error(\"DEV087_REHEARSAL_REQUIRES_ISOLATED_RESTORE\");\r\n                                                                                            ^\r\n\r\nError: DEV087_REHEARSAL_REQUIRES_ISOLATED_RESTORE\r\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/migrate-dev-087-postgres.mjs:25:93\r\n    at ModuleJob.run (node:internal/modules/esm/module_job:413:25)\r\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:660:26)\r\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\r\n\r\nNode.js v24.12.0\r\n"
+    },
+    {
+      "name": "negative-cutover-without-authorization",
+      "pass": true,
+      "detail": "file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/migrate-dev-087-postgres.mjs:26\r\nif (apply && mode === \"cutover\" && process.env.PDM_DEV087_PRODUCTION_CUTOVER_AUTHORIZED !== \"1\") throw new Error(\"DEV087_PRODUCTION_CUTOVER_AUTHORIZATION_REQUIRED\");\r\n                                                                                                       ^\r\n\r\nError: DEV087_PRODUCTION_CUTOVER_AUTHORIZATION_REQUIRED\r\n    at file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/migrate-dev-087-postgres.mjs:26:104\r\n    at ModuleJob.run (node:internal/modules/esm/module_job:413:25)\r\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:660:26)\r\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\r\n\r\nNode.js v24.12.0\r\n"
+    }
+  ],
+  "evidence": {
+    "appliedPath": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087-local-cleanup\\main-apply\\manifest.json",
+    "rehearsalPath": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087-local-cleanup\\fixture-20260823091728\\cleanup\\manifest.json",
+    "dryManifestPath": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087-zero-loss\\DEV087-zero-loss-2026-08-28T21-28-43-161Z\\local-dry-run\\manifest.json",
+    "contractPath": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\output\\qa\\dev-087-zero-loss\\DEV087-zero-loss-2026-08-28T21-28-43-161Z\\postgres-contract\\contract.json"
+  },
+  "hash": "26336aed1255116b8736d5b0fc342dc64611d87d616276f3f7fe37b50155f62e"
+}

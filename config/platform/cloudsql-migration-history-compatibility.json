@@ -60,7 +60,7 @@
       "historicalOutputSha256": "1e3b9ab54421c3296d8f385f788b057b837e15cc6e7a7f1a8d9932a726a316f2",
       "historicalManifestCommit": "d9c84367",
       "historicalAppliedAt": "2026-08-24T11:02:17.741Z",
-      "reason": "Production applied the reviewed historical full BOM retirement from the production release branch before the shared-BOM branch was reconciled. Preserve that immutable ledger row; the current 047 source is a fresh-install no-op bridge and 048 reconstructs the required manual/shared BOM foundation without restoring retired CAD/XLS data."
+      "reason": "Production already applied the reviewed DEV-095 hard-retirement migration. Preserve that immutable ledger row and require the exact current 047 source/output checksum; later migrations must not reconstruct any retired BOM schema or runtime capability."
     }
   ]
 }

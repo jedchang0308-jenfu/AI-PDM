@@ -158,17 +158,6 @@ async function partDependencies(client: AsyncDatabaseClient, companyId: string, 
     if (value) dependencies.push(value);
   });
 
-  const reconfirmationRows = await client.query<Record<string, unknown>>(
-    `SELECT id, bom_draft_id, reason, resolved_at
-       FROM bom_reconfirmation_flags
-      WHERE company_id = :companyId AND old_part_number_id = :entityId
-      ORDER BY id`,
-    { companyId, entityId }
-  );
-  reconfirmationRows.forEach((row) => {
-    const value = dependency("bom_reconfirmation", row.id, row.bom_draft_id, text(row.resolved_at) ? "resolved" : text(row.reason) || "open");
-    if (value) dependencies.push(value);
-  });
   return sortedDependencies(dependencies);
 }
 

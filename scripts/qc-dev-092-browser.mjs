@@ -15,7 +15,7 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev092-browser-")
 const fixtureDataDir = path.join(tempRoot, "data");
 const fixtureDb = path.join(fixtureDataDir, "ai-pdm.sqlite");
 const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
-const sourceRepository = path.join(root, "data", "repository");
+const sourceRepository = path.resolve(process.env.PDM_PRIMARY_REPOSITORY_DIR || path.join(root, "data", "repository"));
 const fixtureRepository = path.join(fixtureDataDir, "repository");
 let targetCode = null;
 const checks = [];
@@ -186,6 +186,7 @@ try {
     PDM_REPOSITORY_DIR: fixtureRepository, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub",
     PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "",
     PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: ".next", PDM_PUBLIC_BASE_URL: baseUrl,
+    QC_NEXT_USE_WEBPACK: "1",
     PDM_DRAWING_RECOGNITION_V1: "true", PDM_UNIFIED_DRAWING_WORKBENCH_V1: "true", PDM_NUMBER_LIFECYCLE_V2: "true"
   });
   console.log(`QC DEV-092 browser runtime: project=${root}; runtimeProject=${runtimeProjectRoot}; purpose=${targetCode} exact work-file and recognition request; port=${port}; processTree=task-owned Next dev + Playwright; cleanup=after evidence write; PDM_DATA_DIR=${fixtureDataDir}; PDM_REPOSITORY_DIR=${fixtureRepository}; mutationScope=isolated fixture/runtime project only; primaryData=read-only invariant gate`);

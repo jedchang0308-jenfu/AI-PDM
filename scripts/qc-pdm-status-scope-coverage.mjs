@@ -86,7 +86,6 @@ const requiredScopes = {
   approvalInbox: "src/app/approvals/page.tsx",
   uploadSubmission: "src/app/upload/page.tsx",
   submissionDetail: "src/app/submissions/[id]/page.tsx",
-  bomWorkbench: "src/app/bom/workbench/page.tsx",
   handoffWorkbench: "src/app/handoff/page.tsx",
   transferPackageWorkbench: "src/components/transfer-package-workbench.tsx",
   settingsCenter: "src/app/settings/page.tsx",

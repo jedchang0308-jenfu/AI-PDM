@@ -1,0 +1,469 @@
+{
+  "schemaVersion": 1,
+  "devId": "DEV-098",
+  "suite": "contract",
+  "runId": "DEV098-contract-2026-08-28T19-11-03-690Z",
+  "generatedAt": "2026-08-28T19:11:03.691Z",
+  "status": "PASS",
+  "fixedCaseIds": [
+    "QA-098-001",
+    "QA-098-002",
+    "QA-098-003",
+    "QA-098-004",
+    "QA-098-005"
+  ],
+  "expected": 5,
+  "executed": 5,
+  "passed": 5,
+  "firstFailure": null,
+  "sourceBoundary": {
+    "src/lib/drawing-revision-target-contract.ts": "c901c2369bc953f308b80e7a400bcde283ce8abf701f8b78c3e55037db8c7594",
+    "src/lib/drawing-revision-target-token.server.ts": "e1032dbdcc930333af6f8323327c47c3d7c42985ce87ccce7fd41d4751c4864e",
+    "src/lib/drawing-revision-lifecycle-policy.ts": "125bee032c38e8d8754e9c4c9e3229782fb547bc3a9af1a3243d23dc029d37d3",
+    "src/lib/drawing-revision-work.ts": "53610ae0905b089c913c168e301edfe82c134a514d0decc3cd54e06d5ca1ebd5",
+    "src/lib/repositories/drawing-revision-work-async-repository.ts": "92d455b5f5c09736ce11a31483a19c4b300a2a1836a9a0bf4235862a8c68f079",
+    "src/app/api/pdm/drawings/[drawingId]/revision-targets/route.ts": "9d25b7cd92cffdb3b35f8c78c4580f2760bc11dd1f2d33f3387c9d58e4866e57",
+    "src/app/api/pdm/drawings/[drawingId]/revision-works/route.ts": "71216a9dbf22825479d07d25a56abda884507d0f6294cb559a27c39f2e343773"
+  },
+  "dataBoundary": {
+    "provider": "sqlite",
+    "storage": "in-memory",
+    "primaryMutation": false
+  },
+  "primaryInvariants": {
+    "before": {
+      "drawing_rd_branches": 1,
+      "drawing_revision_claims": 1,
+      "drawing_revisions": 2,
+      "drawing_revision_works": 0,
+      "canonical_workbench_states": 4
+    },
+    "after": {
+      "drawing_rd_branches": 1,
+      "drawing_revision_claims": 1,
+      "drawing_revisions": 2,
+      "drawing_revision_works": 0,
+      "canonical_workbench_states": 4
+    },
+    "unchanged": true
+  },
+  "foreignKeyCheck": [],
+  "caseResults": [
+    {
+      "id": "QA-098-001",
+      "title": "targets service derives production and RD targets from the exact source",
+      "status": "PASS",
+      "evidence": {
+        "primitiveOracle": {
+          "production": "1",
+          "rdSource": "1.1",
+          "occupied": [
+            "1.1"
+          ],
+          "expected": [
+            "2",
+            "1.2"
+          ]
+        },
+        "responses": {
+          "production": {
+            "source": {
+              "rowKey": "cw_10000000-0000-4000-8000-000000000001",
+              "rowVersion": 1,
+              "revision": {
+                "major": 1,
+                "minor": 0,
+                "label": "1"
+              },
+              "basisState": "current"
+            },
+            "basisState": "current",
+            "manualRule": {
+              "enabled": true,
+              "major": 1,
+              "minExclusive": 0,
+              "maxInclusive": 2147483647,
+              "reason": null
+            },
+            "candidates": [
+              {
+                "kind": "production",
+                "label": "量產版 2",
+                "target": {
+                  "major": 2,
+                  "minor": 0,
+                  "label": "2"
+                },
+                "enabled": true,
+                "reason": null,
+                "candidateToken": "eyJjb21wYW55SWQiOiJjb21wYW55LWRldjA4Ny1hIiwiYWN0b3JJZCI6InVzZXItZGV2MDg3LW93bmVyIiwiZHJhd2luZ0lkIjoiZHJhd2luZy1kZXYwODctYTAwMDIiLCJzb3VyY2VSb3dJZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNvdXJjZVJvd1ZlcnNpb24iOjEsImJhc2lzU3RhdGUiOiJjdXJyZW50IiwidGFyZ2V0Ijp7Im1ham9yIjoyLCJtaW5vciI6MCwibGFiZWwiOiIyIn0sInZlcnNpb24iOjIsImV4cGlyZXNBdCI6MTc4Nzk0NDg2MzUwMH0.EyAriXljDRNC3UpjECnMz3LXcJVwA9QcdEy3qjRzfc8"
+              },
+              {
+                "kind": "rd",
+                "label": "研發版 1.2",
+                "target": {
+                  "major": 1,
+                  "minor": 2,
+                  "label": "1.2"
+                },
+                "enabled": true,
+                "reason": null,
+                "candidateToken": "eyJjb21wYW55SWQiOiJjb21wYW55LWRldjA4Ny1hIiwiYWN0b3JJZCI6InVzZXItZGV2MDg3LW93bmVyIiwiZHJhd2luZ0lkIjoiZHJhd2luZy1kZXYwODctYTAwMDIiLCJzb3VyY2VSb3dJZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNvdXJjZVJvd1ZlcnNpb24iOjEsImJhc2lzU3RhdGUiOiJjdXJyZW50IiwidGFyZ2V0Ijp7Im1ham9yIjoxLCJtaW5vciI6MiwibGFiZWwiOiIxLjIifSwidmVyc2lvbiI6MiwiZXhwaXJlc0F0IjoxNzg3OTQ0ODYzNTAwfQ.s2wEluXyv0ghZ2M3CisZYGfSv4FoQYXbUKvZPUBX2Yg"
+              }
+            ],
+            "recovery": null
+          },
+          "rd": {
+            "source": {
+              "rowKey": "cw_10000000-0000-4000-8000-000000000002",
+              "rowVersion": 1,
+              "revision": {
+                "major": 1,
+                "minor": 1,
+                "label": "1.1"
+              },
+              "basisState": "current"
+            },
+            "basisState": "current",
+            "manualRule": {
+              "enabled": true,
+              "major": 1,
+              "minExclusive": 1,
+              "maxInclusive": 2147483647,
+              "reason": null
+            },
+            "candidates": [
+              {
+                "kind": "production",
+                "label": "量產版 2",
+                "target": {
+                  "major": 2,
+                  "minor": 0,
+                  "label": "2"
+                },
+                "enabled": true,
+                "reason": null,
+                "candidateToken": "eyJjb21wYW55SWQiOiJjb21wYW55LWRldjA4Ny1hIiwiYWN0b3JJZCI6InVzZXItZGV2MDg3LW93bmVyIiwiZHJhd2luZ0lkIjoiZHJhd2luZy1kZXYwODctYTAwMDIiLCJzb3VyY2VSb3dJZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiIsInNvdXJjZVJvd1ZlcnNpb24iOjEsImJhc2lzU3RhdGUiOiJjdXJyZW50IiwidGFyZ2V0Ijp7Im1ham9yIjoyLCJtaW5vciI6MCwibGFiZWwiOiIyIn0sInZlcnNpb24iOjIsImV4cGlyZXNBdCI6MTc4Nzk0NDg2MzUwMH0.buyvsWHi7W1Ds7UBnaJF_DAXH1U91hOQCK_GGz6Hk_A"
+              },
+              {
+                "kind": "rd",
+                "label": "研發版 1.2",
+                "target": {
+                  "major": 1,
+                  "minor": 2,
+                  "label": "1.2"
+                },
+                "enabled": true,
+                "reason": null,
+                "candidateToken": "eyJjb21wYW55SWQiOiJjb21wYW55LWRldjA4Ny1hIiwiYWN0b3JJZCI6InVzZXItZGV2MDg3LW93bmVyIiwiZHJhd2luZ0lkIjoiZHJhd2luZy1kZXYwODctYTAwMDIiLCJzb3VyY2VSb3dJZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiIsInNvdXJjZVJvd1ZlcnNpb24iOjEsImJhc2lzU3RhdGUiOiJjdXJyZW50IiwidGFyZ2V0Ijp7Im1ham9yIjoxLCJtaW5vciI6MiwibGFiZWwiOiIxLjIifSwidmVyc2lvbiI6MiwiZXhwaXJlc0F0IjoxNzg3OTQ0ODYzNTAwfQ.iQj-upA3q5kxYiKVBfuw_BbC1W3Q3D30lHAAsORypbk"
+              }
+            ],
+            "recovery": null
+          }
+        },
+        "decodedTokenFields": {
+          "companyId": "company-dev087-a",
+          "actorId": "user-dev087-owner",
+          "drawingId": "drawing-dev087-a0002",
+          "sourceRowId": "10000000-0000-4000-8000-000000000002",
+          "sourceRowVersion": 1,
+          "basisState": "current",
+          "target": {
+            "major": 1,
+            "minor": 2,
+            "label": "1.2"
+          },
+          "version": 2,
+          "expiresAt": 1787944863500
+        }
+      }
+    },
+    {
+      "id": "QA-098-002",
+      "title": "recommended and manual request bodies accept only two exact shapes",
+      "status": "PASS",
+      "evidence": {
+        "accepted": [
+          {
+            "sourceRowKey": "cw_source",
+            "selectionMode": "recommended",
+            "candidateToken": "signed-token"
+          },
+          {
+            "sourceRowKey": "cw_source",
+            "selectionMode": "manual_minor",
+            "requestedMinor": 7
+          }
+        ],
+        "rejected": [
+          {
+            "body": {},
+            "code": "WORKBENCH_BAD_REQUEST"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "candidateToken": "signed-token"
+            },
+            "code": "WORKBENCH_BAD_REQUEST"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "recommended",
+              "candidateToken": "signed-token",
+              "requestedMinor": 7
+            },
+            "code": "WORKBENCH_BAD_REQUEST"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": 7,
+              "candidateToken": "forbidden"
+            },
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          }
+        ],
+        "routeSourceHash": "71216a9dbf22825479d07d25a56abda884507d0f6294cb559a27c39f2e343773"
+      }
+    },
+    {
+      "id": "QA-098-003",
+      "title": "manual request rejects forbidden fields and invalid numeric suffixes without writes",
+      "status": "PASS",
+      "evidence": {
+        "invalidMatrix": [
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": 7,
+              "major": 2
+            },
+            "status": 422,
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": 7,
+              "revision": "1.7"
+            },
+            "status": 422,
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": 7,
+              "target": {
+                "major": 1,
+                "minor": 7
+              }
+            },
+            "status": 422,
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": 7,
+              "candidateToken": "forbidden"
+            },
+            "status": 422,
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": "7"
+            },
+            "status": 422,
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": 0
+            },
+            "status": 422,
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": -1
+            },
+            "status": 422,
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": 1.5
+            },
+            "status": 422,
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          },
+          {
+            "body": {
+              "sourceRowKey": "cw_source",
+              "selectionMode": "manual_minor",
+              "requestedMinor": 2147483648
+            },
+            "status": 422,
+            "code": "DRAWING_MANUAL_MINOR_INVALID"
+          }
+        ],
+        "beforeAfter": {
+          "before": {
+            "drawing_rd_branches": 1,
+            "drawing_revision_claims": 1,
+            "drawing_revisions": 2,
+            "drawing_revision_works": 0,
+            "canonical_workbench_states": 4
+          },
+          "after": {
+            "drawing_rd_branches": 1,
+            "drawing_revision_claims": 1,
+            "drawing_revisions": 2,
+            "drawing_revision_works": 0,
+            "canonical_workbench_states": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "QA-098-004",
+      "title": "v2 target token fails closed on mutation, expiry, legacy version, and missing production secret",
+      "status": "PASS",
+      "evidence": {
+        "roundTrip": {
+          "version": 2,
+          "target": {
+            "major": 1,
+            "minor": 7,
+            "label": "1.7"
+          }
+        },
+        "mutationTable": [
+          {
+            "mutation": "legacy-v1",
+            "status": 409,
+            "code": "WORKBENCH_CONTRACT_EXPIRED"
+          },
+          {
+            "mutation": "expired",
+            "status": 409,
+            "code": "WORKBENCH_CONTRACT_EXPIRED"
+          },
+          {
+            "mutation": "actor",
+            "status": 409,
+            "code": "WORKBENCH_CONTRACT_EXPIRED"
+          },
+          {
+            "mutation": "company",
+            "status": 409,
+            "code": "WORKBENCH_CONTRACT_EXPIRED"
+          },
+          {
+            "mutation": "drawing",
+            "status": 409,
+            "code": "WORKBENCH_CONTRACT_EXPIRED"
+          },
+          {
+            "mutation": "row",
+            "status": 409,
+            "code": "WORKBENCH_CONTRACT_EXPIRED"
+          },
+          {
+            "mutation": "row-version",
+            "status": 409,
+            "code": "WORKBENCH_CONTRACT_EXPIRED"
+          },
+          {
+            "mutation": "target-tamper",
+            "status": 409,
+            "code": "WORKBENCH_CONTRACT_EXPIRED"
+          },
+          {
+            "mutation": "signature",
+            "status": 409,
+            "code": "WORKBENCH_CONTRACT_EXPIRED"
+          }
+        ],
+        "productionMissingSecret": {
+          "exitCode": 0,
+          "expectedError": "PDM_WORKBENCH_CONTRACT_SECRET_REQUIRED"
+        },
+        "beforeAfter": {
+          "before": {
+            "drawing_rd_branches": 1,
+            "drawing_revision_claims": 1,
+            "drawing_revisions": 2,
+            "drawing_revision_works": 0,
+            "canonical_workbench_states": 4
+          },
+          "after": {
+            "drawing_rd_branches": 1,
+            "drawing_revision_claims": 1,
+            "drawing_revisions": 2,
+            "drawing_revision_works": 0,
+            "canonical_workbench_states": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "QA-098-005",
+      "title": "server permission and company boundaries deny viewer and foreign access without leaking or writing",
+      "status": "PASS",
+      "evidence": {
+        "roleResponses": [
+          {
+            "role": "viewer",
+            "operation": "GET/POST",
+            "status": 403
+          },
+          {
+            "role": "foreign-rd",
+            "operation": "GET/POST",
+            "status": 409,
+            "internalIdLeak": false
+          },
+          {
+            "role": "same-company-owner",
+            "operation": "GET",
+            "status": 200
+          }
+        ],
+        "beforeAfter": {
+          "before": {
+            "drawing_rd_branches": 1,
+            "drawing_revision_claims": 1,
+            "drawing_revisions": 2,
+            "drawing_revision_works": 0,
+            "canonical_workbench_states": 4
+          },
+          "after": {
+            "drawing_rd_branches": 1,
+            "drawing_revision_claims": 1,
+            "drawing_revisions": 2,
+            "drawing_revision_works": 0,
+            "canonical_workbench_states": 4
+          }
+        }
+      }
+    }
+  ]
+}

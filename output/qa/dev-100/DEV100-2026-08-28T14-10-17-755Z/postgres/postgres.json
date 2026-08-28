@@ -1,0 +1,14 @@
+{
+  "runner": "postgres",
+  "provider": "postgres",
+  "runId": "DEV100-postgres-2026-08-28T14-10-35-350Z",
+  "status": "FAIL",
+  "productionWrites": false,
+  "checks": [],
+  "firstFailure": "Error: ENOENT: no such file or directory, open 'C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-release-integration\\db\\postgres\\048_shared_assembly_bom.sql'\n    at Object.readFileSync (node:fs:440:20)\n    at main (file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-100-postgres.mjs:180:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///C:/VIBE%20CODING/AI_PDM/.worktrees/AI_PDM/DEV-032-release-integration/scripts/qc-dev-100-postgres.mjs:288:7",
+  "cleanup": {
+    "taskRootRemoved": true,
+    "portReleased": true,
+    "port": 49846
+  }
+}

@@ -48,7 +48,7 @@ try {
       manifest.executionBoundary.liveApplyAllowed === false &&
       manifest.orderedSchemaMigrations.length === 49 &&
       manifest.orderedSchemaMigrations.at(0)?.output === "sql/001_initial_schema.cloudsql.sql" &&
-      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/051_drawing_recognition_part_owner_invariant.cloudsql.sql" &&
+      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/051_part_structure_type_authority.cloudsql.sql" &&
       manifest.orderedSchemaMigrations.every((item) => item.outputSha256?.length === 64)
   );
   record("DEV032-CLOUDSQL-MIG-007 runner requires production-specific approval", runner.includes("DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED") && runner.includes("DEV032_CLOUDSQL_MIGRATION_APPROVAL") && runner.includes("DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED"));
@@ -77,8 +77,8 @@ try {
       production047Compatibility.historicalAppliedAt === "2026-08-24T11:02:17.741Z" &&
       production047Migration?.acceptedExistingChecksums?.length === 1 &&
       production047Migration.acceptedExistingChecksums[0] === production047Compatibility.acceptedExistingChecksums[0] &&
-      production047Migration.outputSha256 !== production047Compatibility.acceptedExistingChecksums[0] &&
-      manifest.orderedSchemaMigrations.some((entry) => entry.output === "sql/048_shared_assembly_bom.cloudsql.sql")
+      production047Migration.outputSha256 === production047Compatibility.acceptedExistingChecksums[0] &&
+      manifest.orderedSchemaMigrations.every((entry) => entry.output !== "sql/048_shared_assembly_bom.cloudsql.sql")
   );
   record(
     "DEV032-CLOUDSQL-MIG-013 production 012 and 027 source drift is explicit and owned by forward migrations",
@@ -91,7 +91,7 @@ try {
       manifest.orderedSchemaMigrations.find((entry) => entry.version === "012")?.acceptedExistingChecksums?.[0] === production012Compatibility.acceptedExistingChecksums[0] &&
       manifest.orderedSchemaMigrations.find((entry) => entry.version === "027")?.acceptedExistingChecksums?.[0] === production027Compatibility.acceptedExistingChecksums[0] &&
       manifest.orderedSchemaMigrations.some((entry) => entry.version === "044") &&
-      manifest.orderedSchemaMigrations.some((entry) => entry.version === "049")
+      manifest.orderedSchemaMigrations.some((entry) => entry.version === "048")
   );
 } catch (error) {
   record("DEV032-CLOUDSQL-MIG-000 QC execution", false, error instanceof Error ? error.message : String(error));
