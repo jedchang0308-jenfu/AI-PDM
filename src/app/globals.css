@@ -1954,8 +1954,6 @@
   .part-attachment-progress { width: 100%; margin-right: 0; }
 }
 .drawing-preview-board-header.is-meta-only { justify-content: flex-end; }
-.drawing-preview-board-header.is-actions-only { min-height: 36px; align-items: center; }
-.drawing-preview-board-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; }
 
 .drawing-preview-board-header h3 {
   margin: 0;
@@ -17802,6 +17800,7 @@ select.dropdown-select:focus-visible,
 @media (max-width: 767px) { .xmind-bom-parent-mapping > label { grid-template-columns: 1fr; } }
 .canonical-drawer-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .canonical-drawer-section-heading h3 { margin: 0; }
+.canonical-drawer-section-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .canonical-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; border-radius: 8px; padding: 10px 12px; background: #f1f5f9; }
 .canonical-summary span { color: #53657a; }
 .canonical-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; margin: 0; }

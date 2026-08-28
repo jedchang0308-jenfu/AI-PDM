@@ -245,7 +245,7 @@ function DetailRecognitionSections({ detail }: { detail: Detail }) {
   </section>)}</>;
 }
 
-function DrawingCanonicalPreview({ previews, relationAction }: { previews: [DrawingPreviewSlotModel, DrawingPreviewSlotModel]; relationAction?: ReactNode }) {
+function DrawingCanonicalPreview({ previews }: { previews: [DrawingPreviewSlotModel, DrawingPreviewSlotModel] }) {
   const cards: DrawingDetailPreviewCard[] = (previews ?? []).map((preview) => ({
     kind: preview.kind,
     title: preview.title,
@@ -260,21 +260,19 @@ function DrawingCanonicalPreview({ previews, relationAction }: { previews: [Draw
       alt: preview.fileName ?? preview.title
     } : undefined
   }));
-  return <DrawingDetailPreview cards={cards} title={null} showHeader={false} headerActions={relationAction} dataSection="canonical-drawing-preview" />;
+  return <DrawingDetailPreview cards={cards} title={null} showHeader={false} dataSection="canonical-drawing-preview" />;
 }
 
 function PartCanonicalPreview({
   partNumber,
   preview,
   control,
-  onCommitted,
-  relationAction
+  onCommitted
 }: {
   partNumber: string;
   preview: CanonicalPreviewProjection;
   control: NonNullable<Extract<Detail["data"]["presentation"], { kind: "part" }>["previewSourceControl"]>;
   onCommitted: (result: PartPreviewMutationResult) => void;
-  relationAction?: ReactNode;
 }) {
   const sourceMeta = preview.sourceDrawingNumber
     ? `${preview.sourceLabel} · ${preview.sourceDrawingNumber}${preview.sourceRevision ? ` · ${preview.sourceRevision}` : ""}`
@@ -323,11 +321,10 @@ function PartCanonicalPreview({
     layout="single"
     dataSection="canonical-part-preview"
     showCardHeader={false}
-    headerActions={relationAction}
   />;
 }
 
-function RelationMatrixEditor({ matrix, contractToken, editable, editing, onEditingChange, onSaved, onDirtyChange, onOpenDrawing, onOpenPart, createAction }: {
+function RelationMatrixEditor({ matrix, contractToken, editable, editing, onEditingChange, onSaved, onDirtyChange, onOpenDrawing, onOpenPart, editAction, createAction }: {
   matrix: CanonicalRelationMatrixProjection;
   contractToken: string;
   editable: boolean;
@@ -337,6 +334,7 @@ function RelationMatrixEditor({ matrix, contractToken, editable, editing, onEdit
   onDirtyChange: (dirty: boolean) => void;
   onOpenDrawing: (detailHref: string) => void;
   onOpenPart: (detailHref: string) => void;
+  editAction?: ReactNode;
   createAction?: ReactNode;
 }) {
   const [cells, setCells] = useState(matrix.cells as RelationMatrixCell[]);
@@ -399,7 +397,7 @@ function RelationMatrixEditor({ matrix, contractToken, editable, editing, onEdit
     onDirtyChange(false);
     setError("");
   }, [matrix.cells, onDirtyChange, onEditingChange]);
-  return <section className="canonical-drawer-matrix"><div className="canonical-drawer-section-heading"><h3>關聯矩陣</h3>{createAction}</div>
+  return <section className="canonical-drawer-matrix"><div className="canonical-drawer-section-heading"><h3>關聯矩陣</h3><div className="canonical-drawer-section-actions">{editAction}{createAction}</div></div>
     {matrix.issue ? <p className="canonical-error" role="alert" data-anomaly-code={matrix.issue.code}>{matrix.issue.message}</p> : null}
     {error ? <p className="canonical-error" role="alert" ref={errorRef} tabIndex={-1}>{error}</p> : null}
       {matrix.rootId ? <RelationMatrixTable rootCode={matrix.rootCode} drawings={matrix.drawings as RelationMatrixIdentity[]} parts={matrix.parts as RelationMatrixIdentity[]} matrix={cells} editable={editable && editing} onChange={handleChange} onOpenDrawing={onOpenDrawing} onOpenPart={onOpenPart} /> : matrix.issue ? null : <p className="pdm-relation-empty-line">目前尚未建立圖料根號，暫無可顯示的關聯矩陣。</p>}
@@ -479,13 +477,12 @@ function Drawer({ detail, loading, error, width, canManageAttachments, historyRe
     {loading ? <p className="canonical-drawer-message" role="status">正在載入明細…</p> : error ? <p className="canonical-error" role="alert">{error}</p> : detail && presentation ? <div className="pdm-entity-drawer-body canonical-drawer-body">
        <section><h3>目前資料</h3><DetailFields fields={presentation.fields} /></section>
        <DetailRecognitionSections detail={detail} />
-       {presentation.kind === "drawing" ? <DrawingCanonicalPreview previews={presentation.previews} relationAction={relationAction} /> : null}
+       {presentation.kind === "drawing" ? <DrawingCanonicalPreview previews={presentation.previews} /> : null}
       {presentation.kind === "part" && presentation.preview && presentation.previewSourceControl ? <PartCanonicalPreview
         partNumber={detail.data.row.code}
         preview={presentation.preview}
         control={presentation.previewSourceControl}
         onCommitted={(result) => onPartPreviewCommitted(detail.data.row, result)}
-        relationAction={relationAction}
       /> : null}
       {presentation.kind === "part" ? <PartStructureClassification partNumberId={detail.data.row.entityId} contractToken={detail.meta.contractToken} onSaved={onMatrixSaved} /> : null}
       {presentation.kind === "part" ? <PartBomContext context={presentation.bomContext} partNumberId={detail.data.row.entityId} partNumber={detail.data.row.code} /> : null}
@@ -497,6 +494,7 @@ function Drawer({ detail, loading, error, width, canManageAttachments, historyRe
         editable={relationEditable}
         editing={matrixEditing}
         onEditingChange={setMatrixEditing}
+        editAction={relationAction}
         createAction={presentation.relationMatrix.rootId ? <CanonicalNumberingCreateAction
           surface={presentation.kind}
           rootCode={presentation.relationMatrix.rootCode}
