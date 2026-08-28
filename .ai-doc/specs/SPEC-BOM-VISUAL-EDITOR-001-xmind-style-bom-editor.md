@@ -1,11 +1,13 @@
 # SPEC-BOM-VISUAL-EDITOR-001: XMind 式 BOM 圖像化編輯器
 
-狀態: Phase 1 Implemented / Phase 2 Local RD-QA-QC Complete / Human Confirmed / Production Release Gated
-文件成熟度: Phase 2 `Local RD Implementation Complete / Focused QA-QC Passed`
+狀態: DEV-071 Data／Interaction Capability Preserved / XMind-first Presentation Superseded by DEV-104 RD Implementation Contract / Production Release Gated
+文件成熟度: DEV-071 `Local RD Implementation Complete / Focused QA-QC Passed`；DEV-104 current presentation與retirement authority見`SPEC-BOM-WORKBENCH-001`第18節
 建立日: 2026-06-07
-最近更新: 2026-08-13
-關聯任務: `DEV-BOM-VISUAL-EDITOR-001`（歷史）, `DEV-071` / `DEV-PDM-BOM-VISUAL-EDITOR-002`
+最近更新: 2026-08-28
+關聯任務: `DEV-BOM-VISUAL-EDITOR-001`（歷史）, `DEV-071` / `DEV-PDM-BOM-VISUAL-EDITOR-002`, `DEV-104 / DEV-PDM-BOM-WORKBENCH-V2-001`
 延伸規格: `SPEC-BOM-WORKBENCH-001`, `SPEC-PDM-DETAIL-DRAWER-001`
+
+> 2026-08-28 DEV-104 Amendment：使用者確認階層表／Outliner改為唯一可寫primary editor；Map只作optional read-only browse／select／locate；Floating Topic保留為收合的advanced Draft staging。desktop完整編輯，tablet／phone只讀／審核／匯出。104-A～D只在內部分期，aggregate QA/QC全通過後一次切換；parity後同DEV移除legacy ReactFlow／XMind presentation，不保留V3 route或可寫fallback。這是對本文件XMind-first、fixed 52px toolbar、Map mutation／primary空間與「主要肌肉記憶幾乎等同XMind」的`Intentional replacement`。本文件的`bom_draft_floating_topics`、`editor_version`、formal＋floating atomic PATCH、logical line、semantic history、server submit／approve／export fail-closed與stale recovery仍為有效資料／行為能力；Current Phase presentation、feature compatibility、retirement、UI entry、responsive與驗收以`SPEC-BOM-WORKBENCH-001`第18節為準。
 
 ## 1. 目標
 
@@ -113,7 +115,7 @@ QC 必驗:
 
 ### 7.1 決策狀態與 Spec Impact Preflight
 
-- 本節建立時成熟度：`Brief Ready / Human Confirmed / RD Not Started / Not Requested for Implementation`；目前成熟度以第 8 節 `RD Implementation Ready` 為準。
+- 本節建立時成熟度：`Brief Ready / Human Confirmed / RD Not Started / Not Requested for Implementation`；DEV-071後續本機完成狀態與保留能力見第8節，DEV-104 current presentation成熟度與契約以`SPEC-BOM-WORKBENCH-001`第18節為準。
 - 人類已確認：Floating Topic 在編輯過程中有價值，必須納入本次產品方向。
 - Spec Impact：`Intentional replacement`。取代「畫布任何時刻都只能存在正式樹節點」的舊假設，但不取代 BOM canonical hierarchy、審核、發行、snapshot 或匯出權威。
 - 正式 BOM 仍不得存在無父層的游離料件；Floating Topic 是 draft editor 的暫存物件，不是正式 BOM line，也不是任意關係線。
@@ -215,13 +217,16 @@ Phase 2 的目標是讓常見結構操作靠近節點、在放開滑鼠前看懂
 
 轉譯原則：複製可降低認知成本的 interaction pattern，不複製會削弱工程資料治理的自由度。正式 BOM 的父子關係、排序、審核與發行仍由 PDM domain contract 決定。
 
-## 8. Phase 2 RD Implementation Contract
+## 8. DEV-071 Phase 2 Preserved Capability Contract
 
 ### 8.1 Readiness 與權威邊界
 
-- 成熟度：`RD Implementation Ready / Human Confirmed / RD Not Started / Local Implementation Eligible / Production Release Gated`。
+- DEV-071歷史成熟度：`Local RD Implementation Complete / Focused QA-QC Passed / Production Release Gated`；
+  本段保存可重用的data／interaction capability。DEV-104已另於`SPEC-BOM-WORKBENCH-001`第18節達`RD Implementation Ready`，
+  不得用本段已被取代的presentation條款否定或擴張其Current Phase。
 - 來源 ID：`DEV-PDM-BOM-VISUAL-EDITOR-002`；短碼：`DEV-071`。
-- 目標：桌機／筆電的建立、編輯、階層調整、聚焦、折疊、Floating Topic 與 Map／Outliner 切換，須讓熟悉 XMind 的使用者不需重新建立主要肌肉記憶。
+- 歷史目標：桌機／筆電的建立、編輯、階層調整、聚焦、折疊、Floating Topic與Map／Outliner切換曾以XMind肌肉記憶為驗收；
+  DEV-104只保留formal／floating、history、selection／focus與切換能力，不保留Map mutation或XMind presentation parity。
 - 品牌邊界：沿用 AI PDM 色彩、字型、icon library 與 domain 文案；不得複製 XMind 商標、專有圖示、插畫、template 或裝飾樣式。需對齊的是 command、順序、空間位置、focus 與結果，不是品牌 trade dress。
 - PDM 權威：`bom_lines_tree`、BOM review/release、Released Snapshot 與正式 export 維持 canonical；新資料只保存 draft-only Floating Topics 與 editor concurrency，不建立第二套正式 BOM。
 - ADR 判定：不新增 ADR。產品方向已由使用者確認；資料方案是既有 strict-tree authority 的 additive editor extension，未改變 ownership 或 release authority。
@@ -244,7 +249,7 @@ Dirty worktree boundary（2026-08-13 assessment）：
 - 已存在未追蹤 migration：`db/postgres/033_drawing_recognition.sql`、`db/postgres/034_root_vocabulary_human_label.sql`；DEV-071 必須使用 `035_bom_draft_floating_topics.sql`，不得覆蓋或重新編號。
 - 禁止 reset、checkout、全域 formatter 或把不相關 dirty 變更混入 DEV-071 commit。
 
-### 8.3 XMind Muscle-Memory Parity Contract
+### 8.3 Historical XMind Muscle-Memory Parity Contract（Presentation Superseded）
 
 #### 8.3.1 桌機／筆電空間配置
 
@@ -319,6 +324,9 @@ Toolbar DOM 與視覺順序固定如下；RD 必須使用 `data-xmind-slot`，QC
 - search result 拖入正式 node 使用同一三區 preview；拖到空白畫布建立 Floating Topic，而不是猜成 root child。
 
 #### 8.3.5 Map／Outliner
+
+> DEV-104 current override：Outliner是唯一可寫adapter；Map只可browse／select／locate，`<1024px`不渲染Map。
+> 下列Map mutation、mobile切回Map與固定切換位置只作DEV-071歷史證據，不得進入current acceptance或required runner。
 
 - 右下角 `心智圖／大綱` 切換與 XMind 同位置；兩者共用同一 `selectedId`、collapsed IDs、focus branch、filter、history、dirty 與 persistence state。
 - Outliner 第一區顯示正式 BOM tree；第二區固定標題 `未納入 BOM (n)` 並顯示 Floating subtrees，不能隱藏未歸位風險。

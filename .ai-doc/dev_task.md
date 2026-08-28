@@ -48,14 +48,13 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 新開發 Brief：`○ DEV-104` BOM 工作台 V2 受控產品結構與精簡編輯重構。
-  - 狀態：`Brief Ready / Human Direction Captured / Need Human Decisions / RD Not Requested`。
-  - 目標：將 BOM 工作台收斂為「受控 EBOM 結構從草稿到正式快照」，以階層表／Outliner、差異、
-    Release Gate 與精確 Parent 投影為主體，避免將 XMind 畫布、行動端複雜編輯與極端容量當成近期主線。
-  - 權威邊界：保留DEV-095／096的exact Part入口、stable Definition、Revision、shared applicability、
-    exact Parent-to-Child mapping、immutable review／release evidence與Released projection；本Brief尚未取代現行SPEC。
-  - 待決策：主編輯模式與Floating Topic定位、手機／平板編輯邊界、V2首切片是否只收斂核心工作台。
-  - 執行邊界：只完成Brief與文件治理；不修改產品、schema、API、權限、資料、runtime、部署或release。
+- 新開發契約：`○ DEV-104` BOM 工作台 V2 受控產品結構與精簡編輯重構。
+  - 狀態：`RD Implementation Ready / Human Confirmed 01A-02A-03A-04B-05A-06A / Local RD Eligible / RD Not Started / Production Release Gated`。
+  - 目標：將 BOM 工作台收斂為「受控 EBOM 結構從草稿到正式快照」，以桌機階層表／Outliner、差異、
+    Release Gate 與精確 Parent 投影為主體；Map 降為選配檢視，Floating Topic 保留為收合的進階 Draft staging。
+  - 權威邊界：`SPEC-BOM-WORKBENCH-001` §18已是RD implementation authority；保留DEV-095／096的exact Part入口、stable Definition、Revision、shared applicability、exact mapping、immutable review／release evidence與Released projection。
+  - 已確認：Map只讀並將修改導回Outliner；parity後同DEV移除legacy editor；104-A～D aggregate QA/QC通過後一次切換，不保留V3 route或可寫fallback。桌機完整編輯，tablet／phone只讀／審核／匯出。
+  - 執行邊界：文件已可交RD，但本輪未要求產品實作；不修改產品、schema、API、權限、資料、runtime、部署或release。
 
 - 本機已完成、待 release gate：`DEV-101` 審核工作臺共用圖號／料號完整工作區。
   - 狀態：`Local RD Implemented / Independent QA-QC Complete / Fixed QA 48 of 48 PASS / Production Release Gated`。
@@ -110,11 +109,11 @@ Owner：Dev PM
 
 - 本輪完成：`✓ DEV-103` 工作臺抽屜預覽區關聯編輯入口與冗餘提示收斂。
   - 狀態：`Local RD Implemented / Focused Contract QC 25/25 / Typecheck PASS / Browser PASS / Production Release Gated`。
-  - 使用者決策：移除關聯矩陣下方常駐的 direct-edit 說明；將既有「編輯關聯」入口移到圖號／料號預覽區標題列，保留矩陣內的儲存／取消與原子 API 行為。
+  - 使用者決策：移除關聯矩陣下方常駐的 direct-edit 說明；將既有「編輯關聯」入口放到「關聯矩陣」標題列，位置在「＋建立編號」左側，保留矩陣內的儲存／取消與原子 API 行為。
   - 紅線處理：現行 source 沒有截圖所示「有新版本可用」獨立 modal；stale contract 只保留 fail-closed 錯誤訊息，未新增或保留不存在的版本更新元件。
-  - 範圍：只改 canonical preview panel、Drawing／Part drawer action placement、RelationMatrixEditor 的受控 editing state 與既有 DEV-090 focused contract；不改 schema、資料、API、權限或 lifecycle。
+  - 範圍：只改關聯矩陣標題列 action placement、RelationMatrixEditor 的受控 editing state 與既有 DEV-090 focused contract；不改 schema、資料、API、權限或 lifecycle。
   - Spec Impact=`No conflict / presentation-only amendment`；ADR=`No New ADR`；直接 authority 沿用 DEV-090 inline relation matrix contract。
-  - 證據：`npm.cmd run qc:dev-090:contract` 25/25、`npm.cmd run typecheck:app`、isolated headed browser 四 viewport；確認預覽區可見「編輯關聯」、矩陣區沒有常駐 helper、儲存／取消仍可用、console／request failure／visible alert=0、horizontal overflow=0。
+  - 證據：`npm.cmd run qc:dev-090:contract` 25/25、`npm.cmd run typecheck:app`、isolated headed browser 四 viewport；確認「編輯關聯」位於「＋建立編號」左側、矩陣區沒有常駐 helper、儲存／取消仍可用、無可見 console error／alert、horizontal overflow=0；換頁時僅有預期的可取消重複請求 abort。
   - 計入交付：是（降低關聯編輯尋找成本並移除無法支持判斷的常駐文字；正式環境 release 仍另走既有 gate）。
 
 - 本輪完成交付點：`DEV-099` 結構型態延後分類與 BOM readiness 解耦。
@@ -1527,14 +1526,17 @@ Owner：Dev PM
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ○ DEV-104 [交付點] [Brief Ready / Human Direction Captured / Need Human Decisions] [P1] [Document Only / RD Not Requested] BOM 工作台 V2 受控產品結構與精簡編輯重構
-  - 變更紀錄：2026-08-28 建立 `Brief Ready`，承接BOM工作台重構方向；尚未授權RD實作。
+- ○ DEV-104 [交付點] [RD Implementation Ready / Human Confirmed 01A-02A-03A-04B-05A-06A] [P1] [Local RD Eligible / RD Not Started / Production Release Gated] BOM 工作台 V2 受控產品結構與精簡編輯重構
+  - 變更紀錄：2026-08-28 建立`Brief Ready`，確認`HD-104-01=A`、`02=A`、`03=A`後升級`RD Contract Ready`；
+    同日使用者再確認`HD-104-04=B`、`05=A`、`06=A`，補齊exact file plan、command／state、legacy retirement、
+    flag compatibility、failure recovery、fixture與固定48-case runner，升級為`RD Implementation Ready`。本輪仍未要求產品實作。
   - 摘要：將BOM工作台從「以XMind空間畫布為主的多功能編輯器」收斂為「精確組立料號的受控EBOM結構，
     經編輯、完整性確認、差異審核後產生可供製造／採購使用的正式快照」，以精簡主流降低近期實作與維護成本。
   - 來源 ID：`DEV-PDM-BOM-WORKBENCH-V2-001`
   - 父任務／關聯：延續`DEV-095`的canonical Drawing／Part入口與`DEV-096`的shared BOM authority；
-    對`DEV-060`工作台呈現契約與`DEV-071` XMind／Floating Topic契約為intentional-replacement candidate。
-  - 成熟度：`Brief Ready`。本輪只回答要解決什麼、為何值得做與第一版邊界；未建立schema／API／檔案／migration／完整QA契約，不可直接派RD。
+    對`DEV-060` legacy工作台與`DEV-071` XMind-first呈現契約為`Intentional replacement`；保留DEV-071的Floating persistence與server gate。
+  - 成熟度：`RD Implementation Ready / Human Confirmed / Local RD Eligible / RD Not Started`。P0／P1 readiness與human decision gap均為0；
+    repo級file responsibility、typed reducer／controller、legacy removal、flag-off fail-closed、failure recovery、fixture與48-case denominator見current SPEC §18.13～18.18。
   - 問題：
     - 現行單一client page同時承擔清單、legacy submission搜尋、舊ReactFlow、lifecycle、diff與drawer；
       XMind editor又同時承擔結構編輯、Floating Topic、送審、匯出、封存與變體對應，產品心智與程式職責皆重疊。
@@ -1556,9 +1558,9 @@ Owner：Dev PM
     - shared applicability必須明確綁定Parent；每個Parent在每個邏輯位置發行前都必須解析成唯一Child。
     - `logical_line_id`穩定；Released Snapshot不原地修改；下游只讀取immutable released authority。
     - CAD／XLS／AI只能經「source adapter -> suggestion -> diff -> human accept -> canonical command」接入，不成為第二寫入權威。
-  - Current Phase初步scope：
+  - Current Phase scope（`HD-104-03=A`）：
     1. 單一BOM情境列：精確Parent、Definition、BOM Revision、lifecycle、適用Parents、base Released Snapshot與dirty state。
-    2. 階層表／Outliner主編輯：搜尋並插入canonical Part、移除、調整父子關係、順序、數量、群組、Undo／Redo與離開保護。
+    2. 階層表／Outliner唯一可寫主編輯：搜尋並插入canonical Part、移除、調整父子關係、順序、數量、群組、Undo／Redo與離開保護。
     3. 情境式變體對應：單一Parent／固定Child時不顯示額外面板；只在多Parent或by-parent line時顯示對應與未完成數。
     4. 完整性與Release Gate：循環、過深、無效／不可用Child、重複、未解析mapping、replacement reconfirm與stale／concurrency。
     5. 變更與lifecycle：儲存、與base release比較、必要變更原因、送審、退回、核准、建立下一版、封存／恢復與whole-Definition作廢。
@@ -1572,9 +1574,9 @@ Owner：Dev PM
   - UI／UX intent：
     - 一個作用範圍只有一個主焦點與一個主要動作：有dirty變更時主動作為「儲存」；clean Draft為「送審」；Released為「建立下一版」。
     - Desktop只保留單一情境列、中央結構、可收合Inspector與就地問題；不常駐搜尋側欄、說明卡、成功宣告或重複狀態。
-    - Map、差異、gate、匯出、archive／obsolete不能同時作為等權重主視圖；依當前狀態與角色才顯示。
+    - Map只作唯讀瀏覽／定位；差異、gate、匯出、archive／obsolete不能同時作為等權重主視圖，依當前狀態與角色才顯示。
     - 風險與不可逆動作保留明確文字、preview／confirm／recovery；簡潔不得隱藏未解析mapping、影響Parent或review gate。
-  - 初步out of scope：
+  - Current Phase out of scope：
     - MBOM、routing／work center、庫存／成本、包裝、損耗、供應商替代料與可互換候選集。
     - CAD／XLS／AI自動materialize formal BOM；第一切片不建立source parser或import workflow。
     - 多層會簽、動態workflow designer、代理簽核或通用approval rule engine。
@@ -1587,51 +1589,114 @@ Owner：Dev PM
     - Draft／PendingReview／Rejected／Released／Archived／Obsolete保留真實lifecycle、權限與server gate；精簡UI不得用隱藏取代後端阻擋。
     - 主管可從正常approval inbox開啟immutable review evidence，先讀差異／影響後回到完整結構並完成原子決策。
     - 製造／採購只能讀取指定Parent的Released projection，匯出、where-used與audit的結果一致。
-    - 後續進入RD Contract時，使用者可見變更至少列為Medium；需以真實入口、指定角色、fixture、desktop viewport、實際UI操作與可見錯誤掃描支持QC。
+    - 使用者可見變更列為Medium；需以真實入口、指定角色、隔離fixture、desktop與窄版viewport、實際UI操作、
+      可見錯誤掃描及API／repository regression支持QC，build或direct URL不可單獨證明通過。
   - 限制／安全邊界：
     - 現有DEV-095／096已完成且尚未production release；V2不得在未封口authority、migration／compatibility與activation路徑前與其並行寫入。
     - 現有dirty worktree屬使用者與既有任務；後續實作必須另行列明目標檔案與不碰範圍，不清理或回復無關變更。
-    - 主要BOM編輯對象預設為SolidWorks工作站上的desktop；窄版需求以可讀、可審核與無overflow為基準，是否可複雜編輯待HD-104-02。
+    - 主要BOM編輯對象為SolidWorks工作站desktop；`>=1024px`才提供完整結構編輯，`<1024px`只讀BOM、diff、審核與匯出，
+      不顯示結構mutation controls。viewport限制是UI能力邊界，不取代server permission。
     - 不得用無型別JSON雜物欄取代未來ERP契約；RD Contract需確認quantity/UOM/line position的權威與snapshot邊界。
   - Architecture Memory Capsule：
     - 核心domain只保留identity／revision、structure／validation、applicability／resolution、lifecycle／release四個責任。
     - 寫入為create／save／validate／submit／approve／clone等canonical commands；讀取為workbench list、editor detail、diff／review、released projection等read models。
     - UI收斂為BOM清單、結構編輯、情境式variant inspector、review／released view；不建立通用plugin framework或巨型參數元件。
     - 製造、採購、技轉包與未來ERP不直接依賴Draft tables，只依賴版本化Released Projection contract。
-  - Human Decision Brief（進入RD Contract前必須關閉）：
-    - `HD-104-01` 主編輯模式與Floating Topic：
-      - A. 階層表／Outliner為主，Map為選配檢視，Floating Topic保留為收起的進階Draft staging（建議；相容DEV-071已確認邊界）。
-      - B. 階層表／Outliner為唯一正式編輯，Map唯讀且退役Floating Topic（最簡，但需明確取代DEV-071 human-confirmed decision）。
-      - C. XMind Map／Floating Topic繼續為主編輯，Outliner只作輔助（維持現況，實作與驗證成本最高）。
-    - `HD-104-02` 窄版編輯邊界：
-      - A. Desktop可完整編輯；tablet／phone只讀BOM、diff、審批與基本匯出（建議）。
-      - B. Desktop／tablet可編輯；phone只讀／審批。
-      - C. Desktop／tablet／phone都支援完整結構編輯。
-    - `HD-104-03` V2第一可驗收切片：
-      - A. 只收斂核心workbench與既有shared BOM lifecycle（建議）。
-      - B. 同時建立CAD／XLS suggestion adapter與accept-diff流程。
-      - C. 同時納入MBOM／ERP欄位與製程語意。
+  - Current Architecture Impact（2026-08-28 repository fact finding）：
+    - `src/app/bom/workbench/page.tsx`約2,046行，同時承擔清單、route判斷、legacy submission查找、legacy ReactFlow、
+      Draft state、lifecycle、diff與V2分流；`[draftId]/page.tsx`只re-export同一頁，list／editor責任沒有實際分離。
+    - `src/components/bom-editor/bom-xmind-editor.tsx`約1,254行，同時承擔snapshot state、history、canonical save、Map、
+      Outliner、Floating、Inspector、shared mapping、review、export與lifecycle menu；現有Outliner主要是唯讀選取／展開骨架。
+    - Server已具備stable Definition、logical line、formal＋floating原子CAS、shared components／mapping、diff、review／release、
+      exact Parent projection與central capability resolver；Current Phase不需要新schema、migration、repository authority或第二套API。
+    - 既有`PDM_ASSEMBLY_SHARED_BOM_V1`依賴`PDM_BOM_XMIND_EDITOR_V2_ENABLED`。保留env key作structured-editor capability，
+      client helper改neutral naming；不新增第三個flag。flag-off只允許read-only handoff，所有PATCH以既有`BOM_EDITOR_V2_REQUIRED` fail closed。
+  - Current Phase RD Handoff Contract：
+    - 目的：以Outliner-first shell完成核心BOM任務，將Map與Floating降為按需工具，並以單一command/state核心避免兩個editor漂移。
+    - UI Entry Contract：Engineer／R&D Manager／Admin從exact Part drawer的`建立 BOM／開啟 BOM`或`/bom/workbench`清單進入；
+      Manufacturing／Procurement只從Released入口讀取exact Parent projection。Direct URL只證明route可達，不取代正常入口驗收。
+    - Route boundary：`/bom/workbench`只保留搜尋、狀態篩選與續作清單；`/bom/workbench/[draftId]`承擔editor／review／released detail。
+      legacy`submissionId`只保留既有相容讀取，不再進入V2主要UI或形成第二套owner心智。
+    - Client boundary：建立單一typed editor document／view／session與canonical command layer；只有Outliner／Inspector可dispatch
+      insert／remove／reparent／reorder／quantity／group／formal↔floating／mapping／undo／redo，Map只dispatch selection／collapse／focus／view actions。
+    - Outliner primary：desktop預設Outliner，可完成搜尋插入、同層／子層新增、階層調整、排序、數量、群組、刪除、Undo／Redo及keyboard flow；
+      Map由次要`檢視`控制開啟，只能瀏覽、選取、摺疊、聚焦、縮放與定位。修改handoff回Outliner並保留selection／Parent context。
+    - Floating advanced staging：count=0時不常駐第二工作區；由進階插入／移入命令開啟。count>0時顯示單一blocking count與定位入口；
+      persistence、tree↔floating conversion、submit／approve／formal export fail-closed沿用DEV-071，不得靜默隱藏、刪除或自動猜Parent。
+    - Variant inspector：fixed line或單Parent不顯示mapping UI；只有by-parent line或未解析mapping才顯示候選與每Parent exact selection。
+      unresolved line需可從Outliner直接定位；Parent切換只改resolved preview，不複製tree。
+    - Lifecycle primary action：dirty Draft=`儲存`；clean Draft／Rejected且gate ready=`送審`；PendingReview=唯讀／依角色審核；
+      Released且無open revision=`建立下一版`；Archived=`恢復`；Obsolete=唯讀。archive／obsolete／export／Map集中於情境式次要動作。
+    - Data／API：list沿用`GET /api/bom/drafts?surface=work_list`，detail沿用`GET /api/bom/workbench?draftId=...`與
+      `GET/PATCH /api/bom/drafts/[draftId]`，其餘diff、submit、review decision、release export與lifecycle routes不變；
+      `expectedEditorVersion + lines + floatingTopics + components`維持atomic payload。新增table／column／migration／public endpoint=0，
+      只有flag-off PATCH使用既有error code全面fail closed。
+    - Permission：保留`authorizeSharedBomHttpAsync`／central capability resolver與legacy draft read/edit helper；UI不可從viewport、status或owner欄自行推定授權。
+      403／cross-company 404、Released-only exact Parent與submitter不得自決等DEV-096邊界不變。
+    - Compatibility：先建立view-independent command/state與Outliner parity，再移除`page.tsx`內legacy ReactFlow/editor職責及XMind files；
+      legacy presentation不得與V2並行保存同一Draft。flag-off對zero／nonzero Floating均read-only，不以UI重構刪除additive schema或歷史資料。
+  - Current Phase slices／gates：
+    1. `104-A shell boundary`：list與detail route／presentation責任分離，現行API與畫面行為先維持；Gate為正常入口、deep link、返回與dirty guard regression通過。
+    2. `104-B command core＋Outliner parity`：單一state／command層、Outliner完整編輯、Map只讀選配、Floating收合；Gate為不用Map可完成完整Draft主流且Map無mutation／零漂移。
+    3. `104-C lifecycle／review／released projection`：情境式CTA、diff-first、variant inspector、窄版唯讀；Gate為角色、狀態、exact Parent與server fail-closed一致。
+    4. `104-D retirement＋QA/QC`：一次切normal entry並移除legacy presentation、XMind files與重複client logic，更新focused contract／browser evidence；
+       Gate為DEV-104 48／48、DEV-071 preserved gates、DEV-096 88／88、typecheck、isolated build、真實UI與primary-data invariants全數通過。
+  - QA／QC minimum contract（Medium）：
+    - Fixture：只使用task-owned隔離data／repository；以DEV-096 shared Definition fixture建立前置Parent、Draft與Released baseline，
+      案例預期結果必須由正常UI與API delivery path產生，不得直接seed成成功狀態；保留fixture mutation ledger。
+    - Desktop edit：1440×900與1024×768，Engineer由Part drawer／清單進入，不使用Map完成insert、reparent、reorder、quantity、
+      variant mapping、Floating歸位、save、diff、submit；hard reload後state一致且console／network／visible alert無非預期錯誤。
+    - Narrow read：768×1024與390×844不顯示結構mutation controls；可讀tree／diff，具權限角色可審核，Released-only角色可exact Parent匯出；
+      無水平overflow、雙重捲動、遮擋、截斷或假可用CTA。
+    - Fail-seeking：Map沒有mutation control且切換不產生分支state；Floating被收合時仍可定位且server阻擋submit；stale editor version不覆蓋winner；
+      dirty navigation不丟資料；unresolved mapping、cross-company、self-decision、Released mutation與legacy flag-off PATCH全部fail closed。
+    - Fixed denominator：DEV-104新案固定48案：contract `001..012`、state/reducer `013..028`、browser `029..048`；
+      aggregate必須恰為48／48，另以DEV-071 API 13／13、更新後flag-off 10／10、DEV-096 88／88、lifecycle UI、typecheck、affected lint與isolated build作Quality Gates，不重複計入48案。
+    - Evidence：新增`qc:dev-104:contract/state/browser/aggregate`；改寫DEV-071中已被取代的XMind presentation assertion但不刪preserved capability，
+      更新DEV-096／lifecycle退役selector。UI pass記錄source revision、環境、角色、route、viewport、fixture、操作、至少8張指定畫面與visible error sweep。
+    - Data safety：任何build／test／browser runtime啟動前依workspace AGENTS宣告port、process tree、cleanup、`PDM_DATA_DIR`、
+      `PDM_REPOSITORY_DIR`與mutation scope；完成後停止task-owned runtime，並證明primary schema／identity／migration residue／FK invariants前後不變。
+  - Human Decision Record（2026-08-28，使用者「皆同意」）：
+    - `HD-104-01=A / Human Confirmed`：階層表／Outliner為主，Map為選配檢視，Floating Topic保留為收合的進階Draft staging。
+      拒絕Map／Floating繼續主導主流，也不退役既有Floating persistence與fail-closed gate。
+    - `HD-104-02=A / Human Confirmed`：desktop完整編輯；tablet／phone只讀BOM、diff、審核與基本匯出。
+    - `HD-104-03=A / Human Confirmed`：第一可驗收切片只收斂核心workbench與既有shared BOM lifecycle；
+      CAD／XLS adapter、MBOM／ERP及製程語意不得搭車進入Current Phase。
+    - `HD-104-04=B / Human Confirmed`（使用者回覆`1B`）：Map只負責瀏覽、選取與定位；所有修改統一回Outliner，
+      不做雙視圖完整編輯parity，也不移除Map的理解價值。
+    - `HD-104-05=A / Human Confirmed`（使用者回覆`2A`）：DEV-104 parity gate通過後同階段移除legacy ReactFlow／XMind editor；
+      不保留一個release cycle或長期fallback。
+    - `HD-104-06=A / Human Confirmed`（使用者回覆`3A`）：104-A～D內部分期，aggregate QA/QC全通過後一次切換；
+      不逐slice開放，也不新增`/bom/workbench-v3`。
+    - Human decision gaps：`0`。剩餘檔案切分、component命名、reducer／command實作與QC runner屬AI／RD工程決策。
   - Future Phase Capsules（`Future Phase Captured / Not Requested`）：
     - Source suggestion：接入`.SLDASM`、SolidWorks XLS或AI辨識，只產生可重現suggestion／diff與人工accept commands；重新進入條件為核心V2穩定且有明確節省工時的真實樣本。
     - MBOM／ERP：以Released EBOM Projection為來源建立製程、損耗、包裝、供應與成本語意；重新進入條件為命名ERP consumer、owner與權威邊界。
     - Shared structure evolution：Released Parent移除、detach／fork、跨root共用與真正可互換替代料；重新進入條件為出現真實結構分歧案例且現行new Revision無法合理處理。
     - 容量最佳化：以真實P50／P95 Parent數、node數、深度、query數與duration重設預算；重新進入條件為真實環境出現可重現性能瓶頸。
-  - Spec Impact：`Unresolved conflict / Intentional replacement candidate`。
-    - 本Brief不變更DEV-095／096 domain authority與ADR；`SPEC-PDM-ASSEMBLY-BOM-REBUILD-001`仍是shared BOM、permission、review／release與snapshot權威。
-    - 若`HD-104-01=A`，後續以相容修訂收斂`SPEC-BOM-WORKBENCH-001`與`SPEC-BOM-VISUAL-EDITOR-001`的呈現契約；
-      若選B，必須明確記錄對DEV-071 human-confirmed Floating Topic的intentional replacement與受影響QA／schema／compatibility處置。
-    - `ADR not needed at Brief stage`；關閉HD-104-01後再依是否改變長期產品契約判定。
-  - 風險等級：文件本輪為Low；未來實作因會改變主要UI互動、狀態動作與跨層讀寫，至少為Medium。
-  - 下一步：由使用者回覆`HD-104-01..03`；收斂後只升級同一DEV-104至`RD Contract Ready`，進行current-code／data／API／permission／UI影響盤點與分階估工，不另建平行Brief。
-  - 證據：現行`src/app/bom/workbench/page.tsx`約2,046行、`src/components/bom-editor/bom-xmind-editor.tsx`約1,254行；
-    直接比對DEV-060／071／095／096，BOM兩份現行SPEC、兩份accepted ADR與DEV-096本機QA-QC證據。
-  - 計入交付：是（只在產品切片實作並經風險相稱QA／QC完成後計入；Brief不計為已交付）。
+  - Spec Impact：`Intentional replacement / Cross-spec converged at RD Implementation level`。
+    - `SPEC-BOM-WORKBENCH-001`第18節是DEV-104 current presentation／handoff authority；Outliner-first、單一主動作、desktop edit與窄版唯讀取代舊legacy／XMind-first呈現條款。
+    - `SPEC-BOM-VISUAL-EDITOR-001`保留Floating table、editor version、formal＋floating transaction、history atom與server gate；
+      固定52px XMind toolbar、Map-primary空間與「肌肉記憶幾乎等同XMind」不再是Current Phase驗收。
+    - `SPEC-PDM-ASSEMBLY-BOM-REBUILD-001`與兩份accepted ADR刻意不改；shared Definition、permission、review／release、snapshot與exact Parent projection仍是domain authority。
+    - ADR判定：`ADR not needed`。本決策改變presentation priority但不改identity、lifecycle、資料模型、permission或外部Released contract；DEV＋SPEC足以治理。
+  - Dependencies：DEV-071與DEV-096本機能力及schema／API evidence；既有Part drawer、approval inbox、Released export、where-used與共用workbench list。
+    DEV-095／096仍production migration／activation／release gated，DEV-104不得繞過該gate先形成第二套production writer。
+  - Stop conditions：需要新增／改寫BOM identity、schema、migration、public API、permission或review／release語意；
+    需要在Outliner與Map保存兩套state；Floating無法被定位或server fail-closed；legacy removal破壞shared Draft read/write或flag-off read-only；
+    無法在不清理使用者dirty worktree下隔離修改；或要求primary／production mutation、flag activation、deploy／release。命中時停止並回到同一SPEC補契約或進release gate，不縮小驗收。
+  - 風險等級：文件本輪為Low；產品實作為Medium（主要UI互動、狀態CTA與跨層delivery path變更，但Current Phase不改schema／API／permission authority）。
+  - 下一步：若使用者提出產品實作指令，依current SPEC §18.13～18.18由104-A開始本機RD；每一slice需先通過自己的gate，
+    104-D aggregate全通過後才一次切換並宣稱Local RD Complete。不得另建平行Brief／V3 route，也不得自動activation、deploy或release。
+  - 證據：repository fact finding、DEV-060／071／095／096、兩份BOM presentation SPEC、DEV-096 domain SPEC、兩份accepted ADR、
+    現行API／feature dependency與既有QA-QC命令；文件檢查以`qc:doc-paths`、`qc:dev-task-evidence-sync`及`git diff --check`為準。
+  - 計入交付：是（產品切片實作並經Medium QA／QC完成後才計入；`RD Contract Ready`文件不等於功能已交付）。
 
-- ✓ DEV-103 [交付點] [Local RD Implemented / Focused Contract QC 25/25 / Browser PASS] [P1] [Typecheck + Isolated Build PASS / Production Release Gated] 工作臺抽屜預覽區關聯編輯入口與冗餘提示收斂
-  - 摘要：移除關聯矩陣下方不必要的常駐 direct-edit 說明，並把既有「編輯關聯」入口移到 Drawing／Part 預覽區標題列；editing state 仍由矩陣 editor 控制，儲存／取消／dirty guard與API不變。
+- ✓ DEV-103 [交付點] [Local RD Implemented / Focused Contract QC 25/25 / Browser PASS] [P1] [Typecheck + Isolated Build PASS / Production Release Gated] 工作臺關聯矩陣編輯入口與冗餘提示收斂
+  - 摘要：移除關聯矩陣下方不必要的常駐 direct-edit 說明，並把既有「編輯關聯」入口移到「關聯矩陣」標題列、置於「＋建立編號」左側；editing state 仍由矩陣 editor 控制，儲存／取消／dirty guard與API不變。
   - 來源 ID：`DEV-PDM-CANONICAL-DRAWER-PREVIEW-RELATION-ACTION-UI-001`
-  - 範圍：`canonical-preview-panel`、`drawing-detail-preview`、`canonical-pdm-workbench`、canonical preview CSS與DEV-090 focused contract；版本提示截圖所示的獨立 modal 不存在於現行 source，未創造替代元件。
-  - 驗收：圖號／料號 drawer 預覽區顯示單一「編輯關聯」；關聯矩陣標題只保留必要建立編號動作；helper text 不渲染；進入編輯後矩陣仍可修改、儲存或取消；窄版無溢出、錯誤或重疊。
+  - 範圍：`canonical-pdm-workbench`、關聯矩陣 action CSS與DEV-090 focused contract；版本提示截圖所示的獨立 modal 不存在於現行 source，未創造替代元件。
+  - 驗收：圖號／料號 drawer 的「關聯矩陣」標題列在「＋建立編號」左側顯示單一「編輯關聯」；預覽區不重複顯示；helper text 不渲染；進入編輯後矩陣仍可修改、儲存或取消；窄版無溢出、錯誤或重疊。
   - 證據：`npm.cmd run qc:dev-090:contract` 25/25；`npm.cmd run typecheck:app`；isolated headed browser 1440×900、1024×768、768×1024、390×844，截圖與量測 artifact 置於`output/playwright/dev-103-ui-refinement/`。
   - 下一步：若要正式上線仍需既有 production release gate；若要改版本更新提示，須提供現行 route／component 或另立明確產品需求。
   - 計入交付：是（presentation-only UI 交付；不含資料、schema、API、permission或production deploy）。
