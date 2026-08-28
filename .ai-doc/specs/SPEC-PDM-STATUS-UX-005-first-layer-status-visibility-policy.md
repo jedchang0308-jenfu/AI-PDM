@@ -192,7 +192,6 @@ Route wrapper不得自行建立第三套說明：`/approvals/[requestId]`繼承`
 | 16 | `/numbering/change-reviews` | Alias | redirect至approval workbench |
 | 17 | `/numbering/drawings/[drawingId]/workspace` | Validation host + required child | `revisionSubmission` + `drawingRecognition` |
 | 18 | `/numbering/drawings` | Required | `drawingList` |
-| 19 | `/numbering/impact` | Validation | `impactWorkbench` |
 | 20 | `/numbering/recognition/[sessionId]` | Required via component host | `drawingRecognition` |
 | 21 | `/numbering/reports` | Validation | `reportCenter` |
 | 22 | `/numbering/revisions` | Validation host + required child | `revisionSubmission` + recognition pre-submit |
@@ -276,7 +275,7 @@ Aggregate除原有status／approval／account／attachment／BOM／transfer／DE
 
 - Shared/owner surfaces：`src/lib/work-status-presentation.ts`、`src/lib/human-status-projection.ts`、`src/components/drawing-workbench.tsx`、`src/components/part-workbench.tsx`、`src/components/drawing-projection.tsx`、`src/components/part-projection.tsx`、`src/components/pdm-workbench-preview-gallery.tsx`、`src/components/unified-pdm-entity-detail-drawer.tsx`、`src/components/drawing-detail-preview.tsx`。
 - Dashboard/workflow：`src/components/dashboard.tsx`、`src/components/dashboard/layout-parts.tsx`、`src/app/bom/workbench/page.tsx`、`src/app/upload/page.tsx`、`src/app/submissions/[id]/page.tsx`、`src/app/numbering/revisions/page.tsx`、`src/app/handoff/page.tsx`。
-- Report/admin：`src/app/numbering/impact/page.tsx`、`src/app/numbering/reports/page.tsx`、`src/app/settings/page.tsx`、`src/app/account/security/page.tsx`、`src/components/number-state-workspace.tsx`、`src/components/number-state-legacy-route.tsx`。
+- Report/admin：`src/app/numbering/reports/page.tsx`、`src/app/settings/page.tsx`、`src/app/account/security/page.tsx`、`src/components/number-state-workspace.tsx`、`src/components/number-state-legacy-route.tsx`。
 - Projection/data contracts：`src/components/human-status-filter.tsx`、`src/lib/responsibility-status-projection.ts`、`src/lib/availability-scope.ts`、`src/lib/drawing-workbench-status.ts`、`src/lib/drawing-part-relation-status.ts`、`src/lib/part-human-status.ts`、`src/lib/pdm-detail-status-actionability.ts`、`src/lib/numbering-human-status-viewer.ts`、`src/lib/drawing-workbench.ts`、`src/lib/part-workbench.ts`、`src/lib/relation-workbench.ts`、`src/lib/pdm-entity-detail.ts`、`src/lib/pdm-workbench-contract.ts`、`src/lib/pdm-entity-detail-contract.ts`、`src/lib/drawing-recognition-contract.ts`。
 - Host/container surfaces：`src/components/drawing-owner-workspace.tsx`、`src/components/pdm-detail-drawer.tsx`、`src/components/pdm-entity-detail-drawer.tsx`、`src/components/pdm-workbench-list.tsx`、`src/components/numbering-submission-result.tsx`、`src/components/numbering-candidate-revision-editor.tsx`。
 

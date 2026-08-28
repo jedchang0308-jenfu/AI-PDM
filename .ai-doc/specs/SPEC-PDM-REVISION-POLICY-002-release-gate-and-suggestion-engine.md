@@ -8,6 +8,19 @@ Related QA: `.ai-doc/qa/qa-pdm-revision-policy-release-gate-validation-plan-2026
 
 2026-08-04 implementation-readiness clarification：`DEV-052` 的整包核准可建立 formal drawing master；小數首版以 physical `drawing_revision_packages.status='Pending'` + immutable review-approval companion 投影 effective `ReviewApproved`，不擴張既有 physical status enum。不得把小數版標為 `Released`、更新 manufacturing current pointer 或進入正式交接。本規格的 minor release gate 完整保留。詳見 `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`。
 
+2026-08-25 DEV-098 amendment：canonical Drawing工作臺採使用者確認的`1C-bounded／2A／3A`。server suggestion仍是
+預設推薦，但具正常Drawing work建立權限的RD可在exact non-stale source所屬整數主版次下，只輸入未占用且沿lineage
+向前的minor suffix；major prefix與完整label由server固定。這是對本文件「偏離建議需override reason」的bounded
+canonical exception：`manual_minor`不要求override reason，但server必須保存selection mode／policy evidence並在create
+transaction重驗tuple、predecessor、branch base與claim。舊submission flow的完整revision override仍沿用原reason規則；
+本amendment不開放canonical history backfill、manual major、跨major minor或minor Released。stale branch一律freeze，
+major promotion稱`採用為量產版`，不得稱merge。現行release gate與out-of-order controlled history不變。current authority見
+`.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-BRANCH-LIFECYCLE-001-unified-revision-and-branch-flow.md`與配對ADR。
+2026-08-25 implementation-readiness closure：DEV-098沿用既有`drawing_revisions.policy_snapshot_json`保存typed target policy，
+沿用`drawing_revision_claims`tuple unique constraint作唯一authority；schema／migration=`none`。stale freeze涵蓋既有work／review／
+file／recognition user mutation，pre-production只允許canonical `0.x → 1`，所有basis-sensitive mutation採aggregate-first鎖序。
+fixed QA為`QA-098-001..031`，full QA要求disposable PostgreSQL；本文件的minor release gate仍是mandatory regression。
+
 Related authority:
 
 - `.ai-doc/reference/pdm-management-policy-draft.md`

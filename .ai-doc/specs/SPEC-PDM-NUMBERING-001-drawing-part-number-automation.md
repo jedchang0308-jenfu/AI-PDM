@@ -1247,7 +1247,6 @@ Excel 建議分頁：
 | `POST /api/numbering/variants` | 新增同圖多料號。 |
 | `POST /api/numbering/phase-promotions` | 建立 EVT 到 DVT 晉升清單。 |
 | `POST /api/numbering/override-requests` | 建立 override 申請。 |
-| `POST /api/numbering/impact-analysis` | 執行影響分析。 |
 | `POST /api/numbering/approval-requests` | 建立送審。 |
 | `POST /api/numbering/approval-decisions` | 審核決策。 |
 | `GET /api/numbering/approval-rules` | 取得審核矩陣。 |

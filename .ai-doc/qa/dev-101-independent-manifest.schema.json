@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "DEV-101-independent-manifest.schema.json",
+  "title": "DEV-101 independent QA/QC child manifest",
+  "type": "object",
+  "required": [
+    "schemaVersion", "devId", "runId", "parentRunId", "runner", "independentQc", "source", "environment",
+    "registryHash", "runnerHash", "caseResults", "caseEvidence", "artifacts", "prohibitedOracleImports",
+    "primaryInvariant", "cleanupReceipt", "visibleErrorAudit", "result", "firstFailure"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "devId": { "const": "DEV-101" },
+    "runId": { "type": "string", "minLength": 1 },
+    "parentRunId": { "type": "string", "minLength": 1 },
+    "runner": { "type": "string", "pattern": "^qc-dev-101-independent-" },
+    "independentQc": { "const": true },
+    "source": {
+      "type": "object",
+      "required": ["head", "branch", "dirtyBoundaryHash"],
+      "properties": {
+        "head": { "type": "string", "minLength": 1 },
+        "branch": { "type": "string" },
+        "dirtyBoundaryHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": true
+    },
+    "environment": {
+      "type": "object",
+      "required": ["provider", "dataScope"],
+      "properties": {
+        "provider": { "enum": ["sqlite", "postgresql", "mixed"] },
+        "dataScope": { "const": "task-owned-isolated" }
+      },
+      "additionalProperties": true
+    },
+    "registryHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "runnerHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "caseResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["caseId", "result", "assertionIds", "firstFailurePointer"],
+        "properties": {
+          "caseId": { "type": "string", "pattern": "^QA-101-[0-9]{3}$" },
+          "result": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_RUN"] },
+          "assertionIds": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "firstFailurePointer": { "type": ["string", "null"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "caseEvidence": { "type": "object" },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256", "caseIds", "evidenceTypes"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "caseIds": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "evidenceTypes": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "prohibitedOracleImports": { "type": "array", "maxItems": 0 },
+    "primaryInvariant": {
+      "type": "object",
+      "required": ["before", "after", "unchanged"],
+      "properties": {
+        "before": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "after": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "unchanged": { "const": true }
+      }
+    },
+    "cleanupReceipt": {
+      "type": "object",
+      "required": ["complete", "portsReleased", "processesStopped", "tempRemoved"],
+      "properties": {
+        "complete": { "const": true },
+        "portsReleased": { "const": true },
+        "processesStopped": { "const": true },
+        "tempRemoved": { "const": true }
+      }
+    },
+    "visibleErrorAudit": {
+      "type": "object",
+      "required": ["required", "consoleErrors", "pageErrors", "requestFailures", "unexpectedRequestFailures", "visibleErrorCount"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "consoleErrors": { "type": "integer", "minimum": 0 },
+        "pageErrors": { "type": "integer", "minimum": 0 },
+        "requestFailures": { "type": "integer", "minimum": 0 },
+        "unexpectedRequestFailures": { "type": "integer", "minimum": 0 },
+        "visibleErrorCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "result": { "enum": ["PASS", "FAIL", "BLOCKED"] },
+    "firstFailure": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}

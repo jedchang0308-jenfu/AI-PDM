@@ -1,7 +1,7 @@
 # ADR-PDM-STATUS-DATA-REBUILD-001：單一 current-state authority 與 Drawing 多研發分支
 
-Status: `Accepted / Local Implemented / Production Zero-Loss Rehearsal & Release Gated`
-Date: 2026-08-22; amended 2026-08-23
+Status: `Accepted / Architecture Preserved / Trusted-Solo QA Contract / Fresh 94 + 3 Aggregate Pending / Production Zero-Loss Rehearsal & Release Gated`
+Date: 2026-08-22; amended 2026-08-27
 Owner: Dev PM
 Related DEV: `DEV-087` / `DEV-PDM-STATUS-DATA-REBUILD-001`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`
@@ -204,3 +204,26 @@ DEV-086 在 DEV-087 尚未啟用前仍是現行 runtime baseline，不能因本 
 - 不能在同一 maintenance window retire old authority。
 - target revision 無法用 DB/global constraint 原子 claim。
 - 全量 migration 無法達成 unresolved=0 或 DB/schema/binding restore drill 無法保證 relational rollback。
+
+## 11. 2026-08-25 功能完整性重開判定
+
+本次DEV-087重開不建立新ADR。8項缺口是既有single-current-state架構的journey與implementation completeness問題：Drawing FFF仍需收斂進同一canonical work/review、task center需重新掛回既有task/notification authority、Drawing／Part formal obsolete需只走既有approval authority、Part variant需進既有Part work snapshot，其餘是exact history/file readback、matrix navigation與list query/cursor接線。R1～R3已完成本機接線並取得自動化evidence。2026-08-27起local QA改採單人可信契約，不再等待Independent QC／AT receipt；契約變更後仍需fresh 94案＋3 Gate aggregate。正式migration／cutover／release仍另行gated。
+
+下列決策仍不可改變：
+
+- current Drawing／Part work與review各只有一套；舊Drawing submission／FFF review與Part direct PUT不得作平行writer。
+- formal obsolete只使用既有numbering approval request/apply；Drawing RD branch void仍是另一個明確domain action，`part_root`不在本次範圍。
+- Relation仍由DEV-090 direct formal matrix authority擁有，不恢復Relation work/review/page。
+- 新增資料只進既有JSON／domain tables，schema/migration=`none`；review永久留存仍只有cycle/entity/time。
+
+若RD需要新增table／migration、永久dual-write、第二套review request、保存reviewer/outcome/comment/content、擴張root能力或讓Part attachment進review，才觸發本ADR re-entry。完整implementation contract見配對SPEC §15。
+
+本輪歷史evidence保留：actual PostgreSQL G4 product `output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-25T15-44-41-956Z/manifest.json`、G4 integrity `output/qa/dev-087-capability/DEV087-G4-20260825155456106/manifest.json`、aggregate `output/qa/dev-087-aggregate/DEV087-aggregate-2026-08-25T15-53-16-455Z/manifest.json`。其anti-cheat斷言不再是current completion authority；產品、provider、security、visible UI、primary invariant與cleanup斷言可作新契約重跑前的回歸參考。`part_root`排除及正式zero-loss rehearsal／release gate不變。
+
+## 12. 2026-08-27 單人可信QA決策
+
+此決策只改變local QA的執行與證據契約，不改變本ADR的single-current-state authority、Drawing branch、Part work/review、Relation direct formal matrix、file identity、permission或transaction決策，因此`No New ADR`。
+
+- DEV-097的G0-A／G4、Independent QC／AT receipt、immutable denominator、independent oracle、mutant與artifact anti-cheat已由使用者明確取消為current completion gate。
+- DEV-087改以94個產品案例、`QG-087-PROVIDER`、`QG-087-SECURITY`與`QG-087-UI`驗收；同一開發者可執行RD／QA／QC。
+- 尚未修改的舊registry／aggregate runner只作Historical Supporting，不得因Independent receipt缺席判產品FAIL；後續仍需實作新分母並執行fresh run。

@@ -10,6 +10,8 @@ DEV：`DEV-093`
 
 Authority：`.ai-doc/specs/SPEC-PDM-CANONICAL-NUMBER-CREATION-001-unified-contextual-create.md`
 
+DEV-099 evidence boundary（2026-08-26）：本計畫的111-case PASS只證明DEV-093當時revision。DEV-099將有意取代required structure type、first-Part inheritance及unclassified append block；不得重用本計畫宣稱延後分類已PASS。current新行為固定由`qa-dev-099-deferred-structure-classification-validation-plan-2026-08-26.md`的48案重驗。
+
 ## 1. 品質目標
 
 證明使用者只透過 rendered UI即可從 Drawing／Part header與 drawer完成所有合法建號路徑，且每次結果在 UI、API與 DB完全一致；同時證明新流程沒有恢復 draft workspace、candidate reservation或已退役 API。
@@ -127,6 +129,7 @@ Authority：`.ai-doc/specs/SPEC-PDM-CANONICAL-NUMBER-CREATION-001-unified-contex
 | QA-093-108 | existing-root quiet append UI | 只顯示root code/name、三種建立內容、必要M/R欄、必要追加原因、單行「將建立」與一個主要動作；不得顯示五項profile控制或「沿用設定」狀態列 |
 | QA-093-109 | existing-root 五項 profile 繼承 | Part／Drawing＋Part request不帶`itemKind/structureType/isUniversal/seriesCode/customSpecification`；DB五項均等於root第一筆canonical Part，server仍拒絕明示不一致的相容payload |
 | QA-093-110 | 異常 profile fail closed | `structureType=unclassified`時append-policy回`profileBlocked=true`；UI只提示請系統管理員處理且停用提交，repository拒絕寫入，DB delta=0 |
+| QA-093-111 | stale流水碼恢復與錯誤封裝 | 在隔離fixture令既有root已有P01、preview應為P02，但`numbering_sequences.next_value=1`；只透過UI提交後actual／API／DB必須均為P02，sequence counter自動校正，UI/API不得出現`UNIQUE`、table、column或constraint文字 |
 
 ## 5. Core UI Journeys
 
@@ -298,7 +301,7 @@ PASS必須同時滿足：
 
 ## 16. Execution Evidence（2026-08-24）
 
-> **CAPA結案判定**：舊16/16 contract只保留為假陽性歷史基線；目前完成判定採新版行為／payload gate、retirement gate及兩輪fresh-session rendered-browser evidence；QA-093-096／097鎖住identity與canonical初始state必須同交易可見，QA-093-098鎖住料件條件必須先於品名且不得產生半成品建議，QA-093-099鎖住查重結果必須鄰近建議品名，QA-093-100..104鎖住new-root推導、非法組合fail closed及existing-root回歸，QA-093-105鎖住new-root單一規格來源與existing-root零規格輸入，QA-093-106／107鎖住所有canonical surface不再需要、顯示或寫入共用原因，QA-093-108～110鎖住existing-root quiet append、五項profile後端繼承與異常資料fail closed。
+> **CAPA結案判定**：舊16/16 contract只保留為假陽性歷史基線；目前完成判定採新版行為／payload gate、retirement gate及兩輪fresh-session rendered-browser evidence；QA-093-096／097鎖住identity與canonical初始state必須同交易可見，QA-093-098鎖住料件條件必須先於品名且不得產生半成品建議，QA-093-099鎖住查重結果必須鄰近建議品名，QA-093-100..104鎖住new-root推導、非法組合fail closed及existing-root回歸，QA-093-105鎖住new-root單一規格來源與existing-root零規格輸入，QA-093-106／107鎖住所有canonical surface不再需要、顯示或寫入共用原因，QA-093-108～110鎖住existing-root quiet append、五項profile後端繼承與異常資料fail closed，QA-093-111鎖住stale sequence自我修復與技術錯誤不得洩漏。
 
 | Evidence | 結果 | 範圍 |
 |---|---|---|

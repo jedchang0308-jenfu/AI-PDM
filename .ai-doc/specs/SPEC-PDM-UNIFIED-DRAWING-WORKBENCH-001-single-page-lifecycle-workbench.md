@@ -1,7 +1,7 @@
 # SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001：單一圖號工作台與生命週期導向操作
 
 Status: `Phase 1H Local RD Implemented / AI QA + Independent QC Passed / DEV-079 RD Implemented Locally / Focused Evidence Available / Independent QC Pending / Production Release Gated`
-Date: 2026-08-05; amended 2026-08-19
+Date: 2026-08-05; amended 2026-08-27
 Owner: Dev PM
 Related DEV: `DEV-053` / `DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`; `DEV-079` / `DEV-PDM-DRAWING-READONLY-DRAWER-FULLPAGE-EDITOR-001`
 Parent DEV: `DEV-052`、`DEV-050`、`DEV-051`
@@ -10,6 +10,8 @@ Related authority: `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-e
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
 
 > **2026-08-22 DEV-087 target supersession**：新決策優先。保留Drawing canonical identity、現有獨立full-page editor/recognition、exact artifact、permission與正式證據；top-level single row、DEV-086最多雙列/單一RD aggregate、legacy workspace/current-status/filter projection在activation時由production 0/1＋open branch latest RD 0..3及canonical handling取代並拆除，不保留fallback。
+
+> **2026-08-27 legacy route retirement amendment**：使用者明確決定不保留`/numbering/revisions`相容轉址。該頁面與正式導覽直接刪除，現行runtime href、permission mapping與task allowlist不得再引用；直接請求為unmatched route／404。進版能力只保留於`/numbering/drawings` canonical工作台，舊mutation API仍維持410 zero-write fence。
 
 > **2026-08-20 DEV-086 production／RD lane target amendment（RD Implementation Ready / Not Implemented）**
 >
@@ -27,7 +29,7 @@ Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-proje
 >
 > 因此本文所有 `drawing_preparation`、`bundle_ready`、formal revision 與 review 情境的 drawer action 應改讀為**導覽動作**：`編輯首版／繼續編輯`前往版次全頁工作區；`檢查並送審`前往同一工作區的預覽／送審區；`查看審核`前往 canonical review workspace；`建立新版次`前往正式版次全頁工作區。送審、核准、退回、撤回、上傳、版次儲存與其他寫入不得在 drawer 執行。
 >
-> Spec Impact：`Intentional replacement + compatible preservation`。本 amendment 取代本文 0.2 的「高頻圖面進版與上傳送審留在 drawer」、0.7.3 的 `mode: "drawer"` mutation placement、DEV-072 amendment 中 drawer 內 `送交審核`直接解鎖，以及其他要求 drawer 內完成 mutation 的 acceptance；保留 list/detail 的 zero-write read projection、server-derived action truth、`DEV-064` 單一 Drawing／Revision／File authority、既有 permission／lifecycle／submission／publication command、idempotency 與 concurrency。本階段已完成本機079-A～079-D：圖號 owner canonical route固定為`/numbering/drawings/[drawingId]/workspace?intent=<intent>&returnTo=<encoded>`，Drawing reviewer route固定為`/approvals/[requestId]?returnTo=<encoded>`；既有`/numbering/revisions?...`作compatibility adapter／shared-shell wrapper，不得保留平行command logic。實際attributable inventory為26個direct edits，完整檔案、baseline、dirty boundary、rollback與DoD以`SPEC-PDM-ENTITY-DETAIL-DRAWER-001`的DEV-079 RD Contract為authority；079-E仍待獨立QC完成全矩陣。
+> Spec Impact：`Intentional replacement + compatible preservation`。本 amendment 取代本文 0.2 的「高頻圖面進版與上傳送審留在 drawer」、0.7.3 的 `mode: "drawer"` mutation placement、DEV-072 amendment 中 drawer 內 `送交審核`直接解鎖，以及其他要求 drawer 內完成 mutation 的 acceptance；保留 list/detail 的 zero-write read projection、server-derived action truth、`DEV-064` 單一 Drawing／Revision／File authority、既有 permission／lifecycle／submission／publication command、idempotency 與 concurrency。本階段已完成本機079-A～079-D：圖號 owner canonical route固定為`/numbering/drawings/[drawingId]/workspace?intent=<intent>&returnTo=<encoded>`，Drawing reviewer route固定為`/approvals/[requestId]?returnTo=<encoded>`；既有`/numbering/revisions?...`已由2026-08-27 amendment直接退役，不再作compatibility adapter。實際attributable inventory為26個direct edits，完整檔案、baseline、dirty boundary、rollback與DoD以`SPEC-PDM-ENTITY-DETAIL-DRAWER-001`的DEV-079 RD Contract為authority；079-E仍待獨立QC完成全矩陣。
 >
 > Drawer action contract：`surface=drawing` 的 edit／submit／withdraw／create revision／manage files／review decision／recovery mutation descriptor 必須改為 canonical navigation 或 omitted／locked，不能是 drawer `command`／`local`；Part／Relation 不變。legacy 與 unified Drawing drawer 必須同次 zero-write，既有 `PDM_UNIFIED_ENTITY_DETAIL_V1` 只能切換唯讀 renderer，不能保留任一 drawer write path。
 >
@@ -227,7 +229,7 @@ Phase 1E能力清冊是逐項驗收契約，不得以「route仍存在」代替U
 | CAP-04 | 圖面進版固定secondary入口 |
 | CAP-05 | 上傳與送審固定secondary入口 |
 | CAP-06 | 完整圖料關係固定secondary入口 |
-| CAP-07 | 製造圖影響分析固定secondary入口 |
+| CAP-07 | 正式作廢於申請內顯示依賴快照，不設 standalone 影響分析入口 |
 | CAP-08 | 受控檔案authority導流與參考附件管理邊界 |
 | CAP-09 | 發布狀態不一致說明與修正入口 |
 | CAP-10 | Title block變體風險 |

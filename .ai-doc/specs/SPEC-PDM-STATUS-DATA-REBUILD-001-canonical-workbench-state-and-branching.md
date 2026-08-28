@@ -1,15 +1,17 @@
 # SPEC-PDM-STATUS-DATA-REBUILD-001：三工作臺單一狀態權威、多研發分支與極簡人類語意
 
-Status: `Local QA-QC Restored by DEV-094 / Fresh Aggregate 16 of 16 PASS / CAPA Effective / Production Zero-Loss Rehearsal & Release Gated`
-Date: 2026-08-21; amended 2026-08-24
+Status: `Local RD + Trusted-Solo QA-QC Complete / 94 of 94 Product Cases + 3 of 3 Quality Gates PASS / Primary Protected Invariant Unchanged / Production Zero-Loss Rehearsal & Release Gated`
+Date: 2026-08-21; amended 2026-08-27
 Owner: Dev PM
-Related DEV: `DEV-087` / `DEV-PDM-STATUS-DATA-REBUILD-001`; CAPA children `DEV-092` / `DEV-PDM-DRAWING-WORK-FILE-SNAPSHOT-CAPA-001`, `DEV-094` / `DEV-PDM-SQLITE-MIGRATION-INTEGRITY-CAPA-001`
-Related ADR: `.ai-doc/decisions/ADR-PDM-STATUS-DATA-REBUILD-001-single-current-state-authority.md`
+Related DEV: `DEV-087` / `DEV-PDM-STATUS-DATA-REBUILD-001`; historical anti-cheat child `DEV-097` / `DEV-PDM-QA-INTEGRITY-GATE-001`; CAPA children `DEV-092` / `DEV-PDM-DRAWING-WORK-FILE-SNAPSHOT-CAPA-001`, `DEV-094` / `DEV-PDM-SQLITE-MIGRATION-INTEGRITY-CAPA-001`, `DEV-100` / `DEV-PDM-DRAWING-WORK-FILE-REPLACEMENT-CAPA-001`
+Related ADR: `.ai-doc/decisions/ADR-PDM-STATUS-DATA-REBUILD-001-single-current-state-authority.md`; DEV-098 amendment `.ai-doc/decisions/ADR-PDM-DRAWING-REVISION-BRANCH-LIFECYCLE-001-bounded-manual-minor-and-stale-freeze.md`
 Related QA: `.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-21.md`
 
 ## 0. Authority、成熟度與執行限制
 
-本文件是 DEV-087 的 target-state 產品與 RD 實作契約。原本機實作與2026-08-23證據保留；2026-08-24先因migrated Drawing work漏建work-owned file snapshot由DEV-092重開QA/QC，再因SQLite company-scope migration留下空正式root/part主檔而由DEV-094執行CAPA。DEV-092與DEV-094的本機修復、獨立QA/QC及fresh aggregate現已PASS，DEV-087本機QA-QC恢復；正式資料、正式遷移、部署或刪除仍未授權。
+本文件是 DEV-087 的 target-state 產品與 RD 實作契約。DEV-092與DEV-094的本機修復與fresh evidence保留為歷史基線；2026-08-25盤點確認的8項使用者journey已完成R1～R3接線並取得自動化證據。使用者於2026-08-27將local QA改為單人可信模式：DEV-097的G0-A／G4、Independent QC／AT receipt、mutant與evidence anti-cheat不再是completion gate；current契約是94個產品案例與provider／security／UI三個橫向Gate。正式資料、正式遷移、部署或刪除仍未授權，production zero-loss rehearsal／cutover／release仍受另行gateway管制。
+
+2026-08-28 local completion：首版／進版FFF適用性矯正與八族漏接功能已由更新後source執行fresh trusted-solo aggregate，current結果為94/94產品案例、3/3 Quality Gates、Blocked/Not Run/FAIL=0；typecheck、isolated build、SQLite與disposable PostgreSQL、primary protected invariant及task-owned cleanup均PASS。exact run pointer與source fingerprint寫入DEV-087 completion receipt與`dev_task.md`，避免本normative source對自身run產生循環指紋。此結論不解除production migration、正式資料、cutover、deploy或release gate。
 
 本規格的優先級如下：
 
@@ -57,6 +59,53 @@ Related QA: `.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-2
 - 本機converter／repair／fixture可依DEV-092執行；主SQLite apply必須先有全量dry-run與明確target核對。任何正式PostgreSQL資料修復、rehearsal、cutover、deploy或release仍須獨立高風險授權。
 
 2026-08-24 implementation amendment：`scripts/migrate-dev-087-canonical-workbench.mjs`現以`dev090-v1` authority hash產生version 2 plan，建立新Drawing work時同時寫入ordered work-file snapshots，對既有`proposed_payload.migrated=true` work支援`--repair-work-files` forward repair；SQLite與PostgreSQL皆以`(work_id,file_binding_id,ordinal,content_hash)`驗證。主SQLite dry-run／apply的identity hash為`d3457b48fe171f9a13357927ecb2ea99ee9d378b977a4ae5b47123c8d5641623`，A0006 work-file count=`3`、FK violations=`0`；`qc:dev-092:work-file-snapshot`、`qc:dev-092:runtime-invariant`、`qc:dev-092:recognition-context`、`qc:dev-087:zero-loss`與disposable PostgreSQL 0／1／3 rehearsal已PASS。isolated fresh-auth browser已驗證A0006 exact 3 files、PDF preview、recognition GET／POST、exact `drawing_revision` context與3 source assets，QA-087-185已解除BLOCKED；正式資料、遷移、部署或刪除仍須另行授權。
+
+### 0.4 2026-08-25 DEV-098 revision／branch lifecycle amendment（RD Implementation Ready / RD Not Started）
+
+使用者以`HD-098-01 = 1C-bounded／HD-098-02 = 2A／HD-098-03 = 3A`確認canonical Drawing的新版次政策。
+current product authority為
+`.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-BRANCH-LIFECYCLE-001-unified-revision-and-branch-flow.md`與
+`.ai-doc/decisions/ADR-PDM-DRAWING-REVISION-BRANCH-LIFECYCLE-001-bounded-manual-minor-and-stale-freeze.md`。
+
+- §3.2與§4.1第2／3項的「target candidates只能由server演算法計算」改為：server推薦仍是預設；一般RD可在
+  exact non-stale source所屬整數主版次下只輸入minor suffix。major prefix、完整label、predecessor與最終合法性
+  仍由server決定；manual minor可跳未使用suffix，但必須嚴格大於source predecessor minor、全Drawing tuple未占用。
+- §4.1第9項的「stale branch可沿自身lineage續minor」被有意取代。production前進後stale branch一律freeze，
+  不提供recommended／manual minor或major；只能查看、合法cleanup、申請作廢或從current production另開新branch。
+- freeze涵蓋target後的既有work：`owner`只讀＋cancel，PATCH／file與辨識create／decision／rerun／formalize皆拒絕；
+  stale前已受理的extract可保存evidence但不得正式化或回寫work payload；`review_owner`只可return且approve在begin system前拒絕；
+  `system／system_admin／blocked`存在時其他branch不得major adoption。所有mutation共用derived
+  `basisState=current／stale／preproduction`，不新增persisted branch status。
+- pre-production只接受無current production、branch base=null且source=`0.x`；可續`0.y`或由server提出第一個major `1`。
+  其他null basis fail closed，不補假production 0。
+- §9.2／§9.3 create contract須支援`recommended`與`manual_minor`discriminated mode；兩者共用aggregate lock、
+  global tuple claim、branch cap、row version、contract token、idempotency與zero-write failure。manual request不得帶major。
+- Drawing create／approve／formalize／void固定先鎖aggregate，再鎖current production、source、exact branch與claim；
+  PostgreSQL branch必須獨立鎖定，不得對LEFT JOIN nullable side使用`FOR UPDATE`。
+- major target仍只由server產生，minor仍不得成為`Released`。major核准與所有人類／API／audit詞彙固定為
+  `採用為量產版`，不得把status-only promotion稱為merge。
+- 本amendment是`Intentional replacement + compatible preservation`：canonical state、最多三branch、claim、work、
+  review、artifact與provider parity全部保留。DEV-098已完成repo/file／wire／validator／transaction、FMEA與fixed
+  `QA-098-001..031` readiness；schema／migration=`none`。產品仍尚未實作，現行auto-only／stale candidate程式不得被
+  誤報為已符合新契約。
+
+### 0.5 2026-08-26 DEV-100 CAPA：migrated work 合法替換後的 mutable snapshot invariant
+
+A0044-M01 work `c65d1134-44d1-49d1-a689-74d83e75174a`在依序上傳`A0044.SLDASM`、`A0044-M01.pdf`、`A0043.SLDASM`後，三筆upload均成功，但後續work GET回`409 DRAWING_WORK_FILE_SNAPSHOT_INVALID`。唯讀事實確認第三檔與第一檔同屬primary `cad_3d`，既有last-wins command合法將`A0044.SLDASM`標記為`drawing_revision_work_file_replaced`，目前active set是`A0043.SLDASM + A0044-M01.pdf`；三個physical files與hash均存在。失效原因是migrated-only read invariant仍以immutable migration source假設掃描所有source rows，把合法replacement tombstone誤判為`source_asset_invalid`。
+
+治理裁定如下：
+
+- 類型=`Implementation defect + transition verification control failure`；不是檔案遺失、SolidWorks格式問題、組立件需要另一個入口或Part structure type所致。
+- Spec Impact=`Compatible CAPA amendment + implementation correction`；ADR=`No New ADR`。現行Drawing work-owned snapshot、每個exact work一個primary 3D、DEV-095 `.SLDASM`合法性及DEV-096 Future Phase parser邊界不變。
+- active source set只包含`removed_at IS NULL`且asset仍live的rows；actual work bindings須與active expected set在company／drawing／revision／binding／ordinal／hash完全相等。
+- tombstone只能在沒有active binding引用、刪除原因屬allowlisted work command且可追溯時排除expected。active deleted/missing asset、missing／extra binding、hash／scope／ordinal drift仍fail closed；不得以「忽略所有deleted rows」通過。
+- same-role replacement必須在同transaction或commit-success前通過同一post-write invariant；若immediate read會失敗，upload不得先回成功。response loss／retry沿用idempotency與rowVersion，禁止重複replacement與orphan asset。
+- client load 409時不得繼續渲染載入前的stale empty files或錯誤readiness；工作區凍結upload／remove／submit，只顯示一項可行動修復訊息。單批包含多個primary 3D時，提交前以exact filenames明示後檔會取代前檔，不增加route／wizard。
+- A0044資料修復與程式修正分離：code、isolated provider與browser QA可直接執行；primary SQLite apply前必須backup、fingerprint、dry-run，並由人類選擇保留目前`A0043.SLDASM`或恢復`A0044.SLDASM`。未選定不得依檔名根號或上傳順序猜測。
+- PDF保持active non-primary；current submit contract仍要求native primary `.SLDDRW`與primary `.SLDPRT/.SLDASM`。本CAPA不把PDF升格、不解析assembly children、不建Part／BOM、不自動分類structure type。
+- effectiveness固定由主QA §28 `QA-100-001..018`、SQLite／disposable PostgreSQL、authenticated exact three-file browser、old-validator與skip-all-deleted雙mutant、fresh aggregate與Independent QC證明。PM文件或單純不再出現409不得算CAPA有效。
+
+2026-08-26 implementation closure：repository已改為共用pure snapshot classifier，對active binding保持company／drawing／revision／binding／ordinal／hash嚴格一致，僅接受無active引用且actor／reason可追溯的allowlisted replacement／removal tombstone；upload與remove在transaction返回前執行同一post-write gate。workspace load失敗會清除stale data／token並凍結mutation；同批多primary顯示exact filename replacement chain。PostgreSQL rehearsal另修正`043_inline_relation_matrix.sql`在drop legacy relation tables後仍由`dev087_guard_company_reference`引用舊表的surviving-function缺口，不改現行Drawing／Part-only authority。fresh evidence=`output/qa/dev-100/DEV100-2026-08-26T11-50-35-191Z/manifest.json`為18/18；A0044 primary repair仍為Human-Gated、apply count 0。
 
 ## 1. 問題與成功結果
 
@@ -236,8 +285,8 @@ revision 不使用十進位浮點運算，而是解析為 tuple：production=`M`
 
 DB tuple canonicalization固定：production `M`存為`(target_major=M,target_minor=0)`；RD `M.n`存為`(M,n)`且`n>=1`。label只由server formatter產生，不參與比較或唯一性；任何含前導零、負值、空minor、浮點或非canonical label的client輸入都拒絕。
 
-- 從目前 production `M`建立新 branch 時，候選固定為下一個 production `M+1`及下一個未被 claim 的 RD `M.n`；RD minor 從`n=1`向上找最小可用值。
-- 從 RD `M.n`沿同 branch 進版時，RD 候選為大於`n`的最小未被claim minor；正常為`M.(n+1)`，若已由其他branch占用則繼續向上掃描。只有該branch的production base仍等於目前production時，才可同時提出下一個production `M+1`。
+- 從目前 production `M`建立新 branch 時，server推薦固定為下一個 production `M+1`及下一個未被 claim 的 RD `M.n`；RD minor 從`n=1`向上找最小可用值。RD另可依DEV-098只輸入同major `M`下未占用且大於0的manual minor suffix。
+- 從 RD `M.n`沿同 branch 進版時，server推薦為大於`n`的最小未被claim minor；若base仍等於目前production，RD也可輸入同major、嚴格大於`n`且未占用的manual minor。只有該branch base仍current時才可同時提出server產生的production `M+1`；stale時所有target均停用。
 - 下一個 production `M+1`若已被任何 branch claim，不得跳號提出`M+2`；UI 顯示該目標不可用並要求先處理既有分支。
 - 每個 branch 的 `base_production_revision_id`在 branch 建立時固定，供 server 驗證是否已 stale；此欄位只在 backend 使用，不進 UI。
 
@@ -281,14 +330,14 @@ DEV-087 不把永久決策寫入既有 `approval_platform_decisions`。該表會
 ### 4.1 Drawing branch rules
 
 1. 從 production row 建立任何 target 時建立新 branch；從 RD row 繼續進版時沿用該 branch。
-2. production 與 RD row 都可顯示`進版`；target candidates 只能由 §3.2 的 server 演算法計算，UI 不得自行加減版次。
-3. 例：production 1 可選production 2或最小未占用RD 1.n；RD 1.1通常可選同branch RD 1.2，若1.2已占用則選下一個未占用minor，且base仍為current production 1時也可選production 2。
+2. production、non-stale RD與合法pre-production row可顯示`進版`；server推薦由§3.2演算法計算。RD可依DEV-098切換manual minor，但UI只提交suffix，major／label／predecessor與合法性仍由server決定。
+3. 例：production 1可選server推薦production 2、RD 1.1，或manual RD 1.x未占用suffix；non-stale RD 1.1可選推薦1.2、較大的未占用manual minor，且base仍current時也可選server production 2。
 4. 新 branch 只可在 open branch 少於三個時建立；達三個時 production row 的`進版`停用並顯示固定原因，既有 branch 的`進行編輯`或同 branch 進版不受名額限制影響。
 5. 即使 target 是 major 2，核准前仍顯示`研發版 2`；核准並正式化成功後才成為`量產版 2`。
 6. 核准 minor／RD revision 只把該 revision 正式化為受控 RD，branch 保持 open idle、handling=`none`；不得改 production row。
 7. 核准 production target 後，只有在 branch base 仍等於 current production 且 claim/snapshot 都有效時，才原子切換 production row並將來源 branch轉 historical。
 8. production 從其他 branch 前進時，無關的 open RD branch 保持 current，例如 production 2 與 RD 1.1 可同時存在；這類 branch 是 stale branch。
-9. stale branch 仍可沿自身 lineage 建立下一個 RD minor，但不得直接升 production。target modal只顯示人類原因`量產基準已更新，這個研發分支只能繼續研發版`，不得顯示 branch/source/predecessor 技術資料。
+9. stale branch一律freeze，不得建立recommended／manual minor或production target。read model先投影非敏感`basisState`：idle row只保留查看、合法時申請作廢及從current production另開；owner work唯讀且只可cancel；review只可return。dialog stale recovery只防載入後race；不得顯示branch/source/predecessor技術資料。
 10. 不因建立新 branch 或新 work 收合其他 branch；最多三個 open branch latest 都必須顯示。
 11. 每個 branch 最多一份 active work；不同 branch 可並行處理。
 12. 已核准 RD revision 不可直接編輯；必須建立下一 revision。
@@ -596,8 +645,8 @@ status/pagination query vocabulary固定為 `query`、repeatable `layer`、repea
 
 | Domain | Route | Body／結果 |
 |---|---|---|
-| Drawing target | `GET /api/pdm/drawings/[drawingId]/revision-targets?sourceRowKey=...` | 回 server-signed `candidateToken`與合法 human labels，不回branch/source/predecessor |
-| Drawing create work | `POST /api/pdm/drawings/[drawingId]/revision-works` | `{sourceRowKey,candidateToken}`；原子建立／沿用 branch、claim、work與row |
+| Drawing target | `GET /api/pdm/drawings/[drawingId]/revision-targets?sourceRowKey=...` | 回server推薦的signed `candidateToken`、manual-minor rule與合法human labels，不回branch/source/predecessor |
+| Drawing create work | `POST /api/pdm/drawings/[drawingId]/revision-works` | `{sourceRowKey,selectionMode,candidateToken?／requestedMinor?}`；manual不得帶major；server重驗後原子建立／沿用branch、claim、work與row |
 | Drawing edit | `PATCH /api/pdm/drawing-revision-works/[workId]` | validated Drawing work DTO；不改現有 Drawing editor/recognition component ownership |
 | Drawing submit/cancel | `POST /api/pdm/drawing-revision-works/[workId]/submit`、`POST /api/pdm/drawing-revision-works/[workId]/cancel` | `{}`；依 header做 concurrency/idempotency |
 | Drawing void | `POST /api/pdm/drawing-rd-branches/[branchId]/void-requests` | `{rowKey}`；server驗證 exact idle latest approved RD |
@@ -614,7 +663,8 @@ Owner/reviewer page route維持：Drawing=`/numbering/drawings/[drawingId]/works
 
 ### 9.3 Transaction contract
 
-- create/confirm target：驗證build/schema/source token → lock drawing aggregate → calculate candidates／count open branches → claim target → create/reuse branch → create work → insert canonical row，同一 transaction。新 branch在 count=`3`時原子拒絕；同 branch續作不受 cap拒絕。
+- create/confirm target：驗證build/schema/source token → lock drawing aggregate → lock current production → lock source state → separate lock exact branch → 依recommended／manual mode重算basis／target／open branch count → claim target → create/reuse branch → create work → insert canonical row，同一transaction。新branch在count=`3`時原子拒絕；non-stale同branch續作不受cap拒絕，stale一律zero-write拒絕。
+- update／file／drawing-revision recognition user mutation／submit／approve／formalize與return／cancel cleanup：沿同一aggregate-first鎖序、同transaction重驗basis。stale owner只可cancel，stale review只可return；major adoption遇其他branch `system／system_admin／blocked`即zero-write拒絕。PostgreSQL不得鎖nullable outer-join branch，guard不得置於transaction外。
 - submit：鎖定 exact work/branch/entity，確認完整性後 handling owner→review_owner。
 - return：新增 minimal trace，review_owner→owner，沿用同 work copy。
 - approve：依 request descriptor驗證 action allowlist，新增 minimal trace、凍結 exact approved snapshot、review_owner→system，同一 transaction；後續 formalization只讀該 snapshot。Part live attachment不屬 snapshot。
@@ -670,9 +720,9 @@ DEV-065 Phase 2 capability開啟後，Part preview bounded hydrate暫定固定�
 
 ## 10. Repository Impact 與 Phase
 
-### 10.1 Exact implementation map
+### 10.1 Historical base implementation map（current R1～R3不得使用）
 
-本次 RD 主管以 branch=`持續優化2`、audit HEAD=`050eedd4`盤點。worktree 已有大量使用者變更；RD開始每一 phase前必須記錄 `git status --short`與 touched-path ledger，只能做targeted hunk，不得 reset／checkout／覆蓋未知變更。
+下表是branch=`持續優化2`、historical audit HEAD=`050eedd4`的base implementation map，只用於解讀既有canonical authority與歷史證據；2026-08-25 current R1～R3派工以§15.9及readiness HEAD=`818db82ad9f47e938be15c3ded21ff88f7e3ea07`為準。下表的Relation work／editor／migration責任已由§0.2與DEV-090取代，current RD不得建立、修改或以其宣稱完成。worktree已有大量使用者變更；RD開始每一phase前仍須記錄`git status --short`與touched-path ledger，只能做targeted hunk，不得reset／checkout／覆蓋未知變更。
 
 | 層 | 必改／新建位置 | 實作責任 |
 |---|---|---|
@@ -800,10 +850,10 @@ DEV-087 啟用前，現行 runtime 不得假稱符合本規格；DEV-087 啟用�
 4. 每個 open Drawing branch latest 都呈現且同圖號最多三個open branches；第四個新branch原子拒絕，既有branch仍可繼續。
 5. production 第一、可處理 RD 其次、idle RD 最後；group 不跨頁。
 6. row filter 只保留命中列，不補 companion row/group；URL reload/back/forward 一致。
-7. revision tuple/candidate演算法符合§3.2；同 drawing target revision 跨 branch只允許一個claim，loser收到占用錯誤且不得跳到未來major。
+7. revision tuple、server推薦與manual minor符合§3.2／DEV-098；manual只帶同major向前suffix。同drawing target revision跨branch只允許一個claim，loser收到占用錯誤且不得跳到未來major。
 8. target confirmation 原子建立 branch/work/claim 後才導航；刷新仍是 exact editor。
 9. production 2 核准前顯示`研發版 2`；成功後才切`量產版 2`並歷史化來源 branch。
-10. unrelated RD branch 不因 production advancement 消失；stale branch只可續RD minor，直接promotion被server fail closed。
+10. unrelated RD branch不因production advancement消失，但成為stale後不得續recommended／manual minor、edit／submit／approve或promotion；idle只可查看、作廢或從current production另開，owner work只可cancel，review只可return，且證據不得自動刪除。
 11. 未核准取消會刪除 work/bindings/predecessor/claim且 revision 可重用；已核准 revision 不可重用。
 12. 每次 approve/return 只產生一筆 minimal trace；open/submit 不計次；取消後 trace 仍在。
 13. Part/Relation 每 entity 最多一份 work；初建無 placeholder formal row。
@@ -880,4 +930,321 @@ DEV-092完成後，主SQLite仍被發現`part_roots=0`、`part_numbers=0`、comp
 
 完成結果：主SQLite exact recovery為roots/parts `0→3/3`、FK `15→0`、staging `2→0`，第二次為NO_OP；initializer增加跨process lock與atomic reconciliation；isolated build改用task-owned data/repository；relation anomaly局部降級；browser runner在任何mutation前驗證source invariant，且workspace runtime dist必須清除。fresh DEV-087 aggregate `output/qa/dev-087-aggregate/DEV087-aggregate-2026-08-24T05-53-07-065Z/manifest.json`為16/16 PASS，affected browser為91/91 PASS。完整QC authority為`.ai-doc/qc/qc-dev-094-sqlite-migration-integrity-capa-2026-08-24.md`。
 
-DEV-087 current disposition=`Local QA-QC Restored / CAPA Effective / Production Release Gated`。本amendment不表示正式Cloud SQL rehearsal、migration、cutover、deploy或release已完成。
+2026-08-24 historical disposition=`Local QA-QC Restored / CAPA Effective / Production Release Gated`；該結論已由§15的2026-08-25功能完整性重開取代，只保留DEV-094原始CAPA assertions。本amendment不表示正式Cloud SQL rehearsal、migration、cutover、deploy或release已完成。
+
+## 15. 功能完整性 RD Implementation Ready Amendment（2026-08-25）
+
+本節是`QA-087-187..218`與重開開發R1～R3的normative implementation contract。它只取代§10對這8項能力的舊file／route map與§14的current completion disposition；§1～§14其餘single-current-state、branch、review retention、migration、file authority與DEV-090 Relation direct-formal決策繼續有效。
+
+### 15.1 Spec Impact Preflight、ADR與範圍
+
+- classification=`Compatible exception + implementation correction`。目前缺的是入口、command convergence、snapshot completeness與exact readback，不是新的current-state架構。
+- schema／migration=`none`。所有新增持久資料都進既有JSON或既有domain tables；不新增table、column、index、SQLite ensure、PostgreSQL migration或backfill。
+- ADR=`No New ADR`。配對ADR的single current authority、DEV-090 direct formal Relation與既有formal-obsolete approval仍完整適用。
+- `part_root`搜尋結果自己的明細／動作、root狀態／阻擋原因、root整體新增／作廢影響明確排除；本節的新DTO、route、action enum與QA fixture不得接受`part_root`。
+- shared `POST /api/lifecycle/obsolete-requests`既有`part_root`handler、payload與approval語意原樣保留；本amendment的fingerprint只套用`drawing_number|part_number`分支，不得為root新增欄位、畫面、case或將root誤套新validator。
+- 任何實作若需要新current authority、第二套review request、production dual-write、root能力、Part attachment進review、Relation work復活或schema變更，立即停止回Dev PM，不得由RD自行擴張。
+
+### 15.2 Capability-to-authority convergence matrix
+
+| ID | Current fact | Target authority | Legacy disposition |
+|---|---|---|---|
+| C1 Drawing impact／FFF | canonical Drawing work只有檔案／辨識；舊`/numbering/revisions`另建submission、FFF assessment與review action；現行矯正前實作又把首版關聯料號誤投影為affected Parts並預設三軸相容。 | `drawing_revision_works`＋同一`pdm_work_review_requests`是唯一current work/review；只有`predecessor_revision_id IS NOT NULL`的進版work需要FFF／replacement domain evidence，首版只保留中性relation read projection。 | 舊頁、導覽、permission與現行caller全部刪除，直接請求為404且不保留轉址；舊submission、FFF與review mutation在auth/company guard後回`410 DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED`、DB delta=0；不得以隱藏UI保留首版FFF writer。 |
+| C2 tasks／notifications | task／notification API、table與role scope仍被其他流程使用；使用者於2026-08-27決定不需要獨立工作中心。 | 既有`numbering_task_items`／`numbering_notifications`、API、repository與permission capability保留為後端能力；不建立standalone page。 | `/numbering/tasks`頁面、元件、sidebar／dashboard入口、navigation permission、production open-page path與該route action allowlist移除；直接URL 404、不轉址。 |
+| C3 formal obsolete | `/api/lifecycle/obsolete-requests`與approval apply是正式權威；standalone影響分析頁、API與repository writer為重複且誤導的舊能力。 | Drawing production／Part formal由canonical drawer建立同一formal request；request與apply都綁dependency fingerprint。 | standalone頁面、API、權限與repository能力全部移除；作廢依賴快照只存在正式申請流程。 |
+| C4 Part variant | `part_variant_attributes`存在，但canonical Part payload/snapshot/formalize未含四項；legacy PUT直接寫formal。 | `part_change_works.proposed_payload`、transient review snapshot與`part_approved_change_snapshots`承載variant；核准交易upsert formal。 | legacy PUT固定`410 PART_VARIANT_DIRECT_WRITE_RETIRED`、zero-write。 |
+| C5 history | Drawing drawer history只有revision文字。 | 以`drawing_revisions.id`為exact key讀指定revision previews/files；single file-read仍是唯一bytes authority。 | current/latest detail不得充當history fallback。 |
+| C6 work files | current work可上傳且能列檔，但沒有逐檔download/remove/progress/readback contract。 | `drawing_revision_work_files`＋`drawing_revision_files`＋`file_assets`既有鏈；owner只可移除exact non-primary work member。 | primary、review-locked、cross-work/company與history source mutation一律拒絕。 |
+| C7 matrix navigation | `RelationMatrixTable`已有`onOpenDrawing/onOpenPart`，drawer未傳callback。 | 只做Drawing／Part canonical URL navigation，沿用同一matrix authority與dirty guard。 | 不建Relation頁、root drawer或第二套link resolver。 |
+| C8 discovery／cursor | server parser有query/sort/next cursor，UI只送部分條件且append載入；沒有domain filters/previous cursor。 | canonical list query＋signed bidirectional cursor v2；shared controller負責URL/history/race。 | client-side filter、cursor v1繼續使用、先分頁後刪列與append模式退役。 |
+
+### 15.3 Drawing changeImpact wire與transaction
+
+#### 15.3.1 Work payload
+
+FFF適用性是server authority，不是版號字串或client UI推論：
+
+```ts
+type DrawingChangeImpactProjection = {
+  changeImpactRequired: boolean;
+  relatedParts: Array<{ id: string; code: string; name: string | null }>;
+  affectedParts: Array<{ id: string; code: string; name: string | null }>;
+};
+```
+
+- `changeImpactRequired = claim.predecessor_revision_id !== null`。`NULL`代表首版建立；非`NULL`代表存在可比較前版的進版工作。不得以`revision === "0.1"`、data layer、route或畫面來源替代此判定。
+- `relatedParts`是目前direct relation的中性read projection，首版與進版都可讀；`affectedParts`只在`changeImpactRequired=true`時由exact change-impact snapshot投影。client不得把兩者共用同一欄位或以綠色勾選暗示已通過判定。
+- 首版的`proposed_payload`必須省略`changeImpact`。新client若在首版PATCH傳入FFF欄位，回`422 DRAWING_FFF_NOT_APPLICABLE`且zero-write；既有open首版內已被舊實作寫入的v1 `changeImpact`由read compatibility層排除，後續合法update／submit正規化移除，不做批次backfill。
+
+只有`changeImpactRequired=true`的進版work可保存下列draft JSON：
+
+```ts
+type DrawingFffState = "no_impact" | "suspected_impact" | "confirmed_impact";
+
+type CanonicalDrawingChangeImpactDraft = {
+  schemaVersion: 2;
+  affectedPartNumberIds: string[];
+  affectedPartFingerprint: string;
+  formState: DrawingFffState | null;
+  fitState: DrawingFffState | null;
+  functionState: DrawingFffState | null;
+  reasonCategory: string | null;
+  note: string | null;
+  replacement: null | {
+    sourcePartNumberId: string;
+    reservedPartNumber: string;
+    itemType: "self_made" | "purchased";
+    detectedPartNumber: string | null;
+    correctedPartNumber: string | null;
+    attachmentSnapshot: ReplacementAttachmentSnapshotInput;
+  };
+};
+```
+
+draft的三軸初始皆為`null`，client顯示「請判定」；不得把缺值、unknown或legacy空物件正規化成`no_impact`。submit時三軸任一為`null`回`422 DRAWING_FFF_INCOMPLETE`並保留使用者輸入；完成後server才依`confirmed > suspected > no_impact`推導outcome，client不得傳另一個可分歧outcome。全部`no_impact`時server將reason正規化為非UI的`no_impact_confirmed`；任一軸為`suspected_impact|confirmed_impact`時，使用者必須選擇非空reason category，UI只顯示人類中文label，不顯示raw `not_specified`。`affectedPartNumberIds`需排序去重，全部必須是same-company、same-root且由目前direct relation candidate set取得；submit前重算`affectedPartFingerprint=hash(company+drawing+revision+ordered ids+current relation etag)`。confirmed必須有replacement，其他outcome必須為null；detected/corrected與reserved number不一致、attachment source不同、未知key或payload超限皆fail closed。正式`drawing_revision_fff_assessments`與approved policy snapshot仍只保存完成後的三種既有終態，DB constraint不增加`null`或`unassessed`。
+
+legacy v1進版payload可read，但第一次update／submit必須轉為v2 draft／approved shape並重新驗fingerprint；不得用相容層信任舊derived outcome或補猜未作出的三軸判定。已核准history保持immutable，不回填schemaVersion或改寫舊FFF evidence。
+
+#### 15.3.2 Current review lifecycle
+
+1. owner update只寫canonical work JSON與row version，不建立舊submission或approval-platform request。
+2. canonical submit先在lock內重算`changeImpactRequired`。首版只驗證required files／recognition dirty並建立不含FFF的exact review snapshot；進版另驗證完成的impact payload／relation scope，建立或重用該cycle唯一FFF assessment與必要replacement `part_number_draft`，再將`changeImpactRequired + changeImpact + affectedPartFingerprint + assessmentId + replacementDraftId + exact file set`放入同一`pdm_work_review_requests.snapshot_payload/hash`。
+3. reviewer只由`/api/pdm/review-requests/[requestId]`讀exact snapshot，同頁只允許`approve|return_for_correction`；舊FFF review actions不再可呼叫。
+4. return在同一transaction處理request/work解鎖；只有進版cycle可刪除尚未formalize的FFF assessment、replacement draft與其暫存attachment bindings。首版不得出現可清理的FFF／replacement row；`pdm_review_traces`只保留既有minimal cycle/entity/time。
+5. approve鎖request/work/revision與file set並重驗snapshot hash。首版直接formalize Drawing且policy snapshot不得新增`changeImpact`；進版才另鎖relation／replacement、重驗affectedPart fingerprint、由`formalizeCanonicalDrawingImpactInTransaction`套用FFF／replacement link／BOM reconfirmation effect，再由`DrawingRevisionWorkAsyncRepository.formalize`formalize Drawing並merge normalized approved `changeImpact`。任何一步失敗整筆rollback，request保持可恢復狀態；不得呼叫舊review action、不得寫`approval_platform_decisions`。
+6. 進版的approved FFF assessment、replacement identity/link、revision policy snapshot與controlled files是formal domain evidence；formalize時需清空assessment的transient work/request linkage（`submission_id/review_package_id=null`），current work/request刪除。首版formal evidence只有Drawing review、controlled files與recognition／policy本身，不得製造假的「相容」FFF evidence。取消未送審work不會建立assessment/draft；return後舊cycle內容不得殘留pending list。
+
+`src/lib/drawing-change-impact.ts`是validator／candidate projection／fingerprint adapter；`src/lib/pdm-change-control-domain.ts`只新增可接受caller transaction的prepare／cleanup／formalize primitives，不得自行開第二個transaction或再次同步Drawing current state。
+
+#### 15.3.3 UI entry、layout與錯誤恢復
+
+- owner由正常Drawing建立流程開啟首版workspace時，在「版次與檔案」後只顯示compact「關聯料號」；不渲染`FFF／變更影響`section、三軸select、綠色check或`not_specified`。關聯料號是context，不代表已受影響或已相容。
+- owner由Drawing drawer「進版」建立work時，沿用同一full-page workspace，在「版次與檔案」後、「智慧辨識」前顯示`FFF／變更影響`；先以中性「判定範圍」列出exact affected number＋name，再顯示三軸、reason／note與必要replacement。唯一primary在三軸未完成、reason／replacement缺漏或scope stale時不可送審，錯誤就地顯示且保留輸入。
+- reviewer沿用exact review package骨架：首版無FFF section，進版顯示送審時immutable FFF snapshot且全部控制唯讀。owner/reviewer不得因snapshot mode、revision label或direct URL得到不同適用性。
+- scope stale回`DRAWING_CHANGE_IMPACT_SNAPSHOT_STALE`並保留已輸入判定，提供重新整理範圍的可恢復動作；重新整理後必須由使用者重新確認，不自動重送。
+- 1440×900、1024×768、390×844、320×800與200% zoom必須無水平overflow、重疊、雙重捲動或被footer遮蔽的primary；鍵盤焦點順序固定檔案→關聯／影響→辨識→footer action，狀態不得只靠色彩。
+
+Exact implementation map至少涵蓋`numbering-async-repository.ts`初始0.1 initializer、`drawing-revision-work.ts` read／update／submit／review DTO、`drawing-revision-work-async-repository.ts` create／formalize、`drawing-change-impact.ts` v1/v2 validator、review package projection、`canonical-drawing-change-workspace.tsx`與`canonical-review-package-workspace.tsx`。不得只改JSX visibility而保留首版FFF payload／assessment／formalization writer。
+
+### 15.4 Task／notification backend contract after page retirement
+
+- `/numbering/tasks`不再是產品頁面：page component、sidebar／dashboard入口、navigation permission mapping與production open-page path必須不存在，直接URL為unmatched route／404且不轉址。
+- permission capability=`numbering.tasks`及task／notification API、table、repository保留，因`/numbering/part-drafts`與其他內部projection仍使用；頁面退役不得連帶刪除資料或server authorization。
+- combined task排序固定`critical → warning → info`、同風險內有效`detail.dueAt ASC`（逾期優先、無期限最後）、`createdAt DESC`、`id ASC`。`dueAt`只接受ISO timestamp並由contract投影，不新增schema欄位；invalid value視為無期限。通知沿用severity再createdAt排序並補id tie-breaker。
+- `phase1h:*`等virtual lifecycle task必須由底層domain終態消失；stored task mutation與notification read／handled route維持既有permission、company、identity與stale guard。
+- `actionUrl`必須是same-origin active-workbench allowlist且重新授權；`/numbering/tasks`本身屬退役path並固定拒絕，外部、空值與identity不符同樣fail closed。
+- `src/lib/production-slice.ts`只保留仍有caller的existing mutation matchers，不得把退役page放回open-page list；正式啟用仍受release gate。
+
+### 15.5 Formal obsolete contract
+
+#### 15.5.1 Action eligibility
+
+`CanonicalActionKey`增加`request_obsolete`。只有`handling=none`、formal record=`Active|Released`、沒有同entity active canonical work／pending obsolete request且具exact action permission時顯示：Drawing production用`obsolete_ma_drawing`，Part formal用`obsolete_part_number`。Drawing RD維持branch `void_rd`；root不支援。
+
+`CanonicalWorkbenchStateRecord`／repository projection需提供server-derived `formalRecordStatus`、`hasActiveCanonicalWork`、`pendingObsoleteRequestId`，避免formal companion row在另一work row active時誤顯示作廢action。route仍在transaction內重驗，不信任descriptor。
+
+canonical `drawings.id`不是formal `drawing_numbers.id`的契約保證，因此drawer command一律用same-company `entityCode`解析formal Drawing／Part，不把canonical entity ID直接送進obsolete request；server需核對code所解析的formal identity仍與所選canonical row相符。
+
+#### 15.5.2 Dependency snapshot
+
+新增read-only `GET /api/lifecycle/obsolete-impact?entityType=drawing_number|part_number&entityCode=...`，回：
+
+```ts
+type FormalObsoleteImpactDto = {
+  entityType: "drawing_number" | "part_number";
+  entityId: string;
+  entityCode: string;
+  dependencies: Array<{ kind: string; id: string; code: string; disposition: string }>;
+  fingerprint: string;
+  pendingRequestId: string | null;
+};
+```
+
+Drawing dependencies至少含目前有效primary Parts、controlled revisions/files與active relation identities；Part至少含direct Drawing relations、released BOM/where-used、replacement links與current main-drawing status。所有陣列按`kind/id`排序，fingerprint涵蓋company、entity status與ordered tuple。
+
+`POST /api/lifecycle/obsolete-requests`只有`entityType=drawing_number|part_number`分支除既有entity/reason/idempotency外必須帶preflight fingerprint；request transaction重算並把`schemaVersion=1`、fingerprint與snapshot tuples寫入既有approval payload。核准apply再鎖entity與依賴、重算fingerprint；不同回`409 LIFE_OBSOLETE_DEPENDENCY_STALE`且zero-write，request保持可判讀，不自動套用latest。既有`part_root`分支的handler、payload與approval行為不變，也不得被新DTO hydrate或新fingerprint validator攔截。
+
+舊 standalone 製造圖影響分析頁、`POST /api/numbering/impact-analysis`、對應權限與 repository facade 全部退役。正式作廢只能由 canonical drawer 取得 `/api/lifecycle/obsolete-impact` 依賴快照，再送 `/api/lifecycle/obsolete-requests`；Drawing revision 的 F/F/F 影響判定仍由 canonical Drawing work 承載。
+
+### 15.6 Part variant work contract
+
+`PartChangePayload`增加六個nullable storage fields：`materialCode`、`materialLabel`、`colorCode`、`colorLabel`、`surfaceTreatment`、`variantNote`。UI只呈現材質、顏色、表面處理、變體備註四項；材質／顏色可同時保存code與label，不將label冒充identity。
+
+- `readPart`以single LEFT JOIN讀`part_variant_attributes`；缺row投影全null。
+- `rowPayload`、`validatePartChangePayload`、base hash、update、review snapshot與approved before/after snapshot全部包含六欄；unknown key仍422，Part attachments仍明確排除。
+- approve在既有Part formalize transaction先鎖formal Part與variant row，寫approved snapshot，再upsert variant attributes與update Part master，最後刪work/request並推進formal row version；stale hash／review request／company mismatch全部zero-write。
+- cancel／return只影響work；formal variant不變。`PUT /api/parts/[partNumber]/variant`完成auth/company guard後固定410，不呼叫`upsertPartVariantAttributesAsync`；active caller inventory必須為0。
+
+### 15.7 Exact history與Drawing work file contract
+
+#### 15.7.1 History
+
+`CanonicalDrawingHistory`增加`revisionId`與`detailHref`。`GET /api/numbering/drawings/[drawingId]/history/[revisionId]`只在same-company、revision.drawing_id exact匹配且lifecycle是approved historical/current controlled時回資料；cancelled／preparing／cross-company一律404或403。DTO只含exact identity、兩個preview slots與該revision未移除的controlled files，actions為0。
+
+preview與download必須以revision/file binding explicit key解析；missing binding、deleted asset、hash mismatch或derivative mismatch顯示一項可理解錯誤並fail closed，禁止改讀current/latest revision。drawer使用`historyRevision=<revisionId>`保存選取，reload／Back／Forward仍開同一版；離開history回原current detail與focus。
+
+#### 15.7.2 Work files
+
+work read DTO每檔增加`fileSize`、`mimeType`、`contentHash`、`downloadHref`、`canRemove`、`removeBlockedReason`。download只用現行single file-read href；reviewer DTO相同但mutation action為0。
+
+新增`DELETE /api/pdm/drawing-revision-works/[workId]/files/[fileBindingId]`，要求If-Match、idempotency與contract token。transaction需鎖work與binding，確認owner／authorized non-owner、handling=owner、row version、same company、binding屬exact work。`is_primary=1`或role為2D/3D primary回`409 DRAWING_WORK_PRIMARY_FILE_REMOVE_FORBIDDEN`；review-locked回409；不存在／跨scope不得洩漏identity。
+
+若binding是來源歷史revision，只移除work membership，保留歷史binding/asset；若是目前未核准revision自己上傳的non-primary，移除work membership、soft-remove revision binding，且僅在零其他有效引用時soft-delete asset。physical object不在此command永久刪除。DB成功後row version加一並readback；失敗不得partial remove。
+
+client為每個file維持`queued|uploading|succeeded|failed|removed`與byte percentage，採可觀測upload progress並允許逐檔retry／abort；一檔失敗不把其他成功檔偽裝失敗，submit只取server readback的合法集合。
+
+DEV-100 amendment：上述work files是mutable current snapshot，不是永遠等於最初migration source的immutable集合。repository必須由active rows建立expected set，並把command-owned tombstone與active corruption分離；primary same-role replacement、non-primary remove與retry後皆要通過post-write immediate read。load anomaly時UI不得沿用stale `data.files`推導「尚無檔案」或缺2D／3D blocker。多primary同批選取的提示只說明exact replacement結果，不推導CAD parent／child或BOM結構。此amendment已由DEV-100實作：migrated與new work共用classifier，active corruption維持stable `409 DRAWING_WORK_FILE_SNAPSHOT_INVALID`，合法replacement immediate read成功；UI error state只保留返回與重新載入。實作與本SPEC同步，無新route、schema或ADR。
+
+### 15.8 Matrix navigation、domain filters與bidirectional cursor
+
+#### 15.8.1 Matrix identity navigation
+
+Drawing／Part drawer把`RelationMatrixTable`既有`onOpenDrawing(number)`／`onOpenPart(number)`接到canonical工作臺URL：`/numbering/drawings?query=<exact>&detail=<resolved rowKey>`與`/parts?query=<exact>&detail=<resolved rowKey>`。exact row需由target list/detail resolve，不可沿用來源lane/revision。keyboard button accessible name固定`開啟圖號 {number}`／`開啟料號 {number}`。
+
+matrix dirty時導覽只允許三個明確結果：先儲存後前往、捨棄後前往、留在本頁；Escape等同留頁。儲存失敗保留dirty與selection，不導航；返回後恢復來源detail、矩陣scroll與觸發identity focus。
+
+#### 15.8.2 Query keys與options
+
+canonical query在既有`query/layer/stage/handling/sort/cursor/limit`上增加repeated keys：
+
+- Drawing：`purpose`與`series`。purpose取`drawings.purpose_code`；series定義為該Drawing同`part_root_id`下formal Part的`series_code`，不是Drawing新欄位。
+- Part：`itemKind`、`series`、`material`、`color`。material/color以`part_variant_attributes.material_code/color_code`為identity，label只作顯示。
+- 同欄OR、跨欄AND；all省略key、none用既有`__none__`、some用repeated key。filter options由company-scoped distinct batch回傳，穩定按code排序；不接受client自造未知值。
+- text query同時命中本domain code/name及契約允許的直接對應碼；所有domain filter、query、layer/handling/stage與sort先於canonical group pagination。
+
+list DTO增加：
+
+```ts
+data: {
+  groups: CanonicalWorkbenchGroupDto[];
+  nextCursor: string | null;
+  previousCursor: string | null;
+  totalGroups: number;
+  totalRows: number;
+  filterOptions: CanonicalFilterOptions;
+  previewByRowKey?: Record<string, CanonicalPreviewProjection>;
+}
+```
+
+#### 15.8.3 Cursor v2
+
+signed cursor payload固定`{version:2, companyId, entityType, filterHash, sort, direction:"after"|"before", code, entityId}`。filter hash涵蓋normalized query、所有selection、sort與limit；company/domain不同、未知version、signature/filter mismatch回`400 WORKBENCH_CURSOR_INVALID`。UI顯示「清單內容已更新，已回到第一頁」並受控reset一次，不silent reuse。
+
+`after`以visible sort方向取`limit+1`；`before`反轉comparator與SQL order取`limit+1`後在server reverse回visible順序。response以第一／最後identity mint previous/next；first page previous=null。group仍是pagination unit，0/1/3 Drawing branches不得拆頁。
+
+`CanonicalPdmWorkbench`改用`usePdmWorkbenchController`的`paginationMode="server-bidirectional"`處理abort、stale response、URL cursor/pageIndex、Back／Forward與selection reconciliation；server groups在client normalize時攤平成帶groupKey的rows再依groupKey渲染，不複製第二套cursor history。原`載入更多`append flow移除，改明確「上一頁／下一頁」。
+
+### 15.9 Exact repository／file map與phase order
+
+| Phase | Delivery targets | Entry | Exit |
+|---|---|---|---|
+| Historical G0-A | registry／schema、case-ID migration ledger、independent reference oracle、`qa-integrity --stage preflight` | 舊DEV-097 anti-cheat工具 | QA-087-219..224自2026-08-27起不計入current completion；保留artifact作決策追溯 |
+| R1-A | `numbering-async-repository.ts`、`drawing-revision-work-payload.ts`、`drawing-change-impact.ts`、`drawing-revision-work.ts`、Drawing work repo、review package projection、`pdm-change-control-domain.ts`、Drawing owner／review workspace、legacy revision／FFF routes | contract tests先固定`predecessor_revision_id` applicability、v1/v2 payload、首版zero-FFF、進版explicit judgement、410與transaction order | QA-087-187..192及D01..D06 focused PASS、legacy writer/import/caller=0 |
+| R1-B | 刪除task center page/component、sidebar/dashboard入口與page allowlist；保留numbering async repo、existing APIs、permission capability及安全action contract | existing API authorization/repository tests PASS | QA-087-193驗證direct 404與UI路徑歸零；194..197驗證保留的backend行為 |
+| R1-C | canonical action/actor/query projection、obsolete-impact route、obsolete request/approval repo、impact page/route | R1-A legacy authority gate PASS | QA-087-198..202 PASS、fingerprint stale與direct apply zero-write |
+| R1-D | Part work repo/service/editor、legacy variant route | R1-A snapshot convention PASS | QA-087-203..206 PASS、formal before/after exact、legacy PUT zero-write |
+| R2-A | canonical history service/route/DTO/drawer | P0全部PASS | QA-087-207..208 PASS、no latest fallback |
+| R2-B | work-file service/delete route/DTO/Drawing workspace | R2-A file-read invariant PASS | QA-087-209..211 PASS、primary/reviewer/cross-scope mutation拒絕 |
+| R3-A | `relation-matrix-table.tsx` callback wiring、canonical workbench dirty guard | R2 PASS | QA-087-212..213 PASS |
+| R3-B | canonical contract/repository/service/UI、shared controller、UI closure artifacts | R3-A navigation URL fixed | QA-087-214..217 PASS、query budget／cursor properties／four-viewport actual artifacts PASS |
+| QG | `QG-087-PROVIDER`、`QG-087-SECURITY`、`QG-087-UI` | R1～R3產品案例與task-owned fixture完成 | provider交易、security zero-write、8族headed desktop/mobile與keyboard／focus／overflow／visible-error全PASS；同一開發者可執行，actual AT選配 |
+| Final | package scripts、QA-087-218 negative completion、aggregate/completion audit | R1～R3與QG全部PASS | current 51-case＋C01～C11＋QA-087-187..218=`94/94 PASS`，3 Quality Gates、typecheck、affected lint、isolated build、primary invariant與cleanup全部fresh PASS |
+
+planned runners：
+
+- `qc:dev-087:capability-contract`：wire、action、route fence、caller/import、old runner disposition、file map。
+- `qc:dev-087:capability-repository`：transaction、snapshot、fingerprint、cursor property、query count、file membership與primary invariants。
+- `qc:dev-087:capability-browser`：8 journey families、四viewport、keyboard/a11y、error/console/network、Back／Forward與UI/API/DB/file triad。
+- `qc:dev-087:capability-negative`：202／206與218逐項能力移除；每次注入必須FAIL，restore後fresh PASS。
+- Historical `qc:dev-087:qa-integrity -- --stage preflight|evidence`：保留舊DEV-097測試程式與artifact，不得再作current completion blocker。
+- 後續更新的`qc:dev-087`：納入四支capability runner、current 51-case固定名冊`D01..D24 + P01..P13 + I01..I14`、C01..C11、QA-087-187..218、三個Quality Gate、typecheck、affected lint、isolated build與primary invariant diff；Independent AT receipt與anti-cheat manifest不得再造成FAIL。
+
+evidence root沿用`output/qa/dev-087-capability/<run-id>/`；新current evidence至少含source/runtime邊界、case ID、role、viewport、操作步驟、actual、必要request/response與DB／file readback、primary SQLite schema/root/Part/Drawing/FK/residue before/after、fixture mutation ledger、runtime/port ownership與cleanup。不要求artifact hash chain或same-parent anti-reuse proof；契約變更後需fresh run，不直接重標舊PASS。
+
+### 15.10 Rollback、release與dirty boundary
+
+- local／isolated實作不接primary data。每個runtime啟動前依workspace AGENTS宣告project/purpose/port/process tree/cleanup、`PDM_DATA_DIR`、`PDM_REPOSITORY_DIR`與mutation scope；fixture seed前先通過master/root/residue/FK invariants，結束後停止task-owned tree並釋放port。
+- 本scope無schema rollback。pre-activation可回application；一旦新canonical FFF／variant／obsolete正式mutation發生，不能回到重新開啟legacy writer的build，除非先保留三個410 authority fence；其後採roll-forward修正。
+- production啟用順序固定：deploy fence build但不開流量 → 202／206與legacy Drawing writer negative probe → canonical smoke → 開流量。任何fence非410／zero-write、fingerprint不一致或current aggregate非PASS皆rollback流量並STOP，不執行資料修復。
+- readiness基準為branch`持續優化2`、HEAD`818db82ad9f47e938be15c3ded21ff88f7e3ea07`。盤點時`package.json`、DEV-087 command runner、canonical contract/service/component、Drawing workspace/work service/repository與numbering async repository已有modified hunks，另有未追蹤Drawing work file module/route。RD需先保存逐檔diff hash與hunk owner，只修改本任務hunks；禁止reset、整檔覆寫、刪除他人output或把pre-existing work算成完成證據。
+
+### 15.11 Added acceptance criteria（接續§12）
+
+67. Drawing首版以`predecessor_revision_id IS NULL`投影`changeImpactRequired=false`，同一workspace只顯示中性關聯料號且submit／review／approve全程zero FFF／replacement／BOM impact；進版以非`NULL`投影true，才在同一workspace完成affected Parts、三軸明確判定、必要reason／replacement與送審。current work／review各一份，client不得依版號猜測。
+68. 進版return清除該cycle transient FFF/replacement preparation但保留原work；approve在一個transaction formalize impact＋Drawing exactly once。首版return／approve不建立、不清除也不formalize FFF，policy snapshot不得出現系統代填的相容結果。
+69. legacy Drawing page與導覽必須移除，直接請求404且不保留轉址；legacy mutation不可形成submission／assessment／review，fixed 410、caller/import/runtime registration=0。
+70. `/numbering/tasks`頁面、元件、正式導覽／dashboard入口與page allowlist均不存在，直接URL 404且不轉址；task／notification API仍受權限保護，combined排序、virtual task與通知read／handled backend契約符合§15.4。
+71. Drawing production與Part formal的作廢action只在eligible idle狀態出現；request/apply fingerprint相同，stale zero-write，root沒有新入口。
+72. direct invalidation與legacy Part variant PUT固定410／zero-write；無flag、role或payload可繞過。
+73. Part四項業務屬性在work、exact review snapshot、approved before/after與formal row一致；cancel/return不改formal。
+74. history開啟exact revision，preview/download綁同一revision/file hash；任何錯binding不得fallback latest。
+75. Drawing work每檔download/remove/progress/readback exact；primary、locked、reviewer、cross-scope mutation拒絕，source history不受影響。
+76. matrix Drawing／Part identity以mouse/keyboard可互跳；dirty三選一、save failure與focus/scroll restore正確。
+77. domain options、query、sort、filter先於group pagination；cursor v2雙向、reload/Back/Forward、stale reset無漏列／重複／錯selection。
+78. list query符合§15.9 budget，filter option與preview都是batch，不因row/branch/file數線性成長。
+79. QA-087-187..218全部PASS、Blocked=0、Not Run=0、P0/P1=0，negative capability injection逐項FAIL且restore fresh PASS。
+80. current 51-case固定名冊、C01～C11、QA-087-187..218合計94/94、三個Quality Gate、typecheck、affected lint、isolated build與primary invariant diff全部PASS後，才可恢復local completion；舊67-case、任意「受影響子集」或文件ready本身不得替代。
+81. 同一開發者可執行RD、QA與QC。DEV-097的QA-087-219..228、G0-A／G4、Independent QC／AT receipt、immutable registry／independent oracle／mutant／artifact provenance全數降為Historical Supporting，不再是local completion、handoff或release re-entry前置；產品風險仍由94案與`QG-087-PROVIDER`／`SECURITY`／`UI`承接。
+
+### 15.12 Historical QA integrity amendment（2026-08-25，superseded 2026-08-27）
+
+- 本節與§15.13～15.14只作DEV-097決策與實作artifact追溯；其anti-cheat gate已由§15.15取代。Spec Impact=`Compatible verification hardening / No product behavior change`；不新增schema、migration、product route、action或current authority，ADR=`No New ADR`。
+- `DEV-097`是DEV-087的P0開發點但不計入產品完成率；其唯一目的為封住分母縮小、seed終態冒充UI journey、SUT自我oracle、舊aggregate假綠與evidence拼接／重用。
+- G0-A/G4 planned files固定為`.ai-doc/qa/dev-087-current-case-registry.json`、`.ai-doc/qa/dev-087-current-case-registry.schema.json`、`.ai-doc/qa/dev-087-capability-manifest.schema.json`、`.ai-doc/qa/dev-087-case-id-migration.json`、`scripts/qc-dev-087-reference-oracles.mjs`與`scripts/qc-dev-087-qa-integrity.mjs`；registry展開所有required cases，不允許runtime自行解讀range或「受影響」。
+- repository seeded fixture與rendered UI journey分開計分；每案固定`fixtureOrigin`與allowed claims。UI mutation必須以action/network/server/DB四份ledger一對一追溯；只有202／206可直接API且必須non-2xx／zero-write。
+- affected Parts、obsolete fingerprint、task order及cursor/group pagination的reference oracle只能讀primitive facts，不得import產品service/repository或把SUT派生snapshot當expected；known-wrong vectors與固定mutant catalog必須證明gate可失敗。
+- current aggregate不得只看exit code；需驗證registry、source/tree/schema/provider/oracle/runner hashes、child manifest path/hash、case roster、首敗、prohibited mutation、primary invariant與cleanup receipt。現行未含capability／integrity runner的aggregate只可標Historical。
+- UI evidence另依UI-only QA §29要求actual viewport、geometry、headed visible QC、至少一種實際輔助科技、same-origin/cross-company negatives與checkpoint hash chain；full-page screenshot、DOM selector、HTTP 200或單一headless run均不足以PASS。
+- `part_root`搜尋明細／root狀態／阻擋原因／root整體新增或作廢影響維持排除；DEV-097不得用反作弊名義建立root case、selector、route或Blocked項。
+
+### 15.13 Historical DEV-097 RD Implementation Ready contract
+
+#### 15.13.1 Exact file／command map
+
+| Target | Required implementation |
+|---|---|
+| Case registry | `.ai-doc/qa/dev-087-current-case-registry.json`；每筆固定`caseId`、`classification=current_required|historical_supporting`、`gateStage`、`definitionHash`、`acIds`、`runner`、`provider`、`fixtureOrigin`、`allowedClaims`、`assertionIds`、`requiredArtifacts`。current denominator不得由range字串推算。 |
+| Registry schema | `.ai-doc/qa/dev-087-current-case-registry.schema.json`；拒絕duplicate ID、unknown classification/stage、空trace、hash格式錯誤與required artifact缺漏。 |
+| Capability manifest schema | `.ai-doc/qa/dev-087-capability-manifest.schema.json`；固定`schemaVersion`、`runId`、`gateStage`、`source`、`environment`、`registryHash`、`oracleHash`、`runnerHash`、`caseResults`、`childManifests`、`prohibitedMutationAudit`、`primaryInvariant`、`firstFailure`、`cleanupReceipt`。 |
+| Case-ID migration | `.ai-doc/qa/dev-087-case-id-migration.json`；把第二筆舊`QA-087-115`重鍵為`QA-087-229`，保存舊／新definition hash、reason/date與`currentDenominatorDelta=0`；`QA-087-229`固定`historical_supporting`，不得加入current完成分母。 |
+| Independent oracle | `scripts/qc-dev-087-reference-oracles.mjs`；只export §15.13.2四個pure functions與canonical hash helper，不得import產品／repository／aggregate／capability runner。 |
+| Integrity runner | `scripts/qc-dev-087-qa-integrity.mjs`；唯一package command為`qc:dev-087:qa-integrity`，以`--stage preflight|evidence`分段，不建立空的`qc:dev-087:harness`alias。 |
+| Capability runners | `scripts/qc-dev-087-capability-{contract,repository,browser,negative}.mjs`；各自產生schema-valid child manifest，aggregate只驗證hash與結果，不重算或覆寫child首敗。 |
+| Aggregate | `scripts/qc-dev-087-aggregate.mjs`與`package.json`；current mode必須讀registry exact roster、schema-validate所有child、驗artifact hash與stage completeness；缺實際child時回`CURRENT_EVIDENCE_INCOMPLETE`且不產生completion candidate。 |
+
+#### 15.13.2 Independent reference oracle boundary
+
+oracle輸入只接受primitive JSON tuples，輸出使用key-sorted UTF-8 JSON的SHA-256；禁止讀DB、呼叫HTTP或import`src/lib`、repository、產品service、aggregate與四支capability runner。exact exports固定為：
+
+- `oracleAffectedParts({companyId,drawingId,revisionId,relationTuples})`
+- `oracleObsoleteFingerprint({entityType,entityCode,status,dependencyTuples})`
+- `oracleTaskOrder(tasks)`
+- `oracleGroupedCursor({rows,filters,sort,limit,direction,anchor})`
+
+每個oracle至少有一個known-good與一個known-wrong vector；任一wrong vector被接受、產品import被發現或oracle hash與manifest不符，G0-A以`ORACLE_NOT_INDEPENDENT_OR_INSENSITIVE`失敗。
+
+#### 15.13.3 Stage、runner拓樸與stop conditions
+
+- historical `harness`責任映射到`qa-integrity --stage preflight`；schema／retention映射既有migration／retirement與primary invariant gates；concurrency／query-budget／performance／soak映射`capability-repository`；fault injection映射`capability-negative`＋fixed mutants；visible-error／a11y映射`capability-browser`＋G4 QA-087-228。舊runner名稱只作歷史來源，不要求新增空alias。
+- G0-A只允許synthetic invalid manifests／mutants證明QA-087-219..224會失敗；產品child manifests此時預期不存在，current aggregate必須expected-FAIL `CURRENT_EVIDENCE_INCOMPLETE`。若它PASS或產生completion candidate，立即STOP，R1不得進場。
+- G4只接受R1～R3實際repository/browser run產生且checkpoint hash chain一致的證據；G0-A用於direct mutation、external URL、provider mismatch或viewport不足的synthetic mutant，只能證明validator有能力失敗，不能讓QA-087-225／227／228 PASS。
+- fixed mutant catalog與error mapping以主QA §27.6為唯一驗證authority；任何mutant未被指定gate抓到、首敗被後續結果覆寫、restore沿用舊run ID或cleanup/port receipt缺失，整個stage FAIL。QA主管重新審查通過前，只能標`RD Implementation Ready / QA Supervisor Re-review Required`。
+
+### 15.14 Historical 2026-08-25 execution closure
+
+- Local completion evidence：G0-A `output/qa/dev-087-capability/DEV087-G0-A-20260825135214676/manifest.json`（6/6）、actual PostgreSQL G4 product `output/qa/dev-087-capability/DEV087-product-g4-postgres-2026-08-25T15-44-41-956Z/manifest.json`（QA-087-225..228 4/4）、G4 integrity `output/qa/dev-087-capability/DEV087-G4-20260825155456106/manifest.json`（actual product／browser／repository child manifest與hash mapping）、aggregate `output/qa/dev-087-aggregate/DEV087-aggregate-2026-08-25T15-53-16-455Z/manifest.json`（20/20）。browser 94/94、typecheck、isolated build 125/125同輪通過。
+- Integrity closure：prohibited mutation audit的direct API／SQL／page.evaluate／unprovenanced writes均為0；actual UI action、network initiator、server correlation、DB writer ledger、provider receipt、same-origin／cross-company negative、viewport／a11y、artifact hash與task-owned cleanup均可由manifest重算。缺child、synthetic replacement、外部actionUrl、跨fixture拼接或未完成cleanup時，aggregate必須fail closed。
+- Primary data boundary：primary SQLite raw hash=`228ac691176ca5645aa40aae2ff2c24264c30d68031159b5a2ff123bfc5aa0e1`、isolated build logical invariant=`23ef6fc8e71dba33874f145e2a78cf09529c0197230f9d9aa175ebee23759fc`；foreign-key、root-reference、migration-residue與authority均無異常，task-owned runtime／fixture／port已清理，未執行Cloud SQL／production mutation。
+- Scope exclusion：`part_root`搜尋結果自己的明細與動作、root狀態／阻擋原因、root整體新增或作廢影響不屬本DEV-087／DEV-097本輪交付；shared obsolete route既有root分支維持原authority，不因本次QA完整性封口而擴張。
+- Historical release disposition：本節原要求QA主管／Independent QC簽核，該local anti-cheat前置已取消；正式provider parity、zero-loss rehearsal、migration、cutover、deploy與release仍另行執行並取得明確授權。
+
+### 15.15 Trusted-solo QA completion amendment（2026-08-27）
+
+- Decision source：使用者明確決定單人公司不再採用防執行者作弊的QA項目，接受同一開發者可縮小名冊、調整expected、重用或偽造evidence的剩餘風險。Spec Impact=`Intentional replacement / No product behavior change`。
+- Current denominator：`D01..D24 + P01..P13 + I01..I14 = 51`、`C01..C11 = 11`、`QA-087-187..218 = 32`，合計94個產品案例。QA-087-219..229只作Historical Supporting。
+- Cross-cutting gates：`QG-087-PROVIDER`驗證SQLite／PostgreSQL關鍵交易、atomicity、JSON、cursor與zero-write；`QG-087-SECURITY`驗證role／same-origin／cross-company／exact identity與reject zero-write；`QG-087-UI`驗證8族desktop／mobile headed畫面、normal/loading/empty/error/high-risk、keyboard/focus/overflow與visible-error。
+- Same-operator rule：RD、QA、QC可由同一人執行。actual NVDA／JAWS／Narrator改為選配；沒有actual AT證據時不得宣稱screen-reader conformance，但不阻擋DEV-087 local completion。
+- Still mandatory：正常導覽／CTA與rendered UI、UI／API／DB／file／authority readback、權限負向、stale／idempotency／atomicity、exact artifact no-fallback、primary schema/master/root/FK/residue invariants、task-owned fixture/runtime/port cleanup、typecheck、affected lint與isolated build。
+- No longer mandatory：Independent QC role／receipt、actual AT receipt、immutable registry/denominator、independent oracle/import graph、M01..M12、child SHA-256/cardinality/same-parent、immutable first failure與anti-cheat provenance ledger。
+- Completion：94/94、3 Quality Gates、Blocked=0、Not Run=0、P0/P1=0、primary invariant unchanged與cleanup PASS；因契約已改變，需fresh trusted-solo aggregate，不直接把舊DEV-097／G4 artifact重標current PASS。production release仍是另一授權與驗證邊界。
+- Scope exclusion unchanged：`part_root`搜尋結果的明細與動作、root狀態／阻擋原因、root整體新增或作廢影響仍不在本期。

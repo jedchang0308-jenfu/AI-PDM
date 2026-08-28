@@ -17,11 +17,11 @@
 
 | Raw property | Expected value | stable key | category | owner/write policy |
 |---|---|---|---|---|
-| `品名` | `本體_BS_右_Xx5` | `part_name` | `identity_relation` | A0002-P01 / evidence only |
-| `3D圖號(主)` | `A0002` | `model_root_number` | `identity_relation` | drawing / evidence only |
-| `版本／版次` | `0.1` | `revision` | `identity_relation` | drawing revision / evidence only |
+| `品名` | `本體_BS_右_Xx5` | `part_name` | `identity_relation` | A0002-P01 / draft input / no direct canonical write |
+| `3D圖號(主)` | `A0002` | `model_root_number` | `identity_relation` | drawing / draft input / no direct canonical write |
+| `版本／版次` | `0.1` | `revision` | `identity_relation` | drawing revision / draft input / no direct canonical write |
 | `製圖` | `朱宇鴻` | `drawn_by_name` | `drawing_revision` | drawing revision / reviewed metadata write |
-| `料號` | `A0002-P01` | `part_number` | `identity_relation` | exact linked part / owner anchor / evidence only |
+| `料號` | `A0002-P01` | `part_number` | `identity_relation` | exact linked part / draft identity anchor / no direct canonical write |
 | `材質` | `不鏽鋼SUS304` | `material` | `part_attribute` | exact linked part / reviewed write |
 | `表面處理` | `無` | `surface_finish` | `part_attribute` | exact linked part / reviewed explicit value |
 | `熱處理` | `無` | `heat_treatment` | `part_attribute` | exact linked part / reviewed explicit value |
@@ -32,7 +32,8 @@
 - `料號` 是同scope part-owner anchor；若實檔scope與本假設不同，QA記錄actual scope並依SPEC owner rules判定，不可為了match expected手動重排。
 - `無` 是實際字串值，可提出explicit value；空字串／null不是`無`。
 - linked property的candidate優先採檔案上次儲存的evaluated value，raw evidence另保留linked expression。若Document Manager把未連結literal放在raw／linkedTo channel且evaluated為空，只可採非`$PRP` expression的非空literal；未解析expression維持null／blocked。
-- `品名/3D圖號(主)/版本/料號`不得正式化改寫canonical identity。
+- `品名/3D圖號(主)/版本/料號`在draft context應預填辨識草稿；不得由辨識正式化直接改寫canonical identity。
+- 同碼正式part與有效draft part是同一邏輯owner，正式ID優先；不得因此產生多筆「需處理」。
 - `製圖`是name string，不解析為account/user id。
 - SOLIDWORKS 未儲存狀態不在本fixture或DEV-035驗收範圍。
 

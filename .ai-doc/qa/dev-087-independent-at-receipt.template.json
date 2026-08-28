@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "dev087-independent-at/v1",
+  "executedByRole": "independent_qc",
+  "independentFromRole": "rd",
+  "actual": false,
+  "result": "NOT_VERIFIED",
+  "technology": "",
+  "families": [],
+  "viewports": [],
+  "executedAt": null,
+  "executor": null,
+  "evidenceRoot": null,
+  "firstFailure": "Template only. Independent QC must execute actual assistive-technology verification before changing actual/result."
+}

@@ -829,7 +829,7 @@ No partial formalization is allowed in Current Phase. If RD finds a target adapt
 1. Given A0005 complete 3D＋2D sources, when extraction completes, then one session contains traceable observations from every successful adapter and missing 3D properties do not block review.
 2. Given one drawing maps to A0005 and P01／P02／P03 variants, when common and different values are recognized, then common material／surface／color appears once as baseline and each part shows only its own differences.
 3. Given a part has no recognized value for a baseline field, then the system does not propose clearing it; only explicit `無／取消／N/A／不適用` evidence can create a clear/not-applicable proposal.
-4. Given CAD, OCR and current PDM values disagree, then the page exposes every source and formal value as a conflict; confidence does not auto-select a winner.
+4. Given CAD and OCR sources propose different non-empty values, the page exposes every source as a conflict and confidence does not auto-select a winner. In a reversible draft-population context, a difference from current PDM alone remains a proposed draft update and is shown at write-impact instead of becoming an initial field error.
 5. Given an unknown field label, then the user can map it, create a company custom field with collision warning, defer it or ignore it without losing raw evidence.
 6. Given a local roughness symbol and a title-block overall roughness note, then the local symbol remains engineering evidence while the overall value may become a part attribute candidate.
 7. Given unresolved text that does not affect an intended write, then formalization may proceed only after the confirmation shows the excluded count; unresolved owner or intended-write conflict blocks it.
@@ -1035,7 +1035,7 @@ Formalization command name is `drawing_recognition.formalize.v1` and must call `
 
 PostgreSQL uses `SELECT ... FOR UPDATE`; SQLite runs within `BEGIN IMMEDIATE`. `write-impact` hashes the expected session version, immutable source set and current target rows including explicit missing-row markers. Formalization locks and re-hashes every target. Any mismatch returns `409` before the first formal mutation. If a target is Released/controlled, the command also requires existing `post_release_change` plus a non-empty reason; recognition permission never bypasses lifecycle authority.
 
-`identity_relation` decisions only bind candidates to existing canonical objects in Current Phase. They do not create `drawing_part_links`; a missing relation blocks the affected intended write until the user completes the existing relation workflow.
+`identity_relation` decisions may populate the reversible recognition draft and bind the same logical part across canonical／active-draft layers. They do not directly create canonical identity or `drawing_part_links`; a truly unresolved relation blocks the affected intended formal write at impact until the user completes the existing relation workflow.
 
 ## 25. API And Worker File Contract
 
@@ -1148,3 +1148,49 @@ Remaining release/extended-matrix gates, not local PASS claims:
 - production object download/worker topology, monitoring and production migration/deployment/rollback;
 - full existing PostgreSQL migration chain currently has pre-existing migration 004 drift (`approval_rules.phase`) outside DEV-068; PostgreSQL 001 + 033 was verified in a disposable cluster;
 - production/distributed concurrency and the full actor/browser matrix in DRR-001～060 remain release evidence. Focused local QA/QC covers the implemented critical path and safety invariants, not provider quality or production readiness.
+
+## 32. DEV-079 Part-owner Invariant And Reconciliation（2026-08-27 CAPA replacement）
+
+Spec Impact：`Intentional replacement / schema + reconciliation + read-purity contract`。本節完整取代先前以 non-terminal projection GET self-heal 作永久控制、並宣稱 `no schema／no migration／no backfill` 的相容性修正。既有 focused evidence 保留為歷史證據，但不得再支持 recurrence closure。
+
+### 32.1 Canonical owner resolver
+
+- Part owner 的 authority 是同 company、同 exact Drawing work 的有效關聯集合：正式層以 `drawings.formal_drawing_number_id → drawing_part_links → part_numbers`；草稿層以同一 `workspace_id` 的 `numbering_draft_parts → active number_candidate_reservations`。正式與草稿若候選碼相同，視為同一 logical Part，並優先使用正式 master ID。
+- resolver 回傳明確 discriminated union：`resolved(ownerId, logicalPartNumber, evidence)`、`unresolved(reason)`、`ambiguous(candidateOwnerIds, logicalPartNumbers)`；nullable owner 不是 resolution state。
+- server native、browser PDF、retry、import 與未來 adapter 均須在 candidate group key 與 INSERT 之前呼叫同一 resolver。adapter 提供的 owner 只能作 anchor；repository 必須重驗其 same-company、exact-work relation與有效狀態。無 anchor 時只有一個 logical Part 才可自動解析；0 或 >1 一律 fail closed。
+- `.SLDPRT` 與 `.SLDASM` 都可以依 exact Part number/configuration anchor 解析；不得用檔名根號、候選順序、confidence 或畫面第一筆料號猜測。
+- canonical candidate key 以 canonical category／field／normalized value／applicability scope／resolved owner 建立。相同 native＋PDF observation 必須落在同一 candidate aggregate；raw observations維持 immutable 並各自連結到 aggregate。
+
+### 32.2 Accepted-state invariant
+
+- 對 `proposed_owner_type='part_number'`、非空 `proposed_value` 的 candidate，`review_state IN ('accepted','corrected','mapped')` 必須同時滿足：owner 非空、同 company、屬同 exact Drawing work、且正式 Part 非 `Obsolete／Merged／MainDrawingInvalid` 或草稿 reservation 為 active。
+- `saveDecisions` 的 accept／correct／map／create／reassign／set-baseline，以及 impact／formalize boundary，都必須在同一 transaction 內重新解析與驗證 owner、relation、company與 rowVersion。缺 owner 回 `422 RECOGNITION_PART_OWNER_REQUIRED`；無效、跨公司或非該 work 關聯回 `422 RECOGNITION_PART_OWNER_INVALID`；多 owner 且無 exact anchor 回 `422 RECOGNITION_PART_OWNER_AMBIGUOUS`。
+- SQLite fresh schema 與 PostgreSQL migration 必須各有 provider-safe INSERT／UPDATE trigger 作最後防線；直接 SQL、舊 command 或新 adapter 不得繞過 invariant。資料層錯誤碼固定為 `RECOGNITION_PART_OWNER_INVARIANT`。
+- ignored／deferred／blocked／proposed 可保留 unresolved evidence；terminal／formalized session 的歷史資料不得被自動改寫。任何 invalid formal intent 都必須在 impact 階段以 blocker fail closed。
+
+### 32.3 Explicit reconciliation and GET purity
+
+- owner reconciliation 是顯式、可審計的 operation，不是 GET 副作用。runner 至少支援 `inventory`、`dry-run`、`apply`；預設為 read-only。SQLite schema apply與data apply都需exact database target、candidate fingerprint、review-request snapshot fingerprint及human confirmation；data apply另需idempotency key。任一fingerprint drift必須在transaction前零寫入停止。
+- inventory 依 company／session／drawing／field／review state／terminal status／resolution分類；dry-run只對 exactly-one owner產生 plan，0／>1／invalid／cross-company／terminal列入 unresolved disposition。A0002 legacy v1 review request的 snapshot/hash不得改寫。
+- apply 必須保存 immutable manifest、before/after row values、resolver evidence、pre/post fingerprint、FK check、exact delta與 rollback SQL/artifact；重跑同一 idempotency key為零 business delta。primary、staging、production apply均為 human gate。
+- `getProjection`、review package reader與 reviewer detail 的正常 GET 必須 zero-write；重複讀取前後 candidate rowVersion、decision/event audit、business hash與 FK inventory完全一致。先前 `assignUniquePartOwner` read repair 必須移除，不保留隱藏 feature flag。
+
+### 32.4 Canonical projection and immutable review dependency
+
+- UI 只消費 repository 投影的 `ownerResolution／effectiveOwnerId／blockingReason`；raw candidate members只能供稽核展開，不得自行決定第一層「需指定料號」。
+- owner缺失是欄位錯誤：就地紅框／紅字／圖示／原因，加上 `aria-invalid=true` 與 `aria-describedby`；不得顯示無法解決 owner 的全域「重新辨識」入口。
+- Drawing submission readiness 仍只由必要 2D／3D 與既有 lifecycle 規則決定；recognition unresolved 不得偽裝成檔案缺失 gate。若 recognition 是本次送審 decision basis，DEV-101 v2 package必須保存完整 versioned projection與 inner hash。
+- reviewer 主畫面只讀已驗 hash 的 submitted projection；不得讀 latest/live recognition 回填。legacy v1 若缺 exact recognition basis，必須明確標示並走退回／重新送審，不做 silent backfill。
+
+### 32.5 Fixed verification denominator
+
+- DEV-079 QA 固定保留 QA-079-01～29，並新增 QA-079-30～42：跨 adapter resolver、exact duplicate aggregate、0／1／>1與 invalid owner、command＋DB mutants、inventory/dry-run/apply/idempotency、terminal immutability、GET zero-write、SQLite／PostgreSQL parity、A0002 disposition與 primary invariant。
+- DEV-101 固定 QA-101-001～048；editor pre-submit projection hash、package inner hash與 reviewer renderer input 必須相等，重跑 recognition 不改變 submitted decision basis。
+- focused RD runner 不得升格為 Independent QC。QA/QC manifest必須列出完整固定 case registry、NOT_RUN／PASS／FAIL、mutation sensitivity、runtime ownership與 cleanup evidence。
+
+### 32.6 Production recurrence and release gate
+
+- release artifact 必須包含 PostgreSQL invariant migration、reconciliation runner、DEV-079/101 fixed QA gates與 rollback runbook；CI/build只能證明 artifact readiness，不等於 production schema/data已套用。
+- production 先做 read-only inventory與 backup/fingerprint；schema migration、data apply、`PDM_REVIEW_PACKAGE_V2_WRITE` activation、deploy、traffic promotion均需各自明確 human authorization。任何未解釋 ownerless accepted／terminal/formalized inventory都阻擋 promotion。
+- zero-traffic candidate 必須回讀 `PDM_DRAWING_RECOGNITION_V1=true` 與 `PDM_REVIEW_PACKAGE_V2_WRITE=true`，再以正常登入流程建立、從 inbox 開啟並核對一筆新 v2 request；script-local env 不算 actual runtime evidence。
+- production candidate、Level 4、Wave 0、product-owner go/no-go與 rollback readiness全數通過後，才可宣告「正式部署後 recurrence control effective」。本節不構成部署或資料修復授權。

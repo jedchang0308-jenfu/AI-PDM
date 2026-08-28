@@ -6,6 +6,8 @@
 
 對應：`.ai-doc/specs/SPEC-PDM-ASSEMBLY-BOM-REBUILD-001-contextual-shared-structure.md`
 
+DEV-099 evidence boundary（2026-08-26）：本計畫的88-case PASS繼續證明shared BOM Definition／mapping／review／release authority，但只適用DEV-096當時的分類入口與eligibility revision。DEV-099會取代required structure type、purchased assembly 422、first-Part inheritance及unclassified append block；不得以本計畫取代QA-099 fixed 48-case current evidence。
+
 風險：High。驗證必須證明shared ownership、per-parent deterministic projection、migration preservation及retired authority不回歸；UI綠燈或單一SQLite happy path不足以構成PASS。
 
 ## 1. Scope

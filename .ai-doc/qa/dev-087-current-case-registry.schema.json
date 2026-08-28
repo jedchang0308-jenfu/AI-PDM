@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pdm.local/schema/dev-087-current-case-registry.schema.json",
+  "title": "DEV-087 current case registry",
+  "type": "object",
+  "required": ["schemaVersion", "registryId", "generatedFrom", "currentDenominator", "runnerCoverage", "historicalIntegrityCoverage", "qualityGateCoverage", "qualityGateRunner", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 3 },
+    "registryId": { "const": "DEV-087-current-case-registry" },
+    "generatedFrom": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 1 } },
+    "currentDenominator": {
+      "type": "array",
+      "minItems": 94,
+      "maxItems": 94,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^(QA-087-(18[7-9]|19[0-9]|20[0-9]|21[0-8]|22[0-8])|[DPIC][0-9]{2})$" }
+    },
+    "runnerCoverage": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/runnerCoverage" } },
+    "historicalIntegrityCoverage": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/integrityCoverage" } },
+    "qualityGateCoverage": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/qualityGateCoverage" }
+    },
+    "qualityGateRunner": {
+      "type": "object",
+      "required": ["runner", "npmScript", "requiredPostgresCases", "requiredSecurityNegatives", "requiredViewports", "requiredHeadedViewports", "requiredUiFamilies"],
+      "additionalProperties": false,
+      "properties": {
+        "runner": { "const": "qc-dev-087-g4-postgres-evidence" },
+        "npmScript": { "const": "qc:dev-087:g4-product-postgres" },
+        "requiredPostgresCases": { "type": "array", "minItems": 6, "uniqueItems": true, "items": { "type": "string" } },
+        "requiredSecurityNegatives": { "type": "array", "minItems": 8, "uniqueItems": true, "items": { "type": "string" } },
+        "requiredViewports": { "type": "array", "minItems": 4, "uniqueItems": true, "items": { "type": "string" } },
+        "requiredHeadedViewports": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "type": "string" } },
+        "requiredUiFamilies": { "type": "array", "minItems": 8, "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
+    "cases": { "type": "array", "minItems": 307, "items": { "$ref": "#/$defs/case" } }
+  },
+  "$defs": {
+    "runnerCoverage": {
+      "type": "object",
+      "required": ["runner", "npmScript", "caseIds", "requiredEvidence"],
+      "additionalProperties": false,
+      "properties": {
+        "runner": { "enum": ["qc-dev-087-capability-contract", "qc-dev-087-capability-repository", "qc-dev-087-capability-browser", "qc-dev-087-capability-negative"] },
+        "npmScript": { "type": "string", "pattern": "^qc:dev-087:capability-" },
+        "caseIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+        "requiredEvidence": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
+    "integrityCoverage": {
+      "type": "object",
+      "required": ["runner", "npmScript", "gateStage", "caseIds"],
+      "additionalProperties": false,
+      "properties": {
+        "runner": { "const": "qc-dev-087-qa-integrity" },
+        "npmScript": { "const": "qc:dev-087:qa-integrity" },
+        "gateStage": { "enum": ["G0-A", "G4"] },
+        "caseIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
+    "qualityGateCoverage": {
+      "type": "object",
+      "required": ["gateId", "runner"],
+      "additionalProperties": false,
+      "properties": {
+        "gateId": { "enum": ["QG-087-PROVIDER", "QG-087-SECURITY", "QG-087-UI"] },
+        "runner": { "const": "qc-dev-087-g4-postgres-evidence" }
+      }
+    },
+    "case": {
+      "type": "object",
+      "required": ["caseId", "classification", "gateStage", "definitionHash", "acIds", "runner", "provider", "fixtureOrigin", "allowedClaims", "assertionIds", "requiredArtifacts", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "caseId": { "type": "string", "pattern": "^(QA-087-[0-9]{3}|[DPRIC][0-9]{2})$" },
+        "classification": { "enum": ["current_required", "historical_supporting"] },
+        "gateStage": { "enum": ["G0-A", "product", "G4", "historical"] },
+        "definitionHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "acIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[1-9][0-9]?$|^81$" } },
+        "runner": { "enum": ["qa-integrity", "capability-contract", "capability-repository", "capability-browser", "capability-negative", "historical"] },
+        "provider": { "type": "string", "minLength": 1 },
+        "fixtureOrigin": { "type": "string", "minLength": 1 },
+        "allowedClaims": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "assertionIds": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "requiredArtifacts": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "source": {
+          "type": "object",
+          "required": ["path", "line"],
+          "additionalProperties": false,
+          "properties": { "path": { "type": "string", "minLength": 1 }, "line": { "type": "integer", "minimum": 1 } }
+        }
+      }
+    }
+  }
+}

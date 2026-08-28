@@ -1,7 +1,7 @@
 # SPEC-PDM-ENTITY-DETAIL-DRAWER-001 - 圖號 / 料號 / 圖料根號統一物件詳情抽屜
 
 Status: Phase 1C Unified Drawing Workspace Implemented Locally / Independent QC Passed; `DEV-067 UnifiedPdmEntityDetailDrawer Local RD Implemented / Local QA-QC Passed`; `DEV-072 Local RD/QA/QC Complete / Human Confirmed`; `DEV-079 RD Implemented Locally / Focused Contract + Browser Evidence / Independent QC Pending`; `DEV-083 RD Implemented / Focused Contract+API+Authenticated Browser PASS / Disposable Mutation PASS / Typecheck + Lint + Isolated Build PASS / Latest completed aggregate 29/30 PASS with one accepted-superseded parent baseline / QA-083-01～24 PASS / QA-083-24 Closed by QC disposition`; Production Release Gated
-Date: 2026-07-09; amended 2026-08-20
+Date: 2026-07-09; amended 2026-08-26
 Owner: Dev PM
 Related DEV: `DEV-PDM-ENTITY-DETAIL-DRAWER-001` / `DEV-039`; `DEV-PDM-DRAWING-WORKBENCH-SIMPLIFICATION-001` / `DEV-057`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-DETAIL-ACTION-DISCOVERABILITY-001` / `DEV-072`; `DEV-PDM-DRAWING-READONLY-DRAWER-FULLPAGE-EDITOR-001` / `DEV-079`; `DEV-PDM-PART-RELATION-READONLY-DRAWER-FULLPAGE-EDITOR-001` / `DEV-083`; `DEV-PDM-STATUS-DATA-REBUILD-001` / `DEV-087`
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`
@@ -10,6 +10,21 @@ Extends: `.ai-doc/specs/SPEC-PDM-DETAIL-DRAWER-001-system-detail-drawer-standard
 Extends: `.ai-doc/specs/SPEC-PDM-MASTER-WORKBENCH-001-drawing-part-master-layout.md`
 Extends: `.ai-doc/specs/SPEC-PDM-DRAWING-PART-RELATION-VIEW-001-root-drawing-part-relation-list.md`
 Extends: `.ai-doc/specs/SPEC-PDM-NUMBERING-004-contextual-numbering-lifecycle-entrypoints.md`
+
+## 2026-08-26 DEV-101 Amendment - Review package與domain renderer共用
+
+Status：`Local RD Corrective Implementation Complete / Human Confirmed / Fixed QA 48 Not Run / Independent QC Required / Production Release Gated`。
+
+DEV-101不把review responsibility放回drawer，也不改Drawing／Part owner drawer的快速查閱責任。它對covered v2 PDM review作以下窄幅取代：
+
+- `/approvals/[requestId]`以full-page package shell承載完整同根snapshot matrix、active target、drift compare與single decision dock；approval drawer／owner drawer都不是正式decision body。
+- Drawing／Part editor與review各自共用同一domain content renderer；`PdmEditPageFrame`仍只負責mechanics，不能加入domain switch或decision authority。
+- DEV-067 surface-based`none／summary／full`只保留drawer read projection，不再裁切v2 review domain content。所有target完整資訊可達，但一次只mount active target。
+- matrix在review永遠readonly navigation；DEV-090 owner drawer的formal relation edit仍是唯一current relation writer。
+- v2 Part attachment section顯示submitted manifest，不再顯示live list＋常駐scope note；附件仍可獨立維護、不進decision basis。
+- Drawing editor／reviewer共用同一recognition panel與server-projected fields；review surface以immutable package projection啟動snapshot mode，不輪詢、不呼latest recognition，也不暴露recognition mutation。
+
+Exact authority：`.ai-doc/specs/SPEC-PDM-APPROVAL-CANONICAL-REVIEW-WORKSPACE-001-snapshot-package-and-shared-renderers.md`。其餘drawer、owner editor、generic approval與Relation edit契約不變。
 
 ## 2026-08-23 DEV-090 Amendment - Drawer 關聯矩陣直接正式編輯
 

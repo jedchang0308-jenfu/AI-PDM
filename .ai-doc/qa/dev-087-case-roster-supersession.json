@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "supersessionId": "DEV-087-DEV-090-relation-roster-2026-08-26",
+  "authority": "DEV-090 Intentional replacement",
+  "reason": "Relation current work, review, workspace, and list are retired; preserve historical case identities and replace current coverage with inline matrix journeys without shrinking the denominator.",
+  "sourceClassification": "historical_supporting",
+  "targetClassification": "current_required",
+  "currentDenominatorDelta": 0,
+  "browserDenominatorDelta": 0,
+  "mappings": [
+    { "sourceCaseId": "R01", "targetCaseId": "I01" },
+    { "sourceCaseId": "R02", "targetCaseId": "I02" },
+    { "sourceCaseId": "R03", "targetCaseId": "I03" },
+    { "sourceCaseId": "R04", "targetCaseId": "I04" },
+    { "sourceCaseId": "R05", "targetCaseId": "I05" },
+    { "sourceCaseId": "R06", "targetCaseId": "I06" },
+    { "sourceCaseId": "R07", "targetCaseId": "I07" },
+    { "sourceCaseId": "R08", "targetCaseId": "I08" },
+    { "sourceCaseId": "R09", "targetCaseId": "I09" },
+    { "sourceCaseId": "R10", "targetCaseId": "I10" },
+    { "sourceCaseId": "R11", "targetCaseId": "I11" },
+    { "sourceCaseId": "R12", "targetCaseId": "I12" },
+    { "sourceCaseId": "R13", "targetCaseId": "I13" },
+    { "sourceCaseId": "R14", "targetCaseId": "I14" }
+  ]
+}

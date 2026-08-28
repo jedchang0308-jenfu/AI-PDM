@@ -16,6 +16,12 @@ Decision：
 
 Validation：`.ai-doc/qa/qa-dev-096-assembly-shared-bom-rd-contract-validation-plan-2026-08-24.md`
 
+DEV-099 supersession boundary（2026-08-26）：
+
+- 本文件的DEV-096完成狀態、shared BOM authority與88-case evidence保留；stable Definition、explicit Parent bindings、logical line、exact mapping、review／release snapshot及Part drawer唯一BOM入口不變。
+- DEV-099啟用後，§5.1／§5.2／§17.1的new-root required structure type、purchased assembly建號422、first-Part inheritance、unclassified append block及「只能經Part change work調整」不再是current behavior。
+- 新分類時點、exact Part分類command與BOM readiness以`.ai-doc/specs/SPEC-PDM-DEFERRED-STRUCTURE-CLASSIFICATION-001-numbering-and-bom-readiness.md`為唯一authority；DEV-099尚未實作前，runtime仍依本文件舊契約。
+
 ## 1. 目的與成功結果
 
 在不恢復 `/bom/new`、組立件首頁或其他專用入口的前提下，從現行統一建號與料號工作臺建立組立件 BOM。顏色或其他非結構性變體使用同一個 BOM Definition／Revision／Released Snapshot，並透過明確適用料號與 Parent-to-Child對應，讓每個 Parent都能投影成唯一、可製造的 BOM。

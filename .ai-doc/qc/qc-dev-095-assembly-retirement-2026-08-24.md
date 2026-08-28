@@ -96,7 +96,7 @@ Cleanup receipt：Playwright browser已關閉；port 3195已釋放；task-owned 
 
 - SQLite runner `scripts/migrate-dev-095-legacy-assembly-bom-retirement.mjs`預設dry-run；apply必須顯式`--database`。
 - 若指定primary path，還必須同時提供`--allow-primary`與exact `--expected-sha256`，apply前自動backup。
-- PostgreSQL forward artifact為`db/postgres/047_retire_legacy_assembly_bom_intake.sql`。
+- PostgreSQL forward logic已於2026-08-25因正式migration history reconciliation併入`db/postgres/048_shared_assembly_bom.sql`；`047`永久保留為正式歷史相容橋，避免覆寫已套用的舊版完整BOM退役ledger。
 - 本輪沒有執行primary apply、Cloud SQL migration、stage、commit、merge、PR、deploy、production smoke或release。
 
 QC disposition：DEV-095本機拆除完成且可交付審閱；production migration與release必須另行授權並走release gate。新組立件建立流程也必須另立後續DEV，且入口只能整合進既有Drawing／Part工作台。

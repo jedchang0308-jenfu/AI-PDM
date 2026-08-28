@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "migrationId": "DEV-087-case-id-migration-2026-08-25",
+  "sourceCaseId": "QA-087-115#2",
+  "targetCaseId": "QA-087-229",
+  "classification": "historical_supporting",
+  "reason": "The second list/detail definition duplicated the cleanup definition; re-key without changing current denominator.",
+  "sourceDefinitionHash": "856b0811c77ad2b6f60a77cc8cb03abf7b67937de90239c8bfe839ec1cfdf2c0",
+  "targetDefinitionHash": "cdd0ce001ec3577591a5549e9ab3b75d29a989e6cf316e15e6cc8255a8df1e78",
+  "date": "2026-08-25",
+  "currentDenominatorDelta": 0,
+  "acUpdates": { "6": ["QA-087-229"], "21": ["QA-087-229"], "24": ["QA-087-115"], "26": ["QA-087-229"], "32": ["QA-087-229"], "51": ["QA-087-229"] }
+}

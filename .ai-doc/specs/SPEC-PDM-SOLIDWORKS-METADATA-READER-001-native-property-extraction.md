@@ -1,6 +1,6 @@
 # SPEC-PDM-SOLIDWORKS-METADATA-READER-001：SolidWorks 原生屬性讀取與辨識診斷
 
-狀態：`Local RD Implemented / Human Confirmed / Real A0002 QA-QC Passed / Production Release Gated`
+狀態：`Draft Population Fix RD Implemented / Isolated QA-QC Passed / Real A0002 Revalidation Pending / Production Release Gated`
 日期：2026-08-19
 Owner：Dev PM
 關聯 DEV：`DEV-035 / DEV-CAD-001`
@@ -30,7 +30,7 @@ DEV-035 曾依 compile-only、fixture、static contract 與 rendered unavailable
 
 - 分類：`Intentional replacement + compatible extension`。
 - 取代：`local_test_double` 可通過測試／啟用、environment secret 作為日常 local UX、worker 啟動時綁死 credential readiness、QA-035-45～48 可排除於 DEV-035 本機完成之外、schema migration=`None`、22 files 即完整 Current Phase manifest。
-- 保留：Document Manager read-only reader、worker-only native process、job-locked source bytes、DEV-068 observation/candidate/human-review authority、identity zero-write、source/hash/tenant/redaction/process-cleanup gate與 production release gate。
+- 保留：Document Manager read-only reader、worker-only native process、job-locked source bytes、DEV-068 observation/candidate/human-review authority、不可直接改寫 canonical identity、source/hash/tenant/redaction/process-cleanup gate與 production release gate。
 - 不另開重複 DEV／ADR：既有 credential-provider abstraction、DEV-058 broker與 Windows worker ADR 仍是 architecture authority；本 amendment 只補足同一 authority 的 local secure provider、probe、hot apply 與 truthful readiness。
 
 ### 0.3 CAPA／完成狀態矯正
@@ -47,9 +47,19 @@ DEV-035 曾依 compile-only、fixture、static contract 與 rendered unavailable
 
 PA 流向：本CAPA寫回`dev_task.md`、本authoritative SPEC與QA plan，並把`qc:dev-task-completion-audit`納入035-F。文件QC已證明現行audit雖回8/8 PASS，卻只解析1個platform task、未計入已重開的DEV-035；RD必須補上active `☐ DEV-*`解析與fixture，避免再次用綠色audit掩蓋未完成任務。現階段不修改全域skill／SOP。
 
+### 0.4 2026-08-25 Draft Population Amendment（現行產品語意）
+
+使用者確認辨識系統的主要目的，是把圖號、料號、品名與屬性辨識值先填入目前工作草稿，而不是在候選建立當下逐欄要求辨識值與既有正式值相符。本決策分類為`Intentional replacement`，有意取代本文任何把 identity value 限定為「只比較、不填草稿」的舊敘述。
+
+- `candidate_revision`與`drawing_revision`是可逆的草稿填入情境；非空、owner已解析的辨識值一律先成為`proposed`，不得只因目前正式值不同就標成`conflict`。
+- 同一正規化料號同時出現在正式`part_numbers`與有效`numbering_draft_parts`時，視為同一個邏輯 owner；優先綁正式part ID，不得因資料層重疊誤判 ambiguous。
+- 辨識值只更新 recognition candidate／decision 草稿，不直接建立或改寫 Drawing、Part Number、Revision identity。號碼占用、生命週期與真正正式值差異在`write-impact`／既有正式化流程重新檢查。
+- 不同CAD／OCR來源提出不同非空值、不同邏輯料號皆可能匹配、owner不存在或值為空，仍是需要人工處理的 blocker；不得用本 amendment 放寬。
+- 舊批次若已因資料層重疊產生多筆相同「需處理」，第一層只顯示一個可行動的重新辨識提示；新批次不得重複該警示。
+
 ## 1. Outcome
 
-本 Current Phase 完成後，受控 `.SLDPRT`、`.SLDASM`、`.SLDDRW` 的 file-level 與 configuration-specific 自訂屬性會經由既有 DEV-068 背景辨識工作，產生可追溯 observation／candidate；使用者可在嵌入式與完整核對頁看見屬性內容、來源檔、configuration、可信度與目前正式值。
+本 Current Phase 完成後，受控 `.SLDPRT`、`.SLDASM`、`.SLDDRW` 的 file-level 與 configuration-specific 自訂屬性會經由既有 DEV-068 背景辨識工作，產生可追溯 observation／candidate；使用者可在嵌入式與完整核對頁看見屬性內容、來源檔、configuration與可信度，並由辨識值直接預填目前工作草稿。正式值差異只在需要正式寫入時作影響檢查。
 
 若 reader 未設定、授權不可用、檔案版本不支援、單檔逾時或抽取失敗，系統仍保留 filename／其他 adapter 的成功結果，並在第一層顯示安全、可行動的診斷。系統不得再把「讀取器沒有執行」呈現成「檔案屬性為 0」。
 
@@ -90,9 +100,9 @@ PA 流向：本CAPA寫回`dev_task.md`、本authoritative SPEC與QA plan，並�
 ### 3.2 已封口的產品決策
 
 - `製圖` 初版解讀為繪圖者顯示文字，stable key=`drawn_by_name`，owner=`drawing_revision`；只保存原字串，不查帳號、不轉 user ID。
-- `3D圖號(主)` 初版為 identity evidence，stable key=`model_root_number`，owner=`drawing`；不建立／改寫 Drawing 或 Part Number。
-- `版本`／`版次` 為跨來源 identity evidence，canonical stable key=`revision`，owner=`drawing_revision`；`source_revision` 僅作既有資料相容別名，不直接修改版次 identity。
-- `品名`、`料號`、`3D圖號(主)`、`版本` 都屬 `identity_relation`，沿用 DEV-068 impact exclusion，不可由辨識正式化建立／改寫 canonical identity。
+- `3D圖號(主)` 是 drawing draft input，stable key=`model_root_number`，owner=`drawing`；可預填辨識草稿，但不直接建立／改寫 Drawing 或 Part Number。
+- `版本`／`版次` 是跨來源 draft input，canonical stable key=`revision`，owner=`drawing_revision`；`source_revision` 僅作既有資料相容別名，不直接修改版次 identity。
+- `品名`、`料號`、`3D圖號(主)`、`版本` 都屬 `identity_relation`；在 draft context 可填入候選草稿，仍沿用 DEV-068 impact exclusion，不可由辨識正式化直接建立／改寫 canonical identity。
 - `製圖` 是 `drawing_revision/drawn_by_name`，本 phase 將其加入既有 drawing metadata allowlist；`材質`、`表面處理`、`熱處理` 是可正式化的 part attributes。
 - 未知 property 不丟棄，進 `unclassified`；空值仍產生 blocked candidate，不能被解讀為 `無` 或清除。
 
@@ -293,11 +303,11 @@ match 前對 property name 做 trim、NFKC、英文字母 case-fold、全半形�
 
 | Alias | stable key | category | owner | write policy | A0002 expected |
 |---|---|---|---|---|---|
-| `品名`、`part_name`、`description` | `part_name` | `identity_relation` | scope-resolved `part_number` | evidence only | `本體_BS_右_Xx5` |
-| `3D圖號(主)`、`model_number` | `model_root_number` | `identity_relation` | `drawing` | evidence only | `A0002` |
-| `版本`、`版次`、`revision` | `revision` | `identity_relation` | `drawing_revision` | evidence only | `0.1` |
+| `品名`、`part_name`、`description` | `part_name` | `identity_relation` | scope-resolved `part_number` | draft input / no direct canonical write | `本體_BS_右_Xx5` |
+| `3D圖號(主)`、`model_number` | `model_root_number` | `identity_relation` | `drawing` | draft input / no direct canonical write | `A0002` |
+| `版本`、`版次`、`revision` | `revision` | `identity_relation` | `drawing_revision` | draft input / no direct canonical write | `0.1` |
 | `製圖`、`drawn_by` | `drawn_by_name` | `drawing_revision` | `drawing_revision` | review then metadata write | `朱宇鴻` |
-| `料號`、`part_number` | `part_number` | `identity_relation` | scope-resolved `part_number` | evidence only / owner anchor | `A0002-P01` |
+| `料號`、`part_number` | `part_number` | `identity_relation` | scope-resolved `part_number` | draft identity anchor / no direct canonical write | `A0002-P01` |
 | `材質`、`material` | `material` | `part_attribute` | scope-resolved `part_number` | review then attribute write | `不鏽鋼SUS304` |
 | `表面處理`、`surface_finish` | `surface_finish` | `part_attribute` | scope-resolved `part_number` | review then attribute write | `無` |
 | `熱處理`、`heat_treatment` | `heat_treatment` | `part_attribute` | scope-resolved `part_number` | review then attribute write | `無` |
@@ -313,6 +323,8 @@ mapper 先依 `document` 或 `configuration:<name>` grouping，再兩階段解�
 
 `targetContext.parts`必須同時納入正式part links、`numbering_draft_parts`與仍有效的`number_candidate_reservations`草稿料號；Current Phase不得因owner尚未正式化而遺漏A0002-P01。
 
+正式與有效草稿若具有相同NFKC／case-fold後料號，必須先去重為同一邏輯part；正式row排序優先並作為owner ID。只有匹配到兩個以上不同正規化料號時才算ambiguous。
+
 1. 同 scope 的 `part_number` alias evaluated value exact match `targetContext.parts[].partNumber`。
 2. configuration name NFKC exact match full part number。
 3. configuration name token（例如 `P01`）只在唯一 suffix match 時使用。
@@ -325,7 +337,7 @@ Drawing metadata／identity owners：
 - `model_root_number` 使用 target `drawingId`；缺 drawing 時 blocked。
 - 同 scope `料號` 找到 owner 後，`品名/材質/表面處理/熱處理` 共用該 owner。
 
-Confidence：exact alias＋exact anchor=`high`；exact alias＋unique-part fallback=`medium`；unknown／ambiguous=`unknown`。Confidence 只供人工判斷，不自動接受。
+Confidence：exact alias＋exact anchor=`high`；exact alias＋unique-part fallback=`medium`；unknown／ambiguous=`unknown`。Confidence只供人工判斷，不得自動正式化；在draft context，已解析的非空辨識值可直接預填為`proposed`。
 
 ## 12. Adapter Health Projection 與 UI
 
@@ -348,7 +360,7 @@ type NativeMetadataHealth = {
 | 所有 native source succeeded 且有 observations | `ready` | 不新增成功 banner；候選本身即為主要內容 |
 | reader succeeded 但全部為 0 properties | `empty` | info：`已完成 SolidWorks 屬性讀取，這些檔案沒有可用的自訂屬性。` |
 | 至少一檔成功、至少一檔 failed/unsupported/timeout | `partial` | warning：列受影響檔名，說明其他結果已保留；保留重新辨識 CTA |
-| command／license 未設定 | `unavailable` | warning：`尚未啟用 SolidWorks 屬性讀取器；目前只顯示其他可用辨識結果。` |
+| command／license 未設定 | `unavailable` | warning：`此批未使用 SolidWorks 屬性讀取器`；訊息說明這是該批執行時的狀態，設定就緒後可由同一 banner 重新辨識，不需重新上傳檔案 |
 | configured reader 執行失敗 | `failed` | error：安全原因＋重新辨識／聯絡管理員；不顯示 raw code |
 
 嵌入式與完整核對頁使用相同 projection/copy。warning 使用 icon＋文字，`role=status`；實際 failed 使用 `role=alert`。不因每個空分類重複同一 warning；來源細節放在同一 banner 的 affected source list。390/1024/1440 viewport 都不可遮住核對 CTA。
@@ -401,7 +413,7 @@ Session 終態沿用 DEV-068：只要 filename 或其他 observation 成功且 m
 
 ## 14. Data、Migration 與 Compatibility
 
-- Schema migration：`Additive / Medium`；新增`db/postgres/038_solidworks_credential_ui_activation.sql`，live apply仍由release gate執行。
+- Schema migration：`Additive / Medium`；新增`db/postgres/049_solidworks_credential_ui_activation.sql`，live apply仍由release gate執行；`038`已由正式環境的BOM controlled CAD migration永久占用。
 - `secret_references.vault_provider` check新增`windows_dpapi`；既有`local_test_double/google_secret_manager/supabase_vault`資料不改寫。
 - 既有active `local_test_double`不在migration中破壞性改寫；application projection將其降為simulation，第一個real-provider activation再以既有retire事件原子退休它，解除active unique constraint。
 - 新增`settings_secret_probe_jobs`：`id, secret_reference_id, kind, status, locked_by, locked_at, heartbeat_at, attempt_count, max_attempts, result_code, reader_version, created_by, created_at, completed_at, updated_at`。status只允許`pending/running/passed/failed/blocked/expired`；active job以partial unique index限制同secret version最多一筆。
@@ -429,7 +441,7 @@ Session 終態沿用 DEV-068：只要 filename 或其他 observation 成功且 m
 6. `src/app/api/settings-secret-probe-jobs/[jobId]/heartbeat/route.ts`
 7. `src/app/api/settings-secret-probe-jobs/[jobId]/complete/route.ts`
 8. `src/app/api/recognition-workers/heartbeat/route.ts`
-9. `db/postgres/038_solidworks_credential_ui_activation.sql`
+9. `db/postgres/049_solidworks_credential_ui_activation.sql`
 10. `src/lib/worker-service-auth.ts`
 11. `src/app/api/settings-secret-probe-jobs/[jobId]/credential/route.ts`
 
@@ -471,7 +483,7 @@ Modified：
 11. `scripts/qc-pdm-sw-native-preview-worker.mjs`
 12. `scripts/qc-dev-task-completion-audit.mjs`
 
-Current reopen direct delta經實作後重算為`38 files = 26 product + 12 validation`；加上歷史baseline後，重疊檔不得重複計入Current Phase total。仍需以first diff checkpoint重算實際unique file set；若需要新增direct file、改route/schema名稱或減少安全gate，先回Dev PM更新SPEC／QA，不能以實作方便隱性漂移。
+Current reopen direct delta經2026-08-25 draft-population修正後重算為`39 files = 26 product + 13 validation`；新增validation file為`scripts/qc-dev-035-native-retry-browser.mjs`。加上歷史baseline後，重疊檔不得重複計入Current Phase total；若需要新增direct file、改route/schema名稱或減少安全gate，先回Dev PM更新SPEC／QA，不能以實作方便隱性漂移。
 
 ## 16. RD Implementation Sequence
 
@@ -492,7 +504,7 @@ Current reopen direct delta經實作後重算為`38 files = 26 product + 12 vali
 
 1. Query existing adapter rows產生 shared health projection。
 2. 嵌入式與完整核對頁使用同一訊息邏輯。
-3. `drawn_by_name` 加入 drawing metadata read/write allowlist；identity fields仍 evidence-only。
+3. `drawn_by_name` 加入 drawing metadata read/write allowlist；identity fields可作draft input，但仍禁止直接canonical write。
 
 ### Phase D — QA/QC evidence
 
@@ -536,10 +548,11 @@ Current reopen direct delta經實作後重算為`38 files = 26 product + 12 vali
 
 - `AC-035-01` A0002 3D 受控來源產生 8 個 expected fields，值與本 spec §10 一致；每筆保留 file/config scope、source hash、reader/version。
 - `AC-035-02` file-level、configuration-level、linked expression/evaluated value、空值與未知中文欄位都不遺失。
-- `AC-035-03` A0002 `料號=A0002-P01` anchor把品名／材質／表面處理／熱處理指到唯一 linked part；multi-part ambiguous case必須 blocked。
-- `AC-035-04` identity fields只供比較／證據，不建立或修改 Drawing、Part Number、Revision identity。
+- `AC-035-03` A0002 `料號=A0002-P01` anchor把品名／材質／表面處理／熱處理指到唯一 linked part；正式與有效草稿的同碼row視為同一owner並優先正式ID，只有不同邏輯料號的multi-part case才blocked。
+- `AC-035-04` draft context的identity fields直接預填candidate草稿，不因目前正式值不同而先標衝突；不得直接建立或修改 Drawing、Part Number、Revision identity，碰撞與生命週期仍由write-impact／既有正式流程攔截。
+- `AC-035-04A` `drawing_number`等正式檢查情境仍把正式值差異標為conflict；CAD／OCR跨來源不同非空值與ambiguous owner仍blocked，不受draft population放寬。
 - `AC-035-05` `製圖=朱宇鴻` 以 `drawn_by_name` candidate顯示；人工確認前不寫，正式化後只改該 drawing revision metadata。
-- `AC-035-06` reader absent時兩個 UI 都看見「尚未啟用 SolidWorks 屬性讀取器」與受影響來源，不只顯示分類 0。
+- `AC-035-06` reader absent時兩個 UI 都看見「此批未使用 SolidWorks 屬性讀取器」與受影響來源，不只顯示分類 0；文案不得把歷史批次狀態誤報為目前設定狀態，設定後可從同一 banner 重新辨識，且不得要求重新上傳來源檔。
 - `AC-035-07` 一檔成功一檔失敗時 session=`extraction_partial`，成功 observations 全部保留，失敗檔可見且可重新辨識。
 - `AC-035-08` truly no-properties case和reader未執行 case有不同 health state/copy。
 - `AC-035-09` wrong token、wrong worker、cross-session、cross-company、stale hash、oversize source均在 extractor 前拒絕，DB observation=0。

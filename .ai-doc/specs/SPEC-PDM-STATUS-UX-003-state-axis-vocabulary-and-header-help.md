@@ -190,7 +190,7 @@ Phase 1A 後續處理結果：
 | `/parts`、`/numbering/drawings`、`/numbering/search` | 號碼效力、資料狀態、提醒 |
 | `/numbering/request`、number-state workspace、`/numbering/part-drafts` | 申請狀態、號碼效力、審核狀態、發布狀態 |
 | `/numbering/tasks` | 任務狀態、審核狀態、資料狀態 |
-| `/numbering/impact`、`/numbering/revisions` | 準備狀態、資料狀態、審核狀態 |
+| `/numbering/revisions` | 準備狀態、資料狀態、審核狀態 |
 | `/upload`、`/submissions/[id]`、`/approvals` | 審核狀態、發布狀態、檔案狀態 |
 | `/numbering/reports` | 執行狀態 |
 | `/bom/workbench` | BOM 資料狀態、審核狀態、發布狀態、還原狀態 |

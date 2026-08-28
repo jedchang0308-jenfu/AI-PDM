@@ -1,10 +1,45 @@
 # ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001：共用明細 Composer、Domain Projection 與 Server Policy
 
 Status: `Accepted / Human Confirmed / DEV-067 Local RD Implemented + QA-QC Passed / DEV-083 RD Implemented Locally + Focused Contract/API + Authenticated Browser + Disposable Mutation + Typecheck + Affected Lint + Isolated Build Passed / Latest completed aggregate 29/30 PASS with one accepted-superseded parent baseline / QA-083-01～24 PASS / QA-083-24 Closed by QC disposition / Production Release Gated`
-Date: 2026-08-12; amended 2026-08-20
+Date: 2026-08-12; amended 2026-08-26
 Owner: Dev PM
-Related DEV: `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-PART-RELATION-READONLY-DRAWER-FULLPAGE-EDITOR-001` / `DEV-083`
-Related SPEC: `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`
+Related DEV: `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-PART-RELATION-READONLY-DRAWER-FULLPAGE-EDITOR-001` / `DEV-083`; `DEV-PDM-APPROVAL-CANONICAL-REVIEW-WORKSPACE-001` / `DEV-101`
+Related SPEC: `.ai-doc/specs/SPEC-PDM-ENTITY-DETAIL-DRAWER-001-unified-object-detail-contract.md`; `.ai-doc/specs/SPEC-PDM-APPROVAL-CANONICAL-REVIEW-WORKSPACE-001-snapshot-package-and-shared-renderers.md`
+
+## 2026-08-26 DEV-101 Amendment - Domain renderer two modes and immutable review package
+
+Amendment status：`Accepted / Human Confirmed / Local RD Corrective Implementation Complete / Fixed QA 48 Not Run / Independent QC Required / Production Release Gated`。
+
+### Context
+
+DEV-067／083建立了domain-owned projection與full-page task workspace，但現行PDM review GET仍只回單一primary entity，且Drawing identity／files、Part identity／attachments會在review時讀live資料。若只把owner page掛進approval route，審核面雖外觀相似，資料來源與多目標scope仍不同；若把Drawing、Part與approval條件合成一個generic workspace，則重現本ADR原先拒絕的巨型條件元件。
+
+### Options considered
+
+1. **每種審核情境裁切owner workspace**：首屏較小，但建立第二套section visibility規則並持續漂移；拒絕。
+2. **整頁嵌入owner editor並以CSS隱藏write**：肌肉記憶相近，但live fetch、permission與mutation仍洩漏；拒絕。
+3. **Drawing／Part各自一個domain renderer，edit與review使用不同source/capabilities；外層用immutable review package處理matrix與decision**：採用。
+
+### Amended decision
+
+- Drawing與Part各自抽出唯一domain content renderer。Editor wrapper提供live work與mutation capability；review package wrapper提供immutable snapshot與readonly capability。Shared frame／renderer不得擁有approval decision或跨domain欄位分支。
+- `/approvals/[requestId]`成為covered PDM package shell，顯示送審當下完整同根Drawing × Part矩陣與一個active target workspace。它可以選擇domain renderer，但不得重組domain body。
+- review truth由versioned immutable `snapshot_payload`提供；live資料只可進條件式drift comparison，不能回填snapshot。
+- `snapshot_hash`證明完整package；formalization另用envelope內`decisionBasis.hash`重驗primary work，兩者不可混用。
+- Drawing recognition另保存exact versioned full projection與inner projection hash；owner editor API與review package共用domain projector，reviewer只讀immutable projection且不依latest session補畫面。unresolved／ambiguous owner與legacy incomplete basis在approve前fail closed，return仍可用。
+- Part附件v2 review保存送審manifest，後續live變更只形成drift；附件仍可獨立維護且不進decision basis。這在v2範圍取代DEV-087 live attachment list＋常駐note。
+- matrix只作snapshot navigation；只有identity名稱可切target，cells不可點／不可編輯。DEV-090 Relation review retirement保持有效。
+- decision仍是exact reviewer、request-level atomic；active target、marker、compare與read state不構成per-target decision或audit evidence。
+
+### Consequences and compatibility
+
+- Positive：editor／review真正共用domain renderer與資訊順序；snapshot、decision與mutation authority可獨立驗證；多目標不迫使同時mount全部workspace。
+- Cost：submit transaction需建立完整root package，需batch projector、payload limits、v1 dual reader與lazy active-target compare。
+- Compatibility：DEV-070 list／return、DEV-079／083 page frame、DEV-087 decision／formalization、DEV-090 formal relation edit保持；generic approval body不在DEV-101範圍。
+- Intentional replacement：DEV-067以`none／summary／full`裁切covered PDM review內容、導向owner module承載正式review body，以及DEV-087 Part live attachment review note，在v2 package生效後由本節取代。
+- Schema disposition=`none`；pending v1不backfill或偽造v2，使用dual reader與writer kill switch收斂。
+
+Exact types、files、API、limits、rollout與48案QA以DEV-101 SPEC／QA為唯一實作authority。若需cross-domain generic renderer、per-target decision、Relation review、DEV-101 schema migration或背景補snapshot，本決策失效並停止重審。
 
 ## 2026-08-20 DEV-083 Amendment - Read-only composer 與 canonical task workspace
 

@@ -1,7 +1,32 @@
 # DEV-087 三工作臺全生命週期 AI UI-only 操作驗證計畫
+Status: `Trusted-Solo UI QA-QC Complete / FFF Applicability Corrected / Current UI Roster + Shared C Gates + Feature Cases PASS / Production Release Gated`
 <!-- QC-JOURNEY-SUPPLEMENT-2026-08-22T10:05 -->
 
-## 0. Current scope correction：Part 附件入口回歸（2026-08-24）
+## 0.0 2026-08-28 fresh UI closure
+
+更新後的current UI roster已由fresh task-owned browser runtimes完成：UI-only child的34個直接生命週期案例與C01～C11全部PASS，Part附件P11～P13、I01～I14及功能增補案例再由同一parent browser capability補齊，最終DEV-087 aggregate為94/94產品案例與`QG-087-UI` PASS。八個UI family在1440×900、1024×768、390×844、320×800完成overflow、keyboard／focus、可見錯誤與readback驗證；headed evidence覆蓋1440×900與390×844，actual screen reader依使用者決策維持選配。
+
+首版／進版FFF的D01～D06與QA-087-187..192均包含fresh owner／reviewer證據；首版只顯示中性「關聯料號」且zero FFF，進版才顯示判定範圍與三軸人工判定。exact run pointer、source fingerprint、console／network、attempt ledger與cleanup receipt由DEV-087 completion receipt統一記錄。production release仍另受gate管制，`part_root`排除範圍未改變。
+
+## 0. 2026-08-25 功能完整性 CAPA 重開
+
+本節取代本文所有`DEV-087 current effective UI scope已完成`或`已證實產品缺口0`的current結論；原51-case與C01～C11結果保留為`Historical Regression Baseline`，不重寫其actual，也不得再單獨支持current completion。母計畫新增`QA-087-187..218`共32案，UI-only子契約負責其中所有rendered UI journey、角色／viewport／a11y／visible error及UI／API／DB／file readback；QA-087-202／206的直接API fail-closed probe由母計畫在isolated fixture執行，本子契約不得用API或DB製造合法業務結果。
+
+重開UI範圍固定為8族：Drawing變更影響／FFF、任務通知中心、Drawing／Part正式作廢、Part四項變體屬性、Drawing歷史exact artifact、Drawing工作檔案管理、矩陣identity導覽、Drawing／Part探索／排序／雙向換頁。`part_root`搜尋明細與動作、root狀態／阻擋原因、root整體新增或作廢影響不在本輪；既有root案例不因本次重開改判，新增證據也不得把root排除範圍記為PASS。
+
+current UI completion要求：新增32案中的UI責任、current 51-case固定名冊`D01..D24 + P01..P13 + I01..I14`與C01～C11取得fresh evidence，並通過`QG-087-UI`。Blocked=0、Not Run=0、P0/P1=0、direct business API/DB writes=0。任一入口不可發現、primary action缺失、畫面只顯示文字而無exact artifact、或UI/API/DB/file/authority不一致，即判產品FAIL。同一開發者可執行UI QC；Independent AT receipt與DEV-097 anti-cheat gate不再是current要求。
+
+### 0.1A 2026-08-27 首版／進版FFF適用性 Human Confirmed 矯正
+
+- UI不得以顯示版號判定FFF。每次owner／review load都以server `changeImpactRequired`為唯一可見狀態來源；`predecessor_revision_id=NULL`的首版為false，非`NULL`進版為true。
+- 首版0.1保留「版次與檔案 → 關聯料號 → 智慧辨識」資訊順序；「關聯料號」只用中性文字／relation icon，不使用綠色check、成功色或「受影響」用語。DOM、a11y tree與review snapshot都不得出現`FFF／變更影響`、Form／Fit／Function控制、raw `not_specified`或replacement欄位。
+- 進版沿用「版次與檔案 → FFF／變更影響 → 智慧辨識」，先顯示中性「判定範圍」再顯示三軸。三軸初值必須是「請判定」，不得預選相容；任一未判定、必要reason／replacement缺漏或scope stale時不能送審，section內顯示最短錯誤並保留輸入。
+- reviewer首版頁維持相同骨架但無FFF；reviewer進版頁顯示exact immutable FFF snapshot。direct URL、reload、Back／Forward、owner／reviewer切換或viewport改變不得讓適用性閃爍、翻轉或短暫出現錯誤section。
+- 本矯正重用current `D01..D06`與`QA-087-187..192`，不增加分母。修正前browser／G4截圖只作回歸基線；fresh owner＋reviewer、1440×900／1024×768／390×844／320×800與200% zoom證據完成前，`QG-087-UI`不得PASS。
+
+本文後續2026-08-22段落中的`67/67`、D25～D27、P14～P20、R15～R20及其BLOCKED／PASS結論全部是Historical Execution Record，不是current required denominator；保留原文只為首敗與決策追溯，current runner與completion audit只能讀本節固定的51-case registry及§27～§29新增責任。
+
+## 0.1 Current scope correction：Part 附件入口回歸（2026-08-24）
 
 本節取代本文所有把 `P11–P17` 整段歸入 DEV-088 的舊分流。能力歸屬必須依語意切分，不得再依連續編號整段移列：
 
@@ -11,7 +36,7 @@
 - 固定入口為 `料號工作台 → 選取料號 → 右側明細「附件」→ 管理附件`；owner 料號編輯頁也連到同一頁 `/parts/{partNumber}/attachments?returnTo=...`。無 `numbering.attachments.manage` 權限者不顯示管理入口；reviewer 維持唯讀 live list。
 - 聚焦真實 UI 證據：`output/qa/dev-087/DEV087-PART-ATTACHMENTS-2026-08-24T02-16-49-777Z/manifest.json`，`27/27 PASS`。由 UI 完成無分類控制項、多檔選取、上傳、受控下載、軟刪除、還原、返回原 drawer；owner editor secondary-entry source contract、desktop/tablet/mobile overflow、console、network 與 task-owned port cleanup 全部 PASS。
 
-因此 DEV-087 current effective UI scope 是原 `48` 案加回 `P11–P13`，合計 `51` 案；原 48 案證據不重寫，新增三案以本節 focused evidence 補齊。`P14–P20` 仍不宣稱 DEV-087 已驗證。
+截至2026-08-24，DEV-087當時effective UI scope是原`48`案加回`P11–P13`，合計`51`案；此結論現為歷史回歸基線並由§0重開註記取代。原48案與新增三案證據不重寫，`P14–P20`仍不宣稱已驗證。
 
 ## 20. QC journey 全量重跑與產品缺口分流（2026-08-22 10:56）
 
@@ -79,7 +104,7 @@ Evidence：`output/qa/dev-087-ui-only-lifecycle/DEV087-ui-only-2026-08-22T10-05-
 建立日期：2026-08-22  
 Owner：QA  
 執行者：AI-QA Operator；結案者：獨立 AI-QC  
-狀態：`QA Plan Ready / Human Confirmed / Focused UI Rerun Partial / Local Isolated Only`
+狀態：`QA-QC Reopened / Function-Completeness CAPA / Previous 51-case PASS Historical / Local Isolated Only`
 母計畫：`.ai-doc/qa/qa-dev-087-status-data-rebuild-validation-plan-2026-08-21.md`  
 產品權威：`.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`  
 關聯權威：DEV-077 正式草稿／正式物件作廢；DEV-087 Part 即時附件管理；DEV-088 替代料號附件人工沿用
@@ -223,12 +248,12 @@ API 的 `rowKey／groupKey` 只做比對，不得在 UI 顯示。`layer、revisi
 
 | ID | AI 只能從 UI 執行的路徑 | UI 預期 | Backend／DB 必驗事實 |
 |---|---|---|---|
-| `D01` | 無量產資料的新圖號建立第一份工作 | 只見 `研發版 0.1／負責人處理` | 新 branch、0.1 claim、work、canonical RD row 同 transaction 建立 |
+| `D01` | 無量產資料的新圖號建立第一份工作 | 只見`研發版 0.1／負責人處理`與中性「關聯料號」；不見FFF／受影響／replacement | 新branch、0.1 claim、work、canonical RD row同transaction建立；`predecessor=NULL`、`changeImpactRequired=false`、work payload無`changeImpact` |
 | `D02` | 第一份 0.1 工作取消 | current row 消失，不顯示已取消 | work/claim/empty branch/RD row 移除，open count 回 0 |
-| `D03` | 0.1 編輯、儲存、reload、再進編輯 | exact 0.1 資料與檔案仍在原 editor | 同 work row version 前進；正式資料仍不存在／不變 |
-| `D04` | 0.1 送審後 reviewer 退回修改 | 回 `負責人處理`，退回後可編輯 | request/snapshot 清除、minimal trace +1、work 保留、formal 不變 |
-| `D05` | 修改後重送並核准 0.1 | 先 `系統處理`，成功後為 idle `研發版 0.1` | approved claim/artifact 保留，work/request 清除，production 不建立 |
-| `D06` | 同 branch 由 0.1 進版至 0.2 並核准 | branch 只顯示 latest `研發版 0.2` | predecessor=0.1；0.1 進歷史；open count 不變 |
+| `D03` | 0.1 編輯、儲存、reload、再進編輯 | exact 0.1資料與檔案仍在原editor；全程無FFF section或raw internal value | 同work row version前進；payload仍無`changeImpact`，正式資料不存在／不變 |
+| `D04` | 0.1 送審後 reviewer 退回修改 | reviewer同頁唯讀且無FFF；退回後回`負責人處理`可編輯 | request/snapshot清除、minimal trace +1、work保留、formal不變；FFF assessment／replacement／BOM flag delta=0 |
+| `D05` | 修改後重送並核准 0.1 | 先`系統處理`，成功後為idle`研發版 0.1`；owner／reviewer均無FFF | approved claim/artifact保留，work/request清除，production不建立；revision policy無系統代填`changeImpact`，FFF／replacement／BOM effect=0 |
+| `D06` | 同branch由0.1進版至0.2，完成FFF後核准 | 0.2 workspace顯示「判定範圍」與初始「請判定」三軸；完成後branch只顯示latest`研發版 0.2` | `predecessor=0.1`、`changeImpactRequired=true`；未判定submit zero-write，完成snapshot／formal evidence一致；0.1進歷史、open count不變 |
 | `D07` | 同 branch 由 0.n 選下一量產版 1 並核准 | 核准前顯示研發 target 1，成功後 `量產版 1` | current-base guard 成功；production 原子建立；來源 branch historical、count -1 |
 | `D08` | 從量產版 1 建立新 branch 1.1 並核准 | 同組同時見 `量產版 1`與 idle `研發版 1.1` | 新 branch/base/claim；minor 核准不改 production hash |
 | `D09` | 從量產版 1 直接選 target 2 並核准 | 核准前仍標 `研發版 2`，成功後才標 `量產版 2` | target 2 claim 在新 branch；正式化後 production 前進且來源 branch關閉 |
@@ -588,4 +613,191 @@ R13 同時修正 runner 的 return 控制流與預期 409 error 監控，避免 
 
 ### 放行規則與後續決策
 
-DEV-087 目前依原 `48/48` 加上 P11–P13 focused `28/28`，視為 current effective `51-case` 本地 QA/QC 完成；共同 gate 維持 `11/11`，Blocked/NotRun/P0/P1/prohibited mutation 皆為 0。不得將 `P14–P20` 等排除項目解讀為已驗證。未來若業務需要任一排除案例，必須先建立對應產品能力或契約，再另開 follow-up journey；禁止以 seed、SQL、直接 business API 或人工改狀態偽造終態／歷史資料。
+截至2026-08-24，原`48/48`加上P11–P13 focused證據構成當時51-case本地closure；2026-08-25功能完整性盤點後，此段只作歷史基線，current disposition以§0與下列§27為準。不得將`P14–P20`等排除項目解讀為已驗證；禁止以seed、SQL、直接business API或人工改狀態偽造終態／歷史資料。
+
+## 27. 2026-08-25 重開 UI journey 責任矩陣
+
+| Journey family | 對應母計畫 | UI-only 必做路徑與判定 |
+|---|---|---|
+| `RG-DRAW-CHANGE` | QA-087-187～192 | owner先以首版旅程證明只見中性關聯料號且zero FFF，再由canonical「進版」完成判定範圍、明確FFF三結果、replacement、送審／退回／重送／核准；reviewer首版無FFF、進版只看exact snapshot，畫面不得要求另走平行revision工作臺。 |
+| `RG-TASKS` | QA-087-193～197 | UI-only只驗證`/numbering/tasks`入口、頁面與死連結歸零且direct URL 404；194～197的排序、identity、read／handled與empty／failure改由母計畫repository／API證據負責。 |
+| `RG-OBSOLETE` | QA-087-198～202 | Drawing／Part由正式UI申請、reviewer拒絕／核准並回到exact object；UI-only負責198～201與202的direct-invalidation入口消失／retired message readback，固定410 API探針由母計畫執行。 |
+| `RG-PART-VARIANT` | QA-087-203～206 | owner編輯material／color／surfaceTreatment／variantNote，reviewer唯讀exact snapshot，驗證退回／取消／核准；206直接API拒絕探針由母計畫執行。 |
+| `RG-HISTORY` | QA-087-207～208 | 從歷史列開啟所點revision的exact preview與受控下載；缺檔／錯binding／無權限明確fail closed，不能fallback latest。 |
+| `RG-WORK-FILES` | QA-087-209～211 | 在current Drawing work完成逐檔下載、非primary誤檔移除、多檔進度／部分失敗／重試；reviewer只讀，送審集合與畫面一致。 |
+| `RG-MATRIX-NAV` | QA-087-212～213 | 從Drawing／Part兩側矩陣identity以滑鼠與鍵盤互跳；dirty時呈現儲存／捨棄／留頁選擇，驗證焦點與返回位置。 |
+| `RG-DISCOVERY` | QA-087-214～216 | Drawing目的／系列及Part料件類型／系列／材質／顏色搭配搜尋、排序、前後換頁；reload與Back／Forward無漏列、重複或stale覆蓋。 |
+| `RG-UI-GATES` | QA-087-217 | 1440×900、1024×768、390×844、320×800、keyboard、a11y、visible error、console/network與資料合理性；其actual artifacts供G4稽核。 |
+| `RG-NEGATIVE-COMPLETION` | QA-087-218 | 8族正常journey後逐一驗證入口、primary action、exact artifact或readback缺失會被產品案例捕捉；restore後另開fresh run。此項是功能回歸，不要求DEV-097 mutant／anti-cheat hash。 |
+
+每個family至少保留：fresh-session起點、role、viewport、逐步操作、checkpoint screenshot、UI/API/DB identity與數量、需要時file bytes/hash、console/page/network清單、cleanup與source fingerprint。只看到control、HTTP 200、toast或靜態DOM不構成PASS。
+
+完整通過定義固定為：`新增UI責任全部PASS + current 51-case fresh回歸PASS + C01～C11 PASS + QG-087-UI PASS + Blocked=0 + NotRun=0 + P0/P1=0`。現有browser 91/91、主browser 288/288、Part附件48/48與headed／viewport證據可作回歸基線；契約變更後仍需fresh trusted-solo run，不直接把舊G4改標PASS。
+
+## 28. RD Implementation Ready UI surface contract（2026-08-25）
+
+本節把§27的journey family綁到確定的頁面與互動；產品surface contract已實作，current狀態=`Trusted-Solo UI QA-QC Complete / Current UI Denominator PASS / Production Release Gated`。runner不得以舊頁、API直寫、seed terminal state或靜態DOM取代下列rendered UI；本次current evidence已依此限制fresh執行，但不要求獨立人員或防證據作弊封口。exact parent由不納入source fingerprint的current completion receipt與dev task指向。
+
+### 28.1 Surface ownership
+
+| Family | 起點與owner surface | Primary／secondary action | 明確禁止 |
+|---|---|---|---|
+| RG-DRAW-CHANGE | 首版由正常建立流程進現有canonical Drawing full-page workspace；後續由`/numbering/drawings` drawer `進版`進同一workspace | 首版只有關聯料號；進版才有判定範圍／FFF／必要replacement。同一workspace唯一primary依dirty/readiness為儲存／送出審核 | 不以版號猜適用性、不在首版渲染或寫入FFF、不預選相容；不開第二個簡化editor、不要求去`/numbering/revisions`、不出現舊submission review buttons。 |
+| RG-TASKS | sidebar、dashboard與直接URL | 不提供獨立task center；正式入口與元件不存在，直接URL呈現404 | 不保留隱藏route／redirect／死連結；不刪除仍有caller的task／notification API。 |
+| RG-OBSOLETE | Drawing production／Part formal drawer `申請正式作廢` | modal先顯示object dependency impact，填reason後建立formal request；reviewer仍在既有approval UI核准／拒絕 | Drawing RD仍只顯示branch作廢；root沒有按鈕／modal／route；`直接失效`不存在。 |
+| RG-PART-VARIANT | `/parts/[id]/workspace?workId=...` | 四個業務欄位與現有Part save／submit；review頁相同layout fully readonly | 不在drawer直接改formal、不顯示六個storage欄位為六項業務輸入、不把附件放進snapshot。 |
+| RG-HISTORY | Drawing drawer歷史列 | 點revision在同drawer開exact唯讀子視圖，提供該版preview/download與返回歷史 | 不另開latest detail、不顯示mutation、不fallback current。 |
+| RG-WORK-FILES | canonical Drawing full-page workspace檔案區 | 每檔download；non-primary remove；每檔progress/retry；送審仍是唯一流程承諾 | primary無remove；reviewer無upload/remove；單一spinner不得代表多檔結果。 |
+| RG-MATRIX-NAV | Drawing／Part drawer relation matrix | identity本身是button/link；dirty時儲存／捨棄／留頁三選一 | 不新增矩陣外重複導航表、不靜默discard、不導向root drawer。 |
+| RG-DISCOVERY | Drawing／Part canonical toolbar＋pager | domain multi-select、sort、上一頁／下一頁；URL保存query/filter/cursor/pageIndex | 不恢復已退役status URL、不用`載入更多`append、不先分頁再client filter。 |
+
+### 28.2 Visible vocabulary與layout
+
+- 首版只以exact number＋name顯示compact「關聯料號」；這是context，不是判定結果，因此不用check、成功色或helper paragraph。沒有關聯時顯示中性「目前沒有關聯料號」，不建立空FFF容器。
+- 進版FFF三軸初始顯示「請判定」，完成選項為`相容／條件相容／不相容`，wire終態仍是`no_impact／suspected_impact／confirmed_impact`；Form/Fit/Function各一列，不複製舊頁大型說明卡。任一未判定不可送審；條件相容／不相容需人類reason label，不相容才展開replacement，raw `not_specified`不得出現在visible UI或a11y name。
+- 進版affected Parts改以「判定範圍」呈現exact number＋name的compact中性list；無候選時顯示「目前沒有直接受影響料號」，不是loading空白。cross-root Part永遠不出現在選項或DOM。
+- task center不再形成可見surface；sidebar、dashboard與其他stored action不得顯示或連到`/numbering/tasks`，其後端資料契約由非UI測試驗證。
+- obsolete modal只顯示object identity、影響摘要、reason與一個submit；技術fingerprint不進可見UI/DOM/a11y name。stale回應顯示「影響範圍已更新，請重新確認」並重新載入，不能自動重送。
+- Part材質／顏色欄位顯示label並保留code供搜尋選取；surface treatment／variant note是nullable text。變更後才在欄位附近顯示原正式值，未改欄位不做雙欄比較。
+- history與work file rows固定顯示檔名、角色、大小與終態；hash只在受控evidence，不在一般UI。upload percent需有文字；失敗檔保留並提供retry，成功檔不回退queued。
+- domain filters採現有compact multi-select；Drawing為目的／系列，Part為料件類型／系列／材質／顏色。sort是一個明確升冪／降冪控制，pager顯示上一頁／下一頁及可理解的頁次，不顯示cursor token。
+
+### 28.3 Focus、history與dirty behavior
+
+1. drawer action開modal時focus進標題；關閉／失敗回原CTA。成功建立work才navigation，5秒以上顯示進行中並disable repeat。
+2. history entry開啟時URL增加`historyRevision`；Back回歷史列表，第二次Back才關drawer；reload仍是exact revision。失敗留在該revision error surface，不跳latest。
+3. matrix identity dirty dialog：default focus=`留在本頁`，Escape相同；選儲存後前往必須等server success與readback，失敗回矩陣且焦點在error summary；捨棄需二次明確選擇。
+4. cursor pager每次push history；filter／sort變更replace並回第一頁；Back／Forward必須restore filter、page、selection與drawer。stale response不可覆蓋較新的UI intent。
+5. mobile 390／320px下toolbar可換行，唯一horizontal overflow owner只允許matrix與必要表格容器；modal、task rows、file progress、history preview不得超出viewport。
+
+### 28.4 UI selectors與proof points
+
+runner使用人類role/name優先，不把CSS class當唯一證據。每個family至少證明：
+
+- formal navigation label與permission visibility；unauthorized直接URL得到server denial。
+- primary action accessible name、disabled reason、busy／error／success readback與focus target。
+- exact identity在UI、request、DB與file oracle四方相同；history/file再加bytes/hash。
+- reload與Back／Forward後控制值、row order、detail identity與terminal state相同。
+- expected 409／410在畫面有可理解message；console/page error與unexpected response仍為0。
+
+`part_root`搜尋明細／狀態／作廢影響沒有selector、journey或Blocked項；若任一新surface出現root formal-obsolete CTA，RG-OBSOLETE與aggregate立即FAIL。
+
+### 28.5 UI-only execution order
+
+依`RG-DRAW-CHANGE → RG-TASKS → RG-OBSOLETE → RG-PART-VARIANT → RG-HISTORY → RG-WORK-FILES → RG-MATRIX-NAV → RG-DISCOVERY → RG-UI-GATES（QA-087-217）`執行。每族先跑desktop happy／return/retry，再跑negative與mobile；不得用後一族PASS抵銷前一族P0。所有family完成後執行`QG-087-UI`、`RG-NEGATIVE-COMPLETION / QA-087-218`、current 51-case固定名冊fresh regression與current aggregate。舊G0-A／G4、M03／M07／M09／M10與Independent AT receipt已退役。
+
+## 29. Trusted-solo UI QC contract（2026-08-27）
+
+### 29.1 執行者與邊界
+
+- 同一位開發者可同時擔任RD、QA與QC；不需`independent_qc`角色、另一位人員、收據或交叉簽核。
+- 執行時仍只能使用task-owned fixture，不得為測試而改primary database、正式provider或他人runtime。
+- 必須從正常導覽／CTA進入；direct URL、API或DB只能建立前置條件或讀回，不得直接建立本案要驗收的成功終態。
+
+### 29.2 Headed viewport matrix
+
+- `drawing_change`、`task_center`、`formal_obsolete`、`part_variant`、`drawing_history`、`work_files`、`matrix_navigation`、`workbench_discovery`每族至少執行1440×900與390×844各一條headed實際流程。
+- 1024×768與320×800至少執行geometry、horizontal overflow、modal／drawer boundary與primary CTA可見性自動量測。
+- 每族覆蓋與實際功能相關的normal、loading、empty、error、selection／dirty、high-risk、keyboard與focus狀態。
+
+### 29.3 UI hard fail
+
+- 任一可見`.inline-error`、非預期`[role=alert]`、load failed、HTTP 4xx/5xx或route error文字、console/page error、unexpected failed response或預期有資料卻全零，立即FAIL。
+- 水平溢出、重疊、文字截斷、按鈕被擠壓、焦點遺失、keyboard無法完成關鍵流程或錯identity導覽立即FAIL。
+- build、HTTP 200、DOM存在、a11y tree或單張full-page screenshot不能沖銷上述實際失敗。
+
+### 29.4 Accessibility disposition
+
+- 必驗：accessible name、semantic role、keyboard、focus order／focus style、dialog focus trap／return與不只靠顏色表達狀態。
+- 選配：NVDA、JAWS或Windows Narrator的actual操作。沒有actual AT證據不得宣稱已驗證screen-reader conformance，但不阻擋DEV-087 local completion。
+
+### 29.5 證據與判定
+
+- 每條evidence保存source／runtime邊界、route、role、fixture、viewport、操作步驟、actual、screenshot、console／network摘要與cleanup。不要求artifact hash chain、same-parent cardinality或防重用證明。
+- `QG-087-UI PASS`：8族的desktop／mobile headed流程全PASS，1024／320量測PASS，visible/console/page/network非預期錯誤=0，Blocked=0，Not Run=0，P0/P1=0。
+- 失敗要保留重現步驟、actual、expected與首個有效evidence；修正後使用fresh run重驗該族與受影響回歸。
+
+## 29H. Historical DEV-097 UI evidence integrity contract（2026-08-25，superseded 2026-08-27）
+
+本節以下至§30之前的fixture provenance、full mutation ledger、Independent QC／actual AT、checkpoint hash與G0-A／G4要求只作歷史追溯，不再是current UI completion gate。
+
+### 29H.1 Fixture provenance與可宣稱範圍
+
+每個UI case開始前必須在case manifest固定一種`fixtureOrigin`：
+
+| Origin | 允許用途 | 不得宣稱 |
+|---|---|---|
+| `ui_created` | 由rendered UI從合法起點完成完整business action chain，可宣稱該chain實際可操作 | 不得在中途以API／SQL／seed補狀態 |
+| `repository_seeded_read_only` | 建立history多版、missing artifact、scale或權限等唯讀前置；只驗證registry明列的read/error slice | 不得宣稱建立、送審、核准、正式化、作廢或其他生命周期已由UI完成 |
+| `fault_profile` | runtime啟動前選定deterministic failure；後續狀態仍由UI動作觸發 | 不得在case中途改DB、response或client state |
+
+缺`fixtureOrigin`、mutation ledger或allowed-claim list時，case=`INVALID`。同一case不能把seeded terminal state重新標成`ui_created`；若流程需要兩種origin，拆成不同case與evidence，不合併計分。
+
+### 29H.2 UI mutation provenance hard gate
+
+- 每個successful `POST／PUT／PATCH／DELETE`保存觸發它的accessible UI target、browser input event、network initiator、correlation id、server route與DB writer ledger；一個write不得由多個case重複認領。
+- 除QA-087-202／206的isolated non-2xx probe外，任何直接API、`page.evaluate` mutation、SQL write、cookie/token/storage注入或沒有UI action correlation的business write，使整run=`INVALID / FAIL`。
+- UI操作前已存在的seed rows必須在before ledger；操作後只允許與本case expected相符的delta。reload、Back／Forward與第二tab不能產生未認領write。
+- `prohibited-mutation-audit.json`不是執行者自述；由獨立integrity validator對actions、network、server與DB四份ledger做bijection與hash驗證。
+
+### 29H.3 真實viewport、可見畫面與輔助科技
+
+- full-page screenshot只能作補充，不能證明viewport沒有裁切。每個checkpoint另存actual viewport screenshot、`innerWidth/innerHeight/deviceScaleFactor/zoom`、document與每個scroll owner geometry、fixed/sticky bounds及focus target。
+- 每個journey family至少由獨立QC在headed可見畫面重驗1440×900與390×844各一條；1024×768、320×800仍全量自動量測。任何可見`role=alert`、load failed、HTTP 4xx/5xx文字、route error或預期有資料卻全零立即FAIL。
+- 關鍵dialog、task action、history返回、file retry、matrix dirty guard與pager至少使用一種實際輔助科技驗證；Windows優先NVDA。只有a11y tree或axe結果而無實際輔助科技證據時，QA-087-228只能`Not Verified`。
+- screenshot、actions、network、DB readback與geometry必須有同一run/case/checkpoint hash chain；不得以不同時間、commit、role、company或fixture的畫面拼接。
+
+### 29H.4 Same-origin、identity與evidence reuse negatives
+
+- task `actionUrl`逐一測`javascript:`、protocol-relative、encoded external origin、backslash／double-encoding與合法same-origin exact route；拒絕時不能先navigation再返回。
+- task、history、file、obsolete route逐一替換cross-company、cross-work、cross-revision、cross-task與不存在identity；必須fail closed且不可透過status、length、timing或UI文案洩漏存在性。
+- 每份evidence只能對應registry允許的一個或多個明示assertion；若共用同一checkpoint，manifest需列出共享理由與相同precondition，不得把一條happy path複製成多案PASS。
+- 獨立QC不重用RD runner的result判定函式；只讀immutable registry、raw ledgers與artifact hashes後重算結果。
+
+### 29H.5 Gate ownership
+
+| QA case | Stage | UI責任 | Exit |
+|---|---|---|---|
+| QA-087-221 | G0-A | registry fixture origin／allowed claim／mutation-ledger schema與planted invalid manifest | seeded terminal state不能冒充lifecycle；只證明控制可失敗，不計actual UI PASS |
+| QA-087-225 | G4 | actual UI action與network/server/DB write provenance | prohibited mutation=0，四份actual ledger bijection |
+| QA-087-227 | G4 | actual actionUrl與opaque identity negatives | same-origin／company／membership fail closed |
+| QA-087-228 | G4 | actual headed visible QC、viewport geometry、實際輔助科技、artifact hash chain | 缺任一actual evidence即Not Verified |
+
+G0-A必須先由`qa-integrity --stage preflight`以M03／M07／M09／M10證明上述控制可拒絕違規artifact；這些synthetic results只歸QA-087-224 self-test，不得使225／227／228提早PASS。所有UI family完成後，G4再由`qa-integrity --stage evidence`讀actual raw ledgers與artifact hashes重算225／227／228；G4 PASS後才可進current aggregate。QA主管仍須重新審查本修訂，文件ready或G4 runner結果都不等於QA plan已核准。
+
+### 29H.6 2026-08-26 execution closure撤回
+
+舊`94/94 PASS`、G4 `4/4`與aggregate `20/20`不符合本節actual-evidence契約，current效力撤回：舊UI-only runner只涵蓋48案且排除P11～P13，G4 raw evidence缺完整UI/network/server/DB bijection、320 viewport、每族headed證據與實際輔助科技。2026-08-26 repository `25/25 PASS`與negative `6/6 PASS`只證明其registry claims；current browser capability manifest按固定91案全部輸出NOT_RUN／FAIL，這是正確的fail-closed結果，且不得拿repository／negative結果代替UI journey。只有重新執行rendered journeys並保存同run hash chain後才可恢復225／227／228與aggregate計分。QA主管／Independent QC目前不可簽核完成。
+
+## 30. DEV-090 current inline Relation matrix roster correction（2026-08-26）
+
+### 30.1 Supersession boundary與分母控制
+
+DEV-090已以`Intentional replacement`退役Relation current work／review／workspace／list；本文件§5.3的`R01..R14`只保留為`historical_supporting`，不得執行、不得改寫expected，也不得為了湊原51案而恢復已退役產品能力。current固定51案等量改為`D01..D24 + P01..P13 + I01..I14`，其中`I`代表Inline Relation Matrix；case ID migration為一對一`R01..R14 → I01..I14`、`currentDenominatorDelta=0`。`R15..R20`維持既有historical classification。
+
+本節是§27.2、§27.3、§29與所有較早`D/P/R=51`敘述的後出權威修訂。browser runner必須逐案執行下列current contract；共用checkpoint只在manifest列出相同precondition與共享理由時可共用artifact，不能複製一條happy path成14案PASS。
+
+### 30.2 I01..I14 current case definitions
+
+| ID | Rendered UI journey | API／DB readback與反作弊exit |
+|---|---|---|
+| I01 | 分別從同root的Drawing與Part清單開drawer；兩邊只顯示一個`關聯矩陣`，無`直接關聯`區塊 | 兩detail的root、formal matrix與canonical hash完全相同 |
+| I02 | Drawing production與RD列間切換 | revision／work切換不改matrix authority或內容，不顯示source layer |
+| I03 | Part formal與current work列間切換 | 兩列顯示同一root正式矩陣；Relation work/task/review row delta=0 |
+| I04 | 點`編輯關聯`在drawer原位進edit mode | 不導航到Relation route；進入edit時API mutation=0、DB hash不變 |
+| I05 | 只用鍵盤操作同一cell的空白／製造／參考三態 | 三態名稱可被accessibility tree辨識且不只靠顏色；未儲存前API mutation=0 |
+| I06 | 修改一或多格後取消 | draft全部消失並回view mode；links、ETag與receipt均無變化 |
+| I07 | dirty時依序嘗試關閉、上下切列與返回 | 每種離開動作均出現unsaved guard；選擇留在原列保留draft且DB write=0 |
+| I08 | 儲存一或多格 | 只有一次busy、單一PATCH與單一detail refresh；links與receipt同transaction，成功後回view mode顯示exact結果 |
+| I09 | 以受控fault使儲存失敗 | draft保留、焦點移到可見錯誤，UI不混合舊新矩陣；links／receipt零partial write |
+| I10 | 搜尋只有root、尚無圖號與料號的identity | `編號搜尋`只顯示最短root事實，不顯示矩陣或edit，也不發出第三個matrix GET |
+| I11 | 從blank matrix建立第一筆link | cell可編輯並直接正式生效；task／review新增數=0 |
+| I12 | 開啟只有單一axis的root | 不顯示空toolbar、disabled save或其他無效mutation入口 |
+| I13 | 從矩陣圖號／料號identity分別前往canonical工作台並返回 | 不命中Relation list／workspace；返回後保留原drawer identity與root |
+| I14 | 逐一驗證退役與舊入口路由：sidebar／全站文案、待辦／審核、search intent、owner intent、number-create intent、Relation intent | 圖料工作台visible copy／forbidden caller=0；direct edit不產生task/review；search→`編號搜尋`、owner→Drawing／Part、number-create→既有申請、Relation intent fail closed，無broken query／fallback |
+
+### 30.3 Exit與證據
+
+- 每案必須有rendered UI action、actual viewport、visible-error sweep、API／DB exact readback與artifact hash；I05另需accessibility tree，I08／I11另需UI→network→server→DB mutation bijection，I09／I14另需zero-write negative receipt。
+- current browser名冊仍為91案：`D01..D24 + P01..P13 + I01..I14 + C01..C11 + 29 functional browser cases`；沒有縮小分母。
+- 任一runner仍回報R01..R14為current PASS、缺任一I案、或同時把R與I計入current分母，均以`CASE_ROSTER_OR_TRACE_INCOMPLETE` fail closed。

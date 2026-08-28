@@ -1,6 +1,6 @@
 # QA-DEV-079：圖號唯讀抽屜與全頁編輯工作區驗證計畫
 
-狀態：`RD Implemented Locally / Focused Evidence Available / Independent QC Pending / Production Release Gated`
+狀態：`CAPA Corrected Locally / Focused SQLite + PostgreSQL + Browser QA-QC PASS / Independent Full-Matrix QC Pending / Production Release Gated`
 
 日期：2026-08-19  
 對應：`DEV-079`、`SPEC-PDM-ENTITY-DETAIL-DRAWER-001` 的 DEV-079 RD Implementation Package、`SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001` 的 DEV-079 amendment  
@@ -24,7 +24,7 @@ Human decisions：`HD-079-01 / 1B`、`HD-079-02 / 2A`、`HD-079-03 / 3A`、`HD-0
 3. 左側圖面主視覺、右側版次／OCR任務、readiness 與送審的分層、權限、錯誤恢復及返回上下文一致；
 4. 本 DEV 不改變既有 Drawing／Revision／File、approval、permission、lifecycle、idempotency、concurrency 與 audit authority。
 
-本文件保留驗證計畫，並同步記錄本輪已取得的 focused evidence。`qc:dev-079:contract`、typecheck、focused regressions、isolated build與瀏覽器證據不等同 QA-079-01～28 全部PASS；不得以 DEV-053／067／070／072 的歷史綠燈替代 DEV-079 證據。
+本文件保留驗證計畫，並同步記錄本輪已取得的 focused evidence。`qc:dev-079:contract`、`qc:dev-079:owner-resolution`、typecheck、focused regressions、isolated build與瀏覽器證據不等同 QA-079-01～29 全部PASS；不得以 DEV-053／067／070／072 的歷史綠燈替代 DEV-079 證據。
 
 ## 2. Scope、out of scope 與執行邊界
 
@@ -35,6 +35,7 @@ Human decisions：`HD-079-01 / 1B`、`HD-079-02 / 2A`、`HD-079-03 / 3A`、`HD-0
 - `/approvals/[requestId]` 的 Drawing-surface exact reviewer 決策。
 - `/numbering/revisions?...` 舊 deep link 相容與 canonicalization。
 - owner workspace 的 visual-first 2D／3D 主視覺、右側`版次與檔案／智慧辨識`task tabs、candidate-revision OCR source、quick review與2D evidence overlay。
+- 智慧辨識的料號 owner唯一補全、未歸屬欄位就地紅字、批次決策隔離、server fail-closed與Drawing送審非阻擋契約。
 - safe `returnTo`、URL list state、browser history、reload、direct URL、selected-row restoration 與 unsaved guard。
 - required／recommended file rules、partial upload、readiness、submission、409/idempotency 與 visible-error recovery。
 - 1440×900、1024×768、390×844 rendered browser、keyboard、focus、touch、sticky、overflow 與 safe area。
@@ -58,7 +59,7 @@ QA 執行只能使用本機隔離資料副本與 task-owned free port。若啟�
 | `079-B Canonical full-page owners` | owner與reviewer direct URL已可載入，write仍走既有authority | state×actor、required/recommended、dirty、401／403／404／409／5xx focused evidence |
 | `079-C List-state recovery` | API response具有雙向cursor且location codec可round trip | next／previous、back／forward、reload、expired cursor／missing row evidence |
 | `079-D Atomic drawer cutover` | 079-B／C皆通過，legacy與unified不得分批宣稱完成 | 兩flag branch、所有Drawing state×actor DOM/network zero mutation；Part／Relation回歸 |
-| `079-E QA freeze` | 實際diff inventory與deviation review完成 | QA-079-01～28、browser、typecheck、isolated build、aggregate與cleanup evidence；目前仍待獨立QC收斂fixture blockers |
+| `079-E QA freeze` | 實際diff inventory與deviation review完成 | QA-079-01～29、browser、typecheck、isolated build、aggregate與cleanup evidence；目前仍待獨立QC收斂fixture blockers |
 
 不得用中間slice作staging／production release candidate。若D只完成一個drawer branch、B存在平行command logic、C只能單向返回，或inventory外變更未經PM amendment，QA拒絕admission並退回RD。
 
@@ -72,8 +73,9 @@ QA 執行只能使用本機隔離資料副本與 task-owned free port。若啟�
 6. legacy 與 unified Drawing drawer 必須同時唯讀；`PDM_UNIFIED_ENTITY_DETAIL_V1` 不得成為寫入旁路。
 7. Part／Relation 的既有 resolver 與 drawer action 是負向回歸，不因 Drawing 收斂被移除。
 8. full-page DOM order必須是左側`圖面主視覺`先於右側`版次與辨識操作`；右欄是唯一task content scroll owner，footer不覆蓋左右欄。
-9. OCR create使用`candidate_revision`與目前未移除的`sourceFileAssetId`；OCR status／pending count／feature flag不得出現在`canSubmitCandidate`或任何submit blocker。
+9. 現行owner workspace使用exact `drawing_revision`與目前未移除的`sourceAssetIds`；歷史candidate flow仍須保持exact source-set。OCR status／pending count／unresolved owner不得進入Drawing必要檔案readiness或submission blocker。
 10. inline OCR只重用既有session與decision API；進階歸類、排除、impact與formalize導向canonical完整核對頁，不得複製正式寫入command。
+11. `part_number`候選只有在同session、同company恰有一個合法邏輯料號時才可自動補owner；零個或多個owner必須維持blocked並在問題欄位就地顯示紅字、圖示與可及錯誤關聯。未歸屬候選不得進入accept／correct批次，但不得阻擋其他合法候選或Drawing送審。
 
 ## 4. Required actor、state 與 fixture matrix
 
@@ -98,6 +100,7 @@ QA 執行只能使用本機隔離資料副本與 task-owned free port。若啟�
 | FX-079-15 | candidate有2D＋3D、尚無OCR session | 上傳成功或進頁即以candidate revision自動ensure；相同來源集合不得重複建立 | 無 decision | readonly顯示既有權限，不產生假可寫控制 |
 | FX-079-16 | OCR `review_ready`含proposed／conflict與geometry | 可接受／修正；證據切至左側2D並定位 | 依既有recognition permission | 無權者只顯示資訊狀態 |
 | FX-079-17 | OCR feature off／403／無geometry | 版次與送審流程不受阻；證據至少顯示文字來源 | 不適用 | 無raw error／raw geometry／失敗型假警報 |
+| FX-079-18 | A0044-M01 `.SLDASM`首次上傳、修復前legacy session、重複讀取、零／失效／多owner與人工清空owner | ingestion與legacy projection均只在唯一合法owner時補A0044-P01；重複讀取不重寫；其他狀態fail closed，欄位就地紅字且其他欄位／送審可繼續 | SQLite＋Cloud SQL PostgreSQL同型cluster | 未歸屬accept/correct回422；defer/ignore可用；無跨公司／失效owner補值；PostgreSQL併發讀取只修復一次 |
 
 必要 actors：Drawing owner RD、exact RD reviewer／RD主管、非 owner readonly、具既有 recovery/admin capability者。測試不得假設「Admin」必然具所有 domain write；以實際 permission payload 為準。
 
@@ -129,10 +132,24 @@ QA 執行只能使用本機隔離資料副本與 task-owned free port。若啟�
 | QA-079-22 | full-page只有一個 canonical status badge與恰一個 primary action | DOM count | 各state視覺檢查 |
 | QA-079-23 | 2D／3D一次只顯示一個大型tabpanel，預設2D且可鍵盤切換 | component／ARIA contract | ready／pending／missing各狀態截圖 |
 | QA-079-24 | 右欄`版次與檔案／智慧辨識`切換不丟未儲存資料；正常流程無`開始辨識`、待核對badge或常駐待核對文案，且OCR不改submit gate | source／state contract | 切tab、dirty guard、submit disabled reason |
-| QA-079-25 | OCR create使用candidate revision＋目前受控file assets；每次成功上傳與進頁backfill均ensure且相同來源集合去重；批次接受／修正沿用decision API且rowVersion／idempotency仍生效 | request body＋API matrix | owner正向、重複ensure、409、readonly／403成對走查 |
+| QA-079-25 | OCR create使用exact canonical drawing revision＋目前受控file assets；每次成功上傳與進頁backfill均ensure且相同來源集合去重；批次接受／修正沿用decision API且rowVersion／idempotency仍生效 | request body＋API matrix | owner正向、重複ensure、409、readonly／403成對走查 |
 | QA-079-26 | OCR證據可切回2D且依來源真實呈現：只重用既有單一preview surface，不新增PDF tab、第二viewer、route、附件或版次。同source/page只加框；跨file/page在原viewer暫時切換並顯示檔名／頁碼，多頁PDF導向精確頁，返回／清除焦點恢復原preview kind/source/page。有合法 PDF normalized geometry 必須顯示對應定位框；CAD property 才可顯示檔案屬性無座標且不可把畫面冒充CAD定位；legacy/unlocatable PDF 必須明示 PDF/page 與無可用座標。不得以「property flash 或 box 任一」作通用 PASS；advanced入口到canonical完整核對頁，embedded頁無formalize command | DOM／source inventory＋route/network/data-write allowlist＋exact source/location/restore assertions | same-page／cross-file／multi-page PDF geometry、CAD no-geometry／legacy PDF、返回原圖面、feature-off與permission-empty截圖 |
 | QA-079-27 | 候選圖號唯讀抽屜的「圖面預覽」固定同排呈現3D與2D兩張卡；檔案缺少或預覽處理中仍保留可理解狀態 | `qc:dev-079:contract`＋DOM inventory | 1440／1024／390 viewport截圖與預覽狀態走查 |
 | QA-079-28 | 「歷史版次」預設收合；每一版次可獨立展開查看版次狀態、檔案與唯讀查看入口，且不產生 mutation | `qc:dev-079:contract`＋DOM／network allowlist | 有歷史資料 fixture的展開／收合、檔案查看與zero-write走查 |
+| QA-079-29 | 歷史 containment：未歸屬料號候選在欄位就地顯示可及錯誤、其他候選仍可儲存且Drawing送審不受阻；先前 projection self-heal 只保留歷史證據，不再是現行 prevention | 歷史 `qc:dev-079:owner-resolution` report＋current contract scan | A0044 focused evidence可追溯，並明確標示已由QA-079-30～42取代 recurrence claim |
+| QA-079-30 | 同一 pure resolver 對 native、browser PDF、retry/import 的 same-company exact-work target得到相同 discriminated resolution；adapter 不得自行決定最終 owner | resolver unit/contract＋source mutation | exactly-one／none／ambiguous／invalid／cross-company fixtures |
+| QA-079-31 | A0002 類 native＋PDF同 field/value/scope 在 candidate INSERT前取得同 owner並共用單一 canonical aggregate；observations仍各自 immutable | repository integration＋row inventory | candidate count=1、observation links=2、owner=A0002-P01 |
+| QA-079-32 | 無 anchor 時 exactly-one logical Part resolved；0與>1 fail closed；同碼 formal＋draft視為一個logical owner並優先formal master | SQLite＋PostgreSQL resolver matrix | resolution union、candidate key與owner evidence一致 |
+| QA-079-33 | accept／correct／map／create／reassign／set-baseline均重驗 owner、company、relation與rowVersion；missing/invalid/ambiguous回固定422，defer/ignore仍可用 | repository command tests＋HTTP contract | stable error code、transaction rollback、decision audit零污染 |
+| QA-079-34 | SQLite INSERT/UPDATE trigger拒絕 ownerless、跨公司、失效、非exact-work的accepted/corrected/mapped Part candidate；移除trigger mutant必須FAIL | fresh schema direct-SQL tests＋mutant | `RECOGNITION_PART_OWNER_INVARIANT`、FK clean |
+| QA-079-35 | PostgreSQL migration提供同型trigger並與SQLite等價；concurrent commands只能產生合法結果 | disposable PostgreSQL cluster | provider parity、migration idempotency、port/temp cleanup |
+| QA-079-36 | impact/formalize重新驗證歷史accepted row；invalid owner成 blocker且不產生formalization event或master write | repository fault injection | blocker reason與business fingerprint零變動 |
+| QA-079-37 | reconciliation `inventory` 預設唯讀並完整分類company/session/drawing/field/state/terminal/resolution；unknown不得計為0 | primary read-only＋isolated fixtures | manifest、query fingerprint、primary before/after相同 |
+| QA-079-38 | reconciliation dry-run只規劃exactly-one；apply要求target fingerprint＋confirmation＋idempotency，保存ledger/rollback；同key重跑零delta | task-owned SQLite copy＋PostgreSQL | plan/apply manifests、exact delta、FK=0、rollback artifact |
+| QA-079-39 | terminal/formalized、0 owner、>1 owner、invalid/cross-company不自動apply，列入人工disposition | reconciliation negative matrix | skipped reasons、business write=0 |
+| QA-079-40 | `getProjection`與review reads完全zero-write；重複GET前後candidate rowVersion、decision/event audit、business/schema/FK fingerprint不變 | mutation-sensitive repository/API test | 移除GET purity guard的mutant必須FAIL |
+| QA-079-41 | A0002現況inventory辨識出ownerless accepted duplicate；isolated reconciliation修復candidate但不修改legacy v1 request snapshot/hash，正式處置仍為退回／重送 | read-only primary inventory＋task-owned DB copy | A0002 disposition manifest、request hash before/after相同 |
+| QA-079-42 | editor與reviewer只消費canonical owner resolution；v2 editor→submit→review hash parity由DEV-101固定分母承接，latest recognition重跑不改審核依據 | DEV-079 projection contract＋DEV-101 QA-101-043～048 | shared DTO、zero live/latest read、three viewport normal flow |
 
 ## 6. Contract、API 與 security cases
 
@@ -298,11 +315,29 @@ Visible-error hard gate：畫面不得出現 raw JSON、`PREVIEW_NOT_READY`等 m
 
 人工核對同步收斂為欄位 focus／click定位、無座標來源提示、已修改文字訊號與單一`完成核對並儲存`；逐欄`套用修正／接受`和常駐`待核對`文案均移除。可重現命令：`npm.cmd run qc:dev-079:contract`、`npm.cmd run typecheck:app`、affected ESLint、`npm.cmd run qc:dev-068:contract`、`npm.cmd run qc:dev-079:recognition-layout-browser`。Browser evidence：`output/qa/dev-079-recognition-layout/20260820023754-browser/`。
 
-### 10.2.4 2026-08-22 adjustable detail-panel evidence
+### 10.2.4 2026-08-22 adjustable detail-panel evidence（歷史切片，已由DEV-087 canonical workspace取代）
 
 桌面版 owner workspace 在主預覽與「版次與辨識操作」之間提供低干擾分隔線，可用滑鼠拖曳或鍵盤左右方向鍵調整右欄寬度；`Home`／`End` 可移至允許範圍兩端。使用者選定的像素寬度保存在瀏覽器偏好，重新整理後沿用；版面限制右欄至少 360px、最多 720px，並為左側預覽保留至少 420px。`<=900px` 改回單欄，分隔線不顯示且不造成水平溢位，但回到桌面寬度時仍恢復已保存偏好。
 
-Focused evidence：`npm.cmd run qc:dev-079:contract`、`npm.cmd run typecheck:app`、affected ESLint。實頁 1440×900 以方向鍵將右欄由 360px 調為 384px，reload 後仍為 384px；534×698 為單欄、分隔線 `display:none`、horizontal overflow=false；回到 1440×900 恢復 384px。驗證後已將測試偏好還原為 360px，並解除暫時 viewport override。本切片不宣告 QA-079-01～28 全矩陣完成。
+Focused evidence：`npm.cmd run qc:dev-079:contract`、`npm.cmd run typecheck:app`、affected ESLint。實頁 1440×900 以方向鍵將右欄由 360px 調為 384px，reload 後仍為 384px；534×698 為單欄、分隔線 `display:none`、horizontal overflow=false；回到 1440×900 恢復 384px。驗證後已將測試偏好還原為 360px，並解除暫時 viewport override。此歷史切片不宣告 QA-079-01～29 全矩陣完成；現行canonical workspace已移除未渲染的ghost resizer，依10.2.5驗收。
+
+### 10.2.5 2026-08-27 unresolved part-owner containment evidence（已被CAPA取代）
+
+本切片由DEV-087後的canonical Drawing workspace承接：右側為`版次與檔案／FFF／變更影響／智慧辨識`連續任務內容，桌面保留兩欄、`<=900px`單欄，DOM不再渲染欄寬resizer。歷史ownerless狀態仍以欄位`需指定料號`、紅字原因、red border、`aria-invalid`與`aria-describedby` fail closed；不顯示全域「請先重新辨識」。本輪根因確認為2026-08-27前建立的session只在ingestion時補owner，projection read path不會收斂，因此即使A0044-M01已有正式A0044-P01關聯，舊session仍保留三個NULL owner。
+
+歷史 containment 證據：`npm run qc:dev-079:owner-resolution` PASS，report=`output/qa/dev-079-owner-resolution/DEV079-OWNER-2026-08-27T08-40-52-011Z/report.json`。該runner證明特定non-terminal A0044可經GET self-heal、二次讀取冪等及部分0／失效／多owner fail closed；它沒有覆蓋accepted legacy rows、GET零寫入、DB invariant或immutable review package，因此不得再稱為矯正與預防完成。現行驗收改依QA-079-30～42。
+
+主要環境實頁readback曾顯示A0044-M01 `需指定料號=0`；這只證明當時畫面收斂，不關閉systemic recurrence。2026-08-27 A0002唯讀inventory另確認同一session有3筆ownerless accepted Part candidates，故原production recurrence claim正式撤回。
+
+### 10.2.6 2026-08-27 CAPA implementation baseline
+
+- primary read-only inventory：A0002-M01正式關聯A0002-P01存在；session `recognition-b54eb913-6a09-431f-aa07-623af6d4a897`仍有material／surface_finish／heat_treatment共3筆`accepted + owner=NULL`，且同值另有ownerful native candidates。
+- A0002 legacy request snapshot/hash未異動；primary inventory執行期間沒有schema或business write。
+- DEV-079 §32已改為schema＋reconciliation＋read purity contract，固定新增QA-079-30～42；產品實作、isolated provider evidence與Independent QC尚未完成前，本節狀態為`RD Contract Ready / NOT RUN`。
+
+### 10.2.7 2026-08-28 CAPA focused revalidation
+
+`qc:dev-079:contract` current checks PASS；accepted-state invariant在task-owned SQLite與disposable PostgreSQL均PASS，evidence分別為`output/qa/dev-079-owner-invariant/DEV079-INVARIANT-2026-08-28T06-22-13-051Z/report.json`與`output/qa/dev-079-owner-invariant-postgres/DEV079-PG-2026-08-28T06-24-59-166Z/report.json`。Canonical A0002 layout與recognition evidence locator在1440×900／1024×768／390×844均PASS，evidence=`output/qa/dev-079-layout/20260828060944-browser/browser-verification.json`、`output/qa/dev-079-recognition-layout/20260828061631-browser/browser-verification.json`。DEV-101 immutable review package independent aggregate另為48/48 PASS：`output/qa/dev-101-independent-aggregate/DEV101-INDEPENDENT-AGGREGATE-2026-08-28T06-28-20-795Z/manifest.json`。以上均使用task-owned data/repository／free port並完成cleanup，primary protected invariant before=after；仍不取代QA-079-01～42完整actor／failure matrix或production effectiveness。
 
 ### 10.3 未關閉的獨立 runner／fixture findings
 
@@ -310,11 +345,11 @@ Focused evidence：`npm.cmd run qc:dev-079:contract`、`npm.cmd run typecheck:ap
 - `npm run qc:dev-072:browser`：既有fixture cleanup發生SQLite foreign-key failure，並留下本次精確temp目錄；已確認該目錄已移除，未停止共用local runtime。
 - `qc:pdm-system-detail-drawer-ui`：既有 runner引用工作樹不存在的`scripts/qc-pdm-numbering-import-center-ui.mjs`，屬既有文件／fixture邊界，不由DEV-079補造。
 
-上述 findings 阻擋 QA-079-01～28 的獨立QC freeze，不阻擋本輪 RD product implementation；不得在沒有補證據前把DEV-079標成完整QA/QC PASS。
+上述 findings 阻擋 QA-079-01～29 的獨立QC freeze，不阻擋本輪 RD product implementation；不得在沒有補證據前把DEV-079標成完整QA/QC PASS。
 
 ## 11. Pass、fail、未充分驗證與 stop conditions
 
-PASS：QA-079-01～28全部有可追溯證據；P0/P1 open finding=0；Drawing drawer unexpected mutation=0；duplicate mutation path=0；visible／console／network unexpected error=0；權限、idempotency、data sanity、return security與三viewport全部通過；task-owned runtime清理完成。
+PASS：QA-079-01～42全部有可追溯證據；P0/P1 open finding=0；Drawing drawer unexpected mutation=0；recognition GET business write=0；非法accepted Part candidate=0；duplicate mutation path=0；visible／console／network unexpected error=0；權限、idempotency、data sanity、return security、provider parity與三viewport全部通過；task-owned runtime清理完成。
 
 FAIL：任一 Drawing drawer可寫、owner/reviewer authority錯置、required gate錯誤、open redirect、non-exact reviewer可決策、重複request、資料不一致、Part／Relation退化、sticky遮擋或 raw error外露。
 

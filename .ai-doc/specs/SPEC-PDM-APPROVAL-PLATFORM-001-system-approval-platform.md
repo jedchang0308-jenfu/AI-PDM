@@ -1,9 +1,9 @@
 # SPEC-PDM-APPROVAL-PLATFORM-001 - System-wide approval platform
 
 Status: Phase 1A-1B local implementation complete; Phase 1C-A reviewer workbench entrypoint consolidation implemented and locally verified; Phase 1C-B legacy reviewer page convergence implemented and locally verified; Phase 1C-C low-noise drawing object pending-review projection implemented and locally verified; Phase 1C-D / DEV-067 native owner-module review detail reuse and scoped full projections are `Local RD Implemented / Local QA-QC Passed`; DEV-070 approval inbox workbench reuse is `Local RD Implemented / Focused Contract + Query + Browser QC Passed / Full APW Matrix Pending / Production Release Gated`; Phase 2-4 transitional adapters present; Phase 5 guarded dry-run/apply tooling present; Phase 6 release/live migration not authorized
-Date: 2026-07-08
+Date: 2026-07-08; amended 2026-08-27
 Owner: Dev PM
-Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`; `DEV-PDM-STATUS-DATA-REBUILD-001` / `DEV-087`
+Related DEV: `DEV-PDM-APPROVAL-PLATFORM-001`; `DEV-PDM-UNIFIED-ENTITY-DETAIL-REVIEW-001` / `DEV-067`; `DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`; `DEV-PDM-STATUS-DATA-REBUILD-001` / `DEV-087`; `DEV-PDM-APPROVAL-CANONICAL-REVIEW-WORKSPACE-001` / `DEV-101`
 Related ADR: `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-001-shared-core-domain-handlers.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-002-v2-platform-tables.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`; `.ai-doc/decisions/ADR-PDM-UNIFIED-ENTITY-DETAIL-PROJECTIONS-001-composer-and-policy.md`; `.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`
 Related QA: `.ai-doc/qa/qa-pdm-approval-platform-validation-plan-2026-07-08.md`; `.ai-doc/qa/qa-dev-067-unified-pdm-entity-detail-validation-plan-2026-08-12.md`
 Amends: `DEV-PDM-NUMBERING-004`, `DEV-PDM-SUBMISSION-GATE-001`, `DEV-PDM-LIFECYCLE-ACTIONS-001`, numbering approval flows, submission lifecycle requests, BOM review requests, part cost change requests and drawing revision supplement approvals.
@@ -11,6 +11,25 @@ Amends: `DEV-PDM-NUMBERING-004`, `DEV-PDM-SUBMISSION-GATE-001`, `DEV-PDM-LIFECYC
 > **2026-08-11 Part-cost retirement amendment**
 >
 > Part cost change requests are retired from the current product scope by `ADR-PDM-PART-COST-RETIREMENT-001`. The approval platform must not expose, recreate or require a part-cost adapter, inbox item, table or migration. The remaining approval domains retain their existing authority.
+
+## 2026-08-26 DEV-101 Amendment - Canonical Drawing／Part review package workspace
+
+Status：`Local RD Corrective Implementation Complete / RD Aggregate 11 of 11 PASS Supporting Evidence / Fixed QA 48 Cases Not Run / Independent QC Required / Production Release Gated`。
+
+本節是covered v2 `pdm_work_review_requests` Drawing／Part案件的`Intentional replacement + compatible preservation`：
+
+1. `/approvals`與DEV-070 list／filter／cursor／pending count／exact return是目標單一inbox authority；2026-08-27 CAPA已確認現行reader尚未合併`pdm_work_review_requests`，因此必須先完成actor-scoped adapter。點擊covered PDM row後直接進`/approvals/[requestId]`的canonical package review workspace，不先render approval-only domain drawer/body。
+2. review workspace上方顯示immutable submitted package的完整同根Drawing × Part readonly matrix，下方一次顯示一個active Drawing／Part完整domain workspace。只有identity名稱切換target；cells不是Relation edit／review入口。
+3. Drawing／Part各自與editor共用同一domain renderer、view model、section order、preview與file位置；review只替換為snapshot source、readonly capability與request-level decision dock。不得建立cross-domain generic editor。
+4. `snapshot_payload`v2保存完整package，column`snapshot_hash`證明package完整性；approve使用envelope內獨立`decisionBasis.hash`重驗primary work。live facts只進drift comparison，不能補寫snapshot。
+5. Part附件仍由既有attachment authority獨立維護、不鎖、不進approved payload／formalization；但v2 reviewer顯示送審時manifest，live變化只顯示drift。下方DEV-087 amendment第5點的「current live list＋常駐note」只對legacy v1保留，v2由本節取代。
+6. decision仍只有`approve|return_for_correction`、exact reviewer、request-level atomic、idempotent；active target／已讀／compare不進decision body、trace或publication。不新增per-target decision。
+7. DEV-090 Relation retirement保持：Relation request不進current shell，matrix relation cells不可寫；generic BOM／其他approval domain仍走既有platform body與decision semantics。
+8. schema=`none`；新writer以default-off flag產生v2，reader dual-read v1/v2。v1不backfill或以live拼成v2；rollback只停止新v2 writes，不能移除pending v2 reader／decision。
+9. `pdm_work_review_requests` adapter是DEV-101必要read path：same company、exact reviewer與actionable status必須在source query內先過濾再limit；v1／v2共用row projection。`applying`不得呈現為reviewer待辦；generic approval decision／apply handler不因本adapter改變。
+10. Drawing v2 target保存exact full recognition projection與inner hash；reviewer不呼latest recognition，unresolved／ambiguous owner及legacy incomplete basis不能approve。這是package integrity／formalization gate，不改generic approval decision semantics。
+
+完整contract、fixed 48-case gate與兩份CAPA：`.ai-doc/specs/SPEC-PDM-APPROVAL-CANONICAL-REVIEW-WORKSPACE-001-snapshot-package-and-shared-renderers.md`、`.ai-doc/qa/qa-dev-101-approval-canonical-review-workspace-validation-plan-2026-08-26.md`、`.ai-doc/qc/qc-dev-101-approval-inbox-discoverability-capa-2026-08-27.md`、`.ai-doc/qc/qc-dev-079-dev-101-recognition-owner-review-parity-capa-2026-08-27.md`。
 
 ## 2026-08-23 DEV-090 Amendment - Relation review retirement
 

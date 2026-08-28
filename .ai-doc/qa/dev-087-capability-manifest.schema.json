@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pdm.local/schema/dev-087-capability-manifest.schema.json",
+  "title": "DEV-087 capability manifest",
+  "type": "object",
+  "required": [
+    "schemaVersion", "runId", "parentRunId", "gateStage", "runner", "source", "environment",
+    "registryHash", "schemaHash", "oracleHash", "runnerHash", "caseResults", "caseEvidence", "childManifests",
+    "prohibitedMutationAudit", "primaryInvariant", "firstFailure", "cleanupReceipt", "result", "errorCode"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "runId": { "type": "string", "pattern": "^DEV087-[A-Za-z0-9._-]+$" },
+    "parentRunId": { "type": ["string", "null"] },
+    "gateStage": { "enum": ["G0-A", "product", "G4", "historical"] },
+    "runner": { "type": "string", "minLength": 1 },
+    "source": { "$ref": "#/$defs/source" },
+    "environment": {
+      "type": "object",
+      "required": ["provider", "dataScope", "baseUrl"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "dataScope": { "type": "string", "minLength": 1 },
+        "baseUrl": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "registryHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "schemaHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "oracleHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "runnerHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "caseResults": { "type": "array", "items": { "$ref": "#/$defs/result" } },
+    "caseEvidence": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/caseEvidence" }
+    },
+    "childManifests": { "type": "array", "items": { "$ref": "#/$defs/child" } },
+    "prohibitedMutationAudit": {
+      "type": "object",
+      "required": ["directApiWrites", "sqlWrites", "pageEvaluateWrites", "unprovenancedWrites"],
+      "additionalProperties": false,
+      "properties": {
+        "directApiWrites": { "type": "integer", "minimum": 0 },
+        "sqlWrites": { "type": "integer", "minimum": 0 },
+        "pageEvaluateWrites": { "type": "integer", "minimum": 0 },
+        "unprovenancedWrites": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "primaryInvariant": {
+      "type": "object",
+      "required": ["status", "delta"],
+      "properties": { "status": { "type": "string" }, "delta": { "type": ["integer", "null"] } },
+      "additionalProperties": true
+    },
+    "firstFailure": { "type": ["object", "null"] },
+    "cleanupReceipt": {
+      "type": "object",
+      "required": ["status", "taskOwnedRuntime", "portsReleased"],
+      "properties": {
+        "status": { "type": "string" },
+        "taskOwnedRuntime": { "type": "boolean" },
+        "portsReleased": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "result": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_RUN"] },
+    "errorCode": { "type": ["string", "null"] },
+    "assertions": { "type": "array", "items": { "type": "object" } },
+    "failures": { "type": "array", "items": { "type": "object" } },
+    "mutationLedger": { "type": "array", "items": { "type": "object" } },
+    "providerReceipts": { "type": "array", "items": { "type": "object" } },
+    "fixtureMutationLedger": { "type": "array", "items": { "type": "object" } },
+    "negativeEvidence": { "type": "array", "items": { "type": "object" } },
+    "visibleEvidence": { "type": "array", "items": { "type": "object" } },
+    "networkEvents": { "type": "array", "items": { "type": "object" } },
+    "assistiveTechnologyEvidence": { "type": "array", "items": { "type": "object" } },
+    "postgresCaseReceipts": { "type": "array", "items": { "type": "object" } }
+    ,"qualityGateResults": { "type": "array", "items": { "$ref": "#/$defs/qualityGateResult" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["repository", "branch", "head", "fingerprintVersion", "dirtyBoundaryHash"],
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string" },
+        "branch": { "type": "string" },
+        "head": { "type": "string" },
+        "fingerprintVersion": { "const": "git-content-v2-dev087-scope" },
+        "dirtyBoundaryHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["caseId", "result", "assertionIds", "firstFailurePointer"],
+      "additionalProperties": false,
+      "properties": {
+        "caseId": { "type": "string" },
+        "result": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_RUN"] },
+        "assertionIds": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "firstFailurePointer": { "type": ["string", "null"] }
+      }
+    },
+    "caseEvidence": {
+      "type": "object",
+      "required": ["evidenceTypes", "artifactPaths"],
+      "additionalProperties": false,
+      "properties": {
+        "evidenceTypes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+        "artifactPaths": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
+    "child": {
+      "type": "object",
+      "required": ["path", "sha256", "runner", "caseIds", "result"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "runner": { "type": "string" },
+        "caseIds": { "type": "array", "items": { "type": "string" } },
+        "result": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_RUN"] }
+      }
+    },
+    "qualityGateResult": {
+      "type": "object",
+      "required": ["gateId", "result", "detail"],
+      "additionalProperties": false,
+      "properties": {
+        "gateId": { "enum": ["QG-087-PROVIDER", "QG-087-SECURITY", "QG-087-UI"] },
+        "result": { "enum": ["PASS", "FAIL"] },
+        "detail": { "type": "object" }
+      }
+    }
+  }
+}

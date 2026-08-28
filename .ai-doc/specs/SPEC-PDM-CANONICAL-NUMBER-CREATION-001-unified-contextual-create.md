@@ -14,6 +14,12 @@ Related：`DEV-090`、`DEV-063`、`DEV-048`、`DEV-PDM-NUMBERING-004`
 
 QA：`.ai-doc/qa/qa-dev-093-canonical-number-creation-validation-plan-2026-08-24.md`
 
+DEV-099 supersession boundary（2026-08-26）：
+
+- 本文件的DEV-093完成狀態與111-case evidence保留為當時runtime的歷史事實。
+- DEV-099啟用後，new-root建號不再顯示／要求structure type，省略時明確寫`unclassified`；existing-root不再採第一筆Part繼承，也不因unclassified阻擋追加。
+- 上述新行為的唯一authority改為`.ai-doc/specs/SPEC-PDM-DEFERRED-STRUCTURE-CLASSIFICATION-001-numbering-and-bom-readiness.md`；DEV-099尚未實作前，現行runtime仍依本文件舊契約。
+
 ## 0. 決策摘要
 
 本規格建立一個人類可理解、後端單一權威的「建立編號」流程。它保留舊版完整建號能力，但不恢復舊版 workspace、候選號、舊狀態投影、舊送審發布鏈、fallback 或雙寫。
@@ -488,9 +494,11 @@ Gate：QA-093-106／107／108／109、兩輪fresh-session共用件建立與exist
 - `GET /append-policy`仍回傳internal `inheritedPart`供政策判定，但一般UI不渲染。server repository在交易內重新讀取第一筆canonical Part的`itemKind`、`structureType`、`isUniversal`、`seriesCode`、`customSpecification`並完整繼承；根號尚無Part時採`root.itemKind + single_part + false + null + null`安全預設。
 - 若舊資料的`structureType=unclassified`，policy回傳`profileBlocked=true`，UI停用提交且只顯示「此圖料根號的料件資料不完整，請系統管理員處理。」；repository同時以`PART_ROOT_STRUCTURE_TYPE_UNCLASSIFIED` fail closed。
 - 相容client若明示profile欄位，server只把它們當作一致性assertion；與root profile不一致時以`PART_ROOT_ITEM_KIND_MISMATCH`或`PART_ROOT_STRUCTURE_TYPE_MISMATCH`拒絕，不得用client值改寫根號profile。
+- Part提交不得直接信任可能落後的`numbering_sequences.next_value`。repository必須在交易內鎖定company＋root流水範圍，重新比對正式`part_numbers`與`numbering_recovery_reservations`後配置最低可用號碼，再同步推進sequence counter；UI預估與正式提交即使橫跨舊資料或計數器漂移，也不得因`part_root_id + sequence_code`碰撞失敗。
+- API不得把SQL、table、column、constraint或provider錯誤直接傳到一般UI；未被配置器消除的唯一鍵競爭統一回`NUMBERING_ALLOCATION_CONFLICT`／409，UI只顯示可恢復的人類訊息並保留輸入。
 - 桌面與窄版均使用一套扁平、短流程版面；每個畫面只有一個主要動作「建立編號」。
 
-Gate：QA-093-108～110、兩輪fresh-session existing-root UI無五項重複設定、request allowlist正確、DB五項profile與來源Part一致、異常profile fail closed、API／DB／UI reconciliation與legacy caller=0全部通過。
+Gate：QA-093-108～111、兩輪fresh-session existing-root UI無五項重複設定、request allowlist正確、DB五項profile與來源Part一致、異常profile fail closed、stale sequence fault injection仍使preview／actual identity一致、API／DB／UI reconciliation與legacy caller=0全部通過。
 
 ## 14. Definition of Done
 
@@ -506,7 +514,7 @@ Gate：QA-093-108～110、兩輪fresh-session existing-root UI無五項重複設
 8. rendered UI、API response、DB readback identity、確定品名、系列 metadata與數量一致。
 9. runtime／navigation／API／worker／script scan的 DEV-093 legacy caller=0；負向注入能使 gate失敗。
 10. 不新增 table／column、workspace、reservation、fallback或雙寫；分類整併只允許既定 `044`／`045` forward migrations。
-11. QA-093-001..110兩輪 fresh session全部通過，P0/P1=0、Blocked=0、Not Run=0；focused gate注入移除建議器、系列段落、單一規格來源、無原因共用勾選、Part change／detail projection／linked append任一原因語意、條件先行順序、查重鄰近呈現、新圖料推導、existing-root quiet append五項profile繼承、異常profile阻擋、候選明細或 field allowlist任一缺口時必須 FAIL。
+11. QA-093-001..111兩輪 fresh session全部通過，P0/P1=0、Blocked=0、Not Run=0；focused gate注入移除建議器、系列段落、單一規格來源、無原因共用勾選、Part change／detail projection／linked append任一原因語意、條件先行順序、查重鄰近呈現、新圖料推導、existing-root quiet append五項profile繼承、異常profile阻擋、stale part sequence恢復、候選明細或 field allowlist任一缺口時必須 FAIL。
 12. 每個UI新建Part都有且只有一個`part_formal`state；每個UI新建Drawing都有且只有一個`0.1 drawing_rd owner work`，actual number、DB state、API result及工作臺列100%一致。
 
 ## 15. Execution Boundary
@@ -520,7 +528,7 @@ Gate：QA-093-108～110、兩輪fresh-session existing-root UI無五項重複設
 - 已完成 Phase 093-A～093-C 的本機實作：typed intent、canonical preview helper／route、`/numbering/create` progressive form、header／search／drawer安全導向入口、既有 root append adapter與 M/R relation guard。
 - `CanonicalNumberingCreateAction` 已不再持有 modal、local mutation或 legacy query auto-open；drawer context action沿用關聯矩陣 dirty-navigation guard。
 - `append-policy` 已切換至 `src/lib/numbering-preview.ts`；舊 `src/lib/number-candidate-preview.ts` 已在 caller=0後移除。canonical preview不讀取 `number_candidate_reservations`，不寫 sequence、reservation、audit或outbox。
-- focused evidence：`npm run typecheck:app` PASS；`npm run qc:dev-093:contract`行為gate PASS（含QA-093-100..110）；`npm run qc:dev-093:retirement` PASS（active src caller=0）；affected ESLint PASS；`npm run build:isolated` 123/123 PASS且主資料庫雜湊不變；`npm run qc:dev-093` aggregate PASS（disposable SQLite + 真實 Chromium，兩輪 fresh session、六種合法業務mutation、existing-root quiet append五項profile後端繼承、三種非法組合422且DB delta=0、DB/API/UI/workbench-state reconciliation、double-submit exactly-once、desktop／320px、legacy caller=0、network/console/page error sweep）。最新 evidence 位於 `output/qa/dev-093/DEV093-2026-08-24T16-38-47-636Z/`；116項browser check全數通過、response 601。資料由roots `4→14`、parts `4→18`、drawings `4→16`、links `3→13`、part formal states `4→18`、initial Drawing works `3→15`，candidate／recovery維持0。
+- focused evidence：`npm run typecheck:app` PASS；`npm run qc:dev-093:contract`行為gate PASS（含QA-093-100..111）；`npm run qc:dev-093:retirement` PASS（active src caller=0）；affected ESLint PASS；`npm run build:isolated` 123/123 PASS且主資料庫雜湊不變；`npm run qc:dev-093` aggregate PASS（disposable SQLite + 真實 Chromium，兩輪 fresh session、六種合法業務mutation、existing-root quiet append五項profile後端繼承、stale Part sequence fault injection後preview／actual均為P02、三種非法組合422且DB delta=0、DB/API/UI/workbench-state reconciliation、double-submit exactly-once、desktop／320px、legacy caller=0、network/console/page error sweep）。最新 evidence 位於 `output/qa/dev-093/DEV093-2026-08-25T01-32-17-561Z/`；browser checks全數通過。資料由roots `4→14`、parts `4→18`、drawings `5→17`、links `3→13`、part formal states `4→18`、initial Drawing works `4→16`，candidate／recovery維持0。
 - allocator repair：root allocation與new-root preview會排除正式根號及非`cancelled`的canonical `drawings` projection；drawing allocation會避開既有`drawing_numbers`與active canonical projection collision，避免舊投影在正式同步階段造成唯一鍵衝突。
 - item-kind consolidation：canonical form／change work／numbering APIs 現在只接受 `manufactured|purchased` compatibility codes，人類標籤固定為`依圖製作件|外購標準件`；`outsourced|custom`確定映射至`manufactured`，舊`shared`因缺少基礎分類語意不得猜測，須先由 provider-aware converter 明確分類並保留`isUniversal=true`。fresh schema、`044`正式料件 migration與`045`change-control draft migration已補上，正式套用仍須通過 unresolved=0、100% reconciliation與release gate。
 - Phase 093-E已完成：typed discriminated union、兩類命名公式、系列清單／自創、條件先行再命名、無主要名詞不產生半成品建議、建議套用、確定品名、5筆相似候選、field allowlist、AbortController stale-response防護、fail-closed policy與正常尺寸共用件checkbox均落地。
@@ -529,4 +537,5 @@ Gate：QA-093-108～110、兩輪fresh-session existing-root UI無五項重複設
 - Phase 093-H已完成：新圖料只有一個規格輸入；依圖製作件顯示`規格／特性`、外購標準件顯示`規格／型號`。同一值已在兩輪fresh session中證明同步驅動建議品名、request `customSpecification`與DB `part_numbers.custom_specification`；existing-root與drawing-only payload均不帶入。
 - Phase 093-I已完成：共用件改為純勾選，不再顯示或要求`共用原因`；canonical create 的 UI、typed intent、request與新增資料均不含`universalReason`。既有`universal_reason`欄位暫保為歷史資料相容，未執行破壞性schema刪除。
 - Phase 093-J～L已完成：existing-root只顯示根號、建立內容、必要M／R欄、必要追加原因、單行「將建立」及一個主要動作；五項Part profile不進UI與canonical request，server在transaction內完整繼承。`unclassified`以UI提示＋repository雙層fail closed；desktop與320px rendered evidence均通過且無水平溢位。
+- Phase 093-L allocator corrective已完成：Part配置在root-scoped lock內以正式號碼與recovery reservation重算最低可用號，sequence counter只作同步游標、不再作唯一權威；API技術錯誤已封裝。兩輪stale-counter fault injection皆證明UI預估P02、API結果P02與DB P02一致。
 - 本機corrective scope已完成並通過focused QA/QC；父canonical command既有permission／company／idempotency／concurrency guard維持不變。正式PostgreSQL migration rehearsal、production data reconciliation、deploy與release不包含在本完成判定，仍須獨立授權。

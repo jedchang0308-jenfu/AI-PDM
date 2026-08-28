@@ -1,6 +1,6 @@
 # QA-DEV-035：SolidWorks 原生屬性讀取與辨識診斷驗證計畫
 
-狀態：`Focused Automated QA Passed / Real A0002 QA-QC Passed / Local DEV-035 Complete / Production Release Gated`
+狀態：`Local RD/QA-QC Complete / Current Real A0002 Repeatability PASS / Production Release Gated`
 日期：2026-08-19
 Owner：QA
 風險：Medium
@@ -23,7 +23,7 @@ QA 同時驗證四條不可妥協的邊界：
 
 ## 2. Entry Criteria
 
-- DEV-035 authority與historical 22-file baseline、current 38-file implementation delta及實際unique manifest同步，沒有未記錄direct file。
+- DEV-035 authority與historical 22-file baseline、current 39-file implementation delta及實際unique manifest同步，沒有未記錄direct file。
 - `PDM_DRAWING_RECOGNITION_V1=true` 只在 isolated local QA runtime啟用。
 - disposable worker/service tokens；local gate使用使用者已由UI提供的合法Document Manager key與受控A0002來源，但禁止把key寫入evidence，禁止production DB／bucket／traffic或未授權正式worker。
 - deterministic raw-property fixture與expected mapping已固定；fixture mode在 production必須 fail closed。
@@ -39,13 +39,13 @@ QA 同時驗證四條不可妥協的邊界：
 | R-035-02 | `j_drive` source沒有傳入reader | P1 | source-content success＋hash一致＋staged execution |
 | R-035-03 | token/lock/company缺口造成CAD外洩 | P0 | negative API matrix，response零bytes／零存在性提示 |
 | R-035-04 | key/path/command/stack外洩 | P0 | log/API/DB/DOM/evidence redaction scan |
-| R-035-05 | configuration owner錯指到別的Part | P0 | anchor／suffix／ambiguous matrix，wrong-owner=0 |
+| R-035-05 | configuration owner錯指到別的Part，或同碼正式／草稿row被誤判成多個owner | P0 | anchor／layer-dedupe／suffix／ambiguous matrix，wrong-owner=0 |
 | R-035-06 | 空值被當成`無`或清除 | P0 | empty property blocked，formal table零clear |
-| R-035-07 | identity property改寫 canonical identity | P0 | impact exclusion＋DB before/after hashes |
+| R-035-07 | identity draft input誤成canonical identity直接寫入 | P0 | draft candidate可預填＋impact exclusion＋canonical DB before/after hashes |
 | R-035-08 | timeout留下child/temp或失鎖仍complete | P1 | exact PID tree／temp inventory／409 recovery evidence |
 | R-035-09 | native failure導致整批結果消失 | P1 | two-source partial case，successful observations保留 |
 | R-035-10 | `drawn_by_name`擴充造成正式化partial write | P0 | impact、atomic apply、forced rollback／idempotency |
-| R-035-11 | UI warning重複、隱藏或阻擋核對CTA | P1 | 3 viewport＋a11y＋DOM count |
+| R-035-11 | 同一舊owner問題在每個欄位重複警告、或真實衝突被隱藏 | P1 | 單一batch recovery＋cross-source conflict對照＋3 viewport＋a11y＋DOM count |
 | R-035-12 | A0005／OCR／filename／startup regression | P1 | parent aggregate regressions |
 | R-035-13 | test double丟棄key卻顯示啟用成功 | P0 | activation deny＋rendered truth-state evidence |
 | R-035-14 | UI後設key但worker需restart／env才生效 | P1 | pre-running worker hot-apply＋exact version ack |
@@ -58,14 +58,14 @@ QA 同時驗證四條不可妥協的邊界：
 
 `qc:dev-035-contract` 必須重新計算，不可硬信文件數字：
 
-- historical 17 product＋5 QC baseline、reopen 23 product＋11 validation delta全部存在且出現在manifest；unique set依實際path去重。
+- historical 17 product＋5 QC baseline、current 26 product＋13 validation delta全部存在且出現在manifest；unique set依實際path去重。
 - 新增 source-content route只有 GET，含 token、worker ID、session/source/lock/company/deleted/hash/size guards與`no-store/nosniff`。
 - source route不得回 `originalPath/storageKey/storageProvider/signedUrl`。
 - credential route沒有browser權限；DB沒有plaintext或ciphertext；local ciphertext只在DPAPI store且ACL符合SPEC。
 - C# source不含 `Save(`、`SaveAs(`、`SetCustomProperty`、`AddCustomProperty`、`DeleteCustomProperty`、`ReplaceReference`。
 - Next.js/React files不import SolidWorks interop或啟動 native process。
 - production source不存在fixture enable-by-default或`PDM_ALLOW_WORKER_ENV_SECRET_FALLBACK`放寬；local launcher不要求日常env key。
-- `drawn_by_name`只新增於 drawing metadata read/write allowlist；identity keys仍由 impact exclusion排除。
+- `drawn_by_name`只新增於 drawing metadata read/write allowlist；identity keys可作draft input，仍由 impact exclusion排除直接canonical write。
 - provider check、`settings_secret_probe_jobs`、`worker_capability_heartbeats`、SQLite initializer／base schema／PostgreSQL 001／038 migration同義；shadow migration、indexes與rollback rehearsal PASS。
 - `local_test_double`不能被mark tested/active；Settings的ready projection是active＋real probe＋worker online＋exact-version ack AND gate。
 - drawing worker不把key寫入global `process.env`，且無key仍啟動／heartbeat；metadata command readiness不再依key存在才設定。
@@ -83,9 +83,10 @@ QA 同時驗證四條不可妥協的邊界：
 | QA-035-05 | Empty value | property仍存在；raw/normalized null、candidate blocked，不轉`無`或clear |
 | QA-035-06 | Unknown Chinese property | 原name/value/scope保留在unclassified，stable key無collision |
 | QA-035-07 | Alias normalization | NFKC、全半形括號、英文case/space按spec匹配；同profile collision使QC fail |
-| QA-035-08 | Exact part anchor | 同scope `料號=A0002-P01`把part fields指向唯一A0002-P01 |
+| QA-035-08 | Exact part anchor | 同scope `料號=A0002-P01`把part fields指向唯一A0002-P01；正式與有效草稿同碼時去重為一個邏輯owner並優先正式ID |
 | QA-035-09 | Configuration full/suffix match | full part number優先；唯一P01 suffix可用且confidence=medium/high依spec |
-| QA-035-10 | Multi-part ambiguous | 無anchor／非唯一suffix時owner null、blocked；不得猜第一筆part |
+| QA-035-10 | Multi-part ambiguous | 無anchor／非唯一suffix且存在不同正規化料號時owner null、blocked；不得猜第一個邏輯part |
+| QA-035-10A | Draft population review state | `candidate_revision/drawing_revision`的owner已解析非空值即使與正式值不同仍為proposed；`drawing_number`正式檢查仍為conflict，ambiguous owner仍blocked |
 | QA-035-11 | Reader returns zero properties | adapter succeeded＋diagnostic `native_metadata_no_custom_properties`，health=`empty` |
 | QA-035-12 | Malformed/oversized raw JSON | final validation failed、observation=0、無process crash／raw payload洩漏 |
 
@@ -229,7 +230,7 @@ Local PASS 必須同時滿足：
 - wrong-owner、identity write、pre-confirmation write、partial write、secret/path leak、orphan process/temp皆為0。
 - unavailable與empty可由API/UI清楚區分；兩個review surface文案一致。
 - A0005、DEV-068 formalization、DEV-079 embedded UI、startup regressions通過。
-- historical baseline、38-file delta、實際unique inventory、038 migration與evidence manifest一致。
+- historical baseline、39-file delta、實際unique inventory、038 migration與evidence manifest一致。
 - task-owned temporary runtime/process完成清理。
 - UI-only secure save、real native probe、worker exact-version ack、restart persistence、rotation/revoke與real A0002 rerun全部PASS。
 
@@ -311,3 +312,18 @@ Historical evidence artifacts：`output/playwright/dev-035-review-1440.png`、`o
 | Engineering gates | `typecheck:app`、isolated production build、`qc:doc-paths`、`qc:dev-task-evidence-sync`、`qc:source-boundary`與`git diff --check`均PASS；全專案completion audit僅因既有`DEV-065`維持7/8。 |
 
 Focused automated gates與真實A0002 completion gate已滿足本機DEV-035結案條件。這不宣稱逐列人工重演QA-035-01～64，也不授權production migration／credential／worker deployment／release；這些仍由`DEV-032`與release gate管理。Sanitized evidence：`output/qa/dev-035-solidworks-native-reader/20260819T120907Z/a0002-real-reader.json`。
+
+### 12.3 Draft population correction evidence — 2026-08-25
+
+| 驗證面 | 證據／結果 |
+|---|---|
+| Root-cause fixture | Primary read-only snapshot中的同一`A0002-P01`同時存在canonical part與active draft part；舊session `recognition-dd5f0416-0b46-4ffa-b61c-06099f73f42c`因此有5筆非空part-owner blocked candidate。 |
+| Mapping contract | `qc:dev-035:mapping` PASS；同碼canonical＋draft rows解析為一個邏輯owner並選canonical ID；distinct part numbers仍ambiguous。 |
+| Review-state contract | `drawing_revision`的owner已解析非空值即使正式值不同仍=`proposed`；`drawing_number`差異仍=`conflict`；ambiguous owner仍=`blocked`。 |
+| Static／type／lint | `qc:dev-035:contract` 16/16、`qc:dev-035:browser`、`typecheck:app`與affected ESLint PASS。 |
+| Isolated real browser | `qc:dev-035:native-retry-browser` 24/24 PASS；full review與embedded workspace都只有一個layered-owner recovery入口，重複「需處理」已移除，舊批次整批接受被禁用，keyboard rerun建立queued successor。 |
+| Responsive／runtime cleanup | Chromium 1440×900與390×844無水平溢位／console／page／network／HTTP failure；task port 57992 released，temp DB／repository／dist全清除，`next-env.d.ts`逐字恢復。 |
+| Primary-data invariant | 主SQLite master counts、migration residue與global foreign key狀態的before／after hash完全相同：`5a4c3e06cab7d4474f87a6b0a90e812466df65a2d47e714400e714f3d8a866b1`。 |
+| Evidence | `output/qa/dev-035-native-retry/DEV035-NATIVE-RETRY-2026-08-25T08-29-47-134Z/manifest.json`與screenshots。 |
+
+Draft-population focused／isolated QA-QC已通過；2026-08-28再由canonical workspace正常「重新辨識」入口連續產生兩個採用現行mapper的真實A0002 session，兩者均為`solidworks-document-manager.v1 / succeeded / 14 observations`，八欄missing／value／owner／scope mismatch皆為0；相同495749-byte來源與SHA-256下，兩份現行projection hash一致。此repeatability只證明現行Reader＋Mapper evidence projection可重複；`configuration_name`／`applicability_scope`保留為provenance／review-scope evidence，不因SolidWorks組態存在就自動成為PDM正式主檔欄位，canonical formal state仍須通過欄位權威規則、業務用途與人工審查。Current closure evidence=`output/qa/dev-035-a0002-repeatability/DEV035-A0002-REPEATABILITY-2026-08-28T06-49-41-924Z/manifest.json`（21/21 PASS，含completion gate）；可重現命令=`npm run qc:dev-035:a0002-repeatability`。Production credential／worker deployment／release仍不在此授權內。
