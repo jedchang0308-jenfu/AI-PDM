@@ -95,8 +95,9 @@ Completed 2026-07-15 entrypoint/runtime evidence:
   origin denial and a read-only Cloud SQL runtime query passed 6/6.
 - Evidence is under `output/dev-046-firebase-hosting/`.
 - The public `run.app` shell is an accepted staging residual risk and bypasses
-  Hosting headers. Production still requires ALB-only ingress, disabled default
-  URL, managed TLS and the production custom domain.
+  Hosting headers. Production uses its separately reviewed Firebase Hosting
+  gateway; the canonical browser origin remains the production `web.app` URL,
+  while direct `run.app` session exchange remains denied.
 
 Do not apply `db/postgres/*.sql` directly to Cloud SQL. The reviewed execution
 used the generated Cloud SQL-specific package, which excludes Supabase-only RLS
