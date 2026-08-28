@@ -15,6 +15,7 @@ data
 backups
 output
 artifacts
+.artifacts
 cloud-functions
 sw-addin
 .playwright-cli

@@ -28,6 +28,7 @@ const smoke = read("scripts/run-production-release-smoke.mjs");
 const trafficRunner = read("scripts/run-production-release-traffic.mjs");
 const releaseSourceManifestUtils = read("scripts/dev-032-release-source-manifest-utils.mjs");
 const dockerfile = read("Dockerfile");
+const dockerIgnore = read(".dockerignore");
 const packageJson = JSON.parse(read("package.json"));
 const results = [];
 
@@ -118,6 +119,7 @@ record("PROD-PIPE-007B runner image includes standalone, static, and generated p
   assert.match(dockerfile, /COPY --from=builder --chown=nextjs:nodejs \/app\/\.next\/standalone \.\//u);
   assert.match(dockerfile, /COPY --from=builder --chown=nextjs:nodejs \/app\/\.next\/static \.\/\.next\/static/u);
   assert.match(dockerfile, /COPY --from=builder --chown=nextjs:nodejs \/app\/public \.\/public/u);
+  assert.match(dockerIgnore, /^\.artifacts$/mu);
 });
 
 record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL", () => {
