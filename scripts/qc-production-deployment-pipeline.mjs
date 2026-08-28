@@ -27,6 +27,7 @@ const deploymentBoundary = `${identity}\n${locals}\n${variables}`;
 const smoke = read("scripts/run-production-release-smoke.mjs");
 const trafficRunner = read("scripts/run-production-release-traffic.mjs");
 const releaseSourceManifestUtils = read("scripts/dev-032-release-source-manifest-utils.mjs");
+const dockerfile = read("Dockerfile");
 const packageJson = JSON.parse(read("package.json"));
 const results = [];
 
@@ -111,6 +112,12 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.match(workflow, /051_drawing_recognition_part_owner_invariant/u);
   assert.match(workflow, /migration-image\.txt/u);
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
+});
+
+record("PROD-PIPE-007B runner image includes standalone, static, and generated public assets", () => {
+  assert.match(dockerfile, /COPY --from=builder --chown=nextjs:nodejs \/app\/\.next\/standalone \.\//u);
+  assert.match(dockerfile, /COPY --from=builder --chown=nextjs:nodejs \/app\/\.next\/static \.\/\.next\/static/u);
+  assert.match(dockerfile, /COPY --from=builder --chown=nextjs:nodejs \/app\/public \.\/public/u);
 });
 
 record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL", () => {

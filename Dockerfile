@@ -72,6 +72,7 @@ LABEL org.opencontainers.image.title="AI PDM" \
       com.jenfu.ai-pdm.source-state="${SOURCE_STATE}"
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 USER nextjs
 EXPOSE 8080
 CMD ["node", "server.js"]
