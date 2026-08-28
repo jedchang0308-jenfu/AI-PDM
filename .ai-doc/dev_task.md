@@ -48,6 +48,15 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
+- 新開發 Brief：`○ DEV-104` BOM 工作台 V2 受控產品結構與精簡編輯重構。
+  - 狀態：`Brief Ready / Human Direction Captured / Need Human Decisions / RD Not Requested`。
+  - 目標：將 BOM 工作台收斂為「受控 EBOM 結構從草稿到正式快照」，以階層表／Outliner、差異、
+    Release Gate 與精確 Parent 投影為主體，避免將 XMind 畫布、行動端複雜編輯與極端容量當成近期主線。
+  - 權威邊界：保留DEV-095／096的exact Part入口、stable Definition、Revision、shared applicability、
+    exact Parent-to-Child mapping、immutable review／release evidence與Released projection；本Brief尚未取代現行SPEC。
+  - 待決策：主編輯模式與Floating Topic定位、手機／平板編輯邊界、V2首切片是否只收斂核心工作台。
+  - 執行邊界：只完成Brief與文件治理；不修改產品、schema、API、權限、資料、runtime、部署或release。
+
 - 本機已完成、待 release gate：`DEV-101` 審核工作臺共用圖號／料號完整工作區。
   - 狀態：`Local RD Implemented / Independent QA-QC Complete / Fixed QA 48 of 48 PASS / Production Release Gated`。
   - 已確認：所有 PDM 審核情境皆直接進入 canonical 圖號／料號工作區的 `review` 模式；不依情境
@@ -1517,6 +1526,106 @@ Owner：Dev PM
 ### 任務索引
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
+
+- ○ DEV-104 [交付點] [Brief Ready / Human Direction Captured / Need Human Decisions] [P1] [Document Only / RD Not Requested] BOM 工作台 V2 受控產品結構與精簡編輯重構
+  - 變更紀錄：2026-08-28 建立 `Brief Ready`，承接BOM工作台重構方向；尚未授權RD實作。
+  - 摘要：將BOM工作台從「以XMind空間畫布為主的多功能編輯器」收斂為「精確組立料號的受控EBOM結構，
+    經編輯、完整性確認、差異審核後產生可供製造／採購使用的正式快照」，以精簡主流降低近期實作與維護成本。
+  - 來源 ID：`DEV-PDM-BOM-WORKBENCH-V2-001`
+  - 父任務／關聯：延續`DEV-095`的canonical Drawing／Part入口與`DEV-096`的shared BOM authority；
+    對`DEV-060`工作台呈現契約與`DEV-071` XMind／Floating Topic契約為intentional-replacement candidate。
+  - 成熟度：`Brief Ready`。本輪只回答要解決什麼、為何值得做與第一版邊界；未建立schema／API／檔案／migration／完整QA契約，不可直接派RD。
+  - 問題：
+    - 現行單一client page同時承擔清單、legacy submission搜尋、舊ReactFlow、lifecycle、diff與drawer；
+      XMind editor又同時承擔結構編輯、Floating Topic、送審、匯出、封存與變體對應，產品心智與程式職責皆重疊。
+    - 系統同時承接DEV-060早期多來源／Active Draft、DEV-071 XMind與DEV-096 shared Definition三代觀念，
+      使使用者的核心任務被視圖模式、歷史相容與假想擴充分散。
+    - 鉦富機械目前14人、研發工程師1位，近期需要的是穩定累積BOM資料資產，而非同時實作完整視覺工具、
+      手機複雜編輯、通用審批引擎與極端容量最佳化。
+  - 使用者價值：
+    - 研發工程師可以在單一明確結構中完成插入料號、調整階層／順序／數量、變體對應與送審，不必理解多套編輯心智。
+    - 研發主管以與上一正式版的差異和影響Parent為第一審核畫面，不需重新逐列閱讀全棵BOM。
+    - 製造／採購只取得指定Parent的Released projection與正式匯出，不接觸Draft、候選或不確定對應。
+    - 公司後續可以在不改寫BOM核心權威的前提下，接入CAD建議、MBOM／ERP與技轉投影。
+  - 產品定位：
+    - V2是「受控EBOM／產品結構工作台」，不是MBOM、製程路由、庫存、成本或供應商替代料管理器。
+    - 核心成功結果是「一個／多個明確適用Parent的產品結構，從Draft轉成可稽核、可重現、可供下游使用的Released Snapshot」。
+  - 已確認保留的domain boundary（來源為DEV-095／096與既有ADR）：
+    - 由exact manufactured assembly Part drawer建立／開啟BOM；全域BOM清單只作搜尋、篩選與續作，不恢復第二套owner入口。
+    - `BOM Definition -> BOM Revision -> Draft/Review -> Released Snapshot`，同一Definition同時只有一個open／restorable Revision。
+    - shared applicability必須明確綁定Parent；每個Parent在每個邏輯位置發行前都必須解析成唯一Child。
+    - `logical_line_id`穩定；Released Snapshot不原地修改；下游只讀取immutable released authority。
+    - CAD／XLS／AI只能經「source adapter -> suggestion -> diff -> human accept -> canonical command」接入，不成為第二寫入權威。
+  - Current Phase初步scope：
+    1. 單一BOM情境列：精確Parent、Definition、BOM Revision、lifecycle、適用Parents、base Released Snapshot與dirty state。
+    2. 階層表／Outliner主編輯：搜尋並插入canonical Part、移除、調整父子關係、順序、數量、群組、Undo／Redo與離開保護。
+    3. 情境式變體對應：單一Parent／固定Child時不顯示額外面板；只在多Parent或by-parent line時顯示對應與未完成數。
+    4. 完整性與Release Gate：循環、過深、無效／不可用Child、重複、未解析mapping、replacement reconfirm與stale／concurrency。
+    5. 變更與lifecycle：儲存、與base release比較、必要變更原因、送審、退回、核准、建立下一版、封存／恢復與whole-Definition作廢。
+    6. 正式使用：exact Parent Released view、CSV／XLSX匯出、where-used／影響入口、來源記錄與audit。
+  - 主要流程：
+    1. 研發從Part drawer建立／開啟BOM，或從全域BOM清單續作既有Definition／Revision。
+    2. Draft在階層表編輯；Inspector只顯示當前節點的數量、對應與必要屬性。
+    3. 系統就地顯示結構／mapping問題；未解析的line可定位，但不建立常駐總覽面板。
+    4. Draft儲存後才可送審；審核以logical diff、影響Parent與gate結果為第一畫面，仍可開啟完整結構。
+    5. 核准後產生immutable per-parent projection；後續變更由最新current Released Snapshot建立下一版。
+  - UI／UX intent：
+    - 一個作用範圍只有一個主焦點與一個主要動作：有dirty變更時主動作為「儲存」；clean Draft為「送審」；Released為「建立下一版」。
+    - Desktop只保留單一情境列、中央結構、可收合Inspector與就地問題；不常駐搜尋側欄、說明卡、成功宣告或重複狀態。
+    - Map、差異、gate、匯出、archive／obsolete不能同時作為等權重主視圖；依當前狀態與角色才顯示。
+    - 風險與不可逆動作保留明確文字、preview／confirm／recovery；簡潔不得隱藏未解析mapping、影響Parent或review gate。
+  - 初步out of scope：
+    - MBOM、routing／work center、庫存／成本、包裝、損耗、供應商替代料與可互換候選集。
+    - CAD／XLS／AI自動materialize formal BOM；第一切片不建立source parser或import workflow。
+    - 多層會簽、動態workflow designer、代理簽核或通用approval rule engine。
+    - 沒有真實資料基準的250 Parent／5,000 nodes／100,000 resolved rows極端最佳化；保留bounded safety limit，不把上限當主流驗收。
+    - 直接修改Part master的料號、品名、材質或表面處理。
+  - 驗收方向：
+    - 研發可從正常Part drawer入口或BOM清單，不依賴direct URL，進入精確Definition／Revision／Parent情境。
+    - 在不使用Map的情況下，可完成新增料件、移除、數量、排序、調整階層、儲存、差異與送審主流。
+    - 單Parent固定結構不看到變體噪音；多Parent時可定位每一個未解析邏輯位置並切換Parent預覽唯一投影。
+    - Draft／PendingReview／Rejected／Released／Archived／Obsolete保留真實lifecycle、權限與server gate；精簡UI不得用隱藏取代後端阻擋。
+    - 主管可從正常approval inbox開啟immutable review evidence，先讀差異／影響後回到完整結構並完成原子決策。
+    - 製造／採購只能讀取指定Parent的Released projection，匯出、where-used與audit的結果一致。
+    - 後續進入RD Contract時，使用者可見變更至少列為Medium；需以真實入口、指定角色、fixture、desktop viewport、實際UI操作與可見錯誤掃描支持QC。
+  - 限制／安全邊界：
+    - 現有DEV-095／096已完成且尚未production release；V2不得在未封口authority、migration／compatibility與activation路徑前與其並行寫入。
+    - 現有dirty worktree屬使用者與既有任務；後續實作必須另行列明目標檔案與不碰範圍，不清理或回復無關變更。
+    - 主要BOM編輯對象預設為SolidWorks工作站上的desktop；窄版需求以可讀、可審核與無overflow為基準，是否可複雜編輯待HD-104-02。
+    - 不得用無型別JSON雜物欄取代未來ERP契約；RD Contract需確認quantity/UOM/line position的權威與snapshot邊界。
+  - Architecture Memory Capsule：
+    - 核心domain只保留identity／revision、structure／validation、applicability／resolution、lifecycle／release四個責任。
+    - 寫入為create／save／validate／submit／approve／clone等canonical commands；讀取為workbench list、editor detail、diff／review、released projection等read models。
+    - UI收斂為BOM清單、結構編輯、情境式variant inspector、review／released view；不建立通用plugin framework或巨型參數元件。
+    - 製造、採購、技轉包與未來ERP不直接依賴Draft tables，只依賴版本化Released Projection contract。
+  - Human Decision Brief（進入RD Contract前必須關閉）：
+    - `HD-104-01` 主編輯模式與Floating Topic：
+      - A. 階層表／Outliner為主，Map為選配檢視，Floating Topic保留為收起的進階Draft staging（建議；相容DEV-071已確認邊界）。
+      - B. 階層表／Outliner為唯一正式編輯，Map唯讀且退役Floating Topic（最簡，但需明確取代DEV-071 human-confirmed decision）。
+      - C. XMind Map／Floating Topic繼續為主編輯，Outliner只作輔助（維持現況，實作與驗證成本最高）。
+    - `HD-104-02` 窄版編輯邊界：
+      - A. Desktop可完整編輯；tablet／phone只讀BOM、diff、審批與基本匯出（建議）。
+      - B. Desktop／tablet可編輯；phone只讀／審批。
+      - C. Desktop／tablet／phone都支援完整結構編輯。
+    - `HD-104-03` V2第一可驗收切片：
+      - A. 只收斂核心workbench與既有shared BOM lifecycle（建議）。
+      - B. 同時建立CAD／XLS suggestion adapter與accept-diff流程。
+      - C. 同時納入MBOM／ERP欄位與製程語意。
+  - Future Phase Capsules（`Future Phase Captured / Not Requested`）：
+    - Source suggestion：接入`.SLDASM`、SolidWorks XLS或AI辨識，只產生可重現suggestion／diff與人工accept commands；重新進入條件為核心V2穩定且有明確節省工時的真實樣本。
+    - MBOM／ERP：以Released EBOM Projection為來源建立製程、損耗、包裝、供應與成本語意；重新進入條件為命名ERP consumer、owner與權威邊界。
+    - Shared structure evolution：Released Parent移除、detach／fork、跨root共用與真正可互換替代料；重新進入條件為出現真實結構分歧案例且現行new Revision無法合理處理。
+    - 容量最佳化：以真實P50／P95 Parent數、node數、深度、query數與duration重設預算；重新進入條件為真實環境出現可重現性能瓶頸。
+  - Spec Impact：`Unresolved conflict / Intentional replacement candidate`。
+    - 本Brief不變更DEV-095／096 domain authority與ADR；`SPEC-PDM-ASSEMBLY-BOM-REBUILD-001`仍是shared BOM、permission、review／release與snapshot權威。
+    - 若`HD-104-01=A`，後續以相容修訂收斂`SPEC-BOM-WORKBENCH-001`與`SPEC-BOM-VISUAL-EDITOR-001`的呈現契約；
+      若選B，必須明確記錄對DEV-071 human-confirmed Floating Topic的intentional replacement與受影響QA／schema／compatibility處置。
+    - `ADR not needed at Brief stage`；關閉HD-104-01後再依是否改變長期產品契約判定。
+  - 風險等級：文件本輪為Low；未來實作因會改變主要UI互動、狀態動作與跨層讀寫，至少為Medium。
+  - 下一步：由使用者回覆`HD-104-01..03`；收斂後只升級同一DEV-104至`RD Contract Ready`，進行current-code／data／API／permission／UI影響盤點與分階估工，不另建平行Brief。
+  - 證據：現行`src/app/bom/workbench/page.tsx`約2,046行、`src/components/bom-editor/bom-xmind-editor.tsx`約1,254行；
+    直接比對DEV-060／071／095／096，BOM兩份現行SPEC、兩份accepted ADR與DEV-096本機QA-QC證據。
+  - 計入交付：是（只在產品切片實作並經風險相稱QA／QC完成後計入；Brief不計為已交付）。
 
 - ✓ DEV-103 [交付點] [Local RD Implemented / Focused Contract QC 25/25 / Browser PASS] [P1] [Typecheck + Isolated Build PASS / Production Release Gated] 工作臺抽屜預覽區關聯編輯入口與冗餘提示收斂
   - 摘要：移除關聯矩陣下方不必要的常駐 direct-edit 說明，並把既有「編輯關聯」入口移到 Drawing／Part 預覽區標題列；editing state 仍由矩陣 editor 控制，儲存／取消／dirty guard與API不變。
