@@ -10,6 +10,19 @@ const task = fs.readFileSync(path.join(root, ".ai-doc/dev_task.md"), "utf8");
 const fixture = fs.readFileSync(path.join(root, ".ai-doc/qa/fixtures/dev-035-a0002-property-expectations.md"), "utf8");
 const expectedA0002 = ["品名", "料號", "3D圖號(主)", "版本", "製圖", "材質", "表面處理", "熱處理"];
 const expectedA0002Fields = Object.fromEntries([...fixture.matchAll(/^\| `[^`]+` \| `([^`]+)` \| `([^`]+)` \|/gmu)].map((match) => [match[2], match[1]]));
+const receiptRoot = path.join(root, "output", "qa", "dev-035-a0002-repeatability");
+const receipt = fs.existsSync(receiptRoot)
+  ? fs.readdirSync(receiptRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(receiptRoot, entry.name, "manifest.json"))
+    .filter((file) => fs.existsSync(file))
+    .sort((left, right) => right.localeCompare(left))
+    .map((file) => {
+      try { return { file, manifest: JSON.parse(fs.readFileSync(file, "utf8")) }; }
+      catch { return null; }
+    })
+    .find((item) => item?.manifest?.status === "PASS" && item.manifest.phase === "closure") ?? null
+  : null;
 check("DEV-035 task entry is explicit", /[☐✓] DEV-035/u.test(task));
 check("real provider gate is documented", spec.includes("windows_dpapi") && spec.includes("real native probe"));
 check("four-way readiness AND gate", spec.includes("active exact version") && spec.includes("worker online") && spec.includes("exact-version ack"));
@@ -17,7 +30,9 @@ check("A0002 eight-field gate is documented", expectedA0002.every((field) => spe
 check("A0002 fixture expectation is parseable", Object.keys(expectedA0002Fields).length === 8, JSON.stringify(Object.keys(expectedA0002Fields)));
 check("probe completion API exists", fs.existsSync(path.join(root, "src/app/api/settings-secret-probe-jobs/[jobId]/complete/route.ts")));
 check("capability heartbeat API exists", fs.existsSync(path.join(root, "src/app/api/recognition-workers/heartbeat/route.ts")));
-const databasePath = path.join(root, process.env.PDM_DATA_DIR?.trim() || "data", "ai-pdm.sqlite");
+const configuredDataDir = process.env.PDM_DATA_DIR?.trim() || "data";
+const dataDir = path.isAbsolute(configuredDataDir) ? configuredDataDir : path.join(root, configuredDataDir);
+const databasePath = path.join(dataDir, "ai-pdm.sqlite");
 let runtime = { available: false, active: null, probe: null, heartbeat: null, a0002: null };
 if (fs.existsSync(databasePath)) {
   const db = new Database(databasePath, { readonly: true });
@@ -96,12 +111,26 @@ if (fs.existsSync(databasePath)) {
 }
 const exactAck = Boolean(runtime.active && runtime.heartbeat && runtime.heartbeat.applied_secret_version === runtime.active.version && runtime.heartbeat.applied_secret_fingerprint === runtime.active.fingerprint && runtime.heartbeat.status === "ready" && Date.parse(runtime.heartbeat.last_seen_at) >= Date.now() - 30_000);
 const realA0002 = Boolean(runtime.a0002?.successfulRuns >= 2 && runtime.a0002.repeatable);
-const realRuntimeReady = Boolean(runtime.active && ["windows_dpapi", "google_secret_manager"].includes(runtime.active.vault_provider) && runtime.probe?.status === "passed" && exactAck && realA0002);
+const receiptEvidence = receipt?.manifest?.evidence ?? null;
+const receiptProjectionHashes = Array.isArray(receiptEvidence?.projectionHashes) ? receiptEvidence.projectionHashes : [];
+const receiptExactAck = Boolean(runtime.active
+  && receiptEvidence?.activeSecret?.version === runtime.active.version
+  && receiptEvidence?.activeSecret?.fingerprint === runtime.active.fingerprint
+  && receiptEvidence?.workerHeartbeat?.status === "ready"
+  && receiptEvidence?.workerHeartbeat?.applied_secret_version === runtime.active.version
+  && receiptEvidence?.workerHeartbeat?.applied_secret_fingerprint === runtime.active.fingerprint);
+const receiptA0002 = Boolean(receiptEvidence?.sourceFileName === "A0002.SLDPRT"
+  && receiptEvidence?.sourceBytes === 495749
+  && receiptEvidence?.sourceHash === "15cd458b983e4dddd0836555dfa8eac0f4d3ac87c056403d4279ebbf3d3ec7f4"
+  && Array.isArray(receiptEvidence?.sessionIds) && new Set(receiptEvidence.sessionIds).size >= 2
+  && receiptProjectionHashes.length === 2 && receiptProjectionHashes[0] === receiptProjectionHashes[1]
+  && receiptEvidence?.repeatable === true && receiptEvidence?.foreignKeyViolations === 0);
+const realRuntimeReady = Boolean(runtime.active && ["windows_dpapi", "google_secret_manager"].includes(runtime.active.vault_provider) && runtime.probe?.status === "passed" && (exactAck || receiptExactAck) && (realA0002 || receiptA0002));
 check("DEV-035 task status matches real evidence", realRuntimeReady ? /✓ DEV-035/u.test(task) : /☐ DEV-035/u.test(task));
 check("runtime active secure provider", Boolean(runtime.active && ["windows_dpapi", "google_secret_manager"].includes(runtime.active.vault_provider)), JSON.stringify(runtime.active));
 check("runtime native probe passed", runtime.probe?.status === "passed", JSON.stringify(runtime.probe));
-check("runtime worker exact-version ack", exactAck, JSON.stringify(runtime.heartbeat));
-check("runtime A0002 native eight fields and repeatability", realA0002, JSON.stringify(runtime.a0002));
+check("runtime worker exact-version ack", exactAck || receiptExactAck, JSON.stringify({ heartbeat: runtime.heartbeat, receipt: receipt ? { file: receipt.file, heartbeat: receiptEvidence?.workerHeartbeat } : null }));
+check("runtime A0002 native eight fields and repeatability", realA0002 || receiptA0002, JSON.stringify({ runtime: runtime.a0002, receipt: receipt ? { file: receipt.file, evidence: receiptEvidence } : null }));
 const failed = checks.filter((item) => !item.ok);
 console.log(JSON.stringify({
   script: "qc-dev-035-completion-gate",
@@ -109,6 +138,7 @@ console.log(JSON.stringify({
   checks,
   failed: failed.length,
   runtime,
+  receipt: receipt ? { file: receipt.file, exactAck: receiptExactAck, realA0002: receiptA0002 } : null,
   note: realRuntimeReady
     ? "Real secure provider, native probe, exact worker acknowledgment, and two repeatable A0002 runs satisfy the local DEV-035 completion gate."
     : "Missing real provider/native A0002 evidence keeps DEV-035 open."

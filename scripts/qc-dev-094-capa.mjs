@@ -162,13 +162,19 @@ fs.mkdirSync(outputDir, { recursive: true });
 let cleanupStatus = "pending";
 try {
   const recoveryFixture = path.join(tempRoot, "recovery", "ai-pdm.sqlite");
+  const sourceSnapshot = new Database(sourceDb, { readonly: true, fileMustExist: true });
+  const expectedRecoveryCandidates = {
+    roots: sourceSnapshot.prepare("SELECT COUNT(*) AS count FROM part_roots").get().count,
+    parts: sourceSnapshot.prepare("SELECT COUNT(*) AS count FROM part_numbers").get().count
+  };
+  sourceSnapshot.close();
   await sqliteBackup(sourceDb, recoveryFixture);
   createRecoveryFixture(recoveryFixture);
   const dryRunDir = path.join(outputDir, "recovery-dry-run");
   const dryRun = runRecovery(recoveryFixture, dryRunDir);
   const dryManifest = readManifest(dryRunDir);
   check("recovery dry-run ready", dryRun.status === 0 && dryManifest.status === "READY", `${dryRun.stdout}\n${dryRun.stderr}`);
-  check("recovery dry-run captures 0/0 final and 3/3 candidates", dryManifest.before.inventory.counts.finalRoots === 0 && dryManifest.before.inventory.counts.finalParts === 0 && dryManifest.before.inventory.counts.candidateRoots === 3 && dryManifest.before.inventory.counts.candidateParts === 3, JSON.stringify(dryManifest.before.inventory.counts));
+  check("recovery dry-run captures 0/0 final and all source candidates", dryManifest.before.inventory.counts.finalRoots === 0 && dryManifest.before.inventory.counts.finalParts === 0 && dryManifest.before.inventory.counts.candidateRoots === Number(expectedRecoveryCandidates.roots) && dryManifest.before.inventory.counts.candidateParts === Number(expectedRecoveryCandidates.parts), JSON.stringify({ expectedRecoveryCandidates, actual: dryManifest.before.inventory.counts }));
   check("recovery dry-run captures dangling FK violations", dryManifest.before.inventory.counts.foreignKeys > 0, String(dryManifest.before.inventory.counts.foreignKeys));
   check("all dangling references covered by candidates", dryManifest.before.inventory.dangling.every((row) => row.coveredByCandidate), JSON.stringify(dryManifest.before.inventory.dangling));
 
@@ -203,7 +209,7 @@ try {
   const applyManifest = readManifest(applyDir);
   check("disposable recovery apply passes", applied.status === 0 && applyManifest.status === "PASS", `${applied.stdout}\n${applied.stderr}`);
   const repaired = databaseState(recoveryFixture);
-  check("disposable recovery restores exact 3 roots and 3 parts", repaired.roots.length === 3 && repaired.parts.length === 3, `${repaired.roots.length}/${repaired.parts.length}`);
+  check("disposable recovery restores exact source root and part counts", repaired.roots.length === Number(expectedRecoveryCandidates.roots) && repaired.parts.length === Number(expectedRecoveryCandidates.parts), JSON.stringify({ expectedRecoveryCandidates, actual: { roots: repaired.roots.length, parts: repaired.parts.length } }));
   check("disposable recovery clears all FK violations", repaired.foreignKeys.length === 0, JSON.stringify(repaired.foreignKeys));
   check("disposable recovery clears exact staging tables", repaired.residue.length === 0, JSON.stringify(repaired.residue));
   const rerunDir = path.join(outputDir, "recovery-rerun");

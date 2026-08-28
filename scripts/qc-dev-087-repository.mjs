@@ -36,6 +36,8 @@ assert.equal(detail.data.presentation.kind, "drawing");
 assert(Array.isArray(detail.data.presentation.history));
 assert(detail.data.presentation.history.some((item) => item.revision === "1"));
 assert(detail.data.presentation.history.some((item) => item.revision === "1.1"));
+assert.equal(detail.data.presentation.relationMatrix.drawings[0]?.detailHref, `/numbering/drawings?detail=${encodeURIComponent(`cw_${ids.stateProduction}`)}`);
+assert.equal(detail.data.presentation.relationMatrix.parts[0]?.detailHref, `/parts?detail=${encodeURIComponent(`cw_${ids.statePart}`)}`);
 
 // Relation workbench rows were retired by DEV-090; its direct formal matrix
 // contract is verified by the DEV-090 focused suite rather than this Drawing/
@@ -45,6 +47,9 @@ const partList = await service.list(new URL("http://local/api"), "part", actor);
 const partRow = partList.data.groups[0].rows[0];
 assert.equal(partRow.revision, null);
 assert.equal(partRow.layerLabel, "正式資料");
+const partDetail = await service.detail(partRow.rowKey, "part", actor);
+assert.equal(partDetail.data.presentation.kind, "part");
+assert.equal(partDetail.data.presentation.relationMatrix.drawings[0]?.detailHref, `/numbering/drawings?detail=${encodeURIComponent(`cw_${ids.stateProduction}`)}`);
 const partService = new PartChangeWorkService(client);
 const commandActor = { id: ids.owner, companyId: ids.company, canEditNonOwned: false, permissions: { create: true, update: true, submit: true, cancel: true, decide: false } };
 const context = { idempotencyKey: "dev087-part-create-1", contractToken: partList.meta.contractToken, expectedRowVersion: partRow.rowVersion };
@@ -59,4 +64,4 @@ assert.equal(editingOnly.data.groups[0].rows[0].dataStateLabel, "編輯中");
 await assert.rejects(() => partService.create(ids.part, commandActor, { ...context, idempotencyKey: "dev087-part-create-2" }), (error) => error.code === "WORKBENCH_ACTIVE_WORK_EXISTS" || error.code === "WORKBENCH_ROW_VERSION_CONFLICT");
 assert.equal(db.pragma("foreign_key_check").length, 0);
 db.close();
-pass("repository", 34);
+pass("repository", 38);

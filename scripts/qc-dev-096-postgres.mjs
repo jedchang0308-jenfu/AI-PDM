@@ -29,7 +29,7 @@ const check = async (cases, label, fn) => {
 };
 
 try {
-  await check([53, 60], "fresh disposable PostgreSQL current baseline applies 001/002/003/047 in order", async () => {
+  await check([53, 60], "fresh disposable PostgreSQL current baseline applies 001/002/003/047 history bridge in order", async () => {
     await client.query(`DO $$ BEGIN
       IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF;
       IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
@@ -41,7 +41,7 @@ try {
         "001_initial_schema.sql",
         "002_supabase_rls_plan.sql",
         "003_harden_set_updated_at_search_path.sql",
-        "047_retire_legacy_assembly_bom_intake.sql"
+        "047_production_bom_retirement_history_bridge.sql"
       ];
       for (const file of files) {
         try {

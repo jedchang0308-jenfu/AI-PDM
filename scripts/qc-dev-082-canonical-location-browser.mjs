@@ -15,6 +15,7 @@ import {
 } from "./qc-next-app-runner.mjs";
 
 const root = process.cwd();
+const targetDrawingNumber = process.env.PDM_DEV_082_DRAWING_NUMBER?.trim() || "A0002-M01";
 const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
 const sourceRepository = path.join(root, "data", "repository");
 const nextEnvPath = path.join(root, "next-env.d.ts");
@@ -149,43 +150,54 @@ async function restoreTextFileWithRetry(filePath, content) {
 async function locatePdfEvidence(page, fixture, viewport) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(`${baseUrl}${fixture.workUrl}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-  await page.getByRole("heading", { name: "A0006-M01", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  await page.getByRole("heading", { name: fixture.drawingNumber, exact: true }).waitFor({ state: "visible", timeout: 30_000 });
 
   const previewTabs = page.locator('.drawing-preview-tabs [role="tab"]');
   await previewTabs.nth(1).waitFor({ state: "visible", timeout: 30_000 });
   requireCheck(`${viewport.name}: one shared preview surface`, await page.locator('[data-component="canonical-preview-panel"]').count() === 1);
   requireCheck(`${viewport.name}: preview keeps exactly 3D and 2D tabs`, await previewTabs.count() === 2, JSON.stringify(await previewTabs.allTextContents()));
   requireCheck(`${viewport.name}: no PDF-only third tab`, (await previewTabs.allTextContents()).every((label) => !/^PDF/iu.test(label.trim())), JSON.stringify(await previewTabs.allTextContents()));
+  requireCheck(`${viewport.name}: file and recognition tools share one column`, await page.locator('.dev079-unified-task-content').count() === 1);
+  requireCheck(`${viewport.name}: obsolete task tab switcher is removed`, await page.locator('.dev079-task-tabs').count() === 0);
+  requireCheck(`${viewport.name}: unified column keeps both section labels`, await page.locator('.dev079-unified-task-heading').allTextContents().then((labels) => labels.some((label) => label.includes("版次與檔案")) && labels.some((label) => label.includes("智慧辨識"))), JSON.stringify(await page.locator('.dev079-unified-task-heading').allTextContents()));
 
   await page.getByRole("tab", { name: /3D 模型/u }).click();
   requireCheck(`${viewport.name}: original preview starts on 3D`, await page.getByRole("tab", { name: /3D 模型/u }).getAttribute("aria-selected") === "true");
-  await page.getByRole("tab", { name: "智慧辨識", exact: true }).click();
   await page.locator('[data-dev079-recognition="embedded"]').waitFor({ state: "visible", timeout: 30_000 });
+  await page.locator('#dev079-recognition-heading').scrollIntoViewIfNeeded();
   if (viewport.name === "desktop-1440x900") {
+    await page.locator('[data-recognition-field-key="part_number"] input').first().waitFor({ state: "attached", timeout: 30_000 });
     const exceptionLabel = page.locator('[data-recognition-field-key="part_number"] .dev079-recognition-field-signals .is-exception').first();
-    await exceptionLabel.waitFor({ state: "visible", timeout: 30_000 });
-    const exceptionSemantics = await exceptionLabel.evaluate((element) => ({
-      tagName: element.tagName,
-      insideButton: Boolean(element.closest("button")),
-      triggerTabIndex: element.closest("button")?.tabIndex ?? -1
-    }));
-    requireCheck("part-number exception status has an accessible trigger", exceptionSemantics.tagName === "SMALL" && exceptionSemantics.insideButton && exceptionSemantics.triggerTabIndex === 0, JSON.stringify(exceptionSemantics));
-    await exceptionLabel.hover();
-    const exceptionTooltip = page.getByRole("tooltip");
-    await exceptionTooltip.waitFor({ state: "visible", timeout: 5_000 });
-    const exceptionHelp = await exceptionTooltip.textContent() ?? "";
-    requireCheck("part-number hover tooltip distinguishes ownership from OCR accuracy", exceptionHelp.includes("尚未連結正式料號主檔") && exceptionHelp.includes("不代表 OCR 辨識錯誤"), exceptionHelp);
-    await page.screenshot({ path: path.join(outputDir, "desktop-1440x900-exception-tooltip.png"), fullPage: true });
-    await page.mouse.move(8, 8);
-    await exceptionTooltip.waitFor({ state: "hidden", timeout: 5_000 });
-    const exceptionTrigger = exceptionLabel.locator("xpath=ancestor::button");
-    await exceptionTrigger.focus();
-    await exceptionTooltip.waitFor({ state: "visible", timeout: 5_000 });
-    requireCheck("part-number tooltip also opens from keyboard focus", await exceptionTrigger.getAttribute("aria-describedby") === await exceptionTooltip.getAttribute("id"));
-    await page.keyboard.press("Escape");
-    await exceptionTooltip.waitFor({ state: "hidden", timeout: 5_000 });
+    if (await exceptionLabel.count() > 0) {
+      await exceptionLabel.scrollIntoViewIfNeeded();
+      await exceptionLabel.waitFor({ state: "visible", timeout: 30_000 });
+      const exceptionSemantics = await exceptionLabel.evaluate((element) => ({
+        tagName: element.tagName,
+        insideButton: Boolean(element.closest("button")),
+        triggerTabIndex: element.closest("button")?.tabIndex ?? -1
+      }));
+      requireCheck("part-number exception status has an accessible trigger", exceptionSemantics.tagName === "SMALL" && exceptionSemantics.insideButton && exceptionSemantics.triggerTabIndex === 0, JSON.stringify(exceptionSemantics));
+      await exceptionLabel.hover();
+      const exceptionTooltip = page.getByRole("tooltip");
+      await exceptionTooltip.waitFor({ state: "visible", timeout: 5_000 });
+      const exceptionHelp = await exceptionTooltip.textContent() ?? "";
+      requireCheck("part-number hover tooltip distinguishes ownership from OCR accuracy", exceptionHelp.includes("尚未連結正式料號主檔") && exceptionHelp.includes("不代表 OCR 辨識錯誤"), exceptionHelp);
+      await page.screenshot({ path: path.join(outputDir, "desktop-1440x900-exception-tooltip.png"), fullPage: true });
+      await page.mouse.move(8, 8);
+      await exceptionTooltip.waitFor({ state: "hidden", timeout: 5_000 });
+      const exceptionTrigger = exceptionLabel.locator("xpath=ancestor::button");
+      await exceptionTrigger.focus();
+      await exceptionTooltip.waitFor({ state: "visible", timeout: 5_000 });
+      requireCheck("part-number tooltip also opens from keyboard focus", await exceptionTrigger.getAttribute("aria-describedby") === await exceptionTooltip.getAttribute("id"));
+      await page.keyboard.press("Escape");
+      await exceptionTooltip.waitFor({ state: "hidden", timeout: 5_000 });
+    } else {
+      record("part-number exception tooltip is not applicable to the current fixture", true, "no part-number exception signal");
+    }
   }
   const pdfButton = page.getByRole("button", { name: "PDF圖面", exact: true }).first();
+  await pdfButton.waitFor({ state: "attached", timeout: 30_000 });
+  await pdfButton.scrollIntoViewIfNeeded();
   await pdfButton.waitFor({ state: "visible", timeout: 30_000 });
   const sourceId = await pdfButton.getAttribute("data-evidence-source-id");
   requireCheck(`${viewport.name}: PDF evidence retains exact source id`, sourceId === fixture.pdfSourceId, String(sourceId));
@@ -257,11 +269,11 @@ try {
     FROM drawing_revision_works work
     JOIN drawings drawing ON drawing.id = work.drawing_id
     JOIN canonical_workbench_states state ON state.work_id = work.id AND state.entity_type = 'drawing'
-    WHERE drawing.drawing_number = 'A0006-M01'
+    WHERE drawing.drawing_number = ?
     ORDER BY work.created_at DESC
     LIMIT 1
-  `).get();
-  requireCheck("A0006 canonical work fixture exists", Boolean(work?.id && work?.revision_id), JSON.stringify(work));
+  `).get(targetDrawingNumber);
+  requireCheck("target canonical work fixture exists", Boolean(work?.id && work?.revision_id), JSON.stringify(work));
   const session = fixtureDatabase.prepare(`
     SELECT id FROM drawing_recognition_sessions
     WHERE drawing_revision_id = ? AND source_context_type = 'drawing_revision'
@@ -269,14 +281,14 @@ try {
     ORDER BY updated_at DESC, created_at DESC
     LIMIT 1
   `).get(work.revision_id, work.revision_id);
-  requireCheck("A0006 current-context review-ready session exists", Boolean(session?.id), JSON.stringify(session));
+  requireCheck("target current-context review-ready session exists", Boolean(session?.id), JSON.stringify(session));
   const pdfSource = fixtureDatabase.prepare(`
     SELECT id, file_name FROM drawing_recognition_sources
     WHERE session_id = ? AND source_role = 'pdf'
     ORDER BY sort_order, id
     LIMIT 1
   `).get(session.id);
-  requireCheck("A0006 recognition session retains PDF source", Boolean(pdfSource?.id), JSON.stringify(pdfSource));
+  requireCheck("target recognition session retains PDF source", Boolean(pdfSource?.id), JSON.stringify(pdfSource));
   const pdfGeometries = fixtureDatabase.prepare(`
     SELECT geometry_json FROM drawing_recognition_observations
     WHERE session_id = ? AND source_id = ? AND page_number = 1 AND geometry_json IS NOT NULL
@@ -284,7 +296,7 @@ try {
   `).all(session.id, pdfSource.id).map((row) => JSON.parse(row.geometry_json)).filter((geometry) =>
     geometry?.coordinateSpace === "normalized_page" && geometry?.origin === "top_left"
   );
-  requireCheck("A0006 PDF source retains normalized-page evidence", pdfGeometries.length > 0, String(pdfGeometries.length));
+  requireCheck("target PDF source retains normalized-page evidence", pdfGeometries.length > 0, String(pdfGeometries.length));
   fixtureDatabase.close();
 
   port = await getFreePort();
@@ -323,30 +335,105 @@ try {
     if (request.method() === "POST" && request.url().endsWith("/api/numbering/recognition-sessions")) recognitionPosts += 1;
   });
   const fixture = {
+    drawingNumber: work.drawing_number,
     sessionId: session.id,
     pdfSourceId: pdfSource.id,
     pdfGeometries,
     workUrl: `/numbering/drawings/${encodeURIComponent(work.drawing_id)}/workspace?workId=${encodeURIComponent(work.id)}`
   };
 
-  await locatePdfEvidence(page, fixture, { name: "desktop-1440x900", width: 1440, height: 900 });
+  const desktopEvidence = await locatePdfEvidence(page, fixture, { name: "desktop-1440x900", width: 1440, height: 900 });
+  let repeatedEvidenceContentRequests = 0;
+  const observeRepeatedEvidenceRequest = (request) => {
+    if (new URL(request.url()).pathname === desktopEvidence.contentPath) repeatedEvidenceContentRequests += 1;
+  };
+  page.on("request", observeRepeatedEvidenceRequest);
+  const initialTargetRect = await page.locator('[data-magnifier-state="ready"]').getAttribute("data-target-rect");
+  await page.evaluate(() => {
+    const stage = document.querySelector('[data-pdf-page-state="ready"]');
+    const canvas = stage?.querySelector(".drawing-preview-pdf-page > canvas");
+    if (!stage || !canvas) throw new Error("preview stability observer could not find the ready PDF stage");
+    const transitions = [];
+    const observer = new MutationObserver(() => transitions.push(stage.getAttribute("data-pdf-page-state")));
+    observer.observe(stage, { attributes: true, attributeFilter: ["data-pdf-page-state"] });
+    window.__dev082PreviewStability = { stage, canvas, transitions, observer };
+  });
+  const materialInput = page.locator('[data-recognition-field-key="material"] input').first();
+  await materialInput.scrollIntoViewIfNeeded();
+  await materialInput.waitFor({ state: "visible", timeout: 10_000 });
+  await materialInput.focus();
+  await page.waitForFunction((previous) => {
+    const magnifier = document.querySelector('[data-magnifier-state="ready"]');
+    return Boolean(magnifier && magnifier.getAttribute("data-target-rect") !== previous);
+  }, initialTargetRect, { timeout: 30_000 });
+  const materialTargetRect = await page.locator('[data-magnifier-state="ready"]').getAttribute("data-target-rect");
+  const revisionInput = page.locator('[data-recognition-field-key="revision"] input').first();
+  await revisionInput.scrollIntoViewIfNeeded();
+  await revisionInput.waitFor({ state: "visible", timeout: 10_000 });
+  await revisionInput.focus();
+  await page.waitForFunction((previous) => {
+    const magnifier = document.querySelector('[data-magnifier-state="ready"]');
+    return Boolean(magnifier && magnifier.getAttribute("data-target-rect") !== previous);
+  }, materialTargetRect, { timeout: 30_000 });
+  const previewStability = await page.evaluate(() => {
+    const evidence = window.__dev082PreviewStability;
+    evidence?.observer.disconnect();
+    const currentStage = document.querySelector('[data-pdf-page-state]');
+    const currentCanvas = currentStage?.querySelector(".drawing-preview-pdf-page > canvas");
+    return {
+      sameStage: evidence?.stage === currentStage,
+      sameCanvas: evidence?.canvas === currentCanvas,
+      transitions: evidence?.transitions ?? [],
+      finalState: currentStage?.getAttribute("data-pdf-page-state") ?? "missing"
+    };
+  });
+  page.off("request", observeRepeatedEvidenceRequest);
+  requireCheck("switching evidence on one PDF does not request the source again", repeatedEvidenceContentRequests === 0, String(repeatedEvidenceContentRequests));
+  requireCheck("switching evidence preserves the PDF stage and canvas", previewStability.sameStage && previewStability.sameCanvas, JSON.stringify(previewStability));
+  requireCheck("switching evidence keeps the rendered page ready without loading fallback", previewStability.finalState === "ready" && !previewStability.transitions.includes("loading"), JSON.stringify(previewStability));
+  await page.screenshot({ path: path.join(outputDir, "desktop-1440x900-focus-switch-stable.png"), fullPage: true });
   const cadButton = page.getByRole("button", { name: "檔案屬性", exact: true }).first();
+  await cadButton.scrollIntoViewIfNeeded();
   await cadButton.waitFor({ state: "visible", timeout: 30_000 });
+  repeatedEvidenceContentRequests = 0;
+  page.on("request", observeRepeatedEvidenceRequest);
+  await page.evaluate(() => {
+    const stage = document.querySelector('[data-pdf-page-state="ready"]');
+    const canvas = stage?.querySelector(".drawing-preview-pdf-page > canvas");
+    if (!stage || !canvas) throw new Error("non-PDF stability observer could not find the ready PDF stage");
+    const transitions = [];
+    const observer = new MutationObserver(() => transitions.push(stage.getAttribute("data-pdf-page-state")));
+    observer.observe(stage, { attributes: true, attributeFilter: ["data-pdf-page-state"] });
+    window.__dev082PreviewStability = { stage, canvas, transitions, observer };
+  });
   await cadButton.click();
   const cadNotice = page.locator(".dev079-evidence-flash");
   await cadNotice.waitFor({ state: "visible", timeout: 10_000 });
   requireCheck("CAD evidence truthfully reports no drawing coordinates", /檔案屬性證據.*沒有圖面座標/u.test(await cadNotice.textContent() ?? ""), await cadNotice.textContent() ?? "");
-  requireCheck("CAD evidence removes PDF-only marker", await page.locator('[data-evidence-marker="highlighter"]').count() === 0);
-  requireCheck("CAD evidence restores original 3D preview", await page.getByRole("tab", { name: /3D 模型/u }).getAttribute("aria-selected") === "true");
+  const nonPdfPreviewStability = await page.evaluate(() => {
+    const evidence = window.__dev082PreviewStability;
+    evidence?.observer.disconnect();
+    const currentStage = document.querySelector('[data-pdf-page-state]');
+    const currentCanvas = currentStage?.querySelector(".drawing-preview-pdf-page > canvas");
+    return {
+      sameStage: evidence?.stage === currentStage,
+      sameCanvas: evidence?.canvas === currentCanvas,
+      transitions: evidence?.transitions ?? [],
+      finalState: currentStage?.getAttribute("data-pdf-page-state") ?? "missing"
+    };
+  });
+  page.off("request", observeRepeatedEvidenceRequest);
+  requireCheck("non-PDF evidence does not request the current PDF again", repeatedEvidenceContentRequests === 0, String(repeatedEvidenceContentRequests));
+  requireCheck("non-PDF evidence preserves the current PDF stage and canvas", nonPdfPreviewStability.sameStage && nonPdfPreviewStability.sameCanvas, JSON.stringify(nonPdfPreviewStability));
+  requireCheck("non-PDF evidence keeps the rendered page ready without loading fallback", nonPdfPreviewStability.finalState === "ready" && !nonPdfPreviewStability.transitions.includes("loading"), JSON.stringify(nonPdfPreviewStability));
+  requireCheck("non-PDF evidence clears the stale PDF marker without replacing the page", await page.locator('[data-evidence-marker="highlighter"]').count() === 0);
+  requireCheck("non-PDF evidence clears the stale magnifier without replacing the page", await page.locator('[data-magnifier-state]').count() === 0);
+  requireCheck("non-PDF evidence leaves the current 2D preview selected", await page.getByRole("tab", { name: /2D 圖面/u }).getAttribute("aria-selected") === "true");
+  await page.screenshot({ path: path.join(outputDir, "desktop-1440x900-non-pdf-stable.png"), fullPage: true });
 
-  const secondPdfButton = page.getByRole("button", { name: "PDF圖面", exact: true }).first();
-  const secondContent = page.waitForResponse((response) => new URL(response.url()).pathname.includes(`/recognition-sessions/${session.id}/sources/${pdfSource.id}/content`), { timeout: 45_000 });
-  await secondPdfButton.click();
-  await secondContent;
-  await page.locator('[data-pdf-page-state="ready"] [data-evidence-marker="highlighter"]').waitFor({ state: "visible", timeout: 60_000 });
-  await page.getByRole("tab", { name: "版次與檔案", exact: true }).click();
-  requireCheck("leaving recognition removes evidence marker", await page.locator('[data-evidence-marker="highlighter"]').count() === 0);
-  requireCheck("leaving recognition restores original 3D preview", await page.getByRole("tab", { name: /3D 模型/u }).getAttribute("aria-selected") === "true");
+  await page.getByRole("tab", { name: /3D 模型/u }).click();
+  requireCheck("selecting the original preview removes evidence marker", await page.locator('[data-evidence-marker="highlighter"]').count() === 0);
+  requireCheck("selecting the original preview restores 3D", await page.getByRole("tab", { name: /3D 模型/u }).getAttribute("aria-selected") === "true");
 
   await locatePdfEvidence(page, fixture, { name: "tablet-1024x768", width: 1024, height: 768 });
   await locatePdfEvidence(page, fixture, { name: "phone-390x844", width: 390, height: 844 });

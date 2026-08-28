@@ -201,7 +201,7 @@ function buildRunnerContractMarkdown(report) {
     "",
     ...report.readiness.blockers.map((blocker) => `- ${blocker}`),
     ""
-  ].join("\n")}\n`;
+  ].join("\n").trimEnd()}\n`;
 }
 
 function buildCandidatePackage({ target, grantSql, postgresFiles }) {
@@ -388,7 +388,7 @@ function buildMarkdown(report) {
   }
 
   lines.push("");
-  return `${lines.join("\n")}\n`;
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 export function buildDev046CloudSqlMigrationPackage(options = {}) {
@@ -467,7 +467,7 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
     }));
 
   const blockingDestructiveLines = ddlFindings.filter((finding) => finding.severity === "blocking_destructive").length;
-  const liveMigrationCompleted =
+  const liveMigrationEvidencePassed =
     liveExecutionEvidence?.migrationResult?.status === "succeeded" &&
     liveExecutionEvidence?.migrationResult?.idempotenceVerified === true &&
     liveExecutionEvidence?.adminBootstrap?.status === "succeeded";
@@ -475,7 +475,6 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
   const currentAcceptanceBlockers = !production && Array.isArray(manifest.knownApplicationBlockers)
     ? manifest.knownApplicationBlockers
     : [];
-  const cloudSqlPackageReady = production ? true : liveMigrationCompleted;
   const vpcAttachedRunnerRequired =
     (production || manifest.phase2Bootstrap?.cloudSql?.privateIp !== undefined) &&
     runtimeTf.includes("--private-ip") &&
@@ -503,6 +502,15 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
     migrationIamDatabaseUser: production ? "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam" : "pdm-migration-stg@jenfu-ai-pdm-stg-361825.iam"
   };
   const candidatePackage = buildCandidatePackage({ target, grantSql, postgresFiles });
+  const candidateManifestSha256 = sha256(JSON.stringify(candidatePackage.orderedManifest, null, 2));
+  const evidenceManifestSha256 = liveExecutionEvidence?.migrationResult?.manifestSha256 ?? null;
+  const evidenceSchemaMigrationCount = liveExecutionEvidence?.migrationResult?.schemaMigrationCount ?? null;
+  const liveMigrationEvidenceMatchesCandidate =
+    evidenceManifestSha256 === candidateManifestSha256 &&
+    evidenceSchemaMigrationCount === candidatePackage.schemaFiles.length;
+  const liveMigrationCompleted = liveMigrationEvidencePassed && liveMigrationEvidenceMatchesCandidate;
+  const runtimeSmokeBoundToCurrentCandidate = liveMigrationCompleted && runtimeSmokeExecuted;
+  const cloudSqlPackageReady = production ? true : liveMigrationCompleted;
 
   return {
     schemaVersion: 1,
@@ -517,9 +525,15 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
       present: liveExecutionEvidence !== null,
       status: liveExecutionEvidence?.status ?? "not-present",
       adminBootstrapSucceeded: liveExecutionEvidence?.adminBootstrap?.status === "succeeded",
+      evidenceManifestSha256,
+      candidateManifestSha256,
+      evidenceSchemaMigrationCount,
+      candidateSchemaMigrationCount: candidatePackage.schemaFiles.length,
+      matchesCurrentCandidate: liveMigrationEvidenceMatchesCandidate,
       liveMigrationCompleted,
       idempotenceVerified: liveExecutionEvidence?.migrationResult?.idempotenceVerified === true,
-      runtimeSmokeExecuted
+      runtimeSmokeExecuted,
+      runtimeSmokeBoundToCurrentCandidate
     },
     executionBoundary: {
       localOnly: true,
@@ -580,7 +594,7 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
     readiness: {
       status: production
         ? "production_candidate_package_generated_not_applied"
-        : liveMigrationCompleted && runtimeSmokeExecuted
+        : runtimeSmokeBoundToCurrentCandidate
         ? "live_migration_and_runtime_smoke_completed_acceptance_gated"
         : liveMigrationCompleted
           ? "live_migration_completed_runtime_smoke_pending"
@@ -588,11 +602,13 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
       readyForLiveApply: false,
       cloudSqlMigrationPackageReady: cloudSqlPackageReady,
       liveMigrationCompleted,
-      runtimeSmokeReady: runtimeSmokeExecuted,
+      runtimeSmokeReady: runtimeSmokeBoundToCurrentCandidate,
       blockers: production
         ? ["PRODUCTION_ADMIN_BOOTSTRAP_NOT_EXECUTED", "PRODUCTION_MIGRATION_NOT_EXECUTED", "PRODUCTION_RUNTIME_SMOKE_NOT_EXECUTED"]
-        : liveMigrationCompleted && runtimeSmokeExecuted
+        : runtimeSmokeBoundToCurrentCandidate
         ? currentAcceptanceBlockers
+        : liveMigrationEvidencePassed && !liveMigrationEvidenceMatchesCandidate
+          ? ["STAGING_LIVE_MIGRATION_EVIDENCE_PACKAGE_MISMATCH", "STAGING_CURRENT_PACKAGE_RUNTIME_SMOKE_NOT_EXECUTED"]
         : liveMigrationCompleted
           ? ["STAGING_RUNTIME_SMOKE_NOT_EXECUTED"]
         : [
@@ -627,7 +643,7 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
           "Execute admin bootstrap separately, then run schema migration twice to prove idempotence.",
           "Run production runtime, restore and numbering reconciliation before canary."
         ]
-      : liveMigrationCompleted && runtimeSmokeExecuted
+      : runtimeSmokeBoundToCurrentCandidate
       ? [
           "Create or verify the staging principal mapping after a real provider UID exists.",
           "Resolve the deployed application artifact provenance and source drift before full staging acceptance."
@@ -650,17 +666,17 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
           "No source business rows, staging identities, credentials or GCS file-authority migration are included.",
           "Generation performs no cloud or database action."
         ]
-      : liveMigrationCompleted && runtimeSmokeExecuted
+      : runtimeSmokeBoundToCurrentCandidate
       ? [
           "This local report reads durable evidence but does not connect to Cloud SQL or execute cloud actions.",
-          "Admin bootstrap and all 18 intended schema migrations completed; an immediate second run applied zero versions.",
+          `Admin bootstrap and all ${candidatePackage.schemaFiles.length} intended schema migrations completed for the exact candidate manifest; an immediate second run applied zero versions.`,
           "The Cloud Run runtime identity completed the read-only Cloud SQL smoke without creating business data.",
           "Migration work is complete; the remaining blockers belong to staging identity evidence and application artifact provenance."
         ]
       : liveMigrationCompleted
       ? [
           "This local report reads durable evidence but does not connect to Cloud SQL or execute cloud actions.",
-          "Admin bootstrap and all 18 intended schema migrations completed; an immediate second run applied zero versions.",
+          `Admin bootstrap and all ${candidatePackage.schemaFiles.length} intended schema migrations completed for the exact candidate manifest; an immediate second run applied zero versions.`,
           "The migration Job was restored to dry-run posture. Public DNS remains deferred and runtime acceptance remains blocked."
         ]
       : [

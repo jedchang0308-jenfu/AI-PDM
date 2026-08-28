@@ -27,10 +27,10 @@ add([1, 2, 3, 4, 5, 7, 8], "structure type is a constrained Part authority on bo
   schema.includes("structure_type TEXT NOT NULL DEFAULT 'single_part'")
     && postgres.includes("part_numbers_structure_type_check")
     && schema.includes("'assembly', 'unclassified'"), "schema + postgres/048");
-add([4, 5, 6, 7, 8], "numbering writer requires and persists explicit structureType",
-  read("src/app/api/numbering/records/route.ts").includes("structureType is required")
-    && read("src/app/api/numbering/records/route.ts").includes("purchased assembly is not supported")
-    && read("src/lib/repositories/numbering-async-repository.ts").includes("item_kind, structure_type"), "numbering authority");
+add([4, 5, 6, 7, 8], "numbering writer persists an explicit deferred structure value",
+  read("src/app/api/numbering/records/route.ts").includes('const effectiveStructureType = structureType ?? "unclassified"')
+    && read("src/lib/bom-create-context.ts").includes("BOM_PURCHASED_ASSEMBLY_NOT_APPLICABLE")
+    && read("src/lib/repositories/numbering-async-repository.ts").includes("item_kind, structure_type"), "numbering authority accepts deferred classification and writes unclassified explicitly");
 add([9, 10, 61], "BOM action is projected only inside Part detail",
   canonicalWorkbench.includes("<PartBomContext")
     && partContext.includes("context.action === \"create_bom\"")

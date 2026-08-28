@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 
-const scripts = ["qc-dev-035-contract.mjs", "qc-dev-035-mapping.mjs", "qc-dev-035-worker.mjs", "qc-dev-035-secure-provider.mjs", "qc-dev-035-worker-hot-apply.mjs", "qc-dev-035-real-ui-activation-browser.mjs", "qc-dev-035-browser.mjs", "qc-dev-035-completion-gate.mjs"];
+const scripts = ["qc-dev-035-contract.mjs", "qc-dev-035-mapping.mjs", "qc-dev-035-worker.mjs", "qc-dev-035-secure-provider.mjs", "qc-dev-035-worker-hot-apply.mjs", "qc-dev-035-real-ui-activation-browser.mjs", "qc-dev-035-browser.mjs", "qc-dev-035-native-retry-browser.mjs", "qc-dev-035-completion-gate.mjs"];
 for (const script of scripts) {
   const result = await run("node", ["--experimental-transform-types", "--experimental-loader", "./scripts/qc-ts-path-loader.mjs", `scripts/${script}`]);
   process.stdout.write(result.stdout);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { initialDrawingRecognitionReviewState } from "../src/lib/drawing-recognition-contract.ts";
 import { mapNativePropertiesToAdapterResult } from "../src/lib/solidworks-metadata-mapping.ts";
 import { projectNativeMetadataHealth } from "../src/lib/drawing-recognition-diagnostics.ts";
 
@@ -25,6 +26,38 @@ assert.equal(byKey.get("part_name")?.proposedOwnerId, "part-a0002-p01");
 assert.equal(byKey.get("material")?.confidenceBand, "high");
 assert.equal(result.status, "succeeded");
 assert.ok([...byKey.keys()].some((key) => key?.startsWith("sw_custom_")));
+const layeredSamePart = mapNativePropertiesToAdapterResult({
+  sourceId: "source-layered-owner", fileName: "A0002.SLDPRT", fileExt: ".SLDPRT",
+  targetContext: {
+    drawingId: "drawing-a0002",
+    drawingRevisionId: "revision-a0002",
+    parts: [
+      { id: "part-canonical-a0002-p01", partNumber: "A0002-P01", partName: "本體_BS_右_Xx5", recordStatus: "Draft" },
+      { id: "part-workspace-a0002-p01", partNumber: "A0002-P01", partName: "本體_BS_右_Xx5", recordStatus: "Draft" }
+    ]
+  },
+  properties: [
+    { scope: "configuration:展開", name: "料號", evaluatedValue: "A0002-P01" },
+    { scope: "configuration:展開", name: "材質", evaluatedValue: "不鏽鋼SUS304" }
+  ]
+});
+assert.equal(layeredSamePart.observations?.[0]?.proposedOwnerResolution, "resolved");
+assert.equal(layeredSamePart.observations?.[0]?.proposedOwnerId, "part-canonical-a0002-p01");
+assert.equal(layeredSamePart.observations?.[1]?.proposedOwnerId, "part-canonical-a0002-p01");
+const singleTargetAssembly = mapNativePropertiesToAdapterResult({
+  sourceId: "source-a0044-assembly", fileName: "A0044.SLDASM", fileExt: ".SLDASM",
+  targetContext: {
+    drawingId: "drawing-a0044",
+    drawingRevisionId: "revision-a0044",
+    parts: [{ id: "part-a0044-p01", partNumber: "A0044-P01", partName: "軸承座_BS", recordStatus: "Draft" }]
+  },
+  properties: [{ scope: "document", name: "品名", evaluatedValue: "軸承座_BS" }]
+});
+assert.equal(singleTargetAssembly.observations?.[0]?.proposedOwnerResolution, "resolved");
+assert.equal(singleTargetAssembly.observations?.[0]?.proposedOwnerId, "part-a0044-p01");
+assert.equal(initialDrawingRecognitionReviewState({ sourceContextType: "drawing_revision", explicitlyMissingValue: false, proposedOwnerResolution: "resolved", hasUsableFormalValue: true, formalValueDiffers: true }), "proposed");
+assert.equal(initialDrawingRecognitionReviewState({ sourceContextType: "drawing_number", explicitlyMissingValue: false, proposedOwnerResolution: "resolved", hasUsableFormalValue: true, formalValueDiffers: true }), "conflict");
+assert.equal(initialDrawingRecognitionReviewState({ sourceContextType: "drawing_revision", explicitlyMissingValue: false, proposedOwnerResolution: "ambiguous", hasUsableFormalValue: false, formalValueDiffers: false }), "blocked");
 const unresolvedLink = mapNativePropertiesToAdapterResult({
   sourceId: "source-linked", fileName: "A0002.SLDPRT", fileExt: ".SLDPRT", targetContext,
   properties: [{ scope: "document", name: "3D圖號(主)", linkedExpression: '$PRP:"SW-File Name"', evaluatedValue: "" }]
@@ -67,4 +100,4 @@ assert.equal(projectNativeMetadataHealth({
     { source_id: "source-pdf", adapter_code: "native-metadata-bridge.v1", status: "failed", observation_count: 0, diagnostics_json: '["native_metadata_failed"]' }
   ]
 }).nativeMetadata?.state, "ready");
-console.log(JSON.stringify({ script: "qc-dev-035-mapping", passed: true, observations: result.observations?.length, ambiguousResolution: ambiguous.observations?.[0]?.proposedOwnerResolution, healthStates: ["ready", "empty", "partial", "unavailable", "failed"] }, null, 2));
+console.log(JSON.stringify({ script: "qc-dev-035-mapping", passed: true, observations: result.observations?.length, layeredOwnerResolution: layeredSamePart.observations?.[0]?.proposedOwnerResolution, singleTargetAssemblyResolution: singleTargetAssembly.observations?.[0]?.proposedOwnerResolution, ambiguousResolution: ambiguous.observations?.[0]?.proposedOwnerResolution, healthStates: ["ready", "empty", "partial", "unavailable", "failed"] }, null, 2));

@@ -111,6 +111,11 @@ jobs:
           npm run qc:dev-070-privacy-removal
           npm run qc:pdm-account-invitations
           npm run qc:dev-032-production-iac-package
+          npm run qc:dev-079:contract
+          npm run qc:dev-079:owner-invariant
+          npm run qc:dev-101:contract
+          npm run qc:dev-101:package
+          npm run qc:dev-101:qa-integrity
           npm run qc:production-deployment-pipeline
           npm run build
 
@@ -146,7 +151,7 @@ jobs:
       PDM_PRODUCTION_PROJECT_ID: jenfu-ai-pdm-prod
       PDM_PRODUCTION_REGION: asia-east1
       PDM_PRODUCTION_SERVICE: ai-pdm-prod
-      CANDIDATE_RUNTIME_FLAGS: PDM_NUMBER_STATE_FLOW_V1=true,PDM_NUMBER_LIFECYCLE_V2=true,PDM_UNIFIED_DRAWING_WORKBENCH_V1=true,PDM_UNIFIED_PART_RELATION_WORKBENCH_V1=true,PDM_UNIFIED_ENTITY_DETAIL_V1=true,PDM_DRAWING_REVISION_LIFECYCLE_MODE=enforced
+      CANDIDATE_RUNTIME_FLAGS: PDM_NUMBER_STATE_FLOW_V1=true,PDM_NUMBER_LIFECYCLE_V2=true,PDM_UNIFIED_DRAWING_WORKBENCH_V1=true,PDM_DRAWING_RECOGNITION_V1=true,PDM_REVIEW_PACKAGE_V2_WRITE=true,PDM_UNIFIED_PART_RELATION_WORKBENCH_V1=true,PDM_UNIFIED_ENTITY_DETAIL_V1=true,PDM_DRAWING_REVISION_LIFECYCLE_MODE=enforced
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -247,8 +252,8 @@ jobs:
           const fs = require("node:fs");
           const report = JSON.parse(fs.readFileSync("output/production-release/migration-dry-run.json", "utf8"));
           if (report.mode !== "dry_run" || report.connectionAttempted !== false) throw new Error("PRODUCTION_MIGRATION_DRY_RUN_BOUNDARY_INVALID");
-          if (report.schemaMigrationCount !== 38) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
-          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/040_supervisor_workflow_authority.cloudsql.sql") {
+          if (report.schemaMigrationCount !== 49) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
+          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/051_drawing_recognition_part_owner_invariant.cloudsql.sql") {
             throw new Error("PRODUCTION_MIGRATION_RANGE_INVALID");
           }
           NODE
@@ -305,7 +310,7 @@ jobs:
             actual="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .value' "$REVISION_JSON")"
             [[ "$actual" == "$expected" ]]
           }
-          for flag in PDM_NUMBER_STATE_FLOW_V1 PDM_NUMBER_LIFECYCLE_V2 PDM_UNIFIED_DRAWING_WORKBENCH_V1 PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 PDM_UNIFIED_ENTITY_DETAIL_V1; do
+          for flag in PDM_NUMBER_STATE_FLOW_V1 PDM_NUMBER_LIFECYCLE_V2 PDM_UNIFIED_DRAWING_WORKBENCH_V1 PDM_DRAWING_RECOGNITION_V1 PDM_REVIEW_PACKAGE_V2_WRITE PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 PDM_UNIFIED_ENTITY_DETAIL_V1; do
             assert_revision_env "$flag" "true"
           done
           assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced

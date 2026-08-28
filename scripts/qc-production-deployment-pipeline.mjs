@@ -26,6 +26,7 @@ const variables = read("infra/google-cloud/production/variables.tf");
 const deploymentBoundary = `${identity}\n${locals}\n${variables}`;
 const smoke = read("scripts/run-production-release-smoke.mjs");
 const trafficRunner = read("scripts/run-production-release-traffic.mjs");
+const releaseSourceManifestUtils = read("scripts/dev-032-release-source-manifest-utils.mjs");
 const packageJson = JSON.parse(read("package.json"));
 const results = [];
 
@@ -106,8 +107,8 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.match(workflow, /IMAGE_PATH@\$DIGEST/u);
   assert.match(workflow, /--target migration-runner/u);
   assert.match(workflow, /MIGRATION_PACKAGE_TARGET=production/u);
-  assert.match(workflow, /schemaMigrationCount !== 38/u);
-  assert.match(workflow, /040_supervisor_workflow_authority/u);
+  assert.match(workflow, /schemaMigrationCount !== 49/u);
+  assert.match(workflow, /051_drawing_recognition_part_owner_invariant/u);
   assert.match(workflow, /migration-image\.txt/u);
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
 });
@@ -127,6 +128,8 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
     "PDM_NUMBER_STATE_FLOW_V1",
     "PDM_NUMBER_LIFECYCLE_V2",
     "PDM_UNIFIED_DRAWING_WORKBENCH_V1",
+    "PDM_DRAWING_RECOGNITION_V1",
+    "PDM_REVIEW_PACKAGE_V2_WRITE",
     "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1",
     "PDM_UNIFIED_ENTITY_DETAIL_V1",
     "PDM_DRAWING_REVISION_LIFECYCLE_MODE"
@@ -134,6 +137,12 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
     assert.match(workflow, new RegExp(flag, "u"));
     assert.match(runtime, new RegExp(flag, "u"));
   }
+  assert.match(candidateWorkflow, /npm run qc:dev-079:contract/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-079:owner-invariant/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-101:package/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-101:qa-integrity/u);
+  assert.match(candidateWorkflow, /051_drawing_recognition_part_owner_invariant\.cloudsql\.sql/u);
+  assert.match(candidateWorkflow, /schemaMigrationCount !== 49/u);
   assert.match(candidateWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);
   assert.match(smoke, /origin reaches token validation/u);
 });
@@ -287,6 +296,11 @@ record("PROD-PIPE-017 traffic convergence polling stays within service-scoped pe
   assert.equal(isReleaseTrafficApplied(rolledBack, { kind: "revision", revision: previousRevision }), true);
   assert.match(trafficRunner, /waitForReleaseTraffic/u);
   assert.doesNotMatch(trafficRunner, /waitForOperation|operation\.name/u);
+});
+
+record("PROD-PIPE-018 production workflows are classified as included release governance", () => {
+  assert.match(releaseSourceManifestUtils, /filePath\.startsWith\("\.github\/workflows\/"\)/u);
+  assert.match(releaseSourceManifestUtils, /CI\/CD workflow is part of the reviewed production release contract/u);
 });
 
 for (const result of results) {

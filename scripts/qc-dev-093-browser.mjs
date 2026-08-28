@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
-import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
+import { createTaskOwnedNextTsconfig, getFreePort, restoreNextEnv, snapshotNextEnv, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
 
 const root = process.cwd();
 const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
@@ -13,6 +13,7 @@ const sourceRepository = path.join(root, "data", "repository");
 const runId = `DEV093-${new Date().toISOString().replace(/[:.]/g, "-")}`;
 const outputDir = path.join(root, "output", "qa", "dev-093", runId);
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev093-browser-"));
+const nextEnvSnapshot = snapshotNextEnv(root);
 const fixtureData = path.join(tempRoot, "data");
 const fixtureDb = path.join(fixtureData, "ai-pdm.sqlite");
 const fixtureRepository = path.join(fixtureData, "repository");
@@ -21,16 +22,18 @@ const responseLedger = [];
 const consoleErrors = [];
 const pageErrors = [];
 const failedRequests = [];
+const faultInjections = [];
 const envKeys = [
   "NODE_ENV", "PDM_AUTH_MODE", "PDM_DB_PROVIDER", "PDM_DATA_DIR", "PDM_REPOSITORY_DIR", "PDM_RELEASE_MODE",
   "PDM_LOCAL_FULL_FUNCTION_VALIDATION", "PDM_ENABLE_LOCAL_QUICK_LOGIN", "PDM_PRODUCTION_SLICE_MODE",
-  "PDM_POSTGRES_URL", "DATABASE_URL", "PDM_NEXT_DIST_DIR", "PDM_PUBLIC_BASE_URL", "PDM_BUILD_COMMIT"
+  "PDM_POSTGRES_URL", "DATABASE_URL", "PDM_NEXT_DIST_DIR", "PDM_NEXT_TSCONFIG_PATH", "PDM_PUBLIC_BASE_URL", "PDM_BUILD_COMMIT"
 ];
 const originalEnv = new Map(envKeys.map((key) => [key, process.env[key]]));
 let app = null;
 let browser = null;
 let baseUrl = "";
 let port = null;
+let nextTsconfig = null;
 
 function check(id, passed, detail = "") {
   const row = { id, passed: Boolean(passed), detail };
@@ -85,6 +88,16 @@ function dbRows(sql, params = {}) {
   const rows = db.prepare(sql).all(params);
   db.close();
   return rows;
+}
+
+function injectStalePartSequence(rootCode) {
+  const sequenceKey = `company-jenfu:part:${rootCode}`;
+  const db = new Database(fixtureDb);
+  db.prepare(`INSERT INTO numbering_sequences (sequence_key, company_id, next_value, updated_at)
+    VALUES (?, 'company-jenfu', 1, CURRENT_TIMESTAMP)
+    ON CONFLICT(sequence_key) DO UPDATE SET next_value = 1, updated_at = CURRENT_TIMESTAMP`).run(sequenceKey);
+  db.close();
+  faultInjections.push({ type: "stale_part_sequence", rootCode, sequenceKey, injectedNextValue: 1 });
 }
 
 function expectedWorkbenchCommit() {
@@ -428,19 +441,24 @@ async function runRound(round) {
     const appendRoot = purchasedRoot;
     const rootCode = appendRoot?.root_code;
     check(`QA-093-006-r${round}`, Boolean(rootCode), "new root is available for existing-root context");
+    injectStalePartSequence(rootCode);
     const duplicateCallsBeforeAppend = responseLedger.filter((item) => item.url.includes("duplicate-check")).length;
     const appendPartPage = await createPage(context, "part", rootCode);
     check(`QA-093-086-ui-r${round}`, await appendPartPage.getByLabel("主要名詞", { exact: true }).count() === 0 && await appendPartPage.getByText("建議品名", { exact: true }).count() === 0, "existing root shows no naming builder");
     await appendPartPage.locator(".canonical-create-number-list").waitFor({ state: "visible", timeout: 30000 });
+    const appendPreviewText = await appendPartPage.locator(".canonical-create-number-list").innerText();
+    const expectedAppendPartNumber = `${rootCode}-P02`;
+    check(`QA-093-111-preview-r${round}`, appendPreviewText.includes(expectedAppendPartNumber), `preview=${appendPreviewText}`);
     const rootContextText = await appendPartPage.locator(".canonical-create-existing-root").innerText();
     const hiddenProfileLabels = ["料件類型", "結構型態", "共用件", "系列代號（選填）", "規格／特性（選填）"];
     check(`QA-093-108-r${round}`, rootContextText.includes(rootCode) && rootContextText.includes(purchasedName) && (await Promise.all(hiddenProfileLabels.map((label) => appendPartPage.getByLabel(label, { exact: true }).count()))).every((count) => count === 0) && await appendPartPage.getByText("將建立", { exact: true }).count() === 1 && appendPartPage.url().includes(`root=${encodeURIComponent(rootCode)}`), `existing root compact context=${rootContextText}`);
     await appendPartPage.screenshot({ path: path.join(outputDir, `existing-root-compact-round-${round}.png`), fullPage: true });
     const beforeAppendPart = domainSnapshot();
     const appendPartResult = await submitCreate(appendPartPage, { coreName: "", label: `QA-093-021-r${round}` });
-    const appendPart = rootCode && appendRoot && dbRows("SELECT id, item_kind, structure_type, custom_specification, series_code, is_universal FROM part_numbers WHERE part_root_id = :rootId ORDER BY created_at DESC LIMIT 1", { rootId: appendRoot.id })[0];
+    const appendPart = rootCode && appendRoot && dbRows("SELECT id, part_number, item_kind, structure_type, custom_specification, series_code, is_universal FROM part_numbers WHERE part_root_id = :rootId ORDER BY created_at DESC LIMIT 1", { rootId: appendRoot.id })[0];
     const afterAppendPart = domainSnapshot();
     check(`QA-093-021-r${round}`, Boolean(appendPart && afterAppendPart.roots === beforeAppendPart.roots && afterAppendPart.parts === beforeAppendPart.parts + 1), `${appendPartResult.text}; href=${appendPartResult.href}`);
+    check(`QA-093-111-r${round}`, appendPart?.part_number === expectedAppendPartNumber, `expected=${expectedAppendPartNumber}; actual=${appendPart?.part_number}`);
     check(`QA-093-096-append-r${round}`, isCanonicalInitialPartState(appendPart && partWorkbenchState(appendPart.id)), "appended part and part_formal workbench state commit atomically");
     const appendPartBody = appendPartResult.requestBodies[0]?.body ?? {};
     const repeatedProfileKeys = ["itemKind", "structureType", "isUniversal", "seriesCode", "customSpecification"];
@@ -510,6 +528,8 @@ async function main() {
     PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "", PDM_POSTGRES_URL: "", DATABASE_URL: "",
     PDM_NEXT_DIST_DIR: `.tmp/qc-dev093-browser-${port}`, PDM_PUBLIC_BASE_URL: baseUrl, PDM_BUILD_COMMIT: buildCommit
   });
+  nextTsconfig = createTaskOwnedNextTsconfig(root, `dev093-${port}`, process.env.PDM_NEXT_DIST_DIR);
+  process.env.PDM_NEXT_TSCONFIG_PATH = nextTsconfig.relativePath;
   console.log(`QC DEV-093 runtime: project=${root}; purpose=UI-only number creation; port=${port}; owner=current QC process tree; cleanup=after two fresh-session rounds`);
   app = startNextApp(root, "dev", port);
   await waitForNextAppReady(baseUrl, app.getOutput);
@@ -528,7 +548,7 @@ async function main() {
     task: "DEV-093", runId, provider: "sqlite", database: fixtureDb, appUrl: baseUrl, buildCommit,
     rounds: 2, before, after, checks, responseCount: responseLedger.length,
     legacyCallerCount: responseLedger.filter((item) => item.url.includes("draft-workspaces")).length,
-    consoleErrors, pageErrors, failedRequests,
+    consoleErrors, pageErrors, failedRequests, faultInjections,
     note: "All domain mutations in this runner were performed through rendered UI; SQLite reads are post-operation evidence only."
   };
   fs.writeFileSync(path.join(outputDir, "manifest.json"), JSON.stringify(manifest, null, 2));
@@ -547,6 +567,13 @@ try {
   if (browser) await browser.close().catch(() => undefined);
   if (app) await stopNextApp(app.child).catch(() => undefined);
   restoreEnvironment();
-  fs.rmSync(tempRoot, { recursive: true, force: true });
+  try {
+    fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 50, retryDelay: 500 });
+  } catch (error) {
+    console.warn(`DEV093 task workspace cleanup pending: ${error instanceof Error ? error.message : String(error)}`);
+  }
   if (port !== null) fs.rmSync(path.join(root, ".tmp", `qc-dev093-browser-${port}`), { recursive: true, force: true });
+  if (nextTsconfig) fs.rmSync(nextTsconfig.absolutePath, { force: true });
+  const nextEnvRestore = await restoreNextEnv(nextEnvSnapshot);
+  if (!nextEnvRestore.restored) console.warn(`DEV093 next-env cleanup pending: ${nextEnvRestore.error}`);
 }

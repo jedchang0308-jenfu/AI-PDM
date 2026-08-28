@@ -256,7 +256,7 @@ function staticChecks() {
   record("Drawing page avoids large stats grid", !drawingsSource.includes("stats-grid") && !drawingsSource.includes("MetricCard"), pageFiles["/numbering/drawings"]);
   record("Drawing table removes list action column", !drawingsSource.includes("<th>動作</th>") && !drawingsSource.includes("compact-button"), pageFiles["/numbering/drawings"]);
   record("Drawing detail preserves traceability action", /追溯/u.test(drawingsSource) && drawingsSource.includes("/numbering/search?query="), pageFiles["/numbering/drawings"]);
-  record("Drawing detail preserves manufacturing impact action", /影響/u.test(drawingsSource) && drawingsSource.includes("/numbering/impact?drawingNumber=") && drawingsSource.includes("isManufacturingDrawingPurpose"), pageFiles["/numbering/drawings"]);
+  record("Drawing detail omits retired standalone manufacturing impact action", !drawingsSource.includes("/numbering/impact"), pageFiles["/numbering/drawings"]);
   record(
     "Drawing drawer persists resized width",
     drawingsSource.includes("pdm-drawing-detail-drawer-width") && drawingsSource.includes("window.localStorage.setItem") && drawingsSource.includes("clampDrawerWidth"),

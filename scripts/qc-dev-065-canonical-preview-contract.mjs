@@ -25,7 +25,7 @@ const layoutSwitch = read("src/components/pdm-workbench-layout-switch.tsx");
 const feature = read("src/lib/number-state-flow-feature.ts");
 const packageJson = JSON.parse(read("package.json"));
 
-const { buildCanonicalDrawingPreviewMap, resolveCanonicalDrawingPreview, selectCanonicalThreeDSource } = await import("../src/lib/pdm-canonical-preview.ts");
+const { buildCanonicalDrawingPreviewMap, resolveCanonicalDrawingPreview, selectCanonicalThreeDSource, selectCanonicalTwoDSource } = await import("../src/lib/pdm-canonical-preview.ts");
 
 check("CPG-001 neutral DTO atomically uses previewByRowKey", contract.includes("previewByRowKey?") && !contract.includes("preview3dByRowKey") && preview.includes("CanonicalPreviewProjection"));
 check("CPG-002 exact canonical row keys are preserved", preview.includes("result[`cw_${row.id}`]") && component.includes("previewByRowKey"));
@@ -45,6 +45,10 @@ check("CPG-008 visible rows and preview key set are equal", Object.keys(map).sor
 check("CPG-009 ready media uses canonical file read only", map["cw_state-1"].media?.href.startsWith("/api/pdm/file-assets/asset-1?") === true && !map["cw_state-1"].media?.href.includes("/preview/"));
 check("CPG-010 Part resolver is three bulk statements without row loops", partRepository.includes("listSettingsAndCustomAssets") && partRepository.includes("listPrimaryDrawingSources") && partRepository.includes("listDerivativeJobs") && !partRepository.includes("for (const part"));
 check("CPG-011 gallery has no per-card preview endpoint", gallery.includes("CanonicalPreviewMedia") && !gallery.includes("/workbench/") && !gallery.includes("fetch("));
+const pdfSource = source({ bindingId: "pdf", assetId: "asset-pdf", role: "pdf", displayName: "A0002-M01.pdf", fileName: "A0002-M01.pdf", fileExt: "pdf", mimeType: "application/pdf", contentHash: "hash-pdf", isPrimary: 0, sortOrder: 0 });
+const nativeTwoDSource = source({ bindingId: "native-2d", assetId: "asset-native-2d", role: "drawing_2d", displayName: "A0002-M01.SLDDRW", fileName: "A0002-M01.SLDDRW", fileExt: "slddrw", mimeType: "application/octet-stream", contentHash: "hash-native-2d", isPrimary: 1, sortOrder: 1 });
+check("CPG-FALLBACK-001 controlled PDF is the immediate 2D fallback", selectCanonicalTwoDSource([pdfSource, nativeTwoDSource], "rev-1", [])?.assetId === "asset-pdf");
+check("CPG-FALLBACK-002 current native derivative outranks the PDF fallback", selectCanonicalTwoDSource([pdfSource, nativeTwoDSource], "rev-1", [readyDerivative({ sourceFileAssetId: "asset-native-2d", sourceContentHash: "hash-native-2d" })])?.assetId === "asset-native-2d");
 check("CPG-012 current caller is entity-neutral", component.includes("CanonicalEntityPreviewGallery") && component.includes("previewByRowKey") && !component.includes("preview3dByRowKey"));
 check("CPG-013 Drawing/Part URL-storage precedence is explicit", component.includes("urlLayout ?? storedLayout ?? \"list\"") && preview.includes("pdm-canonical-drawing-layout-v1") && preview.includes("pdm-canonical-part-layout-v1"));
 check("CPG-014 layout switch uses replaceState and pressed buttons", component.includes("replaceLocation({ layout: next })") && layoutSwitch.includes("aria-pressed"));

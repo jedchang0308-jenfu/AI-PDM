@@ -3,9 +3,11 @@ import path from "node:path";
 import {
   intentToRequest,
   normalizeCreateIntent,
+  normalizeCreateError,
   suggestCanonicalProductName,
   validateCreateIntent,
 } from "../src/lib/canonical-numbering-create-contract.ts";
+import { canonicalNumberingCreateApiError } from "../src/lib/canonical-numbering-create-error.ts";
 
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -161,9 +163,12 @@ check("QA-093-105", !form.includes("<span>自訂規格（選填）</span>") && !
 check("QA-093-106", !form.includes("共用原因") && !form.includes("universalReason") && !routes.includes("universalReason is required"), "shared checkbox no longer exposes or requires a reason");
 check("QA-093-107", !changeWorkspace.includes("共用原因") && !changeWorkspace.includes("universalReason") && !partChangeRepository.includes("共用件必須填寫共用原因") && !detailProjection.includes('field("universalReason"') && !drawingPartRoute.includes("universalReason is required"), "part change workspace, detail projection and drawing-linked append route also remove shared reason semantics");
 check("QA-093-108", form.includes('hasPart && scope === "new_root"') && !form.includes("料件設定（沿用根號）") && forbiddenExistingProfileKeys.every((key) => !Object.hasOwn(existingPartRequest.body, key) && !Object.hasOwn(existingDrawingPartRequest.body, key)), "existing-root UI and command omit all repeated part-profile settings");
-check("QA-093-109", appendPolicyRoute.includes("structureType: detail.partNumbers[0].structureType") && asyncNumberingRepository.includes("getRootAppendPartProfile") && asyncNumberingRepository.includes("const structureType = inheritedPart.structureType") && asyncNumberingRepository.includes("isUniversal: inheritedPart.isUniversal") && asyncNumberingRepository.includes("customSpecification: inheritedPart.customSpecification ?? undefined") && asyncNumberingRepository.includes("seriesCode: inheritedPart.seriesCode ?? undefined") && asyncNumberingRepository.includes("PART_ROOT_STRUCTURE_TYPE_MISMATCH") && rootPartsRoute.includes("rawStructureType !== undefined") && rootDrawingPartRoute.includes("rawStructureType !== undefined"), "server inherits the complete canonical root part profile and only validates explicitly supplied compatibility fields");
-check("QA-093-110", appendPolicyRoute.includes('profileBlocked: inheritedPart.structureType === "unclassified"') && form.includes("policy?.profileBlocked") && form.includes("此圖料根號的料件資料不完整，請系統管理員處理。") && asyncNumberingRepository.includes("PART_ROOT_STRUCTURE_TYPE_UNCLASSIFIED"), "unclassified legacy profile fails closed before append and exposes one actionable human message");
-check("QA-093-095", checks.filter((item) => /^QA-093-(?:0(?:7[3-9]|8[0-9]|9[0-4]|98|99)|10[0-9]|110)$/u.test(item.id)).every((item) => item.ok), "corrective gate independently requires naming/disclosure, derivation, single-source specification, reason-free shared checkbox and quiet existing-root inheritance");
+check("QA-093-109", appendPolicyRoute.includes("consensusStoredPartStructureType") && appendPolicyRoute.includes("profileBlocked: false") && asyncNumberingRepository.includes("getRootAppendPartProfile") && asyncNumberingRepository.includes("const structureType = inheritedPart.structureType") && asyncNumberingRepository.includes("isUniversal: inheritedPart.isUniversal") && asyncNumberingRepository.includes("customSpecification: inheritedPart.customSpecification ?? undefined") && asyncNumberingRepository.includes("seriesCode: inheritedPart.seriesCode ?? undefined") && asyncNumberingRepository.includes("PART_ROOT_STRUCTURE_TYPE_MISMATCH") && rootPartsRoute.includes("rawStructureType !== undefined") && rootDrawingPartRoute.includes("rawStructureType !== undefined"), "deferred structure classification preserves the complete root profile and validates only explicitly supplied compatibility fields");
+check("QA-093-110", appendPolicyRoute.includes("profileBlocked: false") && !form.includes("此圖料根號的料件資料不完整") && !appendPolicyRoute.includes('profileBlocked: inheritedPart.structureType === "unclassified"') && asyncNumberingRepository.includes('const structureType = input.structureType ?? "unclassified"'), "unclassified legacy profile remains appendable while the deferred classification boundary is explicit");
+const allocationFailure = canonicalNumberingCreateApiError(new Error("UNIQUE constraint failed: part_numbers.part_root_id, part_numbers.sequence_code"));
+const allocationUiError = normalizeCreateError(allocationFailure.status, allocationFailure);
+check("QA-093-111", asyncNumberingRepository.includes("allocateAvailablePartSequence") && asyncNumberingRepository.includes("FOR UPDATE") && asyncNumberingRepository.includes("numbering_recovery_reservations") && allocationFailure.status === 409 && allocationFailure.error === "NUMBERING_ALLOCATION_CONFLICT" && !allocationUiError.message.includes("UNIQUE") && !allocationUiError.message.includes("part_numbers"), `allocation=${JSON.stringify(allocationFailure)} ui=${allocationUiError.message}`);
+check("QA-093-095", checks.filter((item) => /^QA-093-(?:0(?:7[3-9]|8[0-9]|9[0-4]|98|99)|10[0-9]|11[01])$/u.test(item.id)).every((item) => item.ok), "corrective gate independently requires naming/disclosure, derivation, single-source specification, reason-free shared checkbox, quiet existing-root inheritance and collision-safe allocation");
 const failed = checks.filter((item) => !item.ok);
 console.log(JSON.stringify({ task: "DEV-093", passed: failed.length === 0, checks }, null, 2));
 if (failed.length) process.exitCode = 1;

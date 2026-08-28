@@ -34,16 +34,15 @@ record("DEV032-COMMIT-PLAN-002 plan is not a git or production action", plan?.pr
 record("DEV032-COMMIT-PLAN-003 no unknown-risk paths are allowed", plan?.summary?.unknownRiskEntries === 0 && Array.isArray(plan?.unknownRiskPaths) && plan.unknownRiskPaths.length === 0);
 record("DEV032-COMMIT-PLAN-004 included pathspec matches included source list", JSON.stringify(includedPathspec) === JSON.stringify(included));
 record("DEV032-COMMIT-PLAN-005 excluded pathspec matches generated and staging list", JSON.stringify(excludedPathspec) === JSON.stringify(excluded));
-record("DEV032-COMMIT-PLAN-006 included pathspec excludes output evidence", included.every((item) => !item.startsWith("output/") && !item.startsWith(".firebase/")));
+record("DEV032-COMMIT-PLAN-006 included pathspec excludes output evidence", included.every((item) => !item.startsWith("output/") && !item.startsWith(".artifacts/") && !item.startsWith(".firebase/")));
 record("DEV032-COMMIT-PLAN-007 included pathspec excludes staging-only provider config", included.every((item) => item !== ".firebaserc" && item !== "firebase.json" && !item.startsWith("firebase-hosting/") && !item.startsWith("infra/google-cloud/staging/") && item !== "config/platform/staging-preflight.template.json"));
 record("DEV032-COMMIT-PLAN-008 included pathspec matches plan mode", plan?.releaseDecision?.exactReleaseCommitExists === true ? included.length === 0 : included.length > 0 && plan?.releaseDecision?.safeToStageIncludedSource === true);
 record(
   "DEV032-COMMIT-PLAN-009 excluded list covers generated evidence and dirty staging-only config",
-  excluded.some((item) => item.startsWith("output/")) &&
+  excluded.length === plan?.summary?.excludedGeneratedOrStagingEntries &&
+    (plan?.summary?.generatedEvidenceEntries === 0 || excluded.some((item) => item.startsWith("output/") || item.startsWith(".artifacts/") || item.startsWith(".firebase/"))) &&
     (plan?.summary?.stagingOnlyEntries === 0 ||
-      (excluded.includes(".firebaserc") &&
-        excluded.includes("firebase.json") &&
-        excluded.some((item) => item.startsWith("infra/google-cloud/staging/"))))
+      excluded.some((item) => item === ".firebaserc" || item === "firebase.json" || item.startsWith("firebase-hosting/") || item.startsWith("infra/google-cloud/staging/") || item === "config/platform/staging-preflight.template.json"))
 );
 record("DEV032-COMMIT-PLAN-010 source decision state is coherent and safe-to-build remains false", plan?.releaseDecision?.safeToBuildForProduction === false && (plan?.releaseDecision?.exactReleaseCommitExists === true ? plan?.releaseDecision?.safeToStageIncludedSource === false && plan?.releaseDecision?.releaseCommitSha : plan?.releaseDecision?.safeToStageIncludedSource === true));
 record("DEV032-COMMIT-PLAN-011 package exposes generator and QC scripts", packageJson.scripts["dev-032:release-source-commit-plan"] === "node scripts/generate-dev-032-release-source-commit-plan.mjs" && packageJson.scripts["qc:dev-032-release-source-commit-plan"] === "node scripts/qc-dev-032-release-source-commit-plan.mjs");

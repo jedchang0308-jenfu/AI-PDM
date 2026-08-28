@@ -28,9 +28,17 @@ if (!contractCheck && provider !== "cloud_sql_postgres") throw new Error(`DEV087
 if (!contractCheck && !connectionString) throw new Error("DEV087_POSTGRES_CONNECTION_REQUIRED");
 
 const allowedTargetTables = new Set([
+  "drawing_revisions", "part_roots", "part_numbers", "drawing_numbers", "drawing_part_links",
   "pdm_workbench_aggregates", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works",
   "drawing_revision_work_files", "part_change_works", "relation_change_works", "canonical_workbench_states",
-  "pdm_work_review_requests", "pdm_review_traces"
+  "pdm_work_review_requests", "pdm_review_traces", "pdm_workbench_migration_quarantine"
+]);
+const canonicalIdentityBackfillTables = new Set(["drawing_revisions", "part_roots", "part_numbers", "drawing_numbers", "drawing_part_links"]);
+const allowedSourceUpdateColumns = new Map([
+  ["drawings", new Set(["formal_drawing_number_id", "part_root_id"])]
+]);
+const allowedSourceUpdateHashNormalizationColumns = new Map([
+  ["drawings", new Set(["updated_at"])]
 ]);
 const receiptTargetTables = new Set([...allowedTargetTables].filter((table) => table !== "drawing_revision_work_files"));
 receiptTargetTables.add("drawing_revision_files");
@@ -63,7 +71,7 @@ const stableJson = (value) => {
 };
 
 function validateMapping(mapping, inventory) {
-  if (!mapping || mapping.version !== 2) throw new Error("DEV087_POSTGRES_MAPPING_VERSION_INVALID");
+  if (!mapping || ![2, 3].includes(mapping.version)) throw new Error("DEV087_POSTGRES_MAPPING_VERSION_INVALID");
   if (mapping.sourceFingerprint !== inventory.sourceFingerprint) throw new Error("DEV087_POSTGRES_MAPPING_SOURCE_DRIFT");
   if (mapping.productionDiscard === true || mapping.retainUnmappedLegacy === true) throw new Error("DEV087_POSTGRES_MAPPING_LOSS_POLICY_FORBIDDEN");
   const expected = new Map(inventory.legacySources.map((source) => [`${source.sourceTable}:${source.sourceIdentity}`, source]));
@@ -82,8 +90,17 @@ function validateMapping(mapping, inventory) {
   const unresolved = [];
   for (const source of expected.values()) if (!seen.has(`${source.sourceTable}:${source.sourceIdentity}`)) unresolved.push(source);
   const targetRows = Array.isArray(mapping.targetRows) ? mapping.targetRows : [];
+  const seenTargetRows = new Set();
   for (const operation of targetRows) {
     if (!allowedTargetTables.has(operation.table) || !operation.row || typeof operation.row !== "object" || Array.isArray(operation.row)) throw new Error("DEV087_POSTGRES_TARGET_ROW_INVALID");
+    const identityColumn = targetIdentityColumns.get(operation.table);
+    const identity = identityColumn ? operation.row[identityColumn] : null;
+    if (!identity) throw new Error(`DEV087_POSTGRES_TARGET_IDENTITY_MISSING:${operation.table}`);
+    const targetKey = `${operation.table}:${identity}`;
+    if (seenTargetRows.has(targetKey)) throw new Error(`DEV087_POSTGRES_TARGET_ROW_DUPLICATE:${targetKey}`);
+    seenTargetRows.add(targetKey);
+    if (mapping.version >= 3 && !/^[a-f0-9]{64}$/iu.test(String(operation.targetHash || ""))) throw new Error(`DEV087_POSTGRES_TARGET_HASH_REQUIRED:${targetKey}`);
+    if (mapping.version < 3 && canonicalIdentityBackfillTables.has(operation.table)) throw new Error(`DEV087_POSTGRES_CANONICAL_IDENTITY_REQUIRES_MAPPING_V3:${operation.table}`);
   }
   if (targetRows.some((operation) => operation.table === "drawing_revision_work_files")) throw new Error("DEV092_POSTGRES_WORK_FILE_ROWS_REQUIRE_COMPOSITE_RECEIPTS");
   const drawingWorkFiles = Array.isArray(mapping.drawingWorkFiles) ? mapping.drawingWorkFiles : [];
@@ -110,7 +127,22 @@ function validateMapping(mapping, inventory) {
     seenFileAssets.add(receipt.sourceFileAssetId);
   }
   for (const sourceFileAssetId of expectedFileAssets) if (!seenFileAssets.has(sourceFileAssetId)) unresolved.push({ sourceTable: "file_assets", sourceIdentity: sourceFileAssetId, reason: "file_receipt_missing" });
-  return { receipts, fileReceipts, workFileReceipts, drawingWorkFiles, targetRows, unresolved };
+  const sourceUpdates = Array.isArray(mapping.sourceUpdates) ? mapping.sourceUpdates : [];
+  const seenSourceUpdates = new Set();
+  for (const operation of sourceUpdates) {
+    const allowedColumns = allowedSourceUpdateColumns.get(operation?.table);
+    const allowedHashNormalizationColumns = allowedSourceUpdateHashNormalizationColumns.get(operation?.table) || new Set();
+    const entries = operation?.set && typeof operation.set === "object" && !Array.isArray(operation.set) ? Object.entries(operation.set) : [];
+    const hashNormalizationEntries = operation?.hashNormalization && typeof operation.hashNormalization === "object" && !Array.isArray(operation.hashNormalization) ? Object.entries(operation.hashNormalization) : [];
+    const key = `${operation?.table || ""}:${operation?.identity || ""}`;
+    if (mapping.version < 3) throw new Error("DEV087_POSTGRES_SOURCE_UPDATE_REQUIRES_MAPPING_V3");
+    if (!allowedColumns || !operation.identity || entries.length === 0 || entries.some(([column]) => !allowedColumns.has(column))) throw new Error(`DEV087_POSTGRES_SOURCE_UPDATE_INVALID:${key}`);
+    if (hashNormalizationEntries.some(([column]) => !allowedHashNormalizationColumns.has(column))) throw new Error(`DEV087_POSTGRES_SOURCE_UPDATE_HASH_NORMALIZATION_INVALID:${key}`);
+    if (!/^[a-f0-9]{64}$/iu.test(String(operation.expectedBeforeHash || "")) || !/^[a-f0-9]{64}$/iu.test(String(operation.expectedAfterHash || ""))) throw new Error(`DEV087_POSTGRES_SOURCE_UPDATE_HASH_REQUIRED:${key}`);
+    if (seenSourceUpdates.has(key)) throw new Error(`DEV087_POSTGRES_SOURCE_UPDATE_DUPLICATE:${key}`);
+    seenSourceUpdates.add(key);
+  }
+  return { mappingVersion: mapping.version, receipts, fileReceipts, workFileReceipts, drawingWorkFiles, targetRows, sourceUpdates, unresolved };
 }
 
 async function tableExists(client, table) {
@@ -154,6 +186,82 @@ async function insertRow(client, table, row) {
   const values = columns.map((column) => row[column]);
   const quoted = columns.map((column) => `"${column.replaceAll('"', '""')}"`);
   await client.query(`INSERT INTO ${table} (${quoted.join(",")}) VALUES (${columns.map((_, index) => `$${index + 1}`).join(",")}) ON CONFLICT DO NOTHING`, values);
+}
+
+async function rowByIdentity(client, table, identityColumn, identity) {
+  const result = await client.query(`SELECT to_jsonb(target) AS row FROM ${table} target WHERE ${identityColumn}=$1 LIMIT 1`, [identity]);
+  return result.rows[0]?.row ?? null;
+}
+
+async function verifyTargetRows(client, operations) {
+  const missing = [];
+  for (const operation of operations) {
+    if (!operation.targetHash) continue;
+    const identityColumn = targetIdentityColumns.get(operation.table);
+    const identity = operation.row[identityColumn];
+    const row = await rowByIdentity(client, operation.table, identityColumn, identity);
+    if (!row || sha256(stableJson(row)) !== operation.targetHash) missing.push({ table: operation.table, identity, reason: row ? "target_row_hash_mismatch" : "target_row_missing" });
+  }
+  return missing;
+}
+
+async function applySourceUpdate(client, operation) {
+  const identityColumn = "id";
+  const current = await rowByIdentity(client, operation.table, identityColumn, operation.identity);
+  if (!current) throw new Error(`DEV087_POSTGRES_SOURCE_UPDATE_MISSING:${operation.table}:${operation.identity}`);
+  const normalizedHash = (row) => sha256(stableJson({ ...row, ...(operation.hashNormalization || {}) }));
+  const currentHash = normalizedHash(current);
+  if (currentHash === operation.expectedAfterHash) return;
+  if (currentHash !== operation.expectedBeforeHash) throw new Error(`DEV087_POSTGRES_SOURCE_UPDATE_DRIFT:${operation.table}:${operation.identity}`);
+  const entries = Object.entries(operation.set);
+  await client.query(`UPDATE ${operation.table} SET ${entries.map(([column], index) => `"${column.replaceAll('"', '""')}"=$${index + 1}`).join(",")} WHERE ${identityColumn}=$${entries.length + 1}`, [...entries.map(([, value]) => value), operation.identity]);
+  const after = await rowByIdentity(client, operation.table, identityColumn, operation.identity);
+  if (!after || normalizedHash(after) !== operation.expectedAfterHash) throw new Error(`DEV087_POSTGRES_SOURCE_UPDATE_VERIFY_FAILED:${operation.table}:${operation.identity}`);
+}
+
+async function snapshotMutationRows(client, validation) {
+  const tables = new Set([
+    ...validation.targetRows.filter((operation) => sourceTables.includes(operation.table)).map((operation) => operation.table),
+    ...validation.sourceUpdates.map((operation) => operation.table)
+  ]);
+  const snapshots = new Map();
+  for (const table of tables) {
+    const identityColumn = targetIdentityColumns.get(table) || "id";
+    const result = await client.query(`SELECT ${identityColumn}::text AS identity,to_jsonb(source) AS row FROM ${table} source ORDER BY ${identityColumn}::text`);
+    snapshots.set(table, new Map(result.rows.map((entry) => [entry.identity, { row: entry.row, hash: sha256(stableJson(entry.row)) }])));
+  }
+  return snapshots;
+}
+
+async function reconcileSourceMutations(client, before, after, beforeSnapshots, validation) {
+  const unresolved = [];
+  const mutationTables = new Set(beforeSnapshots.keys());
+  for (const table of sourceTables) {
+    if (!mutationTables.has(table) && (before.tables[table]?.count !== after.tables[table]?.count || before.tables[table]?.hash !== after.tables[table]?.hash)) unresolved.push({ table, reason: "source_fingerprint_drift" });
+  }
+  for (const table of mutationTables) {
+    const identityColumn = targetIdentityColumns.get(table) || "id";
+    const beforeRows = beforeSnapshots.get(table);
+    const result = await client.query(`SELECT ${identityColumn}::text AS identity,to_jsonb(source) AS row FROM ${table} source ORDER BY ${identityColumn}::text`);
+    const afterRows = new Map(result.rows.map((entry) => [entry.identity, { row: entry.row, hash: sha256(stableJson(entry.row)) }]));
+    const inserts = new Map(validation.targetRows.filter((operation) => operation.table === table).map((operation) => [String(operation.row[identityColumn]), operation.targetHash]));
+    const updates = new Map(validation.sourceUpdates.filter((operation) => operation.table === table).map((operation) => [String(operation.identity), operation]));
+    for (const [identity, beforeEntry] of beforeRows) {
+      const update = updates.get(identity);
+      const expectedHash = update?.expectedAfterHash || beforeEntry.hash;
+      const afterEntry = afterRows.get(identity);
+      const actualHash = update && afterEntry ? sha256(stableJson({ ...afterEntry.row, ...(update.hashNormalization || {}) })) : afterEntry?.hash;
+      if (!afterRows.has(identity)) unresolved.push({ table, identity, reason: "source_row_missing" });
+      else if (actualHash !== expectedHash) unresolved.push({ table, identity, reason: updates.has(identity) ? "source_update_hash_mismatch" : "source_row_changed" });
+    }
+    for (const [identity, expectedHash] of inserts) {
+      if (!afterRows.has(identity)) unresolved.push({ table, identity, reason: "canonical_identity_backfill_missing" });
+      else if (afterRows.get(identity).hash !== expectedHash) unresolved.push({ table, identity, reason: "canonical_identity_backfill_hash_mismatch" });
+    }
+    const allowedIdentities = new Set([...beforeRows.keys(), ...inserts.keys()]);
+    for (const identity of afterRows.keys()) if (!allowedIdentities.has(identity)) unresolved.push({ table, identity, reason: "unexpected_source_row" });
+  }
+  return { mutationTables: [...mutationTables], unresolved, pass: unresolved.length === 0 };
 }
 
 async function insertAutomaticFormalProjection(client) {
@@ -232,7 +340,7 @@ async function targetForeignKeyReceipt(client) {
 
 fs.mkdirSync(outputDir, { recursive: true });
 if (contractCheck) {
-  const result = { status: "PASS", mappingVersion: 2, providerRequired: "cloud_sql_postgres", modes: ["inventory", "rehearsal", "cutover"], productionDiscardAllowed: false, mappingRequiredForApply: true, rowHashReceiptsRequired: true, fileHashReceiptsRequired: true, compositeWorkFileRowsField: "drawingWorkFiles", compositeWorkFileReceiptsRequired: true, allowedTargetTables: [...allowedTargetTables] };
+  const result = { status: "PASS", mappingVersion: 3, acceptedMappingVersions: [2, 3], providerRequired: "cloud_sql_postgres", modes: ["inventory", "rehearsal", "cutover"], productionDiscardAllowed: false, mappingRequiredForApply: true, rowHashReceiptsRequired: true, fileHashReceiptsRequired: true, sourceUpdateHashReceiptsRequired: true, canonicalIdentityBackfillTables: [...canonicalIdentityBackfillTables], compositeWorkFileRowsField: "drawingWorkFiles", compositeWorkFileReceiptsRequired: true, allowedTargetTables: [...allowedTargetTables] };
   fs.writeFileSync(path.join(outputDir, "contract.json"), `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result, null, 2));
   process.exit(0);
@@ -244,15 +352,19 @@ let report;
 try {
   const before = await inventory(client);
   const mapping = mappingPath ? JSON.parse(fs.readFileSync(path.resolve(mappingPath), "utf8")) : null;
-  const validation = mapping ? validateMapping(mapping, before) : { receipts: [], fileReceipts: [], workFileReceipts: [], drawingWorkFiles: [], targetRows: [], unresolved: [...before.legacySources, ...before.legacyFileAssets.map((entry) => ({ sourceTable: "file_assets", sourceIdentity: entry.fileAssetId, reason: "file_receipt_missing" }))] };
+  const validation = mapping ? validateMapping(mapping, before) : { mappingVersion: null, receipts: [], fileReceipts: [], workFileReceipts: [], drawingWorkFiles: [], targetRows: [], sourceUpdates: [], unresolved: [...before.legacySources, ...before.legacyFileAssets.map((entry) => ({ sourceTable: "file_assets", sourceIdentity: entry.fileAssetId, reason: "file_receipt_missing" }))] };
+  const sourceMutationBefore = await snapshotMutationRows(client, validation);
   if (apply && validation.unresolved.length) throw new Error(`DEV087_POSTGRES_UNRESOLVED:${validation.unresolved.length}`);
   if (apply) {
     await client.query("BEGIN");
     try {
       await client.query(fs.readFileSync(path.resolve("db/postgres/042_status_data_rebuild.sql"), "utf8"));
-      await insertAutomaticFormalProjection(client);
+      if (validation.mappingVersion !== 3) await insertAutomaticFormalProjection(client);
       for (const operation of validation.targetRows) await insertRow(client, operation.table, operation.row);
       for (const operation of validation.drawingWorkFiles) await insertRow(client, "drawing_revision_work_files", operation.row);
+      for (const operation of validation.sourceUpdates) await applySourceUpdate(client, operation);
+      const missingPlannedTargets = await verifyTargetRows(client, validation.targetRows);
+      if (missingPlannedTargets.length) throw new Error(`DEV087_POSTGRES_PLANNED_TARGET_MISSING:${missingPlannedTargets.length}`);
       const missingTargets = await verifyReceipts(client, validation.receipts);
       if (missingTargets.length) throw new Error(`DEV087_POSTGRES_TARGET_RECEIPT_MISSING:${missingTargets.length}`);
       const missingFiles = await verifyFileReceipts(client, validation.fileReceipts);
@@ -270,10 +382,11 @@ try {
   const missingTargets = mapping ? await verifyReceipts(client, validation.receipts) : [];
   const missingFiles = mapping ? await verifyFileReceipts(client, validation.fileReceipts) : [];
   const missingWorkFiles = mapping ? await verifyWorkFileReceipts(client, validation.workFileReceipts) : [];
+  const missingPlannedTargets = mapping ? await verifyTargetRows(client, validation.targetRows) : [];
   const foreignKeys = await targetForeignKeyReceipt(client);
-  const sourceDrift = before.sourceFingerprint !== after.sourceFingerprint;
-  const unresolved = [...validation.unresolved, ...missingTargets, ...missingFiles, ...missingWorkFiles, ...foreignKeys.unvalidated.map((entry) => ({ ...entry, reason: "foreign_key_not_validated" })), ...(sourceDrift ? [{ reason: "source_fingerprint_drift" }] : [])];
-  report = { devId: "DEV-087", provider: "cloud_sql_postgres", mode, apply, expectedCommit, expectedSchemaHash, before, after, foreignKeys, drawingWorkFiles: validation.drawingWorkFiles, workFileReceipts: validation.workFileReceipts, unresolved, sourceReconciliation: unresolved.length === 0 ? 1 : 0, productionDiscard: false, pass: unresolved.length === 0 };
+  const sourceMutationReconciliation = await reconcileSourceMutations(client, before, after, sourceMutationBefore, validation);
+  const unresolved = [...validation.unresolved, ...missingTargets, ...missingFiles, ...missingWorkFiles, ...missingPlannedTargets, ...sourceMutationReconciliation.unresolved, ...foreignKeys.unvalidated.map((entry) => ({ ...entry, reason: "foreign_key_not_validated" }))];
+  report = { devId: "DEV-087", provider: "cloud_sql_postgres", mode, apply, mappingVersion: validation.mappingVersion, expectedCommit, expectedSchemaHash, before, after, foreignKeys, sourceMutationReconciliation, drawingWorkFiles: validation.drawingWorkFiles, workFileReceipts: validation.workFileReceipts, unresolved, sourceReconciliation: unresolved.length === 0 ? 1 : 0, productionDiscard: false, pass: unresolved.length === 0 };
 } finally {
   await client.end();
 }

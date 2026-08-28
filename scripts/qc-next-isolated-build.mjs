@@ -3,20 +3,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import Database from "better-sqlite3";
+import { removeTaskOwnedWorkspaceTempDir } from "./qc-next-app-runner.mjs";
 
 const root = process.cwd();
 const runId = crypto.randomUUID();
-const distDirRelative = `.tmp/next-qc-build-${runId}`;
-const distDir = path.join(root, ...distDirRelative.split("/"));
-const runtimeRoot = path.join(root, ".tmp", `next-qc-runtime-${runId}`);
-const isolatedDataDir = path.join(runtimeRoot, "data");
-const isolatedRepositoryDir = path.join(runtimeRoot, "repository");
+const runtimeRoot = path.join(root, ".tmp", `next-qc-runtime-project-${runId}`);
+const isolatedDataDir = path.join(runtimeRoot, ".runtime-data");
+const isolatedRepositoryDir = path.join(isolatedDataDir, "repository");
+const distDirRelative = ".tmp/next-qc-build";
+const distDir = path.join(runtimeRoot, ...distDirRelative.split("/"));
 const mainDatabasePath = path.join(root, "data", "ai-pdm.sqlite");
-const tsconfigFile = `.tsconfig.qc-build-${runId}.json`;
-const tsconfigPath = path.join(root, tsconfigFile);
-const trackedGeneratedFiles = ["next-env.d.ts"];
-const snapshots = new Map(trackedGeneratedFiles.map((file) => [file, fs.readFileSync(path.join(root, file), "utf8")]));
-const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
 
 function logicalMainDatabaseSnapshot(databasePath) {
   if (!fs.existsSync(databasePath)) return { exists: false, hash: null, payload: null };
@@ -44,106 +40,94 @@ function logicalMainDatabaseSnapshot(databasePath) {
   }
 }
 
-const isolatedTsconfig = {
-  compilerOptions: {
-    target: "ES2022",
-    lib: ["dom", "dom.iterable", "es2022"],
-    allowJs: false,
-    skipLibCheck: true,
-    strict: true,
-    noEmit: true,
-    esModuleInterop: true,
-    module: "esnext",
-    moduleResolution: "bundler",
-    allowImportingTsExtensions: true,
-    resolveJsonModule: true,
-    isolatedModules: true,
-    jsx: "react-jsx",
-    incremental: true,
-    plugins: [{ name: "next" }],
-    paths: { "@/*": ["./src/*"] }
-  },
-  include: ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx"],
-  exclude: ["node_modules", "output", ".tmp", ".next*", "backups"]
-};
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function restoreTrackedGeneratedFiles() {
-  for (const [file, content] of snapshots) {
-    let lastError;
-    for (let attempt = 1; attempt <= 10; attempt += 1) {
-      try {
-        fs.writeFileSync(path.join(root, file), content, "utf8");
-        lastError = undefined;
-        break;
-      } catch (error) {
-        lastError = error;
-        await delay(attempt * 100);
-      }
-    }
-    if (lastError) throw lastError;
+function prepareRuntimeProject() {
+  const workspaceTempRoot = path.resolve(root, ".tmp");
+  const resolvedRuntimeRoot = path.resolve(runtimeRoot);
+  if (!resolvedRuntimeRoot.startsWith(`${workspaceTempRoot}${path.sep}`)
+    || !path.basename(resolvedRuntimeRoot).startsWith("next-qc-runtime-project-")) {
+    throw new Error(`UNSAFE_RUNTIME_PROJECT_PATH:${resolvedRuntimeRoot}`);
   }
-}
 
-async function writeIsolatedTsconfig() {
-  let lastError;
-  for (let attempt = 1; attempt <= 10; attempt += 1) {
-    try {
-      fs.writeFileSync(tsconfigPath, `${JSON.stringify(isolatedTsconfig, null, 2)}\n`, "utf8");
-      return;
-    } catch (error) {
-      lastError = error;
-      await delay(attempt * 100);
-    }
+  fs.mkdirSync(resolvedRuntimeRoot, { recursive: true });
+  for (const file of ["package.json", "next.config.mjs", "tsconfig.json", "tsconfig.app.json", "tsconfig.next.json", "next-env.d.ts"]) {
+    const source = path.join(root, file);
+    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(resolvedRuntimeRoot, file));
   }
-  throw lastError;
+  for (const file of [".env", ".env.local", ".env.production.local"]) {
+    const source = path.join(root, file);
+    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(resolvedRuntimeRoot, file));
+  }
+  for (const directory of ["src", "public", "db", "config"]) {
+    const source = path.join(root, directory);
+    if (fs.existsSync(source)) fs.cpSync(source, path.join(resolvedRuntimeRoot, directory), { recursive: true, force: true });
+  }
+
+  const nextConfigPath = path.join(resolvedRuntimeRoot, "next.config.mjs");
+  const nextConfig = fs.readFileSync(nextConfigPath, "utf8");
+  const isolatedNextConfig = nextConfig.replace("const nextConfig = {", "const nextConfig = {\n  agentRules: false,");
+  if (isolatedNextConfig === nextConfig) throw new Error("RUNTIME_NEXT_CONFIG_PATCH_POINT_MISSING");
+  fs.writeFileSync(nextConfigPath, isolatedNextConfig, "utf8");
+
+  fs.symlinkSync(path.join(root, "node_modules"), path.join(resolvedRuntimeRoot, "node_modules"), "junction");
+  fs.mkdirSync(isolatedRepositoryDir, { recursive: true });
 }
 
 let exitCode = 1;
+let artifactReady = false;
+let mainAfter = null;
+let cleanup = { removed: false, path: runtimeRoot, error: "not-run" };
 const mainBefore = logicalMainDatabaseSnapshot(mainDatabasePath);
+
 try {
-  fs.mkdirSync(isolatedDataDir, { recursive: true });
-  fs.mkdirSync(isolatedRepositoryDir, { recursive: true });
-  await writeIsolatedTsconfig();
+  prepareRuntimeProject();
+  const nextCli = path.join(runtimeRoot, "node_modules", "next", "dist", "bin", "next");
   exitCode = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [nextCli, "build"], {
-      cwd: root,
+      cwd: runtimeRoot,
       env: {
         ...process.env,
         PDM_DB_PROVIDER: "sqlite",
         PDM_DATA_DIR: isolatedDataDir,
         PDM_REPOSITORY_DIR: isolatedRepositoryDir,
         PDM_NEXT_DIST_DIR: distDirRelative,
-        PDM_NEXT_TSCONFIG_PATH: tsconfigFile
+        PDM_NEXT_TSCONFIG_PATH: "tsconfig.next.json",
+        PDM_BUILD_COMMIT: "local-dev"
       },
       stdio: "inherit"
     });
-    console.log(`Isolated build runtime: project=${root}; purpose=Next production build verification; port=none; ownerPid=${child.pid ?? "pending"}; dataDir=${isolatedDataDir}; repositoryDir=${isolatedRepositoryDir}; cleanup=after build and main-database invariant`);
+    console.log(JSON.stringify({ runtimeDeclaration: {
+      project: root,
+      runtimeProject: runtimeRoot,
+      purpose: "Next production build verification in a task-owned source/Next-metadata/data copy",
+      port: "none",
+      owningProcessTree: `build runner ${process.pid} -> Next build child ${child.pid ?? "pending"}`,
+      cleanupCondition: "build exits, artifact and primary invariant are checked, then the runtime project is removed",
+      PDM_DATA_DIR: isolatedDataDir,
+      PDM_REPOSITORY_DIR: isolatedRepositoryDir,
+      mutationScope: runtimeRoot
+    } }));
     child.once("error", reject);
     child.once("exit", (code) => resolve(code ?? 1));
   });
-  const mainAfter = logicalMainDatabaseSnapshot(mainDatabasePath);
+  artifactReady = fs.existsSync(path.join(distDir, "BUILD_ID"));
+  mainAfter = logicalMainDatabaseSnapshot(mainDatabasePath);
   if (JSON.stringify(mainAfter) !== JSON.stringify(mainBefore)) {
     console.error(`PDM_ISOLATED_BUILD_MUTATED_MAIN_DATABASE:${JSON.stringify({ before: mainBefore.hash, after: mainAfter.hash })}`);
     exitCode = 1;
   } else {
     console.log(`Isolated build main database invariant: ${mainAfter.hash ?? "database-absent"}`);
   }
-} finally {
-  await restoreTrackedGeneratedFiles();
-  if (fs.existsSync(tsconfigPath)) fs.rmSync(tsconfigPath, { force: true });
-  const resolved = path.resolve(distDir);
-  const tmpRoot = path.resolve(root, ".tmp");
-  if (resolved.startsWith(`${tmpRoot}${path.sep}`)) {
-    fs.rmSync(resolved, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  if (!artifactReady) {
+    console.error(`PDM_ISOLATED_BUILD_ARTIFACT_MISSING:${path.join(distDir, "BUILD_ID")}`);
+    exitCode = 1;
   }
-  const resolvedRuntimeRoot = path.resolve(runtimeRoot);
-  if (resolvedRuntimeRoot.startsWith(`${tmpRoot}${path.sep}`)) {
-    fs.rmSync(resolvedRuntimeRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+} finally {
+  cleanup = removeTaskOwnedWorkspaceTempDir(root, runtimeRoot);
+  if (!cleanup.removed) {
+    console.error(`PDM_ISOLATED_BUILD_CLEANUP_FAILED:${JSON.stringify(cleanup)}`);
+    exitCode = 1;
   }
 }
 
+console.log(`Isolated build result: ${exitCode === 0 ? "PASS" : "FAIL"}; artifact=${artifactReady}; primary=${mainAfter && JSON.stringify(mainAfter) === JSON.stringify(mainBefore)}; cleanup=${cleanup.removed}`);
 process.exit(exitCode);

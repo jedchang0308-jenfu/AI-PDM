@@ -72,32 +72,29 @@ const client = new pg.Client({ connectionString, application_name: "ai-pdm-dev09
 await client.connect();
 let report;
 try {
+  await client.query(fs.readFileSync(path.join(root, "db/postgres/042_status_data_rebuild.sql"), "utf8"));
   const sourceTables = [
     "companies", "users", "drawings", "drawing_revisions", "drawing_revision_files", "file_assets", "drawing_numbers",
-    "part_numbers", "part_roots", "drawing_part_links", "drawing_rd_branches", "drawing_revision_claims",
-    "numbering_draft_workspaces", "numbering_draft_roots", "numbering_draft_parts", "numbering_draft_drawings",
-    "numbering_draft_relations", "numbering_candidate_revision_drafts", "numbering_candidate_revision_files",
-    "drawing_revision_package_review_approvals"
+    "part_numbers", "part_roots", "drawing_part_links", "drawing_rd_branches", "drawing_revision_claims"
   ];
   await client.query("SET session_replication_role=replica");
   let copied = 0;
   for (const table of sourceTables) copied += await copySqliteTable(client, sqlite, table);
   await client.query("SET session_replication_role=origin");
   check("PostgreSQL mirror copied source fixture rows", copied > 0, String(copied));
-  await client.query(fs.readFileSync(path.join(root, "db/postgres/042_status_data_rebuild.sql"), "utf8"));
 
   const sqliteWork = sqlite.prepare(`
     SELECT work.*
     FROM drawing_revision_works work
     JOIN canonical_workbench_states state ON state.work_id = work.id AND state.entity_type = 'drawing'
     JOIN drawings drawing ON drawing.id = work.drawing_id
-    WHERE drawing.drawing_number='A0006-M01'
+    WHERE (SELECT COUNT(*) FROM drawing_revision_work_files file WHERE file.work_id = work.id) = 3
     ORDER BY work.created_at DESC LIMIT 1
   `).get();
-  check("PostgreSQL mapping source has A0006 work", Boolean(sqliteWork?.id), "data/ai-pdm.sqlite");
+  check("PostgreSQL mapping source has a canonical three-file work", Boolean(sqliteWork?.id), sourceDbPath);
   const sqliteState = sqlite.prepare("SELECT * FROM canonical_workbench_states WHERE work_id = ? AND data_layer='drawing_rd' LIMIT 1").get(sqliteWork.id);
   const sqliteWorkFiles = sqlite.prepare("SELECT work_id,file_binding_id,ordinal,content_hash FROM drawing_revision_work_files WHERE work_id=? ORDER BY ordinal,file_binding_id").all(sqliteWork.id);
-  check("PostgreSQL mapping source has exact three A0006 work-file rows", sqliteWorkFiles.length === 3, String(sqliteWorkFiles.length));
+  check("PostgreSQL mapping source has exact three work-file rows", sqliteWorkFiles.length === 3, String(sqliteWorkFiles.length));
 
   const sqliteBranch = sqlite.prepare("SELECT * FROM drawing_rd_branches WHERE id = (SELECT branch_id FROM drawing_revision_works WHERE id = ?)").get(sqliteWork.id);
   const sqliteClaim = sqlite.prepare("SELECT * FROM drawing_revision_claims WHERE id = (SELECT target_claim_id FROM drawing_revision_works WHERE id = ?)").get(sqliteWork.id);

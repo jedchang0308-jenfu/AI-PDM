@@ -82,7 +82,6 @@ try {
     "src/app/api/numbering/approval-decisions/route.ts",
     "src/app/api/numbering/approval-batches/route.ts",
     "src/app/api/numbering/approval-batches/[batchId]/route.ts",
-    "src/app/api/numbering/impact-analysis/route.ts",
     "src/app/api/numbering/export-jobs/route.ts",
     "src/app/api/numbering/export-jobs/[jobId]/route.ts",
     "src/app/api/numbering/monthly-audit-reports/route.ts",

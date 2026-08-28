@@ -10,7 +10,7 @@ const provider = read("src/lib/windows-dpapi-secret-provider.ts");
 const lifecycle = read("src/lib/settings-secret-lifecycle.ts");
 const route = read("src/app/api/settings/secrets/[kind]/test/route.ts");
 const schema = read("db/schema.sql");
-const migration = read("db/postgres/038_solidworks_credential_ui_activation.sql");
+const migration = read("db/postgres/049_solidworks_credential_ui_activation.sql");
 
 check("DPAPI provider exists", provider.includes("ProtectedData") && provider.includes("DataProtectionScope]::CurrentUser"));
 check("DPAPI blob is atomic", provider.includes("writeFile(tempPath") && provider.includes("rename(tempPath, finalPath)"));

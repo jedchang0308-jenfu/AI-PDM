@@ -425,7 +425,7 @@ function npmStepRunnerIsQcOnly(source) {
 
 function nextAppRunnerIsQcOnly(source) {
   return (
-    source.includes('import { spawn } from "node:child_process"') &&
+    source.includes('import { execFileSync, spawn } from "node:child_process"') &&
     source.includes('import { createServer } from "node:http"') &&
     source.includes('import { appendNodeOptions, qcListenerBudgetPreload } from "./qc-process-warning-guard.mjs"') &&
     source.includes("export function getFreePort") &&
@@ -440,6 +440,8 @@ function nextAppRunnerIsQcOnly(source) {
     source.includes('PDM_RELEASE_MODE: "local_stub"') &&
     source.includes("export async function waitForNextAppReady") &&
     source.includes("export async function stopNextApp") &&
+    source.includes('process.platform === "win32" && child.pid') &&
+    source.includes('execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"]') &&
     source.includes('child.kill("SIGINT")') &&
     source.includes('child.kill("SIGTERM")') &&
     source.includes('child.kill("SIGKILL")') &&
@@ -539,7 +541,6 @@ const apiQcSource = read("scripts/qc-api-test.mjs");
 const dataBoundaryQcSource = read("scripts/qc-data-boundary-test.mjs");
 const cssBoundaryQcSource = read("scripts/qc-css-boundary-test.mjs");
 const adaptiveTaskFeedQcSource = read("scripts/qc-adaptive-task-feed.mjs");
-const bomWorkbenchMigrationPathQcSource = read("scripts/qc-bom-workbench-migration-path.mjs");
 const fileDropzoneUxQcSource = read("scripts/qc-file-dropzone-ux.mjs");
 const masterAttachmentsQcSource = read("scripts/qc-master-attachments.mjs");
 const pdmNumberingCoreQcSource = read("scripts/qc-pdm-numbering-core-test.mjs");
@@ -600,8 +601,6 @@ const dashboardCustomFinderQcSource = read("scripts/qc-dashboard-custom-finder-t
 const dashboardComponentSplitQcSource = read("scripts/qc-dashboard-component-split-test.mjs");
 const dashboardRowMemoQcSource = read("scripts/qc-dashboard-row-memo-test.mjs");
 const dashboardTransitionQcSource = read("scripts/qc-dashboard-transition-test.mjs");
-const bomWorkbenchUiQcSource = read("scripts/qc-bom-workbench-ui.mjs");
-const bomWorkbenchReviewUiQcSource = read("scripts/qc-bom-workbench-review-ui.mjs");
 const pdmSystemDetailDrawerUiQcSource = read("scripts/qc-pdm-system-detail-drawer-ui.mjs");
 const uxAttributeHierarchyQcSource = read("scripts/qc-ux-attribute-hierarchy.mjs");
 const gdriveFolderTreeSettingsQcSource = read("scripts/qc-gdrive-folder-tree-settings.mjs");
@@ -1086,11 +1085,6 @@ record(
   "SOURCE-BOUNDARY adaptive task feed QC uses project file utils",
   qcUsesProjectFileUtils(adaptiveTaskFeedQcSource, ["readProjectFile", "readProjectJson"]),
   "scripts/qc-adaptive-task-feed.mjs"
-);
-record(
-  "SOURCE-BOUNDARY BOM workbench migration path QC uses project file utils",
-  qcUsesProjectFileUtils(bomWorkbenchMigrationPathQcSource, ["readProjectFile", "readProjectJson"]),
-  "scripts/qc-bom-workbench-migration-path.mjs"
 );
 record(
   "SOURCE-BOUNDARY file dropzone UX QC uses project file utils",
@@ -1899,16 +1893,6 @@ record(
   "SOURCE-BOUNDARY dashboard transition QC uses project file utils",
   qcUsesProjectFileUtils(dashboardTransitionQcSource, ["readProjectFile"]),
   "scripts/qc-dashboard-transition-test.mjs"
-);
-record(
-  "SOURCE-BOUNDARY BOM workbench UI QC uses project file utils",
-  qcUsesProjectFileUtils(bomWorkbenchUiQcSource, ["readProjectFile"]),
-  "scripts/qc-bom-workbench-ui.mjs"
-);
-record(
-  "SOURCE-BOUNDARY BOM workbench review UI QC uses project file utils",
-  qcUsesProjectFileUtils(bomWorkbenchReviewUiQcSource, ["readProjectFile"]),
-  "scripts/qc-bom-workbench-review-ui.mjs"
 );
 record(
   "SOURCE-BOUNDARY PDM system detail drawer UI QC uses project file utils",

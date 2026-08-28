@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
+import path from "node:path";
 import Database from "better-sqlite3";
 import { readProjectFile, readProjectJson } from "./qc-project-file-utils.mjs";
 
 const root = process.cwd();
 const read = (relativePath) => readProjectFile(root, relativePath);
 const readJson = (relativePath) => readProjectJson(root, relativePath);
+const exists = (relativePath) => fs.existsSync(path.join(root, relativePath));
 const schema = read("db/schema.sql");
 const repositorySource = read("src/lib/repositories/numbering-repository.ts");
 const dbExports = read("src/lib/db.ts");
 const variantsRouteSource = read("src/app/api/numbering/variants/route.ts");
 const ruleSimulatorRouteSource = read("src/app/api/numbering/rule-simulator/route.ts");
-const impactAnalysisRouteSource = read("src/app/api/numbering/impact-analysis/route.ts");
+const formalObsoleteImpactRouteSource = read("src/app/api/lifecycle/obsolete-impact/route.ts");
 const duplicateCheckRouteSource = read("src/app/api/numbering/duplicate-check/route.ts");
 const numberingRecordsRouteSource = read("src/app/api/numbering/records/route.ts");
 const draftRecordRouteSource = read("src/app/api/numbering/records/[rootCode]/route.ts");
@@ -44,8 +47,7 @@ const approvalWorkbenchPageSource = read("src/app/approvals/page.tsx");
 const approvalLegacyRedirectSource = read("src/lib/approval-workbench-legacy-redirect.ts");
 const numberingSearchPageSource = read("src/app/numbering/search/page.tsx");
 const numberingDrawingsPageSource = read("src/app/numbering/drawings/page.tsx");
-const numberingImpactPageSource = read("src/app/numbering/impact/page.tsx");
-const numberingReportCenterPageSource = read("src/app/numbering/reports/page.tsx");
+const canonicalWorkbenchSource = read("src/components/canonical-pdm-workbench.tsx");
 const sidebarNavSource = read("src/components/sidebar-nav.tsx");
 const packageJson = readJson("package.json");
 const concurrencyReuseScriptSource = read("scripts/qc-pdm-numbering-concurrency-reuse.mjs");
@@ -408,9 +410,9 @@ record("NUM-REPO requires same-drawing variant details", repositorySource.includ
 record("NUM-REPO evaluates technical-transfer and release data controls", repositorySource.includes("export function evaluateNumberingGate"), "numbering-repository.ts");
 record("NUM-REPO blocks missing primary MA at gate", repositorySource.includes("PRIMARY_MA_REQUIRED"), "numbering-repository.ts");
 record(
-  "NUM-REPO analyzes MA drawing obsolescence impact",
-  repositorySource.includes("export function analyzeMainDrawingObsolescence") && repositorySource.includes("MainDrawingInvalid"),
-  "numbering-repository.ts"
+  "NUM-REPO retires the standalone MA drawing impact writer",
+  !repositorySource.includes("analyzeMainDrawingObsolescence") && !dbExports.includes("analyzeMainDrawingObsolescence"),
+  "numbering-repository.ts + db.ts"
 );
 record("NUM-REPO checks duplicate/high-similarity warnings", repositorySource.includes("export function checkNumberingDuplicates"), "numbering-repository.ts");
 record("NUM-REPO keeps high similarity warning-only", repositorySource.includes("HIGH_SIMILARITY_NUMBERING"), "numbering-repository.ts");
@@ -558,11 +560,11 @@ record(
   "rule-simulator/route.ts"
 );
 record(
-  "NUM-API impact analysis route protects invalidation",
-  impactAnalysisRouteSource.includes("analyzeMainDrawingObsolescence") &&
-    impactAnalysisRouteSource.includes("numbering.impact.apply") &&
-    impactAnalysisRouteSource.includes("Admin or R&D Manager"),
-  "impact-analysis/route.ts"
+  "NUM-API retires standalone impact analysis and preserves formal obsolete impact",
+  !exists("src/app/api/numbering/impact-analysis/route.ts") &&
+    formalObsoleteImpactRouteSource.includes("getFormalObsoleteImpactAsync") &&
+    formalObsoleteImpactRouteSource.includes("private, no-store"),
+  "retired impact route + lifecycle/obsolete-impact route"
 );
 record(
   "NUM-API duplicate-check route calls checker and permission guard",
@@ -819,10 +821,9 @@ record(
   "numbering/search/page.tsx"
 );
 record(
-  "NUM-UI numbering search page includes warning markers and impact panel",
-  numberingSearchPageSource.includes("WarningDot") &&
-    numberingSearchPageSource.includes("影響範圍") &&
-    numberingSearchPageSource.includes("製造圖作廢影響"),
+  "NUM-UI numbering search page omits the retired manufacturing impact panel",
+  !numberingSearchPageSource.includes("製造圖作廢影響") &&
+    !numberingSearchPageSource.includes("/api/numbering/impact-analysis"),
   "numbering/search/page.tsx"
 );
 record(
@@ -830,37 +831,25 @@ record(
   numberingDrawingsPageSource.includes("圖號工作台") &&
     numberingDrawingsPageSource.includes("/api/numbering/drawings") &&
     numberingDrawingsPageSource.includes("/numbering/search") &&
-    numberingDrawingsPageSource.includes("/numbering/impact") &&
     numberingDrawingsPageSource.includes("numbering.drawings.view"),
   "numbering/drawings/page.tsx"
 );
 record(
-  "NUM-UI numbering impact page renders manufacturing drawing impact workflow",
-  numberingImpactPageSource.includes("製造圖影響") &&
-    numberingImpactPageSource.includes("/api/numbering/impact-analysis") &&
-    numberingImpactPageSource.includes("套用失效"),
-  "numbering/impact/page.tsx"
+  "NUM-UI standalone manufacturing impact page is retired",
+  !exists("src/app/numbering/impact/page.tsx"),
+  "retired numbering/impact page"
 );
 record(
-  "NUM-UI numbering impact page shows affected parts and revision tasks",
-  numberingImpactPageSource.includes("受影響料號") &&
-    numberingImpactPageSource.includes("文件進版待辦") &&
-    numberingImpactPageSource.includes("recordStatus"),
-  "numbering/impact/page.tsx"
+  "NUM-UI formal obsolete request still shows dependency scope",
+  canonicalWorkbenchSource.includes("/api/lifecycle/obsolete-impact") &&
+    canonicalWorkbenchSource.includes("送出作廢申請") &&
+    canonicalWorkbenchSource.includes("impactFingerprint"),
+  "canonical-pdm-workbench.tsx"
 );
 record(
-  "NUM-UI numbering report center renders audit report workflow",
-  numberingReportCenterPageSource.includes("圖號稽核報表") &&
-    numberingReportCenterPageSource.includes("重產月報") &&
-    numberingReportCenterPageSource.includes("匯出下載"),
-  "numbering/reports/page.tsx"
-);
-record(
-  "NUM-UI numbering report center includes department tabs and download",
-  numberingReportCenterPageSource.includes("全公司總覽") &&
-    numberingReportCenterPageSource.includes("專案分頁") &&
-    numberingReportCenterPageSource.includes("downloadJson"),
-  "numbering/reports/page.tsx"
+  "NUM-UI standalone numbering report page is retired",
+  !exists("src/app/numbering/reports/page.tsx"),
+  "retired numbering/reports page"
 );
 record(
   "NUM-UI sidebar removes standalone numbering task center",
@@ -883,8 +872,12 @@ record(
 );
 record("NUM-UI sidebar links numbering search page", sidebarNavSource.includes("/numbering/search") && sidebarNavSource.includes("圖料工作台"), "sidebar-nav.tsx");
 record("NUM-UI sidebar links drawing management page", sidebarNavSource.includes("/numbering/drawings") && sidebarNavSource.includes("圖號工作台"), "sidebar-nav.tsx");
-record("NUM-UI sidebar links numbering impact page", sidebarNavSource.includes("/numbering/impact") && sidebarNavSource.includes("製造圖影響"), "sidebar-nav.tsx");
-record("NUM-UI sidebar links numbering report center", sidebarNavSource.includes("/numbering/reports") && sidebarNavSource.includes("圖號報表"), "sidebar-nav.tsx");
+record("NUM-UI sidebar omits retired numbering impact page", !sidebarNavSource.includes("/numbering/impact") && !sidebarNavSource.includes("製造圖影響分析"), "sidebar-nav.tsx");
+record(
+  "NUM-UI sidebar removes standalone numbering report page",
+  !sidebarNavSource.includes("/numbering/reports") && !sidebarNavSource.includes("圖號報表"),
+  "sidebar-nav.tsx"
+);
 record(
   "NUM-UI sidebar applies numbering page permission guard",
   sidebarNavSource.includes("NUMBERING_NAV_PERMISSION_BY_PATH") && sidebarNavSource.includes("/api/numbering/permissions") && sidebarNavSource.includes("pagePermissions"),
@@ -953,13 +946,15 @@ record(
   "package.json"
 );
 record(
-  "NUM-QC package exposes qc:pdm-numbering-report-center-ui",
-  packageJson.scripts?.["qc:pdm-numbering-report-center-ui"] === "node scripts/qc-pdm-numbering-report-center-ui.mjs",
+  "NUM-QC package exposes numbering report retirement gate",
+  packageJson.scripts?.["qc:pdm-numbering-report-retirement"] === "node scripts/qc-pdm-numbering-report-retirement.mjs" &&
+    packageJson.scripts?.["qc:pdm-numbering-report-center-ui"] === undefined,
   "package.json"
 );
 record(
-  "NUM-QC package exposes qc:pdm-numbering-impact-ui",
-  packageJson.scripts?.["qc:pdm-numbering-impact-ui"] === "node scripts/qc-pdm-numbering-impact-ui.mjs",
+  "NUM-QC package exposes manufacturing impact retirement gate",
+  packageJson.scripts?.["qc:pdm-manufacturing-impact-retirement"]?.includes("qc-pdm-manufacturing-impact-retirement.mjs") === true &&
+    packageJson.scripts?.["qc:pdm-numbering-impact-ui"] === undefined,
   "package.json"
 );
 record(

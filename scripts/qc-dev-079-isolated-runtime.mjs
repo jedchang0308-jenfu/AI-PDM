@@ -17,9 +17,13 @@ export async function startDev079IsolatedRuntime() {
   let child = null;
   let workerChild = null;
   try {
+    const primaryBefore = protectedSnapshot(path.join(root, "data", "ai-pdm.sqlite"));
+    assertSafeSnapshot(primaryBefore, "primary-before");
     fs.copyFileSync(path.join(root, "data", "ai-pdm.sqlite"), targetDb);
     fs.cpSync(path.join(root, "data", "repository"), repositoryDir, { recursive: true });
-    prepareA0002IsolatedDatabase(targetDb);
+    const fixtureSource = protectedSnapshot(targetDb);
+    if (JSON.stringify(fixtureSource) !== JSON.stringify(primaryBefore)) throw new Error("DEV-079 unmodified fixture snapshot does not match primary protected invariant");
+    const target = prepareA0002IsolatedDatabase(targetDb);
     port = await getFreePort();
     const baseUrl = `http://127.0.0.1:${port}`;
     const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
@@ -50,37 +54,32 @@ export async function startDev079IsolatedRuntime() {
     });
     console.log(JSON.stringify({ runtime: { project: "AI_PDM", purpose: "DEV-079 isolated layout browser QC", port, pid: child.pid, cleanup: "stop exact process tree and verify port release" } }));
     await waitForServer(baseUrl);
-    workerChild = spawn(process.execPath, ["--experimental-transform-types", "scripts/run-drawing-recognition-worker.mjs", "--once"], {
-      cwd: root,
-      env: {
-        ...process.env,
-        PDM_DRAWING_RECOGNITION_WORKER_BASE_URL: baseUrl,
-        PDM_DRAWING_RECOGNITION_WORKER_TOKEN: workerToken,
-        PDM_PREVIEW_WORKER_TOKEN: previewToken,
-        PDM_DRAWING_RECOGNITION_WORKER_ID: `dev079-layout-${crypto.randomUUID()}`,
-        PDM_DRAWING_RECOGNITION_POLL_MS: "250"
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true
-    });
-    let workerError = "";
-    workerChild.stderr?.on("data", (chunk) => { workerError = `${workerError}${String(chunk)}`.slice(-4_000); });
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("DEV-079 isolated layout worker timed out")), 90_000);
-      workerChild.once("exit", (code) => {
-        clearTimeout(timeout);
-        if (code === 0) resolve();
-        else reject(new Error(`DEV-079 isolated layout worker exited ${code}: ${workerError}`));
-      });
-    });
-    markA0002RecognitionReady(targetDb);
     let stopped = false;
     return {
       baseUrl,
+      ...target,
+      databasePath: targetDb,
+      workerToken,
+      previewToken,
+      runtimeReceipt: {
+        project: root,
+        purpose: "DEV-079 canonical A0002 layout browser QC",
+        port,
+        owningProcessTree: `runner -> Next dev pid ${child.pid}`,
+        cleanupCondition: "browser closes, exact Next tree stops, port releases, task-owned data/repository/dist are removed",
+        PDM_DATA_DIR: tempDir,
+        PDM_REPOSITORY_DIR: repositoryDir,
+        mutationScope: [tempDir, path.join(root, ...distDir.split("/"))],
+        primaryBefore,
+        fixtureSource,
+        fixtureMutationLedger: target.fixtureMutationLedger
+      },
       stop: async () => {
         if (stopped) return;
         stopped = true;
         await stopRuntime({ child, workerChild, port, tempDir, distDir });
+        const primaryAfter = protectedSnapshot(path.join(root, "data", "ai-pdm.sqlite"));
+        if (JSON.stringify(primaryBefore) !== JSON.stringify(primaryAfter)) throw new Error("DEV-079 primary protected invariant changed during isolated runtime");
       }
     };
   } catch (error) {
@@ -116,83 +115,115 @@ function prepareA0002IsolatedDatabase(databasePath) {
   const database = new Database(databasePath);
   database.pragma("foreign_keys = ON");
   const timestamp = new Date().toISOString();
-  database.prepare("UPDATE users SET password_hash = NULL, account_status = 'active', system_role_enabled = 1 WHERE email = 'admin@example.com'").run();
-  database.prepare("UPDATE auth_identities SET status = 'active' WHERE login_identifier = 'admin@example.com'").run();
-  database.prepare("UPDATE number_candidate_reservations SET candidate_code = 'A0002-M01-FORMAL' WHERE id = 'f38497c0-c149-4888-9758-13a8c5c9b56c'").run();
-  database.prepare(`UPDATE numbering_draft_workspaces
-    SET lifecycle_status = 'active', owner_id = 'user-manager-demo', cancelled_at = NULL, cancelled_by = NULL, cancel_reason = NULL, updated_at = :timestamp
-    WHERE id = 'draft-workspace-2b88591e-128c-4bb8-a0e9-97864733700f'`).run({ timestamp });
-  database.exec("DROP TRIGGER IF EXISTS trg_drawings_terminal_state_guard");
-  database.exec("DROP TRIGGER IF EXISTS trg_drawings_number_immutable_guard");
-  database.prepare("UPDATE drawings SET drawing_number = 'QC-A0002-M01-FORMAL' WHERE id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877'").run();
-  database.prepare(`UPDATE drawings
-    SET lifecycle_state = 'drawing_preparation', owner_id = 'user-manager-demo', terminal_at = NULL, updated_at = :timestamp
-    WHERE id = 'drawing-draft-drawing-5252ba10-7bf4-449c-b44d-43e7c68a1978'`).run({ timestamp });
-  database.exec(`CREATE TRIGGER trg_drawings_terminal_state_guard
-    BEFORE UPDATE OF lifecycle_state ON drawings
-    WHEN OLD.lifecycle_state IN ('obsolete', 'merged', 'cancelled') AND NEW.lifecycle_state <> OLD.lifecycle_state
-    BEGIN SELECT RAISE(ABORT, 'DRAWING_TERMINAL_STATE_IMMUTABLE'); END`);
-  database.exec(`CREATE TRIGGER trg_drawings_number_immutable_guard
-    BEFORE UPDATE OF drawing_number ON drawings
-    WHEN OLD.drawing_number IS NOT NULL AND NEW.drawing_number IS NOT OLD.drawing_number
-    BEGIN SELECT RAISE(ABORT, 'DRAWING_NUMBER_IMMUTABLE'); END`);
-  database.prepare(`UPDATE number_candidate_reservations
-    SET reservation_state = 'active', recycled_at = NULL, recycled_by = NULL, recycle_reason = NULL, updated_at = :timestamp
-    WHERE id = '2cd09292-a291-4b7d-a222-9a22f6873c17'`).run({ timestamp });
-  database.prepare(`UPDATE numbering_candidate_revision_drafts
-    SET workspace_id = 'draft-workspace-2b88591e-128c-4bb8-a0e9-97864733700f',
-        drawing_draft_id = 'draft-drawing-5252ba10-7bf4-449c-b44d-43e7c68a1978',
-        candidate_reservation_id = '2cd09292-a291-4b7d-a222-9a22f6873c17',
-        lifecycle_status = 'draft', approval_request_id = NULL,
-        formal_drawing_number_id = NULL, formal_revision_package_id = NULL,
-        promoted_at = NULL, cancelled_at = NULL, cancelled_by = NULL, updated_at = :timestamp
-    WHERE id = 'NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7'`).run({ timestamp });
-  const candidate = database.prepare("SELECT id, workspace_id FROM numbering_candidate_revision_drafts WHERE id = 'NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7'").get();
-  const activeFiles = candidate ? database.prepare("SELECT COUNT(*) AS count FROM numbering_candidate_revision_files WHERE candidate_revision_id = :candidateId AND removed_at IS NULL").get({ candidateId: candidate.id }) : { count: 0 };
+  const workId = "qc-dev079-a0002-canonical-work";
+  const target = database.prepare(`SELECT drawing.id AS drawingId, drawing.drawing_number AS drawingNumber,
+      branch.id AS branchId, claim.id AS claimId, revision.id AS revisionId
+    FROM drawings drawing
+    JOIN drawing_rd_branches branch ON branch.drawing_id = drawing.id AND branch.status = 'open'
+    JOIN drawing_revision_claims claim ON claim.branch_id = branch.id AND claim.predecessor_revision_id IS NULL
+    JOIN drawing_revisions revision ON revision.id = branch.latest_approved_revision_id
+    WHERE drawing.drawing_number = 'A0002-M01' AND drawing.lifecycle_state = 'drawing_preparation'
+    ORDER BY claim.created_at DESC LIMIT 1`).get();
+  if (!target) { database.close(); throw new Error("DEV-079 canonical A0002 drawing/branch/claim/revision is unavailable"); }
+  const files = database.prepare(`SELECT file.id AS fileBindingId, file.sort_order AS ordinal, asset.content_hash AS contentHash, file.role, file.display_name AS displayName
+    FROM drawing_revision_files file
+    JOIN file_assets asset ON asset.id = file.source_file_asset_id
+    WHERE file.drawing_revision_id = :revisionId AND file.removed_at IS NULL
+    ORDER BY file.sort_order, file.id`).all({ revisionId: target.revisionId });
+  const requiredRoles = new Set(files.map((file) => file.role));
+  if (files.length !== 3 || !["pdf", "drawing_2d", "cad_3d"].every((role) => requiredRoles.has(role))) {
+    database.close();
+    throw new Error(`DEV-079 canonical A0002 three-file source is incomplete:${JSON.stringify(files)}`);
+  }
+  const currentRecognition = database.prepare(`SELECT session.id, session.status
+    FROM drawing_recognition_sessions session
+    WHERE session.source_context_type = 'drawing_revision' AND session.source_context_id = :revisionId
+    ORDER BY session.created_at DESC, session.id DESC LIMIT 1`).get({ revisionId: target.revisionId });
+  if (!currentRecognition || currentRecognition.status !== "review_ready") {
+    database.close();
+    throw new Error(`DEV-079 canonical A0002 review-ready recognition is unavailable:${JSON.stringify(currentRecognition)}`);
+  }
+  const insertFixture = database.transaction(() => {
+    database.prepare("UPDATE users SET password_hash = NULL, account_status = 'active', system_role_enabled = 1 WHERE email = 'admin@example.com'").run();
+    database.prepare("UPDATE auth_identities SET status = 'active' WHERE login_identifier = 'admin@example.com'").run();
+    database.prepare("DELETE FROM drawing_revision_work_files WHERE work_id = :workId").run({ workId });
+    database.prepare("DELETE FROM drawing_revision_works WHERE id = :workId").run({ workId });
+    database.prepare(`INSERT INTO drawing_revision_works
+      (id, company_id, drawing_id, branch_id, target_claim_id, owner_user_id, proposed_payload, base_hash, row_version, created_at, updated_at)
+      VALUES (:workId, 'company-jenfu', :drawingId, :branchId, :claimId, 'user-manager-demo', :proposedPayload, :baseHash, 1, :timestamp, :timestamp)`).run({
+      workId,
+      drawingId: target.drawingId,
+      branchId: target.branchId,
+      claimId: target.claimId,
+      proposedPayload: JSON.stringify({ drawingId: target.drawingId, revisionId: target.revisionId, migrated: true }),
+      baseHash: crypto.createHash("sha256").update(`DEV-079:${target.drawingId}:${target.revisionId}`).digest("hex"),
+      timestamp
+    });
+    const stateUpdate = database.prepare(`UPDATE canonical_workbench_states
+      SET work_id = :workId, handling = 'owner', row_version = row_version + 1, updated_at = :timestamp
+      WHERE company_id = 'company-jenfu' AND entity_type = 'drawing'
+        AND canonical_entity_id = :drawingId AND branch_id = :branchId AND revision_id = :revisionId`).run({
+      workId,
+      drawingId: target.drawingId,
+      branchId: target.branchId,
+      revisionId: target.revisionId,
+      timestamp
+    });
+    if (stateUpdate.changes !== 1) throw new Error(`DEV-079 canonical A0002 work state cardinality:${stateUpdate.changes}`);
+    const insertFile = database.prepare("INSERT INTO drawing_revision_work_files (work_id, file_binding_id, ordinal, content_hash) VALUES (:workId, :fileBindingId, :ordinal, :contentHash)");
+    for (const file of files) insertFile.run({ workId, fileBindingId: file.fileBindingId, ordinal: file.ordinal, contentHash: file.contentHash });
+  });
+  insertFixture();
+  const foreignKeys = database.pragma("foreign_key_check");
+  const preparedFiles = database.prepare("SELECT COUNT(*) AS count FROM drawing_revision_work_files WHERE work_id = :workId").get({ workId });
   database.close();
-  if (!candidate || candidate.workspace_id !== 'draft-workspace-2b88591e-128c-4bb8-a0e9-97864733700f' || Number(activeFiles.count) < 3) throw new Error("DEV-079 A0002 isolated layout candidate fixture was not prepared");
+  if (foreignKeys.length !== 0 || Number(preparedFiles.count) !== 3) throw new Error(`DEV-079 canonical work fixture invalid:${JSON.stringify({ foreignKeys, preparedFiles })}`);
+  return {
+    ...target,
+    workId,
+    recognitionSessionId: currentRecognition.id,
+    fixtureMutationLedger: [
+      { action: "enable task-owned local admin identity", scope: "isolated fixture only" },
+      { action: "insert canonical A0002 work, bind its owner state, and attach exact three revision-file snapshots", workId, revisionId: target.revisionId, files, scope: "isolated fixture only" }
+    ]
+  };
 }
 
-function markA0002RecognitionReady(databasePath) {
-  const database = new Database(databasePath);
-  const timestamp = new Date().toISOString();
-  const sourceSessionId = "recognition-8c16aaf4-8b8c-4369-b7a0-c1e9a5559ac6";
-  const seedSessionId = "recognition-870fe33f-6dc3-4e72-a903-3446eac49102";
-  const targetSessionId = "qc-recognition-a0002-dev079-layout";
-  const seed = database.prepare("SELECT * FROM drawing_recognition_sessions WHERE id = :id").get({ id: seedSessionId });
-  if (!seed) { database.close(); throw new Error("DEV-079 isolated seed recognition session is missing"); }
-  database.prepare("UPDATE drawing_recognition_sessions SET deduplication_key = :deduplicationKey WHERE id = :id").run({ id: seedSessionId, deduplicationKey: `qc-obsolete-${crypto.randomUUID()}` });
-  database.prepare("DELETE FROM drawing_recognition_sessions WHERE id = :id").run({ id: targetSessionId });
-  const insertRow = (table, row) => {
-    const columns = Object.keys(row);
-    database.prepare(`INSERT INTO ${table} (${columns.join(", ")}) VALUES (${columns.map((column) => `:${column}`).join(", ")})`).run(row);
-  };
-  const sourceRows = database.prepare("SELECT * FROM drawing_recognition_sources WHERE session_id = :sessionId ORDER BY sort_order, id").all({ sessionId: sourceSessionId });
-  const seedRows = database.prepare("SELECT * FROM drawing_recognition_sources WHERE session_id = :sessionId ORDER BY sort_order, id").all({ sessionId: seedSessionId });
-  const targetSourceMap = new Map(seedRows.map((row) => [row.file_asset_id, `qc-layout-source-${crypto.randomUUID()}`]));
-  const sourceToTargetSource = new Map(sourceRows.map((row) => [row.file_asset_id, targetSourceMap.get(row.file_asset_id)]));
-  insertRow("drawing_recognition_sessions", { ...seed, id: targetSessionId, status: "review_ready", source_context_type: "candidate_revision", source_context_id: "NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7", source_lineage_key: "candidate_revision:NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7", deduplication_key: seed.deduplication_key, supersedes_session_id: seedSessionId, created_at: timestamp, updated_at: timestamp, locked_by: null, locked_at: null, heartbeat_at: null, cancelled_at: null, error_code: null, error_summary: null });
-  for (const row of seedRows) insertRow("drawing_recognition_sources", { ...row, id: targetSourceMap.get(row.file_asset_id), session_id: targetSessionId, adapter_plan_json: /\.pdf$/iu.test(row.file_name) ? '["filename.v1","browser-pdf-ocr.v1"]' : row.adapter_plan_json, created_at: timestamp });
-  const sourceToTargetAdapter = new Map();
-  for (const row of database.prepare("SELECT * FROM drawing_recognition_adapter_results WHERE session_id = :sessionId ORDER BY id").all({ sessionId: sourceSessionId })) {
-    const id = `qc-layout-adapter-${crypto.randomUUID()}`;
-    sourceToTargetAdapter.set(row.id, id);
-    insertRow("drawing_recognition_adapter_results", { ...row, id, session_id: targetSessionId, source_id: sourceToTargetSource.get(row.source_id) ?? row.source_id });
-  }
-  const candidateMap = new Map();
-  for (const row of database.prepare("SELECT * FROM drawing_recognition_candidates WHERE session_id = :sessionId ORDER BY sort_order, id").all({ sessionId: sourceSessionId })) {
-    const id = `qc-layout-candidate-${crypto.randomUUID()}`;
-    candidateMap.set(row.id, id);
-    insertRow("drawing_recognition_candidates", { ...row, id, session_id: targetSessionId });
-  }
-  const observationMap = new Map();
-  for (const row of database.prepare("SELECT * FROM drawing_recognition_observations WHERE session_id = :sessionId ORDER BY captured_at, id").all({ sessionId: sourceSessionId })) {
-    const id = `qc-layout-observation-${crypto.randomUUID()}`;
-    observationMap.set(row.id, id);
-    insertRow("drawing_recognition_observations", { ...row, id, session_id: targetSessionId, source_id: sourceToTargetSource.get(row.source_id) ?? row.source_id, adapter_result_id: sourceToTargetAdapter.get(row.adapter_result_id) ?? row.adapter_result_id });
-  }
-  for (const row of database.prepare("SELECT * FROM drawing_recognition_candidate_observations WHERE candidate_id IN (SELECT id FROM drawing_recognition_candidates WHERE session_id = :sessionId)").all({ sessionId: sourceSessionId })) insertRow("drawing_recognition_candidate_observations", { ...row, candidate_id: candidateMap.get(row.candidate_id), observation_id: observationMap.get(row.observation_id) });
-  database.close();
+function protectedSnapshot(databasePath) {
+  const database = new Database(databasePath, { readonly: true, fileMustExist: true });
+  try {
+    const scalar = (sql) => Number(database.prepare(sql).get().count);
+    const quarantineColumns = new Set(database.prepare("PRAGMA table_info(pdm_workbench_migration_quarantine)").all().map((row) => String(row.name)));
+    const unresolvedQuarantine = quarantineColumns.has("resolution_status")
+      ? scalar("SELECT COUNT(*) AS count FROM pdm_workbench_migration_quarantine WHERE resolution_status='unresolved'")
+      : quarantineColumns.has("resolution")
+        ? scalar("SELECT COUNT(*) AS count FROM pdm_workbench_migration_quarantine WHERE resolution IS NULL OR TRIM(resolution)='' OR resolution='unresolved'")
+        : scalar("SELECT COUNT(*) AS count FROM pdm_workbench_migration_quarantine");
+    const schema = database.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type IN ('table','index','trigger','view') ORDER BY type, name").all();
+    const identities = {
+      roots: database.prepare("SELECT id, company_id, root_code, record_status FROM part_roots ORDER BY company_id, root_code, id").all(),
+      parts: database.prepare("SELECT id, company_id, part_root_id, part_number, record_status FROM part_numbers ORDER BY company_id, part_number, id").all(),
+      drawings: database.prepare("SELECT id, company_id, part_root_id, formal_drawing_number_id, drawing_number, lifecycle_state FROM drawings ORDER BY company_id, drawing_number, id").all()
+    };
+    return {
+      schemaHash: crypto.createHash("sha256").update(JSON.stringify(schema)).digest("hex"),
+      canonicalIdentityHash: crypto.createHash("sha256").update(JSON.stringify(identities)).digest("hex"),
+      counts: { roots: scalar("SELECT COUNT(*) AS count FROM part_roots"), parts: scalar("SELECT COUNT(*) AS count FROM part_numbers"), drawings: scalar("SELECT COUNT(*) AS count FROM drawings") },
+      migrationResidue: { unresolved: unresolvedQuarantine },
+      rootReferenceViolations: {
+        parts: scalar("SELECT COUNT(*) AS count FROM part_numbers child LEFT JOIN part_roots root ON root.id=child.part_root_id AND root.company_id=child.company_id WHERE child.part_root_id IS NOT NULL AND root.id IS NULL"),
+        drawings: scalar("SELECT COUNT(*) AS count FROM drawings child LEFT JOIN part_roots root ON root.id=child.part_root_id AND root.company_id=child.company_id WHERE child.part_root_id IS NOT NULL AND root.id IS NULL")
+      },
+      foreignKeyViolations: database.pragma("foreign_key_check").length
+    };
+  } finally { database.close(); }
+}
+
+function assertSafeSnapshot(snapshot, label) {
+  if (Object.values(snapshot.counts).some((count) => count <= 0)
+    || snapshot.migrationResidue.unresolved !== 0
+    || Object.values(snapshot.rootReferenceViolations).some((count) => count !== 0)
+    || snapshot.foreignKeyViolations !== 0) throw new Error(`DEV-079 unsafe ${label} snapshot:${JSON.stringify(snapshot)}`);
 }
 
 async function stopRuntime({ child, workerChild, port, tempDir, distDir }) {

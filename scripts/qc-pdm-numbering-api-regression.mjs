@@ -233,19 +233,6 @@ try {
     JSON.stringify(auditTrail.map((entry) => entry.action).slice(0, 8))
   );
 
-  const impact = await request(
-    "POST",
-    "/api/numbering/impact-analysis",
-    adminCookie,
-    { drawingNumber, reason: `QC API impact ${unique}`, applyInvalidation: true },
-    200
-  );
-  record(
-    "Manufacturing drawing invalidation API applies impact to linked parts",
-    impact.applied === true && Array.isArray(impact.impactedPartNumbers) && impact.impactedPartNumbers.length >= 2,
-    JSON.stringify({ applied: impact.applied, impacted: impact.impactedPartNumbers?.map((part) => part.partNumber) })
-  );
-
   const matrix = await request("GET", "/api/numbering/admin/matrix", adminCookie);
   record(
     "Admin matrix API returns roles, rules, templates, and hard rules",

@@ -53,7 +53,8 @@ try {
       dryRunPayload.mode === "dry_run" &&
       dryRunPayload.connectionAttempted === false &&
       dryRunPayload.adminBootstrapExecutedByThisRunner === false &&
-      dryRunPayload.schemaMigrationCount === plan.schemaMigrationCount
+      dryRunPayload.schemaMigrationCount === plan.schemaMigrationCount &&
+      dryRunPayload.manifestSha256 === plan.manifestSha256
   );
   record(
     "DEV046-CLOUDSQL-EXEC-003 execute mode is blocked without explicit approval",

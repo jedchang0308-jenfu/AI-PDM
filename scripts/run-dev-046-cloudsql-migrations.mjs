@@ -186,6 +186,7 @@ function summarizePlan(plan, mode) {
     runnerVersion: plan.runnerVersion,
     mode,
     manifestPath: plan.manifestPath,
+    manifestSha256: plan.manifestSha256,
     target: plan.target,
     schemaMigrationCount: plan.schemaMigrationCount,
     supportFileCount: plan.supportFileCount,

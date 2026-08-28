@@ -146,15 +146,6 @@ async function verifyViewport(browser, viewport) {
   record(`Root detail opens at ${viewport.width}px`, await page.getByText("QC 查詢同圖件").first().isVisible());
   record(`Warning markers render at ${viewport.width}px`, (await page.locator(".search-warning-marker").count()) >= 1);
 
-  const impactResponsePromise = page.waitForResponse(
-    (response) => response.url().includes("/api/numbering/impact-analysis") && response.request().method() === "POST"
-  );
-  await page.getByRole("button", { name: "影響範圍" }).click();
-  const impactResponse = await impactResponsePromise;
-  record(`Impact analysis API succeeds at ${viewport.width}px`, impactResponse.ok(), `HTTP ${impactResponse.status()}`);
-  await page.getByRole("heading", { name: "製造圖作廢影響" }).waitFor({ timeout: 10_000 });
-  record(`Impact panel shows affected part at ${viewport.width}px`, await page.getByText(partNumberB).first().isVisible());
-
   await page.keyboard.press("Escape");
   await page.locator(".pdm-detail-drawer").waitFor({ state: "hidden", timeout: 10_000 });
   record(`Search detail drawer closes before changing filters at ${viewport.width}px`, await page.locator(".pdm-detail-drawer").count() === 0);

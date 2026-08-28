@@ -112,9 +112,8 @@ try {
       sourceDoesNotMatch("src/components/number-state-workspace.tsx", /00001-M01 \/ 00001-R01/)
   );
   record(
-    "Impact and revision UI examples use v3 identities",
-    fileIncludes("src/app/numbering/impact/page.tsx", ['placeholder="A0001-M01"']) &&
-      fileIncludes("src/app/numbering/revisions/page.tsx", ["A0001-M01", "A0001-P01"])
+    "Revision UI examples use v3 identities",
+    fileIncludes("src/app/numbering/revisions/page.tsx", ["A0001-M01", "A0001-P01"])
   );
   record(
     "Settings page uses v3 as current rule draft",

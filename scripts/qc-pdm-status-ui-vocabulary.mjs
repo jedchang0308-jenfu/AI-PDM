@@ -88,8 +88,6 @@ const requiredHeaderFiles = [
   "src/components/dashboard.tsx",
   "src/app/numbering/drawings/page.tsx",
   "src/app/parts/page.tsx",
-  "src/app/numbering/impact/page.tsx",
-  "src/app/numbering/reports/page.tsx",
   "src/app/bom/workbench/page.tsx",
   "src/app/settings/page.tsx"
 ];
@@ -97,10 +95,6 @@ const requiredHeaderFiles = [
 for (const relativePath of requiredHeaderFiles) {
   record(`${relativePath} uses unified status column help`, read(relativePath).includes("StatusColumnHeader"));
 }
-
-const reportsPage = read("src/app/numbering/reports/page.tsx");
-record("Report jobs use jobStatus context", reportsPage.includes('context="jobStatus"'));
-record("Report page does not use fileSync for job status help", !reportsPage.includes('context="fileSync"'));
 
 const settingsPage = read("src/app/settings/page.tsx");
 record("Settings lifecycle uses settingsLifecycle context", settingsPage.includes('context="settingsLifecycle"'));

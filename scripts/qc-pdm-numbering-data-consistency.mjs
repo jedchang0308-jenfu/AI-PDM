@@ -110,6 +110,18 @@ function markRootAndPartObsolete(rootId, partId) {
   }
 }
 
+function seedMainDrawingInvalidRestoreFixture(rootId, partId, drawingId) {
+  const db = openDb();
+  try {
+    const now = new Date().toISOString();
+    db.prepare("UPDATE drawing_numbers SET record_status = 'Obsolete', updated_at = ? WHERE id = ?").run(now, drawingId);
+    db.prepare("UPDATE part_numbers SET record_status = 'MainDrawingInvalid', updated_at = ? WHERE id = ?").run(now, partId);
+    db.prepare("UPDATE part_roots SET record_status = 'MainDrawingInvalid', updated_at = ? WHERE id = ?").run(now, rootId);
+  } finally {
+    db.close();
+  }
+}
+
 function expectSqliteReject(name, fn, expectedText) {
   try {
     fn();
@@ -258,14 +270,8 @@ try {
   const oldDrawing = restoreCase.drawingNumber;
   created.rootCodes.push(restoreRoot.rootCode);
 
-  const invalidated = await request(
-    "POST",
-    "/api/numbering/impact-analysis",
-    adminCookie,
-    { drawingNumber: oldDrawing.drawingNumber, reason: `QC obsolete drawing ${unique}`, applyInvalidation: true },
-    200
-  );
-  record("Main drawing invalidation creates obsolete drawing lifecycle", invalidated.applied === true, JSON.stringify({ drawingNumber: oldDrawing.drawingNumber }));
+  seedMainDrawingInvalidRestoreFixture(restoreRoot.id, restorePart.id, oldDrawing.id);
+  record("Restore fixture starts from an invalidated main drawing", true, JSON.stringify({ drawingNumber: oldDrawing.drawingNumber }));
   assertDuplicateDrawingRejected(restoreRoot, oldDrawing.drawingNumber);
 
   const replacementDrawing = insertReplacementDrawing(restoreRoot, adminUserId);

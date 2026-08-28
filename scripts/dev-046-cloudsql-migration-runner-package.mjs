@@ -216,7 +216,7 @@ export function buildDev046CloudSqlMigrationRunnerPackage() {
   const liveExecutionApproved =
     liveExecutionEvidence?.approvalBoundary?.adminBootstrapApproved === true &&
     liveExecutionEvidence?.approvalBoundary?.liveMigrationApproved === true;
-  const liveMigrationCompleted =
+  const liveMigrationEvidencePassed =
     liveExecutionApproved &&
     liveExecutionEvidence?.adminBootstrap?.status === "succeeded" &&
     liveExecutionEvidence?.migrationResult?.status === "succeeded" &&
@@ -256,6 +256,13 @@ export function buildDev046CloudSqlMigrationRunnerPackage() {
     requiresVpcAttachedRunner: migrationManifest?.executionBoundary?.requiresVpcAttachedRunner === true,
     requiresReviewedAdminBootstrap: migrationManifest?.executionBoundary?.requiresReviewedAdminBootstrap === true
   };
+  const evidenceManifestSha256 = liveExecutionEvidence?.migrationResult?.manifestSha256 ?? null;
+  const evidenceSchemaMigrationCount = liveExecutionEvidence?.migrationResult?.schemaMigrationCount ?? null;
+  const liveMigrationEvidenceMatchesCurrentPackage =
+    evidenceManifestSha256 === migrationPackage.manifestSha256 &&
+    evidenceSchemaMigrationCount === migrationPackage.orderedSchemaMigrationCount;
+  const liveMigrationCompleted = liveMigrationEvidencePassed && liveMigrationEvidenceMatchesCurrentPackage;
+  const runtimeSmokeBoundToCurrentPackage = liveMigrationCompleted && runtimeSmokeExecuted;
 
   const blockers = [];
   if (!migrationPackage.manifestPresent) blockers.push("STAGING_CLOUD_SQL_MIGRATION_PACKAGE_MANIFEST_MISSING");
@@ -272,10 +279,13 @@ export function buildDev046CloudSqlMigrationRunnerPackage() {
   if (cloudRunJobPresent && !runnerLiveApprovalEnvAbsent) blockers.push("STAGING_CLOUD_RUN_JOB_CONTAINS_LIVE_APPROVAL_ENV");
   if (cloudRunJobPresent && !defaultDisabledInTfvarsExample) blockers.push("STAGING_CLOUD_RUN_JOB_DEFAULT_NOT_DISABLED");
   if (!applicationMigrationExecutorPresent) blockers.push("STAGING_MIGRATION_RUNNER_EXECUTOR_NOT_IMPLEMENTED");
-  if (liveMigrationCompleted && runtimeSmokeExecuted) blockers.push(...currentAcceptanceBlockers);
+  if (liveMigrationEvidencePassed && !liveMigrationEvidenceMatchesCurrentPackage) {
+    blockers.push("STAGING_LIVE_MIGRATION_EVIDENCE_PACKAGE_MISMATCH");
+  }
+  if (runtimeSmokeBoundToCurrentPackage) blockers.push(...currentAcceptanceBlockers);
   else if (liveMigrationCompleted) blockers.push("STAGING_RUNTIME_SMOKE_NOT_EXECUTED");
-  else blockers.push("STAGING_ADMIN_BOOTSTRAP_PATH_NOT_APPROVED");
-  const requiredNextWork = liveMigrationCompleted && runtimeSmokeExecuted
+  else if (!liveMigrationEvidencePassed) blockers.push("STAGING_ADMIN_BOOTSTRAP_PATH_NOT_APPROVED");
+  const requiredNextWork = runtimeSmokeBoundToCurrentPackage
     ? [
         "Create or verify the staging principal mapping after a real provider UID exists.",
         "Resolve the deployed application artifact provenance and source drift before full staging acceptance."
@@ -342,10 +352,16 @@ export function buildDev046CloudSqlMigrationRunnerPackage() {
       present: liveExecutionEvidence !== null,
       status: liveExecutionEvidence?.status ?? "not-present",
       approved: liveExecutionApproved,
+      evidenceManifestSha256,
+      currentManifestSha256: migrationPackage.manifestSha256,
+      evidenceSchemaMigrationCount,
+      currentSchemaMigrationCount: migrationPackage.orderedSchemaMigrationCount,
+      matchesCurrentPackage: liveMigrationEvidenceMatchesCurrentPackage,
       liveMigrationCompleted,
       idempotenceVerified: liveExecutionEvidence?.migrationResult?.idempotenceVerified === true,
       jobRestoredToDryRun: liveExecutionEvidence?.postExecutionJobPosture?.restoredToDryRun === true,
-      runtimeSmokeExecuted
+      runtimeSmokeExecuted,
+      runtimeSmokeBoundToCurrentPackage
     },
     migrationPackage,
     servicePattern: {
@@ -357,8 +373,8 @@ export function buildDev046CloudSqlMigrationRunnerPackage() {
         runtimeTf.includes("var.enable_firebase_hosting_gateway") &&
         runtimeTf.includes('"INGRESS_TRAFFIC_ALL"') &&
         runtimeTf.includes('"INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"'),
-      firebaseHostingGatewayDefaultDisabled:
-        read("infra/google-cloud/staging/terraform.tfvars.example").includes("enable_firebase_hosting_gateway = false"),
+      firebaseHostingGatewayEnabledInTfvarsExample:
+        read("infra/google-cloud/staging/terraform.tfvars.example").includes("enable_firebase_hosting_gateway = true"),
       vpcAccessPresent: runtimeTf.includes("vpc_access") && runtimeTf.includes("network_interfaces"),
       cloudSqlProxyPrivateIamPresent:
         runtimeTf.includes('name  = "cloud-sql-proxy"') &&
@@ -405,7 +421,7 @@ export function buildDev046CloudSqlMigrationRunnerPackage() {
       singletonPrimitiveIsLibraryOnly: !applicationMigrationExecutorPresent
     },
     readiness: {
-      status: liveMigrationCompleted && runtimeSmokeExecuted
+      status: runtimeSmokeBoundToCurrentPackage
         ? "live_migration_and_runtime_smoke_completed_acceptance_gated"
         : liveMigrationCompleted
           ? "live_migration_completed_runtime_smoke_pending"
@@ -416,25 +432,27 @@ export function buildDev046CloudSqlMigrationRunnerPackage() {
           : "blocked_runner_not_ready",
       readyForLiveMigration: false,
       liveMigrationCompleted,
-      topLevelBlockerCoveredBy: liveMigrationCompleted && runtimeSmokeExecuted
+      topLevelBlockerCoveredBy: runtimeSmokeBoundToCurrentPackage
         ? null
+        : liveMigrationEvidencePassed && !liveMigrationEvidenceMatchesCurrentPackage
+          ? "STAGING_LIVE_MIGRATION_EVIDENCE_PACKAGE_MISMATCH"
         : liveMigrationCompleted
           ? "STAGING_RUNTIME_SMOKE_NOT_EXECUTED"
           : "STAGING_CLOUD_SQL_MIGRATION_PACKAGE_NOT_READY",
       blockers
     },
     requiredNextWork,
-    notes: liveMigrationCompleted && runtimeSmokeExecuted
+    notes: runtimeSmokeBoundToCurrentPackage
       ? [
           "The existing web Cloud Run service image remains separate from the migration runner.",
-          "Admin bootstrap and all 18 intended migrations completed; the immediate second run applied zero versions.",
+          `Admin bootstrap and all ${migrationPackage.orderedSchemaMigrationCount} intended migrations completed for the exact manifest; the immediate second run applied zero versions.`,
           "The Cloud Run Job was restored to dry-run posture and contains no live approval environment values.",
           "Runtime Cloud SQL smoke passed; remaining staging blockers are principal mapping and application artifact provenance."
         ]
       : liveMigrationCompleted
       ? [
           "The existing web Cloud Run service image remains separate from the migration runner.",
-          "Admin bootstrap and all 18 intended migrations completed; the immediate second run applied zero versions.",
+          `Admin bootstrap and all ${migrationPackage.orderedSchemaMigrationCount} intended migrations completed for the exact manifest; the immediate second run applied zero versions.`,
           "The Cloud Run Job was restored to dry-run posture and contains no live approval environment values.",
           "Runtime smoke and principal mapping remain separate unexecuted gates."
         ]

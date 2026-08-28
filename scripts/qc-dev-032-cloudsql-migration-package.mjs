@@ -26,6 +26,16 @@ try {
     (entry) => entry.targetProjectId === "jenfu-ai-pdm-prod" && entry.version === "001"
   );
   const production001Migration = manifest.orderedSchemaMigrations.find((entry) => entry.version === "001");
+  const production047Compatibility = manifest.migrationHistoryCompatibility.entries.find(
+    (entry) => entry.targetProjectId === "jenfu-ai-pdm-prod" && entry.version === "047"
+  );
+  const production047Migration = manifest.orderedSchemaMigrations.find((entry) => entry.version === "047");
+  const production012Compatibility = manifest.migrationHistoryCompatibility.entries.find(
+    (entry) => entry.targetProjectId === "jenfu-ai-pdm-prod" && entry.version === "012"
+  );
+  const production027Compatibility = manifest.migrationHistoryCompatibility.entries.find(
+    (entry) => entry.targetProjectId === "jenfu-ai-pdm-prod" && entry.version === "027"
+  );
 
   record("DEV032-CLOUDSQL-MIG-001 package identifies production Gate C", report.dev === "DEV-032" && report.phase === "Gate-C-production-clean-seed-migration");
   record("DEV032-CLOUDSQL-MIG-002 target is dedicated production", report.target.projectId === "jenfu-ai-pdm-prod" && report.target.cloudSqlInstance === "ai-pdm-prod-postgres" && report.target.connectionName === "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres");
@@ -34,11 +44,11 @@ try {
   record("DEV032-CLOUDSQL-MIG-005 generated SQL is runner-safe", !/\b(?:anon|authenticated|service_role)\b/iu.test(generatedSql) && !/\b(?:ENABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY\b/iu.test(generatedSql) && !/^\s*(?:BEGIN|COMMIT)\s*;\s*$/gimu.test(generatedSql));
   record(
     "DEV032-CLOUDSQL-MIG-006 manifest is immutable, complete and non-authorizing",
-    manifest.status === "proposal_only_not_approved_for_live_apply" &&
+      manifest.status === "proposal_only_not_approved_for_live_apply" &&
       manifest.executionBoundary.liveApplyAllowed === false &&
-      manifest.orderedSchemaMigrations.length === 38 &&
+      manifest.orderedSchemaMigrations.length === 47 &&
       manifest.orderedSchemaMigrations.at(0)?.output === "sql/001_initial_schema.cloudsql.sql" &&
-      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/040_supervisor_workflow_authority.cloudsql.sql" &&
+      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/049_solidworks_credential_ui_activation.cloudsql.sql" &&
       manifest.orderedSchemaMigrations.every((item) => item.outputSha256?.length === 64)
   );
   record("DEV032-CLOUDSQL-MIG-007 runner requires production-specific approval", runner.includes("DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED") && runner.includes("DEV032_CLOUDSQL_MIGRATION_APPROVAL") && runner.includes("DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED"));
@@ -56,6 +66,32 @@ try {
       production001Migration?.acceptedExistingChecksums?.length === 1 &&
       production001Migration.acceptedExistingChecksums[0] === production001Compatibility.acceptedExistingChecksums[0] &&
       production001Migration.outputSha256 !== production001Compatibility.acceptedExistingChecksums[0]
+  );
+  record(
+    "DEV032-CLOUDSQL-MIG-012 production 047 historical retirement is immutable and forward-reconciled",
+    production047Compatibility?.acceptedExistingChecksums?.length === 1 &&
+      production047Compatibility.acceptedExistingChecksums[0] === "1e3b9ab54421c3296d8f385f788b057b837e15cc6e7a7f1a8d9932a726a316f2" &&
+      production047Compatibility.historicalSourceSha256 === "c18c284da2a2b25adc6fc1c34501c7317d2ebbe0a44eb16d6d04075e2e53c450" &&
+      production047Compatibility.historicalOutputSha256 === production047Compatibility.acceptedExistingChecksums[0] &&
+      production047Compatibility.historicalManifestCommit === "d9c84367" &&
+      production047Compatibility.historicalAppliedAt === "2026-08-24T11:02:17.741Z" &&
+      production047Migration?.acceptedExistingChecksums?.length === 1 &&
+      production047Migration.acceptedExistingChecksums[0] === production047Compatibility.acceptedExistingChecksums[0] &&
+      production047Migration.outputSha256 !== production047Compatibility.acceptedExistingChecksums[0] &&
+      manifest.orderedSchemaMigrations.some((entry) => entry.output === "sql/048_shared_assembly_bom.cloudsql.sql")
+  );
+  record(
+    "DEV032-CLOUDSQL-MIG-013 production 012 and 027 source drift is explicit and owned by forward migrations",
+    production012Compatibility?.acceptedExistingChecksums?.[0] === "275a0d501314bf9c8b09651b2eee448d6ff4f16944777c75d5922d51441bae11" &&
+      production012Compatibility.historicalSourceSha256 === "394683bcf1acbcb09a73d53a9d6ab184a3f313d8a8729a485f84a8231a40dd88" &&
+      production012Compatibility.historicalManifestCommit === "36d1f598" &&
+      production027Compatibility?.acceptedExistingChecksums?.[0] === "5736286935a42e9df57493fe4b397f540c6f519ea48344bf51fec2928aae16e8" &&
+      production027Compatibility.historicalSourceSha256 === "d6a34e44fd310f921c3df68a93da8f9605425f2b813b6073a5e307460ca6b4c5" &&
+      production027Compatibility.historicalManifestCommit === "72fed58d" &&
+      manifest.orderedSchemaMigrations.find((entry) => entry.version === "012")?.acceptedExistingChecksums?.[0] === production012Compatibility.acceptedExistingChecksums[0] &&
+      manifest.orderedSchemaMigrations.find((entry) => entry.version === "027")?.acceptedExistingChecksums?.[0] === production027Compatibility.acceptedExistingChecksums[0] &&
+      manifest.orderedSchemaMigrations.some((entry) => entry.version === "044") &&
+      manifest.orderedSchemaMigrations.some((entry) => entry.version === "049")
   );
 } catch (error) {
   record("DEV032-CLOUDSQL-MIG-000 QC execution", false, error instanceof Error ? error.message : String(error));

@@ -17,6 +17,12 @@ const BUILD_CONFIG_FILES = new Set([
   "tsconfig.json"
 ]);
 
+// Release worktrees can contain large generated QA inventories. Node's default
+// child-process buffer is only 1 MiB, which makes the source-boundary gate fail
+// before it can classify and exclude those paths. Keep the command bounded, but
+// large enough to inventory the whole worktree deterministically.
+const GIT_OUTPUT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+
 function normalizePath(input) {
   return input.replaceAll("\\", "/").replace(/^"\s*/u, "").replace(/\s*"$/u, "");
 }
@@ -30,11 +36,19 @@ function sha256File(absolutePath) {
 }
 
 function runGit(root, args) {
-  return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+  return execFileSync("git", args, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: GIT_OUTPUT_MAX_BUFFER_BYTES
+  }).trim();
 }
 
 function gitStatusEntries(root) {
-  const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: root, encoding: "utf8" }).replace(/\r?\n$/u, "");
+  const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: GIT_OUTPUT_MAX_BUFFER_BYTES
+  }).replace(/\r?\n$/u, "");
   if (!status) return [];
   return status.split(/\r?\n/u).filter(Boolean).map((line) => {
     const statusCode = line.slice(0, 2);
@@ -45,7 +59,11 @@ function gitStatusEntries(root) {
 
 function classifySourcePath(relativePath) {
   const filePath = normalizePath(relativePath);
-  if (filePath.startsWith("output/") || filePath.startsWith(".firebase/")) {
+  if (
+    filePath.startsWith("output/") ||
+    filePath.startsWith(".artifacts/") ||
+    filePath.startsWith(".firebase/")
+  ) {
     return {
       bucket: "generated_evidence_excluded",
       includedInProductionSource: false,
@@ -70,6 +88,13 @@ function classifySourcePath(relativePath) {
       bucket: "included_release_governance",
       includedInProductionSource: true,
       reason: "Release-gate decisions, specs, QC, reports or runbooks."
+    };
+  }
+  if (filePath.startsWith(".github/workflows/")) {
+    return {
+      bucket: "included_release_governance",
+      includedInProductionSource: true,
+      reason: "CI/CD workflow is part of the reviewed production release contract."
     };
   }
   if (filePath.startsWith("src/")) {
@@ -98,6 +123,13 @@ function classifySourcePath(relativePath) {
       bucket: "included_platform_contract",
       includedInProductionSource: true,
       reason: "Platform, authority, cost, seed or continuity contract."
+    };
+  }
+  if (filePath.startsWith("config/")) {
+    return {
+      bucket: "included_build_runtime_config",
+      includedInProductionSource: true,
+      reason: "Application runtime configuration included in candidate behavior."
     };
   }
   if (filePath.startsWith("infra/google-cloud/production/")) {

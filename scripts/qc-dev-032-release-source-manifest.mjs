@@ -27,12 +27,13 @@ record(
       includedBucketEntries.length > 0 &&
       includedBucketEntries.every(([bucket, count]) => expectedDirtySnapshotBuckets.includes(bucket) && count > 0)
 );
-record("DEV032-SOURCE-007 generated evidence is excluded from production source", manifest.files.filter((file) => file.path.startsWith("output/") || file.path.startsWith(".firebase/")).every((file) => file.bucket === "generated_evidence_excluded" && file.includedInProductionSource === false));
+record("DEV032-SOURCE-007 generated evidence is excluded from production source", manifest.files.filter((file) => file.path.startsWith("output/") || file.path.startsWith(".artifacts/") || file.path.startsWith(".firebase/")).every((file) => file.bucket === "generated_evidence_excluded" && file.includedInProductionSource === false));
 record("DEV032-SOURCE-008 staging provider inputs are excluded from production config", [".firebaserc", "firebase.json", "firebase-hosting/", "infra/google-cloud/staging/", "config/platform/staging-preflight.template.json"].every((prefix) => manifest.files.filter((file) => file.path === prefix || file.path.startsWith(prefix)).every((file) => file.bucket === "staging_only_excluded_from_production_config" && file.includedInProductionSource === false)));
 record("DEV032-SOURCE-009 file records expose hashes without contents", manifest.files.every((file) => !("content" in file) && (file.exists === false || /^[a-f0-9]{64}$/u.test(file.sha256 ?? ""))));
 record("DEV032-SOURCE-010 stop conditions preserve release gate blockers", manifest.stopConditions.some((item) => item.includes("production target")) && manifest.stopConditions.some((item) => item.includes("Level 3/4")));
 record("DEV032-SOURCE-011 package exposes generator and QC scripts", packageJson.scripts["dev-032:release-source-manifest"] === "node scripts/generate-dev-032-release-source-manifest.mjs" && packageJson.scripts["qc:dev-032-release-source-manifest"] === "node scripts/qc-dev-032-release-source-manifest.mjs");
 record("DEV032-SOURCE-012 exact commit state matches remaining included source", manifest.releaseDecision.exactReleaseCommitExists === (manifest.summary.includedProductionSourceEntries === 0 && manifest.summary.unknownRiskEntries === 0));
+record("DEV032-SOURCE-013 non-platform runtime config is included", manifest.files.filter((file) => file.path.startsWith("config/") && !file.path.startsWith("config/platform/")).every((file) => file.bucket === "included_build_runtime_config" && file.includedInProductionSource === true));
 
 for (const result of results) console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);
 const failures = results.filter((result) => !result.passed);

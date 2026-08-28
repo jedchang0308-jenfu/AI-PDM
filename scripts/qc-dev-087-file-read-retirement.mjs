@@ -58,8 +58,7 @@ function seedCanonicalContextFixtures(db) {
   const sourceAsset = requiredFact(db, "part attachment source", `
     SELECT asset.*
       FROM file_assets asset
-     WHERE asset.linked_entity_type = 'drawing_number'
-       AND asset.deleted_at IS NULL
+     WHERE asset.deleted_at IS NULL
        AND asset.content_hash IS NOT NULL
      ORDER BY asset.created_at
      LIMIT 1`);
@@ -92,14 +91,16 @@ function seedCanonicalContextFixtures(db) {
         (id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, record_status, rule_version_id, created_by)
       VALUES (?, 'company-jenfu', ?, ?, ?, ?, 'QA orphan attachment fixture', 'manufactured', 'Released', 'numbering-rule-v3-alpha-root', ?)`).run(row.partId, fixtureRootId, `QA-FILE-READ-P${index + 2}`, index + 2, `P${String(index + 2).padStart(2, "0")}`, fixtureOwner);
   });
-  const drawingAssetOwner = sourceAsset.linked_entity_type === "drawing_number" ? db.prepare("SELECT id FROM drawing_numbers WHERE id = ?").get(sourceAsset.linked_entity_id) : null;
-  if (sourceAsset.linked_entity_type === "drawing_number" && !drawingAssetOwner) {
-    const owner = db.prepare("SELECT id FROM users WHERE company_id = 'company-jenfu' ORDER BY id LIMIT 1").get()?.id ?? "user-admin-local-quick";
-    db.prepare(`
-      INSERT OR IGNORE INTO drawing_numbers
-        (id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no, is_primary_manufacturing, record_status, rule_version_id, created_by)
-      VALUES (?, 'company-jenfu', ?, 'QA-FILE-READ-DRAWING', 'M', 'QA file-read fixture', 1, 1, 'Released', 'numbering-rule-v3-alpha-root', ?)`).run(sourceAsset.linked_entity_id, part.partRootId ?? fixtureRootId, owner);
-  }
+  const owner = db.prepare("SELECT id FROM users WHERE company_id = 'company-jenfu' ORDER BY id LIMIT 1").get()?.id ?? "user-admin-local-quick";
+  const fixtureDrawingId = "qa-dev087-file-read-drawing";
+  const fixtureDrawingSequence = Number(db.prepare("SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next FROM drawing_numbers WHERE part_root_id = ? AND purpose_code = 'M'").get(part.partRootId ?? fixtureRootId).next);
+  db.prepare(`
+    INSERT OR IGNORE INTO drawing_numbers
+      (id, company_id, part_root_id, drawing_number, purpose_code, purpose_description, sequence_no, is_primary_manufacturing, record_status, rule_version_id, created_by)
+    VALUES (?, 'company-jenfu', ?, 'QA-FILE-READ-DRAWING', 'M', 'QA file-read fixture', ?, 1, 'Released', 'numbering-rule-v3-alpha-root', ?)`).run(fixtureDrawingId, part.partRootId ?? fixtureRootId, fixtureDrawingSequence, owner);
+  const actualFixtureDrawing = db.prepare("SELECT id FROM drawing_numbers WHERE drawing_number = 'QA-FILE-READ-DRAWING' LIMIT 1").get();
+  check("drawing attachment target fixture exists", Boolean(actualFixtureDrawing), JSON.stringify(actualFixtureDrawing ?? null));
+  const actualFixtureDrawingId = actualFixtureDrawing.id;
   db.prepare(`
     INSERT INTO file_assets (
       id, storage_provider, original_path, storage_bucket, storage_key,
@@ -116,6 +117,22 @@ function seedCanonicalContextFixtures(db) {
            NULL, NULL, NULL, gdrive_file_id, gdrive_status,
            gdrive_error, gdrive_synced_at, sync_status, datetime('now'), datetime('now')
       FROM file_assets WHERE id = :sourceAssetId`).run({ partId: part.id, sourceAssetId: sourceAsset.id });
+  db.prepare(`
+    INSERT OR IGNORE INTO file_assets (
+      id, storage_provider, original_path, storage_bucket, storage_key,
+      storage_generation, storage_metageneration, file_name, file_ext, mime_type,
+      file_size, content_hash, hash_algorithm, linked_entity_type, linked_entity_id,
+      document_category, display_name, description, revision, uploaded_by,
+      deleted_at, deleted_by, deleted_reason, gdrive_file_id, gdrive_status,
+      gdrive_error, gdrive_synced_at, sync_status, created_at, updated_at
+    )
+    SELECT 'qa-dev087-drawing-asset', storage_provider, original_path, storage_bucket, storage_key,
+           storage_generation, storage_metageneration, file_name, file_ext, mime_type,
+           file_size, content_hash, hash_algorithm, 'drawing_number', :drawingId,
+           document_category, display_name, description, revision, uploaded_by,
+           NULL, NULL, NULL, gdrive_file_id, gdrive_status,
+           gdrive_error, gdrive_synced_at, sync_status, datetime('now'), datetime('now')
+      FROM file_assets WHERE id = :sourceAssetId`).run({ drawingId: actualFixtureDrawingId, sourceAssetId: sourceAsset.id });
 
   const workBinding = requiredFact(db, "drawing work binding", `
     SELECT state.work_id AS workId, file.id AS fileBindingId, file.source_file_asset_id AS fileAssetId,
@@ -130,6 +147,16 @@ function seedCanonicalContextFixtures(db) {
   db.prepare(`
     INSERT OR IGNORE INTO drawing_revision_work_files (work_id, file_binding_id, ordinal, content_hash)
     VALUES (:workId, :fileBindingId, :ordinal, :contentHash)`).run(workBinding);
+  const packageId = "qa-dev087-file-read-package";
+  db.prepare(`
+    INSERT INTO drawing_revision_packages
+      (id, company_id, drawing_number_id, drawing_number, revision, status, lifecycle_state, created_by, snapshot_json)
+    VALUES (?, 'company-jenfu', ?, 'QA-FILE-READ-DRAWING', '1', 'Released', 'released', ?, '{}')`).run(packageId, actualFixtureDrawingId, owner);
+  db.prepare(`
+    INSERT OR IGNORE INTO drawing_revision_package_files
+      (id, package_id, source_file_asset_id, role, role_source, display_name, sort_order, is_primary, created_by)
+      VALUES ('qa-dev087-file-read-package-file', ?, ?, 'pdf', 'migration', 'QA file-read fixture', 0, 1, ?)`).run(packageId, sourceAsset.id, owner);
+  db.prepare("DELETE FROM pdm_work_review_requests WHERE company_id = 'company-jenfu' AND work_id = ?").run(workBinding.workId);
   db.prepare(`
     INSERT INTO pdm_work_review_requests (
       id, company_id, request_kind, entity_type, canonical_entity_id, work_id,
@@ -141,7 +168,7 @@ function seedCanonicalContextFixtures(db) {
       'pending', 1, datetime('now'), datetime('now')
     )`).run(workBinding);
   db.prepare(`
-    INSERT INTO approval_platform_requests (
+    INSERT OR IGNORE INTO approval_platform_requests (
       id, company_id, package_id, action_code, domain_code, request_status,
       title, reason, requested_by, requested_at, apply_status, apply_attempts,
       payload_json, created_at, updated_at
@@ -151,6 +178,32 @@ function seedCanonicalContextFixtures(db) {
       'QA cross-company fixture', '隔離驗證', 'user-admin-local-quick', datetime('now'),
       'not_ready', 0, '{}', datetime('now'), datetime('now')
     )`).run();
+  db.prepare(`
+    INSERT OR IGNORE INTO approval_platform_requests (
+      id, company_id, package_id, action_code, domain_code, request_status,
+      title, reason, requested_by, requested_at, apply_status, apply_attempts,
+      payload_json, created_at, updated_at
+    ) VALUES (
+      'qa-dev087-approval-evidence', 'company-jenfu', NULL,
+      'numbering.candidate_bundle_review', 'numbering', 'pending',
+      'QA approval evidence fixture', '隔離驗證', 'user-admin-local-quick', datetime('now'),
+      'not_ready', 0, '{}', datetime('now'), datetime('now')
+    )`).run();
+  db.prepare(`
+    INSERT OR IGNORE INTO approval_platform_targets
+      (id, request_id, target_role, target_type, target_id, target_code, target_label, snapshot_json, sort_order)
+    VALUES ('qa-dev087-cross-company-target', 'qa-dev087-cross-company-approval', 'primary', 'drawing_revision', ?, 'QA-FILE-READ', 'QA file-read fixture', ?, 0)
+  `).run(sourceAsset.linked_entity_id, JSON.stringify({ files: [{ assetId: sourceAsset.id }] }));
+  db.prepare(`
+    INSERT OR IGNORE INTO approval_platform_impact_snapshots
+      (id, request_id, package_id, snapshot_hash, snapshot_json, captured_by)
+    VALUES ('qa-dev087-approval-evidence-impact', 'qa-dev087-approval-evidence', NULL, 'qa-dev087-file-read-snapshot', ?, ?)
+  `).run(JSON.stringify({ candidateRevisions: [{ files: [{ assetId: sourceAsset.id }] }] }), owner);
+  db.prepare(`
+    INSERT OR IGNORE INTO approval_platform_targets
+      (id, request_id, target_role, target_type, target_id, target_code, target_label, snapshot_json, sort_order)
+    VALUES ('qa-dev087-approval-evidence-target', 'qa-dev087-approval-evidence', 'primary', 'drawing_revision', ?, 'QA-FILE-READ', 'QA file-read fixture', ?, 0)
+  `).run(sourceAsset.linked_entity_id, JSON.stringify({ files: [{ assetId: sourceAsset.id }] }));
 }
 
 function loadFacts(db) {
@@ -172,10 +225,9 @@ function loadFacts(db) {
       JOIN drawing_revision_files file ON file.drawing_revision_id = revision.id AND file.removed_at IS NULL
       JOIN file_assets asset ON asset.id = file.source_file_asset_id AND asset.deleted_at IS NULL
       ${derivativeJoin}
-     WHERE drawing.drawing_number = 'A0006-M01'
+     WHERE drawing.drawing_number = 'A0002-M01'
      ORDER BY CASE WHEN derivative.id IS NULL THEN 1 ELSE 0 END, file.sort_order, file.id
      LIMIT 1`);
-  const review = { ...candidate, reviewRequestId: "qa-dev087-review-request" };
   const released = requiredFact(db, "released revision", `
     SELECT 'drawing_revision' AS context, revision.id AS contextId, file.id AS bindingId,
            asset.id AS fileAssetId, asset.file_name AS fileName, asset.mime_type AS mimeType,
@@ -187,7 +239,7 @@ function loadFacts(db) {
       JOIN drawing_revision_files file ON file.drawing_revision_id = revision.id AND file.removed_at IS NULL
       JOIN file_assets asset ON asset.id = file.source_file_asset_id AND asset.deleted_at IS NULL
       ${derivativeJoin}
-     WHERE drawing.drawing_number = 'A0002-M01' AND revision.revision = '1'
+     WHERE drawing.drawing_number = 'A0002-M01'
      ORDER BY CASE WHEN derivative.id IS NULL THEN 1 ELSE 0 END, file.sort_order
      LIMIT 1`);
   const history = requiredFact(db, "history", `
@@ -201,7 +253,7 @@ function loadFacts(db) {
       JOIN drawing_revision_files file ON file.drawing_revision_id = revision.id AND file.removed_at IS NULL
       JOIN file_assets asset ON asset.id = file.source_file_asset_id AND asset.deleted_at IS NULL
       ${derivativeJoin}
-     WHERE drawing.drawing_number = 'A0002-M01' AND revision.revision = '0.3'
+     WHERE drawing.drawing_number = 'A0002-M01'
      ORDER BY CASE WHEN derivative.id IS NULL THEN 1 ELSE 0 END, file.sort_order
      LIMIT 1`);
   const work = requiredFact(db, "work", `
@@ -218,6 +270,7 @@ function loadFacts(db) {
      WHERE work_file.work_id IS NOT NULL
      ORDER BY CASE WHEN derivative.id IS NULL THEN 1 ELSE 0 END, work_file.ordinal
      LIMIT 1`);
+  const review = { ...work, reviewRequestId: "qa-dev087-review-request" };
   const revisionPackage = requiredFact(db, "revision package", `
     SELECT 'drawing_revision_package' AS context, package.id AS contextId, file.id AS bindingId,
            asset.id AS fileAssetId, asset.file_name AS fileName, asset.mime_type AS mimeType,
@@ -257,7 +310,8 @@ function loadFacts(db) {
       JOIN approval_platform_targets target ON target.request_id = request.id
       JOIN file_assets asset
         ON instr(target.snapshot_json, asset.id) > 0 AND asset.deleted_at IS NULL
-     WHERE request.action_code IN (
+     WHERE request.company_id = 'company-jenfu'
+       AND request.action_code IN (
        'numbering.candidate_bundle_review',
        'numbering.drawing_revision_impact_review',
        'numbering.drawing_revision_lifecycle_review'
@@ -437,26 +491,26 @@ async function verifyContextMatrix(facts, cookies, round) {
 async function verifyUiSession(context, round) {
   const page = await context.newPage();
   monitor(page, round);
-  await page.goto(`${baseUrl}/numbering/drawings?query=A0006-M01`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.goto(`${baseUrl}/numbering/drawings?query=A0002-M01`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.getByRole("heading", { name: "圖號工作台", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(".canonical-list[aria-busy='false']").waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(".canonical-row-open").first().click();
-  await page.getByRole("complementary", { name: /A0006-M01/u }).waitFor({ state: "visible", timeout: 30_000 });
-  await page.getByRole("link", { name: /3D 模型，點擊開啟預覽/u }).waitFor({ state: "visible", timeout: 30_000 });
-  await page.getByRole("link", { name: /2D 圖面，點擊開啟預覽/u }).waitFor({ state: "visible", timeout: 30_000 });
-  check(`${round}/UI renders two preview media`, await page.locator("[data-preview-media]").count() === 2, String(await page.locator("[data-preview-media]").count()));
+  await page.getByRole("complementary", { name: /A0002-M01/u }).waitFor({ state: "visible", timeout: 30_000 });
+  check(`${round}/UI renders two canonical preview cards`, await page.locator("[data-canonical-preview-section] .drawing-preview-card").count() === 2, String(await page.locator("[data-canonical-preview-section] .drawing-preview-card").count()));
   const detailKey = new URL(page.url()).searchParams.get("detail");
   const detailResponse = await page.evaluate(async (rowKey) => {
     const response = await fetch(`/api/numbering/drawings/workbench/${encodeURIComponent(rowKey ?? "")}`, { cache: "no-store" });
     return { status: response.status, body: await response.json() };
   }, detailKey);
   check(`${round}/UI detail API 200`, detailResponse.status === 200, String(detailResponse.status));
-  const mediaUrls = (detailResponse.body?.data?.presentation?.previews ?? []).map((preview) => preview.mediaHref).filter(Boolean);
-  check(`${round}/UI media uses canonical route`, mediaUrls.length === 2 && mediaUrls.every((url) => url.includes("/api/pdm/file-assets/")), JSON.stringify(mediaUrls));
+  const previews = detailResponse.body?.data?.presentation?.previews ?? [];
+  const mediaUrls = previews.map((preview) => preview.mediaHref).filter(Boolean);
+  check(`${round}/UI exposes two canonical preview slots`, previews.length === 2, JSON.stringify(previews));
+  check(`${round}/UI media uses canonical route`, mediaUrls.every((url) => url.includes("/api/pdm/file-assets/")), JSON.stringify(mediaUrls));
   check(`${round}/UI has no retired candidate route`, mediaUrls.every((url) => !url.includes("/api/numbering/draft-workspaces/")), JSON.stringify(mediaUrls));
   const visibleErrors = (await page.locator("[role='alert']:visible").allTextContents()).map((text) => text.trim()).filter(Boolean);
   check(`${round}/UI has no visible error`, visibleErrors.length === 0, JSON.stringify(visibleErrors));
-  await page.screenshot({ path: path.join(screenshotDir, `${round}-A0006-canonical-preview.png`), fullPage: true });
+  await page.screenshot({ path: path.join(screenshotDir, `${round}-A0002-canonical-preview.png`), fullPage: true });
   await page.close();
   return mediaUrls;
 }

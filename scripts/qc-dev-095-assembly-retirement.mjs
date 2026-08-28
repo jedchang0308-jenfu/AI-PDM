@@ -29,7 +29,8 @@ const sourceFiles = [
       ![
         "migrate-dev-095-legacy-assembly-bom-retirement.mjs",
         "qc-dev-095-assembly-retirement.mjs",
-        "qc-dev-095-primary-invariant.mjs"
+        "qc-dev-095-primary-invariant.mjs",
+        "qc-production-cloudsql-migration-history-rehearsal.mjs"
       ].includes(path.basename(filePath))
   )
 ];
@@ -82,7 +83,7 @@ for (const retiredScript of [
 assert.ok(packageJson.scripts["pdm:dev-095:retirement-dry-run"], "DEV-095 dry-run command is required");
 assert.ok(packageJson.scripts["pdm:dev-095:retirement-apply"], "DEV-095 apply command is required");
 
-const postgresMigration = read("db/postgres/047_retire_legacy_assembly_bom_intake.sql");
+const postgresMigration = read("db/postgres/048_shared_assembly_bom.sql");
 for (const term of ["DROP TABLE IF EXISTS bom_import_jobs", "DROP TABLE IF EXISTS bom_import_profiles", "DROP COLUMN IF EXISTS source_revision_package_id"]) {
   assert.ok(postgresMigration.includes(term), `PostgreSQL migration must include ${term}`);
 }

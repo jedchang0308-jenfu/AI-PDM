@@ -101,16 +101,14 @@ try {
       report.executionEnvironment.localMachineDirectApplyAllowed === false
   );
   record(
-    "DEV046-CLOUDSQL-MIG-010 migration and runtime smoke are complete while staging acceptance remains gated",
+    "DEV046-CLOUDSQL-MIG-010 current candidate readiness is bound to exact manifest evidence",
     report.readiness.readyForLiveApply === false &&
-      report.readiness.cloudSqlMigrationPackageReady === true &&
-      report.readiness.liveMigrationCompleted === true &&
-      report.readiness.runtimeSmokeReady === true &&
-      report.readiness.blockers.length === 2 &&
-      report.readiness.blockers.includes("STAGING_PRINCIPAL_MAPPING_EVIDENCE_MISSING") &&
-      report.readiness.blockers.includes("STAGING_APPLICATION_ARTIFACT_PROVENANCE_AND_DRIFT_EVIDENCE_MISSING") &&
-      !report.readiness.blockers.includes("STAGING_RUNTIME_SMOKE_NOT_EXECUTED") &&
-      report.liveExecutionEvidence.idempotenceVerified === true
+      report.liveExecutionEvidence.candidateManifestSha256.length === 64 &&
+      report.liveExecutionEvidence.candidateSchemaMigrationCount === report.candidatePackage.orderedSchemaMigrationCount &&
+      report.readiness.liveMigrationCompleted === report.liveExecutionEvidence.matchesCurrentCandidate &&
+      (report.liveExecutionEvidence.matchesCurrentCandidate
+        ? report.readiness.cloudSqlMigrationPackageReady === true && report.liveExecutionEvidence.idempotenceVerified === true
+        : report.readiness.cloudSqlMigrationPackageReady === false && report.readiness.blockers.length > 0)
   );
   record(
     "DEV046-CLOUDSQL-MIG-011 candidate package is generated for review only",
@@ -140,10 +138,14 @@ try {
       report.candidatePackage.transformations.remainingTransactionWrappers === 0
   );
   record(
-    "DEV046-CLOUDSQL-MIG-014 required next work names principal mapping and artifact provenance",
-    report.requiredNextWork.some((item) => item.includes("principal mapping")) &&
-      report.requiredNextWork.some((item) => item.includes("artifact provenance")) &&
-      !report.requiredNextWork.some((item) => item.includes("runtime smoke"))
+    "DEV046-CLOUDSQL-MIG-014 required next work matches current candidate state",
+    report.liveExecutionEvidence.runtimeSmokeBoundToCurrentCandidate
+      ? report.requiredNextWork.some((item) => item.includes("principal mapping")) &&
+        report.requiredNextWork.some((item) => item.includes("artifact provenance"))
+      : report.liveExecutionEvidence.matchesCurrentCandidate
+        ? report.requiredNextWork.some((item) => item.includes("runtime smoke"))
+      : report.requiredNextWork.some((item) => item.includes("ordered migration manifest")) &&
+        report.requiredNextWork.some((item) => item.includes("runtime smoke"))
   );
   record(
     "DEV046-CLOUDSQL-MIG-015 output files are written",

@@ -142,6 +142,8 @@ assertIncludes(repositorySource, "decodeLegacyApprovalId", "Legacy approval IDs 
 assertIncludes(repositorySource, "listLegacyNumberingInbox", "Numbering adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacySubmissionInbox", "Submission adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacyBomInbox", "BOM adapter participates in unified inbox");
+assertIncludes(repositorySource, "search_parent.part_number_id", "BOM inbox search joins the canonical parent-binding column");
+assertNotIncludes(repositorySource, "search_parent.parent_part_number_id", "BOM inbox search does not reference a nonexistent parent-binding column");
 assertIncludes(repositorySource, "listLegacyDrawingPackageInbox", "Drawing package adapter participates in unified inbox");
 assertIncludes(repositorySource, "legacy_drawing_revision_review", "Drawing revision review adapter participates in unified inbox");
 assertIncludes(repositorySource, "listLegacyDrawingRevisionReviewInbox", "Drawing revision review inbox adapter is present");

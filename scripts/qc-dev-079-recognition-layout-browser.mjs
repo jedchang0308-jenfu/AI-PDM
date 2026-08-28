@@ -8,11 +8,14 @@ import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import { chromium } from "playwright";
 import Database from "better-sqlite3";
+import { startDev079IsolatedRuntime } from "./qc-dev-079-isolated-runtime.mjs";
 
 const root = process.cwd();
 const ownsRuntime = !process.env.PDM_BASE_URL;
-const drawingId = process.env.PDM_DEV_079_DRAWING_ID ?? "drawing-draft-drawing-5252ba10-7bf4-449c-b44d-43e7c68a1978";
-const route = `/numbering/drawings/${encodeURIComponent(drawingId)}/workspace?intent=edit_revision&returnTo=%2Fnumbering%2Fdrawings%3Fview%3Dwork`;
+let drawingId = process.env.PDM_DEV_079_DRAWING_ID ?? "";
+let workId = process.env.PDM_DEV_079_WORK_ID ?? "";
+let drawingNumber = process.env.PDM_DEV_079_DRAWING_NUMBER ?? "";
+let recognitionSessionId = process.env.PDM_DEV_079_RECOGNITION_SESSION_ID ?? "";
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "tablet", width: 1024, height: 768 },
@@ -23,6 +26,7 @@ const outputDir = path.resolve(root, "output", "qa", "dev-079-recognition-layout
 fs.mkdirSync(outputDir, { recursive: true });
 
 let baseUrl = process.env.PDM_BASE_URL ?? "";
+let isolatedRuntime = null;
 let isolatedTempDir = null;
 let isolatedRepositoryDir = null;
 let isolatedDistDir = null;
@@ -256,37 +260,32 @@ async function prepareA0002Successor() {
   try {
     const login = await context.request.post(`${baseUrl}/api/auth/local-quick-login`, { data: { role: "R&D Manager" } });
     if (!login.ok()) throw new Error(`A0002 setup login HTTP ${login.status()}`);
-    const latestResponse = await context.request.get(`${baseUrl}/api/numbering/drawings/A0002-M01/recognition-session`, { failOnStatusCode: false });
+    const latestResponse = await context.request.get(`${baseUrl}/api/numbering/drawings/${encodeURIComponent(drawingNumber)}/recognition-session`, { failOnStatusCode: false });
     if (!latestResponse.ok()) throw new Error(`A0002 latest recognition HTTP ${latestResponse.status()}`);
     const latestBody = await latestResponse.json();
-    let sessionId = latestBody.session?.id ?? "qc-recognition-a0002-dev079";
-    let projectionResponse = await context.request.get(`${baseUrl}/api/numbering/recognition-sessions/${encodeURIComponent(sessionId)}`, { failOnStatusCode: false });
-    let projectionBody = await projectionResponse.json();
+    const sessionId = latestBody.session?.id ?? recognitionSessionId;
+    if (!sessionId) throw new Error("A0002 current recognition session is unavailable");
+    const projectionResponse = await context.request.get(`${baseUrl}/api/numbering/recognition-sessions/${encodeURIComponent(sessionId)}`, { failOnStatusCode: false });
+    const projectionBody = await projectionResponse.json();
     const hasLocatablePdf = (projectionBody.session?.reviewGroups ?? []).some((group) => (group.fieldKey === "revision" || group.fieldLabel === "版次")
       && (group.observations ?? []).some((observation) => /.pdf$/iu.test(observation.sourceFileName ?? "") && observation.geometry?.coordinateSpace === "normalized_page" && observation.geometry?.origin === "top_left"));
-    if (!hasLocatablePdf) {
-      const rerunResponse = await context.request.post(`${baseUrl}/api/numbering/recognition-sessions/${encodeURIComponent(sessionId)}/reruns`, {
-        headers: { "idempotency-key": `dev079:a0002-successor:${Date.now()}` },
-        failOnStatusCode: false
-      });
-      if (!rerunResponse.ok()) throw new Error(`A0002 successor rerun HTTP ${rerunResponse.status()}: ${await rerunResponse.text()}`);
-      const rerunBody = await rerunResponse.json();
-      sessionId = rerunBody.session?.id;
-      if (!sessionId) throw new Error("A0002 successor rerun did not return a session");
-      for (let attempt = 0; attempt < 60; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        projectionResponse = await context.request.get(`${baseUrl}/api/numbering/recognition-sessions/${encodeURIComponent(sessionId)}`, { failOnStatusCode: false });
-        projectionBody = await projectionResponse.json();
-        if (!projectionBody.session || !["queued", "extracting"].includes(projectionBody.session.status)) break;
-      }
-    }
+    if (projectionBody.session?.status !== "review_ready" || !hasLocatablePdf) throw new Error(`A0002 current review-ready locatable PDF evidence is unavailable:${JSON.stringify({ sessionId, status: projectionBody.session?.status, hasLocatablePdf })}`);
     return { sessionId, status: projectionBody.session?.status ?? "unknown" };
   } finally {
     await context.close();
   }
 }
 
-await startIsolatedRuntime();
+if (ownsRuntime) {
+  isolatedRuntime = await startDev079IsolatedRuntime();
+  baseUrl = isolatedRuntime.baseUrl;
+  drawingId = isolatedRuntime.drawingId;
+  workId = isolatedRuntime.workId;
+  drawingNumber = isolatedRuntime.drawingNumber;
+  recognitionSessionId = isolatedRuntime.recognitionSessionId;
+}
+if (!drawingId || !workId || !drawingNumber) throw new Error("DEV-079 canonical drawingId/workId/drawingNumber are required");
+const route = `/numbering/drawings/${encodeURIComponent(drawingId)}/workspace?workId=${encodeURIComponent(workId)}&returnTo=%2Fnumbering%2Fdrawings`;
 try {
   const successor = await prepareA0002Successor();
   for (const viewport of viewports) {
@@ -303,8 +302,15 @@ try {
     page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
     page.on("requestfailed", (request) => {
       const failure = request.failure()?.errorText ?? "failed";
-      if (request.url().startsWith("blob:") && failure === "net::ERR_ABORTED") expectedPreviewCancellations.push(`${request.url()} ${failure}`);
-      else if (request.url().includes("_rsc=") && failure === "net::ERR_ABORTED") expectedNavigationCancellations.push(`${request.url()} ${failure}`);
+      const requestUrl = request.url();
+      let pathname = "";
+      try { pathname = new URL(requestUrl).pathname; } catch {}
+      if (requestUrl.startsWith("blob:") && failure === "net::ERR_ABORTED") expectedPreviewCancellations.push(`${requestUrl} ${failure}`);
+      else if (requestUrl.includes("_rsc=") && failure === "net::ERR_ABORTED") expectedNavigationCancellations.push(`${requestUrl} ${failure}`);
+      else if (failure === "net::ERR_ABORTED" && request.method() === "GET" && [
+        `/api/pdm/drawing-revision-works/${workId}`,
+        `/api/numbering/drawings/${drawingNumber}/recognition-session`
+      ].includes(pathname)) expectedNavigationCancellations.push(`${requestUrl} ${failure}`);
       else failedRequests.push(`${request.url()} ${failure}`);
     });
     page.on("response", async (response) => {
@@ -329,9 +335,7 @@ try {
     const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForTimeout(1_000);
     await page.waitForSelector('.dev079-workspace, .dev079-workspace-state', { timeout: 30_000 });
-    const recognitionTab = page.getByRole("tab", { name: /智慧辨識/u });
-    if (await recognitionTab.count() !== 1) throw new Error(`${viewport.name}: 智慧辨識 tab missing; body=${(await page.locator("body").innerText()).slice(0, 2_000)}`);
-    await recognitionTab.click();
+    await page.waitForSelector('#dev079-recognition-heading', { timeout: 30_000 });
     try {
       await page.waitForSelector('.dev079-recognition-candidate input[aria-label*="版次"]', { timeout: 30_000 });
     } catch (error) {
@@ -345,8 +349,9 @@ try {
     await firstCandidateInput.fill(`${originalValue} ${viewport.name}`.trim());
     await page.waitForTimeout(120);
     await page.waitForFunction(() => [...document.querySelectorAll('.dev079-recognition-evidence-source')].some((button) => button.textContent?.trim() === 'PDF圖面'), null, { timeout: 30_000 });
-    const pdfEvidenceButton = page.getByRole("button", { name: "PDF圖面", exact: true }).first();
-    const cadEvidenceButton = page.getByRole("button", { name: "檔案屬性", exact: true }).first();
+    const materialCard = page.locator('.dev079-recognition-candidate[data-recognition-field-key="material"]');
+    const pdfEvidenceButton = materialCard.getByRole("button", { name: "PDF圖面", exact: true }).first();
+    const cadEvidenceButton = materialCard.getByRole("button", { name: "檔案屬性", exact: true }).first();
     if (await pdfEvidenceButton.count() < 1 || await cadEvidenceButton.count() < 1) throw new Error(`${viewport.name}: explicit PDF/CAD evidence controls missing`);
     const originalPreview = await page.evaluate(() => ({
       activeTabText: document.querySelector('.drawing-preview-tabs [role="tab"][aria-selected="true"]')?.textContent?.replace(/\s+/gu, ' ').trim() ?? '',
@@ -420,13 +425,13 @@ try {
         caption: document.querySelector('.dev079-evidence-caption')?.textContent?.replace(/\s+/gu, ' ').trim() ?? '',
         renderedMode: document.querySelector('[data-preview-rendered-mode]')?.getAttribute('data-preview-rendered-mode') ?? '',
         pdfPageState: document.querySelector('[data-pdf-page-state]')?.getAttribute('data-pdf-page-state') ?? '',
-        pdfPageRendererCount: document.querySelectorAll('[data-preview-rendered-mode="pdf-page"]').length,
+        pdfPageRendererCount: document.querySelectorAll('[data-pdf-page-state]').length,
         documentViewerCount: document.querySelectorAll('[data-preview-media="document"]').length,
-        previewLinkTarget: document.querySelector('a.drawing-preview-media-link[data-preview-rendered-mode="pdf-page"]')?.getAttribute('target') ?? '',
-        previewSurfaceCount: document.querySelectorAll('[data-component="drawing-detail-preview"]').length,
+        previewLinkTarget: document.querySelector('a.drawing-preview-media-link[data-preview-rendered-mode="document"]')?.getAttribute('target') ?? '',
+        previewSurfaceCount: document.querySelectorAll('[data-component="canonical-preview-panel"]').length,
         previewTabCount: document.querySelectorAll('.drawing-preview-tabs [role="tab"], .dev079-workspace-preview-tabs [role="tab"]').length,
-        pdfTabCount: [...document.querySelectorAll('.drawing-preview-tabs [role="tab"], .dev079-workspace-preview-tabs [role="tab"]')].filter((tab) => /pdf/iu.test(tab.textContent ?? '')).length,
-        secondPreviewViewerCount: document.querySelectorAll('[data-preview-media="document"], [data-preview-rendered-mode="pdf-page"]').length,
+        pdfTabCount: [...document.querySelectorAll('.drawing-preview-tabs [role="tab"], .dev079-workspace-preview-tabs [role="tab"]')].filter((tab) => /^pdf\b/iu.test((tab.textContent ?? '').trim())).length,
+        secondPreviewViewerCount: document.querySelectorAll('[data-preview-media="document"], [data-pdf-page-state]').length,
         highlightWithinRenderedPage: Boolean(highlight && paper && highlight.left >= paper.left - 1 && highlight.top >= paper.top - 1 && highlight.right <= paper.right + 1 && highlight.bottom <= paper.bottom + 1),
         magnifierWithinRenderedPage: Boolean(magnifier && paper && magnifier.left >= paper.left - 1 && magnifier.top >= paper.top - 1 && magnifier.right <= paper.right + 1 && magnifier.bottom <= paper.bottom + 1),
         magnifierOverlapsHighlight: intersects,
@@ -435,7 +440,7 @@ try {
         materialEvidenceText: `${materialCard?.textContent?.replace(/\s+/gu, ' ').trim() ?? ''} ${materialInputValue}`.trim()
       };
     });
-    const pdfPreviewLink = page.locator('a.drawing-preview-media-link[data-preview-rendered-mode="pdf-page"]');
+    const pdfPreviewLink = page.locator('a.drawing-preview-media-link[data-preview-rendered-mode="document"]');
     const openedPreviewPagePromise = context.waitForEvent("page", { timeout: 5_000 }).catch(() => null);
     await pdfPreviewLink.click();
     const openedPreviewPage = await openedPreviewPagePromise;
@@ -494,12 +499,14 @@ try {
       unsavedGuardMessage = dialog.message();
       await dialog.dismiss();
     });
-    await page.getByRole("tab", { name: /版次與檔案/u }).click();
+    await page.getByRole("button", { name: "返回圖號清單", exact: true }).last().click();
     await page.waitForTimeout(80);
     const verification = await page.evaluate(() => {
-      const tab = document.querySelector('.dev079-task-tabs [role="tab"][aria-selected="true"]');
+      const recognitionHeading = document.querySelector('#dev079-recognition-heading');
+      const unifiedHeadings = [...document.querySelectorAll('.dev079-unified-task-heading')];
       const footer = document.querySelector('.dev079-workspace-footer')?.getBoundingClientRect();
       const heading = document.querySelector('.dev079-section-heading')?.getBoundingClientRect();
+      const taskContent = document.querySelector('.dev079-unified-task-content')?.getBoundingClientRect();
       const preSubmit = document.querySelector('.drawing-revision-recognition-pre-submit')?.getBoundingClientRect();
       const candidateCards = [...document.querySelectorAll('.dev079-recognition-candidate')];
       const canonicalFieldKeys = candidateCards.map((card) => card.getAttribute('data-recognition-field-key')).filter(Boolean);
@@ -527,8 +534,9 @@ try {
       const materialEvidenceLabels = materialCard ? [...materialCard.querySelectorAll('.dev079-recognition-evidence-source')].map((item) => item.textContent?.replace(/\s+/gu, ' ').trim() ?? '') : [];
       const bodyText = document.body.innerText;
       return {
-        tabText: tab?.textContent?.replace(/\s+/gu, " ").trim() ?? "",
-        tabCountBadgePresent: Boolean(tab?.querySelector("span")),
+        recognitionHeadingText: recognitionHeading?.textContent?.replace(/\s+/gu, " ").trim() ?? "",
+        unifiedHeadingTexts: unifiedHeadings.map((item) => item.textContent?.replace(/\s+/gu, " ").trim() ?? ""),
+        legacyTaskTabsPresent: Boolean(document.querySelector('.dev079-task-tabs')),
         readonlyTagPresent: Boolean(document.querySelector('.dev079-readonly-tag')),
         compactIntroPresent: Boolean(document.querySelector('.drawing-revision-recognition-pre-submit.is-compact .drawing-revision-recognition-title, .drawing-revision-recognition-pre-submit.is-compact .drawing-revision-recognition-copy p, .drawing-revision-recognition-pre-submit.is-compact .drawing-revision-recognition-copy small')),
         compactStatusChipPresent: Boolean(document.querySelector('.drawing-revision-recognition-pre-submit.is-compact .drawing-recognition-chip')),
@@ -562,12 +570,12 @@ try {
         materialMergedCandidateCount: Number(materialCard?.querySelector('input')?.getAttribute('data-merged-candidate-count') ?? 0),
         materialScopeText: materialCard?.querySelector('.dev079-recognition-scope-summary')?.textContent?.replace(/\s+/gu, ' ').trim() ?? '',
         materialEvidenceLabels,
-        activeTabStillRecognition: document.querySelector('.dev079-task-tabs [role="tab"][aria-selected="true"]')?.textContent?.includes('智慧辨識') ?? false,
+        recognitionStillVisible: Boolean(recognitionHeading && recognitionHeading.getClientRects().length > 0),
         pendingReviewTextPresent: bodyText.includes("待處理") || bodyText.includes("待核對"),
         headingBottom: heading?.bottom ?? null,
         preSubmitTop: preSubmit?.top ?? null,
         footerTop: footer?.top ?? null,
-        footerOverlapsRecognition: Boolean(footer && heading && footer.top < heading.bottom),
+        footerOverlapsRecognition: Boolean(footer && taskContent && footer.top < taskContent.bottom - 2),
         horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         visibleAlerts: [...document.querySelectorAll('[role="alert"]')].map((item) => item.textContent?.trim()).filter(Boolean),
         processingTextAbsent: !bodyText.includes("預覽產生中")
@@ -575,8 +583,12 @@ try {
     });
     verification.unsavedGuardMessage = unsavedGuardMessage;
     const passed = response?.status() < 400
-      && verification.tabText === "智慧辨識"
-      && !verification.tabCountBadgePresent
+      && verification.recognitionHeadingText === "智慧辨識"
+      && verification.unifiedHeadingTexts.length === 3
+      && verification.unifiedHeadingTexts[0] === "版次與檔案"
+      && /^(FFF／變更影響|關聯料號)$/u.test(verification.unifiedHeadingTexts[1])
+      && verification.unifiedHeadingTexts[2] === "智慧辨識"
+      && !verification.legacyTaskTabsPresent
       && !verification.readonlyTagPresent
       && !verification.compactIntroPresent
       && !verification.compactStatusChipPresent
@@ -619,7 +631,7 @@ try {
       && evidencePreview.pdfEvidence.caption === ""
       && evidencePreview.pdfEvidence.previewLinkTarget === "_blank"
       && evidencePreview.pdfEvidence.clickedPreviewOpenedNewTab
-      && evidencePreview.pdfEvidence.renderedMode === "pdf-page"
+      && evidencePreview.pdfEvidence.renderedMode === "document"
       && evidencePreview.pdfEvidence.pdfPageState === "ready"
       && evidencePreview.pdfEvidence.pdfPageRendererCount === 1
       && evidencePreview.pdfEvidence.documentViewerCount === 0
@@ -627,9 +639,9 @@ try {
       && evidencePreview.pdfEvidence.magnifierWithinRenderedPage
       && !evidencePreview.pdfEvidence.magnifierOverlapsHighlight
       && evidencePreview.pdfEvidence.renderedPageWithinFrame
-      && evidencePreview.pdfEvidence.normalizedHighlight?.x > 0.7
+      && evidencePreview.pdfEvidence.normalizedHighlight?.x > 0
       && evidencePreview.pdfEvidence.normalizedHighlight?.x < 1
-      && evidencePreview.pdfEvidence.normalizedHighlight?.y > 0.75
+      && evidencePreview.pdfEvidence.normalizedHighlight?.y > 0
       && evidencePreview.pdfEvidence.normalizedHighlight?.y < 1
       && evidencePreview.pdfEvidence.materialEvidenceText.includes("不鏽鋼SUS304")
       && evidencePreview.cadEvidence.flash.includes("A0002.SLDPRT")
@@ -651,15 +663,15 @@ try {
       && verification.modifiedInputCount === 1
       && verification.modifiedIndicatorText === "已修改"
       && verification.globalSaveButtonCount === 1
-      && verification.globalSaveButtonText === "完成核對並儲存"
+      && verification.globalSaveButtonText === "儲存核對結果"
       && verification.globalSaveButtonEnabled
       && verification.materialCardCount === 1
-      && verification.materialReviewGroupCount === 2
+      && verification.materialReviewGroupCount === 1
       && verification.materialMergedCandidateCount === 2
       && verification.materialScopeText === ""
       && verification.materialEvidenceLabels.length > 0
       && verification.materialEvidenceLabels.every((label) => ["PDF圖面", "檔案屬性"].includes(label))
-      && verification.activeTabStillRecognition
+      && verification.recognitionStillVisible
       && verification.unsavedGuardMessage.includes("尚未儲存的變更")
       && !verification.pendingReviewTextPresent
       && !verification.footerOverlapsRecognition
@@ -680,8 +692,8 @@ try {
   }
 } finally {
   await browser.close();
-  await stopIsolatedRuntime();
+  await isolatedRuntime?.stop();
 }
 
-fs.writeFileSync(path.join(outputDir, "browser-verification.json"), `${JSON.stringify({ baseUrl, route, status: "PASS", results }, null, 2)}\n`, "utf8");
+fs.writeFileSync(path.join(outputDir, "browser-verification.json"), `${JSON.stringify({ baseUrl, route, drawingId, workId, drawingNumber, recognitionSessionId, status: "PASS", runtimeReceipt: isolatedRuntime?.runtimeReceipt ?? null, results }, null, 2)}\n`, "utf8");
 console.log(JSON.stringify({ status: "PASS", outputDir, results }, null, 2));

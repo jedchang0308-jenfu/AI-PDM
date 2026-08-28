@@ -7,7 +7,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
 import { fixture, seedDev096Fixture } from "./dev096-qc-fixture.mjs";
-import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
+import { createTaskOwnedNextTsconfig, getFreePort, restoreNextEnv, snapshotNextEnv, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
 
 const root = process.cwd();
 const runId = `DEV096-${new Date().toISOString().replace(/[:.]/gu, "-")}`;
@@ -16,6 +16,7 @@ const taskRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev096-browser-")
 const dataDir = path.join(taskRoot, "data");
 const repositoryDir = path.join(taskRoot, "repository");
 const databasePath = path.join(dataDir, "ai-pdm.sqlite");
+const nextEnvSnapshot = snapshotNextEnv(root);
 const checks = [];
 const consoleErrors = [];
 const pageErrors = [];
@@ -26,6 +27,7 @@ let expectedConflictConsoleErrors = 0;
 let app = null;
 let browser = null;
 let port = null;
+let nextTsconfig = null;
 
 function check(cases, label, condition, detail = "") {
   const pass = Boolean(condition);
@@ -65,6 +67,7 @@ Object.assign(process.env, {
   PDM_DATA_DIR: dataDir,
   PDM_REPOSITORY_DIR: repositoryDir,
   PDM_ENABLE_LOCAL_QUICK_LOGIN: "true",
+  PDM_NEXT_DIST_DIR: ".tmp/qc-dev096-browser-pending",
   PDM_BUILD_COMMIT: "dev096-browser-fixture",
   PDM_ASSEMBLY_SHARED_BOM_V1: "true",
   PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "true",
@@ -76,6 +79,9 @@ seedCanonicalPartWorkbench();
 try {
   port = await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
+  process.env.PDM_NEXT_DIST_DIR = `.tmp/qc-dev096-browser-${port}`;
+  nextTsconfig = createTaskOwnedNextTsconfig(root, `dev096-${port}`, process.env.PDM_NEXT_DIST_DIR);
+  process.env.PDM_NEXT_TSCONFIG_PATH = nextTsconfig.relativePath;
   console.log(JSON.stringify({
     runtimeDeclaration: {
       project: root,
@@ -273,6 +279,10 @@ const result = {
 };
 fs.writeFileSync(path.join(outputDir, "browser.json"), `${JSON.stringify(result, null, 2)}\n`);
 try { fs.rmSync(taskRoot, { recursive: true, force: true, maxRetries: 6, retryDelay: 150 }); } catch {}
+try { fs.rmSync(path.join(root, ".tmp", `qc-dev096-browser-${port}`), { recursive: true, force: true, maxRetries: 8, retryDelay: 150 }); } catch {}
+if (nextTsconfig) try { fs.rmSync(nextTsconfig.absolutePath, { force: true }); } catch {}
+const nextEnvRestore = await restoreNextEnv(nextEnvSnapshot);
+if (!nextEnvRestore.restored) console.warn(`DEV096 next-env cleanup pending: ${nextEnvRestore.error}`);
 console.log(JSON.stringify({ runner: result.runner, status: result.status, passed: checks.filter((item) => item.pass).length, total: checks.length, portReleased }));
 if (result.status !== "PASS") process.exitCode = 1;
 

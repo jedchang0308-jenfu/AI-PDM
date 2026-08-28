@@ -56,8 +56,7 @@ try {
       report.executionBoundary.noTerraformAction === true &&
       report.executionBoundary.noGcloudMutation === true &&
       report.executionBoundary.noPsqlCommand === true &&
-      report.executionBoundary.noCloudRunJobActionPerformedByThisCommand === true &&
-      report.executionBoundary.cloudRunJobCreatedByReviewedApply === true
+      report.executionBoundary.noCloudRunJobActionPerformedByThisCommand === true
   );
   record(
     "DEV046-CLOUDSQL-RUNNER-003 target is approved staging Cloud SQL",
@@ -79,7 +78,7 @@ try {
     report.servicePattern.cloudRunServicePresent === true &&
       report.servicePattern.defaultUrlPolicyConditional === true &&
       report.servicePattern.ingressPolicyConditional === true &&
-      report.servicePattern.firebaseHostingGatewayDefaultDisabled === true &&
+      report.servicePattern.firebaseHostingGatewayEnabledInTfvarsExample === true &&
       report.servicePattern.vpcAccessPresent === true &&
       report.servicePattern.cloudSqlProxyPrivateIamPresent === true
   );
@@ -92,15 +91,17 @@ try {
       report.identity.runtimeAndMigrationSeparated === true
   );
   record(
-    "DEV046-CLOUDSQL-RUNNER-007 approved migration executed and Job restored to dry-run",
+    "DEV046-CLOUDSQL-RUNNER-007 historical Job state is preserved and current evidence is manifest-bound",
     report.terraformRunnerIac.cloudRunJobPresent === true &&
       report.terraformRunnerIac.cloudRunJobApplyExecuted === true &&
-      report.terraformRunnerIac.cloudRunJobApplyVerified === true &&
       report.terraformRunnerIac.cloudRunJobExecutionRequested === true &&
       report.terraformRunnerIac.cloudRunJobExecuted === true &&
-      report.liveExecutionEvidence.liveMigrationCompleted === true &&
-      report.liveExecutionEvidence.idempotenceVerified === true &&
-      report.liveExecutionEvidence.jobRestoredToDryRun === true &&
+      (report.terraformRunnerIac.cloudRunJobApplyVerified
+        ? !report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_APPLY_EVIDENCE_MISSING")
+        : report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_APPLY_EVIDENCE_MISSING")) &&
+      report.liveExecutionEvidence.currentManifestSha256 === report.migrationPackage.manifestSha256 &&
+      report.liveExecutionEvidence.currentSchemaMigrationCount === report.migrationPackage.orderedSchemaMigrationCount &&
+      report.liveExecutionEvidence.liveMigrationCompleted === report.liveExecutionEvidence.matchesCurrentPackage &&
       report.terraformRunnerIac.liveApplyAllowed === false
   );
   record(
@@ -145,27 +146,32 @@ try {
       report.applicationMigrationExecutor.singletonPrimitiveIsLibraryOnly === false
   );
   record(
-    "DEV046-CLOUDSQL-RUNNER-010 runner and runtime smoke are complete while staging acceptance remains gated",
+    "DEV046-CLOUDSQL-RUNNER-010 readiness reflects exact current-package evidence",
     report.readiness.readyForLiveMigration === false &&
-      report.readiness.liveMigrationCompleted === true &&
-      report.liveExecutionEvidence.runtimeSmokeExecuted === true &&
-      report.readiness.topLevelBlockerCoveredBy === null &&
-      report.readiness.blockers.length === 2 &&
+      report.readiness.liveMigrationCompleted === report.liveExecutionEvidence.matchesCurrentPackage &&
       !report.readiness.blockers.includes("STAGING_MIGRATION_RUNNER_IMAGE_NOT_PACKAGED") &&
       !report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_IAC_NOT_PRESENT") &&
       !report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_APPLY_NOT_EXECUTED") &&
-      !report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_APPLY_EVIDENCE_MISSING") &&
-      !report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_EXECUTION_UNAPPROVED") &&
+      (report.terraformRunnerIac.cloudRunJobApplyVerified
+        ? !report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_APPLY_EVIDENCE_MISSING")
+        : report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_APPLY_EVIDENCE_MISSING")) &&
+      (report.liveExecutionEvidence.approved
+        ? !report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_EXECUTION_UNAPPROVED")
+        : report.readiness.blockers.includes("STAGING_CLOUD_RUN_JOB_EXECUTION_UNAPPROVED")) &&
       !report.readiness.blockers.includes("STAGING_MIGRATION_RUNNER_EXECUTOR_NOT_IMPLEMENTED") &&
-      !report.readiness.blockers.includes("STAGING_RUNTIME_SMOKE_NOT_EXECUTED") &&
-      report.readiness.blockers.includes("STAGING_PRINCIPAL_MAPPING_EVIDENCE_MISSING") &&
-      report.readiness.blockers.includes("STAGING_APPLICATION_ARTIFACT_PROVENANCE_AND_DRIFT_EVIDENCE_MISSING")
+      (report.liveExecutionEvidence.runtimeSmokeBoundToCurrentPackage
+        ? report.readiness.topLevelBlockerCoveredBy === null &&
+          report.readiness.blockers.includes("STAGING_PRINCIPAL_MAPPING_EVIDENCE_MISSING") &&
+          report.readiness.blockers.includes("STAGING_APPLICATION_ARTIFACT_PROVENANCE_AND_DRIFT_EVIDENCE_MISSING")
+        : report.readiness.topLevelBlockerCoveredBy !== null && report.readiness.blockers.length > 0)
   );
   record(
-    "DEV046-CLOUDSQL-RUNNER-011 required next work names principal mapping and artifact provenance",
-    report.requiredNextWork.some((item) => item.includes("principal mapping")) &&
-      report.requiredNextWork.some((item) => item.includes("artifact provenance")) &&
-      !report.requiredNextWork.some((item) => item.includes("runtime smoke"))
+    "DEV046-CLOUDSQL-RUNNER-011 required next work matches current package state",
+    report.liveExecutionEvidence.runtimeSmokeBoundToCurrentPackage
+      ? report.requiredNextWork.some((item) => item.includes("principal mapping")) &&
+        report.requiredNextWork.some((item) => item.includes("artifact provenance"))
+      : report.requiredNextWork.some((item) => item.includes("migration")) &&
+        report.requiredNextWork.some((item) => item.includes("runtime smoke"))
   );
   record(
     "DEV046-CLOUDSQL-RUNNER-012 output files are written",

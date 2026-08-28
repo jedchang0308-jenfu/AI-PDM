@@ -15,6 +15,8 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev094-browser-")
 const dataDir = path.join(tempRoot, "data");
 const repositoryDir = path.join(dataDir, "repository");
 const databasePath = path.join(dataDir, "ai-pdm.sqlite");
+const nextEnvPath = path.join(root, "next-env.d.ts");
+const nextEnvOriginal = fs.existsSync(nextEnvPath) ? fs.readFileSync(nextEnvPath, "utf8") : null;
 const checks = [];
 const failures = [];
 const consoleErrors = [];
@@ -79,29 +81,47 @@ async function verifyHealthyRows(context, baseUrl, code, expectedRows) {
   await page.close();
 }
 
+function expectedDrawingRows(databasePath, code) {
+  const database = new Database(databasePath, { readonly: true, fileMustExist: true });
+  try {
+    return Number(database.prepare(`SELECT COUNT(*) AS count
+      FROM canonical_workbench_states state
+      JOIN drawings drawing ON drawing.id = state.canonical_entity_id
+      WHERE state.entity_type = 'drawing' AND drawing.drawing_number = ?`).get(code).count);
+  } finally {
+    database.close();
+  }
+}
+
 fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(screenshotDir, { recursive: true });
 try {
   const source = new Database(path.join(root, "data", "ai-pdm.sqlite"), { readonly: true, fileMustExist: true });
+  const expectedSourceCounts = {
+    roots: source.prepare("SELECT COUNT(*) AS count FROM part_roots").get().count,
+    parts: source.prepare("SELECT COUNT(*) AS count FROM part_numbers").get().count
+  };
   await source.backup(databasePath);
   source.close();
   const sourceRepository = path.join(root, "data", "repository");
   if (fs.existsSync(sourceRepository)) fs.cpSync(sourceRepository, repositoryDir, { recursive: true, force: true });
 
   const baseline = new Database(databasePath, { readonly: true, fileMustExist: true });
-  check("browser fixture starts with 3 roots and 3 parts", baseline.prepare("SELECT COUNT(*) AS count FROM part_roots").get().count === 3 && baseline.prepare("SELECT COUNT(*) AS count FROM part_numbers").get().count === 3);
+  check("browser fixture preserves source root and part counts", baseline.prepare("SELECT COUNT(*) AS count FROM part_roots").get().count === Number(expectedSourceCounts.roots) && baseline.prepare("SELECT COUNT(*) AS count FROM part_numbers").get().count === Number(expectedSourceCounts.parts), JSON.stringify({ expectedSourceCounts }));
   check("browser fixture starts FK-clean", baseline.pragma("foreign_key_check").length === 0);
   baseline.close();
 
   port = await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   runtimeDistDir = path.join(root, ".tmp", `qc-dev094-browser-${port}`);
+  fs.mkdirSync(path.join(runtimeDistDir, "dev", "types"), { recursive: true });
   Object.assign(process.env, {
     NODE_ENV: "development", PDM_AUTH_MODE: "local", PDM_DB_PROVIDER: "sqlite", PDM_DATA_DIR: dataDir,
     PDM_REPOSITORY_DIR: repositoryDir, PDM_BUILD_COMMIT: "local-dev", PDM_RELEASE_MODE: "local_stub",
     PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true", PDM_ENABLE_LOCAL_QUICK_LOGIN: "true", PDM_PRODUCTION_SLICE_MODE: "",
     PDM_POSTGRES_URL: "", DATABASE_URL: "", PDM_NEXT_DIST_DIR: path.relative(root, runtimeDistDir), PDM_PUBLIC_BASE_URL: baseUrl
   });
+  fs.writeFileSync(nextEnvPath, "/// <reference types=\"next\" />\n/// <reference types=\"next/image-types/global\" />\n\n// DEV-094 disposable browser runtime\n", "utf8");
   console.log(`QC DEV-094 runtime: project=${root}; purpose=repaired-root and orphan-detail browser QC; port=${port}; owner=current QC process tree; dataDir=${dataDir}; repositoryDir=${repositoryDir}; cleanup=after assertions`);
   app = startNextApp(root, "dev", port);
   await waitForNextAppReady(baseUrl, app.getOutput);
@@ -109,10 +129,10 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await login(context, baseUrl);
 
-  await verifyHealthyRows(context, baseUrl, "A0002-M01", 2);
-  await verifyHealthyRows(context, baseUrl, "A0003-M01", 1);
-  await verifyHealthyRows(context, baseUrl, "A0005-M01", 1);
-  await verifyHealthyRows(context, baseUrl, "A0006-M01", 1);
+  await verifyHealthyRows(context, baseUrl, "A0002-M01", expectedDrawingRows(databasePath, "A0002-M01"));
+  await verifyHealthyRows(context, baseUrl, "A0003-M01", expectedDrawingRows(databasePath, "A0003-M01"));
+  await verifyHealthyRows(context, baseUrl, "A0005-M01", expectedDrawingRows(databasePath, "A0005-M01"));
+  await verifyHealthyRows(context, baseUrl, "A0006-M01", expectedDrawingRows(databasePath, "A0006-M01"));
 
   const corrupt = new Database(databasePath);
   corrupt.pragma("foreign_keys = OFF");
@@ -153,6 +173,7 @@ try {
     ? removeTaskOwnedWorkspaceTempDir(root, runtimeDistDir)
     : { removed: false, path: null, error: "runtime-not-started" };
   checks.push({ name: "temporary runtime dist removed", pass: runtimeCleanup.removed, detail: JSON.stringify(runtimeCleanup) });
+  try { if (nextEnvOriginal === null) fs.rmSync(nextEnvPath, { force: true }); else fs.writeFileSync(nextEnvPath, nextEnvOriginal, "utf8"); } catch (error) { failures.push({ kind: "cleanup", message: error instanceof Error ? error.message : String(error) }); }
   const resolvedTempRoot = path.resolve(tempRoot);
   const resolvedSystemTemp = path.resolve(os.tmpdir());
   if (resolvedTempRoot.startsWith(`${resolvedSystemTemp}${path.sep}`)) {

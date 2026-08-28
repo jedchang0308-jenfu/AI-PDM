@@ -533,6 +533,41 @@ function Open-LocalPage {
   }
 }
 
+function Repair-StaleNextEnv {
+  # Next.js owns this generated file and rewrites it when a dev/build process
+  # starts.  A previous isolated QC can leave imports to a removed .tmp dist
+  # directory, which makes the next local server stay listening but never
+  # finish route compilation.  Remove only imports whose targets are missing;
+  # leave valid/generated imports untouched and keep this repair local-only.
+  $nextEnvPath = Join-Path $ProjectRoot "next-env.d.ts"
+  if (-not (Test-Path -LiteralPath $nextEnvPath -PathType Leaf)) {
+    return
+  }
+
+  $content = Get-Content -LiteralPath $nextEnvPath -Raw
+  $staleImports = @(
+    [regex]::Matches($content, '(?m)^\s*import\s+"([^"]+)";\s*\r?$') |
+      ForEach-Object {
+        $relativeImport = $_.Groups[1].Value
+        $resolvedImport = Join-Path $ProjectRoot ($relativeImport -replace '/', '\')
+        if (-not (Test-Path -LiteralPath $resolvedImport -PathType Leaf)) {
+          [ordered]@{ Match = $_.Value; Import = $relativeImport }
+        }
+      }
+  )
+  if ($staleImports.Count -eq 0) {
+    return
+  }
+
+  $repaired = $content
+  foreach ($staleImport in $staleImports) {
+    $repaired = $repaired.Replace($staleImport.Match, "")
+  }
+  [System.IO.File]::WriteAllText($nextEnvPath, $repaired, [System.Text.UTF8Encoding]::new($false))
+  $removed = ($staleImports | ForEach-Object { $_.Import }) -join ", "
+  Write-Host "Repaired stale Next generated type imports before local startup: $removed"
+}
+
 function Write-OwnerSummary {
   param(
     [int]$OwnerProcessId,
@@ -680,6 +715,7 @@ elseif ($CheckOnly) {
 }
 
 Invoke-CleanNext
+Repair-StaleNextEnv
 
 Remove-Item -LiteralPath $StdoutLog, $StderrLog, $PidFile -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $PortOwnerPidFile, $StatusFile -ErrorAction SilentlyContinue

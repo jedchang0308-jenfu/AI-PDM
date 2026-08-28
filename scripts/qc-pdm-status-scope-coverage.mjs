@@ -89,12 +89,9 @@ const requiredScopes = {
   bomWorkbench: "src/app/bom/workbench/page.tsx",
   handoffWorkbench: "src/app/handoff/page.tsx",
   transferPackageWorkbench: "src/components/transfer-package-workbench.tsx",
-  reportCenter: "src/app/numbering/reports/page.tsx",
-  impactWorkbench: "src/app/numbering/impact/page.tsx",
   settingsCenter: "src/app/settings/page.tsx",
   accountList: "src/app/settings/accounts/page.tsx",
-  invitationList: "src/app/settings/account-invitations/page.tsx",
-  revisionSubmission: "src/app/numbering/revisions/page.tsx"
+  invitationList: "src/app/settings/account-invitations/page.tsx"
 };
 
 const productionAccountScopeExceptions = new Set(["accountList", "invitationList"]);

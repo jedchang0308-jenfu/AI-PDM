@@ -90,15 +90,6 @@ includesAll("src/app/approvals/page.tsx", [
   "allowedDecisionsForDetail"
 ]);
 
-includesAll("src/app/numbering/reports/page.tsx", [
-  "PdmDetailDrawer",
-  "useRememberedDrawerWidth",
-  "useListKeyboardShortcuts",
-  "pdm-report-detail-drawer-width",
-  "data-monthly-report-row",
-  "pdm-detail-drawer"
-]);
-
 includesAll("src/components/number-state-workspace.tsx", [
   "useRememberedDrawerWidth",
   "DRAWING_DETAIL_DRAWER_WIDTH_STORAGE_KEY",
@@ -123,11 +114,6 @@ includesAll("scripts/qc-pdm-approval-platform.mjs", [
 
 includesAll("scripts/qc-pdm-numbering-import-center-ui.mjs", [
   "Import detail opens as non-dark drawer",
-  ".pdm-detail-drawer"
-]);
-
-includesAll("scripts/qc-pdm-numbering-report-center-ui.mjs", [
-  "Monthly report detail opens as non-dark drawer",
   ".pdm-detail-drawer"
 ]);
 

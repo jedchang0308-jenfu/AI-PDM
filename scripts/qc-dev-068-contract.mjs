@@ -85,6 +85,8 @@ assert.equal(buildA0005FixtureResult(fixtureJob, wrongHashSource), null, "fixtur
 
 const repositorySource = fs.readFileSync(path.join(root, "src", "lib", "repositories", "drawing-recognition-async-repository.ts"), "utf8");
 assert.match(repositorySource, /missing_value_no_change/u);
+assert.match(repositorySource, /assignUniquePartOwner[\s\S]*SELECT DISTINCT candidate\.proposed_owner_id[\s\S]*resolvedOwners\.length !== 1/u, "owner fallback must apply only when the session has exactly one valid part owner");
+assert.match(repositorySource, /RECOGNITION_PART_OWNER_REQUIRED[\s\S]*尚未指定料號歸屬/u, "owner-required decisions must fail closed at the repository boundary");
 assert.match(repositorySource, /variant_status === "explicit_not_applicable" && \(!fieldKey \|\| !ownerType \|\| !ownerId\)[\s\S]*explicit_not_applicable_no_target/u, "explicit N/A without a formal target must be excluded instead of blocking impact preview");
 assert.doesNotMatch(repositorySource, /ALTER\s+TABLE[^;]*fieldKey/iu, "open candidate fields must use governed rows, not dynamic columns");
 const workerSource = fs.readFileSync(path.join(root, "scripts", "run-drawing-recognition-worker.mjs"), "utf8");
@@ -99,6 +101,7 @@ assert.match(reviewSource, /impact\.blockers\.map/u, "impact preview must identi
 assert.match(reviewSource, /target_mapping_required[\s\S]*缺少正式寫入目標/u, "target mapping blockers must have actionable human wording");
 assert.match(reviewSource, /可先選「延後」或填理由後選「忽略」/u, "pre-submit sessions without a revision target must expose a recovery path");
 assert.match(reviewSource, /explicit_not_applicable[\s\S]*return "不適用"/u, "explicit N/A decisions must remain visibly distinct from corrected values");
+assert.match(reviewSource, /data-owner-required[\s\S]*drawing-recognition-field-error[\s\S]*aria-invalid/u, "unresolved owner errors must be attached to the affected field");
 
 const report = {
   dev: "DEV-068",
