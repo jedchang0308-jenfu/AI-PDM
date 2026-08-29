@@ -105,6 +105,8 @@ jobs:
 
       - name: Verify production release boundary
         run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           $env:PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT = "true"
           npm run qc:dev-046-phase2b
           npm run qc:request-origin
@@ -114,8 +116,9 @@ jobs:
           npm run qc:dev-079:contract
           npm run qc:dev-079:owner-invariant
           npm run qc:dev-101:contract
-          npm run qc:dev-101:package
-          npm run qc:dev-101:qa-integrity
+          npm run qc:pdm-production-slice-numbering-draft
+          npm run qc:pdm-number-state-flow-routes
+          npm run qc:dev-093:contract
           npm run qc:production-deployment-pipeline
           npm run build
 

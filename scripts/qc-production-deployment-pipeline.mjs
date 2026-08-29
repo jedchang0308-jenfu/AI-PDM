@@ -91,6 +91,7 @@ record("PROD-PIPE-005 workflow requires exact main commit, typed approval, and G
   assert.match(workflow, /\[a-f0-9\]\{40\}/u);
   assert.match(workflow, /cancel-in-progress: false/u);
   assert.match(workflow, /PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT/u);
+  assert.match(candidateWorkflow, /\$PSNativeCommandUseErrorActionPreference = \$true/u);
 });
 
 record("PROD-PIPE-006 workflow uses OIDC actions and no stored Google credential", () => {
@@ -148,8 +149,11 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   }
   assert.match(candidateWorkflow, /npm run qc:dev-079:contract/u);
   assert.match(candidateWorkflow, /npm run qc:dev-079:owner-invariant/u);
-  assert.match(candidateWorkflow, /npm run qc:dev-101:package/u);
-  assert.match(candidateWorkflow, /npm run qc:dev-101:qa-integrity/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-101:contract/u);
+  assert.doesNotMatch(candidateWorkflow, /npm run qc:dev-101:(?:package|qa-integrity)/u);
+  assert.match(candidateWorkflow, /npm run qc:pdm-production-slice-numbering-draft/u);
+  assert.match(candidateWorkflow, /npm run qc:pdm-number-state-flow-routes/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-093:contract/u);
   assert.match(candidateWorkflow, /051_part_structure_type_authority\.cloudsql\.sql/u);
   assert.match(candidateWorkflow, /schemaMigrationCount !== 49/u);
   assert.match(candidateWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);

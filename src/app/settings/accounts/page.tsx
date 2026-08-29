@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Ban, CheckCircle2, ClipboardCopy, KeyRound, RefreshCw, RotateCcw, ShieldCheck, ShieldOff, UserCog, UserPlus } from "lucide-react";
+import { Ban, CheckCircle2, ClipboardCopy, KeyRound, RefreshCw, RotateCcw, ShieldOff, UserCog, UserPlus } from "lucide-react";
 import { ReasonActionDialog } from "@/components/reason-action-dialog";
 import { SearchHighlight } from "@/components/search-highlight";
 import { StatusScopeHelp } from "@/components/status-help-popover";
@@ -51,16 +51,6 @@ type AccountLoginAlias = {
 type AccountDetail = AccountSummary & {
   identities: AccountIdentity[];
   loginAliases: AccountLoginAlias[];
-  privacyEvidence: {
-    requiredVersion: string;
-    requiredContentSha256: string;
-    effectiveAt: string | null;
-    acknowledgedVersion: string | null;
-    acknowledgedContentSha256: string | null;
-    acknowledgedAt: string | null;
-    source: string | null;
-    status: "acknowledged" | "reacknowledgement_required" | "not_acknowledged";
-  };
   activeRoleAssignments: Array<{
     id: string;
     roleCode: string;
@@ -540,30 +530,6 @@ function AccountManagementPanel() {
                     新增工號
                   </button>
                 </form>
-              </div>
-
-              <div className="account-detail-section">
-                <div className="account-section-heading">
-                  <h3>個人資料告知確認</h3>
-                  <span className={`status-badge privacy-status-${detail?.privacyEvidence?.status ?? "not_acknowledged"}`}>
-                    {detail?.privacyEvidence?.status === "acknowledged"
-                      ? "已確認"
-                      : detail?.privacyEvidence?.status === "reacknowledgement_required"
-                        ? "需重新確認"
-                        : "尚未確認"}
-                  </span>
-                </div>
-                <dl className="account-detail-facts privacy-evidence-facts">
-                  <div><dt>目前要求版本</dt><dd>{detail?.privacyEvidence?.requiredVersion ? `Pilot v${detail.privacyEvidence.requiredVersion}` : "-"}</dd></div>
-                  <div><dt>已確認版本</dt><dd>{detail?.privacyEvidence?.acknowledgedVersion ? `Pilot v${detail.privacyEvidence.acknowledgedVersion}` : "尚未確認"}</dd></div>
-                  <div><dt>確認時間</dt><dd>{formatDateTime(detail?.privacyEvidence?.acknowledgedAt ?? null)}</dd></div>
-                  <div><dt>生效時間</dt><dd>{formatDateTime(detail?.privacyEvidence?.effectiveAt ?? null)}</dd></div>
-                </dl>
-                <p className="account-section-note privacy-evidence-hash" title={detail?.privacyEvidence?.requiredContentSha256 ?? undefined}>
-                  <ShieldCheck size={15} aria-hidden="true" />
-                  版本內容 SHA-256：{detail?.privacyEvidence?.requiredContentSha256 ?? "-"}
-                </p>
-                <p className="account-section-note">管理員只能查閱證據，不能代替員工確認或修改歷史紀錄。</p>
               </div>
 
               <div className="account-detail-section">
