@@ -92,6 +92,8 @@ record("PROD-PIPE-005 workflow requires exact main commit, typed approval, and G
   assert.match(workflow, /cancel-in-progress: false/u);
   assert.match(workflow, /PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT/u);
   assert.match(candidateWorkflow, /\$PSNativeCommandUseErrorActionPreference = \$true/u);
+  assert.match(candidateWorkflow, /npx playwright install chromium/u);
+  assert.ok(candidateWorkflow.indexOf("npx playwright install chromium") < candidateWorkflow.indexOf("npm run qc:pdm-account-invitations"));
 });
 
 record("PROD-PIPE-006 workflow uses OIDC actions and no stored Google credential", () => {
