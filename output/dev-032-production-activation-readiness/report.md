@@ -1,6 +1,6 @@
 # DEV-032 Production Activation Readiness
 
-Generated: 2026-08-17T01:12:07.405Z
+Generated: 2026-08-29T11:29:05.430Z
 Status: `pending_human_activation_readiness`
 Target: `jenfu-ai-pdm-prod` / `asia-east1`
 Source commit: `f70c89821b717e6e98e3a6ef855af47e4b4a69dc`
@@ -25,8 +25,8 @@ Release ready: `false`
 - `A6-hd84-restore-reconciliation`: passed
 - `A7-level3-production-like-smoke`: passed
 - `A8-production-deploy-and-level4-smoke`: pending_human
-- `A9-wave0-go-no-go`: pending_human
+- `A9-production-go-no-go`: pending_human
 
 ## Next Required Action
 
-Capture authenticated Level 4 evidence for the current release f70c89821b717e6e98e3a6ef855af47e4b4a69dc at the canonical URL under the separately approved production-smoke procedure; the evidence must match source revision, Cloud Run revision and image digest. Then provide 3-5 explicitly named Wave 0 users and product-owner go/no-go.
+Capture authenticated Level 4 evidence for the current release f70c89821b717e6e98e3a6ef855af47e4b4a69dc at the canonical URL under the separately approved production-smoke procedure; the evidence must match source revision, Cloud Run revision and image digest. Then record zero open P0/P1, Product Owner go and exact promotion approval.

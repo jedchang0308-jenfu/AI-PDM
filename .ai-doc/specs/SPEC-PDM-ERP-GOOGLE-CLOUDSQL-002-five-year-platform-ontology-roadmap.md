@@ -8,6 +8,8 @@ QA: `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.m
 
 > 2026-08-12 amendment：`SPEC-PDM-GCP-COST-OPTIMIZATION-001-prelaunch-runtime-topology.md` is authoritative for the pre-launch machine tier、availability、active edge and on-demand Staging posture. Historical requirements below for mandatory Production Regional HA and retained ALB resources remain architecture history and future re-entry context, not current pre-launch acceptance. Cloud SQL／Firebase／Cloud Run authority、Taiwan region、private IP、IAM DB auth、backup／PITR、clean seed and numbering integrity are unchanged.
 
+> 2026-08-29 release amendment：named 3–5-user Wave 0 acceptance and waiver evidence are retired for the approximately five-person internal production deployment. The active promotion path is exact artifact、0% candidate、applicable DB safety、basic smoke、candidate-bound authenticated Level 4、zero open P0/P1、rollback readiness、Product Owner GO、exact promotion token、traffic-only promotion and canonical post-promote smoke. Identity allowlisting remains fail-closed security administration and does not become a release-acceptance denominator. Older rollout-wave text below is historical.
+
 ## Human Decision Brief
 
 ### Confirmed decisions
@@ -20,7 +22,7 @@ QA: `.ai-doc/qa/qa-pdm-erp-google-cloudsql-platform-validation-plan-2026-07-13.m
 - Phase 2B guided identity decision `3` on 2026-07-13 requires company-scoped employee-number login aliases and account mapping while explicitly rejecting an AI_PDM-owned password store, MFA engine and password-reset system. Cloud Identity/Firebase Identity Platform owns credentials, MFA and recovery; the alias only creates a short-lived provider-routing intent, and final authorization remains verified provider UID -> stable PDM User ID. Alias schema/API/UI and local QC were implemented on 2026-07-13; Cloud SQL migration and real-provider staging evidence remain live gates.
 - Existing login credentials, provider bindings, source actor IDs and history are not migrated. Production users are reprovisioned in Firebase and receive reviewed, newly created stable production PDM user IDs; source attribution remains unchanged in the read-only archive.
 - `jedchang0308@jenfu.com.tw` is the initial business Admin. A local managed-auth bootstrap exists, but it is not production Firebase/IAM completion.
-- Rollout starts with a Google Workspace-only named 3-5-user canary. `HD-9-1` cancels the former fixed five-business-day waves; every later allowlist change requires explicit DEV-032 release evidence, and controlled non-Google users require prior staging proof.
+- Production access initially remains Google Workspace-only and fail-closed. This is an identity/security policy, not named-user acceptance. Controlled non-Google access still requires prior staging proof and separate security approval; release success never expands access automatically.
 - Cloud SQL PostgreSQL, Cloud Run Next.js 16 HTTP/BFF and GCS target `asia-east1`/Taiwan for operational data and files; the external Application Load Balancer/custom domain may use global control-plane/CDN resources that must be inventoried.
 - Firebase Authentication is the accepted IAM direction. US identity-data processing is accepted under `HD-6-1`; field minimization, employee/privacy notice, retention/deletion owner and privacy-inventory evidence remain mandatory before live setup.
 - The first production slice opens only official numbering and drafts. Roadmap functions remain visible but disabled with an unavailable indicator and tooltip.

@@ -6,6 +6,10 @@ DEV: `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`
 ADR: `.ai-doc/decisions/ADR-PDM-ERP-PLATFORM-002-google-taiwan-cloud-sql-production.md`
 SPEC: `.ai-doc/specs/SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md`
 
+## 2026-08-29 Active Release-validation Amendment
+
+Named-user Wave 0 testing and its waiver path are retired. QA no longer asks for 3–5 user acceptance, `wave0_mode`, waiver evidence, or a candidate-bound waiver reference. Production access remains restricted by the reviewed identity allowlist as a security control. Promotion acceptance is now exact artifact and migration safety (when applicable), zero-traffic candidate smoke, candidate-bound authenticated Level 4, zero open P0/P1, rollback readiness, Product Owner `go`, exact promotion approval, traffic-only promotion, and canonical post-promotion smoke. Older `QA-WAVE` and canary-size scenarios below are historical and must not be counted in the current release denominator.
+
 ## QA objective
 
 Prove that the first production slice uses one Firebase identity authority, one BFF authorization boundary, one Cloud SQL transaction authority and fail-closed capabilities, while preserving stable PDM history and meeting the Taiwan operational-data/continuity contract. This plan does not authorize resource creation, live migration, deployment or release.
@@ -16,7 +20,7 @@ Prove that the first production slice uses one Firebase identity authority, one 
 |---|---|---|
 | Local | SQLite, fake Firebase/GCS/Cloud SQL adapters, disposable PostgreSQL | No live credentials or billable resources |
 | Staging | Provider integration, clean-seed/archive rehearsal, `HD-8-4 / 1A` pre-canary restore contract and production-like smoke | Cloud Run/Next.js 16 plus Cloud SQL `asia-east1`, external Application Load Balancer/test domain and restricted CDN policy; Firebase identity US exception accepted under `HD-6-1`; direct-GCS integration may wait for Phase 3B while all file paths remain closed |
-| Production | Named-user canary, official numbering/drafts, per-wave acceptance | Immutable release artifact, approved manifest, Cloud SQL regional HA/PITR from day one and rollback evidence |
+| Production | Zero-traffic candidate, authenticated core-flow acceptance, explicit promotion and rollback | Immutable release artifact, approved manifest, Cloud SQL backup/PITR and rollback evidence |
 
 ## Gate matrix
 
@@ -44,7 +48,7 @@ Prove that the first production slice uses one Firebase identity authority, one 
 | `QA-STORAGE-001` direct GCS | Phase 1 proves interfaces/fakes and Phase 3A denies every file path; before Phase 3B release, formal pointer is provider/bucket/key/generation/hash and upload/finalize uses the direct GCS adapter/SDK/signed URL | Firebase Storage SDK/API/rules or Firebase file pointer appears; any Phase 3A file writer blocks canary |
 | `QA-NUM-001` numbering | Concurrency, idempotency, rollback, outage fail-close, recovery reservations | Duplicate/reused number blocks |
 | `QA-CAP-001` slice | Only official numbering/drafts enabled; direct URL/API/file attempts fail closed | Any roadmap command executes blocks |
-| `QA-WAVE-001` rollout | Initial canary is Google Workspace-only; later allowlists may include a controlled non-Google email-link account only after both paths pass staging; every change has an explicit newly assigned production-ID allowlist and DEV-032 release evidence | Non-Google in the initial canary, missing controlled non-Google staging evidence, automatic expansion, open P0 or open P1 blocks expansion |
+| `QA-ACTIVATION-001` production promotion | Exact zero-traffic candidate passes basic and authenticated Level 4 checks; zero open P0/P1, rollback readiness, Product Owner `go` and exact promotion approval are recorded | Stale artifact/evidence, failed smoke, open P0/P1, missing rollback, missing GO or missing exact promotion token blocks promotion; named-user Wave 0 evidence is not requested |
 | `QA-COST-001` accountability | `HD-6-3 / 3A` day-one regional HA, named cost owners, measured staging run-rate, approved monthly forecast, 50/80/100 budget alert delivery and anomaly monitoring | Unknown owner, missing regional-HA forecast or absent alert evidence blocks production resources |
 | `QA-BOUNDARY-001` ProJED | Git/repository/config evidence shows no ProJED modification | Any unowned ProJED change blocks |
 

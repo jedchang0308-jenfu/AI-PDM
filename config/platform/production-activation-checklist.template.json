@@ -85,7 +85,7 @@
     {
       "id": "A5-clean-seed-and-principal-bootstrap",
       "mode": "data-write-separate-approval",
-      "requiredEvidence": ["clean seed manifest", "named canary allowlist hash", "initial Admin new production PDM ID", "no source business or draft rows", "no credential material"],
+      "requiredEvidence": ["clean seed manifest", "production access allowlist hash", "initial Admin new production PDM ID", "no source business or draft rows", "no credential material"],
       "status": "missing_evidence"
     },
     {
@@ -103,13 +103,13 @@
     {
       "id": "A8-production-deploy-and-level4-smoke",
       "mode": "deploy-separate-approval",
-      "requiredEvidence": ["deployed artifact provenance", "production URL HTTP success", "app shell nonblank", "authenticated admin smoke", "numbering and draft smoke", "non-canary denial smoke"],
+      "requiredEvidence": ["deployed artifact provenance", "production URL HTTP success", "app shell nonblank", "authenticated admin smoke", "numbering and draft smoke", "non-allowlisted denial smoke"],
       "status": "missing_evidence"
     },
     {
-      "id": "A9-wave0-go-no-go",
+      "id": "A9-production-go-no-go",
       "mode": "release-decision",
-      "requiredEvidence": ["zero open P0/P1", "named 3-5 user allowlist", "rollback target operational", "operator owner and backup owner acknowledged"],
+      "requiredEvidence": ["zero open P0/P1", "Product Owner go", "exact promotion approval", "rollback target operational", "operator owner and backup owner acknowledged"],
       "status": "missing_evidence"
     }
   ],
@@ -121,7 +121,7 @@
     "Do not skip HD-8-4 / 1A separate-target restore and reconciliation.",
     "Do not move DEV-047 bounded schema migration into the Phase 3A release.",
     "Do not enable GCS file authority during Phase 3A.",
-    "Do not widen allowlist beyond named canary users without separate DEV-032 approval."
+    "Do not automatically widen the production access allowlist during release; access-policy changes require separate security and administration review."
   ],
   "stopConditions": [
     "Any gate evidence is missing, ambiguous or not tied to the exact release commit.",

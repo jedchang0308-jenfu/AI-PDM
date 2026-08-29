@@ -1,5 +1,7 @@
 # ADR-PDM-PRODUCTION-SLICE-001: Official Numbering and Draft Production Slice
 
+> 2026-08-29 Release Governance Amendment：具名3–5人Wave 0驗收與waiver流程已永久退役。Release仍保留exact artifact、0% candidate、DB safety、basic smoke、candidate-bound authenticated Level 4、zero open P0/P1、rollback readiness、Product Owner GO、exact promotion token、traffic-only promote與canonical smoke。Production allowlist維持fail-closed安全控制，但不再作為user acceptance evidence；本文件較舊canary必要性敘述僅供歷史追溯。
+
 > 2026-07-13 Amendment：本文件既有 narrow production-slice、server-side feature gate、smoke-company isolation 與 QC evidence 保留；新 create flow 不再於 form create 時直接產生永久 official master。`ADR-PDM-NUMBER-STATE-FLOW-001` 改以獨立 candidate reservation + explicit publication transaction 作正式化邊界。Production clean seed 只含 published/obsolete official numbers 與 recovery non-reuse reservations，不 seed candidates/local drafts。
 >
 > 2026-07-14 Amendment (`HD-9-1`)：使用者取消 `DEV-FIELD-001` 固定五個工作日現場驗證。任務以 `Cancelled by Human Decision` 關閉，不視為通過；DEV-046 Phase 2B live staging、DEV-032、named 3-5-user canary、零 open P0/P1、continuity/rollback 與 production post-deploy smoke 仍為必要 gate。任何 allowlist 擴大必須明確 release 決策，不因時間或 local evidence 自動發生。

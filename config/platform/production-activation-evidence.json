@@ -60,20 +60,16 @@
     "expectedRoleCount": 9,
     "expectedPermissionCount": 237
   },
-  "wave0": {
-    "minimumNamedUsers": 3,
-    "maximumNamedUsers": 5,
-    "namedUsers": [
-      "jedchang0308@jenfu.com.tw"
-    ],
-    "allowlistMode": "named-google-workspace-users-only",
-    "failClosed": true,
-    "authenticatedLevel4Status": "pending_current_release",
-    "productOwnerDecision": "pending"
+  "releaseDecision": {
+    "zeroOpenP0P1": null,
+    "productOwnerDecision": "pending",
+    "promotionApprovalStatus": "pending",
+    "rollbackReady": true
   },
   "decisions": {
     "customDnsDeferred": true,
     "fixedFiveBusinessDayObservationCancelled": true,
+    "namedUserCanaryGateRetired": true,
     "phase3aFileAuthorityEnabled": false
   }
 }

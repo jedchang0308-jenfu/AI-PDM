@@ -178,25 +178,16 @@ record("PROD-PIPE-008B candidate and promotion are separate dispatch stages", ()
   assert.doesNotMatch(candidateWorkflow, /--mode promote-latest/u);
 });
 
-record("PROD-PIPE-008C promotion requires candidate-bound Level 4, Wave 0, and product-owner evidence", () => {
+record("PROD-PIPE-008C promotion requires candidate-bound Level 4 and explicit release approval without Wave 0 ceremony", () => {
   assert.match(workflow, /production-candidate:\/\/<candidate_revision>\/<release_commit>\/<immutable-id>/u);
   assert.match(promotionWorkflow, /EXPECTED_EVIDENCE_PREFIX="production-candidate:\/\/\$\{CANDIDATE_REVISION\}\/\$\{RELEASE_COMMIT\}\/"/u);
   assert.match(promotionWorkflow, /\[\[ "\$LEVEL4_EVIDENCE_REF" == "\$EXPECTED_EVIDENCE_PREFIX"\* \]\]/u);
   assert.match(promotionWorkflow, /\[\[ "\$\{LEVEL4_EVIDENCE_REF,,\}" != \*staging\* \]\]/u);
-  assert.match(promotionWorkflow, /wave0_users/u);
-  assert.match(workflow, /wave0_mode:/u);
-  assert.match(workflow, /wave0_waiver_ref:/u);
-  assert.match(workflow, /WAVE0-WAIVER:\/\/<candidate_revision>\/<release_commit>\/<immutable-id>/u);
-  assert.match(promotionWorkflow, /WAVE0_MODE/u);
-  assert.match(promotionWorkflow, /WAVE0_WAIVER_REF/u);
-  assert.match(promotionWorkflow, /\[\[ "\$WAVE0_MODE" == "tested" \|\| "\$WAVE0_MODE" == "waived" \]\]/u);
-  assert.match(promotionWorkflow, /if \[\[ "\$WAVE0_MODE" == "tested" \]\]/u);
-  assert.match(promotionWorkflow, /EXPECTED_WAIVER_PREFIX="WAVE0-WAIVER:\/\/\$\{CANDIDATE_REVISION\}\/\$\{RELEASE_COMMIT\}\/"/u);
-  assert.match(promotionWorkflow, /\[\[ -z "\$WAVE0_USERS" \]\]/u);
+  assert.doesNotMatch(workflow, /wave0_users|wave0_mode|wave0_waiver_ref|WAVE0-WAIVER|WAVE0_USERS|WAVE0_MODE|WAVE0_WAIVER_REF/iu);
   assert.match(promotionWorkflow, /PRODUCT_OWNER_DECISION/u);
   assert.match(promotionWorkflow, /AI-PDM-PRODUCTION-PROMOTION-APPROVED/u);
-  assert.match(promotionWorkflow, /\$\{#users\[@\]\} >= 3 && \$\{#users\[@\]\} <= 5/u);
   assert.match(promotionWorkflow, /\[\[ "\$PRODUCT_OWNER_DECISION" == "go" \]\]/u);
+  assert.match(promotionWorkflow, /\[\[ "\$PROMOTION_APPROVAL" == "AI-PDM-PRODUCTION-PROMOTION-APPROVED" \]\]/u);
 });
 
 record("PROD-PIPE-008D promotion rechecks candidate zero traffic and immutable image provenance", () => {
