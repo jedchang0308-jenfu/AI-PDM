@@ -54,7 +54,7 @@ const secretExposure = sources.secretExposure.parsed ?? {};
 const sanitizedReadback = sources.sanitizedReadback.parsed ?? {};
 const historicalLevel4 = sources.historicalLevel4.parsed ?? {};
 const currentRelease = evidence.currentRelease ?? {};
-const wave0 = evidence.wave0 ?? {};
+const releaseDecision = evidence.releaseDecision ?? {};
 const artifact = evidence.artifact ?? {};
 const releaseRuntime = release.runtime ?? {};
 const candidateSmoke = release.candidateSmoke ?? {};
@@ -165,18 +165,16 @@ const authenticatedEvidenceCurrent = historicalLevel4.sourceRevision === artifac
   && historicalLevel4.imageDigest === artifact.applicationImageDigest;
 const level4Ready = canonicalReady
   && currentRelease.authenticatedLevel4Status === "passed_current_release"
-  && wave0.authenticatedLevel4Status === "passed_current_release"
   && authenticatedEvidenceCurrent
   && historicalLevel4.failed === 0
   && historicalLevel4.uiAcceptanceResult?.partNumber
   && historicalLevel4.uiAcceptanceResult?.drawingNumber
   && historicalLevel4.uiAcceptanceResult?.seriesCode;
-const namedUsers = Array.isArray(wave0.namedUsers) ? wave0.namedUsers : [];
-const wave0Ready = level4Ready
-  && namedUsers.length >= (wave0.minimumNamedUsers ?? 3)
-  && namedUsers.length <= (wave0.maximumNamedUsers ?? 5)
-  && wave0.failClosed === true
-  && wave0.productOwnerDecision === "go";
+const productionGoReady = level4Ready
+  && releaseDecision.zeroOpenP0P1 === true
+  && releaseDecision.productOwnerDecision === "go"
+  && releaseDecision.promotionApprovalStatus === "approved"
+  && releaseDecision.rollbackReady === true;
 
 const gates = [
   gate("A0-release-source", sourceReady ? "passed" : "missing_evidence", {
@@ -269,16 +267,13 @@ const gates = [
     historicalLevel4SourceRevision: historicalLevel4.sourceRevision ?? null,
     requiredChecks: ["authenticated-ui-session", "permissions-by-successful-official-numbering", "official-numbering", "optional-series-code", "detail-persistence", "file-and-cad-fail-closed"]
   }, level4Ready ? [] : [blocker("AUTHENTICATED_LEVEL4_CURRENT_RELEASE_PENDING", "Authenticated Level 4 evidence must match the current source revision, Cloud Run revision and image digest; the retained hotfix evidence is historical only.")]),
-  gate("A9-wave0-go-no-go", wave0Ready ? "passed" : "pending_human", {
-    allowlistMode: wave0.allowlistMode ?? null,
-    failClosed: wave0.failClosed ?? null,
-    minimumNamedUsers: wave0.minimumNamedUsers ?? 3,
-    maximumNamedUsers: wave0.maximumNamedUsers ?? 5,
-    namedUsers,
-    namedUserCount: namedUsers.length,
-    productOwnerDecision: wave0.productOwnerDecision ?? "pending",
-    fixedFiveBusinessDayObservationCancelled: evidence.decisions?.fixedFiveBusinessDayObservationCancelled === true
-  }, wave0Ready ? [] : [blocker("WAVE0_NAMED_CANARY_AND_GO_NO_GO_PENDING", "Wave 0 still needs current authenticated Level 4 evidence, 3-5 explicitly named users, fail-closed negative access evidence and product-owner go/no-go.")])
+  gate("A9-production-go-no-go", productionGoReady ? "passed" : "pending_human", {
+    zeroOpenP0P1: releaseDecision.zeroOpenP0P1 ?? null,
+    productOwnerDecision: releaseDecision.productOwnerDecision ?? "pending",
+    promotionApprovalStatus: releaseDecision.promotionApprovalStatus ?? "pending",
+    rollbackReady: releaseDecision.rollbackReady ?? null,
+    namedUserCanaryGateRetired: evidence.decisions?.namedUserCanaryGateRetired === true
+  }, productionGoReady ? [] : [blocker("PRODUCTION_GO_NO_GO_PENDING", "Production promotion still needs current authenticated Level 4 evidence, zero open P0/P1, rollback readiness, Product Owner go and exact promotion approval; named-user Wave 0 validation is retired.")])
 ];
 
 const firstBlockedGate = gates.find((item) => item.status !== "passed") ?? null;
@@ -314,9 +309,9 @@ const report = {
   nextRequiredAction: releaseReady
     ? "Record final release closure and preserve the evidence package."
     : firstBlockedGate?.id === "A8-production-deploy-and-level4-smoke"
-      ? `Capture authenticated Level 4 evidence for the current release ${artifact.applicationSourceRevision ?? "unknown"} at the canonical URL under the separately approved production-smoke procedure; the evidence must match source revision, Cloud Run revision and image digest. Then provide 3-5 explicitly named Wave 0 users and product-owner go/no-go.`
-      : firstBlockedGate?.id === "A9-wave0-go-no-go"
-        ? "Provide 3-5 explicitly named Wave 0 users and product-owner go/no-go; do not reintroduce the cancelled fixed five-business-day observation gate."
+      ? `Capture authenticated Level 4 evidence for the current release ${artifact.applicationSourceRevision ?? "unknown"} at the canonical URL under the separately approved production-smoke procedure; the evidence must match source revision, Cloud Run revision and image digest. Then record zero open P0/P1, Product Owner go and exact promotion approval.`
+      : firstBlockedGate?.id === "A9-production-go-no-go"
+        ? "Record zero open P0/P1, rollback readiness, Product Owner go and exact promotion approval. Do not request named-user Wave 0 testing or a waiver reference."
         : `Close gate ${firstBlockedGate?.id ?? "unknown"} with machine evidence; do not bypass its stop conditions.`,
   stopConditions: checklist.stopConditions ?? []
 };

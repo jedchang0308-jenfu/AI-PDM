@@ -1,6 +1,6 @@
 # DEV-032 Production Activation Runbook
 
-Status: activation in progress; infrastructure, immutable runtime deployment and rollback drill executed; final canary closure pending
+Status: active release runbook; Wave 0 validation retired on 2026-08-29; explicit candidate, Level 4, promotion and rollback gates retained
 Scope: DEV-032 / DEV-046 Phase 3A.0 official-numbering and draft production slice
 Production action authorized by this file: none
 
@@ -33,9 +33,11 @@ This runbook defines the sequence for turning the existing DEV-032 release gate 
 7. Execute Cloud SQL migration only after backup, rollback and migration-history checks are present.
 8. Complete `HD-8-4 / 1A`: restore a production recovery point to a separate isolated target and pass schema, account, audit, receipt, outbox, numbering sequence and non-reuse reconciliation.
 9. Run Level 3 production-like smoke before production traffic.
-10. Deploy and cut traffic only after separate deploy approval.
-11. Run Level 4 production smoke at the production entrypoint and feature-level smoke for login, privacy acknowledgement, numbering, draft persistence and non-canary denial.
-12. Decide Wave 0 go/no-go only when zero open P0/P1, rollback readiness and named-user allowlist evidence exist.
+10. Deploy the exact candidate at 0% traffic only after separate deploy approval; deployment does not authorize promotion.
+11. Run candidate-bound authenticated Level 4 smoke for login, privacy acknowledgement, permissions, numbering, draft persistence, re-login persistence and fail-closed file/access paths.
+12. Record zero open P0/P1, rollback readiness and Product Owner `go`; named-user Wave 0 testing and waiver evidence are not part of this decision.
+13. Promote traffic only with the exact promotion token and the candidate revision still at 0% traffic with immutable provenance intact.
+14. Run canonical post-promotion smoke at the production entrypoint. Roll back traffic to the pinned previous revision if it fails.
 
 ## Cloud Run Traffic Rollback Contract
 

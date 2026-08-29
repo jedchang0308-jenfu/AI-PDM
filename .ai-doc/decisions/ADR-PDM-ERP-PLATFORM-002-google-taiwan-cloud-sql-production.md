@@ -1,10 +1,16 @@
 # ADR-PDM-ERP-PLATFORM-002 - Google Taiwan Cloud SQL production platform
 
 Date: 2026-07-13
-Status: `HD-8-1..4`, `HD-9-1` and `HD-10-1` closed; amended for pre-launch cost topology by `ADR-PDM-GCP-COST-OPTIMIZATION-001`; provider and release remain gated
+Status: `HD-8-1..4`, `HD-9-1` and `HD-10-1` closed; amended for pre-launch cost topology and lean internal release governance; provider and release remain gated
 Owner: ERP Platform RD
 Related DEV: `DEV-PDM-ERP-GOOGLE-CLOUDSQL-001` / `DEV-046`
 Supersedes: production-provider, data-placement and 18-month provider-decision sections of `ADR-PDM-ERP-PLATFORM-001`
+
+## 2026-08-29 Lean Internal Release Governance Amendment
+
+For the current approximately five-person internal deployment, named-user Wave 0 acceptance is retired as a production-promotion prerequisite. The active workflow must not request 3–5 user test evidence, `wave0_mode`, a Wave 0 waiver, or a candidate-bound waiver reference. Earlier rollout-wave and waiver language in this ADR is historical context and is superseded for release acceptance.
+
+This amendment does not make traffic promotion automatic. Every release still requires an exact immutable `main` artifact, zero-traffic candidate deployment, migration and database-safety evidence when applicable, basic candidate smoke, candidate-bound authenticated Level 4 login/core-flow evidence, zero open P0/P1, rollback readiness, Product Owner `go`, the exact promotion token, traffic-only promotion, and canonical post-promotion smoke. The approved internal-identity allowlist remains a fail-closed security control; changing who may access production is an account/security administration decision, not Wave 0 user acceptance.
 
 ## 2026-08-12 Pre-launch Cost Optimization Amendment
 

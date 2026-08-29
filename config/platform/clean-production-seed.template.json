@@ -7,7 +7,7 @@
     "phase": "DEV-046-Phase-3A.0-production-slice",
     "templateOnly": true,
     "productionMutationAllowed": false,
-    "requiredBeforeCanary": true,
+    "requiredBeforeActivation": true,
     "status": "template_not_evidence"
   },
   "sameEmailAutoLinkAllowed": false,
@@ -41,12 +41,12 @@
   "configuration": [
     { "key": "production_slice_mode", "value": "official-numbering-draft" },
     { "key": "gcs_file_authority_enabled", "value": "false" },
-    { "key": "non_google_wave0_enabled", "value": "false" },
+    { "key": "non_google_production_access_enabled", "value": "false" },
     { "key": "workspace_aal_policy", "value": "pending_explicit_risk_acceptance_or_mfa_evidence" }
   ],
-  "canaryAllowlist": {
+  "productionAccessAllowlist": {
     "mode": "named-pdm-user-ids-only",
-    "wave0GoogleWorkspaceOnly": true,
+    "googleWorkspaceOnly": true,
     "failClosed": true,
     "hashAlgorithm": "sha256",
     "source": "not-populated-template",
@@ -60,17 +60,16 @@
         "provider": "google_workspace"
       }
     ],
-    "nonCanaryAccessExpected": "denied"
+    "nonAllowlistedAccessExpected": "denied"
   },
-  "wavePolicy": {
-    "wave0": {
+  "accessPolicy": {
+    "productionInitial": {
       "googleWorkspaceOnly": true,
-      "controlledNonGoogleAllowed": false,
-      "maximumNamedUsers": 5
+      "controlledNonGoogleAllowed": false
     },
-    "wave1": {
+    "futureNonGoogleAccess": {
       "controlledNonGoogleRequired": true,
-      "requiresSeparateDev032Approval": true
+      "requiresSeparateSecurityApproval": true
     }
   },
   "numberingSequences": [
@@ -80,13 +79,13 @@
   "numberingRecoveryReservations": [],
   "historicalOfficialNumberEvidence": {
     "status": "missing_production_inventory",
-    "requiredBeforeCanary": true,
+    "requiredBeforeActivation": true,
     "source": "read-only source archive inventory plus approved external official-number list",
     "mustCreateNonReusableReservations": true
   },
-  "preCanaryRestoreReconciliation": {
+  "preActivationRestoreReconciliation": {
     "decision": "HD-8-4 / 1A",
-    "requiredBeforeCanary": true,
+    "requiredBeforeActivation": true,
     "status": "missing_evidence",
     "cloudSqlAutomatedBackupRequired": true,
     "pitrRequired": true,
@@ -104,7 +103,7 @@
     "passCondition": "all checks pass with zero unexplained gaps, zero duplicate official numbers, zero source-row mutation and zero orphan operational records"
   },
   "rollbackReadiness": {
-    "requiredBeforeCanary": true,
+    "requiredBeforeActivation": true,
     "status": "missing_evidence",
     "cloudRunPreviousRevisionRequired": true,
     "databaseRestorePointRequired": true,
@@ -115,7 +114,7 @@
     "production project and environment readback",
     "production Secret Manager readback without printing values",
     "clean seed SQL/package review",
-    "allowlist hash and non-canary denial evidence",
+    "production access allowlist hash and non-allowlisted denial evidence",
     "separate-target restore transcript",
     "numbering ledger/sequence/non-reuse reconciliation report",
     "rollback target readback",

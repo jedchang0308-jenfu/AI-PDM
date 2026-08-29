@@ -58,14 +58,14 @@
     "firestoreAuthorityAllowed": false,
     "firebaseStorageAuthorityAllowed": false,
     "firebaseFunctionsAuthorityAllowed": false,
-    "wave0": {
+    "productionAccess": {
       "googleWorkspaceOnly": true,
       "domains": ["jenfu.com.tw"],
       "controlledNonGoogleAllowed": false
     },
-    "wave1": {
+    "futureNonGoogleAccess": {
       "controlledNonGoogleRequired": true,
-      "requiresSeparateDev032Approval": true
+      "requiresSeparateSecurityApproval": true
     },
     "aalPolicy": "pending_explicit_risk_acceptance_or_workspace_2sv_or_provider_mfa_evidence"
   },
@@ -109,7 +109,7 @@
     "productionProviderConfigRequired": true,
     "productionEnvSourceRequired": true,
     "productionSecretMetadataReadbackRequired": true,
-    "cleanSeedAndAllowlistRequired": true,
+    "cleanSeedAndProductionAccessPolicyRequired": true,
     "hd84SeparateTargetRestoreRequired": true,
     "rollbackReadinessRequired": true,
     "level3ProductionLikeSmokeRequired": true,
@@ -120,7 +120,7 @@
     "Do not permit a direct run.app browser origin to exchange a PDM business session.",
     "Do not use staging Firebase project, staging Cloud Run service, staging Cloud SQL instance or staging secrets.",
     "Do not create, update, import, migrate or deploy production resources from this template.",
-    "Do not proceed to production canary until HD-8-4 / 1A restore/reconciliation and rollback readiness pass.",
+    "Do not proceed to production activation until HD-8-4 / 1A restore/reconciliation and rollback readiness pass.",
     "Do not enable GCS file authority in Phase 3A."
   ]
 }

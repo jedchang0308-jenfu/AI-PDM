@@ -1,5 +1,7 @@
 # SPEC-PDM-PRODUCTION-SLICE-001 - Official numbering and draft production slice
 
+> 2026-08-29 Release Governance Amendment：公司內部約5人使用的production不再以3–5位具名使用者Wave 0驗收作為traffic promotion前置條件，也不再有Wave 0 waiver、`wave0_mode`或candidate-bound waiver reference。現行release contract保留exact `main` artifact、0% candidate、migration／DB safety、basic smoke、candidate-bound authenticated Level 4、zero open P0/P1、rollback readiness、Product Owner `go`、exact promotion token、traffic-only promote與canonical post-promote smoke。Production帳號allowlist仍是fail-closed安全控制，但不屬於user acceptance gate；本文件後續舊Wave/Canary敘述只作歷史決策追溯。
+
 > 2026-08-22 DEV-087 Amendment：正式號不可重用、numbering identity/recycling、default-deny與production/release gate保留；`numbering_draft_workspaces`不再是DEV-087三工作臺的current-work/status authority，只可作唯一可證明的conversion source或其他明確保留domain evidence。新決策優先，activation時舊workbench reader/command/filter/fallback能拆即拆，不保留雙軌相容。
 
 > 2026-08-18 DEV-077 Amendment：production lifecycle未開放的enabled CTA先收斂為inert；後續僅可依獨立release slice精準開放`作廢草稿編號`，再開formal obsolete request／decision。`DELETE .../draft`永久維持拒絕；generic approval route必須依request action code fail closed。本 amendment已完成local implementation，但不改變現行production allowlist或授權部署。
