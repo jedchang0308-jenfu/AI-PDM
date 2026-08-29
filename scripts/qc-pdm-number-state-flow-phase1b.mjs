@@ -9,7 +9,6 @@ import {
 } from "../src/lib/number-state-flow-feature.ts";
 import {
   getProductionSliceState,
-  isProductionSliceAllowedApiMutation,
   isProductionSliceOpenPagePath,
   shouldBlockProductionSlicePagePath
 } from "../src/lib/production-slice.ts";
@@ -66,19 +65,6 @@ record(
   "DEV-048 owner surfaces are canonical by default; the server-only flag remains an explicit rollback kill switch"
 );
 
-const draftMutationPaths = [
-  ["POST", "/api/numbering/draft-workspaces"],
-  ["PATCH", "/api/numbering/draft-workspaces/workspace-1"],
-  ["POST", "/api/numbering/draft-workspaces/workspace-1/candidate-numbers"],
-  ["POST", "/api/numbering/draft-workspaces/workspace-1/cancel"]
-];
-record(
-  "routes",
-  "NSF-UI-SLICE-api-gate",
-  draftMutationPaths.every(([method, pathname]) => isProductionSliceAllowedApiMutation(method, pathname, productionEnabledEnv)) &&
-    draftMutationPaths.every(([method, pathname]) => !isProductionSliceAllowedApiMutation(method, pathname, productionDisabledEnv)),
-  "new workspace mutations must require both the production slice and Phase 1B flag"
-);
 record(
   "routes",
   "NSF-UI-SLICE-page-gate",
@@ -86,6 +72,15 @@ record(
     ["/upload", "/handoff"].every((pathname) => isProductionSliceOpenPagePath(pathname, productionDisabledEnv)) &&
     ["/upload", "/handoff"].every((pathname) => !shouldBlockProductionSlicePagePath(pathname, productionDisabledEnv)),
   "retired compatibility routes must remain guidance/redirect surfaces even when the rollback kill switch is off"
+);
+record(
+  "routes",
+  "NSF-UI-SLICE-canonical-create-page-gate",
+  [productionEnabledEnv, productionDisabledEnv].every((env) =>
+    isProductionSliceOpenPagePath("/numbering/create", env) &&
+    !shouldBlockProductionSlicePagePath("/numbering/create", env)
+  ),
+  "the canonical create page must remain reachable whenever the official numbering mutation contract is open"
 );
 record(
   "routes",

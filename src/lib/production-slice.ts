@@ -26,6 +26,7 @@ const openPagePaths = [
   "/",
   "/login",
   "/parts",
+  "/numbering/create",
   "/numbering/request",
   "/numbering/search",
   "/numbering/drawings",

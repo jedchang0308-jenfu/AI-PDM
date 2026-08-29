@@ -53,7 +53,7 @@ function startApp(port) {
   const distDirRelative = ".tmp/next-qc-account-invitations";
   const distDir = path.join(root, ...distDirRelative.split("/"));
   const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
-  const child = spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
+  const child = spawn(process.execPath, [nextCli, "dev", "--webpack", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root,
     env: {
       ...process.env,
@@ -149,6 +149,16 @@ const results = [];
 try {
   const port = await getFreePort();
   app = startApp(port);
+  console.log(JSON.stringify({ runtimeDeclaration: {
+    project: root,
+    purpose: "Managed account-invitation UI and API verification against a task-owned SQLite fixture",
+    port,
+    owningProcessTree: `QC runner ${process.pid} -> Next dev child ${app.child.pid ?? "pending"} -> Playwright browser`,
+    cleanupCondition: "browser and Next child stop, port releases, task data and Next dist directories are removed",
+    PDM_DATA_DIR: tempDir,
+    PDM_REPOSITORY_DIR: path.join(tempDir, "repository"),
+    mutationScope: `${tempDir} and ${app.distDir}`
+  } }));
   await waitForApp(app.baseUrl, app.getOutput);
 
   const admin = await login(app.baseUrl, "invite.qc.admin@example.com", bootstrapPassword);
@@ -217,7 +227,8 @@ try {
       })
     });
   });
-  await managedDeliveryPage.goto(`${app.baseUrl}/settings/account-invitations`, { waitUntil: "networkidle" });
+  await managedDeliveryPage.goto(`${app.baseUrl}/settings/account-invitations`, { waitUntil: "domcontentloaded" });
+  await managedDeliveryPage.locator(".account-invitations-page h1").filter({ hasText: "帳號邀請" }).waitFor();
   await managedDeliveryPage.getByLabel("姓名").fill("Managed Delivery");
   await managedDeliveryPage.getByLabel("公司電子郵件").fill("managed.delivery@example.com");
   await managedDeliveryPage.getByRole("button", { name: "建立邀請" }).click();
@@ -270,7 +281,8 @@ try {
     body: JSON.stringify({ token: revokedToken, password: invitedPassword })
   });
 
-  await managedDeliveryPage.reload({ waitUntil: "networkidle" });
+  await managedDeliveryPage.reload({ waitUntil: "domcontentloaded" });
+  await managedDeliveryPage.locator(".account-invitations-page h1").filter({ hasText: "帳號邀請" }).waitFor();
   const reissueButton = managedDeliveryPage.getByRole("button", { name: "重新邀請", exact: true });
   await reissueButton.click();
   const reissueFormPrefilled =
