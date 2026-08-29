@@ -39,6 +39,18 @@ This runbook defines the sequence for turning the existing DEV-032 release gate 
 13. Promote traffic only with the exact promotion token and the candidate revision still at 0% traffic with immutable provenance intact.
 14. Run canonical post-promotion smoke at the production entrypoint. Roll back traffic to the pinned previous revision if it fails.
 
+## Canonical Workbench Authority Repair Contract
+
+Use this path only when the canonical authority guard blocks production because the runtime and the singleton control row are not bound to the same exact release commit.
+
+1. The candidate deployment must set `PDM_BUILD_COMMIT` to the full release SHA and read it back from the inactive revision before any database repair.
+2. Execute `npm run production:authority-repair -- --execute` only from the exact migration image for that SHA, through `ai-pdm-prod-migration-runner` and its production migration IAM identity.
+3. Supply the explicit repair approval, exact project/region/database target, current `expected_commit`, current `row_version`, and the new full release SHA. The runner uses a serializable transaction, locks singleton row `id=1`, and applies a compare-and-swap update.
+4. The update may change only `expected_commit`, `row_version`, and `switched_at`; `mode=canonical_only` and `schema_hash=dev090-v1` must remain unchanged. Any mismatch rolls back.
+5. Keep candidate traffic at 0% after the repair. With an authenticated company session, require both the 料號工作台 and 圖號工作台 read APIs to return 200; unauthenticated 401 evidence is insufficient.
+6. Run production read-only reconciliation, retain the authority repair receipt, and only then use the normal traffic-only promotion gate.
+7. After promotion, repeat both authenticated workbench reads through `https://jenfu-ai-pdm-prod.web.app`. A 503 or `WORKBENCH_AUTHORITY_MISMATCH` is a mandatory rollback stop.
+
 ## Cloud Run Traffic Rollback Contract
 
 The production service rollback changes traffic only. Do not use `gcloud run services update-traffic` for `ai-pdm-prod`; the 2026-07-16 drill proved that restoring traffic through that command can create a new revision by changing the service template. Use the guarded runner, which calls Cloud Run v2 with `updateMask=traffic`, or an equivalent reviewed REST request whose body contains only `traffic`.

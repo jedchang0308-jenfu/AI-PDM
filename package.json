@@ -408,6 +408,8 @@
     "qc:dev-032-production-traffic-rollback": "node scripts/qc-dev-032-production-traffic-rollback.mjs",
     "production:release-traffic": "node scripts/run-production-release-traffic.mjs",
     "production:release-smoke": "node scripts/run-production-release-smoke.mjs",
+    "production:authority-repair": "node scripts/run-production-authority-control-repair.mjs",
+    "qc:production-authority-repair": "node scripts/qc-production-authority-control-repair.mjs",
     "qc:production-deployment-pipeline": "node scripts/qc-production-deployment-pipeline.mjs",
     "dev-032:production-live-readback": "node scripts/capture-dev-032-production-live-readback.mjs",
     "dev-032:production-activation-readiness": "node scripts/generate-dev-032-production-activation-readiness.mjs",
