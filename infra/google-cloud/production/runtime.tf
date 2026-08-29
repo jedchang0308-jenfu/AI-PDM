@@ -271,6 +271,17 @@ resource "google_cloud_run_v2_service" "pdm" {
           }
         }
       }
+
+      env {
+        name = "PDM_WORKBENCH_CONTRACT_SECRET"
+
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.session_signing["pdm-workbench-contract"].secret_id
+            version = "latest"
+          }
+        }
+      }
     }
 
     containers {

@@ -281,6 +281,7 @@ jobs:
             --quiet \
             --container "$APPLICATION_CONTAINER" \
             --update-env-vars "PDM_BUILD_COMMIT=$GITHUB_SHA,PDM_CANDIDATE_CLOUD_RUN_SERVICE=$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=$TAG,$CANDIDATE_RUNTIME_FLAGS" \
+            --update-secrets "PDM_WORKBENCH_CONTRACT_SECRET=pdm-workbench-contract:latest" \
             --image "$IMAGE_REF"
 
           gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > "$AFTER_JSON"
@@ -300,7 +301,18 @@ jobs:
             actual="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .value' "$REVISION_JSON")"
             [[ "$actual" == "$expected" ]]
           }
+          assert_revision_secret() {
+            local env_name="$1"
+            local expected_secret="$2"
+            local actual_secret
+            local actual_version
+            actual_secret="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .valueFrom.secretKeyRef.name' "$REVISION_JSON")"
+            actual_version="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .valueFrom.secretKeyRef.key' "$REVISION_JSON")"
+            [[ "$actual_secret" == "$expected_secret" ]]
+            [[ "$actual_version" == "latest" ]]
+          }
           assert_revision_env PDM_BUILD_COMMIT "$GITHUB_SHA"
+          assert_revision_secret PDM_WORKBENCH_CONTRACT_SECRET pdm-workbench-contract
           for flag in PDM_NUMBER_STATE_FLOW_V1 PDM_NUMBER_LIFECYCLE_V2 PDM_UNIFIED_DRAWING_WORKBENCH_V1 PDM_DRAWING_RECOGNITION_V1 PDM_REVIEW_PACKAGE_V2_WRITE PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 PDM_UNIFIED_ENTITY_DETAIL_V1; do
             assert_revision_env "$flag" "true"
           done
@@ -470,7 +482,18 @@ jobs:
             actual="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .value' "$REVISION_JSON")"
             [[ "$actual" == "$expected" ]]
           }
+          assert_revision_secret() {
+            local env_name="$1"
+            local expected_secret="$2"
+            local actual_secret
+            local actual_version
+            actual_secret="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .valueFrom.secretKeyRef.name' "$REVISION_JSON")"
+            actual_version="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .valueFrom.secretKeyRef.key' "$REVISION_JSON")"
+            [[ "$actual_secret" == "$expected_secret" ]]
+            [[ "$actual_version" == "latest" ]]
+          }
           assert_revision_env PDM_BUILD_COMMIT "$RELEASE_COMMIT"
+          assert_revision_secret PDM_WORKBENCH_CONTRACT_SECRET pdm-workbench-contract
           for flag in PDM_NUMBER_STATE_FLOW_V1 PDM_NUMBER_LIFECYCLE_V2 PDM_UNIFIED_DRAWING_WORKBENCH_V1 PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 PDM_UNIFIED_ENTITY_DETAIL_V1; do
             assert_revision_env "$flag" "true"
           done

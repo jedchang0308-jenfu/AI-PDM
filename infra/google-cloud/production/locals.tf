@@ -47,6 +47,7 @@ locals {
   ])
 
   secret_names = toset([
+    "pdm-workbench-contract",
     "pdm-session-signing-current",
     "pdm-session-signing-previous"
   ])
