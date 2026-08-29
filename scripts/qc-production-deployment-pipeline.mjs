@@ -22,6 +22,7 @@ const candidateWorkflow = workflow.split("\n  promote:")[0];
 const promotionWorkflow = workflow.split("\n  promote:")[1] ?? "";
 const identity = read("infra/google-cloud/production/deployment-identity.tf");
 const runtime = read("infra/google-cloud/production/runtime.tf");
+const security = read("infra/google-cloud/production/security.tf");
 const locals = read("infra/google-cloud/production/locals.tf");
 const variables = read("infra/google-cloud/production/variables.tf");
 const deploymentBoundary = `${identity}\n${locals}\n${variables}`;
@@ -138,6 +139,11 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(workflow, /--tag "\$TAG"/u);
   assert.match(workflow, /--update-env-vars "PDM_BUILD_COMMIT=\$GITHUB_SHA,PDM_CANDIDATE_CLOUD_RUN_SERVICE=\$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=\$TAG,\$CANDIDATE_RUNTIME_FLAGS"/u);
   assert.match(candidateWorkflow, /assert_revision_env PDM_BUILD_COMMIT "\$GITHUB_SHA"/u);
+  assert.match(candidateWorkflow, /--update-secrets "PDM_WORKBENCH_CONTRACT_SECRET=pdm-workbench-contract:latest"/u);
+  assert.match(candidateWorkflow, /assert_revision_secret PDM_WORKBENCH_CONTRACT_SECRET pdm-workbench-contract/u);
+  assert.match(runtime, /name = "PDM_WORKBENCH_CONTRACT_SECRET"/u);
+  assert.match(runtime, /google_secret_manager_secret\.session_signing\["pdm-workbench-contract"\]/u);
+  assert.match(security, /roles\/secretmanager\.secretAccessor/u);
   for (const flag of [
     "PDM_NUMBER_STATE_FLOW_V1",
     "PDM_NUMBER_LIFECYCLE_V2",
@@ -200,6 +206,7 @@ record("PROD-PIPE-008D promotion rechecks candidate zero traffic and immutable i
   assert.match(promotionWorkflow, /\[\[ "\$CANDIDATE_IMAGE" == "\$EXPECTED_IMAGE" \]\]/u);
   assert.match(promotionWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);
   assert.match(promotionWorkflow, /assert_revision_env PDM_BUILD_COMMIT "\$RELEASE_COMMIT"/u);
+  assert.match(promotionWorkflow, /assert_revision_secret PDM_WORKBENCH_CONTRACT_SECRET pdm-workbench-contract/u);
 });
 
 record("PROD-PIPE-009 promotion and rollback use reviewed traffic-only REST runner", () => {

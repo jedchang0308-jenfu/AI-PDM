@@ -44,12 +44,13 @@ This runbook defines the sequence for turning the existing DEV-032 release gate 
 Use this path only when the canonical authority guard blocks production because the runtime and the singleton control row are not bound to the same exact release commit.
 
 1. The candidate deployment must set `PDM_BUILD_COMMIT` to the full release SHA and read it back from the inactive revision before any database repair.
-2. Execute `npm run production:authority-repair -- --execute` only from the exact migration image for that SHA, through `ai-pdm-prod-migration-runner` and its production migration IAM identity.
-3. Supply the explicit repair approval, exact project/region/database target, current `expected_commit`, current `row_version`, and the new full release SHA. The runner uses a serializable transaction, locks singleton row `id=1`, and applies a compare-and-swap update.
-4. The update may change only `expected_commit`, `row_version`, and `switched_at`; `mode=canonical_only` and `schema_hash=dev090-v1` must remain unchanged. Any mismatch rolls back.
-5. Keep candidate traffic at 0% after the repair. With an authenticated company session, require both the 料號工作台 and 圖號工作台 read APIs to return 200; unauthenticated 401 evidence is insufficient.
-6. Run production read-only reconciliation, retain the authority repair receipt, and only then use the normal traffic-only promotion gate.
-7. After promotion, repeat both authenticated workbench reads through `https://jenfu-ai-pdm-prod.web.app`. A 503 or `WORKBENCH_AUTHORITY_MISMATCH` is a mandatory rollback stop.
+2. The inactive revision must bind `PDM_WORKBENCH_CONTRACT_SECRET` to Secret Manager secret `pdm-workbench-contract:latest`; read back the secret name and version only. A missing binding is a mandatory stop because production token issuance fails closed.
+3. Execute `npm run production:authority-repair -- --execute` only from the exact migration image for that SHA, through `ai-pdm-prod-migration-runner` and its production migration IAM identity.
+4. Supply the explicit repair approval, exact project/region/database target, current `expected_commit`, current `row_version`, and the new full release SHA. The runner uses a serializable transaction, locks singleton row `id=1`, and applies a compare-and-swap update.
+5. The update may change only `expected_commit`, `row_version`, and `switched_at`; `mode=canonical_only` and `schema_hash=dev090-v1` must remain unchanged. Any mismatch rolls back.
+6. Keep candidate traffic at 0% after the repair. With an authenticated company session, require both the 料號工作台 and 圖號工作台 read APIs to return 200; unauthenticated 401 evidence is insufficient.
+7. Run production read-only reconciliation, retain the authority repair receipt, and only then use the normal traffic-only promotion gate.
+8. After promotion, repeat both authenticated workbench reads through `https://jenfu-ai-pdm-prod.web.app`. A 503 or `WORKBENCH_AUTHORITY_MISMATCH` is a mandatory rollback stop.
 
 ## Cloud Run Traffic Rollback Contract
 
