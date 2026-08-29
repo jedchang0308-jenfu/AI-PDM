@@ -136,7 +136,8 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(runtime, /PDM_CANDIDATE_CLOUD_RUN_TAG/u);
   assert.match(workflow, /TAG="candidate"/u);
   assert.match(workflow, /--tag "\$TAG"/u);
-  assert.match(workflow, /--update-env-vars "PDM_CANDIDATE_CLOUD_RUN_SERVICE=\$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=\$TAG,\$CANDIDATE_RUNTIME_FLAGS"/u);
+  assert.match(workflow, /--update-env-vars "PDM_BUILD_COMMIT=\$GITHUB_SHA,PDM_CANDIDATE_CLOUD_RUN_SERVICE=\$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=\$TAG,\$CANDIDATE_RUNTIME_FLAGS"/u);
+  assert.match(candidateWorkflow, /assert_revision_env PDM_BUILD_COMMIT "\$GITHUB_SHA"/u);
   for (const flag of [
     "PDM_NUMBER_STATE_FLOW_V1",
     "PDM_NUMBER_LIFECYCLE_V2",
@@ -157,6 +158,7 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(candidateWorkflow, /npm run qc:pdm-production-slice-numbering-draft/u);
   assert.match(candidateWorkflow, /npm run qc:pdm-number-state-flow-routes/u);
   assert.match(candidateWorkflow, /npm run qc:dev-093:contract/u);
+  assert.match(candidateWorkflow, /npm run qc:production-authority-repair/u);
   assert.match(candidateWorkflow, /051_part_structure_type_authority\.cloudsql\.sql/u);
   assert.match(candidateWorkflow, /schemaMigrationCount !== 49/u);
   assert.match(candidateWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);
@@ -197,6 +199,7 @@ record("PROD-PIPE-008D promotion rechecks candidate zero traffic and immutable i
   assert.match(promotionWorkflow, /CANDIDATE_IMAGE/u);
   assert.match(promotionWorkflow, /\[\[ "\$CANDIDATE_IMAGE" == "\$EXPECTED_IMAGE" \]\]/u);
   assert.match(promotionWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);
+  assert.match(promotionWorkflow, /assert_revision_env PDM_BUILD_COMMIT "\$RELEASE_COMMIT"/u);
 });
 
 record("PROD-PIPE-009 promotion and rollback use reviewed traffic-only REST runner", () => {

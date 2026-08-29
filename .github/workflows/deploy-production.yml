@@ -105,6 +105,7 @@ jobs:
           npm run qc:pdm-production-slice-numbering-draft
           npm run qc:pdm-number-state-flow-routes
           npm run qc:dev-093:contract
+          npm run qc:production-authority-repair
           npm run qc:production-deployment-pipeline
           npm run build
 
@@ -279,7 +280,7 @@ jobs:
             --tag "$TAG" \
             --quiet \
             --container "$APPLICATION_CONTAINER" \
-            --update-env-vars "PDM_CANDIDATE_CLOUD_RUN_SERVICE=$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=$TAG,$CANDIDATE_RUNTIME_FLAGS" \
+            --update-env-vars "PDM_BUILD_COMMIT=$GITHUB_SHA,PDM_CANDIDATE_CLOUD_RUN_SERVICE=$CLOUD_RUN_SERVICE,PDM_CANDIDATE_CLOUD_RUN_TAG=$TAG,$CANDIDATE_RUNTIME_FLAGS" \
             --image "$IMAGE_REF"
 
           gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > "$AFTER_JSON"
@@ -299,6 +300,7 @@ jobs:
             actual="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .value' "$REVISION_JSON")"
             [[ "$actual" == "$expected" ]]
           }
+          assert_revision_env PDM_BUILD_COMMIT "$GITHUB_SHA"
           for flag in PDM_NUMBER_STATE_FLOW_V1 PDM_NUMBER_LIFECYCLE_V2 PDM_UNIFIED_DRAWING_WORKBENCH_V1 PDM_DRAWING_RECOGNITION_V1 PDM_REVIEW_PACKAGE_V2_WRITE PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 PDM_UNIFIED_ENTITY_DETAIL_V1; do
             assert_revision_env "$flag" "true"
           done
@@ -468,6 +470,7 @@ jobs:
             actual="$(jq -r --arg container "$APPLICATION_CONTAINER" --arg env_name "$env_name" '.spec.containers[] | select(.name == $container) | .env[]? | select(.name == $env_name) | .value' "$REVISION_JSON")"
             [[ "$actual" == "$expected" ]]
           }
+          assert_revision_env PDM_BUILD_COMMIT "$RELEASE_COMMIT"
           for flag in PDM_NUMBER_STATE_FLOW_V1 PDM_NUMBER_LIFECYCLE_V2 PDM_UNIFIED_DRAWING_WORKBENCH_V1 PDM_UNIFIED_PART_RELATION_WORKBENCH_V1 PDM_UNIFIED_ENTITY_DETAIL_V1; do
             assert_revision_env "$flag" "true"
           done
