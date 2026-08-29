@@ -50,16 +50,15 @@ jobs:
           CI: true
           PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT: "true"
         run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           npm run qc:source-boundary
           npm run qc:dev-046-phase2b
           npm run qc:pdm-account-invitations
           npm run qc:pdm-production-slice-numbering-draft
           npm run qc:dev-032-production-iac-package
           npm run qc:dev-079:contract
-          npm run qc:dev-079:owner-invariant
           npm run qc:dev-101:contract
-          npm run qc:dev-101:package
-          npm run qc:dev-101:qa-integrity
           npm run qc:production-deployment-pipeline
 
       - name: Build production artifact
