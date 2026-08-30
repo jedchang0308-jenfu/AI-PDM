@@ -339,7 +339,7 @@ try {
     "pdm_review_traces", "pdm_work_review_requests", "drawing_revision_work_files",
     "canonical_workbench_states", "drawing_revision_works", "drawing_revision_claims",
     "drawing_rd_branches", "pdm_workbench_aggregates", "part_change_works",
-    "relation_change_works", "pdm_workbench_migration_quarantine"
+    "pdm_workbench_migration_quarantine"
   ];
   const targetTablePlaceholders = targetTables.map(() => "?").join(", ");
   const targetTableGuards = fixturePreparation.prepare(`

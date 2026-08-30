@@ -82,7 +82,7 @@ const plan = {
   expectedCommit,
   schemaHash,
   source: { drawings: 0, revisions: 0, parts: 0, roots: 0, activeWorkspaces: 0, cancelledWorkspaces: 0, recoverableSoftArchivedWorkspaces: 0, migratedDrawingWorks: 0, expectedDrawingWorkFiles: 0, existingDrawingWorkFiles: 0 },
-  target: { aggregates: 0, states: 0, branches: 0, claims: 0, initialRevisions: 0, drawingWorks: 0, drawingWorkFiles: 0, partWorks: 0, relationWorks: 0, reviewTraces: 0, partRoots: 0, partNumbers: 0, drawingNumbers: 0, drawingPartLinks: 0, drawingIdentityBindings: 0 },
+  target: { aggregates: 0, states: 0, branches: 0, claims: 0, initialRevisions: 0, drawingWorks: 0, drawingWorkFiles: 0, partWorks: 0, reviewTraces: 0, partRoots: 0, partNumbers: 0, drawingNumbers: 0, drawingPartLinks: 0, drawingIdentityBindings: 0 },
   initialRevisionBackfill: { requested: initializeMissingDrawingRevisions01, revision: "0.1", plannedRows: 0, verifiedExistingRows: 0, rejectedRows: 0 },
   activeNumberingBackfill: {
     requested: backfillActiveNumberingIdentities,
@@ -426,8 +426,7 @@ if (backfillActiveNumberingIdentities) {
       partName: part.part_name,
       itemKind: part.item_kind,
       customSpecification: part.custom_specification ?? null,
-      isUniversal: Boolean(part.is_universal),
-      bomUsagePolicy: "undecided"
+      isUniversal: Boolean(part.is_universal)
     };
     const workId = stableId("dev087-part-work", workspace.company_id, targetIds.part);
     add("part_roots", {
@@ -939,7 +938,6 @@ plan.target = {
   drawingWorks: operations.filter((entry) => entry.table === "drawing_revision_works").length,
   drawingWorkFiles: operations.filter((entry) => entry.table === "drawing_revision_work_files").length,
   partWorks: operations.filter((entry) => entry.table === "part_change_works").length,
-  relationWorks: operations.filter((entry) => entry.table === "relation_change_works").length,
   reviewTraces: operations.filter((entry) => entry.table === "pdm_review_traces").length,
   partRoots: operations.filter((entry) => entry.table === "part_roots").length,
   partNumbers: operations.filter((entry) => entry.table === "part_numbers").length,
@@ -1173,7 +1171,7 @@ if (apply) {
     }
   })();
   const targetCounts = {};
-  for (const table of ["part_roots", "part_numbers", "drawing_numbers", "drawing_part_links", "pdm_workbench_aggregates", "canonical_workbench_states", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works", "drawing_revision_work_files", "part_change_works", "relation_change_works", "pdm_review_traces", "pdm_workbench_migration_quarantine"]) {
+  for (const table of ["part_roots", "part_numbers", "drawing_numbers", "drawing_part_links", "pdm_workbench_aggregates", "canonical_workbench_states", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works", "drawing_revision_work_files", "part_change_works", "pdm_review_traces", "pdm_workbench_migration_quarantine"]) {
     targetCounts[table] = db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count;
   }
   plan.appliedTargetCounts = targetCounts;

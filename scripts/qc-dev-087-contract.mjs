@@ -4,13 +4,12 @@ import { dev087FaultHandling, dev087FaultReason } from "../src/lib/pdm-work-revi
 import { buildNumberingPartRootLifecyclePolicy } from "../src/lib/pdm-lifecycle-policy.ts";
 
 const db = createFixtureDatabase();
-const expectedTables = ["pdm_workbench_state_authority_control", "pdm_workbench_aggregates", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works", "drawing_revision_work_files", "part_change_works", "relation_change_works", "canonical_workbench_states", "pdm_work_review_requests", "pdm_review_traces", "part_approved_change_snapshots", "relation_approved_change_snapshots", "pdm_workbench_migration_quarantine"];
+const expectedTables = ["pdm_workbench_state_authority_control", "pdm_workbench_aggregates", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works", "drawing_revision_work_files", "part_change_works", "canonical_workbench_states", "pdm_work_review_requests", "pdm_review_traces", "part_approved_change_snapshots", "relation_approved_change_snapshots", "pdm_workbench_migration_quarantine"];
 const actual = new Set(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all().map((row) => row.name));
 expectedTables.forEach((table) => assert(actual.has(table), `missing ${table}`));
 assert.equal(canonicalLayerLabel({ dataLayer: "drawing_production", revision: "1" }), "量產版 1");
 assert.equal(canonicalLayerLabel({ dataLayer: "drawing_rd", revision: "1.1" }), "研發版 1.1");
 assert.equal(canonicalLayerLabel({ dataLayer: "part_formal", revision: null }), "正式資料");
-assert.equal(canonicalLayerLabel({ dataLayer: "relation_work", revision: null }), "");
 assert.equal(normalizeCanonicalWorkbenchQuery(new URL("http://local/?layer=rd&handling=owner"), "drawing").layers[0], "rd");
 assert.deepEqual(normalizeCanonicalWorkbenchQuery(new URL("http://local/?stage=editing,available"), "drawing").dataStates, ["editing", "available"]);
 const purposeQuery = normalizeCanonicalWorkbenchQuery(new URL("http://local/?purpose=M&purpose=R&series=S1&direction=before"), "drawing");
@@ -115,4 +114,4 @@ assert(
   "DEV-092 exact-context browser evidence must select a deterministic legal three-file work instead of depending on one mutable primary identity"
 );
 db.close();
-pass("contract", expectedTables.length + 29);
+pass("contract", expectedTables.length + 28);

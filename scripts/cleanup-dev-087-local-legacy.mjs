@@ -56,7 +56,7 @@ const candidateFileAssets = tableExists("numbering_candidate_revision_files") &&
 const canonicalTables = [
   "part_roots", "part_numbers", "drawing_numbers", "drawing_part_links", "drawings", "drawing_revisions",
   "drawing_revision_files", "pdm_workbench_aggregates", "drawing_rd_branches", "drawing_revision_claims",
-  "drawing_revision_works", "drawing_revision_work_files", "part_change_works", "relation_change_works",
+  "drawing_revision_works", "drawing_revision_work_files", "part_change_works",
   "canonical_workbench_states", "pdm_work_review_requests", "pdm_review_traces"
 ];
 function canonicalSnapshot() {

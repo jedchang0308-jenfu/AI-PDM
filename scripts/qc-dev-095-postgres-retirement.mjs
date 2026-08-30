@@ -68,7 +68,7 @@ const pool = new pg.Pool({ connectionString: postgresUrl, max: 1 });
 const client = await pool.connect();
 
 try {
-  record("DEV095-PG-001 production package contains 49 ordered migrations", plan.schemaMigrationCount === 49, String(plan.schemaMigrationCount));
+  record("DEV095-PG-001 production package contains 50 ordered migrations", plan.schemaMigrationCount === 50, String(plan.schemaMigrationCount));
   record("DEV095-PG-002 retirement migration 047 is present", retirement?.output === "sql/047_remove_bom_module.cloudsql.sql", retirement?.output ?? "missing");
 
   await client.query("BEGIN");

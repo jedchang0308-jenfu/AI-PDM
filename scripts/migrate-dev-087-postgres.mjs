@@ -30,7 +30,7 @@ if (!contractCheck && !connectionString) throw new Error("DEV087_POSTGRES_CONNEC
 const allowedTargetTables = new Set([
   "drawing_revisions", "part_roots", "part_numbers", "drawing_numbers", "drawing_part_links",
   "pdm_workbench_aggregates", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works",
-  "drawing_revision_work_files", "part_change_works", "relation_change_works", "canonical_workbench_states",
+  "drawing_revision_work_files", "part_change_works", "canonical_workbench_states",
   "pdm_work_review_requests", "pdm_review_traces", "pdm_workbench_migration_quarantine"
 ]);
 const canonicalIdentityBackfillTables = new Set(["drawing_revisions", "part_roots", "part_numbers", "drawing_numbers", "drawing_part_links"]);
@@ -101,6 +101,14 @@ function validateMapping(mapping, inventory) {
     seenTargetRows.add(targetKey);
     if (mapping.version >= 3 && !/^[a-f0-9]{64}$/iu.test(String(operation.targetHash || ""))) throw new Error(`DEV087_POSTGRES_TARGET_HASH_REQUIRED:${targetKey}`);
     if (mapping.version < 3 && canonicalIdentityBackfillTables.has(operation.table)) throw new Error(`DEV087_POSTGRES_CANONICAL_IDENTITY_REQUIRES_MAPPING_V3:${operation.table}`);
+    if (operation.table === "part_change_works") {
+      const payload = typeof operation.row.proposed_payload === "string"
+        ? JSON.parse(operation.row.proposed_payload)
+        : operation.row.proposed_payload;
+      if (payload && typeof payload === "object" && !Array.isArray(payload) && Object.hasOwn(payload, "bomUsagePolicy")) {
+        throw new Error(`DEV106_POSTGRES_RETIRED_BOM_PAYLOAD_FORBIDDEN:${targetKey}`);
+      }
+    }
   }
   if (targetRows.some((operation) => operation.table === "drawing_revision_work_files")) throw new Error("DEV092_POSTGRES_WORK_FILE_ROWS_REQUIRE_COMPOSITE_RECEIPTS");
   const drawingWorkFiles = Array.isArray(mapping.drawingWorkFiles) ? mapping.drawingWorkFiles : [];
@@ -148,6 +156,28 @@ function validateMapping(mapping, inventory) {
 async function tableExists(client, table) {
   const result = await client.query("SELECT to_regclass($1) IS NOT NULL AS present", [`public.${table}`]);
   return result.rows[0]?.present === true;
+}
+
+async function assertCurrentCanonicalTargetSchema(client) {
+  if (!(await tableExists(client, "pdm_schema_migrations"))) {
+    throw new Error("DEV106_POSTGRES_ORDERED_MIGRATION_LEDGER_REQUIRED");
+  }
+  const migration = await client.query("SELECT 1 FROM pdm_schema_migrations WHERE version = '052' LIMIT 1");
+  if (migration.rowCount !== 1) throw new Error("DEV106_POSTGRES_RETIREMENT_MIGRATION_REQUIRED");
+  if (await tableExists(client, "relation_change_works")) throw new Error("DEV106_POSTGRES_RETIRED_RELATION_TABLE_PRESENT");
+  for (const table of allowedTargetTables) {
+    if (!(await tableExists(client, table))) throw new Error(`DEV106_POSTGRES_CURRENT_TARGET_TABLE_MISSING:${table}`);
+  }
+  const residue = await client.query(`
+    SELECT
+      (SELECT COUNT(*)::int FROM pdm_workbench_aggregates WHERE entity_type = 'relation') AS relation_aggregates,
+      (SELECT COUNT(*)::int FROM canonical_workbench_states WHERE entity_type = 'relation' OR data_layer IN ('relation_formal', 'relation_work')) AS relation_states,
+      (SELECT COUNT(*)::int FROM pdm_work_review_requests WHERE request_kind = 'relation_change' OR entity_type = 'relation') AS relation_reviews,
+      (SELECT COUNT(*)::int FROM part_change_works WHERE proposed_payload ? 'bomUsagePolicy') AS retired_bom_payloads
+  `);
+  if (Object.values(residue.rows[0] ?? {}).some((value) => Number(value) !== 0)) {
+    throw new Error("DEV106_POSTGRES_RETIRED_RESIDUE_PRESENT");
+  }
 }
 
 async function inventory(client) {
@@ -267,7 +297,6 @@ async function reconcileSourceMutations(client, before, after, beforeSnapshots, 
 async function insertAutomaticFormalProjection(client) {
   const drawings = (await client.query("SELECT id,company_id FROM drawings WHERE lifecycle_state NOT IN ('cancelled','obsolete','merged') ORDER BY company_id,id")).rows;
   const parts = (await client.query("SELECT id,company_id FROM part_numbers ORDER BY company_id,id")).rows;
-  const roots = (await client.query("SELECT id,company_id FROM part_roots ORDER BY company_id,id")).rows;
   for (const drawing of drawings) {
     await insertRow(client, "pdm_workbench_aggregates", { id: stableId("dev087-aggregate", drawing.company_id, "drawing", drawing.id), company_id: drawing.company_id, entity_type: "drawing", canonical_entity_id: drawing.id, open_branch_count: 0, row_version: 1 });
     const revision = (await client.query("SELECT id,row_version FROM drawing_revisions WHERE company_id=$1 AND drawing_id=$2 AND lifecycle_state='released' AND revision ~ '^[0-9]+$' ORDER BY revision::integer DESC,updated_at DESC,id DESC LIMIT 1", [drawing.company_id, drawing.id])).rows[0];
@@ -276,10 +305,6 @@ async function insertAutomaticFormalProjection(client) {
   for (const part of parts) {
     await insertRow(client, "pdm_workbench_aggregates", { id: stableId("dev087-aggregate", part.company_id, "part", part.id), company_id: part.company_id, entity_type: "part", canonical_entity_id: part.id, open_branch_count: 0, row_version: 1 });
     await insertRow(client, "canonical_workbench_states", { id: stableId("dev087-state", part.company_id, "part_formal", part.id), company_id: part.company_id, entity_type: "part", canonical_entity_id: part.id, data_layer: "part_formal", branch_id: null, revision_id: null, work_id: null, handling: "none", blocker_reason: null, row_version: 1 });
-  }
-  for (const relation of roots) {
-    await insertRow(client, "pdm_workbench_aggregates", { id: stableId("dev087-aggregate", relation.company_id, "relation", relation.id), company_id: relation.company_id, entity_type: "relation", canonical_entity_id: relation.id, open_branch_count: 0, row_version: 1 });
-    await insertRow(client, "canonical_workbench_states", { id: stableId("dev087-state", relation.company_id, "relation_formal", relation.id), company_id: relation.company_id, entity_type: "relation", canonical_entity_id: relation.id, data_layer: "relation_formal", branch_id: null, revision_id: null, work_id: null, handling: "none", blocker_reason: null, row_version: 1 });
   }
   if (await tableExists(client, "drawing_revision_package_review_approvals")) {
     const approvals = (await client.query(`SELECT approval.approval_request_id,approval.company_id,approval.approved_at,revision.drawing_id
@@ -358,7 +383,7 @@ try {
   if (apply) {
     await client.query("BEGIN");
     try {
-      await client.query(fs.readFileSync(path.resolve("db/postgres/042_status_data_rebuild.sql"), "utf8"));
+      await assertCurrentCanonicalTargetSchema(client);
       if (validation.mappingVersion !== 3) await insertAutomaticFormalProjection(client);
       for (const operation of validation.targetRows) await insertRow(client, operation.table, operation.row);
       for (const operation of validation.drawingWorkFiles) await insertRow(client, "drawing_revision_work_files", operation.row);

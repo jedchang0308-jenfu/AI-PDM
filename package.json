@@ -567,6 +567,8 @@
     "qc:dev-095-bom-retirement:postgres": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-qc-db-provider-postgres-isolated.ps1 -Dev095Retirement",
     "pdm:dev-095-bom-retirement:sqlite": "node scripts/migrate-dev-095-bom-retirement.mjs",
     "qc:dev-095": "npm run qc:dev-095-bom-retirement && npm run typecheck:app",
+    "qc:dev-106:retirement": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-106-retired-residue-cleanup.mjs",
+    "qc:dev-106:postgres": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-qc-db-provider-postgres-isolated.ps1 -Dev106Retirement",
     "qc:gdrive-folder-tree-settings": "node scripts/qc-gdrive-folder-tree-settings.mjs",
     "qc:file-dropzone-ux": "node scripts/qc-file-dropzone-ux.mjs",
     "qc:master-attachments": "node scripts/qc-master-attachments.mjs",

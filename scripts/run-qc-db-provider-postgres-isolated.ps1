@@ -1,6 +1,7 @@
 param(
   [int]$Port = 55439,
   [switch]$Dev095Retirement,
+  [switch]$Dev106Retirement,
   [switch]$CleanupOnly
 )
 
@@ -12,6 +13,7 @@ $pgCtl = Join-Path $postgresBin "pg_ctl.exe"
 $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
 $qcRoot = Join-Path $tempRoot ("ai-pdm-postgres-fmea-" + [guid]::NewGuid().ToString("N"))
 $clusterDir = Join-Path $qcRoot "cluster"
+$dataDir = Join-Path $qcRoot "data"
 $repositoryDir = Join-Path $qcRoot "repository"
 $serverLog = Join-Path $qcRoot "postgres.log"
 $started = $false
@@ -50,7 +52,7 @@ try {
   $owner = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($owner) { throw "Port $Port is already owned by PID $($owner.OwningProcess)" }
 
-  New-Item -ItemType Directory -Path $qcRoot, $repositoryDir -Force | Out-Null
+  New-Item -ItemType Directory -Path $qcRoot, $dataDir, $repositoryDir -Force | Out-Null
   Write-Host "Postgres QC: initializing isolated cluster"
   & $initDb -D $clusterDir --auth-local=trust --auth-host=trust --username=postgres --encoding=UTF8 --no-locale | Out-Null
   if ($LASTEXITCODE -ne 0) { throw "initdb failed with exit code $LASTEXITCODE" }
@@ -74,6 +76,7 @@ try {
   Write-Host "Postgres QC: isolated cluster ready"
 
   $env:PDM_POSTGRES_URL = "postgresql://postgres@127.0.0.1:$Port/postgres"
+  $env:PDM_DATA_DIR = $dataDir
   $env:PDM_QC_REPOSITORY_DIR = $repositoryDir
   $env:PDM_REPOSITORY_DIR = $repositoryDir
   $env:PDM_MAX_UPLOAD_FILE_BYTES = [string](10 * 1024 * 1024)
@@ -86,6 +89,11 @@ try {
     Write-Host "Postgres QC: running DEV-095 full migration retirement rehearsal"
     & node (Join-Path $projectRoot "scripts\qc-dev-095-postgres-retirement.mjs")
     if ($LASTEXITCODE -ne 0) { throw "DEV-095 Postgres retirement rehearsal failed with exit code $LASTEXITCODE" }
+  }
+  if ($Dev106Retirement) {
+    Write-Host "Postgres QC: running DEV-106 retirement residue rehearsal"
+    & node (Join-Path $projectRoot "scripts\qc-dev-106-postgres-retirement.mjs")
+    if ($LASTEXITCODE -ne 0) { throw "DEV-106 Postgres retirement rehearsal failed with exit code $LASTEXITCODE" }
   }
 }
 finally {

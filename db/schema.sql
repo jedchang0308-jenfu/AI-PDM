@@ -4061,7 +4061,7 @@ CREATE TABLE IF NOT EXISTS pdm_workbench_state_authority_control (
 CREATE TABLE IF NOT EXISTS pdm_workbench_aggregates (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL,
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part', 'relation')),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part')),
   canonical_entity_id TEXT NOT NULL,
   open_branch_count INTEGER NOT NULL DEFAULT 0 CHECK (open_branch_count BETWEEN 0 AND 3),
   row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
@@ -4158,30 +4158,12 @@ CREATE TABLE IF NOT EXISTS part_change_works (
   UNIQUE (company_id, id)
 );
 
-CREATE TABLE IF NOT EXISTS relation_change_works (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL,
-  root_id TEXT NOT NULL,
-  owner_user_id TEXT NOT NULL,
-  proposed_tree TEXT NOT NULL CHECK (json_valid(proposed_tree)),
-  proposed_tree_hash TEXT NOT NULL,
-  base_formal_tree_hash TEXT NOT NULL,
-  row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version >= 1),
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
-  FOREIGN KEY (root_id) REFERENCES part_roots(id) ON DELETE RESTRICT,
-  FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE RESTRICT,
-  UNIQUE (company_id, root_id),
-  UNIQUE (company_id, id)
-);
-
 CREATE TABLE IF NOT EXISTS canonical_workbench_states (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL,
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part', 'relation')),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part')),
   canonical_entity_id TEXT NOT NULL,
-  data_layer TEXT NOT NULL CHECK (data_layer IN ('drawing_production', 'drawing_rd', 'part_formal', 'part_work', 'relation_formal', 'relation_work')),
+  data_layer TEXT NOT NULL CHECK (data_layer IN ('drawing_production', 'drawing_rd', 'part_formal', 'part_work')),
   branch_id TEXT,
   revision_id TEXT,
   work_id TEXT,
@@ -4199,8 +4181,6 @@ CREATE TABLE IF NOT EXISTS canonical_workbench_states (
     OR (data_layer = 'drawing_rd' AND entity_type = 'drawing' AND branch_id IS NOT NULL AND revision_id IS NOT NULL)
     OR (data_layer = 'part_formal' AND entity_type = 'part' AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NULL)
     OR (data_layer = 'part_work' AND entity_type = 'part' AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NOT NULL)
-    OR (data_layer = 'relation_formal' AND entity_type = 'relation' AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NULL)
-    OR (data_layer = 'relation_work' AND entity_type = 'relation' AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NOT NULL)
   )
 );
 
@@ -4213,17 +4193,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_canonical_workbench_drawing_rd
 CREATE UNIQUE INDEX IF NOT EXISTS uq_canonical_workbench_part_layer
   ON canonical_workbench_states(company_id, canonical_entity_id, data_layer)
   WHERE data_layer IN ('part_formal', 'part_work');
-CREATE UNIQUE INDEX IF NOT EXISTS uq_canonical_workbench_relation_layer
-  ON canonical_workbench_states(company_id, canonical_entity_id, data_layer)
-  WHERE data_layer IN ('relation_formal', 'relation_work');
 CREATE INDEX IF NOT EXISTS idx_canonical_workbench_list
   ON canonical_workbench_states(company_id, entity_type, data_layer, canonical_entity_id);
 
 CREATE TABLE IF NOT EXISTS pdm_work_review_requests (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL,
-  request_kind TEXT NOT NULL CHECK (request_kind IN ('drawing_revision', 'drawing_rd_void', 'part_change', 'relation_change')),
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part', 'relation')),
+  request_kind TEXT NOT NULL CHECK (request_kind IN ('drawing_revision', 'drawing_rd_void', 'part_change')),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('drawing', 'part')),
   canonical_entity_id TEXT NOT NULL,
   work_id TEXT,
   branch_id TEXT,
@@ -4395,24 +4372,11 @@ BEFORE UPDATE OF company_id, part_id, owner_user_id ON part_change_works BEGIN
       OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
     THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
 END;
-CREATE TRIGGER IF NOT EXISTS trg_relation_change_works_company_guard
-BEFORE INSERT ON relation_change_works BEGIN
-  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.root_id AND r.company_id = NEW.company_id)
-      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
-    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
-END;
-CREATE TRIGGER IF NOT EXISTS trg_relation_change_works_company_update_guard
-BEFORE UPDATE OF company_id, root_id, owner_user_id ON relation_change_works BEGIN
-  SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.root_id AND r.company_id = NEW.company_id)
-      OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = NEW.owner_user_id AND u.company_id = NEW.company_id)
-    THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH') END;
-END;
 CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_company_guard
 BEFORE INSERT ON canonical_workbench_states BEGIN
   SELECT CASE
     WHEN NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
     WHEN NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
-    WHEN NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
   END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_company_update_guard
@@ -4420,7 +4384,6 @@ BEFORE UPDATE OF company_id, entity_type, canonical_entity_id ON canonical_workb
   SELECT CASE
     WHEN NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
     WHEN NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
-    WHEN NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
   END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_work_guard
@@ -4428,7 +4391,6 @@ BEFORE INSERT ON canonical_workbench_states WHEN NEW.work_id IS NOT NULL BEGIN
   SELECT CASE
     WHEN NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
     WHEN NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
-    WHEN NEW.data_layer = 'relation_work' AND NOT EXISTS (SELECT 1 FROM relation_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.root_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
   END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_work_update_guard
@@ -4436,7 +4398,6 @@ BEFORE UPDATE OF company_id, data_layer, canonical_entity_id, work_id ON canonic
   SELECT CASE
     WHEN NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
     WHEN NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
-    WHEN NEW.data_layer = 'relation_work' AND NOT EXISTS (SELECT 1 FROM relation_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.root_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
   END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_canonical_workbench_states_drawing_reference_guard
@@ -4460,7 +4421,6 @@ BEFORE INSERT ON pdm_work_review_requests BEGIN
   SELECT CASE
     WHEN NEW.entity_type = 'drawing' AND NOT EXISTS (SELECT 1 FROM drawings d WHERE d.id = NEW.canonical_entity_id AND d.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
     WHEN NEW.entity_type = 'part' AND NOT EXISTS (SELECT 1 FROM part_numbers p WHERE p.id = NEW.canonical_entity_id AND p.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
-    WHEN NEW.entity_type = 'relation' AND NOT EXISTS (SELECT 1 FROM part_roots r WHERE r.id = NEW.canonical_entity_id AND r.company_id = NEW.company_id) THEN RAISE(ABORT, 'DEV087_COMPANY_REFERENCE_MISMATCH')
   END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_pdm_review_requests_identity_immutable

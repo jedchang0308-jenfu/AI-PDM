@@ -734,6 +734,20 @@
         "removedRlsStatements": 0,
         "rewrittenSupabaseRoleReferences": 0
       }
+    },
+    {
+      "source": "db/postgres/052_retired_workbench_residue_cleanup.sql",
+      "output": "sql/052_retired_workbench_residue_cleanup.cloudsql.sql",
+      "version": "052",
+      "name": "052_retired_workbench_residue_cleanup",
+      "sourceSha256": "e2e48005b90b2fc6c2404d91e0c99268231fbd116c61acab5ddf4c0487737b34",
+      "outputSha256": "46f2731dbbaff3e8fcead6a9fefd7542c3565ff5a40475c140b3383e3bdcf69e",
+      "bytes": 7836,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0
+      }
     }
   ],
   "migrationHistoryCompatibility": {

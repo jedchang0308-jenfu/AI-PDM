@@ -295,6 +295,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureDev087CanonicalWorkbenchSchema(database);
   ensureDev065PartPreviewSchema(database);
   ensureDev090InlineRelationMatrixSchema(database);
+  ensureDev106RetiredWorkbenchResidueCleanupSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
@@ -1955,6 +1956,8 @@ export function ensureDev090InlineRelationMatrixSchema(database: SqliteDatabase)
   const tableExists = (table: string) => Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table));
   if (!tableExists("drawing_part_links")) return;
   if (tableExists("relation_change_works") && count("relation_change_works") !== 0) throw new Error("DEV090_ACTIVE_RELATION_WORK");
+  if (tableExists("canonical_workbench_states") && count("canonical_workbench_states", "entity_type = 'relation' OR data_layer IN ('relation_formal', 'relation_work')") !== 0) throw new Error("DEV090_ACTIVE_RELATION_STATE");
+  if (tableExists("pdm_workbench_aggregates") && count("pdm_workbench_aggregates", "entity_type = 'relation'") !== 0) throw new Error("DEV090_ACTIVE_RELATION_AGGREGATE");
   if (tableExists("pdm_work_review_requests") && count("pdm_work_review_requests", "request_kind = 'relation_change' OR entity_type = 'relation'") !== 0) throw new Error("DEV090_ACTIVE_RELATION_REVIEW");
   if (tableExists("pdm_workbench_migration_quarantine") && count("pdm_workbench_migration_quarantine", "resolution IS NULL AND lower(source_kind) LIKE '%relation%'") !== 0) throw new Error("DEV090_UNRESOLVED_RELATION_QUARANTINE");
   if (count("drawing_part_links", "link_type = 'primary_manufacturing'") > 0 && database.prepare("SELECT 1 FROM drawing_part_links WHERE link_type = 'primary_manufacturing' GROUP BY part_number_id HAVING COUNT(*) > 1 LIMIT 1").get()) throw new Error("DEV090_MULTI_PRIMARY");
@@ -1975,6 +1978,79 @@ export function ensureDev090InlineRelationMatrixSchema(database: SqliteDatabase)
     if (tableExists("pdm_workbench_state_authority_control")) database.exec("UPDATE pdm_workbench_state_authority_control SET mode = 'canonical_only', schema_hash = 'dev090-v1', row_version = row_version + 1, switched_at = datetime('now') WHERE id = 1");
     database.exec("COMMIT");
   } catch (error) { database.exec("ROLLBACK"); throw error; }
+}
+
+/** DEV-106 removes the final compatibility residue left by historical
+ * recovery paths. Formal drawing/part links and immutable review traces stay
+ * intact; current Relation work/projections and retired Part payload metadata do not.
+ */
+export function ensureDev106RetiredWorkbenchResidueCleanupSchema(database: SqliteDatabase) {
+  const count = (table: string, where = "") => Number((database.prepare(`SELECT COUNT(*) AS count FROM ${table}${where ? ` WHERE ${where}` : ""}`).get() as { count: number }).count);
+  const tableExists = (table: string) => Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table));
+  if (!tableExists("drawing_part_links")) return;
+  if (tableExists("relation_change_works") && count("relation_change_works") !== 0) throw new Error("DEV106_ACTIVE_RELATION_WORK");
+  if (tableExists("canonical_workbench_states") && count("canonical_workbench_states", "entity_type = 'relation' OR data_layer IN ('relation_formal', 'relation_work')") !== 0) throw new Error("DEV106_ACTIVE_RELATION_STATE");
+  if (tableExists("pdm_workbench_aggregates") && count("pdm_workbench_aggregates", "entity_type = 'relation'") !== 0) throw new Error("DEV106_ACTIVE_RELATION_AGGREGATE");
+  if (tableExists("pdm_work_review_requests") && count("pdm_work_review_requests", "request_kind = 'relation_change' OR entity_type = 'relation'") !== 0) throw new Error("DEV106_ACTIVE_RELATION_REVIEW");
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    database.exec("DROP TRIGGER IF EXISTS trg_relation_change_works_company_guard");
+    database.exec("DROP TRIGGER IF EXISTS trg_relation_change_works_company_update_guard");
+    database.exec("DROP TRIGGER IF EXISTS trg_canonical_workbench_states_work_guard");
+    database.exec("DROP TRIGGER IF EXISTS trg_canonical_workbench_states_work_update_guard");
+    database.exec(`
+      CREATE TRIGGER trg_canonical_workbench_states_work_guard
+      BEFORE INSERT ON canonical_workbench_states WHEN NEW.work_id IS NOT NULL BEGIN
+        SELECT CASE
+          WHEN NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+          WHEN NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+        END;
+      END;
+      CREATE TRIGGER trg_canonical_workbench_states_work_update_guard
+      BEFORE UPDATE OF company_id, data_layer, canonical_entity_id, work_id ON canonical_workbench_states WHEN NEW.work_id IS NOT NULL BEGIN
+        SELECT CASE
+          WHEN NEW.data_layer = 'drawing_rd' AND NOT EXISTS (SELECT 1 FROM drawing_revision_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.drawing_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+          WHEN NEW.data_layer = 'part_work' AND NOT EXISTS (SELECT 1 FROM part_change_works w WHERE w.id = NEW.work_id AND w.company_id = NEW.company_id AND w.part_id = NEW.canonical_entity_id) THEN RAISE(ABORT, 'DEV087_WORK_REFERENCE_MISMATCH')
+        END;
+      END;
+    `);
+    if (tableExists("relation_change_works")) database.exec("DROP TABLE relation_change_works");
+    database.exec("DROP INDEX IF EXISTS uq_canonical_workbench_relation_layer");
+    if (tableExists("part_change_works")) {
+      database.exec("UPDATE part_change_works SET proposed_payload = json_remove(proposed_payload, '$.bomUsagePolicy'), updated_at = datetime('now') WHERE json_type(proposed_payload, '$.bomUsagePolicy') IS NOT NULL");
+      database.exec(`
+        CREATE TRIGGER IF NOT EXISTS trg_dev106_part_work_no_retired_payload_key_insert
+        BEFORE INSERT ON part_change_works WHEN json_type(NEW.proposed_payload, '$.bomUsagePolicy') IS NOT NULL
+        BEGIN SELECT RAISE(ABORT, 'DEV106_RETIRED_PART_PAYLOAD_KEY_FORBIDDEN'); END;
+        CREATE TRIGGER IF NOT EXISTS trg_dev106_part_work_no_retired_payload_key_update
+        BEFORE UPDATE OF proposed_payload ON part_change_works WHEN json_type(NEW.proposed_payload, '$.bomUsagePolicy') IS NOT NULL
+        BEGIN SELECT RAISE(ABORT, 'DEV106_RETIRED_PART_PAYLOAD_KEY_FORBIDDEN'); END;
+      `);
+    }
+    database.exec(`
+      CREATE TRIGGER IF NOT EXISTS trg_dev106_no_relation_aggregate_insert
+      BEFORE INSERT ON pdm_workbench_aggregates WHEN NEW.entity_type = 'relation'
+      BEGIN SELECT RAISE(ABORT, 'DEV106_RETIRED_RELATION_PROJECTION_FORBIDDEN'); END;
+      CREATE TRIGGER IF NOT EXISTS trg_dev106_no_relation_aggregate_update
+      BEFORE UPDATE OF entity_type ON pdm_workbench_aggregates WHEN NEW.entity_type = 'relation'
+      BEGIN SELECT RAISE(ABORT, 'DEV106_RETIRED_RELATION_PROJECTION_FORBIDDEN'); END;
+      CREATE TRIGGER IF NOT EXISTS trg_dev106_no_relation_state_insert
+      BEFORE INSERT ON canonical_workbench_states WHEN NEW.entity_type = 'relation' OR NEW.data_layer IN ('relation_formal', 'relation_work')
+      BEGIN SELECT RAISE(ABORT, 'DEV106_RETIRED_RELATION_PROJECTION_FORBIDDEN'); END;
+      CREATE TRIGGER IF NOT EXISTS trg_dev106_no_relation_state_update
+      BEFORE UPDATE OF entity_type, data_layer ON canonical_workbench_states WHEN NEW.entity_type = 'relation' OR NEW.data_layer IN ('relation_formal', 'relation_work')
+      BEGIN SELECT RAISE(ABORT, 'DEV106_RETIRED_RELATION_PROJECTION_FORBIDDEN'); END;
+      CREATE TRIGGER IF NOT EXISTS trg_dev106_no_relation_review_insert
+      BEFORE INSERT ON pdm_work_review_requests WHEN NEW.entity_type = 'relation' OR NEW.request_kind = 'relation_change'
+      BEGIN SELECT RAISE(ABORT, 'DEV106_RETIRED_RELATION_PROJECTION_FORBIDDEN'); END;
+      CREATE TRIGGER IF NOT EXISTS trg_dev106_no_relation_review_update
+      BEFORE UPDATE OF entity_type, request_kind ON pdm_work_review_requests WHEN NEW.entity_type = 'relation' OR NEW.request_kind = 'relation_change'
+      BEGIN SELECT RAISE(ABORT, 'DEV106_RETIRED_RELATION_PROJECTION_FORBIDDEN'); END;
+    `);
+    database.exec("COMMIT");
+  } catch (error) { database.exec("ROLLBACK"); throw error; }
+  if (tableExists("relation_change_works")) throw new Error("DEV106_RELATION_WORK_TABLE_REMAINS");
+  if (tableExists("part_change_works") && count("part_change_works", "json_type(proposed_payload, '$.bomUsagePolicy') IS NOT NULL") !== 0) throw new Error("DEV106_RETIRED_PART_PAYLOAD_KEY_REMAINS");
 }
 
 export function ensureDev088ReplacementAttachmentSchema(database: SqliteDatabase) {

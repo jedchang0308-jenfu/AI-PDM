@@ -4,7 +4,7 @@
   "dev": "DEV-032",
   "phase": "Gate-C-production-clean-seed-migration",
   "packageVersion": "dev-046-cloudsql-migration-package/v1",
-  "generatedAt": "2026-08-28T22:27:10.106Z",
+  "generatedAt": "2026-08-30T06:45:03.425Z",
   "target": {
     "projectId": "jenfu-ai-pdm-prod",
     "region": "asia-east1",
@@ -23,9 +23,9 @@
     "status": "not-present",
     "adminBootstrapSucceeded": false,
     "evidenceManifestSha256": null,
-    "candidateManifestSha256": "a237cbd3a7baffaa62d0de085b8a1c65175e2e05612301cba4742a3f5b49fec5",
+    "candidateManifestSha256": "26ea8784b896ba16806f80e05431cd30ca6a4d3c54080f645b95d8671df4d2d5",
     "evidenceSchemaMigrationCount": null,
-    "candidateSchemaMigrationCount": 49,
+    "candidateSchemaMigrationCount": 50,
     "matchesCurrentCandidate": false,
     "liveMigrationCompleted": false,
     "idempotenceVerified": false,
@@ -46,7 +46,7 @@
   "sourceInventory": {
     "postgresDirectory": "db/postgres",
     "postgresReadmeDeclaresCloudSqlAuthority": true,
-    "postgresSqlFileCount": 51,
+    "postgresSqlFileCount": 52,
     "cloudSqlGrantFile": "db/cloud-sql/pdm_runtime_grants.sql",
     "cloudSqlGrantFileSha256": "6e159dc9374e6f3d634cebe097704e4ab105ddf62384012bc75a1ad5d13af783",
     "singletonMigrationRunnerPresent": true,
@@ -509,6 +509,15 @@
         "hasSupabaseRoleReferences": false,
         "supabaseRoleReferenceLines": 0,
         "ddlReviewLines": 1
+      },
+      {
+        "file": "db/postgres/052_retired_workbench_residue_cleanup.sql",
+        "sha256": "e2e48005b90b2fc6c2404d91e0c99268231fbd116c61acab5ddf4c0487737b34",
+        "bytes": 7583,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 2
       }
     ]
   },
@@ -789,9 +798,9 @@
     ]
   },
   "ddlRisk": {
-    "totalReviewLines": 193,
-    "blockingDestructiveLines": 32,
-    "reviewRequiredIdempotentLines": 159,
+    "totalReviewLines": 195,
+    "blockingDestructiveLines": 33,
+    "reviewRequiredIdempotentLines": 160,
     "sampleFindings": [
       {
         "file": "db/postgres/001_initial_schema.sql",
@@ -935,7 +944,7 @@
     "orderedManifestPath": "cloudsql-migration-manifest.json",
     "runnerContractPath": "runner-contract.md",
     "supportFileCount": 2,
-    "orderedSchemaMigrationCount": 49,
+    "orderedSchemaMigrationCount": 50,
     "supportFiles": [
       {
         "output": "sql/000_admin_bootstrap_grants.sql",
@@ -1643,6 +1652,20 @@
         "sourceSha256": "a73e9bd2a06a97fe84cfea66efce15f5610368b70d1a883002f3f61a53ba35d8",
         "outputSha256": "6c344a3345cd4cd6d82f86b34855032af6d8b859a81bc36f70249f113e7faa53",
         "bytes": 786,
+        "transformations": {
+          "removedTransactionWrappers": 0,
+          "removedRlsStatements": 0,
+          "rewrittenSupabaseRoleReferences": 0
+        }
+      },
+      {
+        "source": "db/postgres/052_retired_workbench_residue_cleanup.sql",
+        "output": "sql/052_retired_workbench_residue_cleanup.cloudsql.sql",
+        "version": "052",
+        "name": "052_retired_workbench_residue_cleanup",
+        "sourceSha256": "e2e48005b90b2fc6c2404d91e0c99268231fbd116c61acab5ddf4c0487737b34",
+        "outputSha256": "46f2731dbbaff3e8fcead6a9fefd7542c3565ff5a40475c140b3383e3bdcf69e",
+        "bytes": 7836,
         "transformations": {
           "removedTransactionWrappers": 0,
           "removedRlsStatements": 0,
