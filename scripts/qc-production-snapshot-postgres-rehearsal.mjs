@@ -28,15 +28,14 @@ const serverLog = path.join(runtimeRoot, "postgres.log");
 const migratedSqlitePath = path.join(outputDir, "canonical-target.sqlite");
 const mappingPath = path.join(outputDir, "mapping-v3.json");
 const reportPath = path.join(outputDir, "manifest.json");
-const schemaPath = path.join(root, "db", "postgres", "001_initial_schema.sql");
-const recycledDrawingConstraintPath = path.join(root, "db", "postgres", "039_allow_recycled_candidate_drawing_codes.sql");
-const canonicalWorkbenchSchemaPath = path.join(root, "db", "postgres", "042_status_data_rebuild.sql");
+const migrationPackageRoot = path.join(root, "output", "dev-032-cloudsql-migration-package");
+const migrationManifestPath = path.join(migrationPackageRoot, "cloudsql-migration-manifest.json");
 const targetIdentityColumns = new Map([["pdm_review_traces", "review_cycle_id"]]);
 const canonicalIdentityTables = new Set(["drawing_revisions", "part_roots", "part_numbers", "drawing_numbers", "drawing_part_links"]);
 const targetTableOrder = [
   "part_roots", "part_numbers", "drawing_numbers", "drawing_revisions", "drawing_part_links",
   "pdm_workbench_aggregates", "drawing_rd_branches", "drawing_revision_claims", "drawing_revision_works",
-  "part_change_works", "relation_change_works", "canonical_workbench_states", "pdm_work_review_requests",
+  "part_change_works", "canonical_workbench_states", "pdm_work_review_requests",
   "pdm_review_traces", "pdm_workbench_migration_quarantine"
 ];
 const legacyTables = [
@@ -49,7 +48,9 @@ if (!sourcePath || !fs.existsSync(sourcePath)) throw new Error("PRODUCTION_SNAPS
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("PRODUCTION_SNAPSHOT_POSTGRES_PORT_INVALID");
 if (!expectedCommit) throw new Error("PRODUCTION_SNAPSHOT_POSTGRES_EXPECTED_COMMIT_REQUIRED");
 for (const executable of requiredExecutables) if (!fs.existsSync(path.join(postgresBin, executable))) throw new Error(`PRODUCTION_SNAPSHOT_POSTGRES_TOOL_MISSING:${executable}`);
-if (![schemaPath, recycledDrawingConstraintPath, canonicalWorkbenchSchemaPath].every((file) => fs.existsSync(file))) throw new Error("PRODUCTION_SNAPSHOT_POSTGRES_SCHEMA_MISSING");
+if (!fs.existsSync(migrationManifestPath)) throw new Error("PRODUCTION_SNAPSHOT_POSTGRES_MIGRATION_PACKAGE_MISSING");
+const migrationManifest = JSON.parse(fs.readFileSync(migrationManifestPath, "utf8"));
+if (migrationManifest.orderedSchemaMigrations.length !== 50 || migrationManifest.orderedSchemaMigrations.at(-1)?.version !== "052") throw new Error("PRODUCTION_SNAPSHOT_POSTGRES_MIGRATION_PACKAGE_STALE");
 
 function stableJson(value) {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
@@ -85,6 +86,27 @@ async function portReleased(value) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   return false;
+}
+async function applyCurrentMigrationPackage(client) {
+  await client.query("BEGIN");
+  try {
+    await client.query(`CREATE TABLE IF NOT EXISTS pdm_schema_migrations (
+      version TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      checksum TEXT NOT NULL,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`);
+    for (const migration of migrationManifest.orderedSchemaMigrations) {
+      const sql = fs.readFileSync(path.join(migrationPackageRoot, migration.output), "utf8");
+      if (sha256(sql) !== migration.outputSha256) throw new Error(`PRODUCTION_SNAPSHOT_POSTGRES_MIGRATION_HASH_MISMATCH:${migration.version}`);
+      await client.query(sql);
+      await client.query("INSERT INTO pdm_schema_migrations (version,name,checksum) VALUES ($1,$2,$3)", [migration.version, migration.name, migration.outputSha256]);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  }
 }
 function sqliteTables(database) {
   return new Set(database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map((row) => row.name));
@@ -132,8 +154,9 @@ async function restoreSqliteContent(client, sourceDatabase) {
   const sourceTables = sqliteTables(sourceDatabase);
   const pgTableResult = await client.query("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename");
   const pgTables = pgTableResult.rows.map((row) => row.tablename);
+  const mutableTables = pgTables.filter((table) => table !== "pdm_schema_migrations");
   await client.query("SET session_replication_role=replica");
-  await client.query(`TRUNCATE ${pgTables.map(quoteIdentifier).join(",")} CASCADE`);
+  await client.query(`TRUNCATE ${mutableTables.map(quoteIdentifier).join(",")} CASCADE`);
   let copiedRows = 0;
   const tableCounts = {};
   for (const table of pgTables) {
@@ -330,16 +353,11 @@ try {
   const restoreEvidence = [];
   for (const databaseName of databaseNames) {
     run(path.join(postgresBin, "createdb.exe"), ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres", databaseName]);
-    run(path.join(postgresBin, "psql.exe"), ["-w", "-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", databaseName, "-v", "ON_ERROR_STOP=1", "-f", schemaPath], { maxBuffer: 32 * 1024 * 1024 });
-    // Production has migration 039 applied. Re-apply its idempotent partial
-    // uniqueness rule because the generated fresh baseline still contains the
-    // older inline UNIQUE constraint while cancelled number history is valid.
-    run(path.join(postgresBin, "psql.exe"), ["-w", "-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", databaseName, "-v", "ON_ERROR_STOP=1", "-f", recycledDrawingConstraintPath]);
     const client = new pg.Client({ connectionString: `postgresql://postgres@127.0.0.1:${port}/${databaseName}`, application_name: "ai-pdm-production-snapshot-restore" });
     await client.connect();
     try {
+      await applyCurrentMigrationPackage(client);
       const restore = await restoreSqliteContent(client, sourceDatabase);
-      await client.query(fs.readFileSync(canonicalWorkbenchSchemaPath, "utf8"));
       const fkViolations = await foreignKeyViolations(client);
       if (fkViolations.length) throw new Error(`PRODUCTION_SNAPSHOT_POSTGRES_RESTORE_FK_VIOLATIONS:${databaseName}:${fkViolations.length}`);
       restoreEvidence.push({ databaseName, ...restore, foreignKeyViolations: fkViolations });
@@ -368,8 +386,10 @@ try {
   }
   const legacyRegressionDatabase = "legacy_v2_regression";
   run(path.join(postgresBin, "createdb.exe"), ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres", legacyRegressionDatabase]);
-  run(path.join(postgresBin, "psql.exe"), ["-w", "-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", legacyRegressionDatabase, "-v", "ON_ERROR_STOP=1", "-f", schemaPath], { maxBuffer: 32 * 1024 * 1024 });
-  run(path.join(postgresBin, "psql.exe"), ["-w", "-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", legacyRegressionDatabase, "-v", "ON_ERROR_STOP=1", "-f", recycledDrawingConstraintPath]);
+  const legacySchemaClient = new pg.Client({ connectionString: `postgresql://postgres@127.0.0.1:${port}/${legacyRegressionDatabase}`, application_name: "ai-pdm-production-snapshot-legacy-schema" });
+  await legacySchemaClient.connect();
+  try { await applyCurrentMigrationPackage(legacySchemaClient); }
+  finally { await legacySchemaClient.end(); }
   const legacyRegressionRun = run(process.execPath, [path.join(root, "scripts", "qc-dev-092-postgres.mjs")], {
     maxBuffer: 32 * 1024 * 1024,
     env: {

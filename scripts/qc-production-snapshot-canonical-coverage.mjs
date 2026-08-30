@@ -120,8 +120,7 @@ const expectedPartWorks = sorted(source.prepare(`SELECT workspace.company_id, re
     partName: row.part_name,
     itemKind: row.item_kind,
     customSpecification: row.custom_specification ?? null,
-    isUniversal: Boolean(row.is_universal),
-    bomUsagePolicy: "undecided"
+    isUniversal: Boolean(row.is_universal)
   }
 })));
 const actualPartWorks = sorted(target.prepare(`SELECT part.company_id, part.part_number, work.owner_user_id,

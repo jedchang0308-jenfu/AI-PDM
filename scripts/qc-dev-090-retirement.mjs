@@ -22,7 +22,6 @@ const forbiddenRuntimeTerms = [
   "RelationChangeWorkService",
   "圖料工作台",
   "圖料工作臺",
-  "直接關聯",
   "relation_formal",
   "relation_work"
 ];

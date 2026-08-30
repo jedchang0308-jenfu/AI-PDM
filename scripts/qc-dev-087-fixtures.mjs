@@ -12,9 +12,9 @@ export const ids = {
   root: "root-dev087-a0002", part: "part-dev087-a0002", drawing: "drawing-dev087-a0002", productionRevision: "revision-dev087-a0002-1",
   drawingNumber: "drawing-number-dev087-a0002",
   rdRevision: "revision-dev087-a0002-1-1", branch: "branch-dev087-a0002-1", aggregateDrawing: "aggregate-dev087-drawing-a0002",
-  aggregatePart: "aggregate-dev087-part-a0002", aggregateRelation: "aggregate-dev087-relation-a0002",
+  aggregatePart: "aggregate-dev087-part-a0002",
   stateProduction: "10000000-0000-4000-8000-000000000001", stateRd: "10000000-0000-4000-8000-000000000002",
-  statePart: "10000000-0000-4000-8000-000000000003", stateRelation: "10000000-0000-4000-8000-000000000004"
+  statePart: "10000000-0000-4000-8000-000000000003"
 };
 
 function insert(db, sql, params) { db.prepare(sql).run(params); }
@@ -36,13 +36,11 @@ export function createFixtureDatabase(options = {}) {
   if (options.canonical === false) return db;
   insert(db, `INSERT INTO pdm_workbench_aggregates (id, company_id, entity_type, canonical_entity_id, open_branch_count) VALUES (@id, @company, 'drawing', @entity, 1)`, { id: ids.aggregateDrawing, company: ids.company, entity: ids.drawing });
   insert(db, `INSERT INTO pdm_workbench_aggregates (id, company_id, entity_type, canonical_entity_id) VALUES (@id, @company, 'part', @entity)`, { id: ids.aggregatePart, company: ids.company, entity: ids.part });
-  insert(db, `INSERT INTO pdm_workbench_aggregates (id, company_id, entity_type, canonical_entity_id) VALUES (@id, @company, 'relation', @entity)`, { id: ids.aggregateRelation, company: ids.company, entity: ids.root });
   insert(db, `INSERT INTO drawing_rd_branches (id, company_id, drawing_id, base_production_revision_id, latest_approved_revision_id) VALUES (@id, @company, @drawing, @production, @latest)`, { id: ids.branch, company: ids.company, drawing: ids.drawing, production: ids.productionRevision, latest: ids.rdRevision });
   insert(db, `INSERT INTO drawing_revision_claims (id, company_id, drawing_id, branch_id, target_major, target_minor, target_label, predecessor_revision_id, claim_state) VALUES ('claim-dev087-1-1', @company, @drawing, @branch, 1, 1, '1.1', @predecessor, 'approved')`, { company: ids.company, drawing: ids.drawing, branch: ids.branch, predecessor: ids.productionRevision });
   insert(db, `INSERT INTO canonical_workbench_states (id, company_id, entity_type, canonical_entity_id, data_layer, revision_id) VALUES (@id, @company, 'drawing', @entity, 'drawing_production', @revision)`, { id: ids.stateProduction, company: ids.company, entity: ids.drawing, revision: ids.productionRevision });
   insert(db, `INSERT INTO canonical_workbench_states (id, company_id, entity_type, canonical_entity_id, data_layer, branch_id, revision_id) VALUES (@id, @company, 'drawing', @entity, 'drawing_rd', @branch, @revision)`, { id: ids.stateRd, company: ids.company, entity: ids.drawing, branch: ids.branch, revision: ids.rdRevision });
   insert(db, `INSERT INTO canonical_workbench_states (id, company_id, entity_type, canonical_entity_id, data_layer) VALUES (@id, @company, 'part', @entity, 'part_formal')`, { id: ids.statePart, company: ids.company, entity: ids.part });
-  insert(db, `INSERT INTO canonical_workbench_states (id, company_id, entity_type, canonical_entity_id, data_layer) VALUES (@id, @company, 'relation', @entity, 'relation_formal')`, { id: ids.stateRelation, company: ids.company, entity: ids.root });
   db.prepare(`UPDATE pdm_workbench_state_authority_control SET mode = 'canonical_only', expected_commit = 'local-dev', schema_hash = 'dev090-v1', row_version = row_version + 1`).run();
   assert.equal(db.pragma("foreign_key_check").length, 0, "fixture foreign keys");
   return db;

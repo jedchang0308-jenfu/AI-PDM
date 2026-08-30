@@ -99,7 +99,7 @@ function prepareLifecycleFixture(database) {
   const targetTables = [
     "pdm_review_traces", "pdm_work_review_requests", "drawing_revision_work_files", "canonical_workbench_states",
     "drawing_revision_works", "drawing_revision_claims", "drawing_rd_branches", "pdm_workbench_aggregates",
-    "part_change_works", "relation_change_works", "pdm_workbench_migration_quarantine"
+    "part_change_works", "pdm_workbench_migration_quarantine"
   ];
   const placeholders = targetTables.map(() => "?").join(",");
   const guards = database.prepare(`SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name IN (${placeholders}) ORDER BY name`).all(...targetTables);
