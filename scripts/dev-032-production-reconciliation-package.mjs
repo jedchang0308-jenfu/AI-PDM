@@ -46,19 +46,32 @@ expected_permissions(role_code, permission_kind, permission_code, allowed) AS (
   VALUES
 ${expectedPermissionValues}
 ),
-official_codes(number_kind, company_id, number_value) AS (
-  SELECT 'root', company_id, root_code FROM part_roots
-  UNION ALL SELECT 'part', company_id, part_number FROM part_numbers
-  UNION ALL SELECT 'drawing', company_id, drawing_number FROM drawing_numbers
+official_codes(number_kind, company_id, number_value, master_id, record_status) AS (
+  SELECT 'root', company_id, root_code, id, record_status FROM part_roots
+  UNION ALL SELECT 'part', company_id, part_number, id, record_status FROM part_numbers
+  UNION ALL SELECT 'drawing', company_id, drawing_number, id, record_status FROM drawing_numbers
 ),
-reserved_codes(number_kind, company_id, number_value) AS (
-  SELECT draft_item_type, company_id, candidate_code
+reserved_codes(number_kind, company_id, number_value, reservation_source, reservation_id, expected_master_id) AS (
+  SELECT draft_item_type, company_id, candidate_code, 'candidate', id,
+         CASE draft_item_type
+           WHEN 'root' THEN 'part-root-' || id
+           WHEN 'part' THEN 'part-number-' || id
+           WHEN 'drawing' THEN 'drawing-number-' || id
+         END
   FROM number_candidate_reservations
   WHERE reservation_state IN ('active', 'review_locked', 'approved_locked')
   UNION ALL
-  SELECT number_kind, company_id, number_value
+  SELECT number_kind, company_id, number_value, 'recovery', id, NULL
   FROM numbering_recovery_reservations
   WHERE reservation_status = 'reserved'
+),
+number_overlaps AS (
+  SELECT o.number_kind, o.company_id, o.number_value,
+         r.reservation_source = 'candidate'
+           AND o.record_status = 'Draft'
+           AND o.master_id = r.expected_master_id AS is_provisional_identity_overlap
+  FROM official_codes o
+  JOIN reserved_codes r USING (number_kind, company_id, number_value)
 ),
 reservation_max AS (
   SELECT company_id, sequence_scope_key, MAX(sequence_no) AS max_sequence_no
@@ -71,7 +84,9 @@ snapshot AS (
     'sequences', COALESCE((SELECT jsonb_agg(to_jsonb(s) ORDER BY s.sequence_key) FROM (
       SELECT sequence_key, company_id, next_value FROM numbering_sequences
     ) s), '[]'::jsonb),
-    'official', COALESCE((SELECT jsonb_agg(to_jsonb(o) ORDER BY o.number_kind, o.company_id, o.number_value) FROM official_codes o), '[]'::jsonb),
+    'official', COALESCE((SELECT jsonb_agg(to_jsonb(o) ORDER BY o.number_kind, o.company_id, o.number_value) FROM (
+      SELECT number_kind, company_id, number_value FROM official_codes
+    ) o), '[]'::jsonb),
     'reservations', COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r.company_id, r.sequence_scope_key, r.sequence_no, r.id) FROM (
       SELECT id, company_id, sequence_scope_key, sequence_no, candidate_code, reservation_state,
              promoted_master_type, promoted_master_id
@@ -101,7 +116,8 @@ SELECT
   (SELECT COUNT(*)::int FROM (SELECT company_id, root_code FROM part_roots GROUP BY company_id, root_code HAVING COUNT(*) > 1) x) AS duplicate_root_count,
   (SELECT COUNT(*)::int FROM (SELECT company_id, part_number FROM part_numbers GROUP BY company_id, part_number HAVING COUNT(*) > 1) x) AS duplicate_part_count,
   (SELECT COUNT(*)::int FROM (SELECT company_id, drawing_number FROM drawing_numbers GROUP BY company_id, drawing_number HAVING COUNT(*) > 1) x) AS duplicate_drawing_count,
-  (SELECT COUNT(*)::int FROM official_codes o JOIN reserved_codes r USING (number_kind, company_id, number_value)) AS active_number_reuse_count,
+  (SELECT COUNT(*)::int FROM number_overlaps WHERE NOT is_provisional_identity_overlap) AS active_number_reuse_count,
+  (SELECT COUNT(*)::int FROM number_overlaps WHERE is_provisional_identity_overlap) AS provisional_identity_overlap_count,
   (SELECT COUNT(*)::int FROM (
     SELECT company_id, draft_item_type, candidate_code
     FROM number_candidate_reservations
