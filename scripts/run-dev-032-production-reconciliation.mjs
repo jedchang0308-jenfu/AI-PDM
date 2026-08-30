@@ -118,7 +118,8 @@ export function assertDev032ProductionReconciliationReadback(plan, mode, row) {
       parts: asNumber(row, "part_count"),
       drawings: asNumber(row, "drawing_count"),
       legacyDrafts: asNumber(row, "legacy_draft_count"),
-      workspaces: asNumber(row, "workspace_count")
+      workspaces: asNumber(row, "workspace_count"),
+      provisionalIdentityOverlaps: asNumber(row, "provisional_identity_overlap_count")
     },
     numberingSnapshotSha256: sha256(JSON.stringify(snapshot))
   };

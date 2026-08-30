@@ -38,7 +38,8 @@ const zeroColumns = {
   orphan_candidate_count: 0,
   orphan_promoted_target_count: 0,
   stale_processing_receipt_count: 0,
-  gcs_evidence_count: 0
+  gcs_evidence_count: 0,
+  provisional_identity_overlap_count: 0
 };
 const cleanRow = {
   ...zeroColumns,
@@ -73,6 +74,7 @@ record("DEV032-RECON-003 SQL covers migration and numbering invariants", () => {
   for (const needle of [
     "checksum_mismatch_count",
     "active_number_reuse_count",
+    "provisional_identity_overlap_count",
     "sequence_regression_count",
     "orphan_candidate_count",
     "orphan_promoted_target_count",
@@ -153,6 +155,22 @@ record("DEV032-RECON-010 canonical permissions are set-validated while additive 
     () => assertDev032ProductionReconciliationReadback(plan, "post_smoke", { ...cleanRow, canonical_permission_count: plan.expectedPermissionCount - 1 }),
     /PERMISSION_SEED_MISMATCH/u
   );
+});
+
+record("DEV032-RECON-011 recovery-derived Draft identities are distinguished from true number reuse", () => {
+  assert.match(packageData.readbackSql, /r\.reservation_source = 'candidate'/iu);
+  assert.match(packageData.readbackSql, /o\.record_status = 'Draft'/iu);
+  assert.match(packageData.readbackSql, /o\.master_id = r\.expected_master_id/iu);
+  assert.match(packageData.readbackSql, /SELECT number_kind, company_id, number_value, 'recovery', id, NULL/iu);
+  const result = assertDev032ProductionReconciliationReadback(plan, "restore", {
+    ...cleanRow,
+    provisional_identity_overlap_count: 162,
+    root_count: 58,
+    part_count: 58,
+    drawing_count: 49,
+    workspace_count: 58
+  });
+  assert.equal(result.counts.provisionalIdentityOverlaps, 162);
 });
 
 for (const result of results) console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);

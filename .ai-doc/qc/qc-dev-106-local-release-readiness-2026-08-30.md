@@ -31,6 +31,7 @@ QA-106-001..013：`13/13 PASS`。QA-106-014..016 必須以 exact merged source �
 - `bomUsagePolicy` 只從 Part work JSON 移除，並由 PostgreSQL constraint 與 SQLite trigger 阻止回流。
 - `drawing_part_links`、root/part/drawing identities、work identities與歷史 snapshot/trace 不在刪除範圍。
 - recovery mapper 不再直接重播 historical migration 042，且未見 migration 052 時 fail closed。
+- Restore readback發現DEV-087 recovery建立的provisional master與其active candidate共用號碼；DEV-032 oracle改以`Draft`＋reservation-derived master ID精確配對，不把合法provisional identity誤判為正式號碼重用，其他collision維持fail closed。
 - isolated PostgreSQL runtime使用 task-owned port `55439`；完成後 port 已釋放且 temporary roots=`0`。
 
 ## 待完成 Cloud gates

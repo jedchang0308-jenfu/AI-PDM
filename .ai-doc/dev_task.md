@@ -58,6 +58,7 @@ Owner：Dev PM
   - 範圍：migration 052、recovery mapper fail-closed、current mapper/QC退役、SQLite baseline/forward cleanup、50筆production package與restore rehearsal；保留正式`drawing_part_links`、歷史snapshot/trace及所有canonical identities。
   - Authority：`.ai-doc/specs/SPEC-PDM-RETIREMENT-RESIDUE-CLEANUP-001-forward-only-recovery-guard.md`；QA：`.ai-doc/qa/qa-dev-106-retired-residue-cleanup-validation-plan-2026-08-30.md`。
   - Evidence：`.ai-doc/qc/qc-dev-106-local-release-readiness-2026-08-30.md`；restore target、0% candidate與production effectiveness尚不得以本地證據代替。
+  - Restore discovery：DEV-087 recovery衍生的`Draft master identity + active candidate`是同一 provisional identity，不是正式號碼重用；DEV-032 reconciliation須以reservation-derived master ID精確辨識，其他candidate collision與所有reserved recovery collision仍fail closed。
 
 - 本機已完成、待 release gate：`DEV-101` 審核工作臺共用圖號／料號完整工作區。
   - 狀態：`Local RD Implemented / Independent QA-QC Complete / Fixed QA 48 of 48 PASS / Production Release Gated`。
@@ -1515,6 +1516,7 @@ Owner：Dev PM
   - Red lines：非空Relation current data必須fail closed；不修改historical migration checksum；traffic activation為candidate evidence後的獨立決策。
   - SPEC／QA：`.ai-doc/specs/SPEC-PDM-RETIREMENT-RESIDUE-CLEANUP-001-forward-only-recovery-guard.md`、`.ai-doc/qa/qa-dev-106-retired-residue-cleanup-validation-plan-2026-08-30.md`。
   - Local receipt：`.ai-doc/qc/qc-dev-106-local-release-readiness-2026-08-30.md`（QA-106-001..013=`13/13 PASS`；QA-106-014..016 pending Cloud release lane）。
+  - Restore gate correction：只允許`Draft`且master ID精確等於`part-root-/part-number-/drawing-number- + reservation.id`的provisional overlap；不得以record status或code單獨豁免。
 
 - × DEV-104 [交付點] [Historical Planning Only / Superseded by DEV-095 BOM Hard Retirement] [P1] [Do Not Implement or Restore] BOM 工作台 V2 受控產品結構與精簡編輯重構
   - **Retirement amendment 2026-08-28**：本計畫及固定48-case驗證分母已退役；以下內容只供決策歷史追溯，不得派工、實作或作current acceptance authority。
