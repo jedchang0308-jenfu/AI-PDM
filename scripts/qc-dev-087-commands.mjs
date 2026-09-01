@@ -28,6 +28,9 @@ const partService = new PartChangeWorkService(client);
 const initialPart = await workbench.list(new URL("http://local"), "part", ownerView);
 const formal = initialPart.data.groups[0].rows[0];
 const created = await partService.create(ids.part, owner, { idempotencyKey: "part-create", contractToken: initialPart.meta.contractToken, expectedRowVersion: formal.rowVersion });
+assert.equal(db.prepare(`DELETE FROM canonical_workbench_states WHERE id = ? AND data_layer = 'part_formal'`).run(ids.statePart).changes, 1, "reproduce a migrated work-only Part without a formal baseline");
+assert.equal(db.prepare(`SELECT COUNT(*) n FROM canonical_workbench_states WHERE canonical_entity_id = ? AND data_layer = 'part_formal'`).get(ids.part).n, 0);
+assert.equal(db.prepare(`SELECT COUNT(*) n FROM canonical_workbench_states WHERE canonical_entity_id = ? AND data_layer = 'part_work'`).get(ids.part).n, 1);
 const changedPayload = { ...created.payload, partName: "本體_BS_右_Xx5_核准" };
 const updated = await partService.update(created.workId, changedPayload, owner, { idempotencyKey: "part-update", contractToken: initialPart.meta.contractToken, expectedRowVersion: created.rowVersion });
 assert.equal(updated.rowVersion, 2);
@@ -43,6 +46,12 @@ assert.equal(db.prepare(`SELECT COUNT(*) n FROM part_change_works`).get().n, 0);
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM part_approved_change_snapshots`).get().n, 1);
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM pdm_review_traces`).get().n, 1);
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM pdm_work_review_requests`).get().n, 0);
+assert.equal(db.prepare(`SELECT COUNT(*) n FROM canonical_workbench_states WHERE canonical_entity_id = ? AND data_layer = 'part_formal'`).get(ids.part).n, 1, "approval creates exactly one formal navigation state");
+assert.equal(db.prepare(`SELECT COUNT(*) n FROM canonical_workbench_states WHERE canonical_entity_id = ? AND data_layer = 'part_work'`).get(ids.part).n, 0, "approval removes the work state");
+const formalizedPartList = await workbench.list(new URL("http://local"), "part", ownerView);
+const formalizedPartRow = formalizedPartList.data.groups.flatMap((group) => group.rows).find((row) => row.entityId === ids.part);
+assert(formalizedPartRow, "approved work-only Part remains visible in the canonical list");
+assert.equal((await workbench.detail(formalizedPartRow.rowKey, "part", ownerView)).data.presentation.kind, "part", "approved work-only Part remains detail-resolvable");
 const decisionReplay = await partService.decide(submitted.requestId, "approve", reviewer, { idempotencyKey: "part-approve", contractToken: reviewList.meta.contractToken, expectedRowVersion: submitted.rowVersion });
 assert.deepEqual(decisionReplay, { acknowledged: true }, "response-loss replay returns a content-free acknowledgement");
 await assert.rejects(() => partService.decide(submitted.requestId, "return_for_correction", reviewer, { idempotencyKey: "part-approve", contractToken: reviewList.meta.contractToken, expectedRowVersion: submitted.rowVersion }), (error) => error.code === "IDEMPOTENCY_KEY_REUSED");
@@ -232,4 +241,4 @@ assert.deepEqual(promotedList.data.groups.flatMap((group) => group.rows).map((ro
 
 assert.equal(db.pragma("foreign_key_check").length, 0);
 db.close();
-pass("commands", 54);
+pass("commands", 61);
