@@ -159,9 +159,46 @@ export class PartChangeWorkAsyncRepository {
          variant_note = excluded.variant_note, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
       { id: crypto.randomUUID(), partId: input.work.part_id, updatedBy: input.work.owner_user_id, ...after }
     );
+    // Initial migrated Parts can legitimately start with part_work only. The
+    // approval transaction must create the formal navigation anchor before it
+    // removes the work anchor, or the Part remains in relations but disappears
+    // from the canonical list/detail projection.
+    await tx.execute(
+      `INSERT INTO canonical_workbench_states
+         (id, company_id, entity_type, canonical_entity_id, data_layer, handling, row_version)
+       VALUES (:id, :companyId, 'part', :partId, 'part_formal', 'none', 1)
+       ON CONFLICT DO NOTHING`,
+      { id: crypto.randomUUID(), companyId: input.companyId, partId: input.work.part_id }
+    );
+    const formalState = await tx.queryOne<{ id: string }>(
+      `SELECT id FROM canonical_workbench_states
+       WHERE company_id = :companyId AND entity_type = 'part'
+         AND canonical_entity_id = :partId AND data_layer = 'part_formal'`,
+      { companyId: input.companyId, partId: input.work.part_id }
+    );
+    if (!formalState) {
+      throw new CanonicalWorkbenchError("WORKBENCH_AUTHORITY_MISMATCH", "核准後資料狀態未完成，請稍後再試", 503);
+    }
     await tx.execute(`DELETE FROM canonical_workbench_states WHERE company_id = :companyId AND work_id = :workId`, { companyId: input.companyId, workId: input.work.id });
     await tx.execute(`DELETE FROM part_change_works WHERE company_id = :companyId AND id = :workId`, { companyId: input.companyId, workId: input.work.id });
-    await tx.execute(`UPDATE canonical_workbench_states SET row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND entity_type = 'part' AND canonical_entity_id = :partId AND data_layer = 'part_formal'`, { companyId: input.companyId, partId: input.work.part_id });
+    await tx.execute(
+      `UPDATE canonical_workbench_states SET row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = :formalStateId AND company_id = :companyId`,
+      { formalStateId: formalState.id, companyId: input.companyId }
+    );
+    const postcondition = await tx.queryOne<{ formal_count: number | string; work_count: number | string }>(
+      `SELECT
+         (SELECT COUNT(*) FROM canonical_workbench_states
+           WHERE company_id = :companyId AND entity_type = 'part'
+             AND canonical_entity_id = :partId AND data_layer = 'part_formal') AS formal_count,
+         (SELECT COUNT(*) FROM canonical_workbench_states
+           WHERE company_id = :companyId AND entity_type = 'part'
+             AND canonical_entity_id = :partId AND data_layer = 'part_work') AS work_count`,
+      { companyId: input.companyId, partId: input.work.part_id }
+    );
+    if (Number(postcondition?.formal_count ?? 0) !== 1 || Number(postcondition?.work_count ?? 0) !== 0) {
+      throw new CanonicalWorkbenchError("WORKBENCH_AUTHORITY_MISMATCH", "核准後資料狀態未完成，請稍後再試", 503);
+    }
     return { snapshotId, partId: input.work.part_id };
   }
 }
