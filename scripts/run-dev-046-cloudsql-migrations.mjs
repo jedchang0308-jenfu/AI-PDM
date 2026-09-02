@@ -14,6 +14,11 @@ const root = process.cwd();
 const defaultManifestPath = "output/dev-046-cloudsql-migration-package/cloudsql-migration-manifest.json";
 const productionManifestPath = "output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json";
 const DEV032_CLOUDSQL_MIGRATION_APPROVAL = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED";
+export const DEV032_CLOUDSQL_ISOLATED_RESTORE_MODE = "isolated_restore";
+
+const DEV032_CLOUDSQL_PRODUCTION_SOURCE_MODE = "production_source";
+const DEV032_CLOUDSQL_RESTORE_CONNECTION_PATTERN =
+  /^jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-restore-[a-z0-9-]{6,40}$/u;
 
 function projectPath(relativePath) {
   return path.join(root, ...relativePath.split("/"));
@@ -88,30 +93,55 @@ export function buildDev046CloudSqlMigrationRunPlan(manifestPath = defaultManife
   };
 }
 
-function requireLiveExecutionApproval(plan) {
+export function assertDev046CloudSqlMigrationEnvironment(plan, env = process.env) {
   const production = plan.target.projectId === "jenfu-ai-pdm-prod";
   const requiredApproval = production ? DEV032_CLOUDSQL_MIGRATION_APPROVAL : DEV046_CLOUDSQL_MIGRATION_APPROVAL;
-  const suppliedApproval = production ? process.env.DEV032_CLOUDSQL_MIGRATION_APPROVAL : process.env.DEV046_CLOUDSQL_MIGRATION_APPROVAL;
-  const suppliedBootstrap = production ? process.env.DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED : process.env.DEV046_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED;
+  const suppliedApproval = production ? env.DEV032_CLOUDSQL_MIGRATION_APPROVAL : env.DEV046_CLOUDSQL_MIGRATION_APPROVAL;
+  const suppliedBootstrap = production ? env.DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED : env.DEV046_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED;
   if (suppliedApproval !== requiredApproval) {
     throw new Error("LIVE_MIGRATION_APPROVAL_MISSING");
   }
   if (suppliedBootstrap !== requiredApproval) {
     throw new Error("ADMIN_BOOTSTRAP_CONFIRMATION_MISSING");
   }
-  if (process.env.PDM_DB_PROVIDER !== "cloud_sql_postgres") throw new Error("PDM_DB_PROVIDER_MUST_BE_CLOUD_SQL_POSTGRES");
-  if ((process.env.PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME ?? "") !== plan.target.connectionName) {
-    throw new Error("PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME_MISMATCH");
+  if (env.PDM_DB_PROVIDER !== "cloud_sql_postgres") throw new Error("PDM_DB_PROVIDER_MUST_BE_CLOUD_SQL_POSTGRES");
+
+  const connectionName = env.PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME ?? "";
+  let targetMode = production ? env.DEV032_CLOUDSQL_TARGET_MODE || DEV032_CLOUDSQL_PRODUCTION_SOURCE_MODE : "staging";
+  if (production && targetMode === DEV032_CLOUDSQL_ISOLATED_RESTORE_MODE) {
+    if (env.DEV032_PRODUCTION_SOURCE_DATABASE_MUTATION_ALLOWED !== "false") {
+      throw new Error("PRODUCTION_SOURCE_DATABASE_MUTATION_GUARD_MISSING");
+    }
+    if (!DEV032_CLOUDSQL_RESTORE_CONNECTION_PATTERN.test(connectionName) || connectionName === plan.target.connectionName) {
+      throw new Error("PDM_CLOUD_SQL_ISOLATED_RESTORE_TARGET_MISMATCH");
+    }
+  } else {
+    if (production && targetMode !== DEV032_CLOUDSQL_PRODUCTION_SOURCE_MODE) {
+      throw new Error("DEV032_CLOUDSQL_TARGET_MODE_INVALID");
+    }
+    if (production && env.DEV032_PRODUCTION_SOURCE_DATABASE_MUTATION_ALLOWED === "false") {
+      throw new Error("PRODUCTION_SOURCE_DATABASE_MUTATION_GUARD_CONTRADICTS_TARGET");
+    }
+    if (connectionName !== plan.target.connectionName) {
+      throw new Error("PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME_MISMATCH");
+    }
+    targetMode = production ? DEV032_CLOUDSQL_PRODUCTION_SOURCE_MODE : "staging";
   }
-  if ((process.env.PDM_CLOUD_SQL_HOST ?? "127.0.0.1") !== "127.0.0.1") throw new Error("CLOUD_SQL_PROXY_LOCALHOST_REQUIRED");
-  if ((process.env.PDM_CLOUD_SQL_DATABASE ?? "ai_pdm") !== plan.target.databaseName) throw new Error("PDM_CLOUD_SQL_DATABASE_MISMATCH");
-  if ((process.env.PDM_CLOUD_SQL_USER ?? "") !== plan.target.migrationIamDatabaseUser) {
+  if ((env.PDM_CLOUD_SQL_HOST ?? "127.0.0.1") !== "127.0.0.1") throw new Error("CLOUD_SQL_PROXY_LOCALHOST_REQUIRED");
+  if ((env.PDM_CLOUD_SQL_DATABASE ?? "ai_pdm") !== plan.target.databaseName) throw new Error("PDM_CLOUD_SQL_DATABASE_MISMATCH");
+  if ((env.PDM_CLOUD_SQL_USER ?? "") !== plan.target.migrationIamDatabaseUser) {
     throw new Error("PDM_CLOUD_SQL_USER_MUST_BE_MIGRATION_IAM_USER");
   }
-  if (process.env.PDM_POSTGRES_URL?.trim() || process.env.PDM_POSTGRES_ADMIN_URL?.trim() || process.env.PDM_CLOUD_SQL_PASSWORD?.trim()) {
+  if (env.PDM_POSTGRES_URL?.trim() || env.PDM_POSTGRES_ADMIN_URL?.trim() || env.PDM_CLOUD_SQL_PASSWORD?.trim()) {
     throw new Error("STATIC_DATABASE_SECRET_FORBIDDEN");
   }
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) throw new Error("SERVICE_ACCOUNT_KEY_FILE_FORBIDDEN");
+  if (env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) throw new Error("SERVICE_ACCOUNT_KEY_FILE_FORBIDDEN");
+  return {
+    connectionName,
+    targetMode,
+    productionSourceDatabaseMutationAllowed:
+      production && targetMode === DEV032_CLOUDSQL_ISOLATED_RESTORE_MODE ? false : null
+  };
 }
 
 function connectionConfigFromEnv(plan) {
@@ -181,7 +211,7 @@ async function executeMigrations(plan) {
   }
 }
 
-function summarizePlan(plan, mode) {
+function summarizePlan(plan, mode, executionTarget = null) {
   return {
     runnerVersion: plan.runnerVersion,
     mode,
@@ -197,6 +227,7 @@ function summarizePlan(plan, mode) {
     runtimeGrantRefreshIncluded: Boolean(plan.runtimeGrantRefresh),
     liveApplyAllowedByManifest: plan.liveApplyAllowedByManifest,
     connectionAttempted: mode === "execute",
+    executionTarget,
     explicitApprovalRequired: plan.target.projectId === "jenfu-ai-pdm-prod" ? DEV032_CLOUDSQL_MIGRATION_APPROVAL : DEV046_CLOUDSQL_MIGRATION_APPROVAL
   };
 }
@@ -216,9 +247,9 @@ if (isMain) {
     if (!execute) {
       console.log(JSON.stringify(summarizePlan(plan, "dry_run"), null, 2));
     } else {
-      requireLiveExecutionApproval(plan);
+      const executionTarget = assertDev046CloudSqlMigrationEnvironment(plan);
       const result = await executeMigrations(plan);
-      console.log(JSON.stringify({ ...summarizePlan(plan, "execute"), ...result }, null, 2));
+      console.log(JSON.stringify({ ...summarizePlan(plan, "execute", executionTarget), ...result }, null, 2));
     }
     }
   } catch (error) {

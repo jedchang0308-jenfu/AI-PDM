@@ -2,7 +2,9 @@
 
 import { spawnSync } from "node:child_process";
 import {
+  DEV032_CLOUDSQL_ISOLATED_RESTORE_MODE,
   DEV046_CLOUDSQL_MIGRATION_APPROVAL,
+  assertDev046CloudSqlMigrationEnvironment,
   buildDev046CloudSqlMigrationRunPlan
 } from "./run-dev-046-cloudsql-migrations.mjs";
 import { readProjectFile } from "./qc-project-file-utils.mjs";
@@ -29,6 +31,9 @@ try {
   const dockerfile = readProjectFile(root, "Dockerfile");
   const packageJson = readProjectFile(root, "package.json");
   const plan = buildDev046CloudSqlMigrationRunPlan();
+  const productionPlan = buildDev046CloudSqlMigrationRunPlan(
+    "output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json"
+  );
 
   const dryRun = runNode(["scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]);
   const dryRunPayload = JSON.parse(dryRun.stdout);
@@ -107,6 +112,57 @@ try {
     "DEV046-CLOUDSQL-EXEC-010 approval constant is exact and discoverable",
     DEV046_CLOUDSQL_MIGRATION_APPROVAL === "DEV-046-STAGING-CLOUDSQL-MIGRATION-APPROVED" &&
       dryRunPayload.explicitApprovalRequired === DEV046_CLOUDSQL_MIGRATION_APPROVAL
+  );
+  const productionBase = {
+    DEV032_CLOUDSQL_MIGRATION_APPROVAL: "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED",
+    DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED: "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED",
+    PDM_DB_PROVIDER: "cloud_sql_postgres",
+    PDM_CLOUD_SQL_DATABASE: productionPlan.target.databaseName,
+    PDM_CLOUD_SQL_USER: productionPlan.target.migrationIamDatabaseUser
+  };
+  const isolatedRestore = {
+    ...productionBase,
+    DEV032_CLOUDSQL_TARGET_MODE: DEV032_CLOUDSQL_ISOLATED_RESTORE_MODE,
+    DEV032_PRODUCTION_SOURCE_DATABASE_MUTATION_ALLOWED: "false",
+    PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME:
+      "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-restore-c2-a1b2c3"
+  };
+  const isolatedResult = assertDev046CloudSqlMigrationEnvironment(productionPlan, isolatedRestore);
+  record(
+    "DEV046-CLOUDSQL-EXEC-011 production rehearsal accepts only a guarded isolated restore target",
+    isolatedResult.targetMode === DEV032_CLOUDSQL_ISOLATED_RESTORE_MODE &&
+      isolatedResult.productionSourceDatabaseMutationAllowed === false &&
+      isolatedResult.connectionName.endsWith("ai-pdm-prod-restore-c2-a1b2c3")
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-012 isolated restore mode fails closed for source, malformed target and mutation permission",
+    [
+      {
+        ...isolatedRestore,
+        PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME: productionPlan.target.connectionName
+      },
+      {
+        ...isolatedRestore,
+        PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME:
+          "jenfu-ai-pdm-stg-361825:asia-east1:ai-pdm-stg-postgres"
+      },
+      {
+        ...isolatedRestore,
+        DEV032_PRODUCTION_SOURCE_DATABASE_MUTATION_ALLOWED: "true"
+      },
+      {
+        ...productionBase,
+        DEV032_PRODUCTION_SOURCE_DATABASE_MUTATION_ALLOWED: "false",
+        PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME: productionPlan.target.connectionName
+      }
+    ].every((env) => {
+      try {
+        assertDev046CloudSqlMigrationEnvironment(productionPlan, env);
+        return false;
+      } catch {
+        return true;
+      }
+    })
   );
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
