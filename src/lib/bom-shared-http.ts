@@ -34,7 +34,9 @@ export function sharedBomHttpError(code: string, status: number, details: Record
     BOM_RESOURCE_NOT_FOUND: "找不到指定的 BOM 資源",
     BOM_CAPABILITY_FORBIDDEN: "目前帳號沒有執行此 BOM 操作的權限",
     BOM_REVIEW_SELF_DECISION_FORBIDDEN: "送審者不可核准或退回自己的 BOM",
-    BOM_SHARED_STRUCTURE_DISABLED: "共用 BOM 功能尚未啟用"
+    BOM_SHARED_STRUCTURE_DISABLED: "共用 BOM 功能尚未啟用",
+    BOM_SALES_KIT_DISABLED: "非製造 BOM 功能尚未啟用",
+    BOM_DEFINITION_PURPOSE_CONFLICT: "此料號已有不同用途的 BOM"
   };
   return NextResponse.json({
     error: code,

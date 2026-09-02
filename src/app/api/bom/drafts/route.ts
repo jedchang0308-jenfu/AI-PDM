@@ -13,7 +13,6 @@ import {
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { validateRevisionCode } from "@/lib/revision-policy";
-import { isAssemblySharedBomV1Enabled } from "@/lib/assembly-bom-feature";
 import { canonicalSha256, SharedBomError } from "@/lib/bom-shared-structure";
 import { isBomReleasedOnlyRole } from "@/lib/permissions";
 
@@ -31,6 +30,7 @@ type CreateBody = {
   draftName?: unknown;
   idempotencyKey?: unknown;
   pdmCompanyCode?: unknown;
+  bomPurpose?: unknown;
 };
 
 export async function GET(request: Request) {
@@ -41,6 +41,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   if (url.searchParams.get("surface") === "work_list") {
     const status = url.searchParams.get("status")?.trim() ?? "";
+    if (url.searchParams.has("purpose")) return sharedError("BOM_PURPOSE_RETIRED", 400);
     const allowedStatuses = new Set(["", "Draft", "PendingReview", "Rejected", "Released", "Archived", "Obsolete"]);
     if (!allowedStatuses.has(status)) return NextResponse.json({ error: "BOM_WORK_LIST_STATUS_INVALID" }, { status: 422 });
     const limit = Math.min(Math.max(Number.parseInt(url.searchParams.get("limit") ?? "120", 10) || 120, 1), 120);
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
   if (!effect) return NextResponse.json({ error: "BOM_CREATE_EFFECT_NOT_FOUND" }, { status: 404 });
   const draft = await getBomWorkbenchDraftByIdAsync(effect.draft_id);
   if (!draft) return NextResponse.json({ error: "BOM_CREATE_EFFECT_DRAFT_NOT_FOUND" }, { status: 409 });
-  return NextResponse.json({ draft, replayed: true }, { headers: { "cache-control": "private, no-store" } });
+  return NextResponse.json({ draft, draftId: draft.id, replayed: true, workbenchUrl: `/bom/workbench/${encodeURIComponent(draft.id)}${draft.owner_part_number_id ? `?parentPartNumberId=${encodeURIComponent(draft.owner_part_number_id)}` : ""}` }, { headers: { "cache-control": "private, no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -92,10 +93,10 @@ export async function POST(request: Request) {
   );
   if (companyResult.response) return companyResult.response;
 
+  if ("bomPurpose" in body) return sharedError("BOM_PURPOSE_RETIRED", 400);
   const sharedPayloadRequested = "contextPartNumberId" in body || "applicableParentPartNumberIds" in body || "baseReleaseSnapshotId" in body;
-  if (sharedPayloadRequested || isAssemblySharedBomV1Enabled()) {
-    if (!isAssemblySharedBomV1Enabled()) return sharedError("BOM_SHARED_STRUCTURE_DISABLED", 404);
-    if (!sharedPayloadRequested || "ownerPartNumberId" in body || "draftName" in body) {
+  if (sharedPayloadRequested) {
+    if ("ownerPartNumberId" in body || "draftName" in body) {
       return sharedError("BOM_SHARED_PAYLOAD_REQUIRED", 422);
     }
     const contextPartNumberId = textValue(body.contextPartNumberId);
@@ -266,7 +267,13 @@ function sharedError(code: string, status: number, details: Record<string, unkno
     BOM_APPLICABILITY_CONFLICT: "適用料號已屬於其他 BOM",
     BOM_OPEN_REVISION_EXISTS: "已有未完成的 BOM 版次",
     BOM_PARENT_REMOVAL_NOT_SUPPORTED: "下一版不可移除既有適用料號",
-    BOM_DEFINITION_REVISION_CONFLICT: "BOM 版次已變更，請重新載入"
+    BOM_DEFINITION_REVISION_CONFLICT: "BOM 版次已變更，請重新載入",
+    BOM_PURPOSE_INVALID: "BOM 用途無效",
+    BOM_PURPOSE_RETIRED: "BOM 不再區分用途。",
+    BOM_PURPOSE_STRUCTURE_MISMATCH: "此料號尚未設定為有下階結構",
+    BOM_DEFINITION_PURPOSE_CONFLICT: "此料號已有不同用途的 BOM",
+    BOM_SALES_KIT_DISABLED: "非製造 BOM 功能尚未啟用",
+    BOM_SALES_KIT_MIGRATION_BLOCKED: "非製造 BOM 資料結構尚未就緒"
   };
   return NextResponse.json({
     error: code,

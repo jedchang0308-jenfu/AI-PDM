@@ -8,7 +8,6 @@ import {
   getBomWorkbenchDraftByIdAsync,
   getBomWorkbenchReviewByIdAsync
 } from "@/lib/bom-workbench-async";
-import { isAssemblySharedBomV1Enabled } from "@/lib/assembly-bom-feature";
 import { sharedBomHttpError } from "@/lib/bom-shared-http";
 import { SharedBomError } from "@/lib/bom-shared-structure";
 
@@ -29,9 +28,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ rev
   const draft = await getBomWorkbenchDraftByIdAsync(review.bom_draft_id);
   if (!draft) {
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
-  }
-  if (draft.definition_id && !isAssemblySharedBomV1Enabled()) {
-    return sharedBomHttpError("BOM_SHARED_STRUCTURE_DISABLED", 404);
   }
   if (draft.definition_id) {
     const capability = await resolveSharedBomCapabilityAsync({

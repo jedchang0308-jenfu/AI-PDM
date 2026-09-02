@@ -45,9 +45,9 @@ export function useBomEditorShortcuts(handlers: ShortcutHandlers) {
 
       if (event.key === "Escape") return run(active.onEscape);
       if (active.overlayOpen) return;
-      if (command && key === "s") return run(active.onSave);
-      if (command && key === "z" && !event.shiftKey) return run(active.onUndo);
-      if ((command && key === "z" && event.shiftKey) || (command && key === "y")) return run(active.onRedo);
+      if (active.mutable && command && key === "s") return run(active.onSave);
+      if (active.mutable && command && key === "z" && !event.shiftKey) return run(active.onUndo);
+      if (active.mutable && ((command && key === "z" && event.shiftKey) || (command && key === "y"))) return run(active.onRedo);
       if (command && event.altKey && event.key === "/") return run(active.onToggleAllFolds);
       if (command && event.key === "/") return run(active.onToggleFold);
       if (command && event.key === ";") return run(active.onToggleFocus);

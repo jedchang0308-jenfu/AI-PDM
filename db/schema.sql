@@ -686,6 +686,8 @@ CREATE TABLE IF NOT EXISTS bom_lines_tree (
   revision TEXT,
   group_name TEXT,
   quantity REAL CHECK (quantity IS NULL OR quantity > 0),
+  quantity_uom_code TEXT CHECK (quantity_uom_code IS NULL OR quantity_uom_code IN ('EA','SET','M','MM','L','ML','KG','G')),
+  quantity_scaled_6 INTEGER CHECK (quantity_scaled_6 IS NULL OR quantity_scaled_6 BETWEEN 1 AND 999999999999999),
   sequence_no INTEGER NOT NULL,
   source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual')),
   source_priority INTEGER NOT NULL DEFAULT 30,
@@ -718,6 +720,8 @@ CREATE TABLE IF NOT EXISTS bom_draft_floating_topics (
   revision TEXT,
   group_name TEXT,
   quantity REAL CHECK (quantity IS NULL OR quantity > 0),
+  quantity_uom_code TEXT CHECK (quantity_uom_code IS NULL OR quantity_uom_code IN ('EA','SET','M','MM','L','ML','KG','G')),
+  quantity_scaled_6 INTEGER CHECK (quantity_scaled_6 IS NULL OR quantity_scaled_6 BETWEEN 1 AND 999999999999999),
   sequence_no INTEGER NOT NULL,
   root_position_x REAL NOT NULL DEFAULT 0,
   root_position_y REAL NOT NULL DEFAULT 0,
@@ -1244,6 +1248,7 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   part_name TEXT NOT NULL,
   item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   structure_type TEXT NOT NULL DEFAULT 'single_part' CHECK (structure_type IN ('single_part', 'assembly', 'unclassified')),
+  base_uom_code TEXT CHECK (base_uom_code IS NULL OR base_uom_code IN ('EA','SET','M','MM','L','ML','KG','G')),
   is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
   bom_usage_policy TEXT NOT NULL DEFAULT 'undecided' CHECK (bom_usage_policy IN ('undecided', 'not_required', 'available', 'restricted', 'obsolete')),
   custom_specification TEXT,
@@ -3818,6 +3823,8 @@ CREATE TABLE IF NOT EXISTS drawing_recognition_sessions (
   drawing_revision_id TEXT,
   source_set_fingerprint TEXT NOT NULL,
   deduplication_key TEXT NOT NULL,
+  session_purpose TEXT NOT NULL DEFAULT 'recognition' CHECK (session_purpose IN ('recognition', 'rerun', 'amendment')),
+  evidence_origin_session_id TEXT,
   status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'extracting', 'review_ready', 'extraction_partial', 'extraction_failed', 'ready_to_formalize', 'formalized', 'cancelled')),
   priority INTEGER NOT NULL DEFAULT 100,
   not_before TEXT,
@@ -3842,6 +3849,7 @@ CREATE TABLE IF NOT EXISTS drawing_recognition_sessions (
   FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE RESTRICT,
   FOREIGN KEY (drawing_revision_id) REFERENCES drawing_revisions(id) ON DELETE RESTRICT,
   FOREIGN KEY (supersedes_session_id) REFERENCES drawing_recognition_sessions(id) ON DELETE RESTRICT,
+  FOREIGN KEY (evidence_origin_session_id) REFERENCES drawing_recognition_sessions(id) ON DELETE RESTRICT,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
   FOREIGN KEY (formalized_by) REFERENCES users(id) ON DELETE RESTRICT,
   UNIQUE (company_id, deduplication_key)
@@ -4258,6 +4266,8 @@ CREATE TABLE IF NOT EXISTS bom_definitions (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL,
   part_root_id TEXT NOT NULL,
+  purpose TEXT NULL CHECK (purpose IS NULL OR purpose IN ('manufacturing', 'sales_kit')),
+  legacy_purpose TEXT NULL CHECK (legacy_purpose IS NULL OR legacy_purpose IN ('manufacturing', 'sales_kit')),
   row_version INTEGER NOT NULL DEFAULT 1 CHECK (row_version > 0),
   created_by TEXT,
   updated_by TEXT,
@@ -4271,6 +4281,9 @@ CREATE TABLE IF NOT EXISTS bom_definitions (
 
 CREATE INDEX IF NOT EXISTS idx_bom_definitions_company_root
 ON bom_definitions(company_id, part_root_id);
+
+-- purpose/legacy_purpose are diagnostic compatibility fields only. Current
+-- eligibility, writers and filters must never branch on them.
 
 CREATE TABLE IF NOT EXISTS bom_definition_parent_bindings (
   id TEXT PRIMARY KEY,
@@ -4385,12 +4398,14 @@ CREATE TABLE IF NOT EXISTS bom_release_resolved_lines (
   child_part_name TEXT,
   group_name TEXT,
   quantity REAL,
+  quantity_uom_code TEXT CHECK (quantity_uom_code IS NULL OR quantity_uom_code IN ('EA','SET','M','MM','L','ML','KG','G')),
+  quantity_scaled_6 INTEGER CHECK (quantity_scaled_6 IS NULL OR quantity_scaled_6 BETWEEN 1 AND 999999999999999),
   sequence_no INTEGER NOT NULL,
   level INTEGER NOT NULL CHECK (level >= 0),
   source TEXT NOT NULL DEFAULT 'manual' CHECK (source = 'manual'),
   CHECK (
     (node_type = 'item' AND child_part_number_id IS NOT NULL AND child_part_number IS NOT NULL AND quantity > 0)
-    OR (node_type = 'group' AND child_part_number_id IS NULL AND quantity IS NULL AND group_name IS NOT NULL)
+    OR (node_type = 'group' AND child_part_number_id IS NULL AND quantity IS NULL AND quantity_uom_code IS NULL AND quantity_scaled_6 IS NULL AND group_name IS NOT NULL)
   ),
   FOREIGN KEY (release_snapshot_id) REFERENCES bom_release_snapshots(id) ON DELETE CASCADE,
   FOREIGN KEY (definition_id) REFERENCES bom_definitions(id),
@@ -4413,7 +4428,10 @@ CREATE TABLE IF NOT EXISTS bom_shared_structure_migration_issues (
   issue_code TEXT NOT NULL CHECK (issue_code IN (
     'definition_backfill_ambiguous', 'owner_missing', 'cross_company', 'revision_lineage_conflict',
     'component_identity_ambiguous', 'logical_line_identity_conflict', 'review_snapshot_unavailable',
-    'release_projection_unavailable', 'duplicate_current_binding', 'open_revision_conflict'
+    'release_projection_unavailable', 'duplicate_current_binding', 'open_revision_conflict',
+    'legacy_purpose_invalid', 'duplicate_current_parent_definition', 'pending_legacy_review',
+    'part_base_uom_missing', 'draft_line_uom_unresolved', 'draft_quantity_exactness_unresolved',
+    'sldasm_target_missing', 'sldasm_target_ambiguous'
   )),
   detail_json TEXT NOT NULL,
   issue_status TEXT NOT NULL DEFAULT 'open' CHECK (issue_status IN ('open', 'resolved')),
@@ -4985,3 +5003,22 @@ CREATE TRIGGER IF NOT EXISTS trg_relation_approved_snapshots_no_delete BEFORE DE
 INSERT OR IGNORE INTO pdm_workbench_state_authority_control (id, mode, expected_commit, schema_hash)
 VALUES (1, 'legacy_only', '', 'dev087-v1');
 -- END DEV-087 canonical workbench state authority.
+
+-- DEV-008 role capability display snapshot (last-known-good, read-only fallback).
+CREATE TABLE IF NOT EXISTS role_capability_display_snapshots (
+  application_id TEXT PRIMARY KEY,
+  contract_version TEXT NOT NULL,
+  reader_version TEXT NOT NULL,
+  catalog_version TEXT NOT NULL,
+  catalog_payload_hash TEXT NOT NULL,
+  governance_revision TEXT NOT NULL,
+  organization_version_id TEXT NOT NULL,
+  organization_revision TEXT NOT NULL,
+  projection_cursor INTEGER NOT NULL,
+  role_count INTEGER NOT NULL DEFAULT 0,
+  source_data_at TEXT NOT NULL,
+  snapshot_stored_at TEXT NOT NULL,
+  canonicalization_version TEXT NOT NULL,
+  payload_canonical_json TEXT NOT NULL,
+  payload_sha256 TEXT NOT NULL
+);

@@ -19,9 +19,12 @@ const exportColumns = [
   "child_part_name",
   "child_revision",
   "quantity",
+  "quantity_uom",
   "source",
   "released_at",
-  "approved_by"
+  "approved_by",
+  "bom_purpose",
+  "fulfillment_policy"
 ];
 
 export async function GET(request: Request, { params }: { params: Promise<{ releaseId: string }> }) {
@@ -50,7 +53,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rele
     return NextResponse.json({ error: "BOM_EXPORT_FORMAT_UNSUPPORTED" }, { status: 400 });
   }
 
-  const shared = Number(snapshot.snapshot_schema_version ?? 1) === 2;
+  const shared = Number(snapshot.snapshot_schema_version ?? 1) >= 2;
   let selectedParentPartNumberId: string | null = null;
   if (shared) {
     if (!snapshot.applicable_parents?.length || !snapshot.resolved_lines || !snapshot.snapshot_hash) {
@@ -141,9 +144,12 @@ function buildReleaseRow(
     line.node_type === "group" ? line.group_name || "" : line.part_name || "",
     line.node_type === "item" ? line.revision || "" : "",
     line.node_type === "item" && line.quantity !== null ? String(line.quantity) : "",
+    line.node_type === "item" ? line.quantity_uom_code || "" : "",
     line.source,
     snapshot.released_at,
-    approvedBy
+    approvedBy,
+    snapshot.bom_purpose,
+    snapshot.bom_purpose === "sales_kit" ? "explode_components" : ""
   ];
 }
 

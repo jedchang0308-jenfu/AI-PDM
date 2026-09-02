@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
 import { canEditBomDraftRecordAsync, canReadBomDraftRecordAsync } from "@/lib/bom-create-context";
 import { BomDraftEditorVersionConflictError, getBomWorkbenchDraftByIdAsync, saveBomWorkbenchDraftTreeAsync } from "@/lib/bom-workbench-async";
-import { bomXmindEditorV2ClientStatus, isBomXmindEditorV2Enabled } from "@/lib/bom-editor-feature";
+import { bomStructuredEditorClientStatus, isBomStructuredEditorEnabled } from "@/lib/bom-editor-feature";
 import { isBomReleasedOnlyRole } from "@/lib/permissions";
-import { isAssemblySharedBomV1Enabled } from "@/lib/assembly-bom-feature";
 import { SharedBomError } from "@/lib/bom-shared-structure";
 import { authorizeSharedBomHttpAsync } from "@/lib/bom-shared-http";
+import type { BomUomCode } from "@/lib/bom-unit-of-measure";
 
 export const runtime = "nodejs";
 
@@ -34,7 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ draf
 
   return NextResponse.json({
     draft,
-    editorCapability: bomXmindEditorV2ClientStatus(),
+    editorCapability: bomStructuredEditorClientStatus(),
     accessCapability: { releasedReadOnly: isBomReleasedOnlyRole(auth.user) }
   });
 }
@@ -64,25 +64,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ dr
   if (!Array.isArray(body.lines)) {
     return NextResponse.json({ error: "lines array is required" }, { status: 400 });
   }
-  const xmindEditorEnabled = isBomXmindEditorV2Enabled();
+  const editorEnabled = isBomStructuredEditorEnabled();
   const sharedDraft = Boolean(draft.definition_id);
-  if (sharedDraft && !isAssemblySharedBomV1Enabled()) {
-    return sharedError("BOM_SHARED_STRUCTURE_READ_ONLY", 409);
-  }
-  if (!xmindEditorEnabled && draft.floating_topics.length > 0) {
+  if (!editorEnabled) {
     return NextResponse.json(
       {
         error: "BOM_EDITOR_V2_REQUIRED",
-        message: "此 BOM 草稿包含未納入 BOM 的 Floating Topic，舊版編輯器不可保存，以避免靜默遺失資料。"
+        message: "BOM 結構化編輯器尚未啟用；目前版本已鎖定保存。"
       },
       { status: 409 }
     );
   }
-  if (xmindEditorEnabled && !Array.isArray(body.floatingTopics)) {
+  if (!Array.isArray(body.floatingTopics)) {
     return NextResponse.json({ error: "floatingTopics array is required" }, { status: 400 });
   }
   if (sharedDraft && !Array.isArray(body.components)) return sharedError("BOM_COMPONENTS_REQUIRED", 422);
-  if (xmindEditorEnabled && (!Number.isInteger(body.expectedEditorVersion) || Number(body.expectedEditorVersion) < 0)) {
+  if (!Number.isInteger(body.expectedEditorVersion) || Number(body.expectedEditorVersion) < 0) {
     return NextResponse.json({ error: "expectedEditorVersion is required" }, { status: 400 });
   }
 
@@ -91,26 +88,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ dr
       draftId,
       actorId: auth.user.id,
       reason: typeof body.reason === "string" ? body.reason : undefined,
-      expectedEditorVersion: xmindEditorEnabled ? Number(body.expectedEditorVersion) : draft.editor_version,
+      expectedEditorVersion: Number(body.expectedEditorVersion),
       lines: body.lines.map((line) => ({
         ...normalizeLineInput(line),
         revision: draft.identity_authority === "canonical_part_number" ? null : normalizeLineInput(line).revision
       })),
-      floatingTopics: xmindEditorEnabled
-        ? (body.floatingTopics as unknown[]).map(normalizeFloatingTopicInput)
-        : draft.floating_topics.map((topic) => ({
-            id: topic.id,
-            logicalLineId: topic.logical_line_id ?? undefined,
-            parentFloatingTopicId: topic.parent_floating_topic_id,
-            nodeType: topic.node_type,
-            partNumber: topic.part_number,
-            revision: topic.revision,
-            groupName: topic.group_name,
-            quantity: topic.quantity,
-            sequenceNo: topic.sequence_no,
-            rootPositionX: topic.root_position_x,
-            rootPositionY: topic.root_position_y
-          })),
+      floatingTopics: (body.floatingTopics as unknown[]).map(normalizeFloatingTopicInput),
       components: sharedDraft ? (body.components as unknown[]).map(normalizeComponentInput) : undefined
     });
     return NextResponse.json({ draft: updated });
@@ -139,7 +122,8 @@ function normalizeFloatingTopicInput(topic: unknown): {
   partNumber?: string | null;
   revision?: string | null;
   groupName?: string | null;
-  quantity?: number | null;
+  quantity?: number | string | null;
+  quantityUomCode?: BomUomCode | null;
   sequenceNo?: number | null;
   rootPositionX?: number | null;
   rootPositionY?: number | null;
@@ -156,7 +140,8 @@ function normalizeFloatingTopicInput(topic: unknown): {
     partNumber: typeof value.partNumber === "string" || value.partNumber === null ? value.partNumber : undefined,
     revision: typeof value.revision === "string" || value.revision === null ? value.revision : undefined,
     groupName: typeof value.groupName === "string" || value.groupName === null ? value.groupName : undefined,
-    quantity: typeof value.quantity === "number" || value.quantity === null ? value.quantity : undefined,
+    quantity: typeof value.quantity === "number" || typeof value.quantity === "string" || value.quantity === null ? value.quantity : undefined,
+    quantityUomCode: typeof value.quantityUomCode === "string" || value.quantityUomCode === null ? value.quantityUomCode as BomUomCode | null : undefined,
     sequenceNo: typeof value.sequenceNo === "number" || value.sequenceNo === null ? value.sequenceNo : undefined,
     rootPositionX: typeof value.rootPositionX === "number" || value.rootPositionX === null ? value.rootPositionX : undefined,
     rootPositionY: typeof value.rootPositionY === "number" || value.rootPositionY === null ? value.rootPositionY : undefined
@@ -171,7 +156,8 @@ function normalizeLineInput(line: unknown): {
   partNumber?: string | null;
   revision?: string | null;
   groupName?: string | null;
-  quantity?: number | null;
+  quantity?: number | string | null;
+  quantityUomCode?: BomUomCode | null;
   sequenceNo?: number | null;
 } {
   const value = typeof line === "object" && line !== null ? (line as Record<string, unknown>) : {};
@@ -183,7 +169,8 @@ function normalizeLineInput(line: unknown): {
     partNumber: typeof value.partNumber === "string" || value.partNumber === null ? value.partNumber : undefined,
     revision: typeof value.revision === "string" || value.revision === null ? value.revision : undefined,
     groupName: typeof value.groupName === "string" || value.groupName === null ? value.groupName : undefined,
-    quantity: typeof value.quantity === "number" || value.quantity === null ? value.quantity : undefined,
+    quantity: typeof value.quantity === "number" || typeof value.quantity === "string" || value.quantity === null ? value.quantity : undefined,
+    quantityUomCode: typeof value.quantityUomCode === "string" || value.quantityUomCode === null ? value.quantityUomCode as BomUomCode | null : undefined,
     sequenceNo: typeof value.sequenceNo === "number" || value.sequenceNo === null ? value.sequenceNo : undefined
   };
 }
@@ -211,9 +198,18 @@ function normalizeComponentInput(component: unknown) {
 }
 
 function sharedError(code: string, status: number, details: Record<string, unknown> = {}) {
+  const messages: Record<string, string> = {
+    BOM_SHARED_STRUCTURE_READ_ONLY: "共用 BOM 目前只能檢視",
+    BOM_SALES_KIT_DISABLED: "非製造 BOM 功能尚未啟用",
+    BOM_SALES_KIT_PARENT_COUNT_INVALID: "非製造 BOM 只能有一個 Parent",
+    BOM_SALES_KIT_FLOATING_TOPIC_FORBIDDEN: "非製造 BOM 不可保留未納入節點",
+    BOM_SALES_KIT_QUANTITY_INTEGER_REQUIRED: "非製造 BOM 數量必須是正整數",
+    BOM_SALES_KIT_FIXED_COMPONENT_REQUIRED: "非製造 BOM 料件必須使用固定零件",
+    BOM_SALES_KIT_DUPLICATE_CHILD: "同一料號不可在非製造 BOM 重複出現"
+  };
   return NextResponse.json({
     error: code,
-    message: code === "BOM_SHARED_STRUCTURE_READ_ONLY" ? "共用 BOM 目前只能檢視" : "BOM 結構資料不完整",
+    message: messages[code] ?? "BOM 結構資料不完整",
     details,
     correlationId: crypto.randomUUID()
   }, { status });

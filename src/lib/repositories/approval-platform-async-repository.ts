@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { rewriteNumberingHumanTextDeep } from "@/lib/numbering-vocabulary";
+import { adaptBomPurposeSql, getBomPurposeColumn, type BomPurposeColumn } from "@/lib/bom-create-context";
 
 export type ApprovalPlatformStatus =
   | "pending"
@@ -591,11 +592,18 @@ const nativeSupersessionProjection = `
         ) AS superseded_at`;
 
 export class AsyncApprovalPlatformRepository {
+  private purposeColumnPromise: Promise<BomPurposeColumn | null> | null = null;
+
   constructor(
     private readonly client: AsyncDatabaseClient,
     private readonly clock: () => string = () => new Date().toISOString(),
     private readonly idFactory: () => string = () => crypto.randomUUID()
   ) {}
+
+  private async purposeCompatibleSql(sql: string) {
+    this.purposeColumnPromise ??= getBomPurposeColumn(this.client);
+    return adaptBomPurposeSql(sql, await this.purposeColumnPromise);
+  }
 
   async listActions(): Promise<ApprovalPlatformAction[]> {
     const rows = await this.client.query<ActionRow>(
@@ -1572,9 +1580,10 @@ export class AsyncApprovalPlatformRepository {
       parent_submission_id: string;
       display_revision: string;
       review_schema_version: number | null;
+      bom_purpose: "manufacturing" | "sales_kit" | null;
       parent_count: number;
     }>(
-      `
+      await this.purposeCompatibleSql(`
       SELECT
         rr.*,
         requester.display_name AS requested_by_name,
@@ -1582,6 +1591,7 @@ export class AsyncApprovalPlatformRepository {
         bd.draft_name,
         bd.parent_submission_id,
         rr.review_schema_version,
+        COALESCE(definition.legacy_purpose, 'manufacturing') AS bom_purpose,
         (
           SELECT COUNT(*)
           FROM bom_draft_parent_bindings parent_binding
@@ -1591,6 +1601,7 @@ export class AsyncApprovalPlatformRepository {
         COALESCE(bd.bom_revision, bd.parent_revision, '-') AS display_revision
       FROM bom_review_requests rr
       JOIN bom_drafts bd ON bd.id = rr.bom_draft_id
+      LEFT JOIN bom_definitions definition ON definition.id = bd.definition_id
       LEFT JOIN users requester ON requester.id = rr.submitted_by
       LEFT JOIN part_numbers pn ON pn.id = bd.owner_part_number_id
       LEFT JOIN items i ON i.id = bd.parent_item_id
@@ -1599,7 +1610,7 @@ export class AsyncApprovalPlatformRepository {
         ${search.sql}
       ORDER BY rr.submitted_at DESC, rr.id DESC
       LIMIT :limit
-    `,
+    `),
       { companyId: input.companyId, limit: input.limit, ...status.params, ...search.params }
     );
     return rows.map((row): ApprovalPlatformInboxItem => {
@@ -1626,11 +1637,11 @@ export class AsyncApprovalPlatformRepository {
         packageCode: null,
         packageStatus: null,
         targetSummary: row.parent_part_number
-          ? `${row.parent_part_number} BOM Rev ${row.display_revision}`
+          ? `${row.parent_part_number}${row.bom_purpose === "sales_kit" ? " 非製造 BOM" : ""} BOM Rev ${row.display_revision}`
           : /\bBOM\s+Rev\b/i.test(row.draft_name)
             ? row.draft_name
             : `${row.draft_name} / BOM Rev ${row.display_revision}`,
-        impactSummary: isSharedBom ? `${row.parent_count} Parent(s) / ${row.lifecycle_action}` : row.lifecycle_action,
+        impactSummary: isSharedBom ? `${row.parent_count} Parent(s)${row.bom_purpose === "sales_kit" ? " / 非製造 BOM" : ""} / ${row.lifecycle_action}` : row.lifecycle_action,
         legacy: { table: "bom_review_requests", id: row.id },
         primaryTarget: {
           type: isSharedBom ? "bom_definition" : "bom_draft",

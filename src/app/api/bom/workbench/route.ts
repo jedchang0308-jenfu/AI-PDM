@@ -10,7 +10,7 @@ import {
 import { buildBomWorkbenchDraftLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 import { canReadBomDraftAsync } from "@/lib/permissions";
 import { getSubmissionAsync } from "@/lib/submissions-async";
-import { bomXmindEditorV2ClientStatus } from "@/lib/bom-editor-feature";
+import { bomStructuredEditorClientStatus } from "@/lib/bom-editor-feature";
 import { authorizeSharedBomHttpAsync } from "@/lib/bom-shared-http";
 
 export const runtime = "nodejs";
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       });
       if (access.response) return access.response;
     } else if (!(await canReadBomDraftRecordAsync(auth.user, draft))) return forbidden();
-    return NextResponse.json({ workbench: await getBomWorkbenchByDraftIdAsync(draftId, contextParentPartNumberId), editorCapability: bomXmindEditorV2ClientStatus() });
+    return NextResponse.json({ workbench: await getBomWorkbenchByDraftIdAsync(draftId, contextParentPartNumberId), editorCapability: bomStructuredEditorClientStatus() });
   }
   const submissionId = url.searchParams.get("submissionId")?.trim();
   if (!submissionId) {
@@ -60,6 +60,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     workbench: await getBomWorkbenchBySubmissionIdAsync(submissionId),
-    editorCapability: bomXmindEditorV2ClientStatus()
+    editorCapability: bomStructuredEditorClientStatus()
   });
 }

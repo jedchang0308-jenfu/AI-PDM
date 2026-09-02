@@ -51,6 +51,7 @@ export const SELECT_ASYNC_WHERE_USED_SQL = `
     s.submitted_by AS parent_submitted_by,
     u.display_name AS parent_submitted_by_name,
     h.id AS bom_header_id,
+    'manufacturing' AS bom_purpose,
     h.status AS bom_status,
     l.child_part_number,
     l.child_revision,
@@ -118,6 +119,7 @@ export const SELECT_ASYNC_SHARED_WHERE_USED_SQL = `
     snapshot.released_by AS parent_submitted_by,
     COALESCE(releaser.display_name, '') AS parent_submitted_by_name,
     snapshot.id AS bom_header_id,
+    COALESCE(definition.legacy_purpose, 'manufacturing') AS bom_purpose,
     'Released' AS bom_status,
     resolved.child_part_number,
     NULL AS child_revision,
@@ -132,11 +134,12 @@ export const SELECT_ASYNC_SHARED_WHERE_USED_SQL = `
     snapshot.released_at AS parent_released_at
   FROM bom_release_resolved_lines resolved
   JOIN bom_release_snapshots snapshot ON snapshot.id = resolved.release_snapshot_id
+  LEFT JOIN bom_definitions definition ON definition.id = snapshot.definition_id
   JOIN bom_release_parent_snapshots parent
     ON parent.release_snapshot_id = resolved.release_snapshot_id
    AND parent.parent_part_number_id = resolved.parent_part_number_id
   LEFT JOIN users releaser ON releaser.id = snapshot.released_by
-  WHERE snapshot.snapshot_schema_version = 2
+  WHERE snapshot.snapshot_schema_version >= 2
     AND snapshot.obsolete_at IS NULL
     AND snapshot.company_id = :companyId
     AND resolved.node_type = 'item'
@@ -164,11 +167,15 @@ export class AsyncItemInsightRepository {
     const corrupt = await this.client.queryOne<{ id: string }>(`
       SELECT snapshot.id
       FROM bom_release_snapshots snapshot
-      WHERE snapshot.snapshot_schema_version = 2
+      LEFT JOIN bom_definitions definition ON definition.id = snapshot.definition_id
+      WHERE snapshot.snapshot_schema_version >= 2
         AND snapshot.obsolete_at IS NULL
         AND snapshot.company_id = :companyId
         AND (
           snapshot.definition_id IS NULL
+          OR definition.id IS NULL
+          OR definition.company_id <> snapshot.company_id
+          OR COALESCE(definition.legacy_purpose, 'manufacturing') NOT IN ('manufacturing', 'sales_kit')
           OR snapshot.parent_snapshot_json IS NULL
           OR snapshot.mapping_snapshot_json IS NULL
           OR snapshot.resolved_projection_json IS NULL

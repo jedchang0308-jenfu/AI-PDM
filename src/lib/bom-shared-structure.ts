@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { normalizeBomUomCode, parseBomQuantity, type BomUomCode } from "@/lib/bom-unit-of-measure";
 
 export const SHARED_BOM_LIMITS = {
   parents: 250,
@@ -15,7 +16,8 @@ export type SharedBomNodeInput = {
   nodeType: "item" | "group";
   partNumber?: string | null;
   groupName?: string | null;
-  quantity?: number | null;
+  quantity?: number | string | null;
+  quantityUomCode?: BomUomCode | null;
   sequenceNo?: number | null;
 };
 
@@ -73,8 +75,15 @@ export function validateSharedGraph(input: {
     const logical = assertUuid(node.logicalLineId);
     if (logicalIds.has(logical)) throw new SharedBomError("BOM_LOGICAL_LINE_ID_CONFLICT", 422);
     logicalIds.add(logical);
-    if (node.nodeType === "item" && !(Number(node.quantity) > 0)) throw new SharedBomError("BOM_ITEM_QUANTITY_INVALID", 422);
-    if (node.nodeType === "group" && node.quantity !== null && node.quantity !== undefined) throw new SharedBomError("BOM_GROUP_QUANTITY_FORBIDDEN", 422);
+    if (node.nodeType === "item") {
+      try { parseBomQuantity(typeof node.quantity === "number" ? String(node.quantity) : node.quantity); } catch (error) {
+        if (error instanceof Error && error.message.startsWith("BOM_QUANTITY")) throw new SharedBomError(error.message, 422);
+        throw new SharedBomError("BOM_ITEM_QUANTITY_INVALID", 422);
+      }
+      if (!node.quantityUomCode) throw new SharedBomError("BOM_ITEM_UOM_REQUIRED", 422);
+      try { normalizeBomUomCode(node.quantityUomCode); } catch { throw new SharedBomError("BOM_ITEM_UOM_INVALID", 422); }
+    }
+    if (node.nodeType === "group" && ((node.quantity !== null && node.quantity !== undefined) || node.quantityUomCode)) throw new SharedBomError("BOM_GROUP_QUANTITY_FORBIDDEN", 422);
   }
   const componentByLogical = new Map<string, SharedBomComponentInput>();
   for (const component of input.components) {
@@ -109,6 +118,35 @@ export function validateSharedGraph(input: {
   }
   return { nodes, componentByLogical, unresolved };
 }
+
+/** Sales-kit BOMs are intentionally narrower than manufacturing shared BOMs. */
+export function validateSalesKitGraph(input: {
+  lines: SharedBomNodeInput[];
+  floatingTopics: SharedBomNodeInput[];
+  components: SharedBomComponentInput[];
+  parentPartNumberIds: string[];
+}) {
+  if (input.parentPartNumberIds.length !== 1) throw new SharedBomError("BOM_SALES_KIT_PARENT_COUNT_INVALID", 422);
+  if (input.floatingTopics.length) throw new SharedBomError("BOM_SALES_KIT_FLOATING_TOPIC_FORBIDDEN", 422);
+  validateSharedGraph(input);
+  const childIds = new Set<string>();
+  for (const node of input.lines) {
+    if (node.nodeType !== "item") continue;
+    const quantity = Number(node.quantity);
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new SharedBomError("BOM_SALES_KIT_QUANTITY_INTEGER_REQUIRED", 422);
+  }
+  for (const component of input.components) {
+    if (component.componentMode !== "fixed" || component.parentSelections.length !== 0 || component.childPartNumberIds.length !== 1) {
+      throw new SharedBomError("BOM_SALES_KIT_FIXED_COMPONENT_REQUIRED", 422, { logicalLineId: component.logicalLineId });
+    }
+    const childId = component.childPartNumberIds[0];
+    if (childIds.has(childId)) throw new SharedBomError("BOM_SALES_KIT_DUPLICATE_CHILD", 422, { childPartNumberId: childId });
+    childIds.add(childId);
+  }
+}
+
+// Domain-facing name kept alongside the graph-oriented implementation name.
+export const validateSalesKitStructure = validateSalesKitGraph;
 
 function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue);

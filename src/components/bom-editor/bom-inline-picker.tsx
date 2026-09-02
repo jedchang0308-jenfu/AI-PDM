@@ -44,8 +44,8 @@ export function BomInlinePicker({ x, y, onPickItem, onCreateGroup, onClose, cano
   }, [canonicalParts, query]);
 
   return (
-    <div className="xmind-bom-inline-picker" role="dialog" aria-label="插入主題" style={{ left: x, top: y }} onPointerDown={(event) => event.stopPropagation()}>
-      <div className="xmind-bom-inline-picker-search">
+    <div className="bom-inline-picker" role="dialog" aria-label="插入 BOM 節點" style={{ left: x, top: y }} onPointerDown={(event) => event.stopPropagation()}>
+      <div className="bom-inline-picker-search">
         <Search aria-hidden="true" />
         <input
           ref={inputRef}
@@ -60,17 +60,17 @@ export function BomInlinePicker({ x, y, onPickItem, onCreateGroup, onClose, cano
         />
         {loading ? <LoaderCircle className="spin" aria-label="搜尋中" /> : null}
       </div>
-      <button className="xmind-bom-inline-create-group" type="button" onClick={onCreateGroup}>
+      <button className="bom-inline-create-group" type="button" onClick={onCreateGroup}>
         <FolderPlus aria-hidden="true" />
         <span>建立群組主題</span>
         <kbd>Enter</kbd>
       </button>
-      <div className="xmind-bom-inline-results" role="listbox" aria-label="料件搜尋結果">
+      <div className="bom-inline-results" role="listbox" aria-label="料件搜尋結果">
         {items.map((item) => (
-          <button key={item.id} type="button" role="option" onClick={() => onPickItem(item)}>
+          <button key={item.id} type="button" role="option" aria-selected="false" onClick={() => onPickItem(item)}>
             <PackagePlus aria-hidden="true" />
             <span><strong>{item.part_number}</strong><small>{item.part_name || "未填品名"}</small></span>
-            <em>{item.revision ? `來源 Drawing Rev ${item.revision}` : "無來源 Drawing Rev"}</em>
+            <em>{item.base_uom_code ? `基準單位 ${item.base_uom_code}` : "尚未設定基準單位"}{item.revision ? ` · Drawing Rev ${item.revision}` : ""}</em>
           </button>
         ))}
         {query.trim().length >= 2 && !loading && items.length === 0 ? <p>找不到可插入的料件</p> : null}

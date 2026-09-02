@@ -8,6 +8,22 @@ export const BOM_RELEASE_EXPORT_COLUMNS = [
   "child_part_name",
   "child_revision",
   "quantity",
+  "quantity_uom",
+  "source",
+  "released_at",
+  "approved_by",
+  "bom_purpose",
+  "fulfillment_policy"
+];
+export const BOM_RELEASE_EXPORT_V3_COLUMNS = [
+  "level",
+  "line_no",
+  "parent_part_number",
+  "child_part_number",
+  "child_part_name",
+  "child_revision",
+  "quantity",
+  "quantity_uom",
   "source",
   "released_at",
   "approved_by"
@@ -15,12 +31,14 @@ export const BOM_RELEASE_EXPORT_COLUMNS = [
 
 export function buildSharedReleaseExportRows(snapshot: BomReleaseSnapshotDetail, parentPartNumberId: string) {
   const parent = snapshot.applicable_parents?.find((candidate) => candidate.part_number_id === parentPartNumberId);
-  const lines = snapshot.resolved_lines?.filter((line) => line.parent_part_number_id === parentPartNumberId) ?? [];
+  const lines = snapshot.resolved_lines?.filter((line) => line.parent_part_number_id === parentPartNumberId)
+    .filter((line) => snapshot.bom_purpose !== "sales_kit" || line.node_type === "item") ?? [];
   if (!parent || !lines.length) throw new Error("BOM_RELEASE_PROJECTION_AMBIGUOUS");
   const byLogicalId = new Map(lines.map((line) => [line.logical_line_id, line]));
-  return [BOM_RELEASE_EXPORT_COLUMNS, ...lines.map((line, index) => {
+  const v3 = Number(snapshot.snapshot_schema_version ?? 1) >= 3;
+  return [v3 ? BOM_RELEASE_EXPORT_V3_COLUMNS : BOM_RELEASE_EXPORT_COLUMNS, ...lines.map((line, index) => {
     const parentLine = line.parent_logical_line_id ? byLogicalId.get(line.parent_logical_line_id) : null;
-    return [
+    const row = [
       String(line.level + 1),
       String(index + 1),
       parentLine?.node_type === "item" ? parentLine.child_part_number ?? parent.part_number : parent.part_number,
@@ -28,10 +46,13 @@ export function buildSharedReleaseExportRows(snapshot: BomReleaseSnapshotDetail,
       line.node_type === "group" ? line.group_name ?? "" : line.child_part_name ?? "",
       "",
       line.node_type === "item" && line.quantity !== null ? String(line.quantity) : "",
+      line.node_type === "item" ? line.quantity_uom_code ?? "" : "",
       line.source,
       snapshot.released_at,
       snapshot.released_by_name || snapshot.released_by
     ];
+    if (v3) return row;
+    return [...row, snapshot.bom_purpose, snapshot.bom_purpose === "sales_kit" ? "explode_components" : ""];
   })];
 }
 

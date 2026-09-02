@@ -15,7 +15,8 @@ export type BomEditorLine = {
   part_name?: string | null;
   revision: string | null;
   group_name: string | null;
-  quantity: number | null;
+  quantity: number | string | null;
+  quantity_uom_code?: string | null;
   sequence_no: number;
   source: BomEditorSource;
   source_priority: number;
@@ -32,7 +33,8 @@ export type BomEditorFloatingTopic = {
   part_name?: string | null;
   revision: string | null;
   group_name: string | null;
-  quantity: number | null;
+  quantity: number | string | null;
+  quantity_uom_code?: string | null;
   sequence_no: number;
   root_position_x: number;
   root_position_y: number;
@@ -50,6 +52,7 @@ export type BomEditorSnapshot = {
 
 export type BomEditorDraftLike = {
   id: string;
+  bom_purpose?: "manufacturing" | "sales_kit";
   definition_id?: string | null;
   status: string;
   identity_authority?: "canonical_part_number" | "legacy_submission_bound" | "manual_review";
@@ -88,6 +91,7 @@ export type BomEditorItemCandidate = {
   part_number: string;
   part_name: string;
   revision: string;
+  base_uom_code?: string | null;
 };
 
 export type BomEditorApplicableParent = {
@@ -106,6 +110,49 @@ export type BomEditorSharedComponent = {
   child_part_number_ids: string[];
   child_candidates?: Array<{ part_number_id: string; part_number: string; part_name: string; part_root_id: string }>;
   parent_selections: Array<{ parent_part_number_id: string; child_part_number_id: string }>;
+};
+
+export type BomEditorInsertNode = {
+  id: string;
+  logical_line_id?: string | null;
+  bom_draft_id: string;
+  node_type: BomEditorNodeType;
+  item_id: string | null;
+  part_number: string | null;
+  part_name?: string | null;
+  revision: string | null;
+  group_name: string | null;
+  quantity: number | string | null;
+  quantity_uom_code?: string | null;
+  source: BomEditorSource;
+  source_priority: number;
+};
+
+export type BomEditorCommand =
+  | { type: "line.insert"; location: "formal" | "floating"; parentId: string | null; afterId: string | null; node: BomEditorInsertNode; component?: BomEditorSharedComponent }
+  | { type: "line.remove"; id: string; mode: "single" | "branch" }
+  | { type: "line.reparent"; id: string; parentId: string | null; index: number }
+  | { type: "line.reorder"; id: string; index: number }
+  | { type: "line.quantity.set"; id: string; quantity: number | string }
+  | { type: "line.group.rename"; id: string; groupName: string }
+  | { type: "line.location.move"; id: string; to: "formal" | "floating"; parentId: string | null; index: number; rootPosition?: { x: number; y: number } }
+  | { type: "component.mapping.select"; logicalLineId: string; parentPartNumberId: string; childPartNumberId: string }
+  | { type: "component.replace"; component: BomEditorSharedComponent }
+  | { type: "history.undo" }
+  | { type: "history.redo" };
+
+export type BomEditorViewAction =
+  | { type: "selection.set"; id: string | null }
+  | { type: "collapse.toggle"; id: string }
+  | { type: "focus.set"; id: string | null }
+  | { type: "context-parent.set"; partNumberId: string | null }
+  | { type: "view.set"; mode: BomEditorViewMode }
+  | { type: "floating.expanded.set"; expanded: boolean }
+  | { type: "inspector.set"; open: boolean };
+
+export type BomEditorLocalError = {
+  code: string;
+  message: string;
 };
 
 export const BOM_EDITOR_ROOT_ID = "__bom_editor_root__";

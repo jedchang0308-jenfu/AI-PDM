@@ -24,6 +24,8 @@ export async function listBomWorkbenchRecordsAsync(input: {
   companyId: string;
   query?: string;
   status?: "" | "Draft" | "PendingReview" | "Rejected" | "Released" | "Obsolete" | "Archived";
+  /** @deprecated current work list is purpose-free; retained for legacy readers. */
+  purpose?: "" | "manufacturing" | "sales_kit";
   limit?: number;
   cursor?: { updatedAt: string; definitionKey: string; revisionNumber: number; draftId: string } | null;
 }) {
@@ -55,7 +57,8 @@ export async function saveBomWorkbenchDraftTreeAsync(input: {
     partNumber?: string | null;
     revision?: string | null;
     groupName?: string | null;
-    quantity?: number | null;
+    quantity?: number | string | null;
+    quantityUomCode?: import("@/lib/bom-unit-of-measure").BomUomCode | null;
     sequenceNo?: number | null;
   }>;
   floatingTopics: Array<{
@@ -66,7 +69,8 @@ export async function saveBomWorkbenchDraftTreeAsync(input: {
     partNumber?: string | null;
     revision?: string | null;
     groupName?: string | null;
-    quantity?: number | null;
+    quantity?: number | string | null;
+    quantityUomCode?: import("@/lib/bom-unit-of-measure").BomUomCode | null;
     sequenceNo?: number | null;
     rootPositionX?: number | null;
     rootPositionY?: number | null;
@@ -94,6 +98,8 @@ export async function createSharedBomDraftAsync(input: {
   idempotencyKey: string;
   requestFingerprint: string;
   selectionEtag: string;
+  /** Legacy-only input. Current create route must omit this field. */
+  bomPurpose?: "manufacturing" | "sales_kit";
 }) {
   return new AsyncBomWorkbenchRepository(getAsyncDatabaseClient()).createSharedDraft(input);
 }

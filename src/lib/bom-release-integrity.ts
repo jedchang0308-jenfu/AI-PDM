@@ -1,8 +1,14 @@
 import { canonicalSha256, SharedBomError } from "@/lib/bom-shared-structure";
 import type { BomReleaseSnapshotDetail } from "@/lib/types";
+import { quantityFromScaled6 } from "@/lib/bom-unit-of-measure";
 
-function parseJson(value: string | null | undefined, code: string) {
+function parseJson(value: unknown, code: string) {
   if (!value) throw new SharedBomError(code, 409);
+  // PostgreSQL JSONB columns are materialized by `pg` as objects, while
+  // SQLite stores the same evidence as TEXT.  Accept both representations so
+  // provider parity does not turn a valid immutable snapshot into a false
+  // `BOM_REVIEW_SNAPSHOT_INVALID` read failure.
+  if (typeof value !== "string") return value;
   try {
     return JSON.parse(value) as unknown;
   } catch {
@@ -16,9 +22,11 @@ function invalidIntegrity(phase: string, details: Record<string, unknown> = {}):
 
 export function assertSharedReleaseSnapshotIntegrity(
   snapshot: BomReleaseSnapshotDetail,
-  reviewSnapshotHash: string | null
+  reviewSnapshotHash: string | null,
+  reviewSnapshotJson?: unknown
 ) {
-  if (Number(snapshot.snapshot_schema_version ?? 1) !== 2) return;
+  const snapshotSchemaVersion = Number(snapshot.snapshot_schema_version ?? 1);
+  if (snapshotSchemaVersion < 2) return;
   if (!snapshot.definition_id || !snapshot.snapshot_hash || !reviewSnapshotHash
     || !snapshot.applicable_parents?.length || !snapshot.resolved_lines) {
     invalidIntegrity("required_evidence");
@@ -54,7 +62,13 @@ export function assertSharedReleaseSnapshotIntegrity(
         childPartNumber: line.child_part_number,
         childPartName: line.child_part_name,
         groupName: line.group_name,
-        quantity: line.quantity,
+        // The v3 authority is scale-6.  SQLite and PostgreSQL adapters may
+        // materialize the compatibility `quantity` column differently, so
+        // reconstruct it from the exact integer before hashing.
+        quantity: snapshotSchemaVersion >= 3
+          ? quantityFromScaled6(line.quantity_scaled_6) ?? line.quantity
+          : line.quantity,
+        ...(snapshotSchemaVersion >= 3 ? { quantityUomCode: line.quantity_uom_code ?? null, quantityScaled6: line.quantity_scaled_6 ?? null } : {}),
         sequenceNo: line.sequence_no,
         level: line.level
       }));
@@ -70,15 +84,34 @@ export function assertSharedReleaseSnapshotIntegrity(
   if (canonicalSha256(resolvedProjection).hash !== canonicalSha256(actualProjectionHashes).hash) {
     invalidIntegrity("resolved_projection_hash", { frozen: resolvedProjection, relational: actualProjectionHashes });
   }
+  let reviewMaterial: Record<string, unknown> = {};
+  if (reviewSnapshotJson) {
+    const parsedReview = parseJson(reviewSnapshotJson, "BOM_REVIEW_SNAPSHOT_INVALID");
+    if (!parsedReview || typeof parsedReview !== "object" || Array.isArray(parsedReview)) invalidIntegrity("review_snapshot_shape");
+    const review = parsedReview as Record<string, unknown>;
+    if (review.bomPurpose !== undefined && review.bomPurpose !== snapshot.bom_purpose) {
+      invalidIntegrity("purpose_mismatch", { snapshotPurpose: snapshot.bom_purpose, reviewPurpose: review.bomPurpose });
+    }
+    if (snapshot.bom_purpose === "sales_kit" && review.fulfillmentPolicy !== "explode_components") {
+      invalidIntegrity("sales_kit_policy_missing");
+    }
+    if (review.bomPurpose !== undefined) {
+      reviewMaterial = { bomPurpose: snapshot.bom_purpose };
+      if (snapshot.bom_purpose === "sales_kit") reviewMaterial.fulfillmentPolicy = "explode_components";
+    }
+  } else if (snapshot.bom_purpose === "sales_kit") {
+    invalidIntegrity("sales_kit_review_snapshot_missing");
+  }
   const snapshotEvidence = canonicalSha256({
-    schemaVersion: 2,
+    schemaVersion: snapshotSchemaVersion,
     definitionId: snapshot.definition_id,
     bomRevision: snapshot.bom_revision,
     reviewSnapshotHash,
     parentSnapshotHash: canonicalSha256(parentSnapshot).hash,
     lineSnapshotHash: canonicalSha256(snapshot.lines).hash,
     mappingSnapshotHash: canonicalSha256(mappingSnapshot).hash,
-    resolvedProjectionHash: canonicalSha256(resolvedProjection).hash
+    resolvedProjectionHash: canonicalSha256(resolvedProjection).hash,
+    ...reviewMaterial
   });
   if (snapshotEvidence.hash !== snapshot.snapshot_hash) {
     invalidIntegrity("snapshot_hash", { expected: snapshot.snapshot_hash, actual: snapshotEvidence.hash });

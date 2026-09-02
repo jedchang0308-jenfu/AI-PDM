@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, CircleDot, Package } from "lucide-react";
-import type { BomEditorFloatingTopic, BomEditorLine } from "@/components/bom-editor/bom-editor-types";
+import { BOM_EDITOR_ROOT_ID, type BomEditorFloatingTopic, type BomEditorLine } from "@/components/bom-editor/bom-editor-types";
 
 type OutlinerProps = {
   rootLabel: string;
@@ -12,14 +12,15 @@ type OutlinerProps = {
   onSelect: (id: string) => void;
   onToggleCollapse: (id: string) => void;
   onEdit: (id: string) => void;
+  onAddChild?: (id: string) => void;
 };
 
 export function BomOutliner(props: OutlinerProps) {
   const formalRows = buildRows(props.lines, "parent_line_id", props.collapsedIds);
   const floatingRows = buildRows(props.floatingTopics, "parent_floating_topic_id", props.collapsedIds);
   return (
-    <div className="xmind-bom-outliner" role="tree" aria-label="BOM 大綱">
-      <button className="xmind-bom-outliner-row root" type="button" role="treeitem" aria-level={1}>
+    <div className="bom-outliner" role="tree" aria-label="BOM 階層表">
+      <button className="bom-outliner-row root" type="button" role="treeitem" aria-level={1} aria-selected={props.selectedId === BOM_EDITOR_ROOT_ID} onClick={() => props.onSelect(BOM_EDITOR_ROOT_ID)}>
         <CircleDot aria-hidden="true" />
         <strong>{props.rootLabel}</strong>
       </button>
@@ -37,9 +38,10 @@ export function BomOutliner(props: OutlinerProps) {
           onSelect={props.onSelect}
           onToggleCollapse={props.onToggleCollapse}
           onEdit={props.onEdit}
+          onAddChild={props.onAddChild}
         />
       ))}
-      {floatingRows.length > 0 ? <div className="xmind-bom-outliner-section">Floating Topic</div> : null}
+      {floatingRows.length > 0 ? <div className="bom-outliner-section">未納入 BOM</div> : null}
       {floatingRows.map(({ node, depth, hasChildren }) => (
         <OutlinerRow
           key={node.id}
@@ -54,6 +56,7 @@ export function BomOutliner(props: OutlinerProps) {
           onSelect={props.onSelect}
           onToggleCollapse={props.onToggleCollapse}
           onEdit={props.onEdit}
+          onAddChild={props.onAddChild}
         />
       ))}
     </div>
@@ -72,10 +75,11 @@ function OutlinerRow(props: {
   onSelect: (id: string) => void;
   onToggleCollapse: (id: string) => void;
   onEdit: (id: string) => void;
+  onAddChild?: (id: string) => void;
 }) {
   return (
     <div
-      className={`xmind-bom-outliner-row ${props.selected ? "selected" : ""} ${props.floating ? "floating" : ""}`}
+      className={`bom-outliner-row ${props.selected ? "selected" : ""} ${props.floating ? "floating" : ""}`}
       role="treeitem"
       aria-level={props.depth + 1}
       aria-selected={props.selected}
@@ -86,11 +90,12 @@ function OutlinerRow(props: {
         <button type="button" aria-label={props.collapsed ? "展開" : "摺疊"} onClick={() => props.onToggleCollapse(props.id)}>
           <ChevronRight className={props.collapsed ? "" : "expanded"} aria-hidden="true" />
         </button>
-      ) : <span className="xmind-bom-outliner-indent" />}
+      ) : <span className="bom-outliner-indent" aria-hidden="true" />}
       <button type="button" onClick={() => props.onSelect(props.id)}>
         <Package aria-hidden="true" />
         <span><strong>{props.label}</strong>{props.subtitle ? <small>{props.subtitle}</small> : null}</span>
       </button>
+      {props.onAddChild && !props.floating ? <button type="button" className="bom-outliner-add" aria-label={`在${props.label}下新增`} onClick={() => props.onAddChild?.(props.id)}>＋</button> : null}
     </div>
   );
 }

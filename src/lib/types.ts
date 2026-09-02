@@ -165,11 +165,16 @@ export type BomDetail = BomHeader & {
 export type BomWorkbenchDraftStatus = "Draft" | "PendingReview" | "Rejected" | "Released" | "Obsolete" | "Archived";
 export type BomWorkbenchSource = "manual";
 export type BomWorkbenchNodeType = "item" | "group";
+export type BomPurpose = "manufacturing" | "sales_kit";
+/** @deprecated Kept only for decoding immutable v1/v2 evidence. Current BOM APIs are purpose-free. */
+export type LegacyBomPurpose = BomPurpose;
+export type { BomUomCode } from "@/lib/bom-unit-of-measure";
 
 export type BomWorkbenchDraftSummary = {
   id: string;
   company_id: string | null;
   definition_id?: string | null;
+  bom_purpose: BomPurpose;
   base_release_snapshot_id?: string | null;
   owner_part_number_id: string | null;
   bom_revision: string | null;
@@ -229,7 +234,11 @@ export type BomWorkbenchLine = {
   part_name?: string | null;
   revision: string | null;
   group_name: string | null;
-  quantity: number | null;
+  /** v3 returns a canonical decimal string; number remains for legacy v1/v2 rows. */
+  quantity: number | string | null;
+  quantity_uom_code?: import("@/lib/bom-unit-of-measure").BomUomCode | null;
+  quantity_requires_reconfirmation?: boolean;
+  quantity_scaled_6?: number | bigint | string | null;
   sequence_no: number;
   source: BomWorkbenchSource;
   source_priority: number;
@@ -252,7 +261,10 @@ export type BomDraftFloatingTopic = {
   part_name?: string | null;
   revision: string | null;
   group_name: string | null;
-  quantity: number | null;
+  quantity: number | string | null;
+  quantity_uom_code?: import("@/lib/bom-unit-of-measure").BomUomCode | null;
+  quantity_requires_reconfirmation?: boolean;
+  quantity_scaled_6?: number | bigint | string | null;
   sequence_no: number;
   root_position_x: number;
   root_position_y: number;
@@ -339,6 +351,7 @@ export type BomReleaseSnapshotDetail = {
   bom_draft_id: string;
   company_id: string | null;
   definition_id?: string | null;
+  bom_purpose: BomPurpose;
   snapshot_schema_version?: number;
   parent_snapshot_json?: string | null;
   mapping_snapshot_json?: string | null;
@@ -357,7 +370,9 @@ export type BomReleaseSnapshotDetail = {
     child_part_number: string | null;
     child_part_name: string | null;
     group_name: string | null;
-    quantity: number | null;
+    quantity: number | string | null;
+    quantity_uom_code?: import("@/lib/bom-unit-of-measure").BomUomCode | null;
+    quantity_scaled_6?: number | bigint | string | null;
     sequence_no: number;
     level: number;
     source: BomWorkbenchSource;
@@ -419,6 +434,7 @@ export type WhereUsedEntry = {
   parent_submitted_by: string;
   parent_submitted_by_name: string;
   bom_header_id: string;
+  bom_purpose: BomPurpose;
   bom_status: BomHeader["status"];
   child_part_number: string;
   child_revision: string | null;

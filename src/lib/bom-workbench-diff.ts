@@ -7,7 +7,8 @@ type BomWorkbenchComparableLine = {
   part_number: string | null;
   revision: string | null;
   group_name: string | null;
-  quantity: number | null;
+  quantity: number | string | null;
+  quantity_uom_code?: string | null;
   parent_path: string;
   level: number;
   sequence_no: number;
@@ -76,6 +77,7 @@ function comparableLineMap(lines: BomWorkbenchLine[]) {
       revision: line.revision,
       group_name: line.group_name,
       quantity: line.quantity,
+      quantity_uom_code: line.quantity_uom_code ?? null,
       parent_path: parentPath.path,
       level: parentPath.level,
       sequence_no: line.sequence_no
@@ -106,6 +108,7 @@ function changedComparableFields(before: BomWorkbenchComparableLine, after: BomW
   const fields: string[] = [];
   if ((before.revision ?? "") !== (after.revision ?? "")) fields.push("revision");
   if ((before.quantity ?? null) !== (after.quantity ?? null)) fields.push("quantity");
+  if ((before.quantity_uom_code ?? null) !== (after.quantity_uom_code ?? null)) fields.push("uom_changed");
   if (before.parent_path !== after.parent_path || before.level !== after.level) fields.push("hierarchy");
   if (before.sequence_no !== after.sequence_no) fields.push("sequence");
   return fields;

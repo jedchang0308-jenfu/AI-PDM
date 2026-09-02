@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 import type { CanonicalPreviewProjection } from "@/lib/pdm-canonical-preview";
 import type { StoredPartStructureType } from "@/lib/numbering-structure-type";
+import type { BomPurpose } from "@/lib/types";
 import { PDM_WORKBENCH_FILTER_NONE_TOKEN } from "@/lib/pdm-workbench-filter-selection";
 import type { DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
 import { ACTIVE_DRAWING_PURPOSE_CODES } from "@/lib/numbering-identity";
@@ -28,7 +29,7 @@ export type HistoricalCanonicalDataLayer = CanonicalDataLayer | "relation_formal
 export type CanonicalLayer = "production" | "rd" | "formal" | "work";
 export type CanonicalHandling = "none" | "owner" | "review_owner" | "system" | "system_admin" | "blocked";
 export type CanonicalDataState = "editing" | "reviewing" | "publishing" | "available";
-export type CanonicalActionKey = "advance" | "restart_from_current_production" | "edit" | "review" | "create_change" | "void_rd" | "request_obsolete" | "edit_relation_matrix";
+export type CanonicalActionKey = "advance" | "restart_from_current_production" | "edit" | "cancel_work" | "review" | "create_change" | "void_rd" | "request_obsolete" | "edit_relation_matrix";
 export type CanonicalWorkbenchAction = { key: CanonicalActionKey; label: string; href?: string };
 
 export type CanonicalWorkbenchRowDto = {
@@ -160,12 +161,15 @@ export type CanonicalPartDetailPresentation = CanonicalLinkedDetailBase & {
   previewSourceControl?: {
     settingRowVersion: number;
     canManage: boolean;
+    hasPrimaryManufacturingDrawing: boolean;
     disabledReason: string | null;
   };
 };
 
 export type CanonicalPartBomContext = {
   structureType: StoredPartStructureType;
+  definitionPurpose: BomPurpose | null;
+  allowedCreatePurposes: BomPurpose[];
   eligibility: "ineligible" | "eligible" | "blocked";
   action: "create_bom" | "open_bom" | "none";
   definitionId: string | null;
@@ -263,7 +267,21 @@ export type CanonicalWorkbenchErrorCode =
   | "WORKBENCH_REVIEW_PACKAGE_INVALID"
   | "WORKBENCH_REVIEW_PACKAGE_INTEGRITY_FAILED"
   | "WORKBENCH_RECOGNITION_BASIS_INCOMPLETE"
+  | "WORKBENCH_RECOGNITION_NOT_WRITTEN"
   | "WORKBENCH_RECOGNITION_OWNER_UNRESOLVED"
+  | "RECOGNITION_HANDOFF_SOURCE_CONFLICT"
+  | "RECOGNITION_HANDOFF_PART_INVALID"
+  | "RECOGNITION_SESSION_NOT_FOUND"
+  | "RECOGNITION_HANDOFF_SCOPE_LIMIT"
+  | "RECOGNITION_SESSION_STALE"
+  | "RECOGNITION_HANDOFF_NOT_READY"
+  | "RECOGNITION_SOURCE_SET_STALE"
+  | "RECOGNITION_RELATION_SCOPE_STALE"
+  | "RECOGNITION_HANDOFF_OWNER_UNRESOLVED"
+  | "RECOGNITION_HANDOFF_WORK_CONFLICT"
+  | "RECOGNITION_HANDOFF_PERMISSION_DENIED"
+  | "RECOGNITION_SUBMISSION_WRITE_PENDING"
+  | "RECOGNITION_SUBMISSION_WRITE_BLOCKED"
   | "REVIEW_PACKAGE_LIMIT_EXCEEDED"
   | "WORKBENCH_SNAPSHOT_DRIFT"
   | "WORKBENCH_RELATION_SCOPE_INVALID"
@@ -272,6 +290,7 @@ export type CanonicalWorkbenchErrorCode =
   | "DRAWING_REVISION_FILE_ROLE_INVALID"
   | "DRAWING_REVISION_FILE_NOT_FOUND"
   | "DRAWING_REVISION_FILE_PRIMARY_LOCKED"
+  | "DRAWING_REVISION_FILE_REFERENCE_LOCKED"
   | "DRAWING_REVISION_FILE_TOO_LARGE"
   | "DRAWING_2D_REQUIRED"
   | "DRAWING_3D_REQUIRED"

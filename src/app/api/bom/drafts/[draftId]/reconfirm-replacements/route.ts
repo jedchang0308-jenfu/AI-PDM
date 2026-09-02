@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
 import { canManageBomDraftRecordAsync } from "@/lib/bom-create-context";
 import { getBomWorkbenchDraftByIdAsync, reconfirmBomWorkbenchReplacementFlagsAsync } from "@/lib/bom-workbench-async";
-import { isAssemblySharedBomV1Enabled } from "@/lib/assembly-bom-feature";
 import { authorizeSharedBomHttpAsync, sharedBomHttpError } from "@/lib/bom-shared-http";
 
 export const runtime = "nodejs";
@@ -15,9 +14,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
   const draft = await getBomWorkbenchDraftByIdAsync(draftId);
   if (!draft) {
     return NextResponse.json({ error: "BOM draft not found" }, { status: 404 });
-  }
-  if (draft.definition_id && !isAssemblySharedBomV1Enabled()) {
-    return sharedBomHttpError("BOM_SHARED_STRUCTURE_DISABLED", 404);
   }
 
   if (draft.definition_id) {

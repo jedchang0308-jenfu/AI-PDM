@@ -654,7 +654,19 @@
     "qc:sw-addin-company-selection": "node scripts/qc-sw-addin-company-selection.mjs",
     "qc:sw-addin-real-machine-report": "node scripts/qc-sw-addin-real-machine-report.mjs",
     "qc:sw-addin-real-machine-report:report": "node scripts/qc-sw-addin-real-machine-report.mjs --allow-open",
-    "qc:ui": "node scripts/ui-e2e-test.mjs"
+    "qc:ui": "node scripts/ui-e2e-test.mjs",
+    "migrate:dev-109:dry-run": "node scripts/migrate-dev-109-unified-bom.mjs --mode=dry-run",
+    "migrate:dev-109:apply": "node scripts/migrate-dev-109-unified-bom.mjs --mode=apply",
+    "migrate:dev-109:postgres": "node scripts/migrate-dev-109-unified-bom.mjs --provider=postgres --mode=rehearsal",
+    "reconcile:dev-109:sldasm:dry-run": "node scripts/reconcile-dev-109-sldasm-assembly.mjs --mode=dry-run",
+    "reconcile:dev-109:sldasm:apply": "node scripts/reconcile-dev-109-sldasm-assembly.mjs --mode=apply",
+    "qc:dev-109:unified": "node scripts/qc-dev-109-unified-aggregate.mjs",
+    "qc:dev-109:unified:contract": "node scripts/qc-dev-109-unified-contract.mjs",
+    "qc:dev-109:unified:migration": "node scripts/qc-dev-109-unified-migration.mjs",
+    "qc:dev-109:unified:provider": "node scripts/qc-dev-109-unified-provider.mjs",
+    "qc:dev-109:unified:repository": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-109-unified-repository.mjs",
+    "qc:dev-109:unified:transaction": "node scripts/qc-dev-109-unified-transaction.mjs",
+    "qc:dev-109:unified:browser": "node scripts/qc-dev-109-unified-browser.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
