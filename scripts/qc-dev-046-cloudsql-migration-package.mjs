@@ -89,6 +89,7 @@ try {
     "DEV046-CLOUDSQL-MIG-008 admin bootstrap is required and tied to the Cloud SQL grant file",
     report.adminBootstrap.required === true &&
       report.adminBootstrap.file === "db/cloud-sql/pdm_runtime_grants.sql" &&
+      report.adminBootstrap.contractSchemaFile === "db/cloud-sql/ai_pdm_contract_schema_grants.sql" &&
       report.adminBootstrap.createsRuntimeRole === true &&
       report.adminBootstrap.createsMigrationRole === true &&
       report.adminBootstrap.grantsIamUsers === true
@@ -154,6 +155,7 @@ try {
       (await exists(outputs.manifestPath)) &&
       (await exists(outputs.runnerContractPath)) &&
       (await exists(path.join(outputs.sqlDirectory, "000_admin_bootstrap_grants.sql"))) &&
+      (await exists(path.join(outputs.sqlDirectory, "001_ai_pdm_contract_schema_bootstrap.sql"))) &&
       (await exists(path.join(outputs.sqlDirectory, "999_runtime_grants_refresh.sql")))
   );
   record(
@@ -206,6 +208,10 @@ try {
 
   const numberingV2Sql = await fsp.readFile(path.join(outputs.sqlDirectory, "004_numbering_v2_compact_identity.cloudsql.sql"), "utf8");
   const adminBootstrapSql = await fsp.readFile(path.join(outputs.sqlDirectory, "000_admin_bootstrap_grants.sql"), "utf8");
+  const incrementalContractSchemaBootstrapSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "001_ai_pdm_contract_schema_bootstrap.sql"),
+    "utf8"
+  );
   const runtimeGrantRefreshSql = await fsp.readFile(path.join(outputs.sqlDirectory, "999_runtime_grants_refresh.sql"), "utf8");
   const v1SeedIndex = numberingV2Sql.indexOf("'numbering-rule-v1',\n  'PDM-NUMBERING-V1'");
   const approvalRuleInsertIndex = numberingV2Sql.indexOf("INSERT INTO approval_rules");
@@ -249,7 +255,13 @@ try {
       adminBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
       adminBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
       !adminBootstrapSql.includes("AUTHORIZATION pdm_migration") &&
-      !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(adminBootstrapSql)
+      !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(adminBootstrapSql) &&
+      incrementalContractSchemaBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
+      incrementalContractSchemaBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
+      incrementalContractSchemaBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+      !incrementalContractSchemaBootstrapSql.includes("CREATE ROLE") &&
+      !incrementalContractSchemaBootstrapSql.includes("ON ALL TABLES IN SCHEMA public") &&
+      !incrementalContractSchemaBootstrapSql.includes("GRANT CONNECT ON DATABASE")
   );
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));

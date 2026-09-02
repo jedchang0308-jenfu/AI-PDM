@@ -50,15 +50,16 @@ record("DEV046-1C-007 active provider supports Cloud SQL without deleting generi
 record("DEV046-1C-008 pg pool has bounded connection and query timeouts", ["connectionTimeoutMillis", "idleTimeoutMillis", "statement_timeout", "query_timeout"].every((fragment) => dbProvider.includes(fragment)));
 
 const grants = read("db/cloud-sql/pdm_runtime_grants.sql");
+const contractSchemaGrants = read("db/cloud-sql/ai_pdm_contract_schema_grants.sql");
 record("DEV046-1C-009 runtime grant is least privilege and cannot bypass RLS", grants.includes("NOBYPASSRLS") && grants.includes("REVOKE CREATE ON SCHEMA public FROM pdm_runtime") && grants.includes("REVOKE TRUNCATE, REFERENCES, TRIGGER") && !/GRANT\s+(?:ALL|CREATE).*TO\s+pdm_runtime/iu.test(grants));
 record(
   "DEV046-1C-009A privileged bootstrap retains the contract boundary with scoped migration DDL",
-  grants.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
-    grants.includes("REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC") &&
-    grants.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
-    grants.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
-    !grants.includes("AUTHORIZATION pdm_migration") &&
-    !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(grants)
+  contractSchemaGrants.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
+    contractSchemaGrants.includes("REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC") &&
+    contractSchemaGrants.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
+    contractSchemaGrants.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+    !contractSchemaGrants.includes("AUTHORIZATION pdm_migration") &&
+    !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(contractSchemaGrants)
 );
 const access = json("config/platform/cloud-sql-access.json");
 record("DEV046-1C-010 connector IAM and browser denial are explicit", access.databaseAuthentication === "cloud-sql-auth-proxy-automatic-iam" && access.runtimeServiceIdentityIamRoles.includes("roles/cloudsql.client") && access.runtimeServiceIdentityIamRoles.includes("roles/cloudsql.instanceUser") && access.browserDatabaseAccessAllowed === false && access.staticDatabasePasswordsAllowed === false);

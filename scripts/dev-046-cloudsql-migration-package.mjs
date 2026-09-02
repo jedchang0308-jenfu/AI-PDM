@@ -192,7 +192,7 @@ function sanitizeSqlForCloudSql({ file, source }) {
   };
 }
 
-function buildAdminBootstrapSql({ target, grantSql }) {
+function buildAdminBootstrapSql({ target, grantSql, contractSchemaGrantSql }) {
   const production = target.projectId === "jenfu-ai-pdm-prod";
   const sql = `${[
     `-- ${production ? "DEV-032 production" : "DEV-046 staging"} Cloud SQL admin bootstrap candidate`,
@@ -203,10 +203,20 @@ function buildAdminBootstrapSql({ target, grantSql }) {
     .replaceAll(':"database_name"', quoteIdentifier(target.databaseName))
     .replaceAll(':"runtime_iam_user"', quoteIdentifier(target.runtimeIamDatabaseUser))
     .replaceAll(':"migration_iam_user"', quoteIdentifier(target.migrationIamDatabaseUser))
-    .trimEnd()}\n`;
+    .trimEnd()}\n\n${contractSchemaGrantSql.trimEnd()}\n`;
   return production
     ? sql.replaceAll("DEV-046 Phase 1 contract", "DEV-032 Gate C production contract")
     : sql;
+}
+
+function buildIncrementalContractSchemaBootstrapSql({ target, contractSchemaGrantSql }) {
+  const production = target.projectId === "jenfu-ai-pdm-prod";
+  return `${[
+    `-- ${production ? "DEV-032 production" : "DEV-046 staging"} incremental contract-schema bootstrap`,
+    "-- Apply to an existing database through the approved privileged SQL-import path.",
+    "-- This file intentionally does not create roles or touch existing public-schema tables.",
+    ""
+  ].join("\n")}${contractSchemaGrantSql.trimEnd()}\n`;
 }
 
 function buildRuntimeGrantRefreshSql(target) {
@@ -242,7 +252,7 @@ function buildRunnerContractMarkdown(report) {
     "",
     "## Proposed Order",
     "",
-    "1. Execute `sql/000_admin_bootstrap_grants.sql` through the approved privileged database bootstrap path.",
+    "1. For a fresh database execute `sql/000_admin_bootstrap_grants.sql`; for an existing database execute only `sql/001_ai_pdm_contract_schema_bootstrap.sql` through the approved privileged path.",
     "2. Execute ordered schema files in `cloudsql-migration-manifest.json` through the migration identity.",
     "3. Execute `sql/999_runtime_grants_refresh.sql`.",
     "4. Run runtime database smoke through the Cloud Run runtime service account.",
@@ -255,7 +265,7 @@ function buildRunnerContractMarkdown(report) {
   ].join("\n").trimEnd()}\n`;
 }
 
-function buildCandidatePackage({ target, grantSql, postgresFiles }) {
+function buildCandidatePackage({ target, grantSql, contractSchemaGrantSql, postgresFiles }) {
   const excludedFiles = [];
   const schemaFiles = [];
   let removedTransactionWrappers = 0;
@@ -301,7 +311,11 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     });
   }
 
-  const adminBootstrapSql = buildAdminBootstrapSql({ target, grantSql });
+  const adminBootstrapSql = buildAdminBootstrapSql({ target, grantSql, contractSchemaGrantSql });
+  const incrementalContractSchemaBootstrapSql = buildIncrementalContractSchemaBootstrapSql({
+    target,
+    contractSchemaGrantSql
+  });
   const grantRefreshSql = buildRuntimeGrantRefreshSql(target);
   const supportFiles = [
     {
@@ -310,6 +324,13 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
       outputSha256: sha256(adminBootstrapSql),
       bytes: Buffer.byteLength(adminBootstrapSql, "utf8"),
       sql: adminBootstrapSql
+    },
+    {
+      output: `${candidateSqlDirectory}/001_ai_pdm_contract_schema_bootstrap.sql`,
+      kind: "admin_contract_schema_bootstrap",
+      outputSha256: sha256(incrementalContractSchemaBootstrapSql),
+      bytes: Buffer.byteLength(incrementalContractSchemaBootstrapSql, "utf8"),
+      sql: incrementalContractSchemaBootstrapSql
     },
     {
       output: `${candidateSqlDirectory}/999_runtime_grants_refresh.sql`,
@@ -466,7 +487,9 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
   const runtimeTf = read(`${terraformDirectory}/runtime.tf`);
   const databaseTf = read(`${terraformDirectory}/database.tf`);
   const grantsFile = "db/cloud-sql/pdm_runtime_grants.sql";
+  const contractSchemaGrantsFile = "db/cloud-sql/ai_pdm_contract_schema_grants.sql";
   const grantSql = read(grantsFile);
+  const contractSchemaGrantSql = read(contractSchemaGrantsFile);
   const postgresFiles = listSqlFiles("db/postgres");
 
   const migrations = postgresFiles.map((file) => {
@@ -561,7 +584,7 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
     runtimeIamDatabaseUser: production ? "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam" : "pdm-runtime-stg@jenfu-ai-pdm-stg-361825.iam",
     migrationIamDatabaseUser: production ? "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam" : "pdm-migration-stg@jenfu-ai-pdm-stg-361825.iam"
   };
-  const candidatePackage = buildCandidatePackage({ target, grantSql, postgresFiles });
+  const candidatePackage = buildCandidatePackage({ target, grantSql, contractSchemaGrantSql, postgresFiles });
   const candidateManifestSha256 = sha256(JSON.stringify(candidatePackage.orderedManifest, null, 2));
   const evidenceManifestSha256 = liveExecutionEvidence?.migrationResult?.manifestSha256 ?? null;
   const evidenceSchemaMigrationCount = liveExecutionEvidence?.migrationResult?.schemaMigrationCount ?? null;
@@ -615,6 +638,8 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
       postgresSqlFileCount: migrations.length,
       cloudSqlGrantFile: grantsFile,
       cloudSqlGrantFileSha256: sha256(grantSql),
+      cloudSqlContractSchemaGrantFile: contractSchemaGrantsFile,
+      cloudSqlContractSchemaGrantFileSha256: sha256(contractSchemaGrantSql),
       singletonMigrationRunnerPresent: read("src/lib/singleton-migration-runner.ts").includes("runSingletonMigrations"),
       currentPostgresMigrations: migrations
     },
@@ -633,6 +658,7 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
     adminBootstrap: {
       required: true,
       file: grantsFile,
+      contractSchemaFile: contractSchemaGrantsFile,
       createsRuntimeRole: grantSql.includes("CREATE ROLE pdm_runtime"),
       createsMigrationRole: grantSql.includes("CREATE ROLE pdm_migration"),
       grantsIamUsers: grantSql.includes('GRANT pdm_runtime TO :"runtime_iam_user"') && grantSql.includes('GRANT pdm_migration TO :"migration_iam_user"'),
@@ -752,8 +778,9 @@ export async function writeDev046CloudSqlMigrationPackage(report, outputDir = de
   await mkdir(resolvedOutputDir, { recursive: true });
   await mkdir(path.join(resolvedOutputDir, candidateSqlDirectory), { recursive: true });
   const grantSql = read("db/cloud-sql/pdm_runtime_grants.sql");
+  const contractSchemaGrantSql = read("db/cloud-sql/ai_pdm_contract_schema_grants.sql");
   const postgresFiles = listSqlFiles("db/postgres");
-  const candidatePackage = buildCandidatePackage({ target: report.target, grantSql, postgresFiles });
+  const candidatePackage = buildCandidatePackage({ target: report.target, grantSql, contractSchemaGrantSql, postgresFiles });
   const jsonPath = path.join(resolvedOutputDir, "report.json");
   const markdownPath = path.join(resolvedOutputDir, "report.md");
   const manifestPath = path.join(resolvedOutputDir, "cloudsql-migration-manifest.json");

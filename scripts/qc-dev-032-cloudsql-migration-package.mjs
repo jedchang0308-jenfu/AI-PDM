@@ -28,6 +28,10 @@ try {
     path.join(outputs.sqlDirectory, "000_admin_bootstrap_grants.sql"),
     "utf8"
   );
+  const incrementalContractSchemaBootstrapSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "001_ai_pdm_contract_schema_bootstrap.sql"),
+    "utf8"
+  );
   const runner = readProjectFile(root, "scripts/run-dev-046-cloudsql-migrations.mjs");
   const dockerfile = readProjectFile(root, "Dockerfile");
   const production001Compatibility = manifest.migrationHistoryCompatibility.entries.find(
@@ -150,7 +154,13 @@ try {
       adminBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
       adminBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
       !adminBootstrapSql.includes("AUTHORIZATION pdm_migration") &&
-      !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(adminBootstrapSql)
+      !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(adminBootstrapSql) &&
+      incrementalContractSchemaBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
+      incrementalContractSchemaBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
+      incrementalContractSchemaBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+      !incrementalContractSchemaBootstrapSql.includes("CREATE ROLE") &&
+      !incrementalContractSchemaBootstrapSql.includes("ON ALL TABLES IN SCHEMA public") &&
+      !incrementalContractSchemaBootstrapSql.includes("GRANT CONNECT ON DATABASE")
   );
 } catch (error) {
   record("DEV032-CLOUDSQL-MIG-000 QC execution", false, error instanceof Error ? error.message : String(error));
