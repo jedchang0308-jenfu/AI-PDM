@@ -15,10 +15,13 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END
 $$;
 
--- Cross-application contract schemas are created by the privileged bootstrap.
--- The migration role owns the schema but does not receive database-wide CREATE.
-CREATE SCHEMA IF NOT EXISTS ai_pdm_contract AUTHORIZATION pdm_migration;
-ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration;
+-- Cross-application contract schemas are created and retained by the privileged
+-- bootstrap identity. The migration role gets DDL only inside this schema and
+-- does not receive database-wide CREATE or ownership of the schema boundary.
+CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;
+REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC;
+GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration;
+GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime;
 
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 REVOKE CREATE ON SCHEMA public FROM pdm_runtime;

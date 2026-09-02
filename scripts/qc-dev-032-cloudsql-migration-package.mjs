@@ -133,17 +133,23 @@ try {
     "DEV032-CLOUDSQL-MIG-015 role catalog SQL uses provisioned managed Cloud SQL roles only",
     report.candidatePackage.transformations.rewrittenJenfuPlatformRoleReferences > 0 &&
       roleCatalogSql.includes("SET LOCAL ROLE pdm_migration") &&
-      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_MISOWNED:ai_pdm_contract") &&
-      roleCatalogSql.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_INACCESSIBLE:ai_pdm_contract") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_RETAINS_AI_PDM_CONTRACT_SCHEMA_OWNERSHIP") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_REVOKED_PUBLIC_AI_PDM_CONTRACT_SCHEMA_ACCESS") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_GRANTED_RUNTIME_AI_PDM_CONTRACT_SCHEMA_USAGE") &&
       !roleCatalogSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract") &&
+      !roleCatalogSql.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
       roleCatalogSql.includes("TO pdm_runtime") &&
       !/\bjenfu_(?:platform_migrator|platform_runtime|orgmaster_runtime|ai_pdm_runtime)\b/u.test(roleCatalogSql) &&
       !/\bpdm_runtime\s*,\s*pdm_runtime\b/u.test(roleCatalogSql)
   );
   record(
-    "DEV032-CLOUDSQL-MIG-016 privileged bootstrap owns the contract schema without broad database DDL",
-    adminBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract AUTHORIZATION pdm_migration") &&
-      adminBootstrapSql.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
+    "DEV032-CLOUDSQL-MIG-016 privileged bootstrap retains the contract boundary with scoped migration DDL",
+    adminBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
+      adminBootstrapSql.includes("REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC") &&
+      adminBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
+      adminBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+      !adminBootstrapSql.includes("AUTHORIZATION pdm_migration") &&
       !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(adminBootstrapSql)
   );
 } catch (error) {

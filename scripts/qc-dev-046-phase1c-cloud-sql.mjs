@@ -52,9 +52,12 @@ record("DEV046-1C-008 pg pool has bounded connection and query timeouts", ["conn
 const grants = read("db/cloud-sql/pdm_runtime_grants.sql");
 record("DEV046-1C-009 runtime grant is least privilege and cannot bypass RLS", grants.includes("NOBYPASSRLS") && grants.includes("REVOKE CREATE ON SCHEMA public FROM pdm_runtime") && grants.includes("REVOKE TRUNCATE, REFERENCES, TRIGGER") && !/GRANT\s+(?:ALL|CREATE).*TO\s+pdm_runtime/iu.test(grants));
 record(
-  "DEV046-1C-009A privileged bootstrap owns the contract schema without database-wide CREATE",
-  grants.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract AUTHORIZATION pdm_migration") &&
-    grants.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
+  "DEV046-1C-009A privileged bootstrap retains the contract boundary with scoped migration DDL",
+  grants.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
+    grants.includes("REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC") &&
+    grants.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
+    grants.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+    !grants.includes("AUTHORIZATION pdm_migration") &&
     !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(grants)
 );
 const access = json("config/platform/cloud-sql-access.json");

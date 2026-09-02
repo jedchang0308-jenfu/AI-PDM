@@ -111,15 +111,26 @@ function rewriteManagedCloudSqlRoles(file, source) {
 BEGIN
   IF NOT EXISTS (
     SELECT 1
-      FROM pg_namespace namespace
-      JOIN pg_roles owner_role ON owner_role.oid = namespace.nspowner
-     WHERE namespace.nspname = 'ai_pdm_contract'
-       AND owner_role.rolname = 'pdm_migration'
-  ) THEN
-    RAISE EXCEPTION 'CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_MISOWNED:ai_pdm_contract';
+      FROM pg_namespace
+     WHERE nspname = 'ai_pdm_contract'
+  ) OR NOT has_schema_privilege('pdm_migration', 'ai_pdm_contract', 'USAGE')
+    OR NOT has_schema_privilege('pdm_migration', 'ai_pdm_contract', 'CREATE') THEN
+    RAISE EXCEPTION 'CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_INACCESSIBLE:ai_pdm_contract';
   END IF;
 END
 $cloudsql_bootstrap$;`
+    )
+    .replace(
+      "ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration;",
+      "-- CLOUDSQL_ADMIN_BOOTSTRAP_RETAINS_AI_PDM_CONTRACT_SCHEMA_OWNERSHIP;"
+    )
+    .replace(
+      /REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC;/u,
+      "-- CLOUDSQL_ADMIN_BOOTSTRAP_REVOKED_PUBLIC_AI_PDM_CONTRACT_SCHEMA_ACCESS;"
+    )
+    .replace(
+      /GRANT USAGE ON SCHEMA ai_pdm_contract\s+TO pdm_runtime;/u,
+      "-- CLOUDSQL_ADMIN_BOOTSTRAP_GRANTED_RUNTIME_AI_PDM_CONTRACT_SCHEMA_USAGE;"
     )
     .replace(
       "ALTER DEFAULT PRIVILEGES FOR ROLE pdm_migration IN SCHEMA ai_pdm_contract",
