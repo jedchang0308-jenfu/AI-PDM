@@ -84,7 +84,9 @@ try {
   );
   record(
     "DEV046-CLOUDSQL-EXEC-006 source uses singleton advisory lock and migration history",
-    source.includes("pg_try_advisory_xact_lock") &&
+    source.includes('client.query("SET LOCAL ROLE pdm_migration")') &&
+      source.indexOf('client.query("SET LOCAL ROLE pdm_migration")') < source.indexOf("CREATE TABLE IF NOT EXISTS pdm_schema_migrations") &&
+      source.includes("pg_try_advisory_xact_lock") &&
       source.includes("pdm_schema_migrations") &&
       source.includes("MIGRATION_HISTORY_CHECKSUM_MISMATCH")
   );

@@ -227,6 +227,7 @@ async function executeMigrations(plan) {
   const appliedVersions = [];
   try {
     await client.query("BEGIN");
+    await client.query("SET LOCAL ROLE pdm_migration");
     const lock = await client.query("SELECT pg_try_advisory_xact_lock($1) AS acquired", [PDM_MIGRATION_ADVISORY_LOCK_ID]);
     if (lock.rows?.[0]?.acquired !== true) throw new Error("MIGRATION_RUNNER_ALREADY_ACTIVE");
     await client.query(`
