@@ -20,6 +20,10 @@ try {
   const manifest = JSON.parse(await fsp.readFile(outputs.manifestPath, "utf8"));
   const generatedSqlNames = await fsp.readdir(outputs.sqlDirectory);
   const generatedSql = (await Promise.all(generatedSqlNames.map((name) => fsp.readFile(path.join(outputs.sqlDirectory, name), "utf8")))).join("\n");
+  const roleCatalogSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "055_jenfu_role_catalog_publication.cloudsql.sql"),
+    "utf8"
+  );
   const runner = readProjectFile(root, "scripts/run-dev-046-cloudsql-migrations.mjs");
   const dockerfile = readProjectFile(root, "Dockerfile");
   const production001Compatibility = manifest.migrationHistoryCompatibility.entries.find(
@@ -120,6 +124,15 @@ try {
           migration.outputSha256 !== historicalChecksum;
       }) &&
       new Set(Object.values(expectedReplacementHistory).map(([replacementVersion]) => replacementVersion)).size === 5
+  );
+  record(
+    "DEV032-CLOUDSQL-MIG-015 role catalog SQL uses provisioned managed Cloud SQL roles only",
+    report.candidatePackage.transformations.rewrittenJenfuPlatformRoleReferences > 0 &&
+      roleCatalogSql.includes("SET LOCAL ROLE pdm_migration") &&
+      roleCatalogSql.includes("AUTHORIZATION pdm_migration") &&
+      roleCatalogSql.includes("TO pdm_runtime") &&
+      !/\bjenfu_(?:platform_migrator|platform_runtime|orgmaster_runtime|ai_pdm_runtime)\b/u.test(roleCatalogSql) &&
+      !/\bpdm_runtime\s*,\s*pdm_runtime\b/u.test(roleCatalogSql)
   );
 } catch (error) {
   record("DEV032-CLOUDSQL-MIG-000 QC execution", false, error instanceof Error ? error.message : String(error));

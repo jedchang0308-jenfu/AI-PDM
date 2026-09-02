@@ -223,6 +223,18 @@ try {
       numberingV2Sql.includes("SET status = 'active', retired_at = NULL, updated_at = now()\nWHERE id = 'numbering-rule-v3-alpha-root'") &&
       numberingV2Sql.includes("'v3-' || id, 'numbering-rule-v3-alpha-root'")
   );
+  const roleCatalogSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "055_jenfu_role_catalog_publication.cloudsql.sql"),
+    "utf8"
+  );
+  record(
+    "DEV046-CLOUDSQL-MIG-026 Jenfu platform roles are deterministically mapped to managed Cloud SQL roles",
+    report.candidatePackage.transformations.rewrittenJenfuPlatformRoleReferences > 0 &&
+      roleCatalogSql.includes("SET LOCAL ROLE pdm_migration") &&
+      roleCatalogSql.includes("TO pdm_runtime") &&
+      !/\bjenfu_(?:platform_migrator|platform_runtime|orgmaster_runtime|ai_pdm_runtime)\b/u.test(roleCatalogSql) &&
+      !/\bpdm_runtime\s*,\s*pdm_runtime\b/u.test(roleCatalogSql)
+  );
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {

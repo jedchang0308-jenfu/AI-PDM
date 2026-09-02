@@ -93,17 +93,41 @@ function shouldExcludeFromCurrentSlice(file) {
   return { excluded: false, reason: "", detail: "" };
 }
 
+function rewriteManagedCloudSqlRoles(file, source) {
+  if (!file.endsWith("055_jenfu_role_catalog_publication.sql")) {
+    return { source, rewrittenReferences: 0 };
+  }
+  const rolePattern = /\b(?:jenfu_platform_migrator|jenfu_platform_runtime|jenfu_orgmaster_runtime|jenfu_ai_pdm_runtime)\b/gu;
+  const rewrittenReferences = (source.match(rolePattern) ?? []).length;
+  const managedSource = source
+    .replaceAll("jenfu_platform_migrator", "pdm_migration")
+    .replaceAll("jenfu_platform_runtime", "pdm_runtime")
+    .replaceAll("jenfu_orgmaster_runtime", "pdm_runtime")
+    .replaceAll("jenfu_ai_pdm_runtime", "pdm_runtime")
+    .replace(/\bpdm_runtime(?:\s*,\s*pdm_runtime)+\b/gu, "pdm_runtime")
+    .replace(
+      "ALTER DEFAULT PRIVILEGES FOR ROLE pdm_migration IN SCHEMA ai_pdm_contract",
+      "ALTER DEFAULT PRIVILEGES IN SCHEMA ai_pdm_contract"
+    );
+  return { source: managedSource, rewrittenReferences };
+}
+
 function sanitizeSqlForCloudSql({ file, source }) {
+  const managedRoles = rewriteManagedCloudSqlRoles(file, source);
   const transformations = {
     removedTransactionWrappers: 0,
     removedRlsStatements: 0,
-    rewrittenSupabaseRoleReferences: 0
+    rewrittenSupabaseRoleReferences: 0,
+    rewrittenJenfuPlatformRoleReferences: managedRoles.rewrittenReferences
   };
-  const lines = source.split(/\r?\n/u);
+  const lines = managedRoles.source.split(/\r?\n/u);
   const outputLines = [
     `-- DEV-046 Cloud SQL candidate generated from ${file}`,
     "-- Proposal only. Review before any live apply.",
     "-- Supabase Data API roles and RLS force statements are intentionally absent for Cloud SQL BFF runtime.",
+    ...(managedRoles.rewrittenReferences > 0
+      ? ["-- Jenfu platform database roles are mapped to the managed Cloud SQL pdm_migration/pdm_runtime roles."]
+      : []),
     ""
   ];
 
@@ -210,6 +234,7 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
   let removedTransactionWrappers = 0;
   let removedRlsStatements = 0;
   let rewrittenSupabaseRoleReferences = 0;
+  let rewrittenJenfuPlatformRoleReferences = 0;
   let remainingSupabaseRoleReferences = 0;
   let remainingRlsStatements = 0;
   let remainingTransactionWrappers = 0;
@@ -232,6 +257,7 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     removedTransactionWrappers += sanitized.transformations.removedTransactionWrappers;
     removedRlsStatements += sanitized.transformations.removedRlsStatements;
     rewrittenSupabaseRoleReferences += sanitized.transformations.rewrittenSupabaseRoleReferences;
+    rewrittenJenfuPlatformRoleReferences += sanitized.transformations.rewrittenJenfuPlatformRoleReferences;
     remainingSupabaseRoleReferences += sanitized.remainingSupabaseRoleReferences;
     remainingRlsStatements += sanitized.remainingRlsStatements;
     remainingTransactionWrappers += sanitized.remainingTransactionWrappers;
@@ -309,6 +335,7 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
       removedTransactionWrappers,
       removedRlsStatements,
       rewrittenSupabaseRoleReferences,
+      rewrittenJenfuPlatformRoleReferences,
       remainingSupabaseRoleReferences,
       remainingRlsStatements,
       remainingTransactionWrappers
