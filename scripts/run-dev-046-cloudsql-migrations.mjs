@@ -49,6 +49,65 @@ function assertSafeMigrationSql(sql, outputPath) {
   if (/\bCREATE\s+INDEX\s+CONCURRENTLY\b/iu.test(sql)) throw new Error(`MIGRATION_SQL_NON_TRANSACTIONAL_DDL_FORBIDDEN:${outputPath}`);
 }
 
+export function assertDev046ReplacementVersions(schemaMigrations) {
+  const currentVersions = new Set(schemaMigrations.map((migration) => migration.version));
+  const numericVersions = schemaMigrations.map((migration) => Number.parseInt(migration.version, 10));
+  const maxCurrentVersion = Math.max(...numericVersions);
+  const replacementVersions = new Set();
+  for (const migration of schemaMigrations) {
+    if (!migration.replacementVersion) continue;
+    if (!/^\d{3}$/u.test(migration.replacementVersion)) {
+      throw new Error(`MIGRATION_HISTORY_REPLACEMENT_VERSION_INVALID:${migration.version}`);
+    }
+    if (!migration.acceptedExistingChecksums?.length) {
+      throw new Error(`MIGRATION_HISTORY_REPLACEMENT_CHECKSUMS_MISSING:${migration.version}`);
+    }
+    if (
+      currentVersions.has(migration.replacementVersion) ||
+      Number.parseInt(migration.replacementVersion, 10) <= maxCurrentVersion ||
+      replacementVersions.has(migration.replacementVersion)
+    ) {
+      throw new Error(`MIGRATION_HISTORY_REPLACEMENT_VERSION_COLLISION:${migration.version}:${migration.replacementVersion}`);
+    }
+    replacementVersions.add(migration.replacementVersion);
+  }
+}
+
+export function resolveDev046MigrationLedgerAction(migration, appliedByVersion) {
+  const existingChecksum = appliedByVersion.get(migration.version);
+  if (!existingChecksum) {
+    return { action: "apply", ledgerVersion: migration.version, historyReplacementFor: null };
+  }
+  if (existingChecksum === migration.outputSha256) {
+    return { action: "skip", ledgerVersion: migration.version, historyReplacementFor: null };
+  }
+  const acceptedExistingChecksums = new Set(migration.acceptedExistingChecksums ?? []);
+  if (!acceptedExistingChecksums.has(existingChecksum)) {
+    throw new Error(`MIGRATION_HISTORY_CHECKSUM_MISMATCH:${migration.version}`);
+  }
+  if (!migration.replacementVersion) {
+    return { action: "skip", ledgerVersion: migration.version, historyReplacementFor: null };
+  }
+  const replacementChecksum = appliedByVersion.get(migration.replacementVersion);
+  if (replacementChecksum && replacementChecksum !== migration.outputSha256) {
+    throw new Error(
+      `MIGRATION_HISTORY_REPLACEMENT_CHECKSUM_MISMATCH:${migration.version}:${migration.replacementVersion}`
+    );
+  }
+  if (replacementChecksum === migration.outputSha256) {
+    return {
+      action: "skip",
+      ledgerVersion: migration.replacementVersion,
+      historyReplacementFor: migration.version
+    };
+  }
+  return {
+    action: "apply",
+    ledgerVersion: migration.replacementVersion,
+    historyReplacementFor: migration.version
+  };
+}
+
 export function buildDev046CloudSqlMigrationRunPlan(manifestPath = defaultManifestPath) {
   const manifest = readJson(manifestPath);
   if (manifest.status !== "proposal_only_not_approved_for_live_apply") throw new Error("MIGRATION_MANIFEST_STATUS_NOT_PROPOSAL_ONLY");
@@ -76,6 +135,7 @@ export function buildDev046CloudSqlMigrationRunPlan(manifestPath = defaultManife
   const runtimeGrantRefresh = supportFiles.find((file) => file.kind === "runtime_grant_refresh");
   if (!adminBootstrap) throw new Error("MIGRATION_ADMIN_BOOTSTRAP_FILE_MISSING");
   if (!runtimeGrantRefresh) throw new Error("MIGRATION_RUNTIME_GRANT_REFRESH_FILE_MISSING");
+  assertDev046ReplacementVersions(schemaMigrations);
 
   return {
     runnerVersion: DEV046_CLOUDSQL_MIGRATION_RUNNER_VERSION,
@@ -180,12 +240,8 @@ async function executeMigrations(plan) {
     const applied = await client.query("SELECT version, checksum FROM pdm_schema_migrations ORDER BY version");
     const appliedByVersion = new Map(applied.rows.map((row) => [row.version, row.checksum]));
     for (const migration of plan.schemaMigrations) {
-      const existingChecksum = appliedByVersion.get(migration.version);
-      const acceptedExistingChecksums = new Set([migration.outputSha256, ...(migration.acceptedExistingChecksums ?? [])]);
-      if (existingChecksum && !acceptedExistingChecksums.has(existingChecksum)) {
-        throw new Error(`MIGRATION_HISTORY_CHECKSUM_MISMATCH:${migration.version}`);
-      }
-      if (existingChecksum) continue;
+      const ledgerAction = resolveDev046MigrationLedgerAction(migration, appliedByVersion);
+      if (ledgerAction.action === "skip") continue;
       try {
         await client.query(migration.sql);
       } catch (error) {
@@ -193,11 +249,14 @@ async function executeMigrations(plan) {
         throw new Error(`MIGRATION_SQL_FAILED:${migration.version}:${message}`, { cause: error });
       }
       await client.query("INSERT INTO pdm_schema_migrations (version, name, checksum) VALUES ($1, $2, $3)", [
-        migration.version,
-        migration.name,
+        ledgerAction.ledgerVersion,
+        ledgerAction.historyReplacementFor
+          ? `${migration.name}_replacement_${ledgerAction.ledgerVersion}`
+          : migration.name,
         migration.outputSha256
       ]);
-      appliedVersions.push(migration.version);
+      appliedByVersion.set(ledgerAction.ledgerVersion, migration.outputSha256);
+      appliedVersions.push(ledgerAction.ledgerVersion);
     }
     await client.query(plan.runtimeGrantRefresh.sql);
     await client.query("COMMIT");

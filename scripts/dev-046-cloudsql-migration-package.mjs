@@ -275,7 +275,13 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
   const orderedSchemaMigrations = schemaFiles.map((file) => {
     const compatibility = compatibilityByVersion.get(file.version);
     return compatibility
-      ? { ...file, acceptedExistingChecksums: compatibility.acceptedExistingChecksums }
+      ? {
+          ...file,
+          acceptedExistingChecksums: compatibility.acceptedExistingChecksums,
+          ...(compatibility.replacementVersion
+            ? { replacementVersion: compatibility.replacementVersion }
+            : {})
+        }
       : file;
   });
 

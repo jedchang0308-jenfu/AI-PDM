@@ -36,6 +36,11 @@ try {
   const production027Compatibility = manifest.migrationHistoryCompatibility.entries.find(
     (entry) => entry.targetProjectId === "jenfu-ai-pdm-prod" && entry.version === "027"
   );
+  const replacementHistory = new Map(
+    manifest.migrationHistoryCompatibility.entries
+      .filter((entry) => entry.targetProjectId === "jenfu-ai-pdm-prod" && entry.replacementVersion)
+      .map((entry) => [entry.version, entry])
+  );
 
   record("DEV032-CLOUDSQL-MIG-001 package identifies production Gate C", report.dev === "DEV-032" && report.phase === "Gate-C-production-clean-seed-migration");
   record("DEV032-CLOUDSQL-MIG-002 target is dedicated production", report.target.projectId === "jenfu-ai-pdm-prod" && report.target.cloudSqlInstance === "ai-pdm-prod-postgres" && report.target.connectionName === "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres");
@@ -92,6 +97,29 @@ try {
       manifest.orderedSchemaMigrations.find((entry) => entry.version === "027")?.acceptedExistingChecksums?.[0] === production027Compatibility.acceptedExistingChecksums[0] &&
       manifest.orderedSchemaMigrations.some((entry) => entry.version === "044") &&
       manifest.orderedSchemaMigrations.some((entry) => entry.version === "049")
+  );
+  const expectedReplacementHistory = {
+    "048": ["057", "5871eee45fd2e3719900721ccb813ce24d0027b4dfcd79150f2315b872ca99f1"],
+    "049": ["058", "ab45b6ec802dbf9cf74754e2ddcaedbf2e407580c436ce145c395e44e8a3d7ff"],
+    "050": ["059", "2747049f0efbc19896e6bd7184770d4e62b6356cc9d9f10dc68ecb0bb5d516f7"],
+    "051": ["060", "6c344a3345cd4cd6d82f86b34855032af6d8b859a81bc36f70249f113e7faa53"],
+    "052": ["061", "46f2731dbbaff3e8fcead6a9fefd7542c3565ff5a40475c140b3383e3bdcf69e"]
+  };
+  record(
+    "DEV032-CLOUDSQL-MIG-014 reused production slots execute under unique forward replacement versions",
+    replacementHistory.size === 5 &&
+      Object.entries(expectedReplacementHistory).every(([version, [replacementVersion, historicalChecksum]]) => {
+        const compatibility = replacementHistory.get(version);
+        const migration = manifest.orderedSchemaMigrations.find((entry) => entry.version === version);
+        return compatibility?.replacementVersion === replacementVersion &&
+          compatibility.acceptedExistingChecksums?.length === 1 &&
+          compatibility.acceptedExistingChecksums[0] === historicalChecksum &&
+          compatibility.historicalOutputSha256 === historicalChecksum &&
+          migration?.replacementVersion === replacementVersion &&
+          migration.acceptedExistingChecksums?.[0] === historicalChecksum &&
+          migration.outputSha256 !== historicalChecksum;
+      }) &&
+      new Set(Object.values(expectedReplacementHistory).map(([replacementVersion]) => replacementVersion)).size === 5
   );
 } catch (error) {
   record("DEV032-CLOUDSQL-MIG-000 QC execution", false, error instanceof Error ? error.message : String(error));

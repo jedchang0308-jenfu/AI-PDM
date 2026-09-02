@@ -5,7 +5,9 @@ import {
   DEV032_CLOUDSQL_ISOLATED_RESTORE_MODE,
   DEV046_CLOUDSQL_MIGRATION_APPROVAL,
   assertDev046CloudSqlMigrationEnvironment,
-  buildDev046CloudSqlMigrationRunPlan
+  assertDev046ReplacementVersions,
+  buildDev046CloudSqlMigrationRunPlan,
+  resolveDev046MigrationLedgerAction
 } from "./run-dev-046-cloudsql-migrations.mjs";
 import { readProjectFile } from "./qc-project-file-utils.mjs";
 
@@ -158,6 +160,54 @@ try {
     ].every((env) => {
       try {
         assertDev046CloudSqlMigrationEnvironment(productionPlan, env);
+        return false;
+      } catch {
+        return true;
+      }
+    })
+  );
+  const historical048 = productionPlan.schemaMigrations.find((migration) => migration.version === "048");
+  const replacement048 = new Map([
+    ["048", historical048.acceptedExistingChecksums[0]]
+  ]);
+  const firstReplacement = resolveDev046MigrationLedgerAction(historical048, replacement048);
+  replacement048.set(firstReplacement.ledgerVersion, historical048.outputSha256);
+  const repeatedReplacement = resolveDev046MigrationLedgerAction(historical048, replacement048);
+  const fresh048 = resolveDev046MigrationLedgerAction(historical048, new Map());
+  const current048 = resolveDev046MigrationLedgerAction(
+    historical048,
+    new Map([["048", historical048.outputSha256]])
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-013 historical slot replacement runs once in source order without ledger rewrite",
+    firstReplacement.action === "apply" &&
+      firstReplacement.ledgerVersion === "057" &&
+      firstReplacement.historyReplacementFor === "048" &&
+      repeatedReplacement.action === "skip" &&
+      repeatedReplacement.ledgerVersion === "057" &&
+      fresh048.action === "apply" &&
+      fresh048.ledgerVersion === "048" &&
+      current048.action === "skip" &&
+      current048.ledgerVersion === "048"
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-014 replacement versions and checksums fail closed",
+    [
+      () => resolveDev046MigrationLedgerAction(historical048, new Map([["048", "f".repeat(64)]])),
+      () => resolveDev046MigrationLedgerAction(
+        historical048,
+        new Map([
+          ["048", historical048.acceptedExistingChecksums[0]],
+          ["057", "e".repeat(64)]
+        ])
+      ),
+      () => assertDev046ReplacementVersions([
+        historical048,
+        { ...productionPlan.schemaMigrations.find((migration) => migration.version === "049"), replacementVersion: "057" }
+      ])
+    ].every((operation) => {
+      try {
+        operation();
         return false;
       } catch {
         return true;
