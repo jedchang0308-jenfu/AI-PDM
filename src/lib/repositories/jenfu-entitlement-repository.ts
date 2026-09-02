@@ -67,10 +67,15 @@ export type JenfuEnforcedPermissionInput = {
   projectCode?: string | null;
 };
 
-const catalog = roleCatalog as unknown as { roles: JenfuApplicationRole[] };
+export type JenfuEntitlementRoleCatalog = { roles: JenfuApplicationRole[] };
+
+const catalog = roleCatalog as unknown as JenfuEntitlementRoleCatalog;
 
 export class JenfuEntitlementRepository {
-  constructor(private readonly client: AsyncDatabaseClient) {}
+  constructor(
+    private readonly client: AsyncDatabaseClient,
+    private readonly activeCatalog: JenfuEntitlementRoleCatalog = catalog
+  ) {}
 
   async resolveAuthority(input: { employeeId: string; applicationId?: string }): Promise<JenfuEntitlementAuthority> {
     if (this.client.kind !== "postgres") throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
@@ -88,7 +93,8 @@ export class JenfuEntitlementRepository {
     } catch {
       throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
     }
-    if (rows.length !== 1) throw new JenfuEntitlementRepositoryError("entitlement_authority_unknown");
+    if (rows.length === 0) throw new JenfuEntitlementRepositoryError("entitlement_authority_unknown");
+    if (rows.length > 1) throw new JenfuEntitlementRepositoryError("entitlement_dual_authority_detected");
     const row = rows[0];
     if (row.contract_version !== JENFU_ENTITLEMENT_CONTRACT_VERSION || row.application_id !== applicationId || !["legacy_authority", "orgmaster_authority"].includes(row.authority_source) || !Number.isSafeInteger(Number(row.authority_version)) || Number(row.authority_version) < 1 || !Number.isFinite(Date.parse(row.updated_at))) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     return {
@@ -177,9 +183,24 @@ export class JenfuEntitlementRepository {
     let permissionCandidate = false;
     const evaluatedRoles: string[] = [];
     for (const assignment of assignments) {
-      const role = catalog.roles.find((candidate) => candidate.stableRoleId === assignment.stableRoleId);
+      const role = this.activeCatalog.roles.find((candidate) => candidate.stableRoleId === assignment.stableRoleId);
       if (!role) throw new JenfuEntitlementRepositoryError("entitlement_role_inactive");
-      if (role.roleCode !== assignment.roleCode || !role.assignable || !role.allowedScopeKinds.includes(assignment.scopeKind)) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+      const privilegedPolicyMatches = assignment.stableRoleId !== "role-system-admin"
+        || (
+          role.roleCode === "system_admin"
+          && role.risk === "critical"
+          && role.subjectKind === "principal"
+          && role.assignmentTier === "cross_app_override"
+          && role.recommendationAllowed === false
+          && role.delegationAllowed === false
+          && assignment.subjectKind === "principal"
+          && assignment.targetPrincipalId === input.actor.principalId
+          && assignment.scopeKind === "global"
+          && assignment.scopeKey === null
+          && assignment.grantKind === "direct"
+          && assignment.delegationId === null
+        );
+      if (role.roleCode !== assignment.roleCode || role.subjectKind !== assignment.subjectKind || !role.assignable || !role.allowedScopeKinds.includes(assignment.scopeKind) || !privilegedPolicyMatches) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
       const validationIssues = validateEffectiveRoleAssignment(assignment, input.actor);
       if (validationIssues.length) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
       if (!evaluatedRoles.includes(assignment.roleCode)) evaluatedRoles.push(assignment.roleCode);

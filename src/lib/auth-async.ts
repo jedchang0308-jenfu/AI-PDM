@@ -6,6 +6,7 @@ import type { DbUser } from "@/lib/db";
 import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
 import { getJenfuEntitlementMode } from "@/lib/entitlement-config";
 import { resolveJenfuRouteAuthorization } from "@/lib/jenfu-route-permission-map";
+import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
 import {
   JenfuPlatformAuthError,
@@ -273,6 +274,6 @@ export async function requirePdmRouteAuthorizationAsync(
     workspaceCode: options.workspaceCode ?? auth.user.company_id,
     projectCode: options.projectCode ?? requestProjectCode(request)
   });
-  if (!permission.allowed) return { user: auth.user, response: forbidden() };
+  if (!permission.allowed) return { user: auth.user, response: jenfuEntitlementFailureResponse(permission.decisionCode) };
   return { user: auth.user, response: null, authorizationRoleCode: permission.roleCode };
 }

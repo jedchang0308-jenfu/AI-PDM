@@ -1,0 +1,23 @@
+{
+  "contractVersion": "orgmaster.privileged-assignment-operation.v1",
+  "phase": "preview",
+  "operation": "grant_system_admin",
+  "applicationId": "ai-pdm",
+  "stableRoleId": "role-system-admin",
+  "payload": { "employeeId": "employee-fixture-b", "principalAdmissionId": "admission-privileged-b" },
+  "expected": {
+    "catalogVersion": "ai-pdm.role-catalog.2026-09-02.v2",
+    "catalogPayloadHash": "ebdaa2960960e0683b480c721d2c27df59031b4af23b124f2ac7e882309f6b6e",
+    "governanceRevision": "fixture-governance-current",
+    "organizationRevision": "fixture-organization-revision-current"
+  },
+  "reason": "授予測試特權身分",
+  "preview": {
+    "previewHash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "beforeHolderCount": 1,
+    "afterHolderCount": 2,
+    "targetHint": "privileged•••B4",
+    "affectedSessionCount": 1,
+    "securityAlertRequired": true
+  }
+}

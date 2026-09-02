@@ -1,0 +1,16 @@
+{
+  "contractVersion": "orgmaster.governance-command-receipt.v2",
+  "commandId": "fixture-grant-applied",
+  "requestHash": "3333333333333333333333333333333333333333333333333333333333333333",
+  "previewHash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "receiptStatus": "applied",
+  "acceptedAt": "2026-09-02T00:06:00.000Z",
+  "terminalAt": "2026-09-02T00:06:01.000Z",
+  "decisionCode": "COMMAND_APPLIED",
+  "auditReference": "audit-grant-system-admin-2",
+  "securityAlertReference": "security-alert-grant-system-admin-2",
+  "sessionRefresh": "completed",
+  "governanceRevision": "fixture-governance-after-grant",
+  "replayed": false,
+  "attempt": 1
+}

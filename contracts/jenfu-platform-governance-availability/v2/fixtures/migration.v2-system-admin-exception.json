@@ -1,0 +1,16 @@
+{
+  "contractVersion": "jenfu.platform-governance-availability.v2",
+  "sourceSchemaVersion": 2,
+  "sourceAssignment": {
+    "id": "legacy-v2-system-admin",
+    "employeeId": "employee-fixture-a",
+    "applicationId": "ai-pdm",
+    "roleId": "role-system-admin",
+    "roleCodeSnapshot": "system_admin",
+    "scope": { "kind": "global" }
+  },
+  "disposition": "exception",
+  "exceptionCode": "SYSTEM_ADMIN_PRINCIPAL_REQUIRED",
+  "targetPrincipalInferred": false,
+  "effectiveRowCount": 0
+}

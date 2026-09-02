@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Check, LoaderCircle, RefreshCw, Save, Settings2, ShieldAlert, X } from 'lucide-react'
-import type { RoleCapabilityEmployee, RoleCapabilityMutationResponse, RoleCapabilityPosition, RoleCapabilityWorkspaceV2 } from '@/lib/ai-pdm-role-capability-contract'
+import type { RoleCapabilityEmployee, RoleCapabilityMutationResponse, RoleCapabilityPosition, RoleCapabilityWorkspaceV2, RoleCapabilityWorkspaceV3 } from '@/lib/ai-pdm-role-capability-contract'
 import { sha256CanonicalJson } from '@/lib/role-capability-canonical-json'
 import { resolveRoleCapabilityCommandUnknown } from '@/lib/repositories/ai-pdm-role-capability-repository'
 
 type Feedback = { type: 'error' | 'success'; text: string }
+type RoleCapabilityWorkspace = RoleCapabilityWorkspaceV2 | RoleCapabilityWorkspaceV3
+type RoleCapabilityRole = RoleCapabilityWorkspace['roles'][number]
 type ReviewDraft =
   | { type: 'position'; adoptedPositionIds: string[] }
   | { type: 'sources'; changes: Array<{ employeeId: string; positionId: string; selected: boolean }> }
@@ -25,18 +27,29 @@ function displayDate(value: string | null) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('zh-TW')
 }
 
-function holderCount(view: RoleCapabilityWorkspaceV2['roles'][number]) {
+function isPrivilegedWorkspace(view: RoleCapabilityWorkspace | null): view is RoleCapabilityWorkspaceV3 {
+  return view?.contractVersion === 'ai-pdm.role-capability-workspace.v3'
+}
+
+function isPrivilegedRole(view: RoleCapabilityRole): view is RoleCapabilityWorkspaceV3['roles'][number] {
+  return 'managementKind' in view && view.managementKind === 'privileged_principal'
+}
+
+function holderCount(view: RoleCapabilityRole) {
+  if (isPrivilegedRole(view)) return view.effectiveHolderCount
   return new Set(view.projection.positions.flatMap((position) => position.employees.filter((employee) => employee.effectiveHolder).map((employee) => employee.employeeId))).size
 }
 
-function adoptionSummary(view: RoleCapabilityWorkspaceV2['roles'][number]) {
+function adoptionSummary(view: RoleCapabilityRole) {
+  if (isPrivilegedRole(view)) return view.holderCountLabel
   const positions = view.projection.positions.filter((position) => position.adopted)
   if (!positions.length) return '尚未採用職位'
   return `${positions.length} 個職位`
 }
 
 export function RoleCapabilitySettings() {
-  const [view, setView] = useState<RoleCapabilityWorkspaceV2 | null>(null)
+  const [view, setView] = useState<RoleCapabilityWorkspace | null>(null)
+  const [roleOptions, setRoleOptions] = useState<RoleCapabilityWorkspaceV2['roles']>([])
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null)
@@ -47,14 +60,23 @@ export function RoleCapabilitySettings() {
   const [saving, setSaving] = useState(false)
   const [pendingCommand, setPendingCommand] = useState<{ commandId: string; requestHash: string } | null>(null)
 
-  async function load() {
+  async function load(roleId?: string) {
     setLoading(true)
     setFeedback(null)
     try {
-      const response = await fetch('/api/settings/access/role-capabilities', { cache: 'no-store' })
-      const body = await response.json().catch(() => ({})) as RoleCapabilityWorkspaceV2 & { error?: string }
+      const query = roleId ? `?stableRoleId=${encodeURIComponent(roleId)}` : ''
+      const response = await fetch(`/api/settings/access/role-capabilities${query}`, { cache: 'no-store' })
+      const body = await response.json().catch(() => ({})) as RoleCapabilityWorkspace & { error?: string }
       if (!response.ok) { if (body.contractVersion && body.dataState) setView(body); throw new Error(body.error ?? '角色能力讀取失敗') }
       setView(body)
+      if (body.contractVersion === 'ai-pdm.role-capability-workspace.v2') {
+        setRoleOptions((current) => {
+          if (!roleId) return body.roles
+          const next = new Map(current.map((role) => [role.catalogRole.stableRoleId, role]))
+          for (const role of body.roles) next.set(role.catalogRole.stableRoleId, role)
+          return [...next.values()]
+        })
+      }
       setSelectedRoleId((current) => current && body.roles.some((role) => role.catalogRole.stableRoleId === current) ? current : body.roles[0]?.catalogRole.stableRoleId ?? null)
       setSourceDraft({})
     } catch (error) {
@@ -75,10 +97,12 @@ export function RoleCapabilitySettings() {
     void load()
   }, [])
 
-  const selected = view?.roles.find((role) => role.catalogRole.stableRoleId === selectedRoleId) ?? view?.roles[0] ?? null
+  const selected = isPrivilegedWorkspace(view)
+    ? view.roles[0] ?? null
+    : view?.roles.find((role) => role.catalogRole.stableRoleId === selectedRoleId) ?? view?.roles[0] ?? null
   const selectedRoleIdResolved = selected?.catalogRole.stableRoleId ?? null
   const sourceChanges = useMemo(() => {
-    if (!selected) return []
+    if (!selected || isPrivilegedRole(selected)) return []
     return selected.projection.positions.flatMap((position) => position.employees.map((employee) => {
       const key = sourceKey(position.positionId, employee.employeeId)
       const next = sourceDraft[key]
@@ -86,16 +110,20 @@ export function RoleCapabilitySettings() {
     }).filter((change): change is { employeeId: string; positionId: string; selected: boolean } => change !== null))
   }, [selected, sourceDraft])
 
-  function selectRole(roleId: string) {
+  async function selectRole(roleId: string) {
     if (roleId === selectedRoleIdResolved) return
     if (sourceChanges.length > 0 && !window.confirm('目前有人員來源尚未發布，切換角色會捨棄這些變更。要繼續嗎？')) return
     setSourceDraft({})
     setReviewDraft(null)
     setSelectedRoleId(roleId)
+    if (roleId === 'role-system-admin' || isPrivilegedWorkspace(view)) {
+      setView(null)
+      await load(roleId)
+    }
   }
 
   function openPositionSettings() {
-    if (!selected) return
+    if (!selected || isPrivilegedRole(selected)) return
     const initial = selected.projection.adoptionState === 'uninitialized'
       ? selected.projection.positions.filter((position) => position.recommended).map((position) => position.positionId)
       : selected.projection.positions.filter((position) => position.adopted).map((position) => position.positionId)
@@ -104,13 +132,13 @@ export function RoleCapabilitySettings() {
   }
 
   function positionDraftChanged() {
-    if (!selected) return false
+    if (!selected || isPrivilegedRole(selected)) return false
     const baseline = selected.projection.positions.filter((position) => position.adopted).map((position) => position.positionId).sort()
     return JSON.stringify([...positionDraft].sort()) !== JSON.stringify(baseline) || selected.projection.adoptionState === 'uninitialized'
   }
 
   async function publishReview(reason: string) {
-    if (!selected || !reviewDraft || !view?.mutationAllowed) return
+    if (!selected || isPrivilegedRole(selected) || !reviewDraft || !view || isPrivilegedWorkspace(view) || !view.mutationAllowed) return
     setSaving(true)
     setFeedback(null)
     try {
@@ -158,8 +186,14 @@ export function RoleCapabilitySettings() {
     return <section className="access-governance-state is-error" data-testid="role-capability-error"><ShieldAlert size={20} />{feedback?.text ?? view?.dependency.decisionCode ?? '角色能力目前無法使用'}<button className="secondary-button" type="button" onClick={() => void load()}><RefreshCw size={16} />重試</button></section>
   }
 
-  const adoptedPositions = selected.projection.positions.filter((position) => position.adopted)
-  const canSetPositions = view.mutationAllowed && selected.catalogRole.recommendationAllowed && selected.projection.positions.length > 0
+  const privileged = isPrivilegedWorkspace(view)
+  const ordinarySelected = selected && !isPrivilegedRole(selected) ? selected : null
+  const adoptedPositions = ordinarySelected?.projection.positions.filter((position) => position.adopted) ?? []
+  const canSetPositions = !privileged && !!ordinarySelected && view.mutationAllowed && ordinarySelected.catalogRole.recommendationAllowed && ordinarySelected.projection.positions.length > 0
+  const navigationRoles: RoleCapabilityRole[] = roleOptions.length > 0 ? roleOptions : (view?.roles ?? [])
+  const roleHeaderSummary = isPrivilegedRole(selected)
+    ? `風險：${selected.catalogRole.riskLevel}・${selected.holderCountLabel}`
+    : `風險：${selected.catalogRole.risk}・目前持有人 ${holderCount(selected)} 人`
 
   return (
     <section className="access-governance-page" data-testid="role-capability-page">
@@ -173,12 +207,14 @@ export function RoleCapabilitySettings() {
             <button className="icon-button" type="button" aria-label="重新載入角色能力" title="重新載入" onClick={() => void load()} disabled={loading}><RefreshCw size={17} /></button>
           </div>
           <div className="access-role-list">
-            {view.roles.map((role) => (
-              <button key={role.catalogRole.stableRoleId} className={`access-role-nav-item${role.catalogRole.stableRoleId === selectedRoleIdResolved ? ' is-selected' : ''}`} type="button" onClick={() => selectRole(role.catalogRole.stableRoleId)}>
-                <span><strong>{role.catalogRole.displayName}</strong><small>{adoptionSummary(role)}</small></span>
-                <span className="access-role-count">{holderCount(role)}</span>
+            {navigationRoles.map((role) => {
+              const currentRole = privileged && role.catalogRole.stableRoleId === 'role-system-admin' && selected ? selected : role
+              const navigationSummary = privileged && !isPrivilegedRole(currentRole) ? '一般角色' : adoptionSummary(currentRole)
+              return <button key={role.catalogRole.stableRoleId} className={`access-role-nav-item${role.catalogRole.stableRoleId === selectedRoleIdResolved ? ' is-selected' : ''}`} type="button" onClick={() => void selectRole(role.catalogRole.stableRoleId)}>
+                <span><strong>{currentRole.catalogRole.displayName}</strong><small>{navigationSummary}</small></span>
+                <span className="access-role-count">{holderCount(currentRole)}</span>
               </button>
-            ))}
+            })}
           </div>
         </aside>
 
@@ -187,32 +223,50 @@ export function RoleCapabilitySettings() {
             <div>
               <span className="access-eyebrow">{selected.catalogRole.roleCode}</span>
               <h2>{selected.catalogRole.displayName}</h2>
-              <p>風險：{selected.catalogRole.risk}・目前持有人 {holderCount(selected)} 人</p>
+              <p>{roleHeaderSummary}</p>
             </div>
             {canSetPositions ? <button className="primary-button" type="button" onClick={openPositionSettings}><Settings2 size={16} />職位設定</button> : null}
           </header>
 
           {feedback ? <div className={`access-feedback is-${feedback.type}`} role="status">{feedback.text}</div> : null}
-          {view.dataState === 'stale_snapshot' ? <div className="access-feedback is-error" role="status">OrgMaster 暫時離線；目前顯示最後成功快照（資料時間：{view.sourceDataAt ?? '未知'}、快照時間：{view.snapshotStoredAt ?? '未知'}）。目前為唯讀，請恢復連線後重新載入。</div> : null}
-
-          <div className="access-position-list" aria-label="已採用職位與人員">
-            {adoptedPositions.length === 0 ? (
-              <div className="access-empty"><Settings2 size={20} /><p>尚未採用職位</p>{canSetPositions ? <button className="secondary-button" type="button" onClick={openPositionSettings}>開啟職位設定</button> : null}</div>
-            ) : adoptedPositions.map((position) => (
-              <PositionCapabilityRow key={position.positionId} position={position} sourceDraft={sourceDraft} disabled={!view.mutationAllowed} onSourceChange={(employee, checked) => setSourceDraft((current) => ({ ...current, [sourceKey(position.positionId, employee.employeeId)]: checked }))} />
-            ))}
-          </div>
-
-          {sourceChanges.length > 0 ? <div className="access-action-bar"><span>{sourceChanges.length} 項人員來源變更</span><button className="primary-button" type="button" disabled={!view.mutationAllowed} onClick={() => setReviewDraft({ type: 'sources', changes: sourceChanges })}>儲存人員來源<Save size={16} /></button></div> : null}
+          {privileged ? <PrivilegedRoleCapabilityContent view={view} /> : <>
+            {view.dataState === 'stale_snapshot' ? <div className="access-feedback is-error" role="status">OrgMaster 暫時離線；目前顯示最後成功快照（資料時間：{view.sourceDataAt ?? '未知'}、快照時間：{view.snapshotStoredAt ?? '未知'}）。目前為唯讀，請恢復連線後重新載入。</div> : null}
+            <div className="access-position-list" aria-label="已採用職位與人員">
+              {adoptedPositions.length === 0 ? (
+                <div className="access-empty"><Settings2 size={20} /><p>尚未採用職位</p>{canSetPositions ? <button className="secondary-button" type="button" onClick={openPositionSettings}>開啟職位設定</button> : null}</div>
+              ) : adoptedPositions.map((position) => (
+                <PositionCapabilityRow key={position.positionId} position={position} sourceDraft={sourceDraft} disabled={!view.mutationAllowed} onSourceChange={(employee, checked) => setSourceDraft((current) => ({ ...current, [sourceKey(position.positionId, employee.employeeId)]: checked }))} />
+              ))}
+            </div>
+            {sourceChanges.length > 0 ? <div className="access-action-bar"><span>{sourceChanges.length} 項人員來源變更</span><button className="primary-button" type="button" disabled={!view.mutationAllowed} onClick={() => setReviewDraft({ type: 'sources', changes: sourceChanges })}>儲存人員來源<Save size={16} /></button></div> : null}
+          </>}
           <div className="access-sync-meta">OrgMaster projection cursor {view.projectionCursor}・組織版本 {view.organizationVersionId}・資料時間 {view.sourceDataAt ?? '未知'}</div>
-          {pendingCommand ? <div className="access-feedback is-error" role="alert">發布結果尚未確認（commandId {pendingCommand.commandId}）。<button className="secondary-button" type="button" onClick={async () => { try { const receipt = await resolveRoleCapabilityCommandUnknown(pendingCommand.commandId, pendingCommand.requestHash); setPendingCommand(null); try { window.sessionStorage.removeItem('ai-pdm-role-capability-pending-command') } catch { /* best effort */ } setFeedback({ type: 'success', text: `已確認命令結果：${String((receipt as { decisionCode?: string }).decisionCode ?? (receipt as { receiptStatus?: string }).receiptStatus)}` }) } catch (error) { setFeedback({ type: 'error', text: error instanceof Error ? error.message : '命令結果仍未確認' }) } }}>確認結果</button></div> : null}
+          {!privileged && pendingCommand ? <div className="access-feedback is-error" role="alert">發布結果尚未確認（commandId {pendingCommand.commandId}）。<button className="secondary-button" type="button" onClick={async () => { try { const receipt = await resolveRoleCapabilityCommandUnknown(pendingCommand.commandId, pendingCommand.requestHash); setPendingCommand(null); try { window.sessionStorage.removeItem('ai-pdm-role-capability-pending-command') } catch { /* best effort */ } setFeedback({ type: 'success', text: `已確認命令結果：${String((receipt as { decisionCode?: string }).decisionCode ?? (receipt as { receiptStatus?: string }).receiptStatus)}` }) } catch (error) { setFeedback({ type: 'error', text: error instanceof Error ? error.message : '命令結果仍未確認' }) } }}>確認結果</button></div> : null}
         </section>
       </div>
 
-      {positionDialogOpen ? <PositionSettingsDialog positions={selected.projection.positions} selectedPositionIds={positionDraft} onToggle={(positionId, checked) => setPositionDraft((current) => checked ? [...new Set([...current, positionId])] : current.filter((id) => id !== positionId))} onClose={() => setPositionDialogOpen(false)} onSave={() => { setPositionDialogOpen(false); setReviewDraft({ type: 'position', adoptedPositionIds: positionDraft }) }} saveDisabled={!positionDraftChanged()} /> : null}
-      {reviewDraft ? <RoleChangeReviewDialog selected={selected} draft={reviewDraft} saving={saving} onClose={() => setReviewDraft(null)} onPublish={publishReview} /> : null}
+      {positionDialogOpen && ordinarySelected ? <PositionSettingsDialog positions={ordinarySelected.projection.positions} selectedPositionIds={positionDraft} onToggle={(positionId, checked) => setPositionDraft((current) => checked ? [...new Set([...current, positionId])] : current.filter((id) => id !== positionId))} onClose={() => setPositionDialogOpen(false)} onSave={() => { setPositionDialogOpen(false); setReviewDraft({ type: 'position', adoptedPositionIds: positionDraft }) }} saveDisabled={!positionDraftChanged()} /> : null}
+      {reviewDraft && ordinarySelected ? <RoleChangeReviewDialog selected={ordinarySelected} draft={reviewDraft} saving={saving} onClose={() => setReviewDraft(null)} onPublish={publishReview} /> : null}
     </section>
   )
+}
+
+function PrivilegedRoleCapabilityContent({ view }: { view: RoleCapabilityWorkspaceV3 }) {
+  const activeAssignments = view.roles[0]?.manualAssignments.filter((assignment) => assignment.status === 'active') ?? []
+  return <section className="access-privileged-role" data-testid="privileged-role-capability">
+    <div className="access-privileged-summary">
+      <span className="access-eyebrow">OrgMaster governance</span>
+      <h3>由 OrgMaster 管理</h3>
+      <p>此角色不使用職位，只能指派給已准入的個人特權身分。</p>
+      {view.managementSurface?.href ? <a className="primary-button" href={view.managementSurface.href}>前往 OrgMaster 角色指派</a> : <p className="access-muted">請從 OrgMaster 開啟角色治理 → 角色指派，選擇 AI-PDM／系統管理員。</p>}
+    </div>
+    {view.dataState === 'stale_snapshot' ? <div className="access-feedback is-error" role="status">OrgMaster 離線；目前顯示最後成功快照（資料時間：{view.sourceDataAt ?? '未知'}）。目前僅可查看，無法修改。</div> : null}
+    {view.dataState === 'unavailable' ? <div className="access-feedback is-error" role="status">OrgMaster 目前無法使用；本頁不提供特權身分修改，也不以快照授權。</div> : null}
+    <section className="access-privileged-holders" aria-label="目前特權身分">
+      <header><div><span className="access-eyebrow">Current holders</span><h3>目前特權身分</h3></div><strong>{view.roles[0]?.holderCountLabel ?? '特權身分 0 個'}</strong></header>
+      {activeAssignments.length === 0 ? <p className="access-muted">目前沒有已發布的特權身分。</p> : <ul>{activeAssignments.map((assignment) => <li key={assignment.assignmentId}><span><strong>員工 {assignment.employeeId}</strong><small>{assignment.principalHint}</small></span><small>資料參考：{assignment.auditReference}</small></li>)}</ul>}
+    </section>
+  </section>
 }
 
 function PositionCapabilityRow({ position, sourceDraft, disabled, onSourceChange }: { position: RoleCapabilityPosition; sourceDraft: Record<string, boolean>; disabled: boolean; onSourceChange: (employee: RoleCapabilityEmployee, checked: boolean) => void }) {

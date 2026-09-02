@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jenfu://platform/governance-availability/v2/privileged-assignment-workspace",
+  "type": "object",
+  "required": ["contractVersion", "applicationId", "stableRoleId", "catalogVersion", "catalogPayloadHash", "governanceRevision", "organizationVersionId", "organizationRevision", "sourceDataAt", "mutationAllowed", "blockers", "role", "eligiblePrincipals", "assignments"],
+  "properties": {
+    "contractVersion": { "const": "orgmaster.privileged-assignment-workspace.v1" },
+    "applicationId": { "const": "ai-pdm" },
+    "stableRoleId": { "const": "role-system-admin" },
+    "catalogVersion": { "type": "string", "minLength": 1 },
+    "catalogPayloadHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "governanceRevision": { "type": "string", "minLength": 1 },
+    "organizationVersionId": { "type": "string", "minLength": 1 },
+    "organizationRevision": { "type": "string", "minLength": 1 },
+    "sourceDataAt": { "type": "string", "format": "date-time" },
+    "mutationAllowed": { "type": "boolean" },
+    "blockers": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "role": { "$ref": "#/$defs/systemAdminRole" },
+    "eligiblePrincipals": { "type": "array", "items": { "$ref": "#/$defs/eligiblePrincipal" } },
+    "assignments": { "type": "array", "items": { "$ref": "#/$defs/assignment" } }
+  },
+  "$defs": {
+    "systemAdminRole": {
+      "type": "object",
+      "required": ["stableRoleId", "roleCode", "displayName", "status", "assignable", "riskLevel", "subjectKind", "assignmentTier", "recommendationAllowed", "delegationAllowed", "allowedScopeKinds"],
+      "properties": {
+        "stableRoleId": { "const": "role-system-admin" },
+        "roleCode": { "const": "system_admin" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "status": { "const": "active" },
+        "assignable": { "const": true },
+        "riskLevel": { "const": "critical" },
+        "subjectKind": { "const": "principal" },
+        "assignmentTier": { "const": "cross_app_override" },
+        "recommendationAllowed": { "const": false },
+        "delegationAllowed": { "const": false },
+        "allowedScopeKinds": { "const": ["global"] }
+      },
+      "additionalProperties": false
+    },
+    "eligiblePrincipal": {
+      "type": "object",
+      "required": ["employeeId", "principalAdmissionId", "principalHint", "accountType", "status"],
+      "properties": {
+        "employeeId": { "type": "string", "minLength": 1 },
+        "principalAdmissionId": { "type": "string", "minLength": 1 },
+        "principalHint": { "type": "string", "minLength": 1 },
+        "accountType": { "const": "human_privileged" },
+        "status": { "const": "active" }
+      },
+      "additionalProperties": false
+    },
+    "assignment": {
+      "type": "object",
+      "required": ["assignmentId", "employeeId", "principalAdmissionId", "principalHint", "status", "validFrom", "validTo", "auditReference"],
+      "properties": {
+        "assignmentId": { "type": "string", "minLength": 1 },
+        "employeeId": { "type": "string", "minLength": 1 },
+        "principalAdmissionId": { "type": "string", "minLength": 1 },
+        "principalHint": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["active", "revoked"] },
+        "validFrom": { "type": "string", "format": "date-time" },
+        "validTo": { "type": ["string", "null"], "format": "date-time" },
+        "auditReference": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

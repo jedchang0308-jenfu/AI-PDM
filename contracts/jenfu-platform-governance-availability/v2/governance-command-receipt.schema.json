@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jenfu://platform/governance-availability/v2/governance-command-receipt",
+  "type": "object",
+  "required": ["contractVersion", "commandId", "requestHash", "previewHash", "receiptStatus", "acceptedAt", "terminalAt", "decisionCode", "auditReference", "securityAlertReference", "sessionRefresh", "governanceRevision", "replayed", "attempt"],
+  "properties": {
+    "contractVersion": { "const": "orgmaster.governance-command-receipt.v2" },
+    "commandId": { "type": "string", "minLength": 1 },
+    "requestHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "previewHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "receiptStatus": { "enum": ["processing", "applied", "rejected", "not_found"] },
+    "acceptedAt": { "type": ["string", "null"], "format": "date-time" },
+    "terminalAt": { "type": ["string", "null"], "format": "date-time" },
+    "decisionCode": { "type": ["string", "null"] },
+    "auditReference": { "type": ["string", "null"] },
+    "securityAlertReference": { "type": ["string", "null"] },
+    "sessionRefresh": { "enum": ["completed", "pending"] },
+    "governanceRevision": { "type": "string", "minLength": 1 },
+    "replayed": { "type": "boolean" },
+    "attempt": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

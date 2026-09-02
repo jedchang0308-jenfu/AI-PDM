@@ -1,0 +1,16 @@
+{
+  "contractVersion": "orgmaster.governance-command-receipt.v2",
+  "commandId": "fixture-revoke-applied",
+  "requestHash": "4444444444444444444444444444444444444444444444444444444444444444",
+  "previewHash": "2222222222222222222222222222222222222222222222222222222222222222",
+  "receiptStatus": "applied",
+  "acceptedAt": "2026-09-02T00:07:00.000Z",
+  "terminalAt": "2026-09-02T00:07:01.000Z",
+  "decisionCode": "COMMAND_APPLIED",
+  "auditReference": "audit-revoke-system-admin-1",
+  "securityAlertReference": "security-alert-revoke-system-admin-1",
+  "sessionRefresh": "pending",
+  "governanceRevision": "fixture-governance-after-revoke",
+  "replayed": false,
+  "attempt": 1
+}

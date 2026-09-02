@@ -5,6 +5,9 @@ import { defineConfig } from 'vitest/config'
 const projectRoot = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
+  test: {
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.worktrees/**'],
+  },
   resolve: {
     alias: {
       '@': path.join(projectRoot, 'src'),

@@ -48,6 +48,55 @@ export async function getRoleCapabilityWorkspace() {
   return readJson<RoleCapabilityWorkspaceV2>(`${orgMasterBaseUrl()}/api/orgmaster/governance/applications/ai-pdm/role-capabilities`)
 }
 
+export type PrivilegedAssignmentWorkspaceSource = {
+  contractVersion: 'orgmaster.privileged-assignment-workspace.v1'
+  applicationId: 'ai-pdm'
+  stableRoleId: 'role-system-admin'
+  catalogVersion: string
+  catalogPayloadHash: string
+  governanceRevision: string
+  organizationVersionId: string
+  organizationRevision: string
+  sourceDataAt: string
+  mutationAllowed: boolean
+  blockers: string[]
+  role: {
+    stableRoleId: 'role-system-admin'
+    roleCode: 'system_admin'
+    displayName: string
+    status: 'active'
+    assignable: true
+    riskLevel: 'critical'
+    subjectKind: 'principal'
+    assignmentTier: 'cross_app_override'
+    recommendationAllowed: false
+    delegationAllowed: false
+    allowedScopeKinds: ['global']
+  } | null
+  eligiblePrincipals: Array<{
+    employeeId: string
+    principalAdmissionId: string
+    principalHint: string
+    accountType: 'human_privileged'
+    status: 'active'
+  }>
+  assignments: Array<{
+    assignmentId: string
+    employeeId: string
+    principalAdmissionId: string
+    principalHint: string
+    status: 'active' | 'revoked'
+    validFrom: string
+    validTo: string | null
+    auditReference: string
+  }>
+}
+
+export async function getPrivilegedAssignmentWorkspace() {
+  const params = new URLSearchParams({ applicationId: 'ai-pdm', stableRoleId: 'role-system-admin' })
+  return readJson<PrivilegedAssignmentWorkspaceSource>(`${orgMasterBaseUrl()}/api/orgmaster/governance/privileged-assignments?${params.toString()}`)
+}
+
 export async function getRoleCapabilityProjection(stableRoleId: string) {
   return readJson<RoleCapabilityProjection>(`${orgMasterBaseUrl()}/api/orgmaster/governance/applications/ai-pdm/role-capabilities/${encodeURIComponent(stableRoleId)}`)
 }

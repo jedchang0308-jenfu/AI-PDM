@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jenfu://platform/governance-availability/v2/privileged-assignment-operation",
+  "type": "object",
+  "required": ["contractVersion", "phase", "operation", "applicationId", "stableRoleId", "payload", "expected", "reason"],
+  "properties": {
+    "contractVersion": { "const": "orgmaster.privileged-assignment-operation.v1" },
+    "phase": { "enum": ["preview", "publish"] },
+    "operation": { "enum": ["grant_system_admin", "revoke_system_admin"] },
+    "applicationId": { "const": "ai-pdm" },
+    "stableRoleId": { "const": "role-system-admin" },
+    "payload": { "type": "object" },
+    "expected": { "$ref": "#/$defs/expected" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "commandId": { "type": "string", "minLength": 1 },
+    "requestHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "preview": {
+      "oneOf": [
+        { "$ref": "#/$defs/previewResponse" },
+        { "$ref": "#/$defs/previewReference" }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "operation": { "const": "grant_system_admin" } }, "required": ["operation"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/grantPayload" } } }
+    },
+    {
+      "if": { "properties": { "operation": { "const": "revoke_system_admin" } }, "required": ["operation"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/revokePayload" } } }
+    }
+  ],
+  "oneOf": [
+    {
+      "title": "Preview request",
+      "properties": { "phase": { "const": "preview" } },
+      "not": {
+        "anyOf": [
+          { "required": ["commandId"] },
+          { "required": ["requestHash"] },
+          { "required": ["preview"] }
+        ]
+      }
+    },
+    {
+      "title": "Preview response",
+      "properties": {
+        "phase": { "const": "preview" },
+        "preview": { "$ref": "#/$defs/previewResponse" }
+      },
+      "required": ["preview"],
+      "not": {
+        "anyOf": [
+          { "required": ["commandId"] },
+          { "required": ["requestHash"] }
+        ]
+      }
+    },
+    {
+      "title": "Publish request",
+      "properties": {
+        "phase": { "const": "publish" },
+        "preview": { "$ref": "#/$defs/previewReference" }
+      },
+      "required": ["commandId", "requestHash", "preview"]
+    }
+  ],
+  "$defs": {
+    "grantPayload": {
+      "type": "object",
+      "required": ["employeeId", "principalAdmissionId"],
+      "properties": {
+        "employeeId": { "type": "string", "minLength": 1 },
+        "principalAdmissionId": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "revokePayload": {
+      "type": "object",
+      "required": ["assignmentId"],
+      "properties": {
+        "assignmentId": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "expected": {
+      "type": "object",
+      "required": ["catalogVersion", "catalogPayloadHash", "governanceRevision", "organizationRevision"],
+      "properties": {
+        "catalogVersion": { "type": "string", "minLength": 1 },
+        "catalogPayloadHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "governanceRevision": { "type": "string", "minLength": 1 },
+        "organizationRevision": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "previewReference": {
+      "type": "object",
+      "required": ["previewHash"],
+      "properties": {
+        "previewHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "previewResponse": {
+      "type": "object",
+      "required": ["previewHash", "beforeHolderCount", "afterHolderCount", "targetHint", "affectedSessionCount", "securityAlertRequired"],
+      "properties": {
+        "previewHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "beforeHolderCount": { "type": "integer", "minimum": 0 },
+        "afterHolderCount": { "type": "integer", "minimum": 0 },
+        "targetHint": { "type": "string", "minLength": 1 },
+        "affectedSessionCount": { "type": "integer", "minimum": 0 },
+        "securityAlertRequired": { "const": true }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

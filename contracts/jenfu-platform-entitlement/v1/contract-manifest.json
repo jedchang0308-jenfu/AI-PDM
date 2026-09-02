@@ -26,15 +26,15 @@
     },
     {
       "path": "fixtures/effective-role-assignment.delegated.json",
-      "sha256": "8821ceb1e7bd5fa0b475dd0bdb70e19ec629a183f963b7bf900ae3ddc0431a0d"
+      "sha256": "d901fd5aa569f6ea1b2d457b9b9665a590fd2e033475ce8648518cf1329204d2"
     },
     {
       "path": "fixtures/effective-role-assignment.manual.json",
-      "sha256": "228975977bcc643d9e17009fb5db6639610f740904ffd7d712b5b2a29fbfbc91"
+      "sha256": "c91a2c165284a438ef16288ebc83d490ce17bc27d88239bf3a2742f4c029b723"
     },
     {
       "path": "fixtures/effective-role-assignment.position.json",
-      "sha256": "22e3262a0971bc3757db37964e1dfa474636d32731c614c6cf5cc90a65124421"
+      "sha256": "5a3d1222c21571c893af6f64480bb54ddc660fba18e14c5f9a86ace5a90807e9"
     },
     {
       "path": "fixtures/entitlement-authority.legacy.json",
@@ -45,5 +45,5 @@
       "sha256": "1996d4b93f7ec086b2065af422cfe7c00faeb722cb26019b83f8d01043d8880c"
     }
   ],
-  "sha256": "2543b1587f0dbe06993a4b2a148df6bb7716a4d8e6c41f27c2c74ad61eaa5151"
+  "sha256": "60f683232112e30d03e23dcb8dd41341551bcf1bd599b7d6fac8c51bf2bd0ba5"
 }
