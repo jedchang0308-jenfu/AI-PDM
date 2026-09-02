@@ -106,6 +106,22 @@ function rewriteManagedCloudSqlRoles(file, source) {
     .replaceAll("jenfu_ai_pdm_runtime", "pdm_runtime")
     .replace(/\bpdm_runtime(?:\s*,\s*pdm_runtime)+\b/gu, "pdm_runtime")
     .replace(
+      "CREATE SCHEMA IF NOT EXISTS ai_pdm_contract AUTHORIZATION pdm_migration;",
+      `DO $cloudsql_bootstrap$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+      FROM pg_namespace namespace
+      JOIN pg_roles owner_role ON owner_role.oid = namespace.nspowner
+     WHERE namespace.nspname = 'ai_pdm_contract'
+       AND owner_role.rolname = 'pdm_migration'
+  ) THEN
+    RAISE EXCEPTION 'CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_MISOWNED:ai_pdm_contract';
+  END IF;
+END
+$cloudsql_bootstrap$;`
+    )
+    .replace(
       "ALTER DEFAULT PRIVILEGES FOR ROLE pdm_migration IN SCHEMA ai_pdm_contract",
       "ALTER DEFAULT PRIVILEGES IN SCHEMA ai_pdm_contract"
     );

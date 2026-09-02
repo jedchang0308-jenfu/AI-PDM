@@ -24,6 +24,10 @@ try {
     path.join(outputs.sqlDirectory, "055_jenfu_role_catalog_publication.cloudsql.sql"),
     "utf8"
   );
+  const adminBootstrapSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "000_admin_bootstrap_grants.sql"),
+    "utf8"
+  );
   const runner = readProjectFile(root, "scripts/run-dev-046-cloudsql-migrations.mjs");
   const dockerfile = readProjectFile(root, "Dockerfile");
   const production001Compatibility = manifest.migrationHistoryCompatibility.entries.find(
@@ -129,10 +133,18 @@ try {
     "DEV032-CLOUDSQL-MIG-015 role catalog SQL uses provisioned managed Cloud SQL roles only",
     report.candidatePackage.transformations.rewrittenJenfuPlatformRoleReferences > 0 &&
       roleCatalogSql.includes("SET LOCAL ROLE pdm_migration") &&
-      roleCatalogSql.includes("AUTHORIZATION pdm_migration") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_MISOWNED:ai_pdm_contract") &&
+      roleCatalogSql.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
+      !roleCatalogSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract") &&
       roleCatalogSql.includes("TO pdm_runtime") &&
       !/\bjenfu_(?:platform_migrator|platform_runtime|orgmaster_runtime|ai_pdm_runtime)\b/u.test(roleCatalogSql) &&
       !/\bpdm_runtime\s*,\s*pdm_runtime\b/u.test(roleCatalogSql)
+  );
+  record(
+    "DEV032-CLOUDSQL-MIG-016 privileged bootstrap owns the contract schema without broad database DDL",
+    adminBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract AUTHORIZATION pdm_migration") &&
+      adminBootstrapSql.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
+      !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(adminBootstrapSql)
   );
 } catch (error) {
   record("DEV032-CLOUDSQL-MIG-000 QC execution", false, error instanceof Error ? error.message : String(error));

@@ -205,6 +205,7 @@ try {
   );
 
   const numberingV2Sql = await fsp.readFile(path.join(outputs.sqlDirectory, "004_numbering_v2_compact_identity.cloudsql.sql"), "utf8");
+  const adminBootstrapSql = await fsp.readFile(path.join(outputs.sqlDirectory, "000_admin_bootstrap_grants.sql"), "utf8");
   const runtimeGrantRefreshSql = await fsp.readFile(path.join(outputs.sqlDirectory, "999_runtime_grants_refresh.sql"), "utf8");
   const v1SeedIndex = numberingV2Sql.indexOf("'numbering-rule-v1',\n  'PDM-NUMBERING-V1'");
   const approvalRuleInsertIndex = numberingV2Sql.indexOf("INSERT INTO approval_rules");
@@ -231,9 +232,18 @@ try {
     "DEV046-CLOUDSQL-MIG-026 Jenfu platform roles are deterministically mapped to managed Cloud SQL roles",
     report.candidatePackage.transformations.rewrittenJenfuPlatformRoleReferences > 0 &&
       roleCatalogSql.includes("SET LOCAL ROLE pdm_migration") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_MISOWNED:ai_pdm_contract") &&
+      roleCatalogSql.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
+      !roleCatalogSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract") &&
       roleCatalogSql.includes("TO pdm_runtime") &&
       !/\bjenfu_(?:platform_migrator|platform_runtime|orgmaster_runtime|ai_pdm_runtime)\b/u.test(roleCatalogSql) &&
       !/\bpdm_runtime\s*,\s*pdm_runtime\b/u.test(roleCatalogSql)
+  );
+  record(
+    "DEV046-CLOUDSQL-MIG-027 privileged bootstrap pre-creates the contract schema without database-wide CREATE",
+    adminBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract AUTHORIZATION pdm_migration") &&
+      adminBootstrapSql.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
+      !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(adminBootstrapSql)
   );
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
