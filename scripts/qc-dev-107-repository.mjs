@@ -35,7 +35,7 @@ const taskRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev107-repository
 const taskDataDir = path.join(taskRoot, "data");
 const taskRepositoryDir = path.join(taskDataDir, "repository");
 const COMPANY = "company-jenfu";
-const PARENT = "recognition-7db214be-69db-4175-a16e-4d78784a8246";
+const HISTORICAL_PARENT = "recognition-7db214be-69db-4175-a16e-4d78784a8246";
 const DRAWING = "drawing-draft-drawing-58f3b735-a3fe-4c3b-87be-f2e23a15bebe";
 const REVISION = "f717dd6b-311a-49f9-ace6-a31630ee56ba";
 const ACTOR_ID = "user-manager-demo";
@@ -73,6 +73,17 @@ function primaryInvariant(databasePath) {
 }
 
 const primaryBefore = primaryInvariant(primaryDbPath);
+function resolveCurrentFormalizedParent() {
+  const database = new Database(primaryDbPath, { readonly: true, fileMustExist: true });
+  try {
+    return database.prepare(`SELECT id FROM drawing_recognition_sessions
+      WHERE company_id=? AND drawing_revision_id=? AND status='formalized'
+      ORDER BY created_at DESC,id DESC LIMIT 1`).get(COMPANY, REVISION)?.id ?? HISTORICAL_PARENT;
+  } finally {
+    database.close();
+  }
+}
+const PARENT = resolveCurrentFormalizedParent();
 
 function dbSnapshot(db) {
   const payload = {
@@ -99,9 +110,34 @@ function openScenario(name) {
   process.env.PDM_RELEASE_MODE = "local_stub";
   const db = new Database(path.join(dataDir, "ai-pdm.sqlite"));
   db.pragma("foreign_keys = ON");
+  const revisionBefore = db.prepare("SELECT lifecycle_state FROM drawing_revisions WHERE id=?").get(REVISION)?.lifecycle_state ?? null;
+  const lifecycleTrigger = db.prepare(`SELECT sql FROM sqlite_master
+    WHERE type='trigger' AND name='trg_drawing_revisions_state_transition_guard'`).get()?.sql;
+  assert.ok(lifecycleTrigger, "drawing revision lifecycle trigger is required for fixture restoration");
+  const supersededFixtureSessions = db.prepare(`SELECT id,status FROM drawing_recognition_sessions
+    WHERE id<>? AND (supersedes_session_id=? OR evidence_origin_session_id=?) ORDER BY id`).all(PARENT, PARENT, PARENT);
+  db.transaction(() => {
+    db.exec("DROP TRIGGER trg_drawing_revisions_state_transition_guard");
+    db.prepare("UPDATE drawing_revisions SET lifecycle_state='preparing', updated_at=updated_at WHERE id=?").run(REVISION);
+    db.exec(lifecycleTrigger);
+    db.prepare(`UPDATE drawing_recognition_sessions SET status='cancelled', updated_at=updated_at
+      WHERE id<>? AND (supersedes_session_id=? OR evidence_origin_session_id=?)`).run(PARENT, PARENT, PARENT);
+  })();
   const client = createAsyncDatabaseClient({ kind: "sqlite", database: db });
   const repository = new DrawingRecognitionAsyncRepository(client);
-  fixtureLedger.push({ scenario: name, dataDir, repositoryDir, mutationScope: "scenario clone only" });
+  fixtureLedger.push({
+    scenario: name,
+    dataDir,
+    repositoryDir,
+    mutationScope: "scenario clone only",
+    fixturePreparation: {
+      revisionId: REVISION,
+      lifecycleStateBefore: revisionBefore,
+      lifecycleStateAfter: "preparing",
+      lifecycleTriggerRestored: true,
+      terminalizedSuccessors: supersededFixtureSessions
+    }
+  });
   return { db, client, repository, dataDir, repositoryDir };
 }
 
@@ -130,6 +166,9 @@ async function scenario(name, fn) {
 function metadata(key) { return { actor: ACTOR, idempotencyKey: key }; }
 function parentRow(db = null) {
   return db?.prepare("SELECT row_version FROM drawing_recognition_sessions WHERE id=?").get(PARENT)?.row_version;
+}
+function evidenceOriginSessionId(db, sessionId = PARENT) {
+  return db.prepare("SELECT COALESCE(evidence_origin_session_id,id) AS id FROM drawing_recognition_sessions WHERE id=?").get(sessionId)?.id;
 }
 async function createAmendment(current, key = `dev107-amend:${crypto.randomUUID()}`) {
   const rowVersion = Number(parentRow(current.db));
@@ -276,15 +315,16 @@ async function run() {
 
   await check("QA-107-017", "origin overlay reuses evidence without copying raw observations", () => scenario("qa-017-origin-overlay", async (current) => {
     const amendment = await createAmendment(current, "dev107-017-amend");
-    const originSources = count(current.db, "drawing_recognition_sources", "session_id='" + PARENT + "'");
+    const evidenceOriginId = evidenceOriginSessionId(current.db);
+    const originSources = count(current.db, "drawing_recognition_sources", "session_id='" + evidenceOriginId + "'");
     const overlaySources = count(current.db, "drawing_recognition_sources", "session_id='" + amendment.id + "'");
-    const originObservations = count(current.db, "drawing_recognition_observations", "session_id='" + PARENT + "'");
+    const originObservations = count(current.db, "drawing_recognition_observations", "session_id='" + evidenceOriginId + "'");
     const overlayObservations = count(current.db, "drawing_recognition_observations", "session_id='" + amendment.id + "'");
     assert.ok(originSources > 0 && originObservations > 0);
     assert.equal(overlaySources, 0);
     assert.equal(overlayObservations, 0);
     assert.notEqual(current.db.prepare("SELECT id FROM drawing_recognition_candidates WHERE session_id=? ORDER BY id LIMIT 1").get(PARENT)?.id, current.db.prepare("SELECT id FROM drawing_recognition_candidates WHERE session_id=? ORDER BY id LIMIT 1").get(amendment.id)?.id);
-    return { successorId: amendment.id, originSources, overlaySources, originObservations, overlayObservations };
+    return { parentId: PARENT, evidenceOriginId, successorId: amendment.id, originSources, overlaySources, originObservations, overlayObservations };
   }));
 
   await check("QA-107-018", "cancel amendment is zero-PDM-write and returns to parent", () => scenario("qa-018-cancel", async (current) => {
@@ -375,7 +415,7 @@ async function run() {
 
   await check("QA-107-034", "source drift is rejected by the same source-basis assertion", () => scenario("qa-034-source-drift", async (current) => {
     const amendment = await createAmendment(current, "dev107-034-amend");
-    const source = current.db.prepare("SELECT file_asset_id FROM drawing_recognition_sources WHERE session_id=? ORDER BY sort_order LIMIT 1").get(PARENT);
+    const source = current.db.prepare("SELECT file_asset_id FROM drawing_recognition_sources WHERE session_id=? ORDER BY sort_order LIMIT 1").get(evidenceOriginSessionId(current.db));
     current.db.prepare("UPDATE file_assets SET content_hash=? WHERE id=?").run(crypto.randomBytes(32).toString("hex"), source.file_asset_id);
     await assert.rejects(() => current.repository.cancelAmendment({ sessionId: amendment.id, companyId: COMPANY, actorId: ACTOR_ID, expectedRowVersion: amendment.rowVersion }), (error) => error?.code === "RECOGNITION_SOURCE_SET_STALE");
     return { successorId: amendment.id, sourceDrift: "409 zero write" };
@@ -390,10 +430,11 @@ async function run() {
 
   await check("QA-107-037", "query and storage budgets stay bounded for 1/500 observations", () => scenario("qa-037-budget", async (current) => {
     const amendment = await createAmendment(current, "dev107-037-amend");
-    const source = current.db.prepare("SELECT id,source_id,adapter_result_id FROM drawing_recognition_observations WHERE session_id=? ORDER BY id LIMIT 1").get(PARENT);
+    const originSessionId = evidenceOriginSessionId(current.db);
+    const source = current.db.prepare("SELECT id,source_id,adapter_result_id FROM drawing_recognition_observations WHERE session_id=? ORDER BY id LIMIT 1").get(originSessionId);
     const candidate = current.db.prepare("SELECT id FROM drawing_recognition_candidates WHERE session_id=? ORDER BY id LIMIT 1").get(amendment.id);
     assert.ok(source?.source_id && source?.adapter_result_id && candidate?.id);
-    const existing = count(current.db, "drawing_recognition_observations", "session_id='" + PARENT + "'");
+    const existing = count(current.db, "drawing_recognition_observations", "session_id='" + originSessionId + "'");
     if (existing < 500) {
       const insertObservation = current.db.prepare(`INSERT INTO drawing_recognition_observations
         (id,session_id,source_id,adapter_result_id,company_id,raw_text,raw_value,normalized_value,location_kind,
@@ -404,7 +445,7 @@ async function run() {
         for (let index = existing; index < 500; index += 1) {
           const id = `dev107-observation-${index}-${crypto.randomUUID()}`;
           const timestamp = new Date(Date.now() + index).toISOString();
-          insertObservation.run(id, PARENT, source.source_id, source.adapter_result_id, COMPANY, `DEV107 bounded observation ${index}`, `value-${index}`, `value-${index}`, "page_region", 1, JSON.stringify({ coordinateSpace: "normalized_page", origin: "top_left", x: 0.01, y: 0.01, width: 0.1, height: 0.03 }), "low", "dev107.fixture", "1", timestamp);
+          insertObservation.run(id, originSessionId, source.source_id, source.adapter_result_id, COMPANY, `DEV107 bounded observation ${index}`, `value-${index}`, `value-${index}`, "page_region", 1, JSON.stringify({ coordinateSpace: "normalized_page", origin: "top_left", x: 0.01, y: 0.01, width: 0.1, height: 0.03 }), "low", "dev107.fixture", "1", timestamp);
           insertLink.run(candidate.id, id, COMPANY, timestamp);
         }
       })();

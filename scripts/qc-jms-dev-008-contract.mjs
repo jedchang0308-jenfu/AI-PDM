@@ -3,13 +3,17 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 
 const root = process.cwd()
-const central = path.resolve(root, '..', 'Jenfu-Management-system', 'contracts', 'jenfu-platform-governance-availability', 'v1')
+const platformRoot = process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim()
+  ? path.resolve(process.env.JENFU_MANAGEMENT_SYSTEM_ROOT)
+  : path.resolve(root, '..', 'Jenfu-Management-system')
+const central = path.join(platformRoot, 'contracts', 'jenfu-platform-governance-availability', 'v1')
 const local = path.resolve(root, 'contracts', 'jenfu-platform-governance-availability', 'v1')
 const files = ['contract-manifest.json','orgmaster-role-capability-workspace.schema.json','ai-pdm-role-capability-workspace.schema.json','governance-command-receipt.schema.json','governance-error-codes.json']
+const normalizeContractText = (value) => value.toString('utf8').replaceAll('\r\n', '\n')
 for (const file of files) {
   const source = fs.readFileSync(path.join(central, file))
   const copy = fs.readFileSync(path.join(local, file))
-  if (!source.equals(copy)) throw new Error(`DEV008_CONTRACT_DRIFT:${file}`)
+  if (normalizeContractText(source) !== normalizeContractText(copy)) throw new Error(`DEV008_CONTRACT_DRIFT:${file}`)
   JSON.parse(source)
 }
 const errors = JSON.parse(fs.readFileSync(path.join(local, 'governance-error-codes.json'), 'utf8'))

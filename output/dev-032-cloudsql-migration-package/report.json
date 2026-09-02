@@ -4,7 +4,7 @@
   "dev": "DEV-032",
   "phase": "Gate-C-production-clean-seed-migration",
   "packageVersion": "dev-046-cloudsql-migration-package/v1",
-  "generatedAt": "2026-08-28T09:19:28.040Z",
+  "generatedAt": "2026-09-02T13:03:07.433Z",
   "target": {
     "projectId": "jenfu-ai-pdm-prod",
     "region": "asia-east1",
@@ -23,9 +23,9 @@
     "status": "not-present",
     "adminBootstrapSucceeded": false,
     "evidenceManifestSha256": null,
-    "candidateManifestSha256": "66b01e27a3cba7ac8bbdaf032a5194ce185313a20b3b3968f7eb374ba8a4ed7c",
+    "candidateManifestSha256": "fba5e271eebe2e45ba5fd39bc098abdfc8610d6abc0691b74753f85b88aed10e",
     "evidenceSchemaMigrationCount": null,
-    "candidateSchemaMigrationCount": 49,
+    "candidateSchemaMigrationCount": 54,
     "matchesCurrentCandidate": false,
     "liveMigrationCompleted": false,
     "idempotenceVerified": false,
@@ -46,9 +46,9 @@
   "sourceInventory": {
     "postgresDirectory": "db/postgres",
     "postgresReadmeDeclaresCloudSqlAuthority": true,
-    "postgresSqlFileCount": 51,
+    "postgresSqlFileCount": 56,
     "cloudSqlGrantFile": "db/cloud-sql/pdm_runtime_grants.sql",
-    "cloudSqlGrantFileSha256": "f579c1a4d2f41190ff19059a0000295904d25b25f273e6d7a911141b98a5405d",
+    "cloudSqlGrantFileSha256": "6e159dc9374e6f3d634cebe097704e4ab105ddf62384012bc75a1ad5d13af783",
     "singletonMigrationRunnerPresent": true,
     "currentPostgresMigrations": [
       {
@@ -509,6 +509,51 @@
         "hasSupabaseRoleReferences": false,
         "supabaseRoleReferenceLines": 0,
         "ddlReviewLines": 2
+      },
+      {
+        "file": "db/postgres/052_sales_kit_bom.sql",
+        "sha256": "397e082d730a1bf3e2626fac9ffec3466939bb351bde65bc34a3409d4f3c0ce3",
+        "bytes": 1551,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 2
+      },
+      {
+        "file": "db/postgres/053_drawing_recognition_amendment_lineage.sql",
+        "sha256": "fc3334bcb538d6856f291bf32e9a77f7f937bf7498a8de5cdde67d95fbfcfa24",
+        "bytes": 4066,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 3
+      },
+      {
+        "file": "db/postgres/054_unified_bom_domain_and_uom.sql",
+        "sha256": "c2b7c186a68de944c859ccc0b44b9ea6fc35d34b6b1b3c5ce4d807273d7c0856",
+        "bytes": 4610,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 10
+      },
+      {
+        "file": "db/postgres/055_jenfu_role_catalog_publication.sql",
+        "sha256": "277525f7d4fb4044ca8f5beb85854e393bba49ca321bbd7459535461d2ead442",
+        "bytes": 4611,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 0
+      },
+      {
+        "file": "db/postgres/056_role_capability_display_snapshot.sql",
+        "sha256": "38f432a6599abeea2517182257f702b4c0ddcbe00190bbbe115bafb17d757951",
+        "bytes": 718,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 0
       }
     ]
   },
@@ -789,9 +834,9 @@
     ]
   },
   "ddlRisk": {
-    "totalReviewLines": 192,
+    "totalReviewLines": 207,
     "blockingDestructiveLines": 19,
-    "reviewRequiredIdempotentLines": 171,
+    "reviewRequiredIdempotentLines": 186,
     "sampleFindings": [
       {
         "file": "db/postgres/001_initial_schema.sql",
@@ -935,13 +980,13 @@
     "orderedManifestPath": "cloudsql-migration-manifest.json",
     "runnerContractPath": "runner-contract.md",
     "supportFileCount": 2,
-    "orderedSchemaMigrationCount": 49,
+    "orderedSchemaMigrationCount": 54,
     "supportFiles": [
       {
         "output": "sql/000_admin_bootstrap_grants.sql",
         "kind": "admin_bootstrap",
-        "outputSha256": "a0b6be1db6ed8c2e160fae417389143c554bad55ce1f7bff8897e345af3b8136",
-        "bytes": 1642
+        "outputSha256": "80bd29e5f98c991803450f9b0d7d750b47c8d3909d72952f965416069bd831a2",
+        "bytes": 1677
       },
       {
         "output": "sql/999_runtime_grants_refresh.sql",
@@ -1648,6 +1693,76 @@
           "removedRlsStatements": 0,
           "rewrittenSupabaseRoleReferences": 0
         }
+      },
+      {
+        "source": "db/postgres/052_sales_kit_bom.sql",
+        "output": "sql/052_sales_kit_bom.cloudsql.sql",
+        "version": "052",
+        "name": "052_sales_kit_bom",
+        "sourceSha256": "397e082d730a1bf3e2626fac9ffec3466939bb351bde65bc34a3409d4f3c0ce3",
+        "outputSha256": "3848da266dd9de71f08da3002a9e8eefbbf878699c1744543545d7e5420a9f1b",
+        "bytes": 1878,
+        "transformations": {
+          "removedTransactionWrappers": 2,
+          "removedRlsStatements": 0,
+          "rewrittenSupabaseRoleReferences": 0
+        }
+      },
+      {
+        "source": "db/postgres/053_drawing_recognition_amendment_lineage.sql",
+        "output": "sql/053_drawing_recognition_amendment_lineage.cloudsql.sql",
+        "version": "053",
+        "name": "053_drawing_recognition_amendment_lineage",
+        "sourceSha256": "fc3334bcb538d6856f291bf32e9a77f7f937bf7498a8de5cdde67d95fbfcfa24",
+        "outputSha256": "72da8b7d8e1b5734d4cf26b4ea4f2e7a842a184d9f51a6ab8b0b3d64ee14d8e5",
+        "bytes": 4418,
+        "transformations": {
+          "removedTransactionWrappers": 2,
+          "removedRlsStatements": 0,
+          "rewrittenSupabaseRoleReferences": 0
+        }
+      },
+      {
+        "source": "db/postgres/054_unified_bom_domain_and_uom.sql",
+        "output": "sql/054_unified_bom_domain_and_uom.cloudsql.sql",
+        "version": "054",
+        "name": "054_unified_bom_domain_and_uom",
+        "sourceSha256": "c2b7c186a68de944c859ccc0b44b9ea6fc35d34b6b1b3c5ce4d807273d7c0856",
+        "outputSha256": "dfab701268e5ad44ce38ed516758d4e12c3f1e2b2acd778f5bc284343ad52342",
+        "bytes": 4950,
+        "transformations": {
+          "removedTransactionWrappers": 2,
+          "removedRlsStatements": 0,
+          "rewrittenSupabaseRoleReferences": 0
+        }
+      },
+      {
+        "source": "db/postgres/055_jenfu_role_catalog_publication.sql",
+        "output": "sql/055_jenfu_role_catalog_publication.cloudsql.sql",
+        "version": "055",
+        "name": "055_jenfu_role_catalog_publication",
+        "sourceSha256": "277525f7d4fb4044ca8f5beb85854e393bba49ca321bbd7459535461d2ead442",
+        "outputSha256": "8fb1324b34ef2963ce2802f067fbce2f9d7a0b580900b365abc83c8fe37ae17f",
+        "bytes": 4956,
+        "transformations": {
+          "removedTransactionWrappers": 2,
+          "removedRlsStatements": 0,
+          "rewrittenSupabaseRoleReferences": 0
+        }
+      },
+      {
+        "source": "db/postgres/056_role_capability_display_snapshot.sql",
+        "output": "sql/056_role_capability_display_snapshot.cloudsql.sql",
+        "version": "056",
+        "name": "056_role_capability_display_snapshot",
+        "sourceSha256": "38f432a6599abeea2517182257f702b4c0ddcbe00190bbbe115bafb17d757951",
+        "outputSha256": "6cd732ddc83caf5242637d531ae3c1dd19fdbfbddbbc84c0f91133825ce72e4c",
+        "bytes": 970,
+        "transformations": {
+          "removedTransactionWrappers": 0,
+          "removedRlsStatements": 0,
+          "rewrittenSupabaseRoleReferences": 0
+        }
       }
     ],
     "excludedFiles": [
@@ -1665,7 +1780,7 @@
       }
     ],
     "transformations": {
-      "removedTransactionWrappers": 64,
+      "removedTransactionWrappers": 72,
       "removedRlsStatements": 70,
       "rewrittenSupabaseRoleReferences": 32,
       "remainingSupabaseRoleReferences": 0,

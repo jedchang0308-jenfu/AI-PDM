@@ -326,7 +326,9 @@ try {
     dryRun.mode === "dry-run" && dryRun.before.silentGapCount === 2 && dryRun.after.silentGapCount === 2 && dryShaBefore === dryShaAfter && dryRun.sourceAuthorityUnchanged,
     { silentGaps: dryRun.before.silentGaps.map((row) => row.drawingNumber) });
   const firstApply = runBackfill(backfillDbPath, backfillRepositoryDir, ["--apply", "--confirm-isolated-preview-backfill", "--actor-user-id", actorUserId], "backfill-apply-1.json").report;
-  const countAfterFirst = new Database(backfillDbPath, { readonly: true }).prepare("SELECT COUNT(*) count FROM preview_jobs").get().count;
+  const firstApplyRead = new Database(backfillDbPath, { readonly: true });
+  const countAfterFirst = firstApplyRead.prepare("SELECT COUNT(*) count FROM preview_jobs").get().count;
+  firstApplyRead.close();
   const secondApply = runBackfill(backfillDbPath, backfillRepositoryDir, ["--apply", "--confirm-isolated-preview-backfill", "--actor-user-id", actorUserId], "backfill-apply-2.json").report;
   const backfillRead = new Database(backfillDbPath, { readonly: true });
   const countAfterSecond = backfillRead.prepare("SELECT COUNT(*) count FROM preview_jobs").get().count;

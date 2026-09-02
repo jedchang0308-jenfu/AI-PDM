@@ -1,5 +1,5 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import roleCatalog from "../../../config/access-control/jenfu-role-catalog.v1.json";
+import roleCatalog from "../../../config/access-control/jenfu-role-catalog.v1.json" with { type: "json" };
 import {
   JENFU_AI_PDM_APPLICATION_ID,
   JENFU_ENTITLEMENT_CONTRACT_VERSION,
