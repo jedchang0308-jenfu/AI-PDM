@@ -9,6 +9,11 @@ const args = new Set(process.argv.slice(2));
 const outputDir = path.join(root, "output", "dev-032-production-target-preflight");
 const jsonPath = path.join(outputDir, "report.json");
 const mdPath = path.join(outputDir, "report.md");
+const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: root,
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "pipe"]
+}).trim();
 
 function relativePath(filePath) {
   return filePath.replace(root, "").replace(/^[/\\]/u, "").replaceAll("\\", "/");
@@ -238,12 +243,20 @@ if (!commands.secrets.ok || missingRequiredSecretIds.length > 0) {
     missingRequiredSecretIds
   }));
 }
+const releaseCommitSha = releaseManifest.parsed?.releaseDecision?.releaseCommitSha ?? null;
+const releaseManifestHead = releaseManifest.parsed?.git?.head ?? null;
+const releaseSourceHeadMatches = Boolean(currentHead && releaseCommitSha === currentHead && releaseManifestHead === currentHead);
 const releaseSourceCommitted = releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists === true
   && releaseManifest.parsed?.summary?.includedProductionSourceEntries === 0
-  && releaseManifest.parsed?.summary?.unknownRiskEntries === 0;
+  && releaseManifest.parsed?.summary?.unknownRiskEntries === 0
+  && releaseSourceHeadMatches;
 if (!releaseSourceCommitted) {
   blockers.push(blocker("RELEASE_SOURCE_NOT_SELECTED_OR_COMMITTED", "Release-source manifest does not prove an exact release commit.", {
     manifestPath: "output/dev-032-release-source/manifest.json",
+    currentHead,
+    releaseCommitSha,
+    releaseManifestHead,
+    headMatches: releaseSourceHeadMatches,
     exactReleaseCommitExists: releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists ?? null,
     includedProductionSourceEntries: releaseManifest.parsed?.summary?.includedProductionSourceEntries ?? null,
     unknownRiskEntries: releaseManifest.parsed?.summary?.unknownRiskEntries ?? null,
@@ -354,6 +367,10 @@ const report = {
   releaseSource: {
     manifestPath: releaseManifest.exists ? "output/dev-032-release-source/manifest.json" : null,
     manifestStatus: releaseManifest.parsed?.status ?? null,
+    currentHead,
+    releaseCommitSha,
+    manifestHead: releaseManifestHead,
+    headMatches: releaseSourceHeadMatches,
     exactReleaseCommitExists: releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists ?? null,
     includedProductionSourceEntries: releaseManifest.parsed?.summary?.includedProductionSourceEntries ?? null,
     unknownRiskEntries: releaseManifest.parsed?.summary?.unknownRiskEntries ?? null,
