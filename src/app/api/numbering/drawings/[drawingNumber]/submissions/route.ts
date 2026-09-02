@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { createDrawingSourceSubmission, DrawingSubmissionWorkbenchError } from "@/lib/drawing-submission-workbench";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { revisionPolicySuggestionFromBody } from "@/lib/revision-policy-engine";
@@ -10,7 +10,7 @@ import { getSystemSettingAsync } from "@/lib/system-settings-async";
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;

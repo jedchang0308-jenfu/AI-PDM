@@ -85,7 +85,7 @@ export function PartPreviewSourceControl({
     <div className="part-preview-source-actions">
       <input ref={inputRef} type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden disabled={!control.canManage || busy} onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void upload(file); }} />
       <button type="button" className="secondary-button" disabled={!control.canManage || busy} onClick={() => inputRef.current?.click()}>{busy ? "處理中…" : preview.sourceType === "custom_image" ? "更換圖片" : "上傳圖片"}</button>
-      {preview.sourceType === "custom_image" ? <button type="button" className="secondary-button" disabled={!control.canManage || busy} onClick={() => void reset()}>使用主要製造圖</button> : null}
+      {preview.sourceType === "custom_image" && control.hasPrimaryManufacturingDrawing ? <button type="button" className="secondary-button" disabled={!control.canManage || busy} onClick={() => void reset()}>使用主要製造圖</button> : null}
     </div>
     {control.disabledReason ? <p className="canonical-drawer-section-note">{control.disabledReason}</p> : null}
     {error ? <p className="canonical-error" role="alert">{error}</p> : null}

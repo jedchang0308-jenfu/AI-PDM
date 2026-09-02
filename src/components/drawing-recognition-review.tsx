@@ -9,7 +9,9 @@ import {
   useDrawingRecognitionBrowserOcr,
   type DrawingRecognitionBrowserOcrSession
 } from "@/components/drawing-recognition-pdf-ocr";
+import styles from "@/components/drawing-recognition-review.module.css";
 import { StatusScopeHelp } from "@/components/status-help-popover";
+import { isRecognitionCandidateFormalizationPending } from "@/lib/part-recognition-transfer";
 import { getStatusDisplay } from "@/lib/status-display";
 
 type Observation = { id: string; sourceId?: string; rawText: string; confidenceBand: string; pageNumber: number | null; sheetName: string | null; configurationName: string | null; geometry?: Record<string, unknown> | null };
@@ -83,6 +85,10 @@ function candidateDraft(candidate: Candidate): Draft {
   return { value: candidate.proposedValue ?? "", fieldKey: candidate.fieldKey ?? "", fieldLabel: candidate.fieldLabel, category: candidate.category, ownerType: candidate.proposedOwnerType ?? "", ownerId: candidate.proposedOwnerId ?? "", reason: "" };
 }
 
+function isSourceIdentityEvidence(candidate: Candidate) {
+  return candidate.category === "identity_relation" && ["source_file_role", "source_file_stem"].includes(candidate.fieldKey ?? "");
+}
+
 function bestObservation(candidate: Candidate, session: Session) {
   const sourceById = new Map(session.sources.map((source) => [source.id, source]));
   const normalized = (value: Record<string, unknown> | null | undefined) => {
@@ -118,6 +124,8 @@ function impactBlockerReason(reason: string) {
   if (reason === "target_mapping_required") return "缺少正式寫入目標；請設定歸屬，或改為延後／忽略。";
   if (reason === "unresolved_conflict") return "與系統正式值不同；請確認接受、修正或排除。";
   if (reason === "review_required") return "尚未完成核對；請接受、修正、歸類或排除。";
+  if (reason === "active_part_work_in_review") return "此料號已有送審中的修改，請先完成或退回該工作。";
+  if (reason === "active_part_work_field_conflict") return "此料號的編輯工作已修改同一欄位；請先在料號工作區核對。";
   return "目前不能正式寫入；請返回核對。";
 }
 
@@ -215,7 +223,12 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
 
   const baselineByField = useMemo(() => new Map((session?.baseline ?? []).map((item) => [item.fieldKey, item])), [session]);
   const candidateById = useMemo(() => new Map((session?.candidates ?? []).map((candidate) => [candidate.id, candidate])), [session]);
-  const pendingCount = session?.candidates.filter((candidate) => candidate.fieldKey !== "source_file_stem" && candidate.category !== "unclassified" && ["proposed", "conflict", "blocked"].includes(candidate.reviewState)).length ?? 0;
+  const pendingCount = session?.candidates.filter(isRecognitionCandidateFormalizationPending).length ?? 0;
+  const confirmedWriteCandidates = session?.candidates.filter((candidate) =>
+    !isSourceIdentityEvidence(candidate)
+    && !["identity_relation", "engineering_evidence", "unclassified"].includes(candidate.category)
+    && ["accepted", "corrected"].includes(candidate.reviewState)
+  ) ?? [];
   const pdfOcrBlocksFormalization = session?.pdfOcrSources?.some((source) => ["pending", "failed", "timeout", "unsupported"].includes(source.status)) ?? false;
 
   async function saveDecisions(decisions: Array<Record<string, unknown>>, success: string) {
@@ -236,7 +249,7 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
   async function acceptSection(category: string) {
     if (!session) return;
     const decisions = session.candidates
-      .filter((candidate) => candidate.fieldKey !== "source_file_stem" && candidate.category === category && ["proposed", "conflict", "blocked"].includes(candidate.reviewState))
+      .filter((candidate) => !isSourceIdentityEvidence(candidate) && candidate.category === category && ["proposed", "conflict", "blocked"].includes(candidate.reviewState))
       .filter((candidate) => !requiresPartOwner(candidate, drafts[candidate.id]))
       .map((candidate) => ({ candidateId: candidate.id, action: "accept" }));
     await saveDecisions(decisions, `已接受「${sections.find((section) => section.key === category)?.title ?? category}」的辨識值。`);
@@ -298,11 +311,17 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
   if (!session && !error) return <main className="drawing-recognition-page"><div className="drawing-recognition-loading">正在載入完整辨識結果…</div></main>;
   if (!session) return <main className="drawing-recognition-page"><Link href={returnTo ?? "/numbering/drawings"} className="secondary-button"><ArrowLeft size={16} />返回來源</Link><div className="drawing-recognition-alert is-error">{error}</div></main>;
 
+  const backLabel = returnTo?.startsWith("/parts/") ? "返回料號編輯" : returnTo ? "返回圖號工作台" : "圖號工作台";
+  const readyForWrite = pendingCount === 0 && !pdfOcrBlocksFormalization && !["queued", "extracting", "extraction_failed", "cancelled"].includes(session.status);
+  const workStatusLabel = readyForWrite && session.status !== "formalized"
+    ? "待確認寫入"
+    : getStatusDisplay(session.status, "recognitionStatus").label;
+
   return (
     <main className="drawing-recognition-page">
       <header className="drawing-recognition-header">
-        <div><Link href={returnTo ?? "/numbering/drawings"} className="drawing-recognition-back"><ArrowLeft size={15} />{returnTo ? "返回進版工作台" : "圖號工作台"}</Link><h1>圖面辨識完整核對</h1></div>
-        <div className="drawing-recognition-header-state"><span>工作狀態</span><strong>{getStatusDisplay(session.status, "recognitionStatus").label}</strong><StatusScopeHelp scope="drawingRecognition" /><small>{session.sources.map((source) => source.fileName).join("、")}</small></div>
+        <div><Link href={returnTo ?? "/numbering/drawings"} className="drawing-recognition-back"><ArrowLeft size={15} />{backLabel}</Link><h1>辨識結果確認與寫入</h1></div>
+        <div className="drawing-recognition-header-state"><span>工作狀態</span><strong>{workStatusLabel}</strong><StatusScopeHelp scope="drawingRecognition" /><small>{session.sources.map((source) => source.fileName).join("、")}</small></div>
       </header>
 
       {error ? <div className="drawing-recognition-alert is-error" role="alert"><AlertTriangle size={16} />{error}</div> : null}
@@ -311,8 +330,16 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
       <NativeMetadataHealthBanner health={session.adapterHealth?.nativeMetadata} onRetry={() => void rerun()} retryDisabled={busy || Boolean(pdfOcr.activity) || ["queued", "extracting"].includes(session.status)} />
       <DrawingRecognitionPdfOcrStatus session={session} activity={pdfOcr.activity} pendingFailure={pdfOcr.pendingFailure} onRetryPending={pdfOcr.retryPending} onRerun={() => void rerun()} />
 
-      {sections.map((section) => {
-        const candidates = session.candidates.filter((candidate) => candidate.category === section.key && candidate.fieldKey !== "source_file_stem");
+      {readyForWrite ? <section className={styles.readySummary} aria-labelledby="recognition-ready-title">
+        <div><Check size={20} aria-hidden="true" /><div><h2 id="recognition-ready-title">核對已完成，尚未寫入正式資料</h2><p>這裡是最後一道安全確認；先查看實際異動，再決定是否寫入 PDM。</p></div></div>
+        {confirmedWriteCandidates.length > 0 ? <ul>{confirmedWriteCandidates.slice(0, 8).map((candidate) => <li key={candidate.id}><span>{candidate.fieldLabel}</span><strong>{candidate.proposedValue || "不適用"}</strong></li>)}</ul> : <p className={styles.noChanges}>目前沒有可寫入的已確認欄位；可先查看影響內容確認排除原因。</p>}
+        {confirmedWriteCandidates.length > 8 ? <small>另有 {confirmedWriteCandidates.length - 8} 筆已確認資料，完整內容會列在寫入影響預覽。</small> : null}
+      </section> : null}
+
+      <details className={styles.reviewDetails} open={pendingCount > 0 || undefined}>
+        <summary>{pendingCount > 0 ? `展開處理 ${pendingCount} 筆待核對資料` : "查看完整辨識證據與核對紀錄"}</summary>
+        <div className={styles.reviewDetailsBody}>{sections.map((section) => {
+        const candidates = session.candidates.filter((candidate) => candidate.category === section.key && !isSourceIdentityEvidence(candidate));
         return (
           <section id={`recognition-${section.key}`} key={section.key} className="drawing-recognition-section">
             <div className="drawing-recognition-section-heading"><h2>{section.title}</h2>{candidates.some((candidate) => ["proposed", "conflict", "blocked"].includes(candidate.reviewState) && !requiresPartOwner(candidate, drafts[candidate.id])) ? <button type="button" className="secondary-button" disabled={busy} onClick={() => void acceptSection(section.key)}><Check size={15} />接受此區辨識值</button> : null}</div>
@@ -332,7 +359,8 @@ export function DrawingRecognitionReview({ sessionId, returnTo = null }: { sessi
             })}</div>}
           </section>
         );
-      })}
+      })}</div>
+      </details>
 
       <footer className="drawing-recognition-footer"><div><strong>{session.status === "formalized" ? "這批結果已正式寫入" : session.status === "extraction_failed" ? "辨識失敗，請更換來源檔或重新辨識" : ["queued", "extracting"].includes(session.status) ? "辨識處理中" : pdfOcrBlocksFormalization ? "PDF 辨識尚未成功完成；辨識結果暫不可正式寫入" : pendingCount > 0 ? `尚有 ${pendingCount} 筆需要核對` : "所有必要候選已核對"}</strong><span>確認寫入內容會列出每個欄位的寫入前後值，不會直接修改資料。</span></div><div>{!hasPdfOcrSources && !nativeRecoveryAvailable ? <button type="button" className="secondary-button" disabled={busy || Boolean(pdfOcr.activity) || ["queued", "extracting"].includes(session.status)} onClick={() => void rerun()}><RefreshCcw size={15} />重新辨識</button> : null}<button ref={impactTriggerRef} type="button" className="primary-button" disabled={busy || pdfOcrBlocksFormalization || pendingCount > 0 || session.status === "formalized" || ["queued", "extracting", "extraction_failed", "cancelled"].includes(session.status)} onClick={() => void previewImpact()}><ChevronRight size={15} />確認寫入內容</button></div></footer>
 

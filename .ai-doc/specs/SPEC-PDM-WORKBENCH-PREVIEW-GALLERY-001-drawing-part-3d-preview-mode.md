@@ -1,15 +1,306 @@
 # SPEC-PDM-WORKBENCH-PREVIEW-GALLERY-001：圖號／料號預覽圖模式
 
-Status: `Phase 1 Drawing RD Implemented / Phase 2 Part RD Implemented Locally / SQLite + Browser QA Passed / PostgreSQL Shadow Blocked / Capability Default Off / Production Release Gated`
+Status: `DEV-112 Local RD Implemented / QA-QC Complete / Human Confirmed / RD Eligible / Existing DEV-065/105 Runtime Baseline Retained / Production Release Gated`
 Date: 2026-08-11
-Last updated: 2026-08-24
+Last updated: 2026-09-01
 Owner: Dev PM
-Related DEV: `DEV-065`
+Related DEV: `DEV-065`, `DEV-105`, `DEV-112`
 Source ID: `DEV-PDM-WORKBENCH-PREVIEW-GALLERY-001`
 Related QA: `.ai-doc/qa/qa-dev-065-workbench-preview-gallery-validation-plan-2026-08-11.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-PART-PREVIEW-AUTHORITY-001-part-setting-and-shared-projection.md`
 Current architecture authority: `.ai-doc/specs/SPEC-PDM-STATUS-DATA-REBUILD-001-canonical-workbench-state-and-branching.md`
 Historical related authority: `.ai-doc/specs/SPEC-PDM-WORKBENCH-CORE-001-shared-read-and-controller-contract.md`; `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-AGGREGATE-001-single-data-layer.md`; `.ai-doc/specs/SPEC-PDM-FILE-OWNERSHIP-001-contextual-drawing-part-files-and-3d-reuse.md`; `.ai-doc/specs/SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-solidworks-preview-derivatives.md`
+
+## 0T. 2026-09-01 DEV-112 RD Implementation Contract（repository assessed／實作與QA已完成）
+
+Status：`Local RD Implemented / RD Tech Lead Corrections Closed / Human Confirmed / QA-QC Complete / RD Eligible / Production Release Gated`。
+
+本節把 §0S 已確認的產品契約收斂成目前 repository 可直接執行的 RD contract；§0S 的成功結果、模式語意、
+URL、能力、polling、資料與 permission 邊界仍有效。本輪已依下列本機產品與測試切片完成實作及驗證；不包含
+schema／migration、主要或正式資料、preview source／worker、stage／commit／merge／PR、deploy 或 release。
+
+### 0T.0 RD 技術主管修正封口
+
+2026-09-01 技術主管審查結論為「有條件通過」；下列四項 P1 已收斂成唯一、可直接實作與驗證的工程裁決。這些修正不改產品方向、
+不新增 ADR；本節與 QA §0T 同步後，DEV-112 的文件狀態升為 `Local RD Implemented / QA-QC Complete`，
+目前未結 P0／P1 planning gap=`0`。
+
+| P1 | 最終工程裁決 |
+|---|---|
+| Invalid URL 與 storage precedence 互相矛盾 | 明確區分 key missing 與 invalid：只有 `rawLayout === null` 可讀 module storage；raw value 存在但 invalid 時直接回 `list` 並正規化 URL，絕不套用 storage。 |
+| non-image／decode failure 無明確 owner | `canonical-preview-media.tsx` 維持 no-touch；新增的 shared `CanonicalPreviewThumbnail` 以 per-href local failure state 與 `onErrorCapture` 擁有 gallery／inline 的 render failure，失敗時卸載 broken media、只降級 exact item。 |
+| 「lazy load」與現行 eager fetch 不一致 | Current Phase 不新增 `IntersectionObserver`。契約改為：只有 image-bearing mode 會 mount current cursor page 的 ready items；首次 protected-media request 不得超過該頁 ready row count，頁面上限沿用 list `limit<=100`。 |
+| TVM-020 權限案例缺可執行 actor／fixture | task-owned fixture 固定 seed 第二公司 exact asset／binding／context；browser runner 實際送出 no-cookie、跨公司及 tampered-ID 三類 protected file-read，檢查 401／403／404、零受保護 bytes 與零 raw authority 洩漏。 |
+
+### 0T.1 Repository baseline、版本指南與 dirty preflight
+
+- Assessment branch／HEAD：`持續優化2`／`91de270c3a644dfbcbee49ed255b3c18e13df9dd`；candidate 不得假設工作樹乾淨。
+- Framework：`next@16.3.0`。RD 在改碼前須重讀 local Next.js 16.3 文件
+  `node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md`、
+  `node_modules/next/dist/docs/01-app/01-getting-started/12-images.md`及
+  `node_modules/next/dist/docs/01-app/03-api-reference/02-components/image.md`。`CanonicalPdmWorkbench`維持 Client Component；
+  受保護 preview endpoint 需要現行 session，Next Image optimizer不轉送 authorization header，因此縮圖必須沿用
+  `CanonicalPreviewMedia`的same-origin `fetch → Blob object URL → img`，不得改成直接`next/image`最佳化請求。
+- Playwright runner 依 local `node_modules/next/dist/docs/01-app/02-guides/testing/playwright.md`以 task-owned Next runtime執行；
+  不連既有3000或未知port，也不把靜態 source assertion冒充browser evidence。
+- 下表 SHA-256 是 readiness assessment 當下工作樹 fingerprint，不表示既有 dirty內容已被DEV-112擁有。RD開始每一檔前須重算；
+  相同才可在指定 anchor patch，任何不同都只停止該檔、閱讀最新diff並更新本節／manifest，禁止checkout、reset或覆蓋其他任務變更。
+
+| File | 2026-09-01 worktree state | SHA-256 |
+|---|---|---|
+| `src/lib/pdm-canonical-preview.ts` | modified | `52aba1af130d0e0da3ba238ddff0ac4ecca06c3da0bb11814c36e89eaf0465c8` |
+| `src/components/pdm-workbench-layout-switch.tsx` | modified | `ac838aa677cec097a575848c6b298ed752da43f384f3cddd9db7418fd32bad2a` |
+| `src/components/canonical-pdm-preview-gallery.tsx` | modified | `629f5180fed4da70962215cde455be4ea31077734ad03b741ddd8399275e9a68` |
+| `src/components/canonical-pdm-workbench.tsx` | modified | `4015e279935ee1a8e460bce9b275f68aaafbc1c3c44b527d20cb58d03bfb2b69` |
+| `src/app/globals.css` | modified | `1a0c5d1ec35b21ebc95e09242ca78b671ff4820cdb79db1bc1bc1d729d9678d2` |
+| `scripts/qc-dev-065-canonical-preview-contract.mjs` | modified | `84498deda33ffe3db1566fe6a396c125d8769597ec5e25c9b78fd680ce45dbd8` |
+| `scripts/qc-dev-065-canonical-preview-gallery.mjs` | modified | `c783a56c99f553260048e4b7327208d4b2dc82c7b4857cdf5b7afcda150bd397` |
+| `scripts/qc-dev-112-three-view-modes-contract.mjs` | added | `dce069b7b719e69cb3fdaae2e3bc021fc035f8cafce3932566447c680db0d4d6` |
+| `scripts/qc-dev-112-three-view-modes-browser.mjs` | added | `c0419820f294b3984eac3389e908144b72b30e38839710881668c64fb0939fc0` |
+| `scripts/qc-dev-112-three-view-modes-aggregate.mjs` | added | `b05e66311ad21b1778968a97cb73d37c1902acbc7631210abea4cf25b7a5e03c` |
+| `package.json` | modified | `2f641c754ea565d4ff56361c3b932cd8673f78138f097daa5279967b41efc27a` |
+
+### 0T.2 Exact modify／add／no-touch inventory
+
+| Action | File／anchor | Required implementation |
+|---|---|---|
+| Modify | `src/lib/pdm-canonical-preview.ts`：`CanonicalWorkbenchLayout`、`normalizeCanonicalWorkbenchLayout`、既有兩個storage keys | 唯一layout type擴充成`"list" | "list_3d" | "preview"`；normalizer只接受三值。保留`pdm-canonical-drawing-layout-v1`與`pdm-canonical-part-layout-v1`，不做key migration或清除舊偏好。 |
+| Modify | `src/components/pdm-workbench-layout-switch.tsx`：全檔 | 移除平行`PdmWorkbenchLayout`union並import唯一type；固定三option資料。group用`role="radiogroup"`、`aria-label="顯示方式"`，option用`role="radio"`／`aria-checked`與roving tabindex；Arrow keys、Home／End移動並選取，Space／Enter選取，focus留在current option。加入穩定hooks `data-canonical-layout-switch`及`data-layout-mode`。 |
+| Modify | `src/components/canonical-pdm-preview-gallery.tsx`：`previewText`／`stateLabel`與card media branch | 抽出export的shared presentation helper及`CanonicalPreviewThumbnail`，支援`gallery`與`inline` density但共用同一state label與`CanonicalPreviewMedia`。wrapper以preview href／state identity為reset key持有per-item `mediaFailed`，用`onErrorCapture`攔截nested image decode／non-image render error；失敗後卸載broken media並改顯示unavailable placeholder。inline thumbnail不可interactive；用`role="img"` accessible name表達source/state，ready img本身維持空alt避免重複播報。保留目前strict exact-map fail closed，不重新fabricate missing projection。 |
+| Modify | `src/components/canonical-pdm-workbench.tsx`：layout restore/change、`previewPollState` effect、`closeDetail`、return JSX header/filter/result/table branch | localStorage get/set各自try/catch，SecurityError／quota error只降級session state，不阻擋模式切換。Header只留title/create；capability存在時在`.canonical-list`第一層、內容之前渲染`data-canonical-result-display-bar`。`preview`走gallery；`list`與`list_3d`走同一table，只有`list_3d`在code cell前渲染shared inline thumbnail。poll guard改為`layout === "list_3d" || layout === "preview"`且仍只一個timer／list request。drawer close依selected row key在current DOM找`[data-row-key]`並focus；找不到才fallback目前result region，不得假設table存在。 |
+| Modify | `src/app/globals.css`：`.canonical-header-actions`、`.canonical-list*`、`.canonical-preview-*`、`.canonical-table*`及720／560px media blocks附近 | 增加扁平result display bar、三段control、code-cell group與inline preview state；3D清單 inline 縮圖放大後桌面／平板為`84×63`、`<=560px`為約`62×47`，固定約4:3、contain、不撐新欄。窄版整組換行但不建立第二panel；pending只在允許motion時有低干擾動畫，reduced-motion靜態。不得改filter/pagination/drawer的domain layout。 |
+| Modify | `scripts/qc-dev-065-canonical-preview-contract.mjs`：`CPG-013..016`附近 | 把legacy兩模式／pressed-button source assertion更新為三模式唯一type、radiogroup與image-bearing single-poller regression；保留目前cursor map replacement與strict map assertions。 |
+| Modify | `scripts/qc-dev-065-canonical-preview-gallery.mjs`：runtime setup／layout selector／mode click／focus／finally assertions | 將`工作台顯示模式`、`清單`selector更新為`顯示方式`、`文字清單`；補project-purpose-port-process/PDM dirs宣告、primary before/after invariant與port/temp cleanup receipt；確認既有DEV-065 ready/source/drawer案例在新group下仍可執行。不得改歷史case expected或把它計入TVM分母。 |
+| Modify | `package.json`：scripts中既有DEV-065／105登錄附近 | 只追加`qc:dev-112:contract`、`:browser`、`:aggregate`及`:all`四個命令；保留目前其他任務在同檔的dirty script additions，不排序或重寫整個scripts object。 |
+| Add | `scripts/qc-dev-112-three-view-modes-contract.mjs` | 驗證唯一type、三值normalization、storage key不變、DOM禁則、single poll condition、no-touch imports／API/schema與TVM source mapping；輸出`contract-manifest.json`。 |
+| Add | `scripts/qc-dev-112-three-view-modes-browser.mjs` | 依DEV-105 runner模式建立task-owned SQLite／repository／Next dist／port，執行兩route、三mode、四viewport、network／keyboard／focus／failure／poll矩陣；輸出browser manifest、screenshots及ledger。 |
+| Add | `scripts/qc-dev-112-three-view-modes-aggregate.mjs` | 只接受同一candidate的contract/browser/engineering receipts，驗證`TVM-001..024`恰好各一次、regression、primary invariant與cleanup；缺件或重複即exit 1。 |
+
+No-touch（任何需要修改即停止回Dev PM）：`src/lib/pdm-canonical-workbench-contract.ts`、
+`src/lib/pdm-canonical-workbench.ts`、`src/components/canonical-preview-media.tsx`、
+`src/components/pdm-workbench-pagination.tsx`、`src/lib/repositories/**`、`src/app/api/**`、資料庫schema／migration、
+preview worker／resolver authority、Relation工作台及`PdmWorkbenchFilters`／drawer domain contract。
+`scripts/qc-dev-066-workbench-topbar.mjs`保留歷史expected，不直接改寫；DEV-112由新runner驗證replacement與未受影響的Relation／filter／pagination。
+
+### 0T.3 Deterministic state、render、poll與recovery algorithm
+
+1. Restore：先區分 URL key 是否存在。`rawLayout === null`時才safe-read module-specific storage，storage讀取throw視同missing；raw value存在且為三值之一時使用URL；
+   raw value存在但invalid時直接使用`list`，不得讀取或套用storage。等價resolver為`raw === null ? safeStored ?? "list" : normalize(raw) ?? "list"`。
+   invalid URL以`replaceState`正規化`layout=list`且保留其他query。能力尚未由list response確認前，不先渲染mode group。
+2. Capability：成功list snapshot的`previewByRowKey !== undefined`且通過目前exact key/state contract才是available。Unavailable時原子設定
+   `layout=list`、清preview map、移除URL `layout`並隱藏整組控制；storage preference保留，未來能力恢復可再由正常precedence處理。
+3. Switch：user action只更新React layout、module storage與URL；storage write throw被吞下並保留本次session state。不得呼叫`load()`。
+4. Render／bytes：`list`不mount thumbnail／media component；`list_3d`與`list`共用相同`groups → rows → table`迴圈及row key，差別只在code cell的
+   inline child；`preview`才mount gallery。Current Phase不新增`IntersectionObserver`：只有目前image-bearing mode mount current cursor page的ready items，
+   首次protected-media request數不得超過該頁ready row count，且沿用list page `limit<=100`；202／409 retry另行計數，non-ready state不得建立media request。
+   所有模式共用selected key、drawer callback及pagination。
+5. Poll：`imageBearing = layout === "list_3d" || layout === "preview"`；只有capability、document visible、非loading／error且current exact map含
+   pending/delayed才排timer。pending=2500ms、只有delayed=5000ms；visibility hidden／mode change／terminal／unmount清timer。背景refresh沿用
+   `load(current cursor,direction,{background:true})`、Abort/ref guard與完整same-page snapshot；任何時刻最多一個in-flight，禁止per-row poll。
+6. Media failure：no-touch的`CanonicalPreviewMedia`保留202／409 retry與Blob cleanup；shared `CanonicalPreviewThumbnail`以preview href／state identity為reset key，
+   持有per-item `mediaFailed`並以`onErrorCapture`接住nested image decode／non-image render error。失敗後卸載broken media，gallery與inline都只把exact
+   thumbnail／card降級為unavailable placeholder；204／404／5xx仍由既有media component降級。不清row、不換source、不顯示raw response。
+   Preview map契約錯誤維持整頁fail closed，不把缺key當正常missing。
+7. Focus：mode radio focus不被result更新搶走；drawer close以selected row key查找目前mode element並focus，找不到才focus result region。切mode不改scroll，
+   browser runner須以before/after scroll與activeElement receipt證明。
+
+穩定test hooks只供語意定位，不得取代可存取名稱：`data-canonical-result-display-bar`、`data-canonical-layout-switch`、
+`data-layout-mode="list|list_3d|preview"`、`data-canonical-inline-preview`、`data-preview-state`、既有`data-row-key`。
+
+### 0T.4 RD slices、估工與 phase gates
+
+| Slice | Work | Estimate | Exit gate |
+|---|---|---:|---|
+| `112-A` | 唯一layout type、safe persistence、三段radiogroup與static contract runner | 0.5–1 person-day | contract manifest通過；無平行union／第二toggle；dirty ledger完整 |
+| `112-B` | result display bar、shared thumbnail、table/gallery render、poll/focus與RWD CSS | 1–1.5 person-days | RD self-check及兩route smoke；文字清單零media mount；no-touch diff=0 |
+| `112-C` | task-owned browser fixture/runtime、24案例、四viewport、network／a11y／failure evidence | 1.5–2 person-days | browser manifest 24案有對應observations；primary invariant與cleanup PASS |
+| `112-D` | affected regression、typecheck／lint／isolated build、aggregate與修正重跑 | 0.5–1 person-day | aggregate 24/24、P0/P1=0；QA可接手 |
+
+總估工：`3.5–5.5 person-days`，不含production release。依序執行112-A→B→C→D；任何phase gate失敗即停在該phase修正，
+不得先標下一phase完成。沒有human product gap、P0／P1 planning gap或target-dependent schema/provider decision；本輪已完成112-A～D並留下可追溯receipt。
+
+### 0T.5 Stop／re-entry 與交付狀態
+
+- 需要新增API／schema／migration／permission、改preview authority／worker、引入第二store／poller、修改no-touch檔、接觸primary／staging／production
+  資料或使用既有未知runtime：立即停止，回Dev PM重做Spec Impact／ADR preflight。
+- readiness fingerprint不同但產品邊界未變：只對受影響檔更新assessment與attribution後重入，不撤銷其他檔readiness。
+- 本節的112-A～D已完成；目前狀態為`Local RD Implemented / QA-QC Complete`，`TVM-001..024=24/24 PASS`，
+  production仍走獨立release gate。若後續變更觸發stop condition，須重新執行Spec Impact、dirty preflight與受影響案例。
+
+### 0T.6 2026-09-01 execution evidence
+
+- Contract：`output/qa/dev-112-three-view-modes/DEV112-contract-2026-09-01T04-20-45-784Z/contract-manifest.json`，`DEV112-C01..C16=16/16 PASS`。
+- Browser QA：`output/qa/dev-112-three-view-modes/DEV112-2026-09-01T04-20-52-452Z/browser-manifest.json`，固定分母
+  `TVM-001..024=24/24 PASS`、P0/P1=`0/0`；Drawing／Part、三模式、四 viewport 共24張截圖，protected-file security probes
+  的 no-cookie=`401`、跨公司／tampered=`404`，受保護 bytes與raw authority leak均為`0`。
+- Aggregate QC：`output/qa/dev-112-three-view-modes/DEV112-aggregate-2026-09-01T04-22-28-720Z/aggregate-manifest.json`，
+  contract/browser candidate fingerprint match、DEV-065 contract、`typecheck:app`、`build:isolated`與primary/fixture/cleanup gates均`PASS`。
+- 驗證只使用task-owned isolated data、repository、runtime與port；primary SQLite的schema、canonical root／Part／Drawing identities、
+  migration residue與`PRAGMA foreign_key_check`維持不變，未連線或寫入production，未執行deploy／release。
+
+## 0S. 2026-09-01 DEV-112 三種顯示模式 Product Contract（現行實作契約／已驗證）
+
+Status：`Product Contract Frozen / Local RD Implemented / Human Confirmed / QA-QC Complete / Execution Authority in §0T / Production Release Gated`。
+
+本節是 `/numbering/drawings` 與 `/parts` 下一版結果顯示的產品與 RD handoff authority。它有意取代本規格及
+DEV-066 對使用者可見的 `清單／預覽圖`兩模式、footer trailing switch 與「不新增第三種模式」條款；現行
+DEV-065／066／105 runtime、既有 QA PASS 與 production 狀態不因文件升級而改變。DEV-112 local runtime已完成三模式實作並取得
+新 evidence；本節代表本機已驗證的產品契約，不代表已上線，production仍受獨立release gate管制。
+
+Spec Impact：`Intentional replacement + compatible reuse`。取代的只有 Drawing／Part 顯示模式名稱、數量、控制位置與
+image-bearing layout 的 polling 條件；沿用 exact-row／Part preview authority、same-snapshot map、preview state、canonical
+file-read、selection、drawer、keyboard、RWD、權限與失敗隔離。Relation 或其他工作台不在取代範圍。
+
+使用思考習慣：#設計思考、#內容組織、#可驗證性、#風險意識
+
+### 0S.1 成功結果、資訊層級與 UI Entry Contract
+
+使用者成功結果固定為：不開啟明細也能選擇「純欄位比較」、「欄位＋外形比較」或「以外形掃視」，且不必理解
+「目前模式內是否再開啟 3D」的巢狀狀態。
+
+介面層級固定如下：
+
+1. 頁首只保留工作台名稱與既有 `建立圖號`／`建立料號`動作；不得把顯示模式放回建立動作旁。
+2. 篩選區只負責搜尋、篩選與資料範圍；不得把顯示方式混入任一 filter grid control。
+3. 結果區上緣設一個獨立 `顯示方式`群組，選項順序固定為 `文字清單`、`3D 清單`、`預覽圖`。
+4. 三個選項是同一層級、互斥的 view mode；不得另加 `顯示 3D` checkbox、toggle、圖示按鈕或只在文字清單內出現的子開關。
+5. 結果 meta、顯示方式、結果內容與分頁屬同一 result region；分頁仍在結果面板底部，建立與篩選不因模式切換移位。
+
+入口與正常流程：
+
+- 既有具 Drawing／Part 工作台讀取權限的使用者，從側欄進入 `圖號工作台`或`料號工作台`；不新增 route、角色或 permission。
+- 首訪進入 `文字清單`；套用搜尋／篩選後，使用者在結果區上緣選擇顯示方式。
+- 切換只改同一批資料的 presentation；row identity、server order、filter、cursor/page、selection、scroll、focus 與已開 drawer context均保留。
+- 使用者點擊任何模式中的 exact row／card，仍開啟同一 canonical drawer；關閉後焦點回到目前模式的相同 row 或合理鄰近目標。
+
+### 0S.2 三模式呈現契約
+
+| 模式 | 主要任務 | 呈現 | Preview bytes | 不可發生 |
+|---|---|---|---|---|
+| `文字清單` | 高密度比較編號、品名、版次與狀態 | 沿用現行表格、欄位與列選取，不渲染縮圖 slot | 不下載 | 不因 preview metadata 已存在而建立 image request；不得留下空白縮圖欄或額外列高 |
+| `3D 清單` | 同時比較欄位與零件外形 | 沿用同一表格；只在「編號」儲存格前加入 4:3 小型縮圖，不新增欄位 | mount current cursor page 的 ready rows；Current Phase 不做 viewport lazy | 不裁切模型、不改欄位順序、不把縮圖做成第二個 row action、不重複顯示長篇缺圖文案 |
+| `預覽圖` | 以外形快速掃視 | 沿用現行 gallery/card 與 exact drawer 入口 | mount current cursor page 的 ready cards；Current Phase 不做 viewport lazy | 不新增下載／mutation action、不改 preview source、不把多個 exact row 合併 |
+
+`3D 清單`縮圖盒桌面與平板固定約 `84 × 63px`；手機／窄版固定約 `62 × 47px`，相較原尺寸放大約 30%，並維持約 4:3、
+`object-fit: contain`、穩定占位與至少 44px 的 row interaction target。縮圖與編號構成同一儲存格內容，點擊／鍵盤行為仍由
+整列擁有；不得新增無標題的「3D」欄、巢狀 button 或可搶焦點的 image control。
+
+### 0S.3 Preview state、polling 與安靜降級
+
+既有 `ready / pending / delayed / missing / failed / unavailable` authority不變。三模式的差異只在呈現密度：
+
+| State | `3D 清單`可見行為 | `預覽圖`可見行為 |
+|---|---|---|
+| `ready` | 顯示 contain 縮圖；image decode error就地轉 unavailable | 沿用 ready card |
+| `pending` | 固定縮圖盒內顯示低干擾 loader；不增加 row badge | 沿用 DEV-105 loader 與 `預覽建立中` |
+| `delayed` | 固定盒內顯示靜態 clock／delayed icon | 沿用 `預覽服務未回應` |
+| `missing` | 中性空模型／image placeholder；不逐列顯示長句 | 沿用 `無 3D 預覽` |
+| `failed / unavailable` | 中性失敗 placeholder；不得顯示 raw error或broken image | 沿用 `預覽暫時無法顯示` |
+
+縮圖盒的 icon、形狀／動態與 accessible name共同表達狀態，不只靠顏色；完整狀態文案可由 visually-hidden label或
+可存取名稱提供，不能只依賴 tooltip。`prefers-reduced-motion`時 pending 使用靜態圖示。所有狀態都保留 row、選取與 drawer能力。
+
+DEV-105 §0R.2 的 `gallery目前可見`在 DEV-112 實作目標中改為「image-bearing mode目前可見」：只有 document visible、
+目前模式為 `3D 清單`或`預覽圖`，且本頁含 `pending|delayed` 才排 foreground poll；切到`文字清單`、terminal state、hidden或
+unmount立即停止。兩種 image-bearing mode 共用同一 list request、in-flight guard與 preview map，不得建立第二個 poller、per-row
+endpoint或平行 store。切換模式本身不 refetch identity rows；poll只依既有 DEV-105 完整同頁 snapshot規則更新 preview state。
+
+### 0S.4 URL、偏好、能力與相容性契約
+
+- Query固定擴充為 `layout=list|list_3d|preview`；`list`對應`文字清單`，`list_3d`對應`3D 清單`。
+- Precedence維持 valid URL → 當前模組 valid local preference → `list`。Drawing／Part各自記憶，不共用最後模式。
+- 現有 stored/query `list`與`preview`值保持合法；新增`list_3d`。任何其他值正規化為`list`，且不得移除無關安全 query。
+- 使用者切換沿用 `history.replaceState`；不增加 back stack、不 reload、不把 `layout`送入 list API／cursor hash。
+- Server既有 list response 的 preview capability／exact preview map是唯一能力訊號。能力不存在、flag off或 map不符合既有 exact-key
+  contract時，只呈現`文字清單`且不渲染空的 `顯示方式`群組；不得以 client猜測補 fabricated missing map。
+- 能力在目前 session 失效時安全回`文字清單`並正規化 URL；不得清除使用者其他模組 preference或顯示半套 3D UI。
+
+### 0S.5 Data、API、permission 與 dependency impact
+
+- Schema／migration／backfill／production data mutation：`none`。
+- 新 route／endpoint／request envelope：`none`；沿用 Drawing／Part canonical list、exact preview map與 canonical protected file-read。
+- Preview source／resolver／worker／derivative／custom Part preview authority：`unchanged`。
+- Permission／company／review scope／file-read binding／audit／lifecycle：`unchanged`；未授權與跨公司維持既有 fail-closed。
+- Query budget：identity list與preview metadata仍須符合DEV-065／087既有bounded bulk契約；只有目前image-bearing mode可mount current cursor page的ready items。
+  首次protected-media request不得超過該頁ready row count（現行page `limit<=100`）；202／409 retry另計，non-ready state與`文字清單`不得建立media request。
+- 直接依賴：DEV-065 exact preview projection、DEV-105 first-load convergence、DEV-066 shell placement、DEV-087 canonical row/drawer。
+- ADR：`No New ADR`。本案是既有 presentation 與 URL enum的可逆延伸；若 RD assessment 發現要改 preview authority、建立新資料層或
+  跨模組外部契約，必須停止並重新做 ADR preflight。
+
+### 0S.6 驗收、證據與失敗邊界
+
+固定驗收分母為 DEV-112 QA amendment 的 `TVM-001..TVM-024`；本輪已由同一候選版本完成，歷史 DEV-065／066 PASS仍不借用為新分母。最低 evidence：
+
+1. Drawing／Part在 1440×900、1024×768、768×1024、390×844 的真實瀏覽器畫面；每個 route三模式至少一張可對帳 evidence。
+2. DOM／keyboard／focus／reduced-motion／accessible-name evidence；visible error、console、network、5xx、overflow、overlap、crop、
+   truncation與broken-image sweep。
+3. 同一 fixture 的 row keys/order/count、filter/page/selection/drawer readback；三模式切換不得重抓 identity list。
+4. `文字清單` image request=0；`3D 清單`與`預覽圖`首次protected-media request不超過current cursor page的ready row count；
+   202／409 retries分開記錄，並提供pending/delayed poll start/stop及single in-flight evidence。
+5. capability absent、URL missing＋stored preference、invalid URL＋stored preference、strict map failure、HTTP／non-image／decode failure，以及
+   no-cookie／跨公司／tampered-ID的protected file-read負向案例。
+
+Pass：`TVM-001..024`全數有同一候選版本 evidence、P0/P1=0、aggregate登錄的DEV-065 contract／`typecheck:app`／`build:isolated`通過且
+runtime／port／temp data清理完成；未重跑的DEV-066／087／105與affected lint只作既有回歸資產，不誤併入本次receipt。
+Fail：控制層級混雜、三模式資料不一致、thumbnail變成獨立 action/欄位、文字清單下載圖片、雙 poller／N+1、狀態／權限／drawer退化、
+任一真實 viewport visible error或 evidence缺口。Blocked不得改 expected、刪案例或用 lint／截圖取代實際操作。
+
+### 0S.7 RD execution boundary 與成熟度
+
+產品／使用者契約維持本節；repository assessment、exact files／hunks、runner、fixture、commands、dirty fingerprint與估工已由§0T封口，
+DEV-112已完成112-A～D本機實作與QA-QC，`TVM-001..024=24/24 PASS`。需要新API、schema／migration、permission、preview source、
+第二套list/gallery store、production資料或deploy／release時仍須立即停止回Dev PM；本機完成不代表已上線，production仍走獨立release gate。
+
+## 0R. 2026-08-31 DEV-105 First-load Preview Convergence Amendment（現行 gallery 補充權威）
+
+本節只修正DEV-105首次載入同步、state semantics與pending回饋；DEV-065既有exact row、same-snapshot、selection、drawer、
+keyboard、RWD與Part preview authority保持不變。若本節與下方歷史`預覽產生中`、silent missing fallback或reload-based evidence衝突，
+以本節為準。
+
+### 0R.1 使用者成功結果與狀態契約
+
+- 使用者第一次進入`/numbering/drawings`或`/parts`的預覽圖模式，worker完成後同一張卡自動顯示ready image；
+  不需要reload、切回清單、重開drawer或重新套用filter。
+- `missing`只表示exact row沒有compatible 3D source，固定文案=`無 3D 預覽`，且不啟動poll。
+- `pending`只表示matching current-hash job為queued/running，固定文案=`預覽建立中`；`delayed`=`預覽服務未回應`；
+  `failed|unavailable|image error`=`預覽暫時無法顯示`。
+- Resolver在`source=null`時必須回`sourceType="none"`；不得由drawing number、source label或row type推定source存在。
+- `previewByRowKey` key set與本頁row key set必須exact match。missing／extra／duplicate key是list contract error；
+  gallery不得用fabricated`missing`object silent fallback，避免把server缺陷偽裝成正常no-source。
+
+### 0R.2 Pending-only foreground polling
+
+1. 初次list與所有背景refresh使用同一canonical list endpoint與query/cursor contract；不新增per-card endpoint、SSE/WebSocket或第二套store。
+2. 只有document visible、gallery目前可見且本頁含`pending|delayed`時排下一次poll；pending建議2500ms、delayed建議5000ms。
+   hidden時取消timer；visible時立即重查。Ready／missing／failed／unavailable、layout切換或unmount後停止。
+3. 只允許一個in-flight list request；使用`AbortController`與monotonic request id。搜尋、篩選、翻頁、使用者手動refresh或新poll產生的
+   newer request必須使舊response失效，不得讓stale preview map覆蓋新rows。
+4. 背景poll不得清空既有rows、顯示全區`更新中`、改URL/storage/page、重設selection、focus、scroll、drawer或roving tabindex；
+   只在成功取得完整同頁snapshot後原子替換list data與preview map。
+5. Network／contract失敗沿用existing local list error/recovery，停止自動tight loop；不得以`missing`或舊ready偽裝成功。
+
+### 0R.3 精簡進行中動畫與accessibility
+
+- Pending card只在既有media placeholder中保留一個低干擾進度訊號：14–16px loader＋`預覽建立中`。
+  動畫週期建議800–1200ms、低振幅、不閃爍、不造成layout shift；不新增toast、helper、badge、panel或全頁遮罩。
+- `prefers-reduced-motion: reduce`時取消rotation／pulse，顯示靜態progress icon＋同一文字；文字與`aria-busy="true"`使動畫不是唯一訊號。
+- 每次poll不進live region、不重複播報。Card accessible name含當前preview state；轉ready只更新該card name，不搶focus。
+- Ready後loader與pending文案立即移除；terminal／unmount後動畫與timer均不可殘留。
+
+保留舉證：沒有局部進度狀態時，使用者會把固定placeholder理解為尚未開始或故障並手動reload；最小loader＋短文案可區分
+「正在處理」而不增加第二焦點。動畫不承擔進度百分比，也不暗示確切完成時間。
+
+使用思考習慣：#設計思考、#批判、#效用理論
+
+### 0R.4 RD／QA boundary
+
+預期修改僅限`src/components/canonical-pdm-workbench.tsx`、`src/components/canonical-pdm-preview-gallery.tsx`、
+`src/lib/pdm-canonical-preview.ts`、必要contract type、`src/app/globals.css`與DEV-105 focused runners。若共用既有
+`master-attachment-panel.tsx` pending-poll pattern有兩個current consumers，可抽最小hook；否則保持局部，避免建立未使用抽象。
+
+Acceptance固定引用QA-105-019..030：cold-first-load同頁轉ready、動畫/reduced motion、no-source零poll、strict map fail-closed、
+hidden/visible、in-flight/race、terminal停止、selection/focus/scroll/drawer保持、Drawing/Part desktop+narrow、console/network與cleanup。
+不得用reload後截圖、direct API ready或歷史18/18取代。需要新API/schema、改Part source authority或production activation時停止回Dev PM。
 
 ## 0. Phase 1 RD Implementation Contract：Canonical 圖號工作台恢復預覽圖模式
 

@@ -1,5 +1,5 @@
 import { assert, createFixtureDatabase, expectSqlFailure, pass, read } from "./qc-dev-087-fixtures.mjs";
-import { assertCanonicalDtoHasNoRetiredFields, canonicalLayerLabel, CANONICAL_DATA_STATE_LABELS, normalizeCanonicalWorkbenchQuery } from "../src/lib/pdm-canonical-workbench-contract.ts";
+import { assertCanonicalDtoHasNoRetiredFields, canonicalDataStateLabel, canonicalLayerLabel, CANONICAL_DATA_STATE_LABELS, normalizeCanonicalWorkbenchQuery } from "../src/lib/pdm-canonical-workbench-contract.ts";
 import { dev087FaultHandling, dev087FaultReason } from "../src/lib/pdm-work-review.ts";
 import { buildNumberingPartRootLifecyclePolicy } from "../src/lib/pdm-lifecycle-policy.ts";
 
@@ -9,7 +9,8 @@ const actual = new Set(db.prepare(`SELECT name FROM sqlite_master WHERE type = '
 expectedTables.forEach((table) => assert(actual.has(table), `missing ${table}`));
 assert.equal(canonicalLayerLabel({ dataLayer: "drawing_production", revision: "1" }), "量產版 1");
 assert.equal(canonicalLayerLabel({ dataLayer: "drawing_rd", revision: "1.1" }), "研發版 1.1");
-assert.equal(canonicalLayerLabel({ dataLayer: "part_formal", revision: null }), "正式資料");
+assert.equal(canonicalLayerLabel({ dataLayer: "part_formal", revision: null, recordStatus: "Draft" }), "主檔 · 草稿（未發行）");
+assert.equal(canonicalDataStateLabel({ entityType: "part", dataState: "available" }), "資料可見");
 assert.equal(canonicalLayerLabel({ dataLayer: "relation_work", revision: null }), "");
 assert.equal(normalizeCanonicalWorkbenchQuery(new URL("http://local/?layer=rd&handling=owner"), "drawing").layers[0], "rd");
 assert.deepEqual(normalizeCanonicalWorkbenchQuery(new URL("http://local/?stage=editing,available"), "drawing").dataStates, ["editing", "available"]);

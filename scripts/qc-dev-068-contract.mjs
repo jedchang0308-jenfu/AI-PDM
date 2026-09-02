@@ -85,7 +85,7 @@ assert.equal(buildA0005FixtureResult(fixtureJob, wrongHashSource), null, "fixtur
 
 const repositorySource = fs.readFileSync(path.join(root, "src", "lib", "repositories", "drawing-recognition-async-repository.ts"), "utf8");
 assert.match(repositorySource, /missing_value_no_change/u);
-assert.match(repositorySource, /assignUniquePartOwner[\s\S]*SELECT DISTINCT candidate\.proposed_owner_id[\s\S]*resolvedOwners\.length !== 1/u, "owner fallback must apply only when the session has exactly one valid part owner");
+assert.match(repositorySource, /resolveRecognitionPartOwner[\s\S]*allowUnanchored:\s*true/u, "owner fallback must apply only through the governed part-owner resolver");
 assert.match(repositorySource, /RECOGNITION_PART_OWNER_REQUIRED[\s\S]*尚未指定料號歸屬/u, "owner-required decisions must fail closed at the repository boundary");
 assert.match(repositorySource, /variant_status === "explicit_not_applicable" && \(!fieldKey \|\| !ownerType \|\| !ownerId\)[\s\S]*explicit_not_applicable_no_target/u, "explicit N/A without a formal target must be excluded instead of blocking impact preview");
 assert.doesNotMatch(repositorySource, /ALTER\s+TABLE[^;]*fieldKey/iu, "open candidate fields must use governed rows, not dynamic columns");

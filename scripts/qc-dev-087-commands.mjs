@@ -21,6 +21,7 @@ const client = createAsyncDatabaseClient({ kind: "sqlite", database: db });
 const workbench = new PdmCanonicalWorkbenchService(client);
 const owner = { id: ids.owner, companyId: ids.company, canEditNonOwned: false, permissions: { create: true, update: true, submit: true, cancel: true, decide: false } };
 const ownerView = { id: ids.owner, companyId: ids.company, canEditNonOwned: false, permissions: { createWork: true, updateWork: true, submitWork: true, cancelWork: true, decideReview: false, obsoleteDrawing: true } };
+const ownerViewWithoutCancel = { ...ownerView, permissions: { ...ownerView.permissions, cancelWork: false } };
 const reviewer = { id: ids.reviewer, companyId: ids.company, canEditNonOwned: true, permissions: { create: true, update: true, submit: true, cancel: true, decide: true } };
 const reviewerView = { id: ids.reviewer, companyId: ids.company, canEditNonOwned: true, permissions: { createWork: true, updateWork: true, submitWork: true, cancelWork: true, decideReview: true, obsoleteDrawing: true } };
 
@@ -28,6 +29,15 @@ const partService = new PartChangeWorkService(client);
 const initialPart = await workbench.list(new URL("http://local"), "part", ownerView);
 const formal = initialPart.data.groups[0].rows[0];
 const created = await partService.create(ids.part, owner, { idempotencyKey: "part-create", contractToken: initialPart.meta.contractToken, expectedRowVersion: formal.rowVersion });
+const activePartList = await workbench.list(new URL("http://local"), "part", ownerView);
+const activePartRow = activePartList.data.groups.flatMap((group) => group.rows).find((row) => row.handling === "owner");
+assert(activePartRow, "active Part work projects an owner row");
+assert.deepEqual(activePartRow.actions.filter((action) => action.key === "cancel_work" || action.key === "edit"), [
+  { key: "cancel_work", label: "取消本次工作", href: `/api/pdm/part-change-works/${created.workId}/cancel` },
+  { key: "edit", label: "進行編輯", href: `/parts/${ids.part}/workspace?workId=${created.workId}` }
+]);
+const partWithoutCancel = await workbench.list(new URL("http://local"), "part", ownerViewWithoutCancel);
+assert.equal(partWithoutCancel.data.groups.flatMap((group) => group.rows).some((row) => row.actions.some((action) => action.key === "cancel_work")), false, "Part cancel action requires cancelWork permission");
 const changedPayload = { ...created.payload, partName: "本體_BS_右_Xx5_核准" };
 const updated = await partService.update(created.workId, changedPayload, owner, { idempotencyKey: "part-update", contractToken: initialPart.meta.contractToken, expectedRowVersion: created.rowVersion });
 assert.equal(updated.rowVersion, 2);
@@ -74,6 +84,15 @@ const rdTarget = targets.data.candidates.find((candidate) => candidate.kind === 
 assert(rdTarget?.candidateToken);
 const newWork = await drawingService.create(ids.drawing, { sourceRowKey: production.rowKey, selectionMode: "recommended", candidateToken: rdTarget.candidateToken }, owner, { idempotencyKey: "drawing-create", contractToken: targets.meta.contractToken, expectedRowVersion: production.rowVersion });
 assert.equal(newWork.revision, "1.2");
+const activeDrawingList = await workbench.list(new URL("http://local"), "drawing", ownerView);
+const activeDrawingRow = activeDrawingList.data.groups.flatMap((group) => group.rows).find((row) => row.handling === "owner" && row.revision === "1.2");
+assert(activeDrawingRow, "active Drawing work projects an owner row");
+assert.deepEqual(activeDrawingRow.actions.filter((action) => action.key === "cancel_work" || action.key === "edit"), [
+  { key: "cancel_work", label: "取消本次工作", href: `/api/pdm/drawing-revision-works/${newWork.workId}/cancel` },
+  { key: "edit", label: "進行編輯", href: `/numbering/drawings/${ids.drawing}/workspace?workId=${newWork.workId}` }
+]);
+const drawingWithoutCancel = await workbench.list(new URL("http://local"), "drawing", ownerViewWithoutCancel);
+assert.equal(drawingWithoutCancel.data.groups.flatMap((group) => group.rows).some((row) => row.actions.some((action) => action.key === "cancel_work")), false, "Drawing cancel action requires cancelWork permission");
 assert.equal(db.prepare(`SELECT open_branch_count FROM pdm_workbench_aggregates WHERE id = ?`).get(ids.aggregateDrawing).open_branch_count, 2);
 const preparedCancelledWork = await completeNoImpact(newWork.workId, targets.meta.contractToken, newWork.rowVersion, "drawing-fff-cancel-no-impact");
 const cancelled2d = await drawingService.uploadFile(newWork.workId, {
@@ -232,4 +251,4 @@ assert.deepEqual(promotedList.data.groups.flatMap((group) => group.rows).map((ro
 
 assert.equal(db.pragma("foreign_key_check").length, 0);
 db.close();
-pass("commands", 54);
+pass("commands", 60);

@@ -1,6 +1,6 @@
 # DEV-032 Production Activation Readiness
 
-Generated: 2026-08-17T01:12:07.405Z
+Generated: 2026-09-02T09:37:44.875Z
 Status: `pending_human_activation_readiness`
 Target: `jenfu-ai-pdm-prod` / `asia-east1`
 Source commit: `f70c89821b717e6e98e3a6ef855af47e4b4a69dc`

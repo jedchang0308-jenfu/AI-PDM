@@ -29,6 +29,18 @@ export function setFirebaseBffSessionResponseCookie(response: NextResponse, toke
   });
 }
 
+export function setJenfuPlatformSessionResponseCookie(response: NextResponse, token: string) {
+  assertPlatformCookieToken(token, "JENFU_SESSION_COOKIE_TOKEN_INVALID");
+  response.cookies.set(FIREBASE_HOSTING_SESSION_COOKIE_NAME, token, {
+    ...HTTP_ONLY_COOKIE_OPTIONS,
+    maxAge: FIREBASE_BFF_SESSION_COOKIE_MAX_AGE_SECONDS
+  });
+  response.cookies.set(SESSION_COOKIE_NAME, token, {
+    ...HTTP_ONLY_COOKIE_OPTIONS,
+    maxAge: FIREBASE_BFF_SESSION_COOKIE_MAX_AGE_SECONDS
+  });
+}
+
 export function clearFirebaseBffSessionResponseCookies(response: NextResponse) {
   response.cookies.set(FIREBASE_HOSTING_SESSION_COOKIE_NAME, "", {
     ...HTTP_ONLY_COOKIE_OPTIONS,

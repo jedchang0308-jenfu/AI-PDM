@@ -1119,6 +1119,12 @@ export type NumberingNotificationRecord = {
 export type NumberingUserScope = {
   id: string;
   role: string;
+  authorizationActor?: {
+    identityIssuer: string;
+    identitySubject: string;
+    principalId: string;
+    employeeId: string;
+  };
 };
 
 export type NumberingPermissionKind = "page" | "action";
@@ -1127,6 +1133,7 @@ export type CheckNumberingPermissionInput = {
   user: NumberingUserScope;
   permissionKind: NumberingPermissionKind;
   permissionCode: string;
+  workspaceCode?: string | null;
   projectCode?: string | null;
   actionCode?: string | null;
 };
@@ -1138,6 +1145,7 @@ export type NumberingPermissionCheckResult = {
   roleCode: string | null;
   evaluatedRoles: string[];
   reason: "explicit" | "system_admin_default" | "no_candidate_role" | "missing_permission";
+  decisionCode?: string;
 };
 
 export type ListNumberingTasksInput = {

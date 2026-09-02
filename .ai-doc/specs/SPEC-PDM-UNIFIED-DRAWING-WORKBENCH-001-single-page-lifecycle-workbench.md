@@ -1,17 +1,25 @@
 # SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001：單一圖號工作台與生命週期導向操作
 
 Status: `Phase 1H Local RD Implemented / AI QA + Independent QC Passed / DEV-079 RD Implemented Locally / Focused Evidence Available / Independent QC Pending / Production Release Gated`
-Date: 2026-08-05; amended 2026-08-27
+Date: 2026-08-05; amended 2026-08-31
 Owner: Dev PM
-Related DEV: `DEV-053` / `DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`; `DEV-079` / `DEV-PDM-DRAWING-READONLY-DRAWER-FULLPAGE-EDITOR-001`
+Related DEV: `DEV-053` / `DEV-PDM-UNIFIED-DRAWING-WORKBENCH-001`; `DEV-079` / `DEV-PDM-DRAWING-READONLY-DRAWER-FULLPAGE-EDITOR-001`; `DEV-107` / `DEV-PDM-RECOGNITION-INLINE-FORMALIZATION-001`
 Parent DEV: `DEV-052`、`DEV-050`、`DEV-051`
-Related QA: `.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`; `.ai-doc/qa/qa-dev-079-drawing-readonly-drawer-fullpage-workspace-validation-plan-2026-08-19.md`
+Related QA: `.ai-doc/qa/qa-pdm-unified-drawing-workbench-validation-plan-2026-08-04.md`; `.ai-doc/qa/qa-dev-079-drawing-readonly-drawer-fullpage-workspace-validation-plan-2026-08-19.md`; `.ai-doc/qa/qa-dev-068-drawing-recognition-validation-plan-2026-08-12.md` §10
 Related authority: `.ai-doc/specs/SPEC-PDM-NUMBER-LIFECYCLE-SIMPLIFICATION-001-efficiency-first-bundle-flow.md`
 Related ADR: `.ai-doc/decisions/ADR-PDM-UNIFIED-DRAWING-WORKBENCH-001-read-projection-and-source-context.md`; `.ai-doc/decisions/ADR-PDM-APPROVAL-PLATFORM-003-drawing-revision-lifecycle-only-retention.md`
 
 > **2026-08-22 DEV-087 target supersession**：新決策優先。保留Drawing canonical identity、現有獨立full-page editor/recognition、exact artifact、permission與正式證據；top-level single row、DEV-086最多雙列/單一RD aggregate、legacy workspace/current-status/filter projection在activation時由production 0/1＋open branch latest RD 0..3及canonical handling取代並拆除，不保留fallback。
 
 > **2026-08-27 legacy route retirement amendment**：使用者明確決定不保留`/numbering/revisions`相容轉址。該頁面與正式導覽直接刪除，現行runtime href、permission mapping與task allowlist不得再引用；直接請求為unmatched route／404。進版能力只保留於`/numbering/drawings` canonical工作台，舊mutation API仍維持410 zero-write fence。
+
+> **2026-08-31 DEV-107 inline formalization amendment（RD Implemented Locally / Human Confirmed / Local QA-QC Complete 38/38 PASS / Production Release Gated）**
+>
+> `智慧辨識`task panel改為辨識核對、背景零寫入advisory preflight、一次`確認寫入 PDM`、`已寫入 PDM`狀態及送審前successor amendment的唯一可見owner；dirty候選由一個server commit intent在同一transaction保存、重驗exact source／target並同步，不增加第二個儲存主按鈕。正常流程不再導向`/numbering/recognition/[sessionId]`獨立工作台，也不開impact／confirmation modal。舊recognition route目前必須作company／session／returnTo驗證後redirect至exact Drawing recognition tab，未來只有另立retirement DEV才可移除。
+>
+> 本文與DEV-079所稱「OCR／辨識不構成送審gate」須讀成scoped rule：無session、processing、extraction failed、只有raw proposal、ignored／deferred／unclassified、identity／evidence-only或沒有accepted intended write，不得新增recognition blocker；本機dirty由client guard阻擋，而current exact source只要有accepted intended且latest leaf尚未formalized，不論positive、zero delta或blocker都由server拒絕送審。accepted zero-delta經commit建立`appliedCount=0`event後才算同步；submitted／reviewing鎖定、returned重開、Approved／Released走既有正式變更。
+>
+> Spec Impact=`Intentional replacement + compatible preservation`：只取代「正式寫入需進舊完整核對頁」與任何不分情境的OCR submit non-gate文字；保留Drawing canonical workspace、visual-first layout、single lifecycle action bar、recognition evidence／decision authority、Part canonical projection、permission、approval與release。完整implementation authority為主recognition SPEC §34及配對ADR；採053 additive purpose／evidence-origin migration、single commit與exact formalized snapshot，固定驗證分母為`QA-107-001..038`，最新aggregate已完成38/38 local QA/QC，正式release仍受既有gate管制。
 
 > **2026-08-20 DEV-086 production／RD lane target amendment（RD Implementation Ready / Not Implemented）**
 >

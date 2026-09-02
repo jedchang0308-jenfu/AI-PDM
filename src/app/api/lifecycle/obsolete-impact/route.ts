@@ -21,6 +21,12 @@ export async function GET(request: Request) {
       entityId: url.searchParams.get("entityId"),
       entityCode: url.searchParams.get("entityCode")
     });
+    if (impact.recordStatus !== "Active" && impact.recordStatus !== "Released") {
+      return NextResponse.json(
+        { error: "LIFE_OBSOLETE_NOT_FORMAL", message: "此資料尚未正式發行，不能申請作廢。" },
+        { status: 409, headers: { "cache-control": "private, no-store" } }
+      );
+    }
     return NextResponse.json({ impact, pdmCompany: company.company }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     if (error instanceof FormalObsoleteImpactError) {
@@ -30,4 +36,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "LIFE_OBSOLETE_IMPACT_READ_FAILED" }, { status: 500 });
   }
 }
-

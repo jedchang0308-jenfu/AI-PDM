@@ -1,5 +1,5 @@
-﻿import { NextResponse } from "next/server";
-import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { NextResponse } from "next/server";
+import { forbidden, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import {
   createProcurementSyncRunAsync,
@@ -17,7 +17,7 @@ function parseTargetSystem(value: unknown): ProcurementSyncRun["target_system"] 
 }
 
 export async function GET(request: Request) {
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const url = new URL(request.url);
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const body = await request.json().catch(() => ({}));

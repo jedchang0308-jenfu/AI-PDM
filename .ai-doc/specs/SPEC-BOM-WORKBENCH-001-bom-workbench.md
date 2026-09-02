@@ -1,6 +1,6 @@
 # SPEC-BOM-WORKBENCH-001：BOM 工作台
 
-狀態：DEV-104 Current Presentation `RD Implementation Ready / Human Confirmed 01A-02A-03A-04B-05A-06A / Local RD Eligible / RD Not Started` / DEV-096 domain authority preserved / DEV-060 create contract retired
+狀態：DEV-104 Current Presentation `Local RD Implemented / Fixed QA 48/48 PASS / Aggregate QA-QC Complete / Production Release Gated` / DEV-096 domain authority preserved / DEV-060 create contract retired
 日期：2026-05-30
 關聯任務：`DEV-BOM-WORKBENCH-001`、`DEV-PDM-BOM-MODULE-ENTRY-001` / `DEV-060`、`DEV-104 / DEV-PDM-BOM-WORKBENCH-V2-001`
 適用模組：BOM 工作台、送審、BOM diff、Where-used、製造交接、採購匯出
@@ -721,7 +721,7 @@ RD 遇到以下任一情況必須停止並回報，不得自行縮小規則：
 
 ### 18.1 Readiness、Human Decision與Authority
 
-- 成熟度：`RD Implementation Ready / Human Confirmed / Local RD Eligible / RD Not Started / Production Release Gated`。
+- 成熟度：`Local RD Implemented / Human Confirmed / Fixed QA 48/48 PASS / Aggregate QA-QC Complete / Production Release Gated`。
 - DEV：`DEV-104 / DEV-PDM-BOM-WORKBENCH-V2-001`。
 - `HD-104-01=A`：階層表／Outliner是primary editor；Map是optional view；Floating Topic保留為收合的進階Draft staging。
 - `HD-104-02=A`：desktop完整編輯；tablet／phone只讀BOM、diff、審核與基本匯出。
@@ -729,9 +729,9 @@ RD 遇到以下任一情況必須停止並回報，不得自行縮小規則：
 - `HD-104-04=B`：Map是唯讀adapter，只可瀏覽、選取、摺疊、聚焦、縮放與定位；任何structure／quantity／mapping修改都切回Outliner並保留selection與Parent context。
 - `HD-104-05=A`：legacy ReactFlow／XMind presentation在DEV-104 parity gate通過後同階段移除；不得保留可寫fallback或長期雙軌。
 - `HD-104-06=A`：104-A～D只作內部分期；新工作台必須在DEV-104 aggregate QA/QC全數通過後一次切換，不逐slice對使用者開放，也不建立平行V3 route。
-- Human decision gaps：`0`。§18.13～18.18已鎖定exact file responsibility、typed command／state、retirement順序、
-  feature compatibility、failure recovery、fixture與固定48-case runner denominator，無P0／P1 readiness缺口。
-- 本文件成熟度允許RD直接接手本機實作，但本輪仍是文件工作；尚未修改產品、測試、schema、資料、runtime、flag或release狀態。
+- Human decision gaps：`0`。§18.13～18.21已鎖定exact file responsibility、typed command／state、retirement順序、
+  feature compatibility、failure recovery、fixture、固定48-case denominator、逐案結果與failure handoff，無P0／P1 readiness缺口。
+- 本文件成熟度已完成本機RD實作與固定48案驗證；最終aggregate與既有quality gates均已通過。未修改schema／資料、未activation／deploy／release；DEV-096 PostgreSQL已以task-owned disposable DSN完成7/7驗證，結果不可由SQLite替代。正式環境仍須另走既有release gate。
 
 Authority順序：
 
@@ -1038,8 +1038,7 @@ Evidence layer：
 | 104-C Lifecycle／projection | contextual CTA、diff-first、variant inspector、released／narrow read | 104-B PASS | role／state／Parent／server gate matrix PASS |
 | 104-D Retirement／QC | 移除legacy presentation與duplicated client logic，focused browser／regression | 104-C PASS | Medium QA/QC、isolated build與data invariants PASS |
 
-四個slice都是Current Phase，且本文件已達`RD Implementation Ready`；但使用者本輪只要求補文件，尚未提出產品實作指令。
-後續若開始RD，必須依序通過slice gate，且不得只做Outliner外觀就宣稱DEV-104完成。
+四個slice都是Current Phase。本輪已完成清單／明細 route boundary、typed reducer／controller、Outliner primary、Map read-only projection、Floating blocker／locator、Inspector、CAS serializer、lifecycle CTA與legacy presentation retirement；最終 aggregate `output/qa/dev-104/DEV104-2026-08-30T16-28-09-638Z/manifest.json` 的 QA-104-001..048 三runner exact case set 共48/48 PASS，`completionCandidate=true`，primary invariant unchanged、`foreignKeysAfter=0`、source unchanged且task-owned cleanup complete。`typecheck:app`、affected lint、isolated build、flag-off 10/10、lifecycle UI 29/29與DEV-071 API 16/16 PASS；巢狀 DEV-096 aggregate `output/qa/dev-096-aggregate/DEV096-2026-08-30T16-30-05-805Z/aggregate.json` 為88/88 PASS，含 disposable PostgreSQL 7/7與browser 26/26。故本機 QA/QC gate 已完成；正式 activation、deploy與release仍另受既有 gate 管制。
 
 ### 18.12 Stop Conditions、Execution與Future Re-entry
 
@@ -1051,8 +1050,8 @@ Stop if：
 - 無法在dirty worktree保留使用者變更，或build／QA必須碰primary／production data。
 - 被要求加入CAD/XLS/AI adapter、MBOM／ERP、cross-root、detach／fork、正式activation、deploy或release。
 
-Execution Boundary：本文件輪只更新authoritative開發文件；產品、test、schema、data、runtime、flag、deployment與release皆未執行。
-DEV-104已可交RD直接開始本機實作；正式activation、deploy與release仍須另進既有release gate，且不得把flag-off read-only當成可寫rollback editor。
+Execution Boundary：本輪已在本機完成產品實作、固定48案contract／state／browser驗證、typecheck、受影響檔案lint與isolated build；未修改schema／data、未activation／deploy／release。最終 aggregate evidence 為`output/qa/dev-104/DEV104-2026-08-30T16-28-09-638Z/manifest.json`，三runner artifacts 位於同run的`contract/case-results.json`、`state/case-results.json`與`browser/case-results.json`；manifest記錄`completionCandidate=true`、`source.unchanged=true`、primary fingerprint前後一致、`foreignKeysAfter=0`、`productionConnected=false`、`productionWrites=false`、`primaryWrites=false`與cleanup complete。巢狀 DEV-096 evidence 為`output/qa/dev-096-aggregate/DEV096-2026-08-30T16-30-05-805Z/aggregate.json`，PostgreSQL 7/7=`postgres.json`、browser 26/26=`browser/browser.json`；task-owned disposable PostgreSQL僅供驗證，已於交付前停止並移除。
+正式activation、deploy與release仍須另進既有release gate；flag-off read-only仍不是可寫rollback editor。後續若要進正式環境，須另取得 production migration、feature activation、deploy、release與smoke 授權，不得由本機 PASS 推定授權。
 
 Future Phase Capsules維持：
 
@@ -1133,13 +1132,13 @@ qc:dev-104
 
 Aggregate Quality Gates：
 
-- `npm.cmd run qc:dev-071-api`：保留13／13 atomic graphs、CAS、permission、submit／release與audit。
+- `npm.cmd run qc:dev-071-api`：保留16／16 atomic graphs、CAS、permission、submit／release與audit（含三個actor login與13個API／audit assertions）。
 - `npm.cmd run qc:dev-071-flag-off-browser`：更新後固定10／10，zero／nonzero Floating皆read-only且PATCH fail closed。
 - `npm.cmd run qc:dev-096`：既有88／88 shared Definition、mapping、review／release、consumer與PostgreSQL gate。
 - `npm.cmd run qc:pdm-lifecycle-bom-draft-ui`：list／detail normal entry與lifecycle presentation。
 - `npm.cmd run typecheck:app`、`npx.cmd eslint src/app/bom/workbench src/components/bom-editor src/lib/bom-editor-feature.ts src/lib/assembly-bom-feature.ts src/app/api/bom/drafts scripts/qc-dev-104-contract.mjs scripts/qc-dev-104-state.mjs scripts/qc-dev-104-browser.mjs scripts/qc-dev-104-aggregate.mjs scripts/qc-dev-071-contract.mjs scripts/qc-dev-071-browser.mjs scripts/qc-dev-071-flag-off-browser.mjs scripts/qc-dev-096-browser.mjs scripts/qc-pdm-lifecycle-bom-draft-ui.mjs scripts/qc-system-health-phase8-bom-presentation.mjs`、`npm.cmd run build:isolated`。
 
-既有`qc-dev-071-contract/browser`的XMind presentation cases是superseded baseline，不能原樣列為required PASS；RD必須依§18.13改寫成preserved-capability regression，並在manifest列出舊assertion到新assertion的mapping。任何刪除case、縮小DEV-096 88案或用build取代UI證據均為Fail。
+既有`qc-dev-071-contract/browser`的XMind presentation cases是superseded baseline，不能原樣列為required PASS；本輪已依§18.13改寫成preserved-capability regression，並由DEV-104 case artifacts保留新assertions、legacy-zero-reference與flag-off fail-closed evidence。任何刪除case、縮小DEV-096 88案或用build取代UI證據均為Fail。
 
 ### 18.17 Fixture、Runtime與Evidence Provenance
 
@@ -1156,5 +1155,153 @@ Aggregate Quality Gates：
 - P0／P1 readiness gaps：`0`；Human decision gaps：`0`；ADR：`not needed`。
 - Spec convergence：`Intentional replacement / Cross-spec converged at RD Implementation level`。
 - Current Phase schema／migration／new public endpoint／new permission／new lifecycle／new feature flag：`0`；只有既有flag-off PATCH fail-closed收緊。
-- RD可依104-A→B→C→D開始本機實作；任一slice gate失敗就停止在該slice，不跨階段、不刪驗收、不修改primary資料。
-- `RD Implementation Ready`不代表Local RD Complete、QA/QC PASS或Release Ready；本輪未執行產品修改、runtime、測試、activation、deploy或release。
+- 本機RD已依104-A→B→C→D完成；後續只可在同一frozen candidate上進行QA/QC與既有quality gate重驗。任一gate失敗就停止在該slice，不跨階段、不刪驗收、不修改primary資料。
+- `Local RD Implemented`與本輪aggregate QA/QC Complete仍不代表Release Ready；本輪未執行production activation、deploy或release。固定48案與typecheck／lint／isolated build evidence已保留於`output/qa/dev-104/DEV104-2026-08-30T16-28-09-638Z/`，巢狀DEV-096 88/88（含PostgreSQL 7/7與browser 26/26）保留於`output/qa/dev-096-aggregate/DEV096-2026-08-30T16-30-05-805Z/`；primary data invariant、`foreignKeysAfter=0`、source unchanged與task-owned cleanup均已驗證。正式環境仍須另走activation、deploy、release與production smoke gate。
+
+### 18.19 QA-104 Exact Case Registry
+
+本節是§18.16固定48案的唯一逐案authority。每一個ID都是不可拆帳、不可改名、不可用其他case結果代替的驗收單位；
+一案可有多個必要assertion，但任一必要assertion失敗，該案即為`FAIL`。Runner不得產生`SKIP`或自行將案例改為`NOT_APPLICABLE`；
+若confirmed scope真的改變，必須先更新本SPEC、DEV-104與固定分母，再執行新candidate。
+
+Contract cases（`scripts/qc-dev-104-contract.mjs`）：
+
+| ID | Fixture／actor | Required operation | PASS condition／minimum evidence |
+|---|---|---|---|
+| `QA-104-001` | source tree；任意authenticated actor | 靜態掛載`/bom/workbench`並檢查其imports、fetch與render責任 | list route只呼叫`GET /api/bom/drafts?surface=work_list`並render搜尋／篩選／row navigation；無detail editor、ReactFlow、Inspector、Draft mutation或lifecycle handler。保存matched symbol／source assertion。 |
+| `QA-104-002` | source tree；canonical detail route | 檢查`/bom/workbench/[draftId]`與`BomWorkbenchDetail`邊界 | route page只解析params並掛載detail shell；不複製list query／filter state，detail只沿用既有workbench／draft API。保存import graph與route assertion。 |
+| `QA-104-003` | DEV-104新editor composition；mutable desktop session | 掃描新editor document reducer、controller與其PATCH caller | 新editor只有single controller持有document／history／dirty／CAS save，且只有一個serializer形成PATCH；view component不得直接fetch PATCH或另建store。保存新editor writer inventory，exact count=`1`；legacy全repo零writer另由`010`在104-D判定。 |
+| `QA-104-004` | source tree；desktop Draft | render default detail並掃描semantic dispatch來源 | 預設mode為`outliner`；只有Outliner／Inspector可dispatch§18.6 semantic commands；Map不是primary CTA或default surface。保存default-state與dispatch-callsite inventory。 |
+| `QA-104-005` | source tree；Map adapter | 掃描Map imports、props、node config與rendered controls | Map只接收document projection與view actions；`nodesDraggable=false`，無mutation menu／shortcut／inline edit／add／delete／quantity／mapping callback。保存forbidden-symbol零命中與render assertion。 |
+| `QA-104-006` | source tree；`<1024px` capability | render 768與390 contract state並掃描mutation controls | narrow capability只有read／diff／review／basic export；Map與所有Draft mutation、Floating conversion、Undo／Redo、save controls均不存在於DOM，不只是disabled。保存兩viewport DOM assertion。 |
+| `QA-104-007` | source tree；§18.7六種lifecycle state與actor capability | 對action selector跑完整state table | 每個state恰有零或一個primary action，結果逐列符合§18.7；permission由server capability輸入，不由viewport／owner／status自行推定。保存table-driven result。 |
+| `QA-104-008` | source tree與route inventory | 搜尋parallel route、editor、store、writer及temporary selector | 不存在`/bom/workbench-v3`、第二個可寫editor、legacy re-export shim、hidden fallback、dual store或dual writer；保存route／writer／editor inventory與零命中pattern。 |
+| `QA-104-009` | DEV-104 scoped diff與migration／API／permission inventories | 比對Current Phase前後authority surface | 新schema／migration／public endpoint／permission role／lifecycle state／Released payload／feature flag皆為0；若有additive read DTO變更，必須已先回寫SPEC且不形成第二endpoint。保存scoped diff classification。 |
+| `QA-104-010` | 104-D frozen candidate | 搜尋legacy source、imports、styles、selectors與package references | `bom-xmind-editor.tsx`、XMind toolbar／node、legacy ReactFlow handlers及退役`.bom-flow-*`／`.xmind-bom-*`無production import或hidden fallback；obsolete assertion已映射到preserved capability。保存zero-reference inventory與assertion mapping。 |
+| `QA-104-011` | flag-off zero-Floating與nonzero-Floating Draft | 以既有API contract probe執行GET及完整PATCH | 兩Draft的GET均只提供read-only handoff；所有PATCH均回既有`BOM_EDITOR_V2_REQUIRED`且DB hash不變。保存status／error code／before-after hash；不重複計入DEV-071 10案。 |
+| `QA-104-012` | representative formal、Floating、shared component document | 對唯一serializer輸入完整document | payload恰含`expectedEditorVersion`、`lines`、`floatingTopics`、`components`且值與順序normalize結果一致；不得因view、collapse或selection漏欄或partial save。保存exact payload snapshot。 |
+
+State／reducer cases（`scripts/qc-dev-104-state.mjs`）使用pure in-memory fixtures，不啟動app或接觸資料庫：
+
+| ID | Fixture | Required operation | PASS condition／minimum evidence |
+|---|---|---|---|
+| `QA-104-013` | root下A、B | 在A後insert sibling C | C與A／B同parent，順序為A、C、B，IDs唯一、sequence連續，形成一個history atom。保存before／command／after。 |
+| `QA-104-014` | root下A | 對A insert child C | C.parent=A且formal location一致，A展開後可定位，形成一個history atom。 |
+| `QA-104-015` | A→B→C，B有shared component | `line.remove(B, single)` | 只移除B，C提升到A並在B原位置保持相對順序；B的component reference移除、C合法reference保留、sequence normalize。 |
+| `QA-104-016` | A→B→C與B→D，branch各有components | `line.remove(B, branch)` | B、C、D與其components全數移除，其他branch不變，無orphan parent／component。 |
+| `QA-104-017` | root下A、B；A下C | 將C reparent到B的指定index | C.parent=B、位置與sequence正確，descendants不變，只形成一個history atom。 |
+| `QA-104-018` | A→B→C及formal／floating roots | 依序嘗試把A移到C下、指定不存在parent、跨location非法reparent | 每次皆回typed local error、document與history byte-equivalent不變，不產生cycle／orphan／跨location parent。 |
+| `QA-104-019` | 同parent A、B、C | 將C reorder至index 0，再嘗試負數與大於最後位置的index | 合法結果為C、A、B且sequence連續；兩個越界command皆回typed error且document／history不變，單次有效命令一個atom。 |
+| `QA-104-020` | quantity=1的formal line | 設為2.5，再嘗試0、負數、`NaN`與infinite | 2.5成功且一個atom；其餘回typed error，document／history不變。 |
+| `QA-104-021` | group line名稱G1 | rename為G2並測trimmed empty | G2保存為normalized value且一個atom；empty被拒絕且state不變，不改item master欄位。 |
+| `QA-104-022` | formal B branch含descendant與components | `line.location.move`將B branch移至Floating並給rootPosition | branch結構、logical IDs與components保留，所有成員`node_location`一致，floating root position保存，formal sequence normalize。 |
+| `QA-104-023` | Floating B branch | 將B branch移至formal A下指定index | branch／IDs／components保留，所有成員改formal location，parent與sequence合法，floating root metadata不殘留於formal payload。 |
+| `QA-104-024` | shared line L；Parents P1／P2；各有candidates | 對P2選Child C2 | 只更新`L+P2` selection，P1 selection與line identity不變；invalid candidate／Parent回typed error且state不變。 |
+| `QA-104-025` | clean session及既有history | 執行selection、collapse、focus、context Parent、view、Floating expand、Inspector actions | view結果正確，但document、savedIndex、history length與dirty完全不變；切Map不觸發save。 |
+| `QA-104-026` | 任意合法document | 連續執行兩個semantic commands、Undo兩次、Redo兩次，再從Undo點發新command | 每個command恰一個atom；Undo／Redo逐步精確還原；新branch後舊redo被截斷，server editorVersion不被history回退。 |
+| `QA-104-027` | dirty session version 7；server save response version 8；另有clean version 9 push | save成功後套response，再於clean狀態接收新server document | save response成新baseline、dirty=false、editorVersion=8、舊undo branch清除；clean rebase可進version 9並保留仍合法selection。 |
+| `QA-104-028` | dirty version 7、server version 8；另模擬network unknown result | 接收stale／prop update，再跑authoritative readback的equal與different分支 | local document始終保留；stale進conflict且不blind overwrite；unknown只有完整document＋version readback相同才mark saved，不同則conflict。保存四分支state snapshot。 |
+
+Browser cases（`scripts/qc-dev-104-browser.mjs`）皆從normal UI entry開始；除另有註明，desktop使用1440×900：
+
+| ID | Fixture／actor | Required operation | PASS condition／minimum evidence |
+|---|---|---|---|
+| `QA-104-029` | Engineer；exact assembly Part具open Draft | 從canonical Part workbench開drawer並選`開啟 BOM` | 到canonical`/bom/workbench/[draftId]?parentPartNumberId=...`，Draft與Parent精確相符且Outliner為主。保存入口與destination截圖／URL。 |
+| `QA-104-030` | Engineer；list含多status Definition／Revision | 從BOM list搜尋、切status filter、開指定row | 清單不渲染editor，filter結果正確，row進canonical detail且返回後保留合理query／filter context。 |
+| `QA-104-031` | Engineer；open Draft | 開canonical deep link、返回list，再測legacy`?draftId=` | deep link可達；detail與list不共同render；legacy query只redirect canonical detail；返回不落入legacy submission surface。保存route sequence。 |
+| `QA-104-032` | Engineer；empty Draft | 由normal entry開啟 | work surface只顯示短empty fact與一個適用insert action；無空toolbar、教學／摘要卡或第二primary CTA。 |
+| `QA-104-033` | Engineer；editable Draft | 以mouse完成insert sibling／child、quantity、group、reorder、reparent、single remove與branch remove | 每步立即反映於同一Outliner，selection／Inspector上下文合理，沒有額外確認打斷可撤銷動作。保存關鍵前後截圖及request ledger。 |
+| `QA-104-034` | Engineer；editable Draft | 只用keyboard完成選取、insert、reparent／reorder、delete、Undo／Redo | focus可見且不遺失，操作結果與mouse一致；快捷鍵不是唯一入口，screen-reader name存在。保存focus／DOM與結果。 |
+| `QA-104-035` | Engineer；先zero再nonzero Floating | 檢查正常畫面，將branch移入Floating並使用blocker locator | zero時無常駐Floating surface；nonzero時只有一個`未納入 BOM (n)`訊號且可定位exact topic，不新增第二主畫面。 |
+| `QA-104-036` | Engineer；nonzero Floating Draft | save、hard reload，再嘗試submit | Floating結構／座標／count完整保留；UI submit不可用且direct server submit被既有code阻擋，dirty input不丟失。保存reload前後payload與畫面。 |
+| `QA-104-037` | Engineer；single Parent、fixed-child lines | 開Draft、逐列選取並檢查Inspector | 不顯示variant candidates、mapping summary或正常完成badge；必要quantity／group與item master read-only值清楚，只有一個主焦點。 |
+| `QA-104-038` | Engineer；P1／P2 shared Draft，至少一個unresolved line | 切Parent、由blocker定位line、為exact Parent選candidate | 同一tree與selection context維持；unresolved可定位；只更新該Parent mapping，兩Parent resolved preview各自唯一且不複製tree。 |
+| `QA-104-039` | Engineer；含formal／Floating／mapping的dirty Draft | 由UI save，hard reload，再讀editor API | UI、GET payload與保存前document一致，editorVersion遞增、dirty=false，沒有partial graph或view-state欄位進PATCH。 |
+| `QA-104-040` | Engineer；dirty Draft | 分別嘗試返回list、切Parent、next revision／archive或submit離開路徑 | 所有路徑共用`Save / Discard / Cancel`；Save完成後導航、Discard丟棄後導航、Cancel留在原上下文，任何silent loss即Fail。 |
+| `QA-104-041` | 兩個Engineer session；同Draft同version | session A先save，session B再save | B收到stale conflict、local edit保留、無blind overwrite／自動merge；reload latest前需確認，winner資料不變。保存兩session request／UI evidence。 |
+| `QA-104-042` | Engineer；desktop Draft有selected line與Parent context | 切Map，嘗試drag／context／keyboard mutation，再選節點要求編輯 | Map無mutation affordance且document／dirty／history不變；handoff回Outliner後保留exact selection與Parent，修改只在Outliner發生。 |
+| `QA-104-043` | Engineer；dirty Draft且其他gate ready | 檢查action bar並嘗試送審 | 唯一primary action為`儲存`；送審不存在或明確blocked且可定位最小原因，次要動作不與儲存同權重。 |
+| `QA-104-044` | Engineer；clean、gate-ready Draft | 從normal UI選`送審`並hard reload | server原子轉PendingReview，editor mutation消失，review evidence可由正常inbox取得；不得由seed直接建立預期結果。 |
+| `QA-104-045` | R&D Manager與submitter；兩個等價PendingReview fixture | Manager由approval inbox逐一開啟，先讀logical diff／affected Parents後對一案approve、另一案reject；submitter另嘗試自決 | 兩種Manager decision皆原子且狀態／evidence一致；submitter無decision affordance且server denied。保存inbox entry、diff、兩種decision與negative request。 |
+| `QA-104-046` | Manufacturing與Procurement各一session；Released shared Definition | 兩actor皆從Released consumer／list切P1、P2，執行export與where-used | 兩actor只見exact Parent immutable projection，不見Draft／candidates／mapping；UI、CSV／XLSX與where-used逐Parent一致。 |
+| `QA-104-047` | Engineer；1024×768 editable Draft | 完成selection、insert、Inspector edit、save，並做focus／zoom／overflow sweep | desktop edit能力完整；主物件與primary action可達，無水平／雙重scroll、遮擋、截斷或焦點陷阱，狀態不只靠顏色。保存viewport與互動截圖。 |
+| `QA-104-048` | 768×1024 Manager＋390×844 Manufacturing | Manager由approval inbox讀diff並完成一個允許的review decision；Manufacturing由Released入口完成exact Parent export；全程掃描DOM、console、network與critical counts | 兩viewport皆無Map或Draft mutation controls，單欄可讀、允許的review／export CTA可用；無非預期alert／4xx／5xx、all-zero required data、overflow、遮擋或dead CTA。保存兩viewport全流程證據。 |
+
+### 18.20 Slice Entry／Exit、Failure Handoff與Rerun
+
+Case的`Primary slice`只決定首次必須通過的時間；104-D仍須在同一frozen candidate重跑完整48案與所有Quality Gates：
+
+| Slice | Entry condition | Primary QA-104 cases | Exit／handoff evidence |
+|---|---|---|---|
+| `104-A` | 現行DEV-071／096 source與baseline evidence可讀；scoped dirty boundary已記錄 | `001, 002, 029..031, 040` | cases全PASS；正常入口、deep link、return、dirty guard與現行editor preserved regression PASS；交付source revision與route evidence給104-B。 |
+| `104-B` | 104-A exit artifact與source revision一致 | `003..006, 012..028, 032..039, 041, 042, 047` | pure reducer／controller、no-Map完整Draft主流、Map零mutation／零漂移、Floating persistence、desktop accessibility全PASS；交付document／command snapshots與browser evidence給104-C。 |
+| `104-C` | 104-B exit PASS且server capability／fixture contract未漂移 | `007, 011, 043..046, 048` | state／actor／Parent／viewport矩陣PASS；DEV-071 preserved API／flag-off與DEV-096 affected domain／lifecycle gates PASS；candidate freeze後交104-D。 |
+| `104-D` | 104-C frozen candidate；legacy assertion mapping完成 | `008..010`，再重跑`001..048` | legacy零引用；三runner恰48／48；§18.16全部Quality Gates、isolated build、visible UI與primary invariants PASS，才可宣稱Local RD Complete。 |
+
+失敗回送規則：
+
+1. `FAIL`：實際結果違反frozen expectation，包含任何unexpected visible error、required count為0、資料漂移或缺少必要evidence。QC保存首個失敗，
+   記錄expected／actual／source／route／fixture，不修改產品；回送同一slice RD。RD修正後先重跑失敗案與其直接dependent cases，再重跑該slice全部primary cases。
+2. `BLOCKED`：actor、fixture、credential、runtime或browser control不可得，導致步驟無法完成；必須記錄恢復條件，不計PASS也不跨slice。
+3. `NOT_RUN`：尚未執行或沒有目標層級evidence；不得寫成PASS、blocked或由build／API結果代替UI結果。
+4. `PASS`：所有必要assertion與minimum evidence齊全，且artifact、環境、actor、route、fixture及驗證層級相符。舊revision evidence只可作baseline，不能灌入candidate結果。
+5. Aggregate不做平均分數、不容許flaky retry掩蓋首敗。重跑成功時保留原FAIL與修正後run linkage；只有final frozen candidate完整48／48且Quality Gates全PASS才結案。
+
+### 18.21 Case Result與Evidence Manifest Contract
+
+每個runner輸出`output/qa/dev-104/<runId>/<runner>/case-results.json`；aggregate只讀三個runner結果與Quality Gate manifests，
+不以console文字推算分母。每個case result至少包含：
+
+| Field | Contract |
+|---|---|
+| `caseId`, `runner`, `status` | exact ID；runner為`contract \| state \| browser`；status只可`PASS \| FAIL \| BLOCKED \| NOT_RUN`。 |
+| `sourceRevision`, `dirtyBoundary`, `artifactId` | 可重現source與candidate；dirty boundary列本DEV檔案及既有使用者修改，不假裝clean。 |
+| `environment`, `actor`, `route`, `viewport`, `fixtureId` | 不適用欄位用`null`，不得省略；browser case必須完整。 |
+| `preconditions`, `actions`, `expected`, `actual` | 使用§18.19 frozen case；actual不得只寫`passed`。 |
+| `evidencePaths` | contract/state snapshot、request／response、screenshot、DOM／accessibility或diff的相對路徑；至少一個且檔案存在。 |
+| `consoleErrors`, `httpFailures`, `visibleErrors`, `dataSanity` | browser case必填；expected error與unexpected error分開。unexpected nonempty時不得PASS。 |
+| `primaryInvariantBefore`, `primaryInvariantAfter`, `fixtureMutationLedger` | 啟動runtime或資料寫入時必填；證明task-owned mutation與primary零漂移。 |
+| `failureCode`, `blockedReason`, `recoveryCondition`, `supersedesRunId` | 依status填寫；重驗不可覆寫舊結果，以`supersedesRunId`連結。 |
+| `runtimeOwnership`, `cleanup` | 有runtime時記project／purpose／port／PID tree／data dirs／scope／cleanup condition及port released；pure state case填`null`。 |
+
+Aggregate manifest必須驗證：case ID set恰為`001..048`、無duplicate／missing、48案全`PASS`、evidence paths存在、browser provenance完整、
+Quality Gates皆exit 0、task-owned runtime已清理且primary invariants前後一致。任一條件不成立，aggregate即`FAIL`或`BLOCKED`，不得只輸出較小分母。
+
+## 19. DEV-106 Sales Kit BOM Presentation Amendment (2026-08-31)
+
+本節新增 `purpose=sales_kit` 的Current Phase呈現契約；DEV-104的Outliner-first、Map read-only、單一editor state、dirty guard、review／release與responsive責任保持不變。
+
+1. `/bom/workbench` Header增加次要入口 `從料號建立`；empty state使用同一入口，不另建wizard、sidebar module或 `/bom/new`。
+2. 入口開啟read-only server candidate picker。搜尋結果只顯示server推導的 `建立銷售組合包 BOM`、`建立製造 BOM`、`開啟既有 BOM`、`前往分類` 或blocked reason，再導向canonical exact Part drawer處理；picker本身不得寫BOM。
+3. list row增加用途標籤，filter可選 `全部／製造 BOM／銷售組合包`；一個Definition／Revision仍只顯示一列。
+4. exact Part drawer建立動作與minimal dialog改為purpose-aware。sales kit dialog只顯示locked Parent、用途、read-only BOM Rev與建立／取消，不顯示same-root Parent checkbox。
+5. sales kit進入同一structured editor，但purpose只在workbench header顯示一次，並隱藏same-root applicability、Parent switch與candidate mapping控制；tree、Inspector、save、submit、review與release沿用既有元件。
+6. 不得新增sales-kit專用writer、Draft table、review inbox或Released consumer fallback；presentation以 `SPEC-PDM-SALES-KIT-BOM-001-commercial-bundle-structure.md` 的server DTO與permission為authority。
+
+本節為 `Intentional replacement`：只取代「工作台清單完全沒有建立入口」及「所有BOM建立dialog都必須顯示Parent複選」兩項presentation假設；DEV-104既有48-case evidence是歷史基線，不是DEV-106驗證證據。
+
+## 20. DEV-109 Canonical BOM Create Page Amendment（2026-08-31）
+
+`SPEC-PDM-BOM-CREATE-PAGE-001-canonical-entry-and-candidates.md`是DEV-109建立入口與候選projection的target authority。單一路由、candidate projection、DB/provider與writer功能基線保留；舊purpose UI remediation已完成但只作歷史基線，DEV-109 current unified domain狀態以主SPEC §33的`RD Implemented Locally / Full QA-QC Passed 54/54`為準。Production release仍受獨立gate管理；current runtime仍取代§19第1～4項picker／Part drawer兩段式建立流程：
+
+1. `/bom/workbench` Header與empty state的`建立 BOM`都導航單一`/bom/create`；exact Part context也導向同一路由並傳exact Part ID與safe `returnTo`。
+2. `/bom/create`以空白query候選／搜尋共用清單、Parent選取、必要purpose與「將建立」摘要完成建立；沿用現有candidate、applicability ETag與`POST /api/bom/drafts` writer。
+3. 可見`sales_kit`統一顯示`非製造 BOM`，technical value與DEV-106 domain authority不變。
+4. parity與regression gate通過後，`BomCreateFromPartDialog`與Part create Modal caller必須為0，不保留hidden fallback、`/bom/new`或第二writer。
+5. DEV-104 §18的list／detail route分離、Outliner-first editor、Map read-only、dirty guard、responsive capability及review／release authority保持不變。
+
+§19現保留為DEV-106 historical presentation；DEV-104／106歷史visual evidence不能代替DEV-109 normal-entry、candidate、三viewport與visible-error證據。
+
+2026-08-31 implementation／reopen update：historical 48／48只支持functional baseline；target SPEC §28已固定canonical create visual remediation、CSS isolation、109-E～G與新增12案，current aggregate已完成60／60。Exact route／query／Modal retirement不回退，production／release gate不變；evidence=`output/qa/dev-109/2026-08-31T10-48-40-956Z/aggregate-case-results.json`。
+
+## 21. Unified BOM Workbench Amendment（2026-08-31 Human Confirmed）
+
+本節取代§19與§20中的 purpose label／filter／selector／purpose-specific editor controls，但保留單一 `/bom/create` 入口、candidate／search list、exact Part context、selected summary、safe return、Outliner-first editor、dirty guard 與單一 writer／lifecycle。
+
+1. Workbench 不顯示「製造 BOM／非製造 BOM」filter／badge；row只表示 Parent／applicability、BOM Rev、status、updated time 與可用 action。
+2. `/bom/create` 選定 Parent 後不出現 purpose segment；「將建立」顯示 Parent、BOM Rev 與可選的 evidence reason。
+3. server candidate action 只依合法 Part 狀態、`structure_type`、permission 與 existing Definition 推導 `create | open | classify | none`；不以 `item_kind`、M 圖、CAD、Child Drawing 或 purpose 限制 create。
+4. editor 不因用途隱藏結構能力；exact owner Parent 為預設，explicit additional Parent applicability 依結構共用規則呈現。
+5. line 顯示 `quantity + locked UOM`；quantity 允許正小數。無 UOM 的舊 Child 必須顯示可恢復 blocker，不得靜默顯示 `EA`。
+
+本amendment已由`SPEC-PDM-BOM-CREATE-PAGE-001` §30～§33完成本機實作與固定54案驗證；UI Entry、full DTO／API outcome、provider migration、legacy purpose、UOM、SLDASM recovery、exact file inventory與browser／provider evidence以§33及`ADR-PDM-BOM-DOMAIN-002`為authority。DEV-104／106／舊109 screenshots與aggregate保留為歷史基線，不支持current unified domain以外的完成宣稱。

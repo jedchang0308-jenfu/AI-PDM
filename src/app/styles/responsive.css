@@ -289,10 +289,8 @@
     width: 100%;
   }
 
-  .bom-flow-canvas {
-    height: 560px;
-    min-height: 420px;
-  }
+  .bom-workbench-header-actions { width: 100%; }
+  .bom-workbench-header-actions .secondary-button { flex: 1; }
 
   .bom-tree-row {
     grid-template-columns: auto minmax(0, 1fr);

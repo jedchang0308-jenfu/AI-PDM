@@ -261,11 +261,13 @@ export async function officialItemSnapshot(
        LEFT JOIN bom_release_snapshots snapshot
          ON snapshot.id = (
            SELECT candidate.id
-             FROM bom_release_snapshots candidate
+            FROM bom_release_snapshots candidate
+            LEFT JOIN bom_definitions candidate_definition ON candidate_definition.id = candidate.definition_id
             WHERE candidate.company_id = part.company_id
               AND (
                 (
                   candidate.snapshot_schema_version = 2
+                  AND COALESCE(candidate_definition.legacy_purpose, 'manufacturing') = 'manufacturing'
                   AND candidate.obsolete_at IS NULL
                   AND EXISTS (
                     SELECT 1 FROM bom_release_parent_snapshots parent_snapshot
@@ -279,10 +281,12 @@ export async function officialItemSnapshot(
                   AND NOT EXISTS (
                     SELECT 1
                     FROM bom_definition_parent_bindings definition_binding
+                    JOIN bom_definitions definition_authority ON definition_authority.id = definition_binding.definition_id
                     JOIN bom_release_snapshots shared_snapshot
                       ON shared_snapshot.definition_id = definition_binding.definition_id
                      AND shared_snapshot.snapshot_schema_version = 2
                     WHERE definition_binding.part_number_id = part.id
+                      AND COALESCE(definition_authority.legacy_purpose, 'manufacturing') = 'manufacturing'
                   )
                 )
               )

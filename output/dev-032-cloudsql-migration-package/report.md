@@ -1,6 +1,6 @@
 # DEV-046 Cloud SQL Migration Package Preflight
 
-Generated at: 2026-08-18T04:30:25.658Z
+Generated at: 2026-08-28T09:19:28.040Z
 Package version: dev-046-cloudsql-migration-package/v1
 Status: production_candidate_package_generated_not_applied
 
@@ -21,14 +21,14 @@ Status: production_candidate_package_generated_not_applied
 
 ## Findings
 
-- PostgreSQL SQL files scanned: 39
+- PostgreSQL SQL files scanned: 51
 - Supabase role-reference lines: 34
-- DDL review lines: 133
-- Blocking destructive lines: 7
+- DDL review lines: 192
+- Blocking destructive lines: 19
 - Admin bootstrap required: true
 - VPC-attached runner required: true
 - Candidate package status: proposal_generated_not_reviewed
-- Candidate schema files: 37
+- Candidate schema files: 49
 - Candidate excluded files: 2
 - Candidate remaining Supabase role references: 0
 - Candidate remaining RLS statements: 0
@@ -75,4 +75,3 @@ Status: production_candidate_package_generated_not_applied
 - This package is tied to the dedicated production project and IAM database users.
 - No source business rows, staging identities, credentials or GCS file-authority migration are included.
 - Generation performs no cloud or database action.
-

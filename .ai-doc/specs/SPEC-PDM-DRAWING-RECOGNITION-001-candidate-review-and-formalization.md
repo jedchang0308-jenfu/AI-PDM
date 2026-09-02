@@ -1,10 +1,11 @@
 # SPEC-PDM-DRAWING-RECOGNITION-001 - 圖面／CAD 全項辨識候選、人工審核與正式化
 
-Status: DEV-082 RD Implemented / Local QA-QC Complete / OCR-082-001..044 PASS / Production Release Gated
-Authorization: 使用者已於 2026-08-20 要求把 A0002「右側版次已找到、左側卻顯示檔案屬性無法定位」缺陷寫回既有開發文件。此指令重開 DEV-082 本機修復；不授權 production／staging、migration、部署或 release。
-Date: 2026-08-12
+Status: DEV-082 RD Implemented / Local QA-QC Complete / OCR-082-001..044 PASS；DEV-107 RD Implemented Locally / Human Confirmed / Local QA-QC Complete 38/38 PASS / Production Release Gated；DEV-110 RD Implemented Locally / Human Confirmed / Full QC Passed 60/60 / Production Release Gated
+Authorization: 使用者已於 2026-08-20 要求把 A0002「右側版次已找到、左側卻顯示檔案屬性無法定位」缺陷寫回既有開發文件；2026-08-31 再確認取消獨立辨識核對頁、改為智慧辨識分頁內一鍵寫入，並補上送審前編輯入口，且連續要求升級開發文件。DEV-107的local產品／測試契約、SQLite schema／initializer與PostgreSQL 053 migration實作及隔離驗證已完成；同日使用者再確認DEV-110上游common＋exceptions與Part-work handoff方向並要求升級`RD Contract Ready`，後續已完成DEV-110本機實作與固定60/60工程QC。正式primary data repair、production migration、部署或 release仍未授權。
+Date: 2026-08-12; amended 2026-08-31
 Owner: Dev PM
-Related DEV: `DEV-068` / `DEV-PDM-DRAWING-ATTRIBUTE-RECOGNITION-001`; reopened Current Phase child `DEV-082` / `DEV-PDM-PDF-BROWSER-OCR-001`; workspace relation `DEV-079`
+Related DEV: `DEV-068` / `DEV-PDM-DRAWING-ATTRIBUTE-RECOGNITION-001`; reopened Current Phase child `DEV-082` / `DEV-PDM-PDF-BROWSER-OCR-001`; workspace relation `DEV-079`; inline formalization delivery `DEV-107` / `DEV-PDM-RECOGNITION-INLINE-FORMALIZATION-001`; implemented successor `DEV-110` / `DEV-PDM-RECOGNITION-COMMON-VALUE-EXCEPTIONS-001`
+Related ADR: `.ai-doc/decisions/ADR-PDM-DRAWING-RECOGNITION-AMENDMENT-LINEAGE-001-origin-overlay-and-synchronized-commit.md`; `.ai-doc/decisions/ADR-PDM-DRAWING-RECOGNITION-PART-WORK-HANDOFF-001-common-projection-and-atomic-draft-transfer.md`
 Related prototype: `output/dev-068-attribute-recognition-ui-preview.html`（概念預覽，不是實作權威）
 
 Related authority:
@@ -15,6 +16,20 @@ Related authority:
 - `.ai-doc/specs/SPEC-PDM-UNIFIED-DRAWING-AGGREGATE-001-single-data-layer.md`
 - `.ai-doc/specs/SPEC-PDM-CHANGE-CONTROL-001-revision-part-bom-flow.md`
 - `.ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md`
+
+## 2026-08-31 DEV-110 Target Successor Amendment — Common Value／Exceptions To Part Work
+
+Status：`RD Implemented Locally / Human Confirmed / Full QC Passed 60/60 / Production Release Gated`。完整Current Phase authority為`.ai-doc/specs/SPEC-PDM-RECOGNITION-COMMON-VALUE-EXCEPTIONS-001-upstream-part-work-handoff.md`，QA plan為`.ai-doc/qa/qa-dev-110-recognition-common-value-part-work-handoff-validation-plan-2026-08-31.md`，accepted target ADR為`ADR-PDM-DRAWING-RECOGNITION-PART-WORK-HANDOFF-001`；local receipt為`.ai-doc/qc/qc-dev-110-local-implementation-2026-08-31.md`，aggregate為`output/qa/dev-110/DEV110-aggregate-2026-08-31T13-51-48-003Z/aggregate.json`。C/R/P/B/I與G01～G04均已執行並PASS；DEV-107僅保留legacy baseline，runtime activation仍受release gate管制。
+
+- Target UI把圖面一般區域／明確共用列的overall evidence投影成單一common field；料號／資料對照表的exact Part evidence只形成該Part exception，禁止以unique mode／majority推導common。Current Phase不新增structured table parser：只接受linked adapter可驗證的exact owner ID／完整canonical anchor，否則只在同欄位observation內以token boundary唯一命中formal eligible集合的一個完整canonical料號；舊suffix／unanchored owner、persisted `resolved`標記、縮寫／模糊／多重命中fail closed且resolver不能增加target。只在per-Part差異、source conflict、manual override或existing-work conflict時展開exceptions；公式固定`effective(part,field)=override ?? common`。manual common／override可無candidate並由v2 event稽核，common不是root persisted authority。
+- Header只保留一個`N 個來源`入口；普通欄位不重複source badge。PDF evidence有geometry才定位；file property只顯示metadata，focus不得清空／remount preview造成閃動。
+- canonical primary action由`確認寫入 PDM`改為有delta時的`帶入 N 個料號工作`，全部no-op時為`確認資料已一致`。server在一個bounded transaction內重驗source／relation／Part work truth，使用既有Part work invariant建立／更新exact works，成功後才建立append-only synchronization event。
+- New logical event以existing `drawing_recognition_formalization_events.result_json.schemaVersion=2`與`destination=part_work`辨識；legacy event缺discriminator時維持`direct_master`解讀。physical session status仍可為`formalized`，UI不得把DEV-110 session翻譯為Part master已核准／已更新。
+- DEV-110 handoff不得直接寫`part_numbers`、`part_variant_attributes`、`pdm_part_attribute_values`或Drawing master。Part edit／submit／review／approve仍由DEV-108與existing Part authority負責，Drawing review snapshot只有recognition handoff摘要，不能核准Part changes。
+- DEV-107 purpose／evidence-origin overlay、single receipt、append-only event、exact source revalidation、idempotency與submitted snapshot基礎保留；direct-master commit在cutover後只作legacy／internal compatibility，不得與handoff並列為正常UI流程。
+- Current Phase schema／migration／new permission=`none`。如果實作無法共用Part work repository validation、需要root writer／combined review、無法100-Part sorted atomic lock、或event discriminator不足以區分legacy／new semantics，立即停止回Dev PM。
+
+DEV-110完整QA/QC已通過，本文§33／§34與DEV-107 ADR仍保留為legacy runtime contract，既有38/38 evidence不因successor實作而失效。DEV-110 exact repo／file／query／runner／estimate仍以authoritative successor SPEC §20～§26為準；固定60/60 aggregate evidence已形成，不能解讀為production activation或release授權。
 
 ## 0. DEV-082 Reopen Amendment — PDF 瀏覽器 OCR 與效用優先欄位容量
 
@@ -974,7 +989,7 @@ All tables use `TEXT` IDs and ISO timestamp text to match current provider conve
 
 | Table | Required columns and constraints | Required indexes / mutability |
 |---|---|---|
-| `drawing_recognition_sessions` | `id PK`, `company_id FK`, `source_context_type` (`candidate_revision`,`revision_package`,`drawing_revision`,`drawing_number`), `source_context_id`, `source_lineage_key`, nullable `drawing_id FK`, nullable `drawing_revision_id FK`, immutable `source_set_fingerprint`, unique `deduplication_key`, `status` (`queued`,`extracting`,`review_ready`,`extraction_partial`,`extraction_failed`,`ready_to_formalize`,`formalized`,`cancelled`), `priority default 100`, `not_before`, `attempt_count`, `locked_by/locked_at/heartbeat_at`, nullable `supersedes_session_id FK`, `row_version >= 1`, count columns, safe `error_code/error_summary`, `created_by/created_at/updated_at`, nullable terminal actor/time | unique `(company_id,deduplication_key)`; claim index `(status,not_before,priority,created_at)`; context and successor indexes. Session is mutable only through state-machine repository methods. |
+| `drawing_recognition_sessions` | `id PK`, `company_id FK`, `source_context_type` (`candidate_revision`,`revision_package`,`drawing_revision`,`drawing_number`), `source_context_id`, `source_lineage_key`, nullable `drawing_id FK`, nullable `drawing_revision_id FK`, immutable `source_set_fingerprint`, unique `deduplication_key`, `session_purpose` (`recognition`,`rerun`,`amendment`), nullable `evidence_origin_session_id FK` (legacy recognition／rerun null is interpreted as self-origin; amendment inherits origin), `status` (`queued`,`extracting`,`review_ready`,`extraction_partial`,`extraction_failed`,`ready_to_formalize`,`formalized`,`cancelled`), `priority default 100`, `not_before`, `attempt_count`, `locked_by/locked_at/heartbeat_at`, nullable `supersedes_session_id FK`, `row_version >= 1`, count columns, safe `error_code/error_summary`, `created_by/created_at/updated_at`, nullable terminal actor/time | unique `(company_id,deduplication_key)`; claim index `(status,not_before,priority,created_at)`; context／successor／lineage indexes; partial unique open amendment on `(company_id,evidence_origin_session_id)` for amendment statuses. Session is mutable only through state-machine repository methods. |
 | `drawing_recognition_sources` | `id PK`, `session_id FK`, `company_id FK`, `file_asset_id FK`, copied immutable `content_hash/storage_generation/file_name/file_ext/mime_type/file_size`, `source_role`, `sort_order`, `adapter_plan_json`, created fields | unique `(session_id,file_asset_id)`; indexes by session/order and asset/hash. No update/delete after insert. |
 | `drawing_recognition_adapter_results` | `id PK`, `session_id/source_id FK`, `company_id`, `adapter_code/version`, `status` (`succeeded`,`partial`,`unsupported`,`failed`,`timeout`), `observation_count`, bounded `diagnostics_json`, timestamps | unique `(session_id,source_id,adapter_code)`; append-only after worker completion. |
 | `drawing_recognition_observations` | `id PK`, `session_id/source_id/adapter_result_id FK`, `company_id`, `raw_text`, nullable `raw_value/normalized_value`, `location_kind`, nullable `page_number/sheet_name/configuration_name`, bounded `geometry_json`, `confidence_band`, `extractor_code/version`, nullable `raw_payload_hash/raw_payload_derivative_id FK`, `captured_at` | indexes by session/category projection and source; update/delete blocked by provider-equivalent append-only triggers. Raw payload itself stays in protected derivative storage. |
@@ -1194,3 +1209,430 @@ Spec Impact：`Intentional replacement / schema + reconciliation + read-purity c
 - production 先做 read-only inventory與 backup/fingerprint；schema migration、data apply、`PDM_REVIEW_PACKAGE_V2_WRITE` activation、deploy、traffic promotion均需各自明確 human authorization。任何未解釋 ownerless accepted／terminal/formalized inventory都阻擋 promotion。
 - zero-traffic candidate 必須回讀 `PDM_DRAWING_RECOGNITION_V1=true` 與 `PDM_REVIEW_PACKAGE_V2_WRITE=true`，再以正常登入流程建立、從 inbox 開啟並核對一筆新 v2 request；script-local env 不算 actual runtime evidence。
 - production candidate、Level 4、Wave 0、product-owner go/no-go與 rollback readiness全數通過後，才可宣告「正式部署後 recurrence control effective」。本節不構成部署或資料修復授權。
+
+## 33. DEV-107 RD Contract Amendment — 智慧辨識內嵌一鍵寫入與送審前再編輯
+
+### 33.1 Authority、成熟度與取代範圍
+
+Status：`RD Implemented Locally / Human Confirmed / Local QA-QC Complete 38/38 PASS / Production Release Gated`；exact implementation authority與最新證據由§34補完，正式migration／activation／deploy／release仍另走既有閘門。
+
+本節是 DEV-107 Current Phase 的產品與跨層行為權威。決策來源為使用者 2026-08-31 對實際智慧辨識、獨立核對頁與料號資料畫面的確認：正常工作不再離開 Drawing canonical workspace；安全情境在`智慧辨識`分頁點一次`確認寫入 PDM`即完成，寫入後在送審前可由`編輯`建立受控修正。
+
+Spec Impact：`Intentional replacement + compatible preservation`。
+
+- `Intentional replacement`：取代 §1 決策 10～11、§2 的獨立impact gate流程、§10 的`確認寫入內容`＋modal、§15.1 案例 8～10、§28 的獨立review page／status-chip正式入口，以及任何要求從embedded panel導向`/numbering/recognition/[sessionId]`完成核對或寫入的 Current Phase placement。
+- `Compatible preservation`：保留 source/session/observation/candidate、append-only decision與event、owner invariant、zero-write impact、impact token、server recompute、permission／company、target fingerprint、idempotency、atomic formalization、Part正式投影、DEV-101 immutable submitted snapshot及既有Drawing submission／approval／release authority。
+- §14「formalized session唯讀、修正建立successor」仍有效；本節只把pre-submit successor的建立、取消、再次寫入與UI狀態固定為可用產品流程。
+- ADR=`New ADR Required and Accepted`：`ADR-PDM-DRAWING-RECOGNITION-AMENDMENT-LINEAGE-001`固定purpose／evidence-origin overlay、single synchronized commit、global lock order及exact formalized snapshot；data owner、formal writer、permission codes與approval authority仍不新增第二套。
+
+### 33.2 UX Intent And UI Entry Contract
+
+Target actor是持有`numbering.recognition.review`的Drawing work owner／受指派操作者，以及具有同公司範圍的RD主管／PDM管理者。正常起點固定為`/numbering/drawings/[drawingId]/workspace`；主要工作物件是目前Drawing work綁定的exact recognition session與其對應Part候選，唯一正式寫入主動作位於右側`智慧辨識`分頁。
+
+Current Phase可見介面只保留：
+
+- 既有候選欄位與證據定位、靠近候選區的寫入狀態，以及依狀態唯一出現的`確認寫入 PDM`或`更新寫入 PDM`；不增加另一個主要`儲存核對`步驟。
+- 成功寫入後一個`已寫入 PDM`狀態與次要`編輯`；no-op使用`PDM 已是最新`。兩者都不等於已送審、已核准或已發布。
+- blocker只在受影響欄位或同一寫入狀態區顯示最短原因與恢復動作；排除摘要只顯示數量與`evidence-only／未接受／未映射或未歸屬／不支援`分類，不重複完整候選表。
+
+預設刪除獨立完整核對頁、正式寫入impact modal、第二次確認、重複寫入前後值表、正常成功說明卡與Part頁的第二個寫入入口。移除後唯一不可省略的風險訊號是：未解intended-write blocker、stale、權限拒絕、寫入失敗、dirty與submission lock；其餘以按鈕disabled／busy、欄位狀態與內容readback表達。
+
+Legacy entry contract：
+
+- `/numbering/recognition/[sessionId]`保留為redirect-only相容route，不再mount review／impact／formalize UI或任何command owner。
+- server先依company／object visibility解析session；成功後以history replace導向exact `/numbering/drawings/[drawingId]/workspace`，帶入bounded `recognitionSession` focus intent與既有allowlisted `returnTo`，最後定位`智慧辨識`區。invalid、cross-company、無drawing/workspace或不合法return target安全404／fallback，不得猜第一筆Drawing。
+- Current Phase不設定自動退役日期；只有future explicit retirement DEV證明source/runtime caller=0、bookmark/support需求可接受且沒有review/recovery依賴後，才可移除redirect。正常navigation與status chip立即停止產生舊URL。
+
+### 33.3 Derived UI State And Submission Gate
+
+不新增database status enum。UI狀態由既有session status、rowVersion、latest server decisions、write-impact與Drawing lifecycle投影得到；不得以client布林值冒充server truth。
+
+| Derived state | 可見狀態 | 動作／規則 |
+|---|---|---|
+| no session／feature off／no eligible result | 無額外寫入狀態 | 不新增 recognition submission gate；沿用Drawing既有資格 |
+| `queued／extracting` | `辨識處理中` | 無寫入動作；不因OCR處理本身阻擋送審 |
+| local review input changed | `有未寫入修改` | 單一commit intent保存＋重算＋同步；離頁與送審由unsaved guard阻擋 |
+| saved decision正在preflight | `正在檢查寫入內容` | 寫入disabled；只有存在saved intended write時暫時阻擋送審 |
+| `changes>0`、blockers=0、非post-release | `待寫入 PDM` | 唯一primary=`確認寫入 PDM`；送審阻擋 |
+| accepted intended、`changes=0`、blockers=0 | commit建立`appliedCount=0`同步event並formalize後顯示`PDM 已是最新` | Part／link零寫入；完成同步後送審可用，欄位仍可核對修正 |
+| intended-write blocker／stale | `無法寫入 PDM` | 就地修正、重新檢查或明確改為defer／ignore；送審阻擋 |
+| commit pending | `正在寫入 PDM` | 所有重複寫入控制disabled |
+| current session `formalized` | `已寫入 PDM` | 欄位read-only；送審前顯示次要`編輯` |
+| open amendment differs from last event | `有未寫入修改` | primary=`更新寫入 PDM`、secondary=`取消編輯`；送審阻擋 |
+| submitted／in review | 既有Drawing review狀態 | recognition edit／write省略或鎖定；reviewer只讀immutable snapshot |
+
+Submission guard的精確邊界：
+
+1. Recognition不是一般hard gate。沒有session、處理中、extraction failed、只有proposed／ignored／deferred／unclassified／identity或engineering evidence、沒有accepted/corrected/mapped intended write時，不得阻擋既有Drawing submit。
+2. current exact source只要有accepted／corrected／mapped決策且latest leaf尚未formalized，UI與Drawing submit command都必須阻擋，不論其impact為positive、zero delta或blocker；直到single commit建立positive／zero-change同步event，或使用者明確defer／ignore移除寫入意圖。
+3. Browser-local dirty只由UI unsaved guard處理；server submit不能看到未送出的記憶體值。對已保存decision，submit transaction必須依exact Drawing work、current source fingerprint與latest non-terminal session重算bounded recognition readiness，不能只信任client `submitReady`。
+4. preflight／submit guard只讀既有recognition與formal target，不建立session、decision、event或master write。guard出錯時，已保存的intended write採fail closed並回可理解錯誤；recognition完全不適用時不得因查詢失敗製造假gate。
+5. submission成功後鎖定edit／formalize；`return_for_correction`回到owner handling後，若current source與target仍有效可重新進入amendment。Approved／Released情境由既有change/revision flow處理，不從本panel直接寫入。
+
+### 33.4 Background Preflight And One-click Formalization
+
+- 只有session可review、沒有browser-local dirty、decision save成功且rowVersion穩定時，client才自動呼叫既有`POST .../write-impact`。相同`sessionId + rowVersion`只保留最後一個in-flight請求；舊請求必須abort／忽略，response使用`private, no-store`。
+- background impact只是advisory，綁定session、rowVersion與source／target fingerprints；不得放URL、localStorage、commit或submission authority。decision、source、target、actor scope或lifecycle改變即丟棄。
+- 一次click以stable idempotency key＋draft hash呼叫新增commit endpoint。server同一serializable transaction保存current decisions、重驗Drawing／source／lineage／target、重算impact並formalize；client不得先PATCH decisions或使用impact token授權寫入。
+- `changes>0 && blockers=0`才寫master／links＋positive event；accepted intended且`changes=0 && blockers=0`建立`appliedCount=0`event並formalize，Part／links零寫入。blocker／stale／error使decision與所有formal write一起rollback。
+- `409`為零commit write並保留local draft；`422`定位blocker；`403`顯示無權限並隱藏危險重試；5xx／未知結果以同idempotency key＋draft hash readback／retry。任何錯誤都不得導航到舊頁或露出raw API／SQL／stack。
+- `requiresPostReleaseChange=true`在DEV-107 embedded flow固定為`formal_change_required` blocker，提供既有canonical change flow入口；不顯示post-release reason textarea，也不以recognition formalize permission繞過生命周期。原formalize API的post-release guard保留供既有相容／管理流程，不成為本panel的Current Phase正常入口。
+
+### 33.5 Pre-submit Amendment And Immutability Contract
+
+`formalized` session、其decisions、event、links與evidence永遠不可編輯。送審前點`編輯`時，server以新增的`POST /api/numbering/recognition-sessions/:id/amendments`建立或冪等重用一個successor：
+
+- Input：parent formalized session ID、expected parent rowVersion、client idempotency key。只有目前Drawing work仍為owner／returned、source set與parent fingerprint一致、沒有active review，且actor具`numbering.recognition.review`時可建立。
+- Output：`201`（建立或重用時皆回傳canonical readback），回傳`ready_to_formalize` successor、`supersedesSessionId`、parent event reference、同一immutable source/evidence lineage與以最後成功after values／目前正式target snapshot初始化的editable candidate projection。
+- 同一 evidence-origin lineage 同時最多一個open amendment；併發create以deterministic deduplication key得到同一successor。source變更、target drift、submitted/reviewing、wrong parent或已有不同open successor回409且零PDM write。
+- amendment只在candidate／decision層可變；raw observation、source geometry、confidence、extractor與舊event不複製。053新增`session_purpose`與`evidence_origin_session_id`：amendment繼承origin並只建立candidate overlay／links，partial unique index保證one-open；完整provider契約以§34.5與配對ADR為準。
+
+編輯流程：
+
+1. `編輯`建立／重用successor後解鎖可正式化candidate value；evidence-only與identity evidence保持read-only。
+2. 欄位修改先保持為local draft；background preflight只對先前clean saved projection提供提示，PDM維持parent event的最後成功值。
+3. `更新寫入 PDM`把current draft送入§33.4 single commit；成功產生positive或zero-change event並把successor標為formalized，Part／Drawing projection指向新event，舊event仍可追溯。
+4. `取消編輯`呼叫新增的`POST /api/numbering/recognition-sessions/:id/cancel-amendment`，其中`:id`固定為open successor session ID，並帶expected successor rowVersion與idempotency key；只可取消未formalized且有合法formalized parent的open amendment。它把successor標為cancelled、零PDM write，畫面回到parent `已寫入 PDM`。unknown response依同key readback，不可由client假設已取消。
+5. reload／back／tab切換讀到open amendment時恢復`有未寫入修改`與server-saved decisions；browser尚未保存的輸入仍由unsaved guard保護，不得被「已儲存」狀態掩蓋。
+
+### 33.6 API、Permission And Data Impact
+
+| Operation | Contract impact |
+|---|---|
+| GET session projection | 保留既有route；需能投影parent／open amendment、last formalization、derived write state與human-safe blocker，不暴露跨公司evidence。 |
+| POST `:id/commit` | embedded唯一write intent；一次帶current decisions／expected rowVersion／draft hash，server同transaction保存、重驗、重算並formalize。 |
+| PATCH decisions | 保留append-only compatibility／internal route；canonical panel不得用它拆分commit。 |
+| POST write-impact | 保留zero-write advisory；embedded可背景呼叫，但response不授權commit且不要求完整change table UI。 |
+| POST formalize | 保留compatibility／internal route；與commit共用同一master-writer domain authority及lock order，canonical panel不直接呼叫。 |
+| POST `:id/amendments` | `:id`為formalized parent session；帶expected parent rowVersion與Idempotency-Key，由platform command建立／重用successor review draft，不寫PDM。 |
+| POST `:id/cancel-amendment` | `:id`為open successor session；帶expected successor rowVersion與Idempotency-Key，由platform command只取消該amendment，不回滾parent event或PDM。 |
+| Drawing work submit | 加入server-side saved-intent recognition readiness guard；不接受client gate布林值。 |
+| `/numbering/recognition/[sessionId]` | 變成company-scoped redirect-only compatibility route；不得mount mutation UI。 |
+
+Permission保持既有三碼：viewer無raw recognition；`review`可核對、建立／取消amendment；`formalize`才可執行初次或更新寫入。Manager／admin的company-wide scope不改；exact reviewer只讀submitted package，不能因review角色取得owner edit。所有new orchestration route都必須重驗company、Drawing work、session lineage、source／target scope與current lifecycle。
+
+Data impact為`Additive schema / no Part-master model change`。Current Phase新增053 purpose／evidence-origin lineage與one-open partial unique index、commit／successor／cancel command、projection／snapshot／submit guard；既有append-only rows與formal event鏈仍是權威。Part頁只讀`pdm_part_attribute_values`及既有formal projection，顯示last event來源；不得新增Part端平行recognition writer。
+
+### 33.7 Failure Recovery, Dependencies And Stop Conditions
+
+Failure recovery：
+
+- commit失敗保留browser draft並顯示欄位附近錯誤；decision／PDM／link／event零部分寫入。
+- impact失敗不影響draft；commit未知結果先以idempotency receipt／session/event readback判斷，不能先重建amendment。
+- source set變動回409並要求reload current lineage；禁止把舊draft blind apply到新檔案。cancel失敗時保持dirty與submit lock。
+- Part投影readback失敗不得把session誤標已寫入；顯示同步結果未知並保留安全重試。
+- legacy redirect解析失敗不猜測其他Drawing，也不把raw session ID／returnTo帶入錯誤頁。
+
+Dependencies：DEV-068 formalization、DEV-079 canonical workspace／dirty guard、DEV-087 Drawing submit transaction、DEV-101 immutable review projection、DEV-083 Part formal projection均已存在；exact call sites、053 migration、origin overlay、single commit、snapshot selector、query budget與route/page retirement已由§34固定。
+
+Stop and return to Dev PM if：
+
+- 需要新Part／Drawing master writer、browser直寫、多交易partial formalization或修改既有formalized event／decision。
+- 無法在SQLite／PostgreSQL以同一語意落實purpose／origin constraints、唯一open successor、global lock order、idempotent commit／cancel或server submit guard。
+- 要讓recognition absence／processing／adapter failure全面阻擋Drawing submit，或反向允許saved intended changes繞過同步直接送審。
+- 需要讓embedded panel直接改Approved／Released資料、弱化post-release authority，或變更DEV-101 submitted snapshot/hash。
+- 需要超出053的schema／repair、production/staging資料、credential、deploy、release或既有primary資料repair。
+
+### 33.8 Acceptance And Evidence Contract
+
+Fixed Current Phase denominator為`QA-107-001..038`，定義於`.ai-doc/qa/qa-dev-068-drawing-recognition-validation-plan-2026-08-12.md` §10。除normal delivery path外，必須涵蓋stale source／target零寫入、single commit exactly-once、purpose／origin overlay、lock race、accepted no-op audit、exact formalized snapshot、optional recognition non-gate、legacy cross-company fail closed、三viewport／keyboard／visible-error與Part readback。
+
+UI證據必須從正常`/numbering/drawings`入口進入exact Drawing workspace，完成核對→背景preflight→一次寫入→Part readback→編輯→更新／取消→submit gate；direct URL只可補充legacy redirect，不得取代入口可發現性。API／DB證據另證明zero-write impact、provider parity、atomicity、event lineage、permission／company與primary invariant。任何舊DEV-068 impact modal PASS只能作歷史回歸證據，不得冒充DEV-107新入口／無modal契約已通過。
+
+### 33.9 Current Phase Handoff And Execution Boundary
+
+本節原handoff已由§34的RD-supervisor-corrected Implementation Readiness Package完成並取代：current repository／Next.js guide、exact inventory、053 migration、purpose／origin overlay、single commit、source／lock／snapshot contract、legacy route、dirty ledger、固定runner／manifest及P0/P1 audit均已凍結。DEV-107現已進入`RD Implemented Locally`；107-A～D與完整provider／repository／browser evidence均已完成，aggregate封存於`output/qa/dev-107/DEV107-aggregate-2026-08-31T06-54-27-649Z/manifest.json`，QC receipt為`.ai-doc/qc/qc-dev-107-local-completion-2026-08-31.md`。
+
+Execution Boundary：本輪已修改DEV-107產品／測試契約、SQLite schema／initializer與PostgreSQL 053 migration，並完成task-owned隔離驗證；未修改primary data、未stage／commit／merge／PR、未deploy或release。
+
+## 34. DEV-107 RD Implementation Readiness Package — 2026-08-31
+
+### 34.1 Readiness Result、authority與效用選擇
+
+Readiness result=`PASS after RD supervisor correction`；本節目前狀態為`RD Implemented Locally / Human Confirmed / Local QA-QC Complete 38/38 PASS / Production Release Gated`。本節是DEV-107 Current Phase的exact implementation authority；與§33或本節較早內容有差異時，以本節2026-08-31 supervisor correction及`ADR-PDM-DRAWING-RECOGNITION-AMENDMENT-LINEAGE-001`為準。原`migration=none`、deep evidence clone、client多命令串接、no-op無event與review snapshot no-change判定已撤回；local產品、資料契約與完整repository／PostgreSQL／browser證據均已落地，正式發布仍未宣稱完成。
+
+效用選擇固定如下：
+
+- 正常使用只保留canonical Drawing workspace的`智慧辨識`panel；不保留第二個工作台、impact table或confirmation modal。
+- 使用者的單一承諾動作是真正的`確認寫入 PDM`／`更新寫入 PDM`。同一手勢只送出一個server commit intent；server在同一serializable command內保存draft decisions、重驗source／target、重算impact並正式同步。不得由client串接PATCH／impact／formalize形成半完成狀態。
+- background write-impact只對clean saved projection提供零寫入提示；commit永遠重算，不信任client或舊impact token。stale、blocker、權限或任一步驟失敗時整個commit rollback，client保留local draft並顯示可處理原因。
+- 已接受／修正／映射的intended data即使`changes=0 && blockers=0`，同一次commit仍建立exactly-once、`appliedCount=0`的同步事件並把session關閉為`formalized`；不寫Part master／link，UI顯示`PDM 已是最新`。完全沒有accepted intended data才不建立event且不得成為送審gate。
+- 已寫入且尚未送審才顯示次要`編輯`。它建立不可變parent的successor amendment；取消只取消successor，不回滾最後一次成功的PDM值。
+- embedded flow不接收`post_release_change`理由。只要impact回`requiresPostReleaseChange=true`，panel顯示`需走正式變更`並導向既有change／new revision入口；不得在精簡流程放寬Approved／Released authority。
+
+### 34.2 Current Repository And Next.js 16.3.0 Audit
+
+Repository head at readiness audit=`91de270c3a644dfbcbee49ed255b3c18e13df9dd`，branch=`持續優化2`，package的Next.js=`16.3.0`。依專案`AGENTS.md`已完整閱讀本機版本文件：
+
+- `node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md`
+- `node_modules/next/dist/docs/01-app/02-guides/redirecting.md`
+- `node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md`
+- `node_modules/next/dist/docs/01-app/02-guides/data-security.md`
+- `node_modules/next/dist/docs/01-app/01-getting-started/10-error-handling.md`
+- `node_modules/next/dist/docs/01-app/02-guides/testing/playwright.md`
+
+Implementation constraints：
+
+1. 新mutation維持App Router `route.ts`、`POST`、`runtime="nodejs"`與`private, no-store`；每個route本身重新驗證authentication、action permission、company與resource scope，不能信任page或client狀態。
+2. legacy page維持Server Component並使用`redirect()`；`redirect()`置於`try/catch`外。page只做server-side access／target resolution與轉址，不render loading shell或舊Client Component。
+3. DB、permission、session lineage與canonical target resolution都留在server-only service／repository；Client Component只接收最小projection並管理輸入、AbortController、focus與可見狀態。
+4. `params`、`searchParams`與`returnTo`一律視為不可信輸入。session ID先走`requireSafeRecognitionId`；return target只能是server計算出的same-company exact Drawing workspace，輸入的`returnTo`只有與該target相同時才保留，否則忽略。
+5. expected errors回typed HTTP result並由event handler捕捉為可見文字；不把raw SQL、stack或內部ID lineage暴露給使用者。E2E以production build／task-owned server執行，三viewport與keyboard都由正常入口到達。
+
+### 34.3 Exact Add／Modify／Delete／No-change Inventory
+
+| Disposition | Exact file | Exact responsibility／symbol |
+|---|---|---|
+| Modify | `src/components/drawing-recognition-workspace-panel.tsx` | `DrawingRecognitionWorkspacePanel`；唯一mutation controller改呼叫server `commit` intent，不串接PATCH／impact／formalize；加入background preflight latest-wins、stable attempt key、`beginAmendment`、`cancelAmendment`、inline reason／status與formalized read-only projection。 |
+| Modify | `src/components/canonical-drawing-change-workspace.tsx` | `CanonicalDrawingChangeWorkspace`、`ownerCommand("submit")`、`submitReady`；接收panel的local dirty／server write-block projection，footer就地顯示原因，submit成功前仍由server命令重驗。 |
+| Modify | `src/app/globals.css` | 只新增／收斂`dev079-recognition-*`的write state、secondary edit／cancel、visible error、focus、390px及`prefers-reduced-motion`樣式；不得再建立modal或框中框。 |
+| Modify | `src/lib/drawing-recognition-contract.ts` | 新增`sessionPurpose`、`evidenceOriginSessionId`、amendment／commit／write-control DTO、唯一derived phase enum與本節typed errors；DB session status只增加purpose/origin欄位，不另造重複UI status authority。 |
+| Modify | `src/lib/drawing-recognition-review-projection.ts` | 由evidence origin解析source／observation，再疊加current candidate／decision；projection只外送最小`writeControl` lineage／lifecycle欄位。 |
+| Modify | `src/lib/drawing-recognition.ts` | 新增`commitDrawingRecognitionToPdm`、`createDrawingRecognitionAmendment`、`cancelDrawingRecognitionAmendment`、`getDrawingRecognitionWriteControl`、`assertCurrentRecognitionSourceSet`與`assertDrawingRecognitionSubmissionReady`；所有mutation走platform receipt＋outbox。 |
+| Modify | `src/lib/repositories/drawing-recognition-async-repository.ts` | purpose／origin overlay repository、open-amendment uniqueness、commit authority、current-source assertion、snapshot selector與submission guard；禁止raw evidence clone及per-observation insert loop。 |
+| Modify | `src/app/api/numbering/recognition-sessions/route.ts`、`src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts` | create／rerun寫入正確purpose／origin並遵循全域Drawing→source→lineage lock order。 |
+| Modify | `src/app/api/numbering/recognition-sessions/[sessionId]/route.ts` | GET projection加入最小`writeControl`，維持action／company／owner檢查與no-store。 |
+| Add | `src/app/api/numbering/recognition-sessions/[sessionId]/commit/route.ts` | embedded唯一commit endpoint；同一serializable transaction套用draft decisions、重驗source／target、重算impact並formalize或建立zero-change synchronization event。 |
+| Add | `src/app/api/numbering/recognition-sessions/[sessionId]/amendments/route.ts` | formalized parent建立／重用open successor。 |
+| Add | `src/app/api/numbering/recognition-sessions/[sessionId]/cancel-amendment/route.ts` | open successor cancellation；zero PDM write。 |
+| Modify | `src/app/api/numbering/recognition-sessions/[sessionId]/decisions/route.ts`、`write-impact/route.ts`、`formalize/route.ts` | compatibility／internal endpoints仍逐支驗證current source；embedded UI不直接使用其mutation串接。formalize與commit共用同一master-writer domain authority。 |
+| Modify | `src/lib/drawing-revision-work.ts` | `DrawingRevisionWorkService.submit`在locked work與mutation-basis驗證後、任何payload／review／lifecycle write前呼叫server submission guard。 |
+| Modify | `src/lib/drawing-recognition-review-snapshot.ts`、`src/lib/pdm-review-package.ts` | submitted package只選same company／revision／exact current source fingerprint的latest `formalized` leaf；忽略processing、failed、open／cancelled amendment及wrong fingerprint，並經origin overlay解析immutable evidence。 |
+| Modify | `db/schema.sql`、`src/lib/db.ts` | 新增`session_purpose`、`evidence_origin_session_id`、constraints／trigger／partial unique index；`ensureDev107DrawingRecognitionLineageSchema`以additive、idempotent方式處理既有SQLite。 |
+| Add | `db/postgres/053_drawing_recognition_amendment_lineage.sql` | PostgreSQL additive migration、backfill、FK／check／immutability與one-open-amendment partial unique index。 |
+| Modify | `db/postgres/README.md` | 登錄053順序、preflight、apply／rollback與provider parity要求。 |
+| Add | `scripts/qc-dev-107-migration.mjs` | provider-aware dry-run／apply／verify rehearsal；SQLite copy與disposable PostgreSQL，禁止primary自動repair。 |
+| Add | `src/lib/drawing-recognition-legacy-redirect.ts` | `server-only` resolver：驗證actor／company／session，解析exact current Drawing work URL並只接受同一target的safe `returnTo`。 |
+| Modify | `src/app/numbering/recognition/[sessionId]/page.tsx` | 改為async Server Component redirect-only；401依既有login return flow，403／404／cross-company fail closed，不render舊頁。 |
+| Delete | `src/components/drawing-recognition-review.tsx` | 等panel parity與`rg` caller=0後移除舊獨立工作台；刪除前先依§34.11保全目前dirty hunk。 |
+| Delete | `src/components/drawing-recognition-review.module.css` | 隨唯一consumer刪除；不得把舊modal CSS搬進global。 |
+| Modify | `package.json` | 加入`qc:dev-107:contract／repository／postgres／migration／browser`與aggregate `qc:dev-107`。 |
+| Add | `scripts/qc-dev-107-contract.mjs` | 固定QA-107-001..008。 |
+| Add | `scripts/qc-dev-107-repository.mjs` | 固定QA-107-009..019、021..026、033..035、037..038，task-owned SQLite。 |
+| Add | `scripts/qc-dev-107-postgres.mjs` | 固定QA-107-020，disposable PostgreSQL concurrency parity。 |
+| Add | `scripts/qc-dev-107-migration.mjs` | 固定QA-107-036；SQLite copy＋disposable PostgreSQL migration／backfill／constraint parity。 |
+| Add | `scripts/qc-dev-107-browser.mjs` | 固定QA-107-027..032，normal entry、Part readback、三viewport／keyboard與cleanup。 |
+| Add | `scripts/qc-dev-107-aggregate.mjs` | exact 38-case denominator、affected regression、source／primary invariant、cleanup與completionCandidate。 |
+| No change | `src/lib/db-async-provider.ts` | 直接使用現有SQLite `BEGIN IMMEDIATE` queue與PostgreSQL serializable 3次`40001／40P01` retry。 |
+
+清單是Current Phase完整source contract。若RD發現需要第二個master writer、新permission／lifecycle／approval authority、persistent client draft、超出053的資料修復，或無法在origin overlay下維持immutable submitted evidence，立即停止並回Dev PM／ADR；不得以實作便利擴張。
+
+Implementation reconciliation（2026-08-31）：本輪已落地的實際範圍為panel、recognition service／repository、commit／amendment／cancel routes、Drawing submit guard、snapshot／package selector、legacy redirect、SQLite initializer、PostgreSQL 053與五支child runner＋aggregate。`canonical-drawing-change-workspace.tsx`／global CSS未新增平行辨識writer；舊review component保留為相容邊界並由legacy route redirect-only保護，不成為Current Phase mutation owner。最新aggregate已完成repository／PostgreSQL／browser child evidence與affected regressions，未以不存在的檔案或runner宣稱完成。
+
+### 34.4 One-gesture Client Orchestration And Derived State
+
+`DrawingRecognitionWorkspacePanel`固定使用一個write intent controller：
+
+1. 每次session／rowVersion／draft變動都abort舊impact request並丟棄不匹配response；background preflight只對clean saved projection執行。
+   preflight未完成或暫時失敗不得迫使使用者前往別頁或多按一次；只要client必填／permission／lifecycle guard允許，commit CTA仍可送出，由server做完整判定。只有與current fingerprint綁定的明確blocker可就地disabled並提供修正入口。
+2. 初次或amendment有dirty時，主要按鈕仍只有`確認寫入 PDM`／`更新寫入 PDM`。click把pure decision draft、`expectedRowVersion`及stable `Idempotency-Key`一次送到commit endpoint；server command receipt以canonical decision draft產生並綁定`draftHash`，client不先PATCH，也不把background impact token當commit authority。
+3. commit在server同一transaction內保存decision、重驗source／target並重算impact。`blockers>0`、stale、`requiresPostReleaseChange=true`或permission不足時整筆rollback；panel列出最多三個可行原因＋總數，焦點移到第一個可修正欄位或正式變更入口，本機draft仍在。
+4. `changes=0 && blockers=0`仍由commit建立`appliedCount=0`同步event並formalize；`changes>0 && blockers=0`才寫Part／link及positive event。按鈕pending時disabled，double-click不產生第二個intent。
+5. response loss不生成新key；先GET server projection／receipt-derived result，已formalized即投影`synchronized`，未formalized才以同key及同draft hash重試。只有成功、明確取消或使用者產生新draft才結束該key。
+6. session formalized時欄位read-only；未送審且`writeControl.canAmend=true`顯示次要`編輯`。successor建立後切換到其projection；`取消編輯`若本機dirty，先在原action row展開inline `放棄本次修改／繼續編輯`防誤觸，再呼cancel endpoint，不開modal也不出現另一張工作台。
+
+Current derived phase唯一enum=`idle | processing | reviewing | preflighting | ready_to_commit | committing | synchronized | editing | dirty | blocked | failed | locked`。source of truth固定為`server session/writeControl + latest advisory impact + local dirty`；client不得只靠舊notice或localStorage宣稱`synchronized`。
+
+Visible mapping：`processing=辨識中`、`reviewing=待核對`、`preflighting=正在檢查寫入內容`、`ready_to_commit=待寫入 PDM`、`committing=正在寫入 PDM`、`synchronized(appliedCount>0)=已寫入 PDM`、`synchronized(appliedCount=0)=PDM 已是最新`、`editing=編輯中`、`dirty=有未寫入修改`、`blocked=無法寫入 PDM`、`failed=寫入失敗`；`locked`沿用Drawing lifecycle狀態。所有狀態有文字且顏色只作輔助；只在commit開始／成功／失敗與blocking recovery使用`aria-live`，不得讓每次background phase變動形成screen-reader噪音。
+
+### 34.5 Successor Amendment Algorithm And Provider-safe Uniqueness
+
+既有`supersedes_session_id`無法區分rerun與amendment；Current Phase採`ADR-PDM-DRAWING-RECOGNITION-AMENDMENT-LINEAGE-001`並執行additive 053 migration：
+
+- `session_purpose TEXT NOT NULL CHECK IN ('recognition','rerun','amendment')`。
+- `evidence_origin_session_id` same-company self FK，建立後不可變；`supersedes_session_id`建立後不可變（僅既有取消清理流程可在同一transaction先解除自參照再刪除）；legacy recognition／rerun可為NULL（有效origin按`COALESCE(origin,id)`解讀），amendment必須繼承parent origin。
+- partial unique index保證`session_purpose='amendment'`且status為`queued | extracting | review_ready | extraction_partial | ready_to_formalize`時，每個`(company_id,evidence_origin_session_id)`最多一筆。
+- legacy backfill只按既有事實分類：無parent=`recognition`、有parent=`rerun`、origin=`self`；不得猜成amendment。
+
+Provider migration sequence固定：
+
+1. 先建立task-owned backup／fingerprint與read-only preflight；orphan parent、duplicate open、cross-company lineage、foreign-key violation任一非零即停止。
+2. PostgreSQL 053先加nullable columns、backfill、驗證，再設NOT NULL／FK／check／immutability trigger／partial unique index；transaction內任一步失敗全rollback。
+3. SQLite canonical `db/schema.sql`對新資料庫使用NOT NULL／check／index；既有資料由`ensureDev107DrawingRecognitionLineageSchema`add columns、backfill並用insert／update triggers提供等價的origin existence、same-company、purpose-parent、origin inheritance與immutability約束。不得為補SQLite DDL限制而重建或清理primary table。
+4. amendment的candidate-observation link所指observation必須屬於`evidence_origin_session_id`；recognition／rerun origin必須self，amendment parent必須formalized且origin與parent相同。service assertion與provider trigger雙層防線不得只留其一。
+5. rehearsal以SQLite copy與disposable PostgreSQL執行dry-run→apply→idempotent reapply→verify→rollback simulation；production apply、down migration及primary repair均不在DEV-107本機實作授權內。
+
+`createAmendment`必須在`executePdmCommandWithOutbox(..., serializable:true)`內執行：
+
+1. 先依§34.7全域lock order取得Drawing work與current exact source set，再鎖recognition parent／lineage；驗證parent=`formalized`、purpose合法、是exact source fingerprint的current formalized leaf、Drawing仍pre-submit且actor有review能力。
+2. 查open amendment；存在即回同一winner。若已有較新的formalized leaf或rerun／source變動，回`RECOGNITION_AMENDMENT_PARENT_NOT_CURRENT`；不得從歷史parent分叉。
+3. 不存在時建立`session_purpose=amendment`、`evidence_origin_session_id=parent.evidence_origin_session_id`、status=`ready_to_formalize`的新session。deterministic dedup key＋partial unique index＋serializable retry保證單一winner；不排worker、不重新OCR。
+4. 以set-based `INSERT ... SELECT`只複製current candidate overlay及candidate-observation links；source、adapter result、observation零新增。projection由origin讀immutable evidence，再疊加amendment candidate／decision。
+5. candidate從parent最後有效欄位／owner／review state建立並刷新current formal value／fingerprint。parent decision／event不複製、不修改；successor的新人工修改才append新decision。
+6. 任一overlay、refresh、receipt或outbox失敗整個rollback；不得留下半個successor，也不得有per-observation loop。
+
+`cancelAmendment`同樣使用platform command receipt並遵循Drawing→source→lineage lock order：驗證expected rowVersion、current open leaf及pre-submit lifecycle；更新status=`cancelled`、`cancelled_at`與rowVersion，零master／formalization event／link write。相同key replay同receipt；不同key對已cancelled session回`alreadyCancelled=true`。取消後下一次編輯建立新successor，不能復活舊amendment。
+
+Migration fail-closed preflight必須驗證orphan／cross-company origin、非法purpose、同parent多open amendment與foreign key violations全為零；SQLite copy與disposable PostgreSQL演練通過後才能進domain實作。provider migration失敗整筆rollback，不得自動修primary data。
+
+### 34.6 Exact HTTP And Projection Contract
+
+所有mutation request都帶`Idempotency-Key`、JSON body及現有company context；response帶`cache-control: private, no-store`。
+
+| Endpoint | Request | Success | Authority／failure |
+|---|---|---|---|
+| `POST .../:sessionId/commit` | `{ expectedRowVersion, decisions }`＋stable `Idempotency-Key`（server依canonical decisions計算並綁定`draftHash`） | `200 { result:{ sessionId,eventId,appliedCount,status:"formalized" }, session }`；positive／zero-change共用 | `numbering.recognition.formalize`；同一serializable command保存decision、重驗current source／target、重算impact並原子同步。stale／blocker／失敗整筆rollback。embedded唯一write mutation。 |
+| `POST .../:parentSessionId/amendments` | `{ expectedRowVersion }` | `201 { session, parentSessionId }`（同key replay讀回；open successor可重用） | `numbering.recognition.review`；platform receipt＋serializable transaction驗actor／company／owner／pre-submit。stale／非current／非formalized=`409`。 |
+| `POST .../:successorSessionId/cancel-amendment` | `{ expectedRowVersion }` | `200 { session }` | `numbering.recognition.review`；platform receipt＋row-version；非open current leaf／review lock=`409`。 |
+| existing `PATCH .../:sessionId/decisions` | `{ expectedRowVersion, decisions }` | 現有`{session}` | compatibility／internal；仍重驗current exact source。canonical panel不以它拆分commit。 |
+| existing `POST .../:sessionId/write-impact` | `{ expectedRowVersion }` | 現有`{impact}` | zero-write advisory；只對clean saved projection，仍重驗source。不得作commit授權。 |
+| existing `POST .../:sessionId/formalize` | `{ impactToken }` | 現有`{result}` | compatibility／internal；與commit共用domain writer與lock order。canonical panel不直接呼叫。 |
+
+新增穩定error codes：
+
+- `RECOGNITION_AMENDMENT_PARENT_NOT_FORMALIZED` `409`
+- `RECOGNITION_AMENDMENT_PARENT_NOT_CURRENT` `409`
+- `RECOGNITION_AMENDMENT_NOT_OPEN` `409`
+- `RECOGNITION_AMENDMENT_LIFECYCLE_LOCKED` `409`
+- `RECOGNITION_AMENDMENT_STALE` `409`
+- `RECOGNITION_SOURCE_SET_CHANGED` `409`
+- `RECOGNITION_COMMIT_STALE` `409`
+- `RECOGNITION_COMMIT_BLOCKED` `422`
+- `RECOGNITION_SUBMISSION_WRITE_PENDING` `422`
+- `RECOGNITION_SUBMISSION_WRITE_BLOCKED` `422`
+
+GET session的`writeControl`最小欄位固定為`sessionPurpose`、`evidenceOriginSessionId`、`parentSessionId`、`latestFormalizedSessionId`、`openAmendmentSessionId`、`formalizationEventId`、`appliedCount`、`canAmend`、`lockedReason`；impact counts仍只來自write-impact，不在GET重算整份impact。
+
+Idempotency scope固定`companyId + actorId + sessionId + commandName + Idempotency-Key`，receipt綁定request／draft hash。相同key＋相同hash replay同結果；相同key＋不同hash回`409`，不得套用新內容。positive與zero-change commit都只有一筆command receipt與一筆formalization／synchronization event。
+
+### 34.7 Server Submission Guard、query與lock順序
+
+`DrawingRevisionWorkService.submit`在既有transaction中完成locked work read與`assertWorkMutationBasis`後、`UPDATE drawing_revision_works`、review package、review request及任何lifecycle write之前呼叫`assertDrawingRecognitionSubmissionReady({client:tx, companyId, drawingRevisionId})`。
+
+全域lock order固定為：
+
+`Drawing aggregate/work → current source-set revalidation → recognition lineage/session → sorted PDM targets`
+
+create、rerun、decision save、amend、cancel、commit、compatibility formalize及submit凡會碰觸兩個以上authority，一律依此順序；PostgreSQL用`FOR UPDATE`＋serializable retry，SQLite用top-level `BEGIN IMMEDIATE`。worker只取得session lock且永遠不再取得Drawing work／PDM target lock，因此不形成反向鎖。禁止formalize保留舊的「session先鎖、之後再碰Drawing」路徑。
+
+`assertCurrentRecognitionSourceSet`提供兩種明確模式：
+
+- `lockedMutation`：在Drawing work lock內以`listContextSources`相同canonical排序重算current exact file IDs／hashes／revision及fingerprint；save、amend、cancel、commit、formalize、submit必用此模式。
+- `stableRead`：background write-impact在同一read snapshot內計算，並於impact完成前後各讀一次source basis；任一version／file set／fingerprint變動即回`RECOGNITION_SOURCE_SET_CHANGED`，零寫入且不發布舊impact。
+
+任何命令都不得只比較session中儲存的fingerprint。新增／移除／替換檔案、rerun winner改變或current work basis變動後，舊session的save／impact／amend／commit／formalize全部`409`；client保留draft並重新載入current lineage。
+
+Guard algorithm：
+
+1. 在locked Drawing work下重算current source set；查same company／revision／exact fingerprint的current recognition lineage。
+2. 無session、`queued／extracting／extraction_failed`，或只有proposed／conflict／ignored／deferred／unclassified／identity／engineering-evidence且完全沒有`accepted | corrected | mapped` intended candidate時allow；recognition缺席或失敗不成為通用gate。
+3. 只要current exact lineage存在accepted intended candidate，其latest leaf必須為`formalized`且formalization／synchronization event與current source／target fingerprint相符；open／cancelled amendment、rerun中間態或尚未commit的zero-delta intended session都拒絕。
+4. nonformalized intended session且有actual delta回`RECOGNITION_SUBMISSION_WRITE_PENDING`；有owner失效、target stale、active Part work或其他blocker回`RECOGNITION_SUBMISSION_WRITE_BLOCKED`；zero-delta intended但尚未建立同步event也回pending。兩種拒絕都使外層transaction零payload／review／lifecycle write。
+5. commit完成的positive或zero-change formalized session才allow；submitted package selector同時鎖定該session ID、formalization event ID、source fingerprint及evidence origin，不以「資料剛好相等」取代同步事實。
+
+Client footer可利用local dirty與latest impact先disabled以改善體驗，但server guard是唯一不可繞過authority。submitted／in review沿用既有work mutation-basis lock；returned重新由current source truth建立amendment；submitted review package只讀exact formalized projection，不讀processing、wrong-fingerprint、open或cancelled successor。
+
+### 34.8 Legacy Redirect、Part Readback And Failure Recovery
+
+Legacy resolver以current request headers建立server auth／company context，先驗session scope再查same-company current work：
+
+- canonical target固定`/numbering/drawings/[drawingId]/workspace?workId=[workId]`；若輸入`returnTo`經same-origin正規化後不等於該exact drawing／work target，忽略它。不得接受external、protocol-relative、其他company或任意內頁。
+- invalid ID、session不存在、cross-company、無current work或非drawing-revision context都fail closed；不得先redirect後由client API才發現錯誤。未登入使用既有login return flow；有登入但無權限不洩漏session identity。
+- `DrawingRecognitionReview`及其module CSS只有舊page一個consumer；panel parity、browser case及`rg` caller=0後同slice刪除，不留dead interactive owner。
+
+Part頁不新增任何write API或CTA；formalize後直接讀既有canonical Part fields／attributes與formalization lineage。QA逐欄readback必須用actual Part owner ID，不能只看Drawing panel notice。
+
+Recovery matrix：
+
+| Failure | Required recovery |
+|---|---|
+| impact stale／aborted | 丟棄token，按latest session／rowVersion重新preflight；舊response不能重新enable按鈕。 |
+| commit response loss | 保留stable idempotency key與draft hash，先GET確認receipt／event／status，再以同key同payload重試；不得產生第二event。 |
+| source set changed | 保留local draft、reload current source／lineage並要求重新核對；舊session不可blind retry或套用到新檔案。 |
+| amendment create response loss | GET parent `writeControl`，找到open successor就切換；同key replay或server reuses winner。 |
+| cancel response loss | GET successor／parent；cancelled即回parent，仍open才以同key重試。 |
+| 401／403 | 清除pending動作但保留可安全顯示的draft，要求重新登入／權限處理；不得自動高權限retry。 |
+| 409 | 保留輸入、reload server truth、重新建立preflight；禁止blind overwrite。 |
+| 5xx | 顯示bounded錯誤與重試；任何master值維持最後成功版本。 |
+
+`drawing-recognition-review-snapshot`與`pdm-review-package`不是No-change consumer：兩者必須使用同一exact selector，只能選latest `formalized` leaf，且source fingerprint等於submit transaction內重算的current fingerprint。selector找不到合法session時只表示沒有可封存recognition projection；若存在accepted intended但未同步，submission guard先拒絕，不能降級成「無辨識資料」繞過。
+
+### 34.9 Implementation Slices、entry／exit與估工
+
+| Slice | Scope | Entry | Exit／handoff | Estimate |
+|---|---|---|---|---:|
+| `107-A Migration and lineage` | ADR落地、053、SQLite schema/helper、backfill／constraints、purpose／origin DTO、migration rehearsal | §34.11 dirty baseline；task-owned provider targets | SQLite copy＋disposable PostgreSQL parity、rollback與primary invariant pass；可交107-B | 2.0–2.5 d |
+| `107-B Domain, commit and compatibility` | origin overlay repository、source assertion、global lock order、commit／amend／cancel、submit／snapshot selector、legacy resolver與四支route | 107-A migration contract穩定 | auth／atomicity／race／zero-change audit／snapshot／query-budget pass；可交107-C | 2.5–3.5 d |
+| `107-C Embedded UX and submit integration` | single commit panel、background advisory impact、edit／cancel、visible state、Drawing footer guard、redirect-only page、刪舊component／CSS | 107-A／B pass；保存舊dirty review hunk | normal path不離panel、Part readback、submitted／returned lock、三viewport／keyboard pass | 2.0–2.5 d |
+| `107-D QA/QC closure` | 6 runners、exact manifest、affected regressions、typecheck／lint／isolated build、cleanup與證據對帳 | A–C source stable | fresh QA-107 38／38、P0/P1=0、primary/source unchanged；只達local completion candidate | 2.5–3.5 d |
+
+總估工=`9–12 person-days`，其中RD約`6.5–8.5`、QA／targeted QC約`2.5–3.5`；不含independent production QC、live migration、staging／production deploy、release或真人canary。每個slice可獨立review；不得為等待107-D而把A～C全部標成完成，也不得在107-A先做UI。
+
+目前進度：107-A～D 的 local implementation與QA/QC均已完成；`npm.cmd run qc:dev-107`以aggregate＋typecheck封存QA-107-001..038 exact 38/38 PASS，local completion candidate成立。正式migration／activation／deploy／release不在本DEV授權內。
+
+### 34.10 Executable QA／QC Contract
+
+固定runner ownership：
+
+- contract=`QA-107-001..008`（8）
+- SQLite repository／service=`QA-107-009..019,021..026,033..035,037..038`（22）
+- disposable PostgreSQL=`QA-107-020`（1）
+- provider migration=`QA-107-036`（1；SQLite copy＋disposable PostgreSQL）
+- browser=`QA-107-027..032`（6）
+- aggregate必須得到exact union=`QA-107-001..038`，unique count=38，`PASS=38`，`Blocked／Not Run／unexpected visible error=0`。
+
+Commands：
+
+```text
+npm run qc:dev-107:contract
+npm run qc:dev-107:migration
+npm run qc:dev-107:aggregate
+npm run qc:dev-107
+```
+
+repository／PostgreSQL／browser child runners與aggregate已納入package；最新aggregate以exact union 38、child PASS、source／primary invariant、cleanup、`productionConnection=false`與`primaryWrites=false`為完成條件，不以靜態contract或單一SQLite migration rehearsal代替。
+
+Aggregate本身只負責DEV-107五個child與exact 38分母；`typecheck:app`、affected ESLint及`build:isolated`另行作quality gates。DEV-068／079 contract回歸已通過；DEV-068 A0005、DEV-079 layout、DEV-083 mutation、DEV-101 package等歷史資料相依runner因來源fixture不存在或已漂移而fail-closed，並已保留parent baseline disposition。這些結果不改QA-107固定分母，也不得被手工改成PASS；各parent owner補齊fixture後再重跑。
+
+Evidence root=`output/qa/dev-107/<runId>/`；child位於`contract／repository／postgres／migration／browser/manifest.json`，root `manifest.json`至少含：
+
+- `runId`、source HEAD／dirty baseline hash、runner version、started／finished time、exact expected／actual case IDs與每案status／artifact path。
+- fixture IDs、actor／company／Drawing／revision／Part／parent／successor／evidence-origin／event IDs、row versions、source fingerprints、idempotency key／draft hash、before／after formal values與mutation ledger。
+- runtime declaration：project、purpose、dynamic task-owned port、owning process tree、cleanup condition、isolated`PDM_DATA_DIR`、isolated`PDM_REPOSITORY_DIR`及mutation scope。
+- primary before／after：SQLite schema hash、canonical root／Part／Drawing identity、master counts、migration residue、root refs、`PRAGMA foreign_key_check`；PostgreSQL使用disposable target並證明drop／port release。
+- browser：normal entry path、Chromium version、`1440×900／1024×768／390×844`、keyboard、reduced motion、focus、accessibility tree、console／network／overflow、screenshots及Part readback。
+- `sourceUnchanged`針對aggregate開始時的candidate source snapshot；測試不得格式化或修補產品碼。所有task-owned runtime／temp在manifest完成前停止並確認port released。
+
+Query／storage budget是exit gate：amendment建立對raw source／adapter／observation的INSERT必須為0；domain SQL statement count（不含platform receipt／outbox與transaction control）在1筆與500筆observation fixture間相同且不超過12；origin-overlay projection在auth／company context之後不超過8個data SELECT。任何per-observation clone／query loop或statement count隨raw evidence成長都使`QA-107-037`失敗。
+
+### 34.11 Dirty-working-tree Ledger And RD Entry Boundary
+
+Readiness audit發現下列overlapping source已在本DEV前dirty；這些是使用者／既有工作的內容，不得reset、checkout、clean或以HEAD覆寫。第一次記錄後、文件驗證期間又觀察到`canonical-drawing-change-workspace.tsx`、`globals.css`與`package.json`被其他共享工作更新；未回退該變更，以下三筆已refresh為本輪handoff前的current working-tree SHA，其餘維持首次baseline：
+
+| File | Git state／numstat | Baseline SHA-256 |
+|---|---:|---|
+| `src/components/drawing-recognition-workspace-panel.tsx` | `M +9/-1` | `34eeb4d4151193b078e7a45c806146f94f41cf7880c40902ae38c2bf25f054ff` |
+| `src/components/drawing-recognition-review.tsx` | `M +35/-7` | `17f56146a2a5672a5561ddfbfdfa3c5442fc9e7c47dc877c7d2184da0de0be92` |
+| `src/components/drawing-recognition-review.module.css` | `??` | `ee2328e754c56602b532705c3e6c940d4531bac805db8de31fdc6f335b7e6f73` |
+| `src/components/canonical-drawing-change-workspace.tsx` | `M +32/-28`（RD supervisor refresh） | `829593ff6d5e005bda6189f2a2b4b4c3689095ea2137abe5600306f0ca7b9a16` |
+| `src/lib/drawing-recognition.ts` | `M +20/-0` | `bf321eb115156eff966c872a7783c85a831af5e499f918bc735af00b2afcf921` |
+| `src/lib/repositories/drawing-recognition-async-repository.ts` | `M +137/-3` | `1dd4c402d168a04c65ecaf7aac6732238e2edbe4d37d8d4f9bcbb4449773d8d4` |
+| `src/lib/drawing-revision-work.ts` | `M +18/-5` | `76afa71e6f57dc354a9b8f193a236f72e53f9b2984dd2f5c312bb11da523d500` |
+| `src/app/globals.css` | `M +211/-427`（handoff refresh） | `a117aa33054eb6617b78d10130953dba073540db50d94550bcc82fba7ebb8ebf` |
+| `package.json` | `M +22/-0`（handoff refresh） | `4ed9e8527c844f36d25328fab5ff5674c70a092f166a7a5d95c3242e006b2c87` |
+| `db/schema.sql` | `M +11/-0`（No-change target） | `8b35fe62043ecdaf80beebc29916fd18a861c20dfe8397837507215efefd8d24` |
+
+開始107-A前，RD必須重新執行`git status --short`、`git diff --numstat`與hash；若hash已改，更新task-owned evidence ledger並以當下working tree為base。每個overlap檔先讀existing diff再作最小patch；尤其舊review component刪除前，必須把仍屬current panel的post-release／evidence／failure能力逐項對照，不得直接丟失dirty內容。文件本輪不建立stash、不stage、不commit。
+
+### 34.12 P0／P1 Gap Audit、DoD與Execution Boundary
+
+| Risk | Readiness control | Result |
+|---|---|---|
+| 第二個PDM writer／partial intent | embedded只呼commit endpoint；commit與compatibility formalize共用同一domain writer；decision＋impact＋write同transaction | Closed |
+| amendment資料膨脹／purpose不明／並行雙建 | 053 purpose＋evidence origin、candidate overlay、partial unique index、serializable retry | Closed |
+| source drift誤寫 | save／impact／amend／cancel／commit／formalize／submit全數重算current exact source，分locked mutation／stable read模式 | Closed |
+| lock反轉／rerun race | Drawing→source→lineage→sorted target唯一lock order；worker不得再取Drawing lock | Closed |
+| optional recognition變成通用submit gate | exact source＋saved intended-only algorithm；negative matrix | Closed |
+| accepted no-op無稽核閉環 | 同一commit建立`appliedCount=0`event、formalized session且零Part／link write | Closed |
+| submitted snapshot封存錯session | latest exact-fingerprint formalized leaf selector；processing／open／cancelled／wrong fingerprint排除 | Closed |
+| client bypass submit | guard置於existing submit transaction、review write前 | Closed |
+| Released authority被精簡UI繞過 | requiresPostRelease直接導正式變更；embedded不接reason | Closed |
+| legacy IDOR／open redirect | server auth／company／session／exact target resolver | Closed |
+| one-click其實變多命令 | single server commit receipt；失敗全rollback，background impact僅advisory | Closed |
+| 多代amendment形成儲存／查詢債 | raw evidence零複製、set-based overlay、固定statement-count budget | Closed |
+| dirty worktree遺失既有修改 | exact SHA／numstat ledger＋overlap re-read gate | Closed |
+| fixed QA分母失真 | 5 child runners＋aggregate exact set 38 | Closed |
+
+Current Phase DoD=`107-A～D complete + fresh QA-107 38/38 + affected regressions PASS + P0/P1 open=0 + migration/provider parity + task-owned cleanup + primary/source invariant unchanged`。DEV-107已達成上述local DoD並取得`completionCandidate=true`；這只代表本機交付完成，production release仍另走既有release gate。
+
+本輪Execution Boundary：已修改DEV-107產品／測試契約、SQLite schema／initializer與PostgreSQL 053 migration，並以task-owned隔離資料／repository執行完整38案QA、affected regressions、typecheck、affected lint與isolated build；aggregate證明primary／source invariant不變且所有task-owned runtime／temp均清除。未修改primary data、未stage／commit／merge／PR，未deploy／release。下一個合法動作是由授權者另行啟動production migration／activation／deploy／release gate。

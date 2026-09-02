@@ -11,6 +11,96 @@
 
 2026-07-15 Workspace pilot access amendment：Google Workspace 使用者不再由 AI_PDM 提供首次 TOTP enrollment UI；initial 3-person pilot 暫不要求 Workspace 2-Step Verification。BFF 只接受 Firebase `google.com` verified sign-in、受信 Workspace domain 與 stable UID principal mapping 的組合；在 `PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED=true` 時僅作 AAL1 pilot 放行，不得把 session `secondFactor` 記為 `google_workspace_mfa`。只有實際強制 Workspace 2-Step Verification 且 `PDM_TRUST_GOOGLE_WORKSPACE_MFA=true` 時，才可升級為 Workspace-managed MFA/AAL2；email 字串或工號別名本身不得授權。
 
+2026-08-31 Jenfu Platform DEV-004 compatibility amendment：使用者選擇共同IAM／app-local session先進入RD Implementation Ready。AI_PDM保留既有Firebase UID、`pdm_user_id`、Firebase BFF、八小時上限、`__session`／`pdm_session`與account session registry；新增明確`PDM_JENFU_PLATFORM_AUTH_MODE=off|on`，同一runtime只接受legacy v2或Jenfu session其中一種。`on`時verified Firebase identity必須帶exact issuer／audience，再以`organization.v_active_principal_mappings_v1`取得恰好一筆active employee，並在每個protected server request重查local revoke、PDM account lifecycle與Platform central auth epoch；epoch／principal contract不可用時fail closed，不以legacy role、email、工號或已簽cookiefallback。shared mode不得接受Firebase ID token作business bearer。完整exact files、data／API／cookie／error、commands與recovery以 [Jenfu Platform DEV-004實作契約](../../../Jenfu-Management-system/ai-doc/specs/DEV-004-common-iam-app-local-session-implementation.md) 為準。使用者其後選擇`12A`完成`004-S0`：本repo已保存byte-identical vendor snapshot、SHA lock與`qc:dev-004:jenfu-auth`，aggregate SHA=`4d27c1e297b516207f931f57e443ecda99e260c56369132f9a269d11920cda96`；再選擇`13A`完成shared `004-S1` isolated PostgreSQL foundation，證明`jenfu_ai_pdm_runtime`只能讀active-principal view與epoch function，不能bump或直接讀epoch table。S0／S1皆未修改AI_PDM auth runtime、schema、環境或release，下一個app slice仍為未執行的`004-S2`。
+
+2026-08-31 本輪`14A` zero-disruption implementation amendment：`PDM_JENFU_PLATFORM_AUTH_MODE`缺值固定為`off`；off不要求`JENFU_*`、不查active-principal／epoch且只走既有session v2。on才啟用Jenfu v1，並只從`__session`／`pdm_session`取app-local token；兩種header／claims互斥，禁止dual-read／fallback與Firebase business bearer。既有`users`、`platform_principal_mappings`、`account_session_records` schema、UID、`pdm_user_id`、role／permission、local dev入口均不變。本機S2 contract＋runtime 14／14、DEV-046 isolated auth 12／12、typecheck、lint 0 error與isolated build／primary SQLite invariant／cleanup通過；Gate Closure只修正兩支QC runner後，完整DEV-046 16／16及employee alias 21／21全數通過，故S2為`Local Complete`。未操作production Firebase／Cloud SQL／真實使用者／deploy／release。
+
+2026-08-31 cross-repo `004-S5` closure amendment：Platform、OrgMaster與AI-PDM的local-isolated gate已完整重跑。AI-PDM Jenfu auth 14／14、DEV-046 16／16、employee alias 21／21、typecheck、lint、isolated build與1440×900／1024×768／390×844 login browser evidence均PASS；task-owned 3200 runtime與isolated paths已清除，既有3000開發runtime未受影響。共同fresh PostgreSQL 43／43、redaction與cleanup亦PASS，evidence=`../../../Jenfu-Management-system/output/dev-004/DEV004-S5-20260831T054317661Z-75bb1fcc/`。此證據只關閉DEV-004本機S5，不代表production Firebase／employee／Cloud SQL live G2、migration、deploy或release。
+
+2026-09-01 Jenfu Platform DEV-005 assignment-authority／Position amendment：分類為`Human Confirmed / Intentional Replacement / Documents Only`。使用者選擇`User → Position → Application Role → Permission`，不採`Position = Role`。AI-PDM繼續擁有Application Role catalog、Permission catalog、Role-to-Permission mapping、scope evaluator與所有server-side allow／deny；OrgMaster擁有Position組織事實、Position-to-Role recommendation policy及Employee-to-Application-Role published assignment。新增Position、任職或mapping擴權只更新唯讀建議／管理清單；AI-PDM app-scoped role administrator必須在下方amendment定義的AI-PDM「角色能力」經BFF檢視scope／validity／risk／before-after與reason並發布後才可能生效。Position改名不改權限；position-based assignment的source Position assignment失效時，authority mutation與durable outbox先commit，effective entitlement立即fail closed，session refresh於commit後重試。AI-PDM runtime不得直接查Position／department或用同名字串授權，只能經`EntitlementRepository`讀app-filtered effective view後套用app-owned規則。
+
+此amendment有意取代本文件下方把`user_role_assignments`與`users.role`視為target employee-role assignment authority的語意：它們在Jenfu cutover後只作legacy inventory、reconciliation與受控rollback，不能參與正常authorization。`roles`、`role_permissions`與role scope規則仍是AI-PDM app-owned起點；不得把legacy user assignment自動mapping、匯入或當成預設role。完整跨系統契約見[Jenfu Platform DEV-005](../../../Jenfu-Management-system/ai-doc/specs/DEV-005-position-derived-application-role-assignment.md)，OrgMaster直接契約見[DEV-040](../../../OrgMaster/ai-doc/specs/DEV-040-jenfu-platform-entitlement-user-integration.md)，AI-PDM route清冊見[DEV-005 authorization route inventory](../../../Jenfu-Management-system/ai-doc/specs/DEV-005-ai-pdm-authorization-route-inventory.md)。該amendment當時未修改role、permission、schema、資料、程式、runtime、Firebase、Cloud SQL、deploy或release；本節最新progress另記錄後續local foundation。`#效用理論`
+
+### 2026-09-01 Jenfu Platform DEV-005 role capability UI amendment
+
+分類：`Human Confirmed / Intentional UI Responsibility Replacement / Documents Only`。
+
+使用者確認AI-PDM一般角色指派治理改在AI-PDM內，以`/settings/workflow`單一「角色能力」及`Role → adopted Position → Employee`取代「Employee Assignment唯讀並導向OrgMaster」。browser只呼叫AI-PDM BFF，BFF以app-scoped capability呼叫OrgMaster governance API；OrgMaster仍保存canonical assignment／version／audit，AI-PDM不得新增local assignment authority。
+
+`recommended`是OrgMaster唯讀建議、`adopted`是AI-PDM app-scoped Position採用、`assigned`是OrgMaster published Employee role。建議只在adoption未初始化時預填，首次發布後不覆寫adopted／assigned；採用Position或新任職不自動grant。Position與Employee是兩種獨立operation，但共用AI-PDM BFF的preview／publish facade；移除Position只撤銷失去最後active source者。BFF read model只合併OrgMaster app-scoped role capability projection與AI-PDM active catalog，不得直讀OrgMaster private schema。OrgMaster以單一cursor change feed通知projection變更；consumer只invalidate並pull current projection，不取代effective view fail-closed。
+
+完整IA、API、projection／change-feed、error、file boundary與QA／QC以[AI-PDM角色能力UI契約](../../../Jenfu-Management-system/ai-doc/specs/DEV-005-ai-pdm-role-capability-ui.md)為準。Target V3不保留未上線的per-employee recommendation acceptance或legacy basis；RD須刪除／重構該local-only foundation並重建fixture，不做production migration相容。UI0／S2已於後續local slice實作；production authority仍未切換。
+
+### 2026-09-02 Jenfu Platform DEV-009 system administrator privileged governance amendment
+
+分類：`Human Confirmed / Compatible Security and UI Refinement / RD Implementation Ready / Documents Only`。
+
+`system_admin`不是一般Role → Position → Employee流程的特例，而是獨立principal-only治理：OrgMaster保留exact active `human_privileged` principal admission、assignment／revoke／version／audit authority；AI-PDM保留`system_admin` role／Permission mapping、scope evaluator與每個protected request的最終Allow／Deny。AI-PDM不得保存第二份assignment、接受raw principal輸入，或在OrgMaster離線時提供fallback write。
+
+`/settings/workflow`仍是AI-PDM正常閱讀入口；選到「系統管理員」時固定移除「尚未採用職位」、職位設定與Employee source checkbox，顯示「由 OrgMaster 管理」、redacted exact principal holder與authority `sourceDataAt`，唯一CTA導向OrgMaster既有「角色指派」入口。`effectiveHolderCount`依distinct exact principal計算，畫面標示「特權身分 N 個」而非「持有人 N 人」。current或合法last-known-good snapshot都可顯示，但stale固定唯讀、永久標示資料時間，不得成為authorization或mutation precondition。
+
+CTA由AI-PDM BFF以既有`ORGMASTER_PUBLIC_BASE_URL`投影固定`/?panels=governance&focus=governance&details=none&governanceSection=assignments`。Workspace v3的`managementSurface`只屬非持久化presentation metadata，不進OrgMaster canonical projection、display snapshot bytes或hash。URL不得含actor／employee／principal／assignment／command；local可用HTTP loopback，非local必須是無credentials的受信HTTPS origin，invalid設定時不輸出可點CTA並顯示人工導覽文字。
+
+Consumer contract升為`orgmaster.role-capability-projection.v2`與`ai-pdm.role-capability-workspace.v3`；`manualAssignments`可承載redacted principal holder摘要。舊v1／workspace v2 snapshot只供compatible read-only renderer，不得升格current。AI-PDM runtime仍只經`EntitlementRepository`讀Tier-0 app-filtered effective entitlement，不同步呼叫OrgMaster HTTP；OrgMaster治理故障只凍結control-plane mutation，不應擴散到非治理業務route。
+
+AI-PDM exact planned boundary為`contracts/jenfu-platform-governance-availability/v2/**`、`src/lib/ai-pdm-role-capability-contract.ts`、`src/lib/ai-pdm-role-capability-service.ts`、兩個role-capability repositories、`src/app/api/settings/access/role-capabilities/route.ts`、`src/components/access-governance/role-capability-settings.tsx`、必要focused tests與`qc:jms-dev-009:*` scripts；`src/app/settings/page.tsx`只在正常導航helper確有需要時修改。下一個slice為Platform `009-S0` canonical contract／雙vendor lock，AI-PDM產品改動在`009-S3`；未授權schema apply、真實principal／role mutation、bootstrap、deploy或release。完整契約見[Jenfu Platform DEV-009](../../../Jenfu-Management-system/ai-doc/specs/DEV-009-system-admin-privileged-principal-governance.md)，OrgMaster direct contract見[DEV-040 §23](../../../OrgMaster/ai-doc/specs/DEV-040-jenfu-platform-entitlement-user-integration.md)。
+
+### 2026-09-02 Jenfu Platform DEV-005 S1 catalog publication／ACL closure
+
+分類：`Compatible correction / Local-Isolated PASS / Production Release Gated`。AI-PDM app-owned catalog固定為`ai-pdm.role-catalog.2026-09-02.v2`，stable role順序固定為`role-rd`、`role-rd-manager`、`role-qa`、`role-manufacturing`、`role-production-planning`、`role-procurement`、`role-external-specialist`、`role-pdm-admin`、`role-system-admin`，aggregate SHA固定為`ebdaa2960960e0683b480c721d2c27df59031b4af23b124f2ac7e882309f6b6e`；`role-document-admin`不在active catalog。
+
+Migration 055已補齊app contract schema owner、private table deny與OrgMaster／AI-PDM active view read-only grants；transactional publisher保存display order、拒絕same-version／different-payload、stored payload drift與retired resurrection。全新task-owned PostgreSQL 18固定7 case全部PASS並完成process／port／temp cleanup；OrgMaster bundled與live adapters使用同一exact SHA。此closure不代表S3 enforcement、authority switch、Cloud SQL production activation、deploy或release。
+
+### 2026-09-02 Jenfu Platform DEV-008 resilience amendment
+
+分類：`Human Confirmed / RD Tech Lead Re-review PASS / RD Implementation Ready / Local S0～S3 PASS / Production Release Gated`。跨repo canonical契約為[Jenfu Platform DEV-008](../../../Jenfu-Management-system/ai-doc/dev_task.md)；本節只固定AI_PDM直接邊界，不改Role／Permission／entitlement authority。
+
+- 正常read改由單一`GET /api/settings/access/role-capabilities`回`ai-pdm.role-capability-workspace.v2`；server以3000ms timeout取得OrgMaster九角色同revision bulk，且只有`catalogVersion + catalogPayloadHash`與AI-PDM active catalog完全相符時，才以atomic upsert保存`role_capability_display_snapshots`。SQLite來源為`db/schema.sql`，PostgreSQL migration固定`db/postgres/056_role_capability_display_snapshot.sql`；snapshot無TTL／delete path，保存authority `sourceDataAt`、reader／contract metadata、`canonicalization_version=jenfu.canonical-json.v1`、exact `payload_canonical_json TEXT`與其UTF-8 bytes lowercase SHA-256。hash通過後才parse，禁止依DB JSON重序列化。
+- 合法最後快照只供`stale_snapshot`顯示並固定`mutationAllowed=false`，永久標示authority資料時間、離線、唯讀與correlation ID；snapshot repository不得被Portal visibility、session、entitlement或protected-route authorization import。Persistence失敗不得回current；有舊合法snapshot回stale，否則503。
+- Preview／publish timeout分別5000／8000ms且先做live bulk preflight，並傳`expectedCatalogVersion + expectedCatalogPayloadHash + expectedGovernanceRevision + expectedOrganizationRevision`四個required precondition。已知離線時零dispatch、零queue／fallback；publish已dispatch後response loss固定為`ORGMASTER_GOVERNANCE_OUTCOME_UNKNOWN`。UI人工「確認結果」先GET原command；OrgMaster durable ledger的processing lease固定30秒、no-op亦為terminal applied。absent／expired才以`POST /api/settings/access/role-capabilities/commands/{commandId}/resolve-unknown`傳原request hash與`cancel_if_absent_or_expired`落成rejected tombstone；active lease回409並維持凍結。late request／commit、同ID異hash、新command與自動replay皆拒絕。
+- AI_PDM exact product boundary為`src/lib/ai-pdm-role-capability-{contract,errors,service}.ts`、`src/lib/role-capability-canonical-json.ts`、`src/lib/db.ts` role snapshot initializer、兩個role capability repositories、read／preview／publish／command receipt／resolve-unknown routes、`src/components/access-governance/role-capability-settings.tsx`、`src/app/globals.css`、`db/schema.sql`、`db/postgres/README.md` migration inventory、056 migration、`contracts/jenfu-platform-governance-availability/v1/**` vendor snapshot＋`contract-lock.json`與DEV-008 QC scripts；`**`只含Platform DEV-008第6節逐檔列出的3 schemas／error codes／manifest／9 fixtures／lock。超出時回Platform PM。`typecheck:app`、`build:isolated`及contract／repository／browser／aggregate runners須在task-owned isolated data／repository paths與configurable non-primary ports執行，不得管理primary 3000／5000或啟動Platform 3100。
+
+本amendment經RD技術主管修正複審後P0／P1 readiness gap=`0`；DEV-008 local S0～S3＋C1已建立table、route、strict preflight、script與UI，並完成OrgMaster 15 targeted tests、AI-PDM app typecheck／isolated build／contract／repository／browser aggregate及normal browser hard-reload evidence。production SLO`>=99.9%`、RTO<=15分鐘、授權資料RPO=0、response-loss與outage drill仍由release gate驗證。
+
+### 2026-09-01 Jenfu Platform DEV-005 local implementation progress
+
+狀態：`RD Implementation Ready / 005-S0／S1／UI0／S2／S3 Local-Isolated PASS / 005-S4A～S5 Not Implemented / Production Release Gated`。
+
+目前已完成local／isolated foundation、UI0／S2、S1 publication／ACL及S3資料面：Platform migration 002、OrgMaster migration 005、V3-compatible principal／effective／authority views、commit-first outbox wrapper與post-commit dispatcher。S3全新PostgreSQL fixed denominator 7／7、OrgMaster 5 files／16 tests與build、Platform 7 files／33 tests與typecheck均PASS。AI-PDM本repo的request enforcement仍屬`005-S4A`，57-route bypass retirement屬`005-S4B`；正式authority switch與production activation未執行。
+
+#### Target role catalog與scope
+
+- Initial catalog version固定為`ai-pdm.role-catalog.2026-09-02.v2`；stable role IDs依序固定為`role-rd`、`role-rd-manager`、`role-qa`、`role-manufacturing`、`role-production-planning`、`role-procurement`、`role-external-specialist`、`role-pdm-admin`、`role-system-admin`。每個entry輸出canonical metadata＋sorted permission rows的`role_definition_hash`，aggregate SHA固定為`ebdaa2960960e0683b480c721d2c27df59031b4af23b124f2ac7e882309f6b6e`。active catalog是request-time policy authority；assignment catalog version只作核准時provenance。version字串不同本身不deny，missing／retired／stable ID-code drift／subject-scope不相容才deny；active Role-to-Permission變更不要求OrgMaster重發assignment。
+- 一般內部role與`role-pdm-admin`的Current Phase scope固定為`workspace`、subject固定為employee且只投影active `human_personal` principal。`role-external-specialist`固定manual direct／non-delegable、`project` scope，使用active Employee identity anchor但要求零department／零primary或active Position assignment而不進內部組織樹，另必須帶另一位active internal sponsor、review due date、project resource IDs與finite `validUntil`；90日review仍是soft reminder，到hard expiry才停權。`role-system-admin`固定為`global`、`subjectKind=principal`，只能直接指向同employee的exact active `human_privileged` principal，禁止Position recommendation、delegation、self-assignment與employee-wide傳播。
+- 上述external finite hard expiry是Jenfu cross-system target的intentional replacement；本文件下方「hard expiry延後／可選」只保留非Jenfu歷史語意，不得覆蓋本amendment。
+- Department scope延後。AI-PDM目前沒有覆蓋全部resource type的department evaluator，因此不得把department字串、Position或department membership當成allow條件。
+- 移除`system_admin_default`隱性permission。所有allow必須來自catalog內明確的Role-to-Permission mapping、scope match與有效published assignment。
+- AI-PDM管理UI中的Role／Permission catalog維持app-owned；Employee角色指派由「角色能力」經AI-PDM BFF寫入OrgMaster canonical governance，不得回寫local assignment table或成為第二個assignment authority。
+
+#### Runtime adapter與單一authority
+
+- 新增`EntitlementRepository` adapter，輸入Jenfu session的canonical `principal_id`、`employee_id`、`workspace_id`與resource context；只讀`access_governance.v_ai_pdm_effective_role_assignments_v1`及AI-PDM active Role-to-Permission資料後回傳allow／deny。
+- `PDM_JENFU_ENTITLEMENT_MODE=legacy|enforce`，缺值固定為`legacy`。`legacy`只走現行`users.role`／`user_role_assignments`；`enforce`只走OrgMaster effective assignment view。禁止同一business request雙讀、union、prefer-new或fallback。
+- Per-employee application authority另由`access_governance.v_ai_pdm_entitlement_authority_v1`決定；任何request恰有一個`legacy | orgmaster`來源，缺值、重複、catalog vendor-lock mismatch或scope metadata不完整一律deny。
+- 不設positive entitlement cache；每次受保護request都重讀authority與effective assignment。OrgMaster在publish／revoke／source Position終止時把authority mutation與outbox同transaction先commit，Platform auth-epoch refresh於commit後idempotent執行。Platform outage時舊role已由effective view deny，outbox pending重試；不得以refresh failure回滾撤權。
+
+#### Database與file boundary
+
+- PostgreSQL migration固定為`db/postgres/055_jenfu_role_catalog_publication.sql`；只新增AI-PDM所需的catalog publication／scope metadata與read grants，不複製OrgMaster Position資料，不把assignment寫回`user_role_assignments`。
+- 新增`config/access-control/jenfu-route-permission-map.v1.json`、`src/lib/jenfu-route-permission-map.ts`、`src/lib/entitlement-config.ts`、`src/lib/jenfu-entitlement-contract.ts`、`src/lib/repositories/jenfu-entitlement-repository.ts`、`src/lib/authorization-decision-log.ts`與對應tests；route map固定79個action-context policy entries並與Platform inventory canonical tuples hash一致。`src/lib/repositories/access-control-async-repository.ts`收斂為permission／scope evaluator，不再在Jenfu enforce mode組合base role與legacy assignments。
+- `src/lib/db.ts`、`account-lifecycle-async-repository.ts`、`numbering-async-repository.ts`、`numbering-repository.ts`、`pdm-work-review-async-repository.ts`中所有直接Role／assignment SQL須依route inventory逐一改接repository，或以明確legacy-only註解與static gate隔離。
+- 57支直接呼叫`requireRoleAsync(...)`的API route（71個exported HTTP methods、79個conditional policy entries），必須依[authorization route inventory](../../../Jenfu-Management-system/ai-doc/specs/DEV-005-ai-pdm-authorization-route-inventory.md)改為method／discriminator-specific permission＋resource-context guard；不得以route file共用一個角色判斷或role-name allowlist作target runtime捷徑。
+
+#### Implementation slices與verification
+
+1. `PDM-005-S0`：vendor lock、catalog fixture、migration `055` dry-run／rerun、static bypass inventory；不得改authorization結果。
+2. `PDM-005-S1`：adapter與`legacy` mode parity；重跑既有DEV-046、login alias、numbering與account lifecycle回歸。
+3. `PDM-005-S2`：逐method／discriminator切換permission guard並以workspace／project／global正反例驗證；57 files／71 methods／79 policy entries分母及route inventory remaining count必須精確通過。
+4. `PDM-005-S3`：以隔離PostgreSQL驗證single-authority、Position source終止、manual grant不連帶撤銷、同employee daily／privileged principal隔離、external零組織任職anchor／manual-direct／hard expiry、active catalog provenance、Platform outage pending outbox、auth-epoch與replay。
+5. `PDM-005-S4`：三viewport管理UI驗證Role catalog仍可維護、Employee assignment唯讀，並執行typecheck、lint、isolated build與primary database invariant。
+
+最小指令集：`npm run typecheck:app`、受影響檔案ESLint、`npm run build:isolated`、DEV-046與login alias既有runner，加上DEV-005 contract／repository／route／browser aggregate runner。若migration、catalog lock、single-authority、scope negative case、route static scan或cleanup任一失敗，停止在`legacy`，不得進入production activation。Production migration、authority切換、deploy與release仍需獨立release gate。
+
 關聯脈絡:
 
 - `.ai-doc/specs/SPEC-PDM-SETTINGS-CENTER-001-system-settings-center-secret-lifecycle.md`
@@ -514,7 +604,7 @@ auth_identities(
 - 將鉦富、久方等法律公司視為工作區內的選用資料所有者分類，而不是日常權限設定選擇器。
 - 加入 `user_type`: `employee`、`external_specialist`、`service`。
 - 加入部門歸屬模型，處理歸屬、預設主管、通知與待辦分派。
-- 加入外部專員 profile 或欄位: 內部負責人、授權原因、下次複核日、選用到期停用日。
+- 加入外部專員 profile 或欄位: 內部負責人、授權原因、下次複核日、到期停用日；legacy/local模式可選，Jenfu DEV-005 target固定必填finite hard expiry。
 - 允許一位使用者有多個有效期間不同的歸屬。
 
 不在範圍:
@@ -916,7 +1006,7 @@ QC 需保留證據:
 | 法律公司或資料所有者分類 | Same Spec Phase 2 / Not Authorized | 如鉦富/久方隱藏分類，需另行決策 |
 | 組織、部門與專案模型 | Same Spec Phase 2 / Not Authorized | 已定義為分派與預設範圍，不是權限主體 |
 | 外部專員負責人與複核提醒 | 本地上線切片已實作；提醒排程仍是未來工作 | 指派 metadata 已完成；提醒派送與複核流程需另行授權 |
-| 外部專員 hard expiry 或自動停權 | Blocked Human Re-entry | 第一版明確不自動停權 |
+| 外部專員 hard expiry／review-overdue自動停權 | Jenfu hard expiry契約已固定；review-overdue auto-disable仍Blocked Human Re-entry | Jenfu到`validUntil`必須停權；90日review逾期仍只提醒，不提早停權 |
 | 範圍模板層 | 本地上線切片已實作；完整 scope engine 是 Phase 3 | 管理員 UI/API 已有保守模板；完整路由範圍判斷仍延後 |
 | 編號以外權限整合 | Same Spec Phase 3 / Not Authorized | 需要路由盤點、旁路比對、差異報告與受控切換 |
 | 一次性完整權限切換 | No Tracking / rejected | 上線風險過高，與 RD guard 衝突 |

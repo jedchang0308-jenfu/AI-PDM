@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dev": "DEV-032",
-  "generatedAt": "2026-08-11T01:22:39.426Z",
+  "generatedAt": "2026-09-02T09:25:03.571Z",
   "targetProject": "jenfu-ai-pdm-prod",
   "region": "asia-east1",
   "expectedRunService": "ai-pdm-prod",
@@ -70,34 +70,27 @@
       "name": "ai-pdm-prod",
       "location": "asia-east1",
       "url": "https://ai-pdm-prod-ngxsziu4ha-de.a.run.app",
-      "latestReadyRevisionName": "ai-pdm-prod-gh-f70c8982-29636150040"
+      "latestReadyRevisionName": "ai-pdm-prod-gh-221b25c1-33457759159"
     }
   },
   "cloudSql": {
     "commandOk": true,
-    "instanceCount": 2,
+    "instanceCount": 1,
     "expectedCloudSqlInstance": "ai-pdm-prod-postgres",
     "expectedInstanceFound": true,
     "instances": [
-      {
-        "name": "ai-pdm-prod-restore-20260716a",
-        "region": "asia-east1",
-        "databaseVersion": "POSTGRES_17",
-        "state": "RUNNABLE",
-        "availabilityType": "ZONAL"
-      },
       {
         "name": "ai-pdm-prod-postgres",
         "region": "asia-east1",
         "databaseVersion": "POSTGRES_17",
         "state": "RUNNABLE",
-        "availabilityType": "REGIONAL"
+        "availabilityType": "ZONAL"
       }
     ]
   },
   "secrets": {
     "commandOk": true,
-    "secretCount": 3,
+    "secretCount": 4,
     "requiredSecretIds": [
       "pdm-session-signing-current",
       "pdm-session-signing-previous"
@@ -106,7 +99,8 @@
     "namesOnly": [
       "projects/451715062958/secrets/pdm-session-signing-current",
       "projects/451715062958/secrets/pdm-session-signing-previous",
-      "projects/451715062958/secrets/pdm-solidworks-document-manager-key"
+      "projects/451715062958/secrets/pdm-solidworks-document-manager-key",
+      "projects/451715062958/secrets/pdm-workbench-contract"
     ]
   },
   "releaseSource": {

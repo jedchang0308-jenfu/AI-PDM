@@ -57,3 +57,9 @@
 - 有限修訂 `ADR-PDM-MATERIAL-IDENTITY-REVISION-001` 第 2.1.3、2.1.6 與「新料號自己的 BOM」語意：每個 Part Number 必須擁有自己的明確適用綁定與可確定投影，但結構相同的變體不必擁有不同的 BOM tree／Revision／Snapshot。
 - 保留該 ADR 的 Part Number 無版次、Drawing／BOM 獨立版控、Released history不可靜默改寫與身份變更判斷規則。
 - 延續 `ADR-PDM-ASSEMBLY-MASTER-ENTRY-001`：不新增組立件入口，BOM action只出現在既有 Drawing／Part情境。
+
+## Unified BOM Domain Amendment（2026-09-01）
+
+本ADR的stable Definition、explicit Parent binding、same-root applicability、logical line與exact Parent-to-Child mapping仍是current structural authority，但purpose不再是Definition identity、eligibility、mapping或editor capability。任一same-company合法`assembly` Part可成為exact owner；`item_kind`、M圖、CAD與Child Drawing不再gating。
+
+Current implementation contract為`SPEC-PDM-BOM-CREATE-PAGE-001` §29～§33（`RD Implemented Locally / RD Tech Lead Reviewed and Corrected / Full QA-QC Passed 54/54`）。New schema-v3 shared line及resolved projection必須保存scale-6 exact quantity與locked UOM；v1／v2 shared evidence保留immutable。Legacy purpose退役不得解開或複製Definition，也不得因same root自動合併existing Definitions。

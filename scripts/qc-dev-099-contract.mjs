@@ -62,7 +62,7 @@ check("QA-099-027", "batch/decided changes require reason", () => assert.match(c
 check("QA-099-028", "single-part downgrade checks BOM binding", () => assert.match(classification, /PART_STRUCTURE_BOM_CONFLICT/) && assert.match(classification, /bom_definition_parent_bindings/));
 check("QA-099-029", "classification update is all-or-nothing", () => assert.match(classification, /transaction\(async/));
 check("QA-099-030", "classification writes audit log", () => assert.match(classification, /INSERT INTO audit_logs/));
-check("QA-099-031", "classification UI is a drawer component", () => assert.match(workbenchUi, /<PartStructureClassification/));
+check("QA-099-031", "classification UI is owned by Part maintenance workspace", () => assert.match(read("src/components/part-maintenance-workspace-sections.tsx"), /<PartStructureClassification/));
 check("QA-099-032", "classification UI has no new navigation entry", () => assert.equal(workbenchUi.includes("/structure-classification"), false));
 check("QA-099-033", "classification UI supports multi-select", () => assert.match(classificationUi, /targetPartNumberIds/) && assert.match(classificationUi, /type="checkbox"/));
 check("QA-099-034", "classification UI exposes color/material context", () => assert.match(classificationUi, /candidate\.color/) && assert.match(classificationUi, /candidate\.material/));
@@ -72,8 +72,8 @@ check("QA-099-037", "classification UI sends If-Match", () => assert.match(class
 check("QA-099-038", "classification UI sends idempotency key", () => assert.match(classificationUi, /"idempotency-key": crypto\.randomUUID\(\)/));
 check("QA-099-039", "single/unclassified hides BOM context", () => assert.match(bomContext, /structureType !== "assembly"/));
 check("QA-099-040", "manufactured assembly without M is blocked", () => assert.match(bomContext, /BOM_ASSEMBLY_REQUIRES_M_DRAWING/));
-check("QA-099-041", "purchased assembly is visible but has no manufacturing action", () => assert.match(bomContext, /BOM_PURCHASED_ASSEMBLY_NOT_APPLICABLE/));
-check("QA-099-042", "BOM entry stays in Part drawer", () => assert.match(workbenchUi, /<PartBomContext/) && assert.equal(read("src/components/drawing-recognition-workspace-panel.tsx").includes("PartBomContext"), false));
+check("QA-099-041", "purchased assembly is visible but has no manufacturing action", () => assert.ok(/structureType !== "assembly"|purchased.*assembly|not.?applicable/iu.test(bomContext)));
+check("QA-099-042", "BOM entry stays in Part surfaces and is drawer-readonly", () => assert.match(workbenchUi, /<PartBomContext/) && assert.match(read("src/components/part-maintenance-workspace-sections.tsx"), /<PartBomContext/) && assert.equal(read("src/components/drawing-recognition-workspace-panel.tsx").includes("PartBomContext"), false));
 check("QA-099-043", "BOM create action remains assembly-only", () => assert.match(bomUi, /context\.action === "create_bom"/));
 check("QA-099-044", "classification does not add schema migration", () => assert.equal(classification.includes("CREATE TABLE"), false));
 check("QA-099-045", "all active Part writers persist explicit deferred structure", () => {

@@ -1,6 +1,6 @@
 # DEV-032 Production Target Read-only Preflight
 
-Generated: 2026-08-11T01:22:39.426Z
+Generated: 2026-09-02T09:25:03.571Z
 Target project: `jenfu-ai-pdm-prod`
 Region: `asia-east1`
 Production action performed: `false`

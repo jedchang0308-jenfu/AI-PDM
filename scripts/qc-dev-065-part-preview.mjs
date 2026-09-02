@@ -372,11 +372,12 @@ await checkAsync("PPC-READ-001 auto resolves production-ready then latest active
   });
   assert.equal(queryCount, 3);
   assert.equal(map.cw_part_formal.state, "ready"); assert.deepEqual(map.cw_part_work, map.cw_part_formal);
+  assert.equal(map.cw_part_formal.hasPrimaryManufacturingDrawing, true);
   assert.equal(map.cw_part_formal.sourceDrawingNumber, "D65C-M01"); assert.equal(map.cw_part_formal.sourceRevision, "A");
   assert.equal(map.cw_part_formal.sourceLabel, "量產預覽");
   assert.match(map.cw_part_formal.media.href, /^\/api\/pdm\/file-assets\/dev065-cad-asset\?/u);
-  assert.equal(map.cw_no_link.sourceType, "none"); assert.equal(map.cw_no_link.state, "missing");
-  assert.equal(map.cw_linked_no_3d.sourceType, "primary_manufacturing_drawing");
+  assert.equal(map.cw_no_link.sourceType, "none"); assert.equal(map.cw_no_link.state, "missing"); assert.equal(map.cw_no_link.hasPrimaryManufacturingDrawing, false);
+  assert.equal(map.cw_linked_no_3d.sourceType, "primary_manufacturing_drawing"); assert.equal(map.cw_linked_no_3d.hasPrimaryManufacturingDrawing, true);
   assert.equal(map.cw_linked_no_3d.sourceDrawingNumber, "D65C-M02"); assert.equal(map.cw_linked_no_3d.state, "missing");
 
   commandDb.prepare("DELETE FROM file_derivatives WHERE id = 'dev065-cad-derivative'").run();

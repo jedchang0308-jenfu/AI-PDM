@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
 import { getFreePort, startNextApp, stopNextApp, waitForNextAppReady } from "./qc-next-app-runner.mjs";
 
@@ -62,6 +63,31 @@ async function launchBrowser() {
   } catch {
     return chromium.launch({ headless: true });
   }
+}
+
+async function startIsolatedAppWithRetry(initialBaseUrl, setApp) {
+  let baseUrl = initialBaseUrl;
+  const transientStartupError = /next-env\\.d\\.ts|UNKNOWN: unknown error|EBUSY|EPERM|EACCES/iu;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const parsed = new URL(baseUrl);
+    const port = parsed.port || await getFreePort();
+    baseUrl = `${parsed.protocol}//127.0.0.1:${port}`;
+    const nextApp = startNextApp(root, "dev", port);
+    setApp(nextApp);
+    try {
+      await waitForNextAppReady(baseUrl, nextApp.getOutput);
+      const output = nextApp.getOutput();
+      if (transientStartupError.test(output)) throw new Error(`Transient Next startup lock detected\\n${output}`);
+      return { baseUrl, app: nextApp };
+    } catch (error) {
+      const detail = `${error instanceof Error ? error.message : String(error)}\\n${nextApp.getOutput()}`;
+      await stopNextApp(nextApp.child);
+      setApp(null);
+      if (!transientStartupError.test(detail) || attempt === 3) throw new Error(detail);
+      await delay(750 * attempt);
+    }
+  }
+  throw new Error("Unable to start isolated Next app");
 }
 
 function draftFixture(id, name, status = "Draft") {
@@ -190,7 +216,7 @@ async function runFixture(baseUrl, cookie) {
       const draftDetailMatch = pathName.match(/^\/api\/bom\/drafts\/([^/]+)$/u);
       if (draftDetailMatch && request.method() === "GET") {
         const draft = activeDrafts.find((item) => item.id === draftDetailMatch[1]);
-        return draft ? jsonResponse(route, { draft: draftDetail(draft) }) : jsonResponse(route, { error: "BOM_DRAFT_NOT_FOUND" }, 404);
+        return draft ? jsonResponse(route, { draft: draftDetail(draft), editorCapability: { enabled: true, flag: "PDM_BOM_XMIND_EDITOR_V2_ENABLED", phase: "DEV-104" }, accessCapability: { releasedReadOnly: false } }) : jsonResponse(route, { error: "BOM_DRAFT_NOT_FOUND" }, 404);
       }
       return route.continue();
     });
@@ -208,43 +234,30 @@ async function runFixture(baseUrl, cookie) {
 
     await draftStrip.getByText("Active BOM Draft").click();
     await page.waitForURL(`${baseUrl}/bom/workbench/draft-active`, { timeout: 15000 });
-    await page.getByRole("region", { name: "BOM 編輯器" }).waitFor({ timeout: 15000 });
-    await page.getByTestId("bom-flow-canvas").waitFor({ state: "visible", timeout: 15000 });
+    const editor = page.getByTestId("bom-structured-editor");
+    await editor.waitFor({ timeout: 15000 });
     record("work-list click opens the canonical independent editor route", page.url() === `${baseUrl}/bom/workbench/draft-active`, page.url());
     record("editor page no longer renders the BOM list", (await page.getByRole("region", { name: "BOM 清單", exact: true }).count()) === 0);
-    record("editor page renders the BOM canvas", await page.getByTestId("bom-flow-canvas").isVisible());
-    record("editor removes the duplicate page title", (await page.getByRole("heading", { name: "BOM 編輯", exact: true }).count()) === 0);
-    record("editor removes the engineering eyebrow", (await page.getByText("工程 BOM 管理", { exact: true }).count()) === 0);
-    record("editor removes lifecycle guidance", (await page.getByText("BOM 建立與審核", { exact: true }).count()) === 0);
-    record("editor removes normal load-success noise", (await page.getByText(/已載入草稿/u).count()) === 0);
-    record("editor removes deleted-data controls", (await page.getByText("已刪除資料", { exact: true }).count()) === 0);
-    const flowNodeText = await page.locator("[data-bom-flow-node-id]").allTextContents();
-    record("flow nodes hide revision, quantity and level noise", flowNodeText.every((text) => !/(BOM Rev|\bRev\b|\bQty\b|\bLevel\b)/u.test(text)), flowNodeText.join(" | "));
-    record("editor combines identity and metadata into one context bar", await page.locator(".bom-editor-context").isVisible());
-    record("editor context bar contains the three required metadata fields", (await page.locator(".bom-editor-context dl > div").count()) === 3);
-    record("editor does not render separate summary cards", (await page.locator(".bom-parent-summary").count()) === 0);
-    record("editor keeps the explicit return action", await page.getByRole("link", { name: "返回 BOM 清單" }).isVisible());
-    record("editor keeps the BOM identity summary", await page.getByRole("heading", { name: "P-BOM-PARENT · BOM Rev 1" }).isVisible());
-    record("editor keeps the editing toolbar", await page.getByRole("button", { name: "新增群組", exact: true }).isVisible());
-    const insertItemButton = page.getByRole("button", { name: "插入料件", exact: true });
+    record("editor renders the Outliner workbench", await editor.isVisible() && await page.getByRole("tree", { name: "BOM 階層表" }).isVisible());
+    record("editor has no retired graph surface", (await page.locator("[data-testid='bom-flow-canvas'], [data-testid='xmind-bom-editor']").count()) === 0);
+    record("editor exposes one contextual identity bar", await editor.locator(".bom-structured-header").isVisible());
+    record("editor exposes the explicit BOM list return", await editor.getByRole("link", { name: "BOM 工作台" }).isVisible());
+    record("editor keeps the BOM identity summary", await editor.getByText("P-BOM-PARENT · BOM Rev 1", { exact: true }).first().isVisible());
+    record("editor keeps the editing toolbar", await editor.getByRole("button", { name: "新增群組", exact: true }).isVisible());
+    const insertItemButton = editor.getByRole("button", { name: "插入料件", exact: true });
     record("editor exposes the insert-item action", await insertItemButton.isVisible());
     await insertItemButton.click();
-    await page.getByRole("dialog", { name: "插入料件" }).waitFor({ state: "visible", timeout: 15000 });
-    record("insert-item drawer provides a search field", await page.getByRole("textbox", { name: "搜尋料件" }).isVisible());
-    const insertOption = page.getByRole("option", { name: "插入 P-BOM-PARENT" });
-    await insertOption.waitFor({ state: "visible", timeout: 15000 });
-    await insertOption.click();
-    record("selecting an item adds a BOM node", (await page.locator("[data-bom-flow-node-id]").count()) === 3);
-    record("selecting an item marks the draft as unsaved", await page.getByText("未儲存", { exact: true }).isVisible());
+    await page.locator(".bom-inline-picker").waitFor({ state: "visible", timeout: 15000 });
+    record("insert-item picker provides a search field", await page.locator(".bom-inline-picker input").count() >= 1);
+    await page.keyboard.press("Escape");
+    record("picker can be dismissed without mutation", (await page.locator(".bom-inline-picker").count()) === 0);
+    record("editor status is clean after dismissed picker", await editor.getByText("已同步", { exact: true }).isVisible());
     const editorNoHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
     record("editor viewport has no horizontal overflow", editorNoHorizontalOverflow);
     await fs.mkdir(path.dirname(editorScreenshotPath), { recursive: true });
     await page.screenshot({ path: editorScreenshotPath, fullPage: true });
     record("independent BOM editor screenshot captured", true, editorScreenshotPath);
-
-    await page.getByRole("button", { name: "復原", exact: true }).click();
-    record("insert-item test can be safely undone", await page.getByText("已同步", { exact: true }).isVisible());
-    await page.getByRole("link", { name: "返回 BOM 清單" }).click();
+    await editor.getByRole("link", { name: "BOM 工作台" }).click();
     await page.waitForURL(`${baseUrl}/bom/workbench`, { timeout: 15000 });
     await draftStrip.getByText("Active BOM Draft").waitFor({ timeout: 15000 });
     record("editor provides an explicit return to the BOM list", page.url() === `${baseUrl}/bom/workbench`, page.url());
@@ -293,11 +306,13 @@ async function main() {
       process.env.PDM_DATA_DIR = fixtureDir;
       process.env.PDM_REPOSITORY_DIR = path.join(fixtureDir, "repository");
       process.env.PDM_LOCAL_FULL_FUNCTION_VALIDATION = "true";
+      process.env.PDM_BOM_XMIND_EDITOR_V2_ENABLED = "true";
       process.env.PDM_PUBLIC_BASE_URL = baseUrl;
       process.env.PDM_QC_ISOLATED_TARGET = "1";
       process.env.PDM_NEXT_DIST_DIR = distDirRelative;
-      app = startNextApp(root, "dev", port);
-      await waitForNextAppReady(baseUrl, app.getOutput);
+      const started = await startIsolatedAppWithRetry(baseUrl, (nextApp) => { app = nextApp; });
+      baseUrl = started.baseUrl;
+      app = started.app;
     }
     const cookie = await login(baseUrl);
     await runFixture(baseUrl, cookie);

@@ -1,9 +1,9 @@
 # QA-DEV-079：圖號唯讀抽屜與全頁編輯工作區驗證計畫
 
-狀態：`CAPA Corrected Locally / Focused SQLite + PostgreSQL + Browser QA-QC PASS / Independent Full-Matrix QC Pending / Production Release Gated`
+狀態：`CAPA Corrected Locally / Focused SQLite + PostgreSQL + Browser QA-QC PASS / Independent Full-Matrix QC Pending / DEV-107 Compatibility Amendment Added / Production Release Gated`
 
-日期：2026-08-19  
-對應：`DEV-079`、`SPEC-PDM-ENTITY-DETAIL-DRAWER-001` 的 DEV-079 RD Implementation Package、`SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001` 的 DEV-079 amendment  
+日期：2026-08-19；amended 2026-08-31
+對應：`DEV-079`、`DEV-107`、`SPEC-PDM-ENTITY-DETAIL-DRAWER-001` 的 DEV-079／107 amendments、`SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001` 的 DEV-079／107 amendments
 Human decisions：`HD-079-01 / 1B`、`HD-079-02 / 2A`、`HD-079-03 / 3A`、`HD-079-04 / Visual-first amendment`  
 風險：Medium / P1  
 證據根目錄：`output/qa/dev-079-drawing-fullpage-workspace/<run-id>/`
@@ -356,3 +356,12 @@ FAIL：任一 Drawing drawer可寫、owner/reviewer authority錯置、required g
 未充分驗證：只做source scan、只看單一帳號、只測單一viewport、沒有network method audit、沒有pre/post data sanity、沒有back/reload/direct URL、沒有兩drawer branch或沒有錯誤注入。
 
 停止並回 Dev PM：實作需要新 schema／permission／lifecycle／command owner；stable Drawing ID無法成為route identity；review request無唯一full-page authority；surface-aware safe return無法完成；或無法同次移除所有 Drawing drawer write path。QA只制定與執行驗證、回報事實，不修改產品來讓案例通過；QC須由獨立角色依本計畫驗證。
+
+## 12. DEV-107 Compatibility Amendment — 2026-08-31
+
+Status：`DEV-107 RD Implemented Locally / Human Confirmed / Local QA-QC Complete 38/38 PASS / Production Release Gated`。DEV-107只窄幅取代DEV-079中與辨識正式寫入placement及submit gate有關的歷史oracle，不回頭改寫既有執行證據或虛增PASS：
+
+- `QA-079-24`的「OCR不改submit gate」改讀為scoped rule：無session、processing、failure、raw proposal、ignored／deferred／unclassified、identity／evidence-only或沒有accepted intended write不阻擋；本機unsaved edit由client guard阻擋，已保存且會實際改變PDM或有formalization blocker的accepted／corrected／mapped結果，必須由server submit command重驗並拒絕送審。
+- `QA-079-26`最後一句「advanced入口到canonical完整核對頁，embedded頁無formalize command」由DEV-107有意取代。現行target為embedded `智慧辨識`panel內背景advisory preflight＋一個single server commit的`確認寫入 PDM`，寫入後可在送審前建立evidence-origin overlay amendment；正常流程沒有舊頁或modal。該案例其餘single preview、exact source／page、geometry、restore與zero duplicate viewer assertions全部保留。
+- DEV-079其他drawer唯讀、canonical Drawing route、visual-first layout、單一preview、right-panel scroll、lifecycle action bar、safe return、permission、review immutability、owner resolution與provider parity assertions不變；DEV-107不得以「內嵌寫入」把recognition mutation移回drawer或reviewer surface。
+- `QA-079-01..042`分母、既有PASS／pending disposition與歷史evidence不重新編號、不改判。DEV-107新增行為的唯一current分母是主recognition QA §10的`QA-107-001..038`；該分母已由最新aggregate exact 38/38 PASS封存；任何DEV-079舊頁／modal證據不得借用為DEV-107 PASS。DEV-079自身的pending disposition仍依本文件原有gate管理。

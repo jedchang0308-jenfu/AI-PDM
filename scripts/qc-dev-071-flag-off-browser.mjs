@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
@@ -68,6 +68,7 @@ function prepareFixture() {
 function startServer(flag) {
   return freePort().then((port) => {
     baseUrl = `http://127.0.0.1:${port}`;
+    serverLog = "";
     serverProcess = spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
       cwd: root,
       env: {
@@ -91,6 +92,26 @@ function startServer(flag) {
   });
 }
 
+async function startServerAndWait(flag) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await startServer(flag);
+    try {
+      await waitForServer();
+      await delay(500);
+      const startupOutput = serverLog;
+      const transientNextEnvLock = /next-env\.d\.ts/iu.test(startupOutput) && /UNKNOWN|EBUSY|EPERM|EACCES/iu.test(startupOutput);
+      if (transientNextEnvLock) throw new Error(`transient next-env.d.ts lock\n${startupOutput.slice(-4_000)}`);
+      return;
+    } catch (error) {
+      const output = serverLog;
+      await stopServer();
+      const transientNextEnvLock = /next-env\.d\.ts/iu.test(output) && /UNKNOWN|EBUSY|EPERM|EACCES/iu.test(output);
+      if (!transientNextEnvLock || attempt === 3) throw error;
+      await delay(750 * attempt);
+    }
+  }
+}
+
 async function waitForServer() {
   const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
@@ -105,6 +126,18 @@ async function waitForServer() {
 
 async function stopServer() {
   if (serverProcess && !serverProcess.killed) {
+    // Next dev may keep worker descendants alive on Windows; this runner
+    // owns the exact process tree and must stop it before restoring metadata.
+    if (process.platform === "win32" && serverProcess.pid) {
+      try { execFileSync("taskkill", ["/PID", String(serverProcess.pid), "/T", "/F"], { stdio: "ignore" }); } catch { /* already exited */ }
+      if (serverProcess.exitCode === null) {
+        await Promise.race([
+          new Promise((resolve) => serverProcess.once("exit", resolve)),
+          delay(3_000)
+        ]);
+      }
+      return;
+    }
     const exited = new Promise((resolve) => serverProcess.once("exit", resolve));
     serverProcess.kill();
     await Promise.race([exited, delay(5_000)]);
@@ -134,8 +167,7 @@ async function createDraft(revision, name) {
 
 async function run() {
   prepareFixture();
-  await startServer(true);
-  await waitForServer();
+  await startServerAndWait(true);
   await login();
   const floatingDraft = await createDraft("1", "DEV-071 floating flag draft");
   record("flag=true draft created", floatingDraft.status === 201 && Boolean(floatingDraft.body.draft?.id));
@@ -152,8 +184,7 @@ async function run() {
   record("flag=true floating fixture saved", saved.status === 200 && saved.body.draft?.floating_topics?.length === 1);
   await stopServer();
 
-  await startServer(false);
-  await waitForServer();
+  await startServerAndWait(false);
   const blockedRead = await api(`/api/bom/drafts/${draftId}`);
   record("FF-003 flag=false reports disabled capability", blockedRead.status === 200 && blockedRead.body.editorCapability?.enabled === false);
   const stale = await api(`/api/bom/drafts/${draftId}`, { method: "PATCH", body: JSON.stringify({ lines: [], floatingTopics: [] }) });
@@ -166,8 +197,8 @@ async function run() {
   await context.addCookies([{ name: cookie.split("=", 1)[0], value: cookie.split("=", 2)[1], url: baseUrl }]);
   const page = await context.newPage();
   await page.goto(`${baseUrl}/bom/workbench/${encodeURIComponent(draftId)}`, { waitUntil: "domcontentloaded" });
-  await page.getByText(/Floating Topic；目前版本已鎖定保存/u).waitFor({ timeout: 15_000 });
-  record("FF-003 hard reload shows blocked handoff", await page.getByText(/Floating Topic；目前版本已鎖定保存/u).isVisible() && await page.locator("[data-testid='xmind-bom-editor']").count() === 0);
+  await page.locator("[data-testid='bom-structured-editor']").waitFor({ timeout: 15_000 });
+  record("FF-003 hard reload shows read-only handoff", await page.getByText("此版本目前為唯讀", { exact: false }).isVisible() && await page.locator("[data-testid='bom-structured-editor']").count() === 1);
   const blockedScreenshot = path.join(outputDir, "FF-003-blocked-handoff.png");
   await page.screenshot({ path: blockedScreenshot });
   screenshots.push(blockedScreenshot);
@@ -176,13 +207,9 @@ async function run() {
   record("FF-002 flag=false zero-floating draft created", legacyDraft.status === 201 && Boolean(legacyDraft.body.draft?.id));
   const legacyId = legacyDraft.body.draft.id;
   await page.goto(`${baseUrl}/bom/workbench/${encodeURIComponent(legacyId)}`, { waitUntil: "domcontentloaded" });
-  await page.locator("[data-testid='bom-flow-canvas']").waitFor({ timeout: 15_000 });
-  record("FF-002 legacy surface has no v2 leakage", await page.locator("[data-testid='xmind-bom-editor']").count() === 0 && await page.locator(".xmind-bom-toolbar").count() === 0);
-  await page.getByRole("button", { name: "新增群組" }).click();
-  const saveResponse = page.waitForResponse((response) => response.url().includes(`/api/bom/drafts/${legacyId}`) && response.request().method() === "PATCH" && response.status() === 200);
-  await page.getByRole("button", { name: "儲存", exact: true }).click();
-  await saveResponse;
-  record("FF-002 legacy surface can still save", true);
+  await page.locator("[data-testid='bom-structured-editor']").waitFor({ timeout: 15_000 });
+  record("FF-002 zero-floating draft is read-only", await page.getByText("此版本目前為唯讀", { exact: false }).isVisible() && await page.getByRole("button", { name: "儲存", exact: true }).count() === 0);
+  record("FF-002 legacy selectors are retired", await page.locator("[data-testid='xmind-bom-editor'], .xmind-bom-toolbar, [data-testid='bom-flow-canvas']").count() === 0);
   const legacyScreenshot = path.join(outputDir, "FF-002-legacy-surface.png");
   await page.screenshot({ path: legacyScreenshot });
   screenshots.push(legacyScreenshot);
@@ -202,7 +229,16 @@ run().catch(async (error) => {
 }).finally(async () => {
   if (browser) await browser.close().catch(() => {});
   await stopServer().catch(() => {});
-  for (const [file, content] of backups) fs.writeFileSync(path.join(root, file), content);
+  for (const [file, content] of backups) await restoreFileWithRetry(path.join(root, file), content);
   if (distDir.startsWith(path.join(root, ".tmp") + path.sep)) fs.rmSync(distDir, { recursive: true, force: true });
   if (tempDir.startsWith(os.tmpdir() + path.sep)) fs.rmSync(tempDir, { recursive: true, force: true });
 });
+
+async function restoreFileWithRetry(file, content) {
+  let lastError;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    try { fs.writeFileSync(file, content); return; }
+    catch (error) { lastError = error; await delay(250); }
+  }
+  throw lastError;
+}

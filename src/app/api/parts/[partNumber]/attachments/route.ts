@@ -15,6 +15,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
   const { partNumber } = await params;
   const surface = new URL(request.url).searchParams.get("surface");
   if (surface === "deleted_data") {
+    const manage = await requireNumberingActionAsync(request, "numbering.attachments.manage");
+    if (manage.response) return manage.response;
     const result = await listDeletedMasterAttachmentsAsync({
       entityType: "part_number",
       entityCode: decodeURIComponent(partNumber)

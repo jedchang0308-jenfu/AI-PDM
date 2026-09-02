@@ -1,9 +1,9 @@
 # SPEC-UX-PDM-WORKBENCH-TOPBAR-001：三工作台頂部欄一致化與肌肉記憶
 
 版本：1.2
-日期：2026-08-11；amended 2026-08-20、2026-08-21
-狀態：`RD Implemented / Focused Contract QC 13/13 / Browser Smoke Blocked by auth / Production Release Gated`
-Related DEV：`DEV-066`；`DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`；`DEV-085`
+日期：2026-08-11；amended 2026-08-20、2026-08-21、2026-09-01
+狀態：`DEV-112 Local RD Implemented / RD Tech Lead Corrections Closed / Existing DEV-066 Runtime + Evidence Retained / QA-QC Complete / Production Release Gated`
+Related DEV：`DEV-066`；`DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`；`DEV-085`；`DEV-112`
 父任務：`DEV-062`、`DEV-065`
 
 ## 0. 使用思考習慣
@@ -13,6 +13,59 @@ Related DEV：`DEV-066`；`DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`；`
 `#捷思法`：固定空間位置比新增文字提示更能形成肌肉記憶；搜尋／篩選是同一組任務，歷史條件是左側輔助條件，顯示模式是右側呈現選擇。
 
 `#內容組織`：頂部欄只保留頁面識別與建立／重新整理；工具列固定為「篩選列 → 工具列 footer」；清單內容與分頁固定在結果面板底部。
+
+## 0E. DEV-112 repository implementation amendment（2026-09-01／已實作／已驗證）
+
+Status：`Local RD Implemented / RD Tech Lead Corrections Closed / RD Eligible / QA-QC Complete / Production Release Gated`。
+
+§0D 的空間決策不變；exact implementation由preview SPEC §0T治理。RD只可在Drawing／Part canonical workbench做以下DOM搬移：
+
+```text
+page header: title + create action
+filter region: current search/filter controls
+result panel
+  result display bar: visible「顯示方式」+ one three-option radiogroup
+  result meta/loading/error
+  one current-mode content (table | table-with-inline-thumbnail | gallery)
+  current shared pagination
+```
+
+- `canonical-pdm-workbench.tsx`的header JSX移除`PdmWorkbenchLayoutSwitch`，但不得改title／create action callback。
+- 同一component的`.canonical-list`第一層在結果內容之前新增`data-canonical-result-display-bar`；只有list response明示preview capability時render。
+- `pdm-workbench-layout-switch.tsx`只擁有三段group的keyboard／ARIA，不擁有URL、storage、data load或polling。
+- `globals.css`只新增扁平bar與窄版wrap；不得用card、fieldset panel、重複title或divider製造框中框。
+- Relation workbench、既有filter component、pagination component及其DOM順序是no-touch。新DEV-112 browser runner以Relation smoke及
+  Drawing／Part focus order驗證，不修改歷史`qc-dev-066-workbench-topbar.mjs`的old expected。
+
+Implementation failure recovery：capability absent時整個bar不存在；模式render失敗不得把control搬回header／filter；窄版空間不足時整組換行，
+不可只留下icon或截斷`文字清單／3D 清單／預覽圖`。這些要求映射DEV-112 QA `TVM-001..005/018/021..024`。
+
+## 0D. DEV-112 Drawing／Part 結果顯示控制分層（2026-09-01 現行實作契約／已驗證）
+
+Status：`Local RD Implemented / RD Tech Lead Corrections Closed / Human Confirmed / QA-QC Complete / Production Release Gated`。
+
+DEV-112 對 `/numbering/drawings` 與 `/parts` 有意取代本規格第 0、1、2.1、2.2、3.2、3.3、4 節中「顯示模式固定在
+toolbar footer右側」、「清單／預覽圖」與「不新增第三種模式」的 Drawing／Part 條款。Relation的`關係樹／矩陣`、三工作台
+filter mechanics、history control removal、result panel與共用 pagination均不受影響。DEV-066既有13案與 runtime只保留為歷史／
+回歸基線，不能證明 DEV-112。
+
+Drawing／Part的目標空間語法固定為：
+
+1. `page header`：只放頁面名稱及既有主要建立動作；不放 view switch或3D toggle。
+2. `filter region`：只放搜尋與篩選；控制「看哪些資料」，不控制「如何呈現資料」。
+3. `result display bar`：位於 filter region之後、結果內容之前；以 `顯示方式`標示單一 radio／segmented group，依序為
+   `文字清單／3D 清單／預覽圖`。它是結果區自己的 presentation control，不與建立或 filter混排。
+4. `result content`：依同一 rows projection切換 table-without-media、table-with-inline-thumbnail或gallery。
+5. `pagination`：仍位於結果面板底部，模式切換不得改變共用 markup、cursor或按鈕順序。
+
+`result display bar`不得新增第二層 panel、重複頁面標題或說明卡；在足夠寬度靠結果區 trailing edge，在窄版整組換行且保留
+`顯示方式`與三選項的視覺歸屬。Preview capability不可用時整組不渲染，不留 divider、空白 footer或disabled假控制。
+
+Keyboard／ARIA：群組具有可辨識名稱 `顯示方式`，三選項selected state不只靠顏色；Tab只進入群組一次，方向鍵可在選項間移動，
+Space／Enter選取。切換後焦點留在被選選項，結果 region更新但不自動搶焦點；reduced motion不以動畫作唯一狀態訊號。
+
+Implementation與驗收 authority：preview細節以 `SPEC-PDM-WORKBENCH-PREVIEW-GALLERY-001` §0T／§0S及 DEV-112 QA
+§0T／`TVM-001..024`為準。DEV-112 local runtime已完成結果區三模式控制與新 evidence；DEV-066 footer兩模式只保留歷史回歸基線，production仍受release gate管制。
 
 ## 0A. DEV-070 Compatible Extension：審核清單共用空間語法
 

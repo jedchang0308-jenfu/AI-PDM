@@ -697,19 +697,18 @@ async function runDrawingLifecycle(context) {
   page.once("dialog", (dialog) => dialog.accept());
   await pdfRow.getByRole("button", { name: "移除", exact: true }).click();
   await pdfRow.waitFor({ state: "hidden", timeout: 30_000 });
-  const primaryUiLocks = [];
+  const primaryUiActions = [];
   for (const displayName of ["DEV087-G4.SLDDRW", "DEV087-G4.SLDPRT"]) {
     const row = page.locator(".dev079-workspace-file-list li").filter({ hasText: displayName });
     await row.waitFor({ state: "visible", timeout: 30_000 });
-    primaryUiLocks.push({
+    primaryUiActions.push({
       displayName,
       rowCount: await row.count(),
-      removeActionCount: await row.getByRole("button", { name: "移除", exact: true }).count(),
-      lockLabelCount: await row.locator(".canonical-file-lock").count()
+      removeActionCount: await row.getByRole("button", { name: "移除", exact: true }).count()
     });
   }
-  const primaryLocks = primaryUiLocks.filter((item) => item.rowCount === 1 && item.removeActionCount === 0).length;
-  check("QA-087-210", primaryLocks === 2, JSON.stringify({ primaryLocks, primaryUiLocks }));
+  const removableCurrentPrimaries = primaryUiActions.filter((item) => item.rowCount === 1 && item.removeActionCount === 1).length;
+  check("QA-087-210", removableCurrentPrimaries === 2, JSON.stringify({ removableCurrentPrimaries, primaryUiActions }));
   const submitResponsePromise = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith(`/api/pdm/drawing-revision-works/${drawingWork.workId}/submit`), { timeout: 30_000 });
   await page.getByRole("button", { name: "送出審核", exact: true }).click();
   const submitResponse = await submitResponsePromise;
@@ -744,7 +743,7 @@ async function runDrawingLifecycle(context) {
     const payload = result.rows[0]?.proposed_payload;
     return { pass: Boolean(payload?.changeImpact && result.rows[0]?.row_version >= 1), readback: result.rows[0] };
   });
-  await recordPostgresCase("QA-087-210", { workId: drawingWork.workId, primaryLocks, primaryUiLocks, removedSupplement: true }, async (database) => {
+  await recordPostgresCase("QA-087-210", { workId: drawingWork.workId, removableCurrentPrimaries, primaryUiActions, removedSupplement: true }, async (database) => {
     const result = await database.query(`SELECT file.role,file.is_primary,file.display_name FROM drawing_revision_work_files work_file
       JOIN drawing_revision_files file ON file.id=work_file.file_binding_id WHERE work_file.work_id=$1 ORDER BY work_file.ordinal`, [drawingWork.workId]);
     return { pass: result.rows.some((row) => row.role === "drawing_2d" && row.is_primary) && result.rows.some((row) => row.role === "cad_3d" && row.is_primary) && !result.rows.some((row) => row.display_name === "DEV087-G4-SUPPLEMENT.pdf"), readback: result.rows };

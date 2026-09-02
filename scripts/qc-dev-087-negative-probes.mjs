@@ -151,8 +151,19 @@ try {
     };
   });
 
-  await capture("QA-087-210", "NEGATIVE_PRIMARY_WORK_FILE_REMOVE_ZERO_WRITE", async () => {
+  await capture("QA-087-210", "NEGATIVE_PREVIOUS_REVISION_REFERENCE_REMOVE_ZERO_WRITE", async () => {
     const database = createFixtureDatabase();
+    const drawingFileTriggers = database.prepare("SELECT name, sql FROM sqlite_master WHERE type='trigger' AND tbl_name='drawing_revision_files' ORDER BY name").all();
+    for (const trigger of drawingFileTriggers) database.exec(`DROP TRIGGER ${JSON.stringify(String(trigger.name))}`);
+    database.prepare(`INSERT INTO file_assets
+      (id, file_name, file_ext, mime_type, file_size, content_hash, linked_entity_type, linked_entity_id,
+       document_category, display_name, uploaded_by)
+      VALUES ('asset-qa210-reference', 'A0002-M01.SLDDRW', 'slddrw', 'application/octet-stream', 15, 'qa210-reference-hash',
+       'drawing_revision', ?, 'drawing_2d', 'QA210 previous revision reference', ?)`).run(ids.productionRevision, ids.owner);
+    database.prepare(`INSERT INTO drawing_revision_files
+      (id, company_id, drawing_revision_id, source_file_asset_id, role, role_source, display_name, is_primary, created_by)
+      VALUES ('binding-qa210-reference', ?, ?, 'asset-qa210-reference', 'drawing_2d', 'system', 'QA210 previous revision reference', 1, ?)`).run(ids.company, ids.productionRevision, ids.owner);
+    for (const trigger of drawingFileTriggers) if (trigger.sql) database.exec(String(trigger.sql));
     const client = createAsyncDatabaseClient({ kind: "sqlite", database });
     const workbench = new PdmCanonicalWorkbenchService(client);
     const actor = { id: ids.owner, companyId: ids.company, canEditNonOwned: false, permissions: { create: true, update: true, submit: true, cancel: true, decide: false } };
@@ -165,23 +176,25 @@ try {
     const target = targets.data.candidates.find((candidate) => candidate.kind === "rd" && candidate.enabled);
     if (!target) throw new Error("QA210_TARGET_MISSING");
     const work = await service.create(ids.drawing, { sourceRowKey: source.rowKey, selectionMode: "recommended", candidateToken: target.candidateToken }, actor, { idempotencyKey: "qa210-create", contractToken: targets.meta.contractToken, expectedRowVersion: source.rowVersion });
-    const uploaded = await service.uploadFile(work.workId, { file: new File(["QA210-PRIMARY"], "A0002-M01.SLDDRW", { type: "application/octet-stream" }) }, actor, { idempotencyKey: "qa210-upload", contractToken: targets.meta.contractToken, expectedRowVersion: work.rowVersion });
     const before = databaseFingerprint(database);
     let caught = null;
     try {
-      await service.removeFile(work.workId, uploaded.file.id, actor, { idempotencyKey: "qa210-remove-primary", contractToken: targets.meta.contractToken, expectedRowVersion: uploaded.rowVersion });
+      await service.removeFile(work.workId, "binding-qa210-reference", actor, { idempotencyKey: "qa210-remove-reference", contractToken: targets.meta.contractToken, expectedRowVersion: work.rowVersion });
     } catch (error) {
       caught = errorCode(error);
     }
     const after = databaseFingerprint(database);
-    const active = database.prepare("SELECT COUNT(*) AS count FROM drawing_revision_work_files WHERE work_id = ? AND file_binding_id = ?").get(work.workId, uploaded.file.id).count;
+    const facts = database.prepare(`SELECT
+      (SELECT COUNT(*) FROM drawing_revision_work_files WHERE work_id=? AND file_binding_id='binding-qa210-reference') AS work_membership,
+      (SELECT COUNT(*) FROM drawing_revision_files WHERE id='binding-qa210-reference' AND removed_at IS NULL) AS source_binding_active,
+      (SELECT COUNT(*) FROM file_assets WHERE id='asset-qa210-reference' AND deleted_at IS NULL) AS source_asset_active`).get(work.workId);
     const fk = database.pragma("foreign_key_check").length;
     database.close();
     return {
-      pass: caught === "DRAWING_REVISION_FILE_PRIMARY_LOCKED" && before === after && Number(active) === 1 && fk === 0,
-      faultInjection: { workId: work.workId, fileBindingId: uploaded.file.id, primary: true },
-      expectedFailure: { code: "DRAWING_REVISION_FILE_PRIMARY_LOCKED" },
-      actual: { code: caught, activeBindingCount: Number(active) },
+      pass: caught === "DRAWING_REVISION_FILE_REFERENCE_LOCKED" && before === after && Number(facts.work_membership) === 1 && Number(facts.source_binding_active) === 1 && Number(facts.source_asset_active) === 1 && fk === 0,
+      faultInjection: { workId: work.workId, fileBindingId: "binding-qa210-reference", previousRevisionReference: true },
+      expectedFailure: { code: "DRAWING_REVISION_FILE_REFERENCE_LOCKED" },
+      actual: { code: caught, ...facts },
       zeroWriteReceipt: { before, after, delta: before === after ? 0 : 1 },
       restoreReceipt: { status: "fixture_disposed", foreignKeyViolations: fk },
       providerReceipt: { provider: "sqlite", databaseScope: "task_owned_in_memory" }

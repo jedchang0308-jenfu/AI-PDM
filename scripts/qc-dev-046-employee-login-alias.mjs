@@ -196,7 +196,11 @@ record(
 );
 record(
   "DEV046-ALIAS-019 session issuance consumes the intent after verified UID resolution and public routing is same-origin",
-  sessionRoute.lastIndexOf("exchangeFirebaseIdTokenForPlatformSession") < sessionRoute.lastIndexOf("consumeEmployeeLoginIntentAsync") && sessionRoute.lastIndexOf("consumeEmployeeLoginIntentAsync") < sessionRoute.lastIndexOf("setFirebaseBffSessionResponseCookie") && intentRoute.includes("sameOrigin(request)") && intentRoute.includes('"cache-control": "no-store"')
+  sessionRoute.lastIndexOf("exchangeFirebaseIdTokenForPlatformSession") < sessionRoute.lastIndexOf("consumeEmployeeLoginIntentAsync") &&
+    sessionRoute.lastIndexOf("consumeEmployeeLoginIntentAsync") < sessionRoute.lastIndexOf("setFirebaseBffSessionResponseCookie") &&
+    intentRoute.includes('import { isAllowedRequestOrigin } from "@/lib/request-origin";') &&
+    /if\s*\(\s*!isAllowedRequestOrigin\(request\)\s*\)\s*\{[\s\S]*?status:\s*403/u.test(intentRoute) &&
+    intentRoute.includes('"cache-control": "no-store"')
 );
 record(
   "DEV046-ALIAS-020 public intent responses do not return mapped email, user ID or alias-existence flags",

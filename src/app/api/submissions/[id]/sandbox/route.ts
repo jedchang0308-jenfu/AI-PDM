@@ -1,5 +1,5 @@
-﻿import { NextResponse } from "next/server";
-import { forbidden, requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { NextResponse } from "next/server";
+import { forbidden, requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { createSandboxBranchAsync, listSandboxBranchesForSubmissionAsync } from "@/lib/sandbox-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
@@ -23,7 +23,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;

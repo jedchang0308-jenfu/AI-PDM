@@ -17,7 +17,7 @@ record("DEV032-SOURCE-002 manifest is not release-ready evidence", ["source_snap
 record("DEV032-SOURCE-003 source snapshot hash is reproducible", manifest.releaseDecision.sourceSnapshotSha256 === rebuilt.releaseDecision.sourceSnapshotSha256);
 record("DEV032-SOURCE-004 classification hash is reproducible excluding generated evidence output", manifest.releaseDecision.classificationSha256 === rebuilt.releaseDecision.classificationSha256);
 record("DEV032-SOURCE-005 every dirty entry is classified", manifest.summary.unknownRiskEntries === 0, JSON.stringify(manifest.summary.byBucket));
-const expectedDirtySnapshotBuckets = ["included_application_source", "included_release_tooling", "included_schema_migration_source", "included_platform_contract", "included_release_governance", "included_build_runtime_config"];
+const expectedDirtySnapshotBuckets = ["included_application_source", "included_release_tooling", "included_schema_migration_source", "included_platform_contract", "included_release_governance", "included_build_runtime_config", "included_contract_source"];
 const includedBucketEntries = Object.entries(manifest.summary.byBucket).filter(([bucket]) => bucket.startsWith("included_"));
 record(
   "DEV032-SOURCE-006 included source state matches manifest mode",
@@ -34,6 +34,8 @@ record("DEV032-SOURCE-010 stop conditions preserve release gate blockers", manif
 record("DEV032-SOURCE-011 package exposes generator and QC scripts", packageJson.scripts["dev-032:release-source-manifest"] === "node scripts/generate-dev-032-release-source-manifest.mjs" && packageJson.scripts["qc:dev-032-release-source-manifest"] === "node scripts/qc-dev-032-release-source-manifest.mjs");
 record("DEV032-SOURCE-012 exact commit state matches remaining included source", manifest.releaseDecision.exactReleaseCommitExists === (manifest.summary.includedProductionSourceEntries === 0 && manifest.summary.unknownRiskEntries === 0));
 record("DEV032-SOURCE-013 non-platform runtime config is included", manifest.files.filter((file) => file.path.startsWith("config/") && !file.path.startsWith("config/platform/")).every((file) => file.bucket === "included_build_runtime_config" && file.includedInProductionSource === true));
+record("DEV032-SOURCE-014 versioned contracts are included", manifest.files.filter((file) => file.path.startsWith("contracts/")).every((file) => file.bucket === "included_contract_source" && file.includedInProductionSource === true));
+record("DEV032-SOURCE-015 Next.js generated type reference is excluded", manifest.files.filter((file) => file.path === "next-env.d.ts").every((file) => file.bucket === "generated_evidence_excluded" && file.includedInProductionSource === false));
 
 for (const result of results) console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);
 const failures = results.filter((result) => !result.passed);

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { resolveRequiredMaForBaselineAsync, Shared3dBaselineError } from "@/lib/shared-3d-baseline";
 
 export const runtime = "nodejs";
 
 async function resolveForRequest(request: Request, ownerScope: unknown, ownerCode: unknown) {
-  const auth = await requireRoleAsync(request, ["Engineer", "R&D Manager", "Admin", "Manufacturing"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "R&D Manager", "Admin", "Manufacturing"]);
   if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const result = await resolveRequiredMaForBaselineAsync({

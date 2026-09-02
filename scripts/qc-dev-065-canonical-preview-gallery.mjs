@@ -58,9 +58,12 @@ async function verifyEntity(page, viewport, input) {
   const rows = page.locator("[data-canonical-workbench-row='true']");
   check(`${viewport} ${input.entity} list loaded`, await rows.count() > 0, String(await rows.count()));
   const rowKeys = await rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("data-row-key")));
-  const switcher = page.getByRole("group", { name: "工作台顯示模式" });
+  const switcher = page.getByRole("radiogroup", { name: "顯示方式" });
   check(`${viewport} ${input.entity} layout switch visible`, await switcher.count() === 1);
-  await switcher.getByRole("button", { name: "預覽圖", exact: true }).click();
+  await switcher.getByRole("radio", { name: "3D 清單", exact: true }).click();
+  check(`${viewport} ${input.entity} 3D list keeps table`, await page.locator(".canonical-table-wrap").count() === 1);
+  check(`${viewport} ${input.entity} 3D list exposes inline preview`, await page.locator("[data-canonical-inline-preview='true']").count() >= 1);
+  await switcher.getByRole("radio", { name: "預覽圖", exact: true }).click();
   await page.locator(".canonical-preview-gallery").waitFor({ state: "visible", timeout: 30_000 });
   const map = baselineApi.body?.data?.previewByRowKey;
   check(`${viewport} ${input.entity} neutral map matches visible rows`, map && Object.keys(map).sort().join(",") === rowKeys.slice().sort().join(","), JSON.stringify(map));
@@ -89,13 +92,13 @@ async function verifyPartMutation(page, baseUrl) {
   const fileInput = page.locator(".part-preview-source-control input[type='file']");
   await fileInput.setInputFiles({ name: "browser-part-preview.png", mimeType: "image/png", buffer: png });
   await page.getByRole("button", { name: "使用主要製造圖", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
-  await page.locator("[data-canonical-preview-section='canonical-part-preview']").getByText("自訂圖片", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  check("desktop Part custom source label is omitted", await page.locator("[data-canonical-preview-section='canonical-part-preview']").getByText("自訂圖片", { exact: true }).count() === 0);
   await page.locator("[data-canonical-preview-section='canonical-part-preview'] [data-preview-media='image']").waitFor({ state: "visible", timeout: 30_000 });
   check("desktop Part custom upload renders through shared media", await page.locator("[data-canonical-preview-section='canonical-part-preview'] [data-preview-media='image']").count() === 1);
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator(".pdm-entity-detail-drawer").waitFor({ state: "visible", timeout: 30_000 });
-  await page.locator("[data-canonical-preview-section='canonical-part-preview']").getByText("自訂圖片", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+  check("desktop Part custom source label stays omitted after reload", await page.locator("[data-canonical-preview-section='canonical-part-preview']").getByText("自訂圖片", { exact: true }).count() === 0);
   await page.locator("[data-canonical-preview-section='canonical-part-preview'] [data-preview-media='image']").waitFor({ state: "visible", timeout: 30_000 });
   check("desktop Part custom source persists after reload", await page.getByRole("button", { name: "使用主要製造圖", exact: true }).count() === 1);
 
@@ -150,11 +153,16 @@ async function verifyViewport(context, baseUrl, viewport) {
   await login(page, baseUrl);
   const drawing = await verifyEntity(page, viewport.name, { entity: "drawing", title: "圖號工作台", url: `${baseUrl}/numbering/drawings?query=${browserDrawingQuery}`, api: `/api/numbering/drawings/workbench?query=${browserDrawingQuery}&limit=100` });
   await page.getByRole("button", { name: "關閉明細" }).click();
-  await drawing.switcher.getByRole("button", { name: "清單", exact: true }).click();
+  await drawing.switcher.getByRole("radio", { name: "文字清單", exact: true }).click();
   check(`${viewport.name} Drawing layout preference is separate`, await page.evaluate(() => window.localStorage.getItem("pdm-canonical-drawing-layout-v1") === "list"));
 
   const part = await verifyEntity(page, viewport.name, { entity: "part", title: "料號工作台", url: `${baseUrl}/parts?query=${browserDrawingQuery}`, api: `/api/parts/workbench?query=${browserDrawingQuery}&limit=100` });
   const partPreview = Object.values(part.previewByRowKey ?? {})[0];
+  const partPreviewSection = page.locator("[data-canonical-preview-section='canonical-part-preview']");
+  check(`${viewport.name} Part custom source label is omitted`, partPreview?.sourceType === "custom_image" ? await partPreviewSection.getByText("自訂圖片", { exact: true }).count() === 0 : true);
+  check(`${viewport.name} Part custom source metadata is omitted`, partPreview?.sourceType === "custom_image" ? await partPreviewSection.locator(".drawing-preview-board-header strong").count() === 0 : true);
+  check(`${viewport.name} Part structure helper text is omitted`, !(await page.locator(".part-structure-classification-summary").textContent() ?? "").includes("同根號其他料號僅供批次選擇"));
+  check(`${viewport.name} Part reset action is shown only with a manufacturing drawing`, await page.getByRole("button", { name: "使用主要製造圖", exact: true }).count() <= 1);
   check(`${viewport.name} A0005 auto preview uses active RD ready source`, partPreview?.state === "ready"
     && partPreview?.sourceLabel === "研發預覽"
     && partPreview?.sourceDrawingNumber === "A0005-M01"
@@ -165,7 +173,7 @@ async function verifyViewport(context, baseUrl, viewport) {
   check(`${viewport.name} no page errors`, errors.length === 0, JSON.stringify(errors));
   check(`${viewport.name} evidence captures Part preview mode`, await page.locator(".canonical-preview-gallery").isVisible());
   await page.screenshot({ path: path.join(outputDir, `${viewport.name}.png`), fullPage: true });
-  await part.switcher.getByRole("button", { name: "清單", exact: true }).click();
+  await part.switcher.getByRole("radio", { name: "文字清單", exact: true }).click();
   check(`${viewport.name} Part layout preference is separate`, await page.evaluate(() => window.localStorage.getItem("pdm-canonical-part-layout-v1") === "list"));
   await page.close();
 }
@@ -189,7 +197,7 @@ async function verifyFeatureOff(runtimeBrowser, baseUrl) {
   await login(page, baseUrl);
   await page.goto(`${baseUrl}/parts?query=${browserDrawingQuery}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await waitForList(page);
-  check("feature-off Part preview switch is absent", await page.getByRole("button", { name: "預覽圖", exact: true }).count() === 0);
+  check("feature-off Part preview switch is absent", await page.getByRole("radio", { name: "預覽圖", exact: true }).count() === 0);
   const listResponse = await page.request.get(`${baseUrl}/api/parts/workbench?query=${browserDrawingQuery}&limit=100`);
   const listBody = await listResponse.json();
   check("feature-off Part list has no preview projection", listResponse.status() === 200 && listBody.data?.previewByRowKey === undefined);
@@ -200,7 +208,7 @@ async function verifyFeatureOff(runtimeBrowser, baseUrl) {
   check("feature-off Part mutation route is 404", resetResponse.status() === 404, String(resetResponse.status()));
   await page.goto(`${baseUrl}/numbering/drawings?query=${browserDrawingQuery}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await waitForList(page);
-  check("feature-off keeps Drawing preview capability", await page.getByRole("button", { name: "預覽圖", exact: true }).count() === 1);
+  check("feature-off keeps Drawing preview capability", await page.getByRole("radio", { name: "預覽圖", exact: true }).count() === 1);
   check("feature-off browser has no page errors", errors.length === 0, JSON.stringify(errors));
   await context.close();
 }

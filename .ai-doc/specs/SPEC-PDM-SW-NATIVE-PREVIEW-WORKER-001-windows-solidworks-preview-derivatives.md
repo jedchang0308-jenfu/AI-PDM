@@ -1,7 +1,7 @@
 # SPEC-PDM-SW-NATIVE-PREVIEW-WORKER-001 - Windows SolidWorks Native Preview Derivatives
 
-Status: RD Implementation Complete / DEV-056 Phase 1E Local E2E Verified / Prior evidence retained as partial baseline / Production Release Gated
-Date: 2026-08-19
+Status: DEV-105 RD Implemented / Revision B QA-QC Complete / Effectiveness Reclosed / Historical QA-105 18 of 18 Retained as Baseline / Primary Backfill Human-Gated / Production Release Gated
+Date: 2026-08-31
 Owner: Dev PM
 Related DEV: `DEV-PDM-SW-NATIVE-PREVIEW-WORKER-001`
 Related ADR: `.ai-doc/decisions/ADR-PDM-SW-NATIVE-PREVIEW-WORKER-001-windows-worker-derivative-boundary.md`
@@ -17,6 +17,171 @@ Related authority:
 - `.ai-doc/specs/SPEC-PDM-DRAWING-REVISION-PACKAGE-002-first-class-attachment-package-model.md`
 - `src/components/master-attachment-panel.tsx`
 - `scripts/probe-document-manager-extractor.mjs`
+
+## 0B. 2026-08-31 DEV-105 First-load Gallery Synchronization Effectiveness Reopen（現行 3D 派工補充權威）
+
+本節補充並優先於§0A的結案／effectiveness敘述；§0A的converter、worker capability、hash、quality與歷史證據仍有效。
+Revision B已由隔離 contract/service/browser aggregate 完成驗證；下列 lifecycle、client convergence與UX contract為現行實作邊界。
+既有§10「normal use不得要求manual refresh」與pending-only foreground polling契約在本節再次確認，不是新產品範圍。
+
+### 0B.1 新失敗訊號、事實與根因鏈
+
+使用者於`/numbering/drawings`首次進入預覽圖模式時，絕大多數卡片顯示「預覽尚未建立」；重新整理後才出現實際3D圖。
+本輪唯讀證據確認：
+
+- canonical list只取一次`previewByRowKey` snapshot；worker完成後client沒有poll、invalidate或event更新，因此ready derivative已存在，
+  畫面仍保留舊state；A0006 job由created到completed約3.7秒，reload後才可見。
+- canonical detail會呼叫`ensureAutomaticPreviewJobsForSourceAssetsAsync`建立legacy gap job，但list畫面沒有收斂機制；
+  目前QA runner以「開detail／手動跑worker／再開detail」驗證，沒有覆蓋同一gallery不reload轉ready。
+- `resolveCanonicalDrawingPreview()`在source為null時仍可能依drawing number回
+  `sourceType="primary_manufacturing_drawing"`；gallery又把map缺鍵silent fallback為`missing`，造成no-source與contract mismatch都被顯示為
+  「預覽尚未建立」。
+
+根因鏈：一次性read snapshot＋非同步worker是直接機制；缺少client convergence與strict map/state fail-closed是控制失效；
+source binding與job intent仍跨transaction、read-side recovery成為正常補償，是lifecycle ownership不完整。2026-08-30的18案沒有
+first-load delivery-path案例，因此屬effectiveness evidence coverage缺口，不是worker canary證據失效。
+
+使用思考習慣：#多層次分析、#批判、#效用理論
+
+### 0B.2 Spec Impact、設計取捨與架構邊界
+
+- 分類：`Implementation needs correction + Compatible CAPA strengthening`；風險=`High / P1`。
+- §0A.3(1)的after-commit enqueue與§0A.3(2)把detail GET當一般recovery producer的exact wording由本節intentional-replace；
+  「新source自動建立job、舊gap可冪等補償」的產品意圖保留，但ownership收斂到transactional write boundary＋有退休條件的safety net。
+- 保留：DB-backed`preview_jobs`單一queue authority、Windows worker、source-hash／generator idempotency、quality gate、
+  side-effect-free list、private/no-store file-read、current capability與DEV-065 exact-row projection。
+- 修正：source binding／job-intent transaction boundary、legacy recovery的退休條件、client pending convergence、strict map/state與pending UI。
+- 不採用SSE/WebSocket：此工作量低、狀態變化短且只在可見pending卡片需要更新；bounded polling在延遲、複雜度、維運與驗證成本的總效用較高。
+- 不採用per-card endpoint、第二套cache/store、optimistic ready或全域orchestration framework；list仍是同頁canonical snapshot authority。
+- Schema/migration=`None`；ADR=`No New ADR`，因queue、worker與外部契約不變，只補足同一生命週期的不變量與UI收斂。
+
+### 0B.3 Lifecycle implementation contract
+
+1. `drawing_revision_files` current native source binding與其exact asset/hash/generator preview job intent必須在同一SQLite／PostgreSQL
+   transaction內commit；`preview_jobs`即durable job intent，不新增outbox table。binding commit後必有matching ready derivative或
+   active/terminal job。
+2. renderer在commit後失敗只改job terminal state，不刪除或回滾source。若binding＋job intent transaction失敗，domain binding與job皆不commit；
+   已寫physical bytes依既有upload compensation處理，不留下可見orphan binding。
+3. upload retry、transaction retry、detail retry與reconciliation均使用同一idempotency key；concurrent call不得建立第二筆current-hash job。
+4. canonical detail recovery保留為legacy safety net而非正常producer：必須bounded、system-owned、可觀測且不改domain ownership。
+   Primary silent-gap inventory清零、連續兩次reconciliation run為zero delta，且受影響QA通過後，re-entry為移除normal GET read-side write；
+   在此之前不得新增第二個read-side recovery caller。List永遠side-effect-free。
+5. Primary/backfill apply仍受fingerprint-gated明確授權；本節不授權primary data mutation、production、deploy或release。
+
+### 0B.4 Client convergence and request contract
+
+1. `canonical-pdm-workbench.tsx`只在目前document visible、preview layout可見且當頁至少一筆`pending|delayed`時背景重取同一list；
+   pending interval建議2500ms、delayed interval建議5000ms。hidden時停止timer，visible時立即重查；無pending/delayed、unmount或terminal時停止。
+2. 同時間最多一個poll request；使用`AbortController`＋monotonic request id，stale response不得覆蓋較新的query/filter/page結果。
+   可以復用`master-attachment-panel.tsx`既有foreground pending-poll pattern；只有確認有兩個current consumer時才抽小型hook。
+3. 背景poll只替換latest canonical groups、totals、cursor、contract token與preview map；不得觸發visible full-list loading、
+   清除既有rows、改URL/storage、跳scroll、關drawer、改selected row或移動keyboard focus。
+4. map key set必須與本頁row key set完全相等。missing／extra／duplicate key是contract error並沿用list fail-closed；client不得建立
+   fabricated`missing`projection。No source只能由server pure selector回`sourceType="none"`＋`state="missing"`。
+5. Ready image若解碼失敗，該card依既有contract轉unavailable並停止自動重試；failed／unavailable／missing均不持續poll。
+
+### 0B.5 UX Intent與pending animation contract
+
+- 使用者任務：掃視圖號外形；主物件仍是preview card，pending只是media區的局部狀態，不新增頁首提示、toast、helper、panel或第二個焦點。
+- Pending唯一主要訊號為卡片media placeholder內的14–16px低振幅loader與文字`預覽建立中`。動畫週期建議800–1200ms，
+  不閃爍、不改卡片尺寸、不造成layout shift，ready／terminal／unmount後立即停止。
+- `prefers-reduced-motion: reduce`時取消rotation／pulse，改為靜態progress icon＋同一文字；動畫不是唯一訊號。
+- card或media region提供`aria-busy="true"`與包含`預覽建立中`的accessible name。每次poll不得用live region重複播報；
+  transition到ready只更新該card狀態，不搶focus。No source顯示`無 3D 預覽`；不得顯示「預覽尚未建立」。
+- Delayed顯示`預覽服務未回應`，failed／unavailable顯示`預覽暫時無法顯示`；可恢復細節留在既有drawer，不擴張卡片文案。
+
+### 0B.6 Exact file boundary、acceptance與stop conditions
+
+預期修改：
+
+- `src/lib/drawing-revision-work-file.ts`、`src/lib/preview-derivatives.ts`：binding＋job-intent transaction與idempotency。
+- `src/lib/pdm-canonical-preview.ts`、`src/lib/pdm-canonical-workbench-contract.ts`：strict source/state contract。
+- `src/components/canonical-pdm-workbench.tsx`、`src/components/canonical-pdm-preview-gallery.tsx`、`src/app/globals.css`：
+  pending-only poll、race protection、local animation、a11y與reduced motion。
+  - `scripts/qc-dev-105-browser.mjs`、`scripts/qc-dev-105-service.mjs`、`scripts/qc-dev-105-contract.mjs`與aggregate runner：新增QA-105-019..030與受影響回歸。
+
+完成條件固定為新`QA-105-019..030 = 12/12 PASS`，並重跑001..006、010、014..018；Revision B aggregate已達成此條件。最少要證明：cold-first-load
+到同卡ready全程無reload；pending animation與reduced motion；no-source零poll與正確文案；map mismatch fail-closed；hidden／visible、
+in-flight與stale response；selection/focus/scroll/drawer不變；failure terminal停止；Drawing/Part desktop+narrow、console/network、
+task-owned cleanup與primary invariant全部成立。2026-08-30 18/18只保留歷史基線，不可作為本節PASS。
+
+立即停止並回Dev PM：需要新schema／queue authority、SSE/WebSocket、per-card endpoint、CAD source mutation、native code進Next.js handler、
+直接apply primary/production、無法維持transaction/idempotency，或只能以reload後成功、direct API、mock worker、歷史截圖替代同頁真實UI證據。
+
+## 0A. 2026-08-30 DEV-105 3D Preview Recovery CAPA（歷史 corrective baseline；受§0B補充）
+
+### 0A.1 事實、推論與根因鏈
+
+已確認事實：
+
+- A0002-M01與A0006-M01的current `.SLDPRT` source asset、physical bytes與SHA-256存在，但 current
+  `file_derivatives=0`、`preview_jobs=0`。
+- canonical workbench detail只讀既有source/job/derivative；missing投影沒有`mediaHref`，所以browser不會呼叫
+  file-read的`preview=1` lazy enqueue。來源存在與「沒有預覽工作」形成封閉迴圈。
+- A0002與歷史曾產生ready derivative的A0044，直接執行目前Windows Shell extractor時都在
+  `Image.FromHbitmap`／PNG save拋出`System.ArgumentException`。這反證「只有A0002檔案損壞」。
+- fixed local launcher把3D worker PID存在寫成healthy，未驗證HBITMAP轉換、PNG quality或實際SolidWorks source canary。
+- UI把source exists + no artifact/job顯示為「目前沒有可預覽的3D檔案」，與資料事實不符。
+
+多層次根因：直接原因是job未建立與HBITMAP轉PNG失敗；控制失效是不同source producer沒有共用
+prepare/enqueue，worker health只檢查process；系統根因是completion evidence只證明歷史單點成功，沒有
+「所有current native source必有ready derivative或active/terminal job」的silent-gap不變量與回歸gate。
+
+### 0A.2 Spec Impact Preflight
+
+- 分類：`Compatible CAPA amendment`；風險=`High / P1`。
+- 保留：native source/derivative分離、source-hash guard、Windows隔離worker、token-gated BFF、quality gate、
+  canonical file-read、shared preview projection與DEV-065 Part source selection。
+- 修正：source lifecycle scheduling、detail recovery、Shell bitmap conversion、3D capability health、backfill inventory與
+  source-exists UI copy。
+- Schema/migration=`None`；復用`preview_jobs`、`file_derivatives`與`worker_capability_heartbeats`。
+- ADR=`No New ADR`；既有worker boundary未改變。
+- Out of scope：interactive 3D、STEP/glTF、CAD source mutation、SolidWorks COM in request handler、production deploy/release、
+  未授權的primary/production backfill apply。
+
+### 0A.3 Corrective implementation contract
+
+1. 所有current native SolidWorks source在受控binding成功後，必須透過`requestedPreviewKindForSource()`與同一
+   idempotent enqueue primitive建立exact source asset/hash/generator job；preview失敗不得回滾或破壞已完成的原檔上傳。
+2. canonical detail在投影前呼叫同一prepare/recovery primitive；若source存在但沒有current ready derivative或active job，
+   建立一筆job後重讀狀態。重複GET、upload retry與list/detail切換不得增加第二筆idempotency key。
+3. historical `succeeded` job若current derivative遺失，recovery可對同一idempotency key重設為queued；current ready derivative
+   或queued/running job不得被重設。
+4. Windows extractor不得依賴目前會失敗的`System.Drawing.Image.FromHbitmap`路徑；HBITMAP轉PNG須保留尺寸與alpha、
+   在finally釋放GDI object與COM object，且output通過PNG signature、dimensions與non-blank quality gate後才能complete。
+5. 3D worker以`solidworks_3d_preview_png`回報capability。未執行canary時為`degraded/preview_canary_pending`；
+   真實`.SLDPRT|.SLDASM` canary通過才可`ready`；converter/provider失敗為`blocked`。PID只能顯示process running，
+   launcher/runtime status不得把它等同renderer healthy。
+6. inventory/backfill命令預設dry-run，列出company/source/revision/file/hash/current artifact/job disposition；apply必須有
+   explicit confirmation且只新增/重置preview job，不修改source/binding/revision。Primary apply另受fingerprint gate。
+7. UI狀態：無source才可顯示「目前沒有可預覽的3D檔案」；source存在但無artifact/job時顯示
+   「3D原檔已存在，預覽尚未建立」；recovery成功後顯示queued/running；失敗顯示redacted原因與下載原檔。
+
+### 0A.4 Fixed acceptance and evidence gate
+
+固定分母為`QA-105-001..018`，詳見
+`.ai-doc/qa/qa-dev-105-3d-preview-recovery-validation-plan-2026-08-30.md`。結案必須同時具備：
+
+- A0002、A0006、A0044三份真實Windows source-mode canary產生current非空白PNG；
+- isolated SQLite upload/detail/backfill/idempotency、ready derivative read與source/derivative hash證據；
+- 3D heartbeat的pending/ready/blocked三態與launcher不再process-only false positive；
+- 圖號與料號工作台desktop+narrow正常入口、實際rendered image、狀態copy、console/network證據；
+- task runtime/process/port/temp cleanup，以及primary SQLite schema、canonical identity、migration residue與FK前後不變。
+
+任一canary、UI或invariant未通過即維持`◇ 驗證中`；不得用歷史PNG、fake worker、direct API或compile-only取代。
+
+### 0A.5 Effectiveness verification and residual boundary
+
+2026-08-30固定`QA-105-001..018`已18/18 PASS。service manifest為
+`output/qa/dev-105-3d-preview/DEV105-service-2026-08-30T13-54-44-787Z/service-manifest.json`（24/24 checks），
+browser manifest為`output/qa/dev-105-3d-preview/DEV105-browser-2026-08-30T13-56-01-283Z/browser-manifest.json`
+（35/35 checks）。三份真實canary、兩工作台兩viewport、shared derivative、redacted failure、primary invariant、isolated build與
+cleanup均成立。
+
+Primary dry-run仍列A0002-M01與A0006-M01兩筆silent gap；本輪未取得primary apply或production deploy/release授權。
+此段只記錄2026-08-30當時的判定：converter／worker／指定recovery路徑可視為local effective，資料補償維持
+fingerprint-gated Human-Gated。2026-08-31新失敗訊號證明first-load gallery effectiveness未被覆蓋，整體DEV-105已依§0B重開；
+不得再用本段18/18宣稱不需manual refresh或整體CAPA已結案。
 
 ## 0. 2026-08-19 Phase 1E 2D Preview E2E Reopen Amendment（現行派工權威）
 

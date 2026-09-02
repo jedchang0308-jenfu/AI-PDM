@@ -176,7 +176,7 @@ try {
   await page.unroute("**/api/bom/drafts");
   await dialog.getByRole("button", { name: "建立 BOM", exact: true }).click();
   await page.waitForURL(/\/bom\/workbench\//u, { timeout: 30000 });
-  await page.locator('section.bom-workbench-page[aria-label="BOM 工作台"]').waitFor({ state: "visible", timeout: 30000 });
+  await page.locator('section.bom-structured-editor[aria-label="BOM 工作台編輯器"]').waitFor({ state: "visible", timeout: 30000 });
   await page.getByText("Z960101 · BOM Rev 1", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
   check([16, 17, 18, 69], "create commits one shared Draft and opens contextual workbench", page.url().includes(`parentPartNumberId=${fixture.parents.red}`), page.url());
   await page.screenshot({ path: path.join(outputDir, "shared-bom-workbench.png"), fullPage: true });
@@ -213,7 +213,7 @@ try {
   });
   check([65], "shared component mapping is accepted by the HTTP save boundary", save.status() === 200, `status=${save.status()} body=${await save.text()}`);
   await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
-  await page.locator('section.bom-workbench-page[aria-label="BOM 工作台"]').waitFor({ state: "visible", timeout: 30000 });
+  await page.locator('section.bom-structured-editor[aria-label="BOM 工作台編輯器"]').waitFor({ state: "visible", timeout: 30000 });
   const mapping = page.locator('section[aria-label="適用料號對應"]');
   await mapping.waitFor({ state: "visible", timeout: 30000 });
   const mappingSelects = mapping.locator("select");
@@ -223,8 +223,10 @@ try {
   check([65, 68], "parent mapping is keyboard traversable", await mappingSelects.nth(1).evaluate((element) => element === document.activeElement));
   await mappingSelects.nth(0).selectOption(fixture.children.blue);
   await page.getByText("未儲存", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
-  await page.getByTestId("xmind-bom-editor").getByRole("link", { name: "BOM 工作台", exact: true }).click();
-  check([65, 79], "dirty mapping blocks navigation until saved or reverted", page.url().includes(`/bom/workbench/${created.id}`) && await page.getByText("返回清單前請先儲存或復原變更", { exact: true }).count() === 1, page.url());
+  await page.getByTestId("bom-structured-editor").getByRole("link", { name: "BOM 工作台", exact: true }).click();
+  const navigationDialog = page.getByRole("alertdialog", { name: "尚有未儲存變更" });
+  check([65, 79], "dirty mapping blocks navigation until saved or reverted", page.url().includes(`/bom/workbench/${created.id}`) && await navigationDialog.count() === 1, page.url());
+  await navigationDialog.getByRole("button", { name: "取消" }).click();
   await page.keyboard.press("Control+z");
   await page.getByText("已同步", { exact: true }).waitFor({ state: "visible", timeout: 30000 });
   await page.screenshot({ path: path.join(outputDir, "parent-child-mapping.png"), fullPage: true });
@@ -240,14 +242,14 @@ try {
     await page.waitForTimeout(150);
     const geometry = await page.evaluate(() => {
       const root = document.documentElement;
-      const workbench = document.querySelector('section.xmind-bom-editor-shell[aria-label="XMind 式 BOM 編輯器"]');
+      const workbench = document.querySelector('section.bom-structured-editor[aria-label="BOM 工作台編輯器"]');
       const rect = workbench?.getBoundingClientRect();
       return {
         documentWidth: root.scrollWidth,
         viewportWidth: root.clientWidth,
         workbenchLeft: rect?.left ?? -1,
         workbenchRight: rect?.right ?? Number.POSITIVE_INFINITY,
-        actionVisible: [...document.querySelectorAll("button")].some((button) => ["儲存", "已儲存", "儲存中"].includes(button.textContent?.trim() ?? "") && button.getBoundingClientRect().width > 0)
+        actionVisible: [...document.querySelectorAll("section.bom-structured-editor button")].some((button) => button.getBoundingClientRect().width > 0 && button.getBoundingClientRect().height > 0)
       };
     });
     check([66], `${viewport.name} keeps the workbench and primary action inside the viewport`, geometry.documentWidth <= geometry.viewportWidth + 1 && geometry.workbenchLeft >= 0 && geometry.workbenchRight <= geometry.viewportWidth + 1 && geometry.actionVisible, JSON.stringify(geometry));

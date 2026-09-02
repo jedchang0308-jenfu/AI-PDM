@@ -1,0 +1,61 @@
+{
+  "contractVersion": "jenfu.platform-auth.v1",
+  "errors": [
+    {
+      "httpStatus": 400,
+      "code": "auth_request_invalid"
+    },
+    {
+      "httpStatus": 401,
+      "code": "auth_token_invalid"
+    },
+    {
+      "httpStatus": 401,
+      "code": "auth_session_invalid"
+    },
+    {
+      "httpStatus": 401,
+      "code": "auth_epoch_stale"
+    },
+    {
+      "httpStatus": 403,
+      "code": "principal_not_active"
+    },
+    {
+      "httpStatus": 403,
+      "code": "principal_ambiguous"
+    },
+    {
+      "httpStatus": 403,
+      "code": "auth_origin_invalid"
+    },
+    {
+      "httpStatus": 409,
+      "code": "auth_contract_mismatch"
+    },
+    {
+      "httpStatus": 413,
+      "code": "auth_request_too_large"
+    },
+    {
+      "httpStatus": 415,
+      "code": "auth_json_required"
+    },
+    {
+      "httpStatus": 429,
+      "code": "auth_rate_limited"
+    },
+    {
+      "httpStatus": 503,
+      "code": "principal_directory_unavailable"
+    },
+    {
+      "httpStatus": 503,
+      "code": "auth_epoch_unavailable"
+    },
+    {
+      "httpStatus": 503,
+      "code": "auth_server_not_configured"
+    }
+  ]
+}

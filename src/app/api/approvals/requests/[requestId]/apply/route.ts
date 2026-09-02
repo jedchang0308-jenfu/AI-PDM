@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import {
   applyApprovalPlatformRequestAsync,
   getApprovalPlatformRequestDetailForCompanyAsync
@@ -11,6 +11,7 @@ import {
   resolveNumberingCompanyContextAsync
 } from "@/lib/numbering-company-context";
 import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
+import { projectApprovalDecisionFeedback } from "@/lib/approval-outcome-feedback";
 
 export const runtime = "nodejs";
 
@@ -46,14 +47,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
     return NextResponse.json({ error: "WORKBENCH_COMMAND_CONTRACT_RETIRED", message: "舊候選發布正式化命令已退役。" }, { status: 410 });
   }
 
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], { permissionCode: "approval.request.apply" });
   if (auth.response) return auth.response;
   try {
     const result = await applyApprovalPlatformRequestAsync({
       requestId: decodedRequestId,
       actor: auth.user
     });
-    return NextResponse.json({ request: result });
+    return NextResponse.json({ request: result, outcome: projectApprovalDecisionFeedback(result) });
   } catch (error) {
     return approvalApiErrorResponse(error, "apply", request);
   }

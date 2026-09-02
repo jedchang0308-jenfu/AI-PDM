@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { createSharedModelVersionAsync, listSharedModelVersionsAsync, Shared3dBaselineError } from "@/lib/shared-3d-baseline";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "R&D Manager", "Admin", "Manufacturing", "Procurement"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "R&D Manager", "Admin", "Manufacturing", "Procurement"]);
   if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { partNumber } = await params;
@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ partNumber: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "R&D Manager", "Admin"]);
   if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { partNumber } = await params;

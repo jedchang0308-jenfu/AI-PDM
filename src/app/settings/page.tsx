@@ -38,6 +38,7 @@ import {
   withPredictedApprovalControls
 } from "@/lib/approval-rule-summary";
 import { formatStatusForUser } from "@/lib/status-display";
+import { RoleCapabilitySettings } from "@/components/access-governance/role-capability-settings";
 
 type SettingsState =
   | { status: "loading" }
@@ -52,7 +53,7 @@ const settingsAreas: Array<{ id: SettingsArea; label: string; href: string; hash
   { id: "overview", label: "總覽", href: "/settings", hash: "settings-overview" },
   { id: "integrations", label: "整合", href: "/settings/integrations", hash: "settings-integrations" },
   { id: "security", label: "安全", href: "/settings/security", hash: "settings-security" },
-  { id: "workflow", label: "流程", href: "/settings/workflow", hash: "settings-workflow" },
+  { id: "workflow", label: "角色能力", href: "/settings/workflow", hash: "settings-workflow" },
   { id: "system", label: "系統", href: "/settings/system", hash: "settings-system" }
 ];
 
@@ -375,8 +376,12 @@ export function SettingsScreen({ initialArea }: { initialArea: SettingsArea }) {
   };
 
   useEffect(() => {
+    if (initialArea === "workflow") {
+      setState({ status: "ready", settings: {} });
+      return;
+    }
     fetchSettings();
-  }, []);
+  }, [initialArea]);
 
   useEffect(() => {
     function syncLegacyHash() {
@@ -396,8 +401,8 @@ export function SettingsScreen({ initialArea }: { initialArea: SettingsArea }) {
     <>
       <div className="topbar">
         <div>
-          <h1>系統設定 <StatusScopeHelp scope="settingsCenter" /></h1>
-          <p>目前位於「{activeAreaLabel}」；請從分頁切換要管理的設定區域。</p>
+          <h1>{activeArea === "workflow" ? "角色能力" : "系統設定"} <StatusScopeHelp scope="settingsCenter" /></h1>
+          <p>{activeArea === "workflow" ? "管理 AI-PDM 角色採用的職位與人員來源。" : `目前位於「${activeAreaLabel}」；請從分頁切換要管理的設定區域。`}</p>
         </div>
       </div>
 
@@ -901,7 +906,7 @@ function SettingsPanel({
         </section> : null}
 
         {activeArea === "workflow" ? <div id="settings-workflow">
-          <ApprovalMatrixSettings />
+          <RoleCapabilitySettings />
         </div> : null}
 
         {activeArea === "system" ? <section className="panel" id="settings-system">

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { listManufacturingHandoffEntriesAsync } from "@/lib/handoff-async";
 
 export const runtime = "nodejs";
@@ -17,7 +17,7 @@ function parseSince(value: string | null) {
 }
 
 export async function GET(request: Request) {
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const url = new URL(request.url);

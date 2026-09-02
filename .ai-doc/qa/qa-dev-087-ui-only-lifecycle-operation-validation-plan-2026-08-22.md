@@ -1,5 +1,5 @@
 # DEV-087 三工作臺全生命週期 AI UI-only 操作驗證計畫
-Status: `Trusted-Solo UI QA-QC Complete / FFF Applicability Corrected / Current UI Roster + Shared C Gates + Feature Cases PASS / Production Release Gated`
+Status: `Trusted-Solo UI QA-QC Complete (2026-08-31 post-FFF source revalidation) / FFF Applicability Corrected / Production Release Gated`
 <!-- QC-JOURNEY-SUPPLEMENT-2026-08-22T10:05 -->
 
 ## 0.0 2026-08-28 fresh UI closure
@@ -7,6 +7,10 @@ Status: `Trusted-Solo UI QA-QC Complete / FFF Applicability Corrected / Current 
 更新後的current UI roster已由fresh task-owned browser runtimes完成：UI-only child的34個直接生命週期案例與C01～C11全部PASS，Part附件P11～P13、I01～I14及功能增補案例再由同一parent browser capability補齊，最終DEV-087 aggregate為94/94產品案例與`QG-087-UI` PASS。八個UI family在1440×900、1024×768、390×844、320×800完成overflow、keyboard／focus、可見錯誤與readback驗證；headed evidence覆蓋1440×900與390×844，actual screen reader依使用者決策維持選配。
 
 首版／進版FFF的D01～D06與QA-087-187..192均包含fresh owner／reviewer證據；首版只顯示中性「關聯料號」且zero FFF，進版才顯示判定範圍與三軸人工判定。exact run pointer、source fingerprint、console／network、attempt ledger與cleanup receipt由DEV-087 completion receipt統一記錄。production release仍另受gate管制，`part_root`排除範圍未改變。
+
+### 0.0A 2026-08-31 post-FFF source-boundary revalidation closure
+
+The 2026-08-28 UI closure remains historical and immutable. Fresh parent aggregate `DEV087-aggregate-2026-08-30T15-29-47-476Z` passed after source-boundary revalidation. Its capability-browser child `DEV087-product-browser-2026-08-30T15-35-25-538Z` passed the current UI roster with 87 cases and 442 evidence files; `QG-087-UI` passed 32/32 family-viewports, including headed `1440x900` and `390x844`, with no console/network failure and task-owned cleanup complete. The earlier `DEV087-aggregate-2026-08-30T14-15-03-301Z` source-change rejection remains historical fail-closed evidence and was not relabeled.
 
 ## 0. 2026-08-25 功能完整性 CAPA 重開
 

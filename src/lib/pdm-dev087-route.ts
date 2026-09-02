@@ -10,13 +10,15 @@ export async function resolveDev087RouteActor(request: Request, page: "numbering
   if (auth.response) return { response: auth.response, actor: null };
   const company = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
   if (company.response) return { response: company.response, actor: null };
-  const [create, update, submit, cancel, decide, obsolete, draftUpdate, manageAttachments] = await Promise.all([
+  const [create, update, submit, cancel, decide, obsoleteDraft, obsoletePart, obsoleteDrawingFormal, draftUpdate, manageAttachments] = await Promise.all([
     canUserUseNumberingActionAsync(auth.user, "numbering.workspace.create"),
     canUserUseNumberingActionAsync(auth.user, "numbering.workspace.update"),
     canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.submit"),
     canUserUseNumberingActionAsync(auth.user, "numbering.workspace.cancel"),
     canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.decide"),
     canUserUseNumberingActionAsync(auth.user, "numbering.draft.obsolete"),
+    canUserUseNumberingActionAsync(auth.user, "obsolete_part_number", { actionCode: "obsolete_part_number" }),
+    canUserUseNumberingActionAsync(auth.user, "obsolete_ma_drawing", { actionCode: "obsolete_ma_drawing" }),
     canUserUseNumberingActionAsync(auth.user, "numbering.draft.update"),
     canUserUseNumberingActionAsync(auth.user, "numbering.attachments.manage")
   ]);
@@ -32,7 +34,9 @@ export async function resolveDev087RouteActor(request: Request, page: "numbering
         submit: submit.allowed,
         cancel: cancel.allowed,
         decide: decide.allowed,
-        obsolete: obsolete.allowed,
+        obsolete: obsoleteDraft.allowed,
+        obsoleteFormalPart: obsoletePart.allowed,
+        obsoleteFormalDrawing: obsoleteDrawingFormal.allowed,
         manageAttachments: manageAttachments.allowed
       }
     }
@@ -72,7 +76,8 @@ export function canonicalActorFromRoute(actor: NonNullable<Awaited<ReturnType<ty
       cancelWork: actor.permissions.cancel,
       decideReview: actor.permissions.decide,
       obsoleteDrawing: actor.permissions.obsolete,
-      obsoleteFormal: actor.permissions.obsolete,
+      obsoleteFormalPart: actor.permissions.obsoleteFormalPart,
+      obsoleteFormalDrawing: actor.permissions.obsoleteFormalDrawing,
       manageAttachments: actor.permissions.manageAttachments
     }
   };

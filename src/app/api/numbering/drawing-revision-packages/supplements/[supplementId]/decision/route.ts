@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { decideApprovalPlatformLegacyDrawingPackageSupplementAsync } from "@/lib/approval-platform";
-import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { forbidden, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { DrawingRevisionPackageError } from "@/lib/drawing-revision-packages-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ supplementId: string }> }) {
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
   if (!auth.user) return forbidden();
 

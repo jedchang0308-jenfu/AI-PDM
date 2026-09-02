@@ -108,9 +108,18 @@ async function stopServer() {
     childProcess.kill();
     await Promise.race([exited, delay(5_000)]);
   }
-  for (const [file, content] of generatedConfigBackups) fs.writeFileSync(path.join(root, file), content);
+  for (const [file, content] of generatedConfigBackups) await restoreFileWithRetry(path.join(root, file), content);
   if (distDir.startsWith(path.join(root, ".tmp") + path.sep)) fs.rmSync(distDir, { recursive: true, force: true });
   if (tempDir.startsWith(os.tmpdir() + path.sep)) fs.rmSync(tempDir, { recursive: true, force: true });
+}
+
+async function restoreFileWithRetry(file, content) {
+  let lastError;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    try { fs.writeFileSync(file, content); return; }
+    catch (error) { lastError = error; await delay(250); }
+  }
+  throw lastError;
 }
 
 function record(name, passed, detail = "") {
