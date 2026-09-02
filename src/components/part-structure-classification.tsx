@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { numberingStructureTypeLabel, type NumberingStructureType, type StoredPartStructureType } from "@/lib/numbering-structure-type";
 import type { PartStructureClassificationCandidate, PartStructureClassificationView } from "@/lib/part-structure-classification";
 
-export function PartStructureClassification({ partNumberId, contractToken, onSaved }: { partNumberId: string; contractToken: string; onSaved: () => void }) {
+export function PartStructureClassification({ partNumberId, contractToken, onSaved, className = "" }: { partNumberId: string; contractToken: string; onSaved: () => void; className?: string }) {
   const [view, setView] = useState<PartStructureClassificationView | null>(null);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -45,8 +45,9 @@ export function PartStructureClassification({ partNumberId, contractToken, onSav
   }, [partNumberId]);
   useEffect(() => { if (open) cancelRef.current?.focus(); }, [open]);
 
-  if (loading && !view) return <section className="part-structure-classification" data-section="part-structure-classification"><p className="canonical-drawer-message" role="status">結構型態載入中…</p></section>;
-  if (!view) return error ? <section className="part-structure-classification" data-section="part-structure-classification"><p className="canonical-error" role="alert">{error}</p></section> : null;
+  const sectionClassName = `part-structure-classification${className ? ` ${className}` : ""}`;
+  if (loading && !view) return <section className={sectionClassName} data-section="part-structure-classification"><p className="canonical-drawer-message" role="status">結構型態載入中…</p></section>;
+  if (!view) return error ? <section className={sectionClassName} data-section="part-structure-classification"><p className="canonical-error" role="alert">{error}</p></section> : null;
 
   const openDialog = () => {
     setSelected([partNumberId]);
@@ -94,9 +95,9 @@ export function PartStructureClassification({ partNumberId, contractToken, onSav
     finally { setSaving(false); }
   };
 
-  return <section className="part-structure-classification" data-section="part-structure-classification">
-    <div className="canonical-drawer-section-heading"><h3>結構型態</h3>{view.canMutate ? <button ref={triggerRef} type="button" className="secondary-button" onClick={openDialog}>分類／批次分類</button> : null}</div>
-    <p className="part-structure-classification-summary">{numberingStructureTypeLabel(view.structureType)} · 以目前料號為準；同根號其他料號僅供批次選擇。</p>
+  return <section className={sectionClassName} data-section="part-structure-classification">
+    <div className="canonical-drawer-section-heading"><h3>結構型態</h3>{view.canMutate ? <button ref={triggerRef} type="button" className="secondary-button" onClick={openDialog}>編輯</button> : null}</div>
+    <p className="part-structure-classification-summary">{numberingStructureTypeLabel(view.structureType)}</p>
     {error && !open ? <p className="canonical-error" role="alert">{error}</p> : null}
     {open ? <div className="canonical-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
       <div ref={dialogRef} className="canonical-modal part-structure-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={(event) => {

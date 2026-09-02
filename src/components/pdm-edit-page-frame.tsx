@@ -21,7 +21,8 @@ export function PdmEditPageFrame({
   error,
   isDirty = false,
   onRetry,
-  embedded = false
+  embedded = false,
+  className = ""
 }: {
   returnHref: string;
   eyebrow: string;
@@ -37,13 +38,15 @@ export function PdmEditPageFrame({
   isDirty?: boolean;
   onRetry?: () => void;
   embedded?: boolean;
+  className?: string;
 }) {
   const router = useRouter();
   const canLeave = useUnsavedChangesGuard(isDirty);
   const goBack = () => { if (canLeave()) router.push(returnHref); };
-  const stateMessage = status === "loading" ? "正在載入工作區…" : status === "restricted" ? "你目前只能查看這筆資料。" : status === "not_found" ? "找不到這筆資料或已被移轉。" : status === "conflict" ? "資料已更新，請重新載入後確認差異。" : status === "error" ? "工作區目前無法載入。" : null;
+  const stateMessage = status === "loading" ? null : status === "restricted" ? "你目前只能查看這筆資料。" : status === "not_found" ? "找不到這筆資料或已被移轉。" : status === "conflict" ? "資料已更新，請重新載入後確認差異。" : status === "error" ? "工作區目前無法載入。" : null;
+  const frameError = error || stateMessage;
   return (
-    <div className={`pdm-edit-page${embedded ? " is-embedded" : ""}`} data-pdm-edit-page="true">
+    <div className={`pdm-edit-page${embedded ? " is-embedded" : ""}${className ? ` ${className}` : ""}`} data-pdm-edit-page="true">
       {embedded ? null : <header className="pdm-edit-page-header">
         <button className="icon-button" type="button" onClick={goBack} aria-label="返回上一個工作清單"><ArrowLeft size={18} /></button>
         <div className={`pdm-edit-page-heading${headingLayout === "inline" ? " is-inline" : headingLayout === "breadcrumb" ? " is-breadcrumb" : ""}`}>
@@ -62,7 +65,7 @@ export function PdmEditPageFrame({
         <div className="pdm-edit-page-identity">{identity}</div>
       </header>}
       {notice ? <div className="pdm-edit-page-notice" role="status">{notice}</div> : null}
-      {error || stateMessage ? <div className="pdm-edit-page-error" role="alert"><span>{error ?? stateMessage}</span>{onRetry ? <button className="secondary-button" type="button" onClick={onRetry}><RefreshCcw size={15} />重新載入</button> : null}</div> : null}
+      {frameError ? <div className="pdm-edit-page-error" role="alert"><span>{frameError}</span>{onRetry ? <button className="secondary-button" type="button" onClick={onRetry}><RefreshCcw size={15} />重新載入</button> : null}</div> : null}
       {status === "ready" ? <section className="pdm-edit-page-body">{children}</section> : null}
       {actionDock ? <footer className="pdm-edit-page-action-dock">{actionDock}</footer> : null}
     </div>

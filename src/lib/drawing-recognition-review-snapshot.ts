@@ -14,7 +14,8 @@ import {
   type DrawingRecognitionReviewProjectionBody,
   type RecognitionReviewCandidateDecision,
   type RecognitionReviewObservation,
-  type RecognitionReviewScope
+  type RecognitionReviewScope,
+  type DrawingRecognitionPartWorkHandoffProjection
 } from "@/lib/drawing-recognition-review-projection";
 import type { RecognitionPartOwnerTarget } from "@/lib/drawing-recognition-part-owner";
 
@@ -26,6 +27,8 @@ type SessionRow = {
   drawing_id: string | null;
   drawing_revision_id: string | null;
   source_set_fingerprint: string;
+  session_purpose?: "recognition" | "rerun" | "amendment";
+  evidence_origin_session_id?: string | null;
   status: string;
   row_version: number | string;
   warning_count: number | string;
@@ -97,6 +100,8 @@ type PartOwnerTargetRow = {
   record_status: string;
   owner_source: RecognitionPartOwnerTarget["source"];
 };
+
+type HandoffEventRow = { session_id: string; result_json: string };
 
 function list(prefix: string, values: string[]) {
   return {
@@ -179,7 +184,8 @@ function projectionFor(
   sources: SourceRow[],
   candidateRows: CandidateRow[],
   observations: ObservationRow[],
-  partOwnerTargets: RecognitionPartOwnerTarget[]
+  partOwnerTargets: RecognitionPartOwnerTarget[],
+  handoffEvent?: HandoffEventRow | null
 ): DrawingRecognitionReviewProjectionBody {
   const sourceById = new Map(sources.map((source) => [source.id, source]));
   const observationsByCandidate = new Map<string, ObservationRow[]>();
@@ -210,6 +216,29 @@ function projectionFor(
     };
   });
   const fields = projectDrawingRecognitionReviewFields(reviewScopes(candidateDecisions), candidateDecisions, { partOwnerTargets });
+  let handoff: DrawingRecognitionPartWorkHandoffProjection | null = null;
+  if (handoffEvent) {
+    try {
+      const parsed = JSON.parse(handoffEvent.result_json) as Record<string, unknown>;
+      if (parsed.schemaVersion === 2 && (parsed.destinationKind === "part_work" || parsed.destination === "part_work")) {
+        const targets = Array.isArray(parsed.targets) ? parsed.targets : [];
+        handoff = {
+          schemaVersion: 2,
+          destination: "part_work",
+          relationScopeFingerprint: typeof parsed.relationScopeFingerprint === "string" ? parsed.relationScopeFingerprint : "",
+          eligiblePartCount: Number(parsed.eligiblePartCount ?? 0),
+          workMutationCount: Number(parsed.workMutationCount ?? 0),
+          unchangedCount: Number(parsed.unchangedCount ?? 0),
+          eventId: typeof parsed.eventId === "string" ? parsed.eventId : handoffEvent.session_id,
+          targets: targets.filter((target): target is Record<string, unknown> => Boolean(target && typeof target === "object")).map((target) => ({
+            partId: String(target.partId ?? ""), partNumber: String(target.partNumber ?? ""),
+            result: ["created", "updated", "already_current", "already_in_work"].includes(String(target.result)) ? String(target.result) as DrawingRecognitionPartWorkHandoffProjection["targets"][number]["result"] : "already_current",
+            workId: target.workId == null ? null : String(target.workId), rowVersion: target.rowVersion == null ? null : Number(target.rowVersion)
+          }))
+        };
+      }
+    } catch { handoff = null; }
+  }
   return {
     schemaVersion: DRAWING_RECOGNITION_REVIEW_PROJECTION_SCHEMA,
     session: {
@@ -219,6 +248,8 @@ function projectionFor(
       drawingId: session.drawing_id,
       drawingRevisionId: session.drawing_revision_id,
       sourceSetFingerprint: session.source_set_fingerprint,
+      sessionPurpose: session.session_purpose ?? "recognition",
+      evidenceOriginSessionId: session.evidence_origin_session_id ?? null,
       status: session.status,
       rowVersion: Number(session.row_version),
       warningCount: Number(session.warning_count),
@@ -244,14 +275,15 @@ function projectionFor(
       adapterPlan: parseJsonValue<string[]>(source.adapter_plan_json, [])
     })),
     candidateDecisions,
-    fields
+    fields,
+    handoff
   };
 }
 
 /** Batch, zero-write snapshot read. Sessions are matched to the exact Drawing revision, never latest-by-Drawing. */
 export async function readDrawingRecognitionReviewProjections(
   client: AsyncDatabaseClient,
-  input: { companyId: string; targets: Array<{ drawingId: string; revisionId: string }> }
+  input: { companyId: string; targets: Array<{ drawingId: string; revisionId: string }>; selection?: "current" | "formalized" }
 ) {
   const targets = [...new Map(input.targets.map((target) => [sessionKey(target.drawingId, target.revisionId), target])).values()];
   const result = new Map<string, DrawingRecognitionReviewProjectionBody>();
@@ -273,18 +305,34 @@ export async function readDrawingRecognitionReviewProjections(
   for (const session of sessions) {
     if (!session.drawing_id || !session.drawing_revision_id) continue;
     const key = sessionKey(session.drawing_id, session.drawing_revision_id);
-    if (targetKeys.has(key) && !selected.has(key)) selected.set(key, session);
+    if (!targetKeys.has(key) || selected.has(key)) continue;
+    // Embedded workbench reads the current open successor.  Review packages
+    // explicitly request the last formalized leaf, so an unsent amendment can
+    // never leak into an immutable submitted snapshot.
+    const eligibleStatuses = input.selection === "formalized"
+      ? ["formalized"]
+      : ["queued", "extracting", "review_ready", "extraction_partial", "ready_to_formalize", "formalized"];
+    if (eligibleStatuses.includes(session.status)) {
+      selected.set(key, session);
+    }
   }
   const selectedSessions = [...selected.values()];
   if (!selectedSessions.length) return result;
   const sessionList = list("recognitionSession", selectedSessions.map((session) => session.id));
-  const sessionParams = { companyId: input.companyId, ...sessionList.params };
-  const [sources, candidates, observations, partOwnerTargetRows] = await Promise.all([
-    client.query<SourceRow>(`SELECT * FROM drawing_recognition_sources WHERE company_id = :companyId AND session_id IN (${sessionList.sql}) ORDER BY session_id, sort_order, id`, sessionParams),
+  const evidenceSessionIds = [...new Set(selectedSessions.map((session) => session.session_purpose === "amendment"
+    ? session.evidence_origin_session_id ?? session.id
+    : session.id))];
+  const evidenceSessionList = list("recognitionEvidenceSession", evidenceSessionIds);
+  const sessionParams = { companyId: input.companyId, ...sessionList.params, ...evidenceSessionList.params };
+  const [sources, candidates, observations, partOwnerTargetRows, handoffEvents] = await Promise.all([
+    client.query<SourceRow>(`SELECT * FROM drawing_recognition_sources WHERE company_id = :companyId AND session_id IN (${evidenceSessionList.sql}) ORDER BY session_id, sort_order, id`, sessionParams),
     client.query<CandidateRow>(`SELECT * FROM drawing_recognition_candidates WHERE company_id = :companyId AND session_id IN (${sessionList.sql}) ORDER BY session_id, category, sort_order, id`, sessionParams),
     client.query<ObservationRow>(`SELECT link.candidate_id, observation.* FROM drawing_recognition_candidate_observations link
       JOIN drawing_recognition_observations observation ON observation.id = link.observation_id
-      WHERE observation.company_id = :companyId AND observation.session_id IN (${sessionList.sql})
+      JOIN drawing_recognition_candidates candidate ON candidate.id = link.candidate_id
+      WHERE observation.company_id = :companyId AND observation.session_id IN (${evidenceSessionList.sql})
+        AND link.company_id = :companyId AND candidate.company_id = :companyId
+        AND candidate.session_id IN (${sessionList.sql})
       ORDER BY observation.session_id, observation.captured_at, observation.id`, sessionParams),
     client.query<PartOwnerTargetRow>(`SELECT drawing.id AS drawing_id, part.id, part.part_number, part.record_status, 'formal' AS owner_source
       FROM drawings drawing
@@ -297,8 +345,10 @@ export async function readDrawingRecognitionReviewProjections(
       JOIN numbering_draft_parts draft ON draft.workspace_id = drawing.workspace_id AND draft.company_id = drawing.company_id
       JOIN number_candidate_reservations reservation ON reservation.id = draft.candidate_reservation_id
         AND reservation.company_id = drawing.company_id AND reservation.reservation_state = 'active'
-      WHERE drawing.company_id = :companyId AND drawing.id IN (${drawingList.sql})`, { companyId: input.companyId, ...drawingList.params })
+      WHERE drawing.company_id = :companyId AND drawing.id IN (${drawingList.sql})`, { companyId: input.companyId, ...drawingList.params }),
+    client.query<HandoffEventRow>(`SELECT session_id, result_json FROM drawing_recognition_formalization_events WHERE company_id = :companyId AND session_id IN (${sessionList.sql})`, sessionParams)
   ]);
+  const handoffBySession = new Map(handoffEvents.map((event) => [event.session_id, event]));
   const partOwnerTargetsByDrawing = new Map<string, RecognitionPartOwnerTarget[]>();
   for (const row of partOwnerTargetRows) {
     partOwnerTargetsByDrawing.set(row.drawing_id, [...(partOwnerTargetsByDrawing.get(row.drawing_id) ?? []), {
@@ -309,12 +359,18 @@ export async function readDrawingRecognitionReviewProjections(
     }]);
   }
   for (const [key, session] of selected) {
+    const evidenceSessionId = session.session_purpose === "amendment"
+      ? session.evidence_origin_session_id ?? session.id
+      : session.id;
+    const sessionCandidates = candidates.filter((candidate) => candidate.session_id === session.id);
+    const candidateIds = new Set(sessionCandidates.map((candidate) => candidate.id));
     result.set(key, projectionFor(
       session,
-      sources.filter((source) => source.session_id === session.id),
-      candidates.filter((candidate) => candidate.session_id === session.id),
-      observations.filter((observation) => observation.session_id === session.id),
-      session.drawing_id ? partOwnerTargetsByDrawing.get(session.drawing_id) ?? [] : []
+      sources.filter((source) => source.session_id === evidenceSessionId),
+      sessionCandidates,
+      observations.filter((observation) => observation.session_id === evidenceSessionId && candidateIds.has(observation.candidate_id)),
+      session.drawing_id ? partOwnerTargetsByDrawing.get(session.drawing_id) ?? [] : [],
+      handoffBySession.get(session.id) ?? null
     ));
   }
   return result;

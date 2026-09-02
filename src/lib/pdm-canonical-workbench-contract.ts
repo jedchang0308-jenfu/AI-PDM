@@ -42,7 +42,7 @@ export type CanonicalWorkbenchRowDto = {
   layerLabel: string;
   revision: string | null;
   dataState: CanonicalDataState;
-  dataStateLabel: "編輯中" | "審核中" | "發布中" | "可使用";
+  dataStateLabel: "編輯中" | "審核中" | "發布中" | "可使用" | "資料可見";
   handling: CanonicalHandling;
   handlingLabel: "無須處理" | "負責人處理" | "審核負責人處理" | "系統處理" | "系統管理員處理" | "受阻";
   blockerReason: string | null;
@@ -207,6 +207,12 @@ export const CANONICAL_DATA_STATE_LABELS: Record<CanonicalDataState, CanonicalWo
   publishing: "發布中",
   available: "可使用"
 };
+
+export function canonicalDataStateLabel(input: { entityType: WorkbenchEntityType; dataState: CanonicalDataState }) {
+  return input.entityType === "part" && input.dataState === "available"
+    ? "資料可見" as const
+    : CANONICAL_DATA_STATE_LABELS[input.dataState];
+}
 
 export const RETIRED_WORKBENCH_QUERY_KEYS = new Set([
   "view",
@@ -404,10 +410,20 @@ export function canonicalDataLayerToLayer(dataLayer: HistoricalCanonicalDataLaye
   return "work";
 }
 
-export function canonicalLayerLabel(input: { dataLayer: HistoricalCanonicalDataLayer; revision: string | null }): string {
+export function canonicalRecordLifecycleLabel(recordStatus: string | null | undefined): string {
+  if (recordStatus === "Draft") return "草稿（未發行）";
+  if (recordStatus === "Active") return "可作業";
+  if (recordStatus === "Released") return "已發布";
+  if (recordStatus === "Obsolete") return "已作廢";
+  if (recordStatus === "PendingReview") return "審核中";
+  if (recordStatus === "Rejected") return "已退回";
+  return "生命週期未知";
+}
+
+export function canonicalLayerLabel(input: { dataLayer: HistoricalCanonicalDataLayer; revision: string | null; recordStatus?: string | null }): string {
   if (input.dataLayer === "drawing_production") return `量產版 ${input.revision ?? ""}`.trim();
   if (input.dataLayer === "drawing_rd") return `研發版 ${input.revision ?? ""}`.trim();
-  if (input.dataLayer === "part_formal") return "正式資料";
+  if (input.dataLayer === "part_formal") return `主檔 · ${canonicalRecordLifecycleLabel(input.recordStatus)}`;
   if (input.dataLayer === "part_work") return "修改中";
   return "";
 }

@@ -15,6 +15,7 @@ import { resolvePartPreviewsAsync } from "@/lib/pdm-part-preview";
 import { PdmPartPreviewAsyncRepository } from "@/lib/repositories/pdm-part-preview-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
 import { resolveCanonicalPartBomContextAsync } from "@/lib/bom-create-context";
+import { ensureAutomaticPreviewJobsForSourceAssetsAsync } from "@/lib/preview-derivatives";
 
 type CanonicalPreviewSource = CanonicalPreviewSourceRow;
 
@@ -156,6 +157,7 @@ export class PdmCanonicalWorkbenchService {
         previewSourceControl: {
           settingRowVersion: Number(setting?.row_version ?? 0),
           canManage: actor.permissions.manageAttachments === true,
+          hasPrimaryManufacturingDrawing: preview.hasPrimaryManufacturingDrawing === true,
           disabledReason: actor.permissions.manageAttachments === true ? null : "沒有管理附件權限"
         }
       };
@@ -223,6 +225,11 @@ export class PdmCanonicalWorkbenchService {
     }));
     if (!sources.length) return emptyPreviewSlots();
     const assetIds = sources.map((source) => source.assetId);
+    await ensureAutomaticPreviewJobsForSourceAssetsAsync(this.client, {
+      companyId: actor.companyId,
+      sourceFileAssetIds: assetIds,
+      actorUserId: actor.id
+    });
     const derivatives = await this.previewDerivatives(actor.companyId, assetIds);
     const jobs = await this.previewJobs(actor.companyId, assetIds);
     const readContext = record.entityType === "drawing" && record.dataLayer === "drawing_rd"
@@ -573,8 +580,8 @@ function canonicalPreviewSlot(
       ]
     });
     const state = resolved.state === "pending" ? "queued" : resolved.state;
-    const text = state === "ready" ? "可直接開啟預覽。" : state === "queued" ? "工作已排入佇列。" : state === "delayed" ? "請稍後重新整理或確認預覽服務。" : state === "failed" ? "可先下載原始檔查看。" : state === "missing" ? "目前沒有可預覽的 3D 檔案。" : "目前沒有可看的預覽。";
-    return { kind, title, fileName: resolved.media?.fileName ?? (source.displayName || source.fileName), state, stateTitle: state === "ready" ? "預覽已就緒" : state === "queued" ? "等待預覽服務" : state === "delayed" ? "預覽服務未回應" : state === "failed" ? "預覽產生失敗" : state === "missing" ? "無可用預覽" : "尚未產生可看的預覽", stateText: text, mediaHref: resolved.media?.href ?? null, downloadHref: readHref, retryCommandRef: null };
+    const text = state === "ready" ? "可直接開啟預覽。" : state === "queued" ? "工作已排入佇列。" : state === "delayed" ? "請稍後重新整理或確認預覽服務。" : state === "failed" ? "可先下載原始檔查看。" : state === "missing" ? "3D 原檔已存在，預覽工作尚未建立。" : "3D 原檔已存在，但目前沒有可看的預覽。";
+    return { kind, title, fileName: resolved.media?.fileName ?? (source.displayName || source.fileName), state, stateTitle: state === "ready" ? "預覽已就緒" : state === "queued" ? "等待預覽服務" : state === "delayed" ? "預覽服務未回應" : state === "failed" ? "預覽產生失敗" : state === "missing" ? "預覽尚未建立" : "預覽暫時無法顯示", stateText: text, mediaHref: resolved.media?.href ?? null, downloadHref: readHref, retryCommandRef: null };
   }
   if (kind === "two-d" && source.fileExt === "pdf" && source.mimeType === "application/pdf") {
     return { kind, title, fileName: displayName, state: "ready", stateTitle: "PDF 預覽已就緒", stateText: "直接使用受控 PDF 原檔顯示。", mediaHref: appendQuery(readHref, "preview", "1"), downloadHref: readHref, retryCommandRef: null };

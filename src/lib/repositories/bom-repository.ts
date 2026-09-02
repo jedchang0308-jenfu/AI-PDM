@@ -137,7 +137,8 @@ export type BomWorkbenchComparableLine = {
   part_number: string | null;
   revision: string | null;
   group_name: string | null;
-  quantity: number | null;
+  quantity: number | string | null;
+  quantity_uom_code?: string | null;
   parent_path: string;
   level: number;
   sequence_no: number;
