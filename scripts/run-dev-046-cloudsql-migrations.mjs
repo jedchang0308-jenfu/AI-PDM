@@ -206,12 +206,24 @@ function connectionConfigFromEnv(plan) {
   };
 }
 
+export async function ensureMigrationLedgerRoleAccess(client) {
+  const ledger = await client.query(
+    "SELECT to_regclass('public.pdm_schema_migrations') IS NOT NULL AS exists"
+  );
+  if (ledger.rows?.[0]?.exists !== true) return { existingLedger: false, grantApplied: false };
+  await client.query(
+    "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.pdm_schema_migrations TO pdm_migration"
+  );
+  return { existingLedger: true, grantApplied: true };
+}
+
 async function executeMigrations(plan) {
   const pool = new pg.Pool(connectionConfigFromEnv(plan));
   const client = await pool.connect();
   const appliedVersions = [];
   try {
     await client.query("BEGIN");
+    await ensureMigrationLedgerRoleAccess(client);
     await client.query("SET LOCAL ROLE pdm_migration");
     const lock = await client.query("SELECT pg_try_advisory_xact_lock($1) AS acquired", [PDM_MIGRATION_ADVISORY_LOCK_ID]);
     if (lock.rows?.[0]?.acquired !== true) throw new Error("MIGRATION_RUNNER_ALREADY_ACTIVE");
