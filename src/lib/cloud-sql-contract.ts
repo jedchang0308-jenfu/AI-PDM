@@ -10,6 +10,8 @@ export interface CloudSqlRuntimeConfig {
   idleTimeoutMillis: number;
   statementTimeoutMillis: number;
   queryTimeoutMillis: number;
+  applicationName?: string;
+  searchPath?: string;
 }
 
 export interface CloudSqlCapacityInput {
@@ -65,11 +67,15 @@ export function resolveCloudSqlRuntimeConfig(env: NodeJS.ProcessEnv = process.en
     port: positiveInteger(env.PDM_CLOUD_SQL_PORT, 5432, "PORT"),
     database,
     user,
-    maxConnections: positiveInteger(env.PDM_CLOUD_SQL_POOL_MAX, 5, "POOL_MAX"),
+    maxConnections: positiveInteger(env.PDM_CLOUD_SQL_POOL_MAX, 8, "POOL_MAX"),
     connectionTimeoutMillis: positiveInteger(env.PDM_CLOUD_SQL_CONNECTION_TIMEOUT_MS, 10_000, "CONNECTION_TIMEOUT"),
     idleTimeoutMillis: positiveInteger(env.PDM_CLOUD_SQL_IDLE_TIMEOUT_MS, 600_000, "IDLE_TIMEOUT"),
     statementTimeoutMillis: positiveInteger(env.PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS, 30_000, "STATEMENT_TIMEOUT"),
-    queryTimeoutMillis: positiveInteger(env.PDM_CLOUD_SQL_QUERY_TIMEOUT_MS, 35_000, "QUERY_TIMEOUT")
+    queryTimeoutMillis: positiveInteger(env.PDM_CLOUD_SQL_QUERY_TIMEOUT_MS, 35_000, "QUERY_TIMEOUT"),
+    applicationName: env.DEV010_N2_RUN_ID?.trim()
+      ? `dev010-n2-ai-pdm-${env.DEV010_N2_RUN_ID.trim().replace(/[^A-Za-z0-9_-]/gu, "-").slice(0, 80)}`
+      : "ai-pdm-cloud-run",
+    searchPath: env.DEV010_N2_DATABASE_BOUNDARY === "required" ? "ai_pdm_core,pg_catalog" : undefined
   };
 }
 

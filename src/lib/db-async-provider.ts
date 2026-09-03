@@ -41,6 +41,8 @@ export type CreateAsyncDatabaseClientInput =
       idleTimeoutMillis?: number;
       statementTimeoutMillis?: number;
       queryTimeoutMillis?: number;
+      applicationName?: string;
+      searchPath?: string;
     }
   | {
       kind: "cloud_sql_postgres";
@@ -53,6 +55,8 @@ export type CreateAsyncDatabaseClientInput =
       idleTimeoutMillis: number;
       statementTimeoutMillis: number;
       queryTimeoutMillis: number;
+      applicationName?: string;
+      searchPath?: string;
     };
 
 function bindAll<T>(database: SqliteDatabase, sql: string, params: AsyncDatabaseQueryParams | undefined): T[] {
@@ -245,10 +249,12 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
       const connectionString = input.connectionString?.trim();
       if (!connectionString) throw new Error("POSTGRES_CONNECTION_STRING_REQUIRED");
       this.pool = new Pool({
+        application_name: input.applicationName ?? "ai-pdm-postgres-runtime",
         connectionString,
-        max: input.maxConnections ?? 5,
+        max: input.maxConnections ?? 8,
         connectionTimeoutMillis: input.connectionTimeoutMillis ?? 10_000,
         idleTimeoutMillis: input.idleTimeoutMillis ?? 600_000,
+        options: input.searchPath ? `-c search_path=${input.searchPath}` : undefined,
         statement_timeout: input.statementTimeoutMillis ?? 30_000,
         query_timeout: input.queryTimeoutMillis ?? 35_000
       });
@@ -268,7 +274,8 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
       idleTimeoutMillis: input.idleTimeoutMillis,
       statement_timeout: input.statementTimeoutMillis,
       query_timeout: input.queryTimeoutMillis,
-      application_name: "ai-pdm-cloud-run"
+      application_name: input.applicationName ?? "ai-pdm-cloud-run",
+      options: input.searchPath ? `-c search_path=${input.searchPath}` : undefined
     });
   }
 
@@ -353,14 +360,18 @@ function getRuntimeClientSignature(kind: RuntimeAsyncDatabaseProviderKind) {
       process.env.PDM_CLOUD_SQL_PORT?.trim() ?? "",
       process.env.PDM_CLOUD_SQL_DATABASE?.trim() ?? "",
       process.env.PDM_CLOUD_SQL_USER?.trim() ?? "",
-      process.env.PDM_CLOUD_SQL_POOL_MAX?.trim() ?? ""
+      process.env.PDM_CLOUD_SQL_POOL_MAX?.trim() ?? "",
+      process.env.DEV010_N2_DATABASE_BOUNDARY?.trim() ?? "",
+      process.env.DEV010_N2_RUN_ID?.trim() ?? ""
     ].join("|");
   }
   return [
     "postgres",
     process.env.PDM_POSTGRES_URL?.trim() ?? "",
     process.env.PDM_POSTGRES_POOLER_MODE?.trim() ?? "",
-    process.env.PDM_POSTGRES_MAX_CONNECTIONS?.trim() ?? ""
+    process.env.PDM_POSTGRES_MAX_CONNECTIONS?.trim() ?? "",
+    process.env.DEV010_N2_DATABASE_BOUNDARY?.trim() ?? "",
+    process.env.DEV010_N2_RUN_ID?.trim() ?? ""
   ].join("|");
 }
 
@@ -378,7 +389,11 @@ export function getAsyncDatabaseClient(): AsyncDatabaseClient {
       kind,
       connectionString: process.env.PDM_POSTGRES_URL,
       poolerMode: process.env.PDM_POSTGRES_POOLER_MODE,
-      maxConnections: parseMaxConnections(process.env.PDM_POSTGRES_MAX_CONNECTIONS)
+      maxConnections: parseMaxConnections(process.env.PDM_POSTGRES_MAX_CONNECTIONS) ?? 8,
+      applicationName: process.env.DEV010_N2_RUN_ID?.trim()
+        ? `dev010-n2-ai-pdm-${process.env.DEV010_N2_RUN_ID.trim().replace(/[^A-Za-z0-9_-]/gu, "-").slice(0, 80)}`
+        : "ai-pdm-postgres-runtime",
+      searchPath: process.env.DEV010_N2_DATABASE_BOUNDARY === "required" ? "ai_pdm_core,pg_catalog" : undefined
     });
   }
   runtimeClientSignature = signature;

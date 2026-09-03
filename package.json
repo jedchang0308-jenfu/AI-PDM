@@ -8,6 +8,9 @@
     "npm": ">=11 <12"
   },
   "scripts": {
+    "dev-010:n2:freeze": "node scripts/dev010-n2-source-freeze.mjs",
+    "test:dev-010:n2": "node --test scripts/dev010-n2-source-freeze.test.mjs scripts/dev010-n2-ai-pdm.test.mjs",
+    "qc:dev-010:n2:ai-pdm": "node scripts/qc-dev-010-n2-ai-pdm.mjs",
     "contracts:check": "node scripts/qc-dev-004-jenfu-auth.mjs",
     "publish:jms-dev-005-role-catalog": "node scripts/publish-jms-dev-005-role-catalog.mjs --write",
     "check:jms-dev-005-role-catalog": "node scripts/publish-jms-dev-005-role-catalog.mjs --check",

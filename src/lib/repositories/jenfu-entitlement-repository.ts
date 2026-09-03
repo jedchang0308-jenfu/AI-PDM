@@ -86,7 +86,7 @@ export class JenfuEntitlementRepository {
       rows = await this.client.query<AuthorityRow>(`
         SELECT contract_version, application_id, authority_source, authority_version,
                employee_id, updated_at::text, operation_id
-        FROM access_governance.v_ai_pdm_entitlement_authority_v1
+        FROM orgmaster_contract.v_ai_pdm_entitlement_authority_v1
         WHERE application_id = :applicationId AND (employee_id = :employeeId OR employee_id IS NULL)
         ORDER BY employee_id NULLS LAST
       `, { applicationId, employeeId: input.employeeId });
@@ -125,7 +125,7 @@ export class JenfuEntitlementRepository {
                principal_id, employee_id, subject_kind, target_principal_id, stable_role_id,
                role_code, catalog_version, scope_kind, scope_key, valid_from::text,
                valid_until::text, published_at::text, authority_version
-        FROM access_governance.v_ai_pdm_effective_role_assignments_v1
+        FROM orgmaster_contract.v_ai_pdm_effective_role_assignments_v1
         WHERE application_id = :applicationId
           AND identity_issuer = :identityIssuer
           AND identity_subject = :identitySubject

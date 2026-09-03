@@ -33,6 +33,7 @@ import { lowestAvailableSequence } from "@/lib/numbering-sequence-utils";
 import { buildNumberingPartRootLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
+import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
 import { sortTaskCenterTasks } from "@/lib/numbering-task-center-contract";
 import { getFormalObsoleteImpactAsync } from "@/lib/numbering-obsolete-impact";
@@ -4537,7 +4538,40 @@ export class AsyncNumberingRepository {
       await client.execute(DELETE_ASYNC_DRAFT_SAME_DRAWING_VARIANTS_SQL, { rootId: rootRow.id });
       await new RelationFormalAuthorityRepository(client).removeRootLinksInClient(client, { companyId, rootId: rootRow.id });
       await client.execute(DELETE_ASYNC_DRAFT_PART_VARIANT_ATTRIBUTES_SQL, { rootId: rootRow.id });
+      const drawingWorkRepository = new DrawingRevisionWorkAsyncRepository(client);
       for (const drawing of drawingRows) {
+        const canonicalDrawings = await client.query<{ id: string }>(
+          `SELECT id FROM drawings
+           WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
+             AND lifecycle_state IN ('building', 'drawing_preparation', 'cancelled')`,
+          { drawingNumberId: drawing.id, companyId }
+        );
+        for (const canonicalDrawing of canonicalDrawings) {
+          const draftWorks = await client.query<{ id: string; row_version: number | string }>(
+            `SELECT id, row_version FROM drawing_revision_works
+             WHERE drawing_id = :drawingId AND company_id = :companyId
+             ORDER BY created_at DESC, id DESC`,
+            { drawingId: canonicalDrawing.id, companyId }
+          );
+          for (const work of draftWorks) {
+            await drawingWorkRepository.cancel(client, {
+              companyId,
+              workId: work.id,
+              expectedRowVersion: Number(work.row_version)
+            });
+          }
+          await client.execute(
+            `DELETE FROM canonical_workbench_states
+             WHERE company_id = :companyId AND entity_type = 'drawing'
+               AND canonical_entity_id = :drawingId AND work_id IS NULL
+               AND (revision_id IS NULL OR revision_id IN (
+                 SELECT id FROM drawing_revisions
+                 WHERE drawing_id = :drawingId AND company_id = :companyId
+                   AND lifecycle_state IN ('preparing', 'cancelled')
+               ))`,
+            { drawingId: canonicalDrawing.id, companyId }
+          );
+        }
         await client.execute(
           `DELETE FROM drawing_revision_files
            WHERE drawing_revision_id IN (
@@ -4562,6 +4596,26 @@ export class AsyncNumberingRepository {
            WHERE formal_drawing_number_id = :drawingNumberId AND company_id = :companyId
              AND lifecycle_state IN ('building', 'drawing_preparation', 'cancelled')`,
           { drawingNumberId: drawing.id, companyId }
+        );
+        for (const canonicalDrawing of canonicalDrawings) {
+          await client.execute(
+            `DELETE FROM pdm_workbench_aggregates
+             WHERE company_id = :companyId AND entity_type = 'drawing' AND canonical_entity_id = :drawingId`,
+            { drawingId: canonicalDrawing.id, companyId }
+          );
+        }
+      }
+      for (const part of partRows) {
+        await client.execute(
+          `DELETE FROM canonical_workbench_states
+           WHERE company_id = :companyId AND entity_type = 'part' AND canonical_entity_id = :partId
+             AND branch_id IS NULL AND revision_id IS NULL AND work_id IS NULL`,
+          { partId: part.id, companyId }
+        );
+        await client.execute(
+          `DELETE FROM pdm_workbench_aggregates
+           WHERE company_id = :companyId AND entity_type = 'part' AND canonical_entity_id = :partId`,
+          { partId: part.id, companyId }
         );
       }
       await client.execute(DELETE_ASYNC_DRAFT_DRAWING_NUMBERS_SQL, { rootId: rootRow.id });

@@ -28,7 +28,7 @@ type ActivePrincipalRow = {
 const SELECT_ACTIVE_PRINCIPAL_SQL = `
   SELECT contract_version, principal_issuer, principal_subject, principal_id,
          employee_id, employee_status, mapping_version, published_at
-  FROM organization.v_active_principal_mappings_v1
+  FROM orgmaster_contract.v_active_principal_mappings_v1
   WHERE principal_issuer = :identityIssuer
     AND principal_subject = :identitySubject
   ORDER BY principal_id, employee_id

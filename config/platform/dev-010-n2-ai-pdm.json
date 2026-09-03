@@ -1,0 +1,165 @@
+{
+  "manifestVersion": "jenfu.dev010.n2.package.v1",
+  "devId": "DEV-010",
+  "packageId": "dev010-n2-ai-pdm",
+  "appId": "ai-pdm",
+  "lane": "fresh",
+  "repository": {
+    "name": "ai-pdm",
+    "head": "6a8e4617128bee649d9be7433586608b50223498"
+  },
+  "baseline": {
+    "aggregateSha256": "50556aa6474ffeabee96b25c60013529b8a07eb5cfb39a8884907547d7cc3dbd",
+    "files": [
+      "db/postgres/001_initial_schema.sql",
+      "db/postgres/002_supabase_rls_plan.sql",
+      "db/postgres/003_harden_set_updated_at_search_path.sql",
+      "db/postgres/004_numbering_v2_compact_identity.sql",
+      "db/postgres/005_access_control_launch_governance.sql",
+      "db/postgres/006_account_invitations.sql",
+      "db/postgres/007_auth_identities_google_oauth.sql",
+      "db/postgres/008_erp_module_foundation.sql",
+      "db/postgres/009_account_lifecycle.sql",
+      "db/postgres/010_transfer_package_phase3a0.sql",
+      "db/postgres/011_gcs_pointer_numbering_continuity.sql",
+      "db/postgres/012_number_state_flow_phase1a.sql",
+      "db/postgres/013_firebase_bff_identity_invitations.sql",
+      "db/postgres/014_employee_login_aliases.sql",
+      "db/postgres/015_employee_privacy_notice_acknowledgements.sql",
+      "db/postgres/016_number_state_flow_phase1c.sql",
+      "db/postgres/017_number_state_flow_phase1d.sql",
+      "db/postgres/018_part_number_series_code.sql",
+      "db/postgres/019_number_state_flow_request_equivalence.sql",
+      "db/postgres/020_account_session_records.sql",
+      "db/postgres/021_number_lifecycle_simplification.sql",
+      "db/postgres/022_unified_drawing_workbench.sql",
+      "db/postgres/023_remove_project_status_authority.sql",
+      "db/postgres/024_remove_submission_phase_gate.sql",
+      "db/postgres/025_submission_part_scope.sql",
+      "db/postgres/026_drawing_revision_lifecycle_authority.sql",
+      "db/postgres/027_settings_secret_google_secret_manager.sql",
+      "db/postgres/028_bom_material_identity_revision.sql",
+      "db/postgres/029_pdm_file_ownership_and_3d_reuse.sql",
+      "db/postgres/030_unified_drawing_aggregate.sql",
+      "db/postgres/031_workbench_preview_gallery.sql",
+      "db/postgres/032_remove_part_cost.sql",
+      "db/postgres/033_drawing_recognition.sql",
+      "db/postgres/034_root_vocabulary_human_label.sql",
+      "db/postgres/035_bom_draft_floating_topics.sql",
+      "db/postgres/036_human_approval_decisions.sql",
+      "db/postgres/037_drawing_recognition_pre_submit_source.sql",
+      "db/postgres/038_bom_controlled_cad_source.sql",
+      "db/postgres/039_allow_recycled_candidate_drawing_codes.sql",
+      "db/postgres/040_supervisor_workflow_authority.sql",
+      "db/postgres/041_part_attachment_reuse_snapshot.sql",
+      "db/postgres/042_status_data_rebuild.sql",
+      "db/postgres/043_inline_relation_matrix.sql",
+      "db/postgres/044_canonical_item_kind_two_values.sql",
+      "db/postgres/045_part_number_draft_item_type_two_values.sql",
+      "db/postgres/046_part_preview_settings.sql",
+      "db/postgres/047_remove_bom_module.sql",
+      "db/postgres/048_solidworks_credential_ui_activation.sql",
+      "db/postgres/049_retire_standalone_manufacturing_impact.sql",
+      "db/postgres/050_drawing_recognition_part_owner_invariant.sql",
+      "db/postgres/051_part_structure_type_authority.sql",
+      "db/postgres/052_retired_workbench_residue_cleanup.sql",
+      "db/postgres/053_drawing_recognition_amendment_lineage.sql",
+      "db/postgres/055_jenfu_role_catalog_publication.sql",
+      "db/postgres/056_role_capability_display_snapshot.sql",
+      "config/platform/cloudsql-migration-history-compatibility.json",
+      "src/lib/db-async-provider.ts",
+      "src/lib/cloud-sql-contract.ts",
+      "src/lib/jenfu-auth-epoch-repository.ts",
+      "src/lib/jenfu-principal-admission-repository.ts",
+      "src/lib/repositories/jenfu-entitlement-repository.ts",
+      "scripts/dev-032-cloudsql-migration-package.mjs",
+      "scripts/run-dev-046-cloudsql-migrations.mjs",
+      "scripts/lib/jms-dev-005-role-catalog.mjs"
+    ]
+  },
+  "changeAllowlist": {
+    "modify": [
+      "package.json",
+      "db/postgres/README.md",
+      "src/lib/db-async-provider.ts",
+      "src/lib/cloud-sql-contract.ts",
+      "src/lib/jenfu-auth-epoch-repository.ts",
+      "src/lib/jenfu-principal-admission-repository.ts",
+      "src/lib/repositories/jenfu-entitlement-repository.ts",
+      "src/lib/repositories/numbering-async-repository.ts"
+    ],
+    "new": [
+      "config/platform/dev-010-n2-ai-pdm.json",
+      "db/postgres/062_dev010_neutral_schema_boundary.sql",
+      "scripts/lib/dev010-n2-manifest.mjs",
+      "scripts/lib/dev010-n2-ai-pdm.mjs",
+      "scripts/dev010-n2-source-freeze.mjs",
+      "scripts/dev010-n2-source-freeze.test.mjs",
+      "scripts/dev010-n2-ai-pdm.test.mjs",
+      "scripts/qc-dev-010-n2-ai-pdm.mjs",
+      "src/lib/dev010-database-boundary.test.ts",
+      "qa/dev-010/n2/fixtures/ai-pdm-domain.json"
+    ],
+    "outputPrefixes": [
+      "output/dev-010/n2/"
+    ]
+  },
+  "provides": [
+    {
+      "contractId": "ai-pdm.role-catalog",
+      "contractVersion": "ai-pdm.role-catalog.2026-09-03.v3",
+      "signatureSha256": "1317eec6191028b9ea9d327687343a000dbb37577e660fd7ad71f179286ced16",
+      "payloadSha256": "46376639b7aec06798786b9d1a113ba604cf90ca31541a9464ecce7a49d116c8",
+      "dependsOn": []
+    }
+  ],
+  "requires": [
+    {
+      "contractId": "platform.auth-session",
+      "contractVersion": "jenfu.platform-contract.auth-session.v1",
+      "signatureSha256": "f3688a722db8ee4a21936d599abf21b63105f4fc049436d7071ec54899ee294f",
+      "payloadSha256": null,
+      "fromPackageId": "dev010-n2-platform"
+    },
+    {
+      "contractId": "orgmaster.identity-visibility",
+      "contractVersion": "jenfu.orgmaster-contract.identity-visibility.v1",
+      "signatureSha256": "e400a51351fc1b5fab083ed94bcf0c62efdd0606d4316f354b2893f9bf82cf15",
+      "payloadSha256": "4d27c1e297b516207f931f57e443ecda99e260c56369132f9a269d11920cda96",
+      "fromPackageId": "dev010-n2-orgmaster"
+    },
+    {
+      "contractId": "orgmaster.ai-pdm-entitlement",
+      "contractVersion": "jenfu.platform-entitlement.v1",
+      "signatureSha256": "13a74783a6da2ac210090a6ba56937cb7b2f6d7d06e97a89844d4d6aaaca8306",
+      "payloadSha256": "6587e984f1b9e258ad467213ad6291fa6735233d6e4b173c7a8e66ab93fd721e",
+      "fromPackageId": "dev010-n2-orgmaster"
+    }
+  ],
+  "compatibilityObjects": [
+    "public.pdm_schema_migrations",
+    "organization.v_active_principal_mappings_v1",
+    "access_governance.v_ai_pdm_entitlement_authority_v1",
+    "access_governance.v_ai_pdm_effective_role_assignments_v1"
+  ],
+  "dataClasses": [
+    "ai_audit",
+    "ai_file",
+    "ai_idempotency",
+    "ai_catalog"
+  ],
+  "connectionBudget": {
+    "applicationNamePrefix": "dev010-n2-ai-pdm",
+    "connectionTimeoutMs": 10000,
+    "effectiveMaxInstances": 1,
+    "idleTimeoutMs": 600000,
+    "poolMax": 8,
+    "poolsPerInstance": 1,
+    "queryTimeoutMs": 35000,
+    "statementTimeoutMs": 30000
+  },
+  "rollbackBoundary": {
+    "mode": "discard-task-database",
+    "productionWrites": false
+  }
+}

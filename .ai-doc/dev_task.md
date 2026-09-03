@@ -11,6 +11,8 @@ Owner：Dev PM
 - `.ai-doc/archived/dev_task_legacy_before_pm_cleanup_2026-06-16.md`
 - `.ai-doc/archived/documentation_map_before_pm_governance_restructure_2026-06-30.md`
 
+> **2026-09-04 Platform DEV-010 physical-topology successor（現行）**：`DEV-032`已完成AI-PDM第一版application release並關閉，但三系統共用資料庫的neutral target、`ai_pdm_core/ai_pdm_contract` placement、database roles與producer／consumer migration dependency contract由Platform [DEV-010 direct spec](../../Jenfu-Management-system/ai-doc/specs/DEV-010-three-system-database-consolidation-contract.md) 接管。舊AI-PDM-named physical target與既有`DEV-032`發布證據保留為第一版production provenance，不代表三系統核准終態。Platform `010-N1A`、`010-N2`與`010-N1B`均已完成：N1A 10 unit＋30 QC PASS、N2 fixed 48／48 PASS、N1B managed non-production 10／10 provider QC PASS；AI-PDM N2D已對齊`6a8e4617128bee649d9be7433586608b50223498`的64-input baseline，明確退役migration 054、以042作fresh derived-baseline overlay，並保留exact files／commands／hashes／fixture、pool max 8及`062_dev010_neutral_schema_boundary.sql`。最新AI package 4／4與三系統aggregate 48／48 PASS，且task-owned runtime cleanup PASS。`010-R1`仍是獨立release gate；本輪整合不授權production migration、deploy、DNS、authority或traffic變更。
+
 ## 總任務清單
 
 這是目前 AI/PM 協作的任務容器，不是冷啟動的全文讀取範圍。`DEV-001` 這類短碼是溝通用別名；

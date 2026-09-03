@@ -1,7 +1,7 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 
 const READ_AUTH_EPOCH_SQL = `
-  SELECT platform_core.read_principal_auth_epoch_v1(
+  SELECT platform_contract.read_principal_auth_epoch_v1(
     :identityIssuer,
     :identitySubject
   ) AS auth_epoch
