@@ -1,0 +1,259 @@
+{
+  "schemaVersion": 1,
+  "taskOwnedEnvironment": {
+    "dataDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-negative-gWrmAo\\data",
+    "repositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-negative-gWrmAo\\repository",
+    "port": null,
+    "runtime": false
+  },
+  "results": [
+    {
+      "caseId": "QA-087-202",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_DIRECT_DRAWING_INVALIDATION_410_ZERO_WRITE"
+      ],
+      "pass": true,
+      "faultInjection": {
+        "directStandaloneSurfaceProbe": true
+      },
+      "expectedFailure": {
+        "routeResolution": "not_found"
+      },
+      "actual": {
+        "retiredPageExists": false,
+        "retiredRouteExists": false
+      },
+      "zeroWriteReceipt": {
+        "before": "83403ba0c8d3053300e0ace80ebfd329eb4d12c421a4122a4f44468d013f74e6",
+        "after": "83403ba0c8d3053300e0ace80ebfd329eb4d12c421a4122a4f44468d013f74e6",
+        "delta": 0
+      },
+      "restoreReceipt": {
+        "status": "not_needed_route_absent"
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_file"
+      }
+    },
+    {
+      "caseId": "QA-087-206",
+      "result": "FAIL",
+      "assertionIds": [
+        "NEGATIVE_DIRECT_PART_VARIANT_410_ZERO_WRITE"
+      ],
+      "pass": false,
+      "faultInjection": {
+        "method": "PUT",
+        "legacyVariantRoute": true
+      },
+      "expectedFailure": {
+        "status": 410,
+        "code": "PART_VARIANT_DIRECT_WRITE_RETIRED"
+      },
+      "actual": {
+        "status": 410,
+        "code": "PART_VARIANT_DIRECT_WRITE_RETIRED"
+      },
+      "zeroWriteReceipt": {
+        "before": "83403ba0c8d3053300e0ace80ebfd329eb4d12c421a4122a4f44468d013f74e6",
+        "after": "d63a7678edf82b616fb3d6158b4378b8d560e1d9c46511b8c4e2608f73871fb5",
+        "delta": 1
+      },
+      "restoreReceipt": {
+        "status": "not_needed_readonly_rejection"
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_file"
+      }
+    },
+    {
+      "caseId": "QA-087-208",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_HISTORY_DELETED_ASSET_NO_FALLBACK"
+      ],
+      "pass": true,
+      "faultInjection": {
+        "activeBinding": "binding-qa208",
+        "deletedAsset": "asset-qa208"
+      },
+      "expectedFailure": {
+        "code": "HISTORY_REVISION_FILE_UNAVAILABLE",
+        "fallback": false
+      },
+      "actual": {
+        "code": "HISTORY_REVISION_FILE_UNAVAILABLE"
+      },
+      "zeroWriteReceipt": {
+        "before": "e353c7e0bc34cf52980fcd14ded0e105b2921744c1695d0ee1e9f118bc3f758d",
+        "after": "e353c7e0bc34cf52980fcd14ded0e105b2921744c1695d0ee1e9f118bc3f758d",
+        "delta": 0
+      },
+      "restoreReceipt": {
+        "status": "fixture_disposed",
+        "foreignKeyViolations": 0
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory"
+      }
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_PREVIOUS_REVISION_REFERENCE_REMOVE_ZERO_WRITE"
+      ],
+      "pass": true,
+      "faultInjection": {
+        "workId": "03dce2ab-ed45-4a57-b3dc-424de9105a9b",
+        "fileBindingId": "binding-qa210-reference",
+        "previousRevisionReference": true
+      },
+      "expectedFailure": {
+        "code": "DRAWING_REVISION_FILE_REFERENCE_LOCKED"
+      },
+      "actual": {
+        "code": "DRAWING_REVISION_FILE_REFERENCE_LOCKED",
+        "work_membership": 1,
+        "source_binding_active": 1,
+        "source_asset_active": 1
+      },
+      "zeroWriteReceipt": {
+        "before": "3cf5490e9ec28943dbbd401667cf2e89afe8b434ec9a25f89384b80ffbe81e68",
+        "after": "3cf5490e9ec28943dbbd401667cf2e89afe8b434ec9a25f89384b80ffbe81e68",
+        "delta": 0
+      },
+      "restoreReceipt": {
+        "status": "fixture_disposed",
+        "foreignKeyViolations": 0
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory"
+      }
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_CURSOR_SIGNATURE_FILTER_VERSION_ANCHOR"
+      ],
+      "pass": true,
+      "faultInjection": {
+        "signatureMismatch": true,
+        "filterMismatch": true,
+        "version": 1,
+        "anchorDeletedInTaskFixture": true,
+        "sourceFingerprint": "5c6aca5c70ba53894438866f591998651721f36c8674d57d8a893ff76bfb745a"
+      },
+      "expectedFailure": {
+        "code": "WORKBENCH_BAD_REQUEST"
+      },
+      "actual": {
+        "signature": "WORKBENCH_BAD_REQUEST",
+        "filter": "WORKBENCH_BAD_REQUEST",
+        "version": "WORKBENCH_BAD_REQUEST",
+        "anchor": "WORKBENCH_BAD_REQUEST"
+      },
+      "zeroWriteReceipt": {
+        "before": "50f75b7afe1090af25bd899faa017294b751d03bfb3cee52e2ff5457b0624997",
+        "after": "50f75b7afe1090af25bd899faa017294b751d03bfb3cee52e2ff5457b0624997",
+        "delta": 0
+      },
+      "restoreReceipt": {
+        "status": "fixture_disposed",
+        "foreignKeyViolations": 0
+      },
+      "providerReceipt": {
+        "provider": "sqlite",
+        "databaseScope": "task_owned_in_memory"
+      }
+    },
+    {
+      "caseId": "QA-087-218",
+      "result": "PASS",
+      "assertionIds": [
+        "NEGATIVE_EIGHT_FAMILY_ROSTER_REMOVAL_FAILS"
+      ],
+      "pass": true,
+      "faultInjection": {
+        "mutations": [
+          {
+            "family": "drawing_change",
+            "removedCaseId": "QA-087-188",
+            "result": "EXPECTED_FAIL",
+            "code": "RUNNER_CASE_ROSTER_MISMATCH"
+          },
+          {
+            "family": "task_center_retirement",
+            "removedCaseId": "QA-087-193",
+            "result": "EXPECTED_FAIL",
+            "code": "RUNNER_CASE_ROSTER_MISMATCH"
+          },
+          {
+            "family": "formal_obsolete",
+            "removedCaseId": "QA-087-198",
+            "result": "EXPECTED_FAIL",
+            "code": "RUNNER_CASE_ROSTER_MISMATCH"
+          },
+          {
+            "family": "part_variant",
+            "removedCaseId": "QA-087-203",
+            "result": "EXPECTED_FAIL",
+            "code": "RUNNER_CASE_ROSTER_MISMATCH"
+          },
+          {
+            "family": "drawing_history",
+            "removedCaseId": "QA-087-208",
+            "result": "EXPECTED_FAIL",
+            "code": "RUNNER_CASE_ROSTER_MISMATCH"
+          },
+          {
+            "family": "work_files",
+            "removedCaseId": "QA-087-210",
+            "result": "EXPECTED_FAIL",
+            "code": "RUNNER_CASE_ROSTER_MISMATCH"
+          },
+          {
+            "family": "matrix_navigation",
+            "removedCaseId": "QA-087-212",
+            "result": "EXPECTED_FAIL",
+            "code": "RUNNER_CASE_ROSTER_MISMATCH"
+          },
+          {
+            "family": "workbench_discovery",
+            "removedCaseId": "QA-087-214",
+            "result": "EXPECTED_FAIL",
+            "code": "RUNNER_CASE_ROSTER_MISMATCH"
+          }
+        ]
+      },
+      "expectedFailure": {
+        "code": "RUNNER_CASE_ROSTER_MISMATCH",
+        "count": 8
+      },
+      "actual": {
+        "rejected": 8
+      },
+      "zeroWriteReceipt": {
+        "sourceMutationCount": 0,
+        "syntheticManifestOnly": true
+      },
+      "restoreReceipt": {
+        "status": "restored_fresh_validation_pass"
+      },
+      "providerReceipt": {
+        "provider": "source_contract",
+        "databaseScope": "not_applicable"
+      }
+    }
+  ],
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskRootRemoved": true
+  }
+}

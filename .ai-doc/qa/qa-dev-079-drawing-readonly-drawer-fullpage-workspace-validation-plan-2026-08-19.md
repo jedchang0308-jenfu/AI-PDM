@@ -1,6 +1,6 @@
 # QA-DEV-079：圖號唯讀抽屜與全頁編輯工作區驗證計畫
 
-狀態：`CAPA Corrected Locally / Focused QA-QC PASS / DEV-115 Current-Matrix Rebaseline Ready / Independent Retained-Matrix QC Pending / Production Release Gated`
+狀態：`Local RD/QA-QC Complete / DEV-115 Current Matrix 42 of 42 PASS / Production Release Gated`
 
 日期：2026-08-19；amended 2026-09-03
 對應：`DEV-079`、`DEV-107`、`SPEC-PDM-ENTITY-DETAIL-DRAWER-001` 的 DEV-079／107 amendments、`SPEC-PDM-UNIFIED-DRAWING-WORKBENCH-001` 的 DEV-079／107 amendments
@@ -379,3 +379,9 @@ RD技術主管複核確認，DEV-079目前的主要阻塞是驗證契約與succe
 Fixture必須自行建立可達狀態：可編輯revision用於驗證owner 422；`rd_controlled／released`另驗409與zero-write。不得從primary A0002／A0044目前狀態推定測試前置。Browser oracle改驗證current route、accessible role、可見結果、network method與data readback，不再綁`.drawing-preview-tabs`或`.dev079-recognition-save-all`。
 
 Current PASS gate：42案registry missing／duplicate=0；所有`current-runner`案例PASS；所有`successor-replaced／retired`均有精確可追溯證據；P0/P1=0；primary schema／identity／migration residue／FK before=after；task-owned process／port／temp cleanup完成。未達此gate前DEV-079維持`◇`，不得宣稱full-matrix complete。
+
+## 14. 2026-09-03 DEV-115 execution closure
+
+Current registry `.ai-doc/qa/dev-079-current-case-registry.json` 固定QA-079-01～42，missing／duplicate=0；40案由current runner實際執行，QA-079-29與QA-079-42以精確successor case與closure evidence取代。`npm.cmd run qc:dev-079`已執行所有child而非fail-fast：contract、三viewport layout、三viewport recognition、SQLite owner invariant、disposable PostgreSQL owner invariant與DEV-087 capability negative全部PASS。
+
+Final manifest=`output/qa/dev-115-qa-gate-convergence/DEV115-DEV-079-2026-09-03T04-49-20-491Z/aggregate-manifest.json`；結果42/42 PASS、failed cases=0、open P0/P1=0、primary schema／canonical identity／migration residue／foreign keys before=after，所有task-owned process／port／temp均清理。DEV-079本機QA/QC因此結案；production只剩DEV-032共用release gate。

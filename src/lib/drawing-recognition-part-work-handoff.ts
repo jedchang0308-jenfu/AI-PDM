@@ -9,7 +9,7 @@ import { DrawingRecognitionPartWorkHandoffAsyncRepository, type HandoffScopePart
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
-import { sha256Canonical } from "@/lib/drawing-recognition-contract";
+import { sha256Canonical } from "@/lib/drawing-recognition-hash";
 import {
   applyHandoffIntent,
   DRAWING_RECOGNITION_HANDOFF_COMMAND,

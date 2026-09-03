@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { findLatestReport as findLatestSwAddinReport, readReport as readSwAddinReport, validateReport as validateSwAddinReport } from "./sw-addin-report-utils.mjs";
 import { getRestoreDrillReportEvidence } from "./restore-drill-report-utils.mjs";
 import {
@@ -12,6 +13,12 @@ import {
 import { getQualityDir } from "./pdm-paths.mjs";
 
 const root = process.cwd();
+const gitCommonDir = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
+  cwd: root,
+  encoding: "utf8",
+  windowsHide: true
+}).stdout?.trim();
+const evidenceRoot = process.env.PDM_QA_PRIMARY_ROOT?.trim() || (gitCommonDir ? path.dirname(gitCommonDir) : root);
 
 function getDefaultTaskFile() {
   const preferredTaskFile = path.join(root, ".ai-doc", "dev_task.md");
@@ -107,7 +114,7 @@ function parseArgs(argv) {
 }
 
 function getSolidWorksEvidence() {
-  const reportPath = findLatestSwAddinReport(root);
+  const reportPath = findLatestSwAddinReport(evidenceRoot);
   if (!reportPath) {
     return { ready: false, reportPath: null, issues: [{ type: "missing_report" }] };
   }
@@ -119,7 +126,7 @@ function getSolidWorksEvidence() {
 }
 
 function getDocumentManagerEvidence() {
-  const nativeReaderRoot = path.join(root, "output", "qa", "dev-035-solidworks-native-reader");
+  const nativeReaderRoot = path.join(evidenceRoot, "output", "qa", "dev-035-solidworks-native-reader");
   const nativeReaderReports = fs.existsSync(nativeReaderRoot)
     ? fs.readdirSync(nativeReaderRoot, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
@@ -162,7 +169,7 @@ function getDocumentManagerEvidence() {
     }
   }
 
-  const reportPath = findLatestDocumentManagerReport(root);
+  const reportPath = findLatestDocumentManagerReport(evidenceRoot);
   if (!reportPath) {
     return { ready: false, reportPath: null, issues: [{ type: "missing_report" }] };
   }
@@ -174,7 +181,7 @@ function getDocumentManagerEvidence() {
 }
 
 function findLatestPostgresShadowReport() {
-  const reportDir = path.join(getQualityDir(root), "postgres-shadow");
+  const reportDir = path.join(getQualityDir(evidenceRoot), "postgres-shadow");
   if (!fs.existsSync(reportDir)) return null;
   const reports = fs
     .readdirSync(reportDir, { withFileTypes: true })
@@ -242,7 +249,7 @@ function loadEvidence(options) {
   }
 
   const solidWorks = getSolidWorksEvidence();
-  const restore = getRestoreDrillReportEvidence(root);
+  const restore = getRestoreDrillReportEvidence(evidenceRoot);
   const documentManager = getDocumentManagerEvidence();
   const supabaseShadow = getSupabaseShadowEvidence();
   return {

@@ -4,8 +4,9 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
-import { closeAsyncDatabaseClient, createAsyncDatabaseClient } from "../src/lib/db-async-provider.ts";
+import { closeAsyncDatabaseClient, createAsyncDatabaseClient, getAsyncDatabaseClient } from "../src/lib/db-async-provider.ts";
 import { DrawingRevisionWorkService } from "../src/lib/drawing-revision-work.ts";
 import { readCanonicalDrawingHistoryRevision } from "../src/lib/pdm-canonical-drawing-history.ts";
 import { PdmCanonicalWorkbenchService } from "../src/lib/pdm-canonical-workbench.ts";
@@ -13,6 +14,12 @@ import { createFixtureDatabase, ids } from "./qc-dev-087-fixtures.mjs";
 import { readJson, sha256, validateLaneRosterAndEvidence } from "./dev-087-evidence-lib.mjs";
 
 const root = process.cwd();
+const gitCommonDir = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
+  cwd: root,
+  encoding: "utf8",
+  windowsHide: true
+}).stdout?.trim();
+const primaryRoot = process.env.PDM_QA_PRIMARY_ROOT?.trim() || (gitCommonDir ? path.dirname(gitCommonDir) : root);
 const outputPath = process.env.DEV087_NEGATIVE_EVIDENCE_PATH;
 if (!outputPath) throw new Error("DEV087_NEGATIVE_EVIDENCE_PATH_REQUIRED");
 
@@ -69,10 +76,11 @@ function errorCode(error) {
 }
 
 try {
-  const primaryPath = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(root, "data", "ai-pdm.sqlite"));
+  const primaryPath = path.resolve(process.env.PDM_PRIMARY_DB_PATH?.trim() || path.join(primaryRoot, "data", "ai-pdm.sqlite"));
   const primarySource = new Database(primaryPath, { readonly: true, fileMustExist: true });
   await primarySource.backup(databasePath);
   primarySource.close();
+  await getAsyncDatabaseClient().queryOne("SELECT 1 AS ready");
 
   await capture("QA-087-202", "NEGATIVE_DIRECT_DRAWING_INVALIDATION_410_ZERO_WRITE", async () => {
     const verifier = new Database(databasePath);
@@ -98,8 +106,8 @@ try {
     const verifier = new Database(databasePath);
     const actor = verifier.prepare("SELECT id FROM users WHERE role IN ('Admin', 'R&D Manager') AND account_status='active' AND system_role_enabled=1 ORDER BY CASE role WHEN 'Admin' THEN 0 ELSE 1 END, id LIMIT 1").get();
     if (!actor?.id) throw new Error("QA206_AUTH_ACTOR_MISSING");
-    const before = databaseFingerprint(verifier);
     const token = generateToken(String(actor.id), { sessionId: "qa087-206" });
+    const before = databaseFingerprint(verifier);
     const response = await PUT(new Request("http://local/api/parts/A0002-P01/variant", {
       method: "PUT",
       headers: { "content-type": "application/json", cookie: `pdm_session=${token}` },

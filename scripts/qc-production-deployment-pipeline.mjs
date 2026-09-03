@@ -114,8 +114,8 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.match(workflow, /IMAGE_PATH@\$DIGEST/u);
   assert.match(workflow, /--target migration-runner/u);
   assert.match(workflow, /MIGRATION_PACKAGE_TARGET=production/u);
-  assert.match(workflow, /schemaMigrationCount !== 50/u);
-  assert.match(workflow, /052_retired_workbench_residue_cleanup/u);
+  assert.match(workflow, /schemaMigrationCount !== 53/u);
+  assert.match(workflow, /056_role_capability_display_snapshot/u);
   assert.match(workflow, /migration-image\.txt/u);
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
 });
@@ -165,8 +165,8 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(candidateWorkflow, /npm run qc:pdm-number-state-flow-routes/u);
   assert.match(candidateWorkflow, /npm run qc:dev-093:contract/u);
   assert.match(candidateWorkflow, /npm run qc:production-authority-repair/u);
-  assert.match(candidateWorkflow, /052_retired_workbench_residue_cleanup\.cloudsql\.sql/u);
-  assert.match(candidateWorkflow, /schemaMigrationCount !== 50/u);
+  assert.match(candidateWorkflow, /056_role_capability_display_snapshot\.cloudsql\.sql/u);
+  assert.match(candidateWorkflow, /schemaMigrationCount !== 53/u);
   assert.match(candidateWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);
   assert.match(smoke, /origin reaches token validation/u);
 });

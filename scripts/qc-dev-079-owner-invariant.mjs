@@ -6,7 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
 import { createFixtureDatabase, ids as dev087Ids } from "./qc-dev-087-fixtures.mjs";
-import { sha256Canonical } from "../src/lib/drawing-recognition-contract.ts";
+import { sha256Canonical } from "../src/lib/drawing-recognition-hash.ts";
 
 const root = process.cwd();
 const runId = `DEV079-INVARIANT-${new Date().toISOString().replace(/[:.]/g, "-")}`;
@@ -402,6 +402,12 @@ try {
   const decisionsBefore = fixtureDb.prepare("SELECT COUNT(*) AS count FROM drawing_recognition_decisions WHERE session_id=?").get(rerun.id).count;
   await assert.rejects(() => repository.saveDecisions({
     sessionId: rerun.id, companyId: acceptedOwnerless.company_id, actorId: actor.id,
+    expectedRowVersion: projection.rowVersion + 99,
+    decisions: [{ candidateId: nativeCandidate.id, action: "defer" }]
+  }), (error) => error?.status === 409);
+  assert.equal(fixtureDb.prepare("SELECT COUNT(*) AS count FROM drawing_recognition_decisions WHERE session_id=?").get(rerun.id).count, decisionsBefore, "controlled stale fixture must return 409 with zero decision write");
+  await assert.rejects(() => repository.saveDecisions({
+    sessionId: rerun.id, companyId: acceptedOwnerless.company_id, actorId: actor.id,
     expectedRowVersion: projection.rowVersion,
     decisions: [{ candidateId: nativeCandidate.id, action: "accept" }]
   }), (error) => error?.code === "RECOGNITION_PART_OWNER_REQUIRED" && error?.status === 422);
@@ -455,6 +461,7 @@ try {
       commandMissingOwner422: true,
       commandAmbiguousOwner422: true,
       commandInvalidOwner422: true,
+      controlledStale409ZeroWrite: true,
       crossAdapterCanonicalCandidate: true,
       repeatedGetZeroWrite: beforeGetHash === afterGetHash,
       foreignKeyCheck: 0

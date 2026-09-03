@@ -200,7 +200,7 @@ async function readPartTarget(client: AsyncDatabaseClient, input: { companyId: s
     partName: row.part_name, itemKind: row.item_kind as PartChangePayload["itemKind"], customSpecification: row.custom_specification,
     isUniversal: bool(row.is_universal),
     materialCode: row.material_code, materialLabel: row.material_label, colorCode: row.color_code, colorLabel: row.color_label,
-    surfaceTreatment: row.surface_treatment, variantNote: row.variant_note, baseUomCode: row.base_uom_code as PartChangePayload["baseUomCode"]
+    surfaceTreatment: row.surface_treatment, variantNote: row.variant_note
   };
   let payload: Record<string, unknown> = baselinePayload;
   if (input.primary?.workId) {
@@ -386,7 +386,7 @@ async function readPartTargetsBatch(client: AsyncDatabaseClient, input: { compan
       partName: row.part_name, itemKind: row.item_kind as PartChangePayload["itemKind"], customSpecification: row.custom_specification,
       isUniversal: bool(row.is_universal),
       materialCode: row.material_code, materialLabel: row.material_label, colorCode: row.color_code, colorLabel: row.color_label,
-      surfaceTreatment: row.surface_treatment, variantNote: row.variant_note, baseUomCode: row.base_uom_code as PartChangePayload["baseUomCode"]
+      surfaceTreatment: row.surface_treatment, variantNote: row.variant_note
     };
     const isPrimary = input.primary.entityType === "part" && input.primary.canonicalEntityId === id;
     const payload = isPrimary && work ? (typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload) : baselinePayload;

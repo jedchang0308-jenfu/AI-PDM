@@ -1,5 +1,5 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import { sha256Canonical } from "@/lib/drawing-recognition-contract";
+import { sha256Canonical } from "@/lib/drawing-recognition-hash";
 import { DRAWING_RECOGNITION_HANDOFF_MAX_PARTS, type HandoffEligiblePart } from "@/lib/drawing-recognition-part-work-handoff-contract";
 
 export type HandoffScopePart = HandoffEligiblePart & {
@@ -39,12 +39,12 @@ export class DrawingRecognitionPartWorkHandoffAsyncRepository {
       formal_row_version: number | string | null;
       material_code: string | null; material_label: string | null; color_code: string | null; color_label: string | null;
       surface_treatment: string | null; variant_note: string | null; custom_specification: string | null;
-      item_kind: string; is_universal: number | boolean; bom_usage_policy: string;
+      item_kind: string; is_universal: number | boolean;
       work_id: string | null; work_owner_id: string | null; work_handling: string | null; work_row_version: number | string | null; work_payload: string | Record<string, unknown> | null;
     }>(
       `SELECT part.id, part.part_number, part.part_name, part.part_root_id, part.record_status,
               formal_state.row_version AS formal_row_version,
-              part.custom_specification, part.item_kind, part.is_universal, part.bom_usage_policy,
+              part.custom_specification, part.item_kind, part.is_universal,
               attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label,
               attributes.surface_treatment, attributes.variant_note,
               work.id AS work_id, work.owner_user_id AS work_owner_id, work_state.handling AS work_handling,
@@ -75,7 +75,7 @@ export class DrawingRecognitionPartWorkHandoffAsyncRepository {
       formalRowVersion: Number(row.formal_row_version ?? 1),
       formalPayload: {
         partName: row.part_name, itemKind: row.item_kind, customSpecification: row.custom_specification,
-        isUniversal: bool(row.is_universal), bomUsagePolicy: row.bom_usage_policy,
+        isUniversal: bool(row.is_universal),
         materialCode: row.material_code, materialLabel: row.material_label,
         colorCode: row.color_code, colorLabel: row.color_label,
         surfaceTreatment: row.surface_treatment, variantNote: row.variant_note

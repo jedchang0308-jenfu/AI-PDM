@@ -559,26 +559,3 @@ active writer convergence與provider rehearsal完成後，再評估把SQLite／P
 ## 16. Documentation-turn Boundary
 
 本輪已依本SPEC完成DEV-099產品與驗證實作，並更新dev_task、documentation map與DEV-093／096 supersession notes。產品、測試程式與文件變更已由同一 aggregate gate 驗證；未修改schema、migration或正式資料，未執行production deploy／release或Git stage／commit。QA-099固定48案已全數PASS，權威證據為`output/qa/dev-099/DEV099-2026-08-26T09-03-03-967Z/manifest.json`。
-
-## 17. DEV-106 Purpose-aware BOM Amendment (2026-08-31)
-
-1. `structure_type=assembly` 的語意是「此料號有受控下階結構」，不再等同「一定有製造BOM」。
-2. DEV-099的 `manufactured + assembly + primary M` 動作推導仍是 `purpose=manufacturing` 的唯一Current Phase建立資格。
-3. `purchased + assembly` 或沒有primary M的assembly仍沒有manufacturing BOM action；在DEV-106 feature flag開啟且資格成立時，可顯示sales-kit action並建立 `purpose=sales_kit`。
-4. exact Part drawer仍是分類與BOM action的canonical owner；`part_numbers.structure_type` enum、分類writer、batch語意與audit不變。
-5. BOM readiness必須同時輸出structure classification與purpose-aware action，不得把Released sales kit誤判為manufacturing ready。
-6. DEV-099既有48-case evidence保留為historical baseline，不自動支持DEV-106的產品完成或驗證結論。
-
-DEV-106的purpose、入口、data、API與驗收細節以 `SPEC-PDM-SALES-KIT-BOM-001-commercial-bundle-structure.md` 為authority。
-
-## 18. CAD Evidence and Unified BOM Amendment（2026-08-31 Human Confirmed）
-
-本節取代本SPEC中下列 current assumptions：`.SLDASM` 只能建議不能寫分類、`.SLDPRT` 可產生 Part 單件事實、BOM 動作必須 manufactured＋primary M，以及 purpose-aware BOM readiness。
-
-- `.SLDASM`：active primary upload 成功且 formal `primary_manufacturing` relation 唯一解析 exact Part 時，系統可 idempotent 自動晉級該 Part 為 `assembly`；不建 BOM、不預填 Child、不對 same-root 擴散。
-- `.SLDPRT`：不寫 `structure_type`；它只表示 CAD file kind。人工分類 UI 可預選 single，但必須明確送出。
-- downgrade：移除／替換 `.SLDASM` 不自動降級；assembly -> single 仍由 exact Part human command 與 BOM conflict gate 管理。
-- BOM readiness：合法 `assembly` 即可建立統一 BOM，不要求 `item_kind`、M 圖或 CAD；Child 也不要求 Drawing。
-- quantity／UOM：Child 基本單位帶入 BOM line，允許正小數並鎖定在 Revision；不做任意單位換算。
-
-更完整的target authority為`ADR-PDM-BOM-DOMAIN-002`、`SPEC-PDM-BOM-CREATE-PAGE-001` §29～§33與`ADR-PDM-PART-STRUCTURE-CLASSIFICATION-001`的2026-08-31 amendment。Current design已完成task-owned本機實作與54案驗證；DEV-099歷史48-case evidence不能取代新上傳side effect evidence，production migration／release仍受獨立gate管制。

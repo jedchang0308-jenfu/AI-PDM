@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 2,
+  "runId": "DEV087-product-negative-2026-09-03T04-46-26-128Z",
+  "parentRunId": null,
+  "gateStage": "product",
+  "runner": "qc-dev-087-capability-negative",
+  "source": {
+    "repository": "DEV-032-final-release",
+    "branch": "codex/dev-032-final-release",
+    "head": "e0313029e7459f76cecb69ee8aa83cc901180306",
+    "fingerprintVersion": "git-content-v4-dev087-execution-scope",
+    "dirtyBoundaryHash": "0e09cff8cfcb78f2dcf527bc35b7d00e9321567cbd706ed1669a1c97be80f2ae"
+  },
+  "environment": {
+    "provider": "sqlite",
+    "dataScope": "task_owned_file_and_in_memory_fault_fixtures",
+    "baseUrl": null
+  },
+  "registryHash": "50e7a7f98913793228a16acb85221cb3ebfb0f3be674cfa11ae0297084c674b8",
+  "schemaHash": "0fce8859ca1415d8ae45a3a8e19a0478c4b20c6f093d00ffe39aa1822e60bd69",
+  "oracleHash": "063cdeb3c7c84c6dccd2f7b06016f8b0a318e63387d58eaad883c201c2e0703c",
+  "runnerHash": "8c76284fe05c1064f3625ce101a946feaa829af94c17f336315239fca79b5f9d",
+  "caseResults": [
+    {
+      "caseId": "QA-087-202",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-202:ACTUAL_NEGATIVE_REQUIRED"
+      ],
+      "firstFailurePointer": "negative-coverage.json"
+    },
+    {
+      "caseId": "QA-087-206",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-206:ACTUAL_NEGATIVE_REQUIRED"
+      ],
+      "firstFailurePointer": "negative-coverage.json"
+    },
+    {
+      "caseId": "QA-087-208",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-208:ACTUAL_NEGATIVE_REQUIRED"
+      ],
+      "firstFailurePointer": "negative-coverage.json"
+    },
+    {
+      "caseId": "QA-087-210",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-210:ACTUAL_NEGATIVE_REQUIRED"
+      ],
+      "firstFailurePointer": "negative-coverage.json"
+    },
+    {
+      "caseId": "QA-087-216",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-216:ACTUAL_NEGATIVE_REQUIRED"
+      ],
+      "firstFailurePointer": "negative-coverage.json"
+    },
+    {
+      "caseId": "QA-087-218",
+      "result": "NOT_RUN",
+      "assertionIds": [
+        "QA-087-218:ACTUAL_NEGATIVE_REQUIRED"
+      ],
+      "firstFailurePointer": "negative-coverage.json"
+    }
+  ],
+  "caseEvidence": {
+    "QA-087-202": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-206": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-208": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-210": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-216": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-probe-output.txt"
+      ]
+    },
+    "QA-087-218": {
+      "evidenceTypes": [
+        "fault_injection",
+        "expected_failure",
+        "zero_write_receipt",
+        "restore_receipt",
+        "artifact_hash"
+      ],
+      "artifactPaths": [
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-coverage.json",
+        "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-probe-output.txt"
+      ]
+    }
+  },
+  "childManifests": [
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-coverage.json",
+      "sha256": "885349160c619a01b4e9017dd4b01f96e2e70593a38595ba09690288763ebe63",
+      "runner": "qc-dev-087-capability-negative",
+      "caseIds": [
+        "QA-087-202",
+        "QA-087-206",
+        "QA-087-208",
+        "QA-087-210",
+        "QA-087-216",
+        "QA-087-218"
+      ],
+      "result": "FAIL"
+    },
+    {
+      "path": "output/qa/dev-087-capability/DEV087-product-negative-2026-09-03T04-46-26-128Z/negative-probe-output.txt",
+      "sha256": "6b5b9343c8e87ee6df464435b4bd0033463a74bb060641a008388b15bd7cf31f",
+      "runner": "qc-dev-087-capability-negative",
+      "caseIds": [
+        "QA-087-202",
+        "QA-087-206",
+        "QA-087-208",
+        "QA-087-210",
+        "QA-087-216",
+        "QA-087-218"
+      ],
+      "result": "FAIL"
+    }
+  ],
+  "prohibitedMutationAudit": {
+    "directApiWrites": 0,
+    "sqlWrites": 0,
+    "pageEvaluateWrites": 0,
+    "unprovenancedWrites": 0
+  },
+  "primaryInvariant": {
+    "status": "pass",
+    "delta": 0
+  },
+  "firstFailure": {
+    "code": "ACTUAL_NEGATIVE_PROBE_FAILED",
+    "caseId": "QA-087-202",
+    "pointer": "negative-coverage.json"
+  },
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskOwnedRuntime": false,
+    "portsReleased": true
+  },
+  "result": "FAIL",
+  "errorCode": "ACTUAL_NEGATIVE_PROBE_FAILED"
+}

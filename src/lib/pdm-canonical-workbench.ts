@@ -14,6 +14,7 @@ import { isDrawingWorkbenchPreviewGalleryV1Enabled, isPartWorkbenchPreviewGaller
 import { resolvePartPreviewsAsync } from "@/lib/pdm-part-preview";
 import { PdmPartPreviewAsyncRepository } from "@/lib/repositories/pdm-part-preview-async-repository";
 import { withPdmWorkbenchReadSnapshot } from "@/lib/repositories/pdm-workbench-read-snapshot";
+import { ensureAutomaticPreviewJobsForSourceAssetsAsync } from "@/lib/preview-derivatives";
 
 type CanonicalPreviewSource = CanonicalPreviewSourceRow;
 

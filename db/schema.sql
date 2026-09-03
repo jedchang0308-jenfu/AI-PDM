@@ -1018,7 +1018,6 @@ CREATE TABLE IF NOT EXISTS part_numbers (
   part_name TEXT NOT NULL,
   item_kind TEXT NOT NULL CHECK (item_kind IN ('purchased', 'manufactured')),
   structure_type TEXT NOT NULL DEFAULT 'single_part' CHECK (structure_type IN ('single_part', 'assembly', 'unclassified')),
-  base_uom_code TEXT CHECK (base_uom_code IS NULL OR base_uom_code IN ('EA','SET','M','MM','L','ML','KG','G')),
   is_universal INTEGER NOT NULL DEFAULT 0 CHECK (is_universal IN (0, 1)),
   custom_specification TEXT,
   series_code TEXT,

@@ -1939,7 +1939,7 @@ export class DrawingRecognitionAsyncRepository {
         throw new DrawingRecognitionError("RECOGNITION_ACTIVE_PART_WORK_CONFLICT", "料號編輯工作已改變，請返回料號工作區重新核對。", 409);
       }
       const formalRow = await this.client.queryOne<Record<string, unknown>>(
-        `SELECT part.part_name, part.item_kind, part.custom_specification, part.is_universal, part.bom_usage_policy,
+        `SELECT part.part_name, part.item_kind, part.custom_specification, part.is_universal,
                 attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label,
                 attributes.surface_treatment, attributes.variant_note
          FROM part_numbers part
@@ -1950,7 +1950,7 @@ export class DrawingRecognitionAsyncRepository {
       if (!formalRow) throw new DrawingRecognitionError("RECOGNITION_OWNER_NOT_FOUND", "料號正式資料已不存在。", 409);
       const formalPayload = {
         partName: formalRow.part_name, itemKind: formalRow.item_kind, customSpecification: formalRow.custom_specification,
-        isUniversal: Boolean(formalRow.is_universal), bomUsagePolicy: formalRow.bom_usage_policy,
+        isUniversal: Boolean(formalRow.is_universal),
         materialCode: formalRow.material_code, materialLabel: formalRow.material_label,
         colorCode: formalRow.color_code, colorLabel: formalRow.color_label,
         surfaceTreatment: formalRow.surface_treatment, variantNote: formalRow.variant_note

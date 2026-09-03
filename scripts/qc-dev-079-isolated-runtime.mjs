@@ -7,6 +7,13 @@ import { createServer } from "node:http";
 import Database from "better-sqlite3";
 
 const root = process.cwd();
+const gitCommonDir = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root, encoding: "utf8", windowsHide: true }).stdout?.trim();
+const primaryRoot = process.env.PDM_QA_PRIMARY_ROOT?.trim() || (gitCommonDir ? path.dirname(gitCommonDir) : root);
+const primaryDatabasePath = path.join(primaryRoot, "data", "ai-pdm.sqlite");
+const primaryRepositoryPath = path.join(primaryRoot, "data", "repository");
+const pdfjsVersion = JSON.parse(fs.readFileSync(path.join(root, "node_modules", "pdfjs-dist", "package.json"), "utf8")).version;
+const tesseractVersion = JSON.parse(fs.readFileSync(path.join(root, "node_modules", "tesseract.js", "package.json"), "utf8")).version;
+const ocrAssetRoot = path.join(root, "public", "generated", "dev-082-ocr", `pdfjs-${pdfjsVersion}_tesseract-${tesseractVersion}`);
 
 export async function startDev079IsolatedRuntime() {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev079-layout-"));
@@ -16,14 +23,20 @@ export async function startDev079IsolatedRuntime() {
   let port = null;
   let child = null;
   let workerChild = null;
+  let ownsOcrAssets = false;
   try {
-    const primaryBefore = protectedSnapshot(path.join(root, "data", "ai-pdm.sqlite"));
+    const primaryBefore = protectedSnapshot(primaryDatabasePath);
     assertSafeSnapshot(primaryBefore, "primary-before");
-    fs.copyFileSync(path.join(root, "data", "ai-pdm.sqlite"), targetDb);
-    fs.cpSync(path.join(root, "data", "repository"), repositoryDir, { recursive: true });
+    fs.copyFileSync(primaryDatabasePath, targetDb);
+    fs.cpSync(primaryRepositoryPath, repositoryDir, { recursive: true });
     const fixtureSource = protectedSnapshot(targetDb);
     if (JSON.stringify(fixtureSource) !== JSON.stringify(primaryBefore)) throw new Error("DEV-079 unmodified fixture snapshot does not match primary protected invariant");
     const target = prepareA0002IsolatedDatabase(targetDb);
+    if (!fs.existsSync(path.join(ocrAssetRoot, "pdf.worker.min.mjs"))) {
+      const prepared = spawnSync(process.execPath, ["scripts/prepare-dev-082-ocr-assets.mjs"], { cwd: root, encoding: "utf8", windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
+      if (prepared.status !== 0) throw new Error(`DEV-079 OCR asset preparation failed:${prepared.stderr || prepared.stdout}`);
+      ownsOcrAssets = true;
+    }
     port = await getFreePort();
     const baseUrl = `http://127.0.0.1:${port}`;
     const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
@@ -33,8 +46,9 @@ export async function startDev079IsolatedRuntime() {
       cwd: root,
       env: {
         ...process.env,
-        PDM_AUTH_MODE: "demo",
+        PDM_AUTH_MODE: "local",
         PDM_AUTH_SECRET: "dev079-layout-auth-secret",
+        PDM_ENABLE_LOCAL_QUICK_LOGIN: "true",
         PDM_DB_PROVIDER: "sqlite",
         PDM_DATA_DIR: tempDir,
         PDM_REPOSITORY_DIR: repositoryDir,
@@ -69,7 +83,8 @@ export async function startDev079IsolatedRuntime() {
         cleanupCondition: "browser closes, exact Next tree stops, port releases, task-owned data/repository/dist are removed",
         PDM_DATA_DIR: tempDir,
         PDM_REPOSITORY_DIR: repositoryDir,
-        mutationScope: [tempDir, path.join(root, ...distDir.split("/"))],
+        mutationScope: [tempDir, path.join(root, ...distDir.split("/")), ...(ownsOcrAssets ? [ocrAssetRoot] : [])],
+        primaryReadOnlySource: { database: primaryDatabasePath, repository: primaryRepositoryPath },
         primaryBefore,
         fixtureSource,
         fixtureMutationLedger: target.fixtureMutationLedger
@@ -77,13 +92,13 @@ export async function startDev079IsolatedRuntime() {
       stop: async () => {
         if (stopped) return;
         stopped = true;
-        await stopRuntime({ child, workerChild, port, tempDir, distDir });
-        const primaryAfter = protectedSnapshot(path.join(root, "data", "ai-pdm.sqlite"));
+        await stopRuntime({ child, workerChild, port, tempDir, distDir, ownedOcrAssetRoot: ownsOcrAssets ? ocrAssetRoot : null });
+        const primaryAfter = protectedSnapshot(primaryDatabasePath);
         if (JSON.stringify(primaryBefore) !== JSON.stringify(primaryAfter)) throw new Error("DEV-079 primary protected invariant changed during isolated runtime");
       }
     };
   } catch (error) {
-    await stopRuntime({ child, workerChild, port, tempDir, distDir }).catch(() => {});
+    await stopRuntime({ child, workerChild, port, tempDir, distDir, ownedOcrAssetRoot: ownsOcrAssets ? ocrAssetRoot : null }).catch(() => {});
     throw error;
   }
 }
@@ -226,7 +241,7 @@ function assertSafeSnapshot(snapshot, label) {
     || snapshot.foreignKeyViolations !== 0) throw new Error(`DEV-079 unsafe ${label} snapshot:${JSON.stringify(snapshot)}`);
 }
 
-async function stopRuntime({ child, workerChild, port, tempDir, distDir }) {
+async function stopRuntime({ child, workerChild, port, tempDir, distDir, ownedOcrAssetRoot }) {
   if (workerChild && workerChild.exitCode === null) terminate(workerChild);
   if (child && child.exitCode === null) {
     terminate(child);
@@ -241,9 +256,12 @@ async function stopRuntime({ child, workerChild, port, tempDir, distDir }) {
     });
     if (!released) throw new Error(`temporary DEV-079 port ${port} was not released`);
   }
-  for (const target of [path.join(root, ...distDir.split("/")), tempDir]) {
+  for (const target of [path.join(root, ...distDir.split("/")), tempDir, ownedOcrAssetRoot]) {
+    if (!target) continue;
     const resolved = path.resolve(target);
-    const allowed = resolved.startsWith(path.resolve(os.tmpdir())) || resolved.startsWith(`${path.resolve(root, ".tmp")}${path.sep}`);
+    const allowed = resolved.startsWith(path.resolve(os.tmpdir()))
+      || resolved.startsWith(`${path.resolve(root, ".tmp")}${path.sep}`)
+      || resolved.startsWith(`${path.resolve(root, "public", "generated", "dev-082-ocr")}${path.sep}`);
     if (allowed && fs.existsSync(resolved)) fs.rmSync(resolved, { recursive: true, force: true });
   }
 }

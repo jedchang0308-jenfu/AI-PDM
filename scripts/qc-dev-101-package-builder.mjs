@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { createFixtureDatabase, ids as dev087Ids } from "./qc-dev-087-fixtures.mjs";
-import { sha256Canonical } from "../src/lib/drawing-recognition-contract.ts";
+import { sha256Canonical } from "../src/lib/drawing-recognition-hash.ts";
 
 const root = process.cwd();
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev101-package-"));

@@ -1,0 +1,559 @@
+{
+  "schemaVersion": "dev-115-aggregate-v1",
+  "devId": "DEV-079",
+  "runId": "DEV115-DEV-079-2026-09-03T04-44-52-832Z",
+  "status": "FAIL",
+  "runtimeDeclaration": {
+    "project": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release",
+    "purpose": "DEV-079 DEV-115 aggregate current-case convergence",
+    "port": null,
+    "owningProcessTree": "aggregate pid 12116 -> every registered child process",
+    "cleanupCondition": "each runtime-owning child stops its exact process tree and releases its port; parent exits after final unified verdict",
+    "PDM_DATA_DIR": "child-owned isolated directory; primary is read-only invariant source",
+    "PDM_REPOSITORY_DIR": "child-owned isolated directory",
+    "mutationScope": [
+      "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release\\output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z",
+      "child-owned temporary data/repository/dist directories"
+    ]
+  },
+  "registry": {
+    "path": ".ai-doc/qa/dev-079-current-case-registry.json",
+    "sha256": "18dfddce03f573b46e10622775f30afd97f16e9afab8bf2758be0e146fd266ab",
+    "valid": true,
+    "denominator": 42,
+    "observed": 42,
+    "duplicates": [],
+    "missing": [],
+    "extras": [],
+    "fieldErrors": []
+  },
+  "children": [
+    {
+      "id": "contract",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\contract.stdout.log",
+      "stderr": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\contract.stderr.log"
+    },
+    {
+      "id": "layout-browser",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\layout-browser.stdout.log",
+      "stderr": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\layout-browser.stderr.log"
+    },
+    {
+      "id": "recognition-browser",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\recognition-browser.stdout.log",
+      "stderr": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\recognition-browser.stderr.log"
+    },
+    {
+      "id": "owner-invariant",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\owner-invariant.stdout.log",
+      "stderr": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\owner-invariant.stderr.log"
+    },
+    {
+      "id": "owner-invariant-postgres",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\owner-invariant-postgres.stdout.log",
+      "stderr": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\owner-invariant-postgres.stderr.log"
+    },
+    {
+      "id": "dev087-negative",
+      "passed": false,
+      "exitCode": 1,
+      "signal": null,
+      "error": null,
+      "stdout": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\dev087-negative.stdout.log",
+      "stderr": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-079-2026-09-03T04-44-52-832Z\\dev087-negative.stderr.log"
+    }
+  ],
+  "caseResults": [
+    {
+      "caseId": "QA-079-01",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "layout-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-02",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "layout-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-03",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-04",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-05",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-06",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-07",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "layout-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-08",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-09",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "layout-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-10",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "layout-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-11",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "recognition-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-12",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "layout-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-13",
+      "disposition": "current-runner",
+      "passed": false,
+      "runnerEvidence": [
+        "contract",
+        "dev087-negative"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-14",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-15",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "recognition-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-16",
+      "disposition": "current-runner",
+      "passed": false,
+      "runnerEvidence": [
+        "contract",
+        "dev087-negative"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-17",
+      "disposition": "current-runner",
+      "passed": false,
+      "runnerEvidence": [
+        "contract",
+        "dev087-negative"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-18",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "layout-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-19",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "recognition-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-20",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "layout-browser",
+        "recognition-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-21",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-22",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "layout-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-23",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "layout-browser",
+        "recognition-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-24",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "recognition-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-25",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "recognition-browser",
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-26",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "recognition-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-27",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "layout-browser",
+        "recognition-browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-28",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-29",
+      "disposition": "successor-replaced",
+      "passed": true,
+      "runnerEvidence": [],
+      "detail": {
+        "missing": [],
+        "selfFailures": [],
+        "closurePresent": true,
+        "caseIds": [
+          "QA-079-30",
+          "QA-079-31",
+          "QA-079-32",
+          "QA-079-33",
+          "QA-079-34",
+          "QA-079-35",
+          "QA-079-36",
+          "QA-079-37",
+          "QA-079-38",
+          "QA-079-39",
+          "QA-079-40",
+          "QA-079-41"
+        ],
+        "registry": ".ai-doc/qa/dev-079-current-case-registry.json"
+      }
+    },
+    {
+      "caseId": "QA-079-30",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-31",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-32",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-33",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-34",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-35",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant-postgres"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-36",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-37",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-38",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-39",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-40",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant",
+        "owner-invariant-postgres"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-41",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "owner-invariant"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-079-42",
+      "disposition": "successor-replaced",
+      "passed": true,
+      "runnerEvidence": [],
+      "detail": {
+        "missing": [],
+        "selfFailures": [],
+        "closurePresent": true,
+        "caseIds": [
+          "QA-101-043",
+          "QA-101-044",
+          "QA-101-045",
+          "QA-101-046",
+          "QA-101-047",
+          "QA-101-048"
+        ],
+        "registry": ".ai-doc/qa/dev-101-current-case-registry.json"
+      }
+    }
+  ],
+  "primaryInvariant": {
+    "passed": true,
+    "before": {
+      "schemaHash": "8882dd1f2f45a484d50f81708c8ce3d455a91b39e6b2fe13011a303628f5439f",
+      "canonicalIdentityHash": "5020f87b2d4edbf04458981c891f2fc4aa006d1aee1ff3d5481e9a47b5bb184f",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawings": 0
+      },
+      "unresolvedMigrationResidue": 0,
+      "foreignKeyViolations": 0,
+      "safe": true,
+      "databasePath": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite"
+    },
+    "after": {
+      "schemaHash": "8882dd1f2f45a484d50f81708c8ce3d455a91b39e6b2fe13011a303628f5439f",
+      "canonicalIdentityHash": "5020f87b2d4edbf04458981c891f2fc4aa006d1aee1ff3d5481e9a47b5bb184f",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawings": 0
+      },
+      "unresolvedMigrationResidue": 0,
+      "foreignKeyViolations": 0,
+      "safe": true,
+      "databasePath": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite"
+    }
+  },
+  "unresolved": {
+    "missingCases": 0,
+    "duplicateCases": 0,
+    "failedCases": 3,
+    "failedChildren": 1,
+    "openP0": 1,
+    "openP1": 0
+  },
+  "completedAt": "2026-09-03T04:46:29.169Z"
+}

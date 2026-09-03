@@ -1072,28 +1072,3 @@ Drawing drawer永遠沒有create按鈕；可先透過既有圖料矩陣選到exa
 6. provider-specific additive DDL方式及不依賴crosswalk的deterministic migration IDs。
 
 以上條款與前文衝突時，以§23～28較具體條款為Current Phase實作authority。Human decision gaps仍為0；QA分母為88 cases。096-A～E已完成本機實作與隔離QA/QC，fresh aggregate 88/88 PASS、P0/P1=0、Blocked=0、Not Run=0；此完成狀態不授權正式migration、feature activation、deploy或release。
-
-## 29. DEV-106 Sales Kit Purpose Amendment (2026-08-31)
-
-本節為 `SPEC-PDM-SALES-KIT-BOM-001` 的相容性修訂；只擴充 BOM purpose，不改寫 DEV-096 已完成的 shared structure、review、release 與 exact Parent projection authority。
-
-1. 本SPEC中 `manufactured + assembly + primary M` 的建立資格、同root多Parent與mapping規則，僅適用 `purpose=manufacturing`。
-2. `purchased + assembly` 或沒有primary M的assembly，在 `PDM_SALES_KIT_BOM_V1_ENABLED` 開啟且符合DEV-106資格時，可以建立 `purpose=sales_kit`；它仍不得建立manufacturing BOM。
-3. `sales_kit` Current Phase只綁一個exact Parent、只允許fixed Child，不使用DEV-096的same-root multi-Parent sharing或per-Parent candidate mapping。
-4. `sales_kit` 的Draft、review、release與export沿用同一BOM repository／writer與immutable snapshot；不得新增第二套kit writer、review或release authority。
-5. `sales_kit` 永遠不滿足manufacturing readiness，不得作為技轉、製造基準或M圖缺口的替代證據。
-6. DEV-096既有88-case evidence只證明其歷史revision與manufacturing/shared-BOM能力；不得作為DEV-106已實作、已驗證或可release的證據。
-
-若本節與前文的「只有manufactured assembly可建立BOM」或「purchased assembly為Future Phase」衝突，以本節及 `SPEC-PDM-SALES-KIT-BOM-001` 對 `sales_kit` 的較窄例外為Current Phase authority；manufacturing規則保持不變。
-
-## 30. Unified BOM Domain Amendment（2026-08-31 Human Confirmed）
-
-本節取代§29的 purpose-aware 分流，並取代本SPEC中「建立 BOM 必須 `manufactured + primary M`」的條件；其餘 stable Definition、explicit Parent bindings、one-open Revision、ETag／idempotency、review／release／audit、resolved projection 與 cycle gate 原則保留。
-
-1. Definition 的 target identity 是受控結構本身，不含 `manufacturing | sales_kit` purpose。
-2. exact Part 只要是合法 `assembly` 即可建立 BOM；`purchased`、無 M 圖、無 `.SLDASM` 都不是 blocker。
-3. exact owner Parent 為建立預設。現有 same-root／explicit additional Parent applicability 可保留為結構共用能力，但不再由 purpose 決定開關。
-4. Child 無須 Drawing；line quantity 為正小數，並鎖定 Child 當時基本 UOM。
-5. 現有 purpose column、sales-kit fixed/integer validator、snapshot discriminator 與 052 migration 是待退役的 implementation；歷史 Released evidence 保留不改寫。
-
-本amendment已由`SPEC-PDM-BOM-CREATE-PAGE-001` §29～§33完成本機實作與固定54案驗證：provider convergence、legacy snapshot、API／DTO、Part base UOM／line locked UOM、SLDASM root-first transaction、exact repository inventory與evidence均以§33及`ADR-PDM-BOM-DOMAIN-002`為authority。DEV-096／106歷史PASS仍不取代current unified evidence；production migration與release另受gate管制。

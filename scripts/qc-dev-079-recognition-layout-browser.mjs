@@ -1,13 +1,8 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
-import crypto from "node:crypto";
-import os from "node:os";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
-import { createServer } from "node:http";
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
 import { startDev079IsolatedRuntime } from "./qc-dev-079-isolated-runtime.mjs";
 
 const root = process.cwd();
@@ -27,233 +22,8 @@ fs.mkdirSync(outputDir, { recursive: true });
 
 let baseUrl = process.env.PDM_BASE_URL ?? "";
 let isolatedRuntime = null;
-let isolatedTempDir = null;
-let isolatedRepositoryDir = null;
-let isolatedDistDir = null;
-let isolatedChild = null;
-let isolatedWorkerChild = null;
-let isolatedWorkerToken = null;
-let isolatedPreviewToken = null;
-let isolatedPort = null;
 const browser = await chromium.launch({ headless: true });
 const results = [];
-
-function getFreePort() {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-  });
-}
-
-async function waitForIsolatedServer() {
-  const deadline = Date.now() + 90_000;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${baseUrl}/login`);
-      if (response.status < 500) return;
-    } catch {}
-    await new Promise((resolve) => setTimeout(resolve, 400));
-  }
-  throw new Error("DEV-079 isolated browser server did not start");
-}
-
-function prepareA0002IsolatedDatabase(databasePath) {
-  const database = new Database(databasePath);
-  database.pragma("foreign_keys = ON");
-  const timestamp = new Date().toISOString();
-  database.prepare("UPDATE users SET password_hash = NULL, account_status = 'active', system_role_enabled = 1 WHERE email = 'admin@example.com'").run();
-  database.prepare("UPDATE auth_identities SET status = 'active' WHERE login_identifier = 'admin@example.com'").run();
-  database.prepare("UPDATE number_candidate_reservations SET candidate_code = 'A0002-M01-FORMAL' WHERE id = 'f38497c0-c149-4888-9758-13a8c5c9b56c'").run();
-  database.prepare(`UPDATE numbering_draft_workspaces
-    SET lifecycle_status = 'active', owner_id = 'user-manager-demo', cancelled_at = NULL, cancelled_by = NULL, cancel_reason = NULL, updated_at = :timestamp
-    WHERE id = 'draft-workspace-2b88591e-128c-4bb8-a0e9-97864733700f'`).run({ timestamp });
-  // The source snapshot deliberately keeps this drawing terminal. In the isolated
-  // fixture we reopen only the copied row, then restore the schema trigger.
-  database.exec("DROP TRIGGER IF EXISTS trg_drawings_terminal_state_guard");
-  database.exec("DROP TRIGGER IF EXISTS trg_drawings_number_immutable_guard");
-  database.prepare(`UPDATE drawings SET drawing_number = 'QC-A0002-M01-FORMAL'
-    WHERE id = 'drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877'`).run();
-  database.prepare(`UPDATE drawings
-    SET lifecycle_state = 'drawing_preparation', owner_id = 'user-manager-demo', terminal_at = NULL, updated_at = :timestamp
-    WHERE id = 'drawing-draft-drawing-5252ba10-7bf4-449c-b44d-43e7c68a1978'`).run({ timestamp });
-  database.exec(`CREATE TRIGGER trg_drawings_terminal_state_guard
-    BEFORE UPDATE OF lifecycle_state ON drawings
-    WHEN OLD.lifecycle_state IN ('obsolete', 'merged', 'cancelled') AND NEW.lifecycle_state <> OLD.lifecycle_state
-    BEGIN SELECT RAISE(ABORT, 'DRAWING_TERMINAL_STATE_IMMUTABLE'); END`);
-  database.exec(`CREATE TRIGGER trg_drawings_number_immutable_guard
-    BEFORE UPDATE OF drawing_number ON drawings
-    WHEN OLD.drawing_number IS NOT NULL AND NEW.drawing_number IS NOT OLD.drawing_number
-    BEGIN SELECT RAISE(ABORT, 'DRAWING_NUMBER_IMMUTABLE'); END`);
-  database.prepare(`UPDATE number_candidate_reservations
-    SET reservation_state = 'active', recycled_at = NULL, recycled_by = NULL, recycle_reason = NULL, updated_at = :timestamp
-    WHERE id = '2cd09292-a291-4b7d-a222-9a22f6873c17'`).run({ timestamp });
-  database.prepare(`UPDATE numbering_candidate_revision_drafts
-    SET workspace_id = 'draft-workspace-2b88591e-128c-4bb8-a0e9-97864733700f',
-        drawing_draft_id = 'draft-drawing-5252ba10-7bf4-449c-b44d-43e7c68a1978',
-        candidate_reservation_id = '2cd09292-a291-4b7d-a222-9a22f6873c17',
-        lifecycle_status = 'draft', approval_request_id = NULL,
-        formal_drawing_number_id = NULL, formal_revision_package_id = NULL,
-        promoted_at = NULL, cancelled_at = NULL, cancelled_by = NULL, updated_at = :timestamp
-    WHERE id = 'NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7'`).run({ timestamp });
-  const candidate = database.prepare(`SELECT id, workspace_id, drawing_draft_id, lifecycle_status
-    FROM numbering_candidate_revision_drafts WHERE id = 'NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7'`).get();
-  const activeFiles = candidate
-    ? database.prepare(`SELECT COUNT(*) AS count FROM numbering_candidate_revision_files
-      WHERE candidate_revision_id = :candidateId AND removed_at IS NULL`).get({ candidateId: candidate.id })
-    : { count: 0 };
-  if (!candidate || candidate.workspace_id !== 'draft-workspace-2b88591e-128c-4bb8-a0e9-97864733700f' || Number(activeFiles.count) < 3) {
-    database.close();
-    throw new Error("DEV-079 A0002 isolated candidate fixture was not prepared");
-  }
-  database.close();
-}
-
-function markA0002RecognitionReady(databasePath) {
-  const database = new Database(databasePath);
-  const timestamp = new Date().toISOString();
-  const sourceSessionId = "recognition-8c16aaf4-8b8c-4369-b7a0-c1e9a5559ac6";
-  const seedSessionId = "recognition-870fe33f-6dc3-4e72-a903-3446eac49102";
-  const targetSessionId = "qc-recognition-a0002-dev079";
-  const seed = database.prepare("SELECT * FROM drawing_recognition_sessions WHERE id = :id").get({ id: seedSessionId });
-  if (!seed) throw new Error("DEV-079 isolated seed recognition session is missing");
-  database.prepare("UPDATE drawing_recognition_sessions SET deduplication_key = :deduplicationKey WHERE id = :id").run({ id: seedSessionId, deduplicationKey: `qc-obsolete-${crypto.randomUUID()}` });
-  database.prepare("DELETE FROM drawing_recognition_sessions WHERE id = :id").run({ id: targetSessionId });
-  const insertRow = (table, row) => {
-    const columns = Object.keys(row);
-    database.prepare(`INSERT INTO ${table} (${columns.join(", ")}) VALUES (${columns.map((column) => `:${column}`).join(", ")})`).run(row);
-  };
-  const sourceRows = database.prepare("SELECT * FROM drawing_recognition_sources WHERE session_id = :sessionId ORDER BY sort_order, id").all({ sessionId: sourceSessionId });
-  const seedRows = database.prepare("SELECT * FROM drawing_recognition_sources WHERE session_id = :sessionId ORDER BY sort_order, id").all({ sessionId: seedSessionId });
-  const sourceIdByAsset = new Map(sourceRows.map((row) => [row.file_asset_id, row.id]));
-  const targetSourceMap = new Map(seedRows.map((row) => [row.file_asset_id, `qc-source-${crypto.randomUUID()}`]));
-  const sourceToTargetSource = new Map([...sourceIdByAsset.entries()].map(([assetId, sourceId]) => [sourceId, targetSourceMap.get(assetId)]));
-  const originalDeduplicationKey = seed.deduplication_key;
-  insertRow("drawing_recognition_sessions", { ...seed, id: targetSessionId, status: "review_ready", source_context_type: "candidate_revision", source_context_id: "NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7", source_lineage_key: "candidate_revision:NCR-55c7b355-cfe6-41f1-b714-7fa911b1fed7", deduplication_key: originalDeduplicationKey, supersedes_session_id: seedSessionId, created_at: timestamp, updated_at: timestamp, locked_by: null, locked_at: null, heartbeat_at: null, cancelled_at: null, error_code: null, error_summary: null });
-  for (const row of seedRows) insertRow("drawing_recognition_sources", {
-    ...row,
-    id: targetSourceMap.get(row.file_asset_id),
-    session_id: targetSessionId,
-    adapter_plan_json: /\.pdf$/iu.test(row.file_name) ? '["filename.v1","browser-pdf-ocr.v1"]' : row.adapter_plan_json,
-    created_at: timestamp
-  });
-  const sourceToTargetAdapter = new Map();
-  for (const row of database.prepare("SELECT * FROM drawing_recognition_adapter_results WHERE session_id = :sessionId ORDER BY id").all({ sessionId: sourceSessionId })) {
-    const id = `qc-adapter-${crypto.randomUUID()}`;
-    sourceToTargetAdapter.set(row.id, id);
-    insertRow("drawing_recognition_adapter_results", { ...row, id, session_id: targetSessionId, source_id: sourceToTargetSource.get(row.source_id) ?? row.source_id });
-  }
-  const candidateMap = new Map();
-  for (const row of database.prepare("SELECT * FROM drawing_recognition_candidates WHERE session_id = :sessionId ORDER BY sort_order, id").all({ sessionId: sourceSessionId })) {
-    const id = `qc-candidate-${crypto.randomUUID()}`;
-    candidateMap.set(row.id, id);
-    insertRow("drawing_recognition_candidates", { ...row, id, session_id: targetSessionId });
-  }
-  const observationMap = new Map();
-  for (const row of database.prepare("SELECT * FROM drawing_recognition_observations WHERE session_id = :sessionId ORDER BY captured_at, id").all({ sessionId: sourceSessionId })) {
-    const id = `qc-observation-${crypto.randomUUID()}`;
-    observationMap.set(row.id, id);
-    insertRow("drawing_recognition_observations", { ...row, id, session_id: targetSessionId, source_id: sourceToTargetSource.get(row.source_id) ?? row.source_id, adapter_result_id: sourceToTargetAdapter.get(row.adapter_result_id) ?? row.adapter_result_id });
-  }
-  for (const row of database.prepare("SELECT * FROM drawing_recognition_candidate_observations WHERE candidate_id IN (SELECT id FROM drawing_recognition_candidates WHERE session_id = :sessionId)").all({ sessionId: sourceSessionId })) {
-    insertRow("drawing_recognition_candidate_observations", { ...row, candidate_id: candidateMap.get(row.candidate_id), observation_id: observationMap.get(row.observation_id) });
-  }
-  database.close();
-}
-
-async function startIsolatedRuntime() {
-  if (!ownsRuntime) return;
-  isolatedTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev079-browser-"));
-  isolatedRepositoryDir = path.join(isolatedTempDir, "repository");
-  isolatedDistDir = `.tmp/next-qc-dev079-${crypto.randomUUID()}`;
-  const targetDb = path.join(isolatedTempDir, "ai-pdm.sqlite");
-  fs.copyFileSync(path.join(root, "data", "ai-pdm.sqlite"), targetDb);
-  fs.cpSync(path.join(root, "data", "repository"), isolatedRepositoryDir, { recursive: true });
-  prepareA0002IsolatedDatabase(targetDb);
-  isolatedPort = await getFreePort();
-  baseUrl = `http://127.0.0.1:${isolatedPort}`;
-  const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
-  isolatedWorkerToken = `dev079-worker-${crypto.randomUUID()}`;
-  isolatedPreviewToken = `dev079-preview-${crypto.randomUUID()}-${crypto.randomUUID()}`;
-  isolatedChild = spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(isolatedPort)], {
-    cwd: root,
-    env: {
-      ...process.env,
-      PDM_AUTH_MODE: "demo",
-      PDM_AUTH_SECRET: "dev079-browser-auth-secret",
-      PDM_DB_PROVIDER: "sqlite",
-      PDM_DATA_DIR: isolatedTempDir,
-      PDM_REPOSITORY_DIR: isolatedRepositoryDir,
-      PDM_RELEASE_MODE: "local_stub",
-      PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true",
-      PDM_NUMBER_STATE_FLOW_V1: "true",
-      PDM_NUMBER_LIFECYCLE_V2: "true",
-      PDM_UNIFIED_DRAWING_WORKBENCH_V1: "true",
-      PDM_DRAWING_RECOGNITION_V1: "true",
-      PDM_DRAWING_RECOGNITION_WORKER_TOKEN: isolatedWorkerToken,
-      PDM_PREVIEW_WORKER_TOKEN: isolatedPreviewToken,
-      PDM_PUBLIC_BASE_URL: baseUrl,
-      PDM_NEXT_DIST_DIR: isolatedDistDir
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-    windowsHide: true
-  });
-  console.log(JSON.stringify({ runtime: { project: "AI_PDM", purpose: "DEV-079 A0002 isolated recognition-layout browser QC", port: isolatedPort, pid: isolatedChild.pid, cleanup: "stop exact process tree and verify port release" } }));
-  await waitForIsolatedServer();
-  isolatedWorkerChild = spawn(process.execPath, ["--experimental-transform-types", "scripts/run-drawing-recognition-worker.mjs", "--once"], {
-    cwd: root,
-    env: {
-      ...process.env,
-      PDM_DRAWING_RECOGNITION_WORKER_BASE_URL: baseUrl,
-      PDM_DRAWING_RECOGNITION_WORKER_TOKEN: isolatedWorkerToken,
-      PDM_PREVIEW_WORKER_TOKEN: isolatedPreviewToken,
-      PDM_DRAWING_RECOGNITION_WORKER_ID: `dev079-browser-${crypto.randomUUID()}`,
-      PDM_DRAWING_RECOGNITION_POLL_MS: "250"
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-    windowsHide: true
-  });
-  let workerError = "";
-  isolatedWorkerChild.stderr?.on("data", (chunk) => { workerError = `${workerError}${String(chunk)}`.slice(-4_000); });
-  await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("DEV-079 isolated recognition worker timed out")), 90_000);
-    isolatedWorkerChild.once("exit", (code) => { clearTimeout(timeout); if (code === 0) resolve(); else reject(new Error(`DEV-079 isolated recognition worker exited ${code}: ${workerError}`)); });
-  });
-  markA0002RecognitionReady(targetDb);
-}
-
-async function stopIsolatedRuntime() {
-  if (isolatedWorkerChild && isolatedWorkerChild.exitCode === null) {
-    if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(isolatedWorkerChild.pid), "/T", "/F"], { shell: false, windowsHide: true, stdio: "ignore" });
-    else isolatedWorkerChild.kill("SIGTERM");
-  }
-  if (isolatedChild && isolatedChild.exitCode === null) {
-    if (process.platform === "win32") {
-      spawnSync("taskkill", ["/pid", String(isolatedChild.pid), "/T", "/F"], { shell: false, windowsHide: true, stdio: "ignore" });
-      const deadline = Date.now() + 5_000;
-      while (isolatedChild.exitCode === null && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
-    } else {
-      isolatedChild.kill("SIGTERM");
-    }
-  }
-  if (isolatedPort) {
-    const released = await new Promise((resolve) => {
-      const probe = createServer();
-      probe.once("error", () => resolve(false));
-      probe.listen(isolatedPort, "127.0.0.1", () => probe.close(() => resolve(true)));
-    });
-    if (!released) throw new Error(`temporary DEV-079 port ${isolatedPort} was not released`);
-  }
-  for (const target of [isolatedDistDir ? path.join(root, ...isolatedDistDir.split("/")) : null, isolatedTempDir]) {
-    if (!target) continue;
-    const resolved = path.resolve(target);
-    const allowed = resolved.startsWith(path.resolve(os.tmpdir())) || resolved.startsWith(`${path.resolve(root, ".tmp")}${path.sep}`);
-    if (allowed && fs.existsSync(resolved)) fs.rmSync(resolved, { recursive: true, force: true });
-  }
-}
 
 async function prepareA0002Successor() {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -354,7 +124,7 @@ try {
     const cadEvidenceButton = materialCard.getByRole("button", { name: "檔案屬性", exact: true }).first();
     if (await pdfEvidenceButton.count() < 1 || await cadEvidenceButton.count() < 1) throw new Error(`${viewport.name}: explicit PDF/CAD evidence controls missing`);
     const originalPreview = await page.evaluate(() => ({
-      activeTabText: document.querySelector('.drawing-preview-tabs [role="tab"][aria-selected="true"]')?.textContent?.replace(/\s+/gu, ' ').trim() ?? '',
+      activeTabText: document.querySelector('.dev079-workspace-preview-tabs [role="tab"][aria-selected="true"], .drawing-preview-tabs [role="tab"][aria-selected="true"]')?.textContent?.replace(/\s+/gu, ' ').trim() ?? '',
       mediaKind: document.querySelector('[data-preview-media]')?.getAttribute('data-preview-media') ?? '',
       mediaSrc: document.querySelector('[data-preview-media]')?.getAttribute('src') ?? document.querySelector('[data-preview-media]')?.getAttribute('href') ?? ''
     }));
@@ -475,7 +245,7 @@ try {
       highlightPresent: Boolean(document.querySelector('.dev079-evidence-highlighter')),
       magnifierPresent: Boolean(document.querySelector('.dev079-evidence-magnifier')),
       flashPresent: Boolean(document.querySelector('.dev079-evidence-flash')),
-      activeTabText: document.querySelector('.drawing-preview-tabs [role="tab"][aria-selected="true"]')?.textContent?.replace(/\s+/gu, ' ').trim() ?? '',
+        activeTabText: document.querySelector('.dev079-workspace-preview-tabs [role="tab"][aria-selected="true"], .drawing-preview-tabs [role="tab"][aria-selected="true"]')?.textContent?.replace(/\s+/gu, ' ').trim() ?? '',
       mediaKind: document.querySelector('[data-preview-media]')?.getAttribute('data-preview-media') ?? '',
       mediaSrc: document.querySelector('[data-preview-media]')?.getAttribute('src') ?? document.querySelector('[data-preview-media]')?.getAttribute('href') ?? ''
     }));
@@ -528,7 +298,7 @@ try {
       const manualStartRecognitionPresent = [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('開始辨識'));
       const modifiedInputCount = document.querySelectorAll('.dev079-recognition-candidate.is-modified input').length;
       const modifiedIndicatorText = document.querySelector('.dev079-recognition-field-signals .is-modified')?.textContent?.trim() ?? '';
-      const globalSaveButtons = [...document.querySelectorAll('.dev079-recognition-save-all')];
+      const globalSaveButtons = [...document.querySelectorAll('.dev079-recognition-save-status .primary-button')];
       const materialCards = [...document.querySelectorAll('.dev079-recognition-candidate[data-recognition-field-key="material"]')];
       const materialCard = materialCards[0];
       const materialEvidenceLabels = materialCard ? [...materialCard.querySelectorAll('.dev079-recognition-evidence-source')].map((item) => item.textContent?.replace(/\s+/gu, ' ').trim() ?? '') : [];
@@ -571,7 +341,7 @@ try {
         materialScopeText: materialCard?.querySelector('.dev079-recognition-scope-summary')?.textContent?.replace(/\s+/gu, ' ').trim() ?? '',
         materialEvidenceLabels,
         recognitionStillVisible: Boolean(recognitionHeading && recognitionHeading.getClientRects().length > 0),
-        pendingReviewTextPresent: bodyText.includes("待處理") || bodyText.includes("待核對"),
+        legacyPendingReviewTextPresent: bodyText.includes("待處理"),
         headingBottom: heading?.bottom ?? null,
         preSubmitTop: preSubmit?.top ?? null,
         footerTop: footer?.top ?? null,
@@ -585,7 +355,7 @@ try {
     const passed = response?.status() < 400
       && verification.recognitionHeadingText === "智慧辨識"
       && verification.unifiedHeadingTexts.length === 3
-      && verification.unifiedHeadingTexts[0] === "版次與檔案"
+      && verification.unifiedHeadingTexts[0].startsWith("版次與檔案")
       && /^(FFF／變更影響|關聯料號)$/u.test(verification.unifiedHeadingTexts[1])
       && verification.unifiedHeadingTexts[2] === "智慧辨識"
       && !verification.legacyTaskTabsPresent
@@ -663,8 +433,8 @@ try {
       && verification.modifiedInputCount === 1
       && verification.modifiedIndicatorText === "已修改"
       && verification.globalSaveButtonCount === 1
-      && verification.globalSaveButtonText === "儲存核對結果"
-      && verification.globalSaveButtonEnabled
+      && /^(確認寫入 PDM|更新寫入 PDM|確認資料已一致|帶入 \d+ 個料號工作)$/u.test(verification.globalSaveButtonText)
+      && (verification.globalSaveButtonEnabled || verification.globalSaveButtonText === "帶入 0 個料號工作")
       && verification.materialCardCount === 1
       && verification.materialReviewGroupCount === 1
       && verification.materialMergedCandidateCount === 2
@@ -673,7 +443,7 @@ try {
       && verification.materialEvidenceLabels.every((label) => ["PDF圖面", "檔案屬性"].includes(label))
       && verification.recognitionStillVisible
       && verification.unsavedGuardMessage.includes("尚未儲存的變更")
-      && !verification.pendingReviewTextPresent
+      && !verification.legacyPendingReviewTextPresent
       && !verification.footerOverlapsRecognition
       && verification.horizontalOverflow <= 2
       && verification.visibleAlerts.length === 0
@@ -682,7 +452,7 @@ try {
       && failedRequests.length === 0;
     const screenshot = path.join(outputDir, `${viewport.name}.png`);
     await page.screenshot({ path: screenshot, fullPage: true });
-    await page.locator('.dev079-recognition-save-all').scrollIntoViewIfNeeded();
+    await page.locator('.dev079-recognition-save-status .primary-button').scrollIntoViewIfNeeded();
     await page.waitForTimeout(80);
     const saveButtonScreenshot = path.join(outputDir, `${viewport.name}-save-button.png`);
     await page.screenshot({ path: saveButtonScreenshot, fullPage: true });

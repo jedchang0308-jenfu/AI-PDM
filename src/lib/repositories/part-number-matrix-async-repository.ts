@@ -54,7 +54,6 @@ type MatrixPartRow = {
   item_kind: PartChangePayload["itemKind"];
   custom_specification: string | null;
   is_universal: number | boolean;
-  bom_usage_policy: PartChangePayload["bomUsagePolicy"];
   material_code: string | null;
   material_label: string | null;
   color_code: string | null;
@@ -84,7 +83,6 @@ function formalPayload(row: MatrixPartRow): PartChangePayload {
     itemKind: row.item_kind,
     customSpecification: row.custom_specification,
     isUniversal: Boolean(row.is_universal),
-    bomUsagePolicy: row.bom_usage_policy,
     materialCode: row.material_code,
     materialLabel: row.material_label,
     colorCode: row.color_code,
@@ -147,7 +145,6 @@ export class PartNumberMatrixAsyncRepository {
       SELECT part.id AS part_id, part.part_number, part.sequence_no,
              formal_state.row_version AS formal_row_version,
              part.part_name, part.item_kind, part.custom_specification, part.is_universal,
-             part.bom_usage_policy,
              attributes.material_code, attributes.material_label, attributes.color_code,
              attributes.color_label, attributes.surface_treatment, attributes.variant_note,
              work.id AS work_id, work.owner_user_id AS work_owner_user_id,

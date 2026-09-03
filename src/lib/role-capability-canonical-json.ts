@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-
 export const ROLE_CAPABILITY_CANONICALIZATION_VERSION = 'jenfu.canonical-json.v1' as const
 
 function assertNoLoneSurrogate(value: string) {
@@ -28,6 +26,8 @@ export function canonicalJson(value: unknown): string {
   throw new Error('CANONICAL_JSON_UNSUPPORTED')
 }
 
-export function sha256CanonicalJson(value: unknown) {
-  return createHash('sha256').update(canonicalJson(value), 'utf8').digest('hex')
+export async function sha256CanonicalJsonBrowser(value: unknown) {
+  const bytes = new TextEncoder().encode(canonicalJson(value))
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }

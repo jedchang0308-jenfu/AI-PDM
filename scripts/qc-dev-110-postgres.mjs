@@ -15,7 +15,7 @@ import { DrawingRecognitionPartWorkHandoffAsyncRepository } from "../src/lib/rep
 import { PartChangeWorkAsyncRepository } from "../src/lib/repositories/part-change-work-async-repository.ts";
 import { handoffDrawingRecognitionToPartWorks } from "../src/lib/drawing-recognition-part-work-handoff.ts";
 import { createPlatformActorContext } from "../src/lib/platform-command.ts";
-import { sha256Canonical } from "../src/lib/drawing-recognition-contract.ts";
+import { sha256Canonical } from "../src/lib/drawing-recognition-hash.ts";
 import { createFixtureDatabase, ids } from "./qc-dev-087-fixtures.mjs";
 
 const root = process.cwd();

@@ -3,7 +3,6 @@ export type PartMatrixPayload = {
   itemKind: "purchased" | "manufactured";
   customSpecification: string | null;
   isUniversal: boolean;
-  bomUsagePolicy: "undecided" | "not_required" | "available" | "restricted" | "obsolete";
   materialCode: string | null;
   materialLabel: string | null;
   colorCode: string | null;
@@ -14,16 +13,15 @@ export type PartMatrixPayload = {
 
 export type PartMatrixRowKey = keyof PartMatrixPayload;
 
-export type PartMaintenanceTab = "data" | "maintenance" | "bom";
+export type PartMaintenanceTab = "data" | "maintenance";
 
 export const PART_MAINTENANCE_TABS: ReadonlyArray<{ value: PartMaintenanceTab; label: string }> = [
   { value: "data", label: "資料" },
-  { value: "maintenance", label: "維護" },
-  { value: "bom", label: "BOM" }
+  { value: "maintenance", label: "維護" }
 ];
 
 export function normalizePartMaintenanceTab(value: unknown): PartMaintenanceTab {
-  return value === "maintenance" || value === "bom" ? value : "data";
+  return value === "maintenance" ? value : "data";
 }
 
 export const PART_MATRIX_AUTOSAVE_IDLE_MS = 800;
@@ -40,7 +38,6 @@ export const PART_MATRIX_ROW_REGISTRY: ReadonlyArray<{
   { key: "materialLabel", label: "材質", control: "pair" },
   { key: "colorLabel", label: "顏色", control: "pair" },
   { key: "surfaceTreatment", label: "表面處理", control: "text" },
-  { key: "bomUsagePolicy", label: "BOM 使用規則", control: "select" },
   { key: "isUniversal", label: "共用件", control: "checkbox" },
   { key: "variantNote", label: "變體備註", control: "textarea" }
 ];

@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CanonicalPartPreviewSection } from "@/components/canonical-part-preview-section";
 import { CanonicalRelationMatrixSection } from "@/components/canonical-relation-matrix-section";
 import { CanonicalPartAttachmentManager } from "@/components/canonical-part-attachment-manager";
-import { PartBomContext } from "@/components/part-bom-context";
-import { PartStructureClassification } from "@/components/part-structure-classification";
 import type { CanonicalWorkbenchDetailDto, CanonicalPartDetailPresentation } from "@/lib/pdm-canonical-workbench-contract";
 
 type DetailResponse = CanonicalWorkbenchDetailDto;
@@ -31,7 +29,7 @@ export function PartMaintenanceWorkspaceSections({
   sourceRowKey: string;
   contractToken: string;
   returnTo: string;
-  tab: "maintenance" | "bom";
+  tab: "maintenance";
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -78,14 +76,8 @@ export function PartMaintenanceWorkspaceSections({
     && detail.data.row.actions.some((action) => action.key === "edit");
   const safeReturn = returnTo || "/parts";
   return <div className="part-maintenance-workspace-sections" data-part-maintenance-tab={tab}>
-    {tab === "maintenance" ? <>
-      {presentation.preview ? <CanonicalPartPreviewSection partNumber={partNumber} preview={presentation.preview} control={presentation.previewSourceControl} mode="manage" className="part-maintenance-section part-maintenance-preview" onCommitted={() => void load()} /> : null}
-      <PartStructureClassification partNumberId={partId} contractToken={detail.meta.contractToken || contractToken} className="part-maintenance-section" onSaved={() => void load()} />
-      <section className="part-maintenance-section part-maintenance-attachments" data-section="part-attachments"><div className="canonical-drawer-section-heading"><h3>附件</h3></div><CanonicalPartAttachmentManager partNumber={partNumber} returnTo={safeReturn} embedded onDirtyChange={setAttachmentDirty} /></section>
-      <CanonicalRelationMatrixSection matrix={presentation.relationMatrix} contractToken={detail.meta.contractToken || contractToken} className="part-maintenance-section part-maintenance-relation" mode={partRelationCanManage ? "manage" : "readonly"} activationMode="immediate" onReloadRequested={load} onSaved={() => { setRelationDirty(false); void load(); }} onDirtyChange={setRelationDirty} onOpenDrawing={(href) => window.location.assign(href)} onOpenPart={(href) => window.location.assign(href)} />
-    </> : <>
-      <PartBomContext context={presentation.bomContext} partNumberId={partId} partNumber={partNumber} mode="workspace" returnTo={safeReturn} alwaysShow />
-      <CanonicalRelationMatrixSection matrix={presentation.relationMatrix} contractToken={detail.meta.contractToken || contractToken} mode="readonly" onOpenDrawing={(href) => window.location.assign(href)} onOpenPart={(href) => window.location.assign(href)} />
-    </>}
+    {presentation.preview ? <CanonicalPartPreviewSection partNumber={partNumber} preview={presentation.preview} control={presentation.previewSourceControl} mode="manage" className="part-maintenance-section part-maintenance-preview" onCommitted={() => void load()} /> : null}
+    <section className="part-maintenance-section part-maintenance-attachments" data-section="part-attachments"><div className="canonical-drawer-section-heading"><h3>附件</h3></div><CanonicalPartAttachmentManager partNumber={partNumber} returnTo={safeReturn} embedded onDirtyChange={setAttachmentDirty} /></section>
+    <CanonicalRelationMatrixSection matrix={presentation.relationMatrix} contractToken={detail.meta.contractToken || contractToken} className="part-maintenance-section part-maintenance-relation" mode={partRelationCanManage ? "manage" : "readonly"} activationMode="immediate" onReloadRequested={load} onSaved={() => { setRelationDirty(false); void load(); }} onDirtyChange={setRelationDirty} onOpenDrawing={(href) => window.location.assign(href)} onOpenPart={(href) => window.location.assign(href)} />
   </div>;
 }

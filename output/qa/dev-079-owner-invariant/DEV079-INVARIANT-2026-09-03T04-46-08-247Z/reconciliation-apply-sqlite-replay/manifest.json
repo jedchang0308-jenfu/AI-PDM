@@ -1,0 +1,196 @@
+{
+  "schemaVersion": "dev079-recognition-owner-reconciliation-v1",
+  "runId": "DEV079-RECON-2026-09-03T04-46-11-763Z",
+  "mode": "apply",
+  "target": {
+    "provider": "sqlite",
+    "target": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev079-invariant-7cTk8i\\data\\ai-pdm.sqlite"
+  },
+  "generatedAt": "2026-09-03T04:46:11.790Z",
+  "targetFingerprintBefore": "d7b4a2086756e059c24bf77cba709ae14b6d4f018ecbaef8d94b3bd99f215599",
+  "reviewRequestFingerprintBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "planHash": "7c902d2266fa0a1b2502fc3c2c9ae5af00b501747a8498dd54deeb0f83c3947f",
+  "inventorySummary": {
+    "repairable_exactly_one": 3
+  },
+  "inventory": [
+    {
+      "candidateId": "candidate-dev079-heat",
+      "companyId": "company-dev087-a",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "session-dev079-source",
+      "sessionStatus": "review_ready",
+      "fieldKey": "heat_treatment",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-dev087-a0002",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "part-dev087-a0002"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "candidate-dev079-material",
+      "companyId": "company-dev087-a",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "session-dev079-source",
+      "sessionStatus": "review_ready",
+      "fieldKey": "material",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-dev087-a0002",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "part-dev087-a0002"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "candidate-dev079-surface",
+      "companyId": "company-dev087-a",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "session-dev079-source",
+      "sessionStatus": "review_ready",
+      "fieldKey": "surface_treatment",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-dev087-a0002",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "part-dev087-a0002"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    }
+  ],
+  "plan": [
+    {
+      "candidateId": "candidate-dev079-heat",
+      "sessionId": "session-dev079-source",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-dev087-a0002",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "part-dev087-a0002"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": null,
+        "variant_status": "unrecognized",
+        "review_state": "accepted",
+        "group_key": "part_attribute:heat_treatment",
+        "row_version": 1
+      },
+      "after": {
+        "proposed_owner_id": "part-dev087-a0002",
+        "current_formal_value": null,
+        "current_formal_fingerprint": null,
+        "variant_status": "unrecognized",
+        "review_state": "accepted",
+        "group_key": "fad40f37d1fe46963046fe8ccbda5ce4c60eb1c24b2afa9c1a176ee15c591119",
+        "row_version": 2
+      }
+    },
+    {
+      "candidateId": "candidate-dev079-material",
+      "sessionId": "session-dev079-source",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-dev087-a0002",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "part-dev087-a0002"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": null,
+        "variant_status": "unrecognized",
+        "review_state": "accepted",
+        "group_key": "part_attribute:material",
+        "row_version": 1
+      },
+      "after": {
+        "proposed_owner_id": "part-dev087-a0002",
+        "current_formal_value": null,
+        "current_formal_fingerprint": null,
+        "variant_status": "unrecognized",
+        "review_state": "accepted",
+        "group_key": "253b63deabe155194f429a303bbcafa9ddbee08d189a3055ca6adc972ae5dea7",
+        "row_version": 2
+      }
+    },
+    {
+      "candidateId": "candidate-dev079-surface",
+      "sessionId": "session-dev079-source",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-dev087-a0002",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "part-dev087-a0002"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": null,
+        "variant_status": "unrecognized",
+        "review_state": "accepted",
+        "group_key": "part_attribute:surface_treatment",
+        "row_version": 1
+      },
+      "after": {
+        "proposed_owner_id": "part-dev087-a0002",
+        "current_formal_value": null,
+        "current_formal_fingerprint": null,
+        "variant_status": "unrecognized",
+        "review_state": "accepted",
+        "group_key": "ff7d3204117c4e68eea6d284c72f8579bf1943a8dc5cd83a6099cd9fd0e73c75",
+        "row_version": 2
+      }
+    }
+  ],
+  "status": "APPLIED",
+  "idempotencyKey": "qc-DEV079-INVARIANT-2026-09-03T04-46-08-247Z",
+  "appliedCount": 0,
+  "targetFingerprintAfter": "5b46e62e5bf56d1914f9548bcb9fa62f6aef118086a5fea1bbda768499afdbf1",
+  "reviewRequestFingerprintAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "constraintEvidence": [],
+  "rerunAt": "2026-09-03T04:46:12.098Z",
+  "idempotentReplay": true
+}

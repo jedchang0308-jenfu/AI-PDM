@@ -17,7 +17,9 @@ const dataDir = path.join(tempRoot, "data");
 const repositoryDir = path.join(tempRoot, "repository");
 const clusterDir = path.join(tempRoot, "postgres-cluster");
 const postgresLog = path.join(tempRoot, "postgres.log");
-const sourceDbPath = path.join(root, "data", "ai-pdm.sqlite");
+const gitCommonDir = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root, encoding: "utf8", windowsHide: true }).stdout?.trim();
+const primaryRoot = process.env.PDM_QA_PRIMARY_ROOT?.trim() || (gitCommonDir ? path.dirname(gitCommonDir) : root);
+const sourceDbPath = path.join(primaryRoot, "data", "ai-pdm.sqlite");
 const postgresBin = path.resolve(process.env.PDM_POSTGRES_BIN?.trim() || "C:\\Program Files\\PostgreSQL\\18\\bin");
 fs.mkdirSync(outputDir, { recursive: true });
 fs.mkdirSync(dataDir, { recursive: true });
@@ -128,7 +130,8 @@ console.log(JSON.stringify({ runtimeDeclaration: {
   cleanupCondition: "clients closed, cluster stopped, port released, task temp removed",
   PDM_DATA_DIR: dataDir,
   PDM_REPOSITORY_DIR: repositoryDir,
-  mutationScope: tempRoot
+  mutationScope: tempRoot,
+  primaryReadOnlySource: sourceDbPath
 } }));
 
 try {

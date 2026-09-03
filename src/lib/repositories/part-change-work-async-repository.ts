@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
-import { normalizeBomUomCode, type BomUomCode } from "@/lib/bom-unit-of-measure";
 
 export type PartChangePayload = {
   partName: string;
@@ -15,7 +14,6 @@ export type PartChangePayload = {
   colorLabel: string | null;
   surfaceTreatment: string | null;
   variantNote: string | null;
-  baseUomCode: BomUomCode | null;
 };
 
 type PartRow = {
@@ -41,16 +39,12 @@ export function validatePartChangePayload(value: unknown): PartChangePayload {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料未通過欄位驗證", 422);
   }
   const nullable = (entry: unknown) => entry === null || entry === undefined ? null : typeof entry === "string" ? entry.trim() || null : null;
-  let baseUomCode: BomUomCode | null = null;
-  if (candidate.baseUomCode !== undefined && candidate.baseUomCode !== null && candidate.baseUomCode !== "") {
-    try { baseUomCode = normalizeBomUomCode(candidate.baseUomCode); } catch { throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "基本單位代碼無效", 422); }
-  }
   return {
     partName: candidate.partName.trim(), itemKind: candidate.itemKind as PartChangePayload["itemKind"],
     customSpecification: nullable(candidate.customSpecification), isUniversal: candidate.isUniversal,
     materialCode: nullable(candidate.materialCode), materialLabel: nullable(candidate.materialLabel),
     colorCode: nullable(candidate.colorCode), colorLabel: nullable(candidate.colorLabel),
-    surfaceTreatment: nullable(candidate.surfaceTreatment), variantNote: nullable(candidate.variantNote), baseUomCode
+    surfaceTreatment: nullable(candidate.surfaceTreatment), variantNote: nullable(candidate.variantNote)
   };
 }
 
@@ -70,10 +64,7 @@ export function normalizePartChangePayload(value: unknown, formalBaseline?: Part
   };
   const material = normalizePair(payload.materialCode, payload.materialLabel, baseline?.materialCode ?? null, baseline?.materialLabel ?? null);
   const color = normalizePair(payload.colorCode, payload.colorLabel, baseline?.colorCode ?? null, baseline?.colorLabel ?? null);
-  const hasBaseUom = value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "baseUomCode");
-  const baseUomCode = hasBaseUom ? payload.baseUomCode : (baseline?.baseUomCode ?? payload.baseUomCode);
-  if (baseline?.baseUomCode && !baseUomCode) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "基本單位一旦設定不可清空", 422);
-  return { ...payload, materialCode: material.code, materialLabel: material.label, colorCode: color.code, colorLabel: color.label, baseUomCode };
+  return { ...payload, materialCode: material.code, materialLabel: material.label, colorCode: color.code, colorLabel: color.label };
 }
 
 function rowPayload(row: PartRow): PartChangePayload {
@@ -81,7 +72,7 @@ function rowPayload(row: PartRow): PartChangePayload {
     partName: row.part_name, itemKind: row.item_kind, customSpecification: row.custom_specification,
     isUniversal: Boolean(row.is_universal),
     materialCode: row.material_code, materialLabel: row.material_label, colorCode: row.color_code,
-    colorLabel: row.color_label, surfaceTreatment: row.surface_treatment, variantNote: row.variant_note, baseUomCode: row.base_uom_code ? normalizeBomUomCode(row.base_uom_code) : null
+    colorLabel: row.color_label, surfaceTreatment: row.surface_treatment, variantNote: row.variant_note
   };
 }
 function parsePayload(value: string | PartChangePayload) { return validatePartChangePayload(typeof value === "string" ? JSON.parse(value) : value); }

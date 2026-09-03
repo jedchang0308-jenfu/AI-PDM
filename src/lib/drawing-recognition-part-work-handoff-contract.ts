@@ -1,4 +1,5 @@
-import { sha256Canonical, canonicalizeRecognitionValue } from "@/lib/drawing-recognition-contract";
+import { canonicalizeRecognitionValue } from "@/lib/drawing-recognition-contract";
+import { sha256Canonical } from "@/lib/drawing-recognition-hash";
 import type { PartChangePayload } from "@/lib/repositories/part-change-work-async-repository";
 
 export const DRAWING_RECOGNITION_HANDOFF_SCHEMA = "pdm-recognition-part-work-handoff-v2" as const;

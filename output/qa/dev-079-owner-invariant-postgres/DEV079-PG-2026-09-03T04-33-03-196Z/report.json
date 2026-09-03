@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "dev079-owner-invariant-postgres-qc-v1",
+  "runId": "DEV079-PG-2026-09-03T04-33-03-196Z",
+  "status": "PASS",
+  "provider": "postgres",
+  "migrationAppliedTwice": true,
+  "reconciliation": {
+    "planCount": 8,
+    "appliedCount": 8,
+    "idempotentReplayZeroDelta": true
+  },
+  "assertions": {
+    "triggerRejectsOwnerlessAccepted": true,
+    "concurrentGetZeroWrite": true,
+    "ownerlessAcceptedAfter": 0
+  },
+  "primaryInvariantBefore": {
+    "payload": {
+      "roots": 59,
+      "parts": 59,
+      "drawings": 53,
+      "missingRootReferences": 0,
+      "migrationResidue": [],
+      "identityHash": "faa63427fe904f9c97d50352b5a91f7f955a615bfd07d1060e964e638ad5c983",
+      "foreignKeys": []
+    },
+    "hash": "3453dc9f9c6bc01334626d5b42e15cd3d426833e802d88e88c035b1887f385a5"
+  },
+  "primaryInvariantAfter": {
+    "payload": {
+      "roots": 59,
+      "parts": 59,
+      "drawings": 53,
+      "missingRootReferences": 0,
+      "migrationResidue": [],
+      "identityHash": "faa63427fe904f9c97d50352b5a91f7f955a615bfd07d1060e964e638ad5c983",
+      "foreignKeys": []
+    },
+    "hash": "3453dc9f9c6bc01334626d5b42e15cd3d426833e802d88e88c035b1887f385a5"
+  },
+  "cleanup": {
+    "port": 55749,
+    "tempRoot": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev079-pg-OLgHHO",
+    "condition": "verified in finally"
+  }
+}

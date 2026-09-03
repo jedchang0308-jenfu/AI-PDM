@@ -12,9 +12,11 @@ import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcu
 import { PdmWorkbenchMultiSelectFilter } from "@/components/pdm-workbench-multi-select-filter";
 import { PdmWorkbenchLayoutSwitch } from "@/components/pdm-workbench-layout-switch";
 import { PdmWorkbenchPagination } from "@/components/pdm-workbench-pagination";
-import { CanonicalEntityPreviewGallery } from "@/components/canonical-pdm-preview-gallery";
+import { CanonicalEntityPreviewGallery, CanonicalPreviewThumbnail } from "@/components/canonical-pdm-preview-gallery";
 import { CanonicalPreviewPanel } from "@/components/canonical-preview-panel";
 import { PartPreviewSourceControl } from "@/components/part-preview-source-control";
+import { CanonicalPartPreviewSection } from "@/components/canonical-part-preview-section";
+import { CanonicalRelationMatrixSection } from "@/components/canonical-relation-matrix-section";
 import { CanonicalNumberingCreateAction } from "@/components/canonical-numbering-create-action";
 import { NumberSortHeader } from "@/components/number-sort-header";
 import { DRAWING_LAYOUT_STORAGE_KEY, PART_LAYOUT_STORAGE_KEY, normalizeCanonicalWorkbenchLayout, type CanonicalPreviewProjection, type CanonicalWorkbenchLayout } from "@/lib/pdm-canonical-preview";

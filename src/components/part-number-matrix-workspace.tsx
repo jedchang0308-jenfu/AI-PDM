@@ -231,7 +231,6 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
       next[codeKey] = label && label === formalLabel ? formalCode : null;
     } else if (key === "isUniversal") next.isUniversal = Boolean(value);
     else if (key === "itemKind") next.itemKind = value === "manufactured" ? "manufactured" : "purchased";
-    else if (key === "bomUsagePolicy") next.bomUsagePolicy = ["undecided", "not_required", "available", "restricted", "obsolete"].includes(String(value)) ? value as PartMatrixPayload["bomUsagePolicy"] : "undecided";
     else if (key === "partName") next.partName = typeof value === "string" ? value : "";
     else if (key === "customSpecification") next.customSpecification = typeof value === "string" ? value.trim() || null : null;
     else if (key === "surfaceTreatment") next.surfaceTreatment = typeof value === "string" ? value.trim() || null : null;
@@ -328,8 +327,8 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
       }
     } else if (maintenanceDirty) {
       if (!window.confirm("維護資料尚未儲存，確定要切換分頁並捨棄目前變更嗎？")) return;
-      // Maintenance/BOM sections are intentionally unmounted when leaving
-      // their tab; once the user confirms discard, do not keep a stale page
+      // Maintenance sections are intentionally unmounted when leaving their
+      // tab; once the user confirms discard, do not keep a stale page
       // dirty flag that would guard the next navigation.
       setMaintenanceDirty(false);
     }

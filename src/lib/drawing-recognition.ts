@@ -3,12 +3,12 @@ import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async
 import {
   DrawingRecognitionError,
   requireSafeRecognitionId,
-  sha256Canonical,
   type DrawingRecognitionAdapterCompletion,
   type DrawingRecognitionClientAdapterCompletion,
   type DrawingRecognitionDecisionInput,
   type DrawingRecognitionSourceContextType
 } from "@/lib/drawing-recognition-contract";
+import { sha256Canonical } from "@/lib/drawing-recognition-hash";
 import { isDrawingRecognitionV1Enabled } from "@/lib/number-state-flow-feature";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";

@@ -1,0 +1,542 @@
+{
+  "baseUrl": "http://127.0.0.1:53468",
+  "route": "/numbering/drawings/drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877/workspace?workId=qc-dev079-a0002-canonical-work&returnTo=%2Fnumbering%2Fdrawings",
+  "drawingId": "drawing-draft-drawing-cc7187b8-1ec4-4936-91da-4771f1b8a877",
+  "workId": "qc-dev079-a0002-canonical-work",
+  "drawingNumber": "A0002-M01",
+  "recognitionSessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+  "status": "PASS",
+  "runtimeReceipt": {
+    "project": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release",
+    "purpose": "DEV-079 canonical A0002 layout browser QC",
+    "port": 53468,
+    "owningProcessTree": "runner -> Next dev pid 17808",
+    "cleanupCondition": "browser closes, exact Next tree stops, port releases, task-owned data/repository/dist are removed",
+    "PDM_DATA_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev079-layout-Ygj8z5",
+    "PDM_REPOSITORY_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev079-layout-Ygj8z5\\repository",
+    "mutationScope": [
+      "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev079-layout-Ygj8z5",
+      "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release\\.tmp\\next-qc-dev079-layout-fb688416-d143-43da-8c0a-f449c637e71e",
+      "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release\\public\\generated\\dev-082-ocr\\pdfjs-6.2.108_tesseract-7.0.0"
+    ],
+    "primaryReadOnlySource": {
+      "database": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite",
+      "repository": "C:\\VIBE CODING\\AI_PDM\\data\\repository"
+    },
+    "primaryBefore": {
+      "schemaHash": "8882dd1f2f45a484d50f81708c8ce3d455a91b39e6b2fe13011a303628f5439f",
+      "canonicalIdentityHash": "ef0b5943a045703053a88d265439816ce7636a757878dc8b5834534f6afe97bc",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawings": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "fixtureSource": {
+      "schemaHash": "8882dd1f2f45a484d50f81708c8ce3d455a91b39e6b2fe13011a303628f5439f",
+      "canonicalIdentityHash": "ef0b5943a045703053a88d265439816ce7636a757878dc8b5834534f6afe97bc",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawings": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "fixtureMutationLedger": [
+      {
+        "action": "enable task-owned local admin identity",
+        "scope": "isolated fixture only"
+      },
+      {
+        "action": "insert canonical A0002 work, bind its owner state, and attach exact three revision-file snapshots",
+        "workId": "qc-dev079-a0002-canonical-work",
+        "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+        "files": [
+          {
+            "fileBindingId": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+            "ordinal": 0,
+            "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+            "role": "pdf",
+            "displayName": "A0002-M01.pdf"
+          },
+          {
+            "fileBindingId": "9d264a7a-9ace-4556-8abb-a93f892cfa8f",
+            "ordinal": 1,
+            "contentHash": "e6646cb4be002c7213b3c75cccf5c6aad97fddb11aa8a36e400b0fe1dd32a6ad",
+            "role": "drawing_2d",
+            "displayName": "A0002-M01.SLDDRW"
+          },
+          {
+            "fileBindingId": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+            "ordinal": 2,
+            "contentHash": "15cd458b983e4dddd0836555dfa8eac0f4d3ac87c056403d4279ebbf3d3ec7f4",
+            "role": "cad_3d",
+            "displayName": "A0002.SLDPRT"
+          }
+        ],
+        "scope": "isolated fixture only"
+      }
+    ]
+  },
+  "results": [
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "httpStatus": 200,
+      "passed": true,
+      "verification": {
+        "recognitionHeadingText": "智慧辨識",
+        "unifiedHeadingTexts": [
+          "版次與檔案版次 0.1",
+          "關聯料號",
+          "智慧辨識"
+        ],
+        "legacyTaskTabsPresent": false,
+        "readonlyTagPresent": false,
+        "compactIntroPresent": false,
+        "compactStatusChipPresent": false,
+        "summaryPresent": false,
+        "categoryHeadingsPresent": false,
+        "sourceRoleCards": 0,
+        "candidateCount": 14,
+        "duplicateCanonicalFieldKeys": [],
+        "candidateHelperLabelsPresent": false,
+        "candidateCurrentMetaPresent": false,
+        "candidateCurrentRowCount": 0,
+        "candidateInputCount": 14,
+        "candidateInputWithoutAccessibleName": 0,
+        "candidateActionButtonCount": 0,
+        "standaloneLocateButtonPresent": false,
+        "evidenceFlashText": "",
+        "evidenceHighlighterPresent": true,
+        "evidenceMagnifierPresent": true,
+        "pdfOcrStatusPanelPresent": false,
+        "recognitionScopeHelpPresent": false,
+        "recognitionEyebrowPresent": false,
+        "recognitionFootnotePresent": false,
+        "manualStartRecognitionPresent": false,
+        "modifiedInputCount": 1,
+        "modifiedIndicatorText": "已修改",
+        "globalSaveButtonCount": 1,
+        "globalSaveButtonText": "帶入 0 個料號工作",
+        "globalSaveButtonEnabled": false,
+        "materialCardCount": 1,
+        "materialReviewGroupCount": 1,
+        "materialMergedCandidateCount": 2,
+        "materialScopeText": "",
+        "materialEvidenceLabels": [
+          "PDF圖面",
+          "檔案屬性"
+        ],
+        "recognitionStillVisible": true,
+        "legacyPendingReviewTextPresent": false,
+        "headingBottom": null,
+        "preSubmitTop": null,
+        "footerTop": 795,
+        "footerOverlapsRecognition": false,
+        "horizontalOverflow": 0,
+        "visibleAlerts": [],
+        "processingTextAbsent": true,
+        "unsavedGuardMessage": "目前有尚未儲存的變更，確定要離開嗎？"
+      },
+      "evidencePreview": {
+        "successorSessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+        "successorStatus": "review_ready",
+        "pdfEvidence": {
+          "highlightPresent": true,
+          "highlightMarkerKind": "highlighter",
+          "highlightBackgroundImage": "linear-gradient(rgba(255, 238, 68, 0.12) 0%, rgba(255, 229, 0, 0.58) 16%, rgba(255, 235, 59, 0.5) 84%, rgba(255, 238, 68, 0.16) 100%)",
+          "highlightBorderWidth": "0px",
+          "highlightOutlineWidth": "0px",
+          "magnifierPresent": true,
+          "magnifierState": "ready",
+          "magnifierResolutionMode": "pdf_high_res_crop",
+          "magnifierCoverageRatio": 1,
+          "magnifierEffectiveZoom": 0.921,
+          "magnifierBackingScale": 2.5,
+          "magnifierTargetRect": "{\"left\":179.83976251019976,\"top\":441.0907355752343,\"width\":145.95539553647382,\"height\":32.031507330249724}",
+          "magnifierCropRect": "{\"left\":169.48940970441387,\"top\":389.98798738743045,\"width\":206.776287344539,\"height\":206.776287344539}",
+          "magnifierCacheState": "miss",
+          "magnifierLruSize": 1,
+          "magnifierRenderElapsedMs": 14.9,
+          "magnifierRingBorder": "3px solid rgb(241, 204, 20)",
+          "magnifierPseudoHandleDisplay": "none",
+          "magnifierCanvasWidth": 441,
+          "magnifierCanvasHeight": 441,
+          "magnifierNonWhitePixels": 2546,
+          "caption": "",
+          "renderedMode": "document",
+          "pdfPageState": "ready",
+          "pdfPageRendererCount": 1,
+          "documentViewerCount": 0,
+          "previewLinkTarget": "_blank",
+          "previewSurfaceCount": 1,
+          "previewTabCount": 2,
+          "pdfTabCount": 0,
+          "secondPreviewViewerCount": 1,
+          "highlightWithinRenderedPage": true,
+          "magnifierWithinRenderedPage": true,
+          "magnifierOverlapsHighlight": false,
+          "renderedPageWithinFrame": true,
+          "normalizedHighlight": {
+            "x": 0.26564503205128204,
+            "y": 0.8142849048050771,
+            "width": 0.11694711538461539,
+            "height": 0.02901178603807797
+          },
+          "materialEvidenceText": "材質PDF圖面檔案屬性 不鏽鋼SUS304",
+          "clickedPreviewOpenedNewTab": true
+        },
+        "cadEvidence": {
+          "flash": "來源：A0002.SLDPRT，這是檔案屬性證據，沒有圖面座標。",
+          "highlightPresent": false,
+          "magnifierPresent": false,
+          "documentViewerCount": 0
+        },
+        "focusedEvidence": {
+          "highlightPresent": true,
+          "magnifierPresent": true,
+          "caption": ""
+        },
+        "returnToOriginalButtonPresent": false,
+        "restoredEvidence": {
+          "highlightPresent": false,
+          "magnifierPresent": false,
+          "flashPresent": false,
+          "activeTabText": "2D 圖面A0002-M01.pdf",
+          "mediaKind": "",
+          "mediaSrc": ""
+        },
+        "originalPreview": {
+          "activeTabText": "2D 圖面A0002-M01.pdf",
+          "mediaKind": "",
+          "mediaSrc": ""
+        }
+      },
+      "consoleErrors": [],
+      "failedRequests": [],
+      "expectedPreviewCancellations": [],
+      "expectedNavigationCancellations": [
+        "http://127.0.0.1:53468/api/pdm/drawing-revision-works/qc-dev079-a0002-canonical-work net::ERR_ABORTED",
+        "http://127.0.0.1:53468/api/numbering/drawings/A0002-M01/recognition-session net::ERR_ABORTED"
+      ],
+      "evidenceScreenshot": "output\\qa\\dev-079-recognition-layout\\20260903044531-browser\\desktop-pdf-evidence.png",
+      "screenshot": "output\\qa\\dev-079-recognition-layout\\20260903044531-browser\\desktop.png",
+      "saveButtonScreenshot": "output\\qa\\dev-079-recognition-layout\\20260903044531-browser\\desktop-save-button.png"
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 1024,
+        "height": 768
+      },
+      "httpStatus": 200,
+      "passed": true,
+      "verification": {
+        "recognitionHeadingText": "智慧辨識",
+        "unifiedHeadingTexts": [
+          "版次與檔案版次 0.1",
+          "關聯料號",
+          "智慧辨識"
+        ],
+        "legacyTaskTabsPresent": false,
+        "readonlyTagPresent": false,
+        "compactIntroPresent": false,
+        "compactStatusChipPresent": false,
+        "summaryPresent": false,
+        "categoryHeadingsPresent": false,
+        "sourceRoleCards": 0,
+        "candidateCount": 14,
+        "duplicateCanonicalFieldKeys": [],
+        "candidateHelperLabelsPresent": false,
+        "candidateCurrentMetaPresent": false,
+        "candidateCurrentRowCount": 0,
+        "candidateInputCount": 14,
+        "candidateInputWithoutAccessibleName": 0,
+        "candidateActionButtonCount": 0,
+        "standaloneLocateButtonPresent": false,
+        "evidenceFlashText": "",
+        "evidenceHighlighterPresent": true,
+        "evidenceMagnifierPresent": true,
+        "pdfOcrStatusPanelPresent": false,
+        "recognitionScopeHelpPresent": false,
+        "recognitionEyebrowPresent": false,
+        "recognitionFootnotePresent": false,
+        "manualStartRecognitionPresent": false,
+        "modifiedInputCount": 1,
+        "modifiedIndicatorText": "已修改",
+        "globalSaveButtonCount": 1,
+        "globalSaveButtonText": "帶入 0 個料號工作",
+        "globalSaveButtonEnabled": false,
+        "materialCardCount": 1,
+        "materialReviewGroupCount": 1,
+        "materialMergedCandidateCount": 2,
+        "materialScopeText": "",
+        "materialEvidenceLabels": [
+          "PDF圖面",
+          "檔案屬性"
+        ],
+        "recognitionStillVisible": true,
+        "legacyPendingReviewTextPresent": false,
+        "headingBottom": null,
+        "preSubmitTop": null,
+        "footerTop": 663,
+        "footerOverlapsRecognition": false,
+        "horizontalOverflow": 0,
+        "visibleAlerts": [],
+        "processingTextAbsent": true,
+        "unsavedGuardMessage": "目前有尚未儲存的變更，確定要離開嗎？"
+      },
+      "evidencePreview": {
+        "successorSessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+        "successorStatus": "review_ready",
+        "pdfEvidence": {
+          "highlightPresent": true,
+          "highlightMarkerKind": "highlighter",
+          "highlightBackgroundImage": "linear-gradient(rgba(255, 238, 68, 0.12) 0%, rgba(255, 229, 0, 0.58) 16%, rgba(255, 235, 59, 0.5) 84%, rgba(255, 238, 68, 0.16) 100%)",
+          "highlightBorderWidth": "0px",
+          "highlightOutlineWidth": "0px",
+          "magnifierPresent": true,
+          "magnifierState": "ready",
+          "magnifierResolutionMode": "pdf_high_res_crop",
+          "magnifierCoverageRatio": 1,
+          "magnifierEffectiveZoom": 1.265,
+          "magnifierBackingScale": 2.5,
+          "magnifierTargetRect": "{\"left\":94.99228481307988,\"top\":232.9863885346109,\"width\":77.09438841157332,\"height\":16.919206435978083}",
+          "magnifierCropRect": "{\"left\":169.48940970441384,\"top\":389.9879873874304,\"width\":206.77628734453899,\"height\":206.77628734453899}",
+          "magnifierCacheState": "miss",
+          "magnifierLruSize": 2,
+          "magnifierRenderElapsedMs": 17.1,
+          "magnifierRingBorder": "3px solid rgb(241, 204, 20)",
+          "magnifierPseudoHandleDisplay": "none",
+          "magnifierCanvasWidth": 320,
+          "magnifierCanvasHeight": 320,
+          "magnifierNonWhitePixels": 1297,
+          "caption": "",
+          "renderedMode": "document",
+          "pdfPageState": "ready",
+          "pdfPageRendererCount": 1,
+          "documentViewerCount": 0,
+          "previewLinkTarget": "_blank",
+          "previewSurfaceCount": 1,
+          "previewTabCount": 2,
+          "pdfTabCount": 0,
+          "secondPreviewViewerCount": 1,
+          "highlightWithinRenderedPage": true,
+          "magnifierWithinRenderedPage": true,
+          "magnifierOverlapsHighlight": false,
+          "renderedPageWithinFrame": true,
+          "normalizedHighlight": {
+            "x": 0.265625,
+            "y": 0.8142565972967174,
+            "width": 0.11692202669902912,
+            "height": 0.0290173782450118
+          },
+          "materialEvidenceText": "材質PDF圖面檔案屬性 不鏽鋼SUS304",
+          "clickedPreviewOpenedNewTab": true
+        },
+        "cadEvidence": {
+          "flash": "來源：A0002.SLDPRT，這是檔案屬性證據，沒有圖面座標。",
+          "highlightPresent": false,
+          "magnifierPresent": false,
+          "documentViewerCount": 0
+        },
+        "focusedEvidence": {
+          "highlightPresent": true,
+          "magnifierPresent": true,
+          "caption": ""
+        },
+        "returnToOriginalButtonPresent": false,
+        "restoredEvidence": {
+          "highlightPresent": false,
+          "magnifierPresent": false,
+          "flashPresent": false,
+          "activeTabText": "2D 圖面A0002-M01.pdf",
+          "mediaKind": "",
+          "mediaSrc": ""
+        },
+        "originalPreview": {
+          "activeTabText": "2D 圖面A0002-M01.pdf",
+          "mediaKind": "",
+          "mediaSrc": ""
+        }
+      },
+      "consoleErrors": [],
+      "failedRequests": [],
+      "expectedPreviewCancellations": [],
+      "expectedNavigationCancellations": [
+        "http://127.0.0.1:53468/api/pdm/drawing-revision-works/qc-dev079-a0002-canonical-work net::ERR_ABORTED",
+        "http://127.0.0.1:53468/api/numbering/drawings/A0002-M01/recognition-session net::ERR_ABORTED"
+      ],
+      "evidenceScreenshot": "output\\qa\\dev-079-recognition-layout\\20260903044531-browser\\tablet-pdf-evidence.png",
+      "screenshot": "output\\qa\\dev-079-recognition-layout\\20260903044531-browser\\tablet.png",
+      "saveButtonScreenshot": "output\\qa\\dev-079-recognition-layout\\20260903044531-browser\\tablet-save-button.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "httpStatus": 200,
+      "passed": true,
+      "verification": {
+        "recognitionHeadingText": "智慧辨識",
+        "unifiedHeadingTexts": [
+          "版次與檔案版次 0.1",
+          "關聯料號",
+          "智慧辨識"
+        ],
+        "legacyTaskTabsPresent": false,
+        "readonlyTagPresent": false,
+        "compactIntroPresent": false,
+        "compactStatusChipPresent": false,
+        "summaryPresent": false,
+        "categoryHeadingsPresent": false,
+        "sourceRoleCards": 0,
+        "candidateCount": 14,
+        "duplicateCanonicalFieldKeys": [],
+        "candidateHelperLabelsPresent": false,
+        "candidateCurrentMetaPresent": false,
+        "candidateCurrentRowCount": 0,
+        "candidateInputCount": 14,
+        "candidateInputWithoutAccessibleName": 0,
+        "candidateActionButtonCount": 0,
+        "standaloneLocateButtonPresent": false,
+        "evidenceFlashText": "",
+        "evidenceHighlighterPresent": true,
+        "evidenceMagnifierPresent": true,
+        "pdfOcrStatusPanelPresent": false,
+        "recognitionScopeHelpPresent": false,
+        "recognitionEyebrowPresent": false,
+        "recognitionFootnotePresent": false,
+        "manualStartRecognitionPresent": false,
+        "modifiedInputCount": 1,
+        "modifiedIndicatorText": "已修改",
+        "globalSaveButtonCount": 1,
+        "globalSaveButtonText": "帶入 0 個料號工作",
+        "globalSaveButtonEnabled": false,
+        "materialCardCount": 1,
+        "materialReviewGroupCount": 1,
+        "materialMergedCandidateCount": 2,
+        "materialScopeText": "",
+        "materialEvidenceLabels": [
+          "PDF圖面",
+          "檔案屬性"
+        ],
+        "recognitionStillVisible": true,
+        "legacyPendingReviewTextPresent": false,
+        "headingBottom": null,
+        "preSubmitTop": null,
+        "footerTop": 739.40625,
+        "footerOverlapsRecognition": false,
+        "horizontalOverflow": 0,
+        "visibleAlerts": [],
+        "processingTextAbsent": true,
+        "unsavedGuardMessage": "目前有尚未儲存的變更，確定要離開嗎？"
+      },
+      "evidencePreview": {
+        "successorSessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+        "successorStatus": "review_ready",
+        "pdfEvidence": {
+          "highlightPresent": true,
+          "highlightMarkerKind": "highlighter",
+          "highlightBackgroundImage": "linear-gradient(rgba(255, 238, 68, 0.12) 0%, rgba(255, 229, 0, 0.58) 16%, rgba(255, 235, 59, 0.5) 84%, rgba(255, 238, 68, 0.16) 100%)",
+          "highlightBorderWidth": "0px",
+          "highlightOutlineWidth": "0px",
+          "magnifierPresent": true,
+          "magnifierState": "ready",
+          "magnifierResolutionMode": "pdf_high_res_crop",
+          "magnifierCoverageRatio": 1,
+          "magnifierEffectiveZoom": 1.253,
+          "magnifierBackingScale": 2.5,
+          "magnifierTargetRect": "{\"left\":89.91988125509988,\"top\":220.54536778761715,\"width\":72.97769776823691,\"height\":16.015753665124862}",
+          "magnifierCropRect": "{\"left\":169.48940970441387,\"top\":389.98798738743045,\"width\":206.776287344539,\"height\":206.776287344539}",
+          "magnifierCacheState": "miss",
+          "magnifierLruSize": 2,
+          "magnifierRenderElapsedMs": 14.9,
+          "magnifierRingBorder": "3px solid rgb(241, 204, 20)",
+          "magnifierPseudoHandleDisplay": "none",
+          "magnifierCanvasWidth": 300,
+          "magnifierCanvasHeight": 300,
+          "magnifierNonWhitePixels": 1174,
+          "caption": "",
+          "renderedMode": "document",
+          "pdfPageState": "ready",
+          "pdfPageRendererCount": 1,
+          "documentViewerCount": 0,
+          "previewLinkTarget": "_blank",
+          "previewSurfaceCount": 1,
+          "previewTabCount": 2,
+          "pdfTabCount": 0,
+          "secondPreviewViewerCount": 1,
+          "highlightWithinRenderedPage": true,
+          "magnifierWithinRenderedPage": true,
+          "magnifierOverlapsHighlight": false,
+          "renderedPageWithinFrame": true,
+          "normalizedHighlight": {
+            "x": 0.265625,
+            "y": 0.8142565729827742,
+            "width": 0.11694711538461539,
+            "height": 0.02901178603807797
+          },
+          "materialEvidenceText": "材質PDF圖面檔案屬性 不鏽鋼SUS304",
+          "clickedPreviewOpenedNewTab": true
+        },
+        "cadEvidence": {
+          "flash": "來源：A0002.SLDPRT，這是檔案屬性證據，沒有圖面座標。",
+          "highlightPresent": false,
+          "magnifierPresent": false,
+          "documentViewerCount": 0
+        },
+        "focusedEvidence": {
+          "highlightPresent": true,
+          "magnifierPresent": true,
+          "caption": ""
+        },
+        "returnToOriginalButtonPresent": false,
+        "restoredEvidence": {
+          "highlightPresent": false,
+          "magnifierPresent": false,
+          "flashPresent": false,
+          "activeTabText": "2D 圖面A0002-M01.pdf",
+          "mediaKind": "",
+          "mediaSrc": ""
+        },
+        "originalPreview": {
+          "activeTabText": "2D 圖面A0002-M01.pdf",
+          "mediaKind": "",
+          "mediaSrc": ""
+        }
+      },
+      "consoleErrors": [],
+      "failedRequests": [],
+      "expectedPreviewCancellations": [],
+      "expectedNavigationCancellations": [
+        "http://127.0.0.1:53468/api/pdm/drawing-revision-works/qc-dev079-a0002-canonical-work net::ERR_ABORTED",
+        "http://127.0.0.1:53468/api/numbering/drawings/A0002-M01/recognition-session net::ERR_ABORTED"
+      ],
+      "evidenceScreenshot": "output\\qa\\dev-079-recognition-layout\\20260903044531-browser\\phone-pdf-evidence.png",
+      "screenshot": "output\\qa\\dev-079-recognition-layout\\20260903044531-browser\\phone.png",
+      "saveButtonScreenshot": "output\\qa\\dev-079-recognition-layout\\20260903044531-browser\\phone-save-button.png"
+    }
+  ]
+}

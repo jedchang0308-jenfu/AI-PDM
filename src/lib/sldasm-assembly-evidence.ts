@@ -130,7 +130,7 @@ export async function reconcileSldasmAssemblyEvidence(
   );
   await client.execute(
     `INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at)
-      VALUES (:id, NULL, :actorId, 'bom.sldasm.assembly_promoted', :detail, CURRENT_TIMESTAMP)`,
+      VALUES (:id, NULL, :actorId, 'pdm.sldasm.assembly_promoted', :detail, CURRENT_TIMESTAMP)`,
     {
       id: crypto.randomUUID(),
       actorId: input.actorId,
@@ -149,7 +149,7 @@ export async function reconcileSldasmAssemblyEvidenceForDrawing(
   const result = resultFromRows(selection.rows, selection.crossCompany);
   if (result.status !== "promoted" || !result.targetPartNumberId) return result;
   await client.execute(`UPDATE part_numbers SET structure_type = 'assembly', updated_at = CURRENT_TIMESTAMP WHERE id = :partId AND company_id = :companyId AND structure_type <> 'assembly'`, { companyId: input.companyId, partId: result.targetPartNumberId });
-  await client.execute(`INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (:id, NULL, :actorId, 'bom.sldasm.assembly_promoted', :detail, CURRENT_TIMESTAMP)`, {
+  await client.execute(`INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (:id, NULL, :actorId, 'pdm.sldasm.assembly_promoted', :detail, CURRENT_TIMESTAMP)`, {
     id: crypto.randomUUID(), actorId: input.actorId,
     detail: JSON.stringify({ companyId: input.companyId, drawingNumberId: input.drawingNumberId, targetPartNumberId: result.targetPartNumberId, evidence: "formal_primary_sldasm" })
   });
@@ -166,7 +166,7 @@ export function reconcileSldasmAssemblyEvidenceSync(
   const result = resultFromRows(selection.rows, selection.crossCompany);
   if (result.status !== "promoted" || !result.targetPartNumberId) return result;
   database.prepare(`UPDATE part_numbers SET structure_type = 'assembly', updated_at = CURRENT_TIMESTAMP WHERE id = @partId AND company_id = @companyId AND structure_type <> 'assembly'`).run({ companyId: input.companyId, partId: result.targetPartNumberId });
-  database.prepare(`INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (@id, NULL, @actorId, 'bom.sldasm.assembly_promoted', @detail, CURRENT_TIMESTAMP)`).run({ id: crypto.randomUUID(), actorId: input.actorId, detail: JSON.stringify({ companyId: input.companyId, workId: input.workId, targetPartNumberId: result.targetPartNumberId, drawingNumberId: result.drawingNumberId, evidence: "formal_primary_sldasm" }) });
+  database.prepare(`INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (@id, NULL, @actorId, 'pdm.sldasm.assembly_promoted', @detail, CURRENT_TIMESTAMP)`).run({ id: crypto.randomUUID(), actorId: input.actorId, detail: JSON.stringify({ companyId: input.companyId, workId: input.workId, targetPartNumberId: result.targetPartNumberId, drawingNumberId: result.drawingNumberId, evidence: "formal_primary_sldasm" }) });
   return result;
 }
 
@@ -179,6 +179,6 @@ export function reconcileSldasmAssemblyEvidenceForDrawingSync(
   const result = resultFromRows(selection.rows, selection.crossCompany);
   if (result.status !== "promoted" || !result.targetPartNumberId) return result;
   database.prepare(`UPDATE part_numbers SET structure_type = 'assembly', updated_at = CURRENT_TIMESTAMP WHERE id = @partId AND company_id = @companyId AND structure_type <> 'assembly'`).run({ companyId: input.companyId, partId: result.targetPartNumberId });
-  database.prepare(`INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (@id, NULL, @actorId, 'bom.sldasm.assembly_promoted', @detail, CURRENT_TIMESTAMP)`).run({ id: crypto.randomUUID(), actorId: input.actorId, detail: JSON.stringify({ companyId: input.companyId, drawingNumberId: input.drawingNumberId, targetPartNumberId: result.targetPartNumberId, evidence: "formal_primary_sldasm" }) });
+  database.prepare(`INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at) VALUES (@id, NULL, @actorId, 'pdm.sldasm.assembly_promoted', @detail, CURRENT_TIMESTAMP)`).run({ id: crypto.randomUUID(), actorId: input.actorId, detail: JSON.stringify({ companyId: input.companyId, drawingNumberId: input.drawingNumberId, targetPartNumberId: result.targetPartNumberId, evidence: "formal_primary_sldasm" }) });
   return result;
 }

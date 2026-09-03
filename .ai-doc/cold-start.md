@@ -73,8 +73,8 @@
 - `DEV-032` 是第一版 production 唯一 active launch-moving package；當前子關卡為 `Gate A` production Firebase/provider config、env source、Secret Manager metadata readback與credentialled plan review，仍不得apply。
 - `DEV-046` Phase 1A-1E、Phase 2A與Phase 2B staging activation已完成；Phase 3A production由`DEV-032`執行，Phase 3B+只保留future capsules或另行明確派工。
 - `DEV-048` 圖料號 / 草稿 / 狀態 / 技轉入口整合已本機完成；不得自動續做 provider/staging/release。
-- `DEV-047` bounded schema migration只有Phase A0本機inventory tooling完成；authoritative inventory要等production canary穩定與受控target/snapshot，不要求固定觀察天數。
-- `DEV-041` Phase 3A-1是下一個可選產品切片；`DEV-015`需先選定單一切片；`DEV-033 + DEV-046 Phase 3B + DEV-037`是future GCS authority/cost/continuity package。
+- `DEV-047` 已以accepted technical debt結案；Phase A0 inventory tooling只供未來觸發時重建立基，不是production blocker。
+- `DEV-041` 以Phase 3A-0現行範圍結案，`DEV-015`以未選擇／successor承接結案；`DEV-033 + DEV-046 Phase 3B + DEV-037`只保留future capsule，均非active backlog。
 - `DEV-060` 已完成 Phase 1A→1D 本機 RD/QA/QC；canonical Part Number owner、獨立 BOM Rev、三來源 `/bom/new`、review/release/export/read integration 與 isolated evidence 已通過。commit、live migration、deploy、production smoke與 release仍須另走 gate。
 - `DEV-061` 本機 Phase 1A～1D 已完成，狀態為 `Local RD Implemented / Focused QA-QC Passed / Production Release Gated`。圖號只放受控版次檔，料號保留精簡且不收合的文件清單；每次首版／進版必須重新上傳 `.SLDDRW` + `.SLDPRT/.SLDASM`，相同 3D bytes 才由系統在 company/owner scope 內共用 canonical asset。cleanup 僅 dry-run，production／正式 Drive 或 bucket 刪除、live migration、commit、deploy、release 均未授權。
 - `DEV-062` 已達 `✓ Local RD Implemented / Fixed-3000 QA-QC Passed / Release Gated`。Isolated run `DEV062-20260810-121012-local-isolated`通過aggregate 15/15、contract 40/40、browser 33/33；使用者截圖重開QC後，fixed 3000 run `DEV062-FIX-20260810124507-fixed3000`再以10/10證明兩路由舊頁籤為0、formal/candidate同頁、legacy URL正規化且visible／console／server error為0。本機launcher會啟用DEV-062並以health gate防止Legacy誤判；production flag、deploy、release仍須明確release指令。

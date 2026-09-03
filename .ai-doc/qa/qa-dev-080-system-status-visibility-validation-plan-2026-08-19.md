@@ -1,6 +1,6 @@
 # QA-DEV-080：全系統第一層狀態可見性驗證計畫
 
-狀態：`Historical Focused Gates Passed / DEV-115 Successor Disposition Ready / Current Residual QC Pending / Production Release Gated`
+狀態：`Current QA-QC Complete 12 of 12 / Merged into DEV-087 and DEV-112 / Production Release Owned by DEV-032`
 日期：2026-08-19；amended 2026-09-03
 關聯：`DEV-080`、`SPEC-PDM-STATUS-UX-005`
 風險：Medium
@@ -197,3 +197,9 @@ RD技術主管複核確認，上一段「修復所有舊cross-DEV baseline後重
 Current `qc:dev-080`必須改為Node aggregate：建立task-owned data/repository fixture、明確傳遞隔離env、執行全部current child後再統一判定，不以shell `&&`首敗遮蔽結果；不得再讀`bom-create-workflow.tsx`、`part-detail-content.tsx`、`relation-workbench.tsx`等已退役檔案。DEV-060／068 fixture與UX hierarchy 410保留原owner finding，但不再作DEV-080 closure prerequisite。
 
 Current PASS gate：12案disposition missing／duplicate=0；所有current residual case PASS；critical/security/blocking hidden=0、raw status=0、badge wall=0、accessibility與unexpected visible／console／network error均為0；primary invariant與cleanup完成。通過後DEV-080狀態改為`× 併入 DEV-087／112`，不重複計算successor完成率；若current case發現真實產品缺陷，回該產品owner修正，不得改expected掩蓋。
+
+## 17. 2026-09-03 DEV-115 execution closure
+
+Current registry `.ai-doc/qa/dev-080-current-case-registry.json` 固定QA-080-01～12，missing／duplicate=0；11案由current projection／contract／browser實際執行，QA-080-12以retired route/API不存在或404/410且business-table zero-write證明關閉。三viewport驗證現行`/approvals`、accounts、invitations與settings的狀態說明、keyboard/Escape/focus return、overflow、console/network均PASS；不恢復BOM create、numbering tasks或舊handoff DOM。
+
+Final manifest=`output/qa/dev-115-qa-gate-convergence/DEV115-DEV-080-2026-09-03T04-50-38-215Z/aggregate-manifest.json`；結果12/12 PASS、failed cases=0、open P0/P1=0、primary invariant before=after且cleanup完成。DEV-080依既定契約併入DEV-087／112，不再形成獨立completion或release owner。

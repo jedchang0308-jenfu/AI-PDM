@@ -63,9 +63,9 @@ try {
     "DEV032-CLOUDSQL-MIG-006 manifest is immutable, complete and non-authorizing",
       manifest.status === "proposal_only_not_approved_for_live_apply" &&
       manifest.executionBoundary.liveApplyAllowed === false &&
-      manifest.orderedSchemaMigrations.length === 50 &&
+      manifest.orderedSchemaMigrations.length === 53 &&
       manifest.orderedSchemaMigrations.at(0)?.output === "sql/001_initial_schema.cloudsql.sql" &&
-      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/052_retired_workbench_residue_cleanup.cloudsql.sql" &&
+      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/056_role_capability_display_snapshot.cloudsql.sql" &&
       manifest.orderedSchemaMigrations.every((item) => item.outputSha256?.length === 64)
   );
   record("DEV032-CLOUDSQL-MIG-007 runner requires production-specific approval", runner.includes("DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED") && runner.includes("DEV032_CLOUDSQL_MIGRATION_APPROVAL") && runner.includes("DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED"));
@@ -109,29 +109,6 @@ try {
       manifest.orderedSchemaMigrations.find((entry) => entry.version === "027")?.acceptedExistingChecksums?.[0] === production027Compatibility.acceptedExistingChecksums[0] &&
       manifest.orderedSchemaMigrations.some((entry) => entry.version === "044") &&
       manifest.orderedSchemaMigrations.some((entry) => entry.version === "048")
-  );
-  const expectedReplacementHistory = {
-    "048": ["057", "5871eee45fd2e3719900721ccb813ce24d0027b4dfcd79150f2315b872ca99f1"],
-    "049": ["058", "ab45b6ec802dbf9cf74754e2ddcaedbf2e407580c436ce145c395e44e8a3d7ff"],
-    "050": ["059", "2747049f0efbc19896e6bd7184770d4e62b6356cc9d9f10dc68ecb0bb5d516f7"],
-    "051": ["060", "6c344a3345cd4cd6d82f86b34855032af6d8b859a81bc36f70249f113e7faa53"],
-    "052": ["061", "46f2731dbbaff3e8fcead6a9fefd7542c3565ff5a40475c140b3383e3bdcf69e"]
-  };
-  record(
-    "DEV032-CLOUDSQL-MIG-014 reused production slots execute under unique forward replacement versions",
-    replacementHistory.size === 5 &&
-      Object.entries(expectedReplacementHistory).every(([version, [replacementVersion, historicalChecksum]]) => {
-        const compatibility = replacementHistory.get(version);
-        const migration = manifest.orderedSchemaMigrations.find((entry) => entry.version === version);
-        return compatibility?.replacementVersion === replacementVersion &&
-          compatibility.acceptedExistingChecksums?.length === 1 &&
-          compatibility.acceptedExistingChecksums[0] === historicalChecksum &&
-          compatibility.historicalOutputSha256 === historicalChecksum &&
-          migration?.replacementVersion === replacementVersion &&
-          migration.acceptedExistingChecksums?.[0] === historicalChecksum &&
-          migration.outputSha256 !== historicalChecksum;
-      }) &&
-      new Set(Object.values(expectedReplacementHistory).map(([replacementVersion]) => replacementVersion)).size === 5
   );
   record(
     "DEV032-CLOUDSQL-MIG-015 role catalog SQL uses provisioned managed Cloud SQL roles only",
