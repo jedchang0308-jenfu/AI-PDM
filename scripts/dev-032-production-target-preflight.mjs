@@ -105,11 +105,12 @@ const commands = {
   secrets: runGcloudReadOnlyCommand("production-secret-metadata", ["secrets", "list", "--project", targetProject, "--format=json"])
 };
 
-const envSources = [
+const localEnvSources = [
   ".env.production",
   ".env.production.local",
   "infra/google-cloud/production/production.auto.tfvars.json"
 ].map((filePath) => ({
+  kind: "local_file",
   path: filePath,
   exists: existsSync(path.join(root, filePath))
 }));
@@ -136,6 +137,47 @@ const firebaseProductionConfigReady = (
 const productionRunService = Array.isArray(runServices)
   ? runServices.find((service) => service.metadata?.name === expectedRunService)
   : null;
+const productionRuntimeContainers = productionRunService?.spec?.template?.spec?.containers ?? [];
+const productionRuntimeEnv = productionRuntimeContainers
+  .flatMap((container) => Array.isArray(container.env) ? container.env : [])
+  .filter((entry) => typeof entry?.name === "string" && entry.name.length > 0);
+const productionRuntimeEnvByName = new Map(productionRuntimeEnv.map((entry) => [entry.name, entry]));
+const requiredPublicEnv = Array.isArray(productionTargetContract.parsed?.runtimeEnvironment?.requiredPublicEnv)
+  ? productionTargetContract.parsed.runtimeEnvironment.requiredPublicEnv
+  : [];
+const requiredSecretBackedEnv = Array.isArray(productionTargetContract.parsed?.runtimeEnvironment?.requiredSecretBackedEnv)
+  ? productionTargetContract.parsed.runtimeEnvironment.requiredSecretBackedEnv
+  : [];
+const missingRequiredPublicEnv = requiredPublicEnv.filter((name) => !productionRuntimeEnvByName.has(name));
+const missingRequiredSecretBackedEnv = requiredSecretBackedEnv.filter((name) => !productionRuntimeEnvByName.has(name));
+const invalidRequiredSecretBackedEnv = requiredSecretBackedEnv.filter((name) => {
+  const secretRef = productionRuntimeEnvByName.get(name)?.valueFrom?.secretKeyRef;
+  return !secretRef?.name || !requiredSecretIds.includes(secretRef.name);
+});
+const cloudRunRevisionEnvSource = {
+  kind: "cloud_run_revision",
+  resource: `projects/${targetProject}/locations/${region}/services/${expectedRunService}`,
+  revisionName: productionRunService?.status?.latestReadyRevisionName ?? null,
+  exists: Boolean(productionRunService),
+  valuesPersisted: false,
+  requiredPublicEnv,
+  presentPublicEnv: requiredPublicEnv.filter((name) => productionRuntimeEnvByName.has(name)),
+  missingRequiredPublicEnv,
+  requiredSecretBackedEnv,
+  presentSecretBackedEnv: requiredSecretBackedEnv.filter((name) => {
+    const secretRef = productionRuntimeEnvByName.get(name)?.valueFrom?.secretKeyRef;
+    return Boolean(secretRef?.name && requiredSecretIds.includes(secretRef.name));
+  }),
+  missingRequiredSecretBackedEnv,
+  invalidRequiredSecretBackedEnv
+};
+const envSources = [...localEnvSources, cloudRunRevisionEnvSource];
+const productionEnvSourceReady = (
+  cloudRunRevisionEnvSource.exists &&
+  missingRequiredPublicEnv.length === 0 &&
+  missingRequiredSecretBackedEnv.length === 0 &&
+  invalidRequiredSecretBackedEnv.length === 0
+);
 const productionSqlInstances = Array.isArray(sqlInstances) ? sqlInstances : [];
 const productionSqlInstance = productionSqlInstances.find((instance) => instance.name === expectedCloudSqlInstance) ?? null;
 const productionSecrets = Array.isArray(secretMetadata) ? secretMetadata : [];
@@ -170,8 +212,13 @@ if (!firebaseProductionConfigReady) {
     targetProject
   }));
 }
-if (!envSources.some((source) => source.exists)) {
-  blockers.push(blocker("PRODUCTION_ENV_SOURCE_MISSING", "No production env source file is present in the repo.", { envSources }));
+if (!productionEnvSourceReady) {
+  blockers.push(blocker("PRODUCTION_ENV_SOURCE_MISSING", "The live production Cloud Run revision does not prove every required public env name and Secret Manager binding.", {
+    envSources,
+    missingRequiredPublicEnv,
+    missingRequiredSecretBackedEnv,
+    invalidRequiredSecretBackedEnv
+  }));
 }
 if (!productionRunService) {
   blockers.push(blocker("PRODUCTION_CLOUD_RUN_SERVICE_UNPROVEN", "Expected production Cloud Run service was not proven readable.", {
@@ -262,6 +309,7 @@ const report = {
     requiredSecretIds
   },
   envSources,
+  productionEnvSourceReady,
   cloudRun: {
     commandOk: commands.runServices.ok,
     serviceCount: Array.isArray(runServices) ? runServices.length : null,

@@ -1,5 +1,5 @@
-﻿import { NextResponse } from "next/server";
-import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { NextResponse } from "next/server";
+import { forbidden, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { closeSupplierPortalResponseAsync } from "@/lib/release-records-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
@@ -7,7 +7,7 @@ import { getSubmissionAsync } from "@/lib/submissions-async";
 export const runtime = "nodejs";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; responseId: string }> }) {
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id, responseId } = await params;

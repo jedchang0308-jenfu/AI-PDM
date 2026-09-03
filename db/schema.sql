@@ -4436,3 +4436,22 @@ CREATE TRIGGER IF NOT EXISTS trg_relation_approved_snapshots_no_delete BEFORE DE
 INSERT OR IGNORE INTO pdm_workbench_state_authority_control (id, mode, expected_commit, schema_hash)
 VALUES (1, 'legacy_only', '', 'dev087-v1');
 -- END DEV-087 canonical workbench state authority.
+
+-- DEV-008 role capability display snapshot (last-known-good, read-only fallback).
+CREATE TABLE IF NOT EXISTS role_capability_display_snapshots (
+  application_id TEXT PRIMARY KEY,
+  contract_version TEXT NOT NULL,
+  reader_version TEXT NOT NULL,
+  catalog_version TEXT NOT NULL,
+  catalog_payload_hash TEXT NOT NULL,
+  governance_revision TEXT NOT NULL,
+  organization_version_id TEXT NOT NULL,
+  organization_revision TEXT NOT NULL,
+  projection_cursor INTEGER NOT NULL,
+  role_count INTEGER NOT NULL DEFAULT 0,
+  source_data_at TEXT NOT NULL,
+  snapshot_stored_at TEXT NOT NULL,
+  canonicalization_version TEXT NOT NULL,
+  payload_canonical_json TEXT NOT NULL,
+  payload_sha256 TEXT NOT NULL
+);

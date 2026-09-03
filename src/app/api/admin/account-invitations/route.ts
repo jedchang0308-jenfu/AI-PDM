@@ -5,7 +5,7 @@ import {
   listAccountInvitationsAsync,
   revokeAccountInvitationAsync
 } from "@/lib/account-invitations";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { getAuthMode, type UserRole } from "@/lib/auth-config";
 import { createFirebaseManagedInvitation, revokeFirebaseManagedInvitation } from "@/lib/firebase-managed-invitations";
 
@@ -39,7 +39,7 @@ function invitationBaseUrl(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response) return auth.response;
 
   try {
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response;
 
   const body = await request.json().catch(() => ({}));
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response;
 
   const body = await request.json().catch(() => ({}));

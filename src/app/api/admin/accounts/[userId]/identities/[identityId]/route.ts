@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { AccountLifecycleError, updateAdminAccountIdentityAsync } from "@/lib/account-lifecycle";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import type { AuthIdentityStatus } from "@/lib/repositories/auth-identity-async-repository";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ function accountLifecycleError(error: unknown) {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ userId: string; identityId: string }> }) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response;
 
   const { userId, identityId } = await params;

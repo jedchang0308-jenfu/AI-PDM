@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { forbidden, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { buildSubmissionLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 import { requestSubmissionObsoleteReviewAsync } from "@/lib/submission-lifecycle-async";
@@ -8,7 +8,7 @@ import { getSubmissionAsync } from "@/lib/submissions-async";
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;

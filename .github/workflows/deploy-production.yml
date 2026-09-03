@@ -101,7 +101,10 @@ jobs:
           npm run qc:pdm-account-invitations
           npm run qc:dev-032-production-iac-package
           npm run qc:dev-079:contract
+          npm run qc:dev-079:owner-invariant
           npm run qc:dev-101:contract
+          npm run qc:dev-101:package
+          npm run qc:dev-101:qa-integrity
           npm run qc:pdm-production-slice-numbering-draft
           npm run qc:pdm-number-state-flow-routes
           npm run qc:dev-093:contract
@@ -242,8 +245,8 @@ jobs:
           const fs = require("node:fs");
           const report = JSON.parse(fs.readFileSync("output/production-release/migration-dry-run.json", "utf8"));
           if (report.mode !== "dry_run" || report.connectionAttempted !== false) throw new Error("PRODUCTION_MIGRATION_DRY_RUN_BOUNDARY_INVALID");
-          if (report.schemaMigrationCount !== 50) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
-          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/052_retired_workbench_residue_cleanup.cloudsql.sql") {
+          if (report.schemaMigrationCount !== 52) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
+          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/054_role_capability_display_snapshot.cloudsql.sql") {
             throw new Error("PRODUCTION_MIGRATION_RANGE_INVALID");
           }
           NODE

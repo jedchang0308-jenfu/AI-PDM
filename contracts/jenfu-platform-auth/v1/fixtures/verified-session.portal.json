@@ -1,0 +1,14 @@
+{
+  "contractVersion": "jenfu.platform-auth.v1",
+  "appId": "jenfu-portal",
+  "sessionId": "fixture-portal-session-id-001",
+  "identityIssuer": "https://securetoken.google.com/jenfu-platform-fixture",
+  "identitySubject": "fixtureUidCaseSensitive001",
+  "principalId": "principal-fixture-001",
+  "employeeId": "employee-fixture-001",
+  "localPrincipalId": null,
+  "authEpoch": 0,
+  "issuedAt": "2026-08-31T00:00:00.000Z",
+  "expiresAt": "2026-08-31T08:00:00.000Z",
+  "assuranceLevel": "aal1"
+}

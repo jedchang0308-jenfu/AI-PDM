@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { getApprovalPlatformRequestDetailForCompanyAsync } from "@/lib/approval-platform";
 import {
   drawingRevisionLifecycleErrorPayload,
@@ -10,7 +10,7 @@ import { validateNumberStateMutationRequest } from "@/lib/number-state-flow-api"
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ requestId: string }> }) {
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
   const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");
   const invalid = validateNumberStateMutationRequest({ request, idempotencyKey, requireIdempotency: true });

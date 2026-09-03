@@ -50,7 +50,7 @@ if (!expectedCommit) throw new Error("PRODUCTION_SNAPSHOT_POSTGRES_EXPECTED_COMM
 for (const executable of requiredExecutables) if (!fs.existsSync(path.join(postgresBin, executable))) throw new Error(`PRODUCTION_SNAPSHOT_POSTGRES_TOOL_MISSING:${executable}`);
 if (!fs.existsSync(migrationManifestPath)) throw new Error("PRODUCTION_SNAPSHOT_POSTGRES_MIGRATION_PACKAGE_MISSING");
 const migrationManifest = JSON.parse(fs.readFileSync(migrationManifestPath, "utf8"));
-if (migrationManifest.orderedSchemaMigrations.length !== 50 || migrationManifest.orderedSchemaMigrations.at(-1)?.version !== "052") throw new Error("PRODUCTION_SNAPSHOT_POSTGRES_MIGRATION_PACKAGE_STALE");
+if (migrationManifest.orderedSchemaMigrations.length !== 52 || migrationManifest.orderedSchemaMigrations.at(-1)?.version !== "054") throw new Error("PRODUCTION_SNAPSHOT_POSTGRES_MIGRATION_PACKAGE_STALE");
 
 function stableJson(value) {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;

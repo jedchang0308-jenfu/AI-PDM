@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jenfu://platform/governance-availability/v1/governance-command-receipt",
+  "type": "object",
+  "required": ["commandId", "receiptStatus", "requestHash", "attempt"],
+  "properties": {
+    "commandId": { "type": "string", "minLength": 1 },
+    "requestHash": { "type": ["string", "null"] },
+    "receiptStatus": { "enum": ["processing", "applied", "rejected", "not_found"] },
+    "acceptedAt": { "type": ["string", "null"] },
+    "leaseUntil": { "type": ["string", "null"] },
+    "terminalAt": { "type": ["string", "null"] },
+    "decisionCode": { "type": ["string", "null"] },
+    "auditReference": { "type": ["string", "null"] },
+    "changeCursor": { "type": "integer", "minimum": 0 },
+    "governanceRevision": { "type": "string" },
+    "replayed": { "type": "boolean" },
+    "attempt": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

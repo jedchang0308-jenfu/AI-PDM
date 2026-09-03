@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jenfu.com.tw/platform-entitlement/v1/application-role-catalog.schema.json",
+  "title": "JenfuApplicationRoleCatalogV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "applicationId", "catalogVersion", "publishedAt", "roles", "catalogSha256"],
+  "properties": {
+    "contractVersion": { "const": "jenfu.platform-entitlement.v1" },
+    "applicationId": { "const": "ai-pdm" },
+    "catalogVersion": { "type": "string", "pattern": "^ai-pdm\\.role-catalog\\.[0-9]{4}-[0-9]{2}-[0-9]{2}\\.v[0-9]+$" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/role" }
+    },
+    "catalogSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stableRoleId", "roleCode", "displayName", "assignable", "risk", "subjectKind", "recommendationAllowed", "delegationAllowed", "allowedScopeKinds", "assignmentTier", "permissions", "roleDefinitionHash"],
+      "properties": {
+        "stableRoleId": { "type": "string", "pattern": "^role-[a-z0-9-]+$" },
+        "roleCode": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "assignable": { "type": "boolean" },
+        "risk": { "enum": ["normal", "high", "critical"] },
+        "subjectKind": { "enum": ["employee", "principal"] },
+        "recommendationAllowed": { "type": "boolean" },
+        "delegationAllowed": { "type": "boolean" },
+        "allowedScopeKinds": { "type": "array", "items": { "enum": ["workspace", "project", "global"] }, "minItems": 1, "uniqueItems": true },
+        "assignmentTier": { "enum": ["app_admin", "cross_app_override"] },
+        "permissions": { "type": "array", "items": { "$ref": "#/$defs/permission" }, "uniqueItems": true },
+        "metadata": { "type": "object", "additionalProperties": { "type": ["string", "boolean", "number", "null"] } },
+        "roleDefinitionHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "kind", "allowed"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]*$" },
+        "kind": { "enum": ["page", "action"] },
+        "allowed": { "type": "boolean" }
+      }
+    }
+  }
+}

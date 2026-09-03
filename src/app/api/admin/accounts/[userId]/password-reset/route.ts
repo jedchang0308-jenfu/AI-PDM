@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendProviderRecoveryHandoffForUserAsync } from "@/lib/account-recovery-handoff";
 import { AccountLifecycleError, createAdminAccountPasswordResetAsync } from "@/lib/account-lifecycle";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { getAuthMode } from "@/lib/auth-config";
 
 export const runtime = "nodejs";
@@ -30,7 +30,7 @@ function publicBaseUrl(request: Request) {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ userId: string }> }) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response;
 
   const { userId } = await params;

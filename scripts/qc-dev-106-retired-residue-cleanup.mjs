@@ -47,8 +47,8 @@ check("DEV106-013 PostgreSQL mapper rejects retired BOM payload mapping", postgr
 const allowedTargets = postgresMapper.slice(postgresMapper.indexOf("const allowedTargetTables"), postgresMapper.indexOf("const canonicalIdentityBackfillTables"));
 check("DEV106-014 PostgreSQL mapper cannot target Relation work table", !allowedTargets.includes('"relation_change_works"'));
 check("DEV106-015 coverage oracle no longer expects retired BOM payload", !coverage.includes("bomUsagePolicy"));
-check("DEV106-016 release pipeline pins 50 migrations", workflow.includes("schemaMigrationCount !== 50"));
-check("DEV106-017 release pipeline pins migration 052 as last", workflow.includes("052_retired_workbench_residue_cleanup.cloudsql.sql"));
+check("DEV106-016 release pipeline pins 52 migrations", workflow.includes("schemaMigrationCount !== 52"));
+check("DEV106-017 release pipeline advances through migration 054", workflow.includes("054_role_capability_display_snapshot.cloudsql.sql"));
 
 const db = createFixtureDatabase({ canonical: false });
 try {

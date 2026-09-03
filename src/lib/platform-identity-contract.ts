@@ -12,6 +12,8 @@ import {
 
 export interface VerifiedFirebaseIdentity {
   uid: string;
+  identityIssuer: string;
+  identityAudience: string;
   email: string;
   emailVerified: boolean;
   disabled: boolean;

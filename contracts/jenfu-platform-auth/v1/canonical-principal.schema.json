@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jenfu.com.tw/platform-auth/v1/canonical-principal.schema.json",
+  "title": "CanonicalJenfuPrincipalV1",
+  "description": "Server-verified active OrgMaster principal admitted from the common Jenfu identity provider.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "directoryContractVersion",
+    "identityIssuer",
+    "identitySubject",
+    "principalId",
+    "employeeId",
+    "mappingVersion",
+    "publishedAt"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "jenfu.platform-auth.v1"
+    },
+    "directoryContractVersion": {
+      "const": "organization.active-principal.v1"
+    },
+    "identityIssuer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^https://securetoken\\.google\\.com/[^/\\s]+$"
+    },
+    "identitySubject": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "\\S"
+    },
+    "principalId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "\\S"
+    },
+    "employeeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "\\S"
+    },
+    "mappingVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "publishedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

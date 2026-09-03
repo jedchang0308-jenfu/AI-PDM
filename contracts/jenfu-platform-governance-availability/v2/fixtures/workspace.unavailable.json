@@ -1,0 +1,49 @@
+{
+  "contractVersion": "ai-pdm.role-capability-workspace.v3",
+  "applicationId": "ai-pdm",
+  "catalogVersion": "ai-pdm.role-catalog.2026-09-03.v3",
+  "catalogPayloadHash": "46376639b7aec06798786b9d1a113ba604cf90ca31541a9464ecce7a49d116c8",
+  "governanceRevision": "fixture-governance-last-success",
+  "organizationVersionId": "fixture-organization-last-success",
+  "organizationRevision": "fixture-organization-revision-last-success",
+  "projectionCursor": 13,
+  "selectedRoleId": "role-system-admin",
+  "roles": [
+    {
+      "catalogRole": {
+        "stableRoleId": "role-system-admin",
+        "roleCode": "system_admin",
+        "displayName": "系統管理員",
+        "status": "active",
+        "assignable": true,
+        "riskLevel": "critical",
+        "subjectKind": "principal",
+        "assignmentTier": "cross_app_override",
+        "recommendationAllowed": false,
+        "delegationAllowed": false,
+        "allowedScopeKinds": ["global"]
+      },
+      "effectiveHolderCount": 1,
+      "holderCountLabel": "特權身分 1 個",
+      "managementKind": "privileged_principal",
+      "manualAssignments": [
+        {
+          "assignmentId": "assignment-system-admin-1",
+          "employeeId": "employee-fixture-a",
+          "principalAdmissionId": "admission-privileged-a",
+          "principalHint": "privileged•••A7",
+          "status": "active",
+          "validFrom": "2026-09-02T00:00:00.000Z",
+          "validTo": null,
+          "auditReference": "audit-system-admin-1"
+        }
+      ]
+    }
+  ],
+  "dataState": "unavailable",
+  "mutationAllowed": false,
+  "sourceDataAt": "2026-09-02T00:05:00.000Z",
+  "snapshotStoredAt": "2026-09-02T00:05:01.000Z",
+  "dependency": { "status": "unavailable", "decisionCode": "ORGMASTER_UNAVAILABLE", "correlationId": "fixture-unavailable" },
+  "managementSurface": { "label": "前往 OrgMaster 角色指派", "href": "http://localhost:5000/?panels=governance&focus=governance&details=none&governanceSection=assignments" }
+}

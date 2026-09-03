@@ -61,9 +61,9 @@ check("DEV095-007 migration removes compatibility column", postgresMigration.inc
 check("DEV095-008 migration relies on runner transaction", !/(?:^|\n)\s*(?:BEGIN|COMMIT)\s*;\s*(?:\n|$)/iu.test(postgresMigration));
 check(
   "DEV095-009 production candidate verifies exact migration set",
-  workflow.includes("schemaMigrationCount !== 50") &&
-    workflow.includes("052_retired_workbench_residue_cleanup.cloudsql.sql") &&
-    migrationManifest.orderedSchemaMigrations.length === 50 &&
+  workflow.includes("schemaMigrationCount !== 52") &&
+    workflow.includes("054_role_capability_display_snapshot.cloudsql.sql") &&
+    migrationManifest.orderedSchemaMigrations.length === 52 &&
     migrationManifest.orderedSchemaMigrations.some((entry) => entry.output === "sql/047_remove_bom_module.cloudsql.sql")
 );
 check(

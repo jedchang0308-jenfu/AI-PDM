@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import {
   applyApprovalPlatformRequestAsync,
   getApprovalPlatformRequestDetailForCompanyAsync
@@ -46,7 +46,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
     return NextResponse.json({ error: "WORKBENCH_COMMAND_CONTRACT_RETIRED", message: "舊候選發布正式化命令已退役。" }, { status: 410 });
   }
 
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], { permissionCode: "approval.request.apply" });
   if (auth.response) return auth.response;
   try {
     const result = await applyApprovalPlatformRequestAsync({

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jenfu://platform/governance-availability/v1/ai-pdm-role-capability-workspace",
+  "type": "object",
+  "required": ["contractVersion", "applicationId", "catalogVersion", "catalogPayloadHash", "dataState", "mutationAllowed", "dependency", "roles"],
+  "properties": {
+    "contractVersion": { "const": "ai-pdm.role-capability-workspace.v2" },
+    "applicationId": { "const": "ai-pdm" },
+    "catalogVersion": { "type": "string" },
+    "catalogPayloadHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "dataState": { "enum": ["current", "stale_snapshot", "unavailable"] },
+    "mutationAllowed": { "type": "boolean" },
+    "sourceDataAt": { "type": ["string", "null"] },
+    "snapshotStoredAt": { "type": ["string", "null"] },
+    "dependency": { "type": "object", "required": ["status", "decisionCode", "correlationId"] },
+    "roles": { "type": "array" }
+  },
+  "additionalProperties": true
+}
