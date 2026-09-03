@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 2,
+  "dev": "DEV-032",
+  "generatedAt": "2026-09-03T07:26:59.113Z",
+  "status": "current_candidate_native_restore_rehearsal_verified",
+  "readOnly": true,
+  "productionActionPerformed": false,
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "sourceInstance": "ai-pdm-prod-postgres"
+  },
+  "activeIdentity": {
+    "account": "jedchang0308@jenfu.com.tw",
+    "reauthRequired": false
+  },
+  "candidate": {
+    "manifestPath": "output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json",
+    "manifestSha256": "02e07b51cc4d879088dfdf145ae189f8ddaff1f024be4b66daeb9ecfccc7c374",
+    "schemaMigrationCount": 53
+  },
+  "sourceProtection": {
+    "commandOk": true,
+    "readable": true,
+    "state": "RUNNABLE",
+    "privateOnly": true,
+    "automatedBackupEnabled": true,
+    "pitrEnabled": true,
+    "deletionProtectionEnabled": true,
+    "ready": true
+  },
+  "backups": {
+    "commandOk": true,
+    "successfulCount": 27,
+    "latestSuccessful": {
+      "id": "1788418322752",
+      "status": "SUCCESSFUL",
+      "type": "ON_DEMAND",
+      "timestamp": "2026-09-03T06:53:54.337Z",
+      "ageHours": 0.5513263888888889
+    },
+    "recentWithin48Hours": true
+  },
+  "currentCandidateRehearsal": {
+    "evidencePath": "output/dev-032-cloudsql-native-backup-rehearsal/execution-summary.json",
+    "evidencePresent": true,
+    "candidateMatches": true,
+    "cleanupVerified": true,
+    "matchesCandidate": true,
+    "checks": {
+      "rehearsalSucceeded": true,
+      "sourceIdentityExact": true,
+      "candidateManifestExact": true,
+      "exactArtifactProvenance": true,
+      "restoreWasIsolated": true,
+      "migrationFirstPassSucceeded": true,
+      "migrationRerunIdempotent": true,
+      "reconciliationPassed": true,
+      "noEvidenceBlockers": true,
+      "productionSourceProtected": true,
+      "restoreTargetDeleted": true,
+      "cloudRunJobRestored": true,
+      "costWithinAuthorization": true,
+      "cleanupComplete": true
+    }
+  },
+  "blockers": [],
+  "commands": [
+    {
+      "name": "active-account",
+      "command": [
+        "gcloud",
+        "config",
+        "get-value",
+        "account"
+      ],
+      "readOnly": true,
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "name": "source-instance",
+      "command": [
+        "gcloud",
+        "sql",
+        "instances",
+        "describe",
+        "ai-pdm-prod-postgres",
+        "--project=jenfu-ai-pdm-prod",
+        "--format=json"
+      ],
+      "readOnly": true,
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "name": "source-backups",
+      "command": [
+        "gcloud",
+        "sql",
+        "backups",
+        "list",
+        "--instance=ai-pdm-prod-postgres",
+        "--project=jenfu-ai-pdm-prod",
+        "--limit=30",
+        "--sort-by=~endTime",
+        "--format=json"
+      ],
+      "readOnly": true,
+      "ok": true,
+      "stderr": ""
+    }
+  ],
+  "stopConditions": [
+    "This preflight performs read-only metadata discovery only.",
+    "Do not create an on-demand backup, restore/clone instance, execute SQL, apply Terraform or delete a restore target without separate Lane 3 approval.",
+    "A deleted restore target is the expected end state; its signed execution and cleanup receipts must match the current candidate and remain fail-closed.",
+    "Do not activate production until the current candidate native restore rehearsal and rollback evidence pass."
+  ]
+}

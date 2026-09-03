@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "dev": "DEV-032",
+  "gate": "Gate-C2-current-candidate-native-backup-restore-rehearsal",
+  "generatedAt": "2026-09-03T07:06:36.445Z",
+  "status": "succeeded",
+  "productionActionPerformed": true,
+  "gateWindow": {
+    "startedAt": "2026-09-03T05:20:45.000Z",
+    "completedAt": "2026-09-03T06:52:33.980Z"
+  },
+  "authorization": {
+    "scope": "Create one isolated Cloud SQL native-backup restore target, run the exact current-candidate migration twice and read-only reconciliation only against that target, restore the shared Job definition, and delete all task-owned temporary resources.",
+    "productionSourceDatabaseMutationAllowed": false,
+    "costCapTwd": 100
+  },
+  "source": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "instance": "ai-pdm-prod-postgres",
+    "connectionName": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres",
+    "mutationPerformed": false,
+    "metadataSha256Before": "3232e299c796388d354c8ad4784c93bb6e3528a09f5c7547238690a2556f1bf4",
+    "metadataSha256After": "3232e299c796388d354c8ad4784c93bb6e3528a09f5c7547238690a2556f1bf4",
+    "metadataUnchanged": true,
+    "operationsDuringGate": 0
+  },
+  "candidate": {
+    "sourceRevision": "33ecd1379136ac6bfd88537e6e1d68b3346a089a",
+    "ociRevision": "33ecd1379136ac6bfd88537e6e1d68b3346a089a",
+    "sourceState": "clean",
+    "workflowRun": "33723853513",
+    "candidateRevision": "ai-pdm-prod-gh-33ecd137-33723853513",
+    "candidateTrafficPercent": 0,
+    "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm-migration@sha256:504e8b1bf87bd1edca41dd768c82c452a1a7d73d599628d25d30c2223b4a053d",
+    "imageDigest": "sha256:504e8b1bf87bd1edca41dd768c82c452a1a7d73d599628d25d30c2223b4a053d",
+    "applicationImageDigest": "sha256:6ac0e7395eb2039ae56647a2036fca8b1e5a5bed86323b306bc9cb26aa05bbca",
+    "manifestSha256": "02e07b51cc4d879088dfdf145ae189f8ddaff1f024be4b66daeb9ecfccc7c374",
+    "schemaMigrationCount": 53,
+    "firstSchemaMigration": "sql/001_initial_schema.cloudsql.sql",
+    "lastSchemaMigration": "sql/056_role_capability_display_snapshot.cloudsql.sql"
+  },
+  "restore": {
+    "backupId": "1788372000000",
+    "backupType": "AUTOMATED",
+    "backupStatus": "SUCCESSFUL",
+    "backupCompletedAt": "2026-09-02T18:28:08.356Z",
+    "targetInstance": "ai-pdm-prod-restore-a2938bfb-c2",
+    "connectionName": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-restore-a2938bfb-c2",
+    "sourceDistinct": true,
+    "state": "RUNNABLE",
+    "privateOnly": true,
+    "createOperation": "bd1666b8-4576-45a8-b43a-144e00000025",
+    "restoreOperation": "6fc841a7-f138-43d1-af40-00da00000025",
+    "restoreCompletedAt": "2026-09-03T05:43:27.038Z",
+    "iamAuthenticationEnabledOnTarget": true,
+    "deleted": true,
+    "deleteVerifiedAt": "2026-09-03T06:52:33.980Z",
+    "postDeleteInstanceCount": 0
+  },
+  "baseline": {
+    "target": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-restore-a2938bfb-c2",
+    "readOnly": true,
+    "backupSourceSnapshotSha256": "9776fb3feaeed1a688d0f5a82c54f32beb673234d99035aa5803829f878df8e3"
+  },
+  "migration": {
+    "firstPassExecution": "ai-pdm-prod-migration-runner-mgblk",
+    "firstPassSucceeded": true,
+    "firstPassAppliedVersions": [
+      "053",
+      "055",
+      "056"
+    ],
+    "secondPassExecution": "ai-pdm-prod-migration-runner-2v42k",
+    "secondPassSucceeded": true,
+    "idempotentRerunAppliedVersions": 0,
+    "secondPassAppliedVersions": []
+  },
+  "reconciliation": {
+    "execution": "ai-pdm-prod-migration-runner-mpj4z",
+    "mode": "restore",
+    "readOnly": true,
+    "allChecksPassed": true,
+    "migrationCount": 53,
+    "roleCount": 9,
+    "canonicalPermissionCount": 206,
+    "permissionCount": 226,
+    "counts": {
+      "roots": 58,
+      "parts": 58,
+      "drawings": 49,
+      "legacyDrafts": 0,
+      "workspaces": 60,
+      "provisionalIdentityOverlaps": 162
+    },
+    "sourceSnapshotSha256": "9776fb3feaeed1a688d0f5a82c54f32beb673234d99035aa5803829f878df8e3",
+    "restoreSnapshotSha256": "9776fb3feaeed1a688d0f5a82c54f32beb673234d99035aa5803829f878df8e3",
+    "snapshotUnchanged": true
+  },
+  "supersededTransactionalAttempts": [
+    {
+      "candidateRevision": "77d926f712139dee7f0001099dd7665c21d804c9",
+      "reason": "Migration ledger DML was unavailable after SET ROLE pdm_migration.",
+      "transactionRolledBack": true,
+      "productionSourceTouched": false
+    },
+    {
+      "candidateRevision": "fb431f8a4622f181ca5796e0d49afe4571da454b",
+      "reason": "Existing tables were owned by the IAM bootstrap identity instead of pdm_migration.",
+      "transactionRolledBack": true,
+      "productionSourceTouched": false
+    }
+  ],
+  "jobRestoration": {
+    "job": "ai-pdm-prod-migration-runner",
+    "finalGeneration": 90,
+    "originalImageRestored": true,
+    "originalDefaultSourceTargetRestored": true,
+    "specRestored": true,
+    "reconstructedOriginalSpecSha256": "2bec01389c77faf7d343ee801e1e06b267748b980d9754c57459f98dd911ff7d",
+    "expectedOriginalSpecSha256": "2bec01389c77faf7d343ee801e1e06b267748b980d9754c57459f98dd911ff7d"
+  },
+  "costGuard": {
+    "currency": "TWD",
+    "authorizedCap": 100,
+    "tier": "db-f1-micro",
+    "availabilityType": "ZONAL",
+    "publicIpv4Enabled": false,
+    "backupEnabled": false,
+    "observedResourceLifetimeMinutes": 82.3,
+    "observedCloudSqlUpperBoundTwd": 0.96,
+    "conservativeFourHourCloudSqlUpperBoundTwd": 2.77,
+    "deletedBeforeDeadline": true,
+    "capExceeded": false
+  },
+  "cleanup": {
+    "restoreTargetDeleted": true,
+    "temporaryCloudRunJobCreated": false,
+    "cloudRunJobDefinitionRestored": true,
+    "temporaryBootstrapObjectDeleted": true,
+    "temporaryBucketIamBindingRemoved": true,
+    "localPortOpened": false,
+    "productionSourceDatabaseModified": false,
+    "complete": true
+  },
+  "postGateProductionActions": {
+    "outsideRehearsalGateWindow": true,
+    "migrationFirstPassExecution": "ai-pdm-prod-migration-runner-w29cf",
+    "migrationFirstPassAppliedVersions": [
+      "053",
+      "055",
+      "056"
+    ],
+    "migrationRerunExecution": "ai-pdm-prod-migration-runner-r7gtm",
+    "migrationRerunAppliedVersions": [],
+    "readOnlyReconciliationExecution": "ai-pdm-prod-migration-runner-52mm6",
+    "allChecksPassed": true,
+    "sourceSnapshotSha256": "9776fb3feaeed1a688d0f5a82c54f32beb673234d99035aa5803829f878df8e3",
+    "trafficPromoted": false
+  },
+  "blockers": []
+}
