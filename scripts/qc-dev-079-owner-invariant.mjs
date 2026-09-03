@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
+import { createFixtureDatabase, ids as dev087Ids } from "./qc-dev-087-fixtures.mjs";
+import { sha256Canonical } from "../src/lib/drawing-recognition-contract.ts";
 
 const root = process.cwd();
 const runId = `DEV079-INVARIANT-${new Date().toISOString().replace(/[:.]/g, "-")}`;
@@ -12,7 +14,7 @@ const outputDir = path.join(root, "output", "qa", "dev-079-owner-invariant", run
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev079-invariant-"));
 const dataDir = path.join(tempRoot, "data");
 const repositoryDir = path.join(tempRoot, "repository");
-const sourceDbPath = path.join(root, "data", "ai-pdm.sqlite");
+const sourceDbPath = path.join(tempRoot, "source", "ai-pdm.sqlite");
 const fixtureDbPath = path.join(dataDir, "ai-pdm.sqlite");
 fs.mkdirSync(outputDir, { recursive: true });
 fs.mkdirSync(dataDir, { recursive: true });
@@ -28,6 +30,103 @@ console.log(JSON.stringify({ runtimeDeclaration: {
   PDM_REPOSITORY_DIR: repositoryDir,
   mutationScope: tempRoot
 } }));
+
+function seedDeterministicSourceFixture() {
+  fs.mkdirSync(path.dirname(sourceDbPath), { recursive: true });
+  const database = createFixtureDatabase({ filename: sourceDbPath, rdLifecycle: "preparing" });
+  try {
+    database.prepare("UPDATE users SET role='Admin', system_role_enabled=1 WHERE id=?").run(dev087Ids.owner);
+    database.prepare(`INSERT INTO part_numbers (
+      id, company_id, part_root_id, part_number, sequence_no, sequence_code, part_name, item_kind, record_status, created_by
+    ) VALUES (
+      'part-dev079-unlinked', @company, @root, 'A0002-P02', 2, 'P02', '未連結反例', 'manufactured', 'Released', @owner
+    )`).run({ company: dev087Ids.company, root: dev087Ids.root, owner: dev087Ids.owner });
+
+    const assets = [
+      { id: "asset-dev079-native", name: "A0002-M01.SLDPRT", ext: "sldprt", mime: "application/octet-stream", hash: "a".repeat(64), role: "cad_3d", order: 0, plan: ["native-cad-property.v1"] },
+      { id: "asset-dev079-pdf", name: "A0002-M01.pdf", ext: "pdf", mime: "application/pdf", hash: "b".repeat(64), role: "pdf", order: 1, plan: ["browser-pdf-ocr.v1"] }
+    ];
+    const sourceSetFingerprint = sha256Canonical(assets
+      .toSorted((left, right) => left.order - right.order || left.id.localeCompare(right.id))
+      .map((asset) => ({
+        fileAssetId: asset.id,
+        contentHash: asset.hash,
+        storageGeneration: "",
+        role: asset.role
+      })));
+    const insertAsset = database.prepare(`INSERT INTO file_assets (
+      id, storage_provider, storage_key, file_name, file_ext, mime_type, file_size, content_hash,
+      linked_entity_type, linked_entity_id, document_category, display_name, uploaded_by
+    ) VALUES (
+      @id, 'external', @id, @name, @ext, @mime, 16, @hash,
+      'drawing_revision', @revision, 'other', @name, @owner
+    )`);
+    const insertRevisionFile = database.prepare(`INSERT INTO drawing_revision_files (
+      id, company_id, drawing_revision_id, source_file_asset_id, role, role_source,
+      display_name, sort_order, is_primary, created_by
+    ) VALUES (
+      @bindingId, @company, @revision, @id, @role, 'migration',
+      @name, @order, @isPrimary, @owner
+    )`);
+    for (const asset of assets) {
+      const params = {
+        ...asset,
+        bindingId: `binding-${asset.id}`,
+        company: dev087Ids.company,
+        revision: dev087Ids.rdRevision,
+        owner: dev087Ids.owner,
+        isPrimary: asset.order === 0 ? 1 : 0
+      };
+      insertAsset.run(params);
+      insertRevisionFile.run(params);
+    }
+
+    database.prepare(`INSERT INTO drawing_recognition_sessions (
+      id, company_id, source_context_type, source_context_id, source_lineage_key, drawing_id,
+      drawing_revision_id, source_set_fingerprint, deduplication_key, status, created_by
+    ) VALUES (
+      'session-dev079-source', @company, 'drawing_revision', @revision, 'dev079-source-lineage', @drawing,
+      @revision, @fingerprint, 'dev079-source-dedup', 'review_ready', @owner
+    )`).run({
+      company: dev087Ids.company,
+      revision: dev087Ids.rdRevision,
+      drawing: dev087Ids.drawing,
+      fingerprint: sourceSetFingerprint,
+      owner: dev087Ids.owner
+    });
+    const insertSource = database.prepare(`INSERT INTO drawing_recognition_sources (
+      id, session_id, company_id, file_asset_id, content_hash, file_name, file_ext, mime_type,
+      file_size, source_role, sort_order, adapter_plan_json
+    ) VALUES (
+      @sourceId, 'session-dev079-source', @company, @id, @hash, @name, @ext, @mime,
+      16, @role, @order, @plan
+    )`);
+    for (const asset of assets) insertSource.run({ ...asset, sourceId: `source-${asset.id}`, company: dev087Ids.company, plan: JSON.stringify(asset.plan) });
+    database.prepare(`INSERT INTO drawing_recognition_adapter_results (
+      id, session_id, source_id, company_id, adapter_code, adapter_version,
+      status, observation_count, diagnostics_json, started_at, completed_at
+    ) VALUES (
+      'adapter-dev079-pdf', 'session-dev079-source', 'source-asset-dev079-pdf', @company,
+      'browser-pdf-ocr.v1', 'fixture', 'succeeded', 0, '[]', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    )`).run({ company: dev087Ids.company });
+
+    const insertCandidate = database.prepare(`INSERT INTO drawing_recognition_candidates (
+      id, session_id, company_id, category, field_key, field_label, raw_value, proposed_value,
+      normalized_value, proposed_owner_type, proposed_owner_id, group_key, sort_order, review_state
+    ) VALUES (
+      @id, 'session-dev079-source', @company, 'part_attribute', @fieldKey, @label, @value, @value,
+      @value, 'part_number', @ownerPart, @groupKey, @sortOrder, 'accepted'
+    )`);
+    [
+      { id: "candidate-dev079-material", fieldKey: "material", label: "材質", value: "SUS304", groupKey: "part_attribute:material", sortOrder: 1 },
+      { id: "candidate-dev079-surface", fieldKey: "surface_treatment", label: "表面處理", value: "拋光", groupKey: "part_attribute:surface_treatment", sortOrder: 2 },
+      { id: "candidate-dev079-heat", fieldKey: "heat_treatment", label: "熱處理", value: "無", groupKey: "part_attribute:heat_treatment", sortOrder: 3 }
+    ].forEach((candidate) => insertCandidate.run({ ...candidate, company: dev087Ids.company, ownerPart: dev087Ids.part }));
+    assert.equal(database.pragma("foreign_key_check").length, 0, "deterministic source fixture foreign keys");
+  } finally {
+    database.close();
+  }
+}
 
 function primaryInvariant() {
   const database = new Database(sourceDbPath, { readonly: true, fileMustExist: true });
@@ -91,6 +190,7 @@ function businessHash(database) {
 
 let fixtureDb;
 try {
+  seedDeterministicSourceFixture();
   const primaryBefore = primaryInvariant();
   assert.equal(primaryBefore.payload.foreignKeys.length, 0, "primary foreign keys must be clean before fixture creation");
   assert.equal(primaryBefore.payload.missingRootReferences, 0, "primary root references must be clean before fixture creation");

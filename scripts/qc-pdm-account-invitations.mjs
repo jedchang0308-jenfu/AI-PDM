@@ -217,7 +217,8 @@ try {
       })
     });
   });
-  await managedDeliveryPage.goto(`${app.baseUrl}/settings/account-invitations`, { waitUntil: "networkidle" });
+  await managedDeliveryPage.goto(`${app.baseUrl}/settings/account-invitations`, { waitUntil: "domcontentloaded" });
+  await managedDeliveryPage.getByLabel("姓名").waitFor({ state: "visible" });
   await managedDeliveryPage.getByLabel("姓名").fill("Managed Delivery");
   await managedDeliveryPage.getByLabel("公司電子郵件").fill("managed.delivery@example.com");
   await managedDeliveryPage.getByRole("button", { name: "建立邀請" }).click();
@@ -270,8 +271,9 @@ try {
     body: JSON.stringify({ token: revokedToken, password: invitedPassword })
   });
 
-  await managedDeliveryPage.reload({ waitUntil: "networkidle" });
+  await managedDeliveryPage.reload({ waitUntil: "domcontentloaded" });
   const reissueButton = managedDeliveryPage.getByRole("button", { name: "重新邀請", exact: true });
+  await reissueButton.waitFor({ state: "visible" });
   await reissueButton.click();
   const reissueFormPrefilled =
     await managedDeliveryPage.getByLabel("姓名").inputValue() === "Revoked User" &&

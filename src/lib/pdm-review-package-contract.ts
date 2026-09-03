@@ -1,5 +1,9 @@
 /** Immutable, JSON-only contract persisted in pdm_work_review_requests. */
-import { DRAWING_RECOGNITION_REVIEW_PROJECTION_SCHEMA, type DrawingRecognitionReviewProjection } from "@/lib/drawing-recognition-review-projection";
+import {
+  DRAWING_RECOGNITION_REVIEW_PROJECTION_SCHEMA,
+  isDrawingRecognitionPartWorkHandoffProjection,
+  type DrawingRecognitionReviewProjection
+} from "@/lib/drawing-recognition-review-projection";
 
 export const PDM_REVIEW_PACKAGE_SCHEMA = "pdm-review-package-v2" as const;
 export const PDM_REVIEW_PACKAGE_MAX_TARGETS = 200;
@@ -129,14 +133,16 @@ function jsonValue(value: unknown): value is ReviewPackageJson {
 function jsonObject(value: unknown): value is ReviewPackageJsonObject { return object(value) && Object.values(value).every(jsonValue); }
 
 export function isReviewPackageRecognitionProjection(value: unknown): value is DrawingRecognitionReviewProjection {
+  const baseKeys = ["candidateDecisions", "fields", "projectionHash", "schemaVersion", "session", "sources"];
   return object(value)
-    && exactKeys(value, ["candidateDecisions", "fields", "projectionHash", "schemaVersion", "session", "sources"])
+    && (exactKeys(value, baseKeys) || exactKeys(value, [...baseKeys, "handoff"]))
     && value.schemaVersion === DRAWING_RECOGNITION_REVIEW_PROJECTION_SCHEMA
     && typeof value.projectionHash === "string" && SHA256.test(value.projectionHash)
     && object(value.session) && jsonObject(value.session)
     && Array.isArray(value.sources) && value.sources.every(jsonValue)
     && Array.isArray(value.candidateDecisions) && value.candidateDecisions.every(jsonValue)
-    && Array.isArray(value.fields) && value.fields.every(jsonValue);
+    && Array.isArray(value.fields) && value.fields.every(jsonValue)
+    && (!("handoff" in value) || value.handoff === null || isDrawingRecognitionPartWorkHandoffProjection(value.handoff));
 }
 
 function validRecognition(value: unknown) {
