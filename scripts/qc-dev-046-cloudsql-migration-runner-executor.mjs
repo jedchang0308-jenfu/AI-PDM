@@ -2,7 +2,6 @@
 
 import { spawnSync } from "node:child_process";
 import {
-  DEV032_CLOUDSQL_ISOLATED_RESTORE_MODE,
   DEV046_CLOUDSQL_MIGRATION_APPROVAL,
   buildDev046CloudSqlMigrationRunPlan,
   requireLiveExecutionApproval
@@ -43,7 +42,6 @@ try {
     PDM_CLOUD_SQL_DATABASE: plan.target.databaseName,
     PDM_CLOUD_SQL_USER: plan.target.migrationIamDatabaseUser
   });
-  const productionPlan = buildDev046CloudSqlMigrationRunPlan("output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json");
   const productionApproval = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED";
   const restoreConnectionName = "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-restore-qc-123456";
   const restoreEnv = {
@@ -60,7 +58,7 @@ try {
   record(
     "DEV046-CLOUDSQL-EXEC-001 run plan loads reviewed proposal package",
     plan.schemaMigrationCount >= 18 &&
-      plan.supportFileCount === 2 &&
+      plan.supportFileCount === 3 &&
       plan.liveApplyAllowedByManifest === false &&
       plan.requiresVpcAttachedRunner === true &&
       plan.requiresReviewedAdminBootstrap === true

@@ -11,7 +11,7 @@ Status: proposal_only_not_approved_for_live_apply
 
 ## Proposed Order
 
-1. Execute `sql/000_admin_bootstrap_grants.sql` through the approved privileged database bootstrap path.
+1. For a fresh database execute `sql/000_admin_bootstrap_grants.sql`; for an existing database execute only `sql/001_ai_pdm_contract_schema_bootstrap.sql` through the approved privileged path.
 2. Execute ordered schema files in `cloudsql-migration-manifest.json` through the migration identity.
 3. Execute `sql/999_runtime_grants_refresh.sql`.
 4. Run runtime database smoke through the Cloud Run runtime service account.

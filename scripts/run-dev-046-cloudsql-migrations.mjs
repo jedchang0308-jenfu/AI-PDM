@@ -183,6 +183,10 @@ export function requireLiveExecutionApproval(plan, env = process.env) {
     throw new Error("STATIC_DATABASE_SECRET_FORBIDDEN");
   }
   if (env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) throw new Error("SERVICE_ACCOUNT_KEY_FILE_FORBIDDEN");
+  return {
+    connectionName,
+    targetMode: isolatedRestore ? "isolated_restore" : production ? "production_source" : "staging"
+  };
 }
 
 function connectionConfigFromEnv(plan) {
@@ -288,7 +292,7 @@ if (isMain) {
     if (!execute) {
       console.log(JSON.stringify(summarizePlan(plan, "dry_run"), null, 2));
     } else {
-      const executionTarget = assertDev046CloudSqlMigrationEnvironment(plan);
+      const executionTarget = requireLiveExecutionApproval(plan);
       const result = await executeMigrations(plan);
       console.log(JSON.stringify({ ...summarizePlan(plan, "execute", executionTarget), ...result }, null, 2));
     }

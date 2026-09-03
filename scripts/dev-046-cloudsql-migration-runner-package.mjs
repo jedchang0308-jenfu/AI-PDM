@@ -82,7 +82,6 @@ function buildRunnerContractMarkdown(report) {
   ];
 
   for (const blocker of report.readiness.blockers) lines.push(`- ${blocker}`);
-  lines.push("");
   return `${lines.join("\n")}\n`;
 }
 
@@ -141,7 +140,6 @@ function buildMarkdown(report) {
   lines.push("", "## Notes", "");
   for (const note of report.notes) lines.push(`- ${note}`);
 
-  lines.push("");
   return `${lines.join("\n")}\n`;
 }
 
