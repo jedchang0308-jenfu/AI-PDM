@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jenfu.com.tw/platform-auth/v1/verified-app-session-context.schema.json",
+  "title": "VerifiedJenfuAppSessionV1",
+  "description": "Server-internal verified app session context. This object is not a browser token or a cross-app credential.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "appId",
+    "sessionId",
+    "identityIssuer",
+    "identitySubject",
+    "principalId",
+    "employeeId",
+    "localPrincipalId",
+    "authEpoch",
+    "issuedAt",
+    "expiresAt",
+    "assuranceLevel"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "jenfu.platform-auth.v1"
+    },
+    "appId": {
+      "enum": [
+        "jenfu-portal",
+        "orgmaster",
+        "ai-pdm"
+      ]
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 512
+    },
+    "identityIssuer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^https://securetoken\\.google\\.com/[^/\\s]+$"
+    },
+    "identitySubject": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "\\S"
+    },
+    "principalId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "\\S"
+    },
+    "employeeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "\\S"
+    },
+    "localPrincipalId": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "\\S"
+        }
+      ]
+    },
+    "authEpoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "assuranceLevel": {
+      "enum": [
+        "aal1",
+        "aal2"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "appId": {
+            "const": "jenfu-portal"
+          }
+        },
+        "required": [
+          "appId"
+        ]
+      },
+      "then": {
+        "properties": {
+          "localPrincipalId": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "appId": {
+            "enum": [
+              "orgmaster",
+              "ai-pdm"
+            ]
+          }
+        },
+        "required": [
+          "appId"
+        ]
+      },
+      "then": {
+        "properties": {
+          "localPrincipalId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -11,6 +11,8 @@ const root = process.cwd();
 const extractorPath = path.join(root, "scripts", "windows-shell-thumbnail-extractor.ps1");
 const defaultBaseUrl = process.env.PDM_PREVIEW_WORKER_BASE_URL || "http://127.0.0.1:3000";
 const defaultWorkerId = process.env.PDM_PREVIEW_WORKER_ID || "windows-shell-thumbnail-worker";
+const modelPreviewCapability = "solidworks_3d_preview_png";
+const modelPreviewRendererVersion = "windows-shell-ishellitemimagefactory-v2";
 
 const args = parseArgs(process.argv.slice(2));
 
@@ -39,6 +41,12 @@ const baseUrl = (args.baseUrl || defaultBaseUrl).replace(/\/+$/u, "");
 const workerId = args.workerId || defaultWorkerId;
 const watchMode = args.watch === true;
 const pollMs = readPositiveInt(args.pollMs, 2000);
+const capabilityReporter = createCapabilityReporter({ baseUrl, token, workerId, watchMode });
+await capabilityReporter.update(await evaluateCapabilityCanary({
+  sourcePath: args.canarySource || process.env.PDM_3D_PREVIEW_CANARY_SOURCE || "",
+  size: readPositiveInt(args.size, 512)
+}));
+capabilityReporter.start();
 let idleReported = false;
 
 if (watchMode) {
@@ -84,7 +92,7 @@ while (true) {
   const heartbeat = startJobHeartbeat({ baseUrl, token, workerId, jobId: claim.jobId });
   let succeeded;
   try {
-    succeeded = await processClaim({ baseUrl, token, workerId, claim, size: readPositiveInt(args.size, 512) });
+    succeeded = await processClaim({ baseUrl, token, workerId, claim, size: readPositiveInt(args.size, 512), capabilityReporter });
   } finally {
     heartbeat.stop();
   }
@@ -117,7 +125,7 @@ async function processClaim(input) {
         width: dimensions.width,
         height: dimensions.height,
         generatorProfile: input.claim.generatorProfile,
-        generatorVersion: "windows-shell-ishellitemimagefactory-v1"
+        generatorVersion: modelPreviewRendererVersion
       }
     });
     console.log(
@@ -127,10 +135,12 @@ async function processClaim(input) {
         2
       )
     );
+    await input.capabilityReporter.update({ status: "ready", issueCode: null });
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const errorSummary = userFacingPreviewErrorSummary(error, message);
+    await input.capabilityReporter.update(capabilityStateForError(error, message));
     await failJob({ baseUrl: input.baseUrl, token: input.token, workerId: input.workerId, jobId: input.claim.jobId, errorSummary });
     console.error(
       JSON.stringify(
@@ -148,6 +158,72 @@ async function processClaim(input) {
     );
     return false;
   }
+}
+
+function createCapabilityReporter(input) {
+  let state = { status: "degraded", issueCode: "preview_canary_pending" };
+  let timer = null;
+  const send = async () => {
+    const response = await fetch(`${input.baseUrl}/api/preview-workers/heartbeat`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-pdm-preview-worker-token": input.token
+      },
+      body: JSON.stringify({
+        workerId: input.workerId,
+        capability: modelPreviewCapability,
+        status: state.status,
+        readerVersion: modelPreviewRendererVersion,
+        issueCode: state.issueCode
+      })
+    });
+    if (!response.ok) throw new Error(`3D preview capability heartbeat failed with HTTP ${response.status}.`);
+  };
+  return {
+    async update(next) {
+      state = { ...state, ...next };
+      try {
+        await send();
+      } catch (error) {
+        if (!input.watchMode) throw error;
+      }
+    },
+    start() {
+      if (!input.watchMode || timer) return;
+      timer = setInterval(() => { void send().catch(() => undefined); }, 15_000);
+      timer.unref?.();
+    }
+  };
+}
+
+async function evaluateCapabilityCanary(input) {
+  const sourcePath = String(input.sourcePath || "").trim();
+  if (!sourcePath) return { status: "degraded", issueCode: "preview_canary_pending" };
+  const outputPath = path.join(os.tmpdir(), `ai-pdm-3d-preview-canary-${process.pid}.png`);
+  try {
+    await extractWindowsShellThumbnail(sourcePath, outputPath, input.size);
+    const bytes = fs.readFileSync(outputPath);
+    assertPng(bytes, outputPath);
+    const quality = await analyzePngContent(bytes);
+    assertMeaningfulThumbnailQuality(quality, outputPath);
+    return { status: "ready", issueCode: null };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return capabilityStateForError(error, message);
+  } finally {
+    await fs.promises.rm(outputPath, { force: true }).catch(() => undefined);
+  }
+}
+
+function capabilityStateForError(error, message) {
+  if (error && typeof error === "object" && error.code === "WINDOWS_SHELL_THUMBNAIL_BLANK") {
+    return { status: "degraded", issueCode: "preview_source_not_renderable" };
+  }
+  if (/HBITMAP|Shell GetImage|PNG encoding|thumbnail extractor failed/iu.test(message)) {
+    return { status: "blocked", issueCode: "preview_renderer_failed" };
+  }
+  return { status: "degraded", issueCode: "preview_canary_failed" };
 }
 
 async function claimJob(input) {
@@ -225,7 +301,8 @@ async function failJob(input) {
 async function extractWindowsShellThumbnail(sourcePath, outputPath, size) {
   if (process.platform !== "win32") throw new Error("Windows Shell thumbnail extraction requires Windows.");
   if (!fs.existsSync(extractorPath)) throw new Error(`Extractor script not found: ${extractorPath}`);
-  if (!fs.existsSync(sourcePath)) throw new Error(`Source file not found: ${sourcePath}`);
+  const absoluteSourcePath = path.resolve(sourcePath);
+  if (!fs.existsSync(absoluteSourcePath)) throw new Error(`Source file not found: ${sourcePath}`);
 
   await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
   const powershell = process.env.SystemRoot
@@ -238,7 +315,7 @@ async function extractWindowsShellThumbnail(sourcePath, outputPath, size) {
     "-File",
     extractorPath,
     "-SourcePath",
-    sourcePath,
+    absoluteSourcePath,
     "-OutputPath",
     outputPath,
     "-Size",
@@ -387,6 +464,7 @@ function parseArgs(values) {
     else if (value === "--models-only") parsed.modelsOnly = true;
     else if (value === "--watch") parsed.watch = true;
     else if (value === "--poll-ms") parsed.pollMs = values[++index];
+    else if (value === "--canary-source") parsed.canarySource = values[++index];
   }
   return parsed;
 }
@@ -401,6 +479,7 @@ Environment:
   PDM_PREVIEW_WORKER_BASE_URL  Defaults to http://127.0.0.1:3000
   PDM_PREVIEW_WORKER_TOKEN     Required for API worker mode
   PDM_PREVIEW_WORKER_ID        Defaults to windows-shell-thumbnail-worker
+  PDM_3D_PREVIEW_CANARY_SOURCE Optional real SLDPRT/SLDASM used before reporting ready
 
 Notes:
   API worker mode claims SLDPRT/SLDASM/SLDDRW by default. Use --models-only when

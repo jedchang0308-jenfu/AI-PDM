@@ -1,0 +1,19 @@
+{
+  "contractVersion": "jenfu.platform-entitlement.v1",
+  "errors": [
+    { "httpStatus": 400, "code": "entitlement_request_invalid" },
+    { "httpStatus": 401, "code": "entitlement_session_invalid" },
+    { "httpStatus": 403, "code": "entitlement_authority_unknown" },
+    { "httpStatus": 403, "code": "entitlement_assignment_not_found" },
+    { "httpStatus": 403, "code": "entitlement_role_inactive" },
+    { "httpStatus": 403, "code": "entitlement_scope_mismatch" },
+    { "httpStatus": 403, "code": "permission_explicit_deny" },
+    { "httpStatus": 403, "code": "permission_not_granted" },
+    { "httpStatus": 409, "code": "entitlement_contract_mismatch" },
+    { "httpStatus": 409, "code": "entitlement_dual_authority_detected" },
+    { "httpStatus": 409, "code": "entitlement_authority_switch_required" },
+    { "httpStatus": 410, "code": "legacy_assignment_mutation_retired" },
+    { "httpStatus": 503, "code": "entitlement_authority_unavailable" },
+    { "httpStatus": 503, "code": "external_catalog_unavailable" }
+  ]
+}

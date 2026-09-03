@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, CheckCircle2, LoaderCircle, RefreshCcw, Save, ScanSearch } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, LoaderCircle, RefreshCcw, ScanSearch } from "lucide-react";
 import {
   useDrawingRecognitionBrowserOcr,
   type DrawingRecognitionBrowserOcrSession
@@ -9,6 +9,7 @@ import {
 import { TextHint } from "@/components/compact-hints";
 import { getStatusDisplay } from "@/lib/status-display";
 import type { DrawingRecognitionReviewProjection, RecognitionReviewField } from "@/lib/drawing-recognition-review-projection";
+import styles from "./drawing-recognition-workspace-panel.module.css";
 
 export type DrawingRecognitionEvidence = {
   sessionId: string | null;
@@ -99,6 +100,13 @@ type Session = DrawingRecognitionBrowserOcrSession & {
   candidates: Candidate[];
   reviewGroups?: ReviewGroup[];
   reviewFields?: RecognitionReviewField[];
+  sessionPurpose?: "recognition" | "rerun" | "amendment";
+  evidenceOriginSessionId?: string | null;
+  applicationScope?: { eligibleParts: Array<{ id: string; partNumber: string; partName: string; partRootId: string }>; eligiblePartCount: number; relationScopeFingerprint: string };
+  contractToken?: string | null;
+  commonFields?: Array<{ fieldKey: string; label: string; intent: "value" | "clear" | "not_applicable"; value: string | null; origin: string; exceptionCount: number }>;
+  exceptions?: Array<{ partId: string; partNumber: string; fieldKey: string; label: string; intent: "value" | "clear" | "not_applicable"; value: string | null; origin: string }>;
+  handoffControl?: { state: string; workMutationCount: number; unchangedCount: number; blockers: string[] };
 };
 
 type NativeMetadataHealth = {
@@ -108,6 +116,13 @@ type NativeMetadataHealth = {
   retryable: boolean;
   affectedSources: Array<{ sourceId: string; fileName: string; status: string }>;
 };
+
+const HANDOFF_FIELD_OPTIONS = [
+  { fieldKey: "material", label: "材質" },
+  { fieldKey: "color", label: "顏色" },
+  { fieldKey: "surface_finish", label: "表面處理" },
+  { fieldKey: "variant_note", label: "版本備註" }
+] as const;
 
 function NativeMetadataHealthBanner({
   health,
@@ -323,19 +338,29 @@ export function DrawingRecognitionWorkspacePanel({
   const [session, setSession] = useState<Session | null>(() => immutableSession);
   const [loading, setLoading] = useState(!snapshotMode);
   const [busy, setBusy] = useState(false);
+  const [cancelArmed, setCancelArmed] = useState(false);
   const [restricted, setRestricted] = useState(false);
   const [featureEnabled, setFeatureEnabled] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [drafts, setDrafts] = useState<Record<string, string>>(() => Object.fromEntries((immutableSession?.candidates ?? []).map((candidate) => [candidate.id, candidate.proposedValue ?? ""])));
+  const [handoffCommonDraft, setHandoffCommonDraft] = useState<Record<string, string>>({});
+  const [handoffOverrideDraft, setHandoffOverrideDraft] = useState<Record<string, string>>({});
+  const [overridePartId, setOverridePartId] = useState("");
+  const [overrideFieldKey, setOverrideFieldKey] = useState("material");
+  const [overrideValue, setOverrideValue] = useState("");
   const loadedSourceContextRef = useRef<string | null>(null);
   const latestLoadAbortRef = useRef<AbortController | null>(null);
+  const commitIdempotencyKeyRef = useRef<string | null>(null);
+  const amendmentIdempotencyKeyRef = useRef<string | null>(null);
+  const cancelAmendmentIdempotencyKeyRef = useRef<string | null>(null);
+  const handoffIdempotencyKeyRef = useRef<string | null>(null);
   const sourceKey = useMemo(() => [...sourceAssetIds].filter(Boolean).sort().join("|"), [sourceAssetIds]);
   const stableSourceAssetIds = useMemo(() => sourceKey ? sourceKey.split("|") : [], [sourceKey]);
   const visibleCandidates = useMemo(() => session?.candidates.filter((candidate) => !isHiddenCandidate(candidate)) ?? [], [session]);
   const visibleReviewGroups = useMemo(() => {
     if (!session) return [];
-    const groups = session.reviewGroups?.filter((group) => !isHiddenCandidate({ fieldKey: group.fieldKey } as Candidate));
+    const groups = session.reviewGroups?.filter((group) => group.category !== "part_attribute" && !isHiddenCandidate({ fieldKey: group.fieldKey } as Candidate));
     return groups && groups.length > 0 ? groups : visibleCandidates.map((candidate) => ({
       id: candidate.id,
       category: candidate.category,
@@ -355,6 +380,14 @@ export function DrawingRecognitionWorkspacePanel({
     ? session.reviewFields.filter((field) => !isHiddenCandidate({ fieldKey: field.fieldKey } as Candidate)).map((field) => ({ ...field, reviewGroups: field.scopes as unknown as ReviewGroup[] })) as unknown as DisplayReviewGroup[]
     : coalesceReviewGroupsForDisplay(visibleReviewGroups, visibleCandidates), [session, visibleCandidates, visibleReviewGroups]);
   const hasDraftChanges = useMemo(() => visibleCandidates.some((candidate) => (drafts[candidate.id] ?? "") !== (candidate.proposedValue ?? "")), [drafts, visibleCandidates]);
+  const handoffCommonFields = useMemo(() => session?.commonFields ?? [], [session?.commonFields]);
+  const handoffFieldRows = useMemo(() => HANDOFF_FIELD_OPTIONS.map((option) => session?.commonFields?.find((field) => field.fieldKey === option.fieldKey) ?? ({ ...option, intent: "value" as const, value: null, origin: "unset", exceptionCount: 0 })), [session?.commonFields]);
+  const handoffExceptions = useMemo(() => session?.exceptions ?? [], [session?.exceptions]);
+  const hasHandoffDraftChanges = useMemo(() => {
+    const commonChanged = handoffCommonFields.some((field) => (handoffCommonDraft[field.fieldKey] ?? field.value ?? "") !== (field.value ?? ""));
+    const overrideChanged = handoffExceptions.some((field) => (handoffOverrideDraft[`${field.partId}:${field.fieldKey}`] ?? field.value ?? "") !== (field.value ?? ""));
+    return commonChanged || overrideChanged || Boolean(Object.keys(handoffOverrideDraft).some((key) => !handoffExceptions.some((field) => `${field.partId}:${field.fieldKey}` === key)));
+  }, [handoffCommonDraft, handoffExceptions, handoffOverrideDraft, handoffCommonFields]);
   const hasUnresolvedPartOwner = useMemo(() => displayReviewGroups.some((group) => Boolean(group.blockingReason)) || visibleCandidates.some(requiresPartOwner), [displayReviewGroups, visibleCandidates]);
   const hasDecisionsToSave = visibleReviewGroups.some((group) => {
     const modified = group.memberCandidateIds.some((id) => {
@@ -367,20 +400,48 @@ export function DrawingRecognitionWorkspacePanel({
     }));
   });
 
+  const handoffFields = useMemo(() => {
+    const fields = new Map<string, { fieldKey: string; intent: "value" | "clear" | "not_applicable"; value: string | null }>();
+    for (const field of handoffFieldRows) {
+      const value = handoffCommonDraft[field.fieldKey] ?? field.value;
+      if (value !== null || field.value !== null) fields.set(field.fieldKey, { fieldKey: field.fieldKey, intent: field.intent, value });
+    }
+    return [...fields.values()];
+  }, [handoffCommonDraft, handoffFieldRows]);
+  const handoffOverrides = useMemo(() => {
+    const values = new Map<string, { partId: string; fieldKey: string; intent: "value" | "clear" | "not_applicable"; value: string | null }>();
+    for (const field of handoffExceptions) {
+      const key = `${field.partId}:${field.fieldKey}`;
+      values.set(key, { partId: field.partId, fieldKey: field.fieldKey, intent: field.intent, value: handoffOverrideDraft[key] ?? field.value });
+    }
+    for (const [key, value] of Object.entries(handoffOverrideDraft)) {
+      if (values.has(key)) continue;
+      const [partId, fieldKey] = key.split(":");
+      if (partId && fieldKey) values.set(key, { partId, fieldKey, intent: "value", value });
+    }
+    return [...values.values()];
+  }, [handoffExceptions, handoffOverrideDraft]);
+
   const setProjection = useCallback((next: Session) => {
     setSession(next);
     setDrafts(Object.fromEntries(next.candidates.map((candidate) => [candidate.id, candidate.proposedValue ?? ""])));
+    setHandoffCommonDraft(Object.fromEntries((next.commonFields ?? []).map((field) => [field.fieldKey, field.value ?? ""])));
+    setHandoffOverrideDraft(Object.fromEntries((next.exceptions ?? []).map((field) => [`${field.partId}:${field.fieldKey}`, field.value ?? ""])));
   }, []);
 
   const mergeProjection = useCallback((next: Session) => {
     setSession(next);
     setDrafts((current) => Object.fromEntries(next.candidates.map((candidate) => [candidate.id, current[candidate.id] ?? candidate.proposedValue ?? ""])));
+    setHandoffCommonDraft((current) => Object.fromEntries((next.commonFields ?? []).map((field) => [field.fieldKey, current[field.fieldKey] ?? field.value ?? ""])));
+    setHandoffOverrideDraft((current) => Object.fromEntries((next.exceptions ?? []).map((field) => [`${field.partId}:${field.fieldKey}`, current[`${field.partId}:${field.fieldKey}`] ?? field.value ?? ""])));
   }, []);
 
   useEffect(() => {
     if (!snapshotMode) return;
     setSession(immutableSession);
     setDrafts(Object.fromEntries((immutableSession?.candidates ?? []).map((candidate) => [candidate.id, candidate.proposedValue ?? ""])));
+    setHandoffCommonDraft(Object.fromEntries((immutableSession?.commonFields ?? []).map((field) => [field.fieldKey, field.value ?? ""])));
+    setHandoffOverrideDraft(Object.fromEntries((immutableSession?.exceptions ?? []).map((field) => [`${field.partId}:${field.fieldKey}`, field.value ?? ""])));
     setLoading(false);
     setError("");
   }, [immutableSession, snapshotMode]);
@@ -406,7 +467,7 @@ export function DrawingRecognitionWorkspacePanel({
           return;
         }
         if (!response.ok || !body.session) throw new Error(messageFrom(body, "辨識結果目前無法載入。"));
-        const next = body.session as Session;
+        const next = { ...body.session, contractToken: body.meta?.contractToken ?? null } as Session;
         const hasLocatablePdfEvidence = [
           ...(next.reviewGroups ?? []).flatMap((group) => group.observations ?? []),
           ...(next.candidates ?? []).flatMap((candidate) => candidate.observations ?? [])
@@ -511,7 +572,7 @@ export function DrawingRecognitionWorkspacePanel({
     };
   }, [loadLatest, snapshotMode, sourceContextId, sourceContextType, sourceKey]);
   useEffect(() => () => latestLoadAbortRef.current?.abort(), []);
-  useEffect(() => { onDirtyChange?.(hasDraftChanges); }, [hasDraftChanges, onDirtyChange]);
+  useEffect(() => { onDirtyChange?.(hasDraftChanges || hasHandoffDraftChanges); }, [hasDraftChanges, hasHandoffDraftChanges, onDirtyChange]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   useEffect(() => {
     if (snapshotMode || !session || !["queued", "extracting"].includes(session.status)) return;
@@ -519,9 +580,8 @@ export function DrawingRecognitionWorkspacePanel({
     return () => window.clearInterval(timer);
   }, [loadSession, session, snapshotMode]);
 
-  async function saveAllDecisions() {
-    if (!session || disabled || busy) return;
-    const decisions = visibleReviewGroups.reduce<BatchDecision[]>((result, group) => {
+  function collectDecisions() {
+    return visibleReviewGroups.reduce<BatchDecision[]>((result, group) => {
       const allMembers = group.memberCandidateIds.map((id) => visibleCandidates.find((candidate) => candidate.id === id)).filter((candidate): candidate is Candidate => Boolean(candidate));
       const members = allMembers.filter((candidate) => !requiresPartOwner(candidate));
       const primary = members.find((candidate) => candidate.id === group.primaryCandidateId) ?? members[0];
@@ -543,26 +603,120 @@ export function DrawingRecognitionWorkspacePanel({
       }
       return result;
     }, []);
-    if (decisions.length === 0) return;
+  }
+
+  async function commitPdm() {
+    if (!session || disabled || busy || session.status === "formalized") return;
+    const decisions = collectDecisions();
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      const response = await fetch(`/api/numbering/recognition-sessions/${encodeURIComponent(session.id)}/decisions`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json", "idempotency-key": `dev079:recognition-batch:${crypto.randomUUID()}` },
+      const idempotencyKey = commitIdempotencyKeyRef.current ?? `recognition-commit:${crypto.randomUUID()}`;
+      commitIdempotencyKeyRef.current = idempotencyKey;
+      const response = await fetch(`/api/numbering/recognition-sessions/${encodeURIComponent(session.id)}/commit`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
         body: JSON.stringify({ expectedRowVersion: session.rowVersion, decisions })
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body.session) {
-        setError(messageFrom(body, "全部核對結果儲存失敗；目前修改仍保留在畫面上。"));
-        return;
-      }
-      setProjection(body.session as Session);
-      setNotice("");
-    } catch {
-      setError("全部核對結果儲存失敗；目前修改仍保留在畫面上。");
+      if (!response.ok) throw new Error(messageFrom(body, "寫入 PDM 失敗；目前修改仍保留在畫面上。"));
+      setNotice(Number(body.result?.appliedCount ?? 0) === 0 ? "PDM 已是最新，已完成同步確認。" : "已寫入 PDM，送審前仍可編輯辨識結果。");
+      commitIdempotencyKeyRef.current = null;
+      await loadSession(session.id, true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "寫入 PDM 失敗；目前修改仍保留在畫面上。");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handoffPartWorks() {
+    if (!session || disabled || busy || !session.applicationScope || session.status === "formalized" && !hasHandoffDraftChanges) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const idempotencyKey = handoffIdempotencyKeyRef.current ?? `recognition-part-work-handoff:${session.id}:${session.rowVersion}`;
+      handoffIdempotencyKeyRef.current = idempotencyKey;
+      const normalizeEntry = (entry: { fieldKey: string; value: string | null }) => ({ fieldKey: entry.fieldKey, intent: entry.value === "無" ? "not_applicable" : entry.value?.trim() ? "value" : "clear", value: entry.value });
+      const response = await fetch(`/api/numbering/recognition-sessions/${encodeURIComponent(session.id)}/handoff`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": idempotencyKey, "x-pdm-workbench-contract": session.contractToken ?? "" },
+        body: JSON.stringify({
+          expectedRowVersion: session.rowVersion,
+          expectedSourceSetFingerprint: (session as Session & { sourceSetFingerprint?: string }).sourceSetFingerprint,
+          expectedRelationScopeFingerprint: session.applicationScope.relationScopeFingerprint,
+          commonValues: handoffFields.map(normalizeEntry),
+          overrides: handoffOverrides.map((entry) => ({ partId: entry.partId, fieldKey: entry.fieldKey, intent: entry.value === "無" ? "not_applicable" : entry.value?.trim() ? "value" : "clear", value: entry.value }))
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(messageFrom(body, "帶入料號工作失敗；目前修改仍保留在畫面上。"));
+      handoffIdempotencyKeyRef.current = null;
+      const result = body.handoff;
+      setNotice(Number(result?.workMutationCount ?? 0) > 0 ? `已帶入 ${result.workMutationCount} 個料號工作` : "資料已一致，沒有需要新增的料號工作");
+      await loadSession(session.id, true);
+      const destination = typeof result?.destination?.path === "string" ? result.destination.path : "";
+      if (destination && !snapshotMode) window.location.assign(destination);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "帶入料號工作失敗；目前修改仍保留在畫面上。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openAmendment() {
+    if (!session || disabled || busy || session.status !== "formalized") return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const idempotencyKey = amendmentIdempotencyKeyRef.current ?? `recognition-amendment:${crypto.randomUUID()}`;
+      amendmentIdempotencyKeyRef.current = idempotencyKey;
+      const response = await fetch(`/api/numbering/recognition-sessions/${encodeURIComponent(session.id)}/amendments`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
+        body: JSON.stringify({ expectedRowVersion: session.rowVersion })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.session?.id) throw new Error(messageFrom(body, "辨識編輯版本建立失敗。"));
+      amendmentIdempotencyKeyRef.current = null;
+      await loadSession(String(body.session.id), true);
+      setNotice("已建立辨識編輯版本；原始證據保持不變。");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "辨識編輯版本建立失敗。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelAmendment() {
+    if (!session || disabled || busy || session.sessionPurpose !== "amendment" || !session.evidenceOriginSessionId) return;
+    if (!cancelArmed) {
+      setCancelArmed(true);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const idempotencyKey = cancelAmendmentIdempotencyKeyRef.current ?? `recognition-cancel-amendment:${crypto.randomUUID()}`;
+      cancelAmendmentIdempotencyKeyRef.current = idempotencyKey;
+      const response = await fetch(`/api/numbering/recognition-sessions/${encodeURIComponent(session.id)}/cancel-amendment`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
+        body: JSON.stringify({ expectedRowVersion: session.rowVersion })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(messageFrom(body, "取消辨識編輯失敗。"));
+      cancelAmendmentIdempotencyKeyRef.current = null;
+      await loadSession(session.evidenceOriginSessionId, true);
+      setNotice("已取消辨識編輯；原本的 PDM 資料未變更。");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "取消辨識編輯失敗。");
+    } finally {
+      setCancelArmed(false);
       setBusy(false);
     }
   }
@@ -611,10 +765,8 @@ export function DrawingRecognitionWorkspacePanel({
   }
 
   const recognitionProcessing = Boolean(session && ["queued", "extracting"].includes(session.status));
-  const recognitionSaved = Boolean(!snapshotMode && session && !busy && !hasDraftChanges && !hasDecisionsToSave && !hasUnresolvedPartOwner && !session.errorSummary);
-
   return (
-    <div className="dev079-recognition-panel" data-dev079-recognition={snapshotMode ? "immutable-review" : "embedded"}>
+    <div className={`${styles.panelStyles} dev079-recognition-panel`} data-dev079-recognition={snapshotMode ? "immutable-review" : "embedded"}>
       {snapshotMode && session ? <div className="canonical-note" role="status"><strong>辨識送審快照</strong><span>投影 {snapshotProjection?.projectionHash.slice(0, 12)} · {session.sources.length} 個來源</span></div> : null}
       {restricted ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>目前無辨識核對權限</strong><span>不影響既有版次權限或送審資格。</span></div> : null}
       {!restricted && !featureEnabled ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>智慧辨識尚未啟用</strong><span>版次與檔案功能仍可正常使用。</span></div> : null}
@@ -636,6 +788,42 @@ export function DrawingRecognitionWorkspacePanel({
             onRetry={disabled ? undefined : () => void rerunNativeMetadata()}
             retryDisabled={busy || hasDraftChanges}
           />
+          {session.applicationScope ? (
+            <section className="dev079-recognition-common-first" aria-label="辨識共用值與例外">
+              <header className="dev079-recognition-common-header">
+                <div><strong>共用值</strong><span>套用到 {session.applicationScope.eligiblePartCount} 個料號</span></div>
+                <small>{session.handoffControl?.state === "blocked" ? "有項目需要處理" : "只在有差異時顯示個別例外"}</small>
+              </header>
+              {handoffCommonFields.length === 0 ? <p className="dev079-recognition-empty-inline">目前沒有自動辨識的共用值；需要時可直接輸入，或用「個別設定」指定特定料號。</p> : null}
+              <div className="dev079-recognition-common-fields">
+                {handoffFieldRows.map((field) => (
+                  <div key={field.fieldKey} className="dev079-recognition-common-field">
+                    <label><span>{field.label}</span><input aria-label={`${field.label}共用值`} value={handoffCommonDraft[field.fieldKey] ?? field.value ?? ""} disabled={disabled || busy || snapshotMode} onChange={(event) => { setNotice(""); setHandoffCommonDraft((current) => ({ ...current, [field.fieldKey]: event.target.value })); }} /></label>
+                    <small>{field.exceptionCount > 0 ? `${field.exceptionCount} 個例外` : "所有關聯料號相同"}</small>
+                  </div>
+                ))}
+              </div>
+              {handoffExceptions.length > 0 ? (
+                <div className="dev079-recognition-exceptions" aria-label="料號例外">
+                  <strong>個別例外</strong>
+                  {handoffExceptions.map((field) => {
+                    const key = `${field.partId}:${field.fieldKey}`;
+                    return <div key={key} className="dev079-recognition-exception-row"><span>{field.partNumber} · {field.label}</span><input aria-label={`${field.partNumber}${field.label}例外值`} value={handoffOverrideDraft[key] ?? field.value ?? ""} disabled={disabled || busy || snapshotMode} onChange={(event) => setHandoffOverrideDraft((current) => ({ ...current, [key]: event.target.value }))} /><button type="button" className="link-button" disabled={disabled || busy || snapshotMode} onClick={() => setHandoffOverrideDraft((current) => { const next = { ...current }; delete next[key]; return next; })}>恢復共用值</button></div>;
+                  })}
+                </div>
+              ) : null}
+              {session.applicationScope.eligibleParts.length > 0 && !snapshotMode ? (
+                <div className="dev079-recognition-manual-override">
+                  <strong>個別設定</strong>
+                  <select aria-label="選擇例外料號" value={overridePartId} disabled={disabled || busy} onChange={(event) => setOverridePartId(event.target.value)}><option value="">選擇料號</option>{session.applicationScope.eligibleParts.map((part) => <option key={part.id} value={part.id}>{part.partNumber} · {part.partName}</option>)}</select>
+                  <select aria-label="選擇例外欄位" value={overrideFieldKey} disabled={disabled || busy} onChange={(event) => setOverrideFieldKey(event.target.value)}>{HANDOFF_FIELD_OPTIONS.map((field) => <option key={field.fieldKey} value={field.fieldKey}>{field.label}</option>)}</select>
+                  <input aria-label="輸入例外值" value={overrideValue} disabled={disabled || busy} onChange={(event) => setOverrideValue(event.target.value)} placeholder="輸入不同值" />
+                  <button type="button" className="secondary-button" disabled={disabled || busy || !overridePartId || !overrideValue.trim()} onClick={() => { const key = `${overridePartId}:${overrideFieldKey}`; setHandoffOverrideDraft((current) => ({ ...current, [key]: overrideValue.trim() })); setOverrideValue(""); }}>加入例外</button>
+                </div>
+              ) : null}
+              {!snapshotMode && !disabled ? <div className="dev079-recognition-save-status" role="status" aria-live="polite"><CheckCircle2 size={19} aria-hidden="true" /><div><strong>{session.handoffControl?.state === "synchronized" && !hasHandoffDraftChanges ? "已帶入料號工作" : hasHandoffDraftChanges || session.handoffControl?.state === "ready" ? "待帶入料號工作" : "待核對"}</strong><span>確認後只建立或更新料號工作，不直接修改正式主檔。</span></div><button type="button" className="primary-button" disabled={busy || session.handoffControl?.state === "blocked"} onClick={() => void handoffPartWorks()}>{busy ? "帶入中…" : session.handoffControl?.state === "synchronized" && !hasHandoffDraftChanges ? "確認資料已一致" : `帶入 ${session.handoffControl?.workMutationCount ?? session.applicationScope.eligiblePartCount} 個料號工作`}</button></div> : null}
+            </section>
+          ) : null}
           {visibleCandidates.length > 0 ? (
             <>
               <div className="dev079-recognition-sections">
@@ -720,7 +908,7 @@ export function DrawingRecognitionWorkspacePanel({
                                     <div key={reviewGroup.id} className="dev079-recognition-scope-row">
                                       <small>{reviewScope}</small>
                                       <label>
-                                        <input aria-label={`${group.fieldLabel}－${reviewScope}辨識／修正值${reviewModified ? "，已修改" : ""}`} aria-invalid={requiresPartOwner(reviewCandidate) || undefined} aria-describedby={requiresPartOwner(reviewCandidate) ? ownerErrorId : undefined} value={drafts[reviewCandidate.id] ?? ""} readOnly={disabled || busy || requiresPartOwner(reviewCandidate)} onFocus={() => selectEvidence(reviewGroup.observations)} onChange={(event) => updateDrafts(reviewGroup.memberCandidateIds, event.target.value)} />
+                                        <input aria-label={`${group.fieldLabel}－${reviewScope}辨識／修正值${reviewModified ? "，已修改" : ""}`} aria-invalid={requiresPartOwner(reviewCandidate) || undefined} aria-describedby={requiresPartOwner(reviewCandidate) ? ownerErrorId : undefined} value={drafts[reviewCandidate.id] ?? ""} readOnly={disabled || busy || session.status === "formalized" || requiresPartOwner(reviewCandidate)} onFocus={() => selectEvidence(reviewGroup.observations)} onChange={(event) => updateDrafts(reviewGroup.memberCandidateIds, event.target.value)} />
                                       </label>
                                       {renderEvidenceSources(reviewGroup)}
                                     </div>
@@ -730,7 +918,7 @@ export function DrawingRecognitionWorkspacePanel({
                             ) : (
                               <div className="dev079-recognition-value-row">
                                 <label>
-                                  <input aria-label={`${group.fieldLabel}辨識／修正值${modified ? "，已修改" : ""}`} aria-invalid={unresolvedPartOwner || undefined} aria-describedby={unresolvedPartOwner ? ownerErrorId : undefined} value={drafts[candidate.id] ?? ""} readOnly={disabled || busy || unresolvedPartOwner} data-merged-candidate-count={group.memberCandidateIds.length} onFocus={() => selectEvidence(group.observations)} onChange={(event) => updateDrafts(group.memberCandidateIds, event.target.value)} />
+                                  <input aria-label={`${group.fieldLabel}辨識／修正值${modified ? "，已修改" : ""}`} aria-invalid={unresolvedPartOwner || undefined} aria-describedby={unresolvedPartOwner ? ownerErrorId : undefined} value={drafts[candidate.id] ?? ""} readOnly={disabled || busy || session.status === "formalized" || unresolvedPartOwner} data-merged-candidate-count={group.memberCandidateIds.length} onFocus={() => selectEvidence(group.observations)} onChange={(event) => updateDrafts(group.memberCandidateIds, event.target.value)} />
                                 </label>
                                 {renderEvidenceSources(group)}
                               </div>
@@ -742,16 +930,12 @@ export function DrawingRecognitionWorkspacePanel({
                   );
                 })}
               </div>
-              {recognitionSaved ? (
+              {!session.applicationScope && !snapshotMode && !disabled ? (
                 <div className="dev079-recognition-save-status" role="status" aria-live="polite">
                   <CheckCircle2 size={19} aria-hidden="true" />
-                  <div><strong>已儲存</strong><span>核對結果已同步至系統</span></div>
+                  <div><strong>{session.status === "formalized" ? "已寫入 PDM" : hasDraftChanges || hasDecisionsToSave ? "待寫入 PDM" : "核對結果已儲存"}</strong><span>{session.status === "formalized" ? "料號與圖面正式資料已更新" : "按一次即可保存核對並同步料號資料"}</span></div>
+                  {session.status === "formalized" ? <button type="button" className="secondary-button" disabled={busy} onClick={() => void openAmendment()}>編輯辨識</button> : <><button type="button" className="primary-button" disabled={busy || hasUnresolvedPartOwner} onClick={() => void commitPdm()}>{busy ? "寫入中…" : session.sessionPurpose === "amendment" ? "更新寫入 PDM" : "確認寫入 PDM"}</button>{session.sessionPurpose === "amendment" ? <><button type="button" className="secondary-button" disabled={busy} onClick={() => void cancelAmendment()}>{cancelArmed ? "確認取消編輯" : "取消編輯"}</button>{cancelArmed ? <><span role="alert">尚未提交的修改會捨棄，原本已寫入的 PDM 不會回復。</span><button type="button" className="link-button" onClick={() => setCancelArmed(false)}>繼續編輯</button></> : null}</> : null}</>}
                 </div>
-              ) : !disabled && (busy || hasDecisionsToSave) ? (
-                <button type="button" className="primary-button dev079-recognition-save-all" disabled={busy || !hasDecisionsToSave} onClick={() => void saveAllDecisions()}>
-                  {busy ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />}
-                  {busy ? "處理中…" : "儲存核對結果"}
-                </button>
               ) : null}
             </>
           ) : !session.errorSummary ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>沒有可供核對的辨識結果</strong></div> : null}

@@ -4,7 +4,7 @@ import {
   updateAdminAccountLifecycleAsync,
   type AccountLifecycleAction
 } from "@/lib/account-lifecycle";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,7 @@ function accountLifecycleError(error: unknown) {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ userId: string }> }) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response;
 
   const { userId } = await params;

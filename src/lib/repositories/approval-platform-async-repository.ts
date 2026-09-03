@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { rewriteNumberingHumanTextDeep } from "@/lib/numbering-vocabulary";
+import { adaptBomPurposeSql, getBomPurposeColumn, type BomPurposeColumn } from "@/lib/bom-create-context";
 
 export type ApprovalPlatformStatus =
   | "pending"
@@ -579,11 +580,18 @@ const nativeSupersessionProjection = `
         ) AS superseded_at`;
 
 export class AsyncApprovalPlatformRepository {
+  private purposeColumnPromise: Promise<BomPurposeColumn | null> | null = null;
+
   constructor(
     private readonly client: AsyncDatabaseClient,
     private readonly clock: () => string = () => new Date().toISOString(),
     private readonly idFactory: () => string = () => crypto.randomUUID()
   ) {}
+
+  private async purposeCompatibleSql(sql: string) {
+    this.purposeColumnPromise ??= getBomPurposeColumn(this.client);
+    return adaptBomPurposeSql(sql, await this.purposeColumnPromise);
+  }
 
   async listActions(): Promise<ApprovalPlatformAction[]> {
     const rows = await this.client.query<ActionRow>(

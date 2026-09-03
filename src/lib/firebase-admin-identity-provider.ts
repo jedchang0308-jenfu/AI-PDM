@@ -45,6 +45,8 @@ export class FirebaseAdminIdentityProvider implements FirebaseIdentityProvider {
     const decoded = await this.client().verifyIdToken(idToken, true);
     return {
       uid: decoded.uid,
+      identityIssuer: String(decoded.iss ?? "").trim(),
+      identityAudience: String(decoded.aud ?? "").trim(),
       email: requiredEmail(decoded),
       emailVerified: decoded.email_verified === true,
       disabled: false,

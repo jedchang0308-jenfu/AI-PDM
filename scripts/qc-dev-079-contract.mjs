@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8").replace(/\r\n?/gu, "\n");
 const checks = [];
 const expect = (name, condition) => checks.push({ name, condition: Boolean(condition) });
 
@@ -76,7 +76,7 @@ expect("candidate uploads enqueue deduplicated recognition automatically", lifec
 expect("workspace removes manual recognition start and backfills legacy files automatically", !recognitionPanel.includes("DrawingRecognitionPreSubmitPanel") && !recognitionPanel.includes(">開始辨識</button>") && recognitionPanel.includes('fetch("/api/numbering/recognition-sessions"') && recognitionPanel.includes("自動辨識工作目前無法建立"));
 expect("workspace hides the verbose PDF OCR status card while keeping background browser OCR", recognitionPanel.includes("useDrawingRecognitionBrowserOcr") && !recognitionPanel.includes("DrawingRecognitionPdfOcrStatus") && !recognitionPanel.includes("PDF 圖框智慧辨識"));
 expect("workspace polls automatic recognition and renders a quiet processing state", recognitionPanel.includes('session.status') && recognitionPanel.includes("智慧辨識處理中") && recognitionPanel.includes("完成後會自動顯示辨識結果"));
-expect("recognition saves all valid review-group decisions through one batch action", recognitionPanel.includes("saveAllDecisions") && recognitionPanel.includes("visibleReviewGroups.reduce<BatchDecision[]>") && recognitionPanel.includes("儲存核對結果") && recognitionPanel.includes("action: \"accept\"") && recognitionPanel.includes("action: \"correct\"") && recognitionPanel.includes("requiresPartOwner") && !recognitionPanel.includes("套用修正") && !recognitionPanel.includes(">接受</button>"));
+expect("recognition saves all valid review-group decisions through one batch action", recognitionPanel.includes("commitPdm") && recognitionPanel.includes("visibleReviewGroups.reduce<BatchDecision[]>") && recognitionPanel.includes("確認寫入 PDM") && recognitionPanel.includes("更新寫入 PDM") && recognitionPanel.includes("action: \"accept\"") && recognitionPanel.includes("action: \"correct\"") && recognitionPanel.includes("requiresPartOwner") && !recognitionPanel.includes("儲存核對結果") && !recognitionPanel.includes("套用修正") && !recognitionPanel.includes(">接受</button>"));
 expect("recognition keeps the default review state quiet and shows only real exceptions", !recognitionPanel.includes("待處理") && !recognitionPanel.includes("dev079-recognition-filters") && recognitionPanel.includes('["conflict", "blocked"]') && recognitionPanel.includes("is-exception"));
 expect("recognition exception labels expose one accessible hover and focus explanation", recognitionPanel.includes("TextHint") && recognitionPanel.includes("exceptionHelp") && styles.includes(".ui-hint-text") && styles.includes(".dev079-recognition-exception-hint"));
 expect("recognition explains unresolved part-number ownership separately from OCR accuracy", recognitionPanel.includes("尚未連結正式料號主檔") && recognitionPanel.includes("不代表 OCR 辨識錯誤") && recognitionPanel.includes("系統正式值：${group.currentFormalValue ?? \"尚無\"}"));

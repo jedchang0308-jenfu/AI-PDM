@@ -11,7 +11,8 @@ const report = JSON.parse(readFileSync(reportPath, "utf8"));
 const markdown = readFileSync(markdownPath, "utf8");
 const source = readFileSync(path.join(root, "scripts", "dev-032-cloudsql-backup-readiness.mjs"), "utf8");
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-const rehearsal = JSON.parse(readFileSync(path.join(root, "output", "dev-032-cloudsql-native-backup-rehearsal", "execution-summary.json"), "utf8"));
+const rehearsalPath = path.join(root, "output", "dev-032-cloudsql-native-backup-rehearsal", "execution-summary.json");
+const rehearsal = existsSync(rehearsalPath) ? JSON.parse(readFileSync(rehearsalPath, "utf8")) : null;
 const blockers = new Set(report.blockers.map((item) => item.code));
 const results = [];
 const record = (name, passed, detail = "") => results.push({ name, passed: Boolean(passed), detail });
@@ -24,6 +25,7 @@ const evaluationInput = {
 };
 const evaluate = (evidence) => evaluateCurrentRehearsal({ evidence, ...evaluationInput });
 const mutate = (mutator) => {
+  if (!rehearsal) return { candidateMatches: false, cleanupVerified: false, matchesCandidate: false };
   const copy = structuredClone(rehearsal);
   mutator(copy);
   return evaluate(copy);
@@ -42,7 +44,7 @@ record("DEV032-BACKUP-010 source contains no mutation command", !/\["sql",\s*"(?
 record("DEV032-BACKUP-011 report does not persist secrets", !/(private_key|client_secret|refresh_token|password|database_url|session_signing)/iu.test(JSON.stringify(report)));
 record("DEV032-BACKUP-012 scripts are registered", packageJson.scripts["preflight:dev-032-cloudsql-backup-readiness"] === "node scripts/dev-032-cloudsql-backup-readiness.mjs" && packageJson.scripts["qc:dev-032-cloudsql-backup-readiness"] === "node scripts/qc-dev-032-cloudsql-backup-readiness.mjs");
 record("DEV032-BACKUP-013 outputs exist with canonical newline", existsSync(reportPath) && existsSync(markdownPath) && /[^\r\n]\r?\n$/u.test(markdown));
-record("DEV032-BACKUP-014 current Gate C2 evidence satisfies candidate and cleanup contract", evaluate(rehearsal).matchesCandidate === true);
+record("DEV032-BACKUP-014 current Gate C2 evidence satisfies candidate and cleanup contract", rehearsal !== null && evaluate(rehearsal).matchesCandidate === true, rehearsal ? "" : "current candidate rehearsal evidence is absent");
 record("DEV032-BACKUP-015 deleted restore target receipt is fail-closed", mutate((value) => { value.restore.deleted = false; }).cleanupVerified === false && mutate((value) => { value.restore.postDeleteInstanceCount = 1; }).cleanupVerified === false);
 record("DEV032-BACKUP-016 production source zero-mutation receipt is fail-closed", mutate((value) => { value.source.metadataUnchanged = false; }).cleanupVerified === false && mutate((value) => { value.source.operationsDuringGate = 1; }).cleanupVerified === false);
 record("DEV032-BACKUP-017 Cloud Run job restoration receipt is fail-closed", mutate((value) => { value.jobRestoration.specRestored = false; }).cleanupVerified === false && mutate((value) => { value.jobRestoration.originalDefaultSourceTargetRestored = false; }).cleanupVerified === false);

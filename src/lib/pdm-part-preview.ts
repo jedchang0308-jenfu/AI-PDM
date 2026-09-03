@@ -39,6 +39,7 @@ import {
 export type PartPreviewSourceControl = {
   settingRowVersion: number;
   canManage: boolean;
+  hasPrimaryManufacturingDrawing: boolean;
   disabledReason: string | null;
 };
 
@@ -318,6 +319,10 @@ export async function resolvePartPreviewsAsync(
         jobs
       });
     }
+    preview = {
+      ...preview,
+      hasPrimaryManufacturingDrawing: (drawingRowsByPart.get(part.part_id) ?? []).some((row) => Boolean(row.drawing_id))
+    };
     for (const rowKey of input.rowKeysByPartId[part.part_id] ?? []) result[rowKey] = preview;
   }
   return result;

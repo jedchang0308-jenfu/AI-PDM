@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { canonicalRowKey, CanonicalWorkbenchError, type CanonicalRelationMatrixCell, type CanonicalRelationMatrixProjection } from "@/lib/pdm-canonical-workbench-contract";
 import { replayCanonicalTerminalReceipt, runCanonicalIdempotentCommand } from "@/lib/pdm-canonical-command";
+import { reconcileSldasmAssemblyEvidenceForDrawing } from "@/lib/sldasm-assembly-evidence";
 
 type RelationAuthorityClient = Pick<AsyncDatabaseClient, "kind" | "query" | "queryOne" | "execute"> & {
   transaction?: AsyncDatabaseClient["transaction"];
@@ -84,6 +85,9 @@ export class RelationFormalAuthorityRepository {
       id: input.id ?? crypto.randomUUID(),
       linkType: input.relationType === "manufacturing_basis" ? "primary_manufacturing" : "reference"
     });
+    if (input.relationType === "manufacturing_basis") {
+      await reconcileSldasmAssemblyEvidenceForDrawing(client, { companyId: input.companyId, drawingNumberId: input.drawingNumberId, actorId: input.actorId });
+    }
   }
 
   async removePair(input: { companyId: string; drawingNumberId: string; partNumberId: string }) {
@@ -225,6 +229,9 @@ export class RelationFormalAuthorityRepository {
                  CASE json_extract(value, '$.relationType') WHEN 'manufacturing_basis' THEN 'primary_manufacturing' ELSE 'reference' END, :actorId
             FROM json_each(:changesJson) WHERE json_extract(value, '$.relationType') IS NOT NULL`, { changesJson, actorId: input.actorId });
       }
+      for (const change of changes.filter((item) => item.relationType === "manufacturing_basis")) {
+        await reconcileSldasmAssemblyEvidenceForDrawing(tx, { companyId: input.companyId, drawingNumberId: change.drawingNumberId, actorId: input.actorId });
+      }
       const next = await this.readMatrix(tx, input);
       return { rootId: input.rootId, changedCount: changes.length, matrixEtag: next.matrixEtag, matrix: next };
     });
@@ -242,7 +249,18 @@ export class RelationFormalAuthorityRepository {
                    CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END,
                    state.updated_at, state.id
           LIMIT 1) AS navigation_row_id
-      FROM drawing_numbers drawing_number WHERE drawing_number.company_id = :companyId AND drawing_number.part_root_id = :rootId
+      FROM drawing_numbers drawing_number
+      WHERE drawing_number.company_id = :companyId AND drawing_number.part_root_id = :rootId
+        AND EXISTS (
+          SELECT 1
+            FROM canonical_workbench_states state
+            JOIN drawings drawing
+              ON drawing.id = state.canonical_entity_id
+             AND drawing.company_id = state.company_id
+           WHERE state.company_id = :companyId
+             AND state.entity_type = 'drawing'
+             AND drawing.formal_drawing_number_id = drawing_number.id
+        )
       UNION ALL SELECT 'part' AS kind, part_number.id, part_number.part_number AS number, part_number.part_root_id AS root_id,
         (SELECT state.id
            FROM canonical_workbench_states state
@@ -250,7 +268,15 @@ export class RelationFormalAuthorityRepository {
           ORDER BY CASE state.handling WHEN 'owner' THEN 0 WHEN 'review_owner' THEN 1 WHEN 'system' THEN 2 WHEN 'system_admin' THEN 3 WHEN 'blocked' THEN 4 ELSE 5 END,
                    state.updated_at, state.id
           LIMIT 1) AS navigation_row_id
-      FROM part_numbers part_number WHERE part_number.company_id = :companyId AND part_number.part_root_id = :rootId
+      FROM part_numbers part_number
+      WHERE part_number.company_id = :companyId AND part_number.part_root_id = :rootId
+        AND EXISTS (
+          SELECT 1
+            FROM canonical_workbench_states state
+           WHERE state.company_id = :companyId
+             AND state.entity_type = 'part'
+             AND state.canonical_entity_id = part_number.id
+        )
       ORDER BY kind, number, id`, input);
     const drawings = axes.filter((row) => row.kind === "drawing").map((row) => ({
       id: row.id,
@@ -264,8 +290,31 @@ export class RelationFormalAuthorityRepository {
     }));
     const links = await client.query<LinkRow>(`SELECT link.drawing_number_id, link.part_number_id, link.link_type
       FROM drawing_part_links link
-      JOIN drawing_numbers drawing ON drawing.id = link.drawing_number_id AND drawing.company_id = :companyId AND drawing.part_root_id = :rootId
-      JOIN part_numbers part ON part.id = link.part_number_id AND part.company_id = :companyId AND part.part_root_id = :rootId
+      JOIN drawing_numbers drawing
+        ON drawing.id = link.drawing_number_id
+       AND drawing.company_id = :companyId
+       AND drawing.part_root_id = :rootId
+       AND EXISTS (
+         SELECT 1
+           FROM canonical_workbench_states state
+           JOIN drawings canonical_drawing
+             ON canonical_drawing.id = state.canonical_entity_id
+            AND canonical_drawing.company_id = state.company_id
+          WHERE state.company_id = :companyId
+            AND state.entity_type = 'drawing'
+            AND canonical_drawing.formal_drawing_number_id = drawing.id
+       )
+      JOIN part_numbers part
+        ON part.id = link.part_number_id
+       AND part.company_id = :companyId
+       AND part.part_root_id = :rootId
+       AND EXISTS (
+         SELECT 1
+           FROM canonical_workbench_states state
+          WHERE state.company_id = :companyId
+            AND state.entity_type = 'part'
+            AND state.canonical_entity_id = part.id
+       )
       ORDER BY link.drawing_number_id, link.part_number_id, link.link_type`, input);
     const drawingNumbers = new Map(drawings.map((item) => [item.id, item.number]));
     const partNumbers = new Map(parts.map((item) => [item.id, item.number]));

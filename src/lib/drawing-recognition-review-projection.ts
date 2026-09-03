@@ -73,6 +73,8 @@ export type DrawingRecognitionReviewProjectionBody = {
     drawingId: string | null;
     drawingRevisionId: string | null;
     sourceSetFingerprint: string;
+    sessionPurpose?: "recognition" | "rerun" | "amendment";
+    evidenceOriginSessionId?: string | null;
     status: string;
     rowVersion: number;
     warningCount: number;
@@ -99,9 +101,28 @@ export type DrawingRecognitionReviewProjectionBody = {
   }>;
   candidateDecisions: RecognitionReviewCandidateDecision[];
   fields: RecognitionReviewField[];
+  /** DEV-110 additive destination-aware summary; omitted on legacy snapshots. */
+  handoff?: DrawingRecognitionPartWorkHandoffProjection | null;
 };
 
 export type DrawingRecognitionReviewProjection = DrawingRecognitionReviewProjectionBody & { projectionHash: string };
+
+export type DrawingRecognitionPartWorkHandoffProjection = {
+  schemaVersion: 2;
+  destination: "part_work";
+  relationScopeFingerprint: string;
+  eligiblePartCount: number;
+  workMutationCount: number;
+  unchangedCount: number;
+  eventId: string | null;
+  targets: Array<{ partId: string; partNumber: string; result: "created" | "updated" | "already_current" | "already_in_work"; workId?: string | null; rowVersion?: number | null }>;
+};
+
+export function isDrawingRecognitionPartWorkHandoffProjection(value: unknown): value is DrawingRecognitionPartWorkHandoffProjection {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return candidate.schemaVersion === 2 && candidate.destination === "part_work" && typeof candidate.relationScopeFingerprint === "string" && Number.isInteger(candidate.eligiblePartCount);
+}
 
 type ReviewGroupInput = Omit<RecognitionReviewScope, "observations"> & {
   observations: RecognitionReviewObservation[];

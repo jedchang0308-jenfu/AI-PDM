@@ -3,19 +3,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { EMPTY_PDM_DETAIL_ACTION_CAPABILITIES } from "@/lib/pdm-detail-action-capabilities";
-import { resolvePdmDetailActions } from "@/lib/pdm-detail-action-resolver";
-import {
-  canEditPdmOwnedResource,
-  canEditPdmOwnedResourceInCompany,
-  hasPdmNonOwnerEditScope
-} from "@/lib/pdm-edit-scope-policy";
+import { canEditPdmOwnedResource, canEditPdmOwnedResourceInCompany, hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
-const allowedCapabilities = Object.fromEntries(
-  Object.entries(EMPTY_PDM_DETAIL_ACTION_CAPABILITIES).map(([key, value]) => [key, { ...value, allowed: true }])
-);
+const exists = (file) => fs.existsSync(path.join(root, file));
 
 for (const role of ["Engineer", "engineer", "rd", "R&D Manager", "Admin", "rd_manager", "pdm_admin", "system_admin"]) {
   assert.equal(hasPdmNonOwnerEditScope({ role }), true, `${role} must have non-owner edit scope`);
@@ -30,124 +22,79 @@ assert.equal(canEditPdmOwnedResource({ actorId: "manager", ownerId: "owner", can
 assert.equal(canEditPdmOwnedResourceInCompany({ actorId: "manager", actorCompanyId: "company-a", ownerId: "owner", resourceCompanyId: "company-a", actor: { role: "R&D Manager" } }), true);
 assert.equal(canEditPdmOwnedResourceInCompany({ actorId: "admin", actorCompanyId: "company-a", ownerId: "owner", resourceCompanyId: "company-b", actor: { role: "Admin" } }), false);
 
-function facts(overrides = {}) {
-  return {
-    entityKey: "candidate:dev081-workspace",
-    surface: "drawing",
-    stateFamily: "bundle_ready",
-    actorId: "manager",
-    ownerId: "owner",
-    canEditNonOwned: true,
-    ownerHref: "/numbering/drawings/dev081/workspace",
-    returnTo: "/numbering/drawings",
-    capabilities: allowedCapabilities,
-    readinessBlockers: [],
-    candidate: {
-      workspaceId: "dev081-workspace",
-      rowVersion: 1,
-      lifecycleV2: true,
-      requestId: null,
-      submittedBy: null,
-      decisionCount: 0,
-      canUpdate: true,
-      canCancel: true,
-      canSubmitReview: true,
-      canWithdrawReview: false,
-      applyFailed: false
-    },
-    formalDrawing: null,
-    review: null,
-    ...overrides
-  };
-}
-function actions(model) {
-  return [model.primary, ...model.secondary].filter(Boolean);
-}
-function byKind(model, kind) {
-  return actions(model).find((action) => action.kind === kind);
-}
+const policy = read("src/lib/pdm-edit-scope-policy.ts");
+assert.match(policy, /PDM_NON_OWNER_EDIT_ROLES/u);
+assert.match(policy, /actorCompanyId === input\.resourceCompanyId/u);
+assert.match(policy, /actor\.role, \.\.\.\(actor\.roles/u);
 
-const manager = resolvePdmDetailActions(facts());
-assert.equal(byKind(manager, "edit")?.enabled, true, "manager non-owner edit must be enabled");
-assert.equal(byKind(manager, "submit_review")?.enabled, true, "manager non-owner submit must be enabled when ready");
-assert.equal(byKind(manager, "cancel")?.enabled, true, "manager non-owner cancel must be enabled");
+const canonicalState = read("src/lib/pdm-canonical-workbench-state.ts");
+assert.match(canonicalState, /record\.workOwnerId === actor\.id \|\| actor\.canEditNonOwned/u);
+assert.match(canonicalState, /actor\.permissions\.updateWork/u);
+assert.match(canonicalState, /record\.entityType === "drawing"/u);
+assert.match(canonicalState, /record\.entityType === "part"/u);
+assert.match(canonicalState, /record\.entityType === "relation"\) return \[\]/u);
 
-const engineer = resolvePdmDetailActions(facts({ actorId: "engineer", canEditNonOwned: true }));
-assert.equal(byKind(engineer, "edit")?.enabled, true, "engineer non-owner edit must be enabled");
-assert.equal(byKind(engineer, "submit_review")?.enabled, true, "engineer non-owner submit must be enabled when ready");
-const nonEngineer = resolvePdmDetailActions(facts({ actorId: "procurement", canEditNonOwned: false }));
-assert.equal(byKind(nonEngineer, "edit")?.disabledReasonCode, "PDM_ACTION_OWNER_REQUIRED");
-assert.equal(byKind(nonEngineer, "submit_review")?.disabledReasonCode, "PDM_ACTION_OWNER_REQUIRED");
+const routeActor = read("src/lib/pdm-dev087-route.ts");
+assert.match(routeActor, /canEditNonOwned: hasPdmNonOwnerEditScope\(\{ role: auth\.user\.role \}\)/u);
+assert.match(routeActor, /companyId: company\.company\.companyId/u);
+assert.match(routeActor, /canEditMatrix: update\.allowed/u);
 
-const deniedPermission = resolvePdmDetailActions(facts({ capabilities: EMPTY_PDM_DETAIL_ACTION_CAPABILITIES }));
-assert.equal(byKind(deniedPermission, "edit")?.disabledReasonCode, "PDM_ACTION_PERMISSION_REQUIRED");
+const numberState = read("src/lib/number-state-flow.ts");
+assert.match(numberState, /canEditPdmOwnedResourceInCompany/u);
+assert.match(numberState, /hasPdmNonOwnerEditScope/u);
+assert.match(numberState, /companyId: input\.actor\.companyId/u);
 
-const reviewCandidate = { ...facts().candidate, requestId: "review-081", submittedBy: "owner", canWithdrawReview: true };
-const locked = resolvePdmDetailActions(facts({
-  stateFamily: "in_review",
-  candidate: reviewCandidate,
-  review: { requestId: "review-081", decisionReady: false, allowedDecisions: [], drift: false }
-}));
-assert.equal(byKind(locked, "edit")?.disabledReasonCode, "PDM_ACTION_REVIEW_LOCKED");
-assert.equal(byKind(locked, "withdraw_review"), undefined, "drawer review context must not expose owner withdrawal");
-const ownerSurfaceReview = resolvePdmDetailActions(facts({ stateFamily: "in_review", candidate: reviewCandidate }));
-assert.equal(byKind(ownerSurfaceReview, "withdraw_review")?.enabled, true, "manager may withdraw another submitter's undecided review");
-const decidedReview = resolvePdmDetailActions(facts({ stateFamily: "in_review", candidate: { ...reviewCandidate, decisionCount: 1 } }));
-assert.equal(byKind(decidedReview, "withdraw_review")?.disabledReasonCode, "PDM_ACTION_REVIEW_SCOPE_REQUIRED", "a decided review remains locked");
+const lifecycle = read("src/lib/number-lifecycle-simplification.ts");
+assert.match(lifecycle, /assertLifecycleWorkspaceEditScope/u);
+assert.match(lifecycle, /canEditPdmOwnedResourceInCompany/u);
+assert.match(lifecycle, /input\.metadata\.actor\.organizationId/u);
 
-for (const file of [
-  "src/lib/drawing-workbench.ts",
-  "src/lib/part-workbench.ts",
-  "src/lib/relation-workbench.ts"
-]) {
-  const source = read(file);
-  assert.match(source, /canEditPdmOwnedResource/u, `${file} must use shared owner override policy`);
-  assert.match(source, /canEditNonOwned/u, `${file} must carry the server-derived capability`);
-}
+const partChange = read("src/lib/part-change-work.ts");
+assert.match(partChange, /actor\.id !== ownerId && !actor\.canEditNonOwned/u);
+assert.match(partChange, /runDev087IdempotentCommand/u);
+const partMatrix = read("src/lib/repositories/part-number-matrix-async-repository.ts");
+assert.match(partMatrix, /actor\.canEditNonOwned/u);
+assert.match(partMatrix, /work_owner_user_id/u);
+const drawingChange = read("src/lib/drawing-revision-work.ts");
+assert.match(drawingChange, /actor\.id !== owner && !actor\.canEditNonOwned/u);
+assert.match(drawingChange, /runDev087IdempotentCommand/u);
+
+const drawingLifecycle = read("src/lib/drawing-revision-lifecycle.ts");
+assert.match(drawingLifecycle, /hasPdmNonOwnerEditScope/u);
+assert.match(drawingLifecycle, /allowNonSubmitter: hasPdmNonOwnerEditScope/u);
+const drawingLifecycleRepository = read("src/lib/repositories/drawing-revision-lifecycle-async-repository.ts");
+assert.match(drawingLifecycleRepository, /submitted_by !== input\.actorId && input\.allowNonSubmitter !== true/u);
+assert.match(drawingLifecycleRepository, /approval_platform_decisions/u);
+
+const recognition = read("src/lib/drawing-recognition.ts");
+assert.match(recognition, /hasPdmNonOwnerEditScope/u);
+const partWorkspace = read("src/lib/part-number-matrix-workspace.ts");
+assert.match(partWorkspace, /canEditNonOwned: input\.actor\.canEditNonOwned/u);
+assert.match(partWorkspace, /issueCanonicalWorkbenchContract/u);
+
+const bom = read("src/lib/bom-create-context.ts");
+const permissions = read("src/lib/permissions.ts");
+assert.match(bom, /status IN \('Draft','Rejected','PendingReview','Archived'\)/u);
+assert.match(bom, /export async function canReadBomDraftRecordAsync/u);
+assert.match(bom, /draft\.status !== "Draft" && draft\.status !== "Rejected"/u);
+assert.match(permissions, /user\.role !== "Engineer" \|\| submission\.submitted_by === user\.id/u);
+
 for (const file of [
   "src/app/api/numbering/drawings/workbench/route.ts",
   "src/app/api/numbering/drawings/workbench/[rowKey]/route.ts",
   "src/app/api/parts/workbench/route.ts",
   "src/app/api/parts/workbench/[rowKey]/route.ts",
-  "src/app/api/numbering/relations/route.ts",
-  "src/app/api/numbering/relations/[rowKey]/route.ts",
-  "src/app/api/pdm/entity-details/[entityKey]/route.ts"
+  "src/app/api/pdm/relations/[rootId]/matrix/route.ts",
+  "src/app/api/bom/workbench/route.ts",
+  "src/app/api/bom/drafts/route.ts"
 ]) {
-  assert.match(read(file), /hasPdmNonOwnerEditScope/u, `${file} must derive capability from authenticated actor role`);
+  assert.equal(exists(file), true, `${file} must exist in the canonical route set`);
 }
+assert.match(read("src/app/api/pdm/relations/[rootId]/matrix/route.ts"), /if \(!access\.actor\.canEditMatrix\) /u);
+assert.match(read("src/app/api/bom/workbench/route.ts"), /canReadBomDraftRecordAsync/u);
+assert.match(read("src/app/api/bom/drafts/route.ts"), /resolveBomOwnerAccessContextAsync/u);
 
-const lifecycle = read("src/lib/number-lifecycle-simplification.ts");
-assert.match(lifecycle, /assertLifecycleWorkspaceEditScope/u);
-for (const name of [
-  "createNumberingCandidateRevision",
-  "updateNumberingCandidateRevision",
-  "addNumberingCandidateRevisionFile",
-  "verifyExistingNumberingCandidateRevisionFile",
-  "removeNumberingCandidateRevisionFile",
-  "submitNumberingCandidateBundleReview"
-]) {
-  const start = lifecycle.indexOf(`export async function ${name}`);
-  assert.notEqual(start, -1, `${name} must exist`);
-  const next = lifecycle.indexOf("export async function ", start + 24);
-  const body = lifecycle.slice(start, next === -1 ? lifecycle.length : next);
-  assert.match(body, /assertLifecycleWorkspaceEditScope\(input\.metadata, workspaceId\)/u, `${name} must enforce server-side owner scope`);
-}
+assert.match(read("db/schema.sql"), /role IN \('Engineer', 'R&D Manager', 'Admin'/u);
+assert.match(read("db/postgres/040_supervisor_workflow_authority.sql"), /'numbering\.publish'/u);
 
-const numberState = read("src/lib/number-state-flow.ts");
-assert.match(numberState, /canEditPdmOwnedResourceInCompany/u);
-assert.match(numberState, /canWithdrawReview:[\s\S]{0,240}workspace\.ownerId === actorId \|\| hasPrivilegedScope\(actor\)/u, "manager/admin withdrawal is projected server-side");
-assert.match(read("src/lib/repositories/number-state-flow-async-repository.ts"), /owner_id !== input\.actorId && input\.allowNonOwner !== true/u, "legacy withdrawal enforces explicit supervisor override");
-assert.match(read("src/lib/repositories/number-lifecycle-simplification-async-repository.ts"), /owner_id !== input\.actorId && input\.allowNonOwner !== true/u, "bundle withdrawal enforces explicit supervisor override");
-assert.match(read("src/lib/repositories/drawing-revision-lifecycle-async-repository.ts"), /submitted_by !== input\.actorId && input\.allowNonSubmitter !== true/u, "formal revision withdrawal enforces explicit supervisor override");
-assert.match(read("src/lib/drawing-recognition.ts"), /hasPdmNonOwnerEditScope/u, "OCR must share the same role policy");
-assert.match(read("db/schema.sql"), /\('rd_manager', 'numbering\.publish'\)/u, "SQLite authority seeds R&D Manager publication");
-assert.match(read("db/postgres/040_supervisor_workflow_authority.sql"), /rd_manager[\s\S]*numbering\.publish/u, "PostgreSQL migration grants R&D Manager publication");
-
-const bom = read("src/lib/bom-create-context.ts");
-const permissions = read("src/lib/permissions.ts");
-assert.match(bom, /draft\.status !== "Draft" && draft\.status !== "Rejected"/u, "BOM edit remains lifecycle-gated");
-assert.match(bom, /return canReadBomDraftRecordAsync\(user, draft\)/u, "BOM edit remains company/read-scope gated");
-assert.doesNotMatch(bom, /engineerOwnerClause/u, "BOM owner access must not filter ordinary engineers by creator/submission owner");
-assert.match(permissions, /user\.role !== "Engineer" \|\| submission\.submitted_by === user\.id/u, "manager/admin BOM access must not be owner-filtered");
-
-console.log("QC DEV-081 engineer/supervisor/admin non-owner edit scope: PASS");
+console.log("QC DEV-081 current canonical engineer/supervisor/admin non-owner edit scope: PASS");

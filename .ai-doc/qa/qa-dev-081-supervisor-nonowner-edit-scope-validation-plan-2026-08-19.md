@@ -1,6 +1,6 @@
 # QA DEV-081：工程師／主管／系統管理員跨負責人編輯驗證計畫
 
-Status: `Focused QA Passed / Browser Read-Only Matrix Passed / Disposable Mutation QC Pending / Production Release Gated`
+Status: `Focused QA Passed / Browser Read-Only Matrix Passed / Disposable Mutation QC Passed / Production Release Gated`
 
 ## 驗證矩陣
 
@@ -48,4 +48,12 @@ Status: `Focused QA Passed / Browser Read-Only Matrix Passed / Disposable Mutati
 
 - Engineer 同公司 non-owner 已納入 shared PDM edit scope；Part／Relation／Drawing 等可變更資料與 `Draft`／`Rejected` BOM 仍受 action permission、company scope 與 lifecycle gate 約束。
 - BOM create context 已移除 Engineer 的 owner／creator／submission owner 篩選；送審內容的 `canReadSubmission` owner visibility 保持獨立，不因本次 PDM master-data 編輯放寬而全面開放。
-- Pure policy/source contract、typecheck 與 affected ESLint 已於2026-08-20重新通過；正向 mutation、跨 viewport 真實資料 UI 與 disposable audit／owner 不變證據仍待補跑。
+- Pure policy/source contract、typecheck 與 affected ESLint 已於2026-08-20重新通過；正向 mutation、跨 viewport 真實資料 UI 與 disposable audit／owner 不變證據已由 2026-09-02 隔離 runner 補齊。
+
+## 2026-09-02 Disposable Mutation QC
+
+- PASS：`npm.cmd run qc:dev-081:mutation`；manifest=`output/qa/dev-081-mutation/DEV081-MUT-20260902T174802Z-b73b92b3/manifest.json`。
+- 使用 disposable SQLite clone、task-owned Next runtime 與 real Chromium；`productionWrites=false`、`primaryPortsTouched=[]`、cleanup=`removed`，task port `52820` 已釋放。
+- Manager／Admin／Engineer 均完成 Part create／update／cancel、owner／receipt readback 與 manufacturing deny；Drawing upload/readback/audit、Relation Matrix PATCH/readback/receipt 及 BOM create/save/readback/audit 全數 PASS。
+- Part 真實 UI 覆蓋 `375x812`、`768x1024`、`1440x900`；browser errors 與 failed responses 均為空。
+- runner 僅在 disposable clone 補齊 fixture 缺少的 `base_uom_code` 與 BOM quantity 欄位；未寫入 shared／staging／production business data。此結果關閉 local disposable mutation QC；production/staging、migration、deploy、release 及未納入本 runner 的完整 cancel／withdraw／review／release／OCR gate 仍維持獨立限制。

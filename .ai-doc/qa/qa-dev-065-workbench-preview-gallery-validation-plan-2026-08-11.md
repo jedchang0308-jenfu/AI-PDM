@@ -1,14 +1,207 @@
 # QA Plan：DEV-065 圖號／料號預覽圖模式
 
-Status: `Phase 1 Canonical Drawing QA Passed / Phase 2 Local SQLite + Browser Passed / PostgreSQL Shadow Blocked / Full Multi-provider QA Not Passed / Historical Legacy Baseline Retained`
+Status: `DEV-112 Local RD Implemented / QA-QC Complete 24/24 / RD Tech Lead Corrections Closed / Existing DEV-065 Evidence Retained / Full Multi-provider QA Not in Scope / Production Release Gated`
 Date: 2026-08-11
-Last reviewed: 2026-08-24
+Last reviewed: 2026-09-01
 Owner: QA
-Related DEV: `DEV-065`
+Related DEV: `DEV-065`, `DEV-112`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-WORKBENCH-PREVIEW-GALLERY-001-drawing-part-3d-preview-mode.md`
 Related ADR: `Phase 1 Not required / .ai-doc/decisions/ADR-PDM-PART-PREVIEW-AUTHORITY-001-part-setting-and-shared-projection.md`
 
-> Current authority notice：本文件§0.1～0.6是DEV-087 canonical Drawing gallery Phase 1的current QA authority與PASS evidence；§0.7是Part Phase 2 current QA authority。產品、SQLite／PostgreSQL／browser runners均已實作；SQLite、browser與focused regressions已執行通過，但因本機沒有explicit disposable PostgreSQL shadow，provider parity為`BLOCKED`，因此不得宣告full multi-provider QA PASS。下方Historical marker後的`PG-001`～`PG-014`只保留舊Drawing／Part architecture evidence，不得作current expected、PASS或completion denominator。
+> Current authority notice：本文件§0T／§0S是DEV-112三種顯示模式的current execution plan／target QA contract，已由同一candidate執行完成；§0.1～0.6是DEV-087 canonical Drawing gallery Phase 1既有QA authority與PASS evidence；§0.7是Part Phase 2既有QA authority。DEV-112的SQLite、browser與focused engineering gates已通過；本輪未執行PostgreSQL shadow，因此provider parity不在本DEV scope，不能延伸宣告full multi-provider QA PASS。任何DEV-065／066歷史PASS都不得計入`TVM-001..024`。下方Historical marker後的`PG-001`～`PG-014`只保留舊Drawing／Part architecture evidence，不得作current expected、PASS或completion denominator。
+
+## 0T. DEV-112 executable QA／targeted QC plan（2026-09-01／Executed）
+
+Status：`Local RD Implemented / RD Tech Lead Corrections Closed / QA-QC Complete / TVM 24/24 PASS / P0-P1=0 / Production Release Gated`。
+
+### 0T.1 Runner registry 與固定分母
+
+| Runner／package command | Ownership | Required output |
+|---|---|---|
+| `scripts/qc-dev-112-three-view-modes-contract.mjs`／`npm.cmd run qc:dev-112:contract` | RD self-check | `contract-manifest.json`；唯一layout type、三值normalize、missing／invalid URL resolver分支、storage key、DOM禁則、shared wrapper per-href failure owner、current-page media bound、single poller、no-touch/API/schema source assertions。Supporting checks用`DEV112-C01..`，不得複製TVM ID。 |
+| `scripts/qc-dev-112-three-view-modes-browser.mjs`／`npm.cmd run qc:dev-112:browser` | QA + targeted QC | `browser-manifest.json`；唯一current denominator=`TVM-001..024`，每ID恰一個final result，可有多個observation。兩route、三mode、四viewport、fixture/network/keyboard/failure均由此runner實際操作。 |
+| `scripts/qc-dev-112-three-view-modes-aggregate.mjs`／`npm.cmd run qc:dev-112:aggregate` | QC gate | 讀同一candidate最新contract/browser receipts，執行DEV-065 contract、`typecheck:app`與isolated build並保存stdout/exit code；輸出`aggregate-manifest.json`。缺ID、重複final、fingerprint不一致、P0/P1、primary drift或cleanup缺口即exit 1。 |
+| package orchestrator／`npm.cmd run qc:dev-112:all` | RD handoff | 僅依序執行`:contract → :browser → :aggregate`，任一步非0立即停止；不得吞錯或以較舊manifest補件。 |
+
+`package.json`登錄固定為：
+
+```json
+"qc:dev-112:contract": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-112-three-view-modes-contract.mjs",
+"qc:dev-112:browser": "node scripts/qc-dev-112-three-view-modes-browser.mjs",
+"qc:dev-112:aggregate": "node scripts/qc-dev-112-three-view-modes-aggregate.mjs",
+"qc:dev-112:all": "npm run qc:dev-112:contract && npm run qc:dev-112:browser && npm run qc:dev-112:aggregate"
+```
+
+本次 aggregate 實際固定執行並留receipt的 engineering/regression commands：
+
+```powershell
+npm.cmd run qc:dev-065:contract
+npm.cmd run typecheck:app
+npm.cmd run build:isolated
+```
+
+DEV-065 browser、DEV-105／DEV-087 contract、DEV-062 Relation與受影響檔案lint仍保留為既有回歸資產，未在本次 aggregate 重跑，不能在本次 receipt 中誤寫成已執行。
+
+`qc-dev-065-canonical-preview-gallery.mjs`在DEV-112實作時同步更新三模式selector、runtime declaration、primary before/after invariant與cleanup receipt，
+只做DEV-065 exact source/gallery regression；其case不能計入TVM。`qc-dev-066-workbench-topbar.mjs`的舊placement expected不執行也不改寫；
+replacement由TVM-001/002、unaffected filter/pagination/Relation由TVM-017及`qc:dev-062:relation`證明。
+
+### 0T.2 Task-owned fixture 與 mutation ledger
+
+1. Browser runner先read-only snapshot `data/ai-pdm.sqlite`的完整檔案hash、schema、root／Part／Drawing canonical identities、master counts、
+   root-reference orphan、migration-residue inventory與`PRAGMA foreign_key_check`。任一source invariant不成立即BLOCKED；不得先seed再宣稱source有效。
+2. 只有source通過才複製到`%TEMP%/ai-pdm-dev112-<run-id>/data`與同層task-owned repository；所有DB／file mutation只限此副本，
+   並逐筆寫`fixture-ledger.json`的SQL intent、before/after row identity、affected count與cleanup condition。
+3. Stable identities：`A0005-M01` ready Drawing與`A0005-P01` ready Part驗證exact source parity；沿用DEV-105 isolated pattern，以
+   `A0002`建立pending→ready、`A0006`建立delayed／failed／missing-path狀態。若目前source snapshot不含exact identity或hash變化，runner須BLOCKED，
+   不得臨時換code後仍沿用expected。
+4. capability-off使用第二個task-owned runtime／port並明示關閉preview flag；invalid map／HTTP／non-image／decode error可在同一isolated candidate
+   透過route interception注入，但fixture row key、source href與預期failure family必須寫manifest，不能mock成功畫面。
+5. source invariant通過後，isolated副本須依現行schema seed task-owned第二公司fixture：company=`dev112-company-b`、
+   asset=`dev112-preview-asset-b`、binding=`dev112-preview-binding-b`、context=`dev112-preview-context-b`，bytes只寫task-owned repository；
+   actor固定為quick-login後的`user-admin-local-quick`／`company-jenfu`。Runner先以已登入context取得一個合法company-jenfu protected preview href，
+   再實際送出：(a)新browser context、無cookie GET該href，expected=401或403；(b)該actor GET company-B exact asset／binding／context href，
+   expected=403或404；(c)分別tamper `fileAssetId`、`bindingId`、`contextId`的GET，expected=403或404。三類response body均不得含受保護bytes、
+   raw asset／binding／context authority、storage path或hash；request URL、actor/company、status、response byte count與redaction sweep逐筆寫
+   `browser-manifest.json.securityProbes`及`fixture-ledger.json`。不得用source assertion、interception或泛稱permission denied代替實際request。
+6. Runtime宣告至少含project=`AI_PDM`、purpose=`DEV-112 browser QA`、chosen free port、owning process tree、cleanup condition、
+   `PDM_DATA_DIR`、`PDM_REPOSITORY_DIR`、`PDM_NEXT_DIST_DIR`及mutation scope。環境固定沿用DEV-105安全基線：
+   `PDM_AUTH_MODE=local`、`PDM_DB_PROVIDER=sqlite`、`PDM_LOCAL_FULL_FUNCTION_VALIDATION=true`、
+   `PDM_ENABLE_LOCAL_QUICK_LOGIN=true`、`PDM_PRODUCTION_SLICE_MODE=""`、`PDM_POSTGRES_URL=""`、`DATABASE_URL=""`，
+   並明示Drawing／Part canonical workbench與preview flags。不得連3000、不得停止所有node、不得清未知port。
+7. finally必須關browser、停止兩個verified process trees、確認ports released、刪task runtime project／fixture；再重算primary invariant。
+   schema、canonical identity、root reference、migration residue或FK狀態漂移、FK非0或cleanup未完成，一律FAIL，即使24個UI assertion都通過。
+   完整檔案hash仍記錄作provenance；若同機既有runtime寫入非canonical audit/session pages，不以該雜訊取代上述logical invariant gate。
+
+### 0T.3 Browser execution matrix 與 case ownership
+
+- Viewports固定`1440×900`、`1024×768`、`768×1024`、`390×844`；每個viewport實際開Drawing與Part。
+- 每個route依序驗`文字清單 → 3D 清單 → 預覽圖 → 文字清單`，記錄URL、activeElement、scroll、row keys/order/count、selected key、
+  drawer identity、table headers、media requests與list request count。Mode switch前後不得以reload清狀態。
+- `TVM-001..006`：兩route DOM／labels／group／URL-storage-capability／same-row receipts；localStorage分別測valid、invalid、throwing stub，
+  並以「URL missing＋stored preference」與「invalid URL＋stored preference」證明resolver分支不同。
+- `TVM-007..010`：request classification、文字清單zero-image、current cursor-page ready count與首次media request上限、inline thumbnail cell geometry、
+  A0005 source/media/drawer parity；202／409 retry不可混入首次request上限。
+- `TVM-011..015`：文字清單無media、文字清單不新增media request、Part shared image-bearing poll、non-ready placeholder、terminal text stop。
+- `TVM-016..020`：selection／drawer focus、filter、radiogroup keyboard、accessible labels與security三類實際protected file-read。
+- `TVM-021..024`：non-image failure、reduced-motion/no page errors、laptop/tablet與mobile final screenshot sweep；Drawing／Part × 三mode各至少一張完整畫面。
+- Request分類固定`identity-list`、`preview-image-initial`、`preview-image-retry-202-409`、`protected-file-negative`、`detail`、`other`；
+  文字清單任何preview image request、mode-only switch新增identity request，或image-bearing mode首次media request超過current cursor page ready row count即FAIL。
+  Poll evidence需含timer interval、visibility、max concurrent list request與terminal stop，不接受只讀source code。
+
+### 0T.4 Evidence schema、candidate freeze 與判定
+
+Evidence root固定`output/qa/dev-112-three-view-modes/<run-id>/`：
+
+```text
+contract-manifest.json
+browser-manifest.json
+aggregate-manifest.json
+fixture-ledger.json
+network.json
+console.json
+geometry.json
+data-sanity.json
+screenshots/<route>/<viewport>/<mode>.png
+logs/<gate>.log
+```
+
+三個manifest共同欄位至少含`devId/runId/gitSha/branch/dirtyFileSha256/nextVersion/nodeVersion/playwrightVersion/flags/sourceInvariant/
+fixtureInvariant/runtimeDeclaration/caseResults/p0Count/p1Count/cleanup/passed`。Browser另含route、viewport、row/source/request/timer/focus receipts、
+`securityProbes`（probeType／actor／company／redactedUrl／status／responseByteCount／rawAuthorityLeakCount）；
+aggregate另含source manifest path+hash、24個final result、每個engineering command及exit code。不同git SHA或任一relevant dirty hash不同不得aggregate。
+
+PASS仍是24/24、P0/P1=0、已執行的regression/engineering gate=0、primary logical invariant unchanged、cleanup complete；BLOCKED只可用於缺source fixture、
+auth或必要外部能力且必須保留觀察證據。QA完成後由targeted QC重看TVM-001/005/008/010/013/015/016/018/020/024及aggregate；
+QC不得修產品。本輪 receipts 已完成，故本文件不再維持`0/24 Executed`。
+
+## 0S. DEV-112 三種顯示模式 QA Contract（2026-09-01／已執行／PASS）
+
+### 0S.1 Objective、risk 與驗證邊界
+
+驗證 `/numbering/drawings` 與 `/parts` 以同一結果資料提供 `文字清單／3D 清單／預覽圖`三種互斥模式，控制位置不再與
+建立動作或filter混排；3D清單只在編號儲存格加入縮圖，文字清單不下載圖片，三模式保留 exact row／preview／drawer authority。
+Risk=`Medium`：改變兩個主要頁面的資訊層級、URL/persistence、render branch與foreground polling，但不改schema、資料mutation、
+permission、preview source或API route。
+
+- PASS：`TVM-001..024`固定24案全部PASS；本次 aggregate 登錄的DEV-065 contract、`typecheck:app`與isolated build通過；
+  P0/P1=0；候選版本、資料、runtime、port與cleanup可對帳。未重跑的DEV-066／087／105與affected lint只作既有回歸資產，不併入本次PASS宣告。
+- FAIL：三模式 rows/context不一致、控制層級混雜、文字清單發出image request、thumbnail成為第二動作／新欄位、雙poller／N+1、
+  preview source或權限退化、visible error、鍵盤／ARIA缺口或任一指定viewport overflow／overlap／crop。
+- BLOCKED：無法建立isolated data/runtime與可辨識preview fixture、無法登入實際UI、來源/row key/hash provenance不可證明，或必須接觸
+  production資料／credential／migration。Blocked不得推定PASS或用static scan代替browser evidence。
+- QA/QC不得修產品、改expected、刪案例、寫primary資料、接手未知runtime或重用不同candidate的舊截圖。
+
+使用思考習慣：#差距分析、#可驗證性、#風險意識、#當責
+
+### 0S.2 Fixed acceptance matrix
+
+| ID | Scenario | Required evidence / expected |
+|---|---|---|
+| `TVM-001` | Drawing頁控制層級 | Page header只有名稱與既有建立動作；filter只含資料範圍；結果上緣獨立顯示`顯示方式`與三選項，沒有3D toggle或空白footer。 |
+| `TVM-002` | Part頁控制層級 | 與Drawing使用相同標籤、順序、group semantics與result-region位置；domain filter／建立動作仍各自正確。 |
+| `TVM-003` | 首訪與互斥語意 | 預設`文字清單`；`文字清單／3D 清單／預覽圖`同時只選一項，selected state不只靠顏色。 |
+| `TVM-004` | URL／preference相容 | `layout` key missing＋stored `list_3d`／`preview`時使用該模組storage；raw URL為三個valid值時URL優先；invalid raw＋stored `list_3d`／`preview`時resolver／React state／URL都必須為`list`且不得讀回stored值。兩模組各自記憶，storage throw回`list`，replaceState保留其他query且不污染history。 |
+| `TVM-005` | Preview capability absent／flag off | 只顯示文字清單；顯示方式整組、divider與空白占位均不存在；URL安全正規化且無fabricated missing map。 |
+| `TVM-006` | 三模式資料同一性 | 同一fixture在三模式的rowKey、順序、count、code、name、version/layer、handling完全相同；不合併Drawing branch或Part row。 |
+| `TVM-007` | 純模式切換network | 切換不重新抓identity list/detail、不改cursor hash；image-bearing mode首次protected-media request不得超過current cursor page ready row count（page `limit<=100`），202／409 retry另計；non-ready item不得建立media request。 |
+| `TVM-008` | 3D清單 media bound | 3D清單只為current cursor page ready rows建立protected-media；unique URL數不超過ready row count，raw dev duplicate request另記 observation。 |
+| `TVM-009` | 3D清單結構 | 沿用table且縮圖只在編號儲存格；無新欄、巢狀button或額外tab stop；桌面/平板約84×63、手機約62×47（相較原尺寸放大約30%）、約4:3 contain不裁切。Current Phase不要求或聲稱viewport lazy。 |
+| `TVM-010` | Ready source parity | Drawing／Part各以既有exact source呈現；3D清單與預覽圖mediaHref、source label及drawer source四方對帳，禁止錯revision／branch／Part fallback。 |
+| `TVM-011` | 文字清單無media | 文字清單不渲染thumbnail／image，無media request與image-bearing timer。 |
+| `TVM-012` | 文字清單 request quietness | 從image-bearing mode切回文字清單不新增media request，並停止poll。 |
+| `TVM-013` | Part shared image-bearing poll | Part的3D清單與預覽圖沿用同一timer/request guard，無per-row poll。 |
+| `TVM-014` | 非ready placeholder | pending/delayed/missing/failed/unavailable保留row與drawer；3D清單顯示低噪音占位，不洩漏raw error/hash/storage/job。 |
+| `TVM-015` | Terminal text stop | 切到文字清單、terminal或unmount後timer停止，不再產生background refresh。 |
+| `TVM-016` | Selection／drawer／focus／scroll | 三模式互切保留selected exact row與已開drawer；關閉drawer回目前mode合理目標；無focus loss、scroll jump或不存在table target。 |
+| `TVM-017` | Filter／sort／page／race | 搜尋、複選filter、排序、cursor/page及快速request race沿用canonical行為；每次成功snapshot以目前頁exact row set原子替換groups與preview map，stale response不可覆蓋。 |
+| `TVM-018` | Mode group keyboard | `顯示方式`有radio/segmented group name；Tab進組一次，方向鍵移動，Space/Enter選取；切換不搶結果焦點。 |
+| `TVM-019` | Row/card keyboard、screen reader、motion | 既有table/gallery keyboard與copy/drawer行為不退化；縮圖不是額外焦點；accessible name含preview state；reduced-motion無旋轉/pulse。 |
+| `TVM-020` | 安全、資料與可見錯誤 sweep | Runner實際執行三類protected file-read：(1)無cookie GET合法href=401/403；(2)`user-admin-local-quick`／`company-jenfu`讀task-owned company-B exact asset/binding/context=403/404；(3)逐一tamper fileAssetId/bindingId/contextId=403/404。各response受保護byte count=0、raw authority/storage path/hash leak=0；DOM/console無hydration error、5xx或broken-image icon，畫面資料與fixture一致。 |
+| `TVM-021` | non-image media failure | 注入非圖片受保護回應後，exact item卸載broken media並顯示unavailable placeholder，無page error。 |
+| `TVM-022` | reduced-motion／error sweep | `prefers-reduced-motion`下無旋轉／pulse；console與page errors為0。 |
+| `TVM-023` | laptop／tablet screenshots | 1440×900與1024×768 Drawing／Part三模式畫面可對帳；無overflow、overlap、crop、錯欄或雙scroll。 |
+| `TVM-024` | mobile screenshots | 768×1024與390×844畫面可對帳；控制可觸控且不截字，約62×47縮圖不擠掉編號。 |
+
+### 0S.3 FMEA 與不可接受失效
+
+| Failure mode | Effect | Detection | Required prevention / disposition |
+|---|---|---|---|
+| 三模式各自維護資料或selection | 切換後看見不同物件、錯開drawer | TVM-006/016/017 row-key readback | 單一canonical list state與callbacks；任一不一致=P0 FAIL |
+| 文字清單仍建立image/poll request | 無意義流量、worker壓力與畫面抖動 | TVM-007/008 network+timer trace | image-bearing mode gating；任一image request=P1 FAIL |
+| 3D清單與gallery各自poll | 重複查詢、race、stale覆蓋 | TVM-011..013 in-flight/timer evidence | 共用DEV-105 request guard；雙timer或stale commit=P1 FAIL |
+| 縮圖另成欄位／按鈕 | 比較骨架破裂、鍵盤多一焦點 | TVM-009/018/019 DOM+keyboard | 同一編號cell、row-owned action；額外interactive descendant=P1 FAIL |
+| preview source被重新計算 | 顯示錯revision／branch／Part | TVM-010 fixture/map/file-read對帳 | 只消費既有safe projection；任何fallback=P0 FAIL |
+| capability off仍顯示空控制 | 使用者選到無作用模式 | TVM-005 DOM/URL/network | 整組不渲染並回文字清單；半套UI=P1 FAIL |
+| invalid URL又套用stored偏好 | 深連結正規化結果與實際模式分歧 | TVM-004 resolver／URL／state receipt | 只有URL key missing可讀storage；invalid raw必回list，分歧=P1 FAIL |
+| non-image／decode error留下broken media | 使用者看見破圖且gallery／inline行為不一致 | TVM-015 DOM、error event與screenshot | shared wrapper擁有per-href failure並卸載media；任一broken icon=P1 FAIL |
+| protected file-read只做mock或source assertion | 權限退化未被真實驗證 | TVM-020 request／status／byte／redaction receipt | 固定actor與company-B fixture送三類實際GET；缺任一probe=P1 evidence FAIL |
+| 窄版控制或縮圖溢位 | 模式不可選、編號不可讀 | TVM-023/024 screenshot+geometry | 整組換行、縮圖維持約62×47且不擠掉編號；page overflow=P1 FAIL |
+
+### 0S.4 Evidence layers、candidate freeze 與執行責任
+
+1. Contract layer：三模式enum、missing／invalid URL resolver分支、capability gate、same-row projection、shared wrapper failure owner、
+   current cursor-page media bound、single poller與DOM禁則的focused assertions。
+2. Interaction layer：兩route以mouse、touch與keyboard切換；對帳filters/page/selection/drawer/focus/scroll/network及ready/nonready狀態。
+3. Browser layer：固定四viewport、Drawing/Part × 三模式；保留screenshot、DOM摘要、console、request/response family、geometry與data-sanity receipt。
+4. Regression layer：DEV-065 exact source/map/file-read、DEV-105 convergence、DEV-066 pagination/filter shell、DEV-087 row/drawer與受影響build/typecheck/lint。
+5. Candidate freeze：所有TVM evidence必須記錄同一git/dirty fingerprint、flags、Node/Next版本、fixture manifest與來源歸屬；不同版本不可拼成PASS。
+
+若需啟動runtime，必須依專案規則先記錄project、purpose、port、process tree、cleanup condition、`PDM_DATA_DIR`與
+`PDM_REPOSITORY_DIR` mutation scope，使用task-owned isolated資料／repository；完成後只停止該tree並證明port released。Build前後須證明
+primary SQLite schema、canonical root/Part/Drawing identities、migration residue與`PRAGMA foreign_key_check`不變。
+
+Exact runners、commands、fixture keys、file/hunk manifest與估工已由本文件§0T及SPEC §0T註冊；DEV-112已完成RD實作，
+並由同一candidate完成TVM-001..024、contract與aggregate evidence。結果只代表本機QA-QC完成；production仍受獨立release gate管制。
+
+### 0S.5 Current execution receipt（2026-09-01）
+
+- Contract receipt：`output/qa/dev-112-three-view-modes/DEV112-contract-2026-09-01T04-20-45-784Z/contract-manifest.json`，C01～C16=`16/16 PASS`。
+- Browser receipt：`output/qa/dev-112-three-view-modes/DEV112-2026-09-01T04-20-52-452Z/browser-manifest.json`，TVM=`24/24 PASS`、P0/P1=`0/0`，
+  Drawing／Part × 三模式 × 四 viewport 截圖=`24`；security no-cookie=`401`、跨公司／tampered=`404`，受保護 bytes與raw authority leak=`0`。
+- Aggregate receipt：`output/qa/dev-112-three-view-modes/DEV112-aggregate-2026-09-01T04-22-28-720Z/aggregate-manifest.json`，contract/browser candidate fingerprint match、
+  DEV-065 contract、`typecheck:app`、`build:isolated`、primary／fixture／cleanup gates均`PASS`；`productionConnection=false`、`productionWrites=false`。
+- 本次未執行PostgreSQL shadow；這不阻擋DEV-112本機三模式交付，但不得把本結果延伸為full multi-provider PASS。
 
 ## 0. Phase 1 Canonical Drawing QA Plan 與 Phase 2 Direction
 

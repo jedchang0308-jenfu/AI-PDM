@@ -48,7 +48,7 @@
     "postgresReadmeDeclaresCloudSqlAuthority": true,
     "postgresSqlFileCount": 51,
     "cloudSqlGrantFile": "db/cloud-sql/pdm_runtime_grants.sql",
-    "cloudSqlGrantFileSha256": "6e159dc9374e6f3d634cebe097704e4ab105ddf62384012bc75a1ad5d13af783",
+    "cloudSqlGrantFileSha256": "f579c1a4d2f41190ff19059a0000295904d25b25f273e6d7a911141b98a5405d",
     "singletonMigrationRunnerPresent": true,
     "currentPostgresMigrations": [
       {
@@ -940,8 +940,8 @@
       {
         "output": "sql/000_admin_bootstrap_grants.sql",
         "kind": "admin_bootstrap",
-        "outputSha256": "c4a42fcc00d4ea5d33b1328e7619fa3e46326a1cd4441ce336879995a6a7ef5c",
-        "bytes": 1668
+        "outputSha256": "e47d8bc78f6cfc8a8e00cef7ca02ec56039b18f89208471669d2ecbde2425f14",
+        "bytes": 1633
       },
       {
         "output": "sql/999_runtime_grants_refresh.sql",

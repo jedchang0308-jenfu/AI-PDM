@@ -574,20 +574,33 @@ await capture("QA-087-209", "REPOSITORY_WORK_FILE_BINDING_EXACT_WORK_AND_ASSET",
   return { pass: file?.source_file_asset_id === tuple.source_file_asset_id && tuple.work_id === created.work.workId && tuple.drawing_revision_id === created.work.revisionId && tuple.content_hash === tuple.asset_hash, oracle: { workId: created.work.workId, revisionId: created.work.revisionId, bindingId: uploaded.file.id, expectedHref }, actual: { file, tuple, expectedHref }, providerReceipt: receipt };
 });
 
-await capture("QA-087-210", "REPOSITORY_NONPRIMARY_WORK_FILE_REMOVE_READBACK_AND_REPLAY", async () => {
+await capture("QA-087-210", "REPOSITORY_CURRENT_REVISION_2D_3D_PDF_REMOVE_READBACK_AND_REPLAY", async () => {
   const context = fresh();
   const created = await createDrawingWork(context, { idempotencyKey: "qa210-create-positive" });
-  const uploaded = await created.service.uploadFile(created.work.workId, { file: new File(["QA210-PDF"], "remove-me.pdf", { type: "application/pdf" }) }, owner, { idempotencyKey: "qa210-upload-positive", contractToken: created.targets.meta.contractToken, expectedRowVersion: created.work.rowVersion });
-  const removeContext = { idempotencyKey: "qa210-remove-positive", contractToken: created.targets.meta.contractToken, expectedRowVersion: uploaded.rowVersion };
-  const removed = await created.service.removeFile(created.work.workId, uploaded.file.id, owner, removeContext);
-  const replay = await created.service.removeFile(created.work.workId, uploaded.file.id, owner, removeContext);
-  const facts = context.database.prepare(`SELECT
+  let rowVersion = created.work.rowVersion;
+  const uploaded = [];
+  for (const [fileName, body] of [["remove-me.SLDDRW", "QA210-2D"], ["remove-me.SLDPRT", "QA210-3D"], ["remove-me.pdf", "QA210-PDF"]]) {
+    const result = await created.service.uploadFile(created.work.workId, { file: new File([body], fileName, { type: "application/octet-stream" }) }, owner, { idempotencyKey: `qa210-upload-${fileName}`, contractToken: created.targets.meta.contractToken, expectedRowVersion: rowVersion });
+    rowVersion = result.rowVersion;
+    uploaded.push(result.file);
+  }
+  const removed = [];
+  const replays = [];
+  for (const file of uploaded) {
+    const removeContext = { idempotencyKey: `qa210-remove-${file.id}`, contractToken: created.targets.meta.contractToken, expectedRowVersion: rowVersion };
+    const result = await created.service.removeFile(created.work.workId, file.id, owner, removeContext);
+    const replay = await created.service.removeFile(created.work.workId, file.id, owner, removeContext);
+    removed.push(result);
+    replays.push(replay);
+    rowVersion = result.rowVersion;
+  }
+  const facts = uploaded.map((file) => context.database.prepare(`SELECT
     (SELECT COUNT(*) FROM drawing_revision_work_files WHERE work_id=? AND file_binding_id=?) AS membership,
     (SELECT COUNT(*) FROM drawing_revision_files WHERE id=? AND removed_at IS NOT NULL) AS tombstoned_binding,
-    (SELECT COUNT(*) FROM file_assets WHERE id=? AND deleted_at IS NOT NULL) AS tombstoned_asset`).get(created.work.workId, uploaded.file.id, uploaded.file.id, uploaded.file.sourceFileAssetId);
+    (SELECT COUNT(*) FROM file_assets WHERE id=? AND deleted_at IS NOT NULL) AS tombstoned_asset`).get(created.work.workId, file.id, file.id, file.sourceFileAssetId));
   const receipt = providerReceipt(context.database, facts);
   context.database.close();
-  return { pass: removed.removed === true && JSON.stringify(replay) === JSON.stringify(removed) && Number(facts.membership) === 0 && Number(facts.tombstoned_binding) === 1 && Number(facts.tombstoned_asset) === 1, oracle: { membership: 0, tombstonedBinding: 1, tombstonedAsset: 1, replaySame: true }, actual: { removed, replay, facts }, providerReceipt: receipt };
+  return { pass: removed.every((item) => item.removed === true) && replays.every((item, index) => JSON.stringify(item) === JSON.stringify(removed[index])) && facts.every((item) => Number(item.membership) === 0 && Number(item.tombstoned_binding) === 1 && Number(item.tombstoned_asset) === 1), oracle: { files: 3, membership: 0, tombstonedBinding: 1, tombstonedAsset: 1, replaySame: true }, actual: { uploaded, removed, replays, facts }, providerReceipt: receipt };
 });
 
 await capture("QA-087-211", "REPOSITORY_MULTI_FILE_TERMINALS_AND_PARTIAL_FAILURE_NO_WRITE", async () => {

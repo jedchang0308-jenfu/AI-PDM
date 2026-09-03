@@ -1,21 +1,49 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CanonicalPreviewMedia } from "@/components/canonical-preview-media";
 import type { CanonicalWorkbenchRowDto } from "@/lib/pdm-canonical-workbench-contract";
 import type { CanonicalPreviewProjection } from "@/lib/pdm-canonical-preview";
 
-function previewText(preview: CanonicalPreviewProjection) {
+export function previewText(preview: CanonicalPreviewProjection) {
   if (preview.state === "ready") return "";
-  if (preview.state === "pending") return "預覽產生中";
-  if (preview.state === "delayed") return "預覽處理較久";
+  if (preview.state === "pending") return "預覽建立中";
+  if (preview.state === "delayed") return "預覽服務未回應";
   if (preview.state === "failed" || preview.state === "unavailable") return "預覽暫時無法顯示";
-  return "無預覽圖";
+  if (preview.state === "missing") return "無 3D 預覽";
+  return "預覽暫時無法顯示";
 }
 
-function stateLabel(preview: CanonicalPreviewProjection) {
+export function stateLabel(preview: CanonicalPreviewProjection) {
   if (preview.state === "ready") return "預覽已就緒";
   return previewText(preview);
+}
+
+export function CanonicalPreviewThumbnail({
+  preview,
+  density
+}: {
+  preview: CanonicalPreviewProjection;
+  density: "gallery" | "inline";
+}) {
+  const [mediaFailed, setMediaFailed] = useState(false);
+  const mediaIdentity = `${preview.state}|${preview.media?.href ?? ""}`;
+  useEffect(() => { setMediaFailed(false); }, [mediaIdentity]);
+  const failedPreview = mediaFailed ? { ...preview, state: "unavailable" as const, media: null } : preview;
+  const ready = failedPreview.state === "ready" && Boolean(failedPreview.media);
+  const accessibleName = `${failedPreview.sourceLabel}，${stateLabel(failedPreview)}`;
+  return <span
+    className={`canonical-preview-thumbnail is-${density}`}
+    role="img"
+    aria-label={accessibleName}
+    data-canonical-inline-preview={density === "inline" ? "true" : undefined}
+    data-preview-state={failedPreview.state}
+    onErrorCapture={(event) => {
+      if (event.target instanceof HTMLImageElement) setMediaFailed(true);
+    }}
+  >
+    {ready && failedPreview.media ? <CanonicalPreviewMedia media={{ ...failedPreview.media, title: failedPreview.sourceLabel, alt: failedPreview.alt }} interactive={false} compact /> : <span className={`canonical-preview-placeholder is-${failedPreview.state}`}><span className="canonical-preview-placeholder-content">{failedPreview.state === "pending" || failedPreview.state === "delayed" ? <span className="canonical-preview-progress" aria-hidden="true" /> : null}<span>{previewText(failedPreview)}</span></span></span>}
+  </span>;
 }
 
 export function CanonicalEntityPreviewGallery({
@@ -44,21 +72,17 @@ export function CanonicalEntityPreviewGallery({
     const next = rows[Math.max(0, Math.min(rows.length - 1, index + delta))];
     if (next) focusRow(next);
   };
+  const hasMissingProjection = rows.some((row) => !previewByRowKey[row.rowKey]);
+  if (hasMissingProjection) {
+    return <div className="canonical-preview-gallery" role="alert">預覽資料暫時無法顯示</div>;
+  }
 
   return <div className="canonical-preview-gallery" role="grid" aria-label="工作台預覽圖" aria-busy={loading} aria-keyshortcuts="ArrowRight ArrowLeft ArrowDown ArrowUp Home End PageUp PageDown Enter Space Escape">
     {loading && rows.length === 0 ? <p className="canonical-empty" role="status">正在載入預覽圖…</p> : null}
     {!loading && rows.length === 0 ? <p className="canonical-empty">沒有符合條件的資料</p> : null}
     {rows.map((row, index) => {
-      const preview = previewByRowKey[row.rowKey] ?? {
-        state: "missing" as const,
-        media: null,
-        sourceType: "none" as const,
-        sourceLabel: "無預覽來源",
-        sourceDrawingNumber: null,
-        sourceRevision: null,
-        alt: `${row.code} 預覽圖`
-      };
-      const ready = preview.state === "ready" && Boolean(preview.media);
+      const preview = previewByRowKey[row.rowKey]!;
+      const isInProgress = preview.state === "pending" || preview.state === "delayed";
       const accessibleState = stateLabel(preview);
       const sourceIdentity = preview.sourceDrawingNumber
         ? `${preview.sourceLabel}，${preview.sourceDrawingNumber}${preview.sourceRevision ? `，${preview.sourceRevision}` : ""}`
@@ -71,8 +95,10 @@ export function CanonicalEntityPreviewGallery({
         className={`canonical-preview-card${selectedKey === row.rowKey ? " is-selected" : ""}`}
         data-canonical-preview-card="true"
         data-row-key={row.rowKey}
+        data-preview-state={preview.state}
         aria-label={accessibleName}
         aria-pressed={selectedKey === row.rowKey}
+        aria-busy={isInProgress ? "true" : undefined}
         tabIndex={selectedKey === row.rowKey || (!selectedKey && index === 0) ? 0 : -1}
         onClick={() => { onSelect(row); onOpen(row); }}
         onKeyDown={(event) => {
@@ -87,8 +113,8 @@ export function CanonicalEntityPreviewGallery({
           else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") { void navigator.clipboard?.writeText(row.code); }
         }}
       >
-        <span className="canonical-preview-media" aria-hidden="true">
-          {ready && preview.media ? <CanonicalPreviewMedia media={{ ...preview.media, title: preview.sourceLabel, alt: preview.alt }} interactive={false} compact /> : <span className={`canonical-preview-placeholder is-${preview.state}`}>{previewText(preview)}</span>}
+        <span className="canonical-preview-media">
+          <CanonicalPreviewThumbnail preview={preview} density="gallery" />
         </span>
         <span className="canonical-preview-card-body">
           <span className="canonical-preview-card-heading"><strong>{row.code}</strong><span className="canonical-preview-kind">{preview.sourceType === "custom_image" ? "圖片" : "3D"}</span></span>

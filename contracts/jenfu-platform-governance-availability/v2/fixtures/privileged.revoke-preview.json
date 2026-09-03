@@ -1,0 +1,23 @@
+{
+  "contractVersion": "orgmaster.privileged-assignment-operation.v1",
+  "phase": "preview",
+  "operation": "revoke_system_admin",
+  "applicationId": "ai-pdm",
+  "stableRoleId": "role-system-admin",
+  "payload": { "assignmentId": "assignment-system-admin-1" },
+  "expected": {
+    "catalogVersion": "ai-pdm.role-catalog.2026-09-02.v2",
+    "catalogPayloadHash": "ebdaa2960960e0683b480c721d2c27df59031b4af23b124f2ac7e882309f6b6e",
+    "governanceRevision": "fixture-governance-current",
+    "organizationRevision": "fixture-organization-revision-current"
+  },
+  "reason": "撤銷測試特權身分",
+  "preview": {
+    "previewHash": "2222222222222222222222222222222222222222222222222222222222222222",
+    "beforeHolderCount": 1,
+    "afterHolderCount": 0,
+    "targetHint": "privileged•••A7",
+    "affectedSessionCount": 2,
+    "securityAlertRequired": true
+  }
+}

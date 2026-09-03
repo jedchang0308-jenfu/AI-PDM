@@ -1,0 +1,49 @@
+{
+  "contractVersion": "jenfu.platform-entitlement.v1",
+  "hashAlgorithm": "sha256",
+  "aggregateAlgorithm": "sha256(relativePath + NUL + fileSha256 + LF), sorted by relativePath",
+  "fileCount": 10,
+  "files": [
+    {
+      "path": "application-role-catalog.schema.json",
+      "sha256": "9881bd3c640bcc1eee9c8db396ce958834b22f1fe984bfe2882ab964e0059bac"
+    },
+    {
+      "path": "effective-role-assignment.schema.json",
+      "sha256": "16cf73173bfb2aa52d51116cce18e7e028a3aea52553fd53e9d49e38fd137c56"
+    },
+    {
+      "path": "entitlement-authority.schema.json",
+      "sha256": "205b51f45d10dcf30b3760b3cc40285d71615183178b24ec070503773fa0b919"
+    },
+    {
+      "path": "entitlement-error-codes.json",
+      "sha256": "5ea8fa6875217974bbf255f50e409c3fe966f5c8c83c8741f79ec40a729735a1"
+    },
+    {
+      "path": "fixtures/application-role-catalog.sample.json",
+      "sha256": "625c9a0d7058c349f840d49f82eee117eea783a9d9ff62dbfa465f1138f56185"
+    },
+    {
+      "path": "fixtures/effective-role-assignment.delegated.json",
+      "sha256": "d901fd5aa569f6ea1b2d457b9b9665a590fd2e033475ce8648518cf1329204d2"
+    },
+    {
+      "path": "fixtures/effective-role-assignment.manual.json",
+      "sha256": "c91a2c165284a438ef16288ebc83d490ce17bc27d88239bf3a2742f4c029b723"
+    },
+    {
+      "path": "fixtures/effective-role-assignment.position.json",
+      "sha256": "5a3d1222c21571c893af6f64480bb54ddc660fba18e14c5f9a86ace5a90807e9"
+    },
+    {
+      "path": "fixtures/entitlement-authority.legacy.json",
+      "sha256": "d68ba7d7b33a72d103196f905c33cf8634ec17caa31c31b5a70ebbc649124ffa"
+    },
+    {
+      "path": "fixtures/entitlement-authority.orgmaster.json",
+      "sha256": "1996d4b93f7ec086b2065af422cfe7c00faeb722cb26019b83f8d01043d8880c"
+    }
+  ],
+  "sha256": "60f683232112e30d03e23dcb8dd41341551bcf1bd599b7d6fac8c51bf2bd0ba5"
+}

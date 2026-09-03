@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { isGoogleDriveServiceConfigured } from "@/lib/gdrive";
 import { llmConfig } from "@/lib/llm-config";
 import { getAllSystemSettingsAsync, setSystemSettingAsync } from "@/lib/system-settings-async";
@@ -26,7 +26,7 @@ const folderIdKeys = new Set(["gdrive_pending_folder_id", "gdrive_released_folde
 const folderSnapshotKeys = [...ALLOWED_SETTINGS];
 
 export async function GET(request: Request) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const dbSettings = await getAllSystemSettingsAsync();
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));

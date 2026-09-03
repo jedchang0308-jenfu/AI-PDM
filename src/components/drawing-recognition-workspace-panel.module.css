@@ -1,0 +1,42 @@
+.panelStyles :global(.dev079-recognition-common-first) {
+  display: grid;
+  gap: 12px;
+  padding: 14px 0 16px;
+  border-bottom: 1px solid var(--border-subtle, #d9e2ec);
+}
+.panelStyles :global(.dev079-recognition-common-header) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.panelStyles :global(.dev079-recognition-common-header div) { display: flex; align-items: baseline; gap: 10px; }
+.panelStyles :global(.dev079-recognition-common-header strong) { color: #0f766e; font-size: 1rem; }
+.panelStyles :global(.dev079-recognition-common-header span),
+.panelStyles :global(.dev079-recognition-common-header small),
+.panelStyles :global(.dev079-recognition-common-field small) { color: #64748b; font-size: .78rem; }
+.panelStyles :global(.dev079-recognition-common-fields) { display: grid; gap: 8px; }
+.panelStyles :global(.dev079-recognition-common-field) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.panelStyles :global(.dev079-recognition-common-field label) { display: grid; gap: 4px; }
+.panelStyles :global(.dev079-recognition-common-field label span) { font-size: .78rem; color: #475569; }
+.panelStyles :global(.dev079-recognition-common-field input),
+.panelStyles :global(.dev079-recognition-exception-row input),
+.panelStyles :global(.dev079-recognition-manual-override input),
+.panelStyles :global(.dev079-recognition-manual-override select) {
+  min-height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 5px 9px;
+  background: #fff;
+  color: #0f172a;
+}
+.panelStyles :global(.dev079-recognition-exceptions) { display: grid; gap: 7px; }
+.panelStyles :global(.dev079-recognition-exception-row) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr) auto; align-items: center; gap: 8px; padding: 7px 9px; background: #f8fafc; border-radius: 7px; }
+.panelStyles :global(.dev079-recognition-exception-row span) { font-size: .82rem; color: #334155; }
+.panelStyles :global(.dev079-recognition-manual-override) { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(100px, .7fr) minmax(120px, 1fr) auto; gap: 7px; align-items: center; }
+.panelStyles :global(.dev079-recognition-empty-inline) { margin: 0; color: #64748b; font-size: .84rem; }
+@media (max-width: 720px) {
+  .panelStyles :global(.dev079-recognition-manual-override),
+  .panelStyles :global(.dev079-recognition-exception-row) { grid-template-columns: 1fr; }
+  .panelStyles :global(.dev079-recognition-common-header) { align-items: flex-start; flex-direction: column; }
+}

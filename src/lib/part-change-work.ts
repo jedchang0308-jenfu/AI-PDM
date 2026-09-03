@@ -35,23 +35,35 @@ export class PartChangeWorkService {
     if (!work) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "修改資料不存在", 404);
     assertEditor(actor, work.owner_user_id);
     const payload = typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload;
-    const [identity, attachments] = await Promise.all([
+    const [identity, attachments, formalAttributes] = await Promise.all([
       this.client.queryOne(`SELECT part_number AS code, part_name AS name FROM part_numbers WHERE id = :partId AND company_id = :companyId`, { partId: work.part_id, companyId: actor.companyId }),
       this.client.query(`SELECT asset.id, asset.file_name, asset.display_name, asset.document_category, asset.mime_type, asset.file_size
         FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id = :partId AND asset.deleted_at IS NULL
-        ORDER BY asset.created_at DESC, asset.id DESC`, { partId: work.part_id })
+        ORDER BY asset.created_at DESC, asset.id DESC`, { partId: work.part_id }),
+      this.client.query<{ key: string; label: string; value: string | null; applicabilityState: string }>(
+        `SELECT definition.stable_key AS key, definition.display_label AS label, value.value_text AS value,
+                value.applicability_state AS "applicabilityState"
+         FROM pdm_part_attribute_values value
+         JOIN pdm_attribute_definitions definition
+           ON definition.id = value.attribute_definition_id AND definition.company_id = value.company_id
+         WHERE value.company_id = :companyId AND value.part_number_id = :partId
+         ORDER BY definition.display_label, definition.stable_key`,
+        { partId: work.part_id, companyId: actor.companyId }
+      )
     ]);
-    return { data: { entityType: "part" as const, entityId: work.part_id, workId: work.id, rowVersion: Number(work.row_version), payload, identity, attachments, readonly: false }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.id }), correlationId: crypto.randomUUID() } };
+    return { data: { entityType: "part" as const, entityId: work.part_id, workId: work.id, rowVersion: Number(work.row_version), payload, identity, attachments, formalAttributes, readonly: false }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.id }), correlationId: crypto.randomUUID() } };
   }
 
-  async create(partId: string, actor: PartChangeActor, context: CommandContext) {
+  async create(partId: string, actor: PartChangeActor, context: CommandContext, initialPayload?: unknown) {
     assertAllowed(actor.permissions.create);
     await this.verify(actor, context.contractToken);
+    const validatedInitialPayload = initialPayload === undefined ? undefined : validatePartChangePayload(initialPayload);
     const repository = new PartChangeWorkAsyncRepository(this.client);
+    const request = validatedInitialPayload ? { partId, expectedRowVersion: context.expectedRowVersion, initialPayload: validatedInitialPayload } : { partId, expectedRowVersion: context.expectedRowVersion };
     return runDev087IdempotentCommand(this.client, {
       companyId: actor.companyId, actorId: actor.id, command: "part.create", idempotencyKey: context.idempotencyKey,
-      request: { partId, expectedRowVersion: context.expectedRowVersion }, effectKey: `part-work:${partId}`, correlationId: correlation(context.correlationId)
-    }, (tx) => repository.create(tx, { companyId: actor.companyId, partId, ownerUserId: actor.id, expectedFormalRowVersion: context.expectedRowVersion }));
+      request, effectKey: `part-work:${partId}`, correlationId: correlation(context.correlationId)
+    }, (tx) => repository.create(tx, { companyId: actor.companyId, partId, ownerUserId: actor.id, expectedFormalRowVersion: context.expectedRowVersion, initialPayload: validatedInitialPayload }));
   }
 
   async update(workId: string, payload: unknown, actor: PartChangeActor, context: CommandContext) {

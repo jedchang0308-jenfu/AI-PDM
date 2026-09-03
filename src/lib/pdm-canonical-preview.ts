@@ -14,6 +14,7 @@ export type CanonicalPreviewProjection = {
   sourceDrawingNumber: string | null;
   sourceRevision: string | null;
   alt: string;
+  hasPrimaryManufacturingDrawing?: boolean;
 };
 
 export type CanonicalPreviewSourceRow = {
@@ -50,7 +51,7 @@ export type CanonicalPreviewDerivativeJobRow = {
 
 export const DRAWING_LAYOUT_STORAGE_KEY = "pdm-canonical-drawing-layout-v1" as const;
 export const PART_LAYOUT_STORAGE_KEY = "pdm-canonical-part-layout-v1" as const;
-export type CanonicalWorkbenchLayout = "list" | "preview";
+export type CanonicalWorkbenchLayout = "list" | "list_3d" | "preview";
 
 const THREE_D_EXTENSIONS = new Set(["sldprt", "sldasm", "step", "stp", "iges", "igs", "x_t", "x_b", "sat", "stl", "jt"]);
 const READY_DERIVATIVE_KINDS = new Set(["model_preview_png", "thumbnail_png"]);
@@ -64,7 +65,7 @@ type CanonicalTwoDDerivativeReference = Pick<CanonicalPreviewDerivativeJobRow,
 > & { status?: string };
 
 export function normalizeCanonicalWorkbenchLayout(value: string | null | undefined): CanonicalWorkbenchLayout | null {
-  return value === "list" || value === "preview" ? value : null;
+  return value === "list" || value === "list_3d" || value === "preview" ? value : null;
 }
 
 export function selectCanonicalThreeDSource(rows: readonly CanonicalPreviewSourceRow[], revisionId: string) {
@@ -107,8 +108,8 @@ export function resolveCanonicalDrawingPreview(input: {
   if (!source) return {
     state: "missing",
     media: null,
-    sourceType: drawingNumber ? "primary_manufacturing_drawing" : "none",
-    sourceLabel: drawingNumber ? sourceLabel : "無預覽來源",
+    sourceType: "none",
+    sourceLabel: "無預覽來源",
     sourceDrawingNumber: drawingNumber,
     sourceRevision: revision,
     alt

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { getLegacySessionPayload, issueSessionCookie, SESSION_COOKIE_MAX_AGE_SECONDS } from "@/lib/auth";
 import type { DbUser } from "@/lib/db";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { JenfuPlatformSessionV1Claims } from "@/lib/jenfu-platform-session-v1";
 import type { PlatformAssuranceLevel, PlatformSessionV2Claims } from "@/lib/platform-session-v2";
 import { AsyncAuditRepository } from "@/lib/repositories/audit-async-repository";
 
@@ -315,6 +316,22 @@ export async function registerFirebaseAccountSessionAsync(input: {
   });
 }
 
+export async function registerJenfuAccountSessionAsync(input: {
+  request: Request;
+  claims: JenfuPlatformSessionV1Claims;
+}) {
+  await registerAccountSessionAsync({
+    request: input.request,
+    userId: input.claims.localPrincipalId,
+    companyId: input.claims.companyId,
+    sessionId: input.claims.sessionId,
+    authProvider: "firebase_bff",
+    assuranceLevel: input.claims.assuranceLevel,
+    issuedAt: input.claims.issuedAt * 1000,
+    expiresAt: input.claims.expiresAt * 1000
+  });
+}
+
 export async function isAccountSessionRevokedAsync(input: { userId: string; sessionId: string }) {
   const row = await getAsyncDatabaseClient().queryOne<{ revoked_at: string | null; expires_at: string | null }>(SELECT_REVOKED_SESSION_SQL, {
     userId: input.userId,
@@ -324,6 +341,24 @@ export async function isAccountSessionRevokedAsync(input: { userId: string; sess
   if (row.revoked_at) return true;
   const expiresAt = row.expires_at ? Date.parse(row.expires_at) : Number.NaN;
   return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
+
+export async function isAccountSessionActiveAsync(input: {
+  userId: string;
+  sessionId: string;
+  nowMs?: number;
+  client?: AsyncDatabaseClient;
+}) {
+  const row = await (input.client ?? getAsyncDatabaseClient()).queryOne<{
+    revoked_at: string | null;
+    expires_at: string | null;
+  }>(SELECT_REVOKED_SESSION_SQL, {
+    userId: input.userId,
+    sessionIdHash: hashAccountSessionId(input.sessionId)
+  });
+  if (!row || row.revoked_at) return false;
+  const expiresAt = row.expires_at ? Date.parse(row.expires_at) : Number.NaN;
+  return Number.isFinite(expiresAt) && expiresAt > (input.nowMs ?? Date.now());
 }
 
 export async function touchAccountSessionAsync(input: { userId: string; sessionId: string }) {

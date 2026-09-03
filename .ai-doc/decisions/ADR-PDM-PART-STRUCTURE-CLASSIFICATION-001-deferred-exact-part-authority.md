@@ -109,3 +109,27 @@ Authority SPEC：`.ai-doc/specs/SPEC-PDM-DEFERRED-STRUCTURE-CLASSIFICATION-001-n
 ## Implementation Boundary
 
 本ADR已由DEV-099實作並通過本機 Local QA-QC；建號、分類入口與BOM projection已在同一產品變更與aggregate evidence中完成 coherent 驗證。正式 activation、deploy、release與production migration仍受 release gate 管制，未由本ADR自動授權。
+
+## DEV-106 Amendment：Purpose-aware BOM Action (2026-08-31)
+
+採 `ADR-PDM-BOM-PURPOSE-001` 後，Decision 9「purchased assembly不提供製造BOM動作」保持有效；若被解讀為「不提供任何BOM動作」，該較廣解讀由本修訂取代。
+
+- purchased assembly或無primary M的assembly可在受控feature flag下建立 `purpose=sales_kit`。
+- 它們仍不可建立 `purpose=manufacturing`，sales kit亦不得滿足manufacturing readiness。
+- BOM readiness由「exact Part classification＋BOM purpose＋purpose-specific gate」共同推導；分類enum與canonical exact Part authority不變。
+- Current Phase不新增kit item kind、root authority、第二分類入口或第二BOM writer。
+
+本修訂只開放銷售組合用途；供應商整包內容、ERP扣料、UOM、選配與dual-purpose同料號仍須另行re-entry。
+
+## 2026-08-31 CAD Evidence Amendment（Human Confirmed）
+
+本修訂保留「exact Part 是 structure classification authority」，但取代 Decision 10、Rejected Interpretations 與 Future Phase 中「`.SLDASM` 永遠只能建議、不能自動寫入」的絕對禁止。
+
+1. `.SLDASM` 必定代表組合檔。當 active primary 上傳成功且 server 可透過 same-company formal `primary_manufacturing` relation 唯一解析 exact Part 時，該 upload command 可以 idempotent 將 Part 晉級為 `assembly`。exact Part 仍是寫入目標，Drawing／root／檔名不會變成第二個 classification authority。
+2. 此自動化只允許 `unclassified／single_part -> assembly` 或 assembly no-op；不得建立 BOM、預填 Child、擴散到 same-root Parts 或變更 Drawing-Part relation。
+3. `.SLDPRT` 只證明 CAD 檔案為單零件模型，不證明料號沒有下階結構；不論 Part 目前是 `unclassified／single_part／assembly`，上傳都不修改 `structure_type`。人工分類 UI 可預選單件，但必須由使用者明確送出。
+4. 移除、替換或失去 `.SLDASM` 證據不自動降級；「現在沒有證據」不等於「證明為單件」。assembly 改回 single 仍走既有人工分類、reason、ETag、BOM conflict 與 audit gate。
+5. 無 formal relation、關係不唯一、cross-company、stale、無權限或無法審計時 fail closed，不得回退用檔名／root 猜 Part。
+6. 上傳與分類的transaction／partial-failure recovery、permission、audit deduplication、provider parity、root-first lock與exact fault checkpoints已由`SPEC-PDM-BOM-CREATE-PAGE-001` §30.5、§30.8～§30.9與§31.7封口；本機實作與54案驗證收據記於主SPEC §33，production仍受gate管制。
+
+同時，BOM readiness改由統一BOM domain推導：任一合法`assembly` Part皆可建立BOM，不再要求`manufactured + primary M`，也不以`manufacturing | sales_kit`分流。決策authority為`ADR-PDM-BOM-DOMAIN-002`，產品／技術contract見`SPEC-PDM-BOM-CREATE-PAGE-001` §29～§33。DEV-099歷史evidence保留，但不取代本amendment的current implementation evidence。

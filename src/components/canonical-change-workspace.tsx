@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Download, Save, Send, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { CanonicalDrawingChangeWorkspace } from "@/components/canonical-drawing-change-workspace";
+import { PartNumberMatrixWorkspace } from "@/components/part-number-matrix-workspace";
 import { PdmEditPageFrame } from "@/components/pdm-edit-page-frame";
 import type { WorkbenchEntityType } from "@/lib/pdm-canonical-workbench-contract";
 import { pdmFileReadHref, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
+import type { PartMaintenanceTab } from "@/lib/part-number-matrix-contract";
 import { CANONICAL_NUMBERING_ITEM_KIND_OPTIONS, projectCanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
+import styles from "./canonical-change-workspace.module.css";
 
 type Option = { id: string; code: string; name?: string };
 export type WorkspacePayload = {
@@ -16,9 +19,14 @@ export type WorkspacePayload = {
   rowVersion: number; payload: Record<string, unknown>; readonly: boolean;
   identity?: { code?: string; name?: string; purpose_code?: string; purpose_description?: string } | null;
   options?: { drawings?: Option[]; parts?: Option[] }; files?: unknown[]; attachments?: unknown[];
+  formalAttributes?: Array<{ key: string; label: string; value: string | null; applicabilityState: string }>;
   reviewScope?: "excluded_live" | "included"; actions?: Array<{ key: "approve" | "return_for_correction"; label: string }>;
 };
 type ResponseShape = { data: WorkspacePayload; meta: { contractToken: string; correlationId: string } };
+type PartRecognitionTransfer = {
+  id: string; status: string; formalizedAt: string | null; sourceCount: number;
+  acceptedFieldCount: number; fieldLabels: string[]; pendingCount: number;
+};
 
 function apiMessage(body: unknown, fallback: string) {
   const error = body && typeof body === "object" ? (body as { error?: unknown }).error : null;
@@ -29,12 +37,15 @@ function bool(value: unknown) { return Boolean(value); }
 function visibleItemKind(value: unknown) { return projectCanonicalNumberingItemKind(value) ?? ""; }
 
 type CanonicalChangeWorkspaceProps = {
-  entityType?: WorkbenchEntityType; entityId?: string; workId?: string | null; reviewRequestId?: string; returnTo?: string | null; initialData?: WorkspacePayload | null; suppressFooter?: boolean; fileReadContext?: PdmFileReadContext; embedded?: boolean;
+  entityType?: WorkbenchEntityType; entityId?: string; workId?: string | null; reviewRequestId?: string; returnTo?: string | null; initialData?: WorkspacePayload | null; suppressFooter?: boolean; fileReadContext?: PdmFileReadContext; embedded?: boolean; initialTab?: PartMaintenanceTab;
 };
 
 export function CanonicalChangeWorkspace(props: CanonicalChangeWorkspaceProps) {
   if (props.entityType === "drawing") {
     return <CanonicalDrawingChangeWorkspace drawingId={props.entityId} workId={props.workId} reviewRequestId={props.reviewRequestId} returnTo={props.returnTo} />;
+  }
+  if (props.entityType === "part" && props.entityId && props.workId && !props.reviewRequestId && !props.initialData) {
+    return <PartNumberMatrixWorkspace partId={props.entityId} workId={props.workId} returnTo={props.returnTo} initialTab={props.initialTab} />;
   }
   return <GenericCanonicalChangeWorkspace {...props} />;
 }
@@ -50,6 +61,7 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [canManageAttachments, setCanManageAttachments] = useState(false);
+  const [recognitionTransfer, setRecognitionTransfer] = useState<PartRecognitionTransfer | null>(null);
   const domain = data?.entityType ?? entityType;
   const safeReturn = returnTo || (domain === "drawing" ? "/numbering/drawings" : "/parts");
 
@@ -84,6 +96,15 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
       .catch(() => { if (active) setCanManageAttachments(false); });
     return () => { active = false; };
   }, [data?.entityType, data?.readonly]);
+  useEffect(() => {
+    if (data?.entityType !== "part" || data.readonly) { setRecognitionTransfer(null); return; }
+    let active = true;
+    void fetch(`/api/numbering/parts/${encodeURIComponent(data.entityId)}/recognition-session`, { cache: "no-store" })
+      .then(async (response) => response.ok ? await response.json() as { session?: PartRecognitionTransfer | null } : null)
+      .then((body) => { if (active) setRecognitionTransfer(body?.session ?? null); })
+      .catch(() => { if (active) setRecognitionTransfer(null); });
+    return () => { active = false; };
+  }, [data?.entityId, data?.entityType, data?.readonly]);
 
   const commandHeaders = useCallback(() => ({ "content-type": "application/json", "if-match": `\"${data?.rowVersion ?? 0}\"`, "idempotency-key": crypto.randomUUID(), "x-pdm-workbench-contract": token }), [data?.rowVersion, token]);
   async function ownerCommand(kind: "save" | "submit" | "cancel") {
@@ -115,6 +136,15 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
     const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     router.push(`/parts/${encodeURIComponent(partNumber)}/attachments?returnTo=${encodeURIComponent(currentLocation)}`);
   }
+  function openRecognitionReview() {
+    if (!recognitionTransfer) return;
+    const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    router.push(`/numbering/recognition/${encodeURIComponent(recognitionTransfer.id)}?returnTo=${encodeURIComponent(currentLocation)}`);
+  }
+
+  const extraFormalAttributes = (data?.formalAttributes ?? []).filter((attribute) =>
+    !["material", "color", "surface_finish", "surface_treatment", "variant_note"].includes(attribute.key)
+  );
 
   const actionDock = suppressFooter ? null : status === "ready" && data ? data.readonly ? <>
     <button className="secondary-button" type="button" disabled={busy} onClick={() => void decide("return_for_correction")}><XCircle size={15} />退回修改</button>
@@ -128,7 +158,12 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
   return <PdmEditPageFrame returnHref={safeReturn} eyebrow={data?.readonly ? "唯讀審核" : domain === "drawing" ? "圖號編輯" : domain === "part" ? "料號編輯" : "圖料關聯編輯"} title={title} subtitle={data?.identity?.name ?? ""} status={status} error={error} notice={notice} isDirty={isDirty} onRetry={() => void load()} actionDock={actionDock} embedded={embedded}>
     {data?.readonly ? <div className="dev079-workspace-notice is-readonly" role="status">審核畫面與編輯畫面使用相同欄位與排列；目前為唯讀。</div> : null}
     {status === "ready" && data?.entityType === "part" ? <>
-      <section className="pdm-edit-page-card"><h2>料號資料</h2><div className="pdm-master-field-grid">
+      <section className="pdm-edit-page-card"><h2>料號資料</h2>
+        {recognitionTransfer && recognitionTransfer.status !== "formalized" && recognitionTransfer.acceptedFieldCount > 0 ? <div className={styles.recognitionTransfer} role="status">
+          <div className={styles.recognitionTransferCopy}><strong>智慧辨識已核對：{recognitionTransfer.fieldLabels.join("、")}（{recognitionTransfer.acceptedFieldCount} 項）</strong><span>{recognitionTransfer.pendingCount > 0 ? `尚有 ${recognitionTransfer.pendingCount} 項需核對，尚未寫入料號主資料。` : "尚未寫入料號主資料。"}</span></div>
+          <button className="secondary-button" type="button" onClick={openRecognitionReview}>{recognitionTransfer.pendingCount > 0 ? "繼續核對" : "檢查並寫入 PDM"}</button>
+        </div> : null}
+        <div className="pdm-master-field-grid">
         <label><span>品名</span><input value={text(payload.partName)} disabled={data.readonly} onChange={(event) => updateField("partName", event.target.value)} /></label>
         <label><span>料件類型</span><select value={visibleItemKind(payload.itemKind)} disabled={data.readonly} onChange={(event) => updateField("itemKind", event.target.value)}>{visibleItemKind(payload.itemKind) ? null : <option value="" disabled>待分類</option>}{CANONICAL_NUMBERING_ITEM_KIND_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
         <label><span>規格</span><input value={text(payload.customSpecification)} disabled={data.readonly} onChange={(event) => updateField("customSpecification", event.target.value || null)} /></label>
@@ -137,7 +172,9 @@ function GenericCanonicalChangeWorkspace({ entityType, entityId, workId, reviewR
         <label><span>表面處理</span><input value={text(payload.surfaceTreatment)} disabled={data.readonly} onChange={(event) => updateField("surfaceTreatment", event.target.value || null)} /></label>
         <label className="pdm-edit-page-field-wide"><span>變體備註</span><textarea value={text(payload.variantNote)} disabled={data.readonly} onChange={(event) => updateField("variantNote", event.target.value || null)} rows={2} /></label>
         <label><span>共用件</span><input type="checkbox" checked={bool(payload.isUniversal)} disabled={data.readonly} onChange={(event) => updateField("isUniversal", event.target.checked)} /></label>
-      </div></section>
+        </div>
+        {extraFormalAttributes.length > 0 ? <div className={styles.formalAttributes}><h3>其他已確認屬性</h3><dl>{extraFormalAttributes.map((attribute) => <div key={attribute.key}><dt>{attribute.label}</dt><dd>{attribute.applicabilityState === "not_applicable" ? "無" : attribute.value || "—"}</dd></div>)}</dl></div> : null}
+      </section>
       <section className="pdm-edit-page-card"><div className="pdm-edit-page-card-heading"><div><h2>附件</h2>{data.readonly && fileReadContext !== "review_package" ? <p className="canonical-note">附件獨立維護，不屬於本次資料核准；此處顯示目前最新附件。</p> : null}</div>{!data.readonly && canManageAttachments && data.identity?.code ? <button className="secondary-button" type="button" onClick={manageAttachments}>管理附件</button> : null}</div><SimpleFiles records={data.attachments} attachmentContext={{ entityId: data.entityId, reviewRequestId }} context={fileReadContext} /></section>
     </> : null}
   </PdmEditPageFrame>;

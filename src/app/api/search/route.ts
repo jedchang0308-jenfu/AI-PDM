@@ -37,11 +37,11 @@ export async function GET(request: Request) {
   if (url.searchParams.get("entity") === "part") {
     if (query.length < 2) return NextResponse.json({ pdmCompany: companyResult.company, parts: [] });
     const parts = await getAsyncDatabaseClient().query<{
-      id: string; item_id: string | null; part_number: string; part_name: string; part_root_id: string;
+      id: string; item_id: string | null; part_number: string; part_name: string; part_root_id: string; base_uom_code: string | null; structure_type: string;
     }>(`
       SELECT part.id,
         (SELECT item.id FROM items item WHERE item.company_id = part.company_id AND upper(item.part_number) = upper(part.part_number) ORDER BY item.id LIMIT 1) AS item_id,
-        part.part_number, part.part_name, part.part_root_id
+        part.part_number, part.part_name, part.part_root_id, part.base_uom_code, part.structure_type
       FROM part_numbers part
       WHERE part.company_id = :companyId
         AND part.record_status NOT IN ('Obsolete','Merged','MainDrawingInvalid')
@@ -57,6 +57,9 @@ export async function GET(request: Request) {
         part_number: part.part_number,
         part_name: part.part_name,
         part_root_id: part.part_root_id,
+        base_uom_code: part.base_uom_code,
+        structure_type: part.structure_type,
+        recoveryHref: part.base_uom_code ? null : `/parts?detail=${encodeURIComponent(part.id)}&section=structure`,
         revision: ""
       }))
     });

@@ -50,9 +50,9 @@ const nativeTwoDSource = source({ bindingId: "native-2d", assetId: "asset-native
 check("CPG-FALLBACK-001 controlled PDF is the immediate 2D fallback", selectCanonicalTwoDSource([pdfSource, nativeTwoDSource], "rev-1", [])?.assetId === "asset-pdf");
 check("CPG-FALLBACK-002 current native derivative outranks the PDF fallback", selectCanonicalTwoDSource([pdfSource, nativeTwoDSource], "rev-1", [readyDerivative({ sourceFileAssetId: "asset-native-2d", sourceContentHash: "hash-native-2d" })])?.assetId === "asset-native-2d");
 check("CPG-012 current caller is entity-neutral", component.includes("CanonicalEntityPreviewGallery") && component.includes("previewByRowKey") && !component.includes("preview3dByRowKey"));
-check("CPG-013 Drawing/Part URL-storage precedence is explicit", component.includes("urlLayout ?? storedLayout ?? \"list\"") && preview.includes("pdm-canonical-drawing-layout-v1") && preview.includes("pdm-canonical-part-layout-v1"));
-check("CPG-014 layout switch uses replaceState and pressed buttons", component.includes("replaceLocation({ layout: next })") && layoutSwitch.includes("aria-pressed"));
-check("CPG-015 pagination appends one neutral map", component.includes("append ? { ...current, ...(result.data.previewByRowKey ?? {}) }"));
+check("CPG-013 Drawing/Part URL-storage precedence is explicit", component.includes("rawLayout === null ? readStoredLayout(storageKey) : null") && component.includes("rawLayout === null ? storedLayout ?? \"list\" : urlLayout ?? \"list\"") && preview.includes("pdm-canonical-drawing-layout-v1") && preview.includes("pdm-canonical-part-layout-v1"));
+check("CPG-014 layout switch uses replaceState and a single radiogroup", component.includes("replaceLocation({ layout: next })") && layoutSwitch.includes('role="radiogroup"') && layoutSwitch.includes('role="radio"') && layoutSwitch.includes("aria-checked"));
+check("CPG-015 cursor pagination replaces the current-page neutral map", component.includes("setPreviewByRowKey(result.data.previewByRowKey ?? {})") && !component.includes("append ? { ...current, ...(result.data.previewByRowKey ?? {}) }"));
 check("CPG-016 list response race is guarded", component.includes("listAbortRef.current?.abort()") && component.includes("listRequestRef.current"));
 check("CPG-017 media failure is owned by shared loader", media.includes("setLoadState(\"failed\")") && media.includes("重新整理預覽") && !gallery.includes("failedImages"));
 check("CPG-018 gallery keyboard navigation is roving", gallery.includes("ArrowRight") && gallery.includes("PageDown") && gallery.includes("aria-pressed") && gallery.includes("tabIndex"));
@@ -66,6 +66,9 @@ check("CPG-025 direct sharp and focused scripts are registered", packageJson.dep
 check("CPG-026 Drawing adapter is thin and loader-free", drawingAdapter.includes("CanonicalPreviewPanel") && !drawingAdapter.includes("useEffect") && !drawingAdapter.includes("fetch("));
 check("CPG-027 shared component layering is one-way", panel.includes("CanonicalPreviewMedia") && gallery.includes("CanonicalPreviewMedia") && partControl.includes("/preview-image/reset"));
 check("CPG-028 provisional override flag has zero callers", ![feature, service, partService, component, gallery].some((text) => text.includes("PDM_PART_PREVIEW_OVERRIDE_V1")));
+check("CPG-029 reset control requires an available manufacturing drawing", contract.includes("hasPrimaryManufacturingDrawing")
+  && service.includes("hasPrimaryManufacturingDrawing")
+  && partControl.includes('preview.sourceType === "custom_image" && control.hasPrimaryManufacturingDrawing'));
 
 const failed = checks.filter((item) => !item.passed);
 for (const item of checks) console.log(`${item.passed ? "PASS" : "FAIL"} ${item.id}${item.detail ? ` ${item.detail}` : ""}`);

@@ -205,6 +205,104 @@ export async function ensureAutomaticPreviewJobsForAttachmentsAsync(
   }
 }
 
+export type AutomaticPreviewPreparationResult = {
+  sourceFileAssetId: string;
+  disposition: "ready" | "active" | "queued" | "failed";
+  jobId: string | null;
+};
+
+/**
+ * Shared lifecycle/detail recovery for canonical file assets. Callers must
+ * supply company-scoped asset ids that were resolved through their own read or
+ * mutation authority. A preview failure never changes the controlled source.
+ */
+export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
+  client: AsyncDatabaseClient,
+  input: { companyId: string; sourceFileAssetIds: string[]; actorUserId: string; requireQueued?: boolean; runFakeWorker?: boolean }
+): Promise<AutomaticPreviewPreparationResult[]> {
+  const sourceFileAssetIds = [...new Set(input.sourceFileAssetIds.map((value) => value.trim()).filter(Boolean))];
+  if (sourceFileAssetIds.length === 0) return [];
+
+  const idClause = buildNamedInClause("canonicalPreviewAsset", sourceFileAssetIds);
+  const sources = await client.query<PreviewSourceRow>(
+    `SELECT fa.id, :companyId AS company_id,
+            COALESCE(fa.storage_provider, 'local_repository') AS storage_provider,
+            fa.original_path, fa.storage_key, fa.file_name, fa.file_ext, fa.mime_type,
+            fa.file_size, fa.content_hash, fa.hash_algorithm,
+            fa.linked_entity_type, fa.linked_entity_id
+       FROM file_assets fa
+      WHERE fa.id IN (${idClause.sql})
+        AND fa.deleted_at IS NULL`,
+    { companyId: input.companyId, ...idClause.params }
+  );
+  const states = await listPreviewStatesForAttachmentIds(client, sources.map((source) => source.id));
+  const jobRows = await client.query<PreviewJobRow>(
+    `SELECT * FROM preview_jobs
+      WHERE source_file_asset_id IN (${idClause.sql})
+      ORDER BY updated_at DESC, created_at DESC`,
+    idClause.params
+  );
+  const jobsBySourceId = new Map<string, PreviewJobRow[]>();
+  for (const job of jobRows) {
+    jobsBySourceId.set(job.source_file_asset_id, [...(jobsBySourceId.get(job.source_file_asset_id) ?? []), job]);
+  }
+  const runFakeWorker = input.runFakeWorker ?? process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1";
+  const generatorProfile = runFakeWorker
+    ? fakePreviewGeneratorProfile
+    : realPreviewGeneratorProfile;
+  const results: AutomaticPreviewPreparationResult[] = [];
+
+  for (const source of sources) {
+    if (!isNativeSolidWorksPreviewSource(source.file_ext)) continue;
+    const sourceHash = source.content_hash?.trim() ?? "";
+    const requestedKind = requestedPreviewKindForSource(source.file_ext);
+    const state = states.get(source.id);
+    const currentJob = (jobsBySourceId.get(source.id) ?? []).find(
+      (job) => job.source_content_hash === sourceHash && job.requested_kind === requestedKind
+    ) ?? null;
+    const hasCurrentDerivative = Boolean(sourceHash) && (state?.derivatives ?? []).some(
+      (derivative) => derivative.status === "ready" && derivative.sourceContentHash === sourceHash
+    );
+    if (hasCurrentDerivative) {
+      results.push({ sourceFileAssetId: source.id, disposition: "ready", jobId: currentJob?.id ?? null });
+      continue;
+    }
+
+    if (currentJob && (currentJob.status === "queued" || currentJob.status === "running")) {
+      if (runFakeWorker) {
+        try {
+          await runFakePreviewWorkerForJobAsync(client, { jobId: currentJob.id, workerId: "local-fake-preview-worker" });
+        } catch (error) {
+          if (input.requireQueued) throw error;
+          results.push({ sourceFileAssetId: source.id, disposition: "failed", jobId: currentJob.id });
+          continue;
+        }
+        results.push({ sourceFileAssetId: source.id, disposition: "ready", jobId: currentJob.id });
+        continue;
+      }
+      results.push({ sourceFileAssetId: source.id, disposition: "active", jobId: currentJob.id });
+      continue;
+    }
+
+    try {
+      const prepared = await enqueuePreviewJobForSourceAsync(client, {
+        source,
+        actorUserId: input.actorUserId,
+        requestedKind,
+        generatorProfile,
+        runFakeWorker,
+        forceRegenerate: currentJob?.status === "succeeded"
+      });
+      results.push({ sourceFileAssetId: source.id, disposition: "queued", jobId: prepared.jobId });
+    } catch (error) {
+      if (input.requireQueued) throw error;
+      results.push({ sourceFileAssetId: source.id, disposition: "failed", jobId: currentJob?.id ?? null });
+    }
+  }
+
+  return results;
+}
+
 export async function enqueuePreviewJobForAttachmentAsync(
   client: AsyncDatabaseClient,
   input: {

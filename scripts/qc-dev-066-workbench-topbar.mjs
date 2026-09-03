@@ -4,57 +4,77 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const checks = [];
-const record = (id, passed) => checks.push({ id, passed: Boolean(passed) });
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const exists = (file) => fs.existsSync(path.join(root, file));
+const record = (id, passed, detail = "") => checks.push({ id, passed: Boolean(passed), detail });
 
-const files = {
-  relation: read("src/components/relation-workbench.tsx"),
-  drawing: read("src/components/drawing-workbench.tsx"),
-  part: read("src/components/part-workbench.tsx"),
-  pagination: read("src/components/pdm-workbench-pagination.tsx"),
-  css: read("src/app/globals.css"),
-  spec: read(".ai-doc/specs/SPEC-UX-PDM-WORKBENCH-TOPBAR-001-unified-toolbar-muscle-memory.md"),
-  qa: read(".ai-doc/qa/qa-dev-066-workbench-topbar-muscle-memory-validation-plan-2026-08-11.md")
-};
+// DEV-066 described the pre-canonical three-workbench shell. That source tree was
+// intentionally retired by DEV-087/090/112; this runner now prevents the old
+// command from silently becoming a false current UI gate.
+const retiredSources = [
+  "src/components/relation-workbench.tsx",
+  "src/components/drawing-workbench.tsx",
+  "src/components/part-workbench.tsx",
+  "src/lib/relation-workbench.ts",
+  "src/lib/drawing-workbench.ts",
+  "src/lib/part-workbench.ts"
+];
+for (const file of retiredSources) record(`legacy source retired: ${file}`, !exists(file));
 
-const workbenches = [files.relation, files.drawing, files.part];
-record("TB-001 all workbenches use the shared topbar and toolbar classes", workbenches.every((source) => source.includes("pdm-workbench-topbar") && source.includes('className="panel pdm-workbench-toolbar"')));
-record("TB-002 all workbenches keep one filter grid", workbenches.every((source) => source.includes('className="drawing-workbench-filter-grid"')));
-record("TB-003 footer follows the filter row", workbenches.every((source) => source.indexOf("drawing-workbench-filter-grid") < source.indexOf("pdm-workbench-toolbar-footer")));
-record("TB-004 all workbenches remove the history control and keep mode actions trailing", (
-  workbenches.every((source) => !source.includes('className="drawing-workbench-history-toggle"')) &&
-  files.relation.includes("pdm-workbench-toolbar-view-actions") &&
-  files.drawing.includes("pdm-workbench-toolbar-view-actions") &&
-  files.part.includes("pdm-workbench-toolbar-view-actions")
-));
-record("TB-013 history removal does not leave an empty footer", (
-  files.relation.includes("pdm-workbench-toolbar-view-actions") &&
-  files.drawing.includes("{previewEnabled ? (") &&
-  files.part.includes("{previewEnabled ? (") &&
-  files.drawing.includes("<PdmWorkbenchLayoutSwitch value={layout} onChange={changeLayout} />") &&
-  files.part.includes("<PdmWorkbenchLayoutSwitch value={layout} onChange={changeLayout} />")
-));
-record("TB-005 relation switch is nested in trailing actions", files.relation.indexOf("pdm-workbench-toolbar-view-actions") < files.relation.indexOf("pdm-relation-view-switch"));
-record("TB-006 drawing and part layout switches are nested in trailing actions", [files.drawing, files.part].every((source) => {
-  const footerActions = source.indexOf("pdm-workbench-toolbar-view-actions");
-  return footerActions >= 0 && source.indexOf("PdmWorkbenchLayoutSwitch", footerActions) > footerActions;
-}));
-record("TB-007 pagination is shared by all workbenches", workbenches.every((source) => source.includes("@/components/pdm-workbench-pagination") && source.includes("<PdmWorkbenchPagination")));
-record("TB-008 pagination component exposes stable nav and control order", files.pagination.includes('<nav className="number-state-pagination pdm-workbench-pagination" aria-label="工作台分頁">') && files.pagination.indexOf("上一頁") < files.pagination.indexOf("第 {pageIndex + 1} 頁") && files.pagination.indexOf("第 {pageIndex + 1} 頁") < files.pagination.indexOf("下一頁"));
-record("TB-009 pagination component fails closed when there is no page", (
-  files.pagination.includes("if (pageIndex <= 0 && !hasNextPage) return null;") ||
-  (files.pagination.includes("const canPrevious =") && files.pagination.includes("if (!canPrevious && !hasNextPage) return null;"))
-));
-record("TB-010 CSS fixes relation switch grid leakage and adds responsive footer", files.css.includes(".pdm-workbench-toolbar-view-actions") && files.css.includes("flex-direction: column;") && files.css.includes(".pdm-relation-view-switch {\n  grid-column: auto;"));
-record("TB-011 docs contain RD and QA contracts", files.spec.includes("RD Implementation Contract") && files.qa.includes("TB-001") && files.qa.includes("TB-012"));
-record("TB-012 direct per-workbench pagination markup is removed", workbenches.every((source) => !source.includes('className="number-state-pagination"')));
+const canonicalWorkbench = read("src/components/canonical-pdm-workbench.tsx");
+const canonicalRelation = read("src/components/canonical-relation-matrix-section.tsx");
+const pagination = read("src/components/pdm-workbench-pagination.tsx");
+const layoutSwitch = read("src/components/pdm-workbench-layout-switch.tsx");
+const packageJson = JSON.parse(read("package.json"));
+const taskIndex = read(".ai-doc/dev_task.md");
+const map = read(".ai-doc/documentation_map.md");
 
+record("canonical workbench owns search/filter/result/pagination mechanics", [
+  "canonical-toolbar",
+  "canonical-list",
+  "PdmWorkbenchPagination",
+  "pdm-workbench-multi-select-filter"
+].every((token) => canonicalWorkbench.includes(token)));
+record("canonical workbench owns history and URL recovery", [
+  "historyRevision",
+  "historyMode",
+  "canonical-history-open",
+  "DrawingHistoryRevision"
+].every((token) => canonicalWorkbench.includes(token)));
+record("current Drawing/Part display modes are delegated to DEV-112", [
+  "PdmWorkbenchLayoutSwitch",
+  "data-canonical-result-display-bar",
+  "previewCapability"
+].every((token) => canonicalWorkbench.includes(token)));
+record("current Relation matrix is delegated to DEV-090", [
+  "CanonicalRelationMatrixSection",
+  "data-canonical-relation-edit",
+  "editing"
+].every((token) => canonicalWorkbench.includes(token) || canonicalRelation.includes(token)));
+record("shared pagination remains an accessible current primitive", [
+  'aria-label="工作台分頁"',
+  "上一頁",
+  "下一頁"
+].every((token) => pagination.includes(token)));
+record("display mode remains one accessible current primitive", [
+  'role="radiogroup"',
+  'aria-label="顯示方式"',
+  'role="radio"'
+].every((token) => layoutSwitch.includes(token)));
+record("successor commands are registered", [
+  "qc:dev-087",
+  "qc:dev-090",
+  "qc:dev-112:aggregate"
+].every((command) => Object.prototype.hasOwnProperty.call(packageJson.scripts ?? {}, command)));
+record("task index records DEV-066 as superseded without a separate release target", /DEV-066[\s\S]{0,260}Superseded by DEV-087\/DEV-090\/DEV-112[\s\S]{0,180}No Separate Release Target/u.test(taskIndex));
+record("documentation map records DEV-066 supersession", /DEV-066[\s\S]{0,320}Superseded by DEV-087\/DEV-090\/DEV-112/u.test(map));
+
+for (const check of checks) console.log(`${check.passed ? "PASS" : "FAIL"} ${check.id}${check.detail ? `: ${check.detail}` : ""}`);
 const failed = checks.filter((check) => !check.passed);
-for (const check of checks) console.log(`${check.passed ? "PASS" : "FAIL"} ${check.id}`);
 if (failed.length > 0) {
-  console.error(`DEV-066 focused contract QC failed: ${failed.length} check(s)`);
+  console.error(`DEV-066 supersession guard failed: ${failed.length} check(s)`);
   process.exitCode = 1;
 } else {
-  console.log(`DEV-066 focused contract QC passed: ${checks.length} checks`);
+  console.log(`DEV-066 superseded by current canonical successors: ${checks.length} checks`);
 }

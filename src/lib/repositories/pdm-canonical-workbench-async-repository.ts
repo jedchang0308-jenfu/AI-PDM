@@ -17,6 +17,7 @@ type StateRow = {
   code: string;
   name: string;
   data_layer: HistoricalCanonicalDataLayer;
+  record_status: string | null;
   branch_id: string | null;
   revision_id: string | null;
   revision: string | null;
@@ -151,7 +152,8 @@ function domainSql(entityType: WorkbenchEntityType) {
     alias: "entity",
     code: "COALESCE(entity.drawing_number, '')",
     name: "COALESCE(root.core_name, '')",
-    joins: "LEFT JOIN part_roots root ON root.id = entity.part_root_id AND root.company_id = entity.company_id",
+    recordStatus: "formal_number.record_status",
+    joins: "LEFT JOIN part_roots root ON root.id = entity.part_root_id AND root.company_id = entity.company_id LEFT JOIN drawing_numbers formal_number ON formal_number.id = entity.formal_drawing_number_id AND formal_number.company_id = entity.company_id",
     workOwner: "drawing_work.owner_user_id",
     workJoin: "LEFT JOIN drawing_revision_works drawing_work ON drawing_work.id = state.work_id AND drawing_work.company_id = state.company_id",
     revisionJoin: "LEFT JOIN drawing_revisions revision ON revision.id = state.revision_id AND revision.company_id = state.company_id",
@@ -161,6 +163,7 @@ function domainSql(entityType: WorkbenchEntityType) {
   };
   if (entityType === "part") return {
     table: "part_numbers", alias: "entity", code: "entity.part_number", name: "entity.part_name", joins: "",
+    recordStatus: "entity.record_status",
     workOwner: "part_work.owner_user_id",
     workJoin: "LEFT JOIN part_change_works part_work ON part_work.id = state.work_id AND part_work.company_id = state.company_id",
     revisionJoin: "LEFT JOIN drawing_revisions revision ON 1 = 0",
@@ -198,6 +201,7 @@ function toRecord(row: StateRow): CanonicalWorkbenchStateRecord {
     code: row.code,
     name: row.name,
     dataLayer: row.data_layer,
+    recordStatus: row.record_status,
     branchId: row.branch_id,
     revisionId: row.revision_id,
     revision: row.revision,
@@ -313,7 +317,7 @@ export class PdmCanonicalWorkbenchAsyncRepository {
       const rows = await client.query<StateRow>(
         `SELECT state.id, aggregate.id AS aggregate_id, state.company_id, state.entity_type, state.canonical_entity_id,
                 ${domain.code} AS code, ${domain.name} AS name, state.data_layer, state.branch_id, state.revision_id,
-                revision.revision, ${canonicalDataStateSql} AS data_state, state.work_id, ${domain.workOwner} AS work_owner_id,
+                revision.revision, ${canonicalDataStateSql} AS data_state, ${domain.recordStatus} AS record_status, state.work_id, ${domain.workOwner} AS work_owner_id,
                 request.id AS review_request_id, request.reviewer_user_id, state.handling, state.blocker_reason,
                  state.row_version, aggregate.open_branch_count, branch.status AS branch_status,
                  branch.base_production_revision_id, ${domain.currentProduction} AS current_production_revision_id,
@@ -445,7 +449,7 @@ export class PdmCanonicalWorkbenchAsyncRepository {
     const row = await this.client.queryOne<StateRow>(
       `SELECT state.id, aggregate.id AS aggregate_id, state.company_id, state.entity_type, state.canonical_entity_id,
               ${domain.code} AS code, ${domain.name} AS name, state.data_layer, state.branch_id, state.revision_id,
-              revision.revision, ${canonicalDataStateSql} AS data_state, state.work_id, ${domain.workOwner} AS work_owner_id,
+              revision.revision, ${canonicalDataStateSql} AS data_state, ${domain.recordStatus} AS record_status, state.work_id, ${domain.workOwner} AS work_owner_id,
               request.id AS review_request_id, request.reviewer_user_id, state.handling, state.blocker_reason,
                state.row_version, aggregate.open_branch_count, branch.status AS branch_status,
                branch.base_production_revision_id, ${domain.currentProduction} AS current_production_revision_id,

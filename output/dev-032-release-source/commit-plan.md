@@ -1,16 +1,16 @@
 # DEV-032 Release Source Commit Plan
 
-Generated: 2026-08-10T17:14:37.300Z
-Status: `release_source_commit_plan_applied_exact_commit_exists`
+Generated: 2026-09-01T07:16:09.529Z
+Status: `release_source_snapshot_unstable`
 Production action performed: `false`
 
 ## Release Source Boundary
 
-- Included production-source candidate paths: 0
-- Excluded generated evidence paths: 1
+- Included production-source candidate paths: 304
+- Excluded generated evidence paths: 79435
 - Excluded staging-only paths: 0
 - Unknown-risk paths: 0
-- Source snapshot SHA-256: `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`
+- Source snapshot SHA-256: `31035ef3cfdf1345829669cc9c0b1e3e5930a20940ed5e7c0f7e125317bc42ee`
 
 ## Generated Pathspecs
 
@@ -19,16 +19,15 @@ Production action performed: `false`
 
 ## Next Step
 
-The included production-source pathspec is empty because the release source already exists as an exact commit. Do not create another source-only commit from this plan.
+The release-source boundary changed between two consecutive snapshots. Do not stage or build from this plan; stop concurrent source/config work, then regenerate the plan until the source snapshots are identical. Generated-evidence-only churn is intentionally excluded from this stability decision.
 
-Exact release commit: `e2ae858968f35e04b6f692e11c888484fa7ade0e`
-
-Next work is production-target/env/secret/restore/rollback/smoke gate closure. No production build, push or deploy is authorized by this plan.
+First snapshot: `1246848797e39159f24751033a3c7eff40013c5d5988d5f48618e326fda5a322`
+Second snapshot: `31035ef3cfdf1345829669cc9c0b1e3e5930a20940ed5e7c0f7e125317bc42ee`
 
 ## Stop Conditions
 
 - This plan is not a release approval and does not create an exact release commit.
 - Do not stage generated evidence, staging-only Firebase config or staging Terraform as production source.
-- Do not build, push or deploy production until production target, env/secret source, HD-8-4 restore evidence, rollback and Level 3/4 smoke gates are closed.
+- Do not stage, build, push or deploy until two consecutive source snapshots are identical; another process is changing the worktree.
 - Do not proceed while production target, env/secret source, HD-8-4 restore evidence, rollback and Level 3/4 smoke are missing.
 

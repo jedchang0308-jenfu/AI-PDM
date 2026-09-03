@@ -55,6 +55,7 @@ type ApprovalHandler = {
   handlerKey: string;
   submit?: (input: SubmitApprovalPlatformRequestInput, action: ApprovalPlatformAction) => Promise<CreateApprovalPlatformRequestInput>;
   apply?: (detail: ApprovalPlatformRequestDetail, actor: ApprovalPlatformActor) => Promise<Record<string, unknown>>;
+  verifyApply?: (detail: ApprovalPlatformRequestDetail, applyDetail: Record<string, unknown>) => void;
 };
 
 type LegacyApprovalSource = LegacyApprovalPlatformSource;
@@ -90,6 +91,11 @@ const fakeHandler: ApprovalHandler = {
       requestId: detail.id,
       targetCount: detail.targets.length
     };
+  },
+  verifyApply(detail, applyDetail) {
+    if (applyDetail.qcOnly !== true || applyDetail.requestId !== detail.id || applyDetail.targetCount !== detail.targets.length) {
+      throw new Error("APPROVAL_APPLY_POSTCONDITION_FAILED");
+    }
   }
 };
 
@@ -174,6 +180,7 @@ export async function decideApprovalPlatformRequestAsync(input: DecideApprovalPl
 
   try {
     const applyDetail = await handler.apply(decided, input.actor);
+    handler.verifyApply?.(decided, applyDetail);
     const applied = await repo.markApplyResult({
       requestId: input.requestId,
       actorId: input.actor.id,
@@ -522,6 +529,7 @@ export async function applyApprovalPlatformRequestAsync(input: { requestId: stri
 
   try {
     const applyDetail = await handler.apply(detail, input.actor);
+    handler.verifyApply?.(detail, applyDetail);
     const applied = await repo.markApplyResult({
       requestId: input.requestId,
       actorId: input.actor.id,

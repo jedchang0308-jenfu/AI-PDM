@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { detectAiOcrCandidates } from "@/lib/ai-ocr-adapter";
 import { extractCadReferences } from "@/lib/cad-extraction";
 import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from "@/lib/company-context";
@@ -9,7 +9,7 @@ import { detectPdmMetadata } from "@/lib/pdm-metadata";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   const form = await request.formData();

@@ -1,0 +1,30 @@
+{
+  "contractVersion": "orgmaster.privileged-assignment-workspace.v1",
+  "applicationId": "ai-pdm",
+  "stableRoleId": "role-system-admin",
+  "catalogVersion": "ai-pdm.role-catalog.2026-09-02.v2",
+  "catalogPayloadHash": "ebdaa2960960e0683b480c721d2c27df59031b4af23b124f2ac7e882309f6b6e",
+  "governanceRevision": "fixture-governance-current",
+  "organizationVersionId": "fixture-organization-current",
+  "organizationRevision": "fixture-organization-revision-current",
+  "sourceDataAt": "2026-09-02T00:05:00.000Z",
+  "mutationAllowed": false,
+  "blockers": ["PRIVILEGED_MUTATION_REQUIRED"],
+  "role": {
+    "stableRoleId": "role-system-admin",
+    "roleCode": "system_admin",
+    "displayName": "系統管理員",
+    "status": "active",
+    "assignable": true,
+    "riskLevel": "critical",
+    "subjectKind": "principal",
+    "assignmentTier": "cross_app_override",
+    "recommendationAllowed": false,
+    "delegationAllowed": false,
+    "allowedScopeKinds": ["global"]
+  },
+  "eligiblePrincipals": [],
+  "assignments": [
+    { "assignmentId": "assignment-system-admin-1", "employeeId": "employee-fixture-a", "principalAdmissionId": "admission-privileged-a", "principalHint": "privileged•••A7", "status": "active", "validFrom": "2026-09-02T00:00:00.000Z", "validTo": null, "auditReference": "audit-system-admin-1" }
+  ]
+}

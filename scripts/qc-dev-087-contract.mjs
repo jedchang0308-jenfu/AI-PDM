@@ -1,5 +1,5 @@
 import { assert, createFixtureDatabase, expectSqlFailure, pass, read } from "./qc-dev-087-fixtures.mjs";
-import { assertCanonicalDtoHasNoRetiredFields, canonicalLayerLabel, CANONICAL_DATA_STATE_LABELS, normalizeCanonicalWorkbenchQuery } from "../src/lib/pdm-canonical-workbench-contract.ts";
+import { assertCanonicalDtoHasNoRetiredFields, canonicalDataStateLabel, canonicalLayerLabel, CANONICAL_DATA_STATE_LABELS, normalizeCanonicalWorkbenchQuery } from "../src/lib/pdm-canonical-workbench-contract.ts";
 import { dev087FaultHandling, dev087FaultReason } from "../src/lib/pdm-work-review.ts";
 import { buildNumberingPartRootLifecyclePolicy } from "../src/lib/pdm-lifecycle-policy.ts";
 

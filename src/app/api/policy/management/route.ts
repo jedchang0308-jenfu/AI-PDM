@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
-import { requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ const POLICY_SOURCE_PATH = ".ai-doc/reference/pdm-management-policy-draft.md";
 const policyFilePath = path.join(process.cwd(), ".ai-doc", "reference", "pdm-management-policy-draft.md");
 
 export async function GET(request: Request) {
-  const auth = await requireAuthAsync(request);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response;
 
   try {
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       content,
       sourcePath: POLICY_SOURCE_PATH,
-      canEdit: auth.user.role === "Admin",
+      canEdit: auth.authorizationRoleCode === "pdm_admin" || auth.authorizationRoleCode === "system_admin",
       userRole: auth.user.role,
       updatedAt: metadata.mtime.toISOString()
     });
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response;
 
   let body: { content?: unknown };

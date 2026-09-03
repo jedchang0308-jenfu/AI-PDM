@@ -9,8 +9,8 @@ import type {
 } from "@/lib/pdm-canonical-workbench-contract";
 import type { DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
 import {
-  CANONICAL_DATA_STATE_LABELS,
   CANONICAL_HANDLING_LABELS,
+  canonicalDataStateLabel,
   canonicalDataLayerToLayer,
   canonicalLayerLabel,
   canonicalRowKey
@@ -25,6 +25,13 @@ export type CanonicalWorkbenchStateRecord = {
   code: string;
   name: string;
   dataLayer: HistoricalCanonicalDataLayer;
+  /**
+   * The lifecycle status of the underlying numbering identity.  A
+   * part_formal row can be retained as a navigation anchor before the
+   * numbering identity is actually Active/Released, so dataLayer alone must
+   * not authorize a formal obsolete request.
+   */
+  recordStatus?: string | null;
   branchId: string | null;
   revisionId: string | null;
   revision: string | null;
@@ -57,6 +64,8 @@ export type CanonicalWorkbenchActor = {
     decideReview: boolean;
     obsoleteDrawing: boolean;
     obsoleteFormal?: boolean;
+    obsoleteFormalPart?: boolean;
+    obsoleteFormalDrawing?: boolean;
     manageAttachments?: boolean;
   };
 };
@@ -69,24 +78,39 @@ export function resolveCanonicalWorkbenchActions(record: CanonicalWorkbenchState
   if (record.entityType === "relation") return [];
   const sameCompany = actor.companyId === record.companyId;
   if (!sameCompany || record.handling === "system" || record.handling === "system_admin" || record.handling === "blocked") return [];
-  const mayEditWork = Boolean(
-    record.workId && record.handling === "owner" && actor.permissions.updateWork &&
+  const mayControlWork = Boolean(
+    record.workId && record.handling === "owner" &&
     (record.workOwnerId === actor.id || actor.canEditNonOwned)
   );
+  const mayEditWork = mayControlWork && actor.permissions.updateWork;
+  const mayCancelWork = mayControlWork && actor.permissions.cancelWork;
   const isReviewer = Boolean(
     record.handling === "review_owner" && record.reviewRequestId && record.reviewerUserId === actor.id && actor.permissions.decideReview
   );
   const matrixEdit = actor.permissions.updateWork
     ? action("edit_relation_matrix", "編輯關聯矩陣")
     : null;
+  const canRequestFormalObsolete = record.entityType === "part"
+    ? actor.permissions.obsoleteFormalPart ?? actor.permissions.obsoleteFormal ?? false
+    : actor.permissions.obsoleteFormalDrawing ?? actor.permissions.obsoleteFormal ?? false;
+  const lifecycleAllowsFormalObsolete = record.recordStatus === undefined || record.recordStatus === null
+    ? true
+    : record.recordStatus === "Active" || record.recordStatus === "Released";
 
-  if (isReviewer) return [action("review", "前往審核", `/approvals/${encodeURIComponent(record.reviewRequestId!)}`), ...(matrixEdit ? [matrixEdit] : [])];
-  if (mayEditWork) {
+  if (isReviewer) return [action("review", "前往審核", `/approvals/${encodeURIComponent(record.reviewRequestId!)}`), ...(record.entityType === "drawing" && matrixEdit ? [matrixEdit] : [])];
+  if (mayEditWork || mayCancelWork) {
     if (record.entityType === "drawing") {
-      return [action("edit", "進行編輯", `/numbering/drawings/${encodeURIComponent(record.canonicalEntityId)}/workspace?workId=${encodeURIComponent(record.workId!)}`), ...(matrixEdit ? [matrixEdit] : [])];
+      return [
+        ...(mayCancelWork ? [action("cancel_work", "取消本次工作", `/api/pdm/drawing-revision-works/${encodeURIComponent(record.workId!)}/cancel`)] : []),
+        ...(mayEditWork ? [action("edit", "進行編輯", `/numbering/drawings/${encodeURIComponent(record.canonicalEntityId)}/workspace?workId=${encodeURIComponent(record.workId!)}`)] : []),
+        ...(matrixEdit ? [matrixEdit] : [])
+      ];
     }
     if (record.entityType === "part") {
-      return [action("edit", "進行編輯", `/parts/${encodeURIComponent(record.canonicalEntityId)}/workspace?workId=${encodeURIComponent(record.workId!)}`), ...(matrixEdit ? [matrixEdit] : [])];
+      return [
+        ...(mayCancelWork ? [action("cancel_work", "取消本次工作", `/api/pdm/part-change-works/${encodeURIComponent(record.workId!)}/cancel`)] : []),
+        ...(mayEditWork ? [action("edit", "繼續編輯", `/parts/${encodeURIComponent(record.canonicalEntityId)}/workspace?workId=${encodeURIComponent(record.workId!)}`)] : [])
+      ];
     }
     return [];
   }
@@ -95,7 +119,7 @@ export function resolveCanonicalWorkbenchActions(record: CanonicalWorkbenchState
     const actions = record.openBranchCount >= 3
       ? []
       : [action("advance", "進版", `/api/pdm/drawings/${encodeURIComponent(record.canonicalEntityId)}/revision-targets?sourceRowKey=${encodeURIComponent(canonicalRowKey(record.id))}`)];
-    if (actor.permissions.obsoleteFormal && !record.workId) actions.push(action("request_obsolete", "申請作廢"));
+    if (canRequestFormalObsolete && lifecycleAllowsFormalObsolete && !record.workId) actions.push(action("request_obsolete", "申請作廢"));
     return [...actions, ...(matrixEdit ? [matrixEdit] : [])];
   }
   if (record.dataLayer === "drawing_rd" && actor.permissions.createWork && record.branchStatus === "open") {
@@ -107,9 +131,9 @@ export function resolveCanonicalWorkbenchActions(record: CanonicalWorkbenchState
     return [...actions, ...(matrixEdit ? [matrixEdit] : [])];
   }
   if (record.dataLayer === "part_formal" && actor.permissions.createWork) {
-    const actions = [action("create_change", "建立修改", `/api/pdm/parts/${encodeURIComponent(record.canonicalEntityId)}/change-works`)];
-    if (actor.permissions.obsoleteFormal && !record.workId) actions.push(action("request_obsolete", "申請作廢"));
-    return [...actions, ...(matrixEdit ? [matrixEdit] : [])];
+    const actions = [action("create_change", "編輯料號", `/api/pdm/parts/${encodeURIComponent(record.canonicalEntityId)}/change-works`)];
+    if (canRequestFormalObsolete && lifecycleAllowsFormalObsolete && !record.workId) actions.push(action("request_obsolete", "申請作廢"));
+    return actions;
   }
   return [];
 }
@@ -127,10 +151,10 @@ export function projectCanonicalWorkbenchRow(record: CanonicalWorkbenchStateReco
     code: record.code,
     name: record.name,
     layer: canonicalDataLayerToLayer(record.dataLayer),
-    layerLabel: canonicalLayerLabel({ dataLayer: record.dataLayer, revision: record.revision }),
+    layerLabel: canonicalLayerLabel({ dataLayer: record.dataLayer, revision: record.revision, recordStatus: record.recordStatus }),
     revision: record.entityType === "drawing" ? record.revision : null,
     dataState: record.dataState,
-    dataStateLabel: CANONICAL_DATA_STATE_LABELS[record.dataState],
+    dataStateLabel: canonicalDataStateLabel({ entityType: record.entityType, dataState: record.dataState }),
     handling: record.handling,
     handlingLabel: CANONICAL_HANDLING_LABELS[record.handling],
     blockerReason,

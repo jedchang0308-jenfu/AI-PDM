@@ -29,6 +29,8 @@ export class FakeFirebaseIdentityProvider implements FirebaseIdentityProvider {
     if (this.findByUid(input.uid)) throw new Error("FAKE_FIREBASE_UID_EXISTS");
     this.identities.set(input.uid, {
       uid: input.uid,
+      identityIssuer: "https://securetoken.google.com/fake-project",
+      identityAudience: "fake-project",
       email: input.email,
       emailVerified: false,
       disabled: input.disabled,

@@ -1,4 +1,4 @@
-import { requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { getApprovalPlatformRequestDetailForCompanyAsync } from "@/lib/approval-platform";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { drawingPreviewMimeType, resolveDrawingPreviewAsync, type DrawingPreviewSource } from "@/lib/drawing-preview-asset";
@@ -48,7 +48,7 @@ async function resolveAccess(
   reviewRequestId: string | null
 ): Promise<FileReadAccess> {
   if (context === "approval_evidence") {
-    const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+    const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], { permissionCode: "approval.request.decide" });
     if (auth.response) return { actorId: null, companyId: null, canEditNonOwned: false, canDecide: false, response: auth.response };
     return { actorId: auth.user.id, companyId: auth.user.company_id, canEditNonOwned: false, canDecide: true, response: null };
   }

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "dev": "DEV-032",
-  "generatedAt": "2026-08-10T17:14:36.084Z",
+  "generatedAt": "2026-09-02T09:24:36.839Z",
   "status": "release_source_committed_production_gate_blocked",
   "productionActionPerformed": false,
   "git": {
-    "branchLine": "## 持續優化1",
-    "head": "e2ae858968f35e04b6f692e11c888484fa7ade0e",
-    "headSubject": "feat: retire Supabase and harden GCP predeploy gates",
+    "branchLine": "## HEAD (no branch)",
+    "head": "6b6d828f9d7e0181b3afb07bffaac75bce1c8ea6",
+    "headSubject": "fix: commit DEV-109 unified BOM CAPA",
     "dirty": false
   },
   "releaseDecision": {
@@ -16,7 +16,7 @@
     "exactReleaseCommitExists": true,
     "sourceSnapshotSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     "classificationSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-    "releaseCommitSha": "e2ae858968f35e04b6f692e11c888484fa7ade0e",
+    "releaseCommitSha": "6b6d828f9d7e0181b3afb07bffaac75bce1c8ea6",
     "safeToBuildForProduction": false,
     "blocker": "PRODUCTION_TARGET_ENV_RESTORE_ROLLBACK_AND_SMOKE_MISSING"
   },

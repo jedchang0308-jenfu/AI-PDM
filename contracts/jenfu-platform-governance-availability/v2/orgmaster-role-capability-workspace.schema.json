@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jenfu://platform/governance-availability/v2/orgmaster-role-capability-workspace",
+  "type": "object",
+  "required": ["contractVersion", "applicationId", "catalogVersion", "catalogPayloadHash", "governanceRevision", "organizationVersionId", "organizationRevision", "projectionCursor", "sourceDataAt", "roles"],
+  "properties": {
+    "contractVersion": { "const": "orgmaster.role-capability-projection.v2" },
+    "applicationId": { "const": "ai-pdm" },
+    "catalogVersion": { "type": "string", "minLength": 1 },
+    "catalogPayloadHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "governanceRevision": { "type": "string", "minLength": 1 },
+    "organizationVersionId": { "type": "string", "minLength": 1 },
+    "organizationRevision": { "type": "string", "minLength": 1 },
+    "projectionCursor": { "type": "integer", "minimum": 0 },
+    "sourceDataAt": { "type": "string", "format": "date-time" },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["stableRoleId", "roleCode", "subjectKind", "assignmentTier", "manualAssignments"],
+        "properties": {
+          "stableRoleId": { "type": "string", "minLength": 1 },
+          "roleCode": { "type": "string", "minLength": 1 },
+          "subjectKind": { "enum": ["employee", "principal"] },
+          "assignmentTier": { "enum": ["app_admin", "cross_app_override"] },
+          "manualAssignments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["assignmentId", "employeeId", "principalAdmissionId", "principalHint", "status"],
+              "properties": {
+                "assignmentId": { "type": "string", "minLength": 1 },
+                "employeeId": { "type": "string", "minLength": 1 },
+                "principalAdmissionId": { "type": "string", "minLength": 1 },
+                "principalHint": { "type": "string", "minLength": 1 },
+                "status": { "enum": ["active", "revoked"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

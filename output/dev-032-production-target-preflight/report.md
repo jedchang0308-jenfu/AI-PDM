@@ -1,6 +1,6 @@
 # DEV-032 Production Target Read-only Preflight
 
-Generated: 2026-08-11T01:22:39.426Z
+Generated: 2026-09-02T13:26:12.395Z
 Target project: `jenfu-ai-pdm-prod`
 Region: `asia-east1`
 Production action performed: `false`
@@ -33,6 +33,7 @@ Read-only target discovery did not find target-level blockers, but release still
 - PASS `gcloud config get-value project`
 - PASS `gcloud projects describe jenfu-ai-pdm-prod --format=json`
 - PASS `gcloud run services list --project jenfu-ai-pdm-prod --region asia-east1 --format=json`
+- PASS `gcloud run services describe ai-pdm-prod --project jenfu-ai-pdm-prod --region asia-east1 --format=json`
 - PASS `gcloud sql instances list --project jenfu-ai-pdm-prod --format=json`
 - PASS `gcloud secrets list --project jenfu-ai-pdm-prod --format=json`
 

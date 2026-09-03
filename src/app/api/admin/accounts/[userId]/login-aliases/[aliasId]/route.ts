@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import {
   EmployeeLoginAliasError,
   retireEmployeeLoginAliasAsync
@@ -33,7 +33,7 @@ export async function POST(
   if (!validMutationRequest(request)) {
     return NextResponse.json({ error: "invalid_mutation_request", message: "要求來源或格式不正確。" }, { status: 403 });
   }
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response;
   const { userId, aliasId } = await params;
   const body = await request.json().catch(() => ({}));

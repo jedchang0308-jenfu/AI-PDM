@@ -2,13 +2,15 @@
 
 版本：1.0  
 日期：2026-08-20  
-狀態：`RD Implemented / Selection+Query+Browser Focused Evidence / QA-QC In Progress / Local Only / Production Release Gated`  
+狀態：`Historical / Superseded by DEV-087 and DEV-090 / Shared Mechanics Retained / No Separate Release Target`
 Related DEV：`DEV-085`  
 父任務：`DEV-066`；關聯：`DEV-062`、`DEV-078`  
 Related ADR：`.ai-doc/decisions/ADR-PDM-WORKBENCH-CORE-001-shared-mechanics-and-domain-adapters.md`  
 QA：`.ai-doc/qa/qa-dev-085-workbench-multiselect-filter-validation-plan-2026-08-20.md`
 
 > **2026-08-22 DEV-087 target supersession**：複選popover、URL repeatable-value mechanics、cursor reset、RWD與keyboard行為可保留；三工作臺的舊工作狀態／資料狀態／版本列選項、query key與semantic adapter由DEV-087新`layer＋handling`契約取代。舊query在activation後固定回410失效，不silent translate；舊filter code能拆即在同一DEV拆除，不保留雙軌相容。
+
+> **Current disposition (2026-09-03)**：DEV-087 已完成 canonical Drawing／Part workbench transition，DEV-090 已完成 Relation matrix transition；本規格不再是獨立 current implementation 或 QA release target。保留的 shared mechanics 由現行 `PdmWorkbenchMultiSelectFilter`、`pdm-workbench-filter-selection` 與 `pdm-workbench-cursor` 維護，舊三 domain adapter、舊 query keys 與退役 route 僅供歷史追溯。舊 `qc:dev-085:*` runner 若引用已移除的 legacy workbench module，應標記為 superseded，不得復活 legacy source 或宣告 current PASS。
 
 ## 0. 決策摘要與規格影響
 

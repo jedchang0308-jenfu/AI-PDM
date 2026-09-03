@@ -293,6 +293,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureSolidWorksNativePreviewSchema(database);
   ensureDev088ReplacementAttachmentSchema(database);
   ensureDev087CanonicalWorkbenchSchema(database);
+  ensureDev107DrawingRecognitionLineageSchema(database);
   ensureDev065PartPreviewSchema(database);
   ensureDev090InlineRelationMatrixSchema(database);
   ensureDev106RetiredWorkbenchResidueCleanupSchema(database);
@@ -302,6 +303,29 @@ function initDatabase(database: SqliteDatabase) {
   ensureUnifiedDrawingAggregateBackfill(database);
   seedConfiguredUsers(database);
   assertSqliteInitializerIntegrity(database);
+}
+
+function ensureRoleCapabilityDisplaySnapshotSchema(database: SqliteDatabase) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS role_capability_display_snapshots (
+      application_id TEXT PRIMARY KEY,
+      contract_version TEXT NOT NULL,
+      reader_version TEXT NOT NULL,
+      catalog_version TEXT NOT NULL,
+      catalog_payload_hash TEXT NOT NULL,
+      governance_revision TEXT NOT NULL,
+      organization_version_id TEXT NOT NULL,
+      organization_revision TEXT NOT NULL,
+      projection_cursor INTEGER NOT NULL,
+      role_count INTEGER NOT NULL DEFAULT 0,
+      source_data_at TEXT NOT NULL,
+      snapshot_stored_at TEXT NOT NULL,
+      canonicalization_version TEXT NOT NULL,
+      payload_canonical_json TEXT NOT NULL,
+      payload_sha256 TEXT NOT NULL
+    );
+  `);
+  ensureColumn(database, "role_capability_display_snapshots", "role_count", "INTEGER NOT NULL DEFAULT 0");
 }
 
 export function ensureStandaloneManufacturingImpactRetirement(database: SqliteDatabase) {
@@ -1935,6 +1959,63 @@ export function ensureDev087CanonicalWorkbenchSchema(database: SqliteDatabase) {
   database.exec(schema.slice(start, end + endMarker.length));
   ensureColumn(database, "platform_command_receipts", "request_hash", "TEXT");
   ensureColumn(database, "platform_command_receipts", "effect_key", "TEXT");
+}
+
+/** DEV-107: keep recognition sessions append-only by purpose and evidence lineage. */
+export function ensureDev107DrawingRecognitionLineageSchema(database: SqliteDatabase) {
+  if (!database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='drawing_recognition_sessions'").get()) return;
+  ensureColumn(database, "drawing_recognition_sessions", "session_purpose", "TEXT NOT NULL DEFAULT 'recognition'");
+  ensureColumn(database, "drawing_recognition_sessions", "evidence_origin_session_id", "TEXT");
+  database.exec(`
+    UPDATE drawing_recognition_sessions
+       SET session_purpose = 'rerun'
+     WHERE session_purpose = 'recognition' AND supersedes_session_id IS NOT NULL;
+  `);
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_drawing_recognition_sessions_lineage_order
+      ON drawing_recognition_sessions(company_id, source_lineage_key, created_at DESC, id DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_drawing_recognition_open_amendment
+      ON drawing_recognition_sessions(company_id, evidence_origin_session_id)
+      WHERE session_purpose = 'amendment'
+        AND status IN ('queued', 'extracting', 'review_ready', 'extraction_partial', 'ready_to_formalize');
+  `);
+  database.exec(`
+    CREATE TRIGGER IF NOT EXISTS trg_drawing_recognition_amendment_lineage_insert
+    BEFORE INSERT ON drawing_recognition_sessions
+    WHEN NEW.session_purpose = 'amendment' AND (
+      NEW.supersedes_session_id IS NULL OR NEW.evidence_origin_session_id IS NULL OR NOT EXISTS (
+        SELECT 1 FROM drawing_recognition_sessions parent
+        WHERE parent.id = NEW.supersedes_session_id
+          AND parent.company_id = NEW.company_id
+          AND parent.status = 'formalized'
+          AND COALESCE(parent.evidence_origin_session_id, parent.id) = NEW.evidence_origin_session_id
+      )
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'RECOGNITION_AMENDMENT_LINEAGE_INVARIANT');
+    END;
+    CREATE TRIGGER IF NOT EXISTS trg_drawing_recognition_origin_company_scope
+    BEFORE INSERT ON drawing_recognition_sessions
+    WHEN NEW.evidence_origin_session_id IS NOT NULL
+      AND NEW.evidence_origin_session_id <> NEW.id
+      AND NOT EXISTS (
+        SELECT 1 FROM drawing_recognition_sessions origin
+        WHERE origin.id = NEW.evidence_origin_session_id
+          AND origin.company_id = NEW.company_id
+      )
+    BEGIN
+      SELECT RAISE(ABORT, 'RECOGNITION_EVIDENCE_ORIGIN_SCOPE_INVALID');
+    END;
+    CREATE TRIGGER IF NOT EXISTS trg_drawing_recognition_session_lineage_immutable
+    BEFORE UPDATE OF session_purpose, evidence_origin_session_id, supersedes_session_id ON drawing_recognition_sessions
+    WHEN OLD.session_purpose IS NOT NEW.session_purpose
+      OR OLD.evidence_origin_session_id IS NOT NEW.evidence_origin_session_id
+      OR (OLD.supersedes_session_id IS NOT NEW.supersedes_session_id
+          AND NOT (OLD.status = 'cancelled' AND NEW.status = 'cancelled' AND NEW.supersedes_session_id IS NULL))
+    BEGIN
+      SELECT RAISE(ABORT, 'RECOGNITION_SESSION_LINEAGE_IMMUTABLE');
+    END;
+  `);
 }
 
 export function ensureDev065PartPreviewSchema(database: SqliteDatabase) {

@@ -1,5 +1,5 @@
-﻿import { NextResponse } from "next/server";
-import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { NextResponse } from "next/server";
+import { forbidden, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import {
   getSandboxBranchByIdAsync,
@@ -12,7 +12,7 @@ import { getSubmissionAsync } from "@/lib/submissions-async";
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string; branchId: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id, branchId } = await params;
@@ -29,7 +29,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; branchId: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id, branchId } = await params;
@@ -41,7 +41,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!branch || (branch.source_submission_id !== id && branch.sandbox_submission_id !== id)) {
     return NextResponse.json({ error: "Sandbox branch not found" }, { status: 404 });
   }
-  if (auth.user.role !== "Admin" && branch.created_by !== auth.user.id) {
+  if (!(["pdm_admin", "system_admin"] as const).includes(auth.authorizationRoleCode as "pdm_admin" | "system_admin") && branch.created_by !== auth.user.id) {
     return forbidden();
   }
 
