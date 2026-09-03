@@ -1,0 +1,329 @@
+{
+  "apiVersion": "serving.knative.dev/v1",
+  "kind": "Service",
+  "metadata": {
+    "annotations": {
+      "run.googleapis.com/client-name": "gcloud",
+      "run.googleapis.com/client-version": "568.0.0",
+      "run.googleapis.com/ingress": "all",
+      "run.googleapis.com/ingress-status": "all",
+      "run.googleapis.com/invoker-iam-disabled": "true",
+      "run.googleapis.com/maxScale": "2",
+      "run.googleapis.com/operation-id": "4b6119f8-814e-41d1-9931-0b2a414a4766",
+      "run.googleapis.com/urls": "[\"https://ai-pdm-prod-451715062958.asia-east1.run.app\",\"https://ai-pdm-prod-ngxsziu4ha-de.a.run.app\"]",
+      "serving.knative.dev/creator": "jedchang0308@jenfu.com.tw",
+      "serving.knative.dev/lastModifier": "ai-pdm-prod-deployer@jenfu-ai-pdm-prod.iam.gserviceaccount.com"
+    },
+    "creationTimestamp": "2026-07-15T16:36:25.278178Z",
+    "generation": 68,
+    "labels": {
+      "application": "ai-pdm",
+      "cloud.googleapis.com/location": "asia-east1",
+      "dev": "dev-032",
+      "environment": "production",
+      "goog-terraform-provisioned": "true",
+      "managed-by": "terraform"
+    },
+    "name": "ai-pdm-prod",
+    "namespace": "451715062958",
+    "resourceVersion": "AAZajjJzKnE",
+    "selfLink": "/apis/serving.knative.dev/v1/namespaces/451715062958/services/ai-pdm-prod",
+    "uid": "da9549e3-7951-45e3-9f46-1a267cf88608"
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "annotations": {
+          "autoscaling.knative.dev/maxScale": "2",
+          "autoscaling.knative.dev/minScale": "0",
+          "run.googleapis.com/client-name": "gcloud",
+          "run.googleapis.com/client-version": "568.0.0",
+          "run.googleapis.com/container-dependencies": "{\"ai-pdm\":[\"cloud-sql-proxy\"]}",
+          "run.googleapis.com/cpu-throttling": "true",
+          "run.googleapis.com/execution-environment": "gen2",
+          "run.googleapis.com/network-interfaces": "[{\"network\":\"ai-pdm-prod-vpc\",\"subnetwork\":\"ai-pdm-prod-runtime\",\"tags\":[\"ai-pdm-production-runtime\"]}]",
+          "run.googleapis.com/sessionAffinity": "false",
+          "run.googleapis.com/startup-cpu-boost": "true",
+          "run.googleapis.com/vpc-access-egress": "all-traffic"
+        },
+        "labels": {
+          "run.googleapis.com/startupProbeType": "Custom"
+        },
+        "name": "ai-pdm-prod-gh-fb431f8a-33722398011"
+      },
+      "spec": {
+        "containerConcurrency": 20,
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "PDM_COOKIE_SECURE",
+                "value": "true"
+              },
+              {
+                "name": "PDM_SESSION_AUDIENCE",
+                "value": "ai-pdm-production"
+              },
+              {
+                "name": "PDM_AUTH_MODE",
+                "value": "firebase_bff"
+              },
+              {
+                "name": "PDM_SESSION_CURRENT_SECRET",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "latest",
+                    "name": "pdm-session-signing-current"
+                  }
+                }
+              },
+              {
+                "name": "PDM_FIREBASE_PROJECT_ID",
+                "value": "jenfu-ai-pdm-prod"
+              },
+              {
+                "name": "PDM_PRODUCTION_SLICE_MODE",
+                "value": "official-numbering-draft"
+              },
+              {
+                "name": "PDM_CLOUD_SQL_PORT",
+                "value": "5432"
+              },
+              {
+                "name": "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME",
+                "value": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres"
+              },
+              {
+                "name": "PDM_FIREBASE_API_KEY",
+                "value": "AIzaSyAfe6t3NluzmHveVGEVSwk8S4qQXNZADVI"
+              },
+              {
+                "name": "PDM_DB_PROVIDER",
+                "value": "cloud_sql_postgres"
+              },
+              {
+                "name": "PDM_SESSION_PREVIOUS_SECRET",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "latest",
+                    "name": "pdm-session-signing-previous"
+                  }
+                }
+              },
+              {
+                "name": "PDM_CLOUD_SQL_POOL_MAX",
+                "value": "2"
+              },
+              {
+                "name": "PDM_PUBLIC_BASE_URL",
+                "value": "https://jenfu-ai-pdm-prod.web.app"
+              },
+              {
+                "name": "PDM_GOOGLE_WORKSPACE_DOMAINS",
+                "value": "jenfu.com.tw"
+              },
+              {
+                "name": "NODE_ENV",
+                "value": "production"
+              },
+              {
+                "name": "PDM_CLOUD_SQL_DATABASE",
+                "value": "ai_pdm"
+              },
+              {
+                "name": "PDM_SESSION_PREVIOUS_KEY_ID",
+                "value": "production-session-v0"
+              },
+              {
+                "name": "PDM_FIREBASE_AUTH_DOMAIN",
+                "value": "jenfu-ai-pdm-prod.web.app"
+              },
+              {
+                "name": "PDM_SESSION_CURRENT_KEY_ID",
+                "value": "production-session-v1"
+              },
+              {
+                "name": "PDM_CLOUD_SQL_HOST",
+                "value": "127.0.0.1"
+              },
+              {
+                "name": "PDM_FIREBASE_APP_ID",
+                "value": "1:451715062958:web:dbb1e009f26537bda8213f"
+              },
+              {
+                "name": "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED",
+                "value": "true"
+              },
+              {
+                "name": "PDM_SESSION_ISSUER",
+                "value": "https://jenfu-ai-pdm-prod.web.app"
+              },
+              {
+                "name": "PDM_CLOUD_SQL_USER",
+                "value": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam"
+              },
+              {
+                "name": "PDM_TRUST_GOOGLE_WORKSPACE_MFA",
+                "value": "false"
+              },
+              {
+                "name": "PDM_CANDIDATE_CLOUD_RUN_SERVICE",
+                "value": "ai-pdm-prod"
+              },
+              {
+                "name": "PDM_CANDIDATE_CLOUD_RUN_TAG",
+                "value": "candidate"
+              },
+              {
+                "name": "PDM_NUMBER_STATE_FLOW_V1",
+                "value": "true"
+              },
+              {
+                "name": "PDM_NUMBER_LIFECYCLE_V2",
+                "value": "true"
+              },
+              {
+                "name": "PDM_UNIFIED_DRAWING_WORKBENCH_V1",
+                "value": "true"
+              },
+              {
+                "name": "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1",
+                "value": "true"
+              },
+              {
+                "name": "PDM_UNIFIED_ENTITY_DETAIL_V1",
+                "value": "true"
+              },
+              {
+                "name": "PDM_DRAWING_REVISION_LIFECYCLE_MODE",
+                "value": "enforced"
+              },
+              {
+                "name": "PDM_DRAWING_RECOGNITION_V1",
+                "value": "true"
+              },
+              {
+                "name": "PDM_REVIEW_PACKAGE_V2_WRITE",
+                "value": "true"
+              },
+              {
+                "name": "PDM_BUILD_COMMIT",
+                "value": "fb431f8a4622f181ca5796e0d49afe4571da454b"
+              },
+              {
+                "name": "PDM_WORKBENCH_CONTRACT_SECRET",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "latest",
+                    "name": "pdm-workbench-contract"
+                  }
+                }
+              }
+            ],
+            "image": "asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm@sha256:0158d92c252c804114e1dfe96b6fd8e2fd8a711a838d9ab194c33345dcedd3f1",
+            "name": "ai-pdm",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "name": "http1"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": "1",
+                "memory": "1Gi"
+              }
+            },
+            "startupProbe": {
+              "failureThreshold": 24,
+              "httpGet": {
+                "path": "/login",
+                "port": 8080
+              },
+              "periodSeconds": 5,
+              "timeoutSeconds": 2
+            }
+          },
+          {
+            "args": [
+              "--address=0.0.0.0",
+              "--port=5432",
+              "--private-ip",
+              "--auto-iam-authn",
+              "--lazy-refresh",
+              "--structured-logs",
+              "--max-connections=5",
+              "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres"
+            ],
+            "image": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f",
+            "name": "cloud-sql-proxy",
+            "resources": {
+              "limits": {
+                "cpu": "1",
+                "memory": "256Mi"
+              }
+            },
+            "startupProbe": {
+              "failureThreshold": 20,
+              "initialDelaySeconds": 1,
+              "periodSeconds": 3,
+              "tcpSocket": {
+                "port": 5432
+              },
+              "timeoutSeconds": 2
+            }
+          }
+        ],
+        "serviceAccountName": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+        "timeoutSeconds": 60
+      }
+    },
+    "traffic": [
+      {
+        "percent": 100,
+        "revisionName": "ai-pdm-prod-gh-221b25c1-33457759159"
+      },
+      {
+        "revisionName": "ai-pdm-prod-gh-fb431f8a-33722398011",
+        "tag": "candidate"
+      }
+    ]
+  },
+  "status": {
+    "address": {
+      "url": "https://ai-pdm-prod-ngxsziu4ha-de.a.run.app"
+    },
+    "conditions": [
+      {
+        "lastTransitionTime": "2026-09-03T06:23:58.528113Z",
+        "status": "True",
+        "type": "Ready"
+      },
+      {
+        "lastTransitionTime": "2026-09-03T06:23:47.549220Z",
+        "status": "True",
+        "type": "ConfigurationsReady"
+      },
+      {
+        "lastTransitionTime": "2026-09-03T06:23:58.472611Z",
+        "status": "True",
+        "type": "RoutesReady"
+      }
+    ],
+    "latestCreatedRevisionName": "ai-pdm-prod-gh-fb431f8a-33722398011",
+    "latestReadyRevisionName": "ai-pdm-prod-gh-fb431f8a-33722398011",
+    "observedGeneration": 68,
+    "traffic": [
+      {
+        "percent": 100,
+        "revisionName": "ai-pdm-prod-gh-221b25c1-33457759159"
+      },
+      {
+        "revisionName": "ai-pdm-prod-gh-fb431f8a-33722398011",
+        "tag": "candidate",
+        "url": "https://candidate---ai-pdm-prod-ngxsziu4ha-de.a.run.app"
+      }
+    ],
+    "url": "https://ai-pdm-prod-ngxsziu4ha-de.a.run.app"
+  }
+}

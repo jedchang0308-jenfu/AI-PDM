@@ -1,0 +1,29 @@
+{
+  "runnerVersion": "dev-046-cloudsql-migration-runner/v1",
+  "mode": "dry_run",
+  "manifestPath": "output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json",
+  "manifestSha256": "02e07b51cc4d879088dfdf145ae189f8ddaff1f024be4b66daeb9ecfccc7c374",
+  "target": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "cloudSqlInstance": "ai-pdm-prod-postgres",
+    "connectionName": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres",
+    "databaseName": "ai_pdm",
+    "privateIpOnly": true,
+    "privateIpObserved": "",
+    "runtimeServiceAccount": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+    "runtimeIamDatabaseUser": "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam",
+    "migrationIamDatabaseUser": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam"
+  },
+  "schemaMigrationCount": 53,
+  "supportFileCount": 3,
+  "firstSchemaMigration": "sql/001_initial_schema.cloudsql.sql",
+  "lastSchemaMigration": "sql/056_role_capability_display_snapshot.cloudsql.sql",
+  "adminBootstrapRequired": true,
+  "adminBootstrapExecutedByThisRunner": false,
+  "runtimeGrantRefreshIncluded": true,
+  "liveApplyAllowedByManifest": false,
+  "connectionAttempted": false,
+  "executionTarget": null,
+  "explicitApprovalRequired": "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED"
+}

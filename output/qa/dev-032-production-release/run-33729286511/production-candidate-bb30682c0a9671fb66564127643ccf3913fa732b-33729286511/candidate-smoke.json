@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "ai-pdm-production-release-smoke/v1",
+  "generatedAt": "2026-09-03T07:51:03.968Z",
+  "kind": "candidate",
+  "target": "jenfu-ai-pdm-prod",
+  "baseUrl": "https://candidate---ai-pdm-prod-ngxsziu4ha-de.a.run.app",
+  "directBaseUrl": "https://ai-pdm-prod-ngxsziu4ha-de.a.run.app",
+  "revision": "ai-pdm-prod-gh-bb30682c-33729286511",
+  "imageDigest": "sha256:fb2ee51c21501b6697a135c5385328abec253ec8a82cdc557cc755912b5a561f",
+  "sourceRevision": "bb30682c0a9671fb66564127643ccf3913fa732b",
+  "passed": 14,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "candidate login entrypoint",
+      "passed": true,
+      "actual": {
+        "status": 200,
+        "shell": true,
+        "cacheControl": "s-maxage=31536000"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate auth mode",
+      "passed": true,
+      "actual": {
+        "status": 200,
+        "authMode": "firebase_bff",
+        "noStore": true
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate origin reaches token validation",
+      "passed": true,
+      "actual": {
+        "status": 401,
+        "code": "firebase_token_invalid"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate production slice",
+      "passed": true,
+      "actual": {
+        "status": 200,
+        "configured": true,
+        "active": true,
+        "mode": "official-numbering-draft",
+        "noStore": true
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate protected GET /api/numbering/permissions",
+      "passed": true,
+      "actual": {
+        "status": 401,
+        "noStore": true
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate protected GET /api/numbering/drawings/workbench",
+      "passed": true,
+      "actual": {
+        "status": 401,
+        "noStore": true
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate protected GET /api/parts/workbench",
+      "passed": true,
+      "actual": {
+        "status": 401,
+        "noStore": true
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate unopened page /upload",
+      "passed": true,
+      "actual": 200,
+      "expected": 200
+    },
+    {
+      "name": "candidate unopened page /approvals",
+      "passed": true,
+      "actual": 200,
+      "expected": 200
+    },
+    {
+      "name": "candidate legacy redirect /handoff",
+      "passed": true,
+      "actual": {
+        "status": 307,
+        "location": "/technical-transfer?tab=published&legacyFrom=%2Fhandoff"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate unopened mutation /api/numbering/part-number-drafts/smoke-only/submit-review",
+      "passed": true,
+      "actual": {
+        "status": 403,
+        "code": "feature_not_open_in_production_slice",
+        "mode": "official-numbering-draft"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate unopened mutation /api/files/upload",
+      "passed": true,
+      "actual": {
+        "status": 403,
+        "code": "feature_not_open_in_production_slice",
+        "mode": "official-numbering-draft"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "candidate unopened mutation /api/cad/preview",
+      "passed": true,
+      "actual": {
+        "status": 403,
+        "code": "feature_not_open_in_production_slice",
+        "mode": "official-numbering-draft"
+      },
+      "expected": "contract predicate"
+    },
+    {
+      "name": "direct run.app session exchange denied",
+      "passed": true,
+      "actual": 403,
+      "expected": 403
+    }
+  ]
+}
