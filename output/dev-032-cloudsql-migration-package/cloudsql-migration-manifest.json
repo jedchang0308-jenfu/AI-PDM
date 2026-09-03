@@ -26,14 +26,14 @@
     {
       "output": "sql/000_admin_bootstrap_grants.sql",
       "kind": "admin_bootstrap",
-      "outputSha256": "60bc3f5df7b5c738ba1683332ba2e41a9f0d0d0231b50a66b265315d7219107c",
-      "bytes": 2103
+      "outputSha256": "c8da45fce0232b8d715ab7df631918bfa94ba49c3ec35fc696c42c18c367ff9a",
+      "bytes": 2061
     },
     {
       "output": "sql/001_ai_pdm_contract_schema_bootstrap.sql",
       "kind": "admin_contract_schema_bootstrap",
-      "outputSha256": "63b37d8676a07358f5e7c01e60b69bffcf879fcf01b00e948618bb85fdf6a79f",
-      "bytes": 656
+      "outputSha256": "c46a8cc8a2e9787b982c08f8943c986470e5535e20cc5b689d15d47c94635c47",
+      "bytes": 649
     },
     {
       "output": "sql/999_runtime_grants_refresh.sql",
