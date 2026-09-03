@@ -5,6 +5,7 @@ import {
   DEV046_CLOUDSQL_MIGRATION_APPROVAL,
   buildDev046CloudSqlMigrationRunPlan,
   ensureMigrationLedgerRoleAccess,
+  reassignExistingMigrationOwnership,
   requireLiveExecutionApproval
 } from "./run-dev-046-cloudsql-migrations.mjs";
 import { readProjectFile } from "./qc-project-file-utils.mjs";
@@ -95,7 +96,9 @@ try {
   record(
     "DEV046-CLOUDSQL-EXEC-006 source uses singleton advisory lock and migration history",
     source.includes("ensureMigrationLedgerRoleAccess(client)") &&
+      source.includes("reassignExistingMigrationOwnership(client, plan.target.migrationIamDatabaseUser)") &&
       source.indexOf("ensureMigrationLedgerRoleAccess(client)") < source.indexOf('client.query("SET LOCAL ROLE pdm_migration")') &&
+      source.indexOf("reassignExistingMigrationOwnership(client, plan.target.migrationIamDatabaseUser)") < source.indexOf('client.query("SET LOCAL ROLE pdm_migration")') &&
       source.includes('client.query("SET LOCAL ROLE pdm_migration")') &&
       source.indexOf('client.query("SET LOCAL ROLE pdm_migration")') < source.indexOf("CREATE TABLE IF NOT EXISTS pdm_schema_migrations") &&
       source.includes("pg_try_advisory_xact_lock") &&
@@ -132,6 +135,38 @@ try {
       };
       const result = await ensureMigrationLedgerRoleAccess(client);
       return result.existingLedger === false && result.grantApplied === false && queries.length === 1;
+    })()
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-006C existing IAM-owned objects are reassigned to the migration role",
+    await (async () => {
+      const migrationUser = productionPlan.target.migrationIamDatabaseUser;
+      const queries = [];
+      const client = {
+        async query(sql) {
+          queries.push(sql);
+          if (sql.includes("current_user AS current_user")) return { rows: [{ current_user: migrationUser }] };
+          return { rows: [] };
+        }
+      };
+      const result = await reassignExistingMigrationOwnership(client, migrationUser);
+      return result.previousOwner === migrationUser &&
+        result.newOwner === "pdm_migration" &&
+        queries[1] === "REASSIGN OWNED BY CURRENT_USER TO pdm_migration";
+    })()
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-006D ownership reconciliation fails closed on an unexpected database identity",
+    await (async () => {
+      try {
+        await reassignExistingMigrationOwnership(
+          { async query() { return { rows: [{ current_user: "postgres" }] }; } },
+          productionPlan.target.migrationIamDatabaseUser
+        );
+        return false;
+      } catch (error) {
+        return error instanceof Error && error.message === "MIGRATION_DATABASE_IDENTITY_MISMATCH";
+      }
     })()
   );
   record(
