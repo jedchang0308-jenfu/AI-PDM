@@ -217,6 +217,14 @@ export async function ensureMigrationLedgerRoleAccess(client) {
   return { existingLedger: true, grantApplied: true };
 }
 
+export async function reassignExistingMigrationOwnership(client, expectedMigrationUser) {
+  const identity = await client.query("SELECT current_user AS current_user");
+  const actualUser = identity.rows?.[0]?.current_user ?? "";
+  if (actualUser !== expectedMigrationUser) throw new Error("MIGRATION_DATABASE_IDENTITY_MISMATCH");
+  await client.query("REASSIGN OWNED BY CURRENT_USER TO pdm_migration");
+  return { previousOwner: actualUser, newOwner: "pdm_migration" };
+}
+
 async function executeMigrations(plan) {
   const pool = new pg.Pool(connectionConfigFromEnv(plan));
   const client = await pool.connect();
@@ -224,6 +232,7 @@ async function executeMigrations(plan) {
   try {
     await client.query("BEGIN");
     await ensureMigrationLedgerRoleAccess(client);
+    await reassignExistingMigrationOwnership(client, plan.target.migrationIamDatabaseUser);
     await client.query("SET LOCAL ROLE pdm_migration");
     const lock = await client.query("SELECT pg_try_advisory_xact_lock($1) AS acquired", [PDM_MIGRATION_ADVISORY_LOCK_ID]);
     if (lock.rows?.[0]?.acquired !== true) throw new Error("MIGRATION_RUNNER_ALREADY_ACTIVE");
