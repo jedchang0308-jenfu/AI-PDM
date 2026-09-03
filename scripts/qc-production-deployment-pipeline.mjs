@@ -158,9 +158,10 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
     assert.match(runtime, new RegExp(flag, "u"));
   }
   assert.match(candidateWorkflow, /npm run qc:dev-079:contract/u);
-  assert.doesNotMatch(candidateWorkflow, /npm run qc:dev-079:owner-invariant/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-079:owner-invariant/u);
   assert.match(candidateWorkflow, /npm run qc:dev-101:contract/u);
-  assert.doesNotMatch(candidateWorkflow, /npm run qc:dev-101:(?:package|qa-integrity)/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-101:package/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-101:qa-integrity/u);
   assert.match(candidateWorkflow, /npm run qc:pdm-production-slice-numbering-draft/u);
   assert.match(candidateWorkflow, /npm run qc:pdm-number-state-flow-routes/u);
   assert.match(candidateWorkflow, /npm run qc:dev-093:contract/u);
@@ -171,11 +172,12 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(smoke, /origin reaches token validation/u);
 });
 
-record("PROD-PIPE-008A clean-source CI fails closed without primary-data QA", () => {
+record("PROD-PIPE-008A clean-source CI runs deterministic primary-data QA", () => {
   assert.match(ciWorkflow, /\$ErrorActionPreference\s*=\s*"Stop"/u);
   assert.match(ciWorkflow, /\$PSNativeCommandUseErrorActionPreference\s*=\s*\$true/u);
-  assert.doesNotMatch(ciWorkflow, /npm run qc:dev-079:owner-invariant/u);
-  assert.doesNotMatch(ciWorkflow, /npm run qc:dev-101:(?:package|qa-integrity)/u);
+  assert.match(ciWorkflow, /npm run qc:dev-079:owner-invariant/u);
+  assert.match(ciWorkflow, /npm run qc:dev-101:package/u);
+  assert.match(ciWorkflow, /npm run qc:dev-101:qa-integrity/u);
 });
 
 record("PROD-PIPE-008B candidate and promotion are separate dispatch stages", () => {

@@ -297,6 +297,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureDev065PartPreviewSchema(database);
   ensureDev090InlineRelationMatrixSchema(database);
   ensureDev106RetiredWorkbenchResidueCleanupSchema(database);
+  ensureRoleCapabilityDisplaySnapshotSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");

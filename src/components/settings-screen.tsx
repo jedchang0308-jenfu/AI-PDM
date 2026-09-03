@@ -27,6 +27,7 @@ import {
   UserCog
 } from "lucide-react";
 import { InfoHint } from "@/components/compact-hints";
+import { RoleCapabilitySettings } from "@/components/access-governance/role-capability-settings";
 import { StatusBadge, StatusColumnHeader, StatusScopeHelp } from "@/components/status-help-popover";
 import {
   approvalActionLabel,
@@ -901,7 +902,7 @@ function SettingsPanel({
         </section> : null}
 
         {activeArea === "workflow" ? <div id="settings-workflow">
-          <ApprovalMatrixSettings />
+          <RoleCapabilitySettings />
         </div> : null}
 
         {activeArea === "system" ? <section className="panel" id="settings-system">

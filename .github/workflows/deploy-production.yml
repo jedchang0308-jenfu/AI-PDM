@@ -101,7 +101,10 @@ jobs:
           npm run qc:pdm-account-invitations
           npm run qc:dev-032-production-iac-package
           npm run qc:dev-079:contract
+          npm run qc:dev-079:owner-invariant
           npm run qc:dev-101:contract
+          npm run qc:dev-101:package
+          npm run qc:dev-101:qa-integrity
           npm run qc:pdm-production-slice-numbering-draft
           npm run qc:pdm-number-state-flow-routes
           npm run qc:dev-093:contract

@@ -9,6 +9,7 @@ import { createFixtureDatabase, ids as dev087Ids } from "./qc-dev-087-fixtures.m
 import { sha256Canonical } from "../src/lib/drawing-recognition-hash.ts";
 
 const root = process.cwd();
+const sha256Canonical = (value) => crypto.createHash("sha256").update(canonicalJsonStringify(value)).digest("hex");
 const runId = `DEV079-INVARIANT-${new Date().toISOString().replace(/[:.]/g, "-")}`;
 const outputDir = path.join(root, "output", "qa", "dev-079-owner-invariant", runId);
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev079-invariant-"));

@@ -112,11 +112,12 @@ const commands = {
   secrets: runGcloudReadOnlyCommand("production-secret-metadata", ["secrets", "list", "--project", targetProject, "--format=json"])
 };
 
-const envSources = [
+const localEnvSources = [
   ".env.production",
   ".env.production.local",
   "infra/google-cloud/production/production.auto.tfvars.json"
 ].map((filePath) => ({
+  kind: "local_file",
   path: filePath,
   exists: existsSync(path.join(root, filePath))
 }));
