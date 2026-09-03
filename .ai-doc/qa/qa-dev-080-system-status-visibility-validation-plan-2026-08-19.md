@@ -1,7 +1,7 @@
 # QA-DEV-080：全系統第一層狀態可見性驗證計畫
 
-狀態：`QA Plan Executed / DEV-080 Focused Gates Passed / Existing Baseline Findings Recorded / Independent Aggregate QC Pending / Production Release Gated`
-日期：2026-08-19
+狀態：`Historical Focused Gates Passed / DEV-115 Successor Disposition Ready / Current Residual QC Pending / Production Release Gated`
+日期：2026-08-19；amended 2026-09-03
 關聯：`DEV-080`、`SPEC-PDM-STATUS-UX-005`
 風險：Medium
 
@@ -183,3 +183,17 @@ DEV-080 browser matrix實際覆蓋7條required route（`/numbering/drawings`、`
 | `qc:dev-068:browser` | 既有 recognition fixture建立時回HTTP 404 `RECOGNITION_CONTEXT_NOT_FOUND` | DEV-068 fixture blocker；尚未進入DEV-080斷言 |
 
 因此 `qc:dev-080` fail-fast aggregate目前不能宣告全綠；本次結論為「DEV-080 focused gates通過、既有跨DEV baseline findings保留、production/release仍 gated」。不得把上述三項重命名為DEV-080缺陷，也不得刪除其assertion來取得綠燈。後續若要關閉完整aggregate，應由各既有DEV owner修復fixture或更新至canonical API，再重跑本計畫第10節命令。
+
+## 16. 2026-09-03 DEV-115 successor-disposition amendment
+
+RD技術主管複核確認，上一段「修復所有舊cross-DEV baseline後重跑原aggregate」不再是current closure authority。DEV-087已intentional-replace DEV-080舊status authority與projection chain，DEV-112承接現行workbench顯示模式；繼續要求`bomCreate`、舊Drawing status-help、DEV-055／078 status source或DEV-071 XMind DOM會把退役架構做回產品。
+
+本節有意取代第10節原aggregate的current closure用途；第10～15節保留為歷史契約與當時證據。DEV-115必須對QA-080-01～12逐案建立machine-readable disposition：
+
+- `current-runner`：仍存在的非workbench surface、critical exception、public/read-only、keyboard/touch與unknown fail-closed行為，使用現行route／component執行residual smoke。
+- `successor-replaced`：精確連結DEV-087／112 current case與evidence，不要求整個successor aggregate或無關child runner全綠。
+- `retired`：舊scope、route、generic submission與UI入口驗證不存在、410／fail-closed及zero-write。
+
+Current `qc:dev-080`必須改為Node aggregate：建立task-owned data/repository fixture、明確傳遞隔離env、執行全部current child後再統一判定，不以shell `&&`首敗遮蔽結果；不得再讀`bom-create-workflow.tsx`、`part-detail-content.tsx`、`relation-workbench.tsx`等已退役檔案。DEV-060／068 fixture與UX hierarchy 410保留原owner finding，但不再作DEV-080 closure prerequisite。
+
+Current PASS gate：12案disposition missing／duplicate=0；所有current residual case PASS；critical/security/blocking hidden=0、raw status=0、badge wall=0、accessibility與unexpected visible／console／network error均為0；primary invariant與cleanup完成。通過後DEV-080狀態改為`× 併入 DEV-087／112`，不重複計算successor完成率；若current case發現真實產品缺陷，回該產品owner修正，不得改expected掩蓋。

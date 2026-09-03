@@ -2,7 +2,7 @@
 
 版本：1.2
 日期：2026-08-11；amended 2026-08-20、2026-08-21、2026-09-01
-狀態：`DEV-112 Local RD Implemented / RD Tech Lead Corrections Closed / Existing DEV-066 Runtime + Evidence Retained / QA-QC Complete / Production Release Gated`
+狀態：`Historical / DEV-066 Superseded by DEV-087/DEV-090/DEV-112 / Shared Mechanics Retained / No Separate Release Target`
 Related DEV：`DEV-066`；`DEV-PDM-APPROVAL-INBOX-WORKBENCH-001` / `DEV-070`；`DEV-085`；`DEV-112`
 父任務：`DEV-062`、`DEV-065`
 

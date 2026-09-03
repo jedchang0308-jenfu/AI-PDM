@@ -1,11 +1,13 @@
 # QA Plan：DEV-085 三工作台 Excel 式複選篩選器
 
 日期：2026-08-20  
-狀態：`QA Plan Ready / Execution In Progress / Focused Local Evidence / Local Only`  
+狀態：`Historical / Superseded by DEV-087 and DEV-090 / Shared Mechanics Retained / No Separate Release Target`
 Related DEV：`DEV-085`  
 權威規格：`.ai-doc/specs/SPEC-PDM-WORKBENCH-MULTISELECT-FILTER-001-excel-style-filter-contract.md`
 
 > **DEV-087 boundary**：保留popover／複選／URL mechanics回歸；舊狀態選項、query key與semantic filter case降為activation前歷史證據。DEV-087新`layer＋handling`與410 retired-query行為優先，由QA-087驗收；不得要求保留舊filter compatibility。
+
+> **Current disposition (2026-09-03)**：DEV-087／DEV-090 已將三工作臺與 Relation current runtime 收斂到 canonical authority。本計畫的舊 domain adapter、舊 query keys、舊 route 與其獨立分母不再是 current QA target；shared multi-select、repeatable URL、cursor reset、RWD／keyboard mechanics 由 DEV-087 current QA 承接。若舊 `qc:dev-085:*` runner 引用已退役的 `drawing-workbench`、`part-workbench` 或 `relation-workbench`，其結果只能記錄為 superseded，不得復活舊 source 或改寫成 current PASS。
 
 ## 1. 驗證目的與證據邊界
 
@@ -20,7 +22,7 @@ Related DEV：`DEV-085`
 - `npm.cmd run qc:dev-085:contract`：6/6 PASS；最新證據 `output/qa/dev-085-workbench-multiselect-filter/contract-20260820102306-local/contract-results.json`；確認三 route 共用複選元件、12 個 DEV-085 controls、DEV-086 lane extension、history boolean、search input 與 shared sentinel/type。
 - focused regressions：DEV-066 12/12、DEV-062 core/Part/Relation PASS、DEV-053 UI 24/24、DEV-078 projection 42/42 + contract 53/53、entity drawer 42/42；affected-file ESLint、`npm.cmd run typecheck:app`、`npm.cmd run build:isolated`、`git diff --check` scoped product files PASS。
 - 真實 rendered browser 已完成 3 route × 4 viewport = 12/12 PASS；required labels、無水平 overflow、keyboard Enter/Escape、mixed draft、取消、repeated URL、option search、explicit `__none__`、全選恢復、390×844 safe bounds 均 PASS，visible alert／console error／4xx-5xx 均為 0。證據 `output/qa/dev-085-workbench-multiselect-filter/browser-202608201025-local/browser-results.json`；截圖為 `output/playwright/dev085-{drawing,part,relation}-{desktop,tablet-landscape,tablet-portrait,mobile}.png`。
-- 尚未宣告完整 PASS：MSF-016、MSF-018～020、MSF-034～037、MSF-044 的獨立案例與 R06／independent QC manifest 尚未逐項封口；本文件維持 `Execution In Progress`，但 RD 已可依SPEC接續開發／修正。
+- 歷史執行未宣告完整 PASS：MSF-016、MSF-018～020、MSF-034～037、MSF-044 的獨立案例與 R06／independent QC manifest 未逐項封口；本文件不再要求補跑，因 current contract 已由 DEV-087／DEV-090 取代。
 
 ## 2. Scope、環境與資料需求
 

@@ -33,7 +33,7 @@
 
 ### 2026-09-02 Jenfu Platform DEV-009 system administrator privileged governance amendment
 
-分類：`Human Confirmed / Compatible Security and UI Refinement / RD Implementation Ready / Documents Only`。
+分類：`Human Confirmed / Compatible Security and UI Refinement / RD Implementation Ready / 009-S0～S4 Local-Isolated Complete / Targeted QA-QC PASS / 009-R1 Release Gate Required / Production Release Gated`。
 
 `system_admin`不是一般Role → Position → Employee流程的特例，而是獨立principal-only治理：OrgMaster保留exact active `human_privileged` principal admission、assignment／revoke／version／audit authority；AI-PDM保留`system_admin` role／Permission mapping、scope evaluator與每個protected request的最終Allow／Deny。AI-PDM不得保存第二份assignment、接受raw principal輸入，或在OrgMaster離線時提供fallback write。
 
@@ -43,7 +43,9 @@ CTA由AI-PDM BFF以既有`ORGMASTER_PUBLIC_BASE_URL`投影固定`/?panels=govern
 
 Consumer contract升為`orgmaster.role-capability-projection.v2`與`ai-pdm.role-capability-workspace.v3`；`manualAssignments`可承載redacted principal holder摘要。舊v1／workspace v2 snapshot只供compatible read-only renderer，不得升格current。AI-PDM runtime仍只經`EntitlementRepository`讀Tier-0 app-filtered effective entitlement，不同步呼叫OrgMaster HTTP；OrgMaster治理故障只凍結control-plane mutation，不應擴散到非治理業務route。
 
-AI-PDM exact planned boundary為`contracts/jenfu-platform-governance-availability/v2/**`、`src/lib/ai-pdm-role-capability-contract.ts`、`src/lib/ai-pdm-role-capability-service.ts`、兩個role-capability repositories、`src/app/api/settings/access/role-capabilities/route.ts`、`src/components/access-governance/role-capability-settings.tsx`、必要focused tests與`qc:jms-dev-009:*` scripts；`src/app/settings/page.tsx`只在正常導航helper確有需要時修改。下一個slice為Platform `009-S0` canonical contract／雙vendor lock，AI-PDM產品改動在`009-S3`；未授權schema apply、真實principal／role mutation、bootstrap、deploy或release。完整契約見[Jenfu Platform DEV-009](../../../Jenfu-Management-system/ai-doc/specs/DEV-009-system-admin-privileged-principal-governance.md)，OrgMaster direct contract見[DEV-040 §23](../../../OrgMaster/ai-doc/specs/DEV-040-jenfu-platform-entitlement-user-integration.md)。
+AI-PDM exact implementation boundary為`contracts/jenfu-platform-governance-availability/v2/**`、`src/lib/ai-pdm-role-capability-contract.ts`、`src/lib/ai-pdm-role-capability-service.ts`、兩個role-capability repositories、`src/app/api/settings/access/role-capabilities/route.ts`、`src/components/access-governance/role-capability-settings.tsx`、`src/lib/repositories/jenfu-entitlement-repository.ts`、必要focused tests與`qc:jms-dev-009:*` scripts；`src/app/settings/page.tsx`只在正常導航helper確有需要時修改。`009-S3` read-only consumer與`009-S4` request-enforcement adapter均已完成local-isolated驗證：四個固定案例涵蓋daily／shared／service／inactive deny、exact active privileged principal allow、revoke後下一個protected request deny與authority outage fail-closed，並額外拒絕employee-wide `system_admin` effective row。下一步為`009-R1` production release gate；未授權schema apply、真實principal／role mutation、bootstrap、deploy或release。完整契約見[Jenfu Platform DEV-009](../../../Jenfu-Management-system/ai-doc/specs/DEV-009-system-admin-privileged-principal-governance.md)，OrgMaster direct contract見[DEV-040 §23](../../../OrgMaster/ai-doc/specs/DEV-040-jenfu-platform-entitlement-user-integration.md)。
+
+`009-S3` frozen aggregate=`output/qa/dev-009/aggregate/DEV009-S3-AGGREGATE-2026-09-02T18-19-00-268Z/report.json`，report SHA=`c93b124b79824bb76271aadb32aa27899527b4b9ddc5a97a77d6b31091951502`，candidate SHA=`4ea4689cd9579f3aa4bf26f77fdba4e21ce01386b3abce163173bc1c7381eb0a`；browser固定7案與三viewport且cleanup PASS。`009-S4` frozen report=`../../Jenfu-Management-system/output/qa/dev-009/cross-repo/DEV009-S4-2026-09-02T18-21-31-904Z/report.json`，report SHA=`f8fa0128ba7304efd4cd326cbe4f94952be3095986ad3006b86a61acce213a9b`；它逐檔驗章S1～S3 receipts。此為local-isolated evidence，不代表production authority switch或release已完成。
 
 ### 2026-09-02 Jenfu Platform DEV-005 S1 catalog publication／ACL closure
 

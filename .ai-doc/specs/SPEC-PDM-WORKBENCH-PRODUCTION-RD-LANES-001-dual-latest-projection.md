@@ -1,6 +1,6 @@
 # SPEC-PDM-WORKBENCH-PRODUCTION-RD-LANES-001：三工作台量產／研發最新版雙列投影
 
-Status: `Current Runtime Baseline Evidence / DEV-087 Target Supersession Accepted / Local QA-QC PASS / Production Release Gated`
+Status: `Historical Runtime Baseline / Superseded by DEV-087 and DEV-090 / Shared Mechanics Retained / No Separate Release Target`
 Date: 2026-08-20；CAPA amendment 2026-08-21
 Owner: Dev PM
 Related DEV: `DEV-086` / `DEV-PDM-WORKBENCH-PRODUCTION-RD-LANES-001`
@@ -538,5 +538,5 @@ fixture helper固定為`scripts/qc-dev-086-fixtures.mjs`，只建立task-owned i
 - Blocked Human Re-entry：無。
 - `RD Contract Ready`：已通過。
 - `RD Implementation Ready`：是；exact repository/file inventory、schema/index=`none`判定、source classifier、數值query budgets、runner／fixture contract、baseline／dirty-hunk ledger與P0/P1 engineering gap audit均已封口。下一個可執行動作是Phase 1A本機RD，不是再寫一份平行規格。
-- RD Implementation：`CAPA Corrective Implementation Verified / Local QA-QC PASS`。三工作台 dual-lane projection、lane-specific status/detail、版本文字、direct filter、group pagination與實際 rendered browser evidence已完成；完整 browser manifest、typecheck與DEV-086 aggregate均 PASS。若要進入 production/staging，仍須依既有 release gate 完成組織要求的獨立簽核、部署與 smoke evidence。
-- Release Ready：否；production／staging、live migration、deploy、smoke與release artifact均不在本文件執行邊界。
+- RD Implementation：`Historical Runtime Baseline / Superseded by DEV-087 and DEV-090`。三工作台 dual-lane projection、lane-specific status/detail、版本文字、direct filter、group pagination與rendered browser evidence保留為歷史基線；Drawing／Part current projection與shared mechanics由DEV-087承接，Relation formal／work與direct edit由DEV-090承接。
+- Current disposition：本SPEC不再是獨立current semantic、QA denominator或release target；不得復活legacy source、執行舊domain mutation或以歷史manifest宣告現行完成。production／staging、live migration、deploy、smoke與release仍由DEV-087／DEV-090及既有gate治理。

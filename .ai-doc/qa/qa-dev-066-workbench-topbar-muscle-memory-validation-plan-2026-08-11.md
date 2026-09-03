@@ -1,8 +1,24 @@
 # QA Plan：DEV-066 三工作台頂部欄一致化與肌肉記憶
 
 日期：2026-08-11；amended 2026-08-21、2026-09-01
-Related DEV：`DEV-066`、`DEV-112`
+Related DEV：`DEV-066`、`DEV-087`、`DEV-090`、`DEV-112`
 權威規格：`.ai-doc/specs/SPEC-UX-PDM-WORKBENCH-TOPBAR-001-unified-toolbar-muscle-memory.md`
+
+## 0A. DEV-066 supersession disposition（2026-09-03）
+
+Status：`Historical / Superseded by DEV-087/DEV-090/DEV-112 / No Separate Release Target`。
+
+DEV-066原本的三個獨立 workbench source 已由 canonical workbench architecture 退役。歷史 `TB-001..013`、舊
+route與screenshots仍保留追溯，但不再作現行分母，也不以不存在的舊 source重跑 current UI gate。現行 coverage
+分流如下：
+
+- DEV-087：canonical Drawing／Part filter、cursor pagination、history／URL recovery與四 viewport UI。
+- DEV-090：Drawing／Part drawer內的Relation matrix與直接編輯／取消／readback。
+- DEV-112：Drawing／Part `文字清單／3D 清單／預覽圖`三模式與結果區 placement。
+
+`scripts/qc-dev-066-workbench-topbar.mjs`只驗證 legacy source已退役、successor commands已註冊及current canonical
+mechanics存在；它不是把歷史 `TB-001..013` 改寫成 current PASS。任何 successor regression由對應 DEV owner處理，
+不重開 DEV-066。
 
 ## 0. DEV-112 Drawing／Part placement regression amendment（已執行／PASS）
 
