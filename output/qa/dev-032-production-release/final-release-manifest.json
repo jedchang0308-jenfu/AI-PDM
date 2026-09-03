@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "ai-pdm-dev-032-production-release-closure/v1",
+  "dev": "DEV-032",
+  "closedAt": "2026-09-03T08:07:00Z",
+  "status": "production_released",
+  "canonicalUrl": "https://jenfu-ai-pdm-prod.web.app",
+  "sourceRevision": "bb30682c0a9671fb66564127643ccf3913fa732b",
+  "candidate": {
+    "workflowRun": 33729286511,
+    "revision": "ai-pdm-prod-gh-bb30682c-33729286511",
+    "applicationImageDigest": "sha256:fb2ee51c21501b6697a135c5385328abec253ec8a82cdc557cc755912b5a561f",
+    "migrationImageDigest": "sha256:ff73d02e1cb353868d9a45d48791ad2f2df201346e790495be2884546cc10e6f",
+    "trafficBeforePromotionPercent": 0,
+    "smokePassed": 14,
+    "smokeFailed": 0
+  },
+  "database": {
+    "migrationCount": 53,
+    "highestMigrationVersion": "056",
+    "manifestSha256": "02e07b51cc4d879088dfdf145ae189f8ddaff1f024be4b66daeb9ecfccc7c374",
+    "productionBackupId": "1788418322752",
+    "restoreTarget": "ai-pdm-prod-restore-a2938bfb-c2",
+    "restoreTargetDeleted": true,
+    "firstPassAppliedVersions": ["053", "055", "056"],
+    "rerunAppliedVersions": [],
+    "reconciliationSnapshotSha256": "9776fb3feaeed1a688d0f5a82c54f32beb673234d99035aa5803829f878df8e3",
+    "reconciliationPassed": true
+  },
+  "authorityRepair": {
+    "execution": "ai-pdm-prod-migration-runner-tnzxj",
+    "expectedCommitBefore": "33ecd1379136ac6bfd88537e6e1d68b3346a089a",
+    "expectedCommitAfter": "bb30682c0a9671fb66564127643ccf3913fa732b",
+    "rowVersionBefore": 7,
+    "rowVersionAfter": 8,
+    "mode": "canonical_only",
+    "schemaHash": "dev090-v1",
+    "runnerRestoredGeneration": 97,
+    "repairEnvironmentVariablesRemaining": 0
+  },
+  "authenticatedLevel4": {
+    "reference": "production-candidate://ai-pdm-prod-gh-bb30682c-33729286511/bb30682c0a9671fb66564127643ccf3913fa732b/DEV032-L4-20260903T075500Z-A0059",
+    "actorRole": "system_admin",
+    "rootNumber": "A0059",
+    "partNumber": "A0059-P01",
+    "drawingNumber": "A0059-M01",
+    "permissionSurfacePassed": true,
+    "persistentReadbackPassed": true,
+    "sessionReloadPassed": true,
+    "fileWorkflowFailClosed": true
+  },
+  "promotion": {
+    "workflowRun": 33730726544,
+    "productOwnerDecision": "go",
+    "trafficPercent": 100,
+    "canonicalSmokePassed": 14,
+    "canonicalSmokeFailed": 0,
+    "canonicalPartWorkbenchStatus": 200,
+    "canonicalDrawingWorkbenchStatus": 200,
+    "servingRevisionFiveXXAfterPromotion": 0,
+    "rollbackTriggered": false
+  },
+  "openIssues": {
+    "p0": 0,
+    "p1": 0
+  },
+  "simplifiedFiveUserGate": {
+    "retired": [
+      "named_wave_0_roster",
+      "fixed_observation_period",
+      "waiver_document",
+      "candidate_bound_waiver_ceremony"
+    ],
+    "retained": [
+      "exact_artifact_provenance",
+      "production_backup",
+      "isolated_restore_rehearsal",
+      "migration_idempotence_and_reconciliation",
+      "zero_traffic_candidate",
+      "authenticated_level4",
+      "zero_open_p0_p1",
+      "rollback_readiness",
+      "product_owner_go",
+      "exact_promotion",
+      "canonical_post_promotion_smoke"
+    ]
+  },
+  "allChecksPassed": true
+}

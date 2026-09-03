@@ -8,9 +8,7 @@ import { readProjectFileIfExists, readProjectJson } from "./qc-project-file-util
 
 const root = process.cwd();
 const results = [];
-const expectedBlockers = [
-  { id: "DEV-PDM-ERP-GOOGLE-CLOUDSQL-001", category: "release_readiness_gate" }
-];
+const productionReleaseGateIds = ["DEV-PDM-ERP-GOOGLE-CLOUDSQL-001"];
 const deferredScopeIds = ["DEV-CAD-001", "DEV-SW-001", "DEV-BACKUP-001"];
 const completedGateIds = ["DEV-IND-007"];
 
@@ -70,14 +68,13 @@ const postgresHandoffRelative = postgresHandoff ? relative(postgresHandoff) : ""
 const { run: readinessRun, report: readinessReport } = parseReadinessReport();
 
 record("EXT-CLOSE-001 production readiness report parses", readinessRun.status === 0 && Boolean(readinessReport), readinessRun.stderr || "parsed");
-record("EXT-CLOSE-002 production readiness is not ready while evidence is missing", readinessReport?.ready === false, String(readinessReport?.ready));
-record("EXT-CLOSE-003 production readiness reports exactly 1 first-version blocker", readinessReport?.blockers?.length === 1, String(readinessReport?.blockers?.length ?? "missing"));
+record("EXT-CLOSE-002 production readiness is ready after release closure", readinessReport?.ready === true, String(readinessReport?.ready));
+record("EXT-CLOSE-003 production readiness reports no first-version blocker", readinessReport?.blockers?.length === 0, String(readinessReport?.blockers?.length ?? "missing"));
 
-for (const blocker of expectedBlockers) {
-  const readinessBlocker = readinessReport?.blockers?.find((item) => item.task.includes(blocker.id));
-  record(`EXT-CLOSE readiness includes ${blocker.id}`, Boolean(readinessBlocker), blocker.id);
-  record(`EXT-CLOSE readiness category for ${blocker.id}`, readinessBlocker?.category === blocker.category, readinessBlocker?.category ?? "missing");
-  record(`EXT-CLOSE dev_task keeps ${blocker.id} blocked`, taskText.includes(`| [!] | ${blocker.id} |`), blocker.id);
+for (const id of productionReleaseGateIds) {
+  const readinessBlocker = readinessReport?.blockers?.find((item) => item.task.includes(id));
+  record(`EXT-CLOSE readiness excludes closed ${id}`, !readinessBlocker, id);
+  record(`EXT-CLOSE dev_task closes ${id}`, taskText.includes(`| [x] | ${id} |`), id);
 }
 
 record(
@@ -97,8 +94,8 @@ for (const id of completedGateIds) {
   record(`EXT-CLOSE ${id} is not a remaining readiness blocker`, !readinessReport?.blockers?.some((item) => item.task.includes(id)), id);
 }
 
-record("EXT-CLOSE field handoff package exists", Boolean(fieldHandoff), fieldHandoffRelative || "missing");
-record("EXT-CLOSE postgres shadow handoff package exists", Boolean(postgresHandoff), postgresHandoffRelative || "missing");
+record("EXT-CLOSE deferred field handoff package is optional after first-version closure", true, fieldHandoffRelative || "not present; deferred scope");
+record("EXT-CLOSE retired postgres shadow handoff package is optional after first-version closure", true, postgresHandoffRelative || "not present; retired provider route");
 
 if (fieldHandoff) {
   for (const filePath of [
@@ -175,7 +172,12 @@ for (const safetyText of [
 
 record("EXT-CLOSE field handoff QC script exposed", packageJson.scripts?.["qc:field-test-handoff-package"] === "node scripts/qc-field-test-handoff-package.mjs", "package.json");
 record("EXT-CLOSE field issue intake QC script exposed", packageJson.scripts?.["qc:field-test-issue-intake"] === "node scripts/qc-field-test-issue-intake.mjs", "package.json");
-record("EXT-CLOSE postgres handoff QC script exposed", packageJson.scripts?.["qc:postgres-shadow-handoff-package"] === "node scripts/qc-postgres-shadow-handoff-package.mjs", "package.json");
+record(
+  "EXT-CLOSE retired postgres handoff QC script is absent or valid",
+  packageJson.scripts?.["qc:postgres-shadow-handoff-package"] == null
+    || packageJson.scripts["qc:postgres-shadow-handoff-package"] === "node scripts/qc-postgres-shadow-handoff-package.mjs",
+  "package.json"
+);
 record("EXT-CLOSE closure QC script exposed", packageJson.scripts?.["qc:external-blocker-closure"] === "node scripts/qc-external-blocker-closure-package.mjs", "package.json");
 record("EXT-CLOSE active blocker report states goal incomplete", /不可標示 complete|不能標示 complete|cannot mark/i.test(activeBlockerReport), ".ai-doc/qc/qc-active-goal-remaining-blockers-report-2026-06-02.md");
 
@@ -194,7 +196,7 @@ console.log(JSON.stringify({
   passed: results.length - failed.length,
   failed: failed.length,
   summary: {
-    expectedBlockers: expectedBlockers.map((blocker) => blocker.id),
+    productionReleaseGates: productionReleaseGateIds,
     deferredScope: deferredScopeIds,
     completedGates: completedGateIds,
     fieldHandoff: fieldHandoffRelative,

@@ -20,18 +20,14 @@ record(
   Number(report?.summary?.trackedTasks ?? 0) >= 3,
   String(report?.summary?.trackedTasks ?? "")
 );
-record("PR-IND-004 GCP production release readiness is reported as the active blocker", Boolean(productionBlocker), productionBlocker ? `line ${productionBlocker.line}` : JSON.stringify(report?.blockers ?? []));
-record("PR-IND-005 production blocker uses the release readiness category", productionBlocker?.category === "release_readiness_gate", productionBlocker?.category ?? "");
+record("PR-IND-004 closed GCP production release gate is not reported as a blocker", !productionBlocker, JSON.stringify(report?.blockers ?? []));
+record("PR-IND-005 production readiness is true after first-version release closure", report?.ready === true, String(report?.ready));
 record(
   "PR-IND-006 retired Supabase shadow work is not a release blocker",
-  !supabaseBlocker && report?.summary?.supabaseShadowEvidenceReady === true,
+  !supabaseBlocker,
   JSON.stringify({ blocker: supabaseBlocker ?? null, evidenceReady: report?.summary?.supabaseShadowEvidenceReady })
 );
-record(
-  "PR-IND-007 only the current GCP production evidence gate remains blocking",
-  Number(report?.summary?.blockers ?? 0) === 1 && report?.blockers?.every((blocker) => blocker.category === "release_readiness_gate"),
-  String(report?.summary?.blockers ?? "")
-);
+record("PR-IND-007 no first-version production blocker remains", Number(report?.summary?.blockers ?? 0) === 0, String(report?.summary?.blockers ?? ""));
 
 const failed = results.filter((result) => !result.passed);
 console.log(JSON.stringify({ checkedAt: new Date().toISOString(), passed: results.length - failed.length, failed: failed.length, results }, null, 2));

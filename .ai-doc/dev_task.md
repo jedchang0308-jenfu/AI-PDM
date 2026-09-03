@@ -34,11 +34,11 @@ Owner：Dev PM
 
 - 本節的多行索引是權威任務清單；後方表格只保留給 release gate、外部阻塞與 QC 腳本相容。
 - 狀態符號直接決定可否派工：`☐` 才是一般可派工；`○` 需先選定切片或使用者提出實作型指令；`!` 與 `↷` 不可由 RD 直接執行。
-- 目前唯一推進第一版 production 的入口是 `DEV-032`。`DEV-030` Cloud SQL target/capacity 與 `DEV-031` clean seed/restore/reconciliation 已整併為其子關卡，不再獨立派工；`DEV-046` Phase 2B staging activation 已完成，Phase 3A production execution 由 `DEV-032` 管控。
+- 第一版 production 已於 2026-09-03 由 `DEV-032` 完成發布並關閉；exact source `bb30682c0a9671fb66564127643ccf3913fa732b`、revision `ai-pdm-prod-gh-bb30682c-33729286511` 已承接 100% 流量。`DEV-030`／`DEV-031` 保留為其已完成的 database／continuity 來源子關卡，不再獨立派工。
 - `DEV-005` Phase 1 與 `DEV-041` Phase 3A-0 本地切片均已完成。未實作的 Pack-and-Go／mapping／baseline 不屬第一版，已收斂成 future product capsule；沒有明確產品需求時不再把 `DEV-041` 掛成未完成 owner。
 - `DEV-044` Phase 1-3 已完成本機 RD/QA/QC：server-derived command boundary、transactional receipt/outbox、provider-neutral principal/organization mapping 與 collision tooling 均已落地；原 Supabase Auth provider 目標已由 `DEV-046` 的 Firebase Auth / Identity Platform 決策取代，既有 provider-neutral evidence 仍有效，production cutover 仍未授權，ProJED 未修改。
 - `DEV-045` Phase 1、Phase 2 本機切片與 Phase 3A 工號登入別名 local slice 已完成本機 RD/QA/QC：包含「帳號與權限」單一管理入口、帳號生命週期、identity 狀態、session revoke、provider-managed recovery handoff、self-service session/device visibility、角色時間區間 UI 與 permission-path enforcement。Phase 3B provider rollout、production、Firebase Auth / Identity Platform live provider、MFA 與 release 仍未授權。
-- `DEV-046` Phase 1A-1E、Phase 2A staging IaC、Phase 2B local application slices 與 Phase 2B staging authentication activation 均已完成。`HD-10-1 / 1A` 採單區 staging、Regional-HA production，production IaC 保守估算 USD 210；staging 與 production 均依使用者決策採 Firebase Hosting 預設網址，DNS 延後，ProJED 未修改。2026-07-16 `DEV-032` Gate A/B/C 已完成：`jenfu-ai-pdm-prod` Paid Billing、Firebase/Identity Platform、Cloud SQL Regional HA、private VPC、Cloud Run、IAM、monitoring、regional logs、TWD 9,600 budget、Admin principal、18 migrations、pre-activation reconciliation 與 HD-8-4 separate-target restore reconciliation均通過。2026-08-28 的49筆migration Gate C2只對當時候選有效；本次整合已改為48筆、以047硬退役BOM並線性化至050，因此新exact commit必須另做C2，不得沿用舊證據。production entrypoint為`https://jenfu-ai-pdm-prod.web.app`，無GCS file authority，Terraform no-drift。2026-08-29起永久退役Gate E具名Wave 0與waiver流程；current exact artifact仍須C2、authenticated Level 4、zero open P0/P1、rollback readiness、Product Owner GO與exact traffic promotion授權。
+- `DEV-046` Phase 1A-1E、Phase 2A、Phase 2B 與 `DEV-032` production release 均已完成。2026-09-03 current package 為 53 筆 migration、最高版號 056；正式 backup、獨立 restore rehearsal、migration apply/idempotence、reconciliation、zero-traffic candidate、authenticated Level 4、zero open P0/P1、rollback readiness、Product Owner GO、exact promotion 與 canonical 14/14 smoke 全數通過。production entrypoint=`https://jenfu-ai-pdm-prod.web.app`；第一版維持 file workflow fail-closed，未啟用 GCS file writer，ProJED 未修改。
 - 2026-07-15 Workspace pilot access staging deploy：使用者決定公司 Google Workspace 使用者不再由 AI_PDM 首次登入要求 Authenticator/TOTP enrollment，且暫不要求 Workspace 管理端先強制 2-Step Verification。staging 已以 dirty working tree explicit approval 部署 image `sha256:c677ab0822328944c304afc17877963f611f010c972400fed838ce5153d1818c` 至 Cloud Run revision `ai-pdm-stg-00007-cam`，100% traffic；runtime env 為 `PDM_TRUST_GOOGLE_WORKSPACE_MFA=false`、`PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED=true`、`PDM_GOOGLE_WORKSPACE_DOMAINS=jenfu.com.tw`。post-deploy smoke 通過 `/login`、`/api/auth/mode`、未登入 `/api/numbering/permissions` 401，且登入頁無 Authenticator/TOTP enrollment 可見文案；rollback target 為 `ai-pdm-stg-00005-4xp`。
 - 2026-07-15 privacy acknowledgement staging hotfix：修正 Firebase Hosting -> Cloud Run rewrite 後，Google 登入告知流程未穩定帶入工作階段而使 `/privacy/acknowledgement` 顯示「確認工作階段已失效」的問題。根因是 Firebase Hosting 只會把名為 `__session` 的 cookie 轉送至 Cloud Run，原本的 `pdm_session` 不會進入後端 request。變更包含 pending cookie `SameSite=Lax`、登入交換/告知 API fetch 明確 `credentials: "same-origin"`、登入交換遇到 `privacy_ack_required` 改為 HTTP 200 body-code handoff、以 `NextResponse.cookies.set()` 同時寫入 `__session` 與 `pdm_session`，後端讀 session 時優先讀 `__session` 並保留 `pdm_session` 供未來 ALB/custom domain 相容；未確認個資告知前，受保護 BFF API 仍由 privacy gate 回 428 fail-closed。staging 已部署 image `sha256:702abf5ecd72e6b5878a3727c769f26cc3a426af29857308dfd6366b3255e35a` 至 Cloud Run revision `ai-pdm-stg-00013-vev`，100% traffic；驗證通過 privacy QC 20/20、Phase 2B QC 15/15、employee login alias QC 21/21、TypeScript、isolated build、本地容器與 staging smoke。後續真人 Google acknowledgement flow 重測已通過；rollback target 為 `ai-pdm-stg-00011-bot`，再上一版 rollback target 為 `ai-pdm-stg-00009-lab`。
 - 2026-07-15 dashboard PostgreSQL compatibility staging hotfix：人類已確認 `jedchang0308@jenfu.com.tw` 可經 Firebase Hosting 預設網址登入並進入 AI PDM 主控台；登入後發現 dashboard 啟動 API `/api/submissions`、`/api/lifecycle/controlled-history`、`/api/notifications`、`/api/approvals/inbox` 出現 500。Cloud Run stderr 定位為 Postgres nullable parameter type inference `42P08` 與 notification aggregate `GROUP BY` 相容性問題；已補 `submission-list` 與 `dashboard` nullable filter cast，並補 `notification` pending-review GROUP BY。驗證通過 TypeScript、isolated build、DEV-046 privacy QC 20/20、Phase 2B QC 15/15、employee login alias QC 21/21、candidate `/login`、`/api/auth/mode`、未登入 privacy API 401 與正式 staging 相同 smoke。staging 已部署 image `sha256:9a6ba6dd1d2c6e2266ee477e4014c4378d36e95107990f30c3bf2dd29b34138b` 至 Cloud Run revision `ai-pdm-stg-00015-tim`，100% traffic；production 未觸碰，rollback target 為 `ai-pdm-stg-00013-vev`。
@@ -47,6 +47,8 @@ Owner：Dev PM
 ### 目前派工任務清單
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
+
+- 現行可直接派工的第一版發布任務：`無`。`DEV-032` 已完成正式發布；其餘未實作內容均為明確 future capsule、已取消路線或需新需求另立 DEV，不列現行待辦。
 
 - 已退役，不得派工：`× DEV-096`、`× DEV-099`、`× DEV-104`。
   - 狀態：`Historical / Superseded by DEV-095 BOM Hard Retirement / Do Not Restore`。
@@ -129,17 +131,14 @@ Owner：Dev PM
   - 證據：`npm.cmd run qc:dev-090:contract` 25/25、`npm.cmd run typecheck:app`、isolated headed browser 四 viewport；確認「編輯關聯」位於「＋建立編號」左側、矩陣區沒有常駐 helper、儲存／取消仍可用、無可見 console error／alert、horizontal overflow=0；換頁時僅有預期的可取消重複請求 abort。
   - 計入交付：是（降低關聯編輯尋找成本並移除無法支持判斷的常駐文字；正式環境 release 仍另走既有 gate）。
 
-- 唯一 P0 launch-moving 任務：`DEV-032` ERP 平台 production release work package。
-  - 當前子關卡：完成現行53筆、最高版號056的migration package與BOM硬退役exact commit／image，再只對獨立restore target重做Gate C2；通過後才可執行authenticated Level 4。舊49筆候選的restore rehearsal不得替代新exact artifact。
-  - 後續順序：Gate C2 exact restore rehearsal -> zero-traffic candidate -> authenticated privacy/permissions/領號/草稿/重登/file fail-closed Level 4 -> zero open P0/P1 + rollback readiness -> Product Owner GO + exact promotion token -> traffic-only promote -> canonical post-promote smoke。具名Wave 0、waiver與candidate-bound waiver reference已永久退役，不再建立或驗證。
+- 已完成的 P0 launch 任務：`✓ DEV-032` ERP 平台 production release work package。
+  - 結案：現行53筆／最高056 migration、獨立restore Gate C2、0% candidate、登入／權限／領號資料持久性／file fail-closed Level 4、zero P0/P1、rollback、Product Owner GO、exact promotion及canonical smoke均完成；正式revision=`ai-pdm-prod-gh-bb30682c-33729286511`、traffic=100%。
+  - 五人系統簡化：永久取消具名Wave 0名冊、固定觀察期與waiver ceremony；保留exact source/image、正式backup＋隔離restore、zero-traffic、authenticated Level 4、zero P0/P1、rollback與exact promotion等不可省略風險關卡。
   - 整併來源：`DEV-030` 轉為 032B/032C database 子關卡；`DEV-031` 轉為 032C data-continuity QC 子關卡；兩者保留來源 ID，不再獨立派工。
   - release scope：`DEV-040` 領號／草稿、`DEV-042/043/045` 身分與帳號治理、`DEV-048` 圖料號／草稿入口；GCS file workflow、CAD、BOM 與完整 PDM 不在第一版。
   - PDM admission gate：目前第一版 scope 不含 DEV-052／DEV-064；未來任何 release 若要啟用 `PDM_NUMBER_LIFECYCLE_V2` 或套用 canonical Drawing adoption，必須先完成舊 reservation ID 全量 source/adoption reconciliation、backup/PITR、flag-off readback與read-only canary。unmapped／duplicate／renumbered任一非0，或cutover freeze期間source hash changed非0，一律不得activation。
 
-- 已整併 P0 release子關卡：`DEV-069 → DEV-032` Production Micro／Zonal、低成本按需 Staging、Restore 清理與兩套 ALB 拆除。
-  - 狀態：`DEV-069 Local RD/QC Closed / Live Execution Owned by DEV-032 / Blocked: Google OAuth + ADC Refresh`。
-  - 本機下一步：恢復 `a29836e7` 的 Staging IaC authority，完成 Micro connection budget、edge gate、Terraform validate 與 targeted QC。
-  - Live 邊界：使用者已確認成本方向；實際 Production／Staging apply、Restore delete、DB restart 與 post-change smoke已整併為`DEV-032`子關卡並由`deployment-release-gate`管控，`DEV-069`不再形成第二個active owner。
+- 已結案的整併 P0 release 子關卡：`DEV-069 → DEV-032`。DEV-069 local RD/QC 與其第一版 live release obligation 已由 DEV-032 完成；未來成本或 staging 架構調整必須依新需求另立 DEV，不再保留第二個 active owner。
 
 - 已關閉的產品候選：`× DEV-041`、`× DEV-015`。
   - `DEV-041` 以 Phase 3A-0 本機交付完成結案；Phase 3A-1～3C只保留 future capsule，若出現 Pack-and-Go 的具體使用情境再以新DEV或明確重開決策進場。
@@ -1482,7 +1481,7 @@ Owner：Dev PM
   - 2026-08-20 silent auto-recognition amendment：取消 owner workspace 的`開始辨識`按鈕；candidate revision 檔案上傳成功後由 server 自動 ensure 去重排程，進頁時對已有檔案自動補建相符 session並每2.5秒輪詢。候選欄位 focus／click直接定位，無座標顯示檔案屬性來源提示；逐欄按鈕與`待核對`文案取消，改為已修改訊號及單一`完成核對並儲存`。`qc:dev-079:contract`、`qc:dev-079:layout-browser`、`qc:dev-079:recognition-layout-browser`、typecheck、affected ESLint、DEV-068 contract與三 viewport browser PASS；Evidence：`output/qa/dev-079-layout/20260820161642-browser/`、`output/qa/dev-079-recognition-layout/20260820161949-browser/`。
   - 計入交付：是；本機產品實作完成並交獨立QC，production release、merge、PR、deploy仍未執行。
 
-- 全系統第一層狀態可見性與例外分層：`◇ DEV-080` `RD Implemented Locally / Focused QC Passed / Successor Disposition Closure Pending DEV-115` `P1` `Verification Only / Production Release Gated`。
+- 全系統第一層狀態可見性與例外分層：`× DEV-080` `Local QA-QC Complete 12 of 12 / Merged into DEV-087 and DEV-112 / Closed`；不再等待 DEV-115，也不形成獨立 release owner。
   - 目標：每個item第一層固定一個主要工作狀態與最多一個最高嚴重度例外；正常、成功、重複與技術細節降到可及popover／drawer，阻擋、錯誤、資安與缺必要條件不得hover-only。
   - 已確認決策：`缺製造圖`等會改變判斷／下一步／風險的訊號固定可見；`關聯完整`等正常完成訊號預設降層。hover必須同時支援focus、click/touch與Escape。
   - Repository inventory：`58 direct files = 30 source + 27 test/QC + package.json`；另有43 validation-only source與1 conditional CSS。全系統母體為42個page route、25個target display context、13條axis、22個target scope；19個直接status-bearing page只作census，不作coverage gate。
@@ -2737,7 +2736,7 @@ Owner：Dev PM
   - 下一步：保留 production representative gold set、正式檔案存取、部署與 release smoke 的獨立 gate；本機 DEV-082 不再有 regression blocker。Production Release Gate維持不變。
   - 計入交付：否（本項為支援父交付點 `DEV-068` 的開發點；只有父交付點計入產品完成率）。
 
-- × DEV-069 [開發點／已整併] [Local RD/QC Closed / Live Execution Transferred to DEV-032] [P0] [Blocked: Google OAuth + ADC Refresh] AI-PDM 預上線 GCP 降本與低成本 Staging
+- × DEV-069 [開發點／已整併] [Closed / First-version Live Release Obligation Completed through DEV-032] [P0] AI-PDM 預上線 GCP 降本與低成本 Staging
   - 摘要：將 Production Cloud SQL 改為 `db-f1-micro`／`ZONAL`，把 Staging 改成 Micro／Zonal／按需啟停且保留完整發布驗證能力，刪除已完成 reconciliation 的 Restore target，並移除 Production／Staging 未使用的 external ALB chain；預估從目前約 NT$4,300／月降到約 NT$550／月。
   - 來源 ID：`DEV-PDM-GCP-PRELAUNCH-COST-OPTIMIZATION-001`
   - 父任務：`DEV-032`、`DEV-046`；Production／Staging live execution已整併為`DEV-032`子關卡，本DEV只保留來源契約與local evidence。
@@ -4297,7 +4296,7 @@ Owner：Dev PM
   - 證據：`config/platform/clean-production-seed.template.json`、production canary restore/reconciliation runbook 與後續 `DEV-032 Gate C` execution report。
   - 計入交付：否
 
-- ◇ DEV-032 [關卡] [Authenticated Verification In Progress] [P0] [Release Gate Required] ERP 平台 production release work package
+- ✓ DEV-032 [關卡] [Closed / Production Released 2026-09-03] [P0] ERP 平台 production release work package
   - 摘要：production的唯一active入口，集中承接`DEV-046` Phase 3A.0、`DEV-030` database target/capacity、`DEV-031` clean seed/continuity QC、`DEV-040`領號／草稿release，以及已完成local task的production餘項；不因整併擴大任何來源DEV的產品scope。
   - 來源 ID：`DEV-CLOUDSQL-DB-001-PROD-GATE`；吸收來源`DEV-CLOUDSQL-DB-001`、`DEV-CLOUDSQL-DB-001-DATA-PARITY`、Jenfu Platform `DEV-005` production activation、Platform `DEV-009 009-R1`、`DEV-053` activation、`DEV-069` live cost change與`DEV-109` CAPA production effectiveness。
   - 父任務：`DEV-046` Phase 3A.0、`DEV-040`
@@ -4307,9 +4306,10 @@ Owner：Dev PM
     - [x] `Gate B - Production Resource Apply`：partial apply後已完成state import、corrective saved plan與apply；Cloud SQL Regional HA、private VPC、Cloud Run service/job、IAM、Identity config、LB、TLS resource、monitoring、regional logs、TWD 9,600 budget與HSM signing key readback通過，Terraform 58 resources無drift，0 GCS file authority。
     - [x] `Gate C - Clean Seed & Continuity`：mutation前on-demand backup `1784136240742`、privileged admin bootstrap、18筆schema migration與立即idempotence rerun已完成。production Identity Toolkit已讀回verified `google.com` UID `U57t2eIOzLdhAmNDUbFyOz3fdMm2`；principal `prod-pdm-admin-001` bootstrap通過，包含9 roles與237 permissions。pre-canary reconciliation執行`ai-pdm-prod-migration-runner-2szd5`通過；post-principal recovery point `1784162806569`已還原到獨立target `ai-pdm-prod-restore-20260716a`，restore reconciliation執行`ai-pdm-prod-migration-runner-9ss25`通過，來源與restore的numbering snapshot SHA-256均為`81f983ce4f3ed580d71f1cdef70cfbade83d860498a4310a1a61c11e997c1f57`。runner已清除execution ack並恢復dry-run，Terraform no-drift；restore target在當次驗證後曾暫留為evidence，但2026-08-26唯讀查詢已確認該instance目前不存在。
     - [x] `Gate C2 - Current PDM Data/Schema Candidate`：2026-08-28已以AUTOMATED backup `1787853600000`建立獨立private `db-f1-micro`／ZONAL restore target `ai-pdm-prod-restore-c2-20260828a`，只對該target執行exact migration image `sha256:8b45cab57a8493be4db1770dc7a9725e2223f0636809f722ea3971c84d4378af`。49筆manifest首輪由38套用至49，立即第二輪`appliedVersions=[]`；read-only reconciliation的source／restore snapshot SHA-256同為`736799dc01eeddf8368856641c124a47682318893fdf49b2e4106a4c26474225`。production source metadata前後SHA-256同為`35bef3ac94c79bc045c4aef421066b70b8b227a3f6b5fcb99a461063a8035af3`且Gate期間operation=0；Cloud Run Job已恢復原image、source target與spec。restore target已刪除並確認同名instance count=0，觀察成本上限估算TWD 0.42，低於TWD 100。readiness已移除退役的historical-target-online條件，改以本次current rehearsal、source保護、job復原、成本及cleanup receipt fail-closed；19/19 QC與負向mutants通過。Spec Impact=`No product contract change / release-governance correction`，ADR=`No New ADR`。
-    - [ ] `Gate D - Immutable Deploy & Smoke`：目前production revision為`ai-pdm-prod-gh-f70c8982-29636150040`，100%流量指向source `f70c89821b717e6e98e3a6ef855af47e4b4a69dc`與image `sha256:6963bb079a12e3ba973d4b07e0945cd2ee34178de9326f9e5735e3e133a94b91`。GitHub Actions run `29636150040`以keyless OIDC完成exact-commit驗證、immutable build、0% candidate、traffic validate、promotion與canonical smoke；保存的release artifact `8427222934`顯示candidate/canonical各13/13、traffic checks全通過，OCI revision label亦與source一致。2026-08-11 GCP唯讀live readback再次確認Cloud Run、Cloud SQL Regional HA、backup/PITR/deletion protection、獨立private restore target、principal、reconciliation與production slice均通過。歷史hotfix `1936e93d`的authenticated Level 4證據不得冒充目前release；Gate D只剩依另行核准的production-smoke程序取得與目前source/revision/image完全一致的authenticated privacy/permissions/領號/草稿/系列代號/重登/file fail-closed Level 4 evidence。
-    - [ ] `Gate E - Production GO / Traffic Promotion`：2026-08-29起具名Wave 0驗收、waiver與candidate-bound waiver reference永久退役。只需在current candidate-bound Level 4通過後確認zero open P0/P1、rollback readiness、Product Owner `go`及exact promotion token；production access allowlist仍為fail-closed安全控制，但不計入user acceptance分母，也不得因release自動擴大。
-  - 下一步：建立目前commit的clean exact app／migration artifacts並完成artifact provenance；其後另取得production-smoke核准，對同一exact release artifact執行authenticated Level 4，再完成zero open P0/P1、rollback readiness與Product Owner go/no-go，使用exact promotion token做traffic-only promote並跑canonical post-promote smoke。Gate C2證據綁定49筆manifest與已執行的migration／reconciliation payload；若manifest、migration runner或reconciliation payload再變更，必須重新執行Gate C2，不能沿用本次收據。任何production deploy、traffic、migration apply或新restore target仍須另行明確授權。
+    - [x] `Gate C3 - 2026-09-03 Exact 53-Migration Closure`：manifest SHA-256=`02e07b51cc4d879088dfdf145ae189f8ddaff1f024be4b66daeb9ecfccc7c374`、最高056。獨立restore `ai-pdm-prod-restore-a2938bfb-c2`由AUTOMATED backup `1788372000000`建立，只在restore target套用053／055／056，第二輪0筆，source／restore snapshot SHA-256均=`9776fb3feaeed1a688d0f5a82c54f32beb673234d99035aa5803829f878df8e3`；restore target、temporary object與IAM binding均清除。正式source另以前置ON_DEMAND backup `1788418322752`保護後套用相同三版，rerun 0筆、read-only reconciliation PASS。後續`main`只合併本次backup/restore evidence，migration manifest hash未變，因此DB Gate C3維持有效；application仍依exact-source規則重建`bb30682c`候選。
+    - [x] `Gate D - Immutable Deploy & Smoke`：current main/source=`bb30682c0a9671fb66564127643ccf3913fa732b`；GitHub Actions candidate run `33729286511`以keyless OIDC建立application image `sha256:fb2ee51c21501b6697a135c5385328abec253ec8a82cdc557cc755912b5a561f`與migration image `sha256:ff73d02e1cb353868d9a45d48791ad2f2df201346e790495be2884546cc10e6f`，部署0% revision `ai-pdm-prod-gh-bb30682c-33729286511`並通過14/14 smoke。authenticated Level 4以公司系統管理員完成權限頁、A0059-P01／A0059-M01持久查回、重登與附件未開放fail-closed；authority CAS `rowVersion 7→8`只更新expected commit，mode=`canonical_only`與schema hash=`dev090-v1`不變，runner已還原dry-run。
+    - [x] `Gate E - Production GO / Traffic Promotion`：open P0/P1=0、rollback contract通過、Product Owner=`go`與exact promotion token完成。GitHub Actions run `33730726544`將上述revision traffic-only promote至100%，canonical `https://jenfu-ai-pdm-prod.web.app` smoke 14/14；正式域名公司帳號登入後A0059-P01與A0059-M01 workbench均200，promotion後該revision 5xx=0，故未觸發rollback。
+  - 下一步：DEV-032無剩餘開發或發布工作；進入一般營運監控。未來若改動source、migration、release scope、file workflow或production authority，必須建立新release capsule並重新取得與該artifact綁定的Gate C2／D／E證據，不得沿用本次收據。
   - 2026-08-11本分支正式部署前機器驗證：`qc:full` 42/42步驟通過、`qc:industrialization` 41/41步驟通過、target preflight 16/16、activation readiness 18/18、`npm audit --audit-level=moderate`為0 vulnerabilities；dev與standalone production runtime皆以disposable SQLite snapshot完成API/UI/檔案雜湊驗證，不寫入工作區主資料。嚴格`qc:production-readiness`仍依設計因上述A8/A9真人證據回傳blocked，故本紀錄不構成deploy/go-live授權。
   - 2026-09-01 CAPA production continuation checkpoint：使用者授權後，透過正式 Cloud Run migration runner 完成 CAPA-P01 read-only schema／SLDASM inventory 與 CAPA-P02 read-only NO_OP；正式庫 migration max=`052`、缺少`053/054`，A0044-P01=`Draft/single_part`、active primary exact `.SLDASM`=`0`，P02 `mutationStatements=0`／`applied=0`。source boundary 在 05:04Z point-in-time 雙快照曾達 `stable=true`、`included=269`、`unknownRisk=0`，但工作區仍有並行 Codex/CUA runtime 且尚未建立 exact release commit；本輪文件變更後該 receipt 已視為需重新驗證，故 `safeToBuildForProduction=false`。依 SPEC §31.10 的 54-file planning ledger 現況重算僅 `14/54` 相符、`40/54` drift，原 ledger 不得直接建立 release commit，須由 DEV-032 release owner 重新確認 scope／hunk ownership。尚未 stage／commit／push；未執行正式 migration apply、Part reconcile、activation、deploy、traffic或release；禁止 seed。
   - 最新 05:34Z DEV-032 commit plan 觀測 `stable=false`、`included=294`、`unknownRisk=0`、`safeToStageIncludedSource=false`／`safeToBuildForProduction=false`，commit-plan QC=`12/12`；本輪文件更新後該 plan 同樣視為需重新產生，不能作為 exact release source。
@@ -4317,9 +4317,9 @@ Owner：Dev PM
   - 最新 2026-09-01 06:21Z source-plan recheck：雙快照期間 dirty entries `79,727 → 79,729`，gate=`release_source_snapshot_unstable`、`included=298`、`unknownRisk=0`、`safeToStageIncludedSource=false`／`safeToBuildForProduction=false`，commit-plan QC=`12/12`。並行 CUA/runtime 尚未停止，故來源邊界未凍結；不得重用穩定 plan、stage或進入 build/deploy/migration/activation，須待 runtime 停止且 release owner 選定 scope/hunk 後重新產生 exact source boundary。
   - Root-cause correction：DEV-032 source-plan stability 已收斂為 source/classification hash、included source count 與 unknown-risk count；generated evidence 的 dirty count 變動只保留 telemetry，不再單獨造成 source blocker。此修正仍要求 source/config snapshot 穩定、release owner scope/hunk selection 與 exact commit；未完成前不得 stage／build／push／deploy／migration apply／activation或關閉CAPA。
   - 2026-09-01 06:34Z corrected source-plan recheck：在 dirty evidence churn 下 `stable=true`、`included=299`、`unknownRisk=0`、`safeToStageIncludedSource=true`，但 `safeToBuildForProduction=false`、`exactReleaseCommitExists=false`、blocker=`RELEASE_OWNER_SELECTION_AND_EXACT_COMMIT_STILL_REQUIRED`；commit-plan QC=`12/12`。與 §31.10 planning ledger 為 `52/54` 交集、`247` 個非 CAPA paths；scope/hunk 選定與 exact commit 仍未完成。收據=`output/qa/dev-109-capa-production/2026-09-01T0315Z/source-scope-overlap-2026-09-01T0634Z.json`、`release-owner-decision-packet-2026-09-01T0634Z.json`。
-  - 阻塞 / 恢復條件：每個子關卡需獨立 explicit approval；artifact provenance、target identity、cost、privacy、clean seed/source archive/non-reuse、connection budget、rollback、restore/reconciliation、smoke tenant任一缺失即停止。
-  - 證據：`.ai-doc/reports/pm/pm-dev-032-production-gate-package-2026-07-15.md`、`.ai-doc/reports/pm/pm-dev-032-gate-a-b-execution-2026-07-16.md`、`.ai-doc/reports/pm/pm-dev-032-production-hosting-activation-2026-07-16.md`、`.ai-doc/reports/pm/pm-dev-032-production-principal-restore-reconciliation-2026-07-16.md`、`config/platform/production-activation-evidence.json`、`output/dev-032-production-live-readback/report.json`、`output/dev-032-production-target-preflight/report.json`、`output/dev-032-production-slice-activation/github-f70c8982-release-evidence.json`、`output/dev-032-production-activation-readiness/historical-activation-closure-hotfix-1936e93d.json`、`output/dev-032-production-activation-readiness/report.json`、`output/dev-032-cloudsql-native-backup-rehearsal/execution-summary.json`、`output/dev-032-cloudsql-backup-readiness/report.json`與`output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json`。目前release的authenticated Level 4待追加；歷史18版restore、47版未執行候選與舊hotfix UI證據只保留歷史用途，不再要求其restore target在線。
-  - 計入交付：否
+  - 結案邊界：五人使用情境只刪除低價值的具名Wave 0／固定觀察期／waiver ceremony，未刪除不可逆風險控制；backup、隔離restore、exact artifact、0% candidate、登入Level 4、zero P0/P1、rollback與post-promote smoke均保留並完成。
+  - 證據：`.ai-doc/qc/qc-dev-032-production-release-closure-2026-09-03.md`、`output/qa/dev-032-production-release/final-release-manifest.json`、`output/qa/dev-032-production-release/run-33729286511/`、`output/qa/dev-032-production-release/run-33730726544/`、`output/dev-032-cloudsql-native-backup-rehearsal/execution-summary.json`、`output/dev-032-cloudsql-backup-readiness/report.json`與`output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json`。歷史候選／hotfix evidence只供追溯，不可作未來release authority。
+  - 計入交付：是
 
 - × DEV-033 [開發點] [Future Capsule / Not Current Backlog / Includes DEV-037] [P2] GCS 檔案權威、保留、成本與 continuity package
   - 摘要：作為future capsule承接`DEV-046` Phase 3B並吸收原`DEV-037`，只保存檔案inventory、成本、保留政策、direct-GCS authority、backup與restore的決策脈絡；不是現行backlog或RD可直接執行任務。
@@ -4446,7 +4446,7 @@ Owner：Dev PM
 | ✓ 本輪本地範圍已完成 | `DEV-051` | `DEV-PDM-REVISION-TIMING-UX-001` | 交付點 | Phase 1A-1D 本機實作與 QA/QC passed；candidate suggestion 提前、CTA 於 publication/promotion 前 fail-closed；release/deploy 另走 gate |
 | × 併入 | `DEV-030` | `DEV-CLOUDSQL-DB-001` | 關卡 | target/capacity/apply併入`DEV-032 Gate B`，migration/continuity併入`Gate C` |
 | × 併入 | `DEV-031` | `DEV-CLOUDSQL-DB-001-DATA-PARITY` | QA/QC | clean seed/archive/restore/reconciliation保留角色分離QC，統一由`DEV-032 Gate C`派工 |
-| ! release gate | `DEV-032` | `DEV-CLOUDSQL-DB-001-PROD-GATE` | 關卡 | 唯一production入口；當前重做現行53筆／最高056的`Gate C2`，再進Gate D／E |
+| ✓ 完成／已發布 | `DEV-032` | `DEV-CLOUDSQL-DB-001-PROD-GATE` | 關卡 | Gate A-E完成；`bb30682c`／`ai-pdm-prod-gh-bb30682c-33729286511`已承接100% production流量，canonical 14/14與authenticated workbench readback通過 |
 | × 併入 | `DEV-066` | `SPEC-UX-PDM-WORKBENCH-TOPBAR-001` | 歷史／已整併 | current authority由DEV-087／090／112承接；shared mechanics與歷史evidence保留，不再獨立派工或重跑舊matrix |
 | ✓ 完成 | `DEV-115` | `DEV-PDM-QA-GATE-CONVERGENCE-001` | QA基礎設施 | DEV-079 42/42、DEV-080 12/12 current aggregate PASS；primary invariant與cleanup完成 |
 | ✓ 完成 | `DEV-079` | `DEV-PDM-DRAWING-READONLY-DRAWER-FULLPAGE-EDITOR-001` | QA/QC | current 42案已封口；production發布只由DEV-032承接 |
@@ -4466,13 +4466,13 @@ Owner：Dev PM
 
 ## 2. 批次發版與正式環境關卡
 
-共用 release、production、Cloud SQL、migration、provider pointer、rollback 與 production smoke 不掛在每個已完成 DEV 底下，只由 `DEV-032` active gate 管控：
+第一版共用 release gate 已由 `DEV-032` 完成。下列 A-E 保留為本次結案紀錄與未來新release capsule的最低模板，不再表示DEV-032仍active：
 
-- `DEV-032 Gate A`：production provider/env/secret metadata與credentialled plan review；不得apply。
-- `Gate B`：production resource apply；原`DEV-030` target/capacity/resource scope在此驗收。
-- `Gate C`：clean seed/migration/restore/reconciliation；原`DEV-031` data-continuity QC在此驗收。
-- `Gate D`：immutable deploy、rollback、Level 3/4 smoke。
-- `Gate E`：zero open P0/P1、rollback readiness、Product Owner GO、exact promotion token、traffic-only promote與canonical post-promote smoke；具名Wave 0／waiver已退役，allowlist變更另走安全管理。
+- `DEV-032 Gate A`：✓ production provider/env/secret metadata、target與plan review完成。
+- `Gate B`：✓ production resource apply/readback完成；原`DEV-030` target/capacity/resource scope已驗收。
+- `Gate C`：✓ 53筆／最高056 migration、backup、獨立restore、idempotence與reconciliation完成；原`DEV-031` continuity QC已驗收。
+- `Gate D`：✓ immutable zero-traffic candidate、rollback contract與authenticated Level 4完成。
+- `Gate E`：✓ zero open P0/P1、Product Owner GO、exact promotion、100% traffic與canonical smoke完成；具名Wave 0／waiver維持退役。
 - `DEV-034`：SQLite 到 PostgreSQL 影子遷移已完成本機 disposable gate；正式 Cloud SQL target只走`DEV-032`。
 - `DEV-040`：正式領號 / 草稿 production slice；Phase 1 local product slice 已完成並驗證，release/deploy 仍走 `DEV-032`。
 
@@ -4489,7 +4489,7 @@ Owner：Dev PM
 | [ ] | DEV-SW-001 | SolidWorks Add-in real-machine validation | Cancelled as a product route, not evidence-passed. Historical ID retained; a new product decision is required to reopen it. |
 | [ ] | DEV-BACKUP-001 | Offline one-way backup and restore drill | Full PDM file/GCS/offline restore drill deferred to Phase 3B/full file readiness; Phase 3A separately requires closed DEV-046 `HD-8-4 / 1A` pre-canary Cloud SQL restore/reconciliation evidence. |
 | [x] | DEV-FIELD-001 | Formal field-test evidence | Cancelled by Human Decision `HD-9-1` on 2026-07-14; closed without execution or acceptance evidence and no longer a first-version blocker. |
-| [!] | DEV-PDM-ERP-GOOGLE-CLOUDSQL-001 | Live platform and release readiness | DEV-032 machine-verifiable Gates A-C及Gate D candidate/canonical smoke已有歷史證據；production authority為Firebase Hosting → Cloud Run → Cloud SQL PostgreSQL，file authority為GCS，Supabase維持retired/fail-closed。每次promotion仍須current exact source/revision/image的candidate-bound authenticated Level 4。2026-08-29起Gate E具名Wave 0與waiver永久退役，改為zero open P0/P1、rollback readiness、Product Owner `go`、exact promotion token與canonical post-promote smoke；production access allowlist另屬安全控制。歷史`1936e93d` Level 4不得重用。Evidence：`config/platform/production-activation-evidence.json`、`output/dev-032-production-live-readback/report.json`、`output/dev-032-production-slice-activation/github-f70c8982-release-evidence.json`、`output/dev-032-production-activation-readiness/report.json`。 |
+| [x] | DEV-PDM-ERP-GOOGLE-CLOUDSQL-001 | Live platform and release readiness | DEV-032於2026-09-03完成Gate A-E；production authority為Firebase Hosting → Cloud Run → Cloud SQL PostgreSQL，第一版file workflow維持fail-closed。current source/revision/image、authenticated Level 4、zero P0/P1、rollback、Product Owner GO、exact promotion與canonical smoke均有current evidence；未來release不得重用本次artifact-bound收據。Evidence：`.ai-doc/qc/qc-dev-032-production-release-closure-2026-09-03.md`與`output/qa/dev-032-production-release/final-release-manifest.json`。 |
 | [!] | DEV-STORAGE-COST-001 | Future GCS authority/cost/continuity package | Parked with DEV-046 Phase 3B and DEV-037 until Phase 3A is stable and file-workflow scope, inventory, lifecycle policy, cost and recovery ownership are approved. |
 
 保留給 `qc:dev-task-evidence-sync` 的外部證據 checklist：
@@ -4502,6 +4502,8 @@ Owner：Dev PM
 - [x] `P1` 固定 `製圖=drawn_by_name` drawing-revision metadata字串、`3D圖號(主)=model_root_number` drawing identity evidence；兩者均不查user ID或自動改canonical identity。
 
 ## 4. 已完成任務與證據摘要
+
+- 2026-09-03（DEV-032 production release closure）：依五人使用規模移除具名Wave 0、固定觀察期與waiver ceremony，但保留exact artifact、正式backup、獨立restore、migration idempotence／reconciliation、0% candidate、authenticated Level 4、zero P0/P1、rollback、Product Owner GO與canonical smoke。53筆／最高056 migration已套用且rerun 0筆；source=`bb30682c0a9671fb66564127643ccf3913fa732b`、revision=`ai-pdm-prod-gh-bb30682c-33729286511`、application image=`sha256:fb2ee51c21501b6697a135c5385328abec253ec8a82cdc557cc755912b5a561f`。candidate run `33729286511` 14/14、promotion run `33730726544` canonical 14/14，Cloud Run traffic=100%；正式域名登入後A0059-P01／A0059-M01均200，serving revision post-promotion 5xx=0。DEV-032狀態=`Closed / Production Released`；current active first-version release task=0。Closure=`.ai-doc/qc/qc-dev-032-production-release-closure-2026-09-03.md`。
 
 - 2026-08-27（DEV-101 independent local CAPA completion candidate）：完成canonical`pdm_work_review` inbox adapter、normal
   owner submit→reviewer list→full-page review→return／approve、v1／v2分流，以及Drawing exact full recognition
