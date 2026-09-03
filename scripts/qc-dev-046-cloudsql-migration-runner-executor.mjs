@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import {
   DEV046_CLOUDSQL_MIGRATION_APPROVAL,
   buildDev046CloudSqlMigrationRunPlan,
+  ensureMigrationLedgerRoleAccess,
   requireLiveExecutionApproval
 } from "./run-dev-046-cloudsql-migrations.mjs";
 import { readProjectFile } from "./qc-project-file-utils.mjs";
@@ -93,11 +94,45 @@ try {
   );
   record(
     "DEV046-CLOUDSQL-EXEC-006 source uses singleton advisory lock and migration history",
-    source.includes('client.query("SET LOCAL ROLE pdm_migration")') &&
+    source.includes("ensureMigrationLedgerRoleAccess(client)") &&
+      source.indexOf("ensureMigrationLedgerRoleAccess(client)") < source.indexOf('client.query("SET LOCAL ROLE pdm_migration")') &&
+      source.includes('client.query("SET LOCAL ROLE pdm_migration")') &&
       source.indexOf('client.query("SET LOCAL ROLE pdm_migration")') < source.indexOf("CREATE TABLE IF NOT EXISTS pdm_schema_migrations") &&
       source.includes("pg_try_advisory_xact_lock") &&
       source.includes("pdm_schema_migrations") &&
       source.includes("MIGRATION_HISTORY_CHECKSUM_MISMATCH")
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-006A existing IAM-owned ledger is granted to the migration role before role assumption",
+    await (async () => {
+      const queries = [];
+      const client = {
+        async query(sql) {
+          queries.push(sql);
+          if (sql.includes("to_regclass")) return { rows: [{ exists: true }] };
+          return { rows: [] };
+        }
+      };
+      const result = await ensureMigrationLedgerRoleAccess(client);
+      return result.existingLedger === true &&
+        result.grantApplied === true &&
+        queries.length === 2 &&
+        queries[1].includes("GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.pdm_schema_migrations TO pdm_migration");
+    })()
+  );
+  record(
+    "DEV046-CLOUDSQL-EXEC-006B a fresh database does not attempt to grant a missing ledger",
+    await (async () => {
+      const queries = [];
+      const client = {
+        async query(sql) {
+          queries.push(sql);
+          return { rows: [{ exists: false }] };
+        }
+      };
+      const result = await ensureMigrationLedgerRoleAccess(client);
+      return result.existingLedger === false && result.grantApplied === false && queries.length === 1;
+    })()
   );
   record(
     "DEV046-CLOUDSQL-EXEC-007 source refuses runner-hostile SQL",
