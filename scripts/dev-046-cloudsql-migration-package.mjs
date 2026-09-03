@@ -67,10 +67,6 @@ function quoteIdentifier(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
-function quoteLiteral(value) {
-  return `'${String(value).replaceAll("'", "''")}'`;
-}
-
 function migrationName(file) {
   return path.basename(file).replace(/\.sql$/u, "");
 }
@@ -196,22 +192,6 @@ function sanitizeSqlForCloudSql({ file, source }) {
   };
 }
 
-function buildMigrationOwnershipReconciliationSql(target) {
-  const migrationIamRole = quoteIdentifier(target.migrationIamDatabaseUser);
-  const migrationIamRoleLiteral = quoteLiteral(target.migrationIamDatabaseUser);
-  return `-- Existing Cloud SQL objects were historically created by the dedicated IAM migration user.
--- Transfer only that role's objects to the non-login migration owner before the runner assumes it.
-DO $cloudsql_migration_owner$
-BEGIN
-  IF NOT pg_has_role(${migrationIamRoleLiteral}, 'pdm_migration', 'MEMBER') THEN
-    RAISE EXCEPTION 'CLOUDSQL_MIGRATION_ROLE_MEMBERSHIP_MISSING:%', ${migrationIamRoleLiteral};
-  END IF;
-END
-$cloudsql_migration_owner$;
-
-REASSIGN OWNED BY ${migrationIamRole} TO pdm_migration;`;
-}
-
 function buildAdminBootstrapSql({ target, grantSql, contractSchemaGrantSql }) {
   const production = target.projectId === "jenfu-ai-pdm-prod";
   const sql = `${[
@@ -229,23 +209,12 @@ function buildAdminBootstrapSql({ target, grantSql, contractSchemaGrantSql }) {
     : sql;
 }
 
-function buildMigrationOwnershipHandoffSql({ target }) {
-  const production = target.projectId === "jenfu-ai-pdm-prod";
-  const ownershipReconciliationSql = buildMigrationOwnershipReconciliationSql(target);
-  return `${[
-    `-- ${production ? "DEV-032 production" : "DEV-046 staging"} existing-database migration ownership handoff`,
-    "-- Execute as the dedicated IAM migration database user through the approved SQL-import path.",
-    "-- This file creates no role, schema or data and grants no additional privilege.",
-    ""
-  ].join("\n")}${ownershipReconciliationSql}\n`;
-}
-
 function buildIncrementalContractSchemaBootstrapSql({ target, contractSchemaGrantSql }) {
   const production = target.projectId === "jenfu-ai-pdm-prod";
   return `${[
-    `-- ${production ? "DEV-032 production" : "DEV-046 staging"} existing-database contract-schema bootstrap`,
-    "-- Execute as the managed postgres database administrator through the approved SQL-import path.",
-    "-- This file is additive and does not change public-schema objects or application data.",
+    `-- ${production ? "DEV-032 production" : "DEV-046 staging"} incremental contract-schema bootstrap`,
+    "-- Apply to an existing database through the approved privileged SQL-import path.",
+    "-- This file intentionally does not create roles or touch existing public-schema tables.",
     ""
   ].join("\n")}${contractSchemaGrantSql.trimEnd()}\n`;
 }
@@ -283,7 +252,7 @@ function buildRunnerContractMarkdown(report) {
     "",
     "## Proposed Order",
     "",
-    "1. For a fresh database execute `sql/000_admin_bootstrap_grants.sql`. For an existing database, execute `sql/001_migration_ownership_handoff.sql` as the dedicated IAM migration user, then `sql/002_ai_pdm_contract_schema_bootstrap.sql` as the managed database administrator.",
+    "1. For a fresh database execute `sql/000_admin_bootstrap_grants.sql`; for an existing database execute only `sql/001_ai_pdm_contract_schema_bootstrap.sql` through the approved privileged path.",
     "2. Execute ordered schema files in `cloudsql-migration-manifest.json` through the migration identity.",
     "3. Execute `sql/999_runtime_grants_refresh.sql`.",
     "4. Run runtime database smoke through the Cloud Run runtime service account.",
@@ -343,7 +312,6 @@ function buildCandidatePackage({ target, grantSql, contractSchemaGrantSql, postg
   }
 
   const adminBootstrapSql = buildAdminBootstrapSql({ target, grantSql, contractSchemaGrantSql });
-  const migrationOwnershipHandoffSql = buildMigrationOwnershipHandoffSql({ target });
   const incrementalContractSchemaBootstrapSql = buildIncrementalContractSchemaBootstrapSql({
     target,
     contractSchemaGrantSql
@@ -358,14 +326,7 @@ function buildCandidatePackage({ target, grantSql, contractSchemaGrantSql, postg
       sql: adminBootstrapSql
     },
     {
-      output: `${candidateSqlDirectory}/001_migration_ownership_handoff.sql`,
-      kind: "migration_ownership_handoff",
-      outputSha256: sha256(migrationOwnershipHandoffSql),
-      bytes: Buffer.byteLength(migrationOwnershipHandoffSql, "utf8"),
-      sql: migrationOwnershipHandoffSql
-    },
-    {
-      output: `${candidateSqlDirectory}/002_ai_pdm_contract_schema_bootstrap.sql`,
+      output: `${candidateSqlDirectory}/001_ai_pdm_contract_schema_bootstrap.sql`,
       kind: "admin_contract_schema_bootstrap",
       outputSha256: sha256(incrementalContractSchemaBootstrapSql),
       bytes: Buffer.byteLength(incrementalContractSchemaBootstrapSql, "utf8"),

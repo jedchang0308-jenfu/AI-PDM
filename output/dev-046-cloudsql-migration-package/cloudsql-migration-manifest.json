@@ -30,16 +30,10 @@
       "bytes": 2094
     },
     {
-      "output": "sql/001_migration_ownership_handoff.sql",
-      "kind": "migration_ownership_handoff",
-      "outputSha256": "8ee5ca2a2cb417d6d9f5e2c65e6f97e06a07002e3e6f9b2b2439b64dbd256686",
-      "bytes": 815
-    },
-    {
-      "output": "sql/002_ai_pdm_contract_schema_bootstrap.sql",
+      "output": "sql/001_ai_pdm_contract_schema_bootstrap.sql",
       "kind": "admin_contract_schema_bootstrap",
-      "outputSha256": "7290d19e7298e9ef704410eb3fb10a2b9adf792cf3cb7ffcd026fc4b78462d32",
-      "bytes": 672
+      "outputSha256": "ff5ac884ad07cd56314211f861d6b8f785277bbc23c6fb0240b135899ebca9a9",
+      "bytes": 653
     },
     {
       "output": "sql/999_runtime_grants_refresh.sql",
