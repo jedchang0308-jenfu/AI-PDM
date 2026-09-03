@@ -1,6 +1,7 @@
 -- DEV-046 Cloud SQL candidate generated from db/postgres/055_jenfu_role_catalog_publication.sql
 -- Proposal only. Review before any live apply.
 -- Supabase Data API roles and RLS force statements are intentionally absent for Cloud SQL BFF runtime.
+-- Jenfu platform database roles are mapped to the managed Cloud SQL pdm_migration/pdm_runtime roles.
 
 -- DEV-005 S1: AI-PDM app-owned role catalog publication.
 -- Additive and idempotent.  This migration only creates the publication
@@ -8,10 +9,21 @@
 -- does not change the legacy authorization source.
 -- CLOUDSQL_REMOVED_TRANSACTION_WRAPPER_SOURCE_LINE:5
 SELECT pg_advisory_xact_lock(hashtext('ai-pdm:dev-005:role-catalog-publication'));
-SET LOCAL ROLE jenfu_platform_migrator;
+SET LOCAL ROLE pdm_migration;
 
-CREATE SCHEMA IF NOT EXISTS ai_pdm_contract AUTHORIZATION jenfu_platform_migrator;
-ALTER SCHEMA ai_pdm_contract OWNER TO jenfu_platform_migrator;
+DO $cloudsql_bootstrap$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+      FROM pg_namespace
+     WHERE nspname = 'ai_pdm_contract'
+  ) OR NOT has_schema_privilege('pdm_migration', 'ai_pdm_contract', 'USAGE')
+    OR NOT has_schema_privilege('pdm_migration', 'ai_pdm_contract', 'CREATE') THEN
+    RAISE EXCEPTION 'CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_INACCESSIBLE:ai_pdm_contract';
+  END IF;
+END
+$cloudsql_bootstrap$;
+-- CLOUDSQL_ADMIN_BOOTSTRAP_RETAINS_AI_PDM_CONTRACT_SCHEMA_OWNERSHIP;
 
 CREATE TABLE IF NOT EXISTS ai_pdm_contract.role_catalog_publications (
   catalog_version TEXT PRIMARY KEY,
@@ -93,24 +105,23 @@ JOIN ai_pdm_contract.role_catalog_entries e
   ON e.catalog_version = p.catalog_version
 WHERE p.application_id = 'ai-pdm';
 
-ALTER TABLE ai_pdm_contract.role_catalog_publications OWNER TO jenfu_platform_migrator;
-ALTER TABLE ai_pdm_contract.role_catalog_entries OWNER TO jenfu_platform_migrator;
-ALTER TABLE ai_pdm_contract.active_role_catalog OWNER TO jenfu_platform_migrator;
-ALTER VIEW ai_pdm_contract.v_application_role_catalog_v1 OWNER TO jenfu_platform_migrator;
+ALTER TABLE ai_pdm_contract.role_catalog_publications OWNER TO pdm_migration;
+ALTER TABLE ai_pdm_contract.role_catalog_entries OWNER TO pdm_migration;
+ALTER TABLE ai_pdm_contract.active_role_catalog OWNER TO pdm_migration;
+ALTER VIEW ai_pdm_contract.v_application_role_catalog_v1 OWNER TO pdm_migration;
 
-REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC;
+-- CLOUDSQL_ADMIN_BOOTSTRAP_REVOKED_PUBLIC_AI_PDM_CONTRACT_SCHEMA_ACCESS;
 REVOKE ALL ON ALL TABLES IN SCHEMA ai_pdm_contract FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA ai_pdm_contract
-  FROM jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime;
-GRANT USAGE ON SCHEMA ai_pdm_contract
-  TO jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime;
+  FROM pdm_runtime;
+-- CLOUDSQL_ADMIN_BOOTSTRAP_GRANTED_RUNTIME_AI_PDM_CONTRACT_SCHEMA_USAGE;
 GRANT SELECT ON ai_pdm_contract.v_application_role_catalog_v1
-  TO jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime;
+  TO pdm_runtime;
 
-ALTER DEFAULT PRIVILEGES FOR ROLE jenfu_platform_migrator IN SCHEMA ai_pdm_contract
+ALTER DEFAULT PRIVILEGES IN SCHEMA ai_pdm_contract
   REVOKE ALL ON TABLES FROM PUBLIC;
 
 COMMENT ON VIEW ai_pdm_contract.v_application_role_catalog_v1 IS
   'AI-PDM runtime read-only catalog projection; assignment catalogVersion is provenance only.';
 
--- CLOUDSQL_REMOVED_TRANSACTION_WRAPPER_SOURCE_LINE:112
+-- CLOUDSQL_REMOVED_TRANSACTION_WRAPPER_SOURCE_LINE:122
