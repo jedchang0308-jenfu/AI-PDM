@@ -5,6 +5,7 @@ import { hydrateDrawingChangeImpactForWork } from "@/lib/drawing-change-impact";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
+import { DrawingRecognitionAsyncRepository } from "@/lib/repositories/drawing-recognition-async-repository";
 import { readDrawingRecognitionReviewProjections } from "@/lib/drawing-recognition-review-snapshot";
 import type { DrawingRecognitionReviewProjectionBody } from "@/lib/drawing-recognition-review-projection";
 import type { PartChangePayload } from "@/lib/repositories/part-change-work-async-repository";
@@ -17,6 +18,7 @@ import type {
   ReviewPackageWorkspaceSnapshot
 } from "@/lib/pdm-review-package-contract";
 import { PDM_REVIEW_PACKAGE_MAX_BYTES, PDM_REVIEW_PACKAGE_MAX_CELLS, PDM_REVIEW_PACKAGE_MAX_TARGETS, PDM_REVIEW_PACKAGE_SCHEMA, isReviewPackageRecognitionProjection, parseReviewPackageSnapshot, reviewPackageTargetKey } from "@/lib/pdm-review-package-contract";
+import { isDrawingRecognitionPartWorkHandoffProjection } from "@/lib/drawing-recognition-review-projection";
 
 type BuildInput = {
   companyId: string;
@@ -165,7 +167,7 @@ async function readDrawingTarget(client: AsyncDatabaseClient, input: { companyId
   else delete payload.changeImpact;
   const files = await drawingFiles(client, { companyId: input.companyId, drawingId: drawing.id, revisionId, workId });
   const recognitionProjection = revisionId
-    ? (await readDrawingRecognitionReviewProjections(client, { companyId: input.companyId, targets: [{ drawingId: drawing.id, revisionId }] })).get(`${drawing.id}:${revisionId}`) ?? null
+    ? (await readDrawingRecognitionReviewProjections(client, { companyId: input.companyId, targets: [{ drawingId: drawing.id, revisionId }], selection: "formalized" })).get(`${drawing.id}:${revisionId}`) ?? null
     : null;
   return {
     kind: "drawing",
@@ -297,7 +299,8 @@ async function readDrawingTargetsBatch(client: AsyncDatabaseClient, input: { com
   }));
   const recognitionProjections = await readDrawingRecognitionReviewProjections(client, {
     companyId: input.companyId,
-    targets: [...recognitionRevisionByDrawing].map(([drawingId, revisionId]) => ({ drawingId, revisionId }))
+    targets: [...recognitionRevisionByDrawing].map(([drawingId, revisionId]) => ({ drawingId, revisionId })),
+    selection: "formalized"
   });
   const filesByRevision = new Map<string, ReviewPackageFile[]>();
   for (const row of revisionFiles) {
@@ -531,11 +534,97 @@ export function assertReviewPackageRecognitionReady(value: ReviewPackageEnvelope
     if (!isReviewPackageRecognitionProjection(recognition)) {
       throw new CanonicalWorkbenchError("WORKBENCH_RECOGNITION_BASIS_INCOMPLETE", "辨識依據不是完整送審快照，請退回修改後重新送審", 409);
     }
+    if (recognition.session.status !== "formalized") {
+      throw new CanonicalWorkbenchError("WORKBENCH_RECOGNITION_NOT_WRITTEN", "智慧辨識尚未寫入 PDM，請先按「確認寫入 PDM」後再送審", 409);
+    }
+    if (recognition.handoff !== undefined && recognition.handoff !== null && !isDrawingRecognitionPartWorkHandoffProjection(recognition.handoff)) {
+      throw new CanonicalWorkbenchError("WORKBENCH_RECOGNITION_BASIS_INCOMPLETE", "辨識移交快照格式無效，請重新載入後再送審", 409);
+    }
     if (recognition.fields.some((field) => field.blockingReason !== null)) {
       throw new CanonicalWorkbenchError("WORKBENCH_RECOGNITION_OWNER_UNRESOLVED", "辨識欄位仍有未完成的料號歸屬，請退回修改後重新送審", 409);
     }
   }
 }
+
+/** Server-side submit guard independent of the optional v2 package writer. */
+/**
+ * Submission is gated only by the current exact source lineage.  Historical
+ * sessions for a replaced file set are evidence, not a reason to block the
+ * Drawing submit command.  The work transaction has already locked the
+ * Drawing aggregate before entering this read, preserving the global lock
+ * order documented by DEV-107.
+ */
+export async function assertDrawingRecognitionSubmissionReady(client: AsyncDatabaseClient, input: { companyId: string; drawingId: string; revisionId: string }) {
+  const sourceBasis = await new DrawingRecognitionAsyncRepository(client).readCurrentSourceBasis({
+    companyId: input.companyId,
+    sourceContextType: "drawing_revision",
+    sourceContextId: input.revisionId
+  });
+  if (sourceBasis.sources.some((source) => !source.contentHash)) return;
+
+  const sessions = await client.query<{
+    id: string;
+    status: string;
+    source_set_fingerprint: string;
+    source_lineage_key: string;
+    session_purpose: string;
+    evidence_origin_session_id: string | null;
+    supersedes_session_id: string | null;
+    created_at: string;
+  }>(
+    `SELECT id, status, source_set_fingerprint, source_lineage_key, session_purpose,
+            evidence_origin_session_id, supersedes_session_id, created_at
+       FROM drawing_recognition_sessions
+      WHERE company_id = :companyId
+        AND drawing_id = :drawingId
+        AND drawing_revision_id = :revisionId
+        AND source_context_type = 'drawing_revision'
+        AND source_context_id = :revisionId
+        AND source_lineage_key = :sourceLineageKey
+        AND source_set_fingerprint = :sourceSetFingerprint
+      ORDER BY created_at DESC, id DESC`,
+    {
+      ...input,
+      sourceLineageKey: `drawing_revision:${input.revisionId}`,
+      sourceSetFingerprint: sourceBasis.sourceSetFingerprint
+    }
+  );
+  const latest = sessions[0];
+  if (!latest) return;
+
+  const intended = await client.queryOne<{ count: number | string }>(
+    `SELECT COUNT(*) AS count
+       FROM drawing_recognition_candidates
+      WHERE company_id = :companyId
+        AND session_id = :sessionId
+        AND category NOT IN ('unclassified', 'identity_relation', 'engineering_evidence')
+        AND review_state IN ('accepted', 'corrected', 'mapped')`,
+    { companyId: input.companyId, sessionId: latest.id }
+  );
+  if (Number(intended?.count ?? 0) === 0) return;
+  if (latest.status === "formalized") return;
+
+  const blocker = await client.queryOne<{ count: number | string }>(
+    `SELECT COUNT(*) AS count
+       FROM drawing_recognition_candidates
+      WHERE company_id = :companyId
+        AND session_id = :sessionId
+        AND category NOT IN ('unclassified', 'identity_relation', 'engineering_evidence')
+        AND review_state IN ('accepted', 'corrected', 'mapped')
+        AND (review_state = 'blocked' OR proposed_owner_id IS NULL OR TRIM(COALESCE(proposed_owner_id, '')) = '')`,
+    { companyId: input.companyId, sessionId: latest.id }
+  );
+  const code = Number(blocker?.count ?? 0) > 0
+    ? "RECOGNITION_SUBMISSION_WRITE_BLOCKED"
+    : "RECOGNITION_SUBMISSION_WRITE_PENDING";
+  const message = Number(blocker?.count ?? 0) > 0
+    ? "智慧辨識仍有未完成的料號歸屬或寫入阻擋，請先在智慧辨識分頁處理。"
+    : "智慧辨識尚未寫入 PDM，請先按「確認寫入 PDM」後再送審。";
+  throw new CanonicalWorkbenchError(code, message, 422);
+}
+
+/** Backward-compatible name used by older Drawing submit call sites. */
+export const assertDrawingRecognitionWriteReady = assertDrawingRecognitionSubmissionReady;
 
 export function verifyReviewPackageIntegrity(value: unknown, expectedSnapshotHash: string) {
   const parsed = parseReviewPackageSnapshot(value);

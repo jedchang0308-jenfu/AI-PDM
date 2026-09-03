@@ -15,7 +15,7 @@ import { createFileStorageService } from "@/lib/file-storage";
 import { deriveDrawingRevisionBasis, type DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
 import { issueDrawingRevisionTargetToken, verifyDrawingRevisionTargetToken } from "@/lib/drawing-revision-target-token.server";
 import { DrawingRevisionTargetContractError, parseDrawingRevisionCreateSelection } from "@/lib/drawing-revision-target-contract";
-import { assertReviewPackageRecognitionReady, buildReviewPackage, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
+import { assertDrawingRecognitionWriteReady, assertReviewPackageRecognitionReady, buildReviewPackage, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { parseReviewPackageSnapshot } from "@/lib/pdm-review-package-contract";
 
 export type DrawingRevisionActor = { id: string; companyId: string; canEditNonOwned: boolean; permissions: { create: boolean; update: boolean; submit: boolean; cancel: boolean; decide: boolean; obsolete: boolean } };
@@ -156,8 +156,16 @@ export class DrawingRevisionWorkService {
         throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "重新讀取目前資料", 409);
       }
       await repository.assertWorkMutationBasis(tx, locked);
-      const binding = await tx.queryOne<{ file_binding_id: string; source_file_asset_id: string; is_primary: number | string; storage_key: string | null }>(
-        `SELECT binding.file_binding_id, file.is_primary, file.source_file_asset_id, asset.storage_key
+      const binding = await tx.queryOne<{
+        file_binding_id: string;
+        drawing_revision_id: string;
+        source_file_asset_id: string;
+        storage_key: string | null;
+        linked_entity_type: string | null;
+        linked_entity_id: string | null;
+      }>(
+        `SELECT binding.file_binding_id, file.drawing_revision_id, file.source_file_asset_id, asset.storage_key,
+                asset.linked_entity_type, asset.linked_entity_id
            FROM drawing_revision_work_files binding
            JOIN drawing_revision_files file ON file.id = binding.file_binding_id AND file.company_id = :companyId
            JOIN file_assets asset ON asset.id = file.source_file_asset_id
@@ -166,14 +174,19 @@ export class DrawingRevisionWorkService {
         { companyId: actor.companyId, workId, fileBindingId }
       );
       if (!binding) throw new CanonicalWorkbenchError("DRAWING_REVISION_FILE_NOT_FOUND", "檔案不存在或已移除", 404);
-      if (Number(binding.is_primary ?? 0) === 1) throw new CanonicalWorkbenchError("DRAWING_REVISION_FILE_PRIMARY_LOCKED", "主要 2D/3D 檔案不可直接移除", 409);
+      if (binding.drawing_revision_id !== locked.revision_id) {
+        throw new CanonicalWorkbenchError("DRAWING_REVISION_FILE_REFERENCE_LOCKED", "前版參考檔不可從目前工作移除", 409);
+      }
       await tx.execute(`DELETE FROM drawing_revision_work_files WHERE work_id = :workId AND file_binding_id = :fileBindingId`, { workId, fileBindingId });
       await tx.execute(`UPDATE drawing_revision_files SET removed_at = CURRENT_TIMESTAMP, removed_by = :actorId, updated_at = CURRENT_TIMESTAMP WHERE id = :fileBindingId AND company_id = :companyId AND removed_at IS NULL`, { fileBindingId, companyId: actor.companyId, actorId: actor.id });
-      await tx.execute(`UPDATE file_assets SET deleted_at = CURRENT_TIMESTAMP, deleted_by = :actorId, deleted_reason = 'drawing_revision_work_file_removed', updated_at = CURRENT_TIMESTAMP WHERE id = :fileAssetId AND linked_entity_type = 'drawing_revision' AND deleted_at IS NULL`, { fileAssetId: binding.source_file_asset_id, actorId: actor.id });
+      const ownsFileAsset = binding.linked_entity_type === "drawing_revision" && binding.linked_entity_id === locked.revision_id;
+      if (ownsFileAsset) {
+        await tx.execute(`UPDATE file_assets SET deleted_at = CURRENT_TIMESTAMP, deleted_by = :actorId, deleted_reason = 'drawing_revision_work_file_removed', updated_at = CURRENT_TIMESTAMP WHERE id = :fileAssetId AND linked_entity_type = 'drawing_revision' AND linked_entity_id = :revisionId AND deleted_at IS NULL`, { fileAssetId: binding.source_file_asset_id, revisionId: locked.revision_id, actorId: actor.id });
+      }
       await tx.execute(`UPDATE drawing_revision_works SET row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = :workId AND company_id = :companyId AND row_version = :expectedRowVersion`, { workId, companyId: actor.companyId, expectedRowVersion: context.expectedRowVersion });
       await tx.execute(`UPDATE canonical_workbench_states SET row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND work_id = :workId AND handling = 'owner'`, { companyId: actor.companyId, workId });
       await repository.assertWorkFileSnapshot(tx, locked);
-      storageKeyToRemove = binding.storage_key;
+      storageKeyToRemove = ownsFileAsset ? binding.storage_key : null;
       return { workId, fileBindingId, rowVersion: context.expectedRowVersion + 1, removed: true };
     });
     if (storageKeyToRemove) {
@@ -187,6 +200,7 @@ export class DrawingRevisionWorkService {
     return runDev087IdempotentCommand(this.client, { companyId: actor.companyId, actorId: actor.id, command: "drawing.submit", idempotencyKey: context.idempotencyKey, request: { workId, expectedRowVersion: context.expectedRowVersion }, effectKey: `drawing-work:${workId}:review`, correlationId: correlation(context.correlationId) }, async (tx) => {
       const locked = await repository.readWork(tx, actor.companyId, workId, true); if (!locked || Number(locked.row_version) !== context.expectedRowVersion) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "重新讀取目前資料", 409);
       await repository.assertWorkMutationBasis(tx, locked);
+      await assertDrawingRecognitionWriteReady(tx, { companyId: actor.companyId, drawingId: locked.drawing_id, revisionId: locked.revision_id });
       const storedPayload = typeof locked.proposed_payload === "string" ? JSON.parse(locked.proposed_payload) : locked.proposed_payload;
       const submittedPayload = validateDrawingPayload(storedPayload);
       if (locked.predecessor_revision_id === null) {

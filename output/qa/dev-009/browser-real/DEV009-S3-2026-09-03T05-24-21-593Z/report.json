@@ -1,0 +1,672 @@
+{
+  "runner": "DEV-009-S3-browser",
+  "status": "PASS",
+  "execution": "task-owned-next-dev-real-chromium",
+  "generatedAt": "2026-09-03T05:24:32.878Z",
+  "source": {
+    "gitHead": "75095996db3396f50ee75699ce21755bbf2d3bf5",
+    "branch": "codex/dev-032-final-release",
+    "dirtyFiles": [
+      "M .ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md",
+      " M config/access-control/jenfu-role-catalog.v1.json",
+      " M config/access-control/jenfu-route-permission-map.v1.json",
+      " M contracts/jenfu-platform-entitlement/v1/contract-lock.json",
+      " M contracts/jenfu-platform-entitlement/v1/contract-manifest.json",
+      " M contracts/jenfu-platform-entitlement/v1/fixtures/application-role-catalog.sample.json",
+      " M contracts/jenfu-platform-entitlement/v1/fixtures/effective-role-assignment.delegated.json",
+      " M contracts/jenfu-platform-entitlement/v1/fixtures/effective-role-assignment.manual.json",
+      " M contracts/jenfu-platform-entitlement/v1/fixtures/effective-role-assignment.position.json",
+      " M contracts/jenfu-platform-governance-availability/v1/fixtures/workspace.current.json",
+      " M contracts/jenfu-platform-governance-availability/v1/fixtures/workspace.recovered.json",
+      " M contracts/jenfu-platform-governance-availability/v1/fixtures/workspace.stale-snapshot.json",
+      " M contracts/jenfu-platform-governance-availability/v1/fixtures/workspace.unavailable.json",
+      " M contracts/jenfu-platform-governance-availability/v2/contract-lock.json",
+      " M contracts/jenfu-platform-governance-availability/v2/contract-manifest.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.eligible.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.grant-preview.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.no-eligible.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.revoke-preview.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.view-only.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/workspace.current-system-admin.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/workspace.stale-system-admin.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/workspace.unavailable.json",
+      " D db/postgres/053_jenfu_role_catalog_publication.sql",
+      " D db/postgres/054_role_capability_display_snapshot.sql",
+      " M output/dev-032-cloudsql-migration-package/report.json",
+      " M output/dev-032-cloudsql-migration-package/report.md",
+      " M scripts/lib/jms-dev-005-role-catalog.mjs",
+      " M scripts/publish-jms-dev-005-role-catalog.mjs",
+      " M scripts/qc-dev-079-owner-invariant.mjs",
+      " M scripts/qc-dev-095-postgres-retirement.mjs",
+      " M scripts/qc-dev-106-retired-residue-cleanup.mjs",
+      " M scripts/qc-jms-dev-005-authorization-boundary.mjs",
+      " M scripts/qc-jms-dev-005-contract.mjs",
+      " M scripts/qc-jms-dev-005-postgres.mjs",
+      " M scripts/qc-jms-dev-005-runtime-boundary.mjs",
+      " M scripts/qc-jms-dev-008-browser.mjs",
+      " M scripts/qc-jms-dev-008-contract.mjs",
+      " M scripts/qc-jms-dev-009-browser.mjs",
+      " M scripts/qc-jms-dev-009-contract.mjs",
+      " M src/lib/jenfu-entitlement-contract.ts",
+      " M src/lib/repositories/jenfu-entitlement-repository.s4.test.ts",
+      " D src/lib/role-capability-canonical-json.server.ts",
+      " M vitest.config.ts",
+      "?? output/qa/dev-009/",
+      "?? output/qa/dev-079-owner-invariant/DEV079-INVARIANT-2026-09-03T05-17-48-436Z/",
+      "?? output/qa/dev-101-qa-integrity/",
+      "?? scripts/server-only-vitest-shim.mjs"
+    ],
+    "candidate": {
+      "files": [
+        {
+          "path": "package.json",
+          "bytes": 70077,
+          "sha256": "c43f83ddbbcd2695b684ab3f4c7e5c3f3baddcfb72dbed4e6ceafb9b4258d5f4"
+        },
+        {
+          "path": "package-lock.json",
+          "bytes": 395183,
+          "sha256": "70cf2f0e0595bc403b9a9be480368faf5b582e284b147da0f6271656d753da49"
+        },
+        {
+          "path": "config/access-control/jenfu-role-catalog.v1.json",
+          "bytes": 18583,
+          "sha256": "e5bb2775ad36b9591b8eb7c6c98466a2f3899fe94146d85e6b6c8778bf88ff7c"
+        },
+        {
+          "path": "contracts/jenfu-platform-governance-availability/v2/contract-manifest.json",
+          "bytes": 3121,
+          "sha256": "4b61af6341e477edec2e411e7765496a8b6f2abb3d47ddcb87b1a62b5eb84ec3"
+        },
+        {
+          "path": "contracts/jenfu-platform-governance-availability/v2/fixtures/workspace.current-system-admin.json",
+          "bytes": 1969,
+          "sha256": "e1dea4c553d585006e44aa00327cc1100b8a8c4664986696ed9f10b12986ebed"
+        },
+        {
+          "path": "contracts/jenfu-platform-governance-availability/v2/fixtures/workspace.stale-system-admin.json",
+          "bytes": 1993,
+          "sha256": "f6e9f599582c976e355ad973ec201c2496fd1dfa5bd4f703cb7a1671fcd2a78c"
+        },
+        {
+          "path": "contracts/jenfu-platform-governance-availability/v2/fixtures/workspace.unavailable.json",
+          "bytes": 1996,
+          "sha256": "4350086c50dc187ff37c588d52cf19b875f87ef3c1741c190de909d71c0bbd90"
+        },
+        {
+          "path": "src/app/api/settings/access/role-capabilities/route.ts",
+          "bytes": 2019,
+          "sha256": "c5485bc9db270a4cd30fbfaa0bc01ad2ab467177cf4640bf215ff8e89e3b3fc3"
+        },
+        {
+          "path": "src/components/access-governance/role-capability-settings.tsx",
+          "bytes": 26167,
+          "sha256": "c936506d56015c37d2293e9b475e00492063ba09809a69e55344ea3e4ae844f6"
+        },
+        {
+          "path": "src/lib/ai-pdm-role-capability-contract.ts",
+          "bytes": 5484,
+          "sha256": "766b5d34a428e0a424571700a2e880f38b1af0cd8d7a2b56bd2bbc8ccd05deb9"
+        },
+        {
+          "path": "src/lib/ai-pdm-role-capability-service.ts",
+          "bytes": 18191,
+          "sha256": "c649c0acd80a7f454d0f34d4e465ee9d328f991250cb968499d06ffd7529c169"
+        },
+        {
+          "path": "scripts/qc-jms-dev-009-browser.mjs",
+          "bytes": 19871,
+          "sha256": "a739c80645af30a4300f1153a3ea87055b0f341a97423b4e738e91b3f5b1c3b1"
+        },
+        {
+          "path": "scripts/qc-next-app-runner.mjs",
+          "bytes": 7443,
+          "sha256": "2e8551b8e3fb4fcc8014f85e65292974c3a16b227c7dbe0d63563493d0cf95e1"
+        }
+      ],
+      "fileCount": 13,
+      "bytes": 572097,
+      "sha256": "daf4871066693783fe8060818a6f8b60073eb0cbf216b728deed7ed9372e6935"
+    }
+  },
+  "browser": {
+    "name": "chromium",
+    "version": "148.0.7778.96"
+  },
+  "runtime": {
+    "project": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release",
+    "port": 62935,
+    "baseUrl": "http://127.0.0.1:62935",
+    "primaryWrites": false,
+    "primaryPortsTouched": [],
+    "cleanup": {
+      "browserClosed": true,
+      "appStopped": true,
+      "portReleased": true,
+      "nextEnvRestored": true,
+      "nextDistRemoved": true,
+      "taskTsconfigRemoved": true,
+      "taskFixtureRemoved": true
+    }
+  },
+  "route": "/settings/workflow",
+  "viewports": [
+    "1440x1000",
+    "1024x768",
+    "390x844"
+  ],
+  "checks": [
+    {
+      "id": "QA-009-S3-01",
+      "label": "1440 current system_admin is OrgMaster-managed, redacted and read-only",
+      "status": "PASS",
+      "viewport": "1440x1000"
+    },
+    {
+      "id": "QA-009-S3-02",
+      "label": "switching back restores ordinary Position projection boundary",
+      "status": "PASS",
+      "viewport": "1440x1000"
+    },
+    {
+      "id": "QA-009-S3-03",
+      "label": "1024 viewport preserves privileged read-only boundary without overflow",
+      "status": "PASS",
+      "viewport": "1024x768"
+    },
+    {
+      "id": "QA-009-S3-04",
+      "label": "390 viewport preserves privileged read-only boundary without overflow",
+      "status": "PASS",
+      "viewport": "390x844"
+    },
+    {
+      "id": "QA-009-S3-05",
+      "label": "stale snapshot remains visible with explicit authority data time and read-only state",
+      "status": "PASS",
+      "viewport": "1440x1000"
+    },
+    {
+      "id": "QA-009-S3-06",
+      "label": "OrgMaster unavailable fails closed without privileged mutation controls",
+      "status": "PASS",
+      "viewport": "1440x1000"
+    },
+    {
+      "id": "QA-009-S3-07",
+      "label": "missing trusted navigation surface falls back to safe guidance without a link",
+      "status": "PASS",
+      "viewport": "1440x1000"
+    }
+  ],
+  "screenshots": [
+    "output/qa/dev-009/browser-real/DEV009-S3-2026-09-03T05-24-21-593Z/screenshots/01-1440-current.png",
+    "output/qa/dev-009/browser-real/DEV009-S3-2026-09-03T05-24-21-593Z/screenshots/current-1024.png",
+    "output/qa/dev-009/browser-real/DEV009-S3-2026-09-03T05-24-21-593Z/screenshots/current-390.png",
+    "output/qa/dev-009/browser-real/DEV009-S3-2026-09-03T05-24-21-593Z/screenshots/05-stale-snapshot.png",
+    "output/qa/dev-009/browser-real/DEV009-S3-2026-09-03T05-24-21-593Z/screenshots/06-unavailable.png",
+    "output/qa/dev-009/browser-real/DEV009-S3-2026-09-03T05-24-21-593Z/screenshots/07-invalid-navigation-base.png"
+  ],
+  "apiRequests": [
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities?stableRoleId=role-system-admin",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "01-1440-current",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities?stableRoleId=role-rd",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "current-1024",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities?stableRoleId=role-system-admin",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "current-390",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities?stableRoleId=role-system-admin",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "05-stale-snapshot",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities?stableRoleId=role-system-admin",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "06-unavailable",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities?stableRoleId=role-system-admin",
+      "responseStatus": 503
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/production-slice/status",
+      "responseStatus": 200,
+      "fixture": "production-slice-shell"
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/numbering/permissions",
+      "responseStatus": 200,
+      "fixture": "shell-permissions"
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "responseStatus": 200,
+      "fixture": "shell-auth"
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/settings",
+      "responseStatus": 200,
+      "fixture": "settings-shell"
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities",
+      "responseStatus": 200
+    },
+    {
+      "scenario": "07-invalid-navigation-base",
+      "method": "GET",
+      "path": "/api/settings/access/role-capabilities?stableRoleId=role-system-admin",
+      "responseStatus": 200
+    }
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "expectedConsoleErrors": [
+    {
+      "scenario": "06-unavailable",
+      "code": "ORGMASTER_UNAVAILABLE",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+  ],
+  "failure": null
+}

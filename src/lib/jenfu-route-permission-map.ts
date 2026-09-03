@@ -1,4 +1,4 @@
-import routeMap from "../../config/access-control/jenfu-route-permission-map.v1.json";
+import routeMap from "../../config/access-control/jenfu-route-permission-map.v1.json" with { type: "json" };
 
 export type JenfuRouteAuthorizationMode = "permission" | "authenticated_domain" | "existing_command" | "existing_path" | "retired";
 export type JenfuRoutePermissionEntry = {

@@ -11,7 +11,13 @@ import pg from 'pg'
 import { AiPdmRoleCatalogPublicationError, publishRoleCatalog, readRoleCatalog } from './lib/jms-dev-005-role-catalog.mjs'
 
 const root = process.cwd()
-const platformRoot = path.resolve(root, '..', 'Jenfu-Management-system')
+const platformCandidates = [
+  process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
+  path.resolve(root, '..', 'Jenfu-Management-system'),
+  path.resolve(root, '..', '..', '..', 'Jenfu-Management-system'),
+  path.resolve(root, '..', '..', '..', '..', 'Jenfu-Management-system'),
+].filter(Boolean)
+const platformRoot = platformCandidates.find((candidate) => fs.existsSync(path.join(candidate, 'qa', 'dev-004', 'postgres', '000_bootstrap_roles.sql'))) ?? platformCandidates[0]
 const taskRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-pdm-dev005-postgres-'))
 const dataDir = path.join(taskRoot, 'data')
 const repositoryDir = path.join(taskRoot, 'repository')
@@ -136,7 +142,7 @@ async function main() {
   client = new pg.Client({ connectionString: `postgresql://postgres@127.0.0.1:${port}/${dbName}`, application_name: 'ai-pdm-dev005-postgres-qc' })
   await client.connect()
   const bootstrapSql = fs.readFileSync(path.join(platformRoot, 'qa', 'dev-004', 'postgres', '000_bootstrap_roles.sql'), 'utf8')
-  const migrationSql = fs.readFileSync(path.join(root, 'db', 'postgres', '053_jenfu_role_catalog_publication.sql'), 'utf8')
+  const migrationSql = fs.readFileSync(path.join(root, 'db', 'postgres', '055_jenfu_role_catalog_publication.sql'), 'utf8')
   const catalog = await readRoleCatalog(path.join(root, 'config', 'access-control', 'jenfu-role-catalog.v1.json'))
   await client.query(bootstrapSql)
   await check('QA-005-S1-001', 'migration applies fresh and replays', async () => {

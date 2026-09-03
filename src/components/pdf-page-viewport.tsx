@@ -319,8 +319,8 @@ export function PdfPageViewport({
         const pageElement = pageRef.current;
         const canvas = canvasRef.current;
         if (disposed || !stage || !pageElement || !canvas || !pdfPage) return;
-        const availableWidth = Math.max(1, stage.clientWidth - 24);
-        const availableHeight = Math.max(1, stage.clientHeight - 24);
+        const availableWidth = Math.max(1, stage.clientWidth);
+        const availableHeight = Math.max(1, stage.clientHeight);
         const fitScale = Math.max(0.01, Math.min(availableWidth / baseViewport.width, availableHeight / baseViewport.height));
         const cssWidth = Math.max(1, baseViewport.width * fitScale);
         const cssHeight = Math.max(1, baseViewport.height * fitScale);
@@ -405,6 +405,10 @@ export function PdfPageViewport({
     const activeFocusRegion = focusRegion;
     const activeMagnifier = magnifier;
     const activeMagnifierCanvas = magnifierCanvas;
+    const hasReadyCrop = activeMagnifier.dataset.magnifierState === "ready"
+      && activeMagnifierCanvas.width > 0
+      && activeMagnifierCanvas.height > 0;
+    if (!hasReadyCrop) activeMagnifier.style.visibility = "hidden";
 
     async function renderMagnifier() {
       const { pdfPage, safePageNumber, fitScale, cssWidth, cssHeight } = activeRenderedPage;
@@ -429,10 +433,6 @@ export function PdfPageViewport({
       });
       const magnifierCache = magnifierCacheRef.current;
 
-      activeMagnifier.style.left = `${position.left}px`;
-      activeMagnifier.style.top = `${position.top}px`;
-      activeMagnifier.style.width = `${lensSize}px`;
-      activeMagnifier.style.height = `${lensSize}px`;
       activeMagnifier.dataset.magnifierState = "loading";
       activeMagnifier.dataset.resolutionMode = "pending";
       activeMagnifier.dataset.coverageRatio = plan.coverageRatio.toFixed(3);
@@ -503,6 +503,14 @@ export function PdfPageViewport({
       magnifierContext.fillRect(0, 0, lensPixelSize, lensPixelSize);
       magnifierContext.imageSmoothingEnabled = false;
       magnifierContext.drawImage(cropEntry.canvas, 0, 0, lensPixelSize, lensPixelSize);
+      // Keep the previous crop in place while the next high-resolution crop is
+      // prepared. Position and pixels now update in one paint, avoiding a frame
+      // where old evidence appears at the new field's coordinates.
+      activeMagnifier.style.left = `${position.left}px`;
+      activeMagnifier.style.top = `${position.top}px`;
+      activeMagnifier.style.width = `${lensSize}px`;
+      activeMagnifier.style.height = `${lensSize}px`;
+      activeMagnifier.style.visibility = "visible";
       activeMagnifier.dataset.magnifierState = "ready";
       activeMagnifier.dataset.resolutionMode = "pdf_high_res_crop";
       activeMagnifier.dataset.coverageRatio = cropEntry.coverageRatio.toFixed(3);
@@ -514,6 +522,7 @@ export function PdfPageViewport({
 
     void renderMagnifier().catch((error) => {
       if (disposed || sequence !== magnifierSequenceRef.current || renderingWasCancelled(error)) return;
+      activeMagnifier.style.visibility = "hidden";
       activeMagnifier.dataset.magnifierState = "failed";
       activeMagnifier.dataset.resolutionMode = "fallback";
       setMagnifierError(true);
@@ -563,8 +572,8 @@ export function PdfPageViewport({
           </div>
         ) : null}
       </div>
-      {renderState === "loading" ? <span className="drawing-preview-pdf-page-status" role="status">正在載入定位頁面</span> : null}
-      {renderState === "failed" ? <span className="drawing-preview-pdf-page-status is-error" role="alert">定位頁面無法顯示，請返回原圖面後重試。</span> : null}
+      {renderState === "loading" ? <span className="drawing-preview-pdf-page-status" role="status">正在載入預覽頁面</span> : null}
+      {renderState === "failed" ? <span className="drawing-preview-pdf-page-status is-error" role="alert">預覽頁面無法顯示，請重新整理後再試。</span> : null}
       {magnifierError ? <span className="drawing-preview-pdf-magnifier-status" role="status">局部放大載入失敗，已保留原定位。</span> : null}
     </div>
   );

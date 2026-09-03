@@ -9,9 +9,10 @@ const EXPECTED = { uniqueFiles: 56, uniqueMethods: 70, policyEntries: 78 }
 const scriptRoot = dirname(fileURLToPath(import.meta.url))
 const appRoot = resolve(scriptRoot, '..')
 const platformCandidates = [
-  process.env.JENFU_PLATFORM_ROOT?.trim(),
+  process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
   resolve(appRoot, '..', 'Jenfu-Management-system'),
   resolve(appRoot, '..', '..', '..', 'Jenfu-Management-system'),
+  resolve(appRoot, '..', '..', '..', '..', 'Jenfu-Management-system'),
 ].filter(Boolean)
 const platformRoot = platformCandidates.find((candidate) => existsSync(join(candidate, 'ai-doc', 'specs', 'DEV-005-ai-pdm-authorization-route-inventory.md'))) ?? platformCandidates[0]
 const inventoryPath = join(platformRoot, 'ai-doc', 'specs', 'DEV-005-ai-pdm-authorization-route-inventory.md')

@@ -19,8 +19,8 @@ import { DrawingDetailPreview } from "@/components/drawing-detail-preview";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { isPdmOwnerApprovalAction } from "@/lib/pdm-approval-owner-route";
 import { StatusScopeHelp } from "@/components/status-help-popover";
-import { getStatusDisplay } from "@/lib/status-display";
 import { pdmFileReadHref } from "@/lib/pdm-file-read-contract";
+import { projectApprovalDecisionFeedback, type ApprovalOutcomeFeedbackTone } from "@/lib/approval-outcome-feedback";
 
 type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 type ApprovalStatus = "pending" | "approved" | "rejected" | "needs_info" | "cancelled" | "apply_failed" | "applied";
@@ -171,6 +171,7 @@ export default function ApprovalPlatformPage() {
   const [busy, setBusy] = useState<ApprovalDecision | "retry-apply" | "retry-cleanup" | "reload" | "detail" | null>(null);
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<ApprovalOutcomeFeedbackTone>("success");
   const [error, setError] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const initialQuery: ApprovalWorkbenchQuery = { status: "active", domain: "all", action: "all", query: "", limit: 100 };
@@ -313,12 +314,11 @@ export default function ApprovalPlatformPage() {
       setError(body.message ?? body.error ?? "審核決策失敗");
       return;
     }
-    setDetail({ ...body.request, cleanupPending: body.lifecycle?.cleanupPending ?? body.request.cleanupPending ?? false });
-    setMessage(
-      isDrawingRevisionReviewAction(detail.actionCode) && decision === "rejected"
-        ? "已退回修改"
-        : `已${decision === "approved" ? "核准" : decision === "rejected" ? "駁回" : "要求補資料"}`
-    );
+    const updatedRequest = { ...body.request, cleanupPending: body.lifecycle?.cleanupPending ?? body.request.cleanupPending ?? false };
+    const feedback = projectApprovalDecisionFeedback(updatedRequest);
+    setDetail(updatedRequest);
+    setMessage(feedback.message);
+    setMessageTone(feedback.tone);
     window.dispatchEvent(new Event("approval-inbox-changed"));
     await loadInbox({ preserveFeedback: true });
   }
@@ -367,12 +367,10 @@ export default function ApprovalPlatformPage() {
       setError(body.error ?? "審核套用重試失敗");
       return;
     }
+    const feedback = projectApprovalDecisionFeedback(body.request);
     setDetail(body.request);
-    setMessage(
-      detail.actionCode === "numbering.candidate_bundle_review"
-        ? "原核准內容已完成發布；不需要重新送審或人工再次發布。"
-        : "審核決策已重新套用。編號仍需由具發布權限者完成發布。"
-    );
+    setMessage(feedback.message);
+    setMessageTone(feedback.tone);
     window.dispatchEvent(new Event("approval-inbox-changed"));
     await loadInbox({ preserveFeedback: true });
   }
@@ -382,6 +380,7 @@ export default function ApprovalPlatformPage() {
     setDetail(null);
     setComment("");
     setMessage("");
+    setMessageTone("success");
     setError("");
     clearApprovalDetailQuery();
   }
@@ -525,13 +524,13 @@ export default function ApprovalPlatformPage() {
               { key: "target", header: "審核項目", dataLabel: "審核項目", className: "approval-workbench-col-target", render: (item) => <span className="approval-inbox-primary"><strong>{item.targetSummary || item.title}</strong>{showInboxAction ? <small>{item.actionTitle}</small> : null}</span> },
               { key: "domain", header: "領域", dataLabel: "領域", className: "approval-workbench-col-domain", render: (item) => <span>{domainText[item.domainCode] ?? item.domainCode}</span> },
               { key: "requester", header: "送審者", dataLabel: "送審者", className: "approval-workbench-col-requester", render: (item) => <span>{item.requestedByName ?? item.requestedBy ?? "未知申請者"}</span> },
-              { key: "status", header: "狀態", dataLabel: "狀態", className: "approval-workbench-col-status", render: (item) => <span className="approval-status-cell"><span className={`approval-status-chip ${statusClass(item.status)}`}>{getStatusDisplay(item.status, "approvalStatus").label}</span>{item.historyOnly ? <small className="approval-history-label" title={item.supersededByRequestId ? "此案件已由較新的審核案件取代" : "歷史案件"}>{item.supersededByRequestId ? "已取代" : "歷史"}</small> : null}</span> },
+              { key: "status", header: "狀態", dataLabel: "狀態", className: "approval-workbench-col-status", render: (item) => <span className="approval-status-cell"><span className={`approval-status-chip ${statusClass(item.status)}`}>{projectApprovalDecisionFeedback(item).label}</span>{item.historyOnly ? <small className="approval-history-label" title={item.supersededByRequestId ? "此案件已由較新的審核案件取代" : "歷史案件"}>{item.supersededByRequestId ? "已取代" : "歷史"}</small> : null}</span> },
               { key: "requestedAt", header: "送審時間", dataLabel: "送審時間", className: "approval-workbench-col-time", render: (item) => <time dateTime={item.requestedAt}>{formatCompactDate(item.requestedAt)}</time> }
             ]}
           />
           <PdmWorkbenchPagination pageIndex={pageIndex} hasPreviousPage={Boolean(previousCursor)} hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
         </section>
-        {legacyDetailFallback && detail ? <ApprovalDetailDrawer detail={detail} busy={busy} comment={comment} message={message} error={error} drawerWidth={drawerWidth} onStartResize={startDrawerResize} onClose={closeDetail} onCommentChange={setComment} onDecide={decide} onRetryCleanup={retryCleanup} onRetryApply={retryApply} /> : null}
+        {legacyDetailFallback && detail ? <ApprovalDetailDrawer detail={detail} busy={busy} comment={comment} message={message} messageTone={messageTone} error={error} drawerWidth={drawerWidth} onStartResize={startDrawerResize} onClose={closeDetail} onCommentChange={setComment} onDecide={decide} onRetryCleanup={retryCleanup} onRetryApply={retryApply} /> : null}
       </div>
     </div>
   );
@@ -542,6 +541,7 @@ type ApprovalDetailDrawerProps = {
   busy: ApprovalPlatformPageBusy;
   comment: string;
   message: string;
+  messageTone: ApprovalOutcomeFeedbackTone;
   error: string;
   drawerWidth: number;
   onStartResize: (clientX: number) => void;
@@ -559,6 +559,7 @@ function ApprovalDetailDrawer({
   busy,
   comment,
   message,
+  messageTone,
   error,
   drawerWidth,
   onStartResize,
@@ -580,7 +581,7 @@ function ApprovalDetailDrawer({
       eyebrow="審核案件"
       title={detail.targetSummary || detail.title}
       subtitle={`${detail.actionTitle} · ${detail.requestedByName ?? detail.requestedBy ?? "未知申請者"} · ${formatDate(detail.requestedAt)}`}
-      status={<span className={`approval-status-chip ${statusClass(detail.status)}`}>{getStatusDisplay(detail.status, "approvalStatus").label}</span>}
+      status={<span className={`approval-status-chip ${statusClass(detail.status)}`}>{projectApprovalDecisionFeedback(detail).label}</span>}
       primaryAction={pdmOwnerApproval ? <a className="primary-button" href={reviewerHref}><ShieldCheck size={15} />前往審核工作區</a> : null}
       entityType="approval_request"
       entityCode={detail.id}
@@ -609,9 +610,10 @@ function ApprovalDetailDrawer({
       footer={pdmOwnerApproval ? <div className="approval-drawer-footer-content"><span>審核決策改在獨立審核工作區完成，抽屜不執行決策。</span><a className="primary-button" href={reviewerHref}><ShieldCheck size={15} />開啟審核工作區</a></div> : <ApprovalDecisionFooter
         detail={detail}
         busy={busy}
-        comment={comment}
-        message={message}
-        error={error}
+         comment={comment}
+         message={message}
+         messageTone={messageTone}
+         error={error}
         onCommentChange={onCommentChange}
         onDecide={onDecide}
         onRetryCleanup={onRetryCleanup}
@@ -820,6 +822,7 @@ function ApprovalDecisionFooter({
   busy,
   comment,
   message,
+  messageTone,
   error,
   onCommentChange,
   onDecide,
@@ -828,7 +831,7 @@ function ApprovalDecisionFooter({
 }: Omit<ApprovalDetailDrawerProps, "drawerWidth" | "onStartResize" | "onClose">) {
   return (
     <div className="approval-drawer-footer-content">
-      {message ? <div className="approval-message success">{message}</div> : null}
+      {message ? <div className={`approval-message ${messageTone}`} role="status">{message}</div> : null}
       {error ? <div className="approval-message error" role="alert">{error}</div> : null}
       {detail.status === "pending" ? (
         <section className="approval-decision-box" aria-label="審核決策">
@@ -866,9 +869,9 @@ function ApprovalDecisionFooter({
           </div>
         </section>
       ) : null}
-      {detail.status === "apply_failed" && (detail.actionCode === "numbering.candidate_publication_review" || detail.actionCode === "numbering.candidate_bundle_review") ? (
+      {detail.status === "apply_failed" ? (
         <section className="approval-decision-box" aria-label="審核套用重試">
-          <p className="approval-reason">核准決策已保存，但資料尚未完成發布；可安全重試原核准內容，不會重新送審或換號。</p>
+          <p className="approval-reason">核准決議已保存，正式化尚未完成；可安全重試原核准內容，不會重新送審或換號。</p>
           <div className="approval-decision-actions">
             <button className="primary-button" type="button" onClick={() => void onRetryApply()} disabled={Boolean(busy)}>
               <RefreshCw size={16} aria-hidden="true" />

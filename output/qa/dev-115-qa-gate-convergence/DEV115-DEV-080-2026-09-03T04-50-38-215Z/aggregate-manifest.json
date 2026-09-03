@@ -1,0 +1,231 @@
+{
+  "schemaVersion": "dev-115-aggregate-v1",
+  "devId": "DEV-080",
+  "runId": "DEV115-DEV-080-2026-09-03T04-50-38-215Z",
+  "status": "PASS",
+  "runtimeDeclaration": {
+    "project": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release",
+    "purpose": "DEV-080 DEV-115 aggregate current-case convergence",
+    "port": null,
+    "owningProcessTree": "aggregate pid 29256 -> every registered child process",
+    "cleanupCondition": "each runtime-owning child stops its exact process tree and releases its port; parent exits after final unified verdict",
+    "PDM_DATA_DIR": "child-owned isolated directory; primary is read-only invariant source",
+    "PDM_REPOSITORY_DIR": "child-owned isolated directory",
+    "mutationScope": [
+      "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release\\output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-080-2026-09-03T04-50-38-215Z",
+      "child-owned temporary data/repository/dist directories"
+    ]
+  },
+  "registry": {
+    "path": ".ai-doc/qa/dev-080-current-case-registry.json",
+    "sha256": "135439fef151b3a8155d014ebf956befcba459646f5d4db745e406390cc94a8a",
+    "valid": true,
+    "denominator": 12,
+    "observed": 12,
+    "duplicates": [],
+    "missing": [],
+    "extras": [],
+    "fieldErrors": []
+  },
+  "children": [
+    {
+      "id": "projection",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-080-2026-09-03T04-50-38-215Z\\projection.stdout.log",
+      "stderr": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-080-2026-09-03T04-50-38-215Z\\projection.stderr.log"
+    },
+    {
+      "id": "contract",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-080-2026-09-03T04-50-38-215Z\\contract.stdout.log",
+      "stderr": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-080-2026-09-03T04-50-38-215Z\\contract.stderr.log"
+    },
+    {
+      "id": "browser",
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-080-2026-09-03T04-50-38-215Z\\browser.stdout.log",
+      "stderr": "output\\qa\\dev-115-qa-gate-convergence\\DEV115-DEV-080-2026-09-03T04-50-38-215Z\\browser.stderr.log"
+    }
+  ],
+  "caseResults": [
+    {
+      "caseId": "QA-080-01",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "projection",
+        "contract",
+        "browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-02",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "projection",
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-03",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-04",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "projection",
+        "contract",
+        "browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-05",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "projection",
+        "contract"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-06",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "projection",
+        "contract",
+        "browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-07",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-08",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-09",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-10",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-11",
+      "disposition": "current-runner",
+      "passed": true,
+      "runnerEvidence": [
+        "projection",
+        "contract",
+        "browser"
+      ],
+      "detail": "current runners passed"
+    },
+    {
+      "caseId": "QA-080-12",
+      "disposition": "retired",
+      "passed": true,
+      "runnerEvidence": [
+        "contract",
+        "browser"
+      ],
+      "detail": "retirement proof runners passed"
+    }
+  ],
+  "primaryInvariant": {
+    "passed": true,
+    "before": {
+      "schemaHash": "8882dd1f2f45a484d50f81708c8ce3d455a91b39e6b2fe13011a303628f5439f",
+      "canonicalIdentityHash": "5020f87b2d4edbf04458981c891f2fc4aa006d1aee1ff3d5481e9a47b5bb184f",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawings": 0
+      },
+      "unresolvedMigrationResidue": 0,
+      "foreignKeyViolations": 0,
+      "safe": true,
+      "databasePath": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite"
+    },
+    "after": {
+      "schemaHash": "8882dd1f2f45a484d50f81708c8ce3d455a91b39e6b2fe13011a303628f5439f",
+      "canonicalIdentityHash": "5020f87b2d4edbf04458981c891f2fc4aa006d1aee1ff3d5481e9a47b5bb184f",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawings": 0
+      },
+      "unresolvedMigrationResidue": 0,
+      "foreignKeyViolations": 0,
+      "safe": true,
+      "databasePath": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite"
+    }
+  },
+  "unresolved": {
+    "missingCases": 0,
+    "duplicateCases": 0,
+    "failedCases": 0,
+    "failedChildren": 0,
+    "openP0": 0,
+    "openP1": 0
+  },
+  "completedAt": "2026-09-03T04:51:00.517Z"
+}

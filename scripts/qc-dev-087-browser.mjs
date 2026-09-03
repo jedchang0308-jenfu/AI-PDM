@@ -1432,13 +1432,17 @@ try {
         apiReadback: { downloadHrefs: ownerDownloadHrefs },
         dbReadback: (() => { const database = new Database(fixtureDb, { readonly: true, fileMustExist: true }); try { return database.prepare("SELECT work_id, file_binding_id, ordinal, content_hash FROM drawing_revision_work_files WHERE work_id=? ORDER BY ordinal, file_binding_id").all(functionalWorkId); } finally { database.close(); } })()
       });
-      const primaryLocks = await drawing.locator(".canonical-file-lock").count();
-      const primaryRemoveButtons = await drawing.locator(".dev079-workspace-file-list li").filter({ has: drawing.locator(".canonical-file-lock") }).getByRole("button", { name: "移除", exact: true }).count();
-      check("QA-087-210 primary files are visibly locked from removal", primaryLocks >= 2 && primaryRemoveButtons === 0, JSON.stringify({ primaryLocks, primaryRemoveButtons }));
+      const currentPrimaryActions = [];
+      for (const displayName of ["DEV087-FUNCTIONAL.SLDDRW", "DEV087-FUNCTIONAL.SLDPRT"]) {
+        const row = drawing.locator(".dev079-workspace-file-list li").filter({ hasText: displayName });
+        currentPrimaryActions.push({ displayName, rowCount: await row.count(), removeActionCount: await row.getByRole("button", { name: "移除", exact: true }).count() });
+      }
+      const removableCurrentPrimaries = currentPrimaryActions.filter((item) => item.rowCount === 1 && item.removeActionCount === 1).length;
+      check("QA-087-210 current revision primary files expose removal", removableCurrentPrimaries === 2, JSON.stringify({ removableCurrentPrimaries, currentPrimaryActions }));
       await completeFunctionalCase(drawing, "QA-087-210", {
-        assertionIds: ["QA-087-210:PRIMARY_FILE_REMOVE_ACTION_ABSENT"],
-        actions: ["inspect rendered primary file locks", "verify no 移除 action exists on primary rows"],
-        apiReadback: { primaryLocks, primaryRemoveButtons },
+        assertionIds: ["QA-087-210:CURRENT_REVISION_PRIMARY_REMOVE_ACTION_PRESENT"],
+        actions: ["upload current revision 2D and 3D primary files", "verify each current revision row exposes 移除"],
+        apiReadback: { removableCurrentPrimaries, currentPrimaryActions },
         dbReadback: (() => { const database = new Database(fixtureDb, { readonly: true, fileMustExist: true }); try { return database.prepare("SELECT work_id, file_binding_id, ordinal, content_hash FROM drawing_revision_work_files WHERE work_id=? ORDER BY ordinal, file_binding_id").all(functionalWorkId); } finally { database.close(); } })()
       });
       const successfulUploadRows = await drawing.locator(".dev079-upload-progress-list li.is-success").allTextContents();

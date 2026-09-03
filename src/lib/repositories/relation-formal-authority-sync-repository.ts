@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { SqliteDatabase } from "@/lib/db-provider";
+import { reconcileSldasmAssemblyEvidenceForDrawingSync } from "@/lib/sldasm-assembly-evidence";
 
 export type SyncFormalRelationType = "manufacturing_basis" | "reference";
 
@@ -38,6 +39,11 @@ export class RelationFormalAuthoritySyncRepository {
       linkType: input.relationType === "manufacturing_basis" ? "primary_manufacturing" : "reference",
       createdAt: new Date().toISOString()
     });
+    if (input.relationType === "manufacturing_basis") {
+      // The caller owns the surrounding transaction; this is intentionally
+      // not a nested transaction or a second command receipt.
+      reconcileSldasmAssemblyEvidenceForDrawingSync(this.database, { companyId: input.companyId, drawingNumberId: input.drawingNumberId, actorId: input.actorId });
+    }
   }
 
   removePair(input: { companyId: string; drawingNumberId: string; partNumberId: string }) {

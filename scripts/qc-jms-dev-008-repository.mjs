@@ -6,7 +6,7 @@ const required = [
   'src/lib/ai-pdm-role-capability-contract.ts', 'src/lib/ai-pdm-role-capability-errors.ts', 'src/lib/ai-pdm-role-capability-service.ts',
   'src/lib/role-capability-canonical-json.ts', 'src/lib/repositories/ai-pdm-role-capability-repository.ts', 'src/lib/repositories/role-capability-display-snapshot-repository.ts',
   'src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts', 'src/app/api/settings/access/role-capabilities/commands/[commandId]/resolve-unknown/route.ts',
-  'db/postgres/054_role_capability_display_snapshot.sql', 'contracts/jenfu-platform-governance-availability/v1/contract-lock.json',
+  'db/postgres/056_role_capability_display_snapshot.sql', 'contracts/jenfu-platform-governance-availability/v1/contract-lock.json',
 ]
 for (const file of required) if (!fs.existsSync(path.join(root, file))) throw new Error(`DEV008_REQUIRED_FILE_MISSING:${file}`)
 const route = fs.readFileSync(path.join(root, 'src/app/api/settings/access/role-capabilities/route.ts'), 'utf8')

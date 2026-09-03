@@ -20,6 +20,18 @@ try {
   const manifest = JSON.parse(await fsp.readFile(outputs.manifestPath, "utf8"));
   const generatedSqlNames = await fsp.readdir(outputs.sqlDirectory);
   const generatedSql = (await Promise.all(generatedSqlNames.map((name) => fsp.readFile(path.join(outputs.sqlDirectory, name), "utf8")))).join("\n");
+  const roleCatalogSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "055_jenfu_role_catalog_publication.cloudsql.sql"),
+    "utf8"
+  );
+  const adminBootstrapSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "000_admin_bootstrap_grants.sql"),
+    "utf8"
+  );
+  const incrementalContractSchemaBootstrapSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "001_ai_pdm_contract_schema_bootstrap.sql"),
+    "utf8"
+  );
   const runner = readProjectFile(root, "scripts/run-dev-046-cloudsql-migrations.mjs");
   const dockerfile = readProjectFile(root, "Dockerfile");
   const production001Compatibility = manifest.migrationHistoryCompatibility.entries.find(
@@ -36,6 +48,11 @@ try {
   const production027Compatibility = manifest.migrationHistoryCompatibility.entries.find(
     (entry) => entry.targetProjectId === "jenfu-ai-pdm-prod" && entry.version === "027"
   );
+  const replacementHistory = new Map(
+    manifest.migrationHistoryCompatibility.entries
+      .filter((entry) => entry.targetProjectId === "jenfu-ai-pdm-prod" && entry.replacementVersion)
+      .map((entry) => [entry.version, entry])
+  );
 
   record("DEV032-CLOUDSQL-MIG-001 package identifies production Gate C", report.dev === "DEV-032" && report.phase === "Gate-C-production-clean-seed-migration");
   record("DEV032-CLOUDSQL-MIG-002 target is dedicated production", report.target.projectId === "jenfu-ai-pdm-prod" && report.target.cloudSqlInstance === "ai-pdm-prod-postgres" && report.target.connectionName === "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres");
@@ -46,9 +63,9 @@ try {
     "DEV032-CLOUDSQL-MIG-006 manifest is immutable, complete and non-authorizing",
       manifest.status === "proposal_only_not_approved_for_live_apply" &&
       manifest.executionBoundary.liveApplyAllowed === false &&
-      manifest.orderedSchemaMigrations.length === 52 &&
+      manifest.orderedSchemaMigrations.length === 53 &&
       manifest.orderedSchemaMigrations.at(0)?.output === "sql/001_initial_schema.cloudsql.sql" &&
-      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/054_role_capability_display_snapshot.cloudsql.sql" &&
+      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/056_role_capability_display_snapshot.cloudsql.sql" &&
       manifest.orderedSchemaMigrations.every((item) => item.outputSha256?.length === 64)
   );
   record("DEV032-CLOUDSQL-MIG-007 runner requires production-specific approval", runner.includes("DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED") && runner.includes("DEV032_CLOUDSQL_MIGRATION_APPROVAL") && runner.includes("DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED"));
@@ -92,6 +109,35 @@ try {
       manifest.orderedSchemaMigrations.find((entry) => entry.version === "027")?.acceptedExistingChecksums?.[0] === production027Compatibility.acceptedExistingChecksums[0] &&
       manifest.orderedSchemaMigrations.some((entry) => entry.version === "044") &&
       manifest.orderedSchemaMigrations.some((entry) => entry.version === "048")
+  );
+  record(
+    "DEV032-CLOUDSQL-MIG-015 role catalog SQL uses provisioned managed Cloud SQL roles only",
+    report.candidatePackage.transformations.rewrittenJenfuPlatformRoleReferences > 0 &&
+      roleCatalogSql.includes("SET LOCAL ROLE pdm_migration") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_INACCESSIBLE:ai_pdm_contract") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_RETAINS_AI_PDM_CONTRACT_SCHEMA_OWNERSHIP") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_REVOKED_PUBLIC_AI_PDM_CONTRACT_SCHEMA_ACCESS") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_GRANTED_RUNTIME_AI_PDM_CONTRACT_SCHEMA_USAGE") &&
+      !roleCatalogSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract") &&
+      !roleCatalogSql.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
+      roleCatalogSql.includes("TO pdm_runtime") &&
+      !/\bjenfu_(?:platform_migrator|platform_runtime|orgmaster_runtime|ai_pdm_runtime)\b/u.test(roleCatalogSql) &&
+      !/\bpdm_runtime\s*,\s*pdm_runtime\b/u.test(roleCatalogSql)
+  );
+  record(
+    "DEV032-CLOUDSQL-MIG-016 privileged bootstrap retains the contract boundary with scoped migration DDL",
+    adminBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
+      adminBootstrapSql.includes("REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC") &&
+      adminBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
+      adminBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+      !adminBootstrapSql.includes("AUTHORIZATION pdm_migration") &&
+      !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(adminBootstrapSql) &&
+      incrementalContractSchemaBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
+      incrementalContractSchemaBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
+      incrementalContractSchemaBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+      !incrementalContractSchemaBootstrapSql.includes("CREATE ROLE") &&
+      !incrementalContractSchemaBootstrapSql.includes("ON ALL TABLES IN SCHEMA public") &&
+      !incrementalContractSchemaBootstrapSql.includes("GRANT CONNECT ON DATABASE")
   );
 } catch (error) {
   record("DEV032-CLOUDSQL-MIG-000 QC execution", false, error instanceof Error ? error.message : String(error));

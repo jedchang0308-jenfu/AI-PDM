@@ -152,7 +152,7 @@ async function locatePdfEvidence(page, fixture, viewport) {
   await page.goto(`${baseUrl}${fixture.workUrl}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.getByRole("heading", { name: fixture.drawingNumber, exact: true }).waitFor({ state: "visible", timeout: 30_000 });
 
-  const previewTabs = page.locator('.drawing-preview-tabs [role="tab"]');
+  const previewTabs = page.locator('.dev079-workspace-preview-tabs [role="tab"], .drawing-preview-tabs [role="tab"]');
   await previewTabs.nth(1).waitFor({ state: "visible", timeout: 30_000 });
   requireCheck(`${viewport.name}: one shared preview surface`, await page.locator('[data-component="canonical-preview-panel"]').count() === 1);
   requireCheck(`${viewport.name}: preview keeps exactly 3D and 2D tabs`, await previewTabs.count() === 2, JSON.stringify(await previewTabs.allTextContents()));

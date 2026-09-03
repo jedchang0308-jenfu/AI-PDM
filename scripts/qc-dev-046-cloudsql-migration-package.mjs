@@ -89,6 +89,7 @@ try {
     "DEV046-CLOUDSQL-MIG-008 admin bootstrap is required and tied to the Cloud SQL grant file",
     report.adminBootstrap.required === true &&
       report.adminBootstrap.file === "db/cloud-sql/pdm_runtime_grants.sql" &&
+      report.adminBootstrap.contractSchemaFile === "db/cloud-sql/ai_pdm_contract_schema_grants.sql" &&
       report.adminBootstrap.createsRuntimeRole === true &&
       report.adminBootstrap.createsMigrationRole === true &&
       report.adminBootstrap.grantsIamUsers === true
@@ -154,6 +155,7 @@ try {
       (await exists(outputs.manifestPath)) &&
       (await exists(outputs.runnerContractPath)) &&
       (await exists(path.join(outputs.sqlDirectory, "000_admin_bootstrap_grants.sql"))) &&
+      (await exists(path.join(outputs.sqlDirectory, "001_ai_pdm_contract_schema_bootstrap.sql"))) &&
       (await exists(path.join(outputs.sqlDirectory, "999_runtime_grants_refresh.sql")))
   );
   record(
@@ -205,6 +207,11 @@ try {
   );
 
   const numberingV2Sql = await fsp.readFile(path.join(outputs.sqlDirectory, "004_numbering_v2_compact_identity.cloudsql.sql"), "utf8");
+  const adminBootstrapSql = await fsp.readFile(path.join(outputs.sqlDirectory, "000_admin_bootstrap_grants.sql"), "utf8");
+  const incrementalContractSchemaBootstrapSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "001_ai_pdm_contract_schema_bootstrap.sql"),
+    "utf8"
+  );
   const runtimeGrantRefreshSql = await fsp.readFile(path.join(outputs.sqlDirectory, "999_runtime_grants_refresh.sql"), "utf8");
   const v1SeedIndex = numberingV2Sql.indexOf("'numbering-rule-v1',\n  'PDM-NUMBERING-V1'");
   const approvalRuleInsertIndex = numberingV2Sql.indexOf("INSERT INTO approval_rules");
@@ -222,6 +229,39 @@ try {
     numberingV2Sql.includes("'numbering-rule-v3-alpha-root',\n  'PDM-NUMBERING-V3'") &&
       numberingV2Sql.includes("SET status = 'active', retired_at = NULL, updated_at = now()\nWHERE id = 'numbering-rule-v3-alpha-root'") &&
       numberingV2Sql.includes("'v3-' || id, 'numbering-rule-v3-alpha-root'")
+  );
+  const roleCatalogSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "055_jenfu_role_catalog_publication.cloudsql.sql"),
+    "utf8"
+  );
+  record(
+    "DEV046-CLOUDSQL-MIG-026 Jenfu platform roles are deterministically mapped to managed Cloud SQL roles",
+    report.candidatePackage.transformations.rewrittenJenfuPlatformRoleReferences > 0 &&
+      roleCatalogSql.includes("SET LOCAL ROLE pdm_migration") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_INACCESSIBLE:ai_pdm_contract") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_RETAINS_AI_PDM_CONTRACT_SCHEMA_OWNERSHIP") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_REVOKED_PUBLIC_AI_PDM_CONTRACT_SCHEMA_ACCESS") &&
+      roleCatalogSql.includes("CLOUDSQL_ADMIN_BOOTSTRAP_GRANTED_RUNTIME_AI_PDM_CONTRACT_SCHEMA_USAGE") &&
+      !roleCatalogSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract") &&
+      !roleCatalogSql.includes("ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration") &&
+      roleCatalogSql.includes("TO pdm_runtime") &&
+      !/\bjenfu_(?:platform_migrator|platform_runtime|orgmaster_runtime|ai_pdm_runtime)\b/u.test(roleCatalogSql) &&
+      !/\bpdm_runtime\s*,\s*pdm_runtime\b/u.test(roleCatalogSql)
+  );
+  record(
+    "DEV046-CLOUDSQL-MIG-027 privileged bootstrap retains the contract boundary and grants scoped schema DDL",
+    adminBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
+      adminBootstrapSql.includes("REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC") &&
+      adminBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
+      adminBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+      !adminBootstrapSql.includes("AUTHORIZATION pdm_migration") &&
+      !/GRANT\s+CREATE\s+ON\s+DATABASE[\s\S]*?TO\s+pdm_migration/iu.test(adminBootstrapSql) &&
+      incrementalContractSchemaBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
+      incrementalContractSchemaBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
+      incrementalContractSchemaBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+      !incrementalContractSchemaBootstrapSql.includes("CREATE ROLE") &&
+      !incrementalContractSchemaBootstrapSql.includes("ON ALL TABLES IN SCHEMA public") &&
+      !incrementalContractSchemaBootstrapSql.includes("GRANT CONNECT ON DATABASE")
   );
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "taskOwnedEnvironment": {
+    "dataDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-negative-VwuEvR\\data",
+    "repositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev087-negative-VwuEvR\\repository",
+    "port": null,
+    "runtime": false
+  },
+  "results": [],
+  "cleanupReceipt": {
+    "status": "complete",
+    "taskRootRemoved": true
+  }
+}

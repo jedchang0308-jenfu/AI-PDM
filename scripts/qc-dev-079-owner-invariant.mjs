@@ -6,10 +6,9 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import Database from "better-sqlite3";
 import { createFixtureDatabase, ids as dev087Ids } from "./qc-dev-087-fixtures.mjs";
-import { canonicalJsonStringify } from "../src/lib/canonical-json.ts";
+import { sha256Canonical } from "../src/lib/drawing-recognition-hash.ts";
 
 const root = process.cwd();
-const sha256Canonical = (value) => crypto.createHash("sha256").update(canonicalJsonStringify(value)).digest("hex");
 const runId = `DEV079-INVARIANT-${new Date().toISOString().replace(/[:.]/g, "-")}`;
 const outputDir = path.join(root, "output", "qa", "dev-079-owner-invariant", runId);
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev079-invariant-"));
@@ -49,7 +48,12 @@ function seedDeterministicSourceFixture() {
     ];
     const sourceSetFingerprint = sha256Canonical(assets
       .toSorted((left, right) => left.order - right.order || left.id.localeCompare(right.id))
-      .map((asset) => ({ fileAssetId: asset.id, contentHash: asset.hash, storageGeneration: "", role: asset.role })));
+      .map((asset) => ({
+        fileAssetId: asset.id,
+        contentHash: asset.hash,
+        storageGeneration: "",
+        role: asset.role
+      })));
     const insertAsset = database.prepare(`INSERT INTO file_assets (
       id, storage_provider, storage_key, file_name, file_ext, mime_type, file_size, content_hash,
       linked_entity_type, linked_entity_id, document_category, display_name, uploaded_by
@@ -65,7 +69,14 @@ function seedDeterministicSourceFixture() {
       @name, @order, @isPrimary, @owner
     )`);
     for (const asset of assets) {
-      const params = { ...asset, bindingId: `binding-${asset.id}`, company: dev087Ids.company, revision: dev087Ids.rdRevision, owner: dev087Ids.owner, isPrimary: asset.order === 0 ? 1 : 0 };
+      const params = {
+        ...asset,
+        bindingId: `binding-${asset.id}`,
+        company: dev087Ids.company,
+        revision: dev087Ids.rdRevision,
+        owner: dev087Ids.owner,
+        isPrimary: asset.order === 0 ? 1 : 0
+      };
       insertAsset.run(params);
       insertRevisionFile.run(params);
     }
@@ -76,7 +87,13 @@ function seedDeterministicSourceFixture() {
     ) VALUES (
       'session-dev079-source', @company, 'drawing_revision', @revision, 'dev079-source-lineage', @drawing,
       @revision, @fingerprint, 'dev079-source-dedup', 'review_ready', @owner
-    )`).run({ company: dev087Ids.company, revision: dev087Ids.rdRevision, drawing: dev087Ids.drawing, fingerprint: sourceSetFingerprint, owner: dev087Ids.owner });
+    )`).run({
+      company: dev087Ids.company,
+      revision: dev087Ids.rdRevision,
+      drawing: dev087Ids.drawing,
+      fingerprint: sourceSetFingerprint,
+      owner: dev087Ids.owner
+    });
     const insertSource = database.prepare(`INSERT INTO drawing_recognition_sources (
       id, session_id, company_id, file_asset_id, content_hash, file_name, file_ext, mime_type,
       file_size, source_role, sort_order, adapter_plan_json
@@ -385,6 +402,12 @@ try {
   const decisionsBefore = fixtureDb.prepare("SELECT COUNT(*) AS count FROM drawing_recognition_decisions WHERE session_id=?").get(rerun.id).count;
   await assert.rejects(() => repository.saveDecisions({
     sessionId: rerun.id, companyId: acceptedOwnerless.company_id, actorId: actor.id,
+    expectedRowVersion: projection.rowVersion + 99,
+    decisions: [{ candidateId: nativeCandidate.id, action: "defer" }]
+  }), (error) => error?.status === 409);
+  assert.equal(fixtureDb.prepare("SELECT COUNT(*) AS count FROM drawing_recognition_decisions WHERE session_id=?").get(rerun.id).count, decisionsBefore, "controlled stale fixture must return 409 with zero decision write");
+  await assert.rejects(() => repository.saveDecisions({
+    sessionId: rerun.id, companyId: acceptedOwnerless.company_id, actorId: actor.id,
     expectedRowVersion: projection.rowVersion,
     decisions: [{ candidateId: nativeCandidate.id, action: "accept" }]
   }), (error) => error?.code === "RECOGNITION_PART_OWNER_REQUIRED" && error?.status === 422);
@@ -438,6 +461,7 @@ try {
       commandMissingOwner422: true,
       commandAmbiguousOwner422: true,
       commandInvalidOwner422: true,
+      controlledStale409ZeroWrite: true,
       crossAdapterCanonicalCandidate: true,
       repeatedGetZeroWrite: beforeGetHash === afterGetHash,
       foreignKeyCheck: 0

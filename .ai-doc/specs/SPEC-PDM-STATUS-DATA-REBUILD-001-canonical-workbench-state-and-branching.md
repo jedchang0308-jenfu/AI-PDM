@@ -431,24 +431,25 @@ Drawing／Part drawer固定唯讀順序：`主識別／品名／處理狀態` �
 - 點擊圖號或料號 identity 導向對應 canonical 工作臺搜尋；矩陣容器是唯一水平 overflow owner，表格保持內容寬度，不用拉伸空白填滿 viewport。窄畫面控制項可換行且 identity／cell accessible name必須可被鍵盤與輔助技術辨識。
 - drawer reload、抽屜寬度偏好、上下鍵快速切列及既有 Relation editor保持原contract；切列時矩陣必須與新row detail一起原子重繪，不新增編輯入口。
 
-### 6.1 Primary action 與唯一風險例外矩陣
+### 6.1 Primary action 與受限風險例外矩陣
 
 狀態文字與動作權限是兩件事；文字不得依 viewer 改寫，動作只能由 server descriptor 提供。
 
 | Domain／列 | 條件 | 動作 | 無權限／不可執行時 |
 |---|---|---|---|
 | Drawing production | open branches `<3`且既有 permission允許 | `進版`→target modal | 隱藏；達 cap 則停用並顯示固定原因 |
-| Drawing RD active work | handling=`owner`且actor為owner，或通過既有same-company non-owner scope＋exact action permission | `進行編輯` | 唯讀、無 action |
+| Drawing RD active work | handling=`owner`且actor為owner，或通過既有same-company non-owner scope＋exact action permission | primary=`進行編輯`；具`cancelWork`時secondary danger=`取消本次工作` | 唯讀、無 action |
 | Drawing RD review | handling=`review_owner`且為 exact reviewer | `前往審核` | 其他合法 viewer 唯讀、無 action |
 | Drawing RD idle | handling=`none`且既有 permission允許 | primary=`進版`→同branch target modal；secondary risk action=`申請作廢` | 無權限時各自隱藏 |
 | Drawing RD void review | 作廢request active且為exact reviewer | `前往審核` | 其他合法viewer唯讀、無action |
 | Drawing RD system/system_admin/blocked | 任一 | 無 | 只顯示固定角色或一項受阻原因 |
 | Part formal／Relation formal | 無 current work且既有 permission允許 | `建立修改`／`建立調整` | 隱藏 |
-| Part work／Relation work | handling=`owner`且actor為owner，或通過既有same-company non-owner scope＋exact action permission | `進行編輯` | 唯讀、無 action |
+| Part work | handling=`owner`且actor為owner，或通過既有same-company non-owner scope＋exact action permission | primary=`進行編輯`；具`cancelWork`時secondary danger=`取消本次工作` | 唯讀、無 action |
+| Relation work | handling=`owner`且actor為owner，或通過既有same-company non-owner scope＋exact action permission | `進行編輯` | 唯讀、無 action |
 | Part／Relation review | handling=`review_owner`且為 exact reviewer | `前往審核` | 其他合法 viewer 唯讀、無 action |
 | Part／Relation system/system_admin/blocked | 任一 | 無 | 只顯示固定角色或一項受阻原因 |
 
-頁面清單只擁有「開啟 drawer」；drawer通常只有一個primary navigation action。Drawing RD idle為唯一例外：可同時有primary `進版`與低權重secondary risk action `申請作廢`，不得在list或其他區域重複。作廢確認modal固定顯示`核准後，研發版 {revision} 將不再有效，這一系列研發版會從目前清單移除，且無法復原`；不顯示branch ID/source/predecessor。target modal擁有最終target選擇與確認。modal成功後才導航exact editor或建立作廢request；取消、Escape或錯誤都回到原drawer row並恢復focus/scroll。drawer body與modal body各自是唯一scroll owner，sticky action不得遮住最後一列。server command執行超過5秒時顯示進行中並鎖住重複提交；失敗保留modal、顯示人類可理解錯誤並將focus移到error summary。
+頁面清單只擁有「開啟 drawer」；drawer通常只有一個primary navigation action。Drawing RD idle可同時有primary `進版`與低權重secondary risk action `申請作廢`，不得在list或其他區域重複。owner handling中的Drawing／Part未核准work是另一個受限例外：具`cancelWork`權限時，drawer在primary `進行編輯`旁提供danger secondary `取消本次工作`，直接使用既有exact cancel command；沒有權限、review中或非owner handling時不投影此action。這個例外只允許結束整筆未核准work，不把欄位編輯、檔案維護、送審或審核移回drawer。取消確認固定說明`未核准的變更與工作專屬檔案將永久刪除，無法復原；既有正式資料（若有）不受影響。`，取消確認不得送request。作廢確認modal固定顯示`核准後，研發版 {revision} 將不再有效，這一系列研發版會從目前清單移除，且無法復原`；不顯示branch ID/source/predecessor。target modal擁有最終target選擇與確認。modal成功後才導航exact editor或建立作廢request；取消、Escape或錯誤都回到原drawer row並恢復focus/scroll。drawer body與modal body各自是唯一scroll owner，sticky action不得遮住最後一列。server command執行超過5秒時顯示進行中並鎖住重複提交；失敗保留modal、顯示人類可理解錯誤並將focus移到error summary。
 
 ### 6.2 角色、可見性與 server permission
 
@@ -1102,6 +1103,17 @@ DEV-100 amendment：上述work files是mutable current snapshot，不是永遠�
 Drawing／Part drawer把`RelationMatrixTable`既有`onOpenDrawing(number)`／`onOpenPart(number)`接到canonical工作臺URL：`/numbering/drawings?query=<exact>&detail=<resolved rowKey>`與`/parts?query=<exact>&detail=<resolved rowKey>`。exact row需由target list/detail resolve，不可沿用來源lane/revision。keyboard button accessible name固定`開啟圖號 {number}`／`開啟料號 {number}`。
 
 matrix dirty時導覽只允許三個明確結果：先儲存後前往、捨棄後前往、留在本頁；Escape等同留頁。儲存失敗保留dirty與selection，不導航；返回後恢復來源detail、矩陣scroll與觸發identity focus。
+
+#### DEV-111 CAPA amendment：核准後 canonical state 與矩陣導航完整性（2026-09-01）
+
+本 amendment 是既有 single current-state authority 的相容修正，不新增 table、route、permission、migration 或第二個 writer；ADR 維持 `No New ADR`。
+
+- Part 初建可暫時只有 `part_work`（§4.2 的 work-only 語意不變），但 approve/formalize 必須在同一 transaction 先 `upsert part_formal`，再移除 `part_work` 與 `part_change_works`。成功 read-back 的不變量固定為：同一 company＋Part 恰有一列 `part_formal`、零列 `part_work`，且 formal row 可作為 list/detail 的 canonical navigation anchor；任一不變量失敗整筆 transaction rollback，禁止回傳成功。
+- Part 初建 work cancel 仍依 §4.2／§7 移除 work，編號／master identity 是否回收仍由既有 numbering authority 決定；沒有 canonical state 的 master evidence 不得被 current relation matrix 當成可操作軸。
+- Relation matrix 的 Drawing／Part axes 與 cells 只投影兩端都存在 current `canonical_workbench_states` 的 identity。沒有 navigation state 的 legacy、cancelled 或 voided master/link 可保留作 domain evidence，但不得形成 null `detailHref` 的不可點擊 current 軸；remaining axes 的 `detailHref` 必須指向 exact canonical row key。
+- 同一 scope 的 regression inventory 固定覆蓋：migrated Part work-only approval、formal-backed Part approval/cancel、Drawing first-work cancel（空 branch）、approved RD branch void、matrix hidden/no-state axis、cross-company與foreign-key invariant。此 CAPA 的有效性不得以單一 UI 截圖或單一 aggregate exit code 宣稱，必須有 transaction read-back、provider／list-detail／matrix projection及 primary invariant 證據。
+
+2026-09-01 primary repair closure：經使用者核准後，以 approved snapshot、review trace、submit／decision／terminal receipts、current master payload equality、aggregate=1/open=0、work=0／review=0 為唯一可修條件；地端 inventory 只有 A0044-P01 一筆符合，沒有其他 blocked Part 或正式 Drawing state gap。受控工具先在 online backup rehearsal apply/replay，再以 scope fingerprint＋plan hash＋repair count gate 對 primary SQLite 於 `BEGIN IMMEDIATE` 內新增唯一 `part_formal`，非 state 受控表 hash 不變；primary replay=`NO_OP`，post-inventory 為 Part/Drawing no-state=0、non-navigable link=0、FK=0。未編號且無核准證據的 Draft Drawing 不屬 current formal identity，禁止猜測補 state。
 
 #### 15.8.2 Query keys與options
 

@@ -8,6 +8,7 @@ const platformCandidates = [
   process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
   path.resolve(root, '..', 'Jenfu-Management-system'),
   path.resolve(root, '..', '..', '..', 'Jenfu-Management-system'),
+  path.resolve(root, '..', '..', '..', '..', 'Jenfu-Management-system'),
 ].filter(Boolean)
 const platformRoot = platformCandidates.find((candidate) => fs.existsSync(path.join(candidate, 'contracts', 'jenfu-platform-governance-availability', 'v2', 'contract-manifest.json'))) ?? platformCandidates[0]
 const localDir = path.join(root, 'contracts', 'jenfu-platform-governance-availability', 'v2')

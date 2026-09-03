@@ -19,6 +19,7 @@ import {
   drawingRevisionLifecycleErrorPayload
 } from "@/lib/drawing-revision-lifecycle";
 import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
+import { projectApprovalDecisionFeedback } from "@/lib/approval-outcome-feedback";
 
 export const runtime = "nodejs";
 
@@ -135,7 +136,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
       actor: auth.user,
       companyId: company.company.companyId
     });
-    return NextResponse.json({ request: result });
+    return NextResponse.json({ request: result, outcome: projectApprovalDecisionFeedback(result) });
   } catch (error) {
     return approvalApiErrorResponse(error, "decision", request);
   }

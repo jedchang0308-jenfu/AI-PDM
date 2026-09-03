@@ -284,6 +284,7 @@ try {
   await managedDeliveryPage.reload({ waitUntil: "domcontentloaded" });
   await managedDeliveryPage.locator(".account-invitations-page h1").filter({ hasText: "帳號邀請" }).waitFor();
   const reissueButton = managedDeliveryPage.getByRole("button", { name: "重新邀請", exact: true });
+  await reissueButton.waitFor({ state: "visible" });
   await reissueButton.click();
   const reissueFormPrefilled =
     await managedDeliveryPage.getByLabel("姓名").inputValue() === "Revoked User" &&

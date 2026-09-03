@@ -24,6 +24,10 @@ type PartRow = {
 };
 type WorkRow = { id: string; company_id: string; part_id: string; owner_user_id: string; proposed_payload: string | PartChangePayload; base_hash: string; row_version: number };
 
+export type PartWorkBatchMutation =
+  | { kind: "create"; companyId: string; partId: string; ownerUserId: string; expectedFormalRowVersion: number; initialPayload: PartChangePayload }
+  | { kind: "update"; companyId: string; workId: string; expectedRowVersion: number; payload: PartChangePayload };
+
 export function validatePartChangePayload(value: unknown): PartChangePayload {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號資料格式無效", 400);
   const candidate = value as Record<string, unknown>;
@@ -44,6 +48,25 @@ export function validatePartChangePayload(value: unknown): PartChangePayload {
   };
 }
 
+/**
+ * Normalizes the two controlled identity pairs without making the browser
+ * carry hidden code fields while a user edits a label.  The formal payload is
+ * the comparison baseline: an unchanged label keeps its code; a changed or
+ * cleared label drops the old code.
+ */
+export function normalizePartChangePayload(value: unknown, formalBaseline?: PartChangePayload | null): PartChangePayload {
+  const payload = validatePartChangePayload(value);
+  const baseline = formalBaseline ? validatePartChangePayload(formalBaseline) : null;
+  const normalizePair = (code: string | null, label: string | null, baseCode: string | null, baseLabel: string | null) => {
+    if (!label) return { code: null, label: null };
+    if (baseline && label === baseLabel) return { code: baseCode, label };
+    return { code: null, label };
+  };
+  const material = normalizePair(payload.materialCode, payload.materialLabel, baseline?.materialCode ?? null, baseline?.materialLabel ?? null);
+  const color = normalizePair(payload.colorCode, payload.colorLabel, baseline?.colorCode ?? null, baseline?.colorLabel ?? null);
+  return { ...payload, materialCode: material.code, materialLabel: material.label, colorCode: color.code, colorLabel: color.label };
+}
+
 function rowPayload(row: PartRow): PartChangePayload {
   return {
     partName: row.part_name, itemKind: row.item_kind, customSpecification: row.custom_specification,
@@ -56,6 +79,65 @@ function parsePayload(value: string | PartChangePayload) { return validatePartCh
 
 export class PartChangeWorkAsyncRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
+
+  /**
+   * Lock the complete Part/work scope before the handoff starts writing.
+   * The caller must pass the server-derived exact Part ids; this method never
+   * expands the target set from client input or part-number text.
+   */
+  async lockBatch(tx: AsyncDatabaseClient, input: { companyId: string; partIds: string[]; workIds?: string[] }) {
+    const partIds = [...new Set(input.partIds.filter((id) => typeof id === "string" && id.trim()))].sort();
+    const workIds = [...new Set((input.workIds ?? []).filter((id) => typeof id === "string" && id.trim()))].sort();
+    if (partIds.length > 0) {
+      const partParams: Record<string, unknown> = { companyId: input.companyId };
+      const predicates = partIds.map((id, index) => {
+        const key = `partId${index}`;
+        partParams[key] = id;
+        return `:${key}`;
+      }).join(", ");
+      const rows = await tx.query<{ id: string }>(
+        `SELECT id FROM part_numbers WHERE company_id = :companyId AND id IN (${predicates}) ORDER BY id${tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
+        partParams
+      );
+      if (rows.length !== partIds.length) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "料號關聯範圍已變更，請重新載入。", 409);
+    }
+    if (workIds.length > 0) {
+      const workParams: Record<string, unknown> = { companyId: input.companyId };
+      const predicates = workIds.map((id, index) => {
+        const key = `workId${index}`;
+        workParams[key] = id;
+        return `:${key}`;
+      }).join(", ");
+      const rows = await tx.query<{ id: string }>(
+        `SELECT id FROM part_change_works WHERE company_id = :companyId AND id IN (${predicates}) ORDER BY id${tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
+        workParams
+      );
+      if (rows.length !== workIds.length) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "料號工作範圍已變更，請重新載入。", 409);
+    }
+    return { partIds, workIds };
+  }
+
+  /** Apply already-locked mutations through the same canonical create/update primitives. */
+  async applyLockedBatch(tx: AsyncDatabaseClient, mutations: PartWorkBatchMutation[]) {
+    const ordered = [...mutations].sort((left, right) => {
+      const leftKey = left.kind === "create" ? left.partId : left.workId;
+      const rightKey = right.kind === "create" ? right.partId : right.workId;
+      return leftKey.localeCompare(rightKey);
+    });
+    const results: Array<{ kind: PartWorkBatchMutation["kind"]; partId: string; workId: string; rowVersion: number; payload: PartChangePayload }> = [];
+    for (const mutation of ordered) {
+      if (mutation.kind === "create") {
+        const result = await this.create(tx, mutation);
+        results.push({ kind: mutation.kind, partId: mutation.partId, workId: result.workId, rowVersion: result.rowVersion, payload: result.payload });
+      } else {
+        const work = await this.readWork(tx, mutation.companyId, mutation.workId, false);
+        if (!work) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "料號工作已變更，請重新載入。", 409);
+        const result = await this.update(tx, mutation);
+        results.push({ kind: mutation.kind, partId: work.part_id, workId: result.workId, rowVersion: result.rowVersion, payload: result.payload });
+      }
+    }
+    return results;
+  }
 
   async readPart(client: AsyncDatabaseClient, companyId: string, partId: string, lock = false) {
     return client.queryOne<PartRow>(
@@ -76,7 +158,7 @@ export class PartChangeWorkAsyncRepository {
     );
   }
 
-  async create(tx: AsyncDatabaseClient, input: { companyId: string; partId: string; ownerUserId: string; expectedFormalRowVersion: number }) {
+  async create(tx: AsyncDatabaseClient, input: { companyId: string; partId: string; ownerUserId: string; expectedFormalRowVersion: number; initialPayload?: PartChangePayload }) {
     const part = await this.readPart(tx, input.companyId, input.partId, true);
     if (!part) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "料號不存在", 404);
     const formal = await tx.queryOne<{ row_version: number }>(
@@ -87,7 +169,8 @@ export class PartChangeWorkAsyncRepository {
     if (await tx.queryOne(`SELECT id FROM part_change_works WHERE company_id = :companyId AND part_id = :partId`, input)) {
       throw new CanonicalWorkbenchError("WORKBENCH_ACTIVE_WORK_EXISTS", "開啟既有工作資料", 409);
     }
-    const payload = rowPayload(part);
+    const formalPayload = rowPayload(part);
+    const payload = input.initialPayload ? normalizePartChangePayload(input.initialPayload, formalPayload) : formalPayload;
     const workId = crypto.randomUUID();
     await tx.execute(
       `INSERT INTO part_change_works (id, company_id, part_id, owner_user_id, proposed_payload, base_formal_row_version, base_hash, row_version)
@@ -106,6 +189,9 @@ export class PartChangeWorkAsyncRepository {
   async update(tx: AsyncDatabaseClient, input: { companyId: string; workId: string; expectedRowVersion: number; payload: PartChangePayload }) {
     const work = await this.readWork(tx, input.companyId, input.workId, true);
     if (!work || Number(work.row_version) !== input.expectedRowVersion) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "重新讀取目前資料", 409);
+    const part = await this.readPart(tx, input.companyId, work.part_id, true);
+    if (!part) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "料號資料已不存在，請重新載入", 409);
+    const payload = normalizePartChangePayload(input.payload, rowPayload(part));
     const state = await tx.queryOne<{ handling: string }>(
       `SELECT handling FROM canonical_workbench_states WHERE company_id = :companyId AND work_id = :workId${tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
       input
@@ -114,13 +200,13 @@ export class PartChangeWorkAsyncRepository {
     await tx.execute(
       `UPDATE part_change_works SET proposed_payload = :payload, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE id = :workId AND company_id = :companyId AND row_version = :expectedRowVersion`,
-      { ...input, payload: JSON.stringify(input.payload) }
+      { ...input, payload: JSON.stringify(payload) }
     );
     await tx.execute(
       `UPDATE canonical_workbench_states SET row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE company_id = :companyId AND work_id = :workId`, input
     );
-    return { workId: input.workId, rowVersion: input.expectedRowVersion + 1, payload: input.payload };
+    return { workId: input.workId, rowVersion: input.expectedRowVersion + 1, payload };
   }
 
   async cancel(tx: AsyncDatabaseClient, input: { companyId: string; workId: string; expectedRowVersion: number }) {

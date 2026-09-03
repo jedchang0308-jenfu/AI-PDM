@@ -26,7 +26,8 @@ export function canonicalJson(value: unknown): string {
   throw new Error('CANONICAL_JSON_UNSUPPORTED')
 }
 
-export async function sha256CanonicalJson(value: unknown) {
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalJson(value)))
+export async function sha256CanonicalJsonBrowser(value: unknown) {
+  const bytes = new TextEncoder().encode(canonicalJson(value))
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes)
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }

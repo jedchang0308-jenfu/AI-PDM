@@ -8,6 +8,7 @@ import {
   type DrawingRecognitionDecisionInput,
   type DrawingRecognitionSourceContextType
 } from "@/lib/drawing-recognition-contract";
+import { sha256Canonical } from "@/lib/drawing-recognition-hash";
 import { isDrawingRecognitionV1Enabled } from "@/lib/number-state-flow-feature";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
@@ -194,6 +195,26 @@ export async function getLatestDrawingRecognitionForDrawing(input: {
   return latest;
 }
 
+export async function getLatestDrawingRecognitionForPart(input: {
+  partId: string;
+  companyId: string;
+  actorId: string;
+  roles: string[];
+  client?: AsyncDatabaseClient;
+}) {
+  if (!isDrawingRecognitionV1Enabled()) throw new DrawingRecognitionError("RECOGNITION_FEATURE_DISABLED", "圖面辨識功能尚未啟用。", 404);
+  const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
+  const latest = await repository.latestForPart(input.companyId, input.partId);
+  if (!latest) return null;
+  await repository.assertSessionScope({
+    sessionId: latest.id,
+    companyId: input.companyId,
+    actorId: input.actorId,
+    privileged: recognitionRolesArePrivileged(input.roles)
+  });
+  return repository.getProjection(latest.id, input.companyId);
+}
+
 export async function saveDrawingRecognitionDecisions(input: {
   sessionId: string;
   companyId: string;
@@ -206,6 +227,166 @@ export async function saveDrawingRecognitionDecisions(input: {
   const repository = new DrawingRecognitionAsyncRepository(input.client ?? getAsyncDatabaseClient());
   await repository.assertSessionScope({ sessionId: input.sessionId, companyId: input.companyId, actorId: input.actorId, privileged: recognitionRolesArePrivileged(input.roles) });
   return repository.saveDecisions(input);
+}
+
+export async function createDrawingRecognitionAmendment(input: {
+  sessionId: string;
+  companyId: string;
+  actorId: string;
+  roles: string[];
+  expectedRowVersion?: number;
+  metadata: PdmCommandMetadata;
+  client?: AsyncDatabaseClient;
+}) {
+  const client = input.client ?? getAsyncDatabaseClient();
+  const repository = new DrawingRecognitionAsyncRepository(client);
+  const session = await repository.assertSessionScope({
+    sessionId: requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID"),
+    companyId: input.companyId,
+    actorId: input.actorId,
+    privileged: recognitionRolesArePrivileged(input.roles)
+  });
+  if (session.status !== "formalized") throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_NOT_ALLOWED", "只有已寫入 PDM 的辨識結果可以建立編輯版本。", 409);
+  const expectedRowVersion = input.expectedRowVersion ?? session.row_version;
+  const command = createPdmCommand({
+    commandName: "drawing_recognition.amendment.create.v1",
+    idempotencyKey: input.metadata.idempotencyKey,
+    actor: input.metadata.actor,
+    payload: { sessionId: input.sessionId, expectedRowVersion }
+  });
+  const execution = await executePdmCommandWithOutbox({
+    client,
+    command,
+    idempotencyPayload: command.payload,
+    execute: async (transaction) => {
+      const transactionalRepository = new DrawingRecognitionAsyncRepository(transaction);
+      const current = await transactionalRepository.assertSessionScope({
+        sessionId: requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID"),
+        companyId: input.companyId,
+        actorId: input.actorId,
+        privileged: recognitionRolesArePrivileged(input.roles)
+      });
+      if (current.status !== "formalized") throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_NOT_ALLOWED", "只有已寫入 PDM 的辨識結果可以建立編輯版本。", 409);
+      if (Number(current.row_version) !== expectedRowVersion) throw new DrawingRecognitionError("RECOGNITION_SESSION_STALE", "辨識內容已被更新，請重新載入。", 409);
+      await transactionalRepository.assertRecognitionWriteLifecycle(current);
+      const projection = await transactionalRepository.getProjection(current.id, input.companyId);
+      const successor = await transactionalRepository.createSession({
+        companyId: input.companyId,
+        actorId: input.actorId,
+        sourceContextType: projection.sourceContextType,
+        sourceContextId: projection.sourceContextId,
+        sourceAssetIds: projection.sources.map((source) => source.fileAssetId),
+        drawingId: projection.drawingId,
+        drawingRevisionId: projection.drawingRevisionId,
+        supersedesSessionId: current.id,
+        sessionPurpose: "amendment",
+        evidenceOriginSessionId: current.evidence_origin_session_id ?? current.id
+      });
+      return { session: successor, parentSessionId: current.id };
+    },
+    event: (result) => ({
+      aggregateType: "drawing_recognition_session",
+      aggregateId: result.session.id,
+      eventType: "drawing_recognition.amendment_created.v1",
+      payload: result
+    }),
+    serializable: true
+  });
+  return { ...execution.result, reusedFromCommandReceipt: execution.reusedFromCommandReceipt };
+}
+
+export async function commitDrawingRecognition(input: {
+  sessionId: string;
+  companyId: string;
+  actorId: string;
+  roles: string[];
+  expectedRowVersion: number;
+  decisions: DrawingRecognitionDecisionInput[];
+  metadata: PdmCommandMetadata;
+  client?: AsyncDatabaseClient;
+}) {
+  const client = input.client ?? getAsyncDatabaseClient();
+  const repository = new DrawingRecognitionAsyncRepository(client);
+  await repository.assertSessionScope({
+    sessionId: requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID"),
+    companyId: input.companyId,
+    actorId: input.actorId,
+    privileged: recognitionRolesArePrivileged(input.roles)
+  });
+  const command = createPdmCommand({
+    commandName: "drawing_recognition.commit.v1",
+    idempotencyKey: input.metadata.idempotencyKey,
+    actor: input.metadata.actor,
+    payload: {
+      sessionId: input.sessionId,
+      expectedRowVersion: input.expectedRowVersion,
+      decisions: input.decisions,
+      draftHash: sha256Canonical(input.decisions),
+      decisionCount: input.decisions.length,
+      reason: null
+    }
+  });
+  const execution = await executePdmCommandWithOutbox({
+    client,
+    command,
+    idempotencyPayload: command.payload,
+    execute: async (transaction) => new DrawingRecognitionAsyncRepository(transaction).commit({
+      sessionId: input.sessionId,
+      companyId: input.companyId,
+      actorId: input.actorId,
+      expectedRowVersion: input.expectedRowVersion,
+      decisions: input.decisions,
+      idempotencyKey: input.metadata.idempotencyKey,
+      requirePostReleaseReason: null
+    }),
+    event: (result) => ({
+      aggregateType: "drawing_recognition_session",
+      aggregateId: input.sessionId,
+      eventType: "drawing_recognition.committed.v1",
+      payload: result
+    }),
+    serializable: true
+  });
+  return { ...execution.result, reusedFromCommandReceipt: execution.reusedFromCommandReceipt };
+}
+
+export async function cancelDrawingRecognitionAmendment(input: {
+  sessionId: string;
+  companyId: string;
+  actorId: string;
+  roles: string[];
+  expectedRowVersion: number;
+  metadata: PdmCommandMetadata;
+  client?: AsyncDatabaseClient;
+}) {
+  const client = input.client ?? getAsyncDatabaseClient();
+  const repository = new DrawingRecognitionAsyncRepository(client);
+  await repository.assertSessionScope({
+    sessionId: requireSafeRecognitionId(input.sessionId, "RECOGNITION_SESSION_ID_INVALID"),
+    companyId: input.companyId,
+    actorId: input.actorId,
+    privileged: recognitionRolesArePrivileged(input.roles)
+  });
+  const command = createPdmCommand({
+    commandName: "drawing_recognition.amendment.cancel.v1",
+    idempotencyKey: input.metadata.idempotencyKey,
+    actor: input.metadata.actor,
+    payload: { sessionId: input.sessionId, expectedRowVersion: input.expectedRowVersion }
+  });
+  const execution = await executePdmCommandWithOutbox({
+    client,
+    command,
+    idempotencyPayload: command.payload,
+    execute: async (transaction) => new DrawingRecognitionAsyncRepository(transaction).cancelAmendment({ sessionId: input.sessionId, companyId: input.companyId, actorId: input.actorId, expectedRowVersion: input.expectedRowVersion }),
+    event: (result) => result.alreadyCancelled ? [] : [{
+      aggregateType: "drawing_recognition_session",
+      aggregateId: input.sessionId,
+      eventType: "drawing_recognition.amendment_cancelled.v1",
+      payload: result
+    }],
+    serializable: true
+  });
+  return { ...execution.result, reusedFromCommandReceipt: execution.reusedFromCommandReceipt };
 }
 
 export async function getDrawingRecognitionObservation(input: {
@@ -242,7 +423,8 @@ export async function rerunDrawingRecognition(input: {
     sourceAssetIds: previous.sources.map((source) => source.fileAssetId),
     drawingId: previous.drawingId,
     drawingRevisionId: previous.drawingRevisionId,
-    supersedesSessionId: previous.id
+    supersedesSessionId: previous.id,
+    sessionPurpose: "rerun"
   });
 }
 

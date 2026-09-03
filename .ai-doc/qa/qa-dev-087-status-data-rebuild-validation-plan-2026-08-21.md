@@ -1,6 +1,6 @@
 # DEV-087 三工作臺狀態資料重建驗證計畫
 
-Status: `Trusted-Solo QA-QC Complete / FFF Applicability Corrected / 94 of 94 Product Cases + 3 of 3 Quality Gates PASS / Production Release Gated`
+Status: `Trusted-Solo QA-QC Complete (2026-08-31 post-FFF source revalidation) / FFF Applicability Corrected / Production Release Gated`
 Date: 2026-08-21; amended 2026-08-27
 Owner: QA
 Related DEV: `DEV-087`; historical anti-cheat child `DEV-097`; CAPA children `DEV-092`, `DEV-094`, `DEV-100`
@@ -10,6 +10,10 @@ Authority:
 - `.ai-doc/decisions/ADR-PDM-STATUS-DATA-REBUILD-001-single-current-state-authority.md`
 - UI-only execution child contract：`.ai-doc/qa/qa-dev-087-ui-only-lifecycle-operation-validation-plan-2026-08-22.md`
 - Relation current contract／QA authority：`.ai-doc/specs/SPEC-PDM-INLINE-RELATION-MATRIX-001-direct-formal-edit.md`、`.ai-doc/qa/qa-dev-090-inline-relation-matrix-validation-plan-2026-08-23.md`
+
+### 2026-08-31 post-FFF source revalidation closure
+
+The 2026-08-28 trusted-solo receipt remains immutable historical evidence. After the source boundary became quiescent, fresh aggregate `output/qa/dev-087-aggregate/DEV087-aggregate-2026-08-30T15-29-47-476Z/manifest.json` completed with `status=PASS`, `completionCandidate=true`, `21/21 commands`, `94/94 current product cases`, `Blocked=0`, `NotRun=0`, `Fail=0`, and `3/3 Quality Gates PASS`. The manifest source fingerprint is `7c54dc2aac2852b313400c003cecf1d2b7304718b4bc5847829a72ab5924c12f`; provider/security/UI gates, primary protected invariants, and task-owned cleanup all passed. The earlier `DEV087-aggregate-2026-08-30T14-15-03-301Z` `SOURCE_CHANGED_DURING_AGGREGATE` result remains historical fail-closed evidence and was not relabeled. No production migration, data repair, deploy, cutover, or release was executed.
 
 ### 2026-08-28 Trusted-solo local completion
 

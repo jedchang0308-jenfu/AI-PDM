@@ -218,7 +218,7 @@ async function main() {
     return { roles: active.map((row) => row.role) };
   }));
 
-  await check("QA-100-006", "zero, one, non-primary remove and primary lock remain legal", () => withScenario("case-006", async (ctx) => {
+  await check("QA-100-006", "zero, one, supplemental and primary removal remain legal", () => withScenario("case-006", async (ctx) => {
     assert.equal(ctx.initial.data.files.length, 0);
     const pdf = await upload(ctx, "A.pdf", "PDF", "006-pdf", ctx.initial.data.rowVersion);
     assert.equal((await ctx.service.read(ctx.workId, owner)).data.files.length, 1);
@@ -227,8 +227,11 @@ async function main() {
     assert.equal(afterRemove.data.files.length, 0);
     assert.equal(tombstones(ctx.db, ctx.workId).find((row) => row.file_name === "A.pdf")?.deleted_reason, "drawing_revision_work_file_removed");
     const primary = await upload(ctx, "A.SLDASM", "3D", "006-primary", afterRemove.data.rowVersion);
-    await assert.rejects(() => ctx.service.removeFile(ctx.workId, primary.file.id, owner, { idempotencyKey: "006-primary-remove", contractToken: ctx.token, expectedRowVersion: primary.rowVersion }), (error) => error?.code === "DRAWING_REVISION_FILE_PRIMARY_LOCKED" && error?.status === 409);
-    return { legalStates: [0, 1, 0, 1], primaryRemove: 409 };
+    await ctx.service.removeFile(ctx.workId, primary.file.id, owner, { idempotencyKey: "006-primary-remove", contractToken: ctx.token, expectedRowVersion: primary.rowVersion });
+    const afterPrimaryRemove = await ctx.service.read(ctx.workId, owner);
+    assert.equal(afterPrimaryRemove.data.files.length, 0);
+    assert.equal(tombstones(ctx.db, ctx.workId).find((row) => row.file_name === "A.SLDASM")?.deleted_reason, "drawing_revision_work_file_removed");
+    return { legalStates: [0, 1, 0, 1, 0], primaryRemove: 200 };
   }));
 
   await check("QA-100-007", "active missing and active deleted assets fail closed without mutation", async () => {

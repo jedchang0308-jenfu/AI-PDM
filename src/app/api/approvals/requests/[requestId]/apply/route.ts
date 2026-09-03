@@ -11,6 +11,7 @@ import {
   resolveNumberingCompanyContextAsync
 } from "@/lib/numbering-company-context";
 import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
+import { projectApprovalDecisionFeedback } from "@/lib/approval-outcome-feedback";
 
 export const runtime = "nodejs";
 
@@ -53,7 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
       requestId: decodedRequestId,
       actor: auth.user
     });
-    return NextResponse.json({ request: result });
+    return NextResponse.json({ request: result, outcome: projectApprovalDecisionFeedback(result) });
   } catch (error) {
     return approvalApiErrorResponse(error, "apply", request);
   }

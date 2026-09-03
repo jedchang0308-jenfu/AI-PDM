@@ -1,6 +1,6 @@
 # SPEC-PDM-SUPERVISOR-EDIT-SCOPE-001：主管與系統管理員跨負責人編輯權限
 
-Status: `Local RD Implemented / Human Confirmed / Focused QA Passed / Disposable Mutation QC Pending / Production Release Gated`
+Status: `Local RD Implemented / Human Confirmed / Focused QA Passed / Disposable Mutation QC Passed / Production Release Gated`
 
 Decision source: 2026-08-19 使用者明確要求「研發主管」與「系統管理員」即使不是負責人，也能編輯所有圖號、料號、圖料根號及 BOM；2026-08-20 追加要求所有工程師同公司跨負責人編輯。
 
@@ -51,3 +51,12 @@ Server 與 read projection 必須共用 `pdm-edit-scope-policy`：
 - 主管編輯後 owner 不變，audit actor 為主管本人。
 - 主管／Admin 可跨負責人取消、撤回未決案、審核與發行；每項仍須具備對應 action permission，且不得跨公司或旁路狀態鎖。
 - 作廢與 production deployment／release gate 未被本契約旁路。
+
+## 6. 2026-09-02 Disposable Mutation QC
+
+- Command: `npm.cmd run qc:dev-081:mutation`。
+- Result: `PASS`；report `output/qa/dev-081-mutation/DEV081-MUT-20260902T174802Z-b73b92b3/manifest.json`。
+- Runtime: disposable SQLite clone、task-owned Next runtime、real Chromium；temporary port `52820` 已釋放，`productionWrites=false`，`primaryPortsTouched=[]`，cleanup status=`removed`。
+- Covered: Manager／Admin／Engineer 的 Part create／update／cancel 與 owner／receipt readback（含 manufacturing deny）；三角色 Drawing master attachment upload、file readback 與 audit；三角色 Relation Matrix PATCH、readback 與 command receipt；BOM create／tree save／readback／`bom_edit_events` 與 audit；Part workspace 三 viewport `375x812`、`768x1024`、`1440x900`。
+- Isolated fixture compatibility: 僅在 disposable clone 補齊既有 SQLite fixture 缺少的 `base_uom_code`、BOM quantity 欄位，未修改主資料庫或正式 schema。
+- Closure boundary: 本證據關閉 local disposable mutation QC、owner／audit actor／UI-API一致性與四領域正向寫入缺口；主管／Admin cancel、withdraw、review、release、OCR 的完整正向流程，以及 staging／production migration、deploy、release 仍依既有文件另走 gate，未宣告完成。

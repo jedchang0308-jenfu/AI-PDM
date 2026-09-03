@@ -1,6 +1,6 @@
 # DEV-046 Cloud SQL Migration Runner Package Preflight
 
-Generated at: 2026-08-28T22:27:22.731Z
+Generated at: 2026-09-03T05:42:41.827Z
 Package version: dev-046-cloudsql-migration-runner-package/v1
 Status: blocked_runner_not_ready
 
@@ -36,7 +36,7 @@ Status: blocked_runner_not_ready
 
 - Manifest present: true
 - Manifest status: proposal_only_not_approved_for_live_apply
-- Ordered schema migrations: 49
+- Ordered schema migrations: 53
 - Live apply allowed by manifest: false
 
 ## Current Blockers

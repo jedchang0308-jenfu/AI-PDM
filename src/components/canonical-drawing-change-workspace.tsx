@@ -353,7 +353,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   }
   async function removeFile(file: FileRow) {
     if (!data?.workId || busy || data.interaction && !data.interaction.canMutateContent) return;
-    if (Boolean(file.is_primary)) return;
+    if (!Boolean(file.current_revision_upload)) return;
     const fileName = file.display_name || file.file_name || "這個檔案";
     if (!window.confirm(`確定移除「${fileName}」？移除後需重新上傳才能送審。`)) return;
     setBusy(true); setError(""); setReloadAvailable(false);
@@ -386,11 +386,9 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   function locateRecognitionEvidence(evidence: DrawingRecognitionEvidence) {
     const region = evidenceRegion(evidence.geometry);
     if (!evidence.locatable || !region || !isPdfEvidence(evidence) || !evidence.sessionId || !evidence.sourceId) {
-      const restoreKind = selectedEvidence ? evidenceOriginKind : null;
-      setSelectedEvidence(null);
+      // Keep the rendered PDF mounted; evidence without page coordinates only
+      // clears the positioning overlay and must not switch preview renderers.
       setShowEvidenceFocus(false);
-      setEvidenceOriginKind(null);
-      if (restoreKind) setVisualKind(restoreKind);
       setEvidenceLocationNotice(isPdfEvidence(evidence)
         ? `來源：${evidence.fileName ?? "PDF"}${evidence.pageNumber ? ` 第 ${evidence.pageNumber} 頁` : ""}，但沒有可用的定位座標。`
         : `來源：${evidence.fileName ?? "CAD 檔案屬性"}，這是檔案屬性證據，沒有圖面座標。`);
@@ -464,7 +462,8 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
             focusRegion: focusRegion ?? undefined,
             renderPdfPage: true,
             openInNewTab: true
-          }
+          },
+          overlay: evidenceLocationNotice ? <div className="dev079-evidence-flash" role="status" aria-live="polite"><FileText size={15} aria-hidden="true" />{evidenceLocationNotice}</div> : undefined
         };
       }
       const file = files.find((candidate) => Boolean(candidate.current_revision_upload) && fileKind(candidate) === kind)
@@ -490,14 +489,17 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
           mode: kind === "three-d" ? "image" : "document",
           title: file.display_name || file.file_name || "圖面檔案",
           alt: file.display_name || file.file_name || "圖面檔案",
+          renderPdfPage: kind === "two-d" && (file.mime_type === "application/pdf" || /\.pdf$/iu.test(file.display_name || file.file_name || "")),
           openInNewTab: true
-        }
+        },
+        overlay: evidenceLocationNotice ? <div className="dev079-evidence-flash" role="status" aria-live="polite"><FileText size={15} aria-hidden="true" />{evidenceLocationNotice}</div> : undefined
       };
     });
-  }, [data, fileReadContext, files, reviewRequestId, selectedEvidence, showEvidenceFocus]);
+  }, [data, evidenceLocationNotice, fileReadContext, files, reviewRequestId, selectedEvidence, showEvidenceFocus]);
   const sourceAssetIds = useMemo(() => files.map((file) => file.source_file_asset_id).filter((id): id is string => Boolean(id)), [files]);
   const replacementWarnings = useMemo(() => primaryReplacementWarnings(selectedFiles), [selectedFiles]);
   const title = data?.identity?.code || drawingId || "圖號工作資料";
+  const revisionLabel = text(data?.revision ?? payload.revision) || "—";
   const changeImpactRequired = Boolean(data?.changeImpactRequired);
   const changeImpact = payload.changeImpact && typeof payload.changeImpact === "object" ? payload.changeImpact as Record<string, unknown> : {};
   const formState = text(changeImpact.formState) as ChangeImpactState | "";
@@ -526,32 +528,34 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const stale = data.interaction?.basisState === "stale";
 
   return <div className={`dev079-workspace${embedded ? " is-embedded" : ""}`} data-dev="DEV-087" data-workspace-kind={reviewRequestId ? "reviewer" : "drawing-revision-work"}>
-    {embedded ? null : <header className="dev079-workspace-header"><div className="dev079-workspace-heading"><button className="icon-button" type="button" onClick={leave} aria-label={returnLabel}><ArrowLeft size={18} /></button><div className="dev079-workspace-heading-copy dev079-drawing-workspace-heading-copy"><span className="canonical-layer is-rd">研發版 {data.revision ?? text(payload.revision)}</span><h1>{title}</h1>{data.identity?.name ? <span className="dev079-drawing-workspace-name">{data.identity.name}</span> : null}</div></div></header>}
+    {embedded ? null : <header className="dev079-workspace-header dev079-drawing-workspace-header"><div className="dev079-workspace-heading"><button className="icon-button" type="button" onClick={leave} aria-label={returnLabel}><ArrowLeft size={18} /></button><div className="dev079-workspace-heading-copy dev079-drawing-workspace-heading-copy"><span className="canonical-layer is-rd">研發版 {data.revision ?? text(payload.revision)}</span><h1>{title}</h1>{data.identity?.name ? <span className="dev079-drawing-workspace-name">{data.identity.name}</span> : null}</div></div><div className="dev079-workspace-preview-tabs" role="tablist" aria-label="預覽類型">{previewCards.map((card) => <button key={card.kind} type="button" role="tab" aria-selected={card.kind === visualKind} className={card.kind === visualKind ? "is-active" : ""} onClick={() => selectVisualKind(card.kind)}><span>{card.title}</span><small>{card.fileName || "尚無檔案"}</small></button>)}</div></header>}
     {error ? <div className="dev079-workspace-notice is-error" role="alert"><span>{error}</span>{reloadAvailable ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void load()}>重新載入資料</button> : null}</div> : null}
     {!canMutateContent ? <div className="dev079-workspace-notice is-readonly" role="status">{stale ? "量產基準已更新，目前工作已凍結；此頁保留原預覽與證據，僅提供可恢復的清理動作。" : "目前為唯讀；欄位、檔案、預覽與智慧辨識位置和編輯者相同。"}</div> : null}
     <div className="dev079-workspace-grid">
-      <section className="dev079-workspace-visual" aria-label="圖面主視覺"><div className="dev079-visual-panel"><DrawingDetailPreview cards={previewCards} title={null} showHeader={false} showTabFileNames showCardHeader={false} showFileName={false} layout="tabs" activeKind={visualKind} onActiveKindChange={selectVisualKind} />{evidenceLocationNotice ? <div className="dev079-evidence-flash" role="status" aria-live="polite"><FileText size={15} aria-hidden="true" />{evidenceLocationNotice}</div> : null}</div></section>
+      <section className="dev079-workspace-visual" aria-label="圖面主視覺"><div className="dev079-visual-panel"><DrawingDetailPreview cards={previewCards} title={null} showHeader={false} showTabs={embedded} showTabFileNames showCardHeader={false} showFileName={false} layout="tabs" activeKind={visualKind} onActiveKindChange={selectVisualKind} /></div></section>
       <aside className="dev079-workspace-detail" aria-label="版次、檔案與智慧辨識"><div className="dev079-task-panel"><div className="dev079-unified-task-content">
         <section className="dev079-unified-task-section dev079-workspace-editor dev079-workspace-file-editor" aria-labelledby="dev079-files-heading">
-          <h2 id="dev079-files-heading" className="dev079-unified-task-heading"><Files size={16} aria-hidden="true" />版次與檔案</h2>
+          <h2 id="dev079-files-heading" className="dev079-unified-task-heading"><Files size={16} aria-hidden="true" /><span>版次與檔案</span><small className="dev079-workspace-revision">版次 {revisionLabel}</small></h2>
           {canMutateContent ? <div className="dev079-workspace-file-upload">
-            <FileDropzone
-              accept=".slddrw,.sldprt,.sldasm,.pdf,.dwg,.dxf,.step,.stp,.iges,.igs,.igf,.x_t,.x_b,.sat,.stl,.jt"
-              label="拖放圖面檔案，或按一下選取"
-              description="可一次選取多檔；同類 2D／3D 主檔會以最後上傳的檔案取代。"
-              multiple
-              selectedFiles={selectedFiles}
-              disabled={busy}
-              variant="compact"
-              onFilesSelected={chooseFiles}
-              onClearSelected={clearFiles}
-            />
+            <div className="dev079-workspace-upload-row">
+              <FileDropzone
+                accept=".slddrw,.sldprt,.sldasm,.pdf,.dwg,.dxf,.step,.stp,.iges,.igs,.igf,.x_t,.x_b,.sat,.stl,.jt"
+                label="拖放圖面檔案，或按一下選取"
+                description="可一次選取多檔；同類 2D／3D 主檔會以最後上傳的檔案取代。"
+                multiple
+                selectedFiles={selectedFiles}
+                disabled={busy}
+                variant="compact"
+                onFilesSelected={chooseFiles}
+                onClearSelected={clearFiles}
+              />
+              <button className="secondary-button" type="button" disabled={busy || uploadEntries.every((entry) => entry.status === "success")} onClick={() => void uploadFiles()}>
+                {busy ? <LoaderCircle className="spin" size={15} /> : <UploadCloud size={15} />}
+                上傳所選檔案
+              </button>
+            </div>
             {replacementWarnings.length ? <div className="dev100-file-replacement-warning" role="status" aria-live="polite" data-dev100-replacement-warning>{replacementWarnings.map((warning) => <span key={warning}>{warning}</span>)}</div> : null}
             {uploadEntries.length ? <ul className="dev079-upload-progress-list" aria-label="檔案上傳進度">{uploadEntries.map((entry) => <li key={entry.id} className={`is-${entry.status}`}><div><strong title={entry.file.name}>{entry.file.name}</strong><span>{entry.status === "queued" ? "等待上傳" : entry.status === "uploading" ? `上傳中 ${entry.progress}%` : entry.status === "success" ? "上傳完成" : entry.error || "上傳失敗"}</span></div><div className="dev079-upload-progress-bar" role="progressbar" aria-label={`${entry.file.name} 上傳進度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={entry.progress}><span style={{ width: `${entry.progress}%` }} /></div>{entry.status === "failed" ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void retryUpload(entry)}>重試</button> : null}</li>)}</ul> : null}
-            <button className="secondary-button" type="button" disabled={busy || uploadEntries.every((entry) => entry.status === "success")} onClick={() => void uploadFiles()}>
-              {busy ? <LoaderCircle className="spin" size={15} /> : <UploadCloud size={15} />}
-              上傳所選檔案
-            </button>
           </div> : null}
           <p className={`dev079-workspace-file-requirement ${filesReady ? "is-ready" : ""}`} role="status">
             {filesReady ? <CheckCircle2 size={15} /> : <FileText size={15} />}
@@ -561,7 +565,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
             const fileName = file.display_name || file.file_name || "檔案";
             const readContextId = fileReadContext === "review_package" ? data.entityId : data.workId;
             const downloadHref = file.source_file_asset_id && readContextId ? pdmFileReadHref({ fileAssetId: file.source_file_asset_id, context: fileReadContext, contextId: readContextId, bindingId: file.id, reviewRequestId }) : null;
-            return <li key={file.id}><div><strong title={fileName}>{fileName}</strong><span>{fileRoleLabel(file)} · {file.current_revision_upload ? "本版次" : "前版參考"}</span></div><div className="dev079-workspace-file-actions">{downloadHref ? <a className="ghost-button" href={downloadHref} download aria-label={`下載 ${fileName}`}><Download size={14} aria-hidden="true" />下載</a> : null}{canMutateContent ? Boolean(file.is_primary) ? <span className="canonical-file-lock" title="主要檔案需以重新上傳取代">主要檔案</span> : <button type="button" className="ghost-button" disabled={busy} onClick={() => void removeFile(file)}>移除</button> : null}</div></li>;
+            return <li key={file.id}><div><strong title={fileName}>{fileName}</strong><span>{fileRoleLabel(file)} · {file.current_revision_upload ? "本版次" : "前版參考"}</span></div><div className="dev079-workspace-file-actions">{downloadHref ? <a className="ghost-button" href={downloadHref} download aria-label={`下載 ${fileName}`}><Download size={14} aria-hidden="true" />下載</a> : null}{canMutateContent && Boolean(file.current_revision_upload) ? <button type="button" className="ghost-button" disabled={busy} onClick={() => void removeFile(file)}>移除</button> : null}</div></li>;
           })}</ul> : <p className="canonical-empty">尚無檔案，請先上傳本版次的 2D 與 3D 主檔。</p>}
         </section>
         {changeImpactRequired ? <section className="dev079-unified-task-section dev079-workspace-editor" aria-labelledby="dev079-impact-heading">
@@ -574,7 +578,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
           </div>
           {confirmedImpact ? <div className="canonical-fff-replacement"><strong>不相容需指定替代料號</strong><label><span>替代料號</span><input value={text(replacement?.reservedPartNumber)} disabled={!canMutateContent} onChange={(event) => updateReplacement({ reservedPartNumber: event.target.value })} placeholder="例如 A0001-P01" /></label><label><span>料件類型</span><select value={text(replacement?.itemType) || "self_made"} disabled={!canMutateContent} onChange={(event) => updateReplacement({ itemType: event.target.value })}><option value="self_made">自製</option><option value="purchased">外購</option></select></label><small>來源料號沿用目前關聯清單的第一個正式料號；若資料已變更，送審會阻擋並要求重新整理。</small></div> : null}
           {!fffReady && canMutateContent ? <p className="dev079-workspace-footer-blocker" role="status"><AlertTriangle size={15} aria-hidden="true" />請完成三軸判定，以及適用的原因與替代料號。</p> : null}
-        </section> : <section className="dev079-unified-task-section dev079-workspace-editor" aria-labelledby="dev079-related-parts-heading"><h2 id="dev079-related-parts-heading" className="dev079-unified-task-heading"><FileText size={16} aria-hidden="true" />關聯料號</h2><p className="canonical-note">以下是目前直接關聯料號，僅供建立首版時確認脈絡，不代表已完成變更影響判定。</p>{data.relatedParts?.length ? <ul className="canonical-affected-part-list" aria-label="關聯料號">{data.relatedParts.map((part) => <li key={part.id}><span><strong>{part.code}</strong>{part.name ? ` ${part.name}` : ""}</span></li>)}</ul> : <p className="canonical-empty">目前沒有直接關聯料號</p>}</section>}
+        </section> : <section className="dev079-unified-task-section dev079-workspace-editor dev079-related-parts-section" aria-labelledby="dev079-related-parts-heading"><h2 id="dev079-related-parts-heading" className="dev079-unified-task-heading"><FileText size={16} aria-hidden="true" />關聯料號</h2><p className="canonical-note">這些是智慧辨識可歸屬的料號範圍；下方「料號」辨識值會依此清單解析，無法唯一對應時才需人工確認。</p>{data.relatedParts?.length ? <ul className="canonical-affected-part-list" aria-label="關聯料號">{data.relatedParts.map((part) => <li key={part.id}><span><strong>{part.code}</strong>{part.name ? ` ${part.name}` : ""}</span></li>)}</ul> : <p className="canonical-empty">目前沒有直接關聯料號</p>}</section>}
         <section className="dev079-unified-task-section" aria-labelledby="dev079-recognition-heading">
           <h2 id="dev079-recognition-heading" className="dev079-unified-task-heading"><ScanSearch size={16} aria-hidden="true" />智慧辨識</h2>
           {snapshotMode ? isReviewPackageRecognitionProjection(data.recognition)

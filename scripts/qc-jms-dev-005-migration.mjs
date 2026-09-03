@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const scriptRoot = resolve(fileURLToPath(new URL('.', import.meta.url)))
 const appRoot = resolve(scriptRoot, '..')
-const migrationPath = join(appRoot, 'db', 'postgres', '053_jenfu_role_catalog_publication.sql')
+const migrationPath = join(appRoot, 'db', 'postgres', '055_jenfu_role_catalog_publication.sql')
 
 function main() {
   assert.ok(existsSync(migrationPath), `missing ${migrationPath}`)
@@ -31,7 +31,7 @@ function main() {
   assert.match(normalized, /display_order\s+integer\s+not null/u)
   assert.match(normalized, /status\s+in\s*\('draft',\s*'active',\s*'retired'\)/u)
   assert.match(normalized, /where\s+p\.application_id\s*=\s*'ai-pdm'/u)
-  process.stdout.write(`${JSON.stringify({ status: 'PASS', migration: '053_jenfu_role_catalog_publication.sql', additive: true, authoritySwitch: false, runtimeDml: false, orgMasterReadModelOnly: true })}\n`)
+  process.stdout.write(`${JSON.stringify({ status: 'PASS', migration: '055_jenfu_role_catalog_publication.sql', additive: true, authoritySwitch: false, runtimeDml: false, orgMasterReadModelOnly: true })}\n`)
 }
 
 try {

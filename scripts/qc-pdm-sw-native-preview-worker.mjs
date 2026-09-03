@@ -22,10 +22,12 @@ const previewService = readRequired("src/lib/preview-derivatives.ts");
 const masterAsync = readRequired("src/lib/master-attachments-async.ts");
 const panel = readRequired("src/components/master-attachment-panel.tsx");
 const detailPreview = readRequired("src/components/drawing-detail-preview.tsx");
+const canonicalPreviewPanel = readRequired("src/components/canonical-preview-panel.tsx");
 const drawingRoute = readRequired("src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts");
 const partRoute = readRequired("src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts");
 const drawingDownloadRoute = readRequired("src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/route.ts");
 const partDownloadRoute = readRequired("src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts");
+const canonicalFileAssetRoute = readRequired("src/app/api/pdm/file-assets/[fileAssetId]/route.ts");
 const claimRoute = readRequired("src/app/api/preview-jobs/claim/route.ts");
 const completeRoute = readRequired("src/app/api/preview-jobs/[jobId]/complete/route.ts");
 const heartbeatRoute = readRequired("src/app/api/preview-jobs/[jobId]/heartbeat/route.ts");
@@ -114,9 +116,14 @@ assert(drawingRoute.includes("numbering.attachments.manage") && partRoute.includ
 assert(drawingRoute.includes("numbering.drawings.view") && partRoute.includes("numbering.search"), "Preview GET routes inherit source read surface permission");
 assert(claimRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && completeRoute.includes("PDM_PREVIEW_WORKER_TOKEN"), "Worker routes require service token");
 assert(heartbeatRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && heartbeatRoute.includes("heartbeatPreviewJobAsync"), "Worker heartbeat route requires service token and updates job heartbeat");
-assert(drawingDownloadRoute.includes("previewDerivative") && partDownloadRoute.includes("previewDerivative"), "Attachment download routes can stream preview derivatives inline");
+assert(
+  canonicalFileAssetRoute.includes("previewDerivative")
+    && canonicalFileAssetRoute.includes("resolveDrawingPreviewAsync")
+    && canonicalFileAssetRoute.includes('contentDispositionHeader(wantsPreview ? "inline" : "attachment"'),
+  "Canonical authorized file-asset route streams preview derivatives inline"
+);
 assert(windowsShellWorker.includes("/api/preview-jobs/claim") && windowsShellWorker.includes("/api/preview-jobs/") && windowsShellWorker.includes("/complete"), "Windows Shell worker uses claim/complete API contract");
-assert(windowsShellWorker.includes("windows-shell-ishellitemimagefactory-v1") && windowsShellWorker.includes("powershell.exe"), "Windows Shell worker records generator evidence and runs Windows PowerShell");
+assert(windowsShellWorker.includes("windows-shell-ishellitemimagefactory-v2") && windowsShellWorker.includes("powershell.exe"), "Windows Shell worker records fixed generator evidence and runs Windows PowerShell");
 assert(windowsShellWorker.includes('input.modelsOnly ? ["sldprt", "sldasm"] : ["sldprt", "sldasm", "slddrw"]'), "Windows Shell worker claims SLDDRW by default but supports model-only operation");
 assert(windowsShellWorker.includes("--watch") && windowsShellWorker.includes("Waiting for preview jobs."), "Windows Shell worker supports a persistent local watch mode");
 assert(windowsShellWorker.includes("PREVIEW_WORKER_CONFIGURATION_ERROR"), "Windows Shell worker exits on invalid local worker configuration instead of retrying forever");
@@ -127,7 +134,14 @@ assert(
     windowsShellWorker.includes("process.exitCode = 1"),
   "Windows Shell worker reports blank output without leaking local paths to the UI"
 );
-assert(windowsShellExtractor.includes("IShellItemImageFactory") && windowsShellExtractor.includes("THUMBNAILONLY") && windowsShellExtractor.includes("ImageFormat.Png"), "Windows Shell extractor uses the OS thumbnail provider to create PNG derivatives");
+assert(
+  windowsShellExtractor.includes("IShellItemImageFactory")
+    && windowsShellExtractor.includes("THUMBNAILONLY")
+    && windowsShellExtractor.includes("GetDIBits")
+    && windowsShellExtractor.includes("PngBitmapEncoder")
+    && !windowsShellExtractor.includes("Image.FromHbitmap"),
+  "Windows Shell extractor converts HBITMAP pixels through GetDIBits and WPF PNG encoding"
+);
 assert(documentManagerWorker.includes('supportedExtensions: ["slddrw"]'), "Document Manager worker only claims SLDDRW drawing jobs");
 assert(documentManagerWorker.includes("--watch") && documentManagerWorker.includes("Waiting for SLDDRW preview jobs."), "Document Manager worker supports a persistent drawing watch mode");
 assert(documentManagerWorker.includes("/api/preview-workers/solidworks-document-manager-key") && documentManagerWorker.includes("ensureWorkerDocumentManagerKey") && documentManagerWorker.includes("credentialRefreshMs"), "Document Manager worker resolves credentials through the server-side worker route with bounded refresh");
@@ -146,7 +160,13 @@ assert(panel.includes("generatePreview") && panel.includes("/previews"), "Attach
 assert(panel.includes("forceRegenerate: true"), "Attachment panel sends explicit preview regeneration requests");
 assert(panel.includes("previewPollingNeeded") && panel.includes("setInterval") && panel.includes("background: true"), "Attachment panel polls preview state automatically without manual refresh");
 assert(!panel.includes("master-attachment-refresh") && !panel.includes("重新整理附件"), "Attachment panel removes manual refresh dependency");
-assert(detailPreview.includes("Clock3") && detailPreview.includes("AlertTriangle") && detailPreview.includes("WifiOff"), "Drawing preview uses non-verbal preview state icons");
+assert(
+  detailPreview.includes("CanonicalPreviewPanel")
+    && canonicalPreviewPanel.includes("Clock3")
+    && canonicalPreviewPanel.includes("AlertTriangle")
+    && canonicalPreviewPanel.includes("WifiOff"),
+  "Drawing preview delegates non-verbal preview state icons to the canonical panel"
+);
 assert(panel.includes("完成後自動更新") && panel.includes("等待預覽服務") && panel.includes("處理較久") && panel.includes("系統仍在運作"), "Attachment panel communicates queue, wait and delayed states concisely");
 assert(panel.includes("tone: \"failed\"") && panel.includes("title: \"無法預覽\"") && panel.includes("text: \"請下載原檔\""), "Attachment panel renders failure and unavailable fallback states");
 assert(panel.includes("previewDerivative="), "Attachment panel opens derivative stream URLs");
@@ -164,6 +184,9 @@ assert(
 );
 assert(workerCredentialRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && workerCredentialRoute.includes("resolveActiveSolidWorksDocumentManagerKey") && workerCredentialRoute.includes("no-store"), "Worker credential route is token-gated and never cacheable");
 assert(existsRequired("src/app/api/preview-workers/heartbeat/route.ts") && documentManagerWorker.includes("/api/preview-workers/heartbeat") && documentManagerWorker.includes("solidworks_2d_preview_png"), "2D preview worker reports a dedicated capability heartbeat");
+assert(windowsShellWorker.includes("solidworks_3d_preview_png") && windowsShellWorker.includes("preview_renderer_failed"), "3D preview worker reports renderer capability and a blocked converter state");
+assert(startLocalhost.includes("Test-PreviewWorkerCapabilityReady") && startLocalhost.includes("previewWorkerCapabilityFresh"), "Local launcher gates 3D health on fresh renderer capability instead of PID only");
+assert(previewService.includes("ensureAutomaticPreviewJobsForSourceAssetsAsync"), "Canonical source assets share an idempotent automatic preview preparation service");
 assert(previewService.includes("requestedPreviewKindForSource") && masterAsync.includes("requestedPreviewKindForSource"), "Automatic SolidWorks preview producers resolve native PNG kind centrally");
 assert(startLocalhost.includes("Test-DocumentManagerInteropConfigured") && !startLocalhost.includes('if (-not (Test-DocumentManagerPreviewKeyConfigured))'), "Local launcher starts the 2D worker without requiring a plaintext key in launcher environment");
 

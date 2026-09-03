@@ -6,9 +6,11 @@ import { buildStorageKey, createFileStorageService } from "@/lib/file-storage";
 import { drawingUploadRoleForExtension } from "@/lib/pdm-file-ownership";
 import { runDev087IdempotentCommand } from "@/lib/pdm-canonical-command";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
+import { ensureAutomaticPreviewJobsForSourceAssetsAsync, isNativeSolidWorksPreviewSource } from "@/lib/preview-derivatives";
 import { verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-authority-control";
 import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-revision-work-async-repository";
 import { getStorageUploadPolicy, validateStorageUploadFile } from "@/lib/storage-upload-policy";
+import { reconcileSldasmAssemblyEvidence } from "@/lib/sldasm-assembly-evidence";
 
 type CommandContext = {
   idempotencyKey: string;
@@ -18,8 +20,10 @@ type CommandContext = {
 };
 
 export type DrawingRevisionWorkFileUploadCheckpoint =
+  | "before_upload_stage"
   | "before_tombstone"
   | "after_binding_switch"
+  | "after_relation_reconcile"
   | "before_row_version"
   | "before_readback";
 
@@ -102,7 +106,34 @@ export async function uploadDrawingRevisionWorkFile(input: {
   const commandCorrelation = correlation(input.context.correlationId);
   const storage = createFileStorageService();
   let cleanupTarget: { key: string; provider: string } | null = null;
+  let staged: { fileAssetId: string; fileBindingId: string; storageKey: string; stored: Awaited<ReturnType<typeof storage.putObject>> } | null = null;
   try {
+    // Stage bytes before opening the database transaction.  The transaction
+    // only commits metadata and relation effects; a failed transaction can
+    // therefore clean up one known orphan without holding a DB lock on I/O.
+    const existing = await input.client.queryOne<{ id: string }>(
+      `SELECT file.id
+         FROM drawing_revision_files file
+         JOIN drawing_revision_work_files binding ON binding.file_binding_id = file.id AND binding.work_id = :workId
+         JOIN file_assets asset ON asset.id = file.source_file_asset_id
+        WHERE file.company_id = :companyId AND file.drawing_revision_id = :revisionId
+          AND file.removed_at IS NULL AND asset.deleted_at IS NULL
+          AND file.role = :role AND asset.content_hash = :contentHash AND asset.file_size = :fileSize
+        LIMIT 1`,
+      { workId: input.workId, companyId: input.actor.companyId, revisionId: work.revision_id, role, contentHash, fileSize: bytes.byteLength }
+    );
+    if (!existing) {
+      await input.checkpoint?.("before_upload_stage");
+      const fileAssetId = `FA-${crypto.randomUUID()}`;
+      const fileBindingId = crypto.randomUUID();
+      const storageKey = buildStorageKey(["drawing-revision-works", input.actor.companyId, input.workId, `${fileAssetId}-${fileName}`]);
+      const stored = await storage.putObject({ key: storageKey, bytes, contentType: mimeType });
+      staged = { fileAssetId, fileBindingId, storageKey, stored };
+      cleanupTarget = { key: stored.key, provider: stored.provider };
+      if (stored.bytes !== bytes.byteLength || stored.sha256 !== contentHash || !(await storage.verifyObjectHash(stored.key, contentHash))) {
+        throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "檔案已收到，但完整性驗證未通過，請重新上傳。", 503, commandCorrelation);
+      }
+    }
     const result = await runDev087IdempotentCommand(input.client, {
       companyId: input.actor.companyId,
       actorId: input.actor.id,
@@ -121,6 +152,16 @@ export async function uploadDrawingRevisionWorkFile(input: {
       effectKey: `drawing-work:${input.workId}:file:${role}`,
       correlationId: commandCorrelation
     }, async (tx) => {
+      const rootScope = await tx.queryOne<{ part_root_id: string }>(
+        `SELECT drawing.part_root_id
+           FROM drawing_revision_works work
+           JOIN drawings drawing ON drawing.id = work.drawing_id AND drawing.company_id = work.company_id
+          WHERE work.id = :workId AND work.company_id = :companyId`,
+        { workId: input.workId, companyId: input.actor.companyId }
+      );
+      if (rootScope?.part_root_id) {
+        await tx.queryOne(`SELECT id FROM part_roots WHERE id = :rootId AND company_id = :companyId${tx.kind === "postgres" ? " FOR UPDATE" : ""}`, { rootId: rootScope.part_root_id, companyId: input.actor.companyId });
+      }
       const locked = await repository.readWork(tx, input.actor.companyId, input.workId, true);
       if (!locked || Number(locked.row_version) !== input.context.expectedRowVersion || locked.handling !== "owner") {
         throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "重新讀取目前資料", 409, commandCorrelation);
@@ -155,6 +196,15 @@ export async function uploadDrawingRevisionWorkFile(input: {
         }
       );
       if (exact) {
+        if (isNativeSolidWorksPreviewSource(fileExt)) {
+          await ensureAutomaticPreviewJobsForSourceAssetsAsync(tx, {
+            companyId: input.actor.companyId,
+            sourceFileAssetIds: [exact.source_file_asset_id],
+            actorUserId: input.actor.id,
+            requireQueued: true,
+            runFakeWorker: false
+          });
+        }
         return {
           workId: input.workId,
           rowVersion: input.context.expectedRowVersion,
@@ -163,20 +213,12 @@ export async function uploadDrawingRevisionWorkFile(input: {
         };
       }
 
-      const fileAssetId = `FA-${crypto.randomUUID()}`;
-      const fileBindingId = crypto.randomUUID();
-      const storageKey = buildStorageKey([
-        "drawing-revision-works",
-        input.actor.companyId,
-        input.workId,
-        `${fileAssetId}-${fileName}`
-      ]);
-      const before = await storage.getObjectMetadata(storageKey);
-      const stored = await storage.putObject({ key: storageKey, bytes, contentType: mimeType });
-      if (!before && stored.key === storageKey) cleanupTarget = { key: stored.key, provider: stored.provider };
-      if (stored.bytes !== bytes.byteLength || stored.sha256 !== contentHash || !(await storage.verifyObjectHash(stored.key, contentHash))) {
-        throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "檔案已收到，但完整性驗證未通過，請重新上傳。", 503, commandCorrelation);
+      if (!staged) {
+        // A matching object was found by the preflight query.  The exact
+        // metadata row is returned above; no new physical object is needed.
+        throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "檔案重複但資料快照不一致，請重新整理後再試。", 409, commandCorrelation);
       }
+      const { fileAssetId, fileBindingId, stored } = staged;
 
       const currentRoleBindings = isPrimary ? await tx.query<{
         file_binding_id: string;
@@ -279,6 +321,19 @@ export async function uploadDrawingRevisionWorkFile(input: {
          VALUES (:workId, :fileBindingId, :ordinal, :contentHash)`,
         { workId: input.workId, fileBindingId, ordinal, contentHash }
       );
+      if (isNativeSolidWorksPreviewSource(fileExt)) {
+        await ensureAutomaticPreviewJobsForSourceAssetsAsync(tx, {
+          companyId: input.actor.companyId,
+          sourceFileAssetIds: [fileAssetId],
+          actorUserId: input.actor.id,
+          requireQueued: true,
+          runFakeWorker: false
+        });
+      }
+      if (role === "cad_3d" && fileExt === "sldasm") {
+        await reconcileSldasmAssemblyEvidence(tx, { companyId: input.actor.companyId, workId: input.workId, actorId: input.actor.id });
+        await input.checkpoint?.("after_relation_reconcile");
+      }
       await input.checkpoint?.("before_row_version");
       await tx.execute(
         `UPDATE drawing_revision_works
@@ -305,7 +360,18 @@ export async function uploadDrawingRevisionWorkFile(input: {
         file: { id: fileBindingId, sourceFileAssetId: fileAssetId, role, displayName }
       };
     });
+    if (result.reused && cleanupTarget) {
+      try { await storage.deleteObject(cleanupTarget.key); } catch { /* best-effort orphan cleanup */ }
+    }
     cleanupTarget = null;
+    if (isNativeSolidWorksPreviewSource(fileExt) && process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1") {
+      await ensureAutomaticPreviewJobsForSourceAssetsAsync(input.client, {
+        companyId: input.actor.companyId,
+        sourceFileAssetIds: [result.file.sourceFileAssetId],
+        actorUserId: input.actor.id,
+        runFakeWorker: true
+      });
+    }
     return result;
   } catch (error) {
     const target = cleanupTarget as { key: string; provider: string } | null;

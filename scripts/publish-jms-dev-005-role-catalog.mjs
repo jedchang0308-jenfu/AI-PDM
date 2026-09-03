@@ -15,9 +15,10 @@ const EXPECTED_ROLE_IDS = [
 const scriptRoot = dirname(fileURLToPath(import.meta.url))
 const appRoot = resolve(scriptRoot, '..')
 const platformCandidates = [
-  process.env.JENFU_PLATFORM_ROOT?.trim(),
+  process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
   resolve(appRoot, '..', 'Jenfu-Management-system'),
   resolve(appRoot, '..', '..', '..', 'Jenfu-Management-system'),
+  resolve(appRoot, '..', '..', '..', '..', 'Jenfu-Management-system'),
 ].filter(Boolean)
 const platformRoot = platformCandidates.find((candidate) => existsSync(join(candidate, 'contracts', 'jenfu-platform-entitlement', 'v1', 'fixtures', 'application-role-catalog.sample.json'))) ?? platformCandidates[0]
 const sourcePath = join(platformRoot, 'contracts', 'jenfu-platform-entitlement', 'v1', 'fixtures', 'application-role-catalog.sample.json')

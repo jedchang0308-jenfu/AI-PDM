@@ -27,6 +27,12 @@ import {
 } from "@/lib/drawing-recognition-adapters";
 import { projectNativeMetadataHealth } from "@/lib/drawing-recognition-diagnostics";
 import { DRAWING_OCR_POLICY } from "@/lib/drawing-ocr-priority-policy";
+import { dev087RequestHash } from "@/lib/pdm-canonical-command";
+import {
+  hasActivePartWorkRecognitionConflict,
+  mergeRecognitionChangesIntoPartWork,
+  type PartRecognitionChange
+} from "@/lib/part-recognition-transfer";
 import {
   proposedOwnerResolution,
   resolveRecognitionPartOwner,
@@ -45,6 +51,8 @@ type SessionRow = {
   drawing_revision_id: string | null;
   source_set_fingerprint: string;
   deduplication_key: string;
+  session_purpose: "recognition" | "rerun" | "amendment";
+  evidence_origin_session_id: string | null;
   status: string;
   priority: number | string;
   not_before: string | null;
@@ -194,6 +202,17 @@ function now() {
   return new Date().toISOString();
 }
 
+function sourceSetFingerprintForRows(sources: FileSourceRow[]) {
+  return sha256Canonical([...sources]
+    .sort((left, right) => Number(left.sort_order) - Number(right.sort_order) || left.file_asset_id.localeCompare(right.file_asset_id))
+    .map((source) => ({
+      fileAssetId: source.file_asset_id,
+      contentHash: source.content_hash,
+      storageGeneration: source.storage_generation ?? "",
+      role: source.source_role
+    })));
+}
+
 function isUnsetFormalValue(value: string | null | undefined) {
   const normalized = value?.trim();
   return !normalized || normalized === "無";
@@ -209,6 +228,8 @@ function mapSession(row: SessionRow) {
     drawingId: row.drawing_id,
     drawingRevisionId: row.drawing_revision_id,
     sourceSetFingerprint: row.source_set_fingerprint,
+    sessionPurpose: row.session_purpose ?? "recognition",
+    evidenceOriginSessionId: row.evidence_origin_session_id,
     status: row.status,
     priority: Number(row.priority),
     attemptCount: Number(row.attempt_count),
@@ -392,6 +413,29 @@ function projectPdfOcrSources(
 export class DrawingRecognitionAsyncRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
+  /**
+   * Read the current canonical source basis for a context without creating or
+   * mutating a recognition session.  Submit/commit guards use this one method
+   * so source-set hashing cannot drift from create/amend/formalize semantics.
+   */
+  async readCurrentSourceBasis(input: {
+    companyId: string;
+    sourceContextType: DrawingRecognitionSourceContextType;
+    sourceContextId: string;
+  }) {
+    const sources = await this.listContextSources(input.companyId, input.sourceContextType, input.sourceContextId);
+    return {
+      sourceSetFingerprint: sourceSetFingerprintForRows(sources),
+      sources: sources.map((source) => ({
+        fileAssetId: source.file_asset_id,
+        contentHash: source.content_hash,
+        storageGeneration: source.storage_generation,
+        sourceRole: source.source_role,
+        sortOrder: Number(source.sort_order)
+      }))
+    };
+  }
+
   private async listPartOwnerTargets(client: AsyncDatabaseClient, session: SessionRow): Promise<RecognitionPartOwnerTarget[]> {
     if (!session.drawing_id) return [];
     const rows = await client.query<{
@@ -452,6 +496,28 @@ export class DrawingRecognitionAsyncRepository {
     await new DrawingRevisionWorkAsyncRepository(client).assertWorkMutationBasis(client, work, { cleanup: input.allowEvidence });
   }
 
+  /** Recognition writes are owner-phase only; review/released lifecycle is a hard server boundary. */
+  async assertRecognitionWriteLifecycle(session: Pick<SessionRow, "company_id" | "drawing_revision_id">) {
+    if (!session.drawing_revision_id) return;
+    const row = await this.client.queryOne<{ handling: string | null; lifecycle_state: string | null }>(
+      `SELECT state.handling, revision.lifecycle_state
+         FROM drawing_revisions revision
+         LEFT JOIN canonical_workbench_states state
+           ON state.company_id = revision.company_id
+          AND state.entity_type = 'drawing'
+          AND state.revision_id = revision.id
+        WHERE revision.id = :drawingRevisionId AND revision.company_id = :companyId
+        ORDER BY CASE WHEN state.work_id IS NOT NULL THEN 0 ELSE 1 END
+        LIMIT 1`,
+      { companyId: session.company_id, drawingRevisionId: session.drawing_revision_id }
+    );
+    if (!row) return;
+    if (["in_review", "rd_controlled", "released"].includes(String(row.lifecycle_state))
+      || ["review_owner", "system", "system_admin", "blocked"].includes(String(row.handling))) {
+      throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_REVIEWABLE", "圖面已進入送審或受控狀態，不能再修改辨識結果。", 409);
+    }
+  }
+
   private async effectiveConflictCount(sessionId: string) {
     const conflict = await this.client.queryOne<{ count: number | string }>(
       `SELECT COUNT(*) AS count FROM drawing_recognition_candidates
@@ -471,7 +537,10 @@ export class DrawingRecognitionAsyncRepository {
     drawingId?: string | null;
     drawingRevisionId?: string | null;
     supersedesSessionId?: string | null;
+    sessionPurpose?: "recognition" | "rerun" | "amendment";
+    evidenceOriginSessionId?: string | null;
   }) {
+    const requestedPurpose = input.sessionPurpose ?? "recognition";
     return this.client.transaction(async (client) => {
       const repository = new DrawingRecognitionAsyncRepository(client);
       const scope = await repository.resolveContextScope(input.companyId, input.sourceContextType, input.sourceContextId);
@@ -487,20 +556,63 @@ export class DrawingRecognitionAsyncRepository {
         throw new DrawingRecognitionError("RECOGNITION_SOURCE_HASH_REQUIRED", "來源檔案尚未具備內容指紋。", 422);
       }
       const ordered = [...sources].sort((left, right) => Number(left.sort_order) - Number(right.sort_order) || left.file_asset_id.localeCompare(right.file_asset_id));
-      const sourceSetFingerprint = sha256Canonical(ordered.map((source) => ({
-        fileAssetId: source.file_asset_id,
-        contentHash: source.content_hash,
-        storageGeneration: source.storage_generation ?? "",
-        role: source.source_role
-      })));
+      const sourceSetFingerprint = sourceSetFingerprintForRows(ordered);
       const sourceLineageKey = `${input.sourceContextType}:${input.sourceContextId}`;
-      const deduplicationKey = sha256Canonical({
+      const sessionPurpose = requestedPurpose;
+      const evidenceOriginSessionId = input.evidenceOriginSessionId ?? null;
+      if (sessionPurpose === "amendment") {
+        if (!input.supersedesSessionId) throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_PARENT_REQUIRED", "編輯辨識需要指定原本的成功版本。", 400);
+        if (!evidenceOriginSessionId) throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_ORIGIN_REQUIRED", "編輯辨識需要保留原辨識工作來源。", 400);
+        const parent = await client.queryOne<SessionRow>(
+          "SELECT * FROM drawing_recognition_sessions WHERE id = :id AND company_id = :companyId",
+          { id: input.supersedesSessionId, companyId: input.companyId }
+        );
+        if (!parent) throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_PARENT_NOT_FOUND", "找不到原本的辨識成功版本。", 404);
+        if (parent.status !== "formalized") throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_PARENT_NOT_FORMALIZED", "只有已寫入 PDM 的辨識版本可以編輯。", 409);
+        const expectedOrigin = parent.evidence_origin_session_id ?? parent.id;
+        if (expectedOrigin !== evidenceOriginSessionId) throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_ORIGIN_INVALID", "辨識編輯來源鏈不一致，請重新載入。", 409);
+        const origin = await client.queryOne<SessionRow>(
+          "SELECT * FROM drawing_recognition_sessions WHERE id = :id AND company_id = :companyId",
+          { id: evidenceOriginSessionId, companyId: input.companyId }
+        );
+        if (!origin) throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_ORIGIN_NOT_FOUND", "找不到原辨識工作，無法建立編輯版本。", 404);
+        if (origin.source_lineage_key !== sourceLineageKey) throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_SCOPE_INVALID", "編輯版本必須沿用原辨識工作來源範圍。", 409);
+        if (origin.source_set_fingerprint !== sourceSetFingerprint) throw new DrawingRecognitionError("RECOGNITION_SOURCE_SET_STALE", "原辨識來源檔案已變更，請先重新辨識後再編輯。", 409, true);
+        const openAmendment = await client.queryOne<{ id: string }>(
+          `SELECT id FROM drawing_recognition_sessions
+           WHERE company_id = :companyId AND session_purpose = 'amendment'
+             AND evidence_origin_session_id = :evidenceOriginSessionId
+             AND status IN ('queued', 'extracting', 'review_ready', 'extraction_partial', 'ready_to_formalize')
+           LIMIT 1`,
+          { companyId: input.companyId, evidenceOriginSessionId }
+        );
+        if (openAmendment) {
+          const existingOpen = await client.queryOne<SessionRow>(
+            "SELECT * FROM drawing_recognition_sessions WHERE id = :id AND company_id = :companyId",
+            { id: openAmendment.id, companyId: input.companyId }
+          );
+          if (existingOpen) return mapSession(existingOpen);
+        }
+      }
+      const deduplicationKeyBase = sha256Canonical({
         companyId: input.companyId,
         sourceLineageKey,
         sourceSetFingerprint,
+        sessionPurpose,
+        evidenceOriginSessionId,
         rerunOf: input.supersedesSessionId ?? null
       });
-      const existing = await client.queryOne<SessionRow>(
+      const existingAny = await client.queryOne<Pick<SessionRow, "status"> & { id: string }>(
+        "SELECT id, status FROM drawing_recognition_sessions WHERE company_id = :companyId AND deduplication_key = :deduplicationKey",
+        { companyId: input.companyId, deduplicationKey: deduplicationKeyBase }
+      );
+      // A cancelled attempt remains immutable history.  It must not prevent a
+      // later retry from creating a new successor, while a live attempt keeps
+      // deterministic de-duplication and the single-open-amendment invariant.
+      const deduplicationKey = existingAny?.status === "cancelled"
+        ? sha256Canonical({ base: deduplicationKeyBase, retry: crypto.randomUUID() })
+        : deduplicationKeyBase;
+      const existing = existingAny?.status === "cancelled" ? null : await client.queryOne<SessionRow>(
         "SELECT * FROM drawing_recognition_sessions WHERE company_id = :companyId AND deduplication_key = :deduplicationKey",
         { companyId: input.companyId, deduplicationKey }
       );
@@ -526,47 +638,77 @@ export class DrawingRecognitionAsyncRepository {
       const id = `recognition-${crypto.randomUUID()}`;
       const drawingId = input.drawingId ?? scope.drawing_id;
       const drawingRevisionId = input.drawingRevisionId ?? scope.drawing_revision_id;
-      const notBefore = new Date(Date.now() + 2_000).toISOString();
+      const initialStatus = sessionPurpose === "amendment" ? "ready_to_formalize" : "queued";
+      const notBefore = sessionPurpose === "amendment" ? timestamp : new Date(Date.now() + 2_000).toISOString();
       await client.execute(
         `INSERT INTO drawing_recognition_sessions (
           id, company_id, source_context_type, source_context_id, source_lineage_key, drawing_id, drawing_revision_id,
-          source_set_fingerprint, deduplication_key, status, priority, not_before, supersedes_session_id,
+          source_set_fingerprint, deduplication_key, session_purpose, evidence_origin_session_id, status, priority, not_before, supersedes_session_id,
           created_by, created_at, updated_at
         ) VALUES (
           :id, :companyId, :sourceContextType, :sourceContextId, :sourceLineageKey, :drawingId, :drawingRevisionId,
-          :sourceSetFingerprint, :deduplicationKey, 'queued', 100, :notBefore, :supersedesSessionId,
+          :sourceSetFingerprint, :deduplicationKey, :sessionPurpose, :evidenceOriginSessionId, :status, 100, :notBefore, :supersedesSessionId,
           :actorId, :timestamp, :timestamp
         )`,
         {
           id, companyId: input.companyId, sourceContextType: input.sourceContextType, sourceContextId: input.sourceContextId,
-          sourceLineageKey, drawingId, drawingRevisionId, sourceSetFingerprint, deduplicationKey, notBefore,
+          sourceLineageKey, drawingId, drawingRevisionId, sourceSetFingerprint, deduplicationKey, sessionPurpose, evidenceOriginSessionId, status: initialStatus, notBefore,
           supersedesSessionId: input.supersedesSessionId ?? latest?.id ?? null, actorId: input.actorId, timestamp
         }
       );
-      for (let index = 0; index < ordered.length; index += 1) {
-        const source = ordered[index];
-        const adapterPlan = drawingRecognitionAdapterPlanForSource({ fileExt: source.file_ext });
+      if (sessionPurpose !== "amendment") {
+        for (let index = 0; index < ordered.length; index += 1) {
+          const source = ordered[index];
+          const adapterPlan = drawingRecognitionAdapterPlanForSource({ fileExt: source.file_ext });
+          await client.execute(
+            `INSERT INTO drawing_recognition_sources (
+               id, session_id, company_id, file_asset_id, content_hash, storage_generation, file_name, file_ext,
+               mime_type, file_size, source_role, sort_order, adapter_plan_json, created_at
+             ) VALUES (
+               :id, :sessionId, :companyId, :fileAssetId, :contentHash, :storageGeneration, :fileName, :fileExt,
+               :mimeType, :fileSize, :sourceRole, :sortOrder, :adapterPlanJson, :timestamp
+             )`,
+            {
+              id: `recognition-source-${crypto.randomUUID()}`, sessionId: id, companyId: input.companyId,
+              fileAssetId: source.file_asset_id, contentHash: source.content_hash, storageGeneration: source.storage_generation,
+              fileName: source.file_name, fileExt: source.file_ext, mimeType: source.mime_type,
+              fileSize: Number(source.file_size), sourceRole: source.source_role, sortOrder: index,
+              adapterPlanJson: JSON.stringify(adapterPlan), timestamp
+            }
+          );
+        }
+      } else {
         await client.execute(
-          `INSERT INTO drawing_recognition_sources (
-             id, session_id, company_id, file_asset_id, content_hash, storage_generation, file_name, file_ext,
-             mime_type, file_size, source_role, sort_order, adapter_plan_json, created_at
-           ) VALUES (
-             :id, :sessionId, :companyId, :fileAssetId, :contentHash, :storageGeneration, :fileName, :fileExt,
-             :mimeType, :fileSize, :sourceRole, :sortOrder, :adapterPlanJson, :timestamp
-           )`,
-          {
-            id: `recognition-source-${crypto.randomUUID()}`, sessionId: id, companyId: input.companyId,
-            fileAssetId: source.file_asset_id, contentHash: source.content_hash, storageGeneration: source.storage_generation,
-            fileName: source.file_name, fileExt: source.file_ext, mimeType: source.mime_type,
-            fileSize: Number(source.file_size), sourceRole: source.source_role, sortOrder: index,
-            adapterPlanJson: JSON.stringify(adapterPlan), timestamp
-          }
+          `INSERT INTO drawing_recognition_candidates (
+             id, session_id, company_id, category, field_key, field_label, raw_value, proposed_value, normalized_value,
+             proposed_owner_type, proposed_owner_id, applicability_scope, variant_status, confidence_band, review_state,
+             current_formal_value, current_formal_fingerprint, group_key, sort_order, row_version, created_at, updated_at
+           )
+           SELECT 'recognition-candidate-amendment-' || :sessionId || '-' || candidate.id,
+             :sessionId, candidate.company_id, candidate.category, candidate.field_key, candidate.field_label, candidate.raw_value,
+             candidate.proposed_value, candidate.normalized_value, candidate.proposed_owner_type, candidate.proposed_owner_id,
+             candidate.applicability_scope, candidate.variant_status, candidate.confidence_band, candidate.review_state,
+             candidate.current_formal_value, candidate.current_formal_fingerprint, candidate.group_key, candidate.sort_order, 1,
+             :timestamp, :timestamp
+           FROM drawing_recognition_candidates candidate
+           WHERE candidate.session_id = :parentSessionId AND candidate.company_id = :companyId`,
+          { sessionId: id, parentSessionId: input.supersedesSessionId, companyId: input.companyId, timestamp }
+        );
+        await client.execute(
+          `INSERT INTO drawing_recognition_candidate_observations (candidate_id, observation_id, company_id, created_at)
+           SELECT 'recognition-candidate-amendment-' || :sessionId || '-' || candidate.id,
+             link.observation_id, link.company_id, :timestamp
+           FROM drawing_recognition_candidate_observations link
+           JOIN drawing_recognition_candidates candidate ON candidate.id = link.candidate_id
+             AND candidate.company_id = link.company_id
+           WHERE candidate.session_id = :parentSessionId AND candidate.company_id = :companyId`,
+          { sessionId: id, parentSessionId: input.supersedesSessionId, companyId: input.companyId, timestamp }
         );
       }
       const created = await client.queryOne<SessionRow>("SELECT * FROM drawing_recognition_sessions WHERE id = :id", { id });
       if (!created) throw new DrawingRecognitionError("RECOGNITION_SESSION_CREATE_FAILED", "辨識工作建立失敗。", 500);
       return mapSession(created);
-    });
+    }, { serializable: requestedPurpose === "amendment" });
   }
 
   async assertSessionScope(input: { sessionId: string; companyId: string; actorId: string; privileged: boolean }) {
@@ -584,15 +726,31 @@ export class DrawingRecognitionAsyncRepository {
     return row;
   }
 
+  /** Re-read the authoritative current source set before every mutation. */
+  private async assertCurrentSourceSet(session: SessionRow) {
+    const sources = await this.listContextSources(session.company_id, session.source_context_type, session.source_context_id);
+    if (sources.some((source) => !source.content_hash)) {
+      throw new DrawingRecognitionError("RECOGNITION_SOURCE_HASH_REQUIRED", "辨識來源尚未具備內容指紋，請重新整理檔案後再試。", 409, true);
+    }
+    const currentFingerprint = sourceSetFingerprintForRows(sources);
+    if (currentFingerprint !== session.source_set_fingerprint) {
+      throw new DrawingRecognitionError("RECOGNITION_SOURCE_SET_STALE", "辨識來源檔案已變更，請重新辨識後再寫入。", 409, true);
+    }
+    return currentFingerprint;
+  }
+
   async getProjection(sessionId: string, companyId: string): Promise<RecognitionSessionProjection> {
     const session = await this.client.queryOne<SessionRow>(
       "SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId",
       { sessionId, companyId }
     );
     if (!session) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+    const evidenceSessionId = session.session_purpose === "amendment"
+      ? session.evidence_origin_session_id ?? session.id
+      : session.id;
     const sources = await this.client.query<SourceRow>(
       "SELECT * FROM drawing_recognition_sources WHERE session_id = :sessionId AND company_id = :companyId ORDER BY sort_order, id",
-      { sessionId, companyId }
+      { sessionId: evidenceSessionId, companyId }
     );
     const candidates = await this.client.query<CandidateRow>(
       "SELECT * FROM drawing_recognition_candidates WHERE session_id = :sessionId AND company_id = :companyId ORDER BY category, sort_order, id",
@@ -602,16 +760,19 @@ export class DrawingRecognitionAsyncRepository {
       `SELECT link.candidate_id, observation.*
        FROM drawing_recognition_candidate_observations link
        JOIN drawing_recognition_observations observation ON observation.id = link.observation_id
-       WHERE observation.session_id = :sessionId AND observation.company_id = :companyId
+       JOIN drawing_recognition_candidates candidate ON candidate.id = link.candidate_id
+         AND candidate.session_id = :sessionId AND candidate.company_id = :companyId
+       WHERE link.company_id = :companyId AND observation.company_id = :companyId
+         AND (observation.session_id = :sessionId OR observation.session_id = :evidenceSessionId)
        ORDER BY observation.captured_at, observation.id`,
-      { sessionId, companyId }
+      { sessionId, evidenceSessionId, companyId }
     );
     const adapterResults = await this.client.query<AdapterResultRow>(
       `SELECT id, source_id, adapter_code, adapter_version, status, observation_count, diagnostics_json, completed_at
        FROM drawing_recognition_adapter_results
-       WHERE session_id = :sessionId AND company_id = :companyId
+       WHERE session_id = :evidenceSessionId AND company_id = :companyId
        ORDER BY completed_at DESC, id DESC`,
-      { sessionId, companyId }
+      { sessionId: evidenceSessionId, evidenceSessionId, companyId }
     );
     const partOwnerTargets = await this.listPartOwnerTargets(this.client, session);
     const byCandidate = new Map<string, ObservationRow[]>();
@@ -654,7 +815,10 @@ export class DrawingRecognitionAsyncRepository {
       `SELECT observation.*, source.file_name, source.file_asset_id, source.source_role
        FROM drawing_recognition_observations observation
        JOIN drawing_recognition_sources source ON source.id = observation.source_id
-       WHERE observation.id = :observationId AND observation.session_id = :sessionId
+       JOIN drawing_recognition_candidate_observations candidateLink ON candidateLink.observation_id = observation.id
+       JOIN drawing_recognition_candidates candidate ON candidate.id = candidateLink.candidate_id
+         AND candidate.session_id = :sessionId AND candidate.company_id = :companyId
+       WHERE observation.id = :observationId
          AND observation.company_id = :companyId AND source.company_id = :companyId`,
       input
     );
@@ -676,20 +840,44 @@ export class DrawingRecognitionAsyncRepository {
     return row ? { ...mapSession(row), conflictCount: await this.effectiveConflictCount(row.id) } : null;
   }
 
+  async latestForPart(companyId: string, partId: string) {
+    const row = await this.client.queryOne<SessionRow>(
+      `SELECT DISTINCT session.*
+       FROM drawing_recognition_sessions session
+       JOIN drawing_recognition_candidates candidate
+         ON candidate.session_id = session.id AND candidate.company_id = session.company_id
+       WHERE session.company_id = :companyId
+         AND candidate.proposed_owner_type = 'part_number'
+         AND candidate.proposed_owner_id = :partId
+       ORDER BY session.updated_at DESC, session.created_at DESC, session.id DESC
+       LIMIT 1`,
+      { companyId, partId }
+    );
+    return row ? mapSession(row) : null;
+  }
+
   async latestForDrawingNumber(drawingNumber: string, companyId: string) {
     const row = await this.client.queryOne<SessionRow>(
       `SELECT session.* FROM drawing_recognition_sessions session
-       JOIN drawings drawing ON drawing.id = session.drawing_id AND drawing.company_id = session.company_id
+       LEFT JOIN drawing_revisions revision
+         ON revision.id = session.drawing_revision_id AND revision.company_id = session.company_id
+       JOIN drawings drawing
+         ON drawing.company_id = session.company_id
+        AND (drawing.id = session.drawing_id OR drawing.id = revision.drawing_id)
        WHERE session.company_id = :companyId AND drawing.drawing_number = :drawingNumber
+         AND session.status <> 'cancelled'
        ORDER BY session.created_at DESC, session.id DESC LIMIT 1`,
       { companyId, drawingNumber }
     );
     if (!row) return null;
+    const evidenceSessionId = row.session_purpose === "amendment"
+      ? row.evidence_origin_session_id ?? row.id
+      : row.id;
     const sources = await this.client.query<{ file_asset_id: string }>(
       `SELECT file_asset_id FROM drawing_recognition_sources
        WHERE session_id = :sessionId AND company_id = :companyId
        ORDER BY sort_order, id`,
-      { sessionId: row.id, companyId }
+      { sessionId: evidenceSessionId, companyId }
     );
     return { ...mapSession(row), conflictCount: await this.effectiveConflictCount(row.id), sourceAssetIds: sources.map((source) => source.file_asset_id) };
   }
@@ -824,13 +1012,25 @@ export class DrawingRecognitionAsyncRepository {
   }
 
   async getSourceForActor(input: { sessionId: string; sourceId: string; companyId: string }) {
+    const session = await this.client.queryOne<Pick<SessionRow, "session_purpose" | "evidence_origin_session_id">>(
+      `SELECT session_purpose, evidence_origin_session_id
+         FROM drawing_recognition_sessions
+        WHERE id = :sessionId AND company_id = :companyId`, input
+    );
+    if (!session) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+    // Amendment projections intentionally reuse immutable source rows from
+    // the evidence-origin session. Resolve that lineage here so browser OCR
+    // can read the same controlled PDF without duplicating raw files.
+    const sourceSessionId = session.session_purpose === "amendment"
+      ? session.evidence_origin_session_id ?? input.sessionId
+      : input.sessionId;
     const source = await this.client.queryOne<SourceRow>(
       `SELECT source.*, asset.original_path, asset.storage_provider, asset.storage_bucket, asset.storage_key
        FROM drawing_recognition_sources source
        JOIN file_assets asset ON asset.id = source.file_asset_id
-       WHERE source.id = :sourceId AND source.session_id = :sessionId AND source.company_id = :companyId
+       WHERE source.id = :sourceId AND source.session_id = :sourceSessionId AND source.company_id = :companyId
          AND asset.deleted_at IS NULL`,
-      input
+      { ...input, sourceSessionId }
     );
     if (!source) throw new DrawingRecognitionError("RECOGNITION_SOURCE_NOT_FOUND", "找不到辨識來源檔。", 404);
     const adapterPlan = parseJsonValue<string[]>(source.adapter_plan_json, []);
@@ -1324,6 +1524,7 @@ export class DrawingRecognitionAsyncRepository {
     return this.client.transaction(async (client) => {
       const sessionSnapshot = await client.queryOne<SessionRow>(`SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId`, { sessionId: input.sessionId, companyId: input.companyId });
       if (!sessionSnapshot) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+      await new DrawingRecognitionAsyncRepository(client).assertRecognitionWriteLifecycle(sessionSnapshot);
       await new DrawingRecognitionAsyncRepository(client).assertDrawingRevisionWorkBasis(client, { companyId: input.companyId, drawingRevisionId: sessionSnapshot.drawing_revision_id, allowEvidence: false });
       const lock = client.kind === "postgres" ? " FOR UPDATE" : "";
       const session = await client.queryOne<SessionRow>(
@@ -1331,6 +1532,7 @@ export class DrawingRecognitionAsyncRepository {
         { sessionId: input.sessionId, companyId: input.companyId }
       );
       if (!session) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+      await new DrawingRecognitionAsyncRepository(client).assertCurrentSourceSet(session);
       if (!["review_ready", "extraction_partial", "ready_to_formalize"].includes(session.status)) {
         throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_REVIEWABLE", "目前狀態不能修改審核結果。", 409);
       }
@@ -1390,7 +1592,7 @@ export class DrawingRecognitionAsyncRepository {
       }
       const blockers = await client.queryOne<{ count: number | string }>(
         `SELECT COUNT(*) AS count FROM drawing_recognition_candidates
-         WHERE session_id = :sessionId AND category <> 'unclassified'
+         WHERE session_id = :sessionId AND category NOT IN ('unclassified', 'identity_relation')
            AND review_state IN ('proposed', 'conflict', 'blocked')`,
         { sessionId: session.id }
       );
@@ -1403,6 +1605,75 @@ export class DrawingRecognitionAsyncRepository {
     });
   }
 
+  /** One transaction for inline edit decisions followed by PDM formalization. */
+  async commit(input: {
+    sessionId: string;
+    companyId: string;
+    actorId: string;
+    expectedRowVersion: number;
+    decisions: DrawingRecognitionDecisionInput[];
+    idempotencyKey: string;
+    requirePostReleaseReason?: string | null;
+  }) {
+    return this.client.transaction(async (client) => {
+      const repository = new DrawingRecognitionAsyncRepository(client);
+      if (input.decisions.length > 0) {
+        await repository.saveDecisions({
+          sessionId: input.sessionId,
+          companyId: input.companyId,
+          actorId: input.actorId,
+          expectedRowVersion: input.expectedRowVersion,
+          decisions: input.decisions
+        });
+      }
+      const session = await client.queryOne<SessionRow>(
+        "SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId",
+        { sessionId: input.sessionId, companyId: input.companyId }
+      );
+      if (!session) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+      if (input.decisions.length === 0 && Number(session.row_version) !== input.expectedRowVersion) {
+        throw new DrawingRecognitionError("RECOGNITION_SESSION_STALE", "辨識內容已被更新，請重新載入。", 409);
+      }
+      return repository.applyFormalization({
+        sessionId: input.sessionId,
+        companyId: input.companyId,
+        actorId: input.actorId,
+        expectedRowVersion: Number(session.row_version),
+        idempotencyKey: input.idempotencyKey,
+        expectedImpactFingerprint: undefined,
+        requirePostReleaseReason: input.requirePostReleaseReason
+      });
+    });
+  }
+
+  async cancelAmendment(input: { sessionId: string; companyId: string; actorId: string; expectedRowVersion: number }) {
+    return this.client.transaction(async (client) => {
+      const session = await client.queryOne<SessionRow>(
+        `SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId${client.kind === "postgres" ? " FOR UPDATE" : ""}`,
+        { sessionId: input.sessionId, companyId: input.companyId }
+      );
+      if (!session) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+      if (session.session_purpose !== "amendment") throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_ONLY", "只有辨識編輯版本可以取消。", 409);
+      if (session.status === "formalized") throw new DrawingRecognitionError("RECOGNITION_AMENDMENT_ALREADY_FORMALIZED", "辨識編輯版本已寫入，不能取消。", 409);
+      if (session.status === "cancelled") return { ...mapSession(session), alreadyCancelled: true };
+      if (Number(session.row_version) !== input.expectedRowVersion) throw new DrawingRecognitionError("RECOGNITION_SESSION_STALE", "辨識內容已被更新，請重新載入。", 409);
+      await new DrawingRecognitionAsyncRepository(client).assertRecognitionWriteLifecycle(session);
+      await new DrawingRecognitionAsyncRepository(client).assertCurrentSourceSet(session);
+      const timestamp = now();
+      await client.execute(
+        `UPDATE drawing_recognition_sessions
+            SET status = 'cancelled', cancelled_at = :timestamp, row_version = row_version + 1, updated_at = :timestamp
+          WHERE id = :sessionId AND company_id = :companyId
+            AND row_version = :expectedRowVersion
+            AND status IN ('queued', 'extracting', 'review_ready', 'extraction_partial', 'ready_to_formalize')`,
+        { sessionId: input.sessionId, companyId: input.companyId, timestamp, expectedRowVersion: input.expectedRowVersion }
+      );
+      const updated = await client.queryOne<SessionRow>("SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId", { sessionId: input.sessionId, companyId: input.companyId });
+      if (!updated) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+      return { ...mapSession(updated), alreadyCancelled: false };
+    });
+  }
+
   async calculateImpact(input: { sessionId: string; companyId: string; expectedRowVersion: number; lockTargets?: boolean }) {
     const sessionLock = input.lockTargets && this.client.kind === "postgres" ? " FOR UPDATE" : "";
     const session = await this.client.queryOne<SessionRow>(
@@ -1410,6 +1681,7 @@ export class DrawingRecognitionAsyncRepository {
       { sessionId: input.sessionId, companyId: input.companyId }
     );
     if (!session) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+    await this.assertCurrentSourceSet(session);
     if (!["ready_to_formalize", "review_ready", "extraction_partial"].includes(session.status)) {
       throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FORMALIZABLE", "目前狀態不能計算正式寫入內容。", 409);
     }
@@ -1444,7 +1716,7 @@ export class DrawingRecognitionAsyncRepository {
         blockers.push({ candidateId: candidate.id, reason: candidate.review_state === "conflict" ? "unresolved_conflict" : "review_required" });
         continue;
       }
-      const fieldKey = candidate.field_key ?? "";
+      let fieldKey = candidate.field_key ?? "";
       const ownerType = candidate.proposed_owner_type ?? "";
       let ownerId = candidate.proposed_owner_id ?? "";
       if (ownerType === "part_number" && Boolean(candidate.proposed_value?.trim())) {
@@ -1475,6 +1747,14 @@ export class DrawingRecognitionAsyncRepository {
         blockers.push({ candidateId: candidate.id, reason: "target_mapping_required" });
         continue;
       }
+      if (candidate.category === "drawing_revision" && ownerType === "drawing_revision") {
+        const metadataKey = formalizableDrawingMetadataKey(fieldKey);
+        if (!metadataKey) {
+          exclusions.push({ candidateId: candidate.id, reason: "unsupported_drawing_metadata" });
+          continue;
+        }
+        fieldKey = metadataKey;
+      }
       if (candidate.proposed_value === null && candidate.variant_status !== "explicit_not_applicable") {
         exclusions.push({ candidateId: candidate.id, reason: "missing_value_no_change" });
         continue;
@@ -1501,6 +1781,7 @@ export class DrawingRecognitionAsyncRepository {
     const orderedChanges = [...changes].sort((left, right) =>
       `${left.targetType}:${left.targetId}:${left.fieldKey}:${left.candidateId}`.localeCompare(`${right.targetType}:${right.targetId}:${right.fieldKey}:${right.candidateId}`)
     );
+    blockers.push(...await this.activePartWorkBlockers(orderedChanges, input.companyId, Boolean(input.lockTargets)));
     const orderedBlockers = [...blockers].sort((left, right) => left.candidateId.localeCompare(right.candidateId) || left.reason.localeCompare(right.reason));
     const orderedExclusions = [...exclusions].sort((left, right) => left.candidateId.localeCompare(right.candidateId) || left.reason.localeCompare(right.reason));
     const targetFingerprints = Object.fromEntries(orderedChanges.map((change) => [`${change.targetType}:${change.targetId}:${change.fieldKey}`, change.targetFingerprint]));
@@ -1528,16 +1809,17 @@ export class DrawingRecognitionAsyncRepository {
     actorId: string;
     expectedRowVersion: number;
     idempotencyKey: string;
-    expectedImpactFingerprint: string;
+    expectedImpactFingerprint?: string;
     requirePostReleaseReason?: string | null;
   }) {
     const sessionSnapshot = await this.client.queryOne<SessionRow>(`SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId`, { sessionId: input.sessionId, companyId: input.companyId });
     if (!sessionSnapshot) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
+    await this.assertRecognitionWriteLifecycle(sessionSnapshot);
     await this.assertDrawingRevisionWorkBasis(this.client, { companyId: input.companyId, drawingRevisionId: sessionSnapshot.drawing_revision_id, allowEvidence: false });
     const impact = await this.calculateImpact({
       sessionId: input.sessionId, companyId: input.companyId, expectedRowVersion: input.expectedRowVersion, lockTargets: true
     });
-    if (impact.impactFingerprint !== input.expectedImpactFingerprint) {
+    if (input.expectedImpactFingerprint && impact.impactFingerprint !== input.expectedImpactFingerprint) {
       throw new DrawingRecognitionError("RECOGNITION_IMPACT_STALE", "正式資料已改變，請返回核對並重新計算寫入內容。", 409);
     }
     if (impact.blockers.length > 0) throw new DrawingRecognitionError("RECOGNITION_FORMALIZATION_BLOCKED", "仍有未完成的候選，請先返回核對。", 422);
@@ -1589,12 +1871,109 @@ export class DrawingRecognitionAsyncRepository {
           beforeValue: change.beforeValue, afterValue: change.afterValue, timestamp }
       );
     }
+    await this.synchronizeAffectedPartWorks(impact.changes, session.company_id, timestamp);
     await this.client.execute(
       `UPDATE drawing_recognition_sessions SET status = 'formalized', formalized_by = :actorId, formalized_at = :timestamp,
          row_version = row_version + 1, updated_at = :timestamp WHERE id = :sessionId`,
       { actorId: input.actorId, timestamp, sessionId: session.id }
     );
     return result;
+  }
+
+  private async activePartWorkBlockers(changes: DrawingRecognitionImpactChange[], companyId: string, lock: boolean) {
+    const blockers: Array<{ candidateId: string; reason: string }> = [];
+    const partChanges = changes.filter((change) => change.category === "part_attribute" && change.targetType === "part_number");
+    const partIds = [...new Set(partChanges.map((change) => change.targetId))];
+    for (const partId of partIds) {
+      const row = await this.client.queryOne<{ proposed_payload: string | Record<string, unknown>; handling: string }>(
+        `SELECT work.proposed_payload, state.handling
+         FROM part_change_works work
+         JOIN canonical_workbench_states state
+           ON state.company_id = work.company_id AND state.work_id = work.id AND state.data_layer = 'part_work'
+         WHERE work.company_id = :companyId AND work.part_id = :partId${lock && this.client.kind === "postgres" ? " FOR UPDATE OF work, state" : ""}`,
+        { companyId, partId }
+      );
+      if (!row) continue;
+      const targetChanges = partChanges.filter((change) => change.targetId === partId);
+      if (row.handling !== "owner") {
+        blockers.push(...targetChanges.map((change) => ({ candidateId: change.candidateId, reason: "active_part_work_in_review" })));
+        continue;
+      }
+      const proposedPayload = typeof row.proposed_payload === "string" ? JSON.parse(row.proposed_payload) as Record<string, unknown> : row.proposed_payload;
+      blockers.push(...targetChanges
+        .filter((change) => hasActivePartWorkRecognitionConflict(proposedPayload, change))
+        .map((change) => ({ candidateId: change.candidateId, reason: "active_part_work_field_conflict" })));
+    }
+    return blockers;
+  }
+
+  private async synchronizeAffectedPartWorks(changes: DrawingRecognitionImpactChange[], companyId: string, timestamp: string) {
+    const partChanges = changes.filter((change) => change.category === "part_attribute" && change.targetType === "part_number");
+    const partIds = [...new Set(partChanges.map((change) => change.targetId))];
+    for (const partId of partIds) {
+      const formalState = await this.client.queryOne<{ row_version: number | string }>(
+        `SELECT row_version FROM canonical_workbench_states
+         WHERE company_id = :companyId AND entity_type = 'part' AND canonical_entity_id = :partId AND data_layer = 'part_formal'${this.client.kind === "postgres" ? " FOR UPDATE" : ""}`,
+        { companyId, partId }
+      );
+      const nextFormalRowVersion = formalState ? Number(formalState.row_version) + 1 : null;
+      if (formalState) {
+        await this.client.execute(
+          `UPDATE canonical_workbench_states SET row_version = row_version + 1, updated_at = :timestamp
+           WHERE company_id = :companyId AND entity_type = 'part' AND canonical_entity_id = :partId AND data_layer = 'part_formal'`,
+          { companyId, partId, timestamp }
+        );
+      }
+      const activeWork = await this.client.queryOne<{ id: string; proposed_payload: string | Record<string, unknown>; handling: string }>(
+        `SELECT work.id, work.proposed_payload, state.handling
+         FROM part_change_works work
+         JOIN canonical_workbench_states state
+           ON state.company_id = work.company_id AND state.work_id = work.id AND state.data_layer = 'part_work'
+         WHERE work.company_id = :companyId AND work.part_id = :partId${this.client.kind === "postgres" ? " FOR UPDATE OF work, state" : ""}`,
+        { companyId, partId }
+      );
+      if (!activeWork) continue;
+      const targetChanges = partChanges.filter((change) => change.targetId === partId);
+      const proposedPayload = typeof activeWork.proposed_payload === "string" ? JSON.parse(activeWork.proposed_payload) as Record<string, unknown> : activeWork.proposed_payload;
+      if (activeWork.handling !== "owner" || targetChanges.some((change) => hasActivePartWorkRecognitionConflict(proposedPayload, change))) {
+        throw new DrawingRecognitionError("RECOGNITION_ACTIVE_PART_WORK_CONFLICT", "料號編輯工作已改變，請返回料號工作區重新核對。", 409);
+      }
+      const formalRow = await this.client.queryOne<Record<string, unknown>>(
+        `SELECT part.part_name, part.item_kind, part.custom_specification, part.is_universal,
+                attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label,
+                attributes.surface_treatment, attributes.variant_note
+         FROM part_numbers part
+         LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id
+         WHERE part.id = :partId AND part.company_id = :companyId`,
+        { companyId, partId }
+      );
+      if (!formalRow) throw new DrawingRecognitionError("RECOGNITION_OWNER_NOT_FOUND", "料號正式資料已不存在。", 409);
+      const formalPayload = {
+        partName: formalRow.part_name, itemKind: formalRow.item_kind, customSpecification: formalRow.custom_specification,
+        isUniversal: Boolean(formalRow.is_universal),
+        materialCode: formalRow.material_code, materialLabel: formalRow.material_label,
+        colorCode: formalRow.color_code, colorLabel: formalRow.color_label,
+        surfaceTreatment: formalRow.surface_treatment, variantNote: formalRow.variant_note
+      };
+      const mergedPayload = mergeRecognitionChangesIntoPartWork({
+        formalPayload,
+        proposedPayload,
+        changes: targetChanges as PartRecognitionChange[]
+      });
+      await this.client.execute(
+        `UPDATE part_change_works
+         SET proposed_payload = :payload, base_formal_row_version = :baseVersion, base_hash = :baseHash,
+             row_version = row_version + 1, updated_at = :timestamp
+         WHERE id = :workId AND company_id = :companyId`,
+        { workId: activeWork.id, companyId, payload: JSON.stringify(mergedPayload), baseVersion: nextFormalRowVersion,
+          baseHash: dev087RequestHash(formalPayload), timestamp }
+      );
+      await this.client.execute(
+        `UPDATE canonical_workbench_states SET row_version = row_version + 1, updated_at = :timestamp
+         WHERE company_id = :companyId AND work_id = :workId AND data_layer = 'part_work'`,
+        { companyId, workId: activeWork.id, timestamp }
+      );
+    }
   }
 
   private async assertClientAdaptersFormalizable(sessionId: string, companyId: string) {
@@ -1834,7 +2213,7 @@ export class DrawingRecognitionAsyncRepository {
   }
 
   private async applyDrawingMetadata(change: DrawingRecognitionImpactChange, candidate: CandidateRow, eventId: string, actorId: string, timestamp: string) {
-    if (!["unit", "scale", "projection_method", "drawn_date", "reviewed_date", "drawn_by_name"].includes(change.fieldKey)) {
+    if (!formalizableDrawingMetadataKey(change.fieldKey)) {
       throw new DrawingRecognitionError("RECOGNITION_DRAWING_FIELD_INVALID", "圖面欄位不在可正式化範圍。", 422);
     }
     await this.client.execute(
@@ -1962,6 +2341,12 @@ function legacyColumnForField(fieldKey: string) {
   if (fieldKey === "color") return "color_label";
   if (fieldKey === "surface_treatment" || fieldKey === "surface_finish") return "surface_treatment";
   if (fieldKey === "variant_note") return "variant_note";
+  return null;
+}
+
+function formalizableDrawingMetadataKey(fieldKey: string) {
+  if (fieldKey === "drawing_date") return "drawn_date";
+  if (["unit", "scale", "projection_method", "drawn_date", "reviewed_date"].includes(fieldKey)) return fieldKey;
   return null;
 }
 

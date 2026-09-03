@@ -1,0 +1,881 @@
+{
+  "suite": "DEV-080 current residual browser gate",
+  "runId": "DEV080-2026-09-03T04-40-24-609Z",
+  "status": "FAIL",
+  "currentRoutes": [
+    "/approvals",
+    "/settings/accounts",
+    "/settings/account-invitations",
+    "/handoff"
+  ],
+  "retiredRoutes": [
+    "/bom/create",
+    "/bom/workbench",
+    "/numbering/tasks",
+    "/api/bom/create-candidates"
+  ],
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "tablet",
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "runtimeReceipt": {
+    "project": "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release",
+    "purpose": "DEV-079 canonical A0002 layout browser QC",
+    "port": 54290,
+    "owningProcessTree": "runner -> Next dev pid 11244",
+    "cleanupCondition": "browser closes, exact Next tree stops, port releases, task-owned data/repository/dist are removed",
+    "PDM_DATA_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev079-layout-nm28Cf",
+    "PDM_REPOSITORY_DIR": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev079-layout-nm28Cf\\repository",
+    "mutationScope": [
+      "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev079-layout-nm28Cf",
+      "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release\\.tmp\\next-qc-dev079-layout-359c2d34-95da-4ef5-a72b-4fcdf2f6a440",
+      "C:\\VIBE CODING\\AI_PDM\\.worktrees\\AI_PDM\\DEV-032-final-release\\public\\generated\\dev-082-ocr\\pdfjs-6.2.108_tesseract-7.0.0"
+    ],
+    "primaryReadOnlySource": {
+      "database": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite",
+      "repository": "C:\\VIBE CODING\\AI_PDM\\data\\repository"
+    },
+    "primaryBefore": {
+      "schemaHash": "8882dd1f2f45a484d50f81708c8ce3d455a91b39e6b2fe13011a303628f5439f",
+      "canonicalIdentityHash": "ef0b5943a045703053a88d265439816ce7636a757878dc8b5834534f6afe97bc",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawings": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "fixtureSource": {
+      "schemaHash": "8882dd1f2f45a484d50f81708c8ce3d455a91b39e6b2fe13011a303628f5439f",
+      "canonicalIdentityHash": "ef0b5943a045703053a88d265439816ce7636a757878dc8b5834534f6afe97bc",
+      "counts": {
+        "roots": 59,
+        "parts": 59,
+        "drawings": 53
+      },
+      "migrationResidue": {
+        "unresolved": 0
+      },
+      "rootReferenceViolations": {
+        "parts": 0,
+        "drawings": 0
+      },
+      "foreignKeyViolations": 0
+    },
+    "fixtureMutationLedger": [
+      {
+        "action": "enable task-owned local admin identity",
+        "scope": "isolated fixture only"
+      },
+      {
+        "action": "insert canonical A0002 work, bind its owner state, and attach exact three revision-file snapshots",
+        "workId": "qc-dev079-a0002-canonical-work",
+        "revisionId": "c076f20b-21d0-4061-a9bf-148060995162",
+        "files": [
+          {
+            "fileBindingId": "4a2511e1-3182-448f-a54e-4614afa2cd4c",
+            "ordinal": 0,
+            "contentHash": "ab855746d1bcf9878001e909be244c3add208cbaa5dd499315c2cde5302532ee",
+            "role": "pdf",
+            "displayName": "A0002-M01.pdf"
+          },
+          {
+            "fileBindingId": "9d264a7a-9ace-4556-8abb-a93f892cfa8f",
+            "ordinal": 1,
+            "contentHash": "e6646cb4be002c7213b3c75cccf5c6aad97fddb11aa8a36e400b0fe1dd32a6ad",
+            "role": "drawing_2d",
+            "displayName": "A0002-M01.SLDDRW"
+          },
+          {
+            "fileBindingId": "53eb60d6-f56a-4181-b133-85bd46c5c54d",
+            "ordinal": 2,
+            "contentHash": "15cd458b983e4dddd0836555dfa8eac0f4d3ac87c056403d4279ebbf3d3ec7f4",
+            "role": "cad_3d",
+            "displayName": "A0002.SLDPRT"
+          }
+        ],
+        "scope": "isolated fixture only"
+      }
+    ]
+  },
+  "screenshots": [
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\approvals-desktop.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\settings_accounts-desktop.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\settings_account-invitations-desktop.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\handoff-desktop.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\approvals-tablet.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\settings_accounts-tablet.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\settings_account-invitations-tablet.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\handoff-tablet.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\approvals-mobile.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\settings_accounts-mobile.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\settings_account-invitations-mobile.png",
+    "output\\qa\\dev-080-status-visibility\\DEV080-2026-09-03T04-40-24-609Z\\handoff-mobile.png"
+  ],
+  "total": 148,
+  "passed": 136,
+  "failed": 12,
+  "results": [
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/approvals:desktop:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/approvals:desktop:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:desktop:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:desktop:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:desktop:help-present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:desktop:help-open",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:desktop:help-escape",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:desktop:focus-return",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:desktop:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/approvals:desktop:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:desktop:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/accounts:desktop:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/accounts:desktop:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:desktop:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:desktop:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:desktop:help-present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:desktop:help-open",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:desktop:help-escape",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:desktop:focus-return",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:desktop:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/settings/accounts:desktop:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:desktop:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/account-invitations:desktop:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/account-invitations:desktop:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:desktop:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:desktop:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:desktop:help-present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:desktop:help-open",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:desktop:help-escape",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:desktop:focus-return",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:desktop:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/settings/account-invitations:desktop:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:desktop:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/handoff:desktop:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/handoff:desktop:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:desktop:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:desktop:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:desktop:help-present",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:desktop:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/handoff:desktop:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:desktop:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/approvals:tablet:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/approvals:tablet:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:tablet:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:tablet:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:tablet:help-present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:tablet:help-open",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:tablet:help-escape",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:tablet:focus-return",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:tablet:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/approvals:tablet:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:tablet:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/accounts:tablet:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/accounts:tablet:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:tablet:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:tablet:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:tablet:help-present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:tablet:help-open",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:tablet:help-escape",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:tablet:focus-return",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:tablet:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/settings/accounts:tablet:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:tablet:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/account-invitations:tablet:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/account-invitations:tablet:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:tablet:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:tablet:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:tablet:help-present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:tablet:help-open",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:tablet:help-escape",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:tablet:focus-return",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:tablet:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/settings/account-invitations:tablet:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:tablet:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/handoff:tablet:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/handoff:tablet:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:tablet:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:tablet:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:tablet:help-present",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:tablet:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/handoff:tablet:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:tablet:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/approvals:mobile:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/approvals:mobile:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:mobile:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:mobile:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:mobile:help-present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:mobile:help-open",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:mobile:help-escape",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:mobile:focus-return",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:mobile:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/approvals:mobile:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/approvals:mobile:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/accounts:mobile:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/accounts:mobile:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:mobile:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:mobile:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:mobile:help-present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:mobile:help-open",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:mobile:help-escape",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:mobile:focus-return",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:mobile:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/settings/accounts:mobile:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/accounts:mobile:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/account-invitations:mobile:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/settings/account-invitations:mobile:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:mobile:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:mobile:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:mobile:help-present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:mobile:help-open",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:mobile:help-escape",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:mobile:focus-return",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:mobile:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/settings/account-invitations:mobile:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/settings/account-invitations:mobile:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/handoff:mobile:http",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/handoff:mobile:no-待你處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:mobile:no-等他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:mobile:no-待他人處理",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:mobile:help-present",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:mobile:no-overflow",
+      "passed": true,
+      "detail": "0px"
+    },
+    {
+      "id": "/handoff:mobile:console-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "/handoff:mobile:network-clean",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "LOGIN-admin",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "/bom/create:retired-http",
+      "passed": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "id": "/bom/create:retired-zero-write",
+      "passed": true,
+      "detail": "3e344c38c9e8eee1bbac32cf4125c1feb16be75c3354d4b09b64604220fef58d:3e344c38c9e8eee1bbac32cf4125c1feb16be75c3354d4b09b64604220fef58d"
+    },
+    {
+      "id": "/bom/create:retired-no-content",
+      "passed": true,
+      "detail": "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" hre"
+    },
+    {
+      "id": "/bom/workbench:retired-http",
+      "passed": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "id": "/bom/workbench:retired-zero-write",
+      "passed": true,
+      "detail": "3e344c38c9e8eee1bbac32cf4125c1feb16be75c3354d4b09b64604220fef58d:3e344c38c9e8eee1bbac32cf4125c1feb16be75c3354d4b09b64604220fef58d"
+    },
+    {
+      "id": "/bom/workbench:retired-no-content",
+      "passed": true,
+      "detail": "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" hre"
+    },
+    {
+      "id": "/numbering/tasks:retired-http",
+      "passed": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "id": "/numbering/tasks:retired-zero-write",
+      "passed": true,
+      "detail": "3e344c38c9e8eee1bbac32cf4125c1feb16be75c3354d4b09b64604220fef58d:3e344c38c9e8eee1bbac32cf4125c1feb16be75c3354d4b09b64604220fef58d"
+    },
+    {
+      "id": "/numbering/tasks:retired-no-content",
+      "passed": true,
+      "detail": "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" hre"
+    },
+    {
+      "id": "/api/bom/create-candidates:retired-http",
+      "passed": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "id": "/api/bom/create-candidates:retired-zero-write",
+      "passed": true,
+      "detail": "3e344c38c9e8eee1bbac32cf4125c1feb16be75c3354d4b09b64604220fef58d:3e344c38c9e8eee1bbac32cf4125c1feb16be75c3354d4b09b64604220fef58d"
+    },
+    {
+      "id": "/api/bom/create-candidates:retired-no-content",
+      "passed": true,
+      "detail": "<!DOCTYPE html><html lang=\"zh-Hant\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" hre"
+    }
+  ],
+  "completedAt": "2026-09-03T04:40:45.982Z"
+}

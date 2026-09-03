@@ -36,7 +36,7 @@ record("DEV032-COMMIT-PLAN-004 included pathspec matches included source list", 
 record("DEV032-COMMIT-PLAN-005 excluded pathspec matches generated and staging list", JSON.stringify(excludedPathspec) === JSON.stringify(excluded));
 record("DEV032-COMMIT-PLAN-006 included pathspec excludes output evidence", included.every((item) => !item.startsWith("output/") && !item.startsWith(".artifacts/") && !item.startsWith(".firebase/")));
 record("DEV032-COMMIT-PLAN-007 included pathspec excludes staging-only provider config", included.every((item) => item !== ".firebaserc" && item !== "firebase.json" && !item.startsWith("firebase-hosting/") && !item.startsWith("infra/google-cloud/staging/") && item !== "config/platform/staging-preflight.template.json"));
-record("DEV032-COMMIT-PLAN-008 included pathspec matches plan mode", plan?.releaseDecision?.exactReleaseCommitExists === true ? included.length === 0 : included.length > 0 && plan?.releaseDecision?.safeToStageIncludedSource === true);
+record("DEV032-COMMIT-PLAN-008 included pathspec matches plan mode", plan?.snapshotStability?.stable === false ? plan?.releaseDecision?.safeToStageIncludedSource === false : plan?.releaseDecision?.exactReleaseCommitExists === true ? included.length === 0 : included.length > 0 && plan?.releaseDecision?.safeToStageIncludedSource === true);
 record(
   "DEV032-COMMIT-PLAN-009 excluded list covers generated evidence and dirty staging-only config",
   excluded.length === plan?.summary?.excludedGeneratedOrStagingEntries &&
@@ -44,8 +44,24 @@ record(
     (plan?.summary?.stagingOnlyEntries === 0 ||
       excluded.some((item) => item === ".firebaserc" || item === "firebase.json" || item.startsWith("firebase-hosting/") || item.startsWith("infra/google-cloud/staging/") || item === "config/platform/staging-preflight.template.json"))
 );
-record("DEV032-COMMIT-PLAN-010 source decision state is coherent and safe-to-build remains false", plan?.releaseDecision?.safeToBuildForProduction === false && (plan?.releaseDecision?.exactReleaseCommitExists === true ? plan?.releaseDecision?.safeToStageIncludedSource === false && plan?.releaseDecision?.releaseCommitSha : plan?.releaseDecision?.safeToStageIncludedSource === true));
+record(
+  "DEV032-COMMIT-PLAN-010 source decision state is coherent and safe-to-build remains false",
+  plan?.releaseDecision?.safeToBuildForProduction === false &&
+    (plan?.snapshotStability?.stable === false
+      ? plan?.releaseDecision?.safeToStageIncludedSource === false &&
+        plan?.releaseDecision?.exactReleaseCommitExists === false &&
+        plan?.releaseDecision?.blocker === "RELEASE_SOURCE_SNAPSHOT_UNSTABLE"
+      : plan?.releaseDecision?.exactReleaseCommitExists === true
+        ? plan?.releaseDecision?.safeToStageIncludedSource === false && plan?.releaseDecision?.releaseCommitSha
+        : plan?.releaseDecision?.safeToStageIncludedSource === true)
+);
 record("DEV032-COMMIT-PLAN-011 package exposes generator and QC scripts", packageJson.scripts["dev-032:release-source-commit-plan"] === "node scripts/generate-dev-032-release-source-commit-plan.mjs" && packageJson.scripts["qc:dev-032-release-source-commit-plan"] === "node scripts/qc-dev-032-release-source-commit-plan.mjs");
+record(
+  "DEV032-COMMIT-PLAN-012 release-source snapshot stability gates staging (generated evidence churn excluded)",
+  plan?.snapshotStability?.stable === true
+    ? plan.releaseDecision.safeToStageIncludedSource === (plan.summary.unknownRiskEntries === 0 && plan.summary.includedProductionSourceEntries > 0)
+    : plan?.releaseDecision?.safeToStageIncludedSource === false && plan?.releaseDecision?.blocker === "RELEASE_SOURCE_SNAPSHOT_UNSTABLE"
+);
 
 for (const result of results) {
   console.log(`${result.passed ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` - ${result.detail}` : ""}`);

@@ -30,6 +30,7 @@ type RelationMatrixTableProps = {
   onOpenDrawing?: (detailHref: string) => void;
   onOpenPart?: (detailHref: string) => void;
   editable?: boolean;
+  dirtyKeys?: ReadonlySet<string>;
   onChange?: (change: { drawingNumberId: string; partNumberId: string; relationType: RelationMatrixCell["relationType"] | null }) => void;
   activeTarget?: { entityType: "drawing" | "part"; targetId: string };
   onSelectDrawing?: (targetId: string) => void;
@@ -46,6 +47,7 @@ export function RelationMatrixTable({
   onOpenDrawing,
   onOpenPart,
   editable = false,
+  dirtyKeys = new Set<string>(),
   onChange,
   activeTarget,
   onSelectDrawing,
@@ -95,8 +97,9 @@ export function RelationMatrixTable({
                 const cell = cellByPair.get(`${part.number}:${drawing.number}`);
                 const label = cellLabel(cell);
                 const cellLabelText = `${part.number} 與 ${drawing.number}：${label}`;
+                const dirty = dirtyKeys.has(`${drawing.id}:${part.id}`);
                 const visual = showVisualMarkers ? <span className={`pdm-relation-matrix-marker is-${cell?.relationType ?? "none"}`} title={cellLabelText} aria-hidden="true" /> : label;
-                return <td key={drawing.id} className={`relation-${cell?.relationType ?? "none"}`} aria-label={cellLabelText}>{editable ? <button type="button" className="pdm-relation-matrix-cell-button" aria-label={`${cellLabelText}，點擊切換`} onClick={() => onChange?.({ drawingNumberId: drawing.id, partNumberId: part.id, relationType: nextRelationType(cell?.relationType) })}>{visual}</button> : visual}</td>;
+                return <td key={drawing.id} className={`relation-${cell?.relationType ?? "none"}${dirty ? " is-dirty" : ""}`} data-dirty={dirty ? "true" : undefined} aria-label={cellLabelText}>{editable ? <button type="button" className="pdm-relation-matrix-cell-button" aria-label={`${cellLabelText}，${dirty ? "未儲存變更，" : ""}點擊切換`} onClick={() => onChange?.({ drawingNumberId: drawing.id, partNumberId: part.id, relationType: nextRelationType(cell?.relationType) })}>{visual}</button> : visual}</td>;
               })}
             </tr>
           ))}

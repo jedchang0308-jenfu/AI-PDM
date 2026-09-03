@@ -1,6 +1,6 @@
 import { getDb } from '@/lib/db'
 import { canonicalJson, ROLE_CAPABILITY_CANONICALIZATION_VERSION } from '@/lib/role-capability-canonical-json'
-import { sha256CanonicalJson } from '@/lib/role-capability-canonical-json.server'
+import { sha256CanonicalJson } from '@/lib/role-capability-canonical-hash.server'
 import type { RoleCapabilityWorkspaceV2, RoleCapabilityWorkspaceV3 } from '@/lib/ai-pdm-role-capability-contract'
 
 type RoleCapabilitySnapshotPayload = RoleCapabilityWorkspaceV2 | Omit<RoleCapabilityWorkspaceV3, 'managementSurface'>

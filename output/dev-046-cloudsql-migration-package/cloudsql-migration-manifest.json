@@ -26,8 +26,14 @@
     {
       "output": "sql/000_admin_bootstrap_grants.sql",
       "kind": "admin_bootstrap",
-      "outputSha256": "c4a42fcc00d4ea5d33b1328e7619fa3e46326a1cd4441ce336879995a6a7ef5c",
-      "bytes": 1668
+      "outputSha256": "ddcd8f1c45ca59d61704331c1dd6917898494cfb4b35337331141a5be6a51f7f",
+      "bytes": 2094
+    },
+    {
+      "output": "sql/001_ai_pdm_contract_schema_bootstrap.sql",
+      "kind": "admin_contract_schema_bootstrap",
+      "outputSha256": "ff5ac884ad07cd56314211f861d6b8f785277bbc23c6fb0240b135899ebca9a9",
+      "bytes": 653
     },
     {
       "output": "sql/999_runtime_grants_refresh.sql",
@@ -48,7 +54,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       },
       "acceptedExistingChecksums": [
         "309039c3f931a269e42a4350c9295e795eb3e494f6e4ad54abb10e40a90aa387"
@@ -65,7 +72,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -79,7 +87,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -93,7 +102,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -107,7 +117,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 2,
-        "rewrittenSupabaseRoleReferences": 1
+        "rewrittenSupabaseRoleReferences": 1,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -121,7 +132,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 2,
-        "rewrittenSupabaseRoleReferences": 1
+        "rewrittenSupabaseRoleReferences": 1,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -135,7 +147,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 8,
-        "rewrittenSupabaseRoleReferences": 4
+        "rewrittenSupabaseRoleReferences": 4,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -149,7 +162,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 2,
-        "rewrittenSupabaseRoleReferences": 1
+        "rewrittenSupabaseRoleReferences": 1,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -163,7 +177,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 8,
-        "rewrittenSupabaseRoleReferences": 1
+        "rewrittenSupabaseRoleReferences": 1,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -177,7 +192,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 14,
-        "rewrittenSupabaseRoleReferences": 1
+        "rewrittenSupabaseRoleReferences": 1,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -191,7 +207,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 2,
-        "rewrittenSupabaseRoleReferences": 1
+        "rewrittenSupabaseRoleReferences": 1,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -205,7 +222,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 6,
-        "rewrittenSupabaseRoleReferences": 3
+        "rewrittenSupabaseRoleReferences": 3,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -219,7 +237,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 4,
-        "rewrittenSupabaseRoleReferences": 4
+        "rewrittenSupabaseRoleReferences": 4,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -233,7 +252,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 2,
-        "rewrittenSupabaseRoleReferences": 3
+        "rewrittenSupabaseRoleReferences": 3,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -247,7 +267,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 2,
-        "rewrittenSupabaseRoleReferences": 2
+        "rewrittenSupabaseRoleReferences": 2,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -261,7 +282,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -275,7 +297,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -289,7 +312,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 2,
-        "rewrittenSupabaseRoleReferences": 1
+        "rewrittenSupabaseRoleReferences": 1,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -303,7 +327,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 6,
-        "rewrittenSupabaseRoleReferences": 2
+        "rewrittenSupabaseRoleReferences": 2,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -317,7 +342,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -331,7 +357,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -345,7 +372,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -359,7 +387,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 2,
-        "rewrittenSupabaseRoleReferences": 1
+        "rewrittenSupabaseRoleReferences": 1,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -373,7 +402,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 8,
-        "rewrittenSupabaseRoleReferences": 4
+        "rewrittenSupabaseRoleReferences": 4,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -387,7 +417,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -401,7 +432,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 2
+        "rewrittenSupabaseRoleReferences": 2,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -415,7 +447,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -429,7 +462,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -443,7 +477,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -457,7 +492,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -471,7 +507,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -485,7 +522,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -499,7 +537,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -513,7 +552,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -527,7 +567,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -541,7 +582,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -555,7 +597,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -569,7 +612,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -583,7 +627,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -597,7 +642,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -611,7 +657,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -625,7 +672,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -639,7 +687,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -653,7 +702,8 @@
       "transformations": {
         "removedTransactionWrappers": 2,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -667,7 +717,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -681,7 +732,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -695,7 +747,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -709,7 +762,8 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     },
     {
@@ -723,7 +777,68 @@
       "transformations": {
         "removedTransactionWrappers": 0,
         "removedRlsStatements": 0,
-        "rewrittenSupabaseRoleReferences": 0
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/052_retired_workbench_residue_cleanup.sql",
+      "output": "sql/052_retired_workbench_residue_cleanup.cloudsql.sql",
+      "version": "052",
+      "name": "052_retired_workbench_residue_cleanup",
+      "sourceSha256": "e2e48005b90b2fc6c2404d91e0c99268231fbd116c61acab5ddf4c0487737b34",
+      "outputSha256": "46f2731dbbaff3e8fcead6a9fefd7542c3565ff5a40475c140b3383e3bdcf69e",
+      "bytes": 7836,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/053_drawing_recognition_amendment_lineage.sql",
+      "output": "sql/053_drawing_recognition_amendment_lineage.cloudsql.sql",
+      "version": "053",
+      "name": "053_drawing_recognition_amendment_lineage",
+      "sourceSha256": "fc3334bcb538d6856f291bf32e9a77f7f937bf7498a8de5cdde67d95fbfcfa24",
+      "outputSha256": "72da8b7d8e1b5734d4cf26b4ea4f2e7a842a184d9f51a6ab8b0b3d64ee14d8e5",
+      "bytes": 4418,
+      "transformations": {
+        "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
+      }
+    },
+    {
+      "source": "db/postgres/055_jenfu_role_catalog_publication.sql",
+      "output": "sql/055_jenfu_role_catalog_publication.cloudsql.sql",
+      "version": "055",
+      "name": "055_jenfu_role_catalog_publication",
+      "sourceSha256": "277525f7d4fb4044ca8f5beb85854e393bba49ca321bbd7459535461d2ead442",
+      "outputSha256": "9e14998715b8945796d8d6ad0dce0c80a778b5b54278ec5635551cff46ab9e7f",
+      "bytes": 5230,
+      "transformations": {
+        "removedTransactionWrappers": 2,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 15
+      }
+    },
+    {
+      "source": "db/postgres/056_role_capability_display_snapshot.sql",
+      "output": "sql/056_role_capability_display_snapshot.cloudsql.sql",
+      "version": "056",
+      "name": "056_role_capability_display_snapshot",
+      "sourceSha256": "38f432a6599abeea2517182257f702b4c0ddcbe00190bbbe115bafb17d757951",
+      "outputSha256": "6cd732ddc83caf5242637d531ae3c1dd19fdbfbddbbc84c0f91133825ce72e4c",
+      "bytes": 970,
+      "transformations": {
+        "removedTransactionWrappers": 0,
+        "removedRlsStatements": 0,
+        "rewrittenSupabaseRoleReferences": 0,
+        "rewrittenJenfuPlatformRoleReferences": 0
       }
     }
   ],
@@ -759,9 +874,10 @@
     }
   ],
   "transformations": {
-    "removedTransactionWrappers": 62,
+    "removedTransactionWrappers": 66,
     "removedRlsStatements": 70,
     "rewrittenSupabaseRoleReferences": 32,
+    "rewrittenJenfuPlatformRoleReferences": 15,
     "remainingSupabaseRoleReferences": 0,
     "remainingRlsStatements": 0,
     "remainingTransactionWrappers": 0

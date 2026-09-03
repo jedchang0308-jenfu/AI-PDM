@@ -93,17 +93,68 @@ function shouldExcludeFromCurrentSlice(file) {
   return { excluded: false, reason: "", detail: "" };
 }
 
+function rewriteManagedCloudSqlRoles(file, source) {
+  if (!file.endsWith("055_jenfu_role_catalog_publication.sql")) {
+    return { source, rewrittenReferences: 0 };
+  }
+  const rolePattern = /\b(?:jenfu_platform_migrator|jenfu_platform_runtime|jenfu_orgmaster_runtime|jenfu_ai_pdm_runtime)\b/gu;
+  const rewrittenReferences = (source.match(rolePattern) ?? []).length;
+  const managedSource = source
+    .replaceAll("jenfu_platform_migrator", "pdm_migration")
+    .replaceAll("jenfu_platform_runtime", "pdm_runtime")
+    .replaceAll("jenfu_orgmaster_runtime", "pdm_runtime")
+    .replaceAll("jenfu_ai_pdm_runtime", "pdm_runtime")
+    .replace(/\bpdm_runtime(?:\s*,\s*pdm_runtime)+\b/gu, "pdm_runtime")
+    .replace(
+      "CREATE SCHEMA IF NOT EXISTS ai_pdm_contract AUTHORIZATION pdm_migration;",
+      `DO $cloudsql_bootstrap$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+      FROM pg_namespace
+     WHERE nspname = 'ai_pdm_contract'
+  ) OR NOT has_schema_privilege('pdm_migration', 'ai_pdm_contract', 'USAGE')
+    OR NOT has_schema_privilege('pdm_migration', 'ai_pdm_contract', 'CREATE') THEN
+    RAISE EXCEPTION 'CLOUDSQL_ADMIN_BOOTSTRAP_SCHEMA_MISSING_OR_INACCESSIBLE:ai_pdm_contract';
+  END IF;
+END
+$cloudsql_bootstrap$;`
+    )
+    .replace(
+      "ALTER SCHEMA ai_pdm_contract OWNER TO pdm_migration;",
+      "-- CLOUDSQL_ADMIN_BOOTSTRAP_RETAINS_AI_PDM_CONTRACT_SCHEMA_OWNERSHIP;"
+    )
+    .replace(
+      /REVOKE ALL ON SCHEMA ai_pdm_contract FROM PUBLIC;/u,
+      "-- CLOUDSQL_ADMIN_BOOTSTRAP_REVOKED_PUBLIC_AI_PDM_CONTRACT_SCHEMA_ACCESS;"
+    )
+    .replace(
+      /GRANT USAGE ON SCHEMA ai_pdm_contract\s+TO pdm_runtime;/u,
+      "-- CLOUDSQL_ADMIN_BOOTSTRAP_GRANTED_RUNTIME_AI_PDM_CONTRACT_SCHEMA_USAGE;"
+    )
+    .replace(
+      "ALTER DEFAULT PRIVILEGES FOR ROLE pdm_migration IN SCHEMA ai_pdm_contract",
+      "ALTER DEFAULT PRIVILEGES IN SCHEMA ai_pdm_contract"
+    );
+  return { source: managedSource, rewrittenReferences };
+}
+
 function sanitizeSqlForCloudSql({ file, source }) {
+  const managedRoles = rewriteManagedCloudSqlRoles(file, source);
   const transformations = {
     removedTransactionWrappers: 0,
     removedRlsStatements: 0,
-    rewrittenSupabaseRoleReferences: 0
+    rewrittenSupabaseRoleReferences: 0,
+    rewrittenJenfuPlatformRoleReferences: managedRoles.rewrittenReferences
   };
-  const lines = source.split(/\r?\n/u);
+  const lines = managedRoles.source.split(/\r?\n/u);
   const outputLines = [
     `-- DEV-046 Cloud SQL candidate generated from ${file}`,
     "-- Proposal only. Review before any live apply.",
     "-- Supabase Data API roles and RLS force statements are intentionally absent for Cloud SQL BFF runtime.",
+    ...(managedRoles.rewrittenReferences > 0
+      ? ["-- Jenfu platform database roles are mapped to the managed Cloud SQL pdm_migration/pdm_runtime roles."]
+      : []),
     ""
   ];
 
@@ -141,7 +192,7 @@ function sanitizeSqlForCloudSql({ file, source }) {
   };
 }
 
-function buildAdminBootstrapSql({ target, grantSql }) {
+function buildAdminBootstrapSql({ target, grantSql, contractSchemaGrantSql }) {
   const production = target.projectId === "jenfu-ai-pdm-prod";
   const sql = `${[
     `-- ${production ? "DEV-032 production" : "DEV-046 staging"} Cloud SQL admin bootstrap candidate`,
@@ -152,10 +203,20 @@ function buildAdminBootstrapSql({ target, grantSql }) {
     .replaceAll(':"database_name"', quoteIdentifier(target.databaseName))
     .replaceAll(':"runtime_iam_user"', quoteIdentifier(target.runtimeIamDatabaseUser))
     .replaceAll(':"migration_iam_user"', quoteIdentifier(target.migrationIamDatabaseUser))
-    .trimEnd()}\n`;
+    .trimEnd()}\n\n${contractSchemaGrantSql.trimEnd()}\n`;
   return production
     ? sql.replaceAll("DEV-046 Phase 1 contract", "DEV-032 Gate C production contract")
     : sql;
+}
+
+function buildIncrementalContractSchemaBootstrapSql({ target, contractSchemaGrantSql }) {
+  const production = target.projectId === "jenfu-ai-pdm-prod";
+  return `${[
+    `-- ${production ? "DEV-032 production" : "DEV-046 staging"} incremental contract-schema bootstrap`,
+    "-- Apply to an existing database through the approved privileged SQL-import path.",
+    "-- This file intentionally does not create roles or touch existing public-schema tables.",
+    ""
+  ].join("\n")}${contractSchemaGrantSql.trimEnd()}\n`;
 }
 
 function buildRuntimeGrantRefreshSql(target) {
@@ -191,7 +252,7 @@ function buildRunnerContractMarkdown(report) {
     "",
     "## Proposed Order",
     "",
-    "1. Execute `sql/000_admin_bootstrap_grants.sql` through the approved privileged database bootstrap path.",
+    "1. For a fresh database execute `sql/000_admin_bootstrap_grants.sql`; for an existing database execute only `sql/001_ai_pdm_contract_schema_bootstrap.sql` through the approved privileged path.",
     "2. Execute ordered schema files in `cloudsql-migration-manifest.json` through the migration identity.",
     "3. Execute `sql/999_runtime_grants_refresh.sql`.",
     "4. Run runtime database smoke through the Cloud Run runtime service account.",
@@ -204,12 +265,13 @@ function buildRunnerContractMarkdown(report) {
   ].join("\n").trimEnd()}\n`;
 }
 
-function buildCandidatePackage({ target, grantSql, postgresFiles }) {
+function buildCandidatePackage({ target, grantSql, contractSchemaGrantSql, postgresFiles }) {
   const excludedFiles = [];
   const schemaFiles = [];
   let removedTransactionWrappers = 0;
   let removedRlsStatements = 0;
   let rewrittenSupabaseRoleReferences = 0;
+  let rewrittenJenfuPlatformRoleReferences = 0;
   let remainingSupabaseRoleReferences = 0;
   let remainingRlsStatements = 0;
   let remainingTransactionWrappers = 0;
@@ -232,6 +294,7 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     removedTransactionWrappers += sanitized.transformations.removedTransactionWrappers;
     removedRlsStatements += sanitized.transformations.removedRlsStatements;
     rewrittenSupabaseRoleReferences += sanitized.transformations.rewrittenSupabaseRoleReferences;
+    rewrittenJenfuPlatformRoleReferences += sanitized.transformations.rewrittenJenfuPlatformRoleReferences;
     remainingSupabaseRoleReferences += sanitized.remainingSupabaseRoleReferences;
     remainingRlsStatements += sanitized.remainingRlsStatements;
     remainingTransactionWrappers += sanitized.remainingTransactionWrappers;
@@ -248,7 +311,11 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
     });
   }
 
-  const adminBootstrapSql = buildAdminBootstrapSql({ target, grantSql });
+  const adminBootstrapSql = buildAdminBootstrapSql({ target, grantSql, contractSchemaGrantSql });
+  const incrementalContractSchemaBootstrapSql = buildIncrementalContractSchemaBootstrapSql({
+    target,
+    contractSchemaGrantSql
+  });
   const grantRefreshSql = buildRuntimeGrantRefreshSql(target);
   const supportFiles = [
     {
@@ -257,6 +324,13 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
       outputSha256: sha256(adminBootstrapSql),
       bytes: Buffer.byteLength(adminBootstrapSql, "utf8"),
       sql: adminBootstrapSql
+    },
+    {
+      output: `${candidateSqlDirectory}/001_ai_pdm_contract_schema_bootstrap.sql`,
+      kind: "admin_contract_schema_bootstrap",
+      outputSha256: sha256(incrementalContractSchemaBootstrapSql),
+      bytes: Buffer.byteLength(incrementalContractSchemaBootstrapSql, "utf8"),
+      sql: incrementalContractSchemaBootstrapSql
     },
     {
       output: `${candidateSqlDirectory}/999_runtime_grants_refresh.sql`,
@@ -275,7 +349,13 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
   const orderedSchemaMigrations = schemaFiles.map((file) => {
     const compatibility = compatibilityByVersion.get(file.version);
     return compatibility
-      ? { ...file, acceptedExistingChecksums: compatibility.acceptedExistingChecksums }
+      ? {
+          ...file,
+          acceptedExistingChecksums: compatibility.acceptedExistingChecksums,
+          ...(compatibility.replacementVersion
+            ? { replacementVersion: compatibility.replacementVersion }
+            : {})
+        }
       : file;
   });
 
@@ -303,6 +383,7 @@ function buildCandidatePackage({ target, grantSql, postgresFiles }) {
       removedTransactionWrappers,
       removedRlsStatements,
       rewrittenSupabaseRoleReferences,
+      rewrittenJenfuPlatformRoleReferences,
       remainingSupabaseRoleReferences,
       remainingRlsStatements,
       remainingTransactionWrappers
@@ -406,7 +487,9 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
   const runtimeTf = read(`${terraformDirectory}/runtime.tf`);
   const databaseTf = read(`${terraformDirectory}/database.tf`);
   const grantsFile = "db/cloud-sql/pdm_runtime_grants.sql";
+  const contractSchemaGrantsFile = "db/cloud-sql/ai_pdm_contract_schema_grants.sql";
   const grantSql = read(grantsFile);
+  const contractSchemaGrantSql = read(contractSchemaGrantsFile);
   const postgresFiles = listSqlFiles("db/postgres");
 
   const migrations = postgresFiles.map((file) => {
@@ -501,7 +584,7 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
     runtimeIamDatabaseUser: production ? "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam" : "pdm-runtime-stg@jenfu-ai-pdm-stg-361825.iam",
     migrationIamDatabaseUser: production ? "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam" : "pdm-migration-stg@jenfu-ai-pdm-stg-361825.iam"
   };
-  const candidatePackage = buildCandidatePackage({ target, grantSql, postgresFiles });
+  const candidatePackage = buildCandidatePackage({ target, grantSql, contractSchemaGrantSql, postgresFiles });
   const candidateManifestSha256 = sha256(JSON.stringify(candidatePackage.orderedManifest, null, 2));
   const evidenceManifestSha256 = liveExecutionEvidence?.migrationResult?.manifestSha256 ?? null;
   const evidenceSchemaMigrationCount = liveExecutionEvidence?.migrationResult?.schemaMigrationCount ?? null;
@@ -555,6 +638,8 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
       postgresSqlFileCount: migrations.length,
       cloudSqlGrantFile: grantsFile,
       cloudSqlGrantFileSha256: sha256(grantSql),
+      cloudSqlContractSchemaGrantFile: contractSchemaGrantsFile,
+      cloudSqlContractSchemaGrantFileSha256: sha256(contractSchemaGrantSql),
       singletonMigrationRunnerPresent: read("src/lib/singleton-migration-runner.ts").includes("runSingletonMigrations"),
       currentPostgresMigrations: migrations
     },
@@ -573,6 +658,7 @@ export function buildDev046CloudSqlMigrationPackage(options = {}) {
     adminBootstrap: {
       required: true,
       file: grantsFile,
+      contractSchemaFile: contractSchemaGrantsFile,
       createsRuntimeRole: grantSql.includes("CREATE ROLE pdm_runtime"),
       createsMigrationRole: grantSql.includes("CREATE ROLE pdm_migration"),
       grantsIamUsers: grantSql.includes('GRANT pdm_runtime TO :"runtime_iam_user"') && grantSql.includes('GRANT pdm_migration TO :"migration_iam_user"'),
@@ -692,8 +778,9 @@ export async function writeDev046CloudSqlMigrationPackage(report, outputDir = de
   await mkdir(resolvedOutputDir, { recursive: true });
   await mkdir(path.join(resolvedOutputDir, candidateSqlDirectory), { recursive: true });
   const grantSql = read("db/cloud-sql/pdm_runtime_grants.sql");
+  const contractSchemaGrantSql = read("db/cloud-sql/ai_pdm_contract_schema_grants.sql");
   const postgresFiles = listSqlFiles("db/postgres");
-  const candidatePackage = buildCandidatePackage({ target: report.target, grantSql, postgresFiles });
+  const candidatePackage = buildCandidatePackage({ target: report.target, grantSql, contractSchemaGrantSql, postgresFiles });
   const jsonPath = path.join(resolvedOutputDir, "report.json");
   const markdownPath = path.join(resolvedOutputDir, "report.md");
   const manifestPath = path.join(resolvedOutputDir, "cloudsql-migration-manifest.json");

@@ -11,10 +11,10 @@ const checks = [
   ["matrix API uses idempotency", "src/app/api/pdm/relations/[rootId]/matrix/route.ts", /idempotency/i],
   ["matrix command uses canonical receipt namespace", "src/lib/repositories/relation-formal-authority-async-repository.ts", /pdm\.relation_matrix\.update\.v1/],
   ["canonical idempotency helper is available", "src/lib/pdm-canonical-command.ts", /runCanonicalIdempotentCommand/],
-  ["drawer edits matrix inline", "src/components/canonical-pdm-workbench.tsx", /RelationMatrixEditor/],
-  ["drawer removes the redundant permanent matrix helper", "src/components/canonical-pdm-workbench.tsx", (text) => text.includes("canonical-drawer-matrix") && !text.includes("明確儲存後立即更新正式關聯，不需審核")],
-  ["drawer places matrix edit action left of matrix create action", "src/components/canonical-pdm-workbench.tsx", (text) => text.includes('data-canonical-relation-edit="true"') && text.includes("editAction={relationAction}") && text.includes("canonical-drawer-section-actions") && text.includes("editing={matrixEditing}")],
-  ["drawer provides matrix cancel", "src/components/canonical-pdm-workbench.tsx", />取消</],
+  ["Drawing drawer uses the shared relation presenter while Part stays readonly", "src/components/canonical-pdm-workbench.tsx", (text) => text.includes("CanonicalRelationMatrixSection") && text.includes('mode={presentation.kind === "drawing" ? "manage" : "readonly"}') && !text.includes("function RelationMatrixEditor")],
+  ["shared relation presenter removes the redundant permanent matrix helper", "src/components/canonical-relation-matrix-section.tsx", (text) => text.includes("canonical-drawer-matrix") && !text.includes("明確儲存後立即更新正式關聯，不需審核")],
+  ["drawer places matrix edit action left of matrix create action", "src/components/canonical-pdm-workbench.tsx", (text) => text.includes('data-canonical-relation-edit="true"') && text.includes("editAction={relationAction}") && text.includes("editing={matrixEditing}")],
+  ["shared relation presenter provides matrix cancel", "src/components/canonical-relation-matrix-section.tsx", />取消</],
   ["authority runtime is bound to DEV-090 schema hash", "src/lib/pdm-workbench-authority-control.ts", (text) => text.includes("DEV090_SCHEMA_HASH") && !text.includes("DEV087_SCHEMA_HASH")],
   ["relation search is minimal", "src/app/numbering/search/page.tsx", (text) => text.includes("/api/numbering/search")],
   ["relation search has no drawer", "src/app/numbering/search/page.tsx", (text) => !text.includes("CanonicalPdmWorkbench")],
@@ -25,7 +25,7 @@ const checks = [
   ["postgres migration retires current Relation table and schema", "db/postgres/043_inline_relation_matrix.sql", (text) => text.includes("DROP TABLE IF EXISTS relation_change_works") && text.includes("dev090_state_data_layer")],
   ["SQLite activation removes retired current projection", "src/lib/db.ts", (text) => text.includes("ensureDev090InlineRelationMatrixSchema") && text.includes("DROP TABLE relation_change_works")],
   ["unscoped workbench records receive an empty matrix projection", "src/lib/pdm-canonical-workbench.ts", (text) => text.includes('scope: "unscoped"') && text.includes('rootId: ""')],
-  ["unscoped workbench records explain the empty matrix", "src/components/canonical-pdm-workbench.tsx", (text) => text.includes("目前尚未建立圖料根號，暫無可顯示的關聯矩陣")],
+  ["unscoped workbench records explain the empty matrix", "src/components/canonical-relation-matrix-section.tsx", (text) => text.includes("目前尚未建立圖料根號，暫無可顯示的關聯矩陣")],
   ["implementation contract documents direct edit", ".ai-doc/specs/SPEC-PDM-INLINE-RELATION-MATRIX-001-direct-formal-edit.md", (text) => text.includes("直接編輯矩陣") && text.includes("立即更新正式關聯")],
   ["QA plan is present", ".ai-doc/qa/qa-dev-090-inline-relation-matrix-validation-plan-2026-08-23.md", /RIM-001/]
 ];

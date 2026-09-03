@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dev": "DEV-032",
-  "generatedAt": "2026-08-11T01:22:39.426Z",
+  "generatedAt": "2026-09-02T13:26:12.395Z",
   "targetProject": "jenfu-ai-pdm-prod",
   "region": "asia-east1",
   "expectedRunService": "ai-pdm-prod",
@@ -55,13 +55,68 @@
     },
     {
       "path": ".env.production.local",
-      "exists": true
+      "exists": false
     },
     {
       "path": "infra/google-cloud/production/production.auto.tfvars.json",
-      "exists": true
+      "exists": false
     }
   ],
+  "envReadback": {
+    "source": "cloud_run_runtime_readback",
+    "ready": true,
+    "providerReady": true,
+    "localFilePresent": false,
+    "presentEnvNames": [
+      "NODE_ENV",
+      "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED",
+      "PDM_AUTH_MODE",
+      "PDM_BUILD_COMMIT",
+      "PDM_CANDIDATE_CLOUD_RUN_SERVICE",
+      "PDM_CANDIDATE_CLOUD_RUN_TAG",
+      "PDM_CLOUD_SQL_DATABASE",
+      "PDM_CLOUD_SQL_HOST",
+      "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME",
+      "PDM_CLOUD_SQL_POOL_MAX",
+      "PDM_CLOUD_SQL_PORT",
+      "PDM_CLOUD_SQL_USER",
+      "PDM_COOKIE_SECURE",
+      "PDM_DB_PROVIDER",
+      "PDM_DRAWING_RECOGNITION_V1",
+      "PDM_DRAWING_REVISION_LIFECYCLE_MODE",
+      "PDM_FIREBASE_API_KEY",
+      "PDM_FIREBASE_APP_ID",
+      "PDM_FIREBASE_AUTH_DOMAIN",
+      "PDM_FIREBASE_PROJECT_ID",
+      "PDM_GOOGLE_WORKSPACE_DOMAINS",
+      "PDM_NUMBER_LIFECYCLE_V2",
+      "PDM_NUMBER_STATE_FLOW_V1",
+      "PDM_PRODUCTION_SLICE_MODE",
+      "PDM_PUBLIC_BASE_URL",
+      "PDM_REVIEW_PACKAGE_V2_WRITE",
+      "PDM_SESSION_AUDIENCE",
+      "PDM_SESSION_CURRENT_KEY_ID",
+      "PDM_SESSION_CURRENT_SECRET",
+      "PDM_SESSION_ISSUER",
+      "PDM_SESSION_PREVIOUS_KEY_ID",
+      "PDM_SESSION_PREVIOUS_SECRET",
+      "PDM_TRUST_GOOGLE_WORKSPACE_MFA",
+      "PDM_UNIFIED_DRAWING_WORKBENCH_V1",
+      "PDM_UNIFIED_ENTITY_DETAIL_V1",
+      "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1",
+      "PDM_WORKBENCH_CONTRACT_SECRET"
+    ],
+    "secretBackedEnvNames": [
+      "PDM_SESSION_CURRENT_SECRET",
+      "PDM_SESSION_PREVIOUS_SECRET",
+      "PDM_WORKBENCH_CONTRACT_SECRET"
+    ],
+    "missingPublicEnvNames": [],
+    "missingSecretBackedEnvNames": [],
+    "invalidSecretBackedEnvNames": [],
+    "forbiddenEnvValueDetected": false,
+    "valuesPersisted": false
+  },
   "cloudRun": {
     "commandOk": true,
     "serviceCount": 1,
@@ -70,34 +125,27 @@
       "name": "ai-pdm-prod",
       "location": "asia-east1",
       "url": "https://ai-pdm-prod-ngxsziu4ha-de.a.run.app",
-      "latestReadyRevisionName": "ai-pdm-prod-gh-f70c8982-29636150040"
+      "latestReadyRevisionName": "ai-pdm-prod-gh-221b25c1-33457759159"
     }
   },
   "cloudSql": {
     "commandOk": true,
-    "instanceCount": 2,
+    "instanceCount": 1,
     "expectedCloudSqlInstance": "ai-pdm-prod-postgres",
     "expectedInstanceFound": true,
     "instances": [
-      {
-        "name": "ai-pdm-prod-restore-20260716a",
-        "region": "asia-east1",
-        "databaseVersion": "POSTGRES_17",
-        "state": "RUNNABLE",
-        "availabilityType": "ZONAL"
-      },
       {
         "name": "ai-pdm-prod-postgres",
         "region": "asia-east1",
         "databaseVersion": "POSTGRES_17",
         "state": "RUNNABLE",
-        "availabilityType": "REGIONAL"
+        "availabilityType": "ZONAL"
       }
     ]
   },
   "secrets": {
     "commandOk": true,
-    "secretCount": 3,
+    "secretCount": 4,
     "requiredSecretIds": [
       "pdm-session-signing-current",
       "pdm-session-signing-previous"
@@ -106,7 +154,8 @@
     "namesOnly": [
       "projects/451715062958/secrets/pdm-session-signing-current",
       "projects/451715062958/secrets/pdm-session-signing-previous",
-      "projects/451715062958/secrets/pdm-solidworks-document-manager-key"
+      "projects/451715062958/secrets/pdm-solidworks-document-manager-key",
+      "projects/451715062958/secrets/pdm-workbench-contract"
     ]
   },
   "releaseSource": {
@@ -164,6 +213,24 @@
         "run",
         "services",
         "list",
+        "--project",
+        "jenfu-ai-pdm-prod",
+        "--region",
+        "asia-east1",
+        "--format=json"
+      ],
+      "readOnly": true,
+      "ok": true,
+      "stderr": ""
+    },
+    {
+      "name": "production-cloud-run-service",
+      "command": [
+        "gcloud",
+        "run",
+        "services",
+        "describe",
+        "ai-pdm-prod",
         "--project",
         "jenfu-ai-pdm-prod",
         "--region",

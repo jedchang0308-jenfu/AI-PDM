@@ -21,7 +21,14 @@ function writeNulPathspec(filePath, paths) {
 }
 
 function writeMarkdown(plan) {
-  const nextStep = plan.releaseDecision.exactReleaseCommitExists
+  const nextStep = !plan.snapshotStability.stable
+    ? [
+        "The release-source boundary changed between two consecutive snapshots. Do not stage or build from this plan; stop concurrent source/config work, then regenerate the plan until the source snapshots are identical. Generated-evidence-only churn is intentionally excluded from this stability decision.",
+        "",
+        `First snapshot: \`${plan.snapshotStability.first.sourceSnapshotSha256}\``,
+        `Second snapshot: \`${plan.snapshotStability.second.sourceSnapshotSha256}\``
+      ]
+    : plan.releaseDecision.exactReleaseCommitExists
     ? [
         "The included production-source pathspec is empty because the release source already exists as an exact commit. Do not create another source-only commit from this plan.",
         "",
@@ -71,20 +78,47 @@ function writeMarkdown(plan) {
   return `${lines.join("\n")}\n`;
 }
 
-const manifest = buildDev032ReleaseSourceManifest(root);
+const firstManifest = buildDev032ReleaseSourceManifest(root);
+const secondManifest = buildDev032ReleaseSourceManifest(root);
+const manifest = secondManifest;
+const snapshotStability = {
+  stable:
+    firstManifest.releaseDecision.sourceSnapshotSha256 === secondManifest.releaseDecision.sourceSnapshotSha256 &&
+    firstManifest.releaseDecision.classificationSha256 === secondManifest.releaseDecision.classificationSha256 &&
+    firstManifest.summary.includedProductionSourceEntries === secondManifest.summary.includedProductionSourceEntries &&
+    firstManifest.summary.unknownRiskEntries === secondManifest.summary.unknownRiskEntries,
+  first: {
+    sourceSnapshotSha256: firstManifest.releaseDecision.sourceSnapshotSha256,
+    classificationSha256: firstManifest.releaseDecision.classificationSha256,
+    totalDirtyEntries: firstManifest.summary.totalDirtyEntries,
+    includedProductionSourceEntries: firstManifest.summary.includedProductionSourceEntries,
+    unknownRiskEntries: firstManifest.summary.unknownRiskEntries
+  },
+  second: {
+    sourceSnapshotSha256: secondManifest.releaseDecision.sourceSnapshotSha256,
+    classificationSha256: secondManifest.releaseDecision.classificationSha256,
+    totalDirtyEntries: secondManifest.summary.totalDirtyEntries,
+    includedProductionSourceEntries: secondManifest.summary.includedProductionSourceEntries,
+    unknownRiskEntries: secondManifest.summary.unknownRiskEntries
+  }
+};
 const included = manifest.files.filter((file) => file.includedInProductionSource).map((file) => file.path).sort();
 const excludedGeneratedOrStaging = manifest.files
   .filter((file) => file.bucket === "generated_evidence_excluded" || file.bucket === "staging_only_excluded_from_production_config")
   .map((file) => file.path)
   .sort();
 const unknown = manifest.files.filter((file) => file.bucket === "unknown_risk").map((file) => file.path).sort();
-const exactReleaseCommitExists = included.length === 0 && unknown.length === 0;
+const exactReleaseCommitExists = snapshotStability.stable && included.length === 0 && unknown.length === 0;
 
 const plan = {
   schemaVersion: 1,
   dev: "DEV-032",
   generatedAt: new Date().toISOString(),
-  status: exactReleaseCommitExists ? "release_source_commit_plan_applied_exact_commit_exists" : "release_source_commit_plan_ready_not_applied",
+  status: !snapshotStability.stable
+    ? "release_source_snapshot_unstable"
+    : exactReleaseCommitExists
+      ? "release_source_commit_plan_applied_exact_commit_exists"
+      : "release_source_commit_plan_ready_not_applied",
   productionActionPerformed: false,
   gitActionPerformed: false,
   git: manifest.git,
@@ -98,6 +132,7 @@ const plan = {
     stagingOnlyEntries: manifest.summary.stagingOnlyEntries,
     unknownRiskEntries: unknown.length
   },
+  snapshotStability,
   pathspecs: {
     includedProductionSourcePathspec: relativePath(includedPathspecPath),
     excludedGeneratedOrStagingPathspec: relativePath(excludedPathspecPath),
@@ -107,11 +142,13 @@ const plan = {
     currentDirtySnapshotSelectedByOwner: exactReleaseCommitExists,
     exactReleaseCommitExists,
     releaseCommitSha: exactReleaseCommitExists ? manifest.git.head : null,
-    safeToStageIncludedSource: unknown.length === 0 && included.length > 0,
+    safeToStageIncludedSource: snapshotStability.stable && unknown.length === 0 && included.length > 0,
     safeToBuildForProduction: false,
-    blocker: exactReleaseCommitExists
-      ? "PRODUCTION_TARGET_ENV_RESTORE_ROLLBACK_AND_SMOKE_MISSING"
-      : "RELEASE_OWNER_SELECTION_AND_EXACT_COMMIT_STILL_REQUIRED"
+    blocker: !snapshotStability.stable
+      ? "RELEASE_SOURCE_SNAPSHOT_UNSTABLE"
+      : exactReleaseCommitExists
+        ? "PRODUCTION_TARGET_ENV_RESTORE_ROLLBACK_AND_SMOKE_MISSING"
+        : "RELEASE_OWNER_SELECTION_AND_EXACT_COMMIT_STILL_REQUIRED"
   },
   includedProductionSourcePaths: included,
   excludedGeneratedOrStagingPaths: excludedGeneratedOrStaging,
@@ -119,7 +156,9 @@ const plan = {
   stopConditions: [
     "This plan is not a release approval and does not create an exact release commit.",
     "Do not stage generated evidence, staging-only Firebase config or staging Terraform as production source.",
-    exactReleaseCommitExists
+    !snapshotStability.stable
+      ? "Do not stage, build, push or deploy until two consecutive source snapshots are identical; another process is changing the worktree."
+      : exactReleaseCommitExists
       ? "Do not build, push or deploy production until production target, env/secret source, HD-8-4 restore evidence, rollback and Level 3/4 smoke gates are closed."
       : "Do not build, push or deploy production until the release owner selects the source boundary and an exact release commit exists.",
     "Do not proceed while production target, env/secret source, HD-8-4 restore evidence, rollback and Level 3/4 smoke are missing."

@@ -1,6 +1,6 @@
 # QA-DEV-086：三工作台量產／研發雙 lane 風險導向驗證計畫
 
-Status: `QA Plan Executed / QA-QC PASS (Local Only) / Production Release Gated`
+Status: `Historical Baseline / Superseded by DEV-087 and DEV-090 / Shared Mechanics Retained / No Separate Release Target`
 Date: 2026-08-20；CAPA amendment 2026-08-21
 Owner: QA（計畫）／Independent QC（事實驗證）
 Related DEV: `DEV-086` / `DEV-PDM-WORKBENCH-PRODUCTION-RD-LANES-001`
@@ -254,6 +254,8 @@ UI PASS 必須由真實 route、server response 與 rendered DOM 共同成立。
 
 ## 11. Current Result
 
-`QA-QC PASS (Local Only / Production Release Gated)`。重開後以隔離 fixture 與 on-path flags 執行 `npm.cmd run qc:dev-086`：contract 5/5、repository 4/4、api 4/4、query-budget 6/6、transition 3/3、classifier 2/2，真實 browser 76/76 PASS。browser manifest `output/qa/dev-086/dev-086-2026-08-21T00-59-40-660Z/manifest.json` 保存三 route（圖號／料號／圖料根號）× desktop/tablet/mobile、版別篩選 URL、rowgroup、a11y、screenshot、network ledger、console/page error 與 cleanup 結果；圖號 A0002-M01 明確回讀`量產最新版／版次 1`與`研發最新版／版次 1.1`。`npm.cmd run typecheck:app`亦 PASS。此結果完成本機 QA/QC 與 CAPA 驗證；production/staging、deploy、merge、PR、release 仍由既有 gate 控制。
+`Historical QA-QC PASS (Local Baseline)`。重開後以隔離 fixture 與 on-path flags 執行 `npm.cmd run qc:dev-086`：contract 5/5、repository 4/4、api 4/4、query-budget 6/6、transition 3/3、classifier 2/2，真實 browser 76/76 PASS。browser manifest `output/qa/dev-086/dev-086-2026-08-21T00-59-40-660Z/manifest.json` 保存三 route（圖號／料號／圖料根號）× desktop/tablet/mobile、版別篩選 URL、rowgroup、a11y、screenshot、network ledger、console/page error 與 cleanup 結果；圖號 A0002-M01 明確回讀`量產最新版／版次 1`與`研發最新版／版次 1.1`。`npm.cmd run typecheck:app`亦 PASS。此結果僅保留作歷史回歸基線；現行Drawing／Part由DEV-087承接、Relation由DEV-090承接，不再形成獨立completion或release gate。
+
+Current disposition：shared mechanics可保留，但不得復活已移除的legacy workbench source、舊domain mutation或舊QA分母；production/staging、deploy、merge、PR、release由DEV-087／DEV-090及既有release gate治理。
 
 CAPA authority：`.ai-doc/qc/qc-dev-086-dual-lane-completion-capa-2026-08-21.md`。

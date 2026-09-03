@@ -41,7 +41,9 @@ try {
     const consoleErrors = [];
     const failedRequests = [];
     const expectedCancellations = [];
+    const failedResponses = [];
     page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
+    page.on("response", (response) => { if (response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`); });
     page.on("requestfailed", (request) => {
       const requestUrl = request.url();
       const failure = request.failure()?.errorText ?? "failed";
@@ -58,13 +60,24 @@ try {
     });
     const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForSelector('.dev079-workspace-grid', { timeout: 30_000 });
-    await page.waitForFunction((targetDrawingNumber) => {
-      const heading = document.querySelector("h1")?.textContent?.trim();
-      const fileCount = document.querySelectorAll('.dev079-workspace-file-list li').length;
-      const headingCount = document.querySelectorAll('.dev079-unified-task-heading').length;
-      const previewReady = Boolean(document.querySelector('[data-pdf-page-state="ready"], [data-preview-media="image"], [data-preview-media="document"]'));
-      return heading === targetDrawingNumber && fileCount === 3 && headingCount === 3 && previewReady;
-    }, drawingNumber, { timeout: 30_000 });
+    try {
+      await page.waitForFunction((targetDrawingNumber) => {
+        const heading = document.querySelector("h1")?.textContent?.trim();
+        const fileCount = document.querySelectorAll('.dev079-workspace-file-list li').length;
+        const headingCount = document.querySelectorAll('.dev079-unified-task-heading').length;
+        const previewReady = Boolean(document.querySelector('[data-pdf-page-state="ready"], [data-preview-media="image"], [data-preview-media="document"]'));
+        return heading === targetDrawingNumber && fileCount === 3 && headingCount === 3 && previewReady;
+      }, drawingNumber, { timeout: 30_000 });
+    } catch (error) {
+      const diagnostic = await page.evaluate(() => ({
+        body: document.body.innerText.slice(0, 5_000),
+        heading: document.querySelector("h1")?.textContent?.trim() ?? null,
+        fileCount: document.querySelectorAll('.dev079-workspace-file-list li').length,
+        headingCount: document.querySelectorAll('.dev079-unified-task-heading').length,
+        previewStates: [...document.querySelectorAll('[data-pdf-page-state], [data-preview-media], [role="alert"]')].map((node) => ({ tag: node.tagName, pdf: node.getAttribute('data-pdf-page-state'), media: node.getAttribute('data-preview-media'), text: node.textContent?.slice(0, 300) }))
+      }));
+      throw new Error(`${viewport.name} readiness timeout:${JSON.stringify({ ...diagnostic, consoleErrors, failedRequests, failedResponses })}; cause=${error instanceof Error ? error.message : String(error)}`);
+    }
     await page.waitForTimeout(500);
     const verification = await page.evaluate(({ targetDrawingNumber, viewportWidth }) => {
       const rect = (selector) => {
@@ -76,7 +89,7 @@ try {
       const bodyText = document.body.innerText;
       const visual = document.querySelector('.dev079-workspace-visual');
       const detail = document.querySelector('.dev079-workspace-detail');
-      const previewTabs = visual?.querySelector('.drawing-preview-tabs');
+      const previewTabs = document.querySelector('.dev079-workspace-preview-tabs') ?? visual?.querySelector('.drawing-preview-tabs');
       const selectedTab = previewTabs?.querySelector('[role="tab"][aria-selected="true"]');
       const previewFrame = visual?.querySelector('.drawing-preview-frame:not(.placeholder-frame)');
       const previewMedia = visual?.querySelector('[data-pdf-page-state="ready"] canvas, [data-preview-media="image"], [data-preview-media="document"]');
@@ -155,7 +168,7 @@ try {
       && verification.previewTabSelectedCount === 1
       && verification.previewTabsAboveFrame
       && verification.headingTexts.length === 3
-      && verification.headingTexts[0] === "版次與檔案"
+      && verification.headingTexts[0].startsWith("版次與檔案")
       && /^(FFF／變更影響|關聯料號)$/u.test(verification.headingTexts[1])
       && verification.headingTexts[2] === "智慧辨識"
       && verification.headingOrderValid

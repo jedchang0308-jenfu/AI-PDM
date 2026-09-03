@@ -1,3 +1,5 @@
+import 'server-only'
+
 import { createHash } from 'node:crypto'
 import { canonicalJson } from '@/lib/role-capability-canonical-json'
 

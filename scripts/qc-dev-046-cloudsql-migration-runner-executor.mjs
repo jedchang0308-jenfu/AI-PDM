@@ -30,6 +30,9 @@ try {
   const dockerfile = readProjectFile(root, "Dockerfile");
   const packageJson = readProjectFile(root, "package.json");
   const plan = buildDev046CloudSqlMigrationRunPlan();
+  const productionPlan = buildDev046CloudSqlMigrationRunPlan(
+    "output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json"
+  );
 
   const dryRun = runNode(["scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]);
   const dryRunPayload = JSON.parse(dryRun.stdout);
@@ -39,7 +42,6 @@ try {
     PDM_CLOUD_SQL_DATABASE: plan.target.databaseName,
     PDM_CLOUD_SQL_USER: plan.target.migrationIamDatabaseUser
   });
-  const productionPlan = buildDev046CloudSqlMigrationRunPlan("output/dev-032-cloudsql-migration-package/cloudsql-migration-manifest.json");
   const productionApproval = "DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED";
   const restoreConnectionName = "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-restore-qc-123456";
   const restoreEnv = {
@@ -56,7 +58,7 @@ try {
   record(
     "DEV046-CLOUDSQL-EXEC-001 run plan loads reviewed proposal package",
     plan.schemaMigrationCount >= 18 &&
-      plan.supportFileCount === 2 &&
+      plan.supportFileCount === 3 &&
       plan.liveApplyAllowedByManifest === false &&
       plan.requiresVpcAttachedRunner === true &&
       plan.requiresReviewedAdminBootstrap === true
@@ -91,7 +93,9 @@ try {
   );
   record(
     "DEV046-CLOUDSQL-EXEC-006 source uses singleton advisory lock and migration history",
-    source.includes("pg_try_advisory_xact_lock") &&
+    source.includes('client.query("SET LOCAL ROLE pdm_migration")') &&
+      source.indexOf('client.query("SET LOCAL ROLE pdm_migration")') < source.indexOf("CREATE TABLE IF NOT EXISTS pdm_schema_migrations") &&
+      source.includes("pg_try_advisory_xact_lock") &&
       source.includes("pdm_schema_migrations") &&
       source.includes("MIGRATION_HISTORY_CHECKSUM_MISMATCH")
   );

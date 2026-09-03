@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "dev079-owner-invariant-qc-v1",
+  "runId": "DEV079-INVARIANT-2026-09-03T05-17-48-436Z",
+  "status": "PASS",
+  "provider": "sqlite",
+  "primaryInvariantBefore": {
+    "payload": {
+      "roots": 1,
+      "parts": 2,
+      "drawings": 1,
+      "missingRootReferences": 0,
+      "migrationResidue": [],
+      "identityHash": "e5bd0fedde77aac5d2693cb2d72607d7b1e2259ef80e9ef145d4244440261665",
+      "foreignKeys": []
+    },
+    "hash": "0c5a9196416e8c0c0e98144e3efd2be446222c17571d50b92918a8a896ba8bac"
+  },
+  "primaryInvariantAfter": {
+    "payload": {
+      "roots": 1,
+      "parts": 2,
+      "drawings": 1,
+      "missingRootReferences": 0,
+      "migrationResidue": [],
+      "identityHash": "e5bd0fedde77aac5d2693cb2d72607d7b1e2259ef80e9ef145d4244440261665",
+      "foreignKeys": []
+    },
+    "hash": "0c5a9196416e8c0c0e98144e3efd2be446222c17571d50b92918a8a896ba8bac"
+  },
+  "reconciliation": {
+    "schemaPreflightCandidateFingerprint": "d7b4a2086756e059c24bf77cba709ae14b6d4f018ecbaef8d94b3bd99f215599",
+    "schemaPreflightReviewFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "inventorySummary": {
+      "repairable_exactly_one": 3
+    },
+    "planCount": 3,
+    "appliedCount": 3,
+    "idempotentReplayZeroDelta": true,
+    "requestSnapshotHashUnchanged": true
+  },
+  "assertions": {
+    "legacyImpactFailsClosed": true,
+    "schemaFingerprintGateMutantDetected": true,
+    "insertUpdateTrigger": true,
+    "triggerRemovalMutantDetected": true,
+    "commandMissingOwner422": true,
+    "commandAmbiguousOwner422": true,
+    "commandInvalidOwner422": true,
+    "controlledStale409ZeroWrite": true,
+    "crossAdapterCanonicalCandidate": true,
+    "repeatedGetZeroWrite": true,
+    "foreignKeyCheck": 0
+  },
+  "cleanup": {
+    "tempRoot": "C:\\Users\\user\\AppData\\Local\\Temp\\ai-pdm-dev079-invariant-PoJ44o",
+    "condition": "removed in finally"
+  }
+}

@@ -137,7 +137,18 @@ if (process.env.PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT !== "true") {
   const root = process.cwd();
   const stagingManifestPath = path.join(root, "config/platform/staging-preflight.template.json");
   const productionTarget = JSON.parse(fs.readFileSync(path.join(root, "config/platform/production-target.template.json"), "utf8"));
-  record("DEV046-2B-010 retired staging preflight contract is absent", !fs.existsSync(stagingManifestPath));
+  const retainedStagingManifestIsFailClosed = !fs.existsSync(stagingManifestPath) || (() => {
+    const stagingManifest = JSON.parse(fs.readFileSync(stagingManifestPath, "utf8"));
+    return stagingManifest.executionMode === "local-static-only" &&
+      stagingManifest.resourceCreationEnabled === false &&
+      stagingManifest.credentialAccessAllowed === false &&
+      stagingManifest.terraformApplyAllowed === false &&
+      stagingManifest.billingMutationAllowed === false;
+  })();
+  record(
+    "DEV046-2B-010 retired staging preflight contract is absent or retained fail-closed",
+    retainedStagingManifestIsFailClosed
+  );
   record(
     "DEV046-2B-011 current production target remains fail-closed",
     productionTarget.templateOnly === true && productionTarget.releaseReady === false && productionTarget.productionActionAllowed === false

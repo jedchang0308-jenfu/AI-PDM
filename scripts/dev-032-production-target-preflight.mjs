@@ -9,6 +9,11 @@ const args = new Set(process.argv.slice(2));
 const outputDir = path.join(root, "output", "dev-032-production-target-preflight");
 const jsonPath = path.join(outputDir, "report.json");
 const mdPath = path.join(outputDir, "report.md");
+const currentHead = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: root,
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "pipe"]
+}).trim();
 
 function relativePath(filePath) {
   return filePath.replace(root, "").replace(/^[/\\]/u, "").replaceAll("\\", "/");
@@ -88,6 +93,7 @@ const releaseManifest = readJsonIfExists("output/dev-032-release-source/manifest
 const productionTargetContract = readJsonIfExists("config/platform/production-target.template.json");
 const contractTarget = productionTargetContract.parsed?.target ?? {};
 const contractSecrets = productionTargetContract.parsed?.secrets ?? {};
+const contractRuntimeEnvironment = productionTargetContract.parsed?.runtimeEnvironment ?? {};
 const targetProject = process.env.DEV032_PRODUCTION_PROJECT || contractTarget.projectId || "jenfu-ai-pdm-prod";
 const region = process.env.DEV032_PRODUCTION_REGION || contractTarget.region || "asia-east1";
 const expectedRunService = process.env.DEV032_PRODUCTION_CLOUD_RUN_SERVICE || contractTarget.runtimeService || "ai-pdm-prod";
@@ -101,6 +107,7 @@ const commands = {
   activeProject: runGcloudReadOnlyCommand("active-project", ["config", "get-value", "project"], { timeoutMs: 10000 }),
   projectDescribe: runGcloudReadOnlyCommand("production-project-describe", ["projects", "describe", targetProject, "--format=json"]),
   runServices: runGcloudReadOnlyCommand("production-cloud-run-services", ["run", "services", "list", "--project", targetProject, "--region", region, "--format=json"]),
+  runServiceDescribe: runGcloudReadOnlyCommand("production-cloud-run-service", ["run", "services", "describe", expectedRunService, "--project", targetProject, "--region", region, "--format=json"]),
   sqlInstances: runGcloudReadOnlyCommand("production-cloud-sql-instances", ["sql", "instances", "list", "--project", targetProject, "--format=json"]),
   secrets: runGcloudReadOnlyCommand("production-secret-metadata", ["secrets", "list", "--project", targetProject, "--format=json"])
 };
@@ -119,6 +126,7 @@ const activeAccount = commands.activeAccount.ok ? commands.activeAccount.stdout 
 const activeProject = commands.activeProject.ok ? commands.activeProject.stdout : null;
 const project = parseJsonCommand(commands.projectDescribe);
 const runServices = parseJsonCommand(commands.runServices);
+const runServiceReadback = parseJsonCommand(commands.runServiceDescribe);
 const sqlInstances = parseJsonCommand(commands.sqlInstances);
 const secretMetadata = parseJsonCommand(commands.secrets);
 
@@ -137,47 +145,37 @@ const firebaseProductionConfigReady = (
 const productionRunService = Array.isArray(runServices)
   ? runServices.find((service) => service.metadata?.name === expectedRunService)
   : null;
-const productionRuntimeContainers = productionRunService?.spec?.template?.spec?.containers ?? [];
-const productionRuntimeEnv = productionRuntimeContainers
-  .flatMap((container) => Array.isArray(container.env) ? container.env : [])
-  .filter((entry) => typeof entry?.name === "string" && entry.name.length > 0);
-const productionRuntimeEnvByName = new Map(productionRuntimeEnv.map((entry) => [entry.name, entry]));
-const requiredPublicEnv = Array.isArray(productionTargetContract.parsed?.runtimeEnvironment?.requiredPublicEnv)
-  ? productionTargetContract.parsed.runtimeEnvironment.requiredPublicEnv
+const exactProductionRunService = runServiceReadback?.metadata?.name === expectedRunService
+  ? runServiceReadback
+  : productionRunService;
+const runtimeEnvEntries = exactProductionRunService?.spec?.template?.spec?.containers?.[0]?.env ?? [];
+const runtimeEnvByName = new Map(runtimeEnvEntries.map((entry) => [entry.name, entry]));
+const requiredPublicEnvNames = Array.isArray(contractRuntimeEnvironment.requiredPublicEnv)
+  ? contractRuntimeEnvironment.requiredPublicEnv
   : [];
-const requiredSecretBackedEnv = Array.isArray(productionTargetContract.parsed?.runtimeEnvironment?.requiredSecretBackedEnv)
-  ? productionTargetContract.parsed.runtimeEnvironment.requiredSecretBackedEnv
+const requiredSecretBackedEnvNames = Array.isArray(contractRuntimeEnvironment.requiredSecretBackedEnv)
+  ? contractRuntimeEnvironment.requiredSecretBackedEnv
   : [];
-const missingRequiredPublicEnv = requiredPublicEnv.filter((name) => !productionRuntimeEnvByName.has(name));
-const missingRequiredSecretBackedEnv = requiredSecretBackedEnv.filter((name) => !productionRuntimeEnvByName.has(name));
-const invalidRequiredSecretBackedEnv = requiredSecretBackedEnv.filter((name) => {
-  const secretRef = productionRuntimeEnvByName.get(name)?.valueFrom?.secretKeyRef;
-  return !secretRef?.name || !requiredSecretIds.includes(secretRef.name);
+const forbiddenEnvValues = Array.isArray(contractRuntimeEnvironment.forbiddenEnvValues)
+  ? contractRuntimeEnvironment.forbiddenEnvValues
+  : [];
+const missingPublicEnvNames = requiredPublicEnvNames.filter((name) => !runtimeEnvByName.has(name));
+const missingSecretBackedEnvNames = requiredSecretBackedEnvNames.filter((name) => !runtimeEnvByName.has(name));
+const invalidSecretBackedEnvNames = requiredSecretBackedEnvNames.filter((name) => {
+  const entry = runtimeEnvByName.get(name);
+  return entry && !entry.valueFrom?.secretKeyRef;
 });
-const cloudRunRevisionEnvSource = {
-  kind: "cloud_run_revision",
-  resource: `projects/${targetProject}/locations/${region}/services/${expectedRunService}`,
-  revisionName: productionRunService?.status?.latestReadyRevisionName ?? null,
-  exists: Boolean(productionRunService),
-  valuesPersisted: false,
-  requiredPublicEnv,
-  presentPublicEnv: requiredPublicEnv.filter((name) => productionRuntimeEnvByName.has(name)),
-  missingRequiredPublicEnv,
-  requiredSecretBackedEnv,
-  presentSecretBackedEnv: requiredSecretBackedEnv.filter((name) => {
-    const secretRef = productionRuntimeEnvByName.get(name)?.valueFrom?.secretKeyRef;
-    return Boolean(secretRef?.name && requiredSecretIds.includes(secretRef.name));
-  }),
-  missingRequiredSecretBackedEnv,
-  invalidRequiredSecretBackedEnv
-};
-const envSources = [...localEnvSources, cloudRunRevisionEnvSource];
-const productionEnvSourceReady = (
-  cloudRunRevisionEnvSource.exists &&
-  missingRequiredPublicEnv.length === 0 &&
-  missingRequiredSecretBackedEnv.length === 0 &&
-  invalidRequiredSecretBackedEnv.length === 0
-);
+const forbiddenEnvValueDetected = runtimeEnvEntries.some((entry) => (
+  typeof entry.value === "string" && forbiddenEnvValues.some((value) => value && entry.value.includes(value))
+));
+const providerEnvReadbackReady = Boolean(exactProductionRunService)
+  && commands.runServiceDescribe.ok
+  && missingPublicEnvNames.length === 0
+  && missingSecretBackedEnvNames.length === 0
+  && invalidSecretBackedEnvNames.length === 0
+  && !forbiddenEnvValueDetected;
+const localEnvSourcePresent = envSources.some((source) => source.exists);
+const productionEnvSourceReady = localEnvSourcePresent || providerEnvReadbackReady;
 const productionSqlInstances = Array.isArray(sqlInstances) ? sqlInstances : [];
 const productionSqlInstance = productionSqlInstances.find((instance) => instance.name === expectedCloudSqlInstance) ?? null;
 const productionSecrets = Array.isArray(secretMetadata) ? secretMetadata : [];
@@ -213,11 +211,15 @@ if (!firebaseProductionConfigReady) {
   }));
 }
 if (!productionEnvSourceReady) {
-  blockers.push(blocker("PRODUCTION_ENV_SOURCE_MISSING", "The live production Cloud Run revision does not prove every required public env name and Secret Manager binding.", {
+  blockers.push(blocker("PRODUCTION_ENV_SOURCE_MISSING", "Neither a local production env source nor a complete sanitized Cloud Run runtime-env readback was proven.", {
     envSources,
-    missingRequiredPublicEnv,
-    missingRequiredSecretBackedEnv,
-    invalidRequiredSecretBackedEnv
+    providerEnvReadback: {
+      commandOk: commands.runServiceDescribe.ok,
+      missingPublicEnvNames,
+      missingSecretBackedEnvNames,
+      invalidSecretBackedEnvNames,
+      forbiddenEnvValueDetected
+    }
   }));
 }
 if (!productionRunService) {
@@ -242,12 +244,20 @@ if (!commands.secrets.ok || missingRequiredSecretIds.length > 0) {
     missingRequiredSecretIds
   }));
 }
+const releaseCommitSha = releaseManifest.parsed?.releaseDecision?.releaseCommitSha ?? null;
+const releaseManifestHead = releaseManifest.parsed?.git?.head ?? null;
+const releaseSourceHeadMatches = Boolean(currentHead && releaseCommitSha === currentHead && releaseManifestHead === currentHead);
 const releaseSourceCommitted = releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists === true
   && releaseManifest.parsed?.summary?.includedProductionSourceEntries === 0
-  && releaseManifest.parsed?.summary?.unknownRiskEntries === 0;
+  && releaseManifest.parsed?.summary?.unknownRiskEntries === 0
+  && releaseSourceHeadMatches;
 if (!releaseSourceCommitted) {
   blockers.push(blocker("RELEASE_SOURCE_NOT_SELECTED_OR_COMMITTED", "Release-source manifest does not prove an exact release commit.", {
     manifestPath: "output/dev-032-release-source/manifest.json",
+    currentHead,
+    releaseCommitSha,
+    releaseManifestHead,
+    headMatches: releaseSourceHeadMatches,
     exactReleaseCommitExists: releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists ?? null,
     includedProductionSourceEntries: releaseManifest.parsed?.summary?.includedProductionSourceEntries ?? null,
     unknownRiskEntries: releaseManifest.parsed?.summary?.unknownRiskEntries ?? null,
@@ -309,9 +319,21 @@ const report = {
     requiredSecretIds
   },
   envSources,
-  productionEnvSourceReady,
+  envReadback: {
+    source: providerEnvReadbackReady ? "cloud_run_runtime_readback" : localEnvSourcePresent ? "local_file" : null,
+    ready: productionEnvSourceReady,
+    providerReady: providerEnvReadbackReady,
+    localFilePresent: localEnvSourcePresent,
+    presentEnvNames: [...runtimeEnvByName.keys()].sort(),
+    secretBackedEnvNames: runtimeEnvEntries.filter((entry) => entry.valueFrom?.secretKeyRef).map((entry) => entry.name).sort(),
+    missingPublicEnvNames,
+    missingSecretBackedEnvNames,
+    invalidSecretBackedEnvNames,
+    forbiddenEnvValueDetected,
+    valuesPersisted: false
+  },
   cloudRun: {
-    commandOk: commands.runServices.ok,
+    commandOk: commands.runServices.ok && commands.runServiceDescribe.ok,
     serviceCount: Array.isArray(runServices) ? runServices.length : null,
     expectedServiceFound: Boolean(productionRunService),
     expectedService: productionRunService
@@ -346,6 +368,10 @@ const report = {
   releaseSource: {
     manifestPath: releaseManifest.exists ? "output/dev-032-release-source/manifest.json" : null,
     manifestStatus: releaseManifest.parsed?.status ?? null,
+    currentHead,
+    releaseCommitSha,
+    manifestHead: releaseManifestHead,
+    headMatches: releaseSourceHeadMatches,
     exactReleaseCommitExists: releaseManifest.parsed?.releaseDecision?.exactReleaseCommitExists ?? null,
     includedProductionSourceEntries: releaseManifest.parsed?.summary?.includedProductionSourceEntries ?? null,
     unknownRiskEntries: releaseManifest.parsed?.summary?.unknownRiskEntries ?? null,

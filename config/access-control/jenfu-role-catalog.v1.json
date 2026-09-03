@@ -2,7 +2,7 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "catalogVersion": "ai-pdm.role-catalog.2026-09-03.v3",
-  "publishedAt": "2026-09-02T07:00:16.069Z",
+  "publishedAt": "2026-09-03T05:14:23.111Z",
   "roles": [
     {
       "stableRoleId": "role-rd",

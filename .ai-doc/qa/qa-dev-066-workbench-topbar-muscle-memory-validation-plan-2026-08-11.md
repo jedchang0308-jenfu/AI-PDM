@@ -1,8 +1,49 @@
 # QA Plan：DEV-066 三工作台頂部欄一致化與肌肉記憶
 
-日期：2026-08-11；amended 2026-08-21
-Related DEV：`DEV-066`
+日期：2026-08-11；amended 2026-08-21、2026-09-01
+Related DEV：`DEV-066`、`DEV-087`、`DEV-090`、`DEV-112`
 權威規格：`.ai-doc/specs/SPEC-UX-PDM-WORKBENCH-TOPBAR-001-unified-toolbar-muscle-memory.md`
+
+## 0A. DEV-066 supersession disposition（2026-09-03）
+
+Status：`Historical / Superseded by DEV-087/DEV-090/DEV-112 / No Separate Release Target`。
+
+DEV-066原本的三個獨立 workbench source 已由 canonical workbench architecture 退役。歷史 `TB-001..013`、舊
+route與screenshots仍保留追溯，但不再作現行分母，也不以不存在的舊 source重跑 current UI gate。現行 coverage
+分流如下：
+
+- DEV-087：canonical Drawing／Part filter、cursor pagination、history／URL recovery與四 viewport UI。
+- DEV-090：Drawing／Part drawer內的Relation matrix與直接編輯／取消／readback。
+- DEV-112：Drawing／Part `文字清單／3D 清單／預覽圖`三模式與結果區 placement。
+
+`scripts/qc-dev-066-workbench-topbar.mjs`只驗證 legacy source已退役、successor commands已註冊及current canonical
+mechanics存在；它不是把歷史 `TB-001..013` 改寫成 current PASS。任何 successor regression由對應 DEV owner處理，
+不重開 DEV-066。
+
+## 0. DEV-112 Drawing／Part placement regression amendment（已執行／PASS）
+
+Status：`Local RD Implemented / RD Tech Lead Corrections Closed / QA-QC Complete 24/24 / Production Release Gated`。
+
+DEV-112 對 Drawing／Part 有意取代本文件 `TB-002`、`TB-004`、`TB-007..011`中「view switch在toolbar footer trailing」與
+「清單／預覽圖」的expected；新的固定分母是 DEV-065 QA §0S `TVM-001..024`。TB歷史13案仍保留DEV-066 provenance，
+不能直接改標為DEV-112 PASS。
+
+DEV-112 regression boundary固定如下：
+
+- Drawing／Part page header只保留名稱與建立動作，filter只管理資料範圍；`顯示方式`在結果區上緣，三選項固定為
+  `文字清單／3D 清單／預覽圖`。驗證歸屬`TVM-001..005`。
+- Relation的`關係樹／矩陣`位置與行為不改；若DEV-112使Relation switch、selection、drawer或query退化，整體FAIL。
+- 三工作台filter mechanics、history-control removal與pagination markup/order/location不改；既有`TB-001/003/005/006/013`
+  作受影響回歸，必須在同一candidate重跑，不能只引用歷史13/13。
+- 四viewport不再要求Drawing／Part與Relation的mode switch「相同右側位置」；改驗相同定義是否在正確任務區域：
+  Relation mode仍屬relation toolbar，Drawing／Part presentation mode屬result display bar。
+- Keyboard focus order改為filters → result display mode → result content → pagination；header建立動作仍依DOM自然順序可達，
+  切換mode不得搶走result focus或新增thumbnail tab stop。
+
+本 amendment已由DEV-112 preview SPEC §0T與QA §0T補成可執行的repository contract，並由同一candidate完成TVM-001..024驗證；
+完整pass/fail、candidate freeze與evidence仍以DEV-112 QA §0T／§0S為準。`scripts/qc-dev-066-workbench-topbar.mjs`保留DEV-066歷史
+placement expected，不因DEV-112改寫或直接當current gate；Drawing／Part replacement由`TVM-001/002/017/018`，Relation未受影響由
+`npm.cmd run qc:dev-062:relation`及DEV-112 browser receipt驗證。這不授權deploy或release。
 
 ## 1. 驗證目的
 

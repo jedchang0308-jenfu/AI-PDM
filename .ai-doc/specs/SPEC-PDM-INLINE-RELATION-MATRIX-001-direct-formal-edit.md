@@ -1,12 +1,49 @@
 # SPEC-PDM-INLINE-RELATION-MATRIX-001：抽屜關聯矩陣直接編輯與正式關聯單一權威
 
-Status: `RD Implementation Complete / Human Confirmed / Local QA-QC Complete / Production Release Gated`
-Date: 2026-08-23
+Status: `RD Implementation Complete / Human Confirmed / Local QA-QC Complete / Production Release Gated`; `DEV-113-E Part Maintenance Direct Edit Local RD Implemented / RD Tech Lead Corrections Closed / P0-P1 Planning Gap 0 / Human Confirmed / Full QA-QC Passed 28/28 / Production Release Gated`
+Date: 2026-08-23; amended 2026-09-01
 Owner: Dev PM
 DEV: `DEV-090` / `DEV-PDM-RELATION-WORKBENCH-REPLACEMENT-001`
 Risk: High / P1
 ADR: `.ai-doc/decisions/ADR-PDM-RELATION-EDITING-001-direct-formal-authority.md`
 QA: `.ai-doc/qa/qa-dev-090-inline-relation-matrix-validation-plan-2026-08-23.md`
+
+## 2026-09-01 DEV-113 Part-side placement amendment
+
+Baseline Status：`Local RD Implemented / RD Tech Lead Corrections Closed / Human Confirmed / Historical QA-QC 28/28 / Production Release Gated`。本節原始placement完成紀錄保留為修正前基線；Part maintenance的目前activation契約由下列DEV-113-E治理。DEV-090的正式關聯authority、API、transaction、ETag、idempotency、permission、audit與立即生效語意全部保留。
+
+### DEV-113-E Part maintenance immediate activation（Local RD Implemented）
+
+Status：`Local RD Implemented / RD Tech Lead Corrections Closed / P0-P1 Planning Gap 0 / Human Confirmed / Full QA-QC Passed 28/28 / Prior 28/28 Baseline Retained / Production Release Gated / P1 / Medium`。
+
+Implementation／QC receipt：`output/qa/dev-113/aggregate/report.json` G01～G04 PASS；browser `output/qa/dev-113/browser-real/DEV113-2026-09-01T13-27-51-231Z/report.json` B01～B12 12/12 PASS（1440×900、1024×768、390×844）。C01～C08、R01～R04及DEV-090／096／099／108 parent regression均PASS；same-key response-loss、409／412 stale recovery、Drawing explicit activation、附件lazy-load競態與單一零件BOM空狀態導向均有逐案證據。`productionWrites=false`，primary snapshot before/after相同，task-owned runtime／fixture／port／dist已清理；PostgreSQL／production migration／deploy／activation／release仍gated。
+
+Spec Impact：`Intentional replacement + compatible preservation`。
+
+1. `/parts/[partId]/workspace?tab=maintenance`已是明確維護context；exact active Part work的server row action只有`key="edit"`可解鎖relation manage，parent再傳`mode="manage"`。`create_change／review／cancel_work／request_obsolete`全部fail closed；Part workspace不顯示`編輯關聯`，進頁本身仍是zero mutation。
+2. Shared presenter固定提供`activationMode?: "explicit" | "immediate"`且default=`explicit`。Part maintenance唯一使用`immediate`；Drawing drawer維持default explicit及`編輯關聯`，本SPEC §5.1～5.3的drawer view/edit規則仍治理Drawing。
+3. Immediate不等於autosave：cell change先保存在browser draft，只有`儲存關聯`可呼叫既有single formal PATCH；`取消`只丟棄draft。Normal dirty dock只有save/cancel，save／cancel後Part maintenance仍保持edit-ready。
+4. Shared component以`rootId + matrixEtag + stable-sorted changes`形成logical command fingerprint，第一次save配置一個UUID。network／timeout／5xx後鎖定payload並以同key同payload顯示`重試確認儲存結果`；success receipt後若GET readback失敗，只能`重新載入已儲存結果`，不得再次PATCH。
+5. Dirty cell須有非色彩唯一標記與accessible state。Stale 409／412保留draft、禁用舊ETag save並顯示單一`放棄草稿並載入最新資料`；使用者執行後由Part parent optional reload callback取得最新matrix／ETag並留在edit-ready。其他definitive 4xx依zero-write terminal處理；離頁／切tab沿用DEV-113 dirty guard。
+6. Permission仍由server row action descriptor決定；無exact `edit` action、root或完整axes時fail closed為readonly，不顯示disabled假入口。Part parent不得以`edit_relation_matrix`、client role或workId存在自行解鎖，也不得複製第二套relation state/save邏輯。
+7. `上傳圖片`、分類、附件上傳與BOM是各domain command，不屬relation activation gate；不納入本次移除。
+8. Exact `9 modify + 0 add + 0 delete` code/runner boundary、SHA ledger、slices與fixed 28案完成門檻以entity-detail主SPEC的DEV-113-E節及DEV-113 QA為權威；B01～B12已各自產生named record與artifact，current aggregate=`28/28 PASS`。BOM空狀態僅補原因文案與maintenance tab導向，不改assembly-only eligibility或BOM writer。
+
+ADR：`No New ADR`。既有`.ai-doc/decisions/ADR-PDM-RELATION-EDITING-001-direct-formal-authority.md`繼續治理single formal writer；若需要autosave、新writer、permission、schema或讓Drawing也改為immediate，立即停止重做Spec Impact／ADR。
+
+### DEV-113-A～D placement baseline（historical）
+
+Spec Impact：`Intentional replacement planned + compatible preservation`。
+
+1. DEV-113原始target state中，Part drawer改為readonly-data／zero inline-data mutation，不再於drawer內進入relation matrix edit mode；Part側relation editor移至`/parts/[partId]/workspace`的`即時維護`頁籤。其後activation由上列113-E改為edit-ready，不再保留第二層`編輯關聯`。
+2. Drawing drawer不在DEV-113範圍，仍沿用本SPEC現行placement與行為。
+3. Part workspace內的relation matrix仍讀寫同一root-level `drawing_part_links` formal authority，明確`儲存`後立即生效，不建立Relation work、review request或第二份current projection。
+4. 本SPEC §5.1～5.3、§13、§16、§18中「Drawing／Part drawer」的共同placement敘述，在DEV-113完成實作及targeted QA/QC後，對Part側改由本amendment與`SPEC-PDM-ENTITY-DETAIL-DRAWER-001`的DEV-113節治理；Drawing側及所有非placement規則維持原文有效。
+5. Repository assessment確認不需改本SPEC writer：Part workspace會以matrix response新增的exact `sourceRowKey`惰性讀取既有canonical detail，再把同一`CanonicalRelationMatrixProjection／contractToken`交給shared `canonical-relation-matrix-section.tsx`與既有matrix PATCH。Part drawer只傳`editable=false`，Drawing drawer仍傳現行editable capability。
+6. Relation仍是root-wide authority，不因workspace entry是exact Part而縮成單列；UI固定標示`{rootCode} 全根號圖料關聯`。其他preview／classification／attachment／BOM才是exact source Part scope。
+7. DEV-113 exact implementation boundary、dirty SHA、演算法與固定28案QA位於entity-detail主SPEC與`.ai-doc/qa/qa-dev-113-part-workbench-single-edit-entry-validation-plan-2026-09-01.md`。Part drawer與workspace placement的修正前基線曾完成28/28；113-E直接編輯尚未執行QA，正式provider／migration／release仍維持gated。
+
+ADR：`No New ADR`。既有`.ai-doc/decisions/ADR-PDM-RELATION-EDITING-001-direct-formal-authority.md`繼續是single formal writer決策權威；若後續設計要求改writer、合併Part review transaction、新permission或新schema，立即停止並重做ADR判定。
 
 ## 1. 目標與成功結果
 

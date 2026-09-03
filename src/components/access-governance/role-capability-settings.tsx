@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, LoaderCircle, RefreshCw, Save, Settings2, ShieldAlert, X } from 'lucide-react'
 import type { RoleCapabilityEmployee, RoleCapabilityMutationResponse, RoleCapabilityPosition, RoleCapabilityWorkspaceV2, RoleCapabilityWorkspaceV3 } from '@/lib/ai-pdm-role-capability-contract'
-import { sha256CanonicalJson } from '@/lib/role-capability-canonical-json'
+import { sha256CanonicalJsonBrowser } from '@/lib/role-capability-canonical-json'
 
 type Feedback = { type: 'error' | 'success'; text: string }
 type RoleCapabilityWorkspace = RoleCapabilityWorkspaceV2 | RoleCapabilityWorkspaceV3
@@ -12,23 +12,23 @@ type ReviewDraft =
   | { type: 'position'; adoptedPositionIds: string[] }
   | { type: 'sources'; changes: Array<{ employeeId: string; positionId: string; selected: boolean }> }
 
-async function resolveRoleCapabilityCommandUnknown(commandId: string, requestHash: string) {
-  const response = await fetch(`/api/settings/access/role-capabilities/commands/${encodeURIComponent(commandId)}/resolve-unknown`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ requestHash, action: 'cancel_if_absent_or_expired' })
-  })
-  const body = await response.json().catch(() => ({})) as { error?: string; decisionCode?: string; receiptStatus?: string }
-  if (!response.ok) throw new Error(body.error ?? '命令結果仍未確認')
-  return body
-}
-
 function sourceKey(positionId: string, employeeId: string) {
   return `${positionId}\0${employeeId}`
 }
 
 function randomCommandId() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `role-capability-${Date.now()}`
+}
+
+async function resolveRoleCapabilityCommandUnknown(commandId: string, requestHash: string) {
+  const response = await fetch(`/api/settings/access/role-capabilities/commands/${encodeURIComponent(commandId)}/resolve-unknown`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ requestHash })
+  })
+  const body = await response.json().catch(() => ({})) as { error?: string; decisionCode?: string; receiptStatus?: string }
+  if (!response.ok) throw new Error(body.error ?? '命令結果仍未確認')
+  return body
 }
 
 function displayDate(value: string | null) {
@@ -166,7 +166,7 @@ export function RoleCapabilitySettings() {
         return
       }
       const commandId = randomCommandId()
-      const requestHash = await sha256CanonicalJson(base)
+      const requestHash = await sha256CanonicalJsonBrowser(base)
       const publishResponse = await fetch('/api/settings/access/role-capabilities/publish', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...base, commandId, requestHash }) })
       const published = await publishResponse.json().catch(() => ({})) as RoleCapabilityMutationResponse & { error?: string }
       if (!publishResponse.ok) {

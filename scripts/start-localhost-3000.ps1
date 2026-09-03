@@ -75,6 +75,31 @@ function Ensure-PreviewWorkerToken {
   $env:PDM_PREVIEW_WORKER_TOKEN = $token
 }
 
+function Get-PreviewWorkerCapabilityState {
+  try {
+    Ensure-PreviewWorkerToken
+    return Invoke-RestMethod `
+      -Uri "${Url}api/preview-workers/heartbeat?capability=solidworks_3d_preview_png" `
+      -Method Get `
+      -Headers @{ "x-pdm-preview-worker-token" = $env:PDM_PREVIEW_WORKER_TOKEN } `
+      -TimeoutSec 5
+  }
+  catch {
+    return [pscustomobject]@{
+      capability = "solidworks_3d_preview_png"
+      status = "degraded"
+      fresh = $false
+      issueCode = "preview_capability_unavailable"
+      lastSeenAt = $null
+    }
+  }
+}
+
+function Test-PreviewWorkerCapabilityReady {
+  param($Capability)
+  return $Capability -and $Capability.fresh -eq $true -and $Capability.status -eq "ready"
+}
+
 function Ensure-RecognitionWorkerToken {
   if ($env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN -and $env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN.Trim().Length -ge 32) {
     return
@@ -260,9 +285,13 @@ function Start-PreviewWorker {
 
   Ensure-PreviewWorkerToken
   Remove-Item -LiteralPath $PreviewWorkerStdoutLog, $PreviewWorkerStderrLog, $PreviewWorkerPidFile -ErrorAction SilentlyContinue
+  $workerArguments = @("`"$PreviewWorkerScript`"", "--watch", "--models-only", "--worker-id", "windows-shell-thumbnail-worker")
+  if ($env:PDM_3D_PREVIEW_CANARY_SOURCE) {
+    $workerArguments += @("--canary-source", "`"$($env:PDM_3D_PREVIEW_CANARY_SOURCE)`"")
+  }
   $worker = Start-Process `
     -FilePath "node.exe" `
-    -ArgumentList @("`"$PreviewWorkerScript`"", "--watch", "--models-only", "--worker-id", "windows-shell-thumbnail-worker") `
+    -ArgumentList $workerArguments `
     -WorkingDirectory $ProjectRoot `
     -WindowStyle Hidden `
     -PassThru `
@@ -472,6 +501,7 @@ function Write-RuntimeStatus {
   $commandLine = if ($PortOwnerProcessInfo -and $PortOwnerProcessInfo.CommandLine) { $PortOwnerProcessInfo.CommandLine } else { "" }
   $processName = if ($PortOwnerProcessInfo -and $PortOwnerProcessInfo.Name) { $PortOwnerProcessInfo.Name } else { "" }
   $documentManagerPreviewWorker = Get-DocumentManagerPreviewWorkerProcessInfo
+  $previewCapability = if ($PreviewWorkerProcessId -gt 0) { Get-PreviewWorkerCapabilityState } else { $null }
   $status = [ordered]@{
     app = "AI_PDM"
     port = $Port
@@ -483,6 +513,11 @@ function Write-RuntimeStatus {
     portOwnerCommandLine = $commandLine
     previewWorkerProcessId = $PreviewWorkerProcessId
     previewWorkerState = if ($PreviewWorkerProcessId -gt 0) { "running" } else { "not_running" }
+    previewWorkerCapability = "solidworks_3d_preview_png"
+    previewWorkerCapabilityState = if ($previewCapability) { $previewCapability.status } else { "offline" }
+    previewWorkerCapabilityFresh = if ($previewCapability) { [bool]$previewCapability.fresh } else { $false }
+    previewWorkerCapabilityIssueCode = if ($previewCapability) { $previewCapability.issueCode } else { "preview_worker_not_running" }
+    previewWorkerCapabilityLastSeenAt = if ($previewCapability) { $previewCapability.lastSeenAt } else { $null }
     recognitionWorkerProcessId = $RecognitionWorkerProcessId
     recognitionWorkerState = if ($RecognitionWorkerProcessId -gt 0) { "running" } else { "not_running" }
     documentManagerPreviewWorkerProcessId = if ($documentManagerPreviewWorker) { [int]$documentManagerPreviewWorker.ProcessId } else { 0 }
@@ -617,6 +652,12 @@ if ($listeners.Count -gt 0) {
           Write-Error "AI_PDM website is healthy, but the 3D preview worker is not running. Run npm run dev:local:restart."
           exit 1
         }
+        $previewCapability = Get-PreviewWorkerCapabilityState
+        if (-not (Test-PreviewWorkerCapabilityReady -Capability $previewCapability)) {
+          Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Website and 3D worker process are running, but the 3D renderer capability is not ready ($($previewCapability.status)/$($previewCapability.issueCode))."
+          Write-Error "AI_PDM website is healthy and the 3D worker process is running, but the 3D renderer capability is not ready. Configure PDM_3D_PREVIEW_CANARY_SOURCE and restart the worker."
+          exit 1
+        }
         $recognitionWorker = Get-RecognitionWorkerProcessInfo
         if (-not $recognitionWorker) {
           Write-RuntimeStatus -State "degraded_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Website and 3D worker are healthy, but the recognition worker is not running."
@@ -629,9 +670,9 @@ if ($listeners.Count -gt 0) {
           Write-Error "AI_PDM website is healthy, but the configured 2D preview worker is not running. Run npm run dev:local:restart."
           exit 1
         }
-        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server, preview workers, and recognition worker are healthy; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
+        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server is healthy; the 3D renderer capability is ready; recognition worker is running; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "AI_PDM is healthy."
-        Write-Host "3D preview worker is running."
+        Write-Host "3D preview renderer capability is ready."
         Write-Host "Recognition worker is running."
         Write-Host "2D preview worker: $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "Local URL: $Url"
@@ -648,9 +689,11 @@ if ($listeners.Count -gt 0) {
           Write-Error $_.Exception.Message
           exit 1
         }
-        Write-RuntimeStatus -State "healthy_existing" -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM project server and preview workers are healthy; recognition worker is running; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
-        Write-Host "AI_PDM is healthy."
-        Write-Host "3D preview worker is running."
+        $previewCapability = Get-PreviewWorkerCapabilityState
+        $runtimeState = if (Test-PreviewWorkerCapabilityReady -Capability $previewCapability) { "healthy_existing" } else { "degraded_existing" }
+        Write-RuntimeStatus -State $runtimeState -PortOwnerProcessId $ownerProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $processInfo -Health $health -Message "Existing AI_PDM website is healthy; 3D worker process is running and renderer capability is $($previewCapability.status); recognition worker is running; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
+        Write-Host "AI_PDM website is healthy."
+        Write-Host "3D preview worker process is running; renderer capability: $($previewCapability.status)."
         Write-Host "Recognition worker is running."
         Write-Host "2D preview worker: $(Get-DocumentManagerPreviewWorkerState)."
         Write-Host "Local URL: $Url"
@@ -764,9 +807,11 @@ do {
       Write-Error $_.Exception.Message
       exit 1
     }
-    Write-RuntimeStatus -State "healthy_started" -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "AI_PDM local server and preview workers started; recognition worker is running; 2D worker state is $(Get-DocumentManagerPreviewWorkerState). All health checks passed."
-    Write-Host "AI_PDM is healthy."
-    Write-Host "3D preview worker is running."
+    $previewCapability = Get-PreviewWorkerCapabilityState
+    $runtimeState = if (Test-PreviewWorkerCapabilityReady -Capability $previewCapability) { "healthy_started" } else { "degraded_started" }
+    Write-RuntimeStatus -State $runtimeState -LauncherProcessId $process.Id -PortOwnerProcessId $owner.ProcessId -PreviewWorkerProcessId $previewWorker.ProcessId -RecognitionWorkerProcessId $recognitionWorker.ProcessId -PortOwnerProcessInfo $owner.ProcessInfo -Health $health -Message "AI_PDM website started; 3D worker process is running and renderer capability is $($previewCapability.status); recognition worker is running; 2D worker state is $(Get-DocumentManagerPreviewWorkerState)."
+    Write-Host "AI_PDM website is healthy."
+    Write-Host "3D preview worker process is running; renderer capability: $($previewCapability.status)."
     Write-Host "Recognition worker is running."
     Write-Host "2D preview worker: $(Get-DocumentManagerPreviewWorkerState)."
     Write-Host "Local URL: $Url"

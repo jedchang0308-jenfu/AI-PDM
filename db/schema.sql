@@ -3550,6 +3550,8 @@ CREATE TABLE IF NOT EXISTS drawing_recognition_sessions (
   drawing_revision_id TEXT,
   source_set_fingerprint TEXT NOT NULL,
   deduplication_key TEXT NOT NULL,
+  session_purpose TEXT NOT NULL DEFAULT 'recognition' CHECK (session_purpose IN ('recognition', 'rerun', 'amendment')),
+  evidence_origin_session_id TEXT,
   status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'extracting', 'review_ready', 'extraction_partial', 'extraction_failed', 'ready_to_formalize', 'formalized', 'cancelled')),
   priority INTEGER NOT NULL DEFAULT 100,
   not_before TEXT,
@@ -3574,6 +3576,7 @@ CREATE TABLE IF NOT EXISTS drawing_recognition_sessions (
   FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE RESTRICT,
   FOREIGN KEY (drawing_revision_id) REFERENCES drawing_revisions(id) ON DELETE RESTRICT,
   FOREIGN KEY (supersedes_session_id) REFERENCES drawing_recognition_sessions(id) ON DELETE RESTRICT,
+  FOREIGN KEY (evidence_origin_session_id) REFERENCES drawing_recognition_sessions(id) ON DELETE RESTRICT,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
   FOREIGN KEY (formalized_by) REFERENCES users(id) ON DELETE RESTRICT,
   UNIQUE (company_id, deduplication_key)

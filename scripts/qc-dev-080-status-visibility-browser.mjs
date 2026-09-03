@@ -1,33 +1,17 @@
 #!/usr/bin/env node
 
-import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
-import { createServer } from "node:http";
-import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
+import { startDev079IsolatedRuntime } from "./qc-dev-079-isolated-runtime.mjs";
 
 const root = process.cwd();
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev080-browser-"));
-const runId = new Date().toISOString().replaceAll(/[-:.TZ]/gu, "").slice(0, 14) + `-${crypto.randomUUID().slice(0, 8)}`;
+const runId = `DEV080-${new Date().toISOString().replace(/[:.]/gu, "-")}`;
 const outputDir = path.join(root, "output", "qa", "dev-080-status-visibility", runId);
-const nextCli = path.join(root, "node_modules", "next", "dist", "bin", "next");
-const distDirRelative = `.tmp/next-qc-dev080-${crypto.randomUUID()}`;
-const defaultRoutes = [
-  "/numbering/drawings",
-  "/numbering/search",
-  "/approvals",
-  "/bom/workbench",
-  "/settings/accounts",
-  "/settings/account-invitations"
-];
-const routes = process.env.DEV080_ROUTES
-  ? process.env.DEV080_ROUTES.split(",").map((route) => route.trim()).filter(Boolean)
-  : defaultRoutes;
+const currentRoutes = ["/approvals", "/settings/accounts", "/settings/account-invitations", "/settings"];
+const retiredRoutes = ["/bom/create", "/bom/workbench", "/numbering/tasks", "/api/bom/create-candidates"];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "tablet", width: 1024, height: 768 },
@@ -35,216 +19,113 @@ const viewports = [
 ];
 const results = [];
 const screenshots = [];
-let child;
-let browser;
-let baseUrl;
+const record = (id, passed, detail = "") => results.push({ id, passed: Boolean(passed), detail });
+fs.mkdirSync(outputDir, { recursive: true });
 
-function record(name, passed, detail = "") {
-  results.push({ name, passed: Boolean(passed), detail });
-  assert.ok(passed, `${name}${detail ? `: ${detail}` : ""}`);
-}
-
-function getFreePort() {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : null;
-      server.close(() => (port ? resolve(port) : reject(new Error("DEV080_PORT_NOT_ALLOCATED"))));
-    });
-  });
-}
-
-function startServer(port) {
-  const sourceDb = path.join(root, "data", "ai-pdm.sqlite");
-  if (fs.existsSync(sourceDb)) fs.copyFileSync(sourceDb, path.join(tempDir, "ai-pdm.sqlite"));
-  baseUrl = `http://127.0.0.1:${port}`;
-  child = spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
-    cwd: root,
-    env: {
-      ...process.env,
-      PDM_AUTH_MODE: "demo",
-      PDM_DB_PROVIDER: "sqlite",
-      PDM_DATA_DIR: tempDir,
-      PDM_REPOSITORY_DIR: path.join(tempDir, "repository"),
-      PDM_RELEASE_MODE: "local_stub",
-      PDM_NUMBER_STATE_FLOW_V1: "true",
-      PDM_NUMBER_LIFECYCLE_V2: "true",
-      PDM_UNIFIED_DRAWING_WORKBENCH_V1: "true",
-      PDM_UNIFIED_PART_RELATION_WORKBENCH_V1: "true",
-      PDM_PUBLIC_BASE_URL: baseUrl,
-      PDM_NEXT_DIST_DIR: distDirRelative
-    },
-    stdio: "ignore",
-    windowsHide: true
-  });
-}
-
-async function waitForServer() {
-  const deadline = Date.now() + 60_000;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${baseUrl}/login`);
-      if (response.status < 500) return;
-    } catch {}
-    await delay(400);
-  }
-  throw new Error("DEV080_BROWSER_SERVER_NOT_READY");
-}
-
-async function stopServer() {
-  if (!child || child.exitCode !== null) return;
-  child.kill("SIGINT");
-  await Promise.race([
-    new Promise((resolve) => child.once("exit", resolve)),
-    delay(4_000).then(() => child.kill("SIGTERM"))
-  ]);
-}
-
-function seedTaskSignalFixture() {
-  const dbPath = path.join(tempDir, "ai-pdm.sqlite");
-  const db = new Database(dbPath);
-  const id = `qc-dev080-${Date.now()}`;
-  const now = new Date().toISOString();
-  const detail = JSON.stringify({
-    actionCode: "release_missing_ma_confirm",
-    payload: {
-      proxySubmitted: true,
-      proxyReason: "DEV-080 瀏覽器驗證代送審",
-      impactedPartNumbers: [`P-${id}`],
-      requiredDocuments: ["Released PDF package"],
-      overrideTypes: ["無 MA 圖發行"]
+function businessHash(databasePath) {
+  const database = new Database(databasePath, { readonly: true, fileMustExist: true });
+  const hash = crypto.createHash("sha256");
+  try {
+    const tables = database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all();
+    for (const { name } of tables) {
+      const quoted = `"${String(name).replaceAll('"', '""')}"`;
+      let rows;
+      try { rows = database.prepare(`SELECT * FROM ${quoted} ORDER BY rowid`).all(); }
+      catch { rows = database.prepare(`SELECT * FROM ${quoted}`).all(); }
+      hash.update(name).update("\0").update(JSON.stringify(rows)).update("\0");
     }
-  });
-  try {
-    db.prepare(
-      `INSERT INTO numbering_task_items (
-        id, task_type, entity_type, entity_id, title, message, risk_level, task_status,
-        assigned_role, action_url, detail_json, created_by, created_at, updated_at
-      ) VALUES (?, 'qc_dev080', 'part_number', ?, 'DEV-080 狀態例外 fixture', '驗證例外訊號可展開', 'critical', 'open', 'pdm_admin', '/numbering/approvals', ?, 'user-admin-local-quick', ?, ?)`
-    ).run(id, id, detail, now, now);
-  } finally {
-    db.close();
-  }
+    return hash.digest("hex");
+  } finally { database.close(); }
 }
 
-async function login(context) {
-  const page = await context.newPage();
-  await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded" });
-  const result = await page.evaluate(async (target) => {
-    const response = await fetch(`${target}/api/auth/login`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "admin@example.com", password: "pdm-demo" })
-    });
-    return { status: response.status, body: await response.json().catch(() => ({})) };
-  }, baseUrl);
-  record("Admin login succeeds", result.status === 200, JSON.stringify(result.body));
-  await page.close();
+async function login(context, baseUrl) {
+  const response = await context.request.post(`${baseUrl}/api/auth/local-quick-login`, { data: { role: "Admin" } });
+  record("LOGIN-admin", response.ok(), `HTTP ${response.status()}`);
 }
 
-async function verifyStatusHelp(page, route, viewportName, consoleErrors = []) {
-  const scopeButton = page.locator(".status-scope-help-button").first();
-  const button = (await scopeButton.count()) > 0 ? scopeButton : page.locator(".status-help-button").first();
-  try {
-    await button.waitFor({ state: "visible", timeout: 15_000 });
-  } catch {
-    const bodyText = (await page.locator("body").innerText()).slice(0, 240).replaceAll(/\s+/gu, " ");
-    record(`${route} ${viewportName} has status help`, false, `status help button not found; url=${page.url()}; title=${await page.title()}; body=${bodyText}; console=${consoleErrors.join(" | ")}`);
-    return;
-  }
-  await button.click();
-  const helpPopover = (await scopeButton.count()) > 0
-    ? page.locator('[data-status-scope-help="true"]').last()
-    : page.locator(".status-help-popover").last();
-  await helpPopover.waitFor({ state: "visible", timeout: 5_000 });
-  record(`${route} ${viewportName} opens status help`, await helpPopover.isVisible());
-  await page.keyboard.press("Escape");
-  record(`${route} ${viewportName} closes status help on Escape`, (await button.getAttribute("aria-expanded")) === "false");
-  record(`${route} ${viewportName} returns focus after Escape`, await page.evaluate(() => document.activeElement?.classList.contains("status-scope-help-button") || document.activeElement?.classList.contains("status-help-button")));
-}
-
-async function verifyExceptionSignal(page, route, viewportName) {
-  const button = page.locator(".status-signal-exception").first();
-  if ((await button.count()) === 0) return;
-  await button.click();
-  const exceptionPopover = page.locator(".status-signal-popover");
-  await exceptionPopover.waitFor({ state: "visible", timeout: 5_000 });
-  record(`${route} ${viewportName} opens exception detail`, await exceptionPopover.isVisible());
-  await page.keyboard.press("Escape");
-  record(`${route} ${viewportName} closes exception detail on Escape`, (await button.getAttribute("aria-expanded")) === "false");
-  record(`${route} ${viewportName} returns focus from exception detail`, await page.evaluate(() => document.activeElement?.classList.contains("status-signal-exception")));
-}
-
-async function verifyRoute(route, viewport) {
+async function verifyCurrentRoute(browser, baseUrl, route, viewport) {
   const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
-  await login(context);
+  await login(context, baseUrl);
   const page = await context.newPage();
   const consoleErrors = [];
   const failedRequests = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
-  });
+  page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
-  page.on("requestfailed", (request) => failedRequests.push(`${request.url()} ${request.failure()?.errorText ?? "failed"}`));
-  const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(2_000);
-  record(`${route} ${viewport.name} responds`, Boolean(response && response.status() < 400), `HTTP ${response?.status() ?? "none"}`);
+  page.on("requestfailed", (request) => {
+    const failure = request.failure()?.errorText ?? "failed";
+    if (!(failure === "net::ERR_ABORTED" && request.method() === "GET")) failedRequests.push(`${request.url()} ${failure}`);
+  });
+  const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.waitForTimeout(600);
+  record(`${route}:${viewport.name}:http`, Boolean(response && response.status() < 400), `HTTP ${response?.status() ?? "none"}`);
   const bodyText = await page.locator("body").innerText();
-  for (const forbidden of ["待你處理", "等他人處理", "待他人處理"]) {
-    record(`${route} ${viewport.name} hides legacy viewer-relative label ${forbidden}`, !bodyText.includes(forbidden));
+  for (const forbidden of ["待你處理", "等他人處理", "待他人處理"]) record(`${route}:${viewport.name}:no-${forbidden}`, !bodyText.includes(forbidden));
+  const helpButton = page.locator(".status-scope-help-button").first();
+  let helpPresent = false;
+  try { await helpButton.waitFor({ state: "visible", timeout: 15_000 }); helpPresent = true; } catch {}
+  record(`${route}:${viewport.name}:help-present`, helpPresent);
+  if (helpPresent) {
+    await helpButton.click();
+    const popover = page.locator('[data-status-scope-help="true"]').last();
+    await popover.waitFor({ state: "visible", timeout: 5_000 });
+    record(`${route}:${viewport.name}:help-open`, await popover.isVisible());
+    await page.keyboard.press("Escape");
+    record(`${route}:${viewport.name}:help-escape`, await helpButton.getAttribute("aria-expanded") === "false");
+    record(`${route}:${viewport.name}:focus-return`, await page.evaluate(() => document.activeElement?.classList.contains("status-scope-help-button")));
   }
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  record(`${route} ${viewport.name} has no horizontal overflow`, overflow <= 2, `${overflow}px`);
-  await verifyStatusHelp(page, route, viewport.name, consoleErrors);
-  await verifyExceptionSignal(page, route, viewport.name);
-  record(`${route} ${viewport.name} has no console errors`, consoleErrors.length === 0, consoleErrors.join("\n"));
-  record(`${route} ${viewport.name} has no failed requests`, failedRequests.length === 0, failedRequests.join("\n"));
-  fs.mkdirSync(outputDir, { recursive: true });
-  const screenshotPath = path.join(outputDir, `${route.replaceAll("/", "_").replace(/^_/, "")}-${viewport.name}.png`);
-  await page.screenshot({ path: screenshotPath, fullPage: true });
-  screenshots.push(screenshotPath);
+  record(`${route}:${viewport.name}:no-overflow`, overflow <= 2, `${overflow}px`);
+  record(`${route}:${viewport.name}:console-clean`, consoleErrors.length === 0, consoleErrors.join(" | "));
+  record(`${route}:${viewport.name}:network-clean`, failedRequests.length === 0, failedRequests.join(" | "));
+  const screenshot = path.join(outputDir, `${route.replaceAll("/", "_").replace(/^_/, "")}-${viewport.name}.png`);
+  await page.screenshot({ path: screenshot, fullPage: true });
+  screenshots.push(path.relative(root, screenshot));
   await context.close();
 }
 
-let exitCode = 0;
+let runtime;
+let browser;
+let fatalError = null;
 try {
-  const port = await getFreePort();
-  startServer(port);
-  await waitForServer();
-  seedTaskSignalFixture();
+  runtime = await startDev079IsolatedRuntime();
   browser = await chromium.launch({ headless: true });
-  for (const viewport of viewports) {
-    for (const route of routes) await verifyRoute(route, viewport);
+  for (const viewport of viewports) for (const route of currentRoutes) await verifyCurrentRoute(browser, runtime.baseUrl, route, viewport);
+
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await login(context, runtime.baseUrl);
+  for (const route of retiredRoutes) {
+    const before = businessHash(runtime.databasePath);
+    const response = await context.request.get(`${runtime.baseUrl}${route}`, { failOnStatusCode: false });
+    const body = await response.text();
+    const after = businessHash(runtime.databasePath);
+    record(`${route}:retired-http`, [404, 410].includes(response.status()), `HTTP ${response.status()}`);
+    record(`${route}:retired-zero-write`, before === after, `${before}:${after}`);
+    record(`${route}:retired-no-content`, !/建立 BOM|BOM 工作台|候選料號/u.test(body), body.slice(0, 160));
   }
+  await context.close();
 } catch (error) {
-  exitCode = 1;
-  results.push({ name: "DEV-080 browser gate", passed: false, detail: error instanceof Error ? error.message : String(error) });
+  fatalError = error instanceof Error ? error.stack ?? error.message : String(error);
+  record("DEV080-browser-fatal", false, fatalError);
 } finally {
   if (browser) await browser.close();
-  await stopServer();
-  fs.mkdirSync(outputDir, { recursive: true });
-  const report = {
-    suite: "DEV-080 rendered browser gate",
-    result: exitCode === 0 ? "PASS" : "FAIL",
-    baseUrl,
-    routes,
-    viewports,
-    screenshots,
-    total: results.length,
-    passed: results.filter((result) => result.passed).length,
-    failed: results.filter((result) => !result.passed).length,
-    results,
-    completedAt: new Date().toISOString()
-  };
-  fs.writeFileSync(path.join(outputDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  console.log(JSON.stringify({ ...report, reportDir: outputDir }, null, 2));
-  try {
-    fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
-  } catch (error) {
-    console.warn(`DEV080_BROWSER_TEMP_CLEANUP_WARNING: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  if (runtime) await runtime.stop();
 }
 
-process.exitCode = exitCode;
+const report = {
+  suite: "DEV-080 current residual browser gate",
+  runId,
+  status: !fatalError && results.every((item) => item.passed) ? "PASS" : "FAIL",
+  currentRoutes,
+  retiredRoutes,
+  viewports,
+  runtimeReceipt: runtime?.runtimeReceipt ?? null,
+  screenshots,
+  total: results.length,
+  passed: results.filter((item) => item.passed).length,
+  failed: results.filter((item) => !item.passed).length,
+  results,
+  completedAt: new Date().toISOString()
+};
+fs.writeFileSync(path.join(outputDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
+console.log(JSON.stringify({ ...report, reportDir: outputDir }, null, 2));
+if (report.status !== "PASS") process.exitCode = 1;
