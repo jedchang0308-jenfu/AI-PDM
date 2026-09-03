@@ -18,7 +18,7 @@ function main() {
   const catalog = readJson(catalogPath)
   assert.equal(catalog.contractVersion, 'jenfu.platform-entitlement.v1')
   assert.equal(catalog.applicationId, 'ai-pdm')
-  assert.equal(catalog.catalogVersion, 'ai-pdm.role-catalog.2026-09-02.v2')
+  assert.equal(catalog.catalogVersion, 'ai-pdm.role-catalog.2026-09-03.v3')
   assert.equal(catalog.roles.length, 9)
   assert.deepEqual(catalog.roles.map((role) => role.stableRoleId), [
     'role-rd', 'role-rd-manager', 'role-qa', 'role-manufacturing', 'role-production-planning',
@@ -32,10 +32,10 @@ function main() {
   const map = readJson(mapPath)
   assert.equal(map.contractVersion, 'jenfu.platform-entitlement.v1')
   assert.equal(map.applicationId, 'ai-pdm')
-  assert.deepEqual(map.denominator, { uniqueFiles: 57, uniqueMethods: 71, policyEntries: 79 })
-  assert.equal(new Set(map.entries.map((entry) => entry.path)).size, 57)
-  assert.equal(new Set(map.entries.map((entry) => `${entry.path}\0${entry.method}`)).size, 71)
-  assert.equal(map.entries.length, 79)
+  assert.deepEqual(map.denominator, { uniqueFiles: 56, uniqueMethods: 70, policyEntries: 78 })
+  assert.equal(new Set(map.entries.map((entry) => entry.path)).size, 56)
+  assert.equal(new Set(map.entries.map((entry) => `${entry.path}\0${entry.method}`)).size, 70)
+  assert.equal(map.entries.length, 78)
   for (const entry of map.entries) {
     assert.ok(['permission', 'authenticated_domain', 'existing_command', 'existing_path', 'retired'].includes(entry.authorizationMode), `${entry.path} mode`)
     if (entry.authorizationMode === 'permission') assert.ok(entry.permissionCode)

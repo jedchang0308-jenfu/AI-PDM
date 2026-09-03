@@ -3,9 +3,13 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 
 const root = process.cwd()
-const platformRoot = process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim()
-  ? path.resolve(process.env.JENFU_MANAGEMENT_SYSTEM_ROOT)
-  : path.resolve(root, '..', 'Jenfu-Management-system')
+const platformCandidates = [
+  process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
+  path.resolve(root, '..', 'Jenfu-Management-system'),
+  path.resolve(root, '..', '..', '..', 'Jenfu-Management-system'),
+  path.resolve(root, '..', '..', '..', '..', 'Jenfu-Management-system'),
+].filter(Boolean)
+const platformRoot = platformCandidates.find((candidate) => fs.existsSync(path.join(candidate, 'contracts', 'jenfu-platform-governance-availability', 'v1', 'contract-manifest.json'))) ?? platformCandidates[0]
 const central = path.join(platformRoot, 'contracts', 'jenfu-platform-governance-availability', 'v1')
 const local = path.resolve(root, 'contracts', 'jenfu-platform-governance-availability', 'v1')
 const files = ['contract-manifest.json','orgmaster-role-capability-workspace.schema.json','ai-pdm-role-capability-workspace.schema.json','governance-command-receipt.schema.json','governance-error-codes.json']

@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "devId": "DEV-101",
+  "runId": "DEV101-QA-INTEGRITY-2026-09-03T05-17-20-182Z",
+  "runner": "qc-dev-101-qa-integrity",
+  "evidenceClass": "QA_INFRASTRUCTURE_ONLY_NO_FIXED_CASE_PASS",
+  "fixedCaseClaims": 0,
+  "result": "PASS",
+  "registry": {
+    "path": ".ai-doc/qa/dev-101-current-case-registry.json",
+    "sha256": "5c710c7b3987d1394c00ca34cacd5f3da8eaa2d82b450e12a298171c8018ac5b",
+    "caseCount": 48
+  },
+  "schema": {
+    "path": ".ai-doc/qa/dev-101-independent-manifest.schema.json",
+    "sha256": "536fea60d61389df551d17a96baa0146b6da5424022aa6edd70daa5b664ef610",
+    "validated": true
+  },
+  "canonicalOracle": {
+    "independentModule": "scripts/dev-101-evidence-lib.mjs",
+    "prohibitedProductHelperImports": true
+  },
+  "syntheticChildContractChecks": [
+    {
+      "runner": "qc-dev-101-independent-data",
+      "caseCount": 29,
+      "status": "PASS"
+    },
+    {
+      "runner": "qc-dev-101-independent-browser",
+      "caseCount": 23,
+      "status": "PASS"
+    },
+    {
+      "runner": "qc-dev-101-independent-postgres",
+      "caseCount": 2,
+      "status": "PASS"
+    },
+    {
+      "runner": "qc-dev-101-independent-gate",
+      "caseCount": 5,
+      "status": "PASS"
+    }
+  ],
+  "mutantDetections": [
+    {
+      "id": "CASE_DUPLICATE",
+      "status": "PASS",
+      "expectedCode": "DEV101_CASE_REGISTRY_INVALID",
+      "actualCode": "DEV101_CASE_REGISTRY_INVALID"
+    },
+    {
+      "id": "CASE_MISSING",
+      "status": "PASS",
+      "expectedCode": "DEV101_FIXED_DENOMINATOR_INVALID",
+      "actualCode": "DEV101_FIXED_DENOMINATOR_INVALID"
+    },
+    {
+      "id": "CASE_EXTRA",
+      "status": "PASS",
+      "expectedCode": "DEV101_CASE_REGISTRY_INVALID",
+      "actualCode": "DEV101_CASE_REGISTRY_INVALID"
+    },
+    {
+      "id": "RUNNER_COVERAGE_GAP",
+      "status": "PASS",
+      "expectedCode": "DEV101_CASE_RUNNER_TRACE_MISSING",
+      "actualCode": "DEV101_CASE_RUNNER_TRACE_MISSING:QA-101-001:qc-dev-101-independent-data"
+    },
+    {
+      "id": "SELF_LABELLED_PASS",
+      "status": "PASS",
+      "expectedCode": "DEV101_CASE_EVIDENCE_MISSING",
+      "actualCode": "DEV101_CASE_EVIDENCE_MISSING:QA-101-001"
+    },
+    {
+      "id": "SOURCE_FINGERPRINT_MISMATCH",
+      "status": "PASS",
+      "expectedCode": "DEV101_SOURCE_FINGERPRINT_MISMATCH",
+      "actualCode": "DEV101_SOURCE_FINGERPRINT_MISMATCH"
+    },
+    {
+      "id": "PARENT_RUN_MISMATCH",
+      "status": "PASS",
+      "expectedCode": "DEV101_PARENT_RUN_MISMATCH",
+      "actualCode": "DEV101_PARENT_RUN_MISMATCH"
+    },
+    {
+      "id": "ARTIFACT_HASH_MISMATCH",
+      "status": "PASS",
+      "expectedCode": "DEV101_ARTIFACT_HASH_MISMATCH",
+      "actualCode": "DEV101_ARTIFACT_HASH_MISMATCH:artifacts/qc-dev-101-independent-data.json"
+    },
+    {
+      "id": "DIRECT_URL_ONLY",
+      "status": "PASS",
+      "expectedCode": "DEV101_CASE_EVIDENCE_TYPE_MISSING",
+      "actualCode": "DEV101_CASE_EVIDENCE_TYPE_MISSING:QA-101-037:normal_entry"
+    },
+    {
+      "id": "SQLITE_AS_POSTGRES",
+      "status": "PASS",
+      "expectedCode": "DEV101_PROVIDER_OR_DATA_SCOPE_MISMATCH",
+      "actualCode": "DEV101_PROVIDER_OR_DATA_SCOPE_MISMATCH"
+    },
+    {
+      "id": "VISIBLE_EVIDENCE_INCOMPLETE",
+      "status": "PASS",
+      "expectedCode": "DEV101_CASE_EVIDENCE_TYPE_MISSING",
+      "actualCode": "DEV101_CASE_EVIDENCE_TYPE_MISSING:QA-101-031:geometry"
+    },
+    {
+      "id": "SUT_ORACLE_IMPORT",
+      "status": "PASS",
+      "expectedCode": "DEV101_SUT_ORACLE_IMPORT",
+      "actualCode": "DEV101_SUT_ORACLE_IMPORT"
+    },
+    {
+      "id": "CLEANUP_INCOMPLETE",
+      "status": "PASS",
+      "expectedCode": "DEV101_CLEANUP_INCOMPLETE",
+      "actualCode": "DEV101_CLEANUP_INCOMPLETE"
+    },
+    {
+      "id": "VISIBLE_ERROR_MASKED",
+      "status": "PASS",
+      "expectedCode": "DEV101_VISIBLE_ERROR_AUDIT_FAILED",
+      "actualCode": "DEV101_VISIBLE_ERROR_AUDIT_FAILED"
+    },
+    {
+      "id": "FIXED_DENOMINATOR_SHRUNK",
+      "status": "PASS",
+      "expectedCode": "DEV101_FIXED_DENOMINATOR_INVALID",
+      "actualCode": "DEV101_FIXED_DENOMINATOR_INVALID"
+    },
+    {
+      "id": "EVIDENCE_PROVENANCE_MISMATCH",
+      "status": "PASS",
+      "expectedCode": "DEV101_CASE_ARTIFACT_TRACE_MISSING",
+      "actualCode": "DEV101_CASE_ARTIFACT_TRACE_MISSING:QA-101-001:artifacts/qc-dev-101-independent-data.json"
+    }
+  ],
+  "primaryInvariant": {
+    "before": "6377de976e73ef817359c7ff2109caa0e0834d48e1a3d927e4ea075e0bdd7d17",
+    "after": "6377de976e73ef817359c7ff2109caa0e0834d48e1a3d927e4ea075e0bdd7d17",
+    "unchanged": true,
+    "foreignKeysBefore": 0,
+    "foreignKeysAfter": 0
+  },
+  "sourceInvariant": {
+    "before": {
+      "head": "75095996db3396f50ee75699ce21755bbf2d3bf5",
+      "branch": "codex/dev-032-final-release",
+      "dirtyBoundaryHash": "42c04db2f19ce1da387f42b3078a61aea2000348531c414be389243fa1addbb7"
+    },
+    "after": {
+      "head": "75095996db3396f50ee75699ce21755bbf2d3bf5",
+      "branch": "codex/dev-032-final-release",
+      "dirtyBoundaryHash": "42c04db2f19ce1da387f42b3078a61aea2000348531c414be389243fa1addbb7"
+    },
+    "unchanged": true
+  },
+  "cleanupReceipt": {
+    "complete": true,
+    "portsReleased": true,
+    "processesStopped": true,
+    "tempRemoved": true
+  },
+  "productionWrites": false,
+  "firstFailure": null,
+  "completedAt": "2026-09-03T05:17:20.689Z"
+}

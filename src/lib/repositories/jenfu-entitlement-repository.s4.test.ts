@@ -24,7 +24,7 @@ function privilegedAssignment(actor = privilegedActor) {
     target_principal_id: actor.principalId,
     stable_role_id: "role-system-admin",
     role_code: "system_admin",
-    catalog_version: "ai-pdm.role-catalog.2026-09-02.v2",
+    catalog_version: "ai-pdm.role-catalog.2026-09-03.v3",
     scope_kind: "global" as const,
     scope_key: null,
     valid_from: "2026-01-01T00:00:00.000Z",

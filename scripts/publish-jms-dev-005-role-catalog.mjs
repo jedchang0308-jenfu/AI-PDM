@@ -5,8 +5,8 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const CONTRACT_VERSION = 'jenfu.platform-entitlement.v1'
-const CATALOG_VERSION = 'ai-pdm.role-catalog.2026-09-02.v2'
-const EXPECTED_CATALOG_SHA256 = 'ebdaa2960960e0683b480c721d2c27df59031b4af23b124f2ac7e882309f6b6e'
+const CATALOG_VERSION = 'ai-pdm.role-catalog.2026-09-03.v3'
+const EXPECTED_CATALOG_SHA256 = '46376639b7aec06798786b9d1a113ba604cf90ca31541a9464ecce7a49d116c8'
 const EXPECTED_ROLE_IDS = [
   'role-rd', 'role-rd-manager', 'role-qa', 'role-manufacturing', 'role-production-planning',
   'role-procurement', 'role-external-specialist', 'role-pdm-admin', 'role-system-admin',
@@ -14,7 +14,13 @@ const EXPECTED_ROLE_IDS = [
 
 const scriptRoot = dirname(fileURLToPath(import.meta.url))
 const appRoot = resolve(scriptRoot, '..')
-const platformRoot = resolve(appRoot, '..', 'Jenfu-Management-system')
+const platformCandidates = [
+  process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
+  resolve(appRoot, '..', 'Jenfu-Management-system'),
+  resolve(appRoot, '..', '..', '..', 'Jenfu-Management-system'),
+  resolve(appRoot, '..', '..', '..', '..', 'Jenfu-Management-system'),
+].filter(Boolean)
+const platformRoot = platformCandidates.find((candidate) => existsSync(join(candidate, 'contracts', 'jenfu-platform-entitlement', 'v1', 'fixtures', 'application-role-catalog.sample.json'))) ?? platformCandidates[0]
 const sourcePath = join(platformRoot, 'contracts', 'jenfu-platform-entitlement', 'v1', 'fixtures', 'application-role-catalog.sample.json')
 const targetPath = join(appRoot, 'config', 'access-control', 'jenfu-role-catalog.v1.json')
 

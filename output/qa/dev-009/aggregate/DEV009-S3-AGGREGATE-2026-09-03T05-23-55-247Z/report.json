@@ -1,0 +1,193 @@
+{
+  "runner": "DEV-009-S3-aggregate",
+  "status": "PASS",
+  "generatedAt": "2026-09-03T05:24:35.861Z",
+  "productionWrites": false,
+  "source": {
+    "gitHead": "75095996db3396f50ee75699ce21755bbf2d3bf5",
+    "branch": "codex/dev-032-final-release",
+    "dirtyFiles": [
+      "M .ai-doc/specs/SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md",
+      " M config/access-control/jenfu-role-catalog.v1.json",
+      " M config/access-control/jenfu-route-permission-map.v1.json",
+      " M contracts/jenfu-platform-entitlement/v1/contract-lock.json",
+      " M contracts/jenfu-platform-entitlement/v1/contract-manifest.json",
+      " M contracts/jenfu-platform-entitlement/v1/fixtures/application-role-catalog.sample.json",
+      " M contracts/jenfu-platform-entitlement/v1/fixtures/effective-role-assignment.delegated.json",
+      " M contracts/jenfu-platform-entitlement/v1/fixtures/effective-role-assignment.manual.json",
+      " M contracts/jenfu-platform-entitlement/v1/fixtures/effective-role-assignment.position.json",
+      " M contracts/jenfu-platform-governance-availability/v1/fixtures/workspace.current.json",
+      " M contracts/jenfu-platform-governance-availability/v1/fixtures/workspace.recovered.json",
+      " M contracts/jenfu-platform-governance-availability/v1/fixtures/workspace.stale-snapshot.json",
+      " M contracts/jenfu-platform-governance-availability/v1/fixtures/workspace.unavailable.json",
+      " M contracts/jenfu-platform-governance-availability/v2/contract-lock.json",
+      " M contracts/jenfu-platform-governance-availability/v2/contract-manifest.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.eligible.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.grant-preview.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.no-eligible.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.revoke-preview.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/privileged.view-only.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/workspace.current-system-admin.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/workspace.stale-system-admin.json",
+      " M contracts/jenfu-platform-governance-availability/v2/fixtures/workspace.unavailable.json",
+      " D db/postgres/053_jenfu_role_catalog_publication.sql",
+      " D db/postgres/054_role_capability_display_snapshot.sql",
+      " M output/dev-032-cloudsql-migration-package/report.json",
+      " M output/dev-032-cloudsql-migration-package/report.md",
+      " M scripts/lib/jms-dev-005-role-catalog.mjs",
+      " M scripts/publish-jms-dev-005-role-catalog.mjs",
+      " M scripts/qc-dev-079-owner-invariant.mjs",
+      " M scripts/qc-dev-095-postgres-retirement.mjs",
+      " M scripts/qc-dev-106-retired-residue-cleanup.mjs",
+      " M scripts/qc-jms-dev-005-authorization-boundary.mjs",
+      " M scripts/qc-jms-dev-005-contract.mjs",
+      " M scripts/qc-jms-dev-005-postgres.mjs",
+      " M scripts/qc-jms-dev-005-runtime-boundary.mjs",
+      " M scripts/qc-jms-dev-008-browser.mjs",
+      " M scripts/qc-jms-dev-008-contract.mjs",
+      " M scripts/qc-jms-dev-009-browser.mjs",
+      " M scripts/qc-jms-dev-009-contract.mjs",
+      " M src/lib/jenfu-entitlement-contract.ts",
+      " M src/lib/repositories/jenfu-entitlement-repository.s4.test.ts",
+      " D src/lib/role-capability-canonical-json.server.ts",
+      " M vitest.config.ts",
+      "?? output/qa/dev-009/",
+      "?? output/qa/dev-079-owner-invariant/DEV079-INVARIANT-2026-09-03T05-17-48-436Z/",
+      "?? output/qa/dev-101-qa-integrity/",
+      "?? scripts/server-only-vitest-shim.mjs"
+    ],
+    "candidate": {
+      "files": [
+        {
+          "path": "package.json",
+          "bytes": 70077,
+          "sha256": "c43f83ddbbcd2695b684ab3f4c7e5c3f3baddcfb72dbed4e6ceafb9b4258d5f4"
+        },
+        {
+          "path": "package-lock.json",
+          "bytes": 395183,
+          "sha256": "70cf2f0e0595bc403b9a9be480368faf5b582e284b147da0f6271656d753da49"
+        },
+        {
+          "path": "config/access-control/jenfu-role-catalog.v1.json",
+          "bytes": 18583,
+          "sha256": "e5bb2775ad36b9591b8eb7c6c98466a2f3899fe94146d85e6b6c8778bf88ff7c"
+        },
+        {
+          "path": "contracts/jenfu-platform-governance-availability/v2/contract-manifest.json",
+          "bytes": 3121,
+          "sha256": "4b61af6341e477edec2e411e7765496a8b6f2abb3d47ddcb87b1a62b5eb84ec3"
+        },
+        {
+          "path": "src/app/api/settings/access/role-capabilities/route.ts",
+          "bytes": 2019,
+          "sha256": "c5485bc9db270a4cd30fbfaa0bc01ad2ab467177cf4640bf215ff8e89e3b3fc3"
+        },
+        {
+          "path": "src/components/access-governance/role-capability-settings.tsx",
+          "bytes": 26167,
+          "sha256": "c936506d56015c37d2293e9b475e00492063ba09809a69e55344ea3e4ae844f6"
+        },
+        {
+          "path": "src/lib/ai-pdm-role-capability-contract.ts",
+          "bytes": 5484,
+          "sha256": "766b5d34a428e0a424571700a2e880f38b1af0cd8d7a2b56bd2bbc8ccd05deb9"
+        },
+        {
+          "path": "src/lib/ai-pdm-role-capability-service.ts",
+          "bytes": 18191,
+          "sha256": "c649c0acd80a7f454d0f34d4e465ee9d328f991250cb968499d06ffd7529c169"
+        },
+        {
+          "path": "src/lib/ai-pdm-role-capability-service.test.ts",
+          "bytes": 5693,
+          "sha256": "65d53a6fa68fe09a519784e0ba0020c05c425b1ea8817ea1a65508e4e63cd6a5"
+        },
+        {
+          "path": "scripts/qc-jms-dev-009-contract.mjs",
+          "bytes": 5575,
+          "sha256": "13db516fc5f2d4d0793bb5c78c8c26be17d35caf057c1f98baca484cc681513f"
+        },
+        {
+          "path": "scripts/qc-jms-dev-009-repository.mjs",
+          "bytes": 934,
+          "sha256": "00bed3ea6c8be244b055d70adbde5262470dbabaa2f83f6b978f17da1b0a1e91"
+        },
+        {
+          "path": "scripts/qc-jms-dev-009-browser.mjs",
+          "bytes": 19871,
+          "sha256": "a739c80645af30a4300f1153a3ea87055b0f341a97423b4e738e91b3f5b1c3b1"
+        },
+        {
+          "path": "scripts/qc-jms-dev-009-aggregate.mjs",
+          "bytes": 5329,
+          "sha256": "08831b131ae7a012f86eb3bf51b54fbac65cd0b70c8afd128471378dd5302d96"
+        }
+      ],
+      "fileCount": 13,
+      "bytes": 576227,
+      "sha256": "d9e000b158d837e8193f12cd17735827b43b144b191690a804cda579e0410e1b"
+    }
+  },
+  "stages": [
+    {
+      "label": "contract",
+      "script": "scripts/qc-jms-dev-009-contract.mjs",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutSha256": "f701d780196114b160ab796d816667448402f2f619db72ff2fc731c5457286b5",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "repository",
+      "script": "scripts/qc-jms-dev-009-repository.mjs",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutSha256": "42d73f8fd35f29e38193fa136fcffe6fd7398a8943a247374c2ccf64c4eb5707",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "browser",
+      "script": "scripts/qc-jms-dev-009-browser.mjs",
+      "status": "PASS",
+      "exitCode": 0,
+      "stdoutSha256": "ef9ea0519a2e66aac304a1327bd906ec6e83a1ac7b27b2868e00730a1ef5c2ff",
+      "stderrSha256": "fdbf0e089dd5d00fd2f1aba4187edae98f5908a0796fb968be93bc0f33ace9d6"
+    }
+  ],
+  "browserReceipt": {
+    "latestPath": "output/qa/dev-009/browser-real/latest.json",
+    "reportPath": "output/qa/dev-009/browser-real/DEV009-S3-2026-09-03T05-24-21-593Z/report.json",
+    "reportSha256": "6ce929639530f1586432ce8b87568847fdcef4d3ae209797ab0aa013564e59cf",
+    "candidateSha256": "daf4871066693783fe8060818a6f8b60073eb0cbf216b728deed7ed9372e6935",
+    "execution": "task-owned-next-dev-real-chromium",
+    "browser": {
+      "name": "chromium",
+      "version": "148.0.7778.96"
+    },
+    "viewports": [
+      "1440x1000",
+      "1024x768",
+      "390x844"
+    ],
+    "checkIds": [
+      "QA-009-S3-01",
+      "QA-009-S3-02",
+      "QA-009-S3-03",
+      "QA-009-S3-04",
+      "QA-009-S3-05",
+      "QA-009-S3-06",
+      "QA-009-S3-07"
+    ],
+    "cleanup": {
+      "browserClosed": true,
+      "appStopped": true,
+      "portReleased": true,
+      "nextEnvRestored": true,
+      "nextDistRemoved": true,
+      "taskTsconfigRemoved": true,
+      "taskFixtureRemoved": true
+    }
+  },
+  "failure": null
+}

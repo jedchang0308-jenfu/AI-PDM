@@ -13,8 +13,8 @@ DEV-115已完成current case registry、隔離fixture／runtime、非fail-fast N
 
 | Gate | 結果 | Final evidence |
 |---|---:|---|
-| DEV-079 current aggregate | 42/42 PASS | `output/qa/dev-115-qa-gate-convergence/DEV115-DEV-079-2026-09-03T04-49-20-491Z/aggregate-manifest.json` |
-| DEV-080 current aggregate | 12/12 PASS | `output/qa/dev-115-qa-gate-convergence/DEV115-DEV-080-2026-09-03T04-50-38-215Z/aggregate-manifest.json` |
+| DEV-079 current aggregate | 42/42 PASS | `output/qa/dev-115-qa-gate-convergence/DEV115-DEV-079-2026-09-03T05-24-45-777Z/aggregate-manifest.json` |
+| DEV-080 current aggregate | 12/12 PASS | `output/qa/dev-115-qa-gate-convergence/DEV115-DEV-080-2026-09-03T05-26-24-642Z/aggregate-manifest.json` |
 | DEV-079 registry | 40 current-runner + 2 successor-replaced；missing/duplicate=0 | `.ai-doc/qa/dev-079-current-case-registry.json` |
 | DEV-080 registry | 11 current-runner + 1 retired；missing/duplicate=0 | `.ai-doc/qa/dev-080-current-case-registry.json` |
 | Primary protected invariant | PASS | schema、canonical identity、migration residue、foreign keys before=after |

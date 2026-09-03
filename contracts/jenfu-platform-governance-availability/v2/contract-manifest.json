@@ -20,23 +20,23 @@
     },
     {
       "path": "fixtures/privileged.eligible.json",
-      "sha256": "17c1359b8cebbeaa3dd1152ed6d0fd490f835382134fc14ec4872d4cd0a10c14"
+      "sha256": "d1e8bff55cd152f6ec0239fe204f6a54c09efb029786b400f3601902aeb4d3d7"
     },
     {
       "path": "fixtures/privileged.grant-preview.json",
-      "sha256": "112da60e80d4e371527ff040ce83efa7cbbcb8741c6fd6444406a781abe87937"
+      "sha256": "837dc74a0e5efbeedbc94b246cee31abf8c35111bcbc84705bf7fbc5eaf706ed"
     },
     {
       "path": "fixtures/privileged.no-eligible.json",
-      "sha256": "7e19977caf7b105073746925566f64fbc3efd2cbc397b2a6bfa0e99bb087a0ab"
+      "sha256": "a7ff8bd66e4e28fd671379144f7c492e256ed3f9f2138602dbff1d9bb76933e9"
     },
     {
       "path": "fixtures/privileged.revoke-preview.json",
-      "sha256": "ba83550e3481aaca07c3ec953b32e497c23f0827ca96a922382e08fdc834b6ba"
+      "sha256": "d2bb1e55d78c4f1e5d92fba26b05f970e37743896d5d6af9489f77de7a40e795"
     },
     {
       "path": "fixtures/privileged.view-only.json",
-      "sha256": "a0f859e15e964b59773d3142f5b95f04e24d5ff0e2a1df225f44dec451daa50d"
+      "sha256": "509a84eb4ff597e69ce4f2d1b4567275ae2fbdc45083039efffab62336018d92"
     },
     {
       "path": "fixtures/receipt.grant-applied.json",
@@ -48,15 +48,15 @@
     },
     {
       "path": "fixtures/workspace.current-system-admin.json",
-      "sha256": "41240b41b6f71207db85344f36327ad341ec089dfcadfc7f109030d81f2fffc0"
+      "sha256": "e1dea4c553d585006e44aa00327cc1100b8a8c4664986696ed9f10b12986ebed"
     },
     {
       "path": "fixtures/workspace.stale-system-admin.json",
-      "sha256": "9e641aab0189111d5811b56a302b00ca4760bd23f696be9ca8995d61d05bc9ef"
+      "sha256": "f6e9f599582c976e355ad973ec201c2496fd1dfa5bd4f703cb7a1671fcd2a78c"
     },
     {
       "path": "fixtures/workspace.unavailable.json",
-      "sha256": "b9aad8e46ae1fc19f114f553105daa5a570ee03459b8f8490905254f7329826c"
+      "sha256": "4350086c50dc187ff37c588d52cf19b875f87ef3c1741c190de909d71c0bbd90"
     },
     {
       "path": "governance-command-receipt.schema.json",
@@ -79,5 +79,5 @@
       "sha256": "d412ac4718e7e7d2ea57d1a37f5fb4807f0d0926cb4b9cf3438d1e9f8ab6f87a"
     }
   ],
-  "sha256": "21db33b350f8908402e405c870eb2cf269cee85c57b56ef762b66f36d91b04a3"
+  "sha256": "e1e40458d0061257ca0a6f6fbd41d1eef4034f4d69977b8505127eb92b5c0870"
 }

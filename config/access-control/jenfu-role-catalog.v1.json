@@ -1,8 +1,8 @@
 {
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
-  "catalogVersion": "ai-pdm.role-catalog.2026-09-02.v2",
-  "publishedAt": "2026-09-02T07:00:16.069Z",
+  "catalogVersion": "ai-pdm.role-catalog.2026-09-03.v3",
+  "publishedAt": "2026-09-03T05:14:23.111Z",
   "roles": [
     {
       "stableRoleId": "role-rd",
@@ -97,11 +97,6 @@
         },
         {
           "code": "approval.request.decide",
-          "kind": "action",
-          "allowed": true
-        },
-        {
-          "code": "bom.review.view",
           "kind": "action",
           "allowed": true
         },
@@ -206,7 +201,7 @@
           "allowed": true
         }
       ],
-      "roleDefinitionHash": "7b26707b6e17290c48d7e48e175770c51ebfcff4d8d08944605daa87dc7f411f"
+      "roleDefinitionHash": "246cf5fb7495262a00c60000dc8fcb0eb015d1cb34d5b8cd975f0b8a0e15980f"
     },
     {
       "stableRoleId": "role-qa",
@@ -223,16 +218,6 @@
       "assignmentTier": "app_admin",
       "permissions": [
         {
-          "code": "bom.review.decide",
-          "kind": "action",
-          "allowed": true
-        },
-        {
-          "code": "bom.review.view",
-          "kind": "action",
-          "allowed": true
-        },
-        {
           "code": "numbering.drawing_revision_lifecycle_review",
           "kind": "action",
           "allowed": true
@@ -243,7 +228,7 @@
           "allowed": true
         }
       ],
-      "roleDefinitionHash": "117bcf74d2de332cd6ee5247b1f64a1946c96f0ce8b20619ea4d64d8f5991004"
+      "roleDefinitionHash": "562f4a9cdf8861d2bdca08a70bdf66c82038f436ae29e56b552d9ed4caf4150a"
     },
     {
       "stableRoleId": "role-manufacturing",
@@ -452,11 +437,6 @@
           "allowed": true
         },
         {
-          "code": "bom.review.view",
-          "kind": "action",
-          "allowed": true
-        },
-        {
           "code": "integration.procurement.manage",
           "kind": "action",
           "allowed": true
@@ -577,7 +557,7 @@
           "allowed": true
         }
       ],
-      "roleDefinitionHash": "0b3d0885e08e86f65f1c008d86cbd8e9344648967b0c547520647caea5fd550b"
+      "roleDefinitionHash": "b2a9050713c76e6fb2f87ab04035e70eb9591fa94c62ec0fb4775ed9c1c42ffe"
     },
     {
       "stableRoleId": "role-system-admin",
@@ -630,11 +610,6 @@
         },
         {
           "code": "approval.request.decide",
-          "kind": "action",
-          "allowed": true
-        },
-        {
-          "code": "bom.review.view",
           "kind": "action",
           "allowed": true
         },
@@ -758,8 +733,8 @@
         "requiresHumanPrivilegedPrincipal": true,
         "forbidSelfAssignment": true
       },
-      "roleDefinitionHash": "ec1b65e03c523c481fd2a7d12dc8de301122d2e023fb736cd0bf126bf62c078b"
+      "roleDefinitionHash": "acb11cfe8d4235611c1a3236293d7a9ce8538fea322708ed65db4efef0d43264"
     }
   ],
-  "catalogSha256": "ebdaa2960960e0683b480c721d2c27df59031b4af23b124f2ac7e882309f6b6e"
+  "catalogSha256": "46376639b7aec06798786b9d1a113ba604cf90ca31541a9464ecce7a49d116c8"
 }

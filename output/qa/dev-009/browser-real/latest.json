@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "reportPath": "output/qa/dev-009/browser-real/DEV009-S3-2026-09-03T05-24-21-593Z/report.json",
+  "reportSha256": "6ce929639530f1586432ce8b87568847fdcef4d3ae209797ab0aa013564e59cf",
+  "candidateSha256": "daf4871066693783fe8060818a6f8b60073eb0cbf216b728deed7ed9372e6935",
+  "generatedAt": "2026-09-03T05:24:32.878Z"
+}

@@ -149,6 +149,14 @@ async function runScenario({ name, viewport, fixture, responseStatus = 200, task
     apiRequests.push({ scenario: name, method: route.request().method(), path: '/api/numbering/permissions', responseStatus: 200, fixture: 'shell-permissions' })
     await route.fulfill(jsonResponse({ generatedAt: '2026-09-02T00:00:00.000Z', pages: {}, actions: {} }))
   })
+  await page.route('**/api/settings', async (route) => {
+    apiRequests.push({ scenario: name, method: route.request().method(), path: '/api/settings', responseStatus: 200, fixture: 'settings-shell' })
+    await route.fulfill(jsonResponse({ settings: {} }))
+  })
+  await page.route('**/api/production-slice/status', async (route) => {
+    apiRequests.push({ scenario: name, method: route.request().method(), path: '/api/production-slice/status', responseStatus: 200, fixture: 'production-slice-shell' })
+    await route.fulfill(jsonResponse({ configured: false }))
+  })
   await page.route('**/api/settings/access/role-capabilities*', async (route) => {
     const url = new URL(route.request().url())
     const selected = url.searchParams.get('stableRoleId')

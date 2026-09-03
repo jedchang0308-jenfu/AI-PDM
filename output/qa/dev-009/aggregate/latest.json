@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "reportPath": "output/qa/dev-009/aggregate/DEV009-S3-AGGREGATE-2026-09-03T05-23-55-247Z/report.json",
+  "reportSha256": "8e7cf9491e5bbc4eadb6e88b30883b9f5548dfc703827bfa25eb9600988f7e7f",
+  "candidateSha256": "d9e000b158d837e8193f12cd17735827b43b144b191690a804cda579e0410e1b",
+  "generatedAt": "2026-09-03T05:24:35.861Z"
+}

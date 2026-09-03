@@ -4,7 +4,7 @@
   "dev": "DEV-032",
   "phase": "Gate-C-production-clean-seed-migration",
   "packageVersion": "dev-046-cloudsql-migration-package/v1",
-  "generatedAt": "2026-09-03T05:06:08.829Z",
+  "generatedAt": "2026-09-03T05:18:03.699Z",
   "target": {
     "projectId": "jenfu-ai-pdm-prod",
     "region": "asia-east1",

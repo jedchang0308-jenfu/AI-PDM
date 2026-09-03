@@ -4,9 +4,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const root = process.cwd()
-const platformRoot = process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim()
-  ? path.resolve(process.env.JENFU_MANAGEMENT_SYSTEM_ROOT)
-  : path.resolve(root, '..', 'Jenfu-Management-system')
+const platformCandidates = [
+  process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
+  path.resolve(root, '..', 'Jenfu-Management-system'),
+  path.resolve(root, '..', '..', '..', 'Jenfu-Management-system'),
+  path.resolve(root, '..', '..', '..', '..', 'Jenfu-Management-system'),
+].filter(Boolean)
+const platformRoot = platformCandidates.find((candidate) => fs.existsSync(path.join(candidate, 'contracts', 'jenfu-platform-governance-availability', 'v2', 'contract-manifest.json'))) ?? platformCandidates[0]
 const localDir = path.join(root, 'contracts', 'jenfu-platform-governance-availability', 'v2')
 const centralDir = path.join(platformRoot, 'contracts', 'jenfu-platform-governance-availability', 'v2')
 const manifestPath = path.join(localDir, 'contract-manifest.json')

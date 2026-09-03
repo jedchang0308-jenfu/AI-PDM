@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "Jenfu-Management-system/ai-doc/specs/DEV-005-ai-pdm-authorization-route-inventory.md",
-  "sourceSha256": "5841bf31122b51005e5fa4b14b4b40774a0c0b2798d7e91de4c69af507bc406f",
+  "sourceSha256": "478f8c2fdd056c6b8bc38bcf3a132473a579b21f5971c50b676a39263fe56668",
   "denominator": {
-    "uniqueFiles": 57,
-    "uniqueMethods": 71,
-    "policyEntries": 79
+    "uniqueFiles": 56,
+    "uniqueMethods": 70,
+    "policyEntries": 78
   },
   "entries": [
     {
@@ -198,16 +198,6 @@
       "authorizationTarget": "existing_command: requireNumberingPlatformCommandAsync",
       "scopeResolver": "company",
       "preservedGuards": "company＋assigned reviewer＋state；不得疊加或取代command guard"
-    },
-    {
-      "path": "src/app/api/bom/reviews/pending/route.ts",
-      "method": "GET",
-      "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "bom.review.view",
-      "authorizationTarget": "bom.review.view",
-      "scopeResolver": "BOM company",
-      "preservedGuards": "BOM company＋review assignment"
     },
     {
       "path": "src/app/api/file-metadata/detect/route.ts",

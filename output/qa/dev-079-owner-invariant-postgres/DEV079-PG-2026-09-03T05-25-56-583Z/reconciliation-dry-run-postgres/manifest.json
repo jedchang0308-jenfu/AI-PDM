@@ -1,0 +1,1410 @@
+{
+  "schemaVersion": "dev079-recognition-owner-reconciliation-v1",
+  "runId": "DEV079-RECON-2026-09-03T05-26-08-473Z",
+  "mode": "dry-run",
+  "target": {
+    "provider": "postgres",
+    "target": "env:DEV079_QA_POSTGRES"
+  },
+  "generatedAt": "2026-09-03T05:26:08.653Z",
+  "targetFingerprintBefore": "00917cde226283cfb1ef239c89d093bc0096ec15680bc5b4a1bbc1918b36fa21",
+  "reviewRequestFingerprintBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "planHash": "198a7d46702b6e3b7c91d08adf0432e399704816d6c4f6d98021fba12ac3af1d",
+  "inventorySummary": {
+    "terminal_manual_disposition": 16,
+    "repairable_exactly_one": 8,
+    "valid": 24
+  },
+  "inventory": [
+    {
+      "candidateId": "recognition-candidate-02ce1c7e-ca26-4c24-afb8-335f50ce1945",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-7db214be-69db-4175-a16e-4d78784a8246",
+      "sessionStatus": "formalized",
+      "fieldKey": "heat_treatment",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-070e33e3-6ec7-4136-a72f-a80ca44fb5e5",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_number",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "recognition-candidate-0b6581e0-82a9-4133-b97a-170c9f0898e6",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-5093e591-ae40-4b51-b715-486de7c04eac",
+      "sessionStatus": "review_ready",
+      "fieldKey": "material",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-0bee694d-1f97-4dd6-83b8-fcbbf6f20d9c",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "sessionStatus": "review_ready",
+      "fieldKey": "surface_finish",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "recognition-candidate-0ee82a23-b41e-40ce-af52-a7beae028592",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-dd5f0416-0b46-4ffa-b61c-06099f73f42c",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_number",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-117acf59-d2e2-4267-9c80-19c32fc56da2",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-9549e970-5bc6-4489-834d-019d44405702",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_number",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-157522b4-0d30-4470-bc32-2fb646cb965e",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-c3bd737f-2421-4822-b9ed-cec0896de0de",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_number",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-18f98d91-dd6f-4fbd-97fb-4a0d9a5e3776",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "sessionStatus": "review_ready",
+      "fieldKey": "surface_finish",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "recognition-candidate-1a31351f-5373-4872-908a-6ece77b70f45",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-5093e591-ae40-4b51-b715-486de7c04eac",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_number",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-265e95ae-f85c-4a1d-8433-07986c3f0dbc",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-9ab59841-7d12-4730-835e-e36f30cfdd60",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_name",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-2bda68c9-31eb-45f6-aa97-4599abd6a4c2",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-7db214be-69db-4175-a16e-4d78784a8246",
+      "sessionStatus": "formalized",
+      "fieldKey": "part_name",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-2d9bdccf-dbbe-40cc-9422-c25c0f6dfa78",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-dd5f0416-0b46-4ffa-b61c-06099f73f42c",
+      "sessionStatus": "review_ready",
+      "fieldKey": "heat_treatment",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-30a20153-6787-4acb-abf4-18eb33614245",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-9ab59841-7d12-4730-835e-e36f30cfdd60",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_number",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-31e101be-e1da-4186-bd60-3d9b6f40a911",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-7db214be-69db-4175-a16e-4d78784a8246",
+      "sessionStatus": "formalized",
+      "fieldKey": "surface_finish",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-3c0beeed-33fe-4d44-a26d-d0056139a0b2",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-7db214be-69db-4175-a16e-4d78784a8246",
+      "sessionStatus": "formalized",
+      "fieldKey": "heat_treatment",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-3e95ad80-1015-49a9-a33b-ff206ed9c748",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-c3bd737f-2421-4822-b9ed-cec0896de0de",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_name",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-44420c94-df33-45a4-9ce7-84945fc40b26",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-dd5f0416-0b46-4ffa-b61c-06099f73f42c",
+      "sessionStatus": "review_ready",
+      "fieldKey": "material",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-44e44b72-d8d6-4157-822f-a5521e5883c3",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-9549e970-5bc6-4489-834d-019d44405702",
+      "sessionStatus": "review_ready",
+      "fieldKey": "heat_treatment",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-4521725d-0d06-4b9d-b71e-fa24934de379",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-39ac4ecc-2e13-4dd0-9e1a-36f9e417c9ef",
+      "sessionStatus": "extraction_partial",
+      "fieldKey": "surface_finish",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-6552be68-a5e9-4b8a-a3c0-06d2deef97a6",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "sessionStatus": "review_ready",
+      "fieldKey": "material",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "recognition-candidate-6f474344-b3a2-4afb-96e0-ac150b491f03",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-9549e970-5bc6-4489-834d-019d44405702",
+      "sessionStatus": "review_ready",
+      "fieldKey": "material",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-726fd5dd-d10a-4d20-8c76-95e5f4c96274",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-39ac4ecc-2e13-4dd0-9e1a-36f9e417c9ef",
+      "sessionStatus": "extraction_partial",
+      "fieldKey": "material",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-799853f7-cd2e-4ebe-94e3-787e1c715f30",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "sessionStatus": "review_ready",
+      "fieldKey": "material",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "recognition-candidate-7bbc04fa-661b-4e83-bb3a-3020598fbfa3",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-39ac4ecc-2e13-4dd0-9e1a-36f9e417c9ef",
+      "sessionStatus": "extraction_partial",
+      "fieldKey": "heat_treatment",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-85e69960-2220-47f7-b609-8b000e3b7db8",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-dd5f0416-0b46-4ffa-b61c-06099f73f42c",
+      "sessionStatus": "review_ready",
+      "fieldKey": "surface_finish",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-890faf06-c4d5-4ba0-9490-eb1352fe5673",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-9ab59841-7d12-4730-835e-e36f30cfdd60",
+      "sessionStatus": "review_ready",
+      "fieldKey": "heat_treatment",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-8f1012c6-e53f-448a-a14e-777b5b6e18fa",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-c3bd737f-2421-4822-b9ed-cec0896de0de",
+      "sessionStatus": "review_ready",
+      "fieldKey": "heat_treatment",
+      "reviewState": "corrected",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-902f71b9-6388-4fd4-aa83-be3aff442635",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-dd5f0416-0b46-4ffa-b61c-06099f73f42c",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_name",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-935a034f-5596-4e40-8517-8e214068bddd",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "sessionStatus": "review_ready",
+      "fieldKey": "heat_treatment",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "recognition-candidate-a59ce293-eb98-4e75-820d-1b8ad9db05d8",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-9549e970-5bc6-4489-834d-019d44405702",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_name",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-amendment-recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e-recognition-candidate-02ce1c7e-ca26-4c24-afb8-335f50ce1945",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e",
+      "sessionStatus": "formalized",
+      "fieldKey": "heat_treatment",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-amendment-recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e-recognition-candidate-2bda68c9-31eb-45f6-aa97-4599abd6a4c2",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e",
+      "sessionStatus": "formalized",
+      "fieldKey": "part_name",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-amendment-recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e-recognition-candidate-31e101be-e1da-4186-bd60-3d9b6f40a911",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e",
+      "sessionStatus": "formalized",
+      "fieldKey": "surface_finish",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-amendment-recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e-recognition-candidate-3c0beeed-33fe-4d44-a26d-d0056139a0b2",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e",
+      "sessionStatus": "formalized",
+      "fieldKey": "heat_treatment",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-amendment-recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e-recognition-candidate-b42fece5-c967-45e2-9ee8-88202066e256",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e",
+      "sessionStatus": "formalized",
+      "fieldKey": "material",
+      "reviewState": "corrected",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-amendment-recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e-recognition-candidate-b8d6b1d8-9842-4056-a5df-ba6dd48bf3d0",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e",
+      "sessionStatus": "formalized",
+      "fieldKey": "part_number",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-amendment-recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e-recognition-candidate-ba1e0e20-bd6e-4ad0-af9f-713ae434f25c",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e",
+      "sessionStatus": "formalized",
+      "fieldKey": "material",
+      "reviewState": "corrected",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-amendment-recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e-recognition-candidate-ff3ab40c-4e76-45e2-b440-be520b792e87",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-f1a3a8f0-0387-42de-abc0-b590ac8d181e",
+      "sessionStatus": "formalized",
+      "fieldKey": "surface_finish",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-b1b9c59b-7e7a-4447-9d66-4015f89582ec",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-9ab59841-7d12-4730-835e-e36f30cfdd60",
+      "sessionStatus": "review_ready",
+      "fieldKey": "material",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-b1f46adc-ad7e-4d6a-9529-d366679f8ad1",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_name",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "recognition-candidate-b42fece5-c967-45e2-9ee8-88202066e256",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-7db214be-69db-4175-a16e-4d78784a8246",
+      "sessionStatus": "formalized",
+      "fieldKey": "material",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-b8d6b1d8-9842-4056-a5df-ba6dd48bf3d0",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-7db214be-69db-4175-a16e-4d78784a8246",
+      "sessionStatus": "formalized",
+      "fieldKey": "part_number",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-ba1e0e20-bd6e-4ad0-af9f-713ae434f25c",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-7db214be-69db-4175-a16e-4d78784a8246",
+      "sessionStatus": "formalized",
+      "fieldKey": "material",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    },
+    {
+      "candidateId": "recognition-candidate-c64c82ba-8420-49cb-a79f-0b881dccd038",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0002-M01",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "sessionStatus": "review_ready",
+      "fieldKey": "heat_treatment",
+      "reviewState": "accepted",
+      "currentOwnerId": null,
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "disposition": "repairable_exactly_one"
+    },
+    {
+      "candidateId": "recognition-candidate-cf66929f-1f0c-4370-b747-59a221d38b66",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-5093e591-ae40-4b51-b715-486de7c04eac",
+      "sessionStatus": "review_ready",
+      "fieldKey": "heat_treatment",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-ed6a80c9-db12-40f3-9504-97798372ff86",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-5093e591-ae40-4b51-b715-486de7c04eac",
+      "sessionStatus": "review_ready",
+      "fieldKey": "part_name",
+      "reviewState": "proposed",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-f9298373-b514-4255-973a-11b7e8b3ac51",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0044-M01",
+      "sessionId": "recognition-c3bd737f-2421-4822-b9ed-cec0896de0de",
+      "sessionStatus": "review_ready",
+      "fieldKey": "material",
+      "reviewState": "corrected",
+      "currentOwnerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0",
+        "logicalPartNumber": "A0044-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-2ca4bbc2-9b66-4b18-b335-a806f79a951a",
+            "part-number-b8253a99-ad38-4fe6-90d9-766f9962d5e0"
+          ]
+        }
+      },
+      "disposition": "valid"
+    },
+    {
+      "candidateId": "recognition-candidate-ff3ab40c-4e76-45e2-b440-be520b792e87",
+      "companyId": "company-jenfu",
+      "drawingNumber": "A0006-M01",
+      "sessionId": "recognition-7db214be-69db-4175-a16e-4d78784a8246",
+      "sessionStatus": "formalized",
+      "fieldKey": "surface_finish",
+      "reviewState": "accepted",
+      "currentOwnerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601",
+        "logicalPartNumber": "A0006-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-fa21c86b-f4d5-4e66-be09-a428ca28ebb0",
+            "part-number-05e491aa-5811-4c03-94e6-48bde3ca2601"
+          ]
+        }
+      },
+      "disposition": "terminal_manual_disposition"
+    }
+  ],
+  "plan": [
+    {
+      "candidateId": "recognition-candidate-070e33e3-6ec7-4136-a72f-a80ca44fb5e5",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": "b1e5fca91d9303334d358e6debf2585ffafa3c8ca979080f80220d11e97e602d",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "988215c81b098d1aff24cb0d949fc4ba317b49b6ffeb5edb33b1f50aa9ace422",
+        "row_version": 2
+      },
+      "after": {
+        "proposed_owner_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "current_formal_value": null,
+        "current_formal_fingerprint": "b1e5fca91d9303334d358e6debf2585ffafa3c8ca979080f80220d11e97e602d",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "26a8c13ca36fde97ed8c8b9237ed0bf11a0b14838a02415b7245da1ad1a39bd9",
+        "row_version": 3
+      }
+    },
+    {
+      "candidateId": "recognition-candidate-0bee694d-1f97-4dd6-83b8-fcbbf6f20d9c",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": "9be04a27e20cb1380e90703402580d2ca552a4db48fecc3d548926887da62be4",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "bea47e0b80073554c5e81e4b5443f6096a290bf30beda1041face739b24084be",
+        "row_version": 3
+      },
+      "after": {
+        "proposed_owner_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "current_formal_value": null,
+        "current_formal_fingerprint": "9be04a27e20cb1380e90703402580d2ca552a4db48fecc3d548926887da62be4",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "bea47e0b80073554c5e81e4b5443f6096a290bf30beda1041face739b24084be",
+        "row_version": 4
+      }
+    },
+    {
+      "candidateId": "recognition-candidate-18f98d91-dd6f-4fbd-97fb-4a0d9a5e3776",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": "97939d63d40ef8abe1de9bac1e9bf1f494cb4bdf873ca1810fd8b6d1610e7ef1",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "95264d06e73d791bb72e6b8ae2b801e9774831aeb9d60ed97327ca4bdf18a88c",
+        "row_version": 2
+      },
+      "after": {
+        "proposed_owner_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "current_formal_value": null,
+        "current_formal_fingerprint": "97939d63d40ef8abe1de9bac1e9bf1f494cb4bdf873ca1810fd8b6d1610e7ef1",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "014f984d0615241938e4059aaf3a2a5a39b1d9cdd55e7447c1751fb624c1f6b3",
+        "row_version": 3
+      }
+    },
+    {
+      "candidateId": "recognition-candidate-6552be68-a5e9-4b8a-a3c0-06d2deef97a6",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": "ece317b3e6246215eacd33d366b77838ad8a09561ad26d0623c5f6a6138daa8f",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "53ca6990c07542116182dedc47c0613bd5d9e27fe7e55d41e776eb840348dcd0",
+        "row_version": 2
+      },
+      "after": {
+        "proposed_owner_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "current_formal_value": null,
+        "current_formal_fingerprint": "ece317b3e6246215eacd33d366b77838ad8a09561ad26d0623c5f6a6138daa8f",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "517391c0959fa8b3e6022c4c6d6fb517494d16576865c2f4b05758f8f9beaf79",
+        "row_version": 3
+      }
+    },
+    {
+      "candidateId": "recognition-candidate-799853f7-cd2e-4ebe-94e3-787e1c715f30",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": "0a6a233dd3e0540737ba5e4defb8dcd4682ae85176e9cc81c90967f973f6f907",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "0e2ffc75bd5ad5e089cc6f048064f469205865349bf5b4b9ea7a730fdc93a07e",
+        "row_version": 3
+      },
+      "after": {
+        "proposed_owner_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "current_formal_value": null,
+        "current_formal_fingerprint": "0a6a233dd3e0540737ba5e4defb8dcd4682ae85176e9cc81c90967f973f6f907",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "0e2ffc75bd5ad5e089cc6f048064f469205865349bf5b4b9ea7a730fdc93a07e",
+        "row_version": 4
+      }
+    },
+    {
+      "candidateId": "recognition-candidate-935a034f-5596-4e40-8517-8e214068bddd",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": "55e7e5bfb5d3a7f406581a7180144e42567897f38db87762e3a73a404dea30a5",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "d12394bdc21709f968540d5420a125ce80e5c0dbd9d10bd8391b4ff4f0cf5172",
+        "row_version": 3
+      },
+      "after": {
+        "proposed_owner_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "current_formal_value": null,
+        "current_formal_fingerprint": "55e7e5bfb5d3a7f406581a7180144e42567897f38db87762e3a73a404dea30a5",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "d12394bdc21709f968540d5420a125ce80e5c0dbd9d10bd8391b4ff4f0cf5172",
+        "row_version": 4
+      }
+    },
+    {
+      "candidateId": "recognition-candidate-b1f46adc-ad7e-4d6a-9529-d366679f8ad1",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": "389e6f295fd2e0b56f425fad203a62ffb30629c72d48a5de7523be3a8bf14627",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "17960f96e008793980d8b01f2c386f2b53d1f685529ba03966876512c96e8a27",
+        "row_version": 2
+      },
+      "after": {
+        "proposed_owner_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "current_formal_value": null,
+        "current_formal_fingerprint": "389e6f295fd2e0b56f425fad203a62ffb30629c72d48a5de7523be3a8bf14627",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "472f236474759a8f0965227ec05336b09917f6847f285c3a8dc09013f52fb879",
+        "row_version": 3
+      }
+    },
+    {
+      "candidateId": "recognition-candidate-c64c82ba-8420-49cb-a79f-0b881dccd038",
+      "sessionId": "recognition-b54eb913-6a09-431f-aa07-623af6d4a897",
+      "drawingNumber": "A0002-M01",
+      "resolution": {
+        "kind": "resolved",
+        "ownerId": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "logicalPartNumber": "A0002-P01",
+        "evidence": {
+          "source": "formal",
+          "candidateOwnerIds": [
+            "draft-part-8f1aae57-8c08-41a1-8608-9e8e3ad1a802",
+            "part-number-593efe73-6225-42a7-9507-c63602b73169"
+          ]
+        }
+      },
+      "before": {
+        "proposed_owner_id": null,
+        "current_formal_value": null,
+        "current_formal_fingerprint": "4fed4d27d808aefe33af697bf5919d573968e7473a5cbe47711fa060702d10f5",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "342dfd93f98a718202a87cbb8fa9694364115ae8885a5cd29b84017aa997b81e",
+        "row_version": 2
+      },
+      "after": {
+        "proposed_owner_id": "part-number-593efe73-6225-42a7-9507-c63602b73169",
+        "current_formal_value": null,
+        "current_formal_fingerprint": "4fed4d27d808aefe33af697bf5919d573968e7473a5cbe47711fa060702d10f5",
+        "variant_status": "added",
+        "review_state": "accepted",
+        "group_key": "616b54e919c6803fce9c412cff9ee2ae72e6da0b10dd927243a45f391e3f32a8",
+        "row_version": 3
+      }
+    }
+  ],
+  "status": "READ_ONLY_COMPLETE",
+  "appliedCount": 0,
+  "targetFingerprintAfter": "00917cde226283cfb1ef239c89d093bc0096ec15680bc5b4a1bbc1918b36fa21",
+  "reviewRequestFingerprintAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+}

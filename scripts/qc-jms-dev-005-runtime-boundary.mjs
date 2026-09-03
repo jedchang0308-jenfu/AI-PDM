@@ -124,7 +124,7 @@ function mutateHandlerGuard(path, method, source) {
 }
 
 function main() {
-  assert.deepEqual(routeMap.denominator, { uniqueFiles: 57, uniqueMethods: 71, policyEntries: 79 })
+  assert.deepEqual(routeMap.denominator, { uniqueFiles: 56, uniqueMethods: 70, policyEntries: 78 })
   const catalogPermissionCodes = new Set(catalog.roles.flatMap((role) => role.permissions.map((permission) => permission.code)))
   const permissionEntries = routeMap.entries.filter((entry) => entry.authorizationMode === 'permission')
   for (const entry of permissionEntries) assert.ok(catalogPermissionCodes.has(entry.permissionCode), `route permission missing from catalog: ${entry.permissionCode}`)

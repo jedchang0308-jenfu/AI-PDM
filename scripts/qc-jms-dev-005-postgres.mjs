@@ -11,9 +11,13 @@ import pg from 'pg'
 import { AiPdmRoleCatalogPublicationError, publishRoleCatalog, readRoleCatalog } from './lib/jms-dev-005-role-catalog.mjs'
 
 const root = process.cwd()
-const platformRoot = process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim()
-  ? path.resolve(process.env.JENFU_MANAGEMENT_SYSTEM_ROOT)
-  : path.resolve(root, '..', 'Jenfu-Management-system')
+const platformCandidates = [
+  process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
+  path.resolve(root, '..', 'Jenfu-Management-system'),
+  path.resolve(root, '..', '..', '..', 'Jenfu-Management-system'),
+  path.resolve(root, '..', '..', '..', '..', 'Jenfu-Management-system'),
+].filter(Boolean)
+const platformRoot = platformCandidates.find((candidate) => fs.existsSync(path.join(candidate, 'qa', 'dev-004', 'postgres', '000_bootstrap_roles.sql'))) ?? platformCandidates[0]
 const taskRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-pdm-dev005-postgres-'))
 const dataDir = path.join(taskRoot, 'data')
 const repositoryDir = path.join(taskRoot, 'repository')

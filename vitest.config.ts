@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.join(projectRoot, 'src'),
+      'server-only': path.join(projectRoot, 'scripts', 'server-only-vitest-shim.mjs'),
     },
   },
 })

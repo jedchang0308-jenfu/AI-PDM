@@ -6,8 +6,8 @@
   "stableRoleId": "role-system-admin",
   "payload": { "employeeId": "employee-fixture-b", "principalAdmissionId": "admission-privileged-b" },
   "expected": {
-    "catalogVersion": "ai-pdm.role-catalog.2026-09-02.v2",
-    "catalogPayloadHash": "ebdaa2960960e0683b480c721d2c27df59031b4af23b124f2ac7e882309f6b6e",
+    "catalogVersion": "ai-pdm.role-catalog.2026-09-03.v3",
+    "catalogPayloadHash": "46376639b7aec06798786b9d1a113ba604cf90ca31541a9464ecce7a49d116c8",
     "governanceRevision": "fixture-governance-current",
     "organizationRevision": "fixture-organization-revision-current"
   },

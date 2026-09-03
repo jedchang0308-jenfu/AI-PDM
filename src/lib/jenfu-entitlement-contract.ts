@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 export const JENFU_ENTITLEMENT_CONTRACT_VERSION = "jenfu.platform-entitlement.v1" as const;
 export const JENFU_AI_PDM_APPLICATION_ID = "ai-pdm" as const;
-export const JENFU_ROLE_CATALOG_VERSION = "ai-pdm.role-catalog.2026-09-02.v2" as const;
+export const JENFU_ROLE_CATALOG_VERSION = "ai-pdm.role-catalog.2026-09-03.v3" as const;
 
 export type JenfuEntitlementErrorCode =
   | "entitlement_authority_unavailable"

@@ -5,8 +5,8 @@ import { isDeepStrictEqual } from 'node:util'
 
 export const JENFU_ENTITLEMENT_CONTRACT_VERSION = 'jenfu.platform-entitlement.v1'
 export const AI_PDM_APPLICATION_ID = 'ai-pdm'
-export const AI_PDM_ROLE_CATALOG_VERSION = 'ai-pdm.role-catalog.2026-09-02.v2'
-export const AI_PDM_ROLE_CATALOG_SHA256 = 'ebdaa2960960e0683b480c721d2c27df59031b4af23b124f2ac7e882309f6b6e'
+export const AI_PDM_ROLE_CATALOG_VERSION = 'ai-pdm.role-catalog.2026-09-03.v3'
+export const AI_PDM_ROLE_CATALOG_SHA256 = '46376639b7aec06798786b9d1a113ba604cf90ca31541a9464ecce7a49d116c8'
 export const AI_PDM_ROLE_IDS = [
   'role-rd', 'role-rd-manager', 'role-qa', 'role-manufacturing', 'role-production-planning',
   'role-procurement', 'role-external-specialist', 'role-pdm-admin', 'role-system-admin',

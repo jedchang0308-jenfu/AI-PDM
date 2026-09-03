@@ -3580,7 +3580,7 @@ Owner：Dev PM
   - 驗收：`qc:dev-079`與current `qc:dev-080`均產生manifest；079 retained matrix全部PASS；080的12案disposition與current residual smoke全部PASS；console/network/visible unexpected error=0；所有task-owned port／process／temp清理完成。
   - Stop conditions：任一current case揭露產品source／API／permission／lifecycle真實缺陷，停止115並回該產品owner開修正；不得藉由刪case、放寬expected、恢復舊DOM或seed primary取得綠燈。
   - QA authority：DEV-079／080 validation plan的2026-09-03 governance amendment；證據根=`output/qa/dev-115-qa-gate-convergence/<run-id>/`。
-  - 完成證據：DEV-079 aggregate=`output/qa/dev-115-qa-gate-convergence/DEV115-DEV-079-2026-09-03T04-49-20-491Z/aggregate-manifest.json`，42/42 PASS；DEV-080 aggregate=`output/qa/dev-115-qa-gate-convergence/DEV115-DEV-080-2026-09-03T04-50-38-215Z/aggregate-manifest.json`，12/12 PASS。兩者registry missing／duplicate=0、所有child完成、primary invariant before=after、task-owned runtime cleanup完成。
+  - 完成證據：合併 current `main` 後的 DEV-079 aggregate=`output/qa/dev-115-qa-gate-convergence/DEV115-DEV-079-2026-09-03T05-24-45-777Z/aggregate-manifest.json`，42/42 PASS；DEV-080 aggregate=`output/qa/dev-115-qa-gate-convergence/DEV115-DEV-080-2026-09-03T05-26-24-642Z/aggregate-manifest.json`，12/12 PASS。兩者registry missing／duplicate=0、所有child完成、primary invariant before=after、task-owned runtime cleanup完成。
   - 結案：115-A～D完成；DEV-079改為本機QA-QC完成，DEV-080依原契約併入DEV-087／112。QC closure=`.ai-doc/qc/qc-dev-115-qa-gate-convergence-2026-09-03.md`。
   - 計入交付：否。
 

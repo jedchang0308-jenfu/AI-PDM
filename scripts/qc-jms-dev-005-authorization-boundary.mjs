@@ -5,12 +5,16 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const CONTRACT_VERSION = 'jenfu.platform-entitlement.v1'
-const EXPECTED = { uniqueFiles: 57, uniqueMethods: 71, policyEntries: 79 }
+const EXPECTED = { uniqueFiles: 56, uniqueMethods: 70, policyEntries: 78 }
 const scriptRoot = dirname(fileURLToPath(import.meta.url))
 const appRoot = resolve(scriptRoot, '..')
-const platformRoot = process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim()
-  ? resolve(process.env.JENFU_MANAGEMENT_SYSTEM_ROOT)
-  : resolve(appRoot, '..', 'Jenfu-Management-system')
+const platformCandidates = [
+  process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
+  resolve(appRoot, '..', 'Jenfu-Management-system'),
+  resolve(appRoot, '..', '..', '..', 'Jenfu-Management-system'),
+  resolve(appRoot, '..', '..', '..', '..', 'Jenfu-Management-system'),
+].filter(Boolean)
+const platformRoot = platformCandidates.find((candidate) => existsSync(join(candidate, 'ai-doc', 'specs', 'DEV-005-ai-pdm-authorization-route-inventory.md'))) ?? platformCandidates[0]
 const inventoryPath = join(platformRoot, 'ai-doc', 'specs', 'DEV-005-ai-pdm-authorization-route-inventory.md')
 const mapPath = join(appRoot, 'config', 'access-control', 'jenfu-route-permission-map.v1.json')
 

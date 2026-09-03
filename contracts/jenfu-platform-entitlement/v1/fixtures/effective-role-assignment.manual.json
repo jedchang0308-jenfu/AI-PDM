@@ -14,7 +14,7 @@
   "targetPrincipalId": null,
   "stableRoleId": "role-rd",
   "roleCode": "rd",
-  "catalogVersion": "ai-pdm.role-catalog.2026-09-02.v2",
+  "catalogVersion": "ai-pdm.role-catalog.2026-09-03.v3",
   "scopeKind": "workspace",
   "scopeKey": "company-jenfu",
   "validFrom": "2026-09-01T00:00:00.000Z",
