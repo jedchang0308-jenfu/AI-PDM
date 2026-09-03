@@ -5,7 +5,7 @@ import { runProductionReadinessReport } from "./qc-production-readiness-report-r
 
 const root = process.cwd();
 const taskRelativePath = resolveTaskFile();
-const expectedExternalOpenIds = ["DEV-PDM-ERP-GOOGLE-CLOUDSQL-001"];
+const productionReleaseGateIds = ["DEV-PDM-ERP-GOOGLE-CLOUDSQL-001"];
 const allowedOpenCategories = new Set([
   "external_document_manager",
   "external_solidworks_machine",
@@ -160,7 +160,7 @@ function parseParkedExternalBlockers(lines) {
     if (!statusMatch) return;
 
     const id = stripInlineCode(cells[1] ?? "");
-    if (!expectedExternalOpenIds.includes(id)) return;
+    if (!productionReleaseGateIds.includes(id)) return;
 
     const text = [id, cells[2] ?? "", cells[3] ?? ""].filter(Boolean).join(" | ");
     tasks.push({
@@ -185,8 +185,8 @@ const lines = readProjectFile(root, taskRelativePath).split(/\r?\n/u);
 const tasks = [...parseTopTaskTable(lines), ...parseIndustrializationOverview(lines), ...parseActiveCheckboxDevTasks(lines), ...parseParkedExternalBlockers(lines)];
 const openTasks = tasks.filter((task) => task.status !== "done");
 const unclassifiedOpenTasks = openTasks.filter((task) => !allowedOpenCategories.has(task.category));
-const missingExpectedOpen = expectedExternalOpenIds
-  .filter((id) => !openTasks.some((task) => task.id === id));
+const missingReleaseGateDisposition = productionReleaseGateIds
+  .filter((id) => !tasks.some((task) => task.id === id));
 const handoff = readProjectFile(root, ".ai-doc/reports/industrialization/external-validation-handoff-2026-05-28.md");
 const handoffTasks = openTasks.filter((task) => task.category !== "external_platform_release");
 const { run: readinessRun, report: readinessReport } = runProductionReadinessReport(root);
@@ -199,13 +199,13 @@ const openIds = new Set(openTasks.map((task) => task.id));
 const readinessMissingOpen = [...openIds].filter((id) => !readinessIds.has(id));
 
 record("COMPLETE-001 dev_task.md exists", projectFileExists(root, taskRelativePath), taskRelativePath);
-record("COMPLETE-002 task audit covers active backlog overview", tasks.length >= expectedExternalOpenIds.length, String(tasks.length));
+record("COMPLETE-002 task audit covers active backlog overview", tasks.length >= productionReleaseGateIds.length, String(tasks.length));
 record("COMPLETE-003 no local or unclassified open task remains", unclassifiedOpenTasks.length === 0, JSON.stringify(unclassifiedOpenTasks));
-record("COMPLETE-004 expected external blockers remain visible", missingExpectedOpen.length === 0, JSON.stringify(missingExpectedOpen));
+record("COMPLETE-004 production release gate has an explicit disposition", missingReleaseGateDisposition.length === 0, JSON.stringify(missingReleaseGateDisposition));
 record("COMPLETE-005 legacy external handoff mentions applicable open blockers", handoffTasks.every((task) => handoff.includes(task.id)), JSON.stringify(handoffTasks.map((task) => task.id)));
 record("COMPLETE-006 production readiness report is parseable", readinessRun.status === 0 && Boolean(readinessReport), readinessRun.stderr || "parsed");
 record("COMPLETE-007 production readiness reports every open blocker", readinessMissingOpen.length === 0, JSON.stringify(readinessMissingOpen));
-record("COMPLETE-008 production readiness remains not ready", readinessReport?.ready === false, String(readinessReport?.ready));
+record("COMPLETE-008 production readiness matches open release gates", readinessReport?.ready === (openTasks.length === 0), JSON.stringify({ ready: readinessReport?.ready, openTaskCount: openTasks.length }));
 
 const failed = results.filter((result) => !result.passed);
 console.log(JSON.stringify({

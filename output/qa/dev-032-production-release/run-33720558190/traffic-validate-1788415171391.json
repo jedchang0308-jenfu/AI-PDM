@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "ai-pdm-production-release-traffic/v1",
+  "mode": "validate",
+  "generatedAt": "2026-09-03T05:59:28.747Z",
+  "target": {
+    "project": "jenfu-ai-pdm-prod",
+    "region": "asia-east1",
+    "service": "ai-pdm-prod"
+  },
+  "expectedLatestRevision": "ai-pdm-prod-gh-77d926f7-33720558190",
+  "rollbackRevision": "ai-pdm-prod-gh-221b25c1-33457759159",
+  "before": {
+    "generation": "67",
+    "latestCreatedRevision": "ai-pdm-prod-gh-77d926f7-33720558190",
+    "latestReadyRevision": "ai-pdm-prod-gh-77d926f7-33720558190",
+    "templateSha256": "39b507a82d759713473990283c68bfdb55e8b5bf16884d1fb600fc3cd6b720bd",
+    "traffic": [
+      {
+        "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+        "revision": "ai-pdm-prod-gh-221b25c1-33457759159",
+        "percent": 100,
+        "tag": null
+      },
+      {
+        "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+        "revision": "ai-pdm-prod-gh-77d926f7-33720558190",
+        "percent": 0,
+        "tag": "candidate"
+      }
+    ]
+  },
+  "validateOnlyAccepted": true,
+  "after": null,
+  "allChecksPassed": true
+}
