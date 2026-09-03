@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8").replace(/\r\n?/gu, "\n");
 const checks = [];
 const expect = (name, condition) => checks.push({ name, condition: Boolean(condition) });
 

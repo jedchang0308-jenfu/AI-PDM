@@ -1,0 +1,793 @@
+{
+  "contractVersion": "jenfu.platform-entitlement.v1",
+  "applicationId": "ai-pdm",
+  "source": "Jenfu-Management-system/ai-doc/specs/DEV-005-ai-pdm-authorization-route-inventory.md",
+  "sourceSha256": "478f8c2fdd056c6b8bc38bcf3a132473a579b21f5971c50b676a39263fe56668",
+  "denominator": {
+    "uniqueFiles": 56,
+    "uniqueMethods": 70,
+    "policyEntries": 78
+  },
+  "entries": [
+    {
+      "path": "src/app/api/admin/account-invitations/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.invitation.manage",
+      "authorizationTarget": "accounts.invitation.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋既有invitation filters"
+    },
+    {
+      "path": "src/app/api/admin/account-invitations/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.invitation.manage",
+      "authorizationTarget": "accounts.invitation.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋target invitation state"
+    },
+    {
+      "path": "src/app/api/admin/account-invitations/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.invitation.manage",
+      "authorizationTarget": "accounts.invitation.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋invite validation／audit"
+    },
+    {
+      "path": "src/app/api/admin/accounts/[userId]/identities/[identityId]/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.identity.manage",
+      "authorizationTarget": "accounts.identity.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋target account／identity lifecycle"
+    },
+    {
+      "path": "src/app/api/admin/accounts/[userId]/lifecycle/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.lifecycle.manage",
+      "authorizationTarget": "accounts.lifecycle.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋target account lifecycle"
+    },
+    {
+      "path": "src/app/api/admin/accounts/[userId]/login-aliases/[aliasId]/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.identity.manage",
+      "authorizationTarget": "accounts.identity.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋alias ownership／uniqueness"
+    },
+    {
+      "path": "src/app/api/admin/accounts/[userId]/login-aliases/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.identity.manage",
+      "authorizationTarget": "accounts.identity.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋alias ownership／uniqueness"
+    },
+    {
+      "path": "src/app/api/admin/accounts/[userId]/password-reset/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.identity.manage",
+      "authorizationTarget": "accounts.identity.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋target account lifecycle"
+    },
+    {
+      "path": "src/app/api/admin/accounts/[userId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.lifecycle.manage",
+      "authorizationTarget": "accounts.lifecycle.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋target account projection"
+    },
+    {
+      "path": "src/app/api/admin/accounts/[userId]/sessions/revoke/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.session.revoke",
+      "authorizationTarget": "accounts.session.revoke",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋target account／session registry"
+    },
+    {
+      "path": "src/app/api/admin/accounts/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.lifecycle.manage",
+      "authorizationTarget": "accounts.lifecycle.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋bounded account projection"
+    },
+    {
+      "path": "src/app/api/approvals/inbox/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "approval.inbox.view",
+      "authorizationTarget": "approval.inbox.view",
+      "scopeResolver": "company",
+      "preservedGuards": "company＋assigned reviewer／state"
+    },
+    {
+      "path": "src/app/api/approvals/requests/[requestId]/apply/route.ts",
+      "method": "POST",
+      "discriminator": "actionCode in {numbering.candidate_bundle_review, numbering.candidate_publication_review}",
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "retired → 410",
+      "scopeResolver": "exact legacy candidates；不得落入apply path",
+      "preservedGuards": "exact legacy candidates；不得落入apply path"
+    },
+    {
+      "path": "src/app/api/approvals/requests/[requestId]/apply/route.ts",
+      "method": "POST",
+      "discriminator": "all other registered action codes",
+      "authorizationMode": "permission",
+      "permissionCode": "approval.request.apply",
+      "authorizationTarget": "approval.request.apply",
+      "scopeResolver": "company",
+      "preservedGuards": "company＋production-slice／registered-action／request-state／idempotency gates"
+    },
+    {
+      "path": "src/app/api/approvals/requests/[requestId]/cleanup/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "approval.request.cleanup",
+      "authorizationTarget": "approval.request.cleanup",
+      "scopeResolver": "company",
+      "preservedGuards": "company＋request state／cleanup eligibility"
+    },
+    {
+      "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+      "method": "POST",
+      "discriminator": "actionCode in {numbering.candidate_bundle_review, numbering.candidate_publication_review}",
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "retired → 410",
+      "scopeResolver": "exact legacy candidates；不得落入decision path",
+      "preservedGuards": "exact legacy candidates；不得落入decision path"
+    },
+    {
+      "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+      "method": "POST",
+      "discriminator": "actionCode=numbering.drawing_revision_lifecycle_review",
+      "authorizationMode": "permission",
+      "permissionCode": "approval.request.decide",
+      "authorizationTarget": "approval.request.decide",
+      "scopeResolver": "company",
+      "preservedGuards": "company＋assigned reviewer＋drawing lifecycle／idempotency state"
+    },
+    {
+      "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+      "method": "POST",
+      "discriminator": "all other enabled registered action codes",
+      "authorizationMode": "permission",
+      "permissionCode": "approval.request.decide",
+      "authorizationTarget": "approval.request.decide",
+      "scopeResolver": "company",
+      "preservedGuards": "company＋assigned reviewer＋request／domain apply state；unregistered／disabled deny"
+    },
+    {
+      "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+      "method": "POST",
+      "discriminator": "transfer.package_review",
+      "authorizationMode": "existing_command",
+      "permissionCode": null,
+      "authorizationTarget": "existing_command: requireNumberingPlatformCommandAsync",
+      "scopeResolver": "company",
+      "preservedGuards": "company＋assigned reviewer＋state；不得疊加或取代command guard"
+    },
+    {
+      "path": "src/app/api/file-metadata/detect/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "pdm.file_metadata.detect",
+      "authorizationTarget": "pdm.file_metadata.detect",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋upload owner／content validation"
+    },
+    {
+      "path": "src/app/api/integrations/procurement/releases/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "integration.procurement.view",
+      "authorizationTarget": "integration.procurement.view",
+      "scopeResolver": "integration company",
+      "preservedGuards": "integration company＋release projection"
+    },
+    {
+      "path": "src/app/api/integrations/procurement/sync-runs/[runId]/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "integration.procurement.manage",
+      "authorizationTarget": "integration.procurement.manage",
+      "scopeResolver": "integration company",
+      "preservedGuards": "integration company＋run state"
+    },
+    {
+      "path": "src/app/api/integrations/procurement/sync-runs/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "integration.procurement.view",
+      "authorizationTarget": "integration.procurement.view",
+      "scopeResolver": "integration company",
+      "preservedGuards": "integration company＋bounded run projection"
+    },
+    {
+      "path": "src/app/api/integrations/procurement/sync-runs/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "integration.procurement.manage",
+      "authorizationTarget": "integration.procurement.manage",
+      "scopeResolver": "integration company",
+      "preservedGuards": "integration company＋provider／idempotency"
+    },
+    {
+      "path": "src/app/api/manufacturing-baselines/[baselineId]/release/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "manufacturing.baseline.release",
+      "authorizationTarget": "manufacturing.baseline.release",
+      "scopeResolver": "baseline company",
+      "preservedGuards": "baseline company＋lifecycle／release state"
+    },
+    {
+      "path": "src/app/api/manufacturing-baselines/resolve/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "manufacturing.baseline.view",
+      "authorizationTarget": "manufacturing.baseline.view",
+      "scopeResolver": "baseline company",
+      "preservedGuards": "baseline company＋released/resource projection"
+    },
+    {
+      "path": "src/app/api/manufacturing-baselines/resolve/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "manufacturing.baseline.view",
+      "authorizationTarget": "manufacturing.baseline.view",
+      "scopeResolver": "read-only resolution；baseline company",
+      "preservedGuards": "read-only resolution；baseline company＋resource projection"
+    },
+    {
+      "path": "src/app/api/manufacturing-baselines/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "manufacturing.baseline.manage",
+      "authorizationTarget": "manufacturing.baseline.manage",
+      "scopeResolver": "baseline company",
+      "preservedGuards": "baseline company＋lifecycle validation"
+    },
+    {
+      "path": "src/app/api/numbering/drawing-revision-packages/[packageId]/model-basis/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.drawing_revision_lifecycle_review",
+      "authorizationTarget": "numbering.drawing_revision_lifecycle_review",
+      "scopeResolver": "package company",
+      "preservedGuards": "package company＋assigned reviewer／state"
+    },
+    {
+      "path": "src/app/api/numbering/drawing-revision-packages/supplements/[supplementId]/decision/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.drawing_revision_lifecycle_review",
+      "authorizationTarget": "numbering.drawing_revision_lifecycle_review",
+      "scopeResolver": "package company",
+      "preservedGuards": "package company＋assigned reviewer／state"
+    },
+    {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.create",
+      "authorizationTarget": "submission.create",
+      "scopeResolver": "drawing company",
+      "preservedGuards": "drawing company＋drawing／submission lifecycle"
+    },
+    {
+      "path": "src/app/api/parts/[partNumber]/shared-models/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "pdm.shared_model.view",
+      "authorizationTarget": "pdm.shared_model.view",
+      "scopeResolver": "Part company",
+      "preservedGuards": "Part company＋owner／released projection"
+    },
+    {
+      "path": "src/app/api/parts/[partNumber]/shared-models/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "pdm.shared_model.manage",
+      "authorizationTarget": "pdm.shared_model.manage",
+      "scopeResolver": "Part company",
+      "preservedGuards": "Part company＋owner／content validation"
+    },
+    {
+      "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+      "method": "GET",
+      "discriminator": "context in {candidate_revision, drawing_revision, drawing_revision_package, review_package, drawing_attachment} and no reviewRequestId",
+      "authorizationMode": "existing_path",
+      "permissionCode": null,
+      "authorizationTarget": "existing numbering.drawings.view path",
+      "scopeResolver": "asset company",
+      "preservedGuards": "asset company＋exact context／binding／asset identity；invalid context先400"
+    },
+    {
+      "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+      "method": "GET",
+      "discriminator": "context=approval_evidence",
+      "authorizationMode": "permission",
+      "permissionCode": "approval.request.decide",
+      "authorizationTarget": "approval.request.decide",
+      "scopeResolver": "asset company",
+      "preservedGuards": "asset company＋exact approval request／snapshot evidence membership"
+    },
+    {
+      "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+      "method": "GET",
+      "discriminator": "context=drawing_revision_work",
+      "authorizationMode": "existing_path",
+      "permissionCode": null,
+      "authorizationTarget": "existing numbering.drawings.view path",
+      "scopeResolver": "asset company",
+      "preservedGuards": "asset company＋work owner／`canEditNonOwned`；有`reviewRequestId`時另需`canDecide`＋exact review assignment"
+    },
+    {
+      "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+      "method": "GET",
+      "discriminator": "context=part_attachment and no reviewRequestId",
+      "authorizationMode": "existing_path",
+      "permissionCode": null,
+      "authorizationTarget": "existing numbering.search path",
+      "scopeResolver": "asset company",
+      "preservedGuards": "asset company＋exact Part／binding／asset identity"
+    },
+    {
+      "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+      "method": "GET",
+      "discriminator": "reviewRequestId present and context not above",
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "authenticated_domain",
+      "scopeResolver": "asset company",
+      "preservedGuards": "asset company＋exact pending/applying assigned-review scope／snapshot integrity"
+    },
+    {
+      "path": "src/app/api/policy/management/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "authenticated_domain",
+      "scopeResolver": "verified session",
+      "preservedGuards": "verified session＋既有policy projection；不得回完整secret"
+    },
+    {
+      "path": "src/app/api/policy/management/route.ts",
+      "method": "PUT",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋matrix validation／audit"
+    },
+    {
+      "path": "src/app/api/settings/gdrive/folders/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.integration.manage",
+      "authorizationTarget": "settings.integration.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋provider scope"
+    },
+    {
+      "path": "src/app/api/settings/gdrive/folders/verify/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.integration.manage",
+      "authorizationTarget": "settings.integration.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋provider／folder validation"
+    },
+    {
+      "path": "src/app/api/settings/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.manage",
+      "authorizationTarget": "settings.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋redacted projection"
+    },
+    {
+      "path": "src/app/api/settings/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.manage",
+      "authorizationTarget": "settings.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋settings validation／audit"
+    },
+    {
+      "path": "src/app/api/settings/secrets/[kind]/activate/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.secret.manage",
+      "authorizationTarget": "settings.secret.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋step-up＋provider／secret state"
+    },
+    {
+      "path": "src/app/api/settings/secrets/[kind]/draft/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.secret.manage",
+      "authorizationTarget": "settings.secret.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋step-up＋redaction／secret state"
+    },
+    {
+      "path": "src/app/api/settings/secrets/[kind]/revoke/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.secret.manage",
+      "authorizationTarget": "settings.secret.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋step-up＋secret state"
+    },
+    {
+      "path": "src/app/api/settings/secrets/[kind]/test/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.secret.manage",
+      "authorizationTarget": "settings.secret.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋step-up＋provider／rate limit"
+    },
+    {
+      "path": "src/app/api/settings/secrets/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.secret.manage",
+      "authorizationTarget": "settings.secret.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋step-up＋redacted projection"
+    },
+    {
+      "path": "src/app/api/storage/evidence/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.storage_evidence.view",
+      "authorizationTarget": "settings.storage_evidence.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋redacted evidence projection"
+    },
+    {
+      "path": "src/app/api/submission-lifecycle-requests/[requestId]/approve/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.lifecycle.decide",
+      "authorizationTarget": "submission.lifecycle.decide",
+      "scopeResolver": "company",
+      "preservedGuards": "company＋assigned reviewer／request state"
+    },
+    {
+      "path": "src/app/api/submission-lifecycle-requests/[requestId]/reject/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.lifecycle.decide",
+      "authorizationTarget": "submission.lifecycle.decide",
+      "scopeResolver": "company",
+      "preservedGuards": "company＋assigned reviewer／request state"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/approval-matrix/[requirementId]/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.review",
+      "authorizationTarget": "submission.review",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋reviewer／matrix state"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/approval-matrix/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "authenticated_domain",
+      "scopeResolver": "verified session",
+      "preservedGuards": "verified session＋existing submission projection"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/approval-matrix/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.review",
+      "authorizationTarget": "submission.review",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋reviewer／matrix state"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/approve/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.decide",
+      "authorizationTarget": "submission.decide",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋assigned reviewer／lifecycle"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/changes/[changeId]/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.review",
+      "authorizationTarget": "submission.review",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋reviewer／change state"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/changes/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "authenticated_domain",
+      "scopeResolver": "verified session",
+      "preservedGuards": "verified session＋owner/reviewer/resource projection"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/changes/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.update",
+      "authorizationTarget": "submission.update",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／lifecycle"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/checkout/route.ts",
+      "method": "DELETE",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.update",
+      "authorizationTarget": "submission.update",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／lock ownership"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/checkout/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.update",
+      "authorizationTarget": "submission.update",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／lock state"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/obsolete-request/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.update",
+      "authorizationTarget": "submission.update",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／lifecycle"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/reject/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.decide",
+      "authorizationTarget": "submission.decide",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋assigned reviewer／lifecycle"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/retry-release/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.retry",
+      "authorizationTarget": "submission.retry",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋retry eligibility／idempotency"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/retry-upload/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.retry",
+      "authorizationTarget": "submission.retry",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋retry eligibility／idempotency"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/return-for-correction/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.decide",
+      "authorizationTarget": "submission.decide",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋assigned reviewer／lifecycle"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/sandbox/[branchId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.view",
+      "authorizationTarget": "submission.view",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋branch/resource projection"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/sandbox/[branchId]/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.update",
+      "authorizationTarget": "submission.update",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／branch state"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/sandbox/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "authenticated_domain",
+      "scopeResolver": "verified session",
+      "preservedGuards": "verified session＋existing submission projection"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/sandbox/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.update",
+      "authorizationTarget": "submission.update",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／lifecycle"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/shares/[shareId]/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.share",
+      "authorizationTarget": "submission.share",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／share state"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/shares/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.share",
+      "authorizationTarget": "submission.share",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／share projection"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/shares/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.share",
+      "authorizationTarget": "submission.share",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／recipient validation"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/supplier-responses/[responseId]/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.review",
+      "authorizationTarget": "submission.review",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋reviewer／response state"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/supplier-responses/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.review",
+      "authorizationTarget": "submission.review",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋manager/reviewer restriction"
+    },
+    {
+      "path": "src/app/api/submissions/preflight-lock/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.update",
+      "authorizationTarget": "submission.update",
+      "scopeResolver": "submission company",
+      "preservedGuards": "submission company＋owner／preflight state"
+    },
+    {
+      "path": "src/app/api/submissions/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "authenticated_domain",
+      "permissionCode": null,
+      "authorizationTarget": "authenticated_domain",
+      "scopeResolver": "verified session",
+      "preservedGuards": "verified session＋existing owner/reviewer/company projection"
+    },
+    {
+      "path": "src/app/api/submissions/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.create",
+      "authorizationTarget": "submission.create",
+      "scopeResolver": "company",
+      "preservedGuards": "company＋submission validation／idempotency"
+    }
+  ]
+}

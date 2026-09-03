@@ -296,12 +296,36 @@ function initDatabase(database: SqliteDatabase) {
   ensureDev065PartPreviewSchema(database);
   ensureDev090InlineRelationMatrixSchema(database);
   ensureDev106RetiredWorkbenchResidueCleanupSchema(database);
+  ensureRoleCapabilityDisplaySnapshotSchema(database);
   ensureColumn(database, "sandbox_branches", "merged_by", "TEXT");
   ensureColumn(database, "sandbox_branches", "merge_summary_json", "TEXT");
   ensureColumn(database, "sandbox_branches", "merged_at", "TEXT");
   ensureUnifiedDrawingAggregateBackfill(database);
   seedConfiguredUsers(database);
   assertSqliteInitializerIntegrity(database);
+}
+
+function ensureRoleCapabilityDisplaySnapshotSchema(database: SqliteDatabase) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS role_capability_display_snapshots (
+      application_id TEXT PRIMARY KEY,
+      contract_version TEXT NOT NULL,
+      reader_version TEXT NOT NULL,
+      catalog_version TEXT NOT NULL,
+      catalog_payload_hash TEXT NOT NULL,
+      governance_revision TEXT NOT NULL,
+      organization_version_id TEXT NOT NULL,
+      organization_revision TEXT NOT NULL,
+      projection_cursor INTEGER NOT NULL,
+      role_count INTEGER NOT NULL DEFAULT 0,
+      source_data_at TEXT NOT NULL,
+      snapshot_stored_at TEXT NOT NULL,
+      canonicalization_version TEXT NOT NULL,
+      payload_canonical_json TEXT NOT NULL,
+      payload_sha256 TEXT NOT NULL
+    );
+  `);
+  ensureColumn(database, "role_capability_display_snapshots", "role_count", "INTEGER NOT NULL DEFAULT 0");
 }
 
 export function ensureStandaloneManufacturingImpactRetirement(database: SqliteDatabase) {

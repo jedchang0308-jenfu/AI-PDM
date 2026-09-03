@@ -1,0 +1,83 @@
+{
+  "contractVersion": "jenfu.platform-governance-availability.v2",
+  "hashAlgorithm": "sha256",
+  "aggregateAlgorithm": "sha256(relativePath + NUL + fileSha256 + LF), sorted by relativePath",
+  "rootFileCount": 7,
+  "fixtureFileCount": 12,
+  "fileCount": 18,
+  "files": [
+    {
+      "path": "ai-pdm-role-capability-workspace.schema.json",
+      "sha256": "04bbaaff2adfd0fb01b9e4156bcd8169357ba513e7be584dd88e286a6e181e2e"
+    },
+    {
+      "path": "fixtures/error.alert-persist-failed.json",
+      "sha256": "35cb7740a37d4765f93e5dfc819cd02b5b2b86801e4d3205430d64d92298c2b1"
+    },
+    {
+      "path": "fixtures/migration.v2-system-admin-exception.json",
+      "sha256": "bd6e1bf78ef8c156f7b347aa4bdeada018193e7ca7cfb2725119fd812f5f0ec6"
+    },
+    {
+      "path": "fixtures/privileged.eligible.json",
+      "sha256": "d1e8bff55cd152f6ec0239fe204f6a54c09efb029786b400f3601902aeb4d3d7"
+    },
+    {
+      "path": "fixtures/privileged.grant-preview.json",
+      "sha256": "837dc74a0e5efbeedbc94b246cee31abf8c35111bcbc84705bf7fbc5eaf706ed"
+    },
+    {
+      "path": "fixtures/privileged.no-eligible.json",
+      "sha256": "a7ff8bd66e4e28fd671379144f7c492e256ed3f9f2138602dbff1d9bb76933e9"
+    },
+    {
+      "path": "fixtures/privileged.revoke-preview.json",
+      "sha256": "d2bb1e55d78c4f1e5d92fba26b05f970e37743896d5d6af9489f77de7a40e795"
+    },
+    {
+      "path": "fixtures/privileged.view-only.json",
+      "sha256": "509a84eb4ff597e69ce4f2d1b4567275ae2fbdc45083039efffab62336018d92"
+    },
+    {
+      "path": "fixtures/receipt.grant-applied.json",
+      "sha256": "4c34d69c7b21f4da756efca64de536fdb192bd67f9a5b3ebc9bec8b7e15cf27f"
+    },
+    {
+      "path": "fixtures/receipt.revoke-refresh-pending.json",
+      "sha256": "17a39a5c84a28ecb98912bbc303569f5551550c99a6a122a6abd28b33bf84b60"
+    },
+    {
+      "path": "fixtures/workspace.current-system-admin.json",
+      "sha256": "e1dea4c553d585006e44aa00327cc1100b8a8c4664986696ed9f10b12986ebed"
+    },
+    {
+      "path": "fixtures/workspace.stale-system-admin.json",
+      "sha256": "f6e9f599582c976e355ad973ec201c2496fd1dfa5bd4f703cb7a1671fcd2a78c"
+    },
+    {
+      "path": "fixtures/workspace.unavailable.json",
+      "sha256": "4350086c50dc187ff37c588d52cf19b875f87ef3c1741c190de909d71c0bbd90"
+    },
+    {
+      "path": "governance-command-receipt.schema.json",
+      "sha256": "5c9336b868333b908ddf340b56ba3198411899984ed5f23e19cf7f8557133370"
+    },
+    {
+      "path": "governance-error-codes.json",
+      "sha256": "68c896b62d5864e0f58d7763875d2126603c877e064133732e57cc62a16459ed"
+    },
+    {
+      "path": "orgmaster-role-capability-workspace.schema.json",
+      "sha256": "ec7bf21b5db6980fb34088a75b7a0cfe1b2f7bd30fa559ed3e935e5288f234c6"
+    },
+    {
+      "path": "privileged-assignment-operation.schema.json",
+      "sha256": "963f91498b9f9bf45b6d3c5ef2cc12b0fff950776ffb07e4adad859df26b1af2"
+    },
+    {
+      "path": "privileged-assignment-workspace.schema.json",
+      "sha256": "d412ac4718e7e7d2ea57d1a37f5fb4807f0d0926cb4b9cf3438d1e9f8ab6f87a"
+    }
+  ],
+  "sha256": "e1e40458d0061257ca0a6f6fbd41d1eef4034f4d69977b8505127eb92b5c0870"
+}

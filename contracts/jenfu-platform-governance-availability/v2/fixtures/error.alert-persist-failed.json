@@ -1,0 +1,6 @@
+{
+  "contractVersion": "jenfu.platform-governance-availability.v2",
+  "code": "SECURITY_ALERT_PERSIST_FAILED",
+  "httpStatus": 503,
+  "mutationCommitted": false
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { forbidden, requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { forbidden, requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { createChangeRequestAsync, listChangeRequestsAsync } from "@/lib/collaboration-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { getSubmissionAsync } from "@/lib/submissions-async";
@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;

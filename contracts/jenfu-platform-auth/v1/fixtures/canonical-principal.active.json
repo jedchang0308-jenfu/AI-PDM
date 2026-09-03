@@ -1,0 +1,10 @@
+{
+  "contractVersion": "jenfu.platform-auth.v1",
+  "directoryContractVersion": "organization.active-principal.v1",
+  "identityIssuer": "https://securetoken.google.com/jenfu-platform-fixture",
+  "identitySubject": "fixtureUidCaseSensitive001",
+  "principalId": "principal-fixture-001",
+  "employeeId": "employee-fixture-001",
+  "mappingVersion": 1,
+  "publishedAt": "2026-08-31T00:00:00.000Z"
+}

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { listDriveFolders } from "@/lib/gdrive";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response) return auth.response;
 
   const url = new URL(request.url);

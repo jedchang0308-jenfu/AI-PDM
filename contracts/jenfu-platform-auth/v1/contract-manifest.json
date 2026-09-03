@@ -1,0 +1,37 @@
+{
+  "contractVersion": "jenfu.platform-auth.v1",
+  "hashAlgorithm": "sha256",
+  "aggregateAlgorithm": "sha256(relativePath + NUL + fileSha256 + LF), sorted by relativePath",
+  "fileCount": 7,
+  "files": [
+    {
+      "path": "auth-error-codes.json",
+      "sha256": "b4f3743d3603570000653291c7c46914bbc32f73c022016fecb8fc88f94aca4b"
+    },
+    {
+      "path": "canonical-principal.schema.json",
+      "sha256": "9b2762a18f748dc01bb690d66110c95b77a9c1a6e06cc075d9de5644da5f838f"
+    },
+    {
+      "path": "fixtures/canonical-principal.active.json",
+      "sha256": "dcc76137993f2eb1b5f57c6f784c4a73aebba741ec84f723501b67fdce9b6b12"
+    },
+    {
+      "path": "fixtures/verified-session.ai-pdm.json",
+      "sha256": "16039556b5bea5fb27223346b68445f8ffa0ca73695829db8300ffefd9910064"
+    },
+    {
+      "path": "fixtures/verified-session.orgmaster.json",
+      "sha256": "76e9b290e506bbba05f7a0e56c8f6ffdf88ac805ae1d51516f34ee20b452bd55"
+    },
+    {
+      "path": "fixtures/verified-session.portal.json",
+      "sha256": "26312554fcbbb7788d3a3052924aa64839cbd9f40d9611ec40bebf5077d211e2"
+    },
+    {
+      "path": "verified-app-session-context.schema.json",
+      "sha256": "4803d8919b8fac049891f9adf1c0296c3bc26089bf62ef132e6291690ff4a928"
+    }
+  ],
+  "sha256": "4d27c1e297b516207f931f57e443ecda99e260c56369132f9a269d11920cda96"
+}

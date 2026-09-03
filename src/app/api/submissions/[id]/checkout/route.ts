@@ -1,5 +1,5 @@
-﻿import { NextResponse } from "next/server";
-import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { NextResponse } from "next/server";
+import { forbidden, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { createItemLockAsync, releaseItemLockAsync } from "@/lib/item-locks-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
@@ -7,7 +7,7 @@ import { getSubmissionAsync } from "@/lib/submissions-async";
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;
@@ -50,7 +50,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;
@@ -75,7 +75,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const result = await releaseItemLockAsync({
     submissionId: id,
     userId: auth.user.id,
-    force: auth.user.role === "Admin"
+    force: auth.authorizationRoleCode === "pdm_admin" || auth.authorizationRoleCode === "system_admin"
   });
 
   if (!result.ok) {

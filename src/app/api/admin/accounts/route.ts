@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { AccountLifecycleError, listAdminAccountsAsync } from "@/lib/account-lifecycle";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ function accountLifecycleError(error: unknown) {
 }
 
 export async function GET(request: Request) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response) return auth.response;
 
   const url = new URL(request.url);

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import {
   decideApprovalPlatformRequestAsync,
   getApprovalPlatformRequestDetailAsync,
@@ -84,7 +84,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
   }
 
   if (detail.actionCode === "numbering.drawing_revision_lifecycle_review") {
-    const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+    const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], { permissionCode: "approval.request.decide" });
     if (auth.response) return auth.response;
     const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key") ?? "";
     try {
@@ -124,7 +124,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
     }
   }
 
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], { permissionCode: "approval.request.decide" });
   if (auth.response) return auth.response;
 
   try {

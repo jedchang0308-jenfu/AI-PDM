@@ -1,0 +1,1 @@
+{"commandId":"fixture-processing","requestHash":"0000000000000000000000000000000000000000000000000000000000000000","receiptStatus":"processing","acceptedAt":"2026-09-02T00:00:00+08:00","leaseUntil":"2026-09-02T00:00:30+08:00","terminalAt":null,"decisionCode":null,"auditReference":null,"changeCursor":0,"governanceRevision":"fixture","replayed":false,"attempt":1}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { requestedPdmCompanyCodeFromRequest, resolvePdmCompanyContextAsync } from "@/lib/company-context";
 import { getDashboardMetricsAsync } from "@/lib/dashboard-metrics-async";
 import { removeSubmissionUploadFolder, saveUploadedFiles } from "@/lib/file-store";
@@ -64,7 +64,7 @@ function parsePageOffset(value: string | null) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireRoleAsync(request, ["Engineer", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Engineer", "Admin"]);
   if (auth.response) return auth.response;
 
   return NextResponse.json(

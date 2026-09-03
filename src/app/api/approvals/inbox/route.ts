@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { listApprovalPlatformInboxAsync } from "@/lib/approval-platform";
 import type { ApprovalPlatformInboxCursor, ApprovalPlatformStatus } from "@/lib/repositories/approval-platform-async-repository";
 import { isSafePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
@@ -23,7 +23,7 @@ const allowedStatuses = new Set<string>([
 ]);
 
 export async function GET(request: Request) {
-  const auth = await requireRoleAsync(request, [...reviewerRoles]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, [...reviewerRoles]);
   if (auth.response) return auth.response;
   const productionApprovalScope = isProductionSliceEnforced();
   if (productionApprovalScope && !isProductionNumberingLifecycleGateOpen("formal-obsolete")) {

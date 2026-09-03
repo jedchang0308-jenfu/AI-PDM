@@ -48,9 +48,13 @@ function parseCookies(header: string | null) {
   return cookies;
 }
 
-export function getSessionToken(request: Request) {
+export function getSessionCookieToken(request: Request) {
   const cookies = parseCookies(request.headers.get("cookie"));
-  const cookieToken = cookies.get(FIREBASE_HOSTING_SESSION_COOKIE_NAME) ?? cookies.get(SESSION_COOKIE_NAME);
+  return cookies.get(FIREBASE_HOSTING_SESSION_COOKIE_NAME) ?? cookies.get(SESSION_COOKIE_NAME) ?? null;
+}
+
+export function getSessionToken(request: Request) {
+  const cookieToken = getSessionCookieToken(request);
   if (cookieToken) return cookieToken;
 
   const authHeader = request.headers.get("authorization");

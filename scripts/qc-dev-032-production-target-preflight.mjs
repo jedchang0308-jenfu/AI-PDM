@@ -48,7 +48,20 @@ record(
   JSON.stringify({ projectId: report?.project?.projectId ?? null, targetProject: report?.targetProject ?? null })
 );
 record("DEV032-TARGET-006 dedicated production Firebase Hosting config is recognized", !blockers.has("FIREBASE_CONFIG_NOT_PRODUCTION_READY") && report?.providerConfig?.firebaseProductionConfigReady === true && report?.providerConfig?.productionFirebaseHostingSite === "jenfu-ai-pdm-prod");
-record("DEV032-TARGET-007 production env source is present without exposing values", !blockers.has("PRODUCTION_ENV_SOURCE_MISSING") && report?.envSources?.some((item) => item.path.endsWith("production.auto.tfvars.json") && item.exists === true));
+record(
+  "DEV032-TARGET-007 production env source is proven from the live revision without exposing values",
+  !blockers.has("PRODUCTION_ENV_SOURCE_MISSING") &&
+    report?.productionEnvSourceReady === true &&
+    report?.envSources?.some((item) => (
+      item.kind === "cloud_run_revision" &&
+      item.exists === true &&
+      item.valuesPersisted === false &&
+      typeof item.revisionName === "string" &&
+      item.missingRequiredPublicEnv?.length === 0 &&
+      item.missingRequiredSecretBackedEnv?.length === 0 &&
+      item.invalidRequiredSecretBackedEnv?.length === 0
+    ))
+);
 record("DEV032-TARGET-008 production runtime/database are readable for subsequent smoke", !blockers.has("LEVEL3_LEVEL4_SMOKE_NOT_POSSIBLE") && report?.cloudRun?.expectedServiceFound === true && report?.cloudSql?.expectedInstanceFound === true);
 record("DEV032-TARGET-009 release source exact commit is read from manifest", !blockers.has("RELEASE_SOURCE_NOT_SELECTED_OR_COMMITTED") && report?.releaseSource?.exactReleaseCommitExists === true && report?.releaseSource?.includedProductionSourceEntries === 0 && report?.releaseSource?.unknownRiskEntries === 0 && report?.releaseSource?.safeToBuildForProduction === false);
 record("DEV032-TARGET-010 production target contract loads the acknowledged Hosting pilot fail-closed", !blockers.has("PRODUCTION_TARGET_CONTRACT_MISSING") && report?.productionTargetContract?.templateOnly === true && report?.productionTargetContract?.productionActionAllowed === false && report?.productionTargetContract?.firebaseHostingGatewayAllowed === true && report?.productionTargetContract?.publicBaseUrl === "https://jenfu-ai-pdm-prod.web.app");

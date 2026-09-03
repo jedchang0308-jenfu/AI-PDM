@@ -114,8 +114,8 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.match(workflow, /IMAGE_PATH@\$DIGEST/u);
   assert.match(workflow, /--target migration-runner/u);
   assert.match(workflow, /MIGRATION_PACKAGE_TARGET=production/u);
-  assert.match(workflow, /schemaMigrationCount !== 50/u);
-  assert.match(workflow, /052_retired_workbench_residue_cleanup/u);
+  assert.match(workflow, /schemaMigrationCount !== 52/u);
+  assert.match(workflow, /054_role_capability_display_snapshot/u);
   assert.match(workflow, /migration-image\.txt/u);
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
 });
@@ -158,24 +158,26 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
     assert.match(runtime, new RegExp(flag, "u"));
   }
   assert.match(candidateWorkflow, /npm run qc:dev-079:contract/u);
-  assert.doesNotMatch(candidateWorkflow, /npm run qc:dev-079:owner-invariant/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-079:owner-invariant/u);
   assert.match(candidateWorkflow, /npm run qc:dev-101:contract/u);
-  assert.doesNotMatch(candidateWorkflow, /npm run qc:dev-101:(?:package|qa-integrity)/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-101:package/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-101:qa-integrity/u);
   assert.match(candidateWorkflow, /npm run qc:pdm-production-slice-numbering-draft/u);
   assert.match(candidateWorkflow, /npm run qc:pdm-number-state-flow-routes/u);
   assert.match(candidateWorkflow, /npm run qc:dev-093:contract/u);
   assert.match(candidateWorkflow, /npm run qc:production-authority-repair/u);
-  assert.match(candidateWorkflow, /052_retired_workbench_residue_cleanup\.cloudsql\.sql/u);
-  assert.match(candidateWorkflow, /schemaMigrationCount !== 50/u);
+  assert.match(candidateWorkflow, /054_role_capability_display_snapshot\.cloudsql\.sql/u);
+  assert.match(candidateWorkflow, /schemaMigrationCount !== 52/u);
   assert.match(candidateWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);
   assert.match(smoke, /origin reaches token validation/u);
 });
 
-record("PROD-PIPE-008A clean-source CI fails closed without primary-data QA", () => {
+record("PROD-PIPE-008A clean-source CI runs deterministic primary-data QA", () => {
   assert.match(ciWorkflow, /\$ErrorActionPreference\s*=\s*"Stop"/u);
   assert.match(ciWorkflow, /\$PSNativeCommandUseErrorActionPreference\s*=\s*\$true/u);
-  assert.doesNotMatch(ciWorkflow, /npm run qc:dev-079:owner-invariant/u);
-  assert.doesNotMatch(ciWorkflow, /npm run qc:dev-101:(?:package|qa-integrity)/u);
+  assert.match(ciWorkflow, /npm run qc:dev-079:owner-invariant/u);
+  assert.match(ciWorkflow, /npm run qc:dev-101:package/u);
+  assert.match(ciWorkflow, /npm run qc:dev-101:qa-integrity/u);
 });
 
 record("PROD-PIPE-008B candidate and promotion are separate dispatch stages", () => {

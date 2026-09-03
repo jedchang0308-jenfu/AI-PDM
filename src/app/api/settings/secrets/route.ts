@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRoleAsync } from "@/lib/auth-async";
+import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { listSettingsSecretStatuses, SettingsSecretLifecycleError } from "@/lib/settings-secret-lifecycle";
 
 export const runtime = "nodejs";
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 const noStoreHeaders = { "cache-control": "private, no-store" };
 
 export async function GET(request: Request) {
-  const auth = await requireRoleAsync(request, ["Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

@@ -1,0 +1,11 @@
+{
+  "contractVersion": "jenfu.platform-governance-availability.v1",
+  "canonicalizationVersion": "jenfu.canonical-json.v1",
+  "applicationId": "ai-pdm",
+  "files": [
+    "orgmaster-role-capability-workspace.schema.json",
+    "ai-pdm-role-capability-workspace.schema.json",
+    "governance-command-receipt.schema.json",
+    "governance-error-codes.json"
+  ]
+}

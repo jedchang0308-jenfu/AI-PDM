@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
-import { forbidden, requireRoleAsync } from "@/lib/auth-async";
+import { forbidden, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { assertSubmissionReleasePolicyAsync } from "@/lib/revision-policy-release-gate";
 import { executeSubmissionReleaseWorkflowAsync } from "@/lib/submission-release-workflow";
@@ -9,7 +9,7 @@ import { getSubmissionAsync } from "@/lib/submissions-async";
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;

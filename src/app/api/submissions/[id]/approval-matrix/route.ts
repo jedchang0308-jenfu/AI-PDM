@@ -3,7 +3,7 @@ import {
   initializeApprovalMatrixRequirementsAsync,
   refreshApprovalMatrixRequirementsAsync
 } from "@/lib/approval-async";
-import { forbidden, requireAuthAsync, requireRoleAsync } from "@/lib/auth-async";
+import { forbidden, requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { canReadSubmissionAsync } from "@/lib/permissions";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 import type { ApprovalMatrixRequirement } from "@/lib/types";
@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireRoleAsync(request, ["R&D Manager", "Admin"]);
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
   if (auth.response) return auth.response;
 
   const { id } = await params;

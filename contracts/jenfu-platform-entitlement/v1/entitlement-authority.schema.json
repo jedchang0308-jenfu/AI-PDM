@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jenfu.com.tw/platform-entitlement/v1/entitlement-authority.schema.json",
+  "title": "JenfuEntitlementAuthorityV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "applicationId", "authoritySource", "authorityVersion", "updatedAt"],
+  "properties": {
+    "contractVersion": { "const": "jenfu.platform-entitlement.v1" },
+    "applicationId": { "const": "ai-pdm" },
+    "authoritySource": { "enum": ["legacy_authority", "orgmaster_authority"] },
+    "authorityVersion": { "type": "integer", "minimum": 1 },
+    "employeeId": { "type": ["string", "null"], "maxLength": 255 },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "operationId": { "type": ["string", "null"], "maxLength": 255 }
+  }
+}

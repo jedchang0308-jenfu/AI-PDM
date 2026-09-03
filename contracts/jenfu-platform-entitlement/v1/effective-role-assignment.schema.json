@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jenfu.com.tw/platform-entitlement/v1/effective-role-assignment.schema.json",
+  "title": "JenfuEffectiveRoleAssignmentV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "assignmentVersionId", "assignmentVersion", "assignmentId", "grantKind", "delegationId", "applicationId", "identityIssuer", "identitySubject", "principalId", "employeeId", "subjectKind", "targetPrincipalId", "stableRoleId", "roleCode", "catalogVersion", "scopeKind", "scopeKey", "validFrom", "validUntil", "publishedAt", "authorityVersion"],
+  "properties": {
+    "contractVersion": { "const": "jenfu.platform-entitlement.v1" },
+    "assignmentVersionId": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "assignmentVersion": { "type": "integer", "minimum": 1 },
+    "assignmentId": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "grantKind": { "enum": ["direct", "delegated"] },
+    "delegationId": { "type": ["string", "null"], "maxLength": 255 },
+    "applicationId": { "const": "ai-pdm" },
+    "identityIssuer": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "identitySubject": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "principalId": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "employeeId": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "subjectKind": { "enum": ["employee", "principal"] },
+    "targetPrincipalId": { "type": ["string", "null"], "maxLength": 255 },
+    "stableRoleId": { "type": "string", "pattern": "^role-[a-z0-9-]+$" },
+    "roleCode": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "catalogVersion": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "scopeKind": { "enum": ["workspace", "project", "global"] },
+    "scopeKey": { "type": ["string", "null"], "maxLength": 255 },
+    "validFrom": { "type": "string", "format": "date-time" },
+    "validUntil": { "type": ["string", "null"], "format": "date-time" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "authorityVersion": { "type": "integer", "minimum": 1 }
+  }
+}

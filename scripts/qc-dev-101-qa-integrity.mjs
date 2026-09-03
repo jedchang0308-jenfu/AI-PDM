@@ -34,6 +34,7 @@ function clone(value) {
 }
 
 function primaryFingerprint() {
+  if (!fs.existsSync(primaryDbPath)) return { hash: sha256("DEV101_PRIMARY_SQLITE_ABSENT"), foreignKeys: [] };
   const database = new Database(primaryDbPath, { readonly: true, fileMustExist: true });
   database.pragma("query_only = ON");
   try {
@@ -131,7 +132,7 @@ console.log(JSON.stringify({ runtimeDeclaration: {
   port: "none",
   owningProcessTree: `single Node process ${process.pid}; no child app, browser, database server or worker`,
   cleanupCondition: "synthetic task-owned temp project removed; process exits; primary/source fingerprints unchanged",
-  PDM_DATA_DIR: "none; primary SQLite opened query_only for before/after fingerprint only",
+  PDM_DATA_DIR: "none; primary SQLite is fingerprinted query_only when present, otherwise absence is fingerprinted",
   PDM_REPOSITORY_DIR: "none; repository is not read or mutated",
   mutationScope: `${outputDir} plus task-owned synthetic temp ${tempRoot}`
 } }));
