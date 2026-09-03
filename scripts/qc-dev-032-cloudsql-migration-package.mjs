@@ -28,8 +28,12 @@ try {
     path.join(outputs.sqlDirectory, "000_admin_bootstrap_grants.sql"),
     "utf8"
   );
+  const migrationOwnershipHandoffSql = await fsp.readFile(
+    path.join(outputs.sqlDirectory, "001_migration_ownership_handoff.sql"),
+    "utf8"
+  );
   const incrementalContractSchemaBootstrapSql = await fsp.readFile(
-    path.join(outputs.sqlDirectory, "001_ai_pdm_contract_schema_bootstrap.sql"),
+    path.join(outputs.sqlDirectory, "002_ai_pdm_contract_schema_bootstrap.sql"),
     "utf8"
   );
   const runner = readProjectFile(root, "scripts/run-dev-046-cloudsql-migrations.mjs");
@@ -135,6 +139,11 @@ try {
       incrementalContractSchemaBootstrapSql.includes("CREATE SCHEMA IF NOT EXISTS ai_pdm_contract;") &&
       incrementalContractSchemaBootstrapSql.includes("GRANT USAGE, CREATE ON SCHEMA ai_pdm_contract TO pdm_migration") &&
       incrementalContractSchemaBootstrapSql.includes("GRANT USAGE ON SCHEMA ai_pdm_contract TO pdm_runtime") &&
+      !adminBootstrapSql.includes("REASSIGN OWNED") &&
+      migrationOwnershipHandoffSql.includes('REASSIGN OWNED BY "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam" TO pdm_migration') &&
+      migrationOwnershipHandoffSql.includes("pg_has_role('ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam', 'pdm_migration', 'MEMBER')") &&
+      !migrationOwnershipHandoffSql.includes("REASSIGN OWNED BY postgres") &&
+      !migrationOwnershipHandoffSql.includes("GRANT ") &&
       !incrementalContractSchemaBootstrapSql.includes("CREATE ROLE") &&
       !incrementalContractSchemaBootstrapSql.includes("ON ALL TABLES IN SCHEMA public") &&
       !incrementalContractSchemaBootstrapSql.includes("GRANT CONNECT ON DATABASE")

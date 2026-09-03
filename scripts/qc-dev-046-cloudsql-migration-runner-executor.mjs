@@ -60,7 +60,7 @@ try {
   record(
     "DEV046-CLOUDSQL-EXEC-001 run plan loads reviewed proposal package",
     plan.schemaMigrationCount >= 18 &&
-      plan.supportFileCount === 3 &&
+      plan.supportFileCount === 4 &&
       plan.liveApplyAllowedByManifest === false &&
       plan.requiresVpcAttachedRunner === true &&
       plan.requiresReviewedAdminBootstrap === true
