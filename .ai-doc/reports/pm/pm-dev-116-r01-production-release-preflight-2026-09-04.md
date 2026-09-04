@@ -8,7 +8,7 @@ Release ID：`REL-116-20260904`
 
 本報告下方原有`2A REGIONAL_DEDICATED`與「exact REGIONAL tier／cost未核定」描述是R01執行當時的歷史快照，現已由使用者後續成本決策有意取代。Current DEV-010 production target為`db-custom-1-3840 / ZONAL_DEDICATED / USD 100 alerts-only budget（TWD 3,200）`；保留automatic backups、PITR、deletion protection、private IP、IAM DB auth及app schema／role隔離，不提供automatic cross-zone failover，也不得宣稱HA。
 
-R01仍為`BLOCKED`。舊REGIONAL machine config缺口已關閉：Platform capacity v2／preflight v3／release-adapter v2已前向更新為current ZONAL方案，unit `5/5 + 15/15 + 11/11`與三項focused QC均PASS。Current preflight仍列9項blocker：neutral project identity、正整數RTO、非負整數RPO、budget／restore／incident／maintenance owners、maintenance window與`db-custom-1-3840` R1-11兩輪數值容量；DEV-010 production 15案provider executor亦尚未執行。AI-PDM已補`QA-116-R02` hash-bound receipt verifier `5/5 PASS`，與Platform `QA-010-R1-07`形成同receipt co-gate；但authenticated production browser executor及真實COMMIT＋reload仍未執行。上述條件未完成前不得production write、migration、deploy或promotion。
+R01仍為`BLOCKED`。舊REGIONAL machine config缺口已關閉：Platform capacity／preflight／release-adapter已前向更新為current ZONAL方案；R1-11 receipt contract、release binding與guarded provider executor source亦已完成，current capacity contract=`7/7 PASS`、provider executor=`8/8 PASS`。Current preflight仍列9項blocker：neutral project identity、正整數RTO、非負整數RPO、budget／restore／incident／maintenance owners、maintenance window與`db-custom-1-3840` R1-11兩輪數值容量；正式capacity run及DEV-010 production 15案仍未執行。AI-PDM已補`QA-116-R02` hash-bound receipt verifier `5/5 PASS`，與Platform `QA-010-R1-07`形成同receipt co-gate；但authenticated production browser executor及真實COMMIT＋reload仍未執行。上述條件未完成前不得production write、live migration、deploy或promotion。
 
 ## 結論
 
@@ -43,7 +43,7 @@ Machine summary：`output/production-release/REL-116-20260904/r01-readonly-prefl
 
 ## DEV-010三repo可執行性盤點
 
-權威QA plan第7節原本只凍結`QA-010-R1-01～15`。本輪已在Platform repo補上`010-R1A` local preflight adapter，把clean source、exact SHA、15案registry、target identity、availability／tier與live-migration approval變成machine gate；它刻意沒有production apply能力。真正R1 production rehearsal／apply runner仍不存在，故不得用臨場shell命令直接操作正式schema、data或authority。
+權威QA plan第7節原本只凍結`QA-010-R1-01～15`。Platform現已補上`010-R1A` preflight、兩段式foundation gate、R1-11 receipt binding與guarded capacity provider executor；後者只可在machine-derived foundation READY、exact source lock、`--execute`及exact acknowledgement同時成立後，對隔離temporary database執行兩輪rehearsal，不能連`jenfu_prod`或改traffic。其餘14案與live migration executor仍不得用臨場shell命令替代。
 
 | Component | Initial branch／HEAD snapshot | Initial dirty entries | Initial N2 freeze first failure | R1 runner |
 |---|---|---:|---|---|
@@ -87,7 +87,7 @@ R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343
 - R04 cost policy precheck：以current source revision `80770f2db257374725414456efeb0f0d0302da0f`計算為PASS；這不是最終release commit綁定證據，source freeze後必須重新產生。
 - AI-PDM R02 receipt gate：schema／hash／redaction／candidate／actor／company／commit-readback／Jenfu invariant／side-effect verifier與Platform projection已實作，unit `5/5 PASS`；既有generic production smoke明確不得輸出Level 4 claim。這不是authenticated candidate execution，R02仍`NOT_RUN`。
 - R01：`BLOCKED`。N2 source requalification與ZONAL machine contract focused QC已完成；current阻塞為neutral project identity、RTO／RPO、owners／maintenance、R1-11 numeric capacity，以及DEV-010 R1 15案provider execution。
-- DEV-010 R1 executable gate：`PARTIAL`。R1A exact source已freeze、current machine contract與strict receipt validators已完成；production rehearsal／apply executor尚待完成，neutral project identity仍ambiguous。
+- DEV-010 R1 executable gate：`PARTIAL`。R1A exact source已freeze、current machine contract、strict receipt validators與R1-11 provider executor source已完成；正式foundation apply、R1-11 provider run及其餘14案仍未執行，neutral project identity仍ambiguous。
 - R02／R03：`NOT_RUN`。
 - Production data writes：`0`；deploy：`0`；traffic change：`0`；principal provisioning：`0`。
 
@@ -96,7 +96,7 @@ R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343
 下一個有風險動作不是DEV-116 candidate，而是先把跨`Jenfu-Management-system / OrgMaster / AI_PDM`的DEV-010 R1補成可重現release contract。恢復條件為：
 
 1. Machine contract／schema／tests前向更新與focused QC已完成；下一步驗證preferred neutral project identity，補正整數RTO、非負整數RPO、budget／restore／incident／maintenance owners及maintenance window。Current legacy `db-f1-micro`不得被誤當neutral production end state。
-2. 由Platform owner完成並獨立驗證DEV-010 R1 provider executor，逐案產生`QA-010-R1-01～15`machine receipts；R1-11須連續兩輪通過direct spec數值門檻，R1-07的AI-PDM子流程須與`QA-116-R02`共用exact `company-smoke` receipt。AI-PDM receipt verifier已完成，但authenticated browser execution仍缺；不可臨場拼接production shell commands。
+2. Platform的R1-11 provider executor source與獨立QC已完成；在8項foundation blocker清零並另行明確建立零流量candidate後，才執行兩輪數值容量並產生R1-11 receipt。其餘`QA-010-R1-01～15`case executor／receipts仍由Platform owner逐案完成；R1-07的AI-PDM子流程須與`QA-116-R02`共用exact `company-smoke` receipt。AI-PDM receipt verifier已完成，但authenticated browser execution仍缺；不可臨場拼接production shell commands。
 3. 15案rehearsal全PASS後才可依3A執行live migration；任一案未PASS即停止。
 4. Traffic promotion不在3A內，仍須Product Owner獨立GO。
 
