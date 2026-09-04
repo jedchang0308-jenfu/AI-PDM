@@ -50,7 +50,7 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 現行DEV-116本機開發任務：無。116-A→B→C已依序完成；使用者已啟動`116-R`，release capsule=`REL-116-20260904`。R01唯讀Production preflight已執行，但因DEV-010 R1 neutral roles/contracts全數未部署而fail-closed。Platform `010-R1A` preflight／source classifier已擴為13/13與5/5，1A classified commits及post-commit HEAD＋tree lock已完成，2A選擇`REGIONAL_DEDICATED`，3A核准15案全PASS後live migration。Lock後出現的其他工作樹開發不進本release，runner必須使用clean locked worktree。Current release只剩neutral project identity與exact dedicated tier／cost兩項entry blocker；Production rehearsal／apply runner仍須依15案契約實作與獨立QC，traffic promotion另需GO。
+- 現行DEV-116本機開發任務：無。116-A→B→C已依序完成；使用者已啟動`116-R`，release capsule=`REL-116-20260904`。R01唯讀Production preflight已執行，但因DEV-010 R1 neutral roles/contracts全數未部署而fail-closed。Platform `010-R1A` preflight／source classifier已擴為14/14與5/5，1A classified commits及post-commit HEAD＋tree lock已完成，2A選擇`REGIONAL_DEDICATED`，3A核准15案全PASS後live migration；N2每個必要檔案也必須已存在於locked HEAD。Lock後出現的其他工作樹開發不進本release，runner必須使用clean locked worktree。Current release只剩neutral project identity與exact dedicated tier／cost兩項entry blocker；Production rehearsal／apply runner仍須依15案契約實作與獨立QC，traffic promotion另需GO。
 
 - 現行已完成本地foundation：`✓ DEV-116` Production Level 4 smoke tenant 隔離與可稽核證據關卡。
   - 狀態：`Local RD Implemented / QA-QC 31 of 31 PASS / 116-R R01 Started / Production Read-only Preflight Complete / DEV-010 R1 Dependency Blocked / R02-R03 NOT_RUN`。

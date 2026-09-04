@@ -74,7 +74,7 @@ R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343
 
 - Static／package gates：migration package `15/15 PASS`、production pipeline `24/24 PASS`、DEV-095 `20/20 PASS`、DEV-106 `25/25 PASS`、workflow YAML parse PASS。
 - R01 adapter regression：`DEV116-R01-ADAPTER-20260904-R1`固定`31/31 PASS`，含正常瀏覽器登入／建立／commit／reload、response-loss同key收斂、雙tenant zero-leak、side-effect disabled readback與六種mutant；證據仍明確為`claimLevel=local-foundation`、`productionLevel4Claimed=false`，所有task-owned browser／Next／PostgreSQL runtime與ports均已清理。
-- DEV-010 R1A preflight：v2 unit `13/13 PASS`；新增tampered lock、tree drift與post-lock staged drift negative gates。後續未stage工作樹開發會列為excluded，release runner只能使用clean locked worktree。Current `REL-116-20260904`只剩neutral target identity與exact tier兩項blocker，production／cloud／traffic mutations均為0。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/preflight.json`。
+- DEV-010 R1A preflight：v2 unit `14/14 PASS`；新增tampered lock、tree drift、post-lock staged drift與N2 required-source-untracked negative gates。後續未stage工作樹開發會列為excluded，release runner只能使用clean locked worktree。Current `REL-116-20260904`只剩neutral target identity與exact tier兩項blocker，production／cloud／traffic mutations均為0。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/preflight.json`。
 - DEV-010 R1A source classification：unit `5/5 PASS`；classified commits、N2 re-freeze與post-commit lock完成，generated-local不進release source。
 - R04 cost policy precheck：以current source revision `80770f2db257374725414456efeb0f0d0302da0f`計算為PASS；這不是最終release commit綁定證據，source freeze後必須重新產生。
 - R01：`BLOCKED`。原因為DEV-010 R1未執行且current DEV-010 N2 source manifest已被後續合法變更失效。
