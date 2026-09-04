@@ -52,7 +52,7 @@ try {
   assert.equal(sourceManifest.sourceManifestSha256, sha256(canonicalize({ aggregateSha256: sourceManifest.aggregateSha256, files: sourceManifest.files, head: sourceManifest.head })))
   cases.push(receipt('N2-AI-PDM-QC-01', 'Frozen baseline and every candidate allowlist file are content-addressed', { ...freeze, candidateFileCount: sourceManifest.files.length }, ['source-manifest.json', 'package-manifest.json'], sourceManifestSha256))
   run(process.execPath, ['--test', 'scripts/dev010-n2-source-freeze.test.mjs', 'scripts/dev010-n2-ai-pdm.test.mjs'])
-  cases.push(receipt('N2-AI-PDM-QC-02', 'Fresh/existing history, namespace and fixture unit gates pass', '16/16 node:test cases passed', ['command-results.json'], sourceManifestSha256))
+  cases.push(receipt('N2-AI-PDM-QC-02', 'Fresh/existing history, namespace and fixture unit gates pass', '17/17 node:test cases passed', ['command-results.json'], sourceManifestSha256))
   run(process.execPath, ['node_modules/vitest/vitest.mjs', 'run', 'src/lib/dev010-database-boundary.test.ts'])
   cases.push(receipt('N2-AI-PDM-QC-03', 'Typed neutral database boundary tests pass', '2/2 Vitest cases passed', ['command-results.json'], sourceManifestSha256))
   run(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.app.json', '--noEmit', '--pretty', 'false'])
