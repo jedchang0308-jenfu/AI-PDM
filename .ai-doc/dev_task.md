@@ -1530,7 +1530,7 @@ Owner：Dev PM
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ✓ DEV-116 [開發點] [Local RD Implemented / Tech Lead Approved after Corrections / 116-A-B-C Complete / QA-QC 31 of 31 PASS / R02 Receipt 5 of 5 + Browser 7 of 7 + Provider Producer 5 of 5 PASS / local-foundation] [P0] [116-R Production Activation Gated / DEV-010 R1E Verifier P0 Open] Production Level 4 smoke tenant 隔離與可稽核證據關卡
+- ✓ DEV-116 [開發點] [Local RD Implemented / Tech Lead Approved after Corrections / 116-A-B-C Complete / QA-QC 31 of 31 PASS / R02 Receipt 5 of 5 + Browser 7 of 7 + Provider Producer 5 of 5 PASS / local-foundation] [P0] [DEV-010 R1E Source Blocker Closed / Production Binding and 116-R Activation Gated] Production Level 4 smoke tenant 隔離與可稽核證據關卡
   - 摘要：將「在 Production 驗證」與「在鉦富正式公司資料內建立測試業務物件」拆開。未來例行 Level 4 仍使用正式 Cloud Run、正式 Firebase Auth、正式 API／domain／repository 與正式 Cloud SQL，並真實 `COMMIT`、reload、readback；但 actor 與所有資料只屬邏輯 `company-smoke`。`company-jenfu` 只允許 authenticated read-only 檢查，或經獨立release gate核准的transaction-bound rollback／fingerprint驗證，不再以建立後刪除作清理策略。
   - 來源 ID：`DEV-PDM-PRODUCTION-SMOKE-TENANT-ISOLATION-001`。
   - 父任務／關聯：future release gate successor of `DEV-032`；延續 `DEV-040` production slice、`DEV-044` company／principal boundary、`DEV-069`低成本topology。既有 production slice SPEC／ADR 已決定例行smoke預設使用smoke company；本DEV負責補齊implementation與evidence gap，不改寫其產品範圍。
