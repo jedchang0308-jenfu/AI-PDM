@@ -12,6 +12,8 @@ R01仍為`BLOCKED`。舊REGIONAL machine config缺口已關閉：Platform capaci
 
 Platform `46d1819`另已完成`QA-010-R1-02`專用decision receipt gate：target identity、RTO／RPO、四owner、ZONAL限制、alerts-only budget與雙target bounded overlap須同release且可驗章；unit=`8/8 PASS`、focused QC=`3/3 PASS`。這只完成source，current仍為`BLOCKED / receiptWritten=false / actual NOT_RUN`，未減少上述9項preflight blocker。
 
+2026-09-05後續再完成`QA-010-R1-01` guarded live inventory source：Platform `0a3f902／882a155／f03f79b／8352c83`與OrgMaster `8b0a39f／46b92bb`把legacy Cloud SQL全部非system schema／objects／owners／ACL／ledger／exact row counts、Cloud Run direct consumers，以及OrgMaster local-json artifacts／media／legacy residue納入同一source-lock-bound discovery與逐項分類。Unit=`7/7 PASS`、release-adapter=`12/12 PASS`；目前只可標`IMPLEMENTED_NOT_EXECUTED`，尚無provider discovery或reviewed classification receipt，actual R1-01仍`NOT_RUN`。此executor無Cloud mutation或production write能力，沒有新增固定SKU。
+
 ## 結論
 
 DEV-116可以依序解鎖，但不能從local foundation直接跳到Production write smoke。正式Cloud SQL唯讀盤點證明目前仍是第一版legacy topology；`062`所需的neutral schemas、roles與Platform／OrgMaster contracts均不存在。使用者已完成1A classified source commit授權、後續選定`db-custom-1-3840 / ZONAL_DEDICATED / USD 100`取代原2A REGIONAL方向，並以3A授權「15案全PASS後才live migration」；尚未套用`063`、建立smoke principal、部署candidate或切換流量。
@@ -89,7 +91,7 @@ R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343
 - R04 cost policy precheck：以current source revision `80770f2db257374725414456efeb0f0d0302da0f`計算為PASS；這不是最終release commit綁定證據，source freeze後必須重新產生。
 - AI-PDM R02 receipt gate：schema／hash／redaction／candidate／actor／company／commit-readback／Jenfu invariant／side-effect verifier與Platform projection已實作，unit `5/5 PASS`；既有generic production smoke明確不得輸出Level 4 claim。這不是authenticated candidate execution，R02仍`NOT_RUN`。
 - R01：`BLOCKED`。N2 source requalification與ZONAL machine contract focused QC已完成；current阻塞為neutral project identity、RTO／RPO、owners／maintenance、R1-11 numeric capacity，以及DEV-010 R1 15案provider execution。
-- DEV-010 R1 executable gate：`PARTIAL`。R1A exact source已freeze、current machine contract、strict receipt validators與R1-11 provider executor source已完成；正式foundation apply、R1-11 provider run及其餘14案仍未執行，neutral project identity仍ambiguous。
+- DEV-010 R1 executable gate：`PARTIAL`。R1A exact source已freeze、current machine contract、strict receipt validators、R1-01 live inventory executor與R1-11 provider executor source已完成；R1-01 provider discovery／classification、正式foundation apply、R1-11 provider run及其餘13案仍未執行，neutral project identity仍ambiguous。
 - R02／R03：`NOT_RUN`。
 - Production data writes：`0`；deploy：`0`；traffic change：`0`；principal provisioning：`0`。
 
@@ -98,7 +100,7 @@ R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343
 下一個有風險動作不是DEV-116 candidate，而是先把跨`Jenfu-Management-system / OrgMaster / AI_PDM`的DEV-010 R1補成可重現release contract。恢復條件為：
 
 1. Machine contract／schema／tests前向更新與focused QC已完成；下一步驗證preferred neutral project identity，補正整數RTO、非負整數RPO、budget／restore／incident／maintenance owners及maintenance window。Current legacy `db-f1-micro`不得被誤當neutral production end state。
-2. Platform的R1-11 provider executor source與獨立QC已完成；在8項foundation blocker清零並另行明確建立零流量candidate後，才執行兩輪數值容量並產生R1-11 receipt。其餘`QA-010-R1-01～15`case executor／receipts仍由Platform owner逐案完成；R1-07的AI-PDM子流程須與`QA-116-R02`共用exact `company-smoke` receipt。AI-PDM receipt verifier已完成，但authenticated browser execution仍缺；不可臨場拼接production shell commands。
+2. Platform的R1-01與R1-11 provider executor source及獨立QC已完成。R1-01可先在exact source lock與明確read-only acknowledgement下執行discover，但每個DB／OrgMaster object與direct consumer都完成owner／處置分類、且full prepare READY前不得finalize PASS；在8項foundation blocker清零並另行明確建立零流量candidate後，才執行R1-11兩輪數值容量。`QA-010-R1-03～15`其餘case executors／receipts仍由Platform owner逐案完成；R1-07的AI-PDM子流程須與`QA-116-R02`共用exact `company-smoke` receipt。AI-PDM receipt verifier已完成，但authenticated browser execution仍缺；不可臨場拼接production shell commands。
 3. 15案rehearsal全PASS後才可依3A執行live migration；任一案未PASS即停止。
 4. Traffic promotion不在3A內，仍須Product Owner獨立GO。
 

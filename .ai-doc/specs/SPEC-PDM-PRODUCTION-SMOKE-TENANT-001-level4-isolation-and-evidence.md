@@ -1,6 +1,6 @@
 # SPEC-PDM-PRODUCTION-SMOKE-TENANT-001：Production Level 4 驗證租戶隔離與證據契約
 
-Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / DEV-010 R1E Verifier Boundary Local Implemented and QC PASS / Production Binding and 116-R Activation Gated`
+Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / DEV-010 R1E Verifier and R1-01 Inventory Sources Local Implemented and QC PASS / Production Execution and 116-R Activation Gated`
 
 Date: 2026-09-05
 
@@ -509,5 +509,13 @@ GCP IAM與PostgreSQL ACL必須分開驗證。Platform IaC建立的`r1_verifier` 
 - Positive gate證明exact views可讀；negative gate證明base table、DML、sequence、function、role escalation與未allowlisted schema均denied。若只能借用`jenfu_ai_pdm_runtime`、migrator或superuser，R02固定FAIL，不以較高權限輸出補正。
 
 此依賴不增加第二套stack或常駐SKU，只有既有Cloud SQL中的role／views與低頻read-only query，故DEV-116固定成本floor仍為0；實際query／log增量仍納入R04與`OBS-116-01`。AI-PDM local 31／31不因這項release dependency回退。Implementation commits為Platform `351d3bc`／`d9c3295`／`2e4bdef`、OrgMaster `8046418`、AI-PDM `2ad790137`；fresh N1A=`11／11 unit＋30／30 QC PASS`，R1E=`14／14 unit＋4／4 focused QC PASS`，detached exact-HEAD N2=`48／48 PASS`，均為`productionWrites=false`。因此010-R1E source blocker已關閉，但production尚未套用；既有production layout必須先由DEV-116 legacy package套用`063`建立`company_kind`與audit scope欄位，再由DEV-010 neutral migration套用`062` views，順序不可顛倒或合併成未鎖版SQL。Post-commit source lock已以最新三repo committed HEAD重建為`FROZEN`，其動態hash以Platform generated receipt為權威。正式IAM membership binding、provider readback與actual R02仍受DEV-010既有9項preflight blocker及獨立release gate限制，狀態維持`BLOCKED / NOT_RUN`。
+
+## 20. 2026-09-05 DEV-010 R1-01 source inventory dependency
+
+Platform現已建立`QA-010-R1-01` guarded executor source，並以前向修正納入AI-PDM legacy database全部非system schemas、owner／ACL／ledger／exact row count與同project／region Cloud Run service／job direct consumers；不再只掃`public`或使用repository migration數量冒充live inventory。OrgMaster current local-json authority也以frozen `dev006:inventory`輸出artifact、media及legacy／previous／temporary residue的去識別化identity／content hashes；所有物件與consumer都必須有owner及處置分類，否則不能finalize。
+
+這項依賴只決定「真正要搬的來源與仍在使用legacy DB的consumer是否已知」，不取代DEV-116 `QA-116-R02`。R02仍必須在neutral candidate以相同production artifact／Auth／API／Cloud SQL，讓`company-smoke`完成真實COMMIT＋reload，再由專用verifier證明Jenfu before=after、zero leak及side effects disabled。R1-01即使PASS也不得寫`company-jenfu`、不得宣稱Production Level 4，亦不得解鎖traffic。
+
+Current source verification為R1-01 focused `7／7 PASS`及Platform release-adapter `12／12 PASS`；實際legacy DB／Cloud Run盤點尚未執行，classification receipt不存在，full preflight仍有9項blocker，因此`QA-010-R1-01`與`QA-116-R02`皆維持`NOT_RUN`。Executor只有`BEGIN TRANSACTION READ ONLY／ROLLBACK`與provider list／describe，固定月成本floor為0；一次性catalog、exact count與log用量納入DEV-010 R1 transition cost，不提高DEV-116的`USD 0～1／月`例行smoke目標。
 
 使用思考習慣：#多層次分析、#批判、#可驗證性
