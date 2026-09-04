@@ -29,7 +29,12 @@ import {
 import { NUMBERING_ACTION_PERMISSION_CODES, NUMBERING_PAGE_PERMISSION_CODES } from "@/lib/numbering-permission-codes";
 import { normalizeProductSeries, productSeriesOptionsFromCoreNames } from "@/lib/numbering-product-series";
 import { evaluateHardApprovalRules as evaluateHardApprovalRulesShared } from "@/lib/numbering-hard-approval-rules";
-import { lowestAvailableSequence } from "@/lib/numbering-sequence-utils";
+import {
+  assertCanonicalNumberingSequenceKey,
+  canonicalNumberingSequenceKey,
+  lowestAvailableSequence
+} from "@/lib/numbering-sequence-utils";
+import { CURRENT_GLOBAL_AUDIT_ACTIONS, resolveAuditWriteScope } from "@/lib/audit-scope";
 import { buildNumberingPartRootLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 import { UnifiedDrawingAsyncRepository } from "@/lib/repositories/unified-drawing-async-repository";
 import { RelationFormalAuthorityRepository } from "@/lib/repositories/relation-formal-authority-async-repository";
@@ -950,16 +955,9 @@ export const SELECT_ASYNC_ADMIN_ACCESS_AUDIT_EVENTS_SQL = `
     a.id, a.actor_id, actor.display_name AS actor_name, a.action, a.detail_json, a.created_at
   FROM audit_logs a
   LEFT JOIN users actor ON actor.id = a.actor_id
-  WHERE a.action IN (
-    'numbering.role.upsert',
-    'numbering.role_permission.upsert',
-    'numbering.role_scope.upsert',
-    'numbering.user_role_assignment.upsert',
-    'numbering.user_role_assignment.revoke',
-    'numbering.role_priority.save',
-    'numbering.approval_delegation.upsert',
-    'numbering.approval_delegation.revoke'
-  )
+  WHERE a.scope_kind = 'global'
+    AND a.company_id IS NULL
+    AND a.action IN (${CURRENT_GLOBAL_AUDIT_ACTIONS.map((action) => `'${action}'`).join(", ")})
   ORDER BY a.created_at DESC
   LIMIT 50
 `;
@@ -1424,9 +1422,10 @@ export const UPDATE_ASYNC_ROOT_DRAWINGS_CLOSED_SQL = `
 `;
 
 export const SELECT_ASYNC_NUMBERING_SEQUENCE_SQL = `
-  SELECT next_value
+  SELECT next_value, company_id
   FROM numbering_sequences
   WHERE sequence_key = :sequenceKey
+    AND company_id = :companyId
 `;
 
 export const SELECT_ASYNC_V2_ROOT_CODES_BY_COMPANY_SQL = `
@@ -1456,7 +1455,9 @@ export const SELECT_ASYNC_ACTIVE_DRAWING_CODES_BY_COMPANY_SQL = `
 export const SELECT_ASYNC_AUDIT_DETAILS_WITH_ROOT_CODES_SQL = `
   SELECT detail_json
   FROM audit_logs
-  WHERE action LIKE 'numbering.%'
+  WHERE scope_kind = 'tenant'
+    AND company_id = :companyId
+    AND action LIKE 'numbering.%'
     AND (
       CAST(detail_json AS TEXT) LIKE '%rootCode%'
       OR CAST(detail_json AS TEXT) LIKE '%rootCodes%'
@@ -1475,6 +1476,7 @@ export const UPDATE_ASYNC_NUMBERING_SEQUENCE_SQL = `
   SET next_value = :nextValue,
       updated_at = :updatedAt
   WHERE sequence_key = :sequenceKey
+    AND company_id = :companyId
 `;
 
 export const INSERT_ASYNC_PART_ROOT_SQL = `
@@ -1804,6 +1806,11 @@ export const INSERT_ASYNC_NUMBERING_AUDIT_SQL = `
   VALUES (:id, :actorId, :action, :detailJson, :createdAt)
 `;
 
+export const INSERT_ASYNC_SCOPED_NUMBERING_AUDIT_SQL = `
+  INSERT INTO audit_logs (id, actor_id, action, detail_json, company_id, scope_kind, created_at)
+  VALUES (:id, :actorId, :action, :detailJson, :companyId, :scopeKind, :createdAt)
+`;
+
 export const UPDATE_ASYNC_NUMBERING_TASK_STATUS_SQL = `
   UPDATE numbering_task_items
   SET task_status = :status,
@@ -1919,7 +1926,9 @@ export const SELECT_ASYNC_NUMBERING_EXPORT_DRAWINGS_SQL = `
 export const SELECT_ASYNC_NUMBERING_EXPORT_AUDIT_SQL = `
   SELECT action, actor_id, detail_json, created_at
   FROM audit_logs
-  WHERE action LIKE 'numbering.%'
+  WHERE scope_kind = 'tenant'
+    AND company_id = :companyId
+    AND action LIKE 'numbering.%'
   ORDER BY created_at DESC
   LIMIT :limit
 `;
@@ -2366,7 +2375,9 @@ export const SELECT_ASYNC_NUMBERING_WARNINGS_BASE_SQL = `
 export const SELECT_ASYNC_NUMBERING_AUDIT_TRAIL_SQL = `
   SELECT id, actor_id, action, detail_json, created_at
   FROM audit_logs
-  WHERE action LIKE 'numbering.%'
+  WHERE scope_kind = 'tenant'
+    AND company_id = :companyId
+    AND action LIKE 'numbering.%'
   ORDER BY created_at DESC
   LIMIT 200
 `;
@@ -3887,7 +3898,8 @@ export class AsyncNumberingRepository {
     drawingNumber: DrawingNumberRecord | null;
   }> {
     const run = async (client: AsyncDatabaseClient) => {
-      const companyId = input.companyId ?? DEFAULT_COMPANY_ID;
+      const companyId = input.companyId?.trim();
+      if (!companyId) throw new Error("PDM_COMPANY_ID_REQUIRED");
       const recordStatus = input.recordStatus ?? "Draft";
       const ruleVersionId = input.ruleVersionId ?? DEFAULT_RULE_VERSION_ID;
       const isUniversal = input.isUniversal ?? false;
@@ -3959,6 +3971,7 @@ export class AsyncNumberingRepository {
       await this.insertAudit(client, {
         actorId: input.createdBy,
         action: "numbering.create",
+        companyId,
         detail: {
           companyId,
           rootCode: root.rootCode,
@@ -3989,6 +4002,7 @@ export class AsyncNumberingRepository {
       if (idempotencyKey) {
         const recent = await this.findRecentAppendAudit(client, {
           action: "numbering.drawing_number.create",
+          companyId,
           actorId: input.createdBy ?? null,
           idempotencyKey
         });
@@ -4047,6 +4061,7 @@ export class AsyncNumberingRepository {
       await this.insertAudit(client, {
         actorId: input.createdBy,
         action: "numbering.drawing_number.create",
+        companyId,
         detail: {
           sourceEntrypoint: input.sourceEntrypoint ?? "contextual_entrypoint",
           companyId,
@@ -4081,6 +4096,7 @@ export class AsyncNumberingRepository {
       if (idempotencyKey) {
         const recent = await this.findRecentAppendAudit(client, {
           action: "numbering.part_number.create",
+          companyId,
           actorId: input.createdBy ?? null,
           idempotencyKey
         });
@@ -4144,6 +4160,7 @@ export class AsyncNumberingRepository {
       await this.insertAudit(client, {
         actorId: input.createdBy,
         action: "numbering.part_number.create",
+        companyId,
         detail: {
           sourceEntrypoint: input.sourceEntrypoint ?? "contextual_entrypoint",
           companyId,
@@ -4178,6 +4195,7 @@ export class AsyncNumberingRepository {
       if (idempotencyKey) {
         const recent = await this.findRecentAppendAudit(client, {
           action: "numbering.drawing_part.create",
+          companyId,
           actorId: input.createdBy ?? null,
           idempotencyKey
         });
@@ -4248,6 +4266,7 @@ export class AsyncNumberingRepository {
       await this.insertAudit(client, {
         actorId: input.createdBy,
         action: "numbering.drawing_part.create",
+        companyId,
         detail: {
           sourceEntrypoint: input.sourceEntrypoint ?? "numbering_request_append",
           companyId,
@@ -5914,7 +5933,7 @@ export class AsyncNumberingRepository {
         root.rootCode,
         ...partNumbers.map((partNumber) => partNumber.partNumber),
         ...drawingNumbers.map((drawingNumber) => drawingNumber.drawingNumber)
-      ])
+      ], companyId)
     ]);
 
     return {
@@ -6411,6 +6430,7 @@ export class AsyncNumberingRepository {
     };
     if (exportMode !== "no_audit") {
       result.auditSummary = await client.query<Record<string, unknown>>(SELECT_ASYNC_NUMBERING_EXPORT_AUDIT_SQL, {
+        companyId,
         limit: exportMode === "last_change_summary" ? 50 : 500
       });
     }
@@ -6632,10 +6652,10 @@ export class AsyncNumberingRepository {
     return rows.map(mapNumberingWarning);
   }
 
-  private async listNumberingAuditTrail(tokens: string[]): Promise<NumberingAuditTrailRecord[]> {
+  private async listNumberingAuditTrail(tokens: string[], companyId: string): Promise<NumberingAuditTrailRecord[]> {
     const meaningfulTokens = tokens.filter(Boolean);
     if (meaningfulTokens.length === 0) return [];
-    const rows = await this.client.query<NumberingAuditLogRow>(SELECT_ASYNC_NUMBERING_AUDIT_TRAIL_SQL);
+    const rows = await this.client.query<NumberingAuditLogRow>(SELECT_ASYNC_NUMBERING_AUDIT_TRAIL_SQL, { companyId });
     return rows
       .map(mapNumberingAudit)
       .filter((row) => {
@@ -7902,7 +7922,7 @@ export class AsyncNumberingRepository {
     const [masterRows, drawingRows, auditRows] = await Promise.all([
       client.query<{ root_code: string }>(SELECT_ASYNC_ROOT_CODES_BY_COMPANY_SQL, { companyId }),
       client.query<{ drawing_number: string }>(SELECT_ASYNC_ACTIVE_DRAWING_CODES_BY_COMPANY_SQL, { companyId }),
-      client.query<{ detail_json: string }>(SELECT_ASYNC_AUDIT_DETAILS_WITH_ROOT_CODES_SQL)
+      client.query<{ detail_json: string }>(SELECT_ASYNC_AUDIT_DETAILS_WITH_ROOT_CODES_SQL, { companyId })
     ]);
     const drawingRootCodes = drawingRows.flatMap((row) => {
       const value = String(row.drawing_number ?? '').trim().toUpperCase();
@@ -7919,7 +7939,11 @@ export class AsyncNumberingRepository {
   }
 
   private async allocateSequence(client: AsyncDatabaseClient, companyId: string, sequenceKey: string): Promise<number> {
-    const row = await client.queryOne<{ next_value: number }>(SELECT_ASYNC_NUMBERING_SEQUENCE_SQL, { sequenceKey });
+    assertCanonicalNumberingSequenceKey(companyId, sequenceKey);
+    const row = await client.queryOne<{ next_value: number; company_id: string }>(SELECT_ASYNC_NUMBERING_SEQUENCE_SQL, {
+      sequenceKey,
+      companyId
+    });
     const now = this.clock();
     if (!row) {
       await client.execute(INSERT_ASYNC_NUMBERING_SEQUENCE_SQL, { sequenceKey, companyId, nextValue: 2, updatedAt: now });
@@ -7927,6 +7951,7 @@ export class AsyncNumberingRepository {
     }
     await client.execute(UPDATE_ASYNC_NUMBERING_SEQUENCE_SQL, {
       sequenceKey,
+      companyId,
       nextValue: Number(row.next_value) + 1,
       updatedAt: now
     });
@@ -7938,7 +7963,7 @@ export class AsyncNumberingRepository {
     root: PartRootRecord,
     ruleVersionId: string
   ): Promise<number> {
-    const sequenceKey = `${root.companyId}:part:${root.rootCode}`;
+    const sequenceKey = canonicalNumberingSequenceKey(root.companyId, `part:${root.rootCode}`);
     const now = this.clock();
     await client.execute(
       `INSERT INTO numbering_sequences (sequence_key, company_id, next_value, updated_at)
@@ -7948,8 +7973,9 @@ export class AsyncNumberingRepository {
     );
     await client.queryOne<{ next_value: number }>(
       `SELECT next_value FROM numbering_sequences
-       WHERE sequence_key = :sequenceKey${client.kind === "postgres" ? " FOR UPDATE" : ""}`,
-      { sequenceKey }
+       WHERE sequence_key = :sequenceKey
+         AND company_id = :companyId${client.kind === "postgres" ? " FOR UPDATE" : ""}`,
+      { sequenceKey, companyId: root.companyId }
     );
 
     const [officialRows, recoveryRows] = await Promise.all([
@@ -7981,15 +8007,16 @@ export class AsyncNumberingRepository {
       `UPDATE numbering_sequences
        SET next_value = CASE WHEN next_value < :nextValue THEN :nextValue ELSE next_value END,
            updated_at = :updatedAt
-       WHERE sequence_key = :sequenceKey`,
-      { sequenceKey, nextValue: sequenceNo + 1, updatedAt: now }
+       WHERE sequence_key = :sequenceKey
+         AND company_id = :companyId`,
+      { sequenceKey, companyId: root.companyId, nextValue: sequenceNo + 1, updatedAt: now }
     );
     return sequenceNo;
   }
 
   private async allocateRootSequence(client: AsyncDatabaseClient, input: { companyId: string; ruleVersionId: string }): Promise<number> {
     if (input.ruleVersionId !== NUMBERING_RULE_V2_ID && input.ruleVersionId !== NUMBERING_RULE_V3_ID) {
-      return this.allocateSequence(client, input.companyId, `${input.companyId}:part_root`);
+      return this.allocateSequence(client, input.companyId, canonicalNumberingSequenceKey(input.companyId, "part_root"));
     }
 
     const rootCodes =
@@ -8006,21 +8033,32 @@ export class AsyncNumberingRepository {
       input.ruleVersionId === NUMBERING_RULE_V3_ID ? 26 * 9999 : 99999,
       "ROOT"
     );
-    const sequenceKey = input.ruleVersionId === NUMBERING_RULE_V3_ID ? `${input.companyId}:part_root:v3` : `${input.companyId}:part_root:v2`;
-    const row = await client.queryOne<{ next_value: number }>(SELECT_ASYNC_NUMBERING_SEQUENCE_SQL, { sequenceKey });
+    const sequenceKey = canonicalNumberingSequenceKey(
+      input.companyId,
+      input.ruleVersionId === NUMBERING_RULE_V3_ID ? "part_root:v3" : "part_root:v2"
+    );
+    const row = await client.queryOne<{ next_value: number; company_id: string }>(SELECT_ASYNC_NUMBERING_SEQUENCE_SQL, {
+      sequenceKey,
+      companyId: input.companyId
+    });
     const nextValue = sequenceNo + 1;
     const now = this.clock();
     if (!row) {
       await client.execute(INSERT_ASYNC_NUMBERING_SEQUENCE_SQL, { sequenceKey, companyId: input.companyId, nextValue, updatedAt: now });
     } else {
-      await client.execute(UPDATE_ASYNC_NUMBERING_SEQUENCE_SQL, { sequenceKey, nextValue, updatedAt: now });
+      await client.execute(UPDATE_ASYNC_NUMBERING_SEQUENCE_SQL, {
+        sequenceKey,
+        companyId: input.companyId,
+        nextValue,
+        updatedAt: now
+      });
     }
     return sequenceNo;
   }
 
   private async findRecentAppendAudit(
     client: AsyncDatabaseClient,
-    input: { action: string; actorId: string | null; idempotencyKey: string }
+    input: { action: string; companyId: string; actorId: string | null; idempotencyKey: string }
   ): Promise<Record<string, unknown> | null> {
     const nowMs = Date.parse(this.clock());
     const notBefore = new Date((Number.isFinite(nowMs) ? nowMs : Date.now()) - 60_000).toISOString();
@@ -8028,7 +8066,9 @@ export class AsyncNumberingRepository {
       `
         SELECT detail_json
         FROM audit_logs
-        WHERE action = :action
+        WHERE scope_kind = 'tenant'
+          AND company_id = :companyId
+          AND action = :action
           AND (actor_id = :actorId OR (CAST(:actorId AS text) IS NULL AND actor_id IS NULL))
           AND created_at >= :notBefore
           AND CAST(detail_json AS TEXT) LIKE :needle
@@ -8037,6 +8077,7 @@ export class AsyncNumberingRepository {
       `,
       {
         action: input.action,
+        companyId: input.companyId,
         actorId: input.actorId,
         notBefore,
         needle: `%${input.idempotencyKey}%`
@@ -8338,7 +8379,7 @@ export class AsyncNumberingRepository {
   ): Promise<DrawingNumberRecord> {
     assertPurposeAllowedForRule(input.purposeCode, input.ruleVersionId);
     const purposeDescription = normalizePurposeDescription(input.purposeCode, input.purposeDescription);
-    const sequenceKey = `${root.companyId}:drawing:${root.rootCode}:${input.purposeCode}`;
+    const sequenceKey = canonicalNumberingSequenceKey(root.companyId, `drawing:${root.rootCode}:${input.purposeCode}`);
     let sequenceNo = await this.allocateSequence(client, root.companyId, sequenceKey);
     let sequenceCode = formatDrawingSequence(sequenceNo, input.ruleVersionId);
     let drawingNumber = formatDrawingNumberForRule(root.rootCode, input.purposeCode, sequenceCode, input.ruleVersionId);
@@ -8537,13 +8578,16 @@ export class AsyncNumberingRepository {
 
   private async insertAudit(
     client: AsyncDatabaseClient,
-    input: { actorId?: string | null; action: string; detail: Record<string, unknown> }
+    input: { actorId?: string | null; action: string; companyId?: string | null; detail: Record<string, unknown> }
   ): Promise<void> {
-    await client.execute(INSERT_ASYNC_NUMBERING_AUDIT_SQL, {
+    const scope = resolveAuditWriteScope({ action: input.action, companyId: input.companyId, allowLegacy: true });
+    await client.execute(INSERT_ASYNC_SCOPED_NUMBERING_AUDIT_SQL, {
       id: this.idFactory(),
       actorId: input.actorId ?? null,
       action: input.action,
       detailJson: JSON.stringify(normalizeAuditDetail(input.detail)),
+      companyId: scope.companyId,
+      scopeKind: scope.scopeKind,
       createdAt: this.clock()
     });
   }

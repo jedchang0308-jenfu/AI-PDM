@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
 import type { DbUser } from "@/lib/repositories/user-repository";
-import { AsyncUserRepository, type UserCompanyAccess } from "@/lib/repositories/user-async-repository";
+import {
+  AsyncUserRepository,
+  type UserCompanyAccess,
+  type UserCompanyAuthority
+} from "@/lib/repositories/user-async-repository";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 
-export type PdmCompanyCode = "JENFU" | "MAXIMA";
+export type PdmCompanyCode = "JENFU" | "MAXIMA" | "SMOKE";
+export type PdmCompanyKind = "business" | "production_smoke";
+
+export type PdmCompanyRequest =
+  | { state: "absent" }
+  | { state: "valid"; companyCode: PdmCompanyCode }
+  | { state: "invalid" };
 
 export type PdmCompanyContext = {
   companyId: string;
   companyCode: PdmCompanyCode;
+  companyKind: PdmCompanyKind;
   displayName: string;
 };
 
@@ -19,33 +30,44 @@ const companyCodeAliases: Record<string, PdmCompanyCode> = {
   JENFU: "JENFU",
   鉦富: "JENFU",
   MAXIMA: "MAXIMA",
-  久方: "MAXIMA"
+  久方: "MAXIMA",
+  SMOKE: "SMOKE"
 };
 
-export const defaultPdmCompany: PdmCompanyContext = {
-  companyId: "company-jenfu",
-  companyCode: "JENFU",
-  displayName: "鉦富"
-};
-
-export function parsePdmCompanyCode(value: unknown): PdmCompanyCode | null {
-  const normalized = String(value ?? "").trim().toUpperCase();
-  if (!normalized) return null;
-  return companyCodeAliases[normalized] ?? null;
+export function parsePdmCompanyRequest(value: unknown): PdmCompanyRequest {
+  if (value === null || value === undefined) return { state: "absent" };
+  const normalized = String(value).trim().toUpperCase();
+  if (!normalized) return { state: "invalid" };
+  const companyCode = companyCodeAliases[normalized];
+  return companyCode ? { state: "valid", companyCode } : { state: "invalid" };
 }
 
-export function requestedPdmCompanyCodeFromRequest(request: Request, form?: FormData): PdmCompanyCode | null {
-  const fromForm = parsePdmCompanyCode(form?.get("pdm_company_code") ?? form?.get("company_code"));
-  if (fromForm) return fromForm;
+export function parsePdmCompanyCode(value: unknown): PdmCompanyCode | null {
+  const parsed = parsePdmCompanyRequest(value);
+  return parsed.state === "valid" ? parsed.companyCode : null;
+}
+
+export function requestedPdmCompanyCodeFromRequest(request: Request, form?: FormData): PdmCompanyRequest {
+  const formHasCompany = Boolean(form?.has("pdm_company_code") || form?.has("company_code"));
+  if (formHasCompany) {
+    return parsePdmCompanyRequest(form?.get("pdm_company_code") ?? form?.get("company_code"));
+  }
   const url = new URL(request.url);
-  const fromQuery = parsePdmCompanyCode(url.searchParams.get("pdm_company_code") ?? url.searchParams.get("company_code"));
-  if (fromQuery) return fromQuery;
-  return parsePdmCompanyCode(request.headers.get("x-pdm-company-code"));
+  if (url.searchParams.has("pdm_company_code") || url.searchParams.has("company_code")) {
+    return parsePdmCompanyRequest(url.searchParams.get("pdm_company_code") ?? url.searchParams.get("company_code"));
+  }
+  const header = request.headers.get("x-pdm-company-code");
+  return parsePdmCompanyRequest(header);
 }
 
 export async function getUserCompanyAccessAsync(userId: string): Promise<UserCompanyAccess[]> {
   const repository = new AsyncUserRepository(getAsyncDatabaseClient());
   return repository.listUserCompanyAccess(userId);
+}
+
+export async function getUserCompanyAuthorityAsync(userId: string, companyId: string): Promise<UserCompanyAuthority | null> {
+  const repository = new AsyncUserRepository(getAsyncDatabaseClient());
+  return repository.getUserCompanyAuthority(userId, companyId);
 }
 
 export async function serializeAuthUserAsync(user: DbUser) {
@@ -55,18 +77,40 @@ export async function serializeAuthUserAsync(user: DbUser) {
     display_name: user.display_name,
     email: user.email,
     role: user.role,
-    default_company: companies.find((company) => company.is_default) ?? companies[0] ?? defaultPdmCompany,
+    default_company: companies.find((company) => company.is_default) ?? companies[0] ?? null,
     companies
   };
 }
 
 export async function resolvePdmCompanyContextAsync(
   user: DbUser,
-  requestedCompanyCode: PdmCompanyCode | null
+  requestedCompany: PdmCompanyRequest | PdmCompanyCode | null
 ): Promise<PdmCompanyResolveResult> {
-  const access = await getUserCompanyAccessAsync(user.id);
-  const companies = access.length > 0 ? access : [{ ...defaultPdmCompany, is_default: true }];
-  const requested = requestedCompanyCode ?? defaultCompanyForUser(user, companies);
+  let companies: UserCompanyAccess[];
+  try {
+    companies = await getUserCompanyAccessAsync(user.id);
+  } catch {
+    return {
+      company: null,
+      response: NextResponse.json({ error: "pdm_company_context_invalid" }, { status: 403 })
+    };
+  }
+  if (companies.length === 0) {
+    return {
+      company: null,
+      response: NextResponse.json({ error: "pdm_company_membership_required" }, { status: 403 })
+    };
+  }
+  const normalizedRequest = normalizeCompanyRequest(requestedCompany);
+  if (normalizedRequest.state === "invalid") {
+    return {
+      company: null,
+      response: NextResponse.json({ error: "pdm_company_code_invalid" }, { status: 400 })
+    };
+  }
+  const requested = normalizedRequest.state === "valid"
+    ? normalizedRequest.companyCode
+    : defaultCompanyForUser(companies);
 
   if (!requested) {
     return {
@@ -79,7 +123,20 @@ export async function resolvePdmCompanyContextAsync(
   if (!company) {
     return {
       company: null,
-      response: NextResponse.json({ error: "pdm_company_forbidden", pdm_company_code: requested }, { status: 403 })
+      response: NextResponse.json({ error: "pdm_company_forbidden" }, { status: 403 })
+    };
+  }
+
+  const smokeMembership = companies.find((item) => item.companyKind === "production_smoke");
+  if (smokeMembership && (
+    companies.length !== 1
+    || company.companyKind !== "production_smoke"
+    || company.companyId !== user.company_id
+    || !company.is_default
+  )) {
+    return {
+      company: null,
+      response: NextResponse.json({ error: "pdm_smoke_principal_scope_invalid" }, { status: 403 })
     };
   }
 
@@ -87,15 +144,20 @@ export async function resolvePdmCompanyContextAsync(
     company: {
       companyId: company.companyId,
       companyCode: company.companyCode,
+      companyKind: company.companyKind,
       displayName: company.displayName
     },
     response: null
   };
 }
 
-function defaultCompanyForUser(user: DbUser, companies: UserCompanyAccess[]): PdmCompanyCode | null {
+function normalizeCompanyRequest(requested: PdmCompanyRequest | PdmCompanyCode | null): PdmCompanyRequest {
+  if (requested && typeof requested === "object" && "state" in requested) return requested;
+  return requested === null ? { state: "absent" } : { state: "valid", companyCode: requested };
+}
+
+function defaultCompanyForUser(companies: UserCompanyAccess[]): PdmCompanyCode | null {
   const defaultCompany = companies.find((company) => company.is_default) ?? companies[0];
   if (!defaultCompany) return null;
-  void user;
   return defaultCompany.companyCode;
 }

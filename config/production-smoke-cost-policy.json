@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "production-smoke-cost-policy/v1",
+  "currency": "USD",
+  "region": "asia-east1",
+  "pricingReviewDate": "2026-09-04",
+  "pricingMaxAgeDays": 30,
+  "newFixedSkuCount": 0,
+  "perRunBudgetUsd": 0.1,
+  "monthlyIncrementBudgetUsd": 1,
+  "maxRunsPerMonth": 10,
+  "caps": {
+    "businessBundles": 1,
+    "httpRequests": 80,
+    "cloudRunVcpuSeconds": 120,
+    "cloudRunGibSeconds": 120,
+    "loggingGib": 0.02,
+    "cloudSqlIncrementalStorageGibMonth": 0.005,
+    "cloudSqlIncrementalBackupGibMonth": 0.005,
+    "identityPlatformMau": 1
+  },
+  "grossUnitPricesUsd": {
+    "cloudRunVcpuSecond": 0.000024,
+    "cloudRunGibSecond": 0.0000025,
+    "cloudRunRequest": 0.0000004,
+    "loggingGib": 0.5,
+    "cloudSqlHaSsdGibHour": 0.000465753,
+    "cloudSqlBackupGibHour": 0.000109589,
+    "identityPlatformTier1Mau": 0.0055
+  },
+  "pricingSources": [
+    "https://cloud.google.com/run/pricing",
+    "https://cloud.google.com/sql/pricing",
+    "https://cloud.google.com/products/observability/pricing",
+    "https://cloud.google.com/identity-platform/pricing"
+  ],
+  "notes": "Gross upper bound deliberately ignores free-tier discounts. The Identity Platform price uses the first paid Tier 1 rate even though the dedicated smoke identity is expected to remain inside the free tier."
+}

@@ -1,48 +1,25 @@
-import { NextResponse } from "next/server";
 import {
-  defaultPdmCompany,
-  getUserCompanyAccessAsync,
-  parsePdmCompanyCode,
+  parsePdmCompanyRequest,
   requestedPdmCompanyCodeFromRequest,
-  type PdmCompanyCode,
-  type PdmCompanyContext,
+  resolvePdmCompanyContextAsync,
+  type PdmCompanyRequest,
   type PdmCompanyResolveResult
 } from "@/lib/company-context";
+import { AsyncUserRepository } from "@/lib/repositories/user-async-repository";
+import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 
-export function requestedNumberingCompanyCodeFromRequest(request: Request, body?: Record<string, unknown>): PdmCompanyCode | null {
-  const fromBody = parsePdmCompanyCode(body?.pdm_company_code ?? body?.company_code ?? body?.pdmCompanyCode ?? body?.companyCode);
-  return fromBody ?? requestedPdmCompanyCodeFromRequest(request);
+export function requestedNumberingCompanyCodeFromRequest(request: Request, body?: Record<string, unknown>): PdmCompanyRequest {
+  const bodyKeys = ["pdm_company_code", "company_code", "pdmCompanyCode", "companyCode"] as const;
+  const bodyKey = bodyKeys.find((key) => Object.prototype.hasOwnProperty.call(body ?? {}, key));
+  if (bodyKey) return parsePdmCompanyRequest(body?.[bodyKey]);
+  return requestedPdmCompanyCodeFromRequest(request);
 }
 
 export async function resolveNumberingCompanyContextAsync(
   userId: string,
-  requestedCompanyCode: PdmCompanyCode | null
+  requestedCompany: PdmCompanyRequest
 ): Promise<PdmCompanyResolveResult> {
-  const access = await getUserCompanyAccessAsync(userId);
-  const companies = access.length > 0 ? access : [{ ...defaultPdmCompany, is_default: true }];
-  const requested = requestedCompanyCode ?? (companies.find((company) => company.is_default) ?? companies[0])?.companyCode ?? null;
-
-  if (!requested) {
-    return {
-      company: null,
-      response: NextResponse.json({ error: "pdm_company_code_required" }, { status: 400 })
-    };
-  }
-
-  const company = companies.find((item) => item.companyCode === requested);
-  if (!company) {
-    return {
-      company: null,
-      response: NextResponse.json({ error: "pdm_company_forbidden", pdm_company_code: requested }, { status: 403 })
-    };
-  }
-
-  return {
-    company: {
-      companyId: company.companyId,
-      companyCode: company.companyCode,
-      displayName: company.displayName
-    } satisfies PdmCompanyContext,
-    response: null
-  };
+  const user = await new AsyncUserRepository(getAsyncDatabaseClient()).getUserById(userId);
+  if (!user) return { company: null, response: Response.json({ error: "platform_actor_required" }, { status: 401 }) };
+  return resolvePdmCompanyContextAsync(user, requestedCompany);
 }

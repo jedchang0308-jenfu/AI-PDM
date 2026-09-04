@@ -12,7 +12,11 @@ import {
   type PdmCommandMetadata,
   type PlatformActorContext
 } from "@/lib/platform-command";
-import type { PdmCompanyContext } from "@/lib/company-context";
+import { getUserCompanyAuthorityAsync, type PdmCompanyContext } from "@/lib/company-context";
+import type { DbUser } from "@/lib/repositories/user-repository";
+import { AsyncUserRepository, type UserCompanyAuthority } from "@/lib/repositories/user-async-repository";
+import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { assertProductionSmokeRuntimeIsolation } from "@/lib/production-smoke-runtime";
 
 export type NumberingPlatformCommandAccess =
   | {
@@ -40,6 +44,26 @@ function requestedIdempotencyKey(request: Request, body: Record<string, unknown>
     request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key") ?? body.idempotencyKey ?? body.idempotency_key ?? ""
   ).trim();
   return supplied || `request:${requestId}`;
+}
+
+export function isValidSmokeCommandAuthority(
+  user: Pick<DbUser, "id" | "role" | "company_id"> | null,
+  authority: UserCompanyAuthority | null
+) {
+  return Boolean(
+    user
+    && authority
+    && user.role === "Engineer"
+    && user.company_id === authority.companyId
+    && authority.companyCode === "SMOKE"
+    && authority.companyKind === "production_smoke"
+    && authority.membershipCount === 1
+    && authority.isDefault
+    && authority.principalMappingStatus === "active"
+    && authority.platformPrincipalId
+    && authority.organizationMappingStatus === "active"
+    && authority.platformOrganizationId
+  );
 }
 
 export async function requireNumberingPlatformCommandAsync(
@@ -78,9 +102,42 @@ export async function requireNumberingPlatformCommandAsync(
   const requestId = safeHeaderId(request, "x-request-id") || crypto.randomUUID();
   const correlationId = safeHeaderId(request, "x-correlation-id") || requestId;
   const roleCodes = [auth.user.role, auth.permission?.roleCode ?? "", ...(auth.permission?.evaluatedRoles ?? [])];
+  const smokeAuthority = companyResult.company.companyKind === "production_smoke"
+    ? await getUserCompanyAuthorityAsync(auth.user.id, companyResult.company.companyId)
+    : null;
+  const smokeUser = companyResult.company.companyKind === "production_smoke"
+    ? await new AsyncUserRepository(getAsyncDatabaseClient()).getUserById(auth.user.id)
+    : null;
+  if (companyResult.company.companyKind === "production_smoke" && (
+    auth.user.role !== "Engineer"
+    || !isValidSmokeCommandAuthority(smokeUser, smokeAuthority)
+  )) {
+    return {
+      auth,
+      company: null,
+      actor: null,
+      metadata: null,
+      response: Response.json({ error: "pdm_smoke_authority_invalid" }, { status: 403 })
+    };
+  }
+  if (companyResult.company.companyKind === "production_smoke") {
+    try {
+      assertProductionSmokeRuntimeIsolation(companyResult.company);
+    } catch {
+      return {
+        auth,
+        company: null,
+        actor: null,
+        metadata: null,
+        response: Response.json({ error: "pdm_smoke_runtime_isolation_required" }, { status: 503 })
+      };
+    }
+  }
   const actor = createPlatformActorContext({
     pdmUserId: auth.user.id,
     organizationId: companyResult.company.companyId,
+    principalId: smokeAuthority?.platformPrincipalId ?? undefined,
+    platformOrganizationId: smokeAuthority?.platformOrganizationId ?? undefined,
     roles: roleCodes,
     scopes: [input.action],
     authProvider: "current_pdm_session",

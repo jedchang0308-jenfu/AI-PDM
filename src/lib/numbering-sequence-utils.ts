@@ -10,3 +10,19 @@ export function lowestAvailableSequence(usedValues: readonly number[], maxValue:
   if (candidate > maxValue) throw new Error(`${label}_SEQUENCE_EXHAUSTED`);
   return candidate;
 }
+
+export function canonicalNumberingSequenceKey(companyId: string, suffix: string) {
+  const normalizedCompanyId = companyId.trim();
+  const normalizedSuffix = suffix.trim().replace(/^:+/u, "");
+  if (!normalizedCompanyId || !normalizedSuffix || normalizedSuffix.includes("::")) {
+    throw new Error("NUMBERING_SEQUENCE_KEY_INVALID");
+  }
+  return `${normalizedCompanyId}:${normalizedSuffix}`;
+}
+
+export function assertCanonicalNumberingSequenceKey(companyId: string, sequenceKey: string) {
+  const prefix = `${companyId.trim()}:`;
+  if (!companyId.trim() || !sequenceKey.startsWith(prefix) || sequenceKey.length <= prefix.length) {
+    throw new Error("NUMBERING_SEQUENCE_SCOPE_MISMATCH");
+  }
+}

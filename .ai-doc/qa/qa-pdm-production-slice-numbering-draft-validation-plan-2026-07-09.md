@@ -1,5 +1,7 @@
 # QA-PDM-PRODUCTION-SLICE-001 - Official numbering and draft production slice validation plan
 
+> 2026-09-04 DEV-116 QA Local Closure Amendment：本文件既有`SLICE-SMOKE-001..005`只保留product-slice baseline語意；future production write smoke的current authority是DEV-116 focused QA、machine registry的`QA-116-001..031`與release-only`QA-116-R01..R04`。Current已依116-A→B→C完成固定`31/31 PASS`，aggregate claim僅為`local-foundation`；只有R02可宣告`production-candidate-level4`。R04仍是release前cost upper-bound，10 runs／30日實際成本為啟用後`OBS-116-01`；舊local PASS或歷史production Level 4不得重用為R02。
+
 Date: 2026-07-10
 Related DEV: `DEV-PDM-PRODUCTION-SLICE-001`
 Related SPEC: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch.md`

@@ -128,6 +128,7 @@ export const SELECT_ASYNC_USER_COMPANY_ACCESS_SQL = `
   SELECT
     c.id AS company_id,
     c.company_code,
+    c.company_kind,
     c.display_name,
     m.is_default
   FROM user_company_memberships m
@@ -138,7 +139,8 @@ export const SELECT_ASYNC_USER_COMPANY_ACCESS_SQL = `
 
 export type UserCompanyAccess = {
   companyId: string;
-  companyCode: "JENFU" | "MAXIMA";
+  companyCode: "JENFU" | "MAXIMA" | "SMOKE";
+  companyKind: "business" | "production_smoke";
   displayName: string;
   is_default: boolean;
 };
@@ -146,9 +148,76 @@ export type UserCompanyAccess = {
 type UserCompanyAccessRow = {
   company_id: string;
   company_code: string;
+  company_kind: string;
   display_name: string;
   is_default: number | boolean;
 };
+
+export const SELECT_ASYNC_USER_COMPANY_AUTHORITY_SQL = `
+  SELECT
+    c.id AS company_id,
+    c.company_code,
+    c.company_kind,
+    m.is_default,
+    (
+      SELECT COUNT(*)
+      FROM user_company_memberships membership_count
+      WHERE membership_count.user_id = :userId
+    ) AS membership_count,
+    ppm.platform_principal_id,
+    ppm.mapping_status AS principal_mapping_status,
+    pom.platform_organization_id,
+    pom.mapping_status AS organization_mapping_status
+  FROM companies c
+  LEFT JOIN user_company_memberships m
+    ON m.company_id = c.id
+   AND m.user_id = :userId
+  LEFT JOIN platform_principal_mappings ppm
+    ON ppm.pdm_user_id = :userId
+  LEFT JOIN platform_organization_mappings pom
+    ON pom.pdm_company_id = c.id
+  WHERE c.id = :companyId
+`;
+
+export type UserCompanyAuthority = {
+  companyId: string;
+  companyCode: UserCompanyAccess["companyCode"];
+  companyKind: UserCompanyAccess["companyKind"];
+  isDefault: boolean;
+  membershipCount: number;
+  platformPrincipalId: string | null;
+  principalMappingStatus: string | null;
+  platformOrganizationId: string | null;
+  organizationMappingStatus: string | null;
+};
+
+type UserCompanyAuthorityRow = {
+  company_id: string;
+  company_code: string;
+  company_kind: string;
+  is_default: number | boolean | null;
+  membership_count: number | string;
+  platform_principal_id: string | null;
+  principal_mapping_status: string | null;
+  platform_organization_id: string | null;
+  organization_mapping_status: string | null;
+};
+
+function parseStoredCompanyCode(value: string): UserCompanyAccess["companyCode"] {
+  if (value === "JENFU" || value === "MAXIMA" || value === "SMOKE") return value;
+  throw new Error("PDM_COMPANY_CODE_UNSUPPORTED");
+}
+
+function parseStoredCompanyKind(value: string): UserCompanyAccess["companyKind"] {
+  if (value === "business" || value === "production_smoke") return value;
+  throw new Error("PDM_COMPANY_KIND_UNSUPPORTED");
+}
+
+function assertCompanyIdentityPair(companyCode: UserCompanyAccess["companyCode"], companyKind: UserCompanyAccess["companyKind"]) {
+  if ((companyCode === "SMOKE") !== (companyKind === "production_smoke")) {
+    throw new Error("PDM_COMPANY_IDENTITY_PAIR_INVALID");
+  }
+}
 
 export class AsyncUserRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
@@ -181,7 +250,7 @@ export class AsyncUserRepository {
       email: input.email,
       passwordHash: input.passwordHash,
       role: input.role,
-      companyId: companyIds[0] ?? "company-jenfu",
+      companyId: companyIds[0],
       now: input.now ?? new Date().toISOString()
     });
     const storedUser = await this.getUserByEmail(input.email);
@@ -207,7 +276,7 @@ export class AsyncUserRepository {
       email: input.email,
       passwordHash: input.passwordHash,
       role: input.role,
-      companyId: companyIds[0] ?? "company-jenfu",
+      companyId: companyIds[0],
       now: input.now ?? new Date().toISOString()
     });
     await this.replaceCompanyMemberships(id, companyIds);
@@ -228,21 +297,53 @@ export class AsyncUserRepository {
 
   async listUserCompanyAccess(userId: string): Promise<UserCompanyAccess[]> {
     const rows = await this.client.query<UserCompanyAccessRow>(SELECT_ASYNC_USER_COMPANY_ACCESS_SQL, { userId });
-    return rows.map((row) => ({
+    return rows.map((row) => {
+      const companyCode = parseStoredCompanyCode(row.company_code);
+      const companyKind = parseStoredCompanyKind(row.company_kind);
+      assertCompanyIdentityPair(companyCode, companyKind);
+      return {
+        companyId: row.company_id,
+        companyCode,
+        companyKind,
+        displayName: row.display_name,
+        is_default: Boolean(Number(row.is_default))
+      };
+    });
+  }
+
+  async getUserCompanyAuthority(userId: string, companyId: string): Promise<UserCompanyAuthority | null> {
+    const row = await this.client.queryOne<UserCompanyAuthorityRow>(SELECT_ASYNC_USER_COMPANY_AUTHORITY_SQL, {
+      userId,
+      companyId
+    });
+    if (!row) return null;
+    const companyCode = parseStoredCompanyCode(row.company_code);
+    const companyKind = parseStoredCompanyKind(row.company_kind);
+    assertCompanyIdentityPair(companyCode, companyKind);
+    return {
       companyId: row.company_id,
-      companyCode: row.company_code === "MAXIMA" ? "MAXIMA" : "JENFU",
-      displayName: row.display_name,
-      is_default: Boolean(Number(row.is_default))
-    }));
+      companyCode,
+      companyKind,
+      isDefault: Boolean(Number(row.is_default ?? 0)),
+      membershipCount: Number(row.membership_count),
+      platformPrincipalId: row.platform_principal_id,
+      principalMappingStatus: row.principal_mapping_status,
+      platformOrganizationId: row.platform_organization_id,
+      organizationMappingStatus: row.organization_mapping_status
+    };
   }
 
   private async resolveCompanyIds(companyCodes: string[]): Promise<string[]> {
+    if (companyCodes.length === 0) throw new Error("PDM_COMPANY_CODE_REQUIRED");
     const ids: string[] = [];
     for (const companyCode of companyCodes) {
-      const row = await this.client.queryOne<{ id: string }>(SELECT_ASYNC_COMPANY_ID_BY_CODE_SQL, { companyCode });
-      if (row && !ids.includes(row.id)) ids.push(row.id);
+      const normalized = companyCode.trim().toUpperCase();
+      if (!normalized) throw new Error("PDM_COMPANY_CODE_REQUIRED");
+      const row = await this.client.queryOne<{ id: string }>(SELECT_ASYNC_COMPANY_ID_BY_CODE_SQL, { companyCode: normalized });
+      if (!row) throw new Error("PDM_COMPANY_CODE_NOT_FOUND");
+      if (!ids.includes(row.id)) ids.push(row.id);
     }
-    return ids.length > 0 ? ids : ["company-jenfu"];
+    return ids;
   }
 
   private async replaceCompanyMemberships(userId: string, companyIds: string[]): Promise<void> {

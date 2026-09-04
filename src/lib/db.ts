@@ -265,6 +265,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureStandaloneManufacturingImpactRetirement(database);
   ensureTransferPackagePhase1DSchema(database);
   ensureCompanyScopeSchema(database);
+  ensureProductionSmokeTenantIsolationSchema(database);
   ensureNumberingCompanyScopeSchema(database);
   ensureNumberingWorkflowCompanyScopeSchema(database);
   ensureAccessControlLaunchSchema(database);
@@ -1127,6 +1128,123 @@ function ensureCompanyScopeSchema(database: SqliteDatabase) {
   database.prepare("UPDATE users SET company_id = 'company-jenfu' WHERE company_id IS NULL OR company_id = ''").run();
   ensureItemsCompanyScopeSchema(database);
   ensureUserCompanyMembershipBackfill(database);
+}
+
+const DEV116_LOCAL_MIGRATION_VERSION = "dev-116-production-smoke-tenant-v1";
+
+export function ensureProductionSmokeTenantIsolationSchema(database: SqliteDatabase) {
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    ensureColumn(
+      database,
+      "companies",
+      "company_kind",
+      "TEXT NOT NULL DEFAULT 'business' CHECK (company_kind IN ('business', 'production_smoke'))"
+    );
+    ensureColumn(database, "audit_logs", "company_id", "TEXT REFERENCES companies(id) ON DELETE RESTRICT");
+    ensureColumn(
+      database,
+      "audit_logs",
+      "scope_kind",
+      "TEXT NOT NULL DEFAULT 'legacy_unscoped' CHECK ((scope_kind = 'tenant' AND company_id IS NOT NULL) OR (scope_kind IN ('global', 'legacy_unscoped') AND company_id IS NULL))"
+    );
+
+    const sequenceMismatch = database.prepare(
+      `SELECT sequence_key, company_id
+       FROM numbering_sequences
+       WHERE sequence_key NOT LIKE company_id || ':%'
+       ORDER BY sequence_key
+       LIMIT 1`
+    ).get() as { sequence_key?: string } | undefined;
+    if (sequenceMismatch?.sequence_key) throw new Error("DEV116_SEQUENCE_SCOPE_MISMATCH");
+
+    const applied = database.prepare("SELECT version FROM pdm_local_data_migrations WHERE version = ?").get(DEV116_LOCAL_MIGRATION_VERSION);
+    let submissionBackfilled = 0;
+    let detailBackfilled = 0;
+    if (!applied) {
+      database.exec("DROP TRIGGER IF EXISTS trg_audit_logs_no_update");
+      const submissionResult = database.prepare(
+        `UPDATE audit_logs
+         SET company_id = (
+               SELECT submissions.company_id
+               FROM submissions
+               WHERE submissions.id = audit_logs.submission_id
+             ),
+             scope_kind = 'tenant'
+         WHERE scope_kind = 'legacy_unscoped'
+           AND company_id IS NULL
+           AND submission_id IS NOT NULL
+           AND EXISTS (
+             SELECT 1 FROM submissions
+             WHERE submissions.id = audit_logs.submission_id
+               AND submissions.company_id IS NOT NULL
+           )`
+      ).run();
+      submissionBackfilled = Number(submissionResult.changes);
+
+      const detailCandidates = database.prepare(
+        `SELECT id, detail_json
+         FROM audit_logs
+         WHERE scope_kind = 'legacy_unscoped'
+           AND company_id IS NULL
+           AND action LIKE 'numbering.%'
+         ORDER BY id`
+      ).all() as Array<{ id: string; detail_json: string }>;
+      const companyExists = database.prepare("SELECT 1 FROM companies WHERE id = ?");
+      const updateDetailScope = database.prepare(
+        "UPDATE audit_logs SET company_id = ?, scope_kind = 'tenant' WHERE id = ? AND scope_kind = 'legacy_unscoped' AND company_id IS NULL"
+      );
+      for (const candidate of detailCandidates) {
+        let detail: unknown;
+        try {
+          detail = JSON.parse(candidate.detail_json);
+        } catch {
+          continue;
+        }
+        if (!detail || typeof detail !== "object" || Array.isArray(detail)) continue;
+        const record = detail as Record<string, unknown>;
+        const camel = typeof record.companyId === "string" ? record.companyId.trim() : "";
+        const snake = typeof record.company_id === "string" ? record.company_id.trim() : "";
+        if (camel && snake && camel !== snake) throw new Error("DEV116_AUDIT_COMPANY_CONFLICT");
+        const companyId = camel || snake;
+        if (!companyId || !companyExists.get(companyId)) continue;
+        detailBackfilled += Number(updateDetailScope.run(companyId, candidate.id).changes);
+      }
+
+      database.exec(`
+        CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_update
+        BEFORE UPDATE ON audit_logs
+        BEGIN
+          SELECT RAISE(ABORT, 'AUDIT_LOG_APPEND_ONLY');
+        END;
+      `);
+      database.prepare("INSERT INTO pdm_local_data_migrations (version, detail_json) VALUES (?, ?)").run(
+        DEV116_LOCAL_MIGRATION_VERSION,
+        JSON.stringify({ submissionBackfilled, detailBackfilled })
+      );
+    }
+
+    database.exec(`
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_company_scope_created
+        ON audit_logs(company_id, scope_kind, action, created_at);
+    `);
+    const invalidAuditScope = database.prepare(
+      `SELECT id FROM audit_logs
+       WHERE NOT (
+         (scope_kind = 'tenant' AND company_id IS NOT NULL)
+         OR (scope_kind IN ('global', 'legacy_unscoped') AND company_id IS NULL)
+       )
+       LIMIT 1`
+    ).get();
+    if (invalidAuditScope) throw new Error("DEV116_AUDIT_SCOPE_INVALID");
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  const foreignKeyIssue = database.prepare("PRAGMA foreign_key_check").get();
+  if (foreignKeyIssue) throw new Error("DEV116_FOREIGN_KEY_CHECK_FAILED");
 }
 
 function ensureItemsCompanyScopeSchema(database: SqliteDatabase) {

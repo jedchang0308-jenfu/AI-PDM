@@ -19,6 +19,8 @@ const read = (relativePath) => readFileSync(path.join(root, ...relativePath.spli
 const workflow = read(".github/workflows/deploy-production.yml");
 const ciWorkflow = read(".github/workflows/ci.yml");
 const candidateWorkflow = workflow.split("\n  promote:")[0];
+const prepareWorkflow = workflow.split("\n  prepare:")[1]?.split("\n  candidate:")[0] ?? "";
+const zeroTrafficCandidateWorkflow = workflow.split("\n  candidate:")[1]?.split("\n  promote:")[0] ?? "";
 const promotionWorkflow = workflow.split("\n  promote:")[1] ?? "";
 const identity = read("infra/google-cloud/production/deployment-identity.tf");
 const runtime = read("infra/google-cloud/production/runtime.tf");
@@ -114,8 +116,8 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.match(workflow, /IMAGE_PATH@\$DIGEST/u);
   assert.match(workflow, /--target migration-runner/u);
   assert.match(workflow, /MIGRATION_PACKAGE_TARGET=production/u);
-  assert.match(workflow, /schemaMigrationCount !== 53/u);
-  assert.match(workflow, /056_role_capability_display_snapshot/u);
+  assert.match(workflow, /schemaMigrationCount !== 54/u);
+  assert.match(workflow, /063_production_smoke_tenant_isolation/u);
   assert.match(workflow, /migration-image\.txt/u);
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
 });
@@ -166,8 +168,8 @@ record("PROD-PIPE-008 candidate receives zero traffic and is tested by tag URL",
   assert.match(candidateWorkflow, /npm run qc:pdm-number-state-flow-routes/u);
   assert.match(candidateWorkflow, /npm run qc:dev-093:contract/u);
   assert.match(candidateWorkflow, /npm run qc:production-authority-repair/u);
-  assert.match(candidateWorkflow, /056_role_capability_display_snapshot\.cloudsql\.sql/u);
-  assert.match(candidateWorkflow, /schemaMigrationCount !== 53/u);
+  assert.match(candidateWorkflow, /063_production_smoke_tenant_isolation\.cloudsql\.sql/u);
+  assert.match(candidateWorkflow, /schemaMigrationCount !== 54/u);
   assert.match(candidateWorkflow, /assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced/u);
   assert.match(smoke, /origin reaches token validation/u);
 });
@@ -180,12 +182,40 @@ record("PROD-PIPE-008A clean-source CI runs deterministic primary-data QA", () =
   assert.match(ciWorkflow, /npm run qc:dev-101:qa-integrity/u);
 });
 
-record("PROD-PIPE-008B candidate and promotion are separate dispatch stages", () => {
-  assert.match(workflow, /stage:\s*\n\s+description: candidate deploys with 0% traffic/u);
+record("PROD-PIPE-008B prepare, candidate, and promotion are separate dispatch stages", () => {
+  assert.match(workflow, /default: prepare/u);
   assert.match(workflow, /type: choice/u);
-  assert.match(candidateWorkflow, /if: \$\{\{ inputs\.stage == 'candidate' \}\}/u);
+  assert.match(prepareWorkflow, /if: \$\{\{ inputs\.stage == 'prepare' \}\}/u);
+  assert.match(zeroTrafficCandidateWorkflow, /if: \$\{\{ inputs\.stage == 'candidate' \}\}/u);
   assert.match(promotionWorkflow, /if: \$\{\{ inputs\.stage == 'promote' \}\}/u);
-  assert.doesNotMatch(candidateWorkflow, /--mode promote-latest/u);
+  assert.match(prepareWorkflow, /Build and push immutable application image/u);
+  assert.match(prepareWorkflow, /Build, verify, and push immutable production migration image/u);
+  assert.doesNotMatch(prepareWorkflow, /gcloud run deploy/u);
+  assert.doesNotMatch(zeroTrafficCandidateWorkflow, /docker build/u);
+  assert.match(zeroTrafficCandidateWorkflow, /IMAGE_PATH@\$APPLICATION_IMAGE_DIGEST/u);
+  assert.doesNotMatch(zeroTrafficCandidateWorkflow, /--mode promote-latest/u);
+});
+
+record("PROD-PIPE-008E candidate is blocked without bound migration, smoke-principal, cost, and side-effect evidence", () => {
+  assert.match(workflow, /production-migration:\/\/<release_commit>\/<manifest_sha256>\/<migration_digest>\/<immutable-id>/u);
+  assert.match(workflow, /production-smoke-principal:\/\/company-smoke\/<subject_hash>\/<immutable-id>/u);
+  assert.match(workflow, /production-dev010:\/\/jenfu-ai-pdm-prod\/<source_aggregate_sha256>\/<immutable-id>/u);
+  assert.match(workflow, /production-smoke-cost:\/\/<release_commit>\/<immutable-id>/u);
+  assert.match(zeroTrafficCandidateWorkflow, /MIGRATION_PREFIX="production-migration:\/\/\$\{RELEASE_COMMIT\}\/\$\{MIGRATION_MANIFEST_SHA256\}\/\$\{MIGRATION_DIGEST_HEX\}\/"/u);
+  assert.match(zeroTrafficCandidateWorkflow, /DEV010_RELEASE_EVIDENCE_REF/u);
+  assert.match(zeroTrafficCandidateWorkflow, /report\.manifestSha256 !== expected/u);
+  assert.match(zeroTrafficCandidateWorkflow, /PDM_SMOKE_GCS_WRITER=disabled/u);
+  assert.match(zeroTrafficCandidateWorkflow, /PDM_SMOKE_OUTBOX_CONSUMER=disabled/u);
+  assert.match(zeroTrafficCandidateWorkflow, /PDM_SMOKE_EXTERNAL_NOTIFICATION=disabled/u);
+  assert.match(zeroTrafficCandidateWorkflow, /run-dev-116-release-cost-gate\.mjs/u);
+  assert.match(zeroTrafficCandidateWorkflow, /ACTUAL_COST_EVIDENCE_REF/u);
+  assert.match(zeroTrafficCandidateWorkflow, /for isolation_flag in PDM_SMOKE_GCS_WRITER PDM_SMOKE_OUTBOX_CONSUMER PDM_SMOKE_EXTERNAL_NOTIFICATION/u);
+  for (const flag of ["PDM_SMOKE_GCS_WRITER", "PDM_SMOKE_OUTBOX_CONSUMER", "PDM_SMOKE_EXTERNAL_NOTIFICATION"]) {
+    assert.match(runtime, new RegExp(flag, "u"));
+    assert.match(promotionWorkflow, new RegExp(flag, "u"));
+  }
+  assert.match(candidateWorkflow, /npm run qc:dev-010:n2:ai-pdm/u);
+  assert.match(candidateWorkflow, /npm run qc:dev-116/u);
 });
 
 record("PROD-PIPE-008C promotion requires candidate-bound Level 4 and explicit release approval without Wave 0 ceremony", () => {
@@ -276,6 +306,7 @@ record("PROD-PIPE-014 traffic mutation requires exact target and approval enviro
 record("PROD-PIPE-015 package exposes release and QC commands", () => {
   assert.equal(packageJson.scripts?.["production:release-traffic"], "node scripts/run-production-release-traffic.mjs");
   assert.equal(packageJson.scripts?.["production:release-smoke"], "node scripts/run-production-release-smoke.mjs");
+  assert.equal(packageJson.scripts?.["production:smoke-cost-gate"], "node scripts/run-dev-116-release-cost-gate.mjs");
   assert.equal(packageJson.scripts?.["qc:production-deployment-pipeline"], "node scripts/qc-production-deployment-pipeline.mjs");
 });
 

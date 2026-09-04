@@ -60,3 +60,22 @@ Implementation notes:
 - DEV-005 application role catalog publication is migration `055_jenfu_role_catalog_publication.sql`. The active v3 catalog excludes every retired BOM permission and remains the AI-PDM request-time policy authority.
 - DEV-008 last-known-good role capability display snapshot is migration `056_role_capability_display_snapshot.sql`; it is read-only fallback state and never authorizes a request.
 - DEV-010 local N2 consolidation uses `062_dev010_neutral_schema_boundary.sql` only after the frozen fresh or existing-history lane has been classified. It moves AI-PDM authority objects to `ai_pdm_core`, retains only the versioned role-catalog projection in `ai_pdm_contract`, imports the historical ledger without rewriting it, and requires `public` to contain zero application-owned objects. This local evidence does not authorize a managed or production apply.
+- DEV-116 production-smoke tenant isolation uses `063_production_smoke_tenant_isolation.sql`. The forward migration first proves that all required relations are wholly in exactly one of the pre-062 `public` or post-062 `ai_pdm_core` layouts, alters them in place, preserves audit payload/time/action bytes, and fails closed on ambiguous topology or non-canonical sequence ownership. This repository change is local/disposable-target evidence only; production apply and smoke principal provisioning remain release-gated.
+
+## DEV-010 shared-database boundary
+
+Future shared PostgreSQL migrations after `062` must remain inside `ai_pdm_core` and `ai_pdm_contract`. Other applications' `*_core` schemas are private, and cross-application access uses versioned `*_contract` objects only. Applied migration files remain immutable; corrections use a new forward migration. Runtime identities never receive owner, DDL, or migrator privileges.
+
+Start each new shared PostgreSQL migration with:
+
+```sql
+-- DB-CHANGE
+-- owner: ai-pdm
+-- schemas: ai_pdm_core
+-- contract-impact: none
+-- compatibility: backward-compatible
+```
+
+List both owned schemas when needed. For a contract change, replace `none` with the versioned contract identifier and use `additive` or `new-version`. A destructive contract retirement additionally requires `-- governance-review: DEV-NNN` or `ADR-NNN`.
+
+Run `npm run check:db-boundary` before completing the change. The default check validates future migration files and staged migration changes; CI can compare committed changes with `npm run check:db-boundary -- --base=<base-ref>`.

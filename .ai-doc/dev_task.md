@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-09-03
+更新日期：2026-09-04
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -50,7 +50,14 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 現行可直接派工的第一版發布任務：`無`。`DEV-032` 已完成正式發布；其餘未實作內容均為明確 future capsule、已取消路線或需新需求另立 DEV，不列現行待辦。
+- 現行DEV-116本機開發任務：無。116-A→B→C已依序完成；使用者已啟動`116-R`，release capsule=`REL-116-20260904`。R01唯讀Production preflight已執行，但因DEV-010 R1 neutral roles/contracts全數未部署而fail-closed。Platform已補`010-R1A` local preflight與source classifier，分別通過6/6、4/4 unit＋QC；三repo dirty files已全部分類且unknown=0，但仍未commit／freeze，current release正確回10 blockers與零cloud mutation。Production rehearsal／apply runner仍不存在、preferred neutral project ID狀態仍ambiguous；未取得exact clean release source、production adapter、跨系統production migration與availability決策前不得繼續。
+
+- 現行已完成本地foundation：`✓ DEV-116` Production Level 4 smoke tenant 隔離與可稽核證據關卡。
+  - 狀態：`Local RD Implemented / QA-QC 31 of 31 PASS / 116-R R01 Started / Production Read-only Preflight Complete / DEV-010 R1 Dependency Blocked / R02-R03 NOT_RUN`。
+  - 目的：保留真實 production artifact、Auth、API、Cloud SQL `COMMIT` 與 reload/readback 的 Level 4 驗證，但所有例行測試寫入只能落在邏輯 `company-smoke`，不得再寫入 `company-jenfu`。
+  - 已關閉的 P0 gaps：`audit_logs`已具compatible company/scope authority，Current async numbering audit／export／trail、company resolver與sequence已fail-closed並通過雙provider、browser與mutant evidence。非Current legacy writer仍列`TD-116-01`，不被誤算為全系統完成。
+  - 成本邊界：沿用既有 Production Cloud Run／Cloud SQL／Firebase，同一應用內新增邏輯 company 與專用帳號；不得因此新增 Cloud SQL、GCP project、常駐 Cloud Run 或 Identity Platform tenant。2026-09-04 official-price snapshot gross gate不扣free tier：`USD 0.020812/run`、10 runs=`USD 0.208120/month`、fixed SKU=0，分別低於`USD 0.10/run`與`USD 1/month`；價格超過30日自動失效。DEV-010若由ZONAL升REGIONAL的固定成本屬shared topology決策，不得灌入company-smoke成本。
+  - 下一步：先由Platform owner對`Jenfu-Management-system / OrgMaster / AI_PDM`重新freeze現行來源並完成DEV-010 R1 15-case release gate；availability須選REGIONAL或明確接受ZONAL無SLA／人工restore風險。DEV-010完成後，回REL-116完成legacy 063 evidence、dedicated corporate smoke principal、zero-traffic candidate與R02。R02才是Production Level 4判定案，promotion另需獨立GO。
 
 - 已退役，不得派工：`× DEV-096`、`× DEV-099`、`× DEV-104`。
   - 狀態：`Historical / Superseded by DEV-095 BOM Hard Retirement / Do Not Restore`。
@@ -930,7 +937,7 @@ Owner：Dev PM
   - 執行邊界：未新增schema／migration，未修改正式資料、未stage／commit／merge／PR／deploy／release；正式使用仍隨DEV-087 production cutover/release gate。
   - 計入交付：是；本機功能與focused QA/QC完成，production交付未完成。
 
-- ◐ DEV-095 [退役點] [BOM Hard Retirement Integrated / Focused QC PASS / Isolated Build Pending] [P0] [Production Execution Authorized and Release-Gated] BOM 模組硬刪除
+- ◐ DEV-095 [退役點] [BOM Hard Retirement Integrated / Focused QC PASS / Isolated Build Pending] [P0] [Production Execution Authorized and Release-Gated] BOM 模組硬刪除（建立日期：2026-08-24）
   - **Current authority amendment 2026-08-28**：本項已由「只退役舊組合件入口」擴大為全BOM模組硬刪除；下列舊範圍、manual BOM保留與舊驗收文字只作歷史，不得恢復runtime或驗證項目。現行唯一權威為`ADR-PDM-BOM-RETIREMENT-001`、新QA/QC與PostgreSQL 047。
   - 摘要：拆除DEV-060獨立`/bom/new`、已偵測組合件、CAD／XLS來源、`from-assembly`與assembly reference自動產生BOM，讓組立件回到既有Drawing／Part identity；本輪不建立替代入口或新組立流程。
   - 來源 ID：`DEV-PDM-ASSEMBLY-LEGACY-WORKFLOW-RETIREMENT-001`
@@ -1522,6 +1529,50 @@ Owner：Dev PM
 ### 任務索引
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
+
+- ✓ DEV-116 [開發點] [Local RD Implemented / Tech Lead Approved after Corrections / 116-A-B-C Complete / QA-QC 31 of 31 PASS / local-foundation] [P0] [116-R Production Activation Gated] Production Level 4 smoke tenant 隔離與可稽核證據關卡
+  - 摘要：將「在 Production 驗證」與「在鉦富正式公司資料內建立測試業務物件」拆開。未來例行 Level 4 仍使用正式 Cloud Run、正式 Firebase Auth、正式 API／domain／repository 與正式 Cloud SQL，並真實 `COMMIT`、reload、readback；但 actor 與所有資料只屬邏輯 `company-smoke`。`company-jenfu` 只允許 authenticated read-only 檢查，或經獨立release gate核准的transaction-bound rollback／fingerprint驗證，不再以建立後刪除作清理策略。
+  - 來源 ID：`DEV-PDM-PRODUCTION-SMOKE-TENANT-ISOLATION-001`。
+  - 父任務／關聯：future release gate successor of `DEV-032`；延續 `DEV-040` production slice、`DEV-044` company／principal boundary、`DEV-069`低成本topology。既有 production slice SPEC／ADR 已決定例行smoke預設使用smoke company；本DEV負責補齊implementation與evidence gap，不改寫其產品範圍。
+  - 目前成熟度：`Local RD Implemented / RD Tech Lead Approved after Corrections / Current QA-QC 31/31 PASS / local-foundation`。116-A先通過001..012才解鎖116-B，116-B通過013..022才解鎖116-C，最終023..031完成；實作inventory為`14 Add + 14 Modify + 0 Delete`（另有三份DEV-116文件），增加項目是runtime side-effect guard、A/B/C分段runner與唯一orchestrator，未擴張production product scope。Location-aware PostgreSQL migration `063`、SQLite local migration、typed interfaces、query/callsite、smoke-only badge、固定registry、runtime cleanup與claim ladder均已落地。
+  - 問題與根因：
+    1. 先前release驗證把「正式環境」誤等同「鉦富正式company」，使 `A0059`／子料號／圖號等測試物件真實commit到 `company-jenfu`；畫面刪除也不等於sequence、audit、event、cache或外部副作用回復原狀。
+    2. release gate證明production鏈路可寫可讀，卻未把test actor、company、sequence namespace、tenant audit/export與before/after business fingerprint設成machine-enforced invariant；opaque evidence reference不足以證明零洩漏。Cloud log、billing meter與DB總容量會因合法smoke activity改變，不屬Jenfu污染判定。
+    3. 實作前雖已有`smoke company / tenant`文件方向，但`audit_logs`沒有`company_id`，async numbering audit／export／trail與sequence仍有scope缺口。DEV-116已以compatible schema、單一audit classifier、company-scoped async query及negative/mutant evidence封口Current normal create/reload path；未納入的generic/legacy writer仍由`TD-116-01`明確隔離，不宣稱全系統audit完成。
+  - 使用者／公司價值：在不降低Production Level 4信心的前提下，避免測試資料占用正式號碼、出現在工作臺／報表／稽核或觸發通知；失敗時影響被限制在smoke company，正式公司資料可信度不再依賴事後cleanup。
+  - 已確認架構決策：
+    1. `company-smoke`是既有Production application／database中的邏輯company，不是第二個GCP project、Cloud SQL instance、Cloud Run service或Identity Platform tenant；共用相同正式artifact與schema，才能驗證原本Level 4鏈路。
+    2. Level 4採雙軌證據：`company-smoke`執行真實login → mutation → DB commit → reload/readback；`company-jenfu`只做read-only fingerprint，必要時另做transaction-bound rollback以驗證正式role／constraint／sequence路徑。Rollback證據不能取代smoke tenant的真實commit E2E。
+    3. cleanup只負責smoke資料保留量，不是安全控制。即使cleanup完全失敗，鉦富清單、搜尋、明細、sequence、audit、export、report、dashboard count與通知仍必須零洩漏；正式號碼不得刪除、回收或重發。
+    4. 不新增硬編碼`TEST-*`的第二套產品編號演算法。smoke company沿用相同numbering rule但持有獨立company-scoped sequence；需要視覺辨識時再以company badge／環境標記處理，不改正式編號語意。
+  - Current Phase 固定契約：
+    - 建立dedicated smoke principal與single-company membership；登入後server-derived company只能是`company-smoke`，不得切換或由request payload指定`company-jenfu`。
+    - Mutation hardening只封口normal `POST /api/numbering/records` create／reload實際命中的company-scoped business rows、sequence/reservation、list/search/detail、audit、unique key／idempotency key與receipt。Production啟用前另對已啟用的Jenfu export/report、dashboard count、task與notification執行cross-surface zero-leak read gate；除company predicate與current audit summary外，不擴張其write lifecycle。
+    - 優先修正`audit_logs` company authority與normal create/reload實際命中的Current production-slice audit write/read：實體`company_id`採legacy-compatible nullable欄位；可由submission或唯一有效detail導出者才做deterministic backfill，無法唯一判定者保留`NULL`且不得猜成JENFU。DB只做scope/company結構CHECK，action分類由單一`audit-scope.ts`負責；未納入本路徑的既有writer列為`TD-116-01`並排除於tenant view，不假稱全系統完成。
+    - 建立machine-readable Level 4 manifest：綁定exact source commit／image digest／candidate revision、actor、company、scenario、idempotency key、committed object IDs、reload readback、cleanup disposition、Jenfu before/after fingerprint與zero-leak checks；只有檔案路徑或人工文字不得算PASS。
+    - Current Phase只處理目前啟用的no-file production slice。GCS file writer目前維持fail-closed；outbox、cache、search index或external notification若未啟用，必須有disabled readback，不能為了smoke先啟用。
+  - 範圍外：
+    - 新建第二套production stack、Cloud SQL、GCP project、常駐service或Identity Platform tenant。
+    - 116-R以前的Firebase／IAM、正式Cloud SQL apply、正式資料、deploy、traffic、release或production smoke變更；本地產品、schema artifact與task-owned runner已由116-A～C完成。
+    - 刪除或回收既有 `A0059`等正式資料、重置正式sequence、以cleanup exception繞過append-only audit，或把production設定成全面唯讀來取代Level 4。
+    - 尚未啟用的GCS object namespace、outbox consumer、cache、search index與external notification實作；其能力啟用前必須以future re-entry擴充同一隔離gate。
+  - 固定驗收摘要（完整authority為QA-DEV-116）：
+    1. 在task-owned disposable PostgreSQL建立`company-jenfu`與`company-smoke`，證明smoke actor只能取得smoke membership；tampered company header／payload／ID一律fail closed且zero-write。
+    2. smoke完成正式領號／子料號／圖號的create、commit、reload與readback；同時Jenfu的master count、root/part/drawing identities、sequence/reservation、audit/export/report/count與`PRAGMA foreign_key_check`／PostgreSQL constraints before=after。
+    3. 注入cleanup failure、response loss、retry、duplicate submit與partial-step failure；smoke可留下可追蹤資料，但Jenfu仍零洩漏、沒有跨company collision，same-key retry不重複commit。
+    4. 以mutant移除任一company predicate、將smoke actor映射Jenfu或只提供opaque evidence reference時，aggregate必須FAIL；machine manifest的source／candidate／actor／company／object／fingerprint任一不一致亦FAIL。
+    5. production release lane須先在zero-traffic candidate完成上述authenticated Level 4與zero-leak evidence，再經獨立GO決策；不得把staging PASS、rollback-only或人工刪除結果冒充production committed E2E。
+  - 成本與容量guard：沿用`config/platform/cost-budget.template.json`的Production＋on-demand Staging保守預估`USD 30／月`。邏輯company本身不新增固定SKU；低頻smoke的DB rows、log與request增量`USD 0～1／月`只是planning target。R04在release前依當次SKU做單run upper-bound與fixed-floor=0 gate；首次啟用後的10次run或30日實際差額改由`OBS-116-01`判定，超標則暫停後續例行write smoke，不循環阻擋第一次驗證。
+  - Current Phase closure：`116-A Company authority`、`116-B Query/API isolation`與`116-C Level 4 evidence foundation`已依序完成，Current claim=`local-foundation`。Future `116-R Production activation`仍為`Release Gate Required / NOT_RUN`，不屬本輪授權；116-R與全系統audit收斂未被本地PASS偷渡完成。
+  - Data／identity contract：固定`company-smoke / SMOKE / production_smoke`；dedicated Engineer只有一筆smoke membership，session/user/membership/mapping必須一致。`audit_logs`新增nullable physical company與`tenant/global/legacy_unscoped`分類；587筆current primary legacy numbering audit不可可靠歸屬，必須保留NULL且不得猜JENFU。Current production-slice的新tenant event必填company；exact current全域治理action才可`global + NULL`，其餘writer受`TD-116-01`隔離。Sequence current async select/update/lock同時限制company與company-prefixed key，不新增冗餘unique index；unknown／empty company與missing membership不得fallback JENFU。
+  - QA contract：Current固定`QA-116-001..031`，machine registry=`.ai-doc/qa/dev-116-current-case-registry.json`；六個producer＋aggregate各有唯一case owner。Final run涵蓋fresh/history雙provider migration、identity tamper、audit／sequence／read-model隔離、normal UI commit＋reload、response loss、cleanup failure、rollback、6/6 mutants、source drift、redaction、primary invariant與task-owned cleanup，結果`31/31 PASS`。Future release `QA-116-R01..R04`仍`NOT_RUN`且不得混入local分子；只有R02能形成Production Level 4 claim。
+  - Spec Impact Preflight：`Compatible amendment`。沿用`SPEC/ADR-PDM-PRODUCTION-SLICE-001`既有smoke company決策；新增focused SPEC與QA把implementation/evidence gap正式化。`No New ADR`，除非未來改變production identity／database topology、正式Jenfu routine-write政策或Platform DEV-010 physical boundary。
+  - Stop／release boundary：P0隔離證據未完成前，所有future production write smoke維持blocked；可使用staging write E2E、production authenticated read-only，以及另行核准的transaction rollback/fingerprint。任何remote schema／data／IAM／deploy／release、付費資源新增、正式號碼刪除／回收或既有正式資料修復，均須獨立高風險／release gate。
+  - Future re-entry capsule：GCS file authority、outbox consumer、cache、search index、notification或跨系統同步任一啟用前，必須把company namespace、delivery dedupe、read model與zero-leak mutant納入同一gate；未完成即不得把該副作用加入production smoke。
+  - Authority／evidence plan：`.ai-doc/specs/SPEC-PDM-PRODUCTION-SMOKE-TENANT-001-level4-isolation-and-evidence.md`、`.ai-doc/qa/qa-dev-116-production-smoke-tenant-isolation-validation-plan-2026-09-04.md`；相容上位authority為production-slice SPEC／ADR／QA、`DEV-032/040/044/069`與Platform `DEV-010`。目前31案與R01～R04皆`NOT_RUN`，無產品完成或production evidence。
+  - Actual boundary摘要：新增`audit-scope.ts`、`production-smoke-runtime.ts`、PostgreSQL `063`、一份無credential policy config、shared DB boundary／evidence utility、六producer、aggregate與orchestrator；修改14個Current async/schema/UI/package檔。Sync repositories、generic audit facade/writers、preview/attachment/submission audit、production workflow/smoke/package、固定`dev:local`、primary DB與remote target均未改；`next-env.d.ts`只被Next暫時重寫後byte-for-byte復原為既有SHA-256。
+  - 下一步：另立116-R release capsule，先做R01 exact candidate／target／principal／migration preflight；未取得production明確授權前，不執行Cloud SQL 063、principal provisioning、write smoke、deploy或promotion。R02必須是exact production candidate authenticated SMOKE commit＋reload，不能重用本地31/31。
+  - 計入交付：Current local safety foundation已完成；不重複計算既有產品交付點，也不把它計為Production Level 4或production release完成。
 
 - ✓ DEV-106 [CAPA/Release] [P0] [Local RD + Pre-release QA/QC Complete / Production Release Owned by DEV-032] 退役Relation/BOM殘留清除與recovery防回流
   - Success：empty `relation_change_works`與57筆Part work `bomUsagePolicy`安全清除；正式關聯/identity/fingerprint不變；mapper不再重播042或接受退役payload；migration/package/rehearsal/reconciliation/candidate均綁定同一exact source。
@@ -4325,7 +4376,7 @@ Owner：Dev PM
 
 - × DEV-033 [開發點] [Future Capsule / Not Current Backlog / Includes DEV-037] [P2] GCS 檔案權威、保留、成本與 continuity package
   - 摘要：作為future capsule承接`DEV-046` Phase 3B並吸收原`DEV-037`，只保存檔案inventory、成本、保留政策、direct-GCS authority、backup與restore的決策脈絡；不是現行backlog或RD可直接執行任務。
-  - 來源 ID：`DEV-STORAGE-COST-001`
+  - 來源 ID：`DEV-STORAGE-COST-001`（建立日期：2026-06-19）
   - 父任務：`DEV-046` Phase 3B；吸收來源`DEV-037 / DEV-BACKUP-001`
   - Future capsule內容：檔案量／保留需求盤點、GCS primary／backup責任、soft delete、approved export、成本與清理政策。這些未實作能力不列入第一版DEV-032完成分母。
   - 驗收標準：上線前可說明儲存成本、保留策略、備份責任與不可自動清理的資料範圍。
@@ -4387,7 +4438,7 @@ Owner：Dev PM
 
 - × DEV-036 [關卡] [停止追蹤 / 未納入目前產品路線] [P3] SolidWorks Add-in 實機驗證
   - 摘要：目前第一版與技轉包方向採 Web / Pack-and-Go / 等效上傳路線，沒有明確 SolidWorks Add-in 交付；保留歷史 ID，但不再作為 active 或 deferred backlog。
-  - 來源 ID：`DEV-SW-001`
+  - 來源 ID：`DEV-SW-001`（建立日期：2026-06-03）
   - 父任務：SolidWorks 整合
   - 歷史重新開啟條件：若未來重新採用Add-in路線，需另備Windows/SolidWorks版本、安裝帳號、測試檔案、操作腳本、版本截圖/log與錯誤復原證據；本清單不是目前待辦。
   - 恢復條件：只有未來產品重新明確要求 SolidWorks Add-in 或 CAD workstation 內操作時，才以新產品決策恢復。
@@ -4396,7 +4447,7 @@ Owner：Dev PM
 
 - × DEV-037 [關卡／已整併] [併入 DEV-033 Continuity 子關卡] [P2] [完整 PDM / 檔案保存階段] 離線單向備份與還原演練
   - 摘要：完整 PDM 檔案離線單向備份、GCS 檔案復原與隔離還原演練依本輪使用者決策延後，不列第一版正式領號 / 草稿 blocker；closed `DEV-046 HD-8-4 / 1A` 只要求 Cloud SQL automated backup/PITR 與 pre-canary separate-target restore/numbering-ledger reconciliation，兩者不得混算。
-  - 來源 ID：`DEV-BACKUP-001`
+  - 來源 ID：`DEV-BACKUP-001`（建立日期：2026-06-03）
   - 父任務：`DEV-033` / `DEV-046` Phase 3B
   - 任務清單：
     - [ ] 確認備份來源、離線目的地、保留週期、責任人與不可覆寫規則。
@@ -4450,6 +4501,7 @@ Owner：Dev PM
 | × 併入 | `DEV-031` | `DEV-CLOUDSQL-DB-001-DATA-PARITY` | QA/QC | clean seed/archive/restore/reconciliation保留角色分離QC，統一由`DEV-032 Gate C`派工 |
 | ✓ 完成／已發布 | `DEV-032` | `DEV-CLOUDSQL-DB-001-PROD-GATE` | 關卡 | Gate A-E完成；`bb30682c`／`ai-pdm-prod-gh-bb30682c-33729286511`已承接100% production流量，canonical 14/14與authenticated workbench readback通過 |
 | × 併入 | `DEV-066` | `SPEC-UX-PDM-WORKBENCH-TOPBAR-001` | 歷史／已整併 | current authority由DEV-087／090／112承接；shared mechanics與歷史evidence保留，不再獨立派工或重跑舊matrix |
+| ✓ Local foundation complete／Tech Lead approved／31 of 31 PASS／116-R gated | `DEV-116` | `DEV-PDM-PRODUCTION-SMOKE-TENANT-ISOLATION-001` | 開發點 | A→B→C依序完成；PG 063 artifact、single audit classifier、side-effect fail-closed、smoke-only badge、六producer＋aggregate與primary invariant PASS；production R01-R04仍NOT_RUN |
 | ✓ 完成 | `DEV-115` | `DEV-PDM-QA-GATE-CONVERGENCE-001` | QA基礎設施 | DEV-079 42/42、DEV-080 12/12 current aggregate PASS；primary invariant與cleanup完成 |
 | ✓ 完成 | `DEV-079` | `DEV-PDM-DRAWING-READONLY-DRAWER-FULLPAGE-EDITOR-001` | QA/QC | current 42案已封口；production發布只由DEV-032承接 |
 | × 併入 | `DEV-080` | `DEV-PDM-STATUS-VISIBILITY-POLICY-001` | QA/QC | current 12案已封口，產品authority併入DEV-087／112，不再獨立計算 |
@@ -4488,11 +4540,11 @@ Owner：Dev PM
 |---|---|---|---|
 | [x] | DEV-IND-007 | SQLite to Postgres / Supabase shadow migration | DEV-034 disposable PostgreSQL shadow 26/26與target guard 11/11已通過；正式Cloud SQL target／migration／release只由`DEV-032`承接。 |
 | [x] | DEV-CAD-001 | SolidWorks Document Manager native metadata reader | DEV-035 Current Phase已取得real native probe、recognition worker exact-version acknowledgment與A0002兩次可重現observations；2D preview與production release仍不在本DEV。 |
-| [ ] | DEV-SW-001 | SolidWorks Add-in real-machine validation | Cancelled as a product route, not evidence-passed. Historical ID retained; a new product decision is required to reopen it. |
-| [ ] | DEV-BACKUP-001 | Offline one-way backup and restore drill | Full PDM file/GCS/offline restore drill deferred to Phase 3B/full file readiness; Phase 3A separately requires closed DEV-046 `HD-8-4 / 1A` pre-canary Cloud SQL restore/reconciliation evidence. |
+| [ ] | DEV-SW-001（建立日期：2026-06-03） | SolidWorks Add-in real-machine validation | Cancelled as a product route, not evidence-passed. Historical ID retained; a new product decision is required to reopen it. |
+| [ ] | DEV-BACKUP-001（建立日期：2026-06-03） | Offline one-way backup and restore drill | Full PDM file/GCS/offline restore drill deferred to Phase 3B/full file readiness; Phase 3A separately requires closed DEV-046 `HD-8-4 / 1A` pre-canary Cloud SQL restore/reconciliation evidence. |
 | [x] | DEV-FIELD-001 | Formal field-test evidence | Cancelled by Human Decision `HD-9-1` on 2026-07-14; closed without execution or acceptance evidence and no longer a first-version blocker. |
 | [x] | DEV-PDM-ERP-GOOGLE-CLOUDSQL-001 | Live platform and release readiness | DEV-032於2026-09-03完成Gate A-E；production authority為Firebase Hosting → Cloud Run → Cloud SQL PostgreSQL，第一版file workflow維持fail-closed。current source/revision/image、authenticated Level 4、zero P0/P1、rollback、Product Owner GO、exact promotion與canonical smoke均有current evidence；未來release不得重用本次artifact-bound收據。Evidence：`.ai-doc/qc/qc-dev-032-production-release-closure-2026-09-03.md`與`output/qa/dev-032-production-release/final-release-manifest.json`。 |
-| [!] | DEV-STORAGE-COST-001 | Future GCS authority/cost/continuity package | Parked with DEV-046 Phase 3B and DEV-037 until Phase 3A is stable and file-workflow scope, inventory, lifecycle policy, cost and recovery ownership are approved. |
+| [!] | DEV-STORAGE-COST-001（建立日期：2026-06-19） | Future GCS authority/cost/continuity package | Parked with DEV-046 Phase 3B and DEV-037 until Phase 3A is stable and file-workflow scope, inventory, lifecycle policy, cost and recovery ownership are approved. |
 
 保留給 `qc:dev-task-evidence-sync` 的外部證據 checklist：
 
@@ -5008,3 +5060,9 @@ QC 要求保留的 Supabase stop wording：
 - 2026-09-02（DEV-114 CAPA-001 Local Completion Receipt）：依使用者授權建立唯一CAPA Register第一碼並完成`DEV-114`。落地shared approval outcome projector、native apply postcondition、兩個approval client failure-aware feedback、Part canonical layer/lifecycle/data-state neutral vocabulary與read-only identity scanner；無schema／migration／permission／approval authority變更。Focused QC `22/22`、isolated controlled `apply_failed` fault path `7/7`、authenticated browser Part A0001-P01＋approval inbox＋generic workspace均PASS；primary SQLite inventory唯讀、FK=0、A0001 exact UUID維持Draft且`blocked_pending_release_authority`。`typecheck:app`、affected ESLint、isolated build與DEV-087 contract regression均PASS；證據=`output/qa/capa-001-approval-outcome/`。既有approval-platform drawing baseline failure另記錄，不歸因DEV-114。隔離runtime／clone／browser evidence完成後清理；production data repair、activation、deploy、release與rollback仍由獨立gate授權，CAPA狀態為`Local Effectiveness Verified / Production Activation Gated`。
 - 2026-09-02（DEV-114 CAPA-001 Exact Local Formal Data Repair Receipt）：使用者其後明確授權「正式資料修復」，覆寫前一receipt對exact local A0001的primary-write gate，但不涵蓋staging／cloud production。新增`repair-capa-001-a0001-formal-status.mjs`，以fingerprint=`8197792adce3b44b79f65f8b6de6adde680d53bdb674bc3e872a882e52f269b0`、plan hash=`837159480a5ba86311460b03ba0a40ccf78123e46c1196140f2e196503c68cb4`依序完成dry-run READY、task-owned clone rehearsal PASS、SQLite backup verification、`BEGIN IMMEDIATE` primary apply PASS與replay NO_OP。Root／Part／Drawing master由Draft轉Released，unified drawing由rd_controlled轉released；只新增一筆`capa.formal_data_repair.applied` audit，明示沒有重建歷史approval evidence。Post inventory A0001=`Released`、approval rows=0、FK=0；localhost UI清單／詳情為「主檔 · 已發布」，更多操作可見「申請作廢」但未送出。Backup SHA-256=`d23d1b95671c74d124b9d7c9bc9892c9da108a51fe49c30db88f64a2e7743b15`已保留；production activation、deploy、release與restore仍由獨立gate授權。
 - 2026-09-02（DEV-109 CAPA continuation after re-authentication）：使用者確認 gcloud 已登入後，production target preflight 以唯讀方式讀回 production project、Cloud Run、Cloud SQL 與 required Secret metadata，`blockerCount=0`；exact CAPA commit=`6b6d828f9d7e0181b3afb07bffaac75bce1c8ea6`並完成 release-source manifest QC `13/13 PASS`。在 detached clean worktree 重跑 migration contract `M01–M08=8/8 PASS`；隔離 CAPA runner 重跑 `CAPA-L01～L08=8/8 PASS`、歷史 unified regression `54/54 PASS`、FK=0、productionWrites／Connection=false、task-owned cleanup=true，證據=`output/qa/dev-109-capa/2026-09-02T-capa-continuation-2/capa.json`。但 exact commit application dependency closure仍有4個 integration sync points，且 production target contract仍`templateOnly=true`／`releaseReady=false`／`productionActionAllowed=false`、manifest仍`safeToBuildForProduction=false`；正式庫 read-only P01仍為migration max=`052`、`053/054`未套用、active primary exact`.SLDASM` target=`0`，故未執行production migration／reconcile／deploy／activation／P04，CAPA維持`Production Effectiveness Required / Release Gated`。
+- 2026-09-04（DEV-116 Brief Ready）：依使用者要求將Production測試資料污染的多層次分析寫成開發文件。新建`DEV-PDM-PRODUCTION-SMOKE-TENANT-ISOLATION-001`，固定同一Production stack內的邏輯`company-smoke`執行真實commit＋reload Level 4、`company-jenfu`只做read-only fingerprint或獨立gate的transaction rollback；cleanup不作安全控制。repo盤點確認`audit_logs`缺`company_id`，numbering audit／export／trail為全域讀取，故列P0並在identity、sequence、audit/read-model、machine-readable evidence與zero-leak mutant完成前封鎖production write smoke。沿用現有Cloud Run／Cloud SQL／Firebase，禁止新增固定付費stack；增量規劃`USD 0～1／月`，10次run或30日後以帳務readback校正。成熟度=`Brief Ready / RD Not Requested`；本輪只修改`dev_task.md`與`documentation_map.md`，未修改產品／tests、schema／data、runtime、cloud resource、deploy或release。
+- 2026-09-04（DEV-116 RD Contract Ready）：依使用者要求沿用同一DEV升級開發文件。Repository evidence確認三項P0：`SMOKE`尚未成為typed company code且unknown／empty membership可能回退`JENFU`、`audit_logs`缺少實體`company_id`且numbering audit讀取為全域、部分sequence路徑只以`sequence_key`存取。新增focused SPEC與固定QA plan，鎖定`company-smoke`身分、fail-closed resolver、audit deterministic backfill、company＋prefixed-key sequence、全read-model zero-leak、normal UI commit＋reload、fault／mutant與machine manifest；Current Phase=`QA-116-001..031`，Future Release=`QA-116-R01..R04`。拆分116-A～C與release-only 116-R，估工`12～18 person-days`；Spec Impact=`Compatible amendment`、ADR=`No New ADR`、增量雲成本仍以`USD 0～1／月`為規劃上限。成熟度=`RD Contract Ready / RD Not Requested / Documentation Only / Production Write Blocked`；未修改產品／tests、schema／data、runtime、cloud resource、deploy或release。
+- 2026-09-04（DEV-116 RD Implementation Ready）：依使用者「升級開發文件」沿用同一DEV完成repository-specific readiness。凍結branch=`持續優化2`／HEAD=`80770f2d...`與dirty preflight，固定`10 Add + 21 Modify + 0 Delete`、location-aware PostgreSQL `063`（只在`public`或`ai_pdm_core`恰一完整layout原位alter）、SQLite `dev-116-production-smoke-tenant-v1`、typed absent／valid／invalid company request、tenant／global／legacy audit scope、company＋canonical key sequence、全read-model predicate與smoke-only sidebar badge。Primary唯讀planning inventory為sequence 111筆／scope mismatch 0、audit 845筆／numbering 589筆，其中587筆numbering legacy無法可靠歸屬，契約禁止猜回JENFU。新增31案machine registry並固定contract／migration／isolation／browser／aggregate commands、task-owned dynamic-port runtime與116-A→B→C sequential gate；估工修正為`16～23 person-days`。Release workflow／opaque evidence gap、principal provisioning與062／063 production package銜接留在116-R。成熟度=`☐ RD Implementation Ready / RD Eligible / RD Not Started / QA 0/31 / Production Write Blocked`；本輪仍只修改開發文件，未修改產品／runner、schema／data、runtime、cloud、stage／commit／merge／PR／deploy／release，既有`next-env.d.ts`未觸碰。
+- 2026-09-04（DEV-116 RD技術主管審查優化）：結論為`有條件通過`，目前只有116-A eligible。以最短因果鏈確認根因是production驗證actor未被machine-enforced綁定隔離company，加上resolver fallback與audit／sequence漏scope；保留同Production stack的smoke company方向。修正三項原契約風險：local 31/31只可宣告`local-foundation`，只有116-R R02可稱Production Level 4；Audit改為單一`audit-scope.ts`分類authority＋DB structural CHECK，非Current writer明列`TD-116-01`且排除tenant view；R04改為release前SKU upper-bound，10 runs／30日實際成本移至啟用後`OBS-116-01`。Mutation scope收斂至normal `POST /api/numbering/records` create/reload async path，production啟用前仍以cross-surface zero-leak read gate阻擊report／export／dashboard等Jenfu投影污染；`company_kind`與legacy audit補上相容DDL default。Planned boundary由`10 Add + 21 Modify`瘦身為`10 Add + 14 Modify`，估工由`16～23`降為`12～17 person-days`；B/C標`Contract Frozen / Not Yet Eligible`。本輪只修改開發文件，未修改產品／runner、schema／data、runtime、cloud或release，production write仍blocked。
+- 2026-09-04（DEV-116 Local RD／QA-QC closure）：依使用者「依次開發好」完成116-A→B→C，前段固定case PASS後才解鎖下一段。落地typed `SMOKE / production_smoke`、zero-membership與invalid company fail-closed、dedicated Engineer＋single membership＋active platform mappings、company-prefixed sequence、`tenant/global/legacy_unscoped`單一audit authority、SQLite history initializer、location-aware PostgreSQL 063、Current async read/write zero-leak、SMOKE-only非互動badge與三類external side-effect runtime disabled guard。Final orchestrator `npm run qc:dev-116 -- --run-id=DEV116-LOCAL-20260904-FINAL-R1`固定31案；預期authority=`output/qa/dev-116-production-smoke-tenant/DEV116-LOCAL-20260904-FINAL-R1/aggregate-manifest.json`。第一次preflight在前30案PASS後因Next改寫`next-env.d.ts`造成source drift而由QA-116-031正確FAIL；runner已補byte snapshot/restore與cleanup assertion，使用者原SHA-256 `0F706298...`維持。Tech Lead結論=`通過（Local foundation）`；116-R R01-R04、Cloud SQL apply、production principal、write smoke、deploy、promotion與actual cost readback仍未授權／NOT_RUN，只有R02可稱Production Level 4。
+- 2026-09-04（DEV-116-R R01 execution）：使用者要求執行後建立`REL-116-20260904`並進入production release lane。完成Google re-auth與Cloud Run／Cloud SQL唯讀盤點；Job execution `ai-pdm-prod-migration-runner-mcmxs`只作`BEGIN READ ONLY`後rollback，證實Production仍為`public` ledger 53／highest 056，DEV-010 neutral schemas、roles、principal／entitlement contracts與062全不存在。Release adapter改為`prepare→candidate→promote`、artifact build-once、manifest／DEV-010／principal／cost四證據fail-closed、revision三類side-effect disabled readback；legacy package硬排除DEV-010-owned 062，現為54支（既有53＋063）。R04新增30日有效official-price gross gate，以current source revision重跑結果`USD 0.020812/run`、10 runs=`USD 0.208120/month`、fixed SKU=0、PASS，source freeze後仍須重產最終release-commit evidence。Fresh adapter aggregate=`output/qa/dev-116-production-smoke-tenant/DEV116-R01-ADAPTER-20260904-R1/aggregate-manifest.json`，固定`31/31 PASS`、P0/P1=0、`claimLevel=local-foundation`、`productionLevel4Claimed=false`，task-owned browser／Next／PostgreSQL／ports均清理。Migration package15/15、pipeline24/24、DEV-095 20/20、DEV-106 25/25與YAML parse PASS；DEV-010 N2D因後續source drift正確FAIL，須三repo重新freeze／aggregate並先完成010-R1 15案。R01狀態=`BLOCKED`，R02/R03 NOT_RUN；production DB writes、deploy、traffic change、principal provisioning均為0。報告=`.ai-doc/reports/pm/pm-dev-116-r01-production-release-preflight-2026-09-04.md`。

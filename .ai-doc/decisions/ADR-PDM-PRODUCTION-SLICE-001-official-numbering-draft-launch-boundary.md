@@ -1,5 +1,7 @@
 # ADR-PDM-PRODUCTION-SLICE-001: Official Numbering and Draft Production Slice
 
+> 2026-09-04 DEV-116 Local Closure Amendment：本ADR的smoke company選擇維持Accepted，`company-smoke`仍與正式業務company共用相同Production artifact/runtime/database但採邏輯資料隔離。116-A→B→C已依序完成server-derived fail-closed company、company-scoped sequence／tenant audit／Current business read model、單一audit classifier、side-effect runtime guard與machine claim ladder；非Current audit writer仍以`TD-116-01`隔離，不擴成全系統改寫。Current固定31案為`31/31 PASS / local-foundation`；cleanup仍不是安全控制。這是compatible implementation refinement，`No New ADR`；只有116-R exact production candidate authenticated commit＋reload可稱Production Level 4，production write仍release gated。
+
 > 2026-08-29 Release Governance Amendment：具名3–5人Wave 0驗收與waiver流程已永久退役。Release仍保留exact artifact、0% candidate、DB safety、basic smoke、candidate-bound authenticated Level 4、zero open P0/P1、rollback readiness、Product Owner GO、exact promotion token、traffic-only promote與canonical smoke。Production allowlist維持fail-closed安全控制，但不再作為user acceptance evidence；本文件較舊canary必要性敘述僅供歷史追溯。
 
 > 2026-07-13 Amendment：本文件既有 narrow production-slice、server-side feature gate、smoke-company isolation 與 QC evidence 保留；新 create flow 不再於 form create 時直接產生永久 official master。`ADR-PDM-NUMBER-STATE-FLOW-001` 改以獨立 candidate reservation + explicit publication transaction 作正式化邊界。Production clean seed 只含 published/obsolete official numbers 與 recovery non-reuse reservations，不 seed candidates/local drafts。

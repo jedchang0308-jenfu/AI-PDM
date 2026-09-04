@@ -90,6 +90,13 @@ function shouldExcludeFromCurrentSlice(file) {
       detail: "Direct GCS file-pointer continuity belongs to DEV-046 Phase 3B and must not be pulled into the no-file internal-pilot slice."
     };
   }
+  if (file.endsWith("062_dev010_neutral_schema_boundary.sql")) {
+    return {
+      excluded: true,
+      reason: "dev010_shared_database_release_orchestrator_owned",
+      detail: "The legacy AI-PDM Cloud SQL runner cannot create or assume neutral cross-application roles. DEV-010 R1 owns bootstrap, producer-first contracts, schema movement, and role cutover."
+    };
+  }
   return { excluded: false, reason: "", detail: "" };
 }
 

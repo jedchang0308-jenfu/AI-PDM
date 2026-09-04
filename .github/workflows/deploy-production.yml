@@ -16,13 +16,42 @@ on:
         required: true
         type: string
       stage:
-        description: candidate deploys with 0% traffic; promote requires current Level 4 and explicit release approval
+        description: prepare builds immutable artifacts; candidate deploys 0% traffic after migration, principal, and cost evidence; promote requires current Level 4
         required: true
-        default: candidate
+        default: prepare
         type: choice
         options:
+          - prepare
           - candidate
           - promote
+      application_image_digest:
+        description: Required for candidate and promote; sha256 digest emitted by the prepare run
+        required: false
+        type: string
+      migration_image_digest:
+        description: Required for candidate; sha256 digest emitted by the prepare run
+        required: false
+        type: string
+      migration_manifest_sha256:
+        description: Required for candidate; exact manifest digest rehearsed and applied by the migration operator
+        required: false
+        type: string
+      migration_evidence_ref:
+        description: Required for candidate; production-migration://<release_commit>/<manifest_sha256>/<migration_digest>/<immutable-id>
+        required: false
+        type: string
+      smoke_principal_evidence_ref:
+        description: Required for candidate; production-smoke-principal://company-smoke/<subject_hash>/<immutable-id>
+        required: false
+        type: string
+      dev010_release_evidence_ref:
+        description: Required for candidate; production-dev010://jenfu-ai-pdm-prod/<source_aggregate_sha256>/<immutable-id>
+        required: false
+        type: string
+      cost_evidence_ref:
+        description: Required for candidate; production-smoke-cost://<release_commit>/<immutable-id>
+        required: false
+        type: string
       candidate_revision:
         description: Required for promote; exact candidate Cloud Run revision from the candidate run
         required: false
@@ -67,7 +96,7 @@ jobs:
         run: |
           if ($env:GITHUB_REF -ne "refs/heads/main") { throw "Workflow must be dispatched from main." }
           if ($env:RELEASE_APPROVAL -ne "DEPLOY-AI-PDM-PRODUCTION") { throw "Exact production approval text is missing." }
-          if ($env:RELEASE_STAGE -notin @("candidate", "promote")) { throw "Release stage must be candidate or promote." }
+          if ($env:RELEASE_STAGE -notin @("prepare", "candidate", "promote")) { throw "Release stage must be prepare, candidate, or promote." }
           if ($env:RELEASE_COMMIT -notmatch '^[a-f0-9]{40}$') { throw "Release commit must be a lowercase 40-character SHA." }
           $head = (git rev-parse HEAD).Trim()
           $remoteMain = ((git ls-remote origin refs/heads/main) -split "`t")[0].Trim()
@@ -108,13 +137,15 @@ jobs:
           npm run qc:pdm-production-slice-numbering-draft
           npm run qc:pdm-number-state-flow-routes
           npm run qc:dev-093:contract
+          npm run qc:dev-010:n2:ai-pdm
+          npm run qc:dev-116 -- --run-id=github-${{ github.run_id }}-${{ github.run_attempt }}
           npm run qc:production-authority-repair
           npm run qc:production-deployment-pipeline
           npm run build
 
-  candidate:
-    name: Build, deploy, and smoke zero-traffic candidate
-    if: ${{ inputs.stage == 'candidate' }}
+  prepare:
+    name: Build immutable production artifacts once
+    if: ${{ inputs.stage == 'prepare' }}
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -125,10 +156,9 @@ jobs:
       contents: read
       id-token: write
     outputs:
-      candidate_revision: ${{ steps.candidate.outputs.candidate_revision }}
-      candidate_url: ${{ steps.candidate.outputs.candidate_url }}
       image_digest: ${{ steps.image.outputs.digest }}
       migration_image_digest: ${{ steps.migration_image.outputs.digest }}
+      migration_manifest_sha256: ${{ steps.migration_image.outputs.manifest_sha256 }}
     env:
       GCP_PROJECT_ID: jenfu-ai-pdm-prod
       GCP_PROJECT_NUMBER: "451715062958"
@@ -144,7 +174,6 @@ jobs:
       PDM_PRODUCTION_PROJECT_ID: jenfu-ai-pdm-prod
       PDM_PRODUCTION_REGION: asia-east1
       PDM_PRODUCTION_SERVICE: ai-pdm-prod
-      CANDIDATE_RUNTIME_FLAGS: PDM_NUMBER_STATE_FLOW_V1=true,PDM_NUMBER_LIFECYCLE_V2=true,PDM_UNIFIED_DRAWING_WORKBENCH_V1=true,PDM_DRAWING_RECOGNITION_V1=true,PDM_REVIEW_PACKAGE_V2_WRITE=true,PDM_UNIFIED_PART_RELATION_WORKBENCH_V1=true,PDM_UNIFIED_ENTITY_DETAIL_V1=true,PDM_DRAWING_REVISION_LIFECYCLE_MODE=enforced
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -245,26 +274,167 @@ jobs:
           const fs = require("node:fs");
           const report = JSON.parse(fs.readFileSync("output/production-release/migration-dry-run.json", "utf8"));
           if (report.mode !== "dry_run" || report.connectionAttempted !== false) throw new Error("PRODUCTION_MIGRATION_DRY_RUN_BOUNDARY_INVALID");
-          if (report.schemaMigrationCount !== 53) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
-          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/056_role_capability_display_snapshot.cloudsql.sql") {
+          if (report.schemaMigrationCount !== 54) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
+          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/063_production_smoke_tenant_isolation.cloudsql.sql") {
             throw new Error("PRODUCTION_MIGRATION_RANGE_INVALID");
           }
+          if (!/^([a-f0-9]{64})$/.test(report.manifestSha256)) throw new Error("PRODUCTION_MIGRATION_MANIFEST_DIGEST_INVALID");
           NODE
           docker push "$MIGRATION_IMAGE_TAG"
           MIGRATION_DIGEST="$(gcloud artifacts docker images describe "$MIGRATION_IMAGE_TAG" --project "$GCP_PROJECT_ID" --format='value(image_summary.digest)')"
           [[ "$MIGRATION_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
           MIGRATION_IMAGE_REF="$MIGRATION_IMAGE_PATH@$MIGRATION_DIGEST"
           printf '%s\n' "$MIGRATION_IMAGE_REF" > output/production-release/migration-image.txt
+          printf '%s\n' "$(node -e 'const r=require("./output/production-release/migration-dry-run.json"); process.stdout.write(r.manifestSha256)')" > output/production-release/migration-manifest-sha256.txt
           echo "digest=$MIGRATION_DIGEST" >> "$GITHUB_OUTPUT"
           echo "image_ref=$MIGRATION_IMAGE_REF" >> "$GITHUB_OUTPUT"
+          echo "manifest_sha256=$(cat output/production-release/migration-manifest-sha256.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable artifact preparation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-prepare-${{ github.sha }}-${{ github.run_id }}
+          path: output/production-release
+          if-no-files-found: error
+          retention-days: 30
+
+  candidate:
+    name: Deploy and smoke preverified zero-traffic candidate
+    if: ${{ inputs.stage == 'candidate' }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://jenfu-ai-pdm-prod.web.app
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      candidate_revision: ${{ steps.candidate.outputs.candidate_revision }}
+      candidate_url: ${{ steps.candidate.outputs.candidate_url }}
+      image_digest: ${{ inputs.application_image_digest }}
+      migration_image_digest: ${{ inputs.migration_image_digest }}
+    env:
+      GCP_PROJECT_ID: jenfu-ai-pdm-prod
+      GCP_PROJECT_NUMBER: "451715062958"
+      GCP_REGION: asia-east1
+      CLOUD_RUN_SERVICE: ai-pdm-prod
+      APPLICATION_CONTAINER: ai-pdm
+      IMAGE_PATH: asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm
+      MIGRATION_IMAGE_PATH: asia-east1-docker.pkg.dev/jenfu-ai-pdm-prod/ai-pdm/ai-pdm-migration
+      CANONICAL_BASE_URL: https://jenfu-ai-pdm-prod.web.app
+      WIF_PROVIDER: projects/451715062958/locations/global/workloadIdentityPools/github-actions/providers/ai-pdm-production
+      DEPLOYER_SERVICE_ACCOUNT: ai-pdm-prod-deployer@jenfu-ai-pdm-prod.iam.gserviceaccount.com
+      PDM_PRODUCTION_RELEASE_TRAFFIC_APPROVAL: AI-PDM-PRODUCTION-RELEASE-TRAFFIC-APPROVED
+      PDM_PRODUCTION_PROJECT_ID: jenfu-ai-pdm-prod
+      PDM_PRODUCTION_REGION: asia-east1
+      PDM_PRODUCTION_SERVICE: ai-pdm-prod
+      CANDIDATE_RUNTIME_FLAGS: PDM_NUMBER_STATE_FLOW_V1=true,PDM_NUMBER_LIFECYCLE_V2=true,PDM_UNIFIED_DRAWING_WORKBENCH_V1=true,PDM_DRAWING_RECOGNITION_V1=true,PDM_REVIEW_PACKAGE_V2_WRITE=true,PDM_UNIFIED_PART_RELATION_WORKBENCH_V1=true,PDM_UNIFIED_ENTITY_DETAIL_V1=true,PDM_DRAWING_REVISION_LIFECYCLE_MODE=enforced,PDM_SMOKE_GCS_WRITER=disabled,PDM_SMOKE_OUTBOX_CONSUMER=disabled,PDM_SMOKE_EXTERNAL_NOTIFICATION=disabled
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.release_commit }}
+          fetch-depth: 0
+
+      - name: Require artifact, migration, principal, and cost evidence
+        shell: bash
+        env:
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          APPLICATION_IMAGE_DIGEST: ${{ inputs.application_image_digest }}
+          MIGRATION_IMAGE_DIGEST: ${{ inputs.migration_image_digest }}
+          MIGRATION_MANIFEST_SHA256: ${{ inputs.migration_manifest_sha256 }}
+          MIGRATION_EVIDENCE_REF: ${{ inputs.migration_evidence_ref }}
+          SMOKE_PRINCIPAL_EVIDENCE_REF: ${{ inputs.smoke_principal_evidence_ref }}
+          DEV010_RELEASE_EVIDENCE_REF: ${{ inputs.dev010_release_evidence_ref }}
+          COST_EVIDENCE_REF: ${{ inputs.cost_evidence_ref }}
+        run: |
+          set -euo pipefail
+          [[ "$APPLICATION_IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          [[ "$MIGRATION_IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          [[ "$MIGRATION_MANIFEST_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          MIGRATION_DIGEST_HEX="${MIGRATION_IMAGE_DIGEST#sha256:}"
+          MIGRATION_PREFIX="production-migration://${RELEASE_COMMIT}/${MIGRATION_MANIFEST_SHA256}/${MIGRATION_DIGEST_HEX}/"
+          [[ "$MIGRATION_EVIDENCE_REF" == "$MIGRATION_PREFIX"* ]]
+          [[ "${MIGRATION_EVIDENCE_REF#"$MIGRATION_PREFIX"}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$ ]]
+          [[ "$SMOKE_PRINCIPAL_EVIDENCE_REF" =~ ^production-smoke-principal://company-smoke/[a-f0-9]{64}/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$ ]]
+          [[ "$DEV010_RELEASE_EVIDENCE_REF" =~ ^production-dev010://jenfu-ai-pdm-prod/[a-f0-9]{64}/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$ ]]
+          COST_PREFIX="production-smoke-cost://${RELEASE_COMMIT}/"
+          [[ "$COST_EVIDENCE_REF" == "$COST_PREFIX"* ]]
+          [[ "${COST_EVIDENCE_REF#"$COST_PREFIX"}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$ ]]
+          [[ "${MIGRATION_EVIDENCE_REF,,}${SMOKE_PRINCIPAL_EVIDENCE_REF,,}${DEV010_RELEASE_EVIDENCE_REF,,}${COST_EVIDENCE_REF,,}" != *staging* ]]
+          mkdir -p output/production-release
+          printf '%s\n' "$MIGRATION_EVIDENCE_REF" > output/production-release/migration-evidence-ref.txt
+          printf '%s\n' "$SMOKE_PRINCIPAL_EVIDENCE_REF" > output/production-release/smoke-principal-evidence-ref.txt
+          printf '%s\n' "$DEV010_RELEASE_EVIDENCE_REF" > output/production-release/dev010-release-evidence-ref.txt
+          printf '%s\n' "$COST_EVIDENCE_REF" > output/production-release/cost-evidence-ref.txt
+
+      - name: Recalculate current production smoke cost upper bound
+        shell: bash
+        env:
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          COST_EVIDENCE_REF: ${{ inputs.cost_evidence_ref }}
+        run: |
+          set -euo pipefail
+          node scripts/run-dev-116-release-cost-gate.mjs \
+            --release-commit "$RELEASE_COMMIT" \
+            --output output/production-release/dev-116-cost-gate.json
+          ACTUAL_COST_EVIDENCE_REF="$(node -e 'const r=require("./output/production-release/dev-116-cost-gate.json"); process.stdout.write(r.evidenceRef)')"
+          [[ "$ACTUAL_COST_EVIDENCE_REF" == "$COST_EVIDENCE_REF" ]]
+
+      - name: Authenticate to Google Cloud without a key
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          version: ">= 490.0.0"
+
+      - name: Verify prepared immutable artifacts and manifest
+        shell: bash
+        env:
+          APPLICATION_IMAGE_DIGEST: ${{ inputs.application_image_digest }}
+          MIGRATION_IMAGE_DIGEST: ${{ inputs.migration_image_digest }}
+          MIGRATION_MANIFEST_SHA256: ${{ inputs.migration_manifest_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$(gcloud config get-value project)" == "$GCP_PROJECT_ID" ]]
+          [[ "$(gcloud auth list --filter=status:ACTIVE --format='value(account)')" == "$DEPLOYER_SERVICE_ACCOUNT" ]]
+          gcloud auth configure-docker asia-east1-docker.pkg.dev --quiet
+          IMAGE_REF="$IMAGE_PATH@$APPLICATION_IMAGE_DIGEST"
+          MIGRATION_IMAGE_REF="$MIGRATION_IMAGE_PATH@$MIGRATION_IMAGE_DIGEST"
+          [[ "$(gcloud artifacts docker images describe "$IMAGE_REF" --project "$GCP_PROJECT_ID" --format='value(image_summary.digest)')" == "$APPLICATION_IMAGE_DIGEST" ]]
+          [[ "$(gcloud artifacts docker images describe "$MIGRATION_IMAGE_REF" --project "$GCP_PROJECT_ID" --format='value(image_summary.digest)')" == "$MIGRATION_IMAGE_DIGEST" ]]
+          docker pull "$MIGRATION_IMAGE_REF"
+          docker run --rm "$MIGRATION_IMAGE_REF" > output/production-release/migration-dry-run.json
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync("output/production-release/migration-dry-run.json", "utf8"));
+          const expected = process.env.MIGRATION_MANIFEST_SHA256;
+          if (report.mode !== "dry_run" || report.connectionAttempted !== false) throw new Error("PRODUCTION_MIGRATION_DRY_RUN_BOUNDARY_INVALID");
+          if (report.manifestSha256 !== expected) throw new Error("PRODUCTION_MIGRATION_MANIFEST_DRIFT");
+          if (report.schemaMigrationCount !== 54) throw new Error(`PRODUCTION_MIGRATION_COUNT_INVALID:${report.schemaMigrationCount}`);
+          if (report.firstSchemaMigration !== "sql/001_initial_schema.cloudsql.sql" || report.lastSchemaMigration !== "sql/063_production_smoke_tenant_isolation.cloudsql.sql") throw new Error("PRODUCTION_MIGRATION_RANGE_INVALID");
+          NODE
+          printf '%s\n' "$IMAGE_REF" > output/production-release/application-image.txt
+          printf '%s\n' "$MIGRATION_IMAGE_REF" > output/production-release/migration-image.txt
 
       - name: Deploy zero-traffic tagged candidate
         id: candidate
         shell: bash
         env:
-          IMAGE_REF: ${{ steps.image.outputs.image_ref }}
+          APPLICATION_IMAGE_DIGEST: ${{ inputs.application_image_digest }}
         run: |
           set -euo pipefail
+          IMAGE_REF="$IMAGE_PATH@$APPLICATION_IMAGE_DIGEST"
           BEFORE_JSON=output/production-release/service-before.json
           AFTER_JSON=output/production-release/service-candidate.json
           REVISION_JSON=output/production-release/revision-candidate.json
@@ -320,6 +490,9 @@ jobs:
             assert_revision_env "$flag" "true"
           done
           assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced
+          for isolation_flag in PDM_SMOKE_GCS_WRITER PDM_SMOKE_OUTBOX_CONSUMER PDM_SMOKE_EXTERNAL_NOTIFICATION; do
+            assert_revision_env "$isolation_flag" disabled
+          done
           [[ "$(jq -r --arg tag "$TAG" '.status.traffic[] | select(.tag == $tag) | (.percent // 0)' "$AFTER_JSON")" == "0" ]]
 
           echo "previous_revision=$PREVIOUS_REVISION" >> "$GITHUB_OUTPUT"
@@ -336,7 +509,7 @@ jobs:
             --base-url "${{ steps.candidate.outputs.candidate_url }}" \
             --direct-base-url "${{ steps.candidate.outputs.direct_base_url }}" \
             --revision "${{ steps.candidate.outputs.candidate_revision }}" \
-            --image-digest "${{ steps.image.outputs.digest }}" \
+            --image-digest "${{ inputs.application_image_digest }}" \
             --source-revision "$GITHUB_SHA" \
             --output output/production-release/candidate-smoke.json
 
@@ -421,12 +594,14 @@ jobs:
         shell: bash
         env:
           RELEASE_COMMIT: ${{ inputs.release_commit }}
+          APPLICATION_IMAGE_DIGEST: ${{ inputs.application_image_digest }}
           CANDIDATE_REVISION: ${{ inputs.candidate_revision }}
           LEVEL4_EVIDENCE_REF: ${{ inputs.level4_evidence_ref }}
           PRODUCT_OWNER_DECISION: ${{ inputs.product_owner_decision }}
           PROMOTION_APPROVAL: ${{ inputs.promotion_approval }}
         run: |
           set -euo pipefail
+          [[ "$APPLICATION_IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
           [[ "$CANDIDATE_REVISION" =~ ^ai-pdm-prod-[a-z0-9-]{3,48}$ ]]
           EXPECTED_EVIDENCE_PREFIX="production-candidate://${CANDIDATE_REVISION}/${RELEASE_COMMIT}/"
           [[ "$LEVEL4_EVIDENCE_REF" == "$EXPECTED_EVIDENCE_PREFIX"* ]]
@@ -455,6 +630,7 @@ jobs:
         shell: bash
         env:
           RELEASE_COMMIT: ${{ inputs.release_commit }}
+          APPLICATION_IMAGE_DIGEST: ${{ inputs.application_image_digest }}
           CANDIDATE_REVISION: ${{ inputs.candidate_revision }}
           LEVEL4_EVIDENCE_REF: ${{ inputs.level4_evidence_ref }}
         run: |
@@ -473,8 +649,8 @@ jobs:
           [[ "$CANDIDATE_PERCENT" == "0" ]]
 
           gcloud run revisions describe "$CANDIDATE_REVISION" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > "$REVISION_JSON"
-          EXPECTED_DIGEST="$(gcloud artifacts docker images describe "$IMAGE_PATH:$RELEASE_COMMIT" --project "$GCP_PROJECT_ID" --format='value(image_summary.digest)')"
-          [[ "$EXPECTED_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          EXPECTED_DIGEST="$APPLICATION_IMAGE_DIGEST"
+          [[ "$(gcloud artifacts docker images describe "$IMAGE_PATH@$EXPECTED_DIGEST" --project "$GCP_PROJECT_ID" --format='value(image_summary.digest)')" == "$EXPECTED_DIGEST" ]]
           EXPECTED_IMAGE="$IMAGE_PATH@$EXPECTED_DIGEST"
           CANDIDATE_IMAGE="$(jq -r --arg name "$APPLICATION_CONTAINER" '.spec.containers[] | select(.name == $name) | .image' "$REVISION_JSON")"
           [[ "$CANDIDATE_IMAGE" == "$EXPECTED_IMAGE" ]]
@@ -501,6 +677,9 @@ jobs:
             assert_revision_env "$flag" "true"
           done
           assert_revision_env PDM_DRAWING_REVISION_LIFECYCLE_MODE enforced
+          for isolation_flag in PDM_SMOKE_GCS_WRITER PDM_SMOKE_OUTBOX_CONSUMER PDM_SMOKE_EXTERNAL_NOTIFICATION; do
+            assert_revision_env "$isolation_flag" disabled
+          done
 
           printf '%s\n' "$LEVEL4_EVIDENCE_REF" > output/production-release/authenticated-level4-evidence-ref.txt
           echo "candidate_revision=$CANDIDATE_REVISION" >> "$GITHUB_OUTPUT"

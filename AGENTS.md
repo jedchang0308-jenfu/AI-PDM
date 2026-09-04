@@ -8,6 +8,17 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Shared database boundary — DEV010_DB_RULESET_V1
+
+- DEV-010 shared PostgreSQL DDL must be delivered as a forward-only migration under `db/postgres`; never edit the shared managed database by hand.
+- This repository may create or alter only `ai_pdm_core` and `ai_pdm_contract`. Never reference another application's `*_core` schema.
+- Cross-application access must use a versioned `*_contract` object. A breaking contract change requires a new version and a compatibility window.
+- Never modify or delete an applied migration. Correct it with a new migration.
+- Do not create application-owned objects in `public`.
+- Runtime identities must never receive owner, DDL, or migrator privileges.
+- Before completing a shared PostgreSQL database change, run `npm run check:db-boundary`.
+- If schema ownership or contract impact is unclear, stop and record the decision in the relevant DEV or ADR before changing SQL.
+
 # Local runtime and data isolation
 
 - Every build, test, preview, worker, or browser runtime must declare its project, purpose, port, owning process tree, cleanup condition, `PDM_DATA_DIR`, and `PDM_REPOSITORY_DIR` mutation scope before start.

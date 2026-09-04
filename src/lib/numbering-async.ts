@@ -97,13 +97,18 @@ export async function createNumberingRecordAsync(input: CreateNumberingRecordInp
   partNumber: PartNumberRecord;
   drawingNumber: DrawingNumberRecord | null;
 }> {
+  const companyId = input.companyId?.trim();
+  if (!companyId) throw new Error("PDM_COMPANY_ID_REQUIRED");
   const client = getAsyncDatabaseClient();
   const commandMetadata = metadata ?? createFallbackCommandMetadata({
     pdmUserId: input.createdBy,
-    organizationId: input.companyId,
+    organizationId: companyId,
     commandName: "pdm.numbering.create_official_record",
     idempotencyKey: input.idempotencyKey
   });
+  if (commandMetadata.actor.organizationId !== companyId) {
+    throw new Error("PLATFORM_ACTOR_COMPANY_MISMATCH");
+  }
   const command = createPdmCommand({
     commandName: "pdm.numbering.create_official_record",
     idempotencyKey: commandMetadata.idempotencyKey,

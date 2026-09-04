@@ -137,6 +137,23 @@ resource "google_cloud_run_v2_service" "pdm" {
         value = "enforced"
       }
 
+      # Production smoke writes are tenant-isolated. External side effects stay
+      # fail-closed for both the serving revision and zero-traffic candidates.
+      env {
+        name  = "PDM_SMOKE_GCS_WRITER"
+        value = "disabled"
+      }
+
+      env {
+        name  = "PDM_SMOKE_OUTBOX_CONSUMER"
+        value = "disabled"
+      }
+
+      env {
+        name  = "PDM_SMOKE_EXTERNAL_NOTIFICATION"
+        value = "disabled"
+      }
+
       env {
         name  = "PDM_DB_PROVIDER"
         value = "cloud_sql_postgres"

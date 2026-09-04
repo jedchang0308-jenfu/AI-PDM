@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "production-smoke-tenant/v1",
+  "company": {
+    "id": "company-smoke",
+    "code": "SMOKE",
+    "kind": "production_smoke",
+    "displayName": "Production 驗證租戶"
+  },
+  "principalPolicy": {
+    "requiredRole": "Engineer",
+    "exclusiveMembership": true,
+    "activePrincipalMappingRequired": true,
+    "activeOrganizationMappingRequired": true
+  },
+  "sideEffects": {
+    "gcsWriter": "disabled",
+    "outboxConsumer": "disabled",
+    "externalNotification": "disabled"
+  },
+  "retention": {
+    "committedNumberPolicy": "retained_controlled",
+    "numberReuse": "forbidden"
+  },
+  "auditScopeAuthority": "src/lib/audit-scope.ts"
+}

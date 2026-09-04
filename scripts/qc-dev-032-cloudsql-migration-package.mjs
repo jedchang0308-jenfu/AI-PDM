@@ -57,15 +57,21 @@ try {
   record("DEV032-CLOUDSQL-MIG-001 package identifies production Gate C", report.dev === "DEV-032" && report.phase === "Gate-C-production-clean-seed-migration");
   record("DEV032-CLOUDSQL-MIG-002 target is dedicated production", report.target.projectId === "jenfu-ai-pdm-prod" && report.target.cloudSqlInstance === "ai-pdm-prod-postgres" && report.target.connectionName === "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres");
   record("DEV032-CLOUDSQL-MIG-003 IAM database users are production-only", report.target.runtimeIamDatabaseUser === "ai-pdm-prod-runtime@jenfu-ai-pdm-prod.iam" && report.target.migrationIamDatabaseUser === "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam");
-  record("DEV032-CLOUDSQL-MIG-004 package excludes Supabase RLS and Phase 3B GCS", report.candidatePackage.excludedFiles.some((item) => item.file.endsWith("002_supabase_rls_plan.sql")) && report.candidatePackage.excludedFiles.some((item) => item.file.endsWith("011_gcs_pointer_numbering_continuity.sql")));
+  record(
+    "DEV032-CLOUDSQL-MIG-004 package excludes Supabase RLS, Phase 3B GCS, and DEV-010-owned neutral cutover",
+    report.candidatePackage.excludedFiles.some((item) => item.file.endsWith("002_supabase_rls_plan.sql")) &&
+      report.candidatePackage.excludedFiles.some((item) => item.file.endsWith("011_gcs_pointer_numbering_continuity.sql")) &&
+      report.candidatePackage.excludedFiles.some((item) => item.file.endsWith("062_dev010_neutral_schema_boundary.sql") && item.reason === "dev010_shared_database_release_orchestrator_owned")
+  );
   record("DEV032-CLOUDSQL-MIG-005 generated SQL is runner-safe", !/\b(?:anon|authenticated|service_role)\b/iu.test(generatedSql) && !/\b(?:ENABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY\b/iu.test(generatedSql) && !/^\s*(?:BEGIN|COMMIT)\s*;\s*$/gimu.test(generatedSql));
   record(
     "DEV032-CLOUDSQL-MIG-006 manifest is immutable, complete and non-authorizing",
       manifest.status === "proposal_only_not_approved_for_live_apply" &&
       manifest.executionBoundary.liveApplyAllowed === false &&
-      manifest.orderedSchemaMigrations.length === 53 &&
+      manifest.orderedSchemaMigrations.length === 54 &&
       manifest.orderedSchemaMigrations.at(0)?.output === "sql/001_initial_schema.cloudsql.sql" &&
-      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/056_role_capability_display_snapshot.cloudsql.sql" &&
+      manifest.orderedSchemaMigrations.at(-1)?.output === "sql/063_production_smoke_tenant_isolation.cloudsql.sql" &&
+      !manifest.orderedSchemaMigrations.some((item) => item.version === "062") &&
       manifest.orderedSchemaMigrations.every((item) => item.outputSha256?.length === 64)
   );
   record("DEV032-CLOUDSQL-MIG-007 runner requires production-specific approval", runner.includes("DEV-032-PRODUCTION-CLOUDSQL-MIGRATION-APPROVED") && runner.includes("DEV032_CLOUDSQL_MIGRATION_APPROVAL") && runner.includes("DEV032_CLOUDSQL_ADMIN_BOOTSTRAP_CONFIRMED"));

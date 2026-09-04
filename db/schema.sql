@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS companies (
   id TEXT PRIMARY KEY,
   company_code TEXT NOT NULL UNIQUE,
+  company_kind TEXT NOT NULL DEFAULT 'business'
+    CHECK (company_kind IN ('business', 'production_smoke')),
   display_name TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -838,9 +840,19 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   actor_id TEXT,
   action TEXT NOT NULL,
   detail_json TEXT NOT NULL DEFAULT '{}',
+  company_id TEXT,
+  scope_kind TEXT NOT NULL DEFAULT 'legacy_unscoped'
+    CHECK (
+      (scope_kind = 'tenant' AND company_id IS NOT NULL)
+      OR (scope_kind IN ('global', 'legacy_unscoped') AND company_id IS NULL)
+    ),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT
 );
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_company_scope_created
+  ON audit_logs(company_id, scope_kind, action, created_at);
 
 CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_update
 BEFORE UPDATE ON audit_logs

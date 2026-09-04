@@ -1,5 +1,7 @@
 # SPEC-PDM-PRODUCTION-SLICE-001 - Official numbering and draft production slice
 
+> 2026-09-04 DEV-116 Local Closure Amendment：既有`Smoke 3A`決策不變；smoke company的current implementation／evidence authority由focused SPEC、固定31案QA與machine registry承接。116-A→B→C已依序完成，typed company／audit／sequence／Current async read model、PostgreSQL 063 artifact、side-effect fail-closed、smoke-only badge與六producer＋aggregate均已落地；Current=`31/31 PASS / local-foundation`。非Current audit writer仍列`TD-116-01`，production R01-R04仍`NOT_RUN`。Local 31/31不得稱Production Level 4，只有116-R exact candidate authenticated commit＋reload的R02可以；production write smoke維持release gated。
+
 > 2026-08-29 Release Governance Amendment：公司內部約5人使用的production不再以3–5位具名使用者Wave 0驗收作為traffic promotion前置條件，也不再有Wave 0 waiver、`wave0_mode`或candidate-bound waiver reference。現行release contract保留exact `main` artifact、0% candidate、migration／DB safety、basic smoke、candidate-bound authenticated Level 4、zero open P0/P1、rollback readiness、Product Owner `go`、exact promotion token、traffic-only promote與canonical post-promote smoke。Production帳號allowlist仍是fail-closed安全控制，但不屬於user acceptance gate；本文件後續舊Wave/Canary敘述只作歷史決策追溯。
 
 > 2026-08-22 DEV-087 Amendment：正式號不可重用、numbering identity/recycling、default-deny與production/release gate保留；`numbering_draft_workspaces`不再是DEV-087三工作臺的current-work/status authority，只可作唯一可證明的conversion source或其他明確保留domain evidence。新決策優先，activation時舊workbench reader/command/filter/fallback能拆即拆，不保留雙軌相容。

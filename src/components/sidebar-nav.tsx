@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   Factory,
   FileText,
+  FlaskConical,
   KeyRound,
   LogIn,
   Menu,
@@ -46,6 +47,11 @@ type ProductionSliceClientStatus = {
 
 type SidebarUser = {
   display_name: string;
+  default_company?: {
+    companyCode?: string;
+    companyKind?: string;
+    displayName?: string;
+  } | null;
 };
 
 const navSections: NavSection[] = [
@@ -253,6 +259,18 @@ export function SidebarNav() {
           {mobileNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
         </button>
       </div>
+      {currentUser?.default_company?.companyKind === "production_smoke" ? (
+        <div
+          className="smoke-tenant-indicator"
+          role="status"
+          aria-label="目前為 Production 驗證租戶"
+          title="目前為 Production 驗證租戶；資料與正式公司隔離"
+          data-testid="production-smoke-tenant-indicator"
+        >
+          <FlaskConical size={15} aria-hidden="true" />
+          <span>驗證租戶</span>
+        </div>
+      ) : null}
       <nav id="primary-navigation" className={mobileNavOpen ? "nav mobile-open" : "nav"} aria-label="主導覽">
         {navSections.map((section) => {
           const visibleItems = section.items.filter((item) => isVisibleItem(item, pagePermissions, productionSlice));
