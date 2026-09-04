@@ -71,6 +71,21 @@ test('N2-AI-06 migration imports the immutable ledger and enforces empty public 
   assert.match(migration, /INSERT INTO ai_pdm_core\.schema_migrations/u)
   assert.match(migration, /DROP TABLE public\.pdm_schema_migrations/u)
   assert.match(migration, /DEV010_N2_PUBLIC_BUSINESS_OBJECT_REMAINS/u)
+  for (const view of [
+    'v_r1_company_scope_v1',
+    'v_r1_numbering_objects_v1',
+    'v_r1_numbering_relations_v1',
+    'v_r1_sequence_state_v1',
+    'v_r1_numbering_create_audit_v1',
+    'v_r1_command_effect_v1',
+  ]) {
+    assert.match(migration, new RegExp(`CREATE OR REPLACE VIEW ai_pdm_contract\\.${view}[\\s\\S]+?security_barrier = true`, 'u'))
+  }
+  assert.match(migration, /GRANT SELECT ON TABLE[\s\S]+ai_pdm_contract\.v_r1_command_effect_v1[\s\S]+TO jenfu_r1_verifier/u)
+  assert.doesNotMatch(migration, /GRANT (?:SELECT|INSERT|UPDATE|DELETE|ALL)[^;]+ai_pdm_core\.[^;]+jenfu_r1_verifier/iu)
+  assert.doesNotMatch(migration, /GRANT (?:USAGE|SELECT|ALL)[^;]+SEQUENCES[^;]+jenfu_r1_verifier/iu)
+  assert.doesNotMatch(migration, /GRANT (?:EXECUTE|ALL)[^;]+FUNCTION[^;]+jenfu_r1_verifier/iu)
+  assert.doesNotMatch(migration, /detail_json\s+AS|response_json\s+AS|payload_json\s+AS/iu)
   assert.equal(config.connectionBudget.poolMax, 8)
 })
 

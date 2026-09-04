@@ -34,6 +34,7 @@ const dev116R02ReceiptCli = read("scripts/dev116-r02-receipt.mjs");
 const dev116R02BrowserLibrary = read("scripts/lib/dev116-r02-browser-executor.mjs");
 const dev116R02Browser = read("scripts/run-dev116-r02-authenticated-browser.mjs");
 const dev116R02Finalize = read("scripts/dev116-r02-finalize.mjs");
+const dev010NeutralMigration = read("db/postgres/062_dev010_neutral_schema_boundary.sql");
 const trafficRunner = read("scripts/run-production-release-traffic.mjs");
 const releaseSourceManifestUtils = read("scripts/dev-032-release-source-manifest-utils.mjs");
 const dockerfile = read("Dockerfile");
@@ -260,6 +261,16 @@ record("PROD-PIPE-008F authenticated R02 is preflight-bound UI evidence joined w
   assert.match(dev116R02Finalize, /joinDev116R02Evidence/u);
   assert.match(dev116R02Finalize, /buildDev116R02Receipt/u);
   assert.doesNotMatch(dev116R02Finalize, /chromium|fetch\s*\(|gcloud|terraform|promote|migrate|deploy/iu);
+  for (const view of [
+    "v_r1_company_scope_v1",
+    "v_r1_numbering_objects_v1",
+    "v_r1_numbering_relations_v1",
+    "v_r1_sequence_state_v1",
+    "v_r1_numbering_create_audit_v1",
+    "v_r1_command_effect_v1"
+  ]) assert.match(dev010NeutralMigration, new RegExp(`CREATE OR REPLACE VIEW ai_pdm_contract\\.${view}`, "u"));
+  assert.match(dev010NeutralMigration, /GRANT SELECT ON TABLE[\s\S]+v_r1_command_effect_v1[\s\S]+TO jenfu_r1_verifier/u);
+  assert.doesNotMatch(dev010NeutralMigration, /GRANT (?:SELECT|INSERT|UPDATE|DELETE|ALL)[^;]+ai_pdm_core\.[^;]+jenfu_r1_verifier/iu);
 });
 
 record("PROD-PIPE-008D promotion rechecks candidate zero traffic and immutable image provenance", () => {

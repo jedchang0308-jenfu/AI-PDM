@@ -214,6 +214,126 @@ AS
 SELECT contract_id, contract_version, signature_sha256::text, payload_sha256::text
 FROM ai_pdm_core.contract_manifest;
 
+CREATE OR REPLACE VIEW ai_pdm_contract.v_r1_company_scope_v1
+WITH (security_barrier = true)
+AS
+SELECT id AS company_id, company_code, company_kind
+FROM ai_pdm_core.companies
+WHERE id IN ('company-jenfu', 'company-smoke');
+
+CREATE OR REPLACE VIEW ai_pdm_contract.v_r1_numbering_objects_v1
+WITH (security_barrier = true)
+AS
+SELECT
+  'root'::text AS object_kind,
+  root.id AS object_id,
+  root.company_id,
+  root.root_code AS object_code,
+  NULL::text AS parent_root_id,
+  NULL::integer AS sequence_no,
+  root.record_status,
+  root.created_at
+FROM ai_pdm_core.part_roots AS root
+WHERE root.company_id IN ('company-jenfu', 'company-smoke')
+UNION ALL
+SELECT
+  'part'::text,
+  part.id,
+  part.company_id,
+  part.part_number,
+  part.part_root_id,
+  part.sequence_no,
+  part.record_status,
+  part.created_at
+FROM ai_pdm_core.part_numbers AS part
+WHERE part.company_id IN ('company-jenfu', 'company-smoke')
+UNION ALL
+SELECT
+  'drawing'::text,
+  drawing.id,
+  drawing.company_id,
+  drawing.drawing_number,
+  drawing.part_root_id,
+  drawing.sequence_no,
+  drawing.record_status,
+  drawing.created_at
+FROM ai_pdm_core.drawing_numbers AS drawing
+WHERE drawing.company_id IN ('company-jenfu', 'company-smoke');
+
+CREATE OR REPLACE VIEW ai_pdm_contract.v_r1_numbering_relations_v1
+WITH (security_barrier = true)
+AS
+SELECT
+  link.id AS relation_id,
+  drawing.company_id,
+  link.drawing_number_id,
+  link.part_number_id,
+  link.link_type,
+  link.created_at
+FROM ai_pdm_core.drawing_part_links AS link
+JOIN ai_pdm_core.drawing_numbers AS drawing ON drawing.id = link.drawing_number_id
+JOIN ai_pdm_core.part_numbers AS part
+  ON part.id = link.part_number_id
+ AND part.company_id = drawing.company_id
+WHERE drawing.company_id IN ('company-jenfu', 'company-smoke');
+
+CREATE OR REPLACE VIEW ai_pdm_contract.v_r1_sequence_state_v1
+WITH (security_barrier = true)
+AS
+SELECT sequence_key, company_id, next_value, updated_at
+FROM ai_pdm_core.numbering_sequences
+WHERE company_id IN ('company-jenfu', 'company-smoke');
+
+CREATE OR REPLACE VIEW ai_pdm_contract.v_r1_numbering_create_audit_v1
+WITH (security_barrier = true)
+AS
+SELECT
+  id AS audit_id,
+  company_id,
+  scope_kind,
+  action,
+  detail_json ->> 'rootCode' AS root_code,
+  detail_json ->> 'partNumber' AS part_number,
+  detail_json ->> 'drawingNumber' AS drawing_number,
+  created_at
+FROM ai_pdm_core.audit_logs
+WHERE company_id IN ('company-jenfu', 'company-smoke')
+  AND scope_kind = 'tenant'
+  AND action = 'numbering.create';
+
+CREATE OR REPLACE VIEW ai_pdm_contract.v_r1_command_effect_v1
+WITH (security_barrier = true)
+AS
+SELECT
+  'command_receipt'::text AS effect_kind,
+  receipt.id AS effect_id,
+  receipt.company_id,
+  receipt.command_name AS effect_name,
+  NULL::text AS aggregate_id,
+  receipt.response_json #>> '{result,root,id}' AS root_id,
+  receipt.response_json #>> '{result,partNumber,id}' AS part_id,
+  receipt.response_json #>> '{result,drawingNumber,id}' AS drawing_id,
+  receipt.command_status AS effect_status,
+  COALESCE(receipt.completed_at, receipt.created_at) AS occurred_at
+FROM ai_pdm_core.platform_command_receipts AS receipt
+WHERE receipt.company_id IN ('company-jenfu', 'company-smoke')
+  AND receipt.command_name = 'pdm.numbering.create_official_record'
+UNION ALL
+SELECT
+  'outbox_event'::text,
+  event.id,
+  event.company_id,
+  event.event_type,
+  event.aggregate_id,
+  event.aggregate_id,
+  NULL::text,
+  NULL::text,
+  event.delivery_status,
+  event.occurred_at
+FROM ai_pdm_core.platform_outbox_events AS event
+WHERE event.company_id IN ('company-jenfu', 'company-smoke')
+  AND event.event_type = 'pdm.numbering.official_record_created.v1';
+
 -- PostgreSQL does not create indexes on referencing columns for foreign keys.
 -- The pre-DEV-010 AI PDM schema therefore carries a sizeable set of unindexed
 -- foreign keys after it is moved into ai_pdm_core.  Create deterministic,
@@ -294,15 +414,15 @@ BEGIN
   LOOP
     EXECUTE format('ALTER FUNCTION %s OWNER TO jenfu_ai_pdm_migrator', routine.signature);
     EXECUTE format('ALTER FUNCTION %s SET search_path = ai_pdm_core, pg_catalog', routine.signature);
-    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime', routine.signature);
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime, jenfu_r1_verifier', routine.signature);
   END LOOP;
 END;
 $ownership_and_search_path$;
 
 REVOKE CREATE ON SCHEMA public, ai_pdm_core, ai_pdm_contract FROM PUBLIC;
-REVOKE ALL ON ALL TABLES IN SCHEMA ai_pdm_core FROM PUBLIC, jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime;
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA ai_pdm_core FROM PUBLIC, jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime;
-REVOKE ALL ON ALL TABLES IN SCHEMA ai_pdm_contract FROM PUBLIC, jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime;
+REVOKE ALL ON ALL TABLES IN SCHEMA ai_pdm_core FROM PUBLIC, jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime, jenfu_r1_verifier;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA ai_pdm_core FROM PUBLIC, jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime, jenfu_r1_verifier;
+REVOKE ALL ON ALL TABLES IN SCHEMA ai_pdm_contract FROM PUBLIC, jenfu_platform_runtime, jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime, jenfu_r1_verifier;
 GRANT USAGE ON SCHEMA ai_pdm_core TO jenfu_ai_pdm_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA ai_pdm_core TO jenfu_ai_pdm_runtime;
 REVOKE ALL ON TABLE ai_pdm_core.schema_migrations, ai_pdm_core.contract_manifest FROM jenfu_ai_pdm_runtime;
@@ -311,6 +431,15 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA ai_pdm_core TO jenfu_ai_pdm_runtime;
 GRANT USAGE ON SCHEMA ai_pdm_contract TO jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime;
 GRANT SELECT ON TABLE ai_pdm_contract.v_application_role_catalog_v1, ai_pdm_contract.v_contract_manifest_v1
   TO jenfu_orgmaster_runtime, jenfu_ai_pdm_runtime;
+GRANT USAGE ON SCHEMA ai_pdm_contract TO jenfu_r1_verifier;
+GRANT SELECT ON TABLE
+  ai_pdm_contract.v_r1_company_scope_v1,
+  ai_pdm_contract.v_r1_numbering_objects_v1,
+  ai_pdm_contract.v_r1_numbering_relations_v1,
+  ai_pdm_contract.v_r1_sequence_state_v1,
+  ai_pdm_contract.v_r1_numbering_create_audit_v1,
+  ai_pdm_contract.v_r1_command_effect_v1
+TO jenfu_r1_verifier;
 
 DO $assert_public_empty$
 BEGIN
