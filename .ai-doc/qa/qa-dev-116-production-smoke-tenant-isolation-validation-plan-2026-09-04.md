@@ -223,4 +223,6 @@ output/qa/dev-116-production-smoke-tenant/<run-id>/
 
 116-A已先完成QA-116-001..012，116-B再完成013..022，116-C最後完成023..031；固定分母未調整，Current=`31/31 PASS`。第一次aggregate因Next runtime改寫受保護的`next-env.d.ts`而正確FAIL，修正runner復原與cleanup assertion後才允許最終run。Current 31/31只支持local isolation foundation completion；`QA-116-R01..R04`仍須另行release gate與production明確授權，其中只有R02可形成Production Level 4 claim。
 
+2026-09-05 cross-gate dependency readback：Platform bootstrap database ACL hard-code已修正並完成fresh N1A `11/11 unit＋30/30 PostgreSQL QC PASS`；三repo detached exact-HEAD N2 aggregate=`../../../Jenfu-Management-system/output/dev-010/n2/aggregate/AGGREGATE-20260904T164946034Z-9908/aggregate-report.json`，`48/48 PASS`，SHA-256=`548f54f43ee2896c0ac448789dd6905fefd72da9e241d937f603f75a246d5a1b`，cleanup與`productionWrites=false`均PASS。此結果只解除bootstrap source requalification缺口；R1 source lock須依最新三repo HEAD重建，current 9項human／target／capacity blocker、provider-native 15案與R02 actual execution仍為`NOT_RUN`，不得宣稱Production Level 4已完成。
+
 使用思考習慣：#可驗證性、#批判、#風險管理
