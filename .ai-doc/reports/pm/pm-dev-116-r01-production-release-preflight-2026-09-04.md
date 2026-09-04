@@ -4,16 +4,22 @@
 Release ID：`REL-116-20260904`
 狀態：`R01 started / fail-closed / DEV-010 R1 dependency blocked / production data writes 0`
 
+## 2026-09-04 Follow-up amendment（current authority）
+
+本報告下方原有`2A REGIONAL_DEDICATED`與「exact REGIONAL tier／cost未核定」描述是R01執行當時的歷史快照，現已由使用者後續成本決策有意取代。Current DEV-010 production target為`db-custom-1-3840 / ZONAL_DEDICATED / USD 100 alerts-only budget（TWD 3,200）`；保留automatic backups、PITR、deletion protection、private IP、IAM DB auth及app schema／role隔離，不提供automatic cross-zone failover，也不得宣稱HA。
+
+R01仍為`BLOCKED`。舊REGIONAL machine config缺口已關閉：Platform capacity v2／preflight v3／release-adapter v2已前向更新為current ZONAL方案，unit `5/5 + 15/15 + 11/11`與三項focused QC均PASS。Current preflight仍列9項blocker：neutral project identity、正整數RTO、非負整數RPO、budget／restore／incident／maintenance owners、maintenance window與`db-custom-1-3840` R1-11兩輪數值容量；DEV-010 production 15案provider executor亦尚未執行。AI-PDM已補`QA-116-R02` hash-bound receipt verifier `5/5 PASS`，與Platform `QA-010-R1-07`形成同receipt co-gate；但authenticated production browser executor及真實COMMIT＋reload仍未執行。上述條件未完成前不得production write、migration、deploy或promotion。
+
 ## 結論
 
-DEV-116可以依序解鎖，但不能從local foundation直接跳到Production write smoke。正式Cloud SQL唯讀盤點證明目前仍是第一版legacy topology；`062`所需的neutral schemas、roles與Platform／OrgMaster contracts均不存在。使用者已完成1A classified source commit授權、2A `REGIONAL_DEDICATED`選擇與3A「15案全PASS後才live migration」授權；尚未套用`063`、建立smoke principal、部署candidate或切換流量。
+DEV-116可以依序解鎖，但不能從local foundation直接跳到Production write smoke。正式Cloud SQL唯讀盤點證明目前仍是第一版legacy topology；`062`所需的neutral schemas、roles與Platform／OrgMaster contracts均不存在。使用者已完成1A classified source commit授權、後續選定`db-custom-1-3840 / ZONAL_DEDICATED / USD 100`取代原2A REGIONAL方向，並以3A授權「15案全PASS後才live migration」；尚未套用`063`、建立smoke principal、部署candidate或切換流量。
 
 正確順序固定為：
 
 1. `DEV-116 legacy 063`：使用現有AI-PDM migration identity在legacy `public` layout完成backup／restore rehearsal後套用location-aware 063。
 2. `DEV-010 R1`：由三系統release orchestrator依producer-first graph建立neutral roles/contracts並移動三app schema；不得由AI-PDM legacy runner執行062。
 3. `DEV-116 R01`：讀回`company-smoke`、專用corporate principal、single membership、active OrgMaster mapping、sequence/audit/read-model zero leak與三個side-effect flags。
-4. `DEV-116 R02`：對zero-traffic candidate走正常Production登入與UI，真實commit一個root＋part＋drawing bundle，reload/readback；只有此步可稱Production Level 4。
+4. `DEV-116 R02`：對zero-traffic candidate走正常Production登入與UI，以`company-smoke`真實commit一個root＋part＋drawing bundle並reload/readback；同一machine receipt必須被Platform `QA-010-R1-07`引用，只有兩邊co-gate一致PASS才可稱AI-PDM Production Level 4。
 5. `DEV-116 R03`：Product Owner另行GO後才promotion，完成canonical smoke；失敗則traffic-only rollback。
 
 ## Production唯讀證據
@@ -70,17 +76,18 @@ R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343
 | 新固定SKU | 0 |
 | 核准界線 | USD 0.10/run；USD 1/month |
 
-此值只涵蓋例行DEV-116 smoke增量，不把DEV-010 shared production topology／HA升級成本混入。Current Cloud SQL實際是ZONAL；若DEV-010選REGIONAL HA，增加的是三系統production architecture固定成本，不是company-smoke造成的成本。
+此值只涵蓋例行DEV-116 smoke增量，不把DEV-010 shared production topology成本混入。Current決策已選ZONAL dedicated-core；未來若另行升級REGIONAL，增加的是三系統production architecture固定成本，不是company-smoke造成的成本。
 
 ## Gate結果
 
 - Static／package gates：migration package `15/15 PASS`、production pipeline `24/24 PASS`、DEV-095 `20/20 PASS`、DEV-106 `25/25 PASS`、workflow YAML parse PASS。
 - R01 adapter regression：`DEV116-R01-ADAPTER-20260904-R1`固定`31/31 PASS`，含正常瀏覽器登入／建立／commit／reload、response-loss同key收斂、雙tenant zero-leak、side-effect disabled readback與六種mutant；證據仍明確為`claimLevel=local-foundation`、`productionLevel4Claimed=false`，所有task-owned browser／Next／PostgreSQL runtime與ports均已清理。
-- DEV-010 R1A preflight：v2 unit `14/14 PASS`；新增tampered lock、tree drift、post-lock staged drift與N2 required-source-untracked negative gates。後續未stage工作樹開發會列為excluded，release runner只能使用clean locked worktree。Current `REL-116-20260904`只剩neutral target identity與exact tier兩項blocker，production／cloud／traffic mutations均為0。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/preflight.json`。
+- DEV-010 R1 preflight：current capacity v2 unit `5/5 PASS`、preflight v3 unit `15/15 PASS`、release-adapter v2 unit `11/11 PASS`，三項focused QC均PASS。Tampered lock／tree drift／post-lock staged drift／untracked required source、舊REGIONAL、R1-07 receipt drift與R1-11 numeric overrun皆有fail-closed coverage；current preflight列9項human／target／capacity blocker。Production／cloud／traffic mutations均為0。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/`。
 - DEV-010 R1A source classification：unit `5/5 PASS`；classified commits、N2 clean requalification與post-commit HEAD＋tree lock完成，generated-local不進release source；並另有preflight unit `14/14 PASS`。
 - R04 cost policy precheck：以current source revision `80770f2db257374725414456efeb0f0d0302da0f`計算為PASS；這不是最終release commit綁定證據，source freeze後必須重新產生。
-- R01：`BLOCKED`。N2 source requalification已完成；目前原因收斂為neutral project identity與exact REGIONAL dedicated-core tier／cost尚未核定，且DEV-010 R1 15案runner尚未實作／執行。
-- DEV-010 R1 executable gate：`PARTIAL`。R1A exact source已freeze；production rehearsal／apply runner尚待完成，neutral project identity仍ambiguous且exact REGIONAL dedicated-core tier／cost未核定。
+- AI-PDM R02 receipt gate：schema／hash／redaction／candidate／actor／company／commit-readback／Jenfu invariant／side-effect verifier與Platform projection已實作，unit `5/5 PASS`；既有generic production smoke明確不得輸出Level 4 claim。這不是authenticated candidate execution，R02仍`NOT_RUN`。
+- R01：`BLOCKED`。N2 source requalification與ZONAL machine contract focused QC已完成；current阻塞為neutral project identity、RTO／RPO、owners／maintenance、R1-11 numeric capacity，以及DEV-010 R1 15案provider execution。
+- DEV-010 R1 executable gate：`PARTIAL`。R1A exact source已freeze、current machine contract與strict receipt validators已完成；production rehearsal／apply executor尚待完成，neutral project identity仍ambiguous。
 - R02／R03：`NOT_RUN`。
 - Production data writes：`0`；deploy：`0`；traffic change：`0`；principal provisioning：`0`。
 
@@ -88,8 +95,8 @@ R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343
 
 下一個有風險動作不是DEV-116 candidate，而是先把跨`Jenfu-Management-system / OrgMaster / AI_PDM`的DEV-010 R1補成可重現release contract。恢復條件為：
 
-1. 驗證preferred neutral project identity，並依N2容量／連線證據核定exact `REGIONAL` dedicated-core tier與成本owner；current legacy `db-f1-micro`不得被誤當neutral production end state。
-2. 由Platform owner實作、獨立驗證DEV-010 R1 project release adapter，逐案產生`QA-010-R1-01～15`machine receipts；不可臨場拼接production shell commands。
+1. Machine contract／schema／tests前向更新與focused QC已完成；下一步驗證preferred neutral project identity，補正整數RTO、非負整數RPO、budget／restore／incident／maintenance owners及maintenance window。Current legacy `db-f1-micro`不得被誤當neutral production end state。
+2. 由Platform owner完成並獨立驗證DEV-010 R1 provider executor，逐案產生`QA-010-R1-01～15`machine receipts；R1-11須連續兩輪通過direct spec數值門檻，R1-07的AI-PDM子流程須與`QA-116-R02`共用exact `company-smoke` receipt。AI-PDM receipt verifier已完成，但authenticated browser execution仍缺；不可臨場拼接production shell commands。
 3. 15案rehearsal全PASS後才可依3A執行live migration；任一案未PASS即停止。
 4. Traffic promotion不在3A內，仍須Product Owner獨立GO。
 

@@ -1,6 +1,6 @@
 # SPEC-PDM-PRODUCTION-SMOKE-TENANT-001：Production Level 4 驗證租戶隔離與證據契約
 
-Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / Local Foundation Complete / 116-R Production Activation Gated`
+Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / Local Foundation Complete / 116-R Production Activation Gated`
 
 Date: 2026-09-04
 
@@ -14,7 +14,7 @@ Related authority:
 - `.ai-doc/decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md`
 - `.ai-doc/qa/qa-dev-116-production-smoke-tenant-isolation-validation-plan-2026-09-04.md`
 - `DEV-032` production release closure、`DEV-040` production slice、`DEV-044` company/principal boundary、`DEV-069` cost boundary
-- Platform `DEV-010` neutral database topology contract
+- Platform [`DEV-010` neutral database topology contract](../../../Jenfu-Management-system/ai-doc/specs/DEV-010-three-system-database-consolidation-contract.md)與[`QA-010-R1`](../../../Jenfu-Management-system/ai-doc/qa/DEV-010-three-system-database-consolidation-validation-plan.md)
 
 ## 1. Outcome
 
@@ -260,6 +260,24 @@ Aggregate manifest至少包含：
 - Opaque URL/path、人工勾選、不同revision evidence、只驗API未reload、或只驗rollback未commit都必須FAIL或`insufficient_evidence`。
 - Mutant至少涵蓋：移除company predicate、unknown company回退JENFU、smoke actor增加JENFU membership、sequence只按key更新、audit只從JSON過濾、manifest缺source/candidate/actor/company/fingerprint任一欄位。
 
+### 10.1 Platform `QA-010-R1-07` co-gate
+
+`QA-116-R02`同時只滿足Platform `QA-010-R1-07`的AI-PDM子流程；Portal本身與OrgMaster正常流程仍由Platform各自驗證。兩邊aggregate必須引用同一份receipt及其SHA-256，receipt除上方manifest外還必填：
+
+- `releaseId`與三repo `sourceLockSha256`。
+- candidate image digest、Cloud Run revision與neutral database identity。
+- hash後smoke actor，以及`company-smoke / SMOKE / production_smoke`三方readback。
+- committed object IDs／codes、reload readback hash、Jenfu business invariant before／after hash、zero-leak count與三個side-effect flags。
+- `platformCaseId=QA-010-R1-07`、`pdmCaseId=QA-116-R02`與receipt自身SHA-256。
+
+兩案必須同release、同source lock、同candidate、同target、同actor與同一次execution；receipt缺件、重用、identity drift、Jenfu before≠after、zero-leak非0或任一side-effect非disabled時，R02與R1-07的AI-PDM子結果同時FAIL。Local 31/31、rollback-only、API-only、事後刪除或另一revision的canonical smoke均不可補正。
+
+2026-09-04 local receipt gate已實作：`scripts/lib/dev116-r02-receipt.mjs`固定schema `jenfu.dev116.r02.production-candidate-receipt.v1`，同時驗`platformCaseId=QA-010-R1-07`與`pdmCaseId=QA-116-R02`，並輸出Platform可驗章的exact projection；`scripts/dev116-r02-receipt.mjs`只把位於`output/production-release/`的已觀測JSON轉成hash-bound receipt，明確拒絕`--execute／--deploy／--migrate／--promote`。Unit `5／5 PASS`涵蓋Jenfu actor、Jenfu invariant漂移、API-only、nonzero traffic、side-effect enabled、receipt tamper、敏感資料與mutation flag負例。這只關閉「opaque evidence可冒充R02」的本機驗章缺口；尚未建立authenticated production browser executor，也沒有執行R02。
+
+Candidate登入使用既有fixed `candidate` traffic-tag URL作release-only origin exception：Identity Platform只授權該exact domain，server origin verifier只接受HTTPS、exact service與fixed／workflow-bound candidate tag；untagged direct `run.app`仍拒絕session exchange，canonical使用者入口仍是`jenfu-ai-pdm-prod.web.app`。既有`run-production-release-smoke.mjs`只證明shell／auth mode／origin boundary／production slice與未開放route，不能因candidate origin可登入就升格為R02。未來authenticated executor仍須由正常登入表單走UI COMMIT＋reload，並結合provider-native DB identity、Jenfu invariant與zero-leak readback後才可交給本節receipt verifier。
+
+DEV-010 selected ZONAL target與本repo legacy production不得混為同一資源。`jenfu-ai-pdm-prod / ai-pdm-prod-postgres / db-f1-micro`及其USD 300 budget是DEV-032 legacy operating truth；Platform的`db-custom-1-3840 / ZONAL_DEDICATED / USD 100`才是neutral三系統future target authority。DEV-116不得先修改legacy tier／budget來冒充DEV-010完成，也不得讓兩套固定成本無限並存；transition overlap與incremental cost由Platform `QA-010-R1-02`驗章，neutral cutover與observation完成後才可退休legacy。
+
 ## 11. Current Phase RD Handoff Contract
 
 ### Purpose and Outputs
@@ -457,7 +475,7 @@ Failure recovery：Current Phase只回復task-owned migration/database/runtime�
 
 - Spec Impact：`Compatible amendment`。本文件落實既有production-slice ADR的smoke company決策，不改產品slice或正式號不可重用政策。
 - ADR：`No New ADR`。主要長期選擇已由`ADR-PDM-PRODUCTION-SLICE-001`接受；本文件補的是資料、身分與證據契約。若日後改成第二套stack／identity tenant、正式Jenfu例行寫入或改變Platform `DEV-010` topology，必須重開ADR。
-- Current P0/P1 implementation與驗證gap：0。116-A／B／C產品碼、migration、runner與固定31案已完成，狀態為`Local RD Implemented / Local QA-QC 31/31 PASS / local-foundation`。116-R已進入R01：Production provider／DB catalog唯讀盤點完成，R04 local price-policy PASS；但DEV-010 neutral roles/contracts與062均不存在、現行ledger仍為`public / 53 / highest 056`，故R01整體`BLOCKED`，principal provisioning、063 apply、candidate Level 4與promotion仍`NOT_RUN`。
+- Current P0/P1 implementation與驗證gap：0。116-A／B／C產品碼、migration、runner與固定31案已完成，狀態為`Local RD Implemented / Local QA-QC 31/31 PASS / local-foundation`；R02 machine receipt verifier另為`5/5 PASS`。116-R已進入R01：Production provider／DB catalog唯讀盤點完成，R04 local price-policy PASS；但DEV-010 neutral roles/contracts與062均不存在、現行ledger仍為`public / 53 / highest 056`，故R01整體`BLOCKED`，principal provisioning、063 apply、authenticated candidate Level 4與promotion仍`NOT_RUN`。
 
 ## 17. 2026-09-04 R01 production read-only preflight
 
@@ -466,7 +484,7 @@ Failure recovery：Current Phase只回復task-owned migration/database/runtime�
 - 實際Production為PostgreSQL 17、`db-f1-micro / ZONAL`、backup/PITR enabled、private IP only；serving revision仍為`ai-pdm-prod-gh-bb30682c-33729286511`且100%。
 - `ai_pdm_core`、`platform_contract`、`orgmaster_contract`、DEV-010四個必要role與principal／entitlement contract views均不存在；AI-PDM legacy runner不得直接套用062。
 - Legacy package改為54支（既有53＋063），明確排除DEV-010-owned 062；workflow改為`prepare → candidate → promote`，candidate另要求DEV-010 R1、migration、smoke principal與cost evidence，且三個side-effect flag必須在revision readback均為`disabled`。
-- Current DEV-010 N2D source freeze因DEV-116合法後續變更而FAIL；必須由三repo按DEV-010 dependency graph重做source freeze／aggregate與R1，禁止直接更新expected hash或以opaque ref繞過。
+- DEV-010 N2D曾因DEV-116合法後續變更而fail closed；三repo其後已由clean locked worktree重新freeze並取得48／48 PASS。Platform current capacity v2／preflight v3／release-adapter v2亦已前向更新為`db-custom-1-3840 / ZONAL_DEDICATED / USD 100`，unit `5/5 + 15/15 + 11/11`與三項focused QC均PASS。這關閉舊REGIONAL machine-contract缺口，但不解鎖R1：neutral project identity、exact RTO／RPO、owners／maintenance、R1-11 numeric capacity與15案provider execution仍未完成。
 
 ## 18. 2026-09-04 Local implementation and tech-lead closure
 

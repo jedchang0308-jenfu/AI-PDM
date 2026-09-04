@@ -1,6 +1,6 @@
 # QA-DEV-116：Production Level 4 驗證租戶隔離驗證計畫
 
-Status: `Local QA-QC Complete / Fixed Current Denominator 31 / 31 of 31 PASS / QA-116-R01 READ-ONLY PRECHECK COMPLETE BUT BLOCKED BY DEV-010 R1 / R04 POLICY PRECHECK PASS, RELEASE-COMMIT EVIDENCE PENDING / R02-R03 NOT_RUN`
+Status: `Local QA-QC Complete / Fixed Current Denominator 31 / 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / QA-116-R01 READ-ONLY PRECHECK COMPLETE BUT BLOCKED BY DEV-010 R1 / R04 POLICY PRECHECK PASS, RELEASE-COMMIT EVIDENCE PENDING / R02-R03 NOT_RUN`
 
 Date: 2026-09-04
 
@@ -104,9 +104,17 @@ Current completion固定為`31/31 PASS`；不接受調整分母、用parent aggr
 | ID | Pri | Scenario | Expected evidence |
 |---|---|---|---|
 | QA-116-R01 | P0 | Exact zero-traffic production candidate preflight | source revision、dirty boundary、image digest、Cloud Run revision、DB identity與smoke company/principal readback一致 |
-| QA-116-R02 | P0 | Candidate-bound authenticated SMOKE Level 4 | normal UI commit＋reload通過，Jenfu before/after一致，zero-leak為0，side effects disabled |
+| QA-116-R02 | P0 | Candidate-bound authenticated SMOKE Level 4／Platform R1-07 AI-PDM co-gate | normal UI commit＋reload通過，Jenfu before/after一致，zero-leak=0，side effects disabled；同一receipt SHA-256亦被同release／source lock／candidate／neutral target的Platform `QA-010-R1-07`引用 |
 | QA-116-R03 | P0 | Canonical post-promotion smoke | 只做核准的canonical checks；不得重用candidate evidence冒充canonical，任何write仍受獨立GO |
 | QA-116-R04 | P1 | Release前cost upper-bound gate | 依當次有效SKU／帳務設定計算單run上限；新增固定SKU=0，bundle/request/log cap可驗證，超預算或價格不可得即NO-GO |
+
+R02 receipt固定`releaseId`、三repo source-lock SHA、candidate image digest／Cloud Run revision、neutral database identity、hash後actor、`company-smoke / SMOKE / production_smoke`、committed object IDs／codes、reload readback hash、Jenfu invariant before／after、zero-leak count、三個side-effect flags、`platformCaseId=QA-010-R1-07`、`pdmCaseId=QA-116-R02`及receipt自身SHA-256。Platform與AI-PDM aggregate必須引用同一receipt；任一欄缺失、receipt重用、identity漂移或兩邊hash不同，R02與R1-07的AI-PDM子結果同時FAIL。R02只覆蓋AI-PDM；Portal與OrgMaster證據仍由Platform分別完成。
+
+R02 receipt verifier已在本機實作並以`npm run test:dev-116:r02-receipt`取得`5／5 PASS`；production pipeline QC仍為`24／24 PASS`且明確禁止把既有unauthenticated generic smoke標成`production-candidate-level4`。Verifier只接收已觀測資料並產生hash-bound receipt／Platform projection，不能deploy、migrate、promote或發出production request。因此本結果屬release tooling foundation，不增加R02分子；R02仍須由未來reviewed authenticated browser executor對exact zero-traffic candidate實際執行。
+
+候選版正常登入固定走受限`candidate` Cloud Run traffic-tag origin；QA須同時證明Identity Platform authorized domain與server origin pattern都只允許exact production service/tag，untagged direct `run.app`仍為403。此origin exception只解決零流量candidate的Firebase BFF session exchange，不建立第二個canonical入口，也不構成R02 PASS。R02 runner還必須提供正常登入表單、SMOKE tenant indicator、UI create、COMMIT、reload、provider DB readback與Jenfu zero-leak同一execution receipt。
+
+DEV-010 neutral target的ZONAL／USD 100決策不得以修改AI-PDM legacy `db-f1-micro／USD 300`設定代替。QA-116-R01須把legacy與neutral project／instance／database identity分開列示；若切換期間同時存在，引用Platform `QA-010-R1-02`的overlap window與incremental-cost receipt。沒有neutral identity或把legacy readback當成neutral時，R01與R02都維持BLOCKED。
 
 `OBS-116-01`不是首次啟用前置case。首次啟用後以10次完整run或30日先到者，比對同長度baseline的Cloud SQL／backup／Cloud Run／logging／Auth實際差額；超過每月`USD 1`規劃目標、出現未核准fixed floor或無法歸因時，暫停後續例行write smoke並回成本gate。
 
@@ -128,6 +136,7 @@ Current completion固定為`31/31 PASS`；不接受調整分母、用parent aggr
 - Unknown/empty company或missing membership可落入JENFU。
 - SMOKE/JENFU sequence、candidate、receipt、outbox或idempotency互相影響。
 - 正常Level 4只驗HTTP、direct URL、DB seed或rollback，未經normal UI commit＋reload。
+- R02未與同release的Platform `QA-010-R1-07`共用exact receipt，或任何測試業務物件寫入`company-jenfu`；cleanup、刪除與rollback-only均不能補正。
 - Cleanup成功被當成隔離證據，或cleanup失敗導致Jenfu可見資料。
 - 使用production credential/target、remote schema/data/IAM、deploy、traffic或release而未進release gate。
 

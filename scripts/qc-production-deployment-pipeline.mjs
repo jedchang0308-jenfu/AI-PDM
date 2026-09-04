@@ -29,6 +29,8 @@ const locals = read("infra/google-cloud/production/locals.tf");
 const variables = read("infra/google-cloud/production/variables.tf");
 const deploymentBoundary = `${identity}\n${locals}\n${variables}`;
 const smoke = read("scripts/run-production-release-smoke.mjs");
+const dev116R02Receipt = read("scripts/lib/dev116-r02-receipt.mjs");
+const dev116R02ReceiptCli = read("scripts/dev116-r02-receipt.mjs");
 const trafficRunner = read("scripts/run-production-release-traffic.mjs");
 const releaseSourceManifestUtils = read("scripts/dev-032-release-source-manifest-utils.mjs");
 const dockerfile = read("Dockerfile");
@@ -228,6 +230,20 @@ record("PROD-PIPE-008C promotion requires candidate-bound Level 4 and explicit r
   assert.match(promotionWorkflow, /AI-PDM-PRODUCTION-PROMOTION-APPROVED/u);
   assert.match(promotionWorkflow, /\[\[ "\$PRODUCT_OWNER_DECISION" == "go" \]\]/u);
   assert.match(promotionWorkflow, /\[\[ "\$PROMOTION_APPROVAL" == "AI-PDM-PRODUCTION-PROMOTION-APPROVED" \]\]/u);
+  assert.match(dev116R02Receipt, /jenfu\.dev116\.r02\.production-candidate-receipt\.v1/u);
+  assert.match(dev116R02Receipt, /QA-116-R02/u);
+  assert.match(dev116R02Receipt, /production-candidate-level4/u);
+  assert.match(dev116R02Receipt, /company-smoke/u);
+  assert.match(dev116R02Receipt, /production_smoke/u);
+  assert.match(dev116R02Receipt, /trafficPercent !== 0/u);
+  assert.match(dev116R02Receipt, /beforeSha256 !== receipt\.jenfuInvariant\.afterSha256/u);
+  assert.match(dev116R02Receipt, /zeroLeakCount !== 0/u);
+  assert.match(dev116R02Receipt, /value !== 'disabled'/u);
+  assert.match(dev116R02ReceiptCli, /--execute/u);
+  assert.match(dev116R02ReceiptCli, /--deploy/u);
+  assert.match(dev116R02ReceiptCli, /--migrate/u);
+  assert.match(dev116R02ReceiptCli, /--promote/u);
+  assert.doesNotMatch(smoke, /production-candidate-level4/u);
 });
 
 record("PROD-PIPE-008D promotion rechecks candidate zero traffic and immutable image provenance", () => {
@@ -307,6 +323,8 @@ record("PROD-PIPE-015 package exposes release and QC commands", () => {
   assert.equal(packageJson.scripts?.["production:release-traffic"], "node scripts/run-production-release-traffic.mjs");
   assert.equal(packageJson.scripts?.["production:release-smoke"], "node scripts/run-production-release-smoke.mjs");
   assert.equal(packageJson.scripts?.["production:smoke-cost-gate"], "node scripts/run-dev-116-release-cost-gate.mjs");
+  assert.equal(packageJson.scripts?.["dev-116:r02-receipt"], "node scripts/dev116-r02-receipt.mjs");
+  assert.equal(packageJson.scripts?.["test:dev-116:r02-receipt"], "node --test scripts/dev116-r02-receipt.test.mjs");
   assert.equal(packageJson.scripts?.["qc:production-deployment-pipeline"], "node scripts/qc-production-deployment-pipeline.mjs");
 });
 

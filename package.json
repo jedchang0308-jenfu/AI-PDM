@@ -143,6 +143,8 @@
     "qc:dev-116:browser": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-116-browser.mjs",
     "qc:dev-116:aggregate": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-116-aggregate.mjs",
     "qc:dev-116": "node scripts/qc-dev-116.mjs",
+    "test:dev-116:r02-receipt": "node --test scripts/dev116-r02-receipt.test.mjs",
+    "dev-116:r02-receipt": "node scripts/dev116-r02-receipt.mjs",
     "qc:dev-082:contract": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-082-contract.mjs",
     "qc:dev-082:canonical-location": "node scripts/qc-dev-082-canonical-location-browser.mjs",
     "qc:dev-082:repository": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-082-repository.mjs",
