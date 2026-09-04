@@ -1,5 +1,6 @@
 ARG NODE_IMAGE=node:24.17.0-bookworm-slim@sha256:862263c612aa437e3037674b85419622a9d93bff80aa1eee5398dfe686375532
 ARG SOURCE_REVISION=unknown
+ARG SOURCE_TREE=unknown
 ARG SOURCE_CREATED_AT=1970-01-01T00:00:00Z
 ARG SOURCE_VERSION=unversioned
 ARG SOURCE_STATE=unknown
@@ -21,6 +22,7 @@ RUN npm run build
 
 FROM ${NODE_IMAGE} AS migration-runner
 ARG SOURCE_REVISION
+ARG SOURCE_TREE
 ARG SOURCE_CREATED_AT
 ARG SOURCE_VERSION
 ARG SOURCE_STATE
@@ -38,6 +40,7 @@ LABEL org.opencontainers.image.title="AI PDM migration runner" \
       org.opencontainers.image.revision="${SOURCE_REVISION}" \
       org.opencontainers.image.created="${SOURCE_CREATED_AT}" \
       org.opencontainers.image.version="${SOURCE_VERSION}" \
+      com.jenfu.ai-pdm.source-tree="${SOURCE_TREE}" \
       com.jenfu.ai-pdm.source-state="${SOURCE_STATE}"
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --chown=nextjs:nodejs package.json package-lock.json ./
@@ -52,6 +55,7 @@ CMD ["node", "scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]
 
 FROM ${NODE_IMAGE} AS runner
 ARG SOURCE_REVISION
+ARG SOURCE_TREE
 ARG SOURCE_CREATED_AT
 ARG SOURCE_VERSION
 ARG SOURCE_STATE
@@ -69,6 +73,7 @@ LABEL org.opencontainers.image.title="AI PDM" \
       org.opencontainers.image.revision="${SOURCE_REVISION}" \
       org.opencontainers.image.created="${SOURCE_CREATED_AT}" \
       org.opencontainers.image.version="${SOURCE_VERSION}" \
+      com.jenfu.ai-pdm.source-tree="${SOURCE_TREE}" \
       com.jenfu.ai-pdm.source-state="${SOURCE_STATE}"
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
