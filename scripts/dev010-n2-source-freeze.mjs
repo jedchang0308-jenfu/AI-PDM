@@ -63,6 +63,7 @@ if (fs.existsSync(frozenPath)) {
   const knownDirty = new Set(baseline.dirtyPaths)
   const newDirty = dirtyPaths.filter((filePath) => !knownDirty.has(filePath))
   for (const filePath of newDirty) {
+    if (['.next/', '.tmp/', 'coverage/', 'node_modules/', 'output/', 'playwright-report/', 'test-results/'].some((prefix) => filePath.startsWith(prefix)) || /^scripts\/tmp-[^/]+/u.test(filePath)) continue
     const allowed = config.changeAllowlist.modify.includes(filePath)
       || config.changeAllowlist.new.includes(filePath)
       || config.changeAllowlist.outputPrefixes.some((prefix) => filePath.startsWith(prefix))

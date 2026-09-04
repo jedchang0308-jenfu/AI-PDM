@@ -50,14 +50,14 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 現行DEV-116本機開發任務：無。116-A→B→C已依序完成；使用者已啟動`116-R`，release capsule=`REL-116-20260904`。R01唯讀Production preflight已執行，但因DEV-010 R1 neutral roles/contracts全數未部署而fail-closed。Platform已補`010-R1A` local preflight與source classifier，分別通過6/6、4/4 unit＋QC；三repo dirty files已全部分類且unknown=0，但仍未commit／freeze，current release正確回10 blockers與零cloud mutation。Production rehearsal／apply runner仍不存在、preferred neutral project ID狀態仍ambiguous；未取得exact clean release source、production adapter、跨系統production migration與availability決策前不得繼續。
+- 現行DEV-116本機開發任務：無。116-A→B→C已依序完成；使用者已啟動`116-R`，release capsule=`REL-116-20260904`。R01唯讀Production preflight已執行，但因DEV-010 R1 neutral roles/contracts全數未部署而fail-closed。Platform `010-R1A` preflight／source classifier已擴為13/13與5/5，1A classified commits及post-commit HEAD＋tree lock已完成，2A選擇`REGIONAL_DEDICATED`，3A核准15案全PASS後live migration。Lock後出現的其他工作樹開發不進本release，runner必須使用clean locked worktree。Current release只剩neutral project identity與exact dedicated tier／cost兩項entry blocker；Production rehearsal／apply runner仍須依15案契約實作與獨立QC，traffic promotion另需GO。
 
 - 現行已完成本地foundation：`✓ DEV-116` Production Level 4 smoke tenant 隔離與可稽核證據關卡。
   - 狀態：`Local RD Implemented / QA-QC 31 of 31 PASS / 116-R R01 Started / Production Read-only Preflight Complete / DEV-010 R1 Dependency Blocked / R02-R03 NOT_RUN`。
   - 目的：保留真實 production artifact、Auth、API、Cloud SQL `COMMIT` 與 reload/readback 的 Level 4 驗證，但所有例行測試寫入只能落在邏輯 `company-smoke`，不得再寫入 `company-jenfu`。
   - 已關閉的 P0 gaps：`audit_logs`已具compatible company/scope authority，Current async numbering audit／export／trail、company resolver與sequence已fail-closed並通過雙provider、browser與mutant evidence。非Current legacy writer仍列`TD-116-01`，不被誤算為全系統完成。
   - 成本邊界：沿用既有 Production Cloud Run／Cloud SQL／Firebase，同一應用內新增邏輯 company 與專用帳號；不得因此新增 Cloud SQL、GCP project、常駐 Cloud Run 或 Identity Platform tenant。2026-09-04 official-price snapshot gross gate不扣free tier：`USD 0.020812/run`、10 runs=`USD 0.208120/month`、fixed SKU=0，分別低於`USD 0.10/run`與`USD 1/month`；價格超過30日自動失效。DEV-010若由ZONAL升REGIONAL的固定成本屬shared topology決策，不得灌入company-smoke成本。
-  - 下一步：先由Platform owner對`Jenfu-Management-system / OrgMaster / AI_PDM`重新freeze現行來源並完成DEV-010 R1 15-case release gate；availability須選REGIONAL或明確接受ZONAL無SLA／人工restore風險。DEV-010完成後，回REL-116完成legacy 063 evidence、dedicated corporate smoke principal、zero-traffic candidate與R02。R02才是Production Level 4判定案，promotion另需獨立GO。
+  - 下一步：先驗證neutral project identity並核定exact REGIONAL dedicated-core tier／cost，再由Platform owner實作與完成DEV-010 R1 15-case rehearsal；全PASS後才可依3A進live migration。DEV-010完成後，回REL-116完成legacy 063 evidence、dedicated corporate smoke principal、zero-traffic candidate與R02。R02才是Production Level 4判定案，promotion另需獨立GO。
 
 - 已退役，不得派工：`× DEV-096`、`× DEV-099`、`× DEV-104`。
   - 狀態：`Historical / Superseded by DEV-095 BOM Hard Retirement / Do Not Restore`。

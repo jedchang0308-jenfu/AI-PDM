@@ -6,7 +6,7 @@ Release ID：`REL-116-20260904`
 
 ## 結論
 
-DEV-116可以依序解鎖，但不能從local foundation直接跳到Production write smoke。正式Cloud SQL唯讀盤點證明目前仍是第一版legacy topology；`062`所需的neutral schemas、roles與Platform／OrgMaster contracts均不存在。因此本輪只完成release adapter、成本gate與唯讀preflight，未套用`063`、未建立smoke principal、未部署candidate、未切換流量。
+DEV-116可以依序解鎖，但不能從local foundation直接跳到Production write smoke。正式Cloud SQL唯讀盤點證明目前仍是第一版legacy topology；`062`所需的neutral schemas、roles與Platform／OrgMaster contracts均不存在。使用者已完成1A classified source commit授權、2A `REGIONAL_DEDICATED`選擇與3A「15案全PASS後才live migration」授權；尚未套用`063`、建立smoke principal、部署candidate或切換流量。
 
 正確順序固定為：
 
@@ -47,7 +47,7 @@ Machine summary：`output/production-release/REL-116-20260904/r01-readonly-prefl
 
 `gcloud projects describe jenfu-platform-prod`只得到`permission denied or project may not exist`，因此preferred neutral project ID仍是ambiguous，不可宣稱已保留或可用。Machine evidence：`output/production-release/REL-116-20260904/r01-cross-repo-readiness.json`。
 
-R1A source classifier已把每個dirty file歸類且QC PASS：Platform=`185 release + 28 governance + 1343 generated`、OrgMaster=`164 + 17 + 4`、AI-PDM=`39 + 10 + 10`；三者unknown=0、secret-local=0、git mutations=0。這排除了「來源分類不明」，但仍不代表release source已stage、commit或freeze。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/source-classification.json`。
+R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343 generated`、OrgMaster=`164 + 17 + 4`、AI-PDM=`39 + 10 + 10`；unknown=0、secret-local=0。1A後只有release／governance source進commit，generated-local排除；post-commit lock再以exact HEAD＋tree封存，避免tracked config自我參照。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/source-classification.json`與`release-source-lock.json`。
 
 ## Release adapter correction
 
@@ -74,11 +74,11 @@ R1A source classifier已把每個dirty file歸類且QC PASS：Platform=`185 rele
 
 - Static／package gates：migration package `15/15 PASS`、production pipeline `24/24 PASS`、DEV-095 `20/20 PASS`、DEV-106 `25/25 PASS`、workflow YAML parse PASS。
 - R01 adapter regression：`DEV116-R01-ADAPTER-20260904-R1`固定`31/31 PASS`，含正常瀏覽器登入／建立／commit／reload、response-loss同key收斂、雙tenant zero-leak、side-effect disabled readback與六種mutant；證據仍明確為`claimLevel=local-foundation`、`productionLevel4Claimed=false`，所有task-owned browser／Next／PostgreSQL runtime與ports均已清理。
-- DEV-010 R1A preflight：v2 unit `9/9 PASS`、QC PASS；verified／approved狀態必須綁provenance reference且credential-shaped evidence會被拒絕。Current `REL-116-20260904`正確回`BLOCKED / 10 blockers`，production／cloud／traffic mutations均為0。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/preflight.json`。
-- DEV-010 R1A source classification：unit `4/4 PASS`、QC PASS；unknown=0、secret-local=0、git mutations=0，狀態=`CLASSIFIED_NOT_FROZEN`。
+- DEV-010 R1A preflight：v2 unit `13/13 PASS`；新增tampered lock、tree drift與post-lock staged drift negative gates。後續未stage工作樹開發會列為excluded，release runner只能使用clean locked worktree。Current `REL-116-20260904`只剩neutral target identity與exact tier兩項blocker，production／cloud／traffic mutations均為0。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/preflight.json`。
+- DEV-010 R1A source classification：unit `5/5 PASS`；classified commits、N2 re-freeze與post-commit lock完成，generated-local不進release source。
 - R04 cost policy precheck：以current source revision `80770f2db257374725414456efeb0f0d0302da0f`計算為PASS；這不是最終release commit綁定證據，source freeze後必須重新產生。
 - R01：`BLOCKED`。原因為DEV-010 R1未執行且current DEV-010 N2 source manifest已被後續合法變更失效。
-- DEV-010 R1 executable gate：`PARTIAL`。R1A local preflight已完成；三repo release source仍未clean／freeze、production rehearsal／apply runner不存在、neutral project identity仍ambiguous。
+- DEV-010 R1 executable gate：`PARTIAL`。R1A exact source已freeze；production rehearsal／apply runner尚待完成，neutral project identity仍ambiguous且exact REGIONAL dedicated-core tier／cost未核定。
 - R02／R03：`NOT_RUN`。
 - Production data writes：`0`；deploy：`0`；traffic change：`0`；principal provisioning：`0`。
 
@@ -86,10 +86,10 @@ R1A source classifier已把每個dirty file歸類且QC PASS：Platform=`185 rele
 
 下一個有風險動作不是DEV-116 candidate，而是先把跨`Jenfu-Management-system / OrgMaster / AI_PDM`的DEV-010 R1補成可重現release contract。恢復條件為：
 
-1. 逐repo分類現有dirty entries，建立三個clean、immutable release commits並重跑N2 source freeze／aggregate。
+1. 驗證preferred neutral project identity，並依N2容量／連線證據核定exact `REGIONAL` dedicated-core tier與成本owner；current legacy `db-f1-micro`不得被誤當neutral production end state。
 2. 由Platform owner實作、獨立驗證DEV-010 R1 project release adapter，逐案產生`QA-010-R1-01～15`machine receipts；不可臨場拼接production shell commands。
-3. 明確授權三系統production migration／authority cutover的15-case Lane 3 release gate。
-4. shared production database採`REGIONAL` dedicated-core，或明確接受`ZONAL` zone outage需人工restore的風險並核定RTO／RPO；current legacy `db-f1-micro`不得被誤當neutral production end state。
+3. 15案rehearsal全PASS後才可依3A執行live migration；任一案未PASS即停止。
+4. Traffic promotion不在3A內，仍須Product Owner獨立GO。
 
 上述決策完成前，本文件禁止用opaque evidence ref手動繞過candidate gate。
 

@@ -80,6 +80,7 @@
   "changeAllowlist": {
     "modify": [
       "package.json",
+      "db/postgres/001_initial_schema.sql",
       "db/postgres/README.md",
       "src/lib/db-async-provider.ts",
       "src/lib/cloud-sql-contract.ts",
