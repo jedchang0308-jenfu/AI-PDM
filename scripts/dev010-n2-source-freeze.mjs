@@ -34,15 +34,19 @@ try {
   throw new Error(`DEV010_N2_HEAD_NOT_ANCESTOR: baseline=${baselineHead} head=${head}`)
 }
 
-const baselineCandidate = buildGitSourceManifest({ root: projectRoot, head: baselineHead, files: config.baseline.files })
+const appRoot = path.join(projectRoot, 'output', 'dev-010', 'n2', config.appId)
+const frozenPath = path.join(appRoot, `source-freeze-baseline-${baselineHead.slice(0, 12)}-${config.baseline.aggregateSha256.slice(0, 12)}.json`)
+const persistedBaseline = fs.existsSync(frozenPath)
+  ? JSON.parse(fs.readFileSync(frozenPath, 'utf8'))
+  : null
+const baselineCandidate = persistedBaseline?.sourceManifest
+  ?? buildGitSourceManifest({ root: projectRoot, head: baselineHead, files: config.baseline.files })
 const candidateFiles = [...new Set([
   ...config.baseline.files,
   ...config.changeAllowlist.modify,
   ...config.changeAllowlist.new,
 ])]
 const candidate = buildSourceManifest({ root: projectRoot, head, files: candidateFiles })
-const appRoot = path.join(projectRoot, 'output', 'dev-010', 'n2', config.appId)
-const frozenPath = path.join(appRoot, `source-freeze-baseline-${baselineHead.slice(0, 12)}-${config.baseline.aggregateSha256.slice(0, 12)}.json`)
 fs.mkdirSync(appRoot, { recursive: true })
 
 const dirtyPaths = execFileSync('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], {
@@ -58,7 +62,7 @@ const dirtyPaths = execFileSync('git', ['status', '--porcelain=v1', '-z', '--unt
 let baseline
 let drift = []
 if (fs.existsSync(frozenPath)) {
-  baseline = JSON.parse(fs.readFileSync(frozenPath, 'utf8'))
+  baseline = persistedBaseline
   drift = assertSourceDrift(baseline.sourceManifest, candidate, config.changeAllowlist, { allowDescendantHead: true }).drift
   const knownDirty = new Set(baseline.dirtyPaths)
   const newDirty = dirtyPaths.filter((filePath) => !knownDirty.has(filePath))
