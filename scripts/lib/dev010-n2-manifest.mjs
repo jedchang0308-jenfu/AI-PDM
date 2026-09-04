@@ -220,7 +220,7 @@ export function buildCandidateSourceManifest(input) {
         fail('DEV010_N2_SOURCE_PATH_OUT_OF_SCOPE', relative)
       }
     }
-    return { path: relative, sha256: sha256(bytes) }
+    return { path: relative, sha256: sourceSha256(bytes) }
   })
   const aggregateSha256 = sha256(entries.map((entry) => `${entry.path}\0${entry.sha256}\n`).join(''))
   return { aggregateSha256, files: entries, head: input.head }

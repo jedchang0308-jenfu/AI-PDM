@@ -15,6 +15,7 @@ import {
   loadPackageConfig,
   redactEvidence,
   sha256,
+  sourceSha256,
   validateDependencyGraph,
 } from './lib/dev010-n2-manifest.mjs'
 
@@ -108,11 +109,12 @@ test('N2-SOURCE-10 clean candidate hashes Git bytes and dirty candidate hashes w
     execFileSync('git', ['add', 'fixture.txt'], { cwd: root })
     execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root })
     const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-    fs.writeFileSync(path.join(root, 'fixture.txt'), 'one\r\ntwo\r\n')
+    fs.writeFileSync(path.join(root, 'fixture.txt'), 'one\r\nthree\r\n')
     const clean = buildCandidateSourceManifest({ root, head, files: ['fixture.txt'], workingPaths: [] })
     const dirty = buildCandidateSourceManifest({ root, head, files: ['fixture.txt'], workingPaths: ['fixture.txt'] })
     assert.equal(clean.files[0].sha256, sha256('one\ntwo\n'))
-    assert.equal(dirty.files[0].sha256, sha256('one\r\ntwo\r\n'))
+    assert.equal(dirty.files[0].sha256, sourceSha256('one\r\nthree\r\n'))
+    assert.notEqual(dirty.files[0].sha256, clean.files[0].sha256)
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }
