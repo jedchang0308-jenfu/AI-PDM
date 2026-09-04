@@ -39,7 +39,7 @@ Machine summary：`output/production-release/REL-116-20260904/r01-readonly-prefl
 
 權威QA plan第7節原本只凍結`QA-010-R1-01～15`。本輪已在Platform repo補上`010-R1A` local preflight adapter，把clean source、exact SHA、15案registry、target identity、availability／tier與live-migration approval變成machine gate；它刻意沒有production apply能力。真正R1 production rehearsal／apply runner仍不存在，故不得用臨場shell命令直接操作正式schema、data或authority。
 
-| Component | Branch／HEAD | Dirty entries | Existing N2 freeze first failure | R1 runner |
+| Component | Initial branch／HEAD snapshot | Initial dirty entries | Initial N2 freeze first failure | R1 runner |
 |---|---|---:|---|---|
 | Platform | `main / 487e135f39d1` | 1556 files | `ALLOWLIST_DRIFT: config/dev-010/n1b-managed-nonprod.json` | local preflight present；production runner absent |
 | OrgMaster | `master / c8cc16f515f0` | 185 files | `ALLOWLIST_DRIFT: AGENTS.md` | production runner absent |
@@ -49,13 +49,15 @@ Machine summary：`output/production-release/REL-116-20260904/r01-readonly-prefl
 
 R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343 generated`、OrgMaster=`164 + 17 + 4`、AI-PDM=`39 + 10 + 10`；unknown=0、secret-local=0。1A後只有release／governance source進commit，generated-local排除；post-commit lock再以exact HEAD＋tree封存，避免tracked config自我參照。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/source-classification.json`與`release-source-lock.json`。
 
+2026-09-04 closure readback：三repo已從generated source lock建立clean worktrees，最終N2 aggregate=`../Jenfu-Management-system/output/dev-010/n2/aggregate/AGGREGATE-20260904T130541293Z-12084/aggregate-report.json`，結果`48 PASS / 0 FAIL / 0 NOT_RUN / 0 PARTIAL`。Windows clean checkout曾把canonical financial catalog轉為CRLF並觸發正確的fail-closed；已用`.gitattributes eol=lf`修復來源位元組，沒有放寬catalog驗證。Container、volume、55430與browser runtimes全部清理，`productionWrites=false`。
+
 ## Release adapter correction
 
 - Workflow改為三個獨立dispatch：`prepare → candidate → promote`。Prepare只建置一次並輸出immutable app/migration digests與manifest hash；candidate不得重建artifact。
 - Candidate需要manifest-bound migration evidence、DEV-010 R1 evidence、dedicated smoke-principal evidence與current cost evidence，缺一即停止。
 - Cloud Run candidate／promotion均逐項讀回`PDM_SMOKE_GCS_WRITER`、`PDM_SMOKE_OUTBOX_CONSUMER`、`PDM_SMOKE_EXTERNAL_NOTIFICATION`為`disabled`；Terraform也保存同一基線，避免後續apply移除。
 - Legacy Cloud SQL package明確排除`062_dev010_neutral_schema_boundary.sql`；該migration屬三系統DEV-010 release orchestrator，不可由`pdm_migration` runner冒充。Current legacy package為54支：既有53支＋location-aware 063，最高063。
-- Production verify納入DEV-116與DEV-010 N2D gate。現行DEV-010 N2D因DEV-116 source drift而正確FAIL，必須由三repo重新freeze／aggregate，不能修改expected hash取得假PASS。
+- Production verify納入DEV-116與DEV-010 N2D gate。後續source drift已由三repo重新freeze並以clean worktree完成48／48 aggregate；未修改expected hash，也未用開發工作目錄冒充release candidate。
 
 ## R04成本結果
 
@@ -75,9 +77,9 @@ R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343
 - Static／package gates：migration package `15/15 PASS`、production pipeline `24/24 PASS`、DEV-095 `20/20 PASS`、DEV-106 `25/25 PASS`、workflow YAML parse PASS。
 - R01 adapter regression：`DEV116-R01-ADAPTER-20260904-R1`固定`31/31 PASS`，含正常瀏覽器登入／建立／commit／reload、response-loss同key收斂、雙tenant zero-leak、side-effect disabled readback與六種mutant；證據仍明確為`claimLevel=local-foundation`、`productionLevel4Claimed=false`，所有task-owned browser／Next／PostgreSQL runtime與ports均已清理。
 - DEV-010 R1A preflight：v2 unit `14/14 PASS`；新增tampered lock、tree drift、post-lock staged drift與N2 required-source-untracked negative gates。後續未stage工作樹開發會列為excluded，release runner只能使用clean locked worktree。Current `REL-116-20260904`只剩neutral target identity與exact tier兩項blocker，production／cloud／traffic mutations均為0。Evidence=`../Jenfu-Management-system/output/dev-010/r1/REL-116-20260904/preflight.json`。
-- DEV-010 R1A source classification：unit `5/5 PASS`；classified commits、N2 re-freeze與post-commit lock完成，generated-local不進release source。
+- DEV-010 R1A source classification：unit `5/5 PASS`；classified commits、N2 clean requalification與post-commit HEAD＋tree lock完成，generated-local不進release source；並另有preflight unit `14/14 PASS`。
 - R04 cost policy precheck：以current source revision `80770f2db257374725414456efeb0f0d0302da0f`計算為PASS；這不是最終release commit綁定證據，source freeze後必須重新產生。
-- R01：`BLOCKED`。原因為DEV-010 R1未執行且current DEV-010 N2 source manifest已被後續合法變更失效。
+- R01：`BLOCKED`。N2 source requalification已完成；目前原因收斂為neutral project identity與exact REGIONAL dedicated-core tier／cost尚未核定，且DEV-010 R1 15案runner尚未實作／執行。
 - DEV-010 R1 executable gate：`PARTIAL`。R1A exact source已freeze；production rehearsal／apply runner尚待完成，neutral project identity仍ambiguous且exact REGIONAL dedicated-core tier／cost未核定。
 - R02／R03：`NOT_RUN`。
 - Production data writes：`0`；deploy：`0`；traffic change：`0`；principal provisioning：`0`。
