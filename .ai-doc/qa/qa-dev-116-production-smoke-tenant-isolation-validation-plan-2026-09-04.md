@@ -1,8 +1,8 @@
 # QA-DEV-116：Production Level 4 驗證租戶隔離驗證計畫
 
-Status: `Local QA-QC Complete / Fixed Current Denominator 31 / 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / QA-116-R01 READ-ONLY PRECHECK COMPLETE BUT BLOCKED BY DEV-010 R1 / R04 POLICY PRECHECK PASS, RELEASE-COMMIT EVIDENCE PENDING / R02-R03 NOT_RUN`
+Status: `Local QA-QC Complete / Fixed Current Denominator 31 / 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / QA-116-R01 READ-ONLY PRECHECK COMPLETE / DEV-010 R1E VERIFIER LOCAL QC PASS / PRODUCTION BINDING GATED / R04 POLICY PRECHECK PASS, RELEASE-COMMIT EVIDENCE PENDING / R02-R03 NOT_RUN`
 
-Date: 2026-09-04
+Date: 2026-09-05
 
 Related DEV: `DEV-116 / DEV-PDM-PRODUCTION-SMOKE-TENANT-ISOLATION-001`
 
@@ -12,7 +12,7 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SMOKE-TENANT-001-level4-isolati
 
 Current 31案證明`company-smoke`隔離foundation可在task-owned環境沿正常application、Auth、API、domain、repository與database transaction路徑完成真實commit＋reload，同時`company-jenfu`固定business invariant scope不變；任何tenant predicate、身分綁定或證據欄位缺失都必須被測試或aggregate抓出。它不證明production network／runtime／Cloud SQL已通過；Production Level 4只由R02的exact production candidate evidence成立。
 
-本計畫定義Current Phase固定`QA-116-001..031`與Future Release Gate `QA-116-R01..R04`。2026-09-04使用者啟動116-R後，R01只完成Production catalog／ledger唯讀precheck並因DEV-010 R1前置不存在而BLOCKED；R04完成current official-price policy precheck，但尚未綁定最終release commit。R02／R03仍`NOT_RUN`；未執行migration apply、資料修復、principal provisioning、deploy、write smoke或traffic promotion。
+本計畫定義Current Phase固定`QA-116-001..031`與Future Release Gate `QA-116-R01..R04`。2026-09-04使用者啟動116-R後，R01只完成Production catalog／ledger唯讀precheck並因DEV-010 R1前置不存在而BLOCKED；R04完成current official-price policy precheck，但尚未綁定最終release commit。2026-09-05 RD技術主管複審發現的R1 verifier PostgreSQL role／view／membership／executor P0 source gap已由010-R1E本地實作與fresh QC關閉；正式migration／binding／provider readback仍未套用。R02／R03維持`NOT_RUN`；未執行production資料修復、principal／membership provisioning、deploy、write smoke或traffic promotion。
 
 ## 2. Evidence Rules
 
@@ -104,11 +104,13 @@ Current completion固定為`31/31 PASS`；不接受調整分母、用parent aggr
 | ID | Pri | Scenario | Expected evidence |
 |---|---|---|---|
 | QA-116-R01 | P0 | Exact zero-traffic production candidate preflight | source revision、dirty boundary、image digest、Cloud Run revision、DB identity與smoke company/principal readback一致 |
-| QA-116-R02 | P0 | Candidate-bound authenticated SMOKE Level 4／Platform R1-07 AI-PDM co-gate | normal UI commit＋reload通過，Jenfu before/after一致，zero-leak=0，side effects disabled；同一receipt SHA-256亦被同release／source lock／candidate／neutral target的Platform `QA-010-R1-07`引用 |
+| QA-116-R02 | P0 | Candidate-bound authenticated SMOKE Level 4／Platform R1-07 AI-PDM co-gate | normal UI commit＋reload通過；browser前由專用`jenfu_r1_verifier`以`BEGIN READ ONLY`建立Jenfu baseline，browser後30分鐘內由同role讀exact evidence views；Jenfu before/after一致、zero-leak=0、side effects disabled，且同一receipt SHA-256亦被同release／source lock／candidate／neutral target的Platform `QA-010-R1-07`引用 |
 | QA-116-R03 | P0 | Canonical post-promotion smoke | 只做核准的canonical checks；不得重用candidate evidence冒充canonical，任何write仍受獨立GO |
 | QA-116-R04 | P1 | Release前cost upper-bound gate | 依當次有效SKU／帳務設定計算單run上限；新增固定SKU=0，bundle/request/log cap可驗證，超預算或價格不可得即NO-GO |
 
 R02 receipt固定`releaseId`、三repo source-lock SHA、candidate image digest／Cloud Run revision、neutral database identity、hash後actor、`company-smoke / SMOKE / production_smoke`、committed object IDs／codes、reload readback hash、Jenfu invariant before／after、zero-leak count、三個side-effect flags、`platformCaseId=QA-010-R1-07`、`pdmCaseId=QA-116-R02`及receipt自身SHA-256。Platform與AI-PDM aggregate必須引用同一receipt；任一欄缺失、receipt重用、identity漂移或兩邊hash不同，R02與R1-07的AI-PDM子結果同時FAIL。R02只覆蓋AI-PDM；Portal與OrgMaster證據仍由Platform分別完成。
+
+Provider DB evidence另固定effective role與ACL provenance：Cloud IAM client／viewer不等於PostgreSQL object privilege。R02只接受exact IAM DB login加入`jenfu_r1_verifier` NOLOGIN group後，讀取AI-PDM owner發布於`ai_pdm_contract`的exact、`security_barrier`、欄位allowlisted evidence views；login不得繼承runtime／migrator／owner／superuser。Positive ACL、base-table／DML／sequence／function／role-escalation negative ACL、`current_database()`／`current_user`／effective role readback與bounded timeout缺一即FAIL。Jenfu before必須早於browser write，after必須使用相同target／source／role／欄位／排序；browser後補做before或在兩者之間cleanup不得PASS。
 
 R02 receipt verifier已在本機實作並以`npm run test:dev-116:r02-receipt`取得`5／5 PASS`。2026-09-05新增authenticated browser executor、candidate/preflight validator、browser/provider observation join與finalizer；`npm run test:dev-116:r02-browser`為`7／7 PASS`，production pipeline QC為`25／25 PASS`。Executor只接受hash-valid `READY_FOR_R1_REHEARSAL` preflight、exact neutral target、0% traffic、SMOKE-only actor、disabled side effects與環境變數憑證，並從圖號工作台正常導航建立exact一個bundle。它只產生`BROWSER_PASS_PROVIDER_OBSERVATION_REQUIRED`，不得把generic smoke、browser-only或API-only evidence標成`production-candidate-level4`。Platform另完成provider observation producer `5／5 PASS`，可把同browser SHA、同target、同actor且含DB commit／Jenfu invariant／zero-leak／side-effect證據的self-hashed readback轉成AI-PDM authority格式；producer本身不查Cloud SQL。Actual provider-native readback與R02仍未執行，因此本結果不增加R02分子。
 
@@ -137,6 +139,8 @@ DEV-010 neutral target的ZONAL／USD 100決策不得以修改AI-PDM legacy `db-f
 - SMOKE/JENFU sequence、candidate、receipt、outbox或idempotency互相影響。
 - 正常Level 4只驗HTTP、direct URL、DB seed或rollback，未經normal UI commit＋reload。
 - R02未與同release的Platform `QA-010-R1-07`共用exact receipt，或任何測試業務物件寫入`company-jenfu`；cleanup、刪除與rollback-only均不能補正。
+- `jenfu_r1_verifier` PostgreSQL group、AI-PDM verifier evidence views、exact IAM DB login membership或positive／negative ACL evidence缺失；或provider executor借用`jenfu_ai_pdm_runtime`、migrator、owner、IaC superuser、base-table blanket SELECT或可寫session。
+- Jenfu baseline不是在browser前以同release／target／effective role建立，provider session未使用`BEGIN READ ONLY`與bounded timeout，或before／after之間發生cleanup。
 - Cleanup成功被當成隔離證據，或cleanup失敗導致Jenfu可見資料。
 - 使用production credential/target、remote schema/data/IAM、deploy、traffic或release而未進release gate。
 
@@ -223,6 +227,6 @@ output/qa/dev-116-production-smoke-tenant/<run-id>/
 
 116-A已先完成QA-116-001..012，116-B再完成013..022，116-C最後完成023..031；固定分母未調整，Current=`31/31 PASS`。第一次aggregate因Next runtime改寫受保護的`next-env.d.ts`而正確FAIL，修正runner復原與cleanup assertion後才允許最終run。Current 31/31只支持local isolation foundation completion；`QA-116-R01..R04`仍須另行release gate與production明確授權，其中只有R02可形成Production Level 4 claim。
 
-2026-09-05 cross-gate dependency readback：Platform bootstrap database ACL hard-code已修正並完成fresh N1A `11/11 unit＋30/30 PostgreSQL QC PASS`；三repo detached exact-HEAD N2 aggregate=`../../../Jenfu-Management-system/output/dev-010/n2/aggregate/AGGREGATE-20260904T164946034Z-9908/aggregate-report.json`，`48/48 PASS`，SHA-256=`548f54f43ee2896c0ac448789dd6905fefd72da9e241d937f603f75a246d5a1b`，cleanup與`productionWrites=false`均PASS。此結果只解除bootstrap source requalification缺口；post-commit R1 source lock由Platform generated evidence依最新三repo HEAD重建，current 9項human／target／capacity blocker、provider-native 15案與R02 actual execution仍為`NOT_RUN`，不得宣稱Production Level 4已完成。
+2026-09-05 cross-gate dependency closure：Platform bootstrap database ACL與`jenfu_r1_verifier`已完成fresh N1A `11/11 unit＋30/30 PostgreSQL QC PASS`；三repo完成owner-owned evidence views、exact IAM login binding source與`BEGIN READ ONLY` provider executor。R1E combined unit=`14/14 PASS`、focused QC=`4/4 PASS`；detached exact-HEAD N2 aggregate=`../../../Jenfu-Management-system/output/dev-010/n2/aggregate/AGGREGATE-20260904T175850595Z-20968/aggregate-report.json`，`48/48 PASS`、SHA-256=`b40bb59701da993800ff14e49de989e6f8fc80f483f51a73a16e0b843ffd814b`，positive view read、negative base-table／DML／sequence／function／role-escalation deny與cleanup均PASS，`productionWrites=false`。因此既有9項human／target／capacity preflight清單之外的P0 source blocker已關閉；production仍須依序套用DEV-116 `063`、DEV-010 `062`與verifier binding，再重建post-commit source lock。上述正式動作、provider-native 15案與R02 actual execution仍為`BLOCKED / NOT_RUN`，不得宣稱Production Level 4已完成。
 
 使用思考習慣：#可驗證性、#批判、#風險管理

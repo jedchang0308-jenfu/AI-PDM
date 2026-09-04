@@ -1,8 +1,8 @@
 # SPEC-PDM-PRODUCTION-SMOKE-TENANT-001：Production Level 4 驗證租戶隔離與證據契約
 
-Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / Local Foundation Complete / 116-R Production Activation Gated`
+Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / DEV-010 R1E Verifier Boundary Local Implemented and QC PASS / Production Binding and 116-R Activation Gated`
 
-Date: 2026-09-04
+Date: 2026-09-05
 
 Owner: Dev PM
 
@@ -477,7 +477,7 @@ Failure recovery：Current Phase只回復task-owned migration/database/runtime�
 
 - Spec Impact：`Compatible amendment`。本文件落實既有production-slice ADR的smoke company決策，不改產品slice或正式號不可重用政策。
 - ADR：`No New ADR`。主要長期選擇已由`ADR-PDM-PRODUCTION-SLICE-001`接受；本文件補的是資料、身分與證據契約。若日後改成第二套stack／identity tenant、正式Jenfu例行寫入或改變Platform `DEV-010` topology，必須重開ADR。
-- Current P0/P1 implementation與驗證gap：0。116-A／B／C產品碼、migration、runner與固定31案已完成，狀態為`Local RD Implemented / Local QA-QC 31/31 PASS / local-foundation`；R02 machine receipt verifier為`5/5 PASS`，authenticated browser executor contract為`7/7 PASS`，Platform provider observation producer為`5/5 PASS`，production pipeline為`25/25 PASS`。116-R已進入R01：Production provider／DB catalog唯讀盤點完成，R04 local price-policy PASS；但DEV-010 neutral roles/contracts與062均不存在、現行ledger仍為`public / 53 / highest 056`，故R01整體`BLOCKED`。兩個producer source已存在但preflight非READY時不能執行；provider-native readback executor、principal provisioning、063 apply、actual candidate Level 4與promotion仍`NOT_RUN`。
+- Current local foundation P0/P1 implementation與驗證gap：0。116-A／B／C產品碼、migration、runner與固定31案已完成，狀態為`Local RD Implemented / Local QA-QC 31/31 PASS / local-foundation`；R02 machine receipt verifier為`5/5 PASS`，authenticated browser executor contract為`7/7 PASS`，Platform provider observation producer為`5/5 PASS`，production pipeline為`25/25 PASS`。DEV-010 R1E已在三repo完成PostgreSQL verifier NOLOGIN group、八個owner-owned evidence views、exact IAM login binding與provider-native read-only executor；fresh N1A=`11/11 unit＋30/30 QC PASS`、R1E=`14/14 unit＋4/4 focused QC PASS`、N2=`48/48 PASS`，原P0 source blocker已關閉。116-R仍因Production neutral roles/contracts與062尚未套用、現行ledger仍為`public / 53 / highest 056`及DEV-010既有9項preflight blocker而`BLOCKED`；正式binding、principal provisioning、`063 → 062` apply、actual candidate Level 4與promotion維持`NOT_RUN`。
 
 ## 17. 2026-09-04 R01 production read-only preflight
 
@@ -496,5 +496,18 @@ Failure recovery：Current Phase只回復task-owned migration/database/runtime�
 - 證據：唯一orchestrator `npm run qc:dev-116`固定先後執行contract→migration→isolation-A→isolation-B→browser→isolation-C→aggregate；producer失敗仍留下FAIL/BLOCKED，aggregate只接受31個唯一ID、同run/source、primary before=after、cleanup及redaction通過。最終authority預定為`output/qa/dev-116-production-smoke-tenant/DEV116-LOCAL-20260904-FINAL-R1/aggregate-manifest.json`。
 - Tech Lead correction：第一次整體預驗的前30案通過，但Next自動改寫`next-env.d.ts`造成source fingerprint漂移，QA-116-031正確FAIL；已新增byte-for-byte restore與aggregate cleanup assertion後重驗。這筆preflight FAIL保留，不能取代最終PASS。
 - 架構判定：`通過（Local foundation）`。原本Production Level 4目的仍可保留，因future R02仍在同一Production artifact／runtime／Cloud SQL中以smoke company真實commit＋reload；本地31/31只證明安全基礎與runner，不冒充R02。沒有新增第二套Cloud Run／Cloud SQL／Firebase或常駐SKU，因此固定雲端成本floor仍為0；低頻request、DB row與log增量維持`USD 0～1／月`planning target，實際值由R04與`OBS-116-01`量測。
+
+## 19. 2026-09-05 DEV-010 R1 verifier dependency amendment
+
+RD技術主管複審結論：Platform改採`db-custom-1-3840 / ZONAL_DEDICATED / USD 100`沒有改變DEV-116原始目的。R02仍要求同一production artifact／runtime／Auth／API／Cloud SQL上的SMOKE真實`COMMIT + reload + provider readback`，並保持Jenfu before=after、zero-leak=0、side effects disabled；ZONAL只代表不提供automatic cross-zone failover，不能用Level 4 PASS宣稱HA。
+
+GCP IAM與PostgreSQL ACL必須分開驗證。Platform IaC建立的`r1_verifier` service account、Cloud SQL IAM user及viewer／client權限，只支持連線與provider metadata，不會自動取得`ai_pdm_contract` SELECT。DEV-010 010-R1E現已在本地source完成以下邊界：
+
+- `jenfu_r1_verifier` NOLOGIN group與exact IAM DB login membership；login不得是superuser、owner、migrator或runtime member。
+- AI-PDM在`ai_pdm_contract`提供verifier-only、`security_barrier`、欄位allowlisted evidence views；至少涵蓋root／part／drawing／relation、company-scoped sequence、`numbering.create` audit與command／outbox摘要。不得對verifier blanket grant `ai_pdm_core` base tables、JSON payload、email／credential欄位、DML、sequence或function。
+- Provider executor使用同一effective role，在browser前建立Jenfu baseline，browser後30分鐘內以`BEGIN READ ONLY`讀exact SMOKE IDs／codes與Jenfu after；兩次fingerprint欄位、排序、target與source必須相同，期間不得cleanup。
+- Positive gate證明exact views可讀；negative gate證明base table、DML、sequence、function、role escalation與未allowlisted schema均denied。若只能借用`jenfu_ai_pdm_runtime`、migrator或superuser，R02固定FAIL，不以較高權限輸出補正。
+
+此依賴不增加第二套stack或常駐SKU，只有既有Cloud SQL中的role／views與低頻read-only query，故DEV-116固定成本floor仍為0；實際query／log增量仍納入R04與`OBS-116-01`。AI-PDM local 31／31不因這項release dependency回退。Implementation commits為Platform `351d3bc`／`d9c3295`／`2e4bdef`、OrgMaster `8046418`、AI-PDM `2ad790137`；fresh N1A=`11／11 unit＋30／30 QC PASS`，R1E=`14／14 unit＋4／4 focused QC PASS`，detached exact-HEAD N2=`48／48 PASS`，均為`productionWrites=false`。因此010-R1E source blocker已關閉，但production尚未套用；既有production layout必須先由DEV-116 legacy package套用`063`建立`company_kind`與audit scope欄位，再由DEV-010 neutral migration套用`062` views，順序不可顛倒或合併成未鎖版SQL。正式IAM membership binding、post-commit source lock、provider readback與actual R02仍受DEV-010既有9項preflight blocker及獨立release gate限制，狀態維持`BLOCKED / NOT_RUN`。
 
 使用思考習慣：#多層次分析、#批判、#可驗證性
