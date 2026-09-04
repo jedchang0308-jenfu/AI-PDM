@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import {
   assertPackageConfig,
   assertSourceDrift,
+  buildCandidateSourceManifest,
   buildGitSourceManifest,
   calculateConnectionBudget,
   canonicalize,
@@ -93,4 +96,24 @@ test('N2-SOURCE-08 evidence redaction removes connection secrets', () => {
 
 test('N2-SOURCE-09 graph validation rejects self dependencies and cycles', () => {
   assert.throws(() => validateDependencyGraph([config]), /DEV010_N2_GRAPH_INCOMPLETE/u)
+})
+
+test('N2-SOURCE-10 clean candidate hashes Git bytes and dirty candidate hashes working bytes', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dev010-n2-candidate-'))
+  try {
+    execFileSync('git', ['init', '--quiet'], { cwd: root })
+    execFileSync('git', ['config', 'user.email', 'dev010@example.invalid'], { cwd: root })
+    execFileSync('git', ['config', 'user.name', 'DEV-010'], { cwd: root })
+    fs.writeFileSync(path.join(root, 'fixture.txt'), 'one\ntwo\n')
+    execFileSync('git', ['add', 'fixture.txt'], { cwd: root })
+    execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root })
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+    fs.writeFileSync(path.join(root, 'fixture.txt'), 'one\r\ntwo\r\n')
+    const clean = buildCandidateSourceManifest({ root, head, files: ['fixture.txt'], workingPaths: [] })
+    const dirty = buildCandidateSourceManifest({ root, head, files: ['fixture.txt'], workingPaths: ['fixture.txt'] })
+    assert.equal(clean.files[0].sha256, sha256('one\ntwo\n'))
+    assert.equal(dirty.files[0].sha256, sha256('one\r\ntwo\r\n'))
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
 })

@@ -196,6 +196,36 @@ export function buildGitSourceManifest(input) {
   return { aggregateSha256, files: entries, head: input.head }
 }
 
+export function buildCandidateSourceManifest(input) {
+  object(input, 'DEV010_N2_INVALID_SOURCE_INPUT', 'input')
+  const root = path.resolve(input.root)
+  const files = stringArray(input.files, 'input.files', true).sort()
+  const workingPaths = new Set(stringArray(input.workingPaths ?? [], 'input.workingPaths', true))
+  if (typeof input.head !== 'string' || !/^[0-9a-f]{40}$/u.test(input.head)) fail('DEV010_N2_HEAD_MISMATCH')
+  const entries = files.map((relative) => {
+    let bytes
+    if (workingPaths.has(relative)) {
+      const absolute = path.resolve(root, ...relative.split('/'))
+      if (path.relative(root, absolute).startsWith('..') || !fs.statSync(absolute).isFile()) fail('DEV010_N2_SOURCE_PATH_OUT_OF_SCOPE', relative)
+      bytes = fs.readFileSync(absolute)
+    } else {
+      try {
+        bytes = execFileSync('git', ['show', `${input.head}:${relative}`], {
+          cwd: root,
+          encoding: 'buffer',
+          maxBuffer: 64 * 1024 * 1024,
+          windowsHide: true,
+        })
+      } catch {
+        fail('DEV010_N2_SOURCE_PATH_OUT_OF_SCOPE', relative)
+      }
+    }
+    return { path: relative, sha256: sha256(bytes) }
+  })
+  const aggregateSha256 = sha256(entries.map((entry) => `${entry.path}\0${entry.sha256}\n`).join(''))
+  return { aggregateSha256, files: entries, head: input.head }
+}
+
 export function assertSourceDrift(baseline, candidate, allowlist = { modify: [], new: [], outputPrefixes: [] }, options = {}) {
   object(baseline, 'DEV010_N2_INVALID_SOURCE_INPUT', 'baseline')
   object(candidate, 'DEV010_N2_INVALID_SOURCE_INPUT', 'candidate')

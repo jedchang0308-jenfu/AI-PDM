@@ -4,8 +4,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   assertSourceDrift,
+  buildCandidateSourceManifest,
   buildGitSourceManifest,
-  buildSourceManifest,
   canonicalize,
   loadPackageConfig,
   redactEvidence,
@@ -46,7 +46,6 @@ const candidateFiles = [...new Set([
   ...config.changeAllowlist.modify,
   ...config.changeAllowlist.new,
 ])]
-const candidate = buildSourceManifest({ root: projectRoot, head, files: candidateFiles })
 fs.mkdirSync(appRoot, { recursive: true })
 
 const dirtyPaths = execFileSync('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], {
@@ -58,6 +57,7 @@ const dirtyPaths = execFileSync('git', ['status', '--porcelain=v1', '-z', '--unt
   .filter(Boolean)
   .map((entry) => entry.slice(3).replaceAll('\\', '/'))
   .sort()
+const candidate = buildCandidateSourceManifest({ root: projectRoot, head, files: candidateFiles, workingPaths: dirtyPaths })
 
 let baseline
 let drift = []
