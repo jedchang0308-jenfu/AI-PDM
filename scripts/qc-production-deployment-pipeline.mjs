@@ -31,6 +31,9 @@ const deploymentBoundary = `${identity}\n${locals}\n${variables}`;
 const smoke = read("scripts/run-production-release-smoke.mjs");
 const dev116R02Receipt = read("scripts/lib/dev116-r02-receipt.mjs");
 const dev116R02ReceiptCli = read("scripts/dev116-r02-receipt.mjs");
+const dev116R02BrowserLibrary = read("scripts/lib/dev116-r02-browser-executor.mjs");
+const dev116R02Browser = read("scripts/run-dev116-r02-authenticated-browser.mjs");
+const dev116R02Finalize = read("scripts/dev116-r02-finalize.mjs");
 const trafficRunner = read("scripts/run-production-release-traffic.mjs");
 const releaseSourceManifestUtils = read("scripts/dev-032-release-source-manifest-utils.mjs");
 const dockerfile = read("Dockerfile");
@@ -246,6 +249,19 @@ record("PROD-PIPE-008C promotion requires candidate-bound Level 4 and explicit r
   assert.doesNotMatch(smoke, /production-candidate-level4/u);
 });
 
+record("PROD-PIPE-008F authenticated R02 is preflight-bound UI evidence joined with independent provider evidence", () => {
+  assert.match(dev116R02BrowserLibrary, /READY_FOR_R1_REHEARSAL/u);
+  assert.match(dev116R02BrowserLibrary, /jenfu-platform-prod/u);
+  assert.match(dev116R02BrowserLibrary, /trafficPercent !== 0/u);
+  assert.match(dev116R02BrowserLibrary, /DEV-116-R02-AUTHENTICATED-CANDIDATE-WRITE-APPROVED/u);
+  assert.match(dev116R02Browser, /getByRole\('link', \{ name: '建立編號'/u);
+  assert.match(dev116R02Browser, /waitForResponse/u);
+  assert.doesNotMatch(dev116R02Browser, /fetch\s*\(|page\.request|request\.post|gcloud|terraform/iu);
+  assert.match(dev116R02Finalize, /joinDev116R02Evidence/u);
+  assert.match(dev116R02Finalize, /buildDev116R02Receipt/u);
+  assert.doesNotMatch(dev116R02Finalize, /chromium|fetch\s*\(|gcloud|terraform|promote|migrate|deploy/iu);
+});
+
 record("PROD-PIPE-008D promotion rechecks candidate zero traffic and immutable image provenance", () => {
   assert.match(promotionWorkflow, /CANDIDATE_PERCENT/u);
   assert.match(promotionWorkflow, /\[\[ "\$CANDIDATE_PERCENT" == "0" \]\]/u);
@@ -325,6 +341,9 @@ record("PROD-PIPE-015 package exposes release and QC commands", () => {
   assert.equal(packageJson.scripts?.["production:smoke-cost-gate"], "node scripts/run-dev-116-release-cost-gate.mjs");
   assert.equal(packageJson.scripts?.["dev-116:r02-receipt"], "node scripts/dev116-r02-receipt.mjs");
   assert.equal(packageJson.scripts?.["test:dev-116:r02-receipt"], "node --test scripts/dev116-r02-receipt.test.mjs");
+  assert.equal(packageJson.scripts?.["dev-116:r02-browser"], "node scripts/run-dev116-r02-authenticated-browser.mjs");
+  assert.equal(packageJson.scripts?.["test:dev-116:r02-browser"], "node --test scripts/dev116-r02-browser-executor.test.mjs");
+  assert.equal(packageJson.scripts?.["dev-116:r02-finalize"], "node scripts/dev116-r02-finalize.mjs");
   assert.equal(packageJson.scripts?.["qc:production-deployment-pipeline"], "node scripts/qc-production-deployment-pipeline.mjs");
 });
 
