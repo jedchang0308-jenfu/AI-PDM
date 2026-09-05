@@ -300,3 +300,13 @@ R1-13不增加`QA-116-R01～R04`分母，也不取代R02。Production Level 4仍
 R1-14只接受同release／source lock／neutral target／R1-04 candidate的R1-06、R1-07、R1-09、R1-13 PASS receipts與原始reports，另需一份在所有上游之後產生、具五個typed evidence refs的reviewed convergence observation。除expected quarantine之外，unexpected outbox、scheduled／retry／file-operation pending、external／duplicate／missing／unhandled delivery、file delta／missing／hash mismatch、old-target cutoff後write及active worker都必須精確為0。R1-09 report的database state須重算session hash與state hash；即使重新雜湊，把quarantine count改成0也不得通過。
 
 Finalizer執行邊界固定`providerCalls=0`、`databaseConnections=0`、`candidateDatabaseWrites=false`、`cloudMutations=0`、`trafficChanges=0`。Actual drain與delivery另需post-promotion gate；R1-14 receipt沒有這項授權。Platform source unit=`7／7 PASS`、R1-09 regression=`10／10 PASS`、release adapter=`19／19 PASS`與focused QC=`PASS`只證明source；current preflight仍`BLOCKED 9`，actual R1-14、R02與Production Level 4均`NOT_RUN`，固定月成本增量0。
+
+## DEV-010 R1-15 read-only operational readiness co-gate amendment
+
+`QA-010-R1-15`必須綁定與QA-116-R02相同release／source lock／neutral target／R1-04 candidate脈絡，但不得拿operational tabletop PASS替代R02。QA須驗證R1-02／04／09／10／13／14 receipts全為PASS；四個owner hashes等於R1-02，incident owner與alert route等於R1-09且route test PASS；R1-10 actual retirement=false、R1-13 previous authority restored=true、R1-14 exact一筆smoke event quarantined且consumer disabled。
+
+Reviewed drill的有序動作與上限固定為`GO 120s／NO_GO 120s／ABORT 120s／CLEANUP 300s`。Handoff須accepted且unresolved action=0；stop condition須於120秒內以模擬方式觸發`ABORT_AND_HOLD_TRAFFIC`。缺owner／route、動作重排／缺漏／逾時、handoff未承接或跨candidate拼接皆FAIL。
+
+R1-15執行模式固定為`READ_ONLY_OPERATIONAL_DRILL / tabletopOnly`。QA必須驗證`actualTrafficChanged=false`、`actualCleanupMutationExecuted=false`、`externalNotificationSent=false`，並確認provider／DB／Cloud／traffic mutation counters全為0；receipt不得授權promotion。Current preflight非READY時，CLI須在讀upstream receipts與reviewed transcript前停止，不能要求provider、DB或notification credential。
+
+這個co-gate保留Production Level 4原目的：R02仍須由authenticated `company-smoke`在同一neutral zero-traffic candidate走正常UI／API／Cloud SQL真實`COMMIT + reload`、Jenfu before=after、zero leak及side effects disabled。R1-15 unit=`7／7 PASS`、R1-09=`10／10`、R1-14=`7／7`、release=`19／19`、preflight=`16／16`及focused QC只證明source；actual R1-15與R02均`NOT_RUN`，15案actual分子仍為0，固定月成本增量0。

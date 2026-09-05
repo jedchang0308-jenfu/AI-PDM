@@ -640,3 +640,13 @@ Platform `010-R1Z`已修正一個會破壞DEV-116隔離初衷的生命週期矛�
 R1-14現固定為`READ_ONLY_CONVERGENCE_READINESS`。它只彙整同release／source lock／neutral target／R1-04 candidate的R1-06 zero-delta、R1-07／QA-116-R02 commit、R1-09 observation與R1-13 rollback receipts／reports，再綁reviewed convergence observation。PASS必須同時證明：`company-smoke` exact一筆event仍pending且consumer disabled、unexpected eligible backlog=0、scheduled／retry／file-operation pending=0、external／duplicate／missing／unhandled delivery=0、file pointer difference／missing／hash mismatch=0、old target cutoff後write與active worker=0。任何跨candidate、觀察早於上游、quarantine count被重新雜湊為0、consumer啟用或candidate write都FAIL。
 
 R1-14不增加`QA-116-R01～R04`分母，也不能形成Production Level 4 claim；唯一Level 4路徑仍是QA-116-R02在同一candidate的authenticated SMOKE `COMMIT + reload`、Jenfu before=after、zero leak與side effects disabled。Actual outbox drain／delivery移到promotion後獨立gate，不得由R1-14 receipt授權。Platform source unit=`7／7 PASS`、R1-09 regression=`10／10 PASS`、release adapter=`19／19 PASS`、focused QC=`PASS`；current full preflight仍`BLOCKED 9`，actual R1-14與R02均`NOT_RUN`，Production／DB／Cloud／traffic mutation=0，固定月成本增量0，DEV-010 `USD 100／TWD 3,200`及DEV-116 `USD 0～1／月`預算不變。
+
+## 33. 2026-09-05 DEV-010 R1-15 read-only operational readiness dependency
+
+Platform `010-R1AA`已完成`QA-010-R1-15` finalizer source。它只接受同release、source lock、neutral target與R1-04 candidate的R1-02／04／09／10／13／14 PASS receipts：budget／restore／incident／maintenance owner hashes須來自R1-02，incident owner及alert route再與R1-09 hard join；R1-10須仍未提前retire legacy，R1-13須previous authority restored，R1-14須保留exact一筆`company-smoke` quarantined event並維持consumer disabled。這使營運簽核無法脫離前面的成本、告警、rollback與隔離證據單獨宣稱就緒。
+
+演練固定為`tabletopOnly`：`GO／NO_GO／ABORT／CLEANUP`依序在120／120／120／300秒內完成，handoff須accepted且unresolved action=0，停止條件須在120秒內模擬`ABORT_AND_HOLD_TRAFFIC`。CLI不呼叫provider、不連DB、不送external notification、不切traffic、不執行cleanup mutation，也不授權promotion；任一evidence宣稱實際做了這些動作即FAIL。真正live migration仍須15案actual PASS，canonical traffic promotion仍需獨立GO，event drain與legacy retirement仍在post-promotion gate。
+
+R1-15不能增加或取代`QA-116-R01～R04`。Production Level 4唯一write path仍是R02在同一neutral zero-traffic candidate，由authenticated `company-smoke`走正常UI／API／Cloud SQL真實`COMMIT + reload`，再證明Jenfu before=after、zero leak與side effects disabled。桌上演練PASS既不代表R02已執行，也不能改在`company-jenfu`建立再刪除測試資料；反之R02成功也不能替代具名owner、告警路由、abort與handoff就緒。
+
+Platform source unit=`7／7 PASS`、R1-09=`10／10 PASS`、R1-14=`7／7 PASS`、release adapter=`19／19 PASS`、preflight=`16／16 PASS`及focused QC=`PASS`。至此DEV-010 15案machine source paths齊備，但current full preflight仍`BLOCKED 9`，actual R1-15、R02與Production Level 4均`NOT_RUN`，provider／DB／notification／Cloud／traffic mutation=0。Finalizer只讀本地evidence並寫小型JSON，固定月成本增量為0，不調高DEV-010 `USD 100／TWD 3,200` alerts-only budget或DEV-116 `USD 0～1／月`smoke規劃值。
