@@ -11,7 +11,11 @@
     "region": "asia-east1",
     "foundation_connection_name": "jenfu-platform-nonprod:asia-east1:jenfu-platform-nonprod-pg",
     "foundation_network_name": "jenfu-platform-nonprod-vpc",
-    "foundation_subnetwork_name": "jenfu-platform-nonprod-qc"
+    "foundation_subnetwork_name": "jenfu-platform-nonprod-qc",
+    "iac_service_account_email": "dev010-n1b-iac@jenfu-platform-nonprod.iam.gserviceaccount.com",
+    "runtime_service_account_email": "dev010-stg-aipdm-runtime@jenfu-platform-nonprod.iam.gserviceaccount.com",
+    "migration_service_account_email": "dev010-stg-aipdm-migrator@jenfu-platform-nonprod.iam.gserviceaccount.com",
+    "cloud_sql_proxy_image": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f"
   },
   "profiles": {
     "default-off": {

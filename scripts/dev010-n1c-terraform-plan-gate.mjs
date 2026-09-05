@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { assertPlanProfile, loadPlanAllowlist } from './lib/dev010-n1c-terraform-plan-contract.mjs'
+import { assertExpectedPlanInputs, assertPlanProfile, loadPlanAllowlist } from './lib/dev010-n1c-terraform-plan-contract.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
@@ -25,5 +25,12 @@ const allowlistPath = value('--allowlist') ?? 'config/platform/dev-010-n1c-ai-pd
 const planSource = planPath === '-' ? fs.readFileSync(0, 'utf8') : fs.readFileSync(path.resolve(root, planPath), 'utf8')
 const plan = JSON.parse(planSource)
 const allowlist = loadPlanAllowlist(path.resolve(root, allowlistPath))
+const requiredInputs = ['source_revision', 'foundation_manifest_sha256', 'application_image', 'migration_image']
+const inputGate = assertExpectedPlanInputs(plan, {
+  source_revision: value('--source-revision'),
+  foundation_manifest_sha256: value('--foundation-manifest-sha256'),
+  application_image: value('--application-image'),
+  migration_image: value('--migration-image'),
+}, requiredInputs)
 const gate = assertPlanProfile(plan, allowlist, profile)
-process.stdout.write(`${JSON.stringify({ app: 'AI-PDM', providerMutation: 'NOT_RUN', ...gate })}\n`)
+process.stdout.write(`${JSON.stringify({ app: 'AI-PDM', providerMutation: 'NOT_RUN', ...gate, boundInputs: inputGate.boundInputs })}\n`)

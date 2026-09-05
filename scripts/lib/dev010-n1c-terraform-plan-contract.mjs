@@ -65,3 +65,13 @@ export function assertPlanProfile(plan, allowlist, profileName) {
   }
   return { ...gate, profile: profileName }
 }
+
+export function assertExpectedPlanInputs(plan, expectedInputs, requiredNames) {
+  if (!expectedInputs || !Array.isArray(requiredNames)) fail('DEV010_N1C_INVALID_PLAN_INPUT_BINDING')
+  for (const name of requiredNames) {
+    const expected = expectedInputs[name]
+    if (typeof expected !== 'string' || expected.length === 0) fail('DEV010_N1C_PLAN_INPUT_REQUIRED', name)
+    if (plan?.variables?.[name]?.value !== expected) fail('DEV010_N1C_PLAN_INPUT_MISMATCH', name)
+  }
+  return { boundInputs: [...requiredNames], status: 'PASS' }
+}
