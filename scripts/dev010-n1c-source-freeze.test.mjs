@@ -15,6 +15,7 @@ test('N1C-AI-SOURCE-02 root firebase.json and old staging IaC are outside the al
   assert.ok(!paths.includes('firebase.json'))
   assert.ok(!paths.some((item) => item.startsWith('infra/google-cloud/staging/')))
   assert.ok(paths.includes('src/app/api/health/ready/route.ts'))
+  assert.ok(paths.includes('config/platform/dev-010-n1c-ai-pdm-plan-allowlist.json'))
 })
 
 test('N1C-AI-SOURCE-03 production, old staging, Billing, and external delivery stay zero', () => {

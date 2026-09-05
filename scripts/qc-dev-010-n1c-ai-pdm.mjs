@@ -25,7 +25,7 @@ function run(command, args, options = {}) {
 
 try {
   run(process.execPath, ['scripts/dev010-n1c-source-freeze.mjs'])
-  run(process.execPath, ['--test', 'scripts/dev010-n1c-source-freeze.test.mjs', 'scripts/dev010-n1c-ai-pdm-package.test.mjs'])
+  run(process.execPath, ['--test', 'scripts/dev010-n1c-source-freeze.test.mjs', 'scripts/dev010-n1c-terraform-plan-gate.test.mjs', 'scripts/dev010-n1c-ai-pdm-package.test.mjs'])
   run(process.execPath, ['--experimental-transform-types', '--experimental-loader', './scripts/qc-ts-path-loader.mjs', '--test', 'scripts/dev010-n1c-normal-entry.test.mjs'])
   run(process.execPath, ['scripts/check-shared-database-boundary.mjs', `--base=${JSON.parse(fs.readFileSync(path.join(root, 'config', 'platform', 'dev-010-n1c-ai-pdm.json'), 'utf8')).repository.inspectionHead}`])
   run('terraform', ['fmt', '-check', '-recursive', terraformRoot])

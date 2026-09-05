@@ -74,6 +74,7 @@
     ],
     "allowNew": [
       "config/platform/dev-010-n1c-ai-pdm.json",
+      "config/platform/dev-010-n1c-ai-pdm-plan-allowlist.json",
       "config/platform/firebase-hosting.dev-010-n1c.json",
       "firebase-hosting/dev-010-n1c/404.html",
       "infra/google-cloud/dev-010-n1c/versions.tf",
@@ -90,6 +91,9 @@
       "infra/google-cloud/dev-010-n1c/.terraform.lock.hcl",
       "scripts/dev010-n1c-source-freeze.mjs",
       "scripts/dev010-n1c-source-freeze.test.mjs",
+      "scripts/dev010-n1c-terraform-plan-gate.mjs",
+      "scripts/dev010-n1c-terraform-plan-gate.test.mjs",
+      "scripts/lib/dev010-n1c-terraform-plan-contract.mjs",
       "scripts/dev010-n1c-ai-pdm-package.mjs",
       "scripts/dev010-n1c-ai-pdm-package.test.mjs",
       "scripts/dev010-n1c-normal-entry.mjs",
