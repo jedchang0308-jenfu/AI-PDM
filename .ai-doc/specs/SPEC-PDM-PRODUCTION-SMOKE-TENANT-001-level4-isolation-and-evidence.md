@@ -543,7 +543,7 @@ Current Platform release adapter unit=`19／19 PASS`，fresh release／preflight
 
 ## 23. 2026-09-05 DEV-010 R1-05 canonical reconciliation dependency
 
-Platform commit `9b1bd5f`已將`QA-010-R1-05`從通用typed payload升級為12組canonical source／candidate snapshot gate。它要求legacy AI-PDM DB、OrgMaster frozen JSON、neutral DB與neutral object storage四類read-only input，同時綁定source lock、R1-04 exact candidate manifest、neutral target及同一migration cursor；row／PK／content hash／FK、immutable audit、file object readback、migration disposition、domain invariant及unclassified difference全部歸零後，才可產生R1-05 evidence。Snapshot超過300秒、candidate／cursor漂移、missing file object、repair未逐筆`APPROVED_AND_RESOLVED`，或時間鏈不符合`final snapshots → repair ledger → reconciliation report`都會fail closed。
+Platform commits `9b1bd5f／54faeac`已將`QA-010-R1-05`從通用typed payload升級為12組canonical source／candidate snapshot gate，並補上repair chronology gate。它要求legacy AI-PDM DB、OrgMaster frozen JSON、neutral DB與neutral object storage四類read-only input，同時綁定source lock、R1-04 exact candidate manifest、neutral target及同一migration cursor；row／PK／content hash／FK、immutable audit、file object readback、migration disposition、domain invariant及unclassified difference全部歸零後，才可產生R1-05 evidence。Snapshot超過300秒、candidate／cursor漂移、missing file object、repair未逐筆`APPROVED_AND_RESOLVED`，或時間鏈不符合`final snapshots → repair ledger → reconciliation report`都會fail closed。
 
 這項對帳只證明「搬遷到將執行R02的同一candidate後，canonical data沒有遺漏或未核准差異」，不能替代DEV-116的write path。`QA-116-R02`仍必須在該AI-PDM revision走Production Auth／UI／API／Cloud SQL，以`company-smoke`真實COMMIT＋reload，再用專用verifier證明Jenfu before=after、zero leak與side effects disabled。R1-05即使actual PASS，也不證明SMOKE actor、tenant predicate、編號sequence或browser delivery path正確；反之R02成功也不能掩蓋R1-05資料對帳差異，兩者都是必要條件。
 
