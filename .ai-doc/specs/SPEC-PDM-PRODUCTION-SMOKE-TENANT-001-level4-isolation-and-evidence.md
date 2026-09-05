@@ -1,6 +1,6 @@
 # SPEC-PDM-PRODUCTION-SMOKE-TENANT-001：Production Level 4 驗證租戶隔離與證據契約
 
-Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / DEV-010 R1E Verifier, R1-01 Inventory, R1-04A／F Producers and R1T／R1U Write-fence Evidence Sources Local Implemented and QC PASS / Production Execution and 116-R Activation Gated`
+Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / DEV-010 R1E Verifier and R1-01～R1-09 Guarded Evidence Sources through R1V Local Implemented and QC PASS / Production Execution and 116-R Activation Gated`
 
 Date: 2026-09-05
 
@@ -590,3 +590,13 @@ Platform `010-R1U`補上R1T之後的machine finalization path：`R1-06 freeze �
 Source unit與focused QC為`6／6 PASS`，R1-05／06／08／release-adapter相鄰鏈為`61／61 PASS`。Current full preflight仍`BLOCKED 9`，所以controller apply、post-cutoff captures、finalizer與actual R1-06均`NOT_RUN`，production／cloud／traffic mutation為0。R1U只證明legacy source在封鎖後沒有待搬增量，不會、也不得產生Production Level 4 claim；DEV-116 R02仍須在同一neutral zero-traffic candidate，以`company-smoke`完成Production Auth／UI／API／Cloud SQL真實`COMMIT + reload`並取得provider readback，`company-jenfu` invariant仍須before=after。
 
 R1U不新增Cloud SQL、Cloud Run、Identity tenant、排程或常駐worker，固定月成本增量為0；核准執行時只有bounded read IO與logs，列入DEV-010一次性transition cost，不調高`USD 100／TWD 3,200` alerts-only budget，也不改變DEV-116例行smoke `USD 0～1／月`規劃值。
+
+## 28. 2026-09-05 DEV-010 R1-09 read-only observation dependency
+
+Platform `010-R1V`已建立`QA-010-R1-09` default-deny observation executor。只有full preflight、source lock與同release／neutral target／candidate的R1-04、R1-07、R1-08全部PASS，才可由active keyless `dev010-prod-iac`代入least-privilege `dev010-r1-verifier`，再讀Cloud Logging request entries、Cloud Monitoring connection time series／alert ledger及AI-PDM verifier contract views；其他active principal固定FAIL。Provider token與DB DSN只留記憶體，DB固定`BEGIN TRANSACTION READ ONLY`、`SET LOCAL ROLE jenfu_r1_verifier`與always `ROLLBACK`。
+
+觀測窗固定30～120分鐘且至少完整覆蓋R1-07後30分鐘；三個exact candidate revisions都要有request，unexpected 5xx、408／504、latency p95>1,500 ms、connection peak>100或任何point≥70均FAIL。60秒connection samples至少25個unique points，首尾及任兩點gap不得超過120秒，避免零散樣本冒充整段健康。P0／P1由Cloud Monitoring中`dev_id=dev-010`且與窗口重疊的alert推導，`CRITICAL → P0`、`ERROR → P1`，兩者須為0並與named route acknowledgement一致；不得只信人工receipt自報。
+
+R1-07／R02為防止外部污染，明確要求outbox consumer維持disabled。因此exact R1-07 root留下一筆`company-smoke / pdm.numbering.official_record_created.v1 / pending`是known quarantined evidence，不屬unexpected／eligible backlog；除此之外pending backlog必須為0。R1-09不得啟用consumer、發出external notification或刪除該筆event來製造表面清零。這個語意不降低Production Level 4：真實commit＋reload已由R1-07／R02負責，R1-09只在其後確認同candidate健康、隔離與告警狀態。
+
+Platform source unit=`10／10 PASS`、focused QC=`PASS`；current full preflight仍`BLOCKED 9`，所以actual requests／metrics／alerts／DB readback與R1-09 receipt均`NOT_RUN`。本executor不新增Cloud SQL、Cloud Run、Identity tenant、排程或常駐worker，固定月成本增量為0；核准run只有bounded read usage，不調高`USD 100／TWD 3,200` project alert budget或DEV-116 `USD 0～1／月`smoke planning target。ZONAL只延後HA，backup／PITR、tenant隔離、Jenfu before=after、15案與獨立traffic GO仍保留。
