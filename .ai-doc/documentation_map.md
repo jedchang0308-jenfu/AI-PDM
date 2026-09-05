@@ -24,6 +24,8 @@ Cold start / progressive-read rule:
 
 > **2026-09-05 DEV-010 R1P reconciliation dependency（現行）**：Platform `9b1bd5f`新增12組canonical source／candidate snapshots與repair-ledger assembler，unit=`9/9 PASS`、含adapter focused QC=`28/28 PASS`；四類provider snapshot producers及actual snapshots仍`NOT_RUN`。R1-05與QA-116-R02必須引用同一R1-04 candidate並各自PASS：前者證明canonical migration data完整，後者證明Production Auth／UI／API／Cloud SQL中的company-smoke COMMIT＋reload與Jenfu零污染，任一不得替代另一個。
 
+> **2026-09-05 DEV-010 R1Q snapshot producer dependency（現行）**：Platform `c194081`已完成reviewed mapping＋四captures到兩份canonical snapshots的typed producer，focused=`7/7`、combined=`35/35 PASS`；raw rows不落盤。Provider-native capture execution仍`NOT_RUN`，不增加R1-05或DEV-116 R02分子。
+
 ## 1. Authoritative Entry Points
 
 DEV-109 evidence correction (2026-09-01)：historical aggregate=`output/qa/dev-109-unified/2026-08-31T20-00-15-154Z/aggregate.json`；provider=`provider/postgres.json`為task-owned PostgreSQL S0／S1 actual 054 apply＋rerun，repository為task-owned SQLite actual create／save／review／release readback；T01～T08 transaction runner僅提供source-contract evidence。A0044 CAPA已重開且契約由SPEC §34／QA §12修正；本機CAPA-L01～L08=8/8、歷史54/54 `missing=[]`（receipt=`output/qa/dev-109-capa/2026-09-01T02-31-21-606Z/capa.json`），另含disposable PostgreSQL `CAPA-PG-01` exact SLDASM promotion／replay no-op。使用者授權續接後，正式 Cloud Run migration runner 已完成 CAPA-P01 read-only schema／SLDASM inventory；production receipt=`output/qa/dev-109-capa-production/2026-09-01T0315Z/p01-readonly.json`：正式 schema 僅至`052`、`053/054`缺少，A0044-P01為`Draft/single_part`且無active primary exact `.SLDASM`，exact target=`0`；P02僅NO_OP eligible，P03/P04尚未執行。Local PASS不得延伸解讀為production corrected、activation或external-storage runtime PASS。

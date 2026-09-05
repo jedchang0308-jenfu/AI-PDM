@@ -245,4 +245,6 @@ output/qa/dev-116-production-smoke-tenant/<run-id>/
 
 2026-09-05 R1-05 canonical reconciliation closure：Platform `9b1bd5f／54faeac`固定12組canonical source／candidate self-hashed snapshots並補上repair chronology gate，要求legacy DB＋OrgMaster frozen JSON與neutral DB＋object storage四類read-only input，同source lock／R1-04 candidate／migration cursor、≤300秒skew，且row／PK／hash／FK、audit、file object、migration disposition、domain與repair全部閉合；時間鏈必須為`final snapshots → repair ledger → reconciliation report`，不得用事前核准或回填時間戳拼接PASS。Source unit=`9/9 PASS`、含adapter focused QC=`28/28 PASS`；但provider snapshot producers與actual snapshots仍未完成，故R1-05仍`NOT_RUN`。QA不得以R1-05 local fixture代替R02，也不得以R02 browser COMMIT掩蓋R1-05資料差異；兩案必須引用同candidate且各自PASS。
 
+2026-09-05 R1-05 snapshot producer closure：Platform `c194081`已把reviewed mapping與四份provider captures轉成兩份canonical snapshot的步驟機器化；focused=`7/7 PASS`、含assembler與adapter=`35/35 PASS`。QA必須拒絕raw payload落盤、mapping早於R1-01／R1-04、跨side input、projection／source-lock／candidate／cursor drift、duplicate PK、capture缺件或skew>300秒。Provider-native capture executors與actual captures仍未完成，因此本結果不增加R1-05或R02分子。
+
 使用思考習慣：#可驗證性、#批判、#風險管理
