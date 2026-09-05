@@ -35,8 +35,8 @@ try {
   run('terraform', [`-chdir=${terraformRoot}`, 'init', '-backend=false', '-input=false', '-lockfile=readonly', '-no-color'], { env })
   run('terraform', [`-chdir=${terraformRoot}`, 'validate', '-no-color'], { env })
   run(process.execPath, ['scripts/dev010-n1c-ai-pdm-package.mjs'])
-  run('npm.cmd', ['run', 'typecheck:app'])
-  run('npm.cmd', ['run', 'build:isolated'])
+  run(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.app.json', '--noEmit', '--pretty', 'false'])
+  run(process.execPath, ['scripts/qc-next-isolated-build.mjs'])
   process.stdout.write(`${JSON.stringify({ commands, providerExecution: 'NOT_RUN', status: 'PASS' })}\n`)
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true })

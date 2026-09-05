@@ -64,6 +64,7 @@
     "outputPrefix": "output/dev-010/n1c/",
     "requiredCleanCandidate": true,
     "allowModify": [
+      ".gitignore",
       ".firebaserc",
       "package.json",
       "db/postgres/README.md",
