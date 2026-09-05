@@ -1,5 +1,6 @@
 {
   "projects": {
+    "shared-staging": "jenfu-platform-nonprod",
     "staging": "jenfu-ai-pdm-stg-361825",
     "production": "jenfu-ai-pdm-prod"
   }

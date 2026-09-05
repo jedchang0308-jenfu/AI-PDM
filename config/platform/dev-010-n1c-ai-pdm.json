@@ -1,0 +1,120 @@
+{
+  "contractVersion": "jenfu.dev010.n1c.ai-pdm.v1",
+  "devId": "DEV-010",
+  "slice": "010-N1C",
+  "repository": {
+    "name": "ai-pdm",
+    "inspectionHead": "223711c3df9c68cd920e21d349357d98dbdb62b5",
+    "branch": "持續優化2"
+  },
+  "target": {
+    "environment": "staging",
+    "projectId": "jenfu-platform-nonprod",
+    "region": "asia-east1",
+    "instance": "jenfu-platform-nonprod-pg",
+    "connectionName": "jenfu-platform-nonprod:asia-east1:jenfu-platform-nonprod-pg",
+    "database": "jenfu_stg",
+    "runtimeLogin": "dev010-stg-aipdm-runtime@jenfu-platform-nonprod.iam",
+    "migratorLogin": "dev010-stg-aipdm-migrator@jenfu-platform-nonprod.iam",
+    "environmentMarker": "JENFU_ENVIRONMENT=staging;DEV=DEV-010;SLICE=N1C",
+    "service": "ai-pdm-stg",
+    "hostingSite": "jenfu-platform-nonprod-pdm",
+    "canonicalOrigin": "https://jenfu-platform-nonprod-pdm.web.app"
+  },
+  "migration": {
+    "order": [
+      "db/postgres/001_initial_schema.sql",
+      "db/postgres/003_harden_set_updated_at_search_path.sql",
+      "db/postgres/042_status_data_rebuild.sql",
+      "db/postgres/047_remove_bom_module.sql",
+      "db/postgres/048_solidworks_credential_ui_activation.sql",
+      "db/postgres/049_retire_standalone_manufacturing_impact.sql",
+      "db/postgres/050_drawing_recognition_part_owner_invariant.sql",
+      "db/postgres/051_part_structure_type_authority.sql",
+      "db/postgres/052_retired_workbench_residue_cleanup.sql",
+      "db/postgres/053_drawing_recognition_amendment_lineage.sql",
+      "db/postgres/055_jenfu_role_catalog_publication.sql",
+      "db/postgres/056_role_capability_display_snapshot.sql",
+      "db/postgres/063_production_smoke_tenant_isolation.sql",
+      "db/postgres/062_dev010_neutral_schema_boundary.sql"
+    ],
+    "sourceTraceOnly": "db/postgres/002_supabase_rls_plan.sql",
+    "foldedVersions": "004-041,043-046",
+    "retiredVersions": ["054"],
+    "transformationId": "jenfu.dev010.n1c.ai-foundation-scratch-schema.v2",
+    "ledger": "ai_pdm_core.schema_migrations",
+    "requiredDependency": {
+      "contractId": "platform.auth-session",
+      "contractVersion": "jenfu.platform-contract.auth-session.v1",
+      "signatureSha256": "f3688a722db8ee4a21936d599abf21b63105f4fc049436d7071ec54899ee294f"
+    }
+  },
+  "runtime": {
+    "minInstances": 0,
+    "maxInstances": 2,
+    "maximumConcurrentRevisions": 2,
+    "poolMax": 2,
+    "containerConcurrency": 20,
+    "startupPath": "/api/health/ready",
+    "storageProvider": "local_repository",
+    "attachmentsAllowed": false,
+    "externalDeliveries": 0
+  },
+  "sourceFreeze": {
+    "outputPrefix": "output/dev-010/n1c/",
+    "requiredCleanCandidate": true,
+    "allowModify": [
+      ".firebaserc",
+      "package.json",
+      "db/postgres/README.md",
+      "src/lib/cloud-sql-contract.ts",
+      "src/lib/db-async-provider.ts",
+      "src/lib/production-smoke-runtime.ts"
+    ],
+    "allowNew": [
+      "config/platform/dev-010-n1c-ai-pdm.json",
+      "config/platform/firebase-hosting.dev-010-n1c.json",
+      "firebase-hosting/dev-010-n1c/404.html",
+      "infra/google-cloud/dev-010-n1c/versions.tf",
+      "infra/google-cloud/dev-010-n1c/variables.tf",
+      "infra/google-cloud/dev-010-n1c/locals.tf",
+      "infra/google-cloud/dev-010-n1c/runtime.tf",
+      "infra/google-cloud/dev-010-n1c/migration-runner.tf",
+      "infra/google-cloud/dev-010-n1c/security.tf",
+      "infra/google-cloud/dev-010-n1c/hosting.tf",
+      "infra/google-cloud/dev-010-n1c/observability.tf",
+      "infra/google-cloud/dev-010-n1c/outputs.tf",
+      "infra/google-cloud/dev-010-n1c/README.md",
+      "infra/google-cloud/dev-010-n1c/migration-runner.Dockerfile",
+      "infra/google-cloud/dev-010-n1c/.terraform.lock.hcl",
+      "scripts/dev010-n1c-source-freeze.mjs",
+      "scripts/dev010-n1c-source-freeze.test.mjs",
+      "scripts/dev010-n1c-ai-pdm-package.mjs",
+      "scripts/dev010-n1c-ai-pdm-package.test.mjs",
+      "scripts/dev010-n1c-normal-entry.mjs",
+      "scripts/dev010-n1c-normal-entry.test.mjs",
+      "scripts/qc-dev-010-n1c-ai-pdm.mjs",
+      "qa/dev-010/n1c/fixtures/ai-pdm-staging-v1.json",
+      "qa/dev-010/n1c/browser/normal-entry.mjs",
+      "src/app/api/health/ready/route.ts"
+    ]
+  },
+  "fixture": {
+    "tenantId": "company-staging-smoke",
+    "displayMarker": "STAGING TEST",
+    "companyCode": "STAGING-SMOKE",
+    "productionTenantId": "company-jenfu",
+    "companyKind": "production_smoke",
+    "operationIdPattern": "^DEV010-N1C-[A-Z0-9]{8,64}$",
+    "productionRows": 0,
+    "credentials": 0,
+    "externalDeliveries": 0
+  },
+  "safety": {
+    "productionWrites": false,
+    "oldStagingMutations": 0,
+    "billingChanges": 0,
+    "externalDeliveries": 0,
+    "defaultMode": "dry-run"
+  }
+}
