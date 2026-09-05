@@ -284,3 +284,11 @@ QA須盤點全部Cloud Run service revisions與jobs，而非只看active traffic
 每次disable前必須先落self-hashed progress ledger並標記`OUTCOME_UNKNOWN`；timeout、程序中止或非complete ledger一律阻擋自動重跑，須先人工resolve實際provider state。成功receipt須證明五個superseded版本均`DISABLED`、previous rollback與current仍`ENABLED`、runtime／traffic／DB state未變，且本次操作數恰為五；已完成重跑只能回`ALREADY_COMPLETED`且mutation=0。
 
 R1-12只處理同candidate的安全憑證版本衛生，不增加`QA-116-R01～R04`分母，也不能冒充R02。Production Level 4仍須R02以authenticated `company-smoke`完成正常UI／API／Cloud SQL `COMMIT + reload`、Jenfu before=after、zero leak及side effects disabled；不得改在`company-jenfu`建立再刪除。Platform source unit=`8／8 PASS`、release adapter=`19／19 PASS`、IaC=`8／8 PASS`；current full preflight仍`BLOCKED 9`，actual R1-12與R02均`NOT_RUN`，secret／runtime／DB／traffic mutation為0，固定月成本增量0。
+
+## DEV-010 R1-13 isolated runtime-pointer rollback co-gate amendment
+
+`QA-010-R1-13`只可在同project／region／tier／PG17 private clone執行，不得對neutral source、legacy instance、`company-jenfu`或正式Cloud Run runtime做演練寫入。QA須驗證R1-03／04／08／12同release／source lock／target／candidate PASS、R1-08與R1-12 report、reviewed bounded drill plan及two-key acknowledgement全部成立，才可讀credential或呼叫provider；allocated IP range有值時須由source原值傳入。Create／delete outcome unknown、target collision、source metadata drift、cleanup residue或超過RTO／approved window都必須FAIL。
+
+三元件各須完成previous→candidate→previous的database-scoped pointer、single-writer membership與無schema名稱runtime query readback，總數固定9次。Candidate sentinel只可存在task clone schema；另一側SELECT必須拒絕，復原後data／auth hash相同、unknown data-window rows=0、previous authority restored、task roles／schemas與clone remaining count=0。只查catalog、文字runbook、事後人工刪資料或使用production source都不接受。
+
+R1-13不增加`QA-116-R01～R04`分母，也不取代R02。Production Level 4仍須R02在同一neutral zero-traffic candidate由authenticated `company-smoke`走正常UI／API／Cloud SQL真實`COMMIT + reload`，並取得Jenfu before=after、zero leak與side effects disabled證據；R1-13 sentinel不是business smoke。Platform commit=`21f5f3a`，source unit=`10／10 PASS`、release adapter=`19／19 PASS`、focused QC=`PASS`；current full preflight仍`BLOCKED 9`，actual R1-13與R02均`NOT_RUN`，Production／Cloud／traffic mutation為0，固定月成本增量0。

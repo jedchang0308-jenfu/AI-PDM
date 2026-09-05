@@ -622,3 +622,13 @@ Reference-zero不是只看目前承接流量的revision。R1-12必須列出neutr
 R1-12不是Production Level 4 write-path驗證，也不改變QA-116-R02。Level 4仍須在同一neutral zero-traffic candidate，由`company-smoke`走Production Auth／UI／API／Cloud SQL真實`COMMIT + reload`，並由provider readback證明Jenfu before=after、zero leak與side effects disabled。Secret rotation PASS不能替代R02，R02 PASS也不能讓不安全的rotation通過；兩者必須各自成立，且任何測試資料都不得寫入`company-jenfu`。
 
 Platform commit=`20f020a`；source unit=`8／8 PASS`、release adapter=`19／19 PASS`、IaC=`8／8 PASS`。Current full preflight仍`BLOCKED 9`，actual reviewed plan、provider readback、five-version disable與R1-12 receipt均`NOT_RUN`，所以Production secret／runtime／traffic／DB mutation為0。此控制不新增Cloud SQL、Cloud Run、Identity tenant、排程或常駐worker，固定月成本增量為0；核准執行只產生一次性metadata calls與五次disable，列入transition usage，不調高DEV-010 `USD 100／TWD 3,200` alerts-only budget或DEV-116 `USD 0～1／月`smoke規劃值。
+
+## 31. 2026-09-05 DEV-010 R1-13 isolated runtime-pointer rollback dependency
+
+Platform `010-R1Y`（commit `21f5f3a`）已完成`QA-010-R1-13` default-deny executor source。它只在neutral Cloud SQL目前狀態的同project／region／tier／PostgreSQL 17 private clone建立task-owned schemas與NOLOGIN roles，不允許把neutral source、legacy instance、`company-jenfu`或正式Cloud Run revision當成演練target。Source private allocated IP range有值時必須原值傳給clone並readback一致；clone create／delete在provider request前先落`OUTCOME_UNKNOWN` progress ledger，不確定結果禁止盲目重跑。
+
+三元件各執行previous→candidate→previous：除database-scoped `search_path`與single-writer membership的catalog readback外，每個階段都以runtime role和明確runtime search path執行無schema名稱`probe` query，並證明另一側table SELECT=false，合計9次runtime readback、6次pointer及6次authority transition。Candidate只在task-owned clone schema寫3筆sentinel；復原後data／auth hash exact before=after、unknown window=0、previous authority restored，全部task DB objects與clone residue=0，source metadata unchanged且traffic changes=0才可PASS。證據名稱刻意限定為`runtime pointer`，不得誇大成Cloud Run實際重新登入或connection secret已切換。
+
+R1-13與QA-116-R02是互補而非替代關係。R1-13只證明rollback mechanics；它沒有Production Auth、正常UI、business API、`company-smoke`正式資料模型、reload、Jenfu invariant或side-effect isolation，因此不能形成Production Level 4 claim，也不增加R02分子。R02仍須在同一neutral zero-traffic candidate，以dedicated SMOKE actor完成真實`COMMIT + reload`、Jenfu before=after與zero leak。反過來，R02 PASS也不能取代R1-13的previous→candidate→previous實際回復演練。
+
+Platform source unit=`10／10 PASS`、release adapter=`19／19 PASS`、focused QC=`PASS`。Current full preflight仍`BLOCKED 9`，actual R1-03／04／08／12 receipts、reviewed drill plan、provider clone、DB drill與R1-13 receipt均`NOT_RUN`；Production／Cloud／traffic mutation為0。本source不新增常駐SKU，固定月成本增量為0；未來核准run的一次性temporary clone與少量operations／logs只列入DEV-010 transition cost receipt，不調高`USD 100／TWD 3,200` alerts-only budget或DEV-116 `USD 0～1／月`smoke規劃值。
