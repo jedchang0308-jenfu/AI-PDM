@@ -250,3 +250,11 @@ output/qa/dev-116-production-smoke-tenant/<run-id>/
 2026-09-05 R1-05 provider capture executor closure：Platform `fa2aaf6／11c79b9`完成四來源default-deny executor source；full preflight非READY時在mapping／provider／filesystem／credential前停止。QA固定驗DB reviewed principal＋repeatable-read read-only＋always rollback、OrgMaster exact source bytes＋R1-01 revision、GCS candidate-DB exact pointer＋object describe only，以及raw records memory-only。任何任意SQL、DB write、未rollback、filesystem drift、object list／content download／mutation、missing object、hash mismatch或credential-shaped output都FAIL。Unit=`7/7 PASS`、含snapshot／assembler／adapter=`42/42 PASS`；current preflight仍`BLOCKED 9`，reviewed mapping／projection catalog與actual captures不存在，所以R1-05與R02仍`NOT_RUN`。這項唯讀metadata capture不啟用GCS writer、不遷移file authority，也不改smoke或project budget。
 
 使用思考習慣：#可驗證性、#批判、#風險管理
+
+## DEV-010 R1-08 rollback-readiness co-gate amendment
+
+`QA-116-R02`不得在同一R1-04 candidate的`QA-010-R1-08`缺失、FAIL或identity漂移時被用來解鎖live migration。QA須驗證R1-08 executor只接受同release／preflight／source lock／neutral target的R1-03、R1-04與R1-05 PASS receipts、R1-04 runtime manifest及self-hashed owner-reviewed rollback plan；provider command僅可為Cloud Run service／revision與Secret Manager exact numeric version的`describe`。
+
+R1-08 PASS至少需證明三個service各自：前一revision存在且traffic=100%、candidate revision存在且traffic=0%、positive-traffic revision count=1；previous／candidate connection projection SHA-256符合plan；candidate secret binding符合R1-04 runtime manifest；previous／candidate secret versions都為`ENABLED`。第二個writer、candidate traffic、`latest`、disabled／missing old secret、revision／connection drift、secret payload access或任一mutation都使R1-08 FAIL並停止後續release。
+
+此co-gate不增加`QA-116-R01～R04`分母，也不替代R02的authenticated SMOKE COMMIT＋reload、Jenfu before=after與zero leak；R02亦不能替代R1-08。R1-13仍須在獨立production-like target實際演練rollback。Source unit=`7／7 PASS`、combined=`49／49 PASS`只證明executor，actual plan／provider receipt及R02仍`NOT_RUN`；固定月成本增量為0。

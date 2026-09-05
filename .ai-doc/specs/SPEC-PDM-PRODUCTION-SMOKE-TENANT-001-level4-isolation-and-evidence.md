@@ -562,3 +562,11 @@ Platform commits `fa2aaf6／11c79b9`已完成R1-05四來源default-deny capture 
 Source unit=`7／7 PASS`，連同snapshot producer、assembler及release adapter的combined QC=`42／42 PASS`。但actual R1-01／R1-04 receipts、reviewed mapping／projection catalog與四份capture尚不存在，full preflight仍`BLOCKED 9`，故provider execution、R1-05與QA-116-R02都維持`NOT_RUN`。R1-05證明migration data完整，R02證明Production Auth／UI／API／Cloud SQL的SMOKE COMMIT＋reload及Jenfu零污染；兩者引用同candidate且各自PASS，仍互不替代。
 
 本切片沒有Production read／write、Cloud mutation、traffic change或credential access，固定月成本增量為0。未來核准執行只有bounded DB read、frozen local file read、exact object metadata read與logs，屬DEV-010一次性transition cost；不新增常駐SKU、不調高DEV-116 `USD 0～1／月`例行smoke目標，也不改USD 100 alerts-only project budget。
+
+## 25. 2026-09-05 DEV-010 R1-08 rollback readiness dependency
+
+Platform `010-R1S`現已完成R1-08唯讀provider executor source。它只在full preflight、source lock及同release／neutral target的`QA-010-R1-03／04／05 PASS`都成立後，讀取self-hashed owner-reviewed rollback plan；再以Cloud Run service／previous revision／candidate revision及Secret Manager exact version `describe`證明三個service各只有前一revision持有100% traffic、candidate仍為0%、connection pointer hashes一致，且前一與candidate數字secret versions都為`ENABLED`。Secret payload、DSN原值、service update、traffic update與DB連線都不在executor能力內。
+
+R1-08是DEV-116 R02前後的重要安全條件，但不能代替R02。它證明「若R02或後續release gate停止，前一revision與pointer仍可回復」，不證明`company-smoke`已走Production Auth／UI／API／Cloud SQL完成真實COMMIT＋reload，也不證明Jenfu before=after。反過來，R02即使成功，也不能掩蓋舊revision或舊secret已失效、雙流量或pointer漂移；R1-08與R02必須引用同一R1-04 candidate並各自PASS。實際rollback仍由`QA-010-R1-13`在獨立production-like target演練。
+
+Unit=`7／7 PASS`，含R1-05 provider／snapshot／assembler與release adapter的combined QC=`49／49 PASS`。Current actual upstream receipts、reviewed rollback plan與provider readback尚不存在，故R1-08與QA-116-R02仍`NOT_RUN`。本切片沒有Cloud／Production／traffic mutation，固定月成本增量為0；未來run只有bounded metadata reads與logs，不提高DEV-116例行smoke成本目標或DEV-010 USD 100 alerts-only budget。R1-06真實跨三系統write-freeze仍是獨立未解缺口，不得以R1-08 read-only receipt替代。
