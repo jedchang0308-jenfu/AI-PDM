@@ -247,4 +247,6 @@ output/qa/dev-116-production-smoke-tenant/<run-id>/
 
 2026-09-05 R1-05 snapshot producer closure：Platform `c194081`已把reviewed mapping與四份provider captures轉成兩份canonical snapshot的步驟機器化；focused=`7/7 PASS`、含assembler與adapter=`35/35 PASS`。QA必須拒絕raw payload落盤、mapping早於R1-01／R1-04、跨side input、projection／source-lock／candidate／cursor drift、duplicate PK、capture缺件或skew>300秒。Provider-native capture executors與actual captures仍未完成，因此本結果不增加R1-05或R02分子。
 
+2026-09-05 R1-05 provider capture executor closure：Platform `fa2aaf6／11c79b9`完成四來源default-deny executor source；full preflight非READY時在mapping／provider／filesystem／credential前停止。QA固定驗DB reviewed principal＋repeatable-read read-only＋always rollback、OrgMaster exact source bytes＋R1-01 revision、GCS candidate-DB exact pointer＋object describe only，以及raw records memory-only。任何任意SQL、DB write、未rollback、filesystem drift、object list／content download／mutation、missing object、hash mismatch或credential-shaped output都FAIL。Unit=`7/7 PASS`、含snapshot／assembler／adapter=`42/42 PASS`；current preflight仍`BLOCKED 9`，reviewed mapping／projection catalog與actual captures不存在，所以R1-05與R02仍`NOT_RUN`。這項唯讀metadata capture不啟用GCS writer、不遷移file authority，也不改smoke或project budget。
+
 使用思考習慣：#可驗證性、#批判、#風險管理

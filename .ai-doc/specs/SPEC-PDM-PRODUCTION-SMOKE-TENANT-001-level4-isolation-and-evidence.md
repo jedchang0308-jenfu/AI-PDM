@@ -550,3 +550,15 @@ Platform commits `9b1bd5f／54faeac`已將`QA-010-R1-05`從通用typed payload�
 R1-05 unit=`9／9 PASS`、含release adapter focused QC=`28／28 PASS`；但目前完成的是input contract與assembler，不是四類provider snapshot producer的actual execution。Current preflight仍`BLOCKED 9`且在讀input前停止，R1-05與R02都維持`NOT_RUN`。Assembler沒有DB driver、gcloud或固定SKU，成本floor為0；未來一次性read-only snapshot IO與logs屬DEV-010 transition cost，不調高DEV-116 `USD 0～1／月`例行smoke目標，也不改USD 100 alerts-only project budget。
 
 Platform commit `c194081`進一步完成reviewed mapping＋四provider captures到source／candidate snapshots的typed producer，focused=`7／7 PASS`、含assembler與release adapter=`35／35 PASS`。Raw canonical rows只在記憶體內排序雜湊，不寫入snapshot；classification／candidate／target／cursor、projection、12-group coverage、mapping chronology與≤300秒capture skew均fail closed。這仍不是provider-native DB／filesystem／object-storage capture execution，也不構成R1-05或R02 PASS；正式環境與成本邊界不變。
+
+## 24. 2026-09-05 DEV-010 R1-05 provider capture executor dependency
+
+Platform commits `fa2aaf6／11c79b9`已完成R1-05四來源default-deny capture executor source。單一CLI只接受legacy AI-PDM DB、OrgMaster frozen inventory、neutral candidate DB或neutral object storage四個exact input之一；在full R1 preflight與release adapter prepare不是READY時，會在讀取mapping、provider、來源檔案或credential前停止。Reviewed projection catalog另須綁R1-01 classification、R1-04 candidate、source lock、neutral target、migration cursor、12組projection、hashed principal、migration dispositions與domain invariants。
+
+兩個DB capture固定使用reviewed principal、`REPEATABLE READ READ ONLY`、bounded timeout、`transaction_read_only=on`與always `ROLLBACK`；OrgMaster capture綁exact source-lock script bytes及R1-01 inventory revision；object-storage capture先從candidate DB取得exact pointer，再只允許對reviewed bucket執行`gcloud storage objects describe`。它不能list／download／copy／move／delete／upload，也不建立bucket或改pointer。Raw business rows只在記憶體轉成canonical hash，落盤只有counts、metrics、provenance與self-hash。
+
+這個object-storage讀取是DEV-010 R1-05的既有檔案一致性證據，不是AI-PDM GCS writer或file-authority migration授權。`PDM_SMOKE_GCS_WRITER`仍須disabled，R02也仍不得以外部檔案side effect換取PASS。
+
+Source unit=`7／7 PASS`，連同snapshot producer、assembler及release adapter的combined QC=`42／42 PASS`。但actual R1-01／R1-04 receipts、reviewed mapping／projection catalog與四份capture尚不存在，full preflight仍`BLOCKED 9`，故provider execution、R1-05與QA-116-R02都維持`NOT_RUN`。R1-05證明migration data完整，R02證明Production Auth／UI／API／Cloud SQL的SMOKE COMMIT＋reload及Jenfu零污染；兩者引用同candidate且各自PASS，仍互不替代。
+
+本切片沒有Production read／write、Cloud mutation、traffic change或credential access，固定月成本增量為0。未來核准執行只有bounded DB read、frozen local file read、exact object metadata read與logs，屬DEV-010一次性transition cost；不新增常駐SKU、不調高DEV-116 `USD 0～1／月`例行smoke目標，也不改USD 100 alerts-only project budget。
