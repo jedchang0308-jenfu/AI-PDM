@@ -1,6 +1,6 @@
 # SPEC-PDM-PRODUCTION-SMOKE-TENANT-001：Production Level 4 驗證租戶隔離與證據契約
 
-Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / DEV-010 R1E Verifier and R1-01 Inventory Sources Local Implemented and QC PASS / Production Execution and 116-R Activation Gated`
+Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / DEV-010 R1E Verifier, R1-01 Inventory and R1-04A／F Producer Sources Local Implemented and QC PASS / Production Execution and 116-R Activation Gated`
 
 Date: 2026-09-05
 
@@ -462,12 +462,13 @@ Failure recovery：Current Phase只回復task-owned migration/database/runtime�
 
 ## 14. Release Feasibility and Cost Guard
 
-- 現有`config/platform/cost-budget.template.json`保守預估Production＋on-demand Staging為`USD 30／月`。
+- `config/platform/cost-budget.template.json`中的`USD 30／月`是DEV-010之前的歷史app規劃基線，不是neutral三系統shared database的current成本權威。Current shared topology以Platform DEV-010的`USD 65～80／月`正常估計與`USD 100` alerts-only budget為準；本節只計算company-smoke的增量。
 - `company-smoke`本身不新增固定SKU；低頻release smoke的DB row、backup、Cloud Run request、log與Auth增量暫估`USD 0～1／月`，是planning estimate，不是承諾。
 - 116-R每個candidate最多建立一個root＋一個part＋一個drawing bundle，另只允許同logical command的idempotent replay；不加入檔案、額外backup job、常駐instance或高頻排程。若驗證目的需要第二個bundle，必須在run manifest記錄原因，不得以迴圈壓測冒充Level 4。
 - Release前R04只做可先驗證的cost gate：以當次有效SKU／帳務設定計算單run upper bound、新fixed floor必須為0，且manifest證明bundle/request/log上限。無法取得價格、需要新固定資源或upper bound超出核准預算即NO-GO。
 - `OBS-116-01`為啟用後effectiveness review：以10次完整run或30日先到者，讀回Cloud SQL storage/backup、Cloud Run request/CPU/memory、logging ingestion/retention與Firebase Auth差額，並以啟用前相同長度baseline正規化。月增量超過`USD 1`目標、出現未核准fixed floor或無法依SKU解釋差額時，暫停後續例行write smoke並回成本gate；它不是首次啟用前不可能完成的循環前置條件，也不得靠cleanup刪row取得PASS。
 - 2026-09-04 release re-entry已新增`config/production-smoke-cost-policy.json`與`production:smoke-cost-gate`。當日Google Cloud官方價格snapshot、不扣free tier的gross upper bound為`USD 0.020812/run`、10 runs=`USD 0.208120/month`，fixed SKU=0；價格超過30日、任一unit price缺失或界線超標即NO-GO。這是R04 release前policy evidence，不是啟用後帳單效果證明。
+- DEV-010的`TD-010-ZONAL-01`是三系統shared database的availability技術債，不是`company-smoke`成本，也不改變本SPEC的tenant隔離或Level 4分母。若DEV-010因restore超出核准RTO／RPO、zone-attributable P0／P1 outage或Business Owner要求automatic failover而改為REGIONAL，target identity即改變；舊R01／R02／R04 evidence全部失效，須以新candidate／target／成本重新驗章，不得沿用ZONAL receipt。
 
 ## 15. Deferred Scope Audit
 
@@ -477,7 +478,7 @@ Failure recovery：Current Phase只回復task-owned migration/database/runtime�
 
 - Spec Impact：`Compatible amendment`。本文件落實既有production-slice ADR的smoke company決策，不改產品slice或正式號不可重用政策。
 - ADR：`No New ADR`。主要長期選擇已由`ADR-PDM-PRODUCTION-SLICE-001`接受；本文件補的是資料、身分與證據契約。若日後改成第二套stack／identity tenant、正式Jenfu例行寫入或改變Platform `DEV-010` topology，必須重開ADR。
-- Current local foundation P0/P1 implementation與驗證gap：0。116-A／B／C產品碼、migration、runner與固定31案已完成，狀態為`Local RD Implemented / Local QA-QC 31/31 PASS / local-foundation`；R02 machine receipt verifier為`5/5 PASS`，authenticated browser executor contract為`7/7 PASS`，Platform provider observation producer為`5/5 PASS`，production pipeline為`25/25 PASS`。DEV-010 R1E已在三repo完成PostgreSQL verifier NOLOGIN group、八個owner-owned evidence views、exact IAM login binding與provider-native read-only executor；fresh N1A=`11/11 unit＋30/30 QC PASS`、R1E=`14/14 unit＋4/4 focused QC PASS`、N2=`48/48 PASS`，原P0 source blocker已關閉。116-R仍因Production neutral roles/contracts與062尚未套用、現行ledger仍為`public / 53 / highest 056`及DEV-010既有9項preflight blocker而`BLOCKED`；正式binding、principal provisioning、`063 → 062` apply、actual candidate Level 4與promotion維持`NOT_RUN`。
+- Current local foundation P0/P1 implementation與驗證gap：0。116-A／B／C產品碼、migration、runner與固定31案已完成，狀態為`Local RD Implemented / Local QA-QC 31/31 PASS / local-foundation`；R02 machine receipt verifier為`5/5 PASS`，authenticated browser executor contract為`7/7 PASS`，Platform provider observation producer為`5/5 PASS`，production pipeline為`25/25 PASS`。DEV-010 R1E已在三repo完成PostgreSQL verifier NOLOGIN group、八個owner-owned evidence views、exact IAM login binding與provider-native read-only executor；fresh N1A=`11/11 unit＋30/30 QC PASS`、R1E=`14/14 unit＋4/4 focused QC PASS`、N2=`48/48 PASS`，原P0 source blocker已關閉。R1-04A production packages、exact-commit local build及Platform guarded provider artifact producer source亦已完成；R1-04F／B guarded producer source也已完成，B 7案＋F 8案＋IaC 7案=`22/22 PASS`，並把runtime secrets修正為五個獨立版本流。116-R仍因Production neutral roles/contracts與062尚未套用、現行ledger仍為`public / 53 / highest 056`、DEV-010既有9項preflight blocker、實際provider artifacts、需要時R1-04F與R1-04B provider execution及reviewed runtime manifest缺件而`BLOCKED`；正式binding、principal provisioning、`063 → 062` apply、actual candidate Level 4與promotion維持`NOT_RUN`。
 
 ## 17. 2026-09-04 R01 production read-only preflight
 
@@ -517,5 +518,17 @@ Platform現已建立`QA-010-R1-01` guarded executor source，並以前向修正�
 這項依賴只決定「真正要搬的來源與仍在使用legacy DB的consumer是否已知」，不取代DEV-116 `QA-116-R02`。R02仍必須在neutral candidate以相同production artifact／Auth／API／Cloud SQL，讓`company-smoke`完成真實COMMIT＋reload，再由專用verifier證明Jenfu before=after、zero leak及side effects disabled。R1-01即使PASS也不得寫`company-jenfu`、不得宣稱Production Level 4，亦不得解鎖traffic。
 
 Current source verification為R1-01 focused `7／7 PASS`及Platform release-adapter `12／12 PASS`；實際legacy DB／Cloud Run盤點尚未執行，classification receipt不存在，full preflight仍有9項blocker，因此`QA-010-R1-01`與`QA-116-R02`皆維持`NOT_RUN`。Executor只有`BEGIN TRANSACTION READ ONLY／ROLLBACK`與provider list／describe，固定月成本floor為0；一次性catalog、exact count與log用量納入DEV-010 R1 transition cost，不提高DEV-116的`USD 0～1／月`例行smoke目標。
+
+## 21. 2026-09-05 Neutral candidate producer dependency
+
+DEV-116不自行建立另一個AI-PDM smoke image。R02只接受Platform DEV-010 `QA-010-R1-04`同一三repo release candidate中的AI-PDM digest／revision；candidate producer固定依`R1-04A immutable artifact build → 必要時R1-04F fail-closed first-revision foundation → R1-04B digest-only neutral revision`前進。AI-PDM既有`jenfu-ai-pdm-prod` workflow綁legacy project，只能提供build邏輯盤點，不能把其image、service、revision、environment或receipt直接標成neutral candidate。
+
+AI-PDM R1-04A artifact必須從source-lock列出的exact commit／tree與tracked lockfile建置，保存builder digest、OCI digest、SBOM／provenance digest與secret scan；R1-04B只可把exact digest部署到neutral `jenfu-platform-prod / ai-pdm-prod`，讀回runtime identity、neutral database target、exact secret version refs、`PDM_SMOKE_GCS_WRITER／PDM_SMOKE_OUTBOX_CONSUMER／PDM_SMOKE_EXTERNAL_NOTIFICATION=disabled`、min instances 0及startup readiness。Candidate與promotion不得rebuild，legacy environment不得未經manifest逐欄分類就複製。
+
+若neutral `ai-pdm-prod` service尚不存在，Cloud Run第一個revision不能被文件假設為0% traffic。必須先以DEV-010 R1-04F建立獨立no-role identity及無database credential、無business route、無canonical DNS／正常登入且scale-to-zero的holding revision；effective IAM須證明Cloud SQL connect／login與五個獨立runtime secret access均為DENIED。它雖接收service當下100% foundation assignment，但固定internal ingress、default URL disabled、private IAM及所有method／path 503；不得為了HTTP probe暫開URL或allUsers。Holding artifact／revision與release candidate分離，不得用DEV-116 runner寫資料，也不得算R01／R02 PASS。其後actual candidate revision才可保持0% canonical traffic。
+
+R02受限candidate tag只能在R1-04 provider verifier PASS及獨立write GO後建立／啟用。Identity Platform authorized domain與server origin allowlist必須綁exact tagged host及candidate revision，不可使用wildcard；此tag可達性不是canonical promotion。任一source／lockfile drift、mutable-tag authority、provenance／SBOM缺件、secret進layer、legacy target混入、foundation可連DB／business route、candidate非0% traffic、side-effect flag漂移或R1-04與R02 candidate不一致，都使R01／R02保持BLOCKED。
+
+Cloud Build與revision建立屬DEV-010一次性transition cost；Artifact Registry依artifact bytes與保留天數計費，在刪除前不是零。這些不併入DEV-116 `USD 0～1／月`例行smoke增量，但同project budget未按service過濾時仍占用USD 100告警線；R1-02須記錄bytes、retention-until與cleanup。`min instances=0`時固定compute floor為0。任何非零min instance、長期保留candidate或新增常駐worker都須先回DEV-010成本決策。2026-09-05三repo production container package source與exact-commit local OCI build已完成；AI-PDM以commit `49e17607627c1b00b6cc6a6a8fa094e274a6cfe4`／tree `7782e12c8266cd260cb649e90164176525cacfca`建出local digest `sha256:4399639605a9c506e5acd36b126d068cc3d30f1b31572309e8823f4681984d75`，nonroot／runtime assets／SBOM／bounded app secret scan與primary-data before-after均PASS。Platform `6c54439`另完成R1-04A guarded provider producer source；Platform `38506b5／8889e47／287da0f`再完成R1-04F source、gen2 512 MiB與zero direct invoker hardening。後續R1-04B source `bc79bc662799bf5d28e8fe83bf6160918935ded2`已固定A exact digests＋F receipt＋reviewed runtime manifest、五個獨立numeric secret versions、service baseline不變、startup readiness及candidate traffic=0；B 7＋F 8＋IaC 7=`22/22 PASS`。Current 8項foundation blocker與A／F／runtime evidence缺件使三個producer都在provider auth前停止，故為`R1-04A Local Packaging＋A/F/B Producer Source PASS / Provider Artifact and A/F/B Execution NOT_RUN`；仍未push、deploy、改authorized domain、寫Production或改traffic，且不得宣稱R01／R02或Production Level 4 PASS。
 
 使用思考習慣：#多層次分析、#批判、#可驗證性

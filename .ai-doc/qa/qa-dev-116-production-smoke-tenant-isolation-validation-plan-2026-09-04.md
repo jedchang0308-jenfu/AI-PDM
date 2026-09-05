@@ -1,6 +1,6 @@
 # QA-DEV-116：Production Level 4 驗證租戶隔離驗證計畫
 
-Status: `Local QA-QC Complete / Fixed Current Denominator 31 / 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / QA-116-R01 READ-ONLY PRECHECK COMPLETE / DEV-010 R1E VERIFIER and R1-01 INVENTORY SOURCES LOCAL QC PASS / PRODUCTION EXECUTION GATED / R04 POLICY PRECHECK PASS, RELEASE-COMMIT EVIDENCE PENDING / R02-R03 NOT_RUN`
+Status: `Local QA-QC Complete / Fixed Current Denominator 31 / 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / QA-116-R01 READ-ONLY PRECHECK COMPLETE / DEV-010 R1E VERIFIER, R1-01 INVENTORY and R1-04A／F PRODUCER SOURCES LOCAL QC PASS / PRODUCTION EXECUTION GATED / R04 POLICY PRECHECK PASS, RELEASE-COMMIT EVIDENCE PENDING / R02-R03 NOT_RUN`
 
 Date: 2026-09-05
 
@@ -12,7 +12,7 @@ Related SPEC: `.ai-doc/specs/SPEC-PDM-PRODUCTION-SMOKE-TENANT-001-level4-isolati
 
 Current 31案證明`company-smoke`隔離foundation可在task-owned環境沿正常application、Auth、API、domain、repository與database transaction路徑完成真實commit＋reload，同時`company-jenfu`固定business invariant scope不變；任何tenant predicate、身分綁定或證據欄位缺失都必須被測試或aggregate抓出。它不證明production network／runtime／Cloud SQL已通過；Production Level 4只由R02的exact production candidate evidence成立。
 
-本計畫定義Current Phase固定`QA-116-001..031`與Future Release Gate `QA-116-R01..R04`。2026-09-04使用者啟動116-R後，R01只完成Production catalog／ledger唯讀precheck並因DEV-010 R1前置不存在而BLOCKED；R04完成current official-price policy precheck，但尚未綁定最終release commit。2026-09-05 RD技術主管複審發現的R1 verifier PostgreSQL role／view／membership／executor P0 source gap已由010-R1E本地實作與fresh QC關閉；R1-11 guarded capacity provider executor source亦已在Platform完成`9／9 PASS`，且migration plan已逐檔綁定frozen source，排除只存在其他dirty worktree的未提交migration；但正式candidate、capacity run、migration／binding／provider readback仍未執行。R02／R03維持`NOT_RUN`；未執行production資料修復、principal／membership provisioning、deploy、write smoke或traffic promotion。
+本計畫定義Current Phase固定`QA-116-001..031`與Future Release Gate `QA-116-R01..R04`。2026-09-04使用者啟動116-R後，R01只完成Production catalog／ledger唯讀precheck並因DEV-010 R1前置不存在而BLOCKED；R04完成current official-price policy precheck，但尚未綁定最終release commit。2026-09-05 RD技術主管複審發現的R1 verifier PostgreSQL role／view／membership／executor P0 source gap已由010-R1E本地實作與fresh QC關閉；R1-11 guarded capacity provider executor source亦已在Platform完成`9／9 PASS`，且migration plan已逐檔綁定frozen source，排除只存在其他dirty worktree的未提交migration。R1-04 read-only candidate verification、三repo production container package與R1-04A／F／B guarded producer source已完成；B commit=`bc79bc662799bf5d28e8fe83bf6160918935ded2`，B 7案＋F 8案＋IaC 7案=`22／22 PASS`。F要求A artifact manifest先成立、holding effective IAM無Cloud SQL／五個runtime-secret access，且503-only、no env／secret／Cloud SQL、internal、default URL disabled、private IAM、min=0。B再要求A exact digests、F receipt、reviewed runtime manifest、五個numeric secret versions、service baseline unchanged及candidate traffic=0，且沒有tag／authorized domain／migration／business write／promotion能力。Current 8項foundation blocker與A／F／runtime evidence缺件使producer在provider auth前停止；provider-attested artifact、正式scan receipt、需要時的F及B provider execution仍未執行。R02／R03維持`NOT_RUN`；未執行production資料修復、principal／membership provisioning、push／deploy、write smoke或traffic promotion。
 
 ## 2. Evidence Rules
 
@@ -103,7 +103,7 @@ Current completion固定為`31/31 PASS`；不接受調整分母、用parent aggr
 
 | ID | Pri | Scenario | Expected evidence |
 |---|---|---|---|
-| QA-116-R01 | P0 | Exact zero-traffic production candidate preflight | source revision、dirty boundary、image digest、Cloud Run revision、DB identity與smoke company/principal readback一致 |
+| QA-116-R01 | P0 | Exact neutral production candidate preflight | DEV-010 R1-04A exact source／tree／lockfile、AI-PDM OCI digest、SBOM／provenance／secret scan PASS；需要時R1-04F holding revision無DB／business route；R1-04B neutral `ai-pdm-prod` revision只用exact digest、0% canonical traffic，runtime identity／DB／secret refs／side-effect flags與smoke company／principal readback一致 |
 | QA-116-R02 | P0 | Candidate-bound authenticated SMOKE Level 4／Platform R1-07 AI-PDM co-gate | normal UI commit＋reload通過；browser前由專用`jenfu_r1_verifier`以`BEGIN READ ONLY`建立Jenfu baseline，browser後30分鐘內由同role讀exact evidence views；Jenfu before/after一致、zero-leak=0、side effects disabled，且同一receipt SHA-256亦被同release／source lock／candidate／neutral target的Platform `QA-010-R1-07`引用 |
 | QA-116-R03 | P0 | Canonical post-promotion smoke | 只做核准的canonical checks；不得重用candidate evidence冒充canonical，任何write仍受獨立GO |
 | QA-116-R04 | P1 | Release前cost upper-bound gate | 依當次有效SKU／帳務設定計算單run上限；新增固定SKU=0，bundle/request/log cap可驗證，超預算或價格不可得即NO-GO |
@@ -114,9 +114,13 @@ Provider DB evidence另固定effective role與ACL provenance：Cloud IAM client�
 
 R02 receipt verifier已在本機實作並以`npm run test:dev-116:r02-receipt`取得`5／5 PASS`。2026-09-05新增authenticated browser executor、candidate/preflight validator、browser/provider observation join與finalizer；`npm run test:dev-116:r02-browser`為`7／7 PASS`，production pipeline QC為`25／25 PASS`。Executor只接受hash-valid `READY_FOR_R1_REHEARSAL` preflight、exact neutral target、0% traffic、SMOKE-only actor、disabled side effects與環境變數憑證，並從圖號工作台正常導航建立exact一個bundle。它只產生`BROWSER_PASS_PROVIDER_OBSERVATION_REQUIRED`，不得把generic smoke、browser-only或API-only evidence標成`production-candidate-level4`。Platform另完成provider observation producer `5／5 PASS`，可把同browser SHA、同target、同actor且含DB commit／Jenfu invariant／zero-leak／side-effect證據的self-hashed readback轉成AI-PDM authority格式；producer本身不查Cloud SQL。Actual provider-native readback與R02仍未執行，因此本結果不增加R02分子。
 
+R01／R02還必須引用Platform `QA-010-R1-04`同一AI-PDM artifact與revision。Candidate producer依`R1-04A immutable build → 必要時R1-04F fail-closed first-revision foundation → R1-04B digest-only neutral revision`執行；AI-PDM legacy workflow／image／revision不能代替。Neutral service不存在時不得假設Cloud Run第一個revision可維持0% traffic；holding revision必須無database credential、無business route、無canonical入口、min instances=0且只回fail-closed不可用，並與candidate artifact分離。任一build從dirty tree、以mutable tag作authority、缺SBOM／provenance／secret scan、複製未分類legacy environment、foundation可寫DB、candidate非0% canonical traffic或R1-04／R02 digest-revision不一致，R01與R02同時FAIL。
+
 候選版正常登入固定走受限`candidate` Cloud Run traffic-tag origin；QA須同時證明Identity Platform authorized domain與server origin pattern都只允許exact production service/tag，untagged direct `run.app`仍為403。此origin exception只解決零流量candidate的Firebase BFF session exchange，不建立第二個canonical入口，也不構成R02 PASS。R02 runner還必須提供正常登入表單、SMOKE tenant indicator、UI create、COMMIT、reload、provider DB readback與Jenfu zero-leak同一execution receipt。
 
 DEV-010 neutral target的ZONAL／USD 100決策不得以修改AI-PDM legacy `db-f1-micro／USD 300`設定代替。QA-116-R01須把legacy與neutral project／instance／database identity分開列示；若切換期間同時存在，引用Platform `QA-010-R1-02`的overlap window與incremental-cost receipt。沒有neutral identity或把legacy readback當成neutral時，R01與R02都維持BLOCKED。
+
+ZONAL只代表目前成本優先的availability選擇，不是Level 4 acceptance的一部分，也不得由R02宣稱HA。其技術債由Platform `TD-010-ZONAL-01`控制；若觸發REGIONAL升級，Cloud SQL target／availability與成本receipt已改變，所有舊ZONAL R01／R02／R04 evidence固定失效，須以新target重新執行。這不增加DEV-116案例分母，也不得把production smoke寫回`company-jenfu`。
 
 `OBS-116-01`不是首次啟用前置case。首次啟用後以10次完整run或30日先到者，比對同長度baseline的Cloud SQL／backup／Cloud Run／logging／Auth實際差額；超過每月`USD 1`規劃目標、出現未核准fixed floor或無法歸因時，暫停後續例行write smoke並回成本gate。
 
@@ -139,6 +143,8 @@ DEV-010 neutral target的ZONAL／USD 100決策不得以修改AI-PDM legacy `db-f
 - SMOKE/JENFU sequence、candidate、receipt、outbox或idempotency互相影響。
 - 正常Level 4只驗HTTP、direct URL、DB seed或rollback，未經normal UI commit＋reload。
 - R02未與同release的Platform `QA-010-R1-07`共用exact receipt，或任何測試業務物件寫入`company-jenfu`；cleanup、刪除與rollback-only均不能補正。
+- R01／R02未引用Platform `QA-010-R1-04`的exact AI-PDM source／digest／revision；從legacy project、dirty tree、mutable tag或重新build取得另一candidate；或把Cloud Run新service第一個revision誤標為0% traffic。
+- R1-04F holding revision含database credential、可達business route／正常登入、具有canonical DNS、min instances非0，或被DEV-116 runner當成candidate使用。
 - `jenfu_r1_verifier` PostgreSQL group、AI-PDM verifier evidence views、exact IAM DB login membership或positive／negative ACL evidence缺失；或provider executor借用`jenfu_ai_pdm_runtime`、migrator、owner、IaC superuser、base-table blanket SELECT或可寫session。
 - Jenfu baseline不是在browser前以同release／target／effective role建立，provider session未使用`BEGIN READ ONLY`與bounded timeout，或before／after之間發生cleanup。
 - Cleanup成功被當成隔離證據，或cleanup失敗導致Jenfu可見資料。
@@ -232,5 +238,7 @@ output/qa/dev-116-production-smoke-tenant/<run-id>/
 2026-09-05 R1-02 decision gate closure：Platform `46d1819`已把neutral target identity、ZONAL／tier、USD 100／TWD 3,200 alerts-only budget、RTO／RPO、四owner與legacy／neutral bounded overlap綁成同release的專用case evidence；unit=`8/8 PASS`、focused QC=`3/3 PASS`。此producer不連provider／DB、不建立資源，也不影響DEV-116的Level 4 claim；current正式缺件使它維持`BLOCKED / receiptWritten=false`，actual `QA-010-R1-02`仍為`NOT_RUN`。
 
 2026-09-05 R1-01 inventory source closure：Platform `0a3f902／882a155／f03f79b／8352c83`與OrgMaster `8b0a39f／46b92bb`已完成`discover → reviewed classification → finalize`證據鏈。Discover以exact source lock與明確two-key gate執行，盤點AI-PDM legacy DB全部非system schema、schema／relation／index／routine overload／trigger／type owner與ACL、ledger、exact row count，以及同project／region Cloud Run direct DB consumers；OrgMaster frozen inventory另逐一hash current local-json artifact、media及legacy／previous／temporary residue。任何漏分類、owner缺失、expected consumer未綁定、source drift或secret finding都FAIL，且finalize仍要求full adapter prepare READY。Focused=`7/7 PASS`、release-adapter=`12/12 PASS`只證明source能力；actual provider inventory／classification尚未執行，故R1-01、R1-07與QA-116-R02仍為`NOT_RUN`，production／candidate write及cloud／traffic mutation均為0。
+
+2026-09-05 R1-04F／B source closure：Platform `38506b5／8889e47／287da0f`修補Cloud Run全新service第一revision不能為0% traffic的生命週期缺口，固定gen2 512 MiB並拒絕任何service direct invoker binding。F只能在合法R1-04A artifact manifest後執行；existing service維持read-only before／after baseline，missing service才可用no-role holding identity建立單一503 revision。QA固定驗effective IAM Cloud SQL connect／login與五secret access deny、零env／volume／secret／Cloud SQL attachment、internal ingress、default URL disabled、private IAM、min=0／max=1，以及100% foundation assignment與canonical traffic change=0分離。B source另固定A／F／runtime manifest exact join、digest-only、numeric secret versions、Direct VPC＋Cloud SQL Auth Proxy、startup readiness、service baseline unchanged及0% traffic。B 7＋F 8＋IaC 7=`22/22 PASS`只證明source；actual A／F／B仍`BLOCKED / NOT_RUN`，QA-116-R02未解鎖。
 
 使用思考習慣：#可驗證性、#批判、#風險管理
