@@ -15,6 +15,8 @@ Owner：Dev PM
 
 > **2026-09-05 DEV-010 R1O evidence hardening**：Platform `3a3a3e9`已讓`R1-05／06／08／09／10／12／13／14／15`的PASS強制攜帶同release／source lock／neutral target／R1-04 candidate manifest的typed evidence，`caseEvidence=null`、各案stop condition、provenance／mutation drift或跨candidate拼接都會FAIL。Release unit=`19/19 PASS`，current full preflight仍`BLOCKED 9`、foundation `8＋1`、15案及QA-116-R02仍`NOT_RUN`；九案provider executors尚未完成，故不構成Production Level 4或live migration授權。
 
+> **2026-09-05 DEV-010 R1P reconciliation gate**：Platform `9b1bd5f`已完成R1-05的12組canonical雙快照與repair-ledger assembler，固定四類read-only input、same source lock／R1-04 candidate／migration cursor及≤300秒skew；unit=`9/9 PASS`、含adapter focused QC=`28/28 PASS`。Provider snapshot producers與actual evidence尚未完成，current仍在讀input前`BLOCKED 9`；R1-05不能代替QA-116-R02，R02也不能掩蓋R1-05差異，兩者仍為同candidate的獨立必要gate。
+
 ## 總任務清單
 
 這是目前 AI/PM 協作的任務容器，不是冷啟動的全文讀取範圍。`DEV-001` 這類短碼是溝通用別名；

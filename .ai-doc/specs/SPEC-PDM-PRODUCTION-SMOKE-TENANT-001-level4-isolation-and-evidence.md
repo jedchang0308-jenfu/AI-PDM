@@ -540,3 +540,11 @@ Platform commit `3a3a3e9`修正R1 release adapter：`QA-010-R1-05／06／08／09
 此修正強化DEV-116的前置安全性，但不改`QA-116-R02`自身分母，也不能替代R02。只有同一R1-04 AI-PDM candidate在`company-smoke`走正常Production Auth／UI／API／Cloud SQL真實COMMIT＋reload，並由專用verifier證明Jenfu before=after、zero leak與side effects disabled，才可形成Production Level 4；其他十四案或operational evidence全部PASS也不能代替這條write-path證據。
 
 Current Platform release adapter unit=`19／19 PASS`，fresh release／preflight／foundation QC均PASS；full preflight仍`BLOCKED 9`、foundation仍`8 blockers＋1 deferred capacity`，R1十五案與QA-116-R02仍全部`NOT_RUN`。九案provider executors尚未實作／執行，因此這只關閉false-PASS schema gap；production／Cloud／traffic mutation為0，DEV-116低頻smoke成本與DEV-010 USD 100 alerts-only budget均不變。
+
+## 23. 2026-09-05 DEV-010 R1-05 canonical reconciliation dependency
+
+Platform commit `9b1bd5f`已將`QA-010-R1-05`從通用typed payload升級為12組canonical source／candidate snapshot gate。它要求legacy AI-PDM DB、OrgMaster frozen JSON、neutral DB與neutral object storage四類read-only input，同時綁定source lock、R1-04 exact candidate manifest、neutral target及同一migration cursor；row／PK／content hash／FK、immutable audit、file object readback、migration disposition、domain invariant及unclassified difference全部歸零後，才可產生R1-05 evidence。Snapshot超過300秒、candidate／cursor漂移、missing file object或repair未逐筆`APPROVED_AND_RESOLVED`都會fail closed。
+
+這項對帳只證明「搬遷到將執行R02的同一candidate後，canonical data沒有遺漏或未核准差異」，不能替代DEV-116的write path。`QA-116-R02`仍必須在該AI-PDM revision走Production Auth／UI／API／Cloud SQL，以`company-smoke`真實COMMIT＋reload，再用專用verifier證明Jenfu before=after、zero leak與side effects disabled。R1-05即使actual PASS，也不證明SMOKE actor、tenant predicate、編號sequence或browser delivery path正確；反之R02成功也不能掩蓋R1-05資料對帳差異，兩者都是必要條件。
+
+R1-05 unit=`9／9 PASS`、含release adapter focused QC=`28／28 PASS`；但目前完成的是input contract與assembler，不是四類provider snapshot producer的actual execution。Current preflight仍`BLOCKED 9`且在讀input前停止，R1-05與R02都維持`NOT_RUN`。Assembler沒有DB driver、gcloud或固定SKU，成本floor為0；未來一次性read-only snapshot IO與logs屬DEV-010 transition cost，不調高DEV-116 `USD 0～1／月`例行smoke目標，也不改USD 100 alerts-only project budget。
