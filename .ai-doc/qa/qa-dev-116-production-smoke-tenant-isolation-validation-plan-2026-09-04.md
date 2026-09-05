@@ -241,4 +241,6 @@ output/qa/dev-116-production-smoke-tenant/<run-id>/
 
 2026-09-05 R1-04F／B source closure：Platform `38506b5／8889e47／287da0f`修補Cloud Run全新service第一revision不能為0% traffic的生命週期缺口，固定gen2 512 MiB並拒絕任何service direct invoker binding。F只能在合法R1-04A artifact manifest後執行；existing service維持read-only before／after baseline，missing service才可用no-role holding identity建立單一503 revision。QA固定驗effective IAM Cloud SQL connect／login與五secret access deny、零env／volume／secret／Cloud SQL attachment、internal ingress、default URL disabled、private IAM、min=0／max=1，以及100% foundation assignment與canonical traffic change=0分離。B source另固定A／F／runtime manifest exact join、digest-only、numeric secret versions、Direct VPC＋Cloud SQL Auth Proxy、startup readiness、service baseline unchanged及0% traffic。B 7＋F 8＋IaC 7=`22/22 PASS`只證明source；actual A／F／B仍`BLOCKED / NOT_RUN`，QA-116-R02未解鎖。
 
+2026-09-05 R1O operational evidence closure：Platform `3a3a3e9`把`R1-05／06／08／09／10／12／13／14／15`的PASS改為必須具有同release／source lock／neutral target／R1-04 candidate manifest的typed evidence；九案缺件、各自stop condition、check-reference／mutation drift與跨candidate拼接都由release unit固定fail closed。Current release adapter=`19/19 PASS`且focused QC PASS，但九案provider executors與actual receipts仍未完成；因此R1仍0／15，QA-116-R01／R02仍`BLOCKED / NOT_RUN`，不得用typed fixture補成Production Level 4。
+
 使用思考習慣：#可驗證性、#批判、#風險管理

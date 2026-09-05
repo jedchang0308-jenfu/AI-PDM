@@ -13,6 +13,8 @@ Owner：Dev PM
 
 > **2026-09-05 Platform DEV-010 physical-topology successor（現行）**：`DEV-032`已完成AI-PDM第一版application release並關閉，但三系統共用資料庫的neutral target、`ai_pdm_core/ai_pdm_contract` placement、database roles與producer／consumer migration dependency contract由Platform [DEV-010 direct spec](../../Jenfu-Management-system/ai-doc/specs/DEV-010-three-system-database-consolidation-contract.md) 接管。Current target=`db-custom-1-3840 / ZONAL_DEDICATED / USD 100`；ZONAL只延後HA，不降低Level 4或tenant隔離。010-R1E已完成PostgreSQL verifier NOLOGIN group、owner-owned evidence views、exact IAM login binding與read-only executor source，fresh N1A=`11＋30 PASS`、R1E=`14＋4 PASS`、N2=`48/48 PASS`，原P0 source blocker已關閉。R1-04唯讀candidate verifier、三repo production container package與R1-04A／F／B guarded producer source均已完成；B commit=`bc79bc662799bf5d28e8fe83bf6160918935ded2`，B 7＋F 8＋IaC 7=`22／22 PASS`。`010-R1`仍受既有9項human／target／capacity evidence、實際provider-attested artifact、正式scan receipt、需要時R1-04F provider execution、reviewed runtime manifest、R1-04B provider execution、正式migration／binding與15案provider execution封鎖；current producer在8項foundation blocker與A／F／runtime evidence缺件下於provider auth前停止。本輪不授權production migration、IAM／DB grant、Cloud build／push／deploy、authorized domain、DNS、authority或traffic變更。
 
+> **2026-09-05 DEV-010 R1O evidence hardening**：Platform `3a3a3e9`已讓`R1-05／06／08／09／10／12／13／14／15`的PASS強制攜帶同release／source lock／neutral target／R1-04 candidate manifest的typed evidence，`caseEvidence=null`、各案stop condition、provenance／mutation drift或跨candidate拼接都會FAIL。Release unit=`19/19 PASS`，current full preflight仍`BLOCKED 9`、foundation `8＋1`、15案及QA-116-R02仍`NOT_RUN`；九案provider executors尚未完成，故不構成Production Level 4或live migration授權。
+
 ## 總任務清單
 
 這是目前 AI/PM 協作的任務容器，不是冷啟動的全文讀取範圍。`DEV-001` 這類短碼是溝通用別名；
