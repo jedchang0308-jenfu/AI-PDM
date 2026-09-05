@@ -1,6 +1,6 @@
 # SPEC-PDM-PRODUCTION-SMOKE-TENANT-001：Production Level 4 驗證租戶隔離與證據契約
 
-Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / DEV-010 R1E Verifier, R1-01 Inventory and R1-04A／F Producer Sources Local Implemented and QC PASS / Production Execution and 116-R Activation Gated`
+Status: `Local RD Implemented / RD Tech Lead Approved after Corrections / Human Confirmed / 116-A-B-C Complete / Current QA-QC 31 of 31 PASS / R02 Receipt Contract 5 of 5 PASS / DEV-010 R1E Verifier, R1-01 Inventory, R1-04A／F Producers and R1T／R1U Write-fence Evidence Sources Local Implemented and QC PASS / Production Execution and 116-R Activation Gated`
 
 Date: 2026-09-05
 
@@ -580,3 +580,13 @@ Platform `010-R1T`已把R1-06從人工freeze宣告升級為source authority。R1
 R1-06與DEV-116 R02是互補關卡。R1-06只封鎖cutover期間legacy source business writes並要求post-cutoff final delta=0；R02仍在同一neutral zero-traffic candidate由`company-smoke`走Production Auth／UI／API／Cloud SQL真實COMMIT＋reload，再證明Jenfu before=after、zero leak與side effects disabled。Source fence不能拿來宣稱Level 4，R02也不能取代freeze／final delta；更不得因source ACL fence而改在`company-jenfu`建立後刪除測試資料。
 
 本控制不新增Cloud SQL、Cloud Run、Identity tenant或常駐worker，固定月成本增量為0；未來核准run只屬一次性R1 transition usage，不提高DEV-116 `USD 0～1／月`smoke增量目標，也不調高DEV-010 `USD 100／TWD 3,200` alerts-only budget。
+
+## 27. 2026-09-05 DEV-010 R1-06 post-fence zero-delta finalizer dependency
+
+Platform `010-R1U`補上R1T之後的machine finalization path：`R1-06 freeze → post-cutoff source DB／OrgMaster frozen inventory／candidate DB／candidate object storage四份read-only capture → canonical source／candidate snapshots → exact-zero finalizer → QA-010-R1-06 receipt`。Capture與finalize使用不同exact acknowledgement，並以獨立輸出路徑避免覆寫R1-05證據；finalizer本身沒有query、gcloud、credential、deploy、traffic或business mutation能力。
+
+為修正舊evidence schema與`finalDeltaUpperBoundRows=0`互相矛盾的問題，R1-06 mode固定改為`POST_FENCE_ZERO_DELTA_RECONCILIATION`，`candidateDatabaseWrites=false`、`actualRows=0`、`unclassified=0`且source／candidate migration cursor相同。Finalizer會從四份capture重新組裝canonical snapshots，並要求其SHA與外部final snapshots完全相同；因此自行重算或替換snapshot不能冒充provider capture證據。12組canonical group的row、primary key、content、foreign key、audit、file、migration transition／ledger、domain、mapping及unclassified差異任一非0即FAIL；capture早於cutoff、skew超過300秒、maintenance window逾時或restore receipt已存在亦FAIL。
+
+Source unit與focused QC為`6／6 PASS`，R1-05／06／08／release-adapter相鄰鏈為`61／61 PASS`。Current full preflight仍`BLOCKED 9`，所以controller apply、post-cutoff captures、finalizer與actual R1-06均`NOT_RUN`，production／cloud／traffic mutation為0。R1U只證明legacy source在封鎖後沒有待搬增量，不會、也不得產生Production Level 4 claim；DEV-116 R02仍須在同一neutral zero-traffic candidate，以`company-smoke`完成Production Auth／UI／API／Cloud SQL真實`COMMIT + reload`並取得provider readback，`company-jenfu` invariant仍須before=after。
+
+R1U不新增Cloud SQL、Cloud Run、Identity tenant、排程或常駐worker，固定月成本增量為0；核准執行時只有bounded read IO與logs，列入DEV-010一次性transition cost，不調高`USD 100／TWD 3,200` alerts-only budget，也不改變DEV-116例行smoke `USD 0～1／月`規劃值。
