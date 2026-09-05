@@ -610,3 +610,15 @@ R1-10現只產生`READ_ONLY_RETIREMENT_READINESS` evidence。它使用R1-01 exac
 Signoff不授權停用或刪除。Machine boundary固定`actualLegacyRetirementExecuted=false`、`legacyDeletionAuthorized=false`、`postPromotionObservationRequired=true`與`rollbackPathRetained=true`；實際legacy retirement屬canonical traffic promotion後的獨立gate。這不改DEV-116 R02：Production Level 4仍須同一neutral candidate上的`company-smoke`真實Auth／UI／API／Cloud SQL `COMMIT + reload`、Jenfu before=after、zero leak及side effects disabled，R1-10不能替代或降低這條write-path驗證。
 
 Platform unit=`7／7 PASS`、focused QC、release adapter=`19／19`及preflight=`16／16 PASS`；current full preflight仍`BLOCKED 9`，finalizer在plan／provider／DB前停止。Actual R1-10與QA-116-R02皆`NOT_RUN`，沒有legacy retirement、deletion、Cloud／DB／traffic mutation。Finalizer只讀寫本地self-hashed receipts，不新增常駐SKU，固定月成本增量為0；DEV-010 USD 100 budget與DEV-116 `USD 0～1／月`smoke目標不變。
+
+## 30. 2026-09-05 DEV-010 R1-12 least-privilege three-version rotation dependency
+
+Platform `010-R1X`將原本容易誤解的「old version revoked」改成三個互斥角色：`rollbackProtectedVersion`是R1-08 previous revision仍需使用的回復版本，`currentVersion`是candidate runtime manifest綁定版本，`supersededVersion`才是待停用版本。前兩者都必須為numeric、存在且維持`ENABLED`；superseded必須與兩者不同。任何plan試圖停用previous rollback或current version都必須在credential／provider／DB access前fail closed。
+
+Reference-zero不是只看目前承接流量的revision。R1-12必須列出neutral project／region的全部Cloud Run revisions與jobs，解析五個exact runtime secret的numeric version binding，並證明每個superseded version的跨revision／job reference count精確為0。Verifier只以metadata與read-only DB transaction核對release、source lock、candidate與R1-08 binding，不得讀secret payload。實際rotator是獨立keyless identity，只在五個exact secrets取得project custom role的單一`secretmanager.versions.disable` permission；預定義`roles/secretmanager.secretVersionManager`因同時含add／enable／destroy而明確禁止，rotator亦不得具有Cloud Run、traffic或DB mutation權。
+
+為處理disable request timeout後結果不確定，executor在每次mutation前先寫self-hashed progress ledger並標為`OUTCOME_UNKNOWN`。任何未完成ledger都阻擋自動重跑，直到人工核對provider state；成功後才逐項記錄before／after ETag與`DISABLED`。Complete receipt要求五個superseded versions停用、previous rollback與current仍`ENABLED`、runtime／traffic／database baseline不變；重跑已完成session只能回`ALREADY_COMPLETED`且零mutation。這保留rollback能力並縮小credential exposure，沒有以「清理」為名走回不可回復的舊路。
+
+R1-12不是Production Level 4 write-path驗證，也不改變QA-116-R02。Level 4仍須在同一neutral zero-traffic candidate，由`company-smoke`走Production Auth／UI／API／Cloud SQL真實`COMMIT + reload`，並由provider readback證明Jenfu before=after、zero leak與side effects disabled。Secret rotation PASS不能替代R02，R02 PASS也不能讓不安全的rotation通過；兩者必須各自成立，且任何測試資料都不得寫入`company-jenfu`。
+
+Platform commit=`20f020a`；source unit=`8／8 PASS`、release adapter=`19／19 PASS`、IaC=`8／8 PASS`。Current full preflight仍`BLOCKED 9`，actual reviewed plan、provider readback、five-version disable與R1-12 receipt均`NOT_RUN`，所以Production secret／runtime／traffic／DB mutation為0。此控制不新增Cloud SQL、Cloud Run、Identity tenant、排程或常駐worker，固定月成本增量為0；核准執行只產生一次性metadata calls與五次disable，列入transition usage，不調高DEV-010 `USD 100／TWD 3,200` alerts-only budget或DEV-116 `USD 0～1／月`smoke規劃值。

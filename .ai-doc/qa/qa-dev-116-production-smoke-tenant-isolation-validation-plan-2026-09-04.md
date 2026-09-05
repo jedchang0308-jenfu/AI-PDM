@@ -274,3 +274,13 @@ AI-PDM fence至少驗證：service與migration job consumer identity exact、act
 QA須驗R1-10 reviewed plan逐一覆蓋R1-01 `consumerManifestSha256`及connected consumer數；每個consumer只能以`REPOINT／RETIRE／NO_DIRECT_DATABASE_ACCESS`配置對應promotion後action，`RETAIN_LEGACY`、unknown、unmapped、重複或漏件皆FAIL。R1-08 previous authority／pointer／secret必須仍可回復且無dual-write；R1-09必須同candidate完成至少30分鐘並為P0／P1=0；Platform、OrgMaster、AI-PDM三owner均須accepted。
 
 不論owner是否簽核，receipt固定`actualLegacyRetirementExecuted=false`、`legacyDeletionAuthorized=false`、`postPromotionObservationRequired=true`與`rollbackPathRetained=true`。Actual disable／delete只能在canonical promotion後另經legacy-retirement gate。R1-10 PASS不能冒充R02的authenticated `company-smoke` COMMIT＋reload、Jenfu before=after或zero leak；R02成功也不能讓漏consumer的R1-10通過。Platform source unit=`7／7 PASS`與focused QC只證明finalizer；current在plan／provider／DB前`BLOCKED 9`，actual R1-10與R02仍`NOT_RUN`，固定月成本增量0。
+
+## DEV-010 R1-12 guarded three-version credential-rotation co-gate amendment
+
+`QA-010-R1-12`不得把R1-08仍需保留的previous rollback secret誤判為「old version」並停用。QA必須驗證同release／source lock／neutral target／candidate的R1-08 receipt、R1-04 runtime manifest與owner-reviewed rotation plan完全一致，且每個runtime secret明確區分`rollbackProtectedVersion`、`currentVersion`與相異的`supersededVersion`；rollback protected與current都必須為numeric、存在且維持`ENABLED`。
+
+QA須盤點全部Cloud Run service revisions與jobs，而非只看active traffic revision；只有superseded version跨所有reference count精確為0，才可進入五個exact Secret Manager version的`disable`。執行identity只能代入dedicated keyless rotator，其secret層權限必須是custom role的單一`secretmanager.versions.disable`；禁止預定義`roles/secretmanager.secretVersionManager`，也禁止payload access、add／enable／destroy、Cloud Run mutation、traffic、DB write與任意secret target。Verifier只可讀metadata及以read-only transaction確認exact binding。
+
+每次disable前必須先落self-hashed progress ledger並標記`OUTCOME_UNKNOWN`；timeout、程序中止或非complete ledger一律阻擋自動重跑，須先人工resolve實際provider state。成功receipt須證明五個superseded版本均`DISABLED`、previous rollback與current仍`ENABLED`、runtime／traffic／DB state未變，且本次操作數恰為五；已完成重跑只能回`ALREADY_COMPLETED`且mutation=0。
+
+R1-12只處理同candidate的安全憑證版本衛生，不增加`QA-116-R01～R04`分母，也不能冒充R02。Production Level 4仍須R02以authenticated `company-smoke`完成正常UI／API／Cloud SQL `COMMIT + reload`、Jenfu before=after、zero leak及side effects disabled；不得改在`company-jenfu`建立再刪除。Platform source unit=`8／8 PASS`、release adapter=`19／19 PASS`、IaC=`8／8 PASS`；current full preflight仍`BLOCKED 9`，actual R1-12與R02均`NOT_RUN`，secret／runtime／DB／traffic mutation為0，固定月成本增量0。
