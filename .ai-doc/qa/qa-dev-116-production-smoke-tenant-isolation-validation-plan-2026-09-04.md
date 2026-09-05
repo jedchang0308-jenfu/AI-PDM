@@ -258,3 +258,11 @@ output/qa/dev-116-production-smoke-tenant/<run-id>/
 R1-08 PASS至少需證明三個service各自：前一revision存在且traffic=100%、candidate revision存在且traffic=0%、positive-traffic revision count=1；previous／candidate connection projection SHA-256符合plan；candidate secret binding符合R1-04 runtime manifest；previous／candidate secret versions都為`ENABLED`。第二個writer、candidate traffic、`latest`、disabled／missing old secret、revision／connection drift、secret payload access或任一mutation都使R1-08 FAIL並停止後續release。
 
 此co-gate不增加`QA-116-R01～R04`分母，也不替代R02的authenticated SMOKE COMMIT＋reload、Jenfu before=after與zero leak；R02亦不能替代R1-08。R1-13仍須在獨立production-like target實際演練rollback。Source unit=`7／7 PASS`、combined=`49／49 PASS`只證明executor，actual plan／provider receipt及R02仍`NOT_RUN`；固定月成本增量為0。
+
+## DEV-010 R1-06 source write-fence co-gate amendment
+
+`QA-116-R02`不得被用來掩蓋`QA-010-R1-06`缺少真實source write authority或final delta。QA須確認R1-06依R1-01 exact inventory將Platform驗為0 connected legacy runtime、OrgMaster驗為source-lock exact frozen Git／local-json，並只對AI-PDM legacy DB的NOLOGIN `pdm_runtime`採用PostgreSQL ACL fence。Application flag、關閉畫面、人工口頭停寫或事後cleanup均不是有效freeze。
+
+AI-PDM fence至少驗證：service與migration job consumer identity exact、active migration execution=0；runtime不是owner／migrator成員且無升權或間接write grant；dedicated fence controller為NOLOGIN且不掛Cloud Run；全部R1-01 public table／partition／sequence被覆蓋；同transaction撤銷migration IAM membership、runtime DML／sequence writes並寫control ledger；cutoff後active runtime transaction、migration IAM idle／active session及兩者effective write privilege=0。撤銷前exact privilege／membership manifest必須存於DB ledger；commit後失敗須先自動restore，其他abort只能由controller逐物件並按exact membership恢復；本地report缺失時仍須能ledger-only recovery。
+
+這只形成R1-06 source sub-evidence。最終R1-06仍須post-cutoff capture證明final delta=0、unclassified=0及candidate已對帳；R02仍須獨立完成authenticated `company-smoke` COMMIT＋reload、Jenfu before=after與zero leak。兩者必須引用同一release／source lock／candidate脈絡並各自PASS；任一不得替代另一案。Source unit=`6／6 PASS`與focused QC只證明executor，current provider execution、R1-06與R02仍`NOT_RUN`，固定月成本增量0。

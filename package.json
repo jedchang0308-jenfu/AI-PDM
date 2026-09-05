@@ -146,6 +146,7 @@
     "test:dev-116:r02-receipt": "node --test scripts/dev116-r02-receipt.test.mjs",
     "dev-116:r02-receipt": "node scripts/dev116-r02-receipt.mjs",
     "test:dev-116:r02-browser": "node --test scripts/dev116-r02-browser-executor.test.mjs",
+    "test:dev-116:r1-source-fence": "node --test scripts/dev116-r1-source-fence-controller.test.mjs",
     "dev-116:r02-browser": "node scripts/run-dev116-r02-authenticated-browser.mjs",
     "dev-116:r02-finalize": "node scripts/dev116-r02-finalize.mjs",
     "qc:dev-082:contract": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-082-contract.mjs",

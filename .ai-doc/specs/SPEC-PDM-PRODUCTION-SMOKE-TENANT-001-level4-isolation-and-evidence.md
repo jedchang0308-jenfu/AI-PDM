@@ -570,3 +570,13 @@ Platform `010-R1S`現已完成R1-08唯讀provider executor source。它只在ful
 R1-08是DEV-116 R02前後的重要安全條件，但不能代替R02。它證明「若R02或後續release gate停止，前一revision與pointer仍可回復」，不證明`company-smoke`已走Production Auth／UI／API／Cloud SQL完成真實COMMIT＋reload，也不證明Jenfu before=after。反過來，R02即使成功，也不能掩蓋舊revision或舊secret已失效、雙流量或pointer漂移；R1-08與R02必須引用同一R1-04 candidate並各自PASS。實際rollback仍由`QA-010-R1-13`在獨立production-like target演練。
 
 Unit=`7／7 PASS`，含R1-05 provider／snapshot／assembler與release adapter的combined QC=`49／49 PASS`。Current actual upstream receipts、reviewed rollback plan與provider readback尚不存在，故R1-08與QA-116-R02仍`NOT_RUN`。本切片沒有Cloud／Production／traffic mutation，固定月成本增量為0；未來run只有bounded metadata reads與logs，不提高DEV-116例行smoke成本目標或DEV-010 USD 100 alerts-only budget。R1-06真實跨三系統write-freeze仍是獨立未解缺口，不得以R1-08 read-only receipt替代。
+
+## 26. 2026-09-05 DEV-010 R1-06 source write-fence dependency
+
+Platform `010-R1T`已把R1-06從人工freeze宣告升級為source authority。R1-01 inventory證明Platform沒有連向legacy AI-PDM DB的runtime、OrgMaster來源是source-lock綁定的Git／local-json，因此兩者分別採`NO_CONNECTED_SOURCE_RUNTIME`與`FROZEN_GIT_SOURCE`；legacy AI-PDM則新增不掛Cloud Run的dedicated fence IAM／NOLOGIN controller。Controller在PostgreSQL authority於maintenance window同transaction撤銷migration IAM的`pdm_migration` membership，並撤銷NOLOGIN `pdm_runtime`的table `INSERT／UPDATE／DELETE`及sequence `USAGE／UPDATE`，保留SELECT。任何未知consumer、active migration execution、runtime owner／migrator membership、間接write grant、漏盤object、runtime active transaction、migration IAM idle／active session或cutoff後殘餘寫權都fail closed。
+
+撤銷前exact object／privilege與migration membership manifest會self-hash並與release、source lock、reviewed plan一起寫入source DB control ledger；restore只由controller依manifest逐物件GRANT並恢復exact membership，禁止blanket grant。Freeze commit後若drain／readback／evidence失敗會先自動restore；程序中止時仍可由DB ledger執行recovery，避免安全機制造成legacy服務不可逆唯讀。Platform source unit=`6／6`＋focused QC、AI-PDM controller source=`2／2 PASS`；但current full preflight仍`BLOCKED 9`，沒有provider／credential access或Production ACL／data／Cloud／traffic mutation，controller provider apply與actual R1-06仍`NOT_RUN`。
+
+R1-06與DEV-116 R02是互補關卡。R1-06只封鎖cutover期間legacy source business writes並要求post-cutoff final delta=0；R02仍在同一neutral zero-traffic candidate由`company-smoke`走Production Auth／UI／API／Cloud SQL真實COMMIT＋reload，再證明Jenfu before=after、zero leak與side effects disabled。Source fence不能拿來宣稱Level 4，R02也不能取代freeze／final delta；更不得因source ACL fence而改在`company-jenfu`建立後刪除測試資料。
+
+本控制不新增Cloud SQL、Cloud Run、Identity tenant或常駐worker，固定月成本增量為0；未來核准run只屬一次性R1 transition usage，不提高DEV-116 `USD 0～1／月`smoke增量目標，也不調高DEV-010 `USD 100／TWD 3,200` alerts-only budget。

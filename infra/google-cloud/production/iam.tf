@@ -14,6 +14,14 @@ resource "google_service_account" "migration" {
   display_name = "AI PDM production migration runner"
 }
 
+resource "google_service_account" "source_fence" {
+  count = local.create_resources ? 1 : 0
+
+  project      = var.production_project_id
+  account_id   = "${local.name_prefix}-fence"
+  display_name = "AI PDM production source write-fence controller"
+}
+
 resource "google_project_iam_member" "runtime" {
   for_each = local.create_resources ? local.runtime_roles : toset([])
 
@@ -28,4 +36,12 @@ resource "google_project_iam_member" "migration" {
   project = var.production_project_id
   role    = each.key
   member  = "serviceAccount:${google_service_account.migration[0].email}"
+}
+
+resource "google_project_iam_member" "source_fence" {
+  for_each = local.create_resources ? local.source_fence_roles : toset([])
+
+  project = var.production_project_id
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.source_fence[0].email}"
 }

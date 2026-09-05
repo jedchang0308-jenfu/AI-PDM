@@ -83,3 +83,12 @@ resource "google_sql_user" "migration_iam" {
   instance = google_sql_database_instance.pdm[0].name
   type     = "CLOUD_IAM_SERVICE_ACCOUNT"
 }
+
+resource "google_sql_user" "source_fence_iam" {
+  count = local.create_resources ? 1 : 0
+
+  project  = var.production_project_id
+  name     = trimsuffix(google_service_account.source_fence[0].email, ".gserviceaccount.com")
+  instance = google_sql_database_instance.pdm[0].name
+  type     = "CLOUD_IAM_SERVICE_ACCOUNT"
+}

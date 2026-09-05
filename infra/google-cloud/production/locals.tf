@@ -46,6 +46,11 @@ locals {
     "roles/cloudsql.instanceUser"
   ])
 
+  source_fence_roles = toset([
+    "roles/cloudsql.client",
+    "roles/cloudsql.instanceUser"
+  ])
+
   secret_names = toset([
     "pdm-workbench-contract",
     "pdm-session-signing-current",

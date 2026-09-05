@@ -10,6 +10,8 @@
   "network": "private-ip-via-direct-vpc-egress",
   "runtimeDatabaseRole": "pdm_runtime",
   "migrationDatabaseRole": "pdm_migration",
+  "sourceFenceControllerDatabaseRole": "pdm_fence_controller",
+  "sourceFenceControllerRuntimeAttached": false,
   "runtimeDdlAllowed": false,
   "runtimeBypassRlsAllowed": false,
   "serviceAccountKeysAllowed": false,
