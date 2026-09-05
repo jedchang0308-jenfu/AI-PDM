@@ -292,3 +292,11 @@ R1-12只處理同candidate的安全憑證版本衛生，不增加`QA-116-R01～R
 三元件各須完成previous→candidate→previous的database-scoped pointer、single-writer membership與無schema名稱runtime query readback，總數固定9次。Candidate sentinel只可存在task clone schema；另一側SELECT必須拒絕，復原後data／auth hash相同、unknown data-window rows=0、previous authority restored、task roles／schemas與clone remaining count=0。只查catalog、文字runbook、事後人工刪資料或使用production source都不接受。
 
 R1-13不增加`QA-116-R01～R04`分母，也不取代R02。Production Level 4仍須R02在同一neutral zero-traffic candidate由authenticated `company-smoke`走正常UI／API／Cloud SQL真實`COMMIT + reload`，並取得Jenfu before=after、zero leak與side effects disabled證據；R1-13 sentinel不是business smoke。Platform commit=`21f5f3a`，source unit=`10／10 PASS`、release adapter=`19／19 PASS`、focused QC=`PASS`；current full preflight仍`BLOCKED 9`，actual R1-13與R02均`NOT_RUN`，Production／Cloud／traffic mutation為0，固定月成本增量0。
+
+## DEV-010 R1-14 read-only convergence co-gate amendment
+
+`QA-010-R1-14`不得在QA-116-R02／R1-07之後、promotion之前要求outbox全為0。QA須以R1-09 provider observation證明exact 1筆`company-smoke` event仍為`pending`、outbox consumer為disabled、unexpected eligible backlog=0；若把該筆event consume、delete或送往external destination以取得表面上的0，R1-14必須FAIL。這筆quarantine event是Level 4 commit與side-effect isolation的雙重證據，不是production tenant污染。
+
+R1-14只接受同release／source lock／neutral target／R1-04 candidate的R1-06、R1-07、R1-09、R1-13 PASS receipts與原始reports，另需一份在所有上游之後產生、具五個typed evidence refs的reviewed convergence observation。除expected quarantine之外，unexpected outbox、scheduled／retry／file-operation pending、external／duplicate／missing／unhandled delivery、file delta／missing／hash mismatch、old-target cutoff後write及active worker都必須精確為0。R1-09 report的database state須重算session hash與state hash；即使重新雜湊，把quarantine count改成0也不得通過。
+
+Finalizer執行邊界固定`providerCalls=0`、`databaseConnections=0`、`candidateDatabaseWrites=false`、`cloudMutations=0`、`trafficChanges=0`。Actual drain與delivery另需post-promotion gate；R1-14 receipt沒有這項授權。Platform source unit=`7／7 PASS`、R1-09 regression=`10／10 PASS`、release adapter=`19／19 PASS`與focused QC=`PASS`只證明source；current preflight仍`BLOCKED 9`，actual R1-14、R02與Production Level 4均`NOT_RUN`，固定月成本增量0。

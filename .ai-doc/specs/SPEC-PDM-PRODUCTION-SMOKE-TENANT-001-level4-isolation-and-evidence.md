@@ -632,3 +632,11 @@ Platform `010-R1Y`（commit `21f5f3a`）已完成`QA-010-R1-13` default-deny exe
 R1-13與QA-116-R02是互補而非替代關係。R1-13只證明rollback mechanics；它沒有Production Auth、正常UI、business API、`company-smoke`正式資料模型、reload、Jenfu invariant或side-effect isolation，因此不能形成Production Level 4 claim，也不增加R02分子。R02仍須在同一neutral zero-traffic candidate，以dedicated SMOKE actor完成真實`COMMIT + reload`、Jenfu before=after與zero leak。反過來，R02 PASS也不能取代R1-13的previous→candidate→previous實際回復演練。
 
 Platform source unit=`10／10 PASS`、release adapter=`19／19 PASS`、focused QC=`PASS`。Current full preflight仍`BLOCKED 9`，actual R1-03／04／08／12 receipts、reviewed drill plan、provider clone、DB drill與R1-13 receipt均`NOT_RUN`；Production／Cloud／traffic mutation為0。本source不新增常駐SKU，固定月成本增量為0；未來核准run的一次性temporary clone與少量operations／logs只列入DEV-010 transition cost receipt，不調高`USD 100／TWD 3,200` alerts-only budget或DEV-116 `USD 0～1／月`smoke規劃值。
+
+## 32. 2026-09-05 DEV-010 R1-14 pre-promotion convergence dependency
+
+Platform `010-R1Z`已修正一個會破壞DEV-116隔離初衷的生命週期矛盾。QA-116-R02／R1-07在neutral zero-traffic candidate完成正常UI／API／Cloud SQL真實commit後，應留下exact 1筆`company-smoke` pending outbox event；R1-09又要求consumer、GCS writer與external notification保持disabled。故R1-14在promotion前若要求outbox全部清成0，實際會迫使系統提前consume、delivery或刪除稽核證據，並非更乾淨。
+
+R1-14現固定為`READ_ONLY_CONVERGENCE_READINESS`。它只彙整同release／source lock／neutral target／R1-04 candidate的R1-06 zero-delta、R1-07／QA-116-R02 commit、R1-09 observation與R1-13 rollback receipts／reports，再綁reviewed convergence observation。PASS必須同時證明：`company-smoke` exact一筆event仍pending且consumer disabled、unexpected eligible backlog=0、scheduled／retry／file-operation pending=0、external／duplicate／missing／unhandled delivery=0、file pointer difference／missing／hash mismatch=0、old target cutoff後write與active worker=0。任何跨candidate、觀察早於上游、quarantine count被重新雜湊為0、consumer啟用或candidate write都FAIL。
+
+R1-14不增加`QA-116-R01～R04`分母，也不能形成Production Level 4 claim；唯一Level 4路徑仍是QA-116-R02在同一candidate的authenticated SMOKE `COMMIT + reload`、Jenfu before=after、zero leak與side effects disabled。Actual outbox drain／delivery移到promotion後獨立gate，不得由R1-14 receipt授權。Platform source unit=`7／7 PASS`、R1-09 regression=`10／10 PASS`、release adapter=`19／19 PASS`、focused QC=`PASS`；current full preflight仍`BLOCKED 9`，actual R1-14與R02均`NOT_RUN`，Production／DB／Cloud／traffic mutation=0，固定月成本增量0，DEV-010 `USD 100／TWD 3,200`及DEV-116 `USD 0～1／月`預算不變。
