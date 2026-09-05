@@ -600,3 +600,13 @@ Platform `010-R1V`已建立`QA-010-R1-09` default-deny observation executor。�
 R1-07／R02為防止外部污染，明確要求outbox consumer維持disabled。因此exact R1-07 root留下一筆`company-smoke / pdm.numbering.official_record_created.v1 / pending`是known quarantined evidence，不屬unexpected／eligible backlog；除此之外pending backlog必須為0。R1-09不得啟用consumer、發出external notification或刪除該筆event來製造表面清零。這個語意不降低Production Level 4：真實commit＋reload已由R1-07／R02負責，R1-09只在其後確認同candidate健康、隔離與告警狀態。
 
 Platform source unit=`10／10 PASS`、focused QC=`PASS`；current full preflight仍`BLOCKED 9`，所以actual requests／metrics／alerts／DB readback與R1-09 receipt均`NOT_RUN`。本executor不新增Cloud SQL、Cloud Run、Identity tenant、排程或常駐worker，固定月成本增量為0；核准run只有bounded read usage，不調高`USD 100／TWD 3,200` project alert budget或DEV-116 `USD 0～1／月`smoke planning target。ZONAL只延後HA，backup／PITR、tenant隔離、Jenfu before=after、15案與獨立traffic GO仍保留。
+
+## 29. 2026-09-05 DEV-010 R1-10 retirement-readiness dependency
+
+Platform `010-R1W`已修正R1-10的release lifecycle：在live migration與canonical promotion前，legacy AI-PDM service／migration consumer仍承擔現行正式流量，R1-08也必須保留previous revision、connection pointer與secret versions作rollback。因此舊契約要求`legacy consumer=0／rollback dependency=0`才可通過migration前15案是不可能同時成立的條件，也可能誘使release為了過關而提前拆除回復路徑。
+
+R1-10現只產生`READ_ONLY_RETIREMENT_READINESS` evidence。它使用R1-01 exact live consumer manifest作完整分母，每個consumer只可分類為`REPOINT`、`RETIRE`或`NO_DIRECT_DATABASE_ACCESS`，並分別配置live migration後repoint、post-promotion observation後disable或no provider mutation；`RETAIN_LEGACY`、漏consumer、action錯配或unknown／unmapped皆FAIL。R1-08必須仍證明previous authority可回復且無dual-write，R1-09必須完成至少30分鐘、P0／P1=0，Platform／OrgMaster／AI-PDM三owner再對同一plan簽核。
+
+Signoff不授權停用或刪除。Machine boundary固定`actualLegacyRetirementExecuted=false`、`legacyDeletionAuthorized=false`、`postPromotionObservationRequired=true`與`rollbackPathRetained=true`；實際legacy retirement屬canonical traffic promotion後的獨立gate。這不改DEV-116 R02：Production Level 4仍須同一neutral candidate上的`company-smoke`真實Auth／UI／API／Cloud SQL `COMMIT + reload`、Jenfu before=after、zero leak及side effects disabled，R1-10不能替代或降低這條write-path驗證。
+
+Platform unit=`7／7 PASS`、focused QC、release adapter=`19／19`及preflight=`16／16 PASS`；current full preflight仍`BLOCKED 9`，finalizer在plan／provider／DB前停止。Actual R1-10與QA-116-R02皆`NOT_RUN`，沒有legacy retirement、deletion、Cloud／DB／traffic mutation。Finalizer只讀寫本地self-hashed receipts，不新增常駐SKU，固定月成本增量為0；DEV-010 USD 100 budget與DEV-116 `USD 0～1／月`smoke目標不變。

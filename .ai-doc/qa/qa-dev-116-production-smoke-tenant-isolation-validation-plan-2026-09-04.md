@@ -266,3 +266,11 @@ R1-08 PASS至少需證明三個service各自：前一revision存在且traffic=10
 AI-PDM fence至少驗證：service與migration job consumer identity exact、active migration execution=0；runtime不是owner／migrator成員且無升權或間接write grant；dedicated fence controller為NOLOGIN且不掛Cloud Run；全部R1-01 public table／partition／sequence被覆蓋；同transaction撤銷migration IAM membership、runtime DML／sequence writes並寫control ledger；cutoff後active runtime transaction、migration IAM idle／active session及兩者effective write privilege=0。撤銷前exact privilege／membership manifest必須存於DB ledger；commit後失敗須先自動restore，其他abort只能由controller逐物件並按exact membership恢復；本地report缺失時仍須能ledger-only recovery。
 
 這只形成R1-06 source sub-evidence。最終R1-06仍須post-cutoff capture證明final delta=0、unclassified=0及candidate已對帳；R02仍須獨立完成authenticated `company-smoke` COMMIT＋reload、Jenfu before=after與zero leak。兩者必須引用同一release／source lock／candidate脈絡並各自PASS；任一不得替代另一案。Source unit=`6／6 PASS`與focused QC只證明executor，current provider execution、R1-06與R02仍`NOT_RUN`，固定月成本增量0。
+
+## DEV-010 R1-10 retirement-readiness co-gate amendment
+
+`QA-010-R1-10`不得要求QA-116-R02執行前先把legacy AI-PDM consumer、previous revision或rollback secret歸零。此時legacy仍承擔正式流量，R1-08也要求rollback可用；提前停用只會把安全gate變成release風險。R1-10改驗退役「就緒」而非退役「已完成」，不增加或取代`QA-116-R01～R04`分母。
+
+QA須驗R1-10 reviewed plan逐一覆蓋R1-01 `consumerManifestSha256`及connected consumer數；每個consumer只能以`REPOINT／RETIRE／NO_DIRECT_DATABASE_ACCESS`配置對應promotion後action，`RETAIN_LEGACY`、unknown、unmapped、重複或漏件皆FAIL。R1-08 previous authority／pointer／secret必須仍可回復且無dual-write；R1-09必須同candidate完成至少30分鐘並為P0／P1=0；Platform、OrgMaster、AI-PDM三owner均須accepted。
+
+不論owner是否簽核，receipt固定`actualLegacyRetirementExecuted=false`、`legacyDeletionAuthorized=false`、`postPromotionObservationRequired=true`與`rollbackPathRetained=true`。Actual disable／delete只能在canonical promotion後另經legacy-retirement gate。R1-10 PASS不能冒充R02的authenticated `company-smoke` COMMIT＋reload、Jenfu before=after或zero leak；R02成功也不能讓漏consumer的R1-10通過。Platform source unit=`7／7 PASS`與focused QC只證明finalizer；current在plan／provider／DB前`BLOCKED 9`，actual R1-10與R02仍`NOT_RUN`，固定月成本增量0。
