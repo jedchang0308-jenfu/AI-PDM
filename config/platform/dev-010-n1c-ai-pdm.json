@@ -69,8 +69,11 @@
       "package.json",
       "db/postgres/README.md",
       "src/lib/cloud-sql-contract.ts",
+      "src/lib/company-context.ts",
       "src/lib/db-async-provider.ts",
-      "src/lib/production-smoke-runtime.ts"
+      "src/lib/platform-command-context.ts",
+      "src/lib/production-smoke-runtime.ts",
+      "src/lib/repositories/user-async-repository.ts"
     ],
     "allowNew": [
       "config/platform/dev-010-n1c-ai-pdm.json",

@@ -5,7 +5,10 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { resolveCloudSqlRuntimeConfig } from '../src/lib/cloud-sql-contract.ts'
+import { parsePdmCompanyRequest } from '../src/lib/company-context.ts'
+import { isValidSmokeCommandAuthority } from '../src/lib/platform-command-context.ts'
 import { readProductionSmokeRuntimeIsolation } from '../src/lib/production-smoke-runtime.ts'
+import { AsyncUserRepository } from '../src/lib/repositories/user-async-repository.ts'
 import { assertNormalEntryContract, assertOperationId } from './dev010-n1c-normal-entry.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -67,4 +70,56 @@ test('N1C-RUNTIME-05 Hosting normal-entry and operation identifiers are exact', 
   assert.equal(assertNormalEntryContract().status, 'PASS')
   assert.equal(assertOperationId('DEV010-N1C-20260906A'), 'DEV010-N1C-20260906A')
   assert.throws(() => assertOperationId('A0059'), /DEV010_N1C_OPERATION_ID_INVALID/u)
+})
+
+test('N1C-RUNTIME-06 staging smoke code preserves the production-smoke identity invariant', async () => {
+  assert.deepEqual(parsePdmCompanyRequest('STAGING-SMOKE'), { state: 'valid', companyCode: 'STAGING-SMOKE' })
+
+  const rows = [{
+    company_id: 'company-staging-smoke',
+    company_code: 'STAGING-SMOKE',
+    company_kind: 'production_smoke',
+    display_name: 'STAGING TEST',
+    is_default: true,
+  }]
+  const client = {
+    query: async () => rows,
+    queryOne: async () => null,
+    execute: async () => undefined,
+  }
+  const access = await new AsyncUserRepository(client).listUserCompanyAccess('user-staging-smoke')
+  assert.equal(access[0].companyCode, 'STAGING-SMOKE')
+  assert.equal(access[0].companyKind, 'production_smoke')
+
+  assert.equal(isValidSmokeCommandAuthority(
+    { id: 'user-staging-smoke', role: 'Engineer', company_id: 'company-staging-smoke' },
+    {
+      companyId: 'company-staging-smoke',
+      companyCode: 'STAGING-SMOKE',
+      companyKind: 'production_smoke',
+      isDefault: true,
+      membershipCount: 1,
+      platformPrincipalId: 'principal-staging-smoke',
+      principalMappingStatus: 'active',
+      platformOrganizationId: 'organization-staging-smoke',
+      organizationMappingStatus: 'active',
+    },
+  ), true)
+})
+
+test('N1C-RUNTIME-07 invalid staging identity pairs remain fail closed', async () => {
+  for (const row of [
+    { company_code: 'STAGING-SMOKE', company_kind: 'business' },
+    { company_code: 'JENFU', company_kind: 'production_smoke' },
+  ]) {
+    const client = {
+      query: async () => [{ company_id: 'company-test', display_name: 'invalid', is_default: true, ...row }],
+      queryOne: async () => null,
+      execute: async () => undefined,
+    }
+    await assert.rejects(
+      new AsyncUserRepository(client).listUserCompanyAccess('user-test'),
+      /PDM_COMPANY_IDENTITY_PAIR_INVALID/u,
+    )
+  }
 })

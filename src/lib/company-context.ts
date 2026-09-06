@@ -7,7 +7,7 @@ import {
 } from "@/lib/repositories/user-async-repository";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 
-export type PdmCompanyCode = "JENFU" | "MAXIMA" | "SMOKE";
+export type PdmCompanyCode = "JENFU" | "MAXIMA" | "SMOKE" | "STAGING-SMOKE";
 export type PdmCompanyKind = "business" | "production_smoke";
 
 export type PdmCompanyRequest =
@@ -31,7 +31,8 @@ const companyCodeAliases: Record<string, PdmCompanyCode> = {
   鉦富: "JENFU",
   MAXIMA: "MAXIMA",
   久方: "MAXIMA",
-  SMOKE: "SMOKE"
+  SMOKE: "SMOKE",
+  "STAGING-SMOKE": "STAGING-SMOKE"
 };
 
 export function parsePdmCompanyRequest(value: unknown): PdmCompanyRequest {
