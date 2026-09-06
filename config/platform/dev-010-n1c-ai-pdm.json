@@ -101,6 +101,7 @@
       "scripts/dev010-n1c-ai-pdm-package.test.mjs",
       "scripts/dev010-n1c-normal-entry.mjs",
       "scripts/dev010-n1c-normal-entry.test.mjs",
+      "scripts/dev010-n1c-staging-authority-repair.cjs",
       "scripts/qc-dev-010-n1c-ai-pdm.mjs",
       "qa/dev-010/n1c/fixtures/ai-pdm-staging-v1.json",
       "qa/dev-010/n1c/browser/normal-entry.mjs",
