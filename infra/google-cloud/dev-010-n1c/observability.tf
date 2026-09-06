@@ -15,8 +15,9 @@ resource "google_logging_project_sink" "application" {
   name        = "ai-pdm-staging"
   destination = "logging.googleapis.com/${google_logging_project_bucket_config.application[0].id}"
   filter      = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"ai-pdm-stg\""
-  # Same-project Logging buckets are automatically authorized and need no writer identity.
-  unique_writer_identity = false
+  # Provider/API readback normalizes project sinks to service-agent mode. The
+  # destination stays in-project, so no cross-project IAM grant is required.
+  unique_writer_identity = true
 }
 
 resource "google_monitoring_alert_policy" "cloud_run_5xx" {

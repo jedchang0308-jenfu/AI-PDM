@@ -44,7 +44,7 @@ test('N1C-AI-PLAN-03 source, foundation manifest, and both image digests are exa
 test('N1C-AI-PLAN-04 same-project Logging bucket uses the automatically authorized writer', () => {
   const source = fs.readFileSync(path.join(root, 'infra', 'google-cloud', 'dev-010-n1c', 'observability.tf'), 'utf8')
   assert.match(source, /destination\s+=\s+"logging\.googleapis\.com\/\$\{google_logging_project_bucket_config\.application\[0\]\.id\}"/u)
-  assert.match(source, /unique_writer_identity\s+=\s+false/u)
+  assert.match(source, /unique_writer_identity\s+=\s+true/u)
 })
 
 test('N1C-AI-PLAN-05 unknown, update, delete, replace, and duplicate allowlist fail closed', () => {
