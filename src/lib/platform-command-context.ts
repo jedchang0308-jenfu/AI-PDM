@@ -55,7 +55,7 @@ export function isValidSmokeCommandAuthority(
     && authority
     && user.role === "Engineer"
     && user.company_id === authority.companyId
-    && authority.companyCode === "SMOKE"
+    && (authority.companyCode === "SMOKE" || authority.companyCode === "STAGING-SMOKE")
     && authority.companyKind === "production_smoke"
     && authority.membershipCount === 1
     && authority.isDefault

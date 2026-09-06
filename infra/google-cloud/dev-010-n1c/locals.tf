@@ -14,11 +14,13 @@ locals {
     "dev010-n1c-ai-pdm-session-current",
     "dev010-n1c-ai-pdm-session-previous",
   ])
+  workbench_contract_secret = "dev010-n1c-ai-pdm-workbench-contract"
   runtime_environment = {
     NODE_ENV                               = "production"
     PDM_DB_PROVIDER                        = "cloud_sql_postgres"
     DEV010_N1C_TARGET_GUARD                = "required"
     DEV010_N1C_RUN_ID                      = var.source_revision
+    PDM_BUILD_COMMIT                       = var.source_revision
     PDM_DEPLOYMENT_ENV                     = "staging"
     GOOGLE_CLOUD_PROJECT                   = var.project_id
     GOOGLE_CLOUD_REGION                    = var.region

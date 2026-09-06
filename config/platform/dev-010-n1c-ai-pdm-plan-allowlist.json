@@ -24,7 +24,8 @@
         "enable_migration_job": false,
         "enable_runtime": false,
         "enable_hosting": false,
-        "session_versions_ready": false
+        "session_versions_ready": false,
+        "workbench_contract_version_ready": false
       },
       "addresses": []
     },
@@ -34,11 +35,14 @@
         "enable_migration_job": false,
         "enable_runtime": false,
         "enable_hosting": false,
-        "session_versions_ready": false
+        "session_versions_ready": false,
+        "workbench_contract_version_ready": false
       },
       "addresses": [
+        "google_secret_manager_secret.workbench_contract[0]",
         "google_secret_manager_secret.session[\"dev010-n1c-ai-pdm-session-current\"]",
         "google_secret_manager_secret.session[\"dev010-n1c-ai-pdm-session-previous\"]",
+        "google_secret_manager_secret_iam_member.runtime_workbench_contract[0]",
         "google_secret_manager_secret_iam_member.runtime_session[\"dev010-n1c-ai-pdm-session-current\"]",
         "google_secret_manager_secret_iam_member.runtime_session[\"dev010-n1c-ai-pdm-session-previous\"]"
       ]
@@ -49,12 +53,15 @@
         "enable_migration_job": true,
         "enable_runtime": false,
         "enable_hosting": false,
-        "session_versions_ready": false
+        "session_versions_ready": false,
+        "workbench_contract_version_ready": false
       },
       "addresses": [
         "google_cloud_run_v2_job.migration[0]",
+        "google_secret_manager_secret.workbench_contract[0]",
         "google_secret_manager_secret.session[\"dev010-n1c-ai-pdm-session-current\"]",
         "google_secret_manager_secret.session[\"dev010-n1c-ai-pdm-session-previous\"]",
+        "google_secret_manager_secret_iam_member.runtime_workbench_contract[0]",
         "google_secret_manager_secret_iam_member.runtime_session[\"dev010-n1c-ai-pdm-session-current\"]",
         "google_secret_manager_secret_iam_member.runtime_session[\"dev010-n1c-ai-pdm-session-previous\"]"
       ]
@@ -65,7 +72,8 @@
         "enable_migration_job": true,
         "enable_runtime": true,
         "enable_hosting": true,
-        "session_versions_ready": true
+        "session_versions_ready": true,
+        "workbench_contract_version_ready": true
       },
       "addresses": [
         "google_cloud_run_v2_job.migration[0]",
@@ -75,8 +83,10 @@
         "google_logging_project_bucket_config.application[0]",
         "google_logging_project_sink.application[0]",
         "google_monitoring_alert_policy.cloud_run_5xx[0]",
+        "google_secret_manager_secret.workbench_contract[0]",
         "google_secret_manager_secret.session[\"dev010-n1c-ai-pdm-session-current\"]",
         "google_secret_manager_secret.session[\"dev010-n1c-ai-pdm-session-previous\"]",
+        "google_secret_manager_secret_iam_member.runtime_workbench_contract[0]",
         "google_secret_manager_secret_iam_member.runtime_session[\"dev010-n1c-ai-pdm-session-current\"]",
         "google_secret_manager_secret_iam_member.runtime_session[\"dev010-n1c-ai-pdm-session-previous\"]"
       ]

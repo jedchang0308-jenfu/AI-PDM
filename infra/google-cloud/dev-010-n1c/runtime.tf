@@ -87,6 +87,15 @@ resource "google_cloud_run_v2_service" "pdm" {
           }
         }
       }
+      env {
+        name = "PDM_WORKBENCH_CONTRACT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.workbench_contract[0].secret_id
+            version = "latest"
+          }
+        }
+      }
     }
 
     containers {
@@ -113,8 +122,8 @@ resource "google_cloud_run_v2_service" "pdm" {
   lifecycle {
     prevent_destroy = true
     precondition {
-      condition     = var.enable_security_resources && var.session_versions_ready
-      error_message = "Both out-of-band session secret versions must be verified before runtime creation."
+      condition     = var.enable_security_resources && var.session_versions_ready && var.workbench_contract_version_ready
+      error_message = "Session and dedicated workbench contract secret versions must be verified before runtime creation."
     }
     precondition {
       condition     = var.enable_hosting

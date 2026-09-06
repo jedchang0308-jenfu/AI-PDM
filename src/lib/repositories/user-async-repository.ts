@@ -139,7 +139,7 @@ export const SELECT_ASYNC_USER_COMPANY_ACCESS_SQL = `
 
 export type UserCompanyAccess = {
   companyId: string;
-  companyCode: "JENFU" | "MAXIMA" | "SMOKE";
+  companyCode: "JENFU" | "MAXIMA" | "SMOKE" | "STAGING-SMOKE";
   companyKind: "business" | "production_smoke";
   displayName: string;
   is_default: boolean;
@@ -204,7 +204,7 @@ type UserCompanyAuthorityRow = {
 };
 
 function parseStoredCompanyCode(value: string): UserCompanyAccess["companyCode"] {
-  if (value === "JENFU" || value === "MAXIMA" || value === "SMOKE") return value;
+  if (value === "JENFU" || value === "MAXIMA" || value === "SMOKE" || value === "STAGING-SMOKE") return value;
   throw new Error("PDM_COMPANY_CODE_UNSUPPORTED");
 }
 
@@ -214,7 +214,8 @@ function parseStoredCompanyKind(value: string): UserCompanyAccess["companyKind"]
 }
 
 function assertCompanyIdentityPair(companyCode: UserCompanyAccess["companyCode"], companyKind: UserCompanyAccess["companyKind"]) {
-  if ((companyCode === "SMOKE") !== (companyKind === "production_smoke")) {
+  const isSmokeCode = companyCode === "SMOKE" || companyCode === "STAGING-SMOKE";
+  if (isSmokeCode !== (companyKind === "production_smoke")) {
     throw new Error("PDM_COMPANY_IDENTITY_PAIR_INVALID");
   }
 }
