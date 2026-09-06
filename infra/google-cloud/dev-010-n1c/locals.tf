@@ -14,6 +14,7 @@ locals {
     "dev010-n1c-ai-pdm-session-current",
     "dev010-n1c-ai-pdm-session-previous",
   ])
+  workbench_contract_secret = "dev010-n1c-ai-pdm-workbench-contract"
   runtime_environment = {
     NODE_ENV                               = "production"
     PDM_DB_PROVIDER                        = "cloud_sql_postgres"

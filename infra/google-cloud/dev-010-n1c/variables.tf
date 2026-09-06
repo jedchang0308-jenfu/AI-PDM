@@ -123,6 +123,12 @@ variable "session_versions_ready" {
   description = "True only after both out-of-band session secret values exist and access is verified."
 }
 
+variable "workbench_contract_version_ready" {
+  type        = bool
+  default     = false
+  description = "True only after the dedicated workbench contract signing secret has an enabled version."
+}
+
 variable "enable_security_resources" {
   type        = bool
   default     = false
