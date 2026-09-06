@@ -12,6 +12,15 @@ export interface CloudSqlRuntimeConfig {
   queryTimeoutMillis: number;
   applicationName?: string;
   searchPath?: string;
+  startupTarget?: CloudSqlStartupTarget;
+}
+
+export interface CloudSqlStartupTarget {
+  database: "jenfu_stg";
+  environmentMarker: "JENFU_ENVIRONMENT=staging;DEV=DEV-010;SLICE=N1C";
+  postgresMajor: 17;
+  schema: "ai_pdm_core";
+  user: "dev010-stg-aipdm-runtime@jenfu-platform-nonprod.iam";
 }
 
 export interface CloudSqlCapacityInput {
@@ -60,6 +69,30 @@ export function resolveCloudSqlRuntimeConfig(env: NodeJS.ProcessEnv = process.en
   const user = env.PDM_CLOUD_SQL_USER?.trim() ?? "";
   if (!/^[A-Za-z0-9_.@-]{3,63}$/u.test(user)) throw new Error("CLOUD_SQL_IAM_DATABASE_USER_INVALID");
 
+  const n1cTargetRequired = env.DEV010_N1C_TARGET_GUARD === "required";
+  if (n1cTargetRequired) {
+    const exact = {
+      environment: env.PDM_DEPLOYMENT_ENV?.trim(),
+      projectId: env.GOOGLE_CLOUD_PROJECT?.trim(),
+      region: env.GOOGLE_CLOUD_REGION?.trim(),
+      instanceConnectionName,
+      database,
+      user,
+      environmentMarker: env.PDM_DATABASE_ENVIRONMENT_MARKER?.trim(),
+    };
+    if (
+      exact.environment !== "staging" ||
+      exact.projectId !== "jenfu-platform-nonprod" ||
+      exact.region !== "asia-east1" ||
+      exact.instanceConnectionName !== "jenfu-platform-nonprod:asia-east1:jenfu-platform-nonprod-pg" ||
+      exact.database !== "jenfu_stg" ||
+      exact.user !== "dev010-stg-aipdm-runtime@jenfu-platform-nonprod.iam" ||
+      exact.environmentMarker !== "JENFU_ENVIRONMENT=staging;DEV=DEV-010;SLICE=N1C"
+    ) throw new Error("DEV010_N1C_AI_PDM_WRONG_TARGET");
+  }
+
+  const maxConnections = positiveInteger(env.PDM_CLOUD_SQL_POOL_MAX, 8, "POOL_MAX");
+  if (n1cTargetRequired && maxConnections !== 2) throw new Error("DEV010_N1C_AI_PDM_POOL_BOUNDARY_INVALID");
   return {
     kind: "cloud_sql_postgres",
     instanceConnectionName,
@@ -67,15 +100,24 @@ export function resolveCloudSqlRuntimeConfig(env: NodeJS.ProcessEnv = process.en
     port: positiveInteger(env.PDM_CLOUD_SQL_PORT, 5432, "PORT"),
     database,
     user,
-    maxConnections: positiveInteger(env.PDM_CLOUD_SQL_POOL_MAX, 8, "POOL_MAX"),
+    maxConnections,
     connectionTimeoutMillis: positiveInteger(env.PDM_CLOUD_SQL_CONNECTION_TIMEOUT_MS, 10_000, "CONNECTION_TIMEOUT"),
     idleTimeoutMillis: positiveInteger(env.PDM_CLOUD_SQL_IDLE_TIMEOUT_MS, 600_000, "IDLE_TIMEOUT"),
     statementTimeoutMillis: positiveInteger(env.PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS, 30_000, "STATEMENT_TIMEOUT"),
     queryTimeoutMillis: positiveInteger(env.PDM_CLOUD_SQL_QUERY_TIMEOUT_MS, 35_000, "QUERY_TIMEOUT"),
-    applicationName: env.DEV010_N2_RUN_ID?.trim()
-      ? `dev010-n2-ai-pdm-${env.DEV010_N2_RUN_ID.trim().replace(/[^A-Za-z0-9_-]/gu, "-").slice(0, 80)}`
-      : "ai-pdm-cloud-run",
-    searchPath: env.DEV010_N2_DATABASE_BOUNDARY === "required" ? "ai_pdm_core,pg_catalog" : undefined
+    applicationName: n1cTargetRequired
+      ? `dev010-n1c-ai-pdm-${(env.DEV010_N1C_RUN_ID?.trim() || "runtime").replace(/[^A-Za-z0-9_-]/gu, "-").slice(0, 80)}`
+      : env.DEV010_N2_RUN_ID?.trim()
+        ? `dev010-n2-ai-pdm-${env.DEV010_N2_RUN_ID.trim().replace(/[^A-Za-z0-9_-]/gu, "-").slice(0, 80)}`
+        : "ai-pdm-cloud-run",
+    searchPath: n1cTargetRequired || env.DEV010_N2_DATABASE_BOUNDARY === "required" ? "ai_pdm_core,pg_catalog" : undefined,
+    startupTarget: n1cTargetRequired ? {
+      database: "jenfu_stg",
+      environmentMarker: "JENFU_ENVIRONMENT=staging;DEV=DEV-010;SLICE=N1C",
+      postgresMajor: 17,
+      schema: "ai_pdm_core",
+      user: "dev010-stg-aipdm-runtime@jenfu-platform-nonprod.iam"
+    } : undefined
   };
 }
 

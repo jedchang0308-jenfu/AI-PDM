@@ -1,4 +1,5 @@
 import policy from "../../config/production-smoke-tenant.json" with { type: "json" };
+import n1cPolicy from "../../config/platform/dev-010-n1c-ai-pdm.json" with { type: "json" };
 import type { PdmCompanyContext } from "@/lib/company-context";
 
 export const PRODUCTION_SMOKE_SIDE_EFFECT_ENV = {
@@ -10,6 +11,15 @@ export const PRODUCTION_SMOKE_SIDE_EFFECT_ENV = {
 type SmokeRuntimeEnvironment = Record<string, string | undefined>;
 
 export function readProductionSmokeRuntimeIsolation(env: SmokeRuntimeEnvironment = process.env) {
+  const n1cStaging = env.DEV010_N1C_TARGET_GUARD === "required"
+    && env.PDM_DEPLOYMENT_ENV === "staging"
+    && env.GOOGLE_CLOUD_PROJECT === "jenfu-platform-nonprod";
+  const company = n1cStaging ? {
+    id: n1cPolicy.fixture.tenantId,
+    code: n1cPolicy.fixture.companyCode,
+    kind: n1cPolicy.fixture.companyKind,
+    displayName: `${n1cPolicy.fixture.displayMarker} - AI PDM acceptance`
+  } : policy.company;
   const runtime = {
     gcsWriter: env[PRODUCTION_SMOKE_SIDE_EFFECT_ENV.gcsWriter]?.trim().toLowerCase() ?? "",
     outboxConsumer: env[PRODUCTION_SMOKE_SIDE_EFFECT_ENV.outboxConsumer]?.trim().toLowerCase() ?? "",
@@ -21,7 +31,7 @@ export function readProductionSmokeRuntimeIsolation(env: SmokeRuntimeEnvironment
     externalNotification: policy.sideEffects.externalNotification
   };
   return {
-    company: policy.company,
+    company,
     configured,
     runtime,
     isolated: Object.values(configured).every((value) => value === "disabled")

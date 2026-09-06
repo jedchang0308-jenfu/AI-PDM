@@ -1,6 +1,7 @@
 import type { SqliteDatabase } from "@/lib/db-provider";
 import { getDb } from "@/lib/db";
 import { resolveCloudSqlRuntimeConfig } from "@/lib/cloud-sql-contract";
+import type { CloudSqlStartupTarget } from "@/lib/cloud-sql-contract";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 export type AsyncDatabaseProviderKind = "sqlite" | "postgres";
@@ -57,6 +58,7 @@ export type CreateAsyncDatabaseClientInput =
       queryTimeoutMillis: number;
       applicationName?: string;
       searchPath?: string;
+      startupTarget?: CloudSqlStartupTarget;
     };
 
 function bindAll<T>(database: SqliteDatabase, sql: string, params: AsyncDatabaseQueryParams | undefined): T[] {
@@ -243,9 +245,12 @@ class PostgresTransactionClient implements AsyncDatabaseClient {
 export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
   readonly kind = "postgres";
   private readonly pool: Pool;
+  private readonly startupTarget: CloudSqlStartupTarget | undefined;
+  private startupReadback: Promise<void> | null = null;
 
   constructor(input: Extract<CreateAsyncDatabaseClientInput, { kind: "postgres" | "cloud_sql_postgres" }>) {
     if (input.kind === "postgres") {
+      this.startupTarget = undefined;
       const connectionString = input.connectionString?.trim();
       if (!connectionString) throw new Error("POSTGRES_CONNECTION_STRING_REQUIRED");
       this.pool = new Pool({
@@ -262,6 +267,7 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
     }
 
     if (input.host !== "127.0.0.1") throw new Error("CLOUD_SQL_PROXY_LOCALHOST_REQUIRED");
+    this.startupTarget = input.startupTarget;
     this.pool = new Pool({
       host: input.host,
       port: input.port,
@@ -279,7 +285,39 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
     });
   }
 
+  private async assertStartupReady(): Promise<void> {
+    const target = this.startupTarget;
+    if (!target) return;
+    this.startupReadback ??= (async () => {
+      const result = await this.pool.query<{
+        database: string;
+        environment_marker: string | null;
+        postgres_major: number;
+        schema_ready: boolean;
+        user: string;
+      }>(`SELECT
+        current_database() AS database,
+        current_user AS user,
+        current_setting('server_version_num')::integer / 10000 AS postgres_major,
+        to_regnamespace($1) IS NOT NULL AS schema_ready,
+        pg_catalog.shobj_description(database.oid, 'pg_database') AS environment_marker
+      FROM pg_catalog.pg_database AS database
+      WHERE database.datname = current_database()`, [target.schema]);
+      const row = result.rows[0];
+      if (
+        !row ||
+        row.database !== target.database ||
+        row.user !== target.user ||
+        Number(row.postgres_major) !== target.postgresMajor ||
+        row.schema_ready !== true ||
+        row.environment_marker !== target.environmentMarker
+      ) throw new Error("DEV010_N1C_AI_PDM_DATABASE_READBACK_MISMATCH");
+    })();
+    await this.startupReadback;
+  }
+
   async query<T>(sql: string, params?: AsyncDatabaseQueryParams): Promise<T[]> {
+    await this.assertStartupReady();
     return runPostgresQuery<T & QueryResultRow>(this.pool, sql, params) as Promise<T[]>;
   }
 
@@ -289,6 +327,7 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
   }
 
   async execute(sql: string, params?: AsyncDatabaseQueryParams): Promise<void> {
+    await this.assertStartupReady();
     await runPostgresQuery<QueryResultRow>(this.pool, sql, params);
   }
 
@@ -296,6 +335,7 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
     fn: (client: AsyncDatabaseClient) => T | Promise<T>,
     options?: AsyncDatabaseTransactionOptions
   ): Promise<T> {
+    await this.assertStartupReady();
     const client = await this.pool.connect();
     const maxAttempts = options?.serializable ? 3 : 1;
     try {
@@ -361,6 +401,12 @@ function getRuntimeClientSignature(kind: RuntimeAsyncDatabaseProviderKind) {
       process.env.PDM_CLOUD_SQL_DATABASE?.trim() ?? "",
       process.env.PDM_CLOUD_SQL_USER?.trim() ?? "",
       process.env.PDM_CLOUD_SQL_POOL_MAX?.trim() ?? "",
+      process.env.DEV010_N1C_TARGET_GUARD?.trim() ?? "",
+      process.env.DEV010_N1C_RUN_ID?.trim() ?? "",
+      process.env.PDM_DEPLOYMENT_ENV?.trim() ?? "",
+      process.env.GOOGLE_CLOUD_PROJECT?.trim() ?? "",
+      process.env.GOOGLE_CLOUD_REGION?.trim() ?? "",
+      process.env.PDM_DATABASE_ENVIRONMENT_MARKER?.trim() ?? "",
       process.env.DEV010_N2_DATABASE_BOUNDARY?.trim() ?? "",
       process.env.DEV010_N2_RUN_ID?.trim() ?? ""
     ].join("|");
@@ -398,6 +444,12 @@ export function getAsyncDatabaseClient(): AsyncDatabaseClient {
   }
   runtimeClientSignature = signature;
   return runtimeClient;
+}
+
+export async function verifyAsyncDatabaseReadiness(): Promise<void> {
+  const client = getAsyncDatabaseClient();
+  if (client.kind !== "postgres") throw new Error("DEV010_N1C_AI_PDM_POSTGRES_REQUIRED");
+  await client.queryOne<{ ready: number }>("SELECT 1 AS ready");
 }
 
 export async function closeAsyncDatabaseClient(): Promise<void> {
