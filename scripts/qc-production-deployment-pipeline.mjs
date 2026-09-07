@@ -230,6 +230,8 @@ record("PROD-PIPE-008E candidate is blocked without bound migration, smoke-princ
   assert.match(candidateWorkflow, /DEV116_CI_SOURCE_ROOT_OUTSIDE_RUNNER_TEMP/u);
   assert.match(candidateWorkflow, /npm run db:init/u);
   assert.match(candidateWorkflow, /--primary-database="\$dev116DataDir\/ai-pdm\.sqlite"/u);
+  assert.match(candidateWorkflow, /\$env:DEV116_EVIDENCE_DIR = \$dev116EvidenceDir/u);
+  assert.match(candidateWorkflow, /\$env:DEV116_EVIDENCE_DIR = \$null/u);
   assert.match(candidateWorkflow, /Remove-Item -LiteralPath \$dev116Root -Recurse -Force/u);
   for (const postgresScript of dev116PostgresScripts) {
     assert.match(postgresScript, /process\.env\.PDM_POSTGRES_BIN\?\.trim\(\)/u);

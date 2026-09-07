@@ -145,15 +145,18 @@ jobs:
           }
           $dev116DataDir = Join-Path $dev116Root "data"
           $dev116RepositoryDir = Join-Path $dev116Root "repository"
+          $dev116EvidenceDir = Join-Path $dev116Root "evidence"
           New-Item -ItemType Directory -Path $dev116DataDir, $dev116RepositoryDir -Force | Out-Null
           try {
             $env:PDM_DATA_DIR = $dev116DataDir
             $env:PDM_REPOSITORY_DIR = $dev116RepositoryDir
+            $env:DEV116_EVIDENCE_DIR = $dev116EvidenceDir
             npm run db:init
             npm run qc:dev-116 -- --run-id=github-${{ github.run_id }}-${{ github.run_attempt }} --primary-database="$dev116DataDir/ai-pdm.sqlite"
           } finally {
             $env:PDM_DATA_DIR = $null
             $env:PDM_REPOSITORY_DIR = $null
+            $env:DEV116_EVIDENCE_DIR = $null
             if (Test-Path -LiteralPath $dev116Root) {
               Remove-Item -LiteralPath $dev116Root -Recurse -Force
             }
