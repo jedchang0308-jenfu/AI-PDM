@@ -34,6 +34,11 @@ const dev116R02ReceiptCli = read("scripts/dev116-r02-receipt.mjs");
 const dev116R02BrowserLibrary = read("scripts/lib/dev116-r02-browser-executor.mjs");
 const dev116R02Browser = read("scripts/run-dev116-r02-authenticated-browser.mjs");
 const dev116R02Finalize = read("scripts/dev116-r02-finalize.mjs");
+const dev116PostgresScripts = [
+  read("scripts/qc-dev-116-migration.mjs"),
+  read("scripts/qc-dev-116-isolation-b.mjs"),
+  read("scripts/qc-dev-116-isolation-c.mjs")
+];
 const dev010NeutralMigration = read("db/postgres/062_dev010_neutral_schema_boundary.sql");
 const trafficRunner = read("scripts/run-production-release-traffic.mjs");
 const releaseSourceManifestUtils = read("scripts/dev-032-release-source-manifest-utils.mjs");
@@ -226,6 +231,10 @@ record("PROD-PIPE-008E candidate is blocked without bound migration, smoke-princ
   assert.match(candidateWorkflow, /npm run db:init/u);
   assert.match(candidateWorkflow, /--primary-database="\$dev116DataDir\/ai-pdm\.sqlite"/u);
   assert.match(candidateWorkflow, /Remove-Item -LiteralPath \$dev116Root -Recurse -Force/u);
+  for (const postgresScript of dev116PostgresScripts) {
+    assert.match(postgresScript, /process\.env\.PDM_POSTGRES_BIN\?\.trim\(\)/u);
+    assert.match(postgresScript, /process\.env\.PGBIN\?\.trim\(\)/u);
+  }
 });
 
 record("PROD-PIPE-008C promotion requires candidate-bound Level 4 and explicit release approval without Wave 0 ceremony", () => {

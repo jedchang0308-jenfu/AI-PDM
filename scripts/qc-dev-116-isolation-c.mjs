@@ -29,7 +29,11 @@ const dataDir = path.join(taskRoot, "data");
 const repositoryDir = path.join(taskRoot, "repository");
 const clusterDir = path.join(taskRoot, "cluster");
 const serverLog = path.join(taskRoot, "postgres.log");
-const pgBin = path.resolve(process.env.PDM_POSTGRES_BIN?.trim() || "C:\\Program Files\\PostgreSQL\\18\\bin");
+const pgBin = path.resolve(
+  process.env.PDM_POSTGRES_BIN?.trim()
+    || process.env.PGBIN?.trim()
+    || "C:\\Program Files\\PostgreSQL\\18\\bin"
+);
 const databaseName = `dev116_c_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
 const schemaFiles = [
   "db/postgres/001_initial_schema.sql",

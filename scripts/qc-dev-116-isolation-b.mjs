@@ -28,7 +28,11 @@ const dataDir = path.join(taskRoot, "data");
 const repositoryDir = path.join(taskRoot, "repository");
 const clusterDir = path.join(taskRoot, "cluster");
 const serverLog = path.join(taskRoot, "postgres.log");
-const pgBin = path.resolve(process.env.PDM_POSTGRES_BIN?.trim() || "C:\\Program Files\\PostgreSQL\\18\\bin");
+const pgBin = path.resolve(
+  process.env.PDM_POSTGRES_BIN?.trim()
+    || process.env.PGBIN?.trim()
+    || "C:\\Program Files\\PostgreSQL\\18\\bin"
+);
 const initialSql = fs.readFileSync(path.join(root, "db", "postgres", "001_initial_schema.sql"), "utf8");
 const canonicalWorkbenchSql = fs.readFileSync(path.join(root, "db", "postgres", "042_status_data_rebuild.sql"), "utf8");
 const structureAuthoritySql = fs.readFileSync(path.join(root, "db", "postgres", "051_part_structure_type_authority.sql"), "utf8");

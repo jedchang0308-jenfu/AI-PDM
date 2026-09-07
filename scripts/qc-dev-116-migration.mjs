@@ -19,7 +19,11 @@ const root = process.cwd();
 const runId = dev116RunId();
 const cases = [];
 const taskRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev116-migration-"));
-const pgBin = path.resolve(process.env.PDM_POSTGRES_BIN?.trim() || "C:\\Program Files\\PostgreSQL\\18\\bin");
+const pgBin = path.resolve(
+  process.env.PDM_POSTGRES_BIN?.trim()
+    || process.env.PGBIN?.trim()
+    || "C:\\Program Files\\PostgreSQL\\18\\bin"
+);
 const clusterDir = path.join(taskRoot, "cluster");
 const serverLog = path.join(taskRoot, "postgres.log");
 const migrationSql = fs.readFileSync(path.join(root, "db", "postgres", "063_production_smoke_tenant_isolation.sql"), "utf8");
