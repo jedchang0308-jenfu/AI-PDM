@@ -1,6 +1,6 @@
 # DEV-046 Cloud SQL Migration Package Preflight
 
-Generated at: 2026-09-03T07:25:55.589Z
+Generated at: 2026-09-07T07:17:32.067Z
 Package version: dev-046-cloudsql-migration-package/v1
 Status: production_candidate_package_generated_not_applied
 
@@ -21,15 +21,15 @@ Status: production_candidate_package_generated_not_applied
 
 ## Findings
 
-- PostgreSQL SQL files scanned: 55
+- PostgreSQL SQL files scanned: 57
 - Supabase role-reference lines: 34
-- DDL review lines: 198
-- Blocking destructive lines: 33
+- DDL review lines: 199
+- Blocking destructive lines: 34
 - Admin bootstrap required: true
 - VPC-attached runner required: true
 - Candidate package status: proposal_generated_not_reviewed
-- Candidate schema files: 53
-- Candidate excluded files: 2
+- Candidate schema files: 54
+- Candidate excluded files: 3
 - Candidate remaining Supabase role references: 0
 - Candidate remaining RLS statements: 0
 
@@ -69,6 +69,7 @@ Status: production_candidate_package_generated_not_applied
 
 - db/postgres/002_supabase_rls_plan.sql: supabase_rls_baseline_excluded_for_cloud_sql_bff_runtime
 - db/postgres/011_gcs_pointer_numbering_continuity.sql: phase_3b_file_authority_deferred
+- db/postgres/062_dev010_neutral_schema_boundary.sql: dev010_shared_database_release_orchestrator_owned
 
 ## Notes
 

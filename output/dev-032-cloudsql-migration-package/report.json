@@ -4,7 +4,7 @@
   "dev": "DEV-032",
   "phase": "Gate-C-production-clean-seed-migration",
   "packageVersion": "dev-046-cloudsql-migration-package/v1",
-  "generatedAt": "2026-09-03T07:25:55.589Z",
+  "generatedAt": "2026-09-07T07:17:32.067Z",
   "target": {
     "projectId": "jenfu-ai-pdm-prod",
     "region": "asia-east1",
@@ -23,9 +23,9 @@
     "status": "not-present",
     "adminBootstrapSucceeded": false,
     "evidenceManifestSha256": null,
-    "candidateManifestSha256": "02e07b51cc4d879088dfdf145ae189f8ddaff1f024be4b66daeb9ecfccc7c374",
+    "candidateManifestSha256": "f244572b431e6897b0503fcccce90f96c5c823a3f3bff192121ccfb7fea6f971",
     "evidenceSchemaMigrationCount": null,
-    "candidateSchemaMigrationCount": 53,
+    "candidateSchemaMigrationCount": 54,
     "matchesCurrentCandidate": false,
     "liveMigrationCompleted": false,
     "idempotenceVerified": false,
@@ -46,17 +46,17 @@
   "sourceInventory": {
     "postgresDirectory": "db/postgres",
     "postgresReadmeDeclaresCloudSqlAuthority": true,
-    "postgresSqlFileCount": 55,
+    "postgresSqlFileCount": 57,
     "cloudSqlGrantFile": "db/cloud-sql/pdm_runtime_grants.sql",
-    "cloudSqlGrantFileSha256": "f579c1a4d2f41190ff19059a0000295904d25b25f273e6d7a911141b98a5405d",
+    "cloudSqlGrantFileSha256": "6e159dc9374e6f3d634cebe097704e4ab105ddf62384012bc75a1ad5d13af783",
     "cloudSqlContractSchemaGrantFile": "db/cloud-sql/ai_pdm_contract_schema_grants.sql",
-    "cloudSqlContractSchemaGrantFileSha256": "a8bef77574ea1f17f31a457053f32da1de76b3d393c0f2e4fc281bc7e9b2e1b4",
+    "cloudSqlContractSchemaGrantFileSha256": "de89f52137176061bc1fe7563572870e1aab78c19d86464cc81307a6e8ac31be",
     "singletonMigrationRunnerPresent": true,
     "currentPostgresMigrations": [
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "sha256": "41b7c617d6d642785b24d4c1742617254c65b6aaebdb0f030f6d5abacfd1c9df",
-        "bytes": 173746,
+        "sha256": "24c6bfc5b08b598618ec85aa5eecf5e7d3c33cff5937cd9315045a8f4f8b4565",
+        "bytes": 175900,
         "phaseBoundary": "candidate_requires_cloudsql_review",
         "hasSupabaseRoleReferences": false,
         "supabaseRoleReferenceLines": 0,
@@ -547,6 +547,24 @@
         "hasSupabaseRoleReferences": false,
         "supabaseRoleReferenceLines": 0,
         "ddlReviewLines": 0
+      },
+      {
+        "file": "db/postgres/062_dev010_neutral_schema_boundary.sql",
+        "sha256": "17987fff7d3a496b29a73bd4a46482722d503371926d708d134c711bd450fe9f",
+        "bytes": 18029,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 1
+      },
+      {
+        "file": "db/postgres/063_production_smoke_tenant_isolation.sql",
+        "sha256": "f792b29bc1a5fa02fc3f437396c55990235a8e570486407db9ebc4ec94115069",
+        "bytes": 6898,
+        "phaseBoundary": "review_required",
+        "hasSupabaseRoleReferences": false,
+        "supabaseRoleReferenceLines": 0,
+        "ddlReviewLines": 0
       }
     ]
   },
@@ -827,13 +845,13 @@
     ]
   },
   "ddlRisk": {
-    "totalReviewLines": 198,
-    "blockingDestructiveLines": 33,
+    "totalReviewLines": 199,
+    "blockingDestructiveLines": 34,
     "reviewRequiredIdempotentLines": 163,
     "sampleFindings": [
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3297,
+        "line": 3327,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -841,7 +859,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3302,
+        "line": 3332,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -849,7 +867,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3307,
+        "line": 3337,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -857,7 +875,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3312,
+        "line": 3342,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -865,7 +883,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3317,
+        "line": 3347,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -873,7 +891,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3322,
+        "line": 3352,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -881,7 +899,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3327,
+        "line": 3357,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -889,7 +907,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3332,
+        "line": 3362,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -897,7 +915,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3337,
+        "line": 3367,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -905,7 +923,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3342,
+        "line": 3372,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -913,7 +931,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3347,
+        "line": 3377,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -921,7 +939,7 @@
       },
       {
         "file": "db/postgres/001_initial_schema.sql",
-        "line": 3352,
+        "line": 3382,
         "type": "ddl_review",
         "severity": "review_required_idempotent_ddl",
         "roles": [],
@@ -974,19 +992,19 @@
     "orderedManifestPath": "cloudsql-migration-manifest.json",
     "runnerContractPath": "runner-contract.md",
     "supportFileCount": 3,
-    "orderedSchemaMigrationCount": 53,
+    "orderedSchemaMigrationCount": 54,
     "supportFiles": [
       {
         "output": "sql/000_admin_bootstrap_grants.sql",
         "kind": "admin_bootstrap",
-        "outputSha256": "c8da45fce0232b8d715ab7df631918bfa94ba49c3ec35fc696c42c18c367ff9a",
-        "bytes": 2061
+        "outputSha256": "60bc3f5df7b5c738ba1683332ba2e41a9f0d0d0231b50a66b265315d7219107c",
+        "bytes": 2103
       },
       {
         "output": "sql/001_ai_pdm_contract_schema_bootstrap.sql",
         "kind": "admin_contract_schema_bootstrap",
-        "outputSha256": "c46a8cc8a2e9787b982c08f8943c986470e5535e20cc5b689d15d47c94635c47",
-        "bytes": 649
+        "outputSha256": "63b37d8676a07358f5e7c01e60b69bffcf879fcf01b00e948618bb85fdf6a79f",
+        "bytes": 656
       },
       {
         "output": "sql/999_runtime_grants_refresh.sql",
@@ -1001,9 +1019,9 @@
         "output": "sql/001_initial_schema.cloudsql.sql",
         "version": "001",
         "name": "001_initial_schema",
-        "sourceSha256": "41b7c617d6d642785b24d4c1742617254c65b6aaebdb0f030f6d5abacfd1c9df",
-        "outputSha256": "1f5d56b0bdd5690759dc8d1a8154e542b2bed564aca244cf8fa33cd82ba265d6",
-        "bytes": 174076,
+        "sourceSha256": "24c6bfc5b08b598618ec85aa5eecf5e7d3c33cff5937cd9315045a8f4f8b4565",
+        "outputSha256": "c916653de19e8904916326eba563b9fa847ddd499bcbabafa5bd524698f0cc2b",
+        "bytes": 176230,
         "transformations": {
           "removedTransactionWrappers": 2,
           "removedRlsStatements": 0,
@@ -1802,6 +1820,21 @@
           "rewrittenSupabaseRoleReferences": 0,
           "rewrittenJenfuPlatformRoleReferences": 0
         }
+      },
+      {
+        "source": "db/postgres/063_production_smoke_tenant_isolation.sql",
+        "output": "sql/063_production_smoke_tenant_isolation.cloudsql.sql",
+        "version": "063",
+        "name": "063_production_smoke_tenant_isolation",
+        "sourceSha256": "f792b29bc1a5fa02fc3f437396c55990235a8e570486407db9ebc4ec94115069",
+        "outputSha256": "e9b9c8725e786e39d1aa6e381d879e03fe04d5c2d1cbb930747da2e1c59a2fee",
+        "bytes": 7246,
+        "transformations": {
+          "removedTransactionWrappers": 2,
+          "removedRlsStatements": 0,
+          "rewrittenSupabaseRoleReferences": 0,
+          "rewrittenJenfuPlatformRoleReferences": 0
+        }
       }
     ],
     "excludedFiles": [
@@ -1816,10 +1849,16 @@
         "reason": "phase_3b_file_authority_deferred",
         "detail": "Direct GCS file-pointer continuity belongs to DEV-046 Phase 3B and must not be pulled into the no-file internal-pilot slice.",
         "sourceSha256": "0b23c592f4e8526788d553330c91f444287ae66cf1c33216e5b184bbafce28cb"
+      },
+      {
+        "file": "db/postgres/062_dev010_neutral_schema_boundary.sql",
+        "reason": "dev010_shared_database_release_orchestrator_owned",
+        "detail": "The legacy AI-PDM Cloud SQL runner cannot create or assume neutral cross-application roles. DEV-010 R1 owns bootstrap, producer-first contracts, schema movement, and role cutover.",
+        "sourceSha256": "17987fff7d3a496b29a73bd4a46482722d503371926d708d134c711bd450fe9f"
       }
     ],
     "transformations": {
-      "removedTransactionWrappers": 66,
+      "removedTransactionWrappers": 68,
       "removedRlsStatements": 70,
       "rewrittenSupabaseRoleReferences": 32,
       "rewrittenJenfuPlatformRoleReferences": 15,
