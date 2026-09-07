@@ -138,7 +138,26 @@ jobs:
           npm run qc:pdm-number-state-flow-routes
           npm run qc:dev-093:contract
           npm run qc:dev-010:n2:ai-pdm
-          npm run qc:dev-116 -- --run-id=github-${{ github.run_id }}-${{ github.run_attempt }}
+          $runnerTemp = [System.IO.Path]::GetFullPath($env:RUNNER_TEMP)
+          $dev116Root = [System.IO.Path]::GetFullPath((Join-Path $runnerTemp "ai-pdm-dev116-source-${{ github.run_id }}-${{ github.run_attempt }}"))
+          if (-not $dev116Root.StartsWith("$runnerTemp$([System.IO.Path]::DirectorySeparatorChar)")) {
+            throw "DEV116_CI_SOURCE_ROOT_OUTSIDE_RUNNER_TEMP"
+          }
+          $dev116DataDir = Join-Path $dev116Root "data"
+          $dev116RepositoryDir = Join-Path $dev116Root "repository"
+          New-Item -ItemType Directory -Path $dev116DataDir, $dev116RepositoryDir -Force | Out-Null
+          try {
+            $env:PDM_DATA_DIR = $dev116DataDir
+            $env:PDM_REPOSITORY_DIR = $dev116RepositoryDir
+            npm run db:init
+            npm run qc:dev-116 -- --run-id=github-${{ github.run_id }}-${{ github.run_attempt }} --primary-database="$dev116DataDir/ai-pdm.sqlite"
+          } finally {
+            $env:PDM_DATA_DIR = $null
+            $env:PDM_REPOSITORY_DIR = $null
+            if (Test-Path -LiteralPath $dev116Root) {
+              Remove-Item -LiteralPath $dev116Root -Recurse -Force
+            }
+          }
           npm run qc:production-authority-repair
           npm run qc:production-deployment-pipeline
           npm run build

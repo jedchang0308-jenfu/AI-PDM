@@ -222,6 +222,10 @@ record("PROD-PIPE-008E candidate is blocked without bound migration, smoke-princ
   }
   assert.match(candidateWorkflow, /npm run qc:dev-010:n2:ai-pdm/u);
   assert.match(candidateWorkflow, /npm run qc:dev-116/u);
+  assert.match(candidateWorkflow, /DEV116_CI_SOURCE_ROOT_OUTSIDE_RUNNER_TEMP/u);
+  assert.match(candidateWorkflow, /npm run db:init/u);
+  assert.match(candidateWorkflow, /--primary-database="\$dev116DataDir\/ai-pdm\.sqlite"/u);
+  assert.match(candidateWorkflow, /Remove-Item -LiteralPath \$dev116Root -Recurse -Force/u);
 });
 
 record("PROD-PIPE-008C promotion requires candidate-bound Level 4 and explicit release approval without Wave 0 ceremony", () => {

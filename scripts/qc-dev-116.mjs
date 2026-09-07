@@ -11,6 +11,11 @@ const root = process.cwd();
 const supplied = cliValue("run-id", process.env.DEV116_RUN_ID?.trim() || "");
 const runId = supplied || `DEV116-LOCAL-${new Date().toISOString().replace(/[:.]/gu, "-")}-${crypto.randomUUID().slice(0, 8)}`;
 const evidenceDir = dev116EvidenceDir(runId);
+const suppliedPrimaryDatabase = cliValue("primary-database", process.env.DEV116_PRIMARY_DATABASE?.trim() || "");
+const primaryDatabasePath = path.resolve(suppliedPrimaryDatabase || path.join(root, "data", "ai-pdm.sqlite"));
+if (!fs.existsSync(primaryDatabasePath)) {
+  throw new Error(`DEV116_PRIMARY_DATABASE_MISSING:${suppliedPrimaryDatabase ? "explicit-task-owned" : "default-local-primary"}`);
+}
 if (fs.existsSync(evidenceDir)) throw new Error(`DEV116_EVIDENCE_DIR_ALREADY_EXISTS:${evidenceDir}`);
 fs.mkdirSync(evidenceDir, { recursive: true });
 
@@ -20,6 +25,7 @@ const sourceRecord = {
   schemaVersion: "dev-116-source/v1",
   runId,
   ...source,
+  primaryInvariantDatabase: suppliedPrimaryDatabase ? "explicit-task-owned" : "default-local-primary",
   protectedFiles: {
     "next-env.d.ts": fs.existsSync(protectedFile)
       ? crypto.createHash("sha256").update(fs.readFileSync(protectedFile)).digest("hex")
@@ -39,7 +45,7 @@ function node(script, args = []) {
 }
 
 function primaryInvariant(target) {
-  const result = spawnSync(process.execPath, ["scripts/qc-dev-095-primary-invariant.mjs", "--database=data/ai-pdm.sqlite"], {
+  const result = spawnSync(process.execPath, ["scripts/qc-dev-095-primary-invariant.mjs", `--database=${primaryDatabasePath}`], {
     cwd: root,
     encoding: "utf8",
     windowsHide: true,
