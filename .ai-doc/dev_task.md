@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-09-05
+更新日期：2026-09-07
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -11,11 +11,27 @@ Owner：Dev PM
 - `.ai-doc/archived/dev_task_legacy_before_pm_cleanup_2026-06-16.md`
 - `.ai-doc/archived/documentation_map_before_pm_governance_restructure_2026-06-30.md`
 
+> **2026-09-07 DEV-117 independent production deployment（current authority）**：使用者已確認
+> AI_PDM與Jenfu-Platform分開部署，並要求先把開發文件寫到可執行部署前。新增`DEV-117`為
+> AI_PDM-owned neutral deployment adapter：target固定`jenfu-platform-prod / asia-east1 / ai-pdm-prod`、
+> runtime identity=`aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com`、Cloud SQL=
+> `jenfu-platform-prod-pg / jenfu_prod`、canonical=`https://pdm.jenfu.com.tw`。現行
+> `.github/workflows/deploy-production.yml`只屬legacy `jenfu-ai-pdm-prod`，不得冒充neutral candidate。
+> DEV-117現為`117-S1 Local Implementation Complete / QA-QC 12 of 12 PASS / Production Release Gated`：
+> neutral profile、純validator、preflight CLI、六階段獨立workflow、receipt join與aggregate均已落地；legacy
+> workflow保持不變。交叉驗證為legacy pipeline 25/25、DB boundary、typecheck、isolated build全PASS，且
+> cloud／DB／DNS／traffic mutation=0。Current dirty branch preflight正確回`INVALIDATED / BLOCKED`；下一步是
+> 把reviewed changes收斂至clean `origin/main`後建立fresh `REL-117-*` source lock。正式release仍blocked於
+> clean-main freeze、neutral billing、DEV-010 provider foundation／capacity／migration、DEV-116 R02、canonical
+> evidence與獨立Product Owner GO。
+
 > **2026-09-05 Platform DEV-010 physical-topology successor（現行）**：`DEV-032`已完成AI-PDM第一版application release並關閉，但三系統共用資料庫的neutral target、`ai_pdm_core/ai_pdm_contract` placement、database roles與producer／consumer migration dependency contract由Platform [DEV-010 direct spec](../../Jenfu-Management-system/ai-doc/specs/DEV-010-three-system-database-consolidation-contract.md) 接管。Current target=`db-custom-1-3840 / ZONAL_DEDICATED / USD 100`；ZONAL只延後HA，不降低Level 4或tenant隔離。010-R1E已完成PostgreSQL verifier NOLOGIN group、owner-owned evidence views、exact IAM login binding與read-only executor source，fresh N1A=`11＋30 PASS`、R1E=`14＋4 PASS`、N2=`48/48 PASS`，原P0 source blocker已關閉。R1-04唯讀candidate verifier、三repo production container package與R1-04A／F／B guarded producer source均已完成；B commit=`bc79bc662799bf5d28e8fe83bf6160918935ded2`，B 7＋F 8＋IaC 7=`22／22 PASS`。R1-14／15 executor source及owner evidence waiver也已完成並通過focused QC。Exact neutral project container已provider readback為`ACTIVE`，但`billingEnabled=false`；2026-09-06 project-quota request已由Google頁面確認成功送出，等待Trust & Safety審查，尚不代表Billing已啟用。current full preflight=`BLOCKED 2`，立即blocker只剩Billing link，R1-11 capacity則延後到zero-traffic candidate建立後執行。實際provider-attested artifact、正式scan receipt、需要時R1-04F provider execution、reviewed runtime manifest、R1-04B provider execution、正式migration／binding與15案provider execution仍未執行。本輪不授權production migration、IAM／DB grant、Cloud build／push／deploy、authorized domain、DNS、authority或traffic變更。
 
 > **2026-09-06 Billing slot audit**：`jenfu-grease-trap-calculator`已確認`BillingEnabled=false`且不在連結清單；Billing帳號仍有5個連結專案，唯讀盤點顯示五者均為ACTIVE且各有Cloud Run／Cloud SQL／Firestore資源足跡：`jenfu-ai-pdm-stg-361825`（Run 1、SQL 1）、`jenfu-platform-nonprod`（SQL 1）、`jenfu-ai-pdm-prod`（Run 1、SQL 1）、`projed-test`（Firestore 1）、`projed-cc78d`（Run 1、Firestore 1）。沒有足夠證據可自動解除或整併任何其餘專案；quota核准前不擅自改動其他Billing連結。
 
 > **2026-09-05 DEV-010 R1O evidence hardening**：Platform `3a3a3e9`已讓`R1-05／06／08／09／10／12／13／14／15`的PASS強制攜帶同release／source lock／neutral target／R1-04 candidate manifest的typed evidence，`caseEvidence=null`、各案stop condition、provenance／mutation drift或跨candidate拼接都會FAIL。Release unit=`19/19 PASS`；R1-05／06／08／09／10／12／13／14／15 source均已由後續切片完成。2026-09-05 full R1 requalification再跑32個`dev010-r1-*.test.mjs`，結果=`242/242 PASS`；billing gate升版後遺漏的release-adapter與R1-02 fixture已分別以前向commit `91cfe31／5ada729`補齊，未放寬production contract。Owner evidence waiver requalification後current full preflight=`BLOCKED 2`，foundation只剩Billing link，capacity延後到candidate建立後；15案及QA-116-R02仍`NOT_RUN`，故不構成Production Level 4或live migration授權。
+
+> **2026-09-06 DEV-010／DEV-116 verification refresh**：Platform direct spec commit `f640477`後，重新凍結`REL-116-20260904` source lock並重建preflight／adapter evidence；初次全套測試偵測到下游receipt綁舊source-lock的derivation drift，未放寬契約，改以受控重建後再跑32個`dev010-r1-*.test.mjs`，結果=`242/242 PASS`。AI-PDM `npm run qc:dev-116`最新aggregate=`DEV116-LOCAL-2026-09-05T17-07-21-952Z-3ffd1278`、`31/31 PASS`、claim=`local-foundation`、`productionLevel4Claimed=false`；所有task-owned PostgreSQL／Next／Chromium runtime均回報port released／task root removed。Production target readback仍為`ACTIVE`但`billingEnabled=false`，foundation preflight仍只剩`DEV010_R1_TARGET_IDENTITY_AMBIGUOUS`，capacity為candidate後deferred；productionWrites=`false`、cloudMutations=`0`、trafficChanges=`0`，故仍不得宣稱Production Level 4或live migration完成。
 
 > **2026-09-05 DEV-010 R1P reconciliation gate**：Platform `9b1bd5f`已完成R1-05的12組canonical雙快照與repair-ledger assembler，固定四類read-only input、same source lock／R1-04 candidate／migration cursor及≤300秒skew；unit=`9/9 PASS`、含adapter focused QC=`28/28 PASS`。Provider snapshot producers與actual evidence尚未完成，current仍在讀input前`BLOCKED 9`；R1-05不能代替QA-116-R02，R02也不能掩蓋R1-05差異，兩者仍為同candidate的獨立必要gate。
 
@@ -67,6 +83,17 @@ Owner：Dev PM
 ### 目前派工任務清單
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
+
+- 現行本機交付完成：`✓ DEV-117` AI_PDM獨立正式部署adapter，成熟度=`117-S1 Local Implementation Complete /
+  QA-QC 12 of 12 PASS / Production Release Gated`。S1A profile／validator、S1B independent workflow／candidate
+  lifecycle及S1C receipt／aggregate已依序完成；provider／credential／DB／Cloud／DNS／traffic mutation固定為0。
+  下一步不是續寫本機功能，而是先把reviewed changes收斂至clean `origin/main`並建立fresh release source lock；
+  billing、DEV-010 shared gate、DEV-116 R02與獨立GO未成立前不得執行production stage。
+
+- DEV-116 release責任已切分：DEV-116只保留`company-smoke` Production Level 4 R01／R02，candidate／
+  promotion／rollback／live receipt由DEV-117負責；Platform DEV-010只供應shared foundation evidence。
+  三者必須join同一release／source lock／digest／neutral candidate，任一單邊PASS不得冒充Production Level 4
+  或live deployment。
 
 - 現行DEV-116本機開發任務：無。116-A→B→C已依序完成；使用者已啟動`116-R`，release capsule=`REL-116-20260904`。R01唯讀Production preflight已執行並fail-closed。原2A REGIONAL方向已被使用者有意取代為`db-custom-1-3840 / ZONAL_DEDICATED / USD 100`，3A仍只核准15案全PASS後live migration。Platform 010-R1E、R1Y、R1-14／15與owner waiver均已完成source／local QC；fresh N1A=`11＋30 PASS`、R1E=`14＋4 PASS`、R1Y=`10＋19 PASS`、三repo N2=`48/48 PASS`，P0 source blocker已關閉。Exact neutral project已`ACTIVE`但Billing未啟用；2026-09-06 project-quota request已成功送出，等待Google審查；current full preflight=`BLOCKED 2`，只剩Billing link與candidate後R1-11 capacity。Billing解除後依序產生provider artifacts／candidate、完成容量、套用`063→062`與正式binding，再執行15案；R1-07仍須與R02共用company-smoke receipt，traffic promotion另需獨立GO。
 
@@ -1548,6 +1575,54 @@ Owner：Dev PM
 ### 任務索引
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
+
+- ✓ DEV-117 [交付點] [117-S1 Local Implementation Complete / Human Confirmed / QA-QC 12 of 12 PASS / Production Release Gated] [P0] [Provider NOT_RUN] AI_PDM 獨立正式部署 adapter
+  - 摘要：建立AI_PDM-owned neutral production release lane，使AI_PDM可獨立build、建立0% candidate、
+    完成Level 4、切流與traffic-only rollback；Platform只消費live receipt，不取得AI_PDM deployment authority。
+  - 來源 ID：`DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`。
+  - 使用者確認：2026-09-07明確要求「AI_PDM及Jenfu-Platform分開部署」，並先完成可執行部署前的
+    開發文件。
+  - 父任務／關聯：`DEV-116`保留Production Level 4 tenant evidence；Platform `DEV-011`為對稱的
+    Platform-owned deploy lane；Platform `DEV-010`只供應shared IAM／DB／migration／capacity／
+    compatibility evidence。
+  - 問題與根因：現行`.github/workflows/deploy-production.yml`只指向legacy `jenfu-ai-pdm-prod`與legacy
+    Firebase origin；active neutral authority要求`jenfu-platform-prod / ai-pdm-prod / pdm.jenfu.com.tw`。
+    沿用舊workflow會造成錯target、latest Secret、first-revision 0%與app ownership false-PASS。
+  - 產品結果：AI_PDM與Platform各自擁有artifact、service、hostname、traffic、release receipt與rollback；
+    任一app發版／回復不得改寫另一app artifact、runtime或traffic。
+  - Exact target：project=`jenfu-platform-prod`、region=`asia-east1`、service=`ai-pdm-prod`、runtime=
+    `aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com`、database=
+    `jenfu-platform-prod-pg / jenfu_prod`、schemas=`ai_pdm_core / ai_pdm_contract`、canonical=
+    `https://pdm.jenfu.com.tw`。
+  - Completed Phase：`117-S1A Profile／validator → 117-S1B Workflow／candidate lifecycle → 117-S1C Receipt／
+    aggregate／handoff`已依固定QA案例順序完成。Current只有本機source／contract evidence，production mutation=0。
+  - Implemented files：新增`config/release/dev117-ai-pdm-independent-production.json`、
+    `scripts/lib/dev117-ai-pdm-independent-release.mjs`、CLI／unit／QC與
+    `.github/workflows/deploy-ai-pdm-independent-production.yml`；修改`package.json`與治理文件。Legacy workflow、
+    `db/postgres/**`、legacy IaC與其他repo列No-touch。
+  - State machine：`SOURCE_FROZEN → CI_VERIFIED → ARTIFACT_READY → SHARED_GATE_VERIFIED → CANDIDATE_READY →
+    LEVEL4_ACCESS_READY → LEVEL4_VERIFIED → PROMOTION_PENDING → ACTIVATING → LIVE_VERIFIED`；任一drift進
+    `BLOCKED / INVALIDATED / FAILED / ROLLED_BACK`。
+  - QA contract：固定`QA-117-001..012`，涵蓋source freeze、neutral target、immutable AI-only artifact、
+    env／Secret／DB least privilege、first-revision holding、0% no-tag candidate、獨立Level4 access、
+    DEV-116 R02 exact join、zero leak、
+    cross-app mutation、separate promotion、AI-only rollback與`jenfu.app.release-receipt.v1`。
+  - RD／QC結果：本SPEC／QA為current authority；`npm run test:dev-117:release-adapter`與aggregate固定
+    `12/12 PASS`、P0／P1=0；legacy pipeline static QC=`25/25 PASS`，DB boundary、typecheck與isolated build
+    全PASS，primary invariant／cleanup PASS，remote mutation=0。
+  - Release 影響：新增AI_PDM-only artifact／candidate／promotion／rollback／receipt機制；不新增DDL。
+    正式release另需fresh `REL-*`與高風險gate，本文件不授權deploy。
+  - 阻塞／恢復條件：本機RD已完成；Production release blocked於current changes尚未成為clean `origin/main`
+    source freeze、`jenfu-platform-prod billingEnabled=false`、DEV-010 provider foundation／capacity／migration未完成、
+    neutral candidate與DEV-116 R02未執行、canonical hostname未驗證及Product Owner未獨立GO。
+  - 證據／authority：
+    `.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md`、
+    `.ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md`、
+    `.ai-doc/qa/dev-117-current-case-registry.json`。
+  - 下一步：review並收斂本次S1 changes至clean `origin/main`，再建立fresh `REL-117-*` source lock與preflight；
+    provider gate未READY前保持`BLOCKED`，不執行prepare／candidate／promotion。
+  - 計入交付：是；只有S1 local QC完成可標「deployment adapter implemented」，只有future R1
+    `LIVE_VERIFIED`可標「獨立production deployment完成」。
 
 - ✓ DEV-116 [開發點] [Local RD Implemented / Tech Lead Approved after Corrections / 116-A-B-C Complete / QA-QC 31 of 31 PASS / R02 Receipt 5 of 5 + Browser 7 of 7 + Provider Producer 5 of 5 PASS / local-foundation] [P0] [DEV-010 R1E Source Blocker Closed / Production Binding and 116-R Activation Gated] Production Level 4 smoke tenant 隔離與可稽核證據關卡
   - 摘要：將「在 Production 驗證」與「在鉦富正式公司資料內建立測試業務物件」拆開。未來例行 Level 4 仍使用正式 Cloud Run、正式 Firebase Auth、正式 API／domain／repository 與正式 Cloud SQL，並真實 `COMMIT`、reload、readback；但 actor 與所有資料只屬邏輯 `company-smoke`。`company-jenfu` 只允許 authenticated read-only 檢查，或經獨立release gate核准的transaction-bound rollback／fingerprint驗證，不再以建立後刪除作清理策略。
@@ -4520,6 +4595,7 @@ Owner：Dev PM
 | × 併入 | `DEV-031` | `DEV-CLOUDSQL-DB-001-DATA-PARITY` | QA/QC | clean seed/archive/restore/reconciliation保留角色分離QC，統一由`DEV-032 Gate C`派工 |
 | ✓ 完成／已發布 | `DEV-032` | `DEV-CLOUDSQL-DB-001-PROD-GATE` | 關卡 | Gate A-E完成；`bb30682c`／`ai-pdm-prod-gh-bb30682c-33729286511`已承接100% production流量，canonical 14/14與authenticated workbench readback通過 |
 | × 併入 | `DEV-066` | `SPEC-UX-PDM-WORKBENCH-TOPBAR-001` | 歷史／已整併 | current authority由DEV-087／090／112承接；shared mechanics與歷史evidence保留，不再獨立派工或重跑舊matrix |
+| ✓ 117-S1 local implementation complete／12 of 12 PASS／Release gated | `DEV-117` | `DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001` | 交付點 | neutral profile／validator、六階段AI-only workflow、receipt join與aggregate已完成；provider NOT_RUN。正式deploy另受clean main、billing、DEV-010、DEV-116 R02、canonical evidence與獨立GO限制 |
 | ✓ Local foundation complete／Tech Lead approved／31 of 31 PASS／116-R gated | `DEV-116` | `DEV-PDM-PRODUCTION-SMOKE-TENANT-ISOLATION-001` | 開發點 | A→B→C依序完成；PG 063 artifact、single audit classifier、side-effect fail-closed、smoke-only badge、六producer＋aggregate與primary invariant PASS；production R01-R04仍NOT_RUN |
 | ✓ 完成 | `DEV-115` | `DEV-PDM-QA-GATE-CONVERGENCE-001` | QA基礎設施 | DEV-079 42/42、DEV-080 12/12 current aggregate PASS；primary invariant與cleanup完成 |
 | ✓ 完成 | `DEV-079` | `DEV-PDM-DRAWING-READONLY-DRAWER-FULLPAGE-EDITOR-001` | QA/QC | current 42案已封口；production發布只由DEV-032承接 |
@@ -5104,3 +5180,24 @@ QC 要求保留的 Supabase stop wording：
 - 2026-09-05（DEV-116／DEV-010 R1X guarded three-version credential rotation dependency）：Platform `20f020a`完成R1-12 source，明確分離rollback-protected previous、candidate current與待停用superseded三個numeric secret versions；previous與current都須維持`ENABLED`，superseded必須與兩者不同且在全部Cloud Run revisions／jobs零引用後才可停用。執行者只持有五個exact secret上的custom `secretmanager.versions.disable` permission，不使用同時具有add／enable／destroy的預定義Secret Version Manager，也不具payload、runtime、traffic或DB mutation權。每次disable前先寫`OUTCOME_UNKNOWN` ledger，任何未完成ledger都阻擋重跑，避免timeout後盲目重放。Unit=`8/8 PASS`、release=`19/19 PASS`、IaC=`8/8 PASS`；actual R1-12／R02仍`BLOCKED / NOT_RUN`，production mutation與固定月成本增量均為0。此更新保留原始Level 4目的：R02仍須在同一neutral candidate由`company-smoke`完成真實COMMIT＋reload及Jenfu before=after，R1-12不得替代該驗證或允許Jenfu測試寫入。
 - 2026-09-05（DEV-116／DEV-010 R1Z read-only convergence dependency）：Platform把R1-14舊有`outbox pending=0／candidate write rehearsal`前向修正為`READ_ONLY_CONVERGENCE_READINESS`，避免與R1-09的consumer-disabled quarantine互相矛盾。Pre-promotion必須保留R1-07／QA-116-R02 exact 1筆`company-smoke` pending event；只要求unexpected outbox、scheduled／retry／file operation、external delivery、file delta與old-target activity為0，actual drain另需post-promotion gate。新增config／finalizer／CLI、unit=`7/7 PASS`、R1-09 regression=`10/10 PASS`、release=`19/19 PASS`及focused QC；R1-09 report validator亦新增session／state hash重算，重新雜湊把quarantine改0仍FAIL。Actual R1-14／R02與Production Level 4均`BLOCKED / NOT_RUN`，Production／DB／Cloud／traffic mutation=0、固定月成本增量0。
 - 2026-09-05（DEV-116／DEV-010 R1AA operational readiness dependency）：Platform完成R1-15 default-deny `READ_ONLY_OPERATIONAL_DRILL` finalizer，硬綁同candidate的R1-02／04／09／10／13／14、四owner hashes與incident route；GO／NO_GO／ABORT／CLEANUP只作120／120／120／300秒tabletop simulation，handoff須accepted，120秒內模擬`ABORT_AND_HOLD_TRAFFIC`。Provider／DB／external notification／traffic／cleanup mutation均禁止，receipt不授權promotion。Unit=`7/7`、R1-09=`10/10`、R1-14=`7/7`、release=`19/19`、preflight=`16/16`及focused QC PASS；15案machine source paths至此齊備，但current仍`BLOCKED 9`、actual `0/15 PASS`，R02與Production Level 4均`NOT_RUN`，固定月成本增量0。
+- 2026-09-07（DEV-117 RD Implementation Ready）：依使用者明確要求將AI_PDM與Jenfu-Platform分開部署，
+  建立新的app-owned deployment交付點，不把既有DEV-116 smoke evidence或Platform DEV-010三系統協調器
+  冒充AI_PDM deployment owner。新增focused SPEC與固定12案QA，鎖定neutral
+  `jenfu-platform-prod / ai-pdm-prod`、AI-only artifact、numeric Secret version、missing-service holding、
+  0% candidate、DEV-116 R02 same-candidate join、separate promotion、traffic-only rollback、
+  `pdm.jenfu.com.tw`與`jenfu.app.release-receipt.v1`。Exact files、commands、state machine、entry／exit、
+  stop／recovery及No-touch boundary已完整，P0／P1 implementation decision gap=0；成熟度=
+  `RD Implementation Ready / Documents Complete / RD Not Started`，下一步只派`117-S1A`。本輪只修改文件，
+  未建REL、未改產品／workflow／DB／cloud／DNS／traffic；legacy 063完成是prerequisite，
+  不是neutral deployment完成。
+- 2026-09-07（DEV-117 117-S1 implementation complete）：依序完成S1A neutral self-hashed profile／source、
+  artifact、shared gate、candidate、Level 4 access／join、promotion、rollback與app live receipt validators；S1B新增
+  `.github/workflows/deploy-ai-pdm-independent-production.yml`，將prepare、digest-only 0% no-tag candidate、獨立
+  Level 4 access、promotion、AI-only rollback與finalize拆成六個approval-bound dispatch；S1C完成固定12案unit與
+  self-hashed aggregate QC。`test:dev-117:release-adapter=12/12 PASS`、aggregate=`12/12 PASS / P0-P1 0/0 /
+  provider NOT_RUN`，final aggregate=`output/qa/dev-117-independent-release/20260907T132932Z/aggregate-manifest.json`
+  （SHA-256=`f3445b374d8ecd0a52c609892c25cb6d1dfaa80be45332ca497cf3bd624dcd3e`）；legacy pipeline=`25/25 PASS`，DB boundary、typecheck、isolated build與primary invariant／
+  cleanup均PASS。Current worktree不是clean main，故source lock=`INVALIDATED`、preflight=`BLOCKED`；這是release
+  gate正確結果。未呼叫GCP、未讀credential、未寫DB、未建artifact／candidate、未改DNS或traffic，legacy
+  workflow與Jenfu-Platform repo均未修改。下一步為review／merge到clean `origin/main`後建立fresh release lock，
+  再等待billing、DEV-010 shared receipts、DEV-116 R02、canonical evidence與獨立GO。

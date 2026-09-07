@@ -1,0 +1,221 @@
+# QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
+
+- 文件成熟度：`QA Contract Ready`
+- 狀態：`Fixed 12 Cases / Local Contract 12 of 12 PASS / Provider NOT_RUN / Production Release Gated`
+- 日期：2026-09-07
+- 來源 DEV：`DEV-117 / DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
+- 規格 authority：[DEV-117 SPEC](../specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)
+- Machine registry：[dev-117-current-case-registry.json](dev-117-current-case-registry.json)
+- 角色邊界：QA定義驗證；RD可新增測試／adapter；QC依凍結案例執行且不修改產品或文件
+
+## 1. 驗證目標
+
+證明 AI_PDM 能在不部署、切換或回復 Jenfu-Platform 的前提下，建立一條可重現、fail-closed、可回復的
+app-owned production release lane。Current QA只驗證 `117-S1` source與local machine contract；正式 provider
+artifact、candidate、Production Level 4、promotion、canonical smoke與live receipt屬future `117-R1`，不得以fixture
+或legacy結果冒充。
+
+## 2. Evidence layers
+
+| Layer | Current S1 | Future R1 | 不可替代 |
+|---|---|---|---|
+| L1 Source／contract | profile、workflow、validator、tests、source hash | frozen release commit／tree | dirty worktree、聊天文字 |
+| L2 Local execution | unit、mutant、static workflow、isolated build、DB boundary | provider CLI dry check | staging／legacy pipeline PASS |
+| L3 Provider candidate | NOT_RUN | artifact、service／revision、IAM／Secret／traffic readback | local fixtures、自由文字 URL |
+| L4 User flow | NOT_RUN | DEV-116 R02 authenticated `company-smoke` commit＋reload | generic smoke、rollback-only |
+| L5 Canonical live | NOT_RUN | `pdm.jenfu.com.tw` post-promotion smoke＋receipt | candidate URL、legacy hosting URL |
+
+## 3. Fixed denominator
+
+固定分母為 `QA-117-001..012`。實作中不得刪除、合併或以新的 PASS case補分母；若契約改變，先更新 SPEC、
+取得使用者確認並以新版本明列被取代案例。Current S1可完成所有12案的 source／local oracle，但案例中的 provider
+assertion只能標示 `CONTRACT_PASS / PROVIDER_NOT_RUN`，不得改寫為 production PASS。
+
+## 4. FMEA
+
+| 失效模式 | 可能原因 | 使用者影響 | 偵測方式 | 優先級 | 對策 / 建議測試 |
+|---|---|---|---|---|---|
+| legacy target被當成neutral | 沿用舊workflow常數 | 部署完成判定錯誤 | project／origin／identity mutant | P0 | QA-117-002硬拒絕 |
+| Platform與AI-PDM被一起部署 | combined workflow／image | 無法獨立回復 | source inventory＋mutation manifest | P0 | QA-117-003／009 |
+| candidate建立時已承接流量 | first revision語意錯誤 | 未驗證版本暴露 | missing-service fixture＋traffic readback | P0 | QA-117-005／006 |
+| candidate stage偷建驗證tag | access approval與candidate耦合 | 未核准入口可達 | workflow graph／tag readback | P0 | QA-117-006／007 |
+| artifact在candidate階段重建 | mutable tag或未join prepare receipt | source／binary漂移 | digest／provenance join mutant | P0 | QA-117-003／006 |
+| shared DB gate被app繞過 | DEV-117自行建role／migration | 跨app資料或權限破壞 | command allowlist＋DB boundary | P0 | QA-117-004 |
+| Secret使用`latest`或payload落盤 | workflow方便化 | 不可回溯／憑證洩漏 | YAML／receipt redaction scan | P0 | QA-117-004／012 |
+| local或legacy smoke冒充L4 | claim ladder缺失 | 未驗證production write path | receipt environment／candidate join | P0 | QA-117-007 |
+| `company-smoke`洩漏到Jenfu | tenant predicate／side effect drift | 正式資料污染 | DEV-116 zero-leak／before-after | P0 | QA-117-008 |
+| promotion同dispatch自動執行 | workflow耦合 | 無人類GO即切流 | dispatch graph static mutant | P0 | QA-117-010 |
+| rollback需同時回復Platform | traffic owner未分離 | 雙系統中斷 | before／after provider diff | P0 | QA-117-009／011 |
+| canonical URL仍是legacy | DNS／receipt未更新 | Portal導向錯誤 | exact URL與browser smoke | P1 | QA-117-010／012 |
+| outcome unknown被重跑 | 無progress ledger | 重複mutation | interruption fixture | P1 | QA-117-006／011 |
+
+## 5. Test data 與 fixtures
+
+- `valid-neutral-profile.json`：exact `jenfu-platform-prod / ai-pdm-prod / pdm.jenfu.com.tw`。
+- `legacy-project-mutant.json`、`legacy-origin-mutant.json`、`legacy-identity-mutant.json`。
+- existing-service與missing-service兩種provider readback fixture。
+- valid／tampered source lock、artifact、shared gate、candidate、DEV-116 R02及app release receipts。
+- candidate traffic `0 / 1 / 100`、tag present／absent、numeric／latest Secret version mutants。
+- Platform before／after service inventory fixture，只有AI-PDM revision或traffic允許差異。
+- outcome-unknown progress ledger與safe resolved readback fixture。
+
+Fixture不得包含真實credential、token、cookie、Secret payload或個資；hash可重現且產生器必須由測試鎖定。
+
+## 6. Fixed cases
+
+### QA-117-001 — clean source freeze
+
+- 前置：valid profile與clean test repository fixture。
+- 操作：執行source-lock producer；再注入dirty required file、untracked required source、commit／tree drift。
+- PASS：clean fixture產生self-hashed `FROZEN` receipt；任一drift均 `INVALIDATED`且不進artifact stage。
+- Evidence：source-lock receipt、mutant results、providerCalls=0。
+
+### QA-117-002 — neutral target exactness／legacy deny
+
+- 前置：neutral與三個legacy mutant profiles。
+- 操作：依序驗證project、region、service、identity、Cloud SQL、schema、origin。
+- PASS：只有第7節exact target通過；`jenfu-ai-pdm-prod`、legacy Firebase URL與legacy identity全部FAIL。
+- Evidence：profile validator report、forbidden-values matrix。
+
+### QA-117-003 — AI_PDM-only immutable artifact
+
+- 前置：valid source lock、artifact receipt及combined／mutable／digest-drift mutants。
+- 操作：驗source、builder、linux/amd64、OCI digest、SBOM、provenance、scan與repository boundary。
+- PASS：只有AI_PDM-only exact digest且HIGH／CRITICAL=0通過；candidate stage無build command。
+- Evidence：artifact contract report、workflow static scan、mutation manifest。
+
+### QA-117-004 — environment／Secret／DB least privilege
+
+- 前置：valid runtime manifest及latest-secret、owner-role、foreign-core、manual-DDL mutants。
+- 操作：驗plain env、numeric enabled Secret refs、runtime identity、role membership、schema與command allowlist。
+- PASS：只允許AI schemas與runtime role；Secret payload read、`latest`、owner／DDL／migrator權限、其他`*_core`全部FAIL。
+- Evidence：runtime manifest report、`npm run check:db-boundary`、mutant results。
+
+### QA-117-005 — first-revision holding safety
+
+- 前置：existing-service與missing-service fixtures。
+- 操作：執行candidate plan producer。
+- PASS：existing service不得執行holding；missing service先要求DEV-010 R1-04F valid 503-only／no-role receipt，
+  且不得宣稱第一revision為0% candidate。
+- Evidence：plan、conditional branch coverage、holding receipt validator。
+
+### QA-117-006 — digest-only zero-traffic candidate
+
+- 前置：valid prepare／shared／holding receipts與candidate readback fixtures。
+- 操作：驗candidate不rebuild、exact digest、revision、0% traffic、no tag、service baseline及outcome ledger。
+- PASS：candidate receipt self-hash有效，traffic=0，Platform mutation=0；digest／tag／traffic／unknown重跑mutant全FAIL。
+- Evidence：candidate receipt、before／after service diff、progress ledger tests。
+
+### QA-117-007 — independently approved access／same-candidate Production Level 4 join
+
+- 前置：valid candidate、Level4 access、DEV-116 R02 receipt及local／legacy／staging／cross-candidate mutants。
+- 操作：驗access是candidate後的獨立approval，fixed tag只指向exact 0% revision，canonical traffic不變；再join
+  release、source、digest、revision、target、actor、company、commit-readback與evidence hashes。
+- PASS：只有neutral exact candidate的受限access與authenticated R02可進`LEVEL4_VERIFIED`；wildcard、同stage
+  建tag、錯revision、過期access或其他evidence一律FAIL。
+- Evidence：Level4 access receipt、tag／traffic readback、DEV-116 receipt hash、negative cases。
+
+### QA-117-008 — tenant zero-leak／side-effect disabled
+
+- 前置：DEV-116 R02 fixture含`company-smoke`一個root＋part＋drawing bundle、Jenfu fingerprints與side-effect readback。
+- 操作：驗SMOKE single membership、Jenfu before=after、zero leak、GCS／outbox consumer／external notification disabled。
+- PASS：business objects只屬`company-smoke`；Jenfu所有受控投影不變；expected quarantine不被cleanup。
+- Evidence：browser＋provider joined receipt、DB readback、zero-leak matrix。
+
+### QA-117-009 — cross-app mutation boundary
+
+- 前置：AI_PDM／Platform before-after provider inventories。
+- 操作：比較artifact、service、revision、env、Secret metadata與traffic。
+- PASS：只允許AI_PDM scope內、stage宣告的差異；Platform service／artifact／traffic任何diff均FAIL。
+- Evidence：provider diff receipt、mutation allowlist。
+
+### QA-117-010 — separate promotion／canonical entry
+
+- 前置：candidate、R02、rollback、zero-P0/P1 receipts及Product Owner GO fixture。
+- 操作：驗dispatch graph、approval、exact revision promotion及`https://pdm.jenfu.com.tw` smoke contract。
+- PASS：prepare／candidate不會自動promote；只有獨立promotion dispatch可切AI_PDM traffic；canonical origin exact。
+- Evidence：workflow static graph、promotion request validator、canonical smoke schema。
+
+### QA-117-011 — AI_PDM-only traffic rollback
+
+- 前置：previous neutral revision、candidate revision與failure／outcome-unknown fixtures。
+- 操作：模擬post-promotion smoke failure、rollback success／failure及中斷重啟。
+- PASS：只將`ai-pdm-prod` traffic回到verified previous neutral revision；不down migrate、不改Platform、不刪revision；
+  unknown狀態先readback後才可新run。
+- Evidence：traffic before／after、rollback receipt、provider diff、progress ledger。
+
+### QA-117-012 — live receipt／Platform consumption
+
+- 前置：valid live evidence與schema／expiry／URL／credential／hash mutants。
+- 操作：產生並驗證 `jenfu.app.release-receipt.v1`，再以Platform DEV-011 validator fixture唯讀消費。
+- PASS：固定application／environment／status／canonical origin正確，未過期，self-hash有效，無credential／PII；
+  Platform能啟用launch但不能修改或代簽 receipt。
+- Evidence：app receipt、consumer decision、redaction report。
+
+## 7. Current S1 execution commands
+
+RD完成後，QC依序執行：
+
+```text
+npm run test:dev-117:release-adapter
+npm run qc:dev-117:release-adapter
+npm run qc:production-deployment-pipeline
+npm run check:db-boundary
+npm run typecheck:app
+npm run build:isolated
+```
+
+`qc:dev-117:release-adapter` 必須輸出固定12案 aggregate，包含source fingerprint、case owner、actual／expected、
+evidence refs、mutation counters、P0／P1 count、cleanup及self-hash。若任一命令未執行或證據缺失，Current S1只能
+`NOT_RUN`或`BLOCKED`，不得以人工敘述改為PASS。
+
+## 8. Future R1 provider execution order
+
+1. 建立fresh `REL-*`、freeze clean main source。
+2. 執行DEV-117 prepare，取得provider-attested AI_PDM artifact receipt。
+3. 驗DEV-010 shared gate；若service不存在，先執行R1-04F holding。
+4. 以prepare exact digest建立0%且no-tag的AI_PDM candidate並provider readback。
+5. 另行核准`level4-access`，將fixed tag綁exact candidate並引用authorized-domain／origin allowlist receipt；
+   canonical traffic維持不變。
+6. 執行DEV-116 R01與R02，完成same-candidate authenticated Level 4。
+7. 完成rollback readiness、zero open P0/P1與必要observation；等待Product Owner獨立GO。
+8. promotion只切AI_PDM traffic；執行canonical browser／API／DB smoke與error sweep。
+9. 成功後簽發live receipt；失敗則traffic-only rollback並保留 evidence。
+
+每一步須以前一步fresh typed receipt為input；不可跨release／source／candidate拼接。
+
+## 9. Future canonical user flow
+
+- 未登入：開啟 `https://pdm.jenfu.com.tw/login`，完成共同identity登入並建立AI_PDM host-only session。
+- 已登入有權限：進入AI_PDM dashboard／工作臺，API與UI不出現visible error，關鍵counter符合provider readback。
+- 無權限／session失效：server fail-closed且不洩漏tenant資料；不得只靠UI隱藏。
+- Portal launch：Platform只在有效AI_PDM live receipt時導向canonical origin，不附token／credential query。
+- candidate Level 4：受限authenticated URL只用`company-smoke`，不以canonical user traffic執行。
+
+Future QC必須執行hard reload、login、主流程、visible error sweep、`[role=alert]`／HTTP 4xx/5xx檢查、console／network
+error與data sanity；任何意外空資料或全零critical counter都視為FAIL，不能以direct API PASS覆蓋畫面失敗。
+
+## 10. Pass／Fail／Blocked
+
+- `PASS`：該案例所有必要layer與exact target evidence完整；Current S1只可宣稱local contract PASS。
+- `FAIL`：預期與實際矛盾、mutant未被攔截、跨app mutation、target／digest／traffic／receipt漂移或可見錯誤。
+- `BLOCKED`：必要source、provider、credential、billing、DEV-010或user decision缺失，且在任何不可逆動作前停止。
+- `NOT_RUN`：尚未執行；不得計入分子。
+- `UNVERIFIED`：執行過但缺必要evidence；不得等同PASS。
+
+## 11. Current expected result
+
+- 文件：`QA Contract Executed`。
+- RD：`117-S1 IMPLEMENTED`。
+- QA-117-001..012：`12/12 CONTRACT_PASS / PROVIDER_NOT_RUN`，P0／P1=`0/0`。
+- Final aggregate：`output/qa/dev-117-independent-release/20260907T132932Z/aggregate-manifest.json`；
+  evidence SHA-256=`f3445b374d8ecd0a52c609892c25cb6d1dfaa80be45332ca497cf3bd624dcd3e`。
+- Cloud／DB／traffic／DNS mutation：0。
+- QC commands：DEV-117 test／aggregate、legacy pipeline 25/25、DB boundary、typecheck與isolated build均PASS；
+  isolated build primary invariant與cleanup PASS，runtime／port residue=0。
+- Current source observation：工作樹不是clean `main`，因此preflight為`INVALIDATED / BLOCKED`；沒有將本機
+  contract PASS冒充production readiness。
+- 下一步：先將reviewed S1 changes收斂至clean `origin/main`並建立fresh `REL-117-*` source lock；其後仍須
+  neutral billing、DEV-010 shared provider receipts與另行production release授權，才能執行prepare。
+
+使用思考習慣：#可驗證性、#反事實測試、#風險優先

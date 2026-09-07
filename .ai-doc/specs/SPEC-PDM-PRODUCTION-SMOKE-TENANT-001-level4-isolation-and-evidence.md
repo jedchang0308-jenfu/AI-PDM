@@ -14,7 +14,7 @@ Related authority:
 - `.ai-doc/decisions/ADR-PDM-PRODUCTION-SLICE-001-official-numbering-draft-launch-boundary.md`
 - `.ai-doc/qa/qa-dev-116-production-smoke-tenant-isolation-validation-plan-2026-09-04.md`
 - `DEV-032` production release closure、`DEV-040` production slice、`DEV-044` company/principal boundary、`DEV-069` cost boundary
-- Platform [`DEV-010` neutral database topology contract](../../../Jenfu-Management-system/ai-doc/specs/DEV-010-three-system-database-consolidation-contract.md)與[`QA-010-R1`](../../../Jenfu-Management-system/ai-doc/qa/DEV-010-three-system-database-consolidation-validation-plan.md)
+- Platform [`DEV-010` neutral database topology contract](../../../Jenfu-Platform/ai-doc/specs/DEV-010-three-system-database-consolidation-contract.md)與[`QA-010-R1`](../../../Jenfu-Platform/ai-doc/qa/DEV-010-three-system-database-consolidation-validation-plan.md)
 
 ## 1. Outcome
 
@@ -650,3 +650,11 @@ Platform `010-R1AA`已完成`QA-010-R1-15` finalizer source。它只接受同rel
 R1-15不能增加或取代`QA-116-R01～R04`。Production Level 4唯一write path仍是R02在同一neutral zero-traffic candidate，由authenticated `company-smoke`走正常UI／API／Cloud SQL真實`COMMIT + reload`，再證明Jenfu before=after、zero leak與side effects disabled。桌上演練PASS既不代表R02已執行，也不能改在`company-jenfu`建立再刪除測試資料；反之R02成功也不能替代具名owner、告警路由、abort與handoff就緒。
 
 Platform source unit=`7／7 PASS`、R1-09=`10／10 PASS`、R1-14=`7／7 PASS`、release adapter=`19／19 PASS`、preflight=`16／16 PASS`及focused QC=`PASS`。至此DEV-010 15案machine source paths齊備，但current full preflight仍`BLOCKED 9`，actual R1-15、R02與Production Level 4均`NOT_RUN`，provider／DB／notification／Cloud／traffic mutation=0。Finalizer只讀本地evidence並寫小型JSON，固定月成本增量為0，不調高DEV-010 `USD 100／TWD 3,200` alerts-only budget或DEV-116 `USD 0～1／月`smoke規劃值。
+
+## 34. 2026-09-07 DEV-117 independent deployment ownership amendment（current authority）
+
+使用者已明確要求AI_PDM與Jenfu-Platform分開部署。新增[DEV-117獨立部署規格](SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)後，本SPEC只保留Production Level 4的tenant隔離、authenticated normal UI／API／Cloud SQL `COMMIT + reload`、Jenfu before=after、zero leak與side-effect disabled證據責任；不再把artifact build、Cloud Run candidate、canonical traffic、rollback或app live receipt視為DEV-116 deployment adapter的責任。
+
+現行`.github/workflows/deploy-production.yml`固定部署legacy `jenfu-ai-pdm-prod`，不得替代neutral `jenfu-platform-prod / ai-pdm-prod` candidate。DEV-117將建立AI_PDM-owned獨立lane，並在candidate建立後引用本SPEC的R01／R02 receipt；Platform DEV-010仍只供應shared IAM／database／migration／capacity與compatibility evidence，不能擁有AI_PDM traffic。三者的必要join為同一release、source lock、artifact digest、neutral target與candidate revision，任一單邊PASS都不能冒充Production Level 4或live release。
+
+2026-09-07 legacy 063已完成backup、restore rehearsal、Production apply、idempotent rerun與readback，legacy ledger為54、highest 063；此結果只關閉legacy migration prerequisite，不代表DEV-010 062、neutral foundation、candidate或R02已完成。DEV-117的117-S1 app-owned adapter已完成本機實作與固定`12/12 PASS`，但provider=`NOT_RUN`且current source preflight因非clean main為`INVALIDATED / BLOCKED`。Neutral project `jenfu-platform-prod` provider readback仍為`billingEnabled=false`，R02／R03維持`NOT_RUN`。本次實作沒有production write、deploy、DNS或traffic mutation。
