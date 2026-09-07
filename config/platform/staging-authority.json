@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "jenfu.ai-pdm.staging-authority.v1",
+  "status": "active",
+  "activeAuthority": {
+    "projectId": "jenfu-platform-nonprod",
+    "firebaseProjectId": "jenfu-platform-nonprod",
+    "hostingSite": "jenfu-platform-nonprod-pdm",
+    "canonicalOrigin": "https://jenfu-platform-nonprod-pdm.web.app",
+    "cloudRunService": "ai-pdm-stg",
+    "cloudRunRegion": "asia-east1",
+    "cloudRunRevision": "ai-pdm-stg-00004-pvm",
+    "cloudSqlInstance": "jenfu-platform-nonprod-pg",
+    "cloudSqlDatabase": "jenfu_stg"
+  },
+  "legacyRollbackAuthority": {
+    "projectId": "jenfu-ai-pdm-stg-361825",
+    "hostingSite": "jenfu-ai-pdm-stg-361825",
+    "origin": "https://jenfu-ai-pdm-stg-361825.web.app",
+    "hostingVersion": "9dbedce99ef162c9",
+    "cloudRunService": "ai-pdm-stg",
+    "cloudRunRegion": "asia-east1",
+    "cloudRunRevision": "ai-pdm-stg-dev07689e802",
+    "cloudSqlInstance": "ai-pdm-stg-postgres",
+    "cloudSqlDatabase": "ai_pdm",
+    "retention": "retained-for-explicit-rollback-approval"
+  },
+  "legacyEntryTransition": {
+    "strategy": "firebase-hosting-path-preserving-redirect",
+    "statusCode": 302,
+    "sourceOrigin": "https://jenfu-ai-pdm-stg-361825.web.app",
+    "targetOrigin": "https://jenfu-platform-nonprod-pdm.web.app",
+    "pathPattern": "/:path*"
+  },
+  "safety": {
+    "legacyDatabaseMutationAllowed": false,
+    "legacyRuntimeDeletionAllowed": false,
+    "legacySecretDeletionAllowed": false,
+    "projectDeletionAllowed": false,
+    "billingUnlinkAllowed": false,
+    "productionWritesAllowed": false
+  }
+}
