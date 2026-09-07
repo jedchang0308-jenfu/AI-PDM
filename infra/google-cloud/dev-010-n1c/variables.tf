@@ -155,6 +155,11 @@ variable "enable_hosting" {
 
 variable "alert_notification_channel_ids" {
   type        = list(string)
-  default     = []
-  description = "Existing verified non-production notification channels."
+  default     = ["projects/jenfu-platform-nonprod/notificationChannels/11944193246311159138"]
+  description = "Existing verified DEV-010 N1B non-production operator notification channel."
+
+  validation {
+    condition     = length(var.alert_notification_channel_ids) == 1 && var.alert_notification_channel_ids[0] == "projects/jenfu-platform-nonprod/notificationChannels/11944193246311159138"
+    error_message = "N1C Cloud Run 5xx alerts must use the exact verified DEV-010 N1B operator route."
+  }
 }

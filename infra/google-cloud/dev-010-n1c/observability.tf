@@ -49,4 +49,11 @@ resource "google_monitoring_alert_policy" "cloud_run_5xx" {
     content   = "Stop N1C acceptance traffic and preserve the exact revision evidence."
     mime_type = "text/markdown"
   }
+
+  lifecycle {
+    precondition {
+      condition     = length(var.alert_notification_channel_ids) == 1
+      error_message = "The N1C Cloud Run 5xx policy must have exactly one verified non-production notification route."
+    }
+  }
 }

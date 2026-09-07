@@ -68,3 +68,11 @@ test('N1C-AI-PLAN-06 unknown, update, delete, replace, and duplicate allowlist f
   wrongTarget.variables.project_id.value = 'jenfu-ai-pdm-prod'
   assert.throws(() => assertPlanProfile(wrongTarget, contract, 'full'), /DEV010_N1C_PLAN_VARIABLE_MISMATCH/u)
 })
+
+test('N1C-AI-PLAN-07 Cloud Run 5xx alert is fail-closed on the verified N1B route', () => {
+  const variables = fs.readFileSync(path.join(root, 'infra', 'google-cloud', 'dev-010-n1c', 'variables.tf'), 'utf8')
+  const observability = fs.readFileSync(path.join(root, 'infra', 'google-cloud', 'dev-010-n1c', 'observability.tf'), 'utf8')
+  assert.match(variables, /default\s+=\s+\["projects\/jenfu-platform-nonprod\/notificationChannels\/11944193246311159138"\]/u)
+  assert.match(variables, /alert_notification_channel_ids\[0\]\s+==\s+"projects\/jenfu-platform-nonprod\/notificationChannels\/11944193246311159138"/u)
+  assert.match(observability, /length\(var\.alert_notification_channel_ids\)\s+==\s+1/u)
+})
