@@ -312,3 +312,9 @@ Reviewed drill的有序動作與上限固定為`GO 120s／NO_GO 120s／ABORT 120
 R1-15執行模式固定為`READ_ONLY_OPERATIONAL_DRILL / tabletopOnly`。QA必須驗證`actualTrafficChanged=false`、`actualCleanupMutationExecuted=false`、`externalNotificationSent=false`，並確認provider／DB／Cloud／traffic mutation counters全為0；receipt不得授權promotion。Current preflight非READY時，CLI須在讀upstream receipts與reviewed transcript前停止，不能要求provider、DB或notification credential。
 
 這個co-gate保留Production Level 4原目的：R02仍須由authenticated `company-smoke`在同一neutral zero-traffic candidate走正常UI／API／Cloud SQL真實`COMMIT + reload`、Jenfu before=after、zero leak及side effects disabled。R1-15 unit=`7／7 PASS`、R1-09=`10／10`、R1-14=`7／7`、release=`19／19`、preflight=`16／16`及focused QC只證明source；actual R1-15與R02均`NOT_RUN`，15案actual分子仍為0，固定月成本增量0。
+
+## 2026-09-07 DEV-117 deployment-lane handoff amendment（current authority）
+
+新增[QA-DEV-117](qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md)後，本計畫固定分母`QA-116-001..031`與release cases `QA-116-R01..R04`不變，也不新增deployment case。QA-116-R01／R02只接受DEV-117所產生、經provider readback的neutral `jenfu-platform-prod / ai-pdm-prod` 0% candidate；現行legacy workflow、legacy Firebase origin、本地31/31、generic smoke或staging evidence皆不得代替。
+
+QA-117先驗證source／artifact／target／candidate／promotion／rollback／app receipt的獨立部署契約；QA-116-R02再對同一candidate執行`company-smoke` authenticated Level 4。兩份計畫必須以exact release、source lock、digest、revision與receipt hash互相join，但各自保留獨立分母與失敗判定。2026-09-07 legacy 063已成功apply與rerun只算migration prerequisite；neutral candidate、QA-116-R01／R02／R03仍為`NOT_RUN`，本文件更新不授權production execution。

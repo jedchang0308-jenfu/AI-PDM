@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "jenfu.qa.case-registry.v1",
+  "devId": "DEV-117",
+  "sourceId": "DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001",
+  "title": "AI_PDM independent production deployment adapter",
+  "status": "LOCAL_CONTRACT_PASS_PROVIDER_NOT_RUN",
+  "claimBoundary": "local-release-adapter-contract",
+  "productionReleaseClaimed": false,
+  "caseCount": 12,
+  "cases": [
+    {
+      "id": "QA-117-001",
+      "title": "Clean source freeze",
+      "phase": "117-S1A",
+      "owner": "release-adapter-unit"
+    },
+    {
+      "id": "QA-117-002",
+      "title": "Neutral target exactness and legacy deny",
+      "phase": "117-S1A",
+      "owner": "release-adapter-unit"
+    },
+    {
+      "id": "QA-117-003",
+      "title": "AI_PDM-only immutable artifact",
+      "phase": "117-S1A",
+      "owner": "release-adapter-unit"
+    },
+    {
+      "id": "QA-117-004",
+      "title": "Environment, Secret, and database least privilege",
+      "phase": "117-S1A",
+      "owner": "release-adapter-unit"
+    },
+    {
+      "id": "QA-117-005",
+      "title": "First-revision holding safety",
+      "phase": "117-S1B",
+      "owner": "release-adapter-workflow"
+    },
+    {
+      "id": "QA-117-006",
+      "title": "Digest-only zero-traffic candidate",
+      "phase": "117-S1B",
+      "owner": "release-adapter-workflow"
+    },
+    {
+      "id": "QA-117-007",
+      "title": "Independently approved access and same-candidate Production Level 4 join",
+      "phase": "117-S1C",
+      "owner": "release-adapter-aggregate"
+    },
+    {
+      "id": "QA-117-008",
+      "title": "Tenant zero-leak and side-effect disabled",
+      "phase": "117-S1C",
+      "owner": "release-adapter-aggregate"
+    },
+    {
+      "id": "QA-117-009",
+      "title": "Cross-app mutation boundary",
+      "phase": "117-S1B",
+      "owner": "release-adapter-workflow"
+    },
+    {
+      "id": "QA-117-010",
+      "title": "Separate promotion and canonical entry",
+      "phase": "117-S1C",
+      "owner": "release-adapter-aggregate"
+    },
+    {
+      "id": "QA-117-011",
+      "title": "AI_PDM-only traffic rollback",
+      "phase": "117-S1B",
+      "owner": "release-adapter-workflow"
+    },
+    {
+      "id": "QA-117-012",
+      "title": "Live receipt and Platform consumption",
+      "phase": "117-S1C",
+      "owner": "release-adapter-aggregate"
+    }
+  ]
+}

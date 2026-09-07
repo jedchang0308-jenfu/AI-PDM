@@ -2,7 +2,15 @@
 
 日期：2026-09-04
 Release ID：`REL-116-20260904`
-狀態：`R01 started / fail-closed / DEV-010 R1 dependency blocked / production data writes 0`
+狀態：`Historical R01 / Legacy 063 Complete / Neutral release split to DEV-117 / Neutral candidate blocked`
+
+## 2026-09-07 independent deployment amendment（current authority）
+
+本報告保留2026-09-04 R01歷史；後續部署authority已由使用者明確拆成AI_PDM與Jenfu-Platform兩條獨立lane。AI_PDM的新current開發契約是[DEV-117](../../specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)：本repo只擁有AI_PDM artifact、`ai-pdm-prod` candidate／traffic、`pdm.jenfu.com.tw` canonical smoke、rollback與`jenfu.app.release-receipt.v1`；Platform DEV-010只供應shared database／IAM／capacity／migration evidence，Platform DEV-011自行擁有Platform release。
+
+Legacy 063已於2026-09-07完成backup `1788770085021`、restore rehearsal apply／rerun、Production apply `ai-pdm-prod-migration-runner-gdz2d`、idempotent rerun `ai-pdm-prod-migration-runner-r8mhm`與readback `ai-pdm-prod-migration-runner-js6lw`；ledger=54、highest=063，root／part／drawing=`59／59／50`，constraints／index／columns均成立，invalid sequence／audit=0。這不代表neutral DEV-010 062或shared foundation已完成。
+
+Current legacy service仍是`jenfu-ai-pdm-prod / ai-pdm-prod` revision `ai-pdm-prod-gh-bb30682c-33729286511`承接100%流量；`jenfu-platform-prod` provider readback仍為`billingEnabled=false`。現行legacy workflow不得冒充neutral candidate；DEV-117 117-S1已完成本機實作與`12/12 PASS`，但current source preflight因非clean main為`INVALIDATED / BLOCKED`，provider-attested neutral artifact、0% candidate、DEV-116 R02、canonical promotion與live receipt仍均`NOT_RUN`。因此下一步是先收斂clean `origin/main` source lock並解除shared provider blockers，不是直接部署或切流量。
 
 ## 2026-09-04 Follow-up amendment（current authority）
 
@@ -106,7 +114,7 @@ R1A source classifier初始盤點：Platform=`185 release + 28 governance + 1343
 
 OrgMaster第一次build因pinned npm 11.13.0發現lockfile缺`@floating-ui/dom@1.8.0`而fail closed；已用同一builder版本重生lock metadata並以前向commit `e9bf565`修正，沒有放寬成`npm install`。SPDX SBOM三份皆已建立；production dependency audit為Platform 6 moderate、OrgMaster 37 moderate、AI-PDM 0，三者high／critical為0。Moderate仍需release owner處置，且local SBOM／bounded scan不能代替provider-native max-mode provenance、attested SBOM與正式secret scan。
 
-本次GCP費用、Production writes、deploy與traffic change均為0。`USD 65～80／月`正常估計與`USD 100` alerts-only budget不變；R1-04 Cloud Build／Artifact Registry未執行，未來實費須進R1-02 transition receipt。Current=`LOCAL_PACKAGE_BUILD_PASS / RELEASE_ARTIFACT_GATE_BLOCKED`，詳見Platform [R1-04A QC](../../../../Jenfu-Management-system/ai-doc/qc/qc-dev-010-r1-04a-local-container-package-2026-09-05.md)。
+本次GCP費用、Production writes、deploy與traffic change均為0。`USD 65～80／月`正常估計與`USD 100` alerts-only budget不變；R1-04 Cloud Build／Artifact Registry未執行，未來實費須進R1-02 transition receipt。Current=`LOCAL_PACKAGE_BUILD_PASS / RELEASE_ARTIFACT_GATE_BLOCKED`，詳見Platform [R1-04A QC](../../../../Jenfu-Platform/ai-doc/qc/qc-dev-010-r1-04a-local-container-package-2026-09-05.md)。
 
 ## Gate結果
 
