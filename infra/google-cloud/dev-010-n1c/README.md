@@ -12,3 +12,9 @@ All create switches default to `false`. Initialization for validation must use
 with the remote-state prefix `dev-010/n1c/ai-pdm`. Secret values, OAuth client
 secrets, Hosting deploy, traffic acceptance, and old-project retirement are not
 performed by this root.
+
+The AI-PDM Cloud Run 5xx alert must route to the existing N1B notification
+channel `projects/jenfu-platform-nonprod/notificationChannels/11944193246311159138`.
+An enabled 5xx policy with no notification channel is invalid: Terraform blocks
+that configuration before apply so a visually present but silent alert cannot
+be released.
