@@ -18,6 +18,7 @@
     "google_storage_bucket_iam_member.builder[\"source_creator\"]",
     "google_storage_bucket_iam_member.builder[\"source_viewer\"]",
     "google_storage_bucket_iam_member.builder[\"logs_creator\"]",
+    "google_storage_bucket_iam_member.builder[\"logs_viewer\"]",
     "google_storage_bucket_iam_member.builder[\"receipts_creator\"]",
     "google_storage_bucket_iam_member.builder[\"receipts_viewer\"]",
     "google_storage_bucket_iam_member.deployer[\"control_user\"]",
