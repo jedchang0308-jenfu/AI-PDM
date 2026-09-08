@@ -1,8 +1,8 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
-- 文件成熟度：`QA Contract Ready`
-- 狀態：`Fixed 12 Cases / Local Contract 12 of 12 PASS / Provider NOT_RUN / Production Release Gated`
-- 日期：2026-09-07
+- 文件成熟度：`v1 QA Contract Executed；continuous v2 Implementation Complete`
+- 狀態：`v1 Fixed 12 Cases / Local Contract 12 of 12 PASS；continuous v2 S1B-20 Local Owner QC PASS / DEV-012 S2 Gated`
+- 日期：2026-09-08
 - 來源 DEV：`DEV-117 / DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
 - 規格 authority：[DEV-117 SPEC](../specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)
 - Machine registry：[dev-117-current-case-registry.json](dev-117-current-case-registry.json)
@@ -219,3 +219,30 @@ error與data sanity；任何意外空資料或全零critical counter都視為FAI
   neutral billing、DEV-010 shared provider receipts與另行production release授權，才能執行prepare。
 
 使用思考習慣：#可驗證性、#反事實測試、#風險優先
+
+## 12. DEV-012 continuous v2 validation amendment（current）
+
+舊 QA-117-001..012 與其 six-stage workflow證據保留為 v1 historical denominator，不得用來宣稱 v2 continuous release已完成。v2 owner主案例為 Platform DEV-012 QA 的 `S1B-20`，並共同接受 `S1B-01～06／08～18／22～24` 中與 AI_PDM owner slice有關的正負 oracle；上游完整文件 SHA-256=`47eb972c48549da73ca135509e99bdc8ae4463e87b81785abe8d6cfd8f54b95f`、§25～EOF SHA-256=`92fd6c7dfdfafee4b438c0ee9ce731d7463da46a7691f05061c54d58cb127507`。
+
+S1B-20 必須同時證明：continuous v2 保留 v1 strict validator；exact neutral target與pool8；current 14-entry ordered migration分類／checksum；DEV-116 R02 exact native join；single-capsule workflow沒有 stage／approve／skip／receipt輸入；同 fingerprint不重 build；own registry／bucket／service／state／OIDC／IAM deny；abort controller在重送、crash前後、412與 unknown outcome 下只回復 own exact revision。禁止修改 DEV-116 producer、使用 company-jenfu、漏 migration、把六段人工 GO 或 local fixture冒充 production。
+
+固定 owner commands為：
+
+```text
+npm run test:dev-117:continuous
+npm run qc:dev-117:continuous
+npm run test:dev-117:abort
+npm run check:db-boundary
+npm run typecheck:app
+npm run build:isolated
+terraform fmt -check / init -backend=false / validate（dev-117-production-release）
+git diff --check
+```
+
+每份結果必須綁同一 source／contract hash，列出 case、providerMutationSummary、cleanup與native evidence refs。Local fixture=`LOCAL_CONTRACT`，受控 non-serving target=`CONTROLLED_PROVIDER`；Production Level 4、Billing／quota、正式 migration、candidate、traffic與canonical均仍屬 DEV-012 S2／S3，不得預填 PASS。
+
+## 13. `CONTINUOUS_NO_DWELL_V2` QA amendment
+
+依DEV-012 §25，原continuous owner結果由新契約取代並須重跑。S1B-20固定增加以下oracle：release intent不得預填artifact／candidate／decision；application digest、migration bundle與pinned generic runner必須同source authority並有native readback；workflow exact九階段包含`migrate`；production job只用aipdm migrator與exact 14-entry manifest；ledger／schema／ACL readback先於candidate；inactive exact revision以唯一temporary tag提供DEV-116 R02入口且general traffic不變；machine decision、activation、canonical與tag cleanup皆有immutable receipt。
+
+負例至少包含：build前要求digest、staging／legacy DB或runner、execution done冒migration PASS、deployer actAs migrator、漏migration job、candidate無可達驗證URL、任意tag／LATEST receipt authority、tag取得一般流量、run中真人GO、placeholder throw／echo仍在正式路徑、tag cleanup失敗、舊serving revision不相容。全部只能用local／recorded transport驗證；production evidence維持NOT_RUN。

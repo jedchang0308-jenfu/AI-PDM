@@ -1,958 +1,271 @@
-name: Deploy AI_PDM independent production
+name: Deploy AI-PDM independently
 
 on:
   workflow_dispatch:
     inputs:
-      stage:
-        description: Independently approved release stage
+      releaseCapsuleRef:
+        description: Immutable AI-PDM release-intent URI with sha256 fragment
         required: true
-        type: choice
-        options:
-          - prepare
-          - candidate
-          - level4-access
-          - promote
-          - rollback
-          - finalize
-      release_id:
-        description: REL-117-* logical release identifier
-        required: true
-        type: string
-      release_commit:
-        description: Exact 40-character origin/main commit
-        required: true
-        type: string
-      source_lock_sha256:
-        description: Exact predecessor source lock evidence hash; leave empty only for prepare, which creates it
-        required: false
-        type: string
-      artifact_receipt_ref:
-        description: Hash-bound GitHub Actions artifact receipt reference
-        required: false
-        type: string
-      shared_gate_receipt_ref:
-        description: Hash-bound DEV-010 shared gate projection reference
-        required: false
-        type: string
-      candidate_receipt_ref:
-        description: Hash-bound DEV-117 candidate receipt reference
-        required: false
-        type: string
-      level4_access_receipt_ref:
-        description: Hash-bound DEV-117 Level 4 access receipt reference
-        required: false
-        type: string
-      level4_receipt_ref:
-        description: Hash-bound DEV-116 R02 receipt reference
-        required: false
-        type: string
-      identity_owner_receipt_ref:
-        description: Exact-host identity-owner receipt reference
-        required: false
-        type: string
-      server_origin_owner_receipt_ref:
-        description: Exact-host server-origin-owner receipt reference
-        required: false
-        type: string
-      application_image_digest:
-        description: Prepare-attested sha256 digest
-        required: false
-        type: string
-      candidate_revision:
-        description: Exact ai-pdm-prod candidate revision
-        required: false
-        type: string
-      rollback_revision:
-        description: Previously verified neutral revision
-        required: false
-        type: string
-      secret_current_version:
-        description: Numeric enabled Secret Manager version
-        required: false
-        type: string
-      secret_previous_version:
-        description: Numeric enabled Secret Manager version
-        required: false
-        type: string
-      secret_workbench_version:
-        description: Numeric enabled Secret Manager version
-        required: false
-        type: string
-      product_owner_decision:
-        description: Must be GO only for promote
-        required: false
-        type: choice
-        options:
-          - NOT_PROVIDED
-          - GO
-          - NO_GO
-      promotion_approval:
-        description: Release-bound neutral promotion approval
-        required: false
-        type: string
-      stage_approval:
-        description: Exact stage approval from the reviewed profile
-        required: false
         type: string
 
 concurrency:
-  group: dev117-ai-pdm-${{ inputs.release_id }}-${{ inputs.stage }}
+  group: production-release-ai-pdm-prod
   cancel-in-progress: false
 
 permissions:
   contents: read
-  actions: read
 
 env:
-  GCP_PROJECT_ID: jenfu-platform-prod
-  GCP_REGION: asia-east1
-  CLOUD_RUN_SERVICE: ai-pdm-prod
-  APPLICATION_CONTAINER: ai-pdm
-  RUNTIME_SERVICE_ACCOUNT: aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com
-  IMAGE_PATH: asia-east1-docker.pkg.dev/jenfu-platform-prod/dev010-r1/ai-pdm
-  CANONICAL_ORIGIN: https://pdm.jenfu.com.tw
-  DEPLOYER_SERVICE_ACCOUNT: ${{ vars.AI_PDM_PRODUCTION_DEPLOYER_SERVICE_ACCOUNT }}
-  WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-  PDM_FIREBASE_API_KEY: ${{ vars.PDM_FIREBASE_API_KEY }}
-  PDM_FIREBASE_AUTH_DOMAIN: ${{ vars.PDM_FIREBASE_AUTH_DOMAIN }}
-  PDM_FIREBASE_PROJECT_ID: ${{ vars.PDM_FIREBASE_PROJECT_ID }}
-  PDM_FIREBASE_APP_ID: ${{ vars.PDM_FIREBASE_APP_ID }}
-  PDM_GOOGLE_WORKSPACE_DOMAINS: ${{ vars.PDM_GOOGLE_WORKSPACE_DOMAINS }}
-  PDM_SESSION_ISSUER: ${{ vars.PDM_SESSION_ISSUER }}
-  PDM_SESSION_AUDIENCE: ${{ vars.PDM_SESSION_AUDIENCE }}
-  PDM_SESSION_CURRENT_KEY_ID: ${{ vars.PDM_SESSION_CURRENT_KEY_ID }}
-  PDM_SESSION_PREVIOUS_KEY_ID: ${{ vars.PDM_SESSION_PREVIOUS_KEY_ID }}
+  NODE_VERSION: "24.11.0"
+  WIF_PROVIDER: ${{ vars.AIPDM_PROD_WIF_PROVIDER }}
 
 jobs:
-  verify-source:
-    name: Verify exact neutral source and dispatch boundary
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    outputs:
-      tree: ${{ steps.source.outputs.tree }}
-    steps:
-      - name: Checkout exact release commit
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          ref: ${{ inputs.release_commit }}
-          fetch-depth: 0
-
-      - name: Verify immutable origin/main source
-        id: source
-        shell: bash
-        env:
-          RELEASE_COMMIT: ${{ inputs.release_commit }}
-          RELEASE_ID: ${{ inputs.release_id }}
-          SOURCE_LOCK_SHA256: ${{ inputs.source_lock_sha256 }}
-        run: |
-          set -euo pipefail
-          [[ "$RELEASE_ID" =~ ^REL-117-[A-Za-z0-9][A-Za-z0-9._-]{2,63}$ ]]
-          [[ "$RELEASE_COMMIT" =~ ^[a-f0-9]{40}$ ]]
-          if [[ "${{ inputs.stage }}" == "prepare" ]]; then
-            [[ -z "$SOURCE_LOCK_SHA256" ]]
-          else
-            [[ "$SOURCE_LOCK_SHA256" =~ ^[a-f0-9]{64}$ ]]
-          fi
-          [[ "$(git rev-parse HEAD)" == "$RELEASE_COMMIT" ]]
-          [[ "$(git ls-remote origin refs/heads/main | cut -f1)" == "$RELEASE_COMMIT" ]]
-          [[ -z "$(git status --porcelain)" ]]
-          [[ ! -e .openai/hosting.json ]]
-          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Verify DEV-117 local contract
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm ci
-          npm run test:dev-117:release-adapter
-          npm run qc:dev-117:release-adapter
-          npm run check:db-boundary
-
   prepare:
-    name: Build AI_PDM immutable artifact once
-    if: ${{ inputs.stage == 'prepare' }}
-    needs: verify-source
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    environment: ai-pdm-production-prepare
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
+    environment: production
+    permissions: { contents: read, id-token: write }
+    outputs:
+      capsule_uri: ${{ steps.bind.outputs.capsule_uri }}
+      capsule_sha256: ${{ steps.bind.outputs.capsule_sha256 }}
     steps:
-      - name: Checkout exact release commit
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          ref: ${{ inputs.release_commit }}
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Freeze source and run isolated quality gates
-        id: local
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - run: npm run test:dev-117:continuous
+      - id: bind
         shell: bash
-        env:
-          RELEASE_ID: ${{ inputs.release_id }}
+        env: { RELEASE_CAPSULE_REF: "${{ inputs.releaseCapsuleRef }}" }
         run: |
           set -euo pipefail
-          npm ci
-          SUMMARY="$(npm run --silent dev-117:release -- --stage=preflight --release-id="$RELEASE_ID")"
-          printf '%s\n' "$SUMMARY"
-          OUTPUT_DIR="$(printf '%s\n' "$SUMMARY" | tail -1 | jq -r '.outputDirectory')"
-          [[ "$(printf '%s\n' "$SUMMARY" | tail -1 | jq -r '.status')" == "CI_VERIFIED" ]]
-          echo "output_dir=$OUTPUT_DIR" >> "$GITHUB_OUTPUT"
-          npm run typecheck:app
-          npm run build:isolated
-
-      - name: Authenticate to exact neutral provider
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+          capsule_uri="${RELEASE_CAPSULE_REF%%#sha256=*}"
+          capsule_sha256="${RELEASE_CAPSULE_REF##*#sha256=}"
+          test "$capsule_uri" != "$RELEASE_CAPSULE_REF"
+          [[ "$capsule_uri" =~ ^gs://jenfu-platform-prod-aipdm-release/receipts/.+\.json$ ]]
+          [[ "$capsule_sha256" =~ ^[a-f0-9]{64}$ ]]
+          echo "capsule_uri=$capsule_uri" >> "$GITHUB_OUTPUT"
+          echo "capsule_sha256=$capsule_sha256" >> "$GITHUB_OUTPUT"
+      - id: auth
+        uses: google-github-actions/auth@v3
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
-          create_credentials_file: true
-
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          version: ">= 490.0.0"
-
-      - name: Build and attest AI_PDM-only image
-        shell: bash
+          service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute prepare
         env:
-          RELEASE_ID: ${{ inputs.release_id }}
-          RELEASE_COMMIT: ${{ inputs.release_commit }}
-          SOURCE_TREE: ${{ needs.verify-source.outputs.tree }}
-          PREFLIGHT_DIR: ${{ steps.local.outputs.output_dir }}
-        run: |
-          set -euo pipefail
-          [[ -n "$DEPLOYER_SERVICE_ACCOUNT" && -n "$WIF_PROVIDER" ]]
-          [[ "$DEPLOYER_SERVICE_ACCOUNT" == *@jenfu-platform-prod.iam.gserviceaccount.com ]]
-          [[ "$DEPLOYER_SERVICE_ACCOUNT" != "$RUNTIME_SERVICE_ACCOUNT" ]]
-          [[ "$(gcloud config get-value project)" == "$GCP_PROJECT_ID" ]]
-          [[ "$(gcloud auth list --filter=status:ACTIVE --format='value(account)')" == "$DEPLOYER_SERVICE_ACCOUNT" ]]
-          gcloud auth configure-docker asia-east1-docker.pkg.dev --quiet
-          mkdir -p output/dev-117/provider
-          IMAGE_TAG="$IMAGE_PATH:dev117-${RELEASE_COMMIT}"
-          docker buildx build --platform linux/amd64 --target runner --push --sbom=true --provenance=mode=max \
-            --build-arg "SOURCE_REVISION=$RELEASE_COMMIT" --build-arg "SOURCE_TREE=$SOURCE_TREE" \
-            --build-arg "SOURCE_CREATED_AT=$(git show -s --format=%cI HEAD)" --build-arg "SOURCE_VERSION=$RELEASE_ID" \
-            --build-arg "SOURCE_STATE=clean" --tag "$IMAGE_TAG" --metadata-file output/dev-117/provider/build-metadata.json .
-          DIGEST="$(jq -r '."containerimage.digest"' output/dev-117/provider/build-metadata.json)"
-          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
-          DIGEST_URI="$IMAGE_PATH@$DIGEST"
-          [[ "$(gcloud artifacts docker images describe "$DIGEST_URI" --project "$GCP_PROJECT_ID" --format='value(image_summary.digest)')" == "$DIGEST" ]]
-          gcloud artifacts docker images describe "$DIGEST_URI" --project "$GCP_PROJECT_ID" --show-package-vulnerability --format=json > output/dev-117/provider/vulnerability.json
-          jq -e '(.package_vulnerability_summary // .vulnerabilityOccurrences) != null' output/dev-117/provider/vulnerability.json > /dev/null
-          cp "$PREFLIGHT_DIR/source-lock.json" output/dev-117/provider/source-lock.json
-          cp "$PREFLIGHT_DIR/preflight-report.json" output/dev-117/provider/preflight-report.json
-          RELEASE_ID="$RELEASE_ID" RELEASE_COMMIT="$RELEASE_COMMIT" SOURCE_TREE="$SOURCE_TREE" DIGEST="$DIGEST" DIGEST_URI="$DIGEST_URI" node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          import config from './config/release/dev117-ai-pdm-independent-production.json' with { type: 'json' }
-          import { assertDev117ArtifactReceipt, assertDev117SourceLock, finalizeEvidence } from './scripts/lib/dev117-ai-pdm-independent-release.mjs'
-          const sourceLock = JSON.parse(fs.readFileSync('output/dev-117/provider/source-lock.json', 'utf8'))
-          assertDev117SourceLock(sourceLock, config)
-          const vulnerability = JSON.parse(fs.readFileSync('output/dev-117/provider/vulnerability.json', 'utf8'))
-          const rows = vulnerability.package_vulnerability_summary?.vulnerabilities ?? vulnerability.vulnerabilityOccurrences ?? []
-          const severity = rows.map((row) => String(row.effectiveSeverity ?? row.severity ?? '').toUpperCase())
-          const core = {
-            schemaVersion: 'jenfu.dev117.artifact-receipt.v1', releaseId: process.env.RELEASE_ID,
-            sourceLockSha256: sourceLock.evidenceSha256, sourceRevision: process.env.RELEASE_COMMIT, sourceTree: process.env.SOURCE_TREE,
-            applicationId: 'ai-pdm', builderIdentity: process.env.DEPLOYER_SERVICE_ACCOUNT,
-            registryRepository: config.application.imageRepository, artifactDigest: process.env.DIGEST, imageUri: process.env.DIGEST_URI,
-            platform: 'linux/amd64',
-            sbomRef: `github-actions://${process.env.GITHUB_RUN_ID}/dev117-prepare-${process.env.RELEASE_ID}-${process.env.GITHUB_SHA}/build-metadata.json`,
-            provenanceRef: `github-actions://${process.env.GITHUB_RUN_ID}/dev117-prepare-${process.env.RELEASE_ID}-${process.env.GITHUB_SHA}/build-metadata.json`,
-            secretScan: { credentialMaterialPresent: false, findings: 0 },
-            vulnerabilities: { critical: severity.filter((item) => item === 'CRITICAL').length, high: severity.filter((item) => item === 'HIGH').length },
-            createdAt: new Date().toISOString(), credentialMaterialPresent: false,
-          }
-          const receipt = finalizeEvidence(core)
-          assertDev117ArtifactReceipt(receipt, config, sourceLock)
-          fs.writeFileSync('output/dev-117/provider/artifact-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`)
-          NODE
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
 
-      - name: Upload prepare evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
         with:
-          name: dev117-prepare-${{ inputs.release_id }}-${{ github.sha }}
-          path: output/dev-117/provider
-          if-no-files-found: error
-          retention-days: 30
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute build
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
+
+  migrate:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute migrate
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage migrate --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
   candidate:
-    name: Create digest-only zero-traffic candidate
-    if: ${{ inputs.stage == 'candidate' }}
-    needs: verify-source
+    needs: [prepare, migrate]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment: ai-pdm-production-candidate
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
+    environment: production
+    permissions: { contents: read, id-token: write }
     steps:
-      - name: Checkout exact release commit
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
         with:
-          ref: ${{ inputs.release_commit }}
-          fetch-depth: 0
-
-      - name: Validate candidate-only inputs
-        shell: bash
-        env:
-          STAGE_APPROVAL: ${{ inputs.stage_approval }}
-          IMAGE_DIGEST: ${{ inputs.application_image_digest }}
-          ARTIFACT_REF: ${{ inputs.artifact_receipt_ref }}
-          SHARED_REF: ${{ inputs.shared_gate_receipt_ref }}
-          CURRENT_VERSION: ${{ inputs.secret_current_version }}
-          PREVIOUS_VERSION: ${{ inputs.secret_previous_version }}
-          WORKBENCH_VERSION: ${{ inputs.secret_workbench_version }}
-        run: |
-          set -euo pipefail
-          [[ "$STAGE_APPROVAL" == "DEV-117-NEUTRAL-CANDIDATE-APPROVED" ]]
-          [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
-          [[ "$ARTIFACT_REF" =~ ^github-actions://[0-9]+/[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+@sha256:[a-f0-9]{64}$ ]]
-          [[ "$SHARED_REF" =~ ^github-actions://[0-9]+/[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+@sha256:[a-f0-9]{64}$ ]]
-          [[ "$CURRENT_VERSION" =~ ^[1-9][0-9]*$ && "$PREVIOUS_VERSION" =~ ^[1-9][0-9]*$ && "$WORKBENCH_VERSION" =~ ^[1-9][0-9]*$ ]]
-
-      - name: Download and validate exact predecessor receipts
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ARTIFACT_REF: ${{ inputs.artifact_receipt_ref }}
-          SHARED_REF: ${{ inputs.shared_gate_receipt_ref }}
-          SOURCE_LOCK_SHA256: ${{ inputs.source_lock_sha256 }}
-        run: |
-          set -euo pipefail
-          mkdir -p output/dev-117/provider input-evidence/artifact input-evidence/shared
-          download_ref() {
-            local ref="$1" destination="$2" sibling="${3:-}"
-            local body="${ref#github-actions://}" run_id="${body%%/*}" rest="${body#*/}"
-            local artifact_name="${rest%%/*}" path_and_hash="${rest#*/}"
-            local source_path="${path_and_hash%@sha256:*}" expected="${path_and_hash##*@sha256:}"
-            local target_path="$source_path"
-            [[ -z "$sibling" ]] || target_path="$sibling"
-            local temp_dir
-            temp_dir="$(mktemp -d)"
-            gh run download "$run_id" --name "$artifact_name" --dir "$temp_dir"
-            [[ -f "$temp_dir/$target_path" ]]
-            cp "$temp_dir/$target_path" "$destination"
-            if [[ -z "$sibling" ]]; then [[ "$(sha256sum "$destination" | cut -d' ' -f1)" == "$expected" ]]; fi
-            rm -rf "$temp_dir"
-          }
-          download_ref "$ARTIFACT_REF" output/dev-117/provider/artifact-receipt.json
-          download_ref "$ARTIFACT_REF" output/dev-117/provider/source-lock.json source-lock.json
-          download_ref "$SHARED_REF" output/dev-117/provider/shared-gate-receipt.json
-          [[ "$(jq -r '.evidenceSha256' output/dev-117/provider/source-lock.json)" == "$SOURCE_LOCK_SHA256" ]]
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          import config from './config/release/dev117-ai-pdm-independent-production.json' with { type: 'json' }
-          import { assertDev117ArtifactReceipt, assertDev117SharedGateReceipt, assertDev117SourceLock } from './scripts/lib/dev117-ai-pdm-independent-release.mjs'
-          const read = (name) => JSON.parse(fs.readFileSync(`output/dev-117/provider/${name}`, 'utf8'))
-          const source = assertDev117SourceLock(read('source-lock.json'), config)
-          assertDev117ArtifactReceipt(read('artifact-receipt.json'), config, source)
-          assertDev117SharedGateReceipt(read('shared-gate-receipt.json'), config, source, new Date().toISOString())
-          NODE
-
-      - name: Authenticate to exact neutral provider
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
-          create_credentials_file: true
-
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          version: ">= 490.0.0"
-
-      - name: Require existing fail-closed foundation and deploy candidate
-        shell: bash
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute candidate
         env:
-          IMAGE_DIGEST: ${{ inputs.application_image_digest }}
-          CURRENT_VERSION: ${{ inputs.secret_current_version }}
-          PREVIOUS_VERSION: ${{ inputs.secret_previous_version }}
-          WORKBENCH_VERSION: ${{ inputs.secret_workbench_version }}
-        run: |
-          set -euo pipefail
-          [[ "$(gcloud config get-value project)" == "$GCP_PROJECT_ID" ]]
-          [[ "$(gcloud auth list --filter=status:ACTIVE --format='value(account)')" == "$DEPLOYER_SERVICE_ACCOUNT" ]]
-          mkdir -p output/dev-117/provider
-          if ! gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-before.json; then
-            echo 'DEV117_HOLDING_RECEIPT_REQUIRED: run DEV-010 R1-04F and re-dispatch after provider readback' >&2
-            exit 1
-          fi
-          jq '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName: (.revisionName // .revision // null), percent: (.percent // 0)}]' output/dev-117/provider/service-before.json > output/dev-117/provider/canonical-traffic-before.json
-          PREVIOUS_REVISION="$(jq -r '[.status.traffic[] | select((.percent // 0) > 0) | (.revisionName // .revision)] | first' output/dev-117/provider/service-before.json)"
-          IMAGE_URI="$IMAGE_PATH@$IMAGE_DIGEST"
-          ENV_FILE=output/dev-117/provider/runtime-environment.yaml
-          node --input-type=module > "$ENV_FILE" <<'NODE'
-          import config from './config/release/dev117-ai-pdm-independent-production.json' with { type: 'json' }
-          for (const [key, value] of Object.entries(config.environment.fixedPlainEnvironment)) console.log(`${key}: ${JSON.stringify(value)}`)
-          for (const key of config.environment.requiredPlainEnvironmentNames.filter((name) => !(name in config.environment.fixedPlainEnvironment))) {
-            const value = process.env[key]
-            if (!value) throw new Error(`DEV117_RUNTIME_MANIFEST_VALUE_MISSING:${key}`)
-            console.log(`${key}: ${JSON.stringify(value)}`)
-          }
-          NODE
-          REVISION_SUFFIX="r117-${GITHUB_SHA:0:8}-${GITHUB_RUN_ID}"
-          gcloud run deploy "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --platform managed \
-            --service-account "$RUNTIME_SERVICE_ACCOUNT" --revision-suffix "$REVISION_SUFFIX" --no-traffic \
-            --execution-environment gen2 --min-instances 0 --max-instances 1 --concurrency 20 --timeout 60s \
-            --network jenfu-platform-prod-vpc --subnet jenfu-platform-prod-runtime --vpc-egress all-traffic \
-            --container "$APPLICATION_CONTAINER" --image "$IMAGE_URI" --cpu 1 --memory 1Gi --port 8080 \
-            --depends-on cloud-sql-proxy --env-vars-file "$ENV_FILE" \
-            --set-secrets "PDM_SESSION_CURRENT_SECRET=aipdm-prod-session-current:$CURRENT_VERSION,PDM_SESSION_PREVIOUS_SECRET=aipdm-prod-session-previous:$PREVIOUS_VERSION,PDM_WORKBENCH_CONTRACT_SECRET=aipdm-prod-workbench-contract:$WORKBENCH_VERSION" \
-            --startup-probe "initialDelaySeconds=0,timeoutSeconds=2,periodSeconds=5,failureThreshold=24,httpGet.port=8080,httpGet.path=/login" \
-            --container cloud-sql-proxy --image "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f" \
-            --cpu 1 --memory 256Mi --args "--address=0.0.0.0,--port=5432,--private-ip,--auto-iam-authn,--lazy-refresh,--structured-logs,--max-connections=24,jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg" \
-            --startup-probe "initialDelaySeconds=1,timeoutSeconds=2,periodSeconds=3,failureThreshold=20,tcpSocket.port=5432" --quiet
-          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-after.json
-          CANDIDATE_REVISION="$(jq -r '.status.latestReadyRevisionName' output/dev-117/provider/service-after.json)"
-          [[ "$CANDIDATE_REVISION" == "$CLOUD_RUN_SERVICE-$REVISION_SUFFIX" ]]
-          [[ "$(jq -r --arg revision "$CANDIDATE_REVISION" '[.status.traffic[] | select((.revisionName // .revision) == $revision) | (.percent // 0)] | add // 0' output/dev-117/provider/service-after.json)" == "0" ]]
-          [[ "$(jq -r --arg revision "$CANDIDATE_REVISION" '[.status.traffic[] | select((.revisionName // .revision) == $revision and (.tag // "") != "")] | length' output/dev-117/provider/service-after.json)" == "0" ]]
-          jq '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName: (.revisionName // .revision // null), percent: (.percent // 0)}]' output/dev-117/provider/service-after.json > output/dev-117/provider/canonical-traffic-after.json
-          cmp output/dev-117/provider/canonical-traffic-before.json output/dev-117/provider/canonical-traffic-after.json
-          gcloud run revisions describe "$CANDIDATE_REVISION" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/revision.json
-          [[ "$(jq -r --arg name "$APPLICATION_CONTAINER" '.spec.containers[] | select(.name == $name) | .image' output/dev-117/provider/revision.json)" == "$IMAGE_URI" ]]
-          printf '%s\n' "$PREVIOUS_REVISION" > output/dev-117/provider/previous-revision.txt
-          printf '%s\n' "$CANDIDATE_REVISION" > output/dev-117/provider/candidate-revision.txt
-          # DEV117_CANDIDATE_NO_BUILD_NO_TAG_CANONICAL_TRAFFIC_UNCHANGED
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage candidate --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
-      - name: Create and validate candidate receipt
-        shell: bash
-        env:
-          CURRENT_VERSION: ${{ inputs.secret_current_version }}
-          PREVIOUS_VERSION: ${{ inputs.secret_previous_version }}
-          WORKBENCH_VERSION: ${{ inputs.secret_workbench_version }}
-        run: |
-          set -euo pipefail
-          CURRENT_VERSION="$CURRENT_VERSION" PREVIOUS_VERSION="$PREVIOUS_VERSION" WORKBENCH_VERSION="$WORKBENCH_VERSION" node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          import config from './config/release/dev117-ai-pdm-independent-production.json' with { type: 'json' }
-          import { assertDev117CandidateReceipt, finalizeEvidence, sha256 } from './scripts/lib/dev117-ai-pdm-independent-release.mjs'
-          const read = (name) => JSON.parse(fs.readFileSync(`output/dev-117/provider/${name}`, 'utf8'))
-          const sourceLock = read('source-lock.json')
-          const artifactReceipt = read('artifact-receipt.json')
-          const sharedGateReceipt = read('shared-gate-receipt.json')
-          const serviceBefore = read('service-before.json')
-          const serviceAfter = read('service-after.json')
-          const revision = read('revision.json')
-          const revisionName = fs.readFileSync('output/dev-117/provider/candidate-revision.txt', 'utf8').trim()
-          const previousRevision = fs.readFileSync('output/dev-117/provider/previous-revision.txt', 'utf8').trim()
-          const version = (resource, value) => ({ resource, version: String(value), state: 'ENABLED' })
-          const core = {
-            schemaVersion: 'jenfu.dev117.candidate-receipt.v1', releaseId: sourceLock.releaseId,
-            sourceLockSha256: sourceLock.evidenceSha256, artifactReceiptSha256: artifactReceipt.evidenceSha256,
-            sharedGateReceiptSha256: sharedGateReceipt.evidenceSha256, projectId: config.target.projectId,
-            region: config.target.region, serviceName: config.target.serviceName, containerName: config.target.containerName,
-            runtimeIdentity: config.target.runtimeIdentity, sourceRevision: sourceLock.headRevision, sourceTree: sourceLock.headTree,
-            imageDigest: artifactReceipt.artifactDigest, imageUri: artifactReceipt.imageUri, revisionName,
-            previousRevision: previousRevision === 'null' ? null : previousRevision, serviceExistedBefore: true,
-            candidatePercent: 0, tag: null,
-            canonicalTrafficBeforeSha256: sha256(fs.readFileSync('output/dev-117/provider/canonical-traffic-before.json')),
-            canonicalTrafficAfterSha256: sha256(fs.readFileSync('output/dev-117/provider/canonical-traffic-after.json')),
-            effectiveRuntime: { cpu: '1', memory: '1Gi', concurrency: 20, timeoutSeconds: 60, port: 8080, minInstances: 0, maxInstances: 1, startupProbePath: '/login' },
-            plainEnvironment: config.environment.fixedPlainEnvironment,
-            secretBindings: {
-              PDM_SESSION_CURRENT_SECRET: version('aipdm-prod-session-current', process.env.CURRENT_VERSION),
-              PDM_SESSION_PREVIOUS_SECRET: version('aipdm-prod-session-previous', process.env.PREVIOUS_VERSION),
-              PDM_WORKBENCH_CONTRACT_SECRET: version('aipdm-prod-workbench-contract', process.env.WORKBENCH_VERSION),
-            },
-            platformMutationCount: 0, databaseMutationCount: 0, buildExecutions: 0,
-            providerReadbackSha256: sha256({ serviceBefore, serviceAfter, revision }),
-            progress: { state: 'COMPLETE', outcomeKnown: true, replayAttempted: false },
-            observedAt: new Date().toISOString(), credentialMaterialPresent: false,
-          }
-          const receipt = finalizeEvidence(core)
-          assertDev117CandidateReceipt(receipt, config, { sourceLock, artifactReceipt, sharedGateReceipt })
-          fs.writeFileSync('output/dev-117/provider/candidate-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`)
-          NODE
-
-      - name: Upload candidate provider readback
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: dev117-candidate-${{ inputs.release_id }}-${{ github.sha }}
-          path: output/dev-117/provider
-          if-no-files-found: error
-          retention-days: 30
-
-  level4-access:
-    name: Independently expose exact candidate for Level 4 only
-    if: ${{ inputs.stage == 'level4-access' }}
-    needs: verify-source
+  verify:
+    needs: [prepare, candidate]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment: ai-pdm-production-level4-access
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
+    environment: production
+    permissions: { contents: read, id-token: write }
     steps:
-      - name: Checkout exact release commit
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
         with:
-          ref: ${{ inputs.release_commit }}
-
-      - name: Validate independent access inputs
-        shell: bash
-        env:
-          STAGE_APPROVAL: ${{ inputs.stage_approval }}
-          REVISION: ${{ inputs.candidate_revision }}
-          CANDIDATE_REF: ${{ inputs.candidate_receipt_ref }}
-          IDENTITY_REF: ${{ inputs.identity_owner_receipt_ref }}
-          ORIGIN_REF: ${{ inputs.server_origin_owner_receipt_ref }}
-        run: |
-          set -euo pipefail
-          [[ "$STAGE_APPROVAL" == "DEV-117-NEUTRAL-LEVEL4-ACCESS-APPROVED" ]]
-          [[ "$REVISION" =~ ^ai-pdm-prod-[a-z0-9-]{3,48}$ ]]
-          [[ "$CANDIDATE_REF" =~ @sha256:[a-f0-9]{64}$ ]]
-          [[ "$IDENTITY_REF" =~ @sha256:[a-f0-9]{64}$ ]]
-          [[ "$ORIGIN_REF" =~ @sha256:[a-f0-9]{64}$ ]]
-          [[ "$IDENTITY_REF" != *'*'* && "$ORIGIN_REF" != *'*'* ]]
-
-      - name: Download and validate exact candidate receipt chain
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CANDIDATE_REF: ${{ inputs.candidate_receipt_ref }}
-          SOURCE_LOCK_SHA256: ${{ inputs.source_lock_sha256 }}
-        run: |
-          set -euo pipefail
-          mkdir -p output/dev-117/provider
-          body="${CANDIDATE_REF#github-actions://}"
-          run_id="${body%%/*}"
-          rest="${body#*/}"
-          artifact_name="${rest%%/*}"
-          path_and_hash="${rest#*/}"
-          source_path="${path_and_hash%@sha256:*}"
-          expected="${path_and_hash##*@sha256:}"
-          temp_dir="$(mktemp -d)"
-          gh run download "$run_id" --name "$artifact_name" --dir "$temp_dir"
-          for file in source-lock.json artifact-receipt.json shared-gate-receipt.json candidate-receipt.json; do
-            [[ -f "$temp_dir/$file" ]]
-            cp "$temp_dir/$file" "output/dev-117/provider/$file"
-          done
-          [[ "$source_path" == "candidate-receipt.json" ]]
-          [[ "$(sha256sum output/dev-117/provider/candidate-receipt.json | cut -d' ' -f1)" == "$expected" ]]
-          [[ "$(jq -r '.evidenceSha256' output/dev-117/provider/source-lock.json)" == "$SOURCE_LOCK_SHA256" ]]
-          rm -rf "$temp_dir"
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          import config from './config/release/dev117-ai-pdm-independent-production.json' with { type: 'json' }
-          import { assertDev117CandidateReceipt } from './scripts/lib/dev117-ai-pdm-independent-release.mjs'
-          const read = (name) => JSON.parse(fs.readFileSync(`output/dev-117/provider/${name}`, 'utf8'))
-          assertDev117CandidateReceipt(read('candidate-receipt.json'), config, {
-            sourceLock: read('source-lock.json'), artifactReceipt: read('artifact-receipt.json'), sharedGateReceipt: read('shared-gate-receipt.json'),
-          })
-          NODE
-
-      - name: Authenticate to exact neutral provider
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
-
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          version: ">= 490.0.0"
-
-      - name: Bind fixed tag without canonical traffic change
-        shell: bash
+          service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute verify
         env:
-          REVISION: ${{ inputs.candidate_revision }}
-        run: |
-          set -euo pipefail
-          mkdir -p output/dev-117/provider
-          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-before-access.json
-          [[ "$(jq -r --arg revision "$REVISION" '[.status.traffic[] | select((.revisionName // .revision) == $revision) | (.percent // 0)] | add // 0' output/dev-117/provider/service-before-access.json)" == "0" ]]
-          jq '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName: (.revisionName // .revision // null), percent: (.percent // 0)}]' output/dev-117/provider/service-before-access.json > output/dev-117/provider/canonical-before.json
-          gcloud run services update-traffic "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --update-tags "candidate=$REVISION" --quiet
-          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-after-access.json
-          [[ "$(jq -r '.status.traffic[] | select(.tag == "candidate") | (.revisionName // .revision)' output/dev-117/provider/service-after-access.json)" == "$REVISION" ]]
-          [[ "$(jq -r '.status.traffic[] | select(.tag == "candidate") | (.percent // 0)' output/dev-117/provider/service-after-access.json)" == "0" ]]
-          jq '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName: (.revisionName // .revision // null), percent: (.percent // 0)}]' output/dev-117/provider/service-after-access.json > output/dev-117/provider/canonical-after.json
-          cmp output/dev-117/provider/canonical-before.json output/dev-117/provider/canonical-after.json
-          # DEV117_LEVEL4_ACCESS_INDEPENDENT_EXACT_HOST_NO_CANONICAL_TRAFFIC
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
+          DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage verify --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
-      - name: Create and validate Level 4 access receipt
-        shell: bash
-        env:
-          REVISION: ${{ inputs.candidate_revision }}
-          IDENTITY_REF: ${{ inputs.identity_owner_receipt_ref }}
-          ORIGIN_REF: ${{ inputs.server_origin_owner_receipt_ref }}
-        run: |
-          set -euo pipefail
-          REVISION="$REVISION" IDENTITY_REF="$IDENTITY_REF" ORIGIN_REF="$ORIGIN_REF" node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          import config from './config/release/dev117-ai-pdm-independent-production.json' with { type: 'json' }
-          import { assertDev117Level4AccessReceipt, finalizeEvidence, sha256 } from './scripts/lib/dev117-ai-pdm-independent-release.mjs'
-          const candidate = JSON.parse(fs.readFileSync('output/dev-117/provider/candidate-receipt.json', 'utf8'))
-          const before = JSON.parse(fs.readFileSync('output/dev-117/provider/service-before-access.json', 'utf8'))
-          const after = JSON.parse(fs.readFileSync('output/dev-117/provider/service-after-access.json', 'utf8'))
-          const tagBefore = (before.status?.traffic ?? []).find((row) => row.tag === 'candidate')
-          const tagAfter = (after.status?.traffic ?? []).find((row) => row.tag === 'candidate')
-          const observedAt = new Date().toISOString()
-          const expiresAt = new Date(Date.parse(observedAt) + (2 * 60 * 60 * 1000)).toISOString()
-          const core = {
-            schemaVersion: 'jenfu.dev117.level4-access-receipt.v1', releaseId: candidate.releaseId,
-            candidateReceiptSha256: candidate.evidenceSha256, projectId: config.target.projectId, region: config.target.region,
-            serviceName: config.target.serviceName, revisionName: process.env.REVISION, imageDigest: candidate.imageDigest,
-            tag: 'candidate', tagHost: tagAfter?.url, tagBeforeRevision: tagBefore?.revisionName ?? tagBefore?.revision ?? null,
-            tagAfterRevision: tagAfter?.revisionName ?? tagAfter?.revision, approval: config.workflow.approvals.level4Access,
-            identityOwnerReceiptRef: process.env.IDENTITY_REF, serverOriginOwnerReceiptRef: process.env.ORIGIN_REF,
-            wildcardCount: 0,
-            canonicalTrafficBeforeSha256: sha256(fs.readFileSync('output/dev-117/provider/canonical-before.json')),
-            canonicalTrafficAfterSha256: sha256(fs.readFileSync('output/dev-117/provider/canonical-after.json')),
-            observedAt, expiresAt, credentialMaterialPresent: false,
-          }
-          const receipt = finalizeEvidence(core)
-          assertDev117Level4AccessReceipt(receipt, config, candidate, observedAt)
-          fs.writeFileSync('output/dev-117/provider/level4-access-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`)
-          NODE
-
-      - name: Upload Level 4 access readback
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: dev117-level4-access-${{ inputs.release_id }}-${{ github.sha }}
-          path: output/dev-117/provider
-          if-no-files-found: error
-          retention-days: 30
-
-  promote:
-    name: Promote exact Level 4 verified candidate
-    if: ${{ inputs.stage == 'promote' }}
-    needs: verify-source
+  decision:
+    needs: [prepare, verify]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    environment:
-      name: ai-pdm-production-promote
-      url: https://pdm.jenfu.com.tw
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
+    environment: production
+    permissions: { contents: read, id-token: write }
     steps:
-      - name: Checkout exact release commit
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
         with:
-          ref: ${{ inputs.release_commit }}
-
-      - name: Require separate promotion decision and exact evidence
-        shell: bash
-        env:
-          REVISION: ${{ inputs.candidate_revision }}
-          CANDIDATE_REF: ${{ inputs.candidate_receipt_ref }}
-          ACCESS_REF: ${{ inputs.level4_access_receipt_ref }}
-          LEVEL4_REF: ${{ inputs.level4_receipt_ref }}
-          PRODUCT_OWNER_DECISION: ${{ inputs.product_owner_decision }}
-          PROMOTION_APPROVAL: ${{ inputs.promotion_approval }}
-        run: |
-          set -euo pipefail
-          [[ "$REVISION" =~ ^ai-pdm-prod-[a-z0-9-]{3,48}$ ]]
-          [[ "$CANDIDATE_REF" =~ @sha256:[a-f0-9]{64}$ && "$ACCESS_REF" =~ @sha256:[a-f0-9]{64}$ && "$LEVEL4_REF" =~ @sha256:[a-f0-9]{64}$ ]]
-          [[ "$PRODUCT_OWNER_DECISION" == "GO" ]]
-          [[ "$PROMOTION_APPROVAL" == "DEV-117-NEUTRAL-PROMOTION-APPROVED" ]]
-
-      - name: Download and join candidate, access, and DEV-116 R02 receipts
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CANDIDATE_REF: ${{ inputs.candidate_receipt_ref }}
-          ACCESS_REF: ${{ inputs.level4_access_receipt_ref }}
-          LEVEL4_REF: ${{ inputs.level4_receipt_ref }}
-          PRODUCT_OWNER_DECISION: ${{ inputs.product_owner_decision }}
-          PROMOTION_APPROVAL: ${{ inputs.promotion_approval }}
-          SOURCE_LOCK_SHA256: ${{ inputs.source_lock_sha256 }}
-        run: |
-          set -euo pipefail
-          mkdir -p output/dev-117/provider
-          download_artifact_ref() {
-            local ref="$1" destination="$2"
-            local body="${ref#github-actions://}" run_id="${body%%/*}" rest="${body#*/}"
-            local artifact_name="${rest%%/*}" path_and_hash="${rest#*/}"
-            local source_path="${path_and_hash%@sha256:*}" expected="${path_and_hash##*@sha256:}"
-            local temp_dir
-            temp_dir="$(mktemp -d)"
-            gh run download "$run_id" --name "$artifact_name" --dir "$temp_dir"
-            [[ -f "$temp_dir/$source_path" ]]
-            cp "$temp_dir/$source_path" "$destination"
-            [[ "$(sha256sum "$destination" | cut -d' ' -f1)" == "$expected" ]]
-            if [[ "$source_path" == "level4-access-receipt.json" ]]; then
-              for file in source-lock.json artifact-receipt.json shared-gate-receipt.json candidate-receipt.json; do
-                [[ -f "$temp_dir/$file" ]]
-                cp "$temp_dir/$file" "output/dev-117/provider/$file"
-              done
-            fi
-            rm -rf "$temp_dir"
-          }
-          [[ "$ACCESS_REF" =~ ^github-actions://[0-9]+/[A-Za-z0-9._-]+/level4-access-receipt.json@sha256:[a-f0-9]{64}$ ]]
-          [[ "$LEVEL4_REF" =~ ^github-actions://[0-9]+/[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+@sha256:[a-f0-9]{64}$ ]]
-          download_artifact_ref "$ACCESS_REF" output/dev-117/provider/level4-access-receipt.json
-          download_artifact_ref "$LEVEL4_REF" output/dev-117/provider/dev116-r02-receipt.json
-          expected_candidate="${CANDIDATE_REF##*@sha256:}"
-          [[ "$(sha256sum output/dev-117/provider/candidate-receipt.json | cut -d' ' -f1)" == "$expected_candidate" ]]
-          [[ "$(jq -r '.evidenceSha256' output/dev-117/provider/source-lock.json)" == "$SOURCE_LOCK_SHA256" ]]
-          PRODUCT_OWNER_DECISION="$PRODUCT_OWNER_DECISION" PROMOTION_APPROVAL="$PROMOTION_APPROVAL" node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          import config from './config/release/dev117-ai-pdm-independent-production.json' with { type: 'json' }
-          import { assertDev117CandidateReceipt, assertDev117Level4Join, assertDev117PromotionRequest, finalizeEvidence } from './scripts/lib/dev117-ai-pdm-independent-release.mjs'
-          const read = (name) => JSON.parse(fs.readFileSync(`output/dev-117/provider/${name}`, 'utf8'))
-          const sourceLock = read('source-lock.json')
-          const artifactReceipt = read('artifact-receipt.json')
-          const sharedGateReceipt = read('shared-gate-receipt.json')
-          const candidateReceipt = read('candidate-receipt.json')
-          const accessReceipt = read('level4-access-receipt.json')
-          const dev116Receipt = read('dev116-r02-receipt.json')
-          assertDev117CandidateReceipt(candidateReceipt, config, { sourceLock, artifactReceipt, sharedGateReceipt })
-          assertDev117Level4Join({ config, candidateReceipt, accessReceipt, dev116Receipt, evaluatedAt: new Date().toISOString() })
-          const request = finalizeEvidence({
-            schemaVersion: 'jenfu.dev117.promotion-request.v1', releaseId: candidateReceipt.releaseId,
-            candidateReceiptSha256: candidateReceipt.evidenceSha256, level4AccessReceiptSha256: accessReceipt.evidenceSha256,
-            dev116ReceiptSha256: dev116Receipt.evidenceSha256, revisionName: candidateReceipt.revisionName,
-            imageDigest: candidateReceipt.imageDigest, canonicalOrigin: config.target.canonicalOrigin,
-            productOwnerDecision: process.env.PRODUCT_OWNER_DECISION, approval: process.env.PROMOTION_APPROVAL,
-            openP0: 0, openP1: 0, rollbackReady: true, requestedAt: new Date().toISOString(), credentialMaterialPresent: false,
-          })
-          assertDev117PromotionRequest(request, config, { candidateReceipt, accessReceipt, dev116Receipt })
-          fs.writeFileSync('output/dev-117/provider/promotion-request.json', `${JSON.stringify(request, null, 2)}\n`)
-          NODE
-
-      - name: Authenticate to exact neutral provider
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
-
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          version: ">= 490.0.0"
-
-      - name: Promote AI_PDM traffic and verify canonical origin
-        shell: bash
+          service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute decision
         env:
-          REVISION: ${{ inputs.candidate_revision }}
-          IMAGE_DIGEST: ${{ inputs.application_image_digest }}
-        run: |
-          set -euo pipefail
-          mkdir -p output/dev-117/provider
-          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-before-promotion.json
-          PREVIOUS_REVISION="$(jq -r '[.status.traffic[] | select((.percent // 0) > 0) | (.revisionName // .revision)] | first' output/dev-117/provider/service-before-promotion.json)"
-          [[ "$PREVIOUS_REVISION" != "$REVISION" ]]
-          [[ "$(jq -r --arg revision "$REVISION" '[.status.traffic[] | select((.revisionName // .revision) == $revision) | (.percent // 0)] | add // 0' output/dev-117/provider/service-before-promotion.json)" == "0" ]]
-          gcloud run services update-traffic "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --to-revisions "$REVISION=100" --quiet
-          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-after-promotion.json
-          [[ "$(jq -r --arg revision "$REVISION" '[.status.traffic[] | select((.revisionName // .revision) == $revision) | (.percent // 0)] | add // 0' output/dev-117/provider/service-after-promotion.json)" == "100" ]]
-          curl --fail --silent --show-error --max-time 30 "$CANONICAL_ORIGIN/login" > output/dev-117/provider/canonical-login.html
-          grep -q "AI PDM" output/dev-117/provider/canonical-login.html
-          printf '%s\n' "$PREVIOUS_REVISION" > output/dev-117/provider/previous-revision.txt
-          # DEV117_PROMOTION_SEPARATE_DISPATCH_CANONICAL_EXACT
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage decision --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
-      - name: Create Platform-consumable AI_PDM live receipt
-        shell: bash
-        env:
-          REVISION: ${{ inputs.candidate_revision }}
-        run: |
-          set -euo pipefail
-          REVISION="$REVISION" node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          import config from './config/release/dev117-ai-pdm-independent-production.json' with { type: 'json' }
-          import { assertDev117AppReleaseReceipt, finalizeEvidence } from './scripts/lib/dev117-ai-pdm-independent-release.mjs'
-          const source = JSON.parse(fs.readFileSync('output/dev-117/provider/source-lock.json', 'utf8'))
-          const candidate = JSON.parse(fs.readFileSync('output/dev-117/provider/candidate-receipt.json', 'utf8'))
-          const verifiedAt = new Date().toISOString()
-          const receipt = finalizeEvidence({
-            schemaVersion: 'jenfu.app.release-receipt.v1', applicationId: 'ai-pdm', environment: 'production',
-            releaseId: candidate.releaseId, sourceRevision: source.headRevision, sourceTree: source.headTree,
-            artifactDigest: candidate.imageDigest, serviceName: config.target.serviceName, serviceRevision: process.env.REVISION,
-            canonicalOrigin: config.target.canonicalOrigin, status: 'LIVE_VERIFIED', verifiedAt,
-            expiresAt: new Date(Date.parse(verifiedAt) + (24 * 60 * 60 * 1000)).toISOString(),
-            smokeEvidenceRef: `github-actions://${process.env.GITHUB_RUN_ID}/dev117-promotion-${candidate.releaseId}-${process.env.GITHUB_SHA}/canonical-login.html`,
-            rollbackEvidenceRef: `github-actions://${process.env.GITHUB_RUN_ID}/dev117-promotion-${candidate.releaseId}-${process.env.GITHUB_SHA}/service-before-promotion.json`,
-            credentialMaterialPresent: false,
-          })
-          assertDev117AppReleaseReceipt(receipt, config, verifiedAt)
-          fs.writeFileSync('output/dev-117/provider/app-release-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`)
-          NODE
-
-      - name: Roll back AI_PDM traffic after promotion failure
-        if: ${{ failure() }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          PREVIOUS_REVISION="$(cat output/dev-117/provider/previous-revision.txt)"
-          gcloud run services update-traffic "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --to-revisions "$PREVIOUS_REVISION=100" --quiet
-          # DEV117_ROLLBACK_AI_PDM_ONLY NO_DOWN_MIGRATION NO_PLATFORM_TRAFFIC
-
-      - name: Upload promotion evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: dev117-promotion-${{ inputs.release_id }}-${{ github.sha }}
-          path: output/dev-117/provider
-          if-no-files-found: error
-          retention-days: 30
-
-  rollback:
-    name: Independently restore AI_PDM traffic
-    if: ${{ inputs.stage == 'rollback' }}
-    needs: verify-source
+  activate:
+    needs: [prepare, decision]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment: ai-pdm-production-rollback
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
+    environment: production
+    permissions: { contents: read, id-token: write }
     steps:
-      - name: Checkout exact release commit
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
         with:
-          ref: ${{ inputs.release_commit }}
-
-      - name: Validate rollback-only inputs
-        shell: bash
-        env:
-          STAGE_APPROVAL: ${{ inputs.stage_approval }}
-          FAILED_REVISION: ${{ inputs.candidate_revision }}
-          ROLLBACK_REVISION: ${{ inputs.rollback_revision }}
-        run: |
-          set -euo pipefail
-          [[ "$STAGE_APPROVAL" == "DEV-117-NEUTRAL-ROLLBACK-APPROVED" ]]
-          [[ "$FAILED_REVISION" =~ ^ai-pdm-prod-[a-z0-9-]{3,48}$ ]]
-          [[ "$ROLLBACK_REVISION" =~ ^ai-pdm-prod-[a-z0-9-]{3,48}$ ]]
-          [[ "$FAILED_REVISION" != "$ROLLBACK_REVISION" ]]
-
-      - name: Authenticate to exact neutral provider
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
-
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          version: ">= 490.0.0"
-
-      - name: Restore traffic only after provider readback
-        shell: bash
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute activate
         env:
-          FAILED_REVISION: ${{ inputs.candidate_revision }}
-          ROLLBACK_REVISION: ${{ inputs.rollback_revision }}
-        run: |
-          set -euo pipefail
-          mkdir -p output/dev-117/provider
-          gcloud run revisions describe "$ROLLBACK_REVISION" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/rollback-revision.json
-          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-before-rollback.json
-          gcloud run services update-traffic "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --to-revisions "$ROLLBACK_REVISION=100" --quiet
-          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-after-rollback.json
-          [[ "$(jq -r --arg revision "$ROLLBACK_REVISION" '[.status.traffic[] | select((.revisionName // .revision) == $revision) | (.percent // 0)] | add // 0' output/dev-117/provider/service-after-rollback.json)" == "100" ]]
-          [[ "$(jq -r --arg revision "$FAILED_REVISION" '[.status.traffic[] | select((.revisionName // .revision) == $revision) | (.percent // 0)] | add // 0' output/dev-117/provider/service-after-rollback.json)" == "0" ]]
-          # DEV117_ROLLBACK_AI_PDM_ONLY NO_DOWN_MIGRATION NO_REVISION_DELETE
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage activate --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
-      - name: Create and validate AI_PDM-only rollback receipt
-        shell: bash
-        env:
-          RELEASE_ID: ${{ inputs.release_id }}
-          FAILED_REVISION: ${{ inputs.candidate_revision }}
-          ROLLBACK_REVISION: ${{ inputs.rollback_revision }}
-        run: |
-          set -euo pipefail
-          RELEASE_ID="$RELEASE_ID" FAILED_REVISION="$FAILED_REVISION" ROLLBACK_REVISION="$ROLLBACK_REVISION" node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          import config from './config/release/dev117-ai-pdm-independent-production.json' with { type: 'json' }
-          import { assertDev117RollbackReceipt, finalizeEvidence, sha256 } from './scripts/lib/dev117-ai-pdm-independent-release.mjs'
-          const after = JSON.parse(fs.readFileSync('output/dev-117/provider/service-after-rollback.json', 'utf8'))
-          const receipt = finalizeEvidence({
-            schemaVersion: 'jenfu.dev117.rollback-receipt.v1', releaseId: process.env.RELEASE_ID,
-            projectId: config.target.projectId, region: config.target.region, serviceName: config.target.serviceName,
-            failedRevision: process.env.FAILED_REVISION, restoredRevision: process.env.ROLLBACK_REVISION,
-            failedRevisionPercent: 0, restoredRevisionPercent: 100, platformMutationCount: 0,
-            databaseMutationCount: 0, downMigrations: 0, deletedRevisions: 0, outcome: 'ROLLED_BACK',
-            providerReadbackSha256: sha256(after), observedAt: new Date().toISOString(), credentialMaterialPresent: false,
-          })
-          assertDev117RollbackReceipt(receipt, config)
-          fs.writeFileSync('output/dev-117/provider/rollback-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`)
-          NODE
-
-      - name: Upload rollback evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+  canonical:
+    needs: [prepare, activate]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
         with:
-          name: dev117-rollback-${{ inputs.release_id }}-${{ github.sha }}
-          path: output/dev-117/provider
-          if-no-files-found: error
-          retention-days: 30
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute canonical
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
+          DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage canonical --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
   finalize:
-    name: Remove temporary candidate access without traffic change
-    if: ${{ inputs.stage == 'finalize' }}
-    needs: verify-source
+    needs: [prepare, canonical]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: ai-pdm-production-finalize
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
+    environment: production
+    permissions: { contents: read, id-token: write }
     steps:
-      - name: Authenticate to exact neutral provider
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute finalize
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage finalize --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+  failure:
+    if: ${{ always() && needs.prepare.result == 'success' && contains(needs.*.result, 'failure') }}
+    needs: [prepare, build, migrate, candidate, verify, decision, activate, canonical]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-          version: ">= 490.0.0"
-
-      - name: Remove Level 4 tag only
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p output/dev-117/provider
-          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-before-finalize.json
-          jq '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName: (.revisionName // .revision // null), percent: (.percent // 0)}]' output/dev-117/provider/service-before-finalize.json > output/dev-117/provider/canonical-before.json
-          gcloud run services update-traffic "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --remove-tags candidate --quiet
-          gcloud run services describe "$CLOUD_RUN_SERVICE" --project "$GCP_PROJECT_ID" --region "$GCP_REGION" --format=json > output/dev-117/provider/service-after-finalize.json
-          [[ "$(jq '[.status.traffic[] | select(.tag == "candidate")] | length' output/dev-117/provider/service-after-finalize.json)" == "0" ]]
-          jq '[.status.traffic[] | select((.percent // 0) > 0) | {revisionName: (.revisionName // .revision // null), percent: (.percent // 0)}]' output/dev-117/provider/service-after-finalize.json > output/dev-117/provider/canonical-after.json
-          cmp output/dev-117/provider/canonical-before.json output/dev-117/provider/canonical-after.json
-
-      - name: Upload finalize evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: dev117-finalize-${{ inputs.release_id }}-${{ github.sha }}
-          path: output/dev-117/provider
-          if-no-files-found: error
-          retention-days: 30
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Read back, roll back own traffic if needed, and publish terminal receipt
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage rollback --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"

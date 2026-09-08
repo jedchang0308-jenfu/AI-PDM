@@ -1,0 +1,14 @@
+project_id                       = "jenfu-platform-prod"
+region                           = "asia-east1"
+application_service_name         = "ai-pdm-prod"
+runtime_service_account_id       = "aipdm-prod-runtime"
+release_repository_id            = "aipdm-release"
+release_bucket_name              = "jenfu-platform-prod-aipdm-release"
+workload_identity_pool_id        = "jenfu-prod-release"
+github_repository_id             = "PROVIDER_READBACK_NUMERIC_ID"
+github_repository_owner_id       = "PROVIDER_READBACK_NUMERIC_ID"
+incident_runtime_enabled         = false
+github_read_token_secret_version = null
+controller_image_digest          = null
+migration_runner_image_digest    = null
+approved_notification_email      = null

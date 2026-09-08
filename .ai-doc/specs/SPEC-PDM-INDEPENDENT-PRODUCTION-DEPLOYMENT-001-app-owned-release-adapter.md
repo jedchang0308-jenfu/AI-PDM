@@ -1,9 +1,9 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
-- 文件成熟度：`RD Implementation Complete`
-- 狀態：`Human Confirmed / 117-S1 Implemented / Local QA-QC 12 of 12 PASS / Production Release Gated`
+- 文件成熟度：`v1 RD Implementation Complete；continuous v2 RD Implementation Ready`
+- 狀態：`Human Confirmed / v1 Local QA-QC 12 of 12 PASS / continuous v2 RD Not Started / DEV-012 S2 Gated`
 - 風險等級：High
-- 日期：2026-09-07
+- 日期：2026-09-08
 - 來源 ID：`DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
 - 決策來源：使用者明確要求「AI_PDM 及 Jenfu-Platform 分開部署」並要求先完成可執行部署前的開發文件
 - 父關卡：`DEV-116` Production Level 4 smoke tenant evidence
@@ -410,3 +410,51 @@ candidate rebuild、migration order不一致、DEV-116 R02跨candidate拼接、P
   尚未建立neutral artifact、candidate或live receipt。
 
 使用思考習慣：#風險優先、#可驗證性、#可回復性
+
+## 20. DEV-012 continuous v2 owner handoff（2026-09-08）
+
+本節是 DEV-117 的歷史continuous v1 authority；現行執行authority為§21。既有 §§1～19 與十二案證據保留為 v1 historical contract；其中 six-stage 人工 dispatch、stage 間手貼 receipt、Product Owner 在 run 中手動 GO、固定 observation wait 與 legacy target不得作為現行可執行解釋。架構來源為 [Platform DEV-012 §25](../../../Jenfu-Platform/ai-doc/specs/DEV-012-three-system-continuous-release-and-boundary-closure.md)，同步時完整文件 SHA-256=`47eb972c48549da73ca135509e99bdc8ae4463e87b81785abe8d6cfd8f54b95f`、§25～EOF SHA-256=`92fd6c7dfdfafee4b438c0ee9ce731d7463da46a7691f05061c54d58cb127507`。若上游契約 bytes 改變，先重做 direct-doc review，不以模糊相容推論繼續。
+
+### 20.1 Current v2 outcome and owner boundary
+
+- AI_PDM 只凍結、建置、驗證、部署及回復自己的 source、`ai-pdm-prod` service、`aipdm-release/ai-pdm@sha256` image、`jenfu-platform-prod-aipdm-release` bucket、numeric Secret versions、`ai_pdm_core／ai_pdm_contract`、`pdm.jenfu.com.tw` 與 own receipt。
+- Runtime 固定 project=`jenfu-platform-prod`、region=`asia-east1`、service=`ai-pdm-prod`、runtime SA=`aipdm-prod-runtime`、CPU=`1`、memory=`1Gi`、concurrency=`20`、timeout=`60s`、max instances=`1`、pool=`8`。不得退回 legacy project、共享 deploy identity 或 sibling checkout。
+- 一次性 coordinator 只能 dispatch owner workflow 並唯讀 owner publication；不得持有 AI_PDM Cloud deploy credential、代簽成功 receipt 或把首次三 app DAG 變成日常 `APP_ONLY` 全域鎖。
+- `requiredNewBillingLinks=0` 只表示沿用既有 production project；Billing account、budget、quota、usage、reserve、通知及實際 linked state 留待 DEV-012 S2 fresh readback，UNKNOWN 不得上線。
+
+### 20.2 Single-capsule workflow and machine decision
+
+`.github/workflows/deploy-ai-pdm-independent-production.yml` 的 v2 入口只有 `workflow_dispatch.releaseCapsuleRef`。流程固定 `prepare → build → candidate → verify → decision → activate → canonical → finalize`；所有 job 驗同一 capsule／source hash，相同 fingerprint 重跑重用 artifact 與 candidate。Concurrency key 固定 `production-release-ai-pdm-prod`，不得含 stage 或 run ID。禁止 `stage`、receipt JSON、`product_owner_decision`、approve、skip 或 target override 輸入；GO 只能由 verifier 對 inactive exact candidate 與完整 PRE_ACTIVATION evidence 發布。失敗固定先 readback，再依 own traffic scope abort／rollback，不能等待真人 ack。
+
+OIDC 必須綁 GitHub issuer、exact audience、provider-readback numeric repository/owner IDs、workflow ref/sha、`refs/heads/main` 與 event。一般 workflow 不要求 reusable-only claims；若實際使用 reusable workflow，caller 與 callee 都要驗。長效 key、organization-only condition、display-name-only repo binding 全部拒絕。
+
+### 20.3 Runtime, migrations, evidence and failure contract
+
+Production v2 migration manifest必須從 `config/platform/dev-010-n1c-ai-pdm.json` 複製 current exactly 14 entries 的順序、checksum、trace-only／folded／retired分類與 ledger=`ai_pdm_core.schema_migrations`；source freeze 發現 migration 新增、缺少或 hash drift 時 fail closed，且不得修改 DEV-116 R02 producer。Migration job 只接受 profile 中 exact job、digest、migrator SA、database 與 ordered manifest；execution done 不能取代 ledger／schema readback。
+
+Provider mutation採固定 operation enum，不接受 command／args／SQL／env／任意 host。Cloud Run candidate 只 `updateMask=template` 且 general traffic=0；activation／rollback只 `updateMask=traffic`，以 fresh etag、terminal operation、`reconciling=false` 與 effective exact revision為成功 oracle。任何可能已送達但未得 terminal 結果的 write都先 provider readback，不 blind retry。Native verifier依序 join trusted workflow issuer→source lock→artifact digest→inactive candidate→machine decision→activation→canonical；LOCAL_SYNTHETIC、Actions archive hash或中央 Envelope 不能升格為 production evidence。
+
+### 20.4 Exact implementation boundary and commands
+
+第一個 write 已由本節與 QA／task／map 同步完成。新增檔案固定為 `config/release/dev117-ai-pdm-independent-production-v2.json`、`config/release/dev117-production-release-infra-plan.json`、`scripts/lib/dev117-ai-pdm-continuous-release.mjs`、對應 CLI／test／QC、`tools/dev-117/abort-controller/{package.json,package-lock.json,server.mjs,server.test.mjs,Dockerfile}`，以及 `infra/google-cloud/dev-117-production-release/` 下 `versions.tf,variables.tf,locals.tf,artifact.tf,storage.tf,identity.tf,workload-identity.tf,incident.tf,service-bindings.tf,outputs.tf,README.md,terraform.tfvars.example,backend.production.hcl.example`。修改只限 Platform DEV-012 §23.13.3 列出的 v1 profile／library／CLI／test／QC、owner workflow、`package.json` 與 `AGENTS.md`。Legacy `infra/google-cloud/production` state、DEV-116 R02 producer、產品 source 與 migration SQL均不得修改。
+
+Owner exit commands固定為 `npm run test:dev-117:continuous`、`npm run qc:dev-117:continuous`、`npm run test:dev-117:abort`、`npm run check:db-boundary`、`npm run typecheck:app`、`npm run build:isolated`、三個 IaC stage 的 `terraform fmt -check／init -backend=false／validate` 及 `git diff --check`。S1B fixture或受控 non-serving PASS 只標 `LOCAL_CONTRACT／CONTROLLED_PROVIDER`；完成前維持 `continuous v2 RD Not Started`，完成後最多為 `Implementation Complete / DEV-012 S2 Gated`，不得寫 Deployed 或 Release Ready。
+
+## 21. `CONTINUOUS_NO_DWELL_V2` executable forward amendment（2026-09-08）
+
+本節依Platform DEV-012 §25取代§20中預先完整capsule、八階段、no-tag candidate及未落實migration job的衝突部分。第一次S1B owner local PASS保留但標`SUPERSEDED_BY_CONTRACT_V2`，不得作目前分子。
+
+- `releaseCapsuleRef`指向AI-PDM owner的immutable release intent；intent不含artifact、candidate或decision。`build`以同一source建立application immutable image與content-addressed migration bundle，綁APP_INFRA_B pinned generic runner digest後發布deployment capsule。
+- Workflow固定`prepare→build→migrate→candidate→verify→decision→activate→canonical→finalize`；沒有stage／approve／skip／receipt JSON／target override或run中真人GO。
+- `migrate`只run exact AI-PDM production Cloud Run Job，runtime為`aipdm-prod-migrator`，database=`jenfu_prod`，manifest exactly 14；execution terminal後仍須`ai_pdm_core.schema_migrations`、schema／role／cross-database及DEV-116必要前置readback。不得修改DEV-116 producer、把staging runner當production或down-migrate。
+- Candidate先template-only建立inactive exact revision，再traffic-only附加唯一temporary tag且general traffic完全不變；DEV-116 R02與正常入口驗證只使用provider-readback tag URL。Machine decision、activation、canonical及finalize逐段發布immutable receipt；finalize／rollback移除tag。
+- 允許新增`scripts/dev117-production-migration-runner.mjs`及test、`infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile`與`migration.tf`；允許修改continuous v2 profile／lib／CLI／test／QC、workflow、該IaC既有檔及本spec／QA／task／map／AGENTS。產品source、migration SQL、legacy production state與DEV-116 producer仍no-touch。
+- 正式CLI不得保留throw-only provider placeholder；必須實作GCS immutable objects、Cloud Build／Artifact Registry、Cloud Run Job、Run service／revision／operation、candidate verification、traffic／rollback與native publication，且所有target只由reviewed profile取得。
+
+本節完成後仍只可標`Implementation Complete / DEV-012 S1B-20 PASS / S2 Gated`；Billing、quota、OIDC、DNS、Secret、正式migration／candidate／traffic與canonical屬後續fresh evidence。
+
+## 22. DEV-012 §§25.6～25.8 implementation conformance（2026-09-08）
+
+AI-PDM production transport已對齊官方regional Cloud Build operation、Artifact Analysis `v1beta1 exportSBOM`與`discoveryOccurrenceId`、Cloud Run exact service/revision URI及GCS generation-bound immutable publication。Cloud Run service必須`reconciling=false`、terminal success且`observedGeneration=generation`；candidate revision缺Ready success或image digest不合即FAIL。Owner workflow維持唯一`releaseCapsuleRef`、九階段、Firebase refresh-token smoke、temporary tag cleanup與own-only rollback。
+
+首次cohort只由Platform coordinator按`OrgMaster → AI-PDM → Platform`dispatch本owner exact run；AI-PDM仍只讀寫own bucket、registry、service、job、schemas與receipts。AI-PDM APP_INFRA_A/B、controller及migration-runner digests、numeric Secret versions、WIF／GitHub production environment與S2 provider receipts必須在首次dispatch前完成；之後日常AI-PDM release不讀Platform／OrgMaster state或source。Local owner PASS最多解鎖S2，不能冒充production readiness或LIVE_VERIFIED。
