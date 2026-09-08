@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
-import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
+import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 
 const H40 = 'a'.repeat(40)
 const H64 = 'b'.repeat(64)
 const bucket = 'jenfu-platform-prod-platform-release'
 const profile = {
   application: { id: 'platform', repository: 'owner/repo', branch: 'main' },
-  target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'jenfu-platform-prod' },
+  target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'jenfu-platform-prod', runtimeServiceAccount: 'platform-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com' },
+  runtime: { containerName: 'platform', cloudSqlProxyContainer: 'cloud-sql-proxy', cloudSqlProxyImage: `proxy@sha256:${'c'.repeat(64)}`, cloudSqlProxyPort: 5432, cloudSqlProxyMaximumConnections: 24, cloudSqlConnectionName: 'p:r:i', network: 'runtime-vpc', subnet: 'runtime-subnet', port: 8080, startupProbePath: '/ready', cpu: '1', memory: '512Mi', concurrency: 20, timeoutSeconds: 60, maxInstances: 1 },
+  environment: { requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET'], allowedSecretIds: { SESSION_SECRET: 'platform-prod-session-pepper' } },
   artifact: { releaseBucket: bucket, repository: 'platform-release', uri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform' },
   identities: { builder: 'platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' },
   build: { dockerBuilderImage: 'gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c', dockerfile: 'Dockerfile', dockerTarget: 'runner' },
@@ -141,9 +143,40 @@ test('Cloud Run revision readback stays bound to the exact service path', async 
   assert.equal((await transport.getRevision(profile, revision)).name.endsWith(`/revisions/${revision}`), true)
   await assert.rejects(() => transport.getRevision(profile, 'latest'), /REVISION_TARGET_INVALID/u)
   const artifact = `${profile.artifact.uri}@sha256:${H64}`
-  const ready = { containers: [{ image: artifact }], conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] }
-  assert.equal(transport.assertRevisionReady(ready, artifact), ready)
-  assert.throws(() => transport.assertRevisionReady({ containers: [{ image: artifact }], conditions: [] }, artifact), /CANDIDATE_REVISION_READBACK_MISMATCH/u)
+  const ready = { containers: [{ name: 'platform', image: artifact }, { name: 'cloud-sql-proxy', image: profile.runtime.cloudSqlProxyImage }], conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] }
+  assert.equal(transport.assertRevisionReady(profile, ready, artifact), ready)
+  assert.throws(() => transport.assertRevisionReady(profile, { containers: ready.containers, conditions: [] }, artifact), /CANDIDATE_REVISION_READBACK_MISMATCH/u)
+})
+
+test('runtime config carries a complete secret-safe two-container template', () => {
+  const runtimeConfig = buildRuntimeConfig(profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } })
+  assert.deepEqual(assertRuntimeConfig(profile, runtimeConfig), runtimeConfig.template)
+  const mutable = structuredClone(runtimeConfig)
+  mutable.template.containers[1].image = 'proxy:latest'
+  assert.throws(() => assertRuntimeConfig(profile, mutable), /RUNTIME_CONFIG_READBACK_MISMATCH/u)
+})
+
+test('candidate replaces a one-container holding template with the reviewed runtime template at zero traffic', async () => {
+  const artifact = `${profile.artifact.uri}@sha256:${H64}`
+  const candidateRevision = `${profile.target.serviceName}-${H64.slice(0, 12)}`
+  const serviceName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
+  const settled = { name: serviceName, reconciling: false, generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' } }
+  const before = { ...settled, etag: 'e1', template: { serviceAccount: 'holding@example.invalid', containers: [{ name: 'holding', image: 'holding@sha256:' + '0'.repeat(64) }] }, traffic: [{ revision: 'holding-1', percent: 100 }], trafficStatuses: [{ revision: 'holding-1', percent: 100 }] }
+  const created = { ...before, etag: 'e2', latestCreatedRevision: candidateRevision }
+  const tagged = { ...created, etag: 'e3', traffic: [...before.traffic, { revision: candidateRevision, percent: 0, tag: `candidate-${H64.slice(0, 12)}` }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, percent: 0, tag: `candidate-${H64.slice(0, 12)}`, uri: 'https://candidate.example.test' }] }
+  const reads = [before, created, tagged]
+  const patches = []
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
+    if (options.method === 'PATCH') { patches.push(JSON.parse(options.body)); return json({ name: `projects/${profile.target.projectId}/locations/${profile.target.region}/operations/patch-${patches.length}`, done: true, response: {} }) }
+    if (String(url).includes('/revisions/')) return json({ name: `${serviceName}/revisions/${candidateRevision}`, service: serviceName, containers: [{ name: 'platform', image: artifact }, { name: 'cloud-sql-proxy', image: profile.runtime.cloudSqlProxyImage }], conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] })
+    return json(reads.shift())
+  } })
+  const runtimeConfig = buildRuntimeConfig(profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } })
+  const result = await transport.createCandidate({ profile, artifactDigest: artifact, runtimeConfig, fingerprint: H64, deadlineAt: '2999-01-01T00:00:00.000Z' })
+  assert.equal(result.previousRevision, 'holding-1')
+  assert.equal(patches[0].template.containers.find((row) => row.name === 'platform').image, artifact)
+  assert.equal(patches[0].template.containers.length, 2)
+  assert.deepEqual(patches[1].traffic.filter((row) => !row.tag), before.traffic)
 })
 
 test('authenticated smoke refreshes a short-lived Firebase ID token without exposing it', async () => {

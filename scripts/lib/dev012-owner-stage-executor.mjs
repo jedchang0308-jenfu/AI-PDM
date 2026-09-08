@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { assertProtectedGitHubContext, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
+import { assertProtectedGitHubContext, assertRuntimeConfig, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -62,7 +62,7 @@ export function assertPreparePrerequisites({ intent, profile, values }) {
   const project = (value) => value.projectId ?? value.targetProjectId
   if ([values.readiness, values.foundation, values.infra, values.runtimeConfig].some((value) => project(value) !== profile.target.projectId)) fail('PREPARE_TARGET_MISMATCH')
   const runtime = values.runtimeConfig.runtimeConfig ?? values.runtimeConfig
-  if (runtime.runtimeServiceAccount !== profile.target.runtimeServiceAccount || !H64.test(runtime.serviceTemplateSha256 ?? '')) fail('RUNTIME_CONFIG_READBACK_MISMATCH')
+  assertRuntimeConfig(profile, runtime)
   const migrationRunnerDigest = values.infra.migrationRunnerDigest ?? values.infra.artifacts?.migrationRunnerDigest
   if (!migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)) fail('MIGRATION_RUNNER_PROVENANCE_MISSING')
   return { runtimeConfig: runtime, migrationRunnerDigest }
@@ -223,7 +223,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const tag = service.trafficStatuses?.find((row) => row.tag === candidate.value.facts.tag)
     if (tag?.revision !== candidate.value.facts.candidateRevision || Number(tag.percent) !== 0 || tag.uri !== candidate.value.facts.tagUri || transport.effectiveRevision(service) !== intent.previousRevision) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
-    transport.assertRevisionReady(revision, candidate.value.facts.artifactDigest)
+    transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest)
     const smoke = await transport.runAuthenticatedSmoke({ profile, origin: candidate.value.facts.tagUri, environment })
     const result = await writeStage(transport, paths, profile, intent, 'verify', candidate.ref, { candidateReceiptRef: candidate.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, tagUri: candidate.value.facts.tagUri, smoke, sideEffects: profile.sideEffects })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'CANDIDATE_VERIFIED', environment })
@@ -254,7 +254,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const service = await transport.getService(profile)
     if (transport.effectiveRevision(service) !== candidate.value.facts.candidateRevision) fail('CANONICAL_REVISION_MISMATCH')
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
-    try { transport.assertRevisionReady(revision, candidate.value.facts.artifactDigest) } catch { fail('CANONICAL_ARTIFACT_MISMATCH') }
+    try { transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest) } catch { fail('CANONICAL_ARTIFACT_MISMATCH') }
     const smoke = await transport.runAuthenticatedSmoke({ profile, origin: profile.target.canonicalOrigin, environment })
     const result = await writeStage(transport, paths, profile, intent, 'canonical', activate.ref, { activationReceiptRef: activate.ref, origin: profile.target.canonicalOrigin, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, smoke })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'CANONICAL_VERIFIED', environment })

@@ -1,10 +1,10 @@
 {
   "schemaVersion": "jenfu.dev117.ai-pdm-continuous-release.v2",
   "profileVersion": "CONTINUOUS_NO_DWELL_V2",
-  "contractSha256": "47eb972c48549da73ca135509e99bdc8ae4463e87b81785abe8d6cfd8f54b95f",
+  "contractSha256": "c29974332ae0193bec330870b84a00766c6ae759b7d1522adc4faddc16490c3b",
   "application": { "id": "ai-pdm", "repository": "jedchang0308-jenfu/AI-PDM", "branch": "main" },
   "target": { "projectId": "jenfu-platform-prod", "region": "asia-east1", "serviceName": "ai-pdm-prod", "runtimeServiceAccount": "aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com", "canonicalOrigin": "https://pdm.jenfu.com.tw", "databaseInstance": "jenfu-platform-prod-pg", "database": "jenfu_prod" },
-  "runtime": { "cpu": "1", "memory": "1Gi", "concurrency": 20, "timeoutSeconds": 60, "maxInstances": 1, "poolMax": 8 },
+  "runtime": { "containerName": "ai-pdm", "cpu": "1", "memory": "1Gi", "port": 8080, "concurrency": 20, "timeoutSeconds": 60, "maxInstances": 1, "poolMax": 8, "startupProbePath": "/login", "cloudSqlConnectionName": "jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg", "cloudSqlProxyContainer": "cloud-sql-proxy", "cloudSqlProxyImage": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f", "cloudSqlProxyPort": 5432, "cloudSqlProxyMaximumConnections": 24, "network": "jenfu-platform-prod-vpc", "subnet": "jenfu-platform-prod-runtime" },
   "artifact": { "repository": "aipdm-release", "image": "ai-pdm", "uri": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm", "migrationRunnerImage": "ai-pdm-migration-runner", "migrationRunnerUri": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner", "migrationBundlePrefix": "source/migration-bundles", "releaseBucket": "jenfu-platform-prod-aipdm-release", "digestRequired": true },
   "state": { "backendKey": "dev-117/production-release/default.tfstate", "foundationReceiptRequired": true },
   "schemas": { "releaseIntent": "jenfu.dev117.ai-pdm-release-intent.v2", "deploymentCapsule": "jenfu.dev117.ai-pdm-deployment-capsule.v2" },

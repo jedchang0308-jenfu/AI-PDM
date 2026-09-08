@@ -2,6 +2,7 @@ import { canonicalize, crc32cBase64, parseGsUri, sha256 } from './dev012-product
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
+const APPLICATION_IMAGE_PLACEHOLDER = 'APPLICATION_IMAGE_DIGEST'
 
 export class OwnerReleaseError extends Error {
   constructor(code, detail = '') {
@@ -46,6 +47,89 @@ export function assertProtectedGitHubContext(profile, intent, environment) {
   if (environment.GITHUB_REPOSITORY !== profile.application.repository || environment.GITHUB_SHA !== intent.sourceRevision || environment.GITHUB_WORKFLOW_SHA !== intent.sourceRevision || environment.GITHUB_WORKFLOW_REF !== expectedWorkflowRef || environment.GITHUB_REF !== expectedRef || environment.GITHUB_EVENT_NAME !== 'workflow_dispatch') fail('GITHUB_SOURCE_AUTHORITY_MISMATCH')
   if (!H40.test(environment.GITHUB_SHA ?? '') || !/^[0-9]+$/u.test(environment.GITHUB_REPOSITORY_ID ?? '') || !/^[0-9]+$/u.test(environment.GITHUB_REPOSITORY_OWNER_ID ?? '') || !/^[0-9]+$/u.test(environment.GITHUB_RUN_ID ?? '') || !/^[0-9]+$/u.test(environment.GITHUB_RUN_ATTEMPT ?? '')) fail('GITHUB_PUBLISHER_IDENTITY_MISSING')
   return true
+}
+
+function runtimeTemplate(profile, plainEnvironment, secretVersions) {
+  const code = 'RUNTIME_CONFIG_READBACK_MISMATCH'
+  const requiredPlain = profile.environment?.requiredPlainEnvironmentNames ?? profile.environment?.requiredNames ?? []
+  const allowedSecrets = profile.environment?.allowedSecretIds ?? profile.environment?.secretIds ?? {}
+  const requiredSecrets = profile.environment?.requiredSecretNames ?? Object.keys(allowedSecrets)
+  if (!plainEnvironment || !secretVersions
+    || canonicalize(Object.keys(plainEnvironment).sort()) !== canonicalize([...requiredPlain].sort())
+    || canonicalize(Object.keys(secretVersions).sort()) !== canonicalize([...requiredSecrets].sort())
+    || Object.values(plainEnvironment).some((value) => typeof value !== 'string')
+    || Object.values(secretVersions).some((value) => !/^[1-9][0-9]*$/u.test(String(value)))) fail(code)
+  const port = profile.runtime.port
+  const proxyPort = profile.runtime.cloudSqlProxyPort
+  const project = profile.target.projectId
+  return {
+    serviceAccount: profile.target.runtimeServiceAccount,
+    executionEnvironment: 'EXECUTION_ENVIRONMENT_GEN2',
+    maxInstanceRequestConcurrency: profile.runtime.concurrency,
+    timeout: `${profile.runtime.timeoutSeconds}s`,
+    scaling: { minInstanceCount: 0, maxInstanceCount: profile.runtime.maxInstances },
+    vpcAccess: {
+      egress: 'ALL_TRAFFIC',
+      networkInterfaces: [{
+        network: `projects/${project}/global/networks/${profile.runtime.network}`,
+        subnetwork: `projects/${project}/regions/${profile.target.region}/subnetworks/${profile.runtime.subnet}`,
+      }],
+    },
+    containers: [
+      {
+        name: profile.runtime.containerName,
+        image: APPLICATION_IMAGE_PLACEHOLDER,
+        dependsOn: [profile.runtime.cloudSqlProxyContainer],
+        ports: [{ name: 'http1', containerPort: port }],
+        env: [
+          ...requiredPlain.map((name) => ({ name, value: plainEnvironment[name] })),
+          ...requiredSecrets.map((name) => ({ name, valueSource: { secretKeyRef: { secret: allowedSecrets[name], version: String(secretVersions[name]) } } })),
+        ],
+        resources: { limits: { cpu: profile.runtime.cpu, memory: profile.runtime.memory }, cpuIdle: true, startupCpuBoost: true },
+        startupProbe: { initialDelaySeconds: 0, timeoutSeconds: 2, periodSeconds: 5, failureThreshold: 24, httpGet: { path: profile.runtime.startupProbePath, port } },
+      },
+      {
+        name: profile.runtime.cloudSqlProxyContainer,
+        image: profile.runtime.cloudSqlProxyImage,
+        args: ['--address=0.0.0.0', `--port=${proxyPort}`, '--private-ip', '--auto-iam-authn', '--lazy-refresh', '--structured-logs', `--max-connections=${profile.runtime.cloudSqlProxyMaximumConnections}`, profile.runtime.cloudSqlConnectionName],
+        resources: { limits: { cpu: '1', memory: '256Mi' }, cpuIdle: true, startupCpuBoost: true },
+        startupProbe: { initialDelaySeconds: 1, timeoutSeconds: 2, periodSeconds: 3, failureThreshold: 20, tcpSocket: { port: proxyPort } },
+      },
+    ],
+  }
+}
+
+export function buildRuntimeConfig(profile, { plainEnvironment, secretVersions }) {
+  const template = runtimeTemplate(profile, plainEnvironment, secretVersions)
+  return {
+    runtimeServiceAccount: profile.target.runtimeServiceAccount,
+    applicationContainerName: profile.runtime.containerName,
+    cloudSqlProxyContainerName: profile.runtime.cloudSqlProxyContainer,
+    cloudSqlProxyImage: profile.runtime.cloudSqlProxyImage,
+    plainEnvironment: structuredClone(plainEnvironment),
+    secretVersions: structuredClone(secretVersions),
+    serviceTemplateSha256: sha256(canonicalize(template)),
+    template,
+  }
+}
+
+export function assertRuntimeConfig(profile, runtimeConfig) {
+  const code = 'RUNTIME_CONFIG_READBACK_MISMATCH'
+  const template = runtimeConfig?.template
+  const appName = profile?.runtime?.containerName
+  const proxyName = profile?.runtime?.cloudSqlProxyContainer
+  const proxyImage = profile?.runtime?.cloudSqlProxyImage
+  if (!runtimeConfig || runtimeConfig.runtimeServiceAccount !== profile?.target?.runtimeServiceAccount
+    || runtimeConfig.applicationContainerName !== appName
+    || runtimeConfig.cloudSqlProxyContainerName !== proxyName
+    || runtimeConfig.cloudSqlProxyImage !== proxyImage
+    || !H64.test(runtimeConfig.serviceTemplateSha256 ?? '')
+    || runtimeConfig.serviceTemplateSha256 !== sha256(canonicalize(template))
+    || template?.revision != null) fail(code)
+  let expected
+  try { expected = runtimeTemplate(profile, runtimeConfig.plainEnvironment, runtimeConfig.secretVersions) } catch { fail(code) }
+  if (canonicalize(template) !== canonicalize(expected)) fail(code)
+  return structuredClone(template)
 }
 
 export function releasePaths(profile, intent, intentSha256) {
@@ -187,9 +271,13 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return value
   }
 
-  function assertRevisionReady(revision, artifactDigest) {
+  function assertRevisionReady(profile, revision, artifactDigest) {
     const ready = revision?.conditions?.find((row) => row.type === 'Ready')
-    if (revision?.containers?.length !== 1 || revision.containers[0].image !== artifactDigest || ready?.state !== 'CONDITION_SUCCEEDED') fail('CANDIDATE_REVISION_READBACK_MISMATCH')
+    const containers = revision?.containers
+    const app = containers?.find((container) => container.name === profile.runtime.containerName)
+    const proxy = containers?.find((container) => container.name === profile.runtime.cloudSqlProxyContainer)
+    if (containers?.length !== 2 || app?.image !== artifactDigest || proxy?.image !== profile.runtime.cloudSqlProxyImage
+      || ready?.state !== 'CONDITION_SUCCEEDED') fail('CANDIDATE_REVISION_READBACK_MISMATCH')
     return revision
   }
 
@@ -204,12 +292,12 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const before = await getService(profile)
     assertServiceSettled(before, 'CANDIDATE_BASELINE_INVALID')
     if (before.reconciling !== false || !before.etag || !Array.isArray(before.traffic) || before.traffic.some((row) => row.latestRevision === true || row.tag)) fail('CANDIDATE_BASELINE_INVALID')
-    if (runtimeConfig?.serviceTemplateSha256 !== sha256(canonicalize(before.template)) || runtimeConfig?.runtimeServiceAccount !== profile.target.runtimeServiceAccount) fail('RUNTIME_CONFIG_READBACK_MISMATCH')
     const candidateRevision = `${profile.target.serviceName}-${fingerprint.slice(0, 12)}`
-    const template = structuredClone(before.template)
+    const template = assertRuntimeConfig(profile, runtimeConfig)
     template.revision = candidateRevision
-    if (!Array.isArray(template.containers) || template.containers.length !== 1) fail('CANDIDATE_TEMPLATE_INVALID')
-    template.containers[0].image = artifactDigest
+    const app = template.containers.find((container) => container.name === profile.runtime.containerName)
+    if (!app) fail('CANDIDATE_TEMPLATE_INVALID')
+    app.image = artifactDigest
     await patchService(profile, { name: before.name, etag: before.etag, template }, 'template', deadlineAt)
     const created = await getService(profile)
     assertServiceSettled(created, 'CANDIDATE_REVISION_READBACK_MISMATCH')
@@ -224,7 +312,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const generalAfter = tagged.traffic?.filter((row) => !row.tag).map(({ tag: _tag, ...row }) => row)
     if (!tagStatus?.uri || tagStatus.revision !== candidateRevision || Number(tagStatus.percent) !== 0 || canonicalize(generalAfter) !== canonicalize(generalBefore)) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await getRevision(profile, candidateRevision)
-    assertRevisionReady(revision, artifactDigest)
+    assertRevisionReady(profile, revision, artifactDigest)
     return { candidateRevision, tag, tagUri: tagStatus.uri, artifactDigest, previousRevision: effectiveRevision(before), beforeTraffic: before.traffic, etag: tagged.etag, revisionName: revision.name }
   }
 

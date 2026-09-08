@@ -222,7 +222,7 @@ error與data sanity；任何意外空資料或全零critical counter都視為FAI
 
 ## 12. DEV-012 continuous v2 validation amendment（current）
 
-舊 QA-117-001..012 與其 six-stage workflow證據保留為 v1 historical denominator，不得用來宣稱 v2 continuous release已完成。v2 owner主案例為 Platform DEV-012 QA 的 `S1B-20`，並共同接受 `S1B-01～06／08～18／22～24` 中與 AI_PDM owner slice有關的正負 oracle；上游完整文件 SHA-256=`47eb972c48549da73ca135509e99bdc8ae4463e87b81785abe8d6cfd8f54b95f`、§25～EOF SHA-256=`92fd6c7dfdfafee4b438c0ee9ce731d7463da46a7691f05061c54d58cb127507`。
+舊 QA-117-001..012 與其 six-stage workflow證據保留為 v1 historical denominator，不得用來宣稱 v2 continuous release已完成。v2 owner主案例為 Platform DEV-012 QA 的 `S1B-20`，並共同接受 `S1B-01～06／08～18／22～24` 中與 AI_PDM owner slice有關的正負 oracle；上游完整文件 SHA-256=`c29974332ae0193bec330870b84a00766c6ae759b7d1522adc4faddc16490c3b`、§25～EOF SHA-256=`8a80235f2d54375738f89741ed93e1c341894113ffba91bfbed3320df8b1548b`。
 
 S1B-20 必須同時證明：continuous v2 保留 v1 strict validator；exact neutral target與pool8；current 14-entry ordered migration分類／checksum；DEV-116 R02 exact native join；single-capsule workflow沒有 stage／approve／skip／receipt輸入；同 fingerprint不重 build；own registry／bucket／service／state／OIDC／IAM deny；abort controller在重送、crash前後、412與 unknown outcome 下只回復 own exact revision。禁止修改 DEV-116 producer、使用 company-jenfu、漏 migration、把六段人工 GO 或 local fixture冒充 production。
 
@@ -246,3 +246,6 @@ git diff --check
 依DEV-012 §25，原continuous owner結果由新契約取代並須重跑。S1B-20固定增加以下oracle：release intent不得預填artifact／candidate／decision；application digest、migration bundle與pinned generic runner必須同source authority並有native readback；workflow exact九階段包含`migrate`；production job只用aipdm migrator與exact 14-entry manifest；ledger／schema／ACL readback先於candidate；inactive exact revision以唯一temporary tag提供DEV-116 R02入口且general traffic不變；machine decision、activation、canonical與tag cleanup皆有immutable receipt。
 
 負例至少包含：build前要求digest、staging／legacy DB或runner、execution done冒migration PASS、deployer actAs migrator、漏migration job、candidate無可達驗證URL、任意tag／LATEST receipt authority、tag取得一般流量、run中真人GO、placeholder throw／echo仍在正式路徑、tag cleanup失敗、舊serving revision不相容。全部只能用local／recorded transport驗證；production evidence維持NOT_RUN。
+## 14. DEV-012 §26 runtime bridge 驗證補充
+
+S1B-20／S1B-15須證明一容器holding baseline可透過已驗章runtime config建立`ai-pdm`＋固定Cloud SQL proxy的兩容器0% candidate；缺proxy、mutable tag、非numeric Secret、漏plain env、錯VPC／runtime SA／probe／resource或一般traffic變更皆在provider write前FAIL。

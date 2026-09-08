@@ -413,7 +413,7 @@ candidate rebuild、migration order不一致、DEV-116 R02跨candidate拼接、P
 
 ## 20. DEV-012 continuous v2 owner handoff（2026-09-08）
 
-本節是 DEV-117 的歷史continuous v1 authority；現行執行authority為§21。既有 §§1～19 與十二案證據保留為 v1 historical contract；其中 six-stage 人工 dispatch、stage 間手貼 receipt、Product Owner 在 run 中手動 GO、固定 observation wait 與 legacy target不得作為現行可執行解釋。架構來源為 [Platform DEV-012 §25](../../../Jenfu-Platform/ai-doc/specs/DEV-012-three-system-continuous-release-and-boundary-closure.md)，同步時完整文件 SHA-256=`47eb972c48549da73ca135509e99bdc8ae4463e87b81785abe8d6cfd8f54b95f`、§25～EOF SHA-256=`92fd6c7dfdfafee4b438c0ee9ce731d7463da46a7691f05061c54d58cb127507`。若上游契約 bytes 改變，先重做 direct-doc review，不以模糊相容推論繼續。
+本節是 DEV-117 的歷史continuous v1 authority；現行執行authority為§§21～23。既有 §§1～19 與十二案證據保留為 v1 historical contract；其中 six-stage 人工 dispatch、stage 間手貼 receipt、Product Owner 在 run 中手動 GO、固定 observation wait 與 legacy target不得作為現行可執行解釋。架構來源為 [Platform DEV-012 §§25～26](../../../Jenfu-Platform/ai-doc/specs/DEV-012-three-system-continuous-release-and-boundary-closure.md)，同步時完整文件 SHA-256=`c29974332ae0193bec330870b84a00766c6ae759b7d1522adc4faddc16490c3b`、§25～EOF SHA-256=`8a80235f2d54375738f89741ed93e1c341894113ffba91bfbed3320df8b1548b`。若上游契約 bytes 改變，先重做 direct-doc review，不以模糊相容推論繼續。
 
 ### 20.1 Current v2 outcome and owner boundary
 
@@ -458,3 +458,6 @@ Owner exit commands固定為 `npm run test:dev-117:continuous`、`npm run qc:dev
 AI-PDM production transport已對齊官方regional Cloud Build operation、Artifact Analysis `v1beta1 exportSBOM`與`discoveryOccurrenceId`、Cloud Run exact service/revision URI及GCS generation-bound immutable publication。Cloud Run service必須`reconciling=false`、terminal success且`observedGeneration=generation`；candidate revision缺Ready success或image digest不合即FAIL。Owner workflow維持唯一`releaseCapsuleRef`、九階段、Firebase refresh-token smoke、temporary tag cleanup與own-only rollback。
 
 首次cohort只由Platform coordinator按`OrgMaster → AI-PDM → Platform`dispatch本owner exact run；AI-PDM仍只讀寫own bucket、registry、service、job、schemas與receipts。AI-PDM APP_INFRA_A/B、controller及migration-runner digests、numeric Secret versions、WIF／GitHub production environment與S2 provider receipts必須在首次dispatch前完成；之後日常AI-PDM release不讀Platform／OrgMaster state或source。Local owner PASS最多解鎖S2，不能冒充production readiness或LIVE_VERIFIED。
+## 23. DEV-012 §26 runtime template bridge
+
+AI-PDM continuous v2 candidate不再複製R1-04F的一容器holding template。`runtimeConfigRef`須由`config/release/dev117-ai-pdm-independent-production-v2.json`決定性建立完整`ai-pdm`＋digest-pinned `cloud-sql-proxy`兩容器template，plain environment必須exact complete-set，三個session／workbench Secret只允許own ID與enabled numeric version。Owner build只可將`APPLICATION_IMAGE_DIGEST`替換為本repo immutable digest；holding traffic在candidate建立與0% tag加入後逐項不變。
