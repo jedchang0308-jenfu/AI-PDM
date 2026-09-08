@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-09-07
+更新日期：2026-09-08
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
@@ -11,7 +11,16 @@ Owner：Dev PM
 - `.ai-doc/archived/dev_task_legacy_before_pm_cleanup_2026-06-16.md`
 - `.ai-doc/archived/documentation_map_before_pm_governance_restructure_2026-06-30.md`
 
-> **2026-09-07 DEV-117 independent production deployment（current authority）**：使用者已確認
+> **2026-09-08 DEV-117 continuous v2 owner handoff（current authority）**：DEV-012採
+> `CONTINUOUS_NO_DWELL_V2`，本repo已完成continuous owner implementation，Platform契約SHA-256=
+> `47eb972c48549da73ca135509e99bdc8ae4463e87b81785abe8d6cfd8f54b95f`、§25～EOF SHA-256=
+> `92fd6c7dfdfafee4b438c0ee9ce731d7463da46a7691f05061c54d58cb127507`。v1的六階段人工dispatch、
+> Product Owner run中GO、手貼receipt及固定觀察期改列historical；v2由單一`releaseCapsuleRef`、同一source／
+> artifact、machine activation decision、immediate incident controller與own-only rollback接管。狀態=
+> `continuous v2 Implementation Complete / S1B-20 LOCAL_CONTRACT PASS / DEV-012 S2 Gated`；下一步只依
+> direct spec §§21～22完成fresh provider前置，不得把本機PASS當成正式migration、candidate或traffic證據。
+>
+> **2026-09-07 DEV-117 independent production deployment（v1 historical authority）**：使用者已確認
 > AI_PDM與Jenfu-Platform分開部署，並要求先把開發文件寫到可執行部署前。新增`DEV-117`為
 > AI_PDM-owned neutral deployment adapter：target固定`jenfu-platform-prod / asia-east1 / ai-pdm-prod`、
 > runtime identity=`aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com`、Cloud SQL=
@@ -84,11 +93,12 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 現行本機交付完成：`✓ DEV-117` AI_PDM獨立正式部署adapter，成熟度=`117-S1 Local Implementation Complete /
+- 現行開發：`◐ DEV-117 continuous v2`，成熟度=`Implementation Complete / S1B-20 Local Owner QC PASS /
+  DEV-012 S2 Gated`；已依SPEC §20完成v2 profile、provider wrapper、IaC、single-capsule workflow與abort
+  controller，下一步只可進入DEV-012 S2 fresh provider prerequisites。既有`117-S1`維持v1歷史完成：`Local Implementation Complete /
   QA-QC 12 of 12 PASS / Production Release Gated`。S1A profile／validator、S1B independent workflow／candidate
   lifecycle及S1C receipt／aggregate已依序完成；provider／credential／DB／Cloud／DNS／traffic mutation固定為0。
-  下一步不是續寫本機功能，而是先把reviewed changes收斂至clean `origin/main`並建立fresh release source lock；
-  billing、DEV-010 shared gate、DEV-116 R02與獨立GO未成立前不得執行production stage。
+  S1B完成只解鎖DEV-012 S2 fresh Billing／quota／authorization前置；在S2 machine receipts完成前不得建立fresh release或執行production stage。
 
 - DEV-116 release責任已切分：DEV-116只保留`company-smoke` Production Level 4 R01／R02，candidate／
   promotion／rollback／live receipt由DEV-117負責；Platform DEV-010只供應shared foundation evidence。
