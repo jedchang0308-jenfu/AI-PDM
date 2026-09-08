@@ -1,7 +1,9 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
+> **2026-09-08 DEV-012 S1C amendment**：新增owner production-entry驗證，固定official repo=`jedchang0308-jenfu/AI-PDM`、branch=`main`；驗source-freeze／runtime-config／release-intent native chain、shared-LB host binding、candidate期間`internal`與activation後`internal-and-cloud-load-balancing`、own Workflows smoke SA＋OIDC、Firebase refresh token numeric Secret及legacy Hosting不被改指neutral target。Public `run.app`、GitHub直接candidate smoke、sibling checkout／state、Secret payload與fixture authority均FAIL。此增修不改既有owner分母；已納入中央`S1C-01／05～08／11～12`並通過LOCAL_CONTRACT，現在只進S2 fresh provider前置。
+
 - 文件成熟度：`v1 QA Contract Executed；continuous v2 Implementation Complete`
-- 狀態：`v1 Fixed 12 Cases / Local Contract 12 of 12 PASS；continuous v2 S1B-20 Local Owner QC PASS / DEV-012 S2 Gated`
+- 狀態：`v1 Fixed 12 Cases / Local Contract 12 of 12 PASS；continuous v2 S1B-20與S1C owner Local QC PASS / DEV-012 S2 Upfront Prerequisites In Progress`
 - 日期：2026-09-08
 - 來源 DEV：`DEV-117 / DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
 - 規格 authority：[DEV-117 SPEC](../specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)
@@ -222,7 +224,7 @@ error與data sanity；任何意外空資料或全零critical counter都視為FAI
 
 ## 12. DEV-012 continuous v2 validation amendment（current）
 
-舊 QA-117-001..012 與其 six-stage workflow證據保留為 v1 historical denominator，不得用來宣稱 v2 continuous release已完成。v2 owner主案例為 Platform DEV-012 QA 的 `S1B-20`，並共同接受 `S1B-01～06／08～18／22～24` 中與 AI_PDM owner slice有關的正負 oracle；上游完整文件 SHA-256=`c29974332ae0193bec330870b84a00766c6ae759b7d1522adc4faddc16490c3b`、§25～EOF SHA-256=`8a80235f2d54375738f89741ed93e1c341894113ffba91bfbed3320df8b1548b`。
+舊 QA-117-001..012 與其 six-stage workflow證據保留為 v1 historical denominator，不得用來宣稱 v2 continuous release已完成。v2 owner主案例為 Platform DEV-012 QA 的 `S1B-20`，並共同接受 `S1B-01～06／08～18／22～24` 中與 AI_PDM owner slice有關的正負 oracle；上游完整文件 SHA-256=`b4ab9cc989962687d9f092b38b2f127879cb92de82bdd4000b5896d7c96d6e20`、§25～EOF SHA-256=`017d058d742a123e13379d3ac378d42c261cff193bc72c3e40f8643a887948fa`。
 
 S1B-20 必須同時證明：continuous v2 保留 v1 strict validator；exact neutral target與pool8；current 14-entry ordered migration分類／checksum；DEV-116 R02 exact native join；single-capsule workflow沒有 stage／approve／skip／receipt輸入；同 fingerprint不重 build；own registry／bucket／service／state／OIDC／IAM deny；abort controller在重送、crash前後、412與 unknown outcome 下只回復 own exact revision。禁止修改 DEV-116 producer、使用 company-jenfu、漏 migration、把六段人工 GO 或 local fixture冒充 production。
 

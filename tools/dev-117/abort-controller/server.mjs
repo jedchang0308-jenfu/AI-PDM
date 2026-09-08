@@ -367,8 +367,9 @@ function createNativeAdapters(config, fetchImpl = fetch, sleep = (milliseconds) 
   const provider = {
     async readOwnerRun(url) {
       if (url !== 'https://api.github.com/repos/' + config.repository + '/actions/runs/' + url.split('/').at(-1) || !/\/[0-9]+$/u.test(url)) fail('OWNER_RUN_REF_INVALID', 409, 'GitHub run reference invalid')
-      const headers = { accept: 'application/vnd.github+json', 'user-agent': 'jenfu-dev012-abort-controller', authorization: 'Bearer ' + process.env.GITHUB_READ_TOKEN }
-      if (!process.env.GITHUB_READ_TOKEN || process.env.GITHUB_READ_TOKEN.length < 20) fail('GITHUB_READ_TOKEN_MISSING', 503, 'GitHub read token unavailable')
+      const githubReadToken = process.env.GITHUB_READ_TOKEN?.trim()
+      if (!githubReadToken || githubReadToken.length < 20) fail('GITHUB_READ_TOKEN_MISSING', 503, 'GitHub read token unavailable')
+      const headers = { accept: 'application/vnd.github+json', 'user-agent': 'jenfu-dev012-abort-controller', authorization: 'Bearer ' + githubReadToken }
       const response = await fetchImpl(url, { headers, signal: AbortSignal.timeout(15000) })
       if (!response.ok) fail('OWNER_RUN_READ_FAILED', response.status >= 500 ? 503 : 409, 'GitHub run read failed')
       const value = await response.json()

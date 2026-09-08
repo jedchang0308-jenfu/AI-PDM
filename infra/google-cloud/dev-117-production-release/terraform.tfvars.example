@@ -12,3 +12,6 @@ github_read_token_secret_version = null
 controller_image_digest          = null
 migration_runner_image_digest    = null
 approved_notification_email      = null
+source_revision                  = "REVIEWED_40_CHARACTER_AIPDM_SOURCE_REVISION"
+foundation_manifest_sha256       = "REVIEWED_64_CHARACTER_FOUNDATION_MANIFEST_SHA256"
+candidate_smoke_refresh_token_secret_version = null

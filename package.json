@@ -460,6 +460,8 @@
     "test:dev-117:release-adapter": "node --test scripts/dev117-ai-pdm-independent-release.test.mjs",
     "qc:dev-117:release-adapter": "node scripts/qc-dev-117-ai-pdm-independent-release.mjs",
     "test:dev-117:continuous": "node --test scripts/dev117-ai-pdm-continuous-release.test.mjs scripts/dev117-production-migration-runner.test.mjs scripts/dev012-owner-release-runtime.test.mjs scripts/dev012-owner-stage-executor.test.mjs",
+    "test:dev-012:prerequisites": "node --test scripts/dev012-owner-prerequisite-producer.test.mjs",
+    "produce:dev-117:prerequisite": "node scripts/dev117-ai-pdm-prerequisite-producer.mjs",
     "qc:dev-117:continuous": "node scripts/qc-dev-117-continuous-release.mjs",
     "test:dev-117:abort": "npm --prefix tools/dev-117/abort-controller test",
     "dev-032:production-live-readback": "node scripts/capture-dev-032-production-live-readback.mjs",

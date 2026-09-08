@@ -148,7 +148,6 @@ jobs:
       - name: Execute verify
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
-          DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
           DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage verify --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 

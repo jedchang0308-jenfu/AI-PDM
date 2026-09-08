@@ -28,6 +28,13 @@ resource "google_service_account" "invoker" {
   display_name = "AI-PDM release controller invoker"
 }
 
+
+resource "google_service_account" "smoke" {
+  project      = var.project_id
+  account_id   = "aipdm-prod-smoke"
+  display_name = "AI-PDM production candidate smoke"
+}
+
 resource "google_project_iam_member" "builder_build_submit" {
   project = var.project_id
   role    = "roles/cloudbuild.builds.editor"

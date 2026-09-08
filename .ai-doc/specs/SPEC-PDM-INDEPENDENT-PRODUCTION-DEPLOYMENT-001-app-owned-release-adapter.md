@@ -1,7 +1,7 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
 - 文件成熟度：`v1 RD Implementation Complete；continuous v2 RD Implementation Ready`
-- 狀態：`Human Confirmed / v1 Local QA-QC 12 of 12 PASS / continuous v2 RD Not Started / DEV-012 S2 Gated`
+- 狀態：`Human Confirmed / v1 Local QA-QC 12 of 12 PASS / continuous v2 S1B complete / S1C owner implementation in progress / DEV-012 S2 Gated`
 - 風險等級：High
 - 日期：2026-09-08
 - 來源 ID：`DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
@@ -413,7 +413,7 @@ candidate rebuild、migration order不一致、DEV-116 R02跨candidate拼接、P
 
 ## 20. DEV-012 continuous v2 owner handoff（2026-09-08）
 
-本節是 DEV-117 的歷史continuous v1 authority；現行執行authority為§§21～23。既有 §§1～19 與十二案證據保留為 v1 historical contract；其中 six-stage 人工 dispatch、stage 間手貼 receipt、Product Owner 在 run 中手動 GO、固定 observation wait 與 legacy target不得作為現行可執行解釋。架構來源為 [Platform DEV-012 §§25～26](../../../Jenfu-Platform/ai-doc/specs/DEV-012-three-system-continuous-release-and-boundary-closure.md)，同步時完整文件 SHA-256=`c29974332ae0193bec330870b84a00766c6ae759b7d1522adc4faddc16490c3b`、§25～EOF SHA-256=`8a80235f2d54375738f89741ed93e1c341894113ffba91bfbed3320df8b1548b`。若上游契約 bytes 改變，先重做 direct-doc review，不以模糊相容推論繼續。
+本節是 DEV-117 的歷史continuous v1 authority；現行執行authority為§§21～25。既有 §§1～19 與十二案證據保留為 v1 historical contract；其中 six-stage 人工 dispatch、stage 間手貼 receipt、Product Owner 在 run 中手動 GO、固定 observation wait 與 legacy target不得作為現行可執行解釋。架構來源為 [Platform DEV-012 §§25～28](../../../Jenfu-Platform/ai-doc/specs/DEV-012-three-system-continuous-release-and-boundary-closure.md)，同步時完整文件 SHA-256=`b4ab9cc989962687d9f092b38b2f127879cb92de82bdd4000b5896d7c96d6e20`、§25～EOF SHA-256=`017d058d742a123e13379d3ac378d42c261cff193bc72c3e40f8643a887948fa`。若上游契約 bytes 改變，先重做 direct-doc review，不以模糊相容推論繼續。
 
 ### 20.1 Current v2 outcome and owner boundary
 
@@ -461,3 +461,19 @@ AI-PDM production transport已對齊官方regional Cloud Build operation、Artif
 ## 23. DEV-012 §26 runtime template bridge
 
 AI-PDM continuous v2 candidate不再複製R1-04F的一容器holding template。`runtimeConfigRef`須由`config/release/dev117-ai-pdm-independent-production-v2.json`決定性建立完整`ai-pdm`＋digest-pinned `cloud-sql-proxy`兩容器template，plain environment必須exact complete-set，三個session／workbench Secret只允許own ID與enabled numeric version。Owner build只可將`APPLICATION_IMAGE_DIGEST`替換為本repo immutable digest；holding traffic在candidate建立與0% tag加入後逐項不變。
+
+## 24. DEV-012 §27 production-entry closure owner amendment
+
+AI-PDM official release repository固定為`jedchang0308-jenfu/AI-PDM`、branch=`main`。本owner新增source-freeze／runtime-config／release-intent producer與Workflows internal candidate smoke；producer只讀own clean tree、own profile、own bucket及verified shared receipts，input path固定在own `output/dev-012/inputs`且resolved path不可越界，不依賴Platform／OrgMaster checkout、build或state。Legacy `config/platform/firebase-hosting.production.json`與`jenfu-ai-pdm-prod`保留為rollback asset，不得改指neutral production或當成本次canonical route。
+
+Canonical `pdm.jenfu.com.tw`由DEV-012 shared global HTTPS load balancer穩定路由至`ai-pdm-prod`；ordinary AI-PDM release不得修改shared URL map或sibling backend。Service ingress固定`internal-and-cloud-load-balancing`，candidate由同project own verifier job以ID token存取exact tagged revision；Firebase refresh token只存own numeric Secret version並只授權verifier job讀取，不進GitHub env、runtime env、log或receipt。
+
+本節屬`012-S1C`。完成owner source與tests最多標`S1C owner PASS / S2 Gated`；fresh cost／quota、DNS／TLS、production principal、Secret、native freeze及DEV-116 R02仍由S2／S3取得，不預填PASS。
+
+## 25. DEV-012 §28 executable production-entry amendment（current authority）
+
+AI-PDM owner source現已實作own prerequisite producer、source-frozen Terraform saved-plan gate／executor、完整兩容器runtime config、Workflows internal OIDC candidate smoke及production stage transport。正式source只接受clean、remote-reachable的`jedchang0308-jenfu/AI-PDM@main` exact commit；APP_INFRA_B plan必綁該revision、provider-readback foundation manifest及Artifact Registry immutable controller／migration-runner digests，CLI variable相同不能代替provenance。
+
+Firebase smoke refresh token只以payload存在AI-PDM GCP Secret Manager numeric version與AI-PDM GitHub `production` environment secret：前者僅供candidate Workflows smoke SA讀取，後者僅供owner workflow在activation後執行canonical smoke。Coordinator、builder、deployer、一般runtime、sibling均不得讀payload；source、runtime env、log與receipt不得含值，receipt只記resource reference、numeric version與hash。這項前置由同一identity bootstrap以已驗信Email/Password AAL1、無enrolled MFA且production TOTP provider disabled的readback在cohort dispatch前完成，不在run中要求真人；歷史TOTP相容resolver不構成本次release prerequisite，既有AAL2-only operation仍維持fail closed。
+
+AI-PDM candidate pool固定8，三app current connection denominator為61；本owner只在OrgMaster terminal／canonical／cleanup成功後、Platform之前執行。Fresh Billing固定驗linked projects=5、planned new links=0、TWD3,200 budget與15-row quota；R1 capacity及N1C staging必使用current denominator重證。Local tests最多標`S1C owner PASS / S2 Gated`；production intent仍須等待identity、DNS／TLS、notification、foundation與AI-PDM APP_INFRA_A/B native receipts及`remainingHumanAction=0`。

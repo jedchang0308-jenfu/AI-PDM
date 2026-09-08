@@ -282,9 +282,36 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   }
 
   async function patchService(profile, service, updateMask, deadlineAt) {
-    if (!['template', 'traffic'].includes(updateMask) || service?.name !== `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}` || !service.etag) fail('RUN_MUTATION_INVALID')
+    if (!['template', 'traffic', 'defaultUriDisabled', 'ingress'].includes(updateMask) || service?.name !== `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}` || !service.etag) fail('RUN_MUTATION_INVALID')
     const operation = await request(`https://run.googleapis.com/v2/${service.name}?updateMask=${encodeURIComponent(updateMask)}&allowMissing=false`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(service) })
     return waitOperation(operation, deadlineAt)
+  }
+
+  async function prepareCandidateEndpoint({ profile, deadlineAt }) {
+    const before = await getService(profile)
+    assertServiceSettled(before, 'CANDIDATE_ENDPOINT_BASELINE_INVALID')
+    if (before.defaultUriDisabled === false) {
+      if (before.ingress !== 'INGRESS_TRAFFIC_INTERNAL_ONLY') fail('CANDIDATE_ENDPOINT_BASELINE_INVALID')
+      return before
+    }
+    if (before.ingress !== 'INGRESS_TRAFFIC_INTERNAL_ONLY') fail('CANDIDATE_ENDPOINT_BASELINE_INVALID')
+    await patchService(profile, { name: before.name, etag: before.etag, defaultUriDisabled: false }, 'defaultUriDisabled', deadlineAt)
+    const after = await getService(profile)
+    assertServiceSettled(after, 'CANDIDATE_ENDPOINT_READBACK_MISMATCH')
+    if (after.defaultUriDisabled !== false || after.ingress !== before.ingress || canonicalize(after.template) !== canonicalize(before.template) || canonicalize(after.traffic) !== canonicalize(before.traffic)) fail('CANDIDATE_ENDPOINT_READBACK_MISMATCH')
+    return after
+  }
+
+  async function enableCanonicalIngress({ profile, expectedRevision, deadlineAt }) {
+    const before = await getService(profile)
+    assertServiceSettled(before, 'CANONICAL_INGRESS_BASELINE_INVALID')
+    if (effectiveRevision(before) !== expectedRevision || before.defaultUriDisabled !== false || !['INGRESS_TRAFFIC_INTERNAL_ONLY', 'INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER'].includes(before.ingress)) fail('CANONICAL_INGRESS_BASELINE_INVALID')
+    if (before.ingress === 'INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER') return before
+    await patchService(profile, { name: before.name, etag: before.etag, ingress: 'INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER' }, 'ingress', deadlineAt)
+    const after = await getService(profile)
+    assertServiceSettled(after, 'CANONICAL_INGRESS_READBACK_MISMATCH')
+    if (after.ingress !== 'INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER' || after.defaultUriDisabled !== false || effectiveRevision(after) !== expectedRevision || canonicalize(after.template) !== canonicalize(before.template) || canonicalize(after.traffic) !== canonicalize(before.traffic)) fail('CANONICAL_INGRESS_READBACK_MISMATCH')
+    return after
   }
 
   async function createCandidate({ profile, artifactDigest, runtimeConfig, fingerprint, deadlineAt }) {
@@ -371,6 +398,11 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const mount = container?.volumeMounts?.find((item) => item.name === 'cloudsql')
     if (job.name !== jobName || job.template?.template?.serviceAccount !== profile.migrations.serviceAccount || container?.image !== deployment.migrationRunnerDigest || canonicalize(environment) !== canonicalize(expectedEnvironment) || canonicalize(volume?.cloudSqlInstance?.instances) !== canonicalize([connectionName]) || mount?.mountPath !== '/cloudsql' || job.template?.taskCount !== 1 || job.template?.parallelism !== 1 || job.template?.template?.maxRetries !== 0 || job.template?.template?.timeout !== '1800s') fail('MIGRATION_JOB_READBACK_MISMATCH')
     const args = ['--bundle-ref', deployment.migrationBundleRef.uri, '--bundle-sha256', deployment.migrationBundleRef.sha256, '--source-revision', deployment.sourceRevision, '--output-ref', outputUri]
+    if (profile.productionData?.required === true) {
+      assertImmutableRef(deployment.productionDataRef, profile.artifact.releaseBucket, [profile.productionData.dataObjectPrefix])
+      assertImmutableRef(deployment.firstPrincipalBootstrapRef, profile.artifact.releaseBucket, [profile.productionData.bootstrapObjectPrefix])
+      args.push('--data-ref', deployment.productionDataRef.uri, '--data-sha256', deployment.productionDataRef.sha256, '--bootstrap-ref', deployment.firstPrincipalBootstrapRef.uri, '--bootstrap-sha256', deployment.firstPrincipalBootstrapRef.sha256)
+    }
     const operation = await request(`https://run.googleapis.com/v2/${jobName}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ overrides: { containerOverrides: [{ name: 'migration', args }] } }) })
     const execution = await waitOperation(operation, deadlineAt)
     const executionName = execution.name
@@ -488,6 +520,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   async function runAuthenticatedSmoke({ profile, origin, environment = process.env }) {
     const definition = profile.verification
     const base = new URL(origin)
+    const sessionOrigin = new URL(profile.target?.canonicalOrigin ?? base.origin).origin
     if (base.protocol !== 'https:' || !definition?.refreshTokenEnvironmentName || !definition?.firebaseApiKeyEnvironmentName || !Array.isArray(definition.authenticatedProbes) || !Array.isArray(definition.negativeProbes)) fail('AUTH_SMOKE_PROFILE_INVALID')
     const refreshToken = environment[definition.refreshTokenEnvironmentName]
     const firebaseApiKey = environment[definition.firebaseApiKeyEnvironmentName]
@@ -521,7 +554,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     let response = await call(definition.authModePath)
     if (response.status !== 200) fail('AUTH_SMOKE_MODE_FAILED')
     observations.push({ id: 'auth-mode', status: response.status })
-    response = await call(definition.sessionPath, { method: 'POST', headers: { origin: base.origin, 'content-type': 'application/json' }, body: JSON.stringify({ idToken }) })
+    response = await call(definition.sessionPath, { method: 'POST', headers: { origin: sessionOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ idToken }) })
     const setCookie = response.headers.get('set-cookie')
     if (response.status !== 200 || !setCookie) fail('AUTH_SMOKE_SESSION_FAILED')
     const cookie = setCookie.split(';', 1)[0]
@@ -539,7 +572,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       if (response.status !== probe.expectedStatus) fail('HTTP_SUITE_PROBE_FAILED', probe.id)
       observations.push({ id: probe.id, status: response.status })
     }
-    response = await call(definition.logoutPath, { method: 'POST', headers: { origin: base.origin, cookie, 'content-type': 'application/json' }, body: '{}' })
+    response = await call(definition.logoutPath, { method: 'POST', headers: { origin: sessionOrigin, cookie, 'content-type': 'application/json' }, body: '{}' })
     if (response.status !== 200) fail('AUTH_SMOKE_LOGOUT_FAILED')
     response = await call(definition.mePath, { headers: { cookie } })
     if (response.status !== 401) fail('AUTH_SMOKE_REVOCATION_FAILED')
@@ -547,12 +580,64 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return { origin: base.origin, tokenSource: 'FIREBASE_REFRESH_TOKEN', tokenExpiresInSeconds: expiresIn, observations, status: 'PASS', observedAt: now() }
   }
 
+  async function runInternalCandidateSmoke({ profile, origin, candidateTag, candidateRevision, artifactDigest, deadlineAt, environment = process.env }) {
+    const definition = profile.verification
+    const base = new URL(origin)
+    const firebaseApiKey = environment[definition?.firebaseApiKeyEnvironmentName]
+    if (
+      definition?.candidateSmokeMode !== 'WORKFLOWS_INTERNAL_OIDC_V1' ||
+      !/^[a-z][a-z0-9-]{2,62}$/u.test(definition?.candidateWorkflowName ?? '') ||
+      !/^[a-z][a-z0-9-]{2,254}$/u.test(definition?.candidateRefreshTokenSecretId ?? '') ||
+      base.protocol !== 'https:' || base.pathname !== '/' || base.search || base.hash ||
+      !/^candidate-[a-f0-9]{12}$/u.test(candidateTag ?? '') ||
+      candidateRevision !== `${profile.target.serviceName}-${candidateTag.slice('candidate-'.length)}` ||
+      !artifactDigest?.startsWith(`${profile.artifact.uri}@sha256:`) ||
+      typeof firebaseApiKey !== 'string' || !/^[A-Za-z0-9_-]{20,256}$/u.test(firebaseApiKey) ||
+      !Number.isFinite(Date.parse(deadlineAt))
+    ) fail('INTERNAL_CANDIDATE_SMOKE_PROFILE_INVALID')
+    const workflow = `projects/${profile.target.projectId}/locations/${profile.target.region}/workflows/${definition.candidateWorkflowName}`
+    let execution = await request(`https://workflowexecutions.googleapis.com/v1/${workflow}/executions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ argument: JSON.stringify({
+        ownerApplicationId: profile.application.id,
+        candidateOrigin: base.origin,
+        candidateTag,
+        candidateRevision,
+        artifactDigest,
+        canonicalOrigin: profile.target.canonicalOrigin,
+        firebaseApiKey,
+      }) }),
+    })
+    if (!new RegExp(`^${workflow.replaceAll('/', '\\/')}/executions/[a-z0-9-]+$`, 'u').test(execution?.name ?? '')) fail('INTERNAL_CANDIDATE_SMOKE_EXECUTION_INVALID')
+    while (execution.state === 'ACTIVE') {
+      if (Date.now() >= Date.parse(deadlineAt)) fail('INTERNAL_CANDIDATE_SMOKE_TIMEOUT')
+      await sleep(1000)
+      execution = await request(`https://workflowexecutions.googleapis.com/v1/${execution.name}`)
+    }
+    if (execution.state !== 'SUCCEEDED' || typeof execution.result !== 'string') fail('INTERNAL_CANDIDATE_SMOKE_FAILED', execution.state ?? 'unknown')
+    let result
+    try { result = JSON.parse(execution.result) } catch { fail('INTERNAL_CANDIDATE_SMOKE_RESULT_INVALID') }
+    if (
+      result?.schemaVersion !== 'jenfu.dev012.internal-candidate-smoke.v1' ||
+      result.ownerApplicationId !== profile.application.id ||
+      result.candidateRevision !== candidateRevision ||
+      result.artifactDigest !== artifactDigest ||
+      result.tokenSource !== 'SECRET_MANAGER_EXACT_VERSION' ||
+      result.status !== 'PASS' ||
+      !Array.isArray(result.observations) || result.observations.length !== 6 ||
+      result.observations.some((row) => !row?.id || !Number.isInteger(Number(row.status))) ||
+      /refreshToken|idToken|sessionCookie|firebaseApiKey/iu.test(JSON.stringify(result))
+    ) fail('INTERNAL_CANDIDATE_SMOKE_RESULT_INVALID')
+    return { ...result, origin: base.origin, executionName: execution.name, observedAt: now() }
+  }
+
   async function publishIncident(profile, event) {
     const topic = `${profile.application.id === 'ai-pdm' ? 'aipdm' : profile.application.id}-prod-release-incident`
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  return { request, readBytes, readJson, putBytes, putJson, waitOperation, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, publishIncident, now }
+  return { request, readBytes, readJson, putBytes, putJson, waitOperation, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, prepareCandidateEndpoint, enableCanonicalIngress, createCandidate, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
 export function stageReceipt({ profile, intent, stage, previousReceiptRef = null, facts, observedAt }) {

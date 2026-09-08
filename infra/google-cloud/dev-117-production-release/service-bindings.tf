@@ -22,3 +22,20 @@ resource "google_cloud_run_v2_service_iam_member" "application_verifier" {
   role     = "roles/run.viewer"
   member   = "serviceAccount:${google_service_account.verifier.email}"
 }
+
+
+resource "google_cloud_run_v2_service_iam_member" "application_smoke" {
+  project  = var.project_id
+  location = var.region
+  name     = data.google_cloud_run_v2_service.application.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.smoke.email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "application_load_balancer" {
+  project  = var.project_id
+  location = var.region
+  name     = data.google_cloud_run_v2_service.application.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}

@@ -11,13 +11,19 @@ Owner：Dev PM
 - `.ai-doc/archived/dev_task_legacy_before_pm_cleanup_2026-06-16.md`
 - `.ai-doc/archived/documentation_map_before_pm_governance_restructure_2026-06-30.md`
 
+> **2026-09-08 DEV-012 S1C production-entry correction（current）**：live audit發現owner native
+> source-freeze／runtime-config／release-intent producer與Workflows internal candidate verifier已實作並通過owner QC，
+> S1B-20與S1C owner LOCAL_CONTRACT均已完成；下一步只進S2 fresh provider前置。Official repo固定
+> `jedchang0308-jenfu/AI-PDM@main`；canonical由shared HTTPS LB路由，legacy Firebase Hosting維持rollback asset。
+> Current=`012-S1C owner RD Implementation Complete / LOCAL_CONTRACT PASS / S2 Upfront Prerequisites In Progress`。
+
 > **2026-09-08 DEV-117 continuous v2 owner handoff（current authority）**：DEV-012採
 > `CONTINUOUS_NO_DWELL_V2`，本repo已完成continuous owner implementation，Platform契約SHA-256=
-> `c29974332ae0193bec330870b84a00766c6ae759b7d1522adc4faddc16490c3b`、§25～EOF SHA-256=
-> `8a80235f2d54375738f89741ed93e1c341894113ffba91bfbed3320df8b1548b`。v1的六階段人工dispatch、
+> `b4ab9cc989962687d9f092b38b2f127879cb92de82bdd4000b5896d7c96d6e20`、§25～EOF SHA-256=
+> `017d058d742a123e13379d3ac378d42c261cff193bc72c3e40f8643a887948fa`。v1的六階段人工dispatch、
 > Product Owner run中GO、手貼receipt及固定觀察期改列historical；v2由單一`releaseCapsuleRef`、同一source／
 > artifact、machine activation decision、immediate incident controller與own-only rollback接管。狀態=
-> `continuous v2 Implementation Complete / S1B-20 LOCAL_CONTRACT PASS / DEV-012 S2 Gated`；下一步只依
+> `continuous v2 Implementation Complete / S1B-20與S1C owner LOCAL_CONTRACT PASS / DEV-012 S2 Upfront Prerequisites In Progress`；下一步只依
 > direct spec §§21～22完成fresh provider前置，不得把本機PASS當成正式migration、candidate或traffic證據。
 >
 > **2026-09-07 DEV-117 independent production deployment（v1 historical authority）**：使用者已確認

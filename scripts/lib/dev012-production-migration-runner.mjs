@@ -25,15 +25,25 @@ export function canonicalize(value) {
   return JSON.stringify(value)
 }
 
-export function parseRunnerArgs(argv) {
-  const allowed = new Set(['--bundle-ref', '--bundle-sha256', '--source-revision', '--output-ref'])
+export function parseRunnerArgs(argv, { productionDataRequired = false } = {}) {
+  const required = ['--bundle-ref', '--bundle-sha256', '--source-revision', '--output-ref']
+  const productionData = ['--data-ref', '--data-sha256', '--bootstrap-ref', '--bootstrap-sha256']
+  const allowed = new Set([...required, ...productionData])
   const value = {}
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index]
-    if (!allowed.has(key) || !argv[index + 1]) fail('MIGRATION_ARGUMENT_INVALID', key)
+    if (!allowed.has(key) || !argv[index + 1] || value[key.slice(2).replace(/-([a-z])/gu, (_, letter) => letter.toUpperCase())]) fail('MIGRATION_ARGUMENT_INVALID', key)
     value[key.slice(2).replace(/-([a-z])/gu, (_, letter) => letter.toUpperCase())] = argv[index + 1]
   }
-  if (Object.keys(value).length !== 4 || !H64.test(value.bundleSha256 ?? '') || !H40.test(value.sourceRevision ?? '')) fail('MIGRATION_ARGUMENT_INVALID')
+  const hasProductionData = productionData.every((key) => value[key.slice(2).replace(/-([a-z])/gu, (_, letter) => letter.toUpperCase())])
+  const hasPartialProductionData = productionData.some((key) => value[key.slice(2).replace(/-([a-z])/gu, (_, letter) => letter.toUpperCase())])
+  if (
+    required.some((key) => !value[key.slice(2).replace(/-([a-z])/gu, (_, letter) => letter.toUpperCase())]) ||
+    !H64.test(value.bundleSha256 ?? '') || !H40.test(value.sourceRevision ?? '') ||
+    hasPartialProductionData !== hasProductionData || productionDataRequired !== hasProductionData ||
+    (hasProductionData && (!H64.test(value.dataSha256 ?? '') || !H64.test(value.bootstrapSha256 ?? ''))) ||
+    Object.keys(value).length !== (hasProductionData ? 8 : 4)
+  ) fail('MIGRATION_ARGUMENT_INVALID')
   return value
 }
 

@@ -93,6 +93,14 @@ resource "google_cloud_run_v2_job" "migration" {
           instances = [var.cloud_sql_connection_name]
         }
       }
+
+      vpc_access {
+        egress = "ALL_TRAFFIC"
+        network_interfaces {
+          network    = "jenfu-platform-prod-vpc"
+          subnetwork = "jenfu-platform-prod-runtime"
+        }
+      }
     }
   }
 }

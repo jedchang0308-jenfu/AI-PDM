@@ -58,18 +58,20 @@ variable "workload_identity_pool_id" {
 }
 
 variable "github_repository_id" {
-  type = string
+  type    = string
+  default = "1260972060"
   validation {
-    condition     = can(regex("^[0-9]+$", var.github_repository_id))
-    error_message = "Use provider-readback numeric repository id."
+    condition     = var.github_repository_id == "1260972060"
+    error_message = "Use the provider-readback AI-PDM repository id."
   }
 }
 
 variable "github_repository_owner_id" {
-  type = string
+  type    = string
+  default = "257207597"
   validation {
-    condition     = can(regex("^[0-9]+$", var.github_repository_owner_id))
-    error_message = "Use provider-readback numeric owner id."
+    condition     = var.github_repository_owner_id == "257207597"
+    error_message = "Use the provider-readback GitHub owner id."
   }
 }
 
@@ -128,5 +130,35 @@ variable "approved_notification_email" {
   validation {
     condition     = !var.incident_runtime_enabled || (var.approved_notification_email != null && length(var.approved_notification_email) > 3)
     error_message = "APP_INFRA_B requires the approved notification destination."
+  }
+}
+
+
+variable "candidate_smoke_refresh_token_secret_version" {
+  description = "Exact numeric Secret Manager version for the production smoke principal Firebase refresh token."
+  type        = string
+  nullable    = true
+  default     = null
+  validation {
+    condition     = !var.incident_runtime_enabled || can(regex("^[1-9][0-9]*$", coalesce(var.candidate_smoke_refresh_token_secret_version, "")))
+    error_message = "APP_INFRA_B requires the exact numeric candidate-smoke refresh-token Secret version."
+  }
+}
+
+variable "source_revision" {
+  description = "Exact clean AI-PDM source revision bound into this app-owned plan and state."
+  type        = string
+  validation {
+    condition     = can(regex("^[a-f0-9]{40}$", var.source_revision))
+    error_message = "APP_INFRA requires an exact 40-character source revision."
+  }
+}
+
+variable "foundation_manifest_sha256" {
+  description = "SHA-256 of the provider-readback DEV-012 foundation manifest consumed by this plan."
+  type        = string
+  validation {
+    condition     = can(regex("^[a-f0-9]{64}$", var.foundation_manifest_sha256))
+    error_message = "APP_INFRA requires the exact foundation manifest SHA-256."
   }
 }
