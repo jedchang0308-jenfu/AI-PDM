@@ -5,6 +5,7 @@ import { buildAiPdmPackage } from './dev010-n1c-ai-pdm-package.mjs'
 import { LEGACY_STRICT_VALIDATORS, assertDev117ContinuousProfile, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117WorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
 
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
+const readText = (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
 const v2 = read('config/release/dev117-ai-pdm-independent-production-v2.json')
 const v1 = read('config/release/dev117-ai-pdm-independent-production.json')
 const n1c = read('config/platform/dev-010-n1c-ai-pdm.json')
@@ -42,4 +43,14 @@ test('S1B-20 AI-PDM DEV-116 exact candidate join', () => {
   const join = { sourceLock: { environment: 'production' }, artifact: { evidenceScope: 'PROVIDER' }, candidate: { revision: 'candidate-1' }, dev116R02: { schemaVersion: v2.dependencies.dev116ReceiptSchema, candidateRevision: 'candidate-1' }, machineDecision: { decision: 'GO' }, activation: { revision: 'candidate-1' }, canonical: { revision: 'candidate-1' } }
   assert.equal(assertDev117NativeJoin(join, v2), true)
   assert.throws(() => assertDev117NativeJoin({ ...join, dev116R02: { ...join.dev116R02, candidateRevision: 'other' } }, v2), /do not join/)
+})
+
+test('S1B-20 AI-PDM production login contains no application TOTP flow', () => {
+  const clientAuth = readText('src/lib/firebase-client-auth.ts')
+  const loginPage = readText('src/app/login/page.tsx')
+  const styles = readText('src/app/globals.css')
+  assert.match(clientAuth, /signInWithEmailAndPassword/u)
+  assert.doesNotMatch(clientAuth, /TotpMultiFactorGenerator|getMultiFactorResolver|totp_required/u)
+  assert.doesNotMatch(loginPage, /completeFirebaseTotp|totpChallenge|totpCode/u)
+  assert.doesNotMatch(styles, /\.totp-enrollment-/u)
 })

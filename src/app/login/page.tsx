@@ -2,17 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { KeyRound, LockKeyhole, LogIn, ShieldCheck, X } from "lucide-react";
+import { KeyRound, LockKeyhole, LogIn, X } from "lucide-react";
 import type { AuthMode, FirebaseWebConfig } from "@/lib/auth-config";
 import { LOCAL_QUICK_LOGIN_ACCOUNTS, type LocalQuickLoginAccount } from "@/lib/local-quick-login-config";
 import {
-  completeFirebaseTotp,
   exchangeFirebaseBffSession,
   firebaseLoginErrorMessage,
   signInFirebaseGoogle,
   signInFirebasePassword,
-  type FirebaseSignInResult,
-  type FirebaseTotpChallenge
+  type FirebaseSignInResult
 } from "@/lib/firebase-client-auth";
 
 type FirebaseAuthenticatedResult = Extract<FirebaseSignInResult, { kind: "authenticated" }>;
@@ -56,13 +54,10 @@ const googleErrorMessages: Record<string, string> = {
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [totpCode, setTotpCode] = useState("");
-  const [totpChallenge, setTotpChallenge] = useState<FirebaseTotpChallenge | null>(null);
-  const [pendingLoginIntentToken, setPendingLoginIntentToken] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loginOperation, setLoginOperation] = useState<"google" | "password" | "totp" | null>(null);
+  const [loginOperation, setLoginOperation] = useState<"google" | "password" | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const [firebaseConfig, setFirebaseConfig] = useState<FirebaseWebConfig | null>(null);
@@ -160,14 +155,6 @@ export default function LoginPage() {
   }
 
   async function finishFirebaseSignIn(result: FirebaseSignInResult, loginIntentToken = "") {
-    if (result.kind === "totp_required") {
-      setTotpChallenge(result.challenge);
-      setPendingLoginIntentToken(loginIntentToken);
-      setTotpCode("");
-      setLoading(false);
-      setLoginOperation(null);
-      return;
-    }
     await finishFirebaseBffLogin(result.user, result.auth, loginIntentToken);
   }
 
@@ -180,22 +167,6 @@ export default function LoginPage() {
       loginIntentToken: loginIntentToken || undefined
     });
     if (exchange.kind === "authenticated") window.location.href = loginReturnTo();
-  }
-
-  async function submitTotp(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!totpChallenge) return;
-    setLoading(true);
-    setLoginOperation("totp");
-    setError("");
-    try {
-      const result = await completeFirebaseTotp(totpChallenge, totpCode);
-      await finishFirebaseBffLogin(result.user, result.auth, pendingLoginIntentToken);
-    } catch (firebaseError) {
-      setError(firebaseLoginErrorMessage(firebaseError));
-      setLoading(false);
-      setLoginOperation(null);
-    }
   }
 
   async function submitGoogle() {
@@ -255,7 +226,7 @@ export default function LoginPage() {
           <p>{authMode === "demo" ? "請使用測試帳號登入，依角色權限檢視系統。" : "請使用公司帳號登入；若尚未有帳號，請向系統管理員索取邀請連結。"}</p>
         </div>
 
-        {localQuickLoginEnabled && authMode !== "firebase_bff" && !totpChallenge ? (
+        {localQuickLoginEnabled && authMode !== "firebase_bff" ? (
           <div className="local-quick-login-card" aria-label="地端快速登入">
             <div className="local-quick-login-heading">
               <span>地端快速登入</span>
@@ -324,7 +295,7 @@ export default function LoginPage() {
           </div>
         </div> : null}
 
-        {authMode !== "demo" && !totpChallenge ? (
+        {authMode !== "demo" ? (
           <div className="google-auth-choice">
             {googleOAuthEnabled ? (
               authMode === "firebase_bff" ? (
@@ -364,73 +335,41 @@ export default function LoginPage() {
           </div>
         ) : null}
 
-        <form onSubmit={totpChallenge ? submitTotp : submit} className="login-form">
-          {totpChallenge ? (
+        <form onSubmit={submit} className="login-form">
+          <>
             <label>
-              驗證碼
+              {authMode === "firebase_bff" ? "公司電子郵件或工號" : "電子郵件"}
               <input
-                value={totpCode}
-                onChange={(event) => setTotpCode(event.target.value.replace(/\D/gu, "").slice(0, 8))}
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="請輸入驗證碼"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                type={authMode === "firebase_bff" ? "text" : "email"}
+                placeholder={authMode === "firebase_bff" ? "name@company.com 或工號" : "you@company.com"}
+                autoComplete={authMode === "firebase_bff" ? "username" : "email"}
                 required
-                autoFocus
               />
             </label>
-          ) : (
-            <>
+            {employeeAliasLogin ? (
+              <small className="login-provider-note">工號只用來找到公司帳號；密碼與驗證由公司身分服務處理，AI PDM 不會保存。</small>
+            ) : (
               <label>
-                {authMode === "firebase_bff" ? "公司電子郵件或工號" : "電子郵件"}
+                密碼
                 <input
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  type={authMode === "firebase_bff" ? "text" : "email"}
-                  placeholder={authMode === "firebase_bff" ? "name@company.com 或工號" : "you@company.com"}
-                  autoComplete={authMode === "firebase_bff" ? "username" : "email"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  type="password"
+                  placeholder="請輸入密碼"
+                  autoComplete="current-password"
                   required
                 />
               </label>
-              {employeeAliasLogin ? (
-                <small className="login-provider-note">工號只用來找到公司帳號；密碼與驗證由公司身分服務處理，AI PDM 不會保存。</small>
-              ) : (
-                <label>
-                  密碼
-                  <input
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    type="password"
-                    placeholder="請輸入密碼"
-                    autoComplete="current-password"
-                    required
-                  />
-                </label>
-              )}
-            </>
-          )}
+            )}
+          </>
           {notice ? <div className="form-success" role="status">{notice}</div> : null}
           {error ? <div className="form-error">{error}</div> : null}
           <button className="primary-button" disabled={loading} type="submit">
-            {totpChallenge ? <ShieldCheck size={16} aria-hidden="true" /> : <LogIn size={16} aria-hidden="true" />}
-            {loading ? "處理中..." : totpChallenge ? "驗證" : employeeAliasLogin ? "繼續公司帳號驗證" : "登入"}
+            <LogIn size={16} aria-hidden="true" />
+            {loading ? "處理中..." : employeeAliasLogin ? "繼續公司帳號驗證" : "登入"}
           </button>
-          {totpChallenge ? (
-            <button
-              className="secondary-button"
-              disabled={loading}
-              type="button"
-              onClick={() => {
-                  setTotpChallenge(null);
-                  setPendingLoginIntentToken("");
-                  setTotpCode("");
-                  setError("");
-                  setLoginOperation(null);
-                }}
-            >
-              返回其他登入方式
-            </button>
-          ) : null}
         </form>
         <div className="login-help-footer">
           <Link href="/account-recovery/request">忘記密碼</Link>

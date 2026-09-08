@@ -3,9 +3,7 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   GoogleAuthProvider,
-  TotpMultiFactorGenerator,
   getAuth,
-  getMultiFactorResolver,
   inMemoryPersistence,
   isSignInWithEmailLink,
   setPersistence,
@@ -15,21 +13,11 @@ import {
   signOut,
   updatePassword,
   type Auth,
-  type MultiFactorInfo,
-  type MultiFactorResolver,
   type User
 } from "firebase/auth";
 import type { FirebaseWebConfig } from "@/lib/auth-config";
 
-export type FirebaseTotpChallenge = {
-  auth: Auth;
-  resolver: MultiFactorResolver;
-  hint: MultiFactorInfo;
-};
-
-export type FirebaseSignInResult =
-  | { kind: "authenticated"; user: User; auth: Auth }
-  | { kind: "totp_required"; challenge: FirebaseTotpChallenge };
+export type FirebaseSignInResult = { kind: "authenticated"; user: User; auth: Auth };
 
 export class FirebaseBffExchangeError extends Error {
   constructor(
@@ -57,40 +45,21 @@ async function prepare(config: FirebaseWebConfig) {
   return auth;
 }
 
-function totpChallenge(auth: Auth, error: unknown): FirebaseTotpChallenge | null {
-  if (errorCode(error) !== "auth/multi-factor-auth-required") return null;
-  const resolver = getMultiFactorResolver(auth, error as Parameters<typeof getMultiFactorResolver>[1]);
-  const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID);
-  return hint ? { auth, resolver, hint } : null;
-}
-
-async function captureTotp(auth: Auth, operation: () => Promise<{ user: User }>): Promise<FirebaseSignInResult> {
-  try {
-    const credential = await operation();
-    return { kind: "authenticated", user: credential.user, auth };
-  } catch (error) {
-    const challenge = totpChallenge(auth, error);
-    if (challenge) return { kind: "totp_required", challenge };
-    throw error;
-  }
+async function authenticate(auth: Auth, operation: () => Promise<{ user: User }>): Promise<FirebaseSignInResult> {
+  const credential = await operation();
+  return { kind: "authenticated", user: credential.user, auth };
 }
 
 export async function signInFirebasePassword(config: FirebaseWebConfig, email: string, password: string) {
   const auth = await prepare(config);
-  return captureTotp(auth, () => signInWithEmailAndPassword(auth, email, password));
+  return authenticate(auth, () => signInWithEmailAndPassword(auth, email, password));
 }
 
 export async function signInFirebaseGoogle(config: FirebaseWebConfig) {
   const auth = await prepare(config);
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  return captureTotp(auth, () => signInWithPopup(auth, provider));
-}
-
-export async function completeFirebaseTotp(challenge: FirebaseTotpChallenge, code: string) {
-  const assertion = TotpMultiFactorGenerator.assertionForSignIn(challenge.hint.uid, code.trim());
-  const credential = await challenge.resolver.resolveSignIn(assertion);
-  return { kind: "authenticated", user: credential.user, auth: challenge.auth } as const;
+  return authenticate(auth, () => signInWithPopup(auth, provider));
 }
 
 export async function completeFirebaseEmailLinkInvitation(

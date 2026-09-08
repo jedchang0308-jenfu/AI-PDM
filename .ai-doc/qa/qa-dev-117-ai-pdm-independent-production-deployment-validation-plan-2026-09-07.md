@@ -224,9 +224,9 @@ error與data sanity；任何意外空資料或全零critical counter都視為FAI
 
 ## 12. DEV-012 continuous v2 validation amendment（current）
 
-舊 QA-117-001..012 與其 six-stage workflow證據保留為 v1 historical denominator，不得用來宣稱 v2 continuous release已完成。v2 owner主案例為 Platform DEV-012 QA 的 `S1B-20`，並共同接受 `S1B-01～06／08～18／22～24` 中與 AI_PDM owner slice有關的正負 oracle；上游完整文件 SHA-256=`b4ab9cc989962687d9f092b38b2f127879cb92de82bdd4000b5896d7c96d6e20`、§25～EOF SHA-256=`017d058d742a123e13379d3ac378d42c261cff193bc72c3e40f8643a887948fa`。
+舊 QA-117-001..012 與其 six-stage workflow證據保留為 v1 historical denominator，不得用來宣稱 v2 continuous release已完成。v2 owner主案例為 Platform DEV-012 QA 的 `S1B-20`，並共同接受 `S1B-01～06／08～18／22～24` 中與 AI_PDM owner slice有關的正負 oracle；上游完整文件 SHA-256=`8cfda8b9ce29d5c5f03cd7e240a7adb0c20c51f4a2336d2c6ad3dde3119e838b`、§25～EOF SHA-256=`f3165d43eb703a67894f279e4026fdc17d416c0f78df4ff874999fce52d4296f`。
 
-S1B-20 必須同時證明：continuous v2 保留 v1 strict validator；exact neutral target與pool8；current 14-entry ordered migration分類／checksum；DEV-116 R02 exact native join；single-capsule workflow沒有 stage／approve／skip／receipt輸入；同 fingerprint不重 build；own registry／bucket／service／state／OIDC／IAM deny；abort controller在重送、crash前後、412與 unknown outcome 下只回復 own exact revision。禁止修改 DEV-116 producer、使用 company-jenfu、漏 migration、把六段人工 GO 或 local fixture冒充 production。
+S1B-20 必須同時證明：continuous v2 保留 v1 strict validator；exact neutral target與pool8；current 14-entry ordered migration分類／checksum；DEV-116 R02 exact native join；Email/Password登入不含TOTP enrollment、challenge UI或client resolver；single-capsule workflow沒有 stage／approve／skip／receipt輸入；同 fingerprint不重 build；own registry／bucket／service／state／OIDC／IAM deny；abort controller在重送、crash前後、412與 unknown outcome 下只回復 own exact revision。禁止修改 DEV-116 producer、使用 company-jenfu、漏 migration、殘留TOTP登入分支、把六段人工 GO 或 local fixture冒充 production。
 
 固定 owner commands為：
 

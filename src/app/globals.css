@@ -6390,65 +6390,6 @@ tr.selected-row td:first-child {
   padding: 0 10px;
 }
 
-.totp-enrollment-step {
-  display: grid;
-  gap: 12px;
-}
-
-.totp-enrollment-heading {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  border: 1px solid #a6d5cf;
-  border-radius: 6px;
-  padding: 10px;
-  background: #f0fdfa;
-  color: #115e59;
-}
-
-.totp-enrollment-heading svg {
-  flex: 0 0 auto;
-  margin-top: 1px;
-}
-
-.totp-enrollment-heading div {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.totp-enrollment-heading span {
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.totp-secret-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 36px;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.totp-secret-row code {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 36px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 7px 9px;
-  background: #f8fafc;
-  color: var(--text);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-  user-select: all;
-}
-
-.totp-secret-row .icon-button {
-  width: 36px;
-  min-height: 36px;
-}
-
 .auth-method-divider {
   display: grid;
   grid-template-columns: 1fr auto 1fr;

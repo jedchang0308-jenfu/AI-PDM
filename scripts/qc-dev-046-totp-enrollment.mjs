@@ -13,19 +13,24 @@ const cloudRunContract = fs.readFileSync("config/platform/cloud-run.contract.jso
 
 const checks = [
   {
-    name: "Login no longer starts AI_PDM TOTP enrollment",
+    name: "Login contains no AI_PDM TOTP enrollment or challenge flow",
     passed:
       !loginPage.includes("設定雙重驗證") &&
       !loginPage.includes("totpEnrollment") &&
       !loginPage.includes("Google Authenticator") &&
-      !loginPage.includes("完成設定並登入")
+      !loginPage.includes("完成設定並登入") &&
+      !loginPage.includes("completeFirebaseTotp") &&
+      !loginPage.includes("totpChallenge")
   },
   {
-    name: "Client auth no longer generates or enrolls TOTP secrets",
+    name: "Client auth has no TOTP enrollment or challenge implementation",
     passed:
       !clientAuth.includes("generateSecret") &&
       !clientAuth.includes("assertionForEnrollment") &&
-      !clientAuth.includes("multiFactor(enrollment.user).enroll")
+      !clientAuth.includes("multiFactor(enrollment.user).enroll") &&
+      !clientAuth.includes("TotpMultiFactorGenerator") &&
+      !clientAuth.includes("getMultiFactorResolver") &&
+      !clientAuth.includes('kind: "totp_required"')
   },
   {
     name: "BFF no longer converts privileged assurance failures into enrollment state",
