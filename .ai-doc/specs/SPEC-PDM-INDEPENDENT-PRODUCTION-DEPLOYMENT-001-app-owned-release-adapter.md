@@ -472,7 +472,7 @@ Canonical `pdm.jenfu.com.tw`由DEV-012 shared global HTTPS load balancer穩定�
 
 ## 25. DEV-012 §28 executable production-entry amendment（current authority）
 
-AI-PDM owner source現已實作own prerequisite producer、source-frozen Terraform saved-plan gate／executor、完整兩容器runtime config、Workflows internal OIDC candidate smoke及production stage transport。正式source只接受clean、remote-reachable的`jedchang0308-jenfu/AI-PDM@main` exact commit；APP_INFRA_B plan必綁該revision、provider-readback foundation manifest及Artifact Registry immutable controller／migration-runner digests，CLI variable相同不能代替provenance。
+AI-PDM owner source現已實作own prerequisite producer、source-frozen Terraform saved-plan gate／executor、完整兩容器runtime config、Workflows internal OIDC candidate smoke及production stage transport。正式source只接受clean、remote-reachable的`jedchang0308-jenfu/AI-PDM@main` exact commit；`.gitattributes`固定將tracked historical `output/`標為`export-ignore`，保留repository evidence但禁止把約1.1 GiB歷史輸出送入production source archive。APP_INFRA_B plan必綁該revision、provider-readback foundation manifest及Artifact Registry immutable controller／migration-runner digests，CLI variable相同不能代替provenance。
 
 Firebase smoke refresh token只以payload存在AI-PDM GCP Secret Manager numeric version與AI-PDM GitHub `production` environment secret：前者僅供candidate Workflows smoke SA讀取，後者僅供owner workflow在activation後執行canonical smoke。Coordinator、builder、deployer、一般runtime、sibling均不得讀payload；source、runtime env、log與receipt不得含值，receipt只記resource reference、numeric version與hash。這項前置由同一identity bootstrap以已驗信Email/Password AAL1、無enrolled MFA且production TOTP provider disabled的readback在cohort dispatch前完成，不在run中要求真人；歷史TOTP相容resolver不構成本次release prerequisite，既有AAL2-only operation仍維持fail closed。
 
