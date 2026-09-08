@@ -13,6 +13,7 @@
     "data.google_secret_manager_secret.controller_github_token",
     "google_artifact_registry_repository.release",
     "google_storage_bucket.release",
+    "google_storage_bucket_iam_member.builder_bucket_viewer",
     "google_storage_bucket_iam_member.release_coordinator_receipts_viewer",
     "google_storage_bucket_iam_member.builder[\"source_creator\"]",
     "google_storage_bucket_iam_member.builder[\"source_viewer\"]",

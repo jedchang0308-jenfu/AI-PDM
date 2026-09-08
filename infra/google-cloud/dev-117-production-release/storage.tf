@@ -26,6 +26,12 @@ resource "google_storage_bucket_iam_member" "builder" {
   }
 }
 
+resource "google_storage_bucket_iam_member" "builder_bucket_viewer" {
+  bucket = google_storage_bucket.release.name
+  role   = "roles/storage.bucketViewer"
+  member = "serviceAccount:${google_service_account.builder.email}"
+}
+
 resource "google_storage_bucket_iam_member" "deployer" {
   for_each = {
     control_user     = { role = "roles/storage.objectUser", prefix = local.control_prefix }
