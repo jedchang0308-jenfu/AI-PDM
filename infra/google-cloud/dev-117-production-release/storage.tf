@@ -15,6 +15,7 @@ resource "google_storage_bucket_iam_member" "builder" {
     source_viewer    = { role = "roles/storage.objectViewer", prefix = local.source_prefix }
     logs_creator     = { role = "roles/storage.objectCreator", prefix = local.logs_prefix }
     logs_viewer      = { role = "roles/storage.objectViewer", prefix = local.logs_prefix }
+    logs_admin       = { role = "roles/storage.objectAdmin", prefix = local.logs_prefix }
     receipts_creator = { role = "roles/storage.objectCreator", prefix = local.receipt_prefix }
     receipts_viewer  = { role = "roles/storage.objectViewer", prefix = local.receipt_prefix }
   }
