@@ -20,8 +20,8 @@ Owner：Dev PM
 
 > **2026-09-08 DEV-117 continuous v2 owner handoff（current authority）**：DEV-012採
 > `CONTINUOUS_NO_DWELL_V2`，本repo已完成continuous owner implementation，Platform契約SHA-256=
-> `8cfda8b9ce29d5c5f03cd7e240a7adb0c20c51f4a2336d2c6ad3dde3119e838b`、§25～EOF SHA-256=
-> `f3165d43eb703a67894f279e4026fdc17d416c0f78df4ff874999fce52d4296f`。v1的六階段人工dispatch、
+> `a1bff69cc3f54775fb193c6fb0ba2d2ce6a89e89f7e4aa4edc0433c6780211c1`、§25～EOF SHA-256=
+> `52eca43d8e09505ae8ca9f9c90b1fa9286143898b738825ea5485b589acae5b2`。v1的六階段人工dispatch、
 > Product Owner run中GO、手貼receipt及固定觀察期改列historical；v2由單一`releaseCapsuleRef`、同一source／
 > artifact、machine activation decision、immediate incident controller與own-only rollback接管。狀態=
 > `continuous v2 Implementation Complete / S1B-20與S1C owner LOCAL_CONTRACT PASS / DEV-012 S2 Upfront Prerequisites In Progress`；下一步只依

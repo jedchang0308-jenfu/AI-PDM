@@ -255,7 +255,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
 
   function assertServiceSettled(service, code = 'RUN_SERVICE_NOT_SETTLED') {
     if (
-      service?.reconciling !== false ||
+      service?.reconciling === true ||
       service?.terminalCondition?.state !== 'CONDITION_SUCCEEDED' ||
       service?.generation == null ||
       service?.observedGeneration == null ||
@@ -318,7 +318,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     if (!artifactDigest.startsWith(`${profile.artifact.uri}@sha256:`) || !H64.test(fingerprint)) fail('CANDIDATE_INPUT_INVALID')
     const before = await getService(profile)
     assertServiceSettled(before, 'CANDIDATE_BASELINE_INVALID')
-    if (before.reconciling !== false || !before.etag || !Array.isArray(before.traffic) || before.traffic.some((row) => row.latestRevision === true || row.tag)) fail('CANDIDATE_BASELINE_INVALID')
+    if (before.reconciling === true || !before.etag || !Array.isArray(before.traffic) || before.traffic.some((row) => row.latestRevision === true || row.tag)) fail('CANDIDATE_BASELINE_INVALID')
     const candidateRevision = `${profile.target.serviceName}-${fingerprint.slice(0, 12)}`
     const template = assertRuntimeConfig(profile, runtimeConfig)
     template.revision = candidateRevision

@@ -413,7 +413,7 @@ candidate rebuild、migration order不一致、DEV-116 R02跨candidate拼接、P
 
 ## 20. DEV-012 continuous v2 owner handoff（2026-09-08）
 
-本節是 DEV-117 的歷史continuous v1 authority；現行執行authority為§§21～25。既有 §§1～19 與十二案證據保留為 v1 historical contract；其中 six-stage 人工 dispatch、stage 間手貼 receipt、Product Owner 在 run 中手動 GO、固定 observation wait 與 legacy target不得作為現行可執行解釋。架構來源為 [Platform DEV-012 §§25～28](../../../Jenfu-Platform/ai-doc/specs/DEV-012-three-system-continuous-release-and-boundary-closure.md)，同步時完整文件 SHA-256=`8cfda8b9ce29d5c5f03cd7e240a7adb0c20c51f4a2336d2c6ad3dde3119e838b`、§25～EOF SHA-256=`f3165d43eb703a67894f279e4026fdc17d416c0f78df4ff874999fce52d4296f`。若上游契約 bytes 改變，先重做 direct-doc review，不以模糊相容推論繼續。
+本節是 DEV-117 的歷史continuous v1 authority；現行執行authority為§§21～25。既有 §§1～19 與十二案證據保留為 v1 historical contract；其中 six-stage 人工 dispatch、stage 間手貼 receipt、Product Owner 在 run 中手動 GO、固定 observation wait 與 legacy target不得作為現行可執行解釋。架構來源為 [Platform DEV-012 §§25～28](../../../Jenfu-Platform/ai-doc/specs/DEV-012-three-system-continuous-release-and-boundary-closure.md)，同步時完整文件 SHA-256=`a1bff69cc3f54775fb193c6fb0ba2d2ce6a89e89f7e4aa4edc0433c6780211c1`、§25～EOF SHA-256=`52eca43d8e09505ae8ca9f9c90b1fa9286143898b738825ea5485b589acae5b2`。若上游契約 bytes 改變，先重做 direct-doc review，不以模糊相容推論繼續。
 
 ### 20.1 Current v2 outcome and owner boundary
 

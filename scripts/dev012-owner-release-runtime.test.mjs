@@ -129,6 +129,8 @@ test('Cloud Run service readback requires a reconciled successful observed gener
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async () => json({}) })
   const settled = { reconciling: false, generation: '8', observedGeneration: '8', terminalCondition: { state: 'CONDITION_SUCCEEDED' } }
   assert.equal(transport.assertServiceSettled(settled), settled)
+  const omittedFalse = { ...settled }; delete omittedFalse.reconciling
+  assert.equal(transport.assertServiceSettled(omittedFalse), omittedFalse)
   assert.throws(() => transport.assertServiceSettled({ ...settled, observedGeneration: '7' }), /RUN_SERVICE_NOT_SETTLED/u)
   assert.throws(() => transport.assertServiceSettled({ ...settled, terminalCondition: { state: 'CONDITION_FAILED' } }), /RUN_SERVICE_NOT_SETTLED/u)
 })
