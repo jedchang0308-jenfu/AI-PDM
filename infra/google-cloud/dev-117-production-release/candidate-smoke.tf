@@ -52,9 +52,25 @@ resource "google_workflows_workflow" "candidate_smoke" {
               - artifact_digest: $${map.get(args, "artifactDigest")}
               - canonical_origin: $${map.get(args, "canonicalOrigin")}
               - firebase_api_key: $${map.get(args, "firebaseApiKey")}
-        - validate_target:
+        - validate_owner_and_canonical:
             switch:
-              - condition: $${owner_app != "${local.app}" or canonical_origin != "https://pdm.jenfu.com.tw" or not(text.match_regex(candidate_tag, "^candidate-[a-f0-9]{12}$")) or not(text.match_regex(candidate_revision, "^ai-pdm-prod-[a-f0-9]{12}$")) or not(text.match_regex(artifact_digest, "${local.candidate_smoke_image_pattern}")) or not(text.match_regex(candidate_origin, "^https://" + candidate_tag + "---ai-pdm-prod-[a-z0-9-]+\\.a\\.run\\.app$")) or not(text.match_regex(firebase_api_key, "^[A-Za-z0-9_-]{20,256}$"))}
+              - condition: $${owner_app != "${local.app}" or canonical_origin != "https://ai-pdm-prod-9536592944.asia-east1.run.app"}
+                next: reject_target
+        - validate_candidate_identity:
+            switch:
+              - condition: $${not(text.match_regex(candidate_tag, "^candidate-[a-f0-9]{12}$")) or not(text.match_regex(candidate_revision, "^ai-pdm-prod-[a-f0-9]{12}$"))}
+                next: reject_target
+        - validate_artifact:
+            switch:
+              - condition: $${not(text.match_regex(artifact_digest, "${local.candidate_smoke_image_pattern}"))}
+                next: reject_target
+        - validate_candidate_origin:
+            switch:
+              - condition: $${not(text.match_regex(candidate_origin, "^https://" + candidate_tag + "---ai-pdm-prod-[a-z0-9-]+[.]a[.]run[.]app$"))}
+                next: reject_target
+        - validate_firebase_key:
+            switch:
+              - condition: $${not(text.match_regex(firebase_api_key, "^[A-Za-z0-9_-]{20,256}$"))}
                 next: reject_target
         - read_refresh_token:
             call: googleapis.secretmanager.v1.projects.secrets.versions.accessString

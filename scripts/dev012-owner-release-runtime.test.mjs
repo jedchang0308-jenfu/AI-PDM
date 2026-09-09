@@ -374,7 +374,7 @@ test('internal candidate smoke executes only the app-owned Workflow and returns 
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl, sleep: async () => undefined })
   const smokeProfile = {
     application: { id: 'platform' },
-    target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'jenfu-platform-prod', canonicalOrigin: 'https://manage.jenfu.com.tw' },
+    target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'jenfu-platform-prod', canonicalOrigin: 'https://jenfu-platform-prod-9536592944.asia-east1.run.app' },
     artifact: { uri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform' },
     verification: {
       firebaseApiKeyEnvironmentName: 'FIREBASE_API_KEY',
