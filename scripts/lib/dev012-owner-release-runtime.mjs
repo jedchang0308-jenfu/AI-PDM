@@ -513,7 +513,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const args = ['build', '--pull=false', '--no-cache', '--file', profile.build.dockerfile, '--target', profile.build.dockerTarget, '--build-arg', `SOURCE_REVISION=${intent.sourceRevision}`, '--build-arg', `SOURCE_TREE=${intent.sourceSha256}`, '--build-arg', 'SOURCE_CREATED_AT=1970-01-01T00:00:00Z', '--build-arg', `SOURCE_VERSION=${intent.releaseId}`, '--build-arg', 'SOURCE_STATE=frozen', '--tag', tag, '.']
     const body = {
       source: { storageSource: { bucket: parsed.bucket, object: parsed.object, generation: String(sourceObject.metadata.generation) } },
-      steps: [{ name: profile.build.dockerBuilderImage, args }],
+      steps: [{ name: profile.build.dockerBuilderImage, dir: 'source', args }],
       images: [tag],
       timeout: '1800s',
       queueTtl: '300s',

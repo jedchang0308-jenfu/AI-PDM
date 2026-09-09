@@ -51,6 +51,7 @@ test('Cloud Build uses the regional operation API, pinned builder, exact source 
   assert.equal(result.artifactDigest, `${profile.artifact.uri}@sha256:${H64}`)
   assert.match(seen[1].url, /^https:\/\/cloudbuild\.googleapis\.com\/v1\/projects\//u)
   assert.equal(seen[0].body.steps[0].name, profile.build.dockerBuilderImage)
+  assert.equal(seen[0].body.steps[0].dir, 'source')
   assert.equal(seen[0].body.source.storageSource.generation, '9')
 })
 
