@@ -10,7 +10,7 @@ import { createMigrationBundle } from './dev012-production-migration-runner.mjs'
 
 const H40 = /^[a-f0-9]{40}$/
 const H64 = /^[a-f0-9]{64}$/
-const V3_CONTRACT_SHA256 = 'd88b9aaa8a5e27082746221fc5b473abd8a78da712409279baf5ecdb0e176f05'
+const V3_CONTRACT_SHA256 = '857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5'
 export const LEGACY_STRICT_VALIDATORS = Object.freeze({ assertDev117ArtifactReceipt, assertDev117CandidateReceipt, assertDev117Level4Join, assertDev117AppReleaseReceipt, assertDev116R02Receipt })
 function fail(code, message) { const error = new Error(message); error.code = code; throw error }
 export function sha256(bytes) { return createHash('sha256').update(bytes).digest('hex') }

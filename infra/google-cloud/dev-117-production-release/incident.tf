@@ -90,7 +90,10 @@ resource "google_cloud_run_v2_service" "abort_controller" {
           }
         }
       }
-      resources { limits = { cpu = "1", memory = "256Mi" } }
+      resources {
+        limits   = { cpu = "1", memory = "256Mi" }
+        cpu_idle = true
+      }
     }
   }
 

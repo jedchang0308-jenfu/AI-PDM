@@ -1,7 +1,7 @@
 {
   "schemaVersion": "jenfu.dev117.ai-pdm-continuous-release.v3",
   "profileVersion": "CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP",
-  "contractSha256": "d88b9aaa8a5e27082746221fc5b473abd8a78da712409279baf5ecdb0e176f05",
+  "contractSha256": "857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5",
   "application": {
     "id": "ai-pdm",
     "repository": "jedchang0308-jenfu/AI-PDM",
