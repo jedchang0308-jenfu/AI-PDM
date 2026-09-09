@@ -5,7 +5,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { buildAiPdmPackage } from './dev010-n1c-ai-pdm-package.mjs'
-import { assertDev117ContinuousProfile, assertDev117ReleaseIntent, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
+import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { createGitArchive } from './lib/dev012-owner-stage-executor.mjs'
 import { executePrerequisiteProducer, parsePrerequisiteProducerArgs, resolveOwnerInputPath } from './lib/dev012-owner-prerequisite-producer.mjs'
@@ -24,8 +24,8 @@ async function readInput(inputPath) {
 
 async function main() {
   const args = parsePrerequisiteProducerArgs(process.argv.slice(2))
-  const [profile, v1, n1c] = await Promise.all(['config/release/dev117-ai-pdm-independent-production-v2.json', 'config/release/dev117-ai-pdm-independent-production.json', 'config/platform/dev-010-n1c-ai-pdm.json'].map((file) => fs.readFile(path.join(root, file), 'utf8').then(JSON.parse)))
-  assertDev117ContinuousProfile(profile, v1, n1c)
+  const [profile, v1, n1c] = await Promise.all(['config/release/dev117-ai-pdm-independent-production-v3.json', 'config/release/dev117-ai-pdm-independent-production.json', 'config/platform/dev-010-n1c-ai-pdm.json'].map((file) => fs.readFile(path.join(root, file), 'utf8').then(JSON.parse)))
+  assertDev117V3Profile(profile, v1, n1c)
   const input = args.inputPath ? await readInput(args.inputPath) : null
   const transport = createOwnerTransport({ token: process.env.GOOGLE_OAUTH_ACCESS_TOKEN ?? '' })
   const result = await executePrerequisiteProducer({
