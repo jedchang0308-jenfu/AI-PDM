@@ -6,6 +6,8 @@ Owner：Dev PM
 
 > **2026-09-10 DEV-117 V3 architecture-final owner handoff（current authority）**：DEV-012採`CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP`；本repo canonical entry為provider-verified `https://ai-pdm-prod-9536592944.asia-east1.run.app`，V3 owner profile SHA-256=`c5734b3b6a4011669e1567ab79263974c421b96d857ab52b5662050f0f1134f4`。Owner workflow固定十stage並含app-owned `entrypoint`；正式runtime exact固定`PDM_JENFU_PLATFORM_AUTH_MODE=on`、`PDM_JENFU_ENTITLEMENT_MODE=enforce`與共同Firebase issuer／audience，且任何`fixedValues`漂移均在Cloud Run write前拒絕。不使用`pdm.jenfu.com.tw`、Firebase Hosting或shared LB作current serving path，existing edge=`RETAINED_UNUSED_EDGE`，TOTP不在scope。狀態=`Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Corrected / fresh S2 receipts required / Production NOT_RUN`；R12 pre-runtime receipts因source drift只保留歷史。
 
+> **2026-09-10 DEV-117 production dependency gate（current）**：fresh production audit發現Next.js 16.3.0與sharp 0.35.3已進入owner `HIGH／CRITICAL`阻擋集合，已以前向patch升級至Next.js 16.3.4與sharp 0.35.4。`npm audit --omit=dev`現為`0 HIGH／0 CRITICAL`，owner 24／24、abort 6／6、DB boundary、typecheck與兩次isolated production build均PASS；既有middleware／Edge warning不屬本次新增失敗。修正後必使用新main commit重建source lock、capacity與全部downstream receipts，不得重用R13舊revision證據。
+
 歷史快照：
 
 - `.ai-doc/archived/dev_task_before_archive_sweep_2026-07-09.md`
