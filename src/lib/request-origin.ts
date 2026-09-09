@@ -1,29 +1,11 @@
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-function candidateCloudRunOriginAllowed(origin: string, env: NodeJS.ProcessEnv) {
-  const service = String(env.PDM_CANDIDATE_CLOUD_RUN_SERVICE ?? "").trim();
-  if (!service) return false;
-  const configuredTag = String(env.PDM_CANDIDATE_CLOUD_RUN_TAG ?? "").trim();
-
-  let parsed: URL;
+function exactCandidateOrigin(value: string, canonical: URL) {
   try {
-    parsed = new URL(origin);
+    const candidate = new URL(value);
+    const tag = candidate.hostname.slice(0, candidate.hostname.indexOf("---"));
+    return candidate.protocol === "https:" && !candidate.port && !candidate.username && !candidate.password && candidate.pathname === "/" && !candidate.search && !candidate.hash && candidate.origin === value && /^candidate-[a-f0-9]{12}$/u.test(tag) && candidate.hostname === `${tag}---${canonical.hostname}`;
   } catch {
     return false;
   }
-
-  if (parsed.protocol !== "https:" || parsed.port || parsed.username || parsed.password) return false;
-  const servicePattern = escapeRegExp(service);
-  const tagPattern = configuredTag
-    ? `(?:${escapeRegExp(configuredTag)}|candidate-[a-f0-9]{8}-[0-9]+)`
-    : "candidate-[a-f0-9]{8}-[0-9]+";
-  const hostnamePattern = new RegExp(
-    `^${tagPattern}---${servicePattern}-[a-z0-9-]+\\.a\\.run\\.app$`,
-    "u"
-  );
-  return hostnamePattern.test(parsed.hostname);
 }
 
 export function isAllowedRequestOrigin(request: Request, env: NodeJS.ProcessEnv = process.env) {
@@ -38,5 +20,7 @@ export function isAllowedRequestOrigin(request: Request, env: NodeJS.ProcessEnv 
     return false;
   }
 
-  return origin === expected || candidateCloudRunOriginAllowed(origin, env);
+  if (origin === expected) return true;
+  const candidate = String(env.PDM_RELEASE_CANDIDATE_ORIGIN ?? "").trim();
+  return Boolean(candidate) && exactCandidateOrigin(candidate, new URL(expected)) && origin === candidate;
 }

@@ -1,18 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
-import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
+import { canonicalize, createOwnerTransport, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 
 const H40 = 'a'.repeat(40)
 const H64 = 'b'.repeat(64)
 const bucket = 'jenfu-platform-prod-platform-release'
 const profile = {
   application: { id: 'platform', repository: 'owner/repo', branch: 'main' },
-  target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'jenfu-platform-prod' },
+  target: { projectId: 'jenfu-platform-prod', projectNumber: '9536592944', region: 'asia-east1', serviceName: 'jenfu-platform-prod', runtimeServiceAccount: 'platform-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com', canonicalOrigin: 'https://jenfu-platform-prod-9536592944.asia-east1.run.app', entryPolicy: { ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: false, invokerIamDisabled: true } },
   artifact: { releaseBucket: bucket, repository: 'platform-release', uri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform' },
   identities: { builder: 'platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' },
   build: { dockerBuilderImage: 'gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c', dockerfile: 'Dockerfile', dockerTarget: 'runner' },
   migrations: { jobName: 'platform-prod-migration-runner', serviceAccount: 'platform-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com' },
+  environment: { candidateOriginEnvironmentName: 'PORTAL_RELEASE_CANDIDATE_ORIGIN' },
 }
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
@@ -144,6 +145,120 @@ test('Cloud Run revision readback stays bound to the exact service path', async 
   const ready = { containers: [{ image: artifact }], conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] }
   assert.equal(transport.assertRevisionReady(ready, artifact), ready)
   assert.throws(() => transport.assertRevisionReady({ containers: [{ image: artifact }], conditions: [] }, artifact), /CANDIDATE_REVISION_READBACK_MISMATCH/u)
+})
+
+test('candidate revision receives one exact full-origin overlay and provider URI must match', async () => {
+  const fingerprint = H64
+  const candidateRevision = `jenfu-platform-prod-${fingerprint.slice(0, 12)}`
+  const tag = `candidate-${fingerprint.slice(0, 12)}`
+  const tagUri = `https://${tag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
+  const artifactDigest = `${profile.artifact.uri}@sha256:${H64}`
+  const settled = { reconciling: false, generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' } }
+  const before = { ...settled, name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`, etag: 'e1', template: { serviceAccount: profile.target.runtimeServiceAccount, containers: [{ image: 'old@sha256:' + H64, env: [{ name: 'KEEP', value: 'yes' }] }] }, traffic: [{ revision: 'previous-1', percent: 100 }], trafficStatuses: [{ revision: 'previous-1', percent: 100 }] }
+  const expectedTemplate = structuredClone(before.template)
+  expectedTemplate.revision = candidateRevision
+  expectedTemplate.containers[0].image = artifactDigest
+  expectedTemplate.containers[0].env.push({ name: profile.environment.candidateOriginEnvironmentName, value: tagUri })
+  const created = { ...before, generation: '2', observedGeneration: '2', etag: 'e2', template: expectedTemplate, latestCreatedRevision: candidateRevision }
+  const tagged = { ...created, generation: '3', observedGeneration: '3', etag: 'e3', traffic: [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, percent: 0, tag }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, percent: 0, tag, uri: tagUri }] }
+  let serviceGets = 0
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
+    const value = String(url)
+    if (options.method === 'PATCH') {
+      const body = JSON.parse(options.body)
+      if (value.includes('updateMask=template')) assert.deepEqual(body.template, expectedTemplate)
+      return json({ name: 'projects/p/locations/r/operations/patch', done: true, response: {} })
+    }
+    if (value.includes('/revisions/')) return json({ name: `${before.name}/revisions/${candidateRevision}`, service: before.name, containers: [{ image: artifactDigest, env: expectedTemplate.containers[0].env }], conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] })
+    return json([before, created, tagged][serviceGets++])
+  } })
+  const result = await transport.createCandidate({ profile, artifactDigest, runtimeConfig: { serviceTemplateSha256: sha256(canonicalize(before.template)), runtimeServiceAccount: profile.target.runtimeServiceAccount }, fingerprint, deadlineAt: '2999-01-01T00:00:00.000Z' })
+  assert.equal(result.tagUri, tagUri)
+  assert.equal(result.previousRevision, 'previous-1')
+})
+
+test('entrypoint patch uses the exact mask, preserves template/traffic, and unknown outcome is read back once', async () => {
+  const tag = 'candidate-bbbbbbbbbbbb'
+  const tagUri = `https://${tag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
+  const base = { name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`, etag: 'e1', reconciling: false, generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, ingress: 'INGRESS_TRAFFIC_INTERNAL_ONLY', defaultUriDisabled: true, invokerIamDisabled: false, uri: null, urls: [], template: { containers: [{ image: 'old' }] }, traffic: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag }], trafficStatuses: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag, uri: tagUri }] }
+  const direct = { ...base, etag: 'e2', generation: '2', observedGeneration: '2', ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: false, invokerIamDisabled: true, uri: profile.target.canonicalOrigin, urls: [profile.target.canonicalOrigin] }
+  let gets = 0
+  let patchCalls = 0
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
+    if (options.method === 'PATCH') {
+      patchCalls += 1
+      assert.match(String(url), /updateMask=ingress%2CdefaultUriDisabled%2CinvokerIamDisabled/u)
+      assert.deepEqual(Object.keys(JSON.parse(options.body)).sort(), ['defaultUriDisabled', 'etag', 'ingress', 'invokerIamDisabled', 'name'])
+      throw new TypeError('recorded timeout')
+    }
+    return json(gets++ === 0 ? base : direct)
+  } })
+  const result = await transport.configureEntrypoint({ profile, candidate: { candidateRevision: 'candidate-1', tag, tagUri }, previousRevision: 'previous-1', deadlineAt: '2999-01-01T00:00:00.000Z' })
+  assert.equal(result.changed, true)
+  assert.equal(result.templateSha256Before, result.templateSha256After)
+  assert.equal(result.trafficSha256Before, result.trafficSha256After)
+  assert.equal(result.providerOperationRef.name, 'OUTCOME_UNKNOWN_READBACK_CONFIRMED')
+  assert.equal(patchCalls, 1)
+
+  const noOp = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async () => json(direct) })
+  assert.equal((await noOp.configureEntrypoint({ profile, candidate: { candidateRevision: 'candidate-1', tag, tagUri }, previousRevision: 'previous-1', deadlineAt: '2999-01-01T00:00:00.000Z' })).changed, false)
+})
+
+test('entrypoint recovery covers pre-patch, 412, candidate-live and already-direct baselines', async () => {
+  const tag = 'candidate-cccccccccccc'
+  const tagUri = `https://${tag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
+  const baseline = {
+    name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`,
+    etag: 'e1', reconciling: false, generation: '1', observedGeneration: '1',
+    terminalCondition: { state: 'CONDITION_SUCCEEDED' },
+    ingress: 'INGRESS_TRAFFIC_INTERNAL_ONLY', defaultUriDisabled: true, invokerIamDisabled: false, uri: null, urls: [],
+    template: { containers: [{ image: 'old' }] },
+    traffic: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag }],
+    trafficStatuses: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag, uri: tagUri }],
+  }
+  const direct = { ...baseline, etag: 'e2', generation: '2', observedGeneration: '2', ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: false, invokerIamDisabled: true, uri: profile.target.canonicalOrigin, urls: [profile.target.canonicalOrigin] }
+
+  let prePatchCalls = 0
+  const prePatch = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (_url, options = {}) => {
+    if (options.method === 'PATCH') prePatchCalls += 1
+    return json(baseline)
+  } })
+  await assert.rejects(prePatch.configureEntrypoint({ profile, candidate: { candidateRevision: 'candidate-1', tag: 'candidate-dddddddddddd', tagUri }, previousRevision: 'previous-1', deadlineAt: '2999-01-01T00:00:00.000Z' }), /ENTRYPOINT_CANDIDATE_JOIN_INVALID/u)
+  assert.equal(prePatchCalls, 0)
+
+  let conflictPatchCalls = 0
+  const conflict = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (_url, options = {}) => {
+    if (options.method === 'PATCH') { conflictPatchCalls += 1; return json({ error: { code: 412 } }, 412) }
+    return json(baseline)
+  } })
+  await assert.rejects(conflict.configureEntrypoint({ profile, candidate: { candidateRevision: 'candidate-1', tag, tagUri }, previousRevision: 'previous-1', deadlineAt: '2999-01-01T00:00:00.000Z' }), /CONFLICT/u)
+  assert.equal(conflictPatchCalls, 1)
+
+  let restoreGets = 0
+  let restorePatches = 0
+  const restoredService = { ...baseline, etag: 'e3', generation: '3', observedGeneration: '3' }
+  const restore = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (_url, options = {}) => {
+    if (options.method === 'PATCH') {
+      restorePatches += 1
+      const body = JSON.parse(options.body)
+      assert.deepEqual({ ingress: body.ingress, defaultUriDisabled: body.defaultUriDisabled, invokerIamDisabled: body.invokerIamDisabled }, { ingress: baseline.ingress, defaultUriDisabled: baseline.defaultUriDisabled, invokerIamDisabled: baseline.invokerIamDisabled })
+      return json({ name: 'projects/p/locations/r/operations/restore', done: true, response: {} })
+    }
+    return json(restoreGets++ === 0 ? direct : restoredService)
+  } })
+  const restored = await restore.restoreEntrypoint({ profile, baseline: restore.entrypointSnapshot(baseline), deadlineAt: '2999-01-01T00:00:00.000Z' })
+  assert.equal(restored.changed, true)
+  assert.equal(restorePatches, 1)
+  assert.equal(restored.after.ingress, baseline.ingress)
+
+  let alreadyDirectPatches = 0
+  const alreadyDirect = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (_url, options = {}) => {
+    if (options.method === 'PATCH') alreadyDirectPatches += 1
+    return json(direct)
+  } })
+  const noChange = await alreadyDirect.restoreEntrypoint({ profile, baseline: alreadyDirect.entrypointSnapshot(direct), deadlineAt: '2999-01-01T00:00:00.000Z' })
+  assert.equal(noChange.changed, false)
+  assert.equal(alreadyDirectPatches, 0)
 })
 
 test('authenticated smoke refreshes a short-lived Firebase ID token without exposing it', async () => {
