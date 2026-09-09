@@ -11,6 +11,13 @@ function fail(code, detail = '') {
   throw error
 }
 
+export function readGitBlob(root, repositoryPath, revision = 'HEAD') {
+  if ((!H40.test(revision) && revision !== 'HEAD') || !/^[A-Za-z0-9._/-]+$/u.test(repositoryPath ?? '') || repositoryPath.startsWith('/') || repositoryPath.includes('../')) fail('GIT_BLOB_REF_INVALID')
+  const result = spawnSync('git', ['show', `${revision}:${repositoryPath}`], { cwd: root, encoding: null, maxBuffer: 32 * 1024 * 1024, windowsHide: true })
+  if (result.error || result.status !== 0 || !Buffer.isBuffer(result.stdout)) fail('GIT_SOURCE_INSPECTION_FAILED', repositoryPath)
+  return result.stdout
+}
+
 export function parseOwnerStageArgs(argv, expectedBucket) {
   const value = {}
   for (let index = 0; index < argv.length; index += 2) {

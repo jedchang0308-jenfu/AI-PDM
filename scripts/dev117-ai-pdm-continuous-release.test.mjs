@@ -2,9 +2,12 @@ import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import test, { after } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { buildAiPdmPackage } from './dev010-n1c-ai-pdm-package.mjs'
 import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
+import { readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 
+const root = fileURLToPath(new URL('..', import.meta.url))
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
 const readText = (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
 const profile = read('config/release/dev117-ai-pdm-independent-production-v3.json')
@@ -26,9 +29,9 @@ after(() => {
     'src/lib/request-origin.ts',
     '.github/workflows/deploy-ai-pdm-independent-production.yml',
     'package.json',
-  ].map((file) => ({ file, sha256: sha256(fs.readFileSync(new URL(`../${file}`, import.meta.url))) }))
-  const profileBytes = fs.readFileSync(new URL('../config/release/dev117-ai-pdm-independent-production-v3.json', import.meta.url))
-  const historicalProfileBytes = fs.readFileSync(new URL('../config/release/dev117-ai-pdm-independent-production-v2.json', import.meta.url))
+  ].map((file) => ({ file, sha256: sha256(readGitBlob(root, file)) }))
+  const profileBytes = readGitBlob(root, 'config/release/dev117-ai-pdm-independent-production-v3.json')
+  const historicalProfileBytes = readGitBlob(root, 'config/release/dev117-ai-pdm-independent-production-v2.json')
   const endpoint = {
     projectId: profile.target.projectId,
     projectNumber: profile.target.projectNumber,
