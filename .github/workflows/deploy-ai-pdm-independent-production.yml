@@ -127,8 +127,31 @@ jobs:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage candidate --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
-  verify:
+  entrypoint:
     needs: [prepare, candidate]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Configure direct Cloud Run entrypoint
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage entrypoint --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
+
+  verify:
+    needs: [prepare, entrypoint]
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
@@ -247,7 +270,7 @@ jobs:
 
   failure:
     if: ${{ always() && needs.prepare.result == 'success' && contains(needs.*.result, 'failure') }}
-    needs: [prepare, build, migrate, candidate, verify, decision, activate, canonical]
+    needs: [prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical]
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }

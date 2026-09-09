@@ -3,6 +3,7 @@ import { canonicalize, crc32cBase64, parseGsUri, sha256 } from './dev012-product
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const APPLICATION_IMAGE_PLACEHOLDER = 'APPLICATION_IMAGE_DIGEST'
+const ENTRYPOINT_UPDATE_MASK = 'ingress,defaultUriDisabled,invokerIamDisabled'
 
 export class OwnerReleaseError extends Error {
   constructor(code, detail = '') {
@@ -146,6 +147,7 @@ export function releasePaths(profile, intent, intentSha256) {
     deployment: uri('deployment-capsule'),
     migrate: uri('migrate'),
     candidate: uri('candidate'),
+    entrypoint: uri('entrypoint'),
     verify: uri('verify'),
     decision: uri('decision'),
     activate: uri('activate'),
@@ -282,36 +284,35 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   }
 
   async function patchService(profile, service, updateMask, deadlineAt) {
-    if (!['template', 'traffic', 'defaultUriDisabled', 'ingress'].includes(updateMask) || service?.name !== `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}` || !service.etag) fail('RUN_MUTATION_INVALID')
+    const expectedKeys = {
+      template: ['etag', 'name', 'template'],
+      traffic: ['etag', 'name', 'traffic'],
+      [ENTRYPOINT_UPDATE_MASK]: ['defaultUriDisabled', 'etag', 'ingress', 'invokerIamDisabled', 'name'],
+    }[updateMask]
+    if (!expectedKeys || Object.keys(service ?? {}).sort().join(',') !== expectedKeys.join(',') || service?.name !== `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}` || !service.etag) fail('RUN_MUTATION_INVALID')
     const operation = await request(`https://run.googleapis.com/v2/${service.name}?updateMask=${encodeURIComponent(updateMask)}&allowMissing=false`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(service) })
-    return waitOperation(operation, deadlineAt)
+    const response = await waitOperation(operation, deadlineAt)
+    return { operationRef: { name: operation.name }, response }
   }
 
-  async function prepareCandidateEndpoint({ profile, deadlineAt }) {
-    const before = await getService(profile)
-    assertServiceSettled(before, 'CANDIDATE_ENDPOINT_BASELINE_INVALID')
-    if (before.defaultUriDisabled === false) {
-      if (before.ingress !== 'INGRESS_TRAFFIC_INTERNAL_ONLY') fail('CANDIDATE_ENDPOINT_BASELINE_INVALID')
-      return before
-    }
-    if (before.ingress !== 'INGRESS_TRAFFIC_INTERNAL_ONLY') fail('CANDIDATE_ENDPOINT_BASELINE_INVALID')
-    await patchService(profile, { name: before.name, etag: before.etag, defaultUriDisabled: false }, 'defaultUriDisabled', deadlineAt)
-    const after = await getService(profile)
-    assertServiceSettled(after, 'CANDIDATE_ENDPOINT_READBACK_MISMATCH')
-    if (after.defaultUriDisabled !== false || after.ingress !== before.ingress || canonicalize(after.template) !== canonicalize(before.template) || canonicalize(after.traffic) !== canonicalize(before.traffic)) fail('CANDIDATE_ENDPOINT_READBACK_MISMATCH')
-    return after
+  function exactOrigin(value, code = 'CANONICAL_ORIGIN_INVALID') {
+    let url
+    try { url = new URL(value) } catch { fail(code) }
+    if (url.protocol !== 'https:' || url.port || url.username || url.password || url.pathname !== '/' || url.search || url.hash || url.origin !== value) fail(code)
+    return url
   }
 
-  async function enableCanonicalIngress({ profile, expectedRevision, deadlineAt }) {
-    const before = await getService(profile)
-    assertServiceSettled(before, 'CANONICAL_INGRESS_BASELINE_INVALID')
-    if (effectiveRevision(before) !== expectedRevision || before.defaultUriDisabled !== false || !['INGRESS_TRAFFIC_INTERNAL_ONLY', 'INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER'].includes(before.ingress)) fail('CANONICAL_INGRESS_BASELINE_INVALID')
-    if (before.ingress === 'INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER') return before
-    await patchService(profile, { name: before.name, etag: before.etag, ingress: 'INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER' }, 'ingress', deadlineAt)
-    const after = await getService(profile)
-    assertServiceSettled(after, 'CANONICAL_INGRESS_READBACK_MISMATCH')
-    if (after.ingress !== 'INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER' || after.defaultUriDisabled !== false || effectiveRevision(after) !== expectedRevision || canonicalize(after.template) !== canonicalize(before.template) || canonicalize(after.traffic) !== canonicalize(before.traffic)) fail('CANONICAL_INGRESS_READBACK_MISMATCH')
-    return after
+  function candidateOrigin(profile, tag) {
+    if (!/^candidate-[a-f0-9]{12}$/u.test(tag ?? '') || !profile.environment?.candidateOriginEnvironmentName) fail('CANDIDATE_ORIGIN_PROFILE_INVALID')
+    const canonical = exactOrigin(profile.target.canonicalOrigin)
+    return `https://${tag}---${canonical.hostname}`
+  }
+
+  function upsertPlainEnvironment(container, name, value) {
+    if (!/^[A-Z][A-Z0-9_]+$/u.test(name ?? '')) fail('CANDIDATE_ORIGIN_PROFILE_INVALID')
+    const current = Array.isArray(container.env) ? container.env : []
+    const retained = current.filter((row) => row?.name !== name)
+    container.env = [...retained, { name, value }]
   }
 
   async function createCandidate({ profile, artifactDigest, runtimeConfig, fingerprint, deadlineAt }) {
@@ -320,16 +321,18 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     assertServiceSettled(before, 'CANDIDATE_BASELINE_INVALID')
     if (before.reconciling === true || !before.etag || !Array.isArray(before.traffic) || before.traffic.some((row) => row.latestRevision === true || row.tag)) fail('CANDIDATE_BASELINE_INVALID')
     const candidateRevision = `${profile.target.serviceName}-${fingerprint.slice(0, 12)}`
+    const tag = `candidate-${fingerprint.slice(0, 12)}`
+    const exactCandidateOrigin = candidateOrigin(profile, tag)
     const template = assertRuntimeConfig(profile, runtimeConfig)
     template.revision = candidateRevision
     const app = template.containers.find((container) => container.name === profile.runtime.containerName)
     if (!app) fail('CANDIDATE_TEMPLATE_INVALID')
     app.image = artifactDigest
+    upsertPlainEnvironment(app, profile.environment.candidateOriginEnvironmentName, exactCandidateOrigin)
     await patchService(profile, { name: before.name, etag: before.etag, template }, 'template', deadlineAt)
     const created = await getService(profile)
     assertServiceSettled(created, 'CANDIDATE_REVISION_READBACK_MISMATCH')
     if (created.latestCreatedRevision !== `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}/revisions/${candidateRevision}` && created.latestCreatedRevision !== candidateRevision) fail('CANDIDATE_REVISION_READBACK_MISMATCH')
-    const tag = `candidate-${fingerprint.slice(0, 12)}`
     const traffic = [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, percent: 0, tag }]
     await patchService(profile, { name: created.name, etag: created.etag, traffic }, 'traffic', deadlineAt)
     const tagged = await getService(profile)
@@ -337,10 +340,101 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const tagStatus = tagged.trafficStatuses?.find((row) => row.tag === tag)
     const generalBefore = before.traffic.map(({ tag: _tag, ...row }) => row)
     const generalAfter = tagged.traffic?.filter((row) => !row.tag).map(({ tag: _tag, ...row }) => row)
-    if (!tagStatus?.uri || tagStatus.revision !== candidateRevision || Number(tagStatus.percent) !== 0 || canonicalize(generalAfter) !== canonicalize(generalBefore)) fail('CANDIDATE_TAG_READBACK_MISMATCH')
+    if (tagStatus?.uri !== exactCandidateOrigin || tagStatus.revision !== candidateRevision || Number(tagStatus.percent) !== 0 || canonicalize(generalAfter) !== canonicalize(generalBefore)) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await getRevision(profile, candidateRevision)
     assertRevisionReady(profile, revision, artifactDigest)
+    const revisionApp = revision.containers.find((container) => container.name === profile.runtime.containerName)
+    const revisionOrigin = revisionApp?.env?.find((row) => row.name === profile.environment.candidateOriginEnvironmentName)
+    if (revisionOrigin?.value !== exactCandidateOrigin || revisionOrigin.valueSource) fail('CANDIDATE_ORIGIN_READBACK_MISMATCH')
     return { candidateRevision, tag, tagUri: tagStatus.uri, artifactDigest, previousRevision: effectiveRevision(before), beforeTraffic: before.traffic, etag: tagged.etag, revisionName: revision.name }
+  }
+
+  function entrypointSnapshot(service) {
+    return {
+      ingress: service?.ingress ?? null,
+      defaultUriDisabled: service?.defaultUriDisabled ?? false,
+      invokerIamDisabled: service?.invokerIamDisabled ?? false,
+      uri: service?.uri ?? null,
+      urls: Array.isArray(service?.urls) ? [...service.urls].sort() : [],
+      serviceEtag: service?.etag ?? null,
+      generation: service?.generation == null ? null : String(service.generation),
+    }
+  }
+
+  function assertEntrypointPolicy(profile) {
+    const policy = profile.target?.entryPolicy
+    if (profile.target?.projectNumber !== '9536592944' || canonicalize(policy) !== canonicalize({ ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: false, invokerIamDisabled: true })) fail('ENTRYPOINT_PROFILE_INVALID')
+    exactOrigin(profile.target.canonicalOrigin)
+    return policy
+  }
+
+  function assertCanonicalEntrypoint(profile, service, code = 'ENTRYPOINT_READBACK_MISMATCH') {
+    const policy = assertEntrypointPolicy(profile)
+    const expectedName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
+    if (service?.name !== expectedName || service.ingress !== policy.ingress || service.defaultUriDisabled !== policy.defaultUriDisabled || service.invokerIamDisabled !== policy.invokerIamDisabled || service.uri !== profile.target.canonicalOrigin || !Array.isArray(service.urls) || !service.urls.includes(profile.target.canonicalOrigin)) fail(code)
+    return service
+  }
+
+  function sameEntrypointFields(service, expected) {
+    return service?.ingress === expected.ingress && service?.defaultUriDisabled === expected.defaultUriDisabled && service?.invokerIamDisabled === expected.invokerIamDisabled
+  }
+
+  async function configureEntrypoint({ profile, candidate, previousRevision, deadlineAt }) {
+    const policy = assertEntrypointPolicy(profile)
+    const before = await getService(profile)
+    assertServiceSettled(before, 'ENTRYPOINT_BASELINE_INVALID')
+    const tagged = before.trafficStatuses?.find((row) => row.tag === candidate.tag)
+    if (tagged?.revision !== candidate.candidateRevision || Number(tagged.percent) !== 0 || tagged.uri !== candidate.tagUri || effectiveRevision(before) !== previousRevision) fail('ENTRYPOINT_CANDIDATE_JOIN_INVALID')
+    const templateSha256Before = sha256(canonicalize(before.template))
+    const trafficSha256Before = sha256(canonicalize(before.traffic))
+    let changed = false
+    let providerOperationRef = null
+    let after = before
+    if (!sameEntrypointFields(before, policy)) {
+      changed = true
+      try {
+        const mutation = await patchService(profile, { name: before.name, etag: before.etag, ...policy }, ENTRYPOINT_UPDATE_MASK, deadlineAt)
+        providerOperationRef = mutation.operationRef
+      } catch (error) {
+        if (error?.code !== 'OUTCOME_UNKNOWN') throw error
+        after = await getService(profile)
+        assertServiceSettled(after, 'OUTCOME_UNKNOWN')
+        if (!sameEntrypointFields(after, policy)) throw error
+        providerOperationRef = { name: 'OUTCOME_UNKNOWN_READBACK_CONFIRMED' }
+      }
+      if (after === before) after = await getService(profile)
+    }
+    assertServiceSettled(after, 'ENTRYPOINT_READBACK_MISMATCH')
+    assertCanonicalEntrypoint(profile, after)
+    const templateSha256After = sha256(canonicalize(after.template))
+    const trafficSha256After = sha256(canonicalize(after.traffic))
+    if (templateSha256After !== templateSha256Before || trafficSha256After !== trafficSha256Before) fail('ENTRYPOINT_SCOPE_DRIFT')
+    return { before: entrypointSnapshot(before), after: entrypointSnapshot(after), changed, updateMask: ENTRYPOINT_UPDATE_MASK, templateSha256Before, templateSha256After, trafficSha256Before, trafficSha256After, providerOperationRef }
+  }
+
+  async function restoreEntrypoint({ profile, baseline, deadlineAt }) {
+    const expectedKeys = ['defaultUriDisabled', 'generation', 'ingress', 'invokerIamDisabled', 'serviceEtag', 'uri', 'urls']
+    if (!baseline || Object.keys(baseline).sort().join(',') !== expectedKeys.join(',') || !baseline.serviceEtag || baseline.generation == null) fail('ENTRYPOINT_BASELINE_INVALID')
+    const before = await getService(profile)
+    assertServiceSettled(before, 'ENTRYPOINT_RESTORE_BASELINE_INVALID')
+    const desired = { ingress: baseline.ingress, defaultUriDisabled: baseline.defaultUriDisabled, invokerIamDisabled: baseline.invokerIamDisabled }
+    if (sameEntrypointFields(before, desired)) return { changed: false, before: entrypointSnapshot(before), after: entrypointSnapshot(before), providerOperationRef: null }
+    let providerOperationRef
+    let after
+    try {
+      const mutation = await patchService(profile, { name: before.name, etag: before.etag, ...desired }, ENTRYPOINT_UPDATE_MASK, deadlineAt)
+      providerOperationRef = mutation.operationRef
+      after = await getService(profile)
+    } catch (error) {
+      if (error?.code !== 'OUTCOME_UNKNOWN') throw error
+      after = await getService(profile)
+      assertServiceSettled(after, 'OUTCOME_UNKNOWN')
+      if (!sameEntrypointFields(after, desired)) throw error
+      providerOperationRef = { name: 'OUTCOME_UNKNOWN_READBACK_CONFIRMED' }
+    }
+    assertServiceSettled(after, 'ENTRYPOINT_RESTORE_READBACK_MISMATCH')
+    if (!sameEntrypointFields(after, desired)) fail('ENTRYPOINT_RESTORE_READBACK_MISMATCH')
+    return { changed: true, before: entrypointSnapshot(before), after: entrypointSnapshot(after), providerOperationRef }
   }
 
   function effectiveRevision(service) {
@@ -637,7 +731,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  return { request, readBytes, readJson, putBytes, putJson, waitOperation, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, prepareCandidateEndpoint, enableCanonicalIngress, createCandidate, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
+  return { request, readBytes, readJson, putBytes, putJson, waitOperation, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
 export function stageReceipt({ profile, intent, stage, previousReceiptRef = null, facts, observedAt }) {
