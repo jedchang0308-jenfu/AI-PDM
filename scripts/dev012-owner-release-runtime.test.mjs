@@ -61,16 +61,19 @@ test('Artifact Registry, provenance, SBOM and vulnerability evidence fail closed
     const value = String(url)
     if (value.includes('/dockerImages?')) return json({ dockerImages: [{ name: 'projects/p/locations/r/repositories/x/dockerImages/platform@sha256:abc', uri: digest }] })
     if (value.endsWith(':exportSBOM') && options.method === 'POST') {
-      assert.match(value, /containeranalysis\.googleapis\.com\/v1beta1\/projects\/jenfu-platform-prod\/resources\//)
+      assert.match(value, /containeranalysis\.googleapis\.com\/v1beta1\/projects\/jenfu-platform-prod\/locations\/asia-east1\/resources\//)
       assert.equal(options.body, '{}')
-      return json({ discoveryOccurrenceId: 'projects/jenfu-platform-prod/occurrences/sbom-discovery' })
+      return json({ discoveryOccurrenceId: 'projects/jenfu-platform-prod/locations/asia-east1/occurrences/sbom-discovery' })
     }
-    if (value.includes('/occurrences?')) return json({ occurrences: [
+    if (value.includes('/occurrences?')) {
+      assert.match(value, /\/v1\/projects\/jenfu-platform-prod\/occurrences\?/u)
+      return json({ occurrences: [
       { name: 'projects/jenfu-platform-prod/occurrences/build', kind: 'BUILD' },
-      { name: 'projects/jenfu-platform-prod/occurrences/sbom-discovery', kind: 'DISCOVERY', discovery: { discovered: { analysisStatus: 'FINISHED_SUCCESS' } } },
+      { name: 'projects/jenfu-platform-prod/locations/asia-east1/occurrences/sbom-discovery', kind: 'DISCOVERY', discovery: { analysisStatus: 'FINISHED_SUCCESS' } },
       { name: 'projects/jenfu-platform-prod/occurrences/sbom', kind: 'SBOM_REFERENCE' },
       { name: 'projects/jenfu-platform-prod/occurrences/low', kind: 'VULNERABILITY', vulnerability: { effectiveSeverity: 'LOW' } },
-    ] })
+      ] })
+    }
     throw new Error(`unexpected ${value}`)
   }
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl, sleep: async () => undefined })
@@ -80,10 +83,10 @@ test('Artifact Registry, provenance, SBOM and vulnerability evidence fail closed
   assert.equal(evidence.blockingVulnerabilityCount, 0)
 
   const blockedTransport = createOwnerTransport({ token: 'x'.repeat(32), sleep: async () => undefined, fetchImpl: async (url, options = {}) => {
-    if (String(url).endsWith(':exportSBOM') && options.method === 'POST') return json({ discoveryOccurrenceId: 'projects/jenfu-platform-prod/occurrences/sbom-discovery' })
+    if (String(url).endsWith(':exportSBOM') && options.method === 'POST') return json({ discoveryOccurrenceId: 'projects/jenfu-platform-prod/locations/asia-east1/occurrences/sbom-discovery' })
     return json({ occurrences: [
       { name: 'projects/jenfu-platform-prod/occurrences/build', kind: 'BUILD' },
-      { name: 'projects/jenfu-platform-prod/occurrences/sbom-discovery', kind: 'DISCOVERY', discovery: { discovered: { analysisStatus: 'FINISHED_SUCCESS' } } },
+      { name: 'projects/jenfu-platform-prod/locations/asia-east1/occurrences/sbom-discovery', kind: 'DISCOVERY', discovery: { analysisStatus: 'FINISHED_SUCCESS' } },
       { name: 'projects/jenfu-platform-prod/occurrences/critical', kind: 'VULNERABILITY', vulnerability: { effectiveSeverity: 'CRITICAL' } },
     ] })
   } })

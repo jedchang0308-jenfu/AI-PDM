@@ -579,9 +579,9 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
 
   async function exportSbom(profile, artifactDigest) {
     const resourceUrl = `https://${artifactDigest}`
-    const resourceName = `projects/${profile.target.projectId}/resources/${resourceUrl}`
+    const resourceName = `projects/${profile.target.projectId}/locations/${profile.target.region}/resources/${resourceUrl}`
     const response = await request(`https://containeranalysis.googleapis.com/v1beta1/${resourceName}:exportSBOM`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
-    if (!new RegExp(`^projects/${profile.target.projectId}/occurrences/[^/]+$`, 'u').test(response?.discoveryOccurrenceId ?? '')) fail('SBOM_EXPORT_READBACK_MISMATCH')
+    if (!new RegExp(`^projects/${profile.target.projectId}/locations/${profile.target.region}/occurrences/[^/]+$`, 'u').test(response?.discoveryOccurrenceId ?? '')) fail('SBOM_EXPORT_READBACK_MISMATCH')
     return { resourceUrl, discoveryOccurrenceId: response.discoveryOccurrenceId }
   }
 
@@ -595,8 +595,8 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       const discoveries = last.occurrences.filter((row) => row.kind === 'DISCOVERY')
       const sbom = last.occurrences.filter((row) => row.kind === 'SBOM_REFERENCE')
       const vulnerabilities = last.occurrences.filter((row) => row.kind === 'VULNERABILITY')
-      const failed = discoveries.filter((row) => ['FINISHED_FAILED', 'FINISHED_UNSUPPORTED', 'ANALYSIS_ERROR'].includes(row.discovery?.discovered?.analysisStatus))
-      const complete = discoveries.filter((row) => row.discovery?.discovered?.analysisStatus === 'FINISHED_SUCCESS')
+      const failed = discoveries.filter((row) => ['FINISHED_FAILED', 'FINISHED_UNSUPPORTED', 'ANALYSIS_ERROR'].includes(row.discovery?.analysisStatus))
+      const complete = discoveries.filter((row) => row.discovery?.analysisStatus === 'FINISHED_SUCCESS')
       const blocking = vulnerabilities.filter((row) => ['HIGH', 'CRITICAL'].includes(row.vulnerability?.effectiveSeverity ?? row.vulnerability?.severity))
       if (failed.length || blocking.length) fail('ARTIFACT_POLICY_FAILED')
       if (build.length && complete.length && (sbom.length || complete.some((row) => row.name === sbomExport.discoveryOccurrenceId))) return { resourceUrl: last.resourceUrl, buildOccurrenceNames: build.map((row) => row.name).sort(), discoveryOccurrenceNames: complete.map((row) => row.name).sort(), sbomOccurrenceNames: sbom.map((row) => row.name).sort(), vulnerabilityCount: vulnerabilities.length, blockingVulnerabilityCount: 0, sbomExport, observedAt: now(), status: 'PASS' }
