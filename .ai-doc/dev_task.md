@@ -1,8 +1,10 @@
 # AI PDM dev_task PM Control Board
 
-更新日期：2026-09-08
+更新日期：2026-09-09
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
+
+> **2026-09-09 DEV-117 V3 architecture-final owner handoff（current authority）**：DEV-012採`CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP`；本repo canonical entry為provider-verified `https://ai-pdm-prod-9536592944.asia-east1.run.app`，V3 owner profile SHA-256=`e6247f5fd6f80f799e242689eb47502c0bf24cd9a6473457b560c81f7e0be949`。Owner workflow固定十stage並含app-owned `entrypoint`；不使用`pdm.jenfu.com.tw`、Firebase Hosting或shared LB作current serving path，existing edge=`RETAINED_UNUSED_EDGE`，TOTP不在scope。狀態=`Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Unlocked, Not Started / Production NOT_RUN`；本機證據`releaseAuthority=false`，下一步只依Platform DEV-012 §29執行S2 fresh provider prerequisites。
 
 歷史快照：
 
@@ -11,14 +13,14 @@ Owner：Dev PM
 - `.ai-doc/archived/dev_task_legacy_before_pm_cleanup_2026-06-16.md`
 - `.ai-doc/archived/documentation_map_before_pm_governance_restructure_2026-06-30.md`
 
-> **2026-09-08 DEV-012 S1C production-entry correction（current）**：live audit發現owner native
+> **2026-09-08 DEV-012 S1C production-entry correction（V2 historical）**：live audit發現owner native
 > source-freeze／runtime-config／release-intent producer與Workflows internal candidate verifier已實作並通過owner QC，
 > S1B-20與S1C owner LOCAL_CONTRACT均已完成；下一步只進S2 fresh provider前置。Official repo固定
 > `jedchang0308-jenfu/AI-PDM@main`；canonical由shared HTTPS LB路由，legacy Firebase Hosting維持rollback asset。
-> Current=`012-S1C owner RD Implementation Complete / LOCAL_CONTRACT PASS / S2 Upfront Prerequisites In Progress`。
+> V2 snapshot=`012-S1C owner RD Implementation Complete / LOCAL_CONTRACT PASS / S2 Upfront Prerequisites In Progress`；serving entry與S2狀態以其上V3 authority為準。
 > 本次TOTP延期已從AI-PDM production login移除enrollment、challenge UI與client resolver；production provider固定disabled，既有AAL2-only operation不降級並維持fail closed。
 
-> **2026-09-08 DEV-117 continuous v2 owner handoff（current authority）**：DEV-012採
+> **2026-09-08 DEV-117 continuous v2 owner handoff（historical authority）**：DEV-012採
 > `CONTINUOUS_NO_DWELL_V2`，本repo已完成continuous owner implementation，Platform契約SHA-256=
 > `a1bff69cc3f54775fb193c6fb0ba2d2ce6a89e89f7e4aa4edc0433c6780211c1`、§25～EOF SHA-256=
 > `52eca43d8e09505ae8ca9f9c90b1fa9286143898b738825ea5485b589acae5b2`。v1的六階段人工dispatch、
@@ -100,9 +102,7 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 現行開發：`◐ DEV-117 continuous v2`，成熟度=`Implementation Complete / S1B-20 Local Owner QC PASS /
-  DEV-012 S2 Gated`；已依SPEC §20完成v2 profile、provider wrapper、IaC、single-capsule workflow與abort
-  controller，下一步只可進入DEV-012 S2 fresh provider prerequisites。既有`117-S1`維持v1歷史完成：`Local Implementation Complete /
+- 現行開發：`◐ DEV-117 continuous V3`，成熟度=`Architecture Finalized / RD Tech Lead PASS / V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Unlocked`；已依SPEC §26完成V3 profile、provider wrapper、IaC、ten-stage workflow、app-owned entrypoint與abort controller，下一步只可進入DEV-012 S2 fresh provider prerequisites。既有`117-S1`維持v1歷史完成：`Local Implementation Complete /
   QA-QC 12 of 12 PASS / Production Release Gated`。S1A profile／validator、S1B independent workflow／candidate
   lifecycle及S1C receipt／aggregate已依序完成；provider／credential／DB／Cloud／DNS／traffic mutation固定為0。
   S1B完成只解鎖DEV-012 S2 fresh Billing／quota／authorization前置；在S2 machine receipts完成前不得建立fresh release或執行production stage。
@@ -1593,7 +1593,7 @@ Owner：Dev PM
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ✓ DEV-117 [交付點] [117-S1 Local Implementation Complete / Human Confirmed / QA-QC 12 of 12 PASS / Production Release Gated] [P0] [Provider NOT_RUN] AI_PDM 獨立正式部署 adapter
+- ✓ DEV-117 [交付點] [Architecture Finalized / V3 Owner Implementation Complete / S2 Unlocked / Production Release Gated] [P0] [Provider NOT_RUN] AI_PDM 獨立正式部署 adapter
   - 摘要：建立AI_PDM-owned neutral production release lane，使AI_PDM可獨立build、建立0% candidate、
     完成Level 4、切流與traffic-only rollback；Platform只消費live receipt，不取得AI_PDM deployment authority。
   - 來源 ID：`DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`。
@@ -1602,15 +1602,13 @@ Owner：Dev PM
   - 父任務／關聯：`DEV-116`保留Production Level 4 tenant evidence；Platform `DEV-011`為對稱的
     Platform-owned deploy lane；Platform `DEV-010`只供應shared IAM／DB／migration／capacity／
     compatibility evidence。
-  - 問題與根因：現行`.github/workflows/deploy-production.yml`只指向legacy `jenfu-ai-pdm-prod`與legacy
-    Firebase origin；active neutral authority要求`jenfu-platform-prod / ai-pdm-prod / pdm.jenfu.com.tw`。
-    沿用舊workflow會造成錯target、latest Secret、first-revision 0%與app ownership false-PASS。
+  - 問題與根因：legacy workflow及custom-domain／central edge會造成錯target與非owner入口依賴；current neutral authority要求`jenfu-platform-prod / ai-pdm-prod / provider-verified run.app`。沿用舊workflow會造成latest Secret、nine-stage缺entrypoint、廣泛candidate origin與app ownership false-PASS。
   - 產品結果：AI_PDM與Platform各自擁有artifact、service、hostname、traffic、release receipt與rollback；
     任一app發版／回復不得改寫另一app artifact、runtime或traffic。
   - Exact target：project=`jenfu-platform-prod`、region=`asia-east1`、service=`ai-pdm-prod`、runtime=
     `aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com`、database=
     `jenfu-platform-prod-pg / jenfu_prod`、schemas=`ai_pdm_core / ai_pdm_contract`、canonical=
-    `https://pdm.jenfu.com.tw`。
+    `https://ai-pdm-prod-9536592944.asia-east1.run.app`（正式值以provider readback為準）。
   - Completed Phase：`117-S1A Profile／validator → 117-S1B Workflow／candidate lifecycle → 117-S1C Receipt／
     aggregate／handoff`已依固定QA案例順序完成。Current只有本機source／contract evidence，production mutation=0。
   - Implemented files：新增`config/release/dev117-ai-pdm-independent-production.json`、
@@ -1629,15 +1627,12 @@ Owner：Dev PM
     全PASS，primary invariant／cleanup PASS，remote mutation=0。
   - Release 影響：新增AI_PDM-only artifact／candidate／promotion／rollback／receipt機制；不新增DDL。
     正式release另需fresh `REL-*`與高風險gate，本文件不授權deploy。
-  - 阻塞／恢復條件：本機RD已完成；Production release blocked於current changes尚未成為clean `origin/main`
-    source freeze、`jenfu-platform-prod billingEnabled=false`、DEV-010 provider foundation／capacity／migration未完成、
-    neutral candidate與DEV-116 R02未執行、canonical hostname未驗證及Product Owner未獨立GO。
+  - 阻塞／恢復條件：本機V3 RD／QA-QC已完成；Production仍須final clean `origin/main` freeze、fresh Billing／budget／quota／capacity、Identity／entry baseline、notification／Secret、foundation／APP_INFRA receipts、neutral candidate與DEV-116 R02。任何UNKNOWN或`remainingHumanAction>0`不得進S3；run中不再要求Product Owner GO。
   - 證據／authority：
     `.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md`、
     `.ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md`、
     `.ai-doc/qa/dev-117-current-case-registry.json`。
-  - 下一步：review並收斂本次S1 changes至clean `origin/main`，再建立fresh `REL-117-*` source lock與preflight；
-    provider gate未READY前保持`BLOCKED`，不執行prepare／candidate／promotion。
+  - 下一步：由DEV-012 S2提交／push final source並建立fresh remote freeze，取得全部managed prerequisite receipts；provider gate未READY前不執行migration／candidate／entrypoint／traffic。
   - 計入交付：是；只有S1 local QC完成可標「deployment adapter implemented」，只有future R1
     `LIVE_VERIFIED`可標「獨立production deployment完成」。
 

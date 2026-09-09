@@ -1,9 +1,9 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
-- 文件成熟度：`v1 RD Implementation Complete；continuous v2 RD Implementation Ready`
-- 狀態：`Human Confirmed / v1 Local QA-QC 12 of 12 PASS / continuous v2 S1B complete / S1C owner implementation in progress / DEV-012 S2 Gated`
+- 文件成熟度：`V3 Owner RD Implementation Ready + 架構定案：已定案 / RD Tech Lead PASS / P0=0 / P1=0；v1／v2保留歷史`
+- 狀態：`V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Unlocked, Not Started / Production NOT_RUN`
 - 風險等級：High
-- 日期：2026-09-08
+- 日期：2026-09-09
 - 來源 ID：`DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
 - 決策來源：使用者明確要求「AI_PDM 及 Jenfu-Platform 分開部署」並要求先完成可執行部署前的開發文件
 - 父關卡：`DEV-116` Production Level 4 smoke tenant evidence
@@ -24,8 +24,8 @@
    `DEV-117` 必須引用而不得重造或降低該證據。
 5. 既有 [deploy-production.yml](../../.github/workflows/deploy-production.yml) 只指向 legacy
    `jenfu-ai-pdm-prod`，不得冒充 neutral `jenfu-platform-prod / ai-pdm-prod` 的獨立部署 lane。
-6. 本階段只把開發契約寫到 RD 可直接實作；不建立新的 `REL-*`、不呼叫 GCP、不建 artifact、
-   不寫正式資料庫、不建立 candidate、不改 DNS／authorized domain、不切流量。
+6. v1文件階段當時只把開發契約寫到RD可直接實作；V3 source implementation現已完成，但正式`REL-*`、
+   GCP artifact、production DB、candidate、Identity authorized domains、entrypoint與traffic仍只可依§26及DEV-012 S2／S3執行。
 
 ## 2. Problem 與根因
 
@@ -413,7 +413,7 @@ candidate rebuild、migration order不一致、DEV-116 R02跨candidate拼接、P
 
 ## 20. DEV-012 continuous v2 owner handoff（2026-09-08）
 
-本節是 DEV-117 的歷史continuous v1 authority；現行執行authority為§§21～25。既有 §§1～19 與十二案證據保留為 v1 historical contract；其中 six-stage 人工 dispatch、stage 間手貼 receipt、Product Owner 在 run 中手動 GO、固定 observation wait 與 legacy target不得作為現行可執行解釋。架構來源為 [Platform DEV-012 §§25～28](../../../Jenfu-Platform/ai-doc/specs/DEV-012-three-system-continuous-release-and-boundary-closure.md)，同步時完整文件 SHA-256=`a1bff69cc3f54775fb193c6fb0ba2d2ce6a89e89f7e4aa4edc0433c6780211c1`、§25～EOF SHA-256=`52eca43d8e09505ae8ca9f9c90b1fa9286143898b738825ea5485b589acae5b2`。若上游契約 bytes 改變，先重做 direct-doc review，不以模糊相容推論繼續。
+本節是DEV-117的historical continuous v1 authority；§§21～25是V2 historical implementation，current執行authority為§26與Platform DEV-012 §29。既有§§1～25與十二案／S1B證據保留，但six-stage人工dispatch、V2 custom-domain／nine-stage、手貼receipt、run中Product Owner GO、fixed observation與legacy target不得作current可執行解釋。
 
 ### 20.1 Current v2 outcome and owner boundary
 
@@ -470,10 +470,25 @@ Canonical `pdm.jenfu.com.tw`由DEV-012 shared global HTTPS load balancer穩定�
 
 本節屬`012-S1C`。完成owner source與tests最多標`S1C owner PASS / S2 Gated`；fresh cost／quota、DNS／TLS、production principal、Secret、native freeze及DEV-116 R02仍由S2／S3取得，不預填PASS。
 
-## 25. DEV-012 §28 executable production-entry amendment（current authority）
+## 25. DEV-012 §28 executable production-entry amendment（V2 predecessor；current由§26取代）
 
 AI-PDM owner source現已實作own prerequisite producer、source-frozen Terraform saved-plan gate／executor、完整兩容器runtime config、Workflows internal OIDC candidate smoke及production stage transport。正式source只接受clean、remote-reachable的`jedchang0308-jenfu/AI-PDM@main` exact commit；`.gitattributes`固定將tracked historical `output/`標為`export-ignore`，保留repository evidence但禁止把約1.1 GiB歷史輸出送入production source archive。APP_INFRA_B plan必綁該revision、provider-readback foundation manifest及Artifact Registry immutable controller／migration-runner digests，CLI variable相同不能代替provenance。
 
 Firebase smoke refresh token只以payload存在AI-PDM GCP Secret Manager numeric version與AI-PDM GitHub `production` environment secret：前者僅供candidate Workflows smoke SA讀取，後者僅供owner workflow在activation後執行canonical smoke。Coordinator、builder、deployer、一般runtime、sibling均不得讀payload；source、runtime env、log與receipt不得含值，receipt只記resource reference、numeric version與hash。這項前置由同一identity bootstrap以已驗信Email/Password AAL1、無enrolled MFA且production TOTP provider disabled的readback在cohort dispatch前完成，不在run中要求真人；AI-PDM正式登入端不保留TOTP enrollment、challenge UI或client resolver，既有AAL2-only operation仍維持fail closed。
 
-AI-PDM candidate pool固定8，三app current connection denominator為61；本owner只在OrgMaster terminal／canonical／cleanup成功後、Platform之前執行。Fresh Billing固定驗linked projects=5、planned new links=0、TWD3,200 budget與15-row quota；R1 capacity及N1C staging必使用current denominator重證。Local tests最多標`S1C owner PASS / S2 Gated`；production intent仍須等待identity、DNS／TLS、notification、foundation與AI-PDM APP_INFRA_A/B native receipts及`remainingHumanAction=0`。
+AI-PDM candidate pool固定8，三app current connection denominator為61；本owner只在OrgMaster terminal／canonical／cleanup成功後、Platform之前執行。Fresh Billing固定驗linked projects=5、planned new links=0、TWD3,200 budget與15-row quota；R1 capacity及N1C staging必使用current denominator重證。V2當時production intent另等待DNS／TLS；V3 current由§26移除此custom-domain前置，但identity、notification、foundation、AI-PDM APP_INFRA_A/B native receipts及`remainingHumanAction=0`仍必須完成。
+
+## 26. `CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP` architecture-final owner amendment（current authority）
+
+分類：`Human Confirmed / Intentional replacement / Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Complete / S2 Unlocked / Production NOT_RUN`。本節前向取代§§20～25中custom-domain、shared edge、nine-stage與缺少`entrypoint` stage的current指令；其source-freeze、兩容器runtime、14-entry migration、DEV-116 R02、Billing／quota、Secret與provider provenance契約仍有效。
+
+- 真正問題是AI-PDM release不應依賴第三方DNS或central edge authority。最小架構固定使用provider readback所得`https://ai-pdm-prod-9536592944.asia-east1.run.app`；V3 owner profile=`config/release/dev117-ai-pdm-independent-production-v3.json`，SHA-256=`e6247f5fd6f80f799e242689eb47502c0bf24cd9a6473457b560c81f7e0be949`。此profile是AI-PDM endpoint與entry policy唯一deploy authority；Platform只hash-ref及join receipt。
+- Workflow固定`prepare→build→migrate→candidate→entrypoint→verify→decision→activate→canonical→finalize`。Candidate只建立inactive exact revision及0% tag，並注入唯一`PDM_RELEASE_CANDIDATE_ORIGIN`；canonical及candidate皆拒絕wildcard、legacy hash-host、wrong project／service／tag／region、port、userinfo與path。
+- `entrypoint`以fresh etag PATCH exact mask `ingress,defaultUriDisabled,invokerIamDisabled`，target為ingress all、default URL enabled、`invokerIamDisabled=true`；before／after template與traffic必須相同。No-op不PATCH，412／timeout／unknown outcome先readback。失敗固定own traffic rollback→tag cleanup→entry baseline restore，中央及sibling不得代改。
+- Public Cloud Run entry只解除infrastructure IAM攔截；AI-PDM既有Firebase identity、host-only Secure HttpOnly session、CSRF、revocation、role／permission、DEV-116 company-smoke isolation及AAL2-only fail-closed契約不變。Identity authorized domains由Platform S2 owner加入exact canonical hosts；Firebase `authDomain`不變，candidate host與TOTP不在scope。
+- Existing Firebase Hosting、custom domain、shared LB／DNS／certificate只作`RETAINED_UNUSED_EDGE`，不在serving或rollback path，本次不刪除、不修改、不解除Billing。Legacy `jenfu-ai-pdm-prod`仍是獨立rollback／retirement資產，不能冒充neutral V3 source或canonical。
+- No-touch仍包含DEV-116 producer、migration SQL、product feature source、legacy production state、sibling repository／schema／service／Secret。實作模型可決定不改契約的局部命名、純函式分解與fixture；不得改endpoint、stage order、entry mask、origin allowlist、14-entry manifest、DEV-116 join、owner權限或candidate順序。命中任一項即停止回送Platform DEV-012規劃authority。
+
+Fresh evidence由Platform `output/dev-012/s1c/2026-09-09T080312-775Z/qc-report.json`提供，SHA-256=`1761f73d8078da01c5749ddc0a9e963e1a0b0ce952b11079d2090135ea1716e0`；contract=`d88b9aaa8a5e27082746221fc5b473abd8a78da712409279baf5ecdb0e176f05`。S1A 32／32、S1B 24／24、S1C 8／8，AI-PDM DB boundary、typecheck、isolated build及diff check PASS，provider／DB／traffic／credential mutation與runtime residue=0。技術主管結論=`PASS / Architecture Finalized / P0=0 / P1=0`，但`releaseAuthority=false`。
+
+Current execution boundary只到DEV-012 S2：fresh remote source freeze、Billing／budget／quota／capacity、Identity／entry baseline、notification／numeric Secret、foundation及AI-PDM APP_INFRA_A/B provider receipts。S3才可執行production migration、candidate、entrypoint、DEV-116 R02、traffic與canonical smoke；任一UNKNOWN、source/profile drift、`remainingHumanAction>0`或需要改上述架構契約即停止。

@@ -1,21 +1,21 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
-> **2026-09-08 DEV-012 S1C amendment**：新增owner production-entry驗證，固定official repo=`jedchang0308-jenfu/AI-PDM`、branch=`main`；驗source-freeze／runtime-config／release-intent native chain、shared-LB host binding、candidate期間`internal`與activation後`internal-and-cloud-load-balancing`、own Workflows smoke SA＋OIDC、Firebase refresh token numeric Secret及legacy Hosting不被改指neutral target。Public `run.app`、GitHub直接candidate smoke、sibling checkout／state、Secret payload與fixture authority均FAIL。此增修不改既有owner分母；已納入中央`S1C-01／05～08／11～12`並通過LOCAL_CONTRACT，現在只進S2 fresh provider前置。
+> **2026-09-08 DEV-012 S1C amendment（V2 historical；current見§15）**：當時新增owner production-entry驗證，固定official repo=`jedchang0308-jenfu/AI-PDM`、branch=`main`；驗source-freeze／runtime-config／release-intent native chain、shared-LB host binding、candidate期間`internal`與activation後`internal-and-cloud-load-balancing`、own Workflows smoke SA＋OIDC、Firebase refresh token numeric Secret及legacy Hosting不被改指neutral target。Public `run.app`在該V2方案為FAIL；此入口判定已由§15 V3 direct-run contract取代。其local結果只保留為V2 provenance，不得作current release authority。
 
-- 文件成熟度：`v1 QA Contract Executed；continuous v2 Implementation Complete`
-- 狀態：`v1 Fixed 12 Cases / Local Contract 12 of 12 PASS；continuous v2 S1B-20與S1C owner Local QC PASS / DEV-012 S2 Upfront Prerequisites In Progress`
-- 日期：2026-09-08
+- 文件成熟度：`V3 Architecture Finalized / RD Tech Lead PASS / Owner QA Contract Executed；v1／v2 Historical`
+- 狀態：`V3 Owner PASS / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Unlocked, Not Started / Production NOT_RUN`
+- 日期：2026-09-09
 - 來源 DEV：`DEV-117 / DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
-- 規格 authority：[DEV-117 SPEC](../specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)
+- 規格 authority：[DEV-117 SPEC §26](../specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)
 - Machine registry：[dev-117-current-case-registry.json](dev-117-current-case-registry.json)
 - 角色邊界：QA定義驗證；RD可新增測試／adapter；QC依凍結案例執行且不修改產品或文件
 
 ## 1. 驗證目標
 
 證明 AI_PDM 能在不部署、切換或回復 Jenfu-Platform 的前提下，建立一條可重現、fail-closed、可回復的
-app-owned production release lane。Current QA只驗證 `117-S1` source與local machine contract；正式 provider
-artifact、candidate、Production Level 4、promotion、canonical smoke與live receipt屬future `117-R1`，不得以fixture
-或legacy結果冒充。
+app-owned production release lane。§§1～14保留v1／v2 source與local machine contract；current QA authority為§15。
+正式provider artifact、candidate、Production Level 4、promotion、canonical smoke與live receipt仍屬DEV-012
+S2／S3，不能以fixture或legacy結果冒充。
 
 ## 2. Evidence layers
 
@@ -222,7 +222,7 @@ error與data sanity；任何意外空資料或全零critical counter都視為FAI
 
 使用思考習慣：#可驗證性、#反事實測試、#風險優先
 
-## 12. DEV-012 continuous v2 validation amendment（current）
+## 12. DEV-012 continuous v2 validation amendment（historical；current見§15）
 
 舊 QA-117-001..012 與其 six-stage workflow證據保留為 v1 historical denominator，不得用來宣稱 v2 continuous release已完成。v2 owner主案例為 Platform DEV-012 QA 的 `S1B-20`，並共同接受 `S1B-01～06／08～18／22～24` 中與 AI_PDM owner slice有關的正負 oracle；上游完整文件 SHA-256=`a1bff69cc3f54775fb193c6fb0ba2d2ce6a89e89f7e4aa4edc0433c6780211c1`、§25～EOF SHA-256=`52eca43d8e09505ae8ca9f9c90b1fa9286143898b738825ea5485b589acae5b2`。
 
@@ -251,3 +251,19 @@ git diff --check
 ## 14. DEV-012 §26 runtime bridge 驗證補充
 
 S1B-20／S1B-15須證明一容器holding baseline可透過已驗章runtime config建立`ai-pdm`＋固定Cloud SQL proxy的兩容器0% candidate；缺proxy、mutable tag、非numeric Secret、漏plain env、錯VPC／runtime SA／probe／resource或一般traffic變更皆在provider write前FAIL。
+
+## 15. `CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP` current QA contract and result
+
+本節依SPEC §26及Platform DEV-012 §29前向取代§§12～14中custom-domain、shared edge與nine-stage的current oracle；共同contract SHA-256=`d88b9aaa8a5e27082746221fc5b473abd8a78da712409279baf5ecdb0e176f05`。v1十二案與V2 S1B-20保留歷史，V3 delta由Platform S1C-01～08固定驗證。
+
+| Gate | Current oracle | 結果 |
+|---|---|---|
+| Owner authority | V3 profile由AI-PDM擁有且hash exact；central只hash-ref；V2 bytes不變 | PASS |
+| Control flow | 十stage，`candidate→entrypoint→verify` receipt鏈不斷，run中human action=0 | PASS |
+| Entrypoint | fresh etag、exact三欄mask、template／traffic零漂移、no-op與unknown readback | PASS |
+| Origin／Auth | canonical＋單一exact `PDM_RELEASE_CANDIDATE_ORIGIN`；wildcard／legacy host拒絕；session／CSRF／permission不退化 | PASS |
+| Recovery | own traffic rollback→tag cleanup→entry baseline restore；already-direct baseline為no-op | PASS |
+| Edge／scope | Hosting／LB／DNS=`RETAINED_UNUSED_EDGE`；TOTP、DEV-116 producer、legacy state及sibling均no-touch | PASS |
+| Engineering exit | owner test、DB boundary、typecheck、isolated build、diff、central S1C aggregate與cleanup | PASS |
+
+Current evidence=`../../../Jenfu-Platform/output/dev-012/s1c/2026-09-09T080312-775Z/qc-report.json`，SHA-256=`1761f73d8078da01c5749ddc0a9e963e1a0b0ce952b11079d2090135ea1716e0`。結果S1A 32／32、S1B 24／24、S1C 8／8，scope=`LOCAL_RECORDED_PROVIDER`、`releaseAuthority=false`；只證明Architecture Finalized與V3 source implementation，正式Billing／quota、migration、candidate、entrypoint、DEV-116 R02、traffic與canonical仍`NOT_RUN`。
