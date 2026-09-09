@@ -64,6 +64,12 @@ after(() => {
 
 test('S1B-20 AI-PDM v3 direct-run profile and strict v1 retention', () => {
   assertDev117V3Profile(profile, v1, n1c)
+  assert.equal(profile.environment.fixedValues.PDM_JENFU_PLATFORM_AUTH_MODE, 'on')
+  assert.equal(profile.environment.fixedValues.PDM_JENFU_ENTITLEMENT_MODE, 'enforce')
+  assert.equal(profile.environment.fixedValues.JENFU_IDENTITY_AUDIENCE, profile.target.projectId)
+  const drifted = structuredClone(profile)
+  drifted.environment.fixedValues.PDM_JENFU_PLATFORM_AUTH_MODE = 'off'
+  assert.throws(() => assertDev117V3Profile(drifted, v1, n1c), /production identity, entitlement, database or direct-origin environment mismatch/u)
   assert.equal(Object.keys(LEGACY_STRICT_VALIDATORS).length, 5)
   assert.ok(Object.values(LEGACY_STRICT_VALIDATORS).every((fn) => typeof fn === 'function'))
 })

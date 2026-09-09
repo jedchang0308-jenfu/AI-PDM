@@ -53,6 +53,7 @@ export function assertProtectedGitHubContext(profile, intent, environment) {
 function runtimeTemplate(profile, plainEnvironment, secretVersions) {
   const code = 'RUNTIME_CONFIG_READBACK_MISMATCH'
   const requiredPlain = profile.environment?.requiredPlainEnvironmentNames ?? profile.environment?.requiredNames ?? []
+  const fixedValues = profile.environment?.fixedValues ?? {}
   const allowedSecrets = profile.environment?.allowedSecretIds ?? profile.environment?.secretIds ?? {}
   const requiredSecrets = profile.environment?.requiredSecretNames ?? Object.keys(allowedSecrets)
   if (!plainEnvironment || !secretVersions
@@ -60,6 +61,8 @@ function runtimeTemplate(profile, plainEnvironment, secretVersions) {
     || canonicalize(Object.keys(secretVersions).sort()) !== canonicalize([...requiredSecrets].sort())
     || Object.values(plainEnvironment).some((value) => typeof value !== 'string')
     || Object.values(secretVersions).some((value) => !/^[1-9][0-9]*$/u.test(String(value)))) fail(code)
+  if (!fixedValues || typeof fixedValues !== 'object' || Array.isArray(fixedValues)
+    || Object.entries(fixedValues).some(([name, value]) => !requiredPlain.includes(name) || typeof value !== 'string' || plainEnvironment[name] !== value)) fail(code)
   const port = profile.runtime.port
   const proxyPort = profile.runtime.cloudSqlProxyPort
   const project = profile.target.projectId

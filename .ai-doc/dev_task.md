@@ -4,7 +4,7 @@
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
-> **2026-09-09 DEV-117 V3 architecture-final owner handoff（current authority）**：DEV-012採`CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP`；本repo canonical entry為provider-verified `https://ai-pdm-prod-9536592944.asia-east1.run.app`，V3 owner profile SHA-256=`e6247f5fd6f80f799e242689eb47502c0bf24cd9a6473457b560c81f7e0be949`。Owner workflow固定十stage並含app-owned `entrypoint`；不使用`pdm.jenfu.com.tw`、Firebase Hosting或shared LB作current serving path，existing edge=`RETAINED_UNUSED_EDGE`，TOTP不在scope。狀態=`Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Unlocked, Not Started / Production NOT_RUN`；本機證據`releaseAuthority=false`，下一步只依Platform DEV-012 §29執行S2 fresh provider prerequisites。
+> **2026-09-10 DEV-117 V3 architecture-final owner handoff（current authority）**：DEV-012採`CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP`；本repo canonical entry為provider-verified `https://ai-pdm-prod-9536592944.asia-east1.run.app`，V3 owner profile SHA-256=`c5734b3b6a4011669e1567ab79263974c421b96d857ab52b5662050f0f1134f4`。Owner workflow固定十stage並含app-owned `entrypoint`；正式runtime exact固定`PDM_JENFU_PLATFORM_AUTH_MODE=on`、`PDM_JENFU_ENTITLEMENT_MODE=enforce`與共同Firebase issuer／audience，且任何`fixedValues`漂移均在Cloud Run write前拒絕。不使用`pdm.jenfu.com.tw`、Firebase Hosting或shared LB作current serving path，existing edge=`RETAINED_UNUSED_EDGE`，TOTP不在scope。狀態=`Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Corrected / fresh S2 receipts required / Production NOT_RUN`；R12 pre-runtime receipts因source drift只保留歷史。
 
 歷史快照：
 

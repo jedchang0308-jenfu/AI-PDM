@@ -39,9 +39,21 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   if (profile.verification?.candidateSmokeMode !== 'WORKFLOWS_INTERNAL_OIDC_V1' || profile.verification?.candidateWorkflowName !== 'aipdm-prod-candidate-smoke' || profile.verification?.candidateRefreshTokenSecretId !== 'aipdm-prod-smoke-firebase-refresh-token') fail('VERIFICATION_PROFILE_MISMATCH', 'AI-PDM internal candidate-smoke profile mismatch')
   if (profile.incidentRuntime?.controllerAudience !== 'https://release-controller.jenfu.internal/aipdm' || profile.incidentRuntime?.githubReadTokenSecretId !== 'aipdm-prod-controller-github-read-token' || profile.incidentRuntime?.numericSecretVersionRequired !== true || profile.incidentRuntime?.activeControlObject !== 'control/active.json') fail('INCIDENT_RUNTIME_PROFILE_MISMATCH', 'AI-PDM abort controller profile mismatch')
   if (profile.migrations?.jobName !== 'ai-pdm-prod-migration-runner' || profile.migrations?.serviceAccount !== 'aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com' || profile.migrations?.baselineCount !== 14) fail('MIGRATION_JOB_MISMATCH', 'AI-PDM migration job mismatch')
-  const expectedPlain = v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name))
+  const integrationPlain = ['PDM_JENFU_PLATFORM_AUTH_MODE', 'PDM_JENFU_ENTITLEMENT_MODE', 'JENFU_FIREBASE_PROJECT_ID', 'JENFU_IDENTITY_ISSUER', 'JENFU_IDENTITY_AUDIENCE']
+  const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain]
   if (JSON.stringify([...profile.environment.requiredPlainEnvironmentNames].sort()) !== JSON.stringify([...expectedPlain].sort()) || JSON.stringify([...profile.environment.requiredSecretNames].sort()) !== JSON.stringify([...v1.environment.requiredSecretEnvironmentNames].sort())) fail('ENVIRONMENT_SET_DRIFT', 'V3 environment set must remove legacy candidate selectors only')
-  if (profile.environment.candidateOriginEnvironmentName !== 'PDM_RELEASE_CANDIDATE_ORIGIN' || profile.environment.fixedValues?.PDM_PUBLIC_BASE_URL !== target.canonicalOrigin) fail('ENVIRONMENT_VALUE_DRIFT', 'AI-PDM direct origin environment mismatch')
+  const fixed = profile.environment.fixedValues || {}
+  if (profile.environment.candidateOriginEnvironmentName !== 'PDM_RELEASE_CANDIDATE_ORIGIN'
+    || fixed.PDM_PUBLIC_BASE_URL !== target.canonicalOrigin
+    || fixed.PDM_SESSION_ISSUER !== target.canonicalOrigin
+    || fixed.PDM_AUTH_MODE !== 'firebase_bff'
+    || fixed.PDM_JENFU_PLATFORM_AUTH_MODE !== 'on'
+    || fixed.PDM_JENFU_ENTITLEMENT_MODE !== 'enforce'
+    || fixed.PDM_DB_PROVIDER !== 'cloud_sql_postgres'
+    || fixed.JENFU_FIREBASE_PROJECT_ID !== target.projectId
+    || fixed.JENFU_IDENTITY_ISSUER !== `https://securetoken.google.com/${target.projectId}`
+    || fixed.JENFU_IDENTITY_AUDIENCE !== target.projectId
+    || fixed.PDM_FIREBASE_PROJECT_ID !== target.projectId) fail('ENVIRONMENT_VALUE_DRIFT', 'AI-PDM production identity, entitlement, database or direct-origin environment mismatch')
   if (profile.operations?.CONFIGURE_ENTRYPOINT !== 'run.projects.locations.services.patch?updateMask=ingress,defaultUriDisabled,invokerIamDisabled') fail('ENTRYPOINT_OPERATION_MISSING', 'AI-PDM entrypoint mutation is not exact')
   if (JSON.stringify(profile.edge) !== JSON.stringify({ servingDependency: false, rollbackDependency: false, ordinaryReleaseMutations: 0, disposition: 'RETAINED_UNUSED_EDGE' })) fail('EDGE_BOUNDARY_DRIFT', 'AI-PDM ordinary release must not depend on edge resources')
   const order = profile.migrations?.entries?.map((entry) => entry.path)

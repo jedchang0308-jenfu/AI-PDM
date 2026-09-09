@@ -14,7 +14,7 @@ const profile = {
   identities: { builder: 'platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' },
   build: { dockerBuilderImage: 'gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c', dockerfile: 'Dockerfile', dockerTarget: 'runner' },
   migrations: { jobName: 'platform-prod-migration-runner', serviceAccount: 'platform-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com' },
-  environment: { requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET'], allowedSecretIds: { SESSION_SECRET: 'platform-prod-session-pepper' }, candidateOriginEnvironmentName: 'PORTAL_RELEASE_CANDIDATE_ORIGIN' },
+  environment: { requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET'], allowedSecretIds: { SESSION_SECRET: 'platform-prod-session-pepper' }, candidateOriginEnvironmentName: 'PORTAL_RELEASE_CANDIDATE_ORIGIN', fixedValues: { NODE_ENV: 'production' } },
 }
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
@@ -157,6 +157,7 @@ test('Cloud Run revision readback stays bound to the exact service path', async 
 test('runtime config carries a complete secret-safe two-container template', () => {
   const runtimeConfig = buildRuntimeConfig(profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } })
   assert.deepEqual(assertRuntimeConfig(profile, runtimeConfig), runtimeConfig.template)
+  assert.throws(() => buildRuntimeConfig(profile, { plainEnvironment: { NODE_ENV: 'development' }, secretVersions: { SESSION_SECRET: '1' } }), /RUNTIME_CONFIG_READBACK_MISMATCH/u)
   const mutable = structuredClone(runtimeConfig)
   mutable.template.containers[1].image = 'proxy:latest'
   assert.throws(() => assertRuntimeConfig(profile, mutable), /RUNTIME_CONFIG_READBACK_MISMATCH/u)
