@@ -30,7 +30,7 @@ test('owner transport reads a generation-bound object from any explicitly allowe
   assert.equal(result.bytes.equals(bytes), true)
 })
 
-test('Cloud Build uses the regional operation API, pinned builder, exact source generation and verified provenance', async () => {
+test('Cloud Build gets the exact regional build resource, pinned builder, source generation and verified provenance', async () => {
   const sourceUri = `gs://${bucket}/source/releases/R/source.tgz`
   const buildTag = `${profile.artifact.uri}:release-${H40}`
   const seen = []
@@ -43,13 +43,13 @@ test('Cloud Build uses the regional operation API, pinned builder, exact source 
   }
   const fetchImpl = async (url, options = {}) => {
     seen.push({ url: String(url), method: options.method ?? 'GET', body: options.body ? JSON.parse(options.body) : null })
-    if (options.method === 'POST') return json({ name: 'projects/jenfu-platform-prod/locations/asia-east1/operations/build-1', done: false })
-    return json({ done: true, response: build })
+    if (options.method === 'POST') return json({ name: 'operations/build/NTU1NGU2YTktMWMwZi00OGJkLTg3N2EtN2YwNGQ2NTE5MTVl', metadata: { build: { id: '5554e6a9-1c0f-48bd-877a-7f04d651915e' } } })
+    return json(build)
   }
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl, sleep: async () => undefined })
   const result = await transport.createBuild({ profile, intent: { sourceRevision: H40, sourceSha256: H64, releaseId: 'REL-001' }, sourceObject: { ref: { uri: sourceUri, sha256: H64 }, metadata: { generation: '9' } }, deadlineAt: '2999-01-01T00:00:00.000Z' })
   assert.equal(result.artifactDigest, `${profile.artifact.uri}@sha256:${H64}`)
-  assert.match(seen[1].url, /^https:\/\/cloudbuild\.googleapis\.com\/v1\/projects\//u)
+  assert.equal(seen[1].url, 'https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds/5554e6a9-1c0f-48bd-877a-7f04d651915e')
   assert.equal(seen[0].body.steps[0].name, profile.build.dockerBuilderImage)
   assert.equal(seen[0].body.steps[0].dir, 'source')
   assert.equal(seen[0].body.source.storageSource.generation, '9')

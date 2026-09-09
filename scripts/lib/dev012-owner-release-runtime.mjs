@@ -240,7 +240,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
 
   async function waitOperation(operation, deadlineAt, apiRoot = 'https://run.googleapis.com/v2') {
     if (!operation?.name || !Number.isFinite(Date.parse(deadlineAt))) fail('OPERATION_OR_DEADLINE_INVALID')
-    if (!['https://run.googleapis.com/v2', 'https://cloudbuild.googleapis.com/v1'].includes(apiRoot)) fail('OPERATION_API_ROOT_INVALID')
+    if (apiRoot !== 'https://run.googleapis.com/v2') fail('OPERATION_API_ROOT_INVALID')
     let current = operation
     while (current.done !== true) {
       if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
@@ -249,6 +249,23 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     }
     if (current.error) fail('PROVIDER_OPERATION_FAILED', String(current.error.code ?? 'unknown'))
     return current.response ?? current
+  }
+
+  async function waitBuild(operation, deadlineAt, projectId, region) {
+    if (!operation?.name || !Number.isFinite(Date.parse(deadlineAt)) || !/^[a-z][a-z0-9-]{4,62}$/u.test(projectId ?? '') || !/^[a-z]+-[a-z]+[0-9]$/u.test(region ?? '')) fail('BUILD_OPERATION_OR_DEADLINE_INVALID')
+    const encoded = operation.name.split('/').at(-1) ?? ''
+    let decoded = ''
+    try { decoded = Buffer.from(encoded, 'base64url').toString('utf8') } catch {}
+    const candidates = [operation.metadata?.build?.id, operation.metadata?.build?.name?.split('/').at(-1), encoded, decoded]
+    const buildId = candidates.find((value) => /^[a-f0-9]{8}-[a-f0-9-]{27}$/u.test(value ?? ''))
+    if (!buildId) fail('BUILD_ID_MISSING')
+    let build
+    do {
+      if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
+      build = await request(`https://cloudbuild.googleapis.com/v1/projects/${projectId}/locations/${region}/builds/${buildId}`)
+      if (!['QUEUED', 'WORKING', 'PENDING'].includes(build.status)) return build
+      await sleep(1000)
+    } while (true)
   }
 
   async function getService(profile) {
@@ -523,7 +540,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       tags: ['dev-012', profile.application.id, intent.releaseId.toLowerCase()],
     }
     const operation = await request(`https://cloudbuild.googleapis.com/v1/projects/${profile.target.projectId}/locations/${profile.target.region}/builds`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-    const build = await waitOperation(operation, deadlineAt, 'https://cloudbuild.googleapis.com/v1')
+    const build = await waitBuild(operation, deadlineAt, profile.target.projectId, profile.target.region)
     const result = build.results?.images?.find((row) => row.name === tag)
     if (build.status !== 'SUCCESS' || build.projectId !== profile.target.projectId || build.serviceAccount !== body.serviceAccount || build.options?.requestedVerifyOption !== 'VERIFIED' || build.sourceProvenance?.resolvedStorageSource?.bucket !== parsed.bucket || build.sourceProvenance?.resolvedStorageSource?.object !== parsed.object || String(build.sourceProvenance?.resolvedStorageSource?.generation) !== String(sourceObject.metadata.generation) || !/^sha256:[a-f0-9]{64}$/u.test(result?.digest ?? '')) fail('BUILD_READBACK_MISMATCH')
     return { build, request: body, tag, artifactDigest: `${profile.artifact.uri}@${result.digest}` }
@@ -731,7 +748,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  return { request, readBytes, readJson, putBytes, putJson, waitOperation, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
+  return { request, readBytes, readJson, putBytes, putJson, waitOperation, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
 export function stageReceipt({ profile, intent, stage, previousReceiptRef = null, facts, observedAt }) {
