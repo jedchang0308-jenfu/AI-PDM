@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-10 R26 current handoff**：upstream app apply前揭露SBOM IAM stage classification缺口，AI-PDM未dispatch。Current owner docs固定三個SBOM binding為`incident_runtime_enabled` APP_INFRA_B additional `[0]` addresses；fresh source／provider only-create readback前Production仍NOT_RUN。
+
 > **2026-09-10 R25 current handoff**：DEV-117 current additive authority為[SPEC §27](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)與[QA §16](qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md)。AI-PDM未在R25 dispatch；own-prefix SBOM與exact-job override IAM完成source／provider重證後才可進production。
 
 > **2026-09-10 DEV-117 R22 correction**：AI-PDM未dispatch；current owner release實作新增per-kind exact-digest Artifact Analysis查詢、discovery-before-SBOM HTTP-400-only bounded retry與pinned non-root Node 24 Distroless production runner。Fresh aggregate QC已PASS；fresh source/cohort前仍為Production NOT_RUN。

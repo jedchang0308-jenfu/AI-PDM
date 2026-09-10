@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-10 DEV-117 R26 staged-IaC correction（current）**：前序OrgMaster在app apply前揭露SBOM bindings不能誤列A；AI-PDM未dispatch。Current以`incident_runtime_enabled`將三個own SBOM addresses移至APP_INFRA_B additional `[0]`，fresh plan須only-create並保留既有A/B。QC／commit後由新cohort重建，R26不得重用。
+
 > **2026-09-10 DEV-117 R25 IAM correction（current）**：R25在前序OrgMaster安全停止，AI-PDM未dispatch。共通缺口已在本repo以前向IaC補正：builder可列bucket metadata／attach note，且只管理encoded own `aipdm-release` SBOM prefix；deployer只在own migration Job新增`roles/run.jobsExecutorWithOverrides`。本機owner／Terraform／DB boundary通過後提交push，fresh cohort前production仍NOT_RUN，R25不得重用。
 
 > **2026-09-10 DEV-117 R22 artifact-evidence hardening（current）**：R22在OrgMaster build安全停止，AI-PDM未dispatch。共用owner runtime已改為四kind＋exact resource occurrence查詢、discovery完成後僅對HTTP 400 bounded retry SBOM；production runner改用pinned non-root Node 24 Distroless，保留0 High／Critical fail-closed。Fresh aggregate `2026-09-10T074043-640Z`已S1A 32／32、S1B 24／24、S1C 8／8及全部AI-PDM exit gate PASS。提交後須由fresh cohort重建source、readiness與intent，R22不得重用。

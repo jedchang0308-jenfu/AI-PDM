@@ -50,9 +50,6 @@
     "google_project_iam_member.builder_build_submit",
     "google_project_iam_member.builder_log_writer",
     "google_project_iam_member.builder_artifact_analysis",
-    "google_project_iam_member.builder_sbom_bucket_viewer",
-    "google_project_iam_member.builder_sbom_note_attacher",
-    "google_storage_bucket_iam_member.builder_sbom_object_admin",
     "google_project_iam_member.verifier_candidate_smoke_invoker",
     "google_artifact_registry_repository_iam_member.builder_writer",
     "google_artifact_registry_repository_iam_member.deployer_reader",
@@ -62,6 +59,9 @@
     "google_service_account_iam_member.deployer_act_as_runtime"
   ],
   "stageBAdditional": [
+    "google_project_iam_member.builder_sbom_bucket_viewer[0]",
+    "google_project_iam_member.builder_sbom_note_attacher[0]",
+    "google_storage_bucket_iam_member.builder_sbom_object_admin[0]",
     "google_service_account_iam_member.builder_act_as_self",
     "google_storage_bucket_iam_member.controller[\"control_user\"]",
     "google_storage_bucket_iam_member.controller[\"receipts_creator\"]",

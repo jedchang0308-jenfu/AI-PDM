@@ -37,6 +37,7 @@ resource "google_storage_bucket_iam_member" "builder_bucket_viewer" {
 # exportSBOM writes only below this app's Artifact Registry URI prefix in the
 # shared regional Artifact Analysis bucket. No sibling prefix is writable.
 resource "google_storage_bucket_iam_member" "builder_sbom_object_admin" {
+  count  = var.incident_runtime_enabled ? 1 : 0
   bucket = local.artifact_analysis_bucket
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.builder.email}"

@@ -1,5 +1,7 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
+> **2026-09-10 R26 staged-IaC correction（current additive authority）**：R26在前序OrgMaster app apply前安全停止，AI-PDM未dispatch且production mutation=0。AI-PDM三個own-prefix SBOM bindings改以`incident_runtime_enabled`建立並列入APP_INFRA_B additional `[0]` complete-set；fresh B只允許它們與own exact-job override為create，其餘read/no-op，禁止回跑A刪除既有B。
+
 > **2026-09-10 R25 IAM correction（current additive authority）**：upstream R25在OrgMaster owner的自動SBOM與migration Job override揭露三owner共通IAM缺口，AI-PDM尚未dispatch、production mutation=0。§27固定AI-PDM builder只對own encoded `aipdm-release` prefix管理SBOM物件，deployer只對`ai-pdm-prod-migration-runner`取得`roles/run.jobsExecutorWithOverrides`；fresh source／APP_INFRA／cohort前不得部署。
 
 > **2026-09-10 R22 artifact-evidence hardening（current）**：R22在OrgMaster build階段安全停止，AI-PDM未dispatch。Owner共用runtime改為四種occurrence按kind＋exact resource獨立分頁，先等`DISCOVERY=FINISHED_SUCCESS`再僅對HTTP 400 bounded retry SBOM，其他status立即FAIL，且仍要求BUILD、SBOM reference及0 High／Critical；AI-PDM production runner改為pinned non-root `gcr.io/distroless/nodejs24-debian13:nonroot@sha256:7781e8b4…b937`，不把build-time npm／OS工具帶入正式映像。Fresh aggregate `2026-09-10T074043-640Z`已PASS；R22不可重用，提交後須fresh source/cohort。

@@ -1,5 +1,7 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
+> **2026-09-10 R26 staged-IaC amendment（current）**：SBOM IAM三地址必為APP_INFRA_B additional `[0]`且以`incident_runtime_enabled=true`建立；A不得出現，fresh B只可create三個SBOM bindings與exact-job override，其餘read/no-op。任何update/delete/replace、A rollback destroy、sibling prefix或project-wide object權限均FAIL。
+
 > **2026-09-10 R25 IAM regression amendment（current）**：§16新增AI-PDM own-prefix SBOM及exact migration Job override權限oracle；R25未dispatch AI-PDM且不得計入production PASS。修正後需fresh source-frozen APP_INFRA readback與無人工SBOM build evidence。
 
 > **2026-09-10 R22 amendment（current）**：R22未dispatch AI-PDM；新增固定oracle：四種Artifact Analysis occurrence各以kind＋exact digest resource獨立分頁且回傳scope不符即FAIL；scan discovery成功前不得export SBOM，HTTP 400只可bounded retry，其他status立即FAIL；BUILD、SBOM reference與0 High／Critical缺一不可。Production `runner`必使用pinned Node 24 Distroless、UID/GID 65532，且不得帶入npm toolchain；High／Critical門檻不得降低。Fresh aggregate `2026-09-10T074043-640Z`已含AI-PDM audit／DB boundary／typecheck／isolated build／diff check全PASS。
