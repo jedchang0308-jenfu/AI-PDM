@@ -124,3 +124,15 @@ resource "google_cloud_run_v2_job_iam_member" "migration_runner_with_overrides" 
   role     = "roles/run.jobsExecutorWithOverrides"
   member   = "serviceAccount:${google_service_account.deployer.email}"
 }
+
+# The owner release executor fail-closes on provider readback before and after
+# execution. Scope Cloud Run Viewer to this exact migration job so the deployer
+# can verify the job, operation, and execution without gaining sibling access.
+resource "google_cloud_run_v2_job_iam_member" "migration_runner_viewer" {
+  count    = var.incident_runtime_enabled ? 1 : 0
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_job.migration[0].name
+  role     = "roles/run.viewer"
+  member   = "serviceAccount:${google_service_account.deployer.email}"
+}

@@ -127,9 +127,11 @@ test('AI-PDM custom Cloud Build service account can act only as itself', () => {
   for (const source of [identity.match(/resource "google_project_iam_member" "builder_sbom_bucket_viewer"[\s\S]*?\n\}/u)?.[0] ?? '', identity.match(/resource "google_project_iam_member" "builder_sbom_note_attacher"[\s\S]*?\n\}/u)?.[0] ?? '', storage.match(/resource "google_storage_bucket_iam_member" "builder_sbom_object_admin"[\s\S]*?\n\}/u)?.[0] ?? '']) assert.match(source, /count\s+= var\.incident_runtime_enabled \? 1 : 0/u)
   assert.doesNotMatch(storage.match(/resource "google_storage_bucket_iam_member" "builder_sbom_object_admin"[\s\S]*?\n\}/u)?.[0] ?? '', /orgmaster-release|platform-release/u)
   assert.match(migration, /resource "google_cloud_run_v2_job_iam_member" "migration_runner_with_overrides"[\s\S]*name\s+= google_cloud_run_v2_job\.migration\[0\]\.name[\s\S]*role\s+= "roles\/run\.jobsExecutorWithOverrides"[\s\S]*google_service_account\.deployer\.email/u)
+  assert.match(migration, /resource "google_cloud_run_v2_job_iam_member" "migration_runner_viewer"[\s\S]*name\s+= google_cloud_run_v2_job\.migration\[0\]\.name[\s\S]*role\s+= "roles\/run\.viewer"[\s\S]*google_service_account\.deployer\.email/u)
   for (const address of ['google_project_iam_member.builder_sbom_bucket_viewer[0]', 'google_project_iam_member.builder_sbom_note_attacher[0]', 'google_storage_bucket_iam_member.builder_sbom_object_admin[0]']) {
     assert.ok(infraPlan.stageBAdditional.includes(address))
     assert.ok(!infraPlan.stageA.includes(address))
   }
   assert.ok(infraPlan.stageBAdditional.includes('google_cloud_run_v2_job_iam_member.migration_runner_with_overrides[0]'))
+  assert.ok(infraPlan.stageBAdditional.includes('google_cloud_run_v2_job_iam_member.migration_runner_viewer[0]'))
 })

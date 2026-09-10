@@ -70,6 +70,7 @@
     "google_cloud_run_v2_job.migration[0]",
     "google_cloud_run_v2_job_iam_member.migration_runner[0]",
     "google_cloud_run_v2_job_iam_member.migration_runner_with_overrides[0]",
+    "google_cloud_run_v2_job_iam_member.migration_runner_viewer[0]",
     "google_cloud_run_v2_service_iam_member.application_controller[0]",
     "google_pubsub_topic.incident[0]",
     "google_pubsub_topic_iam_member.monitoring_publisher[0]",
