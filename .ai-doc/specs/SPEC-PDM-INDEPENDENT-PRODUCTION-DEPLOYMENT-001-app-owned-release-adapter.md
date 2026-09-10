@@ -1,5 +1,7 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
+> **2026-09-11 R28 operation／production DB prerequisite correction（current additive authority）**：R28在OrgMaster階段建立migration execution後，因正式庫尚無DEV-010共用roles／schemas以SQLSTATE `42704`停止，AI-PDM未dispatch。Shared owner runtime不再輪詢Cloud Run operations endpoint；Service PATCH只以exact Service readback驗settled及零template／traffic drift，Job run只接受run前後child execution差集內一筆current args完全匹配的新execution。Platform-owned production DB bootstrap immutable receipt是S2 cohort prerequisite；target、source、role／schema／CONNECT隔離與task-owned Job cleanup未PASS前，本owner不得取得intent或執行migrate。R28 receipts不得重用。
+
 > **2026-09-10 R26 staged-IaC correction（current additive authority）**：R26在前序OrgMaster app apply前安全停止，AI-PDM未dispatch且production mutation=0。AI-PDM三個own-prefix SBOM bindings改以`incident_runtime_enabled`建立並列入APP_INFRA_B additional `[0]` complete-set；fresh B只允許它們與own exact-job override為create，其餘read/no-op，禁止回跑A刪除既有B。
 
 > **2026-09-10 R25 IAM correction（current additive authority）**：upstream R25在OrgMaster owner的自動SBOM與migration Job override揭露三owner共通IAM缺口，AI-PDM尚未dispatch、production mutation=0。§27固定AI-PDM builder只對own encoded `aipdm-release` prefix管理SBOM物件，deployer只對`ai-pdm-prod-migration-runner`取得`roles/run.jobsExecutorWithOverrides`；fresh source／APP_INFRA／cohort前不得部署。
@@ -516,3 +518,9 @@ AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage
 Stage B新增`google_cloud_run_v2_job_iam_member.migration_runner_with_overrides[0]`，role=`roles/run.jobsExecutorWithOverrides`，resource=`ai-pdm-prod-migration-runner`，member只能是`aipdm-prod-deployer`。既有exact-job `roles/run.invoker` additive保留以避免已套用Terraform state發生replace／delete；不得把兩者提升到project scope，deployer仍不能update Job、actAs migrator、改image／command／DB或操作sibling。Fresh saved plan只允許新地址create及既有地址read／no-op。
 
 R25未dispatch AI-PDM，故沒有可沿用的AI-PDM build／migration／candidate／traffic authority。修正提交後須由Platform DEV-012 fresh cohort重建AI-PDM source lock、APP_INFRA_B、capacity／readiness mirror、runtime與intent；owner build必自行完成SBOM，不得再依賴人類token補跑。
+
+## 28. R28 exact provider readback correction（current additive authority）
+
+AI-PDM owner controller不得使用Cloud Run generic operation作completion authority。Service mutation保留operation name作稽核欄位，但只輪詢`ai-pdm-prod` exact Service並驗requested entry fields、fresh generation／etag、settled及template／traffic projection不變。Migration run前後完整分頁列出`ai-pdm-prod-migration-runner` child executions，只接受一個先前不存在且container args與current immutable bundle／output refs完全一致的新execution，再以exact execution GET至terminal；零筆、多筆、舊execution、args drift、不可讀或deadline均FAIL。
+
+Shared production DB roles／schemas不是AI-PDM business migration的owner。Platform S2 bootstrap receipt須綁同一release ID、Platform source與exact production target，證明neutral／app roles、`ai_pdm_core／ai_pdm_contract` schema、IAM login memberships、direct CONNECT、group／PUBLIC denial、`public`無business object及bootstrap Job cleanup；coordinator在其PASS前不得dispatch。本owner收到有效intent後仍只執行自己既有14-entry forward-only migration，不得內建、重跑或修補shared bootstrap。

@@ -1,5 +1,7 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
+> **2026-09-11 R28 amendment（current）**：R28在OrgMaster migration execution因缺shared DB roles／schemas安全停止，AI-PDM未dispatch。新增owner oracle：不得GET generic operations；Service PATCH須exact Service settled readback，Job run須以run前後child execution差集＋current args唯一匹配取得exact execution並輪詢terminal。Platform production DB bootstrap immutable receipt未通過exact target、source、隔離數值與task-owned Job cleanup前，coordinator不得建立AI-PDM dispatch。R28不計production PASS。
+
 > **2026-09-10 R26 staged-IaC amendment（current）**：SBOM IAM三地址必為APP_INFRA_B additional `[0]`且以`incident_runtime_enabled=true`建立；A不得出現，fresh B只可create三個SBOM bindings與exact-job override，其餘read/no-op。任何update/delete/replace、A rollback destroy、sibling prefix或project-wide object權限均FAIL。
 
 > **2026-09-10 R25 IAM regression amendment（current）**：§16新增AI-PDM own-prefix SBOM及exact migration Job override權限oracle；R25未dispatch AI-PDM且不得計入production PASS。修正後需fresh source-frozen APP_INFRA readback與無人工SBOM build evidence。
@@ -285,3 +287,9 @@ Current evidence=`../../../Jenfu-Platform/output/dev-012/s1c/2026-09-09T111340-0
 S1B-20重跑必證明IaC／complete-set含`roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`、只限encoded `aipdm-release` prefix的`roles/storage.objectAdmin`，以及只限`ai-pdm-prod-migration-runner`＋`aipdm-prod-deployer`的`roles/run.jobsExecutorWithOverrides`。Sibling prefix／job／principal、無condition、project-wide object role、只有`run.invoker`或Terraform update／delete／replace均FAIL。
 
 Managed build須由AI-PDM builder自行取得SBOM_REFERENCE與0 High／Critical scan，不接受human-generated SBOM。Managed migration須建立exact execution且在其PASS前traffic不變；最終仍依DEV-012 QA-012分母與DEV-116 R02完成production acceptance。
+
+## 17. R28 exact provider readback／bootstrap prerequisite oracle
+
+Owner runtime regression須證明`/operations/`永遠不是readback路徑；Service PATCH只能由exact Service settled state、requested entry fields與零template／traffic drift判定完成。Migration在POST前後須完整分頁列出child executions，只能以唯一new＋exact current args匹配選定execution並輪詢其terminal；零筆、多筆、stale latest、args drift、unreadable或deadline均FAIL，且不得繼續candidate／entrypoint／traffic。
+
+Upstream coordinator negative case須在production DB bootstrap receipt缺失、self-hash／Platform source／release ID／target漂移、role／schema／membership／CONNECT／PUBLIC隔離數值不符或task-owned Job未清理時，於AI-PDM dispatch前FAIL。有效bootstrap只解鎖owner執行；AI-PDM既有14-entry migration與DEV-116 R02仍須各自PASS，不能由shared bootstrap替代。

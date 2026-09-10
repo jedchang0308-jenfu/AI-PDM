@@ -145,14 +145,22 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
   }
   const job = { name: jobName, template: { taskCount: 1, parallelism: 1, template: { serviceAccount: profile.migrations.serviceAccount, maxRetries: 0, timeout: '1800s', containers: [{ name: 'migration', image: `runner@sha256:${H64}`, env: Object.entries(environment).map(([name, value]) => ({ name, value })), volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }], volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }] } } }
   let runCalls = 0
+  let listCalls = 0
+  const requestedArgs = ['--bundle-ref', `gs://${bucket}/source/migration-bundles/b.json`, '--bundle-sha256', H64, '--source-revision', H40, '--output-ref', `gs://${bucket}/receipts/migrate.json`]
+  const executionName = `${jobName}/executions/e1`
+  const execution = { name: executionName, template: { containers: [{ name: 'migration', args: requestedArgs }] }, succeededCount: 1, failedCount: 0, completionTime: '2026-09-08T00:00:00Z', terminalCondition: { state: 'CONDITION_SUCCEEDED' } }
+  const requestedUrls = []
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
+    requestedUrls.push(String(url))
     if (options.method === 'POST') { runCalls += 1; return json({ name: 'projects/p/locations/r/operations/run-1', done: true, response: { name: 'projects/p/locations/r/executions/e1' } }) }
-    if (String(url).endsWith('/executions/e1')) return json({ name: 'projects/p/locations/r/executions/e1', succeededCount: 1, failedCount: 0, completionTime: '2026-09-08T00:00:00Z', terminalCondition: { state: 'CONDITION_SUCCEEDED' } })
+    if (String(url).endsWith('/executions?pageSize=100')) return json({ executions: listCalls++ === 0 ? [] : [execution] })
+    if (String(url).endsWith('/executions/e1')) return json(execution)
     return json(job)
   } })
   const deployment = { migrationRunnerDigest: `runner@sha256:${H64}`, migrationBundleRef: { uri: `gs://${bucket}/source/migration-bundles/b.json`, sha256: H64 }, sourceRevision: H40 }
   await transport.runMigrationJob({ profile, deployment, outputUri: `gs://${bucket}/receipts/migrate.json`, deadlineAt: '2999-01-01T00:00:00.000Z' })
   assert.equal(runCalls, 1)
+  assert.equal(requestedUrls.some((url) => url.includes('/operations/')), false)
   const drifted = structuredClone(job)
   drifted.template.template.containers[0].env.find((row) => row.name === 'POSTGRES_DATABASE').value = 'jenfu_stg'
   const denied = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async () => json(drifted) })
@@ -215,8 +223,8 @@ test('candidate replaces a one-container holding template with the reviewed runt
   const settled = { name: serviceName, reconciling: false, generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' } }
   const before = { ...settled, etag: 'e1', template: { serviceAccount: 'holding@example.invalid', containers: [{ name: 'holding', image: 'holding@sha256:' + '0'.repeat(64) }] }, traffic: [{ revision: 'holding-1', percent: 100 }], trafficStatuses: [{ revision: 'holding-1', percent: 100 }] }
   const created = { ...before, etag: 'e2', latestCreatedRevision: candidateRevision }
-  const tagged = { ...created, etag: 'e3', traffic: [...before.traffic, { revision: candidateRevision, percent: 0, tag: candidateTag }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, percent: 0, tag: candidateTag, uri: candidateUri }] }
-  const reads = [before, created, tagged]
+  const tagged = { ...created, etag: 'e3', traffic: [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, percent: 0, tag: candidateTag }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, percent: 0, tag: candidateTag, uri: candidateUri }] }
+  const reads = [before, created, created, tagged, tagged]
   const patches = []
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
     if (options.method === 'PATCH') { patches.push(JSON.parse(options.body)); return json({ name: `projects/${profile.target.projectId}/locations/${profile.target.region}/operations/patch-${patches.length}`, done: true, response: {} }) }
@@ -256,7 +264,7 @@ test('candidate revision receives one exact full-origin overlay and provider URI
       return json({ name: 'projects/p/locations/r/operations/patch', done: true, response: {} })
     }
     if (value.includes('/revisions/')) return json({ name: `${before.name}/revisions/${candidateRevision}`, service: before.name, containers: [{ name: profile.runtime.containerName, image: artifactDigest, env: expectedApp.env }, { name: profile.runtime.cloudSqlProxyContainer, image: profile.runtime.cloudSqlProxyImage }], conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] })
-    return json([before, created, tagged][serviceGets++])
+    return json([before, created, created, tagged, tagged][serviceGets++])
   } })
   const result = await transport.createCandidate({ profile, artifactDigest, runtimeConfig, fingerprint, deadlineAt: '2999-01-01T00:00:00.000Z' })
   assert.equal(result.tagUri, tagUri)

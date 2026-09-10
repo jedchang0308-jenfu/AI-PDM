@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-11 DEV-117 R28 operation／DB prerequisite correction（current）**：R28在前序OrgMaster migration execution因正式庫缺DEV-010共用roles／schemas而以SQLSTATE `42704`安全停止，AI-PDM未dispatch，candidate／entrypoint／traffic=0。AI-PDM共用owner runtime已移除generic Cloud Run operation GET，Service mutation改驗exact Service settled readback，Job run改以run前後child executions差集及current args唯一匹配取得exact execution。Platform S2另加入source-bound production DB bootstrap receipt硬閘；其target／隔離／cleanup未PASS前不得建立AI-PDM intent或dispatch。Fresh central aggregate `2026-09-10T195308-852Z`（SHA-256 `c883a57f…af2cd`）已含AI-PDM production audit、DB boundary、typecheck／isolated build、owner與Terraform gate PASS，releaseAuthority=false。提交push後fresh R29或後續cohort才可重建，R28不得重用。
+
 > **2026-09-10 DEV-117 R26 staged-IaC correction（current）**：前序OrgMaster在app apply前揭露SBOM bindings不能誤列A；AI-PDM未dispatch。Current以`incident_runtime_enabled`將三個own SBOM addresses移至APP_INFRA_B additional `[0]`，fresh plan須only-create並保留既有A/B。QC／commit後由新cohort重建，R26不得重用。
 
 > **2026-09-10 DEV-117 R25 IAM correction（current）**：R25在前序OrgMaster安全停止，AI-PDM未dispatch。共通缺口已在本repo以前向IaC補正：builder可列bucket metadata／attach note，且只管理encoded own `aipdm-release` SBOM prefix；deployer只在own migration Job新增`roles/run.jobsExecutorWithOverrides`。本機owner／Terraform／DB boundary通過後提交push，fresh cohort前production仍NOT_RUN，R25不得重用。

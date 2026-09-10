@@ -242,19 +242,6 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return putBytes(uri, Buffer.from(`${canonicalize(value)}\n`, 'utf8'), { ...options, contentType: 'application/json' })
   }
 
-  async function waitOperation(operation, deadlineAt, apiRoot = 'https://run.googleapis.com/v2') {
-    if (!operation?.name || !Number.isFinite(Date.parse(deadlineAt))) fail('OPERATION_OR_DEADLINE_INVALID')
-    if (apiRoot !== 'https://run.googleapis.com/v2') fail('OPERATION_API_ROOT_INVALID')
-    let current = operation
-    while (current.done !== true) {
-      if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
-      await sleep(1000)
-      current = await request(`${apiRoot}/${operation.name}`)
-    }
-    if (current.error) fail('PROVIDER_OPERATION_FAILED', String(current.error.code ?? 'unknown'))
-    return current.response ?? current
-  }
-
   async function waitBuild(operation, deadlineAt, projectId, region) {
     if (!operation?.name || !Number.isFinite(Date.parse(deadlineAt)) || !/^[a-z][a-z0-9-]{4,62}$/u.test(projectId ?? '') || !/^[a-z]+-[a-z]+[0-9]$/u.test(region ?? '')) fail('BUILD_OPERATION_OR_DEADLINE_INVALID')
     const encoded = operation.name.split('/').at(-1) ?? ''
@@ -274,6 +261,46 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
 
   async function getService(profile) {
     return request(`https://run.googleapis.com/v2/projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`)
+  }
+
+  function serviceSettled(service) {
+    return service?.reconciling !== true
+      && service?.terminalCondition?.state === 'CONDITION_SUCCEEDED'
+      && service?.generation != null
+      && service?.observedGeneration != null
+      && String(service.observedGeneration) === String(service.generation)
+  }
+
+  function serviceMutationVisible(service, requested, updateMask) {
+    if (updateMask === ENTRYPOINT_UPDATE_MASK) {
+      return service?.ingress === requested.ingress
+        && service?.defaultUriDisabled === requested.defaultUriDisabled
+        && service?.invokerIamDisabled === requested.invokerIamDisabled
+    }
+    if (updateMask === 'template') {
+      const revision = requested?.template?.revision
+      return typeof revision === 'string'
+        && (service?.latestCreatedRevision === revision || String(service?.latestCreatedRevision ?? '').endsWith(`/revisions/${revision}`))
+    }
+    if (updateMask === 'traffic') {
+      const expected = requested?.traffic
+      const actual = service?.traffic
+      if (!Array.isArray(expected) || !Array.isArray(actual) || expected.length !== actual.length) return false
+      return expected.every((row, index) => ['type', 'revision', 'percent', 'tag', 'latestRevision']
+        .every((key) => row[key] === undefined || actual[index]?.[key] === row[key]))
+    }
+    return false
+  }
+
+  async function waitServiceMutation(profile, requested, updateMask, deadlineAt) {
+    if (!Number.isFinite(Date.parse(deadlineAt))) fail('OPERATION_OR_DEADLINE_INVALID')
+    while (true) {
+      if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
+      const current = await getService(profile)
+      if (serviceSettled(current) && serviceMutationVisible(current, requested, updateMask)) return current
+      if (current?.reconciling !== true && current?.terminalCondition?.state === 'CONDITION_FAILED') fail('PROVIDER_OPERATION_FAILED', 'run-service')
+      await sleep(1000)
+    }
   }
 
   function assertServiceSettled(service, code = 'RUN_SERVICE_NOT_SETTLED') {
@@ -312,7 +339,8 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     }[updateMask]
     if (!expectedKeys || Object.keys(service ?? {}).sort().join(',') !== expectedKeys.join(',') || service?.name !== `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}` || !service.etag) fail('RUN_MUTATION_INVALID')
     const operation = await request(`https://run.googleapis.com/v2/${service.name}?updateMask=${encodeURIComponent(updateMask)}&allowMissing=false`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(service) })
-    const response = await waitOperation(operation, deadlineAt)
+    if (!operation?.name) fail('PROVIDER_OPERATION_REF_MISSING')
+    const response = await waitServiceMutation(profile, service, updateMask, deadlineAt)
     return { operationRef: { name: operation.name }, response }
   }
 
@@ -518,12 +546,56 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       assertImmutableRef(deployment.firstPrincipalBootstrapRef, profile.artifact.releaseBucket, [profile.productionData.bootstrapObjectPrefix])
       args.push('--data-ref', deployment.productionDataRef.uri, '--data-sha256', deployment.productionDataRef.sha256, '--bootstrap-ref', deployment.firstPrincipalBootstrapRef.uri, '--bootstrap-sha256', deployment.firstPrincipalBootstrapRef.sha256)
     }
-    const operation = await request(`https://run.googleapis.com/v2/${jobName}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ overrides: { containerOverrides: [{ name: 'migration', args }] } }) })
-    const execution = await waitOperation(operation, deadlineAt)
-    const executionName = execution.name
-    const readback = await request(`https://run.googleapis.com/v2/${executionName}`)
-    if (Number(readback.failedCount ?? 0) !== 0 || Number(readback.succeededCount ?? 0) !== 1 || readback.completionTime == null || readback.terminalCondition?.state !== 'CONDITION_SUCCEEDED') fail('MIGRATION_EXECUTION_FAILED')
-    return readback
+    const listExecutions = async () => {
+      const executions = []
+      let pageToken = ''
+      for (let page = 0; page < 10; page += 1) {
+        const query = new URLSearchParams({ pageSize: '100' })
+        if (pageToken) query.set('pageToken', pageToken)
+        const value = await request(`https://run.googleapis.com/v2/${jobName}/executions?${query.toString()}`)
+        if (!Array.isArray(value?.executions ?? [])) fail('MIGRATION_EXECUTION_LIST_INVALID')
+        executions.push(...(value.executions ?? []))
+        pageToken = value?.nextPageToken ?? ''
+        if (!pageToken) break
+        if (page === 9) fail('MIGRATION_EXECUTION_LIST_INCOMPLETE')
+      }
+      const names = executions.map((execution) => execution?.name)
+      if (names.some((name) => typeof name !== 'string' || !name.startsWith(`${jobName}/executions/`)) || new Set(names).size !== names.length) fail('MIGRATION_EXECUTION_LIST_INVALID')
+      return executions
+    }
+    const executionArgsMatch = (execution) => {
+      const executionContainer = execution?.template?.containers?.find((item) => item.name === 'migration')
+      return canonicalize(executionContainer?.args) === canonicalize(args)
+    }
+    const beforeNames = new Set((await listExecutions()).map((execution) => execution.name))
+    let operationRef = null
+    try {
+      const operation = await request(`https://run.googleapis.com/v2/${jobName}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ overrides: { containerOverrides: [{ name: 'migration', args }] } }) })
+      if (!operation?.name) fail('PROVIDER_OPERATION_REF_MISSING')
+      operationRef = operation.name
+    } catch (error) {
+      if (error?.code !== 'OUTCOME_UNKNOWN') throw error
+      operationRef = 'OUTCOME_UNKNOWN_EXECUTION_READBACK'
+    }
+    let executionName = null
+    while (!executionName) {
+      if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
+      const matches = (await listExecutions()).filter((execution) => !beforeNames.has(execution.name) && executionArgsMatch(execution))
+      if (matches.length > 1) fail('MIGRATION_EXECUTION_CARDINALITY_INVALID')
+      executionName = matches[0]?.name ?? null
+      if (!executionName) await sleep(1000)
+    }
+    while (true) {
+      if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
+      const readback = await request(`https://run.googleapis.com/v2/${executionName}`)
+      if (readback?.name !== executionName || !executionArgsMatch(readback)) fail('MIGRATION_EXECUTION_READBACK_MISMATCH')
+      if (readback.completionTime == null && readback.terminalCondition?.state !== 'CONDITION_FAILED') {
+        await sleep(1000)
+        continue
+      }
+      if (Number(readback.failedCount ?? 0) !== 0 || Number(readback.succeededCount ?? 0) !== 1 || readback.completionTime == null || readback.terminalCondition?.state !== 'CONDITION_SUCCEEDED') fail('MIGRATION_EXECUTION_FAILED')
+      return { ...readback, providerOperationRef: operationRef }
+    }
   }
 
   async function createBuild({ profile, intent, sourceObject, deadlineAt }) {
@@ -768,7 +840,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  return { request, readBytes, readJson, putBytes, putJson, waitOperation, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
+  return { request, readBytes, readJson, putBytes, putJson, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
 export function stageReceipt({ profile, intent, stage, previousReceiptRef = null, facts, observedAt }) {
