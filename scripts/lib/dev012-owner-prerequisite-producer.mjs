@@ -45,8 +45,8 @@ export function readGitAuthority(root, profile) {
   return { sourceRevision, sourceTree, branch, remoteRevision, clean: true }
 }
 
-export function buildSourceFreeze({ profile, releaseId, observedAt, git, sourceArchiveBytes, migrationBundle }) {
-  if (!RELEASE_ID.test(releaseId ?? '') || !Number.isFinite(Date.parse(observedAt)) || !git?.clean || git.branch !== profile.application.branch || git.remoteRevision !== git.sourceRevision || !H40.test(git.sourceRevision ?? '') || !H40.test(git.sourceTree ?? '') || !Buffer.isBuffer(sourceArchiveBytes) || sourceArchiveBytes.length === 0 || !H64.test(migrationBundle?.bundle?.manifestSha256 ?? '')) fail('SOURCE_FREEZE_INPUT_INVALID')
+export function buildSourceFreeze({ profile, releaseId, observedAt, git, sourceIdentityBytes, migrationBundle }) {
+  if (!RELEASE_ID.test(releaseId ?? '') || !Number.isFinite(Date.parse(observedAt)) || !git?.clean || git.branch !== profile.application.branch || git.remoteRevision !== git.sourceRevision || !H40.test(git.sourceRevision ?? '') || !H40.test(git.sourceTree ?? '') || !Buffer.isBuffer(sourceIdentityBytes) || sourceIdentityBytes.length === 0 || !H64.test(migrationBundle?.bundle?.manifestSha256 ?? '')) fail('SOURCE_FREEZE_INPUT_INVALID')
   return {
     schemaVersion: 'jenfu.dev012.owner-source-lock.v1',
     ownerApplicationId: profile.application.id,
@@ -55,7 +55,7 @@ export function buildSourceFreeze({ profile, releaseId, observedAt, git, sourceA
     releaseId,
     sourceRevision: git.sourceRevision,
     sourceTree: git.sourceTree,
-    sourceSha256: sha256(sourceArchiveBytes),
+    sourceSha256: sha256(sourceIdentityBytes),
     migrationManifestSha256: migrationBundle.bundle.manifestSha256,
     clean: true,
     remoteRef: `refs/heads/${profile.application.branch}`,
@@ -140,12 +140,12 @@ async function readRef(transport, ref, profile) {
   return (await transport.readJson(ref, profile.artifact.releaseBucket, ['receipts'])).value
 }
 
-export async function executePrerequisiteProducer({ stage, releaseId, input, profile, root, transport, createSourceArchive, buildMigrationBundle, validateIntent, observedAt = new Date().toISOString(), gitReader = readGitAuthority }) {
+export async function executePrerequisiteProducer({ stage, releaseId, input, profile, root, transport, createSourceIdentity, buildMigrationBundle, validateIntent, observedAt = new Date().toISOString(), gitReader = readGitAuthority }) {
   const uri = (name) => `gs://${profile.artifact.releaseBucket}/receipts/releases/${releaseId}/${name}.json`
   if (stage === 'source-freeze') {
     const git = gitReader(root, profile)
-    const [sourceArchiveBytes, migrationBundle] = await Promise.all([createSourceArchive(git.sourceRevision), buildMigrationBundle(git.sourceRevision)])
-    const value = buildSourceFreeze({ profile, releaseId, observedAt, git, sourceArchiveBytes, migrationBundle })
+    const [sourceIdentityBytes, migrationBundle] = await Promise.all([createSourceIdentity(git.sourceRevision), buildMigrationBundle(git.sourceRevision)])
+    const value = buildSourceFreeze({ profile, releaseId, observedAt, git, sourceIdentityBytes, migrationBundle })
     return transport.putJson(uri('source-lock'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
   if (stage === 'runtime-config') {

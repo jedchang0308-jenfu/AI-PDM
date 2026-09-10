@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { buildAiPdmPackage } from './dev010-n1c-ai-pdm-package.mjs'
 import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
-import { createGitArchive } from './lib/dev012-owner-stage-executor.mjs'
+import { createGitSourceIdentity } from './lib/dev012-owner-stage-executor.mjs'
 import { executePrerequisiteProducer, parsePrerequisiteProducerArgs, resolveOwnerInputPath } from './lib/dev012-owner-prerequisite-producer.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -31,7 +31,7 @@ async function main() {
   const result = await executePrerequisiteProducer({
     ...args, input, profile, root, transport,
     validateIntent: assertDev117ReleaseIntent,
-    createSourceArchive: async (sourceRevision) => createGitArchive(root, sourceRevision),
+    createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
     buildMigrationBundle: async (sourceRevision) => buildDev117MigrationBundle(profile, buildAiPdmPackage(n1c), sourceRevision),
   })
   process.stdout.write(`${JSON.stringify({ stage: args.stage, releaseId: args.releaseId, ref: result.ref, generation: String(result.metadata.generation), status: 'PASS' })}\n`)

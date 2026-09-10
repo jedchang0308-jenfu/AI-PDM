@@ -17,13 +17,13 @@ const profile = {
   environment: { requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET'], allowedSecretIds: { SESSION_SECRET: 'session-secret' } },
 }
 const ref = (name) => ({ uri: `gs://owner-bucket/receipts/releases/REL-001/${name}.json`, sha256: H64 })
-const sourceLock = buildSourceFreeze({ profile, releaseId: 'REL-001', observedAt: NOW, git: { clean: true, branch: 'main', sourceRevision: H40, sourceTree: 'c'.repeat(40), remoteRevision: H40 }, sourceArchiveBytes: Buffer.from('archive'), migrationBundle: { bundle: { manifestSha256: H64 } } })
+const sourceLock = buildSourceFreeze({ profile, releaseId: 'REL-001', observedAt: NOW, git: { clean: true, branch: 'main', sourceRevision: H40, sourceTree: 'c'.repeat(40), remoteRevision: H40 }, sourceIdentityBytes: Buffer.from('tree-manifest'), migrationBundle: { bundle: { manifestSha256: H64 } } })
 
-test('source freeze binds clean official remote revision, archive and migration manifest', () => {
+test('source freeze binds clean official remote revision, canonical tree identity and migration manifest', () => {
   assert.equal(sourceLock.status, 'SOURCE_FROZEN')
   assert.equal(sourceLock.releaseAuthority, true)
-  assert.equal(sourceLock.sourceSha256, sha256(Buffer.from('archive')))
-  assert.throws(() => buildSourceFreeze({ profile, releaseId: 'REL-001', observedAt: NOW, git: { ...sourceLock, clean: false }, sourceArchiveBytes: Buffer.from('archive'), migrationBundle: { bundle: { manifestSha256: H64 } } }), /SOURCE_FREEZE_INPUT_INVALID/)
+  assert.equal(sourceLock.sourceSha256, sha256(Buffer.from('tree-manifest')))
+  assert.throws(() => buildSourceFreeze({ profile, releaseId: 'REL-001', observedAt: NOW, git: { ...sourceLock, clean: false }, sourceIdentityBytes: Buffer.from('tree-manifest'), migrationBundle: { bundle: { manifestSha256: H64 } } }), /SOURCE_FREEZE_INPUT_INVALID/)
 })
 
 test('runtime receipt contains a complete immutable two-container template without secret bytes', () => {
