@@ -1,5 +1,7 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
+> **2026-09-10 R25 IAM correction（current additive authority）**：upstream R25在OrgMaster owner的自動SBOM與migration Job override揭露三owner共通IAM缺口，AI-PDM尚未dispatch、production mutation=0。§27固定AI-PDM builder只對own encoded `aipdm-release` prefix管理SBOM物件，deployer只對`ai-pdm-prod-migration-runner`取得`roles/run.jobsExecutorWithOverrides`；fresh source／APP_INFRA／cohort前不得部署。
+
 > **2026-09-10 R22 artifact-evidence hardening（current）**：R22在OrgMaster build階段安全停止，AI-PDM未dispatch。Owner共用runtime改為四種occurrence按kind＋exact resource獨立分頁，先等`DISCOVERY=FINISHED_SUCCESS`再僅對HTTP 400 bounded retry SBOM，其他status立即FAIL，且仍要求BUILD、SBOM reference及0 High／Critical；AI-PDM production runner改為pinned non-root `gcr.io/distroless/nodejs24-debian13:nonroot@sha256:7781e8b4…b937`，不把build-time npm／OS工具帶入正式映像。Fresh aggregate `2026-09-10T074043-640Z`已PASS；R22不可重用，提交後須fresh source/cohort。
 
 > **2026-09-10 R20 architecture amendment**：Cloud Build REST create指定user-specified builder時，提交主體必須可`iam.serviceAccounts.actAs`該service account。AI-PDM固定以own builder對own builder的`roles/iam.serviceAccountUser`完成，Terraform resource=`google_service_account_iam_member.builder_act_as_self`；禁止授予sibling或runtime identity。該地址屬app-owned APP_INFRA_B additional complete-set，stage A不建立build-runtime act-as；必經exact plan/apply/provider readback，缺少、update/delete/replace或member/target漂移均fail closed。R20未dispatch AI-PDM，R21舊分類已作廢，修正後必用fresh source/cohort。
@@ -504,3 +506,11 @@ Current execution boundary只到DEV-012 S2：fresh remote source freeze、Billin
 2026-09-10 cross-OS／cross-Git source identity correction：AI-PDM `sourceSha256`只接受clean official revision的`git ls-tree -r -z --full-tree <revision>` canonical tree manifest bytes SHA，逐項綁mode／type／object ID／path；owner build先重算驗章，再獨立產tar、gzip並上傳Cloud Build source object，壓縮物件GCS SHA獨立記錄。禁止以跨環境`tar.gz`或raw-tar bytes相等作source identity；任一tree manifest drift或空archive在Cloud Build前FAIL。R18／R19為安全停止歷史證據。
 
 2026-09-10 R24 artifact-policy correction：AI-PDM runner沿用Platform DEV-012 §29.8的相同digest-pinned sanitizer與scratch non-root rootfs，只移除未被Node載入的Distroless OS zlib shared object／metadata，不變更app source、Sharp payload、migration image、runtime identity或severity threshold。Owner runtime regression與`PROD-PIPE-007B`須驗exact sanitizer digest、四個移除path、scratch runner及Node entrypoint；正式build仍須以provider discovery、SBOM及effective HIGH／CRITICAL=0決定PASS。若AI-PDM啟動或candidate smoke顯示任何native dependency需要該shared object，必須在activation前FAIL並own-only cleanup，不得以security allowlist繞過。
+
+## 27. R25 provider-proven IAM correction（current additive authority）
+
+AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。
+
+Stage B新增`google_cloud_run_v2_job_iam_member.migration_runner_with_overrides[0]`，role=`roles/run.jobsExecutorWithOverrides`，resource=`ai-pdm-prod-migration-runner`，member只能是`aipdm-prod-deployer`。既有exact-job `roles/run.invoker` additive保留以避免已套用Terraform state發生replace／delete；不得把兩者提升到project scope，deployer仍不能update Job、actAs migrator、改image／command／DB或操作sibling。Fresh saved plan只允許新地址create及既有地址read／no-op。
+
+R25未dispatch AI-PDM，故沒有可沿用的AI-PDM build／migration／candidate／traffic authority。修正提交後須由Platform DEV-012 fresh cohort重建AI-PDM source lock、APP_INFRA_B、capacity／readiness mirror、runtime與intent；owner build必自行完成SBOM，不得再依賴人類token補跑。

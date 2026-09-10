@@ -34,6 +34,18 @@ resource "google_storage_bucket_iam_member" "builder_bucket_viewer" {
   member = "serviceAccount:${google_service_account.builder.email}"
 }
 
+# exportSBOM writes only below this app's Artifact Registry URI prefix in the
+# shared regional Artifact Analysis bucket. No sibling prefix is writable.
+resource "google_storage_bucket_iam_member" "builder_sbom_object_admin" {
+  bucket = local.artifact_analysis_bucket
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.builder.email}"
+  condition {
+    title      = "aipdm-builder-sbom-own-prefix"
+    expression = "resource.name.startsWith('${local.artifact_analysis_object_prefix}')"
+  }
+}
+
 resource "google_storage_bucket_iam_member" "deployer" {
   for_each = {
     control_user     = { role = "roles/storage.objectUser", prefix = local.control_prefix }

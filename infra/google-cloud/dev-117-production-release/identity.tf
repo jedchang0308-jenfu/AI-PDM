@@ -53,6 +53,20 @@ resource "google_project_iam_member" "builder_artifact_analysis" {
   member  = "serviceAccount:${google_service_account.builder.email}"
 }
 
+# Artifact Analysis exportSBOM enumerates the project's default SBOM bucket.
+# This role exposes bucket metadata only; object writes remain prefix-scoped below.
+resource "google_project_iam_member" "builder_sbom_bucket_viewer" {
+  project = var.project_id
+  role    = "roles/storage.bucketViewer"
+  member  = "serviceAccount:${google_service_account.builder.email}"
+}
+
+resource "google_project_iam_member" "builder_sbom_note_attacher" {
+  project = var.project_id
+  role    = "roles/containeranalysis.notes.attacher"
+  member  = "serviceAccount:${google_service_account.builder.email}"
+}
+
 resource "google_service_account_iam_member" "builder_act_as_self" {
   service_account_id = google_service_account.builder.name
   role               = "roles/iam.serviceAccountUser"

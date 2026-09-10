@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-10 R25 current handoff**：DEV-117 current additive authority為[SPEC §27](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)與[QA §16](qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md)。AI-PDM未在R25 dispatch；own-prefix SBOM與exact-job override IAM完成source／provider重證後才可進production。
+
 > **2026-09-10 DEV-117 R22 correction**：AI-PDM未dispatch；current owner release實作新增per-kind exact-digest Artifact Analysis查詢、discovery-before-SBOM HTTP-400-only bounded retry與pinned non-root Node 24 Distroless production runner。Fresh aggregate QC已PASS；fresh source/cohort前仍為Production NOT_RUN。
 
 > **2026-09-10 DEV-117 R20 correction**：AI-PDM owner infra新增custom Cloud Build builder self-only `iam.serviceAccounts.actAs`與APP_INFRA_B additional complete-set驗證，stage A不含此build-runtime權限；R20未dispatch AI-PDM，R21舊分類作廢，fresh source/app-infra/readiness前仍為Production NOT_RUN。

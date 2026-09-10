@@ -114,9 +114,18 @@ test('S1B-20 AI-PDM production login contains no application TOTP flow', () => {
 
 test('AI-PDM custom Cloud Build service account can act only as itself', () => {
   const identity = readText('infra/google-cloud/dev-117-production-release/identity.tf')
+  const storage = readText('infra/google-cloud/dev-117-production-release/storage.tf')
+  const migration = readText('infra/google-cloud/dev-117-production-release/migration.tf')
   const infraPlan = read('config/release/dev117-production-release-infra-plan.json')
   assert.match(identity, /resource "google_service_account_iam_member" "builder_act_as_self"[\s\S]*service_account_id = google_service_account\.builder\.name[\s\S]*role\s+= "roles\/iam\.serviceAccountUser"[\s\S]*member\s+= "serviceAccount:\$\{google_service_account\.builder\.email\}"/u)
   assert.ok(infraPlan.stageBAdditional.includes('google_service_account_iam_member.builder_act_as_self'))
   assert.ok(!infraPlan.stageA.includes('google_service_account_iam_member.builder_act_as_self'))
   assert.doesNotMatch(identity.match(/resource "google_service_account_iam_member" "builder_act_as_self"[\s\S]*?\n\}/u)?.[0] ?? '', /runtime|deployer|verifier|orgmaster|platform/u)
+  assert.match(identity, /resource "google_project_iam_member" "builder_sbom_bucket_viewer"[\s\S]*role\s+= "roles\/storage\.bucketViewer"[\s\S]*google_service_account\.builder\.email/u)
+  assert.match(identity, /resource "google_project_iam_member" "builder_sbom_note_attacher"[\s\S]*role\s+= "roles\/containeranalysis\.notes\.attacher"[\s\S]*google_service_account\.builder\.email/u)
+  assert.match(storage, /resource "google_storage_bucket_iam_member" "builder_sbom_object_admin"[\s\S]*role\s+= "roles\/storage\.objectAdmin"[\s\S]*artifact_analysis_object_prefix/u)
+  assert.doesNotMatch(storage.match(/resource "google_storage_bucket_iam_member" "builder_sbom_object_admin"[\s\S]*?\n\}/u)?.[0] ?? '', /orgmaster-release|platform-release/u)
+  assert.match(migration, /resource "google_cloud_run_v2_job_iam_member" "migration_runner_with_overrides"[\s\S]*name\s+= google_cloud_run_v2_job\.migration\[0\]\.name[\s\S]*role\s+= "roles\/run\.jobsExecutorWithOverrides"[\s\S]*google_service_account\.deployer\.email/u)
+  for (const address of ['google_project_iam_member.builder_sbom_bucket_viewer', 'google_project_iam_member.builder_sbom_note_attacher', 'google_storage_bucket_iam_member.builder_sbom_object_admin']) assert.ok(infraPlan.stageA.includes(address))
+  assert.ok(infraPlan.stageBAdditional.includes('google_cloud_run_v2_job_iam_member.migration_runner_with_overrides[0]'))
 })

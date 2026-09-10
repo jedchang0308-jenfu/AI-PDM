@@ -1,5 +1,7 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
+> **2026-09-10 R25 IAM regression amendment（current）**：§16新增AI-PDM own-prefix SBOM及exact migration Job override權限oracle；R25未dispatch AI-PDM且不得計入production PASS。修正後需fresh source-frozen APP_INFRA readback與無人工SBOM build evidence。
+
 > **2026-09-10 R22 amendment（current）**：R22未dispatch AI-PDM；新增固定oracle：四種Artifact Analysis occurrence各以kind＋exact digest resource獨立分頁且回傳scope不符即FAIL；scan discovery成功前不得export SBOM，HTTP 400只可bounded retry，其他status立即FAIL；BUILD、SBOM reference與0 High／Critical缺一不可。Production `runner`必使用pinned Node 24 Distroless、UID/GID 65532，且不得帶入npm toolchain；High／Critical門檻不得降低。Fresh aggregate `2026-09-10T074043-640Z`已含AI-PDM audit／DB boundary／typecheck／isolated build／diff check全PASS。
 
 > **2026-09-10 R20 amendment**：新增app-infra驗證：APP_INFRA_B additional exact set必含`google_service_account_iam_member.builder_act_as_self`且stage A不得含，resource target與member都須為`aipdm-prod-builder`，role須為`roles/iam.serviceAccountUser`；任何OrgMaster／Platform／runtime／deployer／verifier member為FAIL。R20在OrgMaster build 403後停止，R21舊分類作廢，AI-PDM未dispatch且不可計為production PASS。
@@ -275,3 +277,9 @@ S1B-20／S1B-15須證明一容器holding baseline可透過已驗章runtime confi
 | Engineering exit | owner test、DB boundary、typecheck、isolated build、diff、central S1C aggregate與cleanup | PASS |
 
 Current evidence=`../../../Jenfu-Platform/output/dev-012/s1c/2026-09-09T111340-014Z/qc-report.json`，SHA-256=`bbd767fffb6364a770586cfe6122269ef1095184244a5ed4b2047d05d48b2b7f`。結果S1A 32／32、S1B 24／24、S1C 8／8，V3 Terraform validation PASS，scope=`LOCAL_RECORDED_PROVIDER`、`releaseAuthority=false`；只證明Architecture Finalized與V3 source implementation，正式Billing／quota、migration、candidate、entrypoint、DEV-116 R02、traffic與canonical仍`NOT_RUN`。
+
+## 16. R25 IAM correction oracle
+
+S1B-20重跑必證明IaC／complete-set含`roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`、只限encoded `aipdm-release` prefix的`roles/storage.objectAdmin`，以及只限`ai-pdm-prod-migration-runner`＋`aipdm-prod-deployer`的`roles/run.jobsExecutorWithOverrides`。Sibling prefix／job／principal、無condition、project-wide object role、只有`run.invoker`或Terraform update／delete／replace均FAIL。
+
+Managed build須由AI-PDM builder自行取得SBOM_REFERENCE與0 High／Critical scan，不接受human-generated SBOM。Managed migration須建立exact execution且在其PASS前traffic不變；最終仍依DEV-012 QA-012分母與DEV-116 R02完成production acceptance。

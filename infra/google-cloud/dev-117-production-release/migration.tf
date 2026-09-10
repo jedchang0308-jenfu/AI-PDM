@@ -113,3 +113,14 @@ resource "google_cloud_run_v2_job_iam_member" "migration_runner" {
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.deployer.email}"
 }
+
+# run.invoker cannot execute the job with the reviewed bundle/receipt
+# overrides. This additive exact-job binding preserves the no-replace plan gate.
+resource "google_cloud_run_v2_job_iam_member" "migration_runner_with_overrides" {
+  count    = var.incident_runtime_enabled ? 1 : 0
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_job.migration[0].name
+  role     = "roles/run.jobsExecutorWithOverrides"
+  member   = "serviceAccount:${google_service_account.deployer.email}"
+}
