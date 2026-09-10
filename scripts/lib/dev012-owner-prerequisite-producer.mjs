@@ -105,7 +105,7 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
   }
   if (!intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INPUT_INVALID')
   for (const [name, value] of Object.entries(prerequisiteValues)) {
-    if (value?.ownerApplicationId && value.ownerApplicationId !== profile.application.id) fail('PREREQUISITE_OWNER_MISMATCH', name)
+    if (name !== 'foundation' && value?.ownerApplicationId && value.ownerApplicationId !== profile.application.id) fail('PREREQUISITE_OWNER_MISMATCH', name)
     if (name !== 'foundation' && value?.sourceRevision && value.sourceRevision !== sourceLock.sourceRevision) fail('PREREQUISITE_SOURCE_MISMATCH', name)
   }
   assertPreparePrerequisites({ intent, profile, values: prerequisiteValues })

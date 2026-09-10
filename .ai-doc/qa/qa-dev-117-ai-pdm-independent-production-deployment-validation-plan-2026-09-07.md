@@ -256,7 +256,7 @@ S1B-20／S1B-15須證明一容器holding baseline可透過已驗章runtime confi
 
 本節依SPEC §26及Platform DEV-012 §29前向取代§§12～14中custom-domain、shared edge與nine-stage的current oracle；共同contract SHA-256=`857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5`。v1十二案與V2 S1B-20保留歷史，V3 delta由Platform S1C-01～08固定驗證。2026-09-10補充oracle：owner profile必含共同身分`on`、entitlement `enforce`及exact shared identity tuple，runtime-config以任一fixed value漂移作負向案例並須在provider write前FAIL。
 
-2026-09-10再補shared-foundation handoff oracle：AI-PDM intent只接受own-bucket foundation mirror，bytes須等於Platform provider receipt；只有foundation可保留Platform source provenance，infra/runtime source drift仍FAIL。R15安全停止不算正式PASS，須由fresh cohort重證。
+2026-09-10再補shared-foundation handoff oracle：AI-PDM intent只接受own-bucket foundation mirror，bytes須等於Platform provider receipt；只有foundation可保留`shared-foundation` owner與Platform source provenance，infra/runtime owner或source drift仍FAIL。R15／R16安全停止不算正式PASS，須由fresh cohort重證。
 
 | Gate | Current oracle | 結果 |
 |---|---|---|
