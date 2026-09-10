@@ -133,12 +133,19 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
 });
 
-record("PROD-PIPE-007B distroless nonroot runner includes standalone, static, and generated public assets", () => {
+record("PROD-PIPE-007B hardened distroless nonroot runner excludes unused OS zlib and includes app assets", () => {
   assert.match(dockerfile, /^ARG RUNTIME_NODE_IMAGE=gcr\.io\/distroless\/nodejs24-debian13:nonroot@sha256:[a-f0-9]{64}$/mu);
+  assert.match(dockerfile, /^ARG RUNTIME_SANITIZER_IMAGE=alpine:3\.22@sha256:[a-f0-9]{64}$/mu);
+  assert.match(dockerfile, /^FROM \$\{RUNTIME_NODE_IMAGE\} AS runtime-base$/mu);
+  assert.match(dockerfile, /^FROM \$\{RUNTIME_SANITIZER_IMAGE\} AS runtime-sanitizer$/mu);
+  assert.match(dockerfile, /\/rootfs\/usr\/lib\/x86_64-linux-gnu\/libz\.so\.1\.3\.1/u);
+  assert.match(dockerfile, /\/rootfs\/var\/lib\/dpkg\/status\.d\/zlib1g\.md5sums/u);
+  assert.match(dockerfile, /^FROM scratch AS runner$/mu);
   assert.match(dockerfile, /COPY --from=builder --chown=65532:65532 \/app\/\.next\/standalone \.\//u);
   assert.match(dockerfile, /COPY --from=builder --chown=65532:65532 \/app\/\.next\/static \.\/\.next\/static/u);
   assert.match(dockerfile, /COPY --from=builder --chown=65532:65532 \/app\/public \.\/public/u);
   assert.match(dockerfile, /^USER 65532:65532$/mu);
+  assert.match(dockerfile, /^ENTRYPOINT \["\/nodejs\/bin\/node"\]$/mu);
   assert.match(dockerIgnore, /^\.artifacts$/mu);
 });
 

@@ -20,13 +20,21 @@ const profile = {
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
 
-test('production runner is pinned to the non-root Node 24 distroless image', () => {
+test('production runner is pinned, non-root, and removes the unused vulnerable OS zlib', () => {
   const dockerfile = fs.readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')
   const runtimeImage = 'gcr.io/distroless/nodejs24-debian13:nonroot@sha256:7781e8b4fccf59240bd539af6738cccf8dad4be303165c3a1fa065c48699b937'
+  const sanitizerImage = 'alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce'
   assert.ok(dockerfile.includes(`ARG RUNTIME_NODE_IMAGE=${runtimeImage}`))
-  assert.match(dockerfile, /FROM \$\{RUNTIME_NODE_IMAGE\} AS runner/u)
+  assert.ok(dockerfile.includes(`ARG RUNTIME_SANITIZER_IMAGE=${sanitizerImage}`))
+  assert.match(dockerfile, /FROM \$\{RUNTIME_NODE_IMAGE\} AS runtime-base/u)
+  assert.match(dockerfile, /FROM \$\{RUNTIME_SANITIZER_IMAGE\} AS runtime-sanitizer/u)
+  assert.match(dockerfile, /\/rootfs\/usr\/lib\/x86_64-linux-gnu\/libz\.so\.1\.3\.1/u)
+  assert.match(dockerfile, /\/rootfs\/var\/lib\/dpkg\/status\.d\/zlib1g\.md5sums/u)
+  assert.match(dockerfile, /COPY --from=runtime-sanitizer \/rootfs \//u)
+  assert.match(dockerfile, /^FROM scratch AS runner$/mu)
   assert.doesNotMatch(dockerfile, /FROM \$\{NODE_IMAGE\} AS runner/u)
   assert.match(dockerfile, /USER 65532:65532/u)
+  assert.match(dockerfile, /ENTRYPOINT \["\/nodejs\/bin\/node"\]/u)
   assert.doesNotMatch(dockerfile.split('AS runner')[1] ?? '', /groupadd|useradd|\/usr\/local\/lib\/node_modules\/npm/u)
 })
 
