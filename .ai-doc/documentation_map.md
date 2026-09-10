@@ -1,6 +1,6 @@
 # AI_PDM Documentation Map
 
-> **2026-09-10 DEV-117 R20 correction**：AI-PDM owner infra新增custom Cloud Build builder self-only `iam.serviceAccounts.actAs`與stage-A complete-set驗證；R20未dispatch AI-PDM，fresh source/app-infra/readiness前仍為Production NOT_RUN。
+> **2026-09-10 DEV-117 R20 correction**：AI-PDM owner infra新增custom Cloud Build builder self-only `iam.serviceAccounts.actAs`與APP_INFRA_B additional complete-set驗證，stage A不含此build-runtime權限；R20未dispatch AI-PDM，R21舊分類作廢，fresh source/app-infra/readiness前仍為Production NOT_RUN。
 
 This project uses `.ai-doc` as the single project documentation center.
 

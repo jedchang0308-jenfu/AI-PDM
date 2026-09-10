@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-> **2026-09-10 DEV-117 R20 custom build identity correction（current）**：R20在OrgMaster Cloud Build create前安全停止，AI-PDM未dispatch。根因是三owner custom builder均缺少對自身的`iam.serviceAccounts.actAs`；AI-PDM current source新增self-only `google_service_account_iam_member.builder_act_as_self`、stage-A complete-set地址與negative regression，不授權OrgMaster／Platform／runtime／deployer／verifier。修正提交後須由fresh cohort重建source、app-infra、capacity與downstream receipts，R20不得重用。
+> **2026-09-10 DEV-117 R20 custom build identity correction（current）**：R20在OrgMaster Cloud Build create前安全停止，AI-PDM未dispatch。根因是三owner custom builder均缺少對自身的`iam.serviceAccounts.actAs`；AI-PDM current source新增self-only `google_service_account_iam_member.builder_act_as_self`、APP_INFRA_B additional complete-set地址與negative regression，stage A不含此build-runtime權限，且不授權OrgMaster／Platform／runtime／deployer／verifier。R21舊分類source lock已作廢；修正提交後須由fresh cohort重建source、app-infra、capacity與downstream receipts，R20／R21不得重用。
 
 更新日期：2026-09-09
 Owner：Dev PM

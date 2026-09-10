@@ -1,6 +1,6 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
-> **2026-09-10 R20 architecture amendment**：Cloud Build REST create指定user-specified builder時，提交主體必須可`iam.serviceAccounts.actAs`該service account。AI-PDM固定以own builder對own builder的`roles/iam.serviceAccountUser`完成，Terraform resource=`google_service_account_iam_member.builder_act_as_self`；禁止授予sibling或runtime identity。該地址屬app-owned stage-A complete-set，必經exact plan/apply/provider readback；缺少、update/delete/replace或member/target漂移均fail closed。R20未dispatch AI-PDM，修正後必用fresh source/cohort。
+> **2026-09-10 R20 architecture amendment**：Cloud Build REST create指定user-specified builder時，提交主體必須可`iam.serviceAccounts.actAs`該service account。AI-PDM固定以own builder對own builder的`roles/iam.serviceAccountUser`完成，Terraform resource=`google_service_account_iam_member.builder_act_as_self`；禁止授予sibling或runtime identity。該地址屬app-owned APP_INFRA_B additional complete-set，stage A不建立build-runtime act-as；必經exact plan/apply/provider readback，缺少、update/delete/replace或member/target漂移均fail closed。R20未dispatch AI-PDM，R21舊分類已作廢，修正後必用fresh source/cohort。
 
 - 文件成熟度：`V3 Owner RD Implementation Ready + 架構定案：已定案 / RD Tech Lead PASS / P0=0 / P1=0；v1／v2保留歷史`
 - 狀態：`V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Unlocked, Not Started / Production NOT_RUN`
