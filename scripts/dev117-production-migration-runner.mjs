@@ -21,6 +21,8 @@ export const TARGET = Object.freeze({
   login: 'aipdm-prod-migrator@jenfu-platform-prod.iam',
   ledger: 'ai_pdm_core.schema_migrations',
   baselineCount: 14,
+  minimumLedgerCount: 0,
+  allowFreshLedgerBootstrap: true,
   migratorRole: 'jenfu_ai_pdm_migrator',
   runtimeRole: 'jenfu_ai_pdm_runtime',
   coreSchema: 'ai_pdm_core',
