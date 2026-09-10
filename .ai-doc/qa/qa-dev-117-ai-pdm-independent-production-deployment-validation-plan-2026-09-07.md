@@ -1,5 +1,7 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
+> **2026-09-10 R22 amendment（current）**：R22未dispatch AI-PDM；新增固定oracle：四種Artifact Analysis occurrence各以kind＋exact digest resource獨立分頁且回傳scope不符即FAIL；scan discovery成功前不得export SBOM，HTTP 400只可bounded retry，其他status立即FAIL；BUILD、SBOM reference與0 High／Critical缺一不可。Production `runner`必使用pinned Node 24 Distroless、UID/GID 65532，且不得帶入npm toolchain；High／Critical門檻不得降低。Fresh aggregate `2026-09-10T074043-640Z`已含AI-PDM audit／DB boundary／typecheck／isolated build／diff check全PASS。
+
 > **2026-09-10 R20 amendment**：新增app-infra驗證：APP_INFRA_B additional exact set必含`google_service_account_iam_member.builder_act_as_self`且stage A不得含，resource target與member都須為`aipdm-prod-builder`，role須為`roles/iam.serviceAccountUser`；任何OrgMaster／Platform／runtime／deployer／verifier member為FAIL。R20在OrgMaster build 403後停止，R21舊分類作廢，AI-PDM未dispatch且不可計為production PASS。
 
 > **2026-09-08 DEV-012 S1C amendment（V2 historical；current見§15）**：當時新增owner production-entry驗證，固定official repo=`jedchang0308-jenfu/AI-PDM`、branch=`main`；驗source-freeze／runtime-config／release-intent native chain、shared-LB host binding、candidate期間`internal`與activation後`internal-and-cloud-load-balancing`、own Workflows smoke SA＋OIDC、Firebase refresh token numeric Secret及legacy Hosting不被改指neutral target。Public `run.app`在該V2方案為FAIL；此入口判定已由§15 V3 direct-run contract取代。其local結果只保留為V2 provenance，不得作current release authority。

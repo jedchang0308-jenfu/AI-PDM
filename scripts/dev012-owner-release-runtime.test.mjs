@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
@@ -18,6 +19,16 @@ const profile = {
 }
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
+
+test('production runner is pinned to the non-root Node 24 distroless image', () => {
+  const dockerfile = fs.readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')
+  const runtimeImage = 'gcr.io/distroless/nodejs24-debian13:nonroot@sha256:7781e8b4fccf59240bd539af6738cccf8dad4be303165c3a1fa065c48699b937'
+  assert.ok(dockerfile.includes(`ARG RUNTIME_NODE_IMAGE=${runtimeImage}`))
+  assert.match(dockerfile, /FROM \$\{RUNTIME_NODE_IMAGE\} AS runner/u)
+  assert.doesNotMatch(dockerfile, /FROM \$\{NODE_IMAGE\} AS runner/u)
+  assert.match(dockerfile, /USER 65532:65532/u)
+  assert.doesNotMatch(dockerfile.split('AS runner')[1] ?? '', /groupadd|useradd|\/usr\/local\/lib\/node_modules\/npm/u)
+})
 
 test('owner transport reads a generation-bound object from any explicitly allowed prefix', async () => {
   const bytes = Buffer.from('{"ok":true}\n')
@@ -57,22 +68,32 @@ test('Cloud Build gets the exact regional build resource, pinned builder, source
 
 test('Artifact Registry, provenance, SBOM and vulnerability evidence fail closed', async () => {
   const digest = `${profile.artifact.uri}@sha256:${H64}`
+  const resourceUri = `https://${digest}`
+  const rowsByKind = {
+    BUILD: [{ name: 'projects/jenfu-platform-prod/occurrences/build', resourceUri, kind: 'BUILD' }],
+    DISCOVERY: [{ name: 'projects/jenfu-platform-prod/locations/asia-east1/occurrences/sbom-discovery', resourceUri, kind: 'DISCOVERY', discovery: { analysisStatus: 'FINISHED_SUCCESS' } }],
+    SBOM_REFERENCE: [{ name: 'projects/jenfu-platform-prod/occurrences/sbom', resourceUri, kind: 'SBOM_REFERENCE' }],
+    VULNERABILITY: [{ name: 'projects/jenfu-platform-prod/occurrences/low', resourceUri, kind: 'VULNERABILITY', vulnerability: { effectiveSeverity: 'LOW' } }],
+  }
+  const requestedKinds = []
+  let exportCalls = 0
   const fetchImpl = async (url, options = {}) => {
     const value = String(url)
     if (value.includes('/dockerImages?')) return json({ dockerImages: [{ name: 'projects/p/locations/r/repositories/x/dockerImages/platform@sha256:abc', uri: digest }] })
     if (value.endsWith(':exportSBOM') && options.method === 'POST') {
       assert.match(value, /containeranalysis\.googleapis\.com\/v1beta1\/projects\/jenfu-platform-prod\/locations\/asia-east1\/resources\//)
       assert.equal(options.body, '{}')
+      exportCalls += 1
+      if (exportCalls === 1) return json({ error: { status: 'INVALID_ARGUMENT' } }, 400)
       return json({ discoveryOccurrenceId: 'projects/jenfu-platform-prod/locations/asia-east1/occurrences/sbom-discovery' })
     }
     if (value.includes('/occurrences?')) {
       assert.match(value, /\/v1\/projects\/jenfu-platform-prod\/occurrences\?/u)
-      return json({ occurrences: [
-      { name: 'projects/jenfu-platform-prod/occurrences/build', kind: 'BUILD' },
-      { name: 'projects/jenfu-platform-prod/locations/asia-east1/occurrences/sbom-discovery', kind: 'DISCOVERY', discovery: { analysisStatus: 'FINISHED_SUCCESS' } },
-      { name: 'projects/jenfu-platform-prod/occurrences/sbom', kind: 'SBOM_REFERENCE' },
-      { name: 'projects/jenfu-platform-prod/occurrences/low', kind: 'VULNERABILITY', vulnerability: { effectiveSeverity: 'LOW' } },
-      ] })
+      const filter = new URL(value).searchParams.get('filter') ?? ''
+      const match = /^kind="(BUILD|DISCOVERY|SBOM_REFERENCE|VULNERABILITY)" AND resourceUrl="([^"]+)"$/u.exec(filter)
+      assert.equal(match?.[2], resourceUri)
+      requestedKinds.push(match[1])
+      return json({ occurrences: rowsByKind[match[1]] })
     }
     throw new Error(`unexpected ${value}`)
   }
@@ -81,14 +102,28 @@ test('Artifact Registry, provenance, SBOM and vulnerability evidence fail closed
   const evidence = await transport.waitArtifactEvidence({ profile, artifactDigest: digest, deadlineAt: '2999-01-01T00:00:00.000Z' })
   assert.equal(evidence.status, 'PASS')
   assert.equal(evidence.blockingVulnerabilityCount, 0)
+  assert.equal(exportCalls, 2)
+  assert.deepEqual(requestedKinds, ['BUILD', 'DISCOVERY', 'SBOM_REFERENCE', 'VULNERABILITY', 'BUILD', 'DISCOVERY', 'SBOM_REFERENCE', 'VULNERABILITY'])
+
+  let invalidExportCalls = 0
+  const invalidTransport = createOwnerTransport({ token: 'x'.repeat(32), sleep: async () => undefined, fetchImpl: async (url, options = {}) => {
+    if (String(url).endsWith(':exportSBOM') && options.method === 'POST') {
+      invalidExportCalls += 1
+      return json({ error: { status: 'UNPROCESSABLE_ENTITY' } }, 422)
+    }
+    const kind = /^kind="([A-Z_]+)"/u.exec(new URL(String(url)).searchParams.get('filter') ?? '')?.[1]
+    return json({ occurrences: rowsByKind[kind] ?? [] })
+  } })
+  await assert.rejects(() => invalidTransport.waitArtifactEvidence({ profile, artifactDigest: digest, deadlineAt: '2999-01-01T00:00:00.000Z' }), /PROVIDER_REQUEST_FAILED:422/u)
+  assert.equal(invalidExportCalls, 1)
 
   const blockedTransport = createOwnerTransport({ token: 'x'.repeat(32), sleep: async () => undefined, fetchImpl: async (url, options = {}) => {
     if (String(url).endsWith(':exportSBOM') && options.method === 'POST') return json({ discoveryOccurrenceId: 'projects/jenfu-platform-prod/locations/asia-east1/occurrences/sbom-discovery' })
-    return json({ occurrences: [
-      { name: 'projects/jenfu-platform-prod/occurrences/build', kind: 'BUILD' },
-      { name: 'projects/jenfu-platform-prod/locations/asia-east1/occurrences/sbom-discovery', kind: 'DISCOVERY', discovery: { analysisStatus: 'FINISHED_SUCCESS' } },
-      { name: 'projects/jenfu-platform-prod/occurrences/critical', kind: 'VULNERABILITY', vulnerability: { effectiveSeverity: 'CRITICAL' } },
-    ] })
+    const kind = /^kind="([A-Z_]+)"/u.exec(new URL(String(url)).searchParams.get('filter') ?? '')?.[1]
+    const occurrences = kind === 'VULNERABILITY'
+      ? [{ name: 'projects/jenfu-platform-prod/occurrences/critical', resourceUri, kind, vulnerability: { effectiveSeverity: 'CRITICAL' } }]
+      : rowsByKind[kind] ?? []
+    return json({ occurrences })
   } })
   await assert.rejects(() => blockedTransport.waitArtifactEvidence({ profile, artifactDigest: digest, deadlineAt: '2999-01-01T00:00:00.000Z' }), /ARTIFACT_POLICY_FAILED/u)
 })

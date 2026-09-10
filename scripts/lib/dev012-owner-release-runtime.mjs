@@ -9,6 +9,7 @@ export class OwnerReleaseError extends Error {
   constructor(code, detail = '') {
     super(detail ? `${code}:${detail}` : code)
     this.code = code
+    this.detail = detail
   }
 }
 
@@ -568,14 +569,19 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   async function listOccurrences(profile, artifactDigest) {
     const resourceUrl = `https://${artifactDigest}`
     const occurrences = []
-    let pageToken = ''
-    for (let page = 0; page < 20; page += 1) {
-      const query = new URLSearchParams({ filter: `resourceUrl=\"${resourceUrl}\"`, pageSize: '100' })
-      if (pageToken) query.set('pageToken', pageToken)
-      const response = await request(`https://containeranalysis.googleapis.com/v1/projects/${profile.target.projectId}/occurrences?${query}`)
-      occurrences.push(...(response.occurrences ?? []))
-      pageToken = response.nextPageToken ?? ''
-      if (!pageToken) break
+    for (const kind of ['BUILD', 'DISCOVERY', 'SBOM_REFERENCE', 'VULNERABILITY']) {
+      let pageToken = ''
+      for (let page = 0; page < 20; page += 1) {
+        const query = new URLSearchParams({ filter: `kind=\"${kind}\" AND resourceUrl=\"${resourceUrl}\"`, pageSize: '100' })
+        if (pageToken) query.set('pageToken', pageToken)
+        const response = await request(`https://containeranalysis.googleapis.com/v1/projects/${profile.target.projectId}/occurrences?${query}`)
+        const rows = response.occurrences ?? []
+        if (rows.some((row) => row.kind !== kind || row.resourceUri !== resourceUrl)) fail('ARTIFACT_OCCURRENCE_SCOPE_MISMATCH')
+        occurrences.push(...rows)
+        pageToken = response.nextPageToken ?? ''
+        if (!pageToken) break
+        if (page === 19) fail('ARTIFACT_OCCURRENCE_PAGE_LIMIT')
+      }
     }
     return { resourceUrl, occurrences }
   }
@@ -590,7 +596,8 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
 
   async function waitArtifactEvidence({ profile, artifactDigest, deadlineAt }) {
     if (!Number.isFinite(Date.parse(deadlineAt))) fail('OPERATION_OR_DEADLINE_INVALID')
-    const sbomExport = await exportSbom(profile, artifactDigest)
+    let sbomExport = null
+    let exportAttempts = 0
     let last = null
     while (Date.now() < Date.parse(deadlineAt)) {
       last = await listOccurrences(profile, artifactDigest)
@@ -602,7 +609,17 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       const complete = discoveries.filter((row) => row.discovery?.analysisStatus === 'FINISHED_SUCCESS')
       const blocking = vulnerabilities.filter((row) => ['HIGH', 'CRITICAL'].includes(row.vulnerability?.effectiveSeverity ?? row.vulnerability?.severity))
       if (failed.length || blocking.length) fail('ARTIFACT_POLICY_FAILED')
-      if (build.length && complete.length && (sbom.length || complete.some((row) => row.name === sbomExport.discoveryOccurrenceId))) return { resourceUrl: last.resourceUrl, buildOccurrenceNames: build.map((row) => row.name).sort(), discoveryOccurrenceNames: complete.map((row) => row.name).sort(), sbomOccurrenceNames: sbom.map((row) => row.name).sort(), vulnerabilityCount: vulnerabilities.length, blockingVulnerabilityCount: 0, sbomExport, observedAt: now(), status: 'PASS' }
+      if (complete.length && !sbomExport) {
+        try {
+          sbomExport = await exportSbom(profile, artifactDigest)
+        } catch (error) {
+          if (!(error instanceof OwnerReleaseError) || error.code !== 'PROVIDER_REQUEST_FAILED' || error.detail !== '400' || exportAttempts >= 23) throw error
+          exportAttempts += 1
+          await sleep(5000)
+          continue
+        }
+      }
+      if (build.length && complete.length && sbomExport && sbom.length) return { resourceUrl: last.resourceUrl, buildOccurrenceNames: build.map((row) => row.name).sort(), discoveryOccurrenceNames: complete.map((row) => row.name).sort(), sbomOccurrenceNames: sbom.map((row) => row.name).sort(), vulnerabilityCount: vulnerabilities.length, blockingVulnerabilityCount: 0, sbomExport, observedAt: now(), status: 'PASS' }
       await sleep(5000)
     }
     fail('ARTIFACT_ANALYSIS_TIMEOUT', String(last?.occurrences?.length ?? 0))

@@ -1,4 +1,5 @@
 ARG NODE_IMAGE=node:24.17.0-bookworm-slim@sha256:862263c612aa437e3037674b85419622a9d93bff80aa1eee5398dfe686375532
+ARG RUNTIME_NODE_IMAGE=gcr.io/distroless/nodejs24-debian13:nonroot@sha256:7781e8b4fccf59240bd539af6738cccf8dad4be303165c3a1fa065c48699b937
 ARG SOURCE_REVISION=unknown
 ARG SOURCE_TREE=unknown
 ARG SOURCE_CREATED_AT=1970-01-01T00:00:00Z
@@ -53,7 +54,7 @@ RUN if [ "$MIGRATION_PACKAGE_TARGET" = "production" ]; then npm run dev-032:clou
 USER nextjs
 CMD ["node", "scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]
 
-FROM ${NODE_IMAGE} AS runner
+FROM ${RUNTIME_NODE_IMAGE} AS runner
 ARG SOURCE_REVISION
 ARG SOURCE_TREE
 ARG SOURCE_CREATED_AT
@@ -66,8 +67,6 @@ ENV NODE_ENV=production \
     PORT=8080 \
     PDM_DATA_DIR=/tmp/ai-pdm/data \
     PDM_REPOSITORY_DIR=/tmp/ai-pdm/repository
-RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs
 LABEL org.opencontainers.image.title="AI PDM" \
       org.opencontainers.image.source="https://github.com/jedchang0308-jenfu/AI-PDM" \
       org.opencontainers.image.revision="${SOURCE_REVISION}" \
@@ -75,9 +74,9 @@ LABEL org.opencontainers.image.title="AI PDM" \
       org.opencontainers.image.version="${SOURCE_VERSION}" \
       com.jenfu.ai-pdm.source-tree="${SOURCE_TREE}" \
       com.jenfu.ai-pdm.source-state="${SOURCE_STATE}"
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-USER nextjs
+COPY --from=builder --chown=65532:65532 /app/.next/standalone ./
+COPY --from=builder --chown=65532:65532 /app/.next/static ./.next/static
+COPY --from=builder --chown=65532:65532 /app/public ./public
+USER 65532:65532
 EXPOSE 8080
-CMD ["node", "server.js"]
+CMD ["server.js"]
