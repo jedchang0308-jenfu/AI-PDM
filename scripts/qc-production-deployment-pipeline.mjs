@@ -133,10 +133,12 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
   assert.doesNotMatch(workflow, /gcloud run deploy[\s\S]{0,500}--source/u);
 });
 
-record("PROD-PIPE-007B runner image includes standalone, static, and generated public assets", () => {
-  assert.match(dockerfile, /COPY --from=builder --chown=nextjs:nodejs \/app\/\.next\/standalone \.\//u);
-  assert.match(dockerfile, /COPY --from=builder --chown=nextjs:nodejs \/app\/\.next\/static \.\/\.next\/static/u);
-  assert.match(dockerfile, /COPY --from=builder --chown=nextjs:nodejs \/app\/public \.\/public/u);
+record("PROD-PIPE-007B distroless nonroot runner includes standalone, static, and generated public assets", () => {
+  assert.match(dockerfile, /^ARG RUNTIME_NODE_IMAGE=gcr\.io\/distroless\/nodejs24-debian13:nonroot@sha256:[a-f0-9]{64}$/mu);
+  assert.match(dockerfile, /COPY --from=builder --chown=65532:65532 \/app\/\.next\/standalone \.\//u);
+  assert.match(dockerfile, /COPY --from=builder --chown=65532:65532 \/app\/\.next\/static \.\/\.next\/static/u);
+  assert.match(dockerfile, /COPY --from=builder --chown=65532:65532 \/app\/public \.\/public/u);
+  assert.match(dockerfile, /^USER 65532:65532$/mu);
   assert.match(dockerIgnore, /^\.artifacts$/mu);
 });
 
