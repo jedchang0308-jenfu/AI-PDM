@@ -10,6 +10,8 @@ Owner：Dev PM
 
 > **2026-09-10 DEV-117 shared-foundation handoff correction（current）**：R15確認shared foundation須鏡像至AI-PDM own bucket；R16實際mirror後又由`PREREQUISITE_OWNER_MISMATCH`證實shared owner例外漏實作。定案foundation保留`shared-foundation` owner與Platform source provenance，並是唯一不要求等於AI-PDM owner／source的prerequisite；AI-PDM infra/runtime仍須exact join own owner／source。R15／R16均安全停止，修正提交後須用fresh cohort重建。
 
+> **2026-09-10 DEV-117 cross-OS source identity correction（current）**：R18已完成fresh capacity／readiness／intent，但OrgMaster owner build以`SOURCE_ARCHIVE_HASH_MISMATCH`安全停止，AI-PDM未被dispatch。三owner統一改以未壓縮Git tar bytes SHA作`sourceSha256`，build驗章後才gzip上傳，GCS壓縮物件另有bytes SHA；fresh source/cohort前R18不得重用。
+
 歷史快照：
 
 - `.ai-doc/archived/dev_task_before_archive_sweep_2026-07-09.md`

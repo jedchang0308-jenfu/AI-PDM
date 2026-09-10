@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { gunzipSync } from 'node:zlib'
 import { buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 
@@ -114,6 +115,9 @@ test('recorded provider transport executes the ten immutable owner stages withou
   const intentResult = await h.transport.putJson(`gs://${bucket}/receipts/intents/release.json`, intent, { bucket, prefix: 'receipts' })
   const input = { capsuleRef: intentResult.ref.uri, capsuleSha256: intentResult.ref.sha256, profile: h.profile, transport: h.transport, environment: h.environment, validateIntent: (value) => value, createSourceArchive: async () => h.sourceBytes, buildMigrationBundle: async () => ({ bundle: { manifestSha256: h.migrationManifestSha256 }, bytes: h.migrationBytes, bundleSha256: sha256(h.migrationBytes) }) }
   for (const stage of ['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) await executeOwnerStage({ ...input, stage })
+  const archivedSource = [...h.objects.entries()].find(([uri]) => uri.endsWith('/source.tar.gz'))
+  assert.ok(archivedSource)
+  assert.deepEqual(gunzipSync(archivedSource[1].bytes), h.sourceBytes)
   const terminal = [...h.objects.entries()].find(([uri]) => uri.endsWith('/terminal.json'))
   assert.ok(terminal)
   assert.equal(JSON.parse(terminal[1].bytes.toString()).facts.result, 'RELEASED')

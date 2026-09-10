@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { gzipSync } from 'node:zlib'
 import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
@@ -37,7 +38,7 @@ export function createGitArchive(root, sourceRevision) {
     return result.stdout
   }
   if (String(run(['rev-parse', 'HEAD'])).trim() !== sourceRevision || String(run(['status', '--porcelain=v1', '--untracked-files=all'])).trim() !== '') fail('SOURCE_CHECKOUT_NOT_FROZEN')
-  const bytes = run(['archive', '--format=tar.gz', '--prefix=source/', sourceRevision], null)
+  const bytes = run(['archive', '--format=tar', '--prefix=source/', sourceRevision], null)
   if (!Buffer.isBuffer(bytes) || bytes.length === 0) fail('SOURCE_ARCHIVE_FAILED')
   return bytes
 }
@@ -198,7 +199,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const sourceBytes = await createSourceArchive(intent.sourceRevision)
     if (!Buffer.isBuffer(sourceBytes) || sha256(sourceBytes) !== intent.sourceSha256) fail('SOURCE_ARCHIVE_HASH_MISMATCH')
     const sourceUri = `gs://${profile.artifact.releaseBucket}/source/releases/${intent.releaseId}/${capsuleSha256}/source.tar.gz`
-    const source = await transport.putBytes(sourceUri, sourceBytes, { bucket: profile.artifact.releaseBucket, prefix: 'source', contentType: 'application/gzip' })
+    const sourceArchive = gzipSync(sourceBytes, { level: 9 })
+    const source = await transport.putBytes(sourceUri, sourceArchive, { bucket: profile.artifact.releaseBucket, prefix: 'source', contentType: 'application/gzip' })
     const migration = await buildMigrationBundle(intent.sourceRevision)
     if (migration.bundle?.manifestSha256 !== intent.migrationManifestSha256 || sha256(migration.bytes) !== migration.bundleSha256) fail('MIGRATION_MANIFEST_MISMATCH')
     const bundleUri = `gs://${profile.artifact.releaseBucket}/${profile.artifact.migrationBundlePrefix}/${intent.sourceRevision}/${migration.bundle.manifestSha256}.json`

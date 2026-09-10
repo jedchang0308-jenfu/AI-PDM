@@ -258,6 +258,8 @@ S1B-20／S1B-15須證明一容器holding baseline可透過已驗章runtime confi
 
 2026-09-10再補shared-foundation handoff oracle：AI-PDM intent只接受own-bucket foundation mirror，bytes須等於Platform provider receipt；只有foundation可保留`shared-foundation` owner與Platform source provenance，infra/runtime owner或source drift仍FAIL。R15／R16安全停止不算正式PASS，須由fresh cohort重證。
 
+2026-09-10再補cross-OS source identity oracle：未壓縮Git tar的`sourceSha256`須在source lock與GitHub runner一致；build上傳的gzip物件須可解回完全相同tar且擁有獨立GCS bytes SHA。任何直接比較跨OS gzip bytes、tar drift或identity fail後仍呼叫Cloud Build都FAIL；R18不計正式PASS。
+
 | Gate | Current oracle | 結果 |
 |---|---|---|
 | Owner authority | V3 profile由AI-PDM擁有且hash exact；central只hash-ref；V2 bytes不變 | PASS |
