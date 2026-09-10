@@ -8,6 +8,8 @@ Owner：Dev PM
 
 > **2026-09-10 DEV-117 production dependency gate（current）**：fresh production audit發現Next.js 16.3.0與sharp 0.35.3已進入owner `HIGH／CRITICAL`阻擋集合，已以前向patch升級至Next.js 16.3.4與sharp 0.35.4。`npm audit --omit=dev`現為`0 HIGH／0 CRITICAL`，owner 24／24、abort 6／6、DB boundary、typecheck與兩次isolated production build均PASS；既有middleware／Edge warning不屬本次新增失敗。修正後必使用新main commit重建source lock、capacity與全部downstream receipts，不得重用R13舊revision證據。
 
+> **2026-09-10 DEV-117 shared-foundation handoff correction（current）**：R15真實intent串接確認shared foundation只由Platform apply，但owner workflow只能讀own bucket。定案由Platform native readiness鏡像相同foundation canonical bytes至AI-PDM bucket；foundation保留Platform source provenance並是唯一不要求等於AI-PDM source的prerequisite，AI-PDM infra/runtime仍須exact join own source。Fresh aggregate=`995e6bde…b411d`且全部exit PASS；R15安全停止，本修正提交後須用fresh cohort重建source lock、capacity與intent。
+
 歷史快照：
 
 - `.ai-doc/archived/dev_task_before_archive_sweep_2026-07-09.md`
