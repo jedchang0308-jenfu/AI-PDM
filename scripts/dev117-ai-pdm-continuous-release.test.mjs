@@ -111,3 +111,11 @@ test('S1B-20 AI-PDM production login contains no application TOTP flow', () => {
   assert.doesNotMatch(loginPage, /completeFirebaseTotp|totpChallenge|totpCode/u)
   assert.doesNotMatch(styles, /\.totp-enrollment-/u)
 })
+
+test('AI-PDM custom Cloud Build service account can act only as itself', () => {
+  const identity = readText('infra/google-cloud/dev-117-production-release/identity.tf')
+  const infraPlan = read('config/release/dev117-production-release-infra-plan.json')
+  assert.match(identity, /resource "google_service_account_iam_member" "builder_act_as_self"[\s\S]*service_account_id = google_service_account\.builder\.name[\s\S]*role\s+= "roles\/iam\.serviceAccountUser"[\s\S]*member\s+= "serviceAccount:\$\{google_service_account\.builder\.email\}"/u)
+  assert.ok(infraPlan.stageA.includes('google_service_account_iam_member.builder_act_as_self'))
+  assert.doesNotMatch(identity.match(/resource "google_service_account_iam_member" "builder_act_as_self"[\s\S]*?\n\}/u)?.[0] ?? '', /runtime|deployer|verifier|orgmaster|platform/u)
+})

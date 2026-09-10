@@ -1,5 +1,7 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
+> **2026-09-10 R20 amendment**：新增app-infra驗證：stage-A exact set必含`google_service_account_iam_member.builder_act_as_self`，resource target與member都須為`aipdm-prod-builder`，role須為`roles/iam.serviceAccountUser`；任何OrgMaster／Platform／runtime／deployer／verifier member為FAIL。R20在OrgMaster build 403後停止，AI-PDM未dispatch且不可計為production PASS。
+
 > **2026-09-08 DEV-012 S1C amendment（V2 historical；current見§15）**：當時新增owner production-entry驗證，固定official repo=`jedchang0308-jenfu/AI-PDM`、branch=`main`；驗source-freeze／runtime-config／release-intent native chain、shared-LB host binding、candidate期間`internal`與activation後`internal-and-cloud-load-balancing`、own Workflows smoke SA＋OIDC、Firebase refresh token numeric Secret及legacy Hosting不被改指neutral target。Public `run.app`在該V2方案為FAIL；此入口判定已由§15 V3 direct-run contract取代。其local結果只保留為V2 provenance，不得作current release authority。
 
 - 文件成熟度：`V3 Architecture Finalized / RD Tech Lead PASS / Owner QA Contract Executed；v1／v2 Historical`
