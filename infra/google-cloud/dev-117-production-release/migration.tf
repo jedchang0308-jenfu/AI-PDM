@@ -24,6 +24,17 @@ resource "google_storage_bucket_iam_member" "migrator_receipts_creator" {
   }
 }
 
+resource "google_storage_bucket_iam_member" "migrator_receipts_viewer" {
+  count  = var.incident_runtime_enabled ? 1 : 0
+  bucket = google_storage_bucket.release.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${data.google_service_account.migrator.email}"
+  condition {
+    title      = "aipdm-migrator-receipts-viewer"
+    expression = "resource.name.startsWith('${local.receipt_prefix}')"
+  }
+}
+
 resource "google_cloud_run_v2_job" "migration" {
   count = var.incident_runtime_enabled ? 1 : 0
 

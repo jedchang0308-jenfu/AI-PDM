@@ -67,6 +67,7 @@
     "google_storage_bucket_iam_member.controller[\"receipts_creator\"]",
     "google_storage_bucket_iam_member.migrator_bundle_viewer[0]",
     "google_storage_bucket_iam_member.migrator_receipts_creator[0]",
+    "google_storage_bucket_iam_member.migrator_receipts_viewer[0]",
     "google_cloud_run_v2_job.migration[0]",
     "google_cloud_run_v2_job_iam_member.migration_runner[0]",
     "google_cloud_run_v2_job_iam_member.migration_runner_with_overrides[0]",

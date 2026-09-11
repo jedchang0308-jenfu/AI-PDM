@@ -589,11 +589,16 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
       const readback = await request(`https://run.googleapis.com/v2/${executionName}`)
       if (readback?.name !== executionName || !executionArgsMatch(readback)) fail('MIGRATION_EXECUTION_READBACK_MISMATCH')
-      if (readback.completionTime == null && readback.terminalCondition?.state !== 'CONDITION_FAILED') {
+      const completedConditions = Array.isArray(readback.conditions)
+        ? readback.conditions.filter((condition) => condition?.type === 'Completed')
+        : []
+      if (completedConditions.length > 1) fail('MIGRATION_EXECUTION_READBACK_MISMATCH')
+      const completedState = completedConditions[0]?.state ?? null
+      if (readback.completionTime == null && completedState !== 'CONDITION_FAILED') {
         await sleep(1000)
         continue
       }
-      if (Number(readback.failedCount ?? 0) !== 0 || Number(readback.succeededCount ?? 0) !== 1 || readback.completionTime == null || readback.terminalCondition?.state !== 'CONDITION_SUCCEEDED') fail('MIGRATION_EXECUTION_FAILED')
+      if (Number(readback.failedCount ?? 0) !== 0 || Number(readback.succeededCount ?? 0) !== 1 || readback.completionTime == null || completedState !== 'CONDITION_SUCCEEDED') fail('MIGRATION_EXECUTION_FAILED')
       return { ...readback, providerOperationRef: operationRef }
     }
   }
