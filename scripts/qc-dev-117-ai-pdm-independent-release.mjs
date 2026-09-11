@@ -14,14 +14,20 @@ import {
   finalizeEvidence,
   sha256,
 } from './lib/dev117-ai-pdm-independent-release.mjs'
+import { assertDev117V3Profile, assertDev117WorkflowSource } from './lib/dev117-ai-pdm-continuous-release.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const configPath = path.join(root, 'config', 'release', 'dev117-ai-pdm-independent-production.json')
+const currentConfigPath = path.join(root, 'config', 'release', 'dev117-ai-pdm-independent-production-v3.json')
+const n1cConfigPath = path.join(root, 'config', 'platform', 'dev-010-n1c-ai-pdm.json')
 const registryPath = path.join(root, '.ai-doc', 'qa', 'dev-117-current-case-registry.json')
 const workflowPath = path.join(root, '.github', 'workflows', 'deploy-ai-pdm-independent-production.yml')
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+const currentConfig = JSON.parse(fs.readFileSync(currentConfigPath, 'utf8'))
+const n1cConfig = JSON.parse(fs.readFileSync(n1cConfigPath, 'utf8'))
 const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'))
 assertDev117Config(config)
+assertDev117V3Profile(currentConfig, config, n1cConfig)
 
 function fail(code, detail = '') {
   throw new Error(detail ? `${code}:${detail}` : code)
@@ -52,33 +58,30 @@ function staticScan() {
   let parsed
   try { parsed = yaml.load(source) } catch (error) { fail('DEV117_QC_WORKFLOW_YAML_INVALID', error.message) }
   if (!parsed?.on?.workflow_dispatch || !parsed?.jobs) fail('DEV117_QC_WORKFLOW_YAML_INVALID', 'workflow_dispatch/jobs/or jobs missing')
+  assertDev117WorkflowSource(source)
   for (const marker of [
-    'jenfu-platform-prod', 'asia-east1', 'ai-pdm-prod', 'aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com',
-    'asia-east1-docker.pkg.dev/jenfu-platform-prod/dev010-r1/ai-pdm', 'https://pdm.jenfu.com.tw',
-    "inputs.stage == 'prepare'", "inputs.stage == 'candidate'", "inputs.stage == 'level4-access'",
-    "inputs.stage == 'promote'", "inputs.stage == 'rollback'", "inputs.stage == 'finalize'",
-    'DEV117_ROLLBACK_AI_PDM_ONLY', 'assertDev117CandidateReceipt', 'assertDev117Level4Join',
-    'assertDev117PromotionRequest', 'assertDev117RollbackReceipt', 'assertDev117AppReleaseReceipt',
+    'releaseCapsuleRef', 'group: production-release-ai-pdm-prod',
+    'aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com',
+    'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
+    'aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com',
+    '--stage prepare', '--stage build', '--stage migrate', '--stage candidate', '--stage entrypoint',
+    '--stage verify', '--stage decision', '--stage activate', '--stage canonical', '--stage finalize', '--stage rollback',
   ]) if (!source.includes(marker)) fail('DEV117_QC_WORKFLOW_CONTROL_MISSING', marker)
-  for (const forbidden of ['jenfu-ai-pdm-prod', 'https://jenfu-ai-pdm-prod.web.app', 'pdm-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com']) {
+  for (const forbidden of ['jenfu-ai-pdm-prod', 'https://jenfu-ai-pdm-prod.web.app', 'https://pdm.jenfu.com.tw', 'pdm-runtime@jenfu-ai-pdm-prod.iam.gserviceaccount.com']) {
     if (source.includes(forbidden)) fail('DEV117_QC_LEGACY_TARGET_FOUND', forbidden)
   }
   if (/firebase\s+deploy|\bpsql\b|\bDROP\s+(?:DATABASE|SCHEMA|TABLE)|:[ \t]*latest(?:[\s,"']|$)/iu.test(source)) fail('DEV117_QC_FORBIDDEN_RELEASE_CAPABILITY_FOUND')
   if (/(?:run\s+deploy|services\s+update-traffic)[^\n]*jenfu-platform-prod|(?:run\s+deploy|services\s+update-traffic)[^\n]*orgmaster-prod/iu.test(source)) fail('DEV117_CROSS_APP_MUTATION_FOUND')
-  const candidate = section(source, 'candidate', 'level4-access')
-  if (/docker\s+build|buildx|gcloud\s+builds|--tag(?:\s|=)|--update-tags|--to-revisions/iu.test(candidate)) fail('DEV117_QC_CANDIDATE_BOUNDARY_INVALID')
-  for (const marker of ['--no-traffic', '--container "$APPLICATION_CONTAINER"', '--image "$IMAGE_URI"', 'candidatePercent: 0', 'tag: null', 'buildExecutions: 0']) {
-    if (!candidate.includes(marker)) fail('DEV117_QC_CANDIDATE_CONTROL_MISSING', marker)
-  }
-  const access = section(source, 'level4-access', 'promote')
-  if (!access.includes('--update-tags "candidate=$REVISION"') || /--to-revisions/iu.test(access)) fail('DEV117_QC_LEVEL4_ACCESS_BOUNDARY_INVALID')
-  const promote = section(source, 'promote', 'rollback')
-  if (!promote.includes('DEV-117-NEUTRAL-PROMOTION-APPROVED') || !promote.includes('--to-revisions "$REVISION=100"')) fail('DEV117_QC_PROMOTION_BOUNDARY_INVALID')
-  const rollback = section(source, 'rollback', 'finalize')
-  if (!rollback.includes('--to-revisions "$ROLLBACK_REVISION=100"') || /\bdelete\b|\bmigrat(?:e|ion)\b/iu.test(rollback)) fail('DEV117_QC_ROLLBACK_BOUNDARY_INVALID')
-  const actionLines = source.split(/\r?\n/u).map((line) => line.trim()).filter((line) => line.startsWith('uses:'))
-  if (actionLines.length < 12 || actionLines.some((line) => !/@[0-9a-f]{40}(?:\s+#|$)/u.test(line))) fail('DEV117_QC_ACTION_PIN_INVALID')
-  return { yamlParsed: true, stageCount: config.workflow.stages.length, actionPinsChecked: actionLines.length, forbiddenMatches: 0 }
+  const candidate = section(source, 'candidate', 'entrypoint')
+  if (!candidate.includes('--stage candidate') || /\bgcloud\b|--to-revisions/iu.test(candidate)) fail('DEV117_QC_CANDIDATE_BOUNDARY_INVALID')
+  const entrypoint = section(source, 'entrypoint', 'verify')
+  if (!entrypoint.includes('--stage entrypoint') || /\bgcloud\b|--to-revisions/iu.test(entrypoint)) fail('DEV117_QC_ENTRYPOINT_BOUNDARY_INVALID')
+  const failure = section(source, 'failure')
+  if (!failure.includes('--stage rollback') || !failure.includes('aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com')) fail('DEV117_QC_ROLLBACK_BOUNDARY_INVALID')
+  const actionLines = source.split(/\r?\n/u).map((line) => line.trim().replace(/^-\s+/u, '')).filter((line) => line.startsWith('uses:'))
+  const allowedActions = new Set(['uses: actions/checkout@v4', 'uses: actions/setup-node@v4', 'uses: google-github-actions/auth@v3'])
+  if (actionLines.length < 30 || actionLines.some((line) => !allowedActions.has(line))) fail('DEV117_QC_ACTION_VERSION_INVALID')
+  return { yamlParsed: true, stageCount: currentConfig.workflow.jobs.length, actionVersionsChecked: actionLines.length, forbiddenMatches: 0 }
 }
 
 function parseSummary(output) {
@@ -89,9 +92,12 @@ function parseSummary(output) {
 function sourceFingerprint() {
   const files = [
     'config/release/dev117-ai-pdm-independent-production.json',
+    'config/release/dev117-ai-pdm-independent-production-v3.json',
+    'config/platform/dev-010-n1c-ai-pdm.json',
     '.github/workflows/deploy-ai-pdm-independent-production.yml',
     '.ai-doc/qa/dev-117-current-case-registry.json',
     'scripts/lib/dev117-ai-pdm-independent-release.mjs',
+    'scripts/lib/dev117-ai-pdm-continuous-release.mjs',
     'scripts/dev117-ai-pdm-independent-release.mjs',
     'scripts/dev117-ai-pdm-independent-release.test.mjs',
     'scripts/qc-dev-117-ai-pdm-independent-release.mjs',

@@ -25,6 +25,7 @@ import {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const config = JSON.parse(fs.readFileSync(path.join(root, 'config', 'release', 'dev117-ai-pdm-independent-production.json'), 'utf8'))
+const currentConfig = JSON.parse(fs.readFileSync(path.join(root, 'config', 'release', 'dev117-ai-pdm-independent-production-v3.json'), 'utf8'))
 const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'deploy-ai-pdm-independent-production.yml'), 'utf8')
 const now = '2026-09-07T01:00:00.000Z'
 const expiry = '2026-09-08T01:00:00.000Z'
@@ -252,7 +253,7 @@ test('QA-117-009 cross-app mutation boundary', () => {
   assert.doesNotMatch(workflow, /(?:run\s+deploy|update-traffic)\s+["']?jenfu-platform-prod/iu)
 })
 
-test('QA-117-010 separate promotion and canonical entry', () => {
+test('QA-117-010 legacy promotion receipt and current direct canonical entry stay separated', () => {
   const candidate = validCandidate()
   const access = validAccess(candidate)
   const r02 = validR02(candidate)
@@ -264,9 +265,11 @@ test('QA-117-010 separate promotion and canonical entry', () => {
     rollbackReady: true, requestedAt: now, credentialMaterialPresent: false,
   })
   assert.doesNotThrow(() => assertDev117PromotionRequest(request, config, { candidateReceipt: candidate, accessReceipt: access, dev116Receipt: r02 }))
-  assert.match(workflow, /inputs\.stage\s*==\s*'promote'/u)
-  assert.match(workflow, /https:\/\/pdm\.jenfu\.com\.tw/u)
-  const candidateSection = workflow.split('\n  candidate:')[1].split('\n  level4-access:')[0]
+  assert.equal(config.target.canonicalOrigin, 'https://pdm.jenfu.com.tw')
+  assert.equal(currentConfig.target.canonicalOrigin, 'https://ai-pdm-prod-9536592944.asia-east1.run.app')
+  for (const stage of ['entrypoint', 'verify', 'decision', 'activate', 'canonical']) assert.match(workflow, new RegExp(`\\n  ${stage}:\\r?\\n`, 'u'))
+  assert.doesNotMatch(workflow, /https:\/\/pdm\.jenfu\.com\.tw/u)
+  const candidateSection = workflow.split(/\r?\n  candidate:/u)[1].split(/\r?\n  entrypoint:/u)[0]
   assert.doesNotMatch(candidateSection, /update-traffic[^\n]*--to-revisions/iu)
 })
 
@@ -280,7 +283,9 @@ test('QA-117-011 AI_PDM-only traffic rollback', () => {
   })
   assert.doesNotThrow(() => assertDev117RollbackReceipt(receipt, config))
   assert.throws(() => assertDev117RollbackReceipt(rehash({ ...receipt, platformMutationCount: 1 }), config), /DEV117_ROLLBACK_RECEIPT_INVALID/u)
-  assert.match(workflow, /DEV117_ROLLBACK_AI_PDM_ONLY NO_DOWN_MIGRATION/u)
+  assert.match(workflow, /\n  failure:\r?\n[\s\S]*--stage rollback\b/u)
+  assert.match(workflow, /needs: \[prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical\]/u)
+  assert.deepEqual(currentConfig.edge, { servingDependency: false, rollbackDependency: false, ordinaryReleaseMutations: 0, disposition: 'RETAINED_UNUSED_EDGE' })
 })
 
 test('QA-117-012 live receipt and Platform read-only consumption', () => {
