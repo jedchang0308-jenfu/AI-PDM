@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-11 DEV-117 R38 pre-auth closure（current）**：R35 exact production migration replay已由provider execution `ai-pdm-prod-migration-runner-7gjhv`完成，結果為`14 replayed`；candidate／entrypoint／traffic皆未執行。Owner已改以Cloud Run v2 `conditions[type=Completed]`判定execution終止，並把own migration Job resource-scoped viewer納入IaC complete-set。DEV-117舊V1 adapter契約與current V3 direct-run workflow測試已拆分：legacy 12／12、V3 28／28、abort 6／6、release-adapter QC、DB boundary、typecheck與isolated production build均PASS。因本次測試修正已形成新source，R37 source lock／foundation及其下游authority全部作廢；R37未執行AI-PDM app-infra apply。Operator重新授權後只接受fresh R38，不使用`pdm.jenfu.com.tw`、Firebase Hosting、shared LB或TOTP。
+
 > **2026-09-11 DEV-117 R28 operation／DB prerequisite correction（current）**：R28在前序OrgMaster migration execution因正式庫缺DEV-010共用roles／schemas而以SQLSTATE `42704`安全停止，AI-PDM未dispatch，candidate／entrypoint／traffic=0。AI-PDM共用owner runtime已移除generic Cloud Run operation GET，Service mutation改驗exact Service settled readback，Job run改以run前後child executions差集及current args唯一匹配取得exact execution。Platform S2另加入source-bound production DB bootstrap receipt硬閘；其target／隔離／cleanup未PASS前不得建立AI-PDM intent或dispatch。Fresh central aggregate `2026-09-10T195308-852Z`（SHA-256 `c883a57f…af2cd`）已含AI-PDM production audit、DB boundary、typecheck／isolated build、owner與Terraform gate PASS，releaseAuthority=false。提交push後fresh R29或後續cohort才可重建，R28不得重用。
 
 > **2026-09-10 DEV-117 R26 staged-IaC correction（current）**：前序OrgMaster在app apply前揭露SBOM bindings不能誤列A；AI-PDM未dispatch。Current以`incident_runtime_enabled`將三個own SBOM addresses移至APP_INFRA_B additional `[0]`，fresh plan須only-create並保留既有A/B。QC／commit後由新cohort重建，R26不得重用。
@@ -10,11 +12,11 @@
 
 > **2026-09-10 DEV-117 R20 custom build identity correction（historical）**：R20在OrgMaster Cloud Build create前安全停止，AI-PDM未dispatch。根因是三owner custom builder均缺少對自身的`iam.serviceAccounts.actAs`；AI-PDM current source新增self-only `google_service_account_iam_member.builder_act_as_self`、APP_INFRA_B additional complete-set地址與negative regression，stage A不含此build-runtime權限，且不授權OrgMaster／Platform／runtime／deployer／verifier。R21舊分類source lock已作廢；修正提交後須由fresh cohort重建source、app-infra、capacity與downstream receipts，R20／R21不得重用。
 
-更新日期：2026-09-09
+更新日期：2026-09-11
 Owner：Dev PM
 用途：這份文件是 active DEV control board。未完成任務留在此處；已完成任務只保留摘要，完整索引在 `.ai-doc/archived/completed-dev-index-2026-06.md` 與 `.ai-doc/archived/completed-dev-index-2026-07.md`。
 
-> **2026-09-10 DEV-117 V3 architecture-final owner handoff（current authority）**：DEV-012採`CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP`；本repo canonical entry為provider-verified `https://ai-pdm-prod-9536592944.asia-east1.run.app`，V3 owner profile SHA-256=`c5734b3b6a4011669e1567ab79263974c421b96d857ab52b5662050f0f1134f4`。Owner workflow固定十stage並含app-owned `entrypoint`；正式runtime exact固定`PDM_JENFU_PLATFORM_AUTH_MODE=on`、`PDM_JENFU_ENTITLEMENT_MODE=enforce`與共同Firebase issuer／audience，且任何`fixedValues`漂移均在Cloud Run write前拒絕。不使用`pdm.jenfu.com.tw`、Firebase Hosting或shared LB作current serving path，existing edge=`RETAINED_UNUSED_EDGE`，TOTP不在scope。狀態=`Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Corrected / fresh S2 receipts required / Production NOT_RUN`；R12 pre-runtime receipts因source drift只保留歷史。
+> **2026-09-10 DEV-117 V3 architecture-final owner handoff（current authority）**：DEV-012採`CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP`；本repo canonical entry為provider-verified `https://ai-pdm-prod-9536592944.asia-east1.run.app`，V3 owner profile SHA-256=`c5734b3b6a4011669e1567ab79263974c421b96d857ab52b5662050f0f1134f4`。Owner workflow固定十stage並含app-owned `entrypoint`；正式runtime exact固定`PDM_JENFU_PLATFORM_AUTH_MODE=on`、`PDM_JENFU_ENTITLEMENT_MODE=enforce`與共同Firebase issuer／audience，且任何`fixedValues`漂移均在Cloud Run write前拒絕。不使用`pdm.jenfu.com.tw`、Firebase Hosting或shared LB作current serving path，existing edge=`RETAINED_UNUSED_EDGE`，TOTP不在scope。狀態=`Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Corrected / S2 Paused for Operator Re-auth / Production Migration Replay PASS / Candidate、Entrypoint、Traffic NOT_RUN`；R12 pre-runtime receipts因source drift只保留歷史。
 
 > **2026-09-10 DEV-117 production dependency gate（current）**：fresh production audit發現Next.js 16.3.0與sharp 0.35.3已進入owner `HIGH／CRITICAL`阻擋集合，已以前向patch升級至Next.js 16.3.4與sharp 0.35.4。`npm audit --omit=dev`現為`0 HIGH／0 CRITICAL`，owner 24／24、abort 6／6、DB boundary、typecheck與兩次isolated production build均PASS；既有middleware／Edge warning不屬本次新增失敗。修正後必使用新main commit重建source lock、capacity與全部downstream receipts，不得重用R13舊revision證據。
 
@@ -118,7 +120,7 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 現行開發：`◐ DEV-117 continuous V3`，成熟度=`Architecture Finalized / RD Tech Lead PASS / V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Unlocked`；已依SPEC §26完成V3 profile、provider wrapper、IaC、ten-stage workflow、app-owned entrypoint與abort controller，下一步只可進入DEV-012 S2 fresh provider prerequisites。既有`117-S1`維持v1歷史完成：`Local Implementation Complete /
+- 現行開發：`◐ DEV-117 continuous V3`，成熟度=`Architecture Finalized / RD Tech Lead PASS / V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Paused for Operator Re-auth / Production Migration Replay PASS`；已依SPEC §26完成V3 profile、provider wrapper、IaC、ten-stage workflow、app-owned entrypoint與abort controller；operator重新授權後只以fresh R38重建source-bound receipts，candidate／entrypoint／traffic仍NOT_RUN。既有`117-S1`維持v1歷史完成：`Local Implementation Complete /
   QA-QC 12 of 12 PASS / Production Release Gated`。S1A profile／validator、S1B independent workflow／candidate
   lifecycle及S1C receipt／aggregate已依序完成；provider／credential／DB／Cloud／DNS／traffic mutation固定為0。
   S1B完成只解鎖DEV-012 S2 fresh Billing／quota／authorization前置；在S2 machine receipts完成前不得建立fresh release或執行production stage。

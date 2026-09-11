@@ -1,5 +1,7 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
+> **2026-09-11 R38 pre-auth amendment（current）**：R35 provider execution `ai-pdm-prod-migration-runner-7gjhv`已證明production migration為`14 replayed`；此項只更新database事實，不授權candidate、entrypoint、traffic或QA-012 PASS。Current oracle以`conditions[type=Completed]`讀取Cloud Run v2 execution，並要求own exact migration Job resource-scoped viewer。V1歷史adapter測試只驗歷史receipt schema，V3 direct-run則獨立驗`entrypoint→verify→decision→activate→canonical`與failure `rollback`；兩組不得再互相套用。R37因source drift作廢且無AI-PDM app-infra apply，恢復後須由fresh R38重建source-bound evidence。
+
 > **2026-09-11 R28 amendment（current）**：R28在OrgMaster migration execution因缺shared DB roles／schemas安全停止，AI-PDM未dispatch。新增owner oracle：不得GET generic operations；Service PATCH須exact Service settled readback，Job run須以run前後child execution差集＋current args唯一匹配取得exact execution並輪詢terminal。Platform production DB bootstrap immutable receipt未通過exact target、source、隔離數值與task-owned Job cleanup前，coordinator不得建立AI-PDM dispatch。R28不計production PASS。
 
 > **2026-09-10 R26 staged-IaC amendment（current）**：SBOM IAM三地址必為APP_INFRA_B additional `[0]`且以`incident_runtime_enabled=true`建立；A不得出現，fresh B只可create三個SBOM bindings與exact-job override，其餘read/no-op。任何update/delete/replace、A rollback destroy、sibling prefix或project-wide object權限均FAIL。
@@ -13,8 +15,8 @@
 > **2026-09-08 DEV-012 S1C amendment（V2 historical；current見§15）**：當時新增owner production-entry驗證，固定official repo=`jedchang0308-jenfu/AI-PDM`、branch=`main`；驗source-freeze／runtime-config／release-intent native chain、shared-LB host binding、candidate期間`internal`與activation後`internal-and-cloud-load-balancing`、own Workflows smoke SA＋OIDC、Firebase refresh token numeric Secret及legacy Hosting不被改指neutral target。Public `run.app`在該V2方案為FAIL；此入口判定已由§15 V3 direct-run contract取代。其local結果只保留為V2 provenance，不得作current release authority。
 
 - 文件成熟度：`V3 Architecture Finalized / RD Tech Lead PASS / Owner QA Contract Executed；v1／v2 Historical`
-- 狀態：`V3 Owner PASS / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Unlocked, Not Started / Production NOT_RUN`
-- 日期：2026-09-09
+- 狀態：`V3 Owner PASS / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Paused for Operator Re-auth / Production Migration Replay PASS / Candidate、Entrypoint、Traffic NOT_RUN`
+- 日期：2026-09-11
 - 來源 DEV：`DEV-117 / DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
 - 規格 authority：[DEV-117 SPEC §26](../specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)
 - Machine registry：[dev-117-current-case-registry.json](dev-117-current-case-registry.json)

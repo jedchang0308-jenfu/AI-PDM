@@ -1,5 +1,7 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
+> **2026-09-11 R38 pre-auth execution authority（current additive authority）**：R35 exact production migration execution `ai-pdm-prod-migration-runner-7gjhv`完成`14 replayed`；此forward-only provider事實不因owner後續readback缺口而回寫為NOT_RUN。Current以Cloud Run v2 `conditions[type=Completed]`驗terminal，並要求own exact migration Job resource-scoped viewer。DEV-117 V1 historical adapter與V3 direct-run測試已拆分，legacy 12／12、V3 28／28、abort 6／6及release adapter QC均PASS。R37因source drift作廢且沒有AI-PDM app apply；operator重新授權後只接受fresh R38。Candidate／entrypoint／traffic仍NOT_RUN，current serving不使用custom domain、Hosting、shared LB或TOTP。
+
 > **2026-09-11 R28 operation／production DB prerequisite correction（current additive authority）**：R28在OrgMaster階段建立migration execution後，因正式庫尚無DEV-010共用roles／schemas以SQLSTATE `42704`停止，AI-PDM未dispatch。Shared owner runtime不再輪詢Cloud Run operations endpoint；Service PATCH只以exact Service readback驗settled及零template／traffic drift，Job run只接受run前後child execution差集內一筆current args完全匹配的新execution。Platform-owned production DB bootstrap immutable receipt是S2 cohort prerequisite；target、source、role／schema／CONNECT隔離與task-owned Job cleanup未PASS前，本owner不得取得intent或執行migrate。R28 receipts不得重用。
 
 > **2026-09-10 R26 staged-IaC correction（current additive authority）**：R26在前序OrgMaster app apply前安全停止，AI-PDM未dispatch且production mutation=0。AI-PDM三個own-prefix SBOM bindings改以`incident_runtime_enabled`建立並列入APP_INFRA_B additional `[0]` complete-set；fresh B只允許它們與own exact-job override為create，其餘read/no-op，禁止回跑A刪除既有B。
@@ -11,9 +13,9 @@
 > **2026-09-10 R20 architecture amendment**：Cloud Build REST create指定user-specified builder時，提交主體必須可`iam.serviceAccounts.actAs`該service account。AI-PDM固定以own builder對own builder的`roles/iam.serviceAccountUser`完成，Terraform resource=`google_service_account_iam_member.builder_act_as_self`；禁止授予sibling或runtime identity。該地址屬app-owned APP_INFRA_B additional complete-set，stage A不建立build-runtime act-as；必經exact plan/apply/provider readback，缺少、update/delete/replace或member/target漂移均fail closed。R20未dispatch AI-PDM，R21舊分類已作廢，修正後必用fresh source/cohort。
 
 - 文件成熟度：`V3 Owner RD Implementation Ready + 架構定案：已定案 / RD Tech Lead PASS / P0=0 / P1=0；v1／v2保留歷史`
-- 狀態：`V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Unlocked, Not Started / Production NOT_RUN`
+- 狀態：`V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Paused for Operator Re-auth / Production Migration Replay PASS / Candidate、Entrypoint、Traffic NOT_RUN`
 - 風險等級：High
-- 日期：2026-09-09
+- 日期：2026-09-11
 - 來源 ID：`DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
 - 決策來源：使用者明確要求「AI_PDM 及 Jenfu-Platform 分開部署」並要求先完成可執行部署前的開發文件
 - 父關卡：`DEV-116` Production Level 4 smoke tenant evidence
@@ -490,7 +492,7 @@ AI-PDM candidate pool固定8，三app current connection denominator為61；本o
 
 ## 26. `CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP` architecture-final owner amendment（current authority）
 
-分類：`Human Confirmed / Intentional replacement / Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Complete / S2 Unlocked / Production NOT_RUN`。本節前向取代§§20～25中custom-domain、shared edge、nine-stage與缺少`entrypoint` stage的current指令；其source-freeze、兩容器runtime、14-entry migration、DEV-116 R02、Billing／quota、Secret與provider provenance契約仍有效。
+分類：`Human Confirmed / Intentional replacement / Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Complete / S2 Paused for Operator Re-auth / Production Migration Replay PASS / Candidate、Entrypoint、Traffic NOT_RUN`。本節前向取代§§20～25中custom-domain、shared edge、nine-stage與缺少`entrypoint` stage的current指令；其source-freeze、兩容器runtime、14-entry migration、DEV-116 R02、Billing／quota、Secret與provider provenance契約仍有效。
 
 - 真正問題是AI-PDM release不應依賴第三方DNS或central edge authority。最小架構固定使用provider readback所得`https://ai-pdm-prod-9536592944.asia-east1.run.app`；V3 owner profile=`config/release/dev117-ai-pdm-independent-production-v3.json`，SHA-256=`c5734b3b6a4011669e1567ab79263974c421b96d857ab52b5662050f0f1134f4`。此profile是AI-PDM endpoint、entry policy及production runtime mode唯一deploy authority；Platform只hash-ref及join receipt。
 - Workflow固定`prepare→build→migrate→candidate→entrypoint→verify→decision→activate→canonical→finalize`。Candidate只建立inactive exact revision及0% tag，並注入唯一`PDM_RELEASE_CANDIDATE_ORIGIN`；canonical及candidate皆拒絕wildcard、legacy hash-host、wrong project／service／tag／region、port、userinfo與path。
@@ -501,7 +503,7 @@ AI-PDM candidate pool固定8，三app current connection denominator為61；本o
 
 Fresh evidence由Platform `output/dev-012/s1c/2026-09-09T111340-014Z/qc-report.json`提供，SHA-256=`bbd767fffb6364a770586cfe6122269ef1095184244a5ed4b2047d05d48b2b7f`；contract=`d88b9aaa8a5e27082746221fc5b473abd8a78da712409279baf5ecdb0e176f05`。S1A 32／32、S1B 24／24、S1C 8／8，AI-PDM DB boundary、typecheck、isolated build及diff check PASS，V3 Terraform validation PASS，provider／DB／traffic／credential mutation與runtime residue=0。技術主管結論=`PASS / Architecture Finalized / P0=0 / P1=0`，但`releaseAuthority=false`。
 
-Current execution boundary只到DEV-012 S2：fresh remote source freeze、Billing／budget／quota／capacity、Identity／entry baseline、notification／numeric Secret、foundation及AI-PDM APP_INFRA_A/B provider receipts。S3才可執行production migration、candidate、entrypoint、DEV-116 R02、traffic與canonical smoke；任一UNKNOWN、source/profile drift、`remainingHumanAction>0`或需要改上述架構契約即停止。
+Current execution已留下R35 production migration replay PASS；operator重新授權後由fresh R38重建remote source freeze、Billing／budget／quota／capacity、Identity／entry baseline、notification／numeric Secret、foundation及AI-PDM APP_INFRA_A/B provider receipts，再以idempotent migration readback續接candidate、entrypoint、DEV-116 R02、traffic與canonical smoke。任一UNKNOWN、source/profile drift、`remainingHumanAction>0`或需要改上述架構契約即停止。
 
 2026-09-10 implementation-aware correction：production candidate不得沿用development的default-off相容模式。V3 runtime complete-set新增並固定`PDM_JENFU_PLATFORM_AUTH_MODE=on`、`PDM_JENFU_ENTITLEMENT_MODE=enforce`、`JENFU_FIREBASE_PROJECT_ID=jenfu-platform-prod`、exact issuer及audience；session issuer改綁current direct `run.app` origin。共用runtime builder現在逐項驗證profile `fixedValues`，任何`off`、`legacy`、wrong project／issuer／audience／DB／origin都在Cloud Run write前fail closed。這項修正只落實DEV-004／005與DEV-012既有共同IAM／role authority，未改schema、migration、stage order或edge決策；R12在runtime-config前停止，舊receipts不具新source authority。
 
