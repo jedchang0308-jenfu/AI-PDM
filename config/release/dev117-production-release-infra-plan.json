@@ -83,7 +83,8 @@
     "google_monitoring_notification_channel.incident_events[0]",
     "google_monitoring_notification_channel.incident[0]",
     "google_cloud_scheduler_job.watchdog[0]"
-    ,"google_workflows_workflow.candidate_smoke[0]"
+    ,"google_workflows_workflow.candidate_smoke[0]",
+    "google_project_iam_member.verifier_candidate_smoke_execution_invoker[0]"
   ],
   "allowedActions": [
     "create",

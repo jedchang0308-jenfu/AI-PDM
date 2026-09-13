@@ -27,6 +27,19 @@ resource "google_project_iam_member" "verifier_candidate_smoke_invoker" {
   }
 }
 
+resource "google_project_iam_member" "verifier_candidate_smoke_execution_invoker" {
+  count   = var.incident_runtime_enabled ? 1 : 0
+  project = var.project_id
+  role    = "roles/workflows.invoker"
+  member  = "serviceAccount:${google_service_account.verifier.email}"
+
+  condition {
+    title       = "${local.app}_candidate_smoke_executions_only"
+    description = "Verifier may create and read only its application-owned candidate smoke executions."
+    expression  = "resource.name.startsWith('projects/${var.project_id}/locations/${var.region}/workflows/${local.candidate_smoke_workflow}/executions/')"
+  }
+}
+
 resource "google_workflows_workflow" "candidate_smoke" {
   count                   = var.incident_runtime_enabled ? 1 : 0
   project                 = var.project_id

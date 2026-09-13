@@ -116,6 +116,7 @@ test('AI-PDM custom Cloud Build service account can act only as itself', () => {
   const identity = readText('infra/google-cloud/dev-117-production-release/identity.tf')
   const storage = readText('infra/google-cloud/dev-117-production-release/storage.tf')
   const migration = readText('infra/google-cloud/dev-117-production-release/migration.tf')
+  const candidateSmoke = readText('infra/google-cloud/dev-117-production-release/candidate-smoke.tf')
   const infraPlan = read('config/release/dev117-production-release-infra-plan.json')
   assert.match(identity, /resource "google_service_account_iam_member" "builder_act_as_self"[\s\S]*service_account_id = google_service_account\.builder\.name[\s\S]*role\s+= "roles\/iam\.serviceAccountUser"[\s\S]*member\s+= "serviceAccount:\$\{google_service_account\.builder\.email\}"/u)
   assert.ok(infraPlan.stageBAdditional.includes('google_service_account_iam_member.builder_act_as_self'))
@@ -134,4 +135,6 @@ test('AI-PDM custom Cloud Build service account can act only as itself', () => {
   }
   assert.ok(infraPlan.stageBAdditional.includes('google_cloud_run_v2_job_iam_member.migration_runner_with_overrides[0]'))
   assert.ok(infraPlan.stageBAdditional.includes('google_cloud_run_v2_job_iam_member.migration_runner_viewer[0]'))
+  assert.match(candidateSmoke, /resource "google_project_iam_member" "verifier_candidate_smoke_execution_invoker"[\s\S]*role\s+= "roles\/workflows\.invoker"[\s\S]*google_service_account\.verifier\.email[\s\S]*resource\.name\.startsWith\('projects\/\$\{var\.project_id\}\/locations\/\$\{var\.region\}\/workflows\/\$\{local\.candidate_smoke_workflow\}\/executions\/'\)/u)
+  assert.ok(infraPlan.stageBAdditional.includes('google_project_iam_member.verifier_candidate_smoke_execution_invoker[0]'))
 })
