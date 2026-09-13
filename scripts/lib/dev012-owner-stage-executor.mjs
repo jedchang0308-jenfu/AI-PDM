@@ -12,6 +12,19 @@ function fail(code, detail = '') {
   throw error
 }
 
+export function candidateTagUriMatches(service, candidate, observedUri) {
+  if (!/^candidate-[a-f0-9]{12}$/u.test(candidate?.tag ?? '') || typeof candidate?.tagUri !== 'string' || typeof observedUri !== 'string') return false
+  const allowed = new Set([candidate.tagUri])
+  for (const value of [service?.uri, ...(Array.isArray(service?.urls) ? service.urls : [])]) {
+    try {
+      const base = new URL(value)
+      if (base.protocol !== 'https:' || base.port || base.username || base.password || base.pathname !== '/' || base.search || base.hash || base.origin !== value) continue
+      allowed.add(`https://${candidate.tag}---${base.hostname}`)
+    } catch {}
+  }
+  return allowed.has(observedUri)
+}
+
 export function readGitBlob(root, repositoryPath, revision = 'HEAD') {
   if ((!H40.test(revision) && revision !== 'HEAD') || !/^[A-Za-z0-9._/-]+$/u.test(repositoryPath ?? '') || repositoryPath.startsWith('/') || repositoryPath.includes('../')) fail('GIT_BLOB_REF_INVALID')
   const result = spawnSync('git', ['show', `${revision}:${repositoryPath}`], { cwd: root, encoding: null, maxBuffer: 32 * 1024 * 1024, windowsHide: true })
@@ -270,11 +283,11 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const service = await transport.getService(profile)
     transport.assertCanonicalEntrypoint(profile, service)
     const tag = service.trafficStatuses?.find((row) => row.tag === candidate.value.facts.tag)
-    if (tag?.revision !== candidate.value.facts.candidateRevision || Number(tag.percent ?? 0) !== 0 || tag.uri !== candidate.value.facts.tagUri || transport.effectiveRevision(service) !== intent.previousRevision) fail('CANDIDATE_TAG_READBACK_MISMATCH')
+    if (tag?.revision !== candidate.value.facts.candidateRevision || Number(tag.percent ?? 0) !== 0 || !candidateTagUriMatches(service, candidate.value.facts, tag.uri) || transport.effectiveRevision(service) !== intent.previousRevision) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
     transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage)
     const smoke = await transport.runInternalCandidateSmoke({ profile, origin: candidate.value.facts.tagUri, candidateTag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, deadlineAt: intent.deadlineAt, environment })
-    const result = await writeStage(transport, paths, profile, intent, 'verify', entrypoint.ref, { candidateReceiptRef: candidate.ref, entrypointReceiptRef: entrypoint.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, tagUri: candidate.value.facts.tagUri, smoke, sideEffects: profile.sideEffects })
+    const result = await writeStage(transport, paths, profile, intent, 'verify', entrypoint.ref, { candidateReceiptRef: candidate.ref, entrypointReceiptRef: entrypoint.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, tagUri: candidate.value.facts.tagUri, providerTagUri: tag.uri, smoke, sideEffects: profile.sideEffects })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'CANDIDATE_VERIFIED', environment })
     return result
   }

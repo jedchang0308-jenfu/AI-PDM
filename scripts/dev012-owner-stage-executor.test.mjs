@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { gunzipSync } from 'node:zlib'
 import { buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
+import { candidateTagUriMatches, executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-platform-release'
@@ -125,7 +125,14 @@ test('recorded provider transport executes the ten immutable owner stages withou
   assert.equal(h.service().trafficStatuses.some((row) => row.tag), false)
   assert.equal(h.transport.effectiveRevision(h.service()), candidateRevision)
 })
-+
+test('candidate tag readback accepts deterministic and provider-derived run.app URLs only', () => {
+  const candidate = { tag: candidateTag, tagUri: candidateOrigin }
+  const service = { uri: 'https://jenfu-platform-prod-56gnizku7q-de.a.run.app', urls: [canonicalOrigin, 'https://jenfu-platform-prod-56gnizku7q-de.a.run.app'] }
+  assert.equal(candidateTagUriMatches(service, candidate, candidateOrigin), true)
+  assert.equal(candidateTagUriMatches(service, candidate, `https://${candidateTag}---jenfu-platform-prod-56gnizku7q-de.a.run.app`), true)
+  assert.equal(candidateTagUriMatches(service, candidate, `https://${candidateTag}---sibling-56gnizku7q-de.a.run.app`), false)
+})
+
 test('rollback reports no database mutation when migrate receipt was never produced', async () => {
   const h = recordedHarness()
   const refFor = async (name, value) => (await h.transport.putJson(`gs://${bucket}/receipts/prerequisites/rollback-${name}.json`, value, { bucket, prefix: 'receipts' })).ref
