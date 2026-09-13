@@ -40,6 +40,13 @@ resource "google_project_iam_member" "verifier_candidate_smoke_execution_invoker
   }
 }
 
+resource "google_project_iam_member" "verifier_candidate_smoke_invoker_v2" {
+  count   = var.incident_runtime_enabled ? 1 : 0
+  project = var.project_id
+  role    = "roles/workflows.invoker"
+  member  = "serviceAccount:${google_service_account.verifier.email}"
+}
+
 resource "google_workflows_workflow" "candidate_smoke" {
   count                   = var.incident_runtime_enabled ? 1 : 0
   project                 = var.project_id
