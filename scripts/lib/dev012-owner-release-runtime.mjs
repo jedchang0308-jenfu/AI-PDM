@@ -274,8 +274,8 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   function serviceMutationVisible(service, requested, updateMask) {
     if (updateMask === ENTRYPOINT_UPDATE_MASK) {
       return service?.ingress === requested.ingress
-        && service?.defaultUriDisabled === requested.defaultUriDisabled
-        && service?.invokerIamDisabled === requested.invokerIamDisabled
+        && (service?.defaultUriDisabled === true) === requested.defaultUriDisabled
+        && (service?.invokerIamDisabled === true) === requested.invokerIamDisabled
     }
     if (updateMask === 'template') {
       const revision = requested?.template?.revision
@@ -416,8 +416,8 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   function entrypointSnapshot(service) {
     return {
       ingress: service?.ingress ?? null,
-      defaultUriDisabled: service?.defaultUriDisabled ?? false,
-      invokerIamDisabled: service?.invokerIamDisabled ?? false,
+      defaultUriDisabled: service?.defaultUriDisabled === true,
+      invokerIamDisabled: service?.invokerIamDisabled === true,
       uri: service?.uri ?? null,
       urls: Array.isArray(service?.urls) ? [...service.urls].sort() : [],
       serviceEtag: service?.etag ?? null,
@@ -435,12 +435,13 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   function assertCanonicalEntrypoint(profile, service, code = 'ENTRYPOINT_READBACK_MISMATCH') {
     const policy = assertEntrypointPolicy(profile)
     const expectedName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
-    if (service?.name !== expectedName || service.ingress !== policy.ingress || service.defaultUriDisabled !== policy.defaultUriDisabled || service.invokerIamDisabled !== policy.invokerIamDisabled || service.uri !== profile.target.canonicalOrigin || !Array.isArray(service.urls) || !service.urls.includes(profile.target.canonicalOrigin)) fail(code)
+    const providerUri = exactOrigin(service?.uri, code).origin
+    if (service?.name !== expectedName || service.ingress !== policy.ingress || (service.defaultUriDisabled === true) !== policy.defaultUriDisabled || (service.invokerIamDisabled === true) !== policy.invokerIamDisabled || !Array.isArray(service.urls) || !service.urls.includes(providerUri) || !service.urls.includes(profile.target.canonicalOrigin)) fail(code)
     return service
   }
 
   function sameEntrypointFields(service, expected) {
-    return service?.ingress === expected.ingress && service?.defaultUriDisabled === expected.defaultUriDisabled && service?.invokerIamDisabled === expected.invokerIamDisabled
+    return service?.ingress === expected.ingress && (service?.defaultUriDisabled === true) === expected.defaultUriDisabled && (service?.invokerIamDisabled === true) === expected.invokerIamDisabled
   }
 
   async function configureEntrypoint({ profile, candidate, previousRevision, deadlineAt }) {

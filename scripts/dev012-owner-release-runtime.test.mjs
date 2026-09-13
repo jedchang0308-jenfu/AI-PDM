@@ -281,7 +281,8 @@ test('entrypoint patch uses the exact mask, preserves template/traffic, and unkn
   const tag = 'candidate-bbbbbbbbbbbb'
   const tagUri = `https://${tag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
   const base = { name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`, etag: 'e1', reconciling: false, generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, ingress: 'INGRESS_TRAFFIC_INTERNAL_ONLY', defaultUriDisabled: true, invokerIamDisabled: false, uri: null, urls: [], template: { containers: [{ image: 'old' }] }, traffic: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag }], trafficStatuses: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag }] }
-  const direct = { ...base, etag: 'e2', generation: '2', observedGeneration: '2', ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: false, invokerIamDisabled: true, uri: profile.target.canonicalOrigin, urls: [profile.target.canonicalOrigin], trafficStatuses: base.trafficStatuses.map((row) => row.tag === tag ? { ...row, uri: tagUri } : row) }
+  const providerUri = 'https://jenfu-platform-prod-provider-de.a.run.app'
+  const direct = { ...base, etag: 'e2', generation: '2', observedGeneration: '2', ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: undefined, invokerIamDisabled: true, uri: providerUri, urls: [profile.target.canonicalOrigin, providerUri], trafficStatuses: base.trafficStatuses.map((row) => row.tag === tag ? { ...row, uri: tagUri } : row) }
   let gets = 0
   let patchCalls = 0
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
@@ -316,7 +317,8 @@ test('entrypoint recovery covers pre-patch, 412, candidate-live and already-dire
     traffic: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag }],
     trafficStatuses: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag, uri: tagUri }],
   }
-  const direct = { ...baseline, etag: 'e2', generation: '2', observedGeneration: '2', ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: false, invokerIamDisabled: true, uri: profile.target.canonicalOrigin, urls: [profile.target.canonicalOrigin] }
+  const providerUri = 'https://jenfu-platform-prod-provider-de.a.run.app'
+  const direct = { ...baseline, etag: 'e2', generation: '2', observedGeneration: '2', ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: undefined, invokerIamDisabled: true, uri: providerUri, urls: [profile.target.canonicalOrigin, providerUri] }
 
   let prePatchCalls = 0
   const prePatch = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (_url, options = {}) => {
