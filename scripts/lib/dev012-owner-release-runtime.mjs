@@ -391,13 +391,15 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const tagStatus = tagged.trafficStatuses?.find((row) => row.tag === tag)
     const generalBefore = before.traffic.map(({ tag: _tag, ...row }) => row)
     const generalAfter = tagged.traffic?.filter((row) => !row.tag).map(({ tag: _tag, ...row }) => row)
-    if (tagStatus?.uri !== exactCandidateOrigin || tagStatus.revision !== candidateRevision || Number(tagStatus.percent ?? 0) !== 0 || canonicalize(generalAfter) !== canonicalize(generalBefore)) fail('CANDIDATE_TAG_READBACK_MISMATCH')
+    const tagUriMissing = tagStatus?.uri === undefined || tagStatus?.uri === null
+    const tagUriMatches = tagStatus?.uri === exactCandidateOrigin || (tagUriMissing && tagged.defaultUriDisabled === true)
+    if (!tagUriMatches || tagStatus?.revision !== candidateRevision || Number(tagStatus.percent ?? 0) !== 0 || canonicalize(generalAfter) !== canonicalize(generalBefore)) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await getRevision(profile, candidateRevision)
     assertRevisionReady(profile, revision, artifactDigest)
     const revisionApp = revision.containers.find((container) => container.name === profile.runtime.containerName)
     const revisionOrigin = revisionApp?.env?.find((row) => row.name === profile.environment.candidateOriginEnvironmentName)
     if (revisionOrigin?.value !== exactCandidateOrigin || revisionOrigin.valueSource) fail('CANDIDATE_ORIGIN_READBACK_MISMATCH')
-    return { candidateRevision, tag, tagUri: tagStatus.uri, artifactDigest, previousRevision: effectiveRevision(before), beforeTraffic: before.traffic, etag: tagged.etag, revisionName: revision.name }
+    return { candidateRevision, tag, tagUri: exactCandidateOrigin, artifactDigest, previousRevision: effectiveRevision(before), beforeTraffic: before.traffic, etag: tagged.etag, revisionName: revision.name }
   }
 
   function entrypointSnapshot(service) {

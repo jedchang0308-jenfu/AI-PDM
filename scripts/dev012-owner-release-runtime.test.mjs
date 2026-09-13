@@ -239,14 +239,14 @@ test('candidate replaces a one-container holding template with the reviewed runt
   assert.deepEqual(patches[1].traffic.filter((row) => !row.tag), before.traffic)
 })
 
-test('candidate revision receives one exact full-origin overlay and provider URI must match', async () => {
+test('candidate accepts an omitted provider tag URI only while the default URI is disabled', async () => {
   const fingerprint = H64
   const candidateRevision = `jenfu-platform-prod-${fingerprint.slice(0, 12)}`
   const tag = `candidate-${fingerprint.slice(0, 12)}`
   const tagUri = `https://${tag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
   const artifactDigest = `${profile.artifact.uri}@sha256:${H64}`
   const settled = { reconciling: false, generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' } }
-  const before = { ...settled, name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`, etag: 'e1', template: { serviceAccount: profile.target.runtimeServiceAccount, containers: [{ image: 'old@sha256:' + H64, env: [{ name: 'KEEP', value: 'yes' }] }] }, traffic: [{ revision: 'previous-1', percent: 100 }], trafficStatuses: [{ revision: 'previous-1', percent: 100 }] }
+  const before = { ...settled, name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`, etag: 'e1', defaultUriDisabled: true, template: { serviceAccount: profile.target.runtimeServiceAccount, containers: [{ image: 'old@sha256:' + H64, env: [{ name: 'KEEP', value: 'yes' }] }] }, traffic: [{ revision: 'previous-1', percent: 100 }], trafficStatuses: [{ revision: 'previous-1', percent: 100 }] }
   const runtimeConfig = buildRuntimeConfig(profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } })
   const expectedTemplate = structuredClone(runtimeConfig.template)
   expectedTemplate.revision = candidateRevision
@@ -254,7 +254,7 @@ test('candidate revision receives one exact full-origin overlay and provider URI
   expectedApp.image = artifactDigest
   expectedApp.env.push({ name: profile.environment.candidateOriginEnvironmentName, value: tagUri })
   const created = { ...before, generation: '2', observedGeneration: '2', etag: 'e2', template: expectedTemplate, latestCreatedRevision: candidateRevision }
-  const tagged = { ...created, generation: '3', observedGeneration: '3', etag: 'e3', traffic: [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, tag }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, tag, uri: tagUri }] }
+  const tagged = { ...created, generation: '3', observedGeneration: '3', etag: 'e3', traffic: [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, tag }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, tag }] }
   let serviceGets = 0
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
     const value = String(url)
