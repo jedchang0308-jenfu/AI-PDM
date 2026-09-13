@@ -319,16 +319,26 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   async function getRevision(profile, revision) {
     if (!revision?.startsWith(`${profile.target.serviceName}-`) || revision === 'latest') fail('REVISION_TARGET_INVALID')
     const value = await request(`https://run.googleapis.com/v2/projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}/revisions/${revision}`)
-    if (!String(value?.name ?? '').endsWith(`/revisions/${revision}`) || value.service !== `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`) fail('REVISION_READBACK_MISMATCH')
+    const fullServiceName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
+    if (!String(value?.name ?? '').endsWith(`/revisions/${revision}`) || ![profile.target.serviceName, fullServiceName].includes(value.service)) fail('REVISION_READBACK_MISMATCH')
     return value
   }
 
-  function assertRevisionReady(profile, revision, artifactDigest) {
+  function immutableImageRepository(image) {
+    return /^(.+?)(?::[^/@]+)?@sha256:[a-f0-9]{64}$/u.exec(image ?? '')?.[1] ?? null
+  }
+
+  function assertRevisionReady(profile, revision, artifactDigest, expectedResolvedProxyImage = null) {
     const ready = revision?.conditions?.find((row) => row.type === 'Ready')
     const containers = revision?.containers
     const app = containers?.find((container) => container.name === profile.runtime.containerName)
     const proxy = containers?.find((container) => container.name === profile.runtime.cloudSqlProxyContainer)
-    if (containers?.length !== 2 || app?.image !== artifactDigest || proxy?.image !== profile.runtime.cloudSqlProxyImage
+    const pinnedProxyRepository = immutableImageRepository(profile.runtime.cloudSqlProxyImage)
+    const resolvedProxyRepository = immutableImageRepository(proxy?.image)
+    const proxyMatches = expectedResolvedProxyImage == null
+      ? resolvedProxyRepository != null && resolvedProxyRepository === pinnedProxyRepository
+      : proxy?.image === expectedResolvedProxyImage && resolvedProxyRepository === pinnedProxyRepository
+    if (containers?.length !== 2 || app?.image !== artifactDigest || !proxyMatches
       || ready?.state !== 'CONDITION_SUCCEEDED') fail('CANDIDATE_REVISION_READBACK_MISMATCH')
     return revision
   }
@@ -397,9 +407,10 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const revision = await getRevision(profile, candidateRevision)
     assertRevisionReady(profile, revision, artifactDigest)
     const revisionApp = revision.containers.find((container) => container.name === profile.runtime.containerName)
+    const revisionProxy = revision.containers.find((container) => container.name === profile.runtime.cloudSqlProxyContainer)
     const revisionOrigin = revisionApp?.env?.find((row) => row.name === profile.environment.candidateOriginEnvironmentName)
     if (revisionOrigin?.value !== exactCandidateOrigin || revisionOrigin.valueSource) fail('CANDIDATE_ORIGIN_READBACK_MISMATCH')
-    return { candidateRevision, tag, tagUri: exactCandidateOrigin, artifactDigest, previousRevision: effectiveRevision(before), beforeTraffic: before.traffic, etag: tagged.etag, revisionName: revision.name }
+    return { candidateRevision, tag, tagUri: exactCandidateOrigin, artifactDigest, cloudSqlProxyResolvedImage: revisionProxy.image, previousRevision: effectiveRevision(before), beforeTraffic: before.traffic, etag: tagged.etag, revisionName: revision.name }
   }
 
   function entrypointSnapshot(service) {
@@ -437,7 +448,9 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const before = await getService(profile)
     assertServiceSettled(before, 'ENTRYPOINT_BASELINE_INVALID')
     const tagged = before.trafficStatuses?.find((row) => row.tag === candidate.tag)
-    if (tagged?.revision !== candidate.candidateRevision || Number(tagged.percent ?? 0) !== 0 || tagged.uri !== candidate.tagUri || effectiveRevision(before) !== previousRevision) fail('ENTRYPOINT_CANDIDATE_JOIN_INVALID')
+    const tagUriMissing = tagged?.uri === undefined || tagged?.uri === null
+    const tagUriMatches = tagged?.uri === candidate.tagUri || (tagUriMissing && before.defaultUriDisabled === true)
+    if (tagged?.revision !== candidate.candidateRevision || Number(tagged.percent ?? 0) !== 0 || !tagUriMatches || effectiveRevision(before) !== previousRevision) fail('ENTRYPOINT_CANDIDATE_JOIN_INVALID')
     const templateSha256Before = sha256(canonicalize(before.template))
     const trafficSha256Before = sha256(canonicalize(before.traffic))
     let changed = false

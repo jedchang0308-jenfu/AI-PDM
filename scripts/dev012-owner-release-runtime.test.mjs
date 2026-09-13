@@ -195,13 +195,19 @@ test('Cloud Run revision readback stays bound to the exact service path', async 
   const endpoint = `/services/${profile.target.serviceName}/revisions/${revision}`
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url) => {
     assert.equal(String(url).endsWith(endpoint), true)
-    return json({ name: `projects/${profile.target.projectId}/locations/${profile.target.region}${endpoint}`, service: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}` })
+    return json({ name: `projects/${profile.target.projectId}/locations/${profile.target.region}${endpoint}`, service: profile.target.serviceName })
   } })
   assert.equal((await transport.getRevision(profile, revision)).name.endsWith(`/revisions/${revision}`), true)
   await assert.rejects(() => transport.getRevision(profile, 'latest'), /REVISION_TARGET_INVALID/u)
   const artifact = `${profile.artifact.uri}@sha256:${H64}`
-  const ready = { containers: [{ name: 'platform', image: artifact }, { name: 'cloud-sql-proxy', image: profile.runtime.cloudSqlProxyImage }], conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] }
+  const resolvedProxyImage = `proxy@sha256:${'d'.repeat(64)}`
+  const ready = { containers: [{ name: 'platform', image: artifact }, { name: 'cloud-sql-proxy', image: resolvedProxyImage }], conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] }
   assert.equal(transport.assertRevisionReady(profile, ready, artifact), ready)
+  assert.equal(transport.assertRevisionReady(profile, ready, artifact, resolvedProxyImage), ready)
+  assert.throws(() => transport.assertRevisionReady(profile, ready, artifact, `proxy@sha256:${'e'.repeat(64)}`), /CANDIDATE_REVISION_READBACK_MISMATCH/u)
+  const wrongRepository = structuredClone(ready)
+  wrongRepository.containers[1].image = `other-proxy@sha256:${'d'.repeat(64)}`
+  assert.throws(() => transport.assertRevisionReady(profile, wrongRepository, artifact), /CANDIDATE_REVISION_READBACK_MISMATCH/u)
   assert.throws(() => transport.assertRevisionReady(profile, { containers: ready.containers, conditions: [] }, artifact), /CANDIDATE_REVISION_READBACK_MISMATCH/u)
 })
 
@@ -274,8 +280,8 @@ test('candidate accepts an omitted provider tag URI only while the default URI i
 test('entrypoint patch uses the exact mask, preserves template/traffic, and unknown outcome is read back once', async () => {
   const tag = 'candidate-bbbbbbbbbbbb'
   const tagUri = `https://${tag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
-  const base = { name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`, etag: 'e1', reconciling: false, generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, ingress: 'INGRESS_TRAFFIC_INTERNAL_ONLY', defaultUriDisabled: true, invokerIamDisabled: false, uri: null, urls: [], template: { containers: [{ image: 'old' }] }, traffic: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag }], trafficStatuses: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag, uri: tagUri }] }
-  const direct = { ...base, etag: 'e2', generation: '2', observedGeneration: '2', ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: false, invokerIamDisabled: true, uri: profile.target.canonicalOrigin, urls: [profile.target.canonicalOrigin] }
+  const base = { name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`, etag: 'e1', reconciling: false, generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, ingress: 'INGRESS_TRAFFIC_INTERNAL_ONLY', defaultUriDisabled: true, invokerIamDisabled: false, uri: null, urls: [], template: { containers: [{ image: 'old' }] }, traffic: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag }], trafficStatuses: [{ revision: 'previous-1', percent: 100 }, { revision: 'candidate-1', percent: 0, tag }] }
+  const direct = { ...base, etag: 'e2', generation: '2', observedGeneration: '2', ingress: 'INGRESS_TRAFFIC_ALL', defaultUriDisabled: false, invokerIamDisabled: true, uri: profile.target.canonicalOrigin, urls: [profile.target.canonicalOrigin], trafficStatuses: base.trafficStatuses.map((row) => row.tag === tag ? { ...row, uri: tagUri } : row) }
   let gets = 0
   let patchCalls = 0
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {

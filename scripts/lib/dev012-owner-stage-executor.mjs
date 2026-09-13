@@ -272,7 +272,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const tag = service.trafficStatuses?.find((row) => row.tag === candidate.value.facts.tag)
     if (tag?.revision !== candidate.value.facts.candidateRevision || Number(tag.percent ?? 0) !== 0 || tag.uri !== candidate.value.facts.tagUri || transport.effectiveRevision(service) !== intent.previousRevision) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
-    transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest)
+    transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage)
     const smoke = await transport.runInternalCandidateSmoke({ profile, origin: candidate.value.facts.tagUri, candidateTag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, deadlineAt: intent.deadlineAt, environment })
     const result = await writeStage(transport, paths, profile, intent, 'verify', entrypoint.ref, { candidateReceiptRef: candidate.ref, entrypointReceiptRef: entrypoint.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, tagUri: candidate.value.facts.tagUri, smoke, sideEffects: profile.sideEffects })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'CANDIDATE_VERIFIED', environment })
@@ -305,7 +305,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (transport.effectiveRevision(service) !== candidate.value.facts.candidateRevision) fail('CANONICAL_REVISION_MISMATCH')
     transport.assertCanonicalEntrypoint(profile, service)
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
-    try { transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest) } catch { fail('CANONICAL_ARTIFACT_MISMATCH') }
+    try { transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage) } catch { fail('CANONICAL_ARTIFACT_MISMATCH') }
     const smoke = await transport.runAuthenticatedSmoke({ profile, origin: profile.target.canonicalOrigin, environment })
     const result = await writeStage(transport, paths, profile, intent, 'canonical', activate.ref, { activationReceiptRef: activate.ref, origin: profile.target.canonicalOrigin, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, smoke })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'CANONICAL_VERIFIED', environment })
@@ -345,6 +345,12 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (entrypoint) assertStage(entrypoint.value, profile, intent, 'entrypoint')
     const restored = await transport.restoreEntrypoint({ profile, baseline: prepare.value.facts.entrypointBaseline, deadlineAt: intent.deadlineAt })
     entrypointRecovery = { changed: restored.changed, result: restored.changed ? 'BASELINE_RESTORED' : 'BASELINE_ALREADY_ACTIVE', providerOperationRef: restored.providerOperationRef }
+  } else {
+    const deterministicRevision = `${profile.target.serviceName}-${fingerprint.slice(0, 12)}`
+    const deterministicTag = `candidate-${fingerprint.slice(0, 12)}`
+    const service = await transport.getService(profile)
+    const tagged = service.trafficStatuses?.find((row) => row.tag === deterministicTag)
+    if (tagged) await transport.removeCandidateTag({ profile, tag: deterministicTag, candidateRevision: deterministicRevision, expectedActiveRevision: intent.previousRevision, deadlineAt: intent.deadlineAt })
   }
   const rollback = await writeStage(transport, paths, profile, intent, 'rollback', entrypoint?.ref ?? candidate?.ref ?? migration?.ref ?? null, { result: disposition, previousRevision: intent.previousRevision, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'], entrypointRecovery, databaseDisposition })
   const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: rollback.ref, facts: { result: disposition, previousRevision: intent.previousRevision, entrypointRecovery, databaseDisposition }, observedAt: transport.now() })
