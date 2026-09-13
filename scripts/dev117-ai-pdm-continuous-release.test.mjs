@@ -118,6 +118,11 @@ test('AI-PDM custom Cloud Build service account can act only as itself', () => {
   const migration = readText('infra/google-cloud/dev-117-production-release/migration.tf')
   const candidateSmoke = readText('infra/google-cloud/dev-117-production-release/candidate-smoke.tf')
   const infraPlan = read('config/release/dev117-production-release-infra-plan.json')
+  const runtimeFirebaseViewer = identity.match(/resource "google_project_iam_member" "runtime_firebase_auth_viewer"[\s\S]*?\n\}/u)?.[0] ?? ''
+  assert.match(runtimeFirebaseViewer, /count\s+= var\.incident_runtime_enabled \? 1 : 0[\s\S]*role\s+= "roles\/firebaseauth\.viewer"[\s\S]*serviceAccount:\$\{data\.google_service_account\.runtime\.email\}/u)
+  assert.doesNotMatch(runtimeFirebaseViewer, /builder\.email|deployer\.email|verifier\.email|controller\.email|smoke\.email/u)
+  assert.ok(infraPlan.stageBAdditional.includes('google_project_iam_member.runtime_firebase_auth_viewer[0]'))
+  assert.ok(!infraPlan.stageA.includes('google_project_iam_member.runtime_firebase_auth_viewer[0]'))
   assert.match(identity, /resource "google_service_account_iam_member" "builder_act_as_self"[\s\S]*service_account_id = google_service_account\.builder\.name[\s\S]*role\s+= "roles\/iam\.serviceAccountUser"[\s\S]*member\s+= "serviceAccount:\$\{google_service_account\.builder\.email\}"/u)
   assert.ok(infraPlan.stageBAdditional.includes('google_service_account_iam_member.builder_act_as_self'))
   assert.ok(!infraPlan.stageA.includes('google_service_account_iam_member.builder_act_as_self'))

@@ -61,6 +61,7 @@
   "stageBAdditional": [
     "google_project_iam_member.builder_sbom_bucket_viewer[0]",
     "google_project_iam_member.builder_sbom_note_attacher[0]",
+    "google_project_iam_member.runtime_firebase_auth_viewer[0]",
     "google_storage_bucket_iam_member.builder_sbom_object_admin[0]",
     "google_service_account_iam_member.builder_act_as_self",
     "google_storage_bucket_iam_member.controller[\"control_user\"]",

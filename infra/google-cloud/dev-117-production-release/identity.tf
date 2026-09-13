@@ -75,6 +75,15 @@ resource "google_service_account_iam_member" "builder_act_as_self" {
   member             = "serviceAccount:${google_service_account.builder.email}"
 }
 
+# Firebase Admin revocation checks call Identity Toolkit accounts.lookup.
+# Keep this app-owned and limited to the exact production runtime identity.
+resource "google_project_iam_member" "runtime_firebase_auth_viewer" {
+  count   = var.incident_runtime_enabled ? 1 : 0
+  project = var.project_id
+  role    = "roles/firebaseauth.viewer"
+  member  = "serviceAccount:${data.google_service_account.runtime.email}"
+}
+
 resource "google_service_account_iam_member" "deployer_act_as_runtime" {
   service_account_id = data.google_service_account.runtime.name
   role               = "roles/iam.serviceAccountUser"
