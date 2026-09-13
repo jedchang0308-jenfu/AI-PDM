@@ -254,7 +254,7 @@ test('candidate revision receives one exact full-origin overlay and provider URI
   expectedApp.image = artifactDigest
   expectedApp.env.push({ name: profile.environment.candidateOriginEnvironmentName, value: tagUri })
   const created = { ...before, generation: '2', observedGeneration: '2', etag: 'e2', template: expectedTemplate, latestCreatedRevision: candidateRevision }
-  const tagged = { ...created, generation: '3', observedGeneration: '3', etag: 'e3', traffic: [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, percent: 0, tag }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, percent: 0, tag, uri: tagUri }] }
+  const tagged = { ...created, generation: '3', observedGeneration: '3', etag: 'e3', traffic: [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, tag }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, tag, uri: tagUri }] }
   let serviceGets = 0
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
     const value = String(url)

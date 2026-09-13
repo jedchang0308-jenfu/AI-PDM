@@ -270,7 +270,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const service = await transport.getService(profile)
     transport.assertCanonicalEntrypoint(profile, service)
     const tag = service.trafficStatuses?.find((row) => row.tag === candidate.value.facts.tag)
-    if (tag?.revision !== candidate.value.facts.candidateRevision || Number(tag.percent) !== 0 || tag.uri !== candidate.value.facts.tagUri || transport.effectiveRevision(service) !== intent.previousRevision) fail('CANDIDATE_TAG_READBACK_MISMATCH')
+    if (tag?.revision !== candidate.value.facts.candidateRevision || Number(tag.percent ?? 0) !== 0 || tag.uri !== candidate.value.facts.tagUri || transport.effectiveRevision(service) !== intent.previousRevision) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
     transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest)
     const smoke = await transport.runInternalCandidateSmoke({ profile, origin: candidate.value.facts.tagUri, candidateTag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, deadlineAt: intent.deadlineAt, environment })

@@ -287,7 +287,9 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       const actual = service?.traffic
       if (!Array.isArray(expected) || !Array.isArray(actual) || expected.length !== actual.length) return false
       return expected.every((row, index) => ['type', 'revision', 'percent', 'tag', 'latestRevision']
-        .every((key) => row[key] === undefined || actual[index]?.[key] === row[key]))
+        .every((key) => row[key] === undefined || (key === 'percent'
+          ? Number(actual[index]?.percent ?? 0) === Number(row.percent)
+          : actual[index]?.[key] === row[key])))
     }
     return false
   }
@@ -389,7 +391,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const tagStatus = tagged.trafficStatuses?.find((row) => row.tag === tag)
     const generalBefore = before.traffic.map(({ tag: _tag, ...row }) => row)
     const generalAfter = tagged.traffic?.filter((row) => !row.tag).map(({ tag: _tag, ...row }) => row)
-    if (tagStatus?.uri !== exactCandidateOrigin || tagStatus.revision !== candidateRevision || Number(tagStatus.percent) !== 0 || canonicalize(generalAfter) !== canonicalize(generalBefore)) fail('CANDIDATE_TAG_READBACK_MISMATCH')
+    if (tagStatus?.uri !== exactCandidateOrigin || tagStatus.revision !== candidateRevision || Number(tagStatus.percent ?? 0) !== 0 || canonicalize(generalAfter) !== canonicalize(generalBefore)) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await getRevision(profile, candidateRevision)
     assertRevisionReady(profile, revision, artifactDigest)
     const revisionApp = revision.containers.find((container) => container.name === profile.runtime.containerName)
@@ -433,7 +435,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const before = await getService(profile)
     assertServiceSettled(before, 'ENTRYPOINT_BASELINE_INVALID')
     const tagged = before.trafficStatuses?.find((row) => row.tag === candidate.tag)
-    if (tagged?.revision !== candidate.candidateRevision || Number(tagged.percent) !== 0 || tagged.uri !== candidate.tagUri || effectiveRevision(before) !== previousRevision) fail('ENTRYPOINT_CANDIDATE_JOIN_INVALID')
+    if (tagged?.revision !== candidate.candidateRevision || Number(tagged.percent ?? 0) !== 0 || tagged.uri !== candidate.tagUri || effectiveRevision(before) !== previousRevision) fail('ENTRYPOINT_CANDIDATE_JOIN_INVALID')
     const templateSha256Before = sha256(canonicalize(before.template))
     const trafficSha256Before = sha256(canonicalize(before.traffic))
     let changed = false
