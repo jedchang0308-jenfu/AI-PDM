@@ -821,13 +821,17 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       typeof firebaseApiKey !== 'string' || !/^[A-Za-z0-9_-]{20,256}$/u.test(firebaseApiKey) ||
       !Number.isFinite(Date.parse(deadlineAt))
     ) fail('INTERNAL_CANDIDATE_SMOKE_PROFILE_INVALID')
+    const service = await getService(profile)
+    const legacyServiceOrigin = exactOrigin(service?.uri, 'INTERNAL_CANDIDATE_SMOKE_SERVICE_URI_INVALID')
+    if (!legacyServiceOrigin.hostname.startsWith(`${profile.target.serviceName}-`) || !legacyServiceOrigin.hostname.endsWith('.a.run.app')) fail('INTERNAL_CANDIDATE_SMOKE_SERVICE_URI_INVALID')
+    const workflowCandidateOrigin = `https://${candidateTag}---${legacyServiceOrigin.hostname}`
     const workflow = `projects/${profile.target.projectId}/locations/${profile.target.region}/workflows/${definition.candidateWorkflowName}`
     let execution = await request(`https://workflowexecutions.googleapis.com/v1/${workflow}/executions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ argument: JSON.stringify({
         ownerApplicationId: profile.application.id,
-        candidateOrigin: base.origin,
+        candidateOrigin: workflowCandidateOrigin,
         candidateTag,
         candidateRevision,
         artifactDigest,
@@ -835,7 +839,8 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
         firebaseApiKey,
       }) }),
     })
-    if (!new RegExp(`^${workflow.replaceAll('/', '\\/')}/executions/[a-z0-9-]+$`, 'u').test(execution?.name ?? '')) fail('INTERNAL_CANDIDATE_SMOKE_EXECUTION_INVALID')
+    const executionName = /^projects\/([^/]+)\/locations\/([^/]+)\/workflows\/([^/]+)\/executions\/([a-z0-9-]+)$/u.exec(execution?.name ?? '')
+    if (!executionName || ![profile.target.projectId, String(profile.target.projectNumber)].includes(executionName[1]) || executionName[2] !== profile.target.region || executionName[3] !== definition.candidateWorkflowName) fail('INTERNAL_CANDIDATE_SMOKE_EXECUTION_INVALID')
     while (execution.state === 'ACTIVE') {
       if (Date.now() >= Date.parse(deadlineAt)) fail('INTERNAL_CANDIDATE_SMOKE_TIMEOUT')
       await sleep(1000)

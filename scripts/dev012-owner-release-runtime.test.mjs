@@ -404,7 +404,8 @@ test('internal candidate smoke executes only the app-owned Workflow and returns 
   const revision = 'jenfu-platform-prod-' + 'a'.repeat(12)
   const digest = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform@sha256:' + H64
   const workflow = 'projects/jenfu-platform-prod/locations/asia-east1/workflows/platform-prod-candidate-smoke'
-  const executionName = workflow + '/executions/execution-1'
+  const canonicalWorkflow = 'projects/9536592944/locations/asia-east1/workflows/platform-prod-candidate-smoke'
+  const executionName = canonicalWorkflow + '/executions/execution-1'
   let createBody
   const result = {
     schemaVersion: 'jenfu.dev012.internal-candidate-smoke.v1',
@@ -424,6 +425,9 @@ test('internal candidate smoke executes only the app-owned Workflow and returns 
     status: 'PASS',
   }
   const fetchImpl = async (url, options = {}) => {
+    if (String(url).startsWith('https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/jenfu-platform-prod')) {
+      return json({ uri: 'https://jenfu-platform-prod-abc-de.a.run.app' })
+    }
     if (options.method === 'POST') {
       createBody = JSON.parse(options.body)
       return json({ name: executionName, state: 'ACTIVE' })
@@ -434,7 +438,7 @@ test('internal candidate smoke executes only the app-owned Workflow and returns 
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl, sleep: async () => undefined })
   const smokeProfile = {
     application: { id: 'platform' },
-    target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'jenfu-platform-prod', canonicalOrigin: 'https://jenfu-platform-prod-9536592944.asia-east1.run.app' },
+    target: { projectId: 'jenfu-platform-prod', projectNumber: '9536592944', region: 'asia-east1', serviceName: 'jenfu-platform-prod', canonicalOrigin: 'https://jenfu-platform-prod-9536592944.asia-east1.run.app' },
     artifact: { uri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform' },
     verification: {
       firebaseApiKeyEnvironmentName: 'FIREBASE_API_KEY',
@@ -445,7 +449,7 @@ test('internal candidate smoke executes only the app-owned Workflow and returns 
   }
   const smoke = await transport.runInternalCandidateSmoke({
     profile: smokeProfile,
-    origin: 'https://' + tag + '---jenfu-platform-prod-abc-de.a.run.app',
+    origin: 'https://' + tag + '---jenfu-platform-prod-9536592944.asia-east1.run.app',
     candidateTag: tag,
     candidateRevision: revision,
     artifactDigest: digest,
@@ -455,6 +459,7 @@ test('internal candidate smoke executes only the app-owned Workflow and returns 
   assert.equal(smoke.status, 'PASS')
   assert.equal(smoke.executionName, executionName)
   assert.equal(JSON.parse(createBody.argument).candidateRevision, revision)
+  assert.equal(JSON.parse(createBody.argument).candidateOrigin, 'https://' + tag + '---jenfu-platform-prod-abc-de.a.run.app')
   assert.doesNotMatch(JSON.stringify(smoke), /firebaseApiKey|refreshToken|idToken|sessionCookie/u)
 })
 
