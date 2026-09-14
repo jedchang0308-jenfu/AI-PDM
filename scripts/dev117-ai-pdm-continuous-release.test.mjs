@@ -132,7 +132,9 @@ test('AI-PDM custom Cloud Build service account can act only as itself', () => {
   assert.match(storage, /resource "google_storage_bucket_iam_member" "builder_sbom_object_admin"[\s\S]*role\s+= "roles\/storage\.objectAdmin"[\s\S]*artifact_analysis_object_prefix/u)
   const verifierStorage = storage.match(/resource "google_storage_bucket_iam_member" "verifier"[\s\S]*?\n\}/u)?.[0] ?? ''
   assert.match(verifierStorage, /control_user\s+= \{ role = "roles\/storage\.objectUser", prefix = local\.control_prefix \}/u)
-  assert.ok(infraPlan.stageA.includes('google_storage_bucket_iam_member.verifier["control_user"]'))
+  assert.match(verifierStorage, /var\.incident_runtime_enabled \? \{/u)
+  assert.ok(infraPlan.stageBAdditional.includes('google_storage_bucket_iam_member.verifier["control_user"]'))
+  assert.ok(!infraPlan.stageA.includes('google_storage_bucket_iam_member.verifier["control_user"]'))
   for (const source of [identity.match(/resource "google_project_iam_member" "builder_sbom_bucket_viewer"[\s\S]*?\n\}/u)?.[0] ?? '', identity.match(/resource "google_project_iam_member" "builder_sbom_note_attacher"[\s\S]*?\n\}/u)?.[0] ?? '', storage.match(/resource "google_storage_bucket_iam_member" "builder_sbom_object_admin"[\s\S]*?\n\}/u)?.[0] ?? '']) assert.match(source, /count\s+= var\.incident_runtime_enabled \? 1 : 0/u)
   assert.doesNotMatch(storage.match(/resource "google_storage_bucket_iam_member" "builder_sbom_object_admin"[\s\S]*?\n\}/u)?.[0] ?? '', /orgmaster-release|platform-release/u)
   assert.match(migration, /resource "google_cloud_run_v2_job_iam_member" "migration_runner_with_overrides"[\s\S]*name\s+= google_cloud_run_v2_job\.migration\[0\]\.name[\s\S]*role\s+= "roles\/run\.jobsExecutorWithOverrides"[\s\S]*google_service_account\.deployer\.email/u)

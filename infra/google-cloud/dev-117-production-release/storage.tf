@@ -63,11 +63,12 @@ resource "google_storage_bucket_iam_member" "deployer" {
 }
 
 resource "google_storage_bucket_iam_member" "verifier" {
-  for_each = {
-    control_user     = { role = "roles/storage.objectUser", prefix = local.control_prefix }
+  for_each = merge({
     evidence_viewer  = { role = "roles/storage.objectViewer", prefix = "projects/_/buckets/${var.release_bucket_name}/objects/" }
     receipts_creator = { role = "roles/storage.objectCreator", prefix = local.receipt_prefix }
-  }
+    }, var.incident_runtime_enabled ? {
+    control_user = { role = "roles/storage.objectUser", prefix = local.control_prefix }
+  } : {})
   bucket = google_storage_bucket.release.name
   role   = each.value.role
   member = "serviceAccount:${google_service_account.verifier.email}"
